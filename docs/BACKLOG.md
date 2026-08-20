@@ -6542,31 +6542,1217 @@ includes build output, so on the measured corpus it returned 19 lines where the 
 and 5 of the 19 were wrong. Phase 98 must say plainly, on screen, that the folder is not a repository
 and that nothing is being skipped, so a person can read why the answer looks wider than it should.
 
-## Phases 101 to 104 — the four write phases, UNBLOCKED 2026-08-19 and MOVED TO LAST at his request
+## Phase 101 — save a file on a machine (research 57 row, queued 2026-08-19) QUEUED
 
-**THE BUILD ORDER, set by him on 2026-08-19.** He said he would not be at the computer, so these four
-run LAST, after every read phase has landed. The reason he gave has since been shown not to apply,
-because the correction above means nothing here asks him to confirm a machine again. The order stands
-anyway, and for a better reason: these are the only Tier 3 rows in the programme, they are the first
-time Tortie replaces a file somebody already had on a computer nobody is watching, and he should be
-at the keyboard for the first save rather than reading about it afterwards.
+**Subject:** `feat(machines): edit and save a file on another machine`
+**First body line:** `Phase 101: save a file on a machine`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 3.** Size Large.
+**Charter:** this entry, plus `docs/research/57-remote-parity.md` sections 4, 1.2, 1.5 and 12, plus the block above headed "The two decisions the operator made on 2026-08-19, after research 57", which is binding. Decision 1 in that block is what unblocks this phase. Section 0 below corrects one bullet of that block and no other part of it moves.
 
-So the queue runs 97, 98, 99, 100, 105, 106, 107, 108 first, and then 101, 102, 103, 104 in that
-order.
+**Where the detail is.** Research 57 section 4 has the rulings and every measured number. Section 1.2 counts the twelve scripts. Section 1.5 counts the gate. Section 4.3 lists what a new writer costs. Section 4.5 is the read cap question this phase must answer.
 
-Research 57 section 11 named one decision that is his and not an agent's. **He answered it above on
-2026-08-19 and these four are now buildable.** They are, in order: Phase 101 save a file and create an empty file
-on a machine; Phase 102 new folder and rename or move on a machine; Phase 103 stage and unstage on a
-remote tab; Phase 104 commit on a remote tab.
+**Depends on.**
 
-**The decision, and it is made.** See decision 1 above. A machine carries a new confirmed field, so
-every machine already set up asks to be confirmed again, and Phase 101 owns that moment on screen.
+- Decision 1, which is made.
+- Phase 96, for defects 1, 3 and 4 on the remote surfaces. This phase rewrites the read-only state Phase 96 just made honest, so it must land after it and not beside it.
+- An ssh key on this Mac that `mac-pro` trusts, for evidence item 14 only. Phase 79.1 shipped on 2026-08-18 at `dbbed64` and it is the flow that makes the key. Nothing else in this phase depends on it. Read the note under evidence item 14 before planning that item.
 
-**Also ruled REFUSED and never to be built**, from section 12: duplicate on a machine is not now,
-trash on a machine is never as a delete because `shell.trashItem` has no far side equal, reveal on a
-machine is never because it opens Finder on this Mac over a file that is not here, and discard on a
-remote tab is never because it destroys uncommitted work with no undo over there and no read can
-answer afterwards whether it ran.
+**Build order.** This is the first of the four write phases and it runs after Phases 97, 98, 99, 100, 105, 106, 107 and 108. The operator asked for that order. It stands for a second reason as well. These four are the only Tier 3 rows in the programme, and he should be at the keyboard for the first save.
+
+**This is the first of the three phases research 57 rates High.** Section 12 of that document rates row 6, which is this phase, row 8, which is stage and unstage, and row 9, which is commit, all High. This one comes first because it is the first time Tortie replaces a file somebody already had, on a computer nobody is watching. Everything below is written to that.
+
+### 0. The confirmation story, and why no machine is ever asked again
+
+**READ THIS BEFORE ANY OTHER SECTION.** This section used to tell the builder to correct a false
+bullet in the decisions block above. **That correction has already been made**, on 2026-08-19 at
+commit `a06c106`, before this entry was written into the file. The block above now states the true
+answer. **Do not edit it. There is nothing to fix there.**
+
+The reason it is repeated here is that a builder who gets this wrong moves the hash of every machine
+row on the operator's Mac at once, and every confirmation he has breaks together.
+
+**The rule.** A machine that carries no `writeRoot` hashes byte for byte as it does today. No existing
+row moves and nobody is asked again. This phase does NOT own a "confirm every machine again" moment
+on screen, because there is no such moment. It owns the moment a person turns saving on for one
+machine, once.
+
+### The mechanism
+
+#### 1. The sixth confirmed field, and why nobody is asked to confirm again
+
+The new field is `writeRoot`. It is an absolute path on that machine, and Tortie may replace a file only under it. A machine with no `writeRoot` is a machine Tortie cannot save on, which is every machine that exists today.
+
+**READ `src/main/machines/confirm.ts` BEFORE YOU WRITE A LINE OF THIS.** `APPENDED_KEYS` at line 179 holds the keys `canonicalMachineText` emits only when they are set. The emit test, inside the second loop of `canonicalMachineText`, is one line:
+
+```
+if (typeof value !== 'string' || value.length === 0) continue;
+```
+
+`acceptedTmuxVersion` went in through exactly that route in Phase 83. Every row that existed then hashed byte for byte as before and nobody was asked again. The file's own header says so under the heading "The fifth field, and why the algorithm name did not move (Phase 83)". `writeRoot` takes the same route. A machine with no `writeRoot` carries no value for the key, so three things follow.
+
+- Its hash does not move.
+- Its sessions keep running.
+- It asks nothing.
+
+A person confirms once, the first time they want to save.
+
+Three traps, and the first has already produced a wrong sentence in this backlog:
+
+| Trap | What goes wrong | What to do instead |
+|---|---|---|
+| Putting `writeRoot` in the always emitted set | `remoteTmuxPath` is one of the four Phase 68 keys that are emitted in every case, with `null` when unset. A sixth field that copies that half moves the hash of every row on every machine, and every confirmation on the operator's Mac breaks at once | `writeRoot` copies `remoteTmuxPath`'s FIELD SHAPE, being an optional absolute path string. It copies `acceptedTmuxVersion`'s ROUTE INTO THE HASH, being `APPENDED_KEYS` |
+| Making it a boolean | The emit test above skips anything that is not a non-empty string, so a boolean `true` would be silently dropped from the hash text while the `Normalizers` mapped type still compiled. The field would decide what runs and the agreement would not cover it | It stays a string. A path also beats the word `allowed` for a second reason. A path makes containment a confirmed fact rather than a value the renderer chooses |
+| Renaming `MACHINE_EXECUTION_HASH_ALGORITHM` | It reads `sha256-machine-exec-v1` at line 184 and its own comment gives the reason. The name exists so a record written by a build with different bytes fails loudly, and this build produces the same bytes for every record that exists | It does not move. A builder who finds a reason it must move REPORTS that and stops, rather than changing it quietly |
+
+The edits, all checked in the tree this session:
+
+| File | Symbol | Change |
+|---|---|---|
+| `src/shared/machines.ts` | `MachineRowV1` | gains `writeRoot?: string` |
+| `src/shared/machines.ts` | `MACHINE_EXECUTION_FIELDS`, line 182 | 5 entries to 6 |
+| `src/shared/machines.ts` | `MACHINE_ROW_KEYS`, line 194 | 8 entries to 9 |
+| `src/main/machines/schema.ts` | `validateRow`, line 214 | one more branch beside the `remoteTmuxPath` branch at line 248, calling the new `writeRootField` |
+| `src/main/machines/schema.ts` | new `writeRootField`, beside `remotePathField` at line 165 | calls `remotePathField` first, which refuses a value that does not start with `/` and a value holding a single quote, then applies the two extra rules in section 4 |
+| `src/main/machines/confirm.ts` | `MachineExecutionFields` | gains `readonly writeRoot?: string \| null`, documented as optional and absent meaning null |
+| `src/main/machines/confirm.ts` | `NORMALIZE` | one more line. The `Normalizers` mapped type uses `-?`, so a missing line is a compile error rather than a field that falls out of the hash |
+| `src/main/machines/confirm.ts` | `APPENDED_KEYS`, line 179 | `['acceptedTmuxVersion', 'writeRoot']` |
+| `src/main/machines/confirm.ts` | `EMPTY_MACHINE_FIELDS` | gains `writeRoot: null` |
+| `src/main/machines/confirm.ts` | `describeMachine`, line 318 | one more entry in `lines`, drawn only when the field is set, copying the `acceptedTmuxVersion` block at lines 335 to 343, so `lines` stays exactly the hashed facts |
+| `src/main/machines/store.ts` | `machineFieldsOf` | `writeRoot: row.writeRoot ?? null` |
+| `src/main/machines/store.ts` | new `setMachineWriteRoot(id, root \| null)` | copied from `setMachineAcceptedVersion`, which deletes the key on null |
+| `src/main/machines/ipc.ts` | `viewOf`, line 230 | carries `writeRoot` into `MachineRowView` |
+| `src/main/machines/ipc.ts` | `machines:forget` handler, line 575 | clears `writeRoot` as well as `acceptedTmuxVersion`, for the reason its Phase 83 comment gives |
+| `src/shared/ipc/machines.ts` | `MachineRowView`, line 61 | gains `writeRoot: string \| null`, documented the way the other appended fields on that interface are |
+| `src/shared/ipc/machines.ts` | `MachinesInvokeChannelMap`, line 672 | one row for `machines:allowWrites`, beside the `machines:acceptVersion` row |
+| `src/shared/ipc/machines.ts` | new `MachineAllowWritesInput` | copied from `MachineAcceptVersionInput` at line 426, with `writeRoot: string` in place of `version` |
+| `src/shared/ipc/machines.ts` | the bridge interface, line 797 | `allowWrites(input: MachineAllowWritesInput): Promise<MachineRowView>`, beside `acceptVersion` and `forget(id)` |
+| `src/preload/machines.ts` | line 44 | one more line, `allowWrites: (input) => invoke('machines:allowWrites', input)` |
+| `src/renderer/settings/machines-store.ts` | beside `acceptVersion`, declared at line 397 and implemented at line 743 | `allowWrites(id, root)`, the same shape, including the `BRIDGE_MISSING` answer |
+
+#### 2. The one call that turns saving on, and the two other doors that can carry the field
+
+`machines:allowWrites`. Copy `machines:acceptVersion` at `src/main/machines/ipc.ts` exactly, because that channel is this phase's precedent and it is the shape the operator chose. Input is `{ id, writeRoot, hashRead, linesRead }`. The handler follows the four numbered steps written above the `machines:acceptVersion` handler.
+
+1. The machine has to be in the file.
+2. The root has to pass `writeRootField`. A value that does not refuses here, with nothing written and nothing started.
+3. The hash is recomputed over the row as it is now plus the proposed root, and compared against `hashRead`. A mismatch refuses and nothing is written.
+4. Only then `setMachineWriteRoot`, and only then `recordAgreement`.
+
+It starts no process. It sends nothing to any machine. It opens no connection.
+
+**Two other doors can put a `writeRoot` line on a sheet, and the phase owns both.** Once `writeRoot` is one of `MACHINE_ROW_KEYS`, a file an agent can write can put a `writeRoot` into a row. The row then reads `changed`, and `machines:confirm` at `src/main/machines/ipc.ts` line 511 confirms the row exactly as `machines.json` holds it. `machines:add` can carry the field on a new row the same way.
+
+**The ruling, and it is one rule that covers all three doors.** The honesty paragraph in the screen copy section is bound to the PRESENCE OF A `writeRoot` LINE IN THE SHEET'S LINES, not to which button opened the sheet. Any sheet whose `lines` carry the "May replace files under" entry draws that paragraph, whether it was opened by `machines:allowWrites`, by `machines:confirm` or by `machines:add`. No sheet that grants file replacement can be read without the paragraph that says what replacement costs.
+
+**The second ruling, and the block above needs it answered.** `writeRoot` SURVIVES an ordinary re-confirm. If the operator changes `host`, `port` or `remoteTmuxPath`, the row goes `changed`, and the re-confirm sheet carries the still-present sixth line and, by the rule above, the honesty paragraph with it. He is never re-granted file replacement on a sheet that does not say so in full. The rejected alternative was clearing `writeRoot` on any hash move, and it is rejected because it makes an address correction turn saving off silently, which trains a person to press the Saving files button without reading it. Both halves of this ruling are driven in evidence item 12.
+
+`machines:forget` is the withdrawal. Section 6 says what it costs and the button says it in its own words.
+
+#### 3. `file-put`, the thirteenth script and the third writer
+
+`REMOTE_SCRIPTS` in `src/main/machines/remote-scripts.ts` holds twelve entries today at line 740, ten `read` and two `write`. The new row is appended LAST, so `remoteWriteScripts()` at line 858 returns `image-put`, `git-clone`, `file-put` in that order, which is the order `ALLOWED_WRITERS` is written in.
+
+- **id** `file-put`, **mode** `write`, **params** 4.
+- `$1` is the confirmed `writeRoot`. `$2` is the path relative to it. `$3` is either the sha256 of the file as Tortie last read it, or the word `new`. `$4` is the base64 payload.
+- The containment lines are two, not one. `case "$2" in /*|*..*) exit 1;; esac` is copied from `REVIEW_FILE` at line 380, which already carries it and already documents the one false refusal it takes, being a file whose own name holds two dots in a row. Repeat that note on the new row. **`$1` needs its own line, because the shipped line guards `$2` only.** Section 4 says what it is and why.
+- `image-put` at line 770 is the model for the LANDING and not for the decision, and research 57 section 4.1 lists what not to copy. Copy the `.part` name and the `mv "$t" "$f"`. Copy the two `base64 -d` then `base64 -D` spellings. Do NOT copy the fixed `~/.tortie/images` directory. Do NOT copy the Tortie-composed name. Do NOT copy the degrade to a size comparison when no checksum program is present, because a save refuses instead.
+- The temp name is DETERMINISTIC, being `"$f.tortie-part"`. `image-put` uses `$$` and that is defect 3 of research 57 section 9, which Phase 96 fixes. A deterministic name means an interrupted save leaves at most one file per file, and the next successful save of the same file clears it by writing over it and then moving it away. **The script names no `rm`**, and `rm` never appears in it. It does name `mv` and `chmod`, which is correct and is why condition 38's new branch must be written as section 7 writes it.
+- **The two arms are different and the script must refuse in both.** When `$3` is a checksum, the file has to be there and its current checksum has to equal `$3`. When `$3` is the word `new`, the destination has to be absent, tested the way `image-put` tests its own with `[ -f "$f" ]`. Neither arm may fall through to a write.
+- The mode is read before the write and applied to the temp file before the `mv`, on the checksum arm only. Research 57 section 4.2 measured a 755 file put through the `image-put` shape coming back 600, and reading the mode and running `chmod` before the `mv` returning it to 755. Try `stat -f %Lp` first and `stat -c %a` second, because only one arm64 Mac was ever tested and no Linux machine was contacted. If neither answers, the script REFUSES with `nomode` rather than writing with a mode nobody chose.
+- **On the `new` arm there is no existing file, so there is no mode to read and `nomode` cannot fire.** The new file is created under `umask 077`, which the whole catalogue sets on its second line, so it lands at 600. A first save is a replacement of a file Tortie just created at 600, so its mode is read on the next save like any other. Say this on the row's `reason` and prove it in evidence item 9, because without the ruling a builder either refuses every first save or writes a file with a mode nobody chose.
+- **Hard links and extended attributes are not kept.** The same measurement showed 2 hard links becoming 1 and one extended attribute disappearing. This is said on the confirm sheet, in the honesty paragraph, and not in `lines`.
+
+The answer vocabulary, printed between the `REMOTE_SCRIPT_MARKER` pair:
+
+| Word | When | What main does |
+|---|---|---|
+| `wrote <sha256> <bytes>` | the write landed | clears the tab's dirty state and stores the new checksum as what Tortie last read |
+| `stale <sha256>` | `$3` was a checksum and the file's current checksum is different | if the reported checksum equals the checksum of the payload Tortie just sent, the write landed and only the answer was lost, so it is reported as a success. Otherwise it is the refusal sentence in section 6 |
+| `missing` | `$3` was a checksum and the file is not there | refuses and says the file is gone |
+| `exists` | `$3` was the word `new` and something is already there | refuses and says a file of that name is already there |
+| `nomode` | `$3` was a checksum and neither `stat` spelling answered | refuses, and nothing was written |
+
+**That `stale` rule is what makes the script safe to run twice, and the row's `reason` string must say it in its own words.** Condition 35 of the gate refuses a reason shorter than 30 characters, at `build/conformance-machines.mjs` line 2568. A machine can sleep and a link can drop after the far side has run a command and before its answer arrives, so a repeat has to be readable. A second run with the same expected checksum finds the file already carrying the checksum of the payload, and that is the one case where `stale` means success.
+
+Cap and timeout:
+
+- `REMOTE_FILE_MAX_BYTES = 90_000` in `src/shared/ipc/machines.ts`, beside `REMOTE_IMAGE_MAX_BYTES` at line 870, which is the same number. **This is a deliberate deviation from research 57 section 4.2**, which said to reuse the image constant. It gets its own name so a later change to the image cap cannot silently change what a person can save. The number is the same and it is chosen for the same measured reason.
+- `REMOTE_SCRIPT_MAX_BYTES` is 131,072 at `src/main/machines/remote-scripts.ts` line 166, and it caps the whole composed command. Research measured the proposed `file-put` text at 1,516 bytes, admitting 96,906 raw payload bytes. At 90,000 the margin is 6,906 bytes. `runRemoteScript` in `src/main/machines/remote-run.ts` enforces that limit for every caller, and Phase 96 fixes its UTF-16 versus bytes bug.
+- `REMOTE_FILE_PUT_TIMEOUT_MS = 60_000`, matching `REMOTE_IMAGE_TIMEOUT_MS` at `src/main/machines/remote-image.ts` line 100 for a payload of the same size. Far side compute for a 90,000 byte decode plus two `shasum` runs was 0.03 to 0.05 s across five runs.
+
+#### 4. Where containment lives, and the two holes the draft of this brief had
+
+Main composes the call. It reads the confirmed `writeRoot` from the row, computes `$2` as the path relative to it, and REFUSES before composing anything when the tab's path is not under that root. The renderer never sends a root.
+
+**Two copies of containment, and each has a hole to close.**
+
+- **The schema's copy.** `remotePathField` at `src/main/machines/schema.ts` line 165 refuses a value that does not start with `/` and a value holding a single quote, and it does nothing else. **It does not reject `..`.** A confirmed root of `/Users/gdc/x/../../..` passes it today. The new `writeRootField` calls it and then refuses any path with a `..` segment and any trailing slash. `remotePathField` itself does not move, because it is the validator for `remoteTmuxPath` on rows that already exist.
+- **The far side's copy.** `case "$2" in /*|*..*) exit 1;; esac` at `src/main/machines/remote-scripts.ts` line 380 guards `$2` only. `file-put` adds a second line guarding `$1`, refusing a `$1` that does not start with `/` and a `$1` holding `..`.
+- **Main's own copy.** Resolve both the confirmed root and the tab's path with `path.posix.resolve`, then require the resolved path to start with the resolved root plus a `/`. A prefix comparison without the separator lets `/Users/gdcx` pass for a root of `/Users/gdc`.
+
+**What is not covered, and the report says so.** A symlink on that machine is not resolved by any of the three copies and cannot be, because resolving it means a second round trip and a second answer that can be stale by the time the write lands. Containment here is over the path text. Say that in the commit body rather than claiming more.
+
+**The confirm gate on this path is a deliberate departure from every other remote channel, and a builder copying `machines:putImage` will not produce it.** No remote script channel calls `assertMachineMayConnect` today. `src/main/machines/ipc.ts` says so in four places, at lines 734, 764, 804 and 927, and `confirm.ts`'s own header still records that the gate has one product caller. What stands in its place on those channels is `readyRemoteContext`, at `src/main/machines/remote-sessions.ts` line 1115. The write path calls BOTH, in this order and at this place.
+
+1. In the new `putFileOnMachine`, before anything is composed, `assertMachineMayConnect(row.id, machineFieldsOf(row))`.
+2. Then `readyRemoteContext(machineId)`, exactly as `putImagesOnMachine` does.
+3. Then the containment check, then `runRemoteWrite`.
+
+The reason for step 1, and it goes in the code as a comment. The other channels can rely on a registered context having been through the gate, because none of them reads a value out of the row at call time. This one reads `writeRoot` out of the row on disk at call time, and the agreement is the only thing that makes that value a confirmed fact. A row whose file changed after the connection was made would otherwise contain the write with a root nobody agreed to.
+
+`runRemoteWrite` in `src/main/machines/remote-run.ts` already gives every caller the connected-only check and the generation check, and this call gets both from there rather than holding its own copy.
+
+#### 5. The read cap question, answered
+
+`REMOTE_REVIEW_MAX_BYTES` is 2,097,152 at `src/main/machines/remote-review.ts` line 92, and it fills a remote editor tab through `machines.reviewFile`, called from `src/renderer/editor/tab-io.ts` at line 257. The write cap is 90,000. The two disagree by a factor of 23.
+
+**The ruling is the one research 57 section 4.5 made.** Tortie refuses the OPEN of a remote file it cannot save. The cap cannot be raised to meet the read cap, because the whole composed command is capped at 131,072 bytes and a 2,097,152 byte payload does not fit at any encoding. So the choice is between refusing the open and shipping a tab that can never be saved, and a tab that can never be saved is what the `readOnly` defect already produced by accident.
+
+The cost, counted in this worktree this session rather than copied from the research document. `git ls-files` lists 1,576 files. 60 of them are over 90,000 bytes. Under `docs/` it is 49 of 179. Under `src/` it is 6 of 1,279. So this refusal will be felt on documents far more than on code. Research 57 section 4.5 gives the denominators as 1,571 and 174, and those two numbers are stale rather than wrong for their date.
+
+#### 6. The renderer, and what stops being read-only
+
+| File | Symbol | Change |
+|---|---|---|
+| `src/renderer/state/open-file.ts` | `OpenFileRemoteRef`, line 67 | gains `saveable: boolean`, set by main when the tab is opened and refreshed when the machines list changes. **UNCHECKED.** I did not trace where the machines list reaches the editor's state, and the builder resolves that before writing the field |
+| `src/renderer/editor/MonacoHost.tsx` | `readOnly`, line 201 | Phase 96 adds `tab.remote`. This phase makes it conditional. A remote tab is editable when `tab.remote.saveable` is true, and read-only otherwise |
+| `src/renderer/editor/tab-io.ts` | `save`, the `tab.remote !== undefined` branch at line 374 | today it toasts `remoteSaveRefused` and returns false. It now calls the new channel when writes are on, and refuses with the new sentence when they are not |
+| `src/renderer/editor/tab-io.ts` | the `machines.reviewFile` call at line 257 | refuses the open of a file over `REMOTE_FILE_MAX_BYTES` |
+| `src/renderer/editor/EditorPanel.tsx` | the `activeTab.remote !== undefined` band at line 842, which draws `remoteFileChip` at line 852 | keeps the band when writes are off and draws no band when they are on. A remote tab that can be saved draws what a local tab draws |
+| `src/renderer/app/machine-copy.ts` | `remoteFileChip` line 995, `remoteSaveRefused` line 1008, `remoteTreeReadOnly` line 903, `openRemoteHonesty` line 1033 | all four rewritten. Section 7 gives the new words. A person reads every sentence about a machine out of this one file, so the vocabulary audit reads one file |
+| `src/renderer/app/machine-copy.ts` | new `remoteNewFolderNotYet(label)` | the Explorer's New folder button still cannot act, and its tooltip may not be the writes-on sentence, which would promise a folder this phase does not build |
+| `src/renderer/tree/tree-menu.ts` | `TreeMenuCapabilities`, `buildTreeMenu` | a new flag rather than flipping `mutate`. **The first `caps.mutate && !remote` guard at line 140 pushes New File… AND New Folder… in ONE block, so the builder splits that block in two.** New File… moves behind the new flag. New Folder… keeps `caps.mutate && !remote`, as do the Rename… and Duplicate guard at line 154 and the Move to Trash guard at line 165 |
+| `src/renderer/tree/FilesSection.tsx` | the `remote` memo, `readOnlyNote` at line 142 | passes the new flag and the note that matches the machine's state |
+| `src/renderer/app/Sidebar.tsx` | `canCreate` at line 147, the New file button at lines 174 to 183, the New folder button at lines 185 to 194 | `canCreate` is `treeHandle !== null && canMutate() && machineLabel === null` and it disables both buttons on every remote tree. New file gains its own flag and becomes pressable on a machine where saving is on. New folder keeps `canCreate` and stays disabled. **Their tooltips are separate strings now.** Both read `remoteTreeReadOnly(machineLabel)` today, at lines 179 and 190, and the rewritten writes-on sentence would otherwise become the tooltip of a still disabled button |
+| `src/renderer/settings/MachineRow.tsx` | the `mach-accept` block at line 175, with `data-machines-action="accept-version"` at line 183 | the precedent to copy for the new Saving files block, which section 7 draws |
+| `src/renderer/settings/machines-copy.ts` | beside `BTN_ACCEPT_VERSION` line 224, `ACCEPTING_VERSION` line 226, `ACCEPTED_VERSION_LABEL` line 229, `WITHDRAW_VERSION_EXPLAIN` line 243 | the new labels and buttons in section 7. `WITHDRAW_VERSION_EXPLAIN` is the model for the withdrawal sentence, because it already states this exact consequence for the fifth field |
+
+**Two shipped tests pin sentences and counts this phase moves, and both are rewritten in the same commit.**
+
+- `src/renderer/app/__tests__/p903-c-remote-copy.test.ts` pins `remoteTreeReadOnly(L)` at line 119 as `'Tortie only reads files on Studio.'`, pins `remoteFileChip(L)` and `remoteSaveRefused(L)` byte for byte at lines 177 to 183, and pins `openRemoteHonesty(L)` at line 189. It then composes every one of them into the `EVERY` list at line 265, which is what the vocabulary audit reads. All four sentences change, `EVERY` gains the new ones, and the audit must still pass over the whole set.
+- `src/renderer/tree/__tests__/p903-b-tree-menu-remote.test.ts` asserts at line 50 that a remote row "offers exactly the four verbs that cross, plus the one note" and lists them. With writes on that becomes five plus the note. The `never offers a verb that writes` case at line 60 lists five absent labels, and the exact label is `'New File…'` with an ellipsis. The rewrite asserts three things. New File… appears when writes are on. New Folder…, Rename…, Duplicate and Move to Trash stay absent in both states. All five stay absent when writes are off.
+
+**`openRemoteHonesty` is a sentence that becomes false and the phase owns it.** It reads today "Tortie reads this folder on ${label}. It never writes there, and it does not search it." After this phase the first half is false for a machine where saving is on. After Phase 98 the second half is false as well. This phase rewrites the write half and leaves the search half for Phase 98, and it says in the commit body that the search half is now the only stale part of that sentence.
+
+#### 7. The native menus
+
+`item('Save', 'save-file', accel('editor.save'))` at `src/main/menu.ts` line 426 is unchanged, and it now works on a remote tab. No item is added, renamed or removed in the application menu.
+
+The Explorer's context menu IS a native menu, drawn through the `ui:popupMenu` bridge from `buildTreeMenu`, and it gains one item on a remote row where saving is on, being `New File…`. The commit body says exactly that.
+
+### What a person sees on screen, in the exact words they will read
+
+The machine is called `mac-pro` in every sentence below because that is the operator's own row.
+
+**Settings, then Machines, then the row, when saving is off.** Under the key line, a new block:
+
+> **Saving files**
+> Tortie does not save files on mac-pro. Turn this on and Tortie may replace a file under one folder you name, after it has read that file and checked its contents match.
+
+with one button:
+
+> Let Tortie save files here…
+
+**Pressing it** reveals one field labelled `Folder Tortie may save under`, and the sheet's own list of hashed facts redraws with a sixth line, which comes from `describeMachine` and is therefore part of what the agreement is bound to:
+
+> May replace files under this folder on that machine: /Users/gdc
+
+`MACHINE_CONFIRM_WARNING` from `src/main/machines/confirm.ts` line 268 stays above it, unchanged. Beside it, and NOT in `lines` and NOT in the canonical text the hash covers, the honesty paragraph for this act:
+
+> Tortie replaces a file only after it has just read that file and its contents still match what it read. A save cannot be undone, and Tortie cannot reach a Trash on that machine. A save writes a new file and moves it into place, so a file with more than one name keeps only this one, and extended attributes are not kept.
+
+**That paragraph is drawn on EVERY sheet whose lines carry the sixth line**, per the ruling in section 2, which means the ordinary re-confirm sheet and the add sheet draw it too. `confirm.test.ts` asserts today that honesty text stays out of `lines` and out of the canonical text. Keep that true and add the same assertion for this paragraph.
+
+The button on the sheet:
+
+> Confirm saving on this machine
+
+**Once saving is on**, the block reads:
+
+> **Saving files**
+> Tortie may replace files under /Users/gdc on mac-pro.
+
+with one button and one sentence above it, and the sentence is not optional:
+
+> Turning saving off also withdraws your confirmation of this machine, because the folder is one of the things you confirmed. Confirm the machine again to use it.
+>
+> Stop Tortie saving files here
+
+That button calls `machines:forget`, which is the channel `Withdraw this version` at `src/renderer/settings/MachineRow.tsx` line 463 already calls, with `data-machines-action="withdraw-version"` at line 457. The sentence above it is `WITHDRAW_VERSION_EXPLAIN` at `src/renderer/settings/machines-copy.ts` line 243 rewritten for this field, and the consequence it states is real. The row goes to state `never`, `viewOf` sets `usable: false`, and the machine is unreachable until the person confirms it again. The rejected alternative was a channel that clears `writeRoot` and silently re-records the agreement, and it is rejected because Tortie would then be writing an agreement the person never read.
+
+**Trying to save on a machine where saving is off.** A sticky error toast, carrying an action whose label is `Open settings` and which calls the existing `settings:openWindow`, declared at `src/shared/ipc/app.ts` line 332. That channel takes no argument and this phase does not add one, so the sentence names the path:
+
+> Tortie cannot save on mac-pro. Open Settings, then Machines, then mac-pro, and let Tortie save files there. Nothing was written.
+
+**Trying to save a file outside the confirmed folder.** Sticky error toast:
+
+> Tortie may only save under /Users/gdc on mac-pro, and this file is outside that folder. Nothing was written.
+
+**The file changed on that machine since Tortie read it.** Sticky error toast:
+
+> Tortie did not save this file, because it changed on mac-pro after Tortie read it. Nothing was written. Open it again to read what it says now.
+
+**The file is gone on that machine.** Sticky error toast, for the `missing` answer:
+
+> Tortie did not save this file, because it is no longer on mac-pro. Nothing was written.
+
+**A new file of that name is already there.** Sticky error toast, for the `exists` answer:
+
+> Tortie did not make that file, because a file of that name is already on mac-pro under /Users/gdc. Nothing was written.
+
+**Tortie could not read the file's permissions.** Sticky error toast, for the `nomode` answer:
+
+> Tortie did not save this file, because it could not read the file's permissions on mac-pro and will not write it with permissions nobody chose. Nothing was written.
+
+**Opening a remote file that is too large to save.** Sticky error toast, with both numbers. **The first number is whatever the file measures and it is not a constant.** Write it with a thousands separator the way every other number in this product's copy is written:
+
+> That file is 1,238,904 bytes and Tortie can save files up to 90,000 bytes on mac-pro, so it did not open it. Nothing on that machine changed.
+
+**The editor band on a remote tab, when saving is off**, replacing `remoteFileChip`:
+
+> This file is on mac-pro. Tortie is showing what it read and cannot save it until you let it save on that machine.
+
+**When saving is on**, there is NO band. The tab behaves like a local tab, and the tab tooltip from `tabTooltipIdentity` still names the machine.
+
+**A successful save shows nothing.** The dirty dot clears, which is exactly what a local save does. Do not add a success toast, not even for the first save on a machine. Two behaviours on one surface is harder to learn than one.
+
+**The Explorer note on a remote row, when saving is on**, replacing `remoteTreeReadOnly` for that case:
+
+> Tortie reads files on mac-pro and can save under /Users/gdc.
+
+When saving is off it keeps today's sentence, which is `Tortie only reads files on mac-pro.`
+
+**The Explorer's New folder button on a remote tree**, which stays disabled, gets its own tooltip from `remoteNewFolderNotYet`:
+
+> Tortie cannot make a folder on mac-pro.
+
+### What the gate must assert
+
+`npm run conformance:machines` is a hard gate for this commit. `build/conformance-machines.mjs` is 3,428 lines and carries 53 numbered conditions. The numbers run from 4 to 68, and 45 and 52 to 62 are absent, so the two new conditions take 69 and 70 rather than filling a gap.
+
+| # | Condition | What it asserts |
+|---|---|---|
+| 35 | `ALLOWED_WRITERS`, at line 2536 | becomes `['image-put', 'git-clone', 'file-put']`. It is compared by length AND by order at line 2555, so the catalogue order must match. Its failure sentence at line 2564 says Phase 90.2 moved the number from one to two once and on purpose, and it now says Phase 101 moved it from two to three once and on purpose |
+| 38 | a new `row.id === 'file-put'` branch, beside the `image-put` branch at line 2704 and the `git-clone` branch at line 2732 | five assertions. Every redirection in the text aims at `"$t"`. The text contains `mv "$t" "$f"`. The text contains BOTH containment `case` lines, one for `$1` and one for `$2`. The text contains an existence test on the `new` arm, the way `image-put` carries `if [ -f "$f" ]; then` at line 2727. The text does NOT name `rm`. **Do not write this as "names no program that removes a file".** `mv` is one of the eleven names in `MUTATING_PROGRAMS` at line 2504, `file-put` must name `mv`, and a builder implementing the loose sentence writes a condition this script cannot pass. `MUTATING_PROGRAMS` is consulted only inside `if (row.mode === 'read')` and it does not apply here |
+| 43 | the declared field list, at the `// 43.` block | `MACHINE_EXECUTION_FIELDS` moves from 5 to 6. The filter that today reads `.filter((field) => field !== 'acceptedTmuxVersion')` becomes a filter over the whole appended list, so the four Phase 68 keys are still what a row with nothing appended hashes |
+| 42 | `UNACCEPTED_HASH_2026_08_18`, declared at line 2290 | **UNCHANGED, and this is the proof the operator asked for rather than the assertion.** It is pinned at `dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46`. A row with no accepted version and no write root must still hash to exactly that. If this number moves, every machine every person confirmed is being asked again, and that is a decision rather than a rebase |
+| 69, new | the sixth field moves the hash | eight questions, mirroring the eight the `acceptedVersion` block already feeds. Setting `writeRoot` changes the hash. Two different roots hash differently. Clearing it hashes back to the pinned value. The canonical text of a row with no root does not carry the key. The canonical text of a row WITH a root does carry the root. `describeMachine` draws the sixth line naming the root. `APPENDED_EXECUTION_FIELDS` carries `writeRoot`. A row whose `host` moved while a `writeRoot` is set still carries the root in its canonical text, which is the second ruling in section 2 made checkable |
+| 70, new | the checkable sentence | the sentence weakens on purpose, from "no command Tortie sends can replace a file somebody already had" to **"no command Tortie sends can replace a file whose contents Tortie did not just verify by checksum"**. **That exact string is the pinned one, and it is the decisions block's wording.** Research 57 section 4.4 writes the same sentence with the word "current" in it, as "a file whose CURRENT contents Tortie did not just verify by checksum". The block binds, so the block's wording is what goes into the gate, and the phase says in the commit body that the two documents word it differently. **The condition is checked PER BRANCH of each write script and never per script.** A whole-script test passes `file-put` on its checksum arm alone, which would let the `new` arm lose its existence test while the gate stayed green and Tortie replaced a file it never read. So the condition asserts that `image-put` refuses an existing destination, that `git-clone` refuses an existing destination, that `file-put`'s `new` arm refuses an existing destination, and that `file-put`'s checksum arm compares a checksum against `$3` before it writes. **Write the sentence into the gate as a printed line so it stays checkable rather than becoming a claim** |
+
+`build/machines-conformance-probe.mts` is what feeds those conditions. Its `APPENDED_EXECUTION_FIELDS` at line 216 gains `writeRoot`. Its `acceptedVersion` object at line 283 carries eight keys today, being `unaccepted`, `accepted`, `acceptedOther`, `backToUnset`, `canonicalCarriesVersion`, `unacceptedCanonicalCarriesKey`, `sheetLines` and `appendedFields`. A sibling `writeRoot` object carries the same eight, renamed, plus one for the moved-host case in condition 69.
+
+`build/assert-bundle-refusals.mjs` pins the six refusal sentences from `confirm.ts` against `out/main/index.js`. None of the six changes, and the phase must show they still pin.
+
+**Three pieces of stale prose are rewritten in this phase rather than accumulating silently.** The draft of this brief refused silent accumulation in one paragraph and then left one of the three in place, so all three are named here.
+
+1. **Rule 6 of `src/main/machines/remote-scripts.ts`, at lines 75 to 84.** It says two scripts have `mode: 'write'`, that both refuse a destination that is already there, and that the move from one to two happened once and on purpose. It now says three, names them in catalogue order, and says plainly which promise changed and what replaced it. The same file's sentence "The one write is safe to run twice because it never opens a file that is already there", under the heading "Every script is safe to run twice", is false at two writers already and is rewritten with the `stale` rule.
+2. **The doc comment on `runRemoteWrite` in `src/main/machines/remote-run.ts`, at lines 186 to 187.** It reads "The catalogue holds exactly one script with `mode: 'write'`, so this function has exactly one thing it can send, and a gate holds that at one." That is defect 7 of research 57 section 9, it is already wrong at two, and it becomes three.
+3. **The block header at `build/conformance-machines.mjs` line 2488.** It reads "35 to 40. Phase 73. The second door, and the seven scripts it may send". The catalogue holds twelve and this phase makes it thirteen. That is defect 6 of research 57 section 9, and it is the header of the very block whose conditions 35 and 38 this phase rewrites, so this phase takes it.
+
+**A note on two inconsistencies in this backlog.** The Phase 96 entry above says under "What is NOT in this phase" that defects 6 and 7 are left, and that Phase 103 rewrites rule 6. The operator's decision block of 2026-08-19 gives rule 6 to Phase 101, and that block binds. So Phase 101 rewrites rule 6, and Phase 103 rewrites it again for its own two writers. Phase 101 also takes defects 6 and 7, because both are prose inside blocks this phase is already editing. Separately, section 0 above corrects the block's own first bullet.
+
+### What is NOT in this phase
+
+- **New folder, rename and move are Phase 102.** `dir-new` and `entry-rename` are not built here and `ALLOWED_WRITERS` reaches three and stops. The Explorer's New folder button and its `New Folder…` menu item stay disabled and absent on a remote row in both states.
+- **Stage, unstage and commit are Phases 103 and 104.** No new git verb is added. `ALLOWED_GIT_VERBS` stays `['rev-parse', 'status', 'show']` and `GIT_CLONE_VERBS` stays bound to `git-clone`.
+- **Duplicate on a machine is NOT NOW**, ruled by research 57 section 12. It is a read plus a `file-put` and it earns no door of its own. Revisit after Phase 102 if he asks.
+- **Trash on a machine is NEVER, as a delete.** `shell.trashItem` has no far side equal, and a remote `rm` would turn a recoverable delete into an unrecoverable one. `src/renderer/tree/tree-menu.ts` already records this at its Move to Trash block. Move to Trash stays absent on a remote row and the test that asserts its absence stays.
+- **Reveal on a machine is NEVER.** It opens Finder on this Mac over a file that is not here.
+- **Discard on a remote tab is NEVER.**
+- **A real remote scrollbar is REFUSED**, and shipping or sending a ripgrep is REFUSED. Neither is touched here.
+- **Raising the read cap is refused.** Section 5 above says why, with the numbers.
+- **No undo.** Tortie keeps no copy of what it replaced. The honesty paragraph says so before the person agrees, and no later round adds a hidden copy on that machine without its own decision.
+- **No success toast**, and no per-project write confirmation. The confirmed field is per machine, which is the shape the operator chose.
+- **`MACHINE_EXECUTION_HASH_ALGORITHM` does not move.** A builder who finds a reason it must reports that and stops.
+- **Symbols on a remote tab stays NOT NOW.** Research 57 named this phase as the change that would make it worth revisiting. Revisiting is not building, and it is not in this phase.
+
+### The evidence
+
+**Tier 3, and a verifier who only reads code has not verified.** Every item below is something somebody DOES.
+
+1. **The unchanged hash, proved rather than asserted.** Run `npm run conformance:machines` and show condition 42 passing against the pinned `dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46`. Then open the operator's real Settings window with his real `machines.json` and photograph the Machines section showing every existing row still reading confirmed, with no sheet asking for anything. Report the count of rows and the count of rows in the `changed` state, which must be zero.
+2. **The first save, on the loopback scratch machine.** Open a file, type into it, press ⌘S, and prove the bytes on the far side match byte for byte with `shasum -a 256` on both sides. Report the seconds from keypress to dirty dot clearing.
+3. **The mode is kept.** Put a 755 file with 2 hard links and one extended attribute through a real save. Report the mode, the link count and the attribute afterwards. The mode must come back 755. The link count and the attribute will not survive, and the report says so with the numbers rather than omitting them.
+4. **The stale refusal fires.** Change the file on the far side between the read and the save, then save, and prove nothing was written and the sentence names the machine.
+5. **The ambiguous repeat is resolved.** Run the same `file-put` twice with the same expected checksum and prove the second run reports success rather than a stale refusal, because the reported checksum equals the checksum of the payload. This is the property that makes the write safe to run twice and it must be demonstrated, not argued.
+6. **The interrupted write, and the question research 57 section 10 left open.** Kill the local ssh mid write and answer, with evidence, whether the far side shell stops. Research measured the local simulation only. The destination was byte identical at 17 bytes and a 90,000 byte part file was left beside it. Do it over a real link this time, report which failure the timeout produces, and prove the next successful save clears the part file.
+7. **Every answer word is driven, and there are five.** Each one must show the exact sentence from the screen copy section, and each one must be followed by a read on the far side proving nothing changed.
+
+    | Word | How to make it happen |
+    |---|---|
+    | `wrote` | item 2 |
+    | `stale` | item 4 |
+    | `missing` | delete the file on the far side between the read and the save |
+    | `exists` | New File… on a remote row, with a name that is already there |
+    | `nomode` | make both `stat` spellings fail on the far side, e.g. by running `file-put` by hand with a `PATH` that holds no `stat` |
+
+8. **The new empty file lands.** Use New File… on a remote row where saving is on, prove the file exists on the far side at 0 bytes, prove its mode is 600 because `umask 077` is what created it, and prove a second New File… with the same name refuses with `exists` and writes nothing.
+9. **The refusals main composes, each driven and photographed.** Saving with writes off. Saving outside the confirmed folder. Opening a file over 90,000 bytes. For the third, report the actual byte count of the file you opened, because the sentence carries whatever the file measures rather than a fixed number.
+10. **The far side's own copy of containment, run directly.** Item 9 drives only the refusal main composes. Run `file-put` by hand through `runRemoteWrite` with `$2` set to `../x`, and separately with `$1` set to a root holding `..`, and prove the script exits without writing in both cases. This is the DOING that proves the second copy holds when main's copy is bypassed.
+11. **An invalid `writeRoot` is dropped whole and named.** Type a relative path into the folder field and read back the error. Type a path holding a single quote and read back the error. Type a path holding `..` and read back the error. Put one of the three into `machines.json` by hand and prove the row is dropped whole with a visible error naming the field and the reason, which is what CLAUDE.md requires.
+12. **The two rulings in section 2, both driven.** Turn saving on for the scratch machine. Then change its `port` in Settings, prove the row reads `changed`, open the re-confirm sheet, and photograph it showing the sixth line AND the honesty paragraph. Confirm it, and prove a save still works afterwards. Then write a `writeRoot` into a row by hand, the way an agent with write access to the home directory could, open the ordinary re-confirm sheet, and photograph it showing the sixth line and the paragraph. This is the door the phase would otherwise open in silence.
+13. **The withdrawal, driven, and it is the half a person needs most.** Press `Stop Tortie saving files here` on the scratch machine. Prove three things. The row goes to state `never`. A save afterwards refuses. The machine is unreachable until it is confirmed again, which is what the button's own sentence says. Then confirm it again and prove it works.
+14. **A save on the operator's own Mac Pro, with him at the keyboard.** The loopback scratch machine cannot answer this and is not a substitute. Research 57 recorded that no file write was performed on any second machine and that every result in its section 4.2 is a local simulation. **THIS ITEM HAS A PREREQUISITE AND IT IS NOT SOMETHING A VERIFIER CAN SUPPLY.** `DEVELOPMENT.md` lines 202 to 210 record that this Mac holds no ssh key `mac-pro` trusts, that `ssh-add -l` answers "The agent has no identities", that `~/.ssh` holds no private key at all, and that every sign in to `mac-pro` ends with "Permission denied (publickey,password,keyboard-interactive)" and exit 255. Phase 83 was meant to close five unknowns against `mac-pro` and closed none of them there for that reason. Phase 79.1 shipped on 2026-08-18 and it is the flow that makes a key and installs it, so the path is now.
+
+    1. The operator turns Remote Login on for `mac-pro`, which Tortie cannot do and no phase will.
+    2. He runs the Phase 79.1 key flow from Settings, then Machines, and reads its real connection test answer.
+    3. Only then does the save item run.
+
+    If step 1 or step 2 does not happen, this item is reported as NOT DONE with the reason, rather than substituted with the loopback machine.
+15. **The two new gate conditions FAIL when they should.** Item 1 shows condition 42 passing, which is right and is not enough. Deliberately put `writeRoot` in the always emitted set and show condition 42 and condition 69 failing. Deliberately drop the checksum compare from `file-put`'s checksum arm and show condition 70 failing. Deliberately drop the existence test from `file-put`'s `new` arm and show condition 70 failing on that branch too, which is the case a per-script test would miss. Revert all four and show the gate green. The phase's own standard for the hash is proof rather than assertion, and the conditions it invents meet the same standard.
+16. **The confirm moment, photographed as a sequence.** This is the moment this phase owns and the operator reviews the screenshots. Six photographs.
+
+    - The Saving files block with saving off.
+    - The folder field.
+    - The sheet showing its sixth line.
+    - `MACHINE_CONFIRM_WARNING` above it.
+    - The honesty paragraph beside it.
+    - The row after confirming.
+17. **The Explorer, both surfaces.** Photograph a remote row's context menu with writes off and with writes on, and prove `New Folder…`, `Rename…`, `Duplicate` and `Move to Trash` are absent in both. Then photograph the Explorer header in both states and prove the New file button is pressable only when saving is on, that the New folder button is disabled in both, and that their tooltips are different strings.
+18. **The gates.** `npm run typecheck && npm run build && npm run test && npm run smoke:t1 && npm run smoke:t3 && npm run conformance:machines`, all shown passing. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` only when one of `GMUX_SHOT`, `GMUX_SMOKE` or `GMUX_UPDATE_REHEARSAL` is set, per its docstring at line 1014 and the test at lines 1042 to 1044, so a launch without one of those silently uses his real server.
+
+**What is not true, and the commit body says it.**
+
+- Every number in research 57 section 4.2 was measured on this Mac and none of it was measured on a second machine.
+- No Linux machine has ever been contacted by this product, so the `stat` spelling, the `base64` spelling and the shell's behaviour on a killed connection are all unverified off macOS.
+- Until item 6 is done, which failure a timeout produces is unknown.
+- Containment is over the path text and no symlink on that machine is resolved by any of the three copies of it.
+- The `saveable` field on `OpenFileRemoteRef` is the one edit in the renderer table I did not trace to the state that feeds it, and the builder resolves that before writing it.
+- Until item 14's two prerequisite steps happen, nothing in this phase has been proved against `mac-pro`.
+
+
+## Phase 102 — new folder and rename on a machine (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(machines): make a folder and rename a file on another machine`
+**First body line:** `Phase 102: new folder and rename on a machine`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 3.** Size Medium.
+**Charter:** this entry plus `docs/research/57-remote-parity.md` and `docs/research/57-i3-file-writes.md`. Those two documents measured every number here. Where this brief diverges from either, the divergence is named in its own section below.
+
+**Where the detail is.** Research 57 section 4.1 rows three and four, section 4.3 which counts what a new write id costs, and section 12 row 7 which is the phase row. The script shapes and the answer words are in `docs/research/57-i3-file-writes.md` sections 12 and 13.
+
+**Depends on.** Phase 101. That phase adds the sixth confirmed field and the `file-put` script. It also rewrites rule 6 of `src/main/machines/remote-scripts.ts` and writes the weakened checkable sentence into the gate. This phase adds two more write ids on top of that work and adds no confirmed field of its own.
+
+**Build order.** It runs after Phases 97, 98, 99, 100, 105, 106, 107, 108 and 101. The operator should be at the keyboard for the first save on his own machine, and this is the second write phase behind that one.
+
+### The mechanism
+
+Two new entries in the frozen catalogue in `src/main/machines/remote-scripts.ts`, both `mode: 'write'`, both reached through `runRemoteWrite` in `src/main/machines/remote-run.ts` and through no other door.
+
+**Count the catalogue rather than describing it.** It holds 12 script texts today, being `MACHINE_FACTS`, `STORE_LIST`, `STORE_HEAD`, `STORE_COPY`, `IMAGE_PUT`, `REVIEW_LIST`, `REVIEW_FILE`, `DIR_LIST`, `PROGRAM_FIND`, `REPO_FIND`, `GIT_CLONE` and `TREE_LIST`. Two of the 12 write. Phase 101 makes it 13 texts and 3 writers. This phase makes it 15 texts and 5 writers.
+
+| New id | Params | What it does | Answer words |
+|---|---|---|---|
+| `dir-new` | 2 | One non recursive `mkdir`, then one `chmod` to a capped mode | `made`, `exists`, `denied`, `noparent` |
+| `entry-rename` | 3 | One `mv`, guarded by an `-e` test on the destination | `moved`, `exists`, `done`, `gone` |
+
+**The shape of `dir-new`.** `$1` is the root and `$2` is the new folder's path relative to that root. The parent is computed on the far side with the shell's own suffix removal, being `p="${d%/*}"` where `d="$1/$2"`, so the script names no `dirname` and depends on no program to find the parent. The body tests the parent with `-d` and answers `noparent`, then tests the destination with `-e` and answers `exists`, then tests the parent with `-w` and answers `denied`, and only then runs `mkdir "$d"` with no `-p`. An empty `$2` is determined rather than special. It makes `d="$1/"`, the parent resolves to `"$1"`, the `-e` test on `"$1/"` answers yes and the script answers `exists`. Nothing is created and no guard has to widen for it.
+
+**The shape of `entry-rename`.** `$1` is the root, `$2` is the path the entry has now and `$3` is the path wanted, both relative to that root. The body resolves `s="$1/$2"` and `t="$1/$3"` and then takes one of five branches. A source or a destination is treated as present when `[ -e "$x" ] || [ -L "$x" ]` answers yes, because `-e` alone answers no for a dangling symbolic link and the script would then say `gone` about a link that is really there.
+
+| `$2` | `$3` | What runs | Answer |
+|---|---|---|---|
+| there | absent | one `mv` | `moved` |
+| there | there, and the same entry by device and inode | one `mv` | `moved` |
+| there | there, and a different entry | nothing | `exists` |
+| absent | there | nothing | `done` |
+| absent | absent | nothing | `gone` |
+
+Row two is the case only rename and it is in this brief because `docs/research/57-i3-file-writes.md` recorded the hazard in its open questions table and did not close it. `sameEntry` in `src/main/fs/file-ops.ts` line 102 exists for exactly this reason on this Mac. A person renaming `README.md` to `readme.md` on a case insensitive volume would otherwise be told the name is taken. The far side test is the device and inode of both paths, read with the two `stat` spellings named in the permission section below.
+
+**The containment line, quoted from the document that rules it.** `docs/research/57-i3-file-writes.md` section 12 rules that a write carries `case "$2" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac`. `REVIEW_FILE` at `src/main/machines/remote-scripts.ts` line 380 carries only the first half of it, being `case "$2" in /*|*..*) exit 1;; esac`, and the gate pins that exact string as `REVIEW_FILE_GUARD` at `build/conformance-machines.mjs` line 2926. The write line is a different and wider constant. `REVIEW_FILE` is a read and this phase does not touch it or its pinned string. `dir-new` carries the write line for `$2`. `entry-rename` carries it once for `$2` and again for `$3`, written as `case "$3" in ...`, because the line names the value it guards.
+
+The `*..*` half refuses a real file whose own name holds two dots in a row, e.g. `notes..md`. That false refusal is taken on purpose and `review-file` already takes it. Research counted 0 files in this repository with two dots in a row in a name.
+
+**The root is chosen by the renderer and this phase bounds it in main.** `machines:listTree` passes `input.root` straight into `listRemoteTree` at `src/main/machines/ipc.ts` line 898, and its comment justifies that by saying the channel cannot compose what it asks and carries no file contents. That argument holds for a read and it does not carry to a write. Both writes that ship today are bounded by something other than the far side guard. `IMAGE_PUT` composes its own directory as `"$HOME/.tortie/images"` and its own file name. `machines:cloneProject` takes a destination a person chose in a sheet. The two new writes would have no bound at all beyond the containment line, and that line accepts `{root: '/Users/greg', path: '.ssh'}`.
+
+**The ruling.** Main checks the root before it composes anything. `ManifestStore.getRemoteProject(machineId, root)` at `src/main/manifest/store.ts` line 552 answers whether that exact path is a remote project row for that machine. A root with no row is refused in main, nothing crosses the link, and the gate asserts the check exists at the two new handlers. This is a bound the read channels do not have and it is added because a write needs one.
+
+**The write consent set, and the default is ungated.** Phase 101 puts the check inside `runRemoteScript` in `src/main/machines/remote-run.ts` on the branch where the door is `write`, and it applies to a named set of gated write ids rather than to every write. This phase adds `dir-new` and `entry-rename` to that set, taking it from one member to three, and adds no second mechanism and no second call site.
+
+Say the shape plainly rather than leaving it implied. A write id that is not named in the set crosses without asking anybody, so after this phase `ALLOWED_WRITERS` holds 5 ids while the gated set holds 3. Two writers reach a machine with no confirmed field. That is a decision rather than an oversight and the commit body says so. `image-put` and `git-clone` are the two, they shipped before decision 1 was made, and no machine was ever asked about them. Whether `git-clone` should join the set is Phase 101's call and not this brief's, because `git-clone` downloads and writes a whole repository onto the person's computer and decision 1 exempts nothing by name. This brief states the question and does not answer it.
+
+**Two IPC channels, in `src/shared/ipc/machines.ts`.**
+
+| Channel | Request type | Result type |
+|---|---|---|
+| `machines:makeDir` | `RemoteMakeDirInput` with `machineId`, `root`, `path` | `RemoteMakeDirResult` with `outcome`, `path`, `tookMs` |
+| `machines:renameEntry` | `RemoteRenameInput` with `machineId`, `root`, `from`, `to`, `kind` | `RemoteRenameResult` with `outcome`, `from`, `to`, `tookMs` |
+
+Neither ever throws for something the machine said. A folder that is already there, a parent that is gone and a parent the account cannot write in all come back as a status word, exactly as `machines:listDir` and `machines:listTree` already answer.
+
+**What crosses, stated accurately.** Every sentence the Explorer draws comes from `src/renderer/app/machine-copy.ts` and neither channel carries one. Two main composed sentences do cross this boundary already and this phase keeps that rather than pretending otherwise. `RemoteDirListing` in `src/shared/ipc/machines.ts` carries `refusalText`, described at line 1028 as main's own sentence for the refusal, and the picker does not draw it. `MACHINE_NOT_CONNECTED` at `src/main/machines/remote-copy.ts` line 402 is main's sentence for a machine Tortie is not signed in to. The status word half of the rule is the load bearing half and it holds. The no prose half does not, and the brief says so instead of repeating it.
+
+**New main module `src/main/machines/remote-entry.ts`.** It holds the exports in the table below.
+
+| Export | What it is |
+|---|---|
+| `makeRemoteDir` | the `dir-new` call, through `runRemoteWrite` |
+| `renameRemoteEntry` | the `entry-rename` call, through `runRemoteWrite` |
+| `parseMakeDirAnswer` | the four words for `dir-new` |
+| `parseRenameAnswer` | the four words for `entry-rename` |
+| `REMOTE_ENTRY_TIMEOUT_MS` | 15,000, being `REMOTE_RUN_TIMEOUT_MS` at `src/main/machines/remote-run.ts` line 90 |
+| `remoteEntrySendCount` | how many commands the two verbs have sent, for the evidence |
+| `resetRemoteEntrySendCountForTests` | the reset for that counter |
+
+The timeout value is chosen rather than measured and the docstring says so. Research 57 section 9 ruled 15,000 ms for both because neither carries a payload. The send counter copies `remoteCloneSendCount` and `resetRemoteCloneSendCountForTests` in `src/main/machines/remote-clone.ts`, which is what lets a verifier prove that a refused call sent nothing.
+
+Register both handlers in `src/main/machines/ipc.ts` beside the `machines:listTree` handler at line 896, and import the module directly there. Do not re-export it from `src/main/machines/index.ts`. The nearest sibling does not. `listRemoteTree` lives in `src/main/machines/tree-list.ts`, `src/main/machines/ipc.ts` line 174 imports it directly, and `index.ts` re-exports nothing from that module. Its last re-export is `./remote-clone` at line 493.
+
+**The preload and the renderer bridge.** Add `makeDir` and `renameEntry` to `src/preload/machines.ts`, next to `cloneProject` at line 91 and `listTree` at line 99. Add `canWriteEntries`, `makeDir` and `renameEntry` to `src/renderer/tree/remote-bridge.ts`, next to `canListTree` and `listTree`.
+
+**The Explorer surface.** `buildTreeMenu` in `src/renderer/tree/tree-menu.ts` derives `remote` from the presence of `caps.readOnlyNote` at line 112, and today hides four verbs behind `caps.mutate && !remote` at lines 140 and 154. This phase splits that. `TreeMenuCapabilities` gains one field for the remote write verbs and the docstring's list of what is absent is rewritten to match what is really absent after this phase.
+
+| Verb | On a remote row after this phase | Why |
+|---|---|---|
+| New Folder… | crosses | `dir-new` |
+| Rename… | crosses | `entry-rename` |
+| New File… | Phase 101 owns it | `file-put` with the word `new` |
+| Duplicate | absent | not now, by research 57 section 12 |
+| Move to Trash | absent permanently | `shell.trashItem` has no far side equal |
+| Reveal in Finder | absent permanently | it opens Finder on this Mac over a file that is not here |
+| Open With | absent permanently | it starts a program on this Mac |
+
+`FileTree.tsx` passes the new capability at the `buildTreeMenu` call at line 1382, where `mutate: !isRemote && ops !== null && canMutate()` is composed at line 1390.
+
+`Sidebar.tsx` composes `canCreate` at line 147 as one flag for both header buttons. Phase 102 owns the New folder button at line 190. Check first what Phase 101 did to that flag and report it. One flag covering two buttons means Phase 101 turning on New file also turns on New folder while `dir-new` does not yet exist. If that happened, this phase fixes it and the commit body says so.
+
+**After a successful write the renderer re-reads the parent folder** with `machines:listTree` at depth 1 rather than inserting a row it composed itself. Nothing polls a machine and there is no watcher over there. A row the machine never confirmed is a row a person cannot tell from a real one. Report the seconds this costs. `REMOTE_TREE_DEPTH`'s own comment at `src/shared/ipc/machines.ts` line 1230 records 101.0 ms and 68,610 bytes for a 1,445 entry answer at depth 3, which is the number to beat at depth 1.
+
+### The defect this brief found, which is not in research 57 section 9
+
+Checked in the worktree this session. `renaming.canRename` in `src/renderer/tree/FileTree.tsx` at line 521 reads `opsRef.current !== null && !isProtectedFsPath(item.path)` and never asks whether the tree is remote. `createTreeOps` at line 718 of the same file is called for every mounted root, remote included. So pressing F2 on a row of a folder on another machine opens the inline name editor today. Committing it reaches `finishRename` at `src/renderer/tree/tree-ops.ts` line 276, which calls `fsOps.rename({ root: ctx.rootPath, ... })` at line 287 against a path that is not on this Mac. This is the same shape as defect 2 of research 57 section 9, being a verb drawn on a remote surface with no remote check behind it. It was missed because the context menu hides Rename while the key does not.
+
+Phase 102 owns it. After this phase F2 on a remote row reaches `machines:renameEntry` and never `fsOps.rename`. Prove the wrong call before and the right call after.
+
+### The remote tab's id, and it will corrupt an open tab if it is missed
+
+`planTabFollow` in `src/renderer/tree/tab-follow.ts` line 78 matches on `tab.path`, and `retargetTab` at line 54 sets `id: toAbs`. A remote tab's id is not an absolute path. `src/renderer/editor/store.ts` line 349 composes it as `machine:${machineId}:${repoPath}:${relPath}`, and the comment at line 340 records that the format exists because two folders on one machine can both hold `src/a.ts`. Calling `followMoves` unchanged after a remote rename would rekey a remote tab to a bare absolute path, which collides with a local tab holding the same path and destroys the identity rule that comment was written for.
+
+The fix is not to close the tab. After Phase 101 a remote tab can hold unsaved work and closing it loses that work. Four changes follow.
+
+- `FollowMove` at line 21 gains an optional machine reference carrying `machineId` and `repoPath`.
+- `retargetTab` composes the remote id in the same format `store.ts` line 349 uses.
+- A remote move never matches a local tab and a local move never matches a remote one. That property gets a unit test with one local tab and one remote tab at the same path.
+- The remote move reports its `kind`. `pathAfterMove` at line 41 does prefix arithmetic for descendants only when `move.kind === 'dir'`, so a folder rename reported as `'file'` leaves every open remote tab beneath it pointing at a path that is no longer on that machine. That is the same data loss shape the header of `tab-follow.ts` was written to prevent. The local path already carries it. `finishRename` at `tree-ops.ts` line 293 passes `kind` into `followMoves`, so `machines:renameEntry` carries `kind` too and the renderer takes it from the row.
+
+`origRelPath` in `retargetTab` matters on a machine for the reason its own comment at lines 60 to 65 gives. `review-file` reads the committed side with `git --no-pager show "HEAD:$2"` at `src/main/machines/remote-scripts.ts` line 383. After a rename the new path is not in HEAD, so the left side comes back empty and reads as a whole file addition. The path the entry had before the rename has to be recorded for a remote tab exactly as it is for a local one.
+
+### What safe to run twice means, concretely, for each one
+
+Both are guarded by an `-e` test. Here is what that means for each, stated so the `reason` field on each catalogue row and the gate branch can be written from it.
+
+**`dir-new`.** A machine can sleep and a link can drop after the far side has run the command and before its answer arrives, so Tortie can never know whether a command that failed ran. Run `dir-new` a second time with the same two values and the `-e` test finds the folder the first run made. The script answers `exists` and runs no `mkdir`. The second run cannot empty the folder. It cannot re-create it. It cannot change its mode. `exists` is therefore not a failure and the product does not draw it as one when the first attempt was the one that timed out.
+
+**`entry-rename`.** Run it a second time with the same three values and the destination is already there while the source is gone. The script answers `done`. The end state on that machine is the one the person asked for and it is reached once. What `done` cannot tell apart is a repeat of Tortie's own move and a machine where somebody else already held a file at the destination while the source never existed. Both leave the person looking at the end state they asked for. The brief says plainly that the product cannot distinguish them and does not pretend to.
+
+### The claim this phase does NOT make, and the sentence it leaves standing
+
+Lead with the answer. Phase 102 does not hold the old sentence and it does not fully hold the new one either, and the commit body says that rather than claiming the opposite.
+
+Decision 1 in this file weakens the checkable sentence from "no command Tortie sends can replace a file somebody already had" to "no command Tortie sends can replace a file whose contents Tortie did not just verify by checksum". `entry-rename` can replace a file whose contents Tortie never checksummed. Between the `-e` test and the `mv`, an agent working in the same folder on that machine can create the destination, and the `mv` then replaces it.
+
+So the sentence Phase 102 leaves standing is Phase 101's weakened one read as a property of the script TEXT. `build/conformance-machines.mjs` reads text and cannot see a race, so what the gate checks is that the text tests before it moves. What happens on a machine under a concurrent writer is not covered by any sentence this product can check. Name the window in the script's docstring. Name it in the `reason` field. Name it in the commit body.
+
+Two things about the window, and neither is a claim of measurement. There is no command in a POSIX shell that renames and refuses an existing destination in one step. `ln` followed by an unlink would be atomic and it is refused, because the unlink half is `rm` and this product does not send `rm` to another computer. Whether `mv -n` narrows the window was not measured by research 57, was not measured by this brief, and no number for it appears anywhere in the queue.
+
+### The folder's permission bits, which this brief narrows rather than invents
+
+Rule 3 of the catalogue makes every script begin `set -e` and then `umask 077`, and the gate checks the first two lines of every script. Research 57 section 4.2 measured `mkdir` under `umask 077` at 700. A folder made through Tortie therefore comes out 700 while the same folder made by the person's own shell under the usual 022 comes out 755. `IMAGE_PUT` at line 301 already relies on this and runs `chmod 700` on its own directory, but that directory is Tortie's and this one is the person's.
+
+`docs/research/57-i3-file-writes.md` already ruled this, in its `dir-new` section, as `made` after one non recursive `mkdir` and one `chmod` to the parent's mode. This brief keeps the `chmod` and narrows what it may apply, because copying a parent's mode has no ceiling. A parent at 777 would produce a Tortie made folder at 777 on a person's computer, and a parent carrying a set group id bit would pass that bit on. The gate's own failure text for rule 3 gives the reason for `umask 077` as a file it creates not being readable by another account on that machine, and an uncapped copy would override that reason without saying so.
+
+**The ruling.** `dir-new` reads the parent's mode and applies exactly one of two modes. It applies `755` when the parent's last two octal digits show read and execute for group and for other. It applies `700` otherwise. No other mode can be produced, no set user id bit can be produced and no set group id bit can be produced. This is the same two outcome shape research 57 section 4.2 already ruled for a new file, being 644 when the containing directory is readable by group and by other and 600 otherwise.
+
+The mode is read with the two `stat` spellings the catalogue already carries in `STORE_LIST` at `src/main/machines/remote-scripts.ts` lines 227 and 228, being BSD `stat -f` first and GNU `stat -c` second, each with `2>/dev/null` and the assignment ending in `|| true`. That tail is what stops `set -e` from ending the script on a machine that answers with neither. A machine that answers with neither takes the `700` branch and the script still answers `made`.
+
+`chmod` is in `MUTATING_PROGRAMS` at `build/conformance-machines.mjs` line 2504, and that list is consulted only inside `if (row.mode === 'read')`, so a write may name it.
+
+### The gate
+
+`build/conformance-machines.mjs` is 3,428 lines. Nine edits, and the last three are prose that is wrong today or becomes wrong here.
+
+| # | Edit | Where | What it becomes |
+|---|---|---|---|
+| 1 | `ALLOWED_WRITERS` | line 2536 today, holding `['image-put', 'git-clone']` | five ids in catalogue order, being the list `docs/research/57-i3-file-writes.md` section 13 names. The comment records that Phase 102 moved it from three to five once and on purpose |
+| 2 | Condition 38, `dir-new` branch | the `else` at line 2757 that fails any write with no rule of its own | asserts the redirect list is empty, that the text holds `if [ -e "$d" ]; then`, that it holds `mkdir "$d"`, that it does NOT hold `mkdir -p`, that the only two mode literals in it are `chmod 755 "$d"` and `chmod 700 "$d"`, and that the mutating programs it names are exactly `mkdir` and `chmod` |
+| 3 | Condition 38, `entry-rename` branch | the same place | asserts the redirect list is empty, that the text holds `if [ -e "$t" ]`, that it holds `mv "$s" "$t"`, that it does NOT hold `mv -f`, and that the only mutating program it names is `mv` |
+| 4 | The containment condition, extended | the condition 50 block at line 2915 | the write guard string, compared byte for byte, plus `guardAt < firstUseAt` for every guarded value. For `dir-new` that is `$2`. For `entry-rename` it is `$2` and `$3` separately |
+| 5 | The probe fields behind edit 4 | `build/machines-conformance-probe.mts` lines 1459 to 1468 | the same `guard`, `guardAt` and `firstUseAt` triple the probe already emits for `reviewFile`, emitted for each guarded value of the two new scripts |
+| 6 | The gated write set | the condition Phase 101 wrote | asserts the set holds exactly three ids, being Phase 101's plus `dir-new` and `entry-rename`, and that `runRemoteScript` is still its only enforcement point |
+| 7 | The root bound | a new condition | asserts the two new handlers in `src/main/machines/ipc.ts` call `getRemoteProject` before they compose anything, and that a root with no row refuses in main |
+| 8 | Rule 6 of `src/main/machines/remote-scripts.ts` | the header at lines 75 to 83 | Phase 101 rewrites its shape. This phase adds its two ids and states what makes each safe to run twice, in the words of the section above |
+| 9 | The doc comment on `runRemoteWrite` | `src/main/machines/remote-run.ts` lines 182 to 188 | it reads today that the catalogue holds exactly one script with `mode: 'write'`. It is wrong by one already and this phase makes it wrong by four. See the section below on who owns it |
+
+**Edit 4 is the ordering property and it is not the same as edit 2.** Condition 50 at line 2930 exists because a check standing after the use it guards is not a check. It compares `review.guard` against `REVIEW_FILE_GUARD` and it compares `review.guardAt` against `review.firstUseAt`. Edits 2 and 3 only assert that a text CONTAINS a line, which a later edit could satisfy while moving the line below the first `cd`. If Phase 101 already added a write guard constant for `file-put`, reuse its name and record the name in the commit body. Otherwise this phase adds it. `REVIEW_FILE_GUARD` is not that constant and this phase does not touch it, because `review-file` is a read and its pinned string is correct for a read.
+
+**The redirection rule, stated as the research rules it and as the regex actually behaves.** `docs/research/57-i3-file-writes.md` section 13 rules that `dir-new` and `entry-rename` carry no redirection other than `2>/dev/null`. Both do carry `2>/dev/null`, on the `stat` calls. The mechanical assertion is still that `row.redirects` is empty, and that is not a contradiction. The probe's regex at `build/machines-conformance-probe.mts` line 1124 is `/(?<!2)>\s*([^\s;|)]+)/g`, which drops any `>` preceded by a `2` whatever it aims at, and still counts the first `>` of a `>>`. So the honest sentence is that the empty list means no redirection except the ones a `2` sits in front of, and the brief writes it that way rather than as no redirection at all.
+
+**The channel prose, in two files.** `src/shared/ipc/machines.ts` line 647 says TWO of the channels write on another computer, being `putImage` and `cloneProject`. `src/preload/machines.ts` line 7 says the same thing about the bridge. Phase 101 makes both three. This phase makes both five and names all five.
+
+**Who owns edit 9.** Nobody in the queue does today, and this phase takes it. The shipped Phase 96 entry at `docs/BACKLOG.md` line 6205 defers it by name, saying that items 6 and 7 are prose in `build/conformance-machines.mjs` and a doc comment on `runRemoteWrite` and that Phase 103 rewrites rule 6 anyway. Research 57 section 4.3 counts it as edit 4 of the four a new writer costs. After this phase the only written bound on the only write door in the product would say one where five exist, so the phase that moves the number fixes the sentence.
+
+### The confirmation, and nobody is asked again
+
+This phase adds no confirmed field. It adds no key to `APPENDED_KEYS` in `src/main/machines/confirm.ts`. It adds no line to `NORMALIZE`. It does not touch `MACHINE_EXECUTION_HASH_ALGORITHM`. Phase 101 owns the sixth field and the route it uses.
+
+Read `src/main/machines/confirm.ts` before writing anything about confirmation. `APPENDED_KEYS` at line 179 holds the keys `canonicalMachineText` emits only when they are set, and it holds `acceptedTmuxVersion` alone today. That field went in through exactly that route in Phase 83. Every row that existed then hashed byte for byte as before and nobody was asked again. The function's own docstring at lines 210 to 220 records that, and it records that the gate pins the unaccepted hash so the property is checked rather than promised.
+
+One constraint follows and Phase 101 owns it. `canonicalMachineText` at line 235 skips an appended key unless `typeof value === 'string' && value.length > 0`, so the sixth field has to be a string for the route to work. If Phase 101 made it a boolean, the route silently stopped protecting existing rows and this phase reports that rather than working around it.
+
+`MACHINE_EXECUTION_HASH_ALGORITHM` at line 184 stays `sha256-machine-exec-v1` for the reason its own comment at line 26 gives. A builder who finds it moved reports that rather than changing it quietly.
+
+Condition 42 at `build/conformance-machines.mjs` line 2333 pins `UNACCEPTED_HASH_2026_08_18` at `dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46`. This phase leaves that hex untouched and proves it by driving the app rather than by reading the file. A machine with writes not enabled carries no value for the new key, so its hash does not move, its sessions keep running and it asks nothing. The person confirms once, the first time they want to save. Until then both new verbs refuse and the refusal names the machine that needs their word. A refusal in that state is the correct answer rather than a fault.
+
+**The binding block in this file is stale on this point and somebody has to fix it.** `docs/BACKLOG.md` line 6417 still reads that every machine he has already confirmed asks him to confirm again, and line 6442 repeats it. That is false, and the mechanism that makes it false is `APPENDED_KEYS` in the same file the decision cites. A builder following the block as written would build a re-confirmation sheet for every machine the operator owns. Phase 101 owns the sixth field, so Phase 101 owns correcting those two lines, and it must not build the sheet. This entry says it here because saying what is not true is the rule.
+
+### What a person sees, in the exact words they will read
+
+Two tables, because the menu labels and the machine sentences live in different files and the copy audit reads only one of them.
+
+**Menu and button labels, which are literals and not sentences.**
+
+| Where | The exact words | Where the literal is today |
+|---|---|---|
+| Explorer menu, folder verb | `New Folder…` | `src/renderer/tree/tree-menu.ts` line 147 |
+| Explorer menu, rename verb | `Rename…` with hint `F2` | `src/renderer/tree/tree-menu.ts` lines 156 and 157 |
+| Explorer header button title | `New folder` | `src/renderer/app/Sidebar.tsx` line 190 |
+
+The three already read this way on a local row. This phase makes each of them reachable on a remote row and composes no new label.
+
+**The six new sentences, all in `src/renderer/app/machine-copy.ts`.** The examples use `Studio` as the machine's own label and never a name Tortie chose.
+
+| Function | The exact words |
+|---|---|
+| `remoteTreeNoTrash(label)` | `Tortie cannot move anything on Studio to the Trash.` |
+| `remoteEntryExists(name, label)` | `There is already something called notes in that folder on Studio.` |
+| `remoteParentGone(label)` | `That folder is no longer on Studio. Press Refresh to read it again.` |
+| `remoteWriteDenied(path, label)` | `Tortie cannot write in /Users/greg/code/tortie/src on Studio.` |
+| `remoteEntryGone(name, label)` | `Tortie could not find README.md on Studio. Press Refresh to read that folder again.` |
+| `remoteRenameAlreadyDone(label)` | `That rename has already gone through on Studio.` |
+
+All six join the `EVERY` array at `src/renderer/app/__tests__/p903-c-remote-copy.test.ts` line 260. That array is what the five house writing rules in that file run over, being the no colon rule, the full stop rule, the never say remote rule, the names the machine rule and the no Tortie chosen name rule. A sentence that is not in the array is a sentence no rule reads.
+
+Two states draw a sentence this phase does not write. A machine Tortie is not signed in to draws `MACHINE_NOT_CONNECTED` at `src/main/machines/remote-copy.ts` line 402. A machine whose writes are not confirmed draws the sentence Phase 101 wrote. Add neither.
+
+A success draws no toast, which is what a local New Folder and a local Rename already do.
+
+**`remoteTreeReadOnly` is deleted by this phase.** It reads `Tortie only reads files on ${label}.` at `src/renderer/app/machine-copy.ts` line 903 and it has three callers, being `src/renderer/tree/FilesSection.tsx` line 142 and the two button titles in `src/renderer/app/Sidebar.tsx` at lines 179 and 190. Phase 101 makes the first button title untrue. This phase makes the second one and the footnote untrue. Four changes follow.
+
+- The footnote at `FilesSection.tsx` line 142 becomes `remoteTreeNoTrash(label)`.
+- Both buttons take their plain titles.
+- The function is deleted.
+- `src/renderer/app/__tests__/p903-c-remote-copy.test.ts` loses its assertion at line 119 and its entry in `EVERY` at line 273.
+
+The footnote names Move to Trash alone and not the other absences. That is deliberate. Trash is the one absence with a permanent reason about that machine. Reveal in Finder and Open With are absent because they start a program on this Mac. Duplicate is deferred rather than refused. None of the three belongs in a one line footnote about the machine.
+
+### Where this brief diverges from research 57, named rather than blended
+
+| Divergence | What the research says | What this brief rules | Why |
+|---|---|---|---|
+| `dir-new` parameter count | `docs/research/57-i3-file-writes.md` says two parameters, `$1` the folder and `$2` the path inside it | two parameters, and the parent computed on the far side with `${d%/*}` | the research's count is followed. The parent needs no third parameter and no `dirname`, so nothing has to be probed on a machine |
+| `dir-new` answer words | three, being `exists`, `denied` and `made` | four, adding `noparent` | a parent that is gone is a state a person hits from a stale tree. Without a fourth word `mkdir` fails, `set -e` ends the script, no markers arrive and the door reads a refusal with nothing to say |
+| `dir-new` mode | one `chmod` to the parent's mode | one `chmod` to 755 or to 700, and to nothing else | a parent's mode has no ceiling. See the permission section |
+| Mutating programs per script | exactly one each | `dir-new` names two, being `mkdir` and `chmod`, and `entry-rename` names one, being `mv` | the research rules the `chmod` in one section and the one program rule in another, and the two cannot both stand. The gate branch names the two by id |
+| Case only rename | recorded as an open question | closed, by a device and inode test before the `exists` answer | otherwise a person renaming `README.md` to `readme.md` on a Mac is told the name is taken |
+| Cross filesystem `mv` | recorded as an open question, with a suggested `stat -f '%d'` device check | not built, and named | the shipped surface is a rename inside one folder, so the UI cannot reach a cross device move. The driven cross folder test stays on one filesystem. The hazard is unclosed and the docstring says so |
+
+### What is NOT in this phase
+
+| Left out | Why |
+|---|---|
+| Save, and New File | Phase 101 owns `file-put` and both surfaces |
+| Duplicate on a machine | Not now, by research 57 section 12. It is a read plus a `file-put` and it does not need a script of its own. A folder duplicate has no bounded shape through this catalogue |
+| Move to Trash on a machine | **Never, as a delete.** `shell.trashItem` has no far side equal and a remote `rm` turns a recoverable delete into an unrecoverable one. `src/renderer/tree/tree-menu.ts` and the ⌫ branch at `FileTree.tsx` line 1238 already record this and both stay |
+| Reveal in Finder on a machine | **Never.** It opens Finder on this Mac over a file that is not on this Mac |
+| Discard on a remote tab | **Never**, and it is not this surface anyway |
+| A real remote scrollbar, and shipping or sending a ripgrep | **Never**, by research 57 section 12. Neither is this surface |
+| Drag and drop move on a remote tree | `canDrag` at line 430 and `canDropInto` at line 449 of `FileTree.tsx` keep refusing, and `onDragStart` at line 1455 keeps its own refusal, with the third door's comment at line 1476. The reason is in that file and it does not expire with a write script. `beginTreeDrag` arms the terminal pane's attach contract with ABSOLUTE paths, and an absolute path from another machine names a file on this Mac or nothing at all |
+| The replace question | `describeConflicts` in `tree-menu.ts` offers to move an existing item to the Trash. That has no far side equal, so a name in use on a machine is a refusal and never a question |
+| A recursive `mkdir` | `-p` would make folders the person never named, and the gate branch asserts it is absent |
+| A device check on `entry-rename` | named in the divergence table and not built |
+| `git mv` | The rename is a plain `mv`, so git on that machine sees a delete plus an untracked add until it is staged. Phase 103 stages. Say this in the commit body so nobody reads the Changes list afterwards and calls it a bug |
+| A sixth confirmed field | Phase 101 adds it. This phase adds none |
+
+**The move half of `entry-rename` reaches no surface in this phase, and that is on purpose.** The script takes a full relative path on both sides, so it can move an entry between folders under the same root. The only surface is the inline rename box, which refuses a `/` at `src/renderer/tree/entry-name.ts` line 46 exactly as the local one does. The drag refusal stays for the reason in the table. So the shipped capability is a rename inside one folder. A capability nothing reaches is a capability nothing checks, so the phase ships a driven test that calls `entry-rename` with a destination in a different folder against the loopback scratch machine and proves the move happens. Do not add a second surface to make it reachable.
+
+### The evidence
+
+Tier 3. Verifiers are independent of the builders and they produce evidence rather than assurance. A verifier that only reads code has not verified. Reading the diff is not evidence for any step below. A fix round is part of this phase.
+
+Drive the real app against the loopback scratch machine through `build/with-scratch-machine.mjs`, the way `smoke:p93remote` and `smoke:capture:remote` already do.
+
+1. Make a folder from the Explorer context menu on a remote row. Photograph the row. Read it on the far side with `ls -ld` and report the mode in octal, and report its parent's mode in octal.
+2. Make a folder from the Explorer header's New folder button. Photograph the button's tooltip on the build before this phase and on the build after it, so the deleted sentence is visible going away. Prove the folder arrived with `ls`.
+3. Run `dir-new` twice with the same two values. Between the two runs write a file into the new folder from the far side. Report both answer words. After the second run prove with `ls -la` that the file is still there.
+4. Make a folder whose name is already taken. Photograph the refusal and report the exact sentence drawn.
+5. Delete the parent folder on the far side after the tree has been read, then make a folder inside it. Report the answer word and photograph the sentence.
+6. Set a parent to mode 500 on the far side, then make a folder inside it. Report the answer word and photograph the sentence.
+7. Drive the mode fallback. Put a directory first on the far side's `PATH` holding an executable named `stat` that exits 1. Make a folder. Prove the answer is still `made` and report the folder's mode in octal.
+8. Rename a file from the context menu, then rename another with F2. For each, prove with `ls` that the far side moved, and prove with `ls -l` on THIS Mac before and after that nothing under the same absolute path here changed. On the build before this phase, do the F2 gesture and capture the error it produced together with an `ls` showing the far side untouched.
+9. Rename `README.md` to `readme.md` on the loopback machine. Report the answer word and prove with `ls` that the far side holds one entry and that its name is now `readme.md`.
+10. Rename a file that is open in a remote editor tab. Report the tab id before and after and prove it still reads `machine:<machineId>:<repoPath>:<relPath>`. Repeat with one local tab and one remote tab open at the same relative path and prove the local tab did not move.
+11. Rename a FOLDER that has two open remote tabs beneath it. Prove both tabs now point at paths under the new folder name, and open one of them to prove the bytes arrive.
+12. Rename onto a name that is already taken by a different entry. Photograph the refusal and prove with `ls` that the far side still holds both entries.
+13. Rename a file that is no longer on the far side. Report the answer word and photograph the sentence.
+14. Reproduce a lost answer without cutting a live connection. Run the composed `entry-rename` text over ssh against the loopback machine by hand and throw its answer away. Then call `machines:renameEntry` through the app with the same three values. Report the answer word and prove with `ls` that the machine holds one entry at the destination and none at the source.
+15. Run the cross folder move test. Call `entry-rename` with a destination in a different folder under the same root and prove with `ls` that the entry moved.
+16. Prove the unchanged hash by doing rather than by reading. Confirm a machine on the build BEFORE this phase and record that machine's stored hash from `<userData>/gmux/config-confirmations.json`. Install the build WITH this phase, start the app and photograph the window showing that no confirm sheet appeared. Report the machine's hash from the same file afterwards. Report both hex strings and state whether they are equal. Then run `npm run conformance:machines`, report that it passes, and report that condition 42's pinned hex still reads `dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46`.
+17. Take a machine with writes not confirmed. Attempt New Folder and attempt Rename. Photograph the sentence naming the machine for each. Report `remoteEntrySendCount` before and after and state that it did not move.
+18. Call `machines:makeDir` with a root that is not a remote project row for that machine. Prove it refuses in main and report `remoteEntrySendCount` before and after, stating that it did not move.
+19. Attempt a drag on a remote tree row and report that `canDrag` refused it.
+20. Report the seconds for the parent folder re-read after each successful write.
+21. Report the composed byte length of each new script against `REMOTE_SCRIPT_MAX_BYTES`, which is 131,072 at `src/main/machines/remote-scripts.ts` line 166.
+22. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` only on a harness launch, and a harness launch is `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL`, which are the three names its `activeTmuxSocket` reads at lines 1042 to 1044. A launch without one of the three silently uses his real server.
+
+Gates before the commit are `npm run typecheck && npm run build && npm run test && npm run smoke:t1 && npm run conformance:machines`. The integrator runs the full battery, being test, smoke, smoke:t3 and package.
+
+### Three things in the queue this brief did not resolve
+
+- **Rule 6's owner is Phase 101, and the Phase 96 note is stale.** The decisions block at `docs/BACKLOG.md` line 6421 says rule 6 of `src/main/machines/remote-scripts.ts` is rewritten in Phase 101. The Phase 96 entry at line 6205 says Phase 103. The decisions block binds, so it is Phase 101. Do not read whichever entry landed first. Phase 102 adds its two ids to whatever shape Phase 101 left.
+- **The binding block's first bullet is wrong about re-confirmation.** See the confirmation section above. Phase 101 owns correcting lines 6417 and 6442 of this file in the same commit that adds the sixth field.
+- **Phase 101's names are unchecked here.** Its brief was written by another agent in the same round as this one, so the name of its gated write set, the name of its sixth confirmed field, the name of its write guard constant in the gate and the exact wording of its unconfirmed refusal were not read. Read Phase 101's landed code before writing a line of this phase and use its names.
+
+### What is unchecked
+
+- No Linux machine was contacted for either script. `REMOTE_SCRIPT_MAX_BYTES` is the kernel's documented constant rather than a measurement, and its own docstring says so.
+- The `${d%/*}` parent expansion was not run on any machine this session. It is POSIX parameter expansion and needs no program, which is why it was chosen over `dirname`, but nobody drove it. Evidence step 1 drives it.
+- The cross filesystem hazard for `entry-rename` is open. `mv` across filesystems copies and unlinks and is not atomic, so a repeat after a lost answer can leave a partial copy. No device check is built and the shipped surface cannot reach a cross device move.
+- The race between the `-e` test and the `mv` is open. No number for `mv -n` exists in research 57, in `docs/research/57-i3-file-writes.md` or in this brief, and neither document contains the word race.
+- Whether Pierre's inline rename editor behaves the same over a remote model as over a local one was not driven this session. Evidence steps 8 and 9 drive it.
+- Whether `git-clone` should join the gated write set is Phase 101's call. This brief states the question and does not answer it.
+
+
+## Phase 103 — stage and unstage on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(scm): choose what goes into the next commit on another machine`
+**First body line:** `Phase 103: stage and unstage on a remote tab`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 3.** Size Large.
+**Charter:** this entry, plus `docs/research/57-remote-parity.md` sections 4.3, 5.1, 5.2, 5.5 and 5.7, plus the block below headed "The two decisions the operator made on 2026-08-19, after research 57", which is binding except for the one bullet this entry corrects.
+
+**Where the detail is.** Research 57 section 5.1 rules that stage and unstage are built together and after the reads. Section 5.5 lists the three verbs they need. Section 5.7 refuses discard and drafts the gate condition that refuses it, and this entry corrects that draft, because as written it lets a discard through. Section 5.2 is the cost model every process count here is priced against. Section 4.3 is the set of gate edits every new writer costs.
+
+**Depends on.** Phase 97, which puts untracked files in the remote Changes list. Phase 101, which adds the sixth confirmed field and the first `file-put` write. Phase 102 runs before this in the queue and is not a dependency.
+
+**Two corrections this entry carries, and a builder must not undo either.**
+
+The first is about confirmation. The decisions block below states that every machine already confirmed asks to be confirmed again. That bullet is wrong, and the mechanism that makes it wrong is in the file the block's own decision points at. `APPENDED_KEYS` in `src/main/machines/confirm.ts` holds the keys `canonicalMachineText` emits only when they are set, `acceptedTmuxVersion` went in through exactly that route in Phase 83, and every row that existed then hashed byte for byte as before. A machine with writes not enabled carries no value for the sixth key, so its hash does not move and it asks nothing. Phase 101 owns correcting that bullet in the block. **This entry does not edit the block, and a builder who reads the block alone will build the wrong thing.**
+
+The second is about the discard condition. Research 57 section 5.7 writes the rule as `restore` may appear only with `--staged` or with `--source`. That rule passes `git restore --source=HEAD -- p`, which overwrites the working tree file, and it passes `git restore --staged --worktree -- p`, which does the same. Both are the operation section 5.7 refuses. The corrected rule is in item 8 below. Nothing in this phase needs `--source`, and `--source` appears nowhere in `src/main/git/service.ts` at all.
+
+**This is the first git write on another computer.** Nothing in this product has ever changed a repository on a machine the person is not looking at.
+
+### The mechanism
+
+**1. Two new write scripts, and each sends ONE git process per call.** `REMOTE_SCRIPTS` in `src/main/machines/remote-scripts.ts` gains `git-stage` and `git-unstage`, appended at the end of the catalogue, each `mode: 'write'` and each `params: 2`. Parameter 1 is the repository root on that machine. Parameter 2 is the list of repository relative paths, one per line.
+
+The list travels as ONE positional and is split under `IFS`, which is the shape `PROGRAM_FIND` in the same file already has, being `p="$2"` and then `for d in $p`. Rule 2 of that file's header says a script that walks a list reads the whole list into a local name first, in quotes, and splits that local name. So the list is read into `l="$2"` before anything walks it. A loop written as `for p in $2` would be the bare positional rule 2 forbids, and it must never be written that way.
+
+Each path is turned into a pathspec and pushed onto the argument list with `set -- "$@" ":(literal)$p"`, then one `git add` runs over the whole list. The `:(literal)` prefix has to be attached per word, which is why the loop exists, and it is what `literalSpec` at line 1474 of `src/main/git/service.ts` already does for the local path. Research 57 section 5.2 prices each extra process in a `/bin/sh` wrapper at 10.9 ms, so a loop that ran one `git add` per path would cost about 1,090 ms of far side work for a list of 100. One `git` per call costs 10.9 ms whatever the list length. The local sibling `GitService.stage` at line 614 of the same file already runs one `git add -A --` over a chunk, so this is the same shape rather than a new one.
+
+The proposed text for `git-stage` follows, and it is a shape rather than a measured constant.
+
+```
+set -e
+umask 077
+r="$1"
+l="$2"
+case "$r" in /*) : ;; *) exit 1;; esac
+IFS='
+'
+set --
+for p in $l; do
+  case "$p" in ''|.|/*|*..*|*/) exit 1;; esac
+  set -- "$@" ":(literal)$p"
+done
+[ "$#" -gt 0 ] || exit 1
+cd "$r"
+s=0
+m=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git add -A -- "$@" 2>&1 >/dev/null) || s=1
+b=$(printf '%s' "$m" | base64 | tr -d '\n')
+printf '__TORTIE_RUN__%s %s__TORTIE_RUN__\n' "$s" "${b:-none}"
+```
+
+`r="$1"` and `l="$2"` are read before `set --` on purpose, because `set --` discards the positional parameters.
+
+`git-unstage` has the same head and the same loop, and its body is the two step shape `GitService.unstage` at line 631 already carries. It runs `git restore --staged -- "$@"` first. When that fails it tests the far side's own stderr for the unborn branch case and then runs `git rm --cached -r -q -- "$@"`. `UNBORN_HEAD_RE` at line 67 of `src/main/git/service.ts` is the local test and it covers six phrasings. The far side test has to be made over there, because the stderr is over there, and the phase records which sentence that machine's git actually printed rather than assuming one.
+
+Three properties of both texts are load bearing.
+
+- The guard loop runs over the whole list before `cd` and before any git, so a bad path refuses the whole call rather than staging half of it.
+- The git exit status is captured explicitly, so `set -e` does not abort before the marker is printed.
+- The guard refuses `.`, a trailing slash and an empty element, so the list cannot name a folder. This matters because `git add -A -- ":(literal)."` would stage every change in that repository in one call.
+
+**2. Parameter 1 is never chosen by the renderer, and parameter 2 is checked against a fresh read.** This is the containment argument, and the guard in the script text is only half of it.
+
+`RemoteScmSection` holds a `repoPath` it got from `list.repoPath` at line 149 of `src/renderer/scm/remote-changes.ts`. Main does not take it. `stageOnMachine` takes the machine id and the tab's folder, being the same `MachineReviewInput` shape at line 917 of `src/shared/ipc/machines.ts` that the review read already takes, runs the existing review read itself, and uses the repository root that machine's own `rev-parse` answered. Main then builds a set of the paths that read returned and refuses any path that is not in it. That is the same shape `GitService.discard` uses locally, which reads `this.status()` first and skips a path git does not report, and research 57 section 5.7 credits it for exactly that.
+
+Without this, the pair of any absolute directory on that machine and relative paths under it would let one call stage inside any repository on that machine rather than the tab's. The guard in the script text does not cover it, because the guard only tests that parameter 1 begins with a slash.
+
+**3. The containment guard on parameter 2 is a repeat of a hole that was found, not a precaution.** Research 55 section 9.3 ran the exact text of `REVIEW_FILE` with `../above.txt` and read a file above the repository root. The renderer chooses these paths, exactly as it chose that one. `REVIEW_FILE_GUARD` at line 2926 of `build/conformance-machines.mjs` is `case "$2" in /*|*..*) exit 1;; esac` and condition 50 reads it. The same rule applies here to every element of the list.
+
+**4. A path holding a line break is refused in main.** The list is separated by newlines, so a path with a newline in it would arrive as two paths. Main refuses before anything is composed and names what it refused. This is a false refusal for a name almost nobody has, taken on purpose, and it is the same trade `REVIEW_FILE` already takes for a name holding two dots.
+
+**5. `ALLOWED_WRITERS` moves to seven, and a builder reads what the earlier phases left rather than assuming.** `ALLOWED_WRITERS` at line 2536 of `build/conformance-machines.mjs` holds `['image-put', 'git-clone']` today. It is compared by length AND by order against `remoteWriteScripts()`. Append `git-stage` then `git-unstage` at the end, in catalogue order.
+
+| Phase | Ids added | `ALLOWED_WRITERS` length after |
+|---|---|---|
+| shipped today | `image-put`, `git-clone` | 2 |
+| Phase 101 | `file-put` | 3 |
+| Phase 102 | `dir-new`, `entry-rename` | 5 |
+| **Phase 103** | **`git-stage`, `git-unstage`** | **7** |
+| Phase 104 | `git-commit` | 8 |
+
+**The Phase 101 and Phase 102 rows are an assumption, and it is named here as one.** No Phase 101, 102 or 104 entry exists in `docs/BACKLOG.md` yet, so the two middle rows could not be checked against anything. They are the only split of the binding decision's "two to eight" that reaches eight, and they assume Phase 101 covers both save and create-empty under a single `file-put` id. If Phase 101 ships two ids instead of one, this table is wrong by one and `ALLOWED_WRITERS` is eight after this phase rather than seven. Read the array as the earlier phases left it.
+
+**6. Rule 6 has three states and each gets its own sentence.** Rule 6 in the header of `src/main/machines/remote-scripts.ts` reads today "TWO scripts have `mode: 'write'`, and they are `image-put` and `git-clone`, in that order", and it records that Phase 90.2 moved the number from one to two. Phase 101 rewrites it first and raises the number. Phase 103 raises it again to seven and adds the sentence these two need, which is that a write with no destination to test is still safe to run twice because it is safe by end state.
+
+Two doc comments in the tree still state the old count and both are rewritten in this commit. `remoteWriteScripts()` at line 858 of the same file says "It has exactly two members, being `image-put` and then `git-clone`". `runRemoteWrite` in `src/main/machines/remote-run.ts` says "The catalogue holds exactly one script with `mode: 'write'`", which was already stale before this phase. Phase 96's entry says Phase 103 rewrites rule 6, and that was written before the operator's decision put Phase 101 first, so this phase raises a rule that has already moved once.
+
+**7. Condition 38 gains two branches, and one general rule it never had for writes.** That condition in `build/conformance-machines.mjs` has a branch per write id and its final `else` fails any write with no branch, so the two new ids cannot be added without teaching the gate what makes each safe. Each branch asserts the rows below.
+
+| Assertion | `git-stage` | `git-unstage` |
+|---|---|---|
+| Every redirection aims at `/dev/null` | yes | yes |
+| Reads the list into a local name, in quotes, before any loop walks it | yes | yes |
+| Carries the guard loop over the whole list before any git runs | yes | yes |
+| Every path reaches git behind the constant `:(literal)` | yes | yes |
+| Carries no `-e` destination test, because there is no destination | yes | yes |
+| Names `git add` and nothing else that writes | yes | no |
+| Names `git restore --staged` and `git rm --cached`, in that order | no | yes |
+
+The list shape assertion is new to condition 38 and it is not covered anywhere else. `MUTATING_PROGRAMS` at line 2504 is consulted only inside `if (row.mode === 'read')`, and condition 46 is bound to `p84.programFind` by id, so it fails only on `program-find`. Condition 36 walks `row.positionals` alone, which are the `$1` to `$9` reads, so a local name is not tested as a positional at all. Nothing in the gate today would stop a later edit turning `for p in $l` into `for p in $2` in either new script.
+
+`MUTATING_PROGRAMS` also has to start covering writes. Today two writes exist and each has a hand written branch. Phase 103 takes the count to seven, so add a general rule inside condition 38's write side that reads every `rm`, `mv`, `cp`, `mkdir`, `touch`, `chmod`, `chown`, `ln`, `dd`, `tee` and `truncate` word in a write script, with a named exception list per script id. The two exceptions today are `mv` in `image-put` and `rm` in `git-unstage`, and the `rm` exception is only satisfied when the word is preceded by `git` and followed by `--cached`. Without this, the only general rule standing between a future write script and `rm -rf` would be the discard condition, which is worded around git verbs.
+
+**8. The discard refusal becomes executable, and the corrected rule is stated here.** A new numbered condition in `build/conformance-machines.mjs` states the rule research 57 section 5.7 intended. The rule is spelled this way because the obvious spelling would fail `git-unstage` itself, and because the research document's own spelling lets a discard through.
+
+- No catalogue script may name `git clean`, at all, ever.
+- `restore` may appear only with `--staged`, and never with `--worktree` and never with `--source`.
+- `rm` may appear only with `--cached`.
+
+The highest numbered condition in that file today is 68. There are 57 numbered conditions, being 1 to 51 and then 63 to 68. Phases 101 and 102 will have added their own, so take the next free number rather than a number this entry guesses.
+
+**9. The staged and unstaged split, which does not exist yet and without which these two verbs mean nothing.** `letterOf` at line 172 of `src/main/machines/remote-review.ts` is `const pick = worktreeState !== '.' ? worktreeState : indexState;` and it folds the porcelain pair into one letter. Git prints two characters per changed file. The first says what the index holds, which is what the next commit would carry. The second says what the folder on disk holds. `MachineReviewFile` at line 924 of `src/shared/ipc/machines.ts` carries `path`, `origPath` and `status` and nothing else, so the first character never reaches the renderer. The remote list today cannot tell a staged file from an unstaged one. Five edits close it.
+
+| File | Symbol | Edit |
+|---|---|---|
+| `src/main/machines/remote-review.ts` | `parseRemoteReviewListing`, `letterOf` | Carry both characters through, and keep `status` as it is for the badge |
+| `src/shared/ipc/machines.ts` | `MachineReviewFile` | Two new fields for the index character and the worktree character. Do not touch `GitCommitFileState` in `src/shared/types.ts`, whose eight members are shared with commit diffs |
+| `src/renderer/scm/remote-changes.ts` | `RemoteChangesEntry`, `EMPTY`, the three `patch` call sites | The groups, carried through every place an entry is built |
+| `src/renderer/scm/ScmSection.tsx` | `RemoteScmSection` | Three collapsible groups instead of one |
+| `src/renderer/scm/groups.ts` | new `groupRemoteFiles` | The remote grouping rule, beside the local one so both live in one file |
+
+**The grouping rule is written out here, because `groupFiles` cannot be reused unchanged and the phase must rule rather than leave a builder to discover it.** `groupFiles` at line 31 of `src/renderer/scm/groups.ts` has FOUR groups. Its first branch is `if (isConflict(f)) { groups.merge.push(f); continue; }`, and a later branch drops an ignored row entirely. Keeping that first branch would send every conflicted file to a Merge group this phase does not build, so the file would vanish from the list. Dropping it would put a `UU` file in Staged and in Changes at once, because both `f.indexState !== '.'` and `f.worktreeState !== '.'` are true for it. Neither outcome is what this phase wants. So `groupRemoteFiles` is a new function in the same file that imports and reuses `isConflict`, and its rules are these.
+
+- A conflicted row, being any row `isConflict` returns true for, goes to Changes and to nowhere else.
+- A row whose index character is not `.` goes to Staged.
+- A row whose worktree character is not `.` goes to Changes.
+- A row can be in Staged and in Changes at the same time, which is what the local list already does for a file edited twice.
+
+**10. Stage and Unstage are both absent on a conflicted row, and this is a deliberate refusal rather than an omission.** A conflicted file does reach the remote list today, because `parseRemoteReviewListing` drops only `?` and `!` rows, `letterOf` maps a `U` pair to `'U'`, and `remoteBadge` at line 610 of `src/renderer/scm/ScmSection.tsx` draws `U` as the letter `!` with the word `conflicted`.
+
+Locally, `git add` on a conflicted row is a different verb with a different label. `ScmSection.tsx` line 289 computes `const plainStage = verbs.stage.filter((r) => r.group !== 'merge')` and line 291 pushes a separate item reading `Mark resolved (stage)`, so a person never presses `Stage` on a conflict. Shipping a plain `Stage` on a remote conflicted row would mark a conflict resolved on a computer nobody is watching, under a label that says something else. This phase does not do that and does not build the resolved verb either, so a conflicted remote row carries its badge, opens its diff, and offers neither write verb. The reason is on screen, in the copy table below.
+
+**11. Main's module, the two channels, and the byte budget.** A new file `src/main/machines/remote-stage.ts` sits beside `remote-review.ts` and exports `stageOnMachine` and `unstageOnMachine`. Both call `readyRemoteContext` at line 1115 of `src/main/machines/remote-sessions.ts` and then `runRemoteWrite` from `./remote-run`, which is where connected only lives for every caller at once. Two channels, `machines:stage` and `machines:unstage`, are declared in `src/shared/ipc/machines.ts` and registered in `src/main/machines/ipc.ts` in a new marked block, in the shape of the `PHASE 73 BLOCK C` block that registers `machines:reviewFiles` and `machines:reviewFile`. Neither channel may name a git verb, because the verb is in Tortie's own script text.
+
+A new timeout constant, `REMOTE_STAGE_TIMEOUT_MS`, is 20,000 ms, matching `REMOTE_REVIEW_TIMEOUT_MS` at line 98 of `src/main/machines/remote-review.ts`. It is chosen rather than measured, and the phase reports what a stage actually cost so a later round can lower it with a number.
+
+**The chunk is a byte budget rather than a count.** `REMOTE_SCRIPT_MAX_BYTES` at line 166 of `src/main/machines/remote-scripts.ts` is 131,072 and it caps the whole composed command, which the header records as the Linux `MAX_ARG_STRLEN` limit. A count of 100 paths is not a bound on bytes, because 100 paths of 1,400 bytes each exceed the cap and the door refuses the whole call. So main fills each chunk until the composed command would exceed a budget set below `REMOTE_SCRIPT_MAX_BYTES`, and starts a new chunk. The local path splits at `PATH_CHUNK`, being 500, in `src/main/git/service.ts`, and that number is a count because no local limit is in bytes. One path that alone exceeds the budget is refused by name, and the person reads the sentence in the copy table.
+
+**12. Nothing over there tells Tortie the index moved, and the cost of finding out is unmeasured.** There is no watcher on that machine. After every stage and every unstage the store re-reads through `machines:reviewFiles`.
+
+That re-read has never been timed. Research 57 line 196 gives 29 to 37 ms for an ssh round trip with the ControlMaster already open, which is an empty round trip and not a read. Section 10 of the same document says no git read script was ever run over ssh, and section 5.2 says every number in it is this Mac's. The far side also runs `git status --porcelain=v2 --branch -z --untracked-files=all` on every re-read. So the honest figure is the round trip plus that status read plus the decode, and nobody has that number. Evidence item 12 produces it, and the commit body states the measured value rather than the round trip alone.
+
+Main also runs the review read BEFORE each stage, for the path set in item 2. So one stage costs two reads and one write. Evidence item 12 reports all three.
+
+**13. The sixth confirmed field is Phase 101's, this phase adds no seventh, and its TYPE is load bearing.** Every write here goes through the field Phase 101 added to `MachineExecutionFields` in `src/main/machines/confirm.ts`. A machine whose person has not confirmed writes refuses both verbs, and the refusal names the machine.
+
+**Read `src/main/machines/confirm.ts` before writing a word about confirmation.** `canonicalMachineText` at line 233 emits an appended key only under `if (typeof value !== 'string' || value.length === 0) continue;`. So the sixth field must be a non-empty string carried through `APPENDED_KEYS` at line 179, exactly as `acceptedTmuxVersion` is. A boolean field, which is the natural spelling of "writes are allowed on this machine", could never be emitted at all. The confirm hash would not move when a person turns writes on, refusal 8 in `CLAUDE.md` would be broken, and condition 42 would still pass, because the unaccepted hash would be unchanged. If Phase 101 shipped a boolean, this phase stops and says so rather than building on it.
+
+Phase 103 adds no field, so `UNACCEPTED_HASH_2026_08_18` at line 2290 of `build/conformance-machines.mjs`, being `dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46`, must still match after this phase. **A passing condition 42 is not proof that the sixth field is covered by the hash.** It proves only that a row with nothing set hashes as it did. The proof that the field is covered is the condition Phase 101 owns, in the shape of condition 41, which checks that the hash moves when the field is set, moves between two values, and moves back when it is cleared. Evidence item 6 checks that condition exists and passes.
+
+`MACHINE_EXECUTION_HASH_ALGORITHM` stays `sha256-machine-exec-v1` for the reason its own comment gives. A builder who finds it must move reports that rather than changing it quietly.
+
+**14. The menus.** Remote rows have no context menu today. `RemoteScmSection` in `src/renderer/scm/ScmSection.tsx` gives each row an `onClick` that opens the diff and nothing else. This phase gives a remote row a NATIVE menu through the `ui:popupMenu` bridge, in the shape of the `onContextMenu` handler around line 252 of the same file. The menu holds these items.
+
+- `Open diff`, or `Open file` for an untracked row, matching the local menu's own split.
+- `Open in New Tab`, on a single row only, matching the local menu.
+- `Stage` or `Unstage`, from `verbLabel` at line 173, and neither on a conflicted row.
+
+The application menu in `src/main/menu.ts` gains nothing, because it carries no Stage or Unstage today. The only two matches for Stage in that file are `confirmInstallStagedUpdate` at lines 91 and 316, which is the updater. Both facts are stated in the commit body, because `CLAUDE.md` makes the menus a per-phase obligation.
+
+### What the person reads, in the exact words
+
+| Where | Today | After this phase |
+|---|---|---|
+| The band above the group, `remoteChangesBand` in `src/renderer/app/machine-copy.ts` line 914 | `These changes are on Greg's Mac Pro. Tortie can show them and cannot change them.` | `These changes are on Greg's Mac Pro. Tortie can stage and unstage them there. It cannot undo a change on that machine.` |
+| The row menu and the hover buttons | absent | `Stage`, `Stage 4 files`, `Unstage`, `Unstage 4 files`, from `verbLabel` in `src/renderer/scm/ScmSection.tsx` |
+| The group headers | one header reading `Changes` | `Staged`, `Changes`, `Untracked`, the words `GROUP_LABEL` at line 111 already uses |
+| A conflicted row | the `!` badge and nothing else | the `!` badge, and on hover `Tortie will not stage a conflicted file on another machine. Open a session on Greg's Mac Pro and finish the merge there.` |
+| Writes not confirmed for this machine | absent | `Tortie has not been given permission to write on Greg's Mac Pro. Open Settings, then Machines, and confirm that machine. Nothing was sent.` |
+| A path holding a line break | absent | `Tortie will not stage a file whose name holds a line break, because the list of paths travels to that machine one path per line. Nothing was sent.` |
+| One path longer than the budget | absent | `One of those file names is too long to send to Greg's Mac Pro in a single command. Nothing was sent. Stage it from a session on that machine.` |
+| The machine did not confirm the write | absent | `Tortie asked Greg's Mac Pro to stage those files and it did not say it had. Press Refresh to read what really changed there.` |
+| Part of a list applied | absent | `Tortie staged some of those files on Greg's Mac Pro and then stopped. The list below is what really changed there.` |
+
+The partial sentence names no count on purpose. The script sends one `git add` per chunk and git reports one status for the chunk, so a count of files that landed would be invented rather than read. The re-read after the failure is what tells the person the truth, and the sentence points at it.
+
+The refusal sentences go in `src/main/machines/remote-copy.ts` beside `MACHINE_NOT_CONNECTED` at line 402 and `IMAGE_NOT_WRITTEN` at line 459. Each new one is pinned in `build/assert-bundle-refusals.mjs` with an id and a `why`, in the shape of the `machine.not-connected` row at line 1000 and the `machine.image-not-written` row at line 1029. A refusal the bundler deleted is a refusal the product only claims to have.
+
+The doc comment on `RemoteScmSection` says today "ONE GROUP AND NO VERB THAT WRITES. There is no commit box, no checkbox, no stage, no unstage and no discard", and it says "this product writes on another machine in exactly two places, neither of which is git". Both sentences become false in this commit and both are rewritten. `REMOTE_SCM_SECTIONS_ABSENT` at line 943 of `src/renderer/app/machine-copy.ts` is not touched. Runs are Phase 105. Branches are Phase 106. History is Phase 107.
+
+### What is NOT in this phase
+
+**Discard is refused forever, and this phase is where the refusal stops being a comment.** Research 57 section 5.7 gives five standing reasons, and the deciding one is that no read can answer afterwards whether it ran. The gate condition in item 8 above is what makes the refusal executable, and it is the corrected rule rather than the one the research document drafted. A brief that adds a discard verb, a `git clean`, a `git restore` carrying `--worktree` or `--source`, or a `git rm` without `--cached` has been written wrong.
+
+Also out, and each for its own reason.
+
+| Not built here | Where it goes |
+|---|---|
+| Commit on a remote tab | Phase 104. It runs the person's hooks and possibly a signing prompt on a computer nobody is watching, and it needs a HEAD guard |
+| Runs, branches and history on a remote tab | Phases 105, 106 and 107 |
+| A Merge group | Not built. A conflicted file stays in Changes with its `!` badge |
+| Mark resolved on a remote conflicted row | Not built. Item 10 gives the reason and the on screen sentence |
+| Staging part of a file, or a hunk | Not built. The local list does not have it either |
+| Trash, reveal and duplicate on a machine | Refused or deferred by research 57 section 12. Never reopened by a git phase |
+| A seventh confirmed field | Not added. The sixth is Phase 101's and it covers every write |
+| Widening `ALLOWED_GIT_VERBS` itself | Not done. The three verbs are bound per script id |
+
+**Three verbs are added and each is bound to one script id.** `ALLOWED_GIT_VERBS` at line 2519 of `build/conformance-machines.mjs` is `['rev-parse', 'status', 'show']` and it does NOT grow. `GIT_CLONE_VERBS` at line 2527 is the precedent. It binds two verbs to one id. Phase 103 replaces the ternary in condition 38 that reads `row.id === 'git-clone' ? [...ALLOWED_GIT_VERBS, ...GIT_CLONE_VERBS] : ALLOWED_GIT_VERBS` with a map from script id to its extra verbs, and rewrites the second loop of condition 49, which today iterates `GIT_CLONE_VERBS` alone, to walk the same map.
+
+| Verb | Bound to | Contacts a server | Prompt guards required |
+|---|---|---|---|
+| `add` | `git-stage` only | no | yes, it is not a read verb |
+| `restore` | `git-unstage` only | no | yes |
+| `rm` | `git-unstage` only | no | yes |
+
+`READ_ONLY_GIT_VERBS` at line 2881 is built from `ALLOWED_GIT_VERBS`, so all three fall outside it, and the first loop of condition 49 already demands `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in front of each one. Do not weaken that by adding them to the read set.
+
+### The evidence
+
+Tier 3, and the operator should be at the keyboard for the first stage. Items 1 to 5 and item 12 touch a real machine over a real link. Items 6 to 11 and item 13 run on this Mac and contact no machine. Every item reports a number or a pasted string rather than an assurance.
+
+**On a machine, over the link**
+
+1. **Stage one file and read the porcelain.** On the loopback scratch machine, run `git status --porcelain=v2 -z` over there before and after, and paste both. Git prints two characters per changed file, the first for the index and the second for the folder on disk. Prove the pair moved from `.M` to `M.`. Unstage and prove it moved back. A screenshot alone is not this item.
+2. **A hostile name.** Stage a file whose name holds a space, a `*` and a `[`. Prove exactly that file moved. Prove no other file moved. Paste the full porcelain both times.
+3. **The containment guard, driven.** Send `../above.txt` and `/etc/passwd` and `.` through `machines:stage` by hand, one at a time. For each, report three things. Report that no marker arrived. Report that the call refused. Report that nothing on the machine changed, by pasting the porcelain. Research 55 section 9.3 read a file above the root through this same shape.
+4. **The wrong repository, driven.** Make a second repository on that machine, outside the tab's folder. Send its root as parameter 1 with a path under it. Prove the call refuses, and prove the second repository's index did not move. This is the hole item 2 closes and the script guard does not.
+5. **Run each twice.** Run `git-stage` twice with the same list and paste the porcelain after each run. Do the same for `git-unstage`. Both must leave the same end state, because that is the whole claim in each row's `reason`.
+
+**On this Mac, no machine contacted**
+
+6. **The sixth field, proven twice over.** Run `npm run conformance:machines`. Print the computed unaccepted hash beside the pinned `UNACCEPTED_HASH_2026_08_18`, and paste the two hex strings. Condition 42 writes nothing on a pass, so a pasted `PASS` line is not this item and the gate needs a line that prints the computed value. Then paste the Phase 101 condition that proves the confirm hash MOVES when the sixth field is set, moves between two values, and moves back when it is cleared. A passing condition 42 alone is not evidence that the field is covered.
+7. **The discard refusal, proven by four failures.** Do each of the four below, one at a time, each as a temporary catalogue row, and paste the failure sentence after each. Then remove every temporary row.
+   - A row naming `git clean -fd`.
+   - A row naming `git restore` with neither `--staged` nor anything else.
+   - A row naming `git restore --staged --worktree`.
+   - A row naming `git rm` with no `--cached`.
+8. **The tree came back clean.** After item 7, run `git status --porcelain` in the worktree and paste the output. It prints nothing, or a temporary catalogue row is still in the tree and the commit would carry it.
+9. **The bundle refusal pin, proven by failure.** Delete one of the new refusal rows from `build/assert-bundle-refusals.mjs`, run that assertion, and paste the failure sentence. Put the row back and paste the pass. A pin nobody removed is a pin nobody checked.
+10. **The list shape rule, proven by failure.** Change `for p in $l` to `for p in $2` in one of the two new scripts, run `npm run conformance:machines`, and paste the failure sentence. Put it back. Condition 46 fails only on `program-find`, so this proves the new branch in condition 38 rather than an existing condition.
+11. **Gates.** `npm run typecheck && npm run build && npm run test && npm run smoke:t1 && npm run smoke:t3 && npm run package`, plus `npm run conformance:machines`, which is compulsory for any commit under `src/main/machines/**`, plus `npm run smoke:machines`. The header of `build/conformance-machines.mjs` says the record is sealed through `safeStorage`, which needs an Electron process, so that gate never watches a confirmed machine pass and an unconfirmed one refuse. `npm run smoke:machines` at line 41 of `package.json` is where that is watched, and item 14 depends on it.
+
+**On the surface the phase is for**
+
+12. **Numbers, and they are the first of their kind.** Report milliseconds for these four things, all against the machine over the link.
+    - The review read main runs before a stage, for the path set.
+    - A stage of 1 path.
+    - A stage of 30 paths.
+    - The re-read through `machines:reviewFiles` that follows each.
+    Research 57 section 5.2 was measured on this Mac and crossed no connection, and section 10 says no git read script was ever run over ssh, so no number in that document is the cost of any of these four. State the measured value in the commit body and name the round trip figure of 29 to 37 ms as the empty round trip it is.
+13. **The three groups, on screen.** Photograph the remote Source Control panel with a file in `Staged`, a file in `Changes` and a file in `Untracked` at the same time. Then make one file that is in Staged AND Changes at once, by editing a file after staging it, and photograph the same panel showing that one file in both groups. That is the rule item 9 states and it is the rule a builder is most likely to lose.
+14. **The row menu, opened.** Right click a remote row and photograph the native menu. Do it on a staged row and prove it offers `Unstage`. Do it on an unstaged row and prove it offers `Stage`. Do it on a conflicted row and prove it offers neither, and photograph the sentence that says why.
+15. **The four copy strings, driven.** Photograph each of these on screen rather than reading it out of a file.
+    - The rewritten `remoteChangesBand` sentence in `src/renderer/app/machine-copy.ts`, which today reads `These changes are on ${label}. Tortie can show them and cannot change them.`
+    - The refusal when writes are not confirmed for that machine, with the sixth field unset on the scratch machine. It names the machine by its label.
+    - The line break refusal, driven with a file whose name holds a newline.
+    - The sentence that says the machine did not confirm the write, driven by killing the link.
+16. **Kill the link mid write.** Kill the local ssh channel while a stage of 30 paths is in flight. Report what the index over there looks like afterwards. Photograph the partial sentence from the copy table on screen. Research 57 section 10 records that nobody has ever measured whether SIGKILL on the local ssh stops the far side shell, and Phase 101 is the first chance to answer it and this is the second. Report the answer, or report plainly that it stayed unanswered.
+17. **The unborn branch.** Do these four things on the machine, and paste the far side stderr git actually printed.
+    - Make a repository over there with no commit.
+    - Stage a file.
+    - Unstage it.
+    - Prove the `git rm --cached` fallback fired rather than `git restore --staged`.
+18. **The operator's own sessions.** Count them with `tmux -L gmux list-sessions` before and after and report both numbers. `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` only when one of `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL` is set, so a launch without one of those three silently uses his real server.
+
+### The sentence that weakens, and the commit body says so
+
+Before Phase 101 the product could state, and check by reading script text, that no command it sends can replace a file somebody already had. Phase 101 weakens that on purpose to "no command Tortie sends can replace a file whose contents Tortie did not just verify by checksum", and writes it into the conformance gate.
+
+**Read literally, this phase makes that sentence false, and the fix is a scope rather than a claim.** `git add` and `git rm --cached` both rewrite `.git/index`, which is a file the person already had and whose contents Tortie never checksummed. So the gate sentence is scoped, in the gate's own comment and in the commit body, to files TORTIE NAMES AS A DESTINATION. Neither new script names a destination at all. Each hands a list of pathspecs to that machine's own git and lets git decide what to write, which is exactly what a person running the same command in a session on that machine would get. A repository's own index is outside the sentence, and the reason is written down rather than left for a later round to rediscover.
+
+One more thing has been true until now and stops being true in this commit, and the body has to say it plainly. Until this commit, no command Tortie sent could change a git repository on another computer. After it, two can.
+
+
+## Phase 104 — commit on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(scm): commit on another machine from here`
+**First body line:** `Phase 104: commit on a remote tab`
+**Semver:** minor for a new capability, patch for a correctness fix. The committer decides and says which in the body.
+**Tier 3.** Size Large.
+**Charter:** this entry plus `docs/research/57-remote-parity.md`, plus the block above named "The two decisions the operator made on 2026-08-19, after research 57". That document measured every number here and its rulings bind this phase, with the one correction recorded below.
+
+**Where the detail is.** Research 57 section 5.6, which names three hazards, and section 5.1, which ruled that commit is built only after stage and unstage are in his hands. Section 4.3 says what a new write id costs in the gate. Section 5.5 says how the git verb list is widened honestly.
+
+**Depends on.** Phase 103, for `git-stage` and `git-unstage`. There is nothing to commit on that machine until a person can choose what goes in. Phase 103 in turn depends on Phase 101, which is where the sixth confirmed field and the rewrite of rule 6 land.
+
+**Where it sits in the queue.** LAST of the four write phases, and last of the whole research 57 programme. It runs after 97, 98, 99, 100, 105, 106, 107 and 108. The operator should be at the keyboard for the first commit this makes on his Mac Pro.
+
+### Two sentences in the binding decisions block above are wrong, and Phase 101 strikes them
+
+This has to be read before the mechanism, because a builder who reads the decisions block first will build the wrong thing.
+
+`docs/BACKLOG.md` line 6418 says "Every machine he has already confirmed asks him to confirm again, because the execution hash gains a field and an old agreement no longer matches. That includes Greg's Mac Pro. Phase 101 owns saying this on screen in a way that reads as deliberate rather than as a fault." `docs/BACKLOG.md` line 6442 says "A machine carries a new confirmed field, so every machine already set up asks to be confirmed again, and Phase 101 owns that moment on screen."
+
+Both are false. The mechanism that makes them false is `APPENDED_KEYS` in `src/main/machines/confirm.ts`, which today holds exactly one key, being `acceptedTmuxVersion`. `canonicalMachineText` in the same file emits an appended key only when its value passes `typeof value !== 'string' || value.length === 0`, so a row with no value for it is skipped. The docstring above that function states the outcome in the tree's own words, being that a row nobody accepted a version for hashes byte for byte as it did before Phase 83, "so this build does not ask every machine a person already confirmed to be confirmed again". The sixth field goes in by the same route, so nobody is asked again and there is no re-confirmation moment for Phase 101 to draw.
+
+**Phase 101 owns the edit to those two lines.** It deletes the first bullet at line 6418 and rewrites the sentence at line 6442, and it replaces them with the appended-key rule. Phase 104 checks that the edit landed and reports it if it did not. Nothing in this phase draws a re-confirmation moment for a machine that already works.
+
+### The mechanism
+
+This phase makes one new thing possible. A person looking at the Changes list for a folder on another machine types a message, presses Commit, and git commits over there with their own hooks and their own signing configuration running on that machine. Nothing about the commit is composed here except the message they typed and the folder they are looking at.
+
+**The eighth writer.** `REMOTE_SCRIPTS` in `src/main/machines/remote-scripts.ts` gains one row, being `git-commit`. `remoteWriteScripts()` in the same file then returns eight ids in catalogue order.
+
+| # | Write id | Phase that added it |
+|---|---|---|
+| 1 | `image-put` | Phase 73 |
+| 2 | `git-clone` | Phase 90.2 |
+| 3 | `file-put` | Phase 101 |
+| 4 | `dir-new` | Phase 102 |
+| 5 | `entry-rename` | Phase 102 |
+| 6 | `git-stage` | Phase 103 |
+| 7 | `git-unstage` | Phase 103 |
+| 8 | `git-commit` | this phase |
+
+The row carries all five members the `RemoteScript` interface declares at `src/main/machines/remote-scripts.ts:120`.
+
+| Member | Value |
+|---|---|
+| `id` | `git-commit` |
+| `mode` | `write` |
+| `params` | 3 |
+| `text` | the text below |
+| `reason` | `A commit runs only when HEAD on that machine is still the sha Tortie read, and the first run moves HEAD. So a second run of the same request finds HEAD moved, commits nothing, and answers moved instead of adding a second commit.` |
+
+The `reason` string is not decoration. Condition 35 of `build/conformance-machines.mjs` fails any row whose `reasonLength` is under 30, with the message "A verb ledger row has to say it and so does this." The string above is 232 characters.
+
+**Append the row at the END of the array and never before `image-put`.** `biggestImageCommand` in `build/machines-conformance-probe.mts` takes the FIRST row with `mode: 'write'` and composes it with an image payload. It finds `image-put` today only because `image-put` is first. A write inserted ahead of it makes condition 39 measure the wrong script.
+
+**The script text, and this is the shape rather than the final bytes.** Three positionals. `$1` is the folder on that machine, `$2` is the sha Tortie read before it asked, and `$3` is the message.
+
+```
+set -e
+umask 077
+cd "$1"
+h=$(git rev-parse HEAD 2>/dev/null || true)
+if [ -z "$h" ]; then h=none; fi
+if [ "$h" != "$2" ]; then
+  printf '__TORTIE_RUN__moved none %s__TORTIE_RUN__\n' "$h"
+else
+  s=0
+  m=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git commit -m "$3" </dev/null 2>&1) || s=1
+  m=$(printf '%s' "$m" | head -c 8192)
+  n=$(git rev-parse HEAD 2>/dev/null || true)
+  if [ "$s" = 0 ]; then
+    printf '__TORTIE_RUN__committed none %s__TORTIE_RUN__\n' "${n:-none}"
+  else
+    b=$(printf '%s' "$m" | base64 | tr -d '\n')
+    printf '__TORTIE_RUN__failed %s %s__TORTIE_RUN__\n' "${b:-none}" "${n:-none}"
+  fi
+fi
+```
+
+Seven properties of that text, and each one is a rule the gate reads.
+
+1. It begins `set -e` and then `umask 077`, which is rule 3 of the header.
+2. Every positional is read double quoted. No verb and no flag is a parameter.
+3. `git rev-parse` is one of the three verbs any script may name, and `ALLOWED_GIT_VERBS` at `build/conformance-machines.mjs:2519` holds `rev-parse`, `status` and `show`. `git commit` is a NEW verb and it is bound to this one script id, the way `ls-remote` and `clone` are bound to `git-clone` by `GIT_CLONE_VERBS` at `build/conformance-machines.mjs:2527`.
+4. The commit carries `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in front of it, because condition 49 requires both in front of every git call that is not one of the three read verbs.
+5. Its standard input is `/dev/null`, so a program that tries to read a passphrase from a terminal fails at once instead of holding the connection open until the deadline.
+6. It uses `-m "$3"` rather than `-F`, so this write creates no temporary file of its own on his machine. The only thing it writes is the commit. A multi-line message survives, because the message crosses as one quoted positional through the single `shellQuoteArgv` call in `composeRemoteScriptCommand`.
+7. `head -c 8192` caps what the machine's own words can be before they cross back. Nothing else in the write path caps them.
+
+**The cap on the answer, which nothing else supplies.** `MAX_BUFFER_BYTES` in `src/main/machines/exec-plane.ts:125` is `64 * 1024 * 1024`, being 67,108,864 bytes, and `execRemoteShell` hands it to `execFile` as `maxBuffer`. With no cap on the far side, a chatty `pre-commit` hook returns up to 67,108,864 bytes into a panel, grown further by base64. `head -c 8192` is what closes that. No measurement chose 8,192. It is chosen as enough to hold a hook's refusal, being about 100 lines at 80 columns, and evidence item 3 reports the byte size of the real hook output so a later round can move the number with a measurement rather than a guess. What is not closed is the far side shell holding the hook's whole output in `$m` before the cap is applied, and this phase does not bound that.
+
+**The HEAD guard, which is the answer to hazard 3.** Tortie cannot tell a commit that ran and lost its answer from a commit that never ran. So the sha crosses with the message, and the far side refuses when HEAD is not what Tortie last read. A second send of the same request lands on a repository whose HEAD has already moved, so it commits nothing and answers `moved`. A repository with no commits yet answers nothing from `rev-parse`, and the guard value for that state is the word `none` as well, so an unborn branch is a state rather than a special case.
+
+**What the HEAD guard does NOT guard, and it has to be said plainly.** HEAD does not move when somebody or an agent runs `git add` in that folder on that machine. Tortie runs many agent processes at once under one user account, so a stage on that machine between Tortie's read and Tortie's write is an ordinary event rather than a contrived one. A HEAD guard alone would let a person commit content they never read in the Changes list. So the same re-read that supplies the guard sha also supplies the staged set, and main compares it. `parseRemoteReviewListing` in `src/main/machines/remote-review.ts:231` already returns each file with its index state, so this needs no new script and no new verb. Main refuses with `REMOTE_COMMIT_STAGED_CHANGED` when the staged set it just read differs from the staged set the renderer drew.
+
+That closes the window from the renderer's draw to main's re-read. It does not close the window from main's re-read to the far side's commit, which is one round trip wide. Nothing in this phase closes that window, and the commit body says so.
+
+**Where the guard sha comes from, and it is never the renderer's.** `parseRemoteReviewListing` already receives `# branch.oid` and throws it away, because `parsePorcelainV2Status` in `src/main/git/parse.ts` sets `oid` at line 176 and the remote function returns only `repoPath` and `files`. This phase carries it out, adds it to `MachineReviewList` in `src/shared/ipc/machines.ts:934` as `headSha`, and `reviewFilesOn` in `src/main/machines/remote-review.ts:322` fills it. If Phase 97 or Phase 103 has already carried it out, this phase uses what is there and adds no second field.
+
+Main then re-reads with `review-list` immediately before the write and uses the sha IT just read. The renderer sends the sha it drew as well, and main refuses when the two disagree, which is the rule `cloneProjectOnMachine` in `src/main/machines/remote-clone.ts` already follows for the clone address and whose refusal sentence is `CLONE_CHANGED` at `src/main/machines/remote-copy.ts:665`.
+
+**The new module.** `src/main/machines/remote-commit.ts`, holding `commitOnMachine`, `REMOTE_COMMIT_TIMEOUT_MS`, `REMOTE_COMMIT_ANSWER_MAX_BYTES` and `parseCommitAnswer`. It follows the numbered steps of `cloneProjectOnMachine`. It is the only caller of `runRemoteWrite(ctx, 'git-commit', ...)` in the product, with `src/main/machines/remote-smoke.ts` as the second caller that watches the refusals fire.
+
+**The two new constants, with their reasons.**
+
+| Constant | Value | Why that value |
+|---|---|---|
+| `REMOTE_COMMIT_TIMEOUT_MS` | 300,000 | It is what `COMMIT_TIMEOUT_MS` at `src/main/git/service.ts:80` gives a local commit, and its comment there says why, being that hooks run inside a commit. The remote door's own default is `REMOTE_RUN_TIMEOUT_MS` at `src/main/machines/remote-run.ts:90`, being 15,000, and a hook that runs a test suite is longer than that. |
+| `REMOTE_COMMIT_ANSWER_MAX_BYTES` | 8,192 | It is the number written into the script's `head -c` and into the constant, so the two cannot disagree. The reason for a cap at all is measured and is given above. The reason for this particular number is not measured, and evidence item 3 reports the size a real hook produced. |
+
+**There is no separate cap on the message, and that is deliberate.** An earlier draft of this entry carried a `REMOTE_COMMIT_MAX_BYTES` of 8,192 and could not say why 8,192. No research 57 measurement supports a tighter bound than the one already there. The composed command is bounded by `REMOTE_SCRIPT_MAX_BYTES` at `src/main/machines/remote-scripts.ts:166`, being 131,072, and `runRemoteScript` at `src/main/machines/remote-run.ts:243` compares against it. That comparison uses `command.length`, which is UTF-16 code units rather than bytes, and it is defect 4 of research 57 section 9 that Phase 96 fixes. This phase adds no second cap and relies on the outer one being correct by then.
+
+**The one new channel.** `machines:commit` in `src/shared/ipc/machines.ts`, with `MachineCommitInput` carrying `machineId`, `repoPath`, `headSha`, the staged path list and `message`, and `MachineCommitResult` carrying a word, the new sha, the machine's own words when it failed, and the sentences a surface draws. The word is one of `committed`, `moved`, `staged-changed`, `failed`, `timeout`, `offline` and `refused`. It is registered in `src/main/machines/ipc.ts` beside `machines:cloneProject` at line 863, and it reaches the bridge as `commit` in `src/preload/machines.ts`. The header of that preload file today says "TWO of these calls write on another computer, being `putImage` and `cloneProject`", and it also states a call count and a phase list. This phase updates that header, and its builder checks whether phases 101, 102 and 103 already did so rather than assuming either answer.
+
+**The check after a lost answer needs no new door.** The renderer's "Check what happened" button calls `refresh(target)` in `src/renderer/scm/remote-changes.ts`, which runs `review-list` again, and compares the `headSha` that comes back against the guard sha. That is one existing read script answering the one question a person has.
+
+**The renderer.** `RemoteScmSection` in `src/renderer/scm/ScmSection.tsx` gains a commit box. `useCommitController` at line 442 and `CommitBox` at line 486 in the same file are the local shapes, and the remote box is built beside them rather than by widening them. The reason is that the local controller hangs off `repoPath`, and `repoPath` is `localPathOf(target)` at `src/renderer/scm/ScmSection.tsx:872`, which is null for a machine tab. `targetOfProject` on the line above it returns the target and never returns null for a machine tab, so the null comes from `localPathOf` and from nothing else. The Phase 90.3 comment above both lines says the same thing in its own words. The message is held per target, keyed the way `gmux.scm.changesCollapsed.` already keys by `targetKey(target)`.
+
+**Where the writes gate sits, and it is the door rather than this caller.** `runRemoteWrite` at `src/main/machines/remote-run.ts:189` is the one door every write on another computer passes through. `runRemoteScript` behind it already refuses a script that is not in the catalogue, refuses a write reached through the read door, and calls `assertMachineIsConnected` at step 4, which is described in its own comment as "Connected-only, for every caller of this door at once". The writes-confirmed gate belongs in exactly that place, so one check covers all eight write ids. A door that is safe only because of its caller is not a door.
+
+**Phase 101 puts the gate there.** This phase adds no gate of its own, adds no confirmed field of its own, and does not call the gate from `commitOnMachine`. It proves the door refuses `git-commit` on a machine whose writes are not enabled, and it proves nothing crossed to that machine before the refusal.
+
+**The confirmation, and the shape the sixth field has to take.** The field belongs to Phase 101, and three properties of it bind this phase.
+
+1. **Its value is a NON-EMPTY STRING.** The appended-key route works only for a non-empty string, because `canonicalMachineText` skips an appended key whose value fails `typeof value !== 'string' || value.length === 0`. A boolean field would satisfy the `Normalizers` mapped type with a valid normalizer line, so it would compile, and it would then never enter the hash text for any value at all. The sixth confirmed field would be a gate that does not exist. A builder who finds the field declared as a boolean stops and reports it.
+2. **The gate pins both directions.** `build/conformance-machines.mjs` already computes `movesWhenSet` at line 2303 for `acceptedTmuxVersion`. Phase 101 adds the same check for the sixth field, so a set value MOVES the hash and an unset value does not.
+3. **`MACHINE_EXECUTION_HASH_ALGORITHM` stays `sha256-machine-exec-v1`**, for the reason its own comment gives. A builder who finds it moved reports that rather than changing it quietly.
+
+A machine with writes not enabled carries no value for the new key. Its hash does not move. Its sessions keep running. It asks nothing. The person confirms once, the first time they want to save, and until then every write refuses and names the machine that needs their word.
+
+**The three hazards research 57 section 5.6 named, and this phase answers all three.**
+
+| # | Hazard | The answer this phase builds |
+|---|---|---|
+| 1 | Hooks. The person's `pre-commit` and `commit-msg` hooks run on that machine, and the remote door's default deadline is 15,000 ms while the local commit gets 300,000 ms. `execRemoteShell` hands its deadline to `execFile` with `killSignal: 'SIGKILL'`, so the ssh channel dies here while the commit may keep running there. | The commit gets its own 300,000 ms deadline, so a hook has the same leash it has locally. Past the deadline Tortie says what it does not know and offers the read that answers it. The hook's own output comes back base64 encoded in `$m`, capped at 8,192 bytes, and is shown to the person, because a hook that stopped the commit has already said why. |
+| 2 | Signing. The two prompt guards stop a credential helper. Neither stops a gpg or ssh signing agent asking for a passphrase on a computer nobody is looking at. | Standard input is `/dev/null`, so a terminal passphrase program fails at once rather than holding the link. A signing program with its own window still opens that window on THAT machine's screen and blocks until the 300,000 ms deadline, and Tortie cannot see it. So the commit box on a remote tab carries one standing sentence saying so, drawn before a person commits rather than after. |
+| 3 | The repeat. A commit that ran and lost its answer looks the same as a commit that never ran. | The HEAD guard above. A second send finds HEAD moved, commits nothing, and answers `moved` with the sha it found. |
+
+The fourth hazard, being a stage on that machine between the read and the write, is not on research 57's list. It is named above and answered by the staged-set comparison, and the part of it that is not closed is named there too.
+
+**Hooks and the program search list, which is measured rather than assumed.** `execRemoteShell` runs `ssh <host> <command>`, and a command given to ssh runs the far side's shell non-interactively, so the person's interactive startup files may not be read. A `pre-commit` hook that calls a program installed by a version manager can therefore fail over there while it passes in their own terminal. The builder MEASURES this on the scratch machine and reports the answer. If the hook cannot find its program, this phase does not add a `PATH` of its own to the command. It says on screen that the hook failed and shows the hook's own words.
+
+### What a person sees, in the exact words they will read
+
+The label of the machine is whatever `machineLabelFor` in `src/renderer/state/machines-slice.ts` returns. `Mac Pro` is used below as the example. The shas below are invented for this table and are not commits of this repository.
+
+| State | The exact words |
+|---|---|
+| The standing line under the commit box | `Hooks and signing run on Mac Pro. If a key there needs a passphrase typed, Tortie cannot answer it and the commit will wait until it gives up.` |
+| Button, ready | `Commit on Mac Pro` |
+| Button, running | `Committing…` |
+| Disabled, no message | `Enter a commit message` |
+| Disabled, nothing staged | `Nothing is staged on Mac Pro` |
+| Disabled, conflicts | `Resolve the conflicts on Mac Pro first` |
+| Disabled, not connected | `Tortie is not connected to Mac Pro right now` |
+| Disabled, writes not confirmed | the sentence Phase 101 writes, naming the machine and where to give the word |
+| It worked | `Committed 7d1c40a on Mac Pro.` |
+| HEAD moved | `Something else committed in that folder on Mac Pro after Tortie read it, so Tortie committed nothing. Press Refresh and read the changes again.` |
+| The staged set moved | `What is staged in that folder on Mac Pro changed after Tortie read it, so Tortie committed nothing. Press Refresh and read the changes again.` |
+| Nothing was staged over there | `There was nothing staged in that folder on Mac Pro, so Tortie committed nothing.` |
+| git or a hook refused | `The commit failed on Mac Pro.` followed by the machine's own words |
+| The deadline was hit | `The commit did not finish within 5 minutes, so Tortie stopped waiting. It may still be running on Mac Pro, and it may have finished after Tortie stopped listening. Press Check what happened.` |
+| After the check, HEAD moved | `That folder on Mac Pro is at 7d1c40a now and it was at 2b9e5f1 when Tortie asked, so the commit ran.` |
+| After the check, HEAD unchanged | `That folder on Mac Pro is still at 2b9e5f1, so the commit did not run and nothing was committed.` |
+| After the check, no answer | `Mac Pro did not answer, so Tortie cannot say whether the commit ran.` |
+
+The main side sentences live in `src/main/machines/remote-copy.ts` beside `cloneTimedOut` at line 646 and `CLONE_CHANGED` at line 665, which are the shapes they follow. The renderer's own labels live in `src/renderer/app/machine-copy.ts` beside `remoteChangesBand` at line 914.
+
+**Four things already on screen become false and this phase fixes them.**
+
+- `remoteChangesBand` at `src/renderer/app/machine-copy.ts:914` returns `These changes are on ${label}. Tortie can show them and cannot change them.`
+- `REMOTE_SCM_SECTIONS_ABSENT` at `src/renderer/app/machine-copy.ts:943` says Tortie shows the changed files and not history, branches or runs.
+- The doc comment above `RemoteScmSection` at `src/renderer/scm/ScmSection.tsx:622` says `ONE GROUP AND NO VERB THAT WRITES` and names the commit box as absent.
+- The comment above the remote branch of `BranchHeader` at `src/renderer/scm/BranchHeader.tsx:304` says `Tortie never writes on that machine`.
+
+The band is Phase 103's to rewrite for staging. This phase reads what Phase 103 left and refuses to ship a band that still says Tortie cannot change anything there. The other three are rewritten here if the earlier phases left them.
+
+**The native menus do not change.** Commit is a renderer-only chord, and the header of `src/main/menu.ts` records at line 23 that the ⌘↩ commit chord is deliberately off the menu. This phase adds no menu item and removes none. Said here because the house rule requires every phase to state what moved in the menus.
+
+### The gate
+
+`npm run conformance:machines` is the gate that holds this. Five edits.
+
+1. **`ALLOWED_WRITERS` in `build/conformance-machines.mjs` goes from seven ids to eight**, with `git-commit` last. The list is compared by length AND by order against what `remoteWriteScripts()` returns, so the array position and the gate list have to agree.
+2. **Condition 38 gains a `git-commit` branch.** Its `else` fails any write with no branch of its own, with the message "Every write carries its own rule, because two writes of different shapes cannot share one." So this is not optional. The branch asserts six things, and it is where this phase records what makes this write safe to run twice.
+   - The redirection list is EMPTY, and the branch asserts emptiness rather than aim. This is stated fully in the paragraph below, because it weakens a rule.
+   - The text contains `</dev/null`, which is what stops a passphrase program holding the link.
+   - The text contains the HEAD comparison line `if [ "$h" != "$2" ]; then`, which is what makes it safe to run twice.
+   - The text contains `head -c 8192`, which is what bounds the machine's own words on the way back.
+   - The text contains `git commit -m "$3"` and contains none of `--amend`, `--no-verify`, `-a` and `--all`. Tortie never skips the person's hooks and never stages on their behalf inside a commit.
+   - The text names `-F` nowhere, so this write creates no file of its own on that machine.
+3. **A new `GIT_COMMIT_VERBS` list beside `GIT_CLONE_VERBS`**, holding `commit` and bound to the id `git-commit`. Condition 38's `allowedVerbs` and condition 49's loop both learn it. A verb allowed everywhere is a verb any future script can use, which is the sentence `GIT_CLONE_VERBS` already carries.
+4. **Rule 6 in the header of `src/main/machines/remote-scripts.ts` is finished here.** Phase 101 rewrites it from two writers to the new shape. This phase makes it name eight and say, for each, the one property that makes it safe to run twice. In the tree today, the doc comment on `runRemoteWrite` at `src/main/machines/remote-run.ts:185` still says "The catalogue holds exactly one script with `mode: 'write'`", which is already wrong at two. Research 57 section 4.3 item 4 gives that correction to Phase 101. This phase's builder READS that comment rather than assuming its state, and corrects it in this commit if phases 101, 102 and 103 left it stale.
+5. **The checkable sentence, weakened on purpose and kept checkable.** Phase 101 writes it into the gate. It was "no command Tortie sends can replace a file somebody already had". It becomes "no command Tortie sends can replace a file whose contents Tortie did not just verify by checksum". This phase does not weaken it further. `git-commit` replaces no file at all, and it adds a commit object and moves a ref, both through git. Its own repeat property is the HEAD guard rather than a checksum, which is what its `reason` string says.
+
+**The redirection rule for this id is weaker than the other two, and that is stated rather than hidden.** The redirect reader in `build/machines-conformance-probe.mts:1124` matches `/(?<!2)>\s*([^\s;|)]+)/g`, so it counts neither `2>/dev/null` nor `2>&1` nor `</dev/null`. Run over the script text above it returns an empty list, which was measured rather than reasoned. So the branch cannot copy `git-clone`'s rule that every redirection aims at `/dev/null`, because a rule quantified over an empty list asserts nothing and would be this gate's first vacuous write rule. The branch asserts instead that the list is EMPTY, which is a true and specific property of this write, being that it redirects nothing anywhere. That is a different rule from the other seven and it is weaker than `image-put`'s, which names the exact target every redirection must aim at. The commit body says so.
+
+One entry is added to `build/assert-bundle-refusals.mjs`, being `machine.commit-head-moved`. Its precedent is `machine.image-not-written`, which the header of that file at line 444 describes as firing "only when a link dropped halfway", and the sentence at `src/main/machines/remote-smoke.ts:16` names the same class, being refusals "reachable in production but rarely". The HEAD-moved branch is NOT the shape `machine.repeat-unsafe` has. A correct caller reaches it on purpose, because it is the answer to a resend and it is also reached whenever an agent on that machine commits between Tortie's read and Tortie's write. It is pinned because it is reached rarely and rollup deletes a branch whose condition it can prove, not because nothing reaches it.
+
+**The pinned unaccepted hash already exists and no phase sets it.** `UNACCEPTED_HASH_2026_08_18` is at `build/conformance-machines.mjs:2290`, its value is `dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46`, and conditions 42 read it at lines 2334 and 2344. It went in with Phase 83. Phase 101 pins nothing new here, and both Phase 101 and Phase 104 prove it UNCHANGED. Condition 43 at `build/conformance-machines.mjs:2374` fails unless `MACHINE_EXECUTION_FIELDS` lists exactly five, so a sixth field moves that number, and Phase 101 owns that edit.
+
+### What is NOT in this phase
+
+**Discard on a remote tab is REFUSED PERMANENTLY** by research 57 section 5.7 and section 12. It destroys work that was never committed anywhere. That machine has no trash to fall back on. No read can answer afterwards whether it ran. The gate condition that makes this a refusal rather than a comment is written in Phase 103, and its shape is careful. It is three rules.
+
+- No catalogue script may name `git clean`.
+- `restore` may appear only with `--staged` or with `--source`.
+- `rm` may appear only with `--cached`.
+
+A blunter condition would fail `git-unstage`, which needs `git rm --cached` on an unborn branch.
+
+**Amend is not built.** It is not on the twenty row list in research 57 section 8, so nothing here has measured it and nothing here has ruled on it. It rewrites a commit that may already have left that machine. If the operator asks for it, it is its own row with its own reasoning.
+
+**No sync verb is built on a remote tab.** None of the three is on the research 57 list at all.
+
+- Push is not built.
+- Pull is not built.
+- Fetch is not built.
+
+The sync control and the actions menu stay absent from the remote branch of `BranchHeader`, and they stay ABSENT rather than disabled, for the reason that comment already gives, which is that a disabled Push would say Tortie could push there under some condition and there is no such condition.
+
+**Stage all and commit is not built for a machine.** The local controller offers it through `stageAllFirst` at `src/renderer/scm/ScmSection.tsx:454`. On a machine it would put two writes behind one button, and a lost answer between them leaves a state neither write can explain. A person stages with the Phase 103 verbs and then commits.
+
+**Tortie does not answer a signing passphrase, ever.** No prompt is forwarded here, no passphrase is read here, and none is cached here.
+
+**Also refused permanently by research 57 section 12, and never to be built in this phase or any later one.**
+
+- Trash on a machine as a delete.
+- Reveal on a machine.
+- Duplicate on a machine for now.
+- A real remote scrollbar.
+- Shipping or sending a ripgrep.
+
+### The evidence
+
+Tier 3. A verifier that only reads code has not verified this phase. Every item below is something to DO.
+
+1. **Commit for real on the loopback scratch machine.** Use `node build/with-scratch-machine.mjs`, which is what `npm run smoke:remote` already provisions itself with. Stage a file with the Phase 103 verb, type a message, and press Commit. Read the new sha back with `git log -1` on that machine. COMPARE that sha against the sha the panel drew in `Committed <sha> on Mac Pro.` and say whether the two are equal, because that comparison is the one check proving the answer parsed out of the `__TORTIE_RUN__` line is the commit that actually landed. Report the sha. Report the wall clock seconds. Report the composed command size in bytes.
+2. **Prove the HEAD guard stops a double commit.** Send the same request twice with the same guard sha. The second one must answer `moved`, and `git rev-list --count HEAD` on that machine must be one higher than it was before the first, not two. Report both counts.
+3. **Prove a hook that refuses is shown, and measure its output.** Put a `pre-commit` hook on the scratch machine that exits 1 and prints a line of its own. Photograph what the panel draws and confirm the hook's own line is in it. Then run a hook that prints more than 8,192 bytes and prove what comes back is capped. Report the byte size of the real refusal from the first hook, which is the number a later round moves `REMOTE_COMMIT_ANSWER_MAX_BYTES` from.
+4. **Prove the 300,000 ms deadline is actually in force, with a measured number.** Put a `pre-commit` hook on the scratch machine that sleeps 45 seconds, which is longer than `REMOTE_RUN_TIMEOUT_MS` at 15,000 and shorter than `REMOTE_COMMIT_TIMEOUT_MS` at 300,000. Report the measured wall clock at which Tortie answered, and report whether the commit succeeded. A run that answers at about 45 seconds proves the commit got its own deadline. A run that answers at about 15 seconds proves it did not, and that is a failure of this phase rather than a note.
+5. **Prove the deadline story is honest past the deadline.** Put a `pre-commit` hook on the scratch machine that sleeps longer than 300,000 ms. Report what Tortie says. Press Check what happened and report which of the three answers appears. THEN ANSWER THE QUESTION RESEARCH 57 SECTION 10 LEFT OPEN, being whether SIGKILL on the local ssh stops the far side shell mid write. Say plainly whether the commit landed on that machine after Tortie stopped listening.
+6. **Measure the hook environment, with one named program.** Install `node` on the scratch machine through `nvm`, so the binary sits under `~/.nvm/versions/node/` and is on `PATH` only through the interactive startup file. Put a `pre-commit` hook there whose first line runs `node --version`. Report whether the hook found it. Report the `PATH` the hook saw either way. Check that what the panel says matches what happened, both when the program is found and when it is not.
+7. **Prove the message survives.** Commit a multi-line message holding these three characters.
+   - The double quote character `"`.
+   - The dollar sign `$`.
+   - The character `é`, being U+00E9.
+   Read the message back with `git log -1 --format=%B` on that machine and compare it byte for byte with what was typed.
+8. **Prove the outer cap holds and is counted in bytes.** Send a message that puts the composed command one byte over `REMOTE_SCRIPT_MAX_BYTES`, being 131,072, and prove it is refused before anything crosses. Use multi-byte characters so a UTF-16 count and a byte count disagree, and report both counts.
+9. **Prove an unborn branch works.** Commit the first commit into a repository on that machine that has none yet, and prove the guard's `none` path answers rather than throwing.
+10. **Prove the staged-set guard fires.** With the Changes list drawn, run `git add` on a second file in that folder on that machine, then press Commit. Prove the answer is the staged-set refusal, prove the new commit count on that machine is unchanged, and photograph the sentence.
+11. **Prove main refuses a renderer sha it disagrees with.** Send a `machines:commit` request whose `headSha` is not the sha main reads back from `review-list`. Prove the refusal fires. Prove NOTHING crossed to the machine before it, by reading the ssh process count from the process table the way `src/main/machines/remote-smoke.ts` already does.
+12. **Prove the confirmation behaves.** On a machine whose writes are not enabled, press Commit and prove the refusal names that machine and says where to give the word. Prove the refusal came from the door, being `runRemoteWrite`, rather than from `commitOnMachine`. Then run `npm run conformance:machines` and show it passes, which is the proof that `UNACCEPTED_HASH_2026_08_18` at `build/conformance-machines.mjs:2290`, being `dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46`, still matches. The gate does not print that hex on a pass. It fails when the computed value differs, so a passing run IS the evidence and no printed value is available to quote.
+13. **Prove a write sent through the read door is refused.** Send `git-commit` through `runRemoteRead` and prove `WRITE_THROUGH_READ_DOOR` at `src/main/machines/remote-copy.ts:388` fires. Send it while the machine is not connected and prove `MACHINE_NOT_CONNECTED` at `src/main/machines/remote-copy.ts:402` fires. Add both to `src/main/machines/remote-smoke.ts` so they are watched from then on.
+14. **Photograph the standing line with a real machine label substituted.** It must read `Hooks and signing run on <label> ...` with the machine's own label rather than a placeholder, which also proves `machineLabelFor` reached that line. This is the one visible answer to hazard 2, so it is checked by looking rather than by design.
+15. **Photograph every disabled reason.** Drive the panel into each of these states and photograph it, then compare each photograph against the copy table row by row.
+    - No message typed.
+    - Nothing staged on that machine.
+    - A conflicted file in that folder.
+    - The machine not connected.
+    - Writes not confirmed for that machine.
+16. **Read the band and prove the false sentences are gone.** Photograph the Changes list on a remote tab and prove no sentence on screen says Tortie cannot change anything on that machine. Delete the four sentences named in the mechanism if the earlier phases left them, and say which of the four this phase deleted and which were already gone.
+17. **Run the gates.** `npm run typecheck`, `npm run build`, `npm run test`, `npm run smoke:t1`, `npm run smoke:t3`, `npm run smoke:remote`, `npm run conformance:machines`, and `npm run package` for the integrator.
+18. **Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers.** `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when one of `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL` is set. A launch without one of those logs `GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.` through `tmuxLog.warn` and then uses his real server, so the warning is in the log and the sessions at risk are his.
+19. **Say what is not true.** Name what was measured on the loopback machine only and never on the Mac Pro. Name whether any Linux machine was contacted. Name whether a signing configuration was ever exercised, and if it was not, say that hazard 2 is answered by design and by one photographed sentence rather than by measurement. Say plainly that the window between main's `review-list` re-read and the far side's commit is one round trip wide and is not closed.
 
 ## Research 58 — which agents exist on which machine, and when Tortie looks (operator requested 2026-08-19) QUEUED
 
