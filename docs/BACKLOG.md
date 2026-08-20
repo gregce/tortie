@@ -6488,6 +6488,155 @@ every checkpoint of the build, the verification and the commit.
   the command line beneath it. A later phase that wants the function moves it into its own module
   first.
 
+## Research 59 — why macOS kills the bundled SpecStory, and the entitlement that stops it (github issue 10, reported by an outside user) QUEUED
+
+**Subject:** `docs(research): why macOS kills the bundled SpecStory, and the entitlement that stops it`
+**First body line:** `Research 59: the SpecStory entitlement spike`
+
+**Where this came from.** Github issue 10 on gregce/tortie, filed by an outside user on a 0.31.0
+install. Captured Claude and Codex sessions die with `SIGKILL (Code Signature Invalid)`,
+`CODESIGNING`, `Invalid Page`, and the killed process is the bundled
+`Resources/bin/specstory`, not the agent. The reporter then confirmed the mechanism in a follow up:
+the 2.8.0 binary carries `tetratelabs/wazero` and `betterleaks/go-re2`, whose symbols include
+`MmapCodeSegment` and `MprotectCodeSegment`, so it generates executable memory at run time.
+`build/sign-nested-binaries.cjs` signs it with hardened runtime and NO entitlement file, and a child
+executable does not inherit the JIT entitlements Tortie's own Electron processes carry. Static
+`codesign --verify` passes because it checks the sealed file on disk, never a later anonymous
+executable mapping, which is why every existing gate is blind to this.
+
+**A fact measured here on 2026-08-20 that shapes everything.** `v2.10.0` of specstory-cli still
+carries wazero v1.12.0 and go-re2 in its go.mod, so upgrading the pin does NOT fix the crash. The
+entitlement fix and the 2.10.0 bump must ship together, and that is Phase 115.
+
+**THIS DOCUMENT MUST RULE and it ends with the completed entitlement section of Phase 115.**
+
+### The questions
+
+1. **REPRODUCE IT LOCALLY, on a copy, in a scratch HOME.** Take the vendored 2.8.0 binary, confirm
+   the wazero symbols the reporter named, then sign a COPY ad hoc with hardened runtime and no
+   entitlements and drive `specstory run` and `specstory sync` until the generated-code path
+   executes. Say whether macOS kills it the same way on this machine. If ad hoc signing does not
+   reproduce the enforcement, say so and say what would.
+2. **THE A/B THE REPORTER ASKED FOR.** On the same driven paths, test the candidate sets:
+   `com.apple.security.cs.allow-jit` alone, `com.apple.security.cs.allow-unsigned-executable-memory`
+   alone, and both. Rule on the MINIMAL set. Say whether wazero on darwin arm64 uses `MAP_JIT`,
+   because that is what decides between the two. Do not copy Tortie's Electron entitlement set; the
+   reporter warned against exactly that and CLAUDE.md refusal 6 is nearby.
+3. **THE 2.10.0 DELTA AND THE PIN.** Download the real `v2.10.0` Darwin arm64 release asset from
+   specstoryai/getspecstory, verify it against the release's own checksums file, and produce the
+   full pin block for `build/specstory-release.json`, being tag, version, assetSha256, binarySha256
+   and binaryBytes. Then prove the three shapes `src/main/specstory/capture.ts` measured on 2.8.0
+   still hold on 2.10.0, being the `run --help` line, the probe it accepts, and the sync exit codes
+   `src/main/specstory/sync.ts` documents. Confirm by symbols whether the 2.10.0 binary still
+   carries the wazero paths.
+4. **THE WRAPPER FAILURE HALF OF THE TICKET.** Today the death is logged as
+   `agent=claude signal=kill`, which blames the agent. Read `src/main/sessions/exit-detail.ts` and
+   the Phase 48 states, and rule on the smallest honest change so a capture process death names
+   SpecStory, does not overwrite the primary death reason, and leaves the person a bare agent
+   recovery path. Decide whether that lands inside Phase 115 or as its own phase, and say why.
+5. **THE RELEASE GATE.** The durability lane packages with signing off, and enforcement needs a
+   signed artifact. Rule on what each layer can honestly assert: what `build/verify-signed.mjs` can
+   check statically (the entitlement blob on the nested binary), what a local ad hoc signed exercise
+   can prove before release, and what only the operator's real signed notarized build can prove.
+   Name the exact gate additions and where each runs. A gate that passes without its subject present
+   is worse than no gate.
+
+**SAFETY.** Every specstory execution uses a scratch HOME and a scratch working directory, never the
+operator's real HOME, his `.specstory` folders or his cloud sign in. Sign only copies in your own
+scratch space. Never touch `/Applications/Tortie.app`. The local checkout at
+`/Users/gdc/getspecstory` is read only.
+
+## Phase 115 — SpecStory 2.10.0, signed so macOS stops killing it (github issue 10) QUEUED, entitlement section completed by Research 59
+
+**Subject:** `fix(capture): SpecStory 2.10.0, signed with the entitlements its runtime needs`
+**First body line:** `Phase 115: SpecStory 2.10.0, signed so macOS stops killing it`
+**Semver:** minor. A person gets new capability and a repaired one in the same commit.
+**Tier 3.** It is a bug an outside user personally reported, it destroys captured sessions in the
+installed app, and capture wraps the agent argv, which is restore-adjacent.
+
+**The two halves, and they cannot ship apart.**
+
+1. **The entitlement fix.** `build/sign-nested-binaries.cjs` gains a dedicated minimal entitlement
+   file for the SpecStory nested executable, with the exact set Research 59 measured. Refusal 6 in
+   CLAUDE.md stays true: this is a narrow per binary entitlement, never
+   `disable-library-validation`, and never applied app wide.
+2. **The pin bump.** `build/specstory-release.json` moves from 2.8.0 to 2.10.0 with the pin block
+   Research 59 produced. What a person gets from 2.10.0: Codex sessions started on Codex 0.147.0
+   and later are saved again instead of producing an empty markdown file, Muse Code sessions are
+   captured, watch and run stop re-saving old sessions on every start, and `output_dir` in the
+   config file is honoured everywhere.
+
+**Why the bump alone would not fix issue 10, said so nobody ships half.** v2.10.0 still carries
+wazero and go-re2, measured in its go.mod on 2026-08-20, so the new binary dies the same way
+without the entitlement.
+
+**Also in this phase, if Research 59 rules it in rather than out.** A capture process death names
+SpecStory in the log and on screen instead of `agent=claude signal=kill`, does not overwrite the
+primary death reason, and leaves a bare agent recovery path.
+
+**Gates.** The full battery, plus `npm run conformance:resume:capture` (capture argv shape),
+the full `npm run conformance:resume` roundtrip (an agent adjacent CLI upgrade, per DEVELOPMENT.md),
+`npm run smoke:capture`, and the new signing gate Research 59 names. The verifier proves the
+capture.ts probe shapes against the real 2.10.0 binary, not against 2.8.0 memory.
+
+**Release note.** This closes github issue 10 for the next release, and the operator may want to
+reply on the issue when it ships. That reply is his, not an agent's.
+
+## Phases 116 to 118 — the audit's safety rungs (docs/audits/2026-08-20-electron-typescript-architecture.md) QUEUED
+
+The 2026-08-20 audit is the current architecture authority and CLAUDE.md already points at it. Its
+score moved from 26 of 36 to 24 of 36, and its own ruling is safety first: no phase changes normal
+UI behavior, public IPC names, durable identity, remote execution policy or the one bridge rule, and
+durability work is never combined with broad file moves. These three phases are its phases 0, 1 and
+2, one Tortie phase each, in order. Its phases 3 to 9 are RECORDED below and queue after these land.
+
+### Phase 116 — mutating IPC can acquire the core after shutdown starts (audit phase 0, both P0 items start here)
+
+**Subject:** `fix(lifecycle): the core fails closed once shutdown starts`
+**First body line:** `Phase 116: the core fails closed once shutdown starts`
+**Tier 3.** Durability.
+The core gains a lifecycle state, being `empty`, `booting`, `ready` and `shuttingDown`. A mutating
+call after shutdown starts gets a typed refusal, and work already admitted is joined rather than
+abandoned. The audit's own evidence: `getGmuxCore()` returns the existing core while
+`shutdownPromise` is active, and `core-singleton.test.ts` pins one boot but proves nothing about
+refusing mutation. **Proof required by the audit:** hold a snapshot, call a real mutating handler,
+prove no insert, no spawn, no remote exec and no boot occurs, and prove an already admitted create
+is joined.
+
+### Phase 117 — an unreachable remote create confirmation is treated as proven absence (audit phase 1)
+
+**Subject:** `fix(machines): an unreachable confirmation is not proof of absence`
+**First body line:** `Phase 117: an unreachable confirmation is not proof of absence`
+**Tier 3.** It can otherwise lose a running remote session's row.
+The confirmation becomes three states, being `present`, `provenAbsent` and `unreachable`. A row is
+deleted only on proven absence, and an unknown declaration survives a restart. The audit's evidence:
+a broad catch in `remote-sessions.ts` returns null and the caller reads null as nothing running.
+**Proof required:** let the far side create succeed, lose the reply, make confirmation unreachable,
+restart, and prove later reconciliation binds the same immutable id with no duplicate create.
+
+### Phase 118 — long running ssh children and machine removal (audit phase 2)
+
+**Subject:** `fix(machines): remote children are owned, and removal is one transaction`
+**First body line:** `Phase 118: remote children are owned, and removal is one transaction`
+**Tier 3.**
+Two items the audit pairs. A remote execution ledger owns every long running ssh child, being clone,
+capture, harvest and store sync, with refusal after shutdown, cancellation and a bounded join, since
+a clone can run ten minutes today with nobody owning it. And machine removal becomes one SQLite
+transaction, tombstoning every row or none, with the machine file removed only after commit.
+**Proof required:** hold a remote clone, quit, and prove the ssh child is ended or joined and the
+outcome classified. Fault the kth row of a removal and prove zero changes, then retry and prove
+idempotence.
+
+### The rest of the audit, recorded so nothing is lost
+
+Audit phases 3 to 9, queued after 116 to 118 land, each independently shippable: the quick open
+recents delimiter (a space splits a path with a space in it), the bridge member optionality and the
+exact IPC closure, the six runtime dependency cycles and an AST cycle gate, the truthful TypeScript
+reference graph, the split of the machine contracts and orchestration behind stable facades, the
+App.tsx controller extraction and gated probe registration, and the FileTree controllers. The audit
+also names what NOT to do, being no split of `shared/types.ts`, `agents/registry.ts` or
+`git/service.ts` on line count alone.
+
 ## Phase 113 — `npm run shot` still attaches to the operator's own server, AND IT NEEDS HIS WORD QUEUED, BLOCKED
 
 **Subject:** `fix(build): the screenshot harness stops attaching to the operator's own server`
