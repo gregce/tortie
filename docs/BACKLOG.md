@@ -6250,6 +6250,12 @@ Create a file on the loopback scratch machine, prove it appears in the list, pro
 
 ### What is NOT in this phase
 
+**DECISION 2 BINDS THIS PHASE.** Outside a git repository the search ANSWERS with a `find` walk
+rather than refusing, and it says on screen that the folder is not a repository and that nothing is
+being skipped. The operator chose this knowing the cost, being 366 to 753 ms against 174 to 176 ms
+and an answer that includes build output, which on the measured corpus was 19 lines where the git
+path returned 14 and 5 of the 19 were wrong.
+
 **Shipping a ripgrep in the bundle and sending it to the machine is REFUSED by research 57 and must not be built.** It buys 0.15 s and costs a third write door, a 47 chunk transfer protocol, a per architecture binary matrix, a sixth confirmed field every existing machine would have to agree to again, and a Tortie-placed executable on his computer.
 
 ### The evidence
@@ -6400,21 +6406,40 @@ Walk a real repository on the loopback scratch machine, open a commit's file dif
 
 `npm run conformance:context` IS A HARD GATE AND NO ROW OF THE PRECEDENCE MATRIX MAY MOVE. Prove that first. Then read a real Context on the loopback scratch machine and prove the per agent ordering matches what the same agent would read there. Report the seconds. Prove an absent path answers rather than throws. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
 
-## Phases 101 to 104 — the four write phases, HELD pending the operator's word on decision 1
+## The two decisions the operator made on 2026-08-19, after research 57
 
-Research 57 section 11 names one decision that is his and not an agent's, and **nothing in these four
-may start before he answers it.** They are, in order: Phase 101 save a file and create an empty file
+These are his answers to section 11 of `docs/research/57-remote-parity.md`. They bind every phase
+below and no later round reopens them without his word.
+
+**Decision 1. Tortie MAY write a file on his machine, and a machine carries a NEW CONFIRMED FIELD for
+it.** He chose the shape with a precedent in the product, being the one `remoteTmuxPath` already
+follows. Three consequences, and the first is the one he will feel:
+
+- **Every machine he has already confirmed asks him to confirm again**, because the execution hash
+  gains a field and an old agreement no longer matches. That includes Greg's Mac Pro. Phase 101 owns
+  saying this on screen in a way that reads as deliberate rather than as a fault.
+- `ALLOWED_WRITERS` moves from two to eight across phases 101 to 104, and rule 6 of
+  `src/main/machines/remote-scripts.ts` is rewritten in Phase 101 rather than accumulating silently.
+- The checkable sentence weakens on purpose. It was "no command Tortie sends can replace a file
+  somebody already had". It becomes "no command Tortie sends can replace a file whose contents Tortie
+  did not just verify by checksum". Phase 101 writes that sentence into the conformance gate so it
+  stays checkable rather than becoming a claim.
+
+**Decision 2. Search ANSWERS outside a git repository and says so.** It falls back to a `find` walk.
+He was told the cost before choosing: 366 to 753 ms against 174 to 176 ms, and the walk's answer
+includes build output, so on the measured corpus it returned 19 lines where the git path returned 14
+and 5 of the 19 were wrong. Phase 98 must say plainly, on screen, that the folder is not a repository
+and that nothing is being skipped, so a person can read why the answer looks wider than it should.
+
+## Phases 101 to 104 — the four write phases, UNBLOCKED 2026-08-19 by decision 1 above
+
+Research 57 section 11 named one decision that is his and not an agent's. **He answered it above on
+2026-08-19 and these four are now buildable.** They are, in order: Phase 101 save a file and create an empty file
 on a machine; Phase 102 new folder and rename or move on a machine; Phase 103 stage and unstage on a
 remote tab; Phase 104 commit on a remote tab.
 
-**The decision.** May Tortie write a file on his machine at all, and what does he confirm when it
-does. Today the product can state, and check by reading script text, that no command it sends can
-replace a file somebody already had. After `file-put` that sentence weakens to a checksum promise and
-`ALLOWED_WRITERS` goes from two to eight. Three shapes are possible and the document recommends the
-first: a machine carries a new confirmed field the way `remoteTmuxPath` does, which means every
-existing machine's confirmation moves; or a write is confirmed per project folder, which is a new
-confirmation surface; or writes ride the existing machine confirmation with no new field, which is
-the smallest change and says the least.
+**The decision, and it is made.** See decision 1 above. A machine carries a new confirmed field, so
+every machine already set up asks to be confirmed again, and Phase 101 owns that moment on screen.
 
 **Also ruled REFUSED and never to be built**, from section 12: duplicate on a machine is not now,
 trash on a machine is never as a delete because `shell.trashItem` has no far side equal, reveal on a
