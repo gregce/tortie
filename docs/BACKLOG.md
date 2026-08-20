@@ -6568,6 +6568,88 @@ machine is never because it opens Finder on this Mac over a file that is not her
 remote tab is never because it destroys uncommitted work with no undo over there and no read can
 answer afterwards whether it ran.
 
+## Research 58 — which agents exist on which machine, and when Tortie looks (operator requested 2026-08-19) QUEUED
+
+**Subject:** `docs(research): which agents exist on which machine, and when Tortie looks`
+**First body line:** `Research 58: which agents exist on which machine`
+
+**The operator's ask, in his words.** "We should add a phase that ensures that we appropriately scan
+the remote machine to verify its installed agents, because with Cmd+T you can mistakenly try to open
+an agent that doesn't actually exist on that machine. We should think about the balance of when we
+scan and store this configuration since it has to operate across a network. And take the most optimal
+route to balance before and network requirements. And the screens all need to reflect what is
+available ON that machine. And perhaps we could have some sub field in the agents tab of settings
+that shows what exists where and the ability to rescan any machine registries that we have."
+
+**THIS DOCUMENT MUST RULE, and it must end with a phase entry ready to paste into this file.** The
+scan policy is a numbers question and the answer must come from a measurement against his Mac Pro
+rather than from a preference.
+
+### What is known going in, so nobody re-derives it
+
+`remoteBinFor` in `src/main/machines/remote-sessions.ts` already resolves ONE agent's program on a
+machine, at create time, and logs what it found. Measured on his Mac Pro on 2026-08-19 it printed
+that claude was found at `/Users/gdc/.local/bin/claude` "in its install folders after 17 folder(s)
+were tested". The install map lives in `src/main/agents/registry.ts` and `npm run conformance:installs`
+asserts the six shape rules from research 47 section 10, whose promise is that nothing in that map
+can run. Thirteen agents are in the registry and twelve are installed on this Mac.
+
+So the parts exist for one agent at create time. What does not exist is an answer for EVERY agent,
+before the person chooses, cached with a policy, and drawn on every screen that lists agents.
+
+### What binds this document
+
+- **The Zen rules for the agent surfaces.** No badge, no dot, no count that rises on its own, nothing
+  that animates. Phase 84 item 8 already solved the neighbouring case, being a machine in the dropdown
+  that cannot hold a session, and its pattern is the one to match rather than a new one.
+- **CLAUDE.md refusal 3.** No marketplace, no store UI, no in-app browse and install, no update badge,
+  no extension count on the activity rail. A view of what exists where is a READ. It must not become a
+  place to install anything.
+- **The install map's promise.** Nothing in it can run. A scan that turned a map entry into an
+  executed command would break that and `npm run conformance:installs` is the gate that says so.
+- **The exec plane.** A scan is a READ and must go through the read door. It adds no writer.
+- **No credential ever crosses to a machine.**
+
+### The questions
+
+1. **WHAT RUNS TODAY, COUNTED.** Read `remoteBinFor`, `remoteMachinePath`, the PATH capture, and the
+   install map. Answer: when does a probe run, how many folders are tested per agent, is any answer
+   cached and for how long, and what EXACTLY does a person see today in Cmd+T when they choose an
+   agent that is not on that machine. Name the failure and where it is raised. Say whether the create
+   is refused before anything starts or after a pane opens.
+
+2. **THE BATCHED PROBE.** Can ONE read script test every agent's install folders for all thirteen
+   agents in one round trip. **Measure it against his Mac Pro, READ ONLY, and never write there.**
+   Give the seconds, the answer bytes and the number of folders tested, and compare it against
+   thirteen separate probes. Check it against `REMOTE_SCRIPT_MAX_BYTES` and against the read door's
+   timeout. Say what the answer looks like when a folder is unreadable.
+
+3. **FRESHNESS AND STORAGE, and this is the operator's own question.** Rule on when to scan among
+   these, with the deciding reason on every row including the rejected ones: on the machine
+   connecting, when the Cmd+T sheet opens, on demand only, on a timer, or some pair of those. Then
+   rule on where the answer lives among memory held against the connection generation, the machines
+   store on disk, and the manifest. Answer invalidation: an agent installed over there later, a PATH
+   that changes, a machine that is forgotten. **Price both errors.** A false absent means a person
+   cannot start an agent that is really there. A false present means a create refuses at the far end
+   after they chose. Say which is worse and design for it. The counterpart lookup in
+   `src/main/machines/project-counterpart.ts` already holds one answer per machine against the
+   connection generation and writes nothing to disk, so say whether that is the precedent to follow.
+
+4. **EVERY SURFACE THAT LISTS AGENTS.** Enumerate them, being at least the Cmd+T agent board, the
+   per-agent hotkeys in `src/renderer/settings/integration.ts`, the home screen, the empty states and
+   the new session menu. For each, say what it must show when the tab's files are on a machine and an
+   agent is not installed there. Draft the exact words. Match Phase 84 item 8's pattern rather than
+   inventing one, and obey the Zen rules above.
+
+5. **THE SETTINGS VIEW HE ASKED FOR.** Rule on its shape: a matrix of agents by machine, or one block
+   per machine. Say what rescan does, what it costs, whether it may run when a machine is not
+   connected, and what it shows while it runs. It is a READ and it must never become an install
+   surface.
+
+6. **THE PHASE.** Write the complete backlog entry, ready to paste, in the house shape used by the
+   "## Phase 96" and "## Phase 98" entries in this file. Say its tier and defend it. Note that a
+   claim of working across every agent is Tier 3 by the rule in CLAUDE.md.
+
 ## Research 57 — closing the remote gap, being every capability a session on another machine does not have (operator requested 2026-08-19) ✅ DELIVERED 2026-08-19 (this commit), docs/research/57-remote-parity.md, checked against the tree of `08c0abe`
 
 **Subject:** `docs(research): how to bring a session on another machine to parity`
