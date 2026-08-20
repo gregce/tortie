@@ -6256,6 +6256,73 @@ whether a person was affected. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOC
 neighbouring worktrees contend for the shared one. Count the operator's sessions with
 `tmux -L gmux list-sessions` before and after and report both numbers.
 
+## Phase 112 — two smoke runs share one socket and one profile, so both readings are worthless QUEUED
+
+**Subject:** `fix(build): every smoke run gets a socket and a profile of its own`
+**First body line:** `Phase 112: two smoke runs share one socket and one profile`
+**Semver:** patch. It changes no product code and no capability.
+**Tier 1.** It is build tooling. The gates prove it, and the proof is that two runs at once now both pass.
+
+### What happens now, observed twice
+
+`npm run smoke:t1` and `npm run smoke:t3` in `package.json` name a FIXED socket and a FIXED user data
+directory:
+
+```
+smoke:t1  node build/harness-socket.mjs gmux-smoke-t1 '...'
+smoke:t3  node build/harness-socket.mjs gmux-smoke-t3 '... --user-data-dir="${TMPDIR}gmux-smoke-t3" ...'
+```
+
+So any two runs on this machine at the same time share one tmux socket, one server and one profile.
+Two phases build in two worktrees at once here as a matter of course, so this is not rare.
+
+**It has been hit twice and both times by a different phase.**
+
+- Phase 105's committer found the shared socket contended by neighbouring worktrees and worked
+  around it by hand, running on `gmux-p105c-smoke2` with its own `TMPDIR`. It said so in its report
+  and called the sharing a defect it was not fixing.
+- Phase 106's builder found a second `npm run smoke:t1` running in its own worktree, on the same
+  socket and the same profile, and stopped rather than trust either reading.
+
+**The danger is not a crash. It is a PASS that means nothing.** Two servers under one socket name and
+two apps under one profile can produce a green line for a tree nobody tested. `build/with-scratch-machine.mjs`
+already carries the principle in its own header: a gate that passes without its subject present is
+worse than no gate, because a person reading a green line believes something was checked.
+
+### The fix
+
+Give every invocation a socket and a profile of its own, derived so that two runs cannot collide and
+so that a person can still tell which run left what behind. The obvious source is the process id plus
+the worktree's own name, and `build/harness-socket.mjs` already owns socket naming, so it is the one
+place that should decide.
+
+**Every fixed name in `package.json` that reaches a socket or a `--user-data-dir` is in scope.** Count
+them first and say the number in the spec. `smoke:t1`, `smoke:t3`, `smoke:remote` and the probe
+scripts are the ones already known.
+
+### What must stay true
+
+- **`build/harness-socket.mjs` still refuses the real socket.** `refuseRealSockets` exists so a
+  harness can never reach `-L gmux`, and no change here may weaken it. Prove it still refuses.
+- **The harness still ends what it started.** It currently ends its scratch server by name. A
+  generated name must be ended just as reliably, and a run that dies must not leave a server behind
+  under a name nobody will ever look for again.
+- **CI keeps working.** `gates.yml` and `durability.yml` both call these scripts and there is only
+  one runner there, so the generated name must not depend on anything absent in CI.
+
+### What is NOT in this phase
+
+Making the smokes faster, changing what they assert, or touching any product file. If a smoke fails
+because of this change, that is a finding to report rather than a test to adjust.
+
+### The evidence
+
+**Run two `npm run smoke:t1` at once in two different worktrees and show both pass**, with their
+socket names and profile paths printed and different. That is the whole point and a code reading is
+not evidence for it. Then show no tmux server survives either run. Then run `npm run smoke:t3` the
+same way. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report
+both numbers; it has read 47 at every checkpoint through this whole programme.
+
 ## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.1, gates green, 6,575 tests)
 
 **Subject:** `fix(machines): four defects the parity audit found on the remote surfaces`
