@@ -2,7 +2,7 @@
 
 Date: 2026-08-14
 
-Status: Historical execution charter. Use the [16 August follow-up](2026-08-16-electron-typescript-architecture.md) for the current source map and recommendations.
+Status: Historical execution charter. Use the [20 August audit](2026-08-20-electron-typescript-architecture.md) for the current source map and recommendations.
 
 ## Outcome
 

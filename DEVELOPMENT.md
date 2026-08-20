@@ -7,7 +7,7 @@ editor with diff-vs-HEAD — in one window. tmux is invisible: the GUI is the
 whole interface.
 
 Philosophy and naming: [`docs/ZEN-OF-TORTIE.md`](docs/ZEN-OF-TORTIE.md).
-Architecture authority: [`docs/audits/2026-08-16-electron-typescript-architecture.md`](docs/audits/2026-08-16-electron-typescript-architecture.md).
+Architecture authority: [`docs/audits/2026-08-20-electron-typescript-architecture.md`](docs/audits/2026-08-20-electron-typescript-architecture.md).
 
 > **The app was called `gmux` until Phase 16.5.** The product name, bundle id
 > and data directory (`~/Library/Application Support/Tortie`) all changed; the

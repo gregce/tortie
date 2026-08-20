@@ -1,7 +1,7 @@
 # gmux pre-build architecture assessment
 
 **Date:** 2026-08-09
-**Status:** Historical decision record. It synthesizes `docs/research/01–10` and `docs/designs/design-{a,b,c,d}` from before implementation. Use the [current architecture follow-up](2026-08-16-electron-typescript-architecture.md) for the as-built source map and current recommendations.
+**Status:** Historical decision record. It synthesizes `docs/research/01–10` and `docs/designs/design-{a,b,c,d}` from before implementation. Use the [current architecture audit](2026-08-20-electron-typescript-architecture.md) for the as-built source map and current recommendations.
 
 ---
 
@@ -334,4 +334,4 @@ What "done today" honestly means: a T1-complete, reboot-restoring, signed-or-dev
 
 ---
 
-*Index of underlying documents: see [README.md](README.md). Every claim above traces to `research/01–10` or `designs/design-{a,b,c,d}`, all verified against primary sources on 2026-08-09.*
+*Index of underlying documents: see [README.md](../README.md). Every claim above traces to `research/01–10` or `designs/design-{a,b,c,d}`, all verified against primary sources on 2026-08-09.*

@@ -2,6 +2,8 @@
 
 Date: 2026-08-16
 
+Status: Historical follow-up. Use the [20 August audit](2026-08-20-electron-typescript-architecture.md) for the current source map, score and phased plan.
+
 ## Outcome
 
 The 14 August cleanup worked. Tortie still does not need an architectural rewrite. The main, preload, renderer, tmux and SQLite owners are clearer than they were, and the contract inventory proves that the cleanup kept the public and durable contracts stable.
