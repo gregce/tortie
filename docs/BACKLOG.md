@@ -6488,10 +6488,24 @@ every checkpoint of the build, the verification and the commit.
   the command line beneath it. A later phase that wants the function moves it into its own module
   first.
 
-## Research 59 — why macOS kills the bundled SpecStory, and the entitlement that stops it (github issue 10, reported by an outside user) QUEUED
+## Research 59 — why macOS kills the bundled SpecStory, and the entitlement that stops it (github issue 10, reported by an outside user) ✅ DELIVERED 2026-08-20 (this commit), docs/research/59-specstory-entitlements.md, checked against the tree of `dd0804d`
 
 **Subject:** `docs(research): why macOS kills the bundled SpecStory, and the entitlement that stops it`
 **First body line:** `Research 59: the SpecStory entitlement spike`
+
+**The ruling, recorded.** The reproduction succeeded, and one entitlement stops the kill, being
+`com.apple.security.cs.allow-unsigned-executable-memory` on `Resources/bin/specstory` only, with the
+hardened runtime flag kept on. `allow-jit` alone was rejected on measurement, because it left the
+same SIGKILL on both driven paths, and wazero on darwin arm64 never maps with `MAP_JIT`. The pin
+moves to v2.10.0 with no code change under src/main/specstory, because every shape Tortie depends on
+holds on the real 2.10.0 binary and it carries the identical wazero v1.12.0 pin.
+
+**No decision needs the operator's word.** The wrapper failure diagnostics land inside Phase 115,
+and the bare agent recovery verb is ruled out of 115 into its own Tier 3 phase after it, which
+amends the Phase 115 entry below. The one step that stays on the operator's machine is the
+notarized candidate soak, and it is already a step in his promotion checklist. Section 8 of the
+document lists what nobody checked, and the largest items are Developer ID signing, notarization
+acceptance on a nested binary, and macOS 26.
 
 **Where this came from.** Github issue 10 on gregce/tortie, filed by an outside user on a 0.31.0
 install. Captured Claude and Codex sessions die with `SIGKILL (Code Signature Invalid)`,
@@ -6570,9 +6584,13 @@ installed app, and capture wraps the agent argv, which is restore-adjacent.
 wazero and go-re2, measured in its go.mod on 2026-08-20, so the new binary dies the same way
 without the entitlement.
 
-**Also in this phase, if Research 59 rules it in rather than out.** A capture process death names
-SpecStory in the log and on screen instead of `agent=claude signal=kill`, does not overwrite the
-primary death reason, and leaves a bare agent recovery path.
+**Also in this phase, ruled by Research 59 section 10.** The diagnostics half is IN. A capture
+process death names SpecStory in the log and on screen instead of `agent=claude signal=kill`, and a
+pinning test asserts the sync outcome handler writes no manifest field, so a failed flush can never
+overwrite the primary death reason. The bare agent recovery verb (Restore or Restart without the
+wrapper) is OUT. It is its own Tier 3 phase after 115, because it changes the `sessions:restore`
+contract, the preload bridge, the exited card and the native menus, and its brief must enumerate the
+exact file list rather than estimate it.
 
 **Gates.** The full battery, plus `npm run conformance:resume:capture` (capture argv shape),
 the full `npm run conformance:resume` roundtrip (an agent adjacent CLI upgrade, per DEVELOPMENT.md),

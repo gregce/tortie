@@ -1,0 +1,4 @@
+#!/bin/sh
+sleep 1
+printf '%s\n' '{"parentUuid":"aaaaaaaa-0000-0000-0000-000000000003","isSidechain":false,"userType":"external","cwd":"/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-r59/docs/research/assets/r59-lab/proj","sessionId":"11111111-2222-3333-4444-555555555555","version":"1.0.83","gitBranch":"","type":"user","message":{"role":"user","content":"One more line so the watcher fires."},"uuid":"aaaaaaaa-0000-0000-0000-00000000000'$$'","timestamp":"2026-08-20T17:01:00.000Z"}' >> "/private/tmp/claude-501/-Users-gdc-gmux/69469eba-62a7-4552-8d1e-1ba54287a99f/scratchpad/wt-r59/docs/research/assets/r59-lab/home/.claude/projects/-private-tmp-claude-501--Users-gdc-gmux-69469eba-62a7-4552-8d1e-1ba54287a99f-scratchpad-wt-r59-docs-research-assets-r59-lab-proj/11111111-2222-3333-4444-555555555555.jsonl"
+sleep 8
