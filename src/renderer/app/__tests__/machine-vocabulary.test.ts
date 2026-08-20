@@ -131,7 +131,15 @@ const FILES: readonly string[] = [
   // Phase 100. The session menu draws the item that opens that panel. Its label
   // is composed in machine-copy.ts and the file is read here so it stays that
   // way.
-  'src/renderer/terminal/terminal-menu.ts'
+  'src/renderer/terminal/terminal-menu.ts',
+  // Phase 105. The Runs group for a folder on another machine, being the store
+  // that holds one answer per folder and the section that draws it. Between
+  // them they name a machine, a branch, a commit and an instant. Every sentence
+  // they draw is a named export in machine-copy.ts, which is the first file on
+  // this list. Both are read as well, so a later round cannot type a sentence
+  // straight into the section.
+  'src/renderer/scm/remote-runs.ts',
+  'src/renderer/scm/RemoteRunsSection.tsx'
 ];
 
 /**

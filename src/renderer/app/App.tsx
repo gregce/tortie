@@ -167,6 +167,8 @@ import type { ShellPathProbeSpec } from './shell-path-shot-drive';
 // real session on a real machine and reports what the panel drew.
 import { driveRemoteLines } from './p100-lines-shot';
 import type { RemoteLinesProbeSpec } from './p100-lines-shot';
+import { driveRemoteRuns } from '../scm/p105-runs-shot';
+import type { RemoteRunsProbeSpec } from '../scm/p105-runs-shot';
 
 // PHASE 81 harness hook, armed at module load because the moment it has to
 // see, the session list arriving, is over before any drive can start. It
@@ -966,6 +968,18 @@ interface ShotLayoutExtras {
    */
   remoteLines?: RemoteLinesProbeSpec;
   /**
+   * Phase 105. Seed one runs answer for a tab whose folder is on another
+   * machine, open the group through its own control, and report every sentence
+   * it drew.
+   *
+   * The screenshot is the point of this one. Four of the sentences exist to say
+   * what is not true about the list, being when it was read, that it does not
+   * refresh, which commit is checked out over there and that the rows can be
+   * the newest few. Whether all four fit under the rows without being clipped
+   * is a question only a picture answers.
+   */
+  remoteRuns?: RemoteRunsProbeSpec;
+  /**
    * Phase 81. Start a restore and a create before the login shell has
    * answered, read every Restore control out of the document while the
    * answer is still coming, and report when each of those moments was.
@@ -1187,6 +1201,13 @@ function useShotLayoutHook(): void {
       if (ext.remoteLines !== undefined) {
         window.__gmuxShotReady = false;
         await driveRemoteLines(ext.remoteLines);
+        window.__gmuxShotReady = true;
+      }
+      // Phase 105. After the layout has settled, so the group opens in its real
+      // surroundings and the picture shows it under the Changes group.
+      if (ext.remoteRuns !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveRemoteRuns(ext.remoteRuns);
         window.__gmuxShotReady = true;
       }
       // Phase 81. It runs as early as the harness lets a drive run, because

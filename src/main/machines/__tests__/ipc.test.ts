@@ -291,6 +291,15 @@ describe('every channel is registered, and only the ones listed here', () => {
       // belongs to no builder in this phase and the list has to name every
       // channel or it names none.
       'machines:putImage',
+      // ---- PHASE 105 ----
+      // One READ of the branch checked out in one folder on one machine,
+      // followed by one gh read ON THIS MAC. No token, no gh invocation and no
+      // GitHub host name crosses the link: four short strings travel back. It
+      // writes nothing on either computer and nothing on GitHub, and it refuses
+      // while Tortie is not connected to the machine. Nothing calls it on a
+      // clock.
+      'machines:readRuns',
+      // ---- END PHASE 105 ----
       // ---- PHASE 100 ----
       // One READ of the LAST LINES one session on one machine printed, so a
       // person can read back what an agent over there said. The command it
@@ -367,6 +376,53 @@ describe('machines:readSessionLines', () => {
     await call<Promise<unknown>>('machines:readSessionLines', {
       sessionId: 'nobody-holds-this',
       lines: 0
+    });
+    expect(spawned.length).toBe(before);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 105. The runs for the branch checked out on another machine
+// ---------------------------------------------------------------------------
+
+describe('machines:readRuns', () => {
+  it('hands the input to main unchanged and answers rather than throwing', async () => {
+    // Nothing in this process is connected to any machine, so the read refuses
+    // with its own mode word and contacts nothing. What this proves is the
+    // wiring: the channel exists, the machine id and the folder cross it
+    // untouched, and the row limit arrives at the clamp in ../remote-runs.ts.
+    const out = await call<Promise<{
+      machineId: string;
+      cwd: string;
+      mode: string;
+      ownerRepo: string | null;
+      branch: string | null;
+      headSha: string | null;
+      limit: number;
+      runs: unknown[];
+      health: { state: string };
+    }>>('machines:readRuns', {
+      machineId: 'nobody-is-connected-to-this',
+      cwd: '/work/project',
+      limit: 999
+    });
+    expect(out.machineId).toBe('nobody-is-connected-to-this');
+    expect(out.cwd).toBe('/work/project');
+    expect(out.mode).toBe('notConnected');
+    expect(out.ownerRepo).toBeNull();
+    expect(out.branch).toBeNull();
+    expect(out.headSha).toBeNull();
+    expect(out.limit).toBe(50);
+    expect(out.runs).toEqual([]);
+    expect(out.health).toEqual({ state: 'ready' });
+  });
+
+  it('starts nothing at all, on either computer', async () => {
+    const before = spawned.length;
+    await call<Promise<unknown>>('machines:readRuns', {
+      machineId: 'nobody-is-connected-to-this',
+      cwd: '/work/project'
     });
     expect(spawned.length).toBe(before);
     expect(machineSshSpawnCount()).toBe(0);

@@ -6645,7 +6645,7 @@ contacted and no slow link was measured. The presence of the menu item on a remo
 driven in the live app, because the native menu is outside the window and the bridge object is
 frozen. Its absence for a session on this Mac was driven live. The packaged build was not driven.
 
-## Phase 105 — runs on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+## Phase 105 — runs on a remote tab (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.54.0, gates green, 6,929 tests)
 
 **Subject:** `feat(actions): the runs list for the branch checked out on another machine`
 **First body line:** `Phase 105: runs on a remote tab`
@@ -6668,6 +6668,74 @@ Nothing about writing to a machine.
 ### The evidence
 
 Show the runs for a branch checked out on the loopback scratch machine and prove no credential and no `gh` invocation reached that machine. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+### What shipped, and the numbers behind it
+
+A tab whose folder lives on another machine now has a Runs group in the Source Control view. Expand
+it and Tortie asks that machine which branch is checked out and which repository the folder is, then
+asks GitHub from this Mac with the gh this Mac already has. The rows are the same workflow run rows
+the local Runs section draws. At most 10 are drawn, which is the `RUN_LIMIT` the local list already
+uses. A row opens the run on github.com and does not expand, because reading a run's steps is a
+second gh process for every row and this phase has one channel per read.
+
+NO CREDENTIAL AND NO gh CROSSES THE LINK, and that is the property the whole feature rests on. The
+gh program runs on this Mac and never leaves it. No token, no gh invocation and no GitHub host name
+is sent to the machine. Four short strings travel back, being a mode word, the origin address, the
+branch name and the commit HEAD points at. Three separate things check that rather than promise it.
+Conditions 55d, 55e and 55g of `build/conformance-machines.mjs` read the script text, the exact bytes
+the door composes for a hostile folder value, and the number of remote reads this module makes. Row
+12 of `npm run probe:p105` prints those bytes in full and searches them for nine words a credential
+would travel in. Row 13 puts a program called `gh` in every folder the far side's script changes into
+and asserts the file that program would write never appears.
+
+**Measured by the phase verifier, driving the real app against a loopback scratch machine.** A branch
+named `p105v-branch-from-the-machine` was checked out over there at commit `01167eb`, and the panel
+drew that branch and that short sha. A second folder on `trunk` of `cli/cli` drew 10 real GitHub rows,
+0 chevrons, and every row labelled "Open <workflow> run <n> on GitHub". The whole path, from the
+renderer's call to the answer: 402 ms and 403 ms for a branch with no runs, 1,018 ms and 1,136 ms for
+10 rows from GitHub, 190 ms when gh refused a bad token, 30 ms for a folder that is not a repository,
+19 ms for a folder that is not there, and 0 ms when Tortie is not connected and asks nothing.
+
+**The verifier proved the credential rule from the machine's side, not from the composed bytes.** A
+`ForceCommand` wrapper on the scratch sign in server logged every command the app sent over the link
+during the whole drive, 402 lines and 19,631 bytes. Searched counts in that log: `gh` as a program 0,
+GH_TOKEN 0, GITHUB_TOKEN 0, GH_HOST 0, Authorization 0, hosts.yml 0, .config/gh 0, netrc 0, curl 0,
+github.com 0, and token, password and secret 0. A second run put `GH_TOKEN=p105v-not-a-real-token`
+in the app's own environment while it read the machine, and that string appears 0 times in the
+17,050 byte log. The only two `gh` substrings anywhere are inside the word `allow-passthrough` on two
+tmux option lines.
+
+**The far side runs eight external programs, not four.** The "4 spawns" price in the entry above
+counted the three `git rev-parse` calls and the one `awk`, and missed the two `base64` and two `tr`
+calls that carry the origin address and the branch name back as base64. The number was measured on
+2026-08-20 by putting counting wrappers on PATH ahead of the real programs and running the shipped
+script text. Five runs counted eight programs each. Without the wrappers the same five runs took 48.5
+to 50.5 ms, which is inside the 52.4 ms research 57 priced, so the cost claim holds and only the
+process count was wrong. `src/main/actions/*` was not edited. The frozen catalogue grew by one read
+script and still holds exactly two writers, being `image-put` and `git-clone`.
+
+**One legibility defect the verifier measured was fixed before this commit.** Two of the sentences
+that describe the list as a whole sat inside the group's own body, which scrolls and is capped at 45%
+of the column. At ten rows the body was 310 px tall over 352 px of content, the sentence saying the
+list was cut spanned y 683 to 727, and the body ended at y 691, so 36 of its 44 px were hidden. The
+sentence saying the list was cut was itself cut. Both sentences, and the lines naming rows the parser
+refused, are now drawn below the group beside the three that were already there.
+
+**What is NOT true.** The far side of every measurement was this Mac over a loopback sign in server.
+No Linux machine and no machine of the operator's was contacted, so GNU git, GNU awk and GNU base64
+are reasoned about from POSIX rather than measured. No repository with a large number of workflow
+runs was read. Nothing measured two remote tabs reading at once. There is no automatic second read
+when a machine starts answering, so a person who expanded the section before their machine had
+connected reads a sentence saying so and presses Refresh. The packaged build was not driven.
+
+### Nits recorded by this round, none of them blocking
+
+| Status | The nit |
+| --- | --- |
+| RECORD | The header of `src/main/actions/index.ts` says the argv allowlist, the gh spawn and the parser are an implementation detail of that directory and are imported directly by its tests. From Phase 105 `src/main/machines/remote-runs.ts` imports three of them in production, so the sentence is false. The phase brief forbade any edit under `src/main/actions/`, so the sentence stands and the header of `remote-runs.ts` names it. A later round should rewrite it. |
+| RECORD | There is no automatic second read when a machine starts answering. The Changes group beside this one carries one, because Phase 90.3 shipped without a Refresh button. The Runs group has a Refresh button from its first commit, so the cost is one press. Adding the automatic read would make the two groups behave the same. |
+| RECORD | Driving the Runs section through the base shot hook with only a `remoteRuns` spec and no `projectPath` makes the hook call `projects:add` with undefined and raises three toasts over the picture. The base hook is older than Phase 105 and was not changed by it. Anyone taking that screenshot must pass a `projectPath` as well. |
+| RECORD | `RunRow` draws the workflow name and the display title, and for a scheduled workflow the two strings are equal, so the row reads the same words twice at the sidebar's width. It is shared with the local Runs section and Phase 105 did not change that part of it, so it is not a regression. It is more visible in the remote panel because that panel is narrow. |
 
 ## Phase 106 — branches on a remote tab (research 57 row, queued 2026-08-19) QUEUED
 

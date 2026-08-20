@@ -466,3 +466,19 @@ export function expandLabel(run: ActionsRun, expanded: boolean): string {
     ? `${verb} jobs for ${run.workflowName} run ${run.number}`
     : `${verb} jobs for ${run.workflowName}`;
 }
+
+/**
+ * The label of a row that OPENS the run rather than expanding it (Phase 105).
+ *
+ * The Runs group for a folder on another machine draws no jobs, because reading
+ * them is a second channel and a second gh process for every row. So the row
+ * sends the person to github.com, and its label has to say that rather than
+ * promising an expander that is not there. The number is dropped for the same
+ * reason `expandLabel` drops it, being that the parser falls back to 0 when gh
+ * did not send one and "run 0" names a number nobody can find.
+ */
+export function openLabel(run: ActionsRun): string {
+  return run.number > 0
+    ? `Open ${run.workflowName} run ${run.number} on GitHub`
+    : `Open ${run.workflowName} on GitHub`;
+}

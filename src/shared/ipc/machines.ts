@@ -45,6 +45,14 @@ import type { GitCommitFileState } from '../types';
 // already returns, so the Search view draws ONE kind of row. Two declarations of
 // one shape is how the two ends of a channel drift apart.
 import type { SearchFileResult } from './search';
+// PHASE 105. The runs for a branch checked out on another machine are the rows
+// the local Runs section already draws, for the same reason. `src/shared/ipc/
+// actions.ts` imports these three from the same place.
+import type {
+  ActionsHealth,
+  ActionsParseIssue,
+  ActionsRun
+} from '../actions';
 
 // ---------------------------------------------------------------------------
 // The rows
@@ -616,7 +624,7 @@ export interface MachinesEventPayloadMap {
 // ---------------------------------------------------------------------------
 
 /**
- * The twenty three channels, and what each one may do.
+ * The twenty five channels, and what each one may do.
  *
  * THE COUNT USED TO SAY THIRTEEN and the table listed thirteen rows, which was
  * true when Phase 68 wrote it. Phase 73, Phase 83, Phase 84 and Phase 90.2
@@ -628,6 +636,12 @@ export interface MachinesEventPayloadMap {
  * Phase 90.3 added `listTree` without a row, so the count read twenty while the
  * file held twenty one. Both that row and Phase 98's own are in the table now.
  * PHASE 99 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `listFiles`.
+ *
+ * IT WAS STALE AGAIN WHEN PHASE 105 ARRIVED, and this says so rather than
+ * quietly fixing it. Phase 100 added `readSessionLines` without a row, so the
+ * count read twenty three while the file held twenty four. That row and Phase
+ * 105's own `readRuns` are both in the table below, and the count is twenty
+ * five.
  *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
@@ -654,6 +668,12 @@ export interface MachinesEventPayloadMap {
  * | listTree | one folder tree on that machine | nothing | ssh |
  * | searchContent | one folder on that machine | nothing | ssh |
  * | listFiles | one folder on that machine | nothing | ssh |
+ * | readSessionLines | the last lines of one session there | nothing | ssh |
+ * | readRuns | one folder on that machine, then github.com | nothing | ssh, then gh ON THIS MAC |
+ *
+ * `readRuns` is the one row whose Spawns column names two programs. The ssh is
+ * the read of that machine's branch. The gh runs HERE and never leaves this Mac,
+ * and nothing about it crosses the link.
  *
  * Every one of them that spawns does so on a person's click and from nowhere
  * else. TWO of them write on another computer, being `putImage` and
@@ -832,6 +852,40 @@ export interface MachinesInvokeChannelMap {
     req: [input: MachineSessionLinesInput];
     res: MachineSessionLinesResult;
   };
+  // PHASE 105. One READ of the branch checked out in one folder on one machine,
+  // followed by one gh read ON THIS MAC. It is what the Runs section of a
+  // project that lives over there draws.
+  //
+  // NO CREDENTIAL AND NO gh CROSSES. The gh program runs on this Mac and never
+  // leaves it. No token, no gh invocation and no GitHub host name is sent to the
+  // machine. Four short strings travel back, being a mode word, the origin
+  // address, the branch name and the commit HEAD points at. Condition 55d of
+  // build/conformance-machines.mjs reads the script text and fails on any of the
+  // nine words a credential would travel in.
+  //
+  // IT CANNOT COMPOSE WHAT IT ASKS. The command that crosses is `repo-facts`
+  // from the frozen catalogue in src/main/machines/remote-scripts.ts, chosen by
+  // name, with the folder arriving there as the one positional parameter. The gh
+  // argv is composed by src/main/actions/argv.ts and refused by
+  // `assertReadOnlyArgv` before a process exists.
+  //
+  // IT WRITES NOTHING, on either computer and on GitHub. Every gh shape the
+  // allowlist permits is a read.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A person expands the section or presses
+  // Refresh, and each of those is one read. There is no watch, because main
+  // cannot see a push made on another computer, and the panel says the list does
+  // not refresh.
+  //
+  // A folder that is not there, a folder git does not track, a repository with
+  // no GitHub address, a detached head, a machine that did not answer and a
+  // machine Tortie is not signed in to all come back as a mode word. No prose
+  // crosses this channel: the renderer draws every sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  'machines:readRuns': {
+    req: [input: MachineRunsInput];
+    res: MachineRunsResult;
+  };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -918,6 +972,11 @@ export interface GmuxMachinesExtras {
     readSessionLines(
       input: MachineSessionLinesInput
     ): Promise<MachineSessionLinesResult>;
+    // Phase 105. Reads which branch is checked out in one folder on one
+    // machine, then asks GitHub about that branch with the gh on THIS Mac. It
+    // reads and never writes, on either computer and on GitHub, and no
+    // credential and no gh crosses the link.
+    readRuns(input: MachineRunsInput): Promise<MachineRunsResult>;
   };
 }
 
@@ -1670,3 +1729,91 @@ export const REMOTE_SESSION_LINES_BYTES_MAX = 8_388_608;
  * 0 is the screen alone, which `capture-pane -S -0` composes.
  */
 export const REMOTE_SESSION_LINE_DEPTHS = [0, 1_000, 10_000, 25_000] as const;
+
+// ---------------------------------------------------------------------------
+// The runs for the branch checked out on another machine (Phase 105, research
+// 57 section 5)
+// ---------------------------------------------------------------------------
+//
+// TWO READS AND THEY GO TO DIFFERENT PLACES. The first asks the machine which
+// branch is checked out in one folder and which repository that folder is. The
+// second asks github.com, from this Mac, with the `gh` this Mac already has.
+//
+// NO CREDENTIAL AND NO `gh` CROSSES. That is the property this whole feature
+// rests on. No token, no `gh` invocation and no GitHub host name is sent to the
+// machine. Four short strings travel back, being a mode word, the origin
+// address, the branch name and the commit HEAD points at. Condition 55d of
+// build/conformance-machines.mjs reads the script text and fails on any of the
+// nine words a credential would travel in, which is the executable form of the
+// sentence rather than a promise about it.
+//
+// NOTHING IS WRITTEN, on either computer and on GitHub. No new write script, no
+// change to the catalogue's two writers, and every gh shape the allowlist
+// permits is a read.
+//
+// NOTHING CALLS IT ON A CLOCK. Main cannot see a push made on another computer,
+// so there is no watch and no poll. A person expands the section or presses
+// Refresh, and each of those is one read. The panel says the list does not
+// refresh.
+//
+// A RUN'S JOBS AND STEPS ARE NOT HERE. That is a second channel and a second gh
+// process per row, and research 57 section 5 priced one channel. A row opens on
+// GitHub instead.
+
+/** Why one read of the runs on a remote tab answered the way it did. */
+export type MachineRunsMode =
+  /** The machine answered and gh was asked. `health` says how that went. */
+  | 'ok'
+  /** The folder is there and git does not track it. */
+  | 'notRepo'
+  /** The repository has no github.com address for its origin. */
+  | 'notGitHub'
+  /** No branch name could be read, so there is nothing to ask GitHub about. */
+  | 'noBranch'
+  /** There is no folder at that path on that machine. */
+  | 'missing'
+  /** The folder is there and that account cannot read it. */
+  | 'denied'
+  /** Tortie is not signed in to that machine. Nothing was asked. */
+  | 'notConnected'
+  /** The machine did not answer, or answered something unreadable. */
+  | 'unreachable';
+
+/** One runs read against one folder on one machine. */
+export interface MachineRunsInput {
+  readonly machineId: string;
+  /** The folder on that machine. Absolute, and never a path on this Mac. */
+  readonly cwd: string;
+  /**
+   * Rows to ask gh for. Clamped to 1 and to `MAX_LIMIT`, which is 50. Omitted
+   * means the local Runs section's own default, which is 10.
+   */
+  readonly limit?: number;
+}
+
+/** What one machine and then GitHub answered about one folder's runs. */
+export interface MachineRunsResult {
+  readonly machineId: string;
+  /** That machine's own label, so the renderer never composes one. */
+  readonly machineLabel: string;
+  /** The folder that was read, on that machine. */
+  readonly cwd: string;
+  readonly mode: MachineRunsMode;
+  /** `owner/repo`, or null when there is no github.com origin over there. */
+  readonly ownerRepo: string | null;
+  /** The branch checked out over there, or null. */
+  readonly branch: string | null;
+  /** The commit HEAD points at over there, or null. */
+  readonly headSha: string | null;
+  /** What gh was actually asked for, after the clamp. */
+  readonly limit: number;
+  readonly runs: readonly ActionsRun[];
+  /** Rows GitHub sent that the parser refused, with the field named. */
+  readonly issues: readonly ActionsParseIssue[];
+  /** gh's own ladder. The gh that produced it ran on this Mac. */
+  readonly health: ActionsHealth;
+  /** Epoch ms ON THIS MAC when the answer arrived. */
+  readonly readAt: number;
+  /** Wall time from the call to the answer, in ms. The round trip is in it. */
+  readonly elapsedMs: number;
+}

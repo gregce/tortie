@@ -269,3 +269,41 @@
 .runs-step:hover .runs-step-name {
   color: var(--text-secondary);
 }
+
+/* ---------------------------------------------------------------------------
+   PHASE 105. The Runs group for a folder on another machine.
+
+   It reuses every class above, because it is the same list of the same rows.
+   What is new is the section shell, which needs a class of its own so the
+   collapse rules in scm.css do not have to name a fifth section, and the one
+   row state that differs, being a row that opens a page instead of expanding.
+   Tokens only, and this block adds no colour of its own.
+--------------------------------------------------------------------------- */
+
+.section-scm-remote-runs {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+/* The same 45% cap the local section carries, and it is why every sentence
+   this group says about the list as a whole is drawn BELOW the section rather
+   than inside its body. The body scrolls, so a sentence in it can end up under
+   its own fold. That happened for one round. At ten rows the body was 310 px
+   tall over 352 px of content, and 36 of the 44 px of the sentence saying the
+   list was cut were hidden. See the header of ./RemoteRunsSection.tsx. */
+.section-scm-remote-runs:not(.collapsed) {
+  max-height: 45%;
+}
+
+.section-scm-remote-runs.collapsed {
+  max-height: none;
+  flex: 0 0 auto;
+}
+
+/* A row that opens a page in the browser. The pointer says the click leaves
+   the app, which the expanding row above deliberately does not say. */
+.runs-row.opens {
+  cursor: pointer;
+}

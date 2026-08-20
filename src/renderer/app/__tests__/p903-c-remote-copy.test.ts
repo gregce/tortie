@@ -14,6 +14,13 @@
  * now, `reviewUntrackedTitle` is new, and the sentence saying a new file is not
  * listed is deleted, because the list holds it.
  *
+ * PHASE 105 REWROTE THE SECTIONS ABSENT SENTENCE AND ADDED FIFTEEN. The old one
+ * named three sections Tortie does not show for a folder on another machine and
+ * Runs was one of them. A Runs group is drawn on such a tab now, so the sentence
+ * names runs among the things it DOES show and the refusal is down to History
+ * and Branches. The fifteen that came with it are pinned in their own describe
+ * near the foot of this file.
+ *
  * PHASE 99 REPLACED THE QUICK OPEN PAIR WITH SEVEN SENTENCES. The pair said
  * "Quick Open does not reach Studio", and Quick Open reads that machine's own
  * file names now, so the refusal had become false. The seven that replaced it
@@ -67,6 +74,21 @@ import {
   remoteTreeTruncated,
   remoteTreeUnreachable,
   reviewUntrackedTitle,
+  RUNS_NOT_LIVE,
+  RUNS_NO_BRIDGE,
+  RUNS_STEPS_ELSEWHERE,
+  runsBranchAt,
+  runsFolderDenied,
+  runsFolderMissing,
+  runsNewest,
+  runsNoAnswer,
+  runsNoBranch,
+  runsNotConnected,
+  runsNotGitHub,
+  runsNotRepo,
+  runsOnMachineBand,
+  runsReadAt,
+  runsReadingBranch,
   SYMBOLS_ELSEWHERE_BODY,
   symbolsElsewhereTitle
 } from '../machine-copy';
@@ -158,10 +180,17 @@ describe('Source Control', () => {
     );
   });
 
-  it('says once why history, branches and runs are not on screen', () => {
+  it('says once why history and branches are not on screen', () => {
+    // PHASE 105 REWROTE THIS ONE. It named three sections that are not drawn
+    // for a folder on another machine and Runs was one of them. A Runs group is
+    // drawn there now, so the sentence names runs among the things Tortie does
+    // show and refuses the two that are still true.
     expect(REMOTE_SCM_SECTIONS_ABSENT).toBe(
-      'Tortie shows the changed files for a folder on another machine. It ' +
-        'does not show history, branches or runs there.'
+      'Tortie shows the changed files and the runs for a folder on another ' +
+        'machine. It does not show history or branches there.'
+    );
+    expect(REMOTE_SCM_SECTIONS_ABSENT).not.toMatch(
+      /does not show[^.]*\bruns\b/i
     );
   });
 
@@ -336,6 +365,90 @@ describe('the tab, and sessions in it', () => {
   });
 });
 
+describe('the runs for a folder that is on a machine (Phase 105)', () => {
+  it('says where each half of the answer came from, and what never crossed', () => {
+    // THE BAND IS THE WHOLE DESIGN IN ONE SENTENCE. Tortie asks the machine
+    // which branch is checked out, and it asks GitHub from this Mac with the gh
+    // this Mac already has. No token and no sign in details go to the machine.
+    expect(runsOnMachineBand(L)).toBe(
+      'Tortie asked Studio which branch is checked out. It asked GitHub from ' +
+        'this Mac, and it sent no sign in details to Studio.'
+    );
+  });
+
+  it('says a read is in flight rather than showing an empty list', () => {
+    expect(runsReadingBranch(L)).toBe('Tortie is reading the branch on Studio.');
+  });
+
+  it('says when it read, and says the list will not refresh on its own', () => {
+    // Nothing polls the machine and nothing polls GitHub, because main cannot
+    // see a push made on another computer. Both facts are on screen.
+    expect(runsReadAt(L, AT)).toBe('Tortie read this from Studio at 14:32.');
+    expect(RUNS_NOT_LIVE).toBe(
+      'This list does not refresh. Read it again to see anything that has run ' +
+        'since.'
+    );
+  });
+
+  it('names the branch and the commit checked out over there', () => {
+    expect(runsBranchAt('main', L, '1f2e3d4')).toBe(
+      'The branch checked out on Studio is main at 1f2e3d4.'
+    );
+  });
+
+  it('says the rows are the newest ones when the limit was reached', () => {
+    // PHASE 99 IS WHY THIS SENTENCE EXISTS. It carried a cut through main that
+    // the panel never drew, so a list that had been cut was drawn as if it were
+    // whole. A row count equal to the limit gets this sentence under it.
+    expect(runsNewest(10)).toBe(
+      'These are the newest 10 runs for that branch. There are older ones.'
+    );
+  });
+
+  it('names both causes when there is no branch to ask GitHub about', () => {
+    expect(runsNoBranch(L)).toBe(
+      'Tortie read no branch name for that folder on Studio. That happens ' +
+        'when a commit is checked out directly, and when the repository has ' +
+        'no commits yet. Either way there is no branch to ask GitHub about.'
+    );
+  });
+
+  it('answers each of the five words that mean no rows', () => {
+    expect(runsNotRepo(L)).toBe(
+      'That folder on Studio is not a git repository, so it has no runs.'
+    );
+    expect(runsNotGitHub(L)).toBe(
+      'The repository in that folder on Studio has no GitHub address for its ' +
+        'origin, so there are no runs to show.'
+    );
+    expect(runsFolderMissing(L)).toBe(
+      'There is no folder at this path on Studio, so there are no runs to show.'
+    );
+    expect(runsFolderDenied(L)).toBe(
+      'Tortie cannot read that folder on Studio, so it has no runs to show.'
+    );
+    expect(runsNotConnected(L)).toBe(
+      'Tortie is not connected to Studio, so it could not read the branch.'
+    );
+    expect(runsNoAnswer(L)).toBe(
+      'Studio did not answer, so Tortie could not read the branch.'
+    );
+  });
+
+  it('says once that a run opens on GitHub rather than expanding', () => {
+    expect(RUNS_STEPS_ELSEWHERE).toBe(
+      'The steps inside a run are not shown for a folder on another machine. ' +
+        'Open a run on GitHub to read them.'
+    );
+  });
+
+  it('says a build with no bridge cannot do this at all', () => {
+    expect(RUNS_NO_BRIDGE).toBe(
+      'This build cannot read the runs for a folder on another machine.'
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The rules that hold over the whole set
 // ---------------------------------------------------------------------------
@@ -383,7 +496,24 @@ const EVERY: readonly string[] = [
   remoteProjectAlreadyOpen(L),
   remoteTabCloseBody(L),
   createInRemoteProject(L),
-  remoteTabOpened(P, L)
+  remoteTabOpened(P, L),
+  // PHASE 105. Fifteen sentences about the runs for a folder on another
+  // machine. Every one of them is read by the four rules below.
+  runsOnMachineBand(L),
+  runsReadingBranch(L),
+  runsReadAt(L, AT),
+  RUNS_NOT_LIVE,
+  runsBranchAt('main', L, '1f2e3d4'),
+  runsNewest(10),
+  runsNoBranch(L),
+  runsNotRepo(L),
+  runsNotGitHub(L),
+  runsFolderMissing(L),
+  runsFolderDenied(L),
+  runsNotConnected(L),
+  runsNoAnswer(L),
+  RUNS_STEPS_ELSEWHERE,
+  RUNS_NO_BRIDGE
 ];
 
 describe('the house writing rules, over every Phase 90.3 sentence', () => {
@@ -402,7 +532,12 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
     // a pattern. Each holds a clock time, and a clock time is not punctuation.
     // PHASE 99 ADDED THE SECOND ONE, which is Quick Open saying when it read
     // the file names. Every other sentence must hold no colon at all.
-    const exempt = [remoteReadAt(AT), quickOpenNamesFrom(L, AT)];
+    // PHASE 105 ADDED THE THIRD, which is the runs group saying when it read.
+    const exempt = [
+      remoteReadAt(AT),
+      quickOpenNamesFrom(L, AT),
+      runsReadAt(L, AT)
+    ];
     expect(
       EVERY.filter((one) => !exempt.includes(one) && one.includes(':'))
     ).toEqual([]);
@@ -452,7 +587,14 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
       REMOTE_SCM_SECTIONS_ABSENT,
       SYMBOLS_ELSEWHERE_BODY,
       addRemoteRefusal('notAbsolute', P, L),
-      addRemoteRefusal('noSuchMachine', P, L)
+      addRemoteRefusal('noSuchMachine', P, L),
+      // PHASE 105. Four of the fifteen name no machine. Two are second lines
+      // whose first line named one, one is about Tortie's own row limit, and
+      // one is about this build rather than about a machine.
+      RUNS_NOT_LIVE,
+      runsNewest(10),
+      RUNS_STEPS_ELSEWHERE,
+      RUNS_NO_BRIDGE
     ]);
   });
 });

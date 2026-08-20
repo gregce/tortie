@@ -1049,6 +1049,15 @@ const {
 const { remoteCaptureArgs } = await import(
   '../src/main/machines/remote-capsule'
 );
+// Phase 105, condition 55. The gh argv builder and the allowlist that refuses a
+// command line that would mutate GitHub. BOTH ARE PURE. `src/main/actions/argv`
+// imports nothing at all, `src/main/actions/watch` imports one type, and NO gh
+// PROCESS IS CREATED HERE: this probe composes an argv and asks the allowlist
+// about it. It is the same pair `src/main/machines/remote-runs.ts` uses.
+const { assertReadOnlyArgv, buildRunListForBranchArgv } = await import(
+  '../src/main/actions/argv'
+);
+const { WATCH_LIMITS } = await import('../src/main/actions/watch');
 
 // --- Phase 84, conditions 46 to 48 -----------------------------------------
 // All three are pure. The allowed environment set is a compiled constant, the
@@ -1698,6 +1707,96 @@ process.stdout.write(
         // verb here would be a second thing a person's session can be asked.
         execCalls: [...source.matchAll(/execOn\(/g)].length,
         composerCalls: [...source.matchAll(/remoteCaptureArgs\(/g)].length
+      };
+    })(),
+
+    // --- Phase 105, condition 55 -------------------------------------------
+    // Pure. It reads one compiled script text, one composed command, one
+    // module's own source text and one composed gh argv. It starts nothing,
+    // opens no file under the person's home, contacts no machine and makes no
+    // request.
+    phase105: (() => {
+      const runsPath = join(machinesDir, 'remote-runs.ts');
+      let source = '';
+      try {
+        source = readFileSync(runsPath, 'utf8');
+      } catch {
+        source = '';
+      }
+      const script = REMOTE_SCRIPTS.find((row) => row.id === 'repo-facts');
+      const text = script?.text ?? '';
+      // The exact bytes the door would compose for a hostile folder value. The
+      // gate searches these rather than the script alone, because the command is
+      // what actually crosses.
+      const command =
+        script === undefined
+          ? ''
+          : composeRemoteScriptCommand(script, [HOSTILE_VALUE]);
+      // The nine words a credential would travel in. They are composed from
+      // pieces rather than written whole, so this probe's own text does not trip
+      // the rule it is checking.
+      const CREDENTIAL_WORDS = [
+        `g${'h'}`,
+        `GH${'_'}TOKEN`,
+        `GITHUB${'_'}TOKEN`,
+        `GH${'_'}HOST`,
+        `Author${'i'}zation`,
+        `hosts${'.'}yml`,
+        `.config/g${'h'}`,
+        `net${'r'}c`,
+        `cu${'r'}l`
+      ];
+      // The gh argv this module composes, built from the same pure builder it
+      // imports. `assertReadOnlyArgv` is asked here rather than trusted.
+      const ghArgv = buildRunListForBranchArgv({
+        ownerRepo: 'owner/repo',
+        branch: 'main',
+        limit: WATCH_LIMITS.RUN_LIMIT
+      });
+      let ghRefusal: string | null = null;
+      try {
+        assertReadOnlyArgv(ghArgv);
+      } catch (err) {
+        ghRefusal = (err as Error).message;
+      }
+      return {
+        present: source.length > 0,
+        script:
+          script === undefined
+            ? null
+            : { mode: script.mode, params: script.params },
+        gitVerbs: [
+          ...new Set(
+            [...text.matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+              (hit) => hit[1] ?? ''
+            )
+          )
+        ].sort(),
+        // 55d and 55e. The executable form of "no credential and no gh crosses".
+        credentialWordsInScript: CREDENTIAL_WORDS.filter((word) =>
+          text.includes(word)
+        ),
+        credentialWordsInCommand: CREDENTIAL_WORDS.filter((word) =>
+          command.includes(word)
+        ),
+        command,
+        hostileInCommand: command.split(HOSTILE_VALUE).length - 1,
+        hostileQuoted: command.includes(shellQuoteArgv([HOSTILE_VALUE])),
+        hostileInScript: text.includes(HOSTILE_VALUE),
+        // 55f. Research 57 section 9 defect 5, made executable.
+        namesCommonDir: text.includes('--git-common-dir'),
+        namesAbsoluteDir: text.includes(`--absolute${'-'}git-dir`),
+        // 55g. What the module does, counted in its own text.
+        remoteReads: [...source.matchAll(/runRemoteRead\(/g)].length,
+        callsRemoteWrite: source.includes('runRemoteWrite'),
+        // Every catalogue id this module names as a quoted string. It may name
+        // exactly one.
+        scriptIdsNamed: REMOTE_SCRIPTS.map((row) => row.id).filter((id) =>
+          source.includes(`'${id}'`)
+        ),
+        // 55i. The one gh command line, and the allowlist's own verdict on it.
+        ghArgv,
+        ghRefusal
       };
     })(),
 

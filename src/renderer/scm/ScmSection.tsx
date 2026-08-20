@@ -64,6 +64,7 @@ import {
   useRemoteChanges
 } from './remote-changes';
 import { registerP97UntrackedDrive } from './p97-untracked-drive';
+import { RemoteRunsSection } from './RemoteRunsSection';
 import { HistorySection } from './HistorySection';
 import { BranchesView } from './BranchesView';
 import { RunsSection } from './RunsSection';
@@ -890,7 +891,13 @@ function RemoteScmSection({
       {entry.readAt > 0 ? (
         <p className="scm-remote-note">{remoteReadAt(entry.readAt)}</p>
       ) : null}
-      {/* Said once, rather than three empty sections. */}
+      {/* PHASE 105. The second group this view draws for a folder on another
+          machine. It ships collapsed and reads nothing until somebody expands
+          it, so a tab that is only being looked at asks that machine nothing
+          and starts no gh process on this Mac. It owns its own band, its own
+          Refresh button and its own store. */}
+      <RemoteRunsSection target={target} label={label} />
+      {/* Said once, rather than two empty sections. */}
       <p className="scm-remote-note">{REMOTE_SCM_SECTIONS_ABSENT}</p>
     </div>
   );

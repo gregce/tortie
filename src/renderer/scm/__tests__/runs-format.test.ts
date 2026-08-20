@@ -30,6 +30,7 @@ import {
   hiddenNotes,
   jobActivity,
   lastCheckedNote,
+  openLabel,
   runActivity,
   runGlyph,
   soloJob,
@@ -489,5 +490,25 @@ describe('expandLabel', () => {
     expect(expandLabel(run({ number: 0 }), false)).toBe(
       'Show jobs for gates'
     );
+  });
+});
+
+describe('openLabel (Phase 105)', () => {
+  it('says the click opens the run on GitHub', () => {
+    // The Runs group for a folder on another machine draws no jobs, so the row
+    // is not an expander and its label must not promise one.
+    expect(openLabel(run({}))).toBe('Open gates run 7 on GitHub');
+  });
+
+  it('drops a number the parser had to invent, exactly as expandLabel does', () => {
+    expect(openLabel(run({ number: 0 }))).toBe('Open gates on GitHub');
+  });
+
+  it('leaves the expanding label alone', () => {
+    // The two labels sit side by side in one file and the local list still
+    // uses the first one. This is the assertion that stops a later round
+    // "unifying" them into one string that is wrong on one of the two lists.
+    expect(expandLabel(run({}), false)).toBe('Show jobs for gates run 7');
+    expect(openLabel(run({}))).not.toBe(expandLabel(run({}), false));
   });
 });

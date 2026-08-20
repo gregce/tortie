@@ -100,9 +100,15 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds fourteen scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(14);
+  it('holds fifteen scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(15);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 105 added `repo-facts`, which prints four short strings about one
+      // folder so the Runs section on a tab that lives over there can ask GitHub
+      // about the right branch. It is a read, it writes nothing, and it names
+      // one git verb which was already on the list, so neither the write count
+      // below nor GIT_VERBS above moved.
+      //
       // PHASE 99 added `repo-files`, which names every file in one folder so
       // the Quick Open palette on a tab that lives over there can rank them. It
       // carries names and never contents, it is a read, and it writes nothing,
@@ -125,6 +131,7 @@ describe('the catalogue', () => {
       'image-put',
       'machine-facts',
       'program-find',
+      'repo-facts',
       'repo-files',
       'repo-find',
       'repo-search',
@@ -154,6 +161,7 @@ describe('the catalogue', () => {
     // do to another person's computer at a known list rather than a count.
     // Phase 90.2 moved it from one to two, once and on purpose, and the list
     // stays exact so a third one fails here rather than passing quietly.
+    // Phase 105 added a read and left this number alone.
     const writers = remoteWriteScripts();
     expect(writers).toHaveLength(2);
     expect(writers.map((script) => script.id)).toEqual([
@@ -824,5 +832,122 @@ describe('the remote name list', () => {
     expect(text).not.toContain('cat ');
     expect(text).not.toContain('base64 "');
     expect(text).toContain('| base64 |');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 105. The four facts about one folder, read so the Runs section on a
+// remote tab can ask GitHub about the right branch
+// ---------------------------------------------------------------------------
+
+describe('the remote repository facts', () => {
+  const facts = remoteScript('repo-facts');
+
+  it('is a read that takes one value', () => {
+    expect(facts?.mode).toBe('read');
+    expect(facts?.params).toBe(1);
+  });
+
+  it('names one git verb and it was already on the list', () => {
+    // `symbolic-ref` is not needed because `rev-parse` answers the same
+    // question, and `remote` is not needed because `awk` over the config answers
+    // it, which is what `repo-find` already does. So ALLOWED_GIT_VERBS stays at
+    // four and this phase widened nothing.
+    const verbs = [
+      ...new Set(
+        [...(facts?.text ?? '').matchAll(/git (?:--no-pager )?([a-z-]+)/g)].map(
+          (match) => match[1]
+        )
+      )
+    ].sort();
+    expect(verbs).toEqual(['rev-parse']);
+    for (const verb of verbs) expect(GIT_VERBS).toContain(verb);
+  });
+
+  it('runs three git processes and no more', () => {
+    const calls = [...(facts?.text ?? '').matchAll(/git rev-parse/g)];
+    expect(calls).toHaveLength(3);
+  });
+
+  it('asks for the common git directory and never the worktree one', () => {
+    // MEASURED on 2026-08-20 in a linked worktree: `--git-common-dir` answered
+    // `/Users/gdc/gmux/.git`, whose config holds the origin, and
+    // `--absolute-git-dir` answered `/Users/gdc/gmux/.git/worktrees/wt-p105`,
+    // which holds no origin at all. Research 57 section 9 defect 5 records the
+    // second spelling in `src/main/git/service.ts`, and it must not be copied
+    // here: a Runs section built on it reports "no GitHub address" for a
+    // worktree that has one.
+    expect(facts?.text).toContain('git rev-parse --git-common-dir');
+    expect(facts?.text).not.toContain('--absolute-git-dir');
+  });
+
+  it('reports no branch on a detached head rather than a branch called HEAD', () => {
+    // `git rev-parse --symbolic-full-name HEAD` prints the word `HEAD` there,
+    // and a branch called HEAD handed to gh is a question about a branch nobody
+    // has. The value is kept only when it begins refs/heads/.
+    expect(facts?.text).toContain('case "$h" in refs/heads/*) b=${h#refs/heads/};; esac');
+  });
+
+  it('reports no commit in a repository with no commits', () => {
+    // Without --verify --quiet that repository prints the literal string HEAD on
+    // stdout, which would have been drawn on screen as a commit.
+    expect(facts?.text).toContain('git rev-parse --verify --quiet HEAD');
+  });
+
+  it('reads the origin out of the config with awk, the way repo-find does', () => {
+    expect(facts?.text).toContain('awk ');
+    expect(facts?.text).toContain('"$g/config"');
+    // An awk field reference inside single quotes reads to this file's own
+    // scanner as a quoted positional, so the origin reader uses a flag, sub()
+    // and print instead. The rule is about the awk PROGRAM, which is the text
+    // between the single quotes, rather than about the whole script.
+    const program = /awk '([^']*)'/.exec(facts?.text ?? '')?.[1] ?? '';
+    expect(program.length).toBeGreaterThan(0);
+    expect(program).not.toMatch(/\$[0-9]/);
+  });
+
+  it('answers one of exactly four words, and three none fields on three of them', () => {
+    for (const word of ['missing', 'denied', 'notrepo']) {
+      expect(facts?.text).toContain(`__TORTIE_RUN__${word} none none none`);
+    }
+    expect(facts?.text).toContain(
+      "printf '__TORTIE_RUN__repo %s %s %s__TORTIE_RUN__"
+    );
+    expect(facts?.text).toContain('"${e:-none}" "${n:-none}" "${s:-none}"');
+  });
+
+  it('names no credential and no way of asking GitHub anything', () => {
+    // THE PROPERTY THE WHOLE FEATURE RESTS ON. The gh program runs on this Mac
+    // and never leaves it. Condition 55d of build/conformance-machines.mjs
+    // asserts the same nine words from outside the test runner.
+    const text = facts?.text ?? '';
+    for (const word of [
+      'gh',
+      'GH_TOKEN',
+      'GITHUB_TOKEN',
+      'GH_HOST',
+      'Authorization',
+      'hosts.yml',
+      '.config/gh',
+      'netrc',
+      'curl'
+    ]) {
+      expect(text.includes(word), word).toBe(false);
+    }
+  });
+
+  it('redirects nothing except the four noise silencers', () => {
+    const text = facts?.text ?? '';
+    expect([...text.matchAll(/2>\/dev\/null/g)]).toHaveLength(4);
+    expect(text.split('2>/dev/null').join('')).not.toContain('>');
+  });
+
+  it('reads no file contents at all', () => {
+    // It carries four short strings. `base64` is applied to two values this
+    // script computed, never to a file.
+    const text = facts?.text ?? '';
+    expect(text).not.toContain('cat ');
+    expect(text).not.toContain('head -c');
+    expect(text).not.toContain('base64 "');
   });
 });

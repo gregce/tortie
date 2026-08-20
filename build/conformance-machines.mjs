@@ -198,6 +198,25 @@
  *     to ONE script id, because a verb allowed everywhere is a verb any future
  *     script can use.
  *
+ * THE NUMBERED LIST ABOVE STOPS AT 49 AND THE FILE HOLDS MORE. Phases 90.3, 98,
+ * 100 and 105 each added a condition and left the list where it was, so this
+ * says so rather than quietly renumbering. Conditions 50 and 51 are Phase 90.3's,
+ * 52 is Phase 98's, 53 is Phase 99's, 54 is Phase 100's, and 55 is this one:
+ *
+ * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
+ *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
+ *     `rev-parse`, `show` and `status`; the script text or the bytes the door
+ *     composes name any of `gh`, `GH_TOKEN`, `GITHUB_TOKEN`, `GH_HOST`,
+ *     `Authorization`, `hosts.yml`, `.config/gh`, `netrc` or `curl`; the script
+ *     names `--absolute-git-dir` or does not name `--git-common-dir`;
+ *     `src/main/machines/remote-runs.ts` is absent, calls `runRemoteWrite`,
+ *     makes more than one remote read, or names a script other than
+ *     `repo-facts`; the catalogue's writers are not exactly `image-put` then
+ *     `git-clone`; the catalogue does not hold fifteen scripts; or the gh argv
+ *     that feature composes is refused by `assertReadOnlyArgv` or is not a
+ *     `run list` naming `--repo`. THE FOURTH ITEM IS THE ONE THE FEATURE RESTS
+ *     ON: gh runs on this Mac and never leaves it.
+ *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
  * gate never watches a confirmed machine pass and an unconfirmed one refuse.
@@ -3465,6 +3484,191 @@ const P100_ARGV_SCREEN = [
 }
 
 // ---------------------------------------------------------------------------
+// 55. Phase 105. The runs for a branch checked out on another machine, and the
+// gh that never leaves this Mac
+// ---------------------------------------------------------------------------
+//
+// A person can now read the workflow runs for a project that lives on another
+// computer. The feature rests on ONE property and this condition is the
+// executable form of it.
+//
+//   NO CREDENTIAL AND NO gh CROSSES. The gh program runs on this Mac and never
+//   leaves it. No token, no gh invocation and no GitHub host name is sent to the
+//   machine. Four short strings travel back, being a mode word, the origin
+//   address, the branch name and the commit HEAD points at.
+//
+// A sentence in a header is a sentence a later round can read past, so 55d
+// searches the script text for the nine words a credential would travel in, and
+// 55e searches the exact bytes the door composes for a hostile folder value.
+//
+// Every check below reads one compiled script text, one composed command, one
+// module's own source text and one composed gh argv. It starts nothing, opens no
+// file under the person's home, contacts no machine and MAKES NO REQUEST: the gh
+// argv is composed and handed to the allowlist, never to a process.
+
+/** The nine words a credential would have to travel in, for the message. */
+const P105_CREDENTIAL_WORDS =
+  'gh, GH_TOKEN, GITHUB_TOKEN, GH_HOST, Authorization, hosts.yml, .config/gh, ' +
+  'netrc or curl';
+
+{
+  const p105 = data.phase105 ?? {};
+  const script = p105.script ?? null;
+  // 55a. A read that is not in the catalogue cannot be sent at all.
+  if (script === null) {
+    fail(
+      'the catalogue holds no script called repo-facts, so the Runs section on ' +
+        'a tab whose project lives on another machine has nothing to ask.'
+    );
+  } else {
+    if (script.mode !== 'read' || script.params !== 1) {
+      fail(
+        `repo-facts is a ${String(script.mode)} taking ` +
+          `${String(script.params)} value(s). It is a read taking one, being ` +
+          `the folder on that machine.`
+      );
+    }
+    // 55b. One git verb, and it is the one that was already allowed.
+    const verbs = [...(p105.gitVerbs ?? [])].sort();
+    if (JSON.stringify(verbs) !== JSON.stringify(['rev-parse'])) {
+      fail(
+        `repo-facts names git ${verbs.join(', ') || 'nothing'}. It names ` +
+          `exactly rev-parse, three times: where the git directory is, what ` +
+          `HEAD names, and which commit HEAD points at. symbolic-ref is not ` +
+          `needed because rev-parse answers the same question, and remote is ` +
+          `not needed because awk over the config answers it.`
+      );
+    }
+    // 55d. The executable form of "no credential and no gh crosses".
+    const inScript = p105.credentialWordsInScript ?? [];
+    if (inScript.length > 0) {
+      fail(
+        `repo-facts names ${inScript.join(', ')}. It may name none of ` +
+          `${P105_CREDENTIAL_WORDS}. The gh program runs on this Mac and never ` +
+          `leaves it, and this is the check that keeps that sentence ` +
+          `executable rather than written down.`
+      );
+    }
+    // 55e. The bytes that actually cross, rather than the script alone.
+    const inCommand = p105.credentialWordsInCommand ?? [];
+    if (inCommand.length > 0) {
+      fail(
+        `the command this door composes names ${inCommand.join(', ')}. It may ` +
+          `name none of ${P105_CREDENTIAL_WORDS}.`
+      );
+    }
+    if (p105.hostileInScript === true) {
+      fail(
+        'a caller value reached the repo-facts text itself. Values cross as ' +
+          'positional parameters and nothing is ever composed into a script.'
+      );
+    }
+    if (p105.hostileInCommand !== 1 || p105.hostileQuoted !== true) {
+      fail(
+        `a hostile folder value appears ${String(p105.hostileInCommand)} ` +
+          `time(s) in the composed command and quoted is ` +
+          `${String(p105.hostileQuoted)}. It appears exactly once, in the ` +
+          `quoted tail, and never inside the script.`
+      );
+    }
+    // 55f. Research 57 section 9 defect 5, made executable.
+    if (p105.namesCommonDir !== true || p105.namesAbsoluteDir === true) {
+      fail(
+        `repo-facts asks for the git directory with ` +
+          `${p105.namesAbsoluteDir === true ? 'the worktree spelling' : 'neither spelling'}. ` +
+          `It asks with --git-common-dir and never --absolute-git-dir. ` +
+          `MEASURED in a linked worktree: the first answered the shared .git, ` +
+          `whose config holds the origin, and the second answered the ` +
+          `worktree's own directory, which holds no origin. A Runs section ` +
+          `built on the second reports "no GitHub address" for a worktree that ` +
+          `has one.`
+      );
+    }
+  }
+  // 55c. The git verb list did not grow. Phase 98 added `ls-files`, and Phases
+  //      99, 100 and 105 added nothing. Asserted on the list's own contents so a
+  //      later round that widens it for convenience fails here.
+  const p105Allowed = [...ALLOWED_GIT_VERBS].sort();
+  if (
+    JSON.stringify(p105Allowed) !==
+    JSON.stringify(['ls-files', 'rev-parse', 'show', 'status'])
+  ) {
+    fail(
+      `ALLOWED_GIT_VERBS holds ${p105Allowed.join(', ')}. It holds exactly ` +
+        `ls-files, rev-parse, show and status. Phase 98 added the first and ` +
+        `Phases 99, 100 and 105 added nothing.`
+    );
+  }
+  // 55g. What the module does, counted in its own text.
+  if (p105.present !== true) {
+    fail(
+      'src/main/machines/remote-runs.ts is not there, so the Runs section on a ' +
+        'tab whose project lives on another machine has nothing behind it.'
+    );
+  } else {
+    if (p105.callsRemoteWrite === true) {
+      fail(
+        'src/main/machines/remote-runs.ts calls runRemoteWrite. This whole ' +
+          'feature is a read, and nothing in it writes on either computer.'
+      );
+    }
+    if (p105.remoteReads !== 1) {
+      fail(
+        `src/main/machines/remote-runs.ts makes ${String(p105.remoteReads)} ` +
+          `remote read(s). It makes one. A second call site is a second thing ` +
+          `a person's machine can be asked without anybody reading this file ` +
+          `again.`
+      );
+    }
+    const ids = [...(p105.scriptIdsNamed ?? [])].sort();
+    if (JSON.stringify(ids) !== JSON.stringify(['repo-facts'])) {
+      fail(
+        `src/main/machines/remote-runs.ts names the catalogue script(s) ` +
+          `${ids.join(', ') || 'none'}. It names exactly repo-facts.`
+      );
+    }
+  }
+  // 55h. The write door did not move, and the catalogue grew by exactly one.
+  const p105Writers = (data.remoteRun ?? {}).writers ?? [];
+  if (
+    JSON.stringify(p105Writers) !== JSON.stringify(['image-put', 'git-clone'])
+  ) {
+    fail(
+      `the catalogue's write scripts are ${p105Writers.join(', ') || 'none'}. ` +
+        `They are exactly image-put and then git-clone. Phase 105 added a read ` +
+        `and nothing about what Tortie may write on another computer moved.`
+    );
+  }
+  const p105Count = ((data.remoteRun ?? {}).scripts ?? []).length;
+  if (p105Count !== 15) {
+    fail(
+      `the catalogue holds ${String(p105Count)} script(s). It holds fifteen, ` +
+        `of which two write. A script that appeared without a phase saying so ` +
+        `is a command somebody can run on another person's computer.`
+    );
+  }
+  // 55i. The one gh command line, and the allowlist's own verdict on it.
+  if (p105.ghRefusal !== null && p105.ghRefusal !== undefined) {
+    fail(
+      `the gh command line this feature composes is refused by ` +
+        `assertReadOnlyArgv: ${String(p105.ghRefusal)}. Every gh shape this ` +
+        `product may compose is a read, and one that is refused would never ` +
+        `run at all.`
+    );
+  }
+  const ghArgv = [...(p105.ghArgv ?? [])];
+  if (ghArgv[0] !== 'run' || ghArgv[1] !== 'list' || !ghArgv.includes('--repo')) {
+    fail(
+      `the gh command line this feature composes is ` +
+        `${ghArgv.slice(0, 2).join(' ') || 'nothing'} and ` +
+        `${ghArgv.includes('--repo') ? 'names' : 'does not name'} its ` +
+        `repository. It is a run list and it always names --repo, so no folder ` +
+        `on either computer can change the answer.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 46 to 48. Phase 84. The program search, the third environment name and the
 // key Tortie made
 // ---------------------------------------------------------------------------
@@ -3944,6 +4148,29 @@ process.stdout.write(
           `scrollbar would need, and writes nothing on either computer. ` +
           `Research 57 section 3.1 refused the scrollbar and this is the ` +
           `smaller affordance it adopted.\n`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 105's line
+// ---------------------------------------------------------------------------
+
+{
+  const p105 = data.phase105 ?? {};
+  const script = p105.script ?? null;
+  process.stdout.write(
+    script === null || p105.present !== true
+      ? 'repo-facts or src/main/machines/remote-runs.ts is NOT there, so the ' +
+          'Runs section on a tab whose project lives on another machine has no ' +
+          'far side at all.\n'
+      : `the Runs section on a machine runs repo-facts, a ${String(script.mode)} ` +
+          `taking ${String(script.params)} value(s). It names git ` +
+          `${[...(p105.gitVerbs ?? [])].sort().join(' and ')} and nothing else, ` +
+          `it asks with --git-common-dir and never --absolute-git-dir, and it ` +
+          `names none of ${P105_CREDENTIAL_WORDS}. The one gh command is ` +
+          `${[...(p105.ghArgv ?? [])].slice(0, 6).join(' ')} …, it is composed ` +
+          `on THIS MAC, the allowlist accepts it as a read, and no credential ` +
+          `and no gh crosses the link.\n`
   );
 }
 

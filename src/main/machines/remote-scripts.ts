@@ -31,6 +31,16 @@
  * needs no file size cap of its own. Research 57 section 6 measured it and ruled
  * Quick Open in and Symbols out, because there is no parser on that machine.
  *
+ * PHASE 105 ADDED ONE MORE, and it is a read. `repo-facts` prints four short
+ * strings about one folder on a machine, being a mode word, the origin address,
+ * the branch checked out there and the commit HEAD points at. It exists so the
+ * Runs section on a tab whose project lives over there can ask GitHub about the
+ * right branch. NO CREDENTIAL AND NO `gh` CROSSES: the gh program runs on this
+ * Mac and never leaves it, and condition 55d of `build/conformance-machines.mjs`
+ * reads this text and fails on any of the nine words a credential would travel
+ * in. It adds no git verb, because `rev-parse` was already on the list in rule 7
+ * below and `awk` reads the origin out of the config the way `repo-find` does.
+ *
  * PHASE 90.3 ADDED ONE MORE, and it is a read. `tree-list` names every file
  * and folder under one folder on a machine, to a fixed depth, in ONE call. It
  * is what the Explorer draws for a project that lives on another computer.
@@ -113,6 +123,13 @@
  *     its own. IT ADDED NOTHING TO THAT LIST, and condition 53j of the gate
  *     asserts the list's own contents so a later round cannot widen it for
  *     convenience.
+ *
+ *     PHASE 105 ADDED NOTHING TO IT EITHER. `repo-facts` asks git where the git
+ *     directory is, what `HEAD` names and what commit `HEAD` points at, and all
+ *     three questions are `rev-parse`. `symbolic-ref` was not needed because
+ *     `rev-parse` answers the same question, and `remote` was not needed because
+ *     `awk` over the config answers it, which is what `repo-find` already does.
+ *     Condition 55c of the gate holds the list at four.
  *
  * ## Every script is safe to run twice
  *
@@ -217,7 +234,7 @@ export const REMOTE_SCRIPT_MAX_BYTES = 131_072;
 export const REMOTE_SEARCH_MAX_BYTES = 4_194_304;
 
 // ---------------------------------------------------------------------------
-// The fourteen scripts
+// The fifteen scripts
 // ---------------------------------------------------------------------------
 
 /**
@@ -1047,15 +1064,135 @@ const REPO_FILES = [
 ].join('\n');
 
 /**
- * The whole catalogue. Fourteen scripts, and this release holds no others.
+ * Four short strings about one folder on another machine (Phase 105).
+ *
+ * It exists so the Runs section on a tab whose project lives over there can ask
+ * GitHub about the right branch. `./remote-runs.ts` reads the answer, and it
+ * asks GitHub from THIS Mac with the `gh` this Mac already has.
+ *
+ * ## The property this script rests on, and it decides everything below
+ *
+ * NO CREDENTIAL AND NO `gh` CROSSES. The gh program runs on this Mac and never
+ * leaves it. No token, no `gh` invocation and no GitHub host name is sent to the
+ * machine. Four short strings travel back, being a mode word, the origin
+ * address, the branch name and the commit HEAD points at. Condition 55d of
+ * `build/conformance-machines.mjs` reads this text and fails on any of `gh`,
+ * `GH_TOKEN`, `GITHUB_TOKEN`, `GH_HOST`, `Authorization`, `hosts.yml`,
+ * `.config/gh`, `netrc` and `curl`, which is the executable form of that
+ * sentence rather than a promise about it.
+ *
+ * ## Three git processes, and `--git-common-dir` rather than `--absolute-git-dir`
+ *
+ * Research 57 section 5.2 priced this read at four spawns and 52.4 ms. It needs
+ * three, because one `rev-parse` answers where the git directory is and `awk`
+ * reads the origin out of its config, which is what `repo-find` already does.
+ *
+ * THE FIRST VERB IS `--git-common-dir` AND IT IS NEVER `--absolute-git-dir`.
+ * Research 57 section 9 defect 5 records that `resolveGitDir` in
+ * `src/main/git/service.ts` uses the second one, which answers with a linked
+ * worktree's OWN git directory. MEASURED on 2026-08-20 against the worktree this
+ * phase was built in: `--git-common-dir` answered `/Users/gdc/gmux/.git`, whose
+ * `config` holds `https://github.com/gregce/tortie.git`, and
+ * `--absolute-git-dir` answered `/Users/gdc/gmux/.git/worktrees/wt-p105`, whose
+ * `config` holds no origin at all. A Runs section built on the second one would
+ * report "no GitHub address" for a worktree that has one. Condition 55f fails on
+ * the wrong spelling.
+ *
+ * `--git-common-dir` answers relative to the current directory when it can, e.g.
+ * `.git` at the top level and `../../.git` two directories down. The script has
+ * already run `cd "$1"`, so `"$g/config"` resolves from either form. Both were
+ * measured.
+ *
+ * ## Two edge cases handled rather than accepted
+ *
+ * A DETACHED HEAD REPORTS NO BRANCH. `git rev-parse --symbolic-full-name HEAD`
+ * prints the word `HEAD` on a detached head, and a branch called `HEAD` handed
+ * to gh would be a question about a branch nobody has. The `case` line keeps a
+ * value only when it begins `refs/heads/`, so the branch travels as the empty
+ * word and the answer prints `none`.
+ *
+ * A REPOSITORY WITH NO COMMITS REPORTS NO SHA. Without `--verify --quiet` that
+ * repository answers with the literal string `HEAD` on stdout, which would have
+ * been drawn on screen as a commit. With it, the answer is `none`.
+ *
+ * ## The five answers, each one measured on 2026-08-20 before this was written
+ *
+ * | First word | Meaning | Measured against |
+ * | --- | --- | --- |
+ * | `repo` | the folder is inside a repository, and the three fields follow | a top level, a subdirectory two deep, and a linked worktree |
+ * | `notrepo` | the folder is there and git does not know it | a plain directory |
+ * | `missing` | there is no folder at that path | a path that does not exist |
+ * | `denied` | the folder is there and the account cannot read it | a directory at mode 000 |
+ * | no markers | the machine did not answer | not a branch of this script |
+ *
+ * `denied` exists because `dir-list` and `tree-list` already have it. Without it
+ * a folder the account cannot read would come back as "the machine did not
+ * answer", which names the wrong cause. `review-list` has that gap today and
+ * this script does not repeat it.
+ *
+ * ## What it cannot find, said plainly
+ *
+ * The origin is the first `url` line under `[remote "origin"]`. A repository
+ * that uses a different remote name, and one with an `insteadOf` rewrite, are
+ * both read as having no address. A machine with no `git` at all answers
+ * `notrepo`, which names the wrong cause, and that is `repo-search`'s existing
+ * limitation rather than a new one.
+ *
+ * ## The catalogue rules, one at a time
+ *
+ * The text holds no backtick and no caller value. The only positional is `"$1"`,
+ * read double quoted at three places, and `g`, `u`, `e`, `h`, `b`, `n` and `s`
+ * are local names. It begins `set -e` and then `umask 077`. Every answer is
+ * printed between the marker pair. It names none of the eleven mutating
+ * programs: it names `git`, `awk`, `printf`, `base64`, `tr`, `cd` and `test`.
+ * Every `>` in it is part of `2>/dev/null`, and there are FOUR of those. It is a
+ * `read`, so the two writers in this catalogue do not move. It names one git
+ * verb and that verb is `rev-parse`, which was already on the list, so
+ * `ALLOWED_GIT_VERBS` stays at four. The awk program holds no `$` followed by a
+ * digit, for the reason `repo-find` states.
+ *
+ * Running it twice reads the same folder twice. It writes nothing on either
+ * computer.
+ */
+const REPO_FACTS = [
+  'set -e',
+  'umask 077',
+  'if [ ! -d "$1" ]; then',
+  "  printf '__TORTIE_RUN__missing none none none__TORTIE_RUN__\\n'",
+  'elif [ ! -r "$1" ] || [ ! -x "$1" ]; then',
+  "  printf '__TORTIE_RUN__denied none none none__TORTIE_RUN__\\n'",
+  'else',
+  '  cd "$1"',
+  '  g=$(git rev-parse --git-common-dir 2>/dev/null || true)',
+  '  if [ -z "$g" ]; then',
+  "    printf '__TORTIE_RUN__notrepo none none none__TORTIE_RUN__\\n'",
+  '  else',
+  '    u=$(awk \'/^\\[remote "origin"\\]/ { f=1; next } /^\\[/ { f=0 }' +
+    ' f && /^[ \\t]*url[ \\t]*=/ { sub(/^[ \\t]*url[ \\t]*=[ \\t]*/, "");' +
+    ' print; exit }\' "$g/config" 2>/dev/null || true)',
+  '    e=$(printf \'%s\' "$u" | base64 | tr -d \'\\n\')',
+  '    h=$(git rev-parse --symbolic-full-name HEAD 2>/dev/null || true)',
+  '    b=',
+  '    case "$h" in refs/heads/*) b=${h#refs/heads/};; esac',
+  '    n=$(printf \'%s\' "$b" | base64 | tr -d \'\\n\')',
+  '    s=$(git rev-parse --verify --quiet HEAD 2>/dev/null || true)',
+  "    printf '__TORTIE_RUN__repo %s %s %s__TORTIE_RUN__\\n'" +
+    ' "${e:-none}" "${n:-none}" "${s:-none}"',
+  '  fi',
+  'fi'
+].join('\n');
+
+/**
+ * The whole catalogue. Fifteen scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the fourteen write, being `image-put` and `git-clone`, and they are in
+ * TWO of the fifteen write, being `image-put` and `git-clone`, and they are in
  * that order in this array. {@link remoteWriteScripts} returns them in it.
- * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99.
+ * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, AND SO DID
+ * PHASE 105.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -1168,6 +1305,16 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     reason:
       'It asks git which files are in one folder, or walks that folder once ' +
       'when git does not answer. It writes nothing, so running it twice lists ' +
+      'the same folder twice.'
+  },
+  {
+    id: 'repo-facts',
+    mode: 'read',
+    params: 1,
+    text: REPO_FACTS,
+    reason:
+      'It asks git three questions about one folder and reads one line out of ' +
+      'that folder\'s git config. It writes nothing, so running it twice reads ' +
       'the same folder twice.'
   },
   {

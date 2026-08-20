@@ -121,6 +121,21 @@
  *
  * Its only caller is `ipc.ts`, inside this directory.
  *
+ * PHASE 105 ADDED ONE MODULE and this file does NOT re-export it either, for the
+ * same reason.
+ *
+ *  - `remote-runs.ts` reads which branch is checked out in one folder on one
+ *    machine, then asks GitHub about that branch with the `gh` on THIS Mac. No
+ *    credential and no `gh` crosses the link, and it writes nothing on either
+ *    computer or on GitHub.
+ *
+ * Its only caller is `ipc.ts`, inside this directory. THE PHASE BRIEF ASKED FOR
+ * "the one export line" HERE AND THERE IS NONE, which is a deviation this note
+ * states rather than hides: three phases in a row have added a module to this
+ * directory without a re-export, the growth guardrail in CLAUDE.md asks for a
+ * small deliberate export surface rather than a complete one, and no caller
+ * outside this directory asks for the name. Add the re-export when one does.
+ *
  * PHASE 83 ADDED NO MODULE, and it changed two things worth naming here.
  *
  *  - A machine row gained a fifth execution bearing field,

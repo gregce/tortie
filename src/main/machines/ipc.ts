@@ -125,8 +125,12 @@ import type {
   // ---- END PHASE 99 ----
   // ---- PHASE 100 ----
   MachineSessionLinesInput,
-  MachineSessionLinesResult
+  MachineSessionLinesResult,
   // ---- END PHASE 100 ----
+  // ---- PHASE 105 ----
+  MachineRunsInput,
+  MachineRunsResult
+  // ---- END PHASE 105 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -197,6 +201,10 @@ import { listFilesOnMachine } from './remote-files';
 // who wants to read back what an agent over there said. It reads and writes
 // nothing on either computer, and it is not a scrollbar.
 import { readSessionLinesOnMachine } from './remote-lines';
+// Phase 105. The branch checked out in one folder on one machine, and then the
+// runs GitHub holds for it. The gh program runs on THIS Mac and never leaves it,
+// and nothing on either computer is written.
+import { readRunsOnMachine } from './remote-runs';
 // Phase 90.2, item 2. One git config read here, then one folder walk there. It
 // writes nothing on either computer.
 import { findProjectOnMachine } from './project-counterpart';
@@ -1039,6 +1047,48 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 100 ----
+
+  // ---- PHASE 105 ----
+  // PHASE 105. One channel that READS which branch is checked out in one folder
+  // on one machine, and then asks GitHub about that branch FROM THIS MAC.
+  //
+  // NO CREDENTIAL AND NO gh CROSSES. The gh program runs here and never leaves
+  // this Mac. No token, no gh invocation and no GitHub host name is sent to the
+  // machine. Four short strings travel back, being a mode word, the origin
+  // address, the branch name and the commit HEAD points at. Condition 55d of
+  // build/conformance-machines.mjs reads the script text and fails on any of the
+  // nine words a credential would travel in, and `npm run probe:p105` puts a
+  // program called gh on the far side's own path and asserts it was never run.
+  //
+  // It cannot compose what it asks. The command that crosses is `repo-facts`
+  // from the frozen catalogue in ./remote-scripts.ts, chosen by name, with the
+  // folder arriving there as the one positional parameter. The gh argv is
+  // composed by ../actions/argv.ts and refused by `assertReadOnlyArgv` before a
+  // process exists.
+  //
+  // IT WRITES NOTHING, on either computer and on GitHub. The catalogue's two
+  // writers did not move and every gh shape the allowlist permits is a read.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A person expands the section or presses
+  // Refresh, and each of those is one read. There is no watch, because main
+  // cannot see a push made on another computer.
+  //
+  // It NEVER THROWS. A folder that is not there, a folder git does not track, a
+  // repository with no GitHub address, a detached head, a machine that did not
+  // answer and a machine Tortie is not signed in to all come back as a mode
+  // word. No prose crosses this channel: the renderer draws the sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  handle(
+    ipc,
+    'machines:readRuns',
+    async (_event, input: MachineRunsInput): Promise<MachineRunsResult> =>
+      readRunsOnMachine({
+        machineId: input.machineId,
+        cwd: input.cwd,
+        ...(input.limit === undefined ? {} : { limit: input.limit })
+      })
+  );
+  // ---- END PHASE 105 ----
 }
 
 /**

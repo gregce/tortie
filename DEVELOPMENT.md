@@ -80,6 +80,7 @@ value below is read from the script in `package.json`, and `${TMPDIR}` is
 | `npm run probe:p98` | `/tmp/p98-search-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p98-search-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
 | `npm run probe:p99` | `/tmp/p99-quickopen-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p99-quickopen-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
 | `npm run probe:p100` | `/tmp/p100-lines-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p100-lines-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. It is the only tmux server this probe writes to, and it holds the one session the run makes. |
+| `npm run probe:p105` | `/tmp/p105-runs-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p105-runs-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
 
 `smoke:execplane`, `smoke:remote`, `smoke:capture:remote` and `smoke:p93remote`
 all honour a `GMUX_CONFIG_ROOT` already in the environment and fall back to the
@@ -130,6 +131,22 @@ folder which is not a repository answers with a walk that names nothing under
 was asked for and says it cut, and that the read left the repository byte for
 byte as it found it. It counts `tmux -L gmux list-sessions` before and after and
 fails on a difference.
+
+`npm run probe:p105` is Phase 105's live gate, being the workflow runs for the
+branch checked out on another machine. It makes six repositories and three plain
+folders under `/tmp`, drives `src/main/machines/remote-runs.ts` against a
+loopback sign in server, and checks eighteen things. The property the phase rests
+on is row 12. The exact bytes the door composed are printed in full and searched
+for the nine words a credential would travel in, and zero hits is the pass,
+because the gh program runs on this Mac and never leaves it. Row 13 puts a program
+called `gh` in every folder the far side's script changes into and asserts the
+witness file it would write never appears, and it asserts every gh process Tortie
+made stood in this Mac's own home directory. Row 6 is a linked worktree, and it
+is the row that fails if the script ever asks with `--absolute-git-dir` instead
+of `--git-common-dir`. Row 17 is the end to end demonstration with the real gh on
+this Mac, and it prints SKIPPED with the reason when this Mac has no gh or is not
+signed in. A skipped row is never a pass. It counts `tmux -L gmux list-sessions`
+before and after and fails on a difference.
 
 ### Talking to a real machine
 

@@ -10,6 +10,14 @@
  * glyph and the copy helper. They live here rather than in RunsSection because
  * RunsSection imports both components, and putting them there would close an
  * import cycle.
+ *
+ * PHASE 105 ADDED A SECOND MODE, and the first one did not move. A row in
+ * `open` mode opens the run on github.com instead of expanding it. It draws no
+ * chevron, it carries no `aria-expanded`, and its label says what the click
+ * does. That mode is what the Runs group for a folder on another machine draws,
+ * because reading a run's jobs is a second channel and a second gh process for
+ * every row, and Phase 105 has one channel. `expand` is the default, so every
+ * caller written before this phase behaves byte for byte as it did.
  */
 
 import React from 'react';
@@ -21,6 +29,7 @@ import {
   activityDurationText,
   expandLabel,
   formatAgeShort,
+  openLabel,
   runActivity,
   runGlyph
 } from './runs-format';
@@ -68,19 +77,54 @@ export function openOnGitHub(url: string): void {
   window.open(url, '_blank');
 }
 
+/**
+ * What a click on the row does.
+ *
+ * `expand` opens the run's jobs under it, which is what the local Runs section
+ * has done since Phase 46. `open` sends the person to the run on github.com,
+ * which is what the Runs group for a folder on another machine does.
+ */
+export type RunRowMode = 'expand' | 'open';
+
+/**
+ * What a click on a run row does, as a plain function.
+ *
+ * It is a named function rather than a body inside the JSX so that a test can
+ * call it. This repository carries no jsdom and no testing library, so a click
+ * on a rendered row cannot be simulated at all, and the one thing that must be
+ * proved about a row in `open` mode is that clicking it opens a page instead of
+ * expanding anything.
+ */
+export function runRowClick(
+  run: ActionsRun,
+  mode: RunRowMode,
+  onToggle?: (runId: number) => void
+): void {
+  if (mode === 'open') {
+    openOnGitHub(run.url);
+    return;
+  }
+  onToggle?.(run.id);
+}
+
 export function RunRow({
   run,
-  expanded,
+  expanded = false,
   now,
+  mode = 'expand',
   onToggle,
   onHoverStart,
   onHoverEnd
 }: {
   run: ActionsRun;
-  expanded: boolean;
+  /** Whether the jobs are showing. Never true in `open` mode. */
+  expanded?: boolean;
   /** The instant ages and durations are measured against. */
   now: number;
-  onToggle: (runId: number) => void;
+  /** PHASE 105. Defaults to the behaviour every caller before it had. */
+  mode?: RunRowMode;
+  /** Called on a click in `expand` mode. `open` mode never calls it. */
+  onToggle?: (runId: number) => void;
   /**
    * Hover card wiring (Phase 46.1). RunsSection owns the timers and the card;
    * the row only reports the pointer and hands over its own element so the
@@ -89,6 +133,7 @@ export function RunRow({
   onHoverStart?: (el: HTMLElement) => void;
   onHoverEnd?: () => void;
 }): React.JSX.Element {
+  const opens = mode === 'open';
   const setMenu = useApp((s) => s.setMenu);
 
   const activity = runActivity(run);
@@ -110,17 +155,21 @@ export function RunRow({
   return (
     <button
       type="button"
-      className={`runs-row${expanded ? ' expanded' : ''}`}
-      aria-expanded={expanded}
-      aria-label={expandLabel(run, expanded)}
-      onClick={() => onToggle(run.id)}
+      className={`runs-row${expanded ? ' expanded' : ''}${opens ? ' opens' : ''}`}
+      // A row that opens a page is not an expander, so it carries no
+      // `aria-expanded` at all rather than carrying a false one.
+      {...(opens ? {} : { 'aria-expanded': expanded })}
+      aria-label={opens ? openLabel(run) : expandLabel(run, expanded)}
+      onClick={() => runRowClick(run, mode, onToggle)}
       onContextMenu={onContextMenu}
       onMouseEnter={(e) => onHoverStart?.(e.currentTarget)}
       onMouseLeave={() => onHoverEnd?.()}
     >
-      <span className="runs-chevron" aria-hidden="true">
-        <Codicon name="chevron-down" size={12} />
-      </span>
+      {opens ? null : (
+        <span className="runs-chevron" aria-hidden="true">
+          <Codicon name="chevron-down" size={12} />
+        </span>
+      )}
       <RunStatusIcon glyph={glyph} />
       <span className="runs-name">{run.workflowName}</span>
       {run.displayTitle !== '' ? (
