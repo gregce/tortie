@@ -6488,6 +6488,71 @@ every checkpoint of the build, the verification and the commit.
   the command line beneath it. A later phase that wants the function moves it into its own module
   first.
 
+## Phase 113 — `npm run shot` still attaches to the operator's own server, AND IT NEEDS HIS WORD QUEUED, BLOCKED
+
+**Subject:** `fix(build): the screenshot harness stops attaching to the operator's own server`
+**First body line:** `Phase 113: npm run shot still attaches to the operator's own server`
+**Semver:** patch.
+**Tier 2.** No product file changes. The evidence is a driven run and a session count.
+
+**BLOCKED ON THE OPERATOR. Do not build this without his answer.** Moving the socket changes what
+every screenshot shows, and several phases gather their evidence that way. That is his call and not
+an agent's.
+
+### What Phase 112 found, and it is about his own machine
+
+`npm run shot` sets `GMUX_SHOT` and **names no socket**. `activeTmuxSocket` in
+`src/main/tmux/resolve.ts` then falls back to `gmux`, which is the operator's real server holding his
+47 sessions. So a screenshot run attaches to his own work rather than to a scratch server.
+
+Phase 112 gave it a profile directory of its own and **deliberately left the socket alone**, because
+changing it changes what every screenshot shows.
+
+**This is not theoretical. It is the mechanism behind the two incidents already recorded in this
+file**, where probe sessions were stranded on his server and he had to approve their removal. Both
+times the launch carried `GMUX_SHOT` and no socket.
+
+### The question for him
+
+Should a screenshot run attach to his real sessions, or to a scratch server with sessions the harness
+makes itself? Attaching to his own is what makes a screenshot look like his actual workspace, which
+may be the point. Attaching to a scratch server is safe and makes every screenshot look like an empty
+machine, which may make several existing probes useless. **Both readings are defensible and he
+decides.**
+
+### If he says move it
+
+Every probe that reads a screenshot has to be re-checked, because each one currently sees whatever
+his server holds. Count them first and say the number.
+
+## Phase 114 — three more shared roots Phase 112 did not close QUEUED
+
+**Subject:** `fix(build): the last shared harness roots get a run of their own`
+**First body line:** `Phase 114: three more shared roots`
+**Semver:** patch. **Tier 1.**
+
+Phase 112 closed the socket and profile for every harness run and named three things it did not close.
+Each is recorded here so none is lost.
+
+1. **`smoke:create` and `smoke:verify` still carry a fallback socket and a fallback profile named
+   `gmux-smoke-t1`.** Under `npm run smoke:t1` the harness supplies both, so the fallbacks are never
+   reached, and Phase 112 measured that. Two standalone runs of those two scripts in two directories
+   would still share one server and one profile. Closing it needs a harness that knows it is already
+   inside a harness, which is a design change rather than a one line edit.
+2. **`src/main/conformance/scratch.ts` fixes `SCRATCH_ROOT` to `join(tmpdir(), 'gmux-conformance')`
+   and `sweepLeftovers` deletes that whole directory.** Two `conformance:resume` runs now get separate
+   sockets and separate profiles and still share those per agent working directories.
+3. **The reap can reach a server this script did not create**, if its name has the shape
+   `gmux-<something>-<digits>` and the number is a dead process id. `gmux` and `default` can never
+   match, a live process id is skipped, and none of the 141 sockets on the machine matched during
+   Phase 112's verification. It is a behaviour change that was named rather than hidden, and it wants
+   a tighter rule.
+
+Two more facts from Phase 112, recorded and not scheduled: the reap does not empty the socket
+directory, because macOS reuses process ids and a stale socket whose number was taken by a live
+process survives until that process exits. And run directories are never deleted, which was a
+deliberate choice, because a failed run's profile is the evidence a person needs.
+
 ## Phase 96 — the four defects on the remote surfaces (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.49.1, gates green, 6,575 tests)
 
 **Subject:** `fix(machines): four defects the parity audit found on the remote surfaces`
