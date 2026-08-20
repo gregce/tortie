@@ -3307,6 +3307,164 @@ const P99_FORBIDDEN = P98_FORBIDDEN;
 }
 
 // ---------------------------------------------------------------------------
+// 54. Phase 100. The read that is not a scrollbar
+// ---------------------------------------------------------------------------
+//
+// A person can now read the last lines one session on another machine printed.
+// Research 57 section 3.1 ruled AGAINST a real remote scrollbar and FOR this
+// smaller affordance, and the deciding reasons were the verb ledger and one
+// door Phase 89 deliberately narrowed. A rule written in a document is a rule a
+// later round can read past, so this condition makes it executable.
+//
+// THE CHECKABLE SENTENCE. The read composes `capture-pane -p -e -J -t <id> -S
+// -<n>` and nothing else, `src/main/machines/remote-lines.ts` names neither of
+// the two verbs a scrollbar would need, it takes exactly one name from the
+// saved output side and never writes a capsule, and the ledger still holds
+// `capture-pane` as a read row with repeat class safe.
+//
+// Every check below reads one composed argv, one module's own source text and
+// four compiled numbers. It sends nothing, starts nothing and contacts no
+// machine.
+
+/** The argv this phase may send, element by element, at the deepest depth. */
+const P100_ARGV_DEEP = [
+  'capture-pane',
+  '-p',
+  '-e',
+  '-J',
+  '-t',
+  '$9',
+  '-S',
+  '-25000'
+];
+/** The same at the screen alone, which is what `lines: 0` composes. */
+const P100_ARGV_SCREEN = [
+  'capture-pane',
+  '-p',
+  '-e',
+  '-J',
+  '-t',
+  '$9',
+  '-S',
+  '-0'
+];
+
+{
+  const p100 = data.phase100 ?? {};
+  if (p100.present !== true) {
+    fail(
+      'src/main/machines/remote-lines.ts is not there, so a person has no way ' +
+        'to read back what a session on another machine printed and Phase 95 ' +
+        'sentence saying so has nothing to replace it.'
+    );
+  } else {
+    // 54a. The argv, element by element, at both ends of the range the panel
+    //      offers. A gained or lost element is a different command.
+    const deep = [...(p100.argvDeep ?? [])];
+    if (JSON.stringify(deep) !== JSON.stringify(P100_ARGV_DEEP)) {
+      fail(
+        `the deepest read composes ${JSON.stringify(deep)}. It composes ` +
+          `${JSON.stringify(P100_ARGV_DEEP)} exactly. An element gained or ` +
+          `lost here is a different command sent to somebody else's computer.`
+      );
+    }
+    const screen = [...(p100.argvScreen ?? [])];
+    if (JSON.stringify(screen) !== JSON.stringify(P100_ARGV_SCREEN)) {
+      fail(
+        `the screen alone composes ${JSON.stringify(screen)}. It composes ` +
+          `${JSON.stringify(P100_ARGV_SCREEN)} exactly, being -S -0.`
+      );
+    }
+    // 54b. The executable form of research 57 section 3.1's refusal.
+    const named = p100.namesAScrollVerb ?? [];
+    if (named.length > 0) {
+      fail(
+        `src/main/machines/remote-lines.ts names ${named.join(', ')}. It may ` +
+          `name neither. Research 57 section 3.1 refused a real remote ` +
+          `scrollbar twice over: one of those verbs is on no row of the ` +
+          `ledger, and the other is the one unsafe row, reachable only through ` +
+          `a door Phase 89 narrowed to a fixed five element argv. A builder ` +
+          `who needs either one has designed the thing this phase refused.`
+      );
+    }
+    // 54c. A read is not a capsule. One name crosses from the saved output
+    //      side, being the control stripper, and no read writes a generation.
+    const imports = p100.snapshotImports ?? [];
+    if (JSON.stringify(imports) !== JSON.stringify(['stripControls'])) {
+      fail(
+        `src/main/machines/remote-lines.ts takes ` +
+          `${imports.join(', ') || 'nothing'} from ../restore/snapshots. It ` +
+          `takes exactly stripControls. A second copy of that regular ` +
+          `expression is how two answers to "which bytes are text" come to ` +
+          `exist, and anything else from that module would make a person ` +
+          `pressing a menu item write to this Mac.`
+      );
+    }
+    if (p100.callsCapsuleStore === true) {
+      fail(
+        'src/main/machines/remote-lines.ts calls storeCapsuleText. This read ' +
+          'is a live read a person asked for, and it writes nothing on either ' +
+          'computer. The background copy is ./remote-capsule.ts and it stays ' +
+          'the only writer.'
+      );
+    }
+    // 54d. One command per read, composed in one place.
+    if (p100.execCalls !== 1 || p100.composerCalls !== 1) {
+      fail(
+        `src/main/machines/remote-lines.ts sends ` +
+          `${String(p100.execCalls)} command(s) through ` +
+          `${String(p100.composerCalls)} composer call(s). It sends one ` +
+          `through one. A second call site is a second thing a person's ` +
+          `session can be asked without anybody reading this file again.`
+      );
+    }
+    // 54e. The four depths the panel offers, and the two ceilings.
+    const depths = [...(p100.depths ?? [])];
+    if (JSON.stringify(depths) !== JSON.stringify([0, 1000, 10000, 25000])) {
+      fail(
+        `the panel offers depths ${depths.join(', ') || 'none'}. It offers ` +
+          `0, 1000, 10000 and 25000, shallowest first. Research 57 section ` +
+          `3.2 measured the deepest one and nothing deeper has been measured.`
+      );
+    }
+    if (p100.maxDepth !== 25_000 || p100.defaultDepth !== 1000) {
+      fail(
+        `the read clamps at ${String(p100.maxDepth)} lines and opens at ` +
+          `${String(p100.defaultDepth)}. It clamps at 25000, which research ` +
+          `57 section 3.2 measured at 4,200,243 bytes and about 0.51 s ` +
+          `composed, and it opens at 1000.`
+      );
+    }
+    if (p100.maxBytes !== 8_388_608) {
+      fail(
+        `the read cuts at ${String(p100.maxBytes)} bytes. It cuts at 8388608, ` +
+          `which is about twice the measured worst case, so an ordinary read ` +
+          `is never cut and a runaway one is bounded before the 64 MB exec ` +
+          `plane buffer is reached.`
+      );
+    }
+  }
+  // 54f. The ledger row this read rides on has not moved. A row edited to
+  //      `mutating`, or to an unsafe repeat class, would change what a person's
+  //      machine is being asked without anything else in this phase changing.
+  const capture = (data.ledger ?? []).find((row) => row.verb === 'capture-pane');
+  if (capture === undefined) {
+    fail(
+      'capture-pane is not on the verb ledger, so the read this phase added ' +
+        'has no row to ride on and the exec plane would refuse it.'
+    );
+  } else if (capture.kind !== 'read' || capture.repeat !== 'safe') {
+    fail(
+      `capture-pane reads ${String(capture.kind)} with repeat class ` +
+        `${String(capture.repeat)}. It is a read and it is safe: with -p it ` +
+        `prints what is on a screen and writes nothing, and two prints of one ` +
+        `screen leave the machine exactly as one does. Phase 100 added no verb ` +
+        `to this ledger and moved no row on it.`
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 46 to 48. Phase 84. The program search, the third environment name and the
 // key Tortie made
 // ---------------------------------------------------------------------------
@@ -3762,6 +3920,30 @@ process.stdout.write(
           `${String(files.branches)} branch(es) and says so in its own answer, ` +
           `and it names none of ${P99_FORBIDDEN}. It carries names and never ` +
           `file contents.\n`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 100's line
+// ---------------------------------------------------------------------------
+
+{
+  const p100 = data.phase100 ?? {};
+  const capture = (data.ledger ?? []).find((row) => row.verb === 'capture-pane');
+  process.stdout.write(
+    p100.present !== true
+      ? 'src/main/machines/remote-lines.ts is NOT there, so nobody can read ' +
+          'back what a session on another machine printed.\n'
+      : `reading the last lines of a session on a machine sends ` +
+          `${[...(p100.argvDeep ?? [])].join(' ')}, one command per read, and ` +
+          `nothing else. It rides on the ${String(capture?.kind)} row ` +
+          `capture-pane, repeat class ${String(capture?.repeat)}, which Phase ` +
+          `72 put on the ledger and Phase 100 did not move. It offers ` +
+          `${[...(p100.depths ?? [])].join(', ')} lines, cuts at ` +
+          `${String(p100.maxBytes)} bytes on this Mac, names neither verb a ` +
+          `scrollbar would need, and writes nothing on either computer. ` +
+          `Research 57 section 3.1 refused the scrollbar and this is the ` +
+          `smaller affordance it adopted.\n`
   );
 }
 

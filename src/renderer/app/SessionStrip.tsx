@@ -34,7 +34,7 @@ import type { Surface } from '../state/layout';
 import { rollupDot, statusVisual } from './status';
 import { useNow } from './format';
 import {
-  NoScrollbackNote,
+  ReadLastLinesButton,
   RenameInput,
   ResumeMark,
   EndSessionButton,
@@ -506,14 +506,18 @@ function SessionTabStrip({
           <StripIndicator index={stripDrop} listRef={listRef} />
         ) : null}
       </div>
-      {/* Phase 95. The same note the identity strip draws in the "right"
-          orientation, in the band a person actually has by default. It
-          describes the session on screen, so it sits outside the scrolling tab
-          list rather than inside a tab. The tabs are too narrow for words, and
-          repeating the sentence on every remote tab would say the same thing
-          several times over. */}
+      {/* Phase 100. The same button the identity strip draws in the "right"
+          orientation, in the band a person actually has by default. It acts on
+          the session on screen, so it sits outside the scrolling tab list
+          rather than inside a tab. The tabs are too narrow for words, and one
+          button per remote tab would offer the same verb several times over.
+          Phase 95 put a note here that said scrolling back was not available.
+          It is available now, so the note is gone and this opens the panel. */}
       {shownSession !== undefined ? (
-        <NoScrollbackNote session={shownSession} className="strip-note" />
+        <ReadLastLinesButton
+          session={shownSession}
+          className="strip-readback"
+        />
       ) : null}
       {overflow.has ? (
         <div className="strip-cell">

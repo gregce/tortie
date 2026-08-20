@@ -1,0 +1,131 @@
+/**
+ * The last lines panel, colocated with RemoteLinesModal.tsx (Phase 100).
+ *
+ * The panel is the shared S6 sheet. `.modal-scrim`, `.modal`, `.modal-title`,
+ * `.modal-actions`, `.btn` and `.btn-sm` all come from styles/app.css and
+ * styles/globals.css and are not restated here. What lives in this file is the
+ * text block and the depth row, which no other sheet has.
+ *
+ * Every override is qualified with a second class (.modal.remote-lines-modal)
+ * so it outranks the shared sheet on SPECIFICITY and never on bundle order,
+ * since Vite is free to emit these stylesheets in either order. That rule is
+ * written in the header of app/empty-states.css and it binds this file too.
+ *
+ * All colors via tokens (CLAUDE.md UI rules). No new tokens.
+ */
+
+/* The same 720px the saved output sheet takes, and for the same reason. The
+   content is what a session printed, and a narrow column rewraps every line of
+   it into nonsense. */
+.modal.remote-lines-modal {
+  width: 720px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The first line under the title. It names the machine and the instant, and it
+   is never hidden behind a scroll, which is why the block below has its own
+   scroller instead of the sheet scrolling as one. */
+.modal.remote-lines-modal .remote-lines-header {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* The panel does not refresh, and this is the sentence that says so. It is
+   subordinate to the line above it, so it takes the muted colour. */
+.modal.remote-lines-modal .remote-lines-note {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+/* How much came back. Same weight as the sentence above it. */
+.modal.remote-lines-modal .remote-lines-counts {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+/* Stated, not alarmed (ZEN-OF-TORTIE). A cut answer is still worth reading and
+   the sentence says which end was dropped. These two are never both drawn, so
+   they take the same box and the same colour rather than competing. */
+.modal.remote-lines-modal .remote-lines-cut,
+.modal.remote-lines-modal .remote-lines-all-there {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+/* The lines themselves. Monospace, selectable, wrapped rather than clipped, and
+   scrolled in their own box so the header above stays on screen. */
+.modal.remote-lines-modal .remote-lines-body {
+  flex: 1 1 auto;
+  margin: 0;
+  min-height: 120px;
+  max-height: 46vh;
+  overflow: auto;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* Every state that is not a body, being the four settled sentences and the one
+   in-flight sentence. They take the body's own box so the sheet does not change
+   height between one state and the next.
+
+   THE TWO CLASSES ARE NOT ONE CLASS, and the split is the point rather than the
+   styling. `.remote-lines-reading` is drawn only while a read is running, and
+   `.remote-lines-empty` is drawn only once a read has settled. A probe that
+   read both out of one class reported four empty reads for a feature that
+   works, so the markup now tells them apart even though they look the same. */
+.modal.remote-lines-modal .remote-lines-empty,
+.modal.remote-lines-modal .remote-lines-reading {
+  flex: 1 1 auto;
+  margin: 0;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* The depth group. The label introduces the four buttons, so it sits directly
+   above them and away from the block it follows. */
+.modal.remote-lines-modal .remote-lines-depth-label {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.modal.remote-lines-modal .remote-lines-depths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The depth the panel last asked for. It is a pressed button rather than a
+   selected one, because pressing it again is a real verb: it reads the session
+   a second time at the same depth. */
+.modal.remote-lines-modal .remote-lines-depths .btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}

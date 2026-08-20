@@ -2,8 +2,8 @@
  * The machines half of the bridge (Phase 68, one call added in Phase 69, one
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
  * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
- * Phase 98 and one more in Phase 99). One object, twenty three calls and two
- * subscriptions, typed from the shared contract.
+ * Phase 98, one more in Phase 99 and one more in Phase 100). One object, twenty
+ * four calls and two subscriptions, typed from the shared contract.
  *
  * TWO of these calls write on another computer, being `putImage` and
  * `cloneProject`. Everything else on this bridge reads.
@@ -109,5 +109,12 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // so Quick Open on a tab that lives over there can rank names. It carries no
   // file contents, it writes nothing on either computer, and main refuses it
   // while it is not connected to that machine.
-  listFiles: (input) => invoke('machines:listFiles', input)
+  listFiles: (input) => invoke('machines:listFiles', input),
+  // Phase 100. THIS ONE READS. It asks a machine for the last lines one session
+  // over there printed, so a person can read back what an agent said instead of
+  // being told that scrolling back is not available. It writes nothing on
+  // either computer, it stores nothing on this Mac, and main refuses it while
+  // it is not connected to that machine. It is not a scrollbar: research 57
+  // section 3.1 refused one and this is the smaller affordance it adopted.
+  readSessionLines: (input) => invoke('machines:readSessionLines', input)
 };

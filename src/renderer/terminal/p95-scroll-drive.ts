@@ -54,7 +54,16 @@ export interface P95State {
   sessions: P95Session[];
   /** True while the identity strip is in the document. */
   identityStrip: boolean;
-  /** The note's text and its tooltip, or null when the note is not drawn. */
+  /**
+   * The read back button's text and its tooltip, or null when it is not drawn.
+   *
+   * PHASE 100 changed what this element is. It was a span saying that scrolling
+   * back was not available. It is a button that opens the last lines panel now.
+   * The FIELD keeps its name, because the thing the probe reads is still "what
+   * the band above a session on another machine carries". Step 5 of
+   * `build/probe-p95-scroll.mjs` reads the new text and the new tooltip out of
+   * it, and that step was changed in the same commit as this comment.
+   */
   note: { text: string; title: string } | null;
   /** True while a terminal pane is mounted. */
   terminal: boolean;
@@ -86,7 +95,11 @@ function scrollApi(): ScrollApi | null {
 function readState(): P95State {
   const app = useApp.getState();
   const activeProjectId = app.activeProjectId;
-  const noteEl = document.querySelector('.strip-note');
+  // PHASE 100 renamed the element this reads. Phase 95 drew a span saying that
+  // scrolling back was not available, with class `strip-note`. It is a button
+  // that opens the last lines panel now, with class `strip-readback`, and the
+  // sentence it carries is its tooltip. The reading is otherwise unchanged.
+  const noteEl = document.querySelector('.strip-readback');
   const thumb = document.querySelector<HTMLElement>(
     '.gmux-terminal-scrollbar-thumb'
   );

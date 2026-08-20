@@ -72,6 +72,10 @@ import { PastSessionsModal } from './PastSessionsModal';
 // Phase 72. The saved output panel. One session menu item opens it, it reads
 // one file on this Mac and it sends nothing anywhere.
 import { SavedOutputModal } from './SavedOutputModal';
+// Phase 100. The last lines of a session on another machine. A button in both
+// bands above the terminal opens it, and one session menu item does too. It
+// reads that machine once and writes nothing on either computer.
+import { RemoteLinesModal } from './RemoteLinesModal';
 import {
   ShortcutsOverlay,
   shortcutSearchTookEscape
@@ -159,6 +163,10 @@ import { driveSessionFocus } from './focus-shot-drive';
 import type { SessionFocusProbeSpec } from './focus-shot-drive';
 import { armShellPathProbe, driveShellPath } from './shell-path-shot-drive';
 import type { ShellPathProbeSpec } from './shell-path-shot-drive';
+// PHASE 100. The screenshot read's own hook. It opens the last lines panel on a
+// real session on a real machine and reports what the panel drew.
+import { driveRemoteLines } from './p100-lines-shot';
+import type { RemoteLinesProbeSpec } from './p100-lines-shot';
 
 // PHASE 81 harness hook, armed at module load because the moment it has to
 // see, the session list arriving, is over before any drive can start. It
@@ -948,6 +956,16 @@ interface ShotLayoutExtras {
    */
   sessionFocus?: SessionFocusProbeSpec;
   /**
+   * Phase 100. Open the last lines panel on a session that runs on another
+   * machine, wait for the read to answer, and report what the panel drew.
+   *
+   * The screenshot is the point of this one. What has to be read off the image
+   * is a set of sentences, and a sentence is a thing a person reads rather than
+   * a number a test can compare. The hook is what gets the panel open and
+   * settled before the harness takes the picture.
+   */
+  remoteLines?: RemoteLinesProbeSpec;
+  /**
    * Phase 81. Start a restore and a create before the login shell has
    * answered, read every Restore control out of the document while the
    * answer is still coming, and report when each of those moments was.
@@ -1162,6 +1180,13 @@ function useShotLayoutHook(): void {
       if (ext.sessionFocus !== undefined) {
         window.__gmuxShotReady = false;
         await driveSessionFocus(ext.sessionFocus);
+        window.__gmuxShotReady = true;
+      }
+      // Phase 100. After everything else, so the panel opens over the finished
+      // layout and the picture shows it in its real surroundings.
+      if (ext.remoteLines !== undefined) {
+        window.__gmuxShotReady = false;
+        await driveRemoteLines(ext.remoteLines);
         window.__gmuxShotReady = true;
       }
       // Phase 81. It runs as early as the harness lets a drive run, because
@@ -1447,6 +1472,11 @@ export function App(): React.JSX.Element {
           renders null unless the store says a session's saved output is
           open, and only the session menu opens it. */}
       <SavedOutputModal />
+      {/* Phase 100. Mounted beside the saved output panel, which is its
+          nearest sibling. It renders null unless the store says a session's
+          last lines are open, and the button in the band above the terminal
+          and one session menu item are the only two things that open it. */}
+      <RemoteLinesModal />
       <ShortcutsOverlay />
       <AttentionOverlay />
       <QuickOpenPalette />

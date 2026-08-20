@@ -291,6 +291,15 @@ describe('every channel is registered, and only the ones listed here', () => {
       // belongs to no builder in this phase and the list has to name every
       // channel or it names none.
       'machines:putImage',
+      // ---- PHASE 100 ----
+      // One READ of the LAST LINES one session on one machine printed, so a
+      // person can read back what an agent over there said. The command it
+      // sends is `capture-pane`, which is already row 5 of the verb ledger, it
+      // writes nothing on either computer, it stores nothing on this Mac, and
+      // it refuses while Tortie is not connected to the machine. Nothing calls
+      // it on a clock, and it is not a scrollbar.
+      'machines:readSessionLines',
+      // ---- END PHASE 100 ----
       'machines:reload',
       'machines:remove',
       // ---- PHASE 73 BLOCK C ----
@@ -326,6 +335,41 @@ describe('every channel is registered, and only the ones listed here', () => {
       expect(channel).not.toContain('attach');
       expect(channel).not.toContain('create');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 100. The last lines of a session on another machine
+// ---------------------------------------------------------------------------
+
+describe('machines:readSessionLines', () => {
+  it('hands the input to main unchanged and answers rather than throwing', async () => {
+    // Nothing in this process holds a row for any session on any machine, so
+    // the read refuses with its own mode word and contacts nothing. What this
+    // proves is the wiring: the channel exists, the session id crosses it
+    // untouched, and the depth arrives at the clamp in ../remote-lines.ts.
+    const out = await call<Promise<{
+      sessionId: string;
+      mode: string;
+      asked: number;
+      text: string;
+      machineId: string | null;
+    }>>('machines:readSessionLines', { sessionId: 'nobody-holds-this', lines: 999_999 });
+    expect(out.sessionId).toBe('nobody-holds-this');
+    expect(out.mode).toBe('noSession');
+    expect(out.asked).toBe(25_000);
+    expect(out.text).toBe('');
+    expect(out.machineId).toBeNull();
+  });
+
+  it('starts nothing at all', async () => {
+    const before = spawned.length;
+    await call<Promise<unknown>>('machines:readSessionLines', {
+      sessionId: 'nobody-holds-this',
+      lines: 0
+    });
+    expect(spawned.length).toBe(before);
+    expect(machineSshSpawnCount()).toBe(0);
   });
 });
 

@@ -34,8 +34,8 @@ import { openSessionContext } from '../context/open-session';
 import {
   badgeTitle,
   remoteStatusNote,
-  NO_SCROLLBACK_HERE,
-  NO_SCROLLBACK_HERE_TITLE,
+  READ_LAST_LINES_HERE,
+  READ_LAST_LINES_HERE_TITLE,
   NO_SNAPSHOT,
   REVIEW_ITEM_SUBLABEL,
   REVIEW_READING,
@@ -174,35 +174,43 @@ export function ResumeMark({
 }
 
 /**
- * Whether a surface says that Tortie cannot scroll back through this session
- * (Phase 95).
+ * Whether a surface offers to read back the last lines of this session
+ * (Phase 100, replacing the Phase 95 note that said it could not be done).
  *
  * TRUE FOR EXACTLY ONE CASE, being a session that runs on another machine.
  * Tortie reads saved output from the private session server on this Mac, and a
  * session over there has no record here, so the lane at the right edge stays
- * blank and the wheel moves nothing.
+ * blank and the wheel moves nothing. The panel this opens is what a person
+ * gets instead, being one read at one instant.
  *
- * FALSE FOR A SESSION ON THIS MAC THAT IS NOT RUNNING, and that is deliberate.
- * Its surface is already the restore card or the ended card, and both of those
- * say what the session is. A second sentence about scrolling would be noise on
- * top of an answer the person already has.
+ * FALSE FOR A SESSION ON THIS MAC, running or not, and that is deliberate. A
+ * session on this Mac has a real scrollbar and a real wheel, and it has the two
+ * "Capture Last N Lines" items as well, so a fourth way to read the same
+ * history would be clutter on top of an answer the person already has.
  *
  * Exported so the tests can state the rule over a set of sessions rather than
  * inferring it from what a render happened to produce.
  */
-export function showsNoScrollbackNote(session: Session): boolean {
+export function showsReadLastLines(session: Session): boolean {
   return session.machine !== undefined;
 }
 
 /**
- * The quiet note itself, drawn by BOTH bands above the terminal (Phase 95).
+ * The button itself, drawn by BOTH bands above the terminal (Phase 100).
  *
  * WHY IT LIVES HERE. There is no single band above a session. In the "right"
  * orientation the band is the identity strip in ./TerminalRegion.tsx, and in
  * the "top" orientation, which is the default a person gets, the band is the
- * session tab strip in ./SessionStrip.tsx. A note written into only one of
+ * session tab strip in ./SessionStrip.tsx. A control written into only one of
  * them is invisible to most people, which is exactly what the first build of
- * this phase did. One component, imported by both, is what stops that.
+ * Phase 95 did with the note this replaces. One component, imported by both, is
+ * what stops that.
+ *
+ * WHY IT IS A BUTTON NOW. Phase 95 drew a `<span>` that said scrolling back was
+ * not available. It is available from this phase, so the element is a real
+ * `<button type="button">` that opens the panel, and its class is
+ * `strip-readback` rather than `strip-note` because a class called "note" would
+ * lie about what the element does.
  *
  * The two strips place it differently and that is why `className` is a prop.
  * The identity strip draws it beside the resume mark, in the slot that is
@@ -210,19 +218,24 @@ export function showsNoScrollbackNote(session: Session): boolean {
  * cell, beside the overflow chevron, because the tabs themselves are too
  * narrow for words and only the session on screen is being described.
  */
-export function NoScrollbackNote({
+export function ReadLastLinesButton({
   session,
   className
 }: {
   session: Session;
   className: string;
 }): React.JSX.Element | null {
-  if (!showsNoScrollbackNote(session)) return null;
+  if (!showsReadLastLines(session)) return null;
   return (
-    <span className={className} title={NO_SCROLLBACK_HERE_TITLE}>
+    <button
+      type="button"
+      className={className}
+      title={READ_LAST_LINES_HERE_TITLE}
+      onClick={() => useApp.getState().openRemoteLines(session.id)}
+    >
       <Codicon name="history" size={12} />
-      {NO_SCROLLBACK_HERE}
-    </span>
+      {READ_LAST_LINES_HERE}
+    </button>
   );
 }
 

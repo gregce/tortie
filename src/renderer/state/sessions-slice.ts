@@ -23,14 +23,19 @@ import type {
   AskRestoreProjectAnswer,
   GmuxActivityExtras,
   GmuxAskRestoreProjectExtras,
+  GmuxMachinesExtras,
   GmuxPastSessionsExtras,
   GmuxScrollbackExtras,
   GmuxSessionExtras,
   GmuxSessionRestartExtras,
   GmuxSessionRestoreExtras,
   GmuxShellPathExtras,
+  MachineSessionLinesResult,
   SavedSessionOutput
 } from '@shared/ipc';
+// PHASE 100. The depth the panel opens on. It is a value rather than a type, so
+// the panel and the store cannot disagree about what "the default" is.
+import { REMOTE_SESSION_LINES_DEFAULT } from '@shared/ipc';
 // Pure over Session fields; resume.ts imports only types and state/agents,
 // and agents.ts does not import this store, so no cycle closes here.
 import { pastRestoreNeedsAsk, resumeReadiness } from '../app/resume';
@@ -243,6 +248,49 @@ export interface SessionsSlice {
   openSavedOutput(sessionId: string): void;
   /** Close it and drop the text, so a body is not held after it is read. */
   closeSavedOutput(): void;
+  // -- the last lines of a session on another machine (Phase 100) -------------
+  /**
+   * The session whose last lines panel is open, or null when it is closed.
+   *
+   * A session on another machine has no scrollbar in this window, because its
+   * history is on that machine and not in the session server on this Mac.
+   * Research 57 section 3.1 refused a real remote scrollbar. This panel is what
+   * a person gets instead, being one read at one instant, and it is opened from
+   * the button in both bands above the terminal and from one session menu item.
+   */
+  remoteLinesSessionId: string | null;
+  /** What main answered for the last read, or null while there is no answer. */
+  remoteLines: MachineSessionLinesResult | null;
+  /** True while the one read is in flight, so the empty copy never flashes. */
+  remoteLinesLoading: boolean;
+  /**
+   * True when the last read was REJECTED rather than answered.
+   *
+   * It is its own field because a rejected call and a preload with no bridge
+   * method are two different facts and the panel says a different sentence for
+   * each. The first build of this phase left both of them holding a null
+   * result, so a build that has the bridge and whose call failed was told that
+   * it cannot read a session on another machine at all.
+   */
+  remoteLinesFailed: boolean;
+  /** The depth the panel last asked for, so the buttons can show which is on. */
+  remoteLinesDepth: number;
+  /**
+   * Raised on every read, and it is the guard the saved output block does not
+   * need. Two reads of the SAME session can be in flight at once, because a
+   * person can press a deeper button while a shallower read is still running.
+   * Without this number a 25,000 line read started first and finishing last
+   * would land in a panel that now says it is showing the screen alone, and the
+   * counts sentence would then describe a different body from the one on
+   * screen.
+   */
+  remoteLinesRequest: number;
+  /** Open the panel for one session and read at the default depth. */
+  openRemoteLines(sessionId: string): void;
+  /** Read the same session again at a depth. */
+  readRemoteLines(lines: number): void;
+  /** Close it and drop the text, which can be several megabytes. */
+  closeRemoteLines(): void;
   /**
    * User input (keystrokes/mouse reports) went to a terminal: whatever it was
    * blocked on has an answer now. Pass the session id from the pty write
@@ -415,6 +463,18 @@ export const createSessionsSlice: StateCreator<
   const scrollbackExtras = gmux
     ? ((gmux as typeof gmux & GmuxScrollbackExtras).scrollback ?? null)
     : null;
+
+  // PHASE 100. The one read this slice makes of another machine. It is read at
+  // call time rather than captured here, because the panel can be opened long
+  // after the store was built and a captured null would outlive the reason for
+  // it.
+  const machinesExtras = ():
+    | NonNullable<GmuxMachinesExtras['machines']>
+    | null => {
+    const api = window.gmux as typeof window.gmux | undefined;
+    if (api === undefined) return null;
+    return (api as typeof api & GmuxMachinesExtras).machines ?? null;
+  };
 
   return {
     sessions: [],
@@ -1056,6 +1116,94 @@ export const createSessionsSlice: StateCreator<
         savedOutputSessionId: null,
         savedOutput: null,
         savedOutputLoading: false
+      });
+    },
+
+    // -- the last lines of a session on another machine (Phase 100) -------------
+
+    remoteLinesSessionId: null,
+    remoteLines: null,
+    remoteLinesLoading: false,
+    remoteLinesFailed: false,
+    remoteLinesDepth: REMOTE_SESSION_LINES_DEFAULT,
+    remoteLinesRequest: 0,
+
+    openRemoteLines(sessionId) {
+      set({
+        remoteLinesSessionId: sessionId,
+        remoteLines: null,
+        remoteLinesLoading: false,
+        remoteLinesFailed: false,
+        remoteLinesDepth: REMOTE_SESSION_LINES_DEFAULT
+      });
+      get().readRemoteLines(REMOTE_SESSION_LINES_DEFAULT);
+    },
+
+    readRemoteLines(lines) {
+      const sessionId = get().remoteLinesSessionId;
+      if (sessionId === null) return;
+      const machines = machinesExtras();
+      if (machines === null || typeof machines.readSessionLines !== 'function') {
+        // Older preload: the panel opens and says this build cannot read a
+        // session on another machine, with no error and no crash. It is the
+        // same posture every other extras consumer takes.
+        set({
+          remoteLines: null,
+          remoteLinesLoading: false,
+          remoteLinesFailed: false,
+          remoteLinesDepth: lines
+        });
+        return;
+      }
+      const request = get().remoteLinesRequest + 1;
+      set({
+        remoteLinesLoading: true,
+        remoteLinesFailed: false,
+        remoteLinesDepth: lines,
+        remoteLinesRequest: request
+      });
+      void machines.readSessionLines({ sessionId, lines }).then(
+        (found) => {
+          // BOTH guards. The first is the panel's session, which a second open
+          // can change. The second is this read's own number, because two reads
+          // of the SAME session can be in flight at once and the older one must
+          // not land in the newer panel.
+          const now = get();
+          if (now.remoteLinesSessionId !== sessionId) return;
+          if (now.remoteLinesRequest !== request) return;
+          set({
+            remoteLines: found,
+            remoteLinesLoading: false,
+            remoteLinesFailed: false
+          });
+        },
+        (err: unknown) => {
+          const now = get();
+          if (now.remoteLinesSessionId !== sessionId) return;
+          if (now.remoteLinesRequest !== request) return;
+          // The older answer is dropped along with the loading flag. Keeping it
+          // would leave a body read at one depth under a depth row showing the
+          // one that was just pressed and failed, which is the mismatch the
+          // request number above exists to stop.
+          set({
+            remoteLines: null,
+            remoteLinesLoading: false,
+            remoteLinesFailed: true
+          });
+          get().toast('error', errorText(err));
+        }
+      );
+    },
+
+    closeRemoteLines() {
+      // The body is dropped rather than kept, for the same reason the saved
+      // output block drops its own. A read of 25,000 lines is several megabytes
+      // and there is no reason to hold it after the panel is shut.
+      set({
+        remoteLinesSessionId: null,
+        remoteLines: null,
+        remoteLinesLoading: false,
+        remoteLinesFailed: false
       });
     },
 

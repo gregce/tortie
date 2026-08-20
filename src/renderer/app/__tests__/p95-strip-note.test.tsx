@@ -1,32 +1,35 @@
 /**
- * Phase 95 — both bands above the terminal say that Tortie cannot scroll back
- * through a session on another machine.
+ * Phase 100 — both bands above the terminal offer to read the last lines of a
+ * session on another machine.
  *
- * WHY THERE IS A SENTENCE AT ALL. A session over there has no saved output on
- * this Mac, so the lane at the right edge of the terminal has no thumb and the
- * wheel moves nothing. Before this phase a person read that as a broken
- * scrollbar.
+ * WHAT THIS FILE USED TO PIN, AND WHY IT CHANGED. Phase 95 drew a quiet note in
+ * both bands saying that a person could not scroll back, with a tooltip saying
+ * that it was not available for a session on another machine yet. Phase 100
+ * makes a person able to read back, so the second half of that tooltip became
+ * false. The note is a button now, it opens the last lines panel, and both
+ * Phase 95 strings are deleted from the codebase. This file keeps its name and
+ * its job, which is the band coverage rule, and every assertion in it moved to
+ * the new names. Neither old string is written out here, because
+ * ./p100-remote-lines.test.tsx reads every file under src and fails on either.
  *
- * WHY BOTH BANDS. There is no single band always on screen above a session.
- * The identity strip in TerminalRegion.tsx is the band for the "right"
- * orientation. The session tab strip in SessionStrip.tsx is the band for the
- * "top" orientation, which is what `sessionOrientation` defaults to and what
- * most people are looking at. The first build of this phase drew the note in
- * the identity strip alone, so it was off screen in the default layout. The
- * last describe below is what stops that returning: it reads both files and
- * fails if either stops mounting the shared component.
+ * WHY BOTH BANDS. There is no single band always on screen above a session. The
+ * identity strip in TerminalRegion.tsx is the band for the "right" orientation.
+ * The session tab strip in SessionStrip.tsx is the band for the "top"
+ * orientation, which is what `sessionOrientation` defaults to and what most
+ * people are looking at. The first build of Phase 95 drew its note in the
+ * identity strip alone, so it was off screen in the default layout. The last
+ * describe below is what stops that returning: it reads both files and fails if
+ * either stops mounting the shared component.
  *
- * WHAT IS NOT GIVEN A SENTENCE. A session on this Mac that is not running. Its
- * surface is already the restore card or the ended card, and both say what the
- * session is. A second sentence about scrolling there would be noise on top of
- * an answer the person already has, so the third and fourth tests below pin
- * its absence.
+ * WHAT GETS NO BUTTON. Every session on this Mac, running or not. It has a real
+ * scrollbar and a real wheel, and it has the two "Capture Last N Lines" items
+ * as well, so a fourth way to read the same history would be clutter.
  *
  * HOW THIS RENDERS. `environment` is node and this repository carries no jsdom
  * and no @testing-library/react, so the strip is rendered with
  * `renderToStaticMarkup`, which is the shape p93-attention-row.test.tsx uses.
- * The rule itself is also read straight off `showsNoScrollbackNote`, so a
- * later change to the markup cannot quietly change which sessions are told.
+ * The rule itself is also read straight off `showsReadLastLines`, so a later
+ * change to the markup cannot quietly change which sessions are offered it.
  */
 
 import { readFileSync } from 'node:fs';
@@ -72,12 +75,13 @@ vi.stubGlobal('document', {
 });
 
 const { IdentityStrip } = await import('../TerminalRegion');
-const { NoScrollbackNote, showsNoScrollbackNote } = await import(
+const { ReadLastLinesButton, showsReadLastLines } = await import(
   '../session-actions'
 );
-const { NO_SCROLLBACK_HERE, NO_SCROLLBACK_HERE_TITLE } = await import(
+const { READ_LAST_LINES_HERE, READ_LAST_LINES_HERE_TITLE } = await import(
   '../machine-copy'
 );
+const { useApp } = await import('../../state/store');
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -118,63 +122,67 @@ const stripHtml = (s: Session): string =>
 // What the strip draws
 // ---------------------------------------------------------------------------
 
-describe('the identity strip note about scrolling back', () => {
+describe('the identity strip button that reads the last lines', () => {
   it('draws the words once for a session on another machine', () => {
     const html = stripHtml(session({ machine: machine() }));
-    const hits = html.split(NO_SCROLLBACK_HERE).length - 1;
+    const hits = html.split(READ_LAST_LINES_HERE).length - 1;
     expect(hits).toBe(1);
-    expect(html).toContain('strip-note');
+    expect(html).toContain('strip-readback');
+  });
+
+  it('is a real button rather than the span Phase 95 drew', () => {
+    const html = stripHtml(session({ machine: machine() }));
+    expect(html).toContain('<button type="button" class="strip-readback"');
   });
 
   it('carries the full sentence as the item title', () => {
     const html = stripHtml(session({ machine: machine() }));
     // The title is escaped in the markup, so the sentence is compared after
     // the one character React escapes here is put back.
-    expect(html.replace(/&#x27;/g, "'")).toContain(NO_SCROLLBACK_HERE_TITLE);
+    expect(html.replace(/&#x27;/g, "'")).toContain(READ_LAST_LINES_HERE_TITLE);
   });
 
   it('draws nothing for a running session on this Mac', () => {
-    expect(stripHtml(session())).not.toContain(NO_SCROLLBACK_HERE);
-    expect(stripHtml(session())).not.toContain('strip-note');
+    expect(stripHtml(session())).not.toContain(READ_LAST_LINES_HERE);
+    expect(stripHtml(session())).not.toContain('strip-readback');
   });
 
   it('draws nothing for a session on this Mac that is not running', () => {
-    // The charter's own case. The restore card and the ended card already say
-    // what this session is, and a second sentence would be noise.
+    // The Phase 95 charter's own case, and it still holds. The restore card and
+    // the ended card already say what this session is, and a session on this
+    // Mac has a scrollbar of its own either way.
     const html = stripHtml(session({ status: 'exited' }));
-    expect(html).not.toContain(NO_SCROLLBACK_HERE);
-    expect(html).not.toContain('strip-note');
+    expect(html).not.toContain(READ_LAST_LINES_HERE);
+    expect(html).not.toContain('strip-readback');
   });
 });
 
-describe('the rule behind the note', () => {
+describe('the rule behind the button', () => {
   it('is true for a session on another machine and false for the rest', () => {
-    expect(showsNoScrollbackNote(session({ machine: machine() }))).toBe(true);
-    expect(showsNoScrollbackNote(session())).toBe(false);
-    expect(showsNoScrollbackNote(session({ status: 'exited' }))).toBe(false);
-    expect(showsNoScrollbackNote(session({ status: 'needs_input' }))).toBe(
-      false
-    );
+    expect(showsReadLastLines(session({ machine: machine() }))).toBe(true);
+    expect(showsReadLastLines(session())).toBe(false);
+    expect(showsReadLastLines(session({ status: 'exited' }))).toBe(false);
+    expect(showsReadLastLines(session({ status: 'needs_input' }))).toBe(false);
   });
 });
 
-describe('both bands draw the shared note', () => {
+describe('both bands draw the shared button', () => {
   // The component itself, rendered on its own, is what each band mounts.
   it('draws the words and the sentence wherever it is mounted', () => {
     const html = renderToStaticMarkup(
-      <NoScrollbackNote
+      <ReadLastLinesButton
         session={session({ machine: machine() })}
-        className="strip-note"
+        className="strip-readback"
       />
     );
-    expect(html.split(NO_SCROLLBACK_HERE).length - 1).toBe(1);
-    expect(html.replace(/&#x27;/g, "'")).toContain(NO_SCROLLBACK_HERE_TITLE);
+    expect(html.split(READ_LAST_LINES_HERE).length - 1).toBe(1);
+    expect(html.replace(/&#x27;/g, "'")).toContain(READ_LAST_LINES_HERE_TITLE);
   });
 
   it('draws nothing for a session on this Mac', () => {
     expect(
       renderToStaticMarkup(
-        <NoScrollbackNote session={session()} className="strip-note" />
+        <ReadLastLinesButton session={session()} className="strip-readback" />
       )
     ).toBe('');
   });
@@ -188,22 +196,39 @@ describe('both bands draw the shared note', () => {
     ['src/renderer/app/SessionStrip.tsx', 'the "top" orientation']
   ])('%s mounts it, which is the band for %s', (file) => {
     const src = readFileSync(resolve(ROOT, file), 'utf8');
-    expect(src).toContain('NoScrollbackNote');
-    expect(src).toMatch(/<NoScrollbackNote\b/);
+    expect(src).toContain('ReadLastLinesButton');
+    expect(src).toMatch(/<ReadLastLinesButton\b/);
+  });
+});
+
+describe('pressing the button opens the panel', () => {
+  it('opens it on the session the button was drawn for', () => {
+    // The shipped handler, called the way a click calls it. The element is
+    // built by the component itself, so this presses what a person presses.
+    const row = session({ id: 'p100s', machine: machine() });
+    const element = ReadLastLinesButton({
+      session: row,
+      className: 'strip-readback'
+    });
+    expect(element).not.toBeNull();
+    const onClick = element?.props.onClick as (() => void) | undefined;
+    expect(typeof onClick).toBe('function');
+    onClick?.();
+    expect(useApp.getState().remoteLinesSessionId).toBe('p100s');
+    useApp.getState().closeRemoteLines();
   });
 });
 
 describe('the words live in machine-copy.ts', () => {
   it('is what lets the vocabulary audit read them', () => {
     // machine-vocabulary.test.ts already reads machine-copy.ts,
-    // session-actions.tsx, SessionStrip.tsx and TerminalRegion.tsx, so neither
-    // its file list nor its word list changes for this phase. What has to stay
-    // true is that the sentence is composed there and not typed into a
-    // component.
-    expect(NO_SCROLLBACK_HERE).toBe('Cannot scroll back');
-    expect(NO_SCROLLBACK_HERE_TITLE).toBe(
-      'Scrolling back is not available for a session on another machine yet. ' +
-        'What you see is live.'
+    // session-actions.tsx, SessionStrip.tsx and TerminalRegion.tsx, so its word
+    // list does not change for this phase. What has to stay true is that the
+    // sentence is composed there and not typed into a component.
+    expect(READ_LAST_LINES_HERE).toBe('Read last lines');
+    expect(READ_LAST_LINES_HERE_TITLE).toBe(
+      'Tortie cannot scroll back through a session on another machine. ' +
+        'Open this to read the last lines it printed.'
     );
   });
 });

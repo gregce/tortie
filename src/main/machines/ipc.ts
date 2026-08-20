@@ -2,9 +2,9 @@
  * The ONE `machines:*` registrar (Phase 68, one channel added in Phase 69, one
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
  * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
- * Phase 98 and one more in Phase 99).
+ * Phase 98, one more in Phase 99 and one more in Phase 100).
  *
- * Twenty three channels, and what is NOT here is the point of the file.
+ * Twenty four channels, and what is NOT here is the point of the file.
  *
  *  - There is no `machines:connect`, no `machines:attach` and no
  *    `machines:createSession`. Neither Phase 68 nor Phase 69 opens a session on
@@ -121,8 +121,12 @@ import type {
   // ---- END PHASE 98 ----
   // ---- PHASE 99 ----
   MachineFileListInput,
-  MachineFileListResult
+  MachineFileListResult,
   // ---- END PHASE 99 ----
+  // ---- PHASE 100 ----
+  MachineSessionLinesInput,
+  MachineSessionLinesResult
+  // ---- END PHASE 100 ----
 } from '@shared/ipc';
 import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
 import { gmuxError } from '../errors';
@@ -189,6 +193,10 @@ import { searchOnMachine } from './remote-search';
 // palette on a tab that lives over there. It carries no file contents and it
 // writes nothing on either computer.
 import { listFilesOnMachine } from './remote-files';
+// Phase 100. The last lines one session on one machine printed, for a person
+// who wants to read back what an agent over there said. It reads and writes
+// nothing on either computer, and it is not a scrollbar.
+import { readSessionLinesOnMachine } from './remote-lines';
 // Phase 90.2, item 2. One git config read here, then one folder walk there. It
 // writes nothing on either computer.
 import { findProjectOnMachine } from './project-counterpart';
@@ -989,6 +997,48 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 99 ----
+
+  // ---- PHASE 100 ----
+  // PHASE 100. One channel that READS the LAST LINES one session on one machine
+  // printed, so a person can read back what an agent over there said instead of
+  // being told that scrolling back is not available.
+  //
+  // IT IS NOT A SCROLLBAR. Research 57 section 3.1 refused one twice over, and
+  // this is the smaller affordance it adopted in its place. The whole read is
+  // `./remote-lines.ts`, whose header states the refusal, and condition 54 of
+  // build/conformance-machines.mjs fails when that file names either of the two
+  // verbs a scrollbar would need.
+  //
+  // THE COMMAND IS ALREADY ON THE LEDGER. `capture-pane -p -e -J -t <id> -S
+  // -<n>` is row 5, with kind read and repeat safe, and `remoteCaptureArgs` in
+  // ./remote-capsule.ts already composes it. This channel adds no script to the
+  // frozen catalogue and no verb to the ledger.
+  //
+  // IT WRITES NOTHING, on either computer. It does not go through
+  // `storeCapsuleText` and it makes no snapshot generation, because it is a live
+  // read a person asked for rather than the background copy ./remote-capsule.ts
+  // keeps.
+  //
+  // NOTHING CALLS IT ON A CLOCK. A person opens the panel or presses a depth
+  // button, and each of those is one read.
+  //
+  // It NEVER THROWS. A session Tortie holds no row for, a machine that did not
+  // answer and a machine Tortie is not signed in to all come back as a mode
+  // word. No prose crosses this channel: the renderer draws the sentence from
+  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  handle(
+    ipc,
+    'machines:readSessionLines',
+    async (
+      _event,
+      input: MachineSessionLinesInput
+    ): Promise<MachineSessionLinesResult> =>
+      readSessionLinesOnMachine({
+        sessionId: input.sessionId,
+        lines: input.lines
+      })
+  );
+  // ---- END PHASE 100 ----
 }
 
 /**

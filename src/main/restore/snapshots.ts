@@ -646,8 +646,14 @@ function bodyIsIntact(capsule: SnapshotCapsule): boolean {
  * none of them draws anything in a panel, and a session on a machine Tortie
  * does not control can print as many as it likes. Fault matrix row 8 drives
  * exactly that.
+ *
+ * PHASE 100 EXPORTED IT, one word and nothing else. `../machines/remote-lines.ts`
+ * reads the last lines of a session on another machine and hands them to a panel
+ * that is not a terminal, so it needs the same two steps this function is the
+ * second half of. A second copy of this regular expression is forbidden: there
+ * is one correct answer to which bytes are text, and one place that holds it.
  */
-function stripControls(text: string): string {
+export function stripControls(text: string): string {
   // eslint-disable-next-line no-control-regex
   return text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
 }

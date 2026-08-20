@@ -16,6 +16,9 @@
  *   Capture Last 250 Lines         ┐ the pane's history is in the tmux server,
  *   Capture Last 1000 Lines        ┘ not in this client, so these are drawn
  *                                    only for a session on THIS Mac (Phase 96)
+ *   Read Last Lines…               the same place, for a session on ANOTHER
+ *                                    machine, which is the exact set the two
+ *                                    items above are not drawn for (Phase 100)
  *   ──────────
  *   Scrollback  4,210 of 25,000 lines · about 1.5 MB   (informational)
  *   Clear                   ⌘K
@@ -36,6 +39,9 @@
  */
 
 import type { Session } from '@shared/types';
+// Phase 100. Every sentence about a machine is composed in one file, which is
+// the one the vocabulary audit reads. The menu item's label is one of them.
+import { READ_LAST_LINES_ITEM } from '../app/machine-copy';
 import type { GmuxScrollbackExtras } from '@shared/ipc';
 import type { SessionScrollbackFacts } from '@shared/scrollback';
 import { formatScrollbackSummary } from '@shared/scrollback';
@@ -189,6 +195,25 @@ export function terminalMenuItems(
         });
       }
     }
+  }
+
+  // PHASE 100. The one item for a session on another machine, in the place
+  // Phase 96 left empty when it stopped drawing the two items above for such a
+  // session. It reads that machine once and it writes nothing on either
+  // computer. Phase 96's removal stands and this does not put those two back:
+  // this item and those two are drawn for sets that do not overlap.
+  //
+  // Outside `canCapture`, because it does not touch this window's own buffer at
+  // all. The panel it opens asks main, and main asks the machine.
+  if (!onThisMac) {
+    // Joined to the capture group above when there is one, because it is the
+    // same kind of verb, being read what this session printed. With no capture
+    // bridge there is no group above it, so it opens one of its own.
+    if (!canCapture) items.push('sep');
+    items.push({
+      label: READ_LAST_LINES_ITEM,
+      run: () => useApp.getState().openRemoteLines(session.id)
+    });
   }
 
   items.push('sep');

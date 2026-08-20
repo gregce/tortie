@@ -112,6 +112,15 @@
  * imports the module directly. A re-export here would be a second name for
  * something nothing outside asks for.
  *
+ * PHASE 100 ADDED ONE MODULE and this file does NOT re-export it, for the same
+ * reason.
+ *
+ *  - `remote-lines.ts` reads the last lines one session on one machine printed,
+ *    so a person can read back what an agent over there said. It is a read, it
+ *    stores nothing on this Mac, and it is not a scrollbar.
+ *
+ * Its only caller is `ipc.ts`, inside this directory.
+ *
  * PHASE 83 ADDED NO MODULE, and it changed two things worth naming here.
  *
  *  - A machine row gained a fifth execution bearing field,

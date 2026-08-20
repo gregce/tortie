@@ -18,7 +18,7 @@
  *   1     refuses a socket that is not a harness     nothing starts
  *   2     a session on the loopback machine, 60 s    0 scrollState error lines
  *   3     a local session that is not running, 60 s  0 scrollState error lines
- *   4     photographs the remote session's window    the note is on screen
+ *   4     photographs the remote session's window    the read back button is there
  *   5     the wheel over the remote pane, 20 turns   nothing typed, no error
  *   6     types into the remote pane                 the characters arrive
  *   7     a local RUNNING session's scrollbar        the numbers move
@@ -705,14 +705,27 @@ async function main() {
     `${String(remoteErrors)} lines matching "handler for 'terminal:scroll"`
   );
 
-  // -- STEP 5. what the band says and what the lane draws -------------------
+  // -- STEP 5. what the band offers and what the lane draws -----------------
   //
-  // BOTH orientations are checked and both must say it. The first build of
+  // BOTH orientations are checked and both must offer it. The first build of
   // this phase wrote the note into the identity strip only, and the identity
   // strip is the band for the "right" orientation. `sessionOrientation`
   // defaults to "top", where App renders the session tab strip instead, so
   // the note was off screen in the layout most people have. Checking one
   // orientation is what let that through, so this step checks two.
+  //
+  // PHASE 100 CHANGED THE ELEMENT AND THIS STEP FOLLOWS IT. Phase 95 drew a
+  // span saying that scrolling back was not available. Phase 100 makes a
+  // person able to read back, so the band draws a button that opens the last
+  // lines panel, and the sentence about scrolling is its tooltip. The element
+  // is read out of the same field of the drive's state, so this step still
+  // proves the same thing: the band above a session on another machine
+  // carries the affordance, in both orientations. `readBack` below is the one
+  // reading, written once so the two orientations cannot drift apart.
+  const readBack = (s) =>
+    s.note !== null &&
+    s.note.text.includes('Read last lines') &&
+    s.note.title.includes('cannot scroll back');
   state = await drive(cdp, 'orientation', 'top');
   await sleep(1500);
   state = await drive(cdp, 'state');
@@ -720,10 +733,8 @@ async function main() {
   await shoot(cdp, join(root, 'p95-remote-top.png'));
   note(
     '5a',
-    'the DEFAULT band, being the session tab strip, says Tortie cannot scroll back',
-    state.note !== null && state.note.text.includes('Cannot scroll back')
-      ? 'pass'
-      : 'FAIL',
+    'the DEFAULT band, being the session tab strip, offers to read the last lines',
+    readBack(state) ? 'pass' : 'FAIL',
     `orientation ${String(state.orientation)}, note ${JSON.stringify(state.note)}`
   );
   state = await drive(cdp, 'orientation', 'right');
@@ -733,10 +744,8 @@ async function main() {
   await shoot(cdp, join(root, 'p95-remote-right.png'));
   note(
     '5b',
-    'the identity strip says Tortie cannot scroll back',
-    state.note !== null && state.note.text.includes('Cannot scroll back')
-      ? 'pass'
-      : 'FAIL',
+    'the identity strip offers to read the last lines',
+    readBack(state) ? 'pass' : 'FAIL',
     `orientation ${String(state.orientation)}, note ${JSON.stringify(state.note)}`
   );
 

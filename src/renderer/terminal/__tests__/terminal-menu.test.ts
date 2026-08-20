@@ -238,3 +238,57 @@ describe('a session that runs on another machine', () => {
     }
   });
 });
+
+/**
+ * PHASE 100. The one item this phase adds, and the two Phase 96 removals it
+ * must not undo.
+ *
+ * The item reads the last lines of a session on another machine. It is drawn
+ * for exactly the set the two history presets are NOT drawn for, so the two
+ * rules do not overlap and the capture group is never empty for a remote row.
+ */
+describe('reading the last lines of a session on another machine', () => {
+  it('draws the item for a session on another machine', () => {
+    unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
+    const items = terminalMenuItems(REMOTE_SESSION, { selection: null });
+    expect(enabled(items, 'Read Last Lines…')).toBe(true);
+  });
+
+  it('does not draw it for a session on this Mac', () => {
+    // Absent rather than disabled. A session on this Mac has a scrollbar, a
+    // wheel and the two history presets, so there is nothing for this item to
+    // be about.
+    unregister = registerTerminal(SESSION.id, fakeTerminal(null));
+    const items = terminalMenuItems(SESSION, { selection: null });
+    expect(enabled(items, 'Read Last Lines…')).toBe('missing');
+  });
+
+  it("still draws neither of Phase 96's two removed items", () => {
+    unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
+    const items = terminalMenuItems(REMOTE_SESSION, { selection: null });
+    expect(enabled(items, 'Capture Last 250 Lines')).toBe('missing');
+    expect(enabled(items, 'Capture Last 1,000 Lines')).toBe('missing');
+  });
+
+  it('is drawn even on a build with no capture bridge', () => {
+    // It does not touch this window's own buffer, so nothing about it depends
+    // on that bridge. With no terminal mounted `canCapture` is false and the
+    // capture group is gone, and the item is still there.
+    const items = terminalMenuItems(REMOTE_SESSION, { selection: null });
+    expect(enabled(items, 'Capture Screen')).toBe('missing');
+    expect(enabled(items, 'Read Last Lines…')).toBe(true);
+  });
+
+  it('sits after the capture items and before Clear', () => {
+    unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
+    const labels = terminalMenuItems(REMOTE_SESSION, { selection: null })
+      .filter((one): one is Exclude<typeof one, 'sep'> => one !== 'sep')
+      .map((one) => one.label);
+    expect(labels.indexOf('Read Last Lines…')).toBeGreaterThan(
+      labels.indexOf('Capture Selection')
+    );
+    expect(labels.indexOf('Read Last Lines…')).toBeLessThan(
+      labels.indexOf('Clear')
+    );
+  });
+});

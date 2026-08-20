@@ -120,7 +120,18 @@ const FILES: readonly string[] = [
   // from and when they were read. Every one of those sentences is a named
   // export in machine-copy.ts, which is the first file on this list. The panel
   // is read as well, so a later round cannot type a sentence straight into it.
-  'src/renderer/quickopen/QuickOpenPalette.tsx'
+  'src/renderer/quickopen/QuickOpenPalette.tsx',
+  // Phase 100. The panel that reads the last lines of a session on another
+  // machine. It draws a machine's label, an instant, a count and a size, and it
+  // draws the sentence for each of the three answers that mean no lines. Every
+  // one of those is a named export in machine-copy.ts, which is the first file
+  // on this list. The panel is read as well, so a later round cannot type a
+  // sentence straight into it.
+  'src/renderer/app/RemoteLinesModal.tsx',
+  // Phase 100. The session menu draws the item that opens that panel. Its label
+  // is composed in machine-copy.ts and the file is read here so it stays that
+  // way.
+  'src/renderer/terminal/terminal-menu.ts'
 ];
 
 /**

@@ -6579,7 +6579,7 @@ appears in its own case. Read a screenshot of both. `src/main/tmux/resolve.ts` h
 and an isolated `--user-data-dir`. Count the operator's sessions with `tmux -L gmux list-sessions`
 before and after and report both numbers.
 
-## Phase 100 — read the last lines of a session on another machine (research 57 row, queued 2026-08-19) QUEUED
+## Phase 100 — read the last lines of a session on another machine (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.53.0, gates green, 6,844 tests)
 
 **Subject:** `feat(sessions): read back the last lines of a session on another machine`
 **First body line:** `Phase 100: read the last lines of a session on another machine`
@@ -6602,6 +6602,48 @@ before and after and report both numbers.
 ### The evidence
 
 Pull the last lines of a real session on the loopback scratch machine and prove the text matches what the pane holds. Report the seconds for one screen and for 25,000 lines. Prove Phase 95's sentence is gone. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+### What shipped, and the numbers behind it
+
+A session running on another machine now has a way to read back what it printed. The band above the
+terminal draws a button reading "Read last lines", and the session menu carries "Read Last Lines…"
+for the same session. Either one opens a panel that asks that machine once and draws the answer. Four
+depths are offered, being the screen alone, 1,000 lines, 10,000 lines and 25,000 lines. Phase 95's
+sentence, which said that Tortie could not scroll back through a session on another machine, is
+deleted from the product. It survives only as the button's tooltip, where it explains why the panel
+exists.
+
+A REAL REMOTE SCROLLBAR IS STILL REFUSED and this phase did not reopen that. Research 57 section 3.1
+refused it twice over, and `REMOTE_VERB_LEDGER` in `src/main/machines/exec-plane.ts` did not move. The
+command that crosses is `capture-pane -p -e -J -t <id> -S -<n>`, which was already row 5 of that
+ledger with `kind: 'read'` and `repeat: 'safe'`. No script was added to the frozen catalogue, which
+still holds fourteen scripts of which two write. Nothing this phase sends can change a byte on either
+computer.
+
+**Measured by the phase verifier, driving the real app against a loopback scratch machine.** A
+session printed 4,000 stamped lines. The panel's 1,000 line read held 1,040 stamped lines, and the
+same pane read directly with that machine's own tmux held the same 1,040 lines, first and last
+identical, every line identical. The wall clock from the click to the answer, polled every 25 ms:
+the screen alone 0.028 s median over four runs, 1,000 lines 0.030 s, 10,000 lines 0.039 s, 25,000
+lines 0.038 s median over four runs. Against a full 25,000 row coloured history the deepest read took
+0.292 s and came back cut. Every number here is loopback on this Mac.
+
+**The cut is drawn rather than hidden, which is the Phase 99.1 shape.** Main keeps at most 8,388,608
+bytes from one read and drops the oldest, so the newest lines are the ones on screen. The panel says
+so in its own sentence. That sentence also names the ceiling and says why the size printed above it
+is the smaller figure, because the count describes the plain text left after the colour codes were
+taken out and the ceiling was applied before they were.
+
+**Four defects the verifier found were fixed before this commit.** `npm run probe:p95` asserted the
+Phase 95 string this phase deleted, and both of its assertions now read the button instead. The panel
+opened at the oldest line of the answer, and it now opens at the newest. The in-flight sentence
+shared one class with the four settled sentences, and it has its own class now. A rejected call drew
+the sentence meant for an older preload, and it draws its own sentence now.
+
+**What is NOT true.** The far side was this Mac over a loopback sign in server. No Linux machine was
+contacted and no slow link was measured. The presence of the menu item on a remote session was not
+driven in the live app, because the native menu is outside the window and the bridge object is
+frozen. Its absence for a session on this Mac was driven live. The packaged build was not driven.
 
 ## Phase 105 — runs on a remote tab (research 57 row, queued 2026-08-19) QUEUED
 
