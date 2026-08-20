@@ -6560,7 +6560,7 @@ operator's real HOME, his `.specstory` folders or his cloud sign in. Sign only c
 scratch space. Never touch `/Applications/Tortie.app`. The local checkout at
 `/Users/gdc/getspecstory` is read only.
 
-## Phase 115 — SpecStory 2.10.0, signed so macOS stops killing it (github issue 10) QUEUED, entitlement section completed by Research 59
+## Phase 115 — SpecStory 2.10.0, signed so macOS stops killing it (github issue 10) ✅ SHIPPED 2026-08-20 (this commit, 0.58.0, gates green, 7,183 tests)
 
 **Subject:** `fix(capture): SpecStory 2.10.0, signed with the entitlements its runtime needs`
 **First body line:** `Phase 115: SpecStory 2.10.0, signed so macOS stops killing it`

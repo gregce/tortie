@@ -81,7 +81,7 @@ const specstoryLog = getLog('specstory');
 /** Either probe is ~150 ms warm; this is the "it hung" ceiling. */
 const PROVIDER_PROBE_TIMEOUT_MS = 5_000;
 
-/** The line the CLI prints in `run --help`, verified on 2.5.0, 2.6.0 and 2.8.0. */
+/** The line the CLI prints in `run --help`, verified on 2.5.0, 2.6.0, 2.8.0 and 2.10.0. */
 const PROVIDER_MARKER = 'Available provider IDs:';
 
 /**
@@ -91,7 +91,7 @@ const PROVIDER_MARKER = 'Available provider IDs:';
  */
 const PROBE_SENTINEL = '__tortie_provider_probe__';
 
-/** A probe is not usage. Accepted by 2.5.0, 2.6.0 and 2.8.0 (measured). */
+/** A probe is not usage. Accepted by 2.5.0, 2.6.0, 2.8.0 and 2.10.0 (measured). */
 const NO_ANALYTICS = '--no-usage-analytics';
 
 /**
@@ -126,7 +126,8 @@ export interface ProviderCatalog {
  *   - claude - Claude Code
  * ```
  *
- * Byte-identical in shape on 2.5.0, 2.6.0 and 2.8.0 (measured 2026-08-12).
+ * Byte-identical in shape on 2.5.0, 2.6.0, 2.8.0 and 2.10.0 (measured
+ * 2026-08-12; 2.10.0 re-measured 2026-08-20, research 59 section 4).
  * Unwrapped — unlike the help paragraph, which breaks mid-name
  * (`copilotide (VS Code ⏎ Copilot IDE)`) — and it carries the display name,
  * which is the only place a provider gmux has no agent for can get a readable

@@ -29,13 +29,23 @@
  *      requirement can never match a future build, so self-update is
  *      impossible until this check passes (section 1.3)
  *   3. TeamIdentifier is set and the hardened-runtime flag is on
- *   4. the main executable's entitlements carry allow-jit
+ *   4. the main executable's entitlements carry allow-jit and never
+ *      disable-library-validation (CLAUDE.md refusal 6)
  *   5. every NESTED_BINARIES entry (kept in build/sign-nested-binaries.cjs)
  *      verifies strictly, carries the same TeamIdentifier, hardened runtime,
  *      and its stable reverse-DNS identifier. THREE binaries are expected
  *      since Phase 41: specstory, the unpacked ripgrep, and the pinned tmux at
  *      Resources/bin/tmux with identifier <appId>.tmux. The check walks the
- *      list, so the third row needed no code change here.
+ *      list, so the third row needed no code change here. Since Phase 115 each
+ *      row's sealed entitlement set must also EQUAL the expectation on its
+ *      row, in both directions: specstory carries exactly
+ *      allow-unsigned-executable-memory (the wazero kill, research 59), rg and
+ *      tmux carry the empty set, and disable-library-validation fails outright
+ *      on any binary. Set equality rather than containment is the point; a
+ *      containment check would pass a blob that also smuggled a broader key
+ *      in. Via --artifacts this same check runs on the ZIP and DMG copies in
+ *      release.yml with no workflow edit, and it catches signIgnore drift that
+ *      strips the blob after the after-pack hook ran.
  *   6. the skills CLI tree contains no Mach-O (nothing unsigned to smuggle)
  *   7. spctl --assess, interpreted per the flag above
  *   8. stapler validate (only with --expect-notarized)
@@ -50,7 +60,10 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { NESTED_BINARIES, isMachO } = require('./sign-nested-binaries.cjs');
+const { NESTED_BINARIES, isMachO, decodeEntitlementKeys } = require('./sign-nested-binaries.cjs');
+
+/** The key refusal 6 forbids anywhere in the bundle, checked on every binary. */
+const DISABLE_LIBRARY_VALIDATION = 'com.apple.security.cs.disable-library-validation';
 
 const args = process.argv.slice(2);
 const expectNotarized = args.includes('--expect-notarized');
@@ -156,10 +169,15 @@ function verifyApp(app, label, stapleMode = 'required') {
     const r = tryRun('/usr/bin/codesign', ['-d', '--entitlements', '-', '--xml', app]);
     if (r.output.includes('com.apple.security.cs.allow-jit')) pass('entitlements carry allow-jit');
     else fail('entitlements carry allow-jit', 'V8 cannot JIT without it under hardened runtime');
+    if (r.output.includes(DISABLE_LIBRARY_VALIDATION)) {
+      fail('no disable-library-validation (app)', 'refusal 6: the key must appear nowhere');
+    } else {
+      pass('no disable-library-validation (app)');
+    }
   }
 
   // 5. Nested binaries: the signIgnore/NESTED_BINARIES contract, checked.
-  for (const { relative, identifierSuffix } of NESTED_BINARIES) {
+  for (const { relative, identifierSuffix, entitlements } of NESTED_BINARIES) {
     const nested = join(app, 'Contents', relative);
     const name = `nested ${identifierSuffix}`;
     if (!existsSync(nested)) {
@@ -175,8 +193,35 @@ function verifyApp(app, label, stapleMode = 'required') {
     if (nestedTeam !== team) problems.push(`TeamIdentifier ${nestedTeam} != app's ${team}`);
     if (!/flags=.*\bruntime\b/.test(info)) problems.push('no hardened runtime');
     if (!identifier.endsWith(`.${identifierSuffix}`)) problems.push(`identifier drifted: ${identifier}`);
-    if (problems.length === 0) pass(name, `${identifier}, ${nestedTeam}, runtime`);
-    else fail(name, problems.join('; '));
+    // Phase 115: the sealed entitlement set must EQUAL the row's expectation,
+    // in both directions. The expectation is imported from NESTED_BINARIES,
+    // the one home of it, so this gate and the after-pack hook cannot drift
+    // apart. This is what catches signIgnore drift that strips or rewrites
+    // the blob after the hook ran, and it runs on the ZIP and DMG copies too.
+    let sealed;
+    try {
+      sealed = decodeEntitlementKeys(nested);
+    } catch (err) {
+      sealed = null;
+      problems.push(`entitlement decode failed: ${String(err).split('\n')[0]}`);
+    }
+    if (sealed !== null) {
+      const expected = new Set(entitlements?.keys ?? []);
+      const missing = [...expected].filter((k) => !sealed.has(k));
+      const extra = [...sealed].filter((k) => !expected.has(k));
+      if (missing.length > 0) problems.push(`entitlements missing: ${missing.join(', ')}`);
+      if (extra.length > 0) problems.push(`entitlements beyond the expectation: ${extra.join(', ')}`);
+      if (sealed.has(DISABLE_LIBRARY_VALIDATION)) {
+        problems.push('carries disable-library-validation (refusal 6)');
+      }
+    }
+    if (problems.length === 0) {
+      const entNote =
+        entitlements === undefined ? 'no entitlements' : (entitlements.keys ?? []).join(', ');
+      pass(name, `${identifier}, ${nestedTeam}, runtime, ${entNote}`);
+    } else {
+      fail(name, problems.join('; '));
+    }
   }
 
   // 6. Nothing signable hiding in the skills tree.

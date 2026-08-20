@@ -56,6 +56,20 @@ function exitCodeIsApproximate(end: SessionEnd | undefined): boolean {
 }
 
 /**
+ * True when this end describes the SpecStory capture process rather than the
+ * agent (Phase 115). The rule lives here once and every branch reads it.
+ *
+ * tmux execs argv[0], and for a captured session wrapArgv puts the specstory
+ * binary there. The process a SIGNAL death names is therefore specstory, and
+ * the agent ran inside it. An exit CODE death is different. The wrapper
+ * mirrors the agent's own exit status, so on that path the number does
+ * describe the agent, and the copy for it does not change.
+ */
+function capturedSignalDeath(end: SessionEnd | undefined): boolean {
+  return end?.capture !== undefined && endSignalName(end) !== null;
+}
+
+/**
  * macOS/BSD signal numbers → names, for decoding 128+n exit codes. Indexed
  * by number, so the table is written as one line per row of eight.
  */
@@ -111,6 +125,11 @@ export function endedTitle(end: SessionEnd | undefined): string {
   const signal = endSignalName(end);
   if (signal !== null) {
     const external = signal === 'INT' || signal === 'QUIT' ? '' : ' (external)';
+    // Phase 115. A signal death of a captured session names SpecStory,
+    // because the reaped process was SpecStory (see capturedSignalDeath).
+    if (capturedSignalDeath(end)) {
+      return `SpecStory was stopped by SIG${signal}${external}`;
+    }
     return `Session terminated by SIG${signal}${external}`;
   }
   const code = end?.exitCode;
@@ -168,8 +187,18 @@ export function diedRightAfterStart(life: SessionLifetime): boolean {
   return endedAt >= createdAt && endedAt - createdAt <= FAST_DEATH_MS;
 }
 
-/** The state D heading, e.g. "claude stopped right after it started". */
-export function fastDeathTitle(agent: string): string {
+/**
+ * The state D heading, e.g. "claude stopped right after it started".
+ *
+ * Phase 115. The second argument is optional, so a caller that has no end to
+ * pass keeps the agent form. When the end is a captured signal death the
+ * heading names SpecStory instead of the agent, because SpecStory is the
+ * process that stopped.
+ */
+export function fastDeathTitle(agent: string, end?: SessionEnd): string {
+  if (capturedSignalDeath(end)) {
+    return 'SpecStory stopped right after it started';
+  }
   return `${agent} stopped right after it started`;
 }
 
@@ -184,7 +213,16 @@ export function fastDeathSentence(end: SessionEnd): string {
   const seconds = FAST_DEATH_MS / 1000;
   const opener = `The session ended within ${seconds} seconds of starting.`;
   const signal = endSignalName(end);
-  if (signal !== null) return `${opener} It was stopped by SIG${signal}.`;
+  if (signal !== null) {
+    // Phase 115. A captured signal death names the process that was stopped.
+    if (capturedSignalDeath(end)) {
+      return (
+        `${opener} SpecStory, the capture program it ran under, was ` +
+        `stopped by SIG${signal}.`
+      );
+    }
+    return `${opener} It was stopped by SIG${signal}.`;
+  }
   const code = end.exitCode;
   if (code !== undefined && code !== 0 && !exitCodeIsApproximate(end)) {
     return `${opener} It exited with code ${code}.`;
@@ -210,6 +248,21 @@ export function fastDeathSentence(end: SessionEnd): string {
 export function exitDetailNote(end: SessionEnd): string {
   const signal = endSignalName(end);
   if (signal !== null) {
+    // Phase 115. The captured arm does not promise that a restart may
+    // succeed. When the bundled SpecStory binary is the resolved copy, a
+    // restart runs the same bytes into the same stop (research 59 §8), so
+    // the honest offer is the one thing the create sheet can already do,
+    // which is a new session with capture turned off. The uncaptured arm
+    // keeps the promise, because for a bare agent it is still the honest
+    // reading.
+    if (capturedSignalDeath(end)) {
+      return (
+        `Restart runs the same command again, with the same SpecStory ` +
+        `capture. It was SpecStory that was stopped by SIG${signal}, not ` +
+        `the agent. If a restart stops the same way, start a new session ` +
+        `with capture turned off.`
+      );
+    }
     return (
       `Restart runs the same command again. This session was stopped by ` +
       `SIG${signal} rather than by anything it reported, so a restart may ` +
@@ -258,11 +311,15 @@ export function statusVisual(
       // read as a clean "ended"). Either one renders the failed variant.
       if (!endedBadly(end)) return { dot: 'ended', label: 'ended' };
       const signal = endSignalName(end);
+      // Phase 115. A captured signal death names SpecStory in the label,
+      // because the killed process was SpecStory (see capturedSignalDeath).
       return {
         dot: 'failed',
         label:
           signal !== null
-            ? `killed (SIG${signal})`
+            ? capturedSignalDeath(end)
+              ? `SpecStory killed (SIG${signal})`
+              : `killed (SIG${signal})`
             : exitCodeIsApproximate(end)
               ? 'failed'
               : `failed (exit ${end?.exitCode})`

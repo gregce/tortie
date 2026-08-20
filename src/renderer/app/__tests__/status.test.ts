@@ -133,9 +133,11 @@ describe('endedTitle', () => {
       endedTitle({ exitCode: 1, capture: { exitCodeApproximate: true } })
     ).toBe('Session ended unexpectedly');
     // The signal half is still exact — tmux reaped the process it names.
+    // Phase 115 made the title say WHICH process that was: for a captured
+    // session, argv[0] is specstory, so the reaped process was SpecStory.
     expect(
       endedTitle({ exitSignal: 'term', capture: { exitCodeApproximate: true } })
-    ).toBe('Session terminated by SIGTERM (external)');
+    ).toBe('SpecStory was stopped by SIGTERM (external)');
     // An EXACT capture provider (claude) keeps the number.
     expect(
       endedTitle({ exitCode: 7, capture: { exitCodeApproximate: false } })
@@ -365,5 +367,141 @@ describe('exitDetailNote', () => {
     // claude traps SIGTERM and exits 143 itself, which is the same event
     // wearing a number, so it gets the same sentence.
     expect(exitDetailNote({ exitCode: 143 })).toContain('SIGTERM');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 115 — a captured signal death describes SpecStory, not the agent
+// ---------------------------------------------------------------------------
+
+/**
+ * tmux execs argv[0], and for a captured session wrapArgv puts the specstory
+ * binary there. A SIGNAL death therefore names the SpecStory process, and the
+ * old copy blamed the agent for it (github issue 10: the hardened runtime
+ * killed specstory mid-save, and Tortie said the agent was killed). An exit
+ * CODE death keeps today's copy, because the wrapper mirrors the agent's own
+ * exit status, so on that path the number does describe the agent.
+ */
+describe('a captured signal death names SpecStory (Phase 115)', () => {
+  /** A captured session end: the wrapper was SIGKILLed mid-save. */
+  const capturedKill = {
+    capture: { exitCodeApproximate: false },
+    exitSignal: 'KILL'
+  };
+
+  it('endedTitle names SpecStory, keeping the (external) suffix rule', () => {
+    expect(endedTitle(capturedKill)).toBe(
+      'SpecStory was stopped by SIGKILL (external)'
+    );
+    // INT and QUIT are what a keyboard sends, so the captured arm drops
+    // "(external)" exactly like the uncaptured arm does.
+    expect(
+      endedTitle({ capture: { exitCodeApproximate: false }, exitSignal: 'INT' })
+    ).toBe('SpecStory was stopped by SIGINT');
+    expect(
+      endedTitle({ capture: { exitCodeApproximate: false }, exitSignal: 'QUIT' })
+    ).toBe('SpecStory was stopped by SIGQUIT');
+  });
+
+  it('fastDeathTitle names SpecStory when the end rides along', () => {
+    expect(fastDeathTitle('claude', capturedKill)).toBe(
+      'SpecStory stopped right after it started'
+    );
+  });
+
+  it('fastDeathTitle keeps the agent form with no second argument', () => {
+    // No other caller breaks: the parameter is optional, and without it the
+    // heading is exactly what it was before this phase.
+    expect(fastDeathTitle('claude')).toBe(
+      'claude stopped right after it started'
+    );
+  });
+
+  it('fastDeathTitle keeps the agent form for a captured exit-code death', () => {
+    // The wrapper mirrors the agent's own exit status, so an exit CODE death
+    // does describe the agent, captured or not.
+    expect(
+      fastDeathTitle('claude', {
+        capture: { exitCodeApproximate: false },
+        exitCode: 1
+      })
+    ).toBe('claude stopped right after it started');
+  });
+
+  it('fastDeathSentence says what the capture program was', () => {
+    expect(fastDeathSentence(capturedKill)).toBe(
+      'The session ended within 5 seconds of starting. SpecStory, the ' +
+        'capture program it ran under, was stopped by SIGKILL.'
+    );
+  });
+
+  it('exitDetailNote does not blame the agent and does not promise a restart', () => {
+    expect(exitDetailNote(capturedKill)).toBe(
+      'Restart runs the same command again, with the same SpecStory ' +
+        'capture. It was SpecStory that was stopped by SIGKILL, not the ' +
+        'agent. If a restart stops the same way, start a new session with ' +
+        'capture turned off.'
+    );
+    // The promise the uncaptured arm keeps is not made here: when the
+    // bundled binary is the resolved copy, a restart runs the same bytes
+    // into the same stop.
+    expect(exitDetailNote(capturedKill)).not.toContain('may well succeed');
+  });
+
+  it('statusVisual labels the row with the process that was killed', () => {
+    expect(statusVisual('exited', capturedKill)).toEqual({
+      dot: 'failed',
+      label: 'SpecStory killed (SIGKILL)'
+    });
+  });
+
+  it('leaves the uncaptured signal death exactly as it was', () => {
+    expect(endedTitle({ exitSignal: 'kill' })).toBe(
+      'Session terminated by SIGKILL (external)'
+    );
+    expect(fastDeathSentence({ exitSignal: 'kill' })).toBe(
+      'The session ended within 5 seconds of starting. It was stopped by SIGKILL.'
+    );
+    expect(exitDetailNote({ exitSignal: 'kill' })).toContain(
+      'a restart may well succeed'
+    );
+    expect(statusVisual('exited', { exitSignal: 'kill' })).toEqual({
+      dot: 'failed',
+      label: 'killed (SIGKILL)'
+    });
+  });
+
+  it('leaves the captured exit-code death exactly as it was', () => {
+    // A collapsed wrapper still drops the number and says nothing about
+    // SpecStory, because the exit path mirrors the agent.
+    expect(
+      endedTitle({ exitCode: 1, capture: { exitCodeApproximate: true } })
+    ).toBe('Session ended unexpectedly');
+    expect(
+      endedTitle({ exitCode: 7, capture: { exitCodeApproximate: false } })
+    ).toBe('Session ended unexpectedly (exit 7)');
+    expect(
+      statusVisual('exited', {
+        exitCode: 1,
+        capture: { exitCodeApproximate: true }
+      })
+    ).toEqual({ dot: 'failed', label: 'failed' });
+    expect(
+      statusVisual('exited', {
+        exitCode: 7,
+        capture: { exitCodeApproximate: false }
+      })
+    ).toEqual({ dot: 'failed', label: 'failed (exit 7)' });
+  });
+
+  it('never says pane', () => {
+    const strings = [
+      endedTitle(capturedKill),
+      fastDeathTitle('claude', capturedKill),
+      fastDeathSentence(capturedKill),
+      exitDetailNote(capturedKill),
+      statusVisual('exited', capturedKill).label
+    ];
+    for (const s of strings) expect(s.toLowerCase()).not.toContain('pane');
   });
 });

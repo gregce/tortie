@@ -620,7 +620,9 @@ export function TerminalRegion(): React.JSX.Element {
           <div className="empty-inner onb-inner">
             <h2 className="empty-title">
               {fastDeath
-                ? fastDeathTitle(active.agent)
+                ? // Phase 115. The whole session rides along, so a captured
+                  // signal death can name SpecStory instead of the agent.
+                  fastDeathTitle(active.agent, active)
                 : exited
                   ? endedTitle(active)
                   : 'Ready to restore'}

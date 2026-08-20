@@ -38,14 +38,24 @@
  * identifiers, exactly the pre-Phase-27 behaviour, so the unsigned build
  * keeps the shape notarization will want.
  *
- * ENTITLEMENTS: none for any of the three binaries, verified rather than
- * assumed. specstory is CGO-free Go (otool -L: only Apple system dylibs);
- * ripgrep is Rust with the same property. tmux (Phase 41) is C, built from
- * source by build/build-tmux.mjs with libevent and utf8proc linked static, and
- * that script fails the build if otool -L ever shows a path outside /usr/lib.
- * None of the three needs JIT or unsigned executable memory, and a binary that
- * loads only Apple system dylibs satisfies hardened runtime library
- * validation, so the bundle keeps its "ZERO entitlements are needed" note.
+ * ENTITLEMENTS. specstory needs exactly one, and the other two need none.
+ * Github issue 10 falsified the old claim that zero entitlements are needed
+ * (research 59, measured 2026-08-20). Every session save runs the betterleaks
+ * secret scanner, which runs re2 as wasm through wazero, and wazero turns
+ * writable anonymous memory into executable memory. The hardened runtime
+ * forbids that without com.apple.security.cs.allow-unsigned-executable-memory,
+ * so macOS killed the shipped specstory with SIGKILL (termination namespace
+ * CODESIGNING) the first time a save carried secret-shaped text. allow-jit was
+ * measured NOT to stop the kill, because wazero never maps with MAP_JIT. The
+ * plist and the expected key set live on the specstory row of NESTED_BINARIES
+ * below, that row is the only home of the expectation, and after signing the
+ * hook reads the sealed blob back and fails the pack unless the decoded key
+ * set equals the expectation exactly, in both directions. ripgrep (Rust) and
+ * tmux (C, libevent and utf8proc linked static by build/build-tmux.mjs, which
+ * fails the build if otool -L ever shows a path outside /usr/lib) run no
+ * generated code and keep the EMPTY set, which the same read back enforces.
+ * Never copy the Electron plists here, and never use
+ * disable-library-validation anywhere (CLAUDE.md refusal 6).
  *
  * WHY THE BUNDLED TMUX IS NOT PHASE 23 REFUSAL 6. That refusal is about third
  * party code loaded INTO a Tortie process. tmux is a separately signed
@@ -69,7 +79,19 @@ const { join } = require('node:path');
  * signed here.
  */
 const NESTED_BINARIES = [
-  { relative: 'Resources/bin/specstory', identifierSuffix: 'specstory' },
+  {
+    relative: 'Resources/bin/specstory',
+    identifierSuffix: 'specstory',
+    // Phase 115. The one entitlement specstory's runtime needs, per the
+    // header above. `plist` is resolved against this build/ directory, and
+    // `keys` is the exact set the sealed blob must decode to. rg and tmux
+    // carry no field, which means the empty set, and the read back holds
+    // them to it.
+    entitlements: {
+      plist: 'entitlements.specstory.plist',
+      keys: ['com.apple.security.cs.allow-unsigned-executable-memory']
+    }
+  },
   {
     relative:
       'Resources/app.asar.unpacked/node_modules/@vscode/ripgrep-darwin-arm64/bin/rg',
@@ -130,6 +152,43 @@ function resolveSigningIdentity(context) {
 }
 
 /**
+ * Decode the entitlement key set sealed into a signed Mach-O. codesign writes
+ * the XML plist to stdout and its diagnostics to stderr, so `run` (stdio pipe)
+ * returns exactly the blob. A binary signed with no entitlements prints
+ * nothing, which decodes to the empty set.
+ */
+function decodeEntitlementKeys(path) {
+  const xml = run('/usr/bin/codesign', ['-d', '--entitlements', '-', '--xml', path]);
+  const keys = new Set();
+  for (const m of xml.matchAll(/<key>([^<]+)<\/key>/g)) keys.add(m[1]);
+  return keys;
+}
+
+/**
+ * Fail the pack unless the sealed entitlement set equals the row's expectation
+ * exactly, in both directions. Set equality is the point (research 59 section
+ * 6): a containment check would pass a blob that also smuggled
+ * disable-library-validation in, which is CLAUDE.md refusal 6.
+ */
+function assertSealedEntitlements(path, relative, expectedKeys) {
+  const actual = decodeEntitlementKeys(path);
+  const expected = new Set(expectedKeys);
+  const missing = [...expected].filter((k) => !actual.has(k));
+  const extra = [...actual].filter((k) => !expected.has(k));
+  if (missing.length === 0 && extra.length === 0) return;
+  throw new Error(
+    `after-pack: ${relative} was signed, but its sealed entitlement set does ` +
+      `not equal the expectation on its NESTED_BINARIES row. ` +
+      `expected [${[...expected].join(', ') || 'empty set'}], ` +
+      `decoded [${[...actual].join(', ') || 'empty set'}], ` +
+      `missing [${missing.join(', ') || 'none'}], ` +
+      `unexpected [${extra.join(', ') || 'none'}]. ` +
+      'The row in this file is the only home of the expectation; fix the row ' +
+      'or the plist it names, never this check.'
+  );
+}
+
+/**
  * @param {import('electron-builder').AfterPackContext} context
  */
 function signNestedBinaries(context) {
@@ -143,7 +202,7 @@ function signNestedBinaries(context) {
 
   scanSkillsTreeForMachO(join(contents, SKILLS_TREE));
 
-  for (const { relative, identifierSuffix } of NESTED_BINARIES) {
+  for (const { relative, identifierSuffix, entitlements } of NESTED_BINARIES) {
     const path = join(contents, relative);
     if (!existsSync(path)) {
       throw new Error(
@@ -168,6 +227,25 @@ function signNestedBinaries(context) {
       /* no quarantine attribute — the normal case */
     }
 
+    // The existing existsSync throw above covers a missing BINARY only, so a
+    // missing entitlements plist needs its own guard (research 59 section 6).
+    // Without it codesign would fail with its own less useful message, or a
+    // future refactor could drop the flag and ship the kill back in.
+    const entitlementArgs = [];
+    if (entitlements !== undefined) {
+      const plistPath = join(__dirname, entitlements.plist);
+      if (!existsSync(plistPath)) {
+        throw new Error(
+          `after-pack: ${relative} needs the entitlements file ` +
+            `build/${entitlements.plist} and it is missing. The row in ` +
+            'NESTED_BINARIES names it; restore the file rather than signing ' +
+            'without it, because the unentitled binary is killed by macOS on ' +
+            'the first save that carries secret-shaped text (github issue 10).'
+        );
+      }
+      entitlementArgs.push('--entitlements', plistPath);
+    }
+
     const identifier = `${appId}.${identifierSuffix}`;
     if (identity) {
       run('/usr/bin/codesign', [
@@ -181,11 +259,14 @@ function signNestedBinaries(context) {
         // A secure timestamp is a notarization requirement for real
         // signatures. It needs the network; CI and the dev machine have it.
         '--timestamp',
+        ...entitlementArgs,
         path
       ]);
       run('/usr/bin/codesign', ['--verify', '--strict', path]);
+      assertSealedEntitlements(path, relative, entitlements?.keys ?? []);
       console.log(
-        `  • after-pack: signed ${relative} (Developer ID, runtime, ${identifier})`
+        `  • after-pack: signed ${relative} (Developer ID, runtime, ${identifier}` +
+          `${entitlements ? ', entitled' : ''})`
       );
     } else {
       run('/usr/bin/codesign', [
@@ -200,11 +281,14 @@ function signNestedBinaries(context) {
         'runtime',
         // A secure timestamp needs a real identity; ad-hoc cannot have one.
         '--timestamp=none',
+        ...entitlementArgs,
         path
       ]);
       run('/usr/bin/codesign', ['--verify', '--strict', path]);
+      assertSealedEntitlements(path, relative, entitlements?.keys ?? []);
       console.log(
-        `  • after-pack: signed ${relative} (ad-hoc, runtime, ${identifier})`
+        `  • after-pack: signed ${relative} (ad-hoc, runtime, ${identifier}` +
+          `${entitlements ? ', entitled' : ''})`
       );
     }
   }
@@ -255,4 +339,10 @@ function scanSkillsTreeForMachO(root) {
   }
 }
 
-module.exports = { signNestedBinaries, NESTED_BINARIES, isMachO, resolveSigningIdentity };
+module.exports = {
+  signNestedBinaries,
+  NESTED_BINARIES,
+  isMachO,
+  resolveSigningIdentity,
+  decodeEntitlementKeys
+};

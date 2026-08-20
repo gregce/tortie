@@ -814,6 +814,14 @@ and 4 are already written elsewhere; this reuses them rather than restating them
    DMG**, not only `release/`.
 5. **Candidate run** (the n=1 beta): launch `release/mac-arm64/Tortie.app` with a
    scratch `--user-data-dir`, and run `GMUX_SMOKE=basic` from the packaged app.
+   Then the capture soak (Phase 115, research 59 section 10), from the mounted
+   notarized DMG candidate. Run, end and sync a captured claude session and a
+   captured codex session at least 3 times each, with content that carries
+   secret-shaped text. Then check three things. `~/Library/Logs/DiagnosticReports`
+   gained no specstory `.ips` file. The log shows no CODESIGNING or Invalid Page
+   line. The sync exit codes match what src/main/specstory/sync.ts documents.
+   This soak is the only layer that proves Apple's notarization accepts the
+   entitlement on the nested specstory binary, and it is never simulated on CI.
 6. **Publish.** `gh release create v0.19.0 --notes-file CHANGELOG-entry.md` with
    the DMG, ZIP and their blockmaps attached (plus `latest-mac.yml` once the
    updater exists — §3.7.1).

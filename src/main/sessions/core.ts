@@ -2327,11 +2327,20 @@ export class GmuxCore {
     this.queueCaptureSync(rec);
     // The manifest row is the record of truth but it dies with a discard —
     // this line is the copy that survives in the app log (research 21 §10).
+    //
+    // Phase 115. For a captured session the wrapper field names the process
+    // this death actually describes. tmux execs argv[0], and wrapArgv puts
+    // the specstory binary there, so the reaped process was specstory and
+    // the agent ran inside it. Without this field a killed capture wrapper
+    // reads in the log as a killed agent.
     sessionsLog.warn(
       `session death: id=${sessionId} name="${rec.name}" ` +
         `agent=${rec.agent} tmux=${target ?? '(unbound)'} ` +
         `pane_pid=${rec.panePid ?? '?'} exit=${exitCode ?? ''} ` +
-        `signal=${deadSignal ?? ''}`
+        `signal=${deadSignal ?? ''}` +
+        (rec.specstory?.enabled === true
+          ? ` wrapper=specstory@${rec.specstory.binVersion ?? '?'}`
+          : '')
     );
     this.activity.forget(sessionId);
     this.hookServer.revoke(sessionId);

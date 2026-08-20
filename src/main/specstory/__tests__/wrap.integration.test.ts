@@ -198,7 +198,7 @@ describeIf('exit codes through the wrapper — the registry matrix, executable',
 });
 
 describeIf('the provider probe reads the CLI this build actually ships', () => {
-  it('finds the providers gmux has rows for, and does not invent muse', () => {
+  it('finds the providers gmux has rows for, muse included since 2.10.0', () => {
     const help = execFileSync(SPECSTORY as string, ['run', '--help', '--no-version-check'], {
       encoding: 'utf8',
       env: { ...process.env, HOME },
@@ -210,11 +210,13 @@ describeIf('the provider probe reads the CLI this build actually ships', () => {
     for (const p of ['claude', 'codex', 'cursor', 'gemini', 'droid', 'deepseek', 'antigravity']) {
       expect(found.has(p as SpecstoryProviderId)).toBe(true);
     }
-    // MEASURED: released 2.8.0 answers `run muse` with "Provider 'muse' is not
-    // a valid provider implementation" and exit 1 — muse lives only on the
-    // unreleased branch. The probe is what keeps the toggle dark for it
-    // instead of offering a capture that dies in the pane.
-    expect(found.has('muse')).toBe(false);
+    // MEASURED: 2.8.0 had never heard of muse and this line asserted its
+    // absence. The 2.10.0 pin (Phase 115, research 59 section 4) ships muse
+    // as a released provider, and the open-vocabulary parse from Phase 18.5
+    // carries it through. The probe stays the authority either way: it
+    // reports what THIS binary can do, so the toggle lights only for
+    // providers that exist.
+    expect(found.has('muse')).toBe(true);
   });
 
   /**

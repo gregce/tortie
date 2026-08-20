@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.57.0",
+  "version": "0.58.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -72,6 +72,7 @@
     "conformance:machines": "node build/conformance-machines.mjs",
     "conformance:installs": "node build/conformance-installs.mjs",
     "conformance:context": "node build/conformance-context.mjs",
+    "conformance:specstory:entitlement": "node build/probe-specstory-entitlement.mjs",
     "conformance:tmux-pair": "node build/tmux-pair.mjs",
     "conformance:resume": "npm run build && node build/harness-socket.mjs gmux-conformance 'GMUX_SMOKE=conformance-resume electron . --user-data-dir=\"$GMUX_HARNESS_DIR\" -ApplePersistenceIgnoreState YES'",
     "conformance:resume:capture": "GMUX_CONF_MODE=capture npm run conformance:resume",

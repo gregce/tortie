@@ -116,12 +116,14 @@ export function syncArgv(
  * an unhappy outcome (toast now, or fold into a quit-time summary).
  *
  * THE `-s` FALLBACK, AND WHY IT IS NOT OPTIONAL (measured 2026-08-11 against
- * specstory 2.8.0, scratch HOME). `sync <provider> -s <id>` exits **1** with
- * "no session found for UUID …" when the agent never wrote a conversation for
- * that id — which is the NORMAL end of a gmux session the user opened and
- * closed without typing anything, and of every session whose agent died
- * during warmup. The same directory synced WITHOUT `-s` exits 0 (measured:
- * RC_unknown_id=1, RC_cwdwide=0). Reporting the first as a failure would toast
+ * specstory 2.8.0 and re-measured 2026-08-20 against 2.10.0, scratch HOME).
+ * `sync <provider> -s <id>` exits **1** with a session-not-found message on
+ * stderr (the wording varies by CLI version, so only the exit code is keyed
+ * on) when the agent never wrote a conversation for that id. That is the
+ * NORMAL end of a gmux session the user opened and closed without typing
+ * anything, and of every session whose agent died during warmup. The same
+ * directory synced WITHOUT `-s` exits 0 (measured: RC_unknown_id=1,
+ * RC_cwdwide=0). Reporting the first as a failure would toast
  * "SpecStory could not save the end of this session" at a user whose session
  * had nothing in it — the exact false alarm that teaches people to ignore
  * toasts. So a precise sync that fails falls back to the cwd-wide one, and
