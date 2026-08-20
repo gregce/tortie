@@ -13,19 +13,69 @@
 import React, { useMemo } from 'react';
 import type { GmuxSettingsExtras } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
+import type { GitStatusResult } from '@shared/types';
 import {
   localPathOf,
   sameTarget,
   targetKey,
-  targetOfProject
+  targetOfProject,
+  type WorkspaceTarget
 } from '@shared/workspace-target';
 import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
 import { useSearch } from '../search';
-import { useRemoteChanges } from '../scm/remote-changes';
+import {
+  remoteChangesCount,
+  useRemoteChanges,
+  type RemoteChangesEntry
+} from '../scm/remote-changes';
 import { Codicon } from '../icons';
 import { UpdateRing } from './UpdateRing';
+
+/**
+ * The accessible name of one rail item.
+ *
+ * PURE, AND EXPORTED FOR ONE REASON. Rendering this rail in a unit test reads
+ * the stores' INITIAL state, because zustand 5 answers a server render from
+ * `getInitialState`. So the number a person hears is pinned by calling this
+ * with the number rather than by reading markup, and
+ * `src/renderer/scm/__tests__/p97-rail-badge.test.ts` is where that happens.
+ */
+export function railItemLabel(
+  label: string,
+  shortcut: string,
+  badge: number | undefined,
+  noun: string
+): string {
+  const count =
+    badge !== undefined && badge > 0
+      ? `, ${badge} ${noun} ${badge === 1 ? 'file' : 'files'}`
+      : '';
+  return `${label} (${shortcut})${count}`;
+}
+
+/**
+ * The number on the Source Control badge for one folder, wherever it is.
+ *
+ * PHASE 97 FIX ROUND PUT BOTH BRANCHES IN ONE PLACE. The remote branch counted
+ * `files.length` for one round while the panel's own header counted both
+ * groups, so a folder with two changed files and three new ones drew a badge of
+ * 2 over a list of 5 rows, in one window at one moment. The local branch never
+ * had that split, because git's status puts an untracked entry in the same
+ * array `dirtyCount` measures. Both branches now go through a named function a
+ * test can call, and both count a file git is not yet tracking.
+ */
+export function scmBadgeCount(
+  target: WorkspaceTarget | null,
+  localStatus: GitStatusResult | null | undefined,
+  remoteEntry: RemoteChangesEntry | undefined
+): number {
+  if (localPathOf(target) !== null) {
+    return localStatus?.isRepo === true ? dirtyCount(localStatus) : 0;
+  }
+  return remoteEntry === undefined ? 0 : remoteChangesCount(remoteEntry);
+}
 
 function ViewItem({
   view,
@@ -59,11 +109,7 @@ function ViewItem({
       type="button"
       className={`ab-item${active ? ' active' : ''}`}
       title={`${label} (${shortcut})`}
-      aria-label={`${label} (${shortcut})${
-        badge !== undefined && badge > 0
-          ? `, ${badge} ${badgeNoun} ${badge === 1 ? 'file' : 'files'}`
-          : ''
-      }`}
+      aria-label={railItemLabel(label, shortcut, badge, badgeNoun)}
       aria-pressed={active}
       onClick={() => {
         // Active view → collapse toggle (⌘B); otherwise switch/show.
@@ -202,18 +248,20 @@ export function ActivityBar(): React.JSX.Element {
   // machine wore a count measured on this Mac. Now the local branch is keyed on
   // `localPathOf`, which is null for such a tab, and the remote branch reads
   // the count that machine itself reported.
+  //
+  // PHASE 97 FIX ROUND MOVED THE ARITHMETIC OUT. Each store hands over its own
+  // row and `scmBadgeCount` above decides the number, so the rail and the
+  // Changes header cannot state two different numbers for one folder. They did
+  // for one round, and it was on screen.
   const localRepoPath = localPathOf(projectTarget);
-  const localDirty = useGit((s) => {
-    if (localRepoPath === null) return 0;
-    const status = s.repos[localRepoPath]?.status;
-    return status?.isRepo === true ? dirtyCount(status) : 0;
-  });
+  const localStatus = useGit((s) =>
+    localRepoPath === null ? null : (s.repos[localRepoPath]?.status ?? null)
+  );
   const remoteKey = projectTarget === null ? null : targetKey(projectTarget);
-  const remoteDirty = useRemoteChanges((s) => {
-    if (localRepoPath !== null || remoteKey === null) return 0;
-    return s.byTarget[remoteKey]?.files.length ?? 0;
-  });
-  const dirty = localRepoPath === null ? remoteDirty : localDirty;
+  const remoteEntry = useRemoteChanges((s) =>
+    remoteKey === null ? undefined : s.byTarget[remoteKey]
+  );
+  const dirty = scmBadgeCount(projectTarget, localStatus, remoteEntry);
 
   return (
     <nav className="activitybar" aria-label="Views" data-slot="activity-bar">
@@ -234,6 +282,15 @@ export function ActivityBar(): React.JSX.Element {
         badge={resultFiles}
         badgeNoun="matching"
       />
+      {/* THE NOUN STAYS `changed`, and Phase 97 decided that on purpose. The
+          badge now counts files git is not yet tracking, on both the local and
+          the remote rail, so a screen reader is told "5 changed files" for a
+          list whose last three rows are new files. Every other word in this
+          panel already works that way: the section header reads `Changes`, the
+          list's own accessible name reads `Changed files`, and both have
+          covered untracked rows since long before this phase. A different word
+          here would put a third wording in one panel and would still disagree
+          with the two beside it. */}
       <ViewItem
         view="scm"
         icon="source-control"

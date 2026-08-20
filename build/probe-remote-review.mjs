@@ -33,13 +33,33 @@
  *     evidence and this probe does not accept it as any.
  *
  * ---------------------------------------------------------------------------
+ * WHAT PHASE 97 ADDED TO IT
+ * ---------------------------------------------------------------------------
+ * The scratch repository now also holds a `.gitignore` committed in its first
+ * commit, one file git is not tracking and one file that `.gitignore` names.
+ * Six more things are measured on it:
+ *
+ *  1. The untracked file reaches the list, in its own array.
+ *  2. The ignored file reaches neither array.
+ *  3. The tracked list is the same three files it was before this phase.
+ *  4. The untracked file opens all green, meaning an empty left side and a
+ *     right side equal byte for byte to the file on disk, compared by sha256
+ *     on both sides exactly as the tracked files are.
+ *  5. The two counts are 3 tracked and 1 untracked.
+ *  6. The review still writes nothing, measured over the larger repository.
+ *
+ * The far side script is unchanged and no new git verb is run. The untracked
+ * entries were already in the one answer this probe has always asked for.
+ *
+ * ---------------------------------------------------------------------------
  * WHAT IT DOES NOT PROVE
  * ---------------------------------------------------------------------------
  * The far side is this Mac. No Linux machine and no machine of the operator's
  * was contacted. The repository is one this file made two minutes ago and is
  * not a repository anybody works in.
  *
- * Every scratch file carries a `p73-` prefix.
+ * Every scratch file carries a `p73-` prefix, except the three Phase 97 files
+ * inside the scratch repository, which carry a `p97-` prefix.
  */
 
 import { createHash } from 'node:crypto';
@@ -124,6 +144,9 @@ const git = (...args) =>
 git('init', '-q', '-b', 'main');
 writeFileSync(join(work, 'kept.txt'), 'one\ntwo\nthree\n', 'utf8');
 writeFileSync(join(work, 'moved.txt'), 'this file gets a new name\n', 'utf8');
+// PHASE 97. The ignore rule is committed in the first commit, so the rule is
+// itself a tracked file that has not changed and cannot show up as one.
+writeFileSync(join(work, '.gitignore'), 'p97-ignored.txt\n', 'utf8');
 git('add', '-A');
 git('commit', '-q', '-m', 'the first commit');
 
@@ -132,6 +155,12 @@ writeFileSync(join(work, 'kept.txt'), 'one\ntwo\nTHREE, changed\n', 'utf8');
 writeFileSync(join(work, 'added.txt'), 'a file that was not in the commit\n', 'utf8');
 git('add', 'added.txt');
 git('mv', 'moved.txt', 'renamed.txt');
+
+// PHASE 97. One file git is not tracking, being what an agent on that machine
+// just made, and one file the committed rule names. They are written before the
+// pause below, so the racily clean guard covers them too.
+writeFileSync(join(work, 'p97-new.txt'), 'a file an agent just made\nsecond line\n', 'utf8');
+writeFileSync(join(work, 'p97-ignored.txt'), 'build output nobody asked for\n', 'utf8');
 
 // A pause and then two settling runs, so the index stat cache is up to date and
 // the review's own read cannot be the thing that rewrites it.
@@ -384,10 +413,12 @@ if (listed === null || listed.ok !== true) {
 }
 
 const list = listed.list;
+const untracked = Array.isArray(list.untracked) ? list.untracked : [];
 step(
   2,
   'the repository the machine reported',
-  `${String(list.repoPath)} (${String(list.files.length)} of ${String(list.total)} file(s))`
+  `${String(list.repoPath)} (${String(list.files.length)} of ${String(list.total)} ` +
+    `changed, ${String(untracked.length)} of ${String(list.untrackedTotal)} untracked)`
 );
 for (const file of list.files) {
   step(
@@ -397,6 +428,9 @@ for (const file of list.files) {
       (file.origPath === null ? '' : ` (was ${String(file.origPath)})`)
   );
 }
+for (const file of untracked) {
+  step(2, `  untracked file`, String(file.path));
+}
 
 const wanted = ['added.txt', 'kept.txt', 'renamed.txt'];
 const got = list.files.map((one) => one.path).sort();
@@ -404,12 +438,47 @@ if (JSON.stringify(got) !== JSON.stringify(wanted)) {
   fail(`the list was ${got.join(', ')} and the repository holds ${wanted.join(', ')}.`);
 }
 
+// PHASE 97. The untracked group, and the file the committed rule names.
+const wantedNew = ['p97-new.txt'];
+const gotNew = untracked.map((one) => one.path).sort();
+if (JSON.stringify(gotNew) !== JSON.stringify(wantedNew)) {
+  fail(
+    `the untracked group was ${gotNew.join(', ') || '(empty)'} and the ` +
+      `repository holds ${wantedNew.join(', ')}.`
+  );
+}
+const everyPath = [...list.files, ...untracked].map((one) => String(one.path));
+if (everyPath.includes('p97-ignored.txt')) {
+  fail('an ignored file reached the list. A build directory is not a change.');
+}
+step(
+  2,
+  '  the ignored file across both groups',
+  everyPath.includes('p97-ignored.txt')
+    ? 'IT IS LISTED, which it must not be'
+    : `not listed, out of ${String(everyPath.length)} listed path(s)`
+);
+if (list.total !== 3 || list.untrackedTotal !== 1) {
+  fail(
+    `the counts were ${String(list.total)} changed and ` +
+      `${String(list.untrackedTotal)} untracked, and the repository holds 3 and 1.`
+  );
+}
+step(
+  2,
+  '  the two counts',
+  `${String(list.total)} changed, ${String(list.untrackedTotal)} untracked`
+);
+
 // ---------------------------------------------------------------------------
 // Leg 2. Every side, byte for byte against git's own answer
 // ---------------------------------------------------------------------------
 
 let compared = 0;
-for (const file of list.files) {
+// PHASE 97. The untracked file is read the same way and compared the same way.
+// `git show HEAD:p97-new.txt` fails for it, so the truth's left side is empty,
+// which is what makes the tab all green.
+for (const file of [...list.files, ...untracked]) {
   const answer = drive({
     ...ctxInput,
     op: 'file',
@@ -442,6 +511,12 @@ for (const file of list.files) {
   );
   if (!same) {
     fail(`the two sides of ${String(file.path)} are not the repository's own bytes.`);
+  }
+  if (file.path === 'p97-new.txt' && pair.oldContents !== '') {
+    fail(
+      'the untracked file came back with something on its left side, so the ' +
+        'tab would not be all green.'
+    );
   }
   compared += 1;
 }

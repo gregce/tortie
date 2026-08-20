@@ -10,6 +10,14 @@
  * cross and everything else in the eight that refuse. Two stores is what that
  * split looks like in code: this one reads and has no verb that writes.
  *
+ * TWO GROUPS SINCE PHASE 97. An entry now records the tracked files and the
+ * untracked files separately, with a count of its own for each, because the
+ * answer caps each group on its own and a view that draws one number for two
+ * groups cannot say which one it cut. An ignored file is in neither group and
+ * this store never sees one. NOTHING HERE GAINED A VERB. The whole surface is
+ * still the same three functions and not one of them changes anything on
+ * either computer.
+ *
  * THE KEY IS THE PAIR. Entries are keyed by `targetKey`, which is
  * `<machineId>:<path>` for a folder on a machine. A path alone is what made a
  * local tab and a machine tab at the same path show each other's rows, which is
@@ -65,6 +73,10 @@ export interface RemoteChangesEntry {
   files: readonly MachineReviewFile[];
   /** How many there were, when only the first ones are listed. */
   total: number;
+  /** PHASE 97. Every file in it git is not yet tracking. Never an ignored file. */
+  untracked: readonly MachineReviewFile[];
+  /** PHASE 97. How many there were, when only the first ones are listed. */
+  untrackedTotal: number;
   /** The sentence main sent under a capped list, or null. */
   note: string | null;
   /** True when that folder is not inside a git repository. */
@@ -85,6 +97,8 @@ const EMPTY: RemoteChangesEntry = {
   repoPath: '',
   files: [],
   total: 0,
+  untracked: [],
+  untrackedTotal: 0,
   note: null,
   notRepo: false,
   loading: false,
@@ -92,6 +106,26 @@ const EMPTY: RemoteChangesEntry = {
   failed: false,
   readAt: 0
 };
+
+/**
+ * How many rows the Changes list draws for one entry.
+ *
+ * PHASE 97 FIX ROUND. Every surface that states a number for one folder on one
+ * machine calls this, so no two of them can ever state different numbers. The
+ * defect it closes was on screen for one round: the activity rail's badge read
+ * `files.length` while the section header three inches away read both groups,
+ * so a folder with two changed files and three new ones drew a badge of 2 over
+ * a list of 5. The local rail never had that split, because
+ * `parsePorcelainV2Status` puts an untracked entry in the same `files` array
+ * that `dirtyCount` measures.
+ *
+ * It counts what is DRAWN, not what that machine holds. When the answer was
+ * capped, `total` and `untrackedTotal` are larger and main's own sentence says
+ * so under the list.
+ */
+export function remoteChangesCount(entry: RemoteChangesEntry): number {
+  return entry.files.length + entry.untracked.length;
+}
 
 /** The entry for one target, or an empty one. Pure, so a render may call it. */
 export function remoteChangesOf(
@@ -149,11 +183,18 @@ export const useRemoteChanges = create<RemoteChangesState>((set, get) => {
         repoPath: list.repoPath,
         files: list.files,
         total: list.total,
+        untracked: list.untracked,
+        untrackedTotal: list.untrackedTotal,
         // A capped list is the only case whose sentence comes from main. The
         // other two answers main puts in this field, being "nothing changed"
         // and "not a repository", are states this store records as states, so
         // the view draws its own sentence for each and no prose is duplicated.
-        note: list.files.length > 0 ? list.note : null,
+        //
+        // PHASE 97 WIDENED THE TEST TO BOTH GROUPS. It used to read
+        // `list.files.length > 0`, which dropped main's capped sentence for an
+        // answer whose only rows are untracked ones.
+        note:
+          list.files.length + list.untracked.length > 0 ? list.note : null,
         notRepo: list.repoPath.length === 0,
         loading: false,
         refreshing: false,

@@ -494,15 +494,41 @@ export function reviewTooLargeNote(megabytes: number): string {
   );
 }
 
-/** A review that found nothing changed. */
+/** A review that found nothing changed and nothing new. */
 export const REVIEW_NOTHING_CHANGED =
-  'Nothing has changed in that folder on the machine since its last commit.';
+  'Nothing has changed in that folder on the machine, and it holds no ' +
+  'untracked files.';
 
-/** More changed files than the menu lists. */
+/**
+ * More files than the answer lists.
+ *
+ * THE NUMBERS CARRY THOUSANDS SEPARATORS, and the fix round moved them. This
+ * sentence and `reviewTooManyEntries` below can be composed for the same
+ * folder, and until the fix they formatted numbers two ways: one printed 5014
+ * and the other printed 10,000. Every other count in Tortie's prose goes
+ * through `toLocaleString`, e.g. the Explorer's own capped-folder sentence, so
+ * that is the style both of these now use.
+ */
 export function reviewMoreFiles(shown: number, total: number): string {
   return (
-    `Showing ${String(shown)} of ${String(total)} changed files. The rest are ` +
-    `not listed here.`
+    `Showing ${shown.toLocaleString()} of ${total.toLocaleString()} files. ` +
+    `The rest are not listed here.`
+  );
+}
+
+/**
+ * More entries than Tortie reads out of one status answer.
+ *
+ * PHASE 97 MADE THIS REACHABLE. The cap belongs to `parsePorcelainV2Status` and
+ * it is 10,000 entries. Until this phase every untracked entry was thrown away
+ * after the parse, so a folder with a large build directory could not reach it.
+ * Now it can, and a count that is a floor has to say so.
+ */
+export function reviewTooManyEntries(limit: number): string {
+  return (
+    `That folder on the machine holds more than ${limit.toLocaleString()} ` +
+    `changed and new files. Tortie read the first ${limit.toLocaleString()} ` +
+    `of them, so the counts here are not the whole folder.`
   );
 }
 

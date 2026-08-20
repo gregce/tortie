@@ -49,7 +49,6 @@ import { Codicon } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
 import {
   REMOTE_SCM_SECTIONS_ABSENT,
-  REMOTE_SCM_UNTRACKED_ABSENT,
   remoteChangesBand,
   remoteChangesNone,
   remoteChangesNotRepo,
@@ -60,9 +59,11 @@ import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import {
   remoteChangesAvailable,
+  remoteChangesCount,
   remoteChangesOf,
   useRemoteChanges
 } from './remote-changes';
+import { registerP97UntrackedDrive } from './p97-untracked-drive';
 import { HistorySection } from './HistorySection';
 import { BranchesView } from './BranchesView';
 import { RunsSection } from './RunsSection';
@@ -86,6 +87,12 @@ import {
 } from './selection';
 import type { ScmGroupId, ScmRow, ScmSelection, ScmVerbs } from './selection';
 import './scm.css';
+
+// The Phase 97 harness hook, registered here for the reason
+// src/renderer/tree/FilesSection.tsx registers its two: this module is the one
+// the Source Control view always loads, so no edit to App.tsx is needed. It
+// assigns one function to `window` and changes no behaviour.
+registerP97UntrackedDrive();
 
 /**
  * SCM view sections, default order (DESIGN-SPEC S3A round 2).
@@ -740,11 +747,23 @@ function RemoteScmSection({
     if (entry.notRepo) {
       return <div className="section-stub">{remoteChangesNotRepo(label)}</div>;
     }
-    if (entry.files.length === 0) {
+    if (remoteChangesCount(entry) === 0) {
       return <div className="section-stub">{remoteChangesNone(label)}</div>;
     }
     return (
       <div className="scm-list" role="list" aria-label="Changed files">
+        {/* PHASE 97. Two group rows in ONE section, which is exactly the split
+            the local panel below draws. It is group rows rather than a second
+            collapsible section, so no second collapse key is stored and a
+            person's existing answer for this section keeps working. Neither
+            row carries an action button, because the local ones stage and
+            unstage and this surface still has no verb that writes. */}
+        {entry.files.length > 0 ? (
+          <div className="scm-group-row">
+            <span className="scm-group-label">{GROUP_LABEL['changes']}</span>
+            <span className="scm-group-count num">{entry.files.length}</span>
+          </div>
+        ) : null}
         {entry.files.map((file) => {
           const badge = remoteBadge(file.status);
           const { dir, base } = splitPath(file.path);
@@ -768,6 +787,38 @@ function RemoteScmSection({
               >
                 {base}
               </span>
+              {dir !== '' ? <span className="scm-row-dir">{dir}</span> : null}
+            </div>
+          );
+        })}
+        {entry.untracked.length > 0 ? (
+          <div className="scm-group-row">
+            <span className="scm-group-label">{GROUP_LABEL['untracked']}</span>
+            <span className="scm-group-count num">
+              {entry.untracked.length}
+            </span>
+          </div>
+        ) : null}
+        {entry.untracked.map((file) => {
+          const { dir, base } = splitPath(file.path);
+          return (
+            <div
+              // A path that somehow reached both groups cannot collide here.
+              key={`u:${file.path}`}
+              role="listitem"
+              className="scm-hfile"
+              // An untracked file has no rename to report, so the title is the
+              // path and nothing else.
+              title={file.path}
+              onClick={() => open(file)}
+            >
+              {/* The badge is fixed rather than read from the letter, which is
+                  the same short circuit `badgeFor` makes for the local
+                  untracked group. The group decides the badge. */}
+              <span className="scm-badge scm-badge-added" aria-hidden="true">
+                U
+              </span>
+              <span className="scm-row-name">{base}</span>
               {dir !== '' ? <span className="scm-row-dir">{dir}</span> : null}
             </div>
           );
@@ -799,8 +850,13 @@ function RemoteScmSection({
               <Codicon name="chevron-down" size={12} />
             </span>
             Changes
+            {/* PHASE 97. Both groups, because the header counts what is in
+                the section and the section now holds two groups. The fix round
+                moved the sum into `remoteChangesCount`, so this header and the
+                activity rail's badge cannot state two different numbers for
+                one folder. They did for one round, and it was on screen. */}
             <span className="section-count num">
-              {entry.files.length > 0 ? entry.files.length : ''}
+              {remoteChangesCount(entry) > 0 ? remoteChangesCount(entry) : ''}
             </span>
           </button>
           <span className="section-spacer" />
@@ -833,13 +889,6 @@ function RemoteScmSection({
       ) : null}
       {entry.readAt > 0 ? (
         <p className="scm-remote-note">{remoteReadAt(entry.readAt)}</p>
-      ) : null}
-      {/* PHASE 90.3 FIX ROUND. Said wherever the rows are, because a person
-          who creates a file over there and sees nothing needs the reason. Not
-          said for a folder that is not in a repository, where there is no
-          tracked and untracked to tell apart. */}
-      {!entry.notRepo && entry.readAt > 0 ? (
-        <p className="scm-remote-note">{REMOTE_SCM_UNTRACKED_ABSENT}</p>
       ) : null}
       {/* Said once, rather than three empty sections. */}
       <p className="scm-remote-note">{REMOTE_SCM_SECTIONS_ABSENT}</p>

@@ -13,6 +13,9 @@
  *     and none of them can change anything on either computer.
  *  4. A machine that did not answer is a state and not a thrown error, so the
  *     view draws a sentence rather than a stack.
+ *  5. PHASE 97. It records TWO groups, being the tracked files and the files
+ *     git is not yet tracking, each with a count of its own. It still has no
+ *     verb that writes, and case 3 above is what proves that after the change.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,6 +38,10 @@ function answer(over: Record<string, unknown> = {}): unknown {
     repoPath: '/home/greg/api',
     files: [{ path: 'src/auth.ts', origPath: null, status: 'M' }],
     total: 1,
+    // PHASE 97. Every case written before this phase keeps passing byte for
+    // byte, because an answer with no new file in it is the empty pair.
+    untracked: [],
+    untrackedTotal: 0,
     note: null,
     ...over
   };
@@ -180,6 +187,60 @@ describe('what a machine said is a state and never a thrown error', () => {
     const entry = remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO);
     expect(entry.note).toBe('Showing the first 200 of 900 files.');
     expect(entry.total).toBe(900);
+  });
+});
+
+describe('the two groups Phase 97 added', () => {
+  it('carries the untracked group into the entry', async () => {
+    reviewFiles.mockResolvedValueOnce(
+      answer({
+        untracked: [
+          { path: 'src/agent-notes.md', origPath: null, status: 'A' },
+          { path: 'tools/p97-new.ts', origPath: null, status: 'A' }
+        ],
+        untrackedTotal: 2
+      })
+    );
+    useRemoteChanges.getState().ensure(STUDIO);
+    await flush();
+    const entry = remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO);
+    expect(entry.files.map((one) => one.path)).toEqual(['src/auth.ts']);
+    expect(entry.total).toBe(1);
+    expect(entry.untracked.map((one) => one.path)).toEqual([
+      'src/agent-notes.md',
+      'tools/p97-new.ts'
+    ]);
+    expect(entry.untrackedTotal).toBe(2);
+  });
+
+  it("keeps main's capped sentence when only the untracked group has rows", async () => {
+    // THIS IS THE CASE THAT FAILS ON THE OLD CONDITION. It read
+    // `list.files.length > 0`, so an answer whose rows are all untracked lost
+    // the one sentence main composes, and the person was told nothing about a
+    // list that had been cut.
+    reviewFiles.mockResolvedValueOnce(
+      answer({
+        files: [],
+        total: 0,
+        untracked: [{ path: 'tools/p97-new.ts', origPath: null, status: 'A' }],
+        untrackedTotal: 40,
+        note: 'Showing 30 of 40 files. The rest are not listed here.'
+      })
+    );
+    useRemoteChanges.getState().ensure(STUDIO);
+    await flush();
+    const entry = remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO);
+    expect(entry.note).toBe(
+      'Showing 30 of 40 files. The rest are not listed here.'
+    );
+    expect(entry.untrackedTotal).toBe(40);
+    expect(entry.notRepo).toBe(false);
+  });
+
+  it('starts every target with both groups empty rather than undefined', () => {
+    const entry = remoteChangesOf({}, STUDIO);
+    expect(entry.untracked).toEqual([]);
+    expect(entry.untrackedTotal).toBe(0);
   });
 });
 

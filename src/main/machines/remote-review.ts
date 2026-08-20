@@ -54,6 +54,19 @@
  *
  * `review-file` answers with the `HEAD` copy and the working copy.
  *
+ * ## Two groups, since Phase 97
+ *
+ * The listing comes back as two arrays rather than one. `files` holds the
+ * tracked entries, being what changed against the last commit. `untracked`
+ * holds the entries git is not yet tracking, being the files an agent on that
+ * machine just made. IGNORED ENTRIES ARE STILL DROPPED, so a build directory
+ * never reaches a person's screen.
+ *
+ * Each group is capped on its own by {@link REMOTE_REVIEW_MAX_FILES}, so one
+ * answer carries at most 60 rows. The cap is per group because git prints every
+ * tracked entry before the first untracked one, and one flat cap over the pair
+ * would hide the whole untracked group in any folder with 30 changed files.
+ *
  * ## What this module never does
  *
  *  - It never reads a working tree on this Mac. Both sides come from the
@@ -71,13 +84,14 @@ import type {
 } from '@shared/ipc';
 import type { GitCommitFileState } from '@shared/types';
 import { gmuxError } from '../errors';
-import { parsePorcelainV2Status } from '../git/parse';
+import { STATUS_LIMIT, parsePorcelainV2Status } from '../git/parse';
 import { runRemoteRead } from './remote-run';
 import {
   REVIEW_NOTHING_CHANGED,
   REVIEW_NOT_A_REPOSITORY,
   reviewMoreFiles,
-  reviewTooLargeNote
+  reviewTooLargeNote,
+  reviewTooManyEntries
 } from './remote-copy';
 import { readyRemoteContext } from './remote-sessions';
 import { machineLabelOf, machineRow } from './store';
@@ -91,7 +105,13 @@ import { machineLabelOf, machineRow } from './store';
  */
 export const REMOTE_REVIEW_MAX_BYTES = 2 * 1024 * 1024;
 
-/** The most files one review lists. Chosen, so a menu stays a menu. */
+/**
+ * The most files one review lists PER GROUP. Chosen, so a menu stays a menu.
+ *
+ * PHASE 97 MADE IT PER GROUP. It used to cap one flat list. A folder with 30
+ * changed files would then have carried no untracked row at all, because git
+ * prints every tracked entry first. One answer now carries at most 60 rows.
+ */
 export const REMOTE_REVIEW_MAX_FILES = 30;
 
 /** How long one review read gets on the machine. Chosen, not measured. */
@@ -217,7 +237,13 @@ function decodeWord(word: string, which: string): Buffer {
 }
 
 /**
- * Split the `review-list` answer into the repository root and its files. Pure.
+ * Split the `review-list` answer into the repository root and its two file
+ * groups. Pure.
+ *
+ * `files` holds the tracked entries and `untracked` holds the ones git is not
+ * yet tracking. `truncated` is `parsePorcelainV2Status`'s own flag, carried out
+ * because Phase 97 is what makes {@link STATUS_LIMIT} reachable and a count
+ * that is a floor has to say so.
  *
  * Returns null when the answer holds no repository root, which is what a folder
  * that is not inside a repository answers with.
@@ -231,6 +257,8 @@ function decodeWord(word: string, which: string): Buffer {
 export function parseRemoteReviewListing(payload: string): {
   repoPath: string;
   files: RemoteReviewFile[];
+  untracked: RemoteReviewFile[];
+  truncated: boolean;
 } | null {
   const { left, right } = decodeRemoteAnswer(
     payload,
@@ -251,18 +279,29 @@ export function parseRemoteReviewListing(payload: string): {
   }
   const parsed = parsePorcelainV2Status(body);
   const files: RemoteReviewFile[] = [];
+  const untracked: RemoteReviewFile[] = [];
   for (const file of parsed.files) {
-    // Untracked and ignored entries are not part of a review: the question is
-    // what changed against the last commit, and a file git has never seen has
-    // no other side to show.
-    if (file.indexState === '?' || file.indexState === '!') continue;
+    // An ignored entry stays out. A person asked what changed in a folder and
+    // a build directory is not an answer to that question.
+    if (file.indexState === '!') continue;
+    if (file.indexState === '?') {
+      // PHASE 97. A file git is not yet tracking. The letter is `A` because
+      // against the last commit a new file is an addition, and because `A` is
+      // the one member of GitCommitFileState whose badge class is already the
+      // added one. The view fixes the badge for this group rather than reading
+      // this letter, so it is a truthful value nothing depends on.
+      untracked.push({ path: file.path, origPath: null, status: 'A' });
+      continue;
+    }
     files.push({
       path: file.path,
       origPath: file.origPath ?? null,
       status: letterOf(file.indexState, file.worktreeState)
     });
   }
-  return { repoPath: root, files };
+  // Neither array is sorted. Git prints both groups in path order already, and
+  // the tracked list has never been sorted here.
+  return { repoPath: root, files, untracked, truncated: parsed.truncated };
 }
 
 /**
@@ -313,11 +352,14 @@ function labelOf(machineId: string): string {
 }
 
 /**
- * Every tracked file in one folder on one machine that differs from `HEAD`.
+ * Every tracked file in one folder on one machine that differs from `HEAD`,
+ * and every file in it git is not yet tracking.
  *
  * The folder is the session's own folder, which is a path on that machine and
  * never a path on this Mac. Nothing is read here, on either computer, beyond
- * what git prints.
+ * what git prints. PHASE 97 ADDED THE SECOND GROUP WITHOUT ADDING A READ: the
+ * untracked entries were already in the one answer this function has always
+ * asked for, and they were thrown away after the parse.
  */
 export async function reviewFilesOn(input: {
   machineId: string;
@@ -337,22 +379,36 @@ export async function reviewFilesOn(input: {
       repoPath: '',
       files: [],
       total: 0,
+      untracked: [],
+      untrackedTotal: 0,
       note: REVIEW_NOT_A_REPOSITORY
     };
   }
   const total = listing.files.length;
+  const untrackedTotal = listing.untracked.length;
+  // Each group is cut on its own. See the header for why one flat cut would
+  // have hidden the whole untracked group in an ordinary working folder.
   const files = listing.files.slice(0, REMOTE_REVIEW_MAX_FILES);
+  const untracked = listing.untracked.slice(0, REMOTE_REVIEW_MAX_FILES);
+  const shown = files.length + untracked.length;
+  const all = total + untrackedTotal;
   return {
     machineId: input.machineId,
     machineLabel,
     repoPath: listing.repoPath,
     files,
     total,
-    note:
-      total === 0
+    untracked,
+    untrackedTotal,
+    // The first sentence that is true wins. A folder over the parser's own cap
+    // is said first, because every count under it is a floor rather than a
+    // total and a person reading the other sentences would not know that.
+    note: listing.truncated
+      ? reviewTooManyEntries(STATUS_LIMIT)
+      : all === 0
         ? REVIEW_NOTHING_CHANGED
-        : total > files.length
-          ? reviewMoreFiles(files.length, total)
+        : shown < all
+          ? reviewMoreFiles(shown, all)
           : null
   };
 }

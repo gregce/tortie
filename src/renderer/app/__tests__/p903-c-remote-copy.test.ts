@@ -9,6 +9,10 @@
  *
  * ONE RULE IS CHECKED THAT NO AUDIT CAN CHECK. The word "remote" never reaches
  * a person. Every sentence names the label the person gave the machine.
+ *
+ * PHASE 97 MOVED THREE THINGS HERE. `remoteChangesNone` answers for both groups
+ * now, `reviewUntrackedTitle` is new, and the sentence saying a new file is not
+ * listed is deleted, because the list holds it.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -28,7 +32,6 @@ import {
   REMOTE_BAND_BODY,
   REMOTE_COPIED_WITH_MACHINE,
   REMOTE_SCM_SECTIONS_ABSENT,
-  REMOTE_SCM_UNTRACKED_ABSENT,
   remoteBandTitle,
   remoteChangesBand,
   remoteChangesNone,
@@ -52,6 +55,7 @@ import {
   remoteTreeReadOnly,
   remoteTreeTruncated,
   remoteTreeUnreachable,
+  reviewUntrackedTitle,
   SYMBOLS_ELSEWHERE_BODY,
   symbolsElsewhereTitle
 } from '../machine-copy';
@@ -129,8 +133,11 @@ describe('Source Control', () => {
       'These changes are on Studio. Tortie can show them and cannot change ' +
         'them.'
     );
+    // PHASE 97 WIDENED THIS ONE. The list now holds both groups, so the
+    // sentence for an empty folder has to answer for both.
     expect(remoteChangesNone(L)).toBe(
-      'Nothing has changed in that folder on Studio.'
+      'Nothing has changed in that folder on Studio, and it holds no ' +
+        'untracked files.'
     );
     expect(remoteChangesUnreachable(L)).toBe(
       'Studio did not answer, so Tortie could not read what changed.'
@@ -147,14 +154,28 @@ describe('Source Control', () => {
     );
   });
 
-  it('says why a file somebody just made over there is not in the list', () => {
-    // PHASE 90.3 FIX ROUND. The read behind the list drops an untracked and an
-    // ignored entry, and the Source Control view for a folder on this Mac has
-    // an Untracked group where this one has no equivalent. Without this line a
-    // new file over there is simply absent and nothing says why.
-    expect(REMOTE_SCM_UNTRACKED_ABSENT).toBe(
-      'A file that git is not yet tracking is not listed here.'
-    );
+  it('no longer says a new file is missing, because it is not missing', () => {
+    // PHASE 97 DELETED THAT SENTENCE. Phase 90.3 wrote it because the read
+    // behind the list threw every untracked entry away, so a file somebody
+    // had just created over there was simply absent. This phase carries those
+    // entries into their own group, so the sentence became untrue and the
+    // constant is gone from the copy module and from the surface that drew it.
+    // This is the shape the `Files pair` describe at the foot of this file
+    // already uses, which is how this file pins a deletion.
+    for (const rel of [
+      'src/renderer/app/machine-copy.ts',
+      'src/renderer/scm/ScmSection.tsx'
+    ]) {
+      const source = readFileSync(resolve(ROOT, rel), 'utf8');
+      expect(source).not.toContain('REMOTE_SCM_UNTRACKED_ABSENT');
+      expect(source).not.toContain(
+        'A file that git is not yet tracking is not listed here.'
+      );
+    }
+  });
+
+  it('heads the new files in the session menu with the machine', () => {
+    expect(reviewUntrackedTitle(L)).toBe('Untracked on Studio');
   });
 });
 
@@ -277,7 +298,7 @@ const EVERY: readonly string[] = [
   remoteChangesUnreachable(L),
   remoteChangesNotRepo(L),
   REMOTE_SCM_SECTIONS_ABSENT,
-  REMOTE_SCM_UNTRACKED_ABSENT,
+  reviewUntrackedTitle(L),
   quickOpenElsewhereTitle(L),
   QUICK_OPEN_ELSEWHERE_BODY,
   symbolsElsewhereTitle(L),
@@ -321,7 +342,16 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
   });
 
   it('is complete sentences, each ending in a full stop', () => {
-    expect(EVERY.filter((one) => !one.endsWith('.'))).toEqual([]);
+    // PHASE 97. One entry is exempt and it is named here rather than filtered
+    // out by a pattern. `reviewUntrackedTitle` is a heading over a group of
+    // menu rows, and a heading is not a sentence. It is in the set anyway, so
+    // the dash rule, the colon rule and the "never say remote" rule all read
+    // it. Every other entry must be a complete sentence ending in a full stop.
+    const exempt = reviewUntrackedTitle(L);
+    expect(
+      EVERY.filter((one) => one !== exempt && !one.endsWith('.'))
+    ).toEqual([]);
+    expect(exempt).toBe('Untracked on Studio');
   });
 
   it('never says the word remote to a person', () => {
@@ -350,7 +380,6 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
       remoteTreeTruncated(4000, 12500, 4000),
       REMOTE_COPIED_WITH_MACHINE,
       REMOTE_SCM_SECTIONS_ABSENT,
-      REMOTE_SCM_UNTRACKED_ABSENT,
       QUICK_OPEN_ELSEWHERE_BODY,
       SYMBOLS_ELSEWHERE_BODY,
       addRemoteRefusal('notAbsolute', P, L),

@@ -940,6 +940,10 @@ export interface MachineReviewList {
   files: MachineReviewFile[];
   /** How many changed files there were, when only the first ones are listed. */
   total: number;
+  /** PHASE 97. Files in that folder git is not yet tracking. Never an ignored file. */
+  untracked: MachineReviewFile[];
+  /** PHASE 97. How many untracked files there were, when only the first ones are listed. */
+  untrackedTotal: number;
   /** One sentence when there is nothing to show. Null when there is. */
   note: string | null;
 }

@@ -572,6 +572,18 @@ export function reviewListTitle(machineLabel: string): string {
   return `Changed on ${machineLabel}`;
 }
 
+/**
+ * The title over the new files in the same list (Phase 97).
+ *
+ * It is a second heading rather than more rows under the first one, because a
+ * file git has never seen is a different thing from a file that changed. The
+ * Source Control panel for a folder on this Mac has drawn that split since
+ * Phase 4, and this menu now draws the same one.
+ */
+export function reviewUntrackedTitle(machineLabel: string): string {
+  return `Untracked on ${machineLabel}`;
+}
+
 // ---------------------------------------------------------------------------
 // The conversation copy (Phase 73, M6, item 5)
 // ---------------------------------------------------------------------------
@@ -918,9 +930,19 @@ export function remoteChangesBand(label: string): string {
   );
 }
 
-/** Nothing in that folder differs from its last commit. */
+/**
+ * Nothing in that folder differs from its last commit and nothing is new.
+ *
+ * PHASE 97 WIDENED THIS SENTENCE. Until this phase the list held tracked files
+ * only, so the old wording was true about the half it could see and silent
+ * about the other half. The list now holds both halves, so the sentence says
+ * both.
+ */
 export function remoteChangesNone(label: string): string {
-  return `Nothing has changed in that folder on ${label}.`;
+  return (
+    `Nothing has changed in that folder on ${label}, and it holds no ` +
+    `untracked files.`
+  );
 }
 
 /** The machine did not answer the Source Control read. */
@@ -943,20 +965,6 @@ export function remoteChangesNotRepo(label: string): string {
 export const REMOTE_SCM_SECTIONS_ABSENT =
   'Tortie shows the changed files for a folder on another machine. It does ' +
   'not show history, branches or runs there.';
-
-/**
- * Why a file somebody just created over there is not in the list.
- *
- * PHASE 90.3 FIX ROUND. The read behind this list drops an untracked and an
- * ignored entry, in src/main/machines/remote-review.ts, and that behaviour
- * predates this phase. The Source Control view for a folder on THIS Mac has an
- * Untracked group, and the one for a folder on another machine has no
- * equivalent, so without this line a new file over there is simply absent and
- * nothing says why. Measured on 2026-08-19: `git status --porcelain` over there
- * reported one modified file and one untracked file, and the panel drew 1 row.
- */
-export const REMOTE_SCM_UNTRACKED_ABSENT =
-  'A file that git is not yet tracking is not listed here.';
 
 // -- Quick Open and the symbol palette ---------------------------------------
 //

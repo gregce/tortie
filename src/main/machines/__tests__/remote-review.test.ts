@@ -77,9 +77,10 @@ const {
   reviewFilesOn
 } = await import('../remote-review');
 
-const { REVIEW_NOTHING_CHANGED, REVIEW_NOT_A_REPOSITORY } = await import(
-  '../remote-copy'
-);
+const { REVIEW_NOTHING_CHANGED, REVIEW_NOT_A_REPOSITORY, reviewTooManyEntries } =
+  await import('../remote-copy');
+
+const { STATUS_LIMIT } = await import('../../git/parse');
 
 /** One porcelain v2 tracked record. */
 function tracked(xy: string, path: string): string {
@@ -155,13 +156,18 @@ describe('reading the listing', () => {
     ]);
   });
 
-  it('leaves untracked and ignored files out', () => {
-    // A review is about what changed against the last commit. A file git has
-    // never seen has no other side to show.
+  it('carries untracked files and leaves ignored ones out', () => {
+    // PHASE 97. A file an agent just made over there is the thing a person is
+    // looking for, so it comes back in its own array. An ignored file does not
+    // come back at all, because a build directory is not an answer to the
+    // question a person asked.
     const parsed = parseRemoteReviewListing(
       listing('/r', [tracked('.M', 'a.ts'), '? new.ts', '! build/out.js'])
     );
     expect(parsed?.files.map((one) => one.path)).toEqual(['a.ts']);
+    expect(parsed?.untracked).toEqual([
+      { path: 'new.ts', origPath: null, status: 'A' }
+    ]);
   });
 
   it('refuses an answer that is not porcelain v2, and says so', () => {
@@ -265,6 +271,69 @@ describe('the two answers', () => {
     expect(list.files).toHaveLength(REMOTE_REVIEW_MAX_FILES);
     expect(list.total).toBe(REMOTE_REVIEW_MAX_FILES + 4);
     expect(list.note).toContain(String(REMOTE_REVIEW_MAX_FILES + 4));
+  });
+
+  it('caps each group on its own', async () => {
+    // PHASE 97. Git prints every tracked entry before the first untracked one,
+    // so one flat cut over the pair would have carried no untracked row at all
+    // out of a folder with 30 changed files. This is the case that fails on a
+    // flat cap.
+    const over = REMOTE_REVIEW_MAX_FILES + 4;
+    const records = [
+      ...Array.from({ length: over }, (_one, at) =>
+        tracked('.M', `src/file-${String(at)}.ts`)
+      ),
+      ...Array.from({ length: over }, (_one, at) => `? src/new-${String(at)}.ts`)
+    ];
+    answers['review-list'] = listing('/r', records);
+    const list = await reviewFilesOn({ machineId: 'studio', cwd: '/r' });
+    expect(list.files).toHaveLength(REMOTE_REVIEW_MAX_FILES);
+    expect(list.untracked).toHaveLength(REMOTE_REVIEW_MAX_FILES);
+    expect(list.total).toBe(over);
+    expect(list.untrackedTotal).toBe(over);
+    expect(list.note).toContain(String(over * 2));
+  });
+
+  it('says nothing changed only when both groups are empty', async () => {
+    // A folder whose only difference is a file somebody just made has
+    // something to show, so the sentence that says it has nothing must not
+    // fire. That sentence beside a listed file is two surfaces disagreeing
+    // about one folder.
+    answers['review-list'] = listing('/r', ['? only-new.ts']);
+    const some = await reviewFilesOn({ machineId: 'studio', cwd: '/r' });
+    expect(some.files).toEqual([]);
+    expect(some.untracked.map((one) => one.path)).toEqual(['only-new.ts']);
+    expect(some.note).toBeNull();
+
+    answers['review-list'] = listing('/r', []);
+    const none = await reviewFilesOn({ machineId: 'studio', cwd: '/r' });
+    expect(none.note).toBe(REVIEW_NOTHING_CHANGED);
+  });
+
+  it('says so when the machine holds more entries than Tortie reads', async () => {
+    // PHASE 97 MADE THIS REACHABLE. The parser stops at STATUS_LIMIT entries.
+    // Until this phase every untracked entry was thrown away after the parse,
+    // so a folder with a large build directory could not reach it. Now it can,
+    // and a count that is a floor has to say so.
+    answers['review-list'] = listing(
+      '/r',
+      Array.from({ length: STATUS_LIMIT + 5 }, (_one, at) => `? f-${String(at)}.ts`)
+    );
+    const list = await reviewFilesOn({ machineId: 'studio', cwd: '/r' });
+    expect(list.note).toBe(reviewTooManyEntries(STATUS_LIMIT));
+  });
+
+  it('asks the machine for nothing extra', async () => {
+    // The untracked entries were already inside the one answer this verb has
+    // always asked for. If somebody ever answers this phase with a second
+    // read, this is the case that fails.
+    answers['review-list'] = listing('/r', [
+      tracked('.M', 'a.ts'),
+      '? new.ts',
+      '! build/out.js'
+    ]);
+    await reviewFilesOn({ machineId: 'studio', cwd: '/r' });
+    expect(asked).toEqual([{ script: 'review-list', args: ['/r'] }]);
   });
 
   it('reads one file at its own path, with the cap as a value', async () => {

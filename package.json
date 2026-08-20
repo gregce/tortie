@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.49.2",
+  "version": "0.50.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -34,6 +34,7 @@
     "probe:p93": "npm run build && node build/harness-socket.mjs gmux-p93-attention 'node build/probe-p93-attention.mjs'",
     "probe:p96": "npm run build && node build/harness-socket.mjs gmux-p96-remote 'node build/probe-p96-remote-surfaces.mjs'",
     "probe:p95": "npm run build && node build/harness-socket.mjs --fresh gmux-p95-scroll 'export GMUX_CONFIG_ROOT=\"${GMUX_CONFIG_ROOT:-${TMPDIR:-/tmp/}gmux-p95-scroll}\"; node build/with-scratch-machine.mjs -- node build/probe-p95-scroll.mjs'",
+    "probe:p97": "npm run build && node build/harness-socket.mjs gmux-p97-untracked 'node build/probe-p97-untracked.mjs'",
     "probe:remotetree": "node build/probe-remote-tree.mjs",
     "probe:shellpath": "npm run build && node build/harness-socket.mjs gmux-p81-path 'node build/probe-shell-path.mjs'",
     "smoke:power": "npm run build && GMUX_POWER_ROOT=\"${TMPDIR:-/tmp/}gmux-smoke-power\" GMUX_TMUX_SOCKET=\"gmux-power-$$\" GMUX_SMOKE=power electron . --user-data-dir=\"${TMPDIR:-/tmp/}gmux-smoke-power/profile\" -ApplePersistenceIgnoreState YES",

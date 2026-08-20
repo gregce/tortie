@@ -43,7 +43,8 @@ import {
   SAVED_OUTPUT_NONE,
   reviewItemLabel,
   reviewListTitle,
-  reviewNotAnsweringSublabel
+  reviewNotAnsweringSublabel,
+  reviewUntrackedTitle
 } from './machine-copy';
 
 /**
@@ -439,18 +440,44 @@ async function openRemoteReview(
     app.toast('error', errorText(err));
     return;
   }
-  if (list.files.length === 0) {
+  // PHASE 97. Both groups, because this menu and the Source Control panel read
+  // ONE answer and must never disagree about one folder. Until this phase the
+  // guard read `list.files.length === 0`, so a folder whose only change was a
+  // new file got no menu at all while the panel three inches away listed the
+  // file.
+  if (list.files.length === 0 && list.untracked.length === 0) {
     if (list.note !== null) app.toast('info', list.note);
     return;
   }
-  const items: (MenuItemSpec | 'sep')[] = [
-    { label: reviewListTitle(machine.label), disabled: true, run: () => {} },
-    'sep',
-    ...list.files.map((file) => ({
-      label: file.path,
-      run: () => openReviewTab(list, file)
-    }))
-  ];
+  const items: (MenuItemSpec | 'sep')[] = [];
+  if (list.files.length > 0) {
+    items.push(
+      { label: reviewListTitle(machine.label), disabled: true, run: () => {} },
+      'sep',
+      ...list.files.map((file) => ({
+        label: file.path,
+        run: () => openReviewTab(list, file)
+      }))
+    );
+  }
+  // A file git has never seen opens through the same gesture. It arrives with
+  // `origPath` null, which `openReviewTab` already handles, and the machine
+  // answers with an empty left side, so the tab is all green.
+  if (list.untracked.length > 0) {
+    if (items.length > 0) items.push('sep');
+    items.push(
+      {
+        label: reviewUntrackedTitle(machine.label),
+        disabled: true,
+        run: () => {}
+      },
+      'sep',
+      ...list.untracked.map((file) => ({
+        label: file.path,
+        run: () => openReviewTab(list, file)
+      }))
+    );
+  }
   // Main says when it listed only the first files, and the sentence is drawn
   // under them rather than instead of them.
   if (list.note !== null) {

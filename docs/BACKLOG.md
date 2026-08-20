@@ -6298,7 +6298,7 @@ and `npm run conformance:installs` both passed.
 | RECORD | The same file keeps the same mistake two lines below the fix. `src/main/machines/remote-run.ts:269` prints `out.length` as "byte(s)" in an error sentence, and `:284` returns `bytes: out.length`, which `remote-harvest.ts` adds into a running total. Both are UTF-16 code unit counts named bytes. The audit named the guard and only the guard, so this was left alone deliberately. Every payload between the markers is base64 or ASCII today, where the two counts agree. |
 | RECORD | Defect 5 from research 57 section 9 is still open. `--absolute-git-dir` in `src/main/git/service.ts` should be `--git-common-dir`. It is cosmetic on this Mac and the later git phases carry it. Defects 6 and 7 are prose and Phase 103 rewrites one of them anyway. |
 
-## Phase 97 — untracked files in the remote Changes list (research 57 row, queued 2026-08-19) QUEUED
+## Phase 97 — untracked files in the remote Changes list (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-19 (this commit, 0.50.0, gates green, 6,625 tests)
 
 **Subject:** `feat(scm): the remote Changes list shows files an agent just created`
 **First body line:** `Phase 97: untracked files in the remote Changes list`
@@ -6321,6 +6321,40 @@ Ignored entries stay out. Staging is Phase 103.
 ### The evidence
 
 Create a file on the loopback scratch machine, prove it appears in the list, prove it opens as an all-green diff, and prove an ignored file still does not appear. Delete the sentence that said untracked files are missing. Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers. `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when `GMUX_SHOT` or `GMUX_SMOKE` is set, so a launch without one of those silently uses his real server.
+
+### What shipped, and how each claim was proved
+
+`parseRemoteReviewListing` in `src/main/machines/remote-review.ts` now keeps a `?` entry in a second
+array and still drops an `!` entry, so an ignored file never reaches the renderer. The cap is applied
+per group and both totals cross to the renderer on `MachineReviewList`. The panel draws two group
+rows through the one `GROUP_LABEL` map the local panel already reads, so the two lists cannot drift
+apart in their wording. The activity rail badge and the section header now come from one function,
+`scmBadgeCount` in `src/renderer/app/ActivityBar.tsx`, and both count a file git is not yet tracking.
+
+| Claim | How it was proved | The number |
+| --- | --- | --- |
+| A new file on a machine reaches the list | `npm run probe:remotereview` against a loopback scratch machine with a real repository and a real sshd | 3 changed, 1 untracked |
+| It opens all green | sha256 of both sides, computed by Tortie and by git on the same file | left side `e3b0c442`, the empty string |
+| An ignored file is still absent | the same run, with the file named in a committed `.gitignore` | not listed, out of 4 listed paths |
+| The panel draws both groups | `npm run probe:p97` in the running app, read from a screenshot | header 5, `Changes 2` and `Untracked 3` |
+| No new git verb reaches a machine | `npm run conformance:machines` | 5 git commands, the same 5 as before |
+
+### What is not true, said plainly
+
+- Both computers were this Mac. No Linux machine and no machine of the operator's was contacted.
+- No single run went from a real file on a real machine to a photographed row. The loopback run
+  proves what main answers. The harness run proves what Tortie draws for such an answer. Neither
+  leg covers the other.
+- The Monaco diff editor drawing an untracked file was never photographed. The all-green claim
+  rests on the sha256 pair above.
+- Staging is not here. A row in the Untracked group can be opened and read, and nothing about it
+  can be staged. That is Phase 103.
+
+### Nits recorded by this round, none of them blocking
+
+| Status | The nit |
+| --- | --- |
+| RECORD | `reviewMoreFiles` and `reviewTooManyEntries` in `src/main/machines/remote-copy.ts` both use `toLocaleString` now, so the panel prints one number style. `machine-copy.ts:498` still uses `String(total)` for the capped-folder sentence in the Explorer. That is a different surface and it was left alone deliberately. |
 
 ## Phase 98 — search on a machine (research 57 row, queued 2026-08-19) QUEUED
 
