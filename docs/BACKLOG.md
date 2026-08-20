@@ -6600,6 +6600,28 @@ capture.ts probe shapes against the real 2.10.0 binary, not against 2.8.0 memory
 **Release note.** This closes github issue 10 for the next release, and the operator may want to
 reply on the issue when it ships. That reply is his, not an agent's.
 
+## Phase 119 — decline capture on restore, the insurance verb (ruled out of Phase 115 by research 59) QUEUED, after Phase 115
+
+**Subject:** `feat(restore): a captured session can come back bare, without its wrapper`
+**First body line:** `Phase 119: decline capture on restore`
+**Semver:** minor.
+**Tier 3.** Research 59 section 9 rejected Tier 2 by name, because this edits `armableResumeArgv`
+and `restartSession`, which are restore and lifecycle code, and the tier table sends those to
+Tier 3 without exception.
+
+**Charter.** `docs/research/59-specstory-entitlements.md` section 5, the recovery half. Today
+`armableResumeArgv` in `src/main/restore/restore.ts` reaches its re-wrap and bare agent arms only
+when the recorded `capture.bin` no longer exists, and a bundled bad binary always exists, so neither
+Restore nor Restart can decline capture by choice. Making it a choice needs the `sessions:restore`
+contract in `src/shared/ipc`, the derived preload bridge, an option on `restartSession`, a secondary
+action on the exited card, and the native menu edit the UI rules require. Research 59 says no honest
+file count exists yet and THE SPEC MUST ENUMERATE THE FILES RATHER THAN ESTIMATE THEM.
+
+**Why it is after Phase 115 and not inside it.** Research 59 rejected folding it in, because it adds
+a user facing surface and an IPC change to a durability phase, and 115's own fix removes the urgent
+case: after 115 the healed binary sits at the same recorded path and both verbs succeed. This phase
+is insurance against the NEXT bad wrapper, and the entry says so rather than claiming urgency.
+
 ## Phases 116 to 118 — the audit's safety rungs (docs/audits/2026-08-20-electron-typescript-architecture.md) QUEUED
 
 The 2026-08-20 audit is the current architecture authority and CLAUDE.md already points at it. Its
