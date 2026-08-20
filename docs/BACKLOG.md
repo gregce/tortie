@@ -7754,6 +7754,273 @@ Tier 3. A verifier that only reads code has not verified this phase. Every item 
 18. **Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers.** `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when one of `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL` is set. A launch without one of those logs `GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.` through `tmuxLog.warn` and then uses his real server, so the warning is in the log and the sessions at risk are his.
 19. **Say what is not true.** Name what was measured on the loopback machine only and never on the Mac Pro. Name whether any Linux machine was contacted. Name whether a signing configuration was ever exercised, and if it was not, say that hazard 2 is answered by design and by one photographed sentence rather than by measurement. Say plainly that the window between main's `review-list` re-read and the far side's commit is one round trip wide and is not closed.
 
+## Phase 109 — which agents the machine you are creating on actually has (research 58 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(machines): Tortie asks each machine which agents it has`
+**First body line:** `Phase 109: which agents the machine you are creating on actually has`
+**Semver:** minor. It adds a capability and it corrects two defects. The committer says which in the body.
+**Tier 3.** Size Medium.
+**Charter:** this entry plus `docs/research/58-agents-per-machine.md`. That document measured or counted every number here and its rulings bind this phase.
+
+**Why Tier 3, and it is not a default.** CLAUDE.md makes anything claimed to work universally
+across agents Tier 3, and this phase claims exactly that, being one answer for all 11 launchable
+registry entries on every confirmed machine. It also corrects `program-find`, which is on the remote
+RESTORE path at `src/main/machines/remote-restore.ts:339`, and restore is durability. A wrong answer
+here costs work in two shapes. A false absent takes an agent off the board that is really installed
+over there and gives you no way to overrule it. A false present sends you through the whole create
+sheet to a refusal. Reading the code proves neither. Only a per agent matrix, driven against a real
+machine and checked against that machine's own answer, can.
+
+**Depends on.** Nothing. It must land before any later phase adds a fifth surface that lists agents.
+
+### The defect this phase actually fixes, because the obvious one is backwards
+
+`AgentTile` in `src/renderer/app/AgentGrid.tsx` computes `unusable` as
+`!option.installed || blocked !== null`, and `option.installed` comes from `buildAgentOptions` in
+`src/renderer/state/agents.ts`, which takes `(scan, avail)` and no machine. Both inputs describe
+THIS Mac. So on a tab whose files are on a machine, an agent that is installed over there and absent
+here is ALREADY greyed out and ALREADY unselectable, and no control in the product overrules it.
+That is the error that removes a capability, and it needs no network to fix. The opposite error,
+being an agent present here and absent there, is caught at step 5 of `remoteCreate` by
+`remoteBinFor`, which runs before `noteIssuedRemoteId`, before the manifest row at step 7 and before
+the `new-session` at step 8, so nothing starts and no pane opens. That part is mechanically correct
+and only its DRAWING changes here.
+
+### The mechanism, in five parts
+
+**Part 1. The local bit stops deciding a machine tab, and it costs zero round trips.**
+`buildAgentOptions` gains a third input, being the answer Tortie holds for the tab's machine, and
+`installed` on a machine tab is decided by that answer alone. Three surfaces read it, being
+`src/renderer/app/CreateSessionModal.tsx`, `src/renderer/app/EmptyStates.tsx` and
+`src/renderer/app/new-session-menu.ts`. A fourth surface, `launchAgent` in
+`src/renderer/settings/integration.ts`, reads no `installed` and goes straight to `createSession`,
+which is where the refusal is written once, because the Phase 94 comment in
+`src/renderer/state/sessions-slice.ts` says every create surface reaches that one function.
+
+**Part 2. A THIRTEENTH read script, and `program-find` is not rewritten.** `agents-find` joins
+`REMOTE_SCRIPTS` in `src/main/machines/remote-scripts.ts` with `mode: 'read'` and `params: 3`, being
+the machine's login list, the shared install folders, and one record per agent holding the name and
+then that agent's own folders, with records separated by NEWLINES. The measured text is banked at
+`docs/research/assets/58/agents-find-hard.sh`. Newline is the record separator because `CONTROL_RE`
+in `src/main/config/overlay.ts` already refuses a newline in a configured path and permits a colon.
+`program-find` keeps its three parameters and both of its callers untouched, because one of them is
+the restore path. `src/main/machines/__tests__/remote-scripts.test.ts` moves from 12 to 13 and its
+title moves with it. That number is a per release count the catalogue header itself describes as
+"this release holds no others", exactly as Phase 90.3 moved it when it added `tree-list`.
+
+**Part 3. Four corrections, and two of them are durability.**
+
+| Fix | File and symbol | Why |
+| --- | --- | --- |
+| Test for a regular file before testing the execute bit | `PROGRAM_FIND`, `remote-scripts.ts` | A directory with the execute bit passes today, `parseProgramFind` accepts it and it reaches `launchArgv[0]` and the manifest row. Reproduced against a real machine by research 58 |
+| A failed facts read is not an empty home | `remoteMachineHome`, `remote-image.ts` | Its `catch` returns the empty string, which makes `remoteSearchDirs` fall back to two folders and report absent on a machine where the agents are installed |
+| Refuse a folder holding a colon | `rebaseRemoteDir`, `remote-argv.ts` | `findRemoteProgram` already joins the folders with colons and `pathTemplate` permits a colon, so an overlay entry corrupts the search today |
+| The refusal names the label | `noRemoteProgramRefusal`, `remote-copy.ts` | Its second parameter is named `label` and both call sites pass `ctx.machineId`. `RemoteMachineContext` has no label field, so one is threaded in |
+
+**Part 4. Where the answer lives.** A new `src/main/machines/machine-agents.ts` holds one answer per
+machine in memory, stamped with `machineGeneration(machineId).generation` from
+`src/main/machines/context.ts`. Nothing is written to disk. The two precedents in this layer are
+`homes` in `remote-image.ts` and `walks` in `project-counterpart.ts`, and the second one carries
+`forgetRemoteProjectWalk` because a held answer went stale. This map is cleared the same way, from
+`forgetMachineSessions` in `src/main/machines/tombstone.ts`, which today clears no per-generation
+cache at all. Per agent the renderer sees `present`, `absent` or `unknown`, and ONLY `absent` greys
+a tile.
+
+**Part 5. Three triggers, and none of them is a clock.** The scan runs once when a machine becomes
+ready, started with `void` so nothing a person is waiting on awaits it. A person can ask again from
+Settings, which is Phase 110. And `remoteBinFor` and the restore path fold their own single-agent
+result back into the map on BOTH arms, which costs zero round trips and is stronger evidence than
+the scan because it is what actually ran. It does NOT run when the create sheet opens, and there is
+no timer for it.
+
+**The composer must chunk.** `OVERLAY_LIMITS` in `src/shared/agent-overlay.ts` allows 32 rows with
+16 directories of up to 512 characters, inside a file capped at 262,144 bytes, so a composed command
+can exceed `REMOTE_SCRIPT_MAX_BYTES` of 131,072 and step 6 of `runRemoteScript` would refuse the
+whole scan. Split the names into chunks against a byte budget and send more than one read when the
+budget needs it. With the 11 compiled agents the composed command measured 1,703 bytes, being 1.3 %
+of the cap, so this loop never runs for a person with no `agents.json`.
+
+**The scan never decides a manifest row.** `remoteBinFor` and `remote-restore.ts` keep calling
+`findRemoteProgram` at create time and at restore time. The reason is already written in
+`remote-restore.ts`, being that the row records where the program was on the day the session was
+created and a machine can move or lose it in between. A scan answer is older than a create.
+
+**Transport, and it belongs to THIS phase.** One request channel and one event in
+`src/shared/ipc/machines.ts`, `src/main/machines/ipc.ts` and `src/preload/machines.ts`, plus a
+renderer store slice. Phase 110 draws the answer and adds no channel of its own.
+
+**Which name is asked about.** `launch.argv[0]`, one per launchable agent, being 11 names. The
+registry's own comment at the deepseek row says "argv[0] mirrors binaries[0] by invariant", and
+`launchArgvFor` composes the launch from `argv[0]`, so that is the only name that can start a
+session. Configured agents from `agents.json` are asked about on the same terms, and a configured
+agent whose binary is an absolute path is skipped rather than asked, because
+`OVERLAY_BARE_BINARY_PATTERN` constrains only the bare form.
+
+### The copy
+
+| Surface | On this Mac | On a tab whose files are on a machine |
+| --- | --- | --- |
+| `AgentGrid` tile meta | `not installed` | `not installed`, UNCHANGED |
+| `AgentGrid`, once under the board | nothing | one sentence naming the machine, guarded the way `MACHINE_NOT_SIGNED_IN_HINT` is |
+| `AgentGrid` tile `aria-label` | `<Agent>, not installed` | `<Agent>, not on <machine label>` |
+| `new-session-menu` sublabel | `not installed` | `not installed` |
+| `EmptyStates` | the install command block | one sentence, and NO install command |
+| Create-time refusal | the `launch-block` for `AGENT_NOT_FOUND` | a `launch-block` for a NEW `AGENT_NOT_ON_MACHINE` code on the union in `src/shared/types.ts`, with an "Ask <label> again" action |
+
+The tile keeps the short words for a measured reason. `src/renderer/app/agent-grid.css` records
+`Antigravity · not installed` at 192 px against a track floor of `clamp(140px, 45%, 190px)` and says
+"Below it the NAME is what gives", and `MACHINE_LIMITS.maxLabel` is 40, so `not on <label>` runs to
+47 characters against 13.
+
+The action must NOT be `Try again`. `tryAgain` in `CreateSessionModal.tsx` calls
+`resetAgentAvailabilityCache()` and `void rescanAgents()`, both of which scan this Mac. The
+precedent for a new code is Phase 48's `AGENT_INTERPRETER_MISSING`.
+
+**Menus.** `quickCreateMenuItems` in `src/renderer/app/new-session-menu.ts` builds `MenuItemSpec[]`
+for a native popup, and its sublabels change on a machine tab. No item is added, renamed or removed,
+and `rebuildAppMenu` is untouched. The commit body says exactly that.
+
+**The vocabulary audit.** `AgentGrid.tsx`, `EmptyStates.tsx` and `new-session-menu.ts` join `FILES`
+in `src/renderer/app/__tests__/machine-vocabulary.test.ts`, which holds 22 paths today and none of
+those three.
+
+### What is NOT in this phase
+
+- **No install surface aimed at a machine, ever.** `EmptyStates.tsx` draws an install command on
+  this Mac and must draw none for a machine. CLAUDE.md refusal 3 forbids a browse and install place,
+  and the `install` map carries the promise that nothing in it can run, which
+  `npm run conformance:installs` asserts.
+- **No badge, no dot, no count, and nothing that animates.**
+- **No timer and no background sweep for this answer.**
+- **No disk cache and no manifest column.**
+- **No probe of a machine that is not connected.** `assertMachineIsConnected` already refuses it.
+- **No write of any kind.** `agents-find` is a read and the catalogue keeps exactly two writes.
+- **The Settings view is Phase 110** and must not be built here.
+
+### The evidence
+
+Drive the real app and drive a real machine. A verifier who only read the code has not verified
+this phase.
+
+1. **The per agent matrix.** For one real machine, print one row for each of the 11 launchable
+   entries, being claude, cursor-agent, codex, gemini, droid, codewhale, agy, muse, qwen, pi and
+   grok. Each row carries Tortie's batched answer and, beside it, what the verifier got running the
+   same file and execute test by hand over the same connection. Report the count that agreed out of
+   11 rather than the word "all".
+2. **The false absent, three ways.** Prove a tile for an agent installed on the machine and NOT on
+   this Mac is now selectable on a machine tab, which is the defect that exists today. Then make a
+   `machine-facts` read fail and prove the scan reports `unknown` rather than marking two installed
+   agents absent. Then prove that with no answer held, all 12 tiles draw on.
+3. **The false present.** Prove a tile for an agent genuinely absent over there is greyed BEFORE the
+   person presses anything, and that forcing the create still fires `noRemoteProgramRefusal`, writes
+   no manifest row and leaves no pane on that machine. Photograph the new `launch-block` and confirm
+   it names the machine's LABEL and offers no install command.
+4. **The restore path, because `program-find` changed.** Restore a real remote session end to end
+   after the file-test fix, and separately prove a directory carrying the execute bit at a name on
+   the search list is now reported as not found rather than landing in `argv[0]`.
+5. **The numbers, measured rather than estimated.** Report seconds and answer bytes for the one
+   batched call, and beside them 11 separate `program-find` calls in series AND 11 issued at once on
+   the same connection in the same minute, naming the far side's `MaxSessions` value. Report the
+   composed command size in bytes, printed by the code, against `REMOTE_SCRIPT_MAX_BYTES` of
+   131,072, for the compiled 11 and for a synthetic 32 row overlay with 16 directories each. Report
+   what the answer looks like when one folder in the list is unreadable.
+6. **The generation rule.** Take the answer, drop the connection, force a Prepare, and prove the
+   bumped generation caused a second ask rather than a reuse. Prove a second create sheet inside one
+   connection asks nothing. Prove `machines:remove` leaves no answer behind.
+7. **The gates CLAUDE.md names for these files.** `npm run conformance:machines`,
+   `npm run conformance:agents`, `npm run conformance:installs` and
+   `npm run conformance:resume:capture`, all four, on the exact committed tree, plus the full
+   battery including `smoke:t3`.
+8. **Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report
+   both numbers.** `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` only
+   when one of `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL` is set, so a launch without one
+   of those three silently uses his real server.
+
+## Phase 110 — what exists where, in Settings (research 58 row, queued 2026-08-19) QUEUED
+
+**Subject:** `feat(settings): see which agents each machine has`
+**First body line:** `Phase 110: what exists where, in Settings`
+**Semver:** minor. It adds a read-only view.
+**Tier 2.** Size Small.
+**Charter:** this entry plus `docs/research/58-agents-per-machine.md`, section 5.
+
+**Why Tier 2.** It starts no new kind of work. It draws an answer Phase 109 already holds and its
+Rescan button calls the same function Phase 109 already proved across 11 agents against a real
+machine. Its own risk is one panel and one button. It is not Tier 1, because the button does send a
+read to another computer.
+
+**Depends on.** Phase 109, for the answer, for the channel and for the preload method. It adds none
+of the three.
+
+### The mechanism
+
+One block per machine, drawn as a third sub-block of the Agents tab under the local card and
+`ConfiguredAgents`, and NOT a matrix of agents by machine. `src/renderer/settings/settings.css` caps
+the content column at 560 px, the nav rail is `flex: 0 0 200px`, and `openSettingsWindow` opens at
+760 wide with `minWidth: 640`. `MACHINE_LIMITS.maxRows` and `OVERLAY_LIMITS.maxRows` are both 32, so
+a matrix is 43 agents by 32 machines inside 560 px, which is 17.5 px per column, and a tick cannot
+carry the path, which is the one field a person wants when two copies exist. `grep -rn "<table"
+src/renderer` returns 3 hits in 2 files and neither is in Settings, so a matrix is also all new CSS.
+
+The block reuses `AgentRow` from `src/renderer/settings/AgentsSection.tsx` under a machine head built
+from `.mach-dot`, the label, `.mach-host` and `.set-config-id`, all of which
+`src/renderer/settings/MachineRow.tsx` already draws. It copies `ConfiguredAgents`'s empty rule and
+returns `null` when there are no machines, so a person with none sees the tab exactly as today. Each
+row shows the agent name, whether it was found, and the absolute path ON THAT MACHINE through
+`truncateMiddle`. One age line reuses `.set-scan-age` with `formatAge` and `useNow` from
+`src/renderer/app/format.ts`.
+
+Rescan is one button per machine, `.btn.btn-secondary.set-rescan`, and it costs one round trip. While
+it runs, that button alone becomes disabled and shows `.set-spinner` beside the word Scanning, and
+that class already carries a `prefers-reduced-motion` rule. The previous answer stays on screen with
+its age, which is `machines-store.refresh`'s existing rule. On failure, one sentence FROM MAIN under
+the machine head, and no row flips to absent, because a failed read is not evidence of absence.
+
+The button is gated on `MachineRowView.ready` and not on the link, because
+`src/shared/ipc/machines.ts` documents `ready` as exactly the condition `readyRemoteContext` tests,
+which includes the captured PATH the scan needs. A machine that is not ready keeps its rows and its
+age, greys the button and says it is not signed in, reusing `machineNotSignedInOption` from
+`src/renderer/app/machine-copy.ts`.
+
+**One line of plumbing.** `useMachinesStore.init` in `src/renderer/settings/machines-store.ts`
+subscribes to `b.onTestEvent` and to nothing else, so the Settings window learns nothing about a
+machine's link state today. `src/preload/machines.ts` already exposes `onStateChanged` and
+`broadcastEvent` in `src/main/typed-events.ts` iterates every window, so the channel reaches
+Settings. Subscribe in `init`, or the button's enabled state is frozen at the moment Settings opened.
+
+**Menus.** No native menu changes. This phase adds a sub-block inside a Settings tab that the app
+menu already reaches, and it adds, renames and removes nothing a menu names. The commit body says
+exactly that.
+
+**Files.** `src/renderer/settings/**` only, plus one new component beside `AgentsSection.tsx`. It
+touches nothing under `src/main/machines/**`, so `npm run conformance:machines` is not required for
+this commit, and the brief says so deliberately rather than by omission.
+
+### What is NOT in this phase
+
+It is a READ and it never becomes an install surface. No install command, no copy button, no
+provider link, no "Install on <machine>" anywhere in this panel, whatever the `install` map holds.
+The local `AgentRow` draws `install.command` inside `<code className="set-agent-cmd">` beside a
+`CopyButton`, and those strings are piped shell one-liners. Such a string next to a machine Tortie
+holds an ssh connection to is one button from being sent. No count on any nav item, no badge, no dot
+beyond the colour the person chose. No rescan on opening the pane, none on a timer, none on a
+re-render. No "Rescan every machine" button, because one press would open up to 32 connections. No
+sorting, filtering or browsing. No editing of any kind.
+
+### The evidence
+
+Open Settings then Agents in the real app with at least one confirmed machine and photograph the
+panel in four states, being connected with an answer, connected mid rescan, not signed in with a
+previous answer, and a machine whose rescan failed. Press Rescan and prove from the log that exactly
+one round trip left this Mac and that it was a read. Prove the rows agree with Phase 109's matrix for
+the same machine in the same connection, reporting the count that agreed out of 11. Prove no install
+command string reaches the panel, by grepping the built renderer bundle for one command from the
+install map. Prove the button is drawn off for a machine whose `ready` is not true and that pressing
+it in that state sends nothing. Count the operator's sessions with `tmux -L gmux list-sessions`
+before and after and report both numbers. `activeTmuxSocket` honours `GMUX_TMUX_SOCKET` only under
+`GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL`.
+```
+
 ## Research 58 — which agents exist on which machine, and when Tortie looks (operator requested 2026-08-19) ✅ DELIVERED 2026-08-19 (this commit), docs/research/58-agents-per-machine.md, checked against the tree of `a497521`
 
 **Subject:** `docs(research): which agents exist on which machine, and when Tortie looks`
