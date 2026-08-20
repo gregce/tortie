@@ -19,11 +19,11 @@ release.
 | 4 | **118** remote children are owned, removal is one transaction | Audit P1, same reason | queued |
 | 5 | **119** decline capture on restore | Insurance from research 59 | queued |
 | — | **RELEASE POINT, AND HE DELEGATED IT** | Everything above is user facing and finishes the remote programme | **AGENT, once, see below** |
-| 6 | **101** save a file on a machine | The write tranche. He is at the keyboard for the first save | queued |
+| 6 | **101** save a file on a machine | The write tranche. He said on 2026-08-20 to roll into it after the release rather than wait for him, so it runs unattended; the `writeRoot` confirm still needs a human at the keyboard the first time a save is attempted, and that is HIS moment, not a blocker on the build | queued |
 | 7 | **102** new folder and rename | | queued |
 | 8 | **103** stage and unstage | | queued |
 | 9 | **104** commit on a remote tab | | queued |
-| — | **RELEASE POINT** | The writes are the next release's story | operator |
+| — | **RELEASE POINT** | The writes are the next release's story. NOT delegated; the grant above is for one release only | operator |
 | 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | queued |
 | 11 | **Run B** 123 | The six runtime cycles | queued |
 | 12 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
@@ -47,6 +47,11 @@ and push it and watch it run after 119 finishes, and not to wait on him. That gr
   A release is the one action here that cannot be taken back.
 - **A tag is never moved or deleted once pushed.** If something is wrong after the fact, the answer
   is another release, not a retag.
+
+**AFTER THE RELEASE, DO NOT STOP.** He said on 2026-08-20 to roll into the write phases after the
+release and then continue with the other phased work. So the loop watches the release run to its end,
+reports it, and continues straight into 101, 102, 103 and 104, then the four architecture runs and
+128. It stops only at the SECOND release point, which is not delegated, or when a decision needs him.
 
 **Two things run BESIDE this queue rather than in it, because their files are disjoint.** Run A may
 start at any time, including now, since it touches no machines file and no renderer surface. Phase
