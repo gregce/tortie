@@ -859,11 +859,17 @@ export const KEYMAP = [
     // agent CLI can want it. The research's other candidate, ⌃⇧↩, is worse
     // for that exact reason, because Ctrl IS a terminal modifier.
     // src/shared/__tests__/focus-chord.test.ts holds all of this down.
+    //
+    // Phase 129 gave the chord a second region rather than a second chord.
+    // The region the keyboard is in decides which fill runs, and the router
+    // is src/renderer/app/fill-chord.ts. The action stays short because the
+    // ⌘/ overlay's column is narrow and src/shared/__tests__/keymap.test.ts
+    // holds every action to 26 characters. The whole rule is in `explain`.
     id: 'view.sessionFocus',
     keys: [k('Shift+Cmd+Enter')],
-    action: 'Focus the session',
+    action: 'Focus the session or file',
     explain:
-      'Grows the session you are in, and every split beside it, until it fills the window. Press it again, or press Escape when the keyboard is not in a session, to put the rest of Tortie back.',
+      'Grows the session you are in, and every split beside it, until it fills the window. Press it while the keyboard is in an open file and the file fills the window instead. Press it again to put the rest of Tortie back. Escape also leaves session focus when the keyboard is not in a session. With the keyboard in neither a session nor a file it does nothing.',
     group: 'views',
     scope: 'app',
     assignable: false,
@@ -876,6 +882,20 @@ export const KEYMAP = [
     action: 'Sessions top or right',
     explain:
       'Puts the session surface across the top as a tab strip or down the right as a list. The toggle sits in the SESSIONS header and in the View menu.',
+    group: 'views',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    // Phase 129. It carries no `menuAction` for the same reason
+    // view.sessionsPosition carries none: the View menu holds a radio PAIR
+    // rather than one item, so there is no single action id to send.
+    id: 'view.projectsPosition',
+    keys: [],
+    action: 'Projects top or left',
+    explain:
+      'Puts the project tabs across the top of the window or down its left side. The control sits beside the tabs themselves and in the View menu.',
     group: 'views',
     scope: 'app',
     assignable: false,

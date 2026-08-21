@@ -19,6 +19,9 @@
  *  - the card never steals focus (`pointer-events: none`, `aria-hidden`, no
  *    `.focus()` anywhere): hovering a session must never take the keyboard
  *    away from the terminal the user is typing into;
+ *  - a CLICK on an item hands the keyboard to that session's terminal, and an
+ *    ARROW press does not. Phase 129 item 2 made both explicit rather than
+ *    accidental — see ./session-list-keyboard.ts for the measurement;
  *  - the card is PORTALLED to `document.body` and positioned in raw viewport
  *    pixels, because the dock is a CSS-zoomable region (Phase 12.11) and a
  *    fixed-position card inside a zoomed ancestor resolves in zoomed space.
@@ -34,7 +37,12 @@ import { rollupDot, statusVisual } from './status';
 import { useNow } from './format';
 import { sessionAriaLabel, sessionTooltip } from './session-actions';
 import { groupTooltip } from './split/split-menu';
-import { pressBlocksSurfaceDrag, startSurfaceDrag } from './split/surface-dnd';
+import {
+  handKeyboardToTheTerminal,
+  pressBlocksSurfaceDrag,
+  selectSessionByPointer,
+  startSurfaceDrag
+} from './split/surface-dnd';
 import { DockIndicator } from './DockIndicator';
 import { MachineBadge } from './MachineBadge';
 import { AgentIcon, Codicon } from '../icons';
@@ -288,7 +296,6 @@ export function SessionRail({
   /** The dock's own list-key handler — one implementation, two densities. */
   onListKeyDown: (e: React.KeyboardEvent) => void;
 }): React.JSX.Element | null {
-  const setActiveSession = useApp((s) => s.setActiveSession);
   const lastActivity = useApp((s) => s.lastActivity);
   const selectLeaf = useLayout((s) => s.selectLeaf);
   // Phase 60: the rail is a 'dock' drag home, so it renders the dock's own
@@ -357,7 +364,12 @@ export function SessionRail({
                 }}
                 glyph={<Codicon name="split-horizontal" size={16} />}
                 dot={dot === 'none' ? 'idle' : dot}
-                onActivate={() => selectLeaf(projectPath, focusedId)}
+                onActivate={() => {
+                  // A group's row selects its focused leaf, and the click
+                  // still means "take me into that session" (Phase 129).
+                  selectLeaf(projectPath, focusedId);
+                  handKeyboardToTheTerminal();
+                }}
                 onReveal={setCard}
                 revealNow={keyboard}
               />
@@ -391,7 +403,7 @@ export function SessionRail({
               }}
               glyph={<AgentIcon agent={session.agent} size={16} />}
               dot={visual.dot}
-              onActivate={() => setActiveSession(session.id)}
+              onActivate={() => selectSessionByPointer(session.id)}
               onReveal={setCard}
               revealNow={keyboard}
             />

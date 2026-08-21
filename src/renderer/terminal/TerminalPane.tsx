@@ -58,6 +58,9 @@ import {
   TERMINAL_SCROLLBACK
 } from './theme';
 import { gmuxBridge } from '../bridge';
+// PHASE 129 ITEM 2. The pane may take the keyboard only when the person is not
+// holding it in a session list. See the module's header for the measurement.
+import { keyboardIsInASessionList } from '../app/session-list-keyboard';
 
 export interface TerminalPaneProps {
   sessionId: string;
@@ -482,7 +485,10 @@ export function TerminalPane({
         void gmux.sessions
           .resize({ sessionId, cols: term.cols, rows: term.rows })
           .catch(() => undefined);
-        if (focusedRef.current) term.focus();
+        // The attach lands hundreds of milliseconds after whatever selected
+        // this session. If that was an arrow key, the person still has the
+        // keyboard in the list and this must not take it away.
+        if (focusedRef.current && !keyboardIsInASessionList()) term.focus();
         scroll.start();
       } catch (err) {
         if (!disposed) setOverlay(friendlyAttachError(err));
@@ -520,8 +526,12 @@ export function TerminalPane({
     };
   }, [sessionId, restorable, attachEpoch]);
 
+  // Becoming the focused pane is not the same as being asked for the
+  // keyboard. An arrow press in the session list makes a pane focused without
+  // any intent to type into it, so the guard reads where the keyboard is
+  // before taking it (../app/session-list-keyboard.ts).
   useEffect(() => {
-    if (focused) termRef.current?.focus();
+    if (focused && !keyboardIsInASessionList()) termRef.current?.focus();
   }, [focused, attachEpoch]);
 
   // ---- zoom (Phase 12.11) --------------------------------------------------

@@ -22,7 +22,7 @@
  * item's shape so the chord cannot quietly disappear.
  *
  * Phase 80.1 added a third job. The View menu gained one visible row named
- * "Focus the Session", carrying the keymap's Shift+Cmd+Enter, placed directly
+ * "Focus the Session or File", carrying the keymap's Shift+Cmd+Enter, directly
  * under "Fill the Window". No row was removed, renamed or reordered. The
  * first describe below pins that row, its position and its action id, and it
  * restates the full screen shape once more, because the new row lives in the
@@ -216,10 +216,10 @@ describe('the four views, in the activity bar’s order', () => {
   });
 });
 
-describe('Focus the Session, the row Phase 80.1 added', () => {
+describe('Focus the Session or File, the row Phase 80.1 added', () => {
   it('adds exactly one row with that label', () => {
     installAppMenu();
-    const rows = viewItems().filter((it) => it.label === 'Focus the Session');
+    const rows = viewItems().filter((it) => it.label === 'Focus the Session or File');
     expect(rows).toHaveLength(1);
   });
 
@@ -228,12 +228,12 @@ describe('Focus the Session, the row Phase 80.1 added', () => {
     const items = viewItems();
     const fill = items.findIndex((it) => it.label === 'Fill the Window');
     expect(fill).toBeGreaterThan(-1);
-    expect(items[fill + 1]?.label).toBe('Focus the Session');
+    expect(items[fill + 1]?.label).toBe('Focus the Session or File');
   });
 
   it('reads its accelerator from the keymap rather than typing one', () => {
     installAppMenu();
-    const row = viewItems().find((it) => it.label === 'Focus the Session');
+    const row = viewItems().find((it) => it.label === 'Focus the Session or File');
     expect(row?.accelerator).toBe(accelerator('view.sessionFocus'));
   });
 
@@ -241,7 +241,7 @@ describe('Focus the Session, the row Phase 80.1 added', () => {
     installAppMenu();
     const win = makeWindow();
     state.windows = [win];
-    const row = viewItems().find((it) => it.label === 'Focus the Session');
+    const row = viewItems().find((it) => it.label === 'Focus the Session or File');
     expect(row?.click).toBeDefined();
     row?.click?.();
     expect(win.sent).toEqual([[EVT_MENU_ACTION, 'toggle-session-focus']]);

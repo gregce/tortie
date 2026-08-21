@@ -78,6 +78,21 @@ export const DOCK_SNAP = 100;
 export const DOCK_RAIL_W = 48;
 export const DOCK_DEFAULT = 200;
 
+/**
+ * PHASE 129. The project tabs as a left rail.
+ *
+ * 200 is the number DESIGN §2.2 gives the right-hand session list, so the two
+ * lists that name things read at the same density. 48 is the activity bar's
+ * width and the collapsed dock's width, so a collapsed project rail is the
+ * window's left bookend rather than a panel that failed to open.
+ *
+ * The rail is NOT resizable in this phase. There is no min, no max and no
+ * stored width, and nothing here should grow one without also answering the
+ * budget question below.
+ */
+export const PROJECT_RAIL_W = 200;
+export const PROJECT_RAIL_COLLAPSED_W = 48;
+
 /** Narrowest useful editor split (was EditorPanel's private MIN_DRAG_PX). */
 export const EDITOR_MIN = 320;
 /**
@@ -109,6 +124,39 @@ export const SPLIT_MIN_WORK_AREA = EDITOR_MIN + TERMINAL_FLOOR;
  * rather than quietly testing widths the user cannot produce.
  */
 export const APP_MIN_WINDOW_W = 960;
+
+/**
+ * PHASE 129, AND THIS IS THE LOAD-BEARING NUMBER OF THE ITEM.
+ *
+ * The narrowest window that can seat the EXPANDED project rail. Below it the
+ * rail renders at its collapsed 48px, whatever the person chose, and the
+ * chosen value comes back when the window does. That is rule 1 at the top of
+ * this file applied to a third region: persist intent, clamp presentation.
+ *
+ * DERIVED, never typed. The row has to seat, at once: the activity bar, the
+ * rail, the sidebar at its own floor, the session dock at ITS ceiling, and the
+ * terminal's floor. Work it out with the numbers as they stand and it is
+ * 48 + 200 + 220 + 320 + 240 = 1028.
+ *
+ * Why the dock's CEILING rather than its live width, and why the sidebar's
+ * floor rather than whether it is visible. Both answers are the same: the
+ * rail's rendered width must not move when the person does something else.
+ * A rail that got 152px narrower halfway through a dock drag, or that changed
+ * width on ⌘B, would resize the work area, and every resize of the work area
+ * is a ResizeObserver fit and a tmux resize of live panes. So the condition
+ * reads one number, the window's own width, and the rail moves only when the
+ * window does.
+ *
+ * The arithmetic this protects, written out because it is what breaks. With
+ * the sidebar visible the work row is
+ * `w - 48 - rail - dock - min(stored, sidebarMax)`, and `sidebarMax` bottoms
+ * out at SIDEBAR_MIN. So the terminal falls under its floor exactly when
+ * `w < 508 + dock + rail`. With no rail that is at worst 828px, under the
+ * app's own 960px minimum window, which is why the budget held before this
+ * phase. With a 200px rail it is 1028px, which is above it.
+ */
+export const PROJECT_RAIL_MIN_WINDOW_W =
+  ACTIVITY_BAR_W + PROJECT_RAIL_W + SIDEBAR_MIN + DOCK_MAX + TERMINAL_FLOOR;
 
 /** Guard for hand-edited / corrupt persisted widths. */
 const MAX_SANE_WIDTH = 4096;
@@ -211,10 +259,26 @@ function clampPx(px: number, min: number, max: number): number {
  */
 export function sidebarMaxWidth(
   windowWidth = currentWindowWidth(),
-  reservedRight = 0
+  reservedRight = 0,
+  /**
+   * PHASE 129. The project rail's RENDERED width, 0 unless the tabs are on
+   * the left. It sits beside the activity bar in the arithmetic because it
+   * sits beside it on screen, and it is an argument rather than a store read
+   * for the same reason every other term here is.
+   *
+   * Use `projectsRenderedWidth()` to compute it — never a raw stored value,
+   * and never the constant, because a window under
+   * `PROJECT_RAIL_MIN_WINDOW_W` draws the rail collapsed.
+   */
+  reservedLeft = 0
 ): number {
   const half = Math.round(windowWidth * SIDEBAR_MAX_FRACTION);
-  const roomLeft = windowWidth - ACTIVITY_BAR_W - reservedRight - TERMINAL_FLOOR;
+  const roomLeft =
+    windowWidth -
+    ACTIVITY_BAR_W -
+    reservedLeft -
+    reservedRight -
+    TERMINAL_FLOOR;
   return clampPx(half, SIDEBAR_MIN, roomLeft);
 }
 
@@ -238,6 +302,56 @@ export function dockRenderedWidth(
 ): number {
   if (d.orientation !== 'right') return 0;
   return d.dockCollapsed ? DOCK_RAIL_W : clampDockWidth(d.dockWidth, windowWidth);
+}
+
+/**
+ * PHASE 129. How much of the window the project rail is actually occupying
+ * right now, in the same shape as `dockRenderedWidth` above.
+ *
+ * Three answers, and only three:
+ *   0   the tabs are across the top, so there is no rail at all;
+ *   48  the rail is collapsed, either because the person collapsed it or
+ *       because the window is too narrow to seat it expanded;
+ *   200 the rail is expanded.
+ *
+ * The narrow-window branch is the one that keeps rule 2 at the top of this
+ * file true, and `PROJECT_RAIL_MIN_WINDOW_W` carries the arithmetic. The rail
+ * component reads this same function, so what is drawn and what is budgeted
+ * for are one number rather than two that agree today.
+ */
+export function projectsRenderedWidth(
+  p: {
+    projectsPosition: 'top' | 'left';
+    projectsCollapsed: boolean;
+  },
+  windowWidth = currentWindowWidth()
+): number {
+  if (p.projectsPosition !== 'left') return 0;
+  if (p.projectsCollapsed) return PROJECT_RAIL_COLLAPSED_W;
+  return windowWidth >= PROJECT_RAIL_MIN_WINDOW_W
+    ? PROJECT_RAIL_W
+    : PROJECT_RAIL_COLLAPSED_W;
+}
+
+/**
+ * PHASE 129. True when the rail is drawn collapsed although the person asked
+ * for it expanded, because the window cannot seat it.
+ *
+ * The rail's own chevron reads this and says so, rather than offering a
+ * control that would change nothing.
+ */
+export function projectRailForcedNarrow(
+  p: {
+    projectsPosition: 'top' | 'left';
+    projectsCollapsed: boolean;
+  },
+  windowWidth = currentWindowWidth()
+): boolean {
+  return (
+    p.projectsPosition === 'left' &&
+    !p.projectsCollapsed &&
+    windowWidth < PROJECT_RAIL_MIN_WINDOW_W
+  );
 }
 
 /**
@@ -284,14 +398,29 @@ export function workAreaWidth(w: {
   orientation: 'top' | 'right';
   dockCollapsed: boolean;
   dockWidth: number;
+  /** PHASE 129. Absent means 'top', which is what every caller meant before. */
+  projectsPosition?: 'top' | 'left';
+  projectsCollapsed?: boolean;
 }): number {
   // The dock is measured FIRST because the sidebar's ceiling depends on it —
   // the whole point of the fix round. Order is the model, not a preference.
+  // Phase 129 adds the project rail as the SECOND term, for the same reason:
+  // the sidebar's ceiling depends on it too, and it depends on neither.
   const dock = dockRenderedWidth(w, w.windowWidth);
+  const projects = projectsRenderedWidth(
+    {
+      projectsPosition: w.projectsPosition ?? 'top',
+      projectsCollapsed: w.projectsCollapsed ?? false
+    },
+    w.windowWidth
+  );
   const sidebar = w.sidebarVisible
-    ? clampSidebarWidth(w.sidebarWidth, w.windowWidth, dock)
+    ? clampSidebarWidth(w.sidebarWidth, w.windowWidth, dock, projects)
     : 0;
-  return Math.max(0, Math.round(w.windowWidth - ACTIVITY_BAR_W - sidebar - dock));
+  return Math.max(
+    0,
+    Math.round(w.windowWidth - ACTIVITY_BAR_W - projects - sidebar - dock)
+  );
 }
 
 /**
@@ -312,6 +441,9 @@ export function terminalLayoutWidth(w: {
   orientation: 'top' | 'right';
   dockCollapsed: boolean;
   dockWidth: number;
+  /** PHASE 129. Absent means 'top', which is what every caller meant before. */
+  projectsPosition?: 'top' | 'left';
+  projectsCollapsed?: boolean;
   /** A file is open in the editor panel. */
   editorOpen: boolean;
   /** The per-project stored editor width, if the user has ever dragged one. */
@@ -341,9 +473,15 @@ export function defaultSplitWidth(workArea: number): number {
 export function clampSidebarWidth(
   px: number,
   windowWidth = currentWindowWidth(),
-  reservedRight = 0
+  reservedRight = 0,
+  /** PHASE 129. The project rail's rendered width, 0 when it is not drawn. */
+  reservedLeft = 0
 ): number {
-  return clampPx(px, SIDEBAR_MIN, sidebarMaxWidth(windowWidth, reservedRight));
+  return clampPx(
+    px,
+    SIDEBAR_MIN,
+    sidebarMaxWidth(windowWidth, reservedRight, reservedLeft)
+  );
 }
 
 export function clampDockWidth(

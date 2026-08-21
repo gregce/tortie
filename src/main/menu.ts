@@ -42,6 +42,13 @@ import {
   SESSIONS_POSITION_RADIOS
 } from '@shared/sessions-position';
 import type { SessionsPosition } from '@shared/sessions-position';
+// Phase 129. The projects radio pair, as DATA, from its own shared table —
+// the sibling of the sessions one directly above.
+import {
+  DEFAULT_PROJECTS_POSITION,
+  PROJECTS_POSITION_RADIOS
+} from '@shared/projects-position';
+import type { ProjectsPosition } from '@shared/projects-position';
 import type { LaunchableAgentId } from '@shared/types';
 // Direct module imports (NOT the ./settings barrel): settings/ipc.ts imports
 // rebuildAppMenu from this file — the barrel would close a require cycle.
@@ -271,6 +278,44 @@ export function setSessionsPositionRadios(position: SessionsPosition): void {
 /** The cached position the radios are drawn from (exported for tests). */
 export function sessionsPositionRadioState(): SessionsPosition {
   return sessionsPosition;
+}
+
+// ---------------------------------------------------------------------------
+// Project-tab position: the same pair, for the project tabs (Phase 129).
+//
+// Written as a copy of the block above rather than as a shared helper over
+// both, and that is deliberate. The two values are independent, their tables
+// are separate, and a helper parameterised over "which position" would make
+// the wrong one reachable by passing the wrong table. Two short blocks that
+// each say what they do are cheaper to read than one clever one.
+// ---------------------------------------------------------------------------
+
+/** Last position the renderer store announced. A cache, never an authority. */
+let projectsPosition: ProjectsPosition = DEFAULT_PROJECTS_POSITION;
+
+/**
+ * The renderer store moved the project tabs (View menu, the titlebar's own
+ * position button, or the left rail's). Called from the ui:projectsPosition
+ * handler in src/main/ipc.ts.
+ */
+export function setProjectsPositionRadios(position: ProjectsPosition): void {
+  projectsPosition = position;
+  const menu = Menu.getApplicationMenu();
+  if (menu === null) return; // no menu yet — the next build reads the cache
+  // MARK THE WINNER, NEVER UNMARK THE LOSER. The measurement is the one
+  // recorded above for the sessions pair: on Electron 43, assigning
+  // `checked = false` to a radio item CHECKS it. Marking one item of a radio
+  // group unmarks its siblings, which is all we ever need.
+  for (const radio of PROJECTS_POSITION_RADIOS) {
+    if (radio.position !== position) continue;
+    const item = menu.getMenuItemById(radio.id);
+    if (item !== null) item.checked = true;
+  }
+}
+
+/** The cached position the radios are drawn from (exported for tests). */
+export function projectsPositionRadioState(): ProjectsPosition {
+  return projectsPosition;
 }
 
 /**
@@ -527,14 +572,33 @@ function buildTemplate(): MenuItemConstructorOptions[] {
           })
         ),
         { type: 'separator' },
+        // Phase 129. The project tabs' own pair, drawn the same way from the
+        // same kind of cache, and sitting directly under the sessions pair
+        // because the two answer the same question about two surfaces.
+        ...PROJECTS_POSITION_RADIOS.map(
+          (radio): MenuItemConstructorOptions => ({
+            id: radio.id,
+            label: radio.label,
+            type: 'radio',
+            checked: radio.position === projectsPosition,
+            click: () => sendMenuAction(radio.action)
+          })
+        ),
+        { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar', accel('view.sidebar')),
         item('Fill the Window', 'toggle-editor-fill', accel('view.fillEditor')),
         // Phase 80.1. Session focus is fill's sibling, so it sits directly
         // under it. Fill gives the open file the window. Focus gives the
         // session surface the window. Nothing else in this menu moved when
         // this row was added.
+        //
+        // Phase 129 renamed the row rather than adding a second one. ⇧⌘↩ now
+        // fills from an open file as well, and Electron gives one accelerator
+        // per item, so the keys stay here and the label says both regions.
+        // The renderer routes this action through the same router the chord
+        // uses, so the row and the keys printed on it cannot drift.
         item(
-          'Focus the Session',
+          'Focus the Session or File',
           'toggle-session-focus',
           accel('view.sessionFocus')
         ),

@@ -974,13 +974,32 @@ export const KEY_NOT_MADE_YET =
 // button from being sent, so this block says where installing happens and
 // offers nothing that could send it.
 
-/** The heading over the per machine blocks. */
-export const AGENTS_ON_MACHINES_TITLE = 'On your other machines';
+/**
+ * PHASE 129. The pages the Agents tab is now divided into.
+ *
+ * The heading that used to sit over the per machine blocks is deleted. One
+ * page draws one machine and the page's own tab already names it, so a heading
+ * above that card said the same thing twice.
+ */
 
-/** The one sentence block under that heading. */
+/** The first page, which is the Mac Tortie is running on. */
+export const AGENTS_PAGE_THIS_MAC = 'This Mac';
+
+/** What the row of pages is, for a person reading the page rather than looking at it. */
+export const AGENTS_PAGES_LABEL = 'Which machine these agents are on';
+
+/**
+ * The one sentence block a machine page opens with.
+ *
+ * PHASE 129. It used to say "each machine", because Phase 110 drew every
+ * machine's card in one scroll under one caption. A page draws exactly one
+ * machine now, so the caption says "this machine". The last sentence is
+ * unchanged and is pinned by a test, because it is the refusal: it says where
+ * installing happens and this surface offers nothing that could do it.
+ */
 export const AGENTS_ON_MACHINES_CAPTION =
-  'These are the agents Tortie found on each machine the last time it asked. ' +
-  'Tortie asks a machine once when it signs in, and again when you press ' +
+  'These are the agents Tortie found on this machine the last time it asked. ' +
+  'Tortie asks once when the machine signs in, and again when you press ' +
   'Rescan. Installing an agent happens on that machine.';
 
 /** The button that asks one machine again. */

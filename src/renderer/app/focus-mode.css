@@ -62,6 +62,7 @@
 --------------------------------------------------------------------------- */
 
 .shell.session-focus .titlebar > *,
+.shell.session-focus [data-slot='project-rail'],
 .shell.session-focus [data-slot='activity-bar'],
 .shell.session-focus [data-slot='sidebar'],
 .shell.session-focus [data-slot='session-strip'],
@@ -69,6 +70,7 @@
 .shell.session-focus .center > .term-header,
 .shell.session-focus .ed-panel,
 .shell.gmux-focus-measure .titlebar > *,
+.shell.gmux-focus-measure [data-slot='project-rail'],
 .shell.gmux-focus-measure [data-slot='activity-bar'],
 .shell.gmux-focus-measure [data-slot='sidebar'],
 .shell.gmux-focus-measure [data-slot='session-strip'],
@@ -133,6 +135,7 @@
 --------------------------------------------------------------------------- */
 
 .shell.gmux-focusing .titlebar > *,
+.shell.gmux-focusing [data-slot='project-rail'],
 .shell.gmux-focusing [data-slot='activity-bar'],
 .shell.gmux-focusing [data-slot='sidebar'],
 .shell.gmux-focusing [data-slot='session-strip'],
@@ -186,6 +189,7 @@
 }
 
 .shell[data-focus-arriving] .titlebar > *,
+.shell[data-focus-arriving] [data-slot='project-rail'],
 .shell[data-focus-arriving] [data-slot='activity-bar'],
 .shell[data-focus-arriving] [data-slot='sidebar'],
 .shell[data-focus-arriving] [data-slot='session-strip'],

@@ -132,8 +132,10 @@ describe('the row Phase 80.1 added', () => {
   });
 
   it('reserves the chord under the row’s own action name', () => {
-    expect(RESERVED_APP_CHORDS[FOCUS_CHORD]).toBe('Focus the session');
-    expect(keymapEntry('view.sessionFocus').action).toBe('Focus the session');
+    expect(RESERVED_APP_CHORDS[FOCUS_CHORD]).toBe('Focus the session or file');
+    expect(keymapEntry('view.sessionFocus').action).toBe(
+      'Focus the session or file'
+    );
   });
 
   it('carries the menu action the native View row sends', () => {
@@ -146,6 +148,46 @@ describe('the row Phase 80.1 added', () => {
     expect(entry.scope).toBe('app');
     expect(entry.assignable).toBe(false);
     expect(entry.source).toBe('built-in');
+  });
+});
+
+describe('the second region Phase 129 gave the same chord', () => {
+  it('keeps ⇧⌘↩ on exactly one row after gaining a second meaning', () => {
+    // The point of Phase 129 is that the chord did NOT split into two. A
+    // second row claiming it would put two owners in RESERVED_APP_CHORDS and
+    // two accelerators on two native menu items, and the person would get
+    // whichever one Electron matched first.
+    const owners = KEYMAP.filter((entry) =>
+      entry.keys.some((chord) => chord.accelerator === FOCUS_CHORD)
+    );
+    expect(owners.map((entry) => entry.id)).toEqual(['view.sessionFocus']);
+  });
+
+  it('says in words that an open file is the other thing it fills', () => {
+    // The ⌘/ overlay draws `explain`, and it is the only surface that can
+    // carry the rule, because the native View menu gives one accelerator to
+    // one item and that item is still named for the session.
+    const explain = keymapEntry('view.sessionFocus').explain;
+    expect(explain).toContain('open file');
+    expect(explain).toContain('fills the window instead');
+    expect(explain).toContain('does nothing');
+  });
+
+  it('leaves the editor fill row and its own chord untouched', () => {
+    // ⇧⌘B still fills from the editor's own button and its own row. Phase 129
+    // added a router, not a replacement.
+    expect(accelerator('view.fillEditor')).toBe('Shift+Cmd+B');
+    expect(keymapEntry('view.fillEditor').action).toBe('Fill the window');
+  });
+
+  it('gives the projects position its own row with no chord at all', () => {
+    // Phase 129 item 3. The pair lives in the View menu as radios, so the row
+    // exists to be READ in the ⌘/ overlay and it takes no key.
+    const entry = keymapEntry('view.projectsPosition');
+    expect(entry.keys).toEqual([]);
+    expect(entry.group).toBe('views');
+    expect(entry.menuAction).toBeUndefined();
+    expect(entry.explain).toContain('left side');
   });
 });
 

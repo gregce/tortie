@@ -19,7 +19,10 @@ import type {
 // Phase 12.12 item 2 — the View-menu radios render the renderer's one
 // sessions-position truth; ui:sessionsPosition below is how they hear about
 // a change that did not come from the menu itself.
-import { setSessionsPositionRadios } from './menu';
+import {
+  setProjectsPositionRadios,
+  setSessionsPositionRadios
+} from './menu';
 import { registerPopupMenuHandler } from './menu-popup';
 // LEAF import: the ./preview barrel also re-exports the parse5 anchor
 // rewrite, and this file needs one function that touches no parser.
@@ -95,6 +98,13 @@ export function registerIpcHandlers(): void {
   // three). Main's only job is to keep the View-menu radios rendering it.
   handle('ui:sessionsPosition', (_e, position) => {
     setSessionsPositionRadios(position);
+  });
+
+  // Phase 129: the same one job for the project tabs. The store moved them
+  // (the View menu, the titlebar's button or the rail's button — one setter
+  // behind all three), and main's only job is to keep its radios rendering it.
+  handle('ui:projectsPosition', (_e, position) => {
+    setProjectsPositionRadios(position);
   });
 
   handle('sessions:create', async (_e, input) =>

@@ -65,6 +65,21 @@ const TIPS = {
    */
   'session-focus-exit': {
     text: `Press ${keyDisplay('view.sessionFocus')} again to bring the rest of Tortie back.`
+  },
+  /**
+   * Phase 129. The same chord now fills the window from an open file, and
+   * the way out of THAT is the same problem the row above solves. Escape is
+   * taken inside Monaco, where it closes the find widget and dismisses
+   * IntelliSense, so it is not offered as an exit here either.
+   *
+   * The sentence is word for word the one above, on purpose. It is the same
+   * chord doing the same thing to a different region, so a person who has
+   * met one has already been taught the other. The flag is separate because
+   * a person can reach either mode first, and whichever they reach first is
+   * the one that has to speak.
+   */
+  'editor-fill-exit': {
+    text: `Press ${keyDisplay('view.sessionFocus')} again to bring the rest of Tortie back.`
   }
 } as const satisfies Record<string, Tip>;
 

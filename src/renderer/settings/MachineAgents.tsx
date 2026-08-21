@@ -26,6 +26,11 @@
  * because one press of it would open up to 32 connections. A rescan is one
  * button one person pressed.
  *
+ * PHASE 129 GAVE BOTH EXPORTS ONE OPTIONAL PROP, `machineId`. The Agents tab
+ * is now a row of pages, one per machine, and a page draws one machine. With
+ * the prop absent the panel draws every machine the way it always did, which
+ * is the shape the tests below it read.
+ *
  * WHY THERE ARE TWO EXPORTS. `MachineAgentsPanel` draws and takes everything it
  * draws as a prop. `MachineAgentsSection` reads the two stores and hands it
  * over. The vitest environment is node and zustand serves its INITIAL state to
@@ -48,7 +53,6 @@ import {
   AGENTS_NEVER_ASKED,
   AGENTS_NOT_SIGNED_IN,
   AGENTS_ON_MACHINES_CAPTION,
-  AGENTS_ON_MACHINES_TITLE,
   AGENT_ABSENT,
   AGENT_UNKNOWN,
   BTN_RESCAN_AGENTS,
@@ -63,6 +67,12 @@ import './machines.css';
 export interface MachineAgentsPanelProps {
   /** The machines in the file, in file order. */
   rows: readonly MachineRowView[];
+  /**
+   * PHASE 129. One machine's page. When it is set the panel draws that one
+   * machine and nothing else. When it is absent the panel draws every machine,
+   * which is what it did before this phase.
+   */
+  machineId?: string;
   /** False when this build's preload has no machines surface. */
   supported: boolean;
   /** Phase 109's answer, keyed by machine id. */
@@ -115,6 +125,7 @@ function composeRow(
 
 export function MachineAgentsPanel({
   rows,
+  machineId,
   supported,
   views,
   scan,
@@ -130,14 +141,22 @@ export function MachineAgentsPanel({
   if (!supported) return null;
   if (rows.length === 0) return null;
 
+  // PHASE 129. One page draws one machine. A page whose machine has left the
+  // file draws nothing, and `AgentsSection` puts the person back on this Mac.
+  const shown =
+    machineId === undefined ? rows : rows.filter((row) => row.id === machineId);
+  if (shown.length === 0) return null;
+
   const byId = new Map((scan?.agents ?? []).map((a) => [a.id, a]));
 
   return (
     <>
-      <h2 className="set-group-label">{AGENTS_ON_MACHINES_TITLE}</h2>
+      {/* PHASE 129. The heading that used to sit here is deleted. The page's
+          own tab names the machine, so a heading above one machine's card said
+          the same thing twice. */}
       <div className="set-section-caption">{AGENTS_ON_MACHINES_CAPTION}</div>
 
-      {rows.map((row) => {
+      {shown.map((row) => {
         const view = views[row.id] ?? null;
         const askedAt = view?.askedAt ?? null;
         const ready = row.ready === true;
@@ -220,7 +239,12 @@ export function MachineAgentsPanel({
   );
 }
 
-export function MachineAgentsSection(): React.JSX.Element | null {
+export function MachineAgentsSection({
+  machineId
+}: {
+  /** PHASE 129. The one machine this page is for. */
+  machineId?: string;
+} = {}): React.JSX.Element | null {
   const init = useMachinesStore((s) => s.init);
   const machines = useMachinesStore((s) => s.machines);
   const supported = useMachinesStore((s) => s.supported);
@@ -240,6 +264,7 @@ export function MachineAgentsSection(): React.JSX.Element | null {
   return (
     <MachineAgentsPanel
       rows={machines?.rows ?? []}
+      machineId={machineId}
       supported={supported}
       views={agentsByMachine}
       scan={scan}

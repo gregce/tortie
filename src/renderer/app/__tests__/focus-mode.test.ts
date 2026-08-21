@@ -139,6 +139,10 @@ describe('.session-focus and .gmux-focus-measure', () => {
     const list = (hide?.selectors ?? []).join(' | ');
     for (const region of [
       '.titlebar > *',
+      // Phase 129: the project rail is a chrome region, so focus hides it and
+      // the measure pass has to hide it too, or the destination the flight
+      // reads is 200px narrower than the one React draws.
+      "[data-slot='project-rail']",
       "[data-slot='activity-bar']",
       "[data-slot='sidebar']",
       "[data-slot='session-strip']",
@@ -241,6 +245,7 @@ describe('the mode animates opacity and colour, and nothing else', () => {
 describe('[data-focus-arriving]', () => {
   const REGIONS = [
     '.titlebar > *',
+    "[data-slot='project-rail']",
     "[data-slot='activity-bar']",
     "[data-slot='sidebar']",
     "[data-slot='session-strip']",

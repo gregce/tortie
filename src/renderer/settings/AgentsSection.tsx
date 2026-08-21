@@ -23,6 +23,13 @@
  * CopyButton.tsx. The machines surface needed the same control, and one copy
  * of it is the rule. Nothing else here changed.
  *
+ * PHASE 129. THE TAB IS PAGES. The three blocks above used to be stacked on
+ * one scrolling page. Now this Mac has a page and every machine has a page,
+ * and one page is drawn at a time. Nothing is read that was not read before:
+ * switching pages sends no message, starts no scan and opens no connection.
+ * A person with no machine has one page, so the tab list is not drawn at all
+ * and this section is exactly the section it was.
+ *
  * PHASE 110. A third sub-block joins the tab, being which agents each machine
  * has. It lives in MachineAgents.tsx and it draws nothing at all for a person
  * with no machine. `AgentRow` gained two optional props so that block can use
@@ -32,7 +39,7 @@
  * read at render time.
  */
 
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { DetectedAgent } from '@shared/types';
 import { formatAge, truncateMiddle, useNow, displayPath } from '../app/format';
 import { AgentIcon } from '../icons';
@@ -45,9 +52,17 @@ import {
   STALE_INSTALL_LINE,
   type InstallCopySegment
 } from '../state/agents';
+import {
+  AgentPages,
+  agentPagePanelId,
+  agentPageTabId,
+  type AgentPage
+} from './AgentPages';
 import { ConfiguredAgents } from './ConfiguredAgents';
 import { CopyButton } from './CopyButton';
 import { MachineAgentsSection } from './MachineAgents';
+import { AGENTS_PAGE_THIS_MAC } from './machines-copy';
+import { useMachinesStore } from './machines-store';
 import { useSettingsStore } from './settings-store';
 
 /** A composed sentence: plain text with paths and names in code font. */
@@ -234,11 +249,51 @@ export function AgentRow({
   );
 }
 
+/** The page for the Mac Tortie is running on. Never a machine id. */
+const THIS_MAC = 'local';
+
 export function AgentsSection(): React.JSX.Element {
   const scan = useSettingsStore((s) => s.scan);
   const scanning = useSettingsStore((s) => s.scanning);
   const rescan = useSettingsStore((s) => s.rescan);
   const now = useNow();
+
+  // The machines are read for the tab labels and the colours only. `init` is
+  // idempotent behind a module flag, it reads memory in main and it starts
+  // nothing. `MachineAgentsSection` used to make this same call from further
+  // down the page, and it still makes it on a machine page.
+  const initMachines = useMachinesStore((s) => s.init);
+  const machines = useMachinesStore((s) => s.machines);
+  const machinesSupported = useMachinesStore((s) => s.supported);
+  useEffect(() => initMachines(), [initMachines]);
+
+  const machineRows = useMemo(
+    () => (machinesSupported ? (machines?.rows ?? []) : []),
+    [machines, machinesSupported]
+  );
+
+  const pages = useMemo<AgentPage[]>(
+    () => [
+      { id: THIS_MAC, label: AGENTS_PAGE_THIS_MAC },
+      ...machineRows.map((row) => ({
+        id: row.id,
+        label: row.label,
+        color: row.color
+      }))
+    ],
+    [machineRows]
+  );
+
+  // The page is not remembered between openings. A remembered page would hide
+  // this Mac's own agents behind a tab the person did not choose this time.
+  const [pageId, setPageId] = useState<string>(THIS_MAC);
+  useEffect(() => {
+    if (pageId !== THIS_MAC && !machineRows.some((row) => row.id === pageId)) {
+      setPageId(THIS_MAC);
+    }
+  }, [machineRows, pageId]);
+  const activeId = pages.some((page) => page.id === pageId) ? pageId : THIS_MAC;
+  const onThisMac = activeId === THIS_MAC;
 
   const launchable = (scan?.agents ?? []).filter((a) => a.launchable);
   const anyInstalled = launchable.some((a) => a.installed);
@@ -261,10 +316,8 @@ export function AgentsSection(): React.JSX.Element {
     </button>
   );
 
-  return (
-    <section aria-label="Agents">
-      <h1 className="set-title">Agents</h1>
-
+  const thisMacPage = (
+    <>
       <div className="set-section-toolbar">
         <span className="set-scan-age">
           {scan !== null
@@ -303,11 +356,42 @@ export function AgentsSection(): React.JSX.Element {
           a machine with no configuration file, which is almost every machine,
           so the section above is unchanged for the ordinary user. */}
       <ConfiguredAgents />
+    </>
+  );
 
-      {/* Phase 110. Which agents each machine has. It draws nothing at all for
-          a person with no machine, so the tab above is unchanged for almost
-          everybody. It reads, and there is no install action anywhere in it. */}
-      <MachineAgentsSection />
+  // Phase 110. Which agents one machine has. It reads, and there is no install
+  // action anywhere in it.
+  const machinePage = <MachineAgentsSection machineId={activeId} />;
+
+  // PHASE 129. A person with one page gets the page and nothing around it. No
+  // tab list, no panel wrapper and no margin that was not there before, so the
+  // Agents tab for somebody with no machine is what it always was.
+  const body = onThisMac ? thisMacPage : machinePage;
+
+  return (
+    <section aria-label="Agents">
+      <h1 className="set-title">Agents</h1>
+
+      <AgentPages pages={pages} activeId={activeId} onSelect={setPageId} />
+
+      {pages.length > 1 ? (
+        // The panel takes the keyboard because a machine page can hold no
+        // focusable control at all: a machine Tortie has not signed in to has
+        // one disabled button and nothing else, and without this stop a person
+        // on the keyboard could not reach or scroll what it says.
+        <div
+          role="tabpanel"
+          id={agentPagePanelId(activeId)}
+          aria-labelledby={agentPageTabId(activeId)}
+          data-agents-page={activeId}
+          tabIndex={0}
+          className="set-agent-page-panel"
+        >
+          {body}
+        </div>
+      ) : (
+        body
+      )}
     </section>
   );
 }

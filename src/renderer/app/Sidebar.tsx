@@ -42,6 +42,7 @@ import { machineLabelFor, machineWriteRootFor } from '../state/machines-slice';
 import {
   clampSidebarWidth,
   dockRenderedWidth,
+  projectsRenderedWidth,
   SIDEBAR_MIN,
   SIDEBAR_SNAP,
   useWindowWidth
@@ -335,11 +336,27 @@ export function Sidebar(): React.JSX.Element {
   const orientation = useApp((s) => s.sessionOrientation);
   const dockCollapsed = useApp((s) => s.dockCollapsed);
   const dockWidth = useApp((s) => s.rightListWidth);
+  const projectsPosition = useApp((s) => s.projectsPosition);
+  const projectsCollapsed = useApp((s) => s.projectsCollapsed);
   const dockReserved = dockRenderedWidth(
     { orientation, dockCollapsed, dockWidth },
     windowWidth
   );
-  const renderedWidth = clampSidebarWidth(storedWidth, windowWidth, dockReserved);
+  // PHASE 129. The project rail takes width from the same row, so the
+  // sidebar's ceiling has to yield to it exactly as it yields to the dock.
+  // Without this term a 200px rail plus a 320px dock plus a 50% sidebar lays
+  // the terminal out inside the reflow band, which is the failure the whole
+  // budget exists to stop (chrome-geometry.ts, rule 2).
+  const projectsReserved = projectsRenderedWidth(
+    { projectsPosition, projectsCollapsed },
+    windowWidth
+  );
+  const renderedWidth = clampSidebarWidth(
+    storedWidth,
+    windowWidth,
+    dockReserved,
+    projectsReserved
+  );
 
   const handle = useResizeHandle({
     anchor: 'left',

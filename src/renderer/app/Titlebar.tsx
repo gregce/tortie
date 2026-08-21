@@ -14,6 +14,22 @@
  * The glyph is overlaid in the slot the close × already reserves, so nothing
  * moves; the gesture itself, including every way it has to be cancelled, is
  * src/renderer/app/modifier-held.ts.
+ *
+ * PHASE 129. The band draws three shapes now, and the store decides which.
+ *
+ *   projects on top, expanded    the row of tabs, as it has always been
+ *   projects on top, collapsed   one chip naming the active project, opening
+ *                                a native menu that lists every open project
+ *   projects on the left         no tabs at all here; ./ProjectRail.tsx draws
+ *                                them down the window's left side
+ *
+ * What each tab holds is derived in ./project-tabs-data.ts, which the rail
+ * reads too, so the two surfaces cannot come to disagree about which sessions
+ * roll up into a project's dot.
+ *
+ * SAY WHAT IS NOT TRUE. Collapsing on top does not make the window taller.
+ * The band stays 38px because the traffic lights live in it. What comes back
+ * is the row of tabs.
  */
 
 import React, {
@@ -23,27 +39,12 @@ import React, {
   useRef,
   useState
 } from 'react';
-import type { Project, SessionStatus } from '@shared/types';
 import { keyDisplay } from '@shared/keymap';
-import { MACHINE_DEFAULT_COLOR } from '@shared/machines';
-import {
-  isLocalTarget,
-  localPathOf,
-  sameTarget,
-  targetOfProject,
-  targetOfSession
-} from '@shared/workspace-target';
-import {
-  badgeMachineOf,
-  effectiveStatusOf,
-  sortProjects,
-  useApp
-} from '../state/store';
+import { localPathOf, targetOfProject } from '@shared/workspace-target';
+import { effectiveStatusOf, useApp } from '../state/store';
+import type { MenuItemSpec } from '../state/store';
 import { MachineBadge } from './MachineBadge';
-import { remoteTabTooltip } from './machine-copy';
 import { useGit } from '../state/git';
-import { rollupDot } from './status';
-import type { DotKind } from './status';
 import { truncateMiddle } from './format';
 import { Codicon } from '../icons';
 import {
@@ -55,24 +56,16 @@ import {
 import { showProjectMenu } from './project-menu';
 import { useCommandHeld } from './modifier-held';
 import { tabDigit, tabShortcutLabel } from './project-shortcuts';
-
-interface TabData {
-  project: Project;
-  dot: DotKind | 'none';
-  attentionCount: number;
-  /**
-   * PHASE 90.3. The machine this tab's files are on, or null for this Mac.
-   *
-   * A tab on this Mac draws nothing, for the reason every other surface draws
-   * nothing: the computer in front of the person is not a special case that
-   * needs announcing. A tab for a folder on another machine says which one, in
-   * that machine's own label and colour, because two tabs can otherwise carry
-   * the same folder name and mean different computers.
-   */
-  machine: ReturnType<typeof badgeMachineOf> | null;
-  /** The tooltip, composed once where the machine's label is in hand. */
-  title: string;
-}
+// Phase 129. One derivation of the project list, shared with ./ProjectRail.
+import { useProjectTabs } from './project-tabs-data';
+import type { TabData } from './project-tabs-data';
+import {
+  collapseIcon,
+  collapseLabel,
+  SWITCH_PROJECT
+} from './projects-position';
+import { ProjectsPositionButton } from './ProjectsPositionButton';
+import './project-rail.css';
 
 function ProjectTab({
   data,
@@ -253,9 +246,68 @@ function TabIndicator({
 // The Settings gear moved to the activity bar's bottom slot (round 1, S3) —
 // see src/renderer/app/ActivityBar.tsx.
 
+/**
+ * PHASE 129. The chip that stands in for the whole row when the tabs are
+ * collapsed on top.
+ *
+ * It carries the active project's dot, its name and its attention count, and
+ * clicking it opens a NATIVE menu listing every open project with its own ⌘
+ * digit, so collapsing the row never costs a person the ability to switch.
+ * ⌘1 to ⌘9 and ⌃Tab are untouched by the collapse.
+ */
+function CollapsedProjectChip({
+  tabs,
+  activeProjectId
+}: {
+  tabs: TabData[];
+  activeProjectId: string | null;
+}): React.JSX.Element | null {
+  const setActiveProject = useApp((s) => s.setActiveProject);
+  const setMenu = useApp((s) => s.setMenu);
+  const active = tabs.find((t) => t.project.id === activeProjectId) ?? tabs[0];
+  if (active === undefined) return null;
+
+  return (
+    <button
+      type="button"
+      className="ptab-chip"
+      aria-label={SWITCH_PROJECT}
+      title={SWITCH_PROJECT}
+      aria-haspopup="menu"
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const items: MenuItemSpec[] = tabs.map((t, i) => {
+          const digit = tabDigit(i, tabs.length);
+          return {
+            label: t.project.name,
+            ...(digit !== null ? { hint: tabShortcutLabel(digit) } : {}),
+            run: () => setActiveProject(t.project.id)
+          };
+        });
+        setMenu({ x: r.left, y: r.bottom, items });
+      }}
+    >
+      <span
+        className={`dot dot-${active.dot === 'none' ? 'none' : active.dot}`}
+      />
+      <span className="prail-name">
+        {truncateMiddle(active.project.name, 24)}
+      </span>
+      {active.machine !== null ? (
+        <MachineBadge machine={active.machine} className="ptab-machine" />
+      ) : null}
+      {active.attentionCount > 0 ? (
+        <span className="badge-attention num">{active.attentionCount}</span>
+      ) : null}
+      {/* Its own caret, so the chip says it opens a menu without leaning on
+          the control beside it to say it. */}
+      <Codicon name="chevron-down" size={12} className="ptab-chip-caret" />
+    </button>
+  );
+}
+
 export function Titlebar(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
-  const tabOrder = useApp((s) => s.tabOrder);
   const gitInit = useGit((s) => s.init);
   const ensureStatus = useGit((s) => s.ensureStatus);
 
@@ -281,10 +333,13 @@ export function Titlebar(): React.JSX.Element {
     }
   }, [projects, gitInit, ensureStatus]);
   const sessions = useApp((s) => s.sessions);
-  const machineStates = useApp((s) => s.machineStates);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const setAttentionOpen = useApp((s) => s.setAttentionOpen);
   const attentionOpen = useApp((s) => s.attentionOpen);
+  // Phase 129. Where the tabs are, and whether their names are on screen.
+  const projectsPosition = useApp((s) => s.projectsPosition);
+  const projectsCollapsed = useApp((s) => s.projectsCollapsed);
+  const setProjectsCollapsed = useApp((s) => s.setProjectsCollapsed);
 
   const navRef = useRef<HTMLElement | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
@@ -296,55 +351,7 @@ export function Titlebar(): React.JSX.Element {
   const [draggingTab, setDraggingTab] = useState(false);
   const hinting = useCommandHeld({ suppressed: draggingTab });
 
-  const tabs = useMemo<TabData[]>(() => {
-    const ordered = sortProjects(projects, tabOrder);
-    return ordered.map((project) => {
-      // PHASE 90.3. The PAIR decides which sessions this tab rolls up. A bare
-      // path comparison added another machine's sessions into a local tab's dot
-      // and badge whenever the two folders had the same path.
-      const target = targetOfProject(project);
-      const statuses: SessionStatus[] = [];
-      let attentionCount = 0;
-      for (const sess of sessions) {
-        if (!sameTarget(targetOfSession(sess), target)) continue;
-        const status = effectiveStatusOf(sess);
-        statuses.push(status);
-        if (status === 'needs_input') attentionCount++;
-      }
-      const state = isLocalTarget(target)
-        ? undefined
-        : machineStates.find((one) => one.id === project.machineId);
-      // A machine a person removed while its tab was still open has no state
-      // row. The tab keeps its badge, drawn from the id, so a person can read
-      // which tab to close rather than seeing the tab lose its only mark.
-      const machine =
-        isLocalTarget(target)
-          ? null
-          : state !== undefined
-            ? badgeMachineOf(state)
-            : {
-                id: project.machineId ?? '',
-                label: project.machineId ?? '',
-                color: MACHINE_DEFAULT_COLOR,
-                answering: false,
-                canRestore: false,
-                restoreReason: null
-              };
-      // Every sentence about a machine comes from ./machine-copy.ts, which is
-      // the one file the vocabulary audit reads.
-      const title =
-        machine === null
-          ? project.path
-          : remoteTabTooltip(project.name, project.path, machine.label);
-      return {
-        project,
-        dot: rollupDot(statuses),
-        attentionCount,
-        machine,
-        title
-      };
-    });
-  }, [projects, tabOrder, sessions, machineStates]);
+  const tabs = useProjectTabs();
 
   const attentionTotal = useMemo(
     () =>
@@ -353,41 +360,69 @@ export function Titlebar(): React.JSX.Element {
     [sessions]
   );
 
+  // Phase 129. The band's own collapse control. It is drawn only while the
+  // tabs are on top, because on the left the rail's band carries its own.
+  const collapseControl = (
+    <button
+      type="button"
+      className="icon-btn prail-collapse"
+      aria-label={collapseLabel('top', projectsCollapsed)}
+      title={collapseLabel('top', projectsCollapsed)}
+      onClick={() => setProjectsCollapsed(!projectsCollapsed)}
+    >
+      <Codicon name={collapseIcon('top', projectsCollapsed)} size={14} />
+    </button>
+  );
+
   return (
     <header className="titlebar" data-slot="project-tabs">
-      <nav className="titlebar-tabs" aria-label="Projects" ref={navRef}>
-        {tabs.map((t, i) => (
-          <ProjectTab
-            key={t.project.id}
-            data={t}
-            selected={t.project.id === activeProjectId}
-            hintDigit={tabDigit(i, tabs.length)}
-            hinting={hinting}
-            onDragIndicate={setDropIndex}
-            onDragState={setDraggingTab}
-          />
-        ))}
-        {dropIndex !== null ? (
-          <TabIndicator index={dropIndex} navRef={navRef} />
-        ) : null}
-        {/* Two verbs now live behind the +: open one that exists (⌘O) and
-            make one that does not (Phase 12.9 item 1). A native menu rather
-            than a second button — the tab strip is the one row that must
-            stay scannable, and DESIGN.md §3 has no DOM menus. */}
-        <button
-          type="button"
-          className="ptab-add"
-          title="New project, or open one"
-          aria-label="New project, or open one"
-          aria-haspopup="menu"
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            showProjectMenu(r.left, r.bottom);
-          }}
-        >
-          <Codicon name="add" size={16} />
-        </button>
-      </nav>
+      {/* PHASE 129. With the tabs on the left the band draws none of them: the
+          rail does, and drawing both would be two answers to one question.
+          The band itself stays, at its 38px, because the traffic lights live
+          in its first 76px. */}
+      {projectsPosition === 'left' ? null : projectsCollapsed ? (
+        <nav className="titlebar-tabs" aria-label="Projects">
+          <CollapsedProjectChip tabs={tabs} activeProjectId={activeProjectId} />
+          {collapseControl}
+          <ProjectsPositionButton />
+        </nav>
+      ) : (
+        <nav className="titlebar-tabs" aria-label="Projects" ref={navRef}>
+          {tabs.map((t, i) => (
+            <ProjectTab
+              key={t.project.id}
+              data={t}
+              selected={t.project.id === activeProjectId}
+              hintDigit={tabDigit(i, tabs.length)}
+              hinting={hinting}
+              onDragIndicate={setDropIndex}
+              onDragState={setDraggingTab}
+            />
+          ))}
+          {dropIndex !== null ? (
+            <TabIndicator index={dropIndex} navRef={navRef} />
+          ) : null}
+          {/* Two verbs now live behind the +: open one that exists (⌘O) and
+              make one that does not (Phase 12.9 item 1). A native menu rather
+              than a second button — the tab strip is the one row that must
+              stay scannable, and DESIGN.md §3 has no DOM menus. */}
+          <button
+            type="button"
+            className="ptab-add"
+            title="New project, or open one"
+            aria-label="New project, or open one"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              showProjectMenu(r.left, r.bottom);
+            }}
+          >
+            <Codicon name="add" size={16} />
+          </button>
+          {collapseControl}
+          <ProjectsPositionButton />
+        </nav>
+      )}
       <div className="titlebar-spacer" />
       <button
         type="button"

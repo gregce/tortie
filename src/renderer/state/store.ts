@@ -37,6 +37,7 @@ import type { AppState } from './app-state';
 import {
   chromeGeometryOf,
   createChromeSlice,
+  pushProjectsPositionToMenu,
   pushSessionsPositionToMenu
 } from './chrome-slice';
 import { createMachinesSlice } from './machines-slice';
@@ -57,9 +58,15 @@ export { loadLocal, saveLocal } from './local';
 export type { BootBlock } from './app-state';
 export type { Toast, ToastKind } from './notices-slice';
 export type { ConfirmSpec, MenuItemSpec, MenuSpec } from './overlays-slice';
-export type { EditorFillMemento, SessionOrientation } from './chrome-slice';
+export type {
+  EditorFillMemento,
+  ProjectsPosition,
+  SessionOrientation
+} from './chrome-slice';
 export {
+  pushProjectsPositionToMenu,
   pushSessionsPositionToMenu,
+  whenProjectsPositionPushed,
   whenSessionsPositionPushed
 } from './chrome-slice';
 export { nextOrdinal } from './sessions-slice';
@@ -140,7 +147,9 @@ export function liveChromeGeometry(): {
   windowWidth: number;
   /** Width the session dock is occupying (0 / 48 / its clamped width). */
   dockReserved: number;
-  /** Ceiling for the sidebar, with that dock and the terminal's floor out. */
+  /** Phase 129: width the project rail is occupying (0 / 48 / 200). */
+  projectsReserved: number;
+  /** Ceiling for the sidebar, with both rails and the terminal's floor out. */
   sidebarMax: number;
   /** Width shared by the terminal and the editor split. */
   workArea: number;
@@ -205,6 +214,9 @@ export function suggestedProjectParent(): string {
 // — never on the bridge method, which must be there.
 if (typeof window !== 'undefined') {
   pushSessionsPositionToMenu(useApp.getState().sessionOrientation);
+  // Phase 129: the project tabs announce themselves the same way, for the
+  // same reason. Main's default is a guess for one paint at most.
+  pushProjectsPositionToMenu(useApp.getState().projectsPosition);
 }
 
 /**

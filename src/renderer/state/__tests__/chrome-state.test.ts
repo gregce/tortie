@@ -241,11 +241,13 @@ describe('drag-to-hide', () => {
       'sidebarVisible',
       'sidebarWidth'
     ]);
-    // No `sidebarCollapsed`, no `sidebarSnapped`, no snap flag — the dock's
-    // collapse is the ONLY boolean of that shape in the model.
-    expect(fields.filter((k) => /collaps|snapp?ed|hidden/i.test(k))).toEqual([
-      'dockCollapsed'
-    ]);
+    // No `sidebarCollapsed`, no `sidebarSnapped`, no snap flag. Two booleans
+    // of this shape exist and they name two different regions: the session
+    // dock's collapse, and (Phase 129) the project tabs' own. The sidebar
+    // still has none, which is what this line has always been protecting.
+    expect(
+      fields.filter((k) => /collaps|snapp?ed|hidden/i.test(k)).sort()
+    ).toEqual(['dockCollapsed', 'projectsCollapsed']);
   });
 
   it('puts the snap threshold BELOW the floor, so the drag never jumps', async () => {

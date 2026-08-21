@@ -260,6 +260,89 @@
   color: var(--error);
 }
 
+/* ------------------------------------------------- agent pages (P129) */
+
+/* One page per machine, one page for this Mac, drawn as a row of tabs under
+   the Agents heading. The row scrolls sideways and never wraps: a person may
+   configure up to 32 machines, and a wrapping row would push the agents below
+   the fold again, which is the defect this replaced. */
+
+.set-agent-pages {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin: calc(-1 * var(--space-3)) 0 var(--space-6);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+
+.set-agent-pages::-webkit-scrollbar {
+  display: none;
+}
+
+.set-agent-page {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  background: transparent;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+
+.set-agent-page:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.set-agent-page[aria-selected='true'] {
+  color: var(--text-primary);
+}
+
+/* 2px accent bar along the selected tab's bottom edge, sitting on top of the
+   row's own hairline so the two read as one line. */
+.set-agent-page[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: -1px;
+  height: 2px;
+  border-radius: 1px 1px 0 0;
+  background: var(--accent);
+}
+
+.set-agent-page:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* The panel is a tab stop, so it must say when it has the keyboard. It is a
+   whole page rather than a control, so the mark is an inset ring rather than
+   the focus ring a button wears. */
+.set-agent-page-panel:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+/* The machine dot is the one from Settings → Machines, and it carries a top
+   margin there because it sits beside a two line block. In a 28px tab it is
+   centred by the flex row instead. */
+.set-agent-page .mach-dot {
+  margin-top: 0;
+}
+
 /* -------------------------------------------------------- agents rows */
 
 .set-section-toolbar {

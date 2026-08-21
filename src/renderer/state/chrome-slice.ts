@@ -12,6 +12,7 @@ import {
   DOCK_DEFAULT,
   DOCK_MIN,
   dockRenderedWidth,
+  projectsRenderedWidth,
   sanitizeStoredWidth,
   SIDEBAR_DEFAULT,
   SIDEBAR_MIN,
@@ -29,6 +30,13 @@ import { gmuxBridge } from '../bridge';
  * docked at its right. View-menu radio, persisted app-wide.
  */
 export type SessionOrientation = 'top' | 'right';
+
+/**
+ * Where the project tabs live (Phase 129): a row across the top of the window
+ * (default, and what every build before this one drew) or a rail down its left
+ * side, outside the activity bar. View-menu radio pair, persisted app-wide.
+ */
+export type ProjectsPosition = 'top' | 'left';
 
 /**
  * The layout fill mode put away, so it can be put back exactly (Phase 18
@@ -62,6 +70,28 @@ export interface ChromeSlice {
    * 'top' hides the dock entirely, coming back restores the collapsed state.
    */
   dockCollapsed: boolean;
+  /**
+   * Phase 129. Where the project tabs are drawn.
+   *
+   * The sibling of `sessionOrientation` above, and built the same way: this
+   * store is the ONE writer, localStorage holds it under
+   * `gmux.projectsPosition`, and main is TOLD over `ui:projectsPosition` so
+   * the View menu's radios render it instead of holding a second answer.
+   */
+  projectsPosition: ProjectsPosition;
+  /**
+   * Phase 129. The project tabs are put away where they are.
+   *
+   * One boolean for both positions, because it means the same thing in both:
+   * the names are not on screen. On top it takes the row of tabs away and
+   * leaves one chip that names the active project. On the left it takes the
+   * rail down to 48px of dots. Persisted under `gmux.projectsCollapsed`.
+   *
+   * SAY WHAT IS NOT TRUE: collapsing on top does not make the window taller.
+   * The title band stays 38px because the traffic lights live in it. What
+   * comes back is the row of tabs.
+   */
+  projectsCollapsed: boolean;
   /**
    * Phase 18 item 2 — fill mode, as an OVERRIDE that never writes.
    *
@@ -121,6 +151,18 @@ export interface ChromeSlice {
   /** Collapse the session dock to its icon rail, or expand it again. */
   setDockCollapsed(collapsed: boolean): void;
   /**
+   * Phase 129. Move the project tabs to the top or to the left.
+   *
+   * Persists, and tells main so the View-menu radios follow. It touches
+   * neither `sessionFocus` nor `editorFill`, and that is deliberate: moving
+   * the project tabs is not a gesture on the session surface or on the open
+   * file, and both of those regions are hidden by CSS while focus is on, so
+   * there is nothing on screen for this to contradict.
+   */
+  setProjectsPosition(position: ProjectsPosition): void;
+  /** Phase 129. Put the project names away, or bring them back. */
+  setProjectsCollapsed(collapsed: boolean): void;
+  /**
    * Enter fill mode: remember the current sidebar/dock state, then put both
    * away. A no-op while already filling — the memento is captured once, so a
    * double-enter cannot record the filled layout as the one to restore.
@@ -171,6 +213,11 @@ const LS_SIDEBAR_VIEW = 'gmux.sidebarView';
 // Phase 18 item 4. New key; absent → false. Key NAMES are a protected strand
 // (CLAUDE.md) — `gmux.*` stays `gmux.*`, only the permitted RANGES moved.
 const LS_DOCK_COLLAPSED = 'gmux.dockCollapsed';
+// Phase 129. Two new keys, both under the protected `gmux.` prefix, both
+// listed in docs/audits/contract-baseline.txt in the same commit that adds
+// them. Absent → the defaults below, which are what the app drew before.
+const LS_PROJECTS_POSITION = 'gmux.projectsPosition';
+const LS_PROJECTS_COLLAPSED = 'gmux.projectsCollapsed';
 
 /**
  * The chrome's geometry from a given snapshot of the store — the pure core
@@ -195,13 +242,17 @@ export function chromeGeometryOf(
     | 'rightListWidth'
     | 'sidebarVisible'
     | 'sidebarWidth'
+    | 'projectsPosition'
+    | 'projectsCollapsed'
   >,
   windowWidth: number
 ): {
   windowWidth: number;
   /** Width the session dock is occupying (0 / 48 / its clamped width). */
   dockReserved: number;
-  /** Ceiling for the sidebar, with that dock and the terminal's floor out. */
+  /** Phase 129: width the project rail is occupying (0 / 48 / 200). */
+  projectsReserved: number;
+  /** Ceiling for the sidebar, with both rails and the terminal's floor out. */
   sidebarMax: number;
   /** Width shared by the terminal and the editor split. */
   workArea: number;
@@ -211,16 +262,23 @@ export function chromeGeometryOf(
     dockCollapsed: s.dockCollapsed,
     dockWidth: s.rightListWidth
   };
+  const projects = {
+    projectsPosition: s.projectsPosition,
+    projectsCollapsed: s.projectsCollapsed
+  };
   const dockReserved = dockRenderedWidth(presence, windowWidth);
+  const projectsReserved = projectsRenderedWidth(projects, windowWidth);
   return {
     windowWidth,
     dockReserved,
-    sidebarMax: sidebarMaxWidth(windowWidth, dockReserved),
+    projectsReserved,
+    sidebarMax: sidebarMaxWidth(windowWidth, dockReserved, projectsReserved),
     workArea: workAreaWidth({
       windowWidth,
       sidebarVisible: s.sidebarVisible,
       sidebarWidth: s.sidebarWidth,
-      ...presence
+      ...presence,
+      ...projects
     })
   };
 }
@@ -249,6 +307,13 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
     DOCK_MIN
   ),
   dockCollapsed: loadLocal<unknown>(LS_DOCK_COLLAPSED, false) === true,
+  // Phase 129. Read the same defensive way `sessionOrientation` above is: a
+  // hand-edited key that is not the one non-default string is 'top'.
+  projectsPosition:
+    loadLocal<ProjectsPosition>(LS_PROJECTS_POSITION, 'top') === 'left'
+      ? 'left'
+      : 'top',
+  projectsCollapsed: loadLocal<unknown>(LS_PROJECTS_COLLAPSED, false) === true,
   editorFill: null,
   // Phase 80.1. There is no loadLocal call here, and that is deliberate.
   // Focus is never persisted, so a stray key under the gmux prefix left
@@ -315,6 +380,25 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
     if (get().dockCollapsed === collapsed) return;
     set({ dockCollapsed: collapsed });
     saveLocal(LS_DOCK_COLLAPSED, collapsed);
+  },
+
+  setProjectsPosition(position) {
+    if (get().projectsPosition !== position) {
+      set({ projectsPosition: position });
+      saveLocal(LS_PROJECTS_POSITION, position);
+    }
+    // Pushed even when the value did not move, so the radios are corrected
+    // after a rebuild that ran while main's cache was behind. The push is
+    // cheap and idempotent; a missing mark is not.
+    pushProjectsPositionToMenu(position);
+  },
+
+  setProjectsCollapsed(collapsed) {
+    if (get().projectsCollapsed === collapsed) return;
+    set({ projectsCollapsed: collapsed });
+    saveLocal(LS_PROJECTS_COLLAPSED, collapsed);
+    // Nothing is pushed to main here. The View menu carries the position pair
+    // and no collapse row, so there is no mark to move.
   },
 
   enterEditorFill() {
@@ -426,4 +510,37 @@ export function pushSessionsPositionToMenu(
 /** Resolves once the latest push has settled (screenshot harness, tests). */
 export function whenSessionsPositionPushed(): Promise<void> {
   return sessionsPositionPush;
+}
+
+// ---------------------------------------------------------------------------
+// Projects position → the View menu (Phase 129)
+//
+// The same one-direction contract as the block above, for the project tabs.
+// The store is the only authority. Main caches what it was last told and draws
+// its radios from that cache. Written as a second small block rather than as a
+// helper over both, because the two pushes are independent and a shared one
+// would need a parameter naming which bridge method to call.
+// ---------------------------------------------------------------------------
+
+let projectsPositionPush: Promise<void> = Promise.resolve();
+
+/** Tell main where the project tabs are now. Fire-and-forget; never throws. */
+export function pushProjectsPositionToMenu(position: ProjectsPosition): void {
+  const bridge = gmuxBridge();
+  projectsPositionPush = Promise.resolve()
+    .then(() => {
+      if (bridge === undefined) throw new Error('there is no bridge');
+      return bridge.setProjectsPosition(position);
+    })
+    .catch((err: unknown) => {
+      console.error(
+        '[projects-position] the View menu did not hear the store',
+        err
+      );
+    });
+}
+
+/** Resolves once the latest push has settled (screenshot harness, tests). */
+export function whenProjectsPositionPushed(): Promise<void> {
+  return projectsPositionPush;
 }

@@ -812,7 +812,8 @@ describe('which agents each machine has (Phase 110)', () => {
       'Installing an agent happens on that machine.'
     );
     const panelStrings = [
-      copy.AGENTS_ON_MACHINES_TITLE,
+      copy.AGENTS_PAGE_THIS_MAC,
+      copy.AGENTS_PAGES_LABEL,
       copy.AGENTS_ON_MACHINES_CAPTION,
       copy.BTN_RESCAN_AGENTS,
       copy.RESCAN_AGENTS_RUNNING,
@@ -826,6 +827,21 @@ describe('which agents each machine has (Phase 110)', () => {
     for (const text of panelStrings) {
       expect(text).not.toMatch(/curl |npm install|brew install|https?:\/\//);
     }
+  });
+
+  it('speaks about the one machine its page draws (Phase 129)', () => {
+    // The caption sits on a page that draws exactly one machine. "each
+    // machine" was true of Phase 110's single scroll and is not true here.
+    expect(copy.AGENTS_ON_MACHINES_CAPTION).toContain('on this machine');
+    expect(copy.AGENTS_ON_MACHINES_CAPTION).not.toContain('each machine');
+  });
+
+  it('names the pages the tab is divided into (Phase 129)', () => {
+    // The heading that used to sit over the per machine blocks is gone. The
+    // tab names the machine, so the heading said the same thing twice.
+    expect(copy.AGENTS_PAGE_THIS_MAC).toBe('This Mac');
+    expect(copy.AGENTS_PAGES_LABEL).toBe('Which machine these agents are on');
+    expect('AGENTS_ON_MACHINES_TITLE' in copy).toBe(false);
   });
 
   it('reads Not found for absent, and never as Not installed', () => {

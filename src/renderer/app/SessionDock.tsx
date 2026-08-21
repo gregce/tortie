@@ -15,6 +15,12 @@
  * status glance. `dockCollapsed` is the one truth for that state; the band's
  * chevron and a drag past `DOCK_SNAP` both write it, and the stored width is
  * left alone so expanding restores it exactly.
+ *
+ * Phase 129 item 2: the keyboard follows the pointer. A click on a row selects
+ * it and hands the keyboard to its terminal; an arrow press moves the
+ * selection and leaves the keyboard here, so the next arrow moves it again.
+ * `onListKeyDown` below is the one implementation for both densities, and
+ * ./session-list-keyboard.ts holds the rule and the measurement behind it.
  */
 
 import React, { useRef } from 'react';
@@ -47,10 +53,13 @@ import { MachineBadge } from './MachineBadge';
 import { AgentIcon, Codicon } from '../icons';
 import { useResizeHandle } from '../controls';
 import {
+  handKeyboardToTheTerminal,
   pressBlocksSurfaceDrag,
   sessionGestureProps,
   startSurfaceDrag
 } from './split/surface-dnd';
+import { releaseSessionListKeyboard } from './session-list-keyboard';
+import { focusTerminal } from './session-focus';
 import { groupMenuItems, groupTooltip } from './split/split-menu';
 import { useQuickCreateMenu } from './new-session-menu';
 // The insertion indicator is shared with the collapsed rail (Phase 60);
@@ -187,7 +196,12 @@ function GroupDockRow({
         ]
           .filter(Boolean)
           .join(' ')}
-        onClick={() => selectLeaf(projectPath, focusedLeafId)}
+        onClick={() => {
+          // Phase 129 item 2: a click selects AND hands the keyboard over,
+          // exactly as a single-session row's click does.
+          selectLeaf(projectPath, focusedLeafId);
+          handKeyboardToTheTerminal();
+        }}
         onPointerDown={(e) => {
           // Phase 12.2 parity: group rows refuse a drag on exactly the same
           // terms as single-session rows.
@@ -284,6 +298,16 @@ export function SessionDock(): React.JSX.Element | null {
 
   if (!project) return null;
 
+  /**
+   * The list's own keys, one implementation for both densities (S4).
+   *
+   * PHASE 129 ITEM 2. The arrows move the SELECTION and leave the keyboard on
+   * the list, so the next arrow moves the selection again. They used to lose
+   * it on the first press, because selecting a session mounts a pane and the
+   * pane focused itself; ./session-list-keyboard.ts holds the measurement and
+   * the guard that stopped it. Enter is unchanged in meaning and is still the
+   * one key that moves the keyboard into the terminal.
+   */
   const onListKeyDown = (e: React.KeyboardEvent): void => {
     if (surfaces.length === 0) return;
     const idx = surfaces.findIndex((x) => x.id === activeSurface?.id);
@@ -295,14 +319,28 @@ export function SessionDock(): React.JSX.Element | null {
           : surfaces[Math.max(idx - 1, 0)];
       if (next) {
         const leafId = next.leafIds[0];
-        if (leafId !== undefined) setActiveSession(leafId);
+        if (leafId !== undefined) {
+          setActiveSession(leafId);
+          // A selection the person cannot see is not a selection. The list
+          // scrolls the newly selected row into view and nothing else moves,
+          // which is why `block: 'nearest'` is the right verb here.
+          const surfaceId = next.id;
+          requestAnimationFrame(() => {
+            document
+              .querySelector<HTMLElement>(
+                `[data-slot="session-dock"] [data-surface-id="${CSS.escape(surfaceId)}"]`
+              )
+              ?.scrollIntoView({ block: 'nearest' });
+          });
+        }
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      // Enter activates: hand the keyboard to the terminal (S4).
-      document
-        .querySelector<HTMLTextAreaElement>('.gmux-terminal-mount textarea')
-        ?.focus();
+      // Enter activates: hand the keyboard to the terminal (S4). The release
+      // is what lets a pane that is still attaching finish the hand over,
+      // because its textarea does not exist yet for `focusTerminal` to find.
+      releaseSessionListKeyboard();
+      focusTerminal();
     }
   };
 

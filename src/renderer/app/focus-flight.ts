@@ -28,6 +28,12 @@
  * THE NAME. `./session-focus.ts` already means "land the person IN a session"
  * for the attention overlay and the menu bar sentinel. This module is the
  * mode, not the jump, so it is named for what it does.
+ *
+ * WHO CALLS `toggleSessionFocus` SINCE PHASE 129. The chord no longer arrives
+ * here directly. `./fill-chord.ts` reads the region the keyboard is in and
+ * sends the chord either here or to the editor's own fill. Escape and the
+ * native View row still call this module directly, because both of them mean
+ * the session and nothing else. Nothing in this file changed for that.
  */
 
 import type { SessionStatus } from '@shared/types';

@@ -131,6 +131,10 @@ const api: InstalledGmuxApi = {
   // surface just moved, so the View-menu radios cannot go stale when the
   // header's inline toggle (not the menu) is what moved it.
   setSessionsPosition: (position) => invoke('ui:sessionsPosition', position),
+  // Phase 129 required extra, the sibling of the line above: the store tells
+  // main where the project tabs just moved, so the View-menu radios cannot go
+  // stale when the titlebar's own button (not the menu) is what moved them.
+  setProjectsPosition: (position) => invoke('ui:projectsPosition', position),
   // Phase 8.2 optional extras: first-quit toast flow (DESIGN.md §4 ⌘Q).
   onQuitRequested: (cb) => on(EVT_QUIT_REQUESTED, cb),
   quit: () => invoke('app:quit'),

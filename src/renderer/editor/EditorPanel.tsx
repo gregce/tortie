@@ -350,6 +350,9 @@ export function EditorPanel(): React.JSX.Element | null {
   const orientation = useApp((s) => s.sessionOrientation);
   const dockCollapsed = useApp((s) => s.dockCollapsed);
   const dockWidth = useApp((s) => s.rightListWidth);
+  // Phase 129, for the budget below.
+  const projectsPosition = useApp((s) => s.projectsPosition);
+  const projectsCollapsed = useApp((s) => s.projectsCollapsed);
   const editorFill = useApp((s) => s.editorFill);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const projects = useApp((s) => s.projects);
@@ -371,13 +374,19 @@ export function EditorPanel(): React.JSX.Element | null {
   // same pass, instead of three listeners racing each other.
   const winW = useWindowWidth();
 
+  // PHASE 129. The project rail is a column of the same row, so it enters
+  // this budget beside the dock. Miss it and the panel splits a row that is
+  // 200px narrower than it thinks, which lays the terminal out inside the
+  // reflow band (chrome-geometry.ts, rule 2).
   const workArea = workAreaWidth({
     windowWidth: winW,
     sidebarVisible,
     sidebarWidth,
     orientation,
     dockCollapsed,
-    dockWidth
+    dockWidth,
+    projectsPosition,
+    projectsCollapsed
   });
 
   // Two reasons to overlay rather than split, and the second one protects

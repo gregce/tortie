@@ -438,7 +438,9 @@ export type AnyMenuActionWithProjects =
   // Phase 51. The payload-free nudge that a shell open is pending.
   | ShellOpenMenuActionId
   // Phase 90.3. File > Open Folder on a Machine…, the same one-line fold.
-  | RemoteProjectMenuActionId;
+  | RemoteProjectMenuActionId
+  // Phase 129. The View menu's projects radio pair, the same one-line fold.
+  | ProjectsPositionMenuActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.12 item 2 (the inline sessions-position toggle) — one
@@ -470,10 +472,25 @@ export type AnyMenuActionWithProjects =
 /** Where the session surface lives — mirrors the renderer's store type. */
 export type SessionsPosition = 'top' | 'right';
 
+/**
+ * Where the project tabs live — mirrors the renderer's store type
+ * (Phase 129). The same shape as the line above it, and for the same reason:
+ * the tabs can now be a row across the top of the window or a rail down its
+ * left side, and the View menu draws a radio pair that has to render the
+ * store's answer rather than hold a second one.
+ */
+export type ProjectsPosition = 'top' | 'left';
+
 /** New invoke channel appended by Phase 12.12's sessions-position toggle. */
 export interface ViewMenuInvokeChannelMap {
   /** The store moved the session surface; move the View-menu radios to match. */
   'ui:sessionsPosition': { req: [position: SessionsPosition]; res: void };
+  /**
+   * Phase 129. The store moved the project tabs; move the View-menu radios to
+   * match. One direction only, exactly like the line above. Main never asks
+   * where the tabs are, so there is still one writer and one truth.
+   */
+  'ui:projectsPosition': { req: [position: ProjectsPosition]; res: void };
 }
 
 /**
@@ -486,6 +503,12 @@ export interface ViewMenuInvokeChannelMap {
  */
 export interface GmuxViewMenuExtras {
   setSessionsPosition(position: SessionsPosition): Promise<void>;
+  /**
+   * Phase 129, and required for the same reason as the line above it. A
+   * missing method here is our own bug, not an older preload, because the
+   * preload ships in the same asar as the store that calls it.
+   */
+  setProjectsPosition(position: ProjectsPosition): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -505,6 +528,28 @@ export interface GmuxViewMenuExtras {
  * so the contract inventory does not move.
  */
 export type ChromeMenuActionId = 'toggle-editor-fill' | 'toggle-session-focus';
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 129 (the project tabs can be a left rail) — one new id
+// pair, folded into AnyMenuActionWithProjects above by the same one-line edit
+// FindMenuActionId documents.
+//
+// The pair rides the existing EVT_MENU_ACTION event. Clicking a radio does not
+// mark it: the action is forwarded to the renderer store, the store moves the
+// tabs, and the store pushes the new position back over ui:projectsPosition,
+// which is what moves the mark. One writer, three controls.
+// ---------------------------------------------------------------------------
+
+/**
+ * View-menu actions that ASK for a project-tab position.
+ *
+ * The literals are repeated from src/shared/projects-position.ts rather than
+ * imported, because that module imports this one for `ProjectsPosition` and a
+ * type-level cycle between the contract and a table built on it is a cycle a
+ * later reader has to unpick. The table's own `ProjectsPositionMenuAction` is
+ * the same two strings, and projects-position.test.ts holds them equal.
+ */
+export type ProjectsPositionMenuActionId = 'projects-top' | 'projects-left';
 
 /**
  * Every action the native menus (app menu + status item) can forward — the

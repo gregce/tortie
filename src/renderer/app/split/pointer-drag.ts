@@ -10,8 +10,10 @@
  *   double-clicks behave exactly as without this module);
  * - the ghost tracks the pointer 1:1 (no easing);
  * - Esc cancels: onEnd(true) fires, indicators must vanish with no motion;
- * - after a real drag, the synthetic click that follows pointerup is
- *   swallowed so drop never doubles as select;
+ * - after a real drag that CHANGED something, the synthetic click that follows
+ *   pointerup is swallowed so the drop never doubles as select. A drag that
+ *   changed nothing lets the click through — see `onDrop` below for the
+ *   measurement that put that clause here;
  * - a secondary (context-menu) press never arms anything, and any press that
  *   is still pending can be revoked with `cancelPointerDrag()` — see
  *   `isSecondaryPress` and `cancelPointerDrag` for why both are required.
@@ -24,8 +26,28 @@ export interface PointerDragHandlers {
   onStart?(e: PointerEvent): void;
   /** Every pointermove after the drag armed. */
   onMove(e: PointerEvent): void;
-  /** Pointer released after the drag armed (fires before onEnd(false)). */
-  onDrop(e: PointerEvent): void;
+  /**
+   * Pointer released after the drag armed (fires before onEnd(false)).
+   *
+   * Return `false` when the drop CHANGED NOTHING, and the click synthesized
+   * from this pointerup is then allowed through instead of being swallowed.
+   * Any other return value, `undefined` included, keeps the swallow.
+   *
+   * PHASE 129 ITEM 2 PUT THIS RETURN VALUE HERE, and it is the measured cause
+   * of the operator's "switching to a session takes two clicks". A trackpad
+   * click travels a few pixels, this engine arms at four, and the drop then
+   * lands back on the row it started on, where `reorderSurface` sees the same
+   * index and writes nothing. The click that followed was swallowed all the
+   * same, so the row was never selected and the person clicked again.
+   *
+   * Measured by build/probe-p129-rail.mjs against the unmodified build, on the
+   * collapsed rail, three presses of each shape:
+   *
+   *   click alone, no pointer events          1 press to switch
+   *   pointerdown, pointerup, click, 0 px     1 press to switch
+   *   the same with 8 px of travel            never switched in three
+   */
+  onDrop(e: PointerEvent): boolean | void;
   /** Always fires exactly once per armed drag; canceled = Esc/interrupt. */
   onEnd(canceled: boolean): void;
 }
@@ -100,7 +122,7 @@ export function armPointerDrag(
   let armed = false;
   let done = false;
 
-  const finish = (canceled: boolean): void => {
+  const finish = (canceled: boolean, inert = false): void => {
     if (done) return;
     done = true;
     outstanding.delete(cancel);
@@ -112,16 +134,20 @@ export function armPointerDrag(
       dragActive = false;
       document.body.classList.remove('gmux-dragging');
       // Swallow the click synthesized from this pointerup so the drop
-      // (or cancel) never also selects the dragged tab/row.
-      const swallow = (e: MouseEvent): void => {
-        e.stopPropagation();
-        e.preventDefault();
-      };
-      window.addEventListener('click', swallow, { capture: true, once: true });
-      setTimeout(
-        () => window.removeEventListener('click', swallow, true),
-        0
-      );
+      // (or cancel) never also selects the dragged tab/row. `inert` is the
+      // one exception: the drop changed nothing, so there is no drop for the
+      // click to double, and swallowing it would only lose the press.
+      if (!inert) {
+        const swallow = (e: MouseEvent): void => {
+          e.stopPropagation();
+          e.preventDefault();
+        };
+        window.addEventListener('click', swallow, { capture: true, once: true });
+        setTimeout(
+          () => window.removeEventListener('click', swallow, true),
+          0
+        );
+      }
       handlers.onEnd(canceled);
     }
   };
@@ -140,11 +166,17 @@ export function armPointerDrag(
   };
 
   const onUp = (e: PointerEvent): void => {
-    if (armed) handlers.onDrop(e);
-    finish(false);
+    // A drop that answers `false` changed nothing, so its click is let
+    // through. Anything else, `undefined` included, keeps the swallow.
+    const inert = armed ? handlers.onDrop(e) === false : false;
+    finish(false, inert);
   };
 
-  /** pointercancel handler AND this press's entry in `outstanding`. */
+  /**
+   * pointercancel handler AND this press's entry in `outstanding`. A cancel
+   * always swallows: `onDrop` never ran, so nothing has decided whether the
+   * gesture changed anything, and Esc means "forget this press" on both paths.
+   */
   const cancel = (): void => finish(true);
 
   const onKey = (e: KeyboardEvent): void => {

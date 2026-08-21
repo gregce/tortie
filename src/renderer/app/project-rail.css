@@ -1,0 +1,450 @@
+/* ---------------------------------------------------------------------------
+   The project rail, the collapsed tab chip and the position button
+   (Phase 129). Colocated with ProjectRail.tsx, Titlebar.tsx's chip and
+   ProjectsPositionButton.tsx.
+
+   THE RULE THAT BINDS EVERY LINE IN THIS FILE. No width transition, anywhere.
+   The rail is a column of the shell body, so every animated frame of a width
+   change resizes the work area, and every resize of the work area is a
+   ResizeObserver fit and therefore a tmux resize of live sessions
+   (src/renderer/state/chrome-geometry.ts, rule 2, and DESIGN §5). Collapse,
+   expand and the move between the two positions all land in one frame,
+   exactly as ⌘B does.
+
+   Widths are set as INLINE STYLES by ProjectRail.tsx, from
+   `projectsRenderedWidth()`, so what is drawn and what the layout budget
+   reserved are one number rather than two that agree today. Nothing here
+   states 200px or 48px.
+
+   Every colour is a token. The rail is the same material as the activity bar
+   and the session dock: --bg-sidebar with one 1px --border edge.
+--------------------------------------------------------------------------- */
+
+.project-rail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-height: 0;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  user-select: none;
+}
+
+/* ---------------------------------------------------------------------------
+   The band — 36px, the same height every other region's band carries, with
+   the same single hairline under it (DESIGN §2.2).
+--------------------------------------------------------------------------- */
+
+.prail-band {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  flex: 0 0 36px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* The collapsed band holds one centred control, so it drops the padding
+   rather than squeezing a 24px button against a 48px edge. */
+.project-rail.collapsed .prail-band {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
+}
+
+.prail-count {
+  font-weight: var(--weight-regular);
+}
+
+.prail-spacer {
+  flex: 1;
+}
+
+.prail-collapse,
+.projects-position {
+  width: 24px;
+  height: 24px;
+}
+
+/* Muted at rest, like every other band control: this is a layout preference,
+   not an action on the person's work. The shared .icon-btn hover rule brings
+   it up to --text-primary. */
+.prail-band .projects-position,
+.titlebar .projects-position {
+  color: var(--text-muted);
+}
+
+.prail-band .projects-position:hover,
+.titlebar .projects-position:hover {
+  color: var(--text-primary);
+}
+
+.projects-position:focus-visible,
+.prail-collapse:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.prail-collapse:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   The list
+--------------------------------------------------------------------------- */
+
+.prail-list {
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  flex: 1;
+}
+
+.prail-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  color: var(--text-secondary);
+  transition: background var(--dur-base) var(--ease-out);
+}
+
+.prail-row:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.prail-row.selected {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* The same 2px accent marker the session rail's selected row carries. */
+.prail-row.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.prail-open {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  /* Right padding reserves the close button's overlay slot, exactly as the
+     tab does, so revealing the × or the ⌘ digit moves nothing. */
+  padding: 0 26px 0 var(--space-4);
+  color: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.prail-open:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+
+.prail-row .dot {
+  opacity: 0.8;
+  flex: 0 0 auto;
+}
+
+.prail-row.selected .dot {
+  opacity: 1;
+}
+
+.prail-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* The collapsed row is one centred glyph with its dot, the density the
+   collapsed session dock already uses at the window's other edge. */
+.project-rail.collapsed .prail-open {
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+.project-rail.collapsed .prail-open .dot {
+  position: absolute;
+  right: 9px;
+  bottom: 5px;
+  width: 6px;
+  height: 6px;
+  outline: 1px solid var(--bg-sidebar);
+}
+
+.project-rail.collapsed .prail-row:hover .dot {
+  outline-color: var(--bg-raised);
+}
+
+.project-rail.collapsed .prail-row.selected .dot {
+  outline-color: var(--bg-active);
+}
+
+.prail-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.prail-close {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  /* Hidden but still in the tab order — opacity, not display, keeps the ×
+     keyboard-reachable; it lights up on hover or when focused. */
+  opacity: 0;
+  pointer-events: none;
+}
+
+.prail-row:hover .prail-close,
+.prail-row:focus-within .prail-close {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.prail-close:hover {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.prail-close:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  box-shadow: var(--focus-ring);
+}
+
+/* ⌘-held row number, in the slot the close × already reserves, so revealing
+   it moves nothing. The rules mirror .ptab-hint in styles/app.css. */
+.prail-hint {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  width: 16px;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--text-muted);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.prail-row:hover .prail-hint,
+.prail-row.selected .prail-hint {
+  color: var(--text-secondary);
+}
+
+.prail-row.hinting .prail-hint {
+  opacity: 1;
+}
+
+/* Two things cannot share one slot: while the numbers are up the × stands
+   down, unless it is the focused control, which is never hidden. */
+.prail-row.hinting .prail-close:not(:focus-visible) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.prail-row.hinting:has(.prail-close:focus-visible) .prail-hint {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prail-hint {
+    transition: none;
+  }
+}
+
+.prail-stub {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+/* Pinned to the rail's foot when it is collapsed, mirroring the collapsed
+   session dock's own footer at the window's other 48px edge. */
+.prail-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  flex: 0 0 36px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------------------------------------------------------------------------
+   The hover card, for the collapsed rail
+
+   The session rail's card at the window's other edge, mirrored: it opens to
+   the RIGHT of the rail rather than to its left. Portalled to <body> and
+   positioned in raw viewport px, because the card must not resolve inside a
+   zoomed ancestor.
+--------------------------------------------------------------------------- */
+
+.prail-card {
+  position: fixed;
+  /* The rail is flush to the window's left edge, so the offset needs no
+     measurement. The number is the collapsed rail's own width. */
+  left: calc(48px + var(--space-4));
+  z-index: var(--z-tooltip);
+  max-width: 240px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+  /* Cannot be hovered, cannot be clicked, cannot take focus: the card is a
+     reveal, never a target. */
+  pointer-events: none;
+  user-select: none;
+  animation: prail-card-in var(--dur-fast) var(--ease-out);
+}
+
+.prail-card-name {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prail-card-detail {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+}
+
+/* The folder, spelled out. Never truncated: half a path is worse than none,
+   so it wraps. --text-muted clears 4.5:1 on --bg-surface. */
+.prail-card-note {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+@keyframes prail-card-in {
+  from {
+    opacity: 0;
+    transform: translateX(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes prail-card-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The collapsed tab row, on top
+
+   One chip carrying the active project's dot, its name and its attention
+   count, opening a NATIVE menu that lists every open project. Switching is
+   never lost, which is the whole reason the chip exists rather than nothing.
+
+   SAY WHAT IS NOT TRUE: this does not make the window taller. The title band
+   stays 38px because the traffic lights live in it. What comes back is the
+   row of tabs.
+--------------------------------------------------------------------------- */
+
+.ptab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 28px;
+  max-width: 240px;
+  min-width: 0;
+  padding: 0 var(--space-3);
+  border-radius: var(--r-sm);
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.ptab-chip:hover {
+  background: var(--bg-raised);
+}
+
+.ptab-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.ptab-chip-caret {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.ptab-chip:hover .ptab-chip-caret {
+  color: var(--text-secondary);
+}
+
+.ptab-chip .prail-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* The titlebar's own collapse control and position button sit beside the tabs
+   in both states, so the row never loses the way back. */
+.titlebar .prail-collapse,
+.titlebar .projects-position {
+  flex: 0 0 auto;
+  -webkit-app-region: no-drag;
+}

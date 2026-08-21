@@ -24,6 +24,10 @@ import type {
 import { OPEN_RECENT_ON_PREFIX, OPEN_RECENT_PREFIX } from '@shared/ipc';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
 import { sessionsPositionForMenuAction } from '@shared/sessions-position';
+// Phase 129. The projects radio pair's own table, read for the same reason:
+// which position each radio names is decided ONCE, in the table main built
+// the radios from, never re-typed at the click site.
+import { projectsPositionForMenuAction } from '@shared/projects-position';
 import {
   effectiveStatusOf,
   useApp,
@@ -42,6 +46,9 @@ import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
 import { useEditor } from '../editor/store';
 import { Titlebar } from './Titlebar';
+// Phase 129. The project tabs as the window's outermost left column. It
+// renders null unless the store says the tabs are on the left.
+import { ProjectRail } from './ProjectRail';
 import { ActivityBar } from './ActivityBar';
 import { Sidebar } from './Sidebar';
 import { MachineStatement, TerminalRegion } from './TerminalRegion';
@@ -113,6 +120,11 @@ import { registerP95ScrollDrive } from '../terminal/p95-scroll-drive';
 // A DIFFERENT module from ./session-focus above, which is much older and means
 // "land the user in a session" for ⌘J and the menu-bar sentinel.
 import { toggleSessionFocus } from './focus-flight';
+// Phase 129. ⇧⌘↩ now answers from an open file as well as from a session, and
+// the region the keyboard is in is what decides which one runs. The Escape
+// branch below still calls toggleSessionFocus directly, because Escape is only
+// ever the way out of session focus.
+import { runFillChord } from './fill-chord';
 // Phase 12.4/12.6: "show this once, ever" lives in exactly one place — the
 // first-quit toast below is one of its catalog entries, not a second copy.
 import { showOneTimeTip } from './one-time-tip';
@@ -498,7 +510,7 @@ function useKeyboardMap(): void {
       // the swallow exists to protect.
       if (e.shiftKey && e.key === 'Enter') {
         e.preventDefault();
-        if (!focusChordSwallowed()) void toggleSessionFocus();
+        if (!focusChordSwallowed()) void runFillChord();
         return;
       }
 
@@ -740,14 +752,18 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'toggle-editor-fill':
       toggleEditorFill();
       return;
-    // Phase 80.1. View > Focus the Session, one row under Fill the Window.
-    // The renderer's keydown branch is what runs when ⇧⌘↩ is pressed (it
-    // precedes the accelerator and preventDefaults it), so this path only
-    // fires on a real click. The guard lives inside toggleSessionFocus, so
-    // the row and the chord cannot drift, and a click that cannot be honoured
-    // says why rather than doing nothing.
+    // Phase 80.1, rerouted in Phase 129. View > Focus the Session or File,
+    // one row under Fill the Window. The renderer's keydown branch is what
+    // runs when ⇧⌘↩ is pressed (it precedes the accelerator and
+    // preventDefaults it), so this path only fires on a real click.
+    //
+    // It goes through the same router the chord goes through, because the
+    // accelerator printed on this row IS the chord. Phase 129 gave the chord
+    // a second region, and a row that kept calling toggleSessionFocus would
+    // have advertised keys that do one thing and done another. The 'menu'
+    // argument only decides whether a click from neither region says why.
     case 'toggle-session-focus':
-      void toggleSessionFocus();
+      void runFillChord('menu');
       return;
     case 'attention':
       s.setAttentionOpen(!s.attentionOpen);
@@ -790,6 +806,15 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
       // re-typed here, where it could drift from the label the user clicked.
       const position = sessionsPositionForMenuAction(action);
       if (position !== null) s.setSessionOrientation(position);
+      return;
+    }
+    // Phase 129. The projects radio pair, read from its own shared table for
+    // the same reason. Clicking a radio does not mark it: the store moves the
+    // tabs and pushes the new position back, which is what moves the mark.
+    case 'projects-top':
+    case 'projects-left': {
+      const position = projectsPositionForMenuAction(action);
+      if (position !== null) s.setProjectsPosition(position);
       return;
     }
     // Phase 29. The Session menu's Past Sessions… item. Menu-only: there is
@@ -1529,6 +1554,13 @@ export function App(): React.JSX.Element {
               depends on orientation. A conditional wrapper would re-key
               <TerminalRegion /> on every orientation switch and tear down
               xterm's WebGL context for every visible pane. */}
+          {/* PHASE 129. FIRST, before the activity bar, so a collapsed
+              project rail is the window's left bookend rather than a second
+              48px strip pressed against the activity bar in the middle of the
+              window. It renders null while the tabs are on top, and its width
+              comes from chrome-geometry's `projectsRenderedWidth`, which is
+              the same function the sidebar's ceiling subtracts. */}
+          <ProjectRail />
           <ActivityBar />
           {sidebarVisible ? <Sidebar /> : null}
           <div className="work-area" {...termFocusHandlers}>

@@ -14,6 +14,11 @@ import {
   APP_MIN_WINDOW_W,
   dockRenderedWidth,
   editorIsOverlay,
+  projectRailForcedNarrow,
+  projectsRenderedWidth,
+  PROJECT_RAIL_COLLAPSED_W,
+  PROJECT_RAIL_MIN_WINDOW_W,
+  PROJECT_RAIL_W,
   SPLIT_MIN_WORK_AREA,
   terminalLayoutWidth,
   clampDockWidth,
@@ -310,12 +315,21 @@ describe('the terminal never lands in the reflow band (Phase 18 fix round)', () 
     expect(main).toContain(`minWidth: ${APP_MIN_WINDOW_W}`);
   });
 
-  it('holds across every window / sidebar / dock / editor combination', () => {
-    const windows = [960, 1000, 1100, 1216, 1280, 1400, 1440, 1500, 1600, 1920, 2560];
+  it('holds across every window / sidebar / dock / projects / editor combination', () => {
+    // PHASE 129 widened this grid by the two project-tab dimensions. Every
+    // window below is now driven with the tabs on top (0px), with the rail
+    // collapsed (48px) and with the rail expanded (200px or, under
+    // PROJECT_RAIL_MIN_WINDOW_W, the 48px it is actually drawn at).
+    const windows = [
+      960, 1000, 1027, 1028, 1029, 1100, 1216, 1280, 1400, 1440, 1500, 1600,
+      1920, 2560
+    ];
     const orientations = ['top', 'right'] as const;
+    const projectPositions = ['top', 'left'] as const;
     const editorWidths = [undefined, 320, 480, 800, 4096];
     let cells = 0;
     let overlays = 0;
+    let railsDrawn = 0;
 
     for (const windowWidth of windows) {
       for (const orientation of orientations) {
@@ -325,47 +339,62 @@ describe('the terminal never lands in the reflow band (Phase 18 fix round)', () 
               { orientation, dockCollapsed, dockWidth },
               windowWidth
             );
-            // Every sidebar width the user can reach: hidden, the floor, the
-            // live ceiling, and a stale stored value from a wider window.
-            const sidebars = [
-              SIDEBAR_MIN,
-              SIDEBAR_DEFAULT,
-              sidebarMaxWidth(windowWidth, dockReserved),
-              4096
-            ];
-            for (const sidebarVisible of [true, false]) {
-              for (const sidebarWidth of sidebars) {
-                for (const editorOpen of [false, true]) {
-                  for (const filling of [false, true]) {
-                    for (const editorWidth of editorWidths) {
-                      const w = {
-                        windowWidth,
-                        sidebarVisible,
-                        sidebarWidth,
-                        orientation,
-                        dockCollapsed,
-                        dockWidth,
-                        editorOpen,
-                        editorWidth,
-                        filling: filling && editorOpen
-                      };
-                      const terminal = terminalLayoutWidth(w);
-                      cells += 1;
-                      if (
-                        editorOpen &&
-                        !w.filling &&
-                        editorIsOverlay(windowWidth, workAreaWidth(w))
-                      ) {
-                        overlays += 1;
+            for (const projectsPosition of projectPositions) {
+              for (const projectsCollapsed of [false, true]) {
+                const projectsReserved = projectsRenderedWidth(
+                  { projectsPosition, projectsCollapsed },
+                  windowWidth
+                );
+                if (projectsReserved === PROJECT_RAIL_W) railsDrawn += 1;
+                // Every sidebar width the user can reach: hidden, the floor,
+                // the live ceiling, and a stale stored value from a wider
+                // window.
+                const sidebars = [
+                  SIDEBAR_MIN,
+                  SIDEBAR_DEFAULT,
+                  sidebarMaxWidth(windowWidth, dockReserved, projectsReserved),
+                  4096
+                ];
+                for (const sidebarVisible of [true, false]) {
+                  for (const sidebarWidth of sidebars) {
+                    for (const editorOpen of [false, true]) {
+                      for (const filling of [false, true]) {
+                        for (const editorWidth of editorWidths) {
+                          const w = {
+                            windowWidth,
+                            sidebarVisible,
+                            sidebarWidth,
+                            orientation,
+                            dockCollapsed,
+                            dockWidth,
+                            projectsPosition,
+                            projectsCollapsed,
+                            editorOpen,
+                            editorWidth,
+                            filling: filling && editorOpen
+                          };
+                          const terminal = terminalLayoutWidth(w);
+                          cells += 1;
+                          if (
+                            editorOpen &&
+                            !w.filling &&
+                            editorIsOverlay(windowWidth, workAreaWidth(w))
+                          ) {
+                            overlays += 1;
+                          }
+                          expect(
+                            terminal === 0 || terminal >= TERMINAL_FLOOR,
+                            `terminal ${terminal}px at window ${windowWidth} ` +
+                              `${orientation} sidebar ${sidebarVisible ? sidebarWidth : 'hidden'} ` +
+                              `dock ${dockCollapsed ? 'rail' : dockWidth} ` +
+                              `projects ${projectsPosition}` +
+                              `${projectsCollapsed ? ' collapsed' : ''} ` +
+                              `(${projectsReserved}px) ` +
+                              `editor ${editorOpen ? (editorWidth ?? 'default') : 'closed'}` +
+                              `${w.filling ? ' filling' : ''}`
+                          ).toBe(true);
+                        }
                       }
-                      expect(
-                        terminal === 0 || terminal >= TERMINAL_FLOOR,
-                        `terminal ${terminal}px at window ${windowWidth} ` +
-                          `${orientation} sidebar ${sidebarVisible ? sidebarWidth : 'hidden'} ` +
-                          `dock ${dockCollapsed ? 'rail' : dockWidth} ` +
-                          `editor ${editorOpen ? (editorWidth ?? 'default') : 'closed'}` +
-                          `${w.filling ? ' filling' : ''}`
-                      ).toBe(true);
                     }
                   }
                 }
@@ -380,6 +409,7 @@ describe('the terminal never lands in the reflow band (Phase 18 fix round)', () 
     // nothing, so it says out loud that it reached both sides.
     expect(cells).toBeGreaterThan(2000);
     expect(overlays).toBeGreaterThan(0);
+    expect(railsDrawn).toBeGreaterThan(0);
   });
 
   /**
@@ -476,5 +506,183 @@ describe('the terminal never lands in the reflow band (Phase 18 fix round)', () 
         )
       ).toBe(0);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 129 — the project rail enters the budget
+// ---------------------------------------------------------------------------
+
+/**
+ * The rail is the third region that can take width from the terminal, and the
+ * first one added since the Phase 18 fix round wrote the budget down. These
+ * cases pin the arithmetic that keeps rule 2 true, with the numbers spelled
+ * out rather than described.
+ */
+describe('the project rail (Phase 129)', () => {
+  it('is 0 while the tabs are on top, whatever the collapsed flag says', () => {
+    for (const projectsCollapsed of [false, true]) {
+      expect(
+        projectsRenderedWidth(
+          { projectsPosition: 'top', projectsCollapsed },
+          1920
+        )
+      ).toBe(0);
+    }
+  });
+
+  it('is 200 expanded and 48 collapsed in a window that can seat it', () => {
+    expect(
+      projectsRenderedWidth(
+        { projectsPosition: 'left', projectsCollapsed: false },
+        1920
+      )
+    ).toBe(PROJECT_RAIL_W);
+    expect(
+      projectsRenderedWidth(
+        { projectsPosition: 'left', projectsCollapsed: true },
+        1920
+      )
+    ).toBe(PROJECT_RAIL_COLLAPSED_W);
+  });
+
+  it('derives its minimum window from the regions it has to share with', () => {
+    // 48 + 200 + 220 + 320 + 240. Written out so a later change to any of the
+    // five constants has to come past this line.
+    expect(PROJECT_RAIL_MIN_WINDOW_W).toBe(
+      ACTIVITY_BAR_W + PROJECT_RAIL_W + SIDEBAR_MIN + DOCK_MAX + TERMINAL_FLOOR
+    );
+    expect(PROJECT_RAIL_MIN_WINDOW_W).toBe(1028);
+    // And it is above the app's own minimum window, which is the whole reason
+    // the narrow branch below has to exist at all.
+    expect(PROJECT_RAIL_MIN_WINDOW_W).toBeGreaterThan(APP_MIN_WINDOW_W);
+  });
+
+  it('renders collapsed in a window too narrow to seat it expanded', () => {
+    const asked = { projectsPosition: 'left' as const, projectsCollapsed: false };
+    expect(projectsRenderedWidth(asked, 1027)).toBe(PROJECT_RAIL_COLLAPSED_W);
+    expect(projectsRenderedWidth(asked, 1028)).toBe(PROJECT_RAIL_W);
+    // Presentation clamps, intent persists: the caller's own value never moved.
+    expect(asked.projectsCollapsed).toBe(false);
+    expect(projectRailForcedNarrow(asked, 1027)).toBe(true);
+    expect(projectRailForcedNarrow(asked, 1028)).toBe(false);
+    // A rail the person collapsed themselves is not "forced" — the control
+    // that expands it again still works.
+    expect(
+      projectRailForcedNarrow(
+        { projectsPosition: 'left', projectsCollapsed: true },
+        960
+      )
+    ).toBe(false);
+  });
+
+  it('does not move when the window does not, which is what keeps live panes still', () => {
+    // The rendered width reads ONE input. A dock drag, a ⌘B, a sidebar drag
+    // and a stale stored sidebar width all leave it alone, so none of them can
+    // resize the work area a second time through the rail.
+    const at = (w: number): number =>
+      projectsRenderedWidth(
+        { projectsPosition: 'left', projectsCollapsed: false },
+        w
+      );
+    expect(at(1440)).toBe(PROJECT_RAIL_W);
+    expect(at(1440)).toBe(at(1440));
+  });
+
+  it('takes its width out of the SIDEBAR ceiling, not out of the terminal', () => {
+    // 1440px window, dock at its ceiling, rail expanded. The floor term now
+    // answers, because 1440 - 48 - 200 - 320 - 240 = 632 is under half.
+    const dock = DOCK_MAX;
+    const rail = PROJECT_RAIL_W;
+    expect(sidebarMaxWidth(1440, dock, rail)).toBe(632);
+    expect(sidebarMaxWidth(1440, dock, rail)).toBe(
+      1440 - ACTIVITY_BAR_W - rail - dock - TERMINAL_FLOOR
+    );
+    // …and the same window with the tabs on top keeps the 720 it had, because
+    // there the 50% term is still the smaller of the two.
+    expect(sidebarMaxWidth(1440, dock, 0)).toBe(720);
+    expect(sidebarMaxWidth(1440, dock, 0)).toBe(sidebarMaxWidth(1440, dock));
+    // 200.0 px, from 0: that is the whole difference the rail makes here.
+    expect(sidebarMaxWidth(1440, dock, 0) - sidebarMaxWidth(1440, dock, rail)).toBe(
+      88
+    );
+  });
+
+  it('leaves the work row exactly the floor at the tightest legal window', () => {
+    // The case the phase spec named: the minimum window that seats the rail,
+    // with the dock at 320 and the sidebar asking for half the window.
+    const w = {
+      windowWidth: PROJECT_RAIL_MIN_WINDOW_W,
+      sidebarVisible: true,
+      sidebarWidth: 4096,
+      orientation: 'right' as const,
+      dockCollapsed: false,
+      dockWidth: DOCK_MAX,
+      projectsPosition: 'left' as const,
+      projectsCollapsed: false
+    };
+    expect(clampSidebarWidth(4096, w.windowWidth, DOCK_MAX, PROJECT_RAIL_W)).toBe(
+      SIDEBAR_MIN
+    );
+    expect(workAreaWidth(w)).toBe(TERMINAL_FLOOR);
+    expect(terminalLayoutWidth({ ...w, editorOpen: false })).toBe(
+      TERMINAL_FLOOR
+    );
+    // With a file open the row cannot seat a split, so the panel overlays and
+    // the terminal keeps the whole row underneath it.
+    expect(editorIsOverlay(w.windowWidth, workAreaWidth(w))).toBe(true);
+    expect(terminalLayoutWidth({ ...w, editorOpen: true })).toBe(
+      TERMINAL_FLOOR
+    );
+  });
+
+  it('holds at the app minimum window, where the rail is drawn collapsed', () => {
+    const w = {
+      windowWidth: APP_MIN_WINDOW_W,
+      sidebarVisible: true,
+      sidebarWidth: 4096,
+      orientation: 'right' as const,
+      dockCollapsed: false,
+      dockWidth: DOCK_MAX,
+      projectsPosition: 'left' as const,
+      projectsCollapsed: false
+    };
+    expect(
+      projectsRenderedWidth(w, APP_MIN_WINDOW_W)
+    ).toBe(PROJECT_RAIL_COLLAPSED_W);
+    // The sidebar's ceiling is 960 - 48 - 48 - 320 - 240 = 304, so a sidebar
+    // asking for half the window renders at 304 and the row is left exactly
+    // the floor. Nothing is under it, which is the property that matters.
+    expect(clampSidebarWidth(4096, 960, DOCK_MAX, PROJECT_RAIL_COLLAPSED_W)).toBe(
+      304
+    );
+    expect(workAreaWidth(w)).toBe(TERMINAL_FLOOR);
+    expect(workAreaWidth(w)).toBeGreaterThanOrEqual(TERMINAL_FLOOR);
+  });
+
+  it('leaves every number the app had before it exactly where it was', () => {
+    // Absent fields mean "tabs on top", so every pre-Phase-129 caller reads
+    // the same answer it always read.
+    const base = {
+      windowWidth: 1440,
+      sidebarVisible: true,
+      sidebarWidth: SIDEBAR_DEFAULT,
+      orientation: 'right' as const,
+      dockCollapsed: false,
+      dockWidth: DOCK_DEFAULT
+    };
+    expect(workAreaWidth(base)).toBe(
+      workAreaWidth({
+        ...base,
+        projectsPosition: 'top',
+        projectsCollapsed: false
+      })
+    );
+    expect(workAreaWidth(base)).toBe(
+      1440 - ACTIVITY_BAR_W - SIDEBAR_DEFAULT - DOCK_DEFAULT
+    );
+    expect(sidebarMaxWidth(1440, DOCK_DEFAULT)).toBe(
+      sidebarMaxWidth(1440, DOCK_DEFAULT, 0)
+    );
   });
 });

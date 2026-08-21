@@ -20,6 +20,8 @@ import { useApp } from '../../state/store';
 import { useLayout } from '../../state/layout';
 import type { Surface } from '../../state/layout';
 import { sessionMenuItems } from '../session-actions';
+import { focusTerminal } from '../session-focus';
+import { releaseSessionListKeyboard } from '../session-list-keyboard';
 import { openInSplitItems } from './split-menu';
 import {
   armedEdge,
@@ -193,6 +195,13 @@ export function startSurfaceDrag(
       const layout = useLayout.getState();
       const { stripDrop, dockDrop, splitDrop } = layout;
       const homeIndex = home === 'strip' ? stripDrop : dockDrop;
+      // PHASE 129 ITEM 2. The answer is "did this drop change the layout",
+      // and it decides whether the click that follows the release is
+      // swallowed (./pointer-drag.ts `onDrop`). It is read off the store
+      // rather than guessed from the index, because `reorderSurface` and
+      // `splitWith` both hold refusals of their own and a drop that lands on
+      // the row it started on writes nothing.
+      const before = layout.layouts;
       if (homeIndex !== null) {
         layout.reorderSurface(projectPath, surface.id, homeIndex);
       } else if (splitDrop !== null && !surface.isGroup) {
@@ -203,6 +212,7 @@ export function startSurfaceDrag(
           surface.id
         );
       }
+      return useLayout.getState().layouts !== before;
     },
     onEnd() {
       ghost?.destroy();
@@ -245,14 +255,18 @@ export function startHeaderDrag(
     onDrop() {
       const layout = useLayout.getState();
       const homeIndex = home === 'strip' ? layout.stripDrop : layout.dockDrop;
+      // Same answer, same reason, as `startSurfaceDrag` above: a header drag
+      // that moved nothing must not eat the click that follows it.
+      const before = layout.layouts;
       if (homeIndex !== null) {
         layout.popOut(projectPath, sessionId, homeIndex);
-        return;
+        return useLayout.getState().layouts !== before;
       }
       const zone = layout.splitDrop;
       if (zone !== null) {
         layout.moveLeafWithin(projectPath, sessionId, zone.leafId, zone.edge);
       }
+      return useLayout.getState().layouts !== before;
     },
     onEnd() {
       ghost?.destroy();
@@ -284,6 +298,34 @@ export function pressBlocksSurfaceDrag(
 }
 
 /**
+ * Give the keyboard to the visible terminal, on purpose (Phase 129 item 2).
+ *
+ * A click on a session row is two acts, not one: it selects the session, and
+ * it hands the keyboard to that session's terminal. The second act used to
+ * happen by accident, because `TerminalPane` focused itself whenever it became
+ * the focused pane. Phase 129 stopped that, so every pointer path that means
+ * "take me into this session" now says so.
+ *
+ * The hand over is two steps inside one frame, and both are needed. The blur
+ * is what lets a pane that is still attaching finish the job, because its
+ * textarea does not exist yet for `focusTerminal()` to find. `focusTerminal()`
+ * is what finishes it for a pane that is already on screen. The rule and the
+ * measurement behind it are in ../session-list-keyboard.ts.
+ */
+export function handKeyboardToTheTerminal(): void {
+  requestAnimationFrame(() => {
+    releaseSessionListKeyboard();
+    focusTerminal();
+  });
+}
+
+/** Select one session by pointer, then hand the keyboard to its terminal. */
+export function selectSessionByPointer(sessionId: string): void {
+  useApp.getState().setActiveSession(sessionId);
+  handKeyboardToTheTerminal();
+}
+
+/**
  * The four gesture handlers every single-session row/tab shares — select,
  * rename, drag-to-reorder/split, context menu (S4 "Shared behaviors").
  * Extracted by the Phase-10 integrator dup-scan (guardrail 4) from the
@@ -303,7 +345,7 @@ export function sessionGestureProps(args: {
 > {
   const { session, surface, projectPath, home, renaming } = args;
   return {
-    onClick: () => useApp.getState().setActiveSession(session.id),
+    onClick: () => selectSessionByPointer(session.id),
     onDoubleClick: () => useApp.getState().setRenaming(session.id),
     onPointerDown: (e) => {
       if (pressBlocksSurfaceDrag(e, renaming)) return;

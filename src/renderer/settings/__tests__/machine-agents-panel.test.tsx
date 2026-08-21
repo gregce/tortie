@@ -37,7 +37,6 @@ import {
   AGENTS_NEVER_ASKED,
   AGENTS_NOT_SIGNED_IN,
   AGENTS_ON_MACHINES_CAPTION,
-  AGENTS_ON_MACHINES_TITLE,
   AGENT_ABSENT,
   AGENT_UNKNOWN,
   RESCAN_AGENTS_RUNNING,
@@ -177,12 +176,15 @@ describe('the panel draws nothing at all when there is nothing to say', () => {
 });
 
 describe('one block per machine', () => {
-  it('draws the heading, the caption and one card per machine in file order', () => {
+  it('draws the caption and one card per machine in file order', () => {
     const html = draw({
       rows: [row(), row({ id: 'pop', label: 'Pop', host: 'pop.local' })],
       views: { studio: view(), pop: view({ machineId: 'pop' }) }
     });
-    expect(html).toContain(AGENTS_ON_MACHINES_TITLE);
+    // Phase 129 deleted the heading. Each machine has its own page now and
+    // the page's tab names it, so a heading above the card said it twice.
+    expect(html).not.toContain('On your other machines');
+    expect(html).not.toContain('set-group-label');
     expect(html).toContain(AGENTS_ON_MACHINES_CAPTION);
     expect(html.indexOf('data-machine-id="studio"')).toBeGreaterThan(-1);
     expect(html.indexOf('data-machine-id="pop"')).toBeGreaterThan(
@@ -326,5 +328,36 @@ describe('a rescan that failed', () => {
 
   it('draws no error block for a machine nothing failed on', () => {
     expect(draw()).not.toContain('set-row-error');
+  });
+});
+
+describe('one page draws one machine (Phase 129)', () => {
+  it('draws only the named machine when a page asks for one', () => {
+    const html = draw({
+      machineId: 'pop',
+      rows: [row(), row({ id: 'pop', label: 'Pop', host: 'pop.local' })],
+      views: { studio: view(), pop: view({ machineId: 'pop' }) }
+    });
+    expect(html).toContain('data-machine-id="pop"');
+    expect(html).not.toContain('data-machine-id="studio"');
+    expect(html.match(/class="set-card mach-agents"/g)).toHaveLength(1);
+  });
+
+  it('keeps the caption on a machine page, so the age sentence has its frame', () => {
+    expect(draw({ machineId: 'studio' })).toContain(AGENTS_ON_MACHINES_CAPTION);
+  });
+
+  it('draws nothing for a page whose machine has left the file', () => {
+    // `AgentsSection` puts the person back on This Mac in the same render, so
+    // an empty page is a frame rather than a state anybody reads.
+    expect(draw({ machineId: 'gone' })).toBe('');
+  });
+
+  it('draws every machine when no page is named, which is the old shape', () => {
+    const html = draw({
+      rows: [row(), row({ id: 'pop', label: 'Pop', host: 'pop.local' })],
+      views: { studio: view(), pop: view({ machineId: 'pop' }) }
+    });
+    expect(html.match(/class="set-card mach-agents"/g)).toHaveLength(2);
   });
 });

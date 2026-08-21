@@ -14531,7 +14531,7 @@ terminal resize rule in `work-area.css`.
 resized until the flight ends. **Semver** of a later build: feat. Chord is chosen at build time
 against the keymap and the operator's recorded per-agent hotkeys. Shift-Command-C stays free.
 
-## Phase 129 — the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file (operator reported 2026-08-21) QUEUED
+## Phase 129 — the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file (operator reported 2026-08-21) ✅ SHIPPED 2026-08-21 (this commit, 0.67.0, gates green, 8,055 tests)
 
 **Subject:** `feat(ui): agents by machine, arrows in the session rail, projects on a side rail`
 **First body line:** `Phase 129: four chrome surfaces the operator asked for`
@@ -14970,3 +14970,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 130 shipped, the install command is copyable, the machine pages are spaced, and the prose stops explaining itself, this commit, 0.66.1
 - 2026-08-21, Phase 132.1 queued, the install sheet's own rules are overwritten by the file it imports, and the facts band gets the least room, both recorded while Phase 132 was verified
 - 2026-08-21, Phase 132 shipped, the skill preview scrolls on its own inside a wider sheet and the install button is reachable at every window height, this commit, 0.66.2
+- 2026-08-21, Phase 129 shipped, the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file, this commit, 0.67.0
