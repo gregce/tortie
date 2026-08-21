@@ -299,12 +299,23 @@ export function BranchHeader(): React.JSX.Element {
 
   // PHASE 90.3. A tab whose folder is on another machine. The band carries the
   // folder, the machine, the time of the last read and one Refresh button, and
-  // it carries nothing else. Every other control in this header writes on a
-  // repository, and Tortie never writes on that machine: the branch menu
+  // it carries nothing else.
+  //
+  // PHASE 104 REWROTE THE SENTENCE THAT USED TO FOLLOW, because it had been
+  // false for two phases. It read "Tortie never writes on that machine".
+  // Phase 103 made that false by staging and unstaging there, and Phase 104
+  // made it further false by committing there. What is true is narrower, and it
+  // is what decides this header: every control this header would otherwise draw
+  // names a verb this product refuses on another machine. The branch menu
   // switches branches, the sync control pushes and pulls, and the actions menu
-  // holds pull, push and fetch. They are ABSENT rather than disabled, because a
-  // disabled Push would say Tortie could push there under some condition, and
-  // there is no such condition.
+  // holds pull, push and fetch. None of those is built, none is authorised, and
+  // push, pull and fetch are not on research 57's list at all. They are ABSENT
+  // rather than disabled, because a disabled Push would say Tortie could push
+  // there under some condition, and there is no such condition.
+  //
+  // THE THREE VERBS THAT DO WRITE ARE NOT IN THIS HEADER. Stage and Unstage are
+  // buttons on the rows in ./ScmSection.tsx, and Commit is the box above those
+  // rows. This band draws no verb of its own.
   if (onMachine && project !== null && target !== null) {
     const label = machineLabelFor(machineStates, target.machineId);
     const busy = remoteEntry.loading || remoteEntry.refreshing;

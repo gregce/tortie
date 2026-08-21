@@ -852,3 +852,173 @@ export const STAGE_PATH_NOT_REPORTED =
   'Tortie did not send those files, because git on that machine no longer ' +
   'reports one of them as changed. Press Refresh to read what really changed ' +
   'there. Nothing was sent.';
+
+// ---------------------------------------------------------------------------
+// PHASE 104. Committing what is staged in one repository on another machine
+// ---------------------------------------------------------------------------
+//
+// These are composed in MAIN rather than in the renderer, which is
+// `RemoteCloneResult`'s shape and not `MachineIndexWriteResult`'s. Both ship
+// today. It is this one because a person has to read Tortie's own sentence and
+// that machine's own words together, and only main has both.
+//
+// `commitWritesOff` below is close to the renderer's own sentence for a machine
+// whose writes are not confirmed, and it is a second sentence on purpose. The
+// two live in two processes and main cannot import the renderer's copy file.
+// Main's version names the commit, so a person who reaches it after pressing
+// the button reads what did not happen rather than a general statement about
+// saving. The near duplication is recorded here so a later round can decide to
+// move one of them rather than finding the pair by accident.
+
+/** That machine made the commit. The sha is shortened for the panel. */
+export function commitDone(label: string, sha: string): string {
+  return `Committed ${sha.slice(0, 7)} on ${label}.`;
+}
+
+/**
+ * `HEAD` in that folder moved after Tortie read it, so nothing was committed.
+ *
+ * PINNED as `machine.commit-head-moved`. A correct caller reaches it on
+ * purpose, because it is the answer to a resend and it is also what an agent
+ * committing in that folder between Tortie's read and Tortie's write produces.
+ * It is pinned because it is reached rarely, and rollup deletes a branch whose
+ * condition it can prove.
+ */
+export function commitHeadMoved(label: string): string {
+  return (
+    `Something else committed in that folder on ${label} after Tortie read ` +
+    `it, so Tortie committed nothing. Press Refresh and read the changes ` +
+    `again.`
+  );
+}
+
+/** What is staged over there changed after Tortie read it. */
+export function commitStagedChanged(label: string): string {
+  return (
+    `What is staged in that folder on ${label} changed after Tortie read it, ` +
+    `so Tortie committed nothing. Press Refresh and read the changes again.`
+  );
+}
+
+/** Nothing was staged, so there was nothing to commit. */
+export function commitNothingStaged(label: string): string {
+  return (
+    `There was nothing staged in that folder on ${label}, so Tortie ` +
+    `committed nothing.`
+  );
+}
+
+/** That machine's git exited non zero. Its own words are drawn under this. */
+export function commitFailed(label: string): string {
+  return `The commit failed on ${label}.`;
+}
+
+/**
+ * git over there has no identity, so it would not make the commit.
+ *
+ * MEASURED ON 2026-08-21 rather than assumed. With no git configuration at all,
+ * git on macOS COMMITTED and guessed a name and an email address from the
+ * operating system. It refuses only when it cannot guess, which was reproduced
+ * two ways, being `user.useConfigOnly = true` with nothing set and an empty
+ * `user.name`. Both printed `Author identity unknown` and then
+ * `*** Please tell me who you are.`
+ *
+ * WHAT IS NOT COVERED, said rather than hidden. A commit made under an identity
+ * git GUESSED succeeds, and this sentence is not drawn. The success arm of the
+ * script prints `none` for the machine's words, so git's warning is dropped.
+ * The author is visible in the History group.
+ */
+export function commitIdentityUnset(label: string): string {
+  return (
+    `git on ${label} has no name and no email address set, so it would not ` +
+    `make the commit. Set user.name and user.email in git on that machine.`
+  );
+}
+
+/** The deadline was hit here. It may still be running over there. */
+export function commitTimedOut(label: string, minutes: number): string {
+  return (
+    `The commit did not finish within ${String(minutes)} minutes, so Tortie ` +
+    `stopped waiting. It may still be running on ${label}, and it may have ` +
+    `finished after Tortie stopped listening. Press Check what happened.`
+  );
+}
+
+/**
+ * The machine did not say whether it committed.
+ *
+ * It is a separate word from the deadline on purpose. The deadline sentence
+ * says "within 5 minutes", and that is false about a link that dropped after
+ * three seconds. IT NEVER MEANS NOTHING CHANGED.
+ */
+export function commitUnsure(label: string): string {
+  return (
+    `Tortie asked ${label} to commit and it did not say whether it had. It ` +
+    `may have committed. Press Check what happened.`
+  );
+}
+
+/** Tortie is not connected to that machine, so nothing was sent. */
+export function commitOffline(label: string): string {
+  return `Tortie is not connected to ${label} right now, so it committed nothing.`;
+}
+
+/**
+ * There was no message to commit with, so nothing was composed.
+ *
+ * NOT PINNED, and that is a choice this phase made rather than an omission.
+ * `build/assert-bundle-refusals.mjs` gains exactly one entry in this phase,
+ * being `machine.commit-head-moved`. A person can reach this sentence through
+ * the channel with a message of spaces alone, so it is not the dead shape a pin
+ * exists for.
+ */
+export const COMMIT_NO_MESSAGE =
+  'Tortie was given no commit message, so it committed nothing.';
+
+/** Writes are not confirmed for that machine, so nothing was sent. */
+export function commitWritesOff(label: string): string {
+  return (
+    `Tortie has not been given permission to write on ${label}, so it ` +
+    `committed nothing. Open Settings, then Machines, and confirm that ` +
+    `machine.`
+  );
+}
+
+/** The tab's folder is outside the folder the person confirmed. */
+export function commitOutsideRoot(label: string): string {
+  return (
+    `That folder on ${label} is outside the folder Tortie was given ` +
+    `permission to write in. Nothing was sent.`
+  );
+}
+
+/** That folder is not inside a git repository. */
+export function commitNotRepo(label: string): string {
+  return `That folder on ${label} is not a git repository, so Tortie committed nothing.`;
+}
+
+/**
+ * Main's own read of that folder disagreed with the sha the panel drew.
+ *
+ * It is the rule that the renderer never chooses the guard: main re-reads the
+ * folder immediately before it composes anything and refuses when the two shas
+ * differ. `CLONE_CHANGED` above is the same rule for the address a clone sheet
+ * drew.
+ *
+ * IT NAMES NO MACHINE, and that is a deviation from this phase's own copy
+ * table, which shows the label in this sentence beside a constant that cannot
+ * carry one. A constant was chosen over a function because `CLONE_CHANGED`, the
+ * sentence this one copies, is a constant too and names no machine either. A
+ * person reads it inside a panel that is already about one machine.
+ */
+export const COMMIT_SHA_DISAGREED =
+  'What that folder on that machine holds changed while this panel was open, ' +
+  'so Tortie committed nothing. Press Refresh and read the changes again.';
+
+/** A conflicted file is in that folder, so nothing was committed. */
+export function commitConflicts(label: string): string {
+  return (
+    `There is a conflicted file in that folder on ${label}, so Tortie ` +
+    `committed nothing. Open a session there and finish the merge.`
+  );
+}

@@ -5,16 +5,18 @@
  * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105,
  * one more in Phase 106, one more in Phase 107, one more in Phase 108 and one
  * call plus one subscription in Phase 109, three more in Phase 101 and two
- * more in Phase 102 and two more in Phase 103). One object, thirty six calls
+ * more in Phase 102 and two more in Phase 103 and one more in Phase 104). One
+ * object, thirty seven calls
  * and three subscriptions,
  * typed from the shared contract. THE COUNT HAD GONE
  * STALE and Phase 108 says so rather than quietly fixing it: this header named
  * neither Phase 107 nor its call while the object already carried
  * `readHistory`.
  *
- * SEVEN of these calls write on another computer, being `putImage`,
- * `cloneProject`, `putFile`, `makeDir`, `renameEntry`, `stage` and `unstage`.
- * The last two are the only ones that change a git repository over there.
+ * EIGHT of these calls write on another computer, being `putImage`,
+ * `cloneProject`, `putFile`, `makeDir`, `renameEntry`, `stage`, `unstage` and
+ * `commit`. The last three are the only ones that change a git repository over
+ * there, and `commit` is the only one that makes a commit.
  * `allowWrites` writes on THIS Mac, being one field of one row and one record.
  * Everything else on this bridge reads.
  *
@@ -211,6 +213,17 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // that machine's git runs `rm --cached` over the same list instead, which
   // leaves every file in the folder. Neither call can discard a change, commit
   // or mark a conflict resolved.
-  unstage: (input) => invoke('machines:unstage', input)
+  unstage: (input) => invoke('machines:unstage', input),
   // ---- END PHASE 103 BLOCK ----
+  // ---- PHASE 104 BLOCK ----
+  // Phase 104. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the eighth call
+  // on this bridge that can. It commits what is staged in one repository over
+  // there. Main asks the confirm gate, runs its own review read on the tab's
+  // folder, refuses a folder outside the confirmed folder, refuses a sha this
+  // side and main disagree on, and refuses a staged set that moved, all before
+  // anything is sent. That machine's own hooks and its own signing
+  // configuration run over there, and Tortie answers no passphrase anywhere.
+  // The sentences a surface draws come back on this call, composed in main.
+  commit: (input) => invoke('machines:commit', input)
+  // ---- END PHASE 104 BLOCK ----
 };

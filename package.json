@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.65.0",
+  "version": "0.66.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -45,6 +45,8 @@
     "probe:p108": "node build/probe-p108-context.mjs",
     "probe:p103": "node build/probe-p103-stage.mjs",
     "probe:p103shot": "npm run build && node build/probe-p103-shot.mjs",
+    "probe:p104": "node build/probe-p104-commit.mjs",
+    "probe:p104shot": "npm run build && node build/probe-p104-shot.mjs",
     "probe:p120": "node build/probe-p120-merge.mjs",
     "probe:p120shot": "node build/probe-p120-shot.mjs",
     "probe:p119menu": "npm run build && node build/probe-p119-menu.mjs",

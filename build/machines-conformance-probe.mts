@@ -2013,6 +2013,212 @@ process.stdout.write(
       };
     })(),
 
+    // --- Phase 104, condition 86 -------------------------------------------
+    //
+    // Pure. It reads four source files as text and one compiled catalogue. It
+    // starts nothing, opens no file under the person's home and contacts no
+    // machine.
+    phase104: (() => {
+      const commitPath = join(machinesDir, 'remote-commit.ts');
+      let commitSource = '';
+      let commitPresent = true;
+      try {
+        commitSource = readFileSync(commitPath, 'utf8');
+      } catch {
+        commitPresent = false;
+      }
+      const ipcSource = readFileSync(join(machinesDir, 'ipc.ts'), 'utf8');
+      const contractSource = readFileSync(
+        join(repoRoot, 'src', 'shared', 'ipc', 'machines.ts'),
+        'utf8'
+      );
+      const reviewSource = readFileSync(
+        join(machinesDir, 'remote-review.ts'),
+        'utf8'
+      );
+      const readOrEmpty = (path: string): string => {
+        try {
+          return readFileSync(path, 'utf8');
+        } catch {
+          return '';
+        }
+      };
+      const scmDir = join(repoRoot, 'src', 'renderer', 'scm');
+      const sectionSource = readOrEmpty(join(scmDir, 'ScmSection.tsx'));
+      const changesSource = readOrEmpty(join(scmDir, 'remote-changes.ts'));
+      const gitServiceSource = readOrEmpty(
+        join(repoRoot, 'src', 'main', 'git', 'service.ts')
+      );
+
+      // The handler body, read as text, so "it names no git verb" is checkable
+      // rather than claimed. It is the same reader condition 84f uses.
+      const handlerBody = (channel: string): string => {
+        const at = ipcSource.indexOf(`'${channel}'`);
+        if (at < 0) return '';
+        const end = ipcSource.indexOf('\n  );', at);
+        return end < 0 ? ipcSource.slice(at) : ipcSource.slice(at, end);
+      };
+      const VERB_WORDS = [
+        'add',
+        'restore',
+        'commit',
+        'checkout',
+        'clean',
+        'reset',
+        'cherry-pick',
+        'stash',
+        'merge',
+        'rebase'
+      ];
+      const verbsIn = (text: string): string[] =>
+        VERB_WORDS.filter((word) =>
+          new RegExp(`\\b${word.replace('-', '\\-')}\\b`).test(text)
+        ).concat(text.includes('git ') ? ['git '] : []);
+      // THE CHANNEL IS CALLED `machines:commit`, so the word `commit` is in its
+      // own name and in the handler that registers it. Condition 84f could
+      // demand that no word from the list appears at all, because
+      // `machines:stage` and `machines:unstage` name none of them. This one
+      // cannot, and it says so rather than dropping the check. What is checked
+      // is the property the rule exists for: the handler names no OTHER git
+      // verb, and it names no `git ` at all, so no caller can turn the commit
+      // into an amend, a reset, a checkout or a discard. The full list is
+      // reported beside the filtered one so a reader sees what was excluded.
+      const otherVerbsIn = (text: string): string[] =>
+        verbsIn(text).filter((word) => word !== 'commit');
+
+      const commitRow = REMOTE_SCRIPTS.find((one) => one.id === 'git-commit');
+      const commitText = commitRow?.text ?? '';
+      const sendAt = commitSource.indexOf('runRemoteWrite(');
+      const inputMembers = (name: string): string[] => {
+        const at = contractSource.indexOf(`export interface ${name} {`);
+        if (at < 0) return [`${name} is not in the contract`];
+        const body = contractSource.slice(at, contractSource.indexOf('\n}', at));
+        return ['root', 'repoPath'].filter((member) =>
+          new RegExp(`^\\s*(readonly\\s+)?${member}[?]?:`, 'm').test(body)
+        );
+      };
+      // The two numbers that must agree, read as TEXT out of two files. A
+      // constant read by import would agree with itself; these are the digits
+      // in the sources.
+      const capInModule = (() => {
+        const hit = /REMOTE_COMMIT_ANSWER_MAX_BYTES = ([0-9_]+)/.exec(
+          commitSource
+        );
+        return hit === null ? -1 : Number((hit[1] ?? '').replace(/_/g, ''));
+      })();
+      const capInScript = (() => {
+        const hit = /head -c ([0-9]+)/.exec(commitText);
+        return hit === null ? -1 : Number(hit[1] ?? '0');
+      })();
+      const remoteTimeout = (() => {
+        const hit = /REMOTE_COMMIT_TIMEOUT_MS = ([0-9_]+)/.exec(commitSource);
+        return hit === null ? -1 : Number((hit[1] ?? '').replace(/_/g, ''));
+      })();
+      const localTimeout = (() => {
+        const hit = /COMMIT_TIMEOUT_MS = ([0-9_]+)/.exec(gitServiceSource);
+        return hit === null ? -1 : Number((hit[1] ?? '').replace(/_/g, ''));
+      })();
+      // The `git commit` line on its own, so the four flags that would change
+      // what it does are tested per line and anchored on a word boundary. Over
+      // the whole text `head -c 8192` could be read as `-c`, and a whole text
+      // test for `-a` would be a different kind of wrong answer.
+      const commitLine =
+        commitText.split('\n').find((line) => line.includes('git commit ')) ??
+        '';
+
+      return {
+        catalogue: {
+          id: 'git-commit',
+          mode: commitRow?.mode ?? 'missing',
+          params: commitRow?.params ?? -1,
+          bytes: commitText.length,
+          fits: commitText.length <= REMOTE_SCRIPT_MAX_BYTES,
+          // The redirection list, MEASURED with the same regex the row reader
+          // uses rather than read by eye. This write's rule is that it is
+          // EMPTY, which is weaker than image-put's and is stated as such.
+          redirects: [
+            ...commitText.matchAll(/(?<!2)>\s*([^\s;|)]+)/g)
+          ].map((hit) => hit[1] ?? ''),
+          mutators: [
+            ...new Set(
+              commitText
+                .split(/[\s;|&(){}]+/)
+                .filter((word) => word.length > 0)
+                .filter((word) =>
+                  [
+                    'rm',
+                    'mv',
+                    'cp',
+                    'mkdir',
+                    'touch',
+                    'chmod',
+                    'chown',
+                    'ln',
+                    'dd',
+                    'tee',
+                    'truncate'
+                  ].includes(word)
+                )
+            )
+          ].sort(),
+          stdinFromNull: commitText.includes('</dev/null'),
+          guardsHead: commitText.includes('if [ "$h" != "$2" ]; then'),
+          capsAnswer: commitText.includes('head -c 8192'),
+          runsCommit: commitText.includes('git commit -m "$3"'),
+          commitLine,
+          // The four flags that would turn this into something else, per line.
+          badFlags: [
+            /\s--amend\b/,
+            /\s--no-verify\b/,
+            /\s-a\b/,
+            /\s--all\b/
+          ]
+            .filter((one) => one.test(commitLine))
+            .map((one) => one.source),
+          // `-F` anywhere would mean this write makes a file of its own over
+          // there. It does not.
+          namesMessageFile: /(^|[\s;|&(])-F\b/.test(commitText),
+          capInScript
+        },
+        module: {
+          present: commitPresent,
+          // The four checks that all have to stand above the one send.
+          gateAt: commitSource.indexOf('confirmedWriteRoot('),
+          readAt: commitSource.indexOf('reviewFilesOn('),
+          holdsAt: commitSource.indexOf('rootHolds('),
+          stagedAt: commitSource.indexOf('stagedPathsOf('),
+          sendAt,
+          namesWriteDoor: sendAt >= 0,
+          forbiddenDoors: [
+            'runRemoteRead',
+            'execRemoteShell',
+            'execFile',
+            'spawn('
+          ].filter((one) => commitSource.includes(one)),
+          importsManifest: /from '\.\.\/manifest\//.test(commitSource),
+          inputMembers: inputMembers('MachineCommitInput'),
+          handlerCommit:
+            ipcSource.includes("'machines:commit'") &&
+            ipcSource.includes('commitOnMachine(input)'),
+          commitHandlerVerbs: otherVerbsIn(handlerBody('machines:commit')),
+          commitHandlerVerbsAll: verbsIn(handlerBody('machines:commit')),
+          channelVerbs: otherVerbsIn('machines:commit'),
+          channelVerbsAll: verbsIn('machines:commit'),
+          capInModule,
+          remoteTimeout,
+          localTimeout,
+          // The guard sha is main's own field on the review answer, so it can
+          // never come from the renderer.
+          contractHasHeadSha: /^\s*headSha: string;/m.test(contractSource),
+          reviewNamesHeadSha: reviewSource.includes('headSha'),
+          // Builder B's two files, BY SYMBOL NAME ONLY and never by a sentence.
+          sectionNamesCommitBox: sectionSource.includes('RemoteCommitBox'),
+          changesNamesCommit: /\bcommit\b/.test(changesSource),
+          changesNamesCheckCommit: changesSource.includes('checkCommit')
+        }
+      };
+    })(),
+
     // --- Phase 98, condition 52 --------------------------------------------
     // Pure. It reads one compiled script text and one compiled number. It
     // starts nothing, opens no file under the person's home and contacts no

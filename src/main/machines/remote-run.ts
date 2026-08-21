@@ -195,19 +195,27 @@ export async function runRemoteRead(
  * Run a `write` script on one machine.
  *
  * It is the only door to a write on another computer in this product. The
- * catalogue holds SEVEN scripts with `mode: 'write'`, being `image-put`,
- * `git-clone`, `file-put`, `dir-new`, `entry-rename`, `git-stage` and
- * `git-unstage` in that order, so this function has exactly seven things it can
- * send.
+ * catalogue holds EIGHT scripts with `mode: 'write'`, being `image-put`,
+ * `git-clone`, `file-put`, `dir-new`, `entry-rename`, `git-stage`,
+ * `git-unstage` and `git-commit` in that order, so this function has exactly
+ * eight things it can send.
  *
  * THE NUMBER LIVES IN THE CATALOGUE AND IN THE GATE RATHER THAN IN THIS
  * SENTENCE. `ALLOWED_WRITERS` in `build/conformance-machines.mjs` holds the
- * seven ids by name, and `remoteWriteScripts()` in `./remote-scripts.ts` is
+ * eight ids by name, and `remoteWriteScripts()` in `./remote-scripts.ts` is
  * what the gate compares against, so a script added with the wrong mode is
  * caught by the same call the product makes. This sentence has gone stale three
  * times and it is written out each time rather than quietly fixed.
  *
- * ## What makes each of the seven safe to run twice, because they differ
+ * THERE IS NO WRITES GATE IN THIS FUNCTION AND PHASE 104 DID NOT ADD ONE. None
+ * of the eight steps below reads a machine row, so nothing here refuses a write
+ * for a machine whose writes were never confirmed. That decision lives in
+ * `confirmedWriteRoot` in `./remote-file.ts`, and each of the callers that
+ * writes under a confirmed folder calls it as its first act. It is a discipline
+ * rather than a door, and the remedy costs one read of the machine row inside
+ * {@link runRemoteScript}.
+ *
+ * ## What makes each of the eight safe to run twice, because they differ
  *
  *  - `image-put`, `git-clone` and `dir-new` never open a destination that is
  *    already there. A repeat finds it and answers without writing.
@@ -224,13 +232,20 @@ export async function runRemoteRead(
  *    different reason from `entry-rename`'s. Neither names a destination to
  *    test at all. A repeat asks that machine's own git for the same index and
  *    git writes what is already there.
+ *  - `git-commit` is safe by a GUARD IT CARRIES ITSELF, which is the fourth
+ *    reason and the only one of the four no other script uses. The sha Tortie
+ *    read crosses with the message, that machine compares it against its own
+ *    `git rev-parse HEAD`, and a difference answers `moved` having committed
+ *    nothing. The first run moves `HEAD`, so a repeat of one request adds no
+ *    second commit.
  *
  * THIS COMMENT WAS WRONG BEFORE PHASE 101 AND IT IS WRITTEN OUT RATHER THAN
  * QUIETLY FIXED. It read "the catalogue holds exactly one script with
  * `mode: 'write'`, so this function has exactly one thing it can send, and a
  * gate holds that at one". That was already false at two writers after Phase
  * 90.2, and it is defect 7 of research 57 section 9. Phase 101 moved it to
- * three, Phase 102 moved it to five and Phase 103 moved it to seven.
+ * three, Phase 102 moved it to five, Phase 103 moved it to seven and Phase 104
+ * moved it to eight.
  */
 export async function runRemoteWrite(
   ctx: RemoteMachineContext,

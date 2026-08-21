@@ -787,6 +787,10 @@ export interface MachinesEventPayloadMap {
  * channels here that write on another computer, and the first two that change
  * a git repository over there.
  *
+ * PHASE 104 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `commit`. The count
+ * is thirty seven. It is the eighth channel here that writes on another
+ * computer and the third that changes a git repository over there.
+ *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
  * | rows | memory in main, plus the sealed record | nothing | nothing |
@@ -825,17 +829,25 @@ export interface MachinesEventPayloadMap {
  * | putFile | one row and one file's bytes from the renderer | one file on that machine | ssh |
  * | makeDir | one row and one path from the renderer | one folder on that machine | ssh |
  * | renameEntry | one row and two paths from the renderer | one entry moved on that machine | ssh |
+ * | commit | one row, then one folder on that machine | one commit in that repository | ssh |
  *
  * `readRuns` is the one row whose Spawns column names two programs. The ssh is
  * the read of that machine's branch. The gh runs HERE and never leaves this Mac,
  * and nothing about it crosses the link.
  *
  * Every one of them that spawns does so on a person's click and from nowhere
- * else. FIVE of them write on another computer, being `putImage`,
- * `cloneProject`, `putFile`, `makeDir` and `renameEntry`, and that number is the
- * number this product is allowed to have. It moved from one to two in Phase
- * 90.2, from two to three in Phase 101 and from three to five in Phase 102,
- * deliberately and once each time.
+ * else. EIGHT of them write on another computer, being `putImage`,
+ * `cloneProject`, `putFile`, `makeDir`, `renameEntry`, `stage`, `unstage` and
+ * `commit`, and that number is the number this product is allowed to have. It
+ * moved from one to two in Phase 90.2, from two to three in Phase 101, from
+ * three to five in Phase 102, from five to seven in Phase 103 and from seven to
+ * eight in Phase 104, deliberately and once each time.
+ *
+ * THIS PARAGRAPH SAID FIVE UNTIL PHASE 104 AND IT IS WRITTEN OUT RATHER THAN
+ * QUIETLY FIXED. It was already false at seven when Phase 103 shipped. The
+ * count that is enforced lives in `ALLOWED_WRITERS` in
+ * `build/conformance-machines.mjs` and in `remoteWriteScripts()`, and never in
+ * this sentence.
  *
  * `machines:prepare` is Phase 69's one new channel, and it is the first thing
  * Tortie ever STARTS on another machine. It asks the confirm gate before it
@@ -1236,6 +1248,36 @@ export interface MachinesInvokeChannelMap {
     res: MachineIndexWriteResult;
   };
   // ---- END PHASE 103 BLOCK ----
+  // ---- PHASE 104 BLOCK ----
+  // THIS ONE WRITES ON ANOTHER COMPUTER, and it is the eighth channel in this
+  // contract that can. It is the third that changes a git repository over
+  // there, after the two Phase 103 added.
+  //
+  // IT NAMES NO GIT VERB. The verb is inside Tortie's own script text in
+  // `src/main/machines/remote-scripts.ts`, so no caller can turn a commit into
+  // an amend, a reset or a discard.
+  //
+  // IT CARRIES NO REPOSITORY ROOT. The input carries the tab's folder and main
+  // runs its own review read on it, so the root that reaches that machine's git
+  // is the one that machine's own `rev-parse` answered.
+  //
+  // WHAT BOUNDS IT is the same one field `machines:putFile` is bounded by,
+  // being `writeRoot` on the machine row. PHASE 104 ADDS NO CONFIRMED FIELD
+  // and no hash moves. A machine that carries no folder answers `refused` and
+  // nothing is composed.
+  //
+  // THE REPEAT IS GUARDED BY HEAD. Main reads the sha that folder's `HEAD`
+  // points at immediately before it sends, that sha crosses with the message,
+  // and the machine refuses to commit when its own `HEAD` no longer equals it.
+  // So a second send of one request commits nothing.
+  //
+  // IT NEVER THROWS FOR SOMETHING THE MACHINE SAID. Every answer is one of
+  // eight words with sentences beside it.
+  'machines:commit': {
+    req: [input: MachineCommitInput];
+    res: MachineCommitResult;
+  };
+  // ---- END PHASE 104 BLOCK ----
   'machines:agents': {
     req: [id: string | null, fresh: boolean];
     res: MachineAgentsView[];
@@ -1389,6 +1431,13 @@ export interface GmuxMachinesExtras {
     // the same list instead, which leaves every file in the folder.
     unstage(input: MachineIndexWriteInput): Promise<MachineIndexWriteResult>;
     // ---- END PHASE 103 BLOCK ----
+    // ---- PHASE 104 BLOCK ----
+    // Phase 104. Commits what is staged in one repository on one machine. It is
+    // the eighth call in this contract that writes on another computer. The
+    // person's own message is the only thing on this call they wrote. Hooks and
+    // signing run on that machine, and Tortie answers no passphrase anywhere.
+    commit(input: MachineCommitInput): Promise<MachineCommitResult>;
+    // ---- END PHASE 104 BLOCK ----
     // Phase 109. The whole map, pushed whenever any machine's answer changes,
     // the `onStateChanged` precedent.
     onAgentsChanged(cb: (views: MachineAgentsView[]) => void): () => void;
@@ -1515,6 +1564,25 @@ export interface MachineReviewList {
   machineLabel: string;
   /** The repository root THAT MACHINE reported. Empty when there is none. */
   repoPath: string;
+  /**
+   * PHASE 104. The commit `HEAD` pointed at in that folder when this read ran.
+   *
+   * It is the `# branch.oid` header of the same porcelain the file rows come
+   * from, so it costs no extra read and no extra process on that machine. It
+   * was parsed and thrown away until this phase.
+   *
+   * It is the empty string in two cases, being a folder that is not a
+   * repository and a repository with no commit yet. `parseHeader` in
+   * `src/main/git/parse.ts` writes the oid only when the header is not
+   * `(initial)`, so an unborn branch arrives empty and never as the literal
+   * `(initial)`.
+   *
+   * IT EXISTS SO A COMMIT ON ANOTHER MACHINE CAN BE GUARDED. Main reads it,
+   * sends it to that machine, and that machine refuses to commit when its own
+   * `HEAD` has moved since. The renderer sends back the sha it drew and main
+   * refuses when the two disagree, so the guard is never the renderer's value.
+   */
+  headSha: string;
   files: MachineReviewFile[];
   /** How many changed files there were, when only the first ones are listed. */
   total: number;
@@ -1900,6 +1968,131 @@ export interface MachineIndexWriteResult {
   readonly tookMs: number;
 }
 // ---- END PHASE 103 BLOCK ----
+
+// ---- PHASE 104 BLOCK ----
+// Committing what is staged in one repository on another machine.
+//
+// WHAT THIS IS FOR. A person looking at the Source Control panel for a folder
+// on another machine can type a message and commit over there. Until this phase
+// Tortie could choose what went into the next commit on that machine and could
+// not make it.
+//
+// WHAT RUNS ON THAT MACHINE. That machine's own git, that person's own
+// `pre-commit` and `commit-msg` hooks, and that person's own signing
+// configuration. TORTIE ANSWERS NO PASSPHRASE, ANYWHERE. Standard input is
+// `/dev/null` over there, so a program that reads a terminal fails at once. A
+// signing program with a window of its own opens that window on that machine's
+// screen, where Tortie cannot see it and cannot answer it, and the commit box
+// says so before a person presses the button.
+//
+// WHAT THIS CANNOT DO. It cannot amend, it cannot reset, it cannot discard a
+// change and it cannot push. None of those verbs is in Tortie's script
+// catalogue and condition 83 of `build/conformance-machines.mjs` makes the
+// discard refusal executable over the whole catalogue.
+//
+// WHAT DECIDES WHETHER ANYTHING HAPPENS. The same one confirmed field Phase
+// 101 added, being `writeRoot`. NO NEW FIELD IS CONFIRMED BY THIS BLOCK, the
+// hash still covers six fields, and no machine anybody already confirmed is
+// asked again.
+//
+// NO REPOSITORY ROOT CROSSES THIS CHANNEL. The input carries the tab's folder
+// and main runs its own review read on it, so the root that reaches that
+// machine's git is the one that machine's own `rev-parse` answered.
+
+/** Which folder on which machine, with the sha and the staged set the panel drew. */
+export interface MachineCommitInput {
+  machineId: string;
+  /** The tab's folder ON THAT MACHINE. Main runs its own review read on it. */
+  cwd: string;
+  /**
+   * The sha the panel drew, from the last review answer. Empty for a repository
+   * with no commit yet.
+   *
+   * IT IS NOT THE SHA THAT CROSSES. Main re-reads the folder and sends the sha
+   * IT just read. This one is compared against that read and a disagreement
+   * commits nothing, which is the rule `machines:cloneProject` already follows
+   * for the address a sheet drew.
+   */
+  headSha: string;
+  /**
+   * The staged paths the panel drew, repository relative.
+   *
+   * Main compares them against its own fresh read. HEAD does not move when
+   * somebody or an agent runs `git add` in that folder, so a HEAD guard alone
+   * would let a person commit content they never read in the Changes list.
+   */
+  staged: string[];
+  /** The person's own text. It is the only thing on this channel they wrote. */
+  message: string;
+}
+
+/**
+ * What happened to one commit. Eight words, and none of them claims more than
+ * Tortie knows.
+ *
+ *  - `committed`: that machine's git exited 0 and named a new commit.
+ *  - `moved`: `HEAD` in that folder was not the sha Tortie read, so that
+ *    machine committed nothing. A second send of one request lands here.
+ *  - `staged-changed`: what is staged over there changed after Tortie read it,
+ *    so nothing was committed.
+ *  - `failed`: that machine's git exited non zero. What it printed is in
+ *    `machineSaid`.
+ *  - `timeout`: the deadline was hit on this Mac. The commit may still be
+ *    running over there and it may have finished after Tortie stopped
+ *    listening.
+ *  - `unsure`: the link dropped, or that machine answered something Tortie
+ *    could not read. IT NEVER MEANS NOTHING CHANGED. It is a separate word from
+ *    `timeout` because a link that dropped after three seconds is not a
+ *    deadline, and one sentence for both would say "within 5 minutes" about a
+ *    thing that took three.
+ *  - `offline`: Tortie is not connected to that machine, so nothing was sent.
+ *  - `refused`: main decided on THIS MAC, before anything was composed. It
+ *    covers seven states, being no message, writes not confirmed for that
+ *    machine, a folder outside the confirmed folder, a folder that is not a
+ *    repository, a sha the panel and main disagree on, a conflicted file, and
+ *    nothing staged. Each carries its own sentence, so a person still reads
+ *    exactly which one. `refused` always comes with `sent` equal to 0.
+ */
+export type MachineCommitOutcome =
+  | 'committed'
+  | 'moved'
+  | 'staged-changed'
+  | 'failed'
+  | 'timeout'
+  | 'unsure'
+  | 'offline'
+  | 'refused';
+
+/** What one commit did, in the shape the surface reads. */
+export interface MachineCommitResult {
+  readonly outcome: MachineCommitOutcome;
+  /** The commit that machine made, in full. Empty on every other outcome. */
+  readonly sha: string;
+  /** What that machine's HEAD holds now, as the answer reported it. Empty when it said none. */
+  readonly headSha: string;
+  /**
+   * What git or a hook printed over there, decoded and capped. Null otherwise.
+   *
+   * It is that machine's own prose and the panel draws it UNDER Tortie's own
+   * sentence, never in place of one. The far side caps it at
+   * `REMOTE_COMMIT_ANSWER_MAX_BYTES` with `head -c` before it crosses.
+   */
+  readonly machineSaid: string | null;
+  /**
+   * The sentences a surface draws, composed in main.
+   *
+   * This is `RemoteCloneResult`'s shape rather than `MachineIndexWriteResult`'s.
+   * Both ship today. It is this one because a person has to read Tortie's own
+   * sentence and that machine's own words together, and only main has both.
+   */
+  readonly sentences: readonly string[];
+  /** How many commands crossed. 0 for every outcome decided on this Mac. */
+  readonly sent: number;
+  /** The review read main ran before composing, in ms. */
+  readonly readMs: number;
+  readonly tookMs: number;
+}
+// ---- END PHASE 104 BLOCK ----
 
 // ---------------------------------------------------------------------------
 // The folder picker for another machine (Phase 84, item 6)

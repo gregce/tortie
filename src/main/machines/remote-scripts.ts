@@ -41,6 +41,25 @@
  * than `file-put` does, being the line with the `.git` half in it, so `.git` is
  * guarded on them and not on `file-put`.
  *
+ * PHASE 103 ADDED TWO MORE, and both are writes. They are the SIXTH and the
+ * SEVENTH, and they are the first two commands this product sends that change a
+ * git repository on another computer. `git-stage` hands a list of pathspecs to
+ * that machine's own git as one `git add`, and `git-unstage` takes the same
+ * list back out with one `git restore --staged`, falling back to one
+ * `git rm --cached` on a repository with no commit. Neither names a destination
+ * to test, so both are safe to run twice by END STATE.
+ *
+ * PHASE 104 ADDED ONE MORE, and it is a write. It is the EIGHTH, and it is the
+ * third that changes a git repository over there. `git-commit` makes the commit
+ * that machine's own git makes, with that person's own hooks and their own
+ * signing configuration running there. It is the FIRST write in this catalogue
+ * that is safe to run twice by a guard it carries itself: the sha Tortie read
+ * crosses with the message, the far side compares it against its own
+ * `git rev-parse HEAD`, and a difference answers `moved` having committed
+ * nothing. Its standard input is `/dev/null`, so a passphrase program that
+ * reads a terminal fails at once instead of holding the link. TORTIE ANSWERS NO
+ * PASSPHRASE, ANYWHERE.
+ *
  * PHASE 98 ADDED ONE MORE, and it is a read. `repo-search` prints every
  * matching line in one folder on a machine, using that machine's own `grep`.
  * Research 57 section 2 measured the alternatives and refused both of them.
@@ -167,21 +186,31 @@
  *  5. A `read` script names none of `rm`, `mv`, `cp`, `mkdir`, `touch`,
  *     `chmod`, `chown`, `ln`, `dd`, `tee` or `truncate` as a command, and every
  *     `>` in it is part of `2>/dev/null`.
- *  6. SEVEN scripts have `mode: 'write'`, and they are `image-put`,
- *     `git-clone`, `file-put`, `dir-new`, `entry-rename`, `git-stage` and
- *     `git-unstage`, in that order. Phase 90.2 moved that number from one to
- *     two, Phase 101 moved it from two to three, Phase 102 moved it from three
- *     to five and Phase 103 moved it from five to seven, once and on purpose
- *     each time, because putting a project on a machine is a write, so is
- *     saving a file a person is editing, so is making a folder, so is renaming
- *     one, and so is changing what a repository has staged. There is no honest
- *     way to write any of them as a read.
- *     The seven carry SEPARATE redirection rules rather than one shared rule,
+ *  6. EIGHT scripts have `mode: 'write'`, and they are `image-put`,
+ *     `git-clone`, `file-put`, `dir-new`, `entry-rename`, `git-stage`,
+ *     `git-unstage` and `git-commit`, in that order. Phase 90.2 moved that
+ *     number from one to two, Phase 101 moved it from two to three, Phase 102
+ *     moved it from three to five, Phase 103 moved it from five to seven and
+ *     Phase 104 moved it from seven to eight, once and on purpose each time,
+ *     because putting a project on a machine is a write, so is saving a file a
+ *     person is editing, so is making a folder, so is renaming one, so is
+ *     changing what a repository has staged, and so is making the commit. There
+ *     is no honest way to write any of them as a read.
+ *     The eight carry SEPARATE redirection rules rather than one shared rule,
  *     because they are different shapes: every `>` in `image-put` and in
  *     `file-put` aims at the temporary name, every `>` in `git-clone`, in
- *     `git-stage` and in `git-unstage` aims at `/dev/null`, and `dir-new` and
- *     `entry-rename` carry no redirection at all beyond the `2` in
- *     `2>/dev/null`.
+ *     `git-stage` and in `git-unstage` aims at `/dev/null`, and `dir-new`,
+ *     `entry-rename` and `git-commit` carry no redirection at all beyond the
+ *     `2` in `2>/dev/null` and `2>&1`.
+ *
+ *     `git-commit`'s REDIRECTION RULE IS WEAKER THAN `image-put`'s AND IT IS
+ *     SAID HERE RATHER THAN HIDDEN. The redirect reader in
+ *     `build/machines-conformance-probe.mts` counts neither `2>/dev/null` nor
+ *     `2>&1` nor `</dev/null`, so run over this text it returns an empty list.
+ *     A rule quantified over an empty list asserts nothing, so the gate asserts
+ *     that the list is EMPTY instead. That is a true and specific property of
+ *     this write, and it is weaker than `image-put`'s, which names the exact
+ *     target every redirection must aim at.
  *
  *     A WRITE WITH NO DESTINATION TO TEST IS STILL SAFE TO RUN TWICE, and
  *     Phase 103 adds the first two of those. `image-put`, `git-clone` and
@@ -190,6 +219,14 @@
  *     hand a list of pathspecs to that machine's own git, so they are safe by
  *     END STATE. A second run asks for the same index and git leaves it as it
  *     already is.
+ *
+ *     `git-commit` IS THE FIRST WRITE THAT IS SAFE BY A GUARD IT CARRIES
+ *     ITSELF. It has no destination to test and no end state to lean on,
+ *     because running it twice would add two commits. So it takes the sha
+ *     `HEAD` pointed at when Tortie read the folder, compares it against its
+ *     own `git rev-parse HEAD` before it does anything, and answers `moved`
+ *     without committing when the two differ. The first run moves `HEAD`, so
+ *     the second run of one request always finds it moved.
  *
  *     WHAT PHASE 102 ADDED TO THE TWO IT ADDED, and did not add anywhere else.
  *     Both carry the wider containment line from
@@ -214,9 +251,10 @@
  *     Two more may appear in `git-clone` and in NO other script, being
  *     `ls-remote` and `clone`. PHASE 103 ADDS THREE MORE, each bound to one
  *     script id: `add` in `git-stage` alone, and `restore` and `rm` in
- *     `git-unstage` alone. None of the three joins the eight, because a verb
+ *     `git-unstage` alone. PHASE 104 ADDS ONE MORE, being `commit` in
+ *     `git-commit` alone. None of the four joins the eight, because a verb
  *     allowed everywhere is a verb any future script can use, and none of the
- *     three is a read. All three therefore carry `GIT_TERMINAL_PROMPT=0` and
+ *     four is a read. All four therefore carry `GIT_TERMINAL_PROMPT=0` and
  *     `GCM_INTERACTIVE=never` in front of them. Every verb is part
  *     of the text and never a parameter, so no caller can turn a review into a
  *     commit. Every git command that is not one of the eight read verbs carries
@@ -272,11 +310,12 @@
  * because it writes nothing. Each row's `reason` says so in its own words, the
  * same way a verb ledger row does.
  *
- * THE SEVEN WRITES ARE SAFE TO RUN TWICE FOR THREE DIFFERENT REASONS, and the
+ * THE EIGHT WRITES ARE SAFE TO RUN TWICE FOR FOUR DIFFERENT REASONS, and the
  * sentence that once covered them all said "the one write is safe to run twice
  * because it never opens a file that is already there". That was already false
  * at two writers, Phase 101 rewrote it rather than leaving it, Phase 102 added
- * the third reason and Phase 103 puts two more writers under it.
+ * the third reason, Phase 103 put two more writers under it and Phase 104 added
+ * the fourth reason.
  *
  *  - `image-put`, `git-clone` and `dir-new` never open a destination that is
  *    already there. A repeat finds the file or the folder and answers
@@ -301,6 +340,18 @@
  *    of it, and git writes what is already there. On a repository with no
  *    commit the restore fails and the same call runs `git rm --cached` over the
  *    same list, which is safe by end state for the same reason.
+ *  - `git-commit` is safe by a GUARD IT CARRIES ITSELF, which is the fourth
+ *    reason and the only one of the four that no other script uses. It takes
+ *    the sha `HEAD` pointed at when Tortie read the folder, compares it against
+ *    its own `git rev-parse HEAD`, and answers `moved` without committing when
+ *    the two differ. The first run moves `HEAD`, so a repeat of one request
+ *    finds it moved and adds no second commit. A repository with no commit
+ *    answers nothing from `rev-parse` and its guard value is the word `none`,
+ *    so an unborn branch is a state rather than a special case. WHAT THE GUARD
+ *    DOES NOT COVER is a stage on that machine between Tortie's read and
+ *    Tortie's write, because `HEAD` does not move for a `git add`.
+ *    `./remote-commit.ts` compares the staged set for that, and the window
+ *    between its read and this commit is one round trip wide and is not closed.
  *
  * ## The size limit, measured against a documented number rather than guessed
  *
@@ -2506,22 +2557,120 @@ const GIT_UNSTAGE = [
 ].join('\n');
 
 /**
- * The whole catalogue. Twenty four scripts, and this release holds no others.
+ * The eighth write. Commit what is staged in one repository (Phase 104).
+ *
+ * `$1` is the repository root on that machine. `$2` is the commit `HEAD` was
+ * pointing at when Tortie read that folder, or the word `none` for a repository
+ * with no commit yet. `$3` is the message the person typed.
+ *
+ * ## The repeat guard is HEAD, and it is the whole reason this script is safe
+ *
+ * Tortie can never know whether a command that lost its answer ran. Every other
+ * write in this catalogue answers that with a destination test or with an end
+ * state. A commit has neither: running it twice would add two commits. So the
+ * sha Tortie read crosses with the message, the far side compares it against
+ * its own `git rev-parse HEAD`, and a difference answers `moved` having
+ * committed nothing. THE FIRST RUN MOVES HEAD, so the second run of one request
+ * always finds it moved.
+ *
+ * A repository with no commit needs `--verify --quiet` on both `rev-parse`
+ * calls, and that is measured rather than assumed. A bare
+ * `git rev-parse HEAD` on an unborn branch PRINTS THE WORD `HEAD` on standard
+ * output and exits 1, so `h` is never empty, the `-z` guard never fires, `h`
+ * never becomes `none`, and the far side answers `moved none HEAD` and commits
+ * nothing. `git rev-parse --verify --quiet HEAD` prints nothing at all on an
+ * unborn branch, prints the sha otherwise, and writes zero bytes to standard
+ * error either way, measured on git 2.50.1. With it the guard value for an
+ * unborn branch is the word `none`, so that state is a state rather than a
+ * special case. The `git-commit` branch of condition 38 in
+ * `build/conformance-machines.mjs` fails this text if a later round drops
+ * either flag.
+ *
+ * ## What the HEAD guard does not guard
+ *
+ * `HEAD` does not move when somebody or an agent runs `git add` in that folder.
+ * That window is closed in `./remote-commit.ts`, which compares the staged set
+ * the panel drew against its own fresh read. What is still open is the window
+ * between that read and this commit, which is one round trip wide.
+ *
+ * ## Hooks and signing run on that machine and Tortie answers neither
+ *
+ * Standard input is `/dev/null`, so a program that reads a passphrase from a
+ * terminal fails at once rather than holding the link until the deadline. A
+ * signing program with a window of its own opens that window on that machine's
+ * screen, and nothing here can see it or answer it. `REMOTE_COMMIT_TIMEOUT_MS`
+ * in `./remote-commit.ts` is what bounds that case, and it is 300,000 ms
+ * because that is what a local commit's hooks get.
+ *
+ * ## It writes no file of its own over there
+ *
+ * The message rides as `-m "$3"` rather than through `-F`, so this write
+ * creates no temporary file on that machine. The only thing it writes is the
+ * commit. A multi line message survives, because the message crosses as one
+ * quoted positional through the single `shellQuoteArgv` call in
+ * {@link composeRemoteScriptCommand}.
+ *
+ * ## `head -c 8192` is what bounds what comes back
+ *
+ * A hook can print anything. What crosses back is capped here, and the number
+ * is `REMOTE_COMMIT_ANSWER_MAX_BYTES` in `./remote-commit.ts`, which condition
+ * 86g of `build/conformance-machines.mjs` proves equal to this one. WHAT IS NOT
+ * BOUNDED is what `$m` holds on that machine BEFORE the cap: the shell holds
+ * the hook's whole output in one variable first.
+ *
+ * ## The answer is three fields and always three
+ *
+ * A word, then a base64 blob or `none`, then a sha or `none`. The three words
+ * are `moved`, `committed` and `failed`.
+ */
+const GIT_COMMIT = [
+  'set -e',
+  'umask 077',
+  'cd "$1"',
+  'h=$(git rev-parse --verify --quiet HEAD 2>/dev/null || true)',
+  'if [ -z "$h" ]; then h=none; fi',
+  'if [ "$h" != "$2" ]; then',
+  "  printf '__TORTIE_RUN__moved none %s__TORTIE_RUN__\\n' \"$h\"",
+  'else',
+  '  s=0',
+  '  m=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git commit -m "$3" </dev/null 2>&1) || s=1',
+  "  m=$(printf '%s' \"$m\" | head -c 8192)",
+  '  n=$(git rev-parse --verify --quiet HEAD 2>/dev/null || true)',
+  '  if [ "$s" = 0 ]; then',
+  "    printf '__TORTIE_RUN__committed none %s__TORTIE_RUN__\\n' \"${n:-none}\"",
+  '  else',
+  "    b=$(printf '%s' \"$m\" | base64 | tr -d '\\n')",
+  "    printf '__TORTIE_RUN__failed %s %s__TORTIE_RUN__\\n' \"${b:-none}\" \"${n:-none}\"",
+  '  fi',
+  'fi'
+].join('\n');
+
+/**
+ * The whole catalogue. Twenty five scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * SEVEN of the twenty four write, being `image-put`, `git-clone`, `file-put`,
- * `dir-new`, `entry-rename`, `git-stage` and `git-unstage`, and they are in
- * that order in this array. {@link remoteWriteScripts} returns them in it.
+ * EIGHT of the twenty five write, being `image-put`, `git-clone`, `file-put`,
+ * `dir-new`, `entry-rename`, `git-stage`, `git-unstage` and `git-commit`, and
+ * they are in that order in this array. {@link remoteWriteScripts} returns them
+ * in it.
  * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105,
  * PHASE 106, PHASE 107, PHASE 108 AND PHASE 109. PHASE 101 MOVED IT FROM TWO TO
  * THREE, once and on purpose, because saving a file a person is editing is a
  * write and there is no honest way to write it as a read. PHASE 102 MOVED IT
  * FROM THREE TO FIVE, once and on purpose, because making a folder is a write
  * and so is renaming a file. PHASE 103 MOVED IT FROM FIVE TO SEVEN, once and on
- * purpose, because changing what a repository has staged is a write.
+ * purpose, because changing what a repository has staged is a write. PHASE 104
+ * MOVED IT FROM SEVEN TO EIGHT, once and on purpose, because making the commit
+ * is a write.
+ *
+ * `git-commit` IS APPENDED AT THE END AND NEVER BEFORE `image-put`.
+ * `biggestImageCommand` in `build/machines-conformance-probe.mts` takes the
+ * FIRST row with `mode: 'write'` and composes it with an image payload. It
+ * finds `image-put` only because `image-put` is first, so a write inserted
+ * ahead of it would make condition 39 measure the wrong script.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -2751,6 +2900,17 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'refusal. On a repository with no commit the restore fails and the same ' +
       'call runs git rm --cached over the same list, which is safe by end ' +
       'state for the same reason.'
+  },
+  {
+    id: 'git-commit',
+    mode: 'write',
+    params: 3,
+    text: GIT_COMMIT,
+    reason:
+      'A commit runs only when HEAD on that machine is still the sha Tortie ' +
+      'read, and the first run moves HEAD. So a second run of the same ' +
+      'request finds HEAD moved, commits nothing, and answers moved instead ' +
+      'of adding a second commit.'
   }
 ];
 
@@ -2762,9 +2922,10 @@ export function remoteScript(id: string): RemoteScript | null {
 /**
  * Every script that writes, in catalogue order.
  *
- * It has exactly seven members, being `image-put`, then `git-clone`, then
+ * It has exactly eight members, being `image-put`, then `git-clone`, then
  * `file-put`, then `dir-new`, then `entry-rename`, then `git-stage`, then
- * `git-unstage`, and rule 6 in the header is what holds it there. The gate
+ * `git-unstage`, then `git-commit`, and rule 6 in the header is what holds it
+ * there. The gate
  * calls this rather than counting a list of its own, so a script added with the
  * wrong mode is caught by the same call the product makes.
  */

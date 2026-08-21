@@ -15,6 +15,10 @@
  * in server on 127.0.0.1 and prints what came back.
  */
 
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { REMOTE_FILE_LIST_MAX_BYTES } from '@shared/ipc';
 import { BRANCH_FORMAT } from '../../git/parse';
@@ -124,9 +128,19 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds twenty four scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(24);
+  it('holds twenty five scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(25);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 104 added `git-commit`, and it WRITES. It is the eighth writer,
+      // so the write count below moved from seven to eight. It is the third
+      // command this product can send that changes a git repository on another
+      // computer and the first that makes a commit. It adds ONE git verb, being
+      // `commit` in `git-commit` alone, and that verb does not join GIT_VERBS
+      // above, because it is not a read. It is the first write in this
+      // catalogue that is safe to run twice by a guard it carries itself: the
+      // sha Tortie read crosses with the message and the far side refuses when
+      // its own HEAD is not that sha.
+      //
       // PHASE 103 added `git-stage` and `git-unstage`, and both WRITE. They are
       // the sixth and the seventh writers, so the write count below moved from
       // five to seven. They are the first two commands this product can send
@@ -211,6 +225,7 @@ describe('the catalogue', () => {
       'entry-rename',
       'file-put',
       'git-clone',
+      'git-commit',
       'git-stage',
       'git-unstage',
       'image-put',
@@ -243,17 +258,23 @@ describe('the catalogue', () => {
     expect(remoteScript('IMAGE-PUT')).toBeNull();
   });
 
-  it('has exactly SEVEN scripts that write, and names all of them', () => {
+  it('has exactly EIGHT scripts that write, and names all of them', () => {
     // This is rule 6, and it is the one that keeps the size of what Tortie can
     // do to another person's computer at a known list rather than a count.
     // Phase 90.2 moved it from one to two, Phase 101 moved it from two to
-    // three, Phase 102 moved it from three to five and Phase 103 moved it from
-    // five to seven, once and on purpose each time, and the list stays exact so
-    // an eighth one fails here rather than passing quietly. Phase 105, Phase
-    // 106, Phase 107 and Phase 108 each added a read and left this number
-    // alone.
+    // three, Phase 102 moved it from three to five, Phase 103 moved it from
+    // five to seven and Phase 104 moved it from seven to eight, once and on
+    // purpose each time, and the list stays exact so a ninth one fails here
+    // rather than passing quietly. Phase 105, Phase 106, Phase 107 and Phase
+    // 108 each added a read and left this number alone.
+    //
+    // THE ORDER IS PART OF THE ASSERTION AND `git-commit` IS LAST ON PURPOSE.
+    // `biggestImageCommand` in `build/machines-conformance-probe.mts` takes the
+    // FIRST row with `mode: 'write'` and composes it with an image payload, so
+    // a write inserted ahead of `image-put` would make condition 39 of the gate
+    // measure the wrong script.
     const writers = remoteWriteScripts();
-    expect(writers).toHaveLength(7);
+    expect(writers).toHaveLength(8);
     expect(writers.map((script) => script.id)).toEqual([
       'image-put',
       'git-clone',
@@ -261,8 +282,190 @@ describe('the catalogue', () => {
       'dir-new',
       'entry-rename',
       'git-stage',
-      'git-unstage'
+      'git-unstage',
+      'git-commit'
     ]);
+  });
+
+  describe('the Phase 104 writer', () => {
+    // These read the TEXT, because what makes it safe is a property of that
+    // text. It is the one write whose repeat safety is a guard it carries
+    // itself rather than a destination test or an end state.
+    it('declares three values and writes', () => {
+      const script = remoteScript('git-commit');
+      expect(script?.mode).toBe('write');
+      expect(script?.params).toBe(3);
+    });
+
+    it('compares the sha Tortie read before it commits anything', () => {
+      const text = remoteScript('git-commit')?.text ?? '';
+      const guardAt = text.indexOf('if [ "$h" != "$2" ]; then');
+      const commitAt = text.indexOf('git commit');
+      expect(guardAt).toBeGreaterThanOrEqual(0);
+      expect(commitAt).toBeGreaterThan(guardAt);
+    });
+
+    it('reads its standard input from /dev/null', () => {
+      // A passphrase program that reads a terminal fails at once rather than
+      // holding the link open for the whole deadline.
+      expect(remoteScript('git-commit')?.text).toContain('</dev/null');
+    });
+
+    it('caps what that machine says before it crosses', () => {
+      expect(remoteScript('git-commit')?.text).toContain('head -c 8192');
+    });
+
+    it('names none of the four flags that would make it something else', () => {
+      const line =
+        (remoteScript('git-commit')?.text ?? '')
+          .split('\n')
+          .find((one) => one.includes('git commit ')) ?? '';
+      expect(line).toContain('-m "$3"');
+      for (const flag of [/\s--amend\b/, /\s--no-verify\b/, /\s-a\b/, /\s--all\b/]) {
+        expect(flag.test(line)).toBe(false);
+      }
+    });
+
+    it('makes no file of its own on that machine', () => {
+      // The message rides as -m and never through -F, so the only thing this
+      // write writes is the commit.
+      const text = remoteScript('git-commit')?.text ?? '';
+      expect(/(^|[\s;|&(])-F\b/.test(text)).toBe(false);
+    });
+
+    it('never composes an identity of Tortie own', () => {
+      const text = remoteScript('git-commit')?.text ?? '';
+      expect(text).not.toContain('GIT_AUTHOR_');
+      expect(text).not.toContain('GIT_COMMITTER_');
+    });
+
+    it('carries the two names that turn a hidden password prompt off', () => {
+      const line =
+        (remoteScript('git-commit')?.text ?? '')
+          .split('\n')
+          .find((one) => one.includes('git commit ')) ?? '';
+      expect(line).toContain('GIT_TERMINAL_PROMPT=0');
+      expect(line).toContain('GCM_INTERACTIVE=never');
+    });
+
+    it('asks rev-parse with --verify --quiet on every line that asks it', () => {
+      // WHY THIS TEST EXISTS, and it is a defect this phase shipped and then
+      // fixed. A bare `git rev-parse HEAD` in a repository with no commit yet
+      // PRINTS THE WORD `HEAD` on standard output and exits 1. The script
+      // reads that word into `h`, so the `-z` test never fires, `h` never
+      // becomes `none`, and the far side answers `moved none HEAD` having
+      // committed nothing. A first commit could never be made on another
+      // machine. The two flags are what make the empty answer empty.
+      const lines = (remoteScript('git-commit')?.text ?? '')
+        .split('\n')
+        .filter((one) => one.includes('git rev-parse'));
+      expect(lines).toHaveLength(2);
+      for (const line of lines) {
+        expect(line).toContain('--verify');
+        expect(line).toContain('--quiet');
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // The Phase 104 writer, RUN rather than read
+  // -------------------------------------------------------------------------
+
+  describe('the Phase 104 writer, run against a real repository', () => {
+    // Every other test in this file reads the text. Reading the text is what
+    // let a bare `git rev-parse HEAD` ship, because the bare form and the
+    // guarded form look alike. These tests RUN the shipped bytes with `sh`
+    // against a real repository on this machine and read the marker line that
+    // comes back. They spawn no ssh, contact no machine, and touch nothing
+    // outside a temporary folder.
+    const GIT_ENV = {
+      ...process.env,
+      GIT_AUTHOR_NAME: 'Tortie Test',
+      GIT_AUTHOR_EMAIL: 'test@example.invalid',
+      GIT_COMMITTER_NAME: 'Tortie Test',
+      GIT_COMMITTER_EMAIL: 'test@example.invalid',
+      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_CONFIG_SYSTEM: '/dev/null'
+    };
+
+    function runCommitScript(
+      root: string,
+      guard: string,
+      message: string
+    ): { word: string; blob: string; sha: string } {
+      const text = remoteScript('git-commit')?.text ?? '';
+      const out = execFileSync('/bin/sh', ['-c', text, 'sh', root, guard, message], {
+        encoding: 'utf8',
+        env: GIT_ENV
+      });
+      const found = /__TORTIE_RUN__(.*)__TORTIE_RUN__/.exec(out);
+      expect(found).not.toBeNull();
+      const parts = (found?.[1] ?? '').split(' ');
+      expect(parts).toHaveLength(3);
+      return { word: parts[0] ?? '', blob: parts[1] ?? '', sha: parts[2] ?? '' };
+    }
+
+    function newRepo(): string {
+      const root = mkdtempSync(join(tmpdir(), 'p104-script-'));
+      execFileSync('git', ['init', '-q', '--initial-branch=main', root], { env: GIT_ENV });
+      return root;
+    }
+
+    it('makes the FIRST commit in a repository that has none, with the guard none', () => {
+      const root = newRepo();
+      try {
+        writeFileSync(join(root, 'a.txt'), 'one\n');
+        execFileSync('git', ['-C', root, 'add', 'a.txt'], { env: GIT_ENV });
+        const answer = runCommitScript(root, 'none', 'the first one');
+        expect(answer.word).toBe('committed');
+        expect(answer.sha).toMatch(/^[0-9a-f]{40}$/);
+        const count = execFileSync('git', ['-C', root, 'rev-list', '--count', 'HEAD'], {
+          encoding: 'utf8',
+          env: GIT_ENV
+        }).trim();
+        expect(count).toBe('1');
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it('answers moved and commits nothing when the guard is not what HEAD holds', () => {
+      const root = newRepo();
+      try {
+        writeFileSync(join(root, 'a.txt'), 'one\n');
+        execFileSync('git', ['-C', root, 'add', 'a.txt'], { env: GIT_ENV });
+        runCommitScript(root, 'none', 'the first one');
+        writeFileSync(join(root, 'b.txt'), 'two\n');
+        execFileSync('git', ['-C', root, 'add', 'b.txt'], { env: GIT_ENV });
+        // The same request sent a second time, with the same stale guard.
+        const again = runCommitScript(root, 'none', 'the first one');
+        expect(again.word).toBe('moved');
+        expect(again.sha).toMatch(/^[0-9a-f]{40}$/);
+        const count = execFileSync('git', ['-C', root, 'rev-list', '--count', 'HEAD'], {
+          encoding: 'utf8',
+          env: GIT_ENV
+        }).trim();
+        expect(count).toBe('1');
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it('answers failed with that machine own words when nothing is staged', () => {
+      const root = newRepo();
+      try {
+        const answer = runCommitScript(root, 'none', 'nothing to say');
+        expect(answer.word).toBe('failed');
+        expect(answer.blob).not.toBe('none');
+        const said = Buffer.from(answer.blob, 'base64').toString('utf8');
+        expect(said).toContain('nothing');
+        // No commit was made, so the repository still has no HEAD and the
+        // third field is the word none rather than a sha.
+        expect(answer.sha).toBe('none');
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('the two Phase 103 writers', () => {

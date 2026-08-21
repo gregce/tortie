@@ -2807,11 +2807,19 @@ const ALLOWED_GIT_VERBS_SORTED = [
  * from `ALLOWED_GIT_VERBS`, so all three fall outside it and the first loop of
  * condition 49 demands `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in
  * front of each one. Do not weaken that by adding them to the read set.
+ *
+ * PHASE 104 ADDED ONE, being `commit` in `git-commit` alone. It is one line
+ * here because Phase 103 made this a map. `BOUND_GIT_VERBS` and both loops of
+ * condition 49 pick it up with no further edit, and so does the `allowedVerbs`
+ * list in condition 38. `ALLOWED_GIT_VERBS` does not grow, for the same reason:
+ * a verb allowed everywhere is a verb any future script can use, and `commit`
+ * is not a read.
  */
 const EXTRA_GIT_VERBS = {
   'git-clone': ['ls-remote', 'clone'],
   'git-stage': ['add'],
-  'git-unstage': ['restore', 'rm']
+  'git-unstage': ['restore', 'rm'],
+  'git-commit': ['commit']
 };
 
 /** Every verb in that map, so the second loop of condition 49 reads one list. */
@@ -2821,10 +2829,15 @@ const BOUND_GIT_VERBS = Object.values(EXTRA_GIT_VERBS).flat();
  * Every script that may write, in catalogue order.
  *
  * PHASE 90.2 MOVED THIS FROM ONE TO TWO, PHASE 101 MOVED IT FROM TWO TO THREE,
- * PHASE 102 MOVED IT FROM THREE TO FIVE AND PHASE 103 MOVED IT FROM FIVE TO
- * SEVEN, once and on purpose each time. It is the number that bounds what
- * Tortie can do to another person's computer, so it stays an exact allowlist
- * and never becomes a count.
+ * PHASE 102 MOVED IT FROM THREE TO FIVE, PHASE 103 MOVED IT FROM FIVE TO SEVEN
+ * AND PHASE 104 MOVED IT FROM SEVEN TO EIGHT, once and on purpose each time. It
+ * is the number that bounds what Tortie can do to another person's computer, so
+ * it stays an exact allowlist and never becomes a count.
+ *
+ * `git-commit` IS LAST AND IT IS LAST ON PURPOSE. `biggestImageCommand` in
+ * `build/machines-conformance-probe.mts` takes the FIRST row with
+ * `mode: 'write'` and composes it with an image payload, so a write inserted
+ * ahead of `image-put` would make condition 39 measure the wrong script.
  */
 const ALLOWED_WRITERS = [
   'image-put',
@@ -2833,7 +2846,8 @@ const ALLOWED_WRITERS = [
   'dir-new',
   'entry-rename',
   'git-stage',
-  'git-unstage'
+  'git-unstage',
+  'git-commit'
 ];
 
 /**
@@ -2861,7 +2875,10 @@ const WRITE_MUTATORS = {
   'dir-new': ['chmod', 'mkdir'],
   'entry-rename': ['mv'],
   'git-stage': [],
-  'git-unstage': ['rm']
+  'git-unstage': ['rm'],
+  // PHASE 104. MEASURED by running the same filter this condition runs over the
+  // real script text rather than read by eye. It names none of the eleven.
+  'git-commit': []
 };
 
 /**
@@ -2880,14 +2897,15 @@ const INDEX_PATH_GUARD =
   "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
 
 /**
- * How many scripts the catalogue holds. Twenty four.
+ * How many scripts the catalogue holds. Twenty five.
  *
  * Four later conditions pinned this number as a literal `19` each. Phase 101
  * made them one constant, because four copies of one number is how three of
  * them go stale. Phase 102 moved it from twenty to twenty two by two WRITES,
- * and Phase 103 moved it from twenty two to twenty four by two more.
+ * Phase 103 moved it from twenty two to twenty four by two more, and Phase 104
+ * moved it from twenty four to twenty five by one more.
  */
-const REMOTE_SCRIPT_COUNT = 24;
+const REMOTE_SCRIPT_COUNT = 25;
 
 {
   // 35. The catalogue's shape.
@@ -3428,6 +3446,122 @@ const REMOTE_SCRIPT_COUNT = 24;
               'run after the restore has failed.'
           );
         }
+      }
+    } else if (row.id === 'git-commit') {
+      // PHASE 104. The eighth write, and the third that changes a git
+      // repository on another computer.
+      //
+      // ITS REDIRECTION RULE IS WEAKER THAN image-put's AND THAT IS STATED
+      // RATHER THAN HIDDEN. The redirect reader in the probe matches
+      // `/(?<!2)>\s*([^\s;|)]+)/g`, so it counts neither `2>/dev/null` nor
+      // `2>&1` nor `</dev/null`. Run over this script's text it returns an
+      // empty list. A rule quantified over an empty list asserts nothing and
+      // would be this gate's first vacuous write rule, so this branch asserts
+      // that the list is EMPTY, which is a true and specific property of this
+      // write. `image-put`'s rule names the exact target every redirection must
+      // aim at and this one cannot.
+      if ((row.redirects ?? []).length > 0) {
+        fail(
+          `write script ${row.id} redirects to ${row.redirects.join(', ')}. It ` +
+            `makes a commit and writes no bytes of its own at all, so the only ` +
+            `redirection it may carry is the kind a 2 sits in front of and the ` +
+            `one that reads from /dev/null.`
+        );
+      }
+      // STANDARD INPUT IS /dev/null. This is the one visible half of the
+      // signing hazard: a passphrase program that reads a terminal fails at
+      // once instead of holding the link open until the deadline.
+      if (!row.text.includes('</dev/null')) {
+        fail(
+          `write script ${row.id} does not close its standard input with ` +
+            `</dev/null. Without it a program asking for a passphrase on a ` +
+            `computer nobody is looking at holds the connection until the ` +
+            `deadline.`
+        );
+      }
+      // THE HEAD GUARD. It is what makes this write safe to run twice, and it
+      // is the only one of the eight writes whose safety is a guard it carries
+      // itself rather than a destination test or an end state.
+      if (!row.text.includes('if [ "$h" != "$2" ]; then')) {
+        fail(
+          `write script ${row.id} does not compare the sha Tortie read against ` +
+            `the sha that machine holds. That comparison is the whole of what ` +
+            `makes a commit safe to run twice, because running one twice would ` +
+            `add two commits.`
+        );
+      }
+      // WHAT THE MACHINE'S OWN WORDS ARE CAPPED AT, in the text rather than
+      // only in a constant. Condition 86g proves this number equals the one in
+      // src/main/machines/remote-commit.ts.
+      if (!row.text.includes('head -c 8192')) {
+        fail(
+          `write script ${row.id} does not cap what that machine says with ` +
+            `head -c 8192. A hook can print anything, and without the cap that ` +
+            `output crosses the link whole.`
+        );
+      }
+      // THE VERB, AND THE FOUR FLAGS THAT WOULD MAKE IT SOMETHING ELSE. The
+      // test is PER LINE and anchored on a word boundary, so `head -c 8192`
+      // elsewhere in the text cannot be read as `-a`.
+      if (!row.text.includes('git commit -m "$3"')) {
+        fail(
+          'write script git-commit does not run git commit -m "$3", so this ' +
+            'gate cannot tell what it commits or what message it uses.'
+        );
+      }
+      for (const line of row.text.split('\n')) {
+        if (!line.includes('git commit')) continue;
+        for (const flag of [/\s--amend\b/, /\s--no-verify\b/, /\s-a\b/, /\s--all\b/]) {
+          if (!flag.test(line)) continue;
+          fail(
+            `write script git-commit runs git commit matching ${flag.source} ` +
+              `on the line ${JSON.stringify(line.trim())}. An amend rewrites a ` +
+              `commit that may already have left that machine, --no-verify ` +
+              `skips the person's own hooks, and -a or --all commits files ` +
+              `nobody staged.`
+          );
+        }
+      }
+      // THE UNBORN BRANCH IS A STATE AND NOT A SPECIAL CASE, and it is only a
+      // state when BOTH rev-parse calls carry --verify --quiet. This is
+      // measured rather than reasoned. A bare `git rev-parse HEAD` in a
+      // repository with no commit yet PRINTS THE WORD `HEAD` on standard
+      // output and exits 1, so `h` is never empty, the `-z` guard never fires,
+      // `h` never becomes `none`, and the far side answers `moved none HEAD`
+      // having committed nothing. `git rev-parse --verify --quiet HEAD` prints
+      // nothing at all in that repository, prints the sha otherwise, and
+      // writes zero bytes to standard error either way, measured on git
+      // 2.50.1. The first shipped draft of this script carried the bare form
+      // and a first commit could never be made on another machine.
+      for (const line of row.text.split('\n')) {
+        if (!line.includes('git rev-parse')) continue;
+        if (line.includes('--verify') && line.includes('--quiet')) continue;
+        fail(
+          `write script git-commit runs git rev-parse without --verify ` +
+            `--quiet on the line ${JSON.stringify(line.trim())}. The bare form ` +
+            `prints the word HEAD in a repository with no commit yet, so the ` +
+            `empty test never fires, the guard value never becomes none, and ` +
+            `a first commit on another machine can never be made.`
+        );
+      }
+      // IT MAKES NO FILE OF ITS OWN OVER THERE. The message rides as -m and
+      // never through -F, so the only thing this write writes is the commit.
+      if (/(^|[\s;|&(])-F\b/.test(row.text)) {
+        fail(
+          `write script ${row.id} names -F. The message rides as -m so this ` +
+            `write creates no temporary file on that machine, and the only ` +
+            `thing it writes is the commit.`
+        );
+      }
+      // NO IDENTITY TORTIE CHOSE. The commit is made under that machine's own
+      // git configuration and never under a name this product composed.
+      for (const name of ['GIT_AUTHOR_', 'GIT_COMMITTER_']) {
+        if (!row.text.includes(name)) continue;
+        fail(
+          `write script ${row.id} names ${name}. The commit is made under that ` +
+            `person's own git configuration on that machine, and never under an ` +
+            `identity Tortie chose.`
+        );
       }
     } else {
       fail(
@@ -7037,6 +7171,251 @@ process.stdout.write(
       `by that folder the way file-put, dir-new and entry-rename all can. ` +
       `Condition 84 above reads the four layers that make that check in main.\n`
   );
+}
+
+// ---------------------------------------------------------------------------
+// 86. Phase 104. The eighth writer, and what bounds the one commit it makes
+// ---------------------------------------------------------------------------
+//
+// It reads `src/main/machines/remote-commit.ts` as text and asserts the SHAPE
+// of the containment, being that the confirm gate, the root test, the fresh
+// review read and the staged set comparison all stand above the one call that
+// sends. It also asserts that the catalogue moved by exactly one writer, that
+// the writer is last, and that the two numbers this phase writes in two places
+// agree with each other.
+//
+// It asserts on Builder B's renderer files BY SYMBOL NAME ONLY and never by a
+// sentence, because a pinned sentence across a builder boundary is how a phase
+// deadlocks. That is condition 85's own stated rule.
+//
+// Pure. It reads source text and one compiled catalogue. It starts nothing,
+// opens no file under the person's home and contacts no machine.
+
+{
+  const commit = data.phase104 ?? {};
+  const module = commit.module ?? null;
+  const row = commit.catalogue ?? null;
+  if (module === null || row === null) {
+    fail(
+      'the probe printed nothing about src/main/machines/remote-commit.ts, so ' +
+        'condition 86 checked nothing at all.'
+    );
+  } else {
+    if (!module.present) {
+      fail(
+        'src/main/machines/remote-commit.ts is not there, so the write verb ' +
+          'this phase adds has no module that owns its containment.'
+      );
+    }
+    // 86a. All four checks stand ABOVE the one call that sends. An order that
+    //      put any of them after the send would be a check that decides
+    //      nothing. This is condition 84a's shape, read by index.
+    for (const [what, at] of [
+      ['confirmedWriteRoot, being the confirm gate', module.gateAt],
+      ['rootHolds, being the tab folder under the confirmed folder', module.holdsAt],
+      ['reviewFilesOn, being the fresh read', module.readAt],
+      ['stagedPathsOf, being the staged set comparison', module.stagedAt]
+    ]) {
+      if (at < 0) {
+        fail(
+          `src/main/machines/remote-commit.ts never names ${what}. The far ` +
+            `side script receives the repository root and not the folder the ` +
+            `person confirmed, so every layer of that check lives here.`
+        );
+      } else if (module.sendAt < 0 || at > module.sendAt) {
+        fail(
+          `src/main/machines/remote-commit.ts names ${what} at ${String(at)} ` +
+            `and calls runRemoteWrite at ${String(module.sendAt)}. A check ` +
+            `after the send decides nothing.`
+        );
+      }
+    }
+    // 86b. One door, and it is the write door.
+    if (!module.namesWriteDoor) {
+      fail(
+        'src/main/machines/remote-commit.ts never calls runRemoteWrite, so ' +
+          'either the commit went somewhere else or this gate is reading the ' +
+          'wrong file.'
+      );
+    }
+    for (const forbidden of module.forbiddenDoors ?? []) {
+      fail(
+        `src/main/machines/remote-commit.ts names ${forbidden}. Every write in ` +
+          `this product goes through runRemoteWrite and through no other door, ` +
+          `and every long running ssh child is owned by the ledger rather than ` +
+          `by a caller.`
+      );
+    }
+    // 86c. The manifest boundary.
+    if (module.importsManifest) {
+      fail(
+        'src/main/machines/remote-commit.ts imports from ../manifest/. The one ' +
+          'place a remote path meets the manifest is remote-record.ts.'
+      );
+    }
+    // 86d. NO REPOSITORY ROOT CROSSES. This is condition 84d's shape. The
+    //      Phase 104 backlog entry says this input carries `repoPath`, and the
+    //      gate that already shipped refuses one, so the input carries the
+    //      tab's folder and main runs its own read.
+    if ((module.inputMembers ?? []).length > 0) {
+      fail(
+        `MachineCommitInput carries ${module.inputMembers.join(' and ')}. Main ` +
+          `runs its own review read and uses the root that machine's own ` +
+          `rev-parse answered, and a root chosen in the renderer would make one ` +
+          `call able to commit in any repository on that machine.`
+      );
+    }
+    // 86e. The handler passes through and composes nothing.
+    if (!module.handlerCommit) {
+      fail(
+        'the machines:commit handler in src/main/machines/ipc.ts does not call ' +
+          'commitOnMachine(input). A handler that composed its own values would ' +
+          'be a second place the write decision lives.'
+      );
+    }
+    // 86f. THE HANDLER NAMES NO OTHER GIT VERB AND NO `git ` AT ALL.
+    //
+    //      IT IS NARROWER THAN CONDITION 84f AND THAT IS SAID RATHER THAN
+    //      HIDDEN. 84f demands that neither channel name nor handler body holds
+    //      any word from VERB_WORDS, which `machines:stage` and
+    //      `machines:unstage` satisfy. This channel is called `machines:commit`,
+    //      so the word `commit` is in its own name. Dropping the check would
+    //      lose the property it exists for, so the word this operation is named
+    //      after is excluded and every other verb is still refused. The full
+    //      unfiltered list is printed below so a reader sees what was excluded.
+    for (const [what, named] of [
+      ['the machines:commit handler', module.commitHandlerVerbs],
+      ['the channel name', module.channelVerbs]
+    ]) {
+      if ((named ?? []).length === 0) continue;
+      fail(
+        `${what} names ${named.join(', ')}. The git verb is part of Tortie's ` +
+          `own script text in remote-scripts.ts and it is never a value a ` +
+          `caller chooses.`
+      );
+    }
+    // 86g. THE CAP IS ONE NUMBER WRITTEN IN TWO PLACES, so they cannot drift.
+    //      One is the digits in the script's `head -c` and the other is the
+    //      digits of the constant in the module, both read as TEXT.
+    if (module.capInModule !== row.capInScript || module.capInModule <= 0) {
+      fail(
+        `REMOTE_COMMIT_ANSWER_MAX_BYTES reads ${String(module.capInModule)} in ` +
+          `src/main/machines/remote-commit.ts and the script caps at ` +
+          `${String(row.capInScript)} bytes. A constant that disagrees with the ` +
+          `command it describes is a number nobody can trust.`
+      );
+    }
+    // 86h. A REMOTE COMMIT GETS THE SAME LEASH A LOCAL ONE GETS, because hooks
+    //      run inside both. The local number is read out of ../git/service.ts
+    //      as text, so a later round that changes one has to change both.
+    if (
+      module.remoteTimeout !== module.localTimeout ||
+      module.remoteTimeout <= 0
+    ) {
+      fail(
+        `REMOTE_COMMIT_TIMEOUT_MS is ${String(module.remoteTimeout)} ms and ` +
+          `COMMIT_TIMEOUT_MS in src/main/git/service.ts is ` +
+          `${String(module.localTimeout)} ms. A commit on another machine runs ` +
+          `the same person's hooks a local one does, so it gets the same ` +
+          `deadline. The remote door's own default is 15,000 ms, which is ` +
+          `shorter than one test suite.`
+      );
+    }
+    // 86i. The catalogue row.
+    if (row.mode !== 'write') {
+      fail(
+        `git-commit is a ${String(row.mode)} in the catalogue and it writes. A ` +
+          `write reached through the read door is refused by remote-run.ts ` +
+          `before anything is composed.`
+      );
+    }
+    if (row.params !== 3) {
+      fail(
+        `git-commit declares ${String(row.params)} value(s) and it reads three, ` +
+          `being the repository root, the sha Tortie read and the message.`
+      );
+    }
+    if (!row.fits) {
+      fail(
+        `git-commit is ${String(row.bytes)} bytes of text, which does not fit ` +
+          `inside one argument of a Linux login shell.`
+      );
+    }
+    if ((row.mutators ?? []).length > 0) {
+      fail(
+        `git-commit names ${row.mutators.join(', ')}. It names none of the ` +
+          `eleven mutating programs, and this list is MEASURED by the same ` +
+          `filter condition 38 runs rather than read by eye.`
+      );
+    }
+    // 86j. It is the eighth writer and it is at the END of the list.
+    const writers86 = (data.remoteRun ?? {}).writers ?? [];
+    if (writers86[7] !== 'git-commit' || writers86.length !== 8) {
+      fail(
+        `the catalogue's write list reads ${writers86.join(', ') || 'nothing'}. ` +
+          `git-commit is the eighth and it is added at the END, because ` +
+          `biggestImageCommand in the probe takes the FIRST write row and would ` +
+          `otherwise measure the wrong script.`
+      );
+    }
+    // 86k. Builder B's two files, BY SYMBOL NAME ONLY.
+    if (!module.sectionNamesCommitBox) {
+      fail(
+        'src/renderer/scm/ScmSection.tsx does not name RemoteCommitBox, so the ' +
+          'panel for a folder on another machine has no commit box and this ' +
+          'channel has no caller.'
+      );
+    }
+    if (!module.changesNamesCommit || !module.changesNamesCheckCommit) {
+      fail(
+        'src/renderer/scm/remote-changes.ts does not name both commit and ' +
+          'checkCommit. The second is the read that answers what happened after ' +
+          'an answer was lost, and a lost answer with no read to resolve it is ' +
+          'the shape this phase exists to avoid.'
+      );
+    }
+    // 86l. The guard sha is main's own field on the review answer.
+    if (!module.contractHasHeadSha || !module.reviewNamesHeadSha) {
+      fail(
+        'MachineReviewList does not carry headSha, or ' +
+          'src/main/machines/remote-review.ts does not fill it. Without the ' +
+          'field the sha that guards a commit would come from the renderer.'
+      );
+    }
+    // 86m. The summary.
+    process.stdout.write(
+      `\nthe one writer Phase 104 added:\n` +
+        `  git-commit    3 values, being the repository root, the sha Tortie ` +
+        `read and the message. One git commit per call.\n` +
+        `  it is the EIGHTH write and it is last in the list, so ` +
+        `biggestImageCommand still measures image-put.\n` +
+        `  the catalogue now holds ${String(REMOTE_SCRIPT_COUNT)} scripts of ` +
+        `which ${String(ALLOWED_WRITERS.length)} write.\n` +
+        `  no confirmed field was added, so the sheet still covers six fields ` +
+        `and no machine is asked again.\n` +
+        `  the answer cap is ${String(module.capInModule)} bytes in the module ` +
+        `and ${String(row.capInScript)} bytes in the script text.\n` +
+        `  the deadline is ${String(module.remoteTimeout)} ms here and ` +
+        `${String(module.localTimeout)} ms for a local commit.\n` +
+        `  the redirection list is ${
+          (row.redirects ?? []).length === 0
+            ? 'EMPTY, measured with the probe own regex'
+            : row.redirects.join(', ')
+        }. That rule is weaker than image-put, which names the exact target ` +
+        `every redirection must aim at.\n` +
+        `  the handler and the channel name were read for git verbs with ` +
+        `${(module.commitHandlerVerbsAll ?? []).join(', ') || 'none'} found ` +
+        `unfiltered, and the operation own word commit excluded because the ` +
+        `channel is called machines:commit.\n` +
+        `  WHAT THE FAR SIDE CANNOT CHECK: $1 is the repository root and not ` +
+        `the folder the person confirmed, so this script cannot bound the ` +
+        `repository by that folder. Condition 86a above reads the layers that ` +
+        `make that check in main.\n` +
+        `  WHAT NOTHING CHECKS: the writes gate is not in the door. Eight ` +
+        `callers each ask confirmedWriteRoot, which is a discipline rather ` +
+        `than a door.\n`
+    );
+  }
 }
 
 // Phase 117. What a create whose answer was lost now does, said out loud.

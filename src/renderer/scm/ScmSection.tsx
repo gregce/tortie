@@ -35,7 +35,11 @@ import {
   targetOfProject
 } from '@shared/workspace-target';
 import { useApp } from '../state/store';
-import { machineAnswering, machineLabelFor } from '../state/machines-slice';
+import {
+  machineAnswering,
+  machineLabelFor,
+  machineWriteRootFor
+} from '../state/machines-slice';
 import type { ConfirmSpec, MenuItemSpec } from '../state/store';
 import {
   gitErrorLine,
@@ -53,6 +57,13 @@ import {
   remoteChangesNone,
   remoteChangesNotRepo,
   remoteChangesUnreachable,
+  remoteCommitButton,
+  remoteCommitCallFailed,
+  remoteCommitCheckDidNot,
+  remoteCommitCheckNoAnswer,
+  remoteCommitCheckRan,
+  remoteCommitDisabledReason,
+  remoteCommitStanding,
   remoteConflictNoVerb,
   remoteIndexWritePartial,
   remoteIndexWriteUnsure,
@@ -60,18 +71,24 @@ import {
   remoteStageOutsideRoot,
   remoteWritesNotConfirmed
 } from '../app/machine-copy';
+import type { RemoteCommitFacts } from '../app/machine-copy';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import {
   remoteChangesAvailable,
   remoteChangesCount,
   remoteChangesOf,
+  remoteCommitAvailable,
   remoteIndexWriteAvailable,
   useRemoteChanges
 } from './remote-changes';
-import type { RemoteIndexVerb } from './remote-changes';
+import type {
+  RemoteChangesEntry,
+  RemoteIndexVerb
+} from './remote-changes';
 import { groupRemoteFiles, isConflict } from './groups';
 import { registerP103StageDrive } from './p103-stage-drive';
+import { registerP104CommitDrive } from './p104-commit-drive';
 import { registerP97UntrackedDrive } from './p97-untracked-drive';
 import { RemoteBranchSection } from './RemoteBranchSection';
 import { RemoteHistorySection } from './RemoteHistorySection';
@@ -109,6 +126,9 @@ registerP97UntrackedDrive();
 // The Phase 103 harness hook, registered beside the Phase 97 one and for the
 // same reason. It assigns one function to `window` and changes no behaviour.
 registerP103StageDrive();
+// The Phase 104 harness hook, registered beside the other two and for the same
+// reason. It assigns one function to `window` and changes no behaviour.
+registerP104CommitDrive();
 
 /**
  * SCM view sections, default order (DESIGN-SPEC S3A round 2).
@@ -639,6 +659,220 @@ function remoteBadge(status: MachineReviewFile['status']): {
   }
 }
 
+/**
+ * The commit box on a tab whose folder is on ANOTHER machine (Phase 104).
+ *
+ * WHY IT IS A SECOND BOX AND NOT `CommitBox` WIDENED. `useCommitController`
+ * above hangs off `repoPath`, and `repoPath` is `localPathOf(target)`, which is
+ * null for every tab whose folder is on another machine. Every one of that
+ * controller's four reads is keyed by a path on THIS Mac. Widening it would
+ * mean giving each of those reads a second key and a second store, in a
+ * component the local panel depends on. Two boxes is what the split between
+ * `useGit` and `useRemoteChanges` already looks like everywhere else.
+ *
+ * WHAT IT DRAWS, TOP TO BOTTOM.
+ *
+ *  1. The message, held per target in `useRemoteChanges` and NOT persisted.
+ *  2. The button, which names the machine rather than saying "here".
+ *  3. The reason it is disabled, when it is. The order of those reasons is in
+ *     `remoteCommitDisabledReason` and it is not this file's decision.
+ *  4. One standing line about hooks and signing, drawn BEFORE a person commits
+ *     rather than after. It is the one visible answer to research 57's second
+ *     hazard, which is that Tortie cannot answer a passphrase prompt on a
+ *     computer nobody is looking at.
+ *  5. Whatever main said about the last commit, drawn as main sent it.
+ *  6. Whatever THAT MACHINE said, drawn under Tortie's own sentence. A hook
+ *     that refuses says why in its own words and no sentence Tortie could
+ *     compose would say it better.
+ *  7. Check what happened, but only after an answer was lost. It runs one read
+ *     of that folder and says whether HEAD moved.
+ *
+ * THE ⌘↩ CHORD WORKS INSIDE THE BOX AND NOWHERE ELSE ON THIS TAB. The local
+ * panel binds it on its file list as well, through `useCommitController`, and
+ * that controller does not exist here. Enter inside the box is a line break,
+ * which is what makes a multi-line message typable, and no keystroke in this
+ * box crosses to that machine.
+ *
+ * IT COMPOSES NO SENTENCE ABOUT WHAT HAPPENED OVER THERE. Every one of those is
+ * composed in src/main/machines/remote-copy.ts and travels in
+ * `MachineCommitResult.sentences`, because main decides several of those
+ * answers without contacting that machine at all.
+ */
+function RemoteCommitBox({
+  target,
+  label,
+  entry
+}: {
+  target: WorkspaceTarget;
+  label: string;
+  entry: RemoteChangesEntry;
+}): React.JSX.Element {
+  const key = targetKey(target);
+  const message = useRemoteChanges((s) => s.messages[key] ?? '');
+  const setMessage = useRemoteChanges((s) => s.setMessage);
+  const commit = useRemoteChanges((s) => s.commit);
+  const checkCommit = useRemoteChanges((s) => s.checkCommit);
+  const machineStates = useApp((s) => s.machineStates);
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Auto-grow 1 to 5 lines, which is the local box's own rule and its own
+  // numbers.
+  useEffect(() => {
+    const ta = taRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    const line = 18; // --lh-sm; content-box grows in whole lines
+    const max = line * 5 + 12; // + vertical padding
+    ta.style.height = `${Math.min(ta.scrollHeight, max)}px`;
+  }, [message]);
+
+  const groups = useMemo(() => groupRemoteFiles(entry.files), [entry.files]);
+  // A conflicted row is in the Changes group and carries no verb, so the count
+  // above cannot see it. This read is over every tracked row for that reason.
+  const conflicted = entry.files.some((file) => isConflict(file));
+  const facts: RemoteCommitFacts = {
+    committing: entry.committing,
+    // PRESENTATIONAL AND NEVER THE SAFEGUARD. Main reads the confirmed folder
+    // off the record on disk at call time and refuses there, with a sentence of
+    // its own. This decides whether a button is pressable and nothing more.
+    writesConfirmed:
+      machineWriteRootFor(machineStates, target.machineId) !== null,
+    connected: machineAnswering(machineStates, target.machineId),
+    conflicted,
+    staged: groups.staged.length,
+    message
+  };
+  const disabledReason = remoteCommitDisabledReason(facts, label);
+  const running = entry.committing;
+
+  const doCommit = (): void => {
+    if (disabledReason !== null) return;
+    void commit(target);
+  };
+
+  /**
+   * Whether the last answer left the question open.
+   *
+   * These are the two words that mean Tortie asked and does not know what
+   * happened, and both of main's sentences for them end by asking for this
+   * button. No other outcome offers it, because every other one is an answer.
+   */
+  const lost =
+    entry.commitOutcome === 'timeout' || entry.commitOutcome === 'unsure';
+
+  /** The first 7 characters, which is what the History group beside it shows. */
+  const short = (sha: string): string => sha.slice(0, 7);
+
+  /** What the check found, as a sentence, or null when no check has run. */
+  const checkSaid = (): string | null => {
+    switch (entry.checkOutcome) {
+      case null:
+        return null;
+      case 'noAnswer':
+        return remoteCommitCheckNoAnswer(label);
+      case 'ran':
+        return remoteCommitCheckRan(
+          label,
+          short(entry.checkHeadSha),
+          short(entry.commitGuardSha)
+        );
+      case 'didNot':
+        return remoteCommitCheckDidNot(label, short(entry.commitGuardSha));
+    }
+  };
+
+  // Main composed a sentence for every answer it decided. A call that rejected
+  // before main answered leaves none, and this is the only sentence this file
+  // composes about a commit.
+  const said: readonly string[] =
+    entry.commitSentences.length > 0
+      ? entry.commitSentences
+      : entry.commitOutcome === null
+        ? []
+        : [remoteCommitCallFailed(label)];
+
+  const found = checkSaid();
+
+  return (
+    <div className="scm-remote-commit" data-scm-remote-commit="1">
+      <textarea
+        ref={taRef}
+        className="scm-commit-input"
+        data-scm-remote-commit-input="1"
+        placeholder={`Commit message (${keyDisplay('git.commit')} to commit)`}
+        aria-label={`Commit message for the folder on ${label}`}
+        value={message}
+        rows={1}
+        spellCheck={false}
+        disabled={running}
+        onChange={(e) => setMessage(target, e.target.value)}
+        onKeyDown={(e) => {
+          // ⌘↩ ONLY, which is what `git.commit` binds and what the local
+          // panel's own handler tests. Ctrl+Enter is not that binding and is
+          // not accepted here, so the two boxes answer the same keystroke.
+          if (e.metaKey && e.key === 'Enter') {
+            e.preventDefault();
+            doCommit();
+          }
+        }}
+      />
+      <button
+        type="button"
+        className="btn btn-primary scm-commit-btn"
+        data-scm-remote-commit-btn="1"
+        disabled={disabledReason !== null}
+        title={disabledReason ?? remoteCommitButton(label)}
+        onClick={doCommit}
+      >
+        {running ? <span className="scm-spinner" aria-hidden="true" /> : null}
+        {running ? 'Committing…' : remoteCommitButton(label)}
+      </button>
+      {disabledReason !== null && !running ? (
+        <div className="scm-commit-caption" data-scm-remote-commit-why="1">
+          {disabledReason}
+        </div>
+      ) : null}
+      {/* Standing text, drawn whether or not anything has been pressed. It is
+          the one visible answer to the signing hazard, so it is never hidden
+          behind an outcome. */}
+      <p className="scm-remote-commit-standing" data-scm-commit-standing="1">
+        {remoteCommitStanding(label)}
+      </p>
+      {said.map((sentence) => (
+        <p
+          key={sentence}
+          className="scm-remote-note"
+          data-scm-commit-note="1"
+        >
+          {sentence}
+        </p>
+      ))}
+      {entry.commitMachineSaid !== null ? (
+        <pre className="scm-remote-commit-said" data-scm-commit-said="1">
+          {entry.commitMachineSaid}
+        </pre>
+      ) : null}
+      {lost ? (
+        <button
+          type="button"
+          className="btn btn-secondary scm-remote-commit-check"
+          data-scm-commit-check="1"
+          disabled={entry.checking}
+          title="Read that folder again and say whether the commit ran"
+          onClick={() => void checkCommit(target)}
+        >
+          {entry.checking ? 'Checking…' : 'Check what happened'}
+        </button>
+      ) : null}
+      {found !== null ? (
+        <p className="scm-remote-note" data-scm-commit-check-note="1">
+          {found}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** The three groups a remote Changes section draws, in render order. */
 type RemoteGroupId = 'staged' | 'changes' | 'untracked';
 
@@ -691,21 +925,33 @@ function remoteGroupBadge(
 /**
  * Source Control for a tab whose folder is on another machine (Phase 90.3).
  *
- * FOUR GROUPS AND EXACTLY TWO VERBS THAT WRITE. The groups are Changes,
+ * FOUR GROUPS AND EXACTLY THREE VERBS THAT WRITE. The groups are Changes,
  * History, Branch and Runs, in that order, which is the order the local panel
- * already draws. It is the order a person learns once. The two verbs are Stage
- * and Unstage, and they arrived in Phase 103. There is still no commit box, no
- * discard, no checkout, no branch and no cherry pick. That is not a subset
- * chosen for time. Discard is refused for good, and
+ * already draws. It is the order a person learns once. The three verbs are
+ * Stage and Unstage, which arrived in Phase 103, and Commit, which arrived in
+ * Phase 104. There IS a commit box now, at the top of this column, and it is
+ * `RemoteCommitBox` above. There is still no discard, no checkout, no branch,
+ * no cherry pick, no amend, no reset and no push. That is not a subset chosen
+ * for time. Discard is refused for good, and
  * `build/conformance-machines.mjs` condition 83 reads every command Tortie can
  * send and fails on one that could overwrite a working tree file over there.
  *
- * THE PARAGRAPH ABOVE WAS REWRITTEN FOUR TIMES and each rewrite was a phase.
+ * THE PARAGRAPH ABOVE WAS REWRITTEN FIVE TIMES and each rewrite was a phase.
  * It said "ONE GROUP" and named History, Branches and Runs as not rendered at
  * all. Phase 105 drew the runs, Phase 106 drew the branch and Phase 107 drew
  * the history, so every clause of the old sentence became false in turn. Its
  * last clause said this product writes on another machine in exactly two
- * places, neither of which is git, and Phase 103 made that false as well.
+ * places, neither of which is git, and Phase 103 made that false as well. The
+ * Phase 103 wording said there is still no commit box, and Phase 104 made that
+ * false in its turn.
+ *
+ * WHAT THE COMMIT DOES NOT DO, and it is worth reading beside the box. It never
+ * stages anything first. The local box offers Stage all and commit, and on a
+ * machine that would put two writes behind one button, where a lost answer
+ * between them leaves a state neither write can explain. A person stages with
+ * the two verbs above and then commits. The commit is also guarded by the sha
+ * that machine's HEAD held when Tortie read it, so a second send of one request
+ * finds HEAD moved and commits nothing.
  *
  * THE CHANGES SECTION HOLDS THREE GROUP ROWS SINCE PHASE 103, being Staged,
  * Changes and Untracked, in that order. They are group rows inside the one
@@ -1073,6 +1319,24 @@ function RemoteScmSection({
       {/* The band. It is drawn above the group rather than inside it, so it
           stays on screen when the group is collapsed. */}
       <p className="scm-remote-band">{remoteChangesBand(label)}</p>
+      {/* PHASE 104. The commit box, drawn ABOVE the Changes group and outside
+          it, which is where the band is and for the same reason: it stays on
+          screen when the group is collapsed. The local panel puts its own box
+          INSIDE the section body, because that body is the local column's only
+          scrolling child. This column scrolls as a whole, so a box inside the
+          body would scroll away from the rows it is about.
+
+          IT IS DRAWN ONLY WHEN THERE IS SOMETHING TO COMMIT INTO. A build with
+          no commit member, a folder that is not a repository, a read that has
+          not happened yet and a read that failed each draw no box, because a
+          box in any of those states would offer a press that cannot land. */}
+      {remoteCommitAvailable() &&
+      remoteChangesAvailable() &&
+      !entry.failed &&
+      !entry.notRepo &&
+      entry.readAt > 0 ? (
+        <RemoteCommitBox target={target} label={label} entry={entry} />
+      ) : null}
       <section
         className={`section-scm${collapsed ? ' collapsed' : ''}`}
         data-section-root="changes"

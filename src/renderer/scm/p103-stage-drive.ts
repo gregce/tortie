@@ -313,7 +313,19 @@ export function registerP103StageDrive(): void {
             writing: false,
             writeVerb: null,
             writeOutcome: null,
-            writeRefusal: null
+            writeRefusal: null,
+            // PHASE 104 ADDED NINE FIELDS TO THIS ENTRY, and a seeded one has to
+            // carry all of them. None of them changes what this drive is about:
+            // the sha is empty, no commit has run and no check has run.
+            headSha: '',
+            committing: false,
+            commitOutcome: null,
+            commitSentences: [],
+            commitMachineSaid: null,
+            commitGuardSha: '',
+            checking: false,
+            checkOutcome: null,
+            checkHeadSha: ''
           }
         }
       }));

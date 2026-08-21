@@ -1270,6 +1270,26 @@ const MACHINE_REFUSALS = [
       'reports one of them as changed. Press Refresh to read what really changed ',
       'there. Nothing was sent.'
     ]
+  },
+  {
+    id: 'machine.commit-head-moved',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'it is the answer a machine gives when HEAD in that folder is no longer ' +
+      'the sha Tortie read, which is what a second send of one request finds ' +
+      'and what an agent committing over there between the read and the write ' +
+      'produces. Its precedent is machine.image-not-written rather than ' +
+      'machine.repeat-unsafe: a correct caller reaches it on purpose, so it is ' +
+      'pinned because it is reached rarely and rollup deletes a branch whose ' +
+      'condition it can prove, not because nothing reaches it. Without the ' +
+      'sentence a person whose commit was refused for the right reason reads ' +
+      'nothing at all',
+    fragments: [
+      'Something else committed in that folder on ',
+      ' after Tortie read ',
+      'it, so Tortie committed nothing. Press Refresh and read the changes ',
+      'again.'
+    ]
   }
 ];
 
@@ -1649,7 +1669,7 @@ function main() {
     ['REFUSALS', REFUSALS.length, 23],
     ['SKILLS_REFUSALS', SKILLS_REFUSALS.length, 6],
     ['CONFIG_REFUSALS', CONFIG_REFUSALS.length, 6],
-    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 49],
+    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 50],
     ['UPDATER_REFUSALS', UPDATER_REFUSALS.length, 8],
     ['LOG_REFUSALS', LOG_REFUSALS.length, 1]
   ];

@@ -158,8 +158,12 @@ import type {
   // ---- END PHASE 102 ----
   // ---- PHASE 103 ----
   MachineIndexWriteInput,
-  MachineIndexWriteResult
+  MachineIndexWriteResult,
   // ---- END PHASE 103 ----
+  // ---- PHASE 104 ----
+  MachineCommitInput,
+  MachineCommitResult
+  // ---- END PHASE 104 ----
 } from '@shared/ipc';
 import {
   EVT_MACHINE_AGENTS,
@@ -332,6 +336,15 @@ import { makeRemoteDir, renameRemoteEntry } from './remote-entry';
 // own script text.
 import { stageOnMachine, unstageOnMachine } from './remote-stage';
 // ---- END PHASE 103 ----
+// ---- PHASE 104 ----
+// Committing what is staged in one repository on one machine. It owns the whole
+// write decision, being the confirm gate, the confirmed folder, its own fresh
+// review read, the sha guard and the staged set comparison. It composes nothing
+// here: the handler below passes its input through and reads a word and a list
+// of sentences back. The handler names no git verb, because the verb is inside
+// Tortie's own script text.
+import { commitOnMachine } from './remote-commit';
+// ---- END PHASE 104 ----
 
 /**
  * Windows that already carry the "you went away, so the test stops" listener.
@@ -1297,6 +1310,44 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     ): Promise<MachineIndexWriteResult> => unstageOnMachine(input)
   );
   // ---- END PHASE 103 BLOCK ----
+
+  // ---- PHASE 104 BLOCK ----
+  // ONE CHANNEL THAT WRITES ON ANOTHER COMPUTER, being the eighth in this
+  // product and the third that changes a git repository over there.
+  //
+  // IT NAMES NO GIT VERB and the handler body composes none. The verb is inside
+  // Tortie's own script text in ./remote-scripts.ts, so no caller can turn a
+  // commit into an amend, a reset or a discard. Condition 83 of
+  // `build/conformance-machines.mjs` makes the discard refusal executable over
+  // the whole catalogue rather than merely absent.
+  //
+  // IT CARRIES NO REPOSITORY ROOT FROM THE RENDERER. The input carries the
+  // tab's folder, and ./remote-commit.ts runs its own review read on it and
+  // uses the root that machine's own rev-parse answered.
+  //
+  // WHAT BOUNDS IT IS THE SAME ONE FIELD `machines:putFile` is bounded by,
+  // being `writeRoot` on the machine row. PHASE 104 ADDS NO CONFIRMED FIELD and
+  // no hash moves.
+  //
+  // THE REPEAT IS GUARDED BY HEAD. Main re-reads the folder immediately before
+  // it composes, sends the sha it just read, and that machine refuses to commit
+  // when its own HEAD no longer equals it. The first run moves HEAD, so a
+  // second send of one request commits nothing.
+  //
+  // A CALL THAT ANSWERED `unsure` IS NOT A CALL THAT CHANGED NOTHING. The word
+  // means the machine did not say, and the panel offers the one read that
+  // answers it. THE SENTENCES ARE COMPOSED IN MAIN for this channel, which is
+  // `machines:cloneProject`'s shape, because a person reads Tortie's own
+  // sentence and that machine's own words together and only main has both.
+  handle(
+    ipc,
+    'machines:commit',
+    async (
+      _event,
+      input: MachineCommitInput
+    ): Promise<MachineCommitResult> => commitOnMachine(input)
+  );
+  // ---- END PHASE 104 BLOCK ----
 
   // ---- PHASE 98 ----
   // PHASE 98. One channel that READS one folder on one machine, so the Search

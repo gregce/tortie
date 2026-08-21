@@ -291,6 +291,16 @@ describe('every channel is registered, and only the ones listed here', () => {
       // the folder is there.
       'machines:cloneProject',
       // ---- END PHASE 90.2 ----
+      // ---- PHASE 104 ----
+      // The EIGHTH write this product can make on another computer and the
+      // third that changes a git repository over there. It commits what is
+      // staged in one repository on one machine, after main has re-read that
+      // folder and refused when the sha or the staged set it drew no longer
+      // matched. It names no git verb: the verb is inside Tortie's own script
+      // text. That machine's own hooks and its own signing configuration run
+      // over there, and Tortie answers no passphrase anywhere.
+      'machines:commit',
+      // ---- END PHASE 104 ----
       'machines:confirm',
       // ---- PHASE 90.2 ----
       // One READ. It reads this project's git remote here, then asks one

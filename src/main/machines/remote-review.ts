@@ -265,6 +265,17 @@ function decodeWord(word: string, which: string): Buffer {
  */
 export function parseRemoteReviewListing(payload: string): {
   repoPath: string;
+  /**
+   * PHASE 104. The commit `HEAD` points at in that folder, out of the same
+   * porcelain header.
+   *
+   * `parsePorcelainV2Status` has always read `# branch.oid` into `oid` and this
+   * function has always thrown it away. Carrying it out costs no extra read and
+   * no extra process on that machine. It is empty for a repository with no
+   * commit, because `parseHeader` writes the field only when the header is not
+   * `(initial)`.
+   */
+  headSha: string;
   files: RemoteReviewFile[];
   untracked: RemoteReviewFile[];
   truncated: boolean;
@@ -326,7 +337,13 @@ export function parseRemoteReviewListing(payload: string): {
   }
   // Neither array is sorted. Git prints both groups in path order already, and
   // the tracked list has never been sorted here.
-  return { repoPath: root, files, untracked, truncated: parsed.truncated };
+  return {
+    repoPath: root,
+    headSha: parsed.oid ?? '',
+    files,
+    untracked,
+    truncated: parsed.truncated
+  };
 }
 
 /**
@@ -411,6 +428,10 @@ export async function reviewFilesOn(input: {
       machineId: input.machineId,
       machineLabel,
       repoPath: '',
+      // PHASE 104. A folder that is not a repository has no HEAD to guard a
+      // commit with, and the commit path reads the empty repoPath above and
+      // refuses before it reaches this field.
+      headSha: '',
       files: [],
       total: 0,
       untracked: [],
@@ -430,6 +451,10 @@ export async function reviewFilesOn(input: {
     machineId: input.machineId,
     machineLabel,
     repoPath: listing.repoPath,
+    // PHASE 104. What that machine's own porcelain header said HEAD points at.
+    // It is the guard a commit on that machine is sent with, and main uses THIS
+    // value rather than the one the panel drew.
+    headSha: listing.headSha,
     files,
     total,
     untracked,

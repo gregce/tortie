@@ -9,12 +9,14 @@
  *     machine defect the whole round exists to remove.
  *  2. NO TIMER, ANYWHERE. Nothing in this module schedules a second read. The
  *     test advances fake timers by five minutes and counts the calls.
- *  3. PHASE 103 REPLACED THIS CASE. It used to read that the store has no verb
- *     that writes and that its whole surface is three functions. It has five
- *     now, and the two new ones are `stage` and `unstage`. What the case
- *     proves instead is that the surface is exactly those five, so a sixth
- *     verb cannot arrive without this file being edited, and that neither new
- *     verb can change a file's contents on either computer.
+ *  3. PHASE 103 REPLACED THIS CASE AND PHASE 104 REPLACED IT AGAIN. It used to
+ *     read that the store has no verb that writes and that its whole surface is
+ *     three functions. Phase 103 made it five, being `stage` and `unstage`
+ *     added. Phase 104 made it eight, being `setMessage`, `commit` and
+ *     `checkCommit` added. What the case proves instead is that the surface is
+ *     exactly those eight, so a ninth cannot arrive without this file being
+ *     edited, and that none of the three verbs that write can change a file's
+ *     contents on either computer.
  *  4. A machine that did not answer is a state and not a thrown error, so the
  *     view draws a sentence rather than a stack.
  *  5. PHASE 97. It records TWO groups, being the tracked files and the files
@@ -281,10 +283,10 @@ describe('the two groups Phase 97 added', () => {
 });
 
 describe('the whole surface, counted', () => {
-  it('offers exactly five functions and no sixth', () => {
-    // PHASE 103 CHANGED THIS COUNT FROM THREE TO FIVE. The point of counting
-    // is unchanged: a verb cannot be added to this store without a reader of
-    // this file seeing it happen.
+  it('offers exactly eight functions and no ninth', () => {
+    // PHASE 103 CHANGED THIS COUNT FROM THREE TO FIVE AND PHASE 104 CHANGED IT
+    // FROM FIVE TO EIGHT. The point of counting is unchanged: a verb cannot be
+    // added to this store without a reader of this file seeing it happen.
     const state = useRemoteChanges.getState() as unknown as Record<
       string,
       unknown
@@ -293,22 +295,31 @@ describe('the whole surface, counted', () => {
       (key) => typeof state[key] === 'function'
     );
     expect(verbs.sort()).toEqual([
+      'checkCommit',
+      'commit',
       'ensure',
       'forget',
       'refresh',
+      'setMessage',
       'stage',
       'unstage'
     ]);
   });
 
-  it('has neither a discard nor a commit, and this is the refusal', () => {
+  it('has no discard and no checkout, and this is the refusal', () => {
+    // PHASE 104 TOOK `commit` OUT OF THIS LIST, because it ships. The two that
+    // are left are refused for good. Discard is refused by research 57 section
+    // 5.7 and `build/conformance-machines.mjs` condition 83 reads every command
+    // Tortie can send and fails on one that could overwrite a working tree file
+    // over there. Checkout is not authorised by anything.
     const state = useRemoteChanges.getState() as unknown as Record<
       string,
       unknown
     >;
     expect(state['discard']).toBeUndefined();
-    expect(state['commit']).toBeUndefined();
     expect(state['checkout']).toBeUndefined();
+    expect(state['amend']).toBeUndefined();
+    expect(state['push']).toBeUndefined();
   });
 });
 

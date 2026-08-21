@@ -214,15 +214,19 @@ describe('the Explorer', () => {
 
 describe('Source Control', () => {
   it('says what it can change over there and what it cannot', () => {
-    // PHASE 103 REWROTE THIS ONE AND THE REWRITE IS THE PHASE. It said Tortie
-    // could show these changes and could not change them, and the second half
-    // became false in that commit. It now names the one thing it can do and
-    // the one it still cannot.
+    // PHASE 103 REWROTE THIS ONE AND PHASE 104 REWROTE IT AGAIN. Each rewrite
+    // is a phase. The Phase 90.3 wording said Tortie could show these changes
+    // and could not change them, and Phase 103 made the second half false by
+    // adding stage and unstage. Phase 103 named those two verbs, and Phase 104
+    // made that incomplete by adding the commit. It names all three now and
+    // then names the one thing Tortie still cannot do over there.
     expect(remoteChangesBand(L)).toBe(
-      'These changes are on Studio. Tortie can stage and unstage them there. ' +
-        'It cannot undo a change on that machine.'
+      'These changes are on Studio. Tortie can stage them, unstage them and ' +
+        'commit them there. It cannot undo a change on that machine.'
     );
     expect(remoteChangesBand(L)).not.toContain('cannot change');
+    // The refusal that is permanent is the only one left in this sentence.
+    expect(remoteChangesBand(L)).toContain('cannot undo a change');
     // PHASE 97 WIDENED THIS ONE. The list now holds both groups, so the
     // sentence for an empty folder has to answer for both.
     expect(remoteChangesNone(L)).toBe(
@@ -249,19 +253,25 @@ describe('Source Control', () => {
     // PHASE 102 REWROTE THE LAST CLAUSE. It read "it writes nothing in that
     // folder", which reads as a claim about Tortie rather than about this
     // view, and Tortie writes in that folder now.
-    // PHASE 103 REPLACED THE LAST CLAUSE. It read "and nothing in this view
-    // changes that folder", which became false in that commit, and it now
-    // names exactly what the view can change over there and nothing else.
+    // PHASE 103 REPLACED THE LAST CLAUSE AND PHASE 104 REPLACED IT AGAIN. It
+    // read "and nothing in this view changes that folder", which Phase 103 made
+    // false. Phase 103 wrote that the only thing this view changes is which
+    // files are staged, and Phase 104 made that false by adding the commit. The
+    // clause names both things now and says that it changes nothing else.
     expect(REMOTE_SCM_SECTIONS_NOTE).toBe(
       'Tortie shows the changed files, the history, the branch and the runs ' +
         'for a folder on another machine. It does not show the files one ' +
-        'commit changed there. The only thing this view changes on that ' +
-        'machine is which files are staged for the next commit.'
+        'commit changed there. What this view can change on that machine is ' +
+        'which files are staged and whether they are committed, and nothing ' +
+        'else.'
     );
     expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain('writes nothing');
     expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain(
       'nothing in this view changes'
     );
+    // PHASE 104. The Phase 103 clause said staging was the only change this
+    // view makes over there, and that sentence must not come back.
+    expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain('The only thing this view');
     for (const shipped of ['runs', 'branch', 'history']) {
       expect(REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
         new RegExp(`does not show[^.]*\\b${shipped}(es)?\\b`, 'i')

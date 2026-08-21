@@ -1831,3 +1831,64 @@ body.scm-section-dragging .section-gripper {
   padding-right: var(--space-2);
   user-select: none;
 }
+
+/* ---------------------------------------------------------------------------
+   The commit box on a tab whose folder is on another machine (Phase 104)
+--------------------------------------------------------------------------- */
+
+/* IT IS NOT STICKY AND THE LOCAL BOX IS. `.scm-commit` sits at the top of the
+   local Changes body, which is that column's one scrolling child, so sticking
+   it there keeps it over the rows. This column scrolls as a whole, so a sticky
+   box would ride over the History, Branch and Runs groups below it as a person
+   scrolls past them. It scrolls with the band above it instead.
+
+   `flex: 0 0 auto` for the reason `.scm-remote-band` carries it, written out at
+   that rule: this is a direct child of a flex column, and without the line a
+   column with more content than height squashes it and the text below draws
+   over it. */
+.scm-remote-commit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+/* The standing line about hooks and signing. It is quieter than a sentence
+   about an outcome, because it is true whether or not anything was pressed. */
+.scm-remote-commit-standing {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* What THAT MACHINE printed, which is the only text on this panel Tortie did
+   not write. It is monospaced because it is program output, it wraps because a
+   git error is a sentence, and it is capped in height because a hook can print
+   8,192 bytes and this column is 300 px wide. The far side caps it before it
+   crosses; this caps what one screen has to hold. */
+.scm-remote-commit-said {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Check what happened. It appears only after an answer was lost, so it is a
+   secondary button under the sentence that asks for it rather than a control
+   that stands beside Commit. */
+.scm-remote-commit-check {
+  align-self: flex-start;
+}

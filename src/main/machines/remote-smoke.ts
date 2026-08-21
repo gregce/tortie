@@ -106,6 +106,10 @@ import {
   // reader `build/assert-bundle-refusals.mjs` asks for, and step 10j below is
   // where the restore one is watched firing.
   CREATE_ANSWER_LOST,
+  // PHASE 104. The two door refusals step 10k watches firing for the eighth
+  // writer. Both were already reachable and neither was ever watched.
+  MACHINE_NOT_CONNECTED,
+  WRITE_THROUGH_READ_DOOR,
   RESTORE_CREATE_UNCONFIRMED,
   RESTORE_FORGOTTEN,
   RESTORE_STILL_RUNNING,
@@ -1304,6 +1308,41 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
       `10g. with the machine not answering, the harvest and the copy both sent ` +
         `zero commands and wrote nothing`
     );
+
+    // --- 10k. PHASE 104. The two door refusals for the eighth writer --------
+    //
+    // Both are branches a bundler folds away, and both stand between a person
+    // and a command that changes a git repository on somebody else's computer.
+    //
+    // The FIRST is the mode check, which is step 2 of the door and fires before
+    // the machine is asked anything at all. The SECOND is the connected only
+    // check, which is step 4. They are driven here rather than in a unit test
+    // because they are properties of the real door with a real context in hand,
+    // and the link is already cut on purpose at this point in the run.
+    //
+    // Neither call can reach a repository. The first is refused for its door
+    // and the second for the link, both before a command exists.
+    await assertRefused(
+      '10k. git-commit sent through the read door',
+      WRITE_THROUGH_READ_DOOR,
+      () =>
+        runRemoteRead(ctx, 'git-commit', [
+          '/nowhere/p104',
+          'none',
+          'this never leaves this Mac'
+        ])
+    );
+    await assertRefused(
+      '10k. git-commit sent while the machine is not answering',
+      MACHINE_NOT_CONNECTED,
+      () =>
+        runRemoteWrite(ctx, 'git-commit', [
+          '/nowhere/p104',
+          'none',
+          'this never leaves this Mac'
+        ])
+    );
+
     // The link is brought back by a COMPLETED LIST rather than by asking the
     // feed to start again. `startMachineFeed` is a no-op for a machine that
     // already has one, so on its own it leaves the link reading quiet and every
