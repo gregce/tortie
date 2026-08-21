@@ -24,12 +24,13 @@ import type {
   FsTrashInput,
   FsTrashResult
 } from '@shared/fs-ops';
-import type { GmuxFsDuplicateExtras, GmuxFsOpsExtras } from '@shared/ipc';
+import type { InstalledFsApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
-type Ops = GmuxFsOpsExtras & GmuxFsDuplicateExtras;
+type Ops = InstalledFsApi;
 
-function ops(): Ops {
-  return (window.gmux?.fs ?? {}) as Ops;
+function ops(): Ops | undefined {
+  return gmuxBridge()?.fs;
 }
 
 /**
@@ -40,7 +41,7 @@ function ops(): Ops {
 export function canMutate(): boolean {
   const api = ops();
   return (
-    typeof api.trash === 'function' &&
+    typeof api?.trash === 'function' &&
     typeof api.rename === 'function' &&
     typeof api.createFile === 'function' &&
     typeof api.createFolder === 'function' &&
@@ -50,7 +51,7 @@ export function canMutate(): boolean {
 
 /** True when this build can duplicate (a later append than the other four). */
 export function canDuplicate(): boolean {
-  return typeof ops().duplicate === 'function';
+  return typeof ops()?.duplicate === 'function';
 }
 
 function missing(name: string): Promise<never> {
@@ -58,31 +59,31 @@ function missing(name: string): Promise<never> {
 }
 
 export function createFile(input: FsCreateInput): Promise<FsOpEntry> {
-  const fn = ops().createFile;
+  const fn = ops()?.createFile;
   return typeof fn === 'function' ? fn(input) : missing('createFile');
 }
 
 export function createFolder(input: FsCreateInput): Promise<FsOpEntry> {
-  const fn = ops().createFolder;
+  const fn = ops()?.createFolder;
   return typeof fn === 'function' ? fn(input) : missing('createFolder');
 }
 
 export function rename(input: FsRenameInput): Promise<FsRenameResult> {
-  const fn = ops().rename;
+  const fn = ops()?.rename;
   return typeof fn === 'function' ? fn(input) : missing('rename');
 }
 
 export function duplicate(input: FsDuplicateInput): Promise<FsOpEntry> {
-  const fn = ops().duplicate;
+  const fn = ops()?.duplicate;
   return typeof fn === 'function' ? fn(input) : missing('duplicate');
 }
 
 export function move(input: FsMoveInput): Promise<FsMoveResult> {
-  const fn = ops().move;
+  const fn = ops()?.move;
   return typeof fn === 'function' ? fn(input) : missing('move');
 }
 
 export function trash(input: FsTrashInput): Promise<FsTrashResult> {
-  const fn = ops().trash;
+  const fn = ops()?.trash;
   return typeof fn === 'function' ? fn(input) : missing('trash');
 }

@@ -27,8 +27,9 @@
  */
 
 import type { Terminal } from '@xterm/xterm';
-import type { GmuxScrollExtras, TerminalScrollState } from '@shared/ipc';
+import type { InstalledGmuxApi, TerminalScrollState } from '@shared/ipc';
 import { measureCells, screenElement } from '../capture/metrics';
+import { gmuxBridge } from '../../bridge';
 
 /** Poll cadence while the pane shows live output — keeps the thumb honest. */
 const LIVE_POLL_MS = 1000;
@@ -87,9 +88,8 @@ const EMPTY: TerminalScrollState = {
  * screenshot harness reads the same surface to assert the wheel moved
  * history — one accessor, not a second cast.
  */
-export function scrollBridge(): NonNullable<GmuxScrollExtras['scroll']> | null {
-  return (window.gmux as (Window['gmux'] & GmuxScrollExtras) | undefined)
-    ?.scroll ?? null;
+export function scrollBridge(): NonNullable<InstalledGmuxApi['scroll']> | null {
+  return gmuxBridge()?.scroll ?? null;
 }
 
 function viewOf(state: TerminalScrollState): ScrollView {

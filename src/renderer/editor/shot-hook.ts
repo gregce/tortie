@@ -10,7 +10,6 @@
  */
 
 import type { AgentKind, Session } from '@shared/types';
-import type { GmuxSessionExtras } from '@shared/ipc';
 import { useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
 import type { OpenFileSelection } from '../state/open-file';
@@ -1036,8 +1035,7 @@ export function installShotHook(): void {
     splitGroupIds = [];
     for (const id of created) {
       await window.gmux.sessions.kill(id).catch(() => undefined);
-      const extras = window.gmux.sessions as typeof window.gmux.sessions &
-        GmuxSessionExtras;
+      const extras = window.gmux.sessions;
       if (typeof extras.discard === 'function') {
         await extras.discard(id).catch(() => undefined);
       }

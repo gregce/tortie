@@ -61,12 +61,17 @@ export interface SpecStoryStatusInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by both renderers
- * (`typeof window.gmux.specstory?.status === 'function'`). Without it the
- * Settings section renders one honest line instead of dead controls.
+ * Top-level extra on window.gmux. Without it the Settings section renders
+ * one honest line instead of dead controls.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxSpecStoryExtras {
-  specstory?: {
+  specstory: {
     status(refresh?: boolean): Promise<SpecStoryStatus>;
     beginLogin(): Promise<SpecStoryLoginStart>;
     cancelLogin(): Promise<void>;
@@ -78,7 +83,7 @@ export interface GmuxSpecStoryExtras {
      * that did NOT work, or a capture the user asked for at create and did
      * not get. Failures only — a healthy capture says nothing, ever.
      */
-    onNotice?(cb: (notice: SessionCaptureNotice) => void): () => void;
+    onNotice(cb: (notice: SessionCaptureNotice) => void): () => void;
   };
 }
 

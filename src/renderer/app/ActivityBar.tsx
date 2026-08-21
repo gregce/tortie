@@ -11,7 +11,6 @@
  */
 
 import React, { useMemo } from 'react';
-import type { GmuxSettingsExtras } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
 import type { GitStatusResult } from '@shared/types';
 import {
@@ -32,6 +31,7 @@ import {
 } from '../scm/remote-changes';
 import { Codicon } from '../icons';
 import { UpdateRing } from './UpdateRing';
+import { gmuxBridge } from '../bridge';
 
 /**
  * The accessible name of one rail item.
@@ -137,8 +137,8 @@ const settingsTitle = `Settings (${keyDisplay('app.settings')})`;
 function SettingsItem(): React.JSX.Element | null {
   const setMenu = useApp((s) => s.setMenu);
   const toast = useApp((s) => s.toast);
-  const settingsExtras = (window.gmux ?? {}) as unknown as GmuxSettingsExtras;
-  if (typeof settingsExtras.openSettings === 'function') {
+  const settingsExtras = gmuxBridge();
+  if (typeof settingsExtras?.openSettings === 'function') {
     const openSettings = settingsExtras.openSettings.bind(settingsExtras);
     return (
       <button
@@ -154,7 +154,7 @@ function SettingsItem(): React.JSX.Element | null {
   }
   const extras = loginItemExtras();
   if (
-    typeof extras.getLoginItem !== 'function' ||
+    typeof extras?.getLoginItem !== 'function' ||
     typeof extras.setLoginItem !== 'function'
   ) {
     return null;

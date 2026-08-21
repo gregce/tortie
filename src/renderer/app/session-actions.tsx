@@ -13,7 +13,7 @@ import type { Session, SessionMachine } from '@shared/types';
 // machines bridge. It is feature detected the way Settings detects it, so a
 // build without the bridge simply does not offer the verb.
 import type {
-  GmuxMachinesExtras,
+  InstalledGmuxApi,
   MachineReviewFile,
   MachineReviewList
 } from '@shared/ipc';
@@ -51,6 +51,7 @@ import {
   reviewNotAnsweringSublabel,
   reviewUntrackedTitle
 } from './machine-copy';
+import { gmuxBridge } from '../bridge';
 
 /**
  * True when the session runs outside the project checkout (a git worktree
@@ -376,17 +377,11 @@ function savedOutputItem(session: Session): MenuItemSpec {
  * arrives. The second menu is drawn at the row the person opened the first one
  * on, so it lands where their eyes already are.
  */
-type MachinesApi = NonNullable<GmuxMachinesExtras['machines']>;
+type MachinesApi = InstalledGmuxApi['machines'];
 
-/**
- * The machines bridge, feature detected, read through globalThis rather than a
- * bare `window` so the node environment tests can import this module.
- */
+/** The machines surface, or null on a build with no bridge at all. */
 function machinesBridge(): MachinesApi | null {
-  const api = (globalThis as { window?: { gmux?: unknown } }).window?.gmux as
-    | GmuxMachinesExtras
-    | undefined;
-  return api?.machines ?? null;
+  return gmuxBridge()?.machines ?? null;
 }
 
 /**

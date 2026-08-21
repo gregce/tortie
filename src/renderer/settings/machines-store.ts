@@ -37,6 +37,7 @@
 
 import { create } from 'zustand';
 import type {
+  InstalledGmuxApi,
   MachineAddInput,
   MachineAgentsView,
   MachineConfirmSheet,
@@ -50,7 +51,6 @@ import type {
   MachineTestOutcome,
   MachineTestStarted,
   MachinesResult,
-  GmuxMachinesExtras,
   TailscalePeerView,
   TailscaleSourceResult
 } from '@shared/ipc';
@@ -65,19 +65,13 @@ import {
   KEY_DISABLED_REASON,
   PREPARE_NEEDS_CONFIRM
 } from './machines-copy';
+import { gmuxBridge } from '../bridge';
 
-type MachinesApi = NonNullable<GmuxMachinesExtras['machines']>;
+type MachinesApi = InstalledGmuxApi['machines'];
 
-/**
- * The bridge, feature detected, and read through globalThis rather than a
- * bare `window`. The unit tests run in the node environment, where a bare
- * `window` reference throws before a component can render.
- */
+/** The machines surface, or null on a build with no bridge at all. */
 function bridge(): MachinesApi | null {
-  const api = (globalThis as { window?: { gmux?: unknown } }).window?.gmux as
-    | GmuxMachinesExtras
-    | undefined;
-  return api?.machines ?? null;
+  return gmuxBridge()?.machines ?? null;
 }
 
 /**

@@ -28,6 +28,7 @@ import { useTreeIgnored } from './ignored';
 import { useFileTree } from './store';
 import { useTreeHandle } from './tree-handle';
 import type { TreeHandle } from './tree-handle';
+import { gmuxBridge } from '../bridge';
 
 export interface TreeOpsProbeSpec {
   /** Repo-relative folder the probe works inside. Created if missing. */
@@ -810,7 +811,9 @@ async function driveOpenWith(
         const recordPath = spec.recordPath;
         if (recordPath !== undefined) {
           try {
-            const file = await window.gmux.fs.readFile(recordPath);
+            const bridge = gmuxBridge();
+            if (bridge === undefined) throw new Error('there is no bridge');
+            const file = await bridge.fs.readFile(recordPath);
             recordedLine = file.contents.trim().split('\n').pop() ?? '';
           } catch (err) {
             recordedLine = `could not read ${recordPath}: ${String(err)}`;

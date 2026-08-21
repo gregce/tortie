@@ -31,7 +31,6 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import type { GmuxApi } from '@shared/ipc';
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { Codicon } from '../icons';
 import { SEARCH_STOP_WAITING, searchOnMachineLine } from '../app/machine-copy';
@@ -39,6 +38,7 @@ import { useApp } from '../state/store';
 import { QueryBlock } from './QueryBlock';
 import { ResultsList } from './ResultsList';
 import { machineNoteLine, useSearch } from './store';
+import { gmuxBridge } from '../bridge';
 
 /** The sidebar's 36 px band slice for this view. */
 export function SearchHeader(): React.JSX.Element {
@@ -232,7 +232,7 @@ export function SearchSection(): React.JSX.Element {
   // different instants, and this handler spends nothing — it flips a "results
   // may be stale" flag, which should not be held back for 150 ms.
   useEffect(() => {
-    const git = (window.gmux as GmuxApi | undefined)?.git;
+    const git = gmuxBridge()?.git;
     if (git === undefined) return;
     return git.onChanged((repoPath) => noteRepoChanged(repoPath));
   }, [noteRepoChanged]);

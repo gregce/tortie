@@ -36,14 +36,19 @@ export interface AgentsInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extras on window.gmux, feature-detected by the renderer
- * (`typeof window.gmux.agentsList === 'function'`).
+ * Top-level extras on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxAgentRegistryExtras {
   /** Detection scan over the full agent registry (cached in main). */
-  agentsList?(): Promise<AgentsScanResult>;
+  agentsList(): Promise<AgentsScanResult>;
   /** Re-probe (Settings re-scan button); resolves the fresh result. */
-  agentsRescan?(): Promise<AgentsScanResult>;
+  agentsRescan(): Promise<AgentsScanResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -74,11 +79,16 @@ export interface MultilineInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the renderer
- * (`typeof window.gmux.agentMultilineKeys === 'function'`).
+ * Top-level extra on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxMultilineExtras {
-  agentMultilineKeys?(): Promise<MultilineKeyTable>;
+  agentMultilineKeys(): Promise<MultilineKeyTable>;
 }
 
 // ---------------------------------------------------------------------------
@@ -165,14 +175,20 @@ export interface ConfigInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extra on window.gmux, feature-detected the way `context` is.
+ * Extra on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  *
  * A build without it shows no configuration list, which is the ordinary case:
  * almost nobody has a configuration file, and the twelve compiled agents work
  * with none present.
  */
 export interface GmuxConfigExtras {
-  config?: {
+  config: {
     rows(): Promise<ConfigRowsResult>;
     confirm(input: ConfigConfirmInput): Promise<ConfigRowView>;
     forget(id: string): Promise<ConfigRowView>;

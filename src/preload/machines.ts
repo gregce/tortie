@@ -38,7 +38,7 @@ import {
 } from '../shared/ipc';
 import { invoke, on } from './bridge';
 
-export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
+export const machines: GmuxMachinesExtras['machines'] = {
   rows: () => invoke('machines:rows'),
   reload: () => invoke('machines:reload'),
   tailscaleNames: () => invoke('machines:tailscaleNames'),

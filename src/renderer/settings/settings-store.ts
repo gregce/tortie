@@ -11,7 +11,6 @@
  */
 
 import { create } from 'zustand';
-import type { GmuxSettingsExtras } from '@shared/ipc';
 import type {
   AgentFlagCatalogs,
   GmuxSettings,
@@ -19,18 +18,11 @@ import type {
 } from '@shared/settings';
 import { defaultGmuxSettings } from '@shared/settings';
 import type { AgentsScanResult } from '@shared/types';
-import type {
-  ConfigRowsResult,
-  GmuxAgentRegistryExtras,
-  GmuxConfigExtras
-} from '@shared/ipc';
+import type { ConfigRowsResult, InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
-function bridge(): GmuxSettingsExtras &
-  GmuxAgentRegistryExtras &
-  GmuxConfigExtras {
-  return (window.gmux ?? {}) as unknown as GmuxSettingsExtras &
-    GmuxAgentRegistryExtras &
-    GmuxConfigExtras;
+function bridge(): InstalledGmuxApi | undefined {
+  return gmuxBridge();
 }
 
 export interface SettingsStoreState {
@@ -103,7 +95,7 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
     initialized = true;
     const b = bridge();
 
-    if (typeof b.settingsGet !== 'function') {
+    if (typeof b?.settingsGet !== 'function') {
       set({ available: false, settingsLoaded: true, catalogsLoaded: true });
       return;
     }
@@ -140,7 +132,7 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
 
   async update(patch) {
     const b = bridge();
-    if (typeof b.settingsSet !== 'function') return null;
+    if (typeof b?.settingsSet !== 'function') return null;
     // Optimistic local apply; the broadcast confirms with the sanitized
     // truth (and corrects it if main dropped anything).
     set((s) => ({ settings: { ...s.settings, ...patch } }));
@@ -162,7 +154,7 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
 
   async rescan() {
     const b = bridge();
-    if (typeof b.agentsRescan !== 'function' || get().scanning) return;
+    if (typeof b?.agentsRescan !== 'function' || get().scanning) return;
     set({ scanning: true });
     try {
       const scan = await b.agentsRescan();
@@ -174,7 +166,7 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
 
   async refreshConfig() {
     const b = bridge();
-    if (b.config === undefined) return;
+    if (b?.config === undefined) return;
     try {
       set({ config: await b.config.rows() });
     } catch {
@@ -184,7 +176,7 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
 
   async confirmConfigRow(id) {
     const b = bridge();
-    if (b.config === undefined) return 'This build cannot confirm rows.';
+    if (b?.config === undefined) return 'This build cannot confirm rows.';
     const row = get().config?.rows.find((r) => r.id === id);
     if (row === undefined) return `There is no row called ${id} to confirm.`;
     set({ configBusy: id });
@@ -206,7 +198,7 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
 
   async forgetConfigRow(id) {
     const b = bridge();
-    if (b.config === undefined) return 'This build cannot withdraw a row.';
+    if (b?.config === undefined) return 'This build cannot withdraw a row.';
     set({ configBusy: id });
     try {
       await b.config.forget(id);

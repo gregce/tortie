@@ -13,7 +13,8 @@
  * and the number that decides when the frame reloads.
  */
 
-import type { GmuxPreviewExtras } from '@shared/ipc';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../../bridge';
 import type {
   PreviewStats,
   PreviewStatsInput,
@@ -40,9 +41,8 @@ export type {
   PreviewUrlResult
 } from '@shared/preview-types';
 
-function bridge(): GmuxPreviewExtras['preview'] {
-  return (window.gmux as (Window['gmux'] & GmuxPreviewExtras) | undefined)
-    ?.preview;
+function bridge(): InstalledGmuxApi['preview'] | undefined {
+  return gmuxBridge()?.preview;
 }
 
 /** Is the preview channel in this build at all? */

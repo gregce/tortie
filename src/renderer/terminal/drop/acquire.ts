@@ -17,9 +17,10 @@
  * the await, the DataTransfer does not.
  */
 
-import type { GmuxDropExtras } from '@shared/ipc';
+import type { InstalledGmuxApi } from '@shared/ipc';
 import type { DropPersistResult, DropPrepareResult } from '@shared/types';
 import { MAX_DROP_BYTES } from '@shared/image-types';
+import { gmuxBridge } from '../../bridge';
 
 /**
  * The cap is declared once, in `@shared/image-types`, and enforced on both
@@ -28,14 +29,14 @@ import { MAX_DROP_BYTES } from '@shared/image-types';
 export { MAX_DROP_BYTES };
 
 /** The optional drop surface on the preload bridge (feature-detected). */
-export function dropBridge(): NonNullable<GmuxDropExtras['drop']> | null {
-  const api = window.gmux as (GmuxDropExtras & object) | undefined;
+export function dropBridge(): NonNullable<InstalledGmuxApi['drop']> | null {
+  const api = gmuxBridge();
   return api?.drop ?? null;
 }
 
 /** `webUtils.getPathForFile` through the preload; '' when unavailable. */
 export function pathForFile(file: File): string {
-  const api = window.gmux as (GmuxDropExtras & object) | undefined;
+  const api = gmuxBridge();
   const resolve = api?.pathForFile;
   if (typeof resolve !== 'function') return '';
   try {

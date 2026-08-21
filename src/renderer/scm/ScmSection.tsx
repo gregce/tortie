@@ -26,7 +26,6 @@ import React, {
   useState
 } from 'react';
 import type { GitFileState, GitFileStatus } from '@shared/types';
-import type { GmuxGitExtras } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
 import type { MachineReviewFile } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
@@ -90,6 +89,7 @@ import {
 } from './selection';
 import type { ScmGroupId, ScmRow, ScmSelection, ScmVerbs } from './selection';
 import './scm.css';
+import { gmuxBridge } from '../bridge';
 
 // The Phase 97 harness hook, registered here for the reason
 // src/renderer/tree/FilesSection.tsx registers its two: this module is the one
@@ -554,11 +554,11 @@ function InitRepoStub({ repoPath }: { repoPath: string }): React.JSX.Element {
   const toast = useApp((s) => s.toast);
   const [busy, setBusy] = useState(false);
 
-  const gitExtras = (window.gmux?.git ?? {}) as GmuxGitExtras;
-  const canInit = typeof gitExtras.init === 'function';
+  const gitExtras = gmuxBridge()?.git;
+  const canInit = typeof gitExtras?.init === 'function';
 
   const initRepo = async (): Promise<void> => {
-    if (typeof gitExtras.init !== 'function') return;
+    if (typeof gitExtras?.init !== 'function') return;
     setBusy(true);
     try {
       await gitExtras.init(repoPath);

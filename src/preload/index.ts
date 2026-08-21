@@ -52,7 +52,7 @@ import {
  * two auth actions. Four calls, no event channel: signing in or out is a thing
  * the user does about twice a year, so there is nothing here to subscribe to.
  */
-const specstory: NonNullable<InstalledGmuxApi['specstory']> = {
+const specstory: InstalledGmuxApi['specstory'] = {
   status: (refresh) => invoke('specstory:status', refresh),
   beginLogin: () => invoke('specstory:beginLogin'),
   cancelLogin: () => invoke('specstory:cancelLogin'),

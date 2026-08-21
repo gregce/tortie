@@ -13,7 +13,7 @@
  */
 
 import type {
-  GmuxOpenWithExtras,
+  InstalledGmuxApi,
   OpenWithApp,
   OpenWithApps,
   OpenWithAppsInput,
@@ -21,6 +21,7 @@ import type {
   OpenWithOutcome
 } from '@shared/ipc';
 import type { MenuItemSpec } from '../state/store';
+import { gmuxBridge } from '../bridge';
 
 // ---------------------------------------------------------------------------
 // Every string the user reads
@@ -133,8 +134,8 @@ export function buildOpenWithSubmenu(
 // The bridge, feature detected like every other optional fs channel
 // ---------------------------------------------------------------------------
 
-function extras(): GmuxOpenWithExtras {
-  return (window.gmux?.fs ?? {}) as GmuxOpenWithExtras;
+function extras(): InstalledGmuxApi['fs'] | undefined {
+  return gmuxBridge()?.fs;
 }
 
 /**
@@ -145,12 +146,13 @@ function extras(): GmuxOpenWithExtras {
 export function canOpenWith(): boolean {
   const api = extras();
   return (
-    typeof api.openWithApps === 'function' && typeof api.openWith === 'function'
+    typeof api?.openWithApps === 'function' &&
+    typeof api.openWith === 'function'
   );
 }
 
 export function openWithApps(input: OpenWithAppsInput): Promise<OpenWithApps> {
-  const fn = extras().openWithApps;
+  const fn = extras()?.openWithApps;
   if (typeof fn !== 'function') {
     return Promise.reject(new Error('fs.openWithApps is not available'));
   }
@@ -225,7 +227,7 @@ export function openWithAppsWithinBudget(
 }
 
 export function openWith(input: OpenWithInput): Promise<OpenWithOutcome> {
-  const fn = extras().openWith;
+  const fn = extras()?.openWith;
   if (typeof fn !== 'function') {
     return Promise.reject(new Error('fs.openWith is not available'));
   }

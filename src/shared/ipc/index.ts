@@ -332,9 +332,20 @@ export type InstalledTermApi = GmuxApi['term'] & GmuxTermStreamExtras;
  * The whole installed bridge. The preload's `api` const is annotated with
  * this type and `Window.gmux` (src/renderer/env.d.ts) declares it, so the
  * declared surface and the installed one are the same type by construction.
- * The extras keep their optionality: renderer feature detection
- * (`typeof window.gmux.x === 'function'`) stays meaningful, and older
- * call sites that intersected extras onto `Window['gmux']` still typecheck.
+ *
+ * PHASE 122 made every member of it required, and that is what makes this
+ * annotation carry the whole load. There is one preload file, it makes one
+ * `contextBridge.exposeInMainWorld('gmux', api)` call, and `api` is one
+ * object literal, so no build exists in which `machines` is installed and
+ * `log` is not. If a required member is ever not installed,
+ * `npm run typecheck` fails on src/preload/index.ts and names it. That is the
+ * missing-member proof the audit asked for and it costs nothing at runtime.
+ *
+ * The intersection form stays. It is the assembly, and flattening it into one
+ * hand-written interface would remove the very thing that proves the preload
+ * installs all 93 members. The audit's "remove the Extras intersections" is
+ * read as the intersections written at renderer CALL SITES, which are the
+ * ones the finding says kept spreading. All 144 of those are gone.
  */
 export type InstalledGmuxApi = GmuxApi & {
   sessions: InstalledSessionsApi;

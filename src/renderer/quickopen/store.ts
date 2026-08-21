@@ -28,8 +28,7 @@
 
 import { create } from 'zustand';
 import type {
-  GmuxMachinesExtras,
-  GmuxQuickOpenExtras,
+  InstalledGmuxApi,
   MachineFileListMode,
   QuickOpenHit,
   QuickOpenResult
@@ -44,6 +43,7 @@ import { requestOpenFile } from '../state/open-file';
 import type { OpenFileSelection } from '../state/open-file';
 import { parseQuickOpen } from './parse';
 import { noteOpened, recentKeys } from './recents';
+import { gmuxBridge } from '../bridge';
 
 /** Rows rendered. VS Code shows the same number; beyond it, refine the query. */
 const RENDER_LIMIT = 50;
@@ -53,17 +53,13 @@ const INDEXING_POLL_MS = 100;
 
 const SCOPE_KEY = 'gmux.quickopen.allProjects';
 
-function bridge(): GmuxQuickOpenExtras['quickOpen'] {
-  return (window.gmux as (typeof window.gmux & GmuxQuickOpenExtras) | undefined)
-    ?.quickOpen;
+function bridge(): InstalledGmuxApi['quickOpen'] | undefined {
+  return gmuxBridge()?.quickOpen;
 }
 
 /** The machines bridge, or null on a build without one (Phase 99). */
-function machinesBridge(): NonNullable<GmuxMachinesExtras['machines']> | null {
-  const api = window.gmux as
-    | (typeof window.gmux & GmuxMachinesExtras)
-    | undefined;
-  return api?.machines ?? null;
+function machinesBridge(): InstalledGmuxApi['machines'] | null {
+  return gmuxBridge()?.machines ?? null;
 }
 
 function readScopePref(): boolean {
@@ -305,7 +301,7 @@ export const useQuickOpen = create<QuickOpenState>((set, get) => {
    * adopt is also the honest statement: Tortie holds no names for that root.
    */
   const adoptNothing = (
-    api: NonNullable<GmuxQuickOpenExtras['quickOpen']>,
+    api: NonNullable<InstalledGmuxApi['quickOpen']>,
     key: string,
     isActive: boolean,
     mode: MachineFileListMode
@@ -322,7 +318,7 @@ export const useQuickOpen = create<QuickOpenState>((set, get) => {
 
   /** Ask one machine which files are in one folder, then adopt the answer. */
   const readNamesOn = (
-    api: NonNullable<GmuxQuickOpenExtras['quickOpen']>,
+    api: NonNullable<InstalledGmuxApi['quickOpen']>,
     target: WorkspaceTarget,
     key: string,
     isActive: boolean

@@ -21,7 +21,6 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { GmuxFsExtras } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../../state/store';
 import type { EditorTab } from '../store';
@@ -319,9 +318,7 @@ export function ImageSurface({
           type="button"
           className="btn btn-secondary"
           onClick={() => {
-            const fs = window.gmux?.fs as
-              | (typeof window.gmux.fs & GmuxFsExtras)
-              | undefined;
+            const fs = window.gmux?.fs;
             if (typeof fs?.reveal !== 'function') return;
             void fs.reveal(path).catch(() => {
               toast('error', 'Could not reveal that file.');

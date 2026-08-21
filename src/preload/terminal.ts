@@ -49,7 +49,7 @@ export const term: InstalledTermApi = {
  * exactly the discriminator the renderer's acquisition ladder branches on.
  * Never copy/wrap/re-`new File()` a dropped File before calling this.
  */
-export const drop: NonNullable<GmuxDropExtras['drop']> = {
+export const drop: GmuxDropExtras['drop'] = {
   strategies: () => invoke('drop:strategies'),
   prepare: (paths) => invoke('drop:prepare', paths),
   persist: (input) => invoke('drop:persist', input)
@@ -69,7 +69,7 @@ export function pathForFile(file: File): string {
  * clipboard behind Copy as HTML, and the server-side half of Clear. Pixels
  * cross as `Uint8Array`; a data URL of a long capture measured 79 MB.
  */
-export const capture: NonNullable<GmuxCaptureExtras['capture']> = {
+export const capture: GmuxCaptureExtras['capture'] = {
   viewport: (input) => invoke('capture:viewport', input),
   image: (input) => invoke('capture:image', input),
   saveLast: () => invoke('capture:saveLast'),
@@ -84,7 +84,7 @@ export const capture: NonNullable<GmuxCaptureExtras['capture']> = {
  * history. `tmux attach` parks xterm.js in its alternate buffer, where it has
  * no scrollback of its own, so this is the ONLY scroll surface a pane has.
  */
-export const scroll: NonNullable<GmuxScrollExtras['scroll']> = {
+export const scroll: GmuxScrollExtras['scroll'] = {
   state: (input) => invoke('terminal:scrollState', input),
   by: (input) => invoke('terminal:scrollBy', input),
   to: (input) => invoke('terminal:scrollTo', input),
@@ -96,7 +96,7 @@ export const scroll: NonNullable<GmuxScrollExtras['scroll']> = {
  * no poll and no subscription to a figure, because ZEN-OF-TORTIE forbids a
  * number that rises on its own. `onNotice` carries only crossed thresholds.
  */
-export const scrollback: NonNullable<GmuxScrollbackExtras['scrollback']> = {
+export const scrollback: GmuxScrollbackExtras['scrollback'] = {
   stats: () => invoke('scrollback:stats'),
   session: (sessionId) => invoke('scrollback:session', sessionId),
   report: () => invoke('scrollback:report'),

@@ -18,20 +18,18 @@
 
 import { create } from 'zustand';
 import type { ActionsJobsResult, ActionsRun, ActionsUpdate } from '@shared/actions';
-import type { GmuxActionsExtras } from '@shared/ipc';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 import { onRepoChanged } from '../state/repo-changed';
 
 // ---------------------------------------------------------------------------
 // Bridge access (feature-detected)
 // ---------------------------------------------------------------------------
 
-type ActionsBridge = NonNullable<GmuxActionsExtras['actions']>;
+type ActionsBridge = NonNullable<InstalledGmuxApi['actions']>;
 
 function actionsBridge(): ActionsBridge | null {
-  const gmux = window.gmux as
-    | (typeof window.gmux & GmuxActionsExtras)
-    | undefined;
-  const actions = gmux?.actions;
+  const actions = gmuxBridge()?.actions;
   return typeof actions?.runs === 'function' ? actions : null;
 }
 

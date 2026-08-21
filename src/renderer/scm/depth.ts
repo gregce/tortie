@@ -26,12 +26,8 @@ import type {
   GitRemoteBranchInfo,
   GitRemoteInfo
 } from '@shared/types';
-import type {
-  GmuxGitBranchExtras,
-  GmuxGitDepthExtras,
-  GmuxGitGraphExtras,
-  GmuxGitSyncExtras
-} from '@shared/ipc';
+import type { InstalledGitApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 import { gitErrorLine, useGit } from '../state/git';
 import { useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
@@ -41,15 +37,10 @@ import { shortSha } from './format';
 // Bridge access (feature-detected)
 // ---------------------------------------------------------------------------
 
-type DepthBridge = GmuxGitDepthExtras &
-  GmuxGitBranchExtras &
-  GmuxGitSyncExtras &
-  GmuxGitGraphExtras;
+type DepthBridge = InstalledGitApi;
 
 function depthBridge(): DepthBridge | null {
-  const git = (window.gmux as typeof window.gmux | undefined)?.git;
-  if (!git) return null;
-  return git as typeof git & DepthBridge;
+  return gmuxBridge()?.git ?? null;
 }
 
 /** True when the git-depth bridge methods exist (branch menu, history bar). */
@@ -336,7 +327,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
 
   const subscribeOnce = (): void => {
     if (subscribed) return;
-    const gmux = window.gmux as typeof window.gmux | undefined;
+    const gmux = gmuxBridge();
     if (!gmux) return;
     subscribed = true;
     // One debounce for every surface (state/repo-changed.ts) — this store's
@@ -360,7 +351,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
    * not a reshuffle.
    */
   const fetchLog = async (repoPath: string, pinRefs = false): Promise<void> => {
-    const gmux = window.gmux as typeof window.gmux | undefined;
+    const gmux = gmuxBridge();
     if (!gmux) return;
     const repo = get().repos[repoPath] ?? emptyRepo;
     const limit = repo.limit;

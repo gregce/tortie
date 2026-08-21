@@ -25,8 +25,9 @@
  * unused property.
  */
 
-import type { GmuxScrollExtras, TerminalScrollState } from '@shared/ipc';
+import type { InstalledGmuxApi, TerminalScrollState } from '@shared/ipc';
 import { useApp } from '../state/store';
+import { gmuxBridge } from '../bridge';
 
 /** One session row, with the two fields this phase reads. */
 export interface P95Session {
@@ -83,13 +84,10 @@ declare global {
 const wait = (ms: number): Promise<void> =>
   new Promise((r) => setTimeout(r, ms));
 
-type ScrollApi = NonNullable<GmuxScrollExtras['scroll']>;
+type ScrollApi = NonNullable<InstalledGmuxApi['scroll']>;
 
 function scrollApi(): ScrollApi | null {
-  return (
-    (window.gmux as (Window['gmux'] & GmuxScrollExtras) | undefined)?.scroll ??
-    null
-  );
+  return gmuxBridge()?.scroll ?? null;
 }
 
 function readState(): P95State {

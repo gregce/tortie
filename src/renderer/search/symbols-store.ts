@@ -21,7 +21,6 @@
  */
 
 import { create } from 'zustand';
-import type { GmuxSymbolsExtras } from '@shared/ipc';
 import type { SymbolHit, SymbolIndexProgress } from '@shared/symbols';
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { useApp } from '../state/store';
@@ -30,6 +29,8 @@ import { useEditor } from '../editor/store';
 import { requestOpenFile } from '../state/open-file';
 import { parseSymbolQuery } from './symbol-query';
 import type { SymbolMode } from './symbol-query';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
 export { parseSymbolQuery };
 export type { SymbolMode };
@@ -40,9 +41,8 @@ const RENDER_LIMIT = 50;
 /** How often to re-ask while a build is running, so partial results appear. */
 const INDEXING_POLL_MS = 150;
 
-function bridge(): GmuxSymbolsExtras['symbols'] {
-  return (window.gmux as (typeof window.gmux & GmuxSymbolsExtras) | undefined)
-    ?.symbols;
+function bridge(): InstalledGmuxApi['symbols'] | undefined {
+  return gmuxBridge()?.symbols;
 }
 
 /** Is the symbol index available in this build at all? */

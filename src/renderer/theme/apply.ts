@@ -36,7 +36,6 @@
  * their behalf.
  */
 
-import type { GmuxSettingsExtras } from '@shared/ipc';
 import { sanitizeWorkAreaFont } from '@shared/settings';
 import type { GmuxSettings, WorkAreaFont } from '@shared/settings';
 import { forEachTerminal } from '../terminal/drop/registry';
@@ -44,6 +43,7 @@ import { resolveTerminalTheme } from '../terminal/theme';
 import { deriveOverrides, type Appearance } from './derive';
 import { ALL_THEME_TOKENS } from './presets';
 import { fontOverrides, setWorkAreaFont } from './work-fonts';
+import { gmuxBridge } from '../bridge';
 
 /**
  * Everything the applier reconciles the document to: the two Phase 62 colour
@@ -189,8 +189,8 @@ export function initAppearance(): void {
   if (started) return;
   started = true;
 
-  const bridge = (window.gmux ?? {}) as unknown as GmuxSettingsExtras;
-  if (typeof bridge.settingsGet !== 'function') return;
+  const bridge = gmuxBridge();
+  if (typeof bridge?.settingsGet !== 'function') return;
 
   const apply = createAppearanceApplier(browserEnv());
   void bridge

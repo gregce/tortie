@@ -13,13 +13,14 @@
  */
 
 import { useEffect } from 'react';
-import type { GmuxMenuExtras, MenuActionWithFind } from '@shared/ipc';
+import type { MenuActionWithFind } from '@shared/ipc';
 import type { LaunchableAgentKind } from '@shared/types';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
 import { keyDisplay } from '@shared/keymap';
 import { defaultLaunchArgsFor } from './presets';
 import { registerP94CreateDrive } from './p94-create-drive';
 import { useSettingsStore } from './settings-store';
+import { gmuxBridge } from '../bridge';
 
 const LAUNCH_PREFIX = 'launch-agent:';
 
@@ -105,9 +106,7 @@ export function useSettingsIntegration(): void {
   useEffect(() => init(), [init]);
 
   useEffect(() => {
-    const bridge = window.gmux as
-      | (typeof window.gmux & GmuxMenuExtras)
-      | undefined;
+    const bridge = gmuxBridge();
     if (typeof bridge?.onMenuAction !== 'function') return;
     // Second EVT_MENU_ACTION subscription (the shell owns the first) —
     // each handles disjoint action ids, so there is no double-handling.

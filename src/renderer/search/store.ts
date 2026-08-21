@@ -37,8 +37,7 @@
 import { create } from 'zustand';
 import type {
   ContentSearchInput,
-  GmuxMachinesExtras,
-  GmuxSearchExtras,
+  InstalledGmuxApi,
   MachineSearchMode,
   MachineSearchResult,
   SearchFileResult,
@@ -64,6 +63,7 @@ import { useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
 import type { ContextLine } from './rows';
 import { matchKey, mergeFrame } from './rows';
+import { gmuxBridge } from '../bridge';
 
 /** Typing pause before a query is spent on a process. */
 const DEBOUNCE_MS = 150;
@@ -91,17 +91,13 @@ export const CONTEXT_LINES = 2;
  */
 const MIN_LITERAL_QUERY = 2;
 
-function bridge(): GmuxSearchExtras['search'] {
-  return (window.gmux as (typeof window.gmux & GmuxSearchExtras) | undefined)
-    ?.search;
+function bridge(): InstalledGmuxApi['search'] | undefined {
+  return gmuxBridge()?.search;
 }
 
 /** The machines bridge, or null on a build without one (Phase 98). */
-function machinesBridge(): NonNullable<GmuxMachinesExtras['machines']> | null {
-  const api = window.gmux as
-    | (typeof window.gmux & GmuxMachinesExtras)
-    | undefined;
-  return api?.machines ?? null;
+function machinesBridge(): InstalledGmuxApi['machines'] | null {
+  return gmuxBridge()?.machines ?? null;
 }
 
 /** Is content search available in this build at all? */

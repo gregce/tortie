@@ -16,7 +16,6 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import type { GmuxSymbolsExtras } from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
 import { Codicon } from '../icons';
 // The palettes share ONE positions→runs implementation. Both pickers are fed
@@ -33,6 +32,7 @@ import {
 import { splitPath } from './rows';
 import { symbolIcon, symbolKindLabel } from './symbol-kinds';
 import { useSymbols } from './symbols-store';
+import { gmuxBridge } from '../bridge';
 
 /** Per-character highlight from the matched indices main handed back. */
 function Highlighted({
@@ -100,9 +100,7 @@ export function SymbolPalette(): React.JSX.Element | null {
   }, [open]);
 
   useEffect(() => {
-    const symbols = (
-      window.gmux as (typeof window.gmux & GmuxSymbolsExtras) | undefined
-    )?.symbols;
+    const symbols = gmuxBridge()?.symbols;
     if (symbols === undefined) return;
     return symbols.onProgress(applyProgress);
   }, [applyProgress]);

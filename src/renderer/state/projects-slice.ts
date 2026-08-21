@@ -9,11 +9,7 @@ import type { GmuxErrorPayload, Project } from '@shared/types';
 import type {
   AddRemoteProjectResult,
   CreateProjectInput,
-  CreateProjectResult,
-  GmuxActionsExtras,
-  GmuxProjectCreateExtras,
-  GmuxRemoteProjectExtras,
-  GmuxSymbolsExtras
+  CreateProjectResult
 } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { isLocalTarget, targetOfProject } from '@shared/workspace-target';
@@ -28,6 +24,7 @@ import {
 import { errorPayload, errorText } from './errors';
 import { loadLocal, saveLocal } from './local';
 import type { AppState } from './app-state';
+import { gmuxBridge } from '../bridge';
 
 /**
  * What {@link ProjectsSlice.openTargetProject} did, or why it did nothing.
@@ -141,7 +138,7 @@ export const createProjectsSlice: StateCreator<
   [],
   ProjectsSlice
 > = (set, get) => {
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
 
   return {
     projects: [],
@@ -220,16 +217,12 @@ export const createProjectsSlice: StateCreator<
     },
 
     canAddRemoteProject() {
-      const projects = gmux?.projects as
-        | (NonNullable<typeof gmux>['projects'] & GmuxRemoteProjectExtras)
-        | undefined;
+      const projects = gmux?.projects;
       return typeof projects?.addRemote === 'function';
     },
 
     async addRemoteProject(machineId, path) {
-      const projects = gmux?.projects as
-        | (NonNullable<typeof gmux>['projects'] & GmuxRemoteProjectExtras)
-        | undefined;
+      const projects = gmux?.projects;
       if (projects === undefined || typeof projects.addRemote !== 'function') {
         return { ok: false, reason: 'notConnected' };
       }
@@ -278,16 +271,12 @@ export const createProjectsSlice: StateCreator<
     },
 
     canCreateProject() {
-      const projects = gmux?.projects as
-        | (NonNullable<typeof gmux>['projects'] & GmuxProjectCreateExtras)
-        | undefined;
+      const projects = gmux?.projects;
       return typeof projects?.create === 'function';
     },
 
     async createProject(input) {
-      const projects = gmux?.projects as
-        | (NonNullable<typeof gmux>['projects'] & GmuxProjectCreateExtras)
-        | undefined;
+      const projects = gmux?.projects;
       if (projects === undefined || typeof projects.create !== 'function') {
         throw new Error('This build cannot create projects.');
       }
@@ -341,9 +330,7 @@ export const createProjectsSlice: StateCreator<
               // no index and no watch to release: `rootsFor` excludes every
               // remote project and no watch is ever armed for one.
               if (here) {
-                void (
-                  window.gmux as (typeof window.gmux & GmuxSymbolsExtras) | undefined
-                )?.symbols
+                void gmuxBridge()?.symbols
                   ?.release(project.path)
                   .catch(() => undefined);
               }
@@ -353,9 +340,7 @@ export const createProjectsSlice: StateCreator<
               // fails to close. Watch state is in memory only, so the worst a
               // missed call costs is one poller until the app quits.
               if (here) {
-                void (
-                  window.gmux as (typeof window.gmux & GmuxActionsExtras) | undefined
-                )?.actions
+                void gmuxBridge()?.actions
                   ?.release(project.path)
                   .catch(() => undefined);
               }

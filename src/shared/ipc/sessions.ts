@@ -10,9 +10,11 @@ import type { DurabilityNotice } from '../notice';
 
 // ---------------------------------------------------------------------------
 // APPENDED by the restore stream (Phase 6) — new channels/types only, nothing
-// above was modified. All OPTIONAL bridge extensions, feature-detected by the
-// renderer (`typeof window.gmux.sessions.restore === 'function'`), so the app
-// still works against older preloads.
+// above was modified. All were declared OPTIONAL bridge extensions at the
+// time, feature-detected by the renderer so the app still worked against an
+// older preload. Phase 122 made every one of them required, because the
+// preload and the renderer ship in the same asar and an older preload with a
+// newer renderer is not a build that exists.
 //
 // Wiring (done by this phase): main registers the channels in
 // src/main/restore/ipc.ts; preload adds the methods per the GmuxApi pattern.
@@ -80,8 +82,13 @@ export interface RestoreInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extension to GmuxApi['sessions'], feature-detected by the shell
- * (`typeof window.gmux.sessions.restore === 'function'`).
+ * Extension to GmuxApi['sessions'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxSessionRestoreExtras {
   /**
@@ -90,16 +97,24 @@ export interface GmuxSessionRestoreExtras {
    * Phase 119: pass `{ withoutCapture: true }` to bring it back with SpecStory
    * turned off. See {@link CaptureChoice} for what that changes on the row.
    */
-  restore?(
+  restore(
     sessionId: string,
     options?: CaptureChoice
   ): Promise<RestoreSession>;
 }
 
-/** OPTIONAL top-level extras on window.gmux (login item), feature-detected. */
+/**
+ * Top-level extras on window.gmux (login item).
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
+ */
 export interface GmuxLoginItemExtras {
-  getLoginItem?(): Promise<{ openAtLogin: boolean }>;
-  setLoginItem?(openAtLogin: boolean): Promise<{ openAtLogin: boolean }>;
+  getLoginItem(): Promise<{ openAtLogin: boolean }>;
+  setLoginItem(openAtLogin: boolean): Promise<{ openAtLogin: boolean }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -146,13 +161,18 @@ export interface ActivityInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extras on window.gmux, feature-detected by the renderer
- * (`typeof window.gmux.onActivityChanged === 'function'`). Without them the
- * shell simply shows no excerpts and no ages — status is unaffected.
+ * Top-level extras on window.gmux. Without them the shell simply shows no
+ * excerpts and no ages — status is unaffected.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxActivityExtras {
-  onActivityChanged?(cb: (updates: SessionActivityInfo[]) => void): Unsubscribe;
-  noteTerminalInput?(sessionId: string): Promise<void>;
+  onActivityChanged(cb: (updates: SessionActivityInfo[]) => void): Unsubscribe;
+  noteTerminalInput(sessionId: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,22 +218,32 @@ export interface DurabilityInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the renderer
- * (`typeof window.gmux.notice?.pending === 'function'`). Without it the app
- * simply never hears a notice that was posted before the window existed, which
- * is the behaviour every build before Phase 19 had.
+ * Top-level extra on window.gmux. Without it the app simply never hears a
+ * notice that was posted before the window existed, which is the behaviour
+ * every build before Phase 19 had.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxNoticeExtras {
-  notice?: {
+  notice: {
     pending(): Promise<DurabilityNotice[]>;
   };
 }
 
 /**
- * OPTIONAL extension to GmuxApi['sessions'], feature-detected by the shell
- * (`typeof window.gmux.sessions.restart === 'function'`). Without it the
- * renderer falls back to its own create-then-discard sequence, which keeps the
- * ordering right but cannot carry the launch flags.
+ * Extension to GmuxApi['sessions']. Without it the renderer falls back to
+ * its own create-then-discard sequence, which keeps the ordering right but
+ * cannot carry the launch flags.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxSessionRestartExtras {
   /**
@@ -221,7 +251,7 @@ export interface GmuxSessionRestartExtras {
    * save its history. Nothing is flipped on the old row, because the old row
    * is discarded and the replacement is born bare.
    */
-  restart?(
+  restart(
     sessionId: string,
     options?: CaptureChoice
   ): Promise<RestoreSession>;
@@ -254,13 +284,17 @@ export interface GmuxPastSessionsChannelMap {
 }
 
 /**
- * OPTIONAL sessions extra, feature-detected by the renderer
- * (`typeof window.gmux.sessions.listRemoved === 'function'`). Without it the
- * Past Sessions panel opens in its empty state with no error, the same
- * posture every extras consumer takes.
+ * Sessions extra. Without it the Past Sessions panel opens in its empty
+ * state with no error, the same posture every extras consumer takes.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxPastSessionsExtras {
-  listRemoved?(): Promise<RestoreSession[]>;
+  listRemoved(): Promise<RestoreSession[]>;
 }
 
 /**
@@ -308,12 +342,17 @@ export interface AskRestoreProjectInvokeChannelMap {
 }
 
 /**
- * OPTIONAL sessions extra, feature-detected by the renderer
- * (`typeof window.gmux.sessions.askRestoreProject === 'function'`). Without
- * it the restore keeps today's silent behavior, the standing extras posture.
+ * Sessions extra. Without it the restore keeps today's silent behavior, the
+ * standing extras posture.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxAskRestoreProjectExtras {
-  askRestoreProject?(
+  askRestoreProject(
     input: AskRestoreProjectInput
   ): Promise<AskRestoreProjectAnswer>;
 }
@@ -347,11 +386,16 @@ export interface ShellPathInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extension to GmuxApi['sessions'], feature-detected by the renderer
- * (`typeof window.gmux.sessions.shellPathReady === 'function'`). Without it
- * the renderer treats the PATH as ready from the start, which is exactly the
- * behaviour every preload before Phase 81 had.
+ * Extension to GmuxApi['sessions']. Without it the renderer treats the PATH
+ * as ready from the start, which is exactly the behaviour every preload
+ * before Phase 81 had.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxShellPathExtras {
-  shellPathReady?(): Promise<void>;
+  shellPathReady(): Promise<void>;
 }

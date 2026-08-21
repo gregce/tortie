@@ -6,10 +6,11 @@
 
 // ---------------------------------------------------------------------------
 // APPENDED by the file-tree stream (Phase 3) — new channels/types only,
-// nothing above was modified. Both channels are OPTIONAL bridge extensions:
-// the tree feature-detects each (`typeof window.gmux.fs.readDir ===
-// 'function'`) and shows a friendly stub / hides the menu item when absent,
-// so the app works against the frozen Phase-2 preload unchanged.
+// nothing above was modified. Both channels were declared OPTIONAL bridge
+// extensions at the time, so the tree feature-detected each one and showed a
+// stub or hid the menu item when it was absent. Phase 122 made both
+// required. The tree's checks stayed and they now ask whether there is a
+// bridge at all.
 //
 // INTEGRATOR wiring (no main handler exists yet — both are new):
 //   'fs:readDir' → main: fs.promises.readdir(dirPath, { withFileTypes: true })
@@ -39,14 +40,19 @@ export interface TreeInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['fs'], feature-detected by the tree
- * (`typeof window.gmux.fs.readDir === 'function'`).
+ * Extensions to GmuxApi['fs'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxFsExtras {
   /** List a directory for the file tree. */
-  readDir?(dirPath: string): Promise<ReadDirResult>;
+  readDir(dirPath: string): Promise<ReadDirResult>;
   /** Reveal a path in Finder. */
-  reveal?(path: string): Promise<void>;
+  reveal(path: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,15 +115,20 @@ export interface FileOpsInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['fs'], feature-detected by the tree
- * (`typeof window.gmux.fs.trash === 'function'`).
+ * Extensions to GmuxApi['fs'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxFsOpsExtras {
-  createFile?(input: FsCreateInput): Promise<FsOpEntry>;
-  createFolder?(input: FsCreateInput): Promise<FsOpEntry>;
-  rename?(input: FsRenameInput): Promise<FsRenameResult>;
-  move?(input: FsMoveInput): Promise<FsMoveResult>;
-  trash?(input: FsTrashInput): Promise<FsTrashResult>;
+  createFile(input: FsCreateInput): Promise<FsOpEntry>;
+  createFolder(input: FsCreateInput): Promise<FsOpEntry>;
+  rename(input: FsRenameInput): Promise<FsRenameResult>;
+  move(input: FsMoveInput): Promise<FsMoveResult>;
+  trash(input: FsTrashInput): Promise<FsTrashResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,11 +155,16 @@ export interface FsDuplicateInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extension to GmuxApi['fs'], feature-detected by the tree
- * (`typeof window.gmux.fs.duplicate === 'function'` hides the menu item).
+ * Extension to GmuxApi['fs'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxFsDuplicateExtras {
-  duplicate?(input: FsDuplicateInput): Promise<FsOpEntry>;
+  duplicate(input: FsDuplicateInput): Promise<FsOpEntry>;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,13 +236,18 @@ export interface PreviewInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the HTML
- * viewer. It is top-level rather than folded into `fs` on purpose: `fs` is the
- * text and file-management surface, and nothing about a preview is a file
- * operation.
+ * Top-level extra on window.gmux. It is top-level rather than folded into
+ * `fs` on purpose: `fs` is the text and file-management surface, and nothing
+ * about a preview is a file operation.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxPreviewExtras {
-  preview?: {
+  preview: {
     url(input: PreviewUrlInput): Promise<PreviewUrlResult>;
     stats(input: PreviewStatsInput): Promise<PreviewStats | null>;
   };
@@ -334,10 +355,15 @@ export interface OpenWithInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['fs'], feature-detected by the tree
- * (`typeof window.gmux.fs.openWithApps === 'function'` hides the menu item).
+ * Extensions to GmuxApi['fs'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxOpenWithExtras {
-  openWithApps?(input: OpenWithAppsInput): Promise<OpenWithApps>;
-  openWith?(input: OpenWithInput): Promise<OpenWithOutcome>;
+  openWithApps(input: OpenWithAppsInput): Promise<OpenWithApps>;
+  openWith(input: OpenWithInput): Promise<OpenWithOutcome>;
 }

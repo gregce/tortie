@@ -33,12 +33,13 @@ import { create } from 'zustand';
 import type { ContextScanResult } from '@shared/context';
 import type {
   ContextSkillPinCheck,
-  GmuxMachinesExtras,
+  InstalledGmuxApi,
   MachineContextMode
 } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { localPathOf, sameTarget, targetKey } from '@shared/workspace-target';
 import { contextAvailable, contextBridge } from './bridge';
+import { gmuxBridge } from '../bridge';
 
 /**
  * `elsewhere` was Phase 90.1, and Phase 108 narrowed it to one honest meaning:
@@ -57,11 +58,8 @@ export type ContextStatus =
   | 'elsewhere';
 
 /** The machines bridge, or null on a build without one (Phase 108). */
-function machinesBridge(): NonNullable<GmuxMachinesExtras['machines']> | null {
-  const api = window.gmux as
-    | (typeof window.gmux & GmuxMachinesExtras)
-    | undefined;
-  return api?.machines ?? null;
+function machinesBridge(): InstalledGmuxApi['machines'] | null {
+  return gmuxBridge()?.machines ?? null;
 }
 
 /**

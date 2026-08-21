@@ -29,7 +29,6 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import type { GmuxScrollbackExtras } from '@shared/ipc';
 import type { ScrollbackStats } from '@shared/scrollback';
 import {
   bytesPerLine,
@@ -46,16 +45,15 @@ import {
 } from '@shared/settings';
 import { useSettingsStore } from './settings-store';
 import './scrollback.css';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
 const DEPTH_PRESETS = [10_000, 25_000, 50_000] as const;
 const SAVED_PRESETS = [2_000, 10_000, 25_000] as const;
 const CUSTOM = 'custom';
 
-function bridge(): NonNullable<GmuxScrollbackExtras['scrollback']> | null {
-  return (
-    (window.gmux as (Window['gmux'] & GmuxScrollbackExtras) | undefined)
-      ?.scrollback ?? null
-  );
+function bridge(): NonNullable<InstalledGmuxApi['scrollback']> | null {
+  return gmuxBridge()?.scrollback ?? null;
 }
 
 const lines = (n: number): string => `${n.toLocaleString()} lines`;

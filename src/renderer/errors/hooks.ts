@@ -27,7 +27,8 @@
  * failures.
  */
 
-import type { GmuxLogExtras, RendererLogScope } from '@shared/ipc';
+import type { InstalledGmuxApi, RendererLogScope } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
 /** Lines this window may write per run. Below main's 200 per sender. */
 const LOCAL_LINE_CAP = 50;
@@ -39,11 +40,9 @@ let installedScope: RendererLogScope | null = null;
 let written = 0;
 let lastKey: string | null = null;
 
-function bridge(): NonNullable<GmuxLogExtras['log']> | null {
+function bridge(): NonNullable<InstalledGmuxApi['log']> | null {
   try {
-    return (
-      (window.gmux as (Window['gmux'] & GmuxLogExtras) | undefined)?.log ?? null
-    );
+    return gmuxBridge()?.log ?? null;
   } catch {
     return null;
   }

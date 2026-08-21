@@ -17,7 +17,7 @@
 import type { GmuxLogExtras } from '../shared/ipc';
 import { invoke } from './bridge';
 
-export const log: NonNullable<GmuxLogExtras['log']> = {
+export const log: GmuxLogExtras['log'] = {
   append: (line) => invoke('log:append', line),
   level: () => invoke('log:level'),
   setLevel: (level) => invoke('log:setLevel', level),

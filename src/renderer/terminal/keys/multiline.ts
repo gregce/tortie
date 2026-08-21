@@ -16,8 +16,10 @@
  */
 
 import type { AgentMultilineKey, MultilineKeyTable } from '@shared/types';
-import type { GmuxMultilineExtras } from '@shared/ipc';
+
 import { DEFAULT_MULTILINE_KEY, LF } from '@shared/agent-defaults';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../../bridge';
 
 /**
  * `LF` and the default row come from `@shared/agent-defaults`, which is also
@@ -34,9 +36,9 @@ let inflight: Promise<void> | null = null;
 
 /** The optional multiline surface on the preload bridge (feature-detected). */
 function multilineBridge(): NonNullable<
-  GmuxMultilineExtras['agentMultilineKeys']
+  InstalledGmuxApi['agentMultilineKeys']
 > | null {
-  const api = window.gmux as (GmuxMultilineExtras & object) | undefined;
+  const api = gmuxBridge();
   const fn = api?.agentMultilineKeys;
   return typeof fn === 'function' ? fn.bind(api) : null;
 }

@@ -77,14 +77,19 @@ export interface ShellCommandInvokeChannelMap {
 export type ShellOpenMenuActionId = 'shell-open-pending';
 
 /**
- * OPTIONAL top-level extras on window.gmux, feature-detected by the
- * Settings row and the shell (`typeof fn === 'function'`). An older preload
- * without them renders no Settings row, and launches still work, because
- * the pending slot and the argv parse live in main.
+ * Top-level extras on window.gmux. An older preload without them renders no
+ * Settings row, and launches still work, because the pending slot and the
+ * argv parse live in main.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxShellExtras {
-  shellCommandStatus?(): Promise<ShellCommandStatus>;
-  installShellCommand?(): Promise<ShellCommandStatus>;
-  removeShellCommand?(): Promise<ShellCommandStatus>;
-  takePendingOpen?(): Promise<ShellPendingOpen | null>;
+  shellCommandStatus(): Promise<ShellCommandStatus>;
+  installShellCommand(): Promise<ShellCommandStatus>;
+  removeShellCommand(): Promise<ShellCommandStatus>;
+  takePendingOpen(): Promise<ShellPendingOpen | null>;
 }

@@ -29,6 +29,8 @@
  * re-read of every open file.
  */
 
+import { gmuxBridge } from '../bridge';
+
 /** The smallest of the four windows the subscribers used to keep. */
 export const REPO_CHANGED_DEBOUNCE_MS = 150;
 
@@ -95,7 +97,7 @@ export function createRepoChangeBus(
  * settings window happens with no git bridge at all.
  */
 const appBus = createRepoChangeBus((cb) => {
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
   if (gmux === undefined) return () => undefined;
   return gmux.git.onChanged(cb);
 });

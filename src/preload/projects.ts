@@ -59,7 +59,7 @@ export const projects: InstalledProjectsApi = {
  * closed and when a row is removed. Since Phase 92 it also fires when the
  * machines file changes, because that changes which rows a person may see.
  */
-export const recents: NonNullable<GmuxRecentsExtras['recents']> = {
+export const recents: GmuxRecentsExtras['recents'] = {
   list: () => invoke('recents:list'),
   missing: () => invoke('recents:missing'),
   // Phase 92: the machine is the second argument and omitting it means this

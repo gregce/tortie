@@ -41,7 +41,7 @@ import { readClockTime, remoteReadAt } from '../app/machine-copy';
 import { requestManageBranches } from './manage-branches';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';
-import type { GmuxGitDepthExtras } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
 export function BranchHeader(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
@@ -166,9 +166,8 @@ export function BranchHeader(): React.JSX.Element {
     setMenuBusy(true);
     let items: (MenuItemSpec | 'sep')[];
     try {
-      const bridge = window.gmux.git as typeof window.gmux.git &
-        GmuxGitDepthExtras;
-      const branches = (await bridge.branches?.(path)) ?? [];
+      const bridge = gmuxBridge()?.git;
+      const branches = (await bridge?.branches?.(path)) ?? [];
       items = branches.map((b) => ({
         // ui:popupMenu has no native check state — the ✓ prefix (with an
         // em-space aligning the others) marks the current branch.

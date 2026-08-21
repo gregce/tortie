@@ -56,6 +56,7 @@ import {
   type WorkspaceTarget
 } from '@shared/workspace-target';
 import { ancestorDirsOf } from './tree-paths';
+import { gmuxBridge } from '../bridge';
 
 const NONE: ReadonlySet<string> = new Set<string>();
 
@@ -311,7 +312,7 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
         }
         return;
       }
-      const gmux = window.gmux as typeof window.gmux | undefined;
+      const gmux = gmuxBridge();
       const checkIgnore = gmux?.git.checkIgnore;
       if (gmux === undefined || typeof checkIgnore !== 'function') return;
 

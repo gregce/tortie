@@ -24,7 +24,7 @@ release.
 | 8 | **103** stage and unstage | | queued |
 | 9 | **104** commit on a remote tab | | queued |
 | — | **RELEASE POINT** | The writes are the next release's story. NOT delegated; the grant above is for one release only | operator |
-| 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | queued |
+| 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | ✅ shipped |
 | 11 | **Run B** 123 | The six runtime cycles | queued |
 | 12 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
 | 13 | **Run D** 127 | App, FileTree and state to app | queued |
@@ -6891,7 +6891,7 @@ same set.
 
 **NOT in this phase.** The bridge member optionality is Phase 122. Do not widen.
 
-## Phase 122 — an installed bridge has optional members, so casts keep spreading (audit phase 3, second half) QUEUED
+## Phase 122 — an installed bridge has optional members, so casts keep spreading (audit phase 3, second half) ✅ SHIPPED 2026-08-21 (this commit, 0.62.2, gates green, 7,598 tests)
 
 **Subject:** `fix(types): every member of an installed bridge is required`
 **First body line:** `Phase 122: an installed bridge has optional members`

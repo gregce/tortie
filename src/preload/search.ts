@@ -22,7 +22,7 @@ import { invoke, on, onTemplateChannel } from './bridge';
  * subscription set up after the invoke resolves can miss the first frame.
  * Passing the same id in `start({ searchId })` closes the window entirely.
  */
-export const search: NonNullable<GmuxSearchExtras['search']> = {
+export const search: GmuxSearchExtras['search'] = {
   onResults: (searchId, cb) =>
     onTemplateChannel<SearchProgress>(searchResultsChannel(searchId), cb),
   start: (input) => invoke('search:start', input),
@@ -42,7 +42,7 @@ export const search: NonNullable<GmuxSearchExtras['search']> = {
  * a large repo the user is typing for seconds while it runs, and the palette
  * has to be able to say how far it has got.
  */
-export const symbols: NonNullable<GmuxSymbolsExtras['symbols']> = {
+export const symbols: GmuxSymbolsExtras['symbols'] = {
   query: (input) => invoke('symbols:query', input),
   ensure: (repoPath) => invoke('symbols:ensure', repoPath),
   release: (repoPath) => invoke('symbols:release', repoPath),
@@ -64,7 +64,7 @@ export const symbols: NonNullable<GmuxSymbolsExtras['symbols']> = {
  * the bare absolute path for a folder on this Mac, which is exactly what every
  * caller before Phase 99 sent.
  */
-export const quickOpen: NonNullable<GmuxQuickOpenExtras['quickOpen']> = {
+export const quickOpen: GmuxQuickOpenExtras['quickOpen'] = {
   query: (input) => invoke('quickopen:query', input),
   warm: (input) => invoke('quickopen:warm', input)
 };

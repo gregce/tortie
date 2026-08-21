@@ -16,8 +16,6 @@
 
 import React, { useEffect, useState } from 'react';
 import type {
-  GmuxPopupMenuExtras,
-  GmuxUpdatesExtras,
   PopupMenuInput,
   PopupMenuItem,
   UpdateRingStage,
@@ -26,6 +24,7 @@ import type {
 import type { UpdateRingSnapshot } from './update-words';
 import { updateStageWords } from './update-words';
 import './update-ring.css';
+import { gmuxBridge } from '../bridge';
 
 /**
  * The four-field snapshot type moved to update-words.ts in Phase 62.1, so
@@ -125,10 +124,9 @@ export interface RingBridge {
  */
 export function ringBridge(): RingBridge | null {
   if (typeof window === 'undefined') return null;
-  const g = (window.gmux ?? {}) as unknown as GmuxUpdatesExtras &
-    GmuxPopupMenuExtras;
-  const u = g.updates;
-  const popup = g.popupMenu;
+  const g = gmuxBridge();
+  const u = g?.updates;
+  const popup = g?.popupMenu;
   if (u === undefined || typeof u.state !== 'function') return null;
   const onChanged = u.onChanged;
   if (typeof onChanged !== 'function') return null;

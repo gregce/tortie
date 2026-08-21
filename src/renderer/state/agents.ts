@@ -43,16 +43,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import type {
-  AgentAvailability,
-  GmuxAgentExtras,
-  MachineAgentsView
-} from '@shared/ipc';
+import type { AgentAvailability, MachineAgentsView } from '@shared/ipc';
 import type {
   AgentsScanResult,
   DetectedAgent,
   LaunchableAgentKind
 } from '@shared/types';
+import { gmuxBridge } from '../bridge';
 
 /**
  * PHASE 49. The hand-typed install table that used to live here is deleted.
@@ -72,14 +69,10 @@ const OPTIMISTIC: AgentAvailability = { claude: true, codex: true };
 let cached: AgentAvailability | null = null;
 let inflight: Promise<AgentAvailability> | null = null;
 
-function agentExtras(): GmuxAgentExtras {
-  return (window.gmux ?? {}) as unknown as GmuxAgentExtras;
-}
-
 export function fetchAgentAvailability(): Promise<AgentAvailability> {
   if (cached !== null) return Promise.resolve(cached);
   if (inflight !== null) return inflight;
-  const probe = agentExtras().agentAvailability;
+  const probe = gmuxBridge()?.agentAvailability;
   if (typeof probe !== 'function') {
     cached = OPTIMISTIC;
     return Promise.resolve(cached);

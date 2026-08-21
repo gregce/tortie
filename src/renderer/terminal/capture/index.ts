@@ -18,7 +18,7 @@
 
 import { Terminal } from '@xterm/xterm';
 import type { IBufferRange } from '@xterm/xterm';
-import type { GmuxCaptureExtras } from '@shared/ipc';
+import type { InstalledGmuxApi } from '@shared/ipc';
 import type { Session } from '@shared/types';
 import { errorText, useApp } from '../../state/store';
 import { getTerminal } from '../drop/registry';
@@ -44,6 +44,7 @@ import {
 import { historyLinesFor, paneLines, selectionBand } from './range';
 import { letterSpacingCorrection, rasterizeHtml } from './rasterize';
 import { serializeAsHtml, toClipboardHtml } from './serialize';
+import { gmuxBridge } from '../../bridge';
 
 /** Line presets the menu offers. Past 1,000 rows a PNG stops being useful. */
 export const CAPTURE_PRESETS = [250, 1000] as const;
@@ -51,7 +52,7 @@ export const CAPTURE_PRESETS = [250, 1000] as const;
 /** Hard ceiling on rasterized rows (a 2,000-row PNG measured 47 MB). */
 const MAX_CAPTURE_ROWS = 1000;
 
-type CaptureBridge = NonNullable<GmuxCaptureExtras['capture']>;
+type CaptureBridge = NonNullable<InstalledGmuxApi['capture']>;
 
 /** The slice of Terminal the selection dance needs. */
 type TerminalLike = Pick<
@@ -61,7 +62,7 @@ type TerminalLike = Pick<
 
 /** The capture surface on the preload bridge, or null on older preloads. */
 export function captureBridge(): CaptureBridge | null {
-  const api = window.gmux as (GmuxCaptureExtras & object) | undefined;
+  const api = gmuxBridge();
   return api?.capture ?? null;
 }
 

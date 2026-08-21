@@ -36,12 +36,13 @@
 
 import { useEffect, useMemo } from 'react';
 import { create } from 'zustand';
-import type { GmuxRecentsExtras, RecentProject } from '@shared/ipc';
+import type { InstalledGmuxApi, RecentProject } from '@shared/ipc';
 import {
   LOCAL_MACHINE_ID,
   targetKey,
   workspaceTarget
 } from '@shared/workspace-target';
+import { gmuxBridge } from '../bridge';
 
 /**
  * How many rows the home screen holds. The narrow window shows three, and that
@@ -50,17 +51,14 @@ import {
  */
 export const HOME_RECENTS_MAX = 5;
 
-type RecentsBridge = NonNullable<GmuxRecentsExtras['recents']>;
+type RecentsBridge = NonNullable<InstalledGmuxApi['recents']>;
 
 function bridge(): RecentsBridge | null {
   // `typeof window` is checked because this module reads the bridge as soon as
   // it loads, and a unit test imports it into a plain node environment where
   // there is no window at all.
   if (typeof window === 'undefined') return null;
-  return (
-    (window.gmux as (typeof window.gmux & GmuxRecentsExtras) | undefined)
-      ?.recents ?? null
-  );
+  return gmuxBridge()?.recents ?? null;
 }
 
 /** Is this build able to remember recent projects at all? */

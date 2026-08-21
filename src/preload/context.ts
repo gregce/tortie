@@ -21,7 +21,7 @@ import { invoke } from './bridge';
  * the command from the typed operation before it runs, so the renderer says
  * what it wants done and never how to do it.
  */
-export const context: NonNullable<GmuxContextExtras['context']> = {
+export const context: GmuxContextExtras['context'] = {
   scan: (input) => invoke('context:scan', input),
   skillsCapability: () => invoke('context:skillsCapability'),
   skillsPlan: (input) => invoke('context:skillsPlan', input),
@@ -51,7 +51,7 @@ export const context: NonNullable<GmuxContextExtras['context']> = {
  * and the lines that were on it, and main refuses a stale hash, so "a person
  * agreed to THESE bytes" cannot be forged from this side of the bridge.
  */
-export const config: NonNullable<GmuxConfigExtras['config']> = {
+export const config: GmuxConfigExtras['config'] = {
   rows: () => invoke('config:rows'),
   confirm: (input) => invoke('config:confirm', input),
   forget: (id) => invoke('config:forget', id)

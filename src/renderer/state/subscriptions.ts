@@ -23,17 +23,7 @@
  */
 
 import type { StoreApi } from 'zustand';
-import type {
-  GmuxActivityExtras,
-  GmuxFsExtras,
-  GmuxLogExtras,
-  GmuxMachinesExtras,
-  GmuxNoticeExtras,
-  GmuxScrollbackExtras,
-  GmuxSettingsExtras,
-  GmuxShellPathExtras,
-  GmuxSpecStoryExtras
-} from '@shared/ipc';
+import type { InstalledGmuxApi } from '@shared/ipc';
 import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
 import { isDurabilityNotice } from '@shared/notice';
 import { formatScrollbackBytes } from '@shared/scrollback';
@@ -43,6 +33,7 @@ import { errorPayload, errorText } from './errors';
 import { loadLocal } from './local';
 import { LS_ACTIVE_PROJECT } from './projects-slice';
 import { pullPendingShellOpen } from './shell-open';
+import { gmuxBridge } from '../bridge';
 
 type AppStore = StoreApi<AppState>;
 
@@ -53,7 +44,7 @@ type AppStore = StoreApi<AppState>;
  * was in flight is never dropped.
  */
 export async function hydrateAppState(store: AppStore): Promise<void> {
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
   if (!gmux) return;
   const { getState, setState } = store;
   try {
@@ -160,10 +151,10 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
  * shows no Machines section and reports no machines. Feature-detected here
  * rather than assumed, so the boot of a build without it is unchanged.
  */
-function machinesExtras(): NonNullable<GmuxMachinesExtras['machines']> | null {
-  const gmux = window.gmux as typeof window.gmux | undefined;
+function machinesExtras(): InstalledGmuxApi['machines'] | null {
+  const gmux = gmuxBridge();
   if (!gmux) return null;
-  return (gmux as typeof gmux & GmuxMachinesExtras).machines ?? null;
+  return gmux.machines ?? null;
 }
 
 /**
@@ -215,9 +206,9 @@ async function readMachineAgents(store: AppStore): Promise<void> {
  * capture's own 10,000 ms deadline.
  */
 async function readShellPathReady(store: AppStore): Promise<void> {
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
   if (!gmux) return;
-  const sessions = gmux.sessions as typeof gmux.sessions & GmuxShellPathExtras;
+  const sessions = gmux.sessions;
   if (typeof sessions.shellPathReady !== 'function') {
     store.getState().applyShellPathReady();
     return;
@@ -254,7 +245,7 @@ const shortName = (name: string): string =>
  */
 function showDegraded(store: AppStore, notice: DurabilityNotice): void {
   const { getState } = store;
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
   if (notice.kind === 'snapshot-failed') {
     // Disk full first: it is the one cause the user can clear, and the
     // sentence tells them what to do regardless of which pass failed.
@@ -319,9 +310,7 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     // NOT the damaged sentence. The file is intact and Tortie could not
     // open it, which is a permission or a read only volume, and the user
     // needs to look at the folder rather than hunt for a quarantine.
-    const fsExtras = gmux
-      ? (gmux.fs as typeof gmux.fs & GmuxFsExtras)
-      : null;
+    const fsExtras = gmux ? gmux.fs : null;
     const reveal = fsExtras?.reveal;
     getState().toast('error', 'Tortie cannot read your session list.', {
       sticky: true,
@@ -363,9 +352,7 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     // characters and both clamped, so the user read "Your session list
     // was damaged. An earlier copy is…" and never saw the outcome. These
     // are 42 and 39.
-    const fsExtras = gmux
-      ? (gmux.fs as typeof gmux.fs & GmuxFsExtras)
-      : null;
+    const fsExtras = gmux ? gmux.fs : null;
     const reveal = fsExtras?.reveal;
     getState().toast(
       'error',
@@ -435,9 +422,7 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     // of the research sentence ("Details are in the logs.") does not fit
     // the toast's 58 characters beside the first, so it moved into the
     // action, which is where it already pointed.
-    const logExtras = gmux
-      ? (gmux as typeof gmux & GmuxLogExtras).log
-      : null;
+    const logExtras = gmux ? gmux.log : null;
     const openFolder = logExtras?.openFolder;
     getState().toast('info', 'Tortie quit unexpectedly last time.', {
       sticky: true,
@@ -480,9 +465,7 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     // "agents may not start" is. 47 characters, which is two lines of about
     // 26 beside the action button. The shell's own name is in the log, which
     // is where the action goes, because a path does not fit here.
-    const logExtras = gmux
-      ? (gmux as typeof gmux & GmuxLogExtras).log
-      : null;
+    const logExtras = gmux ? gmux.log : null;
     const openFolder = logExtras?.openFolder;
     getState().toast('error', 'Your shell did not answer. Agents may not start.', {
       sticky: true,
@@ -536,9 +519,7 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     // name `shortName` can produce: 53 characters against the 58 the column
     // holds.
     const short = shortName(notice.machineLabel);
-    const logExtras = gmux
-      ? (gmux as typeof gmux & GmuxLogExtras).log
-      : null;
+    const logExtras = gmux ? gmux.log : null;
     const openFolder = logExtras?.openFolder;
     getState().toast(
       'error',
@@ -571,11 +552,9 @@ function showNotice(store: AppStore, notice: GmuxNotice): void {
     showDegraded(store, notice);
     return;
   }
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
   const openSettings = (): void => {
-    void (
-      gmux as (typeof gmux & GmuxSettingsExtras) | undefined
-    )?.openSettings?.();
+    void gmux?.openSettings?.();
   };
   if (notice.kind === 'discarding') {
     // A toast is clamped to TWO LINES (S10, .toast-text) and beside the
@@ -630,18 +609,16 @@ let activeDispose: (() => void) | null = null;
  */
 export function startAppSubscriptions(store: AppStore): () => void {
   if (activeDispose !== null) return activeDispose;
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
   if (!gmux) return () => undefined;
   const { getState, setState } = store;
 
-  const activityExtras = gmux as typeof gmux & GmuxActivityExtras;
-  const scrollbackExtras =
-    (gmux as typeof gmux & GmuxScrollbackExtras).scrollback ?? null;
-  const specstoryExtras =
-    (gmux as typeof gmux & GmuxSpecStoryExtras).specstory ?? null;
+  const activityExtras = gmux;
+  const scrollbackExtras = gmux.scrollback ?? null;
+  const specstoryExtras = gmux.specstory ?? null;
   // Phase 19 item 9. Only the backlog drain lives here; the notices
   // themselves arrive on scrollback.onNotice, the channel they all share.
-  const noticeExtras = (gmux as typeof gmux & GmuxNoticeExtras).notice ?? null;
+  const noticeExtras = gmux.notice ?? null;
 
   const unsubs: Array<() => void> = [];
   const keep = (unsub: (() => void) | undefined): void => {

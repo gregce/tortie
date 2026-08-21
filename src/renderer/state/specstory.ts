@@ -14,18 +14,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { GmuxSpecStoryExtras } from '@shared/ipc';
 import { captureDefaultFor } from '@shared/settings';
 import type { SpecStoryStatus } from '@shared/specstory-status';
 import { useSettingsStore } from '../settings/settings-store';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
-type Bridge = NonNullable<GmuxSpecStoryExtras['specstory']>;
+type Bridge = NonNullable<InstalledGmuxApi['specstory']>;
 
 function bridge(): Bridge | null {
-  return (
-    (window.gmux as (typeof window.gmux & GmuxSpecStoryExtras) | undefined)
-      ?.specstory ?? null
-  );
+  return gmuxBridge()?.specstory ?? null;
 }
 
 let cached: SpecStoryStatus | null = null;

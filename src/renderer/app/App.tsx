@@ -19,8 +19,6 @@
 import React, { useEffect } from 'react';
 import type {
   AnyMenuActionWithProjects,
-  GmuxMenuExtras,
-  GmuxQuitExtras,
   MenuActionWithFind
 } from '@shared/ipc';
 import { OPEN_RECENT_ON_PREFIX, OPEN_RECENT_PREFIX } from '@shared/ipc';
@@ -179,6 +177,7 @@ import type { RemoteHistoryProbeSpec } from '../scm/p107-history-shot';
 // section drew.
 import { driveLocalRuns } from '../scm/p120-runs-shot';
 import type { LocalRunsProbeSpec } from '../scm/p120-runs-shot';
+import { gmuxBridge } from '../bridge';
 
 // PHASE 81 harness hook, armed at module load because the moment it has to
 // see, the session list arriving, is over before any drive can start. It
@@ -810,9 +809,7 @@ function runMenuAction(action: AnyMenuActionWithProjects): void {
 
 function useMenuActions(): void {
   useEffect(() => {
-    const bridge = window.gmux as
-      | (typeof window.gmux & GmuxMenuExtras)
-      | undefined;
+    const bridge = gmuxBridge();
     if (typeof bridge?.onMenuAction !== 'function') return;
     // ui:menuAction is typed `MenuActionWithFind` — the union main's
     // sendMenuAction actually sends (Phase 16, G1c; it used to say
@@ -1308,11 +1305,7 @@ function useShotLayoutHook(): void {
       extraProjectIds = [];
       for (const id of extraIds) {
         await window.gmux?.sessions.kill(id).catch(() => undefined);
-        const extras = window.gmux?.sessions as
-          | (typeof window.gmux.sessions & {
-              discard?: (id: string) => Promise<void>;
-            })
-          | undefined;
+        const extras = window.gmux?.sessions;
         if (typeof extras?.discard === 'function') {
           await extras.discard(id).catch(() => undefined);
         }
@@ -1345,9 +1338,7 @@ const QUIT_TOAST_MS = 1_500;
 
 function useQuitRequests(): void {
   useEffect(() => {
-    const bridge = window.gmux as
-      | (typeof window.gmux & GmuxQuitExtras)
-      | undefined;
+    const bridge = gmuxBridge();
     if (
       typeof bridge?.onQuitRequested !== 'function' ||
       typeof bridge.quit !== 'function'

@@ -12,6 +12,7 @@ import type { GitLogEntry, GitStatusResult } from '@shared/types';
 import { groupFiles } from '../scm/groups';
 import { errorPayload, errorText, useApp } from './store';
 import { onRepoChanged } from './repo-changed';
+import { gmuxBridge } from '../bridge';
 
 // Re-export the pure grouping module so SCM components can keep importing
 // everything git-shaped from this store module.
@@ -129,7 +130,7 @@ export function gitErrorLine(err: unknown): string {
 let initialized = false;
 
 export const useGit = create<GitState>((set, get) => {
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
 
   // Non-reactive bookkeeping (not in state: no renders on timer churn).
   const inflightStatus = new Map<string, Promise<void>>();

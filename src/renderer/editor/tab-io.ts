@@ -19,13 +19,6 @@
  * than to rely on every caller remembering.
  */
 
-import type {
-  GmuxFsExtras,
-  GmuxGitSyncExtras,
-  GmuxImageExtras,
-  // Phase 73. The read only review of a folder on another machine.
-  GmuxMachinesExtras
-} from '@shared/ipc';
 import { errorText, useApp } from '../state/store';
 import { remoteSaveRefused } from '../app/machine-copy';
 import type {
@@ -36,6 +29,7 @@ import { getWorkingModel, resetWorkingModel } from './monaco-loader';
 import { dirOf } from './paths';
 import { fileInRepo } from './tab-identity';
 import type { EditorTab } from './tab-types';
+import { gmuxBridge } from '../bridge';
 
 /**
  * One plain sentence for a person, never a JSON body and never a stack
@@ -99,11 +93,9 @@ export interface TabIo {
 }
 
 export function createTabIo(deps: TabIoDeps): TabIo {
-  const gmux = window.gmux as typeof window.gmux | undefined;
-  const fsExtras = gmux ? (gmux.fs as typeof gmux.fs & GmuxFsExtras) : null;
-  const imageFs = gmux
-    ? (gmux.fs as typeof gmux.fs & GmuxImageExtras)
-    : null;
+  const gmux = gmuxBridge();
+  const fsExtras = gmux ? gmux.fs : null;
+  const imageFs = gmux ? gmux.fs : null;
 
   const loadContents = async (id: string, path: string): Promise<void> => {
     if (!gmux) return;
@@ -176,9 +168,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     id: string,
     commit: OpenFileCommitRef
   ): Promise<void> => {
-    const git = gmux
-      ? (gmux.git as typeof gmux.git & GmuxGitSyncExtras)
-      : null;
+    const git = gmux ? gmux.git : null;
     const tab = deps.byId(id);
     if (git === null || tab === undefined) return;
     if (typeof git.commitFileDiff !== 'function') {
@@ -241,9 +231,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     id: string,
     remote: OpenFileRemoteRef
   ): Promise<void> => {
-    const machines = gmux
-      ? (gmux as typeof gmux & GmuxMachinesExtras).machines
-      : undefined;
+    const machines = gmux ? gmux.machines : undefined;
     const tab = deps.byId(id);
     if (tab === undefined) return;
     if (machines === undefined || typeof machines.reviewFile !== 'function') {

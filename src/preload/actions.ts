@@ -13,7 +13,7 @@ import type { GmuxActionsExtras } from '../shared/ipc';
 import { EVT_ACTIONS_CHANGED } from '../shared/ipc';
 import { invoke, on } from './bridge';
 
-export const actions: NonNullable<GmuxActionsExtras['actions']> = {
+export const actions: GmuxActionsExtras['actions'] = {
   runs: (input) => invoke('actions:runs', input),
   jobs: (input) => invoke('actions:jobs', input),
   observe: (repoPath) => invoke('actions:observe', repoPath),

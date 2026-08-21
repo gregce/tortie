@@ -28,11 +28,6 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import './terminal.css';
-import type {
-  GmuxApi,
-  GmuxPowerExtras,
-  GmuxTermStreamExtras
-} from '@shared/ipc';
 import type { GmuxErrorPayload, Session, SessionStatus } from '@shared/types';
 import { useApp } from '../state/store';
 // Phase 12.11: a terminal zooms by changing its FONT, never by CSS scaling —
@@ -62,6 +57,7 @@ import {
   TERMINAL_RIGHT_CLICK_SELECTS_WORD,
   TERMINAL_SCROLLBACK
 } from './theme';
+import { gmuxBridge } from '../bridge';
 
 export interface TerminalPaneProps {
   sessionId: string;
@@ -210,7 +206,7 @@ export function TerminalPane({
     const container = mountRef.current;
     if (!container || restorable) return undefined;
 
-    const gmux: GmuxApi | undefined = window.gmux;
+    const gmux = gmuxBridge();
     if (!gmux) {
       setOverlay({
         // The old detail read "window.gmux is missing — preload did not
@@ -364,7 +360,7 @@ export function TerminalPane({
 
     // ---- output stream + flow-control acks (subscribe BEFORE attach so
     //      the initial redraw burst is never missed) ------------------------
-    const extras = gmux.term as GmuxApi['term'] & GmuxTermStreamExtras;
+    const extras = gmux.term;
     const ack =
       typeof extras.ack === 'function' ? extras.ack.bind(extras) : null;
     const unsubData = gmux.term.onData(sessionId, (chunk) => {
@@ -637,8 +633,8 @@ export function TerminalPane({
   // renderer owns the atlas. Feature-detected, so an older preload simply
   // leaves the behaviour as it was.
   useEffect(() => {
-    const bridge = window.gmux as typeof window.gmux & GmuxPowerExtras;
-    const subscribe = bridge.onPowerResume;
+    const bridge = gmuxBridge();
+    const subscribe = bridge?.onPowerResume;
     if (typeof subscribe !== 'function') return;
     return subscribe(() => {
       // Phase 28: if the pane fell back to the DOM renderer at context loss,

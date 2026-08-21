@@ -68,6 +68,7 @@ import { isMarkdownPath } from './markdown/markdown-path';
 // `gmux-preview:` handler so the tab and the handler cannot disagree.
 import { canPreviewPath } from '@shared/preview-types';
 import { baseName } from './paths';
+import { gmuxBridge } from '../bridge';
 
 // The tab vocabulary lives in ./tab-types (Phase 42 stage 8) so ./tab-io can
 // name an EditorTab without importing this store. Re-exported here because
@@ -215,7 +216,7 @@ function shouldFocusFor(req: OpenFileRequest): boolean {
 let initialized = false;
 
 export const useEditor = create<EditorState>((set, get) => {
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
 
   const patchTab = (id: string, patch: Partial<EditorTab>): void => {
     set((s) => ({

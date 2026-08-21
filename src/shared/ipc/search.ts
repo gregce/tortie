@@ -260,12 +260,16 @@ export const searchResultsChannel = (searchId: string): string =>
   `search:results:${searchId}`;
 
 /**
- * OPTIONAL `search` surface on window.gmux, feature-detected by the Search
- * view (`typeof window.gmux.search?.start === 'function'`) so an older preload
- * degrades to "no Search view" instead of throwing.
+ * `search` surface on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxSearchExtras {
-  search?: {
+  search: {
     /** Subscribe BEFORE calling start(), with an id you minted. */
     onResults(searchId: string, cb: (p: SearchProgress) => void): Unsubscribe;
     start(input: ContentSearchInput): Promise<SearchStarted>;
@@ -332,12 +336,16 @@ export interface SymbolsInvokeChannelMap {
 }
 
 /**
- * OPTIONAL `symbols` surface on window.gmux, feature-detected by the palette
- * (`typeof window.gmux.symbols?.query === 'function'`) so an older preload
- * degrades to "no Go to Symbol" instead of throwing.
+ * `symbols` surface on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxSymbolsExtras {
-  symbols?: {
+  symbols: {
     query(input: SymbolQueryInput): Promise<SymbolQueryResult>;
     ensure(repoPath: string): Promise<SymbolEnsureResult>;
     release(repoPath: string): Promise<void>;
@@ -528,13 +536,16 @@ export interface QuickOpenWarmInput {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the palette
- * (`typeof window.gmux.quickOpen?.query === 'function'`) — an older preload
- * leaves ⌘P showing "Quick open is unavailable in this build" rather than
- * throwing.
+ * Top-level extra on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxQuickOpenExtras {
-  quickOpen?: {
+  quickOpen: {
     query(input: QuickOpenQueryInput): Promise<QuickOpenResult>;
     warm(input: QuickOpenWarmInput): Promise<void>;
   };

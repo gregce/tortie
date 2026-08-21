@@ -31,10 +31,11 @@
  * order, and the last file the user opened wins the active tab.
  */
 
-import type { GmuxShellExtras, ShellPendingOpen } from '@shared/ipc';
+import type { ShellPendingOpen } from '@shared/ipc';
 import { isLocalTarget, targetOfProject } from '@shared/workspace-target';
 import { requestOpenFile } from './open-file';
 import { useApp } from './store';
+import { gmuxBridge } from '../bridge';
 
 /**
  * The serial chain. Every delivery is appended here, so at most one
@@ -57,9 +58,7 @@ export function pullPendingShellOpen(): Promise<void> {
 
 /** One delivery, from the take to the emit. Only the chain calls this. */
 async function deliverPendingShellOpen(): Promise<void> {
-  const gmux = window.gmux as
-    | (typeof window.gmux & GmuxShellExtras)
-    | undefined;
+  const gmux = gmuxBridge();
   // Feature-detected: an older preload has no pull, and launches still work
   // because the slot lives in main.
   if (typeof gmux?.takePendingOpen !== 'function') return;

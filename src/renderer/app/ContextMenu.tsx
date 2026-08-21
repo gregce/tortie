@@ -8,11 +8,8 @@
  * environments) the request is a silent no-op.
  */
 
-import type {
-  GmuxPopupMenuExtras,
-  PopupMenuIcon,
-  PopupMenuInput
-} from '@shared/ipc';
+import type { PopupMenuIcon, PopupMenuInput } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
 /**
  * The menu vocabulary lives HERE, with the bridge that consumes it (Phase 42
@@ -95,9 +92,7 @@ function resolvePicked(
  * Resolves after the menu closes (dismissal runs nothing).
  */
 export function showNativeMenu(menu: MenuSpec): void {
-  const popup = (
-    window.gmux as unknown as GmuxPopupMenuExtras | undefined
-  )?.popupMenu;
+  const popup = gmuxBridge()?.popupMenu;
   if (typeof popup !== 'function') return;
 
   const input: PopupMenuInput = {

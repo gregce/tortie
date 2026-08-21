@@ -7,10 +7,11 @@
 
 // ---------------------------------------------------------------------------
 // APPENDED by the SCM stream (Phase 3) — new channels/types only, nothing
-// above was modified. OPTIONAL bridge extension: the SCM UI feature-detects
-// `typeof window.gmux.git.init === 'function'` and hides the §6.3
-// [Initialize repository] button when absent, so it works against the
-// frozen Phase-2 preload unchanged.
+// above was modified. It was declared an OPTIONAL bridge extension at the
+// time, so the SCM UI feature-detected it and hid the §6.3
+// [Initialize repository] button when it was absent. Phase 122 made it
+// required. The check is still there and it now asks whether there is a
+// bridge at all.
 //
 // INTEGRATOR wiring:
 //   'git:init' → main: spawn `git init` in repoPath (reject with GIT_FAILED
@@ -24,10 +25,18 @@ export interface ScmInvokeChannelMap {
   'git:init': { req: [repoPath: string]; res: void };
 }
 
-/** OPTIONAL extensions to GmuxApi['git'], feature-detected by the SCM UI. */
+/**
+ * Extensions to GmuxApi['git'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
+ */
 export interface GmuxGitExtras {
   /** Initialize a repository in a non-git project folder. */
-  init?(repoPath: string): Promise<void>;
+  init(repoPath: string): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,8 +49,9 @@ export interface GmuxGitExtras {
 // Wiring (done by this stream): main registers the channels in
 // src/main/git/depth-ipc.ts via registerGitDepthIpc, called from
 // registerGitIpc (the existing git registration point); preload appends the
-// methods to the `git` object. All OPTIONAL bridge extensions — the renderer
-// feature-detects each (`typeof window.gmux.git.branches === 'function'`).
+// methods to the `git` object. All were declared OPTIONAL bridge extensions
+// at the time. Phase 122 made every one of them required, and the renderer's
+// own checks stayed.
 // ---------------------------------------------------------------------------
 
 import type {
@@ -85,18 +95,23 @@ export interface GitDepthInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['git'], feature-detected by the renderer
- * (`typeof window.gmux.git.branches === 'function'`, etc.).
+ * Extensions to GmuxApi['git'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxGitDepthExtras {
-  branches?(repoPath: string): Promise<GitBranchInfo[]>;
-  checkout?(input: GitCheckoutInput): Promise<void>;
-  createBranch?(input: GitCreateBranchInput): Promise<void>;
-  createTag?(input: GitCreateTagInput): Promise<void>;
-  cherryPick?(input: GitCherryPickInput): Promise<GitCherryPickResult>;
-  commitDetail?(input: GitCommitDetailInput): Promise<GitCommitDetail>;
-  remoteUrl?(repoPath: string): Promise<string | null>;
-  checkoutDetached?(input: GitCheckoutDetachedInput): Promise<void>;
+  branches(repoPath: string): Promise<GitBranchInfo[]>;
+  checkout(input: GitCheckoutInput): Promise<void>;
+  createBranch(input: GitCreateBranchInput): Promise<void>;
+  createTag(input: GitCreateTagInput): Promise<void>;
+  cherryPick(input: GitCherryPickInput): Promise<GitCherryPickResult>;
+  commitDetail(input: GitCommitDetailInput): Promise<GitCommitDetail>;
+  remoteUrl(repoPath: string): Promise<string | null>;
+  checkoutDetached(input: GitCheckoutDetachedInput): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -151,14 +166,19 @@ export interface GitBranchesInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['git'], feature-detected by the renderer
- * (`typeof window.gmux.git.remoteBranches === 'function'`, etc.).
+ * Extensions to GmuxApi['git'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxGitBranchExtras {
-  remoteBranches?(repoPath: string): Promise<GitRemoteBranchesResult>;
-  fetch?(repoPath: string): Promise<void>;
-  checkoutTracking?(input: GitCheckoutTrackingInput): Promise<void>;
-  deleteBranch?(input: GitDeleteBranchInput): Promise<GitDeleteBranchResult>;
+  remoteBranches(repoPath: string): Promise<GitRemoteBranchesResult>;
+  fetch(repoPath: string): Promise<void>;
+  checkoutTracking(input: GitCheckoutTrackingInput): Promise<void>;
+  deleteBranch(input: GitDeleteBranchInput): Promise<GitDeleteBranchResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -217,15 +237,20 @@ export interface GitSyncInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['git'], feature-detected by the renderer
- * (`typeof window.gmux.git.sync === 'function'`, etc.).
+ * Extensions to GmuxApi['git'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxGitSyncExtras {
-  commitFileDiff?(input: GitCommitFileDiffInput): Promise<GitCommitFileDiff>;
-  remotes?(repoPath: string): Promise<GitRemotesResult>;
-  push?(input: GitPushInput): Promise<GitPushResult>;
-  pull?(input: GitPullInput): Promise<GitPullResult>;
-  sync?(input: GitSyncInput): Promise<GitSyncResult>;
+  commitFileDiff(input: GitCommitFileDiffInput): Promise<GitCommitFileDiff>;
+  remotes(repoPath: string): Promise<GitRemotesResult>;
+  push(input: GitPushInput): Promise<GitPushResult>;
+  pull(input: GitPullInput): Promise<GitPullResult>;
+  sync(input: GitSyncInput): Promise<GitSyncResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,12 +293,16 @@ export interface GitGraphInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extension to GmuxApi['git'], feature-detected by the renderer
- * (`typeof window.gmux.git.graphLog === 'function'`) — an older preload leaves
- * the history pane on its flat single-column render rather than throwing.
+ * Extension to GmuxApi['git'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxGitGraphExtras {
-  graphLog?(input: GitGraphLogInput): Promise<GitGraphLogResult>;
+  graphLog(input: GitGraphLogInput): Promise<GitGraphLogResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -315,10 +344,14 @@ export interface GitIgnoreInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extension to GmuxApi['git'], feature-detected by the renderer
- * (`typeof window.gmux.git.checkIgnore === 'function'`) — an older preload
- * leaves the tree undimmed rather than throwing.
+ * Extension to GmuxApi['git'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxGitIgnoreExtras {
-  checkIgnore?(input: GitCheckIgnoreInput): Promise<string[]>;
+  checkIgnore(input: GitCheckIgnoreInput): Promise<string[]>;
 }

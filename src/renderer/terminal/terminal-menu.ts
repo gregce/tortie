@@ -42,7 +42,6 @@ import type { Session } from '@shared/types';
 // Phase 100. Every sentence about a machine is composed in one file, which is
 // the one the vocabulary audit reads. The menu item's label is one of them.
 import { READ_LAST_LINES_ITEM } from '../app/machine-copy';
-import type { GmuxScrollbackExtras } from '@shared/ipc';
 import type { SessionScrollbackFacts } from '@shared/scrollback';
 import { formatScrollbackSummary } from '@shared/scrollback';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
@@ -65,6 +64,8 @@ import {
   selectAll
 } from './capture';
 import type { TerminalSelectionSnapshot } from './capture';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
 /**
  * Create a session beside this one and put the two side by side — VS Code's
@@ -241,12 +242,9 @@ export function terminalMenuItems(
 
 /** The scrollback bridge, or null on a preload that predates it. */
 function scrollbackBridge():
-  | NonNullable<GmuxScrollbackExtras['scrollback']>
+  | NonNullable<InstalledGmuxApi['scrollback']>
   | null {
-  return (
-    (window.gmux as (Window['gmux'] & GmuxScrollbackExtras) | undefined)
-      ?.scrollback ?? null
-  );
+  return gmuxBridge()?.scrollback ?? null;
 }
 
 /**

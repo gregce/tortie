@@ -54,7 +54,13 @@ export interface ContextSnapshotInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the readout.
+ * Top-level extra on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  *
  * It is top-level and a bare function rather than an object with one method,
  * because there is one call and there will not be a second: everything else
@@ -62,7 +68,7 @@ export interface ContextSnapshotInvokeChannelMap {
  * already has.
  */
 export interface GmuxContextSnapshotExtras {
-  contextSnapshot?(sessionId: string): Promise<ContextSnapshot | null>;
+  contextSnapshot(sessionId: string): Promise<ContextSnapshot | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +250,13 @@ export interface ContextInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extra on window.gmux, feature-detected by `context/bridge.ts`.
+ * Extra on window.gmux.ts`.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  *
  * `scan` is the one the view cannot work without, so the bridge tests for it
  * and disables the whole view when it is absent. The four skills methods are
@@ -252,7 +264,7 @@ export interface ContextInvokeChannelMap {
  * write it is a state the panel renders honestly rather than a broken one.
  */
 export interface GmuxContextExtras {
-  context?: {
+  context: {
     scan(input: ContextScanInput): Promise<ContextScanResult>;
     skillsCapability(): Promise<SkillsCapability>;
     skillsPlan(input: ContextSkillsRunInput): Promise<SkillsPlanResult>;

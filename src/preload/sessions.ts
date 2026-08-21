@@ -46,6 +46,6 @@ export const sessions: InstalledSessionsApi = {
  * themselves arrive on `scrollback.onNotice`, and this exists only to collect
  * the ones main had to post before any window was open to hear them.
  */
-export const notice: NonNullable<GmuxNoticeExtras['notice']> = {
+export const notice: GmuxNoticeExtras['notice'] = {
   pending: () => invoke('notice:pending')
 };

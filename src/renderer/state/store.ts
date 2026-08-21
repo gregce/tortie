@@ -28,7 +28,8 @@
 
 import { create } from 'zustand';
 import type { Project, Session, SessionStatus } from '@shared/types';
-import type { GmuxLoginItemExtras } from '@shared/ipc';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 // A pure string helper with no imports of its own, so this does not close a
 // cycle back through the shell.
 import { parentDir } from '../app/format';
@@ -206,7 +207,12 @@ if (typeof window !== 'undefined') {
   pushSessionsPositionToMenu(useApp.getState().sessionOrientation);
 }
 
-/** Optional login-item bridge extras (Phase 6), feature-detected. */
-export function loginItemExtras(): GmuxLoginItemExtras {
-  return (window.gmux ?? {}) as unknown as GmuxLoginItemExtras;
+/**
+ * The installed bridge, or `undefined` when there is no preload (Phase 6, the
+ * login-item read; Phase 122 made the answer the whole bridge). The caller
+ * still feature-detects `getLoginItem`, because a build without the login
+ * item is a build without the bridge.
+ */
+export function loginItemExtras(): InstalledGmuxApi | undefined {
+  return gmuxBridge();
 }

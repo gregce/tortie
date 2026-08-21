@@ -21,10 +21,11 @@ import type { ShellOpenMenuActionId } from './shell';
 
 // ---------------------------------------------------------------------------
 // APPENDED by the app-shell stream (Phase 3) — new channels/types only,
-// nothing above was modified. All of these are OPTIONAL bridge extensions:
-// the shell feature-detects each method (`typeof fn === 'function'`) and
-// hides the corresponding affordance when absent, so the app works against
-// the frozen Phase-2 preload unchanged.
+// nothing above was modified. All of these were declared OPTIONAL bridge
+// extensions at the time, so the shell feature-detected each method and hid
+// the corresponding affordance when it was absent. Phase 122 made every
+// installed member required. The shell's checks are still there and they now
+// ask whether there is a bridge at all.
 //
 // INTEGRATOR wiring (main handler exists where noted):
 //   'sessions:discard' → core.discardSession(id) + broadcastSessions()
@@ -47,20 +48,30 @@ export interface ShellInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['sessions'], feature-detected by the shell
- * (`typeof window.gmux.sessions.discard === 'function'`).
+ * Extensions to GmuxApi['sessions'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxSessionExtras {
   /** Remove an exited/restorable session row (manifest delete). */
-  discard?(sessionId: string): Promise<void>;
+  discard(sessionId: string): Promise<void>;
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['projects'], feature-detected.
+ * Extensions to GmuxApi['projects'] that are DECLARED and never installed.
  *
  * The channel behind `rename`, 'projects:rename', never existed. Phase 77
  * removed it from ShellInvokeChannelMap. Anyone who implements renaming later
  * has to declare the channel again before wiring a preload method to it.
+ *
+ * `rename` STAYS OPTIONAL, and Phase 122 left it that way on purpose. This
+ * interface is not joined into `InstalledGmuxApi` and the preload does not
+ * install it, so making it required would make the installed type a lie in
+ * the other direction. A later round must not finish it off.
  */
 export interface GmuxProjectExtras {
   /** Rename a project tab. */
@@ -68,12 +79,15 @@ export interface GmuxProjectExtras {
 }
 
 /**
- * OPTIONAL app-level extras (Dock badge), feature-detected.
+ * App-level extras (Dock badge) that are DECLARED and never installed.
  *
  * The channel behind `setBadgeCount`, 'app:setBadgeCount', never existed.
  * Phase 77 removed it from ShellInvokeChannelMap. Anyone who implements the
  * Dock badge later has to declare the channel again before wiring a preload
  * method to it.
+ *
+ * `setBadgeCount` STAYS OPTIONAL for the reason `GmuxProjectExtras.rename`
+ * above gives. Nothing imports this interface and nothing installs it.
  */
 export interface GmuxAppExtras {
   /** Set the Dock badge to the global needs-input count (0 clears). */
@@ -123,10 +137,18 @@ export interface MenuEventPayloadMap {
   'ui:menuAction': [action: MenuActionWithFind];
 }
 
-/** OPTIONAL top-level extra on window.gmux, feature-detected by the shell. */
+/**
+ * Top-level extra on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
+ */
 export interface GmuxMenuExtras {
   /** Subscribe to native app-menu actions. */
-  onMenuAction?(cb: (action: MenuActionWithFind) => void): Unsubscribe;
+  onMenuAction(cb: (action: MenuActionWithFind) => void): Unsubscribe;
 }
 
 // ---------------------------------------------------------------------------
@@ -217,17 +239,30 @@ export interface HardeningInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extras on window.gmux, feature-detected by the renderer
- * (`typeof window.gmux.agentAvailability === 'function'`).
+ * Top-level extras on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxAgentExtras {
   /** Which agent CLIs are installed (cached in main for the app's lifetime). */
-  agentAvailability?(): Promise<AgentAvailability>;
+  agentAvailability(): Promise<AgentAvailability>;
 }
 
-/** OPTIONAL native-menu extra (unimplemented until the integrator wires it). */
+/**
+ * Native-menu extra (unimplemented until the integrator wires it).
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
+ */
 export interface GmuxPopupMenuExtras {
-  popupMenu?(input: PopupMenuInput): Promise<string | null>;
+  popupMenu(input: PopupMenuInput): Promise<string | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -256,12 +291,20 @@ export interface QuitInvokeChannelMap {
   'app:quit': { req: []; res: void };
 }
 
-/** OPTIONAL top-level extras on window.gmux, feature-detected by the shell. */
+/**
+ * Top-level extras on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
+ */
 export interface GmuxQuitExtras {
   /** Subscribe to native quit requests (⌘Q / Quit gmux menu item). */
-  onQuitRequested?(cb: () => void): Unsubscribe;
+  onQuitRequested(cb: () => void): Unsubscribe;
   /** Proceed with quitting (after the one-time §4 toast, or immediately). */
-  quit?(): Promise<void>;
+  quit(): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -335,17 +378,22 @@ export interface SettingsInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extras on window.gmux, feature-detected by renderers
- * (`typeof window.gmux.settingsGet === 'function'`).
+ * Top-level extras on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxSettingsExtras {
-  settingsGet?(): Promise<GmuxSettings>;
-  settingsSet?(patch: GmuxSettingsPatch): Promise<GmuxSettings>;
+  settingsGet(): Promise<GmuxSettings>;
+  settingsSet(patch: GmuxSettingsPatch): Promise<GmuxSettings>;
   /** Open/focus the Settings window (activity-bar gear; menu uses main). */
-  openSettings?(): Promise<void>;
-  agentFlagPresets?(): Promise<AgentFlagCatalogs>;
+  openSettings(): Promise<void>;
+  agentFlagPresets(): Promise<AgentFlagCatalogs>;
   /** Fires in EVERY window whenever the persisted settings change. */
-  onSettingsChanged?(cb: (settings: GmuxSettings) => void): Unsubscribe;
+  onSettingsChanged(cb: (settings: GmuxSettings) => void): Unsubscribe;
 }
 
 /**
@@ -513,13 +561,18 @@ export interface PowerEventPayloadMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the terminal
- * (`typeof window.gmux.onPowerResume === 'function'`). Without it the pane
- * keeps its stale atlas until the next resize, which is the behaviour before
- * Phase 19 and not a broken one.
+ * Top-level extra on window.gmux. Without it the pane keeps its stale atlas
+ * until the next resize, which is the behaviour before Phase 19 and not a
+ * broken one.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxPowerExtras {
-  onPowerResume?(cb: () => void): Unsubscribe;
+  onPowerResume(cb: () => void): Unsubscribe;
 }
 
 // ---------------------------------------------------------------------------
@@ -625,18 +678,22 @@ export interface UpdatesEventPayloadMap {
 }
 
 /**
- * OPTIONAL extra on window.gmux, feature-detected by the Settings window
- * and by the activity bar ring (`typeof window.gmux.updates?.state ===
- * 'function'`). A build without it shows no Updates row rather than a row
- * that throws, and no ring at all. The four Phase 58 members are optional
- * one by one, so an older preload without them simply has no ring.
+ * Extra on window.gmux. A build without it shows no Updates row rather than
+ * a row that throws, and no ring at all. The four Phase 58 members are
+ * optional one by one, so an older preload without them simply has no ring.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxUpdatesExtras {
-  updates?: {
+  updates: {
     state(): Promise<UpdateUiState>;
-    restartNow?(): Promise<void>;
-    whyFailed?(): Promise<void>;
-    repair?(): Promise<void>;
-    onChanged?(cb: (state: UpdateUiState) => void): Unsubscribe;
+    restartNow(): Promise<void>;
+    whyFailed(): Promise<void>;
+    repair(): Promise<void>;
+    onChanged(cb: (state: UpdateUiState) => void): Unsubscribe;
   };
 }

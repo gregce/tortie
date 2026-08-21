@@ -14,7 +14,7 @@
 import type { GmuxShellExtras } from '../shared/ipc';
 import { invoke } from './bridge';
 
-export const shell: Required<GmuxShellExtras> = {
+export const shell: GmuxShellExtras = {
   shellCommandStatus: () => invoke('shell:commandStatus'),
   installShellCommand: () => invoke('shell:installCommand'),
   removeShellCommand: () => invoke('shell:removeCommand'),

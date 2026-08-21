@@ -6,13 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import type {
-  GmuxLoginItemExtras,
-  GmuxShellExtras,
-  GmuxUpdatesExtras,
-  ShellCommandStatus,
-  UpdateUiState
-} from '@shared/ipc';
+import type { ShellCommandStatus, UpdateUiState } from '@shared/ipc';
 import type { LaunchableAgentKind } from '@shared/types';
 import { keyDisplay } from '@shared/keymap';
 import {
@@ -24,17 +18,14 @@ import type { PopOutFocus } from '../state/pop-out-focus';
 import { ScrollbackSection } from './ScrollbackSection';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
-
-function loginBridge(): GmuxLoginItemExtras {
-  return (window.gmux ?? {}) as unknown as GmuxLoginItemExtras;
-}
+import { gmuxBridge } from '../bridge';
 
 function LoginItemRow(): React.JSX.Element | null {
   const [on, setOn] = useState<boolean | null>(null); // null = loading
   const [error, setError] = useState<string | null>(null);
-  const extras = loginBridge();
+  const extras = gmuxBridge();
   const supported =
-    typeof extras.getLoginItem === 'function' &&
+    typeof extras?.getLoginItem === 'function' &&
     typeof extras.setLoginItem === 'function';
 
   useEffect(() => {
@@ -106,9 +97,9 @@ function ShellCommandRow(): React.JSX.Element | null {
   const [status, setStatus] = useState<ShellCommandStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const extras = (window.gmux ?? {}) as unknown as GmuxShellExtras;
+  const extras = gmuxBridge();
   const supported =
-    typeof extras.shellCommandStatus === 'function' &&
+    typeof extras?.shellCommandStatus === 'function' &&
     typeof extras.installShellCommand === 'function' &&
     typeof extras.removeShellCommand === 'function';
 
@@ -312,8 +303,8 @@ function PopOutFocusRow(): React.JSX.Element {
  */
 function UpdatesGroup(): React.JSX.Element | null {
   const [state, setState] = useState<UpdateUiState | null>(null);
-  const extras = (window.gmux ?? {}) as unknown as GmuxUpdatesExtras;
-  const supported = typeof extras.updates?.state === 'function';
+  const extras = gmuxBridge();
+  const supported = typeof extras?.updates?.state === 'function';
 
   useEffect(() => {
     if (!supported) return;

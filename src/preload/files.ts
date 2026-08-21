@@ -51,7 +51,7 @@ export const fs: InstalledFsApi = {
  * on this object comes from Tortie's own renderer, about a tab the user
  * opened.
  */
-export const preview: NonNullable<GmuxPreviewExtras['preview']> = {
+export const preview: GmuxPreviewExtras['preview'] = {
   url: (input) => invoke('preview:url', input),
   stats: (input) => invoke('preview:stats', input)
 };

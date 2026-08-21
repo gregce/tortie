@@ -1095,13 +1095,19 @@ export interface MachineTestEventPayloadMap {
 }
 
 /**
- * OPTIONAL extra on window.gmux, feature-detected the way `config` is.
+ * Extra on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  *
  * A build without it shows no Machines section, which is the ordinary case for
  * a person who has no other machine.
  */
 export interface GmuxMachinesExtras {
-  machines?: {
+  machines: {
     rows(): Promise<MachinesResult>;
     reload(): Promise<MachinesResult>;
     tailscaleNames(): Promise<TailscaleSourceResult>;

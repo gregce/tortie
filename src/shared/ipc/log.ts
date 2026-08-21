@@ -43,7 +43,7 @@ export interface LogInvokeChannelMap {
 
 /** The `window.gmux.log` surface the preload assembles (src/preload/log.ts). */
 export interface GmuxLogExtras {
-  log?: {
+  log: {
     append(line: RendererLogLine): Promise<void>;
     level(): Promise<LogLevel>;
     setLevel(level: LogLevel): Promise<void>;

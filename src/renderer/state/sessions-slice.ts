@@ -22,15 +22,8 @@ import type {
 import type {
   AskRestoreProjectAnswer,
   CaptureChoice,
-  GmuxActivityExtras,
-  GmuxAskRestoreProjectExtras,
-  GmuxMachinesExtras,
-  GmuxPastSessionsExtras,
-  GmuxScrollbackExtras,
-  GmuxSessionExtras,
-  GmuxSessionRestartExtras,
-  GmuxSessionRestoreExtras,
-  GmuxShellPathExtras,
+  InstalledGmuxApi,
+  InstalledSessionsApi,
   MachineSessionLinesResult,
   SavedSessionOutput
 } from '@shared/ipc';
@@ -70,6 +63,7 @@ import { defaultLaunchArgsFor } from '../settings/presets';
 import { captureDefaultForAgent } from './specstory';
 import { errorText } from './errors';
 import type { AppState } from './app-state';
+import { gmuxBridge } from '../bridge';
 
 export interface SessionsSlice {
   sessions: Session[];
@@ -457,39 +451,25 @@ export const createSessionsSlice: StateCreator<
   [],
   SessionsSlice
 > = (set, get) => {
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
 
-  const activityExtras = gmux
-    ? (gmux as typeof gmux & GmuxActivityExtras)
-    : null;
+  const activityExtras = gmux ?? null;
 
-  const sessionExtras = gmux
-    ? (gmux.sessions as typeof gmux.sessions &
-        GmuxSessionExtras &
-        GmuxSessionRestoreExtras &
-        GmuxSessionRestartExtras &
-        GmuxPastSessionsExtras &
-        GmuxAskRestoreProjectExtras &
-        GmuxShellPathExtras)
-    : null;
+  const sessionExtras = gmux ? gmux.sessions : null;
 
   // Phase 72: the saved output read. It is on the top-level scrollback surface
   // rather than on `sessions`, because it is the fourth pull of the same kind
   // as the three the Settings card already makes.
-  const scrollbackExtras = gmux
-    ? ((gmux as typeof gmux & GmuxScrollbackExtras).scrollback ?? null)
-    : null;
+  const scrollbackExtras = gmux ? (gmux.scrollback ?? null) : null;
 
   // PHASE 100. The one read this slice makes of another machine. It is read at
   // call time rather than captured here, because the panel can be opened long
   // after the store was built and a captured null would outlive the reason for
   // it.
-  const machinesExtras = ():
-    | NonNullable<GmuxMachinesExtras['machines']>
-    | null => {
-    const api = window.gmux as typeof window.gmux | undefined;
+  const machinesExtras = (): InstalledGmuxApi['machines'] | null => {
+    const api = gmuxBridge();
     if (api === undefined) return null;
-    return (api as typeof api & GmuxMachinesExtras).machines ?? null;
+    return api.machines ?? null;
   };
 
   /**
@@ -499,7 +479,7 @@ export const createSessionsSlice: StateCreator<
    * option it sends to main, and which sentence the toast carries.
    */
   const runRestore = async (
-    restore: NonNullable<GmuxSessionRestoreExtras['restore']>,
+    restore: InstalledSessionsApi['restore'],
     session: Session,
     withoutCapture: boolean
   ): Promise<void> => {
@@ -773,21 +753,20 @@ export const createSessionsSlice: StateCreator<
         // first read completes. Measured on a cold boot, the link read `quiet`
         // at 1 ms and `connected` at 504 ms, so a hotkey pressed inside that
         // window would be refused against a machine that is fine. This call
-        // reads memory in main and starts nothing.
-        const api = gmux.machines as typeof gmux.machines | undefined;
+        // reads memory in main and starts nothing. `machines` is a required
+        // member of the installed bridge, so there is no missing-member case to
+        // write here.
         let usable = false;
-        if (api !== undefined) {
-          try {
-            const result = await api.rows();
-            usable = result.rows.some(
-              (row) => row.id === effectiveMachineId && row.usable
-            );
-          } catch {
-            // A read that failed. It cannot say the machine is usable, so the
-            // create is refused. That is the sheet's behaviour too, where a
-            // failed read sets the list to empty and the Create button goes off.
-            usable = false;
-          }
+        try {
+          const result = await gmux.machines.rows();
+          usable = result.rows.some(
+            (row) => row.id === effectiveMachineId && row.usable
+          );
+        } catch {
+          // A read that failed. It cannot say the machine is usable, so the
+          // create is refused. That is the sheet's behaviour too, where a
+          // failed read sets the list to empty and the Create button goes off.
+          usable = false;
         }
         if (!usable) {
           const label = machineLabelFor(get().machineStates, effectiveMachineId);

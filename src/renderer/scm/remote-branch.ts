@@ -31,19 +31,17 @@
 
 import { create } from 'zustand';
 import type {
-  GmuxMachinesExtras,
+  InstalledGmuxApi,
   MachineBranchMode,
   MachineBranchResult
 } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { targetKey } from '@shared/workspace-target';
+import { gmuxBridge } from '../bridge';
 
 /** The machines bridge, or null on a build without one. */
-function machinesBridge(): NonNullable<GmuxMachinesExtras['machines']> | null {
-  const api = (globalThis as { window?: { gmux?: unknown } }).window?.gmux as
-    | GmuxMachinesExtras
-    | undefined;
-  return api?.machines ?? null;
+function machinesBridge(): InstalledGmuxApi['machines'] | null {
+  return gmuxBridge()?.machines ?? null;
 }
 
 /** True when this build can read the branch for a folder on another machine. */

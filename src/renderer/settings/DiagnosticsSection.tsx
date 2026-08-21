@@ -20,14 +20,13 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import type { GmuxLogExtras, LogLevel } from '@shared/ipc';
+import type { InstalledGmuxApi, LogLevel } from '@shared/ipc';
 import { Switch } from './Switch';
 import './diagnostics.css';
+import { gmuxBridge } from '../bridge';
 
-function bridge(): NonNullable<GmuxLogExtras['log']> | null {
-  return (
-    (window.gmux as (Window['gmux'] & GmuxLogExtras) | undefined)?.log ?? null
-  );
+function bridge(): NonNullable<InstalledGmuxApi['log']> | null {
+  return gmuxBridge()?.log ?? null;
 }
 
 export function DiagnosticsSection(): React.JSX.Element {

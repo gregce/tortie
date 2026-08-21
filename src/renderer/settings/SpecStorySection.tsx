@@ -43,7 +43,6 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import type { GmuxSpecStoryExtras } from '@shared/ipc';
 import type {
   SpecStoryBinaryInfo,
   SpecStoryCaptureAgent,
@@ -58,14 +57,13 @@ import { AgentIcon, Codicon } from '../icons';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
 import './specstory.css';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
-type Bridge = NonNullable<GmuxSpecStoryExtras['specstory']>;
+type Bridge = NonNullable<InstalledGmuxApi['specstory']>;
 
 function bridge(): Bridge | null {
-  return (
-    (window.gmux as (Window['gmux'] & GmuxSpecStoryExtras) | undefined)
-      ?.specstory ?? null
-  );
+  return gmuxBridge()?.specstory ?? null;
 }
 
 /** A read of the status, with the instant it was taken (ages freeze here). */

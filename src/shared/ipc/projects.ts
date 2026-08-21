@@ -76,20 +76,30 @@ export interface ImageProjectInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extension to GmuxApi['fs'], feature-detected by the editor
- * (`typeof window.gmux.fs.readImage === 'function'`).
+ * Extension to GmuxApi['fs'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxImageExtras {
   /** Read one image for the viewer (worktree or HEAD). */
-  readImage?(input: ImageReadInput): Promise<ImageReadResult>;
+  readImage(input: ImageReadInput): Promise<ImageReadResult>;
 }
 
 /**
- * OPTIONAL extension to GmuxApi['projects'], feature-detected by the shell
- * (`typeof window.gmux.projects.create === 'function'` hides New Project…).
+ * Extension to GmuxApi['projects'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxProjectCreateExtras {
-  create?(input: CreateProjectInput): Promise<CreateProjectResult>;
+  create(input: CreateProjectInput): Promise<CreateProjectResult>;
 }
 
 /**
@@ -262,17 +272,20 @@ export const cloneProgressChannel = (cloneId: string): string =>
   `projects:cloneProgress:${cloneId}`;
 
 /**
- * OPTIONAL surface on window.gmux.projects, feature detected by the home
- * screen (`typeof window.gmux.projects.clone === 'function'`) so an older
- * preload hides the Clone row instead of throwing. Same pattern as the
- * create extras.
+ * Surface on window.gmux.projects. Same pattern as the create extras.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxProjectCloneExtras {
-  clonePreflight?(input: ClonePreflightInput): Promise<ClonePreflight>;
-  clone?(input: CloneStartInput): Promise<{ cloneId: string }>;
-  cancelClone?(cloneId: string): Promise<void>;
+  clonePreflight(input: ClonePreflightInput): Promise<ClonePreflight>;
+  clone(input: CloneStartInput): Promise<{ cloneId: string }>;
+  cancelClone(cloneId: string): Promise<void>;
   /** Subscribe BEFORE calling clone(), with an id you minted. */
-  onCloneProgress?(
+  onCloneProgress(
     cloneId: string,
     cb: (p: CloneProgress | CloneDone) => void
   ): Unsubscribe;
@@ -378,13 +391,18 @@ export interface RecentsEventPayloadMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the renderer
- * (`typeof window.gmux.recents?.list === 'function'`). Without it the home
- * screen simply has no recents block, which is a state the screen already has
- * and already looks right in.
+ * Top-level extra on window.gmux. Without it the home screen simply has no
+ * recents block, which is a state the screen already has and already looks
+ * right in.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxRecentsExtras {
-  recents?: {
+  recents: {
     list(): Promise<RecentProject[]>;
     missing(): Promise<string[]>;
     /** Phase 92: the machine is optional and omitting it means this Mac. */
@@ -498,12 +516,17 @@ export interface ProjectPickerInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extension to GmuxApi['projects'], feature detected by the New
- * Project dialog. Without it the dialog opens the frozen picker rather than
- * hiding its button.
+ * Extension to GmuxApi['projects']. Without it the dialog opens the frozen
+ * picker rather than hiding its button.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxProjectPickerExtras {
-  pickDirectoryFor?(purpose: DirectoryPickPurpose): Promise<string | null>;
+  pickDirectoryFor(purpose: DirectoryPickPurpose): Promise<string | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -569,12 +592,18 @@ export interface RemoteProjectInvokeChannelMap {
 }
 
 /**
- * OPTIONAL extension to GmuxApi['projects'], feature detected by the shell.
- * Without it the File menu item does nothing a person can reach, so the shell
- * says this build cannot open a folder on a machine rather than throwing.
+ * Extension to GmuxApi['projects']. Without it the File menu item does
+ * nothing a person can reach, so the shell says this build cannot open a
+ * folder on a machine rather than throwing.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxRemoteProjectExtras {
-  addRemote?(input: AddRemoteProjectInput): Promise<AddRemoteProjectResult>;
+  addRemote(input: AddRemoteProjectInput): Promise<AddRemoteProjectResult>;
 }
 
 /**

@@ -41,9 +41,14 @@ export interface TermExitPayload {
 }
 
 /**
- * OPTIONAL extensions to GmuxApi['term'], feature-detected by the terminal
- * renderer (`typeof window.gmux.term.ack === 'function'`). INTEGRATOR: add
- * these two methods to the `term` object in src/preload/index.ts:
+ * Extensions to GmuxApi['term']. INTEGRATOR: add these two methods to the
+ * `term` object in src/preload/index.ts:.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  *
  *   ack: (sessionId, bytes) =>
  *     ipcRenderer.send(termAckChannel(sessionId), bytes),
@@ -60,9 +65,9 @@ export interface TermExitPayload {
  */
 export interface GmuxTermStreamExtras {
   /** Ack `bytes` of received term:data as consumed (flow control). */
-  ack?(sessionId: string, bytes: number): void;
+  ack(sessionId: string, bytes: number): void;
   /** Subscribe to unexpected attach-client exits for a session. */
-  onExit?(
+  onExit(
     sessionId: string,
     cb: (payload: TermExitPayload) => void
   ): Unsubscribe;
@@ -110,8 +115,13 @@ export interface DropInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extras on window.gmux, feature-detected by the renderer
- * (`typeof window.gmux.pathForFile === 'function'`).
+ * Top-level extras on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxDropExtras {
   /**
@@ -120,8 +130,8 @@ export interface GmuxDropExtras {
    * lookup throws. NEVER copy, wrap, or re-`new File()` a dropped File before
    * calling this — that is what breaks path resolution (research 16 §4.2).
    */
-  pathForFile?(file: File): string;
-  drop?: {
+  pathForFile(file: File): string;
+  drop: {
     strategies(): Promise<ImageDropTable>;
     prepare(paths: string[]): Promise<DropPrepareResult>;
     persist(input: DropPersistInput): Promise<DropPersistResult>;
@@ -238,11 +248,16 @@ export interface TerminalCaptureInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the terminal
- * renderer (`window.gmux.capture !== undefined`).
+ * Top-level extra on window.gmux.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxCaptureExtras {
-  capture?: {
+  capture: {
     viewport(input: CaptureViewportInput): Promise<CaptureResult>;
     image(input: CaptureImageInput): Promise<CaptureResult>;
     saveLast(): Promise<CaptureSaveResult>;
@@ -351,12 +366,17 @@ export interface TerminalScrollInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by the terminal
- * renderer (`window.gmux.scroll !== undefined`). Without it the pane simply
- * has no gmux scroll surface — nothing else regresses.
+ * Top-level extra on window.gmux. Without it the pane simply has no gmux
+ * scroll surface — nothing else regresses.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxScrollExtras {
-  scroll?: {
+  scroll: {
     state(input: TerminalScrollPollInput): Promise<TerminalScrollState>;
     by(input: TerminalScrollByInput): Promise<TerminalScrollState>;
     to(input: TerminalScrollToInput): Promise<TerminalScrollState>;
@@ -455,13 +475,18 @@ export interface ScrollbackInvokeChannelMap {
 }
 
 /**
- * OPTIONAL top-level extra on window.gmux, feature-detected by both renderers
- * (`typeof window.gmux.scrollback?.stats === 'function'`). Without it the
- * Settings card renders its controls with no estimate rather than dead rows,
- * and the session menu simply has no information item.
+ * Top-level extra on window.gmux. Without it the Settings card renders its
+ * controls with no estimate rather than dead rows, and the session menu
+ * simply has no information item.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
  */
 export interface GmuxScrollbackExtras {
-  scrollback?: {
+  scrollback: {
     stats(): Promise<ScrollbackStats>;
     session(sessionId: string): Promise<SessionScrollbackFacts | null>;
     report(): Promise<string>;
@@ -470,7 +495,7 @@ export interface GmuxScrollbackExtras {
      * the panel opens. Optional, and the panel says it has nothing when an
      * older preload does not carry it.
      */
-    saved?(sessionId: string): Promise<SavedSessionOutput | null>;
+    saved(sessionId: string): Promise<SavedSessionOutput | null>;
     /**
      * WIDENED by Phase 19 item 9 — see ScrollbackEventPayloadMap above. The
      * renderer switches on `kind`, and `ScrollbackNotice` is still one of the

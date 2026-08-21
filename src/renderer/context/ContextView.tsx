@@ -120,6 +120,7 @@ import { groupMenuItems, menuAt, rowMenuItems } from './menus';
 import type { ContextMenuDeps, ContextRowActions } from './menus';
 import { useContext } from './store';
 import { onContextChanged } from './bridge';
+import { reveal } from '../tree/fs-bridge';
 import { useSessionContext } from '../state/context-session';
 import type { ContextDriftEntry } from '@shared/context-snapshot';
 import type { ContextSkillPinCheck } from '@shared/ipc';
@@ -586,10 +587,12 @@ export function ContextSection({
         });
       },
       revealPath: (path) => {
-        const fs = (window.gmux ?? {}) as unknown as {
-          fs?: { reveal?(p: string): Promise<void> };
-        };
-        void fs.fs?.reveal?.(path);
+        // PHASE 122. This was a cast of `window.gmux` to a hand written shape
+        // with two optional members. Every member of an installed bridge is
+        // required now, so the cast said nothing the declaration does not
+        // already say. `ContextDetailTab.tsx` already reaches Finder through
+        // the renderer's one reveal helper, and this call site now does too.
+        void reveal(path).catch(() => undefined);
       },
       copyText: (text) => {
         void navigator.clipboard.writeText(text).then(

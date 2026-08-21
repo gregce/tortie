@@ -42,7 +42,6 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import type { GmuxContextSnapshotExtras } from '@shared/ipc';
 import {
   describeSessionContext,
   diffContextSnapshot,
@@ -56,17 +55,16 @@ import {
   type SessionContextHeader
 } from '@shared/context-snapshot';
 import { formatAge } from '../app/format';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
 /** Which mode the Context view is in. One component, two modes. */
 export type ContextViewMode = 'browse' | 'session';
 
-type Bridge = NonNullable<GmuxContextSnapshotExtras['contextSnapshot']>;
+type Bridge = NonNullable<InstalledGmuxApi['contextSnapshot']>;
 
 function bridge(): Bridge | null {
-  return (
-    (window.gmux as (typeof window.gmux & GmuxContextSnapshotExtras) | undefined)
-      ?.contextSnapshot ?? null
-  );
+  return gmuxBridge()?.contextSnapshot ?? null;
 }
 
 /**

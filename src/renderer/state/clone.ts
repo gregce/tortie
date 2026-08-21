@@ -35,11 +35,11 @@
 
 import { create } from 'zustand';
 import type {
-  ClonePreflight,
-  CloneProgress,
   CloneDone,
   CloneFailureKind,
-  GmuxProjectCloneExtras
+  ClonePreflight,
+  CloneProgress,
+  InstalledGmuxApi
 } from '@shared/ipc';
 import { CLONE_GH_HINT, cloneFailureMessage } from '@shared/clone-copy';
 import { normalizeCloneUrl } from '@shared/clone-url';
@@ -56,16 +56,16 @@ import {
   suggestedProjectParent,
   useApp
 } from './store';
+import { gmuxBridge } from '../bridge';
 
 // ---------------------------------------------------------------------------
 // The bridge
 // ---------------------------------------------------------------------------
 
-type ProjectsBridge = NonNullable<typeof window.gmux>['projects'] &
-  GmuxProjectCloneExtras;
+type ProjectsBridge = InstalledGmuxApi['projects'];
 
 function bridge(): ProjectsBridge | undefined {
-  return window.gmux?.projects as ProjectsBridge | undefined;
+  return gmuxBridge()?.projects;
 }
 
 /**

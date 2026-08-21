@@ -34,8 +34,8 @@
  * can read back.
  */
 
-import type { Session } from '@shared/types';
 import { useApp } from '../state/store';
+import { gmuxBridge } from '../bridge';
 
 /** What the harness asks this driver to do. */
 export interface ShellPathProbeSpec {
@@ -228,7 +228,7 @@ async function timed(
 export async function driveShellPath(spec: ShellPathProbeSpec): Promise<void> {
   const pollMs = spec.pollMs ?? 100;
   const runMs = spec.runMs ?? 20_000;
-  const gmux = window.gmux as typeof window.gmux | undefined;
+  const gmux = gmuxBridge();
   console.log(`[shell-path-probe] arming, ${String(sinceArm())} ms since load`);
 
   if (spec.prepare !== undefined && spec.prepare > 0) {
@@ -277,11 +277,7 @@ export async function driveShellPath(spec: ShellPathProbeSpec): Promise<void> {
     .getState()
     .sessions.filter((x) => x.status === 'restorable' && x.machine === undefined);
   const wanted = restorable.slice(0, spec.restore ?? 0);
-  const extras = gmux
-    ? (gmux.sessions as typeof gmux.sessions & {
-        restore?(id: string): Promise<Session>;
-      })
-    : null;
+  const extras = gmux ? gmux.sessions : null;
   const pending: Array<Promise<unknown>> = [];
   for (const row of wanted) {
     if (extras?.restore === undefined) break;

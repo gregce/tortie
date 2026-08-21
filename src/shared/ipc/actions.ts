@@ -29,9 +29,17 @@ export interface ActionsInvokeChannelMap {
   'actions:release': { req: [repoPath: string]; res: void };
 }
 
-/** OPTIONAL surface, feature detected by the renderer. */
+/**
+ * The `actions` surface on window.gmux, which the Runs list reads.
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
+ */
 export interface GmuxActionsExtras {
-  actions?: {
+  actions: {
     runs(input: ActionsRunsInput): Promise<ActionsUpdate>;
     jobs(input: ActionsJobsInput): Promise<ActionsJobsResult>;
     observe(repoPath: string): Promise<void>;

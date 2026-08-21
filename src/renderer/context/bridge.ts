@@ -17,10 +17,11 @@
  * read configuration.
  */
 
-import type { GmuxContextExtras } from '@shared/ipc';
+import type { InstalledGmuxApi } from '@shared/ipc';
+import { gmuxBridge } from '../bridge';
 
 /** The bridge, typed by the shared declaration rather than a local mirror. */
-export type ContextBridgeApi = NonNullable<GmuxContextExtras['context']>;
+export type ContextBridgeApi = NonNullable<InstalledGmuxApi['context']>;
 
 /**
  * Config changed under this project.
@@ -35,13 +36,9 @@ export type ContextBridgeApi = NonNullable<GmuxContextExtras['context']>;
  */
 export type ContextChangedCallback = (cwd: string) => void;
 
-function extras(): GmuxContextExtras {
-  return (window.gmux ?? {}) as unknown as GmuxContextExtras;
-}
-
 /** The bridge, or null when this build cannot read agent configuration. */
 export function contextBridge(): ContextBridgeApi | null {
-  const api = extras().context;
+  const api = gmuxBridge()?.context;
   return typeof api?.scan === 'function' ? api : null;
 }
 

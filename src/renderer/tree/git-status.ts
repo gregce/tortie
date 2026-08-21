@@ -27,6 +27,7 @@ import {
   sameTarget,
   type WorkspaceTarget
 } from '@shared/workspace-target';
+import { gmuxBridge } from '../bridge';
 
 const NO_FILES: readonly GitFileStatus[] = [];
 
@@ -69,7 +70,7 @@ export const useTreeGitStatus = create<TreeGitStatusState>((set, get) => {
     target: WorkspaceTarget,
     repoPath: string
   ): Promise<void> => {
-    const gmux = window.gmux as typeof window.gmux | undefined;
+    const gmux = gmuxBridge();
     if (!gmux) return;
     const seq = ++fetchSeq;
     try {

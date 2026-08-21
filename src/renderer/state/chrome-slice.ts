@@ -6,7 +6,6 @@
  */
 
 import type { StateCreator } from 'zustand';
-import type { GmuxViewMenuExtras } from '@shared/ipc';
 import {
   clampDockWidth,
   clampSidebarWidth,
@@ -22,6 +21,7 @@ import {
 import { loadLocal, saveLocal } from './local';
 import type { SidebarViewId } from './sidebar-views';
 import type { AppState } from './app-state';
+import { gmuxBridge } from '../bridge';
 
 /**
  * Where the session surface lives (round 1, DESIGN.md §2.2): a tab strip
@@ -398,6 +398,9 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
 // Not feature-detected. The preload ships in the same bundle as this file, so
 // a missing method is our own bug — the type in src/shared/ipc is required
 // and a failure is logged loudly rather than degrading into a menu that lies.
+// Phase 122: the same is now true of the bridge as a whole. A renderer
+// with no bridge cannot draw a menu at all, so an absent one is thrown
+// and logged here rather than passed over.
 // ---------------------------------------------------------------------------
 
 let sessionsPositionPush: Promise<void> = Promise.resolve();
@@ -406,9 +409,12 @@ let sessionsPositionPush: Promise<void> = Promise.resolve();
 export function pushSessionsPositionToMenu(
   position: SessionOrientation
 ): void {
-  const bridge = window.gmux as typeof window.gmux & GmuxViewMenuExtras;
+  const bridge = gmuxBridge();
   sessionsPositionPush = Promise.resolve()
-    .then(() => bridge.setSessionsPosition(position))
+    .then(() => {
+      if (bridge === undefined) throw new Error('there is no bridge');
+      return bridge.setSessionsPosition(position);
+    })
     .catch((err: unknown) => {
       console.error(
         '[sessions-position] the View menu did not hear the store',
