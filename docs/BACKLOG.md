@@ -14685,6 +14685,41 @@ State first, then identity, then the things a person must consent to, then every
 - It does not touch Phase 130's files while 130 is unlanded, and it does not touch Phase 129's six files at all.
 
 
+## Phase 132 — the skill preview is unreadably tall and its install button is out of reach (operator reported 2026-08-21) QUEUED
+
+**Subject:** `fix(context): the skill preview scrolls on its own inside a wider sheet`
+**First body line:** `Phase 132: the skill preview is unreadably tall`
+**Semver:** patch. It repairs a layout and restores reach to a control that already exists.
+**Tier 2**, with a screenshot read at three window heights and one driven install. It touches no durability path, no manifest and no machines file.
+**Charter:** this entry, plus DESIGN.md and docs/DESIGN-SPEC.md, plus research 29 section 13.4, whose three refusals about this sheet still bind.
+
+### Read this before deciding what to build, because the capability he asked for already exists
+
+He asked to enable installing a skill directly, with the copy command kept beside it. **Direct install is already built, end to end**, and a builder who adds a second route will have duplicated the one thing this area is most careful about.
+
+The route today: `src/renderer/context/install/InstallSheet.tsx` previews, the store's `askConfirm` raises `src/renderer/context/install/InstallDialog.tsx`, its primary control calls `runConfirmed` in `install-store.ts:769`, and that reaches `executeSkillsPlan` in `src/main/skills/run.ts`, which is the only thing that spawns and which re-checks the lock guard immediately before it does. `src/renderer/context/install/InstallHost.tsx` explains why the confirm is a SECOND surface rather than a footer: a primary button that both approved and ran would make the confirmation a property of a click handler, and two surfaces make it the only route. **That design does not move.**
+
+**So the real question this phase must answer first, by driving it rather than reading it: can a person reach that control?** The strong hypothesis, and the reason his two complaints are probably one bug, is in `src/renderer/context/install/install.css:136`. The sheet is `width: min(880px, calc(100vw - var(--space-8) * 2))` with `max-height: calc(100vh - var(--space-8) * 2)` and `overflow-y: auto` **on the whole sheet**. Everything scrolls together, so a long preview pushes the primary control below the fold, and a person who does not scroll concludes there is no install button.
+
+**If that is what is happening, the fix is the layout and no new capability is added.** If driving it shows the control is genuinely absent or disabled in some state, say which state and fix that, and still add no second execute route.
+
+### The layout
+
+- **The preview gets its own scroll.** The sheet's head and its primary control stay put, and the preview between them scrolls inside itself. The control must be reachable at every window height without scrolling the sheet.
+- **The sheet gets wider.** 880px is the current ceiling. Widen it, keeping the `calc(100vw - ...)` guard so it never exceeds a small window, and report the value chosen and why.
+- **Copy stays.** `onCopyCommand` keeps working exactly as it does, because a person who would rather run it themselves must still be able to.
+
+**Proof:** photograph the sheet at three window heights, including one short enough that the preview overflows, and prove the primary control is visible in all three without scrolling the sheet; then drive a real install through the confirm on a scratch profile and prove the child ran and the skill landed; and prove copy still puts the command on the clipboard byte for byte.
+
+### What is NOT in this phase
+
+- **No second install route.** Plan then execute stays two calls and the confirm stays a separate surface. If a builder finds itself calling execute from the preview, it has broken the requirement and must stop.
+- **No featured row, no trending list, no recommendation.** Research 29 section 13.4's three refusals hold. The sheet opens from a query the person typed and shows what the search returned.
+- **No change to what the confirm shows.** The full command line stays on it.
+- **No change to the lock guard, the pins, or the spawn contract in `src/main/skills/run.ts`.**
+- **It touches none of the files Phases 129, 130 and 131 own.**
+
+
 ---
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -14791,3 +14826,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 129 queued, four chrome surfaces: the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file
 - 2026-08-21, Phase 130 queued, the install command is copyable, the machine pages are spaced, and the prose stops explaining itself
 - 2026-08-21, Phase 131 queued, the machine row says four times what it should say once, and it waits for Phase 130 because both edit machines-copy.ts
+- 2026-08-21, Phase 132 queued, the skill preview is unreadably tall and its install button is probably below the fold, and direct install already exists
