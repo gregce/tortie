@@ -14558,3 +14558,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, NEXT AFTER 118 AND 119, the release the operator delegated once, then the issue closeout, then Phases 101 to 104, the writes
 - 2026-08-21, Phase 119 shipped, decline capture on restore, `3f08719`, 0.62.0
 - 2026-08-21, Phase 118 shipped, remote children are owned and removal is one transaction, this commit, 0.62.1
+- 2026-08-21, RELEASE CUT, tag v0.62.1 on `a9ee32c`, signed, notarized and stapled, published as a DRAFT for the operator to release, carrying Phases 120, 109, 124, 121, 110, 117, 119 and 118
