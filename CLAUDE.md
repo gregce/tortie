@@ -38,6 +38,22 @@ Two rules follow, and they bind every future round:
 2. **Assemble, never reimplement.** Prefer a maintained library or a vendored MIT extract over new code: Pierre for diffs/trees, Monaco for editing, ripgrep for search, VS Code's own git parsers and fuzzyScorer copied rather than reinvented, codicons + material-icon-theme for iconography. The code gmux owns should be glue and the differentiators above.
 **Parity scope is capped after Phase 14 (search).** Everything after that goes to durability, the agent layer, correctness, and consolidation unless the user explicitly asks otherwise.
 
+## The backlog is scanned from the bottom (operator's rule, 2026-08-21)
+
+docs/BACKLOG.md ends with a section headed THE RUNNING LOG. **Append there, newest last, and never
+reorder it.** Every phase that starts, every phase that lands and every new entry queued gets ONE
+line, being the date, what happened, and the hash and version when it landed. The operator reads
+this file by tailing it, so the end of the file must say where the queue is. It had drifted to a
+research phase from four days earlier while six phases landed above it, which is what caused this
+rule.
+
+**The one exception he named.** An entry that was written down earlier but never queued MAY be
+edited in place when it is finally queued, because its reasoning belongs beside the entries it
+relates to. That is an edit to something that already exists. Anything NEW goes at the bottom.
+
+The full entry for a phase still lives in its own section, with its charter, its tier and its proof
+requirements. The log is a log.
+
 ## Growth guardrails (enforced at every commit)
 - One typed preload bridge derived from the shared contract in src/shared/ipc/ (domain files behind the index.ts facade, split in Phase 42) — never add a parallel wrapper "generation".
 - Organize by domain, not by accretion — TypeScript best practices over line-count rules: one module = one responsibility with a small, deliberate export surface; split when a file accumulates unrelated domains or its internal sections need comments to navigate (per-domain store slices, per-domain ipc registrars, colocated component CSS), not because it crossed an arbitrary length.

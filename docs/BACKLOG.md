@@ -14412,18 +14412,81 @@ against the keymap and the operator's recorded per-agent hotkeys. Shift-Command-
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
 to August 17 while the work was landing in the middle of it, so tailing the file told him nothing.
-The rule from here on is simple. Every phase that lands, every phase that starts, and every new
-entry queued gets one line appended at the BOTTOM of this section, newest last. The full entry for
-a phase still lives in its own section above, because that is where the reasoning belongs. This
-section is the log, not the specification.
+He wants to scan this file as easily as possible, and the way to do that is to put new things at
+the bottom.
+
+**The rule, and it binds every future round.**
+
+1. **New things go at the BOTTOM.** A new phase entry, a phase that starts, a phase that lands and
+   a phase that is queued all get one line appended at the end of this section, newest last. Never
+   reorder this section and never rewrite a line in it once the event has happened.
+2. **An old entry may still be edited in place**, and this is the exception the operator named. A
+   phase that was written down earlier but never queued can be updated where it sits when it is
+   finally queued, because its reasoning belongs beside the entries it relates to. That is an edit
+   to an existing entry rather than a new thing.
+3. **The full entry for a phase lives in its own section above.** This section is the log, not the
+   specification. One line per event, being the date, what happened, and the hash and version when
+   it landed.
 
 One line per event. The shape is: date, what happened, the hash and version if it landed.
 
-- 2026-08-20, Phase 120 shipped, runs started from a tag appear beside the branch's runs, `89226a0`, 0.59.0
-- 2026-08-20, Phase 109 shipped, the create sheet knows which agents that machine has, `d646830`, 0.60.0
-- 2026-08-20, Phase 124 shipped, the TypeScript reference graph tells the truth, `43b12fd`, 0.60.1
-- 2026-08-20, Phase 121 shipped, recents keep a path with a space in it, `3d883ab`, 0.60.2
-- 2026-08-20, Phase 110 shipped, see which agents each machine has in Settings, `3d60a08`, 0.61.0
+Everything from the tag v0.31.0 onward is backfilled below, so the log covers the whole release
+cycle rather than only the evening it was written.
+
+- 2026-08-17, Phase 46.1 shipped, the Runs pane reads clearly, `d1ce49f`, 0.31.1
+- 2026-08-17, Phase 67 shipped, unreachable is not dead, `95aa770`, 0.31.2
+- 2026-08-17, Phase 62.1 shipped, the recorded nits round, `a3dcb53`, 0.31.3
+- 2026-08-17, Phase 68 shipped, M1, the machine object behind the confirm gate, `d8b5e1f`, 0.32.0
+- 2026-08-17, Phase 68 shipped, M1, the machine object behind the confirm gate, `ab94847`, 0.32.0
+- 2026-08-17, Phase 69 shipped, M2, the exec plane speaks to a machine's own tmux, `4c86bea`, 0.33.0
+- 2026-08-17, Phase 70 shipped, M3, attach and create on a remote machine, `17f1dea`, 0.34.0
+- 2026-08-17, Phase 71 shipped, M4, the control plane and the partition harness, `e9351e8`, 0.35.0
+- 2026-08-17, Phase 74 shipped, the small-issue batch, `2867223`, 0.35.1
+- 2026-08-17, Phase 78 shipped, three font presets, and the screenshot that must keep matching, `7b429d5`, 0.36.0
+- 2026-08-17, Phase 79 shipped, the Machines screen tells you what to do, `3e1ba07`, 0.36.1
+- 2026-08-18, Phase 72 shipped, M5, remote restore, earned, `1741a01`, 0.37.0
+- 2026-08-18, Phase 80.1 shipped, session focus mode, the build, `8713547`, 0.38.0
+- 2026-08-18, Phase 77 shipped, the quit and suspend contract, `d47ecd7`, 0.38.1
+- 2026-08-18, Phase 79.1 shipped, Tortie makes the key and puts it on the machine, `dbbed64`, 0.39.0
+- 2026-08-18, Phase 73 shipped, M6, the last ladder rung, `ecd1b67`, 0.40.0
+- 2026-08-18, Phase 73.1 shipped, the second recorded nits round, `9fbe8ed`, 0.40.1
+- 2026-08-18, Phase 83 shipped, mac-pro is a machine Tortie will speak to, `069ef77`, 0.41.0
+- 2026-08-18, Phase 86 shipped, the splits and the two sheets you actually use, `f6cd1ad`, 0.42.0
+- 2026-08-18, Phase 84 shipped, getting a session to exist over there, and ending it honestly, `5e8aa02`, 0.43.0
+- 2026-08-18, Phase 90.1 shipped, a path string is not an identity, `f6e4e32`, 0.43.1
+- 2026-08-18, Phase 81 shipped, the session list stops waiting for your shell, `2f0e841`, 0.44.0
+- 2026-08-18, Phase 81.1 shipped, Restore turns on even when a boot read fails, `e5d2034`, 0.44.1
+- 2026-08-18, Phase 87 shipped, the copy stops explaining itself, `efafb86`, 0.44.2
+- 2026-08-19, Phase 91 shipped, capture is refused honestly on a remote session, `13dbec1`, 0.44.3
+- 2026-08-19, Phase 85 shipped, the status dot tells the truth on a connected machine, `5e4e217`, 0.44.4
+- 2026-08-19, Phase 90.2 shipped, Cmd-T finds or creates the project on the machine, `e61e836`, 0.45.0
+- 2026-08-19, Phase 89 shipped, a conversation comes back on a remote machine, `3cf14ad`, 0.46.0
+- 2026-08-19, Phase 89.1 shipped, the fault battery's redraw no longer throws, `32d901d`, 0.46.1
+- 2026-08-19, Phase 90.3 shipped, a remote folder is a project, `9d247ab`, 0.47.0
+- 2026-08-19, Phase 92 shipped, the home screen opens a folder on another machine, `8596b77`, 0.48.0
+- 2026-08-19, Phase 94 shipped, a session started in a remote tab runs on that machine, in that tab's folder, `eb61ffd`, 0.48.1
+- 2026-08-19, Phase 93 shipped, a session you cannot reach can still be cleared, `9f89497`, 0.49.0
+- 2026-08-19, Phase 96 shipped, the four defects on the remote surfaces, `1e3b062`, 0.49.1
+- 2026-08-19, Phase 95 shipped, asking a session that is not running where its scrollbar is, `1fc2c5f`, 0.49.2
+- 2026-08-19, Phase 97 shipped, untracked files in the remote Changes list, `2ca5310`, 0.50.0
+- 2026-08-20, Phase 98 shipped, search on a machine, `1f98e2b`, 0.51.0
+- 2026-08-20, Phase 99 shipped, Quick Open on a remote tab, `2e3eb86`, 0.52.0
+- 2026-08-20, Phase 100 shipped, read the last lines of a session on another machine, `ce56d1f`, 0.53.0
+- 2026-08-20, Phase 105 shipped, runs on a remote tab, `16d4d2c`, 0.54.0
+- 2026-08-20, Phase 106 shipped, branches on a remote tab, `02aed16`, 0.55.0
+- 2026-08-20, Phase 111 shipped, the nightly durability lane is red, `6487c4f`, 0.55.1
+- 2026-08-20, Phase 112 shipped, two smoke runs share one socket and one profile, `859a4a0`, 0.55.2
+- 2026-08-20, Phase 107 shipped, history on a remote tab, `99c19b8`, 0.57.0
+- 2026-08-20, Phase 115 shipped, SpecStory 2.10.0, signed so macOS stops killing it, `f97d69b`, 0.58.0
+- 2026-08-20, Phase 99.1 shipped, a list a machine cut is drawn as if it were whole, `caa07d3`, 0.58.1
+- 2026-08-20, Phase 116 shipped, the core fails closed once shutdown starts, `60bf5ac`, 0.58.2
+- 2026-08-20, Phase 114 shipped, three more shared roots, `abc32fa`, 0.58.3
+- 2026-08-20, Phase 108 shipped, Context on a machine, `11ec92e`, 0.59.0
+- 2026-08-20, Phase 120 shipped, a release run started from a tag never appears in Runs, `89226a0`, 0.59.1
+- 2026-08-20, Phase 109 shipped, which agents the machine you are creating on actually has, `d646830`, 0.60.0
+- 2026-08-20, Phase 124 shipped, the TypeScript project graph is not truthful, `43b12fd`, 0.60.1
+- 2026-08-20, Phase 121 shipped, recents encode a path with a space wrongly, `3d883ab`, 0.60.2
+- 2026-08-20, Phase 110 shipped, what exists where, in Settings, `3d60a08`, 0.61.0
 - 2026-08-21, Phase 117 shipped, an unreachable confirmation is not proof of absence, `682c870`, 0.61.1
 - 2026-08-21, Phase 118 started, remote children are owned and removal is one transaction, in wt-p118
 - 2026-08-21, Phase 119 running, decline capture on restore, in wt-p119
