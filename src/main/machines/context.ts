@@ -152,6 +152,21 @@ export interface RemoteMachineContext {
    */
   readonly acceptedTmuxVersion?: string | null;
   /**
+   * The label the person typed for this machine, or null (Phase 109).
+   *
+   * IT REACHES NO ARGV AND NO HASH. It exists so a refusal composed one
+   * machine away, e.g. `noRemoteProgramRefusal` in `./remote-argv.ts`, can
+   * name the machine the way the person named it instead of by its id.
+   * `label` is a presentation field, `MachineExecutionFields` deliberately
+   * does not carry it, and `npm run conformance:machines` condition 2 fails
+   * when the confirm hash moves for it.
+   *
+   * OPTIONAL, and absent means the same as null. A context written before
+   * this field existed is still a valid one, and every reader falls back to
+   * the machine id.
+   */
+  readonly label?: string | null;
+  /**
    * Tortie's own key for this machine, or null (Phase 84).
    *
    * It REACHES THE ARGV, and it is the only field here that Phase 83's note
@@ -322,6 +337,15 @@ export interface RemoteContextInput {
   readonly home?: string;
   /** This process's user id, for the control socket name. */
   readonly uid: number;
+  /**
+   * APPENDED (Phase 109): the label the person typed for this machine, or
+   * null. It is HANDED OVER rather than looked up, for the reason
+   * `tortieHostKeys` is: this module reads no store. It is NOT part of
+   * `fields`, because `MachineExecutionFields` carries only what decides what
+   * runs, and a label decides nothing. Absent, and null, both mean the row
+   * carries no label, and every reader falls back to the machine id.
+   */
+  readonly label?: string | null;
   /** Tortie's own identity record file. Named first on every command. */
   readonly tortieHostKeys: string;
   /**
@@ -396,6 +420,9 @@ export function buildRemoteMachineContext(
     // Phase 83. Taken from the fields the gate just agreed to, so an acceptance
     // that is not part of the confirmed hash cannot reach this object.
     acceptedTmuxVersion: input.fields.acceptedTmuxVersion ?? null,
+    // Phase 109. The name a refusal calls this machine. Presentation only: it
+    // reaches no argv and it is not on the confirm hash.
+    label: input.label ?? null,
     // Phase 84, item 7. The caller hands it over only when BOTH halves are on
     // this Mac. The person's own loaded keys are still offered, because
     // `IdentitiesOnly` is deliberately not set. See `SshCarriage.identityFile`.
@@ -447,6 +474,21 @@ export function registeredMachineIds(): string[] {
 }
 
 /**
+ * Drop ONE machine's context and its generation record (Phase 109, fix 7).
+ *
+ * `machines:remove` calls it after `forgetMachineSessions`. Before this phase
+ * a removed machine kept both rows in these maps for the life of the process,
+ * so a context nothing could reach still held the connection details and the
+ * generation number of a machine the person had told Tortie to forget. A
+ * machine added back later starts at generation 1 through
+ * {@link registerRemoteMachineContext} exactly as a new one does.
+ */
+export function forgetMachineRuntime(machineId: string): void {
+  remoteContexts.delete(machineId);
+  generations.delete(machineId);
+}
+
+/**
  * Drop every context and every generation.
  *
  * It replaces `resetTmuxContext()`, which `../tmux/supervisor.ts` re-exports
@@ -478,6 +520,28 @@ export interface MachineGeneration {
 
 const generations = new Map<string, MachineGeneration>();
 
+type GenerationListener = (machineId: string) => void;
+let generationListeners: GenerationListener[] = [];
+
+/**
+ * Called after any machine's generation bumps (Phase 109 fix round).
+ *
+ * The agent map binds every held answer to the generation that produced it,
+ * so the moment the generation moves, the map's view of that machine is
+ * all unknown. Without this hook nothing told the renderer, and an open
+ * create sheet kept greying tiles from the dead connection's answer until
+ * the next scan landed. The hook lets the map push the fresh view at the
+ * moment the old one stops being true.
+ */
+export function onMachineGenerationBumped(
+  cb: GenerationListener
+): () => void {
+  generationListeners.push(cb);
+  return () => {
+    generationListeners = generationListeners.filter((l) => l !== cb);
+  };
+}
+
 /** What is known about this machine's current connection. */
 export function machineGeneration(machineId: string): MachineGeneration {
   return generations.get(machineId) ?? { generation: 0, remotePath: null };
@@ -496,6 +560,7 @@ export function bumpMachineGeneration(machineId: string): MachineGeneration {
     remotePath: null
   };
   generations.set(machineId, next);
+  for (const cb of [...generationListeners]) cb(machineId);
   return next;
 }
 

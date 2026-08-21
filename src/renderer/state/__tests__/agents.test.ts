@@ -9,6 +9,7 @@ import type { AgentsScanResult, DetectedAgent } from '@shared/types';
 import {
   agentBlockedReason,
   agentShortLabel,
+  agentsGreyedByMachine,
   buildAgentOptions,
   defaultAgentChoice
 } from '../agents';
@@ -239,5 +240,136 @@ describe('defaultAgentChoice', () => {
     ]);
     const options = buildAgentOptions(scan, BOTH);
     expect(defaultAgentChoice(options, 'claude')).toBe('shell');
+  });
+});
+
+/**
+ * PHASE 109 — the third input. On a tab whose files are on a machine, that
+ * machine's own answer decides which tiles are selectable, and this Mac's
+ * scan stops deciding it. Research 58 §8 rows 1 and 2 are the defects these
+ * cases hold shut: a local `installed` bit greying a tile over there, and a
+ * failed scan being read as absent.
+ */
+describe('the machine answer decides (Phase 109)', () => {
+  const reading = (
+    agentId: string,
+    presence: 'present' | 'absent' | 'unknown'
+  ) => ({
+    agentId,
+    presence,
+    path: presence === 'present' ? `/usr/local/bin/${agentId}` : null
+  });
+
+  const view = (
+    agents: ReturnType<typeof reading>[]
+  ): import('@shared/ipc').MachineAgentsView => ({
+    machineId: 'studio',
+    askedAt: 1,
+    agents
+  });
+
+  it('greys a tile only on a positive absent', () => {
+    const scan = scanOf([row({ id: 'claude' }), row({ id: 'codex' })]);
+    const options = buildAgentOptions(
+      scan,
+      BOTH,
+      view([reading('claude', 'absent'), reading('codex', 'present')])
+    );
+    expect(options.find((o) => o.id === 'claude')?.installed).toBe(false);
+    expect(options.find((o) => o.id === 'codex')?.installed).toBe(true);
+  });
+
+  it('does not consult the local installed bit at all', () => {
+    // Installed there and NOT here: the tile draws on. This is defect row 1.
+    const scan = scanOf([
+      row({ id: 'droid', installed: false, binPath: null, version: null })
+    ]);
+    const options = buildAgentOptions(scan, BOTH, view([reading('droid', 'present')]));
+    expect(options.find((o) => o.id === 'droid')?.installed).toBe(true);
+    // Installed here and not there: the tile is greyed.
+    const other = buildAgentOptions(
+      scanOf([row({ id: 'droid' })]),
+      BOTH,
+      view([reading('droid', 'absent')])
+    );
+    expect(other.find((o) => o.id === 'droid')?.installed).toBe(false);
+  });
+
+  it('draws unknown on, and an agent the answer does not name on', () => {
+    const scan = scanOf([
+      row({ id: 'gemini', installed: false, binPath: null, version: null }),
+      row({ id: 'qwen', installed: false, binPath: null, version: null })
+    ]);
+    const options = buildAgentOptions(scan, BOTH, view([reading('gemini', 'unknown')]));
+    expect(options.find((o) => o.id === 'gemini')?.installed).toBe(true);
+    expect(options.find((o) => o.id === 'qwen')?.installed).toBe(true);
+  });
+
+  it('draws every tile on when nothing is held, the all-unknown view', () => {
+    const options = buildAgentOptions(null, BOTH, view([]));
+    for (const one of options) expect(one.installed).toBe(true);
+    expect(options).toHaveLength(12);
+  });
+
+  it('forces install to null on every option', () => {
+    const withInstall = row({ id: 'claude' });
+    withInstall.install = {
+      command: 'npm install -g x',
+      docUrl: 'https://example.com',
+      readOn: '2026-08-01',
+      canonicalIsPackageManager: true
+    } as NonNullable<DetectedAgent['install']>;
+    const options = buildAgentOptions(
+      scanOf([withInstall]),
+      BOTH,
+      view([reading('claude', 'absent')])
+    );
+    for (const one of options) expect(one.install).toBeNull();
+  });
+
+  it('leaves shell selectable, because the far side is never asked about it', () => {
+    const options = buildAgentOptions(null, BOTH, view([reading('claude', 'absent')]));
+    const shell = options.find((o) => o.id === 'shell');
+    expect(shell?.installed).toBe(true);
+  });
+
+  it('changes nothing on this Mac: the two-argument form and null agree', () => {
+    const scan = scanOf([
+      row({ id: 'claude' }),
+      row({ id: 'droid', installed: false, binPath: null, version: null })
+    ]);
+    expect(buildAgentOptions(scan, BOTH, null)).toEqual(
+      buildAgentOptions(scan, BOTH)
+    );
+  });
+});
+
+describe('agentsGreyedByMachine (Phase 109)', () => {
+  const view: import('@shared/ipc').MachineAgentsView = {
+    machineId: 'studio',
+    askedAt: 1,
+    agents: [{ agentId: 'claude', presence: 'absent', path: null }]
+  };
+
+  it('is true when that machine greyed at least one tile', () => {
+    const options = buildAgentOptions(null, BOTH, view);
+    expect(agentsGreyedByMachine(options, view)).toBe(true);
+  });
+
+  it('is false for this Mac even with a tile greyed by the local probe', () => {
+    const options = buildAgentOptions(null, { claude: false, codex: true });
+    expect(options.find((o) => o.id === 'claude')?.installed).toBe(false);
+    expect(agentsGreyedByMachine(options, null)).toBe(false);
+  });
+
+  it('is false when the answer greyed nothing', () => {
+    const allOn: import('@shared/ipc').MachineAgentsView = {
+      machineId: 'studio',
+      askedAt: null,
+      agents: []
+    };
+    expect(agentsGreyedByMachine(buildAgentOptions(null, BOTH, allOn), allOn)).toBe(
+      false
+    );
   });
 });

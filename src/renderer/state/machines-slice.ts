@@ -18,7 +18,7 @@
  */
 
 import type { StateCreator } from 'zustand';
-import type { MachineStateView } from '@shared/ipc';
+import type { MachineAgentsView, MachineStateView } from '@shared/ipc';
 import type { SessionMachine } from '@shared/types';
 import type { AppState } from './app-state';
 
@@ -31,7 +31,19 @@ export interface MachinesSlice {
    */
   machineStates: MachineStateView[];
 
+  /**
+   * Which agents each machine has, as main last heard (Phase 109).
+   *
+   * Main holds one answer per machine in memory, against that machine's
+   * connection generation, and pushes the whole list on every change. Empty
+   * until the first read completes, and empty on a build whose preload has no
+   * `machines.agents`, and in both states every tile draws on: only a
+   * positive absent may grey one.
+   */
+  machineAgents: MachineAgentsView[];
+
   applyMachineStates(states: MachineStateView[]): void;
+  applyMachineAgents(views: MachineAgentsView[]): void;
 }
 
 export const createMachinesSlice: StateCreator<
@@ -41,9 +53,14 @@ export const createMachinesSlice: StateCreator<
   MachinesSlice
 > = (set) => ({
   machineStates: [],
+  machineAgents: [],
 
   applyMachineStates(states) {
     set({ machineStates: states });
+  },
+
+  applyMachineAgents(views) {
+    set({ machineAgents: views });
   }
 });
 
@@ -159,4 +176,30 @@ export function confirmedMachines(
   states: readonly MachineStateView[]
 ): MachineStateView[] {
   return states.filter((one) => one.link !== 'refused');
+}
+
+/**
+ * The machine agents answer the agent board should read, or null for this Mac.
+ *
+ * PHASE 109. Null means "use this Mac's own detection", which is what
+ * `buildAgentOptions` did for every create before this phase. A machine
+ * nothing is held for gets an all-unknown view rather than null, because the
+ * board on a machine tab must never fall back to this Mac's scan: with no
+ * answer held every tile draws on, and only a positive absent from that
+ * machine may grey one.
+ */
+export function machineAgentsFor(
+  views: readonly MachineAgentsView[],
+  machineId: string | null | undefined
+): MachineAgentsView | null {
+  if (machineId === undefined || machineId === null || machineId === 'local') {
+    return null;
+  }
+  return (
+    views.find((one) => one.machineId === machineId) ?? {
+      machineId,
+      askedAt: null,
+      agents: []
+    }
+  );
 }

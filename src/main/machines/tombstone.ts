@@ -53,6 +53,13 @@ import { stopCapturingMachine } from './remote-capsule';
 // machine is gone.
 import { stopHarvestingMachine } from './remote-harvest';
 import { stopSyncingMachine } from './remote-store-sync';
+// Phase 109, fix 7. The two per generation memories this file used to leave
+// behind: the machine's agent answer and its stated home. Neither clears a
+// context or a generation, because those live in ./context.ts and the
+// `machines:remove` handler drops them with `forgetMachineRuntime` after this
+// function returns. Neither call sends anything to any machine.
+import { forgetMachineAgents } from './machine-agents';
+import { forgetRemoteMachineHome } from './remote-image';
 // Phase 72, Builder A. The one place a remote session meets the manifest.
 import { remoteRecordsForMachine } from './remote-record';
 import { forgetMachineRows } from './remote-sessions';
@@ -98,10 +105,14 @@ export function machineSessionCount(machineId: string): number {
  *     label, and the label is in the file the caller is about to rewrite.
  *  2. Saving stops for that machine, and so does reading its stores and
  *     copying its conversations (Phase 73).
- *  3. The connection is closed.
+ *  3. The per generation memories go: which agents it has and where its home
+ *     is (Phase 109, fix 7). Before that phase a removed machine kept both
+ *     for the life of the process.
+ *  4. The connection is closed.
  *
- * The CALLER removes the row from `machines.json` after this returns. Nothing
- * here sends anything to the machine.
+ * The CALLER removes the row from `machines.json` after this returns, and the
+ * `machines:remove` handler then drops the machine's context and generation
+ * with `forgetMachineRuntime`. Nothing here sends anything to the machine.
  */
 export function forgetMachineSessions(
   machineId: string,
@@ -111,6 +122,8 @@ export function forgetMachineSessions(
   stopCapturingMachine(machineId);
   stopHarvestingMachine(machineId);
   stopSyncingMachine(machineId);
+  forgetMachineAgents(machineId);
+  forgetRemoteMachineHome(machineId);
   closeControlPlane(machineId);
   return { tombstoned, commandsSent: 0 };
 }

@@ -11,19 +11,43 @@
  * from it starts the wrong program or none at all.
  */
 
-import { describe, expect, it } from 'vitest';
-import {
+import { describe, expect, it, vi } from 'vitest';
+
+// PHASE 109. The wire, replaced so the two refusal arms of the walk can be
+// driven for real: the facts read states a home and the program search finds
+// nothing. Everything else in this file is pure and uses the module as it is.
+vi.mock('../remote-run', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../remote-run')>()),
+  runRemoteRead: (_ctx: unknown, scriptId: string) => {
+    if (scriptId === 'machine-facts') {
+      return Promise.resolve({
+        payload: 'home=/Users/gdc\n',
+        generation: 1,
+        bytes: 16
+      });
+    }
+    return Promise.resolve({ payload: 'none none', generation: 1, bytes: 9 });
+  }
+}));
+
+const {
   REMOTE_ARGV_TIMEOUT_MS,
   assertArgvBelongsToMachine,
+  findRemoteProgram,
   parseProgramFind,
   parseRemoteWhich,
   rebaseRemoteDir,
   remoteSearchCount,
   remoteSearchDirs,
   remoteWhichCommand
-} from '../remote-argv';
-import { REMOTE_PATH_MARKER } from '../carriage';
-import { RESTORE_WRONG_MACHINE, noRemoteProgramRefusal } from '../remote-copy';
+} = await import('../remote-argv');
+const { REMOTE_PATH_MARKER } = await import('../carriage');
+const { RESTORE_WRONG_MACHINE, noRemoteProgramRefusal } = await import(
+  '../remote-copy'
+);
+const { GmuxError } = await import('../../errors');
+
+import type { RemoteMachineContext } from '../context';
 
 /** Wrap a value the way the far side's printf does. */
 function printed(value: string): string {
@@ -209,6 +233,20 @@ describe('rebasing one probe folder on that machine\'s own home', () => {
     expect(rebaseRemoteDir('./bin', '/Users/gdc')).toBeNull();
   });
 
+  /**
+   * PHASE 109, fix 4. Every folder list this module sends is joined with
+   * colons, and `pathTemplate` permits a colon in a configured path, so an
+   * entry holding one split into two wrong folders on the far side. It is
+   * refused whole and counted, the same answer a glob gets.
+   */
+  it('drops an entry holding a colon, because colons join the sent list', () => {
+    expect(rebaseRemoteDir('/opt/a:b', '/Users/gdc')).toBeNull();
+    expect(rebaseRemoteDir('~/odd:dir', '/Users/gdc')).toBeNull();
+    const { dirs, skipped } = remoteSearchDirs(['/opt/a:b'], '/Users/gdc');
+    expect(skipped).toBe(1);
+    expect(dirs.join(':')).not.toContain('a:b');
+  });
+
   /** Tortie composes no home path for another computer out of a guess. */
   it('drops a tilde entry when the machine stated no home', () => {
     expect(rebaseRemoteDir('~/.local/bin', '')).toBeNull();
@@ -297,5 +335,70 @@ describe('reading what the machine answered', () => {
   it('refuses an answer with no space in it at all', () => {
     expect(parseProgramFind('')).toBeNull();
     expect(parseProgramFind('none')).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 109. The two refusal arms of the walk, driven over the seam
+// ---------------------------------------------------------------------------
+
+describe('the walk that found nothing', () => {
+  const CTX: RemoteMachineContext = {
+    kind: 'remote',
+    machineId: 'studio-machine',
+    sshBin: '/usr/bin/ssh',
+    host: '127.0.0.1',
+    user: 'gdc',
+    port: 2222,
+    remoteTmuxPath: '/usr/bin/tmux',
+    socket: 'gmux-p109-unit',
+    controlPath: '/tmp/tortie-501/m-0123456789ab',
+    hostKeys: { tortie: '/t/known-machines', user: '/u/known_hosts' },
+    label: 'Studio'
+  };
+
+  /** The thrown payload, parsed the way the renderer parses it. */
+  async function refusalOf(
+    ctx: RemoteMachineContext,
+    bare: string
+  ): Promise<{ code: string; message: string }> {
+    try {
+      await findRemoteProgram(ctx, bare, []);
+    } catch (err) {
+      if (err instanceof GmuxError) {
+        return { code: err.payload.code, message: err.payload.message };
+      }
+      throw err;
+    }
+    throw new Error('the walk did not refuse');
+  }
+
+  it('throws AGENT_NOT_ON_MACHINE, so the sheet can draw a full block', async () => {
+    // The `AGENT_INTERPRETER_MISSING` precedent: a different failure gets a
+    // different code, because the surface's answer is different. Before this
+    // code the refusal fell through to one generic error line.
+    const { code } = await refusalOf(CTX, 'claude');
+    expect(code).toBe('AGENT_NOT_ON_MACHINE');
+  });
+
+  it('names the label the person typed, not the machine id', async () => {
+    const { message } = await refusalOf(CTX, 'claude');
+    expect(message).toContain('claude on Studio.');
+    expect(message).toContain('Install it on Studio');
+    expect(message).not.toContain('studio-machine');
+  });
+
+  it('falls back to the id for a context written before the label crossed', async () => {
+    const { label: _dropped, ...bare } = CTX;
+    const { message } = await refusalOf(bare as RemoteMachineContext, 'claude');
+    expect(message).toContain('claude on studio-machine.');
+  });
+
+  it('keeps INVALID_INPUT for a name that is not a plain program name', async () => {
+    // Nothing was asked of any machine for this one, so it is not an absence
+    // and it must never grey a tile through the fold back.
+    const { code, message } = await refusalOf(CTX, 'bad name');
+    expect(code).toBe('INVALID_INPUT');
+    expect(message).toContain('Studio');
   });
 });

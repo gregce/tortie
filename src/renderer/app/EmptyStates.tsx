@@ -25,12 +25,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import {
+  agentsGreyedByMachine,
   buildAgentOptions,
   defaultAgentChoice,
   INSTALL_NOTE_LINE,
   useAgentAvailability,
   type AgentPickerOption
 } from '../state/agents';
+// PHASE 109. On a tab whose files are on a machine, the fleet reads that
+// machine's own answer, and the caption for a greyed tile is one sentence
+// with NO install command, because the command Tortie holds was read for
+// this Mac.
+import { machineAgentsFor, machineLabelFor } from '../state/machines-slice';
+import { agentMissingOnMachine, agentsAbsentHint } from './machine-copy';
 import { useSettingsStore } from '../settings/settings-store';
 import { cloneAction } from '../state/clone';
 // Phase 12.12 item 1: the fleet board is a shared component now — the ⌘T
@@ -45,12 +52,12 @@ import { cloneAction } from '../state/clone';
 import { AgentGrid } from './AgentGrid';
 import { Codicon } from '../icons';
 import { HomeScreen } from './HomeScreen';
-import {
-  COPY_COMMAND_TOASTS,
-  TMUX_BUNDLE_INCOMPLETE_COPY,
-  TMUX_MISSING_COPY,
-  TMUX_VERSION_BLOCKED_COPY
-} from './tmux-block-copy';
+// PHASE 109 PUT THIS IMPORT ON ONE LINE. This file joined the machine
+// vocabulary audit, which strips single line import declarations before it
+// reads string literals, and a module path is not copy. Splitting it back
+// over six lines puts the path's own name in front of the audit again.
+// prettier-ignore
+import { COPY_COMMAND_TOASTS, TMUX_BUNDLE_INCOMPLETE_COPY, TMUX_MISSING_COPY, TMUX_VERSION_BLOCKED_COPY } from './tmux-block-copy';
 import './empty-states.css';
 
 /**
@@ -82,10 +89,25 @@ export function FirstRun(): React.JSX.Element {
  * tests can pin both sentences.
  */
 export function HintedInstallCaption({
-  option
+  option,
+  machineLabel = null
 }: {
   option: AgentPickerOption;
+  /**
+   * PHASE 109. Set on a tab whose files are on a machine. The caption is then
+   * one sentence naming that machine, and NO install command: the command
+   * Tortie holds was read for this Mac, and its package manager says nothing
+   * about the machine the session will run on.
+   */
+  machineLabel?: string | null;
 }): React.JSX.Element {
+  if (machineLabel !== null) {
+    return (
+      <span className="agent-missing-text">
+        {agentMissingOnMachine(option.label, machineLabel)}
+      </span>
+    );
+  }
   if (option.install === null) {
     return (
       <span className="agent-missing-text">
@@ -120,7 +142,23 @@ export function NoSessions(): React.JSX.Element {
     initSettings();
   }, [initSettings]);
 
-  const options = useMemo(() => buildAgentOptions(scan, avail), [scan, avail]);
+  // PHASE 109. The tab's own machine. On a machine tab the fleet reads that
+  // machine's answer, this Mac's scan stops deciding which tiles are
+  // selectable, and the label feeds the three sentences below.
+  const machineStates = useApp((s) => s.machineStates);
+  const machineAgents = useApp((s) => s.machineAgents);
+  const tabMachineId = project?.machineId ?? 'local';
+  const machineView = useMemo(
+    () => machineAgentsFor(machineAgents, tabMachineId),
+    [machineAgents, tabMachineId]
+  );
+  const machineLabel =
+    machineView !== null ? machineLabelFor(machineStates, tabMachineId) : null;
+
+  const options = useMemo(
+    () => buildAgentOptions(scan, avail, machineView),
+    [scan, avail, machineView]
+  );
   // Same resolution the ⌘T modal preselects with, so the accented tile and
   // the two-keystroke path always name the same agent.
   const primaryId = defaultAgentChoice(options, defaultAgent);
@@ -176,7 +214,16 @@ export function NoSessions(): React.JSX.Element {
           onHint={point}
           onUnhint={unpoint}
           ariaLabel="Start a session"
+          {...(machineLabel !== null ? { machineLabel } : {})}
         />
+
+        {/* PHASE 109. Once under the board, only when that machine's own
+            answer greyed at least one tile. An unknown answer greys nothing
+            and says nothing. */}
+        {machineLabel !== null &&
+        agentsGreyedByMachine(options, machineView) ? (
+          <p className="onb-hint">{agentsAbsentHint(machineLabel)}</p>
+        ) : null}
 
         <p className="onb-hint">
           Click one to start it in{' '}
@@ -189,7 +236,9 @@ export function NoSessions(): React.JSX.Element {
         </p>
 
         <div className="onb-caption" aria-live="polite">
-          {hinted !== null ? <HintedInstallCaption option={hinted} /> : null}
+          {hinted !== null ? (
+            <HintedInstallCaption option={hinted} machineLabel={machineLabel} />
+          ) : null}
         </div>
       </div>
     </div>

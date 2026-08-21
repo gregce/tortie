@@ -15,6 +15,10 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import type { AgentPickerOption } from '../state/agents';
 import { buildAgentOptions, useAgentAvailability } from '../state/agents';
+// PHASE 109. On a tab whose files are on a machine, the menu reads that
+// machine's own answer, so it greys the same rows the ⌘T board greys. The
+// sublabel stays the literal `not installed`.
+import { machineAgentsFor } from '../state/machines-slice';
 import { useSettingsStore } from '../settings/settings-store';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
@@ -71,7 +75,19 @@ export function useQuickCreateMenu(): (anchor: HTMLElement) => void {
     initSettings();
   }, [initSettings]);
 
-  const options = useMemo(() => buildAgentOptions(scan, avail), [scan, avail]);
+  // PHASE 109. The active tab's machine answer, or null on this Mac. A
+  // quick create lands in the active project, so the rows grey on the same
+  // answer the create itself will be judged by.
+  const machineAgents = useApp((s) => s.machineAgents);
+  const project = useApp((s) => s.activeProject());
+  const machineView = useMemo(
+    () => machineAgentsFor(machineAgents, project?.machineId),
+    [machineAgents, project?.machineId]
+  );
+  const options = useMemo(
+    () => buildAgentOptions(scan, avail, machineView),
+    [scan, avail, machineView]
+  );
 
   useEffect(() => {
     void warmAgentMenuIcons(options.map((o) => o.iconKey));

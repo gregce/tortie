@@ -12,15 +12,29 @@
  * two contexts are shapes rather than this machine's real state.
  */
 
-import { describe, expect, it } from 'vitest';
-import {
+import { describe, expect, it, vi } from 'vitest';
+
+// PHASE 109. The gate alone is replaced, so `buildRemoteMachineContext` can
+// be driven without a keychain record. The hash helper it also imports stays
+// real, because it is pure.
+vi.mock('../confirm', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../confirm')>()),
+  assertMachineMayConnect: () => {}
+}));
+
+const {
   REMOTE_CONF_PATH,
+  buildRemoteMachineContext,
+  forgetMachineRuntime,
+  machineContext,
+  machineGeneration,
+  registerRemoteMachineContext,
   remoteTmuxArgv,
+  setMachineRemotePath,
   shellCommand,
-  tmuxCommand,
-  type LocalMachineContext,
-  type RemoteMachineContext
-} from '../context';
+  tmuxCommand
+} = await import('../context');
+import type { LocalMachineContext, RemoteMachineContext } from '../context';
 
 const LOCAL: LocalMachineContext = {
   kind: 'local',
@@ -231,5 +245,100 @@ describe('the login shell command', () => {
     // The whole command is ONE argument, so ssh hands it to the far side's shell
     // verbatim rather than a local shell splitting it first.
     expect(plan.argv[plan.argv.length - 1]).toBe('echo hello');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 109. The label on the context, and the runtime a removal drops
+// ---------------------------------------------------------------------------
+
+describe('the label the person typed (Phase 109)', () => {
+  it('reaches no argv on either door', () => {
+    // The label exists so a far side refusal can name the machine the way the
+    // person named it. If any composer put it on a command, a presentation
+    // string would be reaching a process.
+    const labelled: RemoteMachineContext = { ...REMOTE, label: 'Pop Studio' };
+    const verb = tmuxCommand(labelled, ['list-sessions', '-F', '#{session_id}']);
+    const shell = shellCommand(labelled, 'command -v claude');
+    expect(verb.argv.join(' ')).not.toContain('Pop Studio');
+    expect(shell.argv.join(' ')).not.toContain('Pop Studio');
+    expect(
+      remoteTmuxArgv(labelled, ['kill-session']).join(' ')
+    ).not.toContain('Pop Studio');
+  });
+
+  it('changes not one byte of a composed command', () => {
+    const withOne = tmuxCommand({ ...REMOTE, label: 'Pop Studio' }, [
+      'list-sessions'
+    ]);
+    const withNone = tmuxCommand({ ...REMOTE, label: null }, ['list-sessions']);
+    const absent = tmuxCommand(REMOTE, ['list-sessions']);
+    expect(withOne).toEqual(withNone);
+    expect(withOne).toEqual(absent);
+  });
+
+  it('is carried by the builder and is null when the caller has none', () => {
+    // The gate is replaced by a no-op above; everything else in the builder is
+    // the real composition. `label` is not on MachineExecutionFields, which is
+    // the type level half of "the hash does not move for it";
+    // `npm run conformance:machines` condition 2 is the executable half.
+    const input = {
+      machineId: 'p109-label',
+      fields: {
+        host: '127.0.0.1',
+        user: 'greg',
+        port: 2222,
+        remoteTmuxPath: '/usr/bin/tmux',
+        acceptedTmuxVersion: null
+      },
+      packaged: false,
+      env: {} as NodeJS.ProcessEnv,
+      home: '/Users/x',
+      uid: 501,
+      tortieHostKeys: '/t/known-machines'
+    };
+    const named = buildRemoteMachineContext({ ...input, label: 'Pop OS' });
+    expect(named.label).toBe('Pop OS');
+    const bare = buildRemoteMachineContext(input);
+    expect(bare.label).toBeNull();
+  });
+});
+
+describe('forgetMachineRuntime (Phase 109, fix 7)', () => {
+  it('drops the context and the generation record for one machine', () => {
+    const ctx: RemoteMachineContext = { ...REMOTE, machineId: 'p109-forget' };
+    registerRemoteMachineContext(ctx);
+    setMachineRemotePath('p109-forget', '/usr/bin:/bin');
+    expect(machineGeneration('p109-forget')).toEqual({
+      generation: 1,
+      remotePath: '/usr/bin:/bin'
+    });
+    expect(machineContext('p109-forget')).toBe(ctx);
+
+    forgetMachineRuntime('p109-forget');
+    expect(machineGeneration('p109-forget')).toEqual({
+      generation: 0,
+      remotePath: null
+    });
+    expect(() => machineContext('p109-forget')).toThrow(/has not signed in/);
+  });
+
+  it('leaves every other machine alone', () => {
+    registerRemoteMachineContext({ ...REMOTE, machineId: 'p109-keep' });
+    registerRemoteMachineContext({ ...REMOTE, machineId: 'p109-drop' });
+    forgetMachineRuntime('p109-drop');
+    expect(machineGeneration('p109-keep').generation).toBe(1);
+    expect(machineContext('p109-keep').machineId).toBe('p109-keep');
+    forgetMachineRuntime('p109-keep');
+  });
+
+  it('makes a machine added back start at generation one, like a new one', () => {
+    registerRemoteMachineContext({ ...REMOTE, machineId: 'p109-again' });
+    registerRemoteMachineContext({ ...REMOTE, machineId: 'p109-again' });
+    expect(machineGeneration('p109-again').generation).toBe(2);
+    forgetMachineRuntime('p109-again');
+    registerRemoteMachineContext({ ...REMOTE, machineId: 'p109-again' });
+    expect(machineGeneration('p109-again').generation).toBe(1);
+    forgetMachineRuntime('p109-again');
   });
 });

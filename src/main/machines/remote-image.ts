@@ -204,9 +204,37 @@ const homes = new Map<string, { generation: number; home: string }>();
 export async function remoteMachineHome(
   ctx: RemoteMachineContext
 ): Promise<string> {
+  const answer = await remoteMachineHomeAnswer(ctx);
+  return answer.asked ? answer.home : '';
+}
+
+/**
+ * What one machine said about its home, or that it could not be asked
+ * (Phase 109, fix 3, research 58 section 1.6).
+ *
+ * THE THIRD ANSWER IS THE WHOLE REASON THIS FORM EXISTS. The wrapper above
+ * folds "the machine answered and stated no home" and "nothing reached the
+ * machine" into one empty string, and for a single create that is fine: the
+ * refusal a person then reads says what was searched. For the batched agent
+ * scan it is not fine. A failed facts read narrows the search to the two
+ * folders that need no home, and on the operator's own machine both installed
+ * agents live under the home, so one failed read would mark them absent for
+ * the rest of the connection with nothing on screen saying why. The scan
+ * calls THIS form and on `asked: false` writes nothing, so every agent stays
+ * `unknown` and every tile stays selectable.
+ *
+ * `asked: true` with an empty home is the machine's own statement, and the
+ * caller may act on it. `asked: false` is Tortie's failure to ask, and no
+ * absence may ever be concluded from it.
+ */
+export async function remoteMachineHomeAnswer(
+  ctx: RemoteMachineContext
+): Promise<{ asked: true; home: string } | { asked: false }> {
   const generation = machineGeneration(ctx.machineId).generation;
   const held = homes.get(ctx.machineId);
-  if (held !== undefined && held.generation === generation) return held.home;
+  if (held !== undefined && held.generation === generation) {
+    return { asked: true, home: held.home };
+  }
   let home = '';
   try {
     const answer = await runRemoteRead(ctx, 'machine-facts', [], {
@@ -214,18 +242,24 @@ export async function remoteMachineHome(
     });
     home = parseMachineFacts(answer.payload).home;
   } catch {
-    // A machine that would not answer is a machine with no extra folders to
-    // search. The caller's own refusal says what was searched and what was not.
-    return '';
+    // Nothing reached the machine, so nothing was learned about its home.
+    // Not cached, so the next call asks again.
+    return { asked: false };
   }
-  if (home.length === 0) return '';
+  if (home.length === 0) return { asked: true, home: '' };
   homes.set(ctx.machineId, { generation, home });
-  return home;
+  return { asked: true, home };
 }
 
-/** Forget every remembered home. Tests and the smoke. */
-export function resetRemoteMachineHomesForTests(): void {
-  homes.clear();
+/**
+ * Forget what ONE machine said about its home (Phase 109, fix 7).
+ *
+ * `forgetMachineSessions` in `./tombstone.ts` calls it, so a removed machine
+ * leaves no remembered answer behind. It replaced a reset-everything helper
+ * that had no caller of any kind, in production or in a test.
+ */
+export function forgetRemoteMachineHome(machineId: string): void {
+  homes.delete(machineId);
 }
 
 /**

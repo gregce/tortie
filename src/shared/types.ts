@@ -1050,6 +1050,16 @@ export interface GmuxErrorPayload {
     // file that was resolved. The create sheet answers it with `Start it
     // anyway`, which re-sends the same argv with the check skipped.
     | 'AGENT_INTERPRETER_MISSING'
+    // APPENDED (Phase 109): the agent is not on the MACHINE the session
+    // would run on. `findRemoteProgram` walked that machine's own three
+    // folder lists and found no executable file under the bare name, so the
+    // create or the restore refused before anything started there. It is a
+    // different code from AGENT_NOT_FOUND, because the create sheet's
+    // answer is different: the machine is named, no install command is
+    // drawn, and the one action asks THAT MACHINE again rather than
+    // rescanning this Mac. `message` carries main's refusal naming the
+    // machine's label.
+    | 'AGENT_NOT_ON_MACHINE'
     // APPENDED (Phase 41), three codes about WHICH tmux is running.
     //
     // TMUX_BUNDLE_INCOMPLETE is a packaged Tortie whose own copy of tmux is

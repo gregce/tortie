@@ -144,7 +144,11 @@ import type {
   MachineContextResult
   // ---- END PHASE 108 ----
 } from '@shared/ipc';
-import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '@shared/ipc';
+import {
+  EVT_MACHINE_AGENTS,
+  EVT_MACHINE_STATE,
+  EVT_MACHINE_TEST
+} from '@shared/ipc';
 import { gmuxError } from '../errors';
 import { handle } from '../typed-ipc';
 // Guardrail 1, event half. Every static event channel goes out through this
@@ -238,6 +242,21 @@ import { validateMachinesFile } from './schema';
 // closes the machine down locally. It has no route to the machine at all, and
 // the number of commands it returns having sent is a constant zero.
 import { forgetMachineSessions, machineSessionCount } from './tombstone';
+// ---- PHASE 109 ----
+// Which agents each machine has. `machines:agents` with `fresh: false` reads
+// memory in main and starts nothing; with `fresh: true` it sends ONE batched
+// read from the frozen catalogue, which is a person pressing Rescan.
+// `forgetMachineRuntime` is fix 7's second half: `machines:remove` drops the
+// machine's context and generation after `forgetMachineSessions` has dropped
+// everything else.
+import {
+  allMachineAgentsViews,
+  machineAgentsView,
+  onMachineAgentsChanged,
+  scanMachineAgents
+} from './machine-agents';
+import { forgetMachineRuntime } from './context';
+// ---- END PHASE 109 ----
 import {
   addMachineRow,
   currentMachines,
@@ -462,7 +481,40 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     onMachineStateChanged((states) => {
       broadcastEvent(EVT_MACHINE_STATE, states);
     });
+    // PHASE 109. The agent map rides the same guard: one subscription for the
+    // life of the process, the whole map every push, every window including
+    // Settings, because `broadcastEvent` iterates them all.
+    onMachineAgentsChanged(() => {
+      broadcastEvent(EVT_MACHINE_AGENTS, allMachineAgentsViews());
+    });
   }
+
+  // PHASE 109. Which agents each machine has. `fresh: false` reads memory in
+  // main and starts nothing, and a null id is the whole map, which is what
+  // the renderer asks once at init. `fresh: true` requires an id and sends
+  // ONE batched read to that machine, which is a person pressing Rescan;
+  // `scanMachineAgents` refuses it while the machine is not ready or not
+  // answering, so the real gate is in main rather than in a button's enabled
+  // state. The answer decides what a tile looks like and never what a
+  // manifest row holds.
+  handle(
+    ipc,
+    'machines:agents',
+    async (_event, id: string | null, fresh: boolean) => {
+      if (!fresh) {
+        return id === null ? allMachineAgentsViews() : [machineAgentsView(id)];
+      }
+      if (id === null) {
+        throw gmuxError(
+          'INVALID_INPUT',
+          'Tortie scans one machine at a time. Name the machine to scan. ' +
+            'Nothing was sent anywhere.'
+        );
+      }
+      await scanMachineAgents(id);
+      return [machineAgentsView(id)];
+    }
+  );
 
   handle(ipc, 'machines:reload', (): MachinesResult => {
     reloadMachines();
@@ -668,6 +720,12 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     // to the machine: it ends no session, stops no server, and reads nothing
     // there. Row 10 of the fault matrix is the measurement of that.
     const forgotten = forgetMachineSessions(id);
+    // PHASE 109, fix 7. The machine's run time goes too, being its context
+    // and its generation record. Before this line a removed machine kept both
+    // in memory for the life of the process, so a context nothing could reach
+    // still held the connection details of a machine the person had told
+    // Tortie to forget. Nothing is sent to the machine by this call either.
+    forgetMachineRuntime(id);
     removeMachineRow(id);
     // The record goes with the row. A machine that comes back later is a
     // machine nobody has agreed to yet.
@@ -701,6 +759,11 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       return prepareMachine({
         machineId: row.id,
         fields: machineFieldsOf(row),
+        // PHASE 109. The label the person typed, or the host when they typed
+        // none. It goes onto the context so a far side refusal can name the
+        // machine the way the person named it. It reaches no argv and it is
+        // not part of the confirmed hash.
+        label: machineLabelOf(row),
         tortieHostKeys: ensureMachineHostKeysPath(),
         // PHASE 84, item 7. The key Tortie made for this machine, named on
         // every command it sends there from now on. It is read HERE rather

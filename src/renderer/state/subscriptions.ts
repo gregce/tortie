@@ -122,6 +122,11 @@ export async function hydrateAppState(store: AppStore): Promise<void> {
     // read never blocks the boot: a build with no machines surface, or a read
     // that fails, leaves the list empty and every other surface as it was.
     void readMachineStates(store);
+    // PHASE 109. Which agents each machine has, as main last heard. The read
+    // hands back what is already in main's memory and starts no scan, so it
+    // never contacts a machine and never slows the boot. Not awaited for the
+    // same reason the machine states read is not.
+    void readMachineAgents(store);
     // Phase 51: a folder passed to a cold launch (`tortie .` or a Finder
     // open while Tortie was not running). The pull is take-and-clear
     // main-side, so this and the shell-open-pending menu action can both
@@ -175,6 +180,25 @@ async function readMachineStates(store: AppStore): Promise<void> {
     store.getState().applyMachineStates(await machines.state());
   } catch {
     /* a machine list that could not be read leaves the previous one alone */
+  }
+}
+
+/**
+ * Read the held machine agent answers once and adopt them (Phase 109).
+ *
+ * `fresh: false` reads main's memory and starts nothing, so this costs one
+ * round trip and never contacts a machine. A bridge without the method is an
+ * older preload; the list then stays empty, and an empty list draws every
+ * tile on, because only a positive absent may grey one. Failures are
+ * swallowed on the same terms as the machine states read above.
+ */
+async function readMachineAgents(store: AppStore): Promise<void> {
+  const machines = machinesExtras();
+  if (machines === null || typeof machines.agents !== 'function') return;
+  try {
+    store.getState().applyMachineAgents(await machines.agents(null, false));
+  } catch {
+    /* an answer that could not be read leaves the previous one alone */
   }
 }
 
@@ -662,6 +686,15 @@ export function startAppSubscriptions(store: AppStore): () => void {
   keep(
     machinesApi?.onStateChanged?.((states) => {
       getState().applyMachineStates(states);
+    })
+  );
+
+  // Phase 109. Main pushes every machine's agent answer whenever a scan lands
+  // or a create teaches it something. One push and one handler, the same shape
+  // as the machine states above, and no polling anywhere.
+  keep(
+    machinesApi?.onAgentsChanged?.((views) => {
+      getState().applyMachineAgents(views);
     })
   );
 

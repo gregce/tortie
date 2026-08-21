@@ -52,6 +52,9 @@ const spawned: SpawnRecord[] = [];
 
 vi.mock('electron', () => ({
   app: { getPath: () => userData, isReady: () => true, isPackaged: false },
+  // PHASE 109. The agents push goes through the real `broadcastEvent`, which
+  // iterates the windows. A registrar test has none.
+  BrowserWindow: { getAllWindows: () => [] },
   safeStorage: {
     isEncryptionAvailable: () => keystore,
     encryptString: (text: string) => Buffer.from(`${MARKER}${text}`, 'utf8'),
@@ -238,6 +241,15 @@ describe('every channel is registered, and only the ones listed here', () => {
       // machine and starts nothing.
       'machines:acceptVersion',
       'machines:add',
+      // ---- PHASE 109 ----
+      // Which agents each machine has. With `fresh` false it reads memory in
+      // main and starts nothing. With `fresh` true it sends ONE batched read
+      // from the frozen catalogue to one named machine, which is a person
+      // pressing Rescan, and it refuses while Tortie is not connected to the
+      // machine. The answer decides what a tile looks like and never what a
+      // manifest row holds.
+      'machines:agents',
+      // ---- END PHASE 109 ----
       // ---- PHASE 90.2 ----
       // The SECOND write this product can make on another computer, and the
       // only one this phase adds. It copies one project into one folder that
@@ -1341,5 +1353,144 @@ describe('machines:rows carries the session count', () => {
     loadMachines('boot');
     const out = call<{ rows: { sessions: number }[] }>('machines:rows');
     expect(out.rows[0]?.sessions).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 109. Which agents each machine has, and what a removal leaves behind
+// ---------------------------------------------------------------------------
+
+const { machineAgentsView, noteMachineAgent, forgetMachineAgents } =
+  await import('../machine-agents');
+const {
+  forgetMachineRuntime: forgetRuntime,
+  machineContext,
+  machineGeneration,
+  registerRemoteMachineContext
+} = await import('../context');
+
+describe('machines:agents', () => {
+  /** A context of the shape Prepare registers, for the machine the file holds. */
+  function registerPop(): void {
+    registerRemoteMachineContext({
+      kind: 'remote',
+      machineId: 'pop-os',
+      sshBin: '/usr/bin/ssh',
+      host: '127.0.0.1',
+      user: 'greg',
+      port: 2222,
+      remoteTmuxPath: '/usr/bin/tmux',
+      socket: 'gmux-p109-ipc',
+      controlPath: '/tmp/tortie-501/m-0123456789ab',
+      hostKeys: { tortie: '/t/known-machines', user: '/u/known_hosts' },
+      label: 'Pop OS'
+    });
+  }
+
+  afterEach(() => {
+    forgetMachineAgents('pop-os');
+    forgetRuntime('pop-os');
+  });
+
+  it('answers every machine in the file with all unknown when nothing is held', async () => {
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+    const views = await call<
+      Promise<
+        {
+          machineId: string;
+          askedAt: number | null;
+          agents: { presence: string }[];
+        }[]
+      >
+    >('machines:agents', null, false);
+    expect(views).toHaveLength(1);
+    expect(views[0]?.machineId).toBe('pop-os');
+    expect(views[0]?.askedAt).toBeNull();
+    expect(views[0]?.agents.length).toBeGreaterThan(0);
+    for (const one of views[0]?.agents ?? []) {
+      expect(one.presence).toBe('unknown');
+    }
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('answers one machine when the id is named, still from memory', async () => {
+    loadMachines('boot');
+    const views = await call<Promise<{ machineId: string }[]>>(
+      'machines:agents',
+      'pop-os',
+      false
+    );
+    expect(views).toHaveLength(1);
+    expect(views[0]?.machineId).toBe('pop-os');
+    expect(spawned).toHaveLength(0);
+  });
+
+  it('refuses a fresh scan with no machine named, before anything is sent', async () => {
+    loadMachines('boot');
+    await expect(
+      call<Promise<unknown>>('machines:agents', null, true)
+    ).rejects.toThrow(/one machine at a time/);
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('refuses a fresh scan of a machine Tortie is not signed in to', async () => {
+    loadMachines('boot');
+    await expect(
+      call<Promise<unknown>>('machines:agents', 'pop-os', true)
+    ).rejects.toThrow(/not signed in/);
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('leaves no answer, no context and no generation behind a removal', () => {
+    loadMachines('boot');
+    addMachineRow(POP);
+    registerPop();
+    // A fold back the way a real create writes one: bound to generation 1.
+    noteMachineAgent('pop-os', 'claude', { path: '/usr/local/bin/claude' });
+    const before = machineAgentsView('pop-os');
+    expect(
+      before.agents.find((one) => one.agentId === 'claude')?.presence
+    ).toBe('present');
+
+    call('machines:remove', 'pop-os');
+
+    // The runtime is gone: no context, no generation record.
+    expect(machineGeneration('pop-os')).toEqual({
+      generation: 0,
+      remotePath: null
+    });
+    expect(() => machineContext('pop-os')).toThrow(/has not signed in/);
+    // And no readable answer: whatever the mocked tombstone did not clear is
+    // stale by generation, so nothing about the removed machine can draw.
+    const after = machineAgentsView('pop-os');
+    expect(after.askedAt).toBeNull();
+    for (const one of after.agents) expect(one.presence).toBe('unknown');
+    // Nothing was sent to the machine by any of it.
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('clears the agents map and the homes map in the REAL tombstone', async () => {
+    // The tombstone module is replaced in this file so the manifest and the
+    // feeds stay out of a wiring test, so the one claim about the real module
+    // is read from its source, the ./prepare.test.ts instrument. The
+    // behaviour of both forget calls is held by machine-agents.test.ts and
+    // the remote-image module's own callers.
+    const { readFileSync } = await import('node:fs');
+    const { dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const src = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', 'tombstone.ts'),
+      'utf8'
+    );
+    const body = src.slice(
+      src.indexOf('export function forgetMachineSessions')
+    );
+    expect(body).toContain('forgetMachineAgents(machineId);');
+    expect(body).toContain('forgetRemoteMachineHome(machineId);');
   });
 });

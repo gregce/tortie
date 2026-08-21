@@ -317,3 +317,87 @@ describe('the notice channel still writes the sentences', () => {
     ).toBe(true);
   });
 });
+
+/**
+ * PHASE 109 — the machine agents answer reaches the store through the one
+ * lifecycle owner: one seed read per hydrate, one push handler per handler
+ * set, and an older preload without the methods changes nothing.
+ */
+describe('the machine agents answer (Phase 109)', () => {
+  type AgentsView = import('@shared/ipc').MachineAgentsView;
+  const VIEW: AgentsView = {
+    machineId: 'studio',
+    askedAt: 5,
+    agents: [{ agentId: 'claude', presence: 'absent', path: null }]
+  };
+  const PUSHED: AgentsView = {
+    machineId: 'studio',
+    askedAt: 9,
+    agents: [
+      { agentId: 'claude', presence: 'present', path: '/opt/homebrew/bin/claude' }
+    ]
+  };
+
+  const win = (): { gmux: Record<string, unknown> } =>
+    (globalThis as unknown as { window: { gmux: Record<string, unknown> } })
+      .window;
+
+  it('a bridge without the machines surface leaves the list empty', async () => {
+    // Every boot so far in this file ran without a machines key at all, so
+    // this is also a statement about all of them: nothing threw, and the
+    // slice still holds its initial empty list.
+    expect(useApp.getState().machineAgents).toEqual([]);
+  });
+
+  it('seeds once per hydrate, subscribes once per handler set, applies pushes', async () => {
+    const agentsCalls: Array<[string | null, boolean]> = [];
+    let agentsSubs = 0;
+    let pushCb: ((views: AgentsView[]) => void) | null = null;
+    // Detach the live set so the machines bridge below is picked up by a
+    // fresh subscription start rather than ignored by the idempotence rule.
+    startAppSubscriptions(useApp)();
+    win().gmux['machines'] = {
+      state: () => Promise.resolve([]),
+      onStateChanged: () => () => {},
+      agents: (id: string | null, fresh: boolean) => {
+        agentsCalls.push([id, fresh]);
+        return Promise.resolve([VIEW]);
+      },
+      onAgentsChanged: (cb: (views: AgentsView[]) => void) => {
+        agentsSubs += 1;
+        pushCb = cb;
+        return () => {};
+      }
+    };
+    await useApp.getState().boot();
+    await settle();
+    // The seed asks for every held view and starts nothing: fresh is false.
+    expect(agentsCalls).toEqual([[null, false]]);
+    expect(agentsSubs).toBe(1);
+    expect(useApp.getState().machineAgents).toEqual([VIEW]);
+    // Main's push replaces the whole list.
+    pushCb!([PUSHED]);
+    expect(useApp.getState().machineAgents).toEqual([PUSHED]);
+    // A second hydrate re-seeds and registers nothing.
+    await useApp.getState().boot();
+    await settle();
+    expect(agentsCalls).toEqual([
+      [null, false],
+      [null, false]
+    ]);
+    expect(agentsSubs).toBe(1);
+  });
+
+  it('an older preload with machines but no agents method changes nothing', async () => {
+    startAppSubscriptions(useApp)();
+    win().gmux['machines'] = {
+      state: () => Promise.resolve([]),
+      onStateChanged: () => () => {}
+    };
+    useApp.setState({ machineAgents: [VIEW] } as never);
+    await useApp.getState().boot();
+    await settle();
+    // No method, no read, and the held list is left alone.
+    expect(useApp.getState().machineAgents).toEqual([VIEW]);
+  });
+});

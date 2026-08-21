@@ -9268,7 +9268,7 @@ Tier 3. A verifier that only reads code has not verified this phase. Every item 
 18. **Count the operator's sessions with `tmux -L gmux list-sessions` before and after and report both numbers.** `activeTmuxSocket` in `src/main/tmux/resolve.ts` honours `GMUX_TMUX_SOCKET` ONLY when one of `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL` is set. A launch without one of those logs `GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.` through `tmuxLog.warn` and then uses his real server, so the warning is in the log and the sessions at risk are his.
 19. **Say what is not true.** Name what was measured on the loopback machine only and never on the Mac Pro. Name whether any Linux machine was contacted. Name whether a signing configuration was ever exercised, and if it was not, say that hazard 2 is answered by design and by one photographed sentence rather than by measurement. Say plainly that the window between main's `review-list` re-read and the far side's commit is one round trip wide and is not closed.
 
-## Phase 109 — which agents the machine you are creating on actually has (research 58 row, queued 2026-08-19) QUEUED
+## Phase 109 — which agents the machine you are creating on actually has (research 58 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.60.0, gates green, 7,345 tests)
 
 **Subject:** `feat(machines): Tortie asks each machine which agents it has`
 **First body line:** `Phase 109: which agents the machine you are creating on actually has`

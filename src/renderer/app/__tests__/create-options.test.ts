@@ -145,3 +145,53 @@ describe('the summary always says a number', () => {
     expect(optionsSummaryText(3)).toBe('Options, 3 on');
   });
 });
+
+/**
+ * PHASE 109 — the one action on the AGENT_NOT_ON_MACHINE block asks that
+ * MACHINE again, and never this Mac. `tryAgain` above it in the sheet drops
+ * this Mac's probe cache and rescans this Mac, and wiring that button to it
+ * would answer a question about the wrong computer.
+ */
+describe('the ask-that-machine-again action', () => {
+  it('asks the refusing machine with fresh true, then retries the create', async () => {
+    const { askMachineAgainAction } = await import('../CreateSessionModal');
+    const asked: Array<[string, boolean]> = [];
+    let localProbes = 0;
+    (window as unknown as { gmux: unknown }).gmux = {
+      agentAvailability: () => {
+        localProbes += 1;
+        return Promise.resolve({ claude: true, codex: true });
+      },
+      machines: {
+        agents: (id: string, fresh: boolean) => {
+          asked.push([id, fresh]);
+          return Promise.resolve([]);
+        }
+      }
+    };
+    const resubmits: number[] = [];
+    const run = askMachineAgainAction('m-studio', () => resubmits.push(1));
+    run();
+    expect(asked).toEqual([['m-studio', true]]);
+    expect(resubmits).toEqual([1]);
+    expect(localProbes).toBe(0);
+    (window as unknown as { gmux: unknown }).gmux = undefined;
+  });
+
+  it('still retries on a preload without the method, and starts nothing here', async () => {
+    const { askMachineAgainAction } = await import('../CreateSessionModal');
+    (window as unknown as { gmux: unknown }).gmux = {
+      machines: {}
+    };
+    const resubmits: number[] = [];
+    askMachineAgainAction('m-studio', () => resubmits.push(1))();
+    expect(resubmits).toEqual([1]);
+    (window as unknown as { gmux: unknown }).gmux = undefined;
+  });
+
+  it('is labelled with the machine and is not Try again', async () => {
+    const { askMachineAgainLabel } = await import('../machine-copy');
+    expect(askMachineAgainLabel('Studio')).toBe('Ask Studio again');
+    expect(askMachineAgainLabel('Studio')).not.toContain('Try again');
+  });
+});

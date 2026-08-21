@@ -630,8 +630,56 @@ export interface MachineStateView {
  */
 export const EVT_MACHINE_STATE = 'machines:stateChanged';
 
+// ---------------------------------------------------------------------------
+// PHASE 109. Which agents one machine has
+// ---------------------------------------------------------------------------
+
+/**
+ * What Tortie knows about one agent on one machine.
+ *
+ * ONLY `absent` may grey a tile. `unknown` covers a machine nobody asked, a
+ * scan that failed, and an answer read while a folder on the search list
+ * could not be read, and it always draws as selectable, because a false
+ * absent removes a capability a person cannot argue with while a false
+ * present costs one refusal that names the machine.
+ */
+export type MachineAgentPresence = 'present' | 'absent' | 'unknown';
+
+/** One agent's reading on one machine. */
+export interface MachineAgentReading {
+  readonly agentId: string;
+  readonly presence: MachineAgentPresence;
+  /** Absolute path on that machine. Null unless presence is 'present'. */
+  readonly path: string | null;
+}
+
+/**
+ * One machine's whole answer, as the renderer reads it.
+ *
+ * It lives in main memory against that machine's connection generation and is
+ * written to no disk. It decides what a TILE looks like and never what goes
+ * into a manifest row: the create path and the restore path keep asking the
+ * machine at create time and at restore time.
+ */
+export interface MachineAgentsView {
+  readonly machineId: string;
+  /**
+   * Milliseconds since the epoch when that machine last answered. Null when
+   * it was never asked in this run.
+   */
+  readonly askedAt: number | null;
+  readonly agents: MachineAgentReading[];
+}
+
+/**
+ * The event the whole map arrives on after the first read. It carries every
+ * machine's view every time, the `EVT_MACHINE_STATE` precedent.
+ */
+export const EVT_MACHINE_AGENTS = 'machines:agentsChanged';
+
 export interface MachinesEventPayloadMap {
   [EVT_MACHINE_STATE]: [states: MachineStateView[]];
+  [EVT_MACHINE_AGENTS]: [views: MachineAgentsView[]];
 }
 
 // ---------------------------------------------------------------------------
@@ -667,6 +715,9 @@ export interface MachinesEventPayloadMap {
  * PHASE 108 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `readContext`. The
  * count is twenty eight.
  *
+ * PHASE 109 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `agents`. The
+ * count is twenty nine.
+ *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
  * | rows | memory in main, plus the sealed record | nothing | nothing |
@@ -697,6 +748,7 @@ export interface MachinesEventPayloadMap {
  * | readBranch | one folder on that machine | nothing | ssh |
  * | readHistory | one folder on that machine | nothing | ssh |
  * | readContext | agent configuration files on that machine | nothing | ssh |
+ * | agents | memory in main, or one batched read of that machine | nothing | ssh only when fresh is true |
  *
  * `readRuns` is the one row whose Spawns column names two programs. The ssh is
  * the read of that machine's branch. The gh runs HERE and never leaves this Mac,
@@ -1001,6 +1053,28 @@ export interface MachinesInvokeChannelMap {
     req: [input: MachineContextInput];
     res: MachineContextResult;
   };
+  // PHASE 109. Which agents each machine has, for the create surfaces and,
+  // in Phase 110, for Settings. ONE channel serves both phases.
+  //
+  // `fresh: false` READS MEMORY IN MAIN and starts nothing: no machine is
+  // asked anything, no file is opened. A null id returns every held view,
+  // which is what the renderer asks once at init; an id returns that
+  // machine's view alone. `fresh: true` requires an id and sends ONE batched
+  // `agents-find` read from the frozen catalogue to that machine, which is
+  // what the Rescan button presses; main refuses it while it is not connected
+  // to the machine, and a null id with `fresh: true` refuses before anything
+  // is composed.
+  //
+  // THE ANSWER DECIDES WHAT A TILE LOOKS LIKE AND NOTHING ELSE. The create
+  // path and the restore path keep asking the machine at create time and at
+  // restore time, so nothing read over this channel can reach a manifest
+  // row. Only a positive `absent` may grey a tile; `unknown` always draws
+  // as selectable. Nothing calls it on a clock: the scan runs once when a
+  // machine becomes ready and once per Rescan press.
+  'machines:agents': {
+    req: [id: string | null, fresh: boolean];
+    res: MachineAgentsView[];
+  };
 }
 
 /** The one event channel: the connection test's own bytes and its end. */
@@ -1107,6 +1181,15 @@ export interface GmuxMachinesExtras {
     // load. It reads and never writes, and install, enable and pin are not
     // behind it and never will be.
     readContext(input: MachineContextInput): Promise<MachineContextResult>;
+    // Phase 109. Which agents each machine has. With `fresh` false it reads
+    // memory in main and starts nothing; with `fresh` true it sends ONE
+    // batched read to that machine, which is a person pressing Rescan. The
+    // answer decides what a tile looks like and never what a manifest row
+    // holds.
+    agents(id: string | null, fresh: boolean): Promise<MachineAgentsView[]>;
+    // Phase 109. The whole map, pushed whenever any machine's answer changes,
+    // the `onStateChanged` precedent.
+    onAgentsChanged(cb: (views: MachineAgentsView[]) => void): () => void;
   };
 }
 

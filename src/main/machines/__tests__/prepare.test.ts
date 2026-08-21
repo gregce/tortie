@@ -269,3 +269,43 @@ describe('prepareMachine', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// PHASE 109. The agent scan Prepare starts
+//
+// These read the source rather than driving the function, for the reason the
+// Phase 84 block above gives: `prepareMachine` opens a connection to another
+// computer. The scan itself is driven in ./machine-agents.test.ts, and the
+// live evidence for this phase watches it against a real machine.
+// ---------------------------------------------------------------------------
+
+describe('the agent scan Prepare starts (Phase 109)', () => {
+  const src = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '..', 'prepare.ts'),
+    'utf8'
+  );
+
+  it('starts the scan exactly once', () => {
+    expect(src.split('scanMachineAgents(input.machineId)').length - 1).toBe(1);
+  });
+
+  it('starts it on the prepared arm, AFTER the feed', () => {
+    // The prepared arm begins at the server boot. Every refusal arm returns
+    // before that line, so an index after it is an index on the success path.
+    const server = src.indexOf('const server = await ensureRemoteServer(ctx);');
+    const feed = src.indexOf('await startMachineFeed(input.machineId);');
+    const scan = src.indexOf('scanMachineAgents(input.machineId)');
+    expect(server).toBeGreaterThan(-1);
+    expect(feed).toBeGreaterThan(server);
+    expect(scan).toBeGreaterThan(feed);
+  });
+
+  it('never awaits it, so nothing a person waits on waits for it', () => {
+    expect(src).toContain('void scanMachineAgents(input.machineId)');
+    expect(src).not.toContain('await scanMachineAgents');
+  });
+
+  it('swallows and logs a scan that fails, so it cannot fail the prepare', () => {
+    expect(src).toContain('void scanMachineAgents(input.machineId).catch(');
+  });
+});

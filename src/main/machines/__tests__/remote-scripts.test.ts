@@ -124,9 +124,17 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds eighteen scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(18);
+  it('holds nineteen scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(19);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 109 added `agents-find`, which asks one machine in ONE call
+      // which of Tortie's launchable agents exist there, so the create sheet
+      // on a tab whose files live over there can grey the tiles that machine
+      // really lacks. It is a batched `program-find` rather than a rewrite of
+      // it, it tests `[ -f ]` beside `[ -x ]` from birth, it is a read, and
+      // it writes nothing, so the write count below stays at two. It names no
+      // git verb, so GIT_VERBS above did not move either.
+      'agents-find',
       // PHASE 108 added `context-read`, which lists directories and reads
       // files back so the Context view on a tab that lives over there shows
       // what the agents THERE will load. The reader and every parser stay on
@@ -479,8 +487,17 @@ describe('the program search', () => {
     expect(find?.text).toContain('IFS=:');
   });
 
-  it('tests for an executable file rather than for a name that exists', () => {
-    expect(find?.text).toContain('[ -x "$d/$n" ]');
+  it('tests for a regular file AND the execute bit, in both loops', () => {
+    // PHASE 109. `[ -x ]` alone passes a DIRECTORY carrying the execute bit,
+    // and that path reached `argv[0]` and the manifest row. Research 58
+    // section 1.4 reproduced it against a real machine. Every execute test in
+    // this script now stands beside a file test, and the count proves there
+    // is no third loop with the old spelling.
+    const text = find?.text ?? '';
+    const pairs = [...text.matchAll(/\[ -f "\$d\/\$n" \] && \[ -x "\$d\/\$n" \]/g)];
+    const executes = [...text.matchAll(/\[ -x "\$d\/\$n" \]/g)];
+    expect(pairs).toHaveLength(2);
+    expect(executes).toHaveLength(2);
   });
 
   it('says which of the two lists the answer came from', () => {
@@ -491,6 +508,77 @@ describe('the program search', () => {
   it('answers the empty word when it found nothing', () => {
     expect(find?.text).toContain('"${s:-none}"');
     expect(find?.text).toContain('"${f:-none}"');
+  });
+
+  it('redirects nothing at all, because it only asks questions', () => {
+    expect(find?.text).not.toContain('>');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 109. The batched agent search
+// ---------------------------------------------------------------------------
+
+describe('the batched agent search', () => {
+  const find = remoteScript('agents-find');
+
+  it('is a read that takes three values', () => {
+    expect(find?.mode).toBe('read');
+    expect(find?.params).toBe(3);
+  });
+
+  /**
+   * Rule 2 of the catalogue, the `program-find` mechanism. Each of the three
+   * values is read once, in quotes, into a local name, and every split
+   * happens on a local name under IFS. A loop over a bare positional would
+   * end that rule for the whole catalogue.
+   */
+  it('reads all three values into local names before anything splits them', () => {
+    const text = find?.text ?? '';
+    expect(text).toContain('p="$1"');
+    expect(text).toContain('x="$2"');
+    expect(text).toContain('r="$3"');
+    expect(text.indexOf('p="$1"')).toBeLessThan(text.indexOf('for d in $p'));
+    expect(text.indexOf('x="$2"')).toBeLessThan(text.indexOf('for d in $x'));
+    expect(text.indexOf('r="$3"')).toBeLessThan(text.indexOf('for line in $r'));
+    expect(text).not.toMatch(/for\s+\w+\s+in\s+\$[1-9]/);
+  });
+
+  it('splits folders on a colon and records on a newline, under IFS', () => {
+    // A configured path may hold a colon and may never hold a newline, which
+    // is why the record separator is the newline. Both splits are IFS
+    // assignments over local names.
+    const text = find?.text ?? '';
+    expect(text).toContain('IFS=:');
+    expect(text).toContain("IFS='\n'");
+  });
+
+  it('tests for a regular file AND the execute bit, in every loop', () => {
+    // The pair `program-find` gained in this same phase, carried from birth,
+    // so the two scripts can never disagree about a directory that carries
+    // the execute bit. Three loops, three pairs, no bare execute test.
+    const text = find?.text ?? '';
+    const pairs = [...text.matchAll(/\[ -f "\$d\/\$n" \] && \[ -x "\$d\/\$n" \]/g)];
+    const executes = [...text.matchAll(/\[ -x "\$d\/\$n" \]/g)];
+    expect(pairs).toHaveLength(3);
+    expect(executes).toHaveLength(3);
+  });
+
+  it('names the source of every answer, and a fourth word for absent', () => {
+    const text = find?.text ?? '';
+    expect(text).toContain('s=path');
+    expect(text).toContain('s=agent');
+    expect(text).toContain('s=install');
+    expect(text).toContain('${s:-none}');
+  });
+
+  it('names the folders it could not read, under one fixed word', () => {
+    // An absent computed while a folder on the search list could not be read
+    // is not a positive absent, and the caller downgrades every `none` in
+    // that answer to unknown. The word is part of the text, so no far side
+    // value can fake the section.
+    expect(find?.text).toContain('unreadable');
+    expect(find?.text).toContain('[ ! -r "$d" ] || [ ! -x "$d" ]');
   });
 
   it('redirects nothing at all, because it only asks questions', () => {

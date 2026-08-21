@@ -97,12 +97,15 @@
  */
 
 import { getLog } from '../log';
-import { gmuxError } from '../errors';
+import { gmuxError, isGmuxError } from '../errors';
 import type { LaunchableAgentKind, Session } from '@shared/types';
 import { savedOutputAt } from '../restore/snapshots';
 import type { ManifestSessionRecord } from '../manifest/codecs';
 import { provenanceOf } from '../manifest/contract';
 import { assertArgvBelongsToMachine, findRemoteProgram } from './remote-argv';
+// Phase 109. The fold back: a restore that really ran the file test teaches
+// the per machine agent map, on both arms, for zero extra round trips.
+import { noteMachineAgent } from './machine-agents';
 import { execOn } from './exec-plane';
 import { ensureRemoteServer } from './remote-server';
 import {
@@ -336,12 +339,22 @@ export async function restoreRemoteSession(
   const bare = launchArgv[0] ?? '';
   if (bare.length > 0) {
     const entry = remoteLaunchEntry(record.agent as LaunchableAgentKind);
-    const found = await findRemoteProgram(
-      ctx,
-      bare,
-      entry?.extraProbeDirs ?? []
-    );
-    launchArgv[0] = found.path;
+    try {
+      const found = await findRemoteProgram(
+        ctx,
+        bare,
+        entry?.extraProbeDirs ?? []
+      );
+      // Phase 109. What actually ran is stronger evidence than any scan, so
+      // both arms teach the per machine agent map before anything else moves.
+      noteMachineAgent(machineId, bare, { path: found.path });
+      launchArgv[0] = found.path;
+    } catch (err) {
+      if (isGmuxError(err, 'AGENT_NOT_ON_MACHINE')) {
+        noteMachineAgent(machineId, bare, null);
+      }
+      throw err;
+    }
   }
 
   // Step 4. THE ARMING GATE, AND PHASE 89 MOVED IT HERE FROM THE FOOT OF THIS

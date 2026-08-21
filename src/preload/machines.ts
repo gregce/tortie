@@ -3,11 +3,12 @@
  * more in Phase 71, one more in Phase 79.1, one more in Phase 83, one more in
  * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
  * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105,
- * one more in Phase 106, one more in Phase 107 and one more in Phase 108). One
- * object, twenty eight calls and two subscriptions, typed from the shared
- * contract. THE COUNT HAD GONE STALE and Phase 108 says so rather than quietly
- * fixing it: this header named neither Phase 107 nor its call while the object
- * already carried `readHistory`.
+ * one more in Phase 106, one more in Phase 107, one more in Phase 108 and one
+ * call plus one subscription in Phase 109). One object, twenty nine calls and
+ * three subscriptions, typed from the shared contract. THE COUNT HAD GONE
+ * STALE and Phase 108 says so rather than quietly fixing it: this header named
+ * neither Phase 107 nor its call while the object already carried
+ * `readHistory`.
  *
  * TWO of these calls write on another computer, being `putImage` and
  * `cloneProject`. Everything else on this bridge reads.
@@ -30,7 +31,11 @@
  */
 
 import type { GmuxMachinesExtras } from '../shared/ipc';
-import { EVT_MACHINE_STATE, EVT_MACHINE_TEST } from '../shared/ipc';
+import {
+  EVT_MACHINE_AGENTS,
+  EVT_MACHINE_STATE,
+  EVT_MACHINE_TEST
+} from '../shared/ipc';
 import { invoke, on } from './bridge';
 
 export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
@@ -148,5 +153,12 @@ export const machines: NonNullable<GmuxMachinesExtras['machines']> = {
   // either computer, it cannot install, enable or pin anything anywhere, and
   // main refuses it while it is not connected to that machine. Nothing calls
   // it on a clock.
-  readContext: (input) => invoke('machines:readContext', input)
+  readContext: (input) => invoke('machines:readContext', input),
+  // Phase 109. Which agents each machine has. With `fresh` false this READS
+  // memory in main and starts nothing; with `fresh` true it sends ONE batched
+  // read to that machine, which is a person pressing Rescan, and main refuses
+  // it while it is not connected to the machine. The answer decides what a
+  // tile looks like and never what a manifest row holds.
+  agents: (id, fresh) => invoke('machines:agents', id, fresh),
+  onAgentsChanged: (cb) => on(EVT_MACHINE_AGENTS, cb)
 };

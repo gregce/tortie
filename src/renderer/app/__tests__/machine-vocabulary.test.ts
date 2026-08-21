@@ -164,7 +164,17 @@ const FILES: readonly string[] = [
   // this list. Both are read as well, so a later round cannot type a sentence
   // straight into the view.
   'src/renderer/context/ContextView.tsx',
-  'src/renderer/context/ContextHeader.tsx'
+  'src/renderer/context/ContextHeader.tsx',
+  // Phase 109. The agent board and the two surfaces around it now say things
+  // about a machine: the board composes a greyed tile's aria label naming the
+  // machine, the empty state draws the one no-command sentence for a missing
+  // agent over there, and the quick create menu greys its rows on that
+  // machine's answer. Every sentence is a named export in machine-copy.ts,
+  // which is the first file on this list. The three files are read as well,
+  // so a later round cannot type a sentence straight into them.
+  'src/renderer/app/AgentGrid.tsx',
+  'src/renderer/app/EmptyStates.tsx',
+  'src/renderer/app/new-session-menu.ts'
 ];
 
 /**

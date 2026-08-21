@@ -43,7 +43,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import type { AgentAvailability, GmuxAgentExtras } from '@shared/ipc';
+import type {
+  AgentAvailability,
+  GmuxAgentExtras,
+  MachineAgentsView
+} from '@shared/ipc';
 import type {
   AgentsScanResult,
   DetectedAgent,
@@ -268,10 +272,34 @@ export function agentShortLabel(id: string): string {
  * NOTHING HERE FILTERS AGAINST THE SEED. A launchable row main did not
  * compile in — a Phase 23 overlay agent — becomes a chip on the same terms as
  * the other thirteen.
+ *
+ * PHASE 109 — THE THIRD INPUT. On a tab whose files are on a machine, this
+ * Mac's detection scan says nothing about what a person can start there, so
+ * `machine` carries that machine's own answer and it alone decides
+ * `installed`. Three rules, and research 58 §8 rows 1 and 2 are why each one
+ * is written down:
+ *
+ *  - Only a POSITIVE `absent` greys a tile. `unknown`, and an agent the
+ *    answer does not name at all, draw on, which is the same optimism the
+ *    local path has always had.
+ *  - The local `installed` bit is not consulted at all. It is a fact about
+ *    this Mac's disk, and this Mac's disk is not where the session will run.
+ *  - `install` is forced to null on every option, which mechanically removes
+ *    the install command from every surface that reads it. The command Tortie
+ *    holds was read for this Mac, and it must never be offered as a claim
+ *    about another machine.
+ *
+ * Shell is appended after the transform, so it stays `installed: true`: the
+ * far side runs its own login shell and is never asked about `shell`.
+ *
+ * The parameter defaults to null (this Mac) so the conformance probe in
+ * build/agents-conformance-probe.mts, which this phase does not own, keeps
+ * calling the two-argument form it always has.
  */
 export function buildAgentOptions(
   scan: AgentsScanResult | null,
-  avail: AgentAvailability
+  avail: AgentAvailability,
+  machine: MachineAgentsView | null = null
 ): AgentPickerOption[] {
   let options: AgentPickerOption[];
   if (scan !== null) {
@@ -300,6 +328,18 @@ export function buildAgentOptions(
       install: null
     }));
   }
+  if (machine !== null) {
+    // The machine's answer, one reading per launchable agent id. An id the
+    // answer does not name reads as unknown, and unknown draws on.
+    const presence = new Map(
+      machine.agents.map((one) => [one.agentId, one.presence])
+    );
+    options = options.map((o) => ({
+      ...o,
+      installed: presence.get(String(o.id)) !== 'absent',
+      install: null
+    }));
+  }
   options.push({
     id: 'shell',
     label: 'Shell',
@@ -310,6 +350,27 @@ export function buildAgentOptions(
     install: null
   });
   return options;
+}
+
+/**
+ * Whether at least one tile is greyed by that machine's answer (Phase 109).
+ *
+ * The two surfaces that draw the agent board on a machine tab put one
+ * sentence under it when this is true, and nothing when it is not. It is
+ * false for this Mac by definition, because the sentence names a machine and
+ * there is none to name. Shell is skipped because the far side is never asked
+ * about it, so it can never be greyed by an answer.
+ *
+ * On a machine view every non-shell option's `installed` was decided by that
+ * answer alone in {@link buildAgentOptions}, so "greyed" and "that machine
+ * said absent" are the same fact here.
+ */
+export function agentsGreyedByMachine(
+  options: readonly AgentPickerOption[],
+  machine: MachineAgentsView | null
+): boolean {
+  if (machine === null) return false;
+  return options.some((o) => o.id !== 'shell' && !o.installed);
 }
 
 /**

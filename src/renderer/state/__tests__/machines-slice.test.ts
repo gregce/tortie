@@ -127,3 +127,67 @@ describe('machineAnswering (Phase 90.3 fix round)', () => {
     }
   });
 });
+
+/**
+ * PHASE 109 — which agents each machine has, held beside the link state.
+ */
+describe('the machine agents answer (Phase 109)', () => {
+  const view = (machineId: string): import('@shared/ipc').MachineAgentsView => ({
+    machineId,
+    askedAt: 5,
+    agents: [{ agentId: 'claude', presence: 'absent', path: null }]
+  });
+
+  it('replaces the whole list on every apply, because main sends the whole list', async () => {
+    const { createMachinesSlice } = await import('../machines-slice');
+    let state: Record<string, unknown> = {};
+    const slice = createMachinesSlice(
+      ((partial: Record<string, unknown>) => {
+        state = { ...state, ...partial };
+      }) as never,
+      (() => state) as never,
+      {} as never
+    );
+    expect(slice.machineAgents).toEqual([]);
+    slice.applyMachineAgents([view('studio')]);
+    expect(state['machineAgents']).toEqual([view('studio')]);
+    slice.applyMachineAgents([view('attic')]);
+    expect(state['machineAgents']).toEqual([view('attic')]);
+  });
+});
+
+describe('machineAgentsFor (Phase 109)', () => {
+  const held: import('@shared/ipc').MachineAgentsView = {
+    machineId: 'studio',
+    askedAt: 5,
+    agents: [{ agentId: 'claude', presence: 'present', path: '/usr/local/bin/claude' }]
+  };
+
+  it('is null for this Mac, in each of its three spellings', async () => {
+    const { machineAgentsFor } = await import('../machines-slice');
+    expect(machineAgentsFor([held], 'local')).toBeNull();
+    expect(machineAgentsFor([held], null)).toBeNull();
+    expect(machineAgentsFor([held], undefined)).toBeNull();
+  });
+
+  it('hands back the held view for a machine main has answered about', async () => {
+    const { machineAgentsFor } = await import('../machines-slice');
+    expect(machineAgentsFor([held], 'studio')).toBe(held);
+  });
+
+  it('hands back an all-unknown view, never null, for a machine nothing is held for', async () => {
+    // Null would send the board back to this Mac's scan, which is defect row
+    // 1. The all-unknown view greys nothing and names the machine.
+    const { machineAgentsFor } = await import('../machines-slice');
+    expect(machineAgentsFor([held], 'attic')).toEqual({
+      machineId: 'attic',
+      askedAt: null,
+      agents: []
+    });
+    expect(machineAgentsFor([], 'studio')).toEqual({
+      machineId: 'studio',
+      askedAt: null,
+      agents: []
+    });
+  });
+});

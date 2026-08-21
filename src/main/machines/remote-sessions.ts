@@ -199,6 +199,9 @@ import { machineColorOf, machineLabelOf, machineRow } from './store';
 // what launches: a pane on the far side does not get that machine's login shell
 // program list, and `-e PATH=` cannot give it one. See `remoteCreate` below.
 import { findRemoteProgram, type RemoteProgramAnswer } from './remote-argv';
+// Phase 109. The fold back: a create that really ran the file test teaches
+// the per machine agent map, on both arms, for zero extra round trips.
+import { noteMachineAgent } from './machine-agents';
 // Phase 84, item 5. The folder is asked about before the create line is
 // composed, because a create against a folder that is not there exits 0.
 import { assertRemoteDirUsable } from './dir-list';
@@ -1248,15 +1251,29 @@ async function remoteBinFor(
     const at = bare.lastIndexOf('/');
     return { bin: bare, dir: at > 0 ? bare.slice(0, at) : '/' };
   }
-  const found: RemoteProgramAnswer = await findRemoteProgram(
-    ctx,
-    bare,
-    entry?.extraProbeDirs ?? []
-  );
+  let found: RemoteProgramAnswer;
+  try {
+    found = await findRemoteProgram(ctx, bare, entry?.extraProbeDirs ?? []);
+  } catch (err) {
+    // Phase 109, the free third trigger. A positive absent from a real create
+    // is stronger evidence than any scan, so it is folded into the per
+    // machine agent map before the refusal travels on. Only the walked-and-
+    // found-nothing code is an absence; every other failure says nothing
+    // about the agent.
+    if (isGmuxError(err, 'AGENT_NOT_ON_MACHINE')) {
+      noteMachineAgent(ctx.machineId, bare, null);
+    }
+    throw err;
+  }
+  noteMachineAgent(ctx.machineId, bare, { path: found.path });
+  // Phase 109, fix 8. The sentence used to say the program was found "after N
+  // folder(s) were tested" while N was computed BEFORE the call and the
+  // script breaks on the first hit, so the honest number is the size of the
+  // search list rather than a count of tests.
   machinesLog.info(
     `${ctx.machineId} keeps ${bare} at ${found.path}, found in its ` +
-      `${found.source === 'path' ? 'own list of places it looks for programs' : 'install folders'} ` +
-      `after ${String(found.searched)} folder(s) were tested`
+      `${found.source === 'path' ? 'own list of places it looks for programs' : 'install folders'}. ` +
+      `The search list held ${String(found.searched)} folder(s).`
   );
   return { bin: found.path, dir: found.dir };
 }

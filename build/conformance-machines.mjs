@@ -230,7 +230,8 @@
  *     `runRemoteWrite`, makes other than exactly one remote read, names a script
  *     other than `repo-branch`, or imports anything from `../actions/`; the
  *     catalogue's writers are not exactly `image-put` then `git-clone`; or the
- *     catalogue does not hold eighteen scripts. TWO ITEMS CARRY THIS FEATURE.
+ *     catalogue does not hold nineteen scripts (Phase 109 moved the count).
+ *     TWO ITEMS CARRY THIS FEATURE.
  *     The format relation is what keeps one format in one place, and the fetch
  *     names are the executable form of the sentence telling a person that Tortie
  *     counted against a copy that machine already had and fetched nothing.
@@ -252,8 +253,8 @@
  *     `repo-history`, imports anything from `../actions/`, or names
  *     `sanitizeRefNames`; `REMOTE_HISTORY_PAGE` is not 50 or
  *     `REMOTE_HISTORY_MAX_COMMITS` is not 500; the catalogue's writers are not
- *     exactly `image-put` then `git-clone`, or it does not hold eighteen
- *     scripts; `src/renderer/scm/remote-history.ts` names a timer; or
+ *     exactly `image-put` then `git-clone`, or it does not hold nineteen
+ *     scripts (Phase 109 moved the count); `src/renderer/scm/remote-history.ts` names a timer; or
  *     `src/renderer/scm/RemoteHistorySection.tsx` does not name `hasMore`,
  *     `atCeiling` and `divergenceTruncated`. THREE ITEMS CARRY THIS FEATURE.
  *     The two constants are the executable form of the tier staying at 2,
@@ -267,7 +268,8 @@
  *     again in `sh`.
  *
  *  58. PHASE 108, being the Context of a folder on another machine. It fails
- *     when: the catalogue does not hold eighteen scripts with the writers
+ *     when: the catalogue does not hold nineteen scripts (Phase 109 moved
+ *     the count) with the writers
  *     exactly `image-put` then `git-clone`; `context-read` is absent, or is
  *     anything but a read taking three values, or does not read its two lists
  *     into local names split under `IFS`, or names ANY git verb;
@@ -286,6 +288,20 @@
  *     `contextCutLine`. THE IMPORT RULES ARE THE POINT: they are the
  *     executable form of "no second table" from research 57 i7 section 6.3,
  *     and `npm run conformance:context` proves the matrix itself.
+ *
+ *  59. PHASE 109, being the batched agent search. It fails when: the
+ *     catalogue holds no `agents-find`, or holds it as anything but a read
+ *     taking three values; any of its three lists is not read into a local
+ *     name before the loop that walks it, or a loop walks a bare positional;
+ *     it carries any redirection at all; it does not split folders under
+ *     `IFS=:` and records under a newline `IFS`; it does not name the
+ *     `unreadable` section; or any execute test in it, or in `program-find`,
+ *     stands without a file test beside it. THE FILE TEST PAIR IS THE POINT:
+ *     `[ -x ]` alone passed a DIRECTORY carrying the execute bit, and through
+ *     `program-find` that path reached `argv[0]` and the manifest row, which
+ *     is the source of truth for restore. Research 58 section 1.4 reproduced
+ *     it against a real machine, and this is the condition that stops the two
+ *     scripts ever disagreeing about a directory again.
  *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The record
  * is sealed through `safeStorage`, which needs an Electron process, so this
@@ -3760,13 +3776,14 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p105Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 108 moved this count from seventeen to eighteen, by one read.
-  if (p105Count !== 18) {
+  // Phase 109 moved this count from eighteen to nineteen, by one read.
+  if (p105Count !== 19) {
     fail(
-      `the catalogue holds ${String(p105Count)} script(s). It holds eighteen, ` +
+      `the catalogue holds ${String(p105Count)} script(s). It holds nineteen, ` +
         `of which two write. Phase 106 moved that number from fifteen by one ` +
-        `read, Phase 107 moved it from sixteen by one read and Phase 108 moved ` +
-        `it from seventeen by one read. A script that appeared without a phase ` +
+        `read, Phase 107 moved it from sixteen, Phase 108 moved it from ` +
+        `seventeen and Phase 109 moved it from eighteen, each by one read. A ` +
+        `script that appeared without a phase ` +
         `saying so is a command somebody can run on another person's computer.`
     );
   }
@@ -3965,10 +3982,10 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p106Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 108 moved this count from seventeen to eighteen, by one read.
-  if (p106Count !== 18) {
+  // Phase 109 moved this count from eighteen to nineteen, by one read.
+  if (p106Count !== 19) {
     fail(
-      `the catalogue holds ${String(p106Count)} script(s). It holds eighteen, ` +
+      `the catalogue holds ${String(p106Count)} script(s). It holds nineteen, ` +
         `of which two write.`
     );
   }
@@ -4207,10 +4224,10 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p107Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 108 moved this count from seventeen to eighteen, by one read.
-  if (p107Count !== 18) {
+  // Phase 109 moved this count from eighteen to nineteen, by one read.
+  if (p107Count !== 19) {
     fail(
-      `the catalogue holds ${String(p107Count)} script(s). It holds eighteen, ` +
+      `the catalogue holds ${String(p107Count)} script(s). It holds nineteen, ` +
         `of which two write.`
     );
   }
@@ -4289,7 +4306,7 @@ const P105_CREDENTIAL_WORDS =
 {
   const p108 = data.phase108 ?? {};
   const script = p108.script ?? null;
-  // 58a. The catalogue holds eighteen scripts and the write list did not move.
+  // 58a. The catalogue holds nineteen scripts and the write list did not move.
   const p108Writers = (data.remoteRun ?? {}).writers ?? [];
   if (
     JSON.stringify(p108Writers) !== JSON.stringify(['image-put', 'git-clone'])
@@ -4301,11 +4318,11 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p108Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  if (p108Count !== 18) {
+  if (p108Count !== 19) {
     fail(
-      `the catalogue holds ${String(p108Count)} script(s). It holds eighteen, ` +
-        `of which two write. Phase 108 moved that number from seventeen by one ` +
-        `read, being context-read.`
+      `the catalogue holds ${String(p108Count)} script(s). It holds nineteen, ` +
+        `of which two write. Phase 109 moved that number from eighteen by one ` +
+        `read, being agents-find.`
     );
   }
   // 58b. The row's own shape. Rules 1 to 5 are asserted for every script by
@@ -4560,6 +4577,99 @@ const p84 = data.phase84 ?? {};
         `program-find carries ${String(find.redirects)} redirection(s). It only ` +
           `asks whether a file is executable, so it writes nothing anywhere and ` +
           `redirects nothing at all.`
+      );
+    }
+    // PHASE 109 EXTENDED THIS CONDITION. Every execute test carries a file
+    // test beside it, in both loops. `[ -x ]` alone passed a DIRECTORY with
+    // the execute bit, and that path reached `argv[0]` and the manifest row.
+    if (find.fileTests !== 2 || find.executeTests !== 2) {
+      fail(
+        `program-find pairs ${String(find.fileTests)} file test(s) with ` +
+          `${String(find.executeTests)} execute test(s). It walks two lists, ` +
+          `so it holds exactly two of each, and every execute test stands ` +
+          `beside a file test: a directory carrying the execute bit is not a ` +
+          `program, and through this script it reached the manifest row.`
+      );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 59. Phase 109. The batched agent search, held to condition 46's shape
+// ---------------------------------------------------------------------------
+//
+// Every check below reads one compiled script text out of the probe's answer.
+// None of them starts a process, opens a file under the person's home, or
+// contacts a machine.
+
+{
+  const batch = (data.phase109 ?? {}).agentsFind ?? null;
+  if (batch === null) {
+    fail(
+      'the catalogue holds no script called agents-find, so a tab on another ' +
+        'machine greys its agent tiles from THIS Mac\'s scan and the board ' +
+        'lies about what that machine has.'
+    );
+  } else {
+    if (batch.mode !== 'read' || batch.params !== 3) {
+      fail(
+        `agents-find is a ${String(batch.mode)} taking ${String(batch.params)} ` +
+          `value(s). It is a read taking three, being the machine's own list, ` +
+          `the install folders and the record lines.`
+      );
+    }
+    if ((batch.bareLoops ?? []).length > 0) {
+      fail(
+        `agents-find walks a bare positional: ${batch.bareLoops.join(', ')}. ` +
+          `Every positional is read as "$1" to "$9" and is always quoted, and ` +
+          `a loop over a bare one ends that rule for the whole catalogue.`
+      );
+    }
+    for (const one of batch.assignments ?? []) {
+      if (one.at < 0) {
+        fail(
+          `agents-find never reads its ${one.name} value into a local name. A ` +
+            `list has to be read once, in quotes, before anything splits it.`
+        );
+      } else if (one.loopAt < 0) {
+        fail(`agents-find assigns ${one.name} and no loop walks it.`);
+      } else if (one.at > one.loopAt) {
+        fail(
+          `agents-find walks its ${one.name} value at byte ` +
+            `${String(one.loopAt)} and assigns it at byte ${String(one.at)}, ` +
+            `so the loop reads a name that has not been read yet.`
+        );
+      }
+    }
+    if (batch.redirects !== 0) {
+      fail(
+        `agents-find carries ${String(batch.redirects)} redirection(s). It ` +
+          `only asks whether files are executable, so it writes nothing ` +
+          `anywhere and redirects nothing at all.`
+      );
+    }
+    if (batch.splitsFoldersUnderIfs !== true || batch.splitsRecordsUnderIfs !== true) {
+      fail(
+        'agents-find does not split folders under IFS=: and records under a ' +
+          'newline IFS. The colon is how every folder list is written, and ' +
+          'the newline is the one separator a configured path can never hold.'
+      );
+    }
+    if (batch.fileTests !== 3 || batch.executeTests !== 3) {
+      fail(
+        `agents-find pairs ${String(batch.fileTests)} file test(s) with ` +
+          `${String(batch.executeTests)} execute test(s). It walks three ` +
+          `lists, so it holds exactly three of each, and every execute test ` +
+          `stands beside a file test from birth so it can never disagree with ` +
+          `program-find about a directory carrying the execute bit.`
+      );
+    }
+    if (batch.namesUnreadable !== true) {
+      fail(
+        'agents-find never names its unreadable section. Without it a `none` ' +
+          'computed while a folder on the search list could not be read would ' +
+          'read as a positive absent, and a positive absent is the one answer ' +
+          'allowed to grey a tile.'
       );
     }
   }

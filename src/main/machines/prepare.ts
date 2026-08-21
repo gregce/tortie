@@ -77,6 +77,10 @@ import { ensureRemoteServer } from './remote-server';
 // no-op for a machine that already has one, so calling it here and at the launch
 // sign in is one feed rather than two.
 import { startMachineFeed } from './remote-sessions';
+// PHASE 109. One batched read of which agents the machine has, started on
+// the prepared arm with `void`, so the answer is warm before any create
+// sheet opens and nothing a person waits on waits for it.
+import { scanMachineAgents } from './machine-agents';
 import { describeMachine, type MachineExecutionFields } from './confirm';
 
 const machinesLog = getLog('config');
@@ -97,6 +101,14 @@ export interface PrepareInput {
    * module reads no store. `./ipc.ts` is the caller that knows.
    */
   readonly identityFile?: string | null;
+  /**
+   * The label the person typed for this machine, or null (Phase 109).
+   *
+   * Handed over rather than looked up, for the reason the two above are. It
+   * goes onto the context so a refusal composed one machine away can name
+   * the machine the way the person named it. It reaches no argv and no hash.
+   */
+  readonly label?: string | null;
   readonly packaged?: boolean;
   readonly env?: NodeJS.ProcessEnv;
   readonly home?: string;
@@ -235,7 +247,9 @@ export async function prepareMachine(
         home: input.home ?? homedir(),
         uid: input.uid ?? process.getuid?.() ?? 0,
         tortieHostKeys: input.tortieHostKeys,
-        identityFile: input.identityFile ?? null
+        identityFile: input.identityFile ?? null,
+        // Phase 109. The name a far side refusal calls this machine.
+        label: input.label ?? null
       })
     );
   } catch (err) {
@@ -376,6 +390,18 @@ export async function prepareMachine(
           `read: ${sentenceOf(err)}`
       );
     }
+    // Step 5b. PHASE 109. One batched read of which agents this machine has,
+    // started with `void` so nothing a person is waiting on awaits it. It
+    // runs on the prepared arm ONLY, because every other arm is a machine
+    // nothing should be sent to. A scan that fails leaves every agent
+    // `unknown`, which draws as selectable, and its own log line says so, so
+    // it never fails the prepare.
+    void scanMachineAgents(input.machineId).catch((err: unknown) => {
+      machinesLog.warn(
+        `${input.machineId} was prepared and its agents could not be ` +
+          `scanned: ${sentenceOf(err)}`
+      );
+    });
     const copy = composeOutcomeCopy('prepared', {
       resolvedPath: ctx.remoteTmuxPath,
       version,

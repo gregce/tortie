@@ -89,6 +89,17 @@
  * of a list of folders, which is how Tortie finds an agent on a machine whose
  * login shell does not have that agent on its list. Both write nothing.
  *
+ * PHASE 109 ADDED ONE MORE, and it is a read. `agents-find` asks one machine,
+ * in ONE call, which of the agents Tortie can launch exist there, so the
+ * create sheet on a tab whose files live over there can grey the tiles that
+ * machine really lacks instead of reading this Mac's own scan. It is a
+ * BATCHED `program-find` and not a rewrite of it: `program-find` stays on the
+ * create path and the restore path exactly as it is, one program per call,
+ * and this script answers about a whole list. Research 58 section 2 measured
+ * the two shapes on one warm connection, being 52 ms for the batch against
+ * 480 ms for eleven serial calls. Its answer decides what a TILE looks like
+ * and never what goes into a manifest row.
+ *
  * Opening that door to four more callers with no discipline would undo the
  * property the verb ledger exists for, because a login shell runs anything. So
  * the second door gets its own list, and this list is stronger than the first
@@ -660,15 +671,120 @@ const PROGRAM_FIND = [
   'IFS=:',
   'for d in $p; do',
   '  [ -n "$d" ] || continue',
-  '  if [ -x "$d/$n" ]; then f="$d/$n"; s=path; break; fi',
+  // PHASE 109 ADDED THE FILE TEST, in both loops. `[ -x ]` alone passes a
+  // DIRECTORY carrying the execute bit, `parseProgramFind` accepts the path
+  // because it begins with a slash, and that path reached `argv[0]` and the
+  // manifest row. Research 58 section 1.4 reproduced it against a real
+  // machine. The manifest is the source of truth for restore, so this pair is
+  // a durability correction, and `agents-find` below carries the same pair
+  // from birth so the two scripts can never disagree about a directory.
+  '  if [ -f "$d/$n" ] && [ -x "$d/$n" ]; then f="$d/$n"; s=path; break; fi',
   'done',
   'if [ -z "$f" ]; then',
   '  for d in $x; do',
   '    [ -n "$d" ] || continue',
-  '    if [ -x "$d/$n" ]; then f="$d/$n"; s=install; break; fi',
+  '    if [ -f "$d/$n" ] && [ -x "$d/$n" ]; then f="$d/$n"; s=install; break; fi',
   '  done',
   'fi',
   "printf '__TORTIE_RUN__%s %s__TORTIE_RUN__\\n' \"${s:-none}\" \"${f:-none}\""
+].join('\n');
+
+/**
+ * Which of Tortie's launchable agents one machine has, asked in ONE call
+ * (Phase 109, research 58 sections 2 and 8).
+ *
+ * ## Why it exists
+ *
+ * On a tab whose files live on a machine, the create sheet used to grey its
+ * agent tiles from THIS Mac's detection scan, which has never heard of a
+ * machine. `program-find` answers about one program per call, and eleven
+ * calls at once run into the far side's own session limit, which OpenSSH
+ * defaults to 10. Research 58 section 2.1 measured one batched call at 52 ms
+ * median against 480 ms for eleven serial calls on the same warm connection.
+ * So the board's answer is one read, and `program-find` keeps serving the
+ * create path and the restore path one program at a time.
+ *
+ * ## The three values
+ *
+ *  1. `$1` is the machine's own login list of places it looks for programs,
+ *     colon separated, captured by `./remote-path.ts` at Prepare.
+ *  2. `$2` is the shared install folders, colon separated, composed against
+ *     that machine's own stated home.
+ *  3. `$3` is one record per asked name, records separated by NEWLINES. A
+ *     record is the bare name, one space, then that name's own agent folders
+ *     joined with colons, and the folder list may be empty. Newline is the
+ *     record separator because a configured path may hold a colon and may
+ *     never hold a newline, and `rebaseRemoteDir` in `./remote-argv.ts`
+ *     refuses the colon so it cannot split a record's folder list either.
+ *
+ * ## The answer
+ *
+ * One line per record, being the source word, the name, and then the path as
+ * THE REST OF THE LINE, because a folder on another computer can hold a space
+ * in its name. The source is `path`, `agent` or `install` for a file that was
+ * found, and `none` for a name that was not. After the records, an optional
+ * section begins with the word `unreadable` and then names, one per line,
+ * every folder on the two shared lists that exists and cannot be read or
+ * entered, so the caller can refuse to call a `none` from a walk that could
+ * not see everything.
+ *
+ * ## What never reaches this text
+ *
+ * NOTHING A PERSON TYPED AND NOTHING AN AGENT WROTE REACHES THE SCRIPT TEXT.
+ * The names are `launch.argv[0]` of compiled or confirmed rows, the first
+ * list is the machine's own answer about itself, and every folder is either a
+ * compiled constant or a configured entry that already passed the plain
+ * folder rules. All three values cross as positional parameters, each read
+ * once into a local name and split under `IFS`, exactly as `program-find`
+ * does it. It tests `[ -f ]` beside `[ -x ]` from birth, so a directory with
+ * the execute bit is never called a program.
+ */
+const AGENTS_FIND = [
+  'set -e',
+  'umask 077',
+  'p="$1"',
+  'x="$2"',
+  'r="$3"',
+  'o=',
+  'b=',
+  'IFS=:',
+  'for d in $p; do',
+  '  if [ -n "$d" ] && [ -d "$d" ] && { [ ! -r "$d" ] || [ ! -x "$d" ]; }; then b="$b$d',
+  '"; fi',
+  'done',
+  'for d in $x; do',
+  '  if [ -n "$d" ] && [ -d "$d" ] && { [ ! -r "$d" ] || [ ! -x "$d" ]; }; then b="$b$d',
+  '"; fi',
+  'done',
+  "IFS='",
+  "'",
+  'for line in $r; do',
+  '  if [ -z "$line" ]; then continue; fi',
+  '  n=${line%% *}',
+  '  if [ "$n" = "$line" ]; then e=; else e=${line#* }; fi',
+  '  f=',
+  '  s=',
+  '  IFS=:',
+  '  for d in $p; do',
+  '    if [ -n "$d" ] && [ -f "$d/$n" ] && [ -x "$d/$n" ]; then f="$d/$n"; s=path; break; fi',
+  '  done',
+  '  if [ -z "$f" ]; then',
+  '    for d in $e; do',
+  '      if [ -n "$d" ] && [ -f "$d/$n" ] && [ -x "$d/$n" ]; then f="$d/$n"; s=agent; break; fi',
+  '    done',
+  '  fi',
+  '  if [ -z "$f" ]; then',
+  '    for d in $x; do',
+  '      if [ -n "$d" ] && [ -f "$d/$n" ] && [ -x "$d/$n" ]; then f="$d/$n"; s=install; break; fi',
+  '    done',
+  '  fi',
+  "  IFS='",
+  "'",
+  '  o="$o${s:-none} $n ${f:-none}',
+  '"',
+  'done',
+  "printf '__TORTIE_RUN__%s%s__TORTIE_RUN__\\n' \"${o:-none}\" \"${b:+unreadable",
+  '$b}"'
 ].join('\n');
 
 
@@ -1738,16 +1854,16 @@ const CONTEXT_READ = [
 ].join('\n');
 
 /**
- * The whole catalogue. Eighteen scripts, and this release holds no others.
+ * The whole catalogue. Nineteen scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the eighteen write, being `image-put` and `git-clone`, and they are in
+ * TWO of the nineteen write, being `image-put` and `git-clone`, and they are in
  * that order in this array. {@link remoteWriteScripts} returns them in it.
  * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105,
- * PHASE 106, PHASE 107 AND PHASE 108.
+ * PHASE 106, PHASE 107, PHASE 108 AND PHASE 109.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -1823,6 +1939,16 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
     reason:
       'It tests whether one name is an executable file in each of a list of ' +
       'folders, and writes nothing. Running it twice asks the same question.'
+  },
+  {
+    id: 'agents-find',
+    mode: 'read',
+    params: 3,
+    text: AGENTS_FIND,
+    reason:
+      'It tests whether each of a list of names is an executable file in a ' +
+      'list of folders, and writes nothing. Running it twice asks the same ' +
+      'questions.'
   },
   {
     id: 'repo-find',

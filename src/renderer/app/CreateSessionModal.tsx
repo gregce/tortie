@@ -61,6 +61,9 @@ import { CounterpartBlock } from './CounterpartBlock';
 import { setCreateSheetCopyRunning } from './create-copy-running';
 import {
   addRemoteRefusal,
+  agentNotOnMachineTitle,
+  agentsAbsentHint,
+  askMachineAgainLabel,
   captureNotOnMachine,
   createInRemoteProject,
   CREATE_DIR_HINT,
@@ -89,6 +92,7 @@ import {
 import {
   agentBlockedReason,
   agentShortLabel,
+  agentsGreyedByMachine,
   buildAgentOptions,
   defaultAgentChoice,
   INSTALL_NOTE_LINE,
@@ -101,6 +105,10 @@ import {
   type AgentInstallDisplay,
   type AgentPickerOption
 } from '../state/agents';
+// PHASE 109. The agent board on a machine tab reads that machine's own
+// answer, held in the machines slice, and this Mac's scan stops deciding
+// which tiles are selectable there.
+import { machineAgentsFor, machineLabelFor } from '../state/machines-slice';
 import { useSettingsStore } from '../settings/settings-store';
 import { captureAvailableFor, useSpecStoryStatus } from '../state/specstory';
 import { errorPayload, errorText, nextOrdinal, useApp } from '../state/store';
@@ -359,6 +367,86 @@ export function BlockedWays({
   );
 }
 
+// ---------------------------------------------------------------------------
+// PHASE 109 — the create was refused because that MACHINE does not have the
+// agent (AGENT_NOT_ON_MACHINE). It used to arrive as a one line generic error,
+// because the code was INVALID_INPUT and only "working directory" routed to a
+// block. It draws as a launch block now, like the two Phase 48 states above.
+// ---------------------------------------------------------------------------
+
+/**
+ * The refusal, as `submit` keeps it. The machine id and label are pinned at
+ * refusal time, because the sheet's Machine field can move while the block is
+ * on screen and the block's button must ask the machine the refusal is about.
+ */
+interface AgentNotOnMachine {
+  agentId: string;
+  /** Main's own sentence, which names the label and the folder count. */
+  message: string;
+  machineId: string;
+  machineLabel: string;
+}
+
+/**
+ * The block's one action. NEVER `Try again`: `tryAgain` above rescans THIS
+ * Mac, and this refusal is about another machine. It asks that machine again
+ * over the one channel, with `fresh: true`, and then retries the create. The
+ * ask is not awaited, because the create path resolves the binary on that
+ * machine for itself; the fresh scan only refreshes the tiles.
+ *
+ * Exported pure so a test can prove the action asks the machine and not this
+ * Mac.
+ */
+export function askMachineAgainAction(
+  machineId: string,
+  resubmit: () => void
+): () => void {
+  return () => {
+    void window.gmux?.machines?.agents?.(machineId, true)?.catch(() => undefined);
+    resubmit();
+  };
+}
+
+/**
+ * The block, drawn. Heading, main's sentence, one action, and deliberately NO
+ * install command anywhere: the command Tortie holds was read for this Mac,
+ * and offering it as a claim about another machine would be a lie about a
+ * disk this sheet cannot see.
+ *
+ * Exported so the test reads it as static markup, the {@link CaptureField}
+ * precedent.
+ */
+export function AgentNotOnMachineBlock({
+  agentLabel,
+  refusal,
+  busy,
+  onAskAgain
+}: {
+  agentLabel: string;
+  refusal: AgentNotOnMachine;
+  busy: boolean;
+  onAskAgain: () => void;
+}): React.JSX.Element {
+  return (
+    <div className="launch-block" role="alert">
+      <h3 className="launch-block-title">
+        {agentNotOnMachineTitle(agentLabel, refusal.machineLabel)}
+      </h3>
+      <p className="launch-block-body">{refusal.message}</p>
+      <div className="launch-block-actions">
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          onClick={onAskAgain}
+        >
+          {askMachineAgainLabel(refusal.machineLabel)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Settings → Launch defaults for one agent, filtered to the presets the
  * modal actually offers (verified). Danger defaults pre-check too — the
@@ -445,17 +533,25 @@ export function CreateSessionModal(): React.JSX.Element | null {
   useEffect(() => {
     initSettings();
   }, [initSettings]);
-  const options = useMemo(
-    () => buildAgentOptions(scan, avail),
-    [scan, avail]
-  );
-
   const [agent, setAgent] = useState<LaunchableAgentKind>('claude');
   /**
    * PHASE 70. The machine this session will be created on. `'local'` is this
    * Mac, and it is what every create before this release did.
    */
   const [machineId, setMachineId] = useState('local');
+  // PHASE 109. What the SHEET'S chosen machine said about its agents, or null
+  // for this Mac. It follows the sheet's own Machine field rather than the
+  // tab, because the two can differ on a local tab with the field open.
+  const machineAgents = useApp((s) => s.machineAgents);
+  const machineStates = useApp((s) => s.machineStates);
+  const sheetMachineView = useMemo(
+    () => machineAgentsFor(machineAgents, machineId),
+    [machineAgents, machineId]
+  );
+  const options = useMemo(
+    () => buildAgentOptions(scan, avail, sheetMachineView),
+    [scan, avail, sheetMachineView]
+  );
   /**
    * The machines a person may choose, being the confirmed ones and no others.
    *
@@ -526,6 +622,12 @@ export function CreateSessionModal(): React.JSX.Element | null {
   const [blocked, setBlocked] = useState<
     (InterpreterMissing & { agentId: string }) | null
   >(null);
+  // PHASE 109. The create was refused because the chosen MACHINE does not
+  // have the agent. Null on every other outcome, and on every create on this
+  // Mac, whose refusal is `absent` above.
+  const [notOnMachine, setNotOnMachine] = useState<AgentNotOnMachine | null>(
+    null
+  );
   // Last disabled chip the user hovered/focused — drives the caption row.
   const [hintAgent, setHintAgent] = useState<string | null>(null);
   // Per-agent checked preset flags for THIS modal opening; agents absent from
@@ -601,6 +703,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setGenericError(null);
     setAbsent(null);
     setBlocked(null);
+    setNotOnMachine(null);
     setHintAgent(null);
     setFlagSel({});
     setOptionsOpen(false);
@@ -632,12 +735,14 @@ export function CreateSessionModal(): React.JSX.Element | null {
   useEffect(() => {
     if (!open) return;
     if (agentPickedByUser.current) return;
-    if (absent !== null || blocked !== null) return;
+    // Phase 109 added the third refusal to this freeze: the machine block's
+    // button acts on THIS agent, so the selection may not move under it.
+    if (absent !== null || blocked !== null || notOnMachine !== null) return;
     const current = options.find((o) => o.id === agent);
     if (current !== undefined && current.installed) return;
     setAgent(defaultAgentChoice(options, settings.defaultAgent));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, options, absent, blocked]);
+  }, [open, options, absent, blocked, notOnMachine]);
 
   // Re-prefill the name when the agent changes and the user hasn't typed.
   useEffect(() => {
@@ -721,6 +826,11 @@ export function CreateSessionModal(): React.JSX.Element | null {
       ? null
       : (machines.find((row) => row.id === machineId) ?? null);
   const remote = machine !== null;
+  // PHASE 109. The label the board's sentences name. `machine` is null when
+  // the tab names a machine that is not in the usable list, so the fallback
+  // reads the states list and then the id, which is the machineLabelFor rule.
+  const sheetMachineLabel =
+    machine?.label ?? machineLabelFor(machineStates, machineId);
 
   // PHASE 90.3. The tab's own machine, and whether this sheet may move off it.
   //
@@ -881,6 +991,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
     setGenericError(null);
     setAbsent(null);
     setBlocked(null);
+    setNotOnMachine(null);
     const extraArgs = activePresets(presets, checkedFlags).flatMap((p) =>
       presetArgvTokens(p.flag)
     );
@@ -937,6 +1048,21 @@ export function CreateSessionModal(): React.JSX.Element | null {
           const read = readInterpreterDetail(payload.detail, payload.message);
           if (read !== null) setBlocked({ ...read, agentId: agent });
           else setGenericError(payload.message);
+        } else if (payload?.code === 'AGENT_NOT_ON_MACHINE') {
+          // PHASE 109. The chosen MACHINE walked its search list and the
+          // agent is not there. Nothing was started, no manifest row was
+          // written. The block mirrors the AGENT_NOT_FOUND state above, with
+          // one action that asks that machine again rather than this Mac.
+          if (agent !== 'shell' && machine !== null) {
+            setNotOnMachine({
+              agentId: agent,
+              message: payload.message,
+              machineId: machine.id,
+              machineLabel: machine.label
+            });
+          } else {
+            setGenericError(payload.message);
+          }
         } else {
           setGenericError(errorText(err));
         }
@@ -1047,7 +1173,19 @@ export function CreateSessionModal(): React.JSX.Element | null {
             onActivate={selectAgent}
             onHint={setHintAgent}
             ariaLabelledBy="agent-label"
+            {...(machineId !== 'local'
+              ? { machineLabel: sheetMachineLabel }
+              : {})}
           />
+          {/* PHASE 109. Once under the board, only when that machine's own
+              answer greyed at least one tile, the MACHINE_NOT_SIGNED_IN_HINT
+              shape. An unknown answer draws no sentence because it greys no
+              tile. */}
+          {agentsGreyedByMachine(options, sheetMachineView) ? (
+            <p className="field-caption">
+              {agentsAbsentHint(sheetMachineLabel)}
+            </p>
+          ) : null}
           {reserveInstallRow ? (
             <>
               <div className="agent-missing" aria-live="polite">
@@ -1436,6 +1574,19 @@ export function CreateSessionModal(): React.JSX.Element | null {
               </button>
             </div>
           </div>
+        ) : notOnMachine !== null ? (
+          /* PHASE 109. That machine walked its search list and the agent is
+             not there. One action, and it is not `Try again`, because
+             `tryAgain` rescans this Mac and this refusal is about another
+             machine. */
+          <AgentNotOnMachineBlock
+            agentLabel={agentShortLabel(notOnMachine.agentId)}
+            refusal={notOnMachine}
+            busy={creating}
+            onAskAgain={askMachineAgainAction(notOnMachine.machineId, () =>
+              submit()
+            )}
+          />
         ) : genericError !== null ? (
           <div className="modal-error">{genericError}</div>
         ) : null}

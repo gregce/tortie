@@ -122,10 +122,18 @@ export const REMOTE_ARGV_TIMEOUT_MS = 10_000;
 /**
  * The characters that make an entry something other than a plain folder.
  *
- * `$` is a value another computer would expand. The other three are a glob
+ * `$` is a value another computer would expand. The next three are a glob
  * another computer would expand. Both are a command deciding its own arguments.
+ *
+ * PHASE 109 ADDED THE COLON. Every folder list this module sends is JOINED
+ * WITH COLONS, in {@link findRemoteProgram} and in the per record lists the
+ * batched scan composes, and `pathTemplate` in `src/main/config/overlay.ts`
+ * permits a colon in a configured path. So an entry holding one used to split
+ * into two wrong folders on the far side. Research 58 section 2.5 is the
+ * record of that, and the fix is to refuse the entry whole and count it, the
+ * same answer a glob gets.
  */
-const NOT_A_PLAIN_FOLDER = /[$*?[]/;
+const NOT_A_PLAIN_FOLDER = /[$*?[:]/;
 
 /**
  * The stand in home used when a machine did not state one.
@@ -266,20 +274,27 @@ export function parseProgramFind(
  *
  * A read, so it starts nothing and writes nothing on either computer.
  *
- * @throws GmuxError INVALID_INPUT when the name is not a plain program name, and
- *   when the walk found nothing. Both are refusals rather than fallbacks: a
- *   guessed path is how the wrong copy of a program runs, and the operator would
- *   have no way to see that happening.
+ * @throws GmuxError INVALID_INPUT when the name is not a plain program name,
+ *   and AGENT_NOT_ON_MACHINE when the walk found nothing. Both are refusals
+ *   rather than fallbacks: a guessed path is how the wrong copy of a program
+ *   runs, and the operator would have no way to see that happening. The second
+ *   carries its own code (Phase 109, the `AGENT_INTERPRETER_MISSING`
+ *   precedent) so the create sheet can draw it as a full block naming the
+ *   machine instead of one generic error line, and so `remoteBinFor` can fold
+ *   a positive absent back into the per machine agent map.
  */
 export async function findRemoteProgram(
   ctx: RemoteMachineContext,
   bare: string,
   probeDirs: readonly string[] = []
 ): Promise<RemoteProgramAnswer> {
+  // Phase 109, fix 5. The sentence names the label the person typed, and the
+  // id only for a context written before the label crossed.
+  const label = ctx.label ?? ctx.machineId;
   if (!PLAIN_PROGRAM_NAME.test(bare)) {
     throw gmuxError(
       'INVALID_INPUT',
-      noRemoteProgramRefusal(bare, ctx.machineId, 0),
+      noRemoteProgramRefusal(bare, label, 0),
       `${JSON.stringify(bare)} is not a plain program name, so Tortie will ` +
         `not ask ${ctx.machineId} about it`
     );
@@ -297,8 +312,8 @@ export async function findRemoteProgram(
   const found = parseProgramFind(answer.payload);
   if (found === null) {
     throw gmuxError(
-      'INVALID_INPUT',
-      noRemoteProgramRefusal(bare, ctx.machineId, searched),
+      'AGENT_NOT_ON_MACHINE',
+      noRemoteProgramRefusal(bare, label, searched),
       `${ctx.machineId} was asked about ${bare} in ${String(searched)} ` +
         `folder(s) and found none. It looked in ${loginPath || '(no login list)'} ` +
         `and then in ${dirs.join(':') || '(no install folders)'}. ` +

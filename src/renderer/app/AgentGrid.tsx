@@ -62,6 +62,10 @@ import type { AgentPickerOption } from '../state/agents';
 import { agentBlockedReason } from '../state/agents';
 import { AcceleratorKeycap } from '../keys';
 import { AgentIcon } from '../icons';
+// PHASE 109. On a machine tab a greyed tile means that MACHINE does not have
+// the agent, and the aria label says so rather than claiming "not installed"
+// about a disk the session will never touch.
+import { agentNotOnMachineAria } from './machine-copy';
 import { ENTER_SUBMITS_ATTR } from './focus-trap';
 import './agent-grid.css';
 
@@ -110,6 +114,15 @@ export interface AgentGridProps {
   /** Names the group for screen readers ("Start a session" / "Agent"). */
   ariaLabel?: string;
   ariaLabelledBy?: string;
+  /**
+   * PHASE 109. Set on a machine tab, and only there. A greyed tile's aria
+   * label then names that machine instead of claiming "not installed" about
+   * this Mac. The visible meta stays the literal `not installed`, because the
+   * meta slot measured 192 px against a 190 px floor and the machine sentence
+   * would be 47 characters against 13. The sentence under the board is drawn
+   * by the parents, never by this grid.
+   */
+  machineLabel?: string;
 }
 
 export function AgentGrid({
@@ -122,7 +135,8 @@ export function AgentGrid({
   onHint,
   onUnhint,
   ariaLabel,
-  ariaLabelledBy
+  ariaLabelledBy,
+  machineLabel
 }: AgentGridProps): React.JSX.Element {
   const tileRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -169,6 +183,7 @@ export function AgentGrid({
           primary={option.id === primaryId}
           hotkey={hotkeys?.[option.id] ?? null}
           starting={startingId === option.id}
+          machineLabel={machineLabel ?? null}
           onActivate={onActivate}
           {...(onHint !== undefined ? { onHint } : {})}
           {...(onUnhint !== undefined ? { onUnhint } : {})}
@@ -189,6 +204,7 @@ function AgentTile({
   primary,
   hotkey,
   starting,
+  machineLabel,
   onActivate,
   onHint,
   onUnhint,
@@ -200,6 +216,7 @@ function AgentTile({
   primary: boolean;
   hotkey: string | null;
   starting: boolean;
+  machineLabel: string | null;
   onActivate: (option: AgentPickerOption) => void;
   onHint?: (id: string) => void;
   onUnhint?: (id: string) => void;
@@ -287,7 +304,12 @@ function AgentTile({
       aria-disabled={unusable}
       aria-label={
         !option.installed
-          ? `${option.label} — not installed`
+          ? // PHASE 109. On a machine tab the greyed tile is about THAT
+            // machine, and the label says so. On this Mac the wording is the
+            // one every release has had.
+            machineLabel !== null
+            ? agentNotOnMachineAria(option.label, machineLabel)
+            : `${option.label} — not installed`
           : blocked !== null
             ? `${option.label} — ${blocked}`
             : mode === 'launch'

@@ -1486,7 +1486,14 @@ process.stdout.write(
             { name: 'p', at: text.indexOf('p="$2"'), loopAt: text.indexOf('for d in $p') },
             { name: 'x', at: text.indexOf('x="$3"'), loopAt: text.indexOf('for d in $x') }
           ],
-          redirects: [...text.matchAll(/>/g)].length
+          redirects: [...text.matchAll(/>/g)].length,
+          // PHASE 109 EXTENDED CONDITION 46: every execute test carries a
+          // file test beside it, because a DIRECTORY with the execute bit
+          // passed `[ -x ]` alone and reached the manifest row.
+          fileTests: [
+            ...text.matchAll(/\[ -f "\$d\/\$n" \] && \[ -x "\$d\/\$n" \]/g)
+          ].length,
+          executeTests: [...text.matchAll(/\[ -x "\$d\/\$n" \]/g)].length
         };
       })(),
       // 47. The set a person's safety is argued from, and the one name Phase 84
@@ -2134,6 +2141,40 @@ process.stdout.write(
           'CONTEXT_NESTED_NOT_LISTED',
           'contextCutLine'
         ].filter((name) => viewText.includes(name))
+      };
+    })(),
+
+    // --- Phase 109, condition 59 -------------------------------------------
+    // Pure. It reads one compiled script text and nothing else. `agents-find`
+    // is the batched form of `program-find`, so it is held to condition 46's
+    // shape: mode read, three values, every list read into a local name and
+    // split under IFS, no bare positional loop, no redirection, and the file
+    // test beside every execute test from birth.
+    phase109: (() => {
+      const script = REMOTE_SCRIPTS.find((row) => row.id === 'agents-find');
+      if (script === undefined) return { agentsFind: null };
+      const text = script.text;
+      return {
+        agentsFind: {
+          params: script.params,
+          mode: script.mode,
+          bareLoops: [...text.matchAll(/for\s+\w+\s+in\s+\$[1-9]/g)].map(
+            (hit) => hit[0]
+          ),
+          assignments: [
+            { name: 'p', at: text.indexOf('p="$1"'), loopAt: text.indexOf('for d in $p') },
+            { name: 'x', at: text.indexOf('x="$2"'), loopAt: text.indexOf('for d in $x') },
+            { name: 'r', at: text.indexOf('r="$3"'), loopAt: text.indexOf('for line in $r') }
+          ],
+          redirects: [...text.matchAll(/>/g)].length,
+          splitsFoldersUnderIfs: text.includes('IFS=:'),
+          splitsRecordsUnderIfs: text.includes("IFS='\n'"),
+          fileTests: [
+            ...text.matchAll(/\[ -f "\$d\/\$n" \] && \[ -x "\$d\/\$n" \]/g)
+          ].length,
+          executeTests: [...text.matchAll(/\[ -x "\$d\/\$n" \]/g)].length,
+          namesUnreadable: text.includes('unreadable')
+        }
       };
     })(),
 

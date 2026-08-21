@@ -179,6 +179,7 @@ import {
   currentMachines,
   machineFieldsOf,
   machineHostKeysPath,
+  machineLabelOf,
   machineRow
 } from '../machines/store';
 import {
@@ -866,10 +867,14 @@ export class GmuxCore {
       const fields = machineFieldsOf(row);
       if (!isMachineConfirmed(row.id, fields)) continue;
       try {
+        // Phase 109 fix round. The label rides along here the way it does on
+        // the ipc door, so a refusal composed after a boot sign-in names the
+        // machine the way the person named it, not by its id.
         const result = await prepareMachine({
           machineId: row.id,
           fields,
-          tortieHostKeys: machineHostKeysPath()
+          tortieHostKeys: machineHostKeysPath(),
+          label: machineLabelOf(row)
         });
         if (result.class !== 'prepared') {
           sessionsLog.warn(
