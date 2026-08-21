@@ -13,12 +13,12 @@ release.
 
 | # | Phase | Why here | State |
 | ---: | --- | --- | --- |
-| 1 | **109** which agents the machine has | Finishes the remote machine story he asked for | RUNNING |
+| 1 | **109** which agents the machine has | Finishes the remote machine story he asked for | ✅ shipped |
 | 2 | **110** what exists where, in Settings | The view for 109's scan. Last of the remote feature work | ✅ shipped |
 | 3 | **117** an unreachable confirmation is not proof of absence | Audit P0. It can lose a live remote session's row, and the write phases lean on it | ✅ shipped |
-| 4 | **118** remote children are owned, removal is one transaction | Audit P1, same reason | queued |
-| 5 | **119** decline capture on restore | Insurance from research 59 | queued |
-| — | **RELEASE POINT, AND HE DELEGATED IT** | Everything above is user facing and finishes the remote programme | **AGENT, once, see below** |
+| 4 | **118** remote children are owned, removal is one transaction | Audit P1, same reason | ✅ shipped |
+| 5 | **119** decline capture on restore | Insurance from research 59 | ✅ shipped |
+| — | **RELEASE POINT, AND HE DELEGATED IT** | Everything above is user facing and finishes the remote programme | ✅ DONE, v0.62.1 published 2026-08-21 |
 | 6 | **101** save a file on a machine | The write tranche. He said on 2026-08-20 to roll into it after the release rather than wait for him, so it runs unattended; the `writeRoot` confirm still needs a human at the keyboard the first time a save is attempted, and that is HIS moment, not a blocker on the build | ✅ shipped |
 | 7 | **102** new folder and rename | | ✅ shipped |
 | 8 | **103** stage and unstage | | ✅ shipped |
