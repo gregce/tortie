@@ -14424,8 +14424,20 @@ the bottom.
    phase that was written down earlier but never queued can be updated where it sits when it is
    finally queued, because its reasoning belongs beside the entries it relates to. That is an edit
    to an existing entry rather than a new thing.
-3. **The full entry for a phase lives in its own section above.** This section is the log, not the
-   specification. One line per event, being the date, what happened, and the hash and version when
+3. **Every phase still gets a FULL SECTION in the house shape, and that never changes.** The log
+   is an index, not a replacement, and a one line entry is never enough to build from. A new phase
+   is written the way the hundred phases above it are written, with all of these: a `## Phase N`
+   heading naming the defect or the capability in the operator's words, the **Subject** line for
+   the commit, the **First body line** carrying the phase label, the **Semver**, the **Tier** with
+   the reason that tier was chosen, the **Charter** naming the entry and any research document that
+   binds it, the mechanism written out with the real file paths read from the tree, the proof the
+   phase must produce run rather than read, and a **What is NOT in this phase** section, because
+   the refusals are what stop a later round widening the work. A phase entered as a single line has
+   not been queued, it has been mentioned.
+4. **A new phase section is APPENDED at the end too**, immediately above this log, so the file
+   grows downward and the newest work is always the last thing before the log. The log stays the
+   final section of the file.
+5. **The log is one line per event**, being the date, what happened, and the hash and version when
    it landed.
 
 One line per event. The shape is: date, what happened, the hash and version if it landed.

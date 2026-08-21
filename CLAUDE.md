@@ -51,8 +51,16 @@ rule.
 edited in place when it is finally queued, because its reasoning belongs beside the entries it
 relates to. That is an edit to something that already exists. Anything NEW goes at the bottom.
 
-The full entry for a phase still lives in its own section, with its charter, its tier and its proof
-requirements. The log is a log.
+**The log is an index, not a replacement.** Every phase still gets a FULL SECTION in the house
+shape that the hundred phases above it use, and a one line entry is never enough to build from: the
+`## Phase N` heading in the operator's words, the Subject, the First body line, the Semver, the Tier
+with the reason for it, the Charter naming the entry and any research that binds it, the mechanism
+written with real file paths read from the tree, the proof the phase must produce run rather than
+read, and a **What is NOT in this phase** section, because the refusals are what stop a later round
+widening the work. A phase entered as a single line has not been queued, it has been mentioned.
+
+That new section is appended at the END of the file too, immediately above the running log, so the
+file grows downward and the log stays last.
 
 ## Growth guardrails (enforced at every commit)
 - One typed preload bridge derived from the shared contract in src/shared/ipc/ (domain files behind the index.ts facade, split in Phase 42) — never add a parallel wrapper "generation".
