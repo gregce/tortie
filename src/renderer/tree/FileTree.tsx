@@ -55,7 +55,17 @@
  * · four verbs are in the menu and the rest are absent (see tree-menu.ts);
  * · Copy Path puts the machine in front of the path;
  * · an open carries the remote reference, so the editor reads both sides from
- *   that machine and the tab is read only.
+ *   that machine.
+ *
+ * ── PHASE 101, one of those verbs crosses ─────────────────────────────────
+ * `remote.writeRoot` is the folder on that machine a person confirmed Tortie
+ * may replace a file under, and null means they confirmed none. When it is
+ * set, New File is on the menu and a create lands over there through
+ * `machines.putFile` rather than through `fs:createFile`. Nothing else moves.
+ * New Folder, Rename, Duplicate and Move to Trash stay absent on a folder on
+ * another machine in both states, dragging is still refused at the source, and
+ * a tab opened from such a tree is an edit surface only because that machine
+ * carries a folder, never because the tab was opened from here.
  *
  * Model options are captured ONCE (usePierreModel snapshots them on the first
  * render), so every callback below reads the live state through a ref.
@@ -88,6 +98,7 @@ import { isProtectedFsPath } from '@shared/fs-ops';
 import { targetKey, workspaceTarget } from '@shared/workspace-target';
 import type { OpenWithApps, OpenWithHandler } from '@shared/ipc';
 import type { FsDirEntry, GitFileStatus } from '@shared/types';
+import type { MachineFilePutResult } from '@shared/ipc';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import {
@@ -133,6 +144,7 @@ import {
 import { createTreeOps } from './tree-ops';
 import type { TreeOps } from './tree-ops';
 import { absOf, baseNameOf, isDirPath, parentOf, toRel } from './tree-paths';
+import { gmuxBridge } from '../bridge';
 
 // ---------------------------------------------------------------------------
 // Persisted expansion state (per project root)
@@ -315,8 +327,19 @@ export function FileTree({
    * its context menu ends with. Both are composed in
    * src/renderer/app/machine-copy.ts and passed in, because this component
    * writes no sentence of its own.
+   *
+   * PHASE 101 ADDED `writeRoot`, being the folder on that machine a person
+   * confirmed Tortie may replace a file under, or null when they confirmed
+   * none. It decides one menu item and one write path, and it decides nothing
+   * about what may be written: main reads the confirmed folder off the row on
+   * disk at call time and refuses there.
    */
-  remote: { machineId: string; label: string; readOnlyNote: string } | null;
+  remote: {
+    machineId: string;
+    label: string;
+    writeRoot: string | null;
+    readOnlyNote: string;
+  } | null;
   statusFiles: readonly GitFileStatus[];
   /**
    * Whether this folder is a git repository. Only a repository can be asked
@@ -340,6 +363,15 @@ export function FileTree({
    * remembered under, and it is the bare path for a folder on this Mac.
    */
   const isRemote = remote !== null;
+  /**
+   * PHASE 101. The folder on that machine Tortie may write a file under, or
+   * null. Null for every folder on this Mac, and null for a machine nobody has
+   * confirmed a folder for, which is every machine before this phase.
+   */
+  const remoteWriteRoot =
+    remote !== null && remote.writeRoot !== null && remote.writeRoot.length > 0
+      ? remote.writeRoot
+      : null;
   const storeKey = useMemo(
     () => storageKeyFor(rootPath, remote?.machineId ?? null),
     [rootPath, remote]
@@ -715,6 +747,38 @@ export function FileTree({
   // Built once per mounted root: they hold the model and the feed baseline,
   // which are exactly the two things a file operation has to keep in step.
   useEffect(() => {
+    // PHASE 101. The one member that says where a create lands. It is absent
+    // for a folder on this Mac and for a machine nobody confirmed a folder
+    // for, and `finishCreate` in ./tree-ops.ts branches on exactly that.
+    const machineId = remote?.machineId ?? null;
+    const remoteCreate =
+      machineId === null || remoteWriteRoot === null
+        ? undefined
+        : {
+            machineId,
+            putFile: async (absPath: string): Promise<MachineFilePutResult> => {
+              const machines = gmuxBridge()?.machines;
+              if (
+                machines === undefined ||
+                typeof machines.putFile !== 'function'
+              ) {
+                throw new Error(
+                  'This build cannot save files on another machine.'
+                );
+              }
+              return machines.putFile({
+                machineId,
+                path: absPath,
+                // A new file starts empty, and `new` is what makes the far
+                // side refuse a name that is already there.
+                contents: '',
+                expect: 'new'
+              });
+            },
+            refresh: async (): Promise<void> => {
+              await useFileTree.getState().refreshLoaded();
+            }
+          };
     opsRef.current = createTreeOps({
       rootPath,
       model,
@@ -724,13 +788,14 @@ export function FileTree({
       },
       hold,
       renameView: () => editorBridge()?.view ?? null,
-      selectOnly: (canonical) => editorBridge()?.selectOnly(canonical)
+      selectOnly: (canonical) => editorBridge()?.selectOnly(canonical),
+      ...(remoteCreate === undefined ? {} : { remoteCreate })
     });
     setOpsCreated((n) => n + 1);
     return () => {
       opsRef.current = null;
     };
-  }, [model, rootPath, hold, editorBridge]);
+  }, [model, rootPath, hold, editorBridge, remote, remoteWriteRoot]);
 
   // ----- the create editor's live refusal (Phase 37) ------------------------
   // While a New File / New Folder editor is open, every keystroke is judged
@@ -1390,7 +1455,12 @@ export function FileTree({
           mutate: !isRemote && ops !== null && canMutate(),
           duplicate: canDuplicate(),
           reveal: !isRemote && canReveal(),
-          readOnlyNote: remote?.readOnlyNote ?? null
+          readOnlyNote: remote?.readOnlyNote ?? null,
+          // PHASE 101. Its own flag rather than `mutate` flipped to true,
+          // because `mutate` gates five verbs and only this one has a script
+          // on the far side.
+          remoteCreateFile:
+            isRemote && ops !== null && remoteWriteRoot !== null
         },
         {
           open: (path, keep) => {
@@ -1414,6 +1484,7 @@ export function FileTree({
       treeInput,
       isRemote,
       remote,
+      remoteWriteRoot,
       openRel,
       revealPath,
       copyPaths,

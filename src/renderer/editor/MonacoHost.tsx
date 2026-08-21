@@ -26,6 +26,11 @@ import {
 } from './monaco-loader';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
+// PHASE 101. Whether a tab that names a file on another machine is an edit
+// surface is a fact about that MACHINE, not about the tab, so it is read from
+// the link state main pushes rather than from anything written into the tab.
+import { useApp } from '../state/store';
+import { machineWriteRootFor } from '../state/machines-slice';
 // Phase 12.11: the editor region's zoom reaches Monaco through its OWN
 // font-size API — a CSS zoom around the editor would leave its cursor,
 // selection and hit-testing measuring a coordinate space it does not use.
@@ -139,11 +144,28 @@ function baseOptions(
  * so a person typed freely into a tab whose every save is refused, and the band
  * ./EditorPanel.tsx draws over it already promised that typing changes nothing.
  * This makes that promise true.
+ *
+ * PHASE 101 MADE THE FOURTH REASON CONDITIONAL, and it is the only one that
+ * is. `remoteWriteRoot` is the folder on that machine a person confirmed Tortie
+ * may replace a file under, and null means there is none. A remote tab is an
+ * edit surface when it is a non-empty string and is read only otherwise, so the
+ * default for every machine, and for every build before this phase, is
+ * unchanged. The other three reasons are unchanged and none of them is
+ * conditional: a deleted file, a cut file and a past commit are not edit
+ * surfaces on any machine.
+ *
+ * The caller reads the root from the link state main pushes, so the answer is
+ * never older than the last confirmation. This function decides nothing about
+ * whether a write is allowed. Main refuses that on the row on disk at call
+ * time, and this only decides whether Monaco takes the keystroke.
  */
-export function tabIsReadOnly(tab: EditorTab): boolean {
-  return (
-    tab.deleted || tab.truncated || tab.commit !== null || tab.remote !== undefined
-  );
+export function tabIsReadOnly(
+  tab: EditorTab,
+  remoteWriteRoot: string | null
+): boolean {
+  if (tab.deleted || tab.truncated || tab.commit !== null) return true;
+  if (tab.remote === undefined) return false;
+  return remoteWriteRoot === null || remoteWriteRoot.length === 0;
 }
 
 /**
@@ -218,7 +240,16 @@ export function MonacoHost({
 
   // -- (re)wire the editor whenever the shown path changes ------------------
   // The reasons a tab refuses every keystroke are in `tabIsReadOnly` above.
-  const readOnly = tabIsReadOnly(tab);
+  // PHASE 101. The fourth reason needs one fact from outside the tab, being
+  // the folder a person let Tortie save under on that machine. It is read here
+  // rather than inside the predicate so the predicate stays pure and its test
+  // can drive both answers without a store.
+  const machineStates = useApp((s) => s.machineStates);
+  const remoteWriteRoot =
+    tab.remote === undefined
+      ? null
+      : machineWriteRootFor(machineStates, tab.remote.machineId);
+  const readOnly = tabIsReadOnly(tab, remoteWriteRoot);
   const contentReady = !tab.loading && tab.error === null;
 
   useEffect(() => {

@@ -245,6 +245,71 @@ export const WITHDRAW_VERSION_EXPLAIN =
   'because the version is one of the things you confirmed. Confirm the ' +
   'machine again to use it.';
 
+// ---------------------------------------------------------------------------
+// Letting Tortie save a file on one machine (Phase 101)
+// ---------------------------------------------------------------------------
+//
+// Labels, buttons and two sentences about what this surface is for. Everything
+// the AGREEMENT covers comes from main, being the sheet's lines, the confirm
+// warning and the paragraph that says what a replacement costs. Not one of them
+// is written here, for the reason at the top of this file: a line the renderer
+// wrote could never be part of what main checks.
+//
+// THIS IS A HUMAN MOMENT AND IT IS THE POINT OF THE FIELD. A person turns
+// saving on for one machine, once, by typing a folder and reading a sheet.
+// Nothing else in Tortie can do it for them.
+
+/** The block's heading, under the key line. */
+export const SAVING_TITLE = 'Saving files';
+
+/**
+ * What the block says while Tortie may save nothing on this machine.
+ *
+ * It says the state first and then what turning it on would mean, including
+ * the check that makes it safe, which is that Tortie reads the file and
+ * compares its contents before it replaces anything.
+ */
+export function savingOffExplain(label: string): string {
+  return (
+    `Tortie does not save files on ${label}. Turn this on and Tortie may ` +
+    'replace a file under one folder you name, after it has read that file ' +
+    'and checked its contents match.'
+  );
+}
+
+/** The button that reveals the folder field. It starts nothing. */
+export const BTN_ALLOW_WRITES = 'Let Tortie save files here…';
+
+/** The one field on this block. */
+export const WRITE_ROOT_LABEL = 'Folder Tortie may save under';
+
+/** The button on the sheet the folder field draws. */
+export const BTN_CONFIRM_WRITES = 'Confirm saving on this machine';
+
+/** While that button's call is in flight. */
+export const CONFIRMING_WRITES = 'Confirming saving on this machine';
+
+/** What the block says once a person has confirmed a folder. */
+export function savingOnLine(root: string, label: string): string {
+  return `Tortie may replace files under ${root} on ${label}.`;
+}
+
+/**
+ * Drawn above the button that turns saving off, because it does two things.
+ *
+ * The folder is one of the facts the confirmation covers, so it cannot be
+ * dropped on its own. This is the same shape, and the same cost, as withdrawing
+ * an accepted version. The rejected alternative was a call that clears the
+ * folder and records the agreement again on its own, and it is rejected because
+ * Tortie would then be writing down an agreement nobody read.
+ */
+export const STOP_SAVING_EXPLAIN =
+  'Turning saving off also withdraws your confirmation of this machine, ' +
+  'because the folder is one of the things you confirmed. Confirm the ' +
+  'machine again to use it.';
+
+export const BTN_STOP_SAVING = 'Stop Tortie saving files here';
+
 /** Stands immediately before the version the machine reported. */
 export const PREPARE_VERSION_LABEL = 'Version on that machine:';
 

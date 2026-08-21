@@ -31,6 +31,32 @@
  * `build/conformance-machines.mjs` pins the unaccepted hash against a hard
  * coded value, so this is checked rather than promised.
  *
+ * ## The sixth field, and why the algorithm name did not move again (Phase 101)
+ *
+ * `writeRoot` is the sixth execution bearing field. It holds the one folder on
+ * that machine under which Tortie may replace a file. A row that carries none
+ * cannot save anything there, which is what every row on every machine says
+ * today.
+ *
+ * It took `acceptedTmuxVersion`'s route into the hash rather than
+ * `remoteTmuxPath`'s. It is on {@link APPENDED_KEYS}, so
+ * {@link canonicalMachineText} emits it ONLY when it is a non-empty string. A
+ * row with no write root therefore hashes byte for byte as it did before Phase
+ * 101, its sessions keep running and it asks nothing. Putting it in the always
+ * emitted set instead would move the hash of every row on every machine and
+ * break every confirmation at once.
+ *
+ * It is a STRING AND A PATH rather than a boolean. The emit test skips anything
+ * that is not a non-empty string, so a boolean would fall out of the hash text
+ * while the mapped type below still compiled, and the field would then decide
+ * what runs while the agreement did not cover it. A path also makes containment
+ * a confirmed fact rather than a value a renderer chose.
+ *
+ * {@link MACHINE_EXECUTION_HASH_ALGORITHM} did NOT move, for the reason the
+ * fifth field did not move it. `build/conformance-machines.mjs` condition 42
+ * pins the hash of a row with no accepted version and no write root against a
+ * hard coded value, so this is checked rather than promised.
+ *
  * ## Why this gate has its OWN field type and does not reuse the agent gate's
  *
  * `ConfigExecutionFields` in `../config/confirm.ts` carries thirteen fields
@@ -145,6 +171,24 @@ export interface MachineExecutionFields {
    * still compulsory and the field still cannot fall quietly out of the hash.
    */
   readonly acceptedTmuxVersion?: string | null;
+  /**
+   * The one folder on that machine under which Tortie may replace a file, or
+   * null when a person has named none.
+   *
+   * Phase 101. It is execution bearing because it is the whole of what decides
+   * which files on that machine Tortie may write over. It reaches a command as
+   * a positional parameter of the `file-put` script, and `putFileOnMachine` in
+   * `./remote-file.ts` refuses any path that does not sit under it before it
+   * composes anything.
+   *
+   * IT IS OPTIONAL, and absent means the same as null, which is a machine
+   * Tortie may save nothing on. That is the rule every appended field in this
+   * codebase follows: a fields object written before this field existed is
+   * still a valid one, and it hashes exactly as it did. The mapped type below
+   * still covers this key with `-?`, so a normalizer line is still compulsory
+   * and the field still cannot fall quietly out of the hash.
+   */
+  readonly writeRoot?: string | null;
 }
 
 /**
@@ -166,7 +210,8 @@ const NORMALIZE: Normalizers = {
   user: (v) => v,
   port: (v) => v,
   remoteTmuxPath: (v) => v,
-  acceptedTmuxVersion: (v) => v
+  acceptedTmuxVersion: (v) => v,
+  writeRoot: (v) => v
 };
 
 /**
@@ -177,7 +222,8 @@ const NORMALIZE: Normalizers = {
  * fifth field section at the top of this file for why that split exists.
  */
 const APPENDED_KEYS: readonly (keyof MachineExecutionFields)[] = [
-  'acceptedTmuxVersion'
+  'acceptedTmuxVersion',
+  'writeRoot'
 ];
 
 /** Names the algorithm, so a record written by an older build fails loudly. */
@@ -204,7 +250,8 @@ export const EMPTY_MACHINE_FIELDS: MachineExecutionFields = {
   user: null,
   port: null,
   remoteTmuxPath: null,
-  acceptedTmuxVersion: null
+  acceptedTmuxVersion: null,
+  writeRoot: null
 };
 
 /**
@@ -296,6 +343,47 @@ export const MACHINE_PATH_HONESTY =
   'Confirming seals which program Tortie runs on that machine. It can never ' +
   'seal the bytes of that program.';
 
+/**
+ * The paragraph a person reads before a sheet that grants file replacement
+ * (Phase 101).
+ *
+ * It is drawn beside the hashed facts, exactly as {@link MACHINE_PATH_HONESTY}
+ * is, and it is deliberately kept out of {@link MachineSummary.lines} and out
+ * of the canonical text the hash covers. `confirm.test.ts` asserts both. So the
+ * words can be corrected without moving any hash and without invalidating any
+ * record.
+ *
+ * IT SAYS WHAT A SAVE COSTS, and each sentence is there because a measurement
+ * said so. Research 57 section 4.2 put a 755 file with two hard links and one
+ * extended attribute through the write shape and read it back at 600, with one
+ * link and no attribute. The mode is now read and applied, and the other two
+ * are not kept, so this paragraph says so before a person agrees rather than
+ * after they notice.
+ */
+export const MACHINE_WRITE_HONESTY =
+  'Tortie replaces a file only after it has just read that file and its ' +
+  'contents still match what it read. A save cannot be undone, and Tortie ' +
+  'cannot reach a Trash on that machine. A save writes a new file and moves ' +
+  'it into place, so a file with more than one name keeps only this one, and ' +
+  'extended attributes are not kept.';
+
+/**
+ * {@link MACHINE_WRITE_HONESTY} when these fields carry a write root, else
+ * null. Pure.
+ *
+ * THIS IS WHY THE RULING IS MECHANICAL RATHER THAN REMEMBERED. Three doors can
+ * put the write root line on a sheet, being `machines:allowWrites`,
+ * `machines:confirm` and `machines:add`. A renderer that decided the question
+ * by matching a prefix against a line would be a second copy of main's sentence
+ * in a file the vocabulary audit does not read. So main answers it here, every
+ * sheet carries the answer, and every sheet drawing site draws the paragraph
+ * when it is not null.
+ */
+export function writeHonestyOf(fields: MachineExecutionFields): string | null {
+  const root = fields.writeRoot;
+  return typeof root === 'string' && root.length > 0 ? MACHINE_WRITE_HONESTY : null;
+}
+
 /** Everything the sheet shows about one machine, and what gets recorded. */
 export interface MachineSummary {
   readonly id: string;
@@ -312,6 +400,16 @@ export interface MachineSummary {
   readonly lines: readonly string[];
   /** {@link MACHINE_CONFIRM_WARNING}, carried so the sheet cannot omit it. */
   readonly warning: string;
+  /**
+   * PHASE 101. {@link MACHINE_WRITE_HONESTY} when this row carries a write
+   * root, and null when it does not.
+   *
+   * It is NOT one of `lines` and the hash does not cover it. It is carried here
+   * so that a sheet granting file replacement cannot be drawn without the
+   * paragraph that says what replacement costs, whichever of the three doors
+   * opened it.
+   */
+  readonly writeHonesty: string | null;
 }
 
 /** Read one machine as the lines a person is asked to agree to. Pure. */
@@ -341,12 +439,21 @@ export function describeMachine(
         `${fields.acceptedTmuxVersion}`
     );
   }
+  // Phase 101. Drawn only when a person has named a folder, so `lines` stays
+  // exactly the hashed facts. A row with no write root has no sixth entry in
+  // the hash text either, and the two must say the same thing.
+  if (typeof fields.writeRoot === 'string' && fields.writeRoot.length > 0) {
+    lines.push(
+      `May replace files under this folder on that machine: ${fields.writeRoot}`
+    );
+  }
   return {
     id,
     hash: machineExecutionHash(id, fields),
     algorithm: MACHINE_EXECUTION_HASH_ALGORITHM,
     lines,
-    warning: MACHINE_CONFIRM_WARNING
+    warning: MACHINE_CONFIRM_WARNING,
+    writeHonesty: writeHonestyOf(fields)
   };
 }
 
@@ -378,6 +485,12 @@ export interface MachineRowStatus {
   readonly lines: readonly string[];
   /** One sentence saying why it cannot be used. Null when it can. */
   readonly refusal: string | null;
+  /**
+   * PHASE 101. {@link MACHINE_WRITE_HONESTY} when this row carries a write
+   * root, and null when it does not. Carried for the reason
+   * {@link MachineSummary.writeHonesty} is carried.
+   */
+  readonly writeHonesty: string | null;
 }
 
 /** The records, read fresh on every call. See ../config/confirm-record.ts. */
@@ -407,7 +520,8 @@ export function machineRowStatus(
     lines: summary.lines,
     confirmedHash: row?.hash ?? null,
     confirmedAt: row?.at ?? null,
-    confirmedLines: row?.lines ?? []
+    confirmedLines: row?.lines ?? [],
+    writeHonesty: summary.writeHonesty
   };
   // Refusal 4. Nothing may report a machine as confirmed while machines.json is
   // being read, because "is this machine confirmed" is the whole of the connect

@@ -30,7 +30,10 @@ const STUDIO: MachineStateRow = {
   label: 'Studio',
   color: 'orange',
   confirmed: true,
-  refusal: null
+  refusal: null,
+  // PHASE 101. This machine grants no saving, which is what every row in every
+  // file says today.
+  writeRoot: null
 };
 
 function facts(over: Partial<MachineLinkFacts> = {}): MachineLinkFacts {
@@ -113,8 +116,28 @@ describe('machineStateViewOf', () => {
       link: 'connected',
       everAnswered: true,
       lastAnsweredAt: 1_700_000_000_000,
-      detail: null
+      detail: null,
+      // Phase 101. This machine grants no saving.
+      writeRoot: null
     });
+  });
+
+  it('reports the folder only for a confirmed machine (Phase 101)', () => {
+    const granting = { ...STUDIO, writeRoot: '/Users/gdc/code' };
+    expect(machineStateViewOf(granting, facts()).writeRoot).toBe(
+      '/Users/gdc/code'
+    );
+    // An unconfirmed root is not a confirmed fact, whatever machines.json says.
+    expect(
+      machineStateViewOf(
+        { ...granting, confirmed: false, refusal: 'nobody has confirmed it' },
+        facts()
+      ).writeRoot
+    ).toBeNull();
+    // An empty folder reads as none.
+    expect(
+      machineStateViewOf({ ...granting, writeRoot: '' }, facts()).writeRoot
+    ).toBeNull();
   });
 
   it('reads quiet for a confirmed machine with no facts at all', () => {

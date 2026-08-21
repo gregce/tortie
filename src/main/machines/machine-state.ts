@@ -65,6 +65,14 @@ export interface MachineStateRow {
   readonly confirmed: boolean;
   /** The gate's own sentence when it refuses this row. Null when it does not. */
   readonly refusal: string | null;
+  /**
+   * PHASE 101. The folder Tortie may save under on this machine, or null.
+   *
+   * It is read straight off the row here. {@link machineStateViewOf} is what
+   * applies the one rule, being that an unconfirmed row reports null whatever
+   * the file holds.
+   */
+  readonly writeRoot: string | null;
 }
 
 /**
@@ -124,7 +132,12 @@ export function machineStateViewOf(
       lastAnsweredAt: null,
       detail:
         row.refusal ??
-        machineDetailSentence(row.label, 'refused', null)
+        machineDetailSentence(row.label, 'refused', null),
+      // PHASE 101. THE ONE RULE. A row nobody has confirmed reports no write
+      // root, even when machines.json holds one, because an unconfirmed root is
+      // not a confirmed fact. Main refuses that case anyway; this copy is
+      // presentational and it must not disagree with main.
+      writeRoot: null
     };
   }
   const link: MachineLink = facts?.link ?? 'quiet';
@@ -136,7 +149,11 @@ export function machineStateViewOf(
     link,
     everAnswered: facts?.everAnswered ?? false,
     lastAnsweredAt: facts?.lastAnsweredAt ?? null,
-    detail: machineDetailSentence(row.label, link, reason)
+    detail: machineDetailSentence(row.label, link, reason),
+    // PHASE 101. The row is confirmed here, so the root it carries is a
+    // confirmed fact. An empty one reads as none.
+    writeRoot:
+      row.writeRoot !== null && row.writeRoot.length > 0 ? row.writeRoot : null
   };
 }
 
@@ -167,7 +184,10 @@ function stateRowOf(row: MachineRowV1): MachineStateRow {
     label: machineLabelOf(row),
     color: machineColorOf(row),
     confirmed: status.state === 'confirmed',
-    refusal: status.refusal
+    refusal: status.refusal,
+    // PHASE 101. What the file holds. The view above decides whether it is
+    // reported at all.
+    writeRoot: row.writeRoot ?? null
   };
 }
 

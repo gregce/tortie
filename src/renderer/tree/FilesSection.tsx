@@ -39,6 +39,7 @@ import {
   remoteTreeMissingBody,
   remoteTreeMissingTitle,
   remoteTreeNotAFolder,
+  remoteTreeCanSave,
   remoteTreeNotConnected,
   remoteTreeReadAt,
   remoteTreeReadOnly,
@@ -47,7 +48,11 @@ import {
 } from '../app/machine-copy';
 import { registerTargetShotDrive } from '../app/target-shot-drive';
 import { registerRemoteBootDrive } from '../app/remote-boot-drive';
-import { machineAnswering, machineLabelFor } from '../state/machines-slice';
+import {
+  machineAnswering,
+  machineLabelFor,
+  machineWriteRootFor
+} from '../state/machines-slice';
 import { Codicon } from '../icons';
 import { useTreeDensity } from './density';
 import { useTreeGitStatus } from './git-status';
@@ -136,10 +141,21 @@ export function FilesSection({
   const remote = useMemo(() => {
     if (target === null || isLocalTarget(target)) return null;
     const label = machineLabelFor(machineStates, target.machineId);
+    // PHASE 101. The folder a person confirmed Tortie may replace a file
+    // under on that machine, or null when they confirmed none. It decides
+    // which of the two notes the menu ends with, and it decides whether New
+    // File is on that menu at all. Main refuses a write against the row on
+    // disk either way, so this copy is presentational.
+    const root = machineWriteRootFor(machineStates, target.machineId);
+    const writeRoot = root !== null && root.length > 0 ? root : null;
     return {
       machineId: target.machineId,
       label,
-      readOnlyNote: remoteTreeReadOnly(label)
+      writeRoot,
+      readOnlyNote:
+        writeRoot === null
+          ? remoteTreeReadOnly(label)
+          : remoteTreeCanSave(writeRoot, label)
     };
   }, [target, machineStates]);
 

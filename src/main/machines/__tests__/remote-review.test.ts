@@ -225,6 +225,30 @@ describe('reading one file', () => {
     expect(pair.note).not.toBeNull();
   });
 
+  it('counts the working copy in bytes (Phase 101)', () => {
+    // The refusal to open a remote file that is too large to save names this
+    // number, so it has to be the size of the WORKING copy and not of the copy
+    // in the last commit.
+    const pair = parseRemoteReviewPair(sides('one\n', 'a longer working copy\n'));
+    expect(pair.bytes).toBe(Buffer.byteLength('a longer working copy\n', 'utf8'));
+  });
+
+  it('counts a cut side at the cap, which is a floor rather than a size', () => {
+    const big = 'x'.repeat(64);
+    const pair = parseRemoteReviewPair(sides(big, big), 64);
+    expect(pair.truncated).toBe(true);
+    expect(pair.bytes).toBe(64);
+  });
+
+  it('counts a binary side in bytes even though neither side is shown', () => {
+    const pair = parseRemoteReviewPair(
+      `none ${Buffer.from([0x89, 0x50, 0x00, 0x01]).toString('base64')}`
+    );
+    expect(pair.binary).toBe(true);
+    expect(pair.newContents).toBe('');
+    expect(pair.bytes).toBe(4);
+  });
+
   it('refuses a side that is not base64 rather than decoding nonsense', () => {
     // `Buffer.from` drops a character it does not recognise and hands back
     // something plausible. A person reading a diff cannot tell that from a

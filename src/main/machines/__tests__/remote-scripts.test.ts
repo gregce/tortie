@@ -124,9 +124,16 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds nineteen scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(19);
+  it('holds twenty scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(20);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 101 added `file-put`, which replaces one file under one confirmed
+      // folder on a machine or makes a new empty one there. It is the THIRD
+      // write in this catalogue and the first command this product sends that
+      // can replace a file a person already had, so the write count below moved
+      // from two to three. It names no git verb, so GIT_VERBS above did not
+      // move.
+      //
       // PHASE 109 added `agents-find`, which asks one machine in ONE call
       // which of Tortie's launchable agents exist there, so the create sheet
       // on a tab whose files live over there can grey the tiles that machine
@@ -181,6 +188,7 @@ describe('the catalogue', () => {
       // computer.
       'context-read',
       'dir-list',
+      'file-put',
       'git-clone',
       'image-put',
       'machine-facts',
@@ -212,18 +220,19 @@ describe('the catalogue', () => {
     expect(remoteScript('IMAGE-PUT')).toBeNull();
   });
 
-  it('has exactly TWO scripts that write, and names both of them', () => {
+  it('has exactly THREE scripts that write, and names all of them', () => {
     // This is rule 6, and it is the one that keeps the size of what Tortie can
     // do to another person's computer at a known list rather than a count.
-    // Phase 90.2 moved it from one to two, once and on purpose, and the list
-    // stays exact so a third one fails here rather than passing quietly.
-    // Phase 105, Phase 106, Phase 107 and Phase 108 each added a read and
-    // left this number alone.
+    // Phase 90.2 moved it from one to two and Phase 101 moved it from two to
+    // three, once and on purpose each time, and the list stays exact so a
+    // fourth one fails here rather than passing quietly. Phase 105, Phase 106,
+    // Phase 107 and Phase 108 each added a read and left this number alone.
     const writers = remoteWriteScripts();
-    expect(writers).toHaveLength(2);
+    expect(writers).toHaveLength(3);
     expect(writers.map((script) => script.id)).toEqual([
       'image-put',
-      'git-clone'
+      'git-clone',
+      'file-put'
     ]);
   });
 

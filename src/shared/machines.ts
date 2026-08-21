@@ -20,13 +20,13 @@
  *
  * ## The two kinds of field
  *
- * Five fields decide what runs, being `host`, `user`, `port`,
- * `remoteTmuxPath` and `acceptedTmuxVersion`. Two fields decide how a row
- * looks, being `label` and `color`. The confirm hash covers the first five and
- * the row id, and it covers neither of the last two. A person who renames a
- * machine is not asked to confirm it again, because a name cannot change what
- * runs, and a gate that asks about a rename trains a person to click through
- * the sheet that matters.
+ * Six fields decide what runs, being `host`, `user`, `port`,
+ * `remoteTmuxPath`, `acceptedTmuxVersion` and `writeRoot`. Two fields decide
+ * how a row looks, being `label` and `color`. The confirm hash covers the first
+ * six and the row id, and it covers neither of the last two. A person who
+ * renames a machine is not asked to confirm it again, because a name cannot
+ * change what runs, and a gate that asks about a rename trains a person to
+ * click through the sheet that matters.
  *
  * Phase 83 added the fifth. `acceptedTmuxVersion` is the version of the program
  * a person accepted for this one machine after Tortie said it had not measured
@@ -34,6 +34,13 @@
  * execution bearing field and the hash covers it. The hash text appends it only
  * when it is set, so a row nobody accepted a version for hashes exactly as it
  * did before Phase 83 and nobody is asked to confirm a machine again.
+ *
+ * Phase 101 added the sixth. `writeRoot` is the one folder on that machine
+ * under which Tortie may replace a file. A row that carries none cannot save
+ * anything there at all. It is a path rather than a switch, so what Tortie may
+ * replace is a fact the person confirmed rather than a value a renderer chose.
+ * The hash text appends it the same way, so a row carrying no write root hashes
+ * byte for byte as it did before Phase 101 and nobody is asked again.
  *
  * ## Why ssh reads its own argv, and what follows from it
  *
@@ -166,25 +173,38 @@ export interface MachineRowV1 {
    * whose program is updated asks again.
    */
   acceptedTmuxVersion?: string;
+  /**
+   * The one folder on that machine under which Tortie may replace a file.
+   * Absent means Tortie may save nothing there.
+   *
+   * Phase 101. It is an absolute path with no `..` segment and no trailing
+   * slash. A person confirms it once, out of band of any agent turn, and the
+   * agreement is bound to it. Tortie refuses to save a file that does not sit
+   * under it, before it composes anything and before it sends anything.
+   */
+  writeRoot?: string;
 }
 
 /**
- * The five fields that decide what runs.
+ * The six fields that decide what runs.
  *
  * The conformance gate compares this list against the hash normalizer's own key
- * set, so a sixth field added to one and not the other fails the gate instead
+ * set, so a seventh field added to one and not the other fails the gate instead
  * of falling quietly out of the hash.
  *
  * It was four until Phase 83. `acceptedTmuxVersion` joined it because a version
  * a person accepted is what decides whether Tortie starts work on that machine
- * at all.
+ * at all. It was five until Phase 101. `writeRoot` joined it because the folder
+ * a person named is what decides which files on that machine Tortie may
+ * replace.
  */
 export const MACHINE_EXECUTION_FIELDS: readonly string[] = [
   'host',
   'user',
   'port',
   'remoteTmuxPath',
-  'acceptedTmuxVersion'
+  'acceptedTmuxVersion',
+  'writeRoot'
 ];
 
 /** The two fields that decide how a row looks and nothing else. */
@@ -199,7 +219,8 @@ export const MACHINE_ROW_KEYS: readonly string[] = [
   'user',
   'port',
   'remoteTmuxPath',
-  'acceptedTmuxVersion'
+  'acceptedTmuxVersion',
+  'writeRoot'
 ];
 
 // ---------------------------------------------------------------------------

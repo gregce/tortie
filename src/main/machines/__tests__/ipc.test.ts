@@ -152,6 +152,7 @@ vi.mock('../removal', async () => {
 const { registerMachinesIpc } = await import('../ipc');
 const {
   MACHINE_CONFIRM_ACKNOWLEDGEMENT,
+  MACHINE_WRITE_HONESTY,
   confirmMachine,
   describeMachine
 } = await import('../confirm');
@@ -274,6 +275,13 @@ describe('every channel is registered, and only the ones listed here', () => {
       // manifest row holds.
       'machines:agents',
       // ---- END PHASE 109 ----
+      // ---- PHASE 101 ----
+      // The one call that turns saving on for one machine. It writes the folder
+      // into the row and records the agreement, on this Mac and nowhere else.
+      // It contacts no machine, opens no connection and starts nothing, and a
+      // stale hash refuses before either write.
+      'machines:allowWrites',
+      // ---- END PHASE 101 ----
       // ---- PHASE 90.2 ----
       // The SECOND write this product can make on another computer, and the
       // only one this phase adds. It copies one project into one folder that
@@ -326,6 +334,14 @@ describe('every channel is registered, and only the ones listed here', () => {
       // builder C rather than by the builder who added it, because this file
       // belongs to no builder in this phase and the list has to name every
       // channel or it names none.
+      // ---- PHASE 101 ----
+      // Phase 101's one WRITE ON ANOTHER COMPUTER, being the save. Main asks
+      // the confirm gate, refuses a machine with no confirmed folder, refuses a
+      // file that is too large and refuses a path outside that folder, all
+      // before anything is composed. The machine then refuses again unless the
+      // file's contents still match what Tortie read.
+      'machines:putFile',
+      // ---- END PHASE 101 ----
       'machines:putImage',
       // ---- PHASE 106 ----
       // One READ of which branch is checked out in one folder on one machine,
@@ -400,7 +416,13 @@ describe('every channel is registered, and only the ones listed here', () => {
       'machines:tailscaleNames',
       'machines:test',
       'machines:testCancel',
-      'machines:testInput'
+      'machines:testInput',
+      // ---- PHASE 101 ----
+      // One READ. It answers the sheet for the row as it is now plus the folder
+      // a person typed, so the renderer never composes a sheet's hash. It
+      // starts nothing, sends nothing to any machine and writes nothing at all.
+      'machines:writeSheet'
+      // ---- END PHASE 101 ----
     ]);
   });
 
@@ -1323,6 +1345,155 @@ describe('machines:acceptVersion', () => {
     expect(view.acceptedTmuxVersion).toBeNull();
     expect(view.state).toBe('never');
     expect(machineRow('pop-os')?.acceptedTmuxVersion).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 101. The three channels that let a person save a file on a machine
+// ---------------------------------------------------------------------------
+
+describe('the three channels of Phase 101', () => {
+  const ROOT = '/Users/gdc/code';
+
+  /** The sheet main would draw for granting saving under one folder. */
+  function sheetFor(root: string): { hash: string; lines: string[] } {
+    const summary = describeMachine('pop-os', {
+      ...machineFieldsOf(POP),
+      writeRoot: root
+    });
+    return { hash: summary.hash, lines: [...summary.lines] };
+  }
+
+  beforeEach(() => {
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+  });
+
+  it('answers a sheet naming the folder, and writes nothing at all', () => {
+    const sheet = call<{
+      hash: string;
+      lines: string[];
+      warning: string;
+      writeHonesty: string | null;
+    }>('machines:writeSheet', { id: 'pop-os', writeRoot: ROOT });
+    expect(sheet.hash).toBe(sheetFor(ROOT).hash);
+    expect(sheet.lines.join('\n')).toContain(
+      `May replace files under this folder on that machine: ${ROOT}`
+    );
+    expect(sheet.writeHonesty).toBe(MACHINE_WRITE_HONESTY);
+    // Nothing was written and nothing was started.
+    expect(machineRow('pop-os')?.writeRoot).toBeUndefined();
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('keeps the honesty paragraph out of the sheet lines', () => {
+    const sheet = call<{ lines: string[] }>('machines:writeSheet', {
+      id: 'pop-os',
+      writeRoot: ROOT
+    });
+    expect(sheet.lines.join('\n')).not.toContain(MACHINE_WRITE_HONESTY);
+  });
+
+  it('refuses a folder that is not a folder, on both channels', () => {
+    for (const bad of ['code', '/Users/gdc/../..', "/Users/o'brien", '/Users/gdc/']) {
+      expect(() =>
+        call('machines:writeSheet', { id: 'pop-os', writeRoot: bad })
+      ).toThrow(/The folder Tortie may save under/);
+      expect(() =>
+        call('machines:allowWrites', {
+          id: 'pop-os',
+          writeRoot: bad,
+          hashRead: 'whatever',
+          linesRead: []
+        })
+      ).toThrow(/The folder Tortie may save under/);
+    }
+    expect(machineRow('pop-os')?.writeRoot).toBeUndefined();
+  });
+
+  it('writes the folder and records the agreement in one call', () => {
+    const sheet = sheetFor(ROOT);
+    const view = call<{
+      state: string;
+      usable: boolean;
+      writeRoot: string | null;
+      writeHonesty: string | null;
+    }>('machines:allowWrites', {
+      id: 'pop-os',
+      writeRoot: ROOT,
+      hashRead: sheet.hash,
+      linesRead: sheet.lines
+    });
+    expect(view.writeRoot).toBe(ROOT);
+    expect(view.writeHonesty).toBe(MACHINE_WRITE_HONESTY);
+    expect(view.state).toBe('confirmed');
+    expect(view.usable).toBe(true);
+    expect(machineRow('pop-os')?.writeRoot).toBe(ROOT);
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('refuses a stale sheet and writes NOTHING', () => {
+    const stale = describeMachine('pop-os', machineFieldsOf(POP));
+    expect(() =>
+      call('machines:allowWrites', {
+        id: 'pop-os',
+        writeRoot: ROOT,
+        hashRead: stale.hash,
+        linesRead: [...stale.lines]
+      })
+    ).toThrow(/changed after it was shown/);
+    expect(machineRow('pop-os')?.writeRoot).toBeUndefined();
+    expect(spawned).toHaveLength(0);
+  });
+
+  it('refuses a machine that is not in the file, on both channels', () => {
+    expect(() =>
+      call('machines:writeSheet', { id: 'nowhere', writeRoot: ROOT })
+    ).toThrow(/There is no machine called nowhere/);
+    expect(() =>
+      call('machines:allowWrites', {
+        id: 'nowhere',
+        writeRoot: ROOT,
+        hashRead: 'whatever',
+        linesRead: []
+      })
+    ).toThrow(/There is no machine called nowhere/);
+  });
+
+  it('takes the folder away when the agreement is withdrawn', () => {
+    const sheet = sheetFor(ROOT);
+    call('machines:allowWrites', {
+      id: 'pop-os',
+      writeRoot: ROOT,
+      hashRead: sheet.hash,
+      linesRead: sheet.lines
+    });
+    const view = call<{ state: string; writeRoot: string | null }>(
+      'machines:forget',
+      'pop-os'
+    );
+    expect(view.writeRoot).toBeNull();
+    expect(view.state).toBe('never');
+    expect(machineRow('pop-os')?.writeRoot).toBeUndefined();
+  });
+
+  it('refuses a save on a machine nobody confirmed, and sends nothing', async () => {
+    // The confirm gate is asked FIRST, before the folder is even read, because
+    // this is the one script channel that reads a value out of the row on disk
+    // at call time and acts on it.
+    await expect(
+      (async () =>
+        call<Promise<unknown>>('machines:putFile', {
+          machineId: 'pop-os',
+          path: `${ROOT}/a.ts`,
+          contents: 'x',
+          expect: 'new'
+        }))()
+    ).rejects.toThrow(/nobody has confirmed it/);
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
   });
 });
 

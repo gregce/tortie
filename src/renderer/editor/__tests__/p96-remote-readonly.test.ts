@@ -13,6 +13,12 @@
  * because Monaco is not mounted here. The editor itself is measured live by
  * `npm run probe:p96`, which types into a real model and reads the option and
  * the text back.
+ *
+ * PHASE 101 ADDED THE SECOND ARGUMENT, and with it the one case that is new.
+ * A remote tab whose machine carries a folder a person confirmed Tortie may
+ * save under IS an edit surface. Every other case is unchanged, including the
+ * default, which is that a remote tab on a machine with no confirmed folder is
+ * still read only. The three local reasons are unconditional on both computers.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -91,9 +97,15 @@ function tab(over: Partial<EditorTab> = {}): EditorTab {
   };
 }
 
+/** No machine carries a folder Tortie may save under. The ordinary case. */
+const NO_ROOT = null;
+
+/** One machine's confirmed folder, as main answers it on the link state. */
+const ROOT = '/home/greg';
+
 describe('tabIsReadOnly', () => {
   it('lets an ordinary file tab be edited', () => {
-    expect(tabIsReadOnly(tab())).toBe(false);
+    expect(tabIsReadOnly(tab(), NO_ROOT)).toBe(false);
   });
 
   const reasons: [string, Partial<EditorTab>][] = [
@@ -115,7 +127,7 @@ describe('tabIsReadOnly', () => {
 
   for (const [why, over] of reasons) {
     it(`refuses the keystroke when ${why}`, () => {
-      expect(tabIsReadOnly(tab(over))).toBe(true);
+      expect(tabIsReadOnly(tab(over), NO_ROOT)).toBe(true);
     });
   }
 
@@ -124,10 +136,44 @@ describe('tabIsReadOnly', () => {
     // the mode Monaco owns. The reason it is not an edit surface is the
     // machine, so no mode may undo it.
     for (const mode of ['diff', 'file', 'preview', 'split', 'image'] as const) {
-      expect([mode, tabIsReadOnly(tab({ mode, remote: REMOTE }))]).toEqual([
+      expect([mode, tabIsReadOnly(tab({ mode, remote: REMOTE }), NO_ROOT)]).toEqual([
         mode,
         true
       ]);
     }
+  });
+
+  // PHASE 101. The one case that changed, and the three that did not.
+  it('lets a remote tab be edited when that machine carries a folder', () => {
+    expect(tabIsReadOnly(tab({ remote: REMOTE }), ROOT)).toBe(false);
+  });
+
+  it('reads an empty folder as no folder at all', () => {
+    expect(tabIsReadOnly(tab({ remote: REMOTE }), '')).toBe(true);
+  });
+
+  it('keeps the three local reasons on a machine that can be saved to', () => {
+    const cases: Partial<EditorTab>[] = [
+      { deleted: true },
+      { truncated: true },
+      {
+        commit: {
+          sha: 'abc1234def5678',
+          shortSha: 'abc1234',
+          status: 'M',
+          subject: 'a change'
+        }
+      }
+    ];
+    for (const over of cases) {
+      expect(tabIsReadOnly(tab({ remote: REMOTE, ...over }), ROOT)).toBe(true);
+    }
+  });
+
+  it('is unmoved for a tab on this Mac whatever the folder says', () => {
+    // A folder on some machine can never make a local tab read only, and can
+    // never make a local commit tab editable.
+    expect(tabIsReadOnly(tab(), ROOT)).toBe(false);
+    expect(tabIsReadOnly(tab({ deleted: true }), ROOT)).toBe(true);
   });
 });

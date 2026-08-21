@@ -203,9 +203,10 @@
  * this says so rather than quietly renumbering. Conditions 50 and 51 are Phase
  * 90.3's, 52 is Phase 98's, 53 is Phase 99's, 54 is Phase 100's, 55 is Phase
  * 105's and 56 is Phase 106's. Conditions 63 to 68 are Phase 89's, 69 to 73 are
- * Phase 117's and 74 to 78 are Phase 118's, and the last two sets are described
- * at their own blocks at the foot of this file. The numbers 60, 61 and 62 were
- * never used. Seventy five conditions are in force, being 1 to 59 and 63 to 78:
+ * Phase 117's, 74 to 78 are Phase 118's and 79 and 80 are Phase 101's, and the
+ * last three sets are described at their own blocks at the foot of this file.
+ * The numbers 60, 61 and 62 were never used. Seventy seven conditions are in
+ * force, being 1 to 59 and 63 to 80:
  *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
@@ -232,8 +233,9 @@
  *     `git remote update`; `src/main/machines/remote-branch.ts` is absent, calls
  *     `runRemoteWrite`, makes other than exactly one remote read, names a script
  *     other than `repo-branch`, or imports anything from `../actions/`; the
- *     catalogue's writers are not exactly `image-put` then `git-clone`; or the
- *     catalogue does not hold nineteen scripts (Phase 109 moved the count).
+ *     catalogue's writers are not exactly `image-put`, `git-clone` then `file-put`;
+ *     or the catalogue does not hold twenty scripts (Phase 109 moved the count
+ *     to nineteen and Phase 101 moved it to twenty).
  *     TWO ITEMS CARRY THIS FEATURE.
  *     The format relation is what keeps one format in one place, and the fetch
  *     names are the executable form of the sentence telling a person that Tortie
@@ -256,8 +258,8 @@
  *     `repo-history`, imports anything from `../actions/`, or names
  *     `sanitizeRefNames`; `REMOTE_HISTORY_PAGE` is not 50 or
  *     `REMOTE_HISTORY_MAX_COMMITS` is not 500; the catalogue's writers are not
- *     exactly `image-put` then `git-clone`, or it does not hold nineteen
- *     scripts (Phase 109 moved the count); `src/renderer/scm/remote-history.ts` names a timer; or
+ *     exactly `image-put`, `git-clone` then `file-put`, or it does not hold twenty
+ *     scripts (Phase 109 moved the count to nineteen and Phase 101 to twenty); `src/renderer/scm/remote-history.ts` names a timer; or
  *     `src/renderer/scm/RemoteHistorySection.tsx` does not name `hasMore`,
  *     `atCeiling` and `divergenceTruncated`. THREE ITEMS CARRY THIS FEATURE.
  *     The two constants are the executable form of the tier staying at 2,
@@ -271,9 +273,9 @@
  *     again in `sh`.
  *
  *  58. PHASE 108, being the Context of a folder on another machine. It fails
- *     when: the catalogue does not hold nineteen scripts (Phase 109 moved
- *     the count) with the writers
- *     exactly `image-put` then `git-clone`; `context-read` is absent, or is
+ *     when: the catalogue does not hold twenty scripts (Phase 109 moved the count to
+ *     nineteen and Phase 101 to twenty) with the writers
+ *     exactly `image-put`, `git-clone` then `file-put`; `context-read` is absent, or is
  *     anything but a read taking three values, or does not read its two lists
  *     into local names split under `IFS`, or names ANY git verb;
  *     `src/main/machines/remote-agent-context.ts` is absent, does not import
@@ -507,10 +509,16 @@ if (data.agentCanonicalCarriesPrefix) {
 // ---------------------------------------------------------------------------
 
 const declared = [...data.executionFields].sort();
-// PHASE 83. Read from a row carrying EVERY field. The fifth is appended to the
-// hash text only when it is set, so a row with no acceptance covers four keys on
-// purpose, and condition 43 is what holds that half.
-const hashedEverything = data.hashedKeysAccepted ?? data.hashedKeys;
+// PHASE 83. Read from a row carrying EVERY field. An appended field reaches the
+// hash text only when it is set, so a row with nothing appended covers four keys
+// on purpose, and condition 43 is what holds that half.
+//
+// PHASE 101 MOVED WHICH ROW THIS IS READ FROM. It read the accepted version
+// row, which carries five of the six fields, so the sixth would have read as
+// missing from the hash and this condition would have failed on a property that
+// is true. It now reads the row carrying every field.
+const hashedEverything =
+  data.hashedKeysEverything ?? data.hashedKeysAccepted ?? data.hashedKeys;
 if (hashedEverything.join('|') !== declared.join('|')) {
   const missing = declared.filter((k) => !hashedEverything.includes(k));
   const extra = hashedEverything.filter((k) => !declared.includes(k));
@@ -2511,12 +2519,19 @@ if (accepted === null) {
   }
 }
 
-// 43. The declared list is five, and the four Phase 68 fields still stand alone.
+// 43. The declared list is six, and the four Phase 68 fields still stand alone.
 const declaredFields = [...(data.executionFields ?? [])];
-if (declaredFields.length !== 5) {
+if (declaredFields.length !== 6) {
   fail(
     `MACHINE_EXECUTION_FIELDS lists ${String(declaredFields.length)} field(s) ` +
-      'and Phase 83 holds it at five.'
+      'and Phase 101 holds it at six.'
+  );
+}
+if (!declaredFields.includes('writeRoot')) {
+  fail(
+    'MACHINE_EXECUTION_FIELDS does not carry writeRoot, so the field that ' +
+      'decides which files on that machine Tortie may replace is not declared ' +
+      'as one that decides what runs.'
   );
 }
 if (!declaredFields.includes('acceptedTmuxVersion')) {
@@ -2526,8 +2541,19 @@ if (!declaredFields.includes('acceptedTmuxVersion')) {
       'declared as one that decides what runs.'
   );
 }
+// The four Phase 68 keys are everything the declared list holds MINUS every key
+// the hash text appends. It was written as one named exclusion until Phase 101,
+// which would have left `writeRoot` in this set and made the check assert the
+// opposite of what it exists for.
+const appendedFields = [...(data.writeRootFacts?.appendedFields ?? [])];
+if (appendedFields.length === 0) {
+  fail(
+    'the probe printed no list of appended execution fields, so condition 43 ' +
+      'has nothing to subtract and is checking a set it made up.'
+  );
+}
 const phase68Keys = declaredFields
-  .filter((field) => field !== 'acceptedTmuxVersion')
+  .filter((field) => !appendedFields.includes(field))
   .sort();
 if ([...(data.hashedKeys ?? [])].sort().join('|') !== phase68Keys.join('|')) {
   fail(
@@ -2584,9 +2610,36 @@ if (reach === null) {
 
 const pad = (value, width) => String(value).padEnd(width);
 
+// PHASE 101, FIX ROUND. The sixth execution field belongs in the table a
+// person reads. Condition 79 below checks it and prints nothing of its own, so
+// until this block the closing line said the hash is bound to six fields while
+// the table listed five. The verdict is computed here from the same probe
+// facts condition 79 reads, and condition 79 is what fails the run.
+const writeRootVerdicts = [];
+{
+  const w = data.writeRootFacts ?? null;
+  if (w === null) {
+    writeRootVerdicts.push({
+      field: 'writeRoot',
+      kind: 'execution',
+      moves: 'unread',
+      verdict: 'FAIL'
+    });
+  } else {
+    const ok =
+      w.set !== w.unset && w.set !== w.setOther && w.backToUnset !== w.set;
+    writeRootVerdicts.push({
+      field: 'writeRoot',
+      kind: 'execution',
+      moves: ok ? 'yes' : 'NO',
+      verdict: ok ? 'pass' : 'FAIL'
+    });
+  }
+}
+
 process.stdout.write('\nfield                kind          hash moves  verdict\n');
 process.stdout.write('-'.repeat(60) + '\n');
-for (const row of [...fieldVerdicts, ...acceptVerdicts]) {
+for (const row of [...fieldVerdicts, ...acceptVerdicts, ...writeRootVerdicts]) {
   process.stdout.write(
     `${pad(row.field, 20)} ${pad(row.kind, 13)} ${pad(row.moves, 11)} ${row.verdict}\n`
   );
@@ -2625,8 +2678,13 @@ process.stdout.write(
 );
 
 // ---------------------------------------------------------------------------
-// 35 to 40. Phase 73. The second door, and the seven scripts it may send
+// 35 to 40. Phase 73. The second door, and the twenty scripts it may send
 // ---------------------------------------------------------------------------
+//
+// THIS HEADER SAID SEVEN UNTIL PHASE 101, and it is written out rather than
+// quietly fixed. It was seven when Phase 73 wrote it. The catalogue held
+// nineteen before this phase and it holds twenty now. That is defect 6 of
+// research 57 section 9.
 //
 // The exec plane carries tmux verbs and its ledger decides which. This door
 // carries one of Tortie's own constant scripts on the far side's LOGIN SHELL,
@@ -2724,11 +2782,20 @@ const GIT_CLONE_VERBS = ['ls-remote', 'clone'];
 /**
  * Every script that may write, in catalogue order.
  *
- * PHASE 90.2 MOVED THIS FROM ONE TO TWO. It is the number that bounds what
- * Tortie can do to another person's computer, so it stays an exact allowlist
- * and never becomes a count.
+ * PHASE 90.2 MOVED THIS FROM ONE TO TWO AND PHASE 101 MOVED IT FROM TWO TO
+ * THREE. It is the number that bounds what Tortie can do to another person's
+ * computer, so it stays an exact allowlist and never becomes a count.
  */
-const ALLOWED_WRITERS = ['image-put', 'git-clone'];
+const ALLOWED_WRITERS = ['image-put', 'git-clone', 'file-put'];
+
+/**
+ * How many scripts the catalogue holds. Twenty.
+ *
+ * Four later conditions pinned this number as a literal `19` each. Phase 101
+ * made them one constant, because four copies of one number is how three of
+ * them go stale.
+ */
+const REMOTE_SCRIPT_COUNT = 20;
 
 {
   // 35. The catalogue's shape.
@@ -2755,8 +2822,9 @@ const ALLOWED_WRITERS = ['image-put', 'git-clone'];
         `${writers.join(', ') || 'none'}. Exactly ${String(
           ALLOWED_WRITERS.length
         )} may, being ${ALLOWED_WRITERS.join(', ')}, in that order. This is the ` +
-        `number that bounds what Tortie can do to another person's computer, ` +
-        `and Phase 90.2 moved it from one to two once and on purpose.`
+        `number that bounds what Tortie can do to another person's computer. ` +
+        `Phase 90.2 moved it from one to two and Phase 101 moved it from two to ` +
+        `three, once and on purpose each time.`
     );
   }
   for (const row of scripts) {
@@ -2950,6 +3018,69 @@ const ALLOWED_WRITERS = ['image-put', 'git-clone'];
           `write script ${row.id} does not test its destination with -e before ` +
             `anything else. That test is what makes it safe to run twice, and ` +
             `it is what stops it ever writing into a folder a person already had.`
+        );
+      }
+    } else if (row.id === 'file-put') {
+      // PHASE 101. The third write, and its own five rules. It is the first
+      // command this product sends that can replace a file a person already
+      // had, so it carries the image rule about redirection plus three rules
+      // about containment and one about what it may not name.
+      const targets = row.redirects ?? [];
+      if (targets.length === 0) {
+        fail(
+          `write script ${row.id} carries no redirection at all, so this gate ` +
+            `cannot tell what it writes to.`
+        );
+      }
+      for (const target of targets) {
+        if (target === '"$t"') continue;
+        fail(
+          `write script ${row.id} redirects to ${target}. Every redirection has ` +
+            `to aim at the temporary name, so a link that dies halfway leaves a ` +
+            `part file rather than half a file under the real name.`
+        );
+      }
+      if (!row.text.includes('mv "$t" "$f"')) {
+        fail(
+          `write script ${row.id} does not move its temporary name into place, ` +
+            `so either it writes the real name directly or it leaves the part ` +
+            `file behind.`
+        );
+      }
+      // TWO containment lines for the root and one for the path under it. The
+      // line copied from REVIEW_FILE guards `$2` only, and `$1` is the folder
+      // the whole write is bounded by, so it gets its own two.
+      for (const line of [
+        'case "$1" in /*) ;; *) exit 1;; esac',
+        'case "$1" in *..*) exit 1;; esac',
+        'case "$2" in /*|*..*) exit 1;; esac'
+      ]) {
+        if (row.text.includes(line)) continue;
+        fail(
+          `write script ${row.id} does not carry the containment line ` +
+            `${JSON.stringify(line)}. The far side holds its own copy of ` +
+            `containment so that the rule still holds when main's copy is ` +
+            `bypassed.`
+        );
+      }
+      if (!row.text.includes('if [ -f "$f" ]; then')) {
+        fail(
+          `write script ${row.id} does not test whether the file is already ` +
+            `there on its new arm. That test is what stops a request to make a ` +
+            `file ever replacing one somebody already had.`
+        );
+      }
+      // WRITTEN AS "the text does not name rm" AND NEVER AS "names no program
+      // that removes a file". `mv` is one of the eleven names in
+      // MUTATING_PROGRAMS, this script must name `mv`, and a builder
+      // implementing the loose sentence would write a condition this script
+      // cannot pass. MUTATING_PROGRAMS is consulted only inside the read arm
+      // above and it does not apply here.
+      if ((row.words ?? []).includes('rm')) {
+        fail(
+          `write script ${row.id} names rm. It replaces a file and it never ` +
+            `removes one, and a remove in this text would be a delete on ` +
+            `somebody else's computer that nobody asked for.`
         );
       }
     } else {
@@ -3462,11 +3593,13 @@ const P99_FORBIDDEN = P98_FORBIDDEN;
   }
   // 53i. The write door did not move. Phase 99 added a READ.
   const writers = (data.remoteRun ?? {}).writers ?? [];
-  if (JSON.stringify(writers) !== JSON.stringify(['image-put', 'git-clone'])) {
+  if (JSON.stringify(writers) !== JSON.stringify(ALLOWED_WRITERS)) {
     fail(
       `the catalogue's write scripts are ${writers.join(', ') || 'none'}. They ` +
-        `are exactly image-put and then git-clone. Phase 99 added a read and ` +
-        `nothing about what Tortie may write on another computer moved.`
+        `are exactly ${ALLOWED_WRITERS.join(', then ')}. Phase 99 added a read ` +
+        `and nothing about what Tortie may write on another computer moved. ` +
+        `Phase 101 added the third writer and this check reads the one ` +
+        `allowlist rather than a copy of it.`
     );
   }
   // 53j. The git verb list. Phase 98 added `ls-files` and Phase 99 needed the
@@ -3801,23 +3934,25 @@ const P105_CREDENTIAL_WORDS =
   }
   // 55h. The write door did not move, and the catalogue grew by exactly one.
   const p105Writers = (data.remoteRun ?? {}).writers ?? [];
-  if (
-    JSON.stringify(p105Writers) !== JSON.stringify(['image-put', 'git-clone'])
-  ) {
+  if (JSON.stringify(p105Writers) !== JSON.stringify(ALLOWED_WRITERS)) {
     fail(
       `the catalogue's write scripts are ${p105Writers.join(', ') || 'none'}. ` +
-        `They are exactly image-put and then git-clone. Phase 105 added a read ` +
-        `and nothing about what Tortie may write on another computer moved.`
+        `They are exactly ${ALLOWED_WRITERS.join(', then ')}. Phase 105 added ` +
+        `a read and nothing about what Tortie may write on another computer ` +
+        `moved. Phase 101 added the third writer and this check reads the one ` +
+        `allowlist rather than a copy of it.`
     );
   }
   const p105Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 109 moved this count from eighteen to nineteen, by one read.
-  if (p105Count !== 19) {
+  // Phase 109 moved this count from eighteen to nineteen by one read, and
+  // Phase 101 moved it from nineteen to twenty by one write.
+  if (p105Count !== REMOTE_SCRIPT_COUNT) {
     fail(
-      `the catalogue holds ${String(p105Count)} script(s). It holds nineteen, ` +
-        `of which two write. Phase 106 moved that number from fifteen by one ` +
+      `the catalogue holds ${String(p105Count)} script(s). It holds twenty, ` +
+        `of which three write. Phase 106 moved that number from fifteen by one ` +
         `read, Phase 107 moved it from sixteen, Phase 108 moved it from ` +
-        `seventeen and Phase 109 moved it from eighteen, each by one read. A ` +
+        `seventeen and Phase 109 moved it from eighteen, each by one read, and ` +
+        `Phase 101 moved it from nineteen by one WRITE. A ` +
         `script that appeared without a phase ` +
         `saying so is a command somebody can run on another person's computer.`
     );
@@ -4007,21 +4142,22 @@ const P105_CREDENTIAL_WORDS =
   }
   // 56h. The write door did not move, and the catalogue grew by exactly one.
   const p106Writers = (data.remoteRun ?? {}).writers ?? [];
-  if (
-    JSON.stringify(p106Writers) !== JSON.stringify(['image-put', 'git-clone'])
-  ) {
+  if (JSON.stringify(p106Writers) !== JSON.stringify(ALLOWED_WRITERS)) {
     fail(
       `the catalogue's write scripts are ${p106Writers.join(', ') || 'none'}. ` +
-        `They are exactly image-put and then git-clone. Phase 106 added a read ` +
-        `and nothing about what Tortie may write on another computer moved.`
+        `They are exactly ${ALLOWED_WRITERS.join(', then ')}. Phase 106 added ` +
+        `a read and nothing about what Tortie may write on another computer ` +
+        `moved. Phase 101 added the third writer and this check reads the one ` +
+        `allowlist rather than a copy of it.`
     );
   }
   const p106Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 109 moved this count from eighteen to nineteen, by one read.
-  if (p106Count !== 19) {
+  // Phase 109 moved this count from eighteen to nineteen by one read, and
+  // Phase 101 moved it from nineteen to twenty by one write.
+  if (p106Count !== REMOTE_SCRIPT_COUNT) {
     fail(
-      `the catalogue holds ${String(p106Count)} script(s). It holds nineteen, ` +
-        `of which two write.`
+      `the catalogue holds ${String(p106Count)} script(s). It holds twenty, ` +
+        `of which three write.`
     );
   }
 }
@@ -4249,21 +4385,22 @@ const P105_CREDENTIAL_WORDS =
   }
   // 57k. The write door did not move, and the catalogue grew by exactly one.
   const p107Writers = (data.remoteRun ?? {}).writers ?? [];
-  if (
-    JSON.stringify(p107Writers) !== JSON.stringify(['image-put', 'git-clone'])
-  ) {
+  if (JSON.stringify(p107Writers) !== JSON.stringify(ALLOWED_WRITERS)) {
     fail(
       `the catalogue's write scripts are ${p107Writers.join(', ') || 'none'}. ` +
-        `They are exactly image-put and then git-clone. Phase 107 added a read ` +
-        `and nothing about what Tortie may write on another computer moved.`
+        `They are exactly ${ALLOWED_WRITERS.join(', then ')}. Phase 107 added ` +
+        `a read and nothing about what Tortie may write on another computer ` +
+        `moved. Phase 101 added the third writer and this check reads the one ` +
+        `allowlist rather than a copy of it.`
     );
   }
   const p107Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 109 moved this count from eighteen to nineteen, by one read.
-  if (p107Count !== 19) {
+  // Phase 109 moved this count from eighteen to nineteen by one read, and
+  // Phase 101 moved it from nineteen to twenty by one write.
+  if (p107Count !== REMOTE_SCRIPT_COUNT) {
     fail(
-      `the catalogue holds ${String(p107Count)} script(s). It holds nineteen, ` +
-        `of which two write.`
+      `the catalogue holds ${String(p107Count)} script(s). It holds twenty, ` +
+        `of which three write.`
     );
   }
   // 57l. NO TIMER, ANYWHERE. Main cannot see a commit made on another computer,
@@ -4341,23 +4478,25 @@ const P105_CREDENTIAL_WORDS =
 {
   const p108 = data.phase108 ?? {};
   const script = p108.script ?? null;
-  // 58a. The catalogue holds nineteen scripts and the write list did not move.
+  // 58a. The catalogue holds twenty scripts and the write list moved once, in
+  //      Phase 101, which is the phase that added the third writer.
   const p108Writers = (data.remoteRun ?? {}).writers ?? [];
-  if (
-    JSON.stringify(p108Writers) !== JSON.stringify(['image-put', 'git-clone'])
-  ) {
+  if (JSON.stringify(p108Writers) !== JSON.stringify(ALLOWED_WRITERS)) {
     fail(
       `the catalogue's write scripts are ${p108Writers.join(', ') || 'none'}. ` +
-        `They are exactly image-put and then git-clone. Phase 108 added a read ` +
-        `and nothing about what Tortie may write on another computer moved.`
+        `They are exactly ${ALLOWED_WRITERS.join(', then ')}. Phase 108 added ` +
+        `a read and nothing about what Tortie may write on another computer ` +
+        `moved. Phase 101 added the third writer and this check reads the one ` +
+        `allowlist rather than a copy of it.`
     );
   }
   const p108Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  if (p108Count !== 19) {
+  if (p108Count !== REMOTE_SCRIPT_COUNT) {
     fail(
-      `the catalogue holds ${String(p108Count)} script(s). It holds nineteen, ` +
-        `of which two write. Phase 109 moved that number from eighteen by one ` +
-        `read, being agents-find.`
+      `the catalogue holds ${String(p108Count)} script(s). It holds twenty, ` +
+        `of which three write. Phase 109 moved that number from eighteen by one ` +
+        `read, being agents-find, and Phase 101 moved it from nineteen by one ` +
+        `write, being file-put.`
     );
   }
   // 58b. The row's own shape. Rules 1 to 5 are asserted for every script by
@@ -5667,6 +5806,260 @@ process.stdout.write(
   );
 }
 
+// ---------------------------------------------------------------------------
+// 79 and 80. Phase 101. The sixth field, and the sentence that weakened
+// ---------------------------------------------------------------------------
+//
+// 79 asks nine questions about `writeRoot`, mirroring the eight the accepted
+// version block asks, plus the one that block has no equivalent of.
+//
+// 80 is the checkable sentence, and it is checked PER BRANCH of each write
+// script rather than per script.
+
+{
+  const w = data.writeRootFacts ?? null;
+  if (w === null) {
+    fail(
+      'the probe printed nothing about the write root field, so condition 79 ' +
+        'checked nothing at all.'
+    );
+  } else {
+    // --- 79a. The hash moves for the sixth field, in both directions --------
+    if (w.set === w.unset) {
+      fail(
+        'naming a folder Tortie may save under left the confirm hash ' +
+          'unchanged. A person would be able to let Tortie replace files on ' +
+          'another computer without the sheet ever moving.'
+      );
+    }
+    if (w.set === w.setOther) {
+      fail(
+        'two different folders hashed to the same value, so an agreement to ' +
+          'save under one folder would carry to another.'
+      );
+    }
+    if (w.backToUnset !== w.unset) {
+      fail(
+        'clearing the folder does not hash back to what the row hashed to ' +
+          'before it was named, so withdrawing saving would leave the machine ' +
+          'permanently unconfirmed.'
+      );
+    }
+
+    // --- 79b. A machine with no folder is not asked again -------------------
+    if (w.unset !== UNACCEPTED_HASH_2026_08_18) {
+      fail(
+        `a machine with no accepted version and no write root now hashes to ` +
+          `${String(w.unset)} and it hashed to ${UNACCEPTED_HASH_2026_08_18} ` +
+          'before Phase 101. Every machine every person confirmed would be ' +
+          'asked to confirm it again.'
+      );
+    }
+    if (w.unsetCanonicalCarriesKey) {
+      fail(
+        'the hash text of a row with no write root carries the key anyway, ' +
+          'which is the same hole stated above.'
+      );
+    }
+    if (!w.canonicalCarriesRoot) {
+      fail(
+        'the hash text of a row WITH a write root does not carry the folder, ' +
+          'so the grant is not covered by the hash at all.'
+      );
+    }
+
+    // --- 79c. The sheet names the folder ------------------------------------
+    const sheetSaysIt = (w.sheetLines ?? []).some((line) =>
+      String(line).includes('/Users/gdc')
+    );
+    if (!sheetSaysIt) {
+      fail(
+        'the sheet a person reads does not name the folder they would be ' +
+          'granting, so the lines and the hash do not say the same thing.'
+      );
+    }
+
+    // --- 79d. The field is on the appended list -----------------------------
+    if (!(w.appendedFields ?? []).includes('writeRoot')) {
+      fail(
+        'writeRoot is not on the list of keys the hash text appends, so it ' +
+          'would be emitted for every row and every confirmation would break.'
+      );
+    }
+
+    // --- 79e. A write root survives an ordinary re-confirm ------------------
+    if (!String(w.movedHostCanonical ?? '').includes('/Users/gdc')) {
+      fail(
+        'a row whose host moved while a write root is set does not carry the ' +
+          'folder in its canonical text. The re-confirm sheet would then grant ' +
+          'file replacement without saying so, which is the door this phase ' +
+          'exists to keep shut.'
+      );
+    }
+
+    // --- 79f. The honesty paragraph, and where it may not appear ------------
+    if (w.honestyWhenSet !== w.honestyText) {
+      fail(
+        'describeMachine answers ' +
+          `${JSON.stringify(w.honestyWhenSet)} for a row with a write root ` +
+          'rather than MACHINE_WRITE_HONESTY, so a sheet granting file ' +
+          'replacement could be drawn without the paragraph that says what ' +
+          'replacement costs.'
+      );
+    }
+    if (w.honestyWhenUnset !== null) {
+      fail(
+        'describeMachine answers a write honesty paragraph for a row with no ' +
+          'write root, so a machine Tortie cannot save on would tell a person ' +
+          'it can.'
+      );
+    }
+    if (w.honestyInLines) {
+      fail(
+        'MACHINE_WRITE_HONESTY appears in the sheet lines. That list is ' +
+          'exactly the hashed facts, and a paragraph the hash does not cover ' +
+          'must not be in it.'
+      );
+    }
+    if (w.honestyInCanonical) {
+      fail(
+        'MACHINE_WRITE_HONESTY appears in the canonical text the hash covers. ' +
+          'Rewording it would then invalidate every confirmation.'
+      );
+    }
+  }
+}
+
+{
+  const b = data.writeBranches ?? null;
+  // THE SENTENCE, PRINTED SO IT STAYS CHECKABLE RATHER THAN BECOMING A CLAIM.
+  //
+  // It weakened in Phase 101, on purpose. It read "no command Tortie sends can
+  // replace a file somebody already had", which was true while every write
+  // refused a destination that was already there. `file-put` replaces a file on
+  // purpose, so that sentence cannot hold and pretending it does would be the
+  // worse outcome.
+  //
+  // This exact string is the one the operator's decisions block of 2026-08-19
+  // wrote. Research 57 section 4.4 words the same rule with the word "current"
+  // in it. The block binds, so the block's wording is the one in this gate.
+  const SENTENCE =
+    'no command Tortie sends can replace a file whose contents Tortie did ' +
+    'not just verify by checksum';
+  if (b === null) {
+    fail(
+      'the probe printed nothing about the write scripts per branch, so ' +
+        'condition 80 checked nothing at all.'
+    );
+  } else {
+    if (!b.imagePutRefusesExisting) {
+      fail(
+        'image-put no longer refuses a destination that is already there, so ' +
+          `${SENTENCE} is false on that script.`
+      );
+    }
+    if (!b.gitCloneRefusesExisting) {
+      fail(
+        'git-clone no longer refuses a destination that is already there, so ' +
+          `${SENTENCE} is false on that script.`
+      );
+    }
+    if (!b.filePutArmsFound) {
+      fail(
+        'file-put has no new arm and no checksum arm this gate can find, so ' +
+          'condition 80 cannot read either of them and is checking nothing.'
+      );
+    }
+    if (!b.filePutNewArmRefusesExisting) {
+      fail(
+        "file-put's new arm does not refuse a destination that is already " +
+          `there. ${SENTENCE}, and a request to MAKE a file must never replace ` +
+          'one. A whole-script test would have passed this on the checksum arm ' +
+          'alone, which is why this condition reads each arm on its own.'
+      );
+    }
+    if (!b.filePutSumArmComputesChecksum || !b.filePutSumArmComparesChecksum) {
+      fail(
+        "file-put's checksum arm does not compute the file's checksum and " +
+          `compare it against $3. ${SENTENCE}, and that comparison is the ` +
+          'whole of how the sentence is true.'
+      );
+    }
+    if (!b.filePutComparesBeforeWriting) {
+      fail(
+        'file-put compares the checksum after it has already written, so the ' +
+          'comparison decides nothing.'
+      );
+    }
+    if (!b.filePutProbesChecksumFirst) {
+      fail(
+        'file-put does not look for a checksum program before either arm. The ' +
+          'nosum answer has to mean nothing was written, and it only means ' +
+          'that when the probe is above everything that writes.'
+      );
+    }
+    if (!b.filePutRunsChecksumFirst) {
+      fail(
+        'file-put finds a checksum program before either arm but never RUNS ' +
+          'one there. Finding a program says nothing about whether it ' +
+          'answers, and a shasum on PATH that exits 0 and prints nothing then ' +
+          'makes the script write the file and answer nosum afterwards. A ' +
+          'verifier drove exactly that. The fix is to ask the program for the ' +
+          'checksum of /dev/null before either arm and decide nosum on what ' +
+          'it said.'
+      );
+    }
+    const lateWords = [...(b.filePutRefusalWordsAfterWrite ?? [])];
+    if (lateWords.length > 0) {
+      fail(
+        `file-put prints ${lateWords.join(', ')} after the line that writes. ` +
+          'Every one of those words is reported to a person as "Nothing was ' +
+          'written." and after that line something was. This is the exact ' +
+          'defect the first fix round of Phase 101 closed, and it is checked ' +
+          'here rather than asserted in a comment because a comment said the ' +
+          'opposite while the script did this.'
+      );
+    }
+    if (!b.filePutSaysUnsureAfterWrite) {
+      fail(
+        'file-put has no answer for a write that landed and cannot be ' +
+          'described, so a checksum program that stops answering between the ' +
+          'probe and the write would print a malformed line rather than the ' +
+          'word main reads as "nobody can tell".'
+      );
+    }
+    if (b.filePutNamesRm) {
+      fail(
+        'file-put names rm. It replaces a file and it never removes one.'
+      );
+    }
+    if (
+      !b.filePutHasRootCase ||
+      !b.filePutHasRootDotDotCase ||
+      !b.filePutHasRelCase ||
+      !b.filePutMovesIntoPlace
+    ) {
+      fail(
+        'file-put has lost one of its containment lines or its move into ' +
+          'place, and condition 38 should have said so first.'
+      );
+    }
+    process.stdout.write(
+      `\nthe checkable sentence, per branch of each write script:\n` +
+        `  ${SENTENCE}.\n` +
+        `  image-put   refuses a destination that is already there\n` +
+        `  git-clone   refuses a destination that is already there\n` +
+        `  file-put    new arm refuses a destination that is already there\n` +
+        `  file-put    checksum arm compares the file's checksum against $3 ` +
+        `before it writes\n` +
+        `  file-put    runs the checksum program before either arm, so nosum ` +
+        `is decided before anything is written\n` +
+        `  file-put    prints none of nosum, stale, missing, exists, nomode ` +
+        `after the line that writes\n`
+    );
+  }
+}
+
 // Phase 117. What a create whose answer was lost now does, said out loud.
 {
   const p117 = data.phase117 ?? {};
@@ -5690,6 +6083,6 @@ if (failures.length > 0) {
 }
 
 process.stdout.write(
-  '\nPASS. A machine confirmation is bound to the five fields that decide what runs, to ' +
+  '\nPASS. A machine confirmation is bound to the six fields that decide what runs, to ' +
     'the prefixed id, and to nothing else. Nothing was started by this gate.\n'
 );

@@ -19,7 +19,7 @@ release.
 | 4 | **118** remote children are owned, removal is one transaction | Audit P1, same reason | queued |
 | 5 | **119** decline capture on restore | Insurance from research 59 | queued |
 | — | **RELEASE POINT, AND HE DELEGATED IT** | Everything above is user facing and finishes the remote programme | **AGENT, once, see below** |
-| 6 | **101** save a file on a machine | The write tranche. He said on 2026-08-20 to roll into it after the release rather than wait for him, so it runs unattended; the `writeRoot` confirm still needs a human at the keyboard the first time a save is attempted, and that is HIS moment, not a blocker on the build | queued |
+| 6 | **101** save a file on a machine | The write tranche. He said on 2026-08-20 to roll into it after the release rather than wait for him, so it runs unattended; the `writeRoot` confirm still needs a human at the keyboard the first time a save is attempted, and that is HIS moment, not a blocker on the build | ✅ shipped |
 | 7 | **102** new folder and rename | | queued |
 | 8 | **103** stage and unstage | | queued |
 | 9 | **104** commit on a remote tab | | queued |
@@ -8176,7 +8176,7 @@ includes build output, so on the measured corpus it returned 19 lines where the 
 and 5 of the 19 were wrong. Phase 98 must say plainly, on screen, that the folder is not a repository
 and that nothing is being skipped, so a person can read why the answer looks wider than it should.
 
-## Phase 101 — save a file on a machine (research 57 row, queued 2026-08-19) QUEUED
+## Phase 101 — save a file on a machine (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-21 (this commit, 0.63.0, gates green, 7,715 tests). Evidence items 9, 14 and 17 are not done, and the commit body names each one
 
 **Subject:** `feat(machines): edit and save a file on another machine`
 **First body line:** `Phase 101: save a file on a machine`
@@ -8463,7 +8463,7 @@ When saving is off it keeps today's sentence, which is `Tortie only reads files 
 
 ### What the gate must assert
 
-`npm run conformance:machines` is a hard gate for this commit. `build/conformance-machines.mjs` is 3,428 lines and carries 53 numbered conditions. The numbers run from 4 to 68, and 45 and 52 to 62 are absent, so the two new conditions take 69 and 70 rather than filling a gap.
+`npm run conformance:machines` is a hard gate for this commit. `build/conformance-machines.mjs` is 3,428 lines and carries 53 numbered conditions. The numbers run from 4 to 68, and 45 and 52 to 62 are absent, so the two new conditions were planned as 69 and 70 rather than filling a gap. **CORRECTED WHEN THIS PHASE WAS BUILT.** Phases 117 and 118 landed first and took 69 to 78, so the two conditions this phase adds are **79 and 80**. Read every "69" and "70" in the table below as 79 and 80. Nothing else about the two conditions moves.
 
 | # | Condition | What it asserts |
 |---|---|---|
@@ -8511,7 +8511,9 @@ When saving is off it keeps today's sentence, which is `Tortie only reads files 
 4. **The stale refusal fires.** Change the file on the far side between the read and the save, then save, and prove nothing was written and the sentence names the machine.
 5. **The ambiguous repeat is resolved.** Run the same `file-put` twice with the same expected checksum and prove the second run reports success rather than a stale refusal, because the reported checksum equals the checksum of the payload. This is the property that makes the write safe to run twice and it must be demonstrated, not argued.
 6. **The interrupted write, and the question research 57 section 10 left open.** Kill the local ssh mid write and answer, with evidence, whether the far side shell stops. Research measured the local simulation only. The destination was byte identical at 17 bytes and a 90,000 byte part file was left beside it. Do it over a real link this time, report which failure the timeout produces, and prove the next successful save clears the part file.
-7. **Every answer word is driven, and there are five.** Each one must show the exact sentence from the screen copy section, and each one must be followed by a read on the far side proving nothing changed.
+7. **Every answer word is driven.** Each one must show the exact sentence from the screen copy section, and each one must be followed by a read on the far side proving nothing changed.
+
+    **THIS TABLE SAID FIVE WORDS AND THE BUILD SHIPS SEVEN.** `nosum` was added while the phase was built, correctly, because section 3 refuses the fall back to a size comparison that `image-put` makes. `unsure` was added in the fix round, and it is the one word main deliberately does not know: it is what the script prints when the bytes are already in place and it cannot describe them, and main answers it with the sentence that says nobody can tell whether the file was saved. The table below is the corrected one.
 
     | Word | How to make it happen |
     |---|---|
@@ -8520,6 +8522,8 @@ When saving is off it keeps today's sentence, which is `Tortie only reads files 
     | `missing` | delete the file on the far side between the read and the save |
     | `exists` | New File… on a remote row, with a name that is already there |
     | `nomode` | make both `stat` spellings fail on the far side, e.g. by running `file-put` by hand with a `PATH` that holds no `stat` |
+    | `nosum` | run `file-put` by hand with a `PATH` that holds neither `shasum` nor `sha256sum`, and separately with a `shasum` that exits 0 and prints nothing |
+    | `unsure` | run `file-put` by hand with a `shasum` that answers about `/dev/null` and about nothing else |
 
 8. **The new empty file lands.** Use New File… on a remote row where saving is on, prove the file exists on the far side at 0 bytes, prove its mode is 600 because `umask 077` is what created it, and prove a second New File… with the same name refuses with `exists` and writes nothing.
 9. **The refusals main composes, each driven and photographed.** Saving with writes off. Saving outside the confirmed folder. Opening a file over 90,000 bytes. For the third, report the actual byte count of the file you opened, because the sentence carries whatever the file measures rather than a fixed number.
@@ -8554,6 +8558,24 @@ When saving is off it keeps today's sentence, which is `Tortie only reads files 
 - Containment is over the path text and no symlink on that machine is resolved by any of the three copies of it.
 - The `saveable` field on `OpenFileRemoteRef` is the one edit in the renderer table I did not trace to the state that feeds it, and the builder resolves that before writing it.
 - Until item 14's two prerequisite steps happen, nothing in this phase has been proved against `mac-pro`.
+
+### The fix round, 2026-08-21
+
+A verifier read the built phase and found one defect and five evidence gaps. This is what the fix round did and what it left open.
+
+**The defect, and it is closed.** `file-put` could print `nosum` AFTER the bytes had landed. The script looked the checksum program up with `command -v` and then ran it for the first time after the write, so a `shasum` on `PATH` that exits 0 and prints nothing made the script write the file and then answer `nosum`. Main reads `nosum` as a refusal and a person was told "Nothing was written." while the file on their other computer held the payload. Three shipped comments said the opposite of what the script did. The script now RUNS the program against `/dev/null` before either arm, and that run also picks the argument form once, which closes a second hole where `shasum`'s default sha1 could have been reported as a sha256. A write that lands and cannot be described prints `unsure`, which main does not know and reports as "cannot tell you whether it was saved". Gate condition 80 now reads the property out of the script text: no refusal word appears after the line that writes.
+
+**A second defect the fix round found by measuring.** A dropped link during a save is not a failed save. `build/probe-p101-save.mjs` leg 14 killed a real ssh over a real link while the far side was decoding an 89,000 byte payload, and the far side replaced the file in full. The editor said "Could not save this file." for that case. It now says the file may have been saved and names the one thing a person can do.
+
+| Evidence item | State after the fix round |
+|---|---|
+| 6, the interrupted write | DONE. `build/probe-p101-save.mjs` leg 14, over a real link. The far side shell does NOT stop, the write completes, no temporary file is left, and the local call fails with the ssh error |
+| 12, the two rulings on re-confirm | DONE for the sheet. `build/probe-p101-shot.mjs` step 7 photographs the ordinary re-confirm sheet after the port moved, carrying the sixth line and the honesty paragraph. The "a save still works afterwards" half is NOT driven in that session |
+| 13, the withdrawal | DONE for the row. Step 8 presses the button and proves the row goes to `never`, `usable` goes false and the folder is gone. The "a save afterwards refuses" half is NOT driven in that session |
+| 16, the confirm moment | DONE. Six photographs of the real Settings window, plus two more for items 12 and 13 |
+| 9, the three refusals photographed | NOT DONE. They are unit tested and the two save refusals are driven by the save probe. No photograph exists and no real byte count from an opened remote file is reported |
+| 17, the Explorer in both states | NOT DONE. No photograph of the remote context menu or the Explorer header exists |
+| 14, `mac-pro` | NOT DONE, for the reason the item itself gives |
 
 
 ## Phase 102 — new folder and rename on a machine (research 57 row, queued 2026-08-19) QUEUED

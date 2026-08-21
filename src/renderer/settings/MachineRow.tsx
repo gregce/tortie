@@ -51,6 +51,7 @@ import {
   ACCEPTED_VERSION_NONE,
   ACCEPTING_VERSION,
   BTN_ACCEPT_VERSION,
+  BTN_ALLOW_WRITES,
   BTN_CONFIRM,
   BTN_CONFIRM_CHANGED,
   BTN_HIDE,
@@ -58,11 +59,14 @@ import {
   BTN_REMOVE,
   BTN_REMOVE_CONFIRM,
   BTN_REMOVE_KEEP,
+  BTN_CONFIRM_WRITES,
   BTN_SHOW,
+  BTN_STOP_SAVING,
   BTN_TEST_AGAIN,
   BTN_WITHDRAW,
   BTN_WITHDRAW_VERSION,
   CONFIRMED_LIST_LABEL,
+  CONFIRMING_WRITES,
   CURRENT_LIST_LABEL,
   HONESTY_NO_ADOPTION,
   KEY_NOT_MADE_YET,
@@ -78,9 +82,14 @@ import {
   PREPARE_VERSION_LABEL,
   PREPARING,
   removeQuestion,
+  SAVING_TITLE,
+  savingOffExplain,
+  savingOnLine,
   STATE_CHIP,
   STATE_SENTENCE,
-  WITHDRAW_VERSION_EXPLAIN
+  STOP_SAVING_EXPLAIN,
+  WITHDRAW_VERSION_EXPLAIN,
+  WRITE_ROOT_LABEL
 } from './machines-copy';
 import { useMachinesStore } from './machines-store';
 
@@ -217,6 +226,162 @@ function Lines({
   );
 }
 
+/**
+ * PHASE 101. The block where a person lets Tortie save a file on one machine,
+ * and the block where they take that back.
+ *
+ * IT IS THE `mach-accept` BLOCK'S SHAPE, on purpose, because that is this
+ * phase's precedent and a person who learned one has learned the other. One
+ * field, one sheet composed entirely in main, one button.
+ *
+ * THE FIELD IS THE ONLY THING THIS SURFACE DECIDES. It sends the folder to
+ * main and draws back what main answered. It composes no line of the sheet and
+ * it computes no hash, which is the one thing the confirm gate exists to
+ * prevent. A folder main's validator refuses draws main's own sentence and
+ * leaves no sheet, so there is nothing to press.
+ *
+ * THE PARAGRAPH BESIDE THE SHEET IS NOT IN THE SHEET'S LINES. `writeHonesty`
+ * arrives with the sheet and says what a replacement costs. It is drawn
+ * wherever it is not null, and the answer to whether it is null is made in
+ * main, so no surface can forget it.
+ */
+function SavingFiles({
+  row,
+  busy,
+  onError
+}: {
+  row: MachineRowView;
+  busy: boolean;
+  onError: (message: string | null) => void;
+}): React.JSX.Element {
+  const readSheet = useMachinesStore((s) => s.writeSheet);
+  const clearSheet = useMachinesStore((s) => s.clearWriteSheet);
+  const allowWrites = useMachinesStore((s) => s.allowWrites);
+  const forget = useMachinesStore((s) => s.forgetMachine);
+  const held = useMachinesStore((s) => s.writeSheets[row.id]);
+  const allowing = useMachinesStore((s) => s.allowing) === row.id;
+
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [fieldError, setFieldError] = useState<string | null>(null);
+
+  const root =
+    row.writeRoot === undefined || row.writeRoot === null || row.writeRoot === ''
+      ? null
+      : row.writeRoot;
+
+  // One read per pause rather than one per keystroke. The call reads memory in
+  // main and answers, so it starts nothing and sends nothing to any machine,
+  // and the pause is only so a half typed folder does not draw a refusal under
+  // every character.
+  useEffect(() => {
+    if (!open) return;
+    const typed = draft.trim();
+    if (typed.length === 0) {
+      clearSheet(row.id);
+      setFieldError(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      void readSheet(row.id, typed).then(setFieldError);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [open, draft, row.id, readSheet, clearSheet]);
+
+  const sheet = held !== undefined && held.root === draft.trim() ? held.sheet : null;
+
+  if (root !== null) {
+    return (
+      <div className="mach-writes" data-machines-writes={row.id}>
+        <div className="mach-lines-label">{SAVING_TITLE}</div>
+        <p className="mach-prepare-explain" data-machine-write-root={root}>
+          {savingOnLine(root, row.label)}
+        </p>
+        {row.writeHonesty === undefined || row.writeHonesty === null ? null : (
+          <p className="set-config-warning">{row.writeHonesty}</p>
+        )}
+        <p className="mach-prepare-explain">{STOP_SAVING_EXPLAIN}</p>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          data-machines-action="stop-saving"
+          onClick={() => {
+            onError(null);
+            void forget(row.id).then(onError);
+          }}
+        >
+          {BTN_STOP_SAVING}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mach-writes" data-machines-writes={row.id}>
+      <div className="mach-lines-label">{SAVING_TITLE}</div>
+      <p className="mach-prepare-explain">{savingOffExplain(row.label)}</p>
+      {open ? (
+        <>
+          <label className="mach-field-row">
+            <span className="mach-field-label">{WRITE_ROOT_LABEL}</span>
+            <input
+              type="text"
+              className="mach-field"
+              value={draft}
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="off"
+              data-machines-field="write-root"
+              onChange={(e) => setDraft(e.currentTarget.value)}
+            />
+          </label>
+          {fieldError !== null ? (
+            <div className="set-row-error">{fieldError}</div>
+          ) : null}
+          {sheet === null ? null : (
+            <>
+              <Lines label={null} lines={sheet.lines} />
+              <p className="set-config-warning">{sheet.warning}</p>
+              {sheet.writeHonesty === null ? null : (
+                <p className="set-config-warning">{sheet.writeHonesty}</p>
+              )}
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy || allowing}
+                data-machines-action="allow-writes"
+                onClick={() => {
+                  onError(null);
+                  void allowWrites(row.id).then((message) => {
+                    onError(message);
+                    if (message === null) {
+                      setOpen(false);
+                      setDraft('');
+                    }
+                  });
+                }}
+              >
+                {allowing ? CONFIRMING_WRITES : BTN_CONFIRM_WRITES}
+              </button>
+            </>
+          )}
+        </>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy}
+          data-machines-action="open-writes"
+          onClick={() => setOpen(true)}
+        >
+          {BTN_ALLOW_WRITES}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function MachineRow({
   row,
   honesty
@@ -331,6 +496,19 @@ export function MachineRow({
               past it by the time they reached this button. */}
           {honesty === null ? null : (
             <p className="set-config-warning">{honesty}</p>
+          )}
+          {/* PHASE 101. The paragraph that says what replacing a file costs.
+              It is drawn HERE, on the ordinary confirm sheet, and not only on
+              the block below, because a row that already carries a folder
+              still carries it through an ordinary re-confirm. A person is
+              never re-granted file replacement on a sheet that does not say
+              so in full. The answer to whether it is drawn is main's, off the
+              same fields the sheet's lines come from, so no surface can
+              forget it and no surface decides it by reading a line. */}
+          {row.writeHonesty === undefined || row.writeHonesty === null ? null : (
+            <p className="set-config-warning" data-machine-write-honesty>
+              {row.writeHonesty}
+            </p>
           )}
           {row.refusal === null ? null : (
             <p className="mach-refusal">{row.refusal}</p>
@@ -464,6 +642,13 @@ export function MachineRow({
               </button>
             </div>
           )}
+
+          {/* PHASE 101. Saving files on this machine, off by default and turned
+              on by one person doing one thing once. It sits after the accepted
+              version block because both are things a person granted, and
+              before the removal question because removal is the last thing on
+              the row. */}
+          <SavingFiles row={row} busy={busy} onError={setError} />
 
           {prepared === undefined ? null : (
             <PrepareResult

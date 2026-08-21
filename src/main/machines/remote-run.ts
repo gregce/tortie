@@ -5,8 +5,12 @@
  * ## What it is for
  *
  * `./exec-plane.ts` carries tmux verbs. This rung needs four things that are
- * not tmux verbs, being a directory listing, a file read, a git read and one
- * file write. All four go through this module and through nothing else.
+ * not tmux verbs, being a directory listing, a file read, a git read and a file
+ * write. All four go through this module and through nothing else.
+ *
+ * PHASE 101 CORRECTED THE HALF OF THAT SENTENCE THAT SAID "one file write". It
+ * was one when Phase 73 wrote it, two after Phase 90.2, and it is three now.
+ * The number lives in the catalogue and in the gate, not in this sentence.
  *
  * This is the only module in the product that asks `execRemoteShell` to run one
  * of `./remote-scripts.ts`'s scripts. `./remote-path.ts` still uses that
@@ -186,11 +190,19 @@ export async function runRemoteRead(
 }
 
 /**
- * Run the `write` script on one machine.
+ * Run a `write` script on one machine.
  *
  * It is the only door to a write on another computer in this product. The
- * catalogue holds exactly one script with `mode: 'write'`, so this function has
- * exactly one thing it can send, and a gate holds that at one.
+ * catalogue holds THREE scripts with `mode: 'write'`, being `image-put`,
+ * `git-clone` and `file-put` in that order, so this function has exactly three
+ * things it can send and a gate holds it at those three by name rather than at
+ * a count.
+ *
+ * THIS COMMENT WAS WRONG BEFORE PHASE 101 AND IT IS WRITTEN OUT RATHER THAN
+ * QUIETLY FIXED. It read "the catalogue holds exactly one script with
+ * `mode: 'write'`, so this function has exactly one thing it can send, and a
+ * gate holds that at one". That was already false at two writers after Phase
+ * 90.2, and it is defect 7 of research 57 section 9.
  */
 export async function runRemoteWrite(
   ctx: RemoteMachineContext,

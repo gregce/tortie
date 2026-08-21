@@ -160,7 +160,7 @@ export function machineRow(id: string): MachineRowV1 | null {
   return currentMachines().rows.find((row) => row.id === id) ?? null;
 }
 
-/** The five execution bearing fields of one row, in the gate's flat shape. */
+/** The six execution bearing fields of one row, in the gate's flat shape. */
 export function machineFieldsOf(row: MachineRowV1): MachineExecutionFields {
   return {
     host: row.host,
@@ -169,7 +169,10 @@ export function machineFieldsOf(row: MachineRowV1): MachineExecutionFields {
     remoteTmuxPath: row.remoteTmuxPath ?? null,
     // Phase 83. Absent reads as null, which is a machine nobody accepted a
     // version for, and that is what every row in every file says today.
-    acceptedTmuxVersion: row.acceptedTmuxVersion ?? null
+    acceptedTmuxVersion: row.acceptedTmuxVersion ?? null,
+    // Phase 101. Absent reads as null, which is a machine Tortie may save
+    // nothing on, and that is what every row in every file says today.
+    writeRoot: row.writeRoot ?? null
   };
 }
 
@@ -360,6 +363,33 @@ export function setMachineAcceptedVersion(
     const copy: MachineRowV1 = { ...row };
     if (version === null) delete copy.acceptedTmuxVersion;
     else copy.acceptedTmuxVersion = version;
+    return copy;
+  });
+  return writeMachines(next);
+}
+
+/**
+ * Write the folder Tortie may save under on one machine, or clear it
+ * (Phase 101).
+ *
+ * It writes one field of one row and nothing else. It starts nothing, contacts
+ * no machine and does not record an agreement: `machines:allowWrites` in
+ * `./ipc.ts` is the one caller that sets it, it checks the hash a person read
+ * BEFORE this runs, and it records the agreement after. `machines:forget` is
+ * the one caller that clears it. A machine this id does not name leaves the
+ * file untouched.
+ */
+export function setMachineWriteRoot(
+  id: string,
+  root: string | null
+): MachinesSnapshot {
+  const rows = currentMachines().rows;
+  if (!rows.some((row) => row.id === id)) return currentMachines();
+  const next = rows.map((row) => {
+    if (row.id !== id) return row;
+    const copy: MachineRowV1 = { ...row };
+    if (root === null) delete copy.writeRoot;
+    else copy.writeRoot = root;
     return copy;
   });
   return writeMachines(next);

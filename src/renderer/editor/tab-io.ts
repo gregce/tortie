@@ -14,13 +14,27 @@
  *   worktree — loadContents + loadHead, refreshed by `refreshRepo`
  *   history  — loadCommitDiff fills both sides once and nothing else runs
  *   review   — loadRemoteDiff fills both sides once, from another computer
- * Which is why `save` and `refreshRepo` both refuse a history tab and a review
- * tab: it is cheaper to state that twice, right where the write would happen,
- * than to rely on every caller remembering.
+ * Which is why `refreshRepo` refuses a history tab and a review tab: it is
+ * cheaper to state that twice, right where the write would happen, than to
+ * rely on every caller remembering.
+ *
+ * PHASE 101 SPLIT `save` IN TWO. A review tab whose machine carries a folder a
+ * person confirmed Tortie may save under is saved on that machine, through the
+ * one channel that can write there. A review tab whose machine carries none is
+ * refused, out loud, exactly as it was. Nothing about a history tab moved: the
+ * past is not an edit surface on any computer.
  */
 
+import { REMOTE_FILE_MAX_BYTES } from '@shared/ipc';
 import { errorText, useApp } from '../state/store';
-import { remoteSaveRefused } from '../app/machine-copy';
+import { machineWriteRootFor } from '../state/machines-slice';
+import {
+  remoteOpenTooLarge,
+  remoteOpenTooLargeOver,
+  remoteSaveLostAnswer,
+  remoteSaveRefusal,
+  remoteSaveRefused
+} from '../app/machine-copy';
 import type {
   OpenFileCommitRef,
   OpenFileRemoteRef
@@ -255,6 +269,43 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         });
         return;
       }
+      /**
+       * PHASE 101. A file Tortie could never save is not opened at all, on a
+       * machine where saving is on.
+       *
+       * WHY THE OPEN AND NOT THE SAVE. The read cap is 2,097,152 bytes and the
+       * save cap is 90,000. The save cap cannot be raised to meet the read cap,
+       * because the whole command Tortie sends is capped as well and a file
+       * that size does not fit at any encoding. So the choice is between
+       * refusing the open and shipping a tab that can never be saved, and a tab
+       * that can never be saved is the defect Phase 96 fixed by accident.
+       *
+       * IT IS REFUSED ONLY WHEN SAVING IS ON. With saving off the tab is read
+       * only anyway, so refusing the open would take away a read a person has
+       * today and give nothing back.
+       *
+       * TWO SENTENCES, because a cut read gives a floor rather than a
+       * measurement. `pair.bytes` is the file's real size when the read was
+       * whole, and it is the read cap when the read was cut, so the second
+       * sentence says over and never prints the floor as the size.
+       */
+      const writeRoot = machineWriteRootFor(
+        useApp.getState().machineStates,
+        remote.machineId
+      );
+      if (
+        writeRoot !== null &&
+        writeRoot.length > 0 &&
+        pair.bytes > REMOTE_FILE_MAX_BYTES
+      ) {
+        deps.patch(id, {
+          loading: false,
+          error: pair.truncated
+            ? remoteOpenTooLargeOver(pair.bytes, remote.machineLabel)
+            : remoteOpenTooLarge(pair.bytes, remote.machineLabel)
+        });
+        return;
+      }
       deps.patch(id, {
         headContents: pair.oldContents,
         savedContents: pair.newContents,
@@ -345,6 +396,130 @@ export function createTabIo(deps: TabIoDeps): TabIo {
 
   // -- saving ----------------------------------------------------------------
 
+  /**
+   * The one sentence for a build that cannot do this at all (Phase 101).
+   *
+   * It covers a preload with no `machines.putFile` and a page with no digest
+   * program, because both mean the same thing to a person: this build cannot
+   * save a file on another computer. Nothing is sent in either case.
+   */
+  const NO_REMOTE_SAVE = 'This build cannot save files on another machine.';
+
+  /**
+   * The lowercase hex sha256 of one string of text, as `shasum -a 256` spells
+   * it (Phase 101).
+   *
+   * WHY THE RENDERER COMPUTES IT. `expect` is the checksum of the file AS
+   * TORTIE LAST READ IT, and the only copy of those bytes is the tab's own
+   * `savedContents`. Main never had them. The far side computes the same
+   * digest over the same bytes, and a mismatch is exactly the answer that
+   * refuses the write, so a wrong digest here can only ever refuse a save. It
+   * can never cause one.
+   *
+   * Null when this page has no digest program at all, which is a build
+   * question rather than a machine question.
+   */
+  const sha256Hex = async (text: string): Promise<string | null> => {
+    const subtle = globalThis.crypto?.subtle;
+    if (subtle === undefined) return null;
+    const digest = await subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(digest)]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+  };
+
+  /**
+   * Save one tab whose file is on another machine (Phase 101).
+   *
+   * THE ORDER MATTERS AND IT IS THE SAFETY PROPERTY. Saving off is answered
+   * here, on this Mac, before anything is composed. Everything past that is
+   * main's decision: main reads the confirmed folder off the row on disk at
+   * call time, checks the machine's agreement, refuses a path outside the
+   * folder, and refuses a payload over the cap. This function never sends a
+   * folder and never chooses one, so the folder that decides what may be
+   * written is the one a person read on a sheet and confirmed.
+   *
+   * A SUCCESS SHOWS NOTHING. The dirty dot clears, which is exactly what a save
+   * on this Mac does. Two behaviours on one surface are harder to learn than
+   * one, so there is no success toast, not even for the first save on a
+   * machine.
+   */
+  const saveOnMachine = async (
+    id: string,
+    tab: EditorTab,
+    remote: OpenFileRemoteRef
+  ): Promise<boolean> => {
+    const label = remote.machineLabel;
+    const sticky = { sticky: true } as const;
+    const writeRoot = machineWriteRootFor(
+      useApp.getState().machineStates,
+      remote.machineId
+    );
+    if (writeRoot === null || writeRoot.length === 0) {
+      useApp.getState().toast('error', remoteSaveRefused(label), sticky);
+      return false;
+    }
+    // The three tabs that are not edit surfaces on any computer. They are
+    // checked after the refusal above so that a machine with saving off still
+    // says the one thing a person can act on.
+    if (tab.deleted || tab.truncated || tab.error !== null) return false;
+    const machines = gmux ? gmux.machines : undefined;
+    if (machines === undefined || typeof machines.putFile !== 'function') {
+      useApp.getState().toast('error', NO_REMOTE_SAVE, sticky);
+      return false;
+    }
+    const model = getWorkingModel(id);
+    if (model === null) return false;
+    const value = model.getValue();
+    const bytes = new TextEncoder().encode(value).length;
+    const expect = await sha256Hex(tab.savedContents);
+    if (expect === null) {
+      useApp.getState().toast('error', NO_REMOTE_SAVE, sticky);
+      return false;
+    }
+    try {
+      const result = await machines.putFile({
+        machineId: remote.machineId,
+        path: tab.path,
+        contents: value,
+        expect
+      });
+      if (result.outcome === 'wrote') {
+        deps.patch(id, { savedContents: value, dirty: false });
+        return true;
+      }
+      useApp
+        .getState()
+        .toast(
+          'error',
+          remoteSaveRefusal(
+            result.outcome,
+            label,
+            result.writeRoot,
+            result.bytes ?? bytes
+          ),
+          sticky
+        );
+      return false;
+    } catch (err) {
+      // NO "Could not save this file." HERE, AND THAT IS THE POINT.
+      // `build/probe-p101-save.mjs` leg 14 killed a real ssh over a real link
+      // while the far side was decoding an 89,000 byte payload, and the far
+      // side replaced the file in full. Only the answer was lost. A sentence
+      // saying the save failed would then be false about a file on somebody's
+      // other computer.
+      //
+      // Main's own sentence for that case is shorter than 160 characters, so
+      // `errorSentence` shows it. Anything longer, or anything shaped like
+      // machinery, is a link failure with no sentence for a person, and the
+      // fallback below is what they read.
+      useApp
+        .getState()
+        .toast('error', errorSentence(err, remoteSaveLostAnswer(label)), sticky);
+      return false;
+    }
+  };
+
   /** Write one tab to disk. Resolves false when nothing was written. */
   const save = async (id: string): Promise<boolean> => {
     const tab = deps.byId(id);
@@ -356,17 +531,15 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     if (tab.commit !== null) return false;
     // PHASE 90.3. A review tab was refused here silently since Phase 73, so a
     // person who typed and pressed Save was told nothing at all, which reads as
-    // a save that worked. It is refused OUT LOUD now, naming the machine. The
-    // sentence is in ./../app/machine-copy.ts with every other sentence this
-    // renderer says about a machine, so the vocabulary audit reads one file.
-    if (tab.remote !== undefined) {
-      useApp
-        .getState()
-        .toast('error', remoteSaveRefused(tab.remote.machineLabel), {
-          sticky: true
-        });
-      return false;
-    }
+    // a save that worked. It was refused OUT LOUD from that phase, naming the
+    // machine.
+    //
+    // PHASE 101. It is a save now, on the machines a person has confirmed a
+    // folder for, and it is still the same refusal on every other machine.
+    // `saveOnMachine` below owns both halves, and every sentence it says is in
+    // ./../app/machine-copy.ts with every other sentence this renderer says
+    // about a machine, so the vocabulary audit reads one file.
+    if (tab.remote !== undefined) return saveOnMachine(id, tab, tab.remote);
     if (tab.deleted || tab.truncated || tab.error !== null) return false;
     const model = getWorkingModel(id);
     if (model === null) return false;

@@ -61,6 +61,7 @@ import {
 } from '../src/shared/machines';
 import {
   MACHINE_CONFIRM_ID_PREFIX,
+  MACHINE_WRITE_HONESTY,
   canonicalMachineText,
   describeMachine,
   machineExecutionHash,
@@ -263,8 +264,11 @@ const base = machineExecutionHash(ID, BASE);
  * confirmed. It therefore cannot be varied by the generic loop below, whose
  * whole shape is "change it, unset it, and both must move the hash". It gets
  * its own block, and conditions 41 to 43 read that block.
+ *
+ * Phase 101 added `writeRoot` by the same route and for the same reason. It
+ * gets its own block too, and condition 79 reads that one.
  */
-const APPENDED_EXECUTION_FIELDS = ['acceptedTmuxVersion'];
+const APPENDED_EXECUTION_FIELDS = ['acceptedTmuxVersion', 'writeRoot'];
 
 const fieldRows = [
   ...MACHINE_EXECUTION_FIELDS.filter(
@@ -330,6 +334,29 @@ const hashedKeysAccepted = (
   .filter((key) => key !== 'id')
   .sort();
 
+/**
+ * The key set the hash covers for a row carrying EVERY execution bearing field
+ * (Phase 101, condition 7).
+ *
+ * It was read from a row carrying the first five until Phase 101, which added a
+ * sixth by the same appended route. A row missing one appended field reports a
+ * key set that is short by that field, and condition 7 would then read "the
+ * hash does not cover writeRoot" and fail on a property that is not true.
+ */
+const EVERYTHING: MachineExecutionFields = {
+  ...BASE,
+  acceptedTmuxVersion: '3.9a',
+  writeRoot: '/Users/gdc'
+};
+const hashedKeysEverything = (
+  JSON.parse(
+    canonicalMachineText(ID, EVERYTHING).split('\n')[1] ?? '[]'
+  ) as [string, unknown][]
+)
+  .map(([key]) => key)
+  .filter((key) => key !== 'id')
+  .sort();
+
 /** Everything conditions 41 and 42 need about the fifth field. */
 const acceptedVersion = {
   unaccepted: base,
@@ -346,6 +373,43 @@ const acceptedVersion = {
   unacceptedCanonicalCarriesKey: canonical.includes('acceptedTmuxVersion'),
   sheetLines: [...describeMachine(ID, ACCEPTED).lines],
   appendedFields: APPENDED_EXECUTION_FIELDS
+};
+
+/**
+ * Everything condition 79 needs about the sixth field (Phase 101).
+ *
+ * It mirrors the eight questions the `acceptedVersion` block above feeds, and
+ * it adds one that block has no equivalent of: a row whose `host` moved while a
+ * write root is set must still carry that root in its canonical text. That is
+ * the second ruling of the phase, being that a write root SURVIVES an ordinary
+ * re-confirm, made checkable rather than remembered.
+ */
+const WRITE_ROOT: MachineExecutionFields = { ...BASE, writeRoot: '/Users/gdc' };
+const canonicalWriteRoot = canonicalMachineText(ID, WRITE_ROOT);
+const writeRootFacts = {
+  unset: base,
+  set: machineExecutionHash(ID, WRITE_ROOT),
+  setOther: machineExecutionHash(ID, { ...BASE, writeRoot: '/Users/gdc/code' }),
+  backToUnset: machineExecutionHash(ID, { ...WRITE_ROOT, writeRoot: null }),
+  unsetCanonicalCarriesKey: canonical.includes('writeRoot'),
+  canonicalCarriesRoot: canonicalWriteRoot.includes('/Users/gdc'),
+  sheetLines: [...describeMachine(ID, WRITE_ROOT).lines],
+  appendedFields: APPENDED_EXECUTION_FIELDS,
+  // The second ruling. The host moved, the hash moved with it, and the root is
+  // still in the text a person is asked to agree to.
+  movedHostCanonical: canonicalMachineText(ID, {
+    ...WRITE_ROOT,
+    host: 'attic.tail1a2b.ts.net'
+  }),
+  // The honesty paragraph. Answered by main, on every sheet, and in neither
+  // `lines` nor the canonical text.
+  honestyWhenSet: describeMachine(ID, WRITE_ROOT).writeHonesty,
+  honestyWhenUnset: describeMachine(ID, BASE).writeHonesty,
+  honestyText: MACHINE_WRITE_HONESTY,
+  honestyInLines: describeMachine(ID, WRITE_ROOT)
+    .lines.join('\n')
+    .includes(MACHINE_WRITE_HONESTY),
+  honestyInCanonical: canonicalWriteRoot.includes(MACHINE_WRITE_HONESTY)
 };
 
 /**
@@ -1265,6 +1329,83 @@ const scriptRows = REMOTE_SCRIPTS.map((script) => {
   };
 });
 
+/**
+ * The checkable sentence, PER BRANCH of each write script (Phase 101,
+ * condition 80).
+ *
+ * A whole-script test would pass `file-put` on its checksum arm alone, and the
+ * `new` arm could then lose its existence test while the gate stayed green and
+ * Tortie replaced a file it never read. So each arm is read on its own.
+ */
+const REFUSAL_WORDS = [
+  'nosum',
+  'stale',
+  'missing',
+  'exists',
+  'nomode'
+] as const;
+
+const writeBranches = (() => {
+  const textOf = (id: string): string =>
+    REMOTE_SCRIPTS.find((script) => script.id === id)?.text ?? '';
+  const imagePut = textOf('image-put');
+  const gitClone = textOf('git-clone');
+  const filePut = textOf('file-put');
+  const armStart = filePut.indexOf('if [ "$3" = new ]; then');
+  const armElse = armStart < 0 ? -1 : filePut.indexOf('\nelse\n', armStart);
+  const armEnd = armElse < 0 ? -1 : filePut.indexOf('\nfi\n', armElse);
+  const newArm = armStart < 0 || armElse < 0 ? '' : filePut.slice(armStart, armElse);
+  const sumArm = armElse < 0 || armEnd < 0 ? '' : filePut.slice(armElse, armEnd);
+  const compareAt = filePut.indexOf('if [ "$c" != "$3" ]');
+  const firstWriteAt = filePut.indexOf('> "$t"');
+  // Everything above the first arm, which is where the checksum program has to
+  // be found AND run.
+  const probeRegion = armStart < 0 ? '' : filePut.slice(0, armStart);
+  return {
+    imagePutRefusesExisting: imagePut.includes('if [ -f "$f" ]; then'),
+    gitCloneRefusesExisting: gitClone.includes('if [ -e "$d" ]; then'),
+    filePutArmsFound: armStart >= 0 && armElse >= 0 && armEnd >= 0,
+    filePutNewArmRefusesExisting:
+      newArm.includes('[ -f "$f" ]') && newArm.includes('exists'),
+    filePutNewArmWrites: newArm.includes('> "$t"') || newArm.includes('mv "$t"'),
+    filePutSumArmComparesChecksum: sumArm.includes('if [ "$c" != "$3" ]'),
+    filePutSumArmComputesChecksum: sumArm.includes('c=$("$p"'),
+    filePutComparesBeforeWriting:
+      compareAt >= 0 && firstWriteAt >= 0 && compareAt < firstWriteAt,
+    filePutNamesRm: /(^|[\s;|&(){}])rm([\s;|&(){}]|$)/.test(filePut),
+    filePutHasRootCase: filePut.includes('case "$1" in /*) ;; *) exit 1;; esac'),
+    filePutHasRootDotDotCase: filePut.includes('case "$1" in *..*) exit 1;; esac'),
+    filePutHasRelCase: filePut.includes('case "$2" in /*|*..*) exit 1;; esac'),
+    filePutMovesIntoPlace: filePut.includes('mv "$t" "$f"'),
+    // The program is looked up before either arm. This is what the first
+    // version of this fact checked, and on its own it is not enough: a
+    // lookup that succeeds says nothing about whether the program answers.
+    filePutProbesChecksumFirst:
+      filePut.indexOf('command -v shasum') >= 0 &&
+      filePut.indexOf('command -v shasum') < (armStart < 0 ? 0 : armStart),
+    // The program is RUN before either arm, and the `nosum` refusal is decided
+    // on what that run said. A verifier proved the weaker fact above passes
+    // while the script writes the file and then answers `nosum`, by putting a
+    // `shasum` on PATH that exits 0 and prints nothing.
+    filePutRunsChecksumFirst:
+      probeRegion.includes('k=$("$p"') &&
+      probeRegion.includes('/dev/null') &&
+      probeRegion.includes('if [ -z "$k" ]; then'),
+    // No word that means nothing was written appears after the first write.
+    // This is the property, stated over the whole text, that the fix round
+    // closed. The names are listed so a failure can print them.
+    filePutRefusalWordsAfterWrite: REFUSAL_WORDS.filter(
+      (word) =>
+        firstWriteAt >= 0 && filePut.indexOf(word, firstWriteAt) >= 0
+    ),
+    // What it prints instead, when the bytes are in place and it cannot
+    // describe them. `../src/main/machines/remote-file.ts` does not know this
+    // word, so the call throws the sentence that says nobody can tell.
+    filePutSaysUnsureAfterWrite:
+      firstWriteAt >= 0 && filePut.indexOf('unsure', firstWriteAt) >= 0
+  };
+})();
+
 /** The one write, composed with a payload of the largest image allowed. */
 const biggestImageCommand = (() => {
   const write = REMOTE_SCRIPTS.find((script) => script.mode === 'write');
@@ -1390,7 +1531,12 @@ process.stdout.write(
     hashedKeys,
     // Phase 83, conditions 7 and 43.
     hashedKeysAccepted,
+    hashedKeysEverything,
     acceptedVersion,
+    // Phase 101, conditions 43 and 79.
+    writeRootFacts,
+    // Phase 101, condition 80.
+    writeBranches,
     acceptanceReach,
     canonical,
     canonicalCarriesLabel: canonical.includes('Pop OS') || canonical.includes('label'),

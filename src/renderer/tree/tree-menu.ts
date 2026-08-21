@@ -62,10 +62,26 @@ export interface TreeMenuCapabilities {
    *    equal, and a remote `rm` would turn a recoverable delete into an
    *    unrecoverable one.
    *
+   * PHASE 101 MOVED ONE OF THE FOUR. New File crosses on a machine a person has
+   * let Tortie save on, under `remoteCreateFile` below. The other three stay
+   * absent on every machine in both states, and Move to Trash stays absent
+   * permanently for the reason above, which has not changed.
+   *
    * The sentence itself is written once in src/renderer/app/machine-copy.ts and
    * this module never composes one.
    */
   readOnlyNote?: string | null;
+  /**
+   * PHASE 101. True when this machine carries a folder a person confirmed
+   * Tortie may replace a file under, so New File crosses.
+   *
+   * IT IS ITS OWN FLAG RATHER THAN `mutate` FLIPPED TO TRUE, and the reason is
+   * that `mutate` gates five verbs. Flipping it would put New Folder, Rename,
+   * Duplicate and Move to Trash on the menu as well, and none of those has a
+   * script on the far side. Absent, and false, both mean the same thing, which
+   * is a folder on another machine that Tortie may not write into.
+   */
+  remoteCreateFile?: boolean;
 }
 
 export interface TreeMenuActions {
@@ -137,17 +153,24 @@ export function buildTreeMenu(
   }
 
   // -- create --------------------------------------------------------------
+  // PHASE 101 SPLIT ONE BLOCK INTO TWO, and the split is the whole change.
+  // The two items were pushed together under one condition, so a machine that
+  // may take a new file would have taken a new folder with it, and there is no
+  // script on the far side that makes a folder. They are two conditions now
+  // and only the first of them crosses.
+  const canCreateFile =
+    (caps.mutate && !remote) || (remote && caps.remoteCreateFile === true);
+  if (canCreateFile) {
+    items.push({
+      label: 'New File…',
+      run: () => actions.newEntry(target.destDir, 'file')
+    });
+  }
   if (caps.mutate && !remote) {
-    items.push(
-      {
-        label: 'New File…',
-        run: () => actions.newEntry(target.destDir, 'file')
-      },
-      {
-        label: 'New Folder…',
-        run: () => actions.newEntry(target.destDir, 'dir')
-      }
-    );
+    items.push({
+      label: 'New Folder…',
+      run: () => actions.newEntry(target.destDir, 'dir')
+    });
   }
 
   // -- edit ----------------------------------------------------------------

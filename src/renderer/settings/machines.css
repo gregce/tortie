@@ -727,6 +727,30 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Letting Tortie save a file on one machine (Phase 101)
+   ---------------------------------------------------------------------------
+   One block, in both of its states, and it copies `.mach-accepted` above
+   exactly. Both are things a person granted for one machine, both sit on the
+   row rather than in a sheet of their own, and a person who has learned to
+   read one should not have to learn a second shape to read the other. */
+
+.mach-writes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+/* The folder field stretches, because a path is long and a person has to be
+   able to read the whole of what they are about to confirm. */
+.mach-writes > .mach-field-row {
+  align-self: stretch;
+}
+
+/* ---------------------------------------------------------------------------
    Setting up a key for one machine (Phase 79.1)
    ---------------------------------------------------------------------------
    The block hangs off the bottom of the connection test, under the advice,

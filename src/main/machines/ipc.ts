@@ -141,8 +141,15 @@ import type {
   // ---- END PHASE 107 ----
   // ---- PHASE 108 ----
   MachineContextInput,
-  MachineContextResult
+  MachineContextResult,
   // ---- END PHASE 108 ----
+  // ---- PHASE 101 ----
+  MachineAllowWritesInput,
+  MachineConfirmSheet,
+  MachineFilePutInput,
+  MachineFilePutResult,
+  MachineWriteSheetInput
+  // ---- END PHASE 101 ----
 } from '@shared/ipc';
 import {
   EVT_MACHINE_AGENTS,
@@ -269,14 +276,15 @@ import {
   machineRow,
   machinesPath,
   reloadMachines,
-  setMachineAcceptedVersion
+  setMachineAcceptedVersion,
+  setMachineWriteRoot
 } from './store';
 import { readTailnetMachines } from './tailscale';
 // ---- PHASE 73 BLOCK B ----
-// Phase 73, item 3. The one write this product makes on another computer. It
-// starts no process of its own: the bytes go through the write door in
-// ./remote-run.ts, which can send exactly one script because the catalogue
-// holds exactly one script that writes.
+// Phase 73, item 3. The FIRST of the three writes this product makes on
+// another computer. It starts no process of its own: the bytes go through the
+// write door in ./remote-run.ts, which can send exactly the three scripts the
+// catalogue marks as writes, and the gate holds it at those three by name.
 import { putImagesOnMachine } from './remote-image';
 // ---- END PHASE 73 BLOCK B ----
 // ---- PHASE 73 BLOCK C ----
@@ -286,6 +294,16 @@ import { putImagesOnMachine } from './remote-image';
 // not connected to.
 import { reviewFileOn, reviewFilesOn } from './remote-review';
 // ---- END PHASE 73 BLOCK C ----
+// ---- PHASE 101 ----
+// Saving one file on one machine. It owns the whole write decision, including
+// the confirm gate, the size, containment and the reading of what the machine
+// said. It starts no process of its own: the bytes go through the write door in
+// ./remote-run.ts, which refuses a machine Tortie is not connected to.
+import { putFileOnMachine } from './remote-file';
+// The schema's own validator for the folder, so the sentence a person reads
+// when they type a bad one is written in exactly one place.
+import { writeRootField } from './schema';
+// ---- END PHASE 101 ----
 
 /**
  * Windows that already carry the "you went away, so the test stops" listener.
@@ -335,7 +353,13 @@ function viewOf(row: MachineRowV1): MachineRowView {
     // PHASE 84, item 7. The file name of Tortie's own key for this machine, or
     // null when there is none. The LEAF and never the path: the row already
     // draws the whole path where a person needs it.
-    keyFile: machineKeyPairPresent(row.id) ? machineKeyLeaf(row.id) : null
+    keyFile: machineKeyPairPresent(row.id) ? machineKeyLeaf(row.id) : null,
+    // PHASE 101. The folder this person granted, so the row can draw it and
+    // offer to withdraw it, and the paragraph that says what a save costs. Both
+    // are composed in main: `writeHonesty` comes from `writeHonestyOf` through
+    // `machineRowStatus`, so no renderer decides the question by reading a line.
+    writeRoot: fields.writeRoot ?? null,
+    writeHonesty: status.writeHonesty
   };
 }
 
@@ -677,6 +701,134 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     }
   );
 
+  // ---- PHASE 101 BLOCK ----
+  //
+  // Three channels rather than one, and the split is the design.
+  //
+  // A person turns saving on for one machine by typing a folder and pressing a
+  // button. The renderer may never compose that sheet's lines or its hash, and
+  // there is no prior result to take the sheet from, because the person types
+  // the folder. So there is a READ that answers the sheet and a WRITE that
+  // records the agreement. A single channel that previewed when `hashRead` was
+  // null and wrote when it was not was rejected: a channel that both previews
+  // and writes is a channel where one wrong argument writes.
+  //
+  // The third is the save itself, and it is the only door to `file-put`.
+
+  /**
+   * The folder a person typed, checked with the schema's own validator.
+   *
+   * The validator throws its own sentence naming the field and the reason, and
+   * that sentence is what a person reads. Nothing is written and nothing is
+   * started when it refuses.
+   */
+  const writeRootOrThrow = (id: string, value: unknown): string => {
+    try {
+      return writeRootField(value, 'The folder Tortie may save under');
+    } catch (err) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        `${(err as Error).message} Nothing was written for ${id} and nothing ` +
+          `was started.`
+      );
+    }
+  };
+
+  // THIS ONE READS. It composes the sheet for the row as it is now plus the
+  // folder, and answers it. It starts nothing, opens no connection, sends
+  // nothing to any machine and writes nothing at all.
+  handle(
+    ipc,
+    'machines:writeSheet',
+    (_event, input: MachineWriteSheetInput): MachineConfirmSheet => {
+      const row = rowOrThrow(input.id);
+      const root = writeRootOrThrow(row.id, input.writeRoot);
+      const summary = describeMachine(row.id, {
+        ...machineFieldsOf(row),
+        writeRoot: root
+      });
+      return {
+        hash: summary.hash,
+        lines: [...summary.lines],
+        warning: summary.warning,
+        // The paragraph that says what a save costs. It is answered by main and
+        // it is not one of `lines`, so the hash does not cover it and no sheet
+        // that grants file replacement can be drawn without it.
+        writeHonesty: summary.writeHonesty
+      };
+    }
+  );
+
+  // PHASE 101. A person turns saving on for one machine. The order below is
+  // `machines:acceptVersion`'s order, because that channel is this one's
+  // precedent, and it is the order that makes a stale sheet write nothing.
+  //
+  //  1. The machine has to be in the file.
+  //  2. The folder has to pass the schema's validator. A value that does not
+  //     refuses HERE, with nothing written and nothing started.
+  //  3. The hash is recomputed over the row as it is now plus the proposed
+  //     folder, and compared against the hash the sheet was drawn from. A
+  //     mismatch refuses and NOTHING is written.
+  //  4. Only then is the field written, and only then is the agreement
+  //     recorded.
+  //
+  // It contacts no machine, starts nothing and opens no connection.
+  handle(
+    ipc,
+    'machines:allowWrites',
+    (_event, input: MachineAllowWritesInput): MachineRowView => {
+      const row = rowOrThrow(input.id);
+      const root = writeRootOrThrow(row.id, input.writeRoot);
+      const next: MachineExecutionFields = {
+        ...machineFieldsOf(row),
+        writeRoot: root
+      };
+      const summary = describeMachine(row.id, next);
+      if (input.hashRead !== summary.hash) {
+        throw gmuxError(
+          'INVALID_INPUT',
+          `Tortie did not turn saving on for ${row.id}, because the machine ` +
+            `changed after it was shown. Read it again and confirm what it ` +
+            `says now. Nothing was written.`
+        );
+      }
+      setMachineWriteRoot(row.id, root);
+      // The field is on disk from here on. A keychain that refuses to seal
+      // leaves it in place and returns the sentence, rather than dropping what
+      // a person just chose.
+      recordAgreement(row.id, next, input.hashRead, input.linesRead);
+      const written = machineRow(row.id);
+      return viewOf(written ?? row);
+    }
+  );
+
+  // PHASE 101. The save. It is the third channel in this product that can write
+  // on another computer, and the only door to the `file-put` script.
+  //
+  // EVERY REFUSAL IT CAN ANSWER MEANS NOTHING WAS WRITTEN. The three main
+  // decides on this Mac, being `writesOff`, `tooLarge` and `outsideRoot`,
+  // happen before anything is composed. The five the machine reports, being
+  // `stale`, `missing`, `exists`, `nomode` and `nosum`, are all printed above
+  // the line in the script that writes and none of them below it. That is a
+  // property of the script text and the gate's condition 80 reads it out of
+  // that text, rather than a claim made here. The first fix round of this
+  // phase found `nosum` being printed after the write and closed it.
+  //
+  // A save whose result nobody can describe is NOT a refusal and is not in this
+  // list. The script prints `unsure` for it and the call throws the sentence
+  // that says Tortie cannot tell whether the file was saved.
+  handle(
+    ipc,
+    'machines:putFile',
+    async (
+      _event,
+      input: MachineFilePutInput
+    ): Promise<MachineFilePutResult> => {
+      return putFileOnMachine(input);
+    }
+  );
+  // ---- END PHASE 101 BLOCK ----
+
   handle(ipc, 'machines:forget', (_event, id: string): MachineRowView => {
     // PHASE 83. The accepted version goes with the agreement, and it has to.
     // The version is one of the five facts the hash covers, so a row that kept
@@ -684,6 +836,12 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     // sheet still carrying a version the person had just withdrawn. Both
     // buttons that reach this channel say so in their own words.
     setMachineAcceptedVersion(id, null);
+    // PHASE 101. The folder goes with the agreement for the same reason the
+    // version does. It is one of the six facts the hash covers, so a row that
+    // kept it after the agreement was dropped would ask to be confirmed again
+    // on a sheet still granting file replacement the person had just withdrawn.
+    // The button that reaches this channel says so in its own words.
+    setMachineWriteRoot(id, null);
     forgetMachine(id);
     const row = machineRow(id);
     if (row !== null) return viewOf(row);
@@ -709,7 +867,11 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       // The row is not in the file, so Tortie holds no machine to count
       // sessions for.
       sessions: 0,
-      acceptedTmuxVersion: null
+      acceptedTmuxVersion: null,
+      // PHASE 101. The row is not in the file, so there is no folder and there
+      // is nothing to say about saving.
+      writeRoot: null,
+      writeHonesty: null
     };
   });
 

@@ -5,7 +5,7 @@
  *
  * `./exec-plane.ts` owns the verb ledger, and every entry on it is a tmux verb.
  * This rung needs four things that are not tmux verbs: a directory listing, a
- * file read, a git read and one file write. `execRemoteShell` already carries a
+ * file read, a git read and a file write. `execRemoteShell` already carries a
  * command to a machine's own login shell, and until this phase it had exactly
  * one caller, being the program search list capture.
  *
@@ -15,6 +15,16 @@
  * folder that holds this same project over there. `git-clone` puts a project on
  * a machine that does not have it yet. It is the second write this product can
  * make on another computer and rule 6 below now says two rather than one.
+ *
+ * PHASE 101 ADDED ONE MORE, and it is the THIRD write. `file-put` replaces one
+ * file under one confirmed folder on a machine, or makes a new empty one there.
+ * It is the first command this product sends that can replace a file a person
+ * already had, and what bounds it is a sixth confirmed field on the machine row
+ * called `writeRoot`. A machine that carries none cannot be saved to at all.
+ * The script computes the file's checksum on the far side and refuses unless it
+ * equals the checksum Tortie read, so no command Tortie sends can replace a
+ * file whose contents Tortie did not just verify by checksum. Rule 6 below says
+ * three rather than two and says which promise changed.
  *
  * PHASE 98 ADDED ONE MORE, and it is a read. `repo-search` prints every
  * matching line in one folder on a machine, using that machine's own `grep`.
@@ -142,15 +152,26 @@
  *  5. A `read` script names none of `rm`, `mv`, `cp`, `mkdir`, `touch`,
  *     `chmod`, `chown`, `ln`, `dd`, `tee` or `truncate` as a command, and every
  *     `>` in it is part of `2>/dev/null`.
- *  6. TWO scripts have `mode: 'write'`, and they are `image-put` and
- *     `git-clone`, in that order. Phase 90.2 moved that number from one to two,
- *     once and on purpose, because putting a project on a machine is a write and
- *     there is no honest way to write it as a read. The two carry SEPARATE
- *     redirection rules rather than one shared rule, because they are different
- *     shapes: every `>` in `image-put` aims at the temporary name, and every `>`
- *     in `git-clone` aims at `/dev/null`. Both refuse a destination that is
- *     already there before they write anything, `image-put` with `[ -f "$f" ]`
- *     and `git-clone` with `[ -e "$d" ]`.
+ *  6. THREE scripts have `mode: 'write'`, and they are `image-put`,
+ *     `git-clone` and `file-put`, in that order. Phase 90.2 moved that number
+ *     from one to two and Phase 101 moved it from two to three, once and on
+ *     purpose each time, because putting a project on a machine is a write and
+ *     so is saving a file a person is editing, and there is no honest way to
+ *     write either as a read. The three carry SEPARATE redirection rules rather
+ *     than one shared rule, because they are different shapes: every `>` in
+ *     `image-put` and in `file-put` aims at the temporary name, and every `>`
+ *     in `git-clone` aims at `/dev/null`.
+ *
+ *     THE PROMISE THAT CHANGED IN PHASE 101, said plainly rather than left for
+ *     a reader to notice. Until Phase 101 all writers refused a destination
+ *     that was already there, `image-put` with `[ -f "$f" ]` and `git-clone`
+ *     with `[ -e "$d" ]`. `file-put` replaces a file on purpose, so it cannot
+ *     make that promise on its checksum arm. What replaced it is that it
+ *     replaces a file ONLY after the machine has computed that file's checksum
+ *     and found it equal to the checksum Tortie read. Its `new` arm keeps the
+ *     older promise in full, with `[ -f "$f" ]`. Condition 80 of
+ *     `build/conformance-machines.mjs` checks both arms separately, because a
+ *     whole-script test would pass `file-put` on its checksum arm alone.
  *  7. EIGHT git verbs may appear in any script, being `rev-parse`, `status`,
  *     `show`, `ls-files`, `for-each-ref`, `log`, `merge-base` and `rev-list`.
  *     Two more may appear in `git-clone` and in NO other script, being
@@ -206,9 +227,23 @@
  * A machine can sleep and a link can drop after the far side has already run a
  * command and before its answer arrives, so Tortie can never know whether a
  * command that failed ran or not. Every `read` script is safe to run twice
- * because it writes nothing. The one write is safe to run twice because it
- * never opens a file that is already there. Each row's `reason` says so in its
- * own words, the same way a verb ledger row does.
+ * because it writes nothing. Each row's `reason` says so in its own words, the
+ * same way a verb ledger row does.
+ *
+ * THE THREE WRITES ARE SAFE TO RUN TWICE FOR TWO DIFFERENT REASONS, and the
+ * sentence that once covered them all said "the one write is safe to run twice
+ * because it never opens a file that is already there". That was already false
+ * at two writers and Phase 101 rewrites it rather than leaving it.
+ *
+ *  - `image-put` and `git-clone` never open a destination that is already
+ *    there. A repeat finds the file or the folder and answers `present` or
+ *    `exists` without writing.
+ *  - `file-put` replaces a file on purpose, so it cannot make that promise on
+ *    its checksum arm. A repeat after a lost answer finds the file already
+ *    carrying the checksum of the payload and answers `stale` with that
+ *    checksum, and `./remote-file.ts` reads that as the write having landed. So
+ *    a repeat writes one file rather than refusing. Its `new` arm keeps the
+ *    older promise in full.
  *
  * ## The size limit, measured against a documented number rather than guessed
  *
@@ -460,8 +495,10 @@ const STORE_COPY = [
 ].join('\n');
 
 /**
- * The one write in this catalogue. Its four safety properties are properties of
- * this text rather than of a guard around it.
+ * The FIRST write in this catalogue. It was the only one when Phase 73 wrote
+ * this comment, `git-clone` joined it in Phase 90.2 and `file-put` in Phase
+ * 101. Its four safety properties are properties of this text rather than of a
+ * guard around it.
  *
  *  1. The name in `$1` is chosen by Tortie and is content addressed, so nothing
  *     a person typed and nothing a browser supplied reaches the far side's file
@@ -1854,16 +1891,194 @@ const CONTEXT_READ = [
 ].join('\n');
 
 /**
- * The whole catalogue. Nineteen scripts, and this release holds no others.
+ * The third write, and the first one that can replace a file a person already
+ * had (Phase 101).
+ *
+ * ## What it does, in order
+ *
+ * `$1` is the confirmed folder Tortie may save under. `$2` is the file's path
+ * relative to it. `$3` is either the sha256 of the file as Tortie last read it,
+ * or the word `new`. `$4` is the payload, encoded.
+ *
+ * ## The checksum program is PROVED to work before anything is written
+ *
+ * The first fix round of this phase found a hole here and this paragraph is the
+ * fix. The script used to look the program up with `command -v` and then run it
+ * for the first time AFTER the write, and print `nosum` if that run said
+ * nothing. A program that is on `PATH`, exits 0 and prints nothing therefore
+ * made the script write the file and then answer `nosum`, which main reads as a
+ * refusal and reports to a person as "Nothing was written." A verifier proved
+ * that by hand, with a `shasum` on `PATH` that exits 0 and prints nothing.
+ *
+ * So the program is now RUN, not merely found, before either arm. It is asked
+ * for the checksum of `/dev/null`, which every machine has. That run also picks
+ * the argument form: `shasum` needs `-a 256` and `sha256sum` refuses it, and
+ * whichever form answers is the one form used for every later run in this
+ * script. That closes a second hole, because the old per-call fallback could
+ * quietly fall back to `shasum`'s default, which is sha1, and report a sha1 as
+ * the file's new sha256.
+ *
+ * Two rules follow, and the gate's condition 80 reads both out of this text.
+ *
+ *  1. NO WORD THAT MEANS "NOTHING WAS WRITTEN" IS PRINTED AFTER THE FIRST
+ *     WRITE. `nosum`, `stale`, `missing`, `exists` and `nomode` all appear
+ *     above `> "$t"` and nowhere below it.
+ *  2. A machine that has neither `shasum` nor `sha256sum`, or has one that
+ *     answers nothing, cannot be saved to at all. It does NOT fall back to
+ *     comparing sizes the way `image-put` does, because `image-put` only ever
+ *     adds a file nobody had and this one replaces one somebody had.
+ *
+ * ## Seven answers, one of them means bytes landed, and one means nobody knows
+ *
+ * `wrote` carries the file's new checksum and its size. `stale` carries the
+ * checksum the file actually has. `missing`, `exists`, `nomode` and `nosum`
+ * carry nothing, and all four are printed before anything is written. Every
+ * answer is three space separated fields between the marker pair, with `none`
+ * for a field that has no value, which is `git-clone`'s shape and
+ * `parseImagePutAnswer`'s rule: a fixed field count means a short answer is a
+ * machine that printed something else rather than something to guess at.
+ *
+ * The seventh is `unsure`, and it is the one answer this script prints after
+ * the bytes are already in place. It fires only when the checksum program
+ * answered for `/dev/null` at the top and then said nothing about the file it
+ * had just written. `./remote-file.ts` does not know that word, and its rule
+ * for a word it does not know is to throw the sentence "did not say what it did
+ * with this file, so Tortie cannot tell you whether it was saved". That is the
+ * true thing to say, and it is why the word is deliberately kept off the list
+ * of outcomes rather than added to it: an outcome is something a person is told
+ * happened, and this is the case where nobody can say.
+ *
+ * ## Why it is safe to run twice, and it is a different reason from the other two
+ *
+ * `image-put` and `git-clone` are safe to run twice because neither ever opens
+ * a destination that is already there. This one replaces a file on purpose, so
+ * that promise cannot hold and saying it did would be false. What holds instead
+ * is this. A run that finds the file already carrying the checksum of the
+ * payload answers `stale` WITH THAT CHECKSUM, and `./remote-file.ts` reads a
+ * reported checksum equal to the checksum of the payload as the write having
+ * landed and only the answer having been lost. So a repeat after a lost answer
+ * writes one file rather than refusing. The `new` arm keeps the older promise
+ * in full, because it refuses a destination that is already there.
+ *
+ * ## Six properties of this text, and each one is a rule the gate reads
+ *
+ *  0. The checksum program is RUN before either arm, as the paragraph above
+ *     says, and no refusal word appears after the first write.
+ *  1. TWO containment lines guard `$1` and one guards `$2`. The single line
+ *     `case "$2" in /*|*..*) exit 1;; esac` is copied from `REVIEW_FILE`, which
+ *     already carries it and already takes one false refusal, being a file
+ *     whose own name holds two dots in a row. That false refusal is repeated
+ *     here and it is the price of a rule with no parser in it. `$1` gets its
+ *     own two lines, because the shipped line guards `$2` only.
+ *  2. The temporary name is DETERMINISTIC, being `"$f.tortie-part"`.
+ *     `image-put` used `$$` and that was defect 3 of research 57 section 9,
+ *     which Phase 96 fixed. A deterministic name means an interrupted save
+ *     leaves at most one file per file, and the next successful save of the
+ *     same file writes over it and then moves it away.
+ *  3. The text names no `rm`. It does name `mv` and `chmod`, which is correct
+ *     and is what makes the mode survive. `MUTATING_PROGRAMS` in the gate is
+ *     consulted only inside `if (row.mode === 'read')`, so it does not apply
+ *     here, and condition 79 is written as "the text does not name rm" rather
+ *     than as "names no program that removes a file".
+ *  4. The mode is read before the write and applied to the temporary file
+ *     before the `mv`, on the checksum arm only. Research 57 section 4.2
+ *     measured a 755 file put through the `image-put` shape coming back 600,
+ *     and reading the mode and running `chmod` before the `mv` returning it to
+ *     755. `stat -f %Lp` is tried first and `stat -c %a` second, because only
+ *     one arm64 Mac was ever tested and no Linux machine was contacted.
+ *  5. On the `new` arm there is no existing file, so there is no mode to read
+ *     and `nomode` cannot fire. The new file is created under `umask 077`,
+ *     which the whole catalogue sets on its second line, so it lands at 600. A
+ *     first save is a replacement of a file Tortie just created at 600, so its
+ *     mode is read on the next save like any other.
+ *
+ * ## What is NOT kept, and the confirm sheet says so before a person agrees
+ *
+ * Hard links and extended attributes. The same measurement showed two hard
+ * links becoming one and one extended attribute disappearing. That is in
+ * `MACHINE_WRITE_HONESTY` in `./confirm.ts`, drawn beside every sheet that
+ * grants file replacement, and it is deliberately not in the hashed lines.
+ *
+ * Containment here is over the PATH TEXT. No symlink on that machine is
+ * resolved by this script, by the schema or by main, and it cannot be, because
+ * resolving one means a second round trip and a second answer that can be stale
+ * by the time the write lands.
+ */
+const FILE_PUT = [
+  'set -e',
+  'umask 077',
+  'case "$1" in /*) ;; *) exit 1;; esac',
+  'case "$1" in *..*) exit 1;; esac',
+  'case "$2" in /*|*..*) exit 1;; esac',
+  'p=$(command -v shasum 2>/dev/null || true)',
+  'if [ -z "$p" ]; then p=$(command -v sha256sum 2>/dev/null || true); fi',
+  'a=',
+  'k=',
+  'if [ -n "$p" ]; then k=$("$p" -a 256 /dev/null 2>/dev/null | cut -d\' \' -f1 || true); fi',
+  'if [ -n "$k" ]; then a="-a 256"; fi',
+  'if [ -n "$p" ] && [ -z "$k" ]; then k=$("$p" /dev/null 2>/dev/null | cut -d\' \' -f1 || true); fi',
+  'if [ -z "$k" ]; then',
+  "  printf '__TORTIE_RUN__nosum none none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
+  'f="$1/$2"',
+  't="$f.tortie-part"',
+  'm=',
+  'if [ "$3" = new ]; then',
+  '  if [ -f "$f" ]; then',
+  "    printf '__TORTIE_RUN__exists none none__TORTIE_RUN__\\n'",
+  '    exit 0',
+  '  fi',
+  'else',
+  '  if [ ! -f "$f" ]; then',
+  "    printf '__TORTIE_RUN__missing none none__TORTIE_RUN__\\n'",
+  '    exit 0',
+  '  fi',
+  '  c=$("$p" $a "$f" 2>/dev/null | cut -d\' \' -f1 || true)',
+  '  if [ -z "$c" ]; then',
+  "    printf '__TORTIE_RUN__nosum none none__TORTIE_RUN__\\n'",
+  '    exit 0',
+  '  fi',
+  '  if [ "$c" != "$3" ]; then',
+  "    printf '__TORTIE_RUN__stale %s none__TORTIE_RUN__\\n' \"$c\"",
+  '    exit 0',
+  '  fi',
+  '  m=$(stat -f %Lp "$f" 2>/dev/null || true)',
+  '  if [ -z "$m" ]; then m=$(stat -c %a "$f" 2>/dev/null || true); fi',
+  '  if [ -z "$m" ]; then',
+  "    printf '__TORTIE_RUN__nomode none none__TORTIE_RUN__\\n'",
+  '    exit 0',
+  '  fi',
+  'fi',
+  'if printf \'%s\' "$4" | base64 -d > "$t" 2>/dev/null; then',
+  '  :',
+  'else',
+  '  printf \'%s\' "$4" | base64 -D > "$t"',
+  'fi',
+  'if [ -n "$m" ]; then chmod "$m" "$t"; fi',
+  'mv "$t" "$f"',
+  'n=$(wc -c < "$f" | tr -d \' \')',
+  'c=$("$p" $a "$f" 2>/dev/null | cut -d\' \' -f1 || true)',
+  'if [ -z "$c" ]; then',
+  "  printf '__TORTIE_RUN__unsure none none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
+  "printf '__TORTIE_RUN__wrote %s %s__TORTIE_RUN__\\n' \"$c\" \"$n\""
+].join('\n');
+
+/**
+ * The whole catalogue. Twenty scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * TWO of the nineteen write, being `image-put` and `git-clone`, and they are in
- * that order in this array. {@link remoteWriteScripts} returns them in it.
- * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105,
- * PHASE 106, PHASE 107, PHASE 108 AND PHASE 109.
+ * THREE of the twenty write, being `image-put`, `git-clone` and `file-put`, and
+ * they are in that order in this array. {@link remoteWriteScripts} returns them
+ * in it. PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99,
+ * PHASE 105, PHASE 106, PHASE 107, PHASE 108 AND PHASE 109. PHASE 101 MOVED IT
+ * FROM TWO TO THREE, once and on purpose, because saving a file a person is
+ * editing is a write and there is no honest way to write it as a read.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -2034,6 +2249,17 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'A destination that is already there is never opened and never written ' +
       'into. The script answers exists instead, so a second run of the same ' +
       'copy leaves the machine as the first run left it.'
+  },
+  {
+    id: 'file-put',
+    mode: 'write',
+    params: 4,
+    text: FILE_PUT,
+    reason:
+      'A run that finds the file already carrying the checksum of the payload ' +
+      'answers stale with that checksum, and Tortie reads that as the write ' +
+      'having landed, so a repeat after a lost answer writes one file rather ' +
+      'than refusing. The new arm refuses a destination that is already there.'
   }
 ];
 
@@ -2045,10 +2271,10 @@ export function remoteScript(id: string): RemoteScript | null {
 /**
  * Every script that writes, in catalogue order.
  *
- * It has exactly two members, being `image-put` and then `git-clone`, and rule
- * 6 in the header is what holds it there. The gate calls this rather than
- * counting a list of its own, so a script added with the wrong mode is caught by
- * the same call the product makes.
+ * It has exactly three members, being `image-put`, then `git-clone`, then
+ * `file-put`, and rule 6 in the header is what holds it there. The gate calls
+ * this rather than counting a list of its own, so a script added with the wrong
+ * mode is caught by the same call the product makes.
  */
 export function remoteWriteScripts(): readonly RemoteScript[] {
   return REMOTE_SCRIPTS.filter((script) => script.mode === 'write');

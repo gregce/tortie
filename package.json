@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.62.2",
+  "version": "0.63.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -59,6 +59,7 @@
     "probe:remoteharvest": "node build/probe-remote-harvest.mjs",
     "probe:remoteenv": "node build/probe-remote-env.mjs",
     "probe:remoteimage": "node build/probe-remote-image.mjs",
+    "probe:p101": "node build/probe-p101-save.mjs",
     "probe:remotereview": "node build/probe-remote-review.mjs",
     "probe:controldeadline": "node build/probe-control-deadline.mjs",
     "probe:realmachine": "node build/probe-real-machine.mjs",
@@ -100,7 +101,8 @@
     "package:dir": "electron-vite build && node build/check-tmux-pin.cjs && node build/assert-bundle-refusals.mjs && node build/assert-preview-containment.mjs && electron-builder --mac --dir",
     "assert:doctypes": "node build/assert-document-types.mjs",
     "verify:signed": "node build/verify-signed.mjs",
-    "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png"
+    "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png",
+    "probe:p101shot": "npm run build && node build/probe-p101-shot.mjs"
   },
   "dependencies": {
     "@parcel/watcher": "^2.6.0",

@@ -38,7 +38,7 @@
 import React, { useMemo, useRef } from 'react';
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { liveChromeGeometry, useApp } from '../state/store';
-import { machineLabelFor } from '../state/machines-slice';
+import { machineLabelFor, machineWriteRootFor } from '../state/machines-slice';
 import {
   clampSidebarWidth,
   dockRenderedWidth,
@@ -65,6 +65,7 @@ import { Codicon } from '../icons';
 import {
   REMOTE_BAND_BODY,
   remoteBandTitle,
+  remoteNewFolderNotYet,
   remoteTreeReadOnly
 } from './machine-copy';
 import './machine-band.css';
@@ -78,7 +79,7 @@ import './machine-band.css';
  * Phase 90.1 put in `@shared/workspace-target` and the reason two projects with
  * the same path on two computers cannot be confused for each other.
  */
-function useMachineLabel(): string | null {
+function useMachineWrite(): { label: string; writeRoot: string | null } | null {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const machineStates = useApp((s) => s.machineStates);
@@ -88,7 +89,22 @@ function useMachineLabel(): string | null {
     [projects, activeProjectId]
   );
   if (target === null || localPathOf(target) !== null) return null;
-  return machineLabelFor(machineStates, target.machineId);
+  const root = machineWriteRootFor(machineStates, target.machineId);
+  return {
+    label: machineLabelFor(machineStates, target.machineId),
+    writeRoot: root !== null && root.length > 0 ? root : null
+  };
+}
+
+/**
+ * The label alone, for the band, which asks nothing about saving.
+ *
+ * It is expressed in terms of the hook above so the sidebar makes ONE lookup
+ * against the machine list and the band and the two buttons can never disagree
+ * about which machine this tab is on.
+ */
+function useMachineLabel(): string | null {
+  return useMachineWrite()?.label ?? null;
 }
 
 /**
@@ -139,12 +155,27 @@ function ExplorerHeader(): React.JSX.Element {
   // DISABLES, because a create button that vanished would read as a missing
   // feature rather than as a build that cannot write files.
   //
-  // PHASE 90.3 added the third condition, and it is the strongest of the three.
-  // A tab whose folder is on another machine has no write path at all: Tortie
-  // reads that folder and never writes there. The buttons stay on screen and
-  // are drawn off, for the same reason the older preload case does.
-  const machineLabel = useMachineLabel();
-  const canCreate = treeHandle !== null && canMutate() && machineLabel === null;
+  // PHASE 90.3 added the third condition. A tab whose folder was on another
+  // machine had no write path at all, so both buttons were drawn off.
+  //
+  // PHASE 101 SPLIT THAT CONDITION IN TWO. A machine a person has confirmed a
+  // folder for takes a new file, so the first button is pressable there. It
+  // still takes no new folder, because nothing in this product makes a folder
+  // on another computer, so the second button is off on every machine in both
+  // states and says so in its own words.
+  const machine = useMachineWrite();
+  const machineLabel = machine?.label ?? null;
+  // The two buttons had one condition and one tooltip between them until Phase
+  // 101, and they cannot share either any more. New folder is off on every
+  // folder on another machine, in both states, because nothing makes a folder
+  // over there. New file is on when that machine carries a folder a person
+  // confirmed Tortie may save under.
+  const canCreateFolder =
+    treeHandle !== null && canMutate() && machineLabel === null;
+  const canCreateFile =
+    treeHandle !== null &&
+    canMutate() &&
+    (machineLabel === null || machine?.writeRoot !== null);
 
   const create = (kind: 'file' | 'dir'): void => {
     if (treeHandle === null) return;
@@ -176,8 +207,12 @@ function ExplorerHeader(): React.JSX.Element {
         type="button"
         className="icon-btn view-header-action"
         aria-label="New file"
-        title={machineLabel === null ? 'New file' : remoteTreeReadOnly(machineLabel)}
-        disabled={!canCreate}
+        title={
+          machineLabel === null || machine?.writeRoot !== null
+            ? 'New file'
+            : remoteTreeReadOnly(machineLabel)
+        }
+        disabled={!canCreateFile}
         onClick={() => create('file')}
       >
         <Codicon name="new-file" size={16} />
@@ -187,9 +222,11 @@ function ExplorerHeader(): React.JSX.Element {
         className="icon-btn view-header-action"
         aria-label="New folder"
         title={
-          machineLabel === null ? 'New folder' : remoteTreeReadOnly(machineLabel)
+          machineLabel === null
+            ? 'New folder'
+            : remoteNewFolderNotYet(machineLabel)
         }
-        disabled={!canCreate}
+        disabled={!canCreateFolder}
         onClick={() => create('dir')}
       >
         <Codicon name="new-folder" size={16} />

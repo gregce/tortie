@@ -35,10 +35,15 @@ import type {
 } from '@pierre/trees';
 import type { UseFileTreeResult } from '@pierre/trees/react';
 import { isProtectedFsPath } from '@shared/fs-ops';
+// PHASE 101. What a create on another machine answers. The words are main's
+// and the sentence for each one is composed in ../app/machine-copy.ts.
+import type { MachineFilePutResult } from '@shared/ipc';
 import { errorPayload, errorText, useApp } from '../state/store';
 import { followMoves } from './editor-follow';
 import * as fsOps from './fs-ops-bridge';
 import { requestOpenFile } from './open-file';
+import { remoteSaveRefusal } from '../app/machine-copy';
+import { machineLabelFor } from '../state/machines-slice';
 import type { TreeRenameView } from './rename-view';
 import { useFileTree } from './store';
 import { describeConflicts, describeEntries } from './tree-menu';
@@ -92,6 +97,27 @@ export interface TreeOpsContext {
   renameView(): TreeRenameView | null;
   /** Make this row the only selected one (controller-level selection). */
   selectOnly(canonical: string): void;
+  /**
+   * PHASE 101. How a create lands when the tree is on another machine, or
+   * undefined for a folder on this Mac.
+   *
+   * THE GESTURE IS UNCHANGED. The placeholder row, the inline editor, the
+   * refusal on a bad name and the commit are the same code on both computers.
+   * Only the one disk write at the end moves, and only for a file: New Folder
+   * is absent from the menu on such a row and the header button beside it stays
+   * off, so `kind === 'dir'` never reaches the remote branch.
+   *
+   * `putFile` is given the ABSOLUTE path on that machine, which is what
+   * `absOf(rootPath, canonical)` already composes for every other surface that
+   * names a file over there. It carries no folder: the folder Tortie may write
+   * under is read in main, off the row a person confirmed.
+   */
+  remoteCreate?: {
+    machineId: string;
+    putFile(absPath: string): Promise<MachineFilePutResult>;
+    /** Re-read the tree from that machine. Resolves when the read is done. */
+    refresh(): Promise<void>;
+  };
 }
 
 export interface TreeOps {
@@ -227,6 +253,82 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
   /** Frees the placeholder's hold when the gesture ends, however it ends. */
   let pendingRelease: (() => void) | null = null;
 
+  /**
+   * PHASE 101. The same gesture, landing on another machine.
+   *
+   * ONE EMPTY FILE, and never a folder. `expect: 'new'` is what makes the far
+   * side refuse a name that is already there rather than replacing it, so two
+   * people asking for the same name cannot lose one of their files.
+   *
+   * ON ANY ANSWER BUT `wrote` the row comes back out of the model, which is the
+   * same shape the local catch below has, and the sentence for the answer is
+   * toasted. Nothing was written on that machine in any of those cases.
+   */
+  const finishRemoteCreate = (
+    remote: NonNullable<TreeOpsContext['remoteCreate']>,
+    placeholder: string,
+    canonical: string,
+    release: () => void
+  ): void => {
+    const abs = absOf(ctx.rootPath, canonical);
+    const label = machineLabelFor(
+      useApp.getState().machineStates,
+      remote.machineId
+    );
+    const undo = (): void => {
+      try {
+        ctx.model.remove(canonical, { recursive: false });
+      } catch {
+        /* already gone */
+      }
+      dropFromFed([canonical, placeholder]);
+      release();
+    };
+    void remote
+      .putFile(abs)
+      .then((result) => {
+        if (result.outcome !== 'wrote') {
+          undo();
+          app().toast(
+            'error',
+            remoteSaveRefusal(
+              result.outcome,
+              label,
+              result.writeRoot,
+              result.bytes ?? 0
+            ),
+            { sticky: true }
+          );
+          return;
+        }
+        addToFed(canonical);
+        ctx.selectOnly(canonical);
+        ctx.model.focusPath(canonical);
+        void remote.refresh().finally(release);
+        // The same half gesture rule as a create on this Mac: a New File that
+        // leaves you looking at the tree is half of one. The tab carries the
+        // machine, so the editor reads it from over there and knows it may
+        // save it back.
+        requestOpenFile({
+          repoPath: ctx.rootPath,
+          relPath: toRel(canonical),
+          path: abs,
+          mode: 'file',
+          source: 'tree',
+          preview: false,
+          remote: {
+            machineId: remote.machineId,
+            machineLabel: label,
+            repoPath: ctx.rootPath
+          }
+        });
+      })
+      .catch((err: unknown) => {
+        undo();
+        toastError(err, 'Could not create that.');
+      });
+  };
+
   const finishCreate = (
     placeholder: string,
     kind: 'file' | 'dir',
@@ -234,6 +336,15 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
   ): void => {
     const canonical = toCanonical(destinationRel, kind === 'dir');
     const release = ctx.hold([placeholder, canonical]);
+    // PHASE 101. The one disk write at the end of the gesture, and the only
+    // line of this function that knows which computer it lands on. A folder
+    // never reaches here on a remote tree, because New Folder is absent from
+    // that menu and the header button beside it is off.
+    const remote = ctx.remoteCreate;
+    if (remote !== undefined && kind === 'file') {
+      finishRemoteCreate(remote, placeholder, canonical, release);
+      return;
+    }
     const create = kind === 'dir' ? fsOps.createFolder : fsOps.createFile;
     void create({ root: ctx.rootPath, path: toRel(destinationRel) })
       .then((entry) => {

@@ -558,6 +558,20 @@ export function AddMachineView({
             </p>
           ) : null}
 
+          {/* PHASE 101. The paragraph that says what replacing a file costs.
+              A machines file an agent can write can carry a folder on a NEW
+              row, and this sheet would then grant file replacement. The answer
+              to whether the paragraph is drawn is main's, off the same fields
+              the lines above come from, so a sheet whose lines name a folder
+              can never be read without it. It is drawn nowhere else on this
+              sheet and it is not one of the lines, because the lines are
+              exactly what the hash covers. */}
+          {sheet === null || sheet.writeHonesty === null ? null : (
+            <p className="set-config-warning" data-machine-write-honesty>
+              {sheet.writeHonesty}
+            </p>
+          )}
+
           {/* The reason the button is off rides on the button rather than
               standing under it. A control that is off without saying why is a
               puzzle, and the tooltip is only spread while it is off, so an

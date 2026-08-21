@@ -234,6 +234,90 @@ describe('the accepted version field', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 101. The folder Tortie may save under
+// ---------------------------------------------------------------------------
+
+describe('the write root field', () => {
+  it('accepts a full path', () => {
+    const out = validateMachinesFile({
+      schema: 1,
+      machines: [{ id: 'box', host: 'a.example', writeRoot: '/Users/gdc/code' }]
+    });
+    expect(out.problems).toEqual([]);
+    expect(out.rows[0]?.writeRoot).toBe('/Users/gdc/code');
+  });
+
+  it('drops a row whose folder is not a full path', () => {
+    const message = expectDropped(
+      { id: 'bad', host: 'a.example', writeRoot: 'code' },
+      'writeRoot'
+    );
+    expect(message).toContain('must be a full path starting with /');
+  });
+
+  it('drops a row whose folder holds a .. step', () => {
+    // remotePathField alone accepts this, and a confirmed root of
+    // /Users/gdc/x/../../.. would contain nothing at all.
+    const message = expectDropped(
+      { id: 'bad', host: 'a.example', writeRoot: '/Users/gdc/x/../../..' },
+      'writeRoot'
+    );
+    expect(message).toContain('".." step');
+  });
+
+  it('drops a row whose folder ends with a slash', () => {
+    const message = expectDropped(
+      { id: 'bad', host: 'a.example', writeRoot: '/Users/gdc/code/' },
+      'writeRoot'
+    );
+    expect(message).toContain('ends with a slash');
+  });
+
+  it('drops a row whose folder holds a single quote', () => {
+    expectDropped(
+      { id: 'bad', host: 'a.example', writeRoot: "/Users/o'brien" },
+      'writeRoot'
+    );
+  });
+
+  it('drops a row whose folder is empty', () => {
+    expectDropped({ id: 'bad', host: 'a.example', writeRoot: '' }, 'writeRoot');
+  });
+
+  it('drops a row whose folder carries a newline', () => {
+    expectDropped(
+      { id: 'bad', host: 'a.example', writeRoot: '/Users/gdc\n/etc' },
+      'writeRoot'
+    );
+  });
+
+  it('accepts the root of the disk, which has no trailing slash to refuse', () => {
+    const out = validateMachinesFile({
+      schema: 1,
+      machines: [{ id: 'box', host: 'a.example', writeRoot: '/' }]
+    });
+    expect(out.problems).toEqual([]);
+    expect(out.rows[0]?.writeRoot).toBe('/');
+  });
+
+  it('writes the field last, and only when it is there', () => {
+    const withOne = serializeMachines([
+      {
+        id: 'box',
+        host: 'a.example',
+        acceptedTmuxVersion: '3.9a',
+        writeRoot: '/Users/gdc/code'
+      }
+    ]);
+    expect(withOne.indexOf('writeRoot')).toBeGreaterThan(
+      withOne.indexOf('acceptedTmuxVersion')
+    );
+    const without = serializeMachines([{ id: 'box', host: 'a.example' }]);
+    expect(without).not.toContain('writeRoot');
+  });
+});
+
 describe('a whole file failure takes every row with it', () => {
   it('refuses a schema that is not 1', () => {
     const out = validateMachinesFile({ schema: 2, machines: [GOOD] });

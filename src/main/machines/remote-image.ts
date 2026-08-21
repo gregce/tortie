@@ -9,12 +9,16 @@
  * puts the bytes on that machine and answers with the path they landed at, and
  * that path is what goes into the prompt instead.
  *
- * ## It is the one write in the product that lands on another computer
+ * ## It was the one write in the product that lands on another computer
  *
- * Everything else Tortie sends to a machine is a tmux verb or a read. This is
- * the single exception, and it goes through `./remote-run.ts`'s write door,
- * which can send exactly one script because the catalogue holds exactly one
- * script with `mode: 'write'`.
+ * IT IS NOT ANY MORE, and this heading is corrected rather than left. Phase
+ * 90.2 added `git-clone` and Phase 101 added `file-put`, so the catalogue holds
+ * three scripts with `mode: 'write'` and this is one of them. It goes through
+ * `./remote-run.ts`'s write door, which the gate holds at those three by name.
+ * The two sentences here that said "the one write" and "exactly one script with
+ * `mode: 'write'`" were already false at two, and Phase 101 is the phase that
+ * makes the count three, so leaving them would be the accumulation this
+ * codebase refuses.
  *
  * ## The four things that decide a byte ever leaves this Mac
  *
@@ -38,9 +42,10 @@
  *
  * `added` means the machine wrote the file. `present` means a file of that name
  * was already there and nothing was written. The second is the ordinary answer
- * for the same image dropped twice, and it is what makes the one write in this
- * product safe to run twice: the name is a checksum of the bytes, so the same
- * bytes are always the same name.
+ * for the same image dropped twice, and it is what makes THIS write safe to run
+ * twice: the name is a checksum of the bytes, so the same bytes are always the
+ * same name. `file-put` is safe to run twice for a different reason, which is
+ * written down in `./remote-scripts.ts`.
  *
  * ## What is compared before a path is handed back
  *
@@ -270,9 +275,9 @@ export function forgetRemoteMachineHome(machineId: string): void {
  * hexadecimal is a checksum of the bytes, and the extension came from the magic
  * bytes rather than from the file's name.
  *
- * It is content addressed on purpose, and that is what makes the one write in
- * this product safe to run twice: the same bytes are always the same name, so a
- * repeat finds the file already there and writes nothing.
+ * It is content addressed on purpose, and that is what makes THIS write safe to
+ * run twice: the same bytes are always the same name, so a repeat finds the
+ * file already there and writes nothing.
  */
 export function remoteImageName(
   sessionId: string,
@@ -342,7 +347,7 @@ export async function putImagesOnMachine(
   return out;
 }
 
-/** One path, through the four checks and then the one write. */
+/** One path, through the four checks and then this module's own write. */
 async function putOneImage(
   machineId: string,
   sessionId: string,
@@ -379,7 +384,7 @@ async function putOneImage(
   const name = remoteImageName(sessionId, sha256, sniff.ext);
   const payload = bytes.toString('base64');
 
-  // 4. The link, and the one write.
+  // 4. The link, and this module's own write.
   const ctx = readyRemoteContext(machineId);
   const answer = await runRemoteWrite(ctx, 'image-put', [name, payload], {
     timeoutMs: REMOTE_IMAGE_TIMEOUT_MS

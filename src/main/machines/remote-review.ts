@@ -329,7 +329,16 @@ export function parseRemoteReviewPair(
     truncated,
     note: truncated
       ? reviewTooLargeNote(Math.round(capBytes / (1024 * 1024)))
-      : null
+      : null,
+    // PHASE 101. The size of the WORKING copy, counted here from bytes this
+    // function already had. No script text moved and the far side answers
+    // nothing new.
+    //
+    // WHEN `truncated` IS TRUE THIS IS A FLOOR AND NOT A SIZE. The read was cut
+    // at the cap, so this equals the cap and the file is larger than it. The
+    // surface that draws the refusal says "over" in that case and names the cap
+    // rather than printing this number as the file's size.
+    bytes: right.length
   };
 }
 
@@ -461,6 +470,10 @@ export async function reviewFileOn(input: {
     truncated,
     note: truncated
       ? reviewTooLargeNote(REMOTE_REVIEW_MAX_BYTES / (1024 * 1024))
-      : null
+      : null,
+    // PHASE 101. The working copy comes from the read at the NEW path, so its
+    // size does too. The old path's read describes a copy in the last commit
+    // and nothing is ever saved back to that.
+    bytes: now.bytes
   };
 }

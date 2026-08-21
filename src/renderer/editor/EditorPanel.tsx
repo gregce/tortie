@@ -73,6 +73,7 @@ import {
   saveEditorWidths
 } from './panel-width';
 import { remoteFileChip } from '../app/machine-copy';
+import { machineWriteRootFor } from '../state/machines-slice';
 import './editor.css';
 
 // Screenshot-harness hook: registered at module load so GMUX_SHOT_DRIVE can
@@ -352,6 +353,10 @@ export function EditorPanel(): React.JSX.Element | null {
   const editorFill = useApp((s) => s.editorFill);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const projects = useApp((s) => s.projects);
+  // PHASE 101. Whether a tab on another machine can be saved is a fact about
+  // that machine, and main pushes it on the link state, so the band below is
+  // never older than the last confirmation.
+  const machineStates = useApp((s) => s.machineStates);
 
   const projectPath =
     projects.find((p) => p.id === activeProjectId)?.path ?? '*';
@@ -606,6 +611,16 @@ export function EditorPanel(): React.JSX.Element | null {
 
   if (!panelOpen || tabs.length === 0 || activeTab === null) return null;
 
+  /**
+   * PHASE 101. The folder a person let Tortie save under on the machine this
+   * tab's file lives on, or null when there is none and for every tab whose
+   * file is on this Mac.
+   */
+  const remoteWriteRoot =
+    activeTab.remote === undefined
+      ? null
+      : machineWriteRootFor(machineStates, activeTab.remote.machineId);
+
   const mode: EditorMode =
     activeTab.mode === 'diff' && !activeTab.canDiff
       ? activeTab.image && !activeTab.svg
@@ -839,13 +854,21 @@ activeTab.error !== null ? (
               read-only.
             </span>
           </div>
-        ) : activeTab.remote !== undefined ? (
+        ) : activeTab.remote !== undefined && remoteWriteRoot === null ? (
           // PHASE 90.3. The fourth read-only reason, and the only one whose
           // file is not on this Mac. It says two things and both are needed.
           // The file is over there, which is why the bytes on screen may be
           // older than the file. And Tortie cannot save it, which is why typing
           // changes nothing. Not a warning, because nothing is wrong: a folder
           // on another machine being read only is what this product promises.
+          //
+          // PHASE 101 MADE IT CONDITIONAL. A tab on a machine a person has let
+          // Tortie save on draws NO band at all, and behaves like a tab on this
+          // Mac. The tab tooltip still names the machine, so nothing is hidden.
+          // A band saying the file cannot be saved, over an editor whose dirty
+          // dot clears on Save, would be a sentence contradicting the thing
+          // beside it, and two behaviours on one surface are harder to learn
+          // than one.
           <div className="banner ed-banner-readonly">
             <Codicon name="lock" size={14} />
             <span className="banner-text">

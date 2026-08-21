@@ -69,6 +69,19 @@ import { gmuxBridge } from '../bridge';
 
 type MachinesApi = InstalledGmuxApi['machines'];
 
+/**
+ * PHASE 101. One machine's write sheet, with the folder it was drawn for.
+ *
+ * BOTH HALVES TRAVEL TOGETHER because the hash covers the folder. A sheet held
+ * against a folder the person has since retyped is a stale sheet, and sending
+ * it back would bind an agreement to lines nobody read. `writeSheet` replaces
+ * this whole record on every read, so the two can never come apart.
+ */
+export interface MachineWriteSheetState {
+  root: string;
+  sheet: MachineConfirmSheet;
+}
+
 /** The machines surface, or null on a build with no bridge at all. */
 function bridge(): MachinesApi | null {
   return gmuxBridge()?.machines ?? null;
@@ -351,6 +364,24 @@ export interface MachinesStoreState {
   keyInstall: KeyInstallState | null;
 
   /**
+   * PHASE 101. The sheet a person is reading before they let Tortie save on
+   * one machine, per machine id, with the folder it was drawn for.
+   *
+   * IT COMES FROM MAIN AND IT IS NEVER COMPOSED HERE. `machines:acceptVersion`
+   * gets its sheet from the Prepare result, and there is no prior result here,
+   * because the person types the folder. So there is a read only call that
+   * answers the sheet, and this holds what it answered. A renderer that
+   * composed the lines or the hash would be a second composer, and a second
+   * composer is how an agreement comes to cover lines nobody read.
+   *
+   * Kept per id rather than as one value, the `prepared` precedent, so two
+   * machines opened in one sitting cannot draw each other's sheet.
+   */
+  writeSheets: Readonly<Record<string, MachineWriteSheetState>>;
+  /** PHASE 101. The id a saving confirmation is in flight for, or null. */
+  allowing: string | null;
+
+  /**
    * Phase 110. Phase 109's answer about which agents each machine has, keyed
    * by machine id. Empty until the first read.
    *
@@ -412,6 +443,33 @@ export interface MachinesStoreState {
    * is saying they want the machine ready.
    */
   acceptVersion(id: string): Promise<string | null>;
+
+  /**
+   * PHASE 101. Reads the sheet a person confirms before Tortie may save a file
+   * on one machine. It starts nothing, sends nothing to any machine and writes
+   * nothing.
+   *
+   * The folder goes out and the sheet comes back, and the sheet is main's,
+   * hash and lines and honesty paragraph together. A folder that does not
+   * validate is refused here, by main's own validator, with its own sentence
+   * and with nothing written.
+   */
+  writeSheet(id: string, root: string): Promise<string | null>;
+
+  /** PHASE 101. Forget the sheet for one machine, e.g. the field was closed. */
+  clearWriteSheet(id: string): void;
+
+  /**
+   * PHASE 101. Records that a person let Tortie save under one folder on one
+   * machine. One button reaches this.
+   *
+   * The sheet is main's. This file sends back the hash it was drawn from and
+   * the lines that were on it, both untouched, and main recomputes the hash
+   * over the row as it is now plus that folder and refuses a stale one before
+   * it writes anything. It starts no process, it opens no connection and it
+   * sends nothing to any machine.
+   */
+  allowWrites(id: string): Promise<string | null>;
 
   /**
    * Makes a key for the machine the open test is about, puts its public half
@@ -517,6 +575,8 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
   preparing: null,
   accepting: null,
   keyInstall: null,
+  writeSheets: {},
+  allowing: null,
   agentsByMachine: {},
   rescanning: {},
   rescanErrors: {},
@@ -884,6 +944,67 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
       return sentenceOf(err);
     } finally {
       set({ accepting: null });
+    }
+  },
+
+  async writeSheet(id, root) {
+    const b = bridge();
+    if (b === null) return BRIDGE_MISSING;
+    if (b.writeSheet === undefined) return BRIDGE_MISSING;
+    try {
+      const sheet = await b.writeSheet({ id, writeRoot: root });
+      set((s) => ({ writeSheets: { ...s.writeSheets, [id]: { root, sheet } } }));
+      return null;
+    } catch (err) {
+      // A folder main's validator refused leaves no sheet behind. A stale one
+      // would sit under a field the person has since corrected, and its hash
+      // would be bound to the folder they typed first.
+      set((s) => {
+        const next = { ...s.writeSheets };
+        delete next[id];
+        return { writeSheets: next };
+      });
+      return sentenceOf(err);
+    }
+  },
+
+  clearWriteSheet(id) {
+    set((s) => {
+      if (s.writeSheets[id] === undefined) return {};
+      const next = { ...s.writeSheets };
+      delete next[id];
+      return { writeSheets: next };
+    });
+  },
+
+  async allowWrites(id) {
+    const b = bridge();
+    if (b === null) return BRIDGE_MISSING;
+    if (b.allowWrites === undefined) return BRIDGE_MISSING;
+    const held = get().writeSheets[id];
+    // Nothing to confirm without a sheet. Main would refuse anyway, and this
+    // is only about not sending a call that is certain to be refused.
+    if (held === undefined) return null;
+    set({ allowing: id });
+    try {
+      await b.allowWrites({
+        id,
+        writeRoot: held.root,
+        hashRead: held.sheet.hash,
+        linesRead: [...held.sheet.lines]
+      });
+      await get().refresh();
+      set((s) => {
+        const next = { ...s.writeSheets };
+        delete next[id];
+        return { writeSheets: next };
+      });
+      return null;
+    } catch (err) {
+      await get().refresh();
+      return sentenceOf(err);
+    } finally {
+      set({ allowing: null });
     }
   },
 

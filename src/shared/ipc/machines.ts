@@ -1,5 +1,5 @@
 /**
- * The machines contract (Phase 68, M1). Twenty eight invoke channels behind ONE
+ * The machines contract (Phase 68, M1). Thirty two invoke channels behind ONE
  * optional preload extra, `window.gmux.machines`, plus two event channels, one
  * for the connection test's own bytes and one for the link state.
  *
@@ -11,9 +11,10 @@
  * WHAT THESE ARE FOR. A machine is a configuration row that names a computer
  * Tortie may sign in to as the user. Before Tortie signs in, a person reads what
  * it will run there and agrees to it once, out of band of any agent turn, and
- * the agreement is bound to a hash of the five fields that decide what runs.
- * Change one of those fields and it asks again. Phase 68 shipped four of them
- * and Phase 83 added the accepted tmux version as the fifth.
+ * the agreement is bound to a hash of the six fields that decide what runs.
+ * Change one of those fields and it asks again. Phase 68 shipped four of them,
+ * Phase 83 added the accepted tmux version as the fifth, and Phase 101 added
+ * the folder Tortie may save under as the sixth.
  *
  * WHAT NO CHANNEL HERE DOES, and this is the point of the list rather than a
  * caveat on it.
@@ -175,6 +176,28 @@ export interface MachineRowView {
    * draws neither sentence rather than guessing at one of them.
    */
   keyFile?: string | null;
+  /**
+   * APPENDED (Phase 101): the one folder on this machine under which Tortie
+   * may replace a file, or null when a person has named none.
+   *
+   * The row draws it so a person can see what they granted and withdraw it. It
+   * is one of the fields the confirm hash covers, so it appears in `lines` as
+   * well when it is set.
+   *
+   * Optional, and absent reads as null. Main sets it on every row it composes.
+   */
+  writeRoot?: string | null;
+  /**
+   * APPENDED (Phase 101): MACHINE_WRITE_HONESTY when this row carries a write
+   * root, and null when it does not.
+   *
+   * It is composed in main by `writeHonestyOf`, so no renderer decides the
+   * question by reading a line. Every sheet drawing site draws it when it is
+   * not null and draws nothing when it is null.
+   *
+   * Optional, and absent reads as null.
+   */
+  writeHonesty?: string | null;
 }
 
 /** Everything the Machines section needs in one read. */
@@ -270,6 +293,15 @@ export interface MachineConfirmSheet {
   lines: string[];
   /** MACHINE_CONFIRM_WARNING, carried so the sheet cannot omit it. */
   warning: string;
+  /**
+   * PHASE 101. MACHINE_WRITE_HONESTY when this sheet's lines carry the write
+   * root line, and null when they do not.
+   *
+   * A sheet that grants file replacement cannot be drawn without the paragraph
+   * that says what replacement costs. Main answers the question, so no sheet
+   * drawing site has to remember the rule and none of them can forget it.
+   */
+  writeHonesty: string | null;
 }
 
 /**
@@ -619,6 +651,26 @@ export interface MachineStateView {
   readonly lastAnsweredAt: number | null;
   /** One sentence for the person, or null when the link is healthy. */
   readonly detail: string | null;
+  /**
+   * PHASE 101. The folder Tortie may save under on this machine, or null.
+   *
+   * IT IS THE CARRIER FOR "may this tab be saved", and it is on this view
+   * rather than on the open file's own reference for one reason. A field
+   * written when a tab is opened is stale the moment a person turns saving on
+   * or off in Settings, so a tab open for an hour would be read-only after the
+   * grant, or editable after the withdrawal. This whole list is pushed on
+   * EVT_MACHINE_STATE and `onMachineStateChanged` fires on the confirmation
+   * record as well as the link and the machines file, so the renderer's answer
+   * is never older than the last confirmation.
+   *
+   * It is the row's root ONLY when the row is confirmed and carries a non-empty
+   * one. An unconfirmed row reports null even when machines.json holds a root,
+   * because an unconfirmed root is not a confirmed fact. It is presentational:
+   * main refuses that case anyway, and this copy must never disagree with main.
+   *
+   * Optional, and absent reads as null.
+   */
+  readonly writeRoot?: string | null;
 }
 
 /**
@@ -718,6 +770,9 @@ export interface MachinesEventPayloadMap {
  * PHASE 109 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `agents`. The
  * count is twenty nine.
  *
+ * PHASE 101 ADDS THREE ROWS AND MOVES THE COUNT WITH THEM, being `writeSheet`,
+ * `allowWrites` and `putFile`. The count is thirty two.
+ *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
  * | rows | memory in main, plus the sealed record | nothing | nothing |
@@ -749,15 +804,19 @@ export interface MachinesEventPayloadMap {
  * | readHistory | one folder on that machine | nothing | ssh |
  * | readContext | agent configuration files on that machine | nothing | ssh |
  * | agents | memory in main, or one batched read of that machine | nothing | ssh only when fresh is true |
+ * | writeSheet | one row and the sealed record | nothing | nothing |
+ * | allowWrites | the sheet's hash and one row | machines.json and one record | nothing |
+ * | putFile | one row and one file's bytes from the renderer | one file on that machine | ssh |
  *
  * `readRuns` is the one row whose Spawns column names two programs. The ssh is
  * the read of that machine's branch. The gh runs HERE and never leaves this Mac,
  * and nothing about it crosses the link.
  *
  * Every one of them that spawns does so on a person's click and from nowhere
- * else. TWO of them write on another computer, being `putImage` and
- * `cloneProject`, and that number is the number this product is allowed to
- * have. It moved from one to two in Phase 90.2, deliberately and once.
+ * else. THREE of them write on another computer, being `putImage`,
+ * `cloneProject` and `putFile`, and that number is the number this product is
+ * allowed to have. It moved from one to two in Phase 90.2 and from two to three
+ * in Phase 101, deliberately and once each time.
  *
  * `machines:prepare` is Phase 69's one new channel, and it is the first thing
  * Tortie ever STARTS on another machine. It asks the confirm gate before it
@@ -1071,6 +1130,38 @@ export interface MachinesInvokeChannelMap {
   // row. Only a positive `absent` may grey a tile; `unknown` always draws
   // as selectable. Nothing calls it on a clock: the scan runs once when a
   // machine becomes ready and once per Rescan press.
+  // ---- PHASE 101 BLOCK ----
+  // THIS ONE READS. It answers the sheet for the row as it is now plus the
+  // folder a person typed, so the renderer never composes a sheet's hash. It
+  // starts nothing, sends nothing to any machine and writes nothing. A folder
+  // that fails validation throws the validator's own sentence.
+  //
+  // A `machines:allowWrites` that previewed when `hashRead` was null was
+  // rejected. A channel that both previews and writes is a channel where one
+  // wrong argument writes.
+  'machines:writeSheet': {
+    req: [input: MachineWriteSheetInput];
+    res: MachineConfirmSheet;
+  };
+  // THIS ONE WRITES, on this Mac and nowhere else. It writes the folder into
+  // the row and records the agreement in one call, over the sheet the person
+  // read. A stale hash refuses before either write. It starts no process, opens
+  // no connection and sends nothing to any machine.
+  'machines:allowWrites': {
+    req: [input: MachineAllowWritesInput];
+    res: MachineRowView;
+  };
+  // THIS ONE WRITES ON ANOTHER COMPUTER, and it is the third channel in this
+  // contract that can. Main asks the confirm gate, refuses a machine with no
+  // confirmed folder, refuses a file over REMOTE_FILE_MAX_BYTES and refuses a
+  // path outside the confirmed folder, all before anything is composed. The
+  // machine then refuses again unless the file's contents still match what
+  // Tortie read.
+  'machines:putFile': {
+    req: [input: MachineFilePutInput];
+    res: MachineFilePutResult;
+  };
+  // ---- END PHASE 101 BLOCK ----
   'machines:agents': {
     req: [id: string | null, fresh: boolean];
     res: MachineAgentsView[];
@@ -1193,6 +1284,18 @@ export interface GmuxMachinesExtras {
     // answer decides what a tile looks like and never what a manifest row
     // holds.
     agents(id: string | null, fresh: boolean): Promise<MachineAgentsView[]>;
+    // ---- PHASE 101 BLOCK ----
+    // Phase 101. Reads the sheet for the row as it is now plus the folder a
+    // person typed. It starts nothing, sends nothing and writes nothing.
+    writeSheet(input: MachineWriteSheetInput): Promise<MachineConfirmSheet>;
+    // Phase 101. Turns saving on for one machine. It writes the folder into
+    // the row and records the agreement, on this Mac and nowhere else. It
+    // contacts no machine and starts nothing.
+    allowWrites(input: MachineAllowWritesInput): Promise<MachineRowView>;
+    // Phase 101. Saves one file on one machine. It is the third call in this
+    // contract that writes on another computer.
+    putFile(input: MachineFilePutInput): Promise<MachineFilePutResult>;
+    // ---- END PHASE 101 BLOCK ----
     // Phase 109. The whole map, pushed whenever any machine's answer changes,
     // the `onStateChanged` precedent.
     onAgentsChanged(cb: (views: MachineAgentsView[]) => void): () => void;
@@ -1337,8 +1440,158 @@ export interface MachineReviewPair {
   truncated: boolean;
   /** The sentence for a side that was cut, or null. */
   note: string | null;
+  /**
+   * PHASE 101. How many bytes the working copy holds, as Tortie read it.
+   *
+   * It is computed in main from bytes it already had, so no script text moved
+   * and the far side answers nothing new. It exists so the refusal to open a
+   * remote file that is too large to save can name the file's real size.
+   *
+   * TWO CASES, AND THEY ARE NOT THE SAME MEASUREMENT. With `truncated` false
+   * this is the file's size. With `truncated` true the read was cut at the
+   * review cap, so this equals that cap and it is a floor rather than a size.
+   * A surface must not print it as the size in that case.
+   *
+   * IT IS REQUIRED RATHER THAN APPENDED, which is a deliberate departure from
+   * the rule the other appended fields in this contract follow. This one is
+   * read by a refusal that names a number on screen, and a field that could be
+   * absent would be read as 0 there, which would put a false size in front of a
+   * person. There are exactly two places that build this shape and both are in
+   * `src/main/machines/remote-review.ts`.
+   */
+  bytes: number;
 }
 // ---- END PHASE 73 BLOCK C ----
+
+// ---- PHASE 101 BLOCK ----
+// Editing and saving a file that lives on another machine.
+//
+// WHAT THIS IS FOR. A person can already read a file on another machine in a
+// Tortie tab. This block is what lets them change it and press Save, and what
+// lets them make a new empty file there.
+//
+// WHAT DECIDES WHETHER A BYTE EVER LANDS. One confirmed field on the machine
+// row, being `writeRoot`. A machine that carries none cannot be saved to at
+// all, and it hashes exactly as it did before this block existed. A person
+// turns saving on for one machine, once, by reading a sheet and pressing a
+// button in Settings, then Machines. Nothing automates past that moment.
+//
+// WHAT NONE OF THESE THREE CALLS DOES. None of them removes anything on either
+// computer. None of them makes a folder, renames anything or moves anything to
+// a Trash. None of them carries a root chosen in the renderer: main reads the
+// confirmed root out of the row and refuses a path that does not sit under it,
+// before it composes anything.
+
+/**
+ * The largest file this door will save, in bytes. 90,000.
+ *
+ * IT IS THE SAME NUMBER AS {@link REMOTE_IMAGE_MAX_BYTES} AND IT IS A SEPARATE
+ * CONSTANT ON PURPOSE. Research 57 section 4.2 said to reuse the image cap.
+ * This deviates from that: a later change to what an image may weigh would
+ * otherwise silently change what a person may save, and the two are different
+ * questions asked by different people.
+ *
+ * The reason for the number is the carriage rather than a choice. The bytes
+ * travel encoded, inside one command, and that command reaches the far side as
+ * ONE argument of that machine's own login shell. Linux caps one argument of
+ * one program at 131,072 bytes. Encoding adds a third. So 90,000 bytes of file
+ * becomes 120,000 bytes of payload and fits.
+ *
+ * A larger file is refused on this Mac before anything is sent, and a remote
+ * file larger than this is refused at OPEN when saving is on for that machine,
+ * because a tab that can never be saved is worse than a refusal that says why.
+ */
+export const REMOTE_FILE_MAX_BYTES = 90_000;
+
+/**
+ * What the renderer sends to read the sheet for a folder a person typed.
+ *
+ * IT READS ONLY. It starts nothing, sends nothing to any machine and writes
+ * nothing. It exists because the renderer may never compose a sheet's lines or
+ * its hash, and there is no prior result to take this sheet from: the person
+ * types the folder. A root that fails validation throws the validator's own
+ * sentence.
+ */
+export interface MachineWriteSheetInput {
+  id: string;
+  /** The absolute folder on that machine, as the person typed it. */
+  writeRoot: string;
+}
+
+/**
+ * What the renderer sends when a person turns saving on for one machine.
+ *
+ * It is the shape {@link MachineAcceptVersionInput} takes, because it IS a
+ * confirmation: main writes the field into the row and records the agreement in
+ * one call, over the sheet the person read. A stale hash refuses and writes
+ * nothing.
+ */
+export interface MachineAllowWritesInput {
+  id: string;
+  /** The absolute folder on that machine. Main validates it again. */
+  writeRoot: string;
+  /** The hash the sheet was drawn from. Main refuses a stale one. */
+  hashRead: string;
+  /** The lines that were on the sheet. Recorded verbatim. */
+  linesRead: string[];
+}
+
+/** Which file on which machine is being saved, and what it should hold. */
+export interface MachineFilePutInput {
+  machineId: string;
+  /** The absolute path ON THAT MACHINE. Main refuses one outside the root. */
+  path: string;
+  /** The whole file, as text. Main refuses more than REMOTE_FILE_MAX_BYTES. */
+  contents: string;
+  /**
+   * The sha256 of the file as Tortie last read it, or the word `new`.
+   *
+   * `new` means make a file that is not there, and the machine refuses a
+   * destination that already exists. A checksum means replace a file whose
+   * contents still match what Tortie read, and the machine refuses when they
+   * do not.
+   */
+  expect: string;
+}
+
+/**
+ * What happened to one save. Nine words, and six of them come from the machine.
+ *
+ * `wrote` is the only one that means bytes landed. `writesOff`, `outsideRoot`
+ * and `tooLarge` are decided on this Mac before anything is sent. `stale`,
+ * `missing`, `exists`, `nomode` and `nosum` are what the machine reported, and
+ * every one of them means nothing was written there, because the script prints
+ * all five of them above the line that writes and none of them below it. The
+ * gate's condition 80 reads that property out of the script text.
+ *
+ * THE SCRIPT HAS ONE MORE WORD AND IT IS NOT HERE ON PURPOSE. `unsure` is what
+ * it prints when the bytes are already in place and it cannot describe them.
+ * That is not an outcome, because an outcome is something a person is told
+ * happened, so `parseFilePutAnswer` does not know the word and the save fails
+ * with the sentence that says Tortie cannot tell whether the file was saved.
+ */
+export type MachineFilePutOutcome =
+  | 'wrote'
+  | 'stale'
+  | 'missing'
+  | 'exists'
+  | 'nomode'
+  | 'nosum'
+  | 'writesOff'
+  | 'outsideRoot'
+  | 'tooLarge';
+
+/** What one save did, in the shape the surface that asked for it reads. */
+export interface MachineFilePutResult {
+  readonly outcome: MachineFilePutOutcome;
+  /** The file's checksum after a `wrote`. Null otherwise. */
+  readonly sha256: string | null;
+  /** The bytes on the far side after a `wrote`, or the bytes refused for `tooLarge`. */
+  readonly bytes: number | null;
+  /** The confirmed root, for the two sentences that name it. Null when there is none. */
+  readonly writeRoot: string | null;
+}
+// ---- END PHASE 101 BLOCK ----
 
 // ---------------------------------------------------------------------------
 // The folder picker for another machine (Phase 84, item 6)

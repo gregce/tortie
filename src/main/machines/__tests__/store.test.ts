@@ -140,7 +140,7 @@ describe('the failure direction', () => {
 });
 
 describe('the row helpers', () => {
-  it('reads the five execution bearing fields, with null for the absent ones', () => {
+  it('reads the six execution bearing fields, with null for the absent ones', () => {
     expect(machineFieldsOf({ id: 'bare', host: 'a.example' })).toEqual({
       host: 'a.example',
       user: null,
@@ -148,8 +148,21 @@ describe('the row helpers', () => {
       remoteTmuxPath: null,
       // Phase 83. A row nobody accepted a version for reads null, which is
       // every row in every file this product has written so far.
-      acceptedTmuxVersion: null
+      acceptedTmuxVersion: null,
+      // Phase 101. A row nobody named a folder on reads null, which is a
+      // machine Tortie may save nothing on.
+      writeRoot: null
     });
+  });
+
+  it('reads the folder a person granted when the row carries one', () => {
+    expect(
+      machineFieldsOf({
+        id: 'bare',
+        host: 'a.example',
+        writeRoot: '/Users/gdc/code'
+      }).writeRoot
+    ).toBe('/Users/gdc/code');
   });
 
   it('reads the version a person accepted when the row carries one', () => {

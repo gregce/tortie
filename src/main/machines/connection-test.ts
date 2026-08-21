@@ -531,7 +531,12 @@ function finish(
     sheet = {
       hash: summary.hash,
       lines: [...summary.lines],
-      warning: summary.warning
+      warning: summary.warning,
+      // PHASE 101. Null for every row that carries no write root, which is
+      // every row a connection test has ever produced a sheet for. It is
+      // carried rather than omitted so that no sheet drawing site has to
+      // remember the rule and none of them can forget it.
+      writeHonesty: summary.writeHonesty
     };
   }
   // PHASE 79.1. The block that offers to make a key, composed HERE for the same

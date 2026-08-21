@@ -90,7 +90,10 @@ const SHEET = {
   ],
   warning:
     'This names a machine Tortie will sign in to as you, and a program it ' +
-    'will run there with your files and your credentials.'
+    'will run there with your files and your credentials.',
+  // PHASE 101. Main answers this on every sheet. Null is the ordinary case,
+  // being a machine nobody has let Tortie save files on.
+  writeHonesty: null
 };
 
 function outcome(over: Partial<MachineTestOutcome>): MachineTestOutcome {

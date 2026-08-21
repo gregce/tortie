@@ -1,6 +1,13 @@
 /**
  * Phase 90.3. Saving a file that is on another machine is refused OUT LOUD.
  *
+ * PHASE 101 CHANGED THE SENTENCE AND NOT THE BEHAVIOUR HERE. The machine in
+ * this file carries no folder anybody confirmed, which is the ordinary case and
+ * the default, so the save is still refused and nothing is written on either
+ * computer. The sentence names the one thing a person can do about it now,
+ * because there is one. A machine that DOES carry a folder is driven in
+ * ./p101-remote-save.test.ts.
+ *
  * WHAT WAS WRONG. Phase 73 refused the save and said nothing. A person who
  * typed into a review tab and pressed Save was told nothing at all, and silence
  * after Save reads as a save that worked. Nothing was written on either
@@ -100,7 +107,8 @@ describe('pressing Save on a file that is on another machine', () => {
       { kind: 'error', text: remoteSaveRefused('Studio') }
     ]);
     expect(toasts[0]?.text).toBe(
-      'That file is on Studio, so Tortie cannot save it.'
+      'Tortie cannot save on Studio. Open Settings, then Machines, then ' +
+        'Studio, and let Tortie save files there. Nothing was written.'
     );
   });
 

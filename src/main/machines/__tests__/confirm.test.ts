@@ -44,6 +44,7 @@ const {
   MACHINE_CONFIRM_ID_PREFIX,
   MACHINE_CONFIRM_WARNING,
   MACHINE_PATH_HONESTY,
+  MACHINE_WRITE_HONESTY,
   assertMachineMayConnect,
   canonicalMachineText,
   confirmMachine,
@@ -54,7 +55,8 @@ const {
   machineExecutionHash,
   machineRecordKey,
   machineRowStatus,
-  whileReadingMachines
+  whileReadingMachines,
+  writeHonestyOf
 } = await import('../confirm');
 const { confirmPath } = await import('../../config/confirm-record');
 const {
@@ -232,6 +234,79 @@ describe('the version a person accepted', () => {
     expect(isMachineConfirmed(ID, { ...ROW, acceptedTmuxVersion: '3.9a' })).toBe(
       false
     );
+  });
+});
+
+describe('the folder Tortie may save under (Phase 101)', () => {
+  const ROOT = '/Users/gdc/code';
+
+  it('does not move the hash of a machine that carries none', () => {
+    // The one property that keeps every machine already confirmed confirmed.
+    expect(machineExecutionHash(ID, ROW)).toBe(
+      machineExecutionHash(ID, { ...ROW, writeRoot: null })
+    );
+    expect(canonicalMachineText(ID, ROW)).not.toContain('writeRoot');
+  });
+
+  it('moves the hash when a folder is named, and back when it is cleared', () => {
+    const withRoot = machineExecutionHash(ID, { ...ROW, writeRoot: ROOT });
+    expect(withRoot).not.toBe(machineExecutionHash(ID, ROW));
+    expect(withRoot).not.toBe(
+      machineExecutionHash(ID, { ...ROW, writeRoot: '/Users/gdc' })
+    );
+    expect(machineExecutionHash(ID, { ...ROW, writeRoot: null })).toBe(
+      machineExecutionHash(ID, ROW)
+    );
+  });
+
+  it('names the folder on the sheet and in the hash text', () => {
+    const sheet = describeMachine(ID, { ...ROW, writeRoot: ROOT });
+    expect(sheet.lines[sheet.lines.length - 1]).toBe(
+      `May replace files under this folder on that machine: ${ROOT}`
+    );
+    expect(canonicalMachineText(ID, { ...ROW, writeRoot: ROOT })).toContain(ROOT);
+  });
+
+  it('draws no folder line for a machine that carries none', () => {
+    expect(describeMachine(ID, ROW).lines.join('\n')).not.toContain(
+      'May replace files under'
+    );
+  });
+
+  it('answers the honesty paragraph only when a folder is named', () => {
+    expect(writeHonestyOf({ ...ROW, writeRoot: ROOT })).toBe(
+      MACHINE_WRITE_HONESTY
+    );
+    expect(writeHonestyOf(ROW)).toBeNull();
+    expect(writeHonestyOf({ ...ROW, writeRoot: '' })).toBeNull();
+    expect(describeMachine(ID, { ...ROW, writeRoot: ROOT }).writeHonesty).toBe(
+      MACHINE_WRITE_HONESTY
+    );
+    expect(describeMachine(ID, ROW).writeHonesty).toBeNull();
+  });
+
+  it('keeps the honesty paragraph out of the lines and out of the hash', () => {
+    const sheet = describeMachine(ID, { ...ROW, writeRoot: ROOT });
+    expect(sheet.lines.join('\n')).not.toContain(MACHINE_WRITE_HONESTY);
+    expect(canonicalMachineText(ID, { ...ROW, writeRoot: ROOT })).not.toContain(
+      'Tortie replaces a file only after'
+    );
+  });
+
+  it('survives an ordinary re-confirm, which is the second ruling', () => {
+    // The operator corrects the address. The row goes changed, and the sheet he
+    // then reads still carries the folder and still carries the paragraph.
+    const moved = { ...ROW, writeRoot: ROOT, host: 'attic.example' };
+    const sheet = describeMachine(ID, moved);
+    expect(sheet.lines.join('\n')).toContain(ROOT);
+    expect(sheet.writeHonesty).toBe(MACHINE_WRITE_HONESTY);
+  });
+
+  it('carries the paragraph on the row status as well', () => {
+    expect(machineRowStatus(ID, { ...ROW, writeRoot: ROOT }).writeHonesty).toBe(
+      MACHINE_WRITE_HONESTY
+    );
+    expect(machineRowStatus(ID, ROW).writeHonesty).toBeNull();
   });
 });
 

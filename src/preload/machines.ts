@@ -4,14 +4,16 @@
  * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
  * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105,
  * one more in Phase 106, one more in Phase 107, one more in Phase 108 and one
- * call plus one subscription in Phase 109). One object, twenty nine calls and
- * three subscriptions, typed from the shared contract. THE COUNT HAD GONE
+ * call plus one subscription in Phase 109, three more in Phase 101). One
+ * object, thirty two calls and three subscriptions, typed from the shared
+ * contract. THE COUNT HAD GONE
  * STALE and Phase 108 says so rather than quietly fixing it: this header named
  * neither Phase 107 nor its call while the object already carried
  * `readHistory`.
  *
- * TWO of these calls write on another computer, being `putImage` and
- * `cloneProject`. Everything else on this bridge reads.
+ * THREE of these calls write on another computer, being `putImage`,
+ * `cloneProject` and `putFile`. `allowWrites` writes on THIS Mac, being one
+ * field of one row and one record. Everything else on this bridge reads.
  *
  * Four of these calls can start a process from Settings, and every one of them
  * is a person pressing a button there. `tailscaleNames` runs the Tailscale program at
@@ -160,5 +162,21 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // it while it is not connected to the machine. The answer decides what a
   // tile looks like and never what a manifest row holds.
   agents: (id, fresh) => invoke('machines:agents', id, fresh),
-  onAgentsChanged: (cb) => on(EVT_MACHINE_AGENTS, cb)
+  onAgentsChanged: (cb) => on(EVT_MACHINE_AGENTS, cb),
+  // ---- PHASE 101 BLOCK ----
+  // Phase 101. THIS ONE READS. It answers the sheet a person reads before they
+  // let Tortie save on one machine. It starts nothing, sends nothing to any
+  // machine and writes nothing. The renderer never composes a sheet's hash, and
+  // this call is what makes that true for a folder the person typed.
+  writeSheet: (input) => invoke('machines:writeSheet', input),
+  // Phase 101. THIS ONE WRITES, on this Mac and nowhere else. It writes the
+  // folder into the row and records the agreement, over the sheet the person
+  // read. Main refuses a stale hash and writes nothing.
+  allowWrites: (input) => invoke('machines:allowWrites', input),
+  // Phase 101. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the third call on
+  // this bridge that can. Main asks the confirm gate, refuses a machine with no
+  // confirmed folder, refuses a file that is too large and refuses a path
+  // outside that folder, all before anything is sent.
+  putFile: (input) => invoke('machines:putFile', input)
+  // ---- END PHASE 101 BLOCK ----
 };

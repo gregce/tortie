@@ -34,6 +34,20 @@
  * is composed with `shellQuoteArgv`, so a path holding a space is already safe,
  * and refusing the quote leaves no quoting question open at all.
  *
+ * ## Phase 101 added one field, and it is checked more strictly than the rest
+ *
+ * `writeRoot` is the folder under which Tortie may replace a file on that
+ * machine. It calls {@link remotePathField} first, so it is absolute and holds
+ * no single quote, and then it refuses two more shapes. A `..` segment is
+ * refused, because `remotePathField` accepts one and a confirmed root of
+ * `/Users/gdc/x/../../..` would contain nothing at all. A trailing slash is
+ * refused, because the containment test compares a resolved path against the
+ * root plus a separator and one path should have one spelling.
+ *
+ * `remotePathField` itself did not move. It is the validator for
+ * `remoteTmuxPath` on rows that already exist, and tightening it would drop a
+ * row a person already has.
+ *
  * ## Phase 83 added one field, and it is checked the same way
  *
  * `acceptedTmuxVersion` is the version a person accepted for this machine. It
@@ -203,6 +217,38 @@ function versionField(value: unknown, field: string): string {
   return text;
 }
 
+/**
+ * The folder Tortie may replace a file under (Phase 101).
+ *
+ * It is {@link remotePathField} plus two refusals. Both of them exist because
+ * this value is compared against a file's path to decide whether Tortie may
+ * write over that file.
+ *
+ * It is EXPORTED so that `machines:writeSheet` and `machines:allowWrites` in
+ * `./ipc.ts` check a folder a person typed with the same code that checks a
+ * folder they wrote into the file by hand. Two validators for one field is how
+ * one of them goes stale. It throws on a value it refuses, and the caller turns
+ * that into the sentence a person reads.
+ */
+export function writeRootField(value: unknown, field: string): string {
+  const text = remotePathField(value, field);
+  if (text.split('/').includes('..')) {
+    fail(
+      field,
+      `${field} contains a ".." step, which Tortie refuses in a folder it may ` +
+        `write under. Write the folder out in full, e.g. /Users/you/code.`
+    );
+  }
+  if (text.length > 1 && text.endsWith('/')) {
+    fail(
+      field,
+      `${field} ends with a slash. Write the folder without it, e.g. ` +
+        `/Users/you/code rather than /Users/you/code/.`
+    );
+  }
+  return text;
+}
+
 function colorField(value: unknown, field: string): MachineColor {
   if (typeof value !== 'string' || !MACHINE_COLORS.includes(value as MachineColor)) {
     fail(field, `${field} must be one of ${MACHINE_COLORS.join(', ')}.`);
@@ -255,6 +301,9 @@ function validateRow(raw: unknown, index: number): MachineRowV1 {
       obj['acceptedTmuxVersion'],
       `${field}.acceptedTmuxVersion`
     );
+  }
+  if (obj['writeRoot'] !== undefined) {
+    row.writeRoot = writeRootField(obj['writeRoot'], `${field}.writeRoot`);
   }
   return row;
 }
@@ -412,7 +461,11 @@ export function serializeMachines(rows: readonly MachineRowV1[]): string {
       // product has always written.
       ...(row.acceptedTmuxVersion !== undefined
         ? { acceptedTmuxVersion: row.acceptedTmuxVersion }
-        : {})
+        : {}),
+      // Phase 101. Written last, and only when it is there, so a file for a
+      // machine Tortie may save nothing on is the file this product has always
+      // written.
+      ...(row.writeRoot !== undefined ? { writeRoot: row.writeRoot } : {})
     }))
   };
   return `${JSON.stringify(file, null, 2)}\n`;

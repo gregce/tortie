@@ -310,7 +310,11 @@ export async function prepareMachine(
     return {
       hash: summary.hash,
       lines: [...summary.lines],
-      warning: summary.warning
+      warning: summary.warning,
+      // PHASE 101. The row's own write root decides this, and an acceptance
+      // sheet for a machine that already grants saving draws the paragraph
+      // exactly as the ordinary confirm sheet does.
+      writeHonesty: summary.writeHonesty
     };
   };
 

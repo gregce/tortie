@@ -203,3 +203,30 @@ export function machineAgentsFor(
     }
   );
 }
+
+/**
+ * The folder Tortie may replace a file under on one machine, or null.
+ *
+ * PHASE 101. Null means saving is off for that machine, which is every machine
+ * in every build before this phase and every machine a person has not turned
+ * saving on for. A machine with no row here is null for the same reason
+ * `machineLabelFor` falls back to the id: Tortie holds no statement about it.
+ *
+ * WHY THE ANSWER LIVES ON THE LINK STATE RATHER THAN ON THE TAB. Main pushes
+ * the whole list on every change, and the confirmation record is one of the
+ * three sources that fire it, so this answer is never older than the last
+ * confirmation. A field written into a tab when the tab was opened would be
+ * stale the moment a person turned saving on or off in Settings, and a tab
+ * that had been open for an hour would then be read only after they granted
+ * saving, or editable after they withdrew it.
+ *
+ * IT IS PRESENTATIONAL AND IT IS NEVER THE SAFEGUARD. Main reads the confirmed
+ * folder off the row on disk at call time and refuses there. This read decides
+ * whether a surface is drawn as an edit surface, and nothing more.
+ */
+export function machineWriteRootFor(
+  states: readonly MachineStateView[],
+  machineId: string
+): string | null {
+  return states.find((one) => one.id === machineId)?.writeRoot ?? null;
+}

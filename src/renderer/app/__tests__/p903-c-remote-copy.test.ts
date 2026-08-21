@@ -21,6 +21,15 @@
  * and Branches. The fifteen that came with it are pinned in their own describe
  * near the foot of this file.
  *
+ * PHASE 101 REWROTE THREE AND ADDED ELEVEN. The editor band, the save refusal
+ * and the honesty line on the open sheet all said Tortie never writes on
+ * another machine, and it writes on one a person has let it save on. The eleven
+ * that came with them are the seven refusals a save can meet past the first
+ * one, the two refusals an open can meet, the Explorer note for a machine that
+ * can be saved to, and the New folder button's own sentence.
+ * `remoteTreeReadOnly` is UNCHANGED and is still what a machine with no
+ * confirmed folder draws.
+ *
  * PHASE 99 REPLACED THE QUICK OPEN PAIR WITH SEVEN SENTENCES. The pair said
  * "Quick Open does not reach Studio", and Quick Open reads that machine's own
  * file names now, so the refusal had become false. The seven that replaced it
@@ -31,6 +40,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { REMOTE_FILE_MAX_BYTES } from '@shared/ipc';
 import {
   addRemoteRefusal,
   createInRemoteProject,
@@ -48,6 +58,19 @@ import {
   quickOpenNotRepo,
   quickOpenReadingNames,
   readClockTime,
+  remoteCreateExists,
+  remoteNewFolderNotYet,
+  remoteOpenTooLarge,
+  remoteOpenTooLargeOver,
+  remoteSaveMissing,
+  remoteSaveNoMode,
+  remoteSaveNoSum,
+  remoteSaveLostAnswer,
+  remoteSaveOutsideRoot,
+  remoteSaveRefusal,
+  remoteSaveStale,
+  remoteSaveTooLarge,
+  remoteTreeCanSave,
   REMOTE_BAND_BODY,
   REMOTE_COPIED_WITH_MACHINE,
   REMOTE_SCM_SECTIONS_NOTE,
@@ -97,6 +120,9 @@ import {
 const ROOT = resolve(import.meta.dirname, '../../../..');
 const L = 'Studio';
 const P = '/home/greg/api';
+/** PHASE 101. One machine's confirmed folder, and the save cap in bytes. */
+const R = '/home/greg';
+const MAX = 90_000;
 
 /** One fixed instant, so the clock sentences are pinned rather than sampled. */
 const AT = new Date(2026, 7, 18, 14, 32, 0).getTime();
@@ -315,13 +341,134 @@ describe('Quick Open on a folder that is on a machine (Phase 99)', () => {
 });
 
 describe('the editor', () => {
-  it('says the file is over there and that Save cannot work', () => {
+  it('says the file is over there and what would let Tortie save it', () => {
     expect(remoteFileChip(L)).toBe(
       'This file is on Studio. Tortie is showing what it read and cannot ' +
-        'save changes.'
+        'save it until you let it save on that machine.'
     );
     expect(remoteSaveRefused(L)).toBe(
-      'That file is on Studio, so Tortie cannot save it.'
+      'Tortie cannot save on Studio. Open Settings, then Machines, then ' +
+        'Studio, and let Tortie save files there. Nothing was written.'
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 101. Saving a file on a machine
+// ---------------------------------------------------------------------------
+
+describe('every way a save can be refused', () => {
+  it('says nothing was written, in every one of the eight', () => {
+    expect(remoteSaveOutsideRoot(R, L)).toBe(
+      'Tortie may only save under /home/greg on Studio, and this file is ' +
+        'outside that folder. Nothing was written.'
+    );
+    expect(remoteSaveStale(L)).toBe(
+      'Tortie did not save this file, because it changed on Studio after ' +
+        'Tortie read it. Nothing was written. Open it again to read what it ' +
+        'says now.'
+    );
+    expect(remoteSaveMissing(L)).toBe(
+      'Tortie did not save this file, because it is no longer on Studio. ' +
+        'Nothing was written.'
+    );
+    expect(remoteCreateExists(R, L)).toBe(
+      'Tortie did not make that file, because a file of that name is ' +
+        'already on Studio under /home/greg. Nothing was written.'
+    );
+    expect(remoteSaveNoMode(L)).toBe(
+      'Tortie did not save this file, because it could not read the file\'s ' +
+        'permissions on Studio and will not write it with permissions ' +
+        'nobody chose. Nothing was written.'
+    );
+    expect(remoteSaveNoSum(L)).toBe(
+      'Tortie did not save this file, because it could not get a checksum ' +
+        'from Studio, and Tortie replaces a file only after it has checked ' +
+        'the file\'s contents. Nothing was written.'
+    );
+    expect(remoteSaveTooLarge(96_231, L)).toBe(
+      'That file is 96,231 bytes and Tortie can save files up to 90,000 ' +
+        'bytes on Studio. Nothing was written.'
+    );
+  });
+
+  it('holds the cap it names equal to the one main refuses on', () => {
+    expect(remoteSaveTooLarge(96_231, L)).toContain(MAX.toLocaleString());
+    expect(REMOTE_FILE_MAX_BYTES).toBe(MAX);
+  });
+
+  it('answers every outcome word main can send, and no other', () => {
+    const words = [
+      'writesOff',
+      'outsideRoot',
+      'stale',
+      'missing',
+      'exists',
+      'nomode',
+      'nosum',
+      'tooLarge'
+    ] as const;
+    // Every one of the eight says that nothing was written, because in every
+    // one of them nothing was. `stale` is the only one that says a second
+    // thing after it, which is to open the file again.
+    for (const word of words) {
+      const said = remoteSaveRefusal(word, L, R, 96_231);
+      expect([word, said.includes('Nothing was written.')]).toEqual([
+        word,
+        true
+      ]);
+    }
+    expect(remoteSaveRefusal('outsideRoot', L, R, 0)).toBe(
+      remoteSaveOutsideRoot(R, L)
+    );
+    expect(remoteSaveRefusal('exists', L, R, 0)).toBe(remoteCreateExists(R, L));
+    expect(remoteSaveRefusal('tooLarge', L, R, 96_231)).toBe(
+      remoteSaveTooLarge(96_231, L)
+    );
+  });
+
+  it('never draws a folder nobody confirmed', () => {
+    // Main sends the folder on both words that name one. A null there can
+    // only mean saving is off, so the sentence that says exactly that is what
+    // a person reads, rather than a folder composed out of nothing.
+    expect(remoteSaveRefusal('outsideRoot', L, null, 0)).toBe(
+      remoteSaveRefused(L)
+    );
+    expect(remoteSaveRefusal('exists', L, null, 0)).toBe(remoteSaveRefused(L));
+  });
+});
+
+describe('opening a file that could never be saved', () => {
+  it('names the size when the read was whole', () => {
+    expect(remoteOpenTooLarge(1_238_904, L)).toBe(
+      'That file is 1,238,904 bytes and Tortie can save files up to 90,000 ' +
+        'bytes on Studio, so it did not open it. Nothing on that machine ' +
+        'changed.'
+    );
+  });
+
+  it('says over when the read was cut, because the size is a floor', () => {
+    expect(remoteOpenTooLargeOver(2_097_152, L)).toBe(
+      'That file is over 2,097,152 bytes and Tortie can save files up to ' +
+        '90,000 bytes on Studio, so it did not open it. Nothing on that ' +
+        'machine changed.'
+    );
+  });
+});
+
+describe('the Explorer, on a machine that can be saved to', () => {
+  it('says both halves, and leaves the read only line alone', () => {
+    expect(remoteTreeCanSave(R, L)).toBe(
+      'Tortie reads files on Studio and can save under /home/greg.'
+    );
+    // Unchanged by this phase. It is still what a machine with no confirmed
+    // folder draws, which is every machine before Phase 101.
+    expect(remoteTreeReadOnly(L)).toBe('Tortie only reads files on Studio.');
+  });
+
+  it('gives the New folder button its own sentence', () => {
+    expect(remoteNewFolderNotYet(L)).toBe(
+      'Tortie cannot make a folder on Studio.'
     );
   });
 });
@@ -333,10 +480,15 @@ describe('opening a folder on a machine', () => {
     expect(openRemoteFolderLabel(L)).toBe('Folder on Studio');
     // PHASE 98 DROPPED THE THIRD CLAUSE. It read "and it does not search it",
     // and the Search view of a tab on a machine searches that folder now.
+    // PHASE 101 REWROTE THE SECOND. It read "It never writes there", and that
+    // became false for a machine a person has let Tortie save on. After this
+    // phase no part of this sentence is stale.
     expect(openRemoteHonesty(L)).toBe(
-      'Tortie reads this folder on Studio. It never writes there.'
+      'Tortie reads this folder on Studio. It writes there only where you ' +
+        'have let it save.'
     );
     expect(openRemoteHonesty(L)).not.toContain('search');
+    expect(openRemoteHonesty(L)).not.toContain('never writes');
     expect(OPEN_REMOTE_BUTTON).toBe('Open it');
   });
 
@@ -522,6 +674,19 @@ const EVERY: readonly string[] = [
   remoteFileChip(L),
   remoteSaveRefused(L),
   openRemoteHonesty(L),
+  // PHASE 101. Eleven more, every one of them read by the five rules below.
+  remoteSaveOutsideRoot(R, L),
+  remoteSaveStale(L),
+  remoteSaveMissing(L),
+  remoteCreateExists(R, L),
+  remoteSaveNoMode(L),
+  remoteSaveNoSum(L),
+  remoteSaveLostAnswer(L),
+  remoteSaveTooLarge(96_231, L),
+  remoteOpenTooLarge(1_238_904, L),
+  remoteOpenTooLargeOver(2_097_152, L),
+  remoteTreeCanSave(R, L),
+  remoteNewFolderNotYet(L),
   addRemoteRefusal('missing', P, L),
   addRemoteRefusal('notdir', P, L),
   addRemoteRefusal('denied', P, L),
