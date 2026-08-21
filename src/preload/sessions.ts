@@ -24,10 +24,14 @@ export const sessions: InstalledSessionsApi = {
   onChanged: (cb) => on(EVT_SESSIONS_CHANGED, cb),
   onStatusChanged: (cb) => on(EVT_STATUS_CHANGED, cb),
   discard: (sessionId) => invoke('sessions:discard', sessionId),
-  restore: (sessionId) => invoke('sessions:restore', sessionId),
+  // Phase 119: the second argument is the capture choice. Omitted it is the
+  // ordinary restore, byte for byte what it always was.
+  restore: (sessionId, options) =>
+    invoke('sessions:restore', sessionId, options),
   // Phase 19 item 8. One call, because the ordering inside it is a durability
   // invariant: the replacement is created before anything is removed.
-  restart: (sessionId) => invoke('sessions:restart', sessionId),
+  restart: (sessionId, options) =>
+    invoke('sessions:restart', sessionId, options),
   // Phase 29. The Past Sessions panel's data: discarded rows, newest first.
   listRemoved: () => invoke('sessions:listRemoved'),
   // Phase 60. The ask before restoring into a project that is not open.

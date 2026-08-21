@@ -157,6 +157,22 @@
  *                       sentence naming the unconfirmed create, and that the
  *                       machine coming back binds the SAME id with no second
  *                       create. `npm run smoke:p117`.
+ *  - GMUX_SMOKE=restore-bare  declining capture on restore (Phase 119, Tier 3).
+ *                       Two real captured sessions in one app run. Session A
+ *                       takes the declined path and B takes the ordinary one,
+ *                       so the two answers are measured against the same
+ *                       binary, the same manifest and the same tmux server.
+ *                       Ten steps: the wrapped resume read back verbatim, an
+ *                       out of band kill with the recorded binary still on
+ *                       disk, a declined restore whose armed pane line names
+ *                       no specstory, the durable flip on the row and the
+ *                       projection, the person's one keypress with no wrapper
+ *                       over the agent, the ORDINARY restore proved unchanged,
+ *                       a declined restart that is bare from birth, and a
+ *                       decline that cannot be honoured arming nothing.
+ *                       Isolated profile AND isolated socket, refused without
+ *                       both, and cloud sync forced off by the harness.
+ *                       `npm run smoke:restore:bare`.
  *  - GMUX_SMOKE=shadow  the bare-name invariant under a shadowed binary
  *                       (Phase 49, Tier 3): two scratch copies of `droid` are
  *                       planted at the head of a stubbed login-shell PATH, a
@@ -235,6 +251,10 @@ import {
 import { runSmokeIdentity } from './identity';
 import { runSmokeProcId } from './procid';
 import { runSmokeQuit } from './quit';
+// Phase 119: declining capture on restore. LEAF-free like the capture smoke,
+// and the only place the decline, the durable flip and the untouched ordinary
+// restore are measured against one running app rather than read.
+import { runRestoreBareSmoke } from './restore-bare';
 // Phase 116: the shutdown refusal proof. LEAF import like ../fault/harness,
 // because it pulls in the session core.
 import { runShutdownRefusalSmoke } from './shutdown-refusal';
@@ -320,6 +340,13 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   }
   if (smoke === 'identity') {
     await runSmokeIdentity();
+    return true;
+  }
+  // Phase 119: a captured session can come back bare, and the ordinary restore
+  // is unchanged by it. Two real captured sessions in one app run, because the
+  // insurance and the normal path have to be measured against the same binary.
+  if (smoke === 'restore-bare') {
+    await runRestoreBareSmoke();
     return true;
   }
   // Phase 49: the bare-name invariant, proven live with a shadowed binary.

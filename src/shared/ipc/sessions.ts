@@ -20,6 +20,43 @@ import type { DurabilityNotice } from '../notice';
 
 import type { Session as RestoreSession } from '../types';
 
+/**
+ * Bring a session back with SpecStory turned off (Phase 119).
+ *
+ * ONE WORD, ONE MEANING, ON BOTH CHANNELS. `sessions:restore` and
+ * `sessions:restart` both take this, and in both places `withoutCapture: true`
+ * means the same thing: start this session again with no SpecStory wrapper
+ * around it, so it no longer saves its history to the project folder.
+ *
+ * Why it exists. A captured session records its resume command wrapped in the
+ * absolute path of the specstory binary it launched under, and restore types
+ * that command back into the pane. Before this option there was no way to ask
+ * for the inner command on its own. `armableResumeArgv` in
+ * src/main/restore/restore.ts reached its bare arm only when the recorded
+ * binary had gone missing, and a bundled binary is always on disk, so a person
+ * whose wrapper misbehaved had no way around it.
+ *
+ * It is insurance rather than a repair. Phase 115 healed the bundled binary and
+ * both verbs succeed today. This is what a person reaches for the next time a
+ * wrapper breaks.
+ *
+ * ON RESTORE the choice is DURABLE. Main writes `specstory.enabled = false` and
+ * the bare resume argv onto the row, because the harvest would otherwise put
+ * the wrapper back around the resume command and the person would have to
+ * decline again on every restore. On RESTART nothing is flipped, because the
+ * old row is discarded and the replacement is born bare.
+ *
+ * Omitted, or `withoutCapture: false`, is the ordinary verb, unchanged.
+ */
+export interface CaptureChoice {
+  /**
+   * True to bring the session back with no SpecStory wrapper. A row that was
+   * never captured ignores it: main returns the recorded command and writes
+   * nothing, and the renderer does not offer the verb for such a row.
+   */
+  withoutCapture?: boolean;
+}
+
 /** New invoke channels appended by the restore stream. */
 export interface RestoreInvokeChannelMap {
   /**
@@ -29,7 +66,10 @@ export interface RestoreInvokeChannelMap {
    * executed (armed). Resolves to the refreshed Session (status 'running').
    * Idempotent for already-live sessions.
    */
-  'sessions:restore': { req: [sessionId: string]; res: RestoreSession };
+  'sessions:restore': {
+    req: [sessionId: string, options?: CaptureChoice];
+    res: RestoreSession;
+  };
   /** Read the 'Launch gmux at login' state (app.getLoginItemSettings). */
   'app:getLoginItem': { req: []; res: { openAtLogin: boolean } };
   /**
@@ -44,8 +84,16 @@ export interface RestoreInvokeChannelMap {
  * (`typeof window.gmux.sessions.restore === 'function'`).
  */
 export interface GmuxSessionRestoreExtras {
-  /** Restore a 'restorable' session with an armed resume command. */
-  restore?(sessionId: string): Promise<RestoreSession>;
+  /**
+   * Restore a 'restorable' session with an armed resume command.
+   *
+   * Phase 119: pass `{ withoutCapture: true }` to bring it back with SpecStory
+   * turned off. See {@link CaptureChoice} for what that changes on the row.
+   */
+  restore?(
+    sessionId: string,
+    options?: CaptureChoice
+  ): Promise<RestoreSession>;
 }
 
 /** OPTIONAL top-level extras on window.gmux (login item), feature-detected. */
@@ -143,7 +191,10 @@ export interface DurabilityInvokeChannelMap {
    * Resolves to the replacement. Rejects with the create's own typed error and
    * nothing removed, which is the whole point.
    */
-  'sessions:restart': { req: [sessionId: string]; res: RestoreSession };
+  'sessions:restart': {
+    req: [sessionId: string, options?: CaptureChoice];
+    res: RestoreSession;
+  };
 }
 
 /**
@@ -165,7 +216,15 @@ export interface GmuxNoticeExtras {
  * ordering right but cannot carry the launch flags.
  */
 export interface GmuxSessionRestartExtras {
-  restart?(sessionId: string): Promise<RestoreSession>;
+  /**
+   * Phase 119: pass `{ withoutCapture: true }` for a replacement that does not
+   * save its history. Nothing is flipped on the old row, because the old row
+   * is discarded and the replacement is born bare.
+   */
+  restart?(
+    sessionId: string,
+    options?: CaptureChoice
+  ): Promise<RestoreSession>;
 }
 
 // ---------------------------------------------------------------------------

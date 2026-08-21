@@ -74,7 +74,7 @@ vi.mock('../../specstory', async (importActual) => {
   };
 });
 
-const { restoreSessionInTmux } = await import('../restore');
+const { DECLINE_UNWRAP_FAILED, restoreSessionInTmux } = await import('../restore');
 const { specstoryQuoteArgv } = await import('../../specstory/wrap');
 
 let root = '';
@@ -205,5 +205,89 @@ describe('restore of a captured session', () => {
     const out = armed(await restoreSessionInTmux(rec(dead)));
     expect(out.armedCommand).toBe('claude --resume abc-123');
     expect(out.armedCommand).not.toContain('specstory');
+  });
+
+  it('reports no decline on any of the ladder’s own arms', async () => {
+    const bin = fakeBin('specstory');
+    const out = armed(await restoreSessionInTmux(rec(bin)));
+    // The flip in sessions/core.ts is written on this field and on nothing
+    // else, so an arm that heals a binary must never set it: healing is
+    // Tortie's own repair, and it leaves the person's capture setting alone.
+    expect(out.captureDeclined).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 119. The decline is a fourth answer, not a fifth rung of the ladder
+// above. It never resolves a binary, never re-wraps, and it reaches none of
+// the arms above, because the person asked for the opposite of what they do.
+// ---------------------------------------------------------------------------
+
+describe('a restore that declines capture', () => {
+  it('arms the bare agent command while the recorded binary is right there', async () => {
+    const bin = fakeBin('specstory');
+    const out = armed(
+      await restoreSessionInTmux(rec(bin), { withoutCapture: true })
+    );
+    expect(out.armedCommand).toBe('claude --resume abc-123');
+    expect(out.armedCommand).not.toContain(bin);
+    expect(out.armedCommand).not.toContain('specstory');
+    expect(armedText()).toBe('claude --resume abc-123');
+    expect(out.captureDeclined).toBe(true);
+  });
+
+  it('never resolves a SpecStory binary to re-wrap under', async () => {
+    const bin = fakeBin('specstory');
+    // A resolvable copy is sitting right here. The healing arm would re-wrap
+    // under it; the decline must not even look.
+    resolved = fakeBin('specstory-new');
+    const out = armed(
+      await restoreSessionInTmux(rec(bin), { withoutCapture: true })
+    );
+    expect(out.armedCommand).not.toContain(resolved);
+    expect(out.armedCommand).toBe('claude --resume abc-123');
+  });
+
+  it('is a no-op on a row that was never captured', async () => {
+    const bin = fakeBin('specstory');
+    const plain: ManifestSessionRecord = {
+      ...rec(bin),
+      resumeArgv: ['claude', '--resume', 'abc-123']
+    };
+    delete plain.specstory;
+    const out = armed(
+      await restoreSessionInTmux(plain, { withoutCapture: true })
+    );
+    expect(out.armedCommand).toBe('claude --resume abc-123');
+    // Nothing was declined, because there was nothing to decline. A row with
+    // no capture record must never carry the flip.
+    expect(out.captureDeclined).toBeUndefined();
+  });
+
+  it('arms NOTHING when the recorded command cannot be taken apart', async () => {
+    const bin = fakeBin('specstory');
+    // `-c` is the last word, so there is no command string after it to split.
+    const unsplittable: ManifestSessionRecord = {
+      ...rec(bin),
+      resumeArgv: [bin, 'run', 'claude', '--silent', '-c']
+    };
+    const out = await restoreSessionInTmux(unsplittable, {
+      withoutCapture: true
+    });
+    if (out.kind === 'failed' || out.kind === 'armed') {
+      throw new Error(`expected an unarmed restore, got ${out.kind}`);
+    }
+    // Arming the recorded line would run the very wrapper the person just
+    // declined, so nothing is typed at all.
+    expect(armedText()).not.toContain(bin);
+    expect(out.armFailure).toBe(DECLINE_UNWRAP_FAILED);
+    expect(out.captureDeclined).toBeUndefined();
+  });
+
+  it('leaves the ordinary restore alone when the option is omitted', async () => {
+    const bin = fakeBin('specstory');
+    const out = armed(await restoreSessionInTmux(rec(bin)));
+    expect(out.armedCommand).toContain(`${bin} run claude`);
+    expect(out.captureDeclined).toBeUndefined();
   });
 });

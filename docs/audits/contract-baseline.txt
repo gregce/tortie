@@ -371,7 +371,7 @@ GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
-[harness.smoke.modes] count=30
+[harness.smoke.modes] count=31
 agent
 basic
 capture
@@ -396,6 +396,7 @@ reconstruct
 refusal
 remote-matrix
 remote-sessions
+restore-bare
 shadow
 shim
 shutdown-refusal

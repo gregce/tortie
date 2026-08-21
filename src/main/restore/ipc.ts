@@ -31,8 +31,11 @@ import { registerAskRestoreProject } from './ask-open-project';
 import { getLoginItemState, setLoginItemState } from './login-item';
 
 export function registerRestoreIpc(ipc: IpcMain): void {
-  handle(ipc, 'sessions:restore', async (_e, sessionId) =>
-    (await getGmuxCore()).restoreSession(sessionId)
+  // Phase 119: the second argument is the capture choice, and it is passed
+  // straight through. An old renderer sends nothing and gets the ordinary
+  // restore, which is what it has always got.
+  handle(ipc, 'sessions:restore', async (_e, sessionId, options) =>
+    (await getGmuxCore()).restoreSession(sessionId, options)
   );
 
   handle(ipc, 'sessions:discard', async (_e, sessionId) => {

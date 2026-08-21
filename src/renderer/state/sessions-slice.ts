@@ -21,6 +21,7 @@ import type {
 } from '@shared/types';
 import type {
   AskRestoreProjectAnswer,
+  CaptureChoice,
   GmuxActivityExtras,
   GmuxAskRestoreProjectExtras,
   GmuxMachinesExtras,
@@ -38,7 +39,12 @@ import type {
 import { REMOTE_SESSION_LINES_DEFAULT } from '@shared/ipc';
 // Pure over Session fields; resume.ts imports only types and state/agents,
 // and agents.ts does not import this store, so no cycle closes here.
-import { pastRestoreNeedsAsk, resumeReadiness } from '../app/resume';
+import {
+  bareRestartConfirm,
+  bareRestoreConfirm,
+  pastRestoreNeedsAsk,
+  resumeReadiness
+} from '../app/resume';
 // Every sentence about a machine comes from one file, which is the one the
 // vocabulary audit reads.
 import { remoteTabOpened } from '../app/machine-copy';
@@ -166,7 +172,12 @@ export interface SessionsSlice {
   quickCreate(agent: LaunchableAgentKind): Promise<void>;
   renameSession(sessionId: string, name: string): Promise<void>;
   endSession(sessionId: string): void;
-  restartSession(sessionId: string): Promise<void>;
+  /**
+   * PHASE 119. `options.withoutCapture` starts the replacement with SpecStory
+   * turned off, whatever the old row's capture setting says. Omitted is every
+   * restart before this release, byte for byte.
+   */
+  restartSession(sessionId: string, options?: CaptureChoice): Promise<void>;
   removeSession(sessionId: string): Promise<void>;
   /** Whether the optional sessions:discard bridge method exists. */
   canDiscard(): boolean;
@@ -195,8 +206,13 @@ export interface SessionsSlice {
   /**
    * Restore one 'restorable' session: recreate it in tmux with its saved
    * scrollback replayed and the resume command ARMED (typed, not run).
+   *
+   * PHASE 119. `options.withoutCapture` brings the session back with SpecStory
+   * turned off and writes that choice onto the row, so a later restore is bare
+   * too. It asks first, because Tortie offers no way to turn saving back on.
+   * Omitted is every restore before this release, byte for byte.
    */
-  restoreSession(sessionId: string): Promise<void>;
+  restoreSession(sessionId: string, options?: CaptureChoice): Promise<void>;
   /** Restore every restorable session in the active project (sequential). */
   restoreAllSessions(): Promise<void>;
   // -- past sessions (Phase 29) -----------------------------------------------
@@ -474,6 +490,150 @@ export const createSessionsSlice: StateCreator<
     const api = window.gmux as typeof window.gmux | undefined;
     if (api === undefined) return null;
     return (api as typeof api & GmuxMachinesExtras).machines ?? null;
+  };
+
+  /**
+   * PHASE 119. The one restore runner, shared by the ordinary restore and the
+   * declined one, so the in-flight guard, the active-session switch and the
+   * error handling exist once. `withoutCapture` changes exactly two things: the
+   * option it sends to main, and which sentence the toast carries.
+   */
+  const runRestore = async (
+    restore: NonNullable<GmuxSessionRestoreExtras['restore']>,
+    session: Session,
+    withoutCapture: boolean
+  ): Promise<void> => {
+    const sessionId = session.id;
+    if (get().restoringIds[sessionId] === true) return;
+    set((s) => ({
+      restoringIds: { ...s.restoringIds, [sessionId]: true }
+    }));
+    try {
+      const restored = await restore(
+        sessionId,
+        withoutCapture ? { withoutCapture: true } : undefined
+      );
+      get().setActiveSession(restored.id);
+      const armed = (session.resumeArgv?.length ?? 0) > 0;
+      // The decline is claimed only when the row proves it took. Main leaves
+      // the capture setting alone in the one case it cannot honour the
+      // request, which is a recorded resume command it cannot separate from
+      // SpecStory, and the returned row still carries its capture there. Saying
+      // "no longer saves its history" about that row would be false, so this
+      // reads the answer back rather than repeating the request.
+      const declined =
+        withoutCapture &&
+        session.capture !== undefined &&
+        restored.capture === undefined;
+      if (declined) {
+        get().toast(
+          'success',
+          armed
+            ? `'${session.name}' is back and no longer saves its history. Press Enter in the terminal to resume the conversation.`
+            : `'${session.name}' is back and no longer saves its history.`
+        );
+        return;
+      }
+      // PHASE 119 FIX ROUND. THE DECLINE MAIN COULD NOT HONOUR, and it is the
+      // only path in this runner that reads `restored.restore`.
+      //
+      // Main writes one sentence for it, being "Tortie could not separate this
+      // session's resume command from SpecStory, so nothing was armed in the
+      // pane." Before this round that sentence went to the main log and to the
+      // row's `restore.armFailure` column, and no renderer file read either
+      // one. The person got the ordinary success toast instead, which told
+      // them to press Enter to resume a conversation that was never armed,
+      // while a separate sticky toast said the session came back without its
+      // agent. The two disagreed and the first one was false.
+      //
+      // The sentence is not rewritten here. Main is the one author of it, so
+      // echoing the column is what keeps the log and the screen saying the
+      // same thing. The gate is `withoutCapture` plus a row that was captured,
+      // so an ordinary restore's arm failure still takes the path it always
+      // took and nothing about the ordinary restore moved.
+      const declineFailure =
+        withoutCapture && session.capture !== undefined
+          ? restored.restore?.armFailure
+          : undefined;
+      if (declineFailure !== undefined) {
+        get().toast('error', declineFailure, { sticky: true });
+        return;
+      }
+      get().toast(
+        'success',
+        armed
+          ? `'${session.name}' restored — press Enter in the terminal to resume the conversation.`
+          : `'${session.name}' restored.`
+      );
+    } catch (err) {
+      get().toast('error', errorText(err), { sticky: true });
+    } finally {
+      set((s) => {
+        const restoringIds = { ...s.restoringIds };
+        delete restoringIds[sessionId];
+        return { restoringIds };
+      });
+    }
+  };
+
+  /**
+   * PHASE 119. The one restart runner, for the same reason. The four-step
+   * order below is Phase 19 item 8 and nothing about it moved: nothing is
+   * discarded until the replacement exists.
+   */
+  const runRestart = async (
+    session: Session,
+    withoutCapture: boolean
+  ): Promise<void> => {
+    const api = gmux;
+    if (!api) return;
+    try {
+      if (typeof sessionExtras?.restart === 'function') {
+        const created = await sessionExtras.restart(
+          session.id,
+          withoutCapture ? { withoutCapture: true } : undefined
+        );
+        get().setActiveSession(created.id);
+        if (withoutCapture) {
+          get().toast(
+            'success',
+            `'${session.name}' started fresh and does not save its history.`
+          );
+        }
+        return;
+      }
+      // PHASE 90.3. The fallback below sends no machine, so it would start a
+      // process on THIS Mac in a folder path that names a folder over there.
+      // A session on a machine is restarted by main, through the extra above,
+      // or not at all.
+      if (session.machine !== undefined) return;
+      const created = await api.sessions.create({
+        name: session.name,
+        projectPath: session.projectPath,
+        cwd: session.cwd,
+        agent: session.agent,
+        // The capture choice is the one setting the projection does carry.
+        // PHASE 119: a declined restart drops it, which is the whole verb on
+        // this path. An older preload cannot carry the option to main, and it
+        // does not need to, because this branch composes the create itself.
+        ...(!withoutCapture && session.capture !== undefined
+          ? { capture: true }
+          : {})
+      });
+      // Only now. A discard before this line is the defect.
+      if (typeof sessionExtras?.discard === 'function') {
+        await sessionExtras.discard(session.id);
+      }
+      get().setActiveSession(created.id);
+      if (withoutCapture) {
+        get().toast(
+          'success',
+          `'${session.name}' started fresh and does not save its history.`
+        );
+      }
+    } catch (err) {
+      get().toast('error', errorText(err), { sticky: true });
+    }
   };
 
   return {
@@ -848,36 +1008,25 @@ export const createSessionsSlice: StateCreator<
      * window reload. The fallback below keeps the ordering right against an
      * older preload but cannot carry the flags.
      */
-    async restartSession(sessionId) {
+    async restartSession(sessionId, options) {
       const session = get().sessions.find((x) => x.id === sessionId);
       if (!session || !gmux) return;
-      try {
-        if (typeof sessionExtras?.restart === 'function') {
-          const created = await sessionExtras.restart(sessionId);
-          get().setActiveSession(created.id);
-          return;
-        }
-        // PHASE 90.3. The fallback below sends no machine, so it would start a
-        // process on THIS Mac in a folder path that names a folder over there.
-        // A session on a machine is restarted by main, through the extra above,
-        // or not at all.
-        if (session.machine !== undefined) return;
-        const created = await gmux.sessions.create({
-          name: session.name,
-          projectPath: session.projectPath,
-          cwd: session.cwd,
-          agent: session.agent,
-          // The capture choice is the one setting the projection does carry.
-          ...(session.capture !== undefined ? { capture: true } : {})
+      // PHASE 119. The declined restart asks first, for the same reason the
+      // declined restore does. The replacement is bare from birth and there is
+      // no way to turn saving back on for it.
+      if (options?.withoutCapture === true) {
+        const ask = bareRestartConfirm(session);
+        get().setConfirm({
+          title: ask.title,
+          body: ask.body,
+          confirmLabel: ask.confirmLabel,
+          onConfirm: () => {
+            void runRestart(session, true);
+          }
         });
-        // Only now. A discard before this line is the defect.
-        if (typeof sessionExtras?.discard === 'function') {
-          await sessionExtras.discard(sessionId);
-        }
-        get().setActiveSession(created.id);
-      } catch (err) {
-        get().toast('error', errorText(err), { sticky: true });
+        return;
       }
+      await runRestart(session, false);
     },
 
     async removeSession(sessionId) {
@@ -926,33 +1075,31 @@ export const createSessionsSlice: StateCreator<
       set({ shellPathReady: true });
     },
 
-    async restoreSession(sessionId) {
+    async restoreSession(sessionId, options) {
       if (typeof sessionExtras?.restore !== 'function') return;
       const restore = sessionExtras.restore.bind(sessionExtras);
       const session = get().sessions.find((x) => x.id === sessionId);
       if (!session || get().restoringIds[sessionId] === true) return;
-      set((s) => ({
-        restoringIds: { ...s.restoringIds, [sessionId]: true }
-      }));
-      try {
-        const restored = await restore(sessionId);
-        get().setActiveSession(restored.id);
-        const armed = (session.resumeArgv?.length ?? 0) > 0;
-        get().toast(
-          'success',
-          armed
-            ? `'${session.name}' restored — press Enter in the terminal to resume the conversation.`
-            : `'${session.name}' restored.`
-        );
-      } catch (err) {
-        get().toast('error', errorText(err), { sticky: true });
-      } finally {
-        set((s) => {
-          const restoringIds = { ...s.restoringIds };
-          delete restoringIds[sessionId];
-          return { restoringIds };
+      // PHASE 119. The declined restore asks first. The choice is written onto
+      // the row by main and Tortie offers no way to turn saving back on, so the
+      // person reads that before the button, not after it. Everything after the
+      // answer is the ordinary restore, called with one option, so there is one
+      // restore path and not two.
+      if (options?.withoutCapture === true) {
+        const ask = bareRestoreConfirm(session);
+        get().setConfirm({
+          title: ask.title,
+          body: ask.body,
+          confirmLabel: ask.confirmLabel,
+          // Not destructive. Nothing on disk is deleted and a red button would
+          // say otherwise.
+          onConfirm: () => {
+            void runRestore(restore, session, true);
+          }
         });
+        return;
       }
+      await runRestore(restore, session, false);
     },
 
     async restoreAllSessions() {

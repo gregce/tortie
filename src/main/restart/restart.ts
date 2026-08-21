@@ -46,8 +46,17 @@
  * The refusal is in main rather than in the renderer because three renderer
  * surfaces draw Restart and a fourth one would miss the guard. Nothing is
  * created and nothing is discarded, because the check runs before step 2.
+ *
+ * PHASE 119 ADDED THE ONE OPTION THIS FUNCTION TAKES. A person can ask for the
+ * replacement to come back with SpecStory turned off, and that answer outranks
+ * the old row's capture setting. The four step order is untouched, the old row
+ * is discarded exactly as it always was, and nothing is written back to it,
+ * because the replacement is bare from birth and there is no setting left to
+ * flip. `RestartOutcome.capture` reports what happened rather than what the old
+ * row said.
  */
 
+import type { CaptureChoice } from '@shared/ipc';
 import type { CreateSessionInput, Session } from '@shared/types';
 import type { ManifestSessionRecord } from '../manifest/store';
 import { recoverLaunchExtras } from './extras';
@@ -88,7 +97,13 @@ export interface RestartOutcome {
   extras: readonly string[];
   /** False when the old argv matched no known launch shape — see ./extras. */
   extrasRecovered: boolean;
-  /** True when the replacement was asked to run under SpecStory capture. */
+  /**
+   * True when the replacement was asked to run under SpecStory capture.
+   *
+   * Phase 119: this reports what HAPPENED, not what the old row said. A
+   * restart that declined capture reports false even though the old row
+   * recorded a capture.
+   */
   capture: boolean;
   /** True when a live tmux session had to be stopped first. */
   killedOld: boolean;
@@ -100,7 +115,8 @@ export interface RestartOutcome {
  */
 export async function restartSession(
   host: RestartHost,
-  sessionId: string
+  sessionId: string,
+  options: CaptureChoice = {}
 ): Promise<RestartOutcome> {
   const rec = host.manifest.getSession(sessionId);
   if (rec === undefined) {
@@ -127,7 +143,13 @@ export async function restartSession(
   // The capture choice, read from the row rather than from the argv: a
   // wrapped argv proves capture was applied, and this field is what Phase 15
   // records the request as.
-  const capture = rec.specstory?.enabled === true;
+  //
+  // PHASE 119. A person can ask for the replacement to come back with SpecStory
+  // turned off, and that answer outranks the old row. Nothing is written back
+  // to the old row, because step 4 discards it: the replacement is bare from
+  // birth and there is no setting left to flip.
+  const declined = options.withoutCapture === true;
+  const capture = !declined && rec.specstory?.enabled === true;
 
   // PHASE 84. This composition drops `machineId` on the floor, and that is now
   // safe rather than lucky, because the refusal above means every row reaching
@@ -167,6 +189,13 @@ export async function restartSession(
   // STEP 4, and not one step earlier.
   host.discardSession(sessionId);
   host.broadcastSessions();
+
+  if (declined && rec.specstory?.enabled === true) {
+    restartLog.warn(
+      `restart: '${rec.name}' came back without SpecStory at the person's ` +
+        'request, so the new session does not save its history.'
+    );
+  }
 
   if (recovered === null) {
     restartLog.warn(

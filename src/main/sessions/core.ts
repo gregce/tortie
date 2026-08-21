@@ -24,6 +24,7 @@ import { join, resolve as resolvePath } from 'node:path';
 import type {
   AddRemoteProjectInput,
   AddRemoteProjectResult,
+  CaptureChoice,
   TerminalScrollByInput,
   TerminalScrollPollInput,
   TerminalScrollState,
@@ -155,6 +156,7 @@ import {
   SyncQueue,
   captureRefusedOnMachine,
   cloudDisabledByEnv,
+  unwrapArgv,
   wrapForCapture,
   wrapWithRecord,
   type SpecstoryCaptureRecord,
@@ -1590,16 +1592,22 @@ export class GmuxCore {
    * assigned (Phase 19 item 6). See {@link restoredStatus} for why `running`
    * is not one of the answers.
    */
-  restoreSession(sessionId: string): Promise<Session> {
+  restoreSession(
+    sessionId: string,
+    options: CaptureChoice = {}
+  ): Promise<Session> {
     // Phase 116: refused once shutdown starts, joined by the quit path when
     // admitted before it. A restore spawns locally or execs remotely, and
     // neither may begin against a core that is being disposed.
     return this.admit('restoreSession', () =>
-      this.restoreSessionAdmitted(sessionId)
+      this.restoreSessionAdmitted(sessionId, options)
     );
   }
 
-  private async restoreSessionAdmitted(sessionId: string): Promise<Session> {
+  private async restoreSessionAdmitted(
+    sessionId: string,
+    options: CaptureChoice = {}
+  ): Promise<Session> {
     // PHASE 72, and it is the first branch on purpose. A session on another
     // machine takes a different path entirely: a different composer, a
     // different transport, a different set of conditions in front of it, and
@@ -1692,7 +1700,10 @@ export class GmuxCore {
         // holding a session it had no record of creating.
         onCreated: (created) => {
           this.manifest.noteRestoreTmuxId(attempt, created.sessionId);
-        }
+        },
+        // PHASE 119. Passed through unchanged. Omitted, which is every caller
+        // before this phase, the restore composes exactly what it always did.
+        ...(options.withoutCapture === true ? { withoutCapture: true } : {})
       });
       const result = restoreRecordOf(outcome);
       if (outcome.kind === 'failed') {
@@ -1715,6 +1726,34 @@ export class GmuxCore {
       // `info` is unreachable on the failed arm, which is what makes dropping
       // the stage results a compile error rather than a silent regression.
       const { info } = outcome;
+
+      // PHASE 119. THE DURABLE FLIP, and it is written only here.
+      //
+      // `captureDeclined` is set by the restore only when a person asked for it
+      // AND the bare command was actually armed, so a decline that could not be
+      // honoured never turns a person's history saving off. The failed arm
+      // threw above this line, so a restore that never happened cannot reach
+      // it either.
+      //
+      // WHY IT IS DURABLE rather than one shot. The harvest re-wraps the resume
+      // argv from `rec.specstory` on every id it lands, so a one shot decline
+      // would be undone by the next harvest and the person would have to
+      // decline again on every restore. That is not insurance.
+      //
+      // WHY THE RECORD IS KEPT WITH `enabled: false` rather than deleted. It
+      // still holds `agentArgv`, which `recoverLaunchExtras` reads to give a
+      // later Restart this session's launch flags back, and it keeps the fact
+      // that this session was once captured.
+      //
+      // It is a second write, before the one durable restore commit below. A
+      // crash between them leaves the row bare with no restore result, which is
+      // the direction the person asked for.
+      if (outcome.captureDeclined === true && rec.specstory !== undefined) {
+        this.manifest.updateSession(sessionId, {
+          specstory: { ...rec.specstory, enabled: false },
+          resumeArgv: unwrapArgv(rec.resumeArgv ?? [])
+        });
+      }
       // DERIVED, never assigned. See restoredStatus: 'running' is not one of
       // the answers, and the record of what came back is stored beside it so
       // the renderer never has to infer it from the presence of resumeArgv.

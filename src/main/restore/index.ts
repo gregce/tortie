@@ -31,9 +31,13 @@ export {
 } from './snapshots';
 
 export {
+  armableResume,
   armableResumeArgv,
   restoreRecordOf,
   restoreSessionInTmux,
+  DECLINE_UNWRAP_FAILED,
+  type ArmableResume,
+  type ArmableResumeOptions,
   type RestoreOutcome,
   type RestoreSessionOptions,
   type RestoreSuccess

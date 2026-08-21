@@ -283,3 +283,81 @@ describe('a session that runs on another machine', () => {
     expect(f.calls).toEqual(['create', 'discard', 'broadcast']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// PHASE 119. A restart can decline capture, and the answer outranks the old
+// row. Nothing is flipped on that row, because step 4 discards it: the
+// replacement is bare from birth and there is no setting left to change.
+// ---------------------------------------------------------------------------
+
+/** A row whose capture record says the original saved its history. */
+function captured(): ManifestSessionRecord {
+  return record({
+    specstory: {
+      enabled: true,
+      provider: 'shell',
+      bin: '/opt/specstory',
+      binVersion: null,
+      agentArgv: ['/bin/zsh', '-l', '-c', 'htop'],
+      exitCodeFidelity: 'exact'
+    } as ManifestSessionRecord['specstory'],
+    argv: ['/bin/zsh', '-l', '-c', 'htop']
+  });
+}
+
+describe('a restart that declines capture', () => {
+  it('sends no capture key at all, whatever the old row said', async () => {
+    const f = captured();
+    const h = fake(f);
+    const out = await restartSession(h.host, SESSION_ID, {
+      withoutCapture: true
+    });
+    // Absent, not false. `capture: false` is a shape the create path has never
+    // been sent, and main reads exactly `=== true`.
+    expect(h.created[0] && 'capture' in h.created[0]).toBe(false);
+    expect(out.capture).toBe(false);
+  });
+
+  it('keeps the four step order and the launch flags', async () => {
+    const h = fake(captured());
+    const out = await restartSession(h.host, SESSION_ID, {
+      withoutCapture: true
+    });
+    expect(h.calls).toEqual(['create', 'discard', 'broadcast']);
+    expect(out.extrasRecovered).toBe(true);
+    expect(h.created[0]?.extraArgs).toEqual(['-c', 'htop']);
+  });
+
+  it('says in the log that the person asked for it', async () => {
+    const h = fake(captured());
+    await restartSession(h.host, SESSION_ID, { withoutCapture: true });
+    const line = warned.join('\n');
+    expect(line).toContain('came back without SpecStory');
+    expect(line).toContain('does not save its history');
+  });
+
+  it('says nothing when the old row was not captured anyway', async () => {
+    const h = fake(record());
+    const out = await restartSession(h.host, SESSION_ID, {
+      withoutCapture: true
+    });
+    expect(out.capture).toBe(false);
+    expect(warned.join('\n')).not.toContain('came back without SpecStory');
+  });
+
+  it('leaves the ordinary restart alone when the option is omitted', async () => {
+    const h = fake(captured());
+    const out = await restartSession(h.host, SESSION_ID);
+    expect(h.created[0]?.capture).toBe(true);
+    expect(out.capture).toBe(true);
+    expect(warned.join('\n')).not.toContain('came back without SpecStory');
+  });
+
+  it('refuses a row on another machine before it reads the option', async () => {
+    const h = fake(record({ machineId: 'mac-mini' }));
+    await expect(
+      restartSession(h.host, SESSION_ID, { withoutCapture: true })
+    ).rejects.toThrow(RESTART_ON_MACHINE);
+    expect(h.calls).toEqual([]);
+  });
+});

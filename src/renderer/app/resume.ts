@@ -276,3 +276,130 @@ export function restoreActionCopy(session: Session): string {
   if (reason === null) return folder;
   return `${folder} The conversation itself will not come back — ${reason}.`;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 119 — decline capture on restore, the insurance verb.
+//
+// A captured session is launched under SpecStory, so its recorded resume
+// command names the SpecStory binary first and the agent after it. When that
+// wrapper cannot run, the session's conversation is locked behind a program
+// that is not the agent. Phase 115 fixed the wrapper that was broken, and the
+// binary on disk works today. This verb is what a person reaches for the NEXT
+// time a wrapper breaks: bring the session back with SpecStory turned off.
+//
+// Everything a person reads about that choice is written here, in one place,
+// because two surfaces offer it. The full-window ended card offers the restore
+// half as a button. The native session context menu offers both halves as
+// rows. A drifted sentence between the two would be a second answer to the
+// same question.
+//
+// Tone follows the rest of this module. Nothing below says or implies that
+// something is broken right now, and nothing is coloured as an error. The
+// choice is durable and Tortie offers no way back, so the confirm says that
+// plainly before the person presses the button.
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether this session may be brought back without SpecStory.
+ *
+ * Three facts, all read from the row itself.
+ *
+ *  - It runs on this Mac. A session on another machine is never captured,
+ *    because Phase 91 refuses capture on a machine, so the verb would have
+ *    nothing to decline.
+ *  - It is captured. `session.capture` is set by main's projection only while
+ *    the row's capture record is enabled, so the verb disappears by itself the
+ *    moment the choice is made. That disappearance is the feedback that the
+ *    choice took, and it needs no extra state in the renderer.
+ *  - It has ended. There is nothing to restore or restart while it runs.
+ *
+ * One predicate, exported once, read by both surfaces so they cannot drift.
+ */
+export function offersBareRecovery(session: Session): boolean {
+  return (
+    session.machine === undefined &&
+    session.capture !== undefined &&
+    (session.status === 'exited' || session.status === 'restorable')
+  );
+}
+
+/**
+ * The card note, drawn under the ended card's body copy when the bare verb is
+ * offered. Three sentences and one thing in each of them. It states no urgency
+ * and it names no failure, because nothing has failed.
+ */
+export const BARE_RECOVERY_NOTE =
+  'This session saves its history with SpecStory. You can bring it back ' +
+  'without that. The conversation still comes back and Tortie stops saving ' +
+  "this session's history.";
+
+/** The label both surfaces use for the declined restore. */
+export const BARE_RESTORE_LABEL = 'Restore without saving history';
+
+/**
+ * The grey second line under the native menu row. A native menu carries no
+ * tooltip, so this slot is the only room the menu has for prose.
+ */
+export const BARE_RESTORE_SUBLABEL =
+  'The conversation comes back. SpecStory stops saving this session.';
+
+/** The label the native menu uses for the declined restart. */
+export const BARE_RESTART_LABEL = 'Restart without saving history';
+
+/** The grey second line under that row. */
+export const BARE_RESTART_SUBLABEL =
+  'A fresh session with the same name and directory, and no saving.';
+
+/** What a confirm dialog needs. Shaped for the store's `setConfirm`. */
+export interface BareRecoveryConfirm {
+  title: string;
+  body: string;
+  confirmLabel: string;
+}
+
+/**
+ * The confirm shown before a declined restore.
+ *
+ * It is confirmed because the choice is durable and Tortie offers no way to
+ * turn saving back on for this session. It is NOT marked destructive: nothing
+ * on disk is deleted, and a red button would say otherwise.
+ *
+ * The body has two forms. A row with an armed resume command is told that the
+ * command is armed and that pressing Enter runs it. A row without one is told
+ * that nothing is armed, in its own sentence, rather than reading a hedge
+ * inside a sentence about something else.
+ */
+export function bareRestoreConfirm(session: Session): BareRecoveryConfirm {
+  const armed = (session.resumeArgv?.length ?? 0) > 0;
+  const middle = armed
+    ? 'It arms the command that continues the conversation, and you press ' +
+      'Enter to run it.'
+    : 'This session has no recorded command to continue its conversation, ' +
+      'so nothing is armed for you to press Enter on.';
+  return {
+    title: `Restore '${session.name}' without saving history?`,
+    confirmLabel: 'Restore',
+    body:
+      'Tortie brings back the saved output and the directory. ' +
+      middle +
+      " SpecStory stops saving this session's history to the project " +
+      'folder. The history it already saved stays where it is. Tortie does ' +
+      'not offer a way to turn saving back on for this session.'
+  };
+}
+
+/**
+ * The confirm shown before a declined restart. One body, because a restart
+ * never brings a conversation back and there is no branch to draw.
+ */
+export function bareRestartConfirm(session: Session): BareRecoveryConfirm {
+  return {
+    title: `Restart '${session.name}' without saving history?`,
+    confirmLabel: 'Restart',
+    body:
+      'Tortie starts a fresh session with the same name, the same directory ' +
+      'and the same launch options. The conversation does not come back, ' +
+      'which is what Restart always does. SpecStory does not save the new ' +
+      "session's history. The history it already saved stays where it is."
+  };
+}

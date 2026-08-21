@@ -134,12 +134,32 @@ export type RestoreOutcome =
       replayFailure?: string;
       /** Why the resume was not armed. Undefined means there was none. */
       armFailure?: string;
+      /**
+       * PHASE 119. True when this restore honoured `withoutCapture` and armed
+       * the bare agent command instead of the recorded wrapped one.
+       *
+       * The caller writes the durable flip on this field and on nothing else.
+       * It is absent on every ordinary restore, and absent when the decline
+       * could not be honoured, which is what keeps a failed decline from
+       * quietly turning off a person's history saving.
+       */
+      captureDeclined?: true;
     }
   | {
       kind: 'transcript';
       info: tmux.TmuxSessionInfo;
       /** Why the resume was not armed. Undefined means there was none. */
       armFailure?: string;
+      /**
+       * PHASE 119. True when this restore honoured `withoutCapture` and armed
+       * the bare agent command instead of the recorded wrapped one.
+       *
+       * The caller writes the durable flip on this field and on nothing else.
+       * It is absent on every ordinary restore, and absent when the decline
+       * could not be honoured, which is what keeps a failed decline from
+       * quietly turning off a person's history saving.
+       */
+      captureDeclined?: true;
     }
   | {
       kind: 'armed';
@@ -164,6 +184,16 @@ export type RestoreOutcome =
        * `SessionRestore` would be where that goes.
        */
       versionDrift?: string;
+      /**
+       * PHASE 119. True when this restore honoured `withoutCapture` and armed
+       * the bare agent command instead of the recorded wrapped one.
+       *
+       * The caller writes the durable flip on this field and on nothing else.
+       * It is absent on every ordinary restore, and absent when the decline
+       * could not be honoured, which is what keeps a failed decline from
+       * quietly turning off a person's history saving.
+       */
+      captureDeclined?: true;
     };
 
 /** The three arms that created a tmux session. */
@@ -188,6 +218,18 @@ export interface RestoreSessionOptions {
    * and losing the restore over a bookkeeping error would be the larger loss.
    */
   onCreated?: (info: tmux.TmuxSessionInfo) => void;
+  /**
+   * PHASE 119. Bring this session back with SpecStory turned off.
+   *
+   * The default, and every caller before this phase, is the ordinary restore:
+   * the recorded command is armed exactly as recorded, and a captured session
+   * keeps capturing. With this true, a captured session's resume command is
+   * taken apart and the bare agent command is armed instead.
+   *
+   * A row that was never captured ignores it. Nothing is refused, because the
+   * recorded command is already the bare one and there is nothing to decline.
+   */
+  withoutCapture?: boolean;
 }
 
 /**
@@ -642,19 +684,113 @@ function buildDriftNoticeCommand(sentence: string): string {
  * Exported so the rename migration's harness can PROVE the first bullet
  * (`GMUX_SMOKE=migrate`, Phase 16.5a) against a row recorded under the old
  * bundle path, rather than asserting that it is handled.
+ *
+ * PHASE 119 made this a thin wrapper over {@link armableResume}, which is the
+ * same three rung ladder plus a fourth answer for a person who asked to come
+ * back without SpecStory. This signature and both of its callers are unchanged.
  */
 export async function armableResumeArgv(
   rec: ManifestSessionRecord
 ): Promise<string[]> {
+  return (await armableResume(rec)).argv;
+}
+
+/**
+ * PHASE 119. The one sentence a person reads when a decline could not be
+ * honoured. It names the thing that stopped rather than the code that stopped.
+ *
+ * WHERE IT GOES, corrected in this phase's fix round. It is written to the
+ * main log, it is stored on the outcome and travels to the renderer on the
+ * row's `restore.armFailure`, and `runRestore` in
+ * `src/renderer/state/sessions-slice.ts` shows it as a sticky error toast in
+ * place of the success toast. It is NOT the restore shortfall notice, which
+ * carries a stage and no sentence and speaks only once per app run.
+ */
+export const DECLINE_UNWRAP_FAILED =
+  "Tortie could not separate this session's resume command from SpecStory, " +
+  'so nothing was armed in the pane.';
+
+/** What {@link armableResume} was asked for. */
+export interface ArmableResumeOptions {
+  /**
+   * PHASE 119. Arm the bare agent command rather than the recorded wrapped
+   * one. See {@link RestoreSessionOptions.withoutCapture}.
+   */
+  withoutCapture?: boolean;
+}
+
+/** What {@link armableResume} decided. */
+export interface ArmableResume {
+  /**
+   * The argv to arm. Empty means arm nothing, which happens only when a
+   * decline was asked for and the recorded command could not be taken apart.
+   */
+  argv: string[];
+  /**
+   * True when the decline was honoured and `argv` is the bare agent command.
+   * The caller writes the durable capture flip on this and on nothing else.
+   */
+  captureDeclined: boolean;
+  /**
+   * One plain sentence, present only when a decline was asked for and could
+   * not be honoured. The caller reports it as the restore's arm failure.
+   */
+  declineFailure?: string;
+}
+
+/**
+ * The resume argv to ARM, and whether a person's decline of capture was
+ * honoured (Phase 119).
+ *
+ * {@link armableResumeArgv} is this function with the option omitted, which is
+ * the ordinary restore and is unchanged in every respect.
+ *
+ * THE DECLINE ARM, and why it is not the missing-binary arm with a different
+ * trigger. A missing binary is Tortie repairing something behind the person's
+ * back, so it prefers to keep capture running under whatever specstory it can
+ * find. A decline is the person asking for the opposite, so it never resolves
+ * a binary, never re-wraps, and never reaches the ladder below at all. When
+ * the recorded command cannot be taken apart it arms NOTHING, because arming
+ * the recorded line would run the very wrapper that was just declined.
+ */
+export async function armableResume(
+  rec: ManifestSessionRecord,
+  options: ArmableResumeOptions = {}
+): Promise<ArmableResume> {
   const recorded = [...(rec.resumeArgv ?? [])];
   const capture = rec.specstory;
-  if (
-    recorded.length === 0 ||
-    capture?.enabled !== true ||
-    !isWrappedArgv(recorded) ||
-    existsSync(capture.bin)
-  ) {
-    return recorded;
+  const wrappedCapture =
+    recorded.length > 0 && capture?.enabled === true && isWrappedArgv(recorded);
+
+  if (options.withoutCapture === true) {
+    // A row with nothing wrapped to decline is a no-op rather than a refusal.
+    // The recorded command is already the bare one, so honouring the request
+    // and doing nothing are the same answer, and nothing is flipped.
+    if (!wrappedCapture) return { argv: recorded, captureDeclined: false };
+
+    const declinedInner = unwrapArgv(recorded);
+    if (declinedInner.length === 0) {
+      restoreLog.warn(
+        `"${rec.name}": a restore without saving history was asked for and ` +
+          'the recorded resume command could not be separated from SpecStory. ' +
+          'Nothing was armed and the capture setting was left unchanged.'
+      );
+      return {
+        argv: [],
+        captureDeclined: false,
+        declineFailure: DECLINE_UNWRAP_FAILED
+      };
+    }
+    restoreLog.warn(
+      `"${rec.name}": restored without SpecStory at the person's request. ` +
+        'The armed command runs the agent directly and this session no ' +
+        'longer saves its history.'
+    );
+    return { argv: declinedInner, captureDeclined: true };
+  }
+
+  if (!wrappedCapture || capture === undefined || existsSync(capture.bin)) {
+    return { argv: recorded, captureDeclined: false };
   }
 
   const inner = unwrapArgv(recorded);
@@ -665,7 +801,7 @@ export async function armableResumeArgv(
       `"${rec.name}": recorded SpecStory binary is gone (${capture.bin}) ` +
         'and its resume command could not be unwrapped — arming it as recorded'
     );
-    return recorded;
+    return { argv: recorded, captureDeclined: false };
   }
 
   const { active } = await resolveSpecstory();
@@ -676,7 +812,7 @@ export async function armableResumeArgv(
         `"${rec.name}": recorded SpecStory binary is gone ` +
           `(${capture.bin}) — re-armed under ${active.path}, capture continues`
       );
-      return rewrapped;
+      return { argv: rewrapped, captureDeclined: false };
     }
   }
 
@@ -685,7 +821,9 @@ export async function armableResumeArgv(
       'and no SpecStory CLI is available — armed the agent directly, so this ' +
       'session resumes but is no longer captured'
   );
-  return inner;
+  // NOT a decline. Nothing was asked for, so nothing is flipped on the row:
+  // put the binary back and the next restore captures again.
+  return { argv: inner, captureDeclined: false };
 }
 
 /**
@@ -900,7 +1038,20 @@ export async function restoreSessionInTmux(
   let armedCommand: string | null = null;
   let armFailure: string | undefined;
   let versionDrift: string | undefined;
-  const armableArgv = await armableResumeArgv(rec);
+  // PHASE 119. The decision about the wrapper, and whether a decline was
+  // honoured, is made in one place and read here. `argv` is empty only when a
+  // decline was asked for and the recorded command could not be taken apart,
+  // and in that case `declineFailure` carries the sentence that says so.
+  const armable = await armableResume(rec, {
+    ...(options.withoutCapture === true ? { withoutCapture: true } : {})
+  });
+  const armableArgv = armable.argv;
+  if (armable.declineFailure !== undefined) {
+    armFailure = armable.declineFailure;
+  }
+  const captureDeclined = armable.captureDeclined
+    ? ({ captureDeclined: true } as const)
+    : {};
   const armed = buildArmedCommand(armableArgv);
   if (armed.length > 0) {
     // Phase 21, research 30 §2.4 D4. One sentence, printed above the armed
@@ -958,20 +1109,23 @@ export async function restoreSessionInTmux(
       info,
       armedCommand,
       ...(replayFailure !== undefined ? { replayFailure } : {}),
-      ...(versionDrift !== undefined ? { versionDrift } : {})
+      ...(versionDrift !== undefined ? { versionDrift } : {}),
+      ...captureDeclined
     };
   }
   if (replayed) {
     return {
       kind: 'transcript',
       info,
-      ...(armFailure !== undefined ? { armFailure } : {})
+      ...(armFailure !== undefined ? { armFailure } : {}),
+      ...captureDeclined
     };
   }
   return {
     kind: 'shell_only',
     info,
     ...(replayFailure !== undefined ? { replayFailure } : {}),
-    ...(armFailure !== undefined ? { armFailure } : {})
+    ...(armFailure !== undefined ? { armFailure } : {}),
+    ...captureDeclined
   };
 }

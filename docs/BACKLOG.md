@@ -6688,7 +6688,7 @@ capture.ts probe shapes against the real 2.10.0 binary, not against 2.8.0 memory
 **Release note.** This closes github issue 10 for the next release, and the operator may want to
 reply on the issue when it ships. That reply is his, not an agent's.
 
-## Phase 119 — decline capture on restore, the insurance verb (ruled out of Phase 115 by research 59) QUEUED, after Phase 115
+## Phase 119 — decline capture on restore, the insurance verb (ruled out of Phase 115 by research 59) ✅ SHIPPED 2026-08-21 (this commit, 0.62.0, gates green, both menu photographs read)
 
 **Subject:** `feat(restore): a captured session can come back bare, without its wrapper`
 **First body line:** `Phase 119: decline capture on restore`
@@ -14503,3 +14503,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 118 started, remote children are owned and removal is one transaction, in wt-p118
 - 2026-08-21, Phase 119 running, decline capture on restore, in wt-p119
 - 2026-08-21, NEXT AFTER 118 AND 119, the release the operator delegated once, then the issue closeout, then Phases 101 to 104, the writes
+- 2026-08-21, Phase 119 shipped, decline capture on restore, this commit, 0.62.0

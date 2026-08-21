@@ -24,7 +24,12 @@ import { statusVisual } from './status';
 import type { StatusVisual } from './status';
 import { displayPath, formatAge } from './format';
 import {
+  BARE_RESTART_LABEL,
+  BARE_RESTART_SUBLABEL,
+  BARE_RESTORE_LABEL,
+  BARE_RESTORE_SUBLABEL,
   hasRestoreMaterial,
+  offersBareRecovery,
   resumeMarkLabel,
   resumeNote,
   resumeReadiness
@@ -588,6 +593,12 @@ export function sessionMenuItems(
       ? machine.canRestore
       : status === 'restorable' ||
         (status === 'exited' && hasRestoreMaterial(session)));
+  // PHASE 119. The insurance verb, both halves. This is the surface the UI rule
+  // names, it is native, and its sublabel slot is the only room a menu has for
+  // the sentence that explains the row. The predicate is the one in resume.ts,
+  // read here and on the ended card so the two cannot drift: this Mac, a
+  // capture that is on, and a session that has ended.
+  const offersBare = offersBareRecovery(session);
 
   return [
     {
@@ -617,6 +628,40 @@ export function sessionMenuItems(
           {
             label: 'Restart',
             run: () => void useApp.getState().restartSession(session.id)
+          }
+        ]
+      : []),
+    // PHASE 119. The two bare rows sit after the two ordinary ones, because
+    // each is a variant of the verb above it and never a replacement for it.
+    // The restore half also needs the Restore gate, since a row with nothing to
+    // bring back has nothing to bring back without SpecStory either. Both
+    // disappear by themselves once the choice is made, because main clears the
+    // row's capture and the projection stops carrying it.
+    ...(offersBare && offersRestore
+      ? [
+          {
+            label: BARE_RESTORE_LABEL,
+            sublabel: BARE_RESTORE_SUBLABEL,
+            // The same gate the Restore row above carries, for the same
+            // reason: an armed command cannot find the agent until the login
+            // shell has said where the person's tools are installed.
+            disabled: !useApp.getState().shellPathReady,
+            run: () =>
+              void useApp
+                .getState()
+                .restoreSession(session.id, { withoutCapture: true })
+          }
+        ]
+      : []),
+    ...(offersBare
+      ? [
+          {
+            label: BARE_RESTART_LABEL,
+            sublabel: BARE_RESTART_SUBLABEL,
+            run: () =>
+              void useApp
+                .getState()
+                .restartSession(session.id, { withoutCapture: true })
           }
         ]
       : []),

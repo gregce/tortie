@@ -12,9 +12,11 @@ import { handle } from '../typed-ipc';
 import { restartSession } from './restart';
 
 export function registerRestartIpc(ipc: IpcMain): void {
-  handle(ipc, 'sessions:restart', async (_e, sessionId) => {
+  // Phase 119: the capture choice rides through untouched. Without it this is
+  // the restart that has always been here.
+  handle(ipc, 'sessions:restart', async (_e, sessionId, options) => {
     const core = await getGmuxCore();
-    const outcome = await restartSession(core, sessionId);
+    const outcome = await restartSession(core, sessionId, options);
     return outcome.session;
   });
 }

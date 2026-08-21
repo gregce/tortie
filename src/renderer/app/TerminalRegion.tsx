@@ -57,7 +57,10 @@ import {
   useRenameDraft
 } from './session-actions';
 import {
+  BARE_RECOVERY_NOTE,
+  BARE_RESTORE_LABEL,
   hasRestoreMaterial,
+  offersBareRecovery,
   restoreActionCopy,
   restoreExitedCopy,
   restoreSummary,
@@ -565,6 +568,14 @@ export function TerminalRegion(): React.JSX.Element {
     (machine !== undefined
       ? machine.canRestore
       : restorable || (exited && hasRestoreMaterial(active)));
+  // PHASE 119. The insurance verb. It rides on top of the Restore gate above,
+  // because a card that cannot offer Restore has nothing to offer a variant of,
+  // and it adds the three facts in resume.ts offersBareRecovery: this Mac, a
+  // capture that is on, and a session that has ended. Only the restore half is
+  // offered here. The restart half lives in the session's context menu, because
+  // a fifth button would crowd a card that already draws up to four.
+  const offersBare =
+    active !== null && offersRestore && offersBareRecovery(active);
 
   const grouped = activeSurface !== null && activeSurface.isGroup;
 
@@ -636,6 +647,14 @@ export function TerminalRegion(): React.JSX.Element {
                 canRestore: canRestore()
               })}
             </p>
+            {/* PHASE 119. Said only when the bare verb is on screen beside it,
+                because it is the sentence that explains that button. It names
+                no failure and it asks for nothing: the session saves its
+                history today, and this is the way to bring it back without
+                that. */}
+            {offersBare ? (
+              <p className="empty-body">{BARE_RECOVERY_NOTE}</p>
+            ) : null}
             {/* Phase 72. A remote restore does not put the saved output back
                 into the recreated session on the other machine, so the person
                 is told where that output is instead of finding a blank pane.
@@ -666,6 +685,28 @@ export function TerminalRegion(): React.JSX.Element {
                   onClick={() => void restoreSession(active.id)}
                 >
                   {restoringIds[active.id] === true ? 'Restoring…' : 'Restore'}
+                </button>
+              ) : null}
+              {/* PHASE 119. Secondary, and it sits between Restore and Restart
+                  because it is a variant of Restore rather than a fifth verb.
+                  It carries the same two gates the button above it does: the
+                  restore in flight, and the login shell that has not yet said
+                  where the person's tools are installed. A recovery button that
+                  worked before the PATH is known would restore into a pane that
+                  cannot find the agent. */}
+              {offersBare ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={restoringIds[active.id] === true || !cardShellReady}
+                  {...(cardShellReady
+                    ? {}
+                    : { title: SHELL_PATH_PENDING_TITLE })}
+                  onClick={() =>
+                    void restoreSession(active.id, { withoutCapture: true })
+                  }
+                >
+                  {BARE_RESTORE_LABEL}
                 </button>
               ) : null}
               {/* Phase 26.3 layout rule: Restore is primary when offered and
