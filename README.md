@@ -54,6 +54,16 @@ sessions.
 - **Add your own with one JSON file.** No rebuild required. Anything that could start a process asks you first. See [how here](https://github.com/gregce/tortie/blob/main/resources/config/README.md).
 - **Conversations are captured.** The bundled SpecStory integration can record each session's conversation as markdown as it happens.
 
+### Work on another machine
+
+- **A folder on another Mac can be a project tab.** Add the machine once in Settings, confirm it, and open a folder there. The Explorer, search, Quick Open, the git sidebar, history, branches and workflow runs all read from that machine, and the band under the Explorer title names it.
+- **Sessions run over there, not here.** Start an agent on the machine, see what is already running, and bring a session back after a restart with its resume command typed and waiting. A session on a machine carries that machine's badge in its row, its tab and its identity strip.
+- **Editing is off until you turn it on, per machine.** Under Settings then Machines you name one folder on that machine, and Tortie may write only under it. Saving a file, making a folder and renaming are then available, and everything outside that folder is refused with a sentence saying why. Tortie keeps no copy of what it replaced, so there is no undo.
+- **Silence is never read as proof.** If a machine stops answering, Tortie says it does not know rather than deleting the row or claiming the session ended, and it rebinds the same session when the machine comes back.
+- **Nothing is installed on the far side.** Tortie uses that machine's own tmux over ssh, it makes and installs a key for you if you ask, and it never touches your own ssh keys, your `~/.tmux.conf` or the record your terminal keeps.
+
+**What it needs, and what is untested.** The machine needs ssh reachable, Remote Login on, and its own tmux, at a version Tortie has measured or one you accept yourself. Every machine measured so far has been a Mac. The scripts Tortie sends are written for both BSD and GNU tools and nothing refuses a Linux host, so a Linux VM is expected to work, but none has ever been contacted and it is untested rather than supported. One thing is refused on any machine: passing an environment value through to a remote session, because other accounts on some systems can read it from the command line and that was never measured.
+
 ### Familiar IDE features
 
 - **A full git sidebar.** Staging, history, branches, a rich commit graph, built from VS Code's own parsers. See action runs in Tortie if you have gh cli installed.
@@ -64,7 +74,7 @@ sessions.
 
 ## What Tortie doesn't do
 
-- It won't touches your own tmux server or `~/.tmux.conf`.
+- It won't touches your own tmux server or `~/.tmux.conf`, on this Mac or on a machine you add.
 - It won't render a key file or anything that looks like a secret as a friendly preview.
 - It won't runs third party plugin code inside its own processes. Adding an agent is configuration, not code.
 
