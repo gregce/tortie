@@ -2488,6 +2488,99 @@ process.stdout.write(
       };
     })(),
 
+    // --- Phase 118, conditions 74 to 78 ------------------------------------
+    //
+    // Who may spawn a long running child on another machine, who owns it, and
+    // where the order of a removal lives. Every answer is read off the source,
+    // and nothing here spawns, opens or connects to anything.
+    phase118: (() => {
+      const ledgerPath = join(machinesDir, 'execution-ledger.ts');
+      const removalPath = join(machinesDir, 'removal.ts');
+      const recordPath = join(machinesDir, 'remote-record.ts');
+      const journalPath = join(
+        repoRoot,
+        'src',
+        'main',
+        'manifest',
+        'remote-executions.ts'
+      );
+      const isCode = (text: string) => !/^(\*|\/\/|\/\*)/.test(text);
+      const codeHits = (file: string, needle: string) =>
+        sourceLines(file)
+          .filter((row) => row.text.includes(needle) && isCode(row.text))
+          .map((row) => ({
+            file: file.slice(repoRoot.length + 1),
+            line: row.line,
+            text: row.text
+          }));
+
+      /**
+       * Every quoted member of one `as const` array, read from its source.
+       *
+       * The doc comments between the members are stripped first, because an
+       * apostrophe inside one of them would otherwise be read as a member.
+       */
+      const membersOf = (source: string, name: string): string[] => {
+        const from = source.indexOf(`${name} = [`);
+        if (from < 0) return [];
+        const to = source.indexOf('] as const', from);
+        if (to < 0) return [];
+        const body = source
+          .slice(from, to)
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/\/\/[^\n]*/g, '');
+        return [...body.matchAll(/'([^']+)'/g)].map((hit) => hit[1] ?? '');
+      };
+      const journalSource = readFileSync(journalPath, 'utf8');
+
+      /** The body of one exported function, to its closing brace at column 0. */
+      const bodyOf = (source: string, signature: string): string => {
+        const from = source.indexOf(signature);
+        if (from < 0) return '';
+        const end = source.indexOf('\n}', from);
+        return end < 0 ? source.slice(from) : source.slice(from, end + 2);
+      };
+      const recordSource = readFileSync(recordPath, 'utf8');
+
+      return {
+        // Condition 74. Two spawn sites, and they are both in the exec plane.
+        spawnSites: files.flatMap((file) => codeHits(file, 'execFileP(')),
+        // Condition 75. The ledger signals a pid and never a process group.
+        // Read from CODE lines only. The header explains at length why the
+        // group is wrong here, and a prose mention is the opposite of a defect.
+        ledgerImports: importSpecifiers(ledgerPath),
+        ledgerKillsGroup: codeHits(ledgerPath, 'killProcessGroup'),
+        // Condition 76. The boot edge is one way, so no cycle is added.
+        ledgerNamesRemoteRecord: codeHits(ledgerPath, './remote-record'),
+        // Condition 77. The order of a removal lives in one file.
+        removeRowCallers: files
+          .filter((file) => file !== join(machinesDir, 'store.ts'))
+          .flatMap((file) => codeHits(file, 'removeMachineRow('))
+          .filter((row) => !row.text.startsWith('export function ')),
+        tombstoneCallers: files
+          .flatMap((file) => codeHits(file, 'tombstoneRemoteRows('))
+          .filter((row) => !row.text.startsWith('export function ')),
+        removalDefines: codeHits(
+          removalPath,
+          'export function removeMachineCompletely'
+        ).length,
+        // Condition 78. A per row failure can never be swallowed again.
+        tombstoneBody: bodyOf(
+          recordSource,
+          'export function tombstoneRemoteRows('
+        ),
+        // The boundary, read off the code rather than off a document.
+        kinds: membersOf(journalSource, 'REMOTE_EXECUTION_KINDS'),
+        outcomes: membersOf(journalSource, 'REMOTE_EXECUTION_OUTCOMES'),
+        journaled: (() => {
+          const hit = /JOURNALED_REMOTE_EXECUTION_KIND: RemoteExecutionKind =\s*'([^']+)'/.exec(
+            journalSource
+          );
+          return hit?.[1] ?? '';
+        })()
+      };
+    })(),
+
     // --- Phase 79.1, conditions 28 to 34 -----------------------------------
     keyInstall: {
       id: ID,

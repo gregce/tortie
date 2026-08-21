@@ -53,6 +53,25 @@
  * The next attempt refuses that path by name, because the script tests the
  * destination with `-e` before it does anything else.
  *
+ * ## PHASE 118: a quit is a third way for that to happen, and it is written down
+ *
+ * Quitting Tortie ends the ssh child underneath this copy. Before Phase 118
+ * that happened with nothing owning the child and nothing recording it, so a
+ * person came back to a folder partly copied and no explanation. Now the copy
+ * writes a durable row before it starts, the quit ends the child, and the row is
+ * LEFT OPEN on purpose. The next launch is what reads it, says one sentence
+ * about it, and closes it.
+ *
+ * THE TWO `cutOff` SENTENCES BELOW ARE ALMOST NEVER DRAWN, and that is worth
+ * stating rather than leaving a reader to wonder. The window is closing at the
+ * moment either one fires, so the sheet is going away. The notice at the NEXT
+ * launch is the sentence a person actually reads.
+ *
+ * THEY ARE TWO SENTENCES BECAUSE THEY ARE TWO DIFFERENT FACTS. A copy the quit
+ * ended part way may have left a folder over there. A copy the ledger refused
+ * before it composed anything sent nothing at all, and telling a person to go
+ * and look at a folder that was never touched would be false.
+ *
  * ## No credential crosses
  *
  * Tortie reads none, sends none, caches none and asks for none. That machine
@@ -63,13 +82,19 @@
 import type { RemoteCloneInput, RemoteCloneResult } from '@shared/ipc';
 import { type RemoteMachineContext } from './context';
 import {
+  REMOTE_EXEC_SHUTDOWN,
+  remoteExecutionsAccepted
+} from './execution-ledger';
+import {
   CLONE_CHANGED,
   CLONE_NOT_WEB_ADDRESS,
   CLONE_PATH_NOT_ABSOLUTE,
+  cloneCutOff,
   cloneDone,
   cloneExists,
   cloneExistsSame,
   cloneFailed,
+  cloneNotSent,
   cloneOffline,
   cloneTimedOut,
   cloneUnreachable
@@ -251,10 +276,32 @@ export async function cloneProjectOnMachine(
   sends += 1;
   try {
     const out = await runRemoteWrite(ctx, 'git-clone', [url, input.path], {
-      timeoutMs: REMOTE_CLONE_TIMEOUT_MS
+      timeoutMs: REMOTE_CLONE_TIMEOUT_MS,
+      // PHASE 118. This is the one kind of remote work that is written down
+      // durably before it starts, because it is the one kind that writes on the
+      // other computer. The subject is the destination, so the row and the
+      // notice at the next launch can name the folder.
+      execution: { kind: 'clone', subject: input.path, machineLabel: label }
     });
     said = parseCloneAnswer(out.payload);
   } catch (err) {
+    // PHASE 118. ASKED FIRST, because a quit that ended the ssh child produces
+    // the same rejected promise a dropped link does, and the two are different
+    // things to a person.
+    //
+    // THE TWO ARMS ARE TWO DIFFERENT FACTS, and the order matters. The ledger's
+    // own refusal fires BEFORE an argv is composed, so nothing crossed and there
+    // is no folder to go and look at. Every other failure while the ledger is
+    // refusing is a copy that had already started and that Tortie itself ended,
+    // and what that leaves behind is the same as a deadline: a folder that may
+    // hold part of the project, and a next attempt that refuses the path by
+    // name.
+    if ((err as Error).message === REMOTE_EXEC_SHUTDOWN) {
+      return answer('cutOff', url, '', [cloneNotSent(label)]);
+    }
+    if (!remoteExecutionsAccepted()) {
+      return answer('cutOff', url, '', [cloneCutOff(label, input.path)]);
+    }
     // A deadline that was hit and a link that dropped are two different things
     // to a person. The elapsed time is what tells them apart here, because the
     // door reports both as one refusal.

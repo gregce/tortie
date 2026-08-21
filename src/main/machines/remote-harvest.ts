@@ -557,7 +557,11 @@ async function readOrNull(
   try {
     commandsSent += 1;
     const answer = await runRemoteRead(ctx, scriptId, args, {
-      timeoutMs: REMOTE_HARVEST_TIMEOUT_MS
+      timeoutMs: REMOTE_HARVEST_TIMEOUT_MS,
+      // Phase 118. Named for the ledger that owns the ssh child. A harvest is
+      // not journaled: it is a read onto this Mac that the next pass redoes, so
+      // a cut one leaves nothing on either computer for a person to deal with.
+      execution: { kind: 'harvest', subject: ctx.machineId }
     });
     bytesRead += answer.bytes;
     return answer.payload;

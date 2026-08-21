@@ -125,7 +125,6 @@ import { remoteRestoreVerdict } from './restore-gate';
 import { RESUME_ARMED_NOT_PRESSED } from './remote-arm';
 import {
   REMOTE_POLL_FOCUSED_MS,
-  forgetMachineRows,
   markMachineQuiet,
   parseRemoteListLine,
   refuseRemoteRestore,
@@ -152,7 +151,10 @@ import {
 } from './remote-record';
 import { restoreRemoteSession } from './remote-restore';
 import { assertArgvBelongsToMachine, captureRemoteArgv } from './remote-argv';
-import { removeMachineRow } from './store';
+// Phase 118. The whole of a removal, in the order `./removal.ts` owns. It
+// replaces the `forgetMachineRows` then `removeMachineRow` pair this file used
+// to write out by hand, which is exactly the pair that could come apart.
+import { removeMachineCompletely } from './removal';
 // Phase 73, M6. The connected harvest, the conversation copy, the door they
 // both ride, and the gate that decides whether a resume may be typed.
 import { remoteHarvestRoots } from '../manifest/harvest/remote';
@@ -1561,8 +1563,7 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
     const liveRows = remoteRecordsForMachine(ID).filter(
       (row) => row.status !== 'discarded'
     ).length;
-    const tombstoned = forgetMachineRows(ID);
-    removeMachineRow(ID);
+    const { tombstoned } = removeMachineCompletely(ID);
     if (tombstoned !== liveRows || tombstoned < 2) {
       fail(
         `${String(liveRows)} row(s) were on that machine and removing it ` +
@@ -3052,8 +3053,7 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
       await core.killSession(id).catch(() => undefined);
       core.removeSession(id);
     }
-    forgetMachineRows(LIFE_ID);
-    removeMachineRow(LIFE_ID);
+    removeMachineCompletely(LIFE_ID);
 
     // --- 11. The operator's server -------------------------------------------
     //

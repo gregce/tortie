@@ -70,7 +70,6 @@ import {
   MACHINE_CONFIRM_ACKNOWLEDGEMENT,
   confirmMachine,
   describeMachine,
-  forgetMachine,
   type MachineExecutionFields
 } from '../machines/confirm';
 import { machineContext, type RemoteMachineContext } from '../machines/context';
@@ -111,11 +110,13 @@ import {
   addMachineRow,
   currentMachines,
   machineHostKeysPath,
-  reloadMachines,
-  removeMachineRow
+  reloadMachines
 } from '../machines/store';
-// Phase 72, Builder C. What `machines:remove` does on this Mac, in its order.
-import { forgetMachineSessions } from '../machines/tombstone';
+// Phase 72, Builder C, renamed in Phase 118. What `machines:remove` does on
+// this Mac, in its order. Phase 118 moved the file's own removal of the row and
+// of the agreement inside this one call, so the three lines row 10 used to
+// write out by hand are one line now.
+import { removeMachineCompletely } from '../machines/removal';
 // The durable ring. Every capsule number below is read through these two, which
 // are the same readers the product uses, so a capsule this harness counts is a
 // capsule a person could open.
@@ -1469,11 +1470,11 @@ async function rowForgetMachine(ctx: RemoteMachineContext): Promise<void> {
   const rowsBefore = remoteRecordsForMachine(CUT).length;
   const sshBefore = sshChildCount();
 
-  // The two steps `machines:remove` takes, in its order. The handler's own
-  // order is held by src/main/machines/__tests__/ipc.test.ts.
-  const forgotten = forgetMachineSessions(CUT);
-  removeMachineRow(CUT);
-  forgetMachine(CUT);
+  // The one step `machines:remove` takes. Its order is held by
+  // src/main/machines/__tests__/removal.test.ts, and the handler's own claim
+  // that it calls nothing else is held by
+  // src/main/machines/__tests__/ipc.test.ts.
+  const forgotten = removeMachineCompletely(CUT);
 
   const drawnAfter = rowsOn(CUT).length;
   const claimingEnded = remoteRecordsForMachine(CUT).filter(

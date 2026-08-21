@@ -682,6 +682,43 @@ export function cloneTimedOut(
 }
 
 /**
+ * Tortie was quitting, so it ended the copy (Phase 118).
+ *
+ * It is the same shape as {@link cloneTimedOut} because the consequence is the
+ * same: the copy may still be running over there and part of the project may be
+ * left behind. What differs is the cause, and the cause is the person's own
+ * quit, so the sentence says that rather than blaming a deadline.
+ *
+ * THE SHEET ALMOST NEVER DRAWS THIS. The window is closing at the moment it
+ * fires. The sentence a person actually reads is the `remote-work-cut-off`
+ * notice at the next launch, which is built from the manifest row this copy
+ * wrote before it started.
+ */
+export function cloneCutOff(label: string, path: string): string {
+  return (
+    `You quit Tortie while this copy was running, so Tortie ended it. It may ` +
+    `still be running on ${label}, and part of the project may be left at ` +
+    `${path}. Look there before you try again.`
+  );
+}
+
+/**
+ * Tortie was quitting and sent nothing at all (Phase 118).
+ *
+ * The other half of {@link cloneCutOff}. The ledger's refusal fires before an
+ * argv is composed, so no folder on that machine was touched. Telling a person
+ * to go and look at a folder that was never written would be false, so this
+ * sentence says the opposite of that one and names no path.
+ */
+export function cloneNotSent(label: string): string {
+  return (
+    `You quit Tortie before this copy started, so nothing was sent to ` +
+    `${label} and nothing was written there. Start Tortie again and try ` +
+    `again.`
+  );
+}
+
+/**
  * Main's own read of the remote disagreed with the address the sheet drew.
  *
  * This is the sentence behind the rule that the renderer never chooses the

@@ -407,7 +407,11 @@ export async function captureMachineOnce(machineId: string): Promise<number> {
       try {
         commandsSent += 1;
         text = await execOn(ctx, remoteCaptureArgs(target.tmuxId, lines), {
-          timeoutMs: REMOTE_CAPSULE_TIMEOUT_MS
+          timeoutMs: REMOTE_CAPSULE_TIMEOUT_MS,
+          // Phase 118. Named for the ledger that owns the ssh child. A capture
+          // is not journaled: it is a read onto this Mac that the next pass
+          // redoes, so a cut one leaves nothing on either computer.
+          execution: { kind: 'capture', subject: target.id }
         });
       } catch {
         // A read that failed says nothing about the session and nothing about
@@ -518,7 +522,9 @@ export async function captureRemoteSessionNow(
   try {
     commandsSent += 1;
     text = await execOn(ctx, remoteCaptureArgs(row.tmuxId, savedSnapshotLines()), {
-      timeoutMs: REMOTE_END_CAPTURE_TIMEOUT_MS
+      timeoutMs: REMOTE_END_CAPTURE_TIMEOUT_MS,
+      // Phase 118. Named for the ledger, not journaled. See the pass above.
+      execution: { kind: 'capture', subject: row.name }
     });
   } catch (err) {
     capsuleLog.warn(

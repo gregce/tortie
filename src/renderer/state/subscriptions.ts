@@ -524,6 +524,41 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     );
     return;
   }
+  if (notice.kind === 'remote-work-cut-off') {
+    // Phase 118. A copy onto another machine was ended because the person
+    // quit. The folder on that machine may hold part of the project, and the
+    // next attempt refuses that path by name, so this is the one moment a
+    // person can be told.
+    //
+    // THE PATH IS NOT IN THE SENTENCE. Two lines of about 26 characters beside
+    // the action button have no room for a folder on another computer, so the
+    // path is in the log and the action goes there. Measured with the longest
+    // name `shortName` can produce: 53 characters against the 58 the column
+    // holds.
+    const short = shortName(notice.machineLabel);
+    const logExtras = gmux
+      ? (gmux as typeof gmux & GmuxLogExtras).log
+      : null;
+    const openFolder = logExtras?.openFolder;
+    getState().toast(
+      'error',
+      notice.count === 1
+        ? `The copy to "${short}" stopped when you quit.`
+        : `${notice.count} copies to machines stopped when you quit.`,
+      {
+        sticky: true,
+        ...(typeof openFolder === 'function'
+          ? {
+              action: {
+                label: 'View logs',
+                run: () => void openFolder()
+              }
+            }
+          : {})
+      }
+    );
+    return;
+  }
   // A kind added to the shared union without a sentence here fails the
   // build, rather than shipping a degraded state nobody is told about.
   const unhandled: never = notice;

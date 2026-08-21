@@ -238,24 +238,26 @@ import { findProjectOnMachine } from './project-counterpart';
 import { cloneProjectOnMachine } from './remote-clone';
 import { prepareMachine } from './prepare';
 import { validateMachinesFile } from './schema';
-// Phase 72: the record a removal leaves behind. It writes tombstones and
-// closes the machine down locally. It has no route to the machine at all, and
-// the number of commands it returns having sent is a constant zero.
-import { forgetMachineSessions, machineSessionCount } from './tombstone';
+// Phase 72, made one transaction in Phase 118: the whole of a removal. It
+// writes every tombstone in one durable transaction, and only when that has
+// committed does it let go of the rows, the feeds, the link, the file and the
+// agreement. It has no route to the machine at all, and the number of commands
+// it returns having sent is a constant zero. A failure throws and nothing is
+// removed, which the renderer already draws as a sentence beside the row.
+import { machineSessionCount, removeMachineCompletely } from './removal';
 // ---- PHASE 109 ----
 // Which agents each machine has. `machines:agents` with `fresh: false` reads
 // memory in main and starts nothing; with `fresh: true` it sends ONE batched
 // read from the frozen catalogue, which is a person pressing Rescan.
-// `forgetMachineRuntime` is fix 7's second half: `machines:remove` drops the
-// machine's context and generation after `forgetMachineSessions` has dropped
-// everything else.
+// Fix 7's second half, being the drop of the machine's context and generation,
+// moved into `./removal.ts` in Phase 118 so that every step of a removal is in
+// one place and none of them can run before the record is safe.
 import {
   allMachineAgentsViews,
   machineAgentsView,
   onMachineAgentsChanged,
   scanMachineAgents
 } from './machine-agents';
-import { forgetMachineRuntime } from './context';
 // ---- END PHASE 109 ----
 import {
   addMachineRow,
@@ -267,7 +269,6 @@ import {
   machineRow,
   machinesPath,
   reloadMachines,
-  removeMachineRow,
   setMachineAcceptedVersion
 } from './store';
 import { readTailnetMachines } from './tailscale';
@@ -713,23 +714,22 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   });
 
   handle(ipc, 'machines:remove', (_event, id: string): MachinesResult => {
-    // PHASE 72. The tombstones are written FIRST, and the order is the whole
-    // of it. The label a person read is in machines.json and nowhere else, so
-    // a removal that deleted the row first would write "You removed
-    // studiomachine" instead of "You removed Studio". This call sends nothing
-    // to the machine: it ends no session, stops no server, and reads nothing
-    // there. Row 10 of the fault matrix is the measurement of that.
-    const forgotten = forgetMachineSessions(id);
-    // PHASE 109, fix 7. The machine's run time goes too, being its context
-    // and its generation record. Before this line a removed machine kept both
-    // in memory for the life of the process, so a context nothing could reach
-    // still held the connection details of a machine the person had told
-    // Tortie to forget. Nothing is sent to the machine by this call either.
-    forgetMachineRuntime(id);
-    removeMachineRow(id);
-    // The record goes with the row. A machine that comes back later is a
-    // machine nobody has agreed to yet.
-    forgetMachine(id);
+    // PHASE 118. ONE call, and the order inside it is `./removal.ts`'s own.
+    // The tombstones are written FIRST, in one durable transaction, and the
+    // label a person read is in machines.json and nowhere else, so a removal
+    // that deleted the row first would write "You removed studiomachine"
+    // instead of "You removed Studio". Nothing below the transaction runs
+    // unless it committed, so a failure leaves the machine in the list and
+    // every session record exactly as it was.
+    //
+    // A THROW IS THE REFUSAL PATH AND IT NEEDS NO CODE HERE. It crosses the
+    // bridge as a rejected invoke, and `src/renderer/state/machines-store.ts`
+    // already turns that into an error sentence beside the row and a refresh.
+    //
+    // This call sends nothing to the machine: it ends no session, stops no
+    // server, and reads nothing there. Row 10 of the fault matrix is the
+    // measurement of that.
+    const forgotten = removeMachineCompletely(id);
     if (forgotten.tombstoned > 0) {
       console.log(
         `[gmux] ${id} was removed. ${String(forgotten.tombstoned)} session ` +

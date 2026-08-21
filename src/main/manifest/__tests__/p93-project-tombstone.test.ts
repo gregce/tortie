@@ -169,9 +169,12 @@ describe('migration 016, the project_tombstone column', () => {
     try {
       const db = new Database(dbPath, { readonly: true });
       const version = (db.pragma('user_version') as { user_version: number }[])[0];
-      expect(version?.user_version).toBe(16);
+      // Phase 118 appended 017-remote-executions, so an open now lands on 17.
+      // What this file pins is that migration 016 runs and that the minimum
+      // does not move, and both are still true.
+      expect(version?.user_version).toBe(17);
       db.close();
-      expect(MANIFEST_SCHEMA_VERSION).toBe(16);
+      expect(MANIFEST_SCHEMA_VERSION).toBe(17);
       expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
     } finally {
       store.close();

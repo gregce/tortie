@@ -1167,6 +1167,43 @@ const MACHINE_REFUSALS = [
       'now could start a second agent on the same conversation. Tortie will settle ',
       'this the next time that machine answers with a full list. Nothing was started.'
     ]
+  },
+  // ---------------------------------------------------------------------------
+  // PHASE 118 added these two, and both stand in front of a person's work
+  // ---------------------------------------------------------------------------
+  //
+  // The first is the exec plane's own shutdown refusal. It is reached only while
+  // Tortie is quitting, which is the narrowest window in the product and exactly
+  // the branch a bundler folds away. `src/main/machines/exec-smoke.ts` is the
+  // second caller and it drives the refusal inside a real Electron process.
+  //
+  // The second is the removal that could not be recorded. Before Phase 118 there
+  // was no such sentence, because a per row failure was caught and logged and the
+  // machines file was rewritten anyway. It is the one thing a person reads at the
+  // moment nothing happened, so losing it would put them back where the audit
+  // found them: the machine gone from the list, some records written, some not,
+  // and no way to tell which.
+  {
+    id: 'machine.remote-exec-shutdown',
+    source: 'src/main/machines/execution-ledger.ts',
+    why:
+      'a quit cancels every ssh child this Mac owns, and a call admitted after ' +
+      'that would start a new one nobody would ever join. Without this refusal ' +
+      'a copy could be started during the teardown that cancels copies',
+    fragments: ['Tortie is quitting, so nothing more was sent to that machine.']
+  },
+  {
+    id: 'machine.removal-not-recorded',
+    source: 'src/main/machines/removal.ts',
+    why:
+      'the removal transaction is all or none, and this is the sentence that ' +
+      'tells a person nothing was removed. Losing it would leave a failed ' +
+      'removal looking like a removal that worked',
+    fragments: [
+      'Tortie could not record what it knew about that machine, so it removed ',
+      'nothing. Every session record is exactly as it was, and the machine is ',
+      'still in your list. Try again.'
+    ]
   }
 ];
 

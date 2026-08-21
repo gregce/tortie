@@ -24,6 +24,23 @@ export {
 } from './store';
 
 /**
+ * Phase 118. The remote execution journal's shapes. The machine layer composes
+ * a begin, reads a record back at boot and names an outcome, so the barrel
+ * carries all four rather than making that layer reach past it.
+ */
+export {
+  JOURNALED_REMOTE_EXECUTION_KIND,
+  REMOTE_EXECUTION_KINDS,
+  REMOTE_EXECUTION_OUTCOMES,
+  type MachineTombstoneEntry,
+  type MarkMachinesForgottenHooks,
+  type RemoteExecutionBegin,
+  type RemoteExecutionKind,
+  type RemoteExecutionOutcome,
+  type RemoteExecutionRecord
+} from './store';
+
+/**
  * Phase 90.3. The shape an add of a folder on another machine takes. It is
  * exported from the barrel because the sessions core composes one.
  */

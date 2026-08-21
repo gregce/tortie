@@ -202,10 +202,10 @@
  * 100, 105 and 106 each added a condition and left the list where it was, so
  * this says so rather than quietly renumbering. Conditions 50 and 51 are Phase
  * 90.3's, 52 is Phase 98's, 53 is Phase 99's, 54 is Phase 100's, 55 is Phase
- * 105's and 56 is Phase 106's. Conditions 63 to 68 are Phase 89's, and 69 to 73
- * are Phase 117's and are described at their own block at the foot of this
- * file. The numbers 60, 61 and 62 were never used. Seventy conditions are in
- * force, being 1 to 59 and 63 to 73:
+ * 105's and 56 is Phase 106's. Conditions 63 to 68 are Phase 89's, 69 to 73 are
+ * Phase 117's and 74 to 78 are Phase 118's, and the last two sets are described
+ * at their own blocks at the foot of this file. The numbers 60, 61 and 62 were
+ * never used. Seventy five conditions are in force, being 1 to 59 and 63 to 78:
  *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
@@ -5514,6 +5514,157 @@ process.stdout.write(
         `the answer or the error alone.`
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// 74 to 78. Phase 118. Who owns a long running child, and where a removal lives
+// ---------------------------------------------------------------------------
+//
+// THE NUMBERS ARE 74 TO 78. The numbered list at the top of this file stops at
+// 49 and the file already holds conditions up to 73, so the next free numbers
+// are these. Nothing is renumbered.
+//
+// 74. A file under src/main/machines/ other than the exec plane calls
+//     `execFileP`, or the exec plane has other than two such call sites. Every
+//     long running remote child in this product goes through those two lines,
+//     and the ledger is installed at them and nowhere else. A third one is a
+//     child nobody owns, which is the defect this phase closed.
+// 75. `execution-ledger.ts` names `killProcessGroup` on a line of code.
+//     `execFile` does not forward `detached`, so its child sits in Electron's
+//     own process group and `kill(-pid)` would signal Tortie itself. The header
+//     of that file explains it at length, so only code lines are read here.
+// 76. `execution-ledger.ts` imports anything from `remote-record.ts`. The boot
+//     edge runs one way, from the record module to the ledger, so no cycle is
+//     added.
+// 77. `removeMachineRow` or `tombstoneRemoteRows` is called from any file but
+//     `removal.ts`, or `removeMachineCompletely` is declared other than once.
+//     Before Phase 118 the two were called from two files, and the second ran
+//     whatever the first did.
+// 78. The body of `tombstoneRemoteRows` holds a `try`. A per row failure caught
+//     there is exactly the defect this phase removes, and it is checked as a
+//     shape rather than trusted.
+//
+// The boundary in the ledger, being which of the five kinds is written down
+// durably, is printed as a table below rather than asserted, because it is a
+// deliberate choice and the table is where a later reader argues with it.
+
+{
+  const p118 = data.phase118 ?? {};
+
+  // --- 74. Two spawn sites, and both in the exec plane ---------------------
+  const sites = p118.spawnSites ?? [];
+  const outside = sites.filter(
+    (row) => String(row.file) !== 'src/main/machines/exec-plane.ts'
+  );
+  if (outside.length > 0) {
+    fail(
+      `${String(outside.length)} long running remote child(ren) are spawned ` +
+        `outside the exec plane: ` +
+        `${outside.map((row) => `${String(row.file)}:${String(row.line)}`).join(', ')}. ` +
+        `The ledger is installed at the exec plane's two lines and nowhere ` +
+        `else, so a child spawned anywhere else is a child nobody owns at quit.`
+    );
+  }
+  if (sites.length !== 2) {
+    fail(
+      `the exec plane has ${String(sites.length)} execFileP call site(s) and ` +
+        `it has exactly two: the tmux verb door and the login shell door. A ` +
+        `third one is a child the ledger never sees.`
+    );
+  }
+
+  // --- 75. A pid, never a process group -------------------------------------
+  const group = p118.ledgerKillsGroup ?? [];
+  if (group.length > 0) {
+    fail(
+      `src/main/machines/execution-ledger.ts names killProcessGroup on ` +
+        `${String(group.length)} line(s) of code. execFile does not spawn ` +
+        `detached, so the ssh child sits in Electron's own process group and ` +
+        `signalling the group would signal Tortie itself.`
+    );
+  }
+
+  // --- 76. The boot edge runs one way ---------------------------------------
+  const backEdge = p118.ledgerNamesRemoteRecord ?? [];
+  if (backEdge.length > 0) {
+    fail(
+      `src/main/machines/execution-ledger.ts reaches ./remote-record.ts on ` +
+        `${String(backEdge.length)} line(s) of code. That module imports the ` +
+        `ledger, so this would be a cycle.`
+    );
+  }
+
+  // --- 77. The order of a removal lives in one file --------------------------
+  for (const [what, rows] of [
+    ['removeMachineRow', p118.removeRowCallers ?? []],
+    ['tombstoneRemoteRows', p118.tombstoneCallers ?? []]
+  ]) {
+    const strays = rows.filter(
+      (row) => String(row.file) !== 'src/main/machines/removal.ts'
+    );
+    if (strays.length > 0) {
+      fail(
+        `${what} is called from ` +
+          `${strays.map((row) => `${String(row.file)}:${String(row.line)}`).join(', ')}. ` +
+          `The whole order of a removal lives in removal.ts, so the machines ` +
+          `file can only be rewritten after the record has been written.`
+      );
+    }
+  }
+  if (p118.removalDefines !== 1) {
+    fail(
+      `removeMachineCompletely is declared ${String(p118.removalDefines)} ` +
+        `time(s) and it is declared once.`
+    );
+  }
+
+  // --- 78. A per row failure can never be swallowed again --------------------
+  const body = String(p118.tombstoneBody ?? '');
+  if (body === '') {
+    fail('tombstoneRemoteRows was not found in src/main/machines/remote-record.ts');
+  } else if (/\btry\b/.test(body)) {
+    fail(
+      `the body of tombstoneRemoteRows holds a try. A per row failure caught ` +
+        `there is the exact defect Phase 118 removed: the loop kept going, the ` +
+        `machines file was rewritten anyway, and the person was left with some ` +
+        `records written and some not.`
+    );
+  }
+
+  // --- The boundary, printed rather than asserted ----------------------------
+  const kinds = (p118.kinds ?? []).map(String);
+  const outcomes = (p118.outcomes ?? []).map(String);
+  if (kinds.length !== 5) {
+    fail(
+      `the ledger declares ${String(kinds.length)} kind(s) of remote work and ` +
+        `it declares five.`
+    );
+  }
+  if (outcomes.length !== 4) {
+    fail(
+      `the ledger declares ${String(outcomes.length)} outcome(s) and it ` +
+        `declares four.`
+    );
+  }
+  if (!kinds.includes(String(p118.journaled))) {
+    fail(
+      `the journaled kind reads ${JSON.stringify(p118.journaled)} and it is ` +
+        `not one of the kinds the ledger declares.`
+    );
+  }
+  process.stdout.write('\nremote work: kind         written down durably\n');
+  for (const kind of kinds) {
+    process.stdout.write(
+      `             ${kind.padEnd(12)} ${
+        kind === String(p118.journaled) ? 'yes' : 'no'
+      }\n`
+    );
+  }
+  process.stdout.write(
+    `             every one of them ends as one of ${outcomes.join(', ')}.\n` +
+      `             Only a copy writes on the other computer, so only a copy ` +
+      `is written down.\n`
+  );
 }
 
 // Phase 117. What a create whose answer was lost now does, said out loud.

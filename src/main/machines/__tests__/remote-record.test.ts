@@ -11,6 +11,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { SessionStatus } from '@shared/types';
+import type { MachineTombstone } from '../../manifest/codecs';
 
 let userData = '';
 
@@ -29,12 +31,41 @@ const {
   remoteRecordsForMachine,
   remoteResumeProvenance,
   setRemoteManifest,
-  tombstoneRemoteRow,
+  tombstoneRemoteRows,
   unconfirmedRemoteRecords,
   writeRemoteRow
 } = await import('../remote-record');
 
 type Store = InstanceType<typeof ManifestStore>;
+
+/**
+ * One entry of a removal plan, in the shape `machineTombstonePlan` composes.
+ *
+ * Phase 118 replaced the one row write with one transaction over a list, so
+ * every test below hands over a list even when it holds one row.
+ */
+function entry(
+  sessionId: string,
+  over: Partial<{
+    machineId: string;
+    machineLabel: string;
+    lastStatus: SessionStatus;
+    lastSeenAt: number;
+    forgottenAt: number;
+  }> = {}
+): { sessionId: string; tombstone: MachineTombstone } {
+  return {
+    sessionId,
+    tombstone: {
+      v: 1,
+      machineId: over.machineId ?? 'studio',
+      machineLabel: over.machineLabel ?? 'Studio',
+      lastStatus: over.lastStatus ?? 'running',
+      lastSeenAt: over.lastSeenAt ?? CREATED_AT,
+      forgottenAt: over.forgottenAt ?? CREATED_AT + 1_000
+    }
+  };
+}
 
 let root = '';
 let store: Store;
@@ -218,14 +249,7 @@ describe('what a completed list writes back', () => {
    */
   it('never moves a row whose machine a person removed', () => {
     writeOne();
-    tombstoneRemoteRow('sess-1', {
-      v: 1,
-      machineId: 'studio',
-      machineLabel: 'Studio',
-      lastStatus: 'running',
-      lastSeenAt: CREATED_AT,
-      forgottenAt: CREATED_AT + 1_000
-    });
+    tombstoneRemoteRows([entry('sess-1')]);
     noteRemoteRowSeen('sess-1', 'running', CREATED_AT + 20_000);
     expect(store.getSession('sess-1')?.status).toBe('discarded');
   });
@@ -299,14 +323,7 @@ describe('a create whose answer was never read', () => {
    */
   it('never moves a row whose machine a person removed', () => {
     writeOne();
-    tombstoneRemoteRow('sess-1', {
-      v: 1,
-      machineId: 'studio',
-      machineLabel: 'Studio',
-      lastStatus: 'running',
-      lastSeenAt: CREATED_AT,
-      forgottenAt: CREATED_AT + 1_000
-    });
+    tombstoneRemoteRows([entry('sess-1')]);
     markRemoteCreateUnconfirmed('sess-1');
     expect(store.getSession('sess-1')?.status).toBe('discarded');
     expect(unconfirmedRemoteRecords()).toEqual([]);
@@ -328,15 +345,13 @@ describe('a create whose answer was never read', () => {
 describe('the tombstone a removed machine leaves', () => {
   it('writes the status, the removal instant and the record in one go', () => {
     writeOne();
-    const ok = tombstoneRemoteRow('sess-1', {
-      v: 1,
-      machineId: 'studio',
-      machineLabel: 'Studio',
-      lastStatus: 'running',
-      lastSeenAt: CREATED_AT + 3_000,
-      forgottenAt: CREATED_AT + 9_000
-    });
-    expect(ok).toBe(true);
+    const written = tombstoneRemoteRows([
+      entry('sess-1', {
+        lastSeenAt: CREATED_AT + 3_000,
+        forgottenAt: CREATED_AT + 9_000
+      })
+    ]);
+    expect(written).toBe(1);
     const record = store.getSession('sess-1');
     expect(record?.status).toBe('discarded');
     expect(record?.removedAt).toBe(CREATED_AT + 9_000);
@@ -352,55 +367,87 @@ describe('the tombstone a removed machine leaves', () => {
    */
   it('keeps the label, which nothing else can supply afterwards', () => {
     writeOne();
-    tombstoneRemoteRow('sess-1', {
-      v: 1,
-      machineId: 'studio',
-      machineLabel: 'The studio upstairs',
-      lastStatus: 'idle',
-      lastSeenAt: 0,
-      forgottenAt: CREATED_AT
-    });
+    tombstoneRemoteRows([
+      entry('sess-1', {
+        machineLabel: 'The studio upstairs',
+        lastStatus: 'idle',
+        lastSeenAt: 0,
+        forgottenAt: CREATED_AT
+      })
+    ]);
     expect(store.getSession('sess-1')?.machineTombstone?.machineLabel).toBe(
       'The studio upstairs'
     );
   });
 
-  /** A second removal must not replace what Tortie knew with what it knows now. */
-  it('refuses to write a second tombstone over the first', () => {
+  /**
+   * PHASE 118. Every row or none, and the whole point is that a failure part
+   * way through leaves nothing behind.
+   */
+  it('writes every row of a plan in one go', () => {
     writeOne();
-    tombstoneRemoteRow('sess-1', {
-      v: 1,
-      machineId: 'studio',
-      machineLabel: 'Studio',
-      lastStatus: 'running',
-      lastSeenAt: CREATED_AT,
-      forgottenAt: CREATED_AT
-    });
-    const second = tombstoneRemoteRow('sess-1', {
-      v: 1,
-      machineId: 'studio',
-      machineLabel: 'Studio',
-      lastStatus: 'unknown',
-      lastSeenAt: 0,
-      forgottenAt: CREATED_AT + 60_000
-    });
-    expect(second).toBe(false);
+    writeOne({ sessionId: 'sess-2' });
+    writeOne({ sessionId: 'sess-3' });
+    expect(
+      tombstoneRemoteRows([entry('sess-1'), entry('sess-2'), entry('sess-3')])
+    ).toBe(3);
+    for (const id of ['sess-1', 'sess-2', 'sess-3']) {
+      expect(store.getSession(id)?.status).toBe('discarded');
+    }
+  });
+
+  it('leaves every row untouched when one row of the plan fails', () => {
+    writeOne();
+    writeOne({ sessionId: 'sess-2' });
+    writeOne({ sessionId: 'sess-3' });
+    expect(() =>
+      tombstoneRemoteRows(
+        [entry('sess-1'), entry('sess-2'), entry('sess-3')],
+        {
+          beforeRow: (index) => {
+            if (index === 2) throw new Error('the disk is full');
+          }
+        }
+      )
+    ).toThrow(/the disk is full/);
+    // Before Phase 118 the first two rows were written and the third was not,
+    // and the machines file was rewritten anyway.
+    for (const id of ['sess-1', 'sess-2', 'sess-3']) {
+      expect(store.getSession(id)?.status).toBe('running');
+      expect(store.getSession(id)?.machineTombstone).toBeUndefined();
+    }
+  });
+
+  /** A second removal must not replace what Tortie knew with what it knows now. */
+  it('skips a row an earlier removal already tombstoned', () => {
+    writeOne();
+    expect(tombstoneRemoteRows([entry('sess-1')])).toBe(1);
+    const second = tombstoneRemoteRows([
+      entry('sess-1', {
+        lastStatus: 'unknown',
+        lastSeenAt: 0,
+        forgottenAt: CREATED_AT + 60_000
+      })
+    ]);
+    expect(second).toBe(0);
     expect(store.getSession('sess-1')?.machineTombstone?.lastStatus).toBe(
       'running'
     );
   });
 
-  it('answers false for an id with no row', () => {
-    expect(
-      tombstoneRemoteRow('never-written', {
-        v: 1,
-        machineId: 'studio',
-        machineLabel: 'Studio',
-        lastStatus: 'running',
-        lastSeenAt: 0,
-        forgottenAt: CREATED_AT
-      })
-    ).toBe(false);
+  it('throws for an id with no row, and writes nothing', () => {
+    writeOne();
+    expect(() =>
+      tombstoneRemoteRows([entry('sess-1'), entry('never-written')])
+    ).toThrow();
+    expect(store.getSession('sess-1')?.status).toBe('running');
+  });
+
+  it('answers 0 for an empty plan and for no store at all', () => {
+    expect(tombstoneRemoteRows([])).toBe(0);
+    setRemoteManifest(null);
+    expect(tombstoneRemoteRows([entry('sess-1')])).toBe(0);
+    setRemoteManifest(store);
   });
 });
 

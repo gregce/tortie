@@ -6771,7 +6771,7 @@ exactly one session. The operator's own server held 43 sessions before the run a
 second computer. No Linux machine was contacted. The `unreachable` answer still leaves a row a person
 cannot act on until that machine answers again, and nothing removes such a row on a timer.
 
-### Phase 118 — long running ssh children and machine removal (audit phase 2)
+### Phase 118 — long running ssh children and machine removal (audit phase 2) ✅ SHIPPED 2026-08-21 (this commit, 0.62.1, gates green, 7,548 tests)
 
 **Subject:** `fix(machines): remote children are owned, and removal is one transaction`
 **First body line:** `Phase 118: remote children are owned, and removal is one transaction`
@@ -6783,6 +6783,59 @@ transaction, tombstoning every row or none, with the machine file removed only a
 **Proof required:** hold a remote clone, quit, and prove the ssh child is ended or joined and the
 outcome classified. Fault the kth row of a removal and prove zero changes, then retry and prove
 idempotence.
+
+### What landed
+
+**The ledger.** `src/main/machines/execution-ledger.ts` owns every long running ssh child this
+product starts. It has the shape Phase 116 gave the session core, so there is one lifecycle to learn
+rather than two: a flag set synchronously when the quit starts, a refusal after it, cancellation, and
+a bounded join that is measured rather than assumed. It is installed at exactly two call sites,
+`spawnTmux` and `execRemoteShell` in `src/main/machines/exec-plane.ts`, which is where clone, capture,
+harvest, store sync and plain commands all pass. `build/conformance-machines.mjs` counts those call
+sites, so a third one fails the gate. Local work on this Mac is not admitted, because a local tmux
+call takes milliseconds and is not what the audit is about.
+
+**The measurement that changed the cancel path.** Signalling the child was not enough. Every remote
+argv carries `ControlMaster=auto` with a `ControlPersist` window, from `sshOptions` in
+`src/main/machines/ssh.ts`, so a background master process holds the write ends of the child's pipes.
+Killing the direct child ended the command but left those pipes open, and the `close` event that
+`promisify(execFile)` waits on never fired. Measured with no sshd in the room, the promise was still
+unsettled 8,304 ms after the signal. Destroying the child's three streams releases the last reference,
+the promise rejects, and the entry is classified `cutOff`. The app's quit teardown fell from 3,026 ms
+to 27 ms, and the harness on the committing tree measured 25 ms.
+
+**What is written down.** All five kinds are classified in memory and logged. One kind is journaled
+into the manifest, being the copy of a project onto that machine, because it is the one kind that
+writes on the other computer. Migration `017-remote-executions` adds the table. It is additive, so
+`MANIFEST_MIN_COMPATIBLE_VERSION` stays at 13. At the next launch the person reads one sentence
+naming the machine and the folder.
+
+**The removal.** `src/main/machines/removal.ts` writes every tombstone in ONE durable transaction.
+Before this phase each row was its own commit inside a catch, so a failure on row 3 of 5 was logged,
+the loop carried on, and `machines.json` was rewritten anyway. Now a failed write rolls the whole
+transaction back and throws, and none of the nine later steps run. The machine file is rewritten only
+after the transaction committed.
+
+**The proof, run rather than read.** `npm run smoke:p118` is the phase's gate and it is the audit's
+required proof. It stands up a scratch sshd, holds a real copy open, quits Tortie for real, and then
+launches a second time to read what was recorded. On the committing tree it passed all 23 steps. The
+copy was ended, the quit joined 1 child and left 0 unjoined in 1 ms, the outcome was classified
+`cutOff`, a call made after the quit began was refused with `SHUTTING_DOWN` and opened no entry, the
+notice named the machine and the folder once, a removal that could not be recorded left the
+fingerprint byte for byte identical at 953 bytes with 0 rows tombstoned, the retry recorded all 5 rows
+in one transaction while sending 0 commands, and a third removal answered 0 and changed nothing.
+
+### What is not true
+
+- Tortie cannot stop the process on the other computer. It ends its own ssh child, which drops the
+  connection, and the harness prints how many processes the far side still holds rather than claiming
+  a number.
+- Only the copy is journaled. A cut capture, harvest or store sync is classified and logged, and the
+  person is not told about it, because those read onto this Mac and a later pass redoes them.
+- The join bound is 3,000 ms and it is chosen, not measured. Every child has already been signalled
+  when the join starts, so the ordinary quit pays 0 ms.
+- The full `npm run conformance:resume` roundtrip was not run for this phase. The capture gate was,
+  and it asserts the manifest only.
 
 ### Audit phases 3 to 9 are now Phases 121 to 127, and the Arch work waits for them
 
@@ -14503,4 +14556,5 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 118 started, remote children are owned and removal is one transaction, in wt-p118
 - 2026-08-21, Phase 119 running, decline capture on restore, in wt-p119
 - 2026-08-21, NEXT AFTER 118 AND 119, the release the operator delegated once, then the issue closeout, then Phases 101 to 104, the writes
-- 2026-08-21, Phase 119 shipped, decline capture on restore, this commit, 0.62.0
+- 2026-08-21, Phase 119 shipped, decline capture on restore, `3f08719`, 0.62.0
+- 2026-08-21, Phase 118 shipped, remote children are owned and removal is one transaction, this commit, 0.62.1

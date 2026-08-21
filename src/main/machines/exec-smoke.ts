@@ -13,6 +13,12 @@
  * SYNTHETIC ledger row built at runtime, which is the only way either one is ever
  * watched firing.
  *
+ * PHASE 118 ADDED ONE STEP, being 8b, and it is here for the same reason as the
+ * three below. The refusal a remote call gets once the quit has begun has one
+ * product call site, being the exec plane's two spawn sites, so a bundler can
+ * fold it away. Step 8b watches it fire against the built bundle and reads the
+ * ssh process count afterwards to prove nothing was started.
+ *
  * PHASE 89 ADDED THREE STEPS, and they are here for the same reason. The one
  * function that may type on another machine composes its own argv and refuses
  * anything that is not one line of printable characters. Its refusals have one
@@ -73,6 +79,12 @@ import {
   sendArmedResumeText,
   type LedgerRow
 } from './exec-plane';
+import {
+  beginRemoteExecutionShutdown,
+  liveRemoteExecutions,
+  resetRemoteExecutionLedgerForTests,
+  settledRemoteExecutions
+} from './execution-ledger';
 import { prepareMachine } from './prepare';
 // Phase 84, item 4. The feed's own facts, read back after Prepare returned.
 // It asks the machine nothing: both flags are memory in this process.
@@ -542,6 +554,39 @@ export async function runExecPlaneSmoke(): Promise<void> {
     } else {
       log('   the live stub half was SKIPPED: the probe wrote no stub path');
     }
+
+    // --- 8b. PHASE 118. The remote execution shutdown refusal ---------------
+    //
+    // It is here for the reason steps 5b to 5d are here. The refusal has one
+    // product call site, being the two spawn sites in `./exec-plane.ts`, and a
+    // branch with one caller is the shape rollup follows and folds away. So it
+    // is driven against the built bundle inside a real Electron process, and
+    // the ssh child count afterwards is what says nothing was started.
+    //
+    // NOTHING ABOUT THIS PROCESS IS QUITTING. The flag is set here directly and
+    // cleared on the next line, because what is being watched is the refusal
+    // rather than the teardown. The teardown itself is `npm run smoke:p118`.
+    const sshBeforeShutdown = sshChildCount();
+    beginRemoteExecutionShutdown();
+    await assertRefusedAsync(
+      '8b. a remote command after the quit began',
+      'Tortie is quitting, so nothing more was sent to that machine.',
+      async () => execOn(ctx, ['list-sessions', '-F', '#{session_id}'])
+    );
+    if (liveRemoteExecutions().length !== 0) {
+      fail('a refused remote call still opened an entry in the ledger');
+    }
+    if (settledRemoteExecutions().some((f) => f.outcome === null)) {
+      fail('a settled remote execution carries no outcome');
+    }
+    if (sshChildCount() !== sshBeforeShutdown) {
+      fail('the remote execution shutdown refusal started an ssh process');
+    }
+    log(
+      `   and the ssh child count is still ${String(sshBeforeShutdown)}, so ` +
+        `the refusal fired before anything was composed`
+    );
+    resetRemoteExecutionLedgerForTests();
 
     // --- 9. Two counts of what was started ----------------------------------
     await assertRefusedAsync(

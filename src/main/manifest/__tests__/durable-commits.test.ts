@@ -24,7 +24,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ManifestStore, type ManifestSessionRecord } from '../store';
+import {
+  ManifestStore,
+  type MachineTombstone,
+  type ManifestSessionRecord
+} from '../store';
 
 let dir: string;
 let dbPath: string;
@@ -185,6 +189,103 @@ describe('the writes deliberately left at NORMAL', () => {
     // write it calls would also mean nesting a durable commit inside an
     // ordinary one, which db/sqlite.ts refuses outright.
     expect(durabilityPragmas()).toEqual([]);
+  });
+});
+
+/**
+ * PHASE 118. A machine's removal is ONE durable transaction over every row it
+ * held. Before this phase each row was its own durable commit with a catch
+ * around it, so a failure on row 3 of 5 left two rows tombstoned, three
+ * untouched, `machines.json` rewritten anyway, and no way for a person to tell
+ * which rows had been recorded.
+ *
+ * The pragma trace is what proves it is one transaction rather than five: five
+ * separate durable commits would raise and lower the pair five times.
+ */
+describe('a machine removal is one durable transaction, whatever the row count', () => {
+  function seedFive(): { sessionId: string; tombstone: MachineTombstone }[] {
+    const entries: { sessionId: string; tombstone: MachineTombstone }[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const id = `on-studio-${String(i)}`;
+      store.insertSession({ ...record(id), machineId: 'studio' });
+      entries.push({
+        sessionId: id,
+        tombstone: {
+          v: 1,
+          machineId: 'studio',
+          machineLabel: 'Studio',
+          lastStatus: 'running',
+          lastSeenAt: 1_700_000_000_000,
+          forgottenAt: 1_700_000_500_000
+        }
+      });
+    }
+    pragmas = [];
+    return entries;
+  }
+
+  it('raises and lowers the pair exactly once for five rows', () => {
+    const entries = seedFive();
+    expect(store.markMachinesForgotten(entries)).toBe(5);
+    expect(durabilityPragmas()).toEqual(DURABLE);
+    for (const entry of entries) {
+      expect(readBack(entry.sessionId)?.['status']).toBe('discarded');
+    }
+  });
+
+  it('opens no transaction at all for a machine with no sessions on it', () => {
+    seedFive();
+    expect(store.markMachinesForgotten([])).toBe(0);
+    expect(durabilityPragmas()).toEqual([]);
+  });
+
+  it('writes nothing when one row fails, and the file shows it', () => {
+    const entries = seedFive();
+    expect(() =>
+      store.markMachinesForgotten(entries, {
+        beforeRow: (index) => {
+          if (index === 2) throw new Error('the disk went away');
+        }
+      })
+    ).toThrow(/the disk went away/);
+    // All five, including the two the loop had already reached.
+    for (const entry of entries) {
+      const row = readBack(entry.sessionId);
+      expect(row?.['status']).toBe('running');
+      expect(row?.['machine_tombstone']).toBeNull();
+    }
+  });
+
+  it('a retry after a failure tombstones every row and is idempotent', () => {
+    const entries = seedFive();
+    expect(() =>
+      store.markMachinesForgotten(entries, {
+        beforeRow: (index) => {
+          if (index === 2) throw new Error('the disk went away');
+        }
+      })
+    ).toThrow();
+    expect(store.markMachinesForgotten(entries)).toBe(5);
+    // A row already tombstoned by an earlier removal is skipped and not
+    // counted, because a second tombstone would replace what Tortie last knew
+    // with less. That skip is what makes the third call cost nothing.
+    expect(store.markMachinesForgotten(entries)).toBe(0);
+    for (const entry of entries) {
+      expect(readBack(entry.sessionId)?.['removed_at']).toBe(1_700_000_500_000);
+    }
+  });
+
+  it('throws SESSION_NOT_FOUND for an id with no row, and writes nothing', () => {
+    const entries = seedFive();
+    expect(() =>
+      store.markMachinesForgotten([
+        ...entries,
+        { sessionId: 'never-existed', tombstone: entries[0]!.tombstone }
+      ])
+    ).toThrow(/No manifest row/);
+    for (const entry of entries) {
+      expect(readBack(entry.sessionId)?.['status']).toBe('running');
+    }
   });
 });
 

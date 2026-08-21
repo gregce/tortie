@@ -7,7 +7,7 @@
  * the defect it is testing for.
  */
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GmuxError } from '../../errors';
 import {
   bumpMachineGeneration,
@@ -15,6 +15,13 @@ import {
   setMachineRemotePath,
   type RemoteMachineContext
 } from '../context';
+import {
+  REMOTE_EXEC_SHUTDOWN,
+  beginRemoteExecutionShutdown,
+  liveRemoteExecutions,
+  resetRemoteExecutionLedgerForTests,
+  settledRemoteExecutions
+} from '../execution-ledger';
 import {
   ARMED_TEXT_REFUSED,
   PATH_BEFORE_MUTATION,
@@ -46,6 +53,8 @@ const CTX: RemoteMachineContext = {
 
 afterEach(() => {
   resetMachineContexts();
+  resetRemoteExecutionLedgerForTests();
+  vi.restoreAllMocks();
 });
 
 /** The refusal a call produced, or null when it did not refuse. */
@@ -396,5 +405,82 @@ describe('the armed resume door', () => {
       sendArmedResumeText(CTX, '$7', 'claude --resume abc')
     );
     expect(payload?.message).toBe(PATH_BEFORE_MUTATION);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 118. The ledger at the seam.
+// ---------------------------------------------------------------------------
+
+/**
+ * NOTHING HERE SPAWNS ANYTHING. Every assertion is about a call that was
+ * REFUSED, which is the property: after the quit begins, no argv for a remote
+ * command is ever composed and no ssh child is ever started. The live half, with
+ * a real ssh child under a real clone and a real teardown, is
+ * `npm run smoke:p118`.
+ */
+describe('the remote execution ledger at the spawn seam', () => {
+  /** The refusal a call produced, or null when it did not refuse. */
+  async function refusalOfAsync(
+    work: () => Promise<unknown>
+  ): Promise<GmuxError['payload'] | null> {
+    try {
+      await work();
+      return null;
+    } catch (err) {
+      return err instanceof GmuxError ? err.payload : null;
+    }
+  }
+
+  it('refuses a remote command once the quit began, before anything is composed', async () => {
+    setMachineRemotePath(CTX.machineId, '/usr/bin');
+    beginRemoteExecutionShutdown();
+    const payload = await refusalOfAsync(() =>
+      execOn(CTX, ['list-sessions', '-F', '#{session_id}'])
+    );
+    expect(payload?.code).toBe('SHUTTING_DOWN');
+    expect(payload?.message).toBe(REMOTE_EXEC_SHUTDOWN);
+    // A refused call opens no entry, so nothing was spawned and nothing has to
+    // be joined.
+    expect(liveRemoteExecutions()).toHaveLength(0);
+    expect(settledRemoteExecutions()).toHaveLength(0);
+  });
+
+  it('refuses an armed resume once the quit began, for the same reason', async () => {
+    setMachineRemotePath(CTX.machineId, '/usr/bin');
+    beginRemoteExecutionShutdown();
+    const payload = await refusalOfAsync(() =>
+      sendArmedResumeText(CTX, '$7', 'claude --resume abc')
+    );
+    expect(payload?.code).toBe('SHUTTING_DOWN');
+    expect(liveRemoteExecutions()).toHaveLength(0);
+  });
+
+  /**
+   * A local `execFile` of tmux on this Mac takes milliseconds and is not what
+   * the audit is about. Admitting it would mean a quit refusing the very
+   * commands the teardown itself runs.
+   */
+  it('never admits a local command, so a local exec still runs during a quit', async () => {
+    beginRemoteExecutionShutdown();
+    // Composed here rather than through `localMachineContext()`, which reads
+    // Electron's own app object and has nothing to do with the property.
+    const local = {
+      kind: 'local',
+      machineId: 'local',
+      bin: '/does/not/exist/tmux',
+      socket: 'gmux-p118-unit',
+      confPath: '/does/not/exist/gmux-tmux.conf',
+      binSource: 'bundled',
+      packaged: false
+    } as unknown as Parameters<typeof execOn>[0];
+    const payload = await refusalOfAsync(() =>
+      execOn(local, ['list-sessions', '-F', '#{session_id}'])
+    );
+    // It may fail because there is no tmux server on this socket in a unit
+    // test. What it must never be is the shutdown refusal.
+    expect(payload?.code).not.toBe('SHUTTING_DOWN');
+    expect(liveRemoteExecutions()).toHaveLength(0);
+    expect(settledRemoteExecutions()).toHaveLength(0);
   });
 });

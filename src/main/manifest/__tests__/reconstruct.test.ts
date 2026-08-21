@@ -475,6 +475,10 @@ describe('rebuilding from capsules and stamps', () => {
       'meta',
       'migrations',
       'projects',
+      // Phase 118. The additive table that records a copy onto another machine
+      // which a quit may have ended. It is a user table like the rest, so the
+      // digest covers it.
+      'remote_executions',
       // Phase 90.3. The additive table for a folder on another machine. It is a
       // user table like the rest, so the digest covers it.
       'remote_projects',

@@ -98,6 +98,21 @@
  * empty stdout instead of rejecting. For `list-sessions` that empty stdout read
  * as a completed probe with zero sessions, which flipped every row to
  * 'restorable' and offered Restore over agents that were still running.
+ *
+ * ## PHASE 118: SOMEBODY OWNS THE SSH CHILD NOW
+ *
+ * The two `execFileP` calls in this file are the only places this product
+ * spawns a long running child on another computer. Before Phase 118 they
+ * registered that child with nothing, so quitting Tortie neither ended a copy
+ * that had 600,000 ms nor waited for it, and no record said which had happened.
+ *
+ * Both calls now run inside `admitRemoteExecution` from `./execution-ledger.ts`,
+ * for a REMOTE context only. The ledger refuses new work once the quit begins,
+ * hands the quit the child to end, waits for it under a bound, and writes down
+ * how it ended. Nothing about what is sent, in what order, or how a failure is
+ * classified has moved. `build/conformance-machines.mjs` counts these call
+ * sites, so a third spawn in this directory fails the build rather than
+ * quietly escaping the ledger.
  */
 
 import { execFile } from 'node:child_process';
@@ -118,6 +133,11 @@ import {
   type RemoteMachineContext
 } from './context';
 import { classifyMachineOutput } from './errors';
+import {
+  admitRemoteExecution,
+  type RemoteExecutionHold,
+  type RemoteExecutionKind
+} from './execution-ledger';
 
 const execFileP = promisify(execFile);
 
@@ -127,6 +147,29 @@ const MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 export interface ExecTmuxOptions {
   /** Milliseconds before the command is killed. Default 10s. */
   timeoutMs?: number;
+  /**
+   * PHASE 118. What a person would call this piece of work, for the ledger that
+   * owns the ssh child underneath it.
+   *
+   * It changes nothing about what is sent. It decides what the log line says,
+   * what a cut off copy is recorded as, and which sentence a person reads at
+   * the next launch. A caller that leaves it out is recorded as `command`,
+   * which is the honest word for a remote tmux verb nobody named.
+   *
+   * IGNORED FOR A LOCAL CONTEXT. A local `execFile` of tmux on this Mac takes
+   * milliseconds and is not admitted to the ledger at all.
+   */
+  execution?: {
+    readonly kind: RemoteExecutionKind;
+    /** e.g. the destination folder, or the session's name. May be ''. */
+    readonly subject: string;
+    /**
+     * The machine as the person named it. Only the copy passes it, because it
+     * is the only kind whose record outlives this run and has to name the
+     * machine after it may have been removed.
+     */
+    readonly machineLabel?: string;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -551,18 +594,36 @@ async function spawnTmux(
   args: readonly string[],
   options: ExecTmuxOptions
 ): Promise<string> {
-  const plan = tmuxCommand(ctx, args);
-  try {
-    const { stdout } = await execFileP(plan.file, [...plan.argv], {
-      timeout: options.timeoutMs ?? 10_000,
-      killSignal: 'SIGKILL',
-      maxBuffer: MAX_BUFFER_BYTES,
-      env: process.env
-    });
-    return stdout;
-  } catch (err) {
-    throw classifyExecFailure(ctx, args[0] ?? '', err);
-  }
+  // PHASE 118. The composition is INSIDE the run, so a call refused because
+  // Tortie is quitting never composes an argv at all.
+  const run = async (hold: RemoteExecutionHold | null): Promise<string> => {
+    const plan = tmuxCommand(ctx, args);
+    try {
+      const running = execFileP(plan.file, [...plan.argv], {
+        timeout: options.timeoutMs ?? 10_000,
+        killSignal: 'SIGKILL',
+        maxBuffer: MAX_BUFFER_BYTES,
+        env: process.env
+      });
+      hold?.own(running.child);
+      const { stdout } = await running;
+      return stdout;
+    } catch (err) {
+      throw classifyExecFailure(ctx, args[0] ?? '', err);
+    }
+  };
+  if (ctx.kind !== 'remote') return run(null);
+  return admitRemoteExecution(
+    {
+      machineId: ctx.machineId,
+      kind: options.execution?.kind ?? 'command',
+      subject: options.execution?.subject ?? '',
+      ...(options.execution?.machineLabel !== undefined
+        ? { machineLabel: options.execution.machineLabel }
+        : {})
+    },
+    run
+  );
 }
 
 /**
@@ -669,18 +730,35 @@ export async function execRemoteShell(
   command: string,
   options: ExecTmuxOptions = {}
 ): Promise<string> {
-  const plan = shellCommand(ctx, command);
-  try {
-    const { stdout } = await execFileP(plan.file, [...plan.argv], {
-      timeout: options.timeoutMs ?? 10_000,
-      killSignal: 'SIGKILL',
-      maxBuffer: MAX_BUFFER_BYTES,
-      env: process.env
-    });
-    return stdout;
-  } catch (err) {
-    throw classifyExecFailure(ctx, 'the login shell', err);
-  }
+  // PHASE 118. The second of the ledger's two seams. Every long running remote
+  // child in this product is spawned here or in `spawnTmux` above, and the
+  // conformance gate counts the call sites so a third one fails the build.
+  return admitRemoteExecution(
+    {
+      machineId: ctx.machineId,
+      kind: options.execution?.kind ?? 'command',
+      subject: options.execution?.subject ?? '',
+      ...(options.execution?.machineLabel !== undefined
+        ? { machineLabel: options.execution.machineLabel }
+        : {})
+    },
+    async (hold) => {
+      const plan = shellCommand(ctx, command);
+      try {
+        const running = execFileP(plan.file, [...plan.argv], {
+          timeout: options.timeoutMs ?? 10_000,
+          killSignal: 'SIGKILL',
+          maxBuffer: MAX_BUFFER_BYTES,
+          env: process.env
+        });
+        hold.own(running.child);
+        const { stdout } = await running;
+        return stdout;
+      } catch (err) {
+        throw classifyExecFailure(ctx, 'the login shell', err);
+      }
+    }
+  );
 }
 
 /**

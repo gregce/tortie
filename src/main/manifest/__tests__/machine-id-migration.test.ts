@@ -264,19 +264,21 @@ function userVersion(): number {
 // ---------------------------------------------------------------------------
 
 describe('the three compatibility numbers', () => {
-  it('the schema version is the migration count, and both are 16', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(16);
-    expect(MIGRATIONS.length).toBe(16);
+  it('the schema version is the migration count, and both are 17', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(17);
+    expect(MIGRATIONS.length).toBe(17);
   });
 
-  // Phase 90.3 appended 015-remote-projects and Phase 93 appended
-  // 016-project-tombstone. The two this file is about keep their positions,
-  // which is what these lines exist to pin.
+  // Phase 90.3 appended 015-remote-projects, Phase 93 appended
+  // 016-project-tombstone and Phase 118 appended 017-remote-executions. The two
+  // this file is about keep their positions, which is what these lines exist to
+  // pin.
   it('keeps 013-machine-id and 014-machine-tombstone in their places', () => {
-    expect(MIGRATIONS.at(-1)?.name).toBe('016-project-tombstone');
-    expect(MIGRATIONS.at(-2)?.name).toBe('015-remote-projects');
-    expect(MIGRATIONS.at(-3)?.name).toBe('014-machine-tombstone');
-    expect(MIGRATIONS.at(-4)?.name).toBe('013-machine-id');
+    expect(MIGRATIONS.at(-1)?.name).toBe('017-remote-executions');
+    expect(MIGRATIONS.at(-2)?.name).toBe('016-project-tombstone');
+    expect(MIGRATIONS.at(-3)?.name).toBe('015-remote-projects');
+    expect(MIGRATIONS.at(-4)?.name).toBe('014-machine-tombstone');
+    expect(MIGRATIONS.at(-5)?.name).toBe('013-machine-id');
   });
 
   /**
@@ -325,7 +327,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const store = new ManifestStore(dbPath);
     try {
       // 1. The version moved.
-      expect(userVersion()).toBe(16);
+      expect(userVersion()).toBe(17);
 
       // 2. Every pre-existing row reads local.
       const records = store.listSessions();
@@ -378,7 +380,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const second = new ManifestStore(dbPath);
     second.close();
     expect(rawRows()).toEqual(afterOnce);
-    expect(userVersion()).toBe(16);
+    expect(userVersion()).toBe(17);
   });
 
   it('a row inserted after the migration carries local', () => {
@@ -581,14 +583,21 @@ describe('the tombstone a removed machine leaves', () => {
         lastSeen: 1_700_005_500_000,
         machineId: 'studio'
       });
-      store.markMachineForgotten('r-tombstoned', {
-        v: 1,
-        machineId: 'studio',
-        machineLabel: 'Studio',
-        lastStatus: 'running',
-        lastSeenAt: 1_700_005_500_000,
-        forgottenAt: 1_700_006_000_000
-      });
+      expect(
+        store.markMachinesForgotten([
+          {
+            sessionId: 'r-tombstoned',
+            tombstone: {
+              v: 1,
+              machineId: 'studio',
+              machineLabel: 'Studio',
+              lastStatus: 'running',
+              lastSeenAt: 1_700_005_500_000,
+              forgottenAt: 1_700_006_000_000
+            }
+          }
+        ])
+      ).toBe(1);
       const record = store.getSession('r-tombstoned');
       expect(record?.status).toBe('discarded');
       expect(record?.removedAt).toBe(1_700_006_000_000);
@@ -653,14 +662,19 @@ describe('the tombstone a removed machine leaves', () => {
     const store = new ManifestStore(dbPath);
     try {
       expect(() =>
-        store.markMachineForgotten('nobody', {
-          v: 1,
-          machineId: 'studio',
-          machineLabel: 'Studio',
-          lastStatus: 'running',
-          lastSeenAt: 0,
-          forgottenAt: 1_700_008_000_000
-        })
+        store.markMachinesForgotten([
+          {
+            sessionId: 'nobody',
+            tombstone: {
+              v: 1,
+              machineId: 'studio',
+              machineLabel: 'Studio',
+              lastStatus: 'running',
+              lastSeenAt: 0,
+              forgottenAt: 1_700_008_000_000
+            }
+          }
+        ])
       ).toThrow(/No manifest row/);
     } finally {
       store.close();

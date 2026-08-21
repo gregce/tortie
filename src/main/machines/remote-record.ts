@@ -70,10 +70,15 @@ import { registryResumeArgv, type AgentHarvestKey } from '../agents/registry';
 // what a wider graph costs that gate: one native module reached it and the gate
 // crashed rather than diffed.
 import type { ManifestStore } from '../manifest/store';
+import type { ManifestSessionRecord } from '../manifest/codecs';
+// Phase 118. The two shapes the removal transaction is written in. They are
+// TYPES, so they compile to nothing and can write no row. They are re-exported
+// at the foot of this file, which is what keeps `./remote-sessions.ts` and
+// `./removal.ts` reaching the manifest through this one module.
 import type {
-  MachineTombstone,
-  ManifestSessionRecord
-} from '../manifest/codecs';
+  MachineTombstoneEntry,
+  MarkMachinesForgottenHooks
+} from '../manifest/sessions-repository';
 import type { ResumeIdSource, ResumeProvenance } from '../manifest/agents';
 // `deriveResumeConfidence` is the ONE function allowed to turn harvest evidence
 // into a confidence, and nothing in this phase decides confidence beside it.
@@ -85,6 +90,15 @@ import {
 // copy for the reason above, and `./__tests__/machine-id-migration.test.ts`
 // asserts the two are the same string.
 import { LOCAL_MACHINE_ID } from './context';
+// Phase 118. The ledger that owns every long running ssh child. THE EDGE IS ONE
+// WAY: this file imports the ledger and the ledger imports nothing from this
+// file, so no cycle is added. `setRemoteManifest` below is the only caller of
+// both functions, because installing the manifest is the one moment a boot has
+// a database to read the cut off work out of.
+import {
+  resolveCutOffRemoteExecutions,
+  setRemoteExecutionJournal
+} from './execution-ledger';
 
 const machinesLog = getLog('config');
 
@@ -150,6 +164,23 @@ let store: ManifestStore | null = null;
  */
 export function setRemoteManifest(next: ManifestStore | null): void {
   store = next;
+  // PHASE 118. The journal follows the store, so a write landing after teardown
+  // has no database to reach. Installing it here rather than in the session core
+  // is what keeps `../sessions/core.ts` untouched by this phase.
+  setRemoteExecutionJournal(next);
+  if (next === null) return;
+  // The boot read. A copy onto another machine that Tortie ended because it was
+  // quitting left a row open, and this is where it is closed and said once. A
+  // manifest read must never stop a boot, so a failure is logged and the app
+  // carries on with one thing unsaid rather than with no window.
+  try {
+    resolveCutOffRemoteExecutions(next);
+  } catch (err) {
+    machinesLog.warn(
+      `the record of work cut off on another machine could not be read, so ` +
+        `nothing was said about it: ${(err as Error).message}`
+    );
+  }
 }
 
 /** True while a store is installed. Every write below asks this first. */
@@ -495,35 +526,31 @@ export function unconfirmedRemoteRecords(): ManifestSessionRecord[] {
 }
 
 /**
- * Tombstone one row because a person removed the machine it runs on.
+ * Tombstone EVERY row a removed machine held, in one durable transaction.
  *
- * Returns false when there is no store or no row, which is how a feed row with
- * no manifest row is handled: there is nothing to tombstone, and dropping it
- * from memory is the whole of what can be done for it.
+ * ALL OR NONE. Phase 118 replaced the one row version of this function, which
+ * caught a per row failure, logged it and answered false while the loop kept
+ * going. A failure on row 3 of 5 left two rows tombstoned, three untouched,
+ * `machines.json` rewritten anyway, and no way for a person to tell which rows
+ * had been recorded. There is no `try` in this body on purpose: a failure has
+ * to reach the caller, because the caller is what rewrites the machine's file.
+ *
+ * The transaction, the skip of a row an earlier removal already tombstoned and
+ * the throw for a row that is not there all live in
+ * `ManifestStore.markMachinesForgotten`. This function is the seam and nothing
+ * else.
+ *
+ * @returns how many rows were tombstoned. 0 when no manifest is installed,
+ *   which is the answer the one row version gave for the same state, and 0 for
+ *   an empty plan.
+ * @throws whatever the failing row threw. Nothing is written in that case.
  */
-export function tombstoneRemoteRow(
-  sessionId: string,
-  tombstone: MachineTombstone
-): boolean {
-  if (store === null) return false;
-  const record = store.getSession(sessionId);
-  if (record === undefined) return false;
-  if (record.status === 'discarded' && record.machineTombstone !== undefined) {
-    // Already tombstoned by an earlier removal of the same machine. Writing a
-    // second one would replace what Tortie last knew with what it knows now,
-    // which is less.
-    return false;
-  }
-  try {
-    store.markMachineForgotten(sessionId, tombstone);
-    return true;
-  } catch (err) {
-    machinesLog.warn(
-      `could not record what Tortie last knew about ${sessionId} on ` +
-        `${tombstone.machineId}: ${(err as Error).message}`
-    );
-    return false;
-  }
+export function tombstoneRemoteRows(
+  entries: readonly MachineTombstoneEntry[],
+  hooks?: MarkMachinesForgottenHooks
+): number {
+  if (store === null) return 0;
+  return store.markMachinesForgotten(entries, hooks);
 }
 
 // ---------------------------------------------------------------------------
@@ -777,3 +804,18 @@ export function conversationSyncedAt(sessionId: string): number | null {
 export function resetRemoteStoreRecordsForTests(): void {
   storeRecords.clear();
 }
+
+// ---------------------------------------------------------------------------
+// The transaction shapes, re-exported (Phase 118)
+// ---------------------------------------------------------------------------
+
+/**
+ * The two shapes a removal is written in, re-exported from this one module.
+ *
+ * `./remote-sessions.ts` builds the plan and `./removal.ts` runs it, and the
+ * rule `./__tests__/remote-sessions.test.ts` holds is that the machine layer
+ * reaches the manifest through this file and no other. Re-exporting the types
+ * here is what lets both of those files name the shape without adding a second
+ * edge to `../manifest/`.
+ */
+export type { MachineTombstoneEntry, MarkMachinesForgottenHooks };

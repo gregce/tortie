@@ -412,10 +412,11 @@ export {
 
 export {
   boundRemoteRow,
-  forgetMachineRows,
+  dropMachineRowsFromMemory,
   forgetRemoteRow,
   isRemoteSessionId,
   machineCanHoldSession,
+  machineTombstonePlan,
   markMachineQuiet,
   nameOf,
   notifyRemoteRowsChanged,
@@ -499,7 +500,7 @@ export {
   remoteRecordsForMachine,
   remoteResumeProvenance,
   setRemoteManifest,
-  tombstoneRemoteRow,
+  tombstoneRemoteRows,
   writeRemoteRow,
   type RemoteRowInput
 } from './remote-record';

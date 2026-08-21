@@ -181,10 +181,10 @@ updates:whyFailed
 
 [sqlite.identity]
 application_id=1414681669
-user_version=16
+user_version=17
 min_compatible_version=13
 
-[sqlite.migrations] count=16
+[sqlite.migrations] count=17
 001-initial
 002-exit-code
 003-death-forensics
@@ -201,8 +201,12 @@ min_compatible_version=13
 014-machine-tombstone
 015-remote-projects
 016-project-tombstone
+017-remote-executions
 
-[sqlite.schema] objects=9
+[sqlite.schema] objects=11
+-- index idx_remote_executions_open
+CREATE INDEX idx_remote_executions_open
+          ON remote_executions(outcome)
 -- index idx_restore_attempts_open
 CREATE INDEX idx_restore_attempts_open
           ON restore_attempts(outcome) WHERE outcome IS NULL
@@ -228,6 +232,17 @@ CREATE TABLE projects (
           id   TEXT PRIMARY KEY,
           path TEXT NOT NULL UNIQUE,
           name TEXT NOT NULL
+        )
+-- table remote_executions
+CREATE TABLE remote_executions (
+          id            INTEGER PRIMARY KEY,
+          machine_id    TEXT NOT NULL,
+          machine_label TEXT NOT NULL,
+          kind          TEXT NOT NULL,
+          subject       TEXT NOT NULL,
+          started_at    INTEGER NOT NULL,
+          outcome       TEXT,
+          finished_at   INTEGER
         )
 -- table remote_projects
 CREATE TABLE remote_projects (
@@ -371,7 +386,7 @@ GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
-[harness.smoke.modes] count=31
+[harness.smoke.modes] count=33
 agent
 basic
 capture
@@ -387,6 +402,8 @@ machines
 migrate
 p117-prep
 p117-verify
+p118-prep
+p118-verify
 p93-remote-clear
 partition
 power
@@ -408,5 +425,5 @@ verify
 durability=23
 skills=6
 config=6
-machines=44
+machines=46
 updater=8

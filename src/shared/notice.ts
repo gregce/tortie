@@ -306,6 +306,30 @@ export interface RemoteResumeNotice {
   landing: 'twice' | 'absent' | 'unknown';
 }
 
+/**
+ * A long running piece of work on another machine was ended because Tortie was
+ * quitting. Phase 118.
+ *
+ * Today the only journaled kind is a copy of a project onto that machine, and
+ * that is the one kind that writes over there. It gets a sentence because the
+ * person is otherwise left with a folder partly copied on another computer and
+ * nothing saying why. The next attempt at that path is refused by name, so this
+ * is the one moment they can be told.
+ *
+ * `machineLabel` is the label as it read when the work started, taken from the
+ * recorded row rather than looked up, because the machine may have been removed
+ * since.
+ */
+export interface RemoteWorkCutOffNotice {
+  kind: 'remote-work-cut-off';
+  /** The machine as the person named it when the work started. */
+  machineLabel: string;
+  /** The absolute folder on that machine. */
+  path: string;
+  /** How many pieces of work were cut off. At least 1. */
+  count: number;
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
   | BackupFailingNotice
@@ -320,7 +344,8 @@ export type DurabilityNotice =
   | UncleanExitNotice
   | EnvUnresolvedNotice
   | ShellPathFallbackNotice
-  | RemoteResumeNotice;
+  | RemoteResumeNotice
+  | RemoteWorkCutOffNotice;
 
 /**
  * Everything that travels on `scrollback:notice`: the three scrollback events
@@ -342,7 +367,8 @@ export const DURABILITY_NOTICE_KINDS = [
   'unclean-exit',
   'env-unresolved',
   'shell-path-fallback',
-  'remote-resume'
+  'remote-resume',
+  'remote-work-cut-off'
 ] as const;
 
 /** Narrow a notice off the shared channel to a degraded state. */

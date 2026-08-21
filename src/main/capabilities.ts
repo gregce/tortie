@@ -40,6 +40,13 @@ import { registerLogIpc } from './log/ipc';
 // Phase 68: the machines domain. The watcher teardown and the live test
 // cancellation are both in the ordered disposer below.
 import { cancelLiveMachineTest } from './machines/connection-test';
+// Phase 118: the ledger that owns every long running ssh child. Its three lines
+// are in the ordered disposer below, beside the three feed stops.
+import {
+  beginRemoteExecutionShutdown,
+  cancelRemoteExecutions,
+  joinRemoteExecutions
+} from './machines/execution-ledger';
 import { registerMachinesIpc } from './machines/ipc';
 // Phase 72: the saved output capture for sessions on another machine. Its
 // cadence is armed here and stopped in the ordered disposer below.
@@ -349,6 +356,34 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // pass already in flight stops between reads and writes nothing more.
   stopRemoteHarvest();
   stopRemoteStoreSync();
+  // PHASE 118. The three lines that own the long running ssh children, and
+  // their POSITION is deliberate.
+  //
+  // They are AFTER `await shutdownGmuxCore()` above, so the quit time snapshot
+  // pass, which is the last thing that may legitimately read a machine, is not
+  // refused. They are at the same point as the three feed stops above, which is
+  // where the audit's own target order puts "cancel and bounded-await remote
+  // child processes", after "stop timers and feeds".
+  //
+  // No await moves, none is added ahead of an existing one, and no existing line
+  // changes. The common quit pays nothing here: `cancelRemoteExecutions` returns
+  // 0 and `joinRemoteExecutions` returns at once, because the set is empty.
+  beginRemoteExecutionShutdown();
+  const cutOffChildren = cancelRemoteExecutions();
+  const remoteJoin = await joinRemoteExecutions();
+  if (cutOffChildren > 0) {
+    getLog('quit').info(
+      `ended ${cutOffChildren} remote child process(es); ` +
+        `${remoteJoin.joined} settled and ${remoteJoin.unjoined} did not, ` +
+        `after ${remoteJoin.waitedMs} ms`,
+      {
+        cancelled: cutOffChildren,
+        joined: remoteJoin.joined,
+        unjoined: remoteJoin.unjoined,
+        waitedMs: remoteJoin.waitedMs
+      }
+    );
+  }
   // Phase 73.1, rows 20 and 37. The wedge guard's timer is cleared once the
   // race has settled. The cancel runs after the catch, so it runs whichever arm
   // won and whether or not the other one rejected. Nothing about the ORDER of

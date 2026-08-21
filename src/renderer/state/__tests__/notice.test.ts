@@ -345,6 +345,68 @@ describe('each degraded state says one plain thing', () => {
   });
 });
 
+/**
+ * PHASE 118. A copy onto another machine was ended because the person quit.
+ *
+ * The path is NOT in the sentence. Two lines of about 26 characters beside the
+ * action button have no room for a folder on another computer, so the path is
+ * in the log and the action goes there. That is the same split the shell PATH
+ * fallback notice already makes for the same reason.
+ */
+describe('a copy the quit cut off', () => {
+  it('names the machine and says the person own quit ended it', () => {
+    const out = say({
+      kind: 'remote-work-cut-off',
+      machineLabel: 'Studio',
+      path: '/Users/gdc/gmux',
+      count: 1
+    });
+    expect(out.text).toBe('The copy to "Studio" stopped when you quit.');
+    expect(out.kind).toBe('error');
+    expect(out.action).toBe('View logs');
+    useApp.getState().toasts[0]?.action?.run();
+    expect(logFolderOpens).toBe(1);
+  });
+
+  it('counts them when more than one was cut off', () => {
+    const out = say({
+      kind: 'remote-work-cut-off',
+      machineLabel: 'Studio',
+      path: '/Users/gdc/gmux',
+      count: 3
+    });
+    expect(out.text).toBe('3 copies to machines stopped when you quit.');
+  });
+
+  // The budget is the TWO lines a toast has, not one line. The longest text
+  // this notice can produce wraps onto the second line, which is what the box
+  // is for. It is 53 characters against the 58 the two lines hold.
+  it('fits the two lines with the longest label the shortener can produce', () => {
+    const out = say({
+      kind: 'remote-work-cut-off',
+      machineLabel: 'a-machine-label-that-is-far-too-long',
+      path: '/Users/gdc/gmux',
+      count: 1
+    });
+    expect(out.text.length).toBe(53);
+    expect(out.text.length).toBeLessThanOrEqual(TOAST_BUDGET);
+    expect(out.text).toContain('…');
+  });
+
+  it('carries neither kind of dash', () => {
+    for (const count of [1, 2]) {
+      const text = say({
+        kind: 'remote-work-cut-off',
+        machineLabel: 'Studio',
+        path: '/Users/gdc/gmux',
+        count
+      }).text;
+      expect(text).not.toContain('\u2014');
+      expect(text).not.toContain('\u2013');
+    }
+  });
+});
+
 describe('every line fits the toast it has to fit in', () => {
   const CASES: GmuxNotice[] = [
     { kind: 'snapshot-failed', sessions: 43, outOfSpace: true },
@@ -402,6 +464,18 @@ describe('every line fits the toast it has to fit in', () => {
       kind: 'remote-resume',
       sessionName: 'a-very-long-session-name',
       landing: 'unknown'
+    },
+    {
+      kind: 'remote-work-cut-off',
+      machineLabel: 'a-machine-label-that-is-far-too-long',
+      path: '/Users/gdc/a/very/long/path/on/another/computer',
+      count: 1
+    },
+    {
+      kind: 'remote-work-cut-off',
+      machineLabel: 'a-machine-label-that-is-far-too-long',
+      path: '/Users/gdc/a/very/long/path/on/another/computer',
+      count: 12
     }
   ];
 

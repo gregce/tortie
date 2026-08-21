@@ -1505,6 +1505,14 @@ export interface RemoteProjectFindResult {
  *    finish. {@link RemoteCloneResult.detail} carries what it reported.
  *  - `timeout` means Tortie stopped waiting. The copy may still be running
  *    over there and part of the project may be left at the path.
+ *  - `cutOff` means Tortie was quitting and the copy did not finish. It carries
+ *    one of two sentences, because they are two different facts. If the copy had
+ *    already started, it may still be running over there and part of the project
+ *    may be left at the path. If Tortie refused it before anything crossed,
+ *    nothing was sent and nothing was written on that machine. Phase 118 added
+ *    it, and the sentence a person actually reads for it is the notice at the
+ *    NEXT launch rather than either of these, because the window is closing at
+ *    the moment they fire.
  *  - `changed` means this project's remote is no longer the address the sheet
  *    was drawn from, so nothing was sent.
  *  - `refused` means main refused before anything was sent, because the
@@ -1518,6 +1526,7 @@ export type RemoteCloneOutcome =
   | 'unreachable'
   | 'failed'
   | 'timeout'
+  | 'cutOff'
   | 'changed'
   | 'refused'
   | 'offline';

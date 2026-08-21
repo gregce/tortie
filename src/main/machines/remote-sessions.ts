@@ -215,9 +215,11 @@ import {
   remoteManifestInstalled,
   remoteRecordOf,
   remoteRecordsForMachine,
-  tombstoneRemoteRow,
   unconfirmedRemoteRecords,
-  writeRemoteRow
+  writeRemoteRow,
+  // Phase 118. A TYPE, re-exported by the one module this file reaches the
+  // manifest through. The plan below is a list of these and it writes nothing.
+  type MachineTombstoneEntry
 } from './remote-record';
 // Phase 117. The pure table that decides what one read at the end of a create is
 // allowed to prove. This module composes the read and acts on the answer.
@@ -1915,37 +1917,42 @@ export function remoteRowLastKnown(machineId: string): RemoteRowLastKnown[] {
 }
 
 /**
- * A person removed a machine. Record what Tortie last knew, and drop it.
+ * What ONE removal would write, composed and handed back. It writes nothing.
  *
- * FOUR THINGS HAPPEN AND A FIFTH DELIBERATELY DOES NOT.
+ * PHASE 118 SPLIT THIS OUT OF `forgetMachineRows`. That function composed the
+ * tombstones and wrote them one durable commit at a time, so a failure part way
+ * through left some rows recorded and some not. The plan and the write are two
+ * things now: this composes, `./remote-record.ts` writes every row of it in one
+ * transaction, and `./removal.ts` is the one caller of both.
  *
- *  1. Every manifest row for that machine is tombstoned, in a durable commit
- *     each, carrying the label, the last status and the two instants.
- *  2. The in memory rows for that machine are dropped.
- *  3. The remembered foreign ids for that machine are dropped, so a machine
- *     added again later starts from nothing.
- *  4. The surfaces are told.
+ * The label is read from `machines.json` here, while the row is still in the
+ * file, because the caller rewrites that file the moment the transaction
+ * commits. A machine with no row at all is named by its id, which is the only
+ * name left for it.
  *
- * NOTHING IS SENT TO THE MACHINE. No session is ended, no server is stopped and
- * nothing is read. The sessions over there keep running, and every tombstone
- * sentence says so.
+ * ROWS WITH NO MANIFEST ROW ARE LEFT OUT, and that is the same answer the old
+ * loop gave. A session Tortie only ever saw in a list from that machine was
+ * created by a build that recorded nothing about it, so there is nothing to
+ * tombstone and dropping it from memory is the whole of what can be done for it.
+ * Leaving it in would make the transaction throw SESSION_NOT_FOUND and take a
+ * removal down over a row that never existed.
  *
- * The CALLER closes the link and removes the row from `machines.json`, in that
- * order, after this returns. This runs first because the tombstone needs the
- * label, and the label is in the file the caller is about to rewrite.
+ * A row an earlier removal already tombstoned IS left in. The skip for it lives
+ * in `ManifestStore.markMachinesForgotten`, which is what makes a retry after a
+ * failure idempotent.
  *
- * Returns the number of manifest rows tombstoned. A machine holding only feed
- * rows returns 0, which is the honest answer: those sessions were created by a
- * build that recorded nothing about them and Tortie can leave no record either.
+ * NOTHING IS SENT TO THE MACHINE by this function, and nothing could be: it
+ * reads two maps and one file on this Mac.
  */
-export function forgetMachineRows(
+export function machineTombstonePlan(
   machineId: string,
   forgottenAt: number = Date.now()
-): number {
+): MachineTombstoneEntry[] {
   const row = machineRow(machineId);
   const machineLabel = row === null ? machineId : machineLabelOf(row);
-  let tombstoned = 0;
+  const plan: MachineTombstoneEntry[] = [];
   for (const known of remoteRowLastKnown(machineId)) {
+    if (remoteRecordOf(known.id) === null) continue;
     const tombstone: MachineTombstone = {
       v: 1,
       machineId,
@@ -1954,8 +1961,31 @@ export function forgetMachineRows(
       lastSeenAt: known.lastSeenAt,
       forgottenAt
     };
-    if (tombstoneRemoteRow(known.id, tombstone)) tombstoned += 1;
+    plan.push({ sessionId: known.id, tombstone });
   }
+  return plan;
+}
+
+/**
+ * Let go of one machine in memory, after its record has been written.
+ *
+ * THREE THINGS HAPPEN AND A FOURTH DELIBERATELY DOES NOT.
+ *
+ *  1. The in memory rows for that machine are dropped, and both of its timers
+ *     are cleared first.
+ *  2. The link is closed and the remembered foreign ids go, so a machine added
+ *     again later starts from nothing.
+ *  3. The surfaces are told.
+ *
+ * NOTHING IS SENT TO THE MACHINE. Closing the link ends a connection this Mac
+ * holds open, which is the same thing quitting Tortie does. No session is ended,
+ * no server is stopped and nothing is read.
+ *
+ * PHASE 118 MADE THIS UNREACHABLE UNTIL THE RECORD IS SAFE. `./removal.ts`
+ * calls it only after the tombstone transaction has committed, so a failed
+ * removal leaves the machine exactly as it was rather than half forgotten.
+ */
+export function dropMachineRowsFromMemory(machineId: string): void {
   const state = machines.get(machineId);
   if (state !== undefined) {
     clearTimer(state);
@@ -1976,11 +2006,6 @@ export function forgetMachineRows(
   closeControlPlane(machineId);
   forgetForeignMemo(machineId);
   announce();
-  machinesLog.info(
-    `${machineId} was removed and ${String(tombstoned)} session record(s) now ` +
-      `say what Tortie last knew. Nothing was sent to that machine.`
-  );
-  return tombstoned;
 }
 
 /** Tell every surface the remote rows changed. The announce, by its own name. */

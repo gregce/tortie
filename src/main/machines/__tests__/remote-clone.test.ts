@@ -40,6 +40,8 @@ let answers: Record<string, string | Error> = {};
 let origin: string | null = 'https://github.com/gregce/tortie.git';
 /** Whether the link reads as answering. */
 let connected = true;
+/** Phase 118. What the write door was told this piece of work is. */
+let execution: unknown = null;
 
 vi.mock('../remote-run', () => ({
   machineIsConnected: (): boolean => connected,
@@ -56,9 +58,11 @@ vi.mock('../remote-run', () => ({
   runRemoteWrite: (
     _ctx: unknown,
     script: string,
-    args: readonly string[]
+    args: readonly string[],
+    options?: { execution?: unknown }
   ): Promise<{ payload: string; generation: number; bytes: number }> => {
     asked.push({ door: 'write', script, args: [...args] });
+    execution = options?.execution ?? null;
     const answer = answers[script];
     if (answer instanceof Error) return Promise.reject(answer);
     return Promise.resolve({ payload: answer ?? '', generation: 3, bytes: 0 });
@@ -67,6 +71,17 @@ vi.mock('../remote-run', () => ({
 
 vi.mock('../remote-sessions', () => ({
   readyRemoteContext: (): RemoteMachineContext => CTX
+}));
+
+/** Phase 118. Whether the ledger is still accepting remote work. */
+let accepting = true;
+
+vi.mock('../execution-ledger', () => ({
+  remoteExecutionsAccepted: (): boolean => accepting,
+  // The real constant, so the arm that reads it here cannot drift from the one
+  // the exec plane throws.
+  REMOTE_EXEC_SHUTDOWN:
+    'Tortie is quitting, so nothing more was sent to that machine.'
 }));
 
 vi.mock('../store', () => ({
@@ -133,6 +148,8 @@ beforeEach(() => {
   answers = {};
   origin = URL_HERE;
   connected = true;
+  accepting = true;
+  execution = null;
   resetRemoteProjectFindForTests();
 });
 
@@ -258,6 +275,63 @@ describe('the one write', () => {
 
   it('answers failed rather than guessing at an answer it could not read', async () => {
     answers['git-clone'] = 'something else entirely';
+    const out = await call();
+    expect(out.outcome).toBe('failed');
+  });
+});
+
+/**
+ * PHASE 118. A quit that ended the ssh child produces the same rejected promise
+ * a dropped link does, and the two are different things to a person. The ledger
+ * stops accepting work on the first line of the quit, so a copy that failed
+ * while it was refusing is a copy Tortie itself ended.
+ */
+describe('a copy the quit cut off', () => {
+  it('names the quit rather than blaming the link', async () => {
+    accepting = false;
+    answers['git-clone'] = new Error('Command failed: ssh ... SIGTERM');
+    const out = await call();
+    expect(out.outcome).toBe('cutOff');
+    expect(out.sentences[0]).toContain('You quit Tortie while this copy was running');
+    // The consequence is the same as a deadline, so the sentence names both
+    // halves of it: the machine, and the folder that may hold part of the copy.
+    expect(out.sentences[0]).toContain("Greg's Mac Pro");
+    expect(out.sentences[0]).toContain('/Users/gdc/gmux');
+  });
+
+  it('carries the kind, the destination and the label to the ledger', async () => {
+    // The label travels because the row this copy writes outlives the run, and
+    // the machine may be removed before anybody reads it.
+    answers['git-clone'] = said('cloned', '', '/Users/gdc/gmux');
+    await call();
+    expect(execution).toEqual({
+      kind: 'clone',
+      subject: '/Users/gdc/gmux',
+      machineLabel: "Greg's Mac Pro"
+    });
+  });
+
+  /**
+   * The ledger's own refusal fires BEFORE an argv is composed, so nothing
+   * crossed. Telling a person to go and look at a folder that was never touched
+   * would be false, so this arm names no path at all.
+   */
+  it('says nothing was sent when the ledger refused before anything crossed', async () => {
+    accepting = false;
+    answers['git-clone'] = new Error(
+      'Tortie is quitting, so nothing more was sent to that machine.'
+    );
+    const out = await call();
+    expect(out.outcome).toBe('cutOff');
+    expect(out.sentences[0]).toContain('nothing was sent to');
+    expect(out.sentences[0]).toContain('nothing was written there');
+    expect(out.sentences[0]).not.toContain('/Users/gdc/gmux');
+    expect(out.sentences[0]).not.toContain('may still be running');
+  });
+
+  it('still says timeout when the quit is not what ended it', async () => {
+    accepting = true;
+    answers['git-clone'] = new Error('the link dropped');
     const out = await call();
     expect(out.outcome).toBe('failed');
   });

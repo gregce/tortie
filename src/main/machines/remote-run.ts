@@ -65,7 +65,7 @@ import { gmuxError } from '../errors';
 import { shellQuoteArgv } from '../restore/command';
 import { machineGeneration, type RemoteMachineContext } from './context';
 import { machineLinkFacts } from './control-plane';
-import { execRemoteShell } from './exec-plane';
+import { execRemoteShell, type ExecTmuxOptions } from './exec-plane';
 import {
   MACHINE_NOT_CONNECTED,
   SCRIPT_NOT_IN_CATALOGUE,
@@ -92,6 +92,12 @@ export const REMOTE_RUN_TIMEOUT_MS = 15_000;
 /** What a caller may change about one run. */
 export interface RemoteRunOptions {
   readonly timeoutMs?: number;
+  /**
+   * PHASE 118. What a person would call this piece of work, passed straight
+   * through to the ledger that owns the ssh child. It changes nothing about
+   * what is sent. A caller that leaves it out is recorded as `command`.
+   */
+  readonly execution?: ExecTmuxOptions['execution'];
 }
 
 /** One answer from one machine, and the connection it belongs to. */
@@ -258,7 +264,10 @@ async function runRemoteScript(
     );
   }
   const out = await execRemoteShell(ctx, command, {
-    timeoutMs: options.timeoutMs ?? REMOTE_RUN_TIMEOUT_MS
+    timeoutMs: options.timeoutMs ?? REMOTE_RUN_TIMEOUT_MS,
+    // PHASE 118. The caller's own name for the work, or nothing, which the
+    // ledger reads as `command`.
+    ...(options.execution !== undefined ? { execution: options.execution } : {})
   });
   // 7. An answer with nothing between the markers is a refusal, not a guess.
   const payload = parseRemoteScriptAnswer(out);

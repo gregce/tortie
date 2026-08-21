@@ -173,6 +173,21 @@
  *                       Isolated profile AND isolated socket, refused without
  *                       both, and cloud sync forced off by the harness.
  *                       `npm run smoke:restore:bare`.
+ *  - GMUX_SMOKE=p118-prep / p118-verify  a long running copy onto another
+ *                       machine is owned, ended and written down, and a
+ *                       machine removal is one transaction (Phase 118, Tier 3).
+ *                       TWO launches against one user data directory and one
+ *                       loopback scratch machine. The prep leg starts a copy
+ *                       whose first git command really sleeps, so the ssh child
+ *                       under it is alive for minutes, then runs the REAL quit
+ *                       teardown, proves a later remote call is refused with
+ *                       SHUTTING_DOWN, proves the ssh child is dead, and reads
+ *                       the one unfinished row the manifest holds. The verify
+ *                       leg proves the person is told once and never again,
+ *                       then faults the removal transaction on row 3 of 5 and
+ *                       compares the before and after fingerprints byte for
+ *                       byte, then retries it, then removes a third time.
+ *                       `npm run smoke:p118`.
  *  - GMUX_SMOKE=shadow  the bare-name invariant under a shadowed binary
  *                       (Phase 49, Tier 3): two scratch copies of `droid` are
  *                       planted at the head of a stubbed login-shell PATH, a
@@ -228,6 +243,13 @@ import {
   runP117PrepSmoke,
   runP117VerifySmoke
 } from './p117-create-unknown';
+// Phase 118: the two legs of the long running ssh child proof and the removal
+// transaction proof. LEAF import for the same reason ./p117-create-unknown is,
+// because it pulls in the session core.
+import {
+  runP118PrepSmoke,
+  runP118VerifySmoke
+} from './p118-remote-children';
 import { runMigrateSmoke } from '../migrate/smoke';
 import { runReconstructSmoke } from '../manifest/reconstruct-smoke';
 import { runRefusalSmoke } from '../manifest/refusal-smoke';
@@ -451,6 +473,23 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   }
   if (smoke === 'p117-verify') {
     await runP117VerifySmoke();
+    return true;
+  }
+  // Phase 118: a long running copy onto another machine is owned, ended and
+  // written down, and a machine removal is one transaction. The prep leg starts
+  // a copy that really takes minutes, runs the REAL quit teardown under it, and
+  // reads the durable row it leaves behind. The verify leg is a second launch
+  // on the same user data directory, so the person being told once is a fact
+  // about a restart rather than about a variable. It then faults the removal
+  // transaction and compares the before and after fingerprints byte for byte.
+  // `build/p118-remote-children.mjs` owns the machine, the wrapper and the
+  // verdict, so this process never grades itself.
+  if (smoke === 'p118-prep') {
+    await runP118PrepSmoke();
+    return true;
+  }
+  if (smoke === 'p118-verify') {
+    await runP118VerifySmoke();
     return true;
   }
   // Phase 71: the link to a machine cut at five named moments, in a real

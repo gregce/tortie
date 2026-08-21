@@ -63,6 +63,30 @@ const DISCARDED_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
  * rather than relying on this build to decline a write.
  */
 
+/**
+ * One row a machine's removal has to tombstone, and the record to write on it
+ * (Phase 118).
+ *
+ * The plan is composed by `../machines/remote-sessions.ts` and written by
+ * {@link SessionsRepository.markMachinesForgotten} as one transaction, so the
+ * caller can never write half a removal.
+ */
+export interface MachineTombstoneEntry {
+  readonly sessionId: string;
+  readonly tombstone: MachineTombstone;
+}
+
+/** What a harness may do inside the removal transaction (Phase 118). */
+export interface MarkMachinesForgottenHooks {
+  /**
+   * HARNESS ONLY. Called inside the transaction, before each row's UPDATE, with
+   * the 0-based index. A throw here rolls the whole transaction back, which is
+   * the state this phase exists to make provable. Nothing in production passes
+   * it, and the one caller that can arm it refuses unless GMUX_SMOKE is set.
+   */
+  readonly beforeRow?: (index: number, entry: MachineTombstoneEntry) => void;
+}
+
 export class SessionsRepository {
   constructor(private readonly db: Database.Database) {}
 
@@ -652,47 +676,87 @@ export class SessionsRepository {
   }
 
   /**
-   * Tombstone a row because a person removed the machine it runs on
-   * (Phase 72, migration 014).
+   * Tombstone EVERY row a removed machine held, in ONE durable transaction
+   * (Phase 72, migration 014; made one transaction in Phase 118).
    *
-   * ONE STATEMENT writes all four facts: the status, the removal instant, and
-   * the record of what Tortie last knew. They are one write because they are one
-   * event, and a crash between them would leave a discarded row with no
-   * explanation of which machine went away, which is the state this whole item
-   * exists to remove.
+   * ALL OR NONE, and that is the whole of this method. Before Phase 118 each row
+   * was its own durable commit with a catch around it, so a failure on row 3 of
+   * 5 left two rows tombstoned, three untouched, `machines.json` rewritten
+   * anyway, and no way for a person to tell which rows had been recorded.
    *
-   * A DURABLE COMMIT, for the same reason `markSessionRemoved` is one. The caller
-   * removes the machine row from `machines.json` the moment this returns, and a
-   * NORMAL commit could be discarded by power loss. Durable first means the two
-   * sides can only be lost in the safe order: a tombstone naming a machine that
-   * is still in the list reads correctly, and a machine removed with no
-   * tombstone behind it does not.
+   * ONE STATEMENT PER ROW writes all three facts: the status, the removal
+   * instant, and the record of what Tortie last knew. They are one write because
+   * they are one event, and a crash between them would leave a discarded row
+   * with no explanation of which machine went away.
+   *
+   * A ROW THAT IS NOT THERE THROWS SESSION_NOT_FOUND and nothing is written.
+   *
+   * A ROW ALREADY TOMBSTONED by an earlier removal of the same machine is
+   * SKIPPED and not counted, because writing a second tombstone would replace
+   * what Tortie last knew with less. That skip is what makes a retry after a
+   * failure idempotent.
+   *
+   * DURABLE, for the same reason `markSessionRemoved` is. The caller rewrites
+   * `machines.json` the moment this returns, and a NORMAL commit could be
+   * discarded by power loss. Durable first means the two sides can only be lost
+   * in the safe order: a tombstone naming a machine that is still in the list
+   * reads correctly, and a machine removed with no tombstone behind it does not.
    *
    * NOTHING IS SENT TO THE MACHINE by this method or by its caller. The sessions
    * over there keep running, and the tombstone's own sentence says so.
    *
-   * @throws SESSION_NOT_FOUND when the id has no row.
+   * @returns how many rows this call tombstoned. 0 is an ordinary answer.
+   * @throws whatever the failing row threw, including SESSION_NOT_FOUND for an
+   *   id with no row. Nothing is written in that case.
    */
-  markMachineForgotten(
-    id: string,
-    tombstone: MachineTombstone,
-    at: number = tombstone.forgottenAt
-  ): void {
+  markMachinesForgotten(
+    entries: readonly MachineTombstoneEntry[],
+    hooks?: MarkMachinesForgottenHooks
+  ): number {
+    // An empty list opens no transaction. A machine with no sessions on it is
+    // an ordinary machine, not a failure, and a durable commit that writes
+    // nothing is 4.24 ms spent for nothing.
+    if (entries.length === 0) return 0;
+    let written = 0;
     durableTransaction(this.db, () => {
-      const info = this.db
-        .prepare<[number, string, string]>(
-          `UPDATE sessions
-              SET status = 'discarded', removed_at = ?, machine_tombstone = ?
-            WHERE id = ?`
-        )
-        .run(at, JSON.stringify(tombstone), id);
-      if (info.changes === 0) {
-        throw manifestError(
-          'SESSION_NOT_FOUND',
-          `No manifest row for session ${id}`
-        );
+      written = 0;
+      for (let i = 0; i < entries.length; i += 1) {
+        const entry = entries[i];
+        if (entry === undefined) continue;
+        hooks?.beforeRow?.(i, entry);
+        const existing = this.db
+          .prepare<[string], { status: string; machine_tombstone: string | null }>(
+            'SELECT status, machine_tombstone FROM sessions WHERE id = ?'
+          )
+          .get(entry.sessionId);
+        if (existing === undefined) {
+          throw manifestError(
+            'SESSION_NOT_FOUND',
+            `No manifest row for session ${entry.sessionId}`
+          );
+        }
+        if (
+          existing.status === 'discarded' &&
+          existing.machine_tombstone !== null
+        ) {
+          // Already tombstoned by an earlier removal of the same machine.
+          continue;
+        }
+        this.db
+          .prepare<[number, string, string]>(
+            `UPDATE sessions
+                SET status = 'discarded', removed_at = ?, machine_tombstone = ?
+              WHERE id = ?`
+          )
+          .run(
+            entry.tombstone.forgottenAt,
+            JSON.stringify(entry.tombstone),
+            entry.sessionId
+          );
+        written += 1;
       }
     });
+    return written;
   }
 
   /**

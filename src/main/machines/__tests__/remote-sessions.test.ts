@@ -211,7 +211,9 @@ const {
   REMOTE_POLL_IDLE_MS,
   REMOTE_WORKING_HOLD_MS,
   boundRemoteRow,
+  dropMachineRowsFromMemory,
   forgetRemoteRow,
+  machineTombstonePlan,
   isRemoteSessionId,
   markMachineQuiet,
   oneLine,
@@ -1703,5 +1705,83 @@ describe('what a cadence costs the session list on disk', () => {
     answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
     await pollRemoteMachine(MACHINE);
     expect(remoteMachineFacts(MACHINE).lastSeenTracked).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 118. What a removal composes, and what it drops
+// ---------------------------------------------------------------------------
+//
+// The two halves of the old `forgetMachineRows`, split so that the write can be
+// one transaction owned by `../removal.ts`. Composing writes nothing, and
+// dropping runs only after the transaction has committed.
+
+describe('the plan a removal composes', () => {
+  it('names one entry per manifest row, and writes nothing', () => {
+    record.rows.set('r1', {
+      id: 'r1',
+      machineId: MACHINE,
+      status: 'running',
+      name: 'one',
+      projectPath: '/p',
+      cwd: '/p',
+      agent: 'shell',
+      createdAt: 1
+    });
+    record.rows.set('r2', {
+      id: 'r2',
+      machineId: MACHINE,
+      status: 'idle',
+      name: 'two',
+      projectPath: '/p',
+      cwd: '/p',
+      agent: 'shell',
+      createdAt: 2
+    });
+    const plan = machineTombstonePlan(MACHINE, 9_000);
+    expect(plan.map((one) => one.sessionId).sort()).toEqual(['r1', 'r2']);
+    for (const one of plan) {
+      expect(one.tombstone.machineId).toBe(MACHINE);
+      expect(one.tombstone.forgottenAt).toBe(9_000);
+      // No row is in machines.json in this file, so the id is the only name
+      // left for the machine, and that is what the plan carries.
+      expect(one.tombstone.machineLabel).toBe(MACHINE);
+    }
+    // Composing is a read. Nothing was written and nothing was deleted.
+    expect(record.seen).toEqual([]);
+    expect(record.dropped).toEqual([]);
+  });
+
+  it('leaves out a session Tortie has no manifest row for', async () => {
+    // A session created by a build that recorded nothing about it. There is
+    // nothing to tombstone, and putting it in the plan would make the whole
+    // transaction throw over a row that never existed.
+    answers['list-sessions'] = line({ tmuxId: '$7', gmuxId: 'ours-1' });
+    await pollRemoteMachine(MACHINE);
+    expect(remoteSessions()).toHaveLength(1);
+    expect(machineTombstonePlan(MACHINE, 9_000)).toEqual([]);
+  });
+
+  it('is empty for a machine Tortie holds nothing for', () => {
+    expect(machineTombstonePlan('nobody', 9_000)).toEqual([]);
+  });
+});
+
+describe('dropping one machine from memory', () => {
+  it('drops every row it drew and writes nothing', async () => {
+    answers['list-sessions'] = line({ tmuxId: '$7', gmuxId: 'ours-1' });
+    await pollRemoteMachine(MACHINE);
+    expect(remoteSessions()).toHaveLength(1);
+    record.seen = [];
+    dropMachineRowsFromMemory(MACHINE);
+    expect(remoteSessions()).toEqual([]);
+    expect(record.seen).toEqual([]);
+    expect(record.dropped).toEqual([]);
+  });
+
+  it('is a silent no-op for a machine nothing was ever drawn for', () => {
+    expect(() => {
+      dropMachineRowsFromMemory('nobody');
+    }).not.toThrow();
   });
 });

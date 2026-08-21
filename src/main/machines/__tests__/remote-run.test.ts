@@ -23,6 +23,8 @@ import type { RemoteMachineContext } from '../context';
 
 /** Every command the door tried to send, in order. */
 let sent: string[] = [];
+/** Phase 118. Every options object the spawn seam was handed, in order. */
+let handed: { timeoutMs?: number; execution?: unknown }[] = [];
 /** What the far side answers next. */
 let answer: (command: string) => string | Promise<string> = () => '';
 /** The link state per machine. */
@@ -34,9 +36,11 @@ let generationAfterSend: number | null = null;
 vi.mock('../exec-plane', () => ({
   execRemoteShell: async (
     _ctx: unknown,
-    command: string
+    command: string,
+    options?: { timeoutMs?: number; execution?: unknown }
   ): Promise<string> => {
     sent.push(command);
+    handed.push(options ?? {});
     const out = await answer(command);
     if (generationAfterSend !== null) generation = generationAfterSend;
     return out;
@@ -86,6 +90,7 @@ function printed(payload: string, noise = ''): string {
 
 beforeEach(() => {
   sent = [];
+  handed = [];
   link = 'connected';
   generation = 7;
   generationAfterSend = null;
@@ -295,5 +300,46 @@ describe('the size guard', () => {
       runRemoteRead(ctx, 'review-list', ['/home/greg/work'])
     ).resolves.toEqual(expect.objectContaining({ payload: 'ok' }));
     expect(sent).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 118. The name of the work travels with it.
+// ---------------------------------------------------------------------------
+
+/**
+ * The ledger that owns the ssh child decides what a log line says, what a cut
+ * off copy is recorded as, and which sentence a person reads at the next launch.
+ * It reads that from what the caller passed through this door, so a value that
+ * silently stopped travelling would produce a copy recorded as an unnamed
+ * command and a person who is never told about the folder it left behind.
+ */
+describe('what the door tells the ledger', () => {
+  it('passes the caller own name for the work straight through', async () => {
+    await runRemoteRead(ctx, 'store-head', ['/a/b', '512'], {
+      execution: { kind: 'store-sync', subject: 's-42' }
+    });
+    expect(handed[0]?.execution).toEqual({
+      kind: 'store-sync',
+      subject: 's-42'
+    });
+  });
+
+  it('sends no name at all when the caller gave none, so the ledger reads command', async () => {
+    await runRemoteRead(ctx, 'store-head', ['/a/b', '512']);
+    expect(handed[0]).not.toHaveProperty('execution');
+  });
+
+  it('keeps the caller own deadline beside it', async () => {
+    await runRemoteWrite(ctx, 'image-put', ['a.png', 'AAAA'], {
+      timeoutMs: 1234,
+      execution: { kind: 'command', subject: '' }
+    });
+    expect(handed[0]?.timeoutMs).toBe(1234);
+  });
+
+  it('falls back to this door own deadline', async () => {
+    await runRemoteRead(ctx, 'store-head', ['/a/b', '512']);
+    expect(handed[0]?.timeoutMs).toBe(REMOTE_RUN_TIMEOUT_MS);
   });
 });

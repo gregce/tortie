@@ -21,9 +21,17 @@
  * outcome is driven without any connection.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 
@@ -105,8 +113,16 @@ vi.mock('node-pty', () => ({
  * the label they carry comes from that row. So the stand in records whether
  * the row was still there when it was called.
  *
- * `src/main/machines/__tests__/tombstone.test.ts` holds the module's own
- * behaviour.
+ * `src/main/machines/__tests__/removal.test.ts` holds the module's own
+ * behaviour and its order.
+ *
+ * PHASE 118. The handler used to call three more functions after this one, and
+ * they moved inside it, so the stand in does the part of the removal that does
+ * not open the manifest: it drops the machine's run time, takes the row out of
+ * `machines.json` and drops the agreement. Everything this file asserts about
+ * the state after a removal is therefore still asserted against the real store
+ * and the real confirmation record, and the claim that the handler calls ONE
+ * function is asserted separately, from the handler's own source.
  */
 const tomb = vi.hoisted(() => ({
   /** Each call, with whether the machine row was still in the file. */
@@ -117,13 +133,21 @@ const tomb = vi.hoisted(() => ({
   rowStillThere: (): boolean => false
 }));
 
-vi.mock('../tombstone', () => ({
-  forgetMachineSessions: (id: string) => {
-    tomb.calls.push({ id, rowStillThere: tomb.rowStillThere() });
-    return { tombstoned: tomb.count, commandsSent: 0 as const };
-  },
-  machineSessionCount: () => tomb.count
-}));
+vi.mock('../removal', async () => {
+  const store = await import('../store');
+  const confirm = await import('../confirm');
+  const context = await import('../context');
+  return {
+    removeMachineCompletely: (id: string) => {
+      tomb.calls.push({ id, rowStillThere: tomb.rowStillThere() });
+      context.forgetMachineRuntime(id);
+      store.removeMachineRow(id);
+      confirm.forgetMachine(id);
+      return { tombstoned: tomb.count, commandsSent: 0 as const };
+    },
+    machineSessionCount: () => tomb.count
+  };
+});
 
 const { registerMachinesIpc } = await import('../ipc');
 const {
@@ -1474,23 +1498,43 @@ describe('machines:agents', () => {
     expect(machineSshSpawnCount()).toBe(0);
   });
 
-  it('clears the agents map and the homes map in the REAL tombstone', async () => {
-    // The tombstone module is replaced in this file so the manifest and the
+  it('clears the agents map and the homes map in the REAL removal', async () => {
+    // The removal module is replaced in this file so the manifest and the
     // feeds stay out of a wiring test, so the one claim about the real module
     // is read from its source, the ./prepare.test.ts instrument. The
     // behaviour of both forget calls is held by machine-agents.test.ts and
     // the remote-image module's own callers.
-    const { readFileSync } = await import('node:fs');
-    const { dirname } = await import('node:path');
-    const { fileURLToPath } = await import('node:url');
     const src = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), '..', 'tombstone.ts'),
+      join(dirname(fileURLToPath(import.meta.url)), '..', 'removal.ts'),
       'utf8'
     );
     const body = src.slice(
-      src.indexOf('export function forgetMachineSessions')
+      src.indexOf('export function removeMachineCompletely')
     );
     expect(body).toContain('forgetMachineAgents(machineId);');
     expect(body).toContain('forgetRemoteMachineHome(machineId);');
+  });
+
+  /**
+   * PHASE 118. The handler calls ONE function and nothing else.
+   *
+   * The order used to be split between the handler and `tombstone.ts`, so a
+   * removal whose record could not be written still reached `removeMachineRow`
+   * on the next line. The whole order lives in `removal.ts` now, and this is
+   * the executable form of that: the handler's body names the one call and
+   * names none of the three that moved.
+   */
+  it('leaves the whole order to removal.ts', async () => {
+    const src = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', 'ipc.ts'),
+      'utf8'
+    );
+    const from = src.indexOf("handle(ipc, 'machines:remove'");
+    expect(from).toBeGreaterThan(0);
+    const body = src.slice(from, src.indexOf("handle(ipc, 'machines:prepare'"));
+    expect(body).toContain('removeMachineCompletely(id)');
+    expect(body).not.toContain('removeMachineRow(');
+    expect(body).not.toContain('forgetMachineRuntime(');
+    expect(body).not.toContain('forgetMachine(id)');
   });
 });

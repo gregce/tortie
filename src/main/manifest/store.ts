@@ -57,17 +57,26 @@ import type {
 import { MANIFEST_SCHEMA_IDENTITY, MIGRATIONS } from './schema';
 import type {
   ClosedProjectTab,
-  MachineTombstone,
   ManifestSessionPatch,
   ManifestSessionRecord,
   UpdateSessionOptions
 } from './codecs';
-import { SessionsRepository } from './sessions-repository';
+import {
+  SessionsRepository,
+  type MachineTombstoneEntry,
+  type MarkMachinesForgottenHooks
+} from './sessions-repository';
 import {
   ProjectsRepository,
   type RemoteProjectInput
 } from './projects-repository';
 import { RestoreJournal, type RestoreAttemptRecord } from './restore-journal';
+import {
+  RemoteExecutionJournal,
+  type RemoteExecutionBegin,
+  type RemoteExecutionOutcome,
+  type RemoteExecutionRecord
+} from './remote-executions';
 import {
   reconcileManifest,
   type LiveTmuxSession,
@@ -100,6 +109,19 @@ export {
   type UpdateSessionOptions
 } from './codecs';
 export type { RestoreAttemptRecord } from './restore-journal';
+export {
+  JOURNALED_REMOTE_EXECUTION_KIND,
+  REMOTE_EXECUTION_KINDS,
+  REMOTE_EXECUTION_OUTCOMES,
+  type RemoteExecutionBegin,
+  type RemoteExecutionKind,
+  type RemoteExecutionOutcome,
+  type RemoteExecutionRecord
+} from './remote-executions';
+export type {
+  MachineTombstoneEntry,
+  MarkMachinesForgottenHooks
+} from './sessions-repository';
 export type {
   LiveTmuxSession,
   ReconcileOptions,
@@ -222,6 +244,7 @@ export class ManifestStore {
   private readonly sessions: SessionsRepository;
   private readonly projects: ProjectsRepository;
   private readonly journal: RestoreJournal;
+  private readonly remoteExecutions: RemoteExecutionJournal;
 
   /**
    * Opens (creating if needed) the manifest DB. Pass an explicit path for
@@ -277,6 +300,7 @@ export class ManifestStore {
       this.sessions = new SessionsRepository(this.db);
       this.projects = new ProjectsRepository(this.db);
       this.journal = new RestoreJournal(this.db);
+      this.remoteExecutions = new RemoteExecutionJournal(this.db);
       // Phase 29: retention for removed sessions, BEFORE the attempt prune so
       // the restore attempts orphaned here are swept in the same open.
       this.pruneDiscardedSessions();
@@ -284,6 +308,9 @@ export class ManifestStore {
       // never pruned: the launch that is starting right now has not yet had
       // its chance to act on them.
       this.pruneRestoreAttempts();
+      // Phase 118. Bounded on open for the same reason, and an unfinished row
+      // is never pruned: this launch has not yet had its chance to say so.
+      this.remoteExecutions.pruneRemoteExecutions();
     } catch (err) {
       // The message reaches a toast verbatim, so it is product copy. The path
       // travels in `detail`, where a bug report finds it: a truncated absolute
@@ -424,11 +451,15 @@ export class ManifestStore {
   }
 
   /**
-   * Phase 72. The tombstone a machine's removal writes on every session row that
-   * named it. One durable write per row, and nothing is sent to the machine.
+   * Phase 72, made one transaction in Phase 118. The tombstone a machine's
+   * removal writes on every session row that named it. ONE durable transaction
+   * over every row, all or none, and nothing is sent to the machine.
    */
-  markMachineForgotten(id: string, tombstone: MachineTombstone): void {
-    this.sessions.markMachineForgotten(id, tombstone);
+  markMachinesForgotten(
+    entries: readonly MachineTombstoneEntry[],
+    hooks?: MarkMachinesForgottenHooks
+  ): number {
+    return this.sessions.markMachinesForgotten(entries, hooks);
   }
 
   /**
@@ -510,6 +541,37 @@ export class ManifestStore {
 
   pruneRestoreAttempts(keep = 200): void {
     this.journal.pruneRestoreAttempts(keep);
+  }
+
+  // -------------------------------------------------------------------------
+  // The remote execution journal — delegated to ./remote-executions.ts
+  // (Phase 118, migration 017). ONE kind of remote work is written here, being
+  // a copy of a project onto another machine, because that is the one kind that
+  // writes on the other computer. The file's header says why the other four are
+  // classified in memory and logged instead.
+  // -------------------------------------------------------------------------
+
+  beginRemoteExecution(
+    input: RemoteExecutionBegin,
+    at: number = Date.now()
+  ): number {
+    return this.remoteExecutions.beginRemoteExecution(input, at);
+  }
+
+  finishRemoteExecution(
+    id: number,
+    outcome: RemoteExecutionOutcome,
+    at: number = Date.now()
+  ): void {
+    this.remoteExecutions.finishRemoteExecution(id, outcome, at);
+  }
+
+  listUnfinishedRemoteExecutions(): RemoteExecutionRecord[] {
+    return this.remoteExecutions.listUnfinishedRemoteExecutions();
+  }
+
+  getRemoteExecution(id: number): RemoteExecutionRecord | undefined {
+    return this.remoteExecutions.getRemoteExecution(id);
   }
 
   // -------------------------------------------------------------------------

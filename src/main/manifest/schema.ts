@@ -509,6 +509,55 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'sessions', 'project_tombstone', 'TEXT');
     }
+  },
+  {
+    // Phase 118: `remote_executions`, the record of one long running piece of
+    // work on another computer that Tortie may have to end without finishing.
+    //
+    // WHAT IT FIXES. A copy of a project onto another machine gets 600,000 ms
+    // and nothing owned the ssh child underneath it. Quitting Tortie left the
+    // copy either running with no owner or cut dead, with nothing recording
+    // which, so a person came back to a folder partly copied and no
+    // explanation.
+    //
+    // WHAT GOES IN IT. One row per journaled piece of work: the machine's id,
+    // the machine's label as it read at the time, what the work was, what it
+    // was about, when it started, and how it ended. The label is stored rather
+    // than looked up, for the reason `machine_tombstone` stores it: the machine
+    // may be removed before anybody reads the row.
+    //
+    // ONLY A COPY IS RECORDED HERE. Reading a screen, reading an agent's own
+    // store and copying a conversation back are all reads onto this Mac that a
+    // later pass redoes, so a cut one leaves nothing a person has to act on. A
+    // copy is the one kind that writes on the other computer.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3, and the
+    // minimum stays at 13. It is a NEW TABLE, so the test is the same one
+    // migration 015 answered: a build at schema 13 to 16 has never heard of
+    // this table, never writes a row into it and never reads one. There is no
+    // row it can write that this build reads wrongly and no row this build
+    // writes that it reads wrongly. Nothing on the restore path reads it and no
+    // launch depends on it.
+    //
+    // So MANIFEST_SCHEMA_VERSION moves to 17 and
+    // MANIFEST_MIN_COMPATIBLE_VERSION STAYS AT 13.
+    name: '017-remote-executions',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS remote_executions (
+          id            INTEGER PRIMARY KEY,
+          machine_id    TEXT NOT NULL,
+          machine_label TEXT NOT NULL,
+          kind          TEXT NOT NULL,
+          subject       TEXT NOT NULL,
+          started_at    INTEGER NOT NULL,
+          outcome       TEXT,
+          finished_at   INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_remote_executions_open
+          ON remote_executions(outcome);
+      `);
+    }
   }
 ];
 
@@ -530,7 +579,7 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 16;
+export const MANIFEST_SCHEMA_VERSION = 17;
 
 /**
  * The oldest schema version whose code may still write this manifest.
@@ -613,6 +662,17 @@ export const MANIFEST_SCHEMA_VERSION = 16;
  * wrongly, and no row this build writes that it reads wrongly. Nothing on the
  * restore path reads the column and no launch depends on it, so the migration is
  * additive by the same rule as the ones above and the number does not move.
+ *
+ * PHASE 118 LEFT IT AT 13 TOO, and this paragraph is the record of that
+ * decision. Migration 017 adds the `remote_executions` table. A build at schema
+ * 13 to 16 has never heard of that table, so it writes no row into it and reads
+ * none. There is no row it can write that this build reads wrongly, and no row
+ * this build writes that it reads wrongly, because it does not read the table
+ * at all. What such a build lacks is the record that a copy onto another
+ * machine was cut off by a quit, and it lacked that record before this
+ * migration too. Nothing on the restore path reads the table and no launch
+ * depends on it, so the migration is additive by the same rule as 015 and 016
+ * and the number does not move.
  */
 export const MANIFEST_MIN_COMPATIBLE_VERSION = 13;
 

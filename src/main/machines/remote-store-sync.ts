@@ -417,7 +417,13 @@ async function copyOne(
       ctx,
       'store-copy',
       [claim.storePath, String(REMOTE_STORE_MAX_FILE_BYTES)],
-      { timeoutMs: REMOTE_STORE_TIMEOUT_MS }
+      {
+        timeoutMs: REMOTE_STORE_TIMEOUT_MS,
+        // Phase 118. Named for the ledger that owns the ssh child. A copy of a
+        // conversation back to this Mac is not journaled: it is a read that the
+        // next pass redoes, and it writes nothing on the other computer.
+        execution: { kind: 'store-sync', subject: claim.sessionId }
+      }
     );
     payload = answer.payload;
   } catch {
