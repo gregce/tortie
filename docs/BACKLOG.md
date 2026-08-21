@@ -14405,3 +14405,26 @@ terminal resize rule in `work-area.css`.
 **Tier** of a later build: 2 for enter and leave, 3 for the claim that a live split group is not
 resized until the flight ends. **Semver** of a later build: feat. Chord is chosen at build time
 against the keymap and the operator's recorded per-agent hotkeys. Shift-Command-C stays free.
+
+---
+
+## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
+
+The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
+to August 17 while the work was landing in the middle of it, so tailing the file told him nothing.
+The rule from here on is simple. Every phase that lands, every phase that starts, and every new
+entry queued gets one line appended at the BOTTOM of this section, newest last. The full entry for
+a phase still lives in its own section above, because that is where the reasoning belongs. This
+section is the log, not the specification.
+
+One line per event. The shape is: date, what happened, the hash and version if it landed.
+
+- 2026-08-20, Phase 120 shipped, runs started from a tag appear beside the branch's runs, `89226a0`, 0.59.0
+- 2026-08-20, Phase 109 shipped, the create sheet knows which agents that machine has, `d646830`, 0.60.0
+- 2026-08-20, Phase 124 shipped, the TypeScript reference graph tells the truth, `43b12fd`, 0.60.1
+- 2026-08-20, Phase 121 shipped, recents keep a path with a space in it, `3d883ab`, 0.60.2
+- 2026-08-20, Phase 110 shipped, see which agents each machine has in Settings, `3d60a08`, 0.61.0
+- 2026-08-21, Phase 117 shipped, an unreachable confirmation is not proof of absence, `682c870`, 0.61.1
+- 2026-08-21, Phase 118 started, remote children are owned and removal is one transaction, in wt-p118
+- 2026-08-21, Phase 119 running, decline capture on restore, in wt-p119
+- 2026-08-21, NEXT AFTER 118 AND 119, the release the operator delegated once, then the issue closeout, then Phases 101 to 104, the writes
