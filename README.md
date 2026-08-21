@@ -48,7 +48,7 @@ sessions.
 - **Split, zoom and drag.** Drop one session onto another to split, zoom any pane, drag an image from the tree into an agent. Learning tmux is not required.
 - **Your session list keeps backups,** refreshed automatically as it changes.
 
-### The Agents
+### Supported Coding Agents
 
 - **Thirteen agents supported out of the box.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and Grok in the terminal. Each agent has its own icon, a settable hotkey and launch flags.
 - **Add your own with one JSON file.** No rebuild required. Anything that could start a process asks you first. See [how here](https://github.com/gregce/tortie/blob/main/resources/config/README.md).
@@ -62,18 +62,18 @@ sessions.
 - **Search everything at once.** ripgrep across every open project, fast on large trees.
 - **Rich previews.** Markdown and HTML render in place. Untrusted pages open in a sandboxed frame with no scripts and no network.
 
-### Another machine (Early)
+### Remote machines (Early)
 
-- **Open a folder on another Mac as a project tab.** Add the machine in Settings once. The file tree, search, cmd+P, the git sidebar and action runs all read from that machine.
+- **Open a folder on another Mac as a project tab.** Add the machine in Settings. Supports Tailscale out of the box. The file tree, search, cmd+P, the git sidebar and action runs all read from that machine.
 - **Run agents there.** Start a session on the machine, see what is already running, and get it back after a restart with its resume command waiting.
 - **Editing is off until you switch it on.** Pick one folder per machine in Settings. Tortie writes only under it. You get save, new folder and rename. There is no undo.
 - **Nothing gets installed over there.** Tortie uses that machine's tmux over ssh, and can make and install a key for you.
 
-Early because it has only been used against Macs. The machine needs ssh, Remote Login on and tmux. Nothing in the code turns a Linux host away and the scripts handle both BSD and GNU tools, so a Linux VM should work, but none has been tried.
+Early because it has only been tested against Macs. The machine needs ssh, Remote Login on and tmux. Nothing in the code turns a Linux host away and the scripts handle both BSD and GNU tools, so a Linux VM should work, but has not been fully tested.
 
 ## What Tortie doesn't do
 
-- It won't touches your own tmux server or `~/.tmux.conf`, on this Mac or on a machine you add.
+- It won't touche your own tmux server or `~/.tmux.conf`, on this Mac or on a machine you add.
 - It won't render a key file or anything that looks like a secret as a friendly preview.
 - It won't runs third party plugin code inside its own processes. Adding an agent is configuration, not code.
 
