@@ -961,6 +961,21 @@
   color: var(--text-secondary);
 }
 
+/* Phase 103: Stage and Unstage on a row for a folder on another machine.
+   Opacity rather than display, for the reason `.scm-row-actions` above gives:
+   a hidden button stays in the tab order, so `:focus-within` fires and the two
+   verbs are reachable from the keyboard. */
+.scm-hfile .scm-row-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scm-hfile:hover .scm-row-actions,
+.scm-hfile:focus-within .scm-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .scm-hfile-loading,
 .scm-hfile-empty {
   font-size: var(--text-xs);

@@ -10,8 +10,9 @@
  *
  * PHASE 101 CORRECTED THE HALF OF THAT SENTENCE THAT SAID "one file write". It
  * was one when Phase 73 wrote it, two after Phase 90.2, three after Phase 101,
- * and it is five now, because Phase 102 added a folder and a rename. The number
- * lives in the catalogue and in the gate, not in this sentence.
+ * five after Phase 102, and it is seven now, because Phase 103 added a stage
+ * and an unstage. The number lives in the catalogue and in the gate, not in
+ * this sentence.
  *
  * This is the only module in the product that asks `execRemoteShell` to run one
  * of `./remote-scripts.ts`'s scripts. `./remote-path.ts` still uses that
@@ -194,12 +195,19 @@ export async function runRemoteRead(
  * Run a `write` script on one machine.
  *
  * It is the only door to a write on another computer in this product. The
- * catalogue holds FIVE scripts with `mode: 'write'`, being `image-put`,
- * `git-clone`, `file-put`, `dir-new` and `entry-rename` in that order, so this
- * function has exactly five things it can send and a gate holds it at those
- * five by name rather than at a count.
+ * catalogue holds SEVEN scripts with `mode: 'write'`, being `image-put`,
+ * `git-clone`, `file-put`, `dir-new`, `entry-rename`, `git-stage` and
+ * `git-unstage` in that order, so this function has exactly seven things it can
+ * send.
  *
- * ## What makes each of the five safe to run twice, because they differ
+ * THE NUMBER LIVES IN THE CATALOGUE AND IN THE GATE RATHER THAN IN THIS
+ * SENTENCE. `ALLOWED_WRITERS` in `build/conformance-machines.mjs` holds the
+ * seven ids by name, and `remoteWriteScripts()` in `./remote-scripts.ts` is
+ * what the gate compares against, so a script added with the wrong mode is
+ * caught by the same call the product makes. This sentence has gone stale three
+ * times and it is written out each time rather than quietly fixed.
+ *
+ * ## What makes each of the seven safe to run twice, because they differ
  *
  *  - `image-put`, `git-clone` and `dir-new` never open a destination that is
  *    already there. A repeat finds it and answers without writing.
@@ -212,13 +220,17 @@ export async function runRemoteRead(
  *    cannot tell apart is a repeat of Tortie's own move and a machine where
  *    somebody else already held a file at the destination while the source
  *    never existed.
+ *  - `git-stage` and `git-unstage` are safe by END STATE as well, and for a
+ *    different reason from `entry-rename`'s. Neither names a destination to
+ *    test at all. A repeat asks that machine's own git for the same index and
+ *    git writes what is already there.
  *
  * THIS COMMENT WAS WRONG BEFORE PHASE 101 AND IT IS WRITTEN OUT RATHER THAN
  * QUIETLY FIXED. It read "the catalogue holds exactly one script with
  * `mode: 'write'`, so this function has exactly one thing it can send, and a
  * gate holds that at one". That was already false at two writers after Phase
  * 90.2, and it is defect 7 of research 57 section 9. Phase 101 moved it to
- * three and Phase 102 moved it to five.
+ * three, Phase 102 moved it to five and Phase 103 moved it to seven.
  */
 export async function runRemoteWrite(
   ctx: RemoteMachineContext,

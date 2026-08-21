@@ -1071,11 +1071,119 @@ export const REMOTE_COPIED_WITH_MACHINE =
 
 // -- Source Control ----------------------------------------------------------
 
-/** The band under the Source Control header, on a tab whose folder is there. */
+/**
+ * The band under the Source Control header, on a tab whose folder is there.
+ *
+ * PHASE 103 REWROTE IT AND THE REWRITE IS THE PHASE. The old sentence said
+ * Tortie could show these changes and could not change them. The second half
+ * became false in that commit, because a person can now choose what goes into
+ * the next commit over there. The new sentence says the one thing it can do
+ * and then names the one it still cannot, which is undoing a change. That
+ * refusal is permanent and `build/conformance-machines.mjs` condition 83
+ * checks it against every command Tortie can send.
+ */
 export function remoteChangesBand(label: string): string {
   return (
-    `These changes are on ${label}. Tortie can show them and cannot change ` +
-    `them.`
+    `These changes are on ${label}. Tortie can stage and unstage them there. ` +
+    `It cannot undo a change on that machine.`
+  );
+}
+
+/**
+ * Saving is not turned on for that machine, so nothing was sent (Phase 103).
+ *
+ * It names the two steps rather than the one, because Settings holds several
+ * pages and a person who is told only to open Settings has to hunt. Main
+ * decides this against the record on disk, so the sentence is what a person
+ * reads after the refusal rather than a prediction made before it.
+ */
+export function remoteWritesNotConfirmed(label: string): string {
+  return (
+    `Tortie has not been given permission to write on ${label}. Open ` +
+    `Settings, then Machines, and confirm that machine. Nothing was sent.`
+  );
+}
+
+/**
+ * The repository over there is outside the folder a person confirmed
+ * (Phase 103).
+ *
+ * It does not name either folder. The tab already names the folder it is
+ * about, and the confirmed folder is in Settings under the machine's own row.
+ * Naming both here would put two absolute paths in one sentence in a column
+ * that is 300 px wide.
+ */
+export function remoteStageOutsideRoot(label: string): string {
+  return (
+    `That folder on ${label} is outside the folder Tortie was given ` +
+    `permission to write in. Nothing was sent.`
+  );
+}
+
+/**
+ * The machine did not confirm the write, and this never says nothing changed
+ * (Phase 103).
+ *
+ * ONE FUNCTION FOR BOTH VERBS. The two sentences differ by one word, and two
+ * near identical sentences in one file drift apart over a few rounds. The
+ * verb word is a parameter for that reason.
+ *
+ * WHY IT DOES NOT SAY NOTHING HAPPENED. A connection killed in the middle of a
+ * write was measured in Phase 101 finishing the far side write, with only the
+ * answer lost. So the honest sentence is that Tortie cannot tell, and it names
+ * the one thing a person can do, which is read that folder again.
+ */
+export function remoteIndexWriteUnsure(
+  label: string,
+  verb: 'stage' | 'unstage'
+): string {
+  const did = verb === 'stage' ? 'stage' : 'unstage';
+  return (
+    `Tortie asked ${label} to ${did} those files and it did not say it had. ` +
+    `Press Refresh to read what really changed there.`
+  );
+}
+
+/**
+ * git over there refused part of the list, and Tortie stopped (Phase 103).
+ *
+ * IT NAMES NO COUNT ON PURPOSE. One command carries a whole chunk and git
+ * reports one status for that chunk, so a count of the files that landed would
+ * be invented rather than read. The list under the sentence is re-read from
+ * that machine straight after the failure, so the rows are what really changed
+ * there, and the sentence points at them.
+ *
+ * PHASE 103 FIX ROUND REWROTE IT. The first wording read "Tortie staged some of
+ * those files and then stopped", and it was false twice over. Main did not stop,
+ * it sent every remaining chunk, and when the only chunk failed nothing was
+ * staged at all. Main now stops at the first chunk git refuses, and this
+ * sentence claims nothing about how many files landed. The backlog's copy table
+ * carries the old wording and this deviation is recorded in the commit body.
+ */
+export function remoteIndexWritePartial(
+  label: string,
+  verb: 'stage' | 'unstage'
+): string {
+  const did = verb === 'stage' ? 'stage' : 'unstage';
+  return (
+    `git on ${label} did not ${did} all of those files, and Tortie stopped ` +
+    `there. The list below is what really changed there.`
+  );
+}
+
+/**
+ * A conflicted file on another machine carries neither verb (Phase 103).
+ *
+ * Locally, staging a conflicted file is a different verb with a different
+ * label, reading `Mark resolved (stage)`, so a person never presses `Stage` on
+ * one. Shipping a plain `Stage` here would mark a conflict resolved on a
+ * computer nobody is watching, under a label that says something else. This
+ * sentence is the row's tooltip and it names where the work belongs.
+ */
+export function remoteConflictNoVerb(label: string): string {
+  return (
+    `Tortie will not stage a conflicted file on another machine. Open a ` +
+    `session on ${label} and finish the merge there.`
   );
 }
 
@@ -1123,11 +1231,19 @@ export function remoteChangesNotRepo(label: string): string {
  * THE WORD BRANCH IS SINGULAR ON PURPOSE. Tortie shows the one branch that is
  * checked out over there. It does not list the other branches on that machine,
  * and `branchOnlyCurrent` below says so inside the group itself.
+ *
+ * PHASE 103 REPLACED THE LAST CLAUSE. It read "and nothing in this view
+ * changes that folder", which became false in that commit. A person can now
+ * stage and unstage over there, so the last clause names exactly what this
+ * view can change, being which files are staged for the next commit, and it
+ * names nothing else. It is not a refusal any more and it is not silent
+ * either.
  */
 export const REMOTE_SCM_SECTIONS_NOTE =
   'Tortie shows the changed files, the history, the branch and the runs for ' +
   'a folder on another machine. It does not show the files one commit ' +
-  'changed there, and nothing in this view changes that folder.';
+  'changed there. The only thing this view changes on that machine is which ' +
+  'files are staged for the next commit.';
 
 // -- the symbol palette ------------------------------------------------------
 //

@@ -2647,6 +2647,25 @@ for (const row of [...fieldVerdicts, ...acceptVerdicts, ...writeRootVerdicts]) {
   );
 }
 
+// PHASE 103 FIX ROUND. Conditions 42 and 79b write nothing on a pass, so a
+// reader could only ever paste the word PASS for the one number this gate is
+// built around. The computed hex is printed here beside the pinned one, so the
+// evidence for "no machine anybody already confirmed is asked again" is a pair
+// of hex strings a person can compare rather than a claim.
+process.stdout.write('\nthe unaccepted machine hash, computed here and pinned\n');
+process.stdout.write('-'.repeat(100) + '\n');
+process.stdout.write(
+  `computed, no accepted version, no write root: ${String(
+    (data.writeRootFacts ?? {}).unset ?? (data.acceptedVersion ?? {}).unaccepted
+  )}\n`
+);
+process.stdout.write(`pinned UNACCEPTED_HASH_2026_08_18:            ${UNACCEPTED_HASH_2026_08_18}\n`);
+process.stdout.write(
+  `computed, that row after the folder was cleared:  ${String(
+    (data.writeRootFacts ?? {}).backToUnset ?? 'not printed by the probe'
+  )}\n`
+);
+
 process.stdout.write('\nclass               alarm  headline\n');
 process.stdout.write('-'.repeat(100) + '\n');
 for (const row of data.taxonomy) {
@@ -2775,37 +2794,100 @@ const ALLOWED_GIT_VERBS_SORTED = [
 ];
 
 /**
- * The two more verbs `git-clone` may name, and no other script may.
+ * The extra git verbs each script id may name, and no other script may.
  *
  * PHASE 90.2 WIDENED THE LIST, once and on purpose, and bound the widening to
  * one script id. A verb allowed everywhere is a verb any future script can use.
+ * `GIT_CLONE_VERBS` was that widening as a bare array.
+ *
+ * PHASE 103 TURNED IT INTO A MAP and added three, each bound to one id: `add`
+ * in `git-stage` alone, and `restore` and `rm` in `git-unstage` alone.
+ * `ALLOWED_GIT_VERBS` does NOT grow, because none of the three is a read of the
+ * object database, the index or the ref store. `READ_ONLY_GIT_VERBS` is built
+ * from `ALLOWED_GIT_VERBS`, so all three fall outside it and the first loop of
+ * condition 49 demands `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in
+ * front of each one. Do not weaken that by adding them to the read set.
  */
-const GIT_CLONE_VERBS = ['ls-remote', 'clone'];
+const EXTRA_GIT_VERBS = {
+  'git-clone': ['ls-remote', 'clone'],
+  'git-stage': ['add'],
+  'git-unstage': ['restore', 'rm']
+};
+
+/** Every verb in that map, so the second loop of condition 49 reads one list. */
+const BOUND_GIT_VERBS = Object.values(EXTRA_GIT_VERBS).flat();
 
 /**
  * Every script that may write, in catalogue order.
  *
- * PHASE 90.2 MOVED THIS FROM ONE TO TWO, PHASE 101 MOVED IT FROM TWO TO THREE
- * AND PHASE 102 MOVED IT FROM THREE TO FIVE, once and on purpose each time. It
- * is the number that bounds what Tortie can do to another person's computer, so
- * it stays an exact allowlist and never becomes a count.
+ * PHASE 90.2 MOVED THIS FROM ONE TO TWO, PHASE 101 MOVED IT FROM TWO TO THREE,
+ * PHASE 102 MOVED IT FROM THREE TO FIVE AND PHASE 103 MOVED IT FROM FIVE TO
+ * SEVEN, once and on purpose each time. It is the number that bounds what
+ * Tortie can do to another person's computer, so it stays an exact allowlist
+ * and never becomes a count.
  */
 const ALLOWED_WRITERS = [
   'image-put',
   'git-clone',
   'file-put',
   'dir-new',
-  'entry-rename'
+  'entry-rename',
+  'git-stage',
+  'git-unstage'
 ];
 
 /**
- * How many scripts the catalogue holds. Twenty two.
+ * The mutating program words each write script may name, per script id.
+ *
+ * PHASE 103 ADDED THIS AND IT IS A GENERAL RULE THE WRITE SIDE NEVER HAD.
+ * `MUTATING_PROGRAMS` is consulted only inside `if (row.mode === 'read')`, and
+ * until this phase every write had a hand written branch instead. Seven writes
+ * is too many for that shape, so every write is now read against this map as
+ * well as against its own branch.
+ *
+ * An empty array means the script may name none of the eleven.
+ *
+ * EVERY ROW WAS MEASURED AGAINST THE TREE RATHER THAN COPIED FROM THE PHASE'S
+ * OWN TABLE, and two of them came back different. That table said `image-put`
+ * names `mv` alone and `file-put` names `mv` alone. `image-put` also makes its
+ * temporary directory and sets its mode, so it names `mkdir` and `chmod` as
+ * well, and `file-put` sets the replaced file's mode, so it names `chmod`. The
+ * measured sets are what is pinned here.
+ */
+const WRITE_MUTATORS = {
+  'image-put': ['chmod', 'mkdir', 'mv'],
+  'git-clone': [],
+  'file-put': ['chmod', 'mv'],
+  'dir-new': ['chmod', 'mkdir'],
+  'entry-rename': ['mv'],
+  'git-stage': [],
+  'git-unstage': ['rm']
+};
+
+/**
+ * The per element guard the two Phase 103 writers carry, pinned byte for byte.
+ *
+ * It is the Phase 102 write line with three more shapes on it, being the empty
+ * element, the single dot and a trailing slash. The single dot is the one that
+ * matters most: `git add -A -- ":(literal)."` stages every change in that
+ * repository in one call, which is not what any person pressing one row's
+ * button asked for.
+ *
+ * It is defined here rather than beside `WRITE_PATH_GUARD` at condition 50
+ * because condition 38 reads it, and a `const` read before its own line throws.
+ */
+const INDEX_PATH_GUARD =
+  "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
+
+/**
+ * How many scripts the catalogue holds. Twenty four.
  *
  * Four later conditions pinned this number as a literal `19` each. Phase 101
  * made them one constant, because four copies of one number is how three of
- * them go stale. Phase 102 moved it from twenty to twenty two by two WRITES.
+ * them go stale. Phase 102 moved it from twenty to twenty two by two WRITES,
+ * and Phase 103 moved it from twenty two to twenty four by two more.
  */
-const REMOTE_SCRIPT_COUNT = 22;
+const REMOTE_SCRIPT_COUNT = 24;
 
 {
   // 35. The catalogue's shape.
@@ -3211,6 +3293,142 @@ const REMOTE_SCRIPT_COUNT = 22;
             `remove and does not change a mode.`
         );
       }
+    } else if (row.id === 'git-stage' || row.id === 'git-unstage') {
+      // PHASE 103. The sixth and the seventh writes, and the first two that
+      // change a git repository on another computer. They share one branch
+      // because they share one head, and everything below is read out of the
+      // text rather than asserted in a comment.
+      //
+      // WHAT THIS BRANCH CANNOT CHECK, said out loud rather than left implied.
+      // `$1` is the REPOSITORY ROOT and not the folder the person confirmed, so
+      // neither text can bound the repository by that folder the way file-put,
+      // dir-new and entry-rename all can. `src/main/machines/remote-stage.ts`
+      // makes that check on this Mac and condition 84 reads its shape.
+      for (const target of row.redirects ?? []) {
+        if (target === '/dev/null') continue;
+        fail(
+          `write script ${row.id} redirects to ${target}. Every redirection in ` +
+            `it has to aim at /dev/null, because the only thing it writes is ` +
+            `the index git writes and everything else it reads is thrown away.`
+        );
+      }
+      // THE LIST SHAPE. Rule 2 of the catalogue header says a script that walks
+      // a LIST reads the whole list into a local name first, in quotes, and
+      // splits that local name under IFS. NOTHING ELSE IN THIS GATE WOULD STOP
+      // a later edit turning `for p in $l` into `for p in $2`: condition 46 is
+      // bound to program-find by id, and condition 36 walks row.positionals
+      // alone, which are the $1 to $9 reads, so a local name is not tested as a
+      // positional at all.
+      if (!row.text.includes('l="$2"')) {
+        fail(
+          `write script ${row.id} never reads its list into a local name. A ` +
+            `list has to be read once, in quotes, before anything splits it.`
+        );
+      }
+      if (!row.text.includes('for p in $l')) {
+        fail(
+          `write script ${row.id} does not walk its list as "for p in $l", so ` +
+            `this gate cannot tell what it splits.`
+        );
+      }
+      if (/for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\$[0-9]/.test(row.text)) {
+        fail(
+          `write script ${row.id} walks a bare positional. Every positional is ` +
+            `read as "$1" to "$9" and is always quoted, and a loop over a bare ` +
+            `one ends that rule for the whole catalogue.`
+        );
+      }
+      // THE GUARD, OVER THE WHOLE LIST, ABOVE THE cd AND ABOVE EVERY GIT. A bad
+      // element has to refuse the whole call rather than stage half of it, and
+      // `git add -A -- ":(literal)."` would stage every change in that
+      // repository in one call.
+      const guardAt = row.text.indexOf(INDEX_PATH_GUARD);
+      if (guardAt < 0) {
+        fail(
+          `write script ${row.id} does not carry the per element guard ` +
+            `${JSON.stringify(INDEX_PATH_GUARD)}. The far side holds its own ` +
+            `copy of containment so that the rule still holds when main's copy ` +
+            `is bypassed.`
+        );
+      }
+      const cdAt = row.text.indexOf('cd "$r"');
+      const firstGitAt = row.text.indexOf('git ');
+      if (cdAt < 0) {
+        fail(`write script ${row.id} never changes into the repository root.`);
+      }
+      if (guardAt >= 0 && (cdAt < 0 || guardAt > cdAt)) {
+        fail(
+          `write script ${row.id} guards its list at ${String(guardAt)} and ` +
+            `changes directory at ${String(cdAt)}. A guard after the cd is a ` +
+            `guard that decides nothing.`
+        );
+      }
+      if (guardAt >= 0 && (firstGitAt < 0 || guardAt > firstGitAt)) {
+        fail(
+          `write script ${row.id} guards its list at ${String(guardAt)} and ` +
+            `runs its first git at ${String(firstGitAt)}. A bad element has to ` +
+            `refuse the whole call rather than stage half of it.`
+        );
+      }
+      // EVERY PATH REACHES GIT BEHIND :(literal). It is what literalSpec in
+      // src/main/git/service.ts already does for a local path, so a name
+      // holding * or [ cannot glob.
+      if (!row.text.includes('set -- "$@" ":(literal)$p"')) {
+        fail(
+          `write script ${row.id} does not attach :(literal) to each path with ` +
+            `set -- "$@" ":(literal)$p". A name holding * or [ would then glob ` +
+            `on that machine.`
+        );
+      }
+      // AN EMPTY LIST RUNS NO GIT AT ALL, so no git ever sees a bare --.
+      if (!row.text.includes('[ "$#" -gt 0 ] || exit 1')) {
+        fail(
+          `write script ${row.id} does not refuse an empty list, so a call ` +
+            `naming nothing would reach git with a bare --.`
+        );
+      }
+      // NO DESTINATION TEST, and that is the point rather than an omission.
+      // These two name no destination at all: they hand pathspecs to that
+      // machine's own git and git decides what to write.
+      if (row.text.includes('-e "$')) {
+        fail(
+          `write script ${row.id} carries a destination test. It names no ` +
+            `destination, so a test on one would be testing something this ` +
+            `script does not write.`
+        );
+      }
+      // THE VERBS, BOUND TO ONE ID EACH.
+      if (row.id === 'git-stage') {
+        if (!row.text.includes('git add -A -- "$@"')) {
+          fail(
+            'write script git-stage does not run git add -A -- "$@", so this ' +
+              'gate cannot tell what it puts in the index.'
+          );
+        }
+        for (const other of ['restore', 'rm', 'commit', 'checkout', 'reset']) {
+          if (!(row.gitVerbs ?? []).includes(other)) continue;
+          fail(
+            `write script git-stage names git ${other}. It names git add and ` +
+              `nothing else that writes.`
+          );
+        }
+      } else {
+        const restoreAt = row.text.indexOf('git restore --staged -- "$@"');
+        const rmAt = row.text.indexOf('git rm --cached -r -q -- "$@"');
+        if (restoreAt < 0 || rmAt < 0) {
+          fail(
+            'write script git-unstage does not run both git restore --staged ' +
+              'and git rm --cached over its list, so this gate cannot tell ' +
+              'what it takes out of the index.'
+          );
+        } else if (restoreAt > rmAt) {
+          fail(
+            'write script git-unstage runs git rm --cached before git restore ' +
+              '--staged. The rm is the unborn branch fallback and it may only ' +
+              'run after the restore has failed.'
+          );
+        }
+      }
     } else {
       fail(
         `write script ${row.id} has no redirection rule of its own in this ` +
@@ -3218,12 +3436,60 @@ const REMOTE_SCRIPT_COUNT = 22;
           `different shapes cannot share one.`
       );
     }
-    // PHASE 90.2. The three read verbs are allowed everywhere. The two the
-    // clone needs are allowed in `git-clone` and nowhere else.
-    const allowedVerbs =
-      row.id === 'git-clone'
-        ? [...ALLOWED_GIT_VERBS, ...GIT_CLONE_VERBS]
-        : ALLOWED_GIT_VERBS;
+    // PHASE 103. THE GENERAL MUTATOR RULE FOR WRITES, which the write side
+    // never had. MUTATING_PROGRAMS is consulted only inside the read arm above,
+    // and until this phase every write was bounded by its own hand written
+    // branch alone. Seven writes is too many for that shape, so every write is
+    // read against WRITE_MUTATORS as well.
+    //
+    // Without this, the only general rule standing between a future write
+    // script and `rm -rf` would be the discard condition, which is worded
+    // around git verbs.
+    if (row.mode === 'write') {
+      const allowedMutators = WRITE_MUTATORS[row.id];
+      if (allowedMutators === undefined) {
+        fail(
+          `write script ${row.id} has no entry in WRITE_MUTATORS, so nothing ` +
+            `bounds which of the eleven mutating programs it may name.`
+        );
+      } else {
+        const named = [
+          ...new Set(
+            (row.words ?? []).filter((word) => MUTATING_PROGRAMS.includes(word))
+          )
+        ].sort();
+        const wanted = [...allowedMutators].sort();
+        if (JSON.stringify(named) !== JSON.stringify(wanted)) {
+          fail(
+            `write script ${row.id} names ${named.join(', ') || 'no'} mutating ` +
+              `program(s) and WRITE_MUTATORS allows ` +
+              `${wanted.join(', ') || 'none'}.`
+          );
+        }
+        // THE rm EXCEPTION IS SATISFIED ONLY BY `git rm ... --cached`. Without
+        // this the word would be allowed bare, and a bare rm on somebody
+        // else's computer is the one thing this catalogue must never hold.
+        if (named.includes('rm')) {
+          for (const line of row.text.split('\n')) {
+            if (!/\brm\b/.test(line)) continue;
+            if (line.includes('git rm ') && line.includes('--cached')) continue;
+            fail(
+              `write script ${row.id} names rm on the line ` +
+                `${JSON.stringify(line.trim())}. The only rm this catalogue ` +
+                `may hold is git rm carrying --cached, which removes the index ` +
+                `entry and leaves the file in the folder.`
+            );
+          }
+        }
+      }
+    }
+    // PHASE 90.2. The eight read verbs are allowed everywhere. The extra ones
+    // each script needs are allowed in that one script and nowhere else.
+    // PHASE 103 turned the one ternary into a lookup in EXTRA_GIT_VERBS.
+    const allowedVerbs = [
+      ...ALLOWED_GIT_VERBS,
+      ...(EXTRA_GIT_VERBS[row.id] ?? [])
+    ];
     for (const verb of row.gitVerbs ?? []) {
       if (allowedVerbs.includes(verb)) continue;
       fail(
@@ -3352,14 +3618,22 @@ const READ_ONLY_GIT_VERBS = new Set(ALLOWED_GIT_VERBS);
       }
     }
     for (const verb of row.gitVerbs ?? []) {
-      if (!GIT_CLONE_VERBS.includes(verb)) continue;
-      if (row.id === 'git-clone') continue;
+      if (!BOUND_GIT_VERBS.includes(verb)) continue;
+      const owner = Object.keys(EXTRA_GIT_VERBS).find((id) =>
+        EXTRA_GIT_VERBS[id].includes(verb)
+      );
+      if (row.id === owner) continue;
       fail(
-        `remote script ${row.id} names git ${verb}. Only git-clone may name ` +
-          `${GIT_CLONE_VERBS.join(' or ')}, because a verb allowed everywhere ` +
-          `is a verb any future script can use.`
+        `remote script ${row.id} names git ${verb}. Only ${String(owner)} may ` +
+          `name it, because a verb allowed everywhere is a verb any future ` +
+          `script can use.`
       );
     }
+  }
+  for (const [id, verbs] of Object.entries(EXTRA_GIT_VERBS)) {
+    process.stdout.write(
+      `only ${id} may name git ${verbs.join(' or ')}\n`
+    );
   }
 }
 
@@ -5411,7 +5685,10 @@ process.stdout.write(
             }`
         )
       )
-      .join(', ')}. Only git-clone may name ${GIT_CLONE_VERBS.join(' or ')}.\n`
+      .join(', ')}. ` +
+    `${Object.entries(EXTRA_GIT_VERBS)
+      .map(([id, verbs]) => `Only ${id} may name ${verbs.join(' or ')}`)
+      .join('. ')}.\n`
 );
 process.stdout.write(
   `execRemoteShell is called from ${String(
@@ -6161,6 +6438,18 @@ process.stdout.write(
   // This exact string is the one the operator's decisions block of 2026-08-19
   // wrote. Research 57 section 4.4 words the same rule with the word "current"
   // in it. The block binds, so the block's wording is the one in this gate.
+  //
+  // PHASE 103 SCOPED IT, and the scope is written here rather than left for a
+  // later round to rediscover. Read literally, `git add` and `git rm --cached`
+  // both rewrite `.git/index`, which is a file the person already had and whose
+  // contents Tortie never checksummed. So the sentence is scoped to FILES
+  // TORTIE NAMES AS A DESTINATION. Neither Phase 103 script names a destination
+  // at all: each hands a list of pathspecs to that machine's own git and lets
+  // git decide what to write, which is exactly what a person running the same
+  // command in a session on that machine would get. A repository's own index is
+  // outside the sentence. The scope is a scope rather than a weaker claim,
+  // because the thing the sentence protects is a person's file and the index is
+  // not one.
   const SENTENCE =
     'no command Tortie sends can replace a file whose contents Tortie did ' +
     'not just verify by checksum';
@@ -6281,7 +6570,13 @@ process.stdout.write(
         `mv, another writer on that machine can create the destination and the ` +
         `mv then replaces it. This gate reads text and cannot see a race. No ` +
         `number for whether mv -n narrows that window exists anywhere in this ` +
-        `repository.\n`
+        `repository.\n` +
+        `  THE SENTENCE IS SCOPED TO FILES TORTIE NAMES AS A DESTINATION. ` +
+        `git-stage and git-unstage name none: they hand pathspecs to that ` +
+        `machine's own git and git decides what to write.\n` +
+        `  A repository's own index sits outside the sentence, and Phase 103 ` +
+        `says so rather than pretending the sentence still reads literally ` +
+        `true.\n`
     );
   }
 }
@@ -6449,6 +6744,298 @@ process.stdout.write(
       `and no machine is asked again.\n` +
       `  .git is guarded on these two and NOT on file-put, which keeps ` +
       `review-file's narrower line.\n`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 83. Phase 103. The discard refusal, made executable over the whole catalogue
+// ---------------------------------------------------------------------------
+//
+// Discard is not in this phase and this condition makes it UNREACHABLE rather
+// than merely absent. A brief that adds a discard verb, a `git clean`, a
+// `git restore` carrying `--worktree` or `--source`, or a `git rm` without
+// `--cached` has been written wrong.
+//
+// THE RULE IS SPELLED THIS WAY FOR TWO REASONS, and both are corrections.
+// The obvious spelling, being "restore may appear only with --staged or with
+// --source", is the one research 57 section 5.7 drafts. It passes
+// `git restore --source=HEAD -- p`, which overwrites the working tree file, and
+// it passes `git restore --staged --worktree -- p`, which does the same. Both
+// are the operation section 5.7 refuses. So `--source` is refused OUTRIGHT over
+// the whole catalogue rather than allowed as an alternative, which costs
+// nothing because `--source` appears nowhere in `src/main/git/service.ts` at
+// all.
+//
+// It reads every script in the catalogue and not only the two this phase added.
+
+{
+  const DISCARD_RULE = [
+    'no catalogue script may name git clean, at all, ever',
+    'restore may appear only with --staged, never with --worktree and never ' +
+      'with --source',
+    'rm may appear only with --cached',
+    '--source is refused outright over the whole catalogue'
+  ];
+  for (const row of scripts) {
+    if (row.text.includes('git clean')) {
+      fail(
+        `remote script ${row.id} names git clean. It deletes files on ` +
+          `somebody else's computer that git has never been told about, and ` +
+          `there is no undo for it anywhere.`
+      );
+    }
+    if (row.text.includes('--source')) {
+      fail(
+        `remote script ${row.id} names --source. git restore --source=REV ` +
+          `overwrites the working tree copy, which is a discard under another ` +
+          `name, and it is refused outright rather than allowed beside ` +
+          `--staged.`
+      );
+    }
+    for (const line of row.text.split('\n')) {
+      if (line.includes('git restore')) {
+        if (!line.includes('--staged')) {
+          fail(
+            `remote script ${row.id} runs git restore without --staged on the ` +
+              `line ${JSON.stringify(line.trim())}. Without it the restore ` +
+              `overwrites the copy in that person's folder.`
+          );
+        }
+        if (line.includes('--worktree')) {
+          fail(
+            `remote script ${row.id} runs git restore with --worktree on the ` +
+              `line ${JSON.stringify(line.trim())}. It overwrites the copy in ` +
+              `that person's folder even when --staged is there too.`
+          );
+        }
+      }
+      if (/\bgit rm\b/.test(line) && !line.includes('--cached')) {
+        fail(
+          `remote script ${row.id} runs git rm without --cached on the line ` +
+            `${JSON.stringify(line.trim())}. Without it the file is deleted ` +
+            `from that person's folder rather than from the index.`
+        );
+      }
+      // `rm` as a command word with no `git ` in front of it. The per script
+      // exception map in condition 38 is about which words may appear at all;
+      // this is about whether the word is a git verb.
+      if (!/(^|[\s;|&(])rm\b/.test(line)) continue;
+      if (line.includes('git rm ')) continue;
+      fail(
+        `remote script ${row.id} names rm as a command on the line ` +
+          `${JSON.stringify(line.trim())}. The only rm this catalogue may ` +
+          `hold is git rm carrying --cached.`
+      );
+    }
+  }
+  process.stdout.write(
+    `\nthe discard refusal, over all ${String(scripts.length)} scripts:\n` +
+      DISCARD_RULE.map((one) => `  ${one}\n`).join('')
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 84 and 85. Phase 103. The two writers this phase added, and what bounds them
+// ---------------------------------------------------------------------------
+//
+// 84 reads `src/main/machines/remote-stage.ts` as text and asserts the SHAPE of
+// the containment, being that the confirm gate, the fresh review read, the root
+// test and the reported set test all stand above the one call that sends.
+//
+// 85 asserts the catalogue moved by exactly two writers, that the two ids are
+// the ones this phase names, and that the porcelain split reached the renderer.
+// It asserts on the renderer's files BY SYMBOL NAME ONLY and never by a
+// sentence, because a pinned sentence across a builder boundary is how a phase
+// deadlocks.
+//
+// Both are pure. They read source text and one compiled catalogue. They start
+// nothing, open no file under the person's home and contact no machine.
+
+{
+  const stage = data.phase103 ?? {};
+  const module = stage.module ?? null;
+  if (module === null) {
+    fail(
+      'the probe printed nothing about src/main/machines/remote-stage.ts, so ' +
+        'condition 84 checked nothing at all.'
+    );
+  } else {
+    if (!module.present) {
+      fail(
+        'src/main/machines/remote-stage.ts is not there, so the two write ' +
+          'verbs this phase adds have no module that owns their containment.'
+      );
+    }
+    // 84a. All four checks stand ABOVE the one call that sends. An order that
+    //      put any of them after the send would be a check that decides
+    //      nothing.
+    for (const [what, at] of [
+      ['confirmedWriteRoot, being the confirm gate', module.gateAt],
+      ['reviewFilesOn, being the fresh read', module.readAt],
+      ['rootHolds, being the repository under the confirmed folder', module.holdsAt],
+      ['the test that the fresh read reported the path', module.reportedAt]
+    ]) {
+      if (at < 0) {
+        fail(
+          `src/main/machines/remote-stage.ts never names ${what}. The far side ` +
+            `script cannot bound the repository by the confirmed folder, ` +
+            `because it receives the repository root and not that folder, so ` +
+            `every layer of that check lives here.`
+        );
+      } else if (module.sendAt < 0 || at > module.sendAt) {
+        fail(
+          `src/main/machines/remote-stage.ts names ${what} at ${String(at)} ` +
+            `and calls runRemoteWrite at ${String(module.sendAt)}. A check ` +
+            `after the send decides nothing.`
+        );
+      }
+    }
+    // 84b. One door, and it is the write door.
+    if (!module.namesWriteDoor) {
+      fail(
+        'src/main/machines/remote-stage.ts never calls runRemoteWrite, so ' +
+          'either the two verbs went somewhere else or this gate is reading ' +
+          'the wrong file.'
+      );
+    }
+    for (const forbidden of module.forbiddenDoors ?? []) {
+      fail(
+        `src/main/machines/remote-stage.ts names ${forbidden}. Every write in ` +
+          `this product goes through runRemoteWrite and through no other door, ` +
+          `and every long running ssh child is owned by the ledger rather than ` +
+          `by a caller.`
+      );
+    }
+    // 84c. The manifest boundary. `remote-record.ts` is the one place a remote
+    //      path meets the manifest and this phase does not widen that.
+    if (module.importsManifest) {
+      fail(
+        'src/main/machines/remote-stage.ts imports from ../manifest/. The one ' +
+          'place a remote path meets the manifest is remote-record.ts.'
+      );
+    }
+    // 84d. NO REPOSITORY ROOT CROSSES. The input type carries the tab's folder
+    //      and nothing else, so main reads the root off that machine's own
+    //      rev-parse. A root or a repoPath member would make one call able to
+    //      stage inside any repository on that machine.
+    if ((module.inputMembers ?? []).length > 0) {
+      fail(
+        `MachineIndexWriteInput carries ${module.inputMembers.join(' and ')}. ` +
+          `Main runs its own review read and uses the root that machine's own ` +
+          `rev-parse answered, and a root chosen in the renderer would make ` +
+          `{root: '/Users/greg/secret', paths: ['x']} reachable.`
+      );
+    }
+    // 84e. The handlers pass through and compose nothing.
+    for (const [channel, ok] of [
+      ['machines:stage', module.handlerStage],
+      ['machines:unstage', module.handlerUnstage]
+    ]) {
+      if (ok) continue;
+      fail(
+        `the ${channel} handler in src/main/machines/ipc.ts does not call the ` +
+          `one export in remote-stage.ts that owns it. A handler that composed ` +
+          `its own values would be a second place the write decision lives.`
+      );
+    }
+    // 84f. NEITHER CHANNEL NAME AND NEITHER HANDLER BODY NAMES A GIT VERB. The
+    //      verb is inside Tortie's own script text, so no caller can turn a
+    //      stage into a commit, a checkout or a discard.
+    for (const [what, named] of [
+      ['the machines:stage handler', module.stageHandlerVerbs],
+      ['the machines:unstage handler', module.unstageHandlerVerbs],
+      ['the two channel names', module.channelVerbs]
+    ]) {
+      if ((named ?? []).length === 0) continue;
+      fail(
+        `${what} names ${named.join(', ')}. The git verb is part of Tortie's ` +
+          `own script text in remote-scripts.ts and it is never a value a ` +
+          `caller chooses.`
+      );
+    }
+  }
+}
+
+{
+  // 85. The catalogue moved by exactly two writers, and the split reached the
+  //     renderer.
+  const writers85 = (data.remoteRun ?? {}).writers ?? [];
+  if (writers85[5] !== 'git-stage' || writers85[6] !== 'git-unstage') {
+    fail(
+      `the catalogue's write list reads ${writers85.join(', ') || 'nothing'}. ` +
+        `The two Phase 103 ids are the sixth and the seventh, in that order, ` +
+        `and they are added at the END of the list so the five that shipped ` +
+        `before them keep their order.`
+    );
+  }
+  const rows85 = (data.phase103 ?? {}).catalogue ?? [];
+  for (const row of rows85) {
+    if (row.mode !== 'write') {
+      fail(
+        `${row.id} is a ${String(row.mode)} in the catalogue. Both Phase 103 ` +
+          `scripts write, and a write reached through the read door is refused ` +
+          `by remote-run.ts before anything is composed.`
+      );
+    }
+    if (row.params !== 2) {
+      fail(
+        `${row.id} declares ${String(row.params)} value(s) and it reads two, ` +
+          `being the repository root and the list of paths.`
+      );
+    }
+    if (!row.fits) {
+      fail(
+        `${row.id} is ${String(row.bytes)} bytes of text, which does not fit ` +
+          `inside one argument of a Linux login shell.`
+      );
+    }
+  }
+  const split = (data.phase103 ?? {}).split ?? {};
+  if (!split.contractHasIndexState || !split.contractHasWorktreeState) {
+    fail(
+      'MachineReviewFile in src/shared/ipc/machines.ts does not carry both ' +
+        'indexState and worktreeState. Without the pair the remote list cannot ' +
+        'tell a staged file from an unstaged one, and the two new verbs would ' +
+        'mean nothing.'
+    );
+  }
+  if (!split.groupsExportsGroupRemoteFiles) {
+    fail(
+      'src/renderer/scm/groups.ts does not export groupRemoteFiles. groupFiles ' +
+        'cannot be reused unchanged, because its first branch sends every ' +
+        'conflicted file to a Merge group this phase does not build.'
+    );
+  }
+  if (!split.groupRemoteFilesNamesIsConflict) {
+    fail(
+      'groupRemoteFiles does not name isConflict. A conflicted row goes to ' +
+        'Changes and to nowhere else, and reusing that one function is what ' +
+        'keeps the local rule and the remote rule one rule.'
+    );
+  }
+  if (!split.sectionNamesGroupRemoteFiles) {
+    fail(
+      'src/renderer/scm/ScmSection.tsx does not name groupRemoteFiles, so a ' +
+        'remote list could draw one group while the contract carries two ' +
+        'characters.'
+    );
+  }
+  process.stdout.write(
+    `\nthe two writers Phase 103 added:\n` +
+      `  git-stage     2 values, one git add per call. The chunk loop spawns ` +
+      `nothing, because set -- "$@" ":(literal)$p" is a builtin, so 100 paths ` +
+      `cost the same one git add that 1 path costs.\n` +
+      `  git-unstage   2 values, one git restore --staged per call, with one ` +
+      `git rm --cached as the unborn branch fallback, decided on that machine ` +
+      `from that machine's own stderr.\n` +
+      `  the catalogue now holds ${String(REMOTE_SCRIPT_COUNT)} scripts of ` +
+      `which ${String(ALLOWED_WRITERS.length)} write.\n` +
+      `  no confirmed field was added, so the sheet still covers six fields ` +
+      `and no machine is asked again.\n` +
+      `  WHAT THE FAR SIDE CANNOT CHECK: $1 is the repository root and not the ` +
+      `folder the person confirmed, so neither script can bound the repository ` +
+      `by that folder the way file-put, dir-new and entry-rename all can. ` +
+      `Condition 84 above reads the four layers that make that check in main.\n`
   );
 }
 

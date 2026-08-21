@@ -124,9 +124,19 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds twenty two scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(22);
+  it('holds twenty four scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(24);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 103 added `git-stage` and `git-unstage`, and both WRITE. They are
+      // the sixth and the seventh writers, so the write count below moved from
+      // five to seven. They are the first two commands this product can send
+      // that change a git repository on another computer. Each sends ONE git
+      // process per call: the chunk loop is `set -- "$@" ":(literal)$p"`, which
+      // is a shell builtin, so 100 paths cost the same one `git add` that 1
+      // path costs. They add THREE git verbs, being `add` in `git-stage` alone
+      // and `restore` and `rm` in `git-unstage` alone, and none of the three
+      // joins GIT_VERBS above, because none of them is a read.
+      //
       // PHASE 102 added `dir-new` and `entry-rename`, and both WRITE. They are
       // the fourth and the fifth writers, so the write count below moved from
       // three to five. `dir-new` makes one folder with one non recursive
@@ -201,6 +211,8 @@ describe('the catalogue', () => {
       'entry-rename',
       'file-put',
       'git-clone',
+      'git-stage',
+      'git-unstage',
       'image-put',
       'machine-facts',
       'program-find',
@@ -231,23 +243,142 @@ describe('the catalogue', () => {
     expect(remoteScript('IMAGE-PUT')).toBeNull();
   });
 
-  it('has exactly FIVE scripts that write, and names all of them', () => {
+  it('has exactly SEVEN scripts that write, and names all of them', () => {
     // This is rule 6, and it is the one that keeps the size of what Tortie can
     // do to another person's computer at a known list rather than a count.
     // Phase 90.2 moved it from one to two, Phase 101 moved it from two to
-    // three and Phase 102 moved it from three to five, once and on purpose
-    // each time, and the list stays exact so a sixth one fails here rather
-    // than passing quietly. Phase 105, Phase 106, Phase 107 and Phase 108 each
-    // added a read and left this number alone.
+    // three, Phase 102 moved it from three to five and Phase 103 moved it from
+    // five to seven, once and on purpose each time, and the list stays exact so
+    // an eighth one fails here rather than passing quietly. Phase 105, Phase
+    // 106, Phase 107 and Phase 108 each added a read and left this number
+    // alone.
     const writers = remoteWriteScripts();
-    expect(writers).toHaveLength(5);
+    expect(writers).toHaveLength(7);
     expect(writers.map((script) => script.id)).toEqual([
       'image-put',
       'git-clone',
       'file-put',
       'dir-new',
-      'entry-rename'
+      'entry-rename',
+      'git-stage',
+      'git-unstage'
     ]);
+  });
+
+  describe('the two Phase 103 writers', () => {
+    // These read the TEXT, because what makes them safe is a property of that
+    // text. Both send ONE git process per call and the loop that builds the
+    // pathspec list spawns nothing at all.
+    const guard =
+      "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
+
+    it('declares two values each and both write', () => {
+      for (const id of ['git-stage', 'git-unstage']) {
+        const script = remoteScript(id);
+        expect(script?.mode).toBe('write');
+        expect(script?.params).toBe(2);
+      }
+    });
+
+    it('reads the list into a local name and never walks a bare positional', () => {
+      // Rule 2 of the catalogue header. `for p in $2` would be a bare
+      // positional and rule 2 would be gone for the whole catalogue.
+      for (const id of ['git-stage', 'git-unstage']) {
+        const text = remoteScript(id)?.text ?? '';
+        expect(text).toContain('l="$2"');
+        expect(text).toContain('for p in $l');
+        expect(/for\s+[A-Za-z_][A-Za-z0-9_]*\s+in\s+\$[0-9]/.test(text)).toBe(
+          false
+        );
+      }
+    });
+
+    it('guards every element above the cd and above every git', () => {
+      // A bad element refuses the whole call rather than staging half of it,
+      // and `git add -A -- ":(literal)."` would stage every change in that
+      // repository in one call.
+      for (const id of ['git-stage', 'git-unstage']) {
+        const text = remoteScript(id)?.text ?? '';
+        const guardAt = text.indexOf(guard);
+        expect(guardAt).toBeGreaterThanOrEqual(0);
+        expect(guardAt).toBeLessThan(text.indexOf('cd "$r"'));
+        expect(guardAt).toBeLessThan(text.indexOf('git '));
+      }
+    });
+
+    it('attaches :(literal) per word and refuses an empty list', () => {
+      for (const id of ['git-stage', 'git-unstage']) {
+        const text = remoteScript(id)?.text ?? '';
+        expect(text).toContain('set -- "$@" ":(literal)$p"');
+        expect(text).toContain('[ "$#" -gt 0 ] || exit 1');
+      }
+    });
+
+    it('sends one git per call and names only the verb bound to it', () => {
+      const stage = remoteScript('git-stage')?.text ?? '';
+      expect([...stage.matchAll(/git [a-z-]+/g)].map((hit) => hit[0])).toEqual([
+        'git add'
+      ]);
+      const unstage = remoteScript('git-unstage')?.text ?? '';
+      expect([...unstage.matchAll(/git [a-z-]+/g)].map((hit) => hit[0])).toEqual([
+        'git restore',
+        'git rm'
+      ]);
+    });
+
+    it('never names git clean, --worktree or --source, anywhere', () => {
+      // Discard is not in this phase and it is unreachable rather than merely
+      // absent. `git restore --source=HEAD -- p` overwrites the working tree
+      // copy, which is a discard under another name.
+      for (const id of ['git-stage', 'git-unstage']) {
+        const text = remoteScript(id)?.text ?? '';
+        expect(text).not.toContain('git clean');
+        expect(text).not.toContain('--worktree');
+        expect(text).not.toContain('--source');
+      }
+    });
+
+    it('carries --cached on the one rm this catalogue holds', () => {
+      const text = remoteScript('git-unstage')?.text ?? '';
+      for (const line of text.split('\n')) {
+        if (!/\brm\b/.test(line)) continue;
+        expect(line).toContain('git rm ');
+        expect(line).toContain('--cached');
+      }
+    });
+
+    it('runs the unborn branch fallback only after the restore has failed', () => {
+      const text = remoteScript('git-unstage')?.text ?? '';
+      expect(text.indexOf('git restore --staged')).toBeLessThan(
+        text.indexOf('git rm --cached')
+      );
+      // The six phrasings are the six `UNBORN_HEAD_RE` in
+      // `src/main/git/service.ts` already covers, and they are a `case`, which
+      // is a builtin, so the test costs no process on that machine.
+      for (const phrase of [
+        'does not have any commits yet',
+        "ambiguous argument 'HEAD'",
+        'unknown revision',
+        'invalid object name',
+        'could not resolve',
+        'bad default revision'
+      ]) {
+        expect(text).toContain(phrase);
+      }
+    });
+
+    it('turns the two prompt names off in front of every git it runs', () => {
+      // None of the three verbs is a read, so none of them takes the exemption
+      // the eight read verbs take.
+      for (const id of ['git-stage', 'git-unstage']) {
+        const text = remoteScript(id)?.text ?? '';
+        for (const line of text.split('\n')) {
+          if (!line.includes('git ')) continue;
+          expect(line).toContain('GIT_TERMINAL_PROMPT=0');
+          expect(line).toContain('GCM_INTERACTIVE=never');
+        }
+      }
+    });
   });
 
   it('gives every script a reason that says why a repeat is safe', () => {

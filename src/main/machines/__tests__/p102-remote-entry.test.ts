@@ -373,12 +373,17 @@ describe('renameRemoteEntry', () => {
 describe('the two script rows this module is the only caller of', () => {
   it('are both writes, and they are the fourth and the fifth', () => {
     const writers = REMOTE_SCRIPTS.filter((one) => one.mode === 'write');
+    // PHASE 103 added `git-stage` and `git-unstage` at the END of the list, so
+    // the five that shipped before them keep their order and this module's two
+    // are still the fourth and the fifth.
     expect(writers.map((one) => one.id)).toEqual([
       'image-put',
       'git-clone',
       'file-put',
       'dir-new',
-      'entry-rename'
+      'entry-rename',
+      'git-stage',
+      'git-unstage'
     ]);
   });
 

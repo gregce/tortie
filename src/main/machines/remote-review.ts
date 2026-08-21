@@ -54,6 +54,15 @@
  *
  * `review-file` answers with the `HEAD` copy and the working copy.
  *
+ * ## Both porcelain characters, since Phase 103
+ *
+ * `MachineReviewFile` carries `indexState` and `worktreeState` as well as the
+ * folded `status` letter. Git prints two characters per changed file: the first
+ * says what the index holds, which is what the next commit would carry, and the
+ * second says what the folder on disk holds. {@link letterOf} folds them and is
+ * unchanged, so the badge is exactly what it was. What is new is that the pair
+ * reaches the renderer, which is what lets the panel draw a Staged group.
+ *
  * ## Two groups, since Phase 97
  *
  * The listing comes back as two arrays rather than one. `files` holds the
@@ -290,13 +299,29 @@ export function parseRemoteReviewListing(payload: string): {
       // the one member of GitCommitFileState whose badge class is already the
       // added one. The view fixes the badge for this group rather than reading
       // this letter, so it is a truthful value nothing depends on.
-      untracked.push({ path: file.path, origPath: null, status: 'A' });
+      untracked.push({
+        path: file.path,
+        origPath: null,
+        status: 'A',
+        // PHASE 103. Both characters, carried as git printed them. An
+        // untracked row is `??`, and the renderer's untracked group is its own
+        // array rather than a reading of these two.
+        indexState: file.indexState,
+        worktreeState: file.worktreeState
+      });
       continue;
     }
     files.push({
       path: file.path,
       origPath: file.origPath ?? null,
-      status: letterOf(file.indexState, file.worktreeState)
+      status: letterOf(file.indexState, file.worktreeState),
+      // PHASE 103. The pair, carried through unfolded. `letterOf` above is
+      // unchanged and still feeds the badge. Until this phase the fold was the
+      // only thing that reached the renderer, so the remote list could not
+      // tell a staged file from an unstaged one and the two new verbs would
+      // have meant nothing.
+      indexState: file.indexState,
+      worktreeState: file.worktreeState
     });
   }
   // Neither array is sorted. Git prints both groups in path order already, and

@@ -154,8 +154,12 @@ import type {
   MachineMakeDirInput,
   MachineMakeDirResult,
   MachineRenameInput,
-  MachineRenameResult
+  MachineRenameResult,
   // ---- END PHASE 102 ----
+  // ---- PHASE 103 ----
+  MachineIndexWriteInput,
+  MachineIndexWriteResult
+  // ---- END PHASE 103 ----
 } from '@shared/ipc';
 import {
   EVT_MACHINE_AGENTS,
@@ -319,6 +323,15 @@ import { writeRootField } from './schema';
 // `listRemoteTree` in ./tree-list.ts is imported that way too.
 import { makeRemoteDir, renameRemoteEntry } from './remote-entry';
 // ---- END PHASE 102 ----
+// ---- PHASE 103 ----
+// Staging and unstaging in one repository on one machine. It owns both write
+// decisions, being the confirm gate, the confirmed folder, its own fresh review
+// read and the test that every path that read reported. It composes nothing
+// here: the two handlers below pass their input through and read a status word
+// back. Neither handler names a git verb, because the verb is inside Tortie's
+// own script text.
+import { stageOnMachine, unstageOnMachine } from './remote-stage';
+// ---- END PHASE 103 ----
 
 /**
  * Windows that already carry the "you went away, so the test stops" listener.
@@ -1240,6 +1253,50 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     ): Promise<MachineRenameResult> => renameRemoteEntry(input)
   );
   // ---- END PHASE 102 BLOCK ----
+
+  // ---- PHASE 103 BLOCK ----
+  // TWO CHANNELS THAT WRITE ON ANOTHER COMPUTER, being the sixth and the
+  // seventh in this product, and the first two that change a git repository
+  // over there. Until this phase no command Tortie sent could.
+  //
+  // NEITHER CHANNEL NAMES A GIT VERB and neither handler body composes one. The
+  // verb is inside Tortie's own script text in ./remote-scripts.ts, so no
+  // caller can turn a stage into a commit, a checkout or a discard. Condition
+  // 83 of `build/conformance-machines.mjs` makes the discard refusal executable
+  // over the whole catalogue rather than merely absent.
+  //
+  // NEITHER CARRIES A REPOSITORY ROOT FROM THE RENDERER. The input carries the
+  // tab's folder, and ./remote-stage.ts runs its own review read on it and uses
+  // the root that machine's own rev-parse answered. Without that, the pair of
+  // an absolute folder and relative paths under it would let one call stage
+  // inside any repository on that machine.
+  //
+  // WHAT BOUNDS THEM IS THE SAME ONE FIELD `machines:putFile` is bounded by,
+  // being `writeRoot` on the machine row. PHASE 103 ADDS NO CONFIRMED FIELD and
+  // no hash moves.
+  //
+  // A CALL THAT ANSWERED `unsure` IS NOT A CALL THAT CHANGED NOTHING. Phase 101
+  // measured a killed ssh completing the far side write, so that word means the
+  // machine did not say, and the panel re-reads rather than claiming. No prose
+  // about a machine's answer crosses either channel: the renderer draws every
+  // sentence from src/renderer/app/machine-copy.ts.
+  handle(
+    ipc,
+    'machines:stage',
+    async (
+      _event,
+      input: MachineIndexWriteInput
+    ): Promise<MachineIndexWriteResult> => stageOnMachine(input)
+  );
+  handle(
+    ipc,
+    'machines:unstage',
+    async (
+      _event,
+      input: MachineIndexWriteInput
+    ): Promise<MachineIndexWriteResult> => unstageOnMachine(input)
+  );
+  // ---- END PHASE 103 BLOCK ----
 
   // ---- PHASE 98 ----
   // PHASE 98. One channel that READS one folder on one machine, so the Search

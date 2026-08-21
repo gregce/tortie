@@ -1875,6 +1875,144 @@ process.stdout.write(
       };
     })(),
 
+    // --- Phase 103, conditions 83 to 85 ------------------------------------
+    //
+    // Pure. It reads three source files as text and one compiled catalogue. It
+    // starts nothing, opens no file under the person's home and contacts no
+    // machine.
+    phase103: (() => {
+      const stagePath = join(machinesDir, 'remote-stage.ts');
+      let stageSource = '';
+      let stagePresent = true;
+      try {
+        stageSource = readFileSync(stagePath, 'utf8');
+      } catch {
+        stagePresent = false;
+      }
+      const ipcSource = readFileSync(join(machinesDir, 'ipc.ts'), 'utf8');
+      const contractSource = readFileSync(
+        join(repoRoot, 'src', 'shared', 'ipc', 'machines.ts'),
+        'utf8'
+      );
+      const readOrEmpty = (path: string): string => {
+        try {
+          return readFileSync(path, 'utf8');
+        } catch {
+          return '';
+        }
+      };
+      const scmDir = join(repoRoot, 'src', 'renderer', 'scm');
+      const groupsSource = readOrEmpty(join(scmDir, 'groups.ts'));
+      const sectionSource = readOrEmpty(join(scmDir, 'ScmSection.tsx'));
+
+      // The two handler bodies, read as text, so "neither names a git verb" is
+      // checkable rather than claimed. A handler that composed its own verb
+      // would be a second place the write decision lives.
+      const handlerBody = (channel: string): string => {
+        const at = ipcSource.indexOf(`'${channel}'`);
+        if (at < 0) return '';
+        const end = ipcSource.indexOf('\n  );', at);
+        return end < 0 ? ipcSource.slice(at) : ipcSource.slice(at, end);
+      };
+      // Every git verb this catalogue knows plus the four this phase refuses,
+      // as whole words. `git ` itself is tested separately.
+      const VERB_WORDS = [
+        'add',
+        'restore',
+        'commit',
+        'checkout',
+        'clean',
+        'reset',
+        'cherry-pick',
+        'stash',
+        'merge',
+        'rebase'
+      ];
+      const verbsIn = (text: string): string[] =>
+        VERB_WORDS.filter((word) =>
+          new RegExp(`\\b${word.replace('-', '\\-')}\\b`).test(text)
+        ).concat(text.includes('git ') ? ['git '] : []);
+
+      // The body of that one function, read from its declaration to the next
+      // top level declaration. `\n}` alone is WRONG here: the return type is a
+      // multi line object literal, so the first `\n}` closes the TYPE and the
+      // slice would hold no body at all. This gate reported that as the
+      // function not naming `isConflict` while it named it twice.
+      const groupsBody = (() => {
+        const at = groupsSource.indexOf('export function groupRemoteFiles');
+        if (at < 0) return '';
+        const rest = groupsSource.slice(at + 1);
+        const end = rest.search(/\n(export |\/\*\*)/);
+        return end < 0 ? rest : rest.slice(0, end);
+      })();
+
+      const sendAt = stageSource.indexOf('runRemoteWrite(');
+      const inputMembers = (name: string): string[] => {
+        const at = contractSource.indexOf(`export interface ${name} {`);
+        if (at < 0) return [`${name} is not in the contract`];
+        const body = contractSource.slice(at, contractSource.indexOf('\n}', at));
+        return ['root', 'repoPath'].filter((member) =>
+          new RegExp(`^\\s*(readonly\\s+)?${member}[?]?:`, 'm').test(body)
+        );
+      };
+
+      return {
+        catalogue: ['git-stage', 'git-unstage'].map((id) => {
+          const row = REMOTE_SCRIPTS.find((one) => one.id === id);
+          return {
+            id,
+            mode: row?.mode ?? 'missing',
+            params: row?.params ?? -1,
+            bytes: (row?.text ?? '').length,
+            fits: (row?.text ?? '').length <= REMOTE_SCRIPT_MAX_BYTES
+          };
+        }),
+        module: {
+          present: stagePresent,
+          // The four checks that all have to stand above the one send.
+          gateAt: stageSource.indexOf('confirmedWriteRoot('),
+          readAt: stageSource.indexOf('reviewFilesOn('),
+          holdsAt: stageSource.indexOf('rootHolds('),
+          reportedAt: stageSource.indexOf('reported.has('),
+          sendAt,
+          namesWriteDoor: sendAt >= 0,
+          forbiddenDoors: [
+            'runRemoteRead',
+            'execRemoteShell',
+            'execFile',
+            'spawn('
+          ].filter((one) => stageSource.includes(one)),
+          importsManifest: /from '\.\.\/manifest\//.test(stageSource),
+          inputMembers: inputMembers('MachineIndexWriteInput'),
+          handlerStage:
+            ipcSource.includes("'machines:stage'") &&
+            ipcSource.includes('stageOnMachine(input)'),
+          handlerUnstage:
+            ipcSource.includes("'machines:unstage'") &&
+            ipcSource.includes('unstageOnMachine(input)'),
+          stageHandlerVerbs: verbsIn(handlerBody('machines:stage')),
+          unstageHandlerVerbs: verbsIn(handlerBody('machines:unstage')),
+          channelVerbs: verbsIn('machines:stage machines:unstage')
+        },
+        // The split that reached the renderer. Conditions 85 assert on Builder
+        // B's files BY SYMBOL NAME ONLY, never by a sentence, because a pinned
+        // sentence across a builder boundary is how a phase deadlocks.
+        split: {
+          contractHasIndexState: /^\s*indexState: GitFileState;/m.test(
+            contractSource
+          ),
+          contractHasWorktreeState: /^\s*worktreeState: GitFileState;/m.test(
+            contractSource
+          ),
+          groupsExportsGroupRemoteFiles: groupsSource.includes(
+            'export function groupRemoteFiles'
+          ),
+          groupRemoteFilesNamesIsConflict: groupsBody.includes('isConflict'),
+          sectionNamesGroupRemoteFiles: sectionSource.includes('groupRemoteFiles')
+        }
+      };
+    })(),
+
     // --- Phase 98, condition 52 --------------------------------------------
     // Pure. It reads one compiled script text and one compiled number. It
     // starts nothing, opens no file under the person's home and contacts no

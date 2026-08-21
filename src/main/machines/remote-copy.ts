@@ -804,3 +804,51 @@ export const RESTORE_CREATE_UNCONFIRMED =
   'the machine stopped answering while it was being created. Bringing it back ' +
   'now could start a second agent on the same conversation. Tortie will settle ' +
   'this the next time that machine answers with a full list. Nothing was started.';
+
+// ---------------------------------------------------------------------------
+// Phase 103: the three refusals in front of a git write on another computer
+// ---------------------------------------------------------------------------
+//
+// All three are decided on this Mac before anything is composed, and none of
+// them names a machine, so each crosses as a thrown sentence the way
+// MACHINE_NOT_CONNECTED already does. Each is pinned in
+// `build/assert-bundle-refusals.mjs` with an id and a `why`. A refusal the
+// bundler deleted is a refusal the product only claims to have.
+
+/**
+ * A path holding a line break, refused before anything is composed.
+ *
+ * PINNED as `machine.stage-name-holds-line-break`. The list of paths travels
+ * as one positional split under `IFS` on a newline, so a name with a newline in
+ * it would arrive as two paths and stage a file nobody named. Git reports such
+ * a name correctly, because the porcelain is NUL separated, so this is a false
+ * refusal for a name almost nobody has and it is taken on purpose. It is the
+ * same trade `review-file` already takes for a name holding two dots.
+ */
+export const STAGE_NAME_HOLDS_LINE_BREAK =
+  'Tortie will not stage a file whose name holds a line break, because the ' +
+  'list of paths travels to that machine one path per line. Nothing was sent.';
+
+/**
+ * One path longer than the whole command may be.
+ *
+ * PINNED as `machine.stage-path-too-long`. The composed command reaches the far
+ * side as one argument of its own login shell, capped at 131,072 bytes on
+ * Linux. A path that alone exceeds the budget cannot be chunked smaller.
+ */
+export const STAGE_PATH_TOO_LONG =
+  'One of those file names is too long to send to that machine in a single ' +
+  'command. Nothing was sent. Stage it from a session on that machine.';
+
+/**
+ * A path git on that machine no longer reports as changed.
+ *
+ * PINNED as `machine.stage-path-not-reported`. Main runs its own review read
+ * before it composes anything and refuses every path that read did not name.
+ * It is the guard that stops the pair of an absolute folder and a relative path
+ * reaching a repository the tab is not about.
+ */
+export const STAGE_PATH_NOT_REPORTED =
+  'Tortie did not send those files, because git on that machine no longer ' +
+  'reports one of them as changed. Press Refresh to read what really changed ' +
+  'there. Nothing was sent.';

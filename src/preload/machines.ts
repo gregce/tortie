@@ -5,16 +5,18 @@
  * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105,
  * one more in Phase 106, one more in Phase 107, one more in Phase 108 and one
  * call plus one subscription in Phase 109, three more in Phase 101 and two
- * more in Phase 102). One object, thirty four calls and three subscriptions,
+ * more in Phase 102 and two more in Phase 103). One object, thirty six calls
+ * and three subscriptions,
  * typed from the shared contract. THE COUNT HAD GONE
  * STALE and Phase 108 says so rather than quietly fixing it: this header named
  * neither Phase 107 nor its call while the object already carried
  * `readHistory`.
  *
- * FIVE of these calls write on another computer, being `putImage`,
- * `cloneProject`, `putFile`, `makeDir` and `renameEntry`. `allowWrites` writes
- * on THIS Mac, being one field of one row and one record. Everything else on
- * this bridge reads.
+ * SEVEN of these calls write on another computer, being `putImage`,
+ * `cloneProject`, `putFile`, `makeDir`, `renameEntry`, `stage` and `unstage`.
+ * The last two are the only ones that change a git repository over there.
+ * `allowWrites` writes on THIS Mac, being one field of one row and one record.
+ * Everything else on this bridge reads.
  *
  * Four of these calls can start a process from Settings, and every one of them
  * is a person pressing a button there. `tailscaleNames` runs the Tailscale program at
@@ -193,6 +195,22 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // against the confirmed folder before anything is composed. The machine
   // tests the destination before it moves, and between that test and the move
   // another writer on that machine can create the destination.
-  renameEntry: (input) => invoke('machines:renameEntry', input)
+  renameEntry: (input) => invoke('machines:renameEntry', input),
   // ---- END PHASE 102 BLOCK ----
+  // ---- PHASE 103 BLOCK ----
+  // Phase 103. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the sixth call on
+  // this bridge that can. It is also the first that changes a git repository
+  // over there. It puts a list of paths into one repository's index. Main asks
+  // the confirm gate, runs its own review read on the tab's folder, refuses a
+  // repository outside the confirmed folder and refuses every path that read
+  // did not name, all before anything is sent. No repository root chosen here
+  // decides where git runs.
+  stage: (input) => invoke('machines:stage', input),
+  // Phase 103. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the seventh. It
+  // takes the same list back out of that index. On a repository with no commit
+  // that machine's git runs `rm --cached` over the same list instead, which
+  // leaves every file in the folder. Neither call can discard a change, commit
+  // or mark a conflict resolved.
+  unstage: (input) => invoke('machines:unstage', input)
+  // ---- END PHASE 103 BLOCK ----
 };

@@ -121,10 +121,28 @@ declare global {
 const wait = (ms: number): Promise<void> =>
   new Promise((r) => setTimeout(r, ms));
 
-/** The two tracked files the seeded answer holds. */
+/**
+ * The two tracked files the seeded answer holds.
+ *
+ * PHASE 103 ADDED THE PAIR git prints for each of them. Both are edits nobody
+ * has staged, being the pair `.M`, so both land in the Changes group and this
+ * drive's own reading is unchanged.
+ */
 const TRACKED: readonly MachineReviewFile[] = [
-  { path: 'src/auth.ts', origPath: null, status: 'M' },
-  { path: 'src/router.ts', origPath: null, status: 'M' }
+  {
+    path: 'src/auth.ts',
+    origPath: null,
+    status: 'M',
+    indexState: '.',
+    worktreeState: 'M'
+  },
+  {
+    path: 'src/router.ts',
+    origPath: null,
+    status: 'M',
+    indexState: '.',
+    worktreeState: 'M'
+  }
 ];
 
 /**
@@ -135,9 +153,27 @@ const TRACKED: readonly MachineReviewFile[] = [
  * reads that letter for these rows. The group decides the badge.
  */
 const UNTRACKED: readonly MachineReviewFile[] = [
-  { path: 'src/agent-notes.md', origPath: null, status: 'A' },
-  { path: 'src/scratch/plan.txt', origPath: null, status: 'A' },
-  { path: 'tools/p97-new.ts', origPath: null, status: 'A' }
+  {
+    path: 'src/agent-notes.md',
+    origPath: null,
+    status: 'A',
+    indexState: '?',
+    worktreeState: '?'
+  },
+  {
+    path: 'src/scratch/plan.txt',
+    origPath: null,
+    status: 'A',
+    indexState: '?',
+    worktreeState: '?'
+  },
+  {
+    path: 'tools/p97-new.ts',
+    origPath: null,
+    status: 'A',
+    indexState: '?',
+    worktreeState: '?'
+  }
 ];
 
 function textOf(el: Element | null | undefined): string {
@@ -265,7 +301,13 @@ export function registerP97UntrackedDrive(): void {
           loading: false,
           refreshing: false,
           failed: false,
-          readAt: Date.now()
+          readAt: Date.now(),
+          // PHASE 103. No write has run on this seeded entry, so the panel
+          // draws no sentence under its rows.
+          writing: false,
+          writeVerb: null,
+          writeOutcome: null,
+          writeRefusal: null
         }
       }
     }));

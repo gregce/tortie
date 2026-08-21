@@ -430,6 +430,12 @@ const CONFIG_REFUSALS = [
  * and one refuses a command aimed at a session no list from that machine
  * reported.
  *
+ * PHASE 103 PUT THREE IN, so the count is forty nine, and all three stand in
+ * front of the first git write this product can send. Until Phase 103 no command Tortie sent could change a
+ * git repository on another computer, and each of these three is decided on
+ * this Mac before anything is composed, so each of them ends "Nothing was
+ * sent." and each of them is true when it says so.
+ *
  * PHASE 73 PUT SIX IN, so the count is twenty nine. They are the second door's
  * own refusals plus the three sentences the three items on it end at. The door
  * is the one place a command that is not a tmux verb can cross to a machine,
@@ -1204,6 +1210,66 @@ const MACHINE_REFUSALS = [
       'nothing. Every session record is exactly as it was, and the machine is ',
       'still in your list. Try again.'
     ]
+  },
+  // ---------------------------------------------------------------------------
+  // PHASE 103 added these three, and all three stand in front of the first git
+  // write this product can send to another computer
+  // ---------------------------------------------------------------------------
+  //
+  // All three are decided on this Mac before anything is composed, so each of
+  // them ends "Nothing was sent." and each of them is true when it says so.
+  //
+  // Every one is reached rarely in ordinary use, which is exactly the branch a
+  // bundler folds away. A name holding a line break needs a file almost nobody
+  // has. A path longer than 118,000 bytes cannot be produced by any file system
+  // this product has met. And a path the fresh read did not report is not
+  // reachable from the panel at all, because the panel drew the same list and a
+  // person can only press a button on a row it drew. That last one is the guard
+  // that stops the pair of an absolute folder and a relative path reaching a
+  // repository the tab is not about, so it is the one whose absence would cost
+  // the most and the one production never exercises.
+  {
+    id: 'machine.stage-name-holds-line-break',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'the list of paths travels to that machine as one value split on a ' +
+      'newline, so a name holding one would arrive as two paths and stage a ' +
+      'file nobody named. Git reports such a name correctly, because the ' +
+      'porcelain is NUL separated, so this branch is the only thing between ' +
+      'that name and a stage the person did not ask for',
+    fragments: [
+      'Tortie will not stage a file whose name holds a line break, because the ',
+      'list of paths travels to that machine one path per line. Nothing was sent.'
+    ]
+  },
+  {
+    id: 'machine.stage-path-too-long',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'the composed command reaches the far side as one argument of its own ' +
+      'login shell, capped at 131,072 bytes on Linux. A path that alone ' +
+      'exceeds the budget cannot be chunked smaller, so without this branch ' +
+      'the door would refuse the whole call with a programming error instead ' +
+      'of a sentence a person can act on',
+    fragments: [
+      'One of those file names is too long to send to that machine in a single ',
+      'command. Nothing was sent. Stage it from a session on that machine.'
+    ]
+  },
+  {
+    id: 'machine.stage-path-not-reported',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'main runs its own review read before it composes anything and refuses ' +
+      'every path that read did not name. It is the guard that stops the pair ' +
+      'of an absolute folder and a relative path reaching a repository the tab ' +
+      'is not about, and no correct caller reaches it, which is exactly the ' +
+      'shape rollup can prove dead and remove',
+    fragments: [
+      'Tortie did not send those files, because git on that machine no longer ',
+      'reports one of them as changed. Press Refresh to read what really changed ',
+      'there. Nothing was sent.'
+    ]
   }
 ];
 
@@ -1568,6 +1634,41 @@ function main() {
   }
   const bundle = readFileSync(bundlePath, 'utf8');
   const rendererBundle = readRendererBundles();
+
+  // PHASE 103 FIX ROUND. Every check below walks the tables, so a row DELETED
+  // from a table made this file check one refusal fewer and still exit 0. The
+  // Phase 103 entry asks a verifier to prove the pin by deleting a row, and
+  // that instruction proved nothing. The counts are pinned here so a deleted
+  // row fails with a sentence naming the table and both numbers.
+  //
+  // The same six numbers are in docs/audits/contract-baseline.txt, put there by
+  // build/contract-inventory.mjs, which reads THIS file's arrays. Both have to
+  // move in the commit that adds or removes a refusal, and that is the point of
+  // each of them.
+  const EXPECTED_COUNTS = [
+    ['REFUSALS', REFUSALS.length, 23],
+    ['SKILLS_REFUSALS', SKILLS_REFUSALS.length, 6],
+    ['CONFIG_REFUSALS', CONFIG_REFUSALS.length, 6],
+    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 49],
+    ['UPDATER_REFUSALS', UPDATER_REFUSALS.length, 8],
+    ['LOG_REFUSALS', LOG_REFUSALS.length, 1]
+  ];
+  const miscounted = EXPECTED_COUNTS.filter(([, found, want]) => found !== want);
+  if (miscounted.length > 0) {
+    console.error(
+      '[refusals] a refusal table changed size. A row that leaves this file ' +
+        'stops being checked in the shipped bundle, and nothing else in the ' +
+        'repository would have said so.'
+    );
+    for (const [name, found, want] of miscounted) {
+      console.error(
+        `  ${name}: ${String(found)} row(s) here, ${String(want)} pinned. If ` +
+          'the change is deliberate, move the pinned number and re-baseline ' +
+          'docs/audits/contract-baseline.txt in the same commit.'
+      );
+    }
+    process.exit(1);
+  }
   const sources = new Map();
   const staleTable = [];
   const missingFromBundle = [];

@@ -427,6 +427,16 @@ describe('every channel is registered, and only the ones listed here', () => {
       // clock.
       'machines:searchContent',
       // ---- END PHASE 98 ----
+      // ---- PHASE 103 ----
+      // The SIXTH write this product can make on another computer, and the
+      // first that changes a git repository over there. It puts a list of
+      // paths into one repository's index. Main runs its own review read on
+      // the tab's folder and uses the root that machine's own rev-parse
+      // answered, so no repository root chosen in the renderer decides where
+      // git runs. The channel name holds no git verb and neither does the
+      // handler body.
+      'machines:stage',
+      // ---- END PHASE 103 ----
       // Phase 71's one new channel. It reads memory in main and answers: no
       // machine is asked anything, no file is opened and nothing is started.
       'machines:state',
@@ -434,6 +444,14 @@ describe('every channel is registered, and only the ones listed here', () => {
       'machines:test',
       'machines:testCancel',
       'machines:testInput',
+      // ---- PHASE 103 ----
+      // The SEVENTH write. It takes the same list back out of that index. On a
+      // repository with no commit that machine's git runs rm --cached over the
+      // same list instead, which leaves every file in the folder. Neither this
+      // nor machines:stage can discard a change, commit or mark a conflict
+      // resolved.
+      'machines:unstage',
+      // ---- END PHASE 103 ----
       // ---- PHASE 101 ----
       // One READ. It answers the sheet for the row as it is now plus the folder
       // a person typed, so the renderer never composes a sheet's hash. It

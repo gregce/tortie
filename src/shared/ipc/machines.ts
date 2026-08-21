@@ -52,6 +52,12 @@ import type { ContextScanResult } from '../context';
 // surfaces already speak, so a file on another machine and a file in a
 // commit carry the same vocabulary.
 import type { GitCommitFileState } from '../types';
+// PHASE 103. The porcelain's two characters, carried through so the remote
+// list can tell a staged file from an unstaged one. `letterOf` in
+// `src/main/machines/remote-review.ts` folds the pair into one letter for the
+// badge, and until this phase that fold was the only thing that reached the
+// renderer, so the panel could not draw a Staged group at all.
+import type { GitFileState } from '../types';
 // PHASE 107. A commit read from another machine is the row the local History
 // already draws, so the swimlane picture is laid out by one set of code for
 // both. Two declarations of one shape is how the two ends of a channel drift
@@ -776,6 +782,11 @@ export interface MachinesEventPayloadMap {
  * PHASE 102 ADDS TWO ROWS AND MOVES THE COUNT WITH THEM, being `makeDir` and
  * `renameEntry`. The count is thirty four.
  *
+ * PHASE 103 ADDS TWO ROWS AND MOVES THE COUNT WITH THEM, being `stage` and
+ * `unstage`. The count is thirty six. They are the sixth and the seventh
+ * channels here that write on another computer, and the first two that change
+ * a git repository over there.
+ *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
  * | rows | memory in main, plus the sealed record | nothing | nothing |
@@ -795,6 +806,8 @@ export interface MachinesEventPayloadMap {
  * | putImage | one file on this Mac | one file on that machine | ssh |
  * | reviewFiles | one folder on that machine | nothing | ssh |
  * | reviewFile | one file on that machine | nothing | ssh |
+ * | stage | one folder on that machine, twice | that repository's index | ssh |
+ * | unstage | one folder on that machine, twice | that repository's index | ssh |
  * | listDir | one folder on that machine | nothing | ssh |
  * | findProject | one git config here, one folder walk there | nothing | ssh |
  * | cloneProject | one git config here | one folder on that machine | ssh |
@@ -1188,6 +1201,41 @@ export interface MachinesInvokeChannelMap {
     res: MachineRenameResult;
   };
   // ---- END PHASE 102 BLOCK ----
+  // ---- PHASE 103 BLOCK ----
+  // BOTH OF THESE WRITE ON ANOTHER COMPUTER, and they are the sixth and the
+  // seventh channels in this contract that can. They are also the first two
+  // that change a git repository over there: until this phase no command
+  // Tortie sent could.
+  //
+  // NEITHER NAMES A GIT VERB. The verb is inside Tortie's own script text in
+  // `src/main/machines/remote-scripts.ts`, so no caller can turn a stage into
+  // a commit, a checkout or a discard.
+  //
+  // NEITHER CARRIES A REPOSITORY ROOT. Main runs its own review read on the
+  // tab's folder and uses the root that machine's own `rev-parse` answered, so
+  // the pair of an absolute folder and a relative path cannot reach a
+  // repository the tab is not about.
+  //
+  // WHAT BOUNDS THEM IS THE SAME ONE FIELD `machines:putFile` is bounded by,
+  // being `writeRoot` on the machine row. PHASE 103 ADDS NO CONFIRMED FIELD
+  // and no hash moves. A machine that carries no folder answers `writesOff`
+  // and nothing is composed.
+  //
+  // NEITHER EVER THROWS FOR SOMETHING THE MACHINE SAID. A git that exited non
+  // zero is the word `partial`, and a machine that did not answer is the word
+  // `unsure`. `unsure` never means nothing changed. Three refusals decided on
+  // this Mac before anything is composed do throw, being a name holding a line
+  // break, a path longer than one command may be, and a path the fresh read
+  // did not report.
+  'machines:stage': {
+    req: [input: MachineIndexWriteInput];
+    res: MachineIndexWriteResult;
+  };
+  'machines:unstage': {
+    req: [input: MachineIndexWriteInput];
+    res: MachineIndexWriteResult;
+  };
+  // ---- END PHASE 103 BLOCK ----
   'machines:agents': {
     req: [id: string | null, fresh: boolean];
     res: MachineAgentsView[];
@@ -1331,6 +1379,16 @@ export interface GmuxMachinesExtras {
     // an untracked add until somebody stages it.
     renameEntry(input: MachineRenameInput): Promise<MachineRenameResult>;
     // ---- END PHASE 102 BLOCK ----
+    // ---- PHASE 103 BLOCK ----
+    // Phase 103. Puts a list of paths into one repository's index on one
+    // machine. It is the sixth call in this contract that writes on another
+    // computer and the first that changes a git repository over there.
+    stage(input: MachineIndexWriteInput): Promise<MachineIndexWriteResult>;
+    // Phase 103. Takes the same list back out of that index. It is the
+    // seventh. On a repository with no commit it runs `git rm --cached` over
+    // the same list instead, which leaves every file in the folder.
+    unstage(input: MachineIndexWriteInput): Promise<MachineIndexWriteResult>;
+    // ---- END PHASE 103 BLOCK ----
     // Phase 109. The whole map, pushed whenever any machine's answer changes,
     // the `onStateChanged` precedent.
     onAgentsChanged(cb: (views: MachineAgentsView[]) => void): () => void;
@@ -1432,6 +1490,22 @@ export interface MachineReviewFile {
   origPath: string | null;
   /** The letter git printed, reused as the existing GitCommitFileState. */
   status: GitCommitFileState;
+  /**
+   * PHASE 103. The FIRST character of the porcelain pair, being what the index
+   * holds. It is what the next commit over there would carry.
+   *
+   * `status` above is unchanged and still feeds the badge. This field and the
+   * one below are what let the panel put a file in a Staged group, which it
+   * could not do before this phase because `letterOf` folded the pair into one
+   * letter and threw the first character away. An untracked row carries `?`
+   * here and `?` below, which is what `parsePorcelainV2Status` reports for it.
+   */
+  indexState: GitFileState;
+  /**
+   * PHASE 103. The SECOND character of the porcelain pair, being what the
+   * folder on disk holds.
+   */
+  worktreeState: GitFileState;
 }
 
 /** What one repository on one machine has changed since its last commit. */
@@ -1749,6 +1823,83 @@ export interface MachineRenameResult {
   readonly tookMs: number;
 }
 // ---- END PHASE 102 BLOCK ----
+
+// ---- PHASE 103 BLOCK ----
+// Staging and unstaging in one repository on another machine.
+//
+// WHAT THIS IS FOR. A person looking at the Source Control panel for a folder
+// on another machine can choose what goes into the next commit over there.
+// Until this phase no command Tortie sent could change a git repository on
+// another computer. After it, two can.
+//
+// WHAT THESE TWO CANNOT DO. Neither commits. Neither discards a change, and
+// condition 83 of `build/conformance-machines.mjs` makes that refusal
+// executable over the whole script catalogue rather than merely absent.
+// Neither marks a conflict resolved, so a conflicted row offers no verb at
+// all. Neither stages part of a file, because the local list cannot either.
+//
+// WHAT DECIDES WHETHER ANYTHING HAPPENS. The same one confirmed field Phase
+// 101 added, being `writeRoot`. NO NEW FIELD IS CONFIRMED BY THIS BLOCK, the
+// hash still covers six fields, and no machine anybody already confirmed is
+// asked again.
+//
+// NO REPOSITORY ROOT CROSSES EITHER CHANNEL. The input carries the tab's
+// folder and main runs its own review read on it, so the root that reaches
+// that machine's git is the one that machine's own `rev-parse` answered.
+
+/** Which paths in which folder on which machine, for stage and for unstage. */
+export interface MachineIndexWriteInput {
+  machineId: string;
+  /** The tab's folder ON THAT MACHINE. Main runs its own review read on it. */
+  cwd: string;
+  /** Repository relative paths, as `machines:reviewFiles` reported them. */
+  paths: string[];
+}
+
+/**
+ * What happened to one stage or one unstage. Seven words, and none of them
+ * claims more than Tortie knows.
+ *
+ *  - `done`: every command crossed and that machine's git exited 0 for each.
+ *  - `partial`: at least one command's git exited non zero. Tortie cannot say
+ *    which files landed, because git reports one status for a whole list.
+ *  - `unsure`: the machine did not answer, or answered something Tortie could
+ *    not read. This never means nothing changed.
+ *  - `writesOff`, `outsideRoot`, `notRepo`, `nothingToDo`: decided on this Mac
+ *    before anything was composed, so each of them means nothing was sent.
+ */
+export type MachineIndexWriteOutcome =
+  | 'done'
+  | 'partial'
+  | 'unsure'
+  | 'writesOff'
+  | 'outsideRoot'
+  | 'notRepo'
+  | 'nothingToDo';
+
+/** What one stage or one unstage did, in the shape the surface reads. */
+export interface MachineIndexWriteResult {
+  readonly outcome: MachineIndexWriteOutcome;
+  /** How many paths crossed, after the rename origPath was added. */
+  readonly paths: number;
+  /** How many commands crossed. 0 for every outcome decided on this Mac. */
+  readonly chunks: number;
+  /** The repository root THAT MACHINE answered. Empty when there is none. */
+  readonly repoPath: string;
+  /** The confirmed folder, for the sentences that name it. Null when none. */
+  readonly writeRoot: string | null;
+  /**
+   * What that machine's git printed on the first command that failed, decoded.
+   * Null otherwise. IT IS LOGGED AND NEVER DRAWN, because it is that machine's
+   * prose rather than Tortie's, and every sentence a person reads about a
+   * machine is composed in src/renderer/app/machine-copy.ts.
+   */
+  readonly machineSaid: string | null;
+  /** The review read main ran before composing, in ms. */
+  readonly readMs: number;
+  readonly tookMs: number;
+}
+// ---- END PHASE 103 BLOCK ----
 
 // ---------------------------------------------------------------------------
 // The folder picker for another machine (Phase 84, item 6)

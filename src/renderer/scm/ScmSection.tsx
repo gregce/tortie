@@ -43,6 +43,7 @@ import {
   repoState,
   useGit
 } from '../state/git';
+import type { MachineIndexWriteOutcome } from '@shared/ipc';
 import type { PendingOp, ScmGroups } from '../state/git';
 import { Codicon } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
@@ -52,7 +53,12 @@ import {
   remoteChangesNone,
   remoteChangesNotRepo,
   remoteChangesUnreachable,
-  remoteReadAt
+  remoteConflictNoVerb,
+  remoteIndexWritePartial,
+  remoteIndexWriteUnsure,
+  remoteReadAt,
+  remoteStageOutsideRoot,
+  remoteWritesNotConfirmed
 } from '../app/machine-copy';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
@@ -60,8 +66,12 @@ import {
   remoteChangesAvailable,
   remoteChangesCount,
   remoteChangesOf,
+  remoteIndexWriteAvailable,
   useRemoteChanges
 } from './remote-changes';
+import type { RemoteIndexVerb } from './remote-changes';
+import { groupRemoteFiles, isConflict } from './groups';
+import { registerP103StageDrive } from './p103-stage-drive';
 import { registerP97UntrackedDrive } from './p97-untracked-drive';
 import { RemoteBranchSection } from './RemoteBranchSection';
 import { RemoteHistorySection } from './RemoteHistorySection';
@@ -96,6 +106,9 @@ import { gmuxBridge } from '../bridge';
 // the Source Control view always loads, so no edit to App.tsx is needed. It
 // assigns one function to `window` and changes no behaviour.
 registerP97UntrackedDrive();
+// The Phase 103 harness hook, registered beside the Phase 97 one and for the
+// same reason. It assigns one function to `window` and changes no behaviour.
+registerP103StageDrive();
 
 /**
  * SCM view sections, default order (DESIGN-SPEC S3A round 2).
@@ -626,21 +639,89 @@ function remoteBadge(status: MachineReviewFile['status']): {
   }
 }
 
+/** The three groups a remote Changes section draws, in render order. */
+type RemoteGroupId = 'staged' | 'changes' | 'untracked';
+
+/**
+ * The badge for one remote row, read from the SIDE its group is about
+ * (Phase 103).
+ *
+ * WHY THE GROUP DECIDES THE SIDE. Git prints two characters per changed file.
+ * The first says what the index holds and the second says what the folder on
+ * disk holds. A file staged as a change and then deleted on disk is `MD`, so
+ * the Staged row is a change and the Changes row is a deletion, and one letter
+ * for both rows would be wrong on one of them. This is the same rule
+ * `badgeFor` already applies to the local panel.
+ *
+ * The `status` letter is still the fallback. It is what main folds the pair
+ * into, and it is what a row whose side reads `.` shows.
+ */
+function remoteGroupBadge(
+  file: MachineReviewFile,
+  group: RemoteGroupId
+): { letter: string; cls: string; word: string } {
+  if (group === 'untracked') {
+    // The group decides this badge outright, which is the short circuit
+    // `badgeFor` makes for the local untracked group. Main sends `A` for a
+    // file git has never seen, because against the last commit it is an
+    // addition, and this row never reads that letter.
+    return { letter: 'U', cls: 'scm-badge-added', word: 'untracked' };
+  }
+  if (isConflict(file)) {
+    return { letter: '!', cls: 'scm-badge-conflict', word: 'conflicted' };
+  }
+  const side: GitFileState =
+    group === 'staged' ? file.indexState : file.worktreeState;
+  switch (side) {
+    case 'A':
+      return { letter: 'A', cls: 'scm-badge-added', word: 'added' };
+    case 'D':
+      return { letter: 'D', cls: 'scm-badge-deleted', word: 'deleted' };
+    case 'R':
+      return { letter: 'R', cls: 'scm-badge-renamed', word: 'renamed' };
+    case 'C':
+      return { letter: 'C', cls: 'scm-badge-renamed', word: 'copied' };
+    case 'M':
+      return { letter: 'M', cls: 'scm-badge-modified', word: 'modified' };
+    default:
+      return remoteBadge(file.status);
+  }
+}
+
 /**
  * Source Control for a tab whose folder is on another machine (Phase 90.3).
  *
- * FOUR GROUPS AND NO VERB THAT WRITES. The groups are Changes, History, Branch
- * and Runs, in that order, which is the order the local panel already draws. It
- * is the order a person learns once. There is no commit box, no checkbox, no
- * stage, no unstage, no discard, no checkout, no branch and no cherry pick.
- * That is not a subset chosen for time. Each of those verbs would have to write
- * on somebody else's computer, and this product writes on another machine in
- * exactly two places, neither of which is git.
+ * FOUR GROUPS AND EXACTLY TWO VERBS THAT WRITE. The groups are Changes,
+ * History, Branch and Runs, in that order, which is the order the local panel
+ * already draws. It is the order a person learns once. The two verbs are Stage
+ * and Unstage, and they arrived in Phase 103. There is still no commit box, no
+ * discard, no checkout, no branch and no cherry pick. That is not a subset
+ * chosen for time. Discard is refused for good, and
+ * `build/conformance-machines.mjs` condition 83 reads every command Tortie can
+ * send and fails on one that could overwrite a working tree file over there.
  *
- * THE PARAGRAPH ABOVE WAS REWRITTEN THREE TIMES and each rewrite was a phase.
+ * THE PARAGRAPH ABOVE WAS REWRITTEN FOUR TIMES and each rewrite was a phase.
  * It said "ONE GROUP" and named History, Branches and Runs as not rendered at
  * all. Phase 105 drew the runs, Phase 106 drew the branch and Phase 107 drew
- * the history, so every clause of the old sentence became false in turn.
+ * the history, so every clause of the old sentence became false in turn. Its
+ * last clause said this product writes on another machine in exactly two
+ * places, neither of which is git, and Phase 103 made that false as well.
+ *
+ * THE CHANGES SECTION HOLDS THREE GROUP ROWS SINCE PHASE 103, being Staged,
+ * Changes and Untracked, in that order. They are group rows inside the one
+ * collapsible section and not three collapsible sections, which is what
+ * Phase 97 already did with two. Three sections would store three more collapse
+ * answers and would throw away the one a person already has.
+ *
+ * A CONFLICTED ROW CARRIES NEITHER VERB. It keeps its badge and it opens, and
+ * the sentence saying why is its tooltip. Staging a conflicted file is how a
+ * person marks a conflict resolved, and doing that on a computer nobody is
+ * watching, under a button labelled Stage, is not something this view offers.
+ *
+ * THE HEADER COUNT IS LOWER THAN THE NUMBER OF LINES WHEN A FILE IS IN TWO
+ * GROUPS, and that is deliberate. `remoteChangesCount` counts the files that
+ * changed, and a file edited twice is one changed file drawn on two lines. The
+ * local panel's own section count does the same.
  *
  * CLICKING A CHANGED FILE opens the same read only view the session menu's
  * review already opens, through the one open file bus, so the editor needs no
@@ -658,6 +739,9 @@ function RemoteScmSection({
   const entry = useRemoteChanges((s) => remoteChangesOf(s.byTarget, target));
   const ensure = useRemoteChanges((s) => s.ensure);
   const refresh = useRemoteChanges((s) => s.refresh);
+  const stage = useRemoteChanges((s) => s.stage);
+  const unstage = useRemoteChanges((s) => s.unstage);
+  const setMenu = useApp((s) => s.setMenu);
   const [collapsed, setCollapsed] = usePersistedBool(
     `gmux.scm.changesCollapsed.${targetKey(target)}`,
     false
@@ -709,6 +793,68 @@ function RemoteScmSection({
     refresh
   ]);
 
+  /**
+   * PHASE 103. The tracked rows, split by which side of the pair moved.
+   *
+   * `entry.untracked` is a group of its own and is not passed through here,
+   * because main sends it as its own array with its own count.
+   */
+  const groups = useMemo(() => groupRemoteFiles(entry.files), [entry.files]);
+  /** True when this build carries the two verbs at all. */
+  const canWrite = remoteIndexWriteAvailable();
+  /** True while a stage or an unstage for this folder is in flight. */
+  const busy = entry.writing;
+
+  /**
+   * One verb, over one set of rows.
+   *
+   * A conflicted row is dropped here as well as being drawn without a button,
+   * so a group button reading `Stage 4 files` never carries a fifth row nobody
+   * could press on its own. Only the path is sent. When a row is a rename, main
+   * adds the pre-rename path from its own read, because it is main's read that
+   * decides which paths are real.
+   */
+  const runVerb = (
+    verb: RemoteIndexVerb,
+    rows: readonly MachineReviewFile[]
+  ): void => {
+    const paths = rows.filter((f) => !isConflict(f)).map((f) => f.path);
+    if (paths.length === 0) return;
+    void (verb === 'stage' ? stage(target, paths) : unstage(target, paths));
+  };
+
+  /**
+   * The sentence the last write left, or null when it left none.
+   *
+   * `done` and `nothingToDo` draw nothing. The rows under this sentence were
+   * re-read from that machine after the write, so on a good write the rows are
+   * the answer and a sentence saying the same thing would be one too many.
+   */
+  const writeNote = (): string | null => {
+    const outcome: MachineIndexWriteOutcome | null = entry.writeOutcome;
+    const verb = entry.writeVerb;
+    // PHASE 103 FIX ROUND. Main's own refusal wins over any word, because main
+    // decided that sentence about this exact call and nothing was sent. The
+    // three it can be are in src/main/machines/remote-copy.ts.
+    if (entry.writeRefusal !== null) return entry.writeRefusal;
+    if (outcome === null || verb === null) return null;
+    switch (outcome) {
+      case 'done':
+      case 'nothingToDo':
+        return null;
+      case 'writesOff':
+        return remoteWritesNotConfirmed(label);
+      case 'outsideRoot':
+        return remoteStageOutsideRoot(label);
+      case 'notRepo':
+        return remoteChangesNotRepo(label);
+      case 'partial':
+        return remoteIndexWritePartial(label, verb);
+      case 'unsure':
+        return remoteIndexWriteUnsure(label, verb);
+    }
+  };
+
   const open = (file: MachineReviewFile): void => {
     if (entry.repoPath.length === 0) return;
     requestOpenFile({
@@ -729,6 +875,9 @@ function RemoteScmSection({
       }
     });
   };
+
+  /** The sentence the last write left, worked out once per render. */
+  const said = writeNote();
 
   const body = (): React.JSX.Element => {
     if (!remoteChangesAvailable()) {
@@ -762,79 +911,151 @@ function RemoteScmSection({
     if (remoteChangesCount(entry) === 0) {
       return <div className="section-stub">{remoteChangesNone(label)}</div>;
     }
+    /** One group row, with the button that applies its verb to the whole group. */
+    const groupRow = (
+      group: RemoteGroupId,
+      rows: readonly MachineReviewFile[]
+    ): React.JSX.Element => {
+      const verb: RemoteIndexVerb = group === 'staged' ? 'unstage' : 'stage';
+      const word = verb === 'stage' ? 'Stage' : 'Unstage';
+      // A conflicted row is not counted here, so `Stage 4 files` never
+      // includes one. A group whose rows are all conflicted draws no button.
+      const reach = rows.filter((f) => !isConflict(f));
+      return (
+        <div className="scm-group-row" data-scm-group={group}>
+          <span className="scm-group-label">{GROUP_LABEL[group]}</span>
+          <span className="scm-group-count num">{rows.length}</span>
+          <span className="scm-row-space" />
+          {canWrite && reach.length > 0 ? (
+            <button
+              type="button"
+              className="icon-btn scm-action scm-group-action"
+              data-scm-group-verb={verb}
+              aria-label={verbLabel(word, reach.length)}
+              title={verbLabel(word, reach.length)}
+              disabled={busy}
+              onClick={() => runVerb(verb, reach)}
+            >
+              <Codicon name={verb === 'stage' ? 'add' : 'remove'} size={14} />
+            </button>
+          ) : null}
+        </div>
+      );
+    };
+
+    /** One file row, in the group that decides its badge and its verb. */
+    const fileRow = (
+      file: MachineReviewFile,
+      group: RemoteGroupId
+    ): React.JSX.Element => {
+      const badge = remoteGroupBadge(file, group);
+      const { dir, base } = splitPath(file.path);
+      const conflicted = group !== 'untracked' && isConflict(file);
+      const verb: RemoteIndexVerb | null = conflicted
+        ? null
+        : group === 'staged'
+          ? 'unstage'
+          : 'stage';
+      const word = verb === 'stage' ? 'Stage' : 'Unstage';
+      const title = conflicted
+        ? remoteConflictNoVerb(label)
+        : file.origPath !== null
+          ? `${file.path}, renamed from ${file.origPath}`
+          : file.path;
+      // The native menu, through the same bridge every other menu in this
+      // product uses. Never a menu drawn in the document.
+      //
+      // OPEN IN NEW TAB IS NOT ON IT, and this is the one place this view
+      // departs from the local menu above. `open` below passes `preview:
+      // false`, so every remote open is already a kept tab and the item would
+      // repeat the one above it.
+      const onContextMenu = (e: React.MouseEvent): void => {
+        e.preventDefault();
+        e.stopPropagation();
+        const items: (MenuItemSpec | 'sep')[] = [
+          {
+            label:
+              group === 'untracked' || conflicted ? 'Open file' : 'Open diff',
+            run: () => open(file)
+          }
+        ];
+        if (verb !== null && canWrite) {
+          items.push('sep');
+          items.push({
+            label: word,
+            disabled: busy,
+            run: () => runVerb(verb, [file])
+          });
+        }
+        setMenu({ x: e.clientX, y: e.clientY, items });
+      };
+      return (
+        <div
+          key={`${group[0] ?? ''}:${file.path}`}
+          role="listitem"
+          className="scm-hfile"
+          data-scm-group={group}
+          aria-label={`${base}, ${badge.word}${dir !== '' ? `, in ${dir}` : ''}`}
+          title={title}
+          onClick={() => open(file)}
+          onContextMenu={onContextMenu}
+        >
+          <span className={`scm-badge ${badge.cls}`} aria-hidden="true">
+            {badge.letter}
+          </span>
+          <span
+            className={`scm-row-name${badge.letter === 'D' ? ' deleted' : ''}`}
+          >
+            {base}
+          </span>
+          {dir !== '' ? <span className="scm-row-dir">{dir}</span> : null}
+          <span className="scm-row-space" />
+          {verb !== null && canWrite ? (
+            <span className="scm-row-actions">
+              <button
+                type="button"
+                className="icon-btn scm-action"
+                data-scm-row-verb={verb}
+                aria-label={`${word} ${base}`}
+                title={word}
+                disabled={busy}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  runVerb(verb, [file]);
+                }}
+              >
+                <Codicon
+                  name={verb === 'stage' ? 'add' : 'remove'}
+                  size={14}
+                />
+              </button>
+            </span>
+          ) : null}
+        </div>
+      );
+    };
+
     return (
       <div className="scm-list" role="list" aria-label="Changed files">
-        {/* PHASE 97. Two group rows in ONE section, which is exactly the split
-            the local panel below draws. It is group rows rather than a second
-            collapsible section, so no second collapse key is stored and a
-            person's existing answer for this section keeps working. Neither
-            row carries an action button, because the local ones stage and
-            unstage and this surface still has no verb that writes. */}
-        {entry.files.length > 0 ? (
-          <div className="scm-group-row">
-            <span className="scm-group-label">{GROUP_LABEL['changes']}</span>
-            <span className="scm-group-count num">{entry.files.length}</span>
-          </div>
-        ) : null}
-        {entry.files.map((file) => {
-          const badge = remoteBadge(file.status);
-          const { dir, base } = splitPath(file.path);
-          return (
-            <div
-              key={file.path}
-              role="listitem"
-              className="scm-hfile"
-              title={
-                file.origPath !== null
-                  ? `${file.path}, renamed from ${file.origPath}`
-                  : file.path
-              }
-              onClick={() => open(file)}
-            >
-              <span className={`scm-badge ${badge.cls}`} aria-hidden="true">
-                {badge.letter}
-              </span>
-              <span
-                className={`scm-row-name${file.status === 'D' ? ' deleted' : ''}`}
-              >
-                {base}
-              </span>
-              {dir !== '' ? <span className="scm-row-dir">{dir}</span> : null}
-            </div>
-          );
-        })}
-        {entry.untracked.length > 0 ? (
-          <div className="scm-group-row">
-            <span className="scm-group-label">{GROUP_LABEL['untracked']}</span>
-            <span className="scm-group-count num">
-              {entry.untracked.length}
-            </span>
-          </div>
-        ) : null}
-        {entry.untracked.map((file) => {
-          const { dir, base } = splitPath(file.path);
-          return (
-            <div
-              // A path that somehow reached both groups cannot collide here.
-              key={`u:${file.path}`}
-              role="listitem"
-              className="scm-hfile"
-              // An untracked file has no rename to report, so the title is the
-              // path and nothing else.
-              title={file.path}
-              onClick={() => open(file)}
-            >
-              {/* The badge is fixed rather than read from the letter, which is
-                  the same short circuit `badgeFor` makes for the local
-                  untracked group. The group decides the badge. */}
-              <span className="scm-badge scm-badge-added" aria-hidden="true">
-                U
-              </span>
-              <span className="scm-row-name">{base}</span>
-              {dir !== '' ? <span className="scm-row-dir">{dir}</span> : null}
-            </div>
-          );
-        })}
+        {/* PHASE 103. THREE group rows in ONE section, being Staged, Changes
+            and Untracked, which is the local panel's own order minus Merge.
+            Phase 97 drew two of them and neither carried a button, because
+            this surface had no verb that writes. Both of those facts changed
+            in Phase 103. The section is still one collapsible section, so no
+            second collapse answer is stored and a person's existing one keeps
+            working.
+
+            A FILE CAN BE ON TWO OF THESE LINES AT ONCE, being one edit staged
+            and a second edit not. That is what the local panel draws for the
+            same file, and it is why each row's key carries its group. */}
+        {groups.staged.length > 0 ? groupRow('staged', groups.staged) : null}
+        {groups.staged.map((file) => fileRow(file, 'staged'))}
+        {groups.changes.length > 0 ? groupRow('changes', groups.changes) : null}
+        {groups.changes.map((file) => fileRow(file, 'changes'))}
+        {entry.untracked.length > 0
+          ? groupRow('untracked', entry.untracked)
+          : null}
+        {entry.untracked.map((file) => fileRow(file, 'untracked'))}
       </div>
     );
   };
@@ -902,6 +1123,16 @@ function RemoteScmSection({
           <div className="section-body scm-body">{body()}</div>
         ) : null}
       </section>
+      {/* PHASE 103. What the last stage or unstage left, drawn UNDER the rows
+          rather than instead of them. The rows below a failed write were read
+          from that machine after the failure, so they are what really changed
+          there and the sentence points at them. A write that landed draws
+          nothing here, because the rows are the answer. */}
+      {said !== null ? (
+        <p className="scm-remote-note" data-scm-write-note="1">
+          {said}
+        </p>
+      ) : null}
       {/* Main's own sentence under a capped list, drawn under the rows rather
           than instead of them. */}
       {entry.note !== null ? (

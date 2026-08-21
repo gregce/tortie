@@ -95,6 +95,11 @@ import {
   remoteChangesNone,
   remoteChangesNotRepo,
   remoteChangesUnreachable,
+  remoteConflictNoVerb,
+  remoteIndexWritePartial,
+  remoteIndexWriteUnsure,
+  remoteStageOutsideRoot,
+  remoteWritesNotConfirmed,
   remoteFileChip,
   remoteProjectAlreadyOpen,
   remoteReadAt,
@@ -208,11 +213,16 @@ describe('the Explorer', () => {
 });
 
 describe('Source Control', () => {
-  it('says what it can show and what it cannot change', () => {
+  it('says what it can change over there and what it cannot', () => {
+    // PHASE 103 REWROTE THIS ONE AND THE REWRITE IS THE PHASE. It said Tortie
+    // could show these changes and could not change them, and the second half
+    // became false in that commit. It now names the one thing it can do and
+    // the one it still cannot.
     expect(remoteChangesBand(L)).toBe(
-      'These changes are on Studio. Tortie can show them and cannot change ' +
-        'them.'
+      'These changes are on Studio. Tortie can stage and unstage them there. ' +
+        'It cannot undo a change on that machine.'
     );
+    expect(remoteChangesBand(L)).not.toContain('cannot change');
     // PHASE 97 WIDENED THIS ONE. The list now holds both groups, so the
     // sentence for an empty folder has to answer for both.
     expect(remoteChangesNone(L)).toBe(
@@ -239,12 +249,19 @@ describe('Source Control', () => {
     // PHASE 102 REWROTE THE LAST CLAUSE. It read "it writes nothing in that
     // folder", which reads as a claim about Tortie rather than about this
     // view, and Tortie writes in that folder now.
+    // PHASE 103 REPLACED THE LAST CLAUSE. It read "and nothing in this view
+    // changes that folder", which became false in that commit, and it now
+    // names exactly what the view can change over there and nothing else.
     expect(REMOTE_SCM_SECTIONS_NOTE).toBe(
       'Tortie shows the changed files, the history, the branch and the runs ' +
         'for a folder on another machine. It does not show the files one ' +
-        'commit changed there, and nothing in this view changes that folder.'
+        'commit changed there. The only thing this view changes on that ' +
+        'machine is which files are staged for the next commit.'
     );
     expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain('writes nothing');
+    expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain(
+      'nothing in this view changes'
+    );
     for (const shipped of ['runs', 'branch', 'history']) {
       expect(REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
         new RegExp(`does not show[^.]*\\b${shipped}(es)?\\b`, 'i')
@@ -748,6 +765,14 @@ const EVERY: readonly string[] = [
   remoteChangesUnreachable(L),
   remoteChangesNotRepo(L),
   REMOTE_SCM_SECTIONS_NOTE,
+  // PHASE 103. Five more, every one of them read by the five rules below.
+  remoteWritesNotConfirmed(L),
+  remoteStageOutsideRoot(L),
+  remoteIndexWriteUnsure(L, 'stage'),
+  remoteIndexWriteUnsure(L, 'unstage'),
+  remoteIndexWritePartial(L, 'stage'),
+  remoteIndexWritePartial(L, 'unstage'),
+  remoteConflictNoVerb(L),
   reviewUntrackedTitle(L),
   symbolsElsewhereTitle(L),
   SYMBOLS_ELSEWHERE_BODY,
@@ -893,6 +918,66 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
       RUNS_STEPS_ELSEWHERE,
       RUNS_NO_BRIDGE
     ]);
+  });
+});
+
+describe('the five sentences Phase 103 added', () => {
+  it('says saving is not on for that machine, and that nothing was sent', () => {
+    expect(remoteWritesNotConfirmed(L)).toBe(
+      'Tortie has not been given permission to write on Studio. Open ' +
+        'Settings, then Machines, and confirm that machine. Nothing was sent.'
+    );
+  });
+
+  it('says the folder is outside the one that was confirmed', () => {
+    expect(remoteStageOutsideRoot(L)).toBe(
+      'That folder on Studio is outside the folder Tortie was given ' +
+        'permission to write in. Nothing was sent.'
+    );
+  });
+
+  it('never says nothing changed when the machine did not answer', () => {
+    // The word is unsure and it means Tortie cannot tell. Phase 101 measured
+    // a killed connection finishing the far side write with only the answer
+    // lost, so a sentence claiming nothing happened would be a false one.
+    expect(remoteIndexWriteUnsure(L, 'stage')).toBe(
+      'Tortie asked Studio to stage those files and it did not say it had. ' +
+        'Press Refresh to read what really changed there.'
+    );
+    expect(remoteIndexWriteUnsure(L, 'unstage')).toBe(
+      'Tortie asked Studio to unstage those files and it did not say it had. ' +
+        'Press Refresh to read what really changed there.'
+    );
+    for (const verb of ['stage', 'unstage'] as const) {
+      expect(remoteIndexWriteUnsure(L, verb)).not.toContain('Nothing was');
+    }
+  });
+
+  it('names no count in the partial sentence, because git reports none', () => {
+    // PHASE 103 FIX ROUND. The first wording read "Tortie staged some of those
+    // files and then stopped", and it claimed two things main did not do. Main
+    // did not stop, and when the only chunk failed nothing was staged at all.
+    // Main now stops at the first chunk git refuses and this sentence claims
+    // nothing about how many files landed.
+    expect(remoteIndexWritePartial(L, 'stage')).toBe(
+      'git on Studio did not stage all of those files, and Tortie stopped ' +
+        'there. The list below is what really changed there.'
+    );
+    expect(remoteIndexWritePartial(L, 'unstage')).toBe(
+      'git on Studio did not unstage all of those files, and Tortie stopped ' +
+        'there. The list below is what really changed there.'
+    );
+    for (const verb of ['stage', 'unstage'] as const) {
+      expect(remoteIndexWritePartial(L, verb)).not.toMatch(/\d/);
+      expect(remoteIndexWritePartial(L, verb)).not.toContain('some of those');
+    }
+  });
+
+  it('refuses a conflicted file and says where the work belongs', () => {
+    expect(remoteConflictNoVerb(L)).toBe(
+      'Tortie will not stage a conflicted file on another machine. Open a ' +
+        'session on Studio and finish the merge there.'
+    );
   });
 });
 

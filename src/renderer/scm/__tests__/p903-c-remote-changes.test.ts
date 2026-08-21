@@ -9,23 +9,40 @@
  *     machine defect the whole round exists to remove.
  *  2. NO TIMER, ANYWHERE. Nothing in this module schedules a second read. The
  *     test advances fake timers by five minutes and counts the calls.
- *  3. It has no verb that writes. The store's whole surface is three functions
- *     and none of them can change anything on either computer.
+ *  3. PHASE 103 REPLACED THIS CASE. It used to read that the store has no verb
+ *     that writes and that its whole surface is three functions. It has five
+ *     now, and the two new ones are `stage` and `unstage`. What the case
+ *     proves instead is that the surface is exactly those five, so a sixth
+ *     verb cannot arrive without this file being edited, and that neither new
+ *     verb can change a file's contents on either computer.
  *  4. A machine that did not answer is a state and not a thrown error, so the
  *     view draws a sentence rather than a stack.
  *  5. PHASE 97. It records TWO groups, being the tracked files and the files
- *     git is not yet tracking, each with a count of its own. It still has no
- *     verb that writes, and case 3 above is what proves that after the change.
+ *     git is not yet tracking, each with a count of its own.
+ *  6. PHASE 103. A verb sends the machine, the tab's folder on that machine
+ *     and a list of repository relative paths, and it sends no repository
+ *     root. It records a word rather than a sentence. It throws nothing, so a
+ *     connection that dies is the word `unsure`. And it re-reads that folder
+ *     afterwards, every time, because nothing over there tells Tortie that the
+ *     index moved.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const reviewFiles = vi.fn();
+const stage = vi.fn();
+const unstage = vi.fn();
 
-vi.stubGlobal('window', { gmux: { machines: { reviewFiles } } });
+vi.stubGlobal('window', {
+  gmux: { machines: { reviewFiles, stage, unstage } }
+});
 
-const { remoteChangesAvailable, remoteChangesOf, useRemoteChanges } =
-  await import('../remote-changes');
+const {
+  remoteChangesAvailable,
+  remoteChangesOf,
+  remoteIndexWriteAvailable,
+  useRemoteChanges
+} = await import('../remote-changes');
 
 const STUDIO = { machineId: 'studio', path: '/home/greg/api' };
 const ATTIC = { machineId: 'attic', path: '/home/greg/api' };
@@ -49,10 +66,29 @@ function answer(over: Record<string, unknown> = {}): unknown {
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
+/** What main answers for one stage or one unstage. */
+function wrote(over: Record<string, unknown> = {}): unknown {
+  return {
+    outcome: 'done',
+    paths: 1,
+    chunks: 1,
+    repoPath: '/home/greg/api',
+    writeRoot: '/home/greg',
+    machineSaid: null,
+    readMs: 40,
+    tookMs: 90,
+    ...over
+  };
+}
+
 beforeEach(() => {
   useRemoteChanges.setState({ byTarget: {} });
   reviewFiles.mockReset();
   reviewFiles.mockResolvedValue(answer());
+  stage.mockReset();
+  stage.mockResolvedValue(wrote());
+  unstage.mockReset();
+  unstage.mockResolvedValue(wrote());
 });
 
 afterEach(() => {
@@ -244,8 +280,11 @@ describe('the two groups Phase 97 added', () => {
   });
 });
 
-describe('it has no verb that writes', () => {
-  it('offers exactly three functions and none of them changes a machine', () => {
+describe('the whole surface, counted', () => {
+  it('offers exactly five functions and no sixth', () => {
+    // PHASE 103 CHANGED THIS COUNT FROM THREE TO FIVE. The point of counting
+    // is unchanged: a verb cannot be added to this store without a reader of
+    // this file seeing it happen.
     const state = useRemoteChanges.getState() as unknown as Record<
       string,
       unknown
@@ -253,6 +292,197 @@ describe('it has no verb that writes', () => {
     const verbs = Object.keys(state).filter(
       (key) => typeof state[key] === 'function'
     );
-    expect(verbs.sort()).toEqual(['ensure', 'forget', 'refresh']);
+    expect(verbs.sort()).toEqual([
+      'ensure',
+      'forget',
+      'refresh',
+      'stage',
+      'unstage'
+    ]);
+  });
+
+  it('has neither a discard nor a commit, and this is the refusal', () => {
+    const state = useRemoteChanges.getState() as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(state['discard']).toBeUndefined();
+    expect(state['commit']).toBeUndefined();
+    expect(state['checkout']).toBeUndefined();
+  });
+});
+
+describe('the two verbs Phase 103 added', () => {
+  it('is available only when the bridge carries both members', () => {
+    expect(remoteIndexWriteAvailable()).toBe(true);
+  });
+
+  it('sends the machine, the folder and the paths, and no repository root', async () => {
+    await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    expect(stage).toHaveBeenCalledWith({
+      machineId: 'studio',
+      cwd: '/home/greg/api',
+      paths: ['src/auth.ts']
+    });
+    const sent = stage.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(Object.keys(sent).sort()).toEqual(['cwd', 'machineId', 'paths']);
+    expect(sent['repoPath']).toBeUndefined();
+    expect(sent['root']).toBeUndefined();
+  });
+
+  it('sends the same shape for unstage', async () => {
+    await useRemoteChanges.getState().unstage(STUDIO, ['src/auth.ts']);
+    expect(unstage).toHaveBeenCalledWith({
+      machineId: 'studio',
+      cwd: '/home/greg/api',
+      paths: ['src/auth.ts']
+    });
+    expect(stage).not.toHaveBeenCalled();
+  });
+
+  it('reads that folder again after every write', async () => {
+    await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    expect(reviewFiles).toHaveBeenCalledTimes(1);
+    await useRemoteChanges.getState().unstage(STUDIO, ['src/auth.ts']);
+    expect(reviewFiles).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads that folder again even when nothing was sent', async () => {
+    // A refusal decided on this Mac costs one read. A stale list costs a
+    // person a wrong commit, which is the more expensive of the two.
+    stage.mockResolvedValueOnce(wrote({ outcome: 'writesOff', chunks: 0 }));
+    await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    expect(reviewFiles).toHaveBeenCalledTimes(1);
+    const entry = remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO);
+    expect(entry.writeOutcome).toBe('writesOff');
+    expect(entry.writeVerb).toBe('stage');
+  });
+
+  it('records a word and never a sentence', async () => {
+    for (const outcome of [
+      'done',
+      'partial',
+      'unsure',
+      'writesOff',
+      'outsideRoot',
+      'notRepo',
+      'nothingToDo'
+    ]) {
+      stage.mockResolvedValueOnce(wrote({ outcome }));
+      await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+      const entry = remoteChangesOf(
+        useRemoteChanges.getState().byTarget,
+        STUDIO
+      );
+      expect(entry.writeOutcome).toBe(outcome);
+      // No prose is stored anywhere on the entry. The view composes every
+      // sentence a person reads about a machine.
+      expect(JSON.stringify(entry)).not.toContain('Tortie');
+    }
+  });
+
+  it('answers unsure when the machine does not answer, and throws nothing', async () => {
+    stage.mockRejectedValueOnce(new Error('the link went away'));
+    await expect(
+      useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts'])
+    ).resolves.toBeUndefined();
+    const entry = remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO);
+    expect(entry.writeOutcome).toBe('unsure');
+    expect(entry.writing).toBe(false);
+    // A link that failed carries no refusal, so the view draws the word.
+    expect(entry.writeRefusal).toBeNull();
+    // It re-reads even then, because unsure never means nothing changed.
+    expect(reviewFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries main's own refusal sentence instead of the word unsure", async () => {
+    // PHASE 103 FIX ROUND. Three of this phase's refusals are thrown by
+    // src/main/machines/remote-stage.ts and nothing is sent for any of them.
+    // Before this, every one of them read as `unsure`, which draws the sentence
+    // saying Tortie asked that machine and it did not say it had. That sentence
+    // was false three times over.
+    const said =
+      'Tortie will not stage a file whose name holds a line break, because ' +
+      'the list of paths travels to that machine one path per line. Nothing ' +
+      'was sent.';
+    stage.mockRejectedValueOnce(
+      new Error(
+        `Error invoking remote method 'machines:stage': ${JSON.stringify({
+          code: 'INVALID_INPUT',
+          message: said
+        })}`
+      )
+    );
+    await useRemoteChanges.getState().stage(STUDIO, ['bad\nname.ts']);
+    const entry = remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO);
+    expect(entry.writeRefusal).toBe(said);
+    expect(entry.writeOutcome).toBe('unsure');
+    // Refresh is what clears it, exactly as it clears the word.
+    await useRemoteChanges.getState().refresh(STUDIO);
+    expect(
+      remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO).writeRefusal
+    ).toBeNull();
+  });
+
+  it('runs one write per folder at a time', async () => {
+    let release = (): void => {};
+    stage.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          release = () => r(wrote());
+        })
+    );
+    const first = useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    await flush();
+    expect(
+      remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO).writing
+    ).toBe(true);
+    await useRemoteChanges.getState().stage(STUDIO, ['src/other.ts']);
+    expect(stage).toHaveBeenCalledTimes(1);
+    release();
+    await first;
+    expect(
+      remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO).writing
+    ).toBe(false);
+  });
+
+  it('keeps two machines at one path apart for the verbs as well', async () => {
+    await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    const byTarget = useRemoteChanges.getState().byTarget;
+    expect(remoteChangesOf(byTarget, STUDIO).writeOutcome).toBe('done');
+    expect(remoteChangesOf(byTarget, ATTIC).writeOutcome).toBeNull();
+  });
+
+  it('starts every target with no write on it', () => {
+    const entry = remoteChangesOf({}, STUDIO);
+    expect(entry.writing).toBe(false);
+    expect(entry.writeVerb).toBeNull();
+    expect(entry.writeOutcome).toBeNull();
+  });
+});
+
+describe('Refresh clears what the last write left', () => {
+  it('takes the sentence off the screen once the person presses it', async () => {
+    // The two sentences that ask for a Refresh would otherwise still be on
+    // screen after the person pressed it, which is the panel asking twice for
+    // something already done.
+    stage.mockResolvedValueOnce(wrote({ outcome: 'unsure' }));
+    await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    expect(
+      remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO).writeOutcome
+    ).toBe('unsure');
+    await useRemoteChanges.getState().refresh(STUDIO);
+    const entry = remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO);
+    expect(entry.writeOutcome).toBeNull();
+    expect(entry.writeVerb).toBeNull();
+    expect(entry.readAt).toBeGreaterThan(0);
+  });
+
+  it('leaves it alone for the re-read a verb runs itself', async () => {
+    stage.mockResolvedValueOnce(wrote({ outcome: 'partial' }));
+    await useRemoteChanges.getState().stage(STUDIO, ['src/auth.ts']);
+    const entry = remoteChangesOf(useRemoteChanges.getState().byTarget, STUDIO);
+    expect(entry.writeOutcome).toBe('partial');
+    expect(entry.readAt).toBeGreaterThan(0);
   });
 });

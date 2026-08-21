@@ -21,7 +21,7 @@ release.
 | — | **RELEASE POINT, AND HE DELEGATED IT** | Everything above is user facing and finishes the remote programme | **AGENT, once, see below** |
 | 6 | **101** save a file on a machine | The write tranche. He said on 2026-08-20 to roll into it after the release rather than wait for him, so it runs unattended; the `writeRoot` confirm still needs a human at the keyboard the first time a save is attempted, and that is HIS moment, not a blocker on the build | ✅ shipped |
 | 7 | **102** new folder and rename | | ✅ shipped |
-| 8 | **103** stage and unstage | | queued |
+| 8 | **103** stage and unstage | | ✅ shipped |
 | 9 | **104** commit on a remote tab | | queued |
 | — | **RELEASE POINT** | The writes are the next release's story. NOT delegated; the grant above is for one release only | operator |
 | 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | ✅ shipped |
@@ -8897,7 +8897,13 @@ Gates before the commit are `npm run typecheck && npm run build && npm run test 
 - Whether `git-clone` should join the gated write set is Phase 101's call. This brief states the question and does not answer it.
 
 
-## Phase 103 — stage and unstage on a remote tab (research 57 row, queued 2026-08-19) QUEUED
+## Phase 103 — stage and unstage on a remote tab (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-21 (this commit, 0.65.0, gates green, 7,892 tests). The far side cannot bound the repository root by the folder the person confirmed, and the commit body says what does bound it
+
+**What shipped.** Both verbs work on a real machine and through the real app. `npm run probe:p103` drove 12 legs over a real ssh link on 127.0.0.1 and `npm run probe:p103shot` drove 13 rows through the real app with an isolated profile. Both pass. A person on a remote tab now sees Staged, Changes and Untracked in the same order the local panel uses, and can stage a group, stage one row, unstage a group and unstage one row. Nothing discards. `git clean`, `git restore --worktree`, `git restore --source` and a bare `git rm` are refused across all 24 catalogue scripts by `npm run conformance:machines`, and each of those four refusals was proved by editing a script and watching the gate fail.
+
+**The first verifier pass returned needs_work and the fix round closed it.** The blocking defect was that pressing Stage or Unstage staged nothing at all. Layer 2 of the containment check compared the confirmed folder against the repository root that machine's own `git rev-parse --show-toplevel` printed, and git prints that path with every link resolved. A repository reached as `/tmp/p103-shot/far` answers `/private/tmp/p103-shot/far`, so the two strings named one folder and compared as two, and every write refused. Layer 2 now compares two paths that are both as the person gave them, being the confirmed folder and the tab's own folder. Three more things moved in the same round. Main's own refusals used to reach the panel as the word `unsure`, which draws a sentence saying that machine was asked and did not answer, and that sentence is false when nothing was sent, so a refusal now carries main's own sentence to the panel. `writeIndexOnMachine` used to keep sending chunks after git refused one, while the sentence said Tortie had stopped, so it now stops at the first chunk git refuses. `npm run conformance:machines` now prints the computed unaccepted hash beside the pinned one, so that item is a pair of hex strings a person can compare rather than a claim.
+
+**What is not true.** Neither script can check that the repository root sits under the folder the person confirmed, because parameter 1 is the repository root and the confirmed folder is never sent. Leg 7 of `npm run probe:p103` proves that gap by bypassing main and staging inside a second repository. Four layers in `src/main/machines/remote-stage.ts` make the check on this Mac instead, and condition 84 of `npm run conformance:machines` reads their shape. Every number here was measured against a far side on 127.0.0.1, so no link cost is included. No Linux machine was contacted, so the unborn branch sentence and the killed connection behaviour are proved on macOS only.
 
 **Subject:** `feat(scm): choose what goes into the next commit on another machine`
 **First body line:** `Phase 103: stage and unstage on a remote tab`
@@ -9072,6 +9078,14 @@ The application menu in `src/main/menu.ts` gains nothing, because it carries no 
 | Part of a list applied | absent | `Tortie staged some of those files on Greg's Mac Pro and then stopped. The list below is what really changed there.` |
 
 The partial sentence names no count on purpose. The script sends one `git add` per chunk and git reports one status for the chunk, so a count of files that landed would be invented rather than read. The re-read after the failure is what tells the person the truth, and the sentence points at it.
+
+**Two rows of that table shipped with different words, and the fix round decided both.** The table above is left as it was written so the change is readable.
+
+| Row | The table's words | What shipped | Why |
+|---|---|---|---|
+| One path longer than the budget | `too long to send to Greg's Mac Pro` | `too long to send to that machine` | The sentence is a constant in `src/main/machines/remote-copy.ts`, where main throws it, and main has no label to put in it at that point. Every refusal beside it in that file is the same shape. |
+| Part of a list applied | `Tortie staged some of those files on Greg's Mac Pro and then stopped.` | `git on Greg's Mac Pro did not stage all of those files, and Tortie stopped there.` | The first wording claimed two things that were not true. Main did not stop, it sent every remaining chunk, and when the only chunk failed nothing was staged at all. Main now stops at the first chunk git refuses, and the sentence claims nothing about how many files landed. |
+
 
 The refusal sentences go in `src/main/machines/remote-copy.ts` beside `MACHINE_NOT_CONNECTED` at line 402 and `IMAGE_NOT_WRITTEN` at line 459. Each new one is pinned in `build/assert-bundle-refusals.mjs` with an id and a `why`, in the shape of the `machine.not-connected` row at line 1000 and the `machine.image-not-written` row at line 1029. A refusal the bundler deleted is a refusal the product only claims to have.
 

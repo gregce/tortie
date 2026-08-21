@@ -167,18 +167,29 @@
  *  5. A `read` script names none of `rm`, `mv`, `cp`, `mkdir`, `touch`,
  *     `chmod`, `chown`, `ln`, `dd`, `tee` or `truncate` as a command, and every
  *     `>` in it is part of `2>/dev/null`.
- *  6. FIVE scripts have `mode: 'write'`, and they are `image-put`,
- *     `git-clone`, `file-put`, `dir-new` and `entry-rename`, in that order.
- *     Phase 90.2 moved that number from one to two, Phase 101 moved it from two
- *     to three and Phase 102 moved it from three to five, once and on purpose
+ *  6. SEVEN scripts have `mode: 'write'`, and they are `image-put`,
+ *     `git-clone`, `file-put`, `dir-new`, `entry-rename`, `git-stage` and
+ *     `git-unstage`, in that order. Phase 90.2 moved that number from one to
+ *     two, Phase 101 moved it from two to three, Phase 102 moved it from three
+ *     to five and Phase 103 moved it from five to seven, once and on purpose
  *     each time, because putting a project on a machine is a write, so is
- *     saving a file a person is editing, so is making a folder and so is
- *     renaming one, and there is no honest way to write any of them as a read.
- *     The five carry SEPARATE redirection rules rather than one shared rule,
+ *     saving a file a person is editing, so is making a folder, so is renaming
+ *     one, and so is changing what a repository has staged. There is no honest
+ *     way to write any of them as a read.
+ *     The seven carry SEPARATE redirection rules rather than one shared rule,
  *     because they are different shapes: every `>` in `image-put` and in
- *     `file-put` aims at the temporary name, every `>` in `git-clone` aims at
- *     `/dev/null`, and `dir-new` and `entry-rename` carry no redirection at all
- *     beyond the `2` in `2>/dev/null`.
+ *     `file-put` aims at the temporary name, every `>` in `git-clone`, in
+ *     `git-stage` and in `git-unstage` aims at `/dev/null`, and `dir-new` and
+ *     `entry-rename` carry no redirection at all beyond the `2` in
+ *     `2>/dev/null`.
+ *
+ *     A WRITE WITH NO DESTINATION TO TEST IS STILL SAFE TO RUN TWICE, and
+ *     Phase 103 adds the first two of those. `image-put`, `git-clone` and
+ *     `dir-new` are safe because they refuse a destination that is already
+ *     there. `git-stage` and `git-unstage` name no destination at all: they
+ *     hand a list of pathspecs to that machine's own git, so they are safe by
+ *     END STATE. A second run asks for the same index and git leaves it as it
+ *     already is.
  *
  *     WHAT PHASE 102 ADDED TO THE TWO IT ADDED, and did not add anywhere else.
  *     Both carry the wider containment line from
@@ -201,7 +212,12 @@
  *  7. EIGHT git verbs may appear in any script, being `rev-parse`, `status`,
  *     `show`, `ls-files`, `for-each-ref`, `log`, `merge-base` and `rev-list`.
  *     Two more may appear in `git-clone` and in NO other script, being
- *     `ls-remote` and `clone`. Every verb is part
+ *     `ls-remote` and `clone`. PHASE 103 ADDS THREE MORE, each bound to one
+ *     script id: `add` in `git-stage` alone, and `restore` and `rm` in
+ *     `git-unstage` alone. None of the three joins the eight, because a verb
+ *     allowed everywhere is a verb any future script can use, and none of the
+ *     three is a read. All three therefore carry `GIT_TERMINAL_PROMPT=0` and
+ *     `GCM_INTERACTIVE=never` in front of them. Every verb is part
  *     of the text and never a parameter, so no caller can turn a review into a
  *     commit. Every git command that is not one of the eight read verbs carries
  *     `GIT_TERMINAL_PROMPT=0` and `GCM_INTERACTIVE=never` in front of it, so a
@@ -256,11 +272,11 @@
  * because it writes nothing. Each row's `reason` says so in its own words, the
  * same way a verb ledger row does.
  *
- * THE FIVE WRITES ARE SAFE TO RUN TWICE FOR THREE DIFFERENT REASONS, and the
+ * THE SEVEN WRITES ARE SAFE TO RUN TWICE FOR THREE DIFFERENT REASONS, and the
  * sentence that once covered them all said "the one write is safe to run twice
  * because it never opens a file that is already there". That was already false
- * at two writers, Phase 101 rewrote it rather than leaving it, and Phase 102
- * adds the third reason.
+ * at two writers, Phase 101 rewrote it rather than leaving it, Phase 102 added
+ * the third reason and Phase 103 puts two more writers under it.
  *
  *  - `image-put`, `git-clone` and `dir-new` never open a destination that is
  *    already there. A repeat finds the file or the folder and answers
@@ -278,6 +294,13 @@
  *    move and a machine where somebody else already held a file at the
  *    destination while the source never existed. The product does not pretend
  *    to distinguish them.
+ *  - `git-stage` and `git-unstage` are safe to run twice by END STATE as well,
+ *    and for a different reason from `entry-rename`'s. Neither names a
+ *    destination to test at all. A second run asks that machine's own git to
+ *    put the same paths in the same index, or to take the same paths back out
+ *    of it, and git writes what is already there. On a repository with no
+ *    commit the restore fails and the same call runs `git rm --cached` over the
+ *    same list, which is safe by end state for the same reason.
  *
  * ## The size limit, measured against a documented number rather than guessed
  *
@@ -404,9 +427,11 @@ export const CONTEXT_READ_LIST_MAX_BYTES = 100_000;
 export const CONTEXT_READ_FILE_MAX_BYTES = 33_554_432;
 
 // ---------------------------------------------------------------------------
-// The eighteen scripts. THIS DIVIDER HAD GONE STALE and Phase 108 says so
-// rather than quietly fixing it: it read fifteen while the array below held
-// seventeen. The catalogue comment above the array is the counted one.
+// The scripts. THIS DIVIDER HAD GONE STALE TWICE and Phase 103 says so rather
+// than quietly fixing it a third time: it read fifteen while the array held
+// seventeen, Phase 108 moved it to eighteen, and the array holds twenty four
+// now. It carries no number any more. The catalogue comment above the array is
+// the counted one and the gate is what holds that count.
 // ---------------------------------------------------------------------------
 
 /**
@@ -2313,20 +2338,190 @@ const ENTRY_RENAME = [
 ].join('\n');
 
 /**
- * The whole catalogue. Twenty two scripts, and this release holds no others.
+ * The per element guard the two Phase 103 writers carry, over EVERY element of
+ * the list before any git runs.
+ *
+ * It is `WRITE_PATH_GUARD_2` with three more shapes on it, being the empty
+ * element, the single dot and a trailing slash. The `.git` half comes from
+ * `docs/research/57-i3-file-writes.md` section 12 and is carried here for the
+ * reason Phase 102 carries it: git never reports a path under `.git`, so
+ * refusing one costs nothing.
+ *
+ * THE SINGLE DOT IS THE ONE THAT MATTERS MOST. `git add -A -- ":(literal)."`
+ * stages every change in that repository in one call, which is not what any
+ * person pressing one row's button asked for.
+ *
+ * The trailing slash is refused because a folder is not a row the review read
+ * reports, and `..` is refused so no element climbs out of the repository.
+ *
+ * The `*..*` half refuses a real name holding two dots in a row, e.g.
+ * `notes..md`. That false refusal is taken on purpose and `review-file`
+ * already takes it.
+ *
+ * `build/conformance-machines.mjs` pins this string byte for byte and asserts
+ * that it stands above the `cd` and above every git in both scripts.
+ */
+const INDEX_PATH_GUARD =
+  "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
+
+/**
+ * The head both Phase 103 writers share, and every line of it is load bearing.
+ *
+ * `$1` is the REPOSITORY ROOT on that machine. `$2` is the list of repository
+ * relative paths, one per line.
+ *
+ * ## THE GAP THIS HEAD CANNOT CLOSE, named rather than hidden
+ *
+ * `$1` is the repository root and NOT the folder the person confirmed, so this
+ * text cannot check that the repository sits under that folder the way
+ * `file-put`, `dir-new` and `entry-rename` all can. Those three receive the
+ * confirmed folder as `$1` and compare against it on the far side. These two do
+ * not receive it at all, because the Phase 103 backlog entry rules `params: 2`
+ * for both scripts. `src/main/machines/remote-stage.ts` makes that check on
+ * this Mac, in four layers, and the far side makes none of it.
+ *
+ * A third positional carrying the confirmed folder, with
+ * `case "$2" in "$1"|"$1"/*) ;; *) exit 1;; esac`, would close the gap at the
+ * cost of no extra process. It is not built, because the entry rules two.
+ *
+ * What still holds when main is bypassed is that the root is absolute, that it
+ * holds no `..`, that no element of the list climbs out of the repository, that
+ * no element names `.git`, that no element is `.` or a folder, and that an
+ * empty list runs no git at all.
+ *
+ * ## The six properties
+ *
+ *  1. `r="$1"` and `l="$2"` are read BEFORE `set --`, because `set --` discards
+ *     the positional parameters.
+ *  2. The guard loop runs over the WHOLE list before `cd` and before any git,
+ *     so a bad element refuses the whole call rather than staging half of it.
+ *  3. The per element guard is {@link INDEX_PATH_GUARD} and it refuses `.`, a
+ *     trailing slash and an empty element as well as the Phase 102 shapes.
+ *  4. The list is read into a local name and split under `IFS`, which is rule 2
+ *     of this file's header. `for p in $2` would be the bare positional that
+ *     rule forbids, and condition 38 of the gate fails on it.
+ *  5. `:(literal)` is attached PER WORD, which is why the loop exists at all.
+ *     It is what `literalSpec` in `src/main/git/service.ts` already does for a
+ *     local path, so a name holding `*` or `[` cannot glob.
+ *  6. `[ "$#" -gt 0 ] || exit 1` refuses an empty list, so no git ever runs
+ *     with a bare `--`.
+ *
+ * ## The loop spawns nothing
+ *
+ * `set -- "$@" ":(literal)$p"` is a shell builtin, so a list of 100 paths costs
+ * the same ONE git the list of 1 costs. A loop running one `git add` per path
+ * would cost about 1,090 ms of far side work for 100 paths at research 57
+ * section 5.2's own 10.9 ms per process, and this phase does not write one.
+ */
+const INDEX_WRITE_HEAD = [
+  'set -e',
+  'umask 077',
+  'r="$1"',
+  'l="$2"',
+  'case "$r" in /*) ;; *) exit 1;; esac',
+  'case "$r" in *..*) exit 1;; esac',
+  "IFS='",
+  "'",
+  'set --',
+  'for p in $l; do',
+  `  ${INDEX_PATH_GUARD}`,
+  '  set -- "$@" ":(literal)$p"',
+  'done',
+  '[ "$#" -gt 0 ] || exit 1',
+  'cd "$r"'
+];
+
+/**
+ * The sixth write. Put a list of paths into one repository's index (Phase 103).
+ *
+ * `$1` is the repository root on that machine. `$2` is the list of repository
+ * relative paths, one per line. It answers a status digit and one base64 word,
+ * where the word is whatever git printed on stderr and `none` when git printed
+ * nothing.
+ *
+ * ONE `git add` PER CALL AND NO MORE. The loop above builds the pathspec list
+ * with a builtin, so the process count does not move with the length of the
+ * list.
+ *
+ * `2>&1 >/dev/null` is that order on purpose. It sends stderr to the capture
+ * and then throws stdout away, so `$m` holds what git complained about and
+ * nothing else. The git exit status is captured explicitly so `set -e` does not
+ * end the script before the marker is printed.
+ *
+ * IT NAMES NO DESTINATION. Every path is handed to that machine's own git as a
+ * pathspec and git decides what to write, which is what a person running the
+ * same command in a session on that machine would get. The repository's own
+ * index is the file that changes and Tortie never checksummed it.
+ */
+const GIT_STAGE = [
+  ...INDEX_WRITE_HEAD,
+  's=0',
+  'm=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git add -A -- "$@" 2>&1 >/dev/null) || s=1',
+  'b=$(printf \'%s\' "$m" | base64 | tr -d \'\\n\')',
+  "printf '__TORTIE_RUN__%s %s__TORTIE_RUN__\\n' \"$s\" \"${b:-none}\""
+].join('\n');
+
+/**
+ * The seventh write. Take a list of paths back out of one index (Phase 103).
+ *
+ * `$1` and `$2` are `git-stage`'s two values and mean the same things.
+ *
+ * ## The unborn branch, tested ON THAT MACHINE
+ *
+ * `git restore --staged` needs a commit to restore the index entry from, so it
+ * fails in a repository with no commit at all. The stderr that says so is on
+ * that machine, so the test is made there. The six phrasings are the six
+ * `UNBORN_HEAD_RE` at line 67 of `src/main/git/service.ts` already covers. They
+ * are a `case`, which is a shell builtin, so the test costs no process.
+ *
+ * WHICH SENTENCE A GIVEN GIT PRINTS IS RECORDED RATHER THAN ASSUMED.
+ * `build/probe-p103-stage.mjs` leg 17 pastes what the git on the machine it ran
+ * against actually printed.
+ *
+ * ## `rm` appears here and it carries `--cached` and nothing else
+ *
+ * `git rm --cached -r -q` removes the index entry and leaves the file in the
+ * folder. It is the only `rm` in this whole catalogue, condition 83 of
+ * `build/conformance-machines.mjs` fails any `rm` in it without `--cached`, and
+ * condition 38's mutator map allows the word for this one script id alone.
+ *
+ * NO `git clean` AND NO `--worktree` AND NO `--source` APPEAR ANYWHERE. All
+ * three would overwrite or delete a file in that person's folder, which is the
+ * operation this product refuses on another computer.
+ */
+const GIT_UNSTAGE = [
+  ...INDEX_WRITE_HEAD,
+  's=0',
+  'm=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git restore --staged -- "$@" 2>&1 >/dev/null) || s=1',
+  'if [ "$s" = 1 ]; then',
+  '  case "$m" in',
+  "    *'does not have any commits yet'*|*\"ambiguous argument 'HEAD'\"*|*'unknown revision'*|*'invalid object name'*|*'could not resolve'*|*'bad default revision'*)",
+  '      s=0',
+  '      m=$(GIT_TERMINAL_PROMPT=0 GCM_INTERACTIVE=never git rm --cached -r -q -- "$@" 2>&1 >/dev/null) || s=1',
+  '      ;;',
+  '  esac',
+  'fi',
+  'b=$(printf \'%s\' "$m" | base64 | tr -d \'\\n\')',
+  "printf '__TORTIE_RUN__%s %s__TORTIE_RUN__\\n' \"$s\" \"${b:-none}\""
+].join('\n');
+
+/**
+ * The whole catalogue. Twenty four scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * FIVE of the twenty two write, being `image-put`, `git-clone`, `file-put`,
- * `dir-new` and `entry-rename`, and they are in that order in this array.
- * {@link remoteWriteScripts} returns them in it. PHASE 98 ADDED A READ AND LEFT
- * THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105, PHASE 106, PHASE 107, PHASE
- * 108 AND PHASE 109. PHASE 101 MOVED IT FROM TWO TO THREE, once and on purpose,
- * because saving a file a person is editing is a write and there is no honest
- * way to write it as a read. PHASE 102 MOVED IT FROM THREE TO FIVE, once and on
- * purpose, because making a folder is a write and so is renaming a file.
+ * SEVEN of the twenty four write, being `image-put`, `git-clone`, `file-put`,
+ * `dir-new`, `entry-rename`, `git-stage` and `git-unstage`, and they are in
+ * that order in this array. {@link remoteWriteScripts} returns them in it.
+ * PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105,
+ * PHASE 106, PHASE 107, PHASE 108 AND PHASE 109. PHASE 101 MOVED IT FROM TWO TO
+ * THREE, once and on purpose, because saving a file a person is editing is a
+ * write and there is no honest way to write it as a read. PHASE 102 MOVED IT
+ * FROM THREE TO FIVE, once and on purpose, because making a folder is a write
+ * and so is renaming a file. PHASE 103 MOVED IT FROM FIVE TO SEVEN, once and on
+ * purpose, because changing what a repository has staged is a write.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -2532,6 +2727,30 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'existed. Between the -e test and the mv another writer on that machine ' +
       'can create the destination, and the mv then replaces it. No command in ' +
       'a POSIX shell renames and refuses an existing destination in one step.'
+  },
+  {
+    id: 'git-stage',
+    mode: 'write',
+    params: 2,
+    text: GIT_STAGE,
+    reason:
+      'A second run with the same list asks that machine own git to put the ' +
+      'same paths in the same index, and git writes what is already there. It ' +
+      'is safe by end state rather than by refusal, because a request to stage ' +
+      'names no destination to test.'
+  },
+  {
+    id: 'git-unstage',
+    mode: 'write',
+    params: 2,
+    text: GIT_UNSTAGE,
+    reason:
+      'A second run with the same list asks that machine own git to take the ' +
+      'same paths back out of the same index, and an index that no longer ' +
+      'holds them is left as it is. It is safe by end state rather than by ' +
+      'refusal. On a repository with no commit the restore fails and the same ' +
+      'call runs git rm --cached over the same list, which is safe by end ' +
+      'state for the same reason.'
   }
 ];
 
@@ -2543,11 +2762,11 @@ export function remoteScript(id: string): RemoteScript | null {
 /**
  * Every script that writes, in catalogue order.
  *
- * It has exactly five members, being `image-put`, then `git-clone`, then
- * `file-put`, then `dir-new`, then `entry-rename`, and rule 6 in the header is
- * what holds it there. The gate calls this rather than counting a list of its
- * own, so a script added with the wrong mode is caught by the same call the
- * product makes.
+ * It has exactly seven members, being `image-put`, then `git-clone`, then
+ * `file-put`, then `dir-new`, then `entry-rename`, then `git-stage`, then
+ * `git-unstage`, and rule 6 in the header is what holds it there. The gate
+ * calls this rather than counting a list of its own, so a script added with the
+ * wrong mode is caught by the same call the product makes.
  */
 export function remoteWriteScripts(): readonly RemoteScript[] {
   return REMOTE_SCRIPTS.filter((script) => script.mode === 'write');

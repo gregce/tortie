@@ -139,8 +139,49 @@ describe('reading the listing', () => {
       listing('/r', [tracked('.M', 'worktree.ts'), tracked('A.', 'staged.ts')])
     );
     expect(parsed?.files).toEqual([
-      { path: 'worktree.ts', origPath: null, status: 'M' },
-      { path: 'staged.ts', origPath: null, status: 'A' }
+      {
+        path: 'worktree.ts',
+        origPath: null,
+        status: 'M',
+        indexState: '.',
+        worktreeState: 'M'
+      },
+      {
+        path: 'staged.ts',
+        origPath: null,
+        status: 'A',
+        indexState: 'A',
+        worktreeState: '.'
+      }
+    ]);
+  });
+
+  it('carries BOTH porcelain characters, unfolded', () => {
+    // PHASE 103. `status` is the fold and it is unchanged. The pair is what
+    // lets the panel put a file in a Staged group, which it could not do
+    // before, because the fold was the only thing that reached the renderer.
+    // A file edited twice is `MM`, and it belongs in Staged and in Changes at
+    // the same time, which is what the local list already does.
+    const parsed = parseRemoteReviewListing(
+      listing('/r', [tracked('MM', 'both.ts'), '? new.ts'])
+    );
+    expect(parsed?.files).toEqual([
+      {
+        path: 'both.ts',
+        origPath: null,
+        status: 'M',
+        indexState: 'M',
+        worktreeState: 'M'
+      }
+    ]);
+    expect(parsed?.untracked).toEqual([
+      {
+        path: 'new.ts',
+        origPath: null,
+        status: 'A',
+        indexState: '?',
+        worktreeState: '?'
+      }
     ]);
   });
 
@@ -152,7 +193,13 @@ describe('reading the listing', () => {
       listing('/r', [renamed('R.', 'src/new.ts', 'src/old.ts')])
     );
     expect(parsed?.files).toEqual([
-      { path: 'src/new.ts', origPath: 'src/old.ts', status: 'R' }
+      {
+        path: 'src/new.ts',
+        origPath: 'src/old.ts',
+        status: 'R',
+        indexState: 'R',
+        worktreeState: '.'
+      }
     ]);
   });
 
@@ -166,7 +213,13 @@ describe('reading the listing', () => {
     );
     expect(parsed?.files.map((one) => one.path)).toEqual(['a.ts']);
     expect(parsed?.untracked).toEqual([
-      { path: 'new.ts', origPath: null, status: 'A' }
+      {
+        path: 'new.ts',
+        origPath: null,
+        status: 'A',
+        indexState: '?',
+        worktreeState: '?'
+      }
     ]);
   });
 

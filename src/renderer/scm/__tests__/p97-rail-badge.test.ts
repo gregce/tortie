@@ -64,14 +64,50 @@ const PATH = '/home/greg/api';
 const STUDIO = { machineId: 'studio', path: PATH };
 const HERE = { machineId: 'local', path: PATH };
 
+// PHASE 103 ADDED THE TWO CHARACTERS. Every row carries the pair git prints
+// now, being what the index holds and what the folder on disk holds. These two
+// tracked rows are edits nobody has staged, so their pair is `.M`, and the
+// three untracked ones carry the pair `??` that git prints for a file it has
+// never seen. Not one number in this file moved, because the rail's badge
+// counts rows and this phase changed no row's existence.
 const TRACKED: MachineReviewFile[] = [
-  { path: 'src/auth.ts', origPath: null, status: 'M' },
-  { path: 'src/router.ts', origPath: null, status: 'M' }
+  {
+    path: 'src/auth.ts',
+    origPath: null,
+    status: 'M',
+    indexState: '.',
+    worktreeState: 'M'
+  },
+  {
+    path: 'src/router.ts',
+    origPath: null,
+    status: 'M',
+    indexState: '.',
+    worktreeState: 'M'
+  }
 ];
 const UNTRACKED: MachineReviewFile[] = [
-  { path: 'src/agent-notes.md', origPath: null, status: 'A' },
-  { path: 'src/scratch/plan.txt', origPath: null, status: 'A' },
-  { path: 'tools/p97-new.ts', origPath: null, status: 'A' }
+  {
+    path: 'src/agent-notes.md',
+    origPath: null,
+    status: 'A',
+    indexState: '?',
+    worktreeState: '?'
+  },
+  {
+    path: 'src/scratch/plan.txt',
+    origPath: null,
+    status: 'A',
+    indexState: '?',
+    worktreeState: '?'
+  },
+  {
+    path: 'tools/p97-new.ts',
+    origPath: null,
+    status: 'A',
+    indexState: '?',
+    worktreeState: '?'
+  }
 ];
 
 /** One entry as the store holds it. Two changed files and three new ones. */
