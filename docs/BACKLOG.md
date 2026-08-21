@@ -14531,6 +14531,75 @@ terminal resize rule in `work-area.css`.
 resized until the flight ends. **Semver** of a later build: feat. Chord is chosen at build time
 against the keymap and the operator's recorded per-agent hotkeys. Shift-Command-C stays free.
 
+## Phase 129 — the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file (operator reported 2026-08-21) QUEUED
+
+**Subject:** `feat(ui): agents by machine, arrows in the session rail, projects on a side rail`
+**First body line:** `Phase 129: four chrome surfaces the operator asked for`
+**Semver:** minor. It adds a persisted chrome position and a new navigation surface.
+**Tier 2**, rising to a screenshot read on every item, because all four are things a person looks at and none of them touches durability, the manifest, tmux or the machines write plane. Item 2 is keyboard behaviour rather than a drawing, so it is proven by driving keys in the live app rather than by a photograph alone.
+**Charter:** this entry, plus DESIGN.md and docs/DESIGN-SPEC.md, which bind every pixel here. The operator said these need to be nicely designed, so the design authority is not advisory.
+
+**Why this is one phase and not four.** All four are chrome, all four are renderer only, and all four are the same kind of change, being a surface a person navigates or a key they press. They share no file, so builders can take them without collision.
+
+### Item 1, the Agents tab becomes pages rather than one long scroll
+
+The operator's screenshot shows the problem. `src/renderer/settings/AgentsSection.tsx` draws this Mac's 13 agents, `ConfiguredAgents.tsx` draws the ones he added, and Phase 110's `MachineAgents.tsx` appends one block per machine underneath. With one machine that is already a page and a half of scrolling, and the machine blocks are below the fold. With 32 machines it is unusable.
+
+Make it a row of pages inside the Agents tab. One page for this Mac, then one per machine, in the order the machines list uses. The page control is a horizontal set of tabs under the `Agents` heading, drawn from the tokens, never a `<select>`.
+
+**What must not move.** `MachineAgents.tsx` already returns `null` when there are no machines, so a person with none must see exactly what they see today, with no page control at all. The Rescan button, the age line, the per-machine sentence and the never-an-install-surface refusal from Phase 110 all stay exactly as they are. This item MOVES a drawing and adds no read, so no new IPC channel and no new scan.
+
+**Proof:** photograph the tab with zero machines and prove it is unchanged, then with one machine and with three, and prove the page control switches without a scan being sent, by capturing the wire.
+
+### Item 2, the session rail answers the arrow keys and switches on one click
+
+Two defects the operator hit, both in `src/renderer/app/SessionRail.tsx` and the keymap around `src/renderer/app/App.tsx:611`.
+
+**The arrow keys.** With the sessions pane on the right, or collapsed to the rail, pressing up and down moves focus INTO the pane rather than moving from session to session. A person reading a session wants the arrows to change which session they are on. Make up and down move the selection between sessions while the rail has focus, and never push focus into the terminal.
+
+**The two clicks.** When the pane is fully collapsed on the right, switching to a session takes two clicks. It must take one.
+
+**The rule that binds this one.** The status semantics do not move. Nothing here may set `needs input`, and a person's own arrow key is their input to Tortie, never to the session.
+
+**Proof, driven rather than read:** in the live app with the pane on the right and again fully collapsed, press up and down and photograph which session is selected after each, then click once on a collapsed icon and prove the session switched with one press. Count the clicks in the driver rather than describing them.
+
+### Item 3, the project tabs collapse, and can be a left rail
+
+`src/renderer/app/Titlebar.tsx:357` draws the project tabs as `data-slot="project-tabs"` across the top and that is the only place they can be. Two changes.
+
+**They collapse where they are.** A person who wants the vertical space back can collapse the horizontal strip without losing the ability to switch projects.
+
+**They can be a vertical rail on the left.** Same tabs, same order, same shortcuts, drawn down the left side instead of across the top.
+
+**COPY THE SESSIONS POSITION MECHANISM RATHER THAN INVENTING ONE.** `src/shared/sessions-position.ts` is the precedent and its header states the rule that matters: the value has exactly ONE writer, being the renderer store, and three surfaces that ask for a change rather than write it. `src/renderer/state/chrome-slice.ts` holds it. Follow that shape exactly for the projects position, including the single writer.
+
+**The native menus are not optional.** The UI rules say a phase that adds a user facing surface updates the native menus in the same commit and the brief says what changed. The View menu already carries the sessions position radio pair, and the projects position belongs beside it in the same shape.
+
+### Item 4, the same chord fills the window from an open file
+
+Phase 80.1 gave Shift plus Command plus Return to a session: press it and the session you are in grows until only that work remains, and press it again to get the layout back. An open FILE has no such answer today. The operator wants the chord to work from an editor too.
+
+**It is the fill that already exists, not a second zoom.** `src/renderer/state/chrome-slice.ts` holds two separate things, being `sessionFocus` at line 107 and `editorFill` at line 76, and they already know about each other, because `enterEditorFill` calls `set({ sessionFocus: false })`. This item does NOT invent a third mode. It routes the chord to `enterEditorFill` when the focus is in an editor, and to session focus when it is in a session. Editor fill stays what it is, being a fill INSIDE the app chrome rather than a full screen of the display.
+
+**The rule that decides which one runs is where the focus is**, and it is read rather than guessed. A person in an editor gets the editor answer, a person in a session gets the session answer, and a person in neither gets nothing rather than a surprise.
+
+**Leaving must be symmetric.** Pressing the chord again returns the layout, the same promise Phase 80.1 made and measured to the hundredth of a pixel.
+
+**The keymap and the menus both move.** `src/shared/keymap.ts` carries the chord's row and its description, and the View menu carries the Focus the Session row one under Fill the Window. Both say what the chord does now, in the same commit.
+
+**Proof, driven rather than read:** open a file, press the chord, photograph the filled editor and prove the app chrome is still drawn around it; press it again and prove the layout came back; then do the same from a session and prove that path is unchanged; and prove that from neither, nothing happens.
+
+### What is NOT in this phase
+
+- No change to what a project tab or a session row MEANS. This moves and collapses chrome, it does not touch identity, status or durability.
+- No new IPC read, no new scan, no new far side call. Item 1 redraws an answer Phase 109 and 110 already hold.
+- No drag to reorder projects, no per project colour, no close button that did not exist before.
+- No change to the Cmd+1 through Cmd+9 project shortcuts, which stay bound to visual order.
+- No change to the sessions position mechanism itself. This phase reads it as a precedent and adds a sibling.
+- No new fill or zoom mode. Item 4 routes the chord to the two behaviours that already exist and adds neither.
+- No change to Control plus Command plus F, the packaged full screen row from Phase 62.1, which is a different thing and stays where it is.
+
+
 ---
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -14634,3 +14703,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, issue closeout done against the SHIPPED artifact, #10 the SpecStory kill CLOSED with the soak named as the reporter's to confirm, #1 fonts commented and LEFT OPEN as partial, #2 #5 #7 #8 #11 left alone
 - 2026-08-21, Phase 104 shipped, commit on a remote tab, `e03af86`, 0.66.0, and the four write phases are complete
 - 2026-08-21, SECOND RELEASE POINT REACHED, not delegated, waiting on the operator
+- 2026-08-21, Phase 129 queued, four chrome surfaces: the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file
