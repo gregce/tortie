@@ -2,7 +2,7 @@
 
 Session: `https://claude.ai/code/session_012PYAqFDkfSKXpwqMpYhySa` — empty directory to installed app, 17 phases, ~40 hours.
 
-This doc covers the phase loop. Its companion [HOW-WE-DROVE-THIS.md](HOW-WE-DROVE-THIS.md) covers how agents opened and verified the real app.
+This doc covers the phase loop. Its companions are [HOW-WE-DROVE-THIS.md](HOW-WE-DROVE-THIS.md), which covers how agents opened and verified the real app, and [HOW-WE-VERIFY-THIS.md](HOW-WE-VERIFY-THIS.md), which covers the fixed workflow shape and the harness that lets a phase verify itself.
 
 ## The mode
 
