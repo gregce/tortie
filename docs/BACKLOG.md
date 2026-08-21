@@ -14600,6 +14600,51 @@ Phase 80.1 gave Shift plus Command plus Return to a session: press it and the se
 - No change to Control plus Command plus F, the packaged full screen row from Phase 62.1, which is a different thing and stays where it is.
 
 
+## Phase 130 — the install command is copyable, the machine pages are spaced, and the prose stops explaining itself (operator reported 2026-08-21) QUEUED
+
+**Subject:** `fix(ui): copy the install command, space the machine pages, cut the prose`
+**First body line:** `Phase 130: three things he read on screen and could not use`
+**Semver:** patch. It repairs affordances and cuts words. It adds no capability.
+**Tier 2**, with a screenshot read per item and one clipboard assertion. It touches no durability path, no manifest, no tmux and no machines write plane.
+**Charter:** this entry, plus DESIGN.md and docs/DESIGN-SPEC.md for the spacing, plus the WRITING RULES in CLAUDE.md, which are the standard the prose is being cut to. This is his third report about copy on these screens, and Phase 87 already cut three screens once, so the bar is what a person needs rather than what is true.
+
+### Item 1, the install command cannot be read or copied
+
+He hovered an uninstalled agent on the sessions screen and got a caption reading `Droid is not installed. Copy this command and run it in a terminal. curl -f… Tortie does not run install commands for you.` The command is cut to eight characters and there is no way to copy it, so the sentence asks him to do something the screen makes impossible.
+
+**Both halves are already in the tree, which is why this is a repair.** `src/renderer/app/EmptyStates.tsx:125` draws the command inside `<code className="agent-missing-cmd">`, and `src/renderer/styles/app.css:1342` gives that class `overflow: hidden`, `text-overflow: ellipsis` and `white-space: nowrap`, which is what eats it. A copy affordance already exists twice over: `.agent-missing-copy` is styled at `src/renderer/styles/app.css:1358` and `EmptyStates.tsx:308` already calls `navigator.clipboard.writeText`. Neither reaches this caption.
+
+**The fix** is that the command is readable and one press copies it. A person must be able to see the whole command or get the whole command, and a caption that tells them to copy something must give them the means.
+
+**Proof:** photograph the caption for an agent that is not installed and read the command off the photograph, then press copy in the live app and assert the clipboard holds the command byte for byte.
+
+### Item 2, the Add machine page needs spacing
+
+He asked for the spacing between the lines to be improved on the Add machine page, being `src/renderer/settings/AddMachine.tsx` at 658 lines with `src/renderer/settings/machines.css` beside it. This is a design item and DESIGN.md binds it. Every value comes from the space tokens and no literal appears outside a theme constant file.
+
+**Proof:** photograph the page before and after at the same window size and report the measured spacing values that changed.
+
+### Item 3, the prose stops explaining itself
+
+He pasted the whole of what one screen says and asked for it to be reduced to what a person needs. The screens are `src/renderer/settings/ConnectionTestView.tsx`, `src/renderer/settings/KeyInstall.tsx` and their words in `src/renderer/settings/machines-copy.ts`, which holds 125 exported strings.
+
+**What he read, and the shape of the problem.** After a refused connection the screen says the machine refused, then says something is at that address, then tells him to open System Settings, then offers a key, then lists what the key does in four paragraphs covering the passphrase, the password, the file it writes and the retest, then warns again to turn on Remote Login first. Most sentences are true and few are needed at that moment.
+
+**The rule for the cut.** Keep what a person must know to act, and what they must know to consent. Everything else goes. Specifically these stay: what happened, the one next action, the exact file written on that machine, where the private key lives, and that the password is used once and kept nowhere. Those last three are consent facts and are not cuttable. The explanations of WHY the key has no passphrase, and the reassurance that Tortie does not change what the program printed, are the kind of thing Phase 87 cut and should go the same way, or move behind a disclosure.
+
+**No promise may be quietly dropped.** A sentence that is a commitment stays a commitment. If a builder believes a consent fact should go, it STOPS and reports rather than cutting it.
+
+**Proof:** photograph each screen before and after, count the words on each, and list every removed sentence beside the reason it was not needed. The commit body carries that list.
+
+### What is NOT in this phase
+
+- Tortie still does not run install commands. Item 1 makes a command copyable and nothing more, and the sentence saying Tortie does not run it for you stays.
+- No new install surface anywhere, and nothing changes in the Settings Agents block, which Phase 110 deliberately refused to make one.
+- No change to what the connection test does, what it sends, or what it reports. This cuts words around the result rather than the result.
+- No change to the key flow's behaviour, its file, its permissions or its single password use. Only the words move.
+- It touches NONE of Phase 129's files, being AgentsSection.tsx, MachineAgents.tsx, SessionRail.tsx, Titlebar.tsx, chrome-slice.ts and keymap.ts.
+
+
 ---
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -14704,3 +14749,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 104 shipped, commit on a remote tab, `e03af86`, 0.66.0, and the four write phases are complete
 - 2026-08-21, SECOND RELEASE POINT REACHED, not delegated, waiting on the operator
 - 2026-08-21, Phase 129 queued, four chrome surfaces: the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file
+- 2026-08-21, Phase 130 queued, the install command is copyable, the machine pages are spaced, and the prose stops explaining itself
