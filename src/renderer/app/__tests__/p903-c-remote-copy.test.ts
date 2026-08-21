@@ -30,6 +30,15 @@
  * `remoteTreeReadOnly` is UNCHANGED and is still what a machine with no
  * confirmed folder draws.
  *
+ * PHASE 102 REPLACED TWO AND ADDED EIGHT. `remoteTreeCanSave` said Tortie can
+ * save under one folder, and three verbs cross now rather than one, so
+ * `remoteTreeCanWrite` says Tortie can change what is under that folder and
+ * names the one thing that is still absent. `remoteNewFolderNotYet` said Tortie
+ * cannot make a folder on that machine, and this phase makes that false, so it
+ * is deleted and the button takes its plain title. The eight that came with
+ * them are what a person reads when a New Folder or a Rename on a machine
+ * refuses, answers late or turns out to have already gone through.
+ *
  * PHASE 99 REPLACED THE QUICK OPEN PAIR WITH SEVEN SENTENCES. The pair said
  * "Quick Open does not reach Studio", and Quick Open reads that machine's own
  * file names now, so the refusal had become false. The seven that replaced it
@@ -59,7 +68,15 @@ import {
   quickOpenReadingNames,
   readClockTime,
   remoteCreateExists,
-  remoteNewFolderNotYet,
+  remoteEntryExists,
+  remoteEntryGone,
+  remoteEntryLostAnswer,
+  remoteEntryOutsideRoot,
+  remoteEntryWritesOff,
+  remoteParentGone,
+  remoteRenameAlreadyDone,
+  remoteTreeCanWrite,
+  remoteWriteDenied,
   remoteOpenTooLarge,
   remoteOpenTooLargeOver,
   remoteSaveMissing,
@@ -70,7 +87,6 @@ import {
   remoteSaveRefusal,
   remoteSaveStale,
   remoteSaveTooLarge,
-  remoteTreeCanSave,
   REMOTE_BAND_BODY,
   REMOTE_COPIED_WITH_MACHINE,
   REMOTE_SCM_SECTIONS_NOTE,
@@ -128,12 +144,16 @@ const MAX = 90_000;
 const AT = new Date(2026, 7, 18, 14, 32, 0).getTime();
 
 describe('the band, which is on every view and never goes away', () => {
-  it('says whose files these are and what Tortie will not do', () => {
+  it('says whose files these are and what Tortie does with them', () => {
     expect(remoteBandTitle(L)).toBe('Files live on Studio.');
+    // PHASE 102 REWROTE THE BODY. It read "It never writes there", and this
+    // band is drawn above the New folder button on a machine a person has let
+    // Tortie save on.
     expect(REMOTE_BAND_BODY).toBe(
-      'Tortie reads what is in this folder on that machine. It never writes ' +
-        'there.'
+      'Tortie reads what is in this folder on that machine. It writes there ' +
+        'only where you have let it save.'
     );
+    expect(REMOTE_BAND_BODY).not.toContain('never writes');
   });
 });
 
@@ -216,11 +236,15 @@ describe('Source Control', () => {
     // read rather than a section, being the files one commit changed. The word
     // branch is singular on purpose, because Tortie shows the one branch that
     // is checked out and does not list the others.
+    // PHASE 102 REWROTE THE LAST CLAUSE. It read "it writes nothing in that
+    // folder", which reads as a claim about Tortie rather than about this
+    // view, and Tortie writes in that folder now.
     expect(REMOTE_SCM_SECTIONS_NOTE).toBe(
       'Tortie shows the changed files, the history, the branch and the runs ' +
         'for a folder on another machine. It does not show the files one ' +
-        'commit changed there, and it writes nothing in that folder.'
+        'commit changed there, and nothing in this view changes that folder.'
     );
+    expect(REMOTE_SCM_SECTIONS_NOTE).not.toContain('writes nothing');
     for (const shipped of ['runs', 'branch', 'history']) {
       expect(REMOTE_SCM_SECTIONS_NOTE).not.toMatch(
         new RegExp(`does not show[^.]*\\b${shipped}(es)?\\b`, 'i')
@@ -456,20 +480,84 @@ describe('opening a file that could never be saved', () => {
   });
 });
 
-describe('the Explorer, on a machine that can be saved to', () => {
+describe('the Explorer, on a machine that can be changed', () => {
   it('says both halves, and leaves the read only line alone', () => {
-    expect(remoteTreeCanSave(R, L)).toBe(
-      'Tortie reads files on Studio and can save under /home/greg.'
+    // PHASE 102 REWROTE THE FIRST HALF and added the second. Three verbs cross
+    // now rather than one, so the sentence says what Tortie can change rather
+    // than what it can save. The Trash half is there because a person who
+    // reads the first half looks for Move to Trash next, and it is absent
+    // permanently.
+    expect(remoteTreeCanWrite(R, L)).toBe(
+      'Tortie reads files on Studio and can change what is under /home/greg. ' +
+        'It cannot move anything there to the Trash.'
     );
     // Unchanged by this phase. It is still what a machine with no confirmed
     // folder draws, which is every machine before Phase 101.
     expect(remoteTreeReadOnly(L)).toBe('Tortie only reads files on Studio.');
   });
+});
 
-  it('gives the New folder button its own sentence', () => {
-    expect(remoteNewFolderNotYet(L)).toBe(
-      'Tortie cannot make a folder on Studio.'
+describe('making a folder and renaming an entry on a machine', () => {
+  it('names what the person typed when the name is taken', () => {
+    expect(remoteEntryExists('notes', L)).toBe(
+      'There is already something called notes in that folder on Studio.'
     );
+  });
+
+  it('sends a person to Refresh when the parent is gone', () => {
+    expect(remoteParentGone(L)).toBe(
+      'That folder is no longer on Studio. Press Refresh to read it again.'
+    );
+  });
+
+  it('names the folder Tortie cannot write in', () => {
+    expect(remoteWriteDenied('/home/greg/api/src', L)).toBe(
+      'Tortie cannot write in /home/greg/api/src on Studio.'
+    );
+  });
+
+  it('names the entry a rename could not find', () => {
+    expect(remoteEntryGone('README.md', L)).toBe(
+      'Tortie could not find README.md on Studio. Press Refresh to read that ' +
+        'folder again.'
+    );
+  });
+
+  it('says a rename that already went through went through', () => {
+    // It is drawn at info rather than at error. The machine holds what the
+    // person asked for, and what this call cannot tell them is whether it was
+    // Tortie's own earlier move or somebody else's file at the destination.
+    expect(remoteRenameAlreadyDone(L)).toBe(
+      'That rename has already gone through on Studio.'
+    );
+  });
+
+  it('names the three steps to the surface that turns saving on', () => {
+    expect(remoteEntryWritesOff(L)).toBe(
+      'Tortie cannot change anything on Studio. Open Settings, then Machines, ' +
+        'then Studio, and let Tortie save files there. Nothing was changed.'
+    );
+  });
+
+  it('names the confirmed folder when a path falls outside it', () => {
+    expect(remoteEntryOutsideRoot(R, L)).toBe(
+      'Tortie may only change what is under /home/greg on Studio, and that ' +
+        'folder is outside it. Nothing was changed.'
+    );
+  });
+
+  it('never says nothing was changed when the machine did not answer', () => {
+    // A killed connection was measured in Phase 101 completing the far side
+    // write, so this sentence says Tortie cannot tell. The two above it say
+    // nothing was changed because in both of them main refused before it sent.
+    const said = remoteEntryLostAnswer(L);
+    expect(said).toBe(
+      'Studio did not answer, so Tortie cannot tell you whether that went ' +
+        'through. Press Refresh to read that folder again.'
+    );
+    expect(said).not.toContain('Nothing was changed.');
+    expect(remoteEntryWritesOff(L)).toContain('Nothing was changed.');
+    expect(remoteEntryOutsideRoot(R, L)).toContain('Nothing was changed.');
   });
 });
 
@@ -685,8 +773,16 @@ const EVERY: readonly string[] = [
   remoteSaveTooLarge(96_231, L),
   remoteOpenTooLarge(1_238_904, L),
   remoteOpenTooLargeOver(2_097_152, L),
-  remoteTreeCanSave(R, L),
-  remoteNewFolderNotYet(L),
+  remoteTreeCanWrite(R, L),
+  // PHASE 102. Eight more, every one of them read by the five rules below.
+  remoteEntryExists('notes', L),
+  remoteParentGone(L),
+  remoteWriteDenied('/home/greg/api/src', L),
+  remoteEntryGone('README.md', L),
+  remoteRenameAlreadyDone(L),
+  remoteEntryWritesOff(L),
+  remoteEntryOutsideRoot(R, L),
+  remoteEntryLostAnswer(L),
   addRemoteRefusal('missing', P, L),
   addRemoteRefusal('notdir', P, L),
   addRemoteRefusal('denied', P, L),
@@ -797,6 +893,23 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
       RUNS_STEPS_ELSEWHERE,
       RUNS_NO_BRIDGE
     ]);
+  });
+});
+
+describe('the two sentences Phase 102 made false are gone', () => {
+  it('does not export them, and does not hold their words either', () => {
+    // A deleted sentence that is still exported comes back. Both of these said
+    // something this phase makes untrue: one said Tortie can save under a
+    // folder when it can now change what is under it, and the other said
+    // Tortie cannot make a folder on that machine.
+    const source = readFileSync(
+      resolve(ROOT, 'src/renderer/app/machine-copy.ts'),
+      'utf8'
+    );
+    expect(source).not.toContain('export function remoteTreeCanSave');
+    expect(source).not.toContain('export function remoteNewFolderNotYet');
+    expect(source).not.toContain('can save under ${root}');
+    expect(source).not.toContain('cannot make a folder on ${label}');
   });
 });
 

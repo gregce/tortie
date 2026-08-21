@@ -234,8 +234,9 @@
  *     `runRemoteWrite`, makes other than exactly one remote read, names a script
  *     other than `repo-branch`, or imports anything from `../actions/`; the
  *     catalogue's writers are not exactly `image-put`, `git-clone` then `file-put`;
- *     or the catalogue does not hold twenty scripts (Phase 109 moved the count
- *     to nineteen and Phase 101 moved it to twenty).
+ *     or the catalogue does not hold twenty two scripts (Phase 109 moved the
+ *     count to nineteen, Phase 101 moved it to twenty and Phase 102 moved it to
+ *     twenty two).
  *     TWO ITEMS CARRY THIS FEATURE.
  *     The format relation is what keeps one format in one place, and the fetch
  *     names are the executable form of the sentence telling a person that Tortie
@@ -258,8 +259,9 @@
  *     `repo-history`, imports anything from `../actions/`, or names
  *     `sanitizeRefNames`; `REMOTE_HISTORY_PAGE` is not 50 or
  *     `REMOTE_HISTORY_MAX_COMMITS` is not 500; the catalogue's writers are not
- *     exactly `image-put`, `git-clone` then `file-put`, or it does not hold twenty
- *     scripts (Phase 109 moved the count to nineteen and Phase 101 to twenty); `src/renderer/scm/remote-history.ts` names a timer; or
+ *     exactly the five ids `ALLOWED_WRITERS` names, or it does not hold twenty two
+ *     scripts (Phase 109 moved the count to nineteen, Phase 101 to twenty and
+ *     Phase 102 to twenty two); `src/renderer/scm/remote-history.ts` names a timer; or
  *     `src/renderer/scm/RemoteHistorySection.tsx` does not name `hasMore`,
  *     `atCeiling` and `divergenceTruncated`. THREE ITEMS CARRY THIS FEATURE.
  *     The two constants are the executable form of the tier staying at 2,
@@ -273,9 +275,9 @@
  *     again in `sh`.
  *
  *  58. PHASE 108, being the Context of a folder on another machine. It fails
- *     when: the catalogue does not hold twenty scripts (Phase 109 moved the count to
- *     nineteen and Phase 101 to twenty) with the writers
- *     exactly `image-put`, `git-clone` then `file-put`; `context-read` is absent, or is
+ *     when: the catalogue does not hold twenty two scripts (Phase 109 moved the count
+ *     to nineteen, Phase 101 to twenty and Phase 102 to twenty two) with the
+ *     writers exactly the five ids `ALLOWED_WRITERS` names; `context-read` is absent, or is
  *     anything but a read taking three values, or does not read its two lists
  *     into local names split under `IFS`, or names ANY git verb;
  *     `src/main/machines/remote-agent-context.ts` is absent, does not import
@@ -2678,13 +2680,14 @@ process.stdout.write(
 );
 
 // ---------------------------------------------------------------------------
-// 35 to 40. Phase 73. The second door, and the twenty scripts it may send
+// 35 to 40. Phase 73. The second door, and the twenty two scripts it may send
 // ---------------------------------------------------------------------------
 //
 // THIS HEADER SAID SEVEN UNTIL PHASE 101, and it is written out rather than
 // quietly fixed. It was seven when Phase 73 wrote it. The catalogue held
-// nineteen before this phase and it holds twenty now. That is defect 6 of
-// research 57 section 9.
+// nineteen before Phase 101 and it holds twenty two now. That is defect 6 of
+// research 57 section 9. Phase 102 moved it by two WRITES rather than by a
+// read, and `ALLOWED_WRITERS` moved with it.
 //
 // The exec plane carries tmux verbs and its ledger decides which. This door
 // carries one of Tortie's own constant scripts on the far side's LOGIN SHELL,
@@ -2782,20 +2785,27 @@ const GIT_CLONE_VERBS = ['ls-remote', 'clone'];
 /**
  * Every script that may write, in catalogue order.
  *
- * PHASE 90.2 MOVED THIS FROM ONE TO TWO AND PHASE 101 MOVED IT FROM TWO TO
- * THREE. It is the number that bounds what Tortie can do to another person's
- * computer, so it stays an exact allowlist and never becomes a count.
+ * PHASE 90.2 MOVED THIS FROM ONE TO TWO, PHASE 101 MOVED IT FROM TWO TO THREE
+ * AND PHASE 102 MOVED IT FROM THREE TO FIVE, once and on purpose each time. It
+ * is the number that bounds what Tortie can do to another person's computer, so
+ * it stays an exact allowlist and never becomes a count.
  */
-const ALLOWED_WRITERS = ['image-put', 'git-clone', 'file-put'];
+const ALLOWED_WRITERS = [
+  'image-put',
+  'git-clone',
+  'file-put',
+  'dir-new',
+  'entry-rename'
+];
 
 /**
- * How many scripts the catalogue holds. Twenty.
+ * How many scripts the catalogue holds. Twenty two.
  *
  * Four later conditions pinned this number as a literal `19` each. Phase 101
  * made them one constant, because four copies of one number is how three of
- * them go stale.
+ * them go stale. Phase 102 moved it from twenty to twenty two by two WRITES.
  */
-const REMOTE_SCRIPT_COUNT = 20;
+const REMOTE_SCRIPT_COUNT = 22;
 
 {
   // 35. The catalogue's shape.
@@ -2823,8 +2833,9 @@ const REMOTE_SCRIPT_COUNT = 20;
           ALLOWED_WRITERS.length
         )} may, being ${ALLOWED_WRITERS.join(', ')}, in that order. This is the ` +
         `number that bounds what Tortie can do to another person's computer. ` +
-        `Phase 90.2 moved it from one to two and Phase 101 moved it from two to ` +
-        `three, once and on purpose each time.`
+        `Phase 90.2 moved it from one to two, Phase 101 moved it from two to ` +
+        `three and Phase 102 moved it from three to five, once and on purpose ` +
+        `each time.`
     );
   }
   for (const row of scripts) {
@@ -3083,6 +3094,123 @@ const REMOTE_SCRIPT_COUNT = 20;
             `somebody else's computer that nobody asked for.`
         );
       }
+    } else if (row.id === 'dir-new') {
+      // PHASE 102. The fourth write, and the first one whose rule is that it
+      // carries NO redirection at all. The regex the probe uses drops any `>`
+      // that a `2` sits in front of, so an empty list here means no redirection
+      // except the two `2>/dev/null` on the mode reads.
+      if ((row.redirects ?? []).length > 0) {
+        fail(
+          `write script ${row.id} redirects to ${row.redirects.join(', ')}. It ` +
+            `makes one folder and writes no bytes at all, so the only ` +
+            `redirection it may carry is the kind a 2 sits in front of.`
+        );
+      }
+      if (!row.text.includes('if [ -e "$d" ]; then')) {
+        fail(
+          `write script ${row.id} does not test its destination with -e before ` +
+            `it makes anything. That test is what makes it safe to run twice, ` +
+            `and it is what stops it ever touching a folder a person already ` +
+            `had.`
+        );
+      }
+      if (!row.text.includes('mkdir "$d"')) {
+        fail(
+          `write script ${row.id} does not run mkdir "$d", so this gate cannot ` +
+            `tell what it makes.`
+        );
+      }
+      if (row.text.includes('mkdir -p')) {
+        fail(
+          `write script ${row.id} names mkdir -p. A recursive make would create ` +
+            `folders nobody named, on somebody else's computer.`
+        );
+      }
+      // The mode is capped at two literals and nothing else can be produced.
+      // A copy of the parent's mode with no ceiling would let a parent at 777
+      // produce a Tortie made folder at 777, and a parent carrying a set group
+      // id bit would pass that bit on.
+      const chmods = [...row.text.matchAll(/chmod [^\n]*/g)].map(
+        (hit) => hit[0] ?? ''
+      );
+      const wanted = ['chmod 755 "$d";;', 'chmod 700 "$d";;'];
+      if (JSON.stringify(chmods) !== JSON.stringify(wanted)) {
+        fail(
+          `write script ${row.id} runs ${chmods.join(' and ') || 'no chmod'}. ` +
+            `It runs exactly ${wanted.join(' and ')}, each once, so the only ` +
+            `two modes it can produce are 755 and 700 and no set user id or set ` +
+            `group id bit can be produced at all.`
+        );
+      }
+      const named = [
+        ...new Set((row.words ?? []).filter((word) =>
+          MUTATING_PROGRAMS.includes(word)
+        ))
+      ].sort();
+      if (JSON.stringify(named) !== JSON.stringify(['chmod', 'mkdir'])) {
+        fail(
+          `write script ${row.id} names ${named.join(', ') || 'no'} mutating ` +
+            `program(s). It names exactly mkdir and chmod. MUTATING_PROGRAMS is ` +
+            `consulted only inside the read arm above, so a write is bounded by ` +
+            `its own branch here rather than by that list.`
+        );
+      }
+    } else if (row.id === 'entry-rename') {
+      // PHASE 102. The fifth write. It moves one entry and it writes no bytes,
+      // so it takes `dir-new`'s redirection rule.
+      //
+      // WHAT THIS BRANCH CANNOT CHECK, said out loud rather than left implied.
+      // Between the destination test and the `mv` another writer on that
+      // machine can create the destination, and the `mv` then replaces it. This
+      // gate reads text and cannot see a race. What it checks is that the text
+      // tests before it moves.
+      if ((row.redirects ?? []).length > 0) {
+        fail(
+          `write script ${row.id} redirects to ${row.redirects.join(', ')}. It ` +
+            `moves one entry and writes no bytes at all, so the only ` +
+            `redirection it may carry is the kind a 2 sits in front of.`
+        );
+      }
+      if (!row.text.includes('[ -e "$t" ]')) {
+        fail(
+          `write script ${row.id} does not test its destination with -e. That ` +
+            `test is what tells a repeat of Tortie's own move apart from a ` +
+            `destination somebody else holds.`
+        );
+      }
+      if (!row.text.includes('mv "$s" "$t"')) {
+        fail(
+          `write script ${row.id} does not run mv "$s" "$t", so this gate ` +
+            `cannot tell what it moves.`
+        );
+      }
+      if (row.text.includes('mv -f')) {
+        fail(
+          `write script ${row.id} names mv -f. The whole of what makes this ` +
+            `script safe is that it decides before it moves.`
+        );
+      }
+      const testAt = row.text.indexOf('[ -e "$t" ]');
+      const moveAt = row.text.indexOf('mv "$s" "$t"');
+      if (testAt < 0 || moveAt < 0 || testAt > moveAt) {
+        fail(
+          `write script ${row.id} tests its destination at ${String(testAt)} ` +
+            `and moves at ${String(moveAt)}. A test after the move is not a ` +
+            `test.`
+        );
+      }
+      const namedMv = [
+        ...new Set((row.words ?? []).filter((word) =>
+          MUTATING_PROGRAMS.includes(word)
+        ))
+      ].sort();
+      if (JSON.stringify(namedMv) !== JSON.stringify(['mv'])) {
+        fail(
+          `write script ${row.id} names ${namedMv.join(', ') || 'no'} mutating ` +
+            `program(s). It names exactly mv. A rename does not copy, does not ` +
+            `remove and does not change a mode.`
+        );
+      }
     } else {
       fail(
         `write script ${row.id} has no redirection rule of its own in this ` +
@@ -3251,6 +3379,30 @@ const READ_ONLY_GIT_VERBS = new Set(ALLOWED_GIT_VERBS);
 
 const REVIEW_FILE_GUARD = 'case "$2" in /*|*..*) exit 1;; esac';
 
+/**
+ * The WIDER line the two Phase 102 writers carry, once per guarded value.
+ *
+ * `docs/research/57-i3-file-writes.md` section 12 rules this exact string for a
+ * write. It is `REVIEW_FILE_GUARD` plus a `.git` half, and that half is what
+ * stops a write ever reaching a repository's internals on somebody else's
+ * machine.
+ *
+ * IT IS NOT ON `file-put`, AND THAT IS SAID HERE RATHER THAN LEFT IMPLIED.
+ * Phase 101 shipped `file-put` carrying `REVIEW_FILE_GUARD`, with pinned
+ * literals in condition 38 and its own probe. Phase 102 does not widen a
+ * shipped writer, so `.git` is guarded on `dir-new` and `entry-rename` and not
+ * on `file-put`. Widening that one is its own round.
+ *
+ * `%s` is not in it and neither is any parameter beyond the one it names, so
+ * there are two constants rather than one: the line names the value it guards
+ * and `entry-rename` guards two values.
+ */
+const WRITE_PATH_GUARD =
+  'case "%s" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac';
+
+/** The write line for one positional, e.g. `$2`. */
+const writeGuardFor = (name) => WRITE_PATH_GUARD.replace('%s', name);
+
 {
   const p903 = data.phase903 ?? {};
   // 50. The containment line, read from the text, and standing BEFORE anything
@@ -3283,6 +3435,67 @@ const REVIEW_FILE_GUARD = 'case "$2" in /*|*..*) exit 1;; esac';
         `review-file uses $2 at line ${String(review.firstUseAt)} and does not ` +
           `check it until line ${String(review.guardAt)}. A check after the use ` +
           `is not a check.`
+      );
+    }
+  }
+
+  // 50b. PHASE 102. The two writers' own containment lines, compared byte for
+  //      byte against the wider write constant, and each one standing ABOVE the
+  //      first line that uses the value it guards.
+  //
+  //      `dir-new` guards `$2`. `entry-rename` guards `$2` and `$3`, and the two
+  //      are checked separately, because a line that guards one value says
+  //      nothing about the other. A rename whose destination was unguarded would
+  //      move a person's file to `.git/config` on their own machine.
+  const p102 = data.phase102 ?? {};
+  const guarded = p102.guards ?? [];
+  const WANTED_GUARDS = [
+    { id: 'dir-new', value: '$2' },
+    { id: 'entry-rename', value: '$2' },
+    { id: 'entry-rename', value: '$3' }
+  ];
+  if (guarded.length !== WANTED_GUARDS.length) {
+    fail(
+      `the probe printed ${String(guarded.length)} containment line(s) for the ` +
+        `two Phase 102 writers and there are ${String(WANTED_GUARDS.length)}, ` +
+        `being $2 of dir-new and $2 and $3 of entry-rename. A guarded value ` +
+        `nothing reads is a guard nothing checks.`
+    );
+  }
+  for (const wanted of WANTED_GUARDS) {
+    const row = guarded.find(
+      (one) => one.id === wanted.id && one.value === wanted.value
+    );
+    if (row === undefined) {
+      fail(
+        `the probe printed no containment line for ${wanted.value} of ` +
+          `${wanted.id}, so nothing is checking the value that names what gets ` +
+          `written on another person's computer.`
+      );
+      continue;
+    }
+    const want = writeGuardFor(wanted.value);
+    if (row.guard !== want) {
+      fail(
+        `${wanted.id} carries ${JSON.stringify(row.guard)} where its ` +
+          `containment line for ${wanted.value} should be. It is exactly ` +
+          `${JSON.stringify(want)}. This is the WIDER write line from research ` +
+          `57 i3 section 12, and the .git half of it is what stops a write ` +
+          `reaching a repository's internals on somebody else's machine.`
+      );
+    }
+    if (row.guardAt < 0 || row.firstUseAt < 0) {
+      fail(
+        `${wanted.id} has its containment line for ${wanted.value} at ` +
+          `${String(row.guardAt)} and its first use of that value at ` +
+          `${String(row.firstUseAt)}. Both have to exist for the check to mean ` +
+          `anything.`
+      );
+    } else if (row.guardAt > row.firstUseAt) {
+      fail(
+        `${wanted.id} uses ${wanted.value} at line ${String(row.firstUseAt)} ` +
+          `and does not check it until line ${String(row.guardAt)}. A check ` +
+          `after the use is not a check.`
       );
     }
   }
@@ -3944,15 +4157,17 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p105Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 109 moved this count from eighteen to nineteen by one read, and
-  // Phase 101 moved it from nineteen to twenty by one write.
+  // Phase 109 moved this count from eighteen to nineteen by one read, Phase
+  // 101 moved it from nineteen to twenty by one write, and Phase 102 moved it
+  // from twenty to twenty two by two writes.
   if (p105Count !== REMOTE_SCRIPT_COUNT) {
     fail(
-      `the catalogue holds ${String(p105Count)} script(s). It holds twenty, ` +
-        `of which three write. Phase 106 moved that number from fifteen by one ` +
-        `read, Phase 107 moved it from sixteen, Phase 108 moved it from ` +
-        `seventeen and Phase 109 moved it from eighteen, each by one read, and ` +
-        `Phase 101 moved it from nineteen by one WRITE. A ` +
+      `the catalogue holds ${String(p105Count)} script(s). It holds twenty ` +
+        `two, of which five write. Phase 106 moved that number from fifteen by ` +
+        `one read, Phase 107 moved it from sixteen, Phase 108 moved it from ` +
+        `seventeen and Phase 109 moved it from eighteen, each by one read, ` +
+        `Phase 101 moved it from nineteen by one WRITE and Phase 102 moved it ` +
+        `from twenty by two WRITES. A ` +
         `script that appeared without a phase ` +
         `saying so is a command somebody can run on another person's computer.`
     );
@@ -4152,12 +4367,13 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p106Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 109 moved this count from eighteen to nineteen by one read, and
-  // Phase 101 moved it from nineteen to twenty by one write.
+  // Phase 109 moved this count from eighteen to nineteen by one read, Phase
+  // 101 moved it from nineteen to twenty by one write, and Phase 102 moved it
+  // from twenty to twenty two by two writes.
   if (p106Count !== REMOTE_SCRIPT_COUNT) {
     fail(
-      `the catalogue holds ${String(p106Count)} script(s). It holds twenty, ` +
-        `of which three write.`
+      `the catalogue holds ${String(p106Count)} script(s). It holds twenty ` +
+        `two, of which five write.`
     );
   }
 }
@@ -4395,12 +4611,13 @@ const P105_CREDENTIAL_WORDS =
     );
   }
   const p107Count = ((data.remoteRun ?? {}).scripts ?? []).length;
-  // Phase 109 moved this count from eighteen to nineteen by one read, and
-  // Phase 101 moved it from nineteen to twenty by one write.
+  // Phase 109 moved this count from eighteen to nineteen by one read, Phase
+  // 101 moved it from nineteen to twenty by one write, and Phase 102 moved it
+  // from twenty to twenty two by two writes.
   if (p107Count !== REMOTE_SCRIPT_COUNT) {
     fail(
-      `the catalogue holds ${String(p107Count)} script(s). It holds twenty, ` +
-        `of which three write.`
+      `the catalogue holds ${String(p107Count)} script(s). It holds twenty ` +
+        `two, of which five write.`
     );
   }
   // 57l. NO TIMER, ANYWHERE. Main cannot see a commit made on another computer,
@@ -4478,8 +4695,8 @@ const P105_CREDENTIAL_WORDS =
 {
   const p108 = data.phase108 ?? {};
   const script = p108.script ?? null;
-  // 58a. The catalogue holds twenty scripts and the write list moved once, in
-  //      Phase 101, which is the phase that added the third writer.
+  // 58a. The catalogue holds twenty two scripts and the write list moved twice
+  //      since Phase 108, in Phase 101 and again in Phase 102.
   const p108Writers = (data.remoteRun ?? {}).writers ?? [];
   if (JSON.stringify(p108Writers) !== JSON.stringify(ALLOWED_WRITERS)) {
     fail(
@@ -4493,10 +4710,11 @@ const P105_CREDENTIAL_WORDS =
   const p108Count = ((data.remoteRun ?? {}).scripts ?? []).length;
   if (p108Count !== REMOTE_SCRIPT_COUNT) {
     fail(
-      `the catalogue holds ${String(p108Count)} script(s). It holds twenty, ` +
-        `of which three write. Phase 109 moved that number from eighteen by one ` +
-        `read, being agents-find, and Phase 101 moved it from nineteen by one ` +
-        `write, being file-put.`
+      `the catalogue holds ${String(p108Count)} script(s). It holds twenty ` +
+        `two, of which five write. Phase 109 moved that number from eighteen by ` +
+        `one read, being agents-find, Phase 101 moved it from nineteen by one ` +
+        `write, being file-put, and Phase 102 moved it from twenty by two ` +
+        `writes, being dir-new and entry-rename.`
     );
   }
   // 58b. The row's own shape. Rules 1 to 5 are asserted for every script by
@@ -6055,9 +6273,183 @@ process.stdout.write(
         `  file-put    runs the checksum program before either arm, so nosum ` +
         `is decided before anything is written\n` +
         `  file-put    prints none of nosum, stale, missing, exists, nomode ` +
-        `after the line that writes\n`
+        `after the line that writes\n` +
+        `  dir-new     refuses a destination that is already there\n` +
+        `  entry-rename tests its destination before it moves, and the two ` +
+        `stat spellings tell one entry from two\n` +
+        `  WHAT NO SENTENCE HERE COVERS: between entry-rename's test and its ` +
+        `mv, another writer on that machine can create the destination and the ` +
+        `mv then replaces it. This gate reads text and cannot see a race. No ` +
+        `number for whether mv -n narrows that window exists anywhere in this ` +
+        `repository.\n`
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// 81 and 82. Phase 102. The two writers this phase added, and what bounds them
+// ---------------------------------------------------------------------------
+//
+// 81 reads `src/main/machines/remote-entry.ts` as text and asserts the SHAPE of
+// the consent, being that the gate, the confirmed folder and containment for
+// every path all stand above the one call that sends. It also asserts that
+// neither input type has a member called `root`, which is what makes the
+// sentence "no root crosses either channel" checkable rather than claimed.
+//
+// 82 asserts the catalogue moved by exactly two writers and that the two ids
+// are the ones this phase names.
+//
+// Both are pure. They read source text and one compiled catalogue. They start
+// nothing, open no file under the person's home and contact no machine.
+
+{
+  const entry = data.phase102 ?? {};
+  const module = entry.module ?? null;
+  if (module === null) {
+    fail(
+      'the probe printed nothing about src/main/machines/remote-entry.ts, so ' +
+        'condition 81 checked nothing at all.'
+    );
+  } else {
+    if (!module.present) {
+      fail(
+        'src/main/machines/remote-entry.ts is not there, so the two write ' +
+          'verbs this phase adds have no module that owns their consent.'
+      );
+    }
+    // 81a. The gate, the confirmed folder and containment all stand ABOVE the
+    //      one call that sends. An order that put any of them after the send
+    //      would be a check that decides nothing.
+    for (const [what, at] of [
+      ['assertMachineMayConnect, through confirmedWriteRoot', module.gateAt],
+      ['the confirmed folder read', module.rootAt],
+      ['relativeUnderRoot', module.containAt]
+    ]) {
+      if (at < 0) {
+        fail(
+          `src/main/machines/remote-entry.ts never names ${what}. Every path ` +
+            `it sends is bounded by the confirmed folder on the machine row, ` +
+            `and a value read out of that row at call time is a confirmed fact ` +
+            `only because the agreement covers it.`
+        );
+      } else if (module.sendAt < 0 || at > module.sendAt) {
+        fail(
+          `src/main/machines/remote-entry.ts names ${what} at ` +
+            `${String(at)} and calls runRemoteWrite at ` +
+            `${String(module.sendAt)}. A check after the send decides nothing.`
+        );
+      }
+    }
+    // 81b. Containment is applied once per path, and a rename has two.
+    if (module.containCalls < 3) {
+      fail(
+        `src/main/machines/remote-entry.ts calls relativeUnderRoot ` +
+          `${String(module.containCalls)} time(s). It needs three, being one ` +
+          `for the new folder and one for each end of a rename. A rename with ` +
+          `an unchecked destination could move a person's file out of the ` +
+          `folder they confirmed.`
+      );
+    }
+    // 81c. One door, and it is the write door.
+    if (!module.namesWriteDoor) {
+      fail(
+        'src/main/machines/remote-entry.ts never calls runRemoteWrite, so ' +
+          'either the two verbs went somewhere else or this gate is reading ' +
+          'the wrong file.'
+      );
+    }
+    for (const forbidden of module.forbiddenDoors ?? []) {
+      fail(
+        `src/main/machines/remote-entry.ts names ${forbidden}. Every write in ` +
+          `this product goes through runRemoteWrite and through no other door.`
+      );
+    }
+    // 81d. NO ROOT CROSSES. The two input types carry a path each and no
+    //      member called `root`, so a folder chosen in the renderer cannot
+    //      decide what is written under.
+    if ((module.rootMembers ?? []).length > 0) {
+      fail(
+        `the Phase 102 input types carry a member called root, being ` +
+          `${module.rootMembers.join(' and ')}. Main reads the confirmed folder ` +
+          `off the machine row, and a root chosen in the renderer would make ` +
+          `{root: '/Users/greg', path: '.ssh'} reachable.`
+      );
+    }
+    // 81e. The manifest boundary. `remote-record.ts` is the one place a remote
+    //      path meets the manifest and this phase does not widen that.
+    if (module.importsManifest) {
+      fail(
+        'src/main/machines/remote-entry.ts imports from ../manifest/. The one ' +
+          'place a remote path meets the manifest is remote-record.ts, and the ' +
+          'machines rung reading manifest rows would break the boundary ' +
+          'remote-sessions.ts records.'
+      );
+    }
+    // 81f. The handlers pass through and compose nothing.
+    for (const [channel, ok] of [
+      ['machines:makeDir', module.handlerMakeDir],
+      ['machines:renameEntry', module.handlerRename]
+    ]) {
+      if (ok) continue;
+      fail(
+        `the ${channel} handler in src/main/machines/ipc.ts does not call the ` +
+          `one export in remote-entry.ts that owns it. A handler that composed ` +
+          `its own values would be a second place the write decision lives.`
+      );
+    }
+  }
+}
+
+{
+  // 82. The catalogue moved by exactly two writers, and they are these two.
+  const writers82 = (data.remoteRun ?? {}).writers ?? [];
+  const added = writers82.filter(
+    (id) => id === 'dir-new' || id === 'entry-rename'
+  );
+  if (added.length !== 2) {
+    fail(
+      `the catalogue's write list names ${added.join(', ') || 'neither'} of ` +
+        `dir-new and entry-rename. Phase 102 adds exactly those two and no ` +
+        `third, and it adds them at the END of the list so the three that ` +
+        `shipped before it keep their order.`
+    );
+  }
+  if (writers82[3] !== 'dir-new' || writers82[4] !== 'entry-rename') {
+    fail(
+      `the catalogue's write list reads ${writers82.join(', ') || 'nothing'}. ` +
+        `The two Phase 102 ids are the fourth and the fifth, in that order.`
+    );
+  }
+  const modes = (data.phase102 ?? {}).catalogue ?? [];
+  for (const row of modes) {
+    if (row.mode === 'write') continue;
+    fail(
+      `${row.id} is a ${String(row.mode)} in the catalogue. Both Phase 102 ` +
+        `scripts write, and a write reached through the read door is refused ` +
+        `by remote-run.ts before anything is composed.`
+    );
+  }
+  for (const row of modes) {
+    const wanted = row.id === 'dir-new' ? 2 : 3;
+    if (row.params === wanted) continue;
+    fail(
+      `${row.id} declares ${String(row.params)} value(s) and it reads ` +
+        `${String(wanted)}.`
+    );
+  }
+  process.stdout.write(
+    `\nthe two writers Phase 102 added:\n` +
+      `  dir-new       2 values, answers made, exists, denied or noparent. One ` +
+      `mkdir with no -p, then one chmod capped at 755 or 700.\n` +
+      `  entry-rename  3 values, answers moved, done, exists or gone. One mv, ` +
+      `after a device and inode test that closes the case only rename.\n` +
+      `  the catalogue now holds ${String(REMOTE_SCRIPT_COUNT)} scripts of ` +
+      `which ${String(ALLOWED_WRITERS.length)} write.\n` +
+      `  no confirmed field was added, so the sheet still covers six fields ` +
+      `and no machine is asked again.\n` +
+      `  .git is guarded on these two and NOT on file-put, which keeps ` +
+      `review-file's narrower line.\n`
+  );
 }
 
 // Phase 117. What a create whose answer was lost now does, said out loud.

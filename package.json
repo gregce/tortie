@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.63.0",
+  "version": "0.64.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -102,7 +102,9 @@
     "assert:doctypes": "node build/assert-document-types.mjs",
     "verify:signed": "node build/verify-signed.mjs",
     "icon": "cp docs/brand/tortie/macos/Tortie.icns build/icon.icns && cp docs/brand/tortie/menu-bar/TortieTemplate.png docs/brand/tortie/menu-bar/TortieTemplate@2x.png resources/menu-bar/ && cp docs/brand/tortie/dock/tortie-dock-128.png src/renderer/assets/brand/tortie-128.png",
-    "probe:p101shot": "npm run build && node build/probe-p101-shot.mjs"
+    "probe:p101shot": "npm run build && node build/probe-p101-shot.mjs",
+    "probe:p102": "node build/probe-p102-entry.mjs",
+    "probe:p102shot": "npm run build && node build/probe-p102-shot.mjs"
   },
   "dependencies": {
     "@parcel/watcher": "^2.6.0",

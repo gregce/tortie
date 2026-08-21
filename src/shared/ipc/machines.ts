@@ -773,6 +773,9 @@ export interface MachinesEventPayloadMap {
  * PHASE 101 ADDS THREE ROWS AND MOVES THE COUNT WITH THEM, being `writeSheet`,
  * `allowWrites` and `putFile`. The count is thirty two.
  *
+ * PHASE 102 ADDS TWO ROWS AND MOVES THE COUNT WITH THEM, being `makeDir` and
+ * `renameEntry`. The count is thirty four.
+ *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
  * | rows | memory in main, plus the sealed record | nothing | nothing |
@@ -807,16 +810,19 @@ export interface MachinesEventPayloadMap {
  * | writeSheet | one row and the sealed record | nothing | nothing |
  * | allowWrites | the sheet's hash and one row | machines.json and one record | nothing |
  * | putFile | one row and one file's bytes from the renderer | one file on that machine | ssh |
+ * | makeDir | one row and one path from the renderer | one folder on that machine | ssh |
+ * | renameEntry | one row and two paths from the renderer | one entry moved on that machine | ssh |
  *
  * `readRuns` is the one row whose Spawns column names two programs. The ssh is
  * the read of that machine's branch. The gh runs HERE and never leaves this Mac,
  * and nothing about it crosses the link.
  *
  * Every one of them that spawns does so on a person's click and from nowhere
- * else. THREE of them write on another computer, being `putImage`,
- * `cloneProject` and `putFile`, and that number is the number this product is
- * allowed to have. It moved from one to two in Phase 90.2 and from two to three
- * in Phase 101, deliberately and once each time.
+ * else. FIVE of them write on another computer, being `putImage`,
+ * `cloneProject`, `putFile`, `makeDir` and `renameEntry`, and that number is the
+ * number this product is allowed to have. It moved from one to two in Phase
+ * 90.2, from two to three in Phase 101 and from three to five in Phase 102,
+ * deliberately and once each time.
  *
  * `machines:prepare` is Phase 69's one new channel, and it is the first thing
  * Tortie ever STARTS on another machine. It asks the confirm gate before it
@@ -1151,8 +1157,8 @@ export interface MachinesInvokeChannelMap {
     req: [input: MachineAllowWritesInput];
     res: MachineRowView;
   };
-  // THIS ONE WRITES ON ANOTHER COMPUTER, and it is the third channel in this
-  // contract that can. Main asks the confirm gate, refuses a machine with no
+  // THIS ONE WRITES ON ANOTHER COMPUTER, and it was the third channel in this
+  // contract that could. Phase 102 added the fourth and the fifth. Main asks the confirm gate, refuses a machine with no
   // confirmed folder, refuses a file over REMOTE_FILE_MAX_BYTES and refuses a
   // path outside the confirmed folder, all before anything is composed. The
   // machine then refuses again unless the file's contents still match what
@@ -1162,6 +1168,26 @@ export interface MachinesInvokeChannelMap {
     res: MachineFilePutResult;
   };
   // ---- END PHASE 101 BLOCK ----
+  // ---- PHASE 102 BLOCK ----
+  // BOTH OF THESE WRITE ON ANOTHER COMPUTER, and they are the fourth and the
+  // fifth channels in this contract that can. Main asks the confirm gate,
+  // refuses a machine with no confirmed folder and refuses every path outside
+  // that folder, all before anything is composed. NEITHER CARRIES A ROOT: main
+  // reads the confirmed folder off the row, so nothing chosen in the renderer
+  // decides what is written under.
+  //
+  // Neither throws for anything the machine said. A machine Tortie is not
+  // signed in to throws `MACHINE_NOT_CONNECTED`, which is main's own sentence
+  // and the one exception that crosses this boundary.
+  'machines:makeDir': {
+    req: [input: MachineMakeDirInput];
+    res: MachineMakeDirResult;
+  };
+  'machines:renameEntry': {
+    req: [input: MachineRenameInput];
+    res: MachineRenameResult;
+  };
+  // ---- END PHASE 102 BLOCK ----
   'machines:agents': {
     req: [id: string | null, fresh: boolean];
     res: MachineAgentsView[];
@@ -1292,10 +1318,19 @@ export interface GmuxMachinesExtras {
     // the row and records the agreement, on this Mac and nowhere else. It
     // contacts no machine and starts nothing.
     allowWrites(input: MachineAllowWritesInput): Promise<MachineRowView>;
-    // Phase 101. Saves one file on one machine. It is the third call in this
-    // contract that writes on another computer.
+    // Phase 101. Saves one file on one machine. It was the third call in this
+    // contract that writes on another computer, and Phase 102 added two more.
     putFile(input: MachineFilePutInput): Promise<MachineFilePutResult>;
     // ---- END PHASE 101 BLOCK ----
+    // ---- PHASE 102 BLOCK ----
+    // Phase 102. Makes one folder on one machine. It is the fourth call in
+    // this contract that writes on another computer.
+    makeDir(input: MachineMakeDirInput): Promise<MachineMakeDirResult>;
+    // Phase 102. Renames one file or one folder on one machine. It is the
+    // fifth. The rename is a plain `mv`, so git over there sees a delete plus
+    // an untracked add until somebody stages it.
+    renameEntry(input: MachineRenameInput): Promise<MachineRenameResult>;
+    // ---- END PHASE 102 BLOCK ----
     // Phase 109. The whole map, pushed whenever any machine's answer changes,
     // the `onStateChanged` precedent.
     onAgentsChanged(cb: (views: MachineAgentsView[]) => void): () => void;
@@ -1592,6 +1627,128 @@ export interface MachineFilePutResult {
   readonly writeRoot: string | null;
 }
 // ---- END PHASE 101 BLOCK ----
+
+// ---- PHASE 102 BLOCK ----
+// Making a folder and renaming an entry on another machine.
+//
+// WHAT THIS IS FOR. Phase 101 lets a person change a file that lives on
+// another machine and make a new empty one there. These two calls let them
+// make a folder there and rename a file or a folder there, from the Explorer.
+//
+// WHAT DECIDES WHETHER ANYTHING HAPPENS. The same one confirmed field Phase
+// 101 added, being `writeRoot`. NO NEW FIELD IS CONFIRMED BY THIS BLOCK, the
+// hash still covers six fields, and no machine anybody already confirmed is
+// asked again.
+//
+// NO ROOT CROSSES EITHER CHANNEL. Neither input type has a member called
+// `root`. Main reads the confirmed folder off the machine row at call time and
+// refuses every path that does not sit under it, before it composes anything.
+// A folder chosen in the renderer therefore cannot decide what is written
+// under, which is the shape Phase 101 shipped.
+//
+// NEITHER EVER THROWS FOR SOMETHING THE MACHINE SAID. A folder that is already
+// there, a parent that is gone and a parent the account cannot write in all
+// come back as a status word, the way `machines:listDir` and
+// `machines:listTree` already answer. ONE SENTENCE STILL CROSSES AND IT IS
+// NAMED HERE RATHER THAN DENIED: a machine Tortie is not signed in to throws
+// `MACHINE_NOT_CONNECTED`, which is main's own sentence. Every sentence a
+// person reads about one of these answers is composed in
+// `src/renderer/app/machine-copy.ts`.
+//
+// WHAT NEITHER OF THEM DOES. Neither removes anything on either computer.
+// Neither copies anything. The rename is a plain `mv`, so git on that machine
+// sees a delete plus an untracked add until somebody stages it.
+
+/** Which folder to make, on which machine. */
+export interface MachineMakeDirInput {
+  machineId: string;
+  /** The absolute path of the new folder ON THAT MACHINE. */
+  path: string;
+}
+
+/**
+ * What happened to one new folder. Six words, and four come from the machine.
+ *
+ * `made` is the only one that means a folder is there that was not there
+ * before. `writesOff` and `outsideRoot` are decided on this Mac before anything
+ * is sent. `exists`, `denied` and `noparent` are what the machine reported, and
+ * all three are printed above the `mkdir` and none below it, so every one of
+ * them means nothing was created.
+ */
+export type MachineMakeDirOutcome =
+  | 'made'
+  | 'exists'
+  | 'denied'
+  | 'noparent'
+  | 'writesOff'
+  | 'outsideRoot';
+
+/** What one new folder did, in the shape the surface that asked for it reads. */
+export interface MachineMakeDirResult {
+  readonly outcome: MachineMakeDirOutcome;
+  /**
+   * The mode of the folder the new one was made INSIDE, as octal digits, after
+   * a `made`. Null otherwise, and null when that machine's `stat` said nothing.
+   *
+   * It is the parent's mode rather than the new folder's so that a verifier can
+   * compare what Tortie decided against what `ls -ld` shows without a second
+   * call. What the new folder gets is capped at two values: 755 when the
+   * parent's last two octal digits are each 5 or 7, and 700 otherwise.
+   */
+  readonly mode: string | null;
+  /** The confirmed folder, for the sentences that name it. Null when none. */
+  readonly writeRoot: string | null;
+  readonly tookMs: number;
+}
+
+/** Which entry to rename, on which machine. */
+export interface MachineRenameInput {
+  machineId: string;
+  /** The absolute path it has now, ON THAT MACHINE. Main bounds it. */
+  from: string;
+  /** The absolute path wanted, ON THAT MACHINE. Main bounds this one too. */
+  to: string;
+  /** What the renderer believes it is renaming. Echoed back on the result. */
+  kind: 'file' | 'dir';
+}
+
+/**
+ * What happened to one rename. Six words, and four come from the machine.
+ *
+ * `moved` means the entry is at the new path and it was this call that moved
+ * it. `done` means the machine already held the end state the person asked for,
+ * which is what a repeat after a lost answer looks like. IT CANNOT TELL THAT
+ * APART from a machine where somebody else already held a file at the
+ * destination while the source never existed, and the product does not pretend
+ * to. `exists` and `gone` mean nothing was moved. `writesOff` and `outsideRoot`
+ * are decided on this Mac before anything is sent.
+ */
+export type MachineRenameOutcome =
+  | 'moved'
+  | 'done'
+  | 'exists'
+  | 'gone'
+  | 'writesOff'
+  | 'outsideRoot';
+
+/** What one rename did, in the shape the surface that asked for it reads. */
+export interface MachineRenameResult {
+  readonly outcome: MachineRenameOutcome;
+  readonly from: string;
+  readonly to: string;
+  /**
+   * Echoed back, so the tab follower reads one source rather than guessing.
+   *
+   * A folder rename reported as a file leaves every open tab beneath it
+   * pointing at a path that is no longer on that machine, because the follower
+   * only does prefix arithmetic for descendants when this says `dir`.
+   */
+  readonly kind: 'file' | 'dir';
+  /** The confirmed folder, for the sentences that name it. Null when none. */
+  readonly writeRoot: string | null;
+  readonly tookMs: number;
+}
+// ---- END PHASE 102 BLOCK ----
 
 // ---------------------------------------------------------------------------
 // The folder picker for another machine (Phase 84, item 6)

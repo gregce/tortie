@@ -9,8 +9,9 @@
  * write. All four go through this module and through nothing else.
  *
  * PHASE 101 CORRECTED THE HALF OF THAT SENTENCE THAT SAID "one file write". It
- * was one when Phase 73 wrote it, two after Phase 90.2, and it is three now.
- * The number lives in the catalogue and in the gate, not in this sentence.
+ * was one when Phase 73 wrote it, two after Phase 90.2, three after Phase 101,
+ * and it is five now, because Phase 102 added a folder and a rename. The number
+ * lives in the catalogue and in the gate, not in this sentence.
  *
  * This is the only module in the product that asks `execRemoteShell` to run one
  * of `./remote-scripts.ts`'s scripts. `./remote-path.ts` still uses that
@@ -193,16 +194,31 @@ export async function runRemoteRead(
  * Run a `write` script on one machine.
  *
  * It is the only door to a write on another computer in this product. The
- * catalogue holds THREE scripts with `mode: 'write'`, being `image-put`,
- * `git-clone` and `file-put` in that order, so this function has exactly three
- * things it can send and a gate holds it at those three by name rather than at
- * a count.
+ * catalogue holds FIVE scripts with `mode: 'write'`, being `image-put`,
+ * `git-clone`, `file-put`, `dir-new` and `entry-rename` in that order, so this
+ * function has exactly five things it can send and a gate holds it at those
+ * five by name rather than at a count.
+ *
+ * ## What makes each of the five safe to run twice, because they differ
+ *
+ *  - `image-put`, `git-clone` and `dir-new` never open a destination that is
+ *    already there. A repeat finds it and answers without writing.
+ *  - `file-put` replaces a file on purpose. A repeat after a lost answer finds
+ *    the file already carrying the checksum of the payload, answers `stale` with
+ *    that checksum, and `./remote-file.ts` reads that as the write having
+ *    landed.
+ *  - `entry-rename` is safe by END STATE. A repeat finds the source gone and
+ *    the destination there and answers `done`, having run no `mv`. What `done`
+ *    cannot tell apart is a repeat of Tortie's own move and a machine where
+ *    somebody else already held a file at the destination while the source
+ *    never existed.
  *
  * THIS COMMENT WAS WRONG BEFORE PHASE 101 AND IT IS WRITTEN OUT RATHER THAN
  * QUIETLY FIXED. It read "the catalogue holds exactly one script with
  * `mode: 'write'`, so this function has exactly one thing it can send, and a
  * gate holds that at one". That was already false at two writers after Phase
- * 90.2, and it is defect 7 of research 57 section 9.
+ * 90.2, and it is defect 7 of research 57 section 9. Phase 101 moved it to
+ * three and Phase 102 moved it to five.
  */
 export async function runRemoteWrite(
   ctx: RemoteMachineContext,

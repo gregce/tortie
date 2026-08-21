@@ -807,10 +807,13 @@ export const CLONE_BUSY_CLOSE =
 // the machine. No sentence below says "remote", and none of them composes a
 // host name.
 //
-// WHAT THESE SENTENCES MAY CLAIM. Tortie reads a folder on that machine and
-// never writes there. That is the whole promise of the phase, and every
-// refusal below is a plain statement of something Tortie does not do rather
-// than a report of a failure.
+// WHAT THESE SENTENCES MAY CLAIM. Tortie reads a folder on that machine, and
+// it writes there only where the person has let it save. It read and never
+// wrote until Phase 101, and three sentences in this file still said so after
+// that phase shipped. Phase 102 rewrote all three, being the band's body, the
+// Source Control note and the home row's subtitle. Every refusal below is a
+// plain statement of something Tortie does not do rather than a report of a
+// failure.
 
 /**
  * One instant on this Mac's own clock, as "14:32".
@@ -840,9 +843,20 @@ export function remoteBandTitle(label: string): string {
   return `Files live on ${label}.`;
 }
 
-/** The band's second line. It says the one thing Tortie will not do. */
+/**
+ * The band's second line. It says what Tortie does with that folder.
+ *
+ * PHASE 102 REWROTE IT. It read "It never writes there", and the band is drawn
+ * on all four views of every tab whose folder is on a machine. So on a machine
+ * a person has let Tortie save on, that sentence sat directly above a New
+ * folder button they could press and above a folder Tortie had made. The
+ * replacement is the same shape as `openRemoteHonesty` below, and it is true
+ * on a machine with no confirmed folder as well, because there is nowhere on
+ * that machine the person has let Tortie save.
+ */
 export const REMOTE_BAND_BODY =
-  'Tortie reads what is in this folder on that machine. It never writes there.';
+  'Tortie reads what is in this folder on that machine. It writes there only ' +
+  'where you have let it save.';
 
 // -- the Explorer ------------------------------------------------------------
 
@@ -922,42 +936,133 @@ export function remoteTreeTruncated(
 }
 
 /**
- * The one disabled row at the end of the tree's menu on a machine's file.
+ * The one disabled row at the end of the tree's menu on a machine's file, when
+ * nobody has let Tortie save on that machine.
  *
- * The verbs that write are absent rather than disabled, because each of them
- * needs a script nobody has written. This line says once why the menu is short,
- * so the shortness is an answer instead of a puzzle.
+ * The verbs that write are absent rather than disabled, because none of them
+ * may run on a machine with no confirmed folder. This line says once why the
+ * menu is short, so the shortness is an answer instead of a puzzle. The sibling
+ * below is what the same row draws once a folder is confirmed.
  */
 export function remoteTreeReadOnly(label: string): string {
   return `Tortie only reads files on ${label}.`;
 }
 
 /**
- * The same line on a machine a person has let Tortie save on (Phase 101).
+ * The same line on a machine a person has let Tortie save on.
  *
- * It replaces `remoteTreeReadOnly` for that case and it says both halves.
- * Tortie reads the files, and it can save under one folder, named. New File is
- * in the menu on such a row, so the line has to explain a menu that is no
- * longer read only.
+ * PHASE 102 REPLACED `remoteTreeCanSave`, which said Tortie can save under one
+ * folder. Three verbs cross now rather than one, being New File, New Folder and
+ * Rename, so the sentence says Tortie can change what is under that folder. The
+ * second half names the one thing that is still absent, because a person who
+ * reads the first half will look for Move to Trash next.
  *
  * `remoteTreeReadOnly` above is unchanged and is still what a machine with no
- * confirmed folder draws, which is every machine in every build before this
- * phase.
+ * confirmed folder draws, which is every machine in every build before
+ * Phase 101.
  */
-export function remoteTreeCanSave(root: string, label: string): string {
-  return `Tortie reads files on ${label} and can save under ${root}.`;
+export function remoteTreeCanWrite(root: string, label: string): string {
+  return (
+    `Tortie reads files on ${label} and can change what is under ${root}. ` +
+    `It cannot move anything there to the Trash.`
+  );
+}
+
+// -- making a folder and renaming an entry on a machine (Phase 102) ----------
+// EIGHT SENTENCES FOR TWO VERBS. Both verbs answer with a status word from
+// main, never with a sentence, and every sentence a person reads about them is
+// written here. `remoteEntryWritesOff`, `remoteEntryOutsideRoot`,
+// `remoteEntryExists` and `remoteEntryLostAnswer` are shared by both verbs,
+// because the state each one names is the same state whichever verb reached it.
+
+/**
+ * The name is taken on that machine.
+ *
+ * `name` is the leaf a person typed, so the sentence names what they typed
+ * rather than a whole path they did not. It is drawn for a New Folder onto a
+ * name that is taken and for a Rename onto a name a different entry holds.
+ */
+export function remoteEntryExists(name: string, label: string): string {
+  return `There is already something called ${name} in that folder on ${label}.`;
 }
 
 /**
- * The Explorer's New folder button on a folder on another machine.
+ * The folder the new one was going inside is not there any more.
  *
- * It stays off in both states and it gets its own sentence, because the button
- * beside it can now be pressed and the two used to share one tooltip. Making a
- * folder over there is a second script and a later phase, and this says what is
- * true today rather than promising one.
+ * A person reaches this from a tree that was read a minute ago, so the second
+ * sentence names the one thing that fixes the reading.
  */
-export function remoteNewFolderNotYet(label: string): string {
-  return `Tortie cannot make a folder on ${label}.`;
+export function remoteParentGone(label: string): string {
+  return `That folder is no longer on ${label}. Press Refresh to read it again.`;
+}
+
+/** The account Tortie signs in as cannot write in that folder. */
+export function remoteWriteDenied(path: string, label: string): string {
+  return `Tortie cannot write in ${path} on ${label}.`;
+}
+
+/** The entry a rename named is not on that machine any more. */
+export function remoteEntryGone(name: string, label: string): string {
+  return (
+    `Tortie could not find ${name} on ${label}. Press Refresh to read that ` +
+    `folder again.`
+  );
+}
+
+/**
+ * The end state is the one the person asked for and this call did not make it.
+ *
+ * It is an INFORMATION line rather than a refusal, because the machine holds
+ * what they asked for. What it cannot tell them is whether this is a repeat of
+ * Tortie's own move or somebody else's file already sitting at the destination
+ * while the source was never there. Both leave the person looking at the end
+ * state they asked for and the product does not pretend to know which happened.
+ */
+export function remoteRenameAlreadyDone(label: string): string {
+  return `That rename has already gone through on ${label}.`;
+}
+
+/**
+ * Nobody has let Tortie change anything on that machine.
+ *
+ * It names the three steps to the one surface that turns saving on, because a
+ * person who meets this has no other way to find it. It ends by saying that
+ * nothing was changed, which is true of every path that reaches it: main
+ * answers this before it composes anything and before it sends anything.
+ */
+export function remoteEntryWritesOff(label: string): string {
+  return (
+    `Tortie cannot change anything on ${label}. Open Settings, then ` +
+    `Machines, then ${label}, and let Tortie save files there. Nothing was ` +
+    `changed.`
+  );
+}
+
+/**
+ * The path is outside the folder that person confirmed.
+ *
+ * Main decides this on this Mac, before anything is sent, so nothing was
+ * changed on that machine and the sentence says so.
+ */
+export function remoteEntryOutsideRoot(root: string, label: string): string {
+  return (
+    `Tortie may only change what is under ${root} on ${label}, and that ` +
+    `folder is outside it. Nothing was changed.`
+  );
+}
+
+/**
+ * The machine did not answer, and this never says nothing was changed.
+ *
+ * A killed connection was measured in Phase 101 completing the far side write,
+ * so the honest sentence is that Tortie cannot tell. It names the one thing a
+ * person can do, which is read that folder again.
+ */
+export function remoteEntryLostAnswer(label: string): string {
+  return (
+    `${label} did not answer, so Tortie cannot tell you whether that went ` +
+    `through. Press Refresh to read that folder again.`
+  );
 }
 
 /** Copy Path on a machine's file puts the machine in front of the path. */
@@ -1022,7 +1127,7 @@ export function remoteChangesNotRepo(label: string): string {
 export const REMOTE_SCM_SECTIONS_NOTE =
   'Tortie shows the changed files, the history, the branch and the runs for ' +
   'a folder on another machine. It does not show the files one commit ' +
-  'changed there, and it writes nothing in that folder.';
+  'changed there, and nothing in this view changes that folder.';
 
 // -- the symbol palette ------------------------------------------------------
 //
@@ -1484,12 +1589,17 @@ export const OPEN_ON_ANY_MACHINE_TITLE = 'Open on another machine…';
 /**
  * The row's second line, in both cases.
  *
- * Two facts and no more. The folder stays where it is, and Tortie only reads
- * it. That is the pair people are surprised by, and the sheet says the same two
- * things again before the folder is opened.
+ * Two facts and no more. The folder stays where it is, and what Tortie does
+ * about writing in it. That is the pair people are surprised by, and the sheet
+ * says the same two things again before the folder is opened.
+ *
+ * PHASE 102 REWROTE THE SECOND FACT. It read "Tortie never writes there", and
+ * that became false for a machine a person has let Tortie save on. It now says
+ * the same thing `openRemoteHonesty` says, in the same words.
  */
 export const OPEN_ON_MACHINE_SUBTITLE =
-  'The folder stays on that machine. Tortie never writes there.';
+  'The folder stays on that machine. Tortie writes there only where you have ' +
+  'let it save.';
 
 /**
  * A recent project on another machine, on hover.

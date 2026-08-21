@@ -30,6 +30,30 @@ export function tabIdFor(req: OpenFileRequest): string {
 }
 
 /**
+ * The identity of a tab showing a file on another machine.
+ *
+ * PHASE 102 MOVED THIS RULE HERE. It was spelled inline in
+ * `../editor/store.ts`, and Phase 102 gave a rename a second place that has to
+ * compose the same string: a remote rename that rekeyed a tab to a bare
+ * absolute path would collide with a local tab holding that path on this Mac
+ * and destroy the rule below. Two copies of one rule is how one of them goes
+ * stale, so there is one copy and both callers read it.
+ *
+ * THE THREE PARTS AND WHY EACH IS THERE. The machine is in the key because the
+ * same path on two machines is two files. The repository root is in the key
+ * because two folders on ONE machine can both hold `src/a.ts`, which research
+ * 55 section 9.2 measured as one tab whose bytes were replaced by the second
+ * read. The relative path is what is left.
+ */
+export function remoteTabId(
+  machineId: string,
+  repoPath: string,
+  relPath: string
+): string {
+  return `machine:${machineId}:${repoPath}:${relPath}`;
+}
+
+/**
  * The `id` of a context entry carried on a request, or null when there is none.
  *
  * The request types this field as `unknown`, because the open bus is shared with

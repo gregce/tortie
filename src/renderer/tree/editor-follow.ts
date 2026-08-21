@@ -28,6 +28,12 @@ export type { FollowMove } from './tab-follow';
  * Called AFTER main confirms the rename/move, never optimistically: a tab
  * pointing at a file that was never renamed is worse than one that follows a
  * beat late.
+ *
+ * PHASE 102. A move may now carry a `machine`, and this function passes it
+ * through untouched. Every rule it decides is in `planTabFollow`, being which
+ * tabs the move may touch and how a touched tab's id is composed. The two
+ * stores below are keyed by that id, so `rekeyTabResources` moves the Monaco
+ * model across for a tab on another machine exactly as it does for one here.
  */
 export function followMoves(moves: readonly FollowMove[]): void {
   if (moves.length === 0) return;

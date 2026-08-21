@@ -47,25 +47,23 @@ export interface TreeMenuCapabilities {
    * folder on this Mac.
    *
    * Its presence is what tells this function the rows are on another machine.
-   * FOUR VERBS CROSS and the rest are absent, which is the split research 55
-   * section 14.3 counted:
+   * WHAT CROSSES, counted after Phase 102 rather than described:
    *
    *  - Open and Open in New Tab cross, read only.
    *  - Copy Relative Path crosses unchanged, because a relative path is true on
    *    both computers.
    *  - Copy Path crosses with the machine in front of it.
+   *  - New File crosses on a machine a person has let Tortie save on, under
+   *    `remoteCreateFile` below. Phase 101 shipped it.
+   *  - New Folder and Rename cross under the same condition, under
+   *    `remoteWriteEntries` below. Phase 102 shipped both.
+   *  - Duplicate is absent. It has no script on the far side and research 57
+   *    section 12 leaves it out of this round.
    *  - Open With and Reveal in Finder are absent, because both start a program
    *    on this Mac against a file that is not here.
-   *  - New File, New Folder, Rename and Duplicate are absent, because each
-   *    needs a write script nobody has written.
    *  - Move to Trash is absent PERMANENTLY. `shell.trashItem` has no far side
    *    equal, and a remote `rm` would turn a recoverable delete into an
    *    unrecoverable one.
-   *
-   * PHASE 101 MOVED ONE OF THE FOUR. New File crosses on a machine a person has
-   * let Tortie save on, under `remoteCreateFile` below. The other three stay
-   * absent on every machine in both states, and Move to Trash stays absent
-   * permanently for the reason above, which has not changed.
    *
    * The sentence itself is written once in src/renderer/app/machine-copy.ts and
    * this module never composes one.
@@ -82,6 +80,16 @@ export interface TreeMenuCapabilities {
    * is a folder on another machine that Tortie may not write into.
    */
   remoteCreateFile?: boolean;
+  /**
+   * PHASE 102. True when this machine carries a confirmed folder AND this
+   * build can reach the two entry channels, so New Folder and Rename cross.
+   *
+   * IT IS A SECOND FLAG RATHER THAN A WIDER `remoteCreateFile`. New File is
+   * gated on the same confirmed folder and it shipped a phase earlier, and its
+   * tests read it by name. Absent, and false, both mean the same thing, which
+   * is a folder on another machine whose entries Tortie may not change.
+   */
+  remoteWriteEntries?: boolean;
 }
 
 export interface TreeMenuActions {
@@ -153,20 +161,25 @@ export function buildTreeMenu(
   }
 
   // -- create --------------------------------------------------------------
-  // PHASE 101 SPLIT ONE BLOCK INTO TWO, and the split is the whole change.
-  // The two items were pushed together under one condition, so a machine that
-  // may take a new file would have taken a new folder with it, and there is no
-  // script on the far side that makes a folder. They are two conditions now
-  // and only the first of them crosses.
+  // PHASE 101 SPLIT ONE BLOCK INTO TWO, and the split is why both items can be
+  // reasoned about on their own. The two were pushed together under one
+  // condition, so a machine that may take a new file would have taken a new
+  // folder with it, and no script on the far side made a folder.
+  //
+  // PHASE 102 TURNED THE SECOND ONE ON, under its own flag. The two conditions
+  // stay separate, because the two flags are separate and a build may set one
+  // without the other.
   const canCreateFile =
     (caps.mutate && !remote) || (remote && caps.remoteCreateFile === true);
+  const canCreateFolder =
+    (caps.mutate && !remote) || (remote && caps.remoteWriteEntries === true);
   if (canCreateFile) {
     items.push({
       label: 'New File…',
       run: () => actions.newEntry(target.destDir, 'file')
     });
   }
-  if (caps.mutate && !remote) {
+  if (canCreateFolder) {
     items.push({
       label: 'New Folder…',
       run: () => actions.newEntry(target.destDir, 'dir')
@@ -174,15 +187,21 @@ export function buildTreeMenu(
   }
 
   // -- edit ----------------------------------------------------------------
-  if (caps.mutate && !remote && single !== undefined) {
+  // PHASE 102 SPLIT THIS BLOCK TOO. Rename crosses on a machine with a
+  // confirmed folder and Duplicate does not, so the two verbs no longer share
+  // one condition. Duplicate keeps the local one, because it has no script on
+  // the far side.
+  const canRename =
+    (caps.mutate && !remote) || (remote && caps.remoteWriteEntries === true);
+  if (canRename && single !== undefined) {
     items.push('sep', {
       label: 'Rename…',
       hint: 'F2',
       run: () => actions.rename(single)
     });
-    if (caps.duplicate) {
-      items.push({ label: 'Duplicate', run: () => actions.duplicate(single) });
-    }
+  }
+  if (caps.mutate && !remote && single !== undefined && caps.duplicate) {
+    items.push({ label: 'Duplicate', run: () => actions.duplicate(single) });
   }
 
   if (caps.mutate && !remote && selection.length > 0) {

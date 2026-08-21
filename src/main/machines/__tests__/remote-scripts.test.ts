@@ -124,9 +124,18 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds twenty scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(20);
+  it('holds twenty two scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(22);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
+      // PHASE 102 added `dir-new` and `entry-rename`, and both WRITE. They are
+      // the fourth and the fifth writers, so the write count below moved from
+      // three to five. `dir-new` makes one folder with one non recursive
+      // `mkdir` and one `chmod` capped at two modes. `entry-rename` renames one
+      // entry with one `mv`, after a test on the destination and a device and
+      // inode comparison that closes the case only rename. Neither names a git
+      // verb, so GIT_VERBS above did not move. Both carry a WIDER containment
+      // line than `file-put` does, being the one with the `.git` half in it.
+      //
       // PHASE 101 added `file-put`, which replaces one file under one confirmed
       // folder on a machine or makes a new empty one there. It is the THIRD
       // write in this catalogue and the first command this product sends that
@@ -188,6 +197,8 @@ describe('the catalogue', () => {
       // computer.
       'context-read',
       'dir-list',
+      'dir-new',
+      'entry-rename',
       'file-put',
       'git-clone',
       'image-put',
@@ -220,19 +231,22 @@ describe('the catalogue', () => {
     expect(remoteScript('IMAGE-PUT')).toBeNull();
   });
 
-  it('has exactly THREE scripts that write, and names all of them', () => {
+  it('has exactly FIVE scripts that write, and names all of them', () => {
     // This is rule 6, and it is the one that keeps the size of what Tortie can
     // do to another person's computer at a known list rather than a count.
-    // Phase 90.2 moved it from one to two and Phase 101 moved it from two to
-    // three, once and on purpose each time, and the list stays exact so a
-    // fourth one fails here rather than passing quietly. Phase 105, Phase 106,
-    // Phase 107 and Phase 108 each added a read and left this number alone.
+    // Phase 90.2 moved it from one to two, Phase 101 moved it from two to
+    // three and Phase 102 moved it from three to five, once and on purpose
+    // each time, and the list stays exact so a sixth one fails here rather
+    // than passing quietly. Phase 105, Phase 106, Phase 107 and Phase 108 each
+    // added a read and left this number alone.
     const writers = remoteWriteScripts();
-    expect(writers).toHaveLength(3);
+    expect(writers).toHaveLength(5);
     expect(writers.map((script) => script.id)).toEqual([
       'image-put',
       'git-clone',
-      'file-put'
+      'file-put',
+      'dir-new',
+      'entry-rename'
     ]);
   });
 
@@ -354,6 +368,120 @@ describe('a read script', () => {
     for (const script of reads) {
       expect(script.text).not.toMatch(/git (?:--no-pager )?"?\$/);
     }
+  });
+});
+
+describe('the folder write', () => {
+  const write = remoteScript('dir-new');
+
+  it('is a write taking two values', () => {
+    expect(write?.mode).toBe('write');
+    expect(write?.params).toBe(2);
+  });
+
+  it('tests the destination before it makes anything', () => {
+    // This is what makes it safe to run twice. A second run with the same two
+    // values finds the folder the first run made and answers exists.
+    const text = write?.text ?? '';
+    expect(text.indexOf('if [ -e "$d" ]; then')).toBeGreaterThan(-1);
+    expect(text.indexOf('if [ -e "$d" ]; then')).toBeLessThan(
+      text.indexOf('mkdir "$d"')
+    );
+  });
+
+  it('makes one folder and never a tree of them', () => {
+    expect(write?.text).toContain('mkdir "$d"');
+    expect(write?.text).not.toContain('mkdir -p');
+  });
+
+  it('caps the mode at two literals and can produce no other', () => {
+    // A copy of the parent's mode with no ceiling would let a parent at 777
+    // produce a Tortie made folder at 777 on a person's computer, and a parent
+    // carrying a set group id bit would pass that bit on.
+    const chmods = [...(write?.text ?? '').matchAll(/chmod [^\n]*/g)].map(
+      (hit) => hit[0]
+    );
+    expect(chmods).toEqual(['chmod 755 "$d";;', 'chmod 700 "$d";;']);
+  });
+
+  it('finds the parent with the shell rather than with a program', () => {
+    expect(write?.text).toContain('p="${d%/*}"');
+    expect(write?.text).not.toContain('dirname');
+  });
+
+  it('answers noparent before it answers anything else', () => {
+    const text = write?.text ?? '';
+    expect(text.indexOf('noparent')).toBeLessThan(text.indexOf('exists'));
+    expect(text.indexOf('exists')).toBeLessThan(text.indexOf('denied'));
+  });
+
+  it('reads the mode with both stat spellings and survives neither', () => {
+    expect(write?.text).toContain('stat -f %Lp "$p"');
+    expect(write?.text).toContain('stat -c %a "$p"');
+    expect(write?.text).toContain('|| true');
+  });
+
+  it('carries the WIDER containment line, being the one with .git in it', () => {
+    // `file-put` carries `review-file`'s narrower line and Phase 102 does not
+    // widen a shipped writer, so `.git` is guarded here and not there.
+    expect(write?.text).toContain(
+      'case "$2" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac'
+    );
+    expect(remoteScript('file-put')?.text).not.toContain('.git');
+  });
+});
+
+describe('the rename write', () => {
+  const write = remoteScript('entry-rename');
+
+  it('is a write taking three values', () => {
+    expect(write?.mode).toBe('write');
+    expect(write?.params).toBe(3);
+  });
+
+  it('tests the destination before it moves, and never forces', () => {
+    const text = write?.text ?? '';
+    expect(text.indexOf('[ -e "$t" ]')).toBeGreaterThan(-1);
+    expect(text.indexOf('[ -e "$t" ]')).toBeLessThan(
+      text.indexOf('mv "$s" "$t"')
+    );
+    expect(text).not.toContain('mv -f');
+  });
+
+  it('treats a dangling symbolic link as present', () => {
+    // `-e` alone answers no for one, and the script would then say `gone`
+    // about a link that is really there.
+    expect(write?.text).toContain('if [ -e "$s" ] || [ -L "$s" ]; then sp=1; fi');
+    expect(write?.text).toContain('if [ -e "$t" ] || [ -L "$t" ]; then tp=1; fi');
+  });
+
+  it('compares device and inode, which is what closes the case only rename', () => {
+    // Without it a person renaming README.md to readme.md on a case
+    // insensitive volume is told the name is taken.
+    expect(write?.text).toContain("stat -f '%d %i' \"$s\"");
+    expect(write?.text).toContain("stat -c '%d %i' \"$s\"");
+    expect(write?.text).toContain('if [ -z "$a" ] || [ "$a" != "$b" ]; then');
+  });
+
+  it('answers done when the end state is already there', () => {
+    expect(write?.text).toContain('__TORTIE_RUN__done none__TORTIE_RUN__');
+    expect(write?.text).toContain('__TORTIE_RUN__gone none__TORTIE_RUN__');
+  });
+
+  it('carries the wider containment line ONCE PER guarded value', () => {
+    expect(write?.text).toContain(
+      'case "$2" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac'
+    );
+    expect(write?.text).toContain(
+      'case "$3" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac'
+    );
+  });
+
+  it('names mv and no other program that changes a file', () => {
+    const named = words(write?.text ?? '').filter((word) =>
+      MUTATING.includes(word)
+    );
+    expect([...new Set(named)]).toEqual(['mv']);
   });
 });
 

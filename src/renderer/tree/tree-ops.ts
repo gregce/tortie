@@ -35,14 +35,29 @@ import type {
 } from '@pierre/trees';
 import type { UseFileTreeResult } from '@pierre/trees/react';
 import { isProtectedFsPath } from '@shared/fs-ops';
-// PHASE 101. What a create on another machine answers. The words are main's
-// and the sentence for each one is composed in ../app/machine-copy.ts.
-import type { MachineFilePutResult } from '@shared/ipc';
+// PHASE 101 AND PHASE 102. What a create, a new folder and a rename on another
+// machine answer. The words are main's and the sentence for each one is
+// composed in ../app/machine-copy.ts.
+import type {
+  MachineFilePutResult,
+  MachineMakeDirResult,
+  MachineRenameResult
+} from '@shared/ipc';
 import { errorPayload, errorText, useApp } from '../state/store';
 import { followMoves } from './editor-follow';
 import * as fsOps from './fs-ops-bridge';
 import { requestOpenFile } from './open-file';
-import { remoteSaveRefusal } from '../app/machine-copy';
+import {
+  remoteEntryExists,
+  remoteEntryGone,
+  remoteEntryLostAnswer,
+  remoteEntryOutsideRoot,
+  remoteEntryWritesOff,
+  remoteParentGone,
+  remoteRenameAlreadyDone,
+  remoteSaveRefusal,
+  remoteWriteDenied
+} from '../app/machine-copy';
 import { machineLabelFor } from '../state/machines-slice';
 import type { TreeRenameView } from './rename-view';
 import { useFileTree } from './store';
@@ -115,6 +130,30 @@ export interface TreeOpsContext {
   remoteCreate?: {
     machineId: string;
     putFile(absPath: string): Promise<MachineFilePutResult>;
+    /** Re-read the tree from that machine. Resolves when the read is done. */
+    refresh(): Promise<void>;
+  };
+  /**
+   * PHASE 102. How a new folder and a rename land when the tree is on another
+   * machine, or undefined for a folder on this Mac.
+   *
+   * THE GESTURE IS UNCHANGED, exactly as it is for `remoteCreate` above. The
+   * placeholder row, the inline editor, the refusal on a bad name and the
+   * commit are the same code on both computers. Only the one write at the end
+   * moves.
+   *
+   * Both calls are given ABSOLUTE paths on that machine. Neither carries a
+   * folder: the folder Tortie may change entries under is read in main, off the
+   * row a person confirmed, and either path outside it refuses the whole call.
+   */
+  remoteEntry?: {
+    machineId: string;
+    makeDir(absPath: string): Promise<MachineMakeDirResult>;
+    renameEntry(
+      fromAbs: string,
+      toAbs: string,
+      kind: 'file' | 'dir'
+    ): Promise<MachineRenameResult>;
     /** Re-read the tree from that machine. Resolves when the read is done. */
     refresh(): Promise<void>;
   };
@@ -254,6 +293,16 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
   let pendingRelease: (() => void) | null = null;
 
   /**
+   * PHASE 102. The label of the machine a verb is landing on, read at the
+   * moment the answer arrives rather than captured when the gesture started.
+   *
+   * A person can rename a machine while a call is in flight, and the sentence
+   * should name what the machine is called now.
+   */
+  const machineLabel = (machineId: string): string =>
+    machineLabelFor(useApp.getState().machineStates, machineId);
+
+  /**
    * PHASE 101. The same gesture, landing on another machine.
    *
    * ONE EMPTY FILE, and never a folder. `expect: 'new'` is what makes the far
@@ -271,10 +320,7 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     release: () => void
   ): void => {
     const abs = absOf(ctx.rootPath, canonical);
-    const label = machineLabelFor(
-      useApp.getState().machineStates,
-      remote.machineId
-    );
+    const label = machineLabel(remote.machineId);
     const undo = (): void => {
       try {
         ctx.model.remove(canonical, { recursive: false });
@@ -329,6 +375,203 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       });
   };
 
+  /**
+   * PHASE 102. The sentence for one refused New Folder.
+   *
+   * `made` cannot reach here: the caller has already tested for it, which is
+   * what narrows the parameter to the five refusals. `outsideRoot` with no
+   * folder can only mean saving is off for that machine, so it falls back to
+   * the sentence that says exactly that rather than drawing a folder nobody
+   * confirmed. That is `remoteSaveRefusal`'s own rule and this copies it.
+   */
+  const makeDirRefusal = (
+    outcome: Exclude<MachineMakeDirResult['outcome'], 'made'>,
+    writeRoot: string | null,
+    canonical: string,
+    label: string
+  ): string => {
+    switch (outcome) {
+      case 'exists':
+        return remoteEntryExists(baseNameOf(canonical), label);
+      case 'noparent':
+        return remoteParentGone(label);
+      case 'denied':
+        return remoteWriteDenied(
+          absOf(ctx.rootPath, parentOf(canonical)),
+          label
+        );
+      case 'writesOff':
+        return remoteEntryWritesOff(label);
+      case 'outsideRoot':
+        return writeRoot === null
+          ? remoteEntryWritesOff(label)
+          : remoteEntryOutsideRoot(writeRoot, label);
+    }
+  };
+
+  /**
+   * PHASE 102. The sentence for one refused Rename.
+   *
+   * `moved` and `done` cannot reach here, because both are end states the
+   * person asked for and the caller has already tested for them. `exists` names
+   * the destination and `gone` names the source, which is the entry each word
+   * is about.
+   */
+  const renameRefusal = (
+    outcome: Exclude<MachineRenameResult['outcome'], 'moved' | 'done'>,
+    writeRoot: string | null,
+    sourceCanonical: string,
+    destCanonical: string,
+    label: string
+  ): string => {
+    switch (outcome) {
+      case 'exists':
+        return remoteEntryExists(baseNameOf(destCanonical), label);
+      case 'gone':
+        return remoteEntryGone(baseNameOf(sourceCanonical), label);
+      case 'writesOff':
+        return remoteEntryWritesOff(label);
+      case 'outsideRoot':
+        return writeRoot === null
+          ? remoteEntryWritesOff(label)
+          : remoteEntryOutsideRoot(writeRoot, label);
+    }
+  };
+
+  /**
+   * PHASE 102. New Folder, landing on another machine.
+   *
+   * It is `finishRemoteCreate`'s shape and it differs in two ways. It opens no
+   * tab, because a folder is not a document. And it re-reads the folder it
+   * landed in rather than composing a row, for the reason the create above
+   * gives: nothing polls a machine, there is no watcher over there, and a row
+   * the machine never confirmed is a row a person cannot tell from a real one.
+   *
+   * ON EVERY ANSWER BUT `made` the row comes back out of the model and the
+   * sentence for that word is toasted. On a THROWN call the row also comes back
+   * out, and the sentence says the machine did not answer rather than saying
+   * nothing was changed, because a killed connection was measured in Phase 101
+   * completing the far side write.
+   */
+  const finishRemoteMakeDir = (
+    remote: NonNullable<TreeOpsContext['remoteEntry']>,
+    placeholder: string,
+    canonical: string,
+    release: () => void
+  ): void => {
+    const abs = absOf(ctx.rootPath, canonical);
+    const label = machineLabel(remote.machineId);
+    const undo = (): void => {
+      try {
+        ctx.model.remove(canonical, { recursive: true });
+      } catch {
+        /* already gone */
+      }
+      dropFromFed([canonical, placeholder]);
+      release();
+    };
+    void remote
+      .makeDir(abs)
+      .then((result) => {
+        if (result.outcome !== 'made') {
+          undo();
+          app().toast(
+            'error',
+            makeDirRefusal(result.outcome, result.writeRoot, canonical, label),
+            { sticky: true }
+          );
+          return;
+        }
+        addToFed(canonical);
+        ctx.selectOnly(canonical);
+        ctx.model.focusPath(canonical);
+        void remote.refresh().finally(release);
+      })
+      .catch(() => {
+        undo();
+        app().toast('error', remoteEntryLostAnswer(label), { sticky: true });
+      });
+  };
+
+  /**
+   * PHASE 102. Rename, landing on another machine.
+   *
+   * TWO ANSWERS ARE SUCCESSES BY END STATE. `moved` is this call's own move.
+   * `done` means the machine already holds what the person asked for, so the
+   * model follows and the open tabs follow, and the person is told at `info`
+   * that it was not this call that did it. What `done` cannot tell apart is a
+   * repeat of Tortie's own move and a machine where somebody else already held
+   * a file at the destination while the source never existed. Both leave the
+   * person looking at the end state they asked for and this product does not
+   * pretend to know which happened.
+   *
+   * WHERE THE KIND COMES FROM, stated as it is rather than as it reads well.
+   * It is the kind on the tree row the person renamed, which is what the last
+   * read of that folder said. It is sent to main and main echoes it back
+   * unchanged. NOBODY MEASURES IT ON THE MACHINE, so the answer's kind is the
+   * kind this renderer asked with and no more.
+   *
+   * That still matters. `pathAfterMove` in ./tab-follow.ts does prefix
+   * arithmetic for descendants only when the kind reads `'dir'`, so a folder
+   * rename carried as `'file'` would leave every open tab beneath it pointing
+   * at a path that is no longer on that machine. What is NOT true is that
+   * anything checks this claim against the machine. A row that went stale
+   * between the read and the rename carries a stale kind.
+   */
+  const finishRemoteRename = (
+    remote: NonNullable<TreeOpsContext['remoteEntry']>,
+    sourceCanonical: string,
+    destCanonical: string,
+    kind: 'file' | 'dir',
+    release: () => void
+  ): void => {
+    const move: PathMove = { from: sourceCanonical, to: destCanonical };
+    const fromAbs = absOf(ctx.rootPath, sourceCanonical);
+    const toAbs = absOf(ctx.rootPath, destCanonical);
+    const label = machineLabel(remote.machineId);
+    void remote
+      .renameEntry(fromAbs, toAbs, kind)
+      .then((result) => {
+        if (result.outcome !== 'moved' && result.outcome !== 'done') {
+          revertModel([move]);
+          release();
+          app().toast(
+            'error',
+            renameRefusal(
+              result.outcome,
+              result.writeRoot,
+              sourceCanonical,
+              destCanonical,
+              label
+            ),
+            { sticky: true }
+          );
+          return;
+        }
+        rebaseFed([move]);
+        followMoves([
+          {
+            from: fromAbs,
+            to: toAbs,
+            kind: result.kind,
+            machine: { machineId: remote.machineId, repoPath: ctx.rootPath }
+          }
+        ]);
+        if (result.outcome === 'done') {
+          app().toast('info', remoteRenameAlreadyDone(label));
+        }
+        // A folder that moved takes its cached children's keys with it, and
+        // those keys name a path that is not on that machine any more.
+        if (result.kind === 'dir') files().forgetUnder([fromAbs]);
+        void remote.refresh().finally(release);
+      })
+      .catch(() => {
+        revertModel([move]);
+        release();
+        app().toast('error', remoteEntryLostAnswer(label), { sticky: true });
+      });
+  };
+
   const finishCreate = (
     placeholder: string,
     kind: 'file' | 'dir',
@@ -343,6 +586,15 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     const remote = ctx.remoteCreate;
     if (remote !== undefined && kind === 'file') {
       finishRemoteCreate(remote, placeholder, canonical, release);
+      return;
+    }
+    // PHASE 102. The folder half of the same branch. New Folder is on the menu
+    // of a remote row now, and the header button beside it is pressable, so a
+    // `dir` DOES reach here on a remote tree and it must never fall through to
+    // this Mac's own `createFolder`.
+    const remoteEntry = ctx.remoteEntry;
+    if (remoteEntry !== undefined && kind === 'dir') {
+      finishRemoteMakeDir(remoteEntry, placeholder, canonical, release);
       return;
     }
     const create = kind === 'dir' ? fsOps.createFolder : fsOps.createFile;
@@ -393,6 +645,15 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     const fromAbs = absOf(ctx.rootPath, sourceCanonical);
     const toAbs = absOf(ctx.rootPath, destCanonical);
     const release = ctx.hold([sourceCanonical, destCanonical]);
+
+    // PHASE 102. The one write at the end of the gesture, and the only lines of
+    // this function that know which computer it lands on. `fsOps.rename` below
+    // renames a path on THIS Mac, so a remote tree must never reach it.
+    const remote = ctx.remoteEntry;
+    if (remote !== undefined) {
+      finishRemoteRename(remote, sourceCanonical, destCanonical, kind, release);
+      return;
+    }
 
     void fsOps
       .rename({

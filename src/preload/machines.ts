@@ -4,16 +4,17 @@
  * Phase 84, two more in Phase 90.2, one more in Phase 90.3, one more in
  * Phase 98, one more in Phase 99, one more in Phase 100, one more in Phase 105,
  * one more in Phase 106, one more in Phase 107, one more in Phase 108 and one
- * call plus one subscription in Phase 109, three more in Phase 101). One
- * object, thirty two calls and three subscriptions, typed from the shared
- * contract. THE COUNT HAD GONE
+ * call plus one subscription in Phase 109, three more in Phase 101 and two
+ * more in Phase 102). One object, thirty four calls and three subscriptions,
+ * typed from the shared contract. THE COUNT HAD GONE
  * STALE and Phase 108 says so rather than quietly fixing it: this header named
  * neither Phase 107 nor its call while the object already carried
  * `readHistory`.
  *
- * THREE of these calls write on another computer, being `putImage`,
- * `cloneProject` and `putFile`. `allowWrites` writes on THIS Mac, being one
- * field of one row and one record. Everything else on this bridge reads.
+ * FIVE of these calls write on another computer, being `putImage`,
+ * `cloneProject`, `putFile`, `makeDir` and `renameEntry`. `allowWrites` writes
+ * on THIS Mac, being one field of one row and one record. Everything else on
+ * this bridge reads.
  *
  * Four of these calls can start a process from Settings, and every one of them
  * is a person pressing a button there. `tailscaleNames` runs the Tailscale program at
@@ -173,10 +174,25 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // folder into the row and records the agreement, over the sheet the person
   // read. Main refuses a stale hash and writes nothing.
   allowWrites: (input) => invoke('machines:allowWrites', input),
-  // Phase 101. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the third call on
-  // this bridge that can. Main asks the confirm gate, refuses a machine with no
-  // confirmed folder, refuses a file that is too large and refuses a path
+  // Phase 101. THIS ONE WRITES ON ANOTHER COMPUTER, and it was the third call on
+  // this bridge that could. Main asks the confirm gate, refuses a machine with
+  // no confirmed folder, refuses a file that is too large and refuses a path
   // outside that folder, all before anything is sent.
-  putFile: (input) => invoke('machines:putFile', input)
+  putFile: (input) => invoke('machines:putFile', input),
   // ---- END PHASE 101 BLOCK ----
+  // ---- PHASE 102 BLOCK ----
+  // Phase 102. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the fourth call
+  // on this bridge that can. It makes ONE folder, with no `-p`, under the same
+  // confirmed folder a save is bounded by. Main asks the confirm gate, refuses
+  // a machine with no confirmed folder and refuses a path outside that folder,
+  // all before anything is sent. No folder chosen here decides what is written
+  // under, because main reads the confirmed one off the row.
+  makeDir: (input) => invoke('machines:makeDir', input),
+  // Phase 102. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the fifth. It
+  // renames ONE file or folder with one `mv`, and BOTH paths are checked
+  // against the confirmed folder before anything is composed. The machine
+  // tests the destination before it moves, and between that test and the move
+  // another writer on that machine can create the destination.
+  renameEntry: (input) => invoke('machines:renameEntry', input)
+  // ---- END PHASE 102 BLOCK ----
 };

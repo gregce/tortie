@@ -1766,6 +1766,115 @@ process.stdout.write(
       })()
     },
 
+    // --- Phase 102, conditions 50b, 81 and 82 ------------------------------
+    // PURE. It reads two compiled script texts and three source files as text.
+    // It starts nothing, opens no file under the person's home, contacts no
+    // machine and makes no request.
+    phase102: (() => {
+      const textOf = (id: string): string =>
+        REMOTE_SCRIPTS.find((row) => row.id === id)?.text ?? '';
+      /**
+       * The `guard`, `guardAt` and `firstUseAt` triple, per guarded value.
+       *
+       * It is the same triple the probe already emits for `reviewFile`, once
+       * per value, because a line that guards `$2` says nothing about `$3`.
+       * `firstUseAt` skips every `case ` line, so the guard is never counted as
+       * a use of what it guards.
+       */
+      const guardTriple = (id: string, value: string) => {
+        const lines = textOf(id).split('\n');
+        return {
+          id,
+          value,
+          guard:
+            lines.find(
+              (line) => line.startsWith('case ') && line.includes(`"${value}"`)
+            ) ?? null,
+          guardAt: lines.findIndex(
+            (line) => line.startsWith('case ') && line.includes(`"${value}"`)
+          ),
+          firstUseAt: lines.findIndex(
+            (line) => line.includes(value) && !line.startsWith('case ')
+          )
+        };
+      };
+      const entryPath = join(machinesDir, 'remote-entry.ts');
+      let entrySource = '';
+      let entryPresent = true;
+      try {
+        entrySource = readFileSync(entryPath, 'utf8');
+      } catch {
+        entryPresent = false;
+      }
+      const ipcSource = readFileSync(join(machinesDir, 'ipc.ts'), 'utf8');
+      const contractSource = readFileSync(
+        join(repoRoot, 'src', 'shared', 'ipc', 'machines.ts'),
+        'utf8'
+      );
+      // The two input types, read as text, so "no root crosses" is checkable
+      // rather than claimed. A member called `root` on either one would let a
+      // folder chosen in the renderer decide what is written under.
+      const rootMembers: string[] = [];
+      for (const name of ['MachineMakeDirInput', 'MachineRenameInput']) {
+        const at = contractSource.indexOf(`export interface ${name} {`);
+        if (at < 0) {
+          rootMembers.push(`${name} is not in the contract`);
+          continue;
+        }
+        const body = contractSource.slice(at, contractSource.indexOf('\n}', at));
+        if (/^\s*(readonly\s+)?root[?]?:/m.test(body)) rootMembers.push(name);
+      }
+      const sendAt = entrySource.indexOf('runRemoteWrite(');
+      return {
+        guards: [
+          guardTriple('dir-new', '$2'),
+          guardTriple('entry-rename', '$2'),
+          guardTriple('entry-rename', '$3')
+        ],
+        catalogue: ['dir-new', 'entry-rename'].map((id) => {
+          const row = REMOTE_SCRIPTS.find((one) => one.id === id);
+          return {
+            id,
+            mode: row?.mode ?? 'missing',
+            params: row?.params ?? -1,
+            bytes: (row?.text ?? '').length,
+            fits: (row?.text ?? '').length <= REMOTE_SCRIPT_MAX_BYTES,
+            // The two safe to run twice literals, and the two absences.
+            testsBeforeWriting:
+              id === 'dir-new'
+                ? (row?.text ?? '').includes('if [ -e "$d" ]; then')
+                : (row?.text ?? '').includes('[ -e "$t" ]'),
+            recursive: (row?.text ?? '').includes('mkdir -p'),
+            forced: (row?.text ?? '').includes('mv -f'),
+            chmods: [...(row?.text ?? '').matchAll(/chmod [^\n]*/g)].map(
+              (hit) => hit[0] ?? ''
+            )
+          };
+        }),
+        module: {
+          present: entryPresent,
+          // The three checks that all have to stand above the one send.
+          gateAt: entrySource.indexOf('confirmedWriteRoot('),
+          rootAt: entrySource.indexOf('writeRoot'),
+          containAt: entrySource.indexOf('relativeUnderRoot('),
+          containCalls: [...entrySource.matchAll(/relativeUnderRoot\(/g)].length,
+          sendAt,
+          namesWriteDoor: sendAt >= 0,
+          forbiddenDoors: ['runRemoteRead', 'execRemoteShell'].filter((one) =>
+            entrySource.includes(one)
+          ),
+          importsManifest: /from '\.\.\/manifest\//.test(entrySource),
+          rootMembers,
+          handlerMakeDir:
+            ipcSource.includes("'machines:makeDir'") &&
+            ipcSource.includes('makeRemoteDir(input)'),
+          handlerRename:
+            ipcSource.includes("'machines:renameEntry'") &&
+            ipcSource.includes('renameRemoteEntry(input)')
+        }
+      };
+    })(),
+
     // --- Phase 98, condition 52 --------------------------------------------
     // Pure. It reads one compiled script text and one compiled number. It
     // starts nothing, opens no file under the person's home and contacts no

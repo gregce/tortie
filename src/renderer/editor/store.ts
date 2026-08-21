@@ -58,7 +58,12 @@ import { onRepoChanged } from '../state/repo-changed';
 import type { OpenFileRequest } from '../state/open-file';
 import { disposeModels, dropViewState } from './monaco-loader';
 import type { EditorMode, EditorTab } from './tab-types';
-import { fileInRepo, leftPathFor, tabIdFor } from './tab-identity';
+import {
+  fileInRepo,
+  leftPathFor,
+  remoteTabId,
+  tabIdFor
+} from './tab-identity';
 import { createTabIo } from './tab-io';
 // Direct module import, not the ./markdown barrel: the barrel re-exports the
 // preview component, whose skeleton comes from MonacoHost, which imports this
@@ -332,10 +337,11 @@ export const useEditor = create<EditorState>((set, get) => {
       // not hypothetical: in the phase's own probes the far side IS this Mac,
       // so `/tmp/scratch/a.ts` names a real file here as well as there.
       //
-      // The rule is written here rather than in ./tab-identity.ts because that
-      // file belongs to no builder in this phase and three builders were
-      // writing this tree at once. The integrator moves it, and the answer
-      // does not change when it does.
+      // The rule WAS written here rather than in ./tab-identity.ts because that
+      // file belonged to no builder in Phase 73 and three builders were writing
+      // this tree at once. PHASE 102 MOVED IT, because a rename on a machine is
+      // a second caller that has to compose the same string, and a tab rekeyed
+      // to a bare absolute path would collide with a local tab at that path.
       //
       // PHASE 90.3 ADDED THE REPOSITORY PATH. The key was
       // `machine:<machineId>:<relPath>`, which is the collision research 55
@@ -347,7 +353,7 @@ export const useEditor = create<EditorState>((set, get) => {
       const id =
         req.remote === undefined
           ? tabIdFor(req)
-          : `machine:${req.remote.machineId}:${req.remote.repoPath}:${req.relPath}`;
+          : remoteTabId(req.remote.machineId, req.remote.repoPath, req.relPath);
       const now = Date.now();
       const redoubled = lastOpen.id === id && now - lastOpen.at < DOUBLE_OPEN_MS;
       lastOpen = { id, at: now };

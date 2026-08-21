@@ -50,8 +50,9 @@
  * · the persisted expansion key is the TARGET's key, so two machines holding
  *   the same path keep two sets;
  * · nothing is dimmed, because `git check-ignore` reads this Mac;
- * · dragging is refused at the source, because a drag means MOVE and there is
- *   no write script for another machine;
+ * · dragging is refused at the source, because a drag arms the terminal pane's
+ *   attach contract with ABSOLUTE paths and one from another machine names a
+ *   file on this Mac or nothing at all;
  * · four verbs are in the menu and the rest are absent (see tree-menu.ts);
  * · Copy Path puts the machine in front of the path;
  * · an open carries the remote reference, so the editor reads both sides from
@@ -66,6 +67,13 @@
  * another machine in both states, dragging is still refused at the source, and
  * a tab opened from such a tree is an edit surface only because that machine
  * carries a folder, never because the tab was opened from here.
+ *
+ * ── PHASE 102, two more of those verbs cross ──────────────────────────────
+ * New Folder and Rename join New File on the same `remote.writeRoot` branch.
+ * A create of a folder lands over there through `machines.makeDir` and a
+ * rename through `machines.renameEntry`. Duplicate and Move to Trash are
+ * still absent in both states, and dragging is still refused at the source
+ * for the reason above, which does not expire with a write script.
  *
  * Model options are captured ONCE (usePierreModel snapshots them on the first
  * render), so every callback below reads the live state through a ref.
@@ -98,7 +106,11 @@ import { isProtectedFsPath } from '@shared/fs-ops';
 import { targetKey, workspaceTarget } from '@shared/workspace-target';
 import type { OpenWithApps, OpenWithHandler } from '@shared/ipc';
 import type { FsDirEntry, GitFileStatus } from '@shared/types';
-import type { MachineFilePutResult } from '@shared/ipc';
+import type {
+  MachineFilePutResult,
+  MachineMakeDirResult,
+  MachineRenameResult
+} from '@shared/ipc';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import {
@@ -132,6 +144,11 @@ import { expandedDirs, headerDestDir } from './header-actions';
 import { ignoredDotSuppressionCss, ignoredOnlyAncestors, useTreeIgnored } from './ignored';
 import { requestOpenFile } from './open-file';
 import { FOLDER_ICON_CSS, getPierreTreeIcons } from './pierre-icons';
+import {
+  canWriteEntries,
+  makeDir as makeRemoteDir,
+  renameEntry as renameRemoteEntry
+} from './remote-bridge';
 import { resolveTreeEditor } from './rename-view';
 import type { TreeEditorBridge } from './rename-view';
 import { useFileTree } from './store';
@@ -329,10 +346,13 @@ export function FileTree({
    * writes no sentence of its own.
    *
    * PHASE 101 ADDED `writeRoot`, being the folder on that machine a person
-   * confirmed Tortie may replace a file under, or null when they confirmed
-   * none. It decides one menu item and one write path, and it decides nothing
-   * about what may be written: main reads the confirmed folder off the row on
-   * disk at call time and refuses there.
+   * confirmed Tortie may change files under, or null when they confirmed none.
+   *
+   * PHASE 102 GAVE IT TWO MORE VERBS. It decides three now rather than one,
+   * being New File, New Folder and Rename, and it still decides nothing about
+   * what may be written: main reads the confirmed folder off the row on disk at
+   * call time, checks every path this component names against it, and refuses
+   * there. Nothing chosen here can widen what may be written.
    */
   remote: {
     machineId: string;
@@ -366,12 +386,36 @@ export function FileTree({
   /**
    * PHASE 101. The folder on that machine Tortie may write a file under, or
    * null. Null for every folder on this Mac, and null for a machine nobody has
-   * confirmed a folder for, which is every machine before this phase.
+   * confirmed a folder for, which is every machine before that phase.
    */
   const remoteWriteRoot =
     remote !== null && remote.writeRoot !== null && remote.writeRoot.length > 0
       ? remote.writeRoot
       : null;
+  /**
+   * PHASE 102. May a rename gesture start on this tree at all?
+   *
+   * THE DEFECT THIS CLOSES was reachable in every build from Phase 90.3 to
+   * Phase 101. `renaming.canRename` asked whether the verbs existed and whether
+   * the path was protected, and it never asked which computer the row was on.
+   * `createTreeOps` is called for every mounted root, a machine's included, so
+   * F2 on a row of a folder on another machine opened the inline editor, and
+   * committing it reached `fsOps.rename` against a path that is not on this
+   * Mac. The menu never offered Rename, so the keyboard was the only way in.
+   *
+   * A tree on this Mac answers true, exactly as before. A tree on a machine
+   * answers true only when that machine carries a confirmed folder and this
+   * build can reach the channel, and the commit then lands on
+   * `machines:renameEntry` and never on `fs:rename`.
+   *
+   * It is read through a ref because @pierre/trees captures its options once at
+   * construction, and a person can confirm a folder in Settings while this tree
+   * is mounted.
+   */
+  const canRenameHere =
+    !isRemote || (remoteWriteRoot !== null && canWriteEntries());
+  const canRenameHereRef = useRef(canRenameHere);
+  canRenameHereRef.current = canRenameHere;
   const storeKey = useMemo(
     () => storageKeyFor(rootPath, remote?.machineId ?? null),
     [rootPath, remote]
@@ -461,10 +505,13 @@ export function FileTree({
    */
   const canDrag = useCallback(
     (paths: readonly string[]): boolean => {
-      // PHASE 90.3. A drag out of this tree means MOVE, and there is no write
-      // script for another machine. Refusing at the SOURCE is what keeps the
-      // gesture from also arming the terminal pane's ATTACH contract with a
-      // path that names nothing on this Mac.
+      // PHASE 90.3, and PHASE 102 REWROTE THE REASON. It read "there is no
+      // write script for another machine", and Phase 102 shipped one that
+      // moves an entry. The refusal stays, and its reason is the second half
+      // alone. `beginTreeDrag` arms the terminal pane's ATTACH contract with
+      // ABSOLUTE paths, and an absolute path from another machine names a file
+      // on this Mac or nothing at all. Refusing at the SOURCE is what keeps a
+      // drag from arming that contract. The drop half refuses again below.
       if (isRemote) return false;
       const ops = opsRef.current;
       if (ops === null || paths.some(isProtectedFsPath)) return false;
@@ -552,7 +599,9 @@ export function FileTree({
       // the inline name editor. A refusal stamps nothing.
       canRename: (item) => {
         const allowed =
-          opsRef.current !== null && !isProtectedFsPath(item.path);
+          opsRef.current !== null &&
+          !isProtectedFsPath(item.path) &&
+          canRenameHereRef.current;
         if (allowed) sanctionFilterClose();
         return allowed;
       },
@@ -779,6 +828,29 @@ export function FileTree({
               await useFileTree.getState().refreshLoaded();
             }
           };
+    // PHASE 102. The sibling member that says where a new folder and a rename
+    // land. It is built under the same condition as the create above, and it is
+    // absent for a folder on this Mac, for a machine nobody confirmed a folder
+    // for, and for a build whose preload predates the two channels.
+    const remoteEntry =
+      machineId === null || remoteWriteRoot === null || !canWriteEntries()
+        ? undefined
+        : {
+            machineId,
+            makeDir: async (
+              absPath: string
+            ): Promise<MachineMakeDirResult> =>
+              makeRemoteDir({ machineId, path: absPath }),
+            renameEntry: async (
+              fromAbs: string,
+              toAbs: string,
+              kind: 'file' | 'dir'
+            ): Promise<MachineRenameResult> =>
+              renameRemoteEntry({ machineId, from: fromAbs, to: toAbs, kind }),
+            refresh: async (): Promise<void> => {
+              await useFileTree.getState().refreshLoaded();
+            }
+          };
     opsRef.current = createTreeOps({
       rootPath,
       model,
@@ -789,7 +861,8 @@ export function FileTree({
       hold,
       renameView: () => editorBridge()?.view ?? null,
       selectOnly: (canonical) => editorBridge()?.selectOnly(canonical),
-      ...(remoteCreate === undefined ? {} : { remoteCreate })
+      ...(remoteCreate === undefined ? {} : { remoteCreate }),
+      ...(remoteEntry === undefined ? {} : { remoteEntry })
     });
     setOpsCreated((n) => n + 1);
     return () => {
@@ -1460,7 +1533,16 @@ export function FileTree({
           // because `mutate` gates five verbs and only this one has a script
           // on the far side.
           remoteCreateFile:
-            isRemote && ops !== null && remoteWriteRoot !== null
+            isRemote && ops !== null && remoteWriteRoot !== null,
+          // PHASE 102. A second flag for the two entry verbs, and it reads the
+          // channel as well as the folder. A build whose preload predates this
+          // phase leaves New Folder and Rename off a remote row rather than
+          // offering a verb it cannot carry out.
+          remoteWriteEntries:
+            isRemote &&
+            ops !== null &&
+            remoteWriteRoot !== null &&
+            canWriteEntries()
         },
         {
           open: (path, keep) => {

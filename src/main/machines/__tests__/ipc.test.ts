@@ -327,6 +327,15 @@ describe('every channel is registered, and only the ones listed here', () => {
       // to the machine. Nothing calls it on a clock.
       'machines:listTree',
       // ---- END PHASE 90.3 ----
+      // ---- PHASE 102 ----
+      // The FOURTH write this product can make on another computer. It makes
+      // one folder under the same confirmed folder a save is bounded by, with
+      // one non recursive mkdir and one chmod capped at 755 or 700. Main asks
+      // the confirm gate, refuses a machine with no confirmed folder and
+      // refuses a path outside that folder, all before anything is composed. No
+      // folder chosen in the renderer crosses it.
+      'machines:makeDir',
+      // ---- END PHASE 102 ----
       // Phase 69's one new channel. It starts something on another machine, and
       // it is the only channel in the product that does.
       'machines:prepare',
@@ -393,6 +402,14 @@ describe('every channel is registered, and only the ones listed here', () => {
       // ---- END PHASE 100 ----
       'machines:reload',
       'machines:remove',
+      // ---- PHASE 102 ----
+      // The FIFTH write this product can make on another computer. It renames
+      // one file or folder with one mv, and BOTH paths are checked against the
+      // confirmed folder before anything is composed. The machine tests the
+      // destination before it moves, and between that test and the move another
+      // writer on that machine can create the destination.
+      'machines:renameEntry',
+      // ---- END PHASE 102 ----
       // ---- PHASE 73 BLOCK C ----
       // Two READS of one folder on one machine. Neither writes anything on
       // either computer, and both refuse while Tortie is not connected to the
@@ -1477,6 +1494,51 @@ describe('the three channels of Phase 101', () => {
     expect(view.writeRoot).toBeNull();
     expect(view.state).toBe('never');
     expect(machineRow('pop-os')?.writeRoot).toBeUndefined();
+  });
+
+  it('refuses a folder and a rename on a machine nobody confirmed', async () => {
+    // PHASE 102. Both new writes ask the confirm gate FIRST, before the folder
+    // is even read, for the same reason the save does: they are the two other
+    // channels that read a value out of the row on disk at call time and act on
+    // it. Neither spawns anything on the way to refusing.
+    await expect(
+      (async () =>
+        call<Promise<unknown>>('machines:makeDir', {
+          machineId: 'pop-os',
+          path: `${ROOT}/new`
+        }))()
+    ).rejects.toThrow(/nobody has confirmed it/);
+    await expect(
+      (async () =>
+        call<Promise<unknown>>('machines:renameEntry', {
+          machineId: 'pop-os',
+          from: `${ROOT}/a.ts`,
+          to: `${ROOT}/b.ts`,
+          kind: 'file'
+        }))()
+    ).rejects.toThrow(/nobody has confirmed it/);
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('refuses both new writes for a machine that is not in the file', async () => {
+    await expect(
+      (async () =>
+        call<Promise<unknown>>('machines:makeDir', {
+          machineId: 'nowhere',
+          path: `${ROOT}/new`
+        }))()
+    ).rejects.toThrow(/There is no machine called nowhere/);
+    await expect(
+      (async () =>
+        call<Promise<unknown>>('machines:renameEntry', {
+          machineId: 'nowhere',
+          from: `${ROOT}/a.ts`,
+          to: `${ROOT}/b.ts`,
+          kind: 'file'
+        }))()
+    ).rejects.toThrow(/There is no machine called nowhere/);
+    expect(spawned).toHaveLength(0);
   });
 
   it('refuses a save on a machine nobody confirmed, and sends nothing', async () => {

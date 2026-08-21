@@ -26,6 +26,21 @@
  * file whose contents Tortie did not just verify by checksum. Rule 6 below says
  * three rather than two and says which promise changed.
  *
+ * PHASE 102 ADDED TWO MORE, and both are writes. They are the FOURTH and the
+ * FIFTH. `dir-new` makes one folder under the same confirmed folder `file-put`
+ * saves under, with one non recursive `mkdir` and one `chmod` capped at two
+ * modes. `entry-rename` renames one file or one folder under that same folder,
+ * with one `mv` guarded by a test on the destination and by a device and inode
+ * comparison that closes the case only rename. Rule 6 below says five rather
+ * than three and says what each new one promises.
+ *
+ * WHAT PHASE 102 CANNOT PROMISE, said here rather than left implied. Between
+ * `entry-rename`'s test and its `mv` another writer on that machine can create
+ * the destination, and the `mv` then replaces it. The gate reads text and
+ * cannot see a race. And the two new writers carry a WIDER containment line
+ * than `file-put` does, being the line with the `.git` half in it, so `.git` is
+ * guarded on them and not on `file-put`.
+ *
  * PHASE 98 ADDED ONE MORE, and it is a read. `repo-search` prints every
  * matching line in one folder on a machine, using that machine's own `grep`.
  * Research 57 section 2 measured the alternatives and refused both of them.
@@ -152,15 +167,26 @@
  *  5. A `read` script names none of `rm`, `mv`, `cp`, `mkdir`, `touch`,
  *     `chmod`, `chown`, `ln`, `dd`, `tee` or `truncate` as a command, and every
  *     `>` in it is part of `2>/dev/null`.
- *  6. THREE scripts have `mode: 'write'`, and they are `image-put`,
- *     `git-clone` and `file-put`, in that order. Phase 90.2 moved that number
- *     from one to two and Phase 101 moved it from two to three, once and on
- *     purpose each time, because putting a project on a machine is a write and
- *     so is saving a file a person is editing, and there is no honest way to
- *     write either as a read. The three carry SEPARATE redirection rules rather
- *     than one shared rule, because they are different shapes: every `>` in
- *     `image-put` and in `file-put` aims at the temporary name, and every `>`
- *     in `git-clone` aims at `/dev/null`.
+ *  6. FIVE scripts have `mode: 'write'`, and they are `image-put`,
+ *     `git-clone`, `file-put`, `dir-new` and `entry-rename`, in that order.
+ *     Phase 90.2 moved that number from one to two, Phase 101 moved it from two
+ *     to three and Phase 102 moved it from three to five, once and on purpose
+ *     each time, because putting a project on a machine is a write, so is
+ *     saving a file a person is editing, so is making a folder and so is
+ *     renaming one, and there is no honest way to write any of them as a read.
+ *     The five carry SEPARATE redirection rules rather than one shared rule,
+ *     because they are different shapes: every `>` in `image-put` and in
+ *     `file-put` aims at the temporary name, every `>` in `git-clone` aims at
+ *     `/dev/null`, and `dir-new` and `entry-rename` carry no redirection at all
+ *     beyond the `2` in `2>/dev/null`.
+ *
+ *     WHAT PHASE 102 ADDED TO THE TWO IT ADDED, and did not add anywhere else.
+ *     Both carry the wider containment line from
+ *     `docs/research/57-i3-file-writes.md` section 12, which holds a `.git`
+ *     half, and `entry-rename` carries it twice because the line names the
+ *     value it guards. `file-put` keeps `review-file`'s narrower line, so
+ *     `.git` is guarded on the two new writers and NOT on `file-put`. Widening
+ *     a shipped writer with pinned gate literals is its own round.
  *
  *     THE PROMISE THAT CHANGED IN PHASE 101, said plainly rather than left for
  *     a reader to notice. Until Phase 101 all writers refused a destination
@@ -230,20 +256,28 @@
  * because it writes nothing. Each row's `reason` says so in its own words, the
  * same way a verb ledger row does.
  *
- * THE THREE WRITES ARE SAFE TO RUN TWICE FOR TWO DIFFERENT REASONS, and the
+ * THE FIVE WRITES ARE SAFE TO RUN TWICE FOR THREE DIFFERENT REASONS, and the
  * sentence that once covered them all said "the one write is safe to run twice
  * because it never opens a file that is already there". That was already false
- * at two writers and Phase 101 rewrites it rather than leaving it.
+ * at two writers, Phase 101 rewrote it rather than leaving it, and Phase 102
+ * adds the third reason.
  *
- *  - `image-put` and `git-clone` never open a destination that is already
- *    there. A repeat finds the file or the folder and answers `present` or
- *    `exists` without writing.
+ *  - `image-put`, `git-clone` and `dir-new` never open a destination that is
+ *    already there. A repeat finds the file or the folder and answers
+ *    `present`, `exists` or `exists` without writing.
  *  - `file-put` replaces a file on purpose, so it cannot make that promise on
  *    its checksum arm. A repeat after a lost answer finds the file already
  *    carrying the checksum of the payload and answers `stale` with that
  *    checksum, and `./remote-file.ts` reads that as the write having landed. So
  *    a repeat writes one file rather than refusing. Its `new` arm keeps the
  *    older promise in full.
+ *  - `entry-rename` is safe to run twice by END STATE rather than by refusal. A
+ *    repeat finds the source gone and the destination there and answers `done`,
+ *    having run no `mv`. The machine then holds what the person asked for and it
+ *    got there once. WHAT `done` CANNOT TELL APART is a repeat of Tortie's own
+ *    move and a machine where somebody else already held a file at the
+ *    destination while the source never existed. The product does not pretend
+ *    to distinguish them.
  *
  * ## The size limit, measured against a documented number rather than guessed
  *
@@ -2067,18 +2101,232 @@ const FILE_PUT = [
 ].join('\n');
 
 /**
- * The whole catalogue. Twenty scripts, and this release holds no others.
+ * The containment line the two Phase 102 writers carry, once per guarded value.
+ *
+ * IT IS WIDER THAN `file-put`'s AND THAT DIFFERENCE IS DELIBERATE.
+ * `docs/research/57-i3-file-writes.md` section 12 rules this exact string for a
+ * write. `review-file` carries the narrower `case "$2" in /*|*..*) exit 1;; esac`
+ * because it is a read, and `file-put` shipped in Phase 101 carrying that same
+ * narrower line. Phase 102 adds the `.git` half to the two writers it adds and
+ * does NOT widen a shipped writer, so `.git` is guarded here and not on
+ * `file-put`.
+ *
+ * There are two constants rather than one because the line names the value it
+ * guards. `entry-rename` has two guarded values and it carries both lines.
+ * `build/conformance-machines.mjs` pins both strings byte for byte as
+ * `WRITE_PATH_GUARD`, and it also asserts each line stands above the first line
+ * that uses the value it guards.
+ *
+ * The `*..*` half refuses a real name holding two dots in a row, e.g.
+ * `notes..md`. That false refusal is taken on purpose and `review-file` already
+ * takes it.
+ */
+const WRITE_PATH_GUARD_2 =
+  'case "$2" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac';
+
+/** The same line for `$3`, which only `entry-rename` has. */
+const WRITE_PATH_GUARD_3 =
+  'case "$3" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac';
+
+/**
+ * The fourth write. One new folder under one confirmed folder (Phase 102).
+ *
+ * `$1` is the confirmed folder. `$2` is the new folder's path relative to it.
+ * It answers `made`, `exists`, `denied` or `noparent`, and it answers with two
+ * fields always, with `none` for a field that has no value. That is
+ * `git-clone`'s rule and `parseImagePutAnswer`'s rule. A short answer is a
+ * machine that printed something else, and reading one field out of it would be
+ * a guess. The one exception is `made` on a machine whose `stat` said nothing,
+ * where the second field is empty and the parser reads it as null.
+ *
+ * ## Seven properties of this text, and each one is a rule the gate reads
+ *
+ *  1. THE PARENT IS COMPUTED ON THE FAR SIDE AND NO PROGRAM FINDS IT.
+ *     `p="${d%/*}"` is POSIX parameter expansion. No `dirname` crosses the link
+ *     and no third parameter is needed.
+ *  2. `mkdir` CARRIES NO `-p`. A recursive make would create folders nobody
+ *     named, and the gate asserts the absence of `-p`.
+ *  3. AN EMPTY `$2` IS DETERMINED RATHER THAN SPECIAL. It makes `d="$1/"`,
+ *     `${d%/*}` resolves to `"$1"`, the `-d` test passes, the `-e` test on
+ *     `"$1/"` answers yes and the script answers `exists`. Nothing is created
+ *     and no guard has to widen for it.
+ *  4. THE ORDER IS PARENT, THEN DESTINATION, THEN WRITABILITY. A parent that is
+ *     gone answers `noparent` before anything else, because that is the state a
+ *     person reaches from a tree read a minute ago.
+ *  5. THE MODE IS CAPPED AT TWO VALUES AND NOTHING ELSE CAN BE PRODUCED.
+ *     `*[57][57]` matches a mode whose last two octal digits are each 5 or 7,
+ *     which is read and execute for group and for other. Everything else, an
+ *     unreadable mode included, takes 700. No set user id bit and no set group
+ *     id bit can be produced, because the two `chmod` arguments are literals. A
+ *     machine that answers with neither `stat` spelling takes the 700 branch and
+ *     the script still answers `made`.
+ *  6. THE ANSWER CARRIES THE PARENT'S MODE rather than the new folder's, so a
+ *     verifier can compare what Tortie decided against what `ls -ld` shows
+ *     without a second call.
+ *  7. IT IS SAFE TO RUN TWICE. A second run with the same two values finds the
+ *     folder the first run made and answers `exists` with no `mkdir`. It cannot
+ *     empty the folder, cannot re-create it and cannot change its mode.
+ *
+ * A `mkdir` that fails anyway, e.g. two callers racing, ends the script under
+ * `set -e` with no marker printed. The door then throws its "nothing usable
+ * between the markers" refusal, and that is a state the product cannot describe
+ * precisely.
+ *
+ * ## The containment line here is WIDER than `file-put`'s
+ *
+ * `docs/research/57-i3-file-writes.md` section 12 rules the write line, and it
+ * carries a `.git` half that `review-file`'s line does not. `file-put` shipped
+ * with `review-file`'s narrower line and Phase 102 does not widen a shipped
+ * writer, so `.git` is guarded here and on `entry-rename` and NOT on
+ * `file-put`. That is said out loud rather than left for a reader to notice.
+ *
+ * The `*..*` half refuses a real name holding two dots in a row, e.g.
+ * `notes..md`. That false refusal is taken on purpose and `review-file` already
+ * takes it.
+ */
+const DIR_NEW = [
+  'set -e',
+  'umask 077',
+  'case "$1" in /*) ;; *) exit 1;; esac',
+  'case "$1" in *..*) exit 1;; esac',
+  WRITE_PATH_GUARD_2,
+  'd="$1/$2"',
+  'p="${d%/*}"',
+  'if [ ! -d "$p" ]; then',
+  "  printf '__TORTIE_RUN__noparent none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
+  'if [ -e "$d" ]; then',
+  "  printf '__TORTIE_RUN__exists none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
+  'if [ ! -w "$p" ]; then',
+  "  printf '__TORTIE_RUN__denied none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
+  'm=$(stat -f %Lp "$p" 2>/dev/null || true)',
+  'if [ -z "$m" ]; then m=$(stat -c %a "$p" 2>/dev/null || true); fi',
+  'mkdir "$d"',
+  'case "$m" in',
+  '  *[57][57]) chmod 755 "$d";;',
+  '  *) chmod 700 "$d";;',
+  'esac',
+  "printf '__TORTIE_RUN__made %s__TORTIE_RUN__\\n' \"$m\""
+].join('\n');
+
+/**
+ * The fifth write. One rename inside one confirmed folder (Phase 102).
+ *
+ * `$1` is the confirmed folder. `$2` is the path the entry has now and `$3` is
+ * the path wanted, both relative to it. It answers `moved`, `done`, `exists` or
+ * `gone`, with two fields always.
+ *
+ * ## The five branches, which are the whole safe to run twice argument
+ *
+ * | `$2` | `$3` | What runs | Answer |
+ * | --- | --- | --- | --- |
+ * | there | absent | one `mv` | `moved` |
+ * | there | there, same device and inode | one `mv` | `moved` |
+ * | there | there, a different entry | nothing | `exists` |
+ * | absent | there | nothing | `done` |
+ * | absent | absent | nothing | `gone` |
+ *
+ * ## Five properties of this text
+ *
+ *  1. PRESENCE IS `[ -e "$x" ] || [ -L "$x" ]`. `-e` alone answers no for a
+ *     dangling symbolic link, and the script would then say `gone` about a link
+ *     that is really there.
+ *  2. ROW TWO IS THE CASE ONLY RENAME AND IT IS CLOSED HERE. The far side
+ *     compares the device and the inode of both paths with the two `stat`
+ *     spellings `STORE_LIST` already carries. `sameEntry` in
+ *     `../fs/file-ops.ts` exists for the same reason on this Mac. Without it a
+ *     person renaming `README.md` to `readme.md` on a case insensitive volume is
+ *     told the name is taken.
+ *  3. AN UNREADABLE DEVICE AND INODE ANSWERS `exists`. When `$a` is empty the
+ *     script refuses rather than moving. A refusal is the safe answer when the
+ *     machine will not say whether the two paths are one entry.
+ *  4. `mv` CARRIES NO `-f`, and the gate asserts its absence.
+ *  5. A SECOND RUN WITH THE SAME THREE VALUES ANSWERS `done`. The end state on
+ *     that machine is the one the person asked for and it was reached once.
+ *
+ * ## What `done` cannot tell apart, and the race, both said out loud
+ *
+ * `done` cannot tell a repeat of Tortie's own move apart from a machine where
+ * somebody else already held a file at the destination while the source never
+ * existed. Both leave the person looking at the end state they asked for. The
+ * product cannot distinguish them and does not pretend to.
+ *
+ * BETWEEN THE `-e` TEST AND THE `mv` THERE IS A WINDOW. An agent working in
+ * that folder on that machine can create the destination in it, and the `mv`
+ * then replaces what that agent made. There is no command in a POSIX shell that
+ * renames and refuses an existing destination in one step. `ln` followed by an
+ * unlink would be atomic and it is refused, because the unlink half is `rm` and
+ * this product does not send `rm` to another computer. Whether `mv -n` narrows
+ * the window is measured by nobody and no number for it exists in this
+ * repository. `build/conformance-machines.mjs` reads text and cannot see a
+ * race, so what the gate checks is that the text tests before it moves.
+ *
+ * THE CROSS FILESYSTEM HAZARD IS OPEN AND NO DEVICE CHECK IS BUILT. `mv` across
+ * filesystems copies and unlinks and is not atomic, so a repeat after a lost
+ * answer can leave a partial copy. The shipped surface is a rename inside one
+ * folder, so no surface in this product can reach a cross device move.
+ *
+ * ## The containment line is carried twice, once per guarded value
+ *
+ * The line names the value it guards, so `$3` gets its own copy spelled
+ * `case "$3" in ...`. Either path outside the confirmed folder refuses the whole
+ * call, in main and again here.
+ */
+const ENTRY_RENAME = [
+  'set -e',
+  'umask 077',
+  'case "$1" in /*) ;; *) exit 1;; esac',
+  'case "$1" in *..*) exit 1;; esac',
+  WRITE_PATH_GUARD_2,
+  WRITE_PATH_GUARD_3,
+  's="$1/$2"',
+  't="$1/$3"',
+  'sp=0',
+  'tp=0',
+  'if [ -e "$s" ] || [ -L "$s" ]; then sp=1; fi',
+  'if [ -e "$t" ] || [ -L "$t" ]; then tp=1; fi',
+  'if [ "$sp" = 0 ] && [ "$tp" = 1 ]; then',
+  "  printf '__TORTIE_RUN__done none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
+  'if [ "$sp" = 0 ]; then',
+  "  printf '__TORTIE_RUN__gone none__TORTIE_RUN__\\n'",
+  '  exit 0',
+  'fi',
+  'if [ "$tp" = 1 ]; then',
+  "  a=$(stat -f '%d %i' \"$s\" 2>/dev/null || true)",
+  '  if [ -z "$a" ]; then a=$(stat -c \'%d %i\' "$s" 2>/dev/null || true); fi',
+  "  b=$(stat -f '%d %i' \"$t\" 2>/dev/null || true)",
+  '  if [ -z "$b" ]; then b=$(stat -c \'%d %i\' "$t" 2>/dev/null || true); fi',
+  '  if [ -z "$a" ] || [ "$a" != "$b" ]; then',
+  "    printf '__TORTIE_RUN__exists none__TORTIE_RUN__\\n'",
+  '    exit 0',
+  '  fi',
+  'fi',
+  'mv "$s" "$t"',
+  "printf '__TORTIE_RUN__moved none__TORTIE_RUN__\\n'"
+].join('\n');
+
+/**
+ * The whole catalogue. Twenty two scripts, and this release holds no others.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * THREE of the twenty write, being `image-put`, `git-clone` and `file-put`, and
- * they are in that order in this array. {@link remoteWriteScripts} returns them
- * in it. PHASE 98 ADDED A READ AND LEFT THAT NUMBER ALONE. SO DID PHASE 99,
- * PHASE 105, PHASE 106, PHASE 107, PHASE 108 AND PHASE 109. PHASE 101 MOVED IT
- * FROM TWO TO THREE, once and on purpose, because saving a file a person is
- * editing is a write and there is no honest way to write it as a read.
+ * FIVE of the twenty two write, being `image-put`, `git-clone`, `file-put`,
+ * `dir-new` and `entry-rename`, and they are in that order in this array.
+ * {@link remoteWriteScripts} returns them in it. PHASE 98 ADDED A READ AND LEFT
+ * THAT NUMBER ALONE. SO DID PHASE 99, PHASE 105, PHASE 106, PHASE 107, PHASE
+ * 108 AND PHASE 109. PHASE 101 MOVED IT FROM TWO TO THREE, once and on purpose,
+ * because saving a file a person is editing is a write and there is no honest
+ * way to write it as a read. PHASE 102 MOVED IT FROM THREE TO FIVE, once and on
+ * purpose, because making a folder is a write and so is renaming a file.
  */
 export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
@@ -2260,6 +2508,30 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'answers stale with that checksum, and Tortie reads that as the write ' +
       'having landed, so a repeat after a lost answer writes one file rather ' +
       'than refusing. The new arm refuses a destination that is already there.'
+  },
+  {
+    id: 'dir-new',
+    mode: 'write',
+    params: 2,
+    text: DIR_NEW,
+    reason:
+      'A second run with the same two values finds the folder the first run ' +
+      'made and answers exists with no mkdir. It cannot empty that folder, ' +
+      'cannot re-create it and cannot change its mode.'
+  },
+  {
+    id: 'entry-rename',
+    mode: 'write',
+    params: 3,
+    text: ENTRY_RENAME,
+    reason:
+      'A second run with the same three values finds the source gone and the ' +
+      'destination there, and answers done with no mv. What done cannot tell ' +
+      'apart is a repeat of Tortie own move and a machine where somebody ' +
+      'else already held a file at the destination while the source never ' +
+      'existed. Between the -e test and the mv another writer on that machine ' +
+      'can create the destination, and the mv then replaces it. No command in ' +
+      'a POSIX shell renames and refuses an existing destination in one step.'
   }
 ];
 
@@ -2271,10 +2543,11 @@ export function remoteScript(id: string): RemoteScript | null {
 /**
  * Every script that writes, in catalogue order.
  *
- * It has exactly three members, being `image-put`, then `git-clone`, then
- * `file-put`, and rule 6 in the header is what holds it there. The gate calls
- * this rather than counting a list of its own, so a script added with the wrong
- * mode is caught by the same call the product makes.
+ * It has exactly five members, being `image-put`, then `git-clone`, then
+ * `file-put`, then `dir-new`, then `entry-rename`, and rule 6 in the header is
+ * what holds it there. The gate calls this rather than counting a list of its
+ * own, so a script added with the wrong mode is caught by the same call the
+ * product makes.
  */
 export function remoteWriteScripts(): readonly RemoteScript[] {
   return REMOTE_SCRIPTS.filter((script) => script.mode === 'write');

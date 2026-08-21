@@ -20,7 +20,7 @@ release.
 | 5 | **119** decline capture on restore | Insurance from research 59 | queued |
 | — | **RELEASE POINT, AND HE DELEGATED IT** | Everything above is user facing and finishes the remote programme | **AGENT, once, see below** |
 | 6 | **101** save a file on a machine | The write tranche. He said on 2026-08-20 to roll into it after the release rather than wait for him, so it runs unattended; the `writeRoot` confirm still needs a human at the keyboard the first time a save is attempted, and that is HIS moment, not a blocker on the build | ✅ shipped |
-| 7 | **102** new folder and rename | | queued |
+| 7 | **102** new folder and rename | | ✅ shipped |
 | 8 | **103** stage and unstage | | queued |
 | 9 | **104** commit on a remote tab | | queued |
 | — | **RELEASE POINT** | The writes are the next release's story. NOT delegated; the grant above is for one release only | operator |
@@ -8578,7 +8578,12 @@ A verifier read the built phase and found one defect and five evidence gaps. Thi
 | 14, `mac-pro` | NOT DONE, for the reason the item itself gives |
 
 
-## Phase 102 — new folder and rename on a machine (research 57 row, queued 2026-08-19) QUEUED
+## Phase 102 — new folder and rename on a machine (research 57 row, queued 2026-08-19) ✅ SHIPPED 2026-08-21 (this commit, 0.64.0, gates green, 7,798 tests). Evidence items 8, 10, 11 and 16 were not driven in the app, and the commit body names each one
+
+**What shipped, and what did not.** Both verbs work on a real machine. `npm run probe:p102` drove 18 legs over a real ssh link on 127.0.0.1 and `npm run probe:p102shot` drove 19 rows through the real app with an isolated profile, and both pass. The first verifier pass returned needs_work because `probe:p102shot` failed 12 of its rows on its own harness rather than on the product, and the fix round rebuilt that probe with five corrections. It seeds Tortie's own known hosts file with `ssh-keyscan` output the way `src/main/harness/p93-remote-clear.ts` does, it drops the `acceptedTmuxVersion` value that did not match the loopback machine, it calls `machines:prepare` and checks the class, it reads `ok` rather than `status` from `projects.addRemote` and then activates the tab, and it looks for the `Refresh files` label and reads the tree rows out of the open shadow roots.
+
+Four evidence items were not driven in the app. Item 8 wanted the F2 gesture on the build before this phase and on the build with it, with an `ls -l` on this Mac either side. Items 10 and 11 wanted a remote tab's id read across a rename, a local and a remote tab at one relative path, and a folder rename under two open remote tabs. Item 16 wanted the unchanged confirm hash proved by installing the build before this phase and the build with it. Item 16 is covered instead by `npm run conformance:machines` passing, by condition 42's pinned hex still reading `dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46`, and by `src/main/machines/confirm.ts` carrying no diff at all. Items 10 and 11 are covered by unit tests over `planTabFollow` and `retargetTab` rather than by the app.
+
 
 **Subject:** `feat(machines): make a folder and rename a file on another machine`
 **First body line:** `Phase 102: new folder and rename on a machine`
@@ -8802,6 +8807,18 @@ A success draws no toast, which is what a local New Folder and a local Rename al
 - `src/renderer/app/__tests__/p903-c-remote-copy.test.ts` loses its assertion at line 119 and its entry in `EVERY` at line 273.
 
 The footnote names Move to Trash alone and not the other absences. That is deliberate. Trash is the one absence with a permanent reason about that machine. Reveal in Finder and Open With are absent because they start a program on this Mac. Duplicate is deferred rather than refused. None of the three belongs in a one line footnote about the machine.
+
+### Where the shipped build diverges from this copy section, recorded rather than blended
+
+The build did not delete `remoteTreeReadOnly` and it did not write `remoteTreeNoTrash`. The build spec recorded the decision before the build, and that file is deleted with the phase, so this paragraph carries the record instead. Three differences and one reason.
+
+| This section rules | What shipped | Why |
+|---|---|---|
+| `remoteTreeReadOnly` is deleted | It is kept, and it is drawn only where `writeRoot` is null | On a machine with no confirmed folder the sentence "Tortie only reads files on Studio." is true. Phase 101 had already put the footnote on a branch, so deleting the function leaves that branch with nothing to say |
+| The footnote becomes `remoteTreeNoTrash(label)` | The no-Trash half is the second sentence of `remoteTreeCanWrite(root, label)`, which replaced Phase 101's `remoteTreeCanSave` | One sentence rather than two on the branch a person reads it on. The Trash fact is only needed where the other verbs are offered |
+| Both header buttons take their plain titles | Each button takes its plain title where its verb can run, and `remoteTreeReadOnly` where it cannot | A disabled button with a plain title says nothing about why it is off |
+
+Three sentences elsewhere in the app said Tortie never writes on a machine, and Phase 102 rewrote all three because both of this phase's verbs are drawn under them. They are `REMOTE_BAND_BODY`, which the band draws on all four views of every tab whose folder is on a machine, `REMOTE_SCM_SECTIONS_NOTE` in the Source Control view, and `OPEN_ON_MACHINE_SUBTITLE` on the home screen. Phase 101 rewrote `openRemoteHonesty` for the same reason and left these three.
 
 ### Where this brief diverges from research 57, named rather than blended
 

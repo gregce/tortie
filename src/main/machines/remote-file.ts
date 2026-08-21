@@ -14,10 +14,12 @@
  * that carries none cannot be saved to at all, and this module answers
  * `writesOff` without composing anything.
  *
- * ## Why this path asks the confirm gate, which no other script channel does
+ * ## Why this path asks the confirm gate, which no read script channel does
  *
- * No remote script channel calls `assertMachineMayConnect` today, and
- * `./ipc.ts` says so in four places. What stands in its place on those channels
+ * No READ script channel calls `assertMachineMayConnect`, and `./ipc.ts` says
+ * so in four places. The two Phase 102 write verbs in `./remote-entry.ts` do
+ * call it, through {@link confirmedWriteRoot} below, for the same reason this
+ * one does. What stands in its place on those channels
  * is `readyRemoteContext`, and that is sound for them because none of them
  * reads a value out of the row at call time: a registered context has already
  * been through the gate.
@@ -55,6 +57,7 @@
 
 import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
+import type { MachineRowV1 } from '@shared/machines';
 import {
   REMOTE_FILE_MAX_BYTES,
   type MachineFilePutInput,
@@ -161,6 +164,48 @@ export function relativeUnderRoot(root: string, path: string): string | null {
   return rel.length === 0 ? null : rel;
 }
 
+/**
+ * The row and the folder it confirmed, or null when there is no folder.
+ *
+ * PHASE 102 EXTRACTED THIS FROM {@link putFileOnMachine} rather than writing a
+ * second copy of it. It is steps 1 to 3 of that function, and it is what every
+ * verb that writes on another computer under a confirmed folder has to do
+ * before it composes anything.
+ *
+ *  1. The row has to be in the machines file, or this throws the sentence that
+ *     says so and names nothing was started.
+ *  2. `assertMachineMayConnect`, for the reason this file's header gives. This
+ *     path reads a value out of the row on disk at CALL TIME, and the agreement
+ *     is the only thing that makes that value a confirmed fact.
+ *  3. A machine with no `writeRoot` answers null, which every caller reports as
+ *     `writesOff`. Nothing is composed and nothing is sent.
+ *
+ * It contacts no machine, opens no connection and starts nothing.
+ *
+ * @throws GmuxError INVALID_INPUT when the row is not in the file, and whatever
+ *   the confirm gate throws for a machine nobody confirmed.
+ */
+export function confirmedWriteRoot(
+  machineId: string
+): { row: MachineRowV1; writeRoot: string } | null {
+  const row = machineRow(machineId);
+  if (row === null) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      `There is no machine called ${machineId} in the machines file. ` +
+        `Nothing was started.`
+    );
+  }
+  const fields = machineFieldsOf(row);
+  assertMachineMayConnect(row.id, fields);
+  const writeRoot =
+    typeof fields.writeRoot === 'string' && fields.writeRoot.length > 0
+      ? fields.writeRoot
+      : null;
+  if (writeRoot === null) return null;
+  return { row, writeRoot };
+}
+
 /** A result with nothing sent and nothing written. */
 function refused(
   outcome: MachineFilePutOutcome,
@@ -180,6 +225,10 @@ function refused(
  *  1. The row has to be in the machines file.
  *  2. The confirm gate, for the reason in this file's header.
  *  3. A machine with no confirmed folder answers `writesOff`.
+ *
+ *     PHASE 102 MOVED THOSE THREE INTO {@link confirmedWriteRoot}, which the
+ *     two verbs in `./remote-entry.ts` call as well. One implementation, three
+ *     call sites, no behaviour change.
  *  4. A file over {@link REMOTE_FILE_MAX_BYTES} answers `tooLarge`.
  *  5. A path outside the confirmed folder answers `outsideRoot`.
  *  6. The connection, through `readyRemoteContext`.
@@ -206,28 +255,14 @@ function refused(
 export async function putFileOnMachine(
   input: MachineFilePutInput
 ): Promise<MachineFilePutResult> {
-  // 1. The row has to be in the file.
-  const row = machineRow(input.machineId);
-  if (row === null) {
-    throw gmuxError(
-      'INVALID_INPUT',
-      `There is no machine called ${input.machineId} in the machines file. ` +
-        `Nothing was started.`
-    );
-  }
-
-  // 2. The confirm gate. This is the one script channel that asks it, because
-  // this is the one that reads a value out of the row at call time and acts on
-  // it. See this file's header.
-  const fields = machineFieldsOf(row);
-  assertMachineMayConnect(row.id, fields);
-
-  // 3. A machine nobody granted a folder on is not written to at all.
-  const writeRoot =
-    typeof fields.writeRoot === 'string' && fields.writeRoot.length > 0
-      ? fields.writeRoot
-      : null;
-  if (writeRoot === null) return refused('writesOff', null);
+  // 1 to 3. The row, the confirm gate and the confirmed folder, in one call.
+  // PHASE 102 moved these three steps into {@link confirmedWriteRoot} so that
+  // this function and the two verbs in `./remote-entry.ts` run one
+  // implementation rather than three copies. Nothing about the order or the
+  // sentences changed.
+  const ready = confirmedWriteRoot(input.machineId);
+  if (ready === null) return refused('writesOff', null);
+  const { row, writeRoot } = ready;
 
   // 4. The size, before anything is encoded.
   const payloadBytes = Buffer.from(input.contents, 'utf8');

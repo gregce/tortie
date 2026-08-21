@@ -65,7 +65,6 @@ import { Codicon } from '../icons';
 import {
   REMOTE_BAND_BODY,
   remoteBandTitle,
-  remoteNewFolderNotYet,
   remoteTreeReadOnly
 } from './machine-copy';
 import './machine-band.css';
@@ -159,19 +158,21 @@ function ExplorerHeader(): React.JSX.Element {
   // machine had no write path at all, so both buttons were drawn off.
   //
   // PHASE 101 SPLIT THAT CONDITION IN TWO. A machine a person has confirmed a
-  // folder for takes a new file, so the first button is pressable there. It
-  // still takes no new folder, because nothing in this product makes a folder
-  // on another computer, so the second button is off on every machine in both
-  // states and says so in its own words.
+  // folder for takes a new file, so the first button became pressable there.
+  // New folder stayed off on every machine, because nothing in the product
+  // made a folder on another computer.
+  //
+  // PHASE 102 BROUGHT THE SECOND BUTTON BACK ON. `dir-new` makes a folder on
+  // that machine, so both buttons now read the same condition and both are
+  // pressable on a machine that carries a confirmed folder. They are still two
+  // constants, because they gate two different writes and a later round may
+  // move one without the other.
   const machine = useMachineWrite();
   const machineLabel = machine?.label ?? null;
-  // The two buttons had one condition and one tooltip between them until Phase
-  // 101, and they cannot share either any more. New folder is off on every
-  // folder on another machine, in both states, because nothing makes a folder
-  // over there. New file is on when that machine carries a folder a person
-  // confirmed Tortie may save under.
   const canCreateFolder =
-    treeHandle !== null && canMutate() && machineLabel === null;
+    treeHandle !== null &&
+    canMutate() &&
+    (machineLabel === null || machine?.writeRoot !== null);
   const canCreateFile =
     treeHandle !== null &&
     canMutate() &&
@@ -222,9 +223,9 @@ function ExplorerHeader(): React.JSX.Element {
         className="icon-btn view-header-action"
         aria-label="New folder"
         title={
-          machineLabel === null
+          machineLabel === null || machine?.writeRoot !== null
             ? 'New folder'
-            : remoteNewFolderNotYet(machineLabel)
+            : remoteTreeReadOnly(machineLabel)
         }
         disabled={!canCreateFolder}
         onClick={() => create('dir')}

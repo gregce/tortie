@@ -148,8 +148,14 @@ import type {
   MachineConfirmSheet,
   MachineFilePutInput,
   MachineFilePutResult,
-  MachineWriteSheetInput
+  MachineWriteSheetInput,
   // ---- END PHASE 101 ----
+  // ---- PHASE 102 ----
+  MachineMakeDirInput,
+  MachineMakeDirResult,
+  MachineRenameInput,
+  MachineRenameResult
+  // ---- END PHASE 102 ----
 } from '@shared/ipc';
 import {
   EVT_MACHINE_AGENTS,
@@ -304,6 +310,15 @@ import { putFileOnMachine } from './remote-file';
 // when they type a bad one is written in exactly one place.
 import { writeRootField } from './schema';
 // ---- END PHASE 101 ----
+// ---- PHASE 102 ----
+// Making a folder and renaming an entry on one machine. It owns both write
+// decisions, being the confirm gate, the confirmed folder and containment for
+// every path either verb names. It composes nothing here: the two handlers
+// below pass their input through and read a status word back. It is imported
+// directly rather than through ./index.ts, because its nearest sibling
+// `listRemoteTree` in ./tree-list.ts is imported that way too.
+import { makeRemoteDir, renameRemoteEntry } from './remote-entry';
+// ---- END PHASE 102 ----
 
 /**
  * Windows that already carry the "you went away, so the test stops" listener.
@@ -1179,6 +1194,52 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       })
   );
   // ---- END PHASE 90.3 ----
+
+  // ---- PHASE 102 BLOCK ----
+  // TWO CHANNELS THAT WRITE ON ANOTHER COMPUTER, being the fourth and the fifth
+  // in this product. They sit beside `machines:listTree` because they are what
+  // the same Explorer does after it has listed rows.
+  //
+  // WHAT BOUNDS THEM IS THE SAME ONE FIELD `machines:putFile` is bounded by,
+  // being `writeRoot` on the machine row. PHASE 102 ADDS NO CONFIRMED FIELD and
+  // no hash moves. A machine that carries no folder answers `writesOff` and
+  // nothing is composed.
+  //
+  // NEITHER CARRIES A ROOT FROM THE RENDERER. `machines:listTree` above passes
+  // `input.root` straight through, and its comment justifies that by saying the
+  // channel cannot compose what it asks and carries no file contents. That
+  // argument holds for a read and it does not carry to a write, so these two
+  // take a path and main reads the confirmed folder off the row itself.
+  //
+  // EVERY REFUSAL EITHER OF THEM CAN ANSWER MEANS NOTHING WAS CHANGED. The two
+  // main decides on this Mac, being `writesOff` and `outsideRoot`, happen
+  // before anything is composed. `exists`, `denied`, `noparent` and `gone` are
+  // what the machine reported, and each of them is printed above the line that
+  // writes in its own script and none below it. Condition 38 of
+  // `build/conformance-machines.mjs` reads that out of the script text.
+  //
+  // A CALL THAT THREW IS NOT A CALL THAT CHANGED NOTHING. Both verbs rethrow a
+  // sentence saying the machine did not answer and the work may have gone
+  // through, because Phase 101 measured a killed ssh completing the far side
+  // write. No prose about a machine's answer crosses either channel: the
+  // renderer draws every sentence from src/renderer/app/machine-copy.ts.
+  handle(
+    ipc,
+    'machines:makeDir',
+    async (
+      _event,
+      input: MachineMakeDirInput
+    ): Promise<MachineMakeDirResult> => makeRemoteDir(input)
+  );
+  handle(
+    ipc,
+    'machines:renameEntry',
+    async (
+      _event,
+      input: MachineRenameInput
+    ): Promise<MachineRenameResult> => renameRemoteEntry(input)
+  );
+  // ---- END PHASE 102 BLOCK ----
 
   // ---- PHASE 98 ----
   // PHASE 98. One channel that READS one folder on one machine, so the Search

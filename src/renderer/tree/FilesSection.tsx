@@ -39,7 +39,7 @@ import {
   remoteTreeMissingBody,
   remoteTreeMissingTitle,
   remoteTreeNotAFolder,
-  remoteTreeCanSave,
+  remoteTreeCanWrite,
   remoteTreeNotConnected,
   remoteTreeReadAt,
   remoteTreeReadOnly,
@@ -143,9 +143,10 @@ export function FilesSection({
     const label = machineLabelFor(machineStates, target.machineId);
     // PHASE 101. The folder a person confirmed Tortie may replace a file
     // under on that machine, or null when they confirmed none. It decides
-    // which of the two notes the menu ends with, and it decides whether New
-    // File is on that menu at all. Main refuses a write against the row on
-    // disk either way, so this copy is presentational.
+    // which of the two notes the menu ends with, and PHASE 102 made it decide
+    // three verbs on that menu rather than one, being New File, New Folder and
+    // Rename. Main refuses a write against the row on disk either way, so this
+    // copy is presentational.
     const root = machineWriteRootFor(machineStates, target.machineId);
     const writeRoot = root !== null && root.length > 0 ? root : null;
     return {
@@ -155,7 +156,7 @@ export function FilesSection({
       readOnlyNote:
         writeRoot === null
           ? remoteTreeReadOnly(label)
-          : remoteTreeCanSave(writeRoot, label)
+          : remoteTreeCanWrite(writeRoot, label)
     };
   }, [target, machineStates]);
 
