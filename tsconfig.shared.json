@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": ["ES2023", "DOM"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["node"],
+    "types": [],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -22,5 +22,6 @@
     "outDir": ".tsc/shared",
     "tsBuildInfoFile": ".tsc/shared.tsbuildinfo"
   },
-  "include": ["src/shared/**/*.ts"]
+  "include": ["src/shared/**/*.ts"],
+  "exclude": ["src/shared/__tests__/**", "src/shared/**/__tests__/**"]
 }

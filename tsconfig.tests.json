@@ -1,0 +1,63 @@
+{
+  // Phase 124. The one program in this repository that may cross a process
+  // boundary, and the only reason the four production projects can now state
+  // the truth.
+  //
+  // Every .ts and .tsx file under a __tests__ directory lives here and in no
+  // other project. A renderer test may import a main module from here, e.g.
+  // src/renderer/state/__tests__/agents.test.ts reads the main-process agent
+  // registry to prove the renderer's seed list agrees with it. Production
+  // code may not, and tsconfig.web.json no longer says otherwise.
+  //
+  // THREE SETTINGS BELOW ARE NOT COSMETIC. Vitest runs with no React plugin,
+  // so a .test.tsx file is transformed by esbuild using the `jsx` setting of
+  // whichever tsconfig owns the file. Until this project existed that was
+  // tsconfig.web.json. `jsx`, `useDefineForClassFields` and `target` are
+  // copied from there so that all 25 component tests transform exactly as
+  // they did before.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "useDefineForClassFields": true,
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": true,
+    "rootDir": "src",
+    "outDir": ".tsc/tests",
+    "tsBuildInfoFile": ".tsc/tests.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"],
+      "@renderer/*": ["src/renderer/*"]
+    }
+  },
+  // src/renderer/env.d.ts declares window.gmux and 30 test files name it. An
+  // input .d.ts is never re-emitted through a project reference, so the web
+  // project cannot hand that global to this one. Listing the file in both
+  // projects is how both programs see it, and it emits nothing twice.
+  "include": [
+    "src/**/__tests__/**/*.ts",
+    "src/**/__tests__/**/*.tsx",
+    "src/renderer/env.d.ts"
+  ],
+  "references": [
+    { "path": "./tsconfig.shared.json" },
+    { "path": "./tsconfig.main.json" },
+    { "path": "./tsconfig.preload.json" },
+    { "path": "./tsconfig.web.json" }
+  ]
+}

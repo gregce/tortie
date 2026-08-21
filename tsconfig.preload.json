@@ -27,5 +27,6 @@
     }
   },
   "include": ["src/preload/**/*.ts"],
+  "exclude": ["src/preload/__tests__/**", "src/preload/**/__tests__/**"],
   "references": [{ "path": "./tsconfig.shared.json" }]
 }

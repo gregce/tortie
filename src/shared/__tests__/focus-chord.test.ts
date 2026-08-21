@@ -15,11 +15,14 @@
  *
  * TWO CHECKS READ SOURCE TEXT RATHER THAN IMPORTING. `validateChord` lives in
  * src/renderer/settings/chords.ts and the agent registry lives in
- * src/main/agents/registry.ts. tsconfig.shared.json sets `rootDir` to
- * src/shared, so a file in this directory cannot import either one without
- * failing `tsc -b`. The house pattern for a shared test that has to know
- * about another layer is a source scan, which is what openable-drift.test.ts
- * and keymap-single-source.test.ts already do, so that is what these use.
+ * src/main/agents/registry.ts. Until Phase 124 a file in this directory could
+ * not import either one without failing `tsc -b`, because tsconfig.shared.json
+ * set `rootDir` to src/shared. The compiler no longer forbids it. Every test
+ * now lives in tsconfig.tests.json, which references all four production
+ * projects, so this file could import both names today. The source scan stays
+ * anyway, and for a better reason than the compiler: it does not bind a shared
+ * test to another layer's declaration output. It is also the house pattern,
+ * which openable-drift.test.ts and keymap-single-source.test.ts already use.
  * The one thing a source scan cannot do is call the function, and
  * `validateChord` is called directly in
  * src/renderer/settings/__tests__/chords.test.ts.

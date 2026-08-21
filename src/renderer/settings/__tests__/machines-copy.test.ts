@@ -34,9 +34,9 @@
  *  2. MEASURED_VERSIONS against main's own measured list.
  *  3. The REMEDY key set against main's class list.
  *
- * `build/assert-import-boundaries.mjs` lines 14 to 17 exempt `__tests__` from
- * the layer rules and name the renderer agents test, which imports the
- * main-process registry for exactly this purpose.
+ * `build/assert-import-boundaries.mjs` exempts every file under `__tests__`
+ * from the layer rules, and its header names the renderer agents test, which
+ * imports the main-process registry for exactly this purpose.
  *
  * WHAT PHASE 79.1 ADDED. One block of strings for setting up a key on one
  * machine, and one check that none of them names a file, a path or any part of

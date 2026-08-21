@@ -27,5 +27,6 @@
     }
   },
   "include": ["src/main/**/*.ts"],
+  "exclude": ["src/main/__tests__/**", "src/main/**/__tests__/**"],
   "references": [{ "path": "./tsconfig.shared.json" }]
 }

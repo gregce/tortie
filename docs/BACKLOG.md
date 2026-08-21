@@ -6846,7 +6846,7 @@ hygiene, not correctness. **Proof:** zero production runtime SCCs, plus a fixtur
 edge does NOT fail the gate and a real runtime cycle DOES. Replace the fixed-string check with the
 AST gate in the same commit.
 
-## Phase 124 — the TypeScript project graph states a weaker boundary than production follows (audit phase 5) QUEUED
+## Phase 124 — the TypeScript project graph states a weaker boundary than production follows (audit phase 5) ✅ SHIPPED 2026-08-20 (this commit, 0.60.1, gates green, 7,260 tests)
 
 **Subject:** `fix(build): the TypeScript reference graph tells the truth`
 **First body line:** `Phase 124: the TypeScript project graph is not truthful`
@@ -6857,6 +6857,44 @@ tests, remove the web-to-main production reference and the Node types from share
 package and builtin imports. **Proof:** fixtures reject `node:fs` and `electron` in shared and
 renderer while existing cross process tests REMAIN DISCOVERABLE, which is the trap. Plus typecheck,
 test discovery and the import boundary gate.
+
+### What landed
+
+A fifth TypeScript project, `tsconfig.tests.json`, now owns every `.ts` and `.tsx` file under a
+`__tests__` directory. It is the one program allowed to cross a process boundary, and it references
+all four production projects. The four production projects exclude those files, so each one can now
+state what production really does.
+
+Three things changed as a result.
+
+1. `tsconfig.web.json` no longer references `tsconfig.main.json`. A renderer production file that
+   imports `src/main/agents/registry` was accepted before this phase and now fails with TS6059 and
+   TS6307. The verifier proved this by compiling the same file against the old reference list and the
+   new one.
+2. `types: ["node"]` is gone from `tsconfig.shared.json` and `tsconfig.web.json`. A shared or renderer
+   production file naming `process` now fails with TS2591.
+3. `build/assert-import-boundaries.mjs` gained a platform rule and eleven fixtures. Shared and
+   renderer production code may not import a node builtin or `electron`. The fixtures run on every
+   invocation before any real file is read. The gate reports 11 fixtures, 772 production files, 4,413
+   imports and 0 violations.
+
+`NodeJS.Platform` in `src/shared/ipc/base.ts` was replaced by a hand written `HostPlatform` union of
+the same eleven names. The verifier compiled a mutual assignability check and confirmed the union is
+neither wider nor narrower than the Node type.
+
+### What is not true
+
+Dropping the Node types from shared costs shared exactly two names, `URL` at `src/shared/clone-url.ts`
+and `File` at `src/shared/ipc/terminal.ts`. Both came back by adding `DOM` to the shared `lib` list,
+and that grants the whole DOM library. A shared file may now name `document` and `window`, which it
+could not before, and shared is compiled into main where neither exists. This is a lateral move
+rather than a regression, because `types: ["node"]` was equally false in the other direction, and
+shared production code uses no timers, no `Buffer` and no `process` at runtime. It is recorded here
+so a later round can close it properly with two narrow declarations instead of a library.
+
+The gate reads text rather than a syntax tree, so a specifier assembled at runtime stays invisible to
+it. A type only import of a node builtin is rejected as well, which is stricter than the runtime
+needs and costs nothing today.
 
 ## Phase 125 — `shared/ipc/machines.ts` is one superdomain, and `GmuxCore` owns too many workflows (audit phase 6) QUEUED
 

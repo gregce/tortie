@@ -5,7 +5,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "types": ["node"],
+    "types": [],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -30,8 +30,6 @@
     }
   },
   "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx"],
-  "references": [
-    { "path": "./tsconfig.shared.json" },
-    { "path": "./tsconfig.main.json" }
-  ]
+  "exclude": ["src/renderer/__tests__/**", "src/renderer/**/__tests__/**"],
+  "references": [{ "path": "./tsconfig.shared.json" }]
 }

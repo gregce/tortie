@@ -112,6 +112,28 @@ export const termInputChannel = (sessionId: string): string =>
 /** Returned by every subscription; call to unsubscribe. */
 export type Unsubscribe = () => void;
 
+/**
+ * The platform names Node reports, written out because shared code no longer
+ * sees the Node type package (Phase 124). Shared is compiled into both
+ * processes and the renderer has no Node, so `NodeJS.Platform` was a name
+ * shared had no right to. This union is the same eleven members that name
+ * carries. The preload assigns `process.platform` into it, so if a future
+ * Node adds a name the preload fails typecheck and this list is corrected,
+ * which is a loud and cheap failure rather than a quiet one.
+ */
+export type HostPlatform =
+  | 'aix'
+  | 'android'
+  | 'cygwin'
+  | 'darwin'
+  | 'freebsd'
+  | 'haiku'
+  | 'linux'
+  | 'netbsd'
+  | 'openbsd'
+  | 'sunos'
+  | 'win32';
+
 export interface GmuxApi {
   sessions: {
     create(input: CreateSessionInput): Promise<Session>;
@@ -154,7 +176,7 @@ export interface GmuxApi {
   };
   /** App/platform facts safe to expose to the renderer. */
   meta: {
-    platform: NodeJS.Platform;
+    platform: HostPlatform;
     versions: { electron: string; chrome: string; node: string };
   };
 }

@@ -296,8 +296,10 @@ describe('the deadline', () => {
   it('is 90 ms, and the number is exported rather than spelled twice', () => {
     // The pairing with the renderer's own deadline is asserted in
     // src/renderer/tree/__tests__/open-with.test.ts, which is allowed to read
-    // both numbers. The main project cannot import a renderer file:
-    // tsconfig.web.json references tsconfig.main.json and not the reverse.
+    // both numbers because every file under a __tests__ directory belongs to
+    // tsconfig.tests.json (Phase 124), the one project that references both.
+    // Production main code cannot import a renderer file, and after Phase 124
+    // production renderer code cannot import a main file either.
     expect(OPEN_WITH_DEADLINE_MS).toBe(90);
   });
 

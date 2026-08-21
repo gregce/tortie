@@ -154,10 +154,11 @@ describe('the renderer deadline', () => {
   });
 
   it('sits above main deadline by the worst round trip measured', () => {
-    // The two numbers only make sense together, so one test reads both. This
-    // is the direction that is allowed: tsconfig.web.json references
-    // tsconfig.main.json, and __tests__ is exempt from the import boundary
-    // check for exactly this reason.
+    // The two numbers only make sense together, so one test reads both. A
+    // test may do this and production code may not. Every file under a
+    // __tests__ directory belongs to tsconfig.tests.json (Phase 124), which
+    // is the one project that references both the renderer and main, and
+    // __tests__ is exempt from the import boundary check as well.
     //
     // Main must usually answer before the renderer gives up, or main's cache
     // would fill for a click nobody is waiting on any more. The gap is the
