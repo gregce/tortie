@@ -371,7 +371,7 @@ GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
-[harness.smoke.modes] count=28
+[harness.smoke.modes] count=30
 agent
 basic
 capture
@@ -385,6 +385,8 @@ fault-work
 identity
 machines
 migrate
+p117-prep
+p117-verify
 p93-remote-clear
 partition
 power
@@ -405,5 +407,5 @@ verify
 durability=23
 skills=6
 config=6
-machines=42
+machines=44
 updater=8

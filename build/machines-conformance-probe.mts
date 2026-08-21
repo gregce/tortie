@@ -29,6 +29,15 @@
  * starts nothing, opens no window, watches no directory and reads no file. No
  * function in this probe makes a key, and `ensureMachineKey` is never called.
  *
+ * PHASE 117 ADDED TWO MODULE LOADS AND ONE PIECE OF STATE, said here rather
+ * than left to be noticed. `create-confirmation.ts` is pure in the same way
+ * `restore-gate.ts` is: it takes an answer or an error and returns a word.
+ * `pane-env-rescue.ts` is NOT pure. It holds one map in this process's own
+ * memory, and conditions 69 to 73 drive the seed against that map.
+ * `resetRescueForTests` empties it before and after, so nothing is left behind.
+ * No command runs, no machine is asked anything, no file is opened for writing
+ * and nothing is spawned by either load.
+ *
  * ---------------------------------------------------------------------------
  * WHAT IT CANNOT PROVE, said here so nobody reads more into a pass
  * ---------------------------------------------------------------------------
@@ -177,6 +186,28 @@ import {
 } from '../src/main/machines/key-material';
 import { machineRecordDir } from '../src/main/machines/store';
 import { shellQuoteArgv } from '../src/main/restore/command';
+// Phase 117, conditions 69 to 73. The three state confirmation is pure for the
+// same reason the restore gate is, so it can be driven here without starting
+// anything. `pane-env-rescue.ts` is not pure, and that is said rather than left
+// to be noticed: it holds one map in this process's own memory. The seed is
+// driven against that map and `resetRescueForTests` empties it again. No
+// command runs, no file is opened and nothing is spawned.
+import {
+  CONFIRMATION_KINDS,
+  classifyConfirmationFailure,
+  confirmationArgs,
+  confirmationDisposition,
+  readConfirmationEnvironment,
+  type RemoteCreateConfirmation
+} from '../src/main/machines/create-confirmation';
+import {
+  issuedRemoteIdHeld,
+  issuedRemoteIdsFor,
+  noteIssuedRemoteId,
+  resetRescueForTests,
+  seedIssuedRemoteIds
+} from '../src/main/machines/pane-env-rescue';
+import { gmuxError } from '../src/main/errors';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const machinesDir = join(repoRoot, 'src', 'main', 'machines');
@@ -793,6 +824,9 @@ const GATE_BASELINE: RemoteRestoreFacts = {
   completedListSeen: true,
   machineAnswering: true,
   listedNow: false,
+  // PHASE 117. The third arm's own fact. False on the baseline, because the
+  // baseline is the one input where the answer is yes.
+  createUnconfirmed: false,
   rowMachineId: 'studio',
   targetMachineId: 'studio',
   rowStatus: 'restorable'
@@ -855,6 +889,39 @@ const GATE_VECTORS: { name: string; facts: RemoteRestoreFacts }[] = [
   {
     name: 'the row is running',
     facts: { ...GATE_BASELINE, rowStatus: 'running', listedNow: true }
+  },
+  // PHASE 117. Four inputs for one arm, and the last three are not decoration.
+  // A row whose create was never confirmed ALWAYS reads `unknown`, because
+  // `remoteRecordStatus` gives it that status, and it is asked in states where
+  // no list has completed and where nobody has signed in to the machine yet.
+  // An arm placed below any of those three is an arm that never fires for the
+  // case it was written for, and the sentence a person reads is one that does
+  // not name the risk of a second agent on one conversation.
+  {
+    name: 'the create was never confirmed',
+    facts: { ...GATE_BASELINE, createUnconfirmed: true }
+  },
+  {
+    name: 'the create was never confirmed and the row reads unknown',
+    facts: { ...GATE_BASELINE, createUnconfirmed: true, rowStatus: 'unknown' }
+  },
+  {
+    name: 'the create was never confirmed and no list has completed yet',
+    facts: {
+      ...GATE_BASELINE,
+      createUnconfirmed: true,
+      rowStatus: 'unknown',
+      completedListSeen: false
+    }
+  },
+  {
+    name: 'the create was never confirmed and nobody signed in to it',
+    facts: {
+      ...GATE_BASELINE,
+      createUnconfirmed: true,
+      rowStatus: 'unknown',
+      contextReady: false
+    }
   }
 ];
 
@@ -2208,6 +2275,218 @@ process.stdout.write(
         )
         .map((file) => file.slice(machinesDir.length + 1))
     },
+
+    // --- Phase 117, conditions 69 to 73 ------------------------------------
+    //
+    // The create confirmation, the one writer of the unknown status, the
+    // seventh restore arm, the read that does not name the variable, and the
+    // seed. Everything here is decided in this process: no command runs, no
+    // machine is asked anything and no file is opened except to be read as
+    // text.
+    phase117: (() => {
+      const sessionsPath = join(machinesDir, 'remote-sessions.ts');
+      const recordPath = join(machinesDir, 'remote-record.ts');
+      const confirmPath = join(machinesDir, 'create-confirmation.ts');
+      const rescuePath = join(machinesDir, 'pane-env-rescue.ts');
+      const isCode = (text: string) => !/^(\*|\/\/|\/\*)/.test(text);
+      const codeHits = (file: string, needle: string) =>
+        sourceLines(file)
+          .filter((row) => row.text.includes(needle) && isCode(row.text))
+          .map((row) => ({
+            file: file.slice(repoRoot.length + 1),
+            line: row.line,
+            text: row.text
+          }));
+      const everywhere = (needle: string) =>
+        files.flatMap((file) => codeHits(file, needle));
+
+      // Condition 69. One disposition per kind, driven rather than read.
+      const samples: RemoteCreateConfirmation[] = [
+        { kind: 'present', tmuxId: '$7' },
+        { kind: 'provenAbsent', why: 'tmux named the session as missing' },
+        { kind: 'unreachable', why: 'the machine did not answer' }
+      ];
+
+      // Condition 71 and the classifier. Every row of the table in
+      // `create-confirmation.ts`, driven with the shape it names.
+      const failures = [
+        {
+          name: 'tmux holds no server at all',
+          answer: classifyConfirmationFailure(
+            gmuxError('TMUX_UNREACHABLE', 'no answer', 'no server running on /tmp/x')
+          )
+        },
+        {
+          name: 'tmux named the session as missing',
+          answer: classifyConfirmationFailure(
+            new Error("can't find session: p117-lost")
+          )
+        },
+        {
+          // MEASURED 2026-08-20 on tmux 3.6a from /opt/homebrew/bin/tmux, on a
+          // scratch socket with one real session on it:
+          //   show-environment -t '=p117-absent-1'
+          //     exit 1, stderr "no such session: =p117-absent-1"
+          // That is the sentence this verb prints on the version Tortie ships
+          // against, and it is neither of the two the table used to name. A
+          // classifier that misses it answers `unreachable` for a machine that
+          // answered, so a create the machine refused keeps a row for ever.
+          name: 'tmux said there is no such session',
+          answer: classifyConfirmationFailure(
+            new Error('no such session: =p117-lost-9')
+          )
+        },
+        {
+          name: 'the session was not found',
+          answer: classifyConfirmationFailure(
+            gmuxError('SESSION_NOT_FOUND', 'gone', 'session not found')
+          )
+        },
+        {
+          name: 'the machine could not be reached',
+          answer: classifyConfirmationFailure(
+            gmuxError('TMUX_UNREACHABLE', 'no answer', 'connection refused')
+          )
+        },
+        {
+          name: 'the machine refused the caller',
+          answer: classifyConfirmationFailure(
+            gmuxError('INVALID_INPUT', 'refused', 'host-key-changed')
+          )
+        },
+        {
+          name: 'this Mac has no sign in program',
+          answer: classifyConfirmationFailure(
+            gmuxError('TMUX_NOT_FOUND', 'no ssh', 'no ssh on this Mac')
+          )
+        },
+        {
+          name: 'the read timed out',
+          answer: classifyConfirmationFailure(new Error('ETIMEDOUT'))
+        },
+        {
+          name: 'an answer nobody can read',
+          answer: classifyConfirmationFailure(new Error('something else'))
+        },
+        {
+          name: 'a thrown value that is not an error at all',
+          answer: classifyConfirmationFailure('a string')
+        }
+      ];
+
+      // Condition 73. The seed, driven against this process's own map. The map
+      // is emptied before and after, so this leaves nothing behind.
+      const seed = (() => {
+        resetRescueForTests();
+        const live = {
+          id: 'live',
+          machineId: 'studio',
+          name: 'the name this run sent',
+          agent: 'shell',
+          projectPath: '/p',
+          cwd: '/p',
+          issuedAt: 1
+        };
+        noteIssuedRemoteId(live);
+        const added = seedIssuedRemoteIds([
+          { ...live, name: 'the name a past run recorded' },
+          { ...live, id: 'past', issuedAt: 2 },
+          { ...live, id: 'here', machineId: 'local', issuedAt: 3 },
+          { ...live, id: '', issuedAt: 4 },
+          { ...live, id: 'nameless', machineId: '', issuedAt: 5 }
+        ]);
+        const out = {
+          added,
+          liveName:
+            issuedRemoteIdsFor('studio').find((one) => one.id === 'live')?.name ??
+            '',
+          pastHeld: issuedRemoteIdHeld('past'),
+          localHeld: issuedRemoteIdHeld('here'),
+          emptyHeld: issuedRemoteIdHeld(''),
+          namelessHeld: issuedRemoteIdHeld('nameless'),
+          onStudio: issuedRemoteIdsFor('studio')
+            .map((one) => one.id)
+            .sort(),
+          onLocal: issuedRemoteIdsFor('local').map((one) => one.id)
+        };
+        resetRescueForTests();
+        return out;
+      })();
+
+      return {
+        kinds: [...CONFIRMATION_KINDS],
+        dispositions: samples.map((one) => ({
+          kind: one.kind,
+          disposition: confirmationDisposition(one)
+        })),
+        // Condition 72. The read as it is sent. The variable is not on the line,
+        // and the whole call as the exec plane quotes it, because an exact match
+        // target that reaches a login shell bare never reaches tmux at all.
+        argv: confirmationArgs('p117-lost-9'),
+        quotedCall: shellQuoteArgv(confirmationArgs('p117-lost-9')),
+        // The environment read, both directions.
+        environment: [
+          {
+            name: 'this create own id is on a line of its own',
+            answer: readConfirmationEnvironment(
+              'TERM=xterm\nGMUX_SESSION_ID=abc123\nGMUX_MANAGED=1',
+              'abc123'
+            )
+          },
+          {
+            name: 'a session of the same name carrying somebody else id',
+            answer: readConfirmationEnvironment(
+              'GMUX_SESSION_ID=somebody-else',
+              'abc123'
+            )
+          },
+          {
+            name: 'an environment with nothing of ours in it',
+            answer: readConfirmationEnvironment('TERM=xterm\nSHELL=/bin/sh', 'abc123')
+          },
+          {
+            name: 'an empty answer',
+            answer: readConfirmationEnvironment('', 'abc123')
+          }
+        ],
+        failures,
+        // Condition 69. Who may delete a durable row on the create path.
+        dropCallers: codeHits(sessionsPath, 'dropRemoteRow(').filter(
+          (row) => !row.text.startsWith('function ')
+        ),
+        dropNamedElsewhere: files
+          .filter(
+            (file) =>
+              file !== sessionsPath &&
+              readFileSync(file, 'utf8').includes('dropRemoteRow')
+          )
+          .map((file) => file.slice(repoRoot.length + 1)),
+        // Condition 70. The one writer of the unknown status.
+        unknownWriters: everywhere("setStatus(sessionId, 'unknown')"),
+        markCallers: everywhere('markRemoteCreateUnconfirmed(').filter(
+          (row) => !row.text.startsWith('export function ')
+        ),
+        markDefinedIn: codeHits(recordPath, 'export function markRemoteCreateUnconfirmed')
+          .length,
+        readerDefinedIn: codeHits(recordPath, 'export function unconfirmedRemoteRecords')
+          .length,
+        // The create's own arm, read as text so the two writes cannot come apart.
+        createArmMarks: readFileSync(sessionsPath, 'utf8').includes(
+          'markRemoteCreateUnconfirmed(sessionId)'
+        ),
+        createArmThrows: readFileSync(sessionsPath, 'utf8').includes(
+          'CREATE_ANSWER_LOST'
+        ),
+        // Condition 73. The seed, and the file it lives in.
+        seed,
+        seedDefinedIn: codeHits(rescuePath, 'export function seedIssuedRemoteIds')
+          .length,
+        heldDefinedIn: codeHits(rescuePath, 'export function issuedRemoteIdHeld')
+          .length,
+        // The confirmation module may reason from nothing but what it is given.
+        confirmImports: importSpecifiers(confirmPath)
+      };
+    })(),
 
     // --- Phase 79.1, conditions 28 to 34 -----------------------------------
     keyInstall: {

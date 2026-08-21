@@ -54,8 +54,10 @@ const {
   clearIssuedRemoteId,
   foreignRemoteIds,
   forgetForeignMemo,
+  issuedRemoteIdHeld,
   issuedRemoteIdsFor,
   noteIssuedRemoteId,
+  seedIssuedRemoteIds,
   paneEnvProbeArgs,
   parsePaneEnvId,
   rescueNeeded,
@@ -104,6 +106,92 @@ describe('the issued set', () => {
     issueOurs();
     clearIssuedRemoteId(OURS);
     expect(issuedRemoteIdsFor('popos')).toEqual([]);
+  });
+
+  it('answers whether one id is still waiting to be accounted for', () => {
+    expect(issuedRemoteIdHeld(OURS)).toBe(false);
+    issueOurs();
+    expect(issuedRemoteIdHeld(OURS)).toBe(true);
+    clearIssuedRemoteId(OURS);
+    expect(issuedRemoteIdHeld(OURS)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The seed (Phase 117)
+// ---------------------------------------------------------------------------
+
+/**
+ * The set used to live in memory for ONE run, and this is what changed that. A
+ * create whose answer was lost keeps its manifest row with `unknown` in its
+ * status column, and the first list pass of the next run hands those rows back
+ * here. The rescue then binds the SAME immutable id the first run generated.
+ */
+describe('the seed a previous run’s unconfirmed rows fill', () => {
+  const FROM_LAST_RUN = {
+    id: OURS,
+    machineId: 'popos',
+    name: 'the create that lost its answer',
+    agent: 'claude',
+    projectPath: '/srv/repo',
+    cwd: '/srv/repo',
+    issuedAt: 1_600_000_000_000
+  };
+
+  it('puts an unconfirmed row back into the set, and says how many', () => {
+    expect(seedIssuedRemoteIds([FROM_LAST_RUN])).toBe(1);
+    expect(issuedRemoteIdsFor('popos').map((one) => one.id)).toEqual([OURS]);
+    expect(issuedRemoteIdHeld(OURS)).toBe(true);
+  });
+
+  /**
+   * The live record carries the values THIS run sent, and a seeded record
+   * carries what a past run wrote down. The live one wins, because the four
+   * stamps a rescue re-writes come out of it.
+   */
+  it('never overwrites an entry the current run issued', () => {
+    issueOurs();
+    expect(seedIssuedRemoteIds([FROM_LAST_RUN])).toBe(0);
+    expect(issuedRemoteIdsFor('popos')[0]?.name).toBe('the rescue');
+  });
+
+  /**
+   * The set is about sessions on OTHER machines. A local row reaching it would
+   * let a probe on some machine adopt a session this Mac holds.
+   */
+  it('refuses a row that names this Mac', () => {
+    expect(
+      seedIssuedRemoteIds([{ ...FROM_LAST_RUN, id: STRANGER, machineId: 'local' }])
+    ).toBe(0);
+    expect(issuedRemoteIdsFor('local')).toEqual([]);
+    expect(issuedRemoteIdHeld(STRANGER)).toBe(false);
+  });
+
+  it('refuses a row with no machine and a row with no id', () => {
+    expect(
+      seedIssuedRemoteIds([
+        { ...FROM_LAST_RUN, id: STRANGER, machineId: '' },
+        { ...FROM_LAST_RUN, id: '' }
+      ])
+    ).toBe(0);
+    expect(issuedRemoteIdsFor('popos')).toEqual([]);
+  });
+
+  it('keeps the create instant the past run recorded, as the issue instant', () => {
+    seedIssuedRemoteIds([FROM_LAST_RUN]);
+    expect(issuedRemoteIdsFor('popos')[0]?.issuedAt).toBe(1_600_000_000_000);
+  });
+
+  /** A seeded id is judged exactly like one this run issued, and re-binds. */
+  it('lets the rescue bind a session a past run created', async () => {
+    seedIssuedRemoteIds([FROM_LAST_RUN]);
+    answers['show-environment'] = `GMUX_SESSION_ID=${OURS}\n`;
+    const match = await rescueRemoteRow(CTX, '$3');
+    expect(match?.id).toBe(OURS);
+    const stamp = sent.find(
+      (argv) => argv[0] === 'set-option' && argv[3] === '@gmux-id'
+    );
+    expect(stamp?.[4]).toBe(OURS);
   });
 });
 

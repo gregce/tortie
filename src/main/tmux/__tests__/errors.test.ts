@@ -71,6 +71,16 @@ describe('the three patterns that were already here', () => {
     );
   });
 
+  // Phase 117 fix round. MEASURED 2026-08-20 on tmux 3.6a: this is the sentence
+  // show-environment prints for a target that is not there, and it used to fall
+  // through to UNKNOWN.
+  it('no such session', () => {
+    assert.equal(
+      classifyTmuxFailure('no such session: =p117-absent-1', 'x').payload.code,
+      'SESSION_NOT_FOUND'
+    );
+  });
+
   it('duplicate session', () => {
     assert.equal(
       classifyTmuxFailure('duplicate session: fix-auth', 'x').payload.code,

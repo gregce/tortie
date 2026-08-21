@@ -57,13 +57,26 @@
  * the manifest's known set replaced by the issued set, because a remote session
  * has no manifest row to be known by.
  *
- * ## The honest limit, and it is named in the commit body
+ * ## The issued set now survives a restart, and PHASE 117 is what changed that
  *
- * The issued set lives in memory for ONE Tortie run, because this rung writes no
- * remote row to the manifest. A create interrupted in the last run cannot be
- * rescued by this one. That session is running on that machine and it shows as a
- * session Tortie did not create. M5's per machine argv capture is what makes the
- * issued set durable.
+ * This paragraph used to say that the issued set lives in memory for one Tortie
+ * run, that a create interrupted in the last run could not be rescued by this
+ * one, and that M5's per machine argv capture was what would make it durable.
+ * M5 shipped in Phase 72 and Phase 117 spends it.
+ *
+ * A remote create writes a durable manifest row before it sends the line that
+ * starts the session. A create whose answer was lost now keeps that row and
+ * writes `unknown` into its status column. On the first list pass of every run,
+ * `./remote-sessions.ts` reads those rows back and calls
+ * {@link seedIssuedRemoteIds} with them, once per machine. So the same immutable
+ * id the first run generated is what the rescue binds, and no second create is
+ * ever made for the same session.
+ *
+ * ## What is STILL not true, and it is named in the commit body
+ *
+ * A session created by 0.34 or 0.35 wrote no manifest row at all, so there is
+ * nothing to seed from and it still cannot be rescued across a restart. It is
+ * running on that machine and it shows as a session Tortie did not create.
  *
  * ## Why this file imports `./remote-sessions.ts`
  *
@@ -76,7 +89,7 @@
 
 import { getLog } from '../log';
 import type { RemoteMachineContext } from './context';
-import { machineGeneration } from './context';
+import { LOCAL_MACHINE_ID, machineGeneration } from './context';
 import { execOn } from './exec-plane';
 import { REMOTE_STAMPS, oneLine, remoteStampArgs } from './remote-sessions';
 
@@ -118,13 +131,63 @@ export function noteIssuedRemoteId(record: IssuedRemoteId): void {
 }
 
 /**
- * Forget an id whose create finished and whose option stamp landed.
+ * Forget an id whose `@gmux-id` stamp landed.
  *
  * The row is on that machine's list from then on, carrying `@gmux-id`, so no
  * later list can read it as foreign and no rescue can be needed for it.
+ *
+ * TWO CALLERS WRITE THAT STAMP and both call this. The create does when its own
+ * stamp lands, and the rescue does when it binds a session a past run left
+ * behind. The Phase 117 fix round added the second one, because without it a
+ * rescued row stayed unconfirmed for the rest of the run and the restore gate
+ * went on refusing it after the machine had answered.
  */
 export function clearIssuedRemoteId(id: string): void {
   issued.delete(id);
+}
+
+/**
+ * Fill the issued set from rows a previous run left unconfirmed (Phase 117).
+ *
+ * Returns how many were added, so a caller can log a number rather than a claim.
+ *
+ * Three rows are refused, and each refusal is a rule rather than a taste:
+ *
+ *  - A row naming this Mac. The issued set is about sessions on other machines,
+ *    and a local row reaching it would let a remote probe adopt a session this
+ *    Mac holds.
+ *  - A row whose id the CURRENT run already issued. The live record carries the
+ *    values this run sent, and a seeded record carries what a past run recorded,
+ *    so the live one wins.
+ *  - A row with no id at all.
+ *
+ * The caller decides which rows are unconfirmed. `unconfirmedRemoteRecords` in
+ * `./remote-record.ts` is the only source, and it returns the rows whose status
+ * column reads `unknown`.
+ */
+export function seedIssuedRemoteIds(records: readonly IssuedRemoteId[]): number {
+  let added = 0;
+  for (const record of records) {
+    if (record.id.length === 0) continue;
+    if (record.machineId.length === 0) continue;
+    if (record.machineId === LOCAL_MACHINE_ID) continue;
+    if (issued.has(record.id)) continue;
+    issued.set(record.id, record);
+    added += 1;
+  }
+  return added;
+}
+
+/**
+ * True while this id is still waiting to be accounted for.
+ *
+ * Two things read it. The restore gate refuses a row it answers true for,
+ * because that row may be a session running right now. The write back of a
+ * completed pass leaves such a row alone while a rescue is still pending, so a
+ * session about to be re-bound is not written to `restorable` first.
+ */
+export function issuedRemoteIdHeld(id: string): boolean {
+  return issued.has(id);
 }
 
 /** Every id this run issued for one machine, newest last. */
@@ -260,7 +323,15 @@ export async function rescueRemoteRow(
     return null;
   }
 
-  await restamp(ctx, tmuxId, match);
+  // PHASE 117 FIX ROUND. The id leaves the issued set here, and only when the
+  // `@gmux-id` stamp itself landed. Until this line the set had two ways in and
+  // one way out: a create whose own stamp landed cleared it, and a pass that
+  // proved the session absent cleared it, but a rescue that BOUND the session
+  // did not. So a row rescued from a past run stayed unconfirmed for the rest of
+  // the run, and the restore gate went on refusing it after the machine had
+  // answered and the session was back on the list under its own name. MEASURED
+  // by `npm run smoke:p117` on 2026-08-20 at its step 14.
+  if (await restamp(ctx, tmuxId, match)) clearIssuedRemoteId(match.id);
   return match;
 }
 
@@ -272,16 +343,21 @@ async function restamp(
   ctx: RemoteMachineContext,
   tmuxId: string,
   record: IssuedRemoteId
-): Promise<void> {
+): Promise<boolean> {
   const values: Record<(typeof REMOTE_STAMPS)[number], string> = {
     '@gmux-id': record.id,
     '@gmux-agent': record.agent,
     '@gmux-name': oneLine(record.name),
     '@gmux-project': oneLine(record.projectPath)
   };
+  // The one answer the caller acts on. The other three stamps are presentation,
+  // and a session missing one of them is still bound and still shown. `@gmux-id`
+  // is the identity, so it is the only one whose landing may settle a row.
+  let idLanded = false;
   for (const option of REMOTE_STAMPS) {
     try {
       await execOn(ctx, remoteStampArgs(tmuxId, option, values[option]));
+      if (option === '@gmux-id') idLanded = true;
     } catch (err) {
       machinesLog.warn(
         `${ctx.machineId} did not keep ${option} on ${tmuxId} during a ` +
@@ -289,6 +365,7 @@ async function restamp(
       );
     }
   }
+  return idLanded;
 }
 
 /**

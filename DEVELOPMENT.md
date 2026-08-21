@@ -126,6 +126,7 @@ it as `GMUX_HARNESS_DIR`.
 | `npm run smoke:remote` | `<tmpdir>/gmux-p70-remote-<worktree>-<pid>` | `gmux-p70-remote-<worktree>-<pid>` |
 | `npm run smoke:capture:remote` | `<tmpdir>/gmux-p91-capture-<worktree>-<pid>` | `gmux-p91-capture-<worktree>-<pid>` |
 | `npm run smoke:p93remote` | `<tmpdir>/gmux-p93-remote-<worktree>-<pid>` | `gmux-p93-remote-<worktree>-<pid>` |
+| `npm run smoke:p117` | `<tmpdir>/gmux-p117-unknown-<worktree>-<pid>` | `gmux-p117-unknown-<worktree>-<pid>` |
 | `npm run probe:realmachine` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-ctl` |
 | `npm run probe:realunknowns` | `<tmpdir>/p83-real-<pid>`, made fresh on every run | none on this Mac. One scratch socket on the far machine, named `p83-<pid>-sockpath`, and socket `gmux` over there for the sessions it creates by name |
 | `npm run probe:remotearm` | `<tmpdir>/gmux-p89-arm-<pid>`, made fresh on every run and removed at the end | `gmux-p89-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. |
@@ -136,9 +137,12 @@ it as `GMUX_HARNESS_DIR`.
 | `npm run probe:p106` | `/tmp/p106-branch-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p106-branch-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
 | `npm run probe:p107` | `/tmp/p107-history-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p107-history-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
 
-`smoke:execplane`, `smoke:remote`, `smoke:capture:remote` and `smoke:p93remote`
-all honour a `GMUX_CONFIG_ROOT` already in the environment and fall back to the
-value above. `smoke:config` and `smoke:machines` always use the value above. The two `probe:real` rows read no
+`smoke:execplane`, `smoke:remote`, `smoke:capture:remote`, `smoke:p93remote`
+and `smoke:p117` all honour a `GMUX_CONFIG_ROOT` already in the environment and
+fall back to the value above. `smoke:p117` is the only one of them that runs
+TWO Electron launches, and both take the same `--user-data-dir`, being
+`<config root>/profile`. That is what makes its restart real rather than
+described: the second launch reads the manifest the first one wrote. `smoke:config` and `smoke:machines` always use the value above. The two `probe:real` rows read no
 config root at all, because they drive no Electron process.
 
 Two more gates set a config root without naming it in `package.json`, because

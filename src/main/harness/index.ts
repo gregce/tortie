@@ -141,6 +141,22 @@
  *                       create admitted before shutdown resolved before the
  *                       snapshot, and proves a clean second boot in the same
  *                       process. `npm run smoke:shutdown`.
+ *  - GMUX_SMOKE=p117-prep / p117-verify  a remote create whose answer was
+ *                       lost keeps its row, and a later run binds the same
+ *                       session (Phase 117, Tier 3). TWO launches against one
+ *                       user data directory and one loopback scratch machine.
+ *                       The prep leg runs a create the machine answers and
+ *                       refuses, whose row is deleted as it always was, then a
+ *                       create the far side really completes and whose reply is
+ *                       really lost, because a program named as that machine's
+ *                       remote tmux path ends the sign in server under the
+ *                       answer. It proves the row survives with `unknown` in its
+ *                       status column. The verify leg proves that declaration
+ *                       survived the restart, that the row is shown and never
+ *                       drawn as working, that Restore is refused with the
+ *                       sentence naming the unconfirmed create, and that the
+ *                       machine coming back binds the SAME id with no second
+ *                       create. `npm run smoke:p117`.
  *  - GMUX_SMOKE=shadow  the bare-name invariant under a shadowed binary
  *                       (Phase 49, Tier 3): two scratch copies of `droid` are
  *                       planted at the head of a stubbed login-shell PATH, a
@@ -190,6 +206,12 @@ import { runExecPlaneSmoke } from '../machines/exec-smoke';
 // `machine.remote-target-unbound` need, and it counts manifest writes.
 import { runRemoteSessionsSmoke } from '../machines/remote-smoke';
 import { runP93RemoteClearSmoke } from './p93-remote-clear';
+// Phase 117: the two legs of the lost create answer proof. LEAF import like
+// ./p93-remote-clear, because it pulls in the session core.
+import {
+  runP117PrepSmoke,
+  runP117VerifySmoke
+} from './p117-create-unknown';
 import { runMigrateSmoke } from '../migrate/smoke';
 import { runReconstructSmoke } from '../manifest/reconstruct-smoke';
 import { runRefusalSmoke } from '../manifest/refusal-smoke';
@@ -388,6 +410,20 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // question the ⌘J probe cannot reach.
   if (smoke === 'p93-remote-clear') {
     await runP93RemoteClearSmoke();
+    return true;
+  }
+  // Phase 117: a remote create whose answer was lost. The prep leg makes the
+  // fault and reads the durable row it now leaves behind; the verify leg is a
+  // second launch on the same user data directory, which is what makes the
+  // restart real rather than described. `build/p117-create-unknown.mjs` owns
+  // the machine, the wrapper and the verdict, so this process never grades
+  // itself.
+  if (smoke === 'p117-prep') {
+    await runP117PrepSmoke();
+    return true;
+  }
+  if (smoke === 'p117-verify') {
+    await runP117VerifySmoke();
     return true;
   }
   // Phase 71: the link to a machine cut at five named moments, in a real

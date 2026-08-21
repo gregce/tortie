@@ -16,7 +16,7 @@
  * no tmux server, no Electron, no manifest, no file under the person's home, no
  * request and no write anywhere. Safe on a machine with live sessions on it.
  *
- * THE FORTY NINE CONDITIONS IT FAILS ON. Each one is a way a person's agreement
+ * THE SEVENTY CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
  * machine could come to land somewhere nobody chose.
@@ -202,7 +202,10 @@
  * 100, 105 and 106 each added a condition and left the list where it was, so
  * this says so rather than quietly renumbering. Conditions 50 and 51 are Phase
  * 90.3's, 52 is Phase 98's, 53 is Phase 99's, 54 is Phase 100's, 55 is Phase
- * 105's and 56 is Phase 106's:
+ * 105's and 56 is Phase 106's. Conditions 63 to 68 are Phase 89's, and 69 to 73
+ * are Phase 117's and are described at their own block at the foot of this
+ * file. The numbers 60, 61 and 62 were never used. Seventy conditions are in
+ * force, being 1 to 59 and 63 to 73:
  *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
@@ -1857,12 +1860,44 @@ const GATE_AT_SPEC = [
   { name: 'the machine still lists the session', offered: false, refusal: 'running' },
   { name: 'the row reads unknown', offered: false, refusal: 'unseen' },
   { name: 'the row reads unknown and every condition holds', offered: false, refusal: 'unseen' },
-  { name: 'the row is running', offered: false, refusal: 'running' }
+  { name: 'the row is running', offered: false, refusal: 'running' },
+  // PHASE 117. Four inputs for the third arm, and the last three are the
+  // ones that decide where it may sit. A row whose create was never confirmed
+  // ALWAYS reads `unknown`, because `remoteRecordStatus` gives it that status,
+  // and the gate is asked about it before any list has completed and before
+  // anybody has signed in to the machine. An arm placed below `not-ready`,
+  // below `no-route` or below `unseen` never fires for the case it was written
+  // for, and the person reads a sentence that does not name the risk of a
+  // second agent on one conversation.
+  { name: 'the create was never confirmed', offered: false, refusal: 'unconfirmed' },
+  {
+    name: 'the create was never confirmed and the row reads unknown',
+    offered: false,
+    refusal: 'unconfirmed'
+  },
+  {
+    name: 'the create was never confirmed and no list has completed yet',
+    offered: false,
+    refusal: 'unconfirmed'
+  },
+  {
+    name: 'the create was never confirmed and nobody signed in to it',
+    offered: false,
+    refusal: 'unconfirmed'
+  }
 ];
 
+// PHASE 117 PUT `unconfirmed` THIRD, and the position is the rule rather than a
+// preference. Arms one and two are facts about the ROW, being a machine the
+// person removed and a row that belongs to somewhere else, and this is the
+// third and most consequential row fact: Tortie cannot say whether the session
+// is running, so bringing it back could start a second agent on one
+// conversation. Every arm below it is a fact about the LINK, and a link
+// sentence sends the person to fix something that will not settle this row.
 const REFUSAL_ORDER = [
   'forgotten',
   'wrong-machine',
+  'unconfirmed',
   'not-ready',
   'no-route',
   'unseen',
@@ -5195,6 +5230,305 @@ process.stdout.write(
           `never draws as a local one and a cut list never draws as a whole ` +
           `one. It writes nothing, and install, enable and pin are refused on ` +
           `a remote tab permanently.\n`
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// 69 to 73. Phase 117. A create whose answer nobody could read
+// ---------------------------------------------------------------------------
+//
+// THE NUMBERS ARE 69 TO 73 AND NOT 50 TO 54. The numbered list at the top of
+// this file stops at 49 and the file already holds conditions up to 68, so the
+// next free numbers are these. Nothing is renumbered.
+//
+// 69. The confirmation has other than three kinds, a kind maps to the wrong
+//     action, or `dropRemoteRow` is called from anywhere but the two arms that
+//     already had it, being a proven absence and an answer that is not an
+//     identifier. A durable row deleted from a third place is the defect this
+//     phase closed coming back.
+// 70. More than one production place writes `unknown` into a session's status
+//     column, `markRemoteCreateUnconfirmed` has other than one caller, or the
+//     create's unreachable arm does not call it. One writer is what makes the
+//     column readable: a row reads `unknown` exactly when its create was never
+//     confirmed and nothing has proved it either way since.
+// 71. The classifier answers `provenAbsent` for anything but a completed answer
+//     from tmux itself. The default sits on `unreachable`, and that default is
+//     the whole of the fix.
+// 72. The confirmation argv names `GMUX_SESSION_ID` on the line. MEASURED on
+//     tmux 3.6a, 2026-08-17, and recorded in the header of
+//     `src/main/machines/pane-env-rescue.ts`: naming the variable makes tmux
+//     exit 1 for the ordinary case, so an error that says "not there" and an
+//     error that says nothing become the same error. That is exactly the
+//     distinction this phase exists to make.
+// 73. The seed accepts a row naming this Mac, a row with no id or no machine,
+//     or overwrites an entry the CURRENT run issued. The live record carries
+//     the values this run sent and a seeded one carries what a past run
+//     recorded, so the live one wins.
+//
+// The seventh restore arm is condition 26's business, because it is the gate's
+// own table, and the four Phase 117 rows in GATE_AT_SPEC above are where it is
+// checked.
+
+{
+  const p117 = data.phase117 ?? {};
+
+  // --- 69. The three kinds, and one action each ----------------------------
+  const kinds = [...(p117.kinds ?? [])];
+  if (JSON.stringify(kinds) !== JSON.stringify(['present', 'provenAbsent', 'unreachable'])) {
+    fail(
+      `the create confirmation declares ${kinds.join(', ') || 'nothing'}. It ` +
+        `is exactly present, provenAbsent and unreachable. A read with two ` +
+        `answers is the read that deleted a row for a session that was running.`
+    );
+  }
+  const WANTED_DISPOSITION = {
+    present: 'bind',
+    provenAbsent: 'dropRow',
+    unreachable: 'keepUnknown'
+  };
+  for (const row of p117.dispositions ?? []) {
+    const wanted = WANTED_DISPOSITION[String(row.kind)];
+    if (wanted === undefined) {
+      fail(`the confirmation produced a kind nobody named: ${String(row.kind)}`);
+      continue;
+    }
+    if (row.disposition !== wanted) {
+      fail(
+        `a ${String(row.kind)} confirmation leads to ${String(row.disposition)} ` +
+          `and it must lead to ${wanted}.`
+      );
+    }
+  }
+  const dropCallers = p117.dropCallers ?? [];
+  if (dropCallers.length !== 2) {
+    fail(
+      `dropRemoteRow is called from ${String(dropCallers.length)} place(s) and ` +
+        `there are exactly two: the arm where tmux itself answered that the ` +
+        `session is not there, and the arm where the answer was not an ` +
+        `identifier at all. Every other failure keeps the row.\n` +
+        dropCallers.map((one) => `      ${one.file}:${String(one.line)}`).join('\n')
+    );
+  }
+  if ((p117.dropNamedElsewhere ?? []).length > 0) {
+    fail(
+      `dropRemoteRow is named outside remote-sessions.ts, in ` +
+        `${(p117.dropNamedElsewhere ?? []).join(', ')}. It deletes a durable ` +
+        `row and it stays private to the module that writes them.`
+    );
+  }
+
+  // --- 70. One writer, one reader ------------------------------------------
+  const unknownWriters = p117.unknownWriters ?? [];
+  if (unknownWriters.length !== 1) {
+    fail(
+      `${String(unknownWriters.length)} production place(s) write the unknown ` +
+        `status into a session row, and there is exactly one, being ` +
+        `markRemoteCreateUnconfirmed. A second writer makes the column mean ` +
+        `two things and nothing can read it.\n` +
+        unknownWriters.map((one) => `      ${one.file}:${String(one.line)}`).join('\n')
+    );
+  } else if (!String(unknownWriters[0].file).endsWith('remote-record.ts')) {
+    fail(
+      `the unknown status is written from ${String(unknownWriters[0].file)} ` +
+        `and the one writer lives in src/main/machines/remote-record.ts.`
+    );
+  }
+  const markCallers = p117.markCallers ?? [];
+  if (markCallers.length !== 1) {
+    fail(
+      `markRemoteCreateUnconfirmed has ${String(markCallers.length)} caller(s) ` +
+        `and it has exactly one, being the create's unreachable arm.\n` +
+        markCallers.map((one) => `      ${one.file}:${String(one.line)}`).join('\n')
+    );
+  } else if (!String(markCallers[0].file).endsWith('remote-sessions.ts')) {
+    fail(
+      `markRemoteCreateUnconfirmed is called from ` +
+        `${String(markCallers[0].file)} and its one caller is the create in ` +
+        `src/main/machines/remote-sessions.ts.`
+    );
+  }
+  if (p117.markDefinedIn !== 1 || p117.readerDefinedIn !== 1) {
+    fail(
+      `remote-record.ts declares markRemoteCreateUnconfirmed ` +
+        `${String(p117.markDefinedIn)} time(s) and unconfirmedRemoteRecords ` +
+        `${String(p117.readerDefinedIn)} time(s). One of each.`
+    );
+  }
+  if (p117.createArmMarks !== true || p117.createArmThrows !== true) {
+    fail(
+      `the create's unreachable arm ` +
+        `${p117.createArmMarks === true ? 'marks the row' : 'does NOT mark the row'} ` +
+        `and ` +
+        `${p117.createArmThrows === true ? 'throws the lost answer sentence' : 'does NOT throw the lost answer sentence'}. ` +
+        `An arm that keeps the row without writing the column leaves a row ` +
+        `nothing can read back after a restart.`
+    );
+  }
+
+  // --- 71. Only a completed answer from tmux may prove an absence ----------
+  const PROVEN = [
+    'tmux holds no server at all',
+    'tmux named the session as missing',
+    'tmux said there is no such session',
+    'the session was not found'
+  ];
+  const failureRows = p117.failures ?? [];
+  if (failureRows.length < 10) {
+    fail(
+      `the classifier was driven over ${String(failureRows.length)} shape(s) ` +
+        `and there are ten. A shape nobody drove is a shape nobody compared ` +
+        `against the table.`
+    );
+  }
+  for (const row of failureRows) {
+    const wanted = PROVEN.includes(String(row.name)) ? 'provenAbsent' : 'unreachable';
+    if (row.answer !== wanted) {
+      fail(
+        `"${String(row.name)}" was classified ${String(row.answer)} and the ` +
+          `table says ${wanted}. Only an answer tmux itself completed may ` +
+          `delete a durable row.`
+      );
+    }
+  }
+  for (const row of p117.environment ?? []) {
+    const wanted =
+      String(row.name) === 'this create own id is on a line of its own'
+        ? 'present'
+        : 'provenAbsent';
+    if (row.answer !== wanted) {
+      fail(
+        `the environment read of "${String(row.name)}" answered ` +
+          `${String(row.answer)} and it should answer ${wanted}.`
+      );
+    }
+  }
+
+  // --- 72. The variable is not on the read line ----------------------------
+  const argv = (p117.argv ?? []).map(String);
+  if (argv.some((one) => one.includes('GMUX_SESSION_ID'))) {
+    fail(
+      `the confirmation read names GMUX_SESSION_ID on the line: ` +
+        `${argv.join(' ')}. MEASURED on tmux 3.6a, 2026-08-17: naming the ` +
+        `variable makes tmux exit 1 for the ordinary case, and the exec plane ` +
+        `turns a non zero exit into a thrown error, so an error meaning "not ` +
+        `there" and an error meaning "no answer" become one error. Telling ` +
+        `those two apart is the whole of this phase.`
+    );
+  }
+  if (argv[0] !== 'show-environment' || argv[1] !== '-t' || !String(argv[2] ?? '').startsWith('=')) {
+    fail(
+      `the confirmation read is ${argv.join(' ')} and it is ` +
+        `show-environment -t =NAME. The = is an exact name match, which is the ` +
+        `rule every other verb in this directory follows.`
+    );
+  }
+  if (argv.length !== 3) {
+    fail(
+      `the confirmation read carries ${String(argv.length)} argument(s) and it ` +
+        `carries three.`
+    );
+  }
+  {
+    // The exact match target has to survive the far side's login shell. This is
+    // condition 20's rule applied to the one other place a `=NAME` target is
+    // sent. MEASURED 2026-08-20 with the zsh macOS ships, being 5.9:
+    //   zsh -c 'echo =p117-absent-1'   -> zsh:1: p117-absent-1 not found
+    //   zsh -c "echo '=p117-absent-1'" -> =p117-absent-1
+    // An unquoted word beginning with = is expanded into a program path, so the
+    // read never reaches tmux and the answer is an error nobody can read. That
+    // is indistinguishable from a machine that did not answer, which is exactly
+    // the distinction this phase exists to make.
+    const call = String(p117.quotedCall ?? '');
+    const target = call.slice(call.lastIndexOf('-t ') + 3);
+    if (!target.startsWith("'") || !target.endsWith("'")) {
+      fail(
+        `the confirmation read composes ${JSON.stringify(call)}, whose target ` +
+          `${JSON.stringify(target)} is unquoted. MEASURED 2026-08-20 with zsh ` +
+          `5.9: a word beginning with = is expanded into a program path, so an ` +
+          `unquoted exact match target never reaches tmux. Condition 20 holds ` +
+          `the remote attach to the same rule and the same measurement.`
+      );
+    }
+  }
+
+  // --- 73. The seed --------------------------------------------------------
+  const seed = p117.seed ?? {};
+  if (seed.added !== 1) {
+    fail(
+      `the seed accepted ${String(seed.added)} row(s) out of five, and exactly ` +
+        `one of the five is acceptable. The other four are an id this run ` +
+        `already issued, a row naming this Mac, a row with no id and a row ` +
+        `with no machine.`
+    );
+  }
+  if (seed.liveName !== 'the name this run sent') {
+    fail(
+      `the seed overwrote an entry the current run issued: the name now reads ` +
+        `${JSON.stringify(seed.liveName)}. The live record carries the values ` +
+        `this run sent and a seeded one carries what a past run recorded.`
+    );
+  }
+  if (seed.pastHeld !== true) {
+    fail('the seed did not take the one row a past run left unconfirmed');
+  }
+  if (seed.localHeld === true) {
+    fail(
+      'the seed took a row naming this Mac. The issued set is about sessions ' +
+        'on other machines, and a local row in it would let a probe on a ' +
+        'machine adopt a session this Mac holds.'
+    );
+  }
+  if (seed.emptyHeld === true || seed.namelessHeld === true) {
+    fail('the seed took a row with no id or no machine on it');
+  }
+  if (JSON.stringify([...(seed.onStudio ?? [])]) !== JSON.stringify(['live', 'past'])) {
+    fail(
+      `after the seed the machine holds ${(seed.onStudio ?? []).join(', ')} ` +
+        `and it holds exactly live and past.`
+    );
+  }
+  if ((seed.onLocal ?? []).length !== 0) {
+    fail(
+      `the seed left ${String((seed.onLocal ?? []).length)} id(s) against this ` +
+        `Mac and it leaves none.`
+    );
+  }
+  if (p117.seedDefinedIn !== 1 || p117.heldDefinedIn !== 1) {
+    fail(
+      `pane-env-rescue.ts declares seedIssuedRemoteIds ` +
+        `${String(p117.seedDefinedIn)} time(s) and issuedRemoteIdHeld ` +
+        `${String(p117.heldDefinedIn)} time(s). One of each.`
+    );
+  }
+
+  // The confirmation must be decidable from what it is given. An import of the
+  // manifest, of tmux or of the exec plane would mean the answer depends on
+  // something a reviewer cannot see from the page.
+  const ALLOWED_CONFIRM_IMPORTS = ['../errors', '../tmux/errors'];
+  for (const one of (p117.confirmImports ?? []).map(String)) {
+    if (ALLOWED_CONFIRM_IMPORTS.includes(one)) continue;
+    fail(
+      `src/main/machines/create-confirmation.ts imports ${JSON.stringify(one)}, ` +
+        `which is not on its allowed list. The table has to be decidable from ` +
+        `the answer or the error alone.`
+    );
+  }
+}
+
+// Phase 117. What a create whose answer was lost now does, said out loud.
+{
+  const p117 = data.phase117 ?? {};
+  const argv = (p117.argv ?? []).map(String).join(' ');
+  process.stdout.write(
+    `a create on a machine confirms itself with "${argv}", which does not name ` +
+      `the variable, and reads the answer as one of ` +
+      `${[...(p117.kinds ?? [])].join(', ')}. Only the two answers tmux itself ` +
+      `completed delete the durable row. An answer nobody could read keeps the ` +
+      `row, writes unknown into its status column from the one writer there is, ` +
+      `and keeps the id in the issued set, so the next run seeds that set from ` +
+      `the manifest and binds the same immutable id instead of making a second ` +
+      `create. Restore is refused for such a row by the gate's third arm.\n`
   );
 }
 

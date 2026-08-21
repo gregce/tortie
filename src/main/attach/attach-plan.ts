@@ -121,11 +121,18 @@ export function exactTarget(tmuxName: string): string {
  * the far side's shell rewrote the exact-match target into a program lookup and
  * then failed the lookup.
  *
- * The general quoter in `../restore/command` passes `=` through unquoted, and it
- * is right to: it was written for typing a resume command into a pane, where a
- * bare `=` is what the person would type. Changing it would change every restore
- * command in the product for a reason that belongs to one argument here. So this
- * one argument is quoted unconditionally instead.
+ * PHASE 117 UPDATED THIS PARAGRAPH. The general quoter in `../restore/command`
+ * used to pass a leading `=` through unquoted, so this file quoted the one
+ * argument itself. Phase 117 found the same defect on the create confirmation
+ * read, which sends `=NAME` through that quoter, and narrowed the quoter's safe
+ * set so that a LEADING `=` is quoted while a `=` inside a word is not. A resume
+ * command typed into a pane is therefore unchanged, and `--model=opus` still
+ * reads as a person would type it.
+ *
+ * This function stays, and it stays unconditional. It is the one argument that
+ * must be quoted whatever it looks like, the attach argv is composed by
+ * appending rather than by running the whole list through the quoter, and
+ * `conformance:machines` condition 20 reads what this returns.
  *
  * Two notes on the blast radius, because a reviewer will ask.
  *

@@ -50,7 +50,11 @@ export function classifyTmuxFailure(
       text
     );
   }
-  if (/can't find session|session not found/i.test(text)) {
+  // `no such session` is what tmux 3.6a prints for show-environment and for
+  // several other verbs that take a target. MEASURED 2026-08-20 on a scratch
+  // socket. It was missing here, so those failures fell through to UNKNOWN and
+  // a caller could not tell a named absence from an unreadable answer.
+  if (/no such session|can't find session|session not found/i.test(text)) {
     return gmuxError('SESSION_NOT_FOUND', 'Session not found.', text);
   }
   if (/duplicate session/i.test(text)) {

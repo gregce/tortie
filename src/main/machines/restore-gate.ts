@@ -3,7 +3,7 @@
  * research 51 sections 4.3 and 4.6).
  *
  * IT IS PURE. It runs no command, opens no database, reads no file and touches
- * no map. It takes six facts and returns one verdict. Gathering the facts is
+ * no map. It takes seven facts and returns one verdict. Gathering the facts is
  * `./remote-sessions.ts`'s work and acting on the verdict is
  * `./remote-restore.ts`'s, and both of those can be wrong without this table
  * being wrong, which is why the table is on its own.
@@ -21,16 +21,38 @@
  *
  *  1. The machine is still in `machines.json`.
  *  2. The row's recorded machine is the machine being restored on.
- *  3. Tortie has signed in to that machine in this run and read its program
+ *  3. This row's create was confirmed, either by the session being bound or by a
+ *     completed list proving it is not there (Phase 117).
+ *  4. Tortie has signed in to that machine in this run and read its program
  *     search list.
- *  4. Tortie has a route to that machine right now.
- *  5. A list from that machine completed in this run, and the machine answered
+ *  5. Tortie has a route to that machine right now.
+ *  6. A list from that machine completed in this run, and the machine answered
  *     the last time Tortie asked.
- *  6. That machine's own last completed list does NOT hold this session.
+ *  7. That machine's own last completed list does NOT hold this session.
  *
- * Condition 6 is the double run guard. Conditions 4 and 5 are what stop a lost
- * link being read as a death. Conditions 1, 2 and 3 are what stop Tortie
- * composing a command for a computer it cannot name.
+ * Condition 7 is the double run guard. Condition 3 is the same guard for a row
+ * no list has ever answered for. Conditions 5 and 6 are what stop a lost link
+ * being read as a death. Conditions 1, 2 and 4 are what stop Tortie composing a
+ * command for a computer it cannot name.
+ *
+ * ## Why the unconfirmed create is asked third
+ *
+ * PHASE 117 FIX ROUND. This arm was written sixth, below the three arms about
+ * the link, and in that place it never fired. A row whose create was never
+ * confirmed is written by a create whose machine stopped answering under the
+ * line that starts the session. That machine is therefore also unprepared,
+ * unreachable and unlisted in the run that follows, so `not-ready`, `no-route`
+ * and `unseen` are all true of the same row. Each of those three sends the
+ * person to fix the machine, and none of them names the risk, which is that
+ * pressing the verb may start a second agent on a conversation that already has
+ * one. MEASURED by `npm run smoke:p117` on 2026-08-20: the person read the
+ * not-ready sentence about signing in to the machine.
+ *
+ * The fact is about the ROW and not about the machine, which is why it now sits
+ * beside the other two row facts at the top. Preparing the machine does not make
+ * this row confirmed, and neither does waiting for the machine to answer. Only a
+ * completed list settles it, and until it does, no sentence about the link is
+ * the true one.
  *
  * ## Condition 4 is about a ROUTE, and never about one kind of route
  *
@@ -64,6 +86,7 @@
 import type { SessionStatus } from '@shared/types';
 import {
   MACHINE_NOT_READY,
+  RESTORE_CREATE_UNCONFIRMED,
   RESTORE_FORGOTTEN,
   RESTORE_STILL_RUNNING,
   RESTORE_UNSEEN,
@@ -74,6 +97,8 @@ import {
 export type RemoteRestoreRefusal =
   /** The machine is not answering, or no completed list has been read yet. */
   | 'unseen'
+  /** This row's create was never confirmed, so nothing knows whether it ran. */
+  | 'unconfirmed'
   /** Neither route to this machine answered, so there is no way to reach it. */
   | 'no-route'
   /** The far side still lists a session carrying this id. */
@@ -89,6 +114,7 @@ export type RemoteRestoreRefusal =
 export const REMOTE_RESTORE_REFUSALS: readonly RemoteRestoreRefusal[] = [
   'forgotten',
   'wrong-machine',
+  'unconfirmed',
   'not-ready',
   'no-route',
   'unseen',
@@ -103,7 +129,7 @@ export interface RemoteRestoreVerdict {
   readonly refusal: RemoteRestoreRefusal | null;
 }
 
-/** The six facts, each one gathered by exactly one caller. */
+/** The seven facts, each one gathered by exactly one caller. */
 export interface RemoteRestoreFacts {
   /** True while a row for this machine is in machines.json. */
   readonly machineKnown: boolean;
@@ -124,6 +150,23 @@ export interface RemoteRestoreFacts {
   readonly machineAnswering: boolean;
   /** True when that machine's last completed list held a session with this id. */
   readonly listedNow: boolean;
+  /**
+   * True while this row's create has never been confirmed either way
+   * (Phase 117).
+   *
+   * A remote create writes its durable row before it sends the line that starts
+   * the session. When the machine stops answering under that line, the row is
+   * kept and this is what says so. It stops being true in exactly two ways: an
+   * option stamp lands, which binds the session and which the create and the
+   * rescue can both do, or a completed list from that machine does not hold it,
+   * which proves the session is not there.
+   *
+   * The caller reads it from two places, and the second one is what makes it
+   * true after a restart. The set of ids this run issued answers within a run.
+   * The row's own status column answers across runs, because `unknown` on a
+   * remote row has one writer and that writer is the lost create answer.
+   */
+  readonly createUnconfirmed: boolean;
   /** The machine the row was created on. */
   readonly rowMachineId: string;
   /** The machine the restore would run on. */
@@ -149,12 +192,20 @@ export function remoteRestoreVerdict(
   if (facts.rowMachineId !== facts.targetMachineId) {
     return refused('wrong-machine', RESTORE_WRONG_MACHINE);
   }
-  // 3. Nobody signed in to it in this run, or its program search list was never
+  // 3. PHASE 117. The create was never confirmed, so the machine may be holding
+  //    the session right now. It is asked here, above every arm about the link,
+  //    because the three arms below are ALL true of such a row in the run that
+  //    follows, and each of them would tell the person to go and fix the
+  //    machine. See the header for the measurement that moved this arm up.
+  if (facts.createUnconfirmed) {
+    return refused('unconfirmed', RESTORE_CREATE_UNCONFIRMED);
+  }
+  // 4. Nobody signed in to it in this run, or its program search list was never
   //    read. The person can fix this from Settings and then Machines.
   if (!facts.contextReady) {
     return refused('not-ready', MACHINE_NOT_READY);
   }
-  // 4. Neither route answered. Below `not-ready` because a machine that was
+  // 5. Neither route answered. Below `not-ready` because a machine that was
   //    never prepared has no route either, and "prepare it" is the useful half
   //    of that pair. A machine whose own session server has died still has a
   //    route, so it passes here and its rows may come back, which is the case
@@ -162,10 +213,12 @@ export function remoteRestoreVerdict(
   if (!facts.machineReachable) {
     return refused('no-route', RESTORE_UNSEEN);
   }
-  // 5. Nothing completed, or the last pass did not. A row reading `unknown` can
-  //    never get past here: `unknown` is written by exactly the events that also
-  //    set `machineAnswering` false, and the status is asked again anyway so
-  //    that a later edit to one of the two cannot open this arm on its own.
+  // 6. Nothing completed, or the last pass did not. A row reading `unknown` can
+  //    never get past here. `unknown` is written by the events that also set
+  //    `machineAnswering` false, and since Phase 117 it is also written by a
+  //    create nobody could confirm. That second producer is refused by arm 3
+  //    above, and the status is asked again here anyway, so a later edit to one
+  //    of the two cannot open this arm on its own.
   if (
     !facts.completedListSeen ||
     !facts.machineAnswering ||
@@ -173,7 +226,7 @@ export function remoteRestoreVerdict(
   ) {
     return refused('unseen', RESTORE_UNSEEN);
   }
-  // 6. The double run guard, and it is last because it is the only arm that
+  // 7. The double run guard, and it is last because it is the only arm that
   //    needs every fact above to be true before its answer means anything. A
   //    list Tortie could not read holds nothing, and reading that as "not
   //    running" is the exact mistake the five arms above exist to prevent.

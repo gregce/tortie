@@ -17,6 +17,7 @@ import {
 } from '../restore-gate';
 import {
   MACHINE_NOT_READY,
+  RESTORE_CREATE_UNCONFIRMED,
   RESTORE_FORGOTTEN,
   RESTORE_STILL_RUNNING,
   RESTORE_UNSEEN,
@@ -31,6 +32,7 @@ const OFFERED: RemoteRestoreFacts = {
   completedListSeen: true,
   machineAnswering: true,
   listedNow: false,
+  createUnconfirmed: false,
   rowMachineId: 'studio',
   targetMachineId: 'studio',
   rowStatus: 'restorable'
@@ -45,7 +47,7 @@ function facts(over: Partial<RemoteRestoreFacts> = {}): RemoteRestoreFacts {
 // ---------------------------------------------------------------------------
 
 describe('the verdict that offers the verb', () => {
-  it('offers it when all six conditions hold, and names no reason', () => {
+  it('offers it when all seven conditions hold, and names no reason', () => {
     expect(remoteRestoreVerdict(OFFERED)).toEqual({
       offered: true,
       reason: null,
@@ -86,7 +88,7 @@ describe('the verdict that offers the verb', () => {
 // One test per arm
 // ---------------------------------------------------------------------------
 
-describe('the six refusals, one per condition', () => {
+describe('the seven refusals, one per condition', () => {
   it('forgotten: the machine is no longer in the machines file', () => {
     expect(remoteRestoreVerdict(facts({ machineKnown: false }))).toEqual({
       offered: false,
@@ -136,6 +138,19 @@ describe('the six refusals, one per condition', () => {
   });
 
   /**
+   * PHASE 117. The create was never confirmed, so nothing knows whether the
+   * session is running. This is the same failure the double run guard below
+   * stops, for a row no completed list has ever answered for.
+   */
+  it('unconfirmed: this row\u2019s create was never confirmed either way', () => {
+    expect(remoteRestoreVerdict(facts({ createUnconfirmed: true }))).toEqual({
+      offered: false,
+      reason: RESTORE_CREATE_UNCONFIRMED,
+      refusal: 'unconfirmed'
+    });
+  });
+
+  /**
    * THE DOUBLE RUN GUARD. Research 28 ranks this failure above every other in
    * the remote design, because pressing the verb over a session that never
    * stopped starts a second agent on the same conversation and both then write.
@@ -155,9 +170,10 @@ describe('the six refusals, one per condition', () => {
 
 describe('the invariants', () => {
   /**
-   * The whole reason `unknown` exists. It is written by exactly the events that
-   * also mean the machine is not answering, and Phase 71 made that state real.
-   * A row reading `unknown` may never be offered, whatever else is true.
+   * The whole reason `unknown` exists. Phase 71 made that state real for a
+   * machine that stopped answering, and Phase 117 gave it a second producer,
+   * being a create nobody could confirm. A row reading `unknown` may never be
+   * offered, whatever else is true.
    */
   it('a row reading unknown is never offered, whatever else holds', () => {
     expect(remoteRestoreVerdict(facts({ rowStatus: 'unknown' })).offered).toBe(
@@ -166,6 +182,55 @@ describe('the invariants', () => {
     expect(remoteRestoreVerdict(facts({ rowStatus: 'unknown' })).refusal).toBe(
       'unseen'
     );
+  });
+
+  /**
+   * PHASE 117 FIX ROUND, AND THIS IS THE TEST THE FIRST CUT DID NOT HAVE.
+   *
+   * Every earlier unconfirmed test built its facts from a healthy row and set
+   * `createUnconfirmed` by hand, so `rowStatus` still read `restorable` and the
+   * arm was asked about a row production never makes. The rows this phase writes
+   * read `unknown` in the status column, because the one writer of `unknown`
+   * writes it on the same event that leaves the create unconfirmed. Held below
+   * the `unseen` arm, as it was, this arm could not fire for a single row the
+   * phase creates.
+   */
+  it('a row whose status column really reads unknown reads as unconfirmed', () => {
+    const verdict = remoteRestoreVerdict(
+      facts({ createUnconfirmed: true, rowStatus: 'unknown' })
+    );
+    expect(verdict.refusal).toBe('unconfirmed');
+    expect(verdict.reason).toBe(RESTORE_CREATE_UNCONFIRMED);
+  });
+
+  /**
+   * The shape of the run that follows a lost create answer, with nothing set by
+   * hand that production would not set. The machine stopped answering during the
+   * create, so on the next launch it is unprepared, unreachable and unlisted,
+   * and the row reads `unknown`. All of `not-ready`, `no-route` and `unseen` are
+   * true. The person has to read the one that names the risk.
+   */
+  it('the whole shape a lost create answer leaves behind reads as unconfirmed', () => {
+    const verdict = remoteRestoreVerdict(
+      facts({
+        createUnconfirmed: true,
+        contextReady: false,
+        machineReachable: false,
+        completedListSeen: false,
+        machineAnswering: false,
+        rowStatus: 'unknown'
+      })
+    );
+    expect(verdict.refusal).toBe('unconfirmed');
+    expect(verdict.reason).toBe(RESTORE_CREATE_UNCONFIRMED);
+  });
+
+  it('an unconfirmed row on an unprepared machine still reads as unconfirmed', () => {
+    expect(
+      remoteRestoreVerdict(
+        facts({ createUnconfirmed: true, contextReady: false })
+      ).refusal
+    ).toBe('unconfirmed');
   });
 
   /**
@@ -181,6 +246,7 @@ describe('the invariants', () => {
       completedListSeen: false,
       machineAnswering: false,
       listedNow: true,
+      createUnconfirmed: true,
       rowMachineId: 'laptop',
       targetMachineId: 'studio',
       rowStatus: 'unknown'
@@ -214,6 +280,55 @@ describe('the invariants', () => {
     expect(verdict.offered).toBe(false);
   });
 
+  /**
+   * The order of the last two arms. An unconfirmed row on a machine that is also
+   * listing a session with the same id reads as unconfirmed, because the machine
+   * has not answered for THIS create and the list holding a session of that id
+   * is exactly what the rescue is about to bind.
+   */
+  it('an unconfirmed row reads as unconfirmed before the double run guard', () => {
+    expect(
+      remoteRestoreVerdict(facts({ createUnconfirmed: true, listedNow: true }))
+        .refusal
+    ).toBe('unconfirmed');
+  });
+
+  /**
+   * PHASE 117 FIX ROUND REVERSED THIS ONE. The arm used to sit below the three
+   * machine arms, on the reasoning that a person whose machine is out of sight
+   * should read the sentence about the machine. The reasoning was wrong for this
+   * fact. A machine that is out of sight is the ONLY way a row becomes
+   * unconfirmed, so the machine sentence was the only sentence anyone could ever
+   * read, and it does not name the risk. The unconfirmed sentence is now the one
+   * that fires, and it also says the machine has to answer before the state
+   * settles.
+   */
+  it('a machine nobody can see still reads as unconfirmed for such a row', () => {
+    expect(
+      remoteRestoreVerdict(
+        facts({ createUnconfirmed: true, machineAnswering: false })
+      ).refusal
+    ).toBe('unconfirmed');
+  });
+
+  /**
+   * The two arms that still come first. Both are facts about the row rather than
+   * about the link, and both send the person somewhere the unconfirmed sentence
+   * would not.
+   */
+  it('forgotten and wrong-machine are still asked before unconfirmed', () => {
+    expect(
+      remoteRestoreVerdict(
+        facts({ createUnconfirmed: true, machineKnown: false })
+      ).refusal
+    ).toBe('forgotten');
+    expect(
+      remoteRestoreVerdict(
+        facts({ createUnconfirmed: true, rowMachineId: 'laptop' })
+      ).refusal
+    ).toBe('wrong-machine');
+  });
+
   it('every refusal carries a sentence, and every offer carries none', () => {
     const inputs: RemoteRestoreFacts[] = [
       OFFERED,
@@ -222,6 +337,7 @@ describe('the invariants', () => {
       facts({ contextReady: false }),
       facts({ machineReachable: false }),
       facts({ completedListSeen: false }),
+      facts({ createUnconfirmed: true }),
       facts({ listedNow: true })
     ];
     for (const input of inputs) {
@@ -243,6 +359,7 @@ describe('the invariants', () => {
   it('no sentence carries a dash the writing rules refuse', () => {
     for (const sentence of [
       MACHINE_NOT_READY,
+      RESTORE_CREATE_UNCONFIRMED,
       RESTORE_FORGOTTEN,
       RESTORE_STILL_RUNNING,
       RESTORE_UNSEEN,
@@ -258,6 +375,7 @@ describe('the invariants', () => {
     expect([...REMOTE_RESTORE_REFUSALS]).toEqual([
       'forgotten',
       'wrong-machine',
+      'unconfirmed',
       'not-ready',
       'no-route',
       'unseen',
@@ -266,6 +384,7 @@ describe('the invariants', () => {
     const reached = [
       remoteRestoreVerdict(facts({ machineKnown: false })).refusal,
       remoteRestoreVerdict(facts({ rowMachineId: 'other' })).refusal,
+      remoteRestoreVerdict(facts({ createUnconfirmed: true })).refusal,
       remoteRestoreVerdict(facts({ contextReady: false })).refusal,
       remoteRestoreVerdict(facts({ machineReachable: false })).refusal,
       remoteRestoreVerdict(facts({ completedListSeen: false })).refusal,

@@ -102,6 +102,11 @@ import {
   reloadMachines
 } from './store';
 import {
+  // PHASE 117. The two sentences this phase added. `remote-smoke` is the second
+  // reader `build/assert-bundle-refusals.mjs` asks for, and step 10j below is
+  // where the restore one is watched firing.
+  CREATE_ANSWER_LOST,
+  RESTORE_CREATE_UNCONFIRMED,
   RESTORE_FORGOTTEN,
   RESTORE_STILL_RUNNING,
   RESTORE_UNSEEN,
@@ -110,6 +115,9 @@ import {
   RESUME_NOT_COLLECTED,
   TARGET_UNBOUND
 } from './remote-copy';
+// PHASE 117. The pure gate, so step 10j can ask it about the real facts of a
+// real row with one fact flipped rather than about a row it invented whole.
+import { remoteRestoreVerdict } from './restore-gate';
 // PHASE 89. The sentence an armed resume carries, compared byte for byte in
 // step 10a rather than described. It is imported from the module that produces
 // it, so a rewording that forgets this harness fails the gate rather than
@@ -126,6 +134,7 @@ import {
   remoteListArgs,
   remoteMachineFacts,
   remoteRename,
+  remoteRestoreFactsFor,
   remoteRestoreVerdictFor,
   remoteSessionRow,
   remoteSessions,
@@ -1452,6 +1461,96 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         })
     );
     await startRemotePoll(ID);
+
+    // --- 10j. PHASE 117. The two sentences a lost create answer needs --------
+    //
+    // Both are branches a bundler folds away, and both stand between a person
+    // and a second agent on one conversation.
+    //
+    // WHAT THIS STEP PROVES, AND WHAT IT DOES NOT. The restore sentence is
+    // watched FIRING here: the gate is asked about the real facts of the real
+    // row from step 5 with one fact flipped, which is the same shape
+    // `build/machines-conformance-probe.mts` uses and the same shape
+    // `src/main/machines/exec-smoke.ts` uses for the two exec plane refusals
+    // production cannot reach. The create sentence is only READ here, because
+    // making it fire needs a link that dies inside one create and this gate has
+    // no fault to do that with. `npm run smoke:p117` is where it fires against a
+    // real machine whose sign in server really dies under the answer.
+    {
+      const real = remoteRestoreFactsFor(session.id);
+      // PHASE 117 FIX ROUND. The status column is set to `unknown` as well as
+      // the flag, because that is the row production writes and the first cut of
+      // this step did not drive it. A create whose answer was lost writes both
+      // on the same event, and the arm was below the `unseen` arm, which reads
+      // exactly that column. So the arm could not fire for one row the phase
+      // makes, and this step passed anyway by driving a healthy row.
+      const unconfirmedVerdict = remoteRestoreVerdict({
+        ...real,
+        createUnconfirmed: true,
+        rowStatus: 'unknown'
+      });
+      if (unconfirmedVerdict.offered) {
+        fail(
+          'the restore gate OFFERED a row whose create was never confirmed. ' +
+            'That row may name a session that is running right now, and ' +
+            'bringing it back is how one conversation comes to have two agents.'
+        );
+      }
+      if (unconfirmedVerdict.refusal !== 'unconfirmed') {
+        fail(
+          `a row whose create was never confirmed was refused with ` +
+            `${String(unconfirmedVerdict.refusal)} and the arm for it is ` +
+            `"unconfirmed". An earlier arm answering first means a person ` +
+            `reads a sentence that does not name the risk.`
+        );
+      }
+      if (unconfirmedVerdict.reason !== RESTORE_CREATE_UNCONFIRMED) {
+        fail(
+          `the unconfirmed arm said ${JSON.stringify(unconfirmedVerdict.reason)}`
+        );
+      }
+      // The whole shape the run after a lost create answer carries. The machine
+      // stopped answering during the create, so on the next launch it is also
+      // unprepared, unreachable and unlisted. All of `not-ready`, `no-route` and
+      // `unseen` are true of the row, and the person has to read the one that
+      // names the risk.
+      const wholeShape = remoteRestoreVerdict({
+        ...real,
+        createUnconfirmed: true,
+        rowStatus: 'unknown',
+        contextReady: false,
+        machineReachable: false,
+        completedListSeen: false,
+        machineAnswering: false
+      });
+      if (wholeShape.refusal !== 'unconfirmed') {
+        fail(
+          `the shape a lost create answer leaves behind was refused with ` +
+            `${String(wholeShape.refusal)} and the arm for it is ` +
+            `"unconfirmed". Every other arm that is true of that row sends the ` +
+            `person to fix the machine and none of them names the risk.`
+        );
+      }
+      // The create sentence, read rather than fired, and held to the writing
+      // rules the gate cannot check for itself.
+      for (const [what, text] of [
+        ['the create answer sentence', CREATE_ANSWER_LOST],
+        ['the restore refusal', RESTORE_CREATE_UNCONFIRMED]
+      ] as const) {
+        if (text.includes('\u2014') || text.includes('\u2013')) {
+          fail(`${what} carries a dash the writing rules refuse`);
+        }
+        if (!text.includes('Nothing was started')) {
+          fail(`${what} does not say what was not started`);
+        }
+      }
+      log(
+        `10j. a row whose status column reads unknown and whose create was ` +
+          `never confirmed is refused with "unconfirmed", on its own and with ` +
+          `every link fact false, and both Phase 117 sentences say what was ` +
+          `not started`
+      );
+    }
 
     // --- 10d. The tombstone --------------------------------------------------
     //

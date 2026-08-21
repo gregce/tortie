@@ -15,7 +15,7 @@ release.
 | ---: | --- | --- | --- |
 | 1 | **109** which agents the machine has | Finishes the remote machine story he asked for | RUNNING |
 | 2 | **110** what exists where, in Settings | The view for 109's scan. Last of the remote feature work | ✅ shipped |
-| 3 | **117** an unreachable confirmation is not proof of absence | Audit P0. It can lose a live remote session's row, and the write phases lean on it | queued |
+| 3 | **117** an unreachable confirmation is not proof of absence | Audit P0. It can lose a live remote session's row, and the write phases lean on it | ✅ shipped |
 | 4 | **118** remote children are owned, removal is one transaction | Audit P1, same reason | queued |
 | 5 | **119** decline capture on restore | Insurance from research 59 | queued |
 | — | **RELEASE POINT, AND HE DELEGATED IT** | Everything above is user facing and finishes the remote programme | **AGENT, once, see below** |
@@ -6731,7 +6731,7 @@ refusing mutation. **Proof required by the audit:** hold a snapshot, call a real
 prove no insert, no spawn, no remote exec and no boot occurs, and prove an already admitted create
 is joined.
 
-### Phase 117 — an unreachable remote create confirmation is treated as proven absence (audit phase 1)
+### Phase 117 — an unreachable remote create confirmation is treated as proven absence (audit phase 1) ✅ SHIPPED 2026-08-21 (this commit, 0.61.1, gates green, 7,478 tests)
 
 **Subject:** `fix(machines): an unreachable confirmation is not proof of absence`
 **First body line:** `Phase 117: an unreachable confirmation is not proof of absence`
@@ -6741,6 +6741,35 @@ deleted only on proven absence, and an unknown declaration survives a restart. T
 a broad catch in `remote-sessions.ts` returns null and the caller reads null as nothing running.
 **Proof required:** let the far side create succeed, lose the reply, make confirmation unreachable,
 restart, and prove later reconciliation binds the same immutable id with no duplicate create.
+
+**What landed, and the proof was run.** The read at the end of a remote create is now the pure module
+`src/main/machines/create-confirmation.ts`, and it answers one of `present`, `provenAbsent` and
+`unreachable`. The default sits on `unreachable`, so only an answer tmux itself completed can delete a
+durable row. An unreachable answer keeps the row, writes `unknown` into its status column and keeps
+the id in the set this run issued. The next run seeds that set from the manifest, because `unknown` on
+a remote row has exactly one writer, so the same immutable id is bound rather than a second session
+created. Restore is refused for such a row by the gate's third arm, which was its seventh until the
+fix round, and it is third because the three arms below it are all true of an unconfirmed row and each
+would send the person to fix the wrong thing.
+
+Two measurements moved code that looked fine. tmux 3.6a prints `no such session: NAME` for
+`show-environment`, and the classifier carried only `can't find session` and `session not found`, so a
+machine that answered and named the session as missing was read as a machine that did not answer. And
+zsh 5.9, the login shell macOS ships, replaces a word whose first character is `=` with the path of the
+program named after it, so the exact match target `=NAME` never reached tmux on a zsh machine. Both are
+recorded in the headers of the files that fix them.
+
+`npm run smoke:p117` is the new gate and it is the audit's required proof. It runs two Electron
+launches over one `--user-data-dir`, so the restart is real. The run on the committed tree passed all
+15 steps: the create's answer was lost, the row was kept and marked `unknown`, the far side really held
+the session, the `unknown` survived the restart and reached the list a window draws, Restore was
+refused with the unconfirmed sentence, and the machine coming back bound `@gmux-id`
+`2d0d21c4-d221-498e-aa12-bbc30f39e010` to the session it was still running. That machine then held
+exactly one session. The operator's own server held 43 sessions before the run and 43 after.
+
+**What is not true.** The proof ran against a scratch sshd on this Mac over loopback, not against a
+second computer. No Linux machine was contacted. The `unreachable` answer still leaves a row a person
+cannot act on until that machine answers again, and nothing removes such a row on a timer.
 
 ### Phase 118 — long running ssh children and machine removal (audit phase 2)
 

@@ -1126,6 +1126,47 @@ const MACHINE_REFUSALS = [
       'SpecStory capture is off for this session. Tortie runs SpecStory on this ',
       'Mac only, and this session runs on another machine.'
     ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 117 added these two, and both stand in front of a session that may
+  // already be running on another computer
+  // ---------------------------------------------------------------------------
+  //
+  // The first is the sentence a person reads when Tortie sent the line that
+  // starts a session and could not read the answer. Before this phase there was
+  // no sentence at all, because the row was deleted and the person was told the
+  // create had failed. The branch is reached only when a link dies inside one
+  // create, which is exactly the shape a bundler folds away.
+  // `src/main/machines/remote-smoke.ts` is the second caller and it watches both
+  // of these fire.
+  {
+    id: 'machine.create-answer-lost',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'an answer nobody could read is not evidence that nothing started. ' +
+      'Without this sentence the person is told the create failed while the ' +
+      'session runs on the other machine with nothing on this Mac recording it',
+    fragments: [
+      'Tortie sent the command that starts this session and it could not read the ',
+      'answer, so it does not know whether the session started. The row is kept ',
+      'and shown as unreachable. Tortie will match the row to the session the ',
+      'next time that machine answers, and it will remove the row if that machine ',
+      'answers and holds no such session. Nothing was started a second time.'
+    ]
+  },
+  {
+    id: 'machine.restore-create-unconfirmed',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'the restore gate third arm. A row whose create was never confirmed ' +
+      'may name a session that is running right now, so offering Restore over ' +
+      'it is how one conversation comes to have two agents on it',
+    fragments: [
+      'Tortie does not know whether this session started on that machine, because ',
+      'the machine stopped answering while it was being created. Bringing it back ',
+      'now could start a second agent on the same conversation. Tortie will settle ',
+      'this the next time that machine answers with a full list. Nothing was started.'
+    ]
   }
 ];
 

@@ -721,3 +721,49 @@ export const CLONE_NOT_WEB_ADDRESS =
 export const CLONE_PATH_NOT_ABSOLUTE =
   'That folder has to be a full path on the other machine, starting with a ' +
   'slash. Nothing was sent.';
+
+// ---------------------------------------------------------------------------
+// Phase 117: a create whose answer was lost
+// ---------------------------------------------------------------------------
+
+/**
+ * The create ran and Tortie could not read the answer.
+ *
+ * PINNED as `machine.create-answer-lost`. It is printed when the machine stopped
+ * answering between the line that starts the session and the read that confirms
+ * it. Before Phase 117 the row was deleted here and the person was told nothing
+ * was started, which was false whenever the far side create had succeeded.
+ *
+ * The row is kept instead, its status column reads unknown, and the next
+ * completed list from that machine settles it. That is the branch a bundler
+ * folds away, which is what this pin exists for.
+ *
+ * THE SENTENCE SAYS "unreachable" AND THE COLUMN HOLDS `unknown`, on purpose.
+ * `unknown` is the value in the manifest and it is never drawn. The label the
+ * person reads beside the row is "unreachable", written by `statusVisual` in
+ * `src/renderer/app/status.ts`. This sentence and that row can be on one screen
+ * together, so the sentence uses the word the person can see. The Phase 117 fix
+ * round changed it, because it said "marked unknown" and named a word that
+ * appears nowhere in the window.
+ */
+export const CREATE_ANSWER_LOST =
+  'Tortie sent the command that starts this session and it could not read the ' +
+  'answer, so it does not know whether the session started. The row is kept ' +
+  'and shown as unreachable. Tortie will match the row to the session the ' +
+  'next time that machine answers, and it will remove the row if that machine ' +
+  'answers and holds no such session. Nothing was started a second time.';
+
+/**
+ * Restore, refused because the create was never confirmed.
+ *
+ * PINNED as `machine.restore-create-unconfirmed`. It is the restore gate's
+ * third arm since the Phase 117 fix round, and it was the seventh until then.
+ * A row whose create was never confirmed may be a session that is running right
+ * now, so bringing it back is the one failure research 28 ranks above every
+ * other.
+ */
+export const RESTORE_CREATE_UNCONFIRMED =
+  'Tortie does not know whether this session started on that machine, because ' +
+  'the machine stopped answering while it was being created. Bringing it back ' +
+  'now could start a second agent on the same conversation. Tortie will settle ' +
+  'this the next time that machine answers with a full list. Nothing was started.';

@@ -21,6 +21,7 @@ vi.mock('electron', () => ({
 const { ManifestStore } = await import('../../manifest/store');
 const {
   isRemoteRecord,
+  markRemoteCreateUnconfirmed,
   noteRemoteRowSeen,
   remoteManifest,
   remoteManifestInstalled,
@@ -29,6 +30,7 @@ const {
   remoteResumeProvenance,
   setRemoteManifest,
   tombstoneRemoteRow,
+  unconfirmedRemoteRecords,
   writeRemoteRow
 } = await import('../remote-record');
 
@@ -239,6 +241,89 @@ describe('what a completed list writes back', () => {
 // ---------------------------------------------------------------------------
 // The tombstone
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// The create whose answer was never read (Phase 117)
+// ---------------------------------------------------------------------------
+
+/**
+ * The one place `unknown` is written into a session's status column, and the one
+ * place it is read back from.
+ *
+ * A create writes its durable row before it sends the line that starts the
+ * session. Before Phase 117 a create whose answer was lost deleted that row, so
+ * a session running on the other machine had no record on this Mac at all. It
+ * keeps the row now and this is the mark it leaves.
+ */
+describe('a create whose answer was never read', () => {
+  it('writes unknown into the status column of the row it already wrote', () => {
+    writeOne();
+    expect(store.getSession('sess-1')?.status).toBe('running');
+    markRemoteCreateUnconfirmed('sess-1');
+    expect(store.getSession('sess-1')?.status).toBe('unknown');
+  });
+
+  it('is read back by the seed, and only for a machine that is not this Mac', () => {
+    writeOne();
+    writeOne({ sessionId: 'sess-2', machineId: 'studio' });
+    markRemoteCreateUnconfirmed('sess-1');
+    expect(unconfirmedRemoteRecords().map((one) => one.id)).toEqual(['sess-1']);
+  });
+
+  it('finds nothing while every row was confirmed', () => {
+    writeOne();
+    expect(unconfirmedRemoteRecords()).toEqual([]);
+  });
+
+  /**
+   * The row leaves `unknown` through the write a completed pass already makes,
+   * and this phase adds no second exit. A pass that held the session writes the
+   * feed's own status, and a pass that proved it absent writes `restorable`.
+   */
+  it('is settled by the next completed pass, in both directions', () => {
+    writeOne();
+    markRemoteCreateUnconfirmed('sess-1');
+    noteRemoteRowSeen('sess-1', 'idle', CREATED_AT + 5_000);
+    expect(store.getSession('sess-1')?.status).toBe('idle');
+    expect(unconfirmedRemoteRecords()).toEqual([]);
+
+    markRemoteCreateUnconfirmed('sess-1');
+    noteRemoteRowSeen('sess-1', 'restorable', CREATED_AT + 9_000);
+    expect(store.getSession('sess-1')?.status).toBe('restorable');
+  });
+
+  /**
+   * A person removing the machine is a durable answer, and a late create must
+   * not undo it. The tombstone writes `discarded`, so a tombstoned row can never
+   * be in the seed's list either.
+   */
+  it('never moves a row whose machine a person removed', () => {
+    writeOne();
+    tombstoneRemoteRow('sess-1', {
+      v: 1,
+      machineId: 'studio',
+      machineLabel: 'Studio',
+      lastStatus: 'running',
+      lastSeenAt: CREATED_AT,
+      forgottenAt: CREATED_AT + 1_000
+    });
+    markRemoteCreateUnconfirmed('sess-1');
+    expect(store.getSession('sess-1')?.status).toBe('discarded');
+    expect(unconfirmedRemoteRecords()).toEqual([]);
+  });
+
+  it('is a silent no-op for an id with no row and for no store at all', () => {
+    expect(() => {
+      markRemoteCreateUnconfirmed('never-written');
+    }).not.toThrow();
+    setRemoteManifest(null);
+    expect(() => {
+      markRemoteCreateUnconfirmed('sess-1');
+    }).not.toThrow();
+    expect(unconfirmedRemoteRecords()).toEqual([]);
+    setRemoteManifest(store);
+  });
+});
 
 describe('the tombstone a removed machine leaves', () => {
   it('writes the status, the removal instant and the record in one go', () => {

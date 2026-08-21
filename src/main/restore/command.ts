@@ -16,8 +16,28 @@ import { stripAnsi } from '../ansi';
  */
 export { stripAnsi };
 
-/** Argument characters that never need quoting in POSIX shells. */
-const SAFE_ARG = /^[A-Za-z0-9_\-./=:@%+,]+$/;
+/**
+ * Argument characters that never need quoting in POSIX shells.
+ *
+ * A LEADING `=` IS NOT ONE OF THEM, and that is measured. zsh, which is the
+ * login shell macOS ships, has EQUALS expansion: a word whose FIRST character is
+ * `=` is replaced by the path of the program named after it. MEASURED 2026-08-20
+ * with zsh 5.9:
+ *
+ *   zsh -c 'echo =p117-absent-1'     zsh:1: p117-absent-1 not found, exit 1
+ *   zsh -c "echo '=p117-absent-1'"   =p117-absent-1, exit 0
+ *
+ * Tortie sends `=NAME` as an exact match target to tmux on another machine, and
+ * such a word reaching a login shell bare never reaches tmux at all. The failure
+ * looks like a machine that would not answer, which is the one thing Phase 117
+ * has to tell apart from a machine that answered no.
+ *
+ * `=` INSIDE a word is still safe and still passes through, because EQUALS
+ * expansion only ever looks at the first character. So `--model=opus` and
+ * `KEY=value` are typed into a restored pane exactly as a person would type
+ * them, which is what this quoter was written for.
+ */
+const SAFE_ARG = /^[A-Za-z0-9_\-./:@%+,][A-Za-z0-9_\-./=:@%+,]*$/;
 
 /**
  * Quote ONE argv element for typing into an interactive POSIX shell

@@ -127,7 +127,23 @@ vi.mock('../../tmux/control-client', async (importOriginal) => ({
  */
 const record = vi.hoisted(() => ({
   installed: false,
-  seen: [] as { id: string; status: string; at: number }[]
+  seen: [] as { id: string; status: string; at: number }[],
+  /** The rows a fake manifest holds, keyed by Tortie id. */
+  rows: new Map<
+    string,
+    {
+      id: string;
+      machineId: string;
+      status: string;
+      name: string;
+      projectPath: string;
+      cwd: string;
+      agent: string;
+      createdAt: number;
+    }
+  >(),
+  /** Every id `dropRemoteRow` deleted, in order. */
+  dropped: [] as string[]
 }));
 
 vi.mock('../remote-record', async (importOriginal) => ({
@@ -135,10 +151,52 @@ vi.mock('../remote-record', async (importOriginal) => ({
   remoteManifestInstalled: () => record.installed,
   noteRemoteRowSeen: (id: string, status: string, at: number) => {
     record.seen.push({ id, status, at });
-  }
+    const row = record.rows.get(id);
+    if (row !== undefined) row.status = status;
+  },
+  // PHASE 117. The create path writes a row, keeps it when the answer was lost
+  // and deletes it only on a proven absence, so the fake has to hold rows rather
+  // than swallow them. No database is opened anywhere in this file.
+  writeRemoteRow: (input: {
+    sessionId: string;
+    machineId: string;
+    name: string;
+    projectPath: string;
+    cwd: string;
+    agent: string;
+    createdAt: number;
+  }) => {
+    record.rows.set(input.sessionId, {
+      id: input.sessionId,
+      machineId: input.machineId,
+      status: 'running',
+      name: input.name,
+      projectPath: input.projectPath,
+      cwd: input.cwd,
+      agent: input.agent,
+      createdAt: input.createdAt
+    });
+    return null;
+  },
+  remoteRecordOf: (id: string) => record.rows.get(id) ?? null,
+  remoteRecordsForMachine: (machineId: string) =>
+    [...record.rows.values()].filter((one) => one.machineId === machineId),
+  unconfirmedRemoteRecords: () =>
+    [...record.rows.values()].filter((one) => one.status === 'unknown'),
+  markRemoteCreateUnconfirmed: (id: string) => {
+    const row = record.rows.get(id);
+    if (row !== undefined) row.status = 'unknown';
+  },
+  remoteManifest: () => ({
+    deleteSession: (id: string) => {
+      record.dropped.push(id);
+      record.rows.delete(id);
+    }
+  })
 }));
 
 const {
+  CREATE_ANSWER_LOST,
   MACHINE_NOT_READY,
   RESTORE_FORGOTTEN,
   TARGET_UNBOUND
@@ -159,6 +217,7 @@ const {
   oneLine,
   parseRemoteListLine,
   pollRemoteMachine,
+  projectRemoteRecord,
   readyRemoteContext,
   refuseRemoteRestore,
   remoteCreate,
@@ -168,6 +227,7 @@ const {
   machineCanHoldSession,
   remoteMachineFacts,
   remoteRename,
+  remoteRestoreFactsFor,
   remoteRowStatus,
   remoteSessionRow,
   remoteSessions,
@@ -181,9 +241,12 @@ const {
 } = await import('../remote-sessions');
 
 const { resetControlPlanesForTests } = await import('../control-plane');
-const { noteIssuedRemoteId, resetRescueForTests } = await import(
-  '../pane-env-rescue'
-);
+const {
+  issuedRemoteIdHeld,
+  issuedRemoteIdsFor,
+  noteIssuedRemoteId,
+  resetRescueForTests
+} = await import('../pane-env-rescue');
 
 const MACHINE = 'popos';
 
@@ -233,6 +296,8 @@ beforeEach(() => {
   FakeControlClient.made = [];
   record.installed = false;
   record.seen = [];
+  record.rows = new Map();
+  record.dropped = [];
   resetRemoteSessionsForTests();
   resetControlPlanesForTests();
   resetRescueForTests();
@@ -715,6 +780,7 @@ describe('create, list, rename and end', () => {
     // A create can run on the far side and lose its reply. ONE read asks whether
     // the session this call just asked for exists, and it only ever accepts a
     // uuid this call itself generated seconds ago.
+    record.installed = true;
     answers['new-session'] = new Error('the link went');
     answers['show-environment'] = () => `GMUX_SESSION_ID=${createdUuid}\n`;
     answers['list-sessions'] = () =>
@@ -728,9 +794,33 @@ describe('create, list, rename and end', () => {
     });
     expect(session.id).toBe(createdUuid);
     expect(sent.filter((argv) => argv[0] === 'show-environment')).toHaveLength(1);
+    expect(record.dropped).toEqual([]);
+  });
+
+  /**
+   * PHASE 117. The read never names the variable on the line. Naming it makes
+   * tmux exit 1 for the ordinary case, and the exec plane turns a non zero exit
+   * into a thrown error, so an absence and a machine that did not answer arrive
+   * as the same error. MEASURED on tmux 3.6a, 2026-08-17.
+   */
+  it('asks for the whole environment rather than naming the variable', async () => {
+    answers['new-session'] = new Error('the link went');
+    answers['show-environment'] = () => `GMUX_SESSION_ID=${createdUuid}\n`;
+    answers['list-sessions'] = () =>
+      createdUuid === '' ? '' : line({ tmuxId: '$4', gmuxId: createdUuid });
+    await remoteCreate({
+      machineId: MACHINE,
+      name: 'work',
+      projectPath: '/srv/repo',
+      cwd: '/srv/repo',
+      agent: 'shell'
+    });
+    const read = sent.find((argv) => argv[0] === 'show-environment');
+    expect(read).toEqual(['show-environment', '-t', '=work']);
   });
 
   it('adopts nothing when that read answers with a different session', async () => {
+    record.installed = true;
     answers['new-session'] = new Error('the link went');
     answers['show-environment'] = 'GMUX_SESSION_ID=somebody-else\n';
     answers['list-sessions'] = '';
@@ -743,6 +833,296 @@ describe('create, list, rename and end', () => {
     }).catch(() => null);
     expect(failed).toBeNull();
     expect(remoteSessions()).toEqual([]);
+    expect(record.dropped).toHaveLength(1);
+    expect(record.rows.size).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 117: the three answers a confirmation can give
+// ---------------------------------------------------------------------------
+
+/**
+ * A create whose answer was lost used to delete its own durable row, because
+ * every failure to read the confirmation produced the same answer as a proven
+ * absence. The session was running on the other machine and nothing on this Mac
+ * recorded it after the delete.
+ *
+ * These tests are the three answers, and the rule is that only the two where
+ * tmux itself answered may delete anything.
+ */
+describe('a create whose answer was lost', () => {
+  const CREATE = {
+    machineId: MACHINE,
+    name: 'work',
+    projectPath: '/srv/repo',
+    cwd: '/srv/repo',
+    agent: 'shell'
+  } as const;
+
+  beforeEach(() => {
+    record.installed = true;
+    answers['new-session'] = new Error('the link went');
+    answers['list-sessions'] = '';
+  });
+
+  it('deletes the row when the machine named the session as missing', async () => {
+    answers['show-environment'] = new GmuxError(
+      'SESSION_NOT_FOUND',
+      'Session not found.',
+      "can't find session: work"
+    );
+    const payload = await refusalOf(() => remoteCreate(CREATE));
+    expect(payload?.message).not.toBe(CREATE_ANSWER_LOST);
+    expect(record.dropped).toHaveLength(1);
+    expect(record.rows.size).toBe(0);
+  });
+
+  it('deletes the row when the machine holds no session server at all', async () => {
+    answers['show-environment'] = new GmuxError(
+      'TMUX_UNREACHABLE',
+      'The Tortie session server is not running.',
+      'no server running on /tmp/tortie-1000/gmux'
+    );
+    await refusalOf(() => remoteCreate(CREATE));
+    expect(record.dropped).toHaveLength(1);
+  });
+
+  /** THE DEFECT THIS PHASE EXISTS FOR, driven end to end through the verb. */
+  it('keeps the row and marks it unknown when nobody could read an answer', async () => {
+    answers['show-environment'] = new GmuxError(
+      'TMUX_UNREACHABLE',
+      'Tortie could not reach popos.',
+      'unreachable: ssh: connect to host popos port 22: Host is down'
+    );
+    const payload = await refusalOf(() => remoteCreate(CREATE));
+    expect(payload?.message).toBe(CREATE_ANSWER_LOST);
+    expect(payload?.code).toBe('TMUX_UNREACHABLE');
+    expect(record.dropped).toEqual([]);
+    expect(record.rows.get(createdUuid)?.status).toBe('unknown');
+  });
+
+  it('keeps the row for an error nobody can classify at all', async () => {
+    answers['show-environment'] = new Error('socket hang up');
+    const payload = await refusalOf(() => remoteCreate(CREATE));
+    expect(payload?.message).toBe(CREATE_ANSWER_LOST);
+    expect(record.rows.get(createdUuid)?.status).toBe('unknown');
+  });
+
+  /**
+   * The machine answered the environment read and could not answer the list. The
+   * session was PROVED to be there, and the only thing missing is the identifier
+   * a later verb would be composed against.
+   */
+  it('keeps the row when the session is there and the list cannot be read', async () => {
+    answers['show-environment'] = () => `GMUX_SESSION_ID=${createdUuid}\n`;
+    answers['list-sessions'] = new Error('the link went again');
+    const payload = await refusalOf(() => remoteCreate(CREATE));
+    expect(payload?.message).toBe(CREATE_ANSWER_LOST);
+    expect(record.rows.get(createdUuid)?.status).toBe('unknown');
+  });
+
+  it('leaves the id in the issued set, so the rescue can still bind it', async () => {
+    answers['show-environment'] = new Error('socket hang up');
+    await refusalOf(() => remoteCreate(CREATE));
+    expect(issuedRemoteIdHeld(createdUuid)).toBe(true);
+    expect(remoteMachineFacts(MACHINE).unconfirmedCreates).toBe(1);
+  });
+
+  /** The row is shown, and it is never drawn as a session that is working. */
+  it('draws the row as unknown rather than as running or restorable', async () => {
+    answers['show-environment'] = new Error('socket hang up');
+    await refusalOf(() => remoteCreate(CREATE));
+    const row = record.rows.get(createdUuid);
+    expect(
+      projectRemoteRecord({
+        id: row!.id,
+        name: row!.name,
+        tmuxName: 'work',
+        projectPath: row!.projectPath,
+        cwd: row!.cwd,
+        agent: 'shell',
+        status: 'unknown',
+        createdAt: row!.createdAt,
+        machineId: MACHINE
+      }).status
+    ).toBe('unknown');
+  });
+
+  /**
+   * The restore gate's third arm. Bringing back a session that may be running
+   * is the failure research 28 ranks above every other.
+   */
+  it('tells the restore gate the create was never confirmed', async () => {
+    answers['show-environment'] = new Error('socket hang up');
+    await refusalOf(() => remoteCreate(CREATE));
+    expect(remoteRestoreFactsFor(createdUuid).createUnconfirmed).toBe(true);
+  });
+
+  it('starts nothing a second time', async () => {
+    answers['show-environment'] = new Error('socket hang up');
+    await refusalOf(() => remoteCreate(CREATE));
+    expect(sent.filter((argv) => argv[0] === 'new-session')).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 117: what the next run does with that row
+// ---------------------------------------------------------------------------
+
+/**
+ * The issued set used to live in memory for one run, so a create interrupted in
+ * the last run could never be rescued by this one. It is rebuilt from the
+ * manifest now, once per machine, on the first list pass.
+ */
+describe('the issued set rebuilt from a previous run', () => {
+  const OLD = 'from-the-last-run';
+
+  function leaveUnconfirmed(machineId = MACHINE): void {
+    record.installed = true;
+    record.rows.set(OLD, {
+      id: OLD,
+      machineId,
+      status: 'unknown',
+      name: 'the create that lost its answer',
+      projectPath: '/srv/repo',
+      cwd: '/srv/repo',
+      agent: 'claude',
+      createdAt: 1_700_000_000_000
+    });
+  }
+
+  it('binds the same immutable id, and creates nothing a second time', async () => {
+    leaveUnconfirmed();
+    // The far side holds the session with the pane stamp and no option stamp,
+    // which is exactly what an interrupted create leaves behind.
+    answers['show-environment'] = `GMUX_SESSION_ID=${OLD}\n`;
+    answers['list-sessions'] = () =>
+      sent.some((argv) => argv[0] === 'set-option' && argv[3] === '@gmux-id')
+        ? line({ tmuxId: '$9', gmuxId: OLD })
+        : line({ tmuxId: '$9' });
+    await pollRemoteMachine(MACHINE);
+    expect(remoteSessions().map((one) => one.id)).toEqual([OLD]);
+    expect(sent.filter((argv) => argv[0] === 'new-session')).toEqual([]);
+    const stamp = sent.find(
+      (argv) => argv[0] === 'set-option' && argv[3] === '@gmux-id'
+    );
+    expect(stamp?.[4]).toBe(OLD);
+    // PHASE 117 FIX ROUND. The id leaves the issued set when the rescue's own
+    // `@gmux-id` stamp lands. Without this the row stayed unconfirmed for the
+    // rest of the run and the restore gate went on refusing it after the machine
+    // had answered and the session was back under its own name.
+    expect(issuedRemoteIdHeld(OLD)).toBe(false);
+    expect(remoteRestoreFactsFor(OLD).createUnconfirmed).toBe(false);
+  });
+
+  it('moves the status column off unknown once the row is bound', async () => {
+    leaveUnconfirmed();
+    answers['show-environment'] = `GMUX_SESSION_ID=${OLD}\n`;
+    answers['list-sessions'] = () =>
+      sent.some((argv) => argv[0] === 'set-option' && argv[3] === '@gmux-id')
+        ? line({ tmuxId: '$9', gmuxId: OLD })
+        : line({ tmuxId: '$9' });
+    await pollRemoteMachine(MACHINE);
+    expect(record.rows.get(OLD)?.status).not.toBe('unknown');
+  });
+
+  /**
+   * THE WRITE BACK RULE, and the reason is arithmetic rather than taste. The
+   * rescue runs at the END of a pass, so without this the pass that is about to
+   * re-bind the session writes "not running" over it first and a person sees a
+   * live session called not running for one cadence.
+   */
+  it('writes nothing over a row while a session is still waiting to be rescued', async () => {
+    leaveUnconfirmed();
+    // A foreign session that is NOT ours, so the pass has a rescue candidate and
+    // the probe settles it as somebody else's.
+    answers['show-environment'] = 'GMUX_SESSION_ID=somebody-else\n';
+    answers['list-sessions'] = line({ tmuxId: '$9' });
+    await pollRemoteMachine(MACHINE);
+    expect(record.seen.filter((one) => one.id === OLD)).toEqual([]);
+    expect(record.rows.get(OLD)?.status).toBe('unknown');
+    expect(issuedRemoteIdHeld(OLD)).toBe(true);
+  });
+
+  /**
+   * THE NEGATIVE, and without it the phase would trade one data loss for a pile
+   * of rows nothing can ever settle. A completed answer holding no candidate is
+   * proof, so the id is dropped and the row becomes restorable honestly.
+   */
+  it('lets a completed answer that holds nothing settle the row', async () => {
+    leaveUnconfirmed();
+    answers['list-sessions'] = '';
+    await pollRemoteMachine(MACHINE);
+    expect(issuedRemoteIdHeld(OLD)).toBe(false);
+    expect(record.rows.get(OLD)?.status).toBe('restorable');
+    expect(remoteMachineFacts(MACHINE).unconfirmedCreates).toBe(0);
+  });
+
+  it('seeds once per machine, so a settled row is not seeded again', async () => {
+    leaveUnconfirmed();
+    answers['list-sessions'] = '';
+    await pollRemoteMachine(MACHINE);
+    record.rows.get(OLD)!.status = 'unknown';
+    await pollRemoteMachine(MACHINE);
+    expect(issuedRemoteIdsFor(MACHINE)).toEqual([]);
+  });
+
+  it('never seeds a row that belongs to another machine', async () => {
+    leaveUnconfirmed('attic');
+    answers['list-sessions'] = line({ tmuxId: '$9' });
+    answers['show-environment'] = 'GMUX_SESSION_ID=somebody-else\n';
+    await pollRemoteMachine(MACHINE);
+    expect(issuedRemoteIdsFor(MACHINE)).toEqual([]);
+  });
+
+  /**
+   * PHASE 117 FIX ROUND, AND THIS IS THE CASE THE SMOKE MEASURED AS BROKEN.
+   *
+   * The gate is asked BEFORE any list pass, which is what a person does when
+   * they restart Tortie and reach for Restore straight away. The issued set is
+   * still empty at that moment, because it is filled at the top of the first
+   * pass. The durable half of the fact is the row's own status column, and it is
+   * what has to answer here. Without it the gate read the fact as false and the
+   * person was told to go and sign in to the machine, over a session that may be
+   * running right now.
+   *
+   * The FACT is what is asserted here, because this file registers no machine in
+   * `machines.json` and the gate's first arm answers `forgotten` for one that is
+   * not there. The verdict over these facts is proved twice elsewhere, being
+   * `./restore-gate.test.ts` for the arm order and `npm run smoke:p117` for the
+   * sentence a person reads after a real restart.
+   */
+  it('reads the create as unconfirmed from the row alone, before any pass', () => {
+    leaveUnconfirmed();
+    expect(issuedRemoteIdHeld(OLD)).toBe(false);
+    expect(remoteRestoreFactsFor(OLD).createUnconfirmed).toBe(true);
+  });
+
+  it('stops reading it as unconfirmed once a completed answer settles it', async () => {
+    leaveUnconfirmed();
+    answers['list-sessions'] = '';
+    await pollRemoteMachine(MACHINE);
+    expect(issuedRemoteIdHeld(OLD)).toBe(false);
+    expect(record.rows.get(OLD)?.status).toBe('restorable');
+    expect(remoteRestoreFactsFor(OLD).createUnconfirmed).toBe(false);
+  });
+
+  it('reads no manifest at all when none is installed', async () => {
+    record.rows.set(OLD, {
+      id: OLD,
+      machineId: MACHINE,
+      status: 'unknown',
+      name: 'x',
+      projectPath: '/srv/repo',
+      cwd: '/srv/repo',
+      agent: 'claude',
+      createdAt: 1_700_000_000_000
+    });
+    record.installed = false;
+    answers['list-sessions'] = '';
+    await pollRemoteMachine(MACHINE);
+    expect(issuedRemoteIdsFor(MACHINE)).toEqual([]);
   });
 });
 

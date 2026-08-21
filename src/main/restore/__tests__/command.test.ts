@@ -30,6 +30,27 @@ describe('shellQuoteArg', () => {
     expect(shellQuoteArg('a&&b|c>d')).toBe("'a&&b|c>d'");
   });
 
+  /**
+   * PHASE 117. zsh, which is the login shell macOS ships, replaces a word whose
+   * FIRST character is `=` with the path of the program named after it.
+   * MEASURED 2026-08-20 with zsh 5.9:
+   *
+   *   zsh -c 'echo =p117-absent-1'     zsh:1: p117-absent-1 not found, exit 1
+   *   zsh -c "echo '=p117-absent-1'"   =p117-absent-1, exit 0
+   *
+   * Tortie sends `=NAME` to tmux on another machine as an exact match target, so
+   * such a word has to leave here quoted. A `=` inside a word is untouched by
+   * that expansion and still passes through, which keeps a resume command typed
+   * into a pane reading the way a person would type it.
+   */
+  it('quotes a leading equals and leaves an inner one alone', () => {
+    expect(shellQuoteArg('=p117-absent-1')).toBe("'=p117-absent-1'");
+    expect(shellQuoteArg('=$3')).toBe("'=$3'");
+    expect(shellQuoteArg('--model=opus')).toBe('--model=opus');
+    expect(shellQuoteArg('KEY=value')).toBe('KEY=value');
+    expect(shellQuoteArg('=')).toBe("'='");
+  });
+
   it('escapes embedded single quotes POSIX-style', () => {
     expect(shellQuoteArg("it's")).toBe("'it'\\''s'");
   });

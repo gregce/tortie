@@ -209,14 +209,26 @@ import { assertRemoteDirUsable } from './dir-list';
 // nothing else from `../manifest/`, which is how the boundary stays checkable.
 import {
   conversationSyncedAt,
+  markRemoteCreateUnconfirmed,
   noteRemoteRowSeen,
   remoteManifest,
   remoteManifestInstalled,
   remoteRecordOf,
   remoteRecordsForMachine,
   tombstoneRemoteRow,
+  unconfirmedRemoteRecords,
   writeRemoteRow
 } from './remote-record';
+// Phase 117. The pure table that decides what one read at the end of a create is
+// allowed to prove. This module composes the read and acts on the answer.
+import {
+  classifyConfirmationFailure,
+  confirmationArgs,
+  confirmationDisposition,
+  confirmationWhy,
+  readConfirmationEnvironment,
+  type RemoteCreateConfirmation
+} from './create-confirmation';
 // Phase 72. The pure table that decides whether a session on another machine may
 // be brought back. This module gathers the facts and nothing else.
 import {
@@ -237,9 +249,12 @@ import {
   clearIssuedRemoteId,
   foreignRemoteIds,
   forgetForeignMemo,
+  issuedRemoteIdHeld,
+  issuedRemoteIdsFor,
   noteIssuedRemoteId,
   rescueNeeded,
-  rescueRemoteRow
+  rescueRemoteRow,
+  seedIssuedRemoteIds
 } from './pane-env-rescue';
 // The live connection. This module hands it a context and a sink; it never
 // resolves a context of its own and never holds a row.
@@ -254,6 +269,7 @@ import {
   setControlPlaneSink
 } from './control-plane';
 import {
+  CREATE_ANSWER_LOST,
   MACHINE_NOT_READY,
   REMOTE_DIR_MISSING,
   TARGET_UNBOUND,
@@ -562,6 +578,16 @@ interface MachineSessions {
    * whose status has not moved, and this skips the whole scan.
    */
   lastMachineStatus: SessionStatus | null;
+  /**
+   * True once this run has rebuilt the issued set for this machine from the
+   * manifest (Phase 117).
+   *
+   * The seed runs once per machine, at the top of the first pass. It is here
+   * rather than in `./remote-record.ts` because calling it from the manifest
+   * side would make that module import `./pane-env-rescue.ts`, and that closes a
+   * new runtime cycle the architecture audit is already counting six of.
+   */
+  seeded: boolean;
 }
 
 const machines = new Map<string, MachineSessions>();
@@ -606,7 +632,8 @@ function stateOf(machineId: string): MachineSessions {
     lastSeenWriteAt: new Map(),
     onControl: false,
     passing: false,
-    lastMachineStatus: null
+    lastMachineStatus: null,
+    seeded: false
   };
   machines.set(machineId, fresh);
   return fresh;
@@ -1072,8 +1099,13 @@ export function projectRemoteRecord(record: {
  *
  *   the feed lists it                 the feed's own status
  *   a completed list did not hold it  restorable
+ *   the create was never confirmed    unknown
  *   the machine is not answering      unknown
  *   the machine was removed           whatever the row already says
+ *
+ * PHASE 117 ADDED THE THIRD ARM. Without it a machine that came back would draw
+ * an unconfirmed row as `restorable` while the restore gate refused it for being
+ * unconfirmed, and the two surfaces would contradict each other on one screen.
  *
  * The last arm is the tombstone's. A removal writes `discarded` on the row in a
  * durable commit, so the row already carries the answer and nothing here should
@@ -1092,6 +1124,10 @@ function remoteRecordStatus(
   if (live !== undefined) return live.status;
   const proven = state.gone.get(sessionId);
   if (proven !== undefined) return proven.status;
+  // PHASE 117. The create was never confirmed, so nothing has proved this
+  // session either way. It is asked before the machine level arm because it is a
+  // fact about the ROW, and a machine that is answering again does not settle it.
+  if (issuedRemoteIdHeld(sessionId)) return 'unknown';
   if (state.truth.rows.kind === 'status') return state.truth.rows.status;
   // The machine answered, this pass decided per row, and the row was not in the
   // answer. That is `absent`, and the table gives it `restorable`.
@@ -1501,16 +1537,51 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     // a uuid this call itself generated seconds ago, and it never looks at a
     // session it did not just ask for. The rescue that re-binds a marked session
     // found at reconcile time with no row pointing at it is Phase 71.
-    const found = await confirmCreate(ctx, tmuxName, sessionId);
-    if (found === null) {
+    //
+    // PHASE 117 GAVE THAT READ THREE ANSWERS. It used to have two, being an
+    // identifier or null, and every failure to read produced null. The caller
+    // read null as nothing running and deleted the durable row, so a create that
+    // really succeeded on the far side left nothing on this Mac recording it.
+    // A machine that did not answer is not a machine that answered no.
+    const confirmation = await confirmCreate(ctx, tmuxName, sessionId);
+    const disposition = confirmationDisposition(confirmation);
+    if (disposition === 'dropRow') {
       // Phase 72. Nothing is running, so the row is a claim about a session that
       // does not exist. The local create path removes its row on a failed spawn
       // for the same reason, and leaving one here would put a permanent
       // `restorable` row on screen for work that never started.
+      //
+      // PHASE 117 NARROWED WHAT REACHES THIS ARM to the two cases where tmux
+      // itself answered, being a machine holding no server at all and a machine
+      // that named the session as missing. This is the only caller of
+      // `dropRemoteRow` on the confirmation path, and the conformance gate fails
+      // on a second one.
       dropRemoteRow(sessionId);
       throw createFailure(err, cwd);
     }
-    tmuxId = found;
+    // The `kind` test is what narrows the answer for the compiler. The table
+    // returns `bind` for a present confirmation and for nothing else, and the
+    // conformance gate asserts that.
+    if (disposition === 'keepUnknown' || confirmation.kind !== 'present') {
+      // THE ROW IS KEPT. The session may be running on that machine right now,
+      // and deleting the only record of it is the data loss this phase exists to
+      // stop. The status column says unknown, the id stays in the issued set so
+      // the pane environment rescue can still bind it, and the seed at the top
+      // of the next run's first pass puts it back in that set after a restart.
+      markRemoteCreateUnconfirmed(sessionId);
+      machinesLog.warn(
+        `the create on ${input.machineId} could not be confirmed, so the row ` +
+          `is kept and marked unknown: ${confirmationWhy(confirmation)}`
+      );
+      // TMUX_UNREACHABLE rather than SPAWN_FAILED, because nothing here proved a
+      // failed spawn. The person reads one sentence saying the state is unknown.
+      throw gmuxError(
+        'TMUX_UNREACHABLE',
+        CREATE_ANSWER_LOST,
+        `${input.machineId}: ${confirmationWhy(confirmation)}`
+      );
+    }
+    tmuxId = confirmation.tmuxId;
     machinesLog.warn(
       `the create on ${input.machineId} lost its answer and the session was ` +
         `there: ${(err as Error).message}`
@@ -1587,30 +1658,73 @@ function dropRemoteRow(sessionId: string): void {
   }
 }
 
-/** The one read a lost create answer gets. Returns the identifier, or null. */
+/**
+ * The one read a lost create answer gets (Phase 72, then Phase 117).
+ *
+ * It returns one of the three answers `./create-confirmation.ts` declares, and
+ * the whole of Phase 117 is that the third one exists. The old shape returned an
+ * identifier or null, and a broad catch turned every unreadable answer into
+ * null, which the caller deleted a durable row on.
+ *
+ * TWO READS, and each one answers a different question. The environment read
+ * asks whether the session this call just asked for is there, and it only ever
+ * accepts the uuid this call itself generated seconds ago. The list read then
+ * asks for the identifier the machine holds it under, because a kill or a rename
+ * is only ever composed against an identifier a machine reported.
+ *
+ * A machine that answered the first read and could not answer the second is
+ * `unreachable` rather than absent. The session was proved to be there, and the
+ * only thing missing is the identifier.
+ */
 async function confirmCreate(
   ctx: RemoteMachineContext,
   tmuxName: string,
   sessionId: string
-): Promise<string | null> {
+): Promise<RemoteCreateConfirmation> {
+  let printed: string;
   try {
-    const out = await execOn(ctx, [
-      'show-environment',
-      '-t',
-      `=${tmuxName}`,
-      'GMUX_SESSION_ID'
-    ]);
-    if (out.trim() !== `GMUX_SESSION_ID=${sessionId}`) return null;
-    const listed = await execOn(ctx, remoteListArgs());
-    for (const line of listed.split('\n')) {
-      const row = parseRemoteListLine(line);
-      if (row !== null && row.gmuxId === sessionId) return row.tmuxId;
-      if (row !== null && row.tmuxName === tmuxName) return row.tmuxId;
-    }
-    return null;
-  } catch {
-    return null;
+    printed = await execOn(ctx, confirmationArgs(tmuxName));
+  } catch (err) {
+    const reason = `${(err as Error).message}`;
+    return classifyConfirmationFailure(err) === 'provenAbsent'
+      ? {
+          kind: 'provenAbsent',
+          why: `the machine answered and holds no session called ${tmuxName}`
+        }
+      : { kind: 'unreachable', why: `the machine did not answer: ${reason}` };
   }
+  if (readConfirmationEnvironment(printed, sessionId) === 'provenAbsent') {
+    return {
+      kind: 'provenAbsent',
+      why:
+        `the machine answered and no session called ${tmuxName} carries the ` +
+        `id this create generated`
+    };
+  }
+  let listed: string;
+  try {
+    listed = await execOn(ctx, remoteListArgs());
+  } catch (err) {
+    return {
+      kind: 'unreachable',
+      why:
+        `the machine holds the session and did not answer the list that names ` +
+        `it: ${(err as Error).message}`
+    };
+  }
+  for (const line of listed.split('\n')) {
+    const row = parseRemoteListLine(line);
+    if (row === null) continue;
+    if (row.gmuxId === sessionId || row.tmuxName === tmuxName) {
+      return { kind: 'present', tmuxId: row.tmuxId };
+    }
+  }
+  // The machine answered both reads and they disagree. The environment read is
+  // the one that proves the session exists, so this is NOT read as an absence.
+  return {
+    kind: 'unreachable',
+    why: 'the machine holds the session and its list did not name it'
+  };
 }
 
 /**
@@ -1931,6 +2045,9 @@ function machineFactsFor(
     // With no row in hand nothing can say the far side is not holding it, and
     // "cannot say" is refused rather than allowed.
     listedNow: true,
+    // With no row in hand there is no create to have been left unconfirmed, and
+    // this matches what the other row level facts above already do.
+    createUnconfirmed: false,
     rowMachineId: machineId,
     targetMachineId: machineId,
     rowStatus
@@ -1971,6 +2088,31 @@ export function remoteRestoreFactsFor(
     // `gone` is a row a completed list stopped reporting, which is the case
     // restore exists for.
     listedNow: state?.rows.has(sessionId) ?? false,
+    // PHASE 117, AND THE FIX ROUND WIDENED IT TO TWO SOURCES.
+    //
+    // An id leaves the issued set in exactly three ways, and every one of them
+    // is proof: the create's own option stamp landed, a rescue's option stamp
+    // landed, or a completed pass held no rescue candidate for it and its row
+    // still read unknown. The first two bind the session and the third proves it
+    // is not there. While the id is still held, nothing knows whether the
+    // session is running, so the gate refuses rather than offering a verb that
+    // could start a second agent.
+    //
+    // The issued set alone was not enough, and `npm run smoke:p117` measured it
+    // on 2026-08-20. That set lives in memory for one run and is filled from the
+    // manifest at the top of the first list pass on a machine. A person who
+    // restarts Tortie and reaches for Restore before any pass has completed
+    // therefore asked a set that was still empty, the fact read false, and the
+    // gate answered with a sentence about signing in to the machine.
+    //
+    // The durable half is the row's own status column. `unknown` on a remote row
+    // has exactly one writer, being `markRemoteCreateUnconfirmed`, and the
+    // conformance gate fails on a second one, so a remote row reading `unknown`
+    // is a create nobody could confirm and nothing else. The manifest is still
+    // read only when this run's own maps cannot answer, which is the same rule
+    // the `record` line above follows, so no read per row per change is added.
+    createUnconfirmed:
+      issuedRemoteIdHeld(sessionId) || record?.status === 'unknown',
     rowMachineId,
     targetMachineId: target,
     rowStatus: remoteRecordStatus(rowMachineId, sessionId, status)
@@ -2061,6 +2203,19 @@ async function onePass(
   machineId: string,
   state: MachineSessions
 ): Promise<void> {
+  // PHASE 117, ONCE PER MACHINE PER RUN. A create whose answer was lost kept its
+  // durable row and wrote `unknown` into its status column. This is where those
+  // rows go back into the issued set, so the rescue below binds the SAME
+  // immutable id the first run generated rather than a second create being made.
+  //
+  // It is here rather than in `./remote-record.ts` for three reasons. This file
+  // already imports both modules, so nothing new is coupled. It runs before the
+  // rescue judgement of the pass that could need it and before the write back can
+  // move the column. And it needs no boot wiring in `../sessions/core.ts`.
+  if (!state.seeded) {
+    state.seeded = true;
+    seedUnconfirmedCreates(machineId);
+  }
   let ctx: RemoteMachineContext;
   try {
     ctx = readyRemoteContext(machineId);
@@ -2144,6 +2299,16 @@ async function onePass(
     // and nothing on that machine does either.
     state.gone.set(id, { ...row, status: absentStatus });
   }
+  // PHASE 117. A pass that found a session waiting to be re-bound must not write
+  // "not running" over its row first. See {@link writeBackCompletedPass}.
+  const rescuePending = unclaimed.length > 0;
+  // THE SECOND EXIT FROM THE ISSUED SET, and the first is the option stamp
+  // landing. A pass that completed, held no session waiting to be rescued and did
+  // not report the row is proof the session is not there. The id is dropped, and
+  // the write back below moves the row to `restorable` so it can be brought back
+  // honestly. It runs BEFORE that write back, because it reads the status column
+  // the write back is about to change.
+  if (!rescuePending) dropProvenAbsentCreates(machineId, seen);
   const foreignBefore = state.foreign;
   // Captured before the two are overwritten, because the manifest writes below
   // are bounded by whether the machine's membership actually moved.
@@ -2171,7 +2336,8 @@ async function onePass(
     membershipMoved:
       firstCompletedPass ||
       previousIds.size !== seen.size ||
-      [...seen.keys()].some((id) => !previousIds.has(id))
+      [...seen.keys()].some((id) => !previousIds.has(id)),
+    rescuePending
   });
   // Written when the COUNT MOVES, never on every pass. Phase 70 polled on a
   // timer, so this was one line every 5 s. Phase 71 lists on every event the
@@ -2235,6 +2401,8 @@ function writeBackCompletedPass(
     readonly absentStatus: SessionStatus;
     readonly snapshotAt: number;
     readonly membershipMoved: boolean;
+    /** True when this pass found a session still waiting to be re-bound. */
+    readonly rescuePending: boolean;
   }
 ): void {
   if (!remoteManifestInstalled()) return;
@@ -2259,7 +2427,71 @@ function writeBackCompletedPass(
   if (!pass.membershipMoved) return;
   for (const record of remoteRecordsForMachine(machineId)) {
     if (pass.seen.has(record.id)) continue;
+    // PHASE 117. A row whose id is still waiting to be accounted for is left
+    // alone while a rescue is pending. The reason is arithmetic rather than
+    // taste: the rescue runs at the END of the pass, so without this rule the
+    // pass that is about to re-bind the session writes "not running" over it
+    // first, and a person watching the screen sees a live session called not
+    // running for one cadence. Convergence is bounded at two passes, because the
+    // foreign memo in `./pane-env-rescue.ts` settles a probed session for good,
+    // so a pass after the probes has no unclaimed candidates and this write runs
+    // normally.
+    if (pass.rescuePending && issuedRemoteIdHeld(record.id)) continue;
     noteRemoteRowSeen(record.id, pass.absentStatus, pass.snapshotAt);
+  }
+}
+
+/**
+ * Put the ids a past run left unconfirmed on this machine back into the issued
+ * set (Phase 117).
+ *
+ * It reads the manifest once per machine per run, and only rows whose status
+ * column says the create was never confirmed. A row for this Mac can never be in
+ * that list, and `seedIssuedRemoteIds` refuses one anyway.
+ */
+function seedUnconfirmedCreates(machineId: string): void {
+  if (!remoteManifestInstalled()) return;
+  const added = seedIssuedRemoteIds(
+    unconfirmedRemoteRecords()
+      .filter((record) => record.machineId === machineId)
+      .map((record) => ({
+        id: record.id,
+        machineId,
+        name: oneLine(record.name),
+        agent: String(record.agent),
+        projectPath: oneLine(record.projectPath),
+        cwd: record.cwd,
+        issuedAt: record.createdAt
+      }))
+  );
+  if (added === 0) return;
+  machinesLog.info(
+    `${machineId} has ${String(added)} session(s) Tortie started and could not ` +
+      `confirm in an earlier run. It will match them to that machine's own ` +
+      `list before it decides anything about them.`
+  );
+}
+
+/**
+ * Drop the ids a COMPLETED pass proved are not on the machine (Phase 117).
+ *
+ * Only a row whose status column still reads `unknown` is dropped, and that is
+ * deliberate. A create running right now also holds an issued id, and its row
+ * reads `running` from the moment it is written, so a pass that lands in the
+ * middle of a create cannot drop the id the rescue is about to need.
+ *
+ * The caller runs this only when the pass held no session waiting to be
+ * rescued.
+ */
+function dropProvenAbsentCreates(
+  machineId: string,
+  seen: ReadonlyMap<string, RemoteSessionRow>
+): void {
+  if (!remoteManifestInstalled()) return;
+  for (const one of issuedRemoteIdsFor(machineId)) {
+    if (seen.has(one.id)) continue;
+    if (remoteRecordOf(one.id)?.status !== 'unknown') continue;
+    clearIssuedRemoteId(one.id);
   }
 }
 
@@ -2665,6 +2897,16 @@ export function remoteMachineFacts(machineId: string): {
    * machine, rather than growing for the length of a run.
    */
   lastSeenTracked: number;
+  /**
+   * How many creates on this machine are still waiting to be accounted for
+   * (Phase 117).
+   *
+   * It is the size of the issued set for this machine, which is what the rescue
+   * judges against and what the restore gate refuses on. It counts a create
+   * running right now as well as one a past run left unconfirmed, because both
+   * are ids nothing has settled yet.
+   */
+  unconfirmedCreates: number;
   /** What the case table last said about this machine. */
   evidence: string;
 } {
@@ -2681,6 +2923,7 @@ export function remoteMachineFacts(machineId: string): {
     statusTimerArmed: state.statusTimer !== null,
     onControl: state.onControl,
     lastSeenTracked: state.lastSeenWriteAt.size,
+    unconfirmedCreates: issuedRemoteIdsFor(machineId).length,
     evidence: state.truth.evidence
   };
 }

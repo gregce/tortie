@@ -445,6 +445,56 @@ export function noteRemoteRowSeen(
 }
 
 /**
+ * Mark one row as a create whose answer was never read (Phase 117).
+ *
+ * THIS IS THE ONLY PRODUCTION PLACE THAT WRITES `unknown` INTO A SESSION'S
+ * STATUS COLUMN, and the conformance gate fails on a second one. One writer is
+ * what makes the column readable: a row reads `unknown` exactly when its create
+ * was never confirmed and nothing has proved it either way since.
+ *
+ * No column is added and no migration runs. `unknown` has been a member of
+ * `SESSION_STATUSES` since Phase 19 with no producer, and its own comment names
+ * this case as the reason it exists. `MANIFEST_MIN_COMPATIBLE_VERSION` is 13 and
+ * migration 013 landed long after that alphabet was fixed, so every build
+ * allowed to open this manifest already reads the value.
+ *
+ * The row leaves `unknown` through {@link noteRemoteRowSeen}, which is the write
+ * a completed pass already makes. It moves to the feed's own status when the
+ * session was bound, and to `restorable` when the pass proved the session is not
+ * there.
+ *
+ * A silent no-op when no store is installed or the id has no row. A tombstoned
+ * row is left alone, because a person removing the machine is a durable answer
+ * and a late create must not undo it.
+ */
+export function markRemoteCreateUnconfirmed(sessionId: string): void {
+  if (store === null) return;
+  const record = store.getSession(sessionId);
+  if (record === undefined) return;
+  if (record.status === 'discarded') return;
+  if (record.status === 'unknown') return;
+  store.setStatus(sessionId, 'unknown');
+}
+
+/**
+ * Every row on another machine whose create was never confirmed (Phase 117).
+ *
+ * It is the seed's only source. `./remote-sessions.ts` reads it once per machine
+ * on the first list pass of a run and hands the rows for that machine to
+ * `seedIssuedRemoteIds`, so a create interrupted in a past run is rescued by
+ * this one instead of being counted as a session Tortie did not create.
+ *
+ * A tombstoned row can never be in this list, because a tombstone writes
+ * `discarded` and this reads `unknown`.
+ */
+export function unconfirmedRemoteRecords(): ManifestSessionRecord[] {
+  if (store === null) return [];
+  return store
+    .listSessions()
+    .filter((record) => isRemoteRecord(record) && record.status === 'unknown');
+}
+
+/**
  * Tombstone one row because a person removed the machine it runs on.
  *
  * Returns false when there is no store or no row, which is how a feed row with
