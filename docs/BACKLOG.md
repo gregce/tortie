@@ -14722,7 +14722,7 @@ State first, then identity, then the things a person must consent to, then every
 - It does not touch Phase 130's files while 130 is unlanded, and it does not touch Phase 129's six files at all.
 
 
-## Phase 132 — the skill preview is unreadably tall and its install button is out of reach (operator reported 2026-08-21) QUEUED
+## Phase 132 — the skill preview is unreadably tall and its install button is out of reach (operator reported 2026-08-21) ✅ SHIPPED 2026-08-21 (this commit, 0.66.2, gates green, 7,992 tests)
 
 **Subject:** `fix(context): the skill preview scrolls on its own inside a wider sheet`
 **First body line:** `Phase 132: the skill preview is unreadably tall`
@@ -14748,6 +14748,62 @@ The route today: `src/renderer/context/install/InstallSheet.tsx` previews, the s
 
 **Proof:** photograph the sheet at three window heights, including one short enough that the preview overflows, and prove the primary control is visible in all three without scrolling the sheet; then drive a real install through the confirm on a scratch profile and prove the child ran and the skill landed; and prove copy still puts the command on the clipboard byte for byte.
 
+### What landed, with the numbers read from the running app
+
+The hypothesis in this entry was right. The control was present and enabled the whole time, and a
+person could not reach it. The sheet was one scroller 2097 px tall with the Install button 776 px
+down inside it, so at a 700 px window the button sat 128 px below the bottom edge and at a 586 px
+window it sat 242 px below.
+
+The sheet is now three bands and the sheet itself never scrolls. Band 1 is the facts and the plan
+and it scrolls inside itself. Band 2 is the control and it never moves. Band 3 is the raw SKILL.md
+and it scrolls inside itself. Measured on a harness socket with an isolated profile:
+
+| State | Window height | Sheet scrollHeight/clientHeight | Install button bottom |
+| --- | --- | --- | --- |
+| before, opened | 586 | 1893/536 | 624.5 |
+| before, planned | 700 | 2097/650 | 828.5 |
+| before, planned | 586 | 2097/536 | 828.5 |
+| after, opened | 586 | 536/536 | 332.5 |
+| after, planned | 700 | 650/650 | 382 |
+| after, planned | 586 | 536/536 | 332.5 |
+
+The sheet's width went from 880 px to 1120 px, keeping the `calc(100vw - ...)` guard. It reads
+1120 px at a 1440 px viewport and 880 px at a 928 px viewport, so the guard works.
+
+The confirm got the same treatment, and it was measured before it was applied. At a 586 px window
+the modal was 580/536 and the Install button sat 23 px below the modal's visible bottom edge, so
+`document.elementFromPoint` at its centre returned something else. It now reads 541 against a modal
+bottom of 562 and the hit test returns the button.
+
+A real install was driven end to end on a scratch profile. The probe typed `commit` into the search
+box, clicked the first result, ticked Grok and Claude Code, chose "This project only", opened the
+confirm and clicked Install. `caveman-commit/SKILL.md` landed on disk and the probe process read it
+with `existsSync` rather than asking the renderer. The command line the preview shows, the command
+line the confirm shows and the two strings both Copy controls put on the clipboard are equal byte
+for byte. `npm run probe:p132` reports 53 checks passed and 0 failed.
+
+### What is still not true
+
+`flex-wrap: nowrap` on `.ctx-install-sheet .ctxd-install-control` is load bearing rather than
+tidying, and the reason is a stylesheet ordering defect that predates this phase. surface.css lands
+after install.css's container query in the bundle, so that box is a column carrying a stray
+`flex-wrap: wrap`. That did nothing while the sheet was one tall scroller. Once the height is
+bounded, four or more children in the band wrapped into side by side columns and the button left
+the sheet's box entirely, with no scrollbar in either direction. The one declaration fixes the
+reach. The ordering underneath is Phase 132.1 above.
+
+At a 586 px window the facts and plan band sits at its 96 px floor while the raw SKILL.md band keeps
+175.5 px, so the skill's own text gets more room than the two things the decision needs. The agent
+grid is clipped in the middle of a row. Every assertion here still passes in that state, so it is a
+balance to change rather than a broken rule. It is the second half of Phase 132.1.
+
+The viewport was emulated over the DevTools protocol in every reading. The window manager's own
+resize was never exercised. One skill from one source was installed, being `caveman-commit` from
+`juliusbrussee/caveman`, so this is not a matrix over the registry. The `ContextDetail` preview
+branch was never driven, because `ContextDetailTab.tsx` passes `mode="browse"` and nothing calls the
+preview branch today.
+
 ### What is NOT in this phase
 
 - **No second install route.** Plan then execute stays two calls and the confirm stays a separate surface. If a builder finds itself calling execute from the preview, it has broken the requirement and must stop.
@@ -14755,6 +14811,53 @@ The route today: `src/renderer/context/install/InstallSheet.tsx` previews, the s
 - **No change to what the confirm shows.** The full command line stays on it.
 - **No change to the lock guard, the pins, or the spawn contract in `src/main/skills/run.ts`.**
 - **It touches none of the files Phases 129, 130 and 131 own.**
+
+
+---
+
+## Phase 132.1 — the install sheet's own rules are overwritten by the file it imports, and the facts band gets the least room (recorded 2026-08-21 by the Phase 132 verifier) QUEUED
+
+**Subject:** `fix(context): the install sheet's rules land after the file it imports`
+**First body line:** `Phase 132.1: the install sheet's own rules are overwritten`
+**Semver:** patch. Two layout defects and no new capability.
+**Tier 2**, with one run of `npm run probe:p132` and a screenshot read at 586 px. It touches no durability path, no manifest and no machines file.
+**Charter:** this entry, plus the `## Phase 132` entry above it, plus DESIGN.md and docs/DESIGN-SPEC.md, plus research 29 section 13.4, whose three refusals about this sheet still bind.
+
+### Two things, both measured while Phase 132 was being verified
+
+**One. The stylesheet lands in the wrong order, so `install.css` cannot override `surface.css`.**
+
+In the renderer bundle built at 0.66.0, `out/renderer/assets/index-*.css` carries surface.css's `.ctxd-install-control` rule twice. One copy is at byte 55178 and the other is at byte 267449. The container query in install.css that sets `flex-direction: row` on the same selector sits at byte 66682, between the two copies, so the later copy decides. In the running app `getComputedStyle` reads `column` for the direction and `wrap` for the wrap, because surface.css states no wrap and the container query's value is the only one there. The comment at the top of `src/renderer/context/install/install.css` says Vite folds the duplicate away at build time. It does not. The second copy is there because `src/renderer/context/surface/ContextDetail.tsx` imports surface.css directly as well.
+
+Nothing looks wrong from this on its own. The `margin-left: auto` on the button right-aligns it in a column box as well as in a row box. What it did leave behind is a `flex-wrap: wrap` on a box whose direction is column, and that is the declaration Phase 132 had to override with `flex-wrap: nowrap` once the sheet's height was bounded. The ordering is the defect underneath, and it predates Phase 132.
+
+The fix has to answer one question first. Is that band meant to be a row or a column? The container query says row. The app has drawn a column since Phase 26. Photograph both before moving any rule.
+
+**Two. At the shortest window the facts and the plan get less room than the skill's own text.**
+
+At a 586 px viewport with two agents ticked, read from the Phase 132 after run, `.ctxd-preview-body` sits at its 96 px floor while `.ctxd-remote-body` keeps 175.5 px. The first holds the facts and the plan. The second holds the raw SKILL.md. The agent grid is clipped in the middle of a row in `out/p132-after-planned-586.png`. The two things the decision needs, being which agents get the skill and what the command is, have less room than the text the person has not started reading. Every Phase 132 assertion still passes in that state, so this is a balance to change rather than a broken rule to repair.
+
+### Mechanism, with the paths read from the tree
+
+- `src/renderer/context/install/install.css` line 6, the `@import '../surface/surface.css'` and the comment that claims the duplicate is folded away.
+- `src/renderer/context/surface/ContextDetail.tsx` line 29, the second import of the same file.
+- `src/renderer/context/install/install.css`, the `@container ctxd-preview (min-width: 680px)` block that states `flex-direction: row`, and the `.ctx-install-sheet .ctxd-install-control` rule that now states `flex-wrap: nowrap`.
+- `src/renderer/context/install/install.css`, the `min-height` on `.ctx-install-sheet .ctxd-preview-body` and the `max-height` on `.ctx-install-sheet .ctxd-remote-body`, which are the two numbers that decide the balance.
+- `build/p132-install-sheet.mjs`, which already reports every number named above.
+
+### Proof this phase must produce, run rather than read
+
+- Read the built CSS and show surface.css's rules once, before install.css's own rules.
+- Show `getComputedStyle(control).flexDirection` matching what the container query asks for, at the wide sheet and at the narrow one.
+- Photograph the sheet at 586 px with two agents ticked and show the agent grid whole.
+- Run `npm run probe:p132 -- --phase after` with every check passing, including the four row and six row stress on the control band.
+
+### What is NOT in this phase
+
+- No new capability, no second install route, and no change to what the confirm shows.
+- No change to the lock guard, the pins, or the spawn contract in `src/main/skills/run.ts`.
+- No change to the sheet's width and no change to the three band arrangement Phase 132 built.
+- No merging of surface.css into install.css and no new stylesheet.
 
 
 ---
@@ -14865,3 +14968,5 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 131 queued, the machine row says four times what it should say once, and it waits for Phase 130 because both edit machines-copy.ts
 - 2026-08-21, Phase 132 queued, the skill preview is unreadably tall and its install button is probably below the fold, and direct install already exists
 - 2026-08-21, Phase 130 shipped, the install command is copyable, the machine pages are spaced, and the prose stops explaining itself, this commit, 0.66.1
+- 2026-08-21, Phase 132.1 queued, the install sheet's own rules are overwritten by the file it imports, and the facts band gets the least room, both recorded while Phase 132 was verified
+- 2026-08-21, Phase 132 shipped, the skill preview scrolls on its own inside a wider sheet and the install button is reachable at every window height, this commit, 0.66.2

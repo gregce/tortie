@@ -16,6 +16,29 @@
  * when it is wide enough (install.css), which is arrangement only: the order
  * of the data, the DOM and the reading flow are unchanged.
  *
+ * ## Three bands, and the sheet itself no longer scrolls (Phase 132)
+ *
+ * The operator reported that the preview is unreadably tall and that the
+ * install button is out of reach. Both halves were one arrangement. The sheet
+ * carried `overflow-y: auto`, so the head, the preview and the primary control
+ * scrolled as one block, and `PreviewCard` renders the whole fetched SKILL.md
+ * as a `<pre>` after the control. Measured on the real app, the sheet was
+ * 2097 px tall with the button 776 px down inside it, and 1256 px of that was
+ * the skill's own text sitting below the button. At a 700 px window the button
+ * was 128 px past the bottom edge and at a 586 px window it was 242 px past.
+ *
+ * Nothing here changed. The fix is in install.css and it is arrangement only:
+ * the sheet is a flex column that does not scroll, and the card owns three
+ * bands. Band 1 is `.ctxd-preview-body`, the facts and the plan, and it is the
+ * one region that scrolls. Band 2 is `.ctxd-install-control`, which is fixed
+ * below it at every window height. Band 3 is `.ctxd-remote-body`, the skill's
+ * own text, which keeps its place in the reading order inside a bounded box
+ * that scrolls by itself. The sheet also went from 880 px wide to 1120 px, so
+ * the command line wraps over fewer lines.
+ *
+ * The DOM order, the section order and every string are untouched, and the
+ * order still comes from `PREVIEW_SECTION_ORDER` rather than from this file.
+ *
  * ## Three refusals kept from research 29 §13.4
  *
  * There is no featured row, no trending list and no recommendation. The sheet

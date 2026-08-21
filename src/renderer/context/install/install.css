@@ -15,6 +15,27 @@
 
 .ctxd-install-modal {
   width: 560px;
+  /* Phase 132. The confirm gets the same treatment the sheet gets below, and
+     it was measured before it was applied. At a 586 px viewport the modal is
+     capped at 538 px while its content is 580 px, so the Install button sat
+     23 px below the modal's visible bottom edge and a person had to scroll the
+     confirm to reach the control the confirm exists for. The body band scrolls
+     and the title and the buttons do not. This changes nothing about WHAT the
+     confirm shows. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ctxd-install-modal > .modal-title,
+.ctxd-install-modal > .modal-actions {
+  flex: 0 0 auto;
+}
+
+.ctxd-install-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .ctxd-install-modal .modal-body + .modal-body {
@@ -134,8 +155,43 @@
    --------------------------------------------------------------------------- */
 
 .ctx-install-sheet {
-  width: min(880px, calc(100vw - var(--space-8) * 2));
+  /* Widened in Phase 132, from 880px. tokens.css carries spacing, type, radii,
+     colors, durations and z-layers and no width scale at all, so a modal states
+     its own width as a number, the way `.modal` (480px) in app.css and
+     `.ctxd-install-modal` (560px) above already do. The guard keeps the sheet
+     inside a small window. At 1120px the card's content is 1040px and the plan
+     column is about 588px, which is about 81 characters of Menlo at 12px
+     against about 62 at the old width. Fewer wrapped lines in the command is a
+     shorter preview, which is half of the complaint this phase answers. */
+  width: min(1120px, calc(100vw - var(--space-8) * 2));
   max-height: calc(100vh - var(--space-8) * 2);
+  display: flex;
+  flex-direction: column;
+  /* THE SHEET NEVER SCROLLS. Its regions do, so the head and the primary
+     control stay where a person left them. This overrides `.modal`'s
+     `overflow-y: auto` from app.css, and nothing in app.css is edited. Before
+     this phase the sheet was one scroller 2097px tall with the install button
+     776px down inside it, so at a 700px window the button was 128px past the
+     bottom edge and at a 586px window it was 242px past. */
+  overflow: hidden;
+}
+
+/* --- the search step. The results list is the one scroller ----------------
+   The head, the search field, the "Nothing matched that." line and the
+   telemetry sentence all have to stay on screen. Without these rules the new
+   `overflow: hidden` above would clip the sentence at the bottom rather than
+   let a person scroll to it. */
+
+.ctx-install-sheet > .ctx-sheet-head,
+.ctx-install-sheet > .ctx-sheet-search,
+.ctx-install-sheet > .ctx-sheet-note,
+.ctx-install-sheet > .ctx-sheet-scope {
+  flex: 0 0 auto;
+}
+
+.ctx-install-sheet .ctx-sheet-hits {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -315,4 +371,83 @@
   .ctxd-install-control .btn-primary {
     margin-left: auto;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Phase 132 — the preview reads as three bands inside the sheet.
+
+   The complaint was that the preview is unreadably tall and the install button
+   is out of reach. Both halves came from one arrangement: the sheet scrolled as
+   a single block, and `PreviewCard` renders the whole fetched SKILL.md as a
+   `<pre>` AFTER the control. The measured file was 1256px of text below a
+   button that was already 776px down.
+
+   Nothing is removed and nothing moves in the reading order. The card becomes
+   the flex column that owns three bands:
+
+     band 1  .ctxd-preview-body    the facts and the plan. This one scrolls.
+     band 2  .ctxd-install-control the acknowledgements and the button. Fixed.
+     band 3  .ctxd-remote-body     the skill's own text, bounded and scrolling.
+
+   EVERY RULE BELOW IS PREFIXED WITH `.ctx-install-sheet`, and that is not a
+   style preference. This file is a global stylesheet once bundled, and
+   `PreviewCard` also renders in the editor panel through
+   `../surface/ContextDetail.tsx`, which has its own scroller. An unscoped
+   `overflow-y: auto` on `.ctxd-preview-body` would put a second scrollbar
+   inside the Context detail tab. `__tests__/install-layout.test.ts` reads this
+   file as text and fails if a later round drops the prefix.
+--------------------------------------------------------------------------- */
+
+.ctx-install-sheet .ctxd-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The title and the description do not shrink. The description is bounded at
+   the source: install-store.ts slices it to 300 characters, which at this
+   card's 72ch measure is at most five lines. */
+.ctx-install-sheet .ctxd-preview > .ctxd-card-head,
+.ctx-install-sheet .ctxd-preview > .ctxd-remote-text {
+  flex: 0 0 auto;
+}
+
+/* BAND 1. The facts and the plan. This is the region that scrolls, and it is
+   what "the preview scrolls inside itself" means. */
+.ctx-install-sheet .ctxd-preview-body {
+  flex: 1 1 auto;
+  min-height: calc(var(--space-10) * 2);
+  overflow-y: auto;
+}
+
+/* BAND 2. The control. It never scrolls out of view, at any window height.
+
+   `flex-wrap: nowrap` is load bearing and it is not tidying. The container
+   query above sets `flex-wrap: wrap` on this element, and in the bundled
+   stylesheet surface.css's `flex-direction: column` lands after it, so this box
+   is a WRAPPING COLUMN. That did nothing while the sheet was one tall scroller,
+   because a wrapping column only wraps when its height is constrained, and
+   nothing constrained it. This phase constrains it. Without this line, at a
+   586 px viewport with four children in the band, being three acknowledgement
+   rows and the button, the rows wrapped into side by side columns and the
+   button left the sheet's box entirely: the sheet measured 536/536, so there
+   was no scrollbar in either direction, and `document.elementFromPoint` at the
+   button's centre no longer returned the button. `build/p132-install-sheet.mjs`
+   reads this at four rows and at six rows. */
+.ctx-install-sheet .ctxd-install-control {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+/* BAND 3. The skill's own text. It was the tallest thing on the sheet and it
+   sat below the button. It keeps its place in the reading order and gets a
+   bounded box of its own. */
+.ctx-install-sheet .ctxd-remote-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: calc(var(--space-10) * 5);
+  margin-top: var(--space-6);
+  overflow-y: auto;
 }

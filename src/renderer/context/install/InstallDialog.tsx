@@ -125,82 +125,93 @@ export function InstallDialog({
       >
         <h2 className="modal-title">{copy.title}</h2>
 
-        {copy.body.map((line) => (
-          <p key={line} className="modal-body">
-            {line}
-          </p>
-        ))}
-
-        {spec.runs !== undefined && spec.runs.length > 0 ? (
-          <table className="ctxd-runs">
-            <tbody>
-              {spec.runs.map((row) => (
-                <tr key={`${row.when}-${row.script}`}>
-                  <td className="ctxd-runs-when">{row.when}</td>
-                  <td className="ctxd-mono ctxd-runs-script">{row.script}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : null}
-
-        {spec.removes !== undefined && spec.removes.length > 0 ? (
-          <table className="ctxd-runs">
-            <tbody>
-              {spec.removes.map((row) => (
-                <tr key={`${row.label}-${row.path ?? ''}`}>
-                  <td className="ctxd-runs-when">{row.label}</td>
-                  <td className="ctxd-mono ctxd-runs-script">
-                    {row.path ?? ''}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : null}
-
-        {spec.provenance !== undefined && spec.provenance.length > 0 ? (
-          <div className="ctxd-provenance">
-            {spec.provenance.map((line) => (
-              <p key={line} className="ctxd-muted ctxd-mono">
-                {line}
-              </p>
-            ))}
-          </div>
-        ) : null}
-
-        {/* Requirement 3. The whole command, not a description of it. */}
-        {commandLine !== null && plan !== null ? (
-          <div className="ctxd-command">
-            <div className="ctxd-command-head">
-              <span className="ctxd-card-label">This runs</span>
-              <button
-                type="button"
-                className="btn-text"
-                onClick={() => onCopyCommand(commandLine)}
-              >
-                Copy
-              </button>
-            </div>
-            <pre className="ctxd-mono ctxd-command-line">{commandLine}</pre>
-            <p className="ctxd-muted ctxd-command-short">
-              {formatShortCommand(plan)}
+        {/* Phase 132. Everything the confirm SHOWS scrolls in this one band,
+            so the row of buttons underneath it cannot leave the modal. Nothing
+            is removed and nothing is reordered: every line the confirm rendered
+            before this wrapper it renders after it, in the same order, the full
+            command line included. It was measured first. At a 586 px viewport
+            the modal is capped at 538 px, its content is 580 px, and the
+            Install button sat 23 px below the modal's visible bottom edge, so
+            `document.elementFromPoint` at the button's centre returned
+            something else. At 700 px and at 900 px it was already on screen. */}
+        <div className="ctxd-install-modal-body">
+          {copy.body.map((line) => (
+            <p key={line} className="modal-body">
+              {line}
             </p>
-            <p className="ctxd-muted">Working directory: {plan.cwd}</p>
-          </div>
-        ) : null}
+          ))}
 
-        {spec.blastRadius !== undefined && spec.blastRadius !== null ? (
-          <p className="modal-body ctxd-blast">{spec.blastRadius}</p>
-        ) : null}
+          {spec.runs !== undefined && spec.runs.length > 0 ? (
+            <table className="ctxd-runs">
+              <tbody>
+                {spec.runs.map((row) => (
+                  <tr key={`${row.when}-${row.script}`}>
+                    <td className="ctxd-runs-when">{row.when}</td>
+                    <td className="ctxd-mono ctxd-runs-script">{row.script}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
 
-        {spec.agentGateNote !== undefined && spec.agentGateNote !== null ? (
-          <p className="modal-body ctxd-muted">{spec.agentGateNote}</p>
-        ) : null}
+          {spec.removes !== undefined && spec.removes.length > 0 ? (
+            <table className="ctxd-runs">
+              <tbody>
+                {spec.removes.map((row) => (
+                  <tr key={`${row.label}-${row.path ?? ''}`}>
+                    <td className="ctxd-runs-when">{row.label}</td>
+                    <td className="ctxd-mono ctxd-runs-script">
+                      {row.path ?? ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
 
-        {spec.failure !== undefined && spec.failure !== null ? (
-          <InstallFailure failure={spec.failure} />
-        ) : null}
+          {spec.provenance !== undefined && spec.provenance.length > 0 ? (
+            <div className="ctxd-provenance">
+              {spec.provenance.map((line) => (
+                <p key={line} className="ctxd-muted ctxd-mono">
+                  {line}
+                </p>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Requirement 3. The whole command, not a description of it. */}
+          {commandLine !== null && plan !== null ? (
+            <div className="ctxd-command">
+              <div className="ctxd-command-head">
+                <span className="ctxd-card-label">This runs</span>
+                <button
+                  type="button"
+                  className="btn-text"
+                  onClick={() => onCopyCommand(commandLine)}
+                >
+                  Copy
+                </button>
+              </div>
+              <pre className="ctxd-mono ctxd-command-line">{commandLine}</pre>
+              <p className="ctxd-muted ctxd-command-short">
+                {formatShortCommand(plan)}
+              </p>
+              <p className="ctxd-muted">Working directory: {plan.cwd}</p>
+            </div>
+          ) : null}
+
+          {spec.blastRadius !== undefined && spec.blastRadius !== null ? (
+            <p className="modal-body ctxd-blast">{spec.blastRadius}</p>
+          ) : null}
+
+          {spec.agentGateNote !== undefined && spec.agentGateNote !== null ? (
+            <p className="modal-body ctxd-muted">{spec.agentGateNote}</p>
+          ) : null}
+
+          {spec.failure !== undefined && spec.failure !== null ? (
+            <InstallFailure failure={spec.failure} />
+          ) : null}
+        </div>
 
         <div className="modal-actions">
           {copy.altLabel !== undefined && onAlt !== undefined ? (
