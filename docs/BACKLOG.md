@@ -14645,6 +14645,46 @@ He pasted the whole of what one screen says and asked for it to be reduced to wh
 - It touches NONE of Phase 129's files, being AgentsSection.tsx, MachineAgents.tsx, SessionRail.tsx, Titlebar.tsx, chrome-slice.ts and keymap.ts.
 
 
+## Phase 131 — the machine row says four times what it should say once (operator reported 2026-08-21) QUEUED, AFTER PHASE 130
+
+**Subject:** `fix(settings): a machine row a person can read at a glance`
+**First body line:** `Phase 131: the machine row says four times what it should say once`
+**Semver:** patch. It cuts words and reorders a panel. It adds and removes no capability.
+**Tier 2**, with a screenshot read of the row in each of its states. It touches no durability path, no manifest, no tmux behaviour and no machines write plane. Only what is drawn and what is said.
+**Charter:** this entry, plus DESIGN.md and docs/DESIGN-SPEC.md for the layout, plus the WRITING RULES in CLAUDE.md for every string.
+
+**IT RUNS AFTER PHASE 130 AND NOT BESIDE IT.** Both edit `src/renderer/settings/machines-copy.ts`, which holds 125 exported strings, and two phases rewriting the same copy file at once would collide on nearly every line. 130 owns the connection test and key install words. This phase owns the machine row.
+
+### What he read, and why it is wrong
+
+He pasted the expanded row for his Mac Pro. In one panel it tells him, in this order: the machine and the program it runs there; that confirming seals which program runs but never the bytes of that program; that Tortie has no key of its own; a bare hash; that Tortie never adopts running work; that Tortie starts the program and leaves anything already running alone; the Saving files block; that the machine is ready; that the program was already running and was left running; the version; that the program was already running and was left running AGAIN; that Tortie read the list of places the machine looks for programs; and then twelve rows of tmux settings.
+
+Three faults, and the third is the one that matters most.
+
+- **It repeats itself.** That Tortie leaves running work alone is said three times, at `machines-copy.ts:89`, `:209` and `:326`. Once is enough and the other two go.
+- **It leads with caveats rather than with state.** A person opening this row wants to know whether the machine works. That answer, "This machine is ready", arrives after five paragraphs of qualification.
+- **It shows Tortie's internals as if they were the person's business.** Twelve tmux settings under "Settings Tortie asserted", plus "the list of places that machine looks for programs", plus a bare hash with no label. These are diagnostics. The UI rules already forbid tmux vocabulary on screen and this panel is carrying twelve lines of it.
+
+### The shape it should have
+
+State first, then identity, then the things a person must consent to, then everything else behind a disclosure.
+
+1. **Is it ready.** One line, at the top.
+2. **What it is.** The machine, the account, the program path, the version.
+3. **What you agreed to**, being the consent facts, which are not cuttable: what Tortie runs there, that it signs in as you, and the Saving files state.
+4. **Everything else behind one disclosure**, being the asserted settings, the PATH read, the hash and the never-adopts sentence. A person who wants them can open them.
+
+**The hash gets a label or it goes.** `5fbded51f334` appears with nothing saying what it is. Either say it is the fingerprint of what you confirmed, or move it behind the disclosure.
+
+### What is NOT in this phase
+
+- No consent fact is dropped. What Tortie runs on that machine, that it signs in as the person, where the private key lives and the Saving files state all stay on the face of the row. If a builder believes one should move behind the disclosure, it STOPS and reports.
+- No change to what Prepare does, what it asserts, or what the connection test sends. This moves and cuts words around those results.
+- No change to the confirm hash, its algorithm or the six fields it covers. The hash may be relabelled or moved on screen and nothing else about it moves.
+- No new IPC channel and no new read. Everything drawn here is already held.
+- It does not touch Phase 130's files while 130 is unlanded, and it does not touch Phase 129's six files at all.
+
+
 ---
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -14750,3 +14790,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, SECOND RELEASE POINT REACHED, not delegated, waiting on the operator
 - 2026-08-21, Phase 129 queued, four chrome surfaces: the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file
 - 2026-08-21, Phase 130 queued, the install command is copyable, the machine pages are spaced, and the prose stops explaining itself
+- 2026-08-21, Phase 131 queued, the machine row says four times what it should say once, and it waits for Phase 130 because both edit machines-copy.ts
