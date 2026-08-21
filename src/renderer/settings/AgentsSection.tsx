@@ -22,6 +22,14 @@
  * PHASE 79. The copy button that sits beside the install command moved to
  * CopyButton.tsx. The machines surface needed the same control, and one copy
  * of it is the rule. Nothing else here changed.
+ *
+ * PHASE 110. A third sub-block joins the tab, being which agents each machine
+ * has. It lives in MachineAgents.tsx and it draws nothing at all for a person
+ * with no machine. `AgentRow` gained two optional props so that block can use
+ * it, and the call site here passes neither, so this card reads exactly what it
+ * read before. The two files import each other, which is deliberate: the row
+ * belongs to this file and the block belongs to that one, and both are only
+ * read at render time.
  */
 
 import React from 'react';
@@ -39,6 +47,7 @@ import {
 } from '../state/agents';
 import { ConfiguredAgents } from './ConfiguredAgents';
 import { CopyButton } from './CopyButton';
+import { MachineAgentsSection } from './MachineAgents';
 import { useSettingsStore } from './settings-store';
 
 /** A composed sentence: plain text with paths and names in code font. */
@@ -143,7 +152,34 @@ export function ShadowedNote({
   );
 }
 
-export function AgentRow({ agent }: { agent: DetectedAgent }): React.JSX.Element {
+/**
+ * One agent, on this Mac or on another machine.
+ *
+ * PHASE 110 GAVE IT TWO OPTIONAL PROPS, and the existing call site passes
+ * neither, so the local card reads exactly what it read before.
+ *
+ *  1. `machineId` is required rather than tidy. `displayPath` rewrites
+ *     `/Users/<someone>/…` to `~/…`, and Phase 90.3 gave it a second argument
+ *     because a tilde is a claim about whose home folder a path is in. Without
+ *     it, `/Users/gdc/.local/bin/claude` read from another machine would be
+ *     drawn as `~/.local/bin/claude`, which says something Tortie does not
+ *     know.
+ *  2. `missingLabel` exists because `MachineAgentPresence` has three values and
+ *     this row has two. A machine that answered it does not have an agent reads
+ *     `Not found`. A machine nobody has asked reads `Not known yet`, and it
+ *     must never read as absent.
+ */
+export function AgentRow({
+  agent,
+  machineId,
+  missingLabel = 'Not installed'
+}: {
+  agent: DetectedAgent;
+  /** The machine the path is on. Omitted means this Mac. */
+  machineId?: string;
+  /** The words for a row whose agent was not found. */
+  missingLabel?: string;
+}): React.JSX.Element {
   const install = agent.install ?? null;
   return (
     <div className="set-agent-row" data-agent-id={agent.id}>
@@ -159,7 +195,7 @@ export function AgentRow({ agent }: { agent: DetectedAgent }): React.JSX.Element
           <>
             <span className="set-agent-detail">
               <span className="set-agent-path" title={agent.binPath ?? undefined}>
-                {truncateMiddle(displayPath(agent.binPath ?? ''), 48)}
+                {truncateMiddle(displayPath(agent.binPath ?? '', machineId), 48)}
               </span>
               {agent.version !== null ? (
                 <span className="set-chip num">{agent.version}</span>
@@ -179,7 +215,7 @@ export function AgentRow({ agent }: { agent: DetectedAgent }): React.JSX.Element
         ) : (
           <>
             <span className="set-agent-detail">
-              <span className="set-agent-missing">Not installed</span>
+              <span className="set-agent-missing">{missingLabel}</span>
               {install !== null ? (
                 <>
                   <code className="set-agent-cmd">{install.command}</code>
@@ -267,6 +303,11 @@ export function AgentsSection(): React.JSX.Element {
           a machine with no configuration file, which is almost every machine,
           so the section above is unchanged for the ordinary user. */}
       <ConfiguredAgents />
+
+      {/* Phase 110. Which agents each machine has. It draws nothing at all for
+          a person with no machine, so the tab above is unchanged for almost
+          everybody. It reads, and there is no install action anywhere in it. */}
+      <MachineAgentsSection />
     </section>
   );
 }

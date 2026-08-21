@@ -147,6 +147,15 @@ function everyString(): { name: string; text: string }[] {
     name: 'keyNamedOnEveryCommand',
     text: copy.keyNamedOnEveryCommand('machine-a1b2c3d4e5f6')
   });
+  // PHASE 110. The two sentences the per machine agent blocks compose. Both
+  // shapes of the age sentence are pushed, because the boundary at less than a
+  // minute is a different sentence rather than a different number.
+  out.push({ name: "agentsAskedLine('now')", text: copy.agentsAskedLine('now') });
+  out.push({ name: "agentsAskedLine('4m')", text: copy.agentsAskedLine('4m') });
+  out.push({
+    name: 'rescanAgentsLabel',
+    text: copy.rescanAgentsLabel('Studio')
+  });
   return out;
 }
 
@@ -715,6 +724,54 @@ describe('the tombstone sentences', () => {
     expect(copy.tombstoneRestoreRefused('Studio')).toBe(
       'Tortie can no longer reach Studio, so it cannot bring this session ' +
         'back. Add the machine again to work with it.'
+    );
+  });
+});
+
+describe('which agents each machine has (Phase 110)', () => {
+  it('says where installing happens, and offers nothing that could send it', () => {
+    // The block is a read. Nothing in it may hold a command, because the same
+    // string beside a machine Tortie holds an open connection to is one button
+    // from being sent.
+    expect(copy.AGENTS_ON_MACHINES_CAPTION).toContain(
+      'Installing an agent happens on that machine.'
+    );
+    const panelStrings = [
+      copy.AGENTS_ON_MACHINES_TITLE,
+      copy.AGENTS_ON_MACHINES_CAPTION,
+      copy.BTN_RESCAN_AGENTS,
+      copy.RESCAN_AGENTS_RUNNING,
+      copy.AGENT_ABSENT,
+      copy.AGENT_UNKNOWN,
+      copy.AGENTS_NEVER_ASKED,
+      copy.AGENTS_NOT_SIGNED_IN,
+      copy.agentsAskedLine('4m'),
+      copy.rescanAgentsLabel('Studio')
+    ];
+    for (const text of panelStrings) {
+      expect(text).not.toMatch(/curl |npm install|brew install|https?:\/\//);
+    }
+  });
+
+  it('reads Not found for absent, and never as Not installed', () => {
+    // The local row says Not installed, and it can, because it looked on this
+    // Mac. A machine answered one file test, and Not found is exactly what
+    // Tortie can say about it.
+    expect(copy.AGENT_ABSENT).toBe('Not found');
+    expect(copy.AGENT_UNKNOWN).toBe('Not known yet');
+  });
+
+  it('says how old the answer is, in both shapes', () => {
+    expect(copy.agentsAskedLine('now')).toBe(
+      'Tortie asked this machine less than a minute ago.'
+    );
+    expect(copy.agentsAskedLine('4m')).toBe('Tortie asked this machine 4m ago.');
+  });
+
+  it('names the machine on the button, because up to 32 of them read Rescan', () => {
+    expect(copy.BTN_RESCAN_AGENTS).toBe('Rescan');
+    expect(copy.rescanAgentsLabel('Studio')).toBe(
+      'Ask Studio which agents it has'
     );
   });
 });

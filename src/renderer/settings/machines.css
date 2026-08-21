@@ -817,3 +817,22 @@
 .mach-key-result[data-key-alarm='yes'] .mach-outcome-head {
   color: var(--error);
 }
+
+/* --------------------------------- which agents each machine has (Phase 110) */
+
+/* The age sentence sits under the head, lined up with the text beside the
+   colour dot rather than with the dot itself. The dot is 8px wide and the head
+   gap is --space-4, so that is the whole offset. */
+.mach-agents-age {
+  margin-top: var(--space-2);
+  margin-left: calc(8px + var(--space-4));
+}
+
+/* The head and the agent rows are the card's own children, so the rule that
+   separates them is the card's own and the head only has to hold its own space
+   above it. This restates the value .mach-row already carries in the Machines
+   section, on purpose: it pins the gap under the age sentence so a later change
+   to that section's row padding cannot move this card with it. */
+.mach-agents > .mach-row {
+  padding-bottom: var(--space-4);
+}

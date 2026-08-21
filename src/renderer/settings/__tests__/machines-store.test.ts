@@ -17,6 +17,13 @@
  * Tailscale finished. The panel says it on screen, so it has to be true on
  * both paths, and a look that threw is still a look.
  *
+ * PHASE 110 adds which agents each machine has, and it is here for the same
+ * reason again. What matters is that exactly one machine id and `fresh` true
+ * crossed the bridge on a press, that nothing crossed it on a second press
+ * while the first was still running, and that a read which failed left the
+ * answer map byte for byte what it was. A row that flipped to `Not found`
+ * because a machine was asleep would be a false claim about that machine.
+ *
  * PHASE 79.1 adds the key install, and it is here rather than in a component
  * test for the same reason the add payload is. What matters is what crossed
  * the bridge: the hash main composed rather than one the renderer invented,
@@ -25,10 +32,11 @@
  * by walking the whole store after the call and looking for the bytes.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   MachineAcceptVersionInput,
   MachineAddInput,
+  MachineAgentsView,
   MachineConfirmSheet,
   MachineKeyInstallInput,
   MachineKeyInstallResult,
@@ -66,6 +74,10 @@ interface Recorded {
   accepts: MachineAcceptVersionInput[];
   /** PHASE 83. Every machine id a prepare was asked for, in order. */
   prepares: string[];
+  /** PHASE 110. Every agents read that crossed the bridge, in order. */
+  agentReads: { id: string | null; fresh: boolean }[];
+  /** PHASE 110. How many times the rows were re-read. */
+  rowReads: number;
 }
 
 const recorded: Recorded = {
@@ -73,8 +85,34 @@ const recorded: Recorded = {
   adds: [],
   installs: [],
   accepts: [],
-  prepares: []
+  prepares: [],
+  agentReads: [],
+  rowReads: 0
 };
+
+/**
+ * PHASE 110. What the two subscriptions were handed, so a test can push the
+ * way main pushes rather than by writing the store itself.
+ */
+const pushes: {
+  state: ((states: never[]) => void)[];
+  agents: ((views: MachineAgentsView[]) => void)[];
+} = { state: [], agents: [] };
+
+/** PHASE 110. One machine's answer, as main composes it. */
+function agentsView(
+  over: Partial<MachineAgentsView> = {}
+): MachineAgentsView {
+  return {
+    machineId: 'scratch-box',
+    askedAt: 1_700_000_000_000,
+    agents: [
+      { agentId: 'claude', presence: 'present', path: '/usr/local/bin/claude' },
+      { agentId: 'codex', presence: 'absent', path: null }
+    ],
+    ...over
+  };
+}
 
 /** The password the tests type. It must exist in exactly one place. */
 const PASSWORD = 'correct-horse-battery-staple';
@@ -158,6 +196,13 @@ function emptyRows(): MachinesResult {
 }
 
 /**
+ * PHASE 110. What the fake `agents` call answers, or null for the ordinary
+ * answer. A test that wants a refusal sets this instead of rebuilding the
+ * whole bridge around one method.
+ */
+let agentsAnswer: (() => Promise<MachineAgentsView[]>) | null = null;
+
+/**
  * A bridge that answers the way main does. The test hands the sheet back on
  * the outcome, because that is where main puts it.
  */
@@ -167,8 +212,15 @@ function installBridge(answer: () => MachineKeyInstallResult = installed): void 
   recorded.installs = [];
   recorded.accepts = [];
   recorded.prepares = [];
+  recorded.agentReads = [];
+  recorded.rowReads = 0;
+  pushes.state = [];
+  pushes.agents = [];
   const machines = {
-    rows: async () => emptyRows(),
+    rows: async () => {
+      recorded.rowReads += 1;
+      return emptyRows();
+    },
     reload: async () => emptyRows(),
     tailscaleNames: async () => ({
       binary: null,
@@ -206,7 +258,24 @@ function installBridge(answer: () => MachineKeyInstallResult = installed): void 
       recorded.prepares.push(id);
       return PREPARED_AFTER_ACCEPT;
     },
-    onTestEvent: () => () => undefined
+    onTestEvent: () => () => undefined,
+    // PHASE 110. The three methods `init` feature detects and the one call
+    // the Rescan button makes. Each records what it was handed, so the test
+    // reads the payload rather than the screen.
+    state: async () => [],
+    onStateChanged: (cb: (states: never[]) => void) => {
+      pushes.state.push(cb);
+      return () => undefined;
+    },
+    agents: async (id: string | null, fresh: boolean) => {
+      recorded.agentReads.push({ id, fresh });
+      if (agentsAnswer !== null) return agentsAnswer();
+      return [agentsView({ machineId: id ?? 'scratch-box' })];
+    },
+    onAgentsChanged: (cb: (views: MachineAgentsView[]) => void) => {
+      pushes.agents.push(cb);
+      return () => undefined;
+    }
   };
   (globalThis as { window?: unknown }).window = { gmux: { machines } };
 }
@@ -225,8 +294,12 @@ function reset(): void {
     keyInstall: null,
     prepared: {},
     preparing: null,
-    accepting: null
+    accepting: null,
+    agentsByMachine: {},
+    rescanning: {},
+    rescanErrors: {}
   });
+  agentsAnswer = null;
 }
 
 /** The end event main sends, applied the way the subscription would. */
@@ -559,5 +632,182 @@ describe('accepting a version over the bridge', () => {
     const said = await useMachinesStore.getState().acceptVersion('scratch-box');
     expect(said).toContain('did not accept that version');
     expect(useMachinesStore.getState().accepting).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 110. Which agents each machine has
+// ---------------------------------------------------------------------------
+//
+// `init` is idempotent behind a module level flag and `reset` deliberately does
+// not touch it, so the three subscription tests take a fresh copy of the module
+// rather than reaching in and clearing that flag. The fake bridge is on
+// globalThis, so a fresh copy still finds it.
+
+async function freshStore(): Promise<
+  typeof import('../machines-store')['useMachinesStore']
+> {
+  vi.resetModules();
+  const mod = await import('../machines-store');
+  return mod.useMachinesStore;
+}
+
+/** Let the promise `init` started settle before reading what it wrote. */
+async function settle(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+describe('what init subscribes to, and what it reads once', () => {
+  beforeEach(() => {
+    installBridge();
+    reset();
+  });
+
+  it('reads the answer once from memory in main, and sends nothing anywhere', async () => {
+    const store = await freshStore();
+    store.getState().init();
+    await settle();
+    // `fresh` false is what makes this a memory read. `fresh` true would open
+    // a connection to every machine the moment Settings opened.
+    expect(recorded.agentReads).toEqual([{ id: null, fresh: false }]);
+    expect(store.getState().agentsByMachine['scratch-box']?.agents).toHaveLength(2);
+  });
+
+  it('subscribes to the link state and to the answer, one each', async () => {
+    const store = await freshStore();
+    store.getState().init();
+    await settle();
+    expect(pushes.state).toHaveLength(1);
+    expect(pushes.agents).toHaveLength(1);
+  });
+
+  it('re-reads the rows when a machine’s link state moved, and does nothing else', async () => {
+    // This is the one line of plumbing. Without it the Rescan button's enabled
+    // state is frozen at the moment Settings opened, because `ready` is
+    // composed by main on every row it answers.
+    const store = await freshStore();
+    store.getState().init();
+    await settle();
+    const readsBefore = recorded.rowReads;
+    const askedBefore = recorded.agentReads.length;
+    pushes.state[0]?.([]);
+    await settle();
+    expect(recorded.rowReads).toBe(readsBefore + 1);
+    // A state push must not ask any machine anything.
+    expect(recorded.agentReads).toHaveLength(askedBefore);
+  });
+
+  it('replaces the whole answer map on a push, so a machine that left leaves it', async () => {
+    const store = await freshStore();
+    store.getState().init();
+    await settle();
+    expect(Object.keys(store.getState().agentsByMachine)).toEqual(['scratch-box']);
+    pushes.agents[0]?.([agentsView({ machineId: 'pop' })]);
+    expect(Object.keys(store.getState().agentsByMachine)).toEqual(['pop']);
+  });
+});
+
+describe('the one call that reaches another computer', () => {
+  beforeEach(() => {
+    installBridge();
+    reset();
+  });
+
+  it('asks one machine, once, with fresh true', async () => {
+    await useMachinesStore.getState().rescanAgents('scratch-box');
+    expect(recorded.agentReads).toEqual([{ id: 'scratch-box', fresh: true }]);
+    expect(useMachinesStore.getState().rescanning).toEqual({});
+    expect(
+      useMachinesStore.getState().agentsByMachine['scratch-box']?.agents
+    ).toHaveLength(2);
+  });
+
+  it('opens no second connection while the first read is still running', async () => {
+    let answer!: (views: MachineAgentsView[]) => void;
+    agentsAnswer = () =>
+      new Promise<MachineAgentsView[]>((resolve) => {
+        answer = resolve;
+      });
+    const first = useMachinesStore.getState().rescanAgents('scratch-box');
+    await settle();
+    expect(useMachinesStore.getState().rescanning).toEqual({ 'scratch-box': true });
+    await useMachinesStore.getState().rescanAgents('scratch-box');
+    expect(recorded.agentReads).toHaveLength(1);
+    answer([agentsView()]);
+    await first;
+    expect(useMachinesStore.getState().rescanning).toEqual({});
+  });
+
+  it('lays one machine’s answer over the map and leaves every other alone', async () => {
+    useMachinesStore.setState({
+      agentsByMachine: { pop: agentsView({ machineId: 'pop' }) }
+    });
+    await useMachinesStore.getState().rescanAgents('scratch-box');
+    expect(Object.keys(useMachinesStore.getState().agentsByMachine).sort()).toEqual([
+      'pop',
+      'scratch-box'
+    ]);
+  });
+
+  it('records main’s sentence without the transport’s wrapper, and FLIPS NO ROW', async () => {
+    const before = { 'scratch-box': agentsView() };
+    useMachinesStore.setState({ agentsByMachine: before });
+    agentsAnswer = () =>
+      Promise.reject(
+        new Error(
+          "Error invoking remote method 'machines:agents': Error: Tortie has " +
+            'not signed in to scratch-box in this run.'
+        )
+      );
+    await useMachinesStore.getState().rescanAgents('scratch-box');
+    expect(useMachinesStore.getState().rescanErrors['scratch-box']).toBe(
+      'Tortie has not signed in to scratch-box in this run.'
+    );
+    // Byte for byte what it was. A read that failed is not evidence that an
+    // agent is absent, so no row may flip to Not found because of one.
+    expect(useMachinesStore.getState().agentsByMachine).toBe(before);
+    expect(useMachinesStore.getState().rescanning).toEqual({});
+  });
+
+  it('draws main’s sentence and NOT the payload it travelled in', async () => {
+    // The shape a real refusal has. `assertMachineIsConnected` throws a
+    // GmuxError whose message is the JSON of {code, message, detail}, and
+    // Electron puts its own prefix on the front. A person must read the
+    // message field alone: not the code, not the braces, not the internal
+    // script name in the detail.
+    const payload = JSON.stringify({
+      code: 'INVALID_INPUT',
+      message: 'Tortie is not connected to scratch-box right now.',
+      detail:
+        'refused "agents-find" for machine scratch-box: its link reads down'
+    });
+    agentsAnswer = () =>
+      Promise.reject(
+        new Error(
+          "Error invoking remote method 'machines:agents': GmuxError: " + payload
+        )
+      );
+    await useMachinesStore.getState().rescanAgents('scratch-box');
+    const shown = useMachinesStore.getState().rescanErrors['scratch-box'];
+    expect(shown).toBe('Tortie is not connected to scratch-box right now.');
+    expect(shown).not.toContain('INVALID_INPUT');
+    expect(shown).not.toContain('{');
+    expect(shown).not.toContain('agents-find');
+    expect(shown).not.toContain('detail');
+  });
+
+  it('clears the last failure when the same machine is asked again', async () => {
+    useMachinesStore.setState({ rescanErrors: { 'scratch-box': 'the old sentence' } });
+    await useMachinesStore.getState().rescanAgents('scratch-box');
+    expect(useMachinesStore.getState().rescanErrors).toEqual({});
+  });
+
+  it('returns and throws nothing on a build whose preload has no machines surface', async () => {
+    (globalThis as { window?: unknown }).window = { gmux: {} };
+    await expect(
+      useMachinesStore.getState().rescanAgents('scratch-box')
+    ).resolves.toBeUndefined();
+    expect(recorded.agentReads).toHaveLength(0);
   });
 });

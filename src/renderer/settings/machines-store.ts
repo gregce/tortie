@@ -9,11 +9,17 @@
  * WHAT THIS STORE CANNOT DO, and the reason it is worth stating here rather
  * than only in the spec. Nothing in this file starts anything. Every call that
  * can cause a process to exist (`findTailnet`, `startDraftTest`,
- * `startSavedTest`, `prepareMachine` since Phase 69, and `installKey` since
- * Phase 79.1) is reachable from exactly one button each, and no reducer, no
- * subscription and no effect calls them. Reading the machines file cannot
- * reach them, which is refusal 8 of CLAUDE.md expressed in the one renderer
- * module that could otherwise break it.
+ * `startSavedTest`, `prepareMachine` since Phase 69, `installKey` since
+ * Phase 79.1, and `rescanAgents` since Phase 110) is reachable from exactly
+ * one button each, and no reducer, no subscription and no effect calls them.
+ * Reading the machines file cannot reach them, which is refusal 8 of
+ * CLAUDE.md expressed in the one renderer module that could otherwise break
+ * it.
+ *
+ * `rescanAgents` is the Phase 110 addition to that list. It sends one read to
+ * one machine, it is reachable from one button on one block, and nothing in
+ * this file calls it. The read it sends contacts no machine at all when it is
+ * asked with `fresh` false, which is what `init` below does once.
  *
  * `installKey` starts a second call by itself, and that is deliberate rather
  * than an exception. When main answers that the key is on the machine, this
@@ -32,6 +38,7 @@
 import { create } from 'zustand';
 import type {
   MachineAddInput,
+  MachineAgentsView,
   MachineConfirmSheet,
   MachineDraft,
   MachineKeyInstallResult,
@@ -49,6 +56,9 @@ import type {
 } from '@shared/ipc';
 import type { MachineColor } from '@shared/machines';
 import { MACHINE_DEFAULT_COLOR } from '@shared/machines';
+// Phase 110 fix: the renderer's one reader of a main-process error payload.
+// It answers the sentence main wrote instead of the JSON it travelled in.
+import { errorText } from '../state/errors';
 import {
   ADD_DISABLED_REASON,
   BRIDGE_MISSING,
@@ -346,6 +356,19 @@ export interface MachinesStoreState {
    */
   keyInstall: KeyInstallState | null;
 
+  /**
+   * Phase 110. Phase 109's answer about which agents each machine has, keyed
+   * by machine id. Empty until the first read.
+   *
+   * It is read from memory in main and it is never composed here. A machine
+   * that is not in this map has not answered in this run.
+   */
+  agentsByMachine: Readonly<Record<string, MachineAgentsView>>;
+  /** Phase 110. The machines a Rescan is in flight for. One key per press. */
+  rescanning: Readonly<Record<string, true>>;
+  /** Phase 110. Main's own sentence for a Rescan that failed, per machine id. */
+  rescanErrors: Readonly<Record<string, string>>;
+
   /** Idempotent. Reads the rows and subscribes to the test stream. */
   init(): void;
   /** Re-read what main already holds. Opens no file. */
@@ -410,6 +433,73 @@ export interface MachinesStoreState {
    * this file decides.
    */
   installKey(password: string): Promise<string | null>;
+
+  /**
+   * Phase 110. Asks ONE machine which agents it has. One button reaches this.
+   *
+   * A read that failed is not evidence that an agent is absent, so the catch
+   * writes a sentence and touches the answer map not at all. Every row keeps
+   * the presence it had and the age keeps saying when that answer was read.
+   */
+  rescanAgents(id: string): Promise<void>;
+}
+
+/** The views main pushed, keyed by machine id. */
+function keyById(
+  views: readonly MachineAgentsView[]
+): Record<string, MachineAgentsView> {
+  const out: Record<string, MachineAgentsView> = {};
+  for (const view of views) out[view.machineId] = view;
+  return out;
+}
+
+/**
+ * One machine's answer laid over the map, leaving every other machine alone.
+ *
+ * A Rescan for one machine answers with that machine only, so replacing the
+ * map whole would drop what every other machine already said.
+ */
+function mergeViews(
+  current: Readonly<Record<string, MachineAgentsView>>,
+  views: readonly MachineAgentsView[]
+): Record<string, MachineAgentsView> {
+  return { ...current, ...keyById(views) };
+}
+
+/** The same record without one key, and the original is not touched. */
+function withoutKey<T>(
+  map: Readonly<Record<string, T>>,
+  id: string
+): Record<string, T> {
+  const next = { ...map };
+  delete next[id];
+  return next;
+}
+
+/**
+ * Main's sentence, and nothing the transport wrapped around it.
+ *
+ * Main refuses a scan by throwing a `GmuxError`, whose `message` is the JSON
+ * of the payload. Electron then puts its own prefix on the front, so what
+ * arrives here reads `Error invoking remote method '...': GmuxError:
+ * {"code":...,"message":...,"detail":...}`. `errorText` parses that payload
+ * and answers `payload.message`, which is the one sentence main wrote for a
+ * person to read. The earlier version of this helper stripped only the
+ * Electron prefix, so a real refusal drew the code, the JSON braces, the
+ * internal script name and the developer detail across six red lines.
+ *
+ * The prefix strip is kept AFTER `errorText` for the errors that carry no
+ * payload, e.g. a plain `Error`. `errorText` returns those unchanged, wrapper
+ * and all, and a person should not read the channel name either.
+ *
+ * `sentenceOf` above is NOT changed, because nine existing call sites draw
+ * from it and this phase does not move their behaviour.
+ */
+function plainSentence(err: unknown): string {
+  return errorText(err).replace(
+    /^Error invoking remote method '[^']+': (?:Error: )?/,
+    ''
+  );
 }
 
 let initialized = false;
@@ -433,6 +523,9 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
   preparing: null,
   accepting: null,
   keyInstall: null,
+  agentsByMachine: {},
+  rescanning: {},
+  rescanErrors: {},
 
   init() {
     if (initialized) return;
@@ -462,6 +555,33 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
       }
       set({ test: { ...live, outcome: event.outcome, running: false } });
     });
+
+    // PHASE 110. The link state of every machine. Without this the Rescan
+    // button's enabled state is frozen at the moment Settings opened, and a
+    // machine prepared while Settings is open keeps a button a person cannot
+    // press. `ready` is composed by main on every row it answers, so
+    // re-reading the rows is what moves it. The read reaches memory in main
+    // and starts nothing.
+    if (typeof b.onStateChanged === 'function') {
+      b.onStateChanged(() => {
+        void get().refresh();
+      });
+    }
+
+    // PHASE 110. Phase 109's answer, read once with `fresh` false. That asks
+    // memory in main and sends nothing to any machine.
+    if (typeof b.agents === 'function') {
+      void b
+        .agents(null, false)
+        .then((views) => set({ agentsByMachine: keyById(views) }))
+        .catch(() => undefined);
+    }
+
+    // PHASE 110. The whole map, every push, the `onStateChanged` precedent. A
+    // machine that left the push leaves the map with it.
+    if (typeof b.onAgentsChanged === 'function') {
+      b.onAgentsChanged((views) => set({ agentsByMachine: keyById(views) }));
+    }
   },
 
   async refresh() {
@@ -855,6 +975,31 @@ export const useMachinesStore = create<MachinesStoreState>()((set, get) => ({
       return sentenceOf(err);
     } finally {
       set({ busy: null });
+    }
+  },
+
+  async rescanAgents(id) {
+    const b = bridge();
+    if (b === null || typeof b.agents !== 'function') return;
+    // One press, one read. A second press while the first is in flight opens
+    // no second connection.
+    if (get().rescanning[id] === true) return;
+    set((s) => ({
+      rescanning: { ...s.rescanning, [id]: true },
+      rescanErrors: withoutKey(s.rescanErrors, id)
+    }));
+    try {
+      const views = await b.agents(id, true);
+      set((s) => ({ agentsByMachine: mergeViews(s.agentsByMachine, views) }));
+    } catch (err) {
+      // THE ANSWER IS NOT TOUCHED. A read that failed is not evidence that an
+      // agent is absent, so every row keeps the presence it had and the age
+      // keeps saying when that answer was read.
+      set((s) => ({
+        rescanErrors: { ...s.rescanErrors, [id]: plainSentence(err) }
+      }));
+    } finally {
+      set((s) => ({ rescanning: withoutKey(s.rescanning, id) }));
     }
   }
 }));

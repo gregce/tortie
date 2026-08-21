@@ -14,7 +14,7 @@ release.
 | # | Phase | Why here | State |
 | ---: | --- | --- | --- |
 | 1 | **109** which agents the machine has | Finishes the remote machine story he asked for | RUNNING |
-| 2 | **110** what exists where, in Settings | The view for 109's scan. Last of the remote feature work | queued |
+| 2 | **110** what exists where, in Settings | The view for 109's scan. Last of the remote feature work | ✅ shipped |
 | 3 | **117** an unreachable confirmation is not proof of absence | Audit P0. It can lose a live remote session's row, and the write phases lean on it | queued |
 | 4 | **118** remote children are owned, removal is one transaction | Audit P1, same reason | queued |
 | 5 | **119** decline capture on restore | Insurance from research 59 | queued |
@@ -9488,7 +9488,7 @@ this phase.
    when one of `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL` is set, so a launch without one
    of those three silently uses his real server.
 
-## Phase 110 — what exists where, in Settings (research 58 row, queued 2026-08-19) QUEUED
+## Phase 110 — what exists where, in Settings (research 58 row, queued 2026-08-19) ✅ SHIPPED 2026-08-20 (this commit, 0.61.0, gates green, 7,415 tests)
 
 **Subject:** `feat(settings): see which agents each machine has`
 **First body line:** `Phase 110: what exists where, in Settings`

@@ -835,6 +835,77 @@ export const KEY_NOT_MADE_YET =
  */
 
 // ---------------------------------------------------------------------------
+// Which agents each machine has (Phase 110)
+// ---------------------------------------------------------------------------
+//
+// A READ, and never an install surface. Not one string here holds a command,
+// and none of them names a provider page. The local agent row draws an install
+// command beside a copy button, and those strings are piped shell one liners.
+// The same string beside a machine Tortie holds an open connection to is one
+// button from being sent, so this block says where installing happens and
+// offers nothing that could send it.
+
+/** The heading over the per machine blocks. */
+export const AGENTS_ON_MACHINES_TITLE = 'On your other machines';
+
+/** The one sentence block under that heading. */
+export const AGENTS_ON_MACHINES_CAPTION =
+  'These are the agents Tortie found on each machine the last time it asked. ' +
+  'Tortie asks a machine once when it signs in, and again when you press ' +
+  'Rescan. Installing an agent happens on that machine.';
+
+/** The button that asks one machine again. */
+export const BTN_RESCAN_AGENTS = 'Rescan';
+
+/** The same button while its one read is in flight. */
+export const RESCAN_AGENTS_RUNNING = 'Scanning…';
+
+/** The words for an agent that machine answered it does not have. */
+export const AGENT_ABSENT = 'Not found';
+
+/**
+ * The words for an agent nobody has asked about, or one whose answer could not
+ * be trusted. It is the phrase the configured agents block already uses for
+ * this idea, so the product says one thing once.
+ */
+export const AGENT_UNKNOWN = 'Not known yet';
+
+/**
+ * Under the head, whenever there is an answer.
+ *
+ * Any answer that can be stale says its age. This panel never asks on its own,
+ * so without this line a person could read a year old answer as a fresh one.
+ */
+export function agentsAskedLine(age: string): string {
+  return age === 'now'
+    ? 'Tortie asked this machine less than a minute ago.'
+    : `Tortie asked this machine ${age} ago.`;
+}
+
+/** Under the head, for a machine nothing has ever asked in this run. */
+export const AGENTS_NEVER_ASKED =
+  'Tortie has not asked this machine yet, so it knows nothing about the ' +
+  'agents there.';
+
+/**
+ * Under the head, for a machine Tortie cannot ask right now.
+ *
+ * The rows and the age stay exactly as they were. A machine Tortie cannot
+ * reach is not a machine that lost its agents.
+ */
+export const AGENTS_NOT_SIGNED_IN =
+  'Tortie has not signed in to this machine in this run, so it cannot ask it ' +
+  'anything. Open Machines and prepare this machine.';
+
+/**
+ * The Rescan button's own label, because up to 32 of them would otherwise all
+ * read Rescan to anybody reading the page rather than looking at it.
+ */
+export function rescanAgentsLabel(label: string): string {
+  return `Ask ${label} which agents it has`;
+}
+
+// ---------------------------------------------------------------------------
 // The colon exemption, named so the test can be exact
 // ---------------------------------------------------------------------------
 
