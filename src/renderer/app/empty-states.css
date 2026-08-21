@@ -209,3 +209,44 @@
   color: var(--text-muted);
   text-wrap: balance;
 }
+
+/* ---------------------------------------------------------------------------
+   PHASE 130. The install command is readable and one press copies it.
+
+   .onb-caption was a centred flex ROW. Its two sentences are flex: 0 0 auto
+   and the command was flex: 0 1 auto, so the command was the only child that
+   could shrink, and in the 660px column it shrank to eight characters. The
+   operator read "curl -f…" under a sentence telling him to copy it.
+
+   The caption is a column now. Nothing in styles/app.css is touched, so the
+   ⌘T create sheet's own install row is exactly as it was.
+--------------------------------------------------------------------------- */
+.onb-caption {
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The command row reuses .code-row, the primitive the three boot block
+   screens already draw a command with. Three things change, because that
+   primitive was written for a short command on a wide screen: the height
+   stops being fixed so a long command can take two lines, the type drops to
+   the caption's own size, and the row cannot grow past the column. */
+.onb-caption .code-row {
+  max-width: 100%;
+  height: auto;
+  min-height: 24px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  align-items: flex-start;
+}
+
+/* min-width: 0 is the load-bearing one. Without it the flex item refuses to
+   go below its longest unbreakable run and the row grows past the column
+   instead of wrapping inside it. */
+.onb-cmd {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}

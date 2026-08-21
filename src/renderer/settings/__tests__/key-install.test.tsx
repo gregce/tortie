@@ -56,6 +56,7 @@ import {
   KEY_RESULT_LABEL,
   KEY_TRANSCRIPT_LABEL,
   KEY_WROTE_ADDED,
+  KEY_MORE_LABEL,
   KEY_WROTE_PRESENT,
   REMEDY
 } from '../machines-copy';
@@ -270,6 +271,11 @@ describe('what a person reads before they type anything', () => {
   });
 
   it('draws main’s warning and every one of main’s notes', () => {
+    // PHASE 130 made this the case that proves nothing was deleted. Two of
+    // main's notes are now behind a shut disclosure, and a shut `<details>`
+    // still writes its children into the markup, so every one of main's five
+    // notes is still here word for word. Where each one sits is held by the
+    // three cases under `the disclosure` below.
     expect(has(html, SHEET.warning)).toBe(true);
     for (const note of SHEET.notes) expect(has(html, note)).toBe(true);
   });
@@ -405,5 +411,97 @@ describe('the advice under a refused install', () => {
       state({ result: installResult({ class: 'refused', wrote: null }) })
     );
     expect(count(html, REFUSED)).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 130. Which of main's notes a person reads first
+// ---------------------------------------------------------------------------
+
+describe('the disclosure under the key block', () => {
+  /** Where a string starts in the markup, or -1. */
+  const at = (html: string, text: string): number => html.indexOf(esc(text));
+
+  /** Where the disclosure opens, and where it closes. */
+  const more = (html: string): { open: number; close: number } => {
+    const marker = html.indexOf('data-p130-key-more="1"');
+    expect(marker).toBeGreaterThan(-1);
+    const open = html.lastIndexOf('<details', marker);
+    const close = html.indexOf('</details>', marker);
+    return { open, close };
+  };
+
+  const inside = (html: string, text: string): boolean => {
+    const { open, close } = more(html);
+    const where = at(html, text);
+    return where > open && where < close;
+  };
+
+  it('is shut, and says what is behind it', () => {
+    const html = panel({ class: 'auth-refused' });
+    const { open } = more(html);
+    const tag = html.slice(open, html.indexOf('>', open) + 1);
+    // React writes `open` as a bare attribute when it is set. A disclosure a
+    // person has to press is the whole point, so it must not be there.
+    expect(tag).not.toContain('open');
+    expect(has(html, KEY_MORE_LABEL)).toBe(true);
+  });
+
+  it('hides only the passphrase note when nothing above said Remote Login', () => {
+    // On `auth-refused` the advice above says nothing about Remote Login, so
+    // main's first note is the only place a person reads it and it stays in
+    // the stack, above the password field.
+    const html = panel({ class: 'auth-refused' });
+    const field = html.indexOf('data-machines-field="machine-password"');
+    const { open } = more(html);
+
+    expect(inside(html, SHEET.notes[1] ?? '')).toBe(true);
+    expect(inside(html, SHEET.notes[0] ?? '')).toBe(false);
+    expect(at(html, SHEET.notes[0] ?? '')).toBeLessThan(open);
+    expect(at(html, SHEET.notes[0] ?? '')).toBeLessThan(field);
+    for (const i of [2, 3, 4]) {
+      expect({ i, hidden: inside(html, SHEET.notes[i] ?? '') }).toEqual({
+        i,
+        hidden: false
+      });
+    }
+  });
+
+  it('also hides the Remote Login note when the advice above already said it', () => {
+    // On `refused` the remedy four lines up tells a person to turn on Remote
+    // Login. Reading it twice in one screen is what this moves.
+    expect(REMEDY.refused ?? '').toContain('Remote Login');
+    const html = panel({ class: 'refused' });
+    expect(inside(html, SHEET.notes[0] ?? '')).toBe(true);
+    expect(inside(html, SHEET.notes[1] ?? '')).toBe(true);
+    for (const i of [2, 3, 4]) {
+      expect({ i, hidden: inside(html, SHEET.notes[i] ?? '') }).toEqual({
+        i,
+        hidden: false
+      });
+    }
+  });
+
+  it('keeps every consent fact on screen with nothing to press', () => {
+    // The five facts a person agrees to. Each one is outside the disclosure on
+    // both answers that offer a key, so nothing a person consents to is one
+    // press away.
+    for (const cls of ['auth-refused', 'refused'] as MachineTestClass[]) {
+      const html = panel({ class: cls });
+      const facts = [
+        ...SHEET.lines,
+        SHEET.warning,
+        SHEET.notes[2] ?? '',
+        SHEET.notes[3] ?? '',
+        KEY_PASSWORD_HINT
+      ];
+      for (const fact of facts) {
+        expect({ cls, fact, hidden: inside(html, fact) }).toEqual({
+          cls,
+          fact,
+          hidden: false
+        });
+      }
+    }
   });
 });

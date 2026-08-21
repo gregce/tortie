@@ -31,6 +31,14 @@
  * class, so main still says what happened and this file only says what to do
  * about it. A class with nothing for a person to do draws nothing.
  *
+ * PHASE 130. The second header line no longer claims that Tortie does not
+ * change the bytes. It did claim that, and the paragraph above this one is why
+ * it was not exactly true: main removes the ANSI control sequences and this
+ * view is handed a transcript with the marker pair already taken out. The line
+ * now makes the two promises that are exact, being that Tortie does not store
+ * the bytes and does not answer them for the person. The words themselves live
+ * in TRANSCRIPT_SOURCE_LINE, in machines-copy.ts.
+ *
  * PHASE 79.1. One block hangs under the advice, and it is the only place in
  * the product that offers to set up a key. It is rendered HERE rather than in
  * the Add sheet and again on the machine row, because both of those draw this

@@ -610,10 +610,13 @@ describe('the connection test view', () => {
     const html = draw(null, 'Warning: Permanently added ...');
     expect(html).toContain('Tortie is running:');
     expect(html).toContain('/usr/bin/ssh');
+    // PHASE 130. The line no longer claims Tortie does not change the bytes,
+    // because main removes the ANSI control sequences and this view is handed
+    // a transcript with the marker pair already taken out. The two promises
+    // that are exact are still made.
     expect(html).toContain(
       'Everything below this line comes from that program and from the ' +
-        'machine. Tortie does not change it, does not store it, and does not ' +
-        'answer it for you.'
+        'machine. Tortie does not store it and does not answer it for you.'
     );
     expect(html).toContain('Warning: Permanently added ...');
   });

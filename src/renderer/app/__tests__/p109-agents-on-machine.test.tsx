@@ -126,7 +126,11 @@ describe('the empty state caption on a machine tab', () => {
 
   it('is one sentence naming the machine, with no command', () => {
     const html = renderToStaticMarkup(
-      <HintedInstallCaption option={withCommand} machineLabel="Studio" />
+      <HintedInstallCaption
+        option={withCommand}
+        machineLabel="Studio"
+        onCopy={() => undefined}
+      />
     );
     expect(agentMissingOnMachine('Droid', 'Studio')).toBe(
       'Tortie could not find Droid on Studio. Install it on that machine, ' +
@@ -139,7 +143,7 @@ describe('the empty state caption on a machine tab', () => {
 
   it('still hands the command over on this Mac', () => {
     const html = renderToStaticMarkup(
-      <HintedInstallCaption option={withCommand} />
+      <HintedInstallCaption option={withCommand} onCopy={() => undefined} />
     );
     expect(html).toContain('<code');
     expect(html).toContain('curl -fsSL');

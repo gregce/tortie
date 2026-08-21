@@ -266,11 +266,17 @@ describe('the transcript exemption', () => {
 
   it('says which line is Tortie and what everything under it is', () => {
     expect(copy.TRANSCRIPT_RUNNING_LABEL).toBe('Tortie is running:');
+    // PHASE 130. "does not change it," went. Main removes the ANSI control
+    // sequences and strips the marker pair Tortie asked the program to print,
+    // so the old sentence promised something Tortie does not do. The two
+    // promises that are exact are pinned here and neither may be dropped.
     expect(copy.TRANSCRIPT_SOURCE_LINE).toBe(
       'Everything below this line comes from that program and from the ' +
-        'machine. Tortie does not change it, does not store it, and does not ' +
-        'answer it for you.'
+        'machine. Tortie does not store it and does not answer it for you.'
     );
+    expect(copy.TRANSCRIPT_SOURCE_LINE).toContain('does not store it');
+    expect(copy.TRANSCRIPT_SOURCE_LINE).toContain('does not answer it for you');
+    expect(copy.TRANSCRIPT_SOURCE_LINE).not.toContain('does not change it');
   });
 
   it('promises that nothing typed into the answer field is kept', () => {
@@ -506,6 +512,7 @@ describe('the words the key block writes for itself', () => {
       copy.BTN_INSTALL_KEY,
       copy.INSTALLING_KEY,
       copy.KEY_DISABLED_REASON,
+      copy.KEY_MORE_LABEL,
       copy.KEY_TRANSCRIPT_LABEL,
       copy.KEY_RESULT_LABEL,
       copy.KEY_MADE_NEW,
@@ -531,10 +538,17 @@ describe('the words the key block writes for itself', () => {
   });
 
   it('says why the button is off, while it is off', () => {
-    expect(copy.KEY_DISABLED_REASON).toBe(
-      "Type that machine's password first. Tortie needs it once to put the " +
-        'key on the machine.'
-    );
+    // PHASE 130. The second sentence went. KEY_PASSWORD_HINT stands
+    // immediately above the button and already says the password crosses one
+    // call and that Tortie keeps no copy of it. What a control that is off
+    // owes a person is the way to turn it on, and that is all this says.
+    expect(copy.KEY_DISABLED_REASON).toBe("Type that machine's password first.");
+  });
+
+  it('names the disclosure by what is behind it', () => {
+    // PHASE 130. Two of main's notes sit behind this summary. Nothing is
+    // deleted, so the label promises more rather than promising details.
+    expect(copy.KEY_MORE_LABEL).toBe('More about this key');
   });
 
   it('says which of the two things happened to the key and to the file', () => {
@@ -586,10 +600,12 @@ describe('the words the key block writes for itself', () => {
     // Phase 79 told a person to put their public key on the machine
     // themselves. Tortie does it now, so the advice names the block rather
     // than the errand.
+    // PHASE 130. The opening sentence went. It restated main's headline for
+    // this class, which reads "The machine refused your sign in.", and this
+    // file's own rule says a remedy does not repeat what main already said.
     expect(copy.REMEDY['auth-refused']).toBe(
-      'That machine did not accept your sign in. Your key may not be on it ' +
-        'yet. The block under this one makes a key and puts it on that ' +
-        'machine for you.'
+      'Your key may not be on that machine yet. The block under this one ' +
+        'makes a key and puts it there.'
     );
   });
 });
@@ -621,12 +637,60 @@ describe('the four sentences Phase 79 writes', () => {
     // what had happened and nothing he could do. This is the sentence that
     // answers him, and it is pinned so a later edit cannot soften it back
     // into a diagnosis.
+    // PHASE 130 cut two sentences and left that first one alone. "macOS ships
+    // with Remote Login turned off, so that is the usual reason" explained why
+    // the machine refused, which a person reading the refusal does not need.
+    // "and check that it is listening on this port" is already main's own
+    // detail one line above. The sentence below is still word for word the one
+    // Phase 79 wrote.
     expect(copy.REMEDY.refused).toBe(
       'On that Mac, open System Settings, then General, then Sharing, and ' +
-        'turn on Remote Login. macOS ships with Remote Login turned off, so ' +
-        'that is the usual reason. On a machine that is not a Mac, start its ' +
-        'sign in service and check that it is listening on this port.'
+        'turn on Remote Login. On a machine that is not a Mac, start its ' +
+        'sign in service.'
     );
+    expect(copy.REMEDY.refused).toContain(
+      'On that Mac, open System Settings, then General, then Sharing, and ' +
+        'turn on Remote Login.'
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 130. The sentences that were cut, and the one set that decides what a
+// person reads first
+// ---------------------------------------------------------------------------
+
+describe('the advice under a machine that asked for a password', () => {
+  it('names the block and stops there', () => {
+    // This had no pin before Phase 130, so nothing held it. It has one now,
+    // because it is a sentence this phase chose. "It asks for that machine's
+    // password once" went, because KEY_PASSWORD_HINT says what becomes of the
+    // password beside the field that takes it, one block down.
+    expect(copy.REMEDY['password-required']).toBe(
+      'The block under this one makes a key and puts it on that machine. ' +
+        'After that Tortie signs in with the key and never asks for that ' +
+        'password again.'
+    );
+    expect(copy.REMEDY['password-required']).not.toContain('for you');
+  });
+});
+
+describe('which answers already told a person about Remote Login', () => {
+  it('names every class whose remedy already says Remote Login, and no others', () => {
+    // The set is derived from the advice text here rather than remembered, so
+    // an edit to a remedy that adds or removes the sentence cannot leave
+    // KeyInstall.tsx hiding main's first note on the wrong screen.
+    const saysIt = Object.entries(copy.REMEDY)
+      .filter(([, text]) => text !== null && text.includes('Remote Login'))
+      .map(([cls]) => cls)
+      .sort();
+    expect([...copy.REMEDY_ALREADY_SAYS_REMOTE_LOGIN].sort()).toEqual(saysIt);
+  });
+
+  it('is a set of class ids, and every one of them is a real class', () => {
+    for (const cls of copy.REMEDY_ALREADY_SAYS_REMOTE_LOGIN) {
+      expect(MACHINE_OUTCOME_CLASSES).toContain(cls);
+    }
   });
 });
 

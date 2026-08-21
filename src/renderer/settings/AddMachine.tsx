@@ -402,8 +402,14 @@ export function AddMachineView({
           onUsePeer={onUsePeer}
         />
 
-        {/* Step two. The person's own keystrokes. */}
-        <div className="mach-block">
+        {/* Step two. The person's own keystrokes.
+            PHASE 130. This is the only .mach-block in the sheet that is a
+            stack of labelled field rows, and a labelled row is a group of
+            two. It carries .mach-fields so a field sits closer to its own
+            hint than to the next field. The Tailscale panel, the test block
+            and the confirm sheet are stacks of paragraphs and keep the plain
+            .mach-block rhythm. */}
+        <div className="mach-block mach-fields">
           <label className="mach-field-row">
             <span className="mach-field-label">{FIELD_HOST}</span>
             <input

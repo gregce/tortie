@@ -1,0 +1,39 @@
+/*
+ * PHASE 130. The disclosure under the key block.
+ *
+ * It holds two of main's five notes, being the explanation of why the key has
+ * no passphrase and, on an answer whose advice already said it, the sentence
+ * about turning on Remote Login first. Both are main's words, drawn byte for
+ * byte, one press away. Nothing here hides a consent fact.
+ *
+ * It shares the summary treatment with .mach-disclosure in machines.css rather
+ * than inventing a second one, and it is written in its own file so this
+ * phase's prose item does not open that file. Colocated component CSS is the
+ * pattern this repo already uses, e.g. specstory.css.
+ *
+ * Every colour and every measure is a token. No literal appears.
+ */
+
+.mach-key-more {
+  align-self: stretch;
+}
+
+.mach-key-more > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.mach-key-more > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mach-key-more[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+.mach-key-more > .mach-key-note + .mach-key-note {
+  margin-top: var(--space-3);
+}

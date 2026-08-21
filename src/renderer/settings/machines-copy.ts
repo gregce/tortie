@@ -627,11 +627,20 @@ export const ADD_DISABLED_REASON =
  */
 export const TRANSCRIPT_RUNNING_LABEL = 'Tortie is running:';
 
-/** The second. Everything drawn after it is another program's bytes. */
+/**
+ * The second. Everything drawn after it is another program's bytes.
+ *
+ * PHASE 130. This said "Tortie does not change it" and that was not exactly
+ * true. Main removes the ANSI control sequences and strips the marker pair
+ * Tortie asked the program to print, which the header of
+ * ConnectionTestView.tsx states in as many words. A promise that is not exact
+ * is worse than a promise that is not made, so that half is gone. The two
+ * promises that ARE exact, being that Tortie does not store the bytes and does
+ * not answer them for the person, both stay.
+ */
 export const TRANSCRIPT_SOURCE_LINE =
   'Everything below this line comes from that program and from the machine. ' +
-  'Tortie does not change it, does not store it, and does not answer it for ' +
-  'you.';
+  'Tortie does not store it and does not answer it for you.';
 
 export const ANSWER_LABEL = 'Answer';
 export const BTN_SEND = 'Send';
@@ -688,26 +697,41 @@ export const REMEDY: Readonly<Record<MachineTestClass, string | null>> = {
   // the connection test. There is nothing for a person to do while that runs,
   // and the answer they are waiting for is the machine's own.
   'key-installed': null,
+  // PHASE 130. Two sentences went. "macOS ships with Remote Login turned off,
+  // so that is the usual reason" explains why the machine refused, and a
+  // person reading a refusal with the action above it does not need the
+  // background. "and check that it is listening on this port" is already said
+  // by main's own detail one line up, which reads "Something is at that
+  // address and it is not accepting connections on this port." The first
+  // sentence, the one the operator could not find, is unchanged word for word.
   refused:
     'On that Mac, open System Settings, then General, then Sharing, and turn ' +
-    'on Remote Login. macOS ships with Remote Login turned off, so that is ' +
-    'the usual reason. On a machine that is not a Mac, start its sign in ' +
-    'service and check that it is listening on this port.',
+    'on Remote Login. On a machine that is not a Mac, start its sign in ' +
+    'service.',
   // PHASE 79.1 FIX ROUND. The machine answered and asked for a password.
   // Main's detail says that much and says Tortie stopped there. What it does
   // not say is that the way out is on this panel, and that the password is
   // asked for once rather than on every connection.
+  //
+  // PHASE 130. "It asks for that machine's password once" went, because
+  // KEY_PASSWORD_HINT says what becomes of the password beside the field that
+  // takes it, one block down, and main's third note says it again there. A
+  // person reads it next to the thing it is about. "for you" was filler.
   'password-required':
-    'The block under this one makes a key and puts it on that machine for ' +
-    'you. It asks for that machine\'s password once. After that Tortie signs ' +
-    'in with the key and never asks for that password again.',
+    'The block under this one makes a key and puts it on that machine. After ' +
+    'that Tortie signs in with the key and never asks for that password ' +
+    'again.',
   // PHASE 79.1. Tortie can now do this itself, so the sentence names the
   // block that does it rather than telling a person to go and do it by hand.
   // The block stands under this one, on the same panel.
+  //
+  // PHASE 130. The opening sentence went. It restated main's headline for this
+  // class, which reads "The machine refused your sign in." The rule at the top
+  // of this block says a remedy does not repeat main's detail sentence, and
+  // repeating the headline is the same defect one line higher.
   'auth-refused':
-    'That machine did not accept your sign in. Your key may not be on it ' +
-    'yet. The block under this one makes a key and puts it on that machine ' +
-    'for you.',
+    'Your key may not be on that machine yet. The block under this one makes ' +
+    'a key and puts it there.',
   // Main's detail already says to check the address or pick from the tailnet.
   // What it does not say is why the tailnet name is the surer of the two.
   'not-resolved':
@@ -757,6 +781,32 @@ export const REMEDY: Readonly<Record<MachineTestClass, string | null>> = {
     'runs, or put a version Tortie has already measured on it.'
 };
 
+/**
+ * The outcome classes whose remedy already tells a person to turn on Remote
+ * Login (Phase 130).
+ *
+ * WHY THIS SET EXISTS. Main's first note on the key sheet says to turn on
+ * Remote Login on that machine first. On the classes named here the advice
+ * four lines above has just said the same thing, so a person reads it twice in
+ * one screen. `KeyInstall.tsx` moves that note behind the disclosure on these
+ * classes and leaves it in place on every other one, where nothing above says
+ * it. Main's words are not changed and nothing is deleted.
+ *
+ * IT IS A NAMED SET RATHER THAN A SEARCH ON MAIN'S TEXT, so a reworded note in
+ * main cannot quietly change which sentences a person reads first.
+ * `machines-copy.test.ts` derives the same set from the REMEDY text and fails
+ * when the two disagree, which keeps the set honest by a test rather than by a
+ * memory.
+ *
+ * These members are class ids rather than sentences, and the copy audit walks
+ * every array in this module, so it reads them as if they were prose. They
+ * carry no dash, no colon and no forbidden word, so they pass, and a later
+ * reader meeting them in that walk is meant to find this note.
+ */
+export const REMEDY_ALREADY_SAYS_REMOTE_LOGIN: readonly MachineTestClass[] = [
+  'refused'
+];
+
 // ---------------------------------------------------------------------------
 // Setting up a key for one machine (Phase 79.1)
 // ---------------------------------------------------------------------------
@@ -796,10 +846,15 @@ export const BTN_INSTALL_KEY = 'Make a key and put it on this machine';
 
 export const INSTALLING_KEY = 'Setting up the key';
 
-/** Drawn under the button for as long as it is off. */
-export const KEY_DISABLED_REASON =
-  "Type that machine's password first. Tortie needs it once to put the key " +
-  'on the machine.';
+/**
+ * Drawn under the button for as long as it is off.
+ *
+ * PHASE 130. The second sentence went. KEY_PASSWORD_HINT stands immediately
+ * above the button and already says the password crosses one call and that
+ * Tortie keeps no copy of it. The sentence a control that is off needs is the
+ * one that says how to turn it on.
+ */
+export const KEY_DISABLED_REASON = "Type that machine's password first.";
 
 /** Stands over the bytes the far machine printed, which are not Tortie's. */
 export const KEY_TRANSCRIPT_LABEL = 'What the machine printed';
@@ -828,6 +883,15 @@ export const KEY_WROTE_PRESENT =
 
 /** Stands immediately before the fingerprint main computed. */
 export const KEY_FINGERPRINT_LABEL = 'Key fingerprint';
+
+/**
+ * The summary of the disclosure that holds the notes a person does not need
+ * before they press the button (Phase 130).
+ *
+ * What is behind it is main's own words, drawn byte for byte, one press away.
+ * Nothing is deleted and nothing is reworded.
+ */
+export const KEY_MORE_LABEL = 'More about this key';
 
 // ---------------------------------------------------------------------------
 // Which key Tortie uses, said on the row (Phase 84, item 7)

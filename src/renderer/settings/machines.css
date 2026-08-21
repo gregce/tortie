@@ -434,8 +434,14 @@
   margin-top: var(--space-5);
 }
 
+/* PHASE 130. The gap was the 8px .mach-block sets. This sheet is a stack of
+   paragraphs with one button at the foot, and at 8px the button read as part
+   of the last paragraph rather than as the thing the paragraphs lead to.
+   .mach-sheet is drawn only on the Add a machine card, so no other surface
+   moves. */
 .mach-sheet {
   align-self: stretch;
+  gap: var(--space-5);
 }
 
 /* ------------------------------------------------- the connection test view */
@@ -859,4 +865,56 @@
    to that section's row padding cannot move this card with it. */
 .mach-agents > .mach-row {
   padding-bottom: var(--space-4);
+}
+
+/* ---------------------------------------------------------------- PHASE 130
+   The spacing on Add a machine.
+
+   The operator asked for more room between the lines. What he was reading is
+   four labelled field rows 8px apart, with the hint under "Sign in as" the
+   same 8px under its field as the next field is. A labelled row is a group of
+   two, so the distance between two rows is a between-group distance and the
+   distance from a field to its own hint is a within-group one. The Advanced
+   block already worked this way and the sheet above it did not.
+
+   Measured on the open sheet, before and after:
+     row to row              8px  ->  12px
+     field to its own hint   8px  ->   6px
+     step to step           16px  ->  20px
+     card padding           12px  ->  16px
+     card to the test panel 28px  ->  20px
+
+   The fifth reading is the one that was two rules adding up. Only padding,
+   gap and margin values change here. No height, no width, no font size, no
+   colour and no border is touched, and every value is a --space-* token from
+   src/renderer/styles/tokens.css. .mach-sheet's own gap is set in its
+   existing block above rather than here, so there is one rule for it.
+--------------------------------------------------------------------------- */
+
+/* 6px is the within-group distance, so a hint sits 6px under the field it
+   explains. The rule below adds the second 6px back between two rows, which
+   is why the two readings come out at 6px and 12px from one gap value. */
+.mach-fields {
+  gap: var(--space-3);
+}
+
+.mach-fields > * + .mach-field-row {
+  margin-top: var(--space-3);
+}
+
+/* One more step of air between the four steps, and the card's own padding
+   matches it. Both stay inside DESIGN.md section 1.7's band for the distance
+   between groups. The selector is qualified by .mach-add so a saved machine's
+   own cards keep the padding they have. */
+.mach-add .mach-card {
+  padding: var(--space-6);
+  gap: var(--space-7);
+}
+
+/* The connection test panel carries its own margin, because a saved machine's
+   expanded row draws it with no flex gap above it. Inside the Add card the
+   gap is already there and the two were adding up to 28px. The margin is
+   dropped for this one parent and the saved row keeps it. */
+.mach-add .mach-card > .mach-test {
+  margin-top: 0;
 }

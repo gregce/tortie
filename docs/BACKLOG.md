@@ -14600,7 +14600,7 @@ Phase 80.1 gave Shift plus Command plus Return to a session: press it and the se
 - No change to Control plus Command plus F, the packaged full screen row from Phase 62.1, which is a different thing and stays where it is.
 
 
-## Phase 130 — the install command is copyable, the machine pages are spaced, and the prose stops explaining itself (operator reported 2026-08-21) QUEUED
+## Phase 130 — the install command is copyable, the machine pages are spaced, and the prose stops explaining itself (operator reported 2026-08-21) ✅ SHIPPED 2026-08-21 (this commit, 0.66.1, gates green, 7,960 tests)
 
 **Subject:** `fix(ui): copy the install command, space the machine pages, cut the prose`
 **First body line:** `Phase 130: three things he read on screen and could not use`
@@ -14635,6 +14635,43 @@ He pasted the whole of what one screen says and asked for it to be reduced to wh
 **No promise may be quietly dropped.** A sentence that is a commitment stays a commitment. If a builder believes a consent fact should go, it STOPS and reports rather than cutting it.
 
 **Proof:** photograph each screen before and after, count the words on each, and list every removed sentence beside the reason it was not needed. The commit body carries that list.
+
+### What shipped, and the numbers behind it
+
+All three items are built and measured in the real app. Every proof this entry asked for exists,
+including the two before photographs the first build did not produce.
+
+| Item | What a person can now do | Measured |
+| --- | --- | --- |
+| 1, the install command | Read the whole command in the caption, and copy it with one press | Drawn 278 px wide with `scrollWidth` 278 and `clientWidth` 278, so nothing is cut. `pbpaste` returned `curl -fsSL https://app.factory.ai/cli \| sh`, which equals the registry string byte for byte |
+| 2, the Add machine page | Read the four fields without the rows running together | Row to row 8 px to 12 px, field to its own hint 8 px to 6 px, step to step 16 px to 20 px, card padding 12 px to 16 px, card to the test panel 28 px to 20 px. Every value is a token from `tokens.css` |
+| 3, the prose | Read the result panel and the key block without reading the same fact twice | Connection test result panel 116 words to 90. Key block with nothing pressed 288 words to 210. Key block with the disclosure open 288 words to 281 |
+
+**Item 1 was two halves that never met.** `EmptyStates.tsx` drew the command inside a class that
+`app.css` gave `overflow: hidden` and `white-space: nowrap`, and the copy button that already
+existed on the Cmd-T sheet never reached the caption. The caption now wraps the command over as
+many lines as it needs and carries its own copy button. `src/renderer/styles/app.css` is untouched
+and `CreateSessionModal.tsx` still draws its own copy button, so the Cmd-T sheet is exactly as it
+was.
+
+**Item 3 removed nine sentences and moved two.** The full list with the reason on each is in the
+commit body. The consent facts all stayed in the stack where a person reads them before pressing
+anything, being the file written on that machine, where the private half of the key lives, that the
+password is sent once and kept nowhere, and that one line is added and nothing else changed. The
+two sentences that moved behind `More about this key` are main's own words drawn byte for byte, and
+they are the explanation of why the key has no passphrase and, on a refused connection only, the
+Remote Login sentence the advice four lines above has just said.
+
+**One promise was corrected rather than cut.** `TRANSCRIPT_SOURCE_LINE` said Tortie "does not
+change" the bytes the far program printed. Main removes the ANSI control sequences and strips the
+marker pair Tortie asked the program to print, so that half was not exact and it is gone. The two
+halves that are exact, being that Tortie does not store the bytes and does not answer them for the
+person, both stay.
+
+**What is still not true.** `AgentGrid.tsx:312` still writes an em dash into a screen-reader label
+on the very screen item 1 repairs, and that line is outside every file this phase owned, so it is
+left for its own one line round. Row to row on the Add machine page is 12 px, which sits between
+the two bands DESIGN.md section 1.7 names, and that was a judgement rather than a rule.
 
 ### What is NOT in this phase
 
@@ -14827,3 +14864,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 130 queued, the install command is copyable, the machine pages are spaced, and the prose stops explaining itself
 - 2026-08-21, Phase 131 queued, the machine row says four times what it should say once, and it waits for Phase 130 because both edit machines-copy.ts
 - 2026-08-21, Phase 132 queued, the skill preview is unreadably tall and its install button is probably below the fold, and direct install already exists
+- 2026-08-21, Phase 130 shipped, the install command is copyable, the machine pages are spaced, and the prose stops explaining itself, this commit, 0.66.1

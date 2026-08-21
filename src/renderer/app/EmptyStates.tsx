@@ -82,15 +82,40 @@ export function FirstRun(): React.JSX.Element {
 // ---------------------------------------------------------------------------
 
 /**
+ * PHASE 130. The two sentences the copy control says out loud.
+ *
+ * The label names the agent, because a screen reader reads the board one
+ * control at a time and "Copy the install command" on its own does not say
+ * whose. The title is the shorter one, because a tooltip sits beside the
+ * command it copies and the name is already on screen.
+ */
+export function copyInstallCommandLabel(label: string): string {
+  return `Copy the install command for ${label}`;
+}
+
+/** The tooltip on the same control. */
+export const COPY_INSTALL_COMMAND_TITLE = 'Copy the install command';
+
+/**
  * PHASE 49. The caption under the fleet for a missing agent, reading the
  * provider's own command from the scan row rather than from a hand-typed
- * table. The ⌘T modal carries the copy affordance for this command; here it
- * is selectable text, so the state stays quiet. Exported pure so the unit
- * tests can pin both sentences.
+ * table. Exported pure so the unit tests can pin both sentences.
+ *
+ * PHASE 130. The command used to be one shrinkable child of a centred flex
+ * ROW, so in the 660px column it was cut to eight characters and there was no
+ * way to copy it. The operator read `curl -f…` under a sentence telling him
+ * to copy it. The caption is a column now, the command has its own line and
+ * wraps, and the copy control beside it is the same one the three boot block
+ * screens already draw.
+ *
+ * The component stays hook free, so `renderToStaticMarkup` keeps working in
+ * the unit test. The caller owns the clipboard write and the toast, exactly
+ * the way `CommandRow` below does.
  */
 export function HintedInstallCaption({
   option,
-  machineLabel = null
+  machineLabel = null,
+  onCopy
 }: {
   option: AgentPickerOption;
   /**
@@ -100,7 +125,10 @@ export function HintedInstallCaption({
    * about the machine the session will run on.
    */
   machineLabel?: string | null;
+  /** Copies the command. The caller owns the toast, the way CommandRow does. */
+  onCopy: (command: string) => void;
 }): React.JSX.Element {
+  const install = option.install;
   if (machineLabel !== null) {
     return (
       <span className="agent-missing-text">
@@ -108,7 +136,7 @@ export function HintedInstallCaption({
       </span>
     );
   }
-  if (option.install === null) {
+  if (install === null) {
     return (
       <span className="agent-missing-text">
         {option.label} is not installed. Tortie finds it as soon as it is on
@@ -122,7 +150,19 @@ export function HintedInstallCaption({
         {option.label} is not installed. Copy this command and run it in a
         terminal.
       </span>
-      <code className="agent-missing-cmd">{option.install.command}</code>
+      <span className="code-row">
+        <code className="onb-cmd">{install.command}</code>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label={copyInstallCommandLabel(option.label)}
+          title={COPY_INSTALL_COMMAND_TITLE}
+          data-p130-copy-install="1"
+          onClick={() => onCopy(install.command)}
+        >
+          <Codicon name="copy" size={14} />
+        </button>
+      </span>
       <span className="agent-missing-text">{INSTALL_NOTE_LINE}</span>
     </>
   );
@@ -130,6 +170,10 @@ export function HintedInstallCaption({
 
 export function NoSessions(): React.JSX.Element {
   const quickCreate = useApp((s) => s.quickCreate);
+  // PHASE 130. The caption's copy control writes the clipboard here, the way
+  // CommandRow does, so the caption itself stays a pure function the unit
+  // test can render to static markup.
+  const toast = useApp((s) => s.toast);
   const project = useApp((s) => s.activeProject());
   const avail = useAgentAvailability();
   // Same settings truth as the ⌘T modal and the Settings window: the agent
@@ -237,7 +281,16 @@ export function NoSessions(): React.JSX.Element {
 
         <div className="onb-caption" aria-live="polite">
           {hinted !== null ? (
-            <HintedInstallCaption option={hinted} machineLabel={machineLabel} />
+            <HintedInstallCaption
+              option={hinted}
+              machineLabel={machineLabel}
+              onCopy={(command) => {
+                void navigator.clipboard.writeText(command).then(
+                  () => toast('info', COPY_COMMAND_TOASTS.ok),
+                  () => toast('error', COPY_COMMAND_TOASTS.failed)
+                );
+              }}
+            />
           ) : null}
         </div>
       </div>

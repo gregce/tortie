@@ -12,11 +12,15 @@
  * - The staleness line appears when `readOn` is 181 days old and not at
  *   179 (research 47 §10: more than 180 days).
  * - The empty state's two sentences, rewritten in Phase 49, are pinned.
+ * - PHASE 130: the caption draws the WHOLE command, no longer draws the
+ *   class that used to clip it, and carries a copy control that is handed the
+ *   command byte for byte.
  *
  * The vitest environment is node, so the component assertions read static
  * markup from react-dom/server rather than a mounted DOM.
  */
 
+import { isValidElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -199,6 +203,28 @@ describe('the no-command sentence', () => {
   });
 });
 
+/**
+ * PHASE 130. The first element in a returned tree carrying a given prop.
+ *
+ * The vitest environment here is node, so there is no DOM to press. Reading
+ * the component's own element tree is how a press is proved without one: the
+ * handler this finds is the handler the component wired.
+ */
+function findByProp(
+  node: unknown,
+  prop: string
+): { props: Record<string, unknown> } | null {
+  if (!isValidElement(node)) return null;
+  const props = node.props as Record<string, unknown>;
+  if (prop in props) return { props };
+  const kids = props['children'];
+  for (const kid of Array.isArray(kids) ? kids : [kids]) {
+    const hit = findByProp(kid, prop);
+    if (hit !== null) return hit;
+  }
+  return null;
+}
+
 describe('the empty state caption', () => {
   const option = (install: typeof DROID_INSTALL | null): AgentPickerOption => ({
     id: 'droid',
@@ -212,22 +238,64 @@ describe('the empty state caption', () => {
 
   it('hands over the command with the note line when one is published', () => {
     const html = renderToStaticMarkup(
-      <HintedInstallCaption option={option(DROID_INSTALL)} />
+      <HintedInstallCaption
+        option={option(DROID_INSTALL)}
+        onCopy={() => undefined}
+      />
     );
     expect(html).toContain(
       'Droid is not installed. Copy this command and run it in a terminal.'
     );
     expect(html).toContain('curl -fsSL https://app.factory.ai/cli | sh');
     expect(html).toContain(INSTALL_NOTE_LINE);
+    // PHASE 130. The whole command, a copy control beside it, and NOT the
+    // class that clipped it. .agent-missing-cmd is still in styles/app.css
+    // because the create sheet uses it; the caption stopped drawing it.
+    expect(html).toContain('data-p130-copy-install="1"');
+    expect(html).toContain('Copy the install command for Droid');
+    expect(html).toContain('Copy the install command"');
+    expect(html).not.toContain('agent-missing-cmd');
+  });
+
+  /**
+   * PHASE 130. What this case proves and what it does not.
+   *
+   * It proves the CONTRACT: the caption is given a handler, and the command
+   * it draws is the command that handler is called with, character for
+   * character. The vitest environment here is node and this file reads static
+   * markup from react-dom/server, so there is no button to press and this
+   * case does not prove a press.
+   *
+   * The press itself is driven in the live app by
+   * build/probe-p130-install-copy.mjs, which clicks the real control and then
+   * reads the system pasteboard back from outside the renderer. A test that
+   * claimed to prove a press and did not would be worse than no test.
+   */
+  it('hands the exact command it drew to the copy handler', () => {
+    const copied: string[] = [];
+    // The component is called directly rather than mounted, and its own
+    // returned element tree is searched for the copy control. The handler
+    // invoked below is the one the component wired, not a copy of it.
+    const tree = HintedInstallCaption({
+      option: option(DROID_INSTALL),
+      onCopy: (cmd) => {
+        copied.push(cmd);
+      }
+    });
+    const button = findByProp(tree, 'data-p130-copy-install');
+    expect(button).not.toBeNull();
+    (button?.props as { onClick: () => void }).onClick();
+    expect(copied).toEqual([DROID_INSTALL.command]);
   });
 
   it('says only the login shell sentence when none is published', () => {
     const html = renderToStaticMarkup(
-      <HintedInstallCaption option={option(null)} />
+      <HintedInstallCaption option={option(null)} onCopy={() => undefined} />
     );
     expect(html).toContain(
       'Droid is not installed. Tortie finds it as soon as it is on your login shell’s PATH.'
     );
     expect(html).not.toContain('Copy this command');
+    expect(html).not.toContain('data-p130-copy-install');
   });
 });

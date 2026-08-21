@@ -20,6 +20,12 @@
  * is cleared on the same tick the call is made. That is the same shape the
  * connection test's answer field already has.
  *
+ * PHASE 130. Two of main's five notes now sit behind a shut disclosure rather
+ * than in the stack above the password field. They are still main's words,
+ * still drawn byte for byte, and one press opens them. The rule that decides
+ * which two is written beside the partition in the component below. Nothing
+ * was deleted, nothing was reworded, and no consent fact moved.
+ *
  * WHY THIS IMPORTS FROM ITS OWN PARENT. `Remedy` is defined in
  * ConnectionTestView.tsx, which renders this component, so the two modules
  * refer to each other. It is safe because both are function declarations and
@@ -40,14 +46,17 @@ import {
   KEY_LINES_LABEL,
   KEY_MADE_NEW,
   KEY_MADE_REUSED,
+  KEY_MORE_LABEL,
   KEY_PASSWORD_HINT,
   KEY_PASSWORD_LABEL,
   KEY_RESULT_LABEL,
   KEY_TRANSCRIPT_LABEL,
   KEY_WROTE_ADDED,
-  KEY_WROTE_PRESENT
+  KEY_WROTE_PRESENT,
+  REMEDY_ALREADY_SAYS_REMOTE_LOGIN
 } from './machines-copy';
 import type { KeyInstallState } from './machines-store';
+import './key-install.css';
 
 export interface KeyInstallProps {
   /**
@@ -88,6 +97,36 @@ export function KeyInstall({
 
   const ready = password !== '' && !running;
 
+  // PHASE 130. Main writes five notes and this surface drew all five, in one
+  // stack, above the password field. The operator read the whole thing and
+  // asked for what a person needs at that moment. Two of them move behind a
+  // shut disclosure and the rest stay where they were.
+  //
+  // WHAT MOVES, AND WHY EACH ONE MOVES:
+  //  - notes[1], why the key has no passphrase. It explains a design choice.
+  //    The fact it defends, that the file is what protects the key, is already
+  //    the second sentence of main's warning above it.
+  //  - notes[0], turn on Remote Login first, and ONLY when the advice above
+  //    has already said it. On `refused` the remedy four lines up says exactly
+  //    this. On the other two classes that offer a key nothing above says it,
+  //    so it stays in place there.
+  //
+  // NOTHING IS DELETED AND NOTHING IS REWORDED. Both are main's own strings,
+  // drawn byte for byte, one press away. No consent fact moves: what happened,
+  // the next action, the file written on that machine, where the private half
+  // lives and what becomes of the password are all still on screen with
+  // nothing to press.
+  const behindIndexes = new Set<number>([1]);
+  if (
+    adviceAbove !== null &&
+    REMEDY_ALREADY_SAYS_REMOTE_LOGIN.includes(adviceAbove)
+  ) {
+    behindIndexes.add(0);
+  }
+  const notes = sheet === null ? [] : sheet.notes;
+  const shownNotes = notes.filter((_, i) => !behindIndexes.has(i));
+  const behindNotes = notes.filter((_, i) => behindIndexes.has(i));
+
   const press = (): void => {
     onInstall(password);
     // Cleared on the same tick the call is made. What a person typed lives in
@@ -112,15 +151,27 @@ export function KeyInstall({
           </div>
 
           {/* Main's warning and main's notes, in main's order, unchanged. The
-              first note says Remote Login comes before the key, because a key
+              note that says Remote Login comes before the key stays here on
+              every answer whose advice has not already said it, because a key
               on a machine that is not accepting connections still cannot sign
-              in. */}
+              in. The partition above decides which notes are here and which
+              are one press away, and it deletes none of them. */}
           <p className="set-config-warning">{sheet.warning}</p>
-          {sheet.notes.map((note) => (
+          {shownNotes.map((note) => (
             <p className="mach-key-note" key={note}>
               {note}
             </p>
           ))}
+          {behindNotes.length === 0 ? null : (
+            <details className="mach-key-more" data-p130-key-more="1">
+              <summary>{KEY_MORE_LABEL}</summary>
+              {behindNotes.map((note) => (
+                <p className="mach-key-note" key={note}>
+                  {note}
+                </p>
+              ))}
+            </details>
+          )}
 
           <label className="mach-field-row mach-key-field">
             <span className="mach-field-label">{KEY_PASSWORD_LABEL}</span>
