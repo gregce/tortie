@@ -6788,7 +6788,7 @@ four runs have produced the responsibility evidence it reads.
 **Order.** Run A can start any time. Runs B, C and D follow 117 and 118, in that order. The Arch work,
 Phases 63 to 66, is unheld only after 128, which is the operator's own sequencing.
 
-## Phase 121 — recents encode a path with a space wrongly, and the IPC closure is not gated (audit phase 3) QUEUED
+## Phase 121 — recents encode a path with a space wrongly, and the IPC closure is not gated (audit phase 3) ✅ SHIPPED 2026-08-20 (this commit, 0.60.2, gates green, 7,380 tests)
 
 **Subject:** `fix(quickopen): recents keep a path with a space in it`
 **First body line:** `Phase 121: recents encode a path with a space wrongly`

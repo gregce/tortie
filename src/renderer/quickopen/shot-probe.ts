@@ -19,9 +19,14 @@
  *     probe opens a folder on a real machine as a tab, drives the palette
  *     there, prints the sentence the panel drew, accepts a row for real, and
  *     prints the recents key beside the key the same relative path composed on
- *     this Mac. The two must be different strings, and the editor tab id must
- *     begin `machine:<id>:`. That is the one claim a screenshot cannot settle
- *     and the one whose failure would open the wrong file.
+ *     this Mac. The two must be different, and the editor tab id must begin
+ *     `machine:<id>:`. That is the one claim a screenshot cannot settle and the
+ *     one whose failure would open the wrong file.
+ *
+ *     PHASE 121 MADE A RECENTS KEY TWO FIELDS rather than one joined string,
+ *     so the lines below print `root=` and `relPath=` and the machine test
+ *     reads the `root` field. The wording of every line is otherwise the one
+ *     Phase 99 wrote, so a reader of an older run still finds it.
  *
  * Findings go to console.log, which GMUX_SHOT_VERBOSE=1 tees into the harness
  * output — measured numbers rather than assurance. The screenshot is then
@@ -35,6 +40,7 @@
  *   npx electron . --user-data-dir=/tmp/gmux-qo-probe
  */
 
+import type { QuickOpenRecent } from '@shared/ipc';
 import { requestOpenFile } from '../state/open-file';
 import { useApp } from '../state/store';
 import { useEditor } from '../editor/store';
@@ -73,13 +79,34 @@ export interface QuickOpenProbeSpec {
    * The tab is opened AFTER `openFirst`, so the files named there are opened
    * from the project on this Mac and the recents key they compose is the LOCAL
    * key. That key is printed beside the one the machine's own file composes,
-   * and the two must be different strings.
+   * and the two must differ in at least one field.
    */
   remoteProject?: { machineId: string; path: string; name: string };
 }
 
 const wait = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One recents entry as a line a person can read.
+ *
+ * PHASE 121. The entry is two fields now, so both are printed with their names
+ * rather than joined back into one string. Joining them back would put the
+ * defect this phase fixed into the probe that reports on it.
+ */
+function recentText(entry: QuickOpenRecent | undefined): string {
+  if (entry === undefined) return '(none)';
+  return `root="${entry.root}" relPath="${entry.relPath}"`;
+}
+
+/** True when the two entries name one file in one root. */
+function sameRecent(
+  a: QuickOpenRecent | null,
+  b: QuickOpenRecent | null
+): boolean {
+  if (a === null || b === null) return false;
+  return a.root === b.root && a.relPath === b.relPath;
+}
 
 /**
  * Wait until the store stops having an answer in flight, or give up.
@@ -145,8 +172,8 @@ function machineNoteText(): string {
 }
 
 export async function driveQuickOpen(spec: QuickOpenProbeSpec): Promise<void> {
-  /** PHASE 99. The key the last open from THIS Mac composed. */
-  let localRecentKey: string | null = null;
+  /** PHASE 99. The entry the last open from THIS Mac composed. */
+  let localRecent: QuickOpenRecent | null = null;
 
   for (const rel of spec.openFirst ?? []) {
     const repoPath = useApp.getState().activeProject()?.path ?? '';
@@ -170,9 +197,9 @@ export async function driveQuickOpen(spec: QuickOpenProbeSpec): Promise<void> {
   // was composed on this Mac and the key below is composed on the machine.
   if (spec.remoteProject !== undefined) {
     const { machineId, path, name } = spec.remoteProject;
-    localRecentKey = recentKeys()[0] ?? null;
+    localRecent = recentKeys()[0] ?? null;
     console.log(
-      `[qo-probe] recents key from this Mac: "${localRecentKey ?? '(none)'}"`
+      `[qo-probe] recents key from this Mac: ${recentText(localRecent ?? undefined)}`
     );
     const opened = await useApp
       .getState()
@@ -291,16 +318,18 @@ export async function driveQuickOpen(spec: QuickOpenProbeSpec): Promise<void> {
           ? `[qo-probe] editor tab id OK: ${tabId}`
           : `[qo-probe] FAILED: tab id "${tabId}" does not begin "${wanted}"`
       );
-      const machineKey = recentKeys()[0] ?? '(none)';
-      console.log(`[qo-probe] recents key from the machine: "${machineKey}"`);
+      const machineRecent = recentKeys()[0] ?? null;
       console.log(
-        machineKey.startsWith(wanted)
-          ? '[qo-probe] the recents key carries the machine OK'
-          : `[qo-probe] FAILED: recents key does not begin "${wanted}"`
+        `[qo-probe] recents key from the machine: ${recentText(machineRecent ?? undefined)}`
       );
       console.log(
-        machineKey !== localRecentKey
-          ? '[qo-probe] the two recents keys are different strings OK'
+        (machineRecent?.root ?? '').startsWith(wanted)
+          ? '[qo-probe] the recents key carries the machine OK'
+          : `[qo-probe] FAILED: recents root does not begin "${wanted}"`
+      );
+      console.log(
+        !sameRecent(machineRecent, localRecent)
+          ? '[qo-probe] the two recents keys are different OK'
           : '[qo-probe] FAILED: the machine key equals this Mac key'
       );
     }

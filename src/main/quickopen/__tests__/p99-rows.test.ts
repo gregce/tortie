@@ -1,6 +1,8 @@
 /**
- * Phase 99. One ranked path into one quick open row, and one recents key back
- * into one.
+ * Phase 99. One ranked path into one quick open row, and one recent file back
+ * into one. PHASE 121 retyped the second one from a joined string to two
+ * fields, so the calls below name `root` and `relPath` rather than one key.
+ * Every Phase 99 claim this file made is still made.
  *
  * THE ONE LINE THIS FILE EXISTS FOR. `/Users/gdc/gmux/README.md` on this Mac
  * and `/Users/gdc/gmux/README.md` on another machine are DIFFERENT files. A hit
@@ -69,8 +71,13 @@ describe('hitOf', () => {
 });
 
 describe('recentHitOf', () => {
-  it('splits at the first space, so a relative path may hold spaces', () => {
-    const hit = recentHitOf(`${HERE} src/a b.ts`);
+  // PHASE 121 CHANGED THIS FUNCTION'S ARGUMENT AND NOTHING ELSE HERE. It used
+  // to take one string, `${root} ${relPath}`, and split it at the first space.
+  // It takes the two fields now. Every claim this block made about the machine
+  // id is still made, with the same roots and the same relative paths.
+
+  it('keeps a relative path holding spaces whole', () => {
+    const hit = recentHitOf({ root: HERE, relPath: 'src/a b.ts' });
     expect(hit).toEqual({
       repoPath: HERE,
       relPath: 'src/a b.ts',
@@ -80,29 +87,28 @@ describe('recentHitOf', () => {
     });
   });
 
-  it('carries the machine out of a key that names one', () => {
-    const hit = recentHitOf(`${THERE} src/a.ts`);
+  it('carries the machine out of a root that names one', () => {
+    const hit = recentHitOf({ root: THERE, relPath: 'src/a.ts' });
     expect(hit?.machineId).toBe('studio');
     expect(hit?.repoPath).toBe(HERE);
     expect(hit?.relPath).toBe('src/a.ts');
   });
 
-  it('reads a key an older build wrote as a file on this Mac, which it was', () => {
-    // A recents entry from before Phase 99 has no machine in its first field.
-    // Nothing is migrated and nothing is discarded, because reading it as local
-    // is reading it correctly.
-    expect(recentHitOf(`${HERE} README.md`)?.machineId).toBeUndefined();
+  it('reads a root an older build wrote as a file on this Mac, which it was', () => {
+    // A recents entry from before Phase 99 has no machine in its root. Nothing
+    // is migrated and nothing is discarded, because reading it as local is
+    // reading it correctly.
+    expect(recentHitOf({ root: HERE, relPath: 'README.md' })?.machineId).toBeUndefined();
   });
 
-  it('answers null for a key that does not split', () => {
-    expect(recentHitOf('')).toBeNull();
-    expect(recentHitOf(HERE)).toBeNull();
-    expect(recentHitOf(` ${HERE}`)).toBeNull();
-    expect(recentHitOf(`${HERE} `)).toBeNull();
+  it('answers null when either field is empty', () => {
+    expect(recentHitOf({ root: '', relPath: '' })).toBeNull();
+    expect(recentHitOf({ root: HERE, relPath: '' })).toBeNull();
+    expect(recentHitOf({ root: '', relPath: 'README.md' })).toBeNull();
   });
 
   it('marks every recent hit recent, because that is what the list is', () => {
-    expect(recentHitOf(`${THERE} a.ts`)?.recent).toBe(true);
-    expect(recentHitOf(`${THERE} a.ts`)?.positions).toEqual([]);
+    expect(recentHitOf({ root: THERE, relPath: 'a.ts' })?.recent).toBe(true);
+    expect(recentHitOf({ root: THERE, relPath: 'a.ts' })?.positions).toEqual([]);
   });
 });

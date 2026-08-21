@@ -65,7 +65,7 @@ import type { Readable } from 'node:stream';
 import { parentPort, workerData } from 'node:worker_threads';
 import { go, snapshot } from 'fuzzysort';
 import type { Snapshot } from 'fuzzysort';
-import type { QuickOpenHit } from '@shared/ipc';
+import type { QuickOpenHit, QuickOpenRecent } from '@shared/ipc';
 import { QUICK_OPEN_WARM_STALE_MS } from '@shared/ipc';
 import { LOCAL_MACHINE_ID, targetOfRootKey } from '@shared/workspace-target';
 // THE `rg --files` argv (research 19 §2.3, O2 "one ripgrep, three
@@ -80,7 +80,7 @@ import type {
   QuickOpenResponse,
   QuickOpenWorkerData
 } from './protocol';
-import { hitOf, recentHitOf } from './rows';
+import { hitOf, recentHitOf, recentMapKeyOf } from './rows';
 import {
   compareScored,
   positionsForPath,
@@ -156,7 +156,21 @@ interface RootIndex {
 
 const indexes = new Map<string, RootIndex>();
 
-/** `${rootKey} ${relPath}` → position in the renderer's recents list. */
+/**
+ * The renderer's recently opened list, most recent first. The empty query
+ * answers from this, in this order.
+ *
+ * PHASE 121. It used to be read back out of `recentRank` by sorting the map's
+ * entries by their value. That sort was a no-op, because the map is filled in
+ * list order and the value IS the index, so it always returned the insertion
+ * order. The order is held directly now and no ordering rule was dropped.
+ */
+let recentOrder: readonly QuickOpenRecent[] = [];
+
+/**
+ * `recentMapKeyOf(root, relPath)` to the position in that list. The tiebreaker
+ * between two paths that scored the same.
+ */
 let recentRank = new Map<string, number>();
 
 const { rgPath } = workerData as QuickOpenWorkerData;
@@ -386,19 +400,6 @@ function gate(idx: RootIndex, query: string): readonly string[] {
 }
 
 /**
- * The tiebreaker key, being `${rootKey} ${relPath}`.
- *
- * PHASE 99 PUT THE MACHINE INSIDE THE FIRST FIELD, by taking the root key
- * rather than a path. `idx.root` is already that key, so this function's body
- * did not change and its meaning did. The renderer composes the same string
- * from `rootKeyOf`, and the two have to agree byte for byte or a recent file
- * never ties anything.
- */
-function recentKey(rootKey: string, relPath: string): string {
-  return `${rootKey} ${relPath}`;
-}
-
-/**
  * Sort: score first (VS Code's own comparator), and recency ONLY as the
  * tiebreaker between equally-scored paths.
  *
@@ -418,18 +419,20 @@ function compareRows(a: Row, b: Row): number {
  * The empty query answers with recents, in the renderer's own order.
  *
  * The membership test is on the ROOT KEY, so a recent file only answers inside
- * the root it was opened from. `./rows.ts` then takes the key apart into the
- * path and the machine, which is the one place that decomposition happens.
+ * the root it was opened from. `./rows.ts` then turns the root into the path
+ * and the machine, which is the one place that decomposition happens.
+ *
+ * PHASE 121. The root used to be recovered by splitting a joined key at its
+ * first space, so `/Users/gdc/My Projects/app` was tested as
+ * `/Users/gdc/My`, no root matched it, and every file in that project was
+ * skipped. The root is its own field now and is compared whole.
  */
 function recentsFor(roots: readonly string[], limit: number): QuickOpenHit[] {
   const rootSet = new Set(roots);
-  const ordered = [...recentRank.entries()].sort((a, b) => a[1] - b[1]);
   const hits: QuickOpenHit[] = [];
-  for (const [key] of ordered) {
-    const space = key.indexOf(' ');
-    if (space < 0) continue;
-    if (!rootSet.has(key.slice(0, space))) continue;
-    const hit = recentHitOf(key);
+  for (const entry of recentOrder) {
+    if (!rootSet.has(entry.root)) continue;
+    const hit = recentHitOf(entry);
     if (hit === null) continue;
     hits.push(hit);
     if (hits.length >= limit) break;
@@ -486,7 +489,8 @@ function runQuery(msg: QueryMessage): void {
         path: relPath,
         repoPath: idx.root,
         relPath,
-        recentRank: recentRank.get(recentKey(idx.root, relPath)) ?? MAX_RECENTS
+        recentRank:
+          recentRank.get(recentMapKeyOf(idx.root, relPath)) ?? MAX_RECENTS
       });
     }
   }
@@ -543,10 +547,21 @@ port.on('message', (msg: QuickOpenRequest) => {
         runQuery(msg);
         return;
       case 'recents': {
+        // One entry per key, keeping the first, which is the most recent. The
+        // renderer's own `noteOpened` already drops an older duplicate, so this
+        // normally removes nothing. It is here because the map this list also
+        // fills can hold one entry per key either way, and the two have to
+        // agree or the empty query could list one file twice.
+        const order: QuickOpenRecent[] = [];
         const next = new Map<string, number>();
-        for (let i = 0; i < msg.keys.length && i < MAX_RECENTS; i++) {
-          next.set(msg.keys[i]!, i);
+        for (const entry of msg.recents) {
+          if (order.length >= MAX_RECENTS) break;
+          const key = recentMapKeyOf(entry.root, entry.relPath);
+          if (next.has(key)) continue;
+          next.set(key, order.length);
+          order.push(entry);
         }
+        recentOrder = order;
         recentRank = next;
         return;
       }

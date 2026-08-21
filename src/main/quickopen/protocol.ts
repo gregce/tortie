@@ -9,7 +9,7 @@
  * fifty rows; nothing bigger than fifty rows ever crosses the boundary.
  */
 
-import type { QuickOpenHit } from '@shared/ipc';
+import type { QuickOpenHit, QuickOpenRecent } from '@shared/ipc';
 
 /** Boot-time data — the ripgrep path main resolved (search/resolve.ts). */
 export interface QuickOpenWorkerData {
@@ -48,11 +48,16 @@ export interface QueryMessage {
 export interface RecentsMessage {
   type: 'recents';
   /**
-   * `${rootKey} ${relPath}` keys, most recent first. PHASE 99 put the machine
-   * inside the first field, so the same relative path under the same absolute
-   * path on two computers is two keys rather than one.
+   * Most recent first, already normalised by the coordinator.
+   *
+   * PHASE 99 put the machine inside the root, so the same relative path under
+   * the same absolute path on two computers is two entries rather than one.
+   *
+   * PHASE 121 replaced a `string[]` of `${root} ${relPath}` keys. The worker
+   * took each one apart at the first space, which is wrong for a root holding
+   * one, and dropped the file. Two fields cannot split wrong.
    */
-  keys: string[];
+  recents: QuickOpenRecent[];
 }
 
 /** A watcher event says this root drifted; refresh on the coalescing timer. */

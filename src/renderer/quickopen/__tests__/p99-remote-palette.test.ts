@@ -449,7 +449,10 @@ describe('opening a row that came from a machine', () => {
       machineLabel: 'Studio',
       repoPath: '/home/greg/api'
     });
-    expect(recentKeys()[0]).toBe('machine:studio:/home/greg/api src/auth.ts');
+    expect(recentKeys()[0]).toEqual({
+      root: 'machine:studio:/home/greg/api',
+      relPath: 'src/auth.ts'
+    });
   });
 
   it('sends no machine reference for a row from this Mac', async () => {
@@ -471,6 +474,9 @@ describe('opening a row that came from a machine', () => {
     await flush();
     expect(opened.length).toBe(1);
     expect(opened[0]?.remote).toBeUndefined();
-    expect(recentKeys()[0]).toBe('/Users/gdc/gmux src/a.ts');
+    expect(recentKeys()[0]).toEqual({
+      root: '/Users/gdc/gmux',
+      relPath: 'src/a.ts'
+    });
   });
 });

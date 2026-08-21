@@ -19,8 +19,16 @@
  * inside its first field. `rootKeyOf` composes it and it is the same composer
  * the query's root key comes from, so a recent entry can only ever break a tie
  * inside the root it was opened from.
+ *
+ * PHASE 121 MADE THAT KEY TWO FIELDS. The renderer used to hand the worker one
+ * string per entry, being `${rootKey} ${relPath}`, and the worker took it apart
+ * at the first space. A project folder whose path holds a space produced a root
+ * nothing matched, so an empty Cmd+P listed nothing for that project. The
+ * stored rows did not change and are not migrated. Only what `recentKeys()`
+ * hands the worker changed.
  */
 
+import type { QuickOpenRecent } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { LOCAL_MACHINE_ID, rootKeyOf } from '@shared/workspace-target';
 import { onOpenFile } from '../state/open-file';
@@ -98,20 +106,28 @@ export function recentFiles(): readonly RecentFile[] {
 }
 
 /**
- * The worker's tiebreaker key: `${rootKey} ${relPath}`.
+ * The list the ranking worker ranks by, most recent first.
  *
- * A space is safe as the separator because neither an absolute POSIX path nor
- * a root key can end in one and the worker splits on the FIRST space, so a
- * relative path containing spaces still round-trips.
+ * PHASE 121 MADE IT A TUPLE. It used to be `${rootKey} ${relPath}` and the
+ * worker split it at the first space. A root key holding a space, which is
+ * every project inside a folder such as `/Users/gdc/My Projects`, split into a
+ * root nothing matched, so an empty Cmd+P listed nothing for that project. Two
+ * fields cannot split wrong.
  *
- * PHASE 99 PUT THE MACHINE INSIDE THE FIRST FIELD. `/Users/gdc/gmux/README.md`
- * on this Mac and the same path on another machine are two different files, and
- * before this phase they would have composed one key. A folder on this Mac
- * still keys as its own absolute path, so every key an older build wrote is
- * still the key this build composes.
+ * PHASE 99 PUT THE MACHINE INSIDE THE ROOT, and that is unchanged here. A
+ * folder on this Mac keys as its own absolute path. A folder on another machine
+ * keys as `machine:<machineId>:<path>`, so one relative path under one absolute
+ * path on two computers is two entries rather than one.
+ *
+ * The stored rows are NOT touched by this. `load()` and `persist()` read and
+ * write the same object array they have always written, so nobody's saved
+ * recents move.
  */
-export function recentKeys(): string[] {
-  return entries.map((e) => `${rootKeyOf(targetOf(e))} ${e.relPath}`);
+export function recentKeys(): QuickOpenRecent[] {
+  return entries.map((e) => ({
+    root: rootKeyOf(targetOf(e)),
+    relPath: e.relPath
+  }));
 }
 
 /**

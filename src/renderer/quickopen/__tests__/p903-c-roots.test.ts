@@ -236,11 +236,14 @@ describe('the recents record', () => {
       mode: 'file',
       source: 'tree'
     });
-    expect(recentKeys()).toContain('/Users/gdc/gmux src/a.ts');
+    expect(recentKeys()).toContainEqual({
+      root: '/Users/gdc/gmux',
+      relPath: 'src/a.ts'
+    });
     stop();
   });
 
-  it('records a file on a machine, with the machine inside the key', () => {
+  it('records a file on a machine, with the machine inside the root', () => {
     const stop = startRecordingRecents();
     openOnTheBus({
       repoPath: '/home/greg/api',
@@ -254,13 +257,19 @@ describe('the recents record', () => {
         repoPath: '/home/greg/api'
       }
     });
-    expect(recentKeys()).toContain('machine:studio:/home/greg/api src/auth.ts');
-    // The bare path is NOT a key any more, which is the whole of the trap.
-    expect(recentKeys()).not.toContain('/home/greg/api src/auth.ts');
+    expect(recentKeys()).toContainEqual({
+      root: 'machine:studio:/home/greg/api',
+      relPath: 'src/auth.ts'
+    });
+    // The bare path is NOT a root any more, which is the whole of the trap.
+    expect(recentKeys()).not.toContainEqual({
+      root: '/home/greg/api',
+      relPath: 'src/auth.ts'
+    });
     stop();
   });
 
-  it('keys the same path on two computers as two different strings', () => {
+  it('keys the same path on two computers as two different entries', () => {
     const stop = startRecordingRecents();
     openOnTheBus({
       repoPath: '/Users/gdc/gmux',
@@ -281,10 +290,19 @@ describe('the recents record', () => {
         repoPath: '/Users/gdc/gmux'
       }
     });
+    // PHASE 121 MADE AN ENTRY TWO FIELDS. The claim is the Phase 90.3-C one
+    // and it is unchanged: one relative path under one absolute path on two
+    // computers is two entries, told apart by the root.
     const keys = recentKeys();
-    expect(keys).toContain('/Users/gdc/gmux README.md');
-    expect(keys).toContain('machine:studio:/Users/gdc/gmux README.md');
-    expect(keys[0]).not.toBe(keys[1]);
+    expect(keys).toContainEqual({
+      root: '/Users/gdc/gmux',
+      relPath: 'README.md'
+    });
+    expect(keys).toContainEqual({
+      root: 'machine:studio:/Users/gdc/gmux',
+      relPath: 'README.md'
+    });
+    expect(keys[0]).not.toEqual(keys[1]);
     stop();
   });
 
@@ -307,11 +325,17 @@ describe('the recents record', () => {
 describe('the direct record, which the bus guard sits in front of', () => {
   it('reads an omitted machine as this Mac', () => {
     noteOpened('/Users/gdc/gmux', 'src/c.ts');
-    expect(recentKeys()[0]).toBe('/Users/gdc/gmux src/c.ts');
+    expect(recentKeys()[0]).toEqual({
+      root: '/Users/gdc/gmux',
+      relPath: 'src/c.ts'
+    });
   });
 
   it('takes the machine as its third value', () => {
     noteOpened('/home/greg/api', 'src/d.ts', 'studio');
-    expect(recentKeys()[0]).toBe('machine:studio:/home/greg/api src/d.ts');
+    expect(recentKeys()[0]).toEqual({
+      root: 'machine:studio:/home/greg/api',
+      relPath: 'src/d.ts'
+    });
   });
 });

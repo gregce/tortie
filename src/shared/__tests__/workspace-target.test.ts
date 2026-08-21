@@ -9,6 +9,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { QuickOpenRecent } from '../ipc';
 import {
   isLocalTarget,
   localPathOf,
@@ -221,27 +222,58 @@ describe('targetOfRootKey', () => {
   });
 });
 
-describe('the recents key both ends compose', () => {
+describe('the recents entry both ends compose', () => {
   /**
-   * The key is `${rootKey} ${relPath}`, and the whole point of Phase 99 is that
-   * the two below are different strings. The renderer writes them and the
-   * ranking worker in main reads them, and neither may compose its own shape.
+   * PHASE 121 MADE THIS TWO FIELDS. It used to be one string, `${rootKey}
+   * ${relPath}`, and the ranking worker took it apart at the first space. A
+   * root key holding a space, which is every project inside a folder such as
+   * `/Users/gdc/My Projects`, split into a root nothing matched, so an empty
+   * Cmd+P listed nothing for that project. Two fields cannot split wrong.
+   *
+   * What Phase 99 claimed here is unchanged and is still claimed below. The
+   * root carries the machine, so one relative path under one absolute path on
+   * two computers is two entries. The renderer composes these and the ranking
+   * worker in main reads them, and neither may compose its own shape.
    */
-  const recentKey = (target: { machineId: string; path: string }, rel: string) =>
-    `${rootKeyOf(target)} ${rel}`;
+  const recentOf = (
+    target: { machineId: string; path: string },
+    rel: string
+  ): QuickOpenRecent => ({ root: rootKeyOf(target), relPath: rel });
 
   it('separates one relative path under one absolute path on two computers', () => {
-    const here = recentKey(localTarget(P), 'README.md');
-    const there = recentKey(workspaceTarget(P, 'studio'), 'README.md');
-    expect(here).toBe('/Users/gdc/gmux README.md');
-    expect(there).toBe('machine:studio:/Users/gdc/gmux README.md');
-    expect(here).not.toBe(there);
+    const here = recentOf(localTarget(P), 'README.md');
+    const there = recentOf(workspaceTarget(P, 'studio'), 'README.md');
+    expect(here).toEqual({ root: '/Users/gdc/gmux', relPath: 'README.md' });
+    expect(there).toEqual({
+      root: 'machine:studio:/Users/gdc/gmux',
+      relPath: 'README.md'
+    });
+    expect(here.root).not.toBe(there.root);
   });
 
-  it('splits at the first space, so a relative path may hold spaces', () => {
-    const key = recentKey(workspaceTarget(P, 'studio'), 'src/a b.ts');
-    const at = key.indexOf(' ');
-    expect(key.slice(0, at)).toBe(`machine:studio:${P}`);
-    expect(key.slice(at + 1)).toBe('src/a b.ts');
+  it('keeps a relative path holding spaces whole, with no split to get wrong', () => {
+    const entry = recentOf(workspaceTarget(P, 'studio'), 'src/a b.ts');
+    expect(entry.root).toBe(`machine:studio:${P}`);
+    expect(entry.relPath).toBe('src/a b.ts');
+  });
+
+  it('keeps a ROOT holding spaces whole, which is the Phase 121 repair', () => {
+    // The old joined string for this pair was
+    // '/Users/gdc/My Projects/app README.md'. Splitting it at the first space
+    // gave the root '/Users/gdc/My', which matched no indexed root, so the
+    // worker skipped the entry and the empty palette listed nothing.
+    const spaced = '/Users/gdc/My Projects/app';
+    const entry = recentOf(localTarget(spaced), 'README.md');
+    expect(entry.root).toBe(spaced);
+    expect(entry.relPath).toBe('README.md');
+    expect(`${entry.root} ${entry.relPath}`.split(' ')[0]).toBe('/Users/gdc/My');
+  });
+
+  it('cannot map two different pairs onto one entry', () => {
+    // These two composed the identical joined string before Phase 121.
+    const a = recentOf(localTarget('/a b'), 'c');
+    const b = recentOf(localTarget('/a'), 'b c');
+    expect(`${a.root} ${a.relPath}`).toBe(`${b.root} ${b.relPath}`);
+    expect(a).not.toEqual(b);
   });
 });

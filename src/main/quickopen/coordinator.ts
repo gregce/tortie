@@ -18,6 +18,7 @@ import type {
 } from '@shared/ipc';
 import { isLocalTarget, targetOfRootKey } from '@shared/workspace-target';
 import type { QuickOpenRequest, QuickOpenResponse } from './protocol';
+import { recentMapKeyOf, recentsOf } from './rows';
 import { WORKER_NAMES } from '../proc/identity';
 
 import { getLog } from '../log';
@@ -292,11 +293,20 @@ export function createQuickOpenCoordinator(
       }
 
       // Recents change only when a file is opened, not on every keystroke.
-      const recents = input.recents ?? [];
-      const key = recents.join('\n');
+      //
+      // PHASE 121. The list is normalised HERE, at the one boundary renderer
+      // input arrives through, so exactly one shape reaches the worker. A
+      // string element is what a renderer from before this phase sent, and
+      // `recentsOf` reads it the way that build meant it. The dedupe key is
+      // built from the unambiguous map key, so two different lists cannot
+      // produce one key and skip a message that should have been sent.
+      const recents = recentsOf(input.recents ?? []);
+      const key = recents
+        .map((r) => recentMapKeyOf(r.root, r.relPath))
+        .join('\n');
       if (key !== lastRecentsKey) {
         lastRecentsKey = key;
-        w.postMessage({ type: 'recents', keys: recents });
+        w.postMessage({ type: 'recents', recents });
       }
 
       const id = nextId++;

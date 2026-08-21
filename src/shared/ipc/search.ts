@@ -402,6 +402,26 @@ export interface QuickOpenHit {
   recent: boolean;
 }
 
+/**
+ * One recently opened file, as two fields.
+ *
+ * PHASE 121. The pair used to travel as `${root} ${relPath}` and the ranking
+ * worker took it apart at the FIRST space. A folder whose path holds a space,
+ * e.g. `/Users/gdc/My Projects/app`, split into a root nothing matched, so an
+ * empty Cmd+P listed nothing at all for that project. Two fields cannot split
+ * wrong, and no separator has to be reserved.
+ */
+export interface QuickOpenRecent {
+  /**
+   * The ROOT KEY, from `rootKeyOf` in src/shared/workspace-target.ts. A folder
+   * on this Mac is its own absolute path. A folder on another machine is
+   * `machine:<machineId>:<path>`.
+   */
+  root: string;
+  /** The file's path relative to that root. */
+  relPath: string;
+}
+
 export interface QuickOpenQueryInput {
   /**
    * Every root to search, most important first (the active project first).
@@ -422,19 +442,24 @@ export interface QuickOpenQueryInput {
   /** How many hits to render. 50 is the VS Code number and this build's. */
   limit: number;
   /**
-   * `rootKey relPath` keys of recently opened files, most recent first.
-   * Used ONLY as a tiebreaker between equally-scored paths and to answer the
-   * empty query — never as a score bonus, which would float a bad match over
-   * a good one just because it was opened once.
+   * Recently opened files, most recent first. Used ONLY as a tiebreaker between
+   * equally scored paths and to answer the empty query, never as a score bonus,
+   * which would float a bad match over a good one just because it was opened
+   * once.
    *
-   * PHASE 99 PUT THE MACHINE INSIDE THE FIRST FIELD. The key used to be
-   * `repoPath relPath`, so `/Users/gdc/gmux/README.md` on this Mac and the same
-   * path on another machine composed ONE key and tie broke each other. The
-   * first field is now a root key from `rootKeyOf` in
-   * src/shared/workspace-target.ts, which is the bare path for this Mac, so
-   * every key an older build wrote is still the key this build composes.
+   * PHASE 99 PUT THE MACHINE INSIDE THE ROOT. The pair used to name a bare
+   * `repoPath`, so `/Users/gdc/gmux/README.md` on this Mac and the same path on
+   * another machine were one entry and tie broke each other. The root is a root
+   * key from `rootKeyOf` in src/shared/workspace-target.ts, which is the bare
+   * path for this Mac.
+   *
+   * PHASE 121. Each one is a {@link QuickOpenRecent} tuple. A plain string is
+   * the shape a build before Phase 121 sent, being `${root} ${relPath}`. It is
+   * still accepted and read by splitting at the first space, which is what that
+   * build meant by it, so an older renderer's message still ranks instead of
+   * being dropped. Nothing this build composes is a string.
    */
-  recents?: string[];
+  recents?: readonly (QuickOpenRecent | string)[];
 }
 
 export interface QuickOpenResult {
