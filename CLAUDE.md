@@ -79,6 +79,33 @@ Each phase runs as ONE Workflow with the same shape that produced Phases 1-13: *
 - **Never leave the queue idle.** When a phase's workflow completes, immediately launch the next batch in the order recorded at the top of docs/BACKLOG.md. Do not wait to be asked. If a verdict blocks, fix it and continue.
 - **Report to the user in their terms** when a phase lands: what they can now do that they could not before, and what is still not true.
 
+## Machine discipline when running phases (learned the hard way, 2026-08-22)
+
+Two phase workflows ran at once, the operator's machine ran out of memory and crashed, `/private/tmp`
+was wiped, every worktree was destroyed and 163 files of uncommitted builder work were lost. Nothing
+committed was lost, because everything committed was already on `origin/main`. These rules follow
+from that and they bind every future round.
+
+- **ONE phase workflow in flight at a time**, unless the phases are provably light and neither drives
+  Electron. Two workflows can put more than thirty agents on the machine at once.
+- **ONE Electron instance at a time inside a workflow.** It measures about 451 MB resident. Close it
+  before starting the next one. Never run a build or a test suite while a probe is up.
+- **Every probe kills its own Electron and ends its own scratch tmux server in a `finally` block**,
+  whatever happened. After a probe run, check `ps aux | grep -c Electron` and report the number.
+- **Check `vm_stat` before launching a workflow.** Under 3 GB free, do not launch. Under 2 GB free
+  inside a run, stop, clean up and say so rather than pressing on.
+- **A crash means RESTART FRESH, not resume.** `resumeFromRunId` replays an agent's TEXT and not the
+  files it wrote. If the worktree was wiped, the cached builder reports describe changes that no
+  longer exist and the integrator would build on a fiction. Only resume when the worktree survived
+  intact, and check that it did before deciding.
+- **`/private/tmp` does not survive a reboot.** Rebuilding a worktree means `git worktree prune`,
+  `git worktree add --detach`, then `cp -Rc node_modules` and `cp -Rc build/vendor` from the
+  operator's checkout. Confirm `build/vendor/specstory/bin/specstory --version` before starting, or
+  the specstory provider test fails for a reason that is not a product defect.
+- **The exposure is structural and it is the price of committing once per phase.** The committer is
+  the last agent, so a crash at any earlier point loses the whole phase. That trade is deliberate,
+  because it keeps main clean and keeps the gates meaningful. Know the cost when a phase is long.
+
 ## How to write to the operator (every report, not only when a phase lands)
 The operator gave these rules directly. They are requirements, not preferences. They apply to chat replies, commit messages, backlog entries and research documents.
 
