@@ -15246,6 +15246,184 @@ This is a correctness fix on an attribution, which is why it is worth a phase ra
 - No rewriting of history. The `docs/BACKLOG.md` entries and the CHANGELOG record what was true when written.
 
 
+## Phase 137 — catch me up on this project: what every session here was asked to do, and what actually changed (operator asked 2026-08-22, research 62) QUEUED
+
+**Subject:** `feat(overview): catch me up on what every session in this project has done`
+**First body line:** `Phase 137: catch me up on this project`
+**Semver:** minor. It adds a user facing surface, one chord and one View menu item. It changes no existing behaviour, removes nothing, and alters no stored shape that anything else reads.
+**Tier 3.** docs/research/62-session-overview.md asked for Tier 2 and gave four reasons, being that the surface touches one subsystem, writes nothing durability depends on, opens the manifest read only and never writes a status. All four are true and none of them is the deciding question. The page draws a line for EVERY session in the project whatever its agent, so this phase makes a claim about all thirteen agents in `src/main/agents/registry.ts` and not only about the four that have a reducer. CLAUDE.md puts anything claimed to work universally across agents at Tier 3 without exception and names a per agent matrix as the evidence. The nine agents with no reducer are the risky half rather than the safe half, because the failure mode there is a page that quietly shows nothing for a session that did a day of work. Two items inside the phase are verified at their own lower tier, being the page's layout and the View menu item, which are Tier 2. The per agent matrix, the git disagreement line and the redaction pass are verified at Tier 3.
+**Charter:** this entry, plus docs/research/62-session-overview.md, which is the decision document and holds every number quoted below. It is bound by docs/research/44-session-digests.md and by the `## Phase 44` and `## Phase 45` entries above, both of which this entry supersedes. It is also bound by docs/ZEN-OF-TORTIE.md, by Phase 23 refusal 5 in CLAUDE.md, which freezes status, and by bound C, which leaves spawning a confirmed agent CLI as the only network path.
+
+**Phase 44 and Phase 45 are superseded by this entry.** He put the hold on both on 2026-08-15, in his words, pending more thinking, and he did that thinking by asking for Research 62 on 2026-08-22. This entry reads his request as replacing the hold. If that reading is wrong, this phase does not start and he says so.
+
+### What this builds
+
+One page per project. He opens it, he reads it, he closes it. It is drawn from two things the machine already holds, being each agent's own log and the project's own git history. It costs $0.00 and it starts no background process.
+
+Research 62 measured the whole page against his real logs on 2026-08-22, in `node` 22.23.1 at a shell.
+
+| State | Arithmetic | Total |
+| --- | --- | --- |
+| Page closed, which is the normal state | nothing runs | 0 ms, 0 bytes, $0.00 |
+| Warm open of `~/gmux`, 7 sessions | 73.0 + 33.2 + 0.040 | 106 ms |
+| Cold open of `~/gmux`, 27,899,855 bytes, warm page cache | 73.0 + 33.2 + 54.9 | 161 ms |
+| Cold open of `~/gmux`, cold page cache | 73.0 + 33.2 + 224.6 | 331 ms |
+| Twenty opens in a working day | | about 3.2 s of CPU for the day |
+
+### The finding that decides the design, and it is a measurement
+
+Every candidate design read "what changed" from `Write` and `Edit` tool calls. On his largest gmux session that detector returns 0 across 11,384 records, while 986 shell commands ran and 76 subagents were spawned. The cause is his own standing instruction to his agents, which reads "make file changes with sed, heredocs, or short scripts, rather than using the dedicated Read, Edit, or Write tools."
+
+Measured over the seven live agent sessions in `~/gmux`, against what git says.
+
+| Window | Paths git says changed | Paths the seven sessions name | Overlap |
+| --- | --- | --- | --- |
+| Last 2 days | 407 | 16 | 4, which is 1.0% |
+| Last 7 days | 973 | 16 | 12, which is 1.2% |
+
+So the outcome substrate is git and not the transcript. A page that answers "what came of this" from the transcript alone answers from about one percent of the record. Git covers 10 of his 11 live projects and 44 of his 47 live sessions.
+
+### The surface
+
+92 columns, one screen, closed by default. This is the shape and not the final copy. The full mock, with every string taken from his own manifest, his own logs and a real repository, is docs/research/62-session-overview.md section 6.
+
+```
+Catch me up · gmux                                  read 13:31 Sat · ⌃⇧U to close
+─────────────────────────────────────────────────────────────────────────────────
+
+WHAT CHANGED HERE   since you last opened this, at 09:14 today
+   from git, which is the record of what actually happened
+
+   fix(about): the credit the NOTICE file promises      11:57 Sat  no session named it
+     CLAUDE.md  LICENSE  NOTICE  docs/BACKLOG.md  src/main/menu.ts
+   docs(method): how we verify this                     13:48 Fri  claude-6 named it
+     docs/method/HOW-WE-VERIFY-THIS.md
+
+   not committed yet
+     ?? docs/research/62-session-overview.md
+
+WHAT EACH SESSION WAS ASKED TO DO
+   from each agent's own log, quoted
+
+   claude-6                  claude · claude-fable-5 · @main · last wrote 16:53 Fri
+     you asked     We can commit and push these files please
+     it answered   Pushed as 0b07266 docs(method): how we verify this on main.
+     it named      docs/method/HOW-WE-VERIFY-THIS.md                    git agrees
+     it hit        a write that failed because the file had moved under it
+
+   codex-2                   codex · gpt-5.6-sol · @main · last wrote 14:48 Fri
+     you asked     can we write this comparison to the correct docs/research
+                   folder please
+     it named      docs/research/60-tortie-orca-comparison.md   git has no record
+
+   shell-2                   shell · no agent runs here, so there is nothing to read
+
+─────────────────────────────────────────────────────────────────────────────────
+built from each session's own log and from git · parser v1 · no model was used
+```
+
+Six properties, and each one exists because an attack in Research 62 found the alternative wrong.
+
+- The first zone is git and not the transcript. The line "no session named it" is the one that would have caught the session where the write detector saw nothing.
+- "it named" is labelled as a claim and git either agrees or it does not. The page never states that a session wrote a file. The `codex-2` row above is the honest failure case rendered honestly.
+- Every time on the page is absolute. A relative time freezes inside a page that never redraws, so a page left open for forty minutes would say "6m ago" in the present tense.
+- There is no zone for what needs him. Section 4.1 of the research measured this in both directions. The false positive is that `AskUserQuestion` is set by a tool call and cleared only by a structured answer, so a question answered in free text asserts "waiting on you" forever. The false negative is that across all 23 of his readable sessions such a zone would have fired 0 times while 2 of his last turns did ask him something.
+- No integer appears on the page except a clock time or a date. Section "What is NOT in this phase" states this as a refusal.
+- A failing command renders verbatim, after a redaction pass.
+
+### The chord, and why it is not the one the research proposed
+
+**⇧⌘U is refused, and an existing test refuses it.** Research 62 proposed `⇧⌘U` throughout. `src/main/agents/registry.ts` gives cursor a `defaultHotkeyHint` of `'u'`, and `src/renderer/settings/KeyboardSection.tsx` shows the same letter to the person in `HINT_LETTER` as `cursor: 'U'`. The per agent recorder proposes the shape ⇧⌘<letter>, so taking `⇧⌘U` as a built in would put it in `RESERVED_APP_CHORDS` and make cursor's own suggested hotkey un-recordable. The test named `takes no chord the product suggests as a per-agent mnemonic`, in `src/shared/__tests__/focus-chord.test.ts`, reads every `defaultHotkeyHint` out of the registry and fails on exactly this. It is the same defect the keymap comment above `view.sessionFocus` records for `⇧⌘C`.
+
+**The chord is `⌃⇧U`.** It keeps the letter, and it sits beside `⌃⇧C` for Context and `⌃⇧G` for Symbols, which is where the tree already puts a view chord that must stay out of the ⇧⌘<letter> space. No row in `src/shared/keymap.ts` carries it and `RESERVED_MACOS_CHORDS` in `src/renderer/settings/chords.ts` does not hold it. If the builder wants a different chord, the constraint is the test above and the reason must be written in the commit body.
+
+### Mechanism, with the paths read from the tree
+
+**Main process.**
+
+- `src/main/overview/`, new. One reducer file per agent, modelled on the reference engine at `docs/research/assets/62-overview-reference/overview.mjs`, which is 452 lines for four agents and folds at 508 MB per second. The four agents with a measured reducer are claude, codex, grok and antigravity.
+- Store resolution reuses the shape already in `src/main/manifest/harvest/stores.ts`, being a root path, a rule that turns a working directory into a directory name, and one record inside the file that proves whose session it is. The path patterns themselves are already recorded per agent as `sessionStore` in `src/main/agents/registry.ts`, on 14 rows. Do not write a second set.
+- Session rows come from `src/main/manifest/sessions-repository.ts`, read only, `removed_at IS NULL`. The join key is `agent_session_id`, which 30 of his 30 live agent rows carry.
+- Git goes through `runGit()` in `src/main/git/exec.ts`, and the output is parsed by `parseNameStatusZ()` and `parsePorcelainV2Status()` in `src/main/git/parse.ts`. Do not add a second git spawner and do not write a third name status parser.
+- The cache is its own SQLite file beside `symbols.db`, following `src/main/symbols/persist.ts`, which already wrote out the reason a large, churny, entirely disposable index never goes inside `manifest.db`. The key is the file path and the staleness key is size, mtime and parser version. A miss rebuilds that one file whole. Research 62 measured what happens if it goes in the manifest instead, being the manifest's content digest moving from 3.85 ms to 27.11 ms, its `VACUUM INTO` copy moving from 1.11 MB to 7.97 MB, and the backup ring's hourly write volume moving from 13.4 MB to 95.6 MB after one month.
+- The last visit stamp is one row per project in that same cache file. It is disposable. If it is lost, the git zone falls back to a seven day window and says so on the page.
+- Redaction lives in `src/main/overview/redact.ts` and is a vendored extract of `SECRET_PATTERNS` and `redactSecrets` from the operator's own lore skill, which is 24 lines under Apache-2.0. The attribution goes in `NOTICE` in the same commit, the way Phase 134 recorded codicons and Material Icon Theme. It runs before any agent byte reaches the renderer.
+
+**The bridge.** One new domain file under `src/shared/ipc/`, exported through the `index.ts` facade. No parallel wrapper.
+
+**Renderer.**
+
+- `src/renderer/overview/`, new, following the shape of `src/renderer/context/`, being `OverviewPage.tsx`, `overview.css`, `store.ts` and `index.ts`. All colours through `src/renderer/styles/tokens.css`.
+- One keymap row in `src/shared/keymap.ts` carrying `⌃⇧U` and a `menuAction`, and the matching View menu item in `src/main/menu.ts`, which is the same pattern `view.context` uses.
+- Escape closes it, through the existing `app.escape` path.
+
+**The gate.** `build/conformance-overview.mjs` and a `"conformance:overview"` script in `package.json`, beside the five gates that already exist there. It prints, per agent, which slots fill from a fixture corpus, and it fails when a slot that filled yesterday is empty today. CLAUDE.md requires a gate for a subsystem of this class and none of the three candidate designs proposed one. Two bugs the mechanism lab found by running rather than reading are exactly what it prints, being `task-notification` blocks counted as human asks, which inflated his own instruction count by 37%, and claude's compaction handover counted as a human ask, which is the more dangerous of the two because the handover text reads like a person describing the work. Add the gate to the CLAUDE.md gate list in the same commit.
+
+### What every agent gets, and this table is the phase's own claim
+
+| Agent | What day one gives it |
+| --- | --- |
+| claude | Full block. The ask verbatim, the closing message, named paths, failing commands |
+| codex | Full block, plus the full final message from `task_complete.last_agent_message` and a real exit code per command |
+| grok | Full block, plus grok's own free per turn recap, labelled with who wrote it and when |
+| antigravity | Full block, with no cwd on record and timestamps rounded to the second |
+| qwen, pi, muse | One honest line naming the agent and saying Tortie does not read its log yet |
+| gemini | One honest line. Its newer store mixes bare records with `$set` state replacements, so it needs a replay and not a forward read |
+| deepseek | One honest line. It rewrites one whole JSON document per turn and carries no per message timestamp |
+| cursor, cursoride, copilotide | One honest line. All three keep rows that are replaced rather than added, behind SQLite |
+| droid | One honest line. It is not installed on this machine |
+| shell sessions | One line saying no agent runs here, so there is nothing to read. This is 17 of his 47 live sessions |
+
+### Proof this phase must produce, run rather than read
+
+- `npm run conformance:overview`, printing the thirteen row matrix above from a fixture corpus, and failing when a reducer loses a slot. Paste the printed matrix in the commit body.
+- Drive the real app and open the page on a project holding at least one claude session, one codex session and one shell session. Read the screenshot. A page that looks right in a mock and is empty in Electron is the failure this catches, and nothing in Research 62 ran inside Electron at all.
+- **The git disagreement probe, and it is the one item that earns its own test.** Build a scratch repository, have a session write a file with a heredoc and never name it, and show the page prints "no session named it" for that path. A false "no session named it" is a page that lies, and that line is the whole reason this design differs from the three candidates.
+- The redaction probe. Feed a fixture command carrying one fake value of each `SECRET_PATTERNS` shape and show that none of them reaches the rendered page. Note that the reference engine clips a command at 160 characters, so the pass must run on the unclipped bytes.
+- **The no integer check, run rather than asserted.** Scan the rendered page's text and fail on any digit that is not inside a clock time or a date. This is mechanical and it is what keeps the Zen verdict executable instead of documented.
+- Measure a cold open and a warm open of one real project INSIDE Electron and print both numbers. Research 62's 106 ms and 161 ms were taken at a shell and the comparison to Electron is an assumption in that document rather than a measurement.
+- `npm test src/shared/__tests__/focus-chord.test.ts`, specifically, because the chord decision above is what that file exists to police.
+- `npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`.
+
+### What is NOT in this phase
+
+**The Zen refusals this design keeps, quoted, because they are the reason the page has the shape it has.**
+
+- "Not a dashboard. No counters, no activity feeds, no progress theatre. A number that rises on its own is not a signal, it is noise in a nicer font." **No integer appears on the page except a clock time or a date.** Not a turn count, not a file count, not a command count, not a line count, not a token count, not a dollar figure, not a percentage. Nothing recomputes while the page is open.
+- "Not a supervisor's console. Tortie never asks the human to watch an agent work." The page is closed by default, it has no entry point but the chord and the menu item, and there is no elapsed clock on an open turn.
+- "Only a question, decision or failure should rise above the surface." Nothing rises. He comes to the page.
+- "Not clever where it could be dull." `JSON.parse` in a loop, two `git` invocations, a three field cache key and string templates.
+- Phase 23 refusal 5, which freezes status. The page never computes whether a session is waiting on him and never displays a second answer to the question `src/main/activity/` already answers.
+
+**No Zen amendment.** Candidate D survives every refusal as written, and that is a direct consequence of cutting the counters. Section 10.2 of the research writes out the amendment he would need if he ever wants the counts back, with the current words, the proposed words, the new refusal that must come with it and what it would cost. That is his edit to make, and the recommendation in the document is that he does not make it. This phase does not make it and does not depend on it.
+
+**No runtime dependency.** The permission he granted on 2026-08-22 for the research is returned unspent. The one thing adopted from outside is a 24 line vendored extract of his own lore skill, which adds no package. Nothing in `package.json` changes except the new conformance script.
+
+**No refusal in CLAUDE.md is edited by this phase.** Amending the permanent refusals is his edit and not a build round's.
+
+Also not in this phase.
+
+- No model of any kind, anywhere. Section 8 of the research holds the boundary for the day one ever runs.
+- No zone for what needs him.
+- No byte offset fold, no rewrite guard, no truncation guard, no hash chain over closed turns and no `overview.db`. The mechanism lab built the fold and proved it byte identical on 12 real transcripts over 10 growth passes each, and it stays at `docs/research/assets/62-overview-reference/overview.mjs` unadopted.
+- No watcher, no timer and no background process. `@parcel/watcher` is present in the tree and is deliberately not used, because `src/main/capabilities.ts` records that a pending unsubscribe turns a graceful quit into a SIGABRT under load.
+- Nothing runs while the page is closed. He asked for a page that keeps itself up to date and this refuses that half on purpose, because a fold running behind a closed page is a supervisor's console with the screen off.
+- No fleet wide page across projects. One project at a time. Research 44 section 6.2 rejected a wall of digests by name.
+- No badge, dot, count, notification or menu item carrying a number anywhere outside the view. Nothing this page computes may leave it.
+- No search, filter, sort or export on the page.
+- No read of SpecStory. His `~/.specstory/sessions.db` knows 16 of the 67 sessions in his manifest and its Claude Code rows were last written on 2026-08-14.
+- No write to `manifest.db` of any kind. It is opened read only.
+- No model written session title. Claude Code's `ai-title` produced 913 records with 1 distinct value across 730 human turns in one session, and grok titled a 23 hour session that produced two documents "Casual Greeting Whats Up Inquiry".
+
+**The decision gate, and it is his.** Does he open the page in a second week. If not, stop. The page is estimated at 900 to 1,100 lines and that is the whole sunk cost, because nothing else was built.
+
+**Later phases, named here so nothing is queued that has not been written properly. Each one needs a full entry of its own before it starts, and none of them starts before the gate above.**
+
+- Phase 138, reducers for muse, pi, qwen and gemini, where gemini needs a replay of patch style records rather than a forward read.
+- Phase 139, the cursor family read through `better-sqlite3` read only, which is a different mechanism and whose write ahead log question nobody measured in this round.
+- Phase 140, one model sentence over one closed turn, on his press, opt in and off by default. Three things are its burden of proof, being the measured mean of $0.019603 per invocation, a new field in `ConfigExecutionFields` in `src/main/config/confirm.ts` that moves the execution hash and forces him to reconfirm every configured agent and machine, and the effect on his OAuth subscription rate window, which nobody has measured and which alone should block it.
+- Phase 141, adopting the byte offset fold, and only if some later phase needs the record to be current while the page is closed.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -15370,3 +15548,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 132.1 note, the 192 px floor the spec named was driven in the real app and REJECTED, at a 586 px window with six acknowledgement rows it put the Install button 28.5 px below the sheet's bottom and the hit test stopped returning it, so the floor shipped at 144 px where the same reading has 19.5 px to spare
 - 2026-08-22, Phase 131 shipped, the machine row leads with whether the machine is ready, one disclosure holds the address and the rest, and the version acceptance moved to its own sheet instead of a fourth copy of the same four lines, this commit, 0.68.2
 - 2026-08-22, Phase 136 shipped, DESIGN.md, generate-file-icons.mjs, its emitted banner in file-icons.generated.ts and the icons index now credit Material Extensions for the Material Icon Theme, which is the holder the installed 5.37.0 LICENSE names, this commit, 0.68.3
+- 2026-08-22, Research 62 delivered and Phase 137 queued, docs/research/62-session-overview.md, catch me up on this project, one page on a chord built from each agent own log AND from git, no model, no counter, no watcher, $0.00 and 106 ms warm, and it supersedes the held Phases 44 and 45. Git is in it because across his seven live gmux sessions git records 973 changed paths in seven days while the sessions name 16, an overlap of 1.2%
