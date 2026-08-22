@@ -15410,7 +15410,20 @@ This is a correctness fix on an attribution, which is why it is worth a phase ra
 
 **NO MODEL IS IN THIS PHASE.** The fold is Phase 138. This phase costs $0.00 to run and 47.3 ms to open. If Phase 138 is never built, this page still gives every session's conversation, what each session operated on and whether git agrees.
 
-**Phase 44 and Phase 45 are superseded by this entry, and that reading is HIS to confirm.** He held both on 2026-08-15 pending more thinking, and asked for Research 62 on 2026-08-22. If the reading is wrong, this phase does not start and he says so.
+**Phase 44 and Phase 45 are superseded by this entry, and HE CONFIRMED IT on 2026-08-22.** He held both on 2026-08-15 pending more thinking. He did that thinking by asking for Research 62 and Research 63, then re-specifying the design himself across an afternoon, and he confirmed in his own words that this is not what was planned on 15 August. It is not, and the table below is why. This phase does not wait on that question.
+
+| | 2026-08-15, Phases 44 and 45 | This entry and Phase 138 |
+| --- | --- | --- |
+| Shape | a verb on one session row | a chord that zooms, at one session, several, or the whole project |
+| Source | the SpecStory capture | each agent's own log, through a per provider keep map |
+| What it reads | turns, tool calls, files edited | the ask and the closing answer, verbatim |
+| Storage | nothing stored | a store keeping the parsed slice, the turn facts and the path index |
+| The model | on demand, one shot, per ask, boxed prose | folds once per completed turn, writes one line |
+| Trigger | he asks for it | the activity monitor's existing turn transition |
+| Coverage | agents with a SpecStory capture | twelve of thirteen agents, mapped and measured |
+| Git | absent | one corroboration mark beside a claim |
+
+Two things in the old plan were measured wrong rather than merely superseded. It keyed on the SpecStory capture, and research 63 found the agents' own stores reach eleven of thirteen agents directly, which is why he said not to depend on SpecStory for the information. And it read files edited from tool calls, where the measurement on his own session found tool calls name 4 paths in a session that touched 218.
 
 ### What he decided after reading the research
 
@@ -15965,3 +15978,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 137 re-specified and Phase 138 split out of it, the page is deterministic and costs nothing while the fold is its own phase gated on two unmeasured things, being his subscription rate window and fold drift; the store now keeps a copy of the parsed slice because providers can delete history from disk, and it gains a path index at 8.0 KB a session after a measurement showed tool calls name 4 paths where command text names 918
 - 2026-08-22, Phase 139 queued, hovering an uninstalled agent on the empty state moves the heading, the twelve tiles and the hint line, because Phase 130 turned the caption into a column holding a command row and left behind the 22px reservation that was true when it was one line, and the empty state is vertically centred so the growth reaches everything above it
 - 2026-08-22, THE RELEASE AFTER 128 AND 139 IS DELEGATED, one release only, cut it before Phase 137 and Phase 138 start, publishing included, closing issues not included
+- 2026-08-22, the hold on Phases 44 and 45 is ANSWERED, he confirmed 137 and 138 are not what was planned on 15 August, so 137 no longer waits on that question
