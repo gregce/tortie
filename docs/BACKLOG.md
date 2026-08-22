@@ -15197,7 +15197,7 @@ Photograph both, choose one, and write the reason in the commit body. A choice w
 - No new store value. `projectsPosition` and `projectsCollapsed` stay the only two.
 
 
-## Phase 136 — four files still credit the wrong copyright holder for the file icons (found 2026-08-22 by the Phase 134 verifier) QUEUED
+## Phase 136 — four files still credit the wrong copyright holder for the file icons (found 2026-08-22 by the Phase 134 verifier) ✅ SHIPPED 2026-08-22 (this commit, 0.68.3, gates green, 8,154 tests)
 
 **Subject:** `docs(icons): the file icons are credited to the holder who ships them`
 **First body line:** `Phase 136: four files credit the wrong holder for the Material Icon Theme`
@@ -15368,3 +15368,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 132.1 shipped, surface.css is emitted once and first so the install sheet's own rules finally draw, the control band stays the column the app has always drawn, and the facts band leads the raw skill text 143 px to 127.5 px at a 586 px window, this commit, 0.68.1
 - 2026-08-22, Phase 132.1 note, the 192 px floor the spec named was driven in the real app and REJECTED, at a 586 px window with six acknowledgement rows it put the Install button 28.5 px below the sheet's bottom and the hit test stopped returning it, so the floor shipped at 144 px where the same reading has 19.5 px to spare
 - 2026-08-22, Phase 131 shipped, the machine row leads with whether the machine is ready, one disclosure holds the address and the rest, and the version acceptance moved to its own sheet instead of a fourth copy of the same four lines, this commit, 0.68.2
+- 2026-08-22, Phase 136 shipped, DESIGN.md, generate-file-icons.mjs, its emitted banner in file-icons.generated.ts and the icons index now credit Material Extensions for the Material Icon Theme, which is the holder the installed 5.37.0 LICENSE names, this commit, 0.68.3

@@ -17,7 +17,7 @@
  *                build-time-bundled markup only — see InlineSvg.tsx.
  *
  * Licenses: @vscode/codicons CC-BY-4.0 (© Microsoft — credit in About);
- * material-icon-theme MIT (© Philipp Kief); agent marks are the vendors'
+ * material-icon-theme MIT (© Material Extensions); agent marks are the vendors'
  * own logos, used nominatively to identify each vendor's CLI.
  */
 import './icons.css';

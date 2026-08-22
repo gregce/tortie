@@ -3,7 +3,7 @@
  * Regenerate: node src/renderer/icons/generate-file-icons.mjs
  *
  * Curated subset of material-icon-theme v5.37.0 (npm, MIT license —
- * © Philipp Kief, https://github.com/material-extensions/vscode-material-icon-theme).
+ * © Material Extensions, https://github.com/material-extensions/vscode-material-icon-theme).
  * See generate-file-icons.mjs for why this theme and how the subset is chosen.
  * Per-file icons plus the generic closed/open folder pair — @pierre/trees
  * resolves per-path icons for files only (see the header of

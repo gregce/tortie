@@ -4,7 +4,7 @@
  *   node src/renderer/icons/generate-file-icons.mjs
  *
  * Source: material-icon-theme (npm, MIT — license verified 2026-08-09 against
- * the package's LICENSE file and npm registry metadata; © Philipp Kief).
+ * the package's LICENSE file and npm registry metadata; © Material Extensions).
  * Chosen over VS Code's built-in Seti theme because Seti ships only as an
  * icon FONT + mapping baked into the microsoft/vscode repo (not consumable
  * as a package), while material-icon-theme publishes per-file 16-grid SVGs
@@ -160,7 +160,7 @@ const banner = `/**
  * Regenerate: node src/renderer/icons/generate-file-icons.mjs
  *
  * Curated subset of material-icon-theme v${themeVersion} (npm, MIT license —
- * © Philipp Kief, https://github.com/material-extensions/vscode-material-icon-theme).
+ * © Material Extensions, https://github.com/material-extensions/vscode-material-icon-theme).
  * See generate-file-icons.mjs for why this theme and how the subset is chosen.
  * Per-file icons plus the generic closed/open folder pair — @pierre/trees
  * resolves per-path icons for files only (see the header of
