@@ -14972,6 +14972,65 @@ He asked what icon set draws everything except the Explorer pane, and whether a 
 - No agent brand icons, which are a separate set with their own rules.
 
 
+## Phase 134 — the About panel keeps a promise the NOTICE file makes, and the company name is spelled one way (operator asked 2026-08-22) QUEUED
+
+**Subject:** `fix(about): the credit the NOTICE file promises, and one spelling of the company`
+**First body line:** `Phase 134: the About panel credit and the company name`
+**Semver:** patch. It corrects shipped strings and adds no capability.
+**Tier 1**, gates only, with one screenshot of the About panel. It touches no durability path, no manifest, no tmux, no machines file and no IPC.
+**Charter:** this entry, plus the writing rules in CLAUDE.md, plus `docs/research/61-icon-set.md`, which found the missing credit while ruling that codicons stay.
+
+### Item 1, a licence obligation the app does not meet
+
+Codicons are CC BY 4.0, which requires attribution wherever the work is distributed. **Two places in the tree state the credit is in the About panel, and it is not.**
+
+- `NOTICE:18` reads that CC BY 4.0 requires attribution, "which is the reason this entry exists and the reason the same credit appears in the application's About panel."
+- `src/renderer/icons/Codicon.tsx:8` says to keep the credit line for "codicons by Microsoft (CC BY 4.0)" in the app's About or credits.
+
+`src/main/menu.ts:794` sets `app.setAboutPanelOptions` with `copyright: 'By gregce\ngithub.com/gregce/tortie'`. There is no Microsoft and no CC BY 4.0 in it. So NOTICE states a fact about the shipped app that is false.
+
+**The panel he asked for**, in his words on 2026-08-22, after the version:
+
+```
+© 2026 Ita Vero, LLC. All rights reserved.
+Source: github.com/gregce/tortie
+Icons: <the codicon credit>
+```
+
+The native About panel renders **plain strings only**, so nothing here is a link, which the comment at `menu.ts:798` already records. The copyright field is the only place multi-line text fits, so all three lines live there.
+
+**Check material-icon-theme too.** It is the second third-party icon set in the same bundle, drawing the Explorer file icons. Read its licence in `NOTICE` and in its package, and if it obliges attribution, its credit belongs on the Icons line as well. If it does not, say so in the commit body rather than leaving the question open.
+
+### Item 2, the company is spelled two ways
+
+He confirmed on 2026-08-22 that the legal name is **`Ita Vero, LLC`**. The tree says `Itavero` in four places, and he chose to correct the tree rather than the About panel.
+
+| File | Today | Becomes |
+|---|---|---|
+| `LICENSE:189` | `Copyright 2026 Itavero LLC` | `Copyright 2026 Ita Vero, LLC` |
+| `NOTICE:2` | `Copyright 2026 Itavero LLC` | `Copyright 2026 Ita Vero, LLC` |
+| `package.json:8` | `"author": "Itavero"` | `"author": "Ita Vero, LLC"` |
+| `CLAUDE.md:6` | prose naming Itavero | the same prose naming Ita Vero, LLC |
+
+**THE BUNDLE ID DOES NOT MOVE.** `electron-builder.yml:60` reads `appId: com.itavero.tortie` and it STAYS EXACTLY AS IT IS. It is a reverse-DNS identifier rather than a company name, it is what the signed and notarized 0.62.1 build already carries, and the CLAUDE.md rename rules make an identifier live data is bound to a thing a later cleanup may never "finish off". A builder who changes it has broken the release.
+
+**Prose in older documents is left alone.** `CHANGELOG.md:205`, `BUILD-STATUS.md:36`, `DEVELOPMENT.md:22` and the `docs/BACKLOG.md` history entries record what was true when written. Rewriting history is not this phase.
+
+### The proof
+
+- A photograph of the About panel showing the three lines in his order, read off the picture rather than described.
+- `grep -rn "Itavero"` over the tree afterwards, with every surviving hit explained as either the bundle id or historic prose.
+- `npm run typecheck && npm run build && npm test && npm run smoke:t1`, plus `assert-bundle-refusals` and `contract-inventory --check`.
+
+### What is NOT in this phase
+
+- **No change to `com.itavero.tortie`**, in `electron-builder.yml` or anywhere else.
+- No change to the data directory, which follows `app.setName` and is `Tortie`.
+- No rewriting of history in CHANGELOG, BUILD-STATUS, DEVELOPMENT or shipped backlog entries.
+- No icon set change. Research 61 ruled that codicons stay, and this phase only adds the credit they require.
+- No new IPC channel and no new surface.
+
+
 ---
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -15088,3 +15147,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Research 61 delivered, docs/research/61-icon-set.md, the ruling is KEEP CODICONS on coverage, being 96 ids over 95 glyphs of which 13 are language symbol kinds no candidate has, nothing queued from it except the About panel attribution gap in section 9
 - 2026-08-21, Phase 133 shipped, a pane now joins the login session Tortie is in, so an agent started from now on can reach the keychain, this commit, 0.67.1
 - 2026-08-21, Phase 133 note, the macOS keychain dialog was NOT reproduced on demand, a real Electron process reading safe storage inside a pane carrying a dead login session number still got its keychain, so the fix is proven at the environment level and the modal itself stays unproven
+- 2026-08-22, Phase 134 queued, the About panel credit the NOTICE file promises, and one spelling of Ita Vero, LLC
