@@ -107,6 +107,32 @@ describe('the refusal', () => {
     expect(String(payload.detail ?? '')).not.toContain('OPENAI_API_KEY');
   });
 
+  /**
+   * PHASE 133 PUT A THIRD NAME ON THE LOCAL PANE LINE, AND ONLY THE LOCAL ONE.
+   *
+   * `SECURITYSESSIONID` is the macOS login session number this Tortie process is
+   * in. A pane takes that number from the tmux server, which is durable, so an
+   * agent joined a login session that had ended. The fix puts the live number on
+   * the `new-session` line through `paneEnvFor`.
+   *
+   * That number means nothing on another computer. The machine may not even be a
+   * Mac, and where it is one the number names a login session on THIS machine.
+   * So the refusal fires and the allowed set is still two names.
+   */
+  it('refuses the macOS login session number, which is local only', () => {
+    expect(() =>
+      assertRemoteEnvAllowed({
+        ...managedPaneEnv('11111111-2222-3333-4444-555555555555'),
+        SECURITYSESSIONID: 'abc'
+      })
+    ).toThrow();
+    expect(remoteEnvNameAllowed('SECURITYSESSIONID')).toBe(false);
+    expect([...REMOTE_ENV_ALLOWED].sort()).toEqual([
+      'GMUX_MANAGED',
+      'GMUX_SESSION_ID'
+    ]);
+  });
+
   it('says what did not happen', () => {
     // The writing rule this phase works under: a refusal names what Tortie did
     // not do. A person who reads this must know that no session was started.

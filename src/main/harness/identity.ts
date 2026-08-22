@@ -11,6 +11,12 @@
  * Every session it creates is `zz-ident-` prefixed, and the only session it
  * kills that gmux did not create is the decoy this harness made itself.
  *
+ * PHASE 133 added step 9, the macOS login session number. A pane takes that
+ * number from the tmux SERVER, and a tmux server outlives the login session it
+ * was started in, so a pane used to join a login session that had ended. The
+ * step reads three numbers, being this app process's, the server's and the one
+ * the PANE reported, and it fails when the pane's is not the app's.
+ *
  * Run it through `npm run smoke:identity`, which hands Electron its OWN
  * --user-data-dir. Every harness here shares the user's live tmux socket
  * (research 21 §9.2), and a second gmux polling the SAME manifest will reap
@@ -52,7 +58,7 @@ export async function runSmokeIdentity(): Promise<void> {
         await tmux.killSession(s.sessionId).catch(() => undefined);
       }
     }
-    smokeLog('1/9 core booted, prior zz-ident traces cleared');
+    smokeLog('1/10 core booted, prior zz-ident traces cleared');
 
     const home = homedir();
     const name = `${SMOKE_IDENT}-${process.pid}`;
@@ -64,9 +70,12 @@ export async function runSmokeIdentity(): Promise<void> {
       // The pane ITSELF reports the markers it was given: macOS `ps` will not
       // print another process's environment, and tmux's own show-environment
       // proves only what tmux was told, not what the process received.
+      // Phase 133 added the login session number to the same line. It is
+      // printed FIRST, so a capture that has the markers already has it too.
       extraArgs: [
         '-c',
-        'echo "MARKERS[$GMUX_MANAGED][$GMUX_SESSION_ID]"; ' +
+        'echo "LOGIN[$SECURITYSESSIONID]"; ' +
+          'echo "MARKERS[$GMUX_MANAGED][$GMUX_SESSION_ID]"; ' +
           'while true; do sleep 1; done'
       ]
     });
@@ -79,7 +88,7 @@ export async function runSmokeIdentity(): Promise<void> {
         `@gmux-id is "${mine.gmuxId ?? ''}", expected ${session.id}`
       );
     }
-    smokeLog(`2/9 session created and stamped: ${mine.sessionId} @gmux-id ok`);
+    smokeLog(`2/10 session created and stamped: ${mine.sessionId} @gmux-id ok`);
 
     // F3: the pane markers, read back out of tmux's session environment.
     const markedId = await tmux.getSessionEnv(mine.sessionId, 'GMUX_SESSION_ID');
@@ -111,9 +120,14 @@ export async function runSmokeIdentity(): Promise<void> {
       );
     }
     smokeLog(
-      `3/9 GMUX_MANAGED/GMUX_SESSION_ID in tmux and in the pane process; ` +
+      `3/10 GMUX_MANAGED/GMUX_SESSION_ID in tmux and in the pane process; ` +
         `pane_pid ${created.panePid} recorded`
     );
+
+    // Phase 133. The number the PANE itself reported, kept for step 9. It is
+    // read here because this is where the pane's own output is in hand, and
+    // the pane is killed further down.
+    const paneLoginSession = /LOGIN\[([^\]]*)\]/.exec(echoed)?.[1] ?? '';
 
     // Identity survives a rename gmux did not make.
     const moved = `${name}-moved`;
@@ -126,7 +140,7 @@ export async function runSmokeIdentity(): Promise<void> {
           `tmux_name ${afterRename?.tmuxName ?? '?'})`
       );
     }
-    smokeLog('4/9 external rename: row still claimed, tmux_name re-synced');
+    smokeLog('4/10 external rename: row still claimed, tmux_name re-synced');
 
     // A FOREIGN session takes the freed name — the reproduced repro.
     const decoy = await tmux.createSession({
@@ -145,7 +159,7 @@ export async function runSmokeIdentity(): Promise<void> {
         `the name squatter was adopted: row now points at ${afterDecoy?.tmuxName ?? '?'}`
       );
     }
-    smokeLog('5/9 name squatter NOT adopted; row still bound to its own $-id');
+    smokeLog('5/10 name squatter NOT adopted; row still bound to its own $-id');
 
     // Kill through gmux: ours dies, the stranger lives.
     await core.killSession(session.id);
@@ -156,7 +170,7 @@ export async function runSmokeIdentity(): Promise<void> {
     if (!afterKill.some((s) => s.sessionId === decoy.sessionId)) {
       throw new Error('gmux killed a session it did not create — F1 REGRESSION');
     }
-    smokeLog('6/9 kill hit only the owned session; the stranger survived');
+    smokeLog('6/10 kill hit only the owned session; the stranger survived');
 
     // A stale row (its session gone, its name held by the stranger) must go
     // restorable and take nothing with it.
@@ -188,7 +202,7 @@ export async function runSmokeIdentity(): Promise<void> {
       throw new Error('reconcile killed the name squatter — F1 REGRESSION');
     }
     core.discardSession(stale.id);
-    smokeLog('7/9 stale row → restorable, and nothing was killed');
+    smokeLog('7/10 stale row → restorable, and nothing was killed');
 
     // F2: an external `kill -TERM` on a process that does NOT self-map the
     // signal. tmux reports an EMPTY exit status here — before this phase the
@@ -220,13 +234,54 @@ export async function runSmokeIdentity(): Promise<void> {
       );
     }
     core.discardSession(victim.id);
-    smokeLog('8/9 external SIGTERM recorded as exit_signal=term');
+    smokeLog('8/10 external SIGTERM recorded as exit_signal=term');
+
+    // PHASE 133. Which macOS login session the pane joined.
+    //
+    // macOS gives every login session a number and puts it in the environment
+    // as SECURITYSESSIONID. A pane takes that number from the tmux SERVER, not
+    // from the client that asked for the session, and a tmux server routinely
+    // outlives the login session it was started in. So a pane could join a
+    // login session that had ended, and a process in an ended session cannot
+    // find a keychain. Tortie now puts its own number on the `new-session`
+    // line, where an explicit `-e` pair wins.
+    //
+    // The server's number is read with `show-environment -g` and NO variable
+    // named, because naming one tmux does not hold makes it exit 1. That is
+    // measured at src/main/machines/pane-env-rescue.ts:30.
+    const appLoginSession = process.env[tmux.MACOS_LOGIN_SESSION_VAR] ?? '';
+    if (appLoginSession === '') {
+      smokeLog(
+        '9/10 login session: skipped, this app process carries no ' +
+          'SECURITYSESSIONID'
+      );
+    } else {
+      const globalEnv = await tmux.execTmux(['show-environment', '-g']);
+      const serverLine = globalEnv
+        .split('\n')
+        .find((line) => line.startsWith(`${tmux.MACOS_LOGIN_SESSION_VAR}=`));
+      const serverLoginSession =
+        serverLine === undefined
+          ? 'none'
+          : serverLine.slice(tmux.MACOS_LOGIN_SESSION_VAR.length + 1);
+      if (paneLoginSession !== appLoginSession) {
+        throw new Error(
+          `the pane joined login session ${paneLoginSession === '' ? 'none' : paneLoginSession}, ` +
+            `and this app is in ${appLoginSession}`
+        );
+      }
+      smokeLog(
+        `9/10 login session: app ${appLoginSession}, server ` +
+          `${serverLoginSession}, pane ${paneLoginSession}. The pane joined ` +
+          `the app's.`
+      );
+    }
 
     for (const id of decoys.splice(0)) {
       await tmux.killSession(id).catch(() => undefined);
     }
     await shutdownGmuxCore();
-    smokeLog('9/9 PASS (identity) — sessions bind by id, deaths name their cause');
+    smokeLog('10/10 PASS (identity) — sessions bind by id, deaths name their cause');
     app.exit(0);
   } catch (err) {
     for (const id of decoys) {

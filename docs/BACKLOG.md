@@ -14860,7 +14860,7 @@ At a 586 px viewport with two agents ticked, read from the Phase 132 after run, 
 - No merging of surface.css into install.css and no new stylesheet.
 
 
-## Phase 133 — a keychain cannot be found, because a pane outlives the login session it was stamped with (operator reported 2026-08-21) QUEUED
+## Phase 133 — a keychain cannot be found, because a pane outlives the login session it was stamped with (operator reported 2026-08-21) ✅ SHIPPED 2026-08-21 (this commit, 0.67.1, gates green, 8,068 tests)
 
 **Subject:** `fix(sessions): an agent joins the login session that is live now`
 **First body line:** `Phase 133: a keychain cannot be found for an agent in an old pane`
@@ -15086,3 +15086,5 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 133 queued, a keychain cannot be found because a pane outlives the login session it was stamped with
 - 2026-08-21, Research 61 queued, is there an icon set with more spunk than codicons that is not Lucide or Phosphor, which he ruled out
 - 2026-08-21, Research 61 delivered, docs/research/61-icon-set.md, the ruling is KEEP CODICONS on coverage, being 96 ids over 95 glyphs of which 13 are language symbol kinds no candidate has, nothing queued from it except the About panel attribution gap in section 9
+- 2026-08-21, Phase 133 shipped, a pane now joins the login session Tortie is in, so an agent started from now on can reach the keychain, this commit, 0.67.1
+- 2026-08-21, Phase 133 note, the macOS keychain dialog was NOT reproduced on demand, a real Electron process reading safe storage inside a pane carrying a dead login session number still got its keychain, so the fix is proven at the environment level and the modal itself stays unproven

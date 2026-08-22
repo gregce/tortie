@@ -26,7 +26,7 @@ import {
   wrapWithRecord,
   type SpecstoryCaptureRecord
 } from '../specstory';
-import { managedPaneEnv } from '../tmux/env';
+import { loginSessionEnv, managedPaneEnv } from '../tmux/env';
 import { sanitizeSessionName } from '../tmux/names';
 
 /**
@@ -283,8 +283,15 @@ export function spawnArgvFor(
 /**
  * The pane environment for tmux `-e`, in the one order that is safe (Phase 33).
  *
- * Three sources, and the order between them is the whole function.
+ * Four sources, and the order between them is the whole function.
  *
+ *  0. The macOS login session number this Tortie process is in (Phase 133), and
+ *     it is FIRST so it is the WEAKEST. A pane otherwise takes that number from
+ *     the tmux server, which is durable and routinely months old, so an agent
+ *     used to join a login session that had ended and could not find a keychain.
+ *     Tortie never invents a value here. See `loginSessionEnv` in ../tmux/env
+ *     for the measurement. `processEnv` is a parameter so a test can pass `{}`
+ *     and not pick up the number of the machine it happens to run on.
  *  1. `base` is the row's own `launch.env`, e.g. cursor's FORCE_COLOR=1. It is
  *     persisted in the manifest row and replayed at restore.
  *  2. `resolved` is what the login shell answered for this row's
@@ -303,9 +310,15 @@ export function spawnArgvFor(
 export function paneEnvFor(
   base: Record<string, string> | undefined,
   resolved: Record<string, string>,
-  sessionId: string
+  sessionId: string,
+  processEnv: NodeJS.ProcessEnv = process.env
 ): Record<string, string> {
-  return { ...base, ...resolved, ...managedPaneEnv(sessionId) };
+  return {
+    ...loginSessionEnv(processEnv),
+    ...base,
+    ...resolved,
+    ...managedPaneEnv(sessionId)
+  };
 }
 
 /** Everything already resolved that the new manifest row is composed from. */

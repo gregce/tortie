@@ -13,7 +13,9 @@ import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_UTF8_LANG,
+  MACOS_LOGIN_SESSION_VAR,
   hasUtf8Locale,
+  loginSessionEnv,
   withUtf8Locale
 } from '../env';
 
@@ -70,5 +72,54 @@ describe('withUtf8Locale', () => {
   it('drops undefined entries so node-pty gets a clean string map', () => {
     const out = withUtf8Locale({ PATH: '/usr/bin', EMPTY: undefined });
     assert.equal('EMPTY' in out, false);
+  });
+});
+
+/**
+ * The macOS login session number (Phase 133).
+ *
+ * A pane takes `SECURITYSESSIONID` from the tmux server, and that server is
+ * durable, so before this the pane joined whichever login session was live when
+ * the server first started. An explicit `-e` pair on the `new-session` line
+ * wins, which is what this composes. Tortie never invents a value and never
+ * parses one.
+ */
+describe('loginSessionEnv', () => {
+  it('returns the one pair when this process is in a login session', () => {
+    assert.deepEqual(loginSessionEnv({ SECURITYSESSIONID: '186ad' }), {
+      SECURITYSESSIONID: '186ad'
+    });
+  });
+
+  it('returns nothing when there is no number, so the line is unchanged', () => {
+    assert.deepEqual(loginSessionEnv({}), {});
+    assert.deepEqual(loginSessionEnv({ PATH: '/usr/bin' }), {});
+  });
+
+  it('treats an empty string as no number', () => {
+    assert.deepEqual(loginSessionEnv({ SECURITYSESSIONID: '' }), {});
+  });
+
+  it('passes the value through unchanged, including a non-hex string', () => {
+    // Tortie does not parse this and does not check its shape. Whatever macOS
+    // put in this process's environment is what the pane is told.
+    const out = loginSessionEnv({ SECURITYSESSIONID: 'not-hex-at-all' });
+    assert.equal(out[MACOS_LOGIN_SESSION_VAR], 'not-hex-at-all');
+  });
+
+  it('never mutates the input env', () => {
+    const env: NodeJS.ProcessEnv = { SECURITYSESSIONID: '186ad' };
+    const out = loginSessionEnv(env);
+    out[MACOS_LOGIN_SESSION_VAR] = 'rewritten';
+    assert.equal(env['SECURITYSESSIONID'], '186ad');
+    assert.equal(Object.keys(env).length, 1);
+  });
+
+  it('carries exactly one name, so nothing else rides along', () => {
+    const out = loginSessionEnv({
+      SECURITYSESSIONID: '186ad',
+      ANTHROPIC_API_KEY: 'sk-not-a-real-key'
+    });
+    assert.deepEqual(Object.keys(out), [MACOS_LOGIN_SESSION_VAR]);
   });
 });

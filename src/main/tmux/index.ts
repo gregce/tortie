@@ -147,7 +147,18 @@ export {
 
 // Pane environment: the UTF-8 guard (Bug C) and the GMUX_* markers every
 // managed pane carries (Phase 12.7 F3).
-export { managedPaneEnv, withUtf8Locale } from './env';
+//
+// Phase 133 added the macOS login session number. A pane takes that number from
+// the tmux SERVER, which is durable and routinely months old, so a pane used to
+// join whichever login session was live when the server first started. Tortie
+// now puts its own number on the `new-session` line, where an explicit `-e`
+// pair wins. See the measured table on `loginSessionEnv` in ./env.
+export {
+  managedPaneEnv,
+  withUtf8Locale,
+  loginSessionEnv,
+  MACOS_LOGIN_SESSION_VAR
+} from './env';
 
 export {
   TmuxControlClient,

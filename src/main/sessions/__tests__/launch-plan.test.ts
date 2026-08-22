@@ -394,9 +394,19 @@ describe('newSessionRecord', () => {
 // ---------------------------------------------------------------------------
 
 describe('paneEnvFor', () => {
+  // The fourth argument is `{}` in every exact-equality case below. Phase 133
+  // made `paneEnvFor` read the process environment for the macOS login session
+  // number, and the default is `process.env`, so a test that let the default
+  // stand would pick up the number of whichever machine ran it and fail there
+  // and nowhere else.
   it('layers the row env, then the resolved values, then the stamps', () => {
     expect(
-      paneEnvFor({ FORCE_COLOR: '1' }, { FIREWORKS_API_KEY: 'sk-live' }, 'sess-1')
+      paneEnvFor(
+        { FORCE_COLOR: '1' },
+        { FIREWORKS_API_KEY: 'sk-live' },
+        'sess-1',
+        {}
+      )
     ).toEqual({
       FORCE_COLOR: '1',
       FIREWORKS_API_KEY: 'sk-live',
@@ -406,7 +416,7 @@ describe('paneEnvFor', () => {
   });
 
   it('works with no row env at all', () => {
-    expect(paneEnvFor(undefined, {}, 'sess-2')).toEqual({
+    expect(paneEnvFor(undefined, {}, 'sess-2', {})).toEqual({
       GMUX_MANAGED: '1',
       GMUX_SESSION_ID: 'sess-2'
     });
@@ -422,8 +432,87 @@ describe('paneEnvFor', () => {
       GMUX_SESSION_ID: 'some-other-session',
       GMUX_MANAGED: '0'
     };
-    const out = paneEnvFor({ GMUX_SESSION_ID: 'and-another' }, hostile, 'mine');
+    const out = paneEnvFor({ GMUX_SESSION_ID: 'and-another' }, hostile, 'mine', {});
     expect(out['GMUX_SESSION_ID']).toBe('mine');
     expect(out['GMUX_MANAGED']).toBe('1');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// paneEnvFor and the macOS login session number (Phase 133)
+// ---------------------------------------------------------------------------
+
+/**
+ * A pane takes `SECURITYSESSIONID` from the tmux SERVER, measured 2026-08-21 on
+ * tmux 3.6a. That server is durable and routinely months old, so an agent joined
+ * a login session that had ended and the Security framework could not find it a
+ * keychain. Tortie now puts its own number on the `new-session` line, as the
+ * weakest of the four layers.
+ */
+describe('paneEnvFor and the login session number', () => {
+  it('carries the number this process is in', () => {
+    expect(
+      paneEnvFor(undefined, {}, 'sess-3', { SECURITYSESSIONID: '186ad' })
+    ).toEqual({
+      SECURITYSESSIONID: '186ad',
+      GMUX_MANAGED: '1',
+      GMUX_SESSION_ID: 'sess-3'
+    });
+  });
+
+  it('adds nothing when this process has no number', () => {
+    expect(paneEnvFor(undefined, {}, 'sess-4', { PATH: '/usr/bin' })).toEqual({
+      GMUX_MANAGED: '1',
+      GMUX_SESSION_ID: 'sess-4'
+    });
+  });
+
+  // The layer is FIRST, so it is the weakest. A person who set this name on the
+  // agent row meant it, and Tortie does not overrule them.
+  it('the row env wins over it', () => {
+    const out = paneEnvFor(
+      { SECURITYSESSIONID: 'from-the-row' },
+      {},
+      'sess-5',
+      { SECURITYSESSIONID: '186ad' }
+    );
+    expect(out['SECURITYSESSIONID']).toBe('from-the-row');
+  });
+
+  it('a resolved passthrough value wins over it', () => {
+    const out = paneEnvFor(
+      undefined,
+      { SECURITYSESSIONID: 'from-the-login-shell' },
+      'sess-6',
+      { SECURITYSESSIONID: '186ad' }
+    );
+    expect(out['SECURITYSESSIONID']).toBe('from-the-login-shell');
+  });
+
+  it('the GMUX stamps still win over everything, number present or not', () => {
+    const out = paneEnvFor(
+      { GMUX_SESSION_ID: 'and-another' },
+      { GMUX_MANAGED: '0', GMUX_SESSION_ID: 'some-other-session' },
+      'mine',
+      { SECURITYSESSIONID: '186ad' }
+    );
+    expect(out['GMUX_SESSION_ID']).toBe('mine');
+    expect(out['GMUX_MANAGED']).toBe('1');
+    expect(out['SECURITYSESSIONID']).toBe('186ad');
+  });
+
+  // The default is `process.env`, because both spawn sites call this with three
+  // arguments and the point of the phase is that they get the live number.
+  it('reads process.env when no environment is passed', () => {
+    const before = process.env['SECURITYSESSIONID'];
+    process.env['SECURITYSESSIONID'] = 'p133-default-arg';
+    try {
+      expect(paneEnvFor(undefined, {}, 'sess-7')['SECURITYSESSIONID']).toBe(
+        'p133-default-arg'
+      );
+    } finally {
+      if (before === undefined) delete process.env['SECURITYSESSIONID'];
+      else process.env['SECURITYSESSIONID'] = before;
+    }
   });
 });

@@ -82,3 +82,60 @@ export function withUtf8Locale(
   if (!hasUtf8Locale(env)) out['LANG'] = DEFAULT_UTF8_LANG;
   return out;
 }
+
+/**
+ * The macOS login session number (Phase 133).
+ *
+ * macOS gives every login session a number and puts it in the environment as
+ * `SECURITYSESSIONID`. The Security framework uses it to decide which session a
+ * process belongs to, and a keychain unlock belongs to a session. A process
+ * holding a number that names no live session is in a session that has ended.
+ */
+export const MACOS_LOGIN_SESSION_VAR = 'SECURITYSESSIONID';
+
+/**
+ * The `SECURITYSESSIONID` pair to put on a `new-session` line, or nothing.
+ *
+ * MEASURED 2026-08-21 on tmux 3.6a with `resources/gmux-tmux.conf`, on a
+ * scratch socket from `build/harness-socket.mjs`. The server was started from a
+ * shell carrying `SECURITYSESSIONID=deadbe`. Both sessions were then created
+ * from clients carrying `SECURITYSESSIONID=beef01`. Each pane wrote its own
+ * environment to a file, because macOS `ps eww` prints no environment for
+ * another process (see src/main/harness/identity.ts).
+ *
+ *   | session | created how                                        | pane reported |
+ *   |---------|----------------------------------------------------|---------------|
+ *   | c1      | new-session -d -s c1                               | deadbe        |
+ *   | c2      | new-session -d -s c2 -e SECURITYSESSIONID=cafe99   | cafe99        |
+ *
+ * So a pane takes the tmux SERVER's number, not the client's, and an explicit
+ * `-e` pair wins over both. That is the defect and the fix in one table. The
+ * server is durable and routinely months old, so before this every pane carried
+ * the number of whichever login session was live when that server first
+ * started. This corrects the wording in the phase charter, which said a pane
+ * receives the CLIENT's environment. Research 47 section 2 measured that for
+ * `PATH`, and `PATH` is the documented exception.
+ *
+ * Four rules, and each is a decision rather than a detail.
+ *
+ *  1. This layer is the WEAKEST one in `paneEnvFor`. A value the person
+ *     configured on the agent row, or one their login shell answered for a name
+ *     in `launch.envPassthrough`, still wins.
+ *  2. Tortie never invents a value. With no number in this process the answer is
+ *     an empty object and the `new-session` line is byte for byte what it was.
+ *  3. The value is passed through unchanged. Tortie does not parse it, does not
+ *     check it is hex, does not rewrite it and does not store it. It is a
+ *     number, not a credential.
+ *  4. There is no platform branch. Tortie ships on macOS. Anywhere else the name
+ *     does not exist, rule 2 fires, and nothing changes.
+ *
+ * This is LOCAL only. `src/main/machines/remote-env.ts` still allows exactly
+ * two names to cross to another machine, and this is not one of them.
+ */
+export function loginSessionEnv(
+  env: NodeJS.ProcessEnv
+): Record<string, string> {
+  const value = env[MACOS_LOGIN_SESSION_VAR];
+  if (value === undefined || value.length === 0) return {};
+  return { [MACOS_LOGIN_SESSION_VAR]: value };
+}

@@ -32,7 +32,11 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { DEFAULT_UTF8_LANG, hasUtf8Locale } from './env';
+import {
+  DEFAULT_UTF8_LANG,
+  hasUtf8Locale,
+  MACOS_LOGIN_SESSION_VAR
+} from './env';
 import { gmuxError } from '../errors';
 import { postDurabilityNotice } from '../notice';
 import {
@@ -480,6 +484,21 @@ export function ensureServer(): Promise<TmuxContext> {
       process.env['LANG'] = DEFAULT_UTF8_LANG;
     }
     const lang = process.env['LANG'];
+
+    // PHASE 133. One line saying which macOS login session this copy of Tortie
+    // is in. It reads process.env and nothing else. It starts no process, sends
+    // no tmux command and adds no surface. It is the line that answers "why did
+    // a keychain dialog appear" the next time, because every session Tortie
+    // starts from here on carries this number. The measurement that made this
+    // matter is on `loginSessionEnv` in ./env: a pane takes its number from the
+    // tmux SERVER, which is durable and routinely months old.
+    const loginSession = process.env[MACOS_LOGIN_SESSION_VAR];
+    tmuxLog.info(
+      loginSession !== undefined && loginSession.length > 0
+        ? `macOS login session ${loginSession}. Every session Tortie starts joins it.`
+        : 'no macOS login session number in this process. A session Tortie ' +
+          'starts will join whichever one macOS gives its pane.'
+    );
 
     const ctx = getTmuxContext();
     // Phase 19 item 13. `getTmuxContext` caches, and it asserts the conf once
