@@ -45,6 +45,9 @@ import { pullPendingShellOpen } from '../state/shell-open';
 import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
 import { useEditor } from '../editor/store';
+// Phase 135. The one predicate that decides whether the activity bar is
+// drawn as the 48px column here or as a 36px row inside the sidebar.
+import { activityBarIsRow } from '../state/chrome-geometry';
 import { Titlebar } from './Titlebar';
 // Phase 129. The project tabs as the window's outermost left column. It
 // renders null unless the store says the tabs are on the left.
@@ -1460,6 +1463,10 @@ export function App(): React.JSX.Element {
   const boot = useApp((s) => s.boot);
   const projects = useApp((s) => s.projects);
   const sidebarVisible = useApp((s) => s.sidebarVisible);
+  // Phase 135. Read here for one job only, being which shape the activity
+  // bar takes. The project rail reads the same store value for its own
+  // width, and neither of them writes it.
+  const projectsPosition = useApp((s) => s.projectsPosition);
   const orientation = useApp((s) => s.sessionOrientation);
   // Phase 80.1. A boolean selector, so the shell re-renders on the swap and
   // on nothing else. The 200 ms of flight before it are CSS and a copy.
@@ -1561,7 +1568,19 @@ export function App(): React.JSX.Element {
               comes from chrome-geometry's `projectsRenderedWidth`, which is
               the same function the sidebar's ceiling subtracts. */}
           <ProjectRail />
-          <ActivityBar />
+          {/* PHASE 135. The 48px COLUMN, and only when the row is not drawn.
+              The row lives at the head of the sidebar and Sidebar.tsx mounts
+              it. Both read `activityBarIsRow`, so exactly one of the two is
+              ever on screen and the layout budget in chrome-geometry.ts reads
+              the same answer through `activityBarRenderedWidth`.
+
+              The order of these two lines is untouched. Phase 129 put the
+              project rail first so a collapsed rail is the window's left
+              bookend rather than a second 48px strip pressed against the
+              activity bar, and that reason still holds. */}
+          {activityBarIsRow({ projectsPosition, sidebarVisible }) ? null : (
+            <ActivityBar variant="column" />
+          )}
           {sidebarVisible ? <Sidebar /> : null}
           <div className="work-area" {...termFocusHandlers}>
             {orientation === 'top' ? <SessionStrip /> : null}

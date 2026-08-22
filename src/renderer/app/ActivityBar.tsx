@@ -8,6 +8,25 @@
  * Chords are never spelled here: every label reads its own chord out of
  * KEYMAP via keyDisplay(), which is what stops the rail's tooltips drifting
  * from the menu and the ⌘/ overlay.
+ *
+ * PHASE 135 GAVE IT A SECOND SHAPE, and only a second shape. One component is
+ * drawn in two places, which is the shape ProjectsPositionButton.tsx already
+ * uses. `variant="column"` is the 48px rail described above and is what
+ * App.tsx mounts. `variant="row"` is a 36px band across the top of the
+ * sidebar, and Sidebar.tsx mounts it while the projects are on the left and
+ * the sidebar is showing. `activityBarIsRow()` in state/chrome-geometry.ts is
+ * the one predicate both call sites read, so exactly one of the two is ever
+ * drawn.
+ *
+ * Nothing below changes with the variant except the class on the <nav>. The
+ * same four view items are drawn, the same gear is drawn, and `data-slot` and
+ * the accessible name are the same in both. `.ab-spacer` is `flex: 1`, so it
+ * pushes the update ring and the gear to the right end of a row exactly as it
+ * pushes them to the bottom of a column. No JSX moves for the gear.
+ *
+ * The `data-slot` value is load-bearing beyond this file: focus-mode.css hides
+ * `[data-slot='activity-bar']` in four places with descendant selectors, so
+ * both variants keep being hidden in focus mode without that file changing.
  */
 
 import React, { useMemo } from 'react';
@@ -32,6 +51,7 @@ import {
 import { Codicon } from '../icons';
 import { UpdateRing } from './UpdateRing';
 import { gmuxBridge } from '../bridge';
+import './activity-bar.css';
 
 /**
  * The accessible name of one rail item.
@@ -220,7 +240,17 @@ function SettingsItem(): React.JSX.Element | null {
   );
 }
 
-export function ActivityBar(): React.JSX.Element {
+export function ActivityBar({
+  variant = 'column'
+}: {
+  /**
+   * `'column'` is the 48px rail at the window's left. `'row'` is the 36px
+   * band at the head of the sidebar. Read `activityBarIsRow()` from
+   * state/chrome-geometry.ts to decide which one to ask for. The default is
+   * `'column'`, which is what every call site meant before Phase 135.
+   */
+  variant?: 'column' | 'row';
+} = {}): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
 
@@ -264,7 +294,11 @@ export function ActivityBar(): React.JSX.Element {
   const dirty = scmBadgeCount(projectTarget, localStatus, remoteEntry);
 
   return (
-    <nav className="activitybar" aria-label="Views" data-slot="activity-bar">
+    <nav
+      className={`activitybar${variant === 'row' ? ' activitybar-row' : ''}`}
+      aria-label="Views"
+      data-slot="activity-bar"
+    >
       <ViewItem
         view="explorer"
         icon="files"

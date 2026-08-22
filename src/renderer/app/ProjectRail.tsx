@@ -47,7 +47,7 @@ import {
   RAIL_TOO_NARROW
 } from './projects-position';
 import { ProjectsPositionButton } from './ProjectsPositionButton';
-import { showProjectMenu } from './project-menu';
+import { NewProjectButton } from './NewProjectButton';
 import { useCommandHeld } from './modifier-held';
 import { tabDigit, tabShortcutLabel } from './project-shortcuts';
 import { MachineBadge } from './MachineBadge';
@@ -330,6 +330,17 @@ export function ProjectRail(): React.JSX.Element | null {
     </button>
   );
 
+  // The same button is drawn in two places, being the expanded band's tail and
+  // the collapsed rail's footer, so it is written once here and placed twice
+  // below. A second hand written copy would be two buttons to keep in step.
+  //
+  // Its body lives in NewProjectButton.tsx, which the title band renders as
+  // well, so the label, the accessible name and the menu call exist once for
+  // the whole window. The class is the only thing this region states, being
+  // `icon-btn prail-add`, which project-rail.css sizes at 24px beside the
+  // chevron and the position button.
+  const add = <NewProjectButton className="icon-btn prail-add" />;
+
   return (
     <>
       <aside
@@ -342,26 +353,20 @@ export function ProjectRail(): React.JSX.Element | null {
             chevron
           ) : (
             <>
+              {/* The controls sit at the HEAD of the band. The position button
+                  is first because it is the control nearest the traffic
+                  lights, which sit in the title band directly above the rail's
+                  first 76px. The chevron is second, beside it. The label and
+                  the count follow, and the spacer then holds the ＋ at the
+                  band's tail. */}
+              <ProjectsPositionButton />
+              {chevron}
               <span className="prail-title">{PROJECTS_LABEL}</span>
               {tabs.length > 0 ? (
                 <span className="prail-count num">{tabs.length}</span>
               ) : null}
               <span className="prail-spacer" />
-              {chevron}
-              <ProjectsPositionButton />
-              <button
-                type="button"
-                className="icon-btn"
-                title="New project, or open one"
-                aria-label="New project, or open one"
-                aria-haspopup="menu"
-                onClick={(e) => {
-                  const r = e.currentTarget.getBoundingClientRect();
-                  showProjectMenu(r.left, r.bottom);
-                }}
-              >
-                <Codicon name="add" size={16} />
-              </button>
+              {add}
             </>
           )}
         </div>
@@ -380,11 +385,19 @@ export function ProjectRail(): React.JSX.Element | null {
         </ul>
         {/* Pinned at the rail's foot when it is collapsed, exactly where the
             collapsed session dock pins its own position button and where the
-            activity bar pins its gear. Two 24px buttons do not fit in a 48px
-            band, and losing the way back to the top would be a trap. The ＋ is
-            dropped rather than squeezed: ⌘O and ⌘N reach it from anywhere. */}
+            activity bar pins its gear. A 48px rail has no right, so the two
+            controls STACK rather than sitting side by side. The ＋ is on the
+            upper row and the position button is on the lower one, so the way
+            back to the top stays the last thing at the foot, which is where
+            the activity bar's gear and the session dock's own position button
+            sit. The footer is 72px tall and the two 24px buttons with a 4px
+            gap between them are 52px of it, so 10px of slack sits above the
+            pair and 10px below. The footer is drawn whenever the rail is
+            collapsed, including when no projects are open, because the ＋ must
+            never leave the window. */}
         {collapsed ? (
           <div className="prail-footer">
+            {add}
             <ProjectsPositionButton />
           </div>
         ) : null}

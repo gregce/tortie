@@ -40,6 +40,8 @@ import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { liveChromeGeometry, useApp } from '../state/store';
 import { machineLabelFor, machineWriteRootFor } from '../state/machines-slice';
 import {
+  activityBarIsRow,
+  activityBarRenderedWidth,
   clampSidebarWidth,
   dockRenderedWidth,
   projectsRenderedWidth,
@@ -63,6 +65,10 @@ import {
   useTreeHandle
 } from '../tree';
 import { Codicon } from '../icons';
+// Phase 135. The same component App.tsx mounts as the 48px column. It is
+// drawn here as a 36px row while the projects are on the left, and only
+// one of the two is ever on screen.
+import { ActivityBar } from './ActivityBar';
 import {
   REMOTE_BAND_BODY,
   remoteBandTitle,
@@ -351,11 +357,20 @@ export function Sidebar(): React.JSX.Element {
     { projectsPosition, projectsCollapsed },
     windowWidth
   );
+  // PHASE 135. The activity bar gives its 48px back while it is drawn as the
+  // row inside this sidebar, so the ceiling has to know which shape it is in.
+  // The sidebar is only mounted while it is visible, so the predicate here
+  // reduces to "are the projects on the left", but it is written as the shared
+  // function so the drawing below and the arithmetic here cannot disagree.
+  const activityShape = { projectsPosition, sidebarVisible: true } as const;
+  const activityRow = activityBarIsRow(activityShape);
+  const activityReserved = activityBarRenderedWidth(activityShape);
   const renderedWidth = clampSidebarWidth(
     storedWidth,
     windowWidth,
     dockReserved,
-    projectsReserved
+    projectsReserved,
+    activityReserved
   );
 
   const handle = useResizeHandle({
@@ -380,6 +395,12 @@ export function Sidebar(): React.JSX.Element {
       data-slot="sidebar"
       style={{ width: renderedWidth, flexBasis: renderedWidth }}
     >
+      {/* PHASE 135. The activity bar as a 36px row, FIRST, above every view's
+          own header band. Its bottom hairline continues the project rail's
+          band hairline straight across the window, and the sidebar's own view
+          header sits under it. App.tsx draws the 48px column instead whenever
+          this row is not drawn. */}
+      {activityRow ? <ActivityBar variant="row" /> : null}
       {view === 'scm' ? (
         <div className="sidebar-view" data-view="scm" tabIndex={-1}>
           {/* Band: ⎇ branch · ↑↓ ahead/behind · refresh ([h:36], S3A). */}

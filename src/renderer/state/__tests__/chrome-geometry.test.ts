@@ -11,6 +11,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ACTIVITY_BAR_W,
+  activityBarIsRow,
+  activityBarRenderedWidth,
   APP_MIN_WINDOW_W,
   dockRenderedWidth,
   editorIsOverlay,
@@ -683,6 +685,206 @@ describe('the project rail (Phase 129)', () => {
     );
     expect(sidebarMaxWidth(1440, DOCK_DEFAULT)).toBe(
       sidebarMaxWidth(1440, DOCK_DEFAULT, 0)
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 135 — the activity bar's two shapes
+// ---------------------------------------------------------------------------
+
+describe('activityBarIsRow', () => {
+  it('is true only with the projects on the left AND the sidebar showing', () => {
+    expect(
+      activityBarIsRow({ projectsPosition: 'left', sidebarVisible: true })
+    ).toBe(true);
+    expect(
+      activityBarIsRow({ projectsPosition: 'left', sidebarVisible: false })
+    ).toBe(false);
+    expect(
+      activityBarIsRow({ projectsPosition: 'top', sidebarVisible: true })
+    ).toBe(false);
+    expect(
+      activityBarIsRow({ projectsPosition: 'top', sidebarVisible: false })
+    ).toBe(false);
+  });
+});
+
+describe('activityBarRenderedWidth', () => {
+  it('gives back exactly 48px, and only as the row', () => {
+    const asRow = activityBarRenderedWidth({
+      projectsPosition: 'left',
+      sidebarVisible: true
+    });
+    const asColumn = activityBarRenderedWidth({
+      projectsPosition: 'left',
+      sidebarVisible: false
+    });
+    expect(asRow).toBe(0);
+    expect(asColumn).toBe(ACTIVITY_BAR_W);
+    expect(asColumn - asRow).toBe(48);
+  });
+
+  it('never changes anything while the projects are on top', () => {
+    // The operator asked for this one by name. Both booleans are tried and
+    // the answer is the same 48px column in both.
+    for (const sidebarVisible of [true, false]) {
+      expect(
+        activityBarRenderedWidth({ projectsPosition: 'top', sidebarVisible })
+      ).toBe(ACTIVITY_BAR_W);
+    }
+  });
+});
+
+describe('Phase 135: the 48px the row hands back', () => {
+  const base = {
+    windowWidth: 1440,
+    sidebarVisible: true,
+    sidebarWidth: SIDEBAR_DEFAULT,
+    orientation: 'right' as const,
+    dockCollapsed: false,
+    dockWidth: DOCK_DEFAULT,
+    projectsPosition: 'left' as const,
+    projectsCollapsed: false
+  };
+
+  it('goes to the work area, at every window width', () => {
+    // The work area subtracts the activity bar unconditionally, so the row
+    // hands it the whole 48px whatever else the window is doing. The number a
+    // pre-135 build drew is written out by hand rather than produced by
+    // hiding the sidebar, because hiding the sidebar changes a second term.
+    for (const windowWidth of [1028, 1200, 1440, 1920, 2560]) {
+      const w = { ...base, windowWidth };
+      const sidebar = clampSidebarWidth(
+        SIDEBAR_DEFAULT,
+        windowWidth,
+        DOCK_DEFAULT,
+        PROJECT_RAIL_W,
+        0
+      );
+      const beforeThisPhase =
+        windowWidth - ACTIVITY_BAR_W - PROJECT_RAIL_W - sidebar - DOCK_DEFAULT;
+      expect(workAreaWidth(w)).toBe(beforeThisPhase + 48);
+    }
+    expect(workAreaWidth(base)).toBe(
+      1440 - 0 - PROJECT_RAIL_W - SIDEBAR_DEFAULT - DOCK_DEFAULT
+    );
+  });
+
+  it('goes to the sidebar ceiling ONLY where the room term binds', () => {
+    // Stated precisely, because "the ceiling gains 48px" is not true at every
+    // width. The ceiling is `min(half the window, the room left over)`. The
+    // activity bar is a term in the second one and not in the first, so the
+    // 48px arrives only while the room term is the smaller of the two.
+    //
+    // With a 200px dock and a 200px rail the room term is
+    // `w - 48 - 200 - 200 - 240 = w - 688`, and half is `w / 2`. The room
+    // term binds while `w - 688 < w / 2`, which is `w < 1376`.
+    const ceiling = (w: number, activityBar: number): number =>
+      sidebarMaxWidth(w, DOCK_DEFAULT, PROJECT_RAIL_W, activityBar);
+
+    // 1280 is under 1376, so the room term binds and the whole 48px arrives.
+    expect(ceiling(1280, ACTIVITY_BAR_W)).toBe(1280 - 48 - 200 - 200 - 240);
+    expect(ceiling(1280, 0)).toBe(1280 - 0 - 200 - 200 - 240);
+    expect(ceiling(1280, 0) - ceiling(1280, ACTIVITY_BAR_W)).toBe(48);
+
+    // 1440 is over 1376, so half the window binds and the ceiling does not
+    // move at all. This is the honest half of the claim.
+    expect(ceiling(1440, ACTIVITY_BAR_W)).toBe(720);
+    expect(ceiling(1440, 0)).toBe(720);
+    expect(ceiling(1440, 0) - ceiling(1440, ACTIVITY_BAR_W)).toBe(0);
+
+    // Across the range the ceiling never LOSES width to this phase, and never
+    // gains more than the 48px the row gave up.
+    for (let w = APP_MIN_WINDOW_W; w <= 3200; w += 16) {
+      const gain = ceiling(w, 0) - ceiling(w, ACTIVITY_BAR_W);
+      expect(gain).toBeGreaterThanOrEqual(0);
+      expect(gain).toBeLessThanOrEqual(48);
+    }
+  });
+
+  it('leaves the terminal floor intact across the whole grid', () => {
+    // The row hands 48px to the work area AND to the sidebar's ceiling, so
+    // the budget could double-count it. It does not, because the same term is
+    // subtracted in both places. Drive it and prove the floor still holds.
+    for (const windowWidth of [960, 1028, 1200, 1440, 1920, 2560]) {
+      for (const projectsCollapsed of [true, false]) {
+        for (const dockCollapsed of [true, false]) {
+          for (const sidebarVisible of [true, false]) {
+            for (const orientation of ['top', 'right'] as const) {
+              const w = {
+                ...base,
+                windowWidth,
+                orientation,
+                projectsCollapsed,
+                dockCollapsed,
+                sidebarVisible,
+                // The widest a hand-edited store could ask for.
+                sidebarWidth: 4096
+              };
+              expect(workAreaWidth(w)).toBeGreaterThanOrEqual(TERMINAL_FLOOR);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('does not move the project rail when the sidebar is toggled', () => {
+    // PROJECT_RAIL_MIN_WINDOW_W keeps the activity bar's 48px in it on
+    // purpose. Taking it out would let the rail expand at 980px while the
+    // sidebar is showing and collapse again on Command B, and every width
+    // change of the rail resizes live sessions.
+    expect(PROJECT_RAIL_MIN_WINDOW_W).toBe(
+      ACTIVITY_BAR_W + PROJECT_RAIL_W + SIDEBAR_MIN + DOCK_MAX + TERMINAL_FLOOR
+    );
+    expect(PROJECT_RAIL_MIN_WINDOW_W).toBe(1028);
+    // The rail's width is a function of the window alone. There is no
+    // sidebar field in its input, so no press of Command B can reach it.
+    expect(
+      projectsRenderedWidth(
+        { projectsPosition: 'left', projectsCollapsed: false },
+        1027
+      )
+    ).toBe(PROJECT_RAIL_COLLAPSED_W);
+    expect(
+      projectsRenderedWidth(
+        { projectsPosition: 'left', projectsCollapsed: false },
+        1028
+      )
+    ).toBe(PROJECT_RAIL_W);
+  });
+
+  it('changes no answer any pre-135 call site reads', () => {
+    // Every existing call passes three arguments or fewer, and the fourth
+    // defaults to the column's width.
+    expect(sidebarMaxWidth(1280, DOCK_DEFAULT, PROJECT_RAIL_W)).toBe(
+      sidebarMaxWidth(1280, DOCK_DEFAULT, PROJECT_RAIL_W, ACTIVITY_BAR_W)
+    );
+    expect(sidebarMaxWidth(1280)).toBe(sidebarMaxWidth(1280, 0, 0));
+    expect(clampSidebarWidth(4096, 1280, DOCK_DEFAULT, PROJECT_RAIL_W)).toBe(
+      clampSidebarWidth(
+        4096,
+        1280,
+        DOCK_DEFAULT,
+        PROJECT_RAIL_W,
+        ACTIVITY_BAR_W
+      )
+    );
+    // And with the projects on top, the work area arithmetic is untouched.
+    const top = {
+      windowWidth: 1440,
+      sidebarVisible: true,
+      sidebarWidth: SIDEBAR_DEFAULT,
+      orientation: 'right' as const,
+      dockCollapsed: false,
+      dockWidth: DOCK_DEFAULT
+    };
+    expect(workAreaWidth(top)).toBe(
+      1440 - ACTIVITY_BAR_W - SIDEBAR_DEFAULT - DOCK_DEFAULT
+    );
+    expect(workAreaWidth({ ...top, sidebarVisible: false })).toBe(
+      1440 - ACTIVITY_BAR_W - DOCK_DEFAULT
     );
   });
 });

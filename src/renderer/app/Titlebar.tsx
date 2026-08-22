@@ -30,6 +30,18 @@
  * SAY WHAT IS NOT TRUE. Collapsing on top does not make the window taller.
  * The band stays 38px because the traffic lights live in it. What comes back
  * is the row of tabs.
+ *
+ * PHASE 135. The + never leaves. Both top branches draw it, and both draw the
+ * SAME element, which is the `addControl` const built inside `Titlebar()`.
+ * Expanded, it sits after the tabs, which is where it has always been.
+ * Collapsed, it sits after the chip. The chip is where the projects are drawn
+ * in that state, so the + is to the right of the projects either way and it
+ * stays in the same place in the reading order when the row collapses.
+ *
+ * SAY WHAT IS NOT TRUE HERE TOO. Nothing moved leftward into the traffic
+ * lights. `.titlebar` carries `padding-left: 76px`, the whole `<nav>` starts
+ * after that inset, and the + was added at the END of the collapsed branch's
+ * chip, so the chip's own left edge did not move by one pixel.
  */
 
 import React, {
@@ -53,7 +65,7 @@ import {
   insertionIndex,
   isSecondaryPress
 } from './split/pointer-drag';
-import { showProjectMenu } from './project-menu';
+import { NewProjectButton } from './NewProjectButton';
 import { useCommandHeld } from './modifier-held';
 import { tabDigit, tabShortcutLabel } from './project-shortcuts';
 // Phase 129. One derivation of the project list, shared with ./ProjectRail.
@@ -374,6 +386,22 @@ export function Titlebar(): React.JSX.Element {
     </button>
   );
 
+  // PHASE 135. The + is drawn in BOTH top branches, and it is one element
+  // rather than two copies of one.
+  //
+  // The button's body lives in NewProjectButton.tsx, which the project rail
+  // renders as well, so the label, the accessible name and the menu call
+  // exist once for the whole window. The class is the only thing this region
+  // states, being `ptab-add`, which styles/app.css sizes at 24px and takes
+  // out of the window's drag region.
+  //
+  // Before Phase 135 the collapsed branch drew no +, so collapsing the row
+  // took away the only way to open a project with the mouse. It now sits
+  // directly after the chip, which is where the projects are drawn in that
+  // state, so the + is to the right of the projects in both branches and it
+  // does not move when the row collapses.
+  const addControl = <NewProjectButton className="ptab-add" />;
+
   return (
     <header className="titlebar" data-slot="project-tabs">
       {/* PHASE 129. With the tabs on the left the band draws none of them: the
@@ -383,6 +411,7 @@ export function Titlebar(): React.JSX.Element {
       {projectsPosition === 'left' ? null : projectsCollapsed ? (
         <nav className="titlebar-tabs" aria-label="Projects">
           <CollapsedProjectChip tabs={tabs} activeProjectId={activeProjectId} />
+          {addControl}
           {collapseControl}
           <ProjectsPositionButton />
         </nav>
@@ -402,23 +431,9 @@ export function Titlebar(): React.JSX.Element {
           {dropIndex !== null ? (
             <TabIndicator index={dropIndex} navRef={navRef} />
           ) : null}
-          {/* Two verbs now live behind the +: open one that exists (⌘O) and
-              make one that does not (Phase 12.9 item 1). A native menu rather
-              than a second button — the tab strip is the one row that must
-              stay scannable, and DESIGN.md §3 has no DOM menus. */}
-          <button
-            type="button"
-            className="ptab-add"
-            title="New project, or open one"
-            aria-label="New project, or open one"
-            aria-haspopup="menu"
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              showProjectMenu(r.left, r.bottom);
-            }}
-          >
-            <Codicon name="add" size={16} />
-          </button>
+          {/* The + sits after the tabs, which is where it has always been.
+              Phase 135 changed nothing in this branch. */}
+          {addControl}
           {collapseControl}
           <ProjectsPositionButton />
         </nav>

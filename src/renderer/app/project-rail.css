@@ -61,16 +61,31 @@
   gap: 0;
 }
 
+/* The label yields before any control does. The band's content box is 187px
+   and the three 24px controls plus five 4px gaps take 92px of it, so the
+   label, the count and the spacer share the remaining 95px. If a narrower
+   band ever arrives, the word is clipped with an ellipsis rather than pushing
+   a button out of the row. */
+.prail-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .prail-count {
   font-weight: var(--weight-regular);
 }
 
+/* The spacer holds the ＋ at the band's tail while the two controls and the
+   label sit at its head. It is drawn only in the expanded left band. */
 .prail-spacer {
   flex: 1;
 }
 
 .prail-collapse,
-.projects-position {
+.projects-position,
+.prail-add {
   width: 24px;
   height: 24px;
 }
@@ -299,14 +314,22 @@
 }
 
 /* Pinned to the rail's foot when it is collapsed, mirroring the collapsed
-   session dock's own footer at the window's other 48px edge. */
+   session dock's own footer at the window's other 48px edge. It holds two
+   rows, being the ＋ above and the position button below, because a 48px rail
+   cannot seat two 24px buttons side by side. Two 24px buttons plus one 4px
+   gap are 52px of content in a 72px box, so 10px of slack sits above the pair
+   and 10px below, and 12px of clear space sits on each side. The list above
+   keeps `flex: 1` and `min-height: 0`, so it gives up height to this taller
+   footer rather than being overlapped by it. */
 .prail-footer {
   margin-top: auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 36px;
-  flex: 0 0 36px;
+  gap: var(--space-2);
+  height: 72px;
+  flex: 0 0 72px;
   border-top: 1px solid var(--border);
 }
 

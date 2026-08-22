@@ -1,0 +1,70 @@
+/**
+ * PHASE 135. The activity bar's ROW variant, colocated with ActivityBar.tsx.
+ *
+ * The COLUMN variant is not here. It stays in styles/app.css, in the block
+ * headed "S3 - Activity bar", and this file does not repeat one line of it.
+ * Only the row is written here, and only the properties the row has to
+ * overturn.
+ *
+ * Why the row exists. With the projects on the left, the 48px column stood
+ * between the project rail and the sidebar with four icons at its top and a
+ * gear at its foot. Measured on a 1440 by 900 window, 599px of its 839px
+ * height held nothing, which is 71 percent of it. The row puts the same five
+ * buttons on the 36px header band that every other control in the window
+ * already sits on, and gives the work area the 48px back.
+ *
+ * Every color here is a token from styles/tokens.css. No literal is added.
+ */
+
+/**
+ * The row itself. It is a child of `.sidebar`, which is a flex column, so it
+ * takes 36px of height and the full width the sidebar has. It drops the
+ * column's right border and grows a bottom one, so its hairline continues the
+ * project rail's own band hairline straight across the window.
+ *
+ * `width: auto` is stated because the column rule sets `width: 48px` and a
+ * flex item in a column container reads that width as its cross size.
+ */
+.activitybar.activitybar-row {
+  flex-direction: row;
+  width: auto;
+  height: 36px;
+  flex: 0 0 36px;
+  border-right: none;
+  border-bottom: 1px solid var(--border);
+}
+
+/**
+ * A square item on the band's own height. 36px rather than 48px, because the
+ * band is 36px tall and an item taller than its band would either clip or
+ * push the band open.
+ */
+.activitybar-row .ab-item {
+  width: 36px;
+  height: 36px;
+}
+
+/**
+ * The active view's 2px accent marker moves from the item's left edge to its
+ * bottom edge. On a row the left edge is the seam with the item beside it,
+ * and a marker there reads as a divider rather than as a mark on the icon.
+ * The bottom edge is where the row's own hairline runs, so the marker reads
+ * as a thickened underline under one icon.
+ */
+.activitybar-row .ab-item.active::before {
+  left: 0;
+  right: 0;
+  top: auto;
+  bottom: 0;
+  width: auto;
+  height: 2px;
+}
+
+/**
+ * The update ring is 48px wide in the column, which is the column's width. In
+ * the row it takes the item's width instead, so the gear does not sit 12px
+ * further right on the days an update is waiting.
+ */
+.activitybar-row .update-ring {
+  width: 36px;
+}

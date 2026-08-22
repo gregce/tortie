@@ -154,6 +154,15 @@ export const APP_MIN_WINDOW_W = 960;
  * `w < 508 + dock + rail`. With no rail that is at worst 828px, under the
  * app's own 960px minimum window, which is why the budget held before this
  * phase. With a 200px rail it is 1028px, which is above it.
+ *
+ * PHASE 135 DOES NOT SUBTRACT ITS 48px FROM THIS NUMBER, and that is
+ * deliberate. While the projects are on the left and the sidebar is showing,
+ * the activity bar is a row and takes no width, so the row above could seat
+ * the expanded rail at 980px rather than 1028px. Using that would make the
+ * rail's rendered width depend on whether the sidebar is showing, so ⌘B would
+ * change the rail's width, which would resize the work area and therefore
+ * resize live sessions. The rule above is that the rail moves only when the
+ * window does, and it still holds. The term stays `ACTIVITY_BAR_W`.
  */
 export const PROJECT_RAIL_MIN_WINDOW_W =
   ACTIVITY_BAR_W + PROJECT_RAIL_W + SIDEBAR_MIN + DOCK_MAX + TERMINAL_FLOOR;
@@ -270,15 +279,22 @@ export function sidebarMaxWidth(
    * and never the constant, because a window under
    * `PROJECT_RAIL_MIN_WINDOW_W` draws the rail collapsed.
    */
-  reservedLeft = 0
+  reservedLeft = 0,
+  /**
+   * PHASE 135. The activity bar's RENDERED width, which is 0 while it is
+   * drawn as the row at the head of the sidebar and 48 otherwise. The
+   * default is `ACTIVITY_BAR_W`, so every call site written before this
+   * phase keeps the answer it had.
+   *
+   * Use `activityBarRenderedWidth()` to compute it, never the constant,
+   * because the constant is the column's width and the column is not always
+   * what is drawn.
+   */
+  activityBar: number = ACTIVITY_BAR_W
 ): number {
   const half = Math.round(windowWidth * SIDEBAR_MAX_FRACTION);
   const roomLeft =
-    windowWidth -
-    ACTIVITY_BAR_W -
-    reservedLeft -
-    reservedRight -
-    TERMINAL_FLOOR;
+    windowWidth - activityBar - reservedLeft - reservedRight - TERMINAL_FLOOR;
   return clampPx(half, SIDEBAR_MIN, roomLeft);
 }
 
@@ -355,6 +371,52 @@ export function projectRailForcedNarrow(
 }
 
 /**
+ * PHASE 135. Is the activity bar drawn as a 36px ROW at the head of the
+ * sidebar rather than as the 48px column?
+ *
+ * Two conditions, and both are needed. The projects have to be on the left,
+ * because that is the only position where the column stands on its own in the
+ * middle of the window with nothing under its icons. The sidebar has to be
+ * visible, because the row lives inside the sidebar and DESIGN.md §2.2 says
+ * the activity bar never hides. So hiding the sidebar puts the column back,
+ * and the cost of that is stated rather than hidden: every icon changes size
+ * and position on that press. The benefit is that no view ever becomes
+ * unreachable by mouse.
+ *
+ * ONE function, read by three callers. `App.tsx` decides whether to draw the
+ * column, `Sidebar.tsx` decides whether to draw the row, and
+ * `activityBarRenderedWidth` below decides what the layout budget subtracts.
+ * A second copy of this condition is how the drawing and the arithmetic drift
+ * apart.
+ */
+export function activityBarIsRow(p: {
+  projectsPosition: 'top' | 'left';
+  sidebarVisible: boolean;
+}): boolean {
+  return p.projectsPosition === 'left' && p.sidebarVisible;
+}
+
+/**
+ * PHASE 135. How much WIDTH the activity bar is actually occupying right now,
+ * in the same shape as `dockRenderedWidth` and `projectsRenderedWidth` above.
+ *
+ * Two answers, and only two:
+ *   0   the bar is the row at the head of the sidebar, so it takes no width
+ *       of its own. It takes 36px of the sidebar's HEIGHT instead, and no
+ *       arithmetic in this file reads a height;
+ *   48  the bar is the column, which is every other case.
+ *
+ * The 48px the row gives up goes to the work area and to the sidebar's
+ * ceiling, and both are measured in the phase's proof.
+ */
+export function activityBarRenderedWidth(p: {
+  projectsPosition: 'top' | 'left';
+  sidebarVisible: boolean;
+}): number {
+  return activityBarIsRow(p) ? 0 : ACTIVITY_BAR_W;
+}
+
+/**
  * Item 2: the editor may take the whole work area except the terminal's floor.
  * This REPLACES `MAX_FRACTION = 0.65` outright — there is no fractional cap on
  * the editor any more, only the floor the terminal cannot go below.
@@ -414,12 +476,25 @@ export function workAreaWidth(w: {
     },
     w.windowWidth
   );
+  // PHASE 135 adds the activity bar as a THIRD term that is measured before
+  // the sidebar, for the same reason the other two are: the sidebar's ceiling
+  // depends on it, and it depends on neither the sidebar nor the dock.
+  const activityBar = activityBarRenderedWidth({
+    projectsPosition: w.projectsPosition ?? 'top',
+    sidebarVisible: w.sidebarVisible
+  });
   const sidebar = w.sidebarVisible
-    ? clampSidebarWidth(w.sidebarWidth, w.windowWidth, dock, projects)
+    ? clampSidebarWidth(
+        w.sidebarWidth,
+        w.windowWidth,
+        dock,
+        projects,
+        activityBar
+      )
     : 0;
   return Math.max(
     0,
-    Math.round(w.windowWidth - ACTIVITY_BAR_W - projects - sidebar - dock)
+    Math.round(w.windowWidth - activityBar - projects - sidebar - dock)
   );
 }
 
@@ -475,12 +550,14 @@ export function clampSidebarWidth(
   windowWidth = currentWindowWidth(),
   reservedRight = 0,
   /** PHASE 129. The project rail's rendered width, 0 when it is not drawn. */
-  reservedLeft = 0
+  reservedLeft = 0,
+  /** PHASE 135. The activity bar's rendered width, 0 while it is the row. */
+  activityBar: number = ACTIVITY_BAR_W
 ): number {
   return clampPx(
     px,
     SIDEBAR_MIN,
-    sidebarMaxWidth(windowWidth, reservedRight, reservedLeft)
+    sidebarMaxWidth(windowWidth, reservedRight, reservedLeft, activityBar)
   );
 }
 

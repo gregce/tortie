@@ -8,6 +8,7 @@
 import type { StateCreator } from 'zustand';
 import {
   clampDockWidth,
+  activityBarRenderedWidth,
   clampSidebarWidth,
   DOCK_DEFAULT,
   DOCK_MIN,
@@ -252,6 +253,11 @@ export function chromeGeometryOf(
   dockReserved: number;
   /** Phase 129: width the project rail is occupying (0 / 48 / 200). */
   projectsReserved: number;
+  /**
+   * Phase 135: width the activity bar is occupying (0 while it is the row at
+   * the head of the sidebar, 48 while it is the column).
+   */
+  activityReserved: number;
   /** Ceiling for the sidebar, with both rails and the terminal's floor out. */
   sidebarMax: number;
   /** Width shared by the terminal and the editor split. */
@@ -268,11 +274,26 @@ export function chromeGeometryOf(
   };
   const dockReserved = dockRenderedWidth(presence, windowWidth);
   const projectsReserved = projectsRenderedWidth(projects, windowWidth);
+  // PHASE 135. The activity bar is 0 wide while it is the row at the head of
+  // the sidebar, so the sidebar's ceiling gains its 48px. The drag reads this
+  // through `liveChromeGeometry().sidebarMax`, and Sidebar.tsx computes the
+  // rendered width from the same two functions, so the ceiling under a drag
+  // and the width on screen are one answer.
+  const activityReserved = activityBarRenderedWidth({
+    projectsPosition: s.projectsPosition,
+    sidebarVisible: s.sidebarVisible
+  });
   return {
     windowWidth,
     dockReserved,
     projectsReserved,
-    sidebarMax: sidebarMaxWidth(windowWidth, dockReserved, projectsReserved),
+    activityReserved,
+    sidebarMax: sidebarMaxWidth(
+      windowWidth,
+      dockReserved,
+      projectsReserved,
+      activityReserved
+    ),
     workArea: workAreaWidth({
       windowWidth,
       sidebarVisible: s.sidebarVisible,
@@ -344,10 +365,16 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
     // function), so this is the belt for programmatic callers — the shot
     // harness, keyboard resize at the very edge of a resize event.
     const windowWidth = typeof window === 'undefined' ? 0 : window.innerWidth;
+    // PHASE 135 passes the project rail and the activity bar too. Before this
+    // the belt read only the dock, so a programmatic write could seat a width
+    // the drag itself would have refused.
+    const live = chromeGeometryOf(get(), windowWidth);
     const clamped = clampSidebarWidth(
       width,
       windowWidth,
-      chromeGeometryOf(get(), windowWidth).dockReserved
+      live.dockReserved,
+      live.projectsReserved,
+      live.activityReserved
     );
     set({ sidebarWidth: clamped });
     saveLocal(LS_SIDEBAR_WIDTH, clamped);

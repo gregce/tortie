@@ -27,7 +27,7 @@ release.
 | 11 | **134** the About panel credit, and one spelling of Ita Vero, LLC | A licence obligation the NOTICE file already promises | running |
 | 12 | **131** the machine row says four times what it should say once | He reported it. Waited for 130, which shipped | queued |
 | 13 | **132.1** the install sheet's rules are overwritten, and the facts band is cramped | Recorded by Phase 132's own verifier | queued |
-| 14 | **135** the project rail's controls, the ＋, and the stranded activity bar | He reported it on 2026-08-22 with a screenshot | queued |
+| 14 | **135** the project rail's controls, the ＋, and the stranded activity bar | He reported it on 2026-08-22 with a screenshot | ✅ shipped |
 | 15 | **Run B** 123 | The six runtime cycles | queued |
 | 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
 | 17 | **Run D** 127 | App, FileTree and state to app | queued |
@@ -15037,7 +15037,7 @@ He confirmed on 2026-08-22 that the legal name is **`Ita Vero, LLC`**. The tree 
 
 ---
 
-## Phase 135 — the project rail's controls sit where nothing else sits, the ＋ disappears when the projects collapse, and the activity bar is stranded in the middle (operator reported 2026-08-22) QUEUED
+## Phase 135 — the project rail's controls sit where nothing else sits, the ＋ disappears when the projects collapse, and the activity bar is stranded in the middle (operator reported 2026-08-22) ✅ SHIPPED 2026-08-22 (this commit, 0.68.0, gates green, 8,133 tests)
 
 **Subject:** `fix(chrome): the project rail's controls sit at its head and the ＋ never leaves`
 **First body line:** `Phase 135: the project rail's controls, the ＋, and the stranded activity bar`
@@ -15103,6 +15103,8 @@ Photograph both, choose one, and write the reason in the commit body. A choice w
 - One photograph with the projects on TOP after item three lands, showing the activity bar drawn exactly as it is today.
 - One photograph of focus mode with the projects on the left, showing the activity bar hidden.
 - `npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`.
+
+**One test did not run green, and it is not this phase.** `src/main/specstory/__tests__/wrap.integration.test.ts` asserts that the bundled specstory CLI lists the muse provider, which arrived in 2.10.0. The build worktree this phase ran in holds a 2.8.0 copy under `build/vendor/`, which is a directory `.gitignore` excludes and no commit carries. The pin in `build/specstory-release.json` still reads 2.10.0 and this phase changed no file under `src/main/specstory`. The other 8,133 tests passed.
 
 ### What is NOT in this phase
 
@@ -15282,3 +15284,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, the run order was extended, he asked on 2026-08-22 for 131, 132.1, 135, 123, 125, 126, 127 and 128 to be queued all at once and for a release to be cut after them, and the release stays his to cut
 - 2026-08-22, Phase 134 shipped, the About panel now names codicons by Microsoft under CC BY 4.0 and Material Icon Theme by Material Extensions under MIT, and the company is spelled Ita Vero, LLC in LICENSE, NOTICE, package.json and CLAUDE.md, this commit, 0.67.2
 - 2026-08-22, Phase 136 queued, four files still credit Philipp Kief for the file icons while the package that ships today names Material Extensions, found by the Phase 134 verifier
+- 2026-08-22, Phase 135 shipped, the position button and the collapse chevron now sit at the head of the project rail's band, the ＋ is drawn in all four project states, and the activity bar becomes a 36px row at the head of the sidebar while the projects are on the left, this commit, 0.68.0
