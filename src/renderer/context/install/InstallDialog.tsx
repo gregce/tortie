@@ -29,6 +29,7 @@ import type { InstallPlan } from '../surface/model';
 import type { ConfirmCopy, PluginRunRow } from './install-copy';
 import { InstallFailure } from './InstallFailure';
 import type { CommandFailure } from './InstallFailure';
+import '../surface/surface.css';
 import './install.css';
 
 export interface InstallDialogSpec {

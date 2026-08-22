@@ -26,7 +26,7 @@ release.
 | 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | ✅ shipped |
 | 11 | **134** the About panel credit, and one spelling of Ita Vero, LLC | A licence obligation the NOTICE file already promises | running |
 | 12 | **131** the machine row says four times what it should say once | He reported it. Waited for 130, which shipped | queued |
-| 13 | **132.1** the install sheet's rules are overwritten, and the facts band is cramped | Recorded by Phase 132's own verifier | queued |
+| 13 | **132.1** the install sheet's rules are overwritten, and the facts band is cramped | Recorded by Phase 132's own verifier | ✅ shipped |
 | 14 | **135** the project rail's controls, the ＋, and the stranded activity bar | He reported it on 2026-08-22 with a screenshot | ✅ shipped |
 | 15 | **Run B** 123 | The six runtime cycles | queued |
 | 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
@@ -14819,7 +14819,7 @@ preview branch today.
 
 ---
 
-## Phase 132.1 — the install sheet's own rules are overwritten by the file it imports, and the facts band gets the least room (recorded 2026-08-21 by the Phase 132 verifier) QUEUED
+## Phase 132.1 — the install sheet's own rules are overwritten by the file it imports, and the facts band gets the least room (recorded 2026-08-21 by the Phase 132 verifier) ✅ SHIPPED 2026-08-22 (this commit, 0.68.1, gates green, 8,138 tests)
 
 **Subject:** `fix(context): the install sheet's rules land after the file it imports`
 **First body line:** `Phase 132.1: the install sheet's own rules are overwritten`
@@ -15285,3 +15285,5 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 134 shipped, the About panel now names codicons by Microsoft under CC BY 4.0 and Material Icon Theme by Material Extensions under MIT, and the company is spelled Ita Vero, LLC in LICENSE, NOTICE, package.json and CLAUDE.md, this commit, 0.67.2
 - 2026-08-22, Phase 136 queued, four files still credit Philipp Kief for the file icons while the package that ships today names Material Extensions, found by the Phase 134 verifier
 - 2026-08-22, Phase 135 shipped, the position button and the collapse chevron now sit at the head of the project rail's band, the ＋ is drawn in all four project states, and the activity bar becomes a 36px row at the head of the sidebar while the projects are on the left, this commit, 0.68.0
+- 2026-08-22, Phase 132.1 shipped, surface.css is emitted once and first so the install sheet's own rules finally draw, the control band stays the column the app has always drawn, and the facts band leads the raw skill text 143 px to 127.5 px at a 586 px window, this commit, 0.68.1
+- 2026-08-22, Phase 132.1 note, the 192 px floor the spec named was driven in the real app and REJECTED, at a 586 px window with six acknowledgement rows it put the Install button 28.5 px below the sheet's bottom and the hit test stopped returning it, so the floor shipped at 144 px where the same reading has 19.5 px to spare

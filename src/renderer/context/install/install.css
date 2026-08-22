@@ -1,9 +1,28 @@
 /* The dialog uses the same small vocabulary as the card it was opened from
    (`ctxd-mono`, `ctxd-muted`, `ctxd-card-label`, `ctxd-error`), and it can be
-   mounted from a surface that never rendered the card. Importing the surface
-   stylesheet here means the modal is styled wherever it opens, and Vite folds
-   the duplicate away at build time. */
-@import '../surface/surface.css';
+   mounted from a surface that never rendered the card. So surface.css has to
+   be on screen wherever this file is on screen.
+
+   THE RULE, AND IT IS THE ONE THING A LATER ROUND MUST NOT UNDO. surface.css
+   is imported FROM JAVASCRIPT, on the line directly above `./install.css`, by
+   both of the modules that import this file, being `InstallSheet.tsx` and
+   `InstallDialog.tsx`. There is no `@import` in this stylesheet and there must
+   never be one again.
+
+   A `@import '../surface/surface.css'` sat here from Phase 26 until Phase
+   132.1 with a comment saying Vite folded the duplicate away. That sentence was
+   false. `postcss-import` inlines the TEXT of surface.css into this file's
+   output, and inlined text is not the same module as the surface.css that
+   `../surface/ContextDetail.tsx` imports, so the bundler emitted two copies.
+   The second copy landed at byte 281,177 while the first sat at byte 66,688, so
+   it came after every rule this file contributes and it won every property the
+   two files declare at the same specificity. This file's own rules were
+   dead. A JavaScript import resolves to one module id, so the bundler emits it
+   once no matter how many modules ask for it, and a module's CSS is emitted
+   after the CSS of everything it imports.
+
+   `build/assert-css-order.mjs` proves both halves on the BUILT stylesheet,
+   because the source cannot show it and no unit test can see a bundle. */
 
 /* ---------------------------------------------------------------------------
    The install confirm — S6 modal chrome, widened for one reason.
@@ -354,20 +373,23 @@
     border-top: 0;
   }
 
-  /* Acknowledgements and refusals keep the full width; the confirm sits at
-     the right edge, where a macOS sheet puts its primary action, directly
-     under the command it approves and one section below the scan verdict. */
-  .ctxd-install-control {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-  }
+  /* The confirm sits at the right edge, where a macOS sheet puts its primary
+     action, directly under the command it approves and one section below the
+     scan verdict. `margin-left: auto` is what right-aligns it, and it does
+     that in the column that surface.css draws.
 
-  .ctxd-install-control .ctxd-ack,
-  .ctxd-install-control .ctxd-error {
-    flex: 1 1 100%;
-  }
-
+     THREE DECLARATIONS WERE DELETED HERE IN PHASE 132.1, and the deletion is
+     the decision rather than the tidying. This block used to state
+     `flex-direction: row`, `flex-wrap: wrap` and `align-items: center` on
+     `.ctxd-install-control`, and it used to give the acknowledgement rows
+     `flex: 1 1 100%`. None of it ever drew, because surface.css was emitted
+     twice and its `flex-direction: column` landed second. The band has been a
+     column in every release since Phase 26 and the operator approved that
+     drawing. Once the ordering was repaired the row would have started drawing
+     for the first time, so it was photographed at six acknowledgement rows: the
+     `flex: 1 1 100%` basis put each refusal sentence in its own 130 px column
+     of wrapped text. The column is the better drawing and it is the one the
+     product already ships. */
   .ctxd-install-control .btn-primary {
     margin-left: auto;
   }
@@ -418,24 +440,57 @@
    what "the preview scrolls inside itself" means. */
 .ctx-install-sheet .ctxd-preview-body {
   flex: 1 1 auto;
-  min-height: calc(var(--space-10) * 2);
+  /* 144 px, being three times the 48 px spacing token. Phase 132 set this
+     floor at 96 px and that was too low. At a 586 px viewport with two agents
+     ticked the band drew 95 px, which cut the agent grid in the middle of a
+     row, while the skill's own text below it drew 175.5 px. The person was
+     given more of the text they had not started reading than of the two facts
+     the decision needs, being which agents get the skill and what will run.
+
+     144 px IS A CEILING THAT WAS MEASURED, NOT A PREFERENCE. Phase 132.1 was
+     specified at 192 px and 192 px was driven in the real app and rejected.
+     This band is a floor on a box that competes for a fixed height with the
+     control band below it, and the control band never shrinks. At a 586 px
+     viewport with six acknowledgement rows in the control band, a 192 px floor
+     put the Install button's bottom at 590.5 px against a sheet bottom of
+     562 px, so `document.elementFromPoint` at the button's own centre stopped
+     returning the button. That is the exact regression Phase 132 was written to
+     end, and no amount of room for the facts is worth reintroducing it. At
+     144 px the same reading is 542.5 px against 562 px, which is 19.5 px of
+     room to spare. `build/p132-install-sheet.mjs` drives both readings.
+
+     WHAT 144 px BUYS AND WHAT IT DOES NOT. It shows all 11 agent rows of the
+     grid whole, which is what the entry asked for. It does not show the two
+     notes below the grid that name the agents the skills CLI has no name for.
+     The whole section measures 192 px, which is 43 px more than this phase's
+     spec predicted, because that arithmetic left the two notes out. The band
+     scrolls, so the notes are one short scroll away.
+
+     DO NOT RAISE THIS without driving the six row stress in the probe. */
+  min-height: calc(var(--space-10) * 3);
   overflow-y: auto;
 }
 
 /* BAND 2. The control. It never scrolls out of view, at any window height.
 
-   `flex-wrap: nowrap` is load bearing and it is not tidying. The container
-   query above sets `flex-wrap: wrap` on this element, and in the bundled
-   stylesheet surface.css's `flex-direction: column` lands after it, so this box
-   is a WRAPPING COLUMN. That did nothing while the sheet was one tall scroller,
-   because a wrapping column only wraps when its height is constrained, and
-   nothing constrained it. This phase constrains it. Without this line, at a
-   586 px viewport with four children in the band, being three acknowledgement
-   rows and the button, the rows wrapped into side by side columns and the
-   button left the sheet's box entirely: the sheet measured 536/536, so there
-   was no scrollbar in either direction, and `document.elementFromPoint` at the
-   button's centre no longer returned the button. `build/p132-install-sheet.mjs`
-   reads this at four rows and at six rows. */
+   `flex-wrap: nowrap` is kept as a floor, and the wrap it was written to
+   override is gone. Phase 132 added this line because the container query
+   above stated `flex-wrap: wrap` while surface.css's `flex-direction: column`
+   landed after it, which made the band a WRAPPING COLUMN. A wrapping column
+   only wraps when its height is bounded, and Phase 132 is what bounded it. At
+   a 586 px viewport with four children in the band, being three
+   acknowledgement rows and the button, the rows wrapped into side by side
+   columns and the button left the sheet's box entirely: the sheet measured
+   536/536, so there was no scrollbar in either direction, and
+   `document.elementFromPoint` at the button's centre no longer returned the
+   button.
+
+   Phase 132.1 deleted that `flex-wrap: wrap`, so nothing states a wrap on this
+   element any more. This line stays because it costs one declaration and it is
+   what makes the band's single column a property of this file rather than a
+   property of what the container query happens to say. The band holds a button
+   and up to six refusal sentences, and every one of them has to be read whole.
+   `build/p132-install-sheet.mjs` reads this at four rows and at six rows. */
 .ctx-install-sheet .ctxd-install-control {
   flex: 0 0 auto;
   flex-wrap: nowrap;
@@ -447,7 +502,13 @@
 .ctx-install-sheet .ctxd-remote-body {
   flex: 0 1 auto;
   min-height: 0;
-  max-height: calc(var(--space-10) * 5);
+  /* 144 px, down from 240 px in Phase 132. The 96 px goes to the facts and the
+     plan above. This band scrolls, so nothing is hidden by the change, and it
+     is the only band in the sheet that can give 96 px away without something
+     being lost. After its 16 px of padding above and below, 112 px of content
+     is 6 lines at the 11 px mono size and 18 px line height that `.ctxd-mono`
+     in surface.css draws at. */
+  max-height: calc(var(--space-10) * 3);
   margin-top: var(--space-6);
   overflow-y: auto;
 }

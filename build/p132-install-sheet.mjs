@@ -65,8 +65,11 @@
  *   Options: [--phase before|after] [--scratch <dir>] [--keep] [--query <text>]
  *            [--no-install]
  *
- * `--phase` names the PNGs and the printed table only. It changes nothing about
- * what is driven, so the before and after runs are the same measurement.
+ * `--phase` names the PNGs and the printed table, and it decides the exit code.
+ * `--phase after` exits 1 when any check fails, which is what makes this probe a
+ * gate. Any other value exits 0 and prints the failed check as the defect being
+ * recorded. It changes nothing about what is driven, so the before and after
+ * runs are the same measurement. `npm run probe:p132` passes `--phase after`.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -522,6 +525,8 @@ const PAGE_KIT = `
       previewClientHeight: body === null ? null : body.clientHeight,
       previewColumns:
         body === null ? null : getComputedStyle(body).gridTemplateColumns,
+      previewOverflowY:
+        body === null ? null : getComputedStyle(body).overflowY,
       remoteHeight:
         remote === null ? null : kit.round(remote.getBoundingClientRect().height),
       remoteScrollHeight: remote === null ? null : remote.scrollHeight,
@@ -704,6 +709,47 @@ const PAGE_KIT = `
             btnRect.bottom <= sheetRect.bottom + 0.5,
       buttonOnScreen: onScreen
     };
+  };
+
+  // Phase 132.1. The fleet section, read as pixels. The entry's "show the
+  // agent grid whole" is a picture, and this turns it into a number. The band
+  // is scrolled to its top first, because the question is what a person sees
+  // when the sheet opens rather than what they can reach by scrolling.
+  kit.measureFleet = () => {
+    const body = kit.previewBody();
+    if (body === null) return { error: 'no .ctxd-preview-body on screen' };
+    const section = document.querySelector(
+      '.ctx-install-sheet .ctxd-preview-section[data-section="who-gets-it"]'
+    );
+    if (section === null) {
+      return { error: 'no who-gets-it section on screen' };
+    }
+    const was = body.scrollTop;
+    body.scrollTop = 0;
+    const grid = section.querySelector('.ctxd-targets');
+    const sectionRect = section.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    const gridRect = grid === null ? null : grid.getBoundingClientRect();
+    const reading = {
+      bodyTop: kit.round(bodyRect.top),
+      bodyBottom: kit.round(bodyRect.bottom),
+      bodyClientHeight: body.clientHeight,
+      bodyScrollHeight: body.scrollHeight,
+      sectionTop: kit.round(sectionRect.top),
+      sectionBottom: kit.round(sectionRect.bottom),
+      sectionHeight: kit.round(sectionRect.height),
+      gridBottom: gridRect === null ? null : kit.round(gridRect.bottom),
+      gridHeight: gridRect === null ? null : kit.round(gridRect.height),
+      targets: section.querySelectorAll('.ctxd-target').length,
+      // THE GRID is what the entry asks to see whole. The SECTION also holds
+      // the notes that name the agents the skills CLI has no name for, and
+      // those are two sentences below the grid rather than part of it.
+      gridWhole:
+        gridRect === null ? null : gridRect.bottom <= bodyRect.bottom + 0.5,
+      sectionWhole: sectionRect.bottom <= bodyRect.bottom + 0.5
+    };
+    body.scrollTop = was;
+    return reading;
   };
 
   window.__p132 = kit;
@@ -1009,12 +1055,71 @@ async function main() {
       await screenshot(cdp, `p132-${phase}-planned-${height}.png`);
     }
 
+    // --- Phase 132.1. The balance between band 1 and band 3 ----------------
+    // The tightest window is the one that decides this, because that is where
+    // the two bands compete. Phase 132 gave the facts band a 96 px floor and
+    // the raw text band a 240 px cap, and at 586 px the facts band drew 95 px
+    // against the raw band's 175.5 px. The person was given more of the text
+    // they had not started reading than of the two facts the decision needs,
+    // being which agents get the skill and what will run. This check fails on
+    // Phase 132's numbers, which is the point of writing it.
+    const tightest = HEIGHTS[HEIGHTS.length - 1];
+    const balance = readings.plannedHeights[tightest];
+    check(
+      `planned, ${tightest} px: the facts and the plan get more room than the raw skill text`,
+      balance.previewClientHeight > balance.remoteClientHeight,
+      `facts and plan ${balance.previewClientHeight} px against raw text ` +
+        `${balance.remoteClientHeight} px`
+    );
+
+    // The fleet section is whole, at the tightest window, without scrolling.
+    await setViewport(cdp, WIDE, tightest);
+    const fleet = await cdpEval(cdp, 'window.__p132.measureFleet()');
+    readings.fleet = fleet;
+    log(`fleet at ${tightest} px: ${JSON.stringify(fleet)}`);
+    check(
+      `planned, ${tightest} px: the agent grid is whole without scrolling the band`,
+      fleet.gridWhole === true,
+      `grid bottom ${fleet.gridBottom} against band bottom ` +
+        `${fleet.bodyBottom}, grid ${fleet.gridHeight} px tall with ` +
+        `${fleet.targets} agent rows, band ${fleet.bodyClientHeight} px tall. ` +
+        `The whole section, being the grid plus the notes that name the ` +
+        `agents the skills CLI has no name for, is ${fleet.sectionHeight} px ` +
+        `tall and its bottom is at ${fleet.sectionBottom}, so the notes are ` +
+        `${String(fleet.sectionWhole ? 'also' : 'not')} inside the band.`
+    );
+
+    // The control band draws a column at both widths this probe drives. Phase
+    // 132.1 deleted the `flex-direction: row` the container query used to
+    // state, so this is the answer at every container width rather than only
+    // below the query's 680 px threshold.
+    readings.controlDirection = {};
+    for (const width of [WIDE, NARROW]) {
+      await setViewport(cdp, width, tightest);
+      const m = await cdpEval(cdp, 'window.__p132.measureControl()');
+      const columns = await cdpEval(
+        cdp,
+        `(() => { const b = window.__p132.previewBody(); return b === null ? null : getComputedStyle(b).gridTemplateColumns; })()`
+      );
+      readings.controlDirection[width] = { ...m, previewColumns: columns };
+      log(`control at ${width} px wide: ${JSON.stringify(m)}, preview columns ${String(columns)}`);
+      check(
+        `the control band is a column at a ${width} px viewport`,
+        m.flexDirection === 'column' && m.flexWrap === 'nowrap',
+        `flex-direction ${m.flexDirection}, flex-wrap ${m.flexWrap}, ` +
+          `preview columns ${String(columns)}, ` +
+          `button bottom ${m.buttonBottom}, inside the sheet ${String(m.buttonInsideSheet)}`
+      );
+    }
+    await setViewport(cdp, WIDE, tightest);
+
     // --- the stress on the control band, at the tightest window -------------
     // WHY THIS EXISTS. The first verification of this phase found a regression
-    // the readings above were blind to. The container query in install.css puts
+    // the readings above were blind to. The container query in install.css put
     // `flex-wrap: wrap` on the control, and surface.css's `flex-direction:
-    // column` lands after it in the bundled stylesheet, so the band is a
-    // wrapping column. A wrapping column only wraps when its height is
+    // column` landed after it in the bundled stylesheet, so the band was a
+    // wrapping column. Phase 132.1 deleted that wrap and repaired the ordering,
+    // and these two readings are what say so. A wrapping column only wraps when its height is
     // constrained, and this phase is what constrains it. At a 586 px viewport
     // with four children the rows wrapped into side by side columns and the
     // button left the sheet's box, with the sheet reading 536/536, so no
@@ -1233,11 +1338,28 @@ async function main() {
       m.sheetScrollHeight === m.sheetClientHeight,
       `scrollHeight ${m.sheetScrollHeight} against clientHeight ${m.sheetClientHeight}`
     );
+    // Phase 132.1 split this in two. Phase 132 asserted that the facts band
+    // OVERFLOWS at every height and in every state, and that assertion started
+    // failing at 900 px with no agents ticked, because this phase gave the
+    // band 96 px more and its content now fits. An assertion that the band
+    // must always overflow forbids the improvement. What Phase 132 was proving
+    // is that the band is the region that scrolls and the sheet is not, so
+    // that is what is asserted at every height, and the overflow itself is
+    // asserted at the tightest window, which is where the claim has to hold.
     check(
-      `${state}, ${height} px: the preview scrolls inside itself`,
-      m.previewScrollHeight > m.previewClientHeight,
-      `preview scrollHeight ${m.previewScrollHeight} against clientHeight ${m.previewClientHeight}`
+      `${state}, ${height} px: the facts band is the region that scrolls, not the sheet`,
+      m.previewOverflowY === 'auto' && m.sheetOverflowY === 'hidden',
+      `preview overflow-y ${String(m.previewOverflowY)}, sheet overflow-y ` +
+        `${String(m.sheetOverflowY)}, preview scrollHeight ` +
+        `${m.previewScrollHeight} against clientHeight ${m.previewClientHeight}`
     );
+    if (height === HEIGHTS[HEIGHTS.length - 1]) {
+      check(
+        `${state}, ${height} px: the preview scrolls inside itself`,
+        m.previewScrollHeight > m.previewClientHeight,
+        `preview scrollHeight ${m.previewScrollHeight} against clientHeight ${m.previewClientHeight}`
+      );
+    }
     check(
       `${state}, ${height} px: the button is inside the viewport with no sheet scroll`,
       m.sheetScrollTop === 0 && m.buttonBottom !== null && m.buttonBottom <= m.innerHeight && m.buttonTop >= 0,
@@ -1245,7 +1367,7 @@ async function main() {
     );
     check(
       `${state}, ${height} px: the raw SKILL.md is a bounded box that scrolls`,
-      m.remoteHeight !== null && m.remoteHeight <= 240 && m.remoteScrollHeight > m.remoteClientHeight,
+      m.remoteHeight !== null && m.remoteHeight <= 144 && m.remoteScrollHeight > m.remoteClientHeight,
       `remote box ${m.remoteHeight} px tall, scrollHeight ${m.remoteScrollHeight} against clientHeight ${m.remoteClientHeight}`
     );
     check(

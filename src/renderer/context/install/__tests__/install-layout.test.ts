@@ -11,10 +11,18 @@
  * Context detail tab, and that regression would still pass every check the live
  * probe makes, because the probe only ever opens the sheet.
  *
- * Three rules, and each one is a thing that was true when the phase landed:
+ * Four rules, and each one is a thing that was true when the phase landed:
  *  1. the sheet itself does not scroll,
  *  2. every scroll region this phase added is scoped to the sheet,
- *  3. the small-window guard is still inside the width's `min()`.
+ *  3. the small-window guard is still inside the width's `min()`,
+ *  4. Phase 132.1. This file states no `@import`, and it states no direction
+ *     and no wrap on the control band.
+ *
+ * WHAT THIS FILE CANNOT SEE, and it is why Phase 132.1 exists. It reads the
+ * SOURCE. Every rule it asserts was in the source for the four months the
+ * install sheet drew from a second copy of surface.css that landed after this
+ * file and won. `build/assert-css-order.mjs` reads the BUILT stylesheet and is
+ * the only check that can see that. The two are not substitutes and both stay.
  */
 
 import { readFileSync } from 'node:fs';
@@ -109,15 +117,66 @@ describe('every scroll region this phase added is scoped to the sheet', () => {
   });
 
   it('keeps the control band a single column, so the button cannot wrap away', () => {
-    // The container query sets `flex-wrap: wrap` on this element and
-    // surface.css sets `flex-direction: column` after it, so inside a sheet
-    // whose height is now bounded the band would wrap its rows into side by
-    // side columns and push the button out of the sheet's box. The first
-    // verification of this phase measured exactly that at a 586 px viewport
-    // with four children. This line is the fix, so this test is its guard.
+    // Phase 132 added this line because the container query stated
+    // `flex-wrap: wrap` on this element while surface.css's
+    // `flex-direction: column` landed after it, so inside a sheet whose height
+    // is now bounded the band wrapped its rows into side by side columns and
+    // pushed the button out of the sheet's box. The first verification of that
+    // phase measured exactly this at a 586 px viewport with four children.
+    // Phase 132.1 deleted the wrap, and this line stays as the floor.
     expect(oneRule('.ctx-install-sheet .ctxd-install-control')).toMatch(
       /flex-wrap:\s*nowrap/
     );
+  });
+
+  it('never states a direction or a wrap on the control band', () => {
+    // Phase 132.1. surface.css draws this band as a column and it has drawn it
+    // that way since Phase 26. The container query used to state
+    // `flex-direction: row`, `flex-wrap: wrap` and `align-items: center` here,
+    // and none of it drew, because surface.css was emitted twice and its second
+    // copy won. Repairing the ordering would have started that row drawing for
+    // the first time. It was photographed at six acknowledgement rows and it
+    // put each refusal sentence in its own 130 px column of wrapped text, so
+    // the three declarations were deleted instead. This test is what stops a
+    // later round putting one back without measuring it.
+    const offenders = rules()
+      .filter((rule) =>
+        rule.selectors
+          .split(',')
+          .some((one) => one.trim().endsWith('.ctxd-install-control'))
+      )
+      .filter((rule) => /flex-direction:|flex-wrap:\s*wrap/.test(rule.body))
+      .map((rule) => rule.selectors.trim());
+    expect(offenders).toEqual([]);
+  });
+
+  it('does not give the acknowledgement rows a full-width flex basis', () => {
+    // `flex: 1 1 100%` on these rows is what caused the Phase 132 regression.
+    // In a wrapping column a basis of 100 percent means each row asks for the
+    // container's full height, so each row starts a new column and the button
+    // leaves the sheet.
+    const offenders = rules()
+      .filter((rule) =>
+        rule.selectors
+          .split(',')
+          .some((one) => one.trim().startsWith('.ctxd-install-control .ctxd-'))
+      )
+      .filter((rule) => /flex:\s*1\s+1\s+100%/.test(rule.body))
+      .map((rule) => rule.selectors.trim());
+    expect(offenders).toEqual([]);
+  });
+
+  it('takes surface.css from JavaScript and never from an @import', () => {
+    // The whole of Phase 132.1. `@import '../surface/surface.css'` sat at the
+    // top of this file from Phase 26 until Phase 132.1. `postcss-import`
+    // inlines the text, and inlined text is not the module that
+    // `../../surface/ContextDetail.tsx` imports, so the bundler emitted two
+    // copies and the second one won every property the two files declare at the
+    // same specificity. `build/assert-css-order.mjs` proves the artifact side
+    // of this. This test guards the source line that recreates it.
+    // `code` rather than `css`, because the rewritten comment at the top of
+    // install.css names the `@import` it replaced.
+    expect(code).not.toMatch(/@import/);
   });
 
   it('leaves the unscoped .ctxd-preview rules alone', () => {
@@ -135,6 +194,28 @@ describe('the width keeps its small-window guard', () => {
     expect(width).not.toBeNull();
     expect(width?.[1]).toContain('1120px');
     expect(width?.[1]).toContain('calc(100vw - var(--space-8) * 2');
+  });
+});
+
+describe('the facts and the plan lead the raw skill text', () => {
+  it('floors the facts band at 144 px and caps the raw text band at 144 px', () => {
+    // Phase 132.1. Phase 132 set the floor at 96 px and the cap at 240 px, so
+    // at a 586 px viewport with two agents ticked the facts band drew 95 px and
+    // was cut in the middle of an agent grid row, while the skill's own text
+    // drew 175.5 px. The person was given more of the text they had not started
+    // reading than of the two facts the decision needs. Both values stay
+    // expressed as multiples of the 48 px spacing token, so neither puts a bare
+    // number in this file. `build/p132-install-sheet.mjs` measures the drawn
+    // result, and it is what rejected the 192 px floor this phase was specified
+    // at. A 192 px floor put the Install button 28.5 px below the sheet's
+    // bottom at a 586 px viewport with six acknowledgement rows in the control
+    // band.
+    expect(oneRule('.ctx-install-sheet .ctxd-preview-body')).toMatch(
+      /min-height:\s*calc\(var\(--space-10\) \* 3\)/
+    );
+    expect(oneRule('.ctx-install-sheet .ctxd-remote-body')).toMatch(
+      /max-height:\s*calc\(var\(--space-10\) \* 3\)/
+    );
   });
 });
 

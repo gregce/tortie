@@ -52,6 +52,7 @@ import { trapTabKey } from '../../app/focus-trap';
 import { Codicon } from '../../icons';
 import { useInstallFlow } from './install-store';
 import { PreviewCard } from '../surface/PreviewCard';
+import '../surface/surface.css';
 import './install.css';
 
 export function InstallSheet(): React.JSX.Element | null {
