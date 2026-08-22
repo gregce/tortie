@@ -33,6 +33,7 @@ release.
 | 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | ✅ shipped |
 | 17 | **Run D** 127 | App, FileTree and state to app | queued |
 | 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
+| 19 | **139** hovering an uninstalled agent moves the whole screen | He reported it 2026-08-22 with a photograph and asked for it before the release | queued |
 | — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release. NOT delegated. He cuts it | operator |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
@@ -15726,6 +15727,87 @@ His real turn rate is 0.278 human turns per session-hour, measured across 23 ses
 **No fold for a session whose project is closed**, unless the fleet measurement shows it is free.
 
 
+## Phase 139 — hovering an uninstalled agent moves the whole screen (operator reported 2026-08-22, with a photograph) QUEUED, BEFORE THE RELEASE
+
+**Subject:** `fix(onboarding): revealing the install command moves nothing`
+**First body line:** `Phase 139: hovering an uninstalled agent moves the whole screen`
+**Semver:** patch. It repairs a layout defect and adds no capability.
+**Tier 2**, with a measured before and after and one photograph. It touches no durability path, no manifest, no machines file and no tmux code.
+**Charter:** this entry, plus the `## Phase 130` entry above, which introduced the defect while fixing a different one, plus the `## Phase 129` entry, whose overlay pattern is one of the two candidate fixes, plus DESIGN.md and docs/DESIGN-SPEC.md.
+
+**HE ASKED FOR THIS BEFORE THE RELEASE IS CUT.** It is the last item in front of the release point.
+
+### What he saw
+
+He opened a new project with no sessions, moved the pointer over an agent that is not installed, and the entire screen moved. His photograph shows the state twice, offset vertically, because the camera caught both frames. The heading, the paragraph under it, all twelve agent tiles in their three columns and the hint line below them all sit in two places at once. In his words the hover does a crazy thing moving all of it around, when all it should do is show the curl command.
+
+### The cause, and Phase 130 introduced it while fixing something else
+
+`src/renderer/app/empty-states.css` line 84 carries this comment above `.onb-caption`:
+
+> Reserved so revealing an install line never nudges the centered column.
+
+The reservation is `min-height: 22px`, and it was correct when the caption was ONE SENTENCE ON ONE LINE.
+
+Phase 130 changed what the caption holds and did not change the reservation. The later block in the same file sets `.onb-caption` to `flex-direction: column` with `gap: var(--space-3)`, and adds a `.onb-caption .code-row` child with `min-height: 24px` and `padding: var(--space-2) var(--space-3)`.
+
+So the caption showing an install command is at least three stacked things:
+
+| Part | Height |
+| --- | ---: |
+| The sentence, one line at `--lh-xs` | 16px |
+| The column gap, `--space-3` | 6px |
+| The command row, `min-height` | 24px |
+| **Total, at its shortest** | **46px** |
+| Reserved by `min-height` | 22px |
+
+That is more than double the reservation at the shortest possible caption, and the caption can be taller, because Phase 130 deliberately let a long command wrap onto two lines and let the sentence wrap in the 660px column.
+
+**Why the whole screen moves rather than just the caption.** `.empty` in `src/renderer/styles/app.css` line 1613 is `display: flex`, `flex-direction: column`, `justify-content: safe center`. The column is centred in the window. When the caption grows the column grows, and a centred column that grows pushes everything above it UPWARD by half the growth. The heading is the furthest thing from the caption and it moves as much as anything else.
+
+**This is not a Phase 130 regression in what it set out to fix.** Phase 130 made the command readable and copyable and it did both. It changed the caption from a row to a column and nobody re-derived the reservation that the row's height had made true.
+
+### The two candidate fixes, and the phase PHOTOGRAPHS BOTH before choosing
+
+A choice with no photograph beside it is not a choice, which is the rule Phase 135 already ran under.
+
+**Candidate A, take the caption out of flow.** The caption slot keeps a fixed reserved height and the caption itself is rendered out of normal flow inside it, so however tall it gets nothing above it can move. This is the pattern `src/renderer/app/ProjectRail.tsx` already uses for the ⌘ hint, whose comment reads that it is overlaid in the slot the close control already reserves so revealing it cannot reflow the rail. It is robust to ANY command length, which matters because the command comes from the registry and a future one may be longer than every one there today.
+
+**Candidate B, stop the column recentring.** Anchor the column so growth only extends downward and nothing above the caption can move. One rule rather than a structural change, and it changes where the whole empty state sits at rest, which must be photographed rather than assumed.
+
+**A third option is REFUSED and the reason is written here so a later round does not take it.** Raising `min-height` to fit the tallest caption seen today looks like the cheapest fix and it is wrong. The command text comes from `src/main/agents/registry.ts` and any longer command, or any narrower window that makes the sentence wrap, breaks the reservation again in exactly the same way. That is how this defect was made the first time.
+
+### Mechanism, with the paths read from the tree
+
+- `src/renderer/app/empty-states.css`, `.onb-caption` at line 84 with its `min-height: 22px` and its now false comment, and the Phase 130 block below it that sets `flex-direction: column`, the `gap`, and the `.onb-caption .code-row` rules.
+- `src/renderer/styles/app.css` line 1613, `.empty`, whose `justify-content: safe center` is why the movement reaches the heading.
+- `src/renderer/app/EmptyStates.tsx`, the `.onb-caption` element with `aria-live="polite"` and the `hint` state above it, which is what reveals and hides the caption. The `aria-live` region must keep working, so whichever candidate wins must not take the caption out of the accessibility tree.
+- `src/renderer/app/EmptyStates.tsx`, `HintedInstallCaption`, which draws both the no-command sentence and the command row. Both shapes must be measured, because the sentence-only caption is shorter and reveals a different amount of growth.
+- `src/renderer/app/ProjectRail.tsx`, the reserved-slot overlay comment, which is candidate A's precedent.
+
+### Proof this phase must produce, run rather than read
+
+- **MEASURE THE DEFECT FIRST, on the parent commit.** Read `getBoundingClientRect()` for the heading, the agent grid and the hint line, with nothing hinted and then with an uninstalled agent hinted. Report the exact pixel movement of each. A phase that fixes this without first measuring it has proven nothing.
+- Photograph the parent commit's before and during states, so his report has a picture in the record.
+- Photograph BOTH candidates and read them by eye, then choose one and write the reason in the commit body, naming what the losing one did worse.
+- **After the fix, the three rectangles must be IDENTICAL between hinted and unhinted**, read from `getBoundingClientRect()` rather than by looking at a picture.
+- Prove it holds for the LONGEST install command in `src/main/agents/registry.ts`, not only for the one he happened to hover. Find that command and use it.
+- Prove it holds at a narrow window where the sentence wraps to two lines.
+- Prove it holds for BOTH caption shapes, being the one with a command and the one that only says an agent is not installed and Tortie will find it.
+- Prove the `aria-live="polite"` region still announces, and that the command is still selectable and still copyable, since Phase 130 shipped both.
+- `npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`.
+- Report `tmux -L gmux list-sessions | wc -l` before and after. It must not move.
+
+### What is NOT in this phase
+
+- No change to what the caption SAYS. Phase 130 cut that prose and he approved it.
+- No change to the copy button, the copy toast or the clipboard path.
+- No change to the agent grid, the tiles, the hotkey chips or the detection scan.
+- No change to the ⌘T create sheet's own install row, which Phase 130 deliberately left alone and which lives in `src/renderer/styles/app.css` rather than in `empty-states.css`.
+- No raising of `min-height` to fit today's tallest caption, for the reason written above.
+- No new store value and no new state. The `hint` state already exists.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -15856,3 +15938,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Run C shipped, Phases 125 and 126 as one commit, src/shared/ipc/machines.ts went from 3,117 lines to a 273 line barrel over nine domain files holding the same 105 members, GmuxCore shed the local create, the conversation id feed, the mutation ledger and the quit generation so src/main/sessions/core.ts went from 4,080 lines to 3,045, remote SCM now reads runs through src/main/actions/runs-read.ts and parsers through src/main/git/parsers.ts instead of five private local files, no channel name moved and the contract baseline is byte for byte what Phase 123 left, this commit, 0.68.5
 - 2026-08-22, Research 63 delivered, docs/research/63-provider-keep-map.md, the per provider keep map, what to read and what to skip in every agent log. Twelve of thirteen agents have a store here and eleven fill all five slots, keeping only the ask and the closing answer leaves 0.166% over his 25 live sessions, being 161.48 MB down to 274.8 KB, opening gmux costs 47.3 ms once and 0.040 ms after. It corrects Phase 137 on four rows, being qwen, pi and muse are readable rather than an honest line, cursor the CLI is readable and joinable, gemini needs a forward read rather than a replay, and the task notification inflation is 105.8% rather than 37% with nine traps rather than two. claude, codex and cursor are NOT READY, each on one silent prefilter defect named in section 19
 - 2026-08-22, Phase 137 re-specified and Phase 138 split out of it, the page is deterministic and costs nothing while the fold is its own phase gated on two unmeasured things, being his subscription rate window and fold drift; the store now keeps a copy of the parsed slice because providers can delete history from disk, and it gains a path index at 8.0 KB a session after a measurement showed tool calls name 4 paths where command text names 918
+- 2026-08-22, Phase 139 queued, hovering an uninstalled agent on the empty state moves the heading, the twelve tiles and the hint line, because Phase 130 turned the caption into a column holding a command row and left behind the 22px reservation that was true when it was one line, and the empty state is vertically centred so the growth reaches everything above it
