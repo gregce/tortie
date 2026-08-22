@@ -795,9 +795,22 @@ export function installAppMenu(): void {
       applicationName: app.name,
       applicationVersion: app.getVersion(),
       version: BUILD_COMMIT,
+      // Phase 134: the copyright field is the only field of the native About
+      // panel that holds more than one line, so all three lines live in it.
+      // The third line is a licence obligation and not a courtesy. Codicons
+      // are CC BY 4.0, which requires attribution wherever the work is
+      // distributed. Material Icon Theme is MIT, which requires its copyright
+      // notice to travel with the artwork, and a curated subset of that
+      // artwork is embedded into src/renderer/icons/file-icons.generated.ts
+      // at build time. NOTICE and src/renderer/icons/Codicon.tsx both state
+      // that this credit is here, so deleting it makes those two files false.
+      //
       // The native About panel renders plain strings only, so the repo URL
       // is text, not a hyperlink.
-      copyright: 'By gregce\ngithub.com/gregce/tortie'
+      copyright:
+        '© 2026 Ita Vero, LLC. All rights reserved.\n' +
+        'Source: github.com/gregce/tortie\n' +
+        'Icons: codicons by Microsoft (CC BY 4.0) and Material Icon Theme by Material Extensions (MIT).'
     });
   } catch (err) {
     // Cosmetic: an About panel that falls back to the bundle's own strings is

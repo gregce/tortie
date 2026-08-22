@@ -1,5 +1,5 @@
 Tortie
-Copyright 2026 Itavero LLC
+Copyright 2026 Ita Vero, LLC
 
 This product includes software developed by third parties. The notices below
 are the attribution those licences require. Each dependency's full licence text
@@ -18,6 +18,40 @@ Tortie's interface icons are the Codicon set from Microsoft.
 
 CC BY 4.0 requires attribution, which is the reason this entry exists and the
 reason the same credit appears in the application's About panel.
+
+--------------------------------------------------------------------------------
+Material Icon Theme
+--------------------------------------------------------------------------------
+Tortie's Explorer file icons are a curated subset of the Material Icon Theme.
+The subset is extracted at build time by src/renderer/icons/generate-file-icons.mjs
+into src/renderer/icons/file-icons.generated.ts, so that artwork ships inside
+the application bundle rather than as a package of its own.
+
+  material-icon-theme
+  Copyright (c) 2025 Material Extensions
+  Licensed under the MIT Licence.
+
+  Permission is hereby granted, free of charge, to any person obtaining a
+  copy of this software and associated documentation files (the "Software"),
+  to deal in the Software without restriction, including without limitation
+  the rights to use, copy, modify, merge, publish, distribute, sublicense,
+  and/or sell copies of the Software, and to permit persons to whom the
+  Software is furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+  DEALINGS IN THE SOFTWARE.
+
+The MIT Licence requires that the notice above ship with the artwork, which is
+the reason this entry exists and the reason the same credit appears in the
+application's About panel.
 
 --------------------------------------------------------------------------------
 Code copied from Visual Studio Code

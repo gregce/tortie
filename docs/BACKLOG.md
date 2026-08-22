@@ -14976,7 +14976,7 @@ He asked what icon set draws everything except the Explorer pane, and whether a 
 - No agent brand icons, which are a separate set with their own rules.
 
 
-## Phase 134 — the About panel keeps a promise the NOTICE file makes, and the company name is spelled one way (operator asked 2026-08-22) QUEUED
+## Phase 134 — the About panel keeps a promise the NOTICE file makes, and the company name is spelled one way (operator asked 2026-08-22) ✅ SHIPPED 2026-08-22 (this commit, 0.67.2, gates green, 8,075 tests)
 
 **Subject:** `fix(about): the credit the NOTICE file promises, and one spelling of the company`
 **First body line:** `Phase 134: the About panel credit and the company name`
@@ -15232,3 +15232,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 134 queued, the About panel credit the NOTICE file promises, and one spelling of Ita Vero, LLC
 - 2026-08-22, Phase 135 queued, the project rail's controls move to the head of its band, the ＋ is visible in all four states, and the activity bar stops being a stranded column while the projects are on the left
 - 2026-08-22, the run order was extended, he asked on 2026-08-22 for 131, 132.1, 135, 123, 125, 126, 127 and 128 to be queued all at once and for a release to be cut after them, and the release stays his to cut
+- 2026-08-22, Phase 134 shipped, the About panel now names codicons by Microsoft under CC BY 4.0 and Material Icon Theme by Material Extensions under MIT, and the company is spelled Ita Vero, LLC in LICENSE, NOTICE, package.json and CLAUDE.md, this commit, 0.67.2

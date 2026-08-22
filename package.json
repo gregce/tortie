@@ -1,11 +1,11 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.67.1",
+  "version": "0.67.2",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
-  "author": "Itavero",
+  "author": "Ita Vero, LLC",
   "license": "Apache-2.0",
   "scripts": {
     "dev": "electron-vite dev",
@@ -52,6 +52,7 @@
     "probe:p119menu": "npm run build && node build/probe-p119-menu.mjs",
     "probe:p132": "node build/harness-socket.mjs gmux-p132 'node build/p132-install-sheet.mjs'",
     "probe:p133": "npm run build && node build/harness-socket.mjs gmux-p133 'node build/probe-p133-login-session.mjs'",
+    "probe:p134about": "npm run build && node build/p134-about-shot.mjs",
     "probe:shellpath": "npm run build && node build/harness-socket.mjs gmux-p81-path 'node build/probe-shell-path.mjs'",
     "smoke:power": "npm run build && node build/harness-socket.mjs gmux-power 'GMUX_POWER_ROOT=\"$GMUX_HARNESS_DIR\" GMUX_SMOKE=power electron . --user-data-dir=\"$GMUX_HARNESS_DIR/profile\" -ApplePersistenceIgnoreState YES'",
     "smoke:procid": "npm run build && node build/harness-socket.mjs gmux-smoke-procid 'GMUX_SMOKE=procid electron . --user-data-dir=\"$GMUX_HARNESS_DIR\" -ApplePersistenceIgnoreState YES'",
