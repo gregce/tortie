@@ -24,11 +24,12 @@ release.
 | 8 | **103** stage and unstage | | ✅ shipped |
 | 9 | **104** commit on a remote tab | | ✅ shipped |
 | 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | ✅ shipped |
-| 11 | **134** the About panel credit, and one spelling of Ita Vero, LLC | A licence obligation the NOTICE file already promises | running |
+| 11 | **134** the About panel credit, and one spelling of Ita Vero, LLC | A licence obligation the NOTICE file already promises | ✅ shipped |
 | 12 | **131** the machine row says four times what it should say once | He reported it. Waited for 130, which shipped | ✅ shipped |
 | 13 | **132.1** the install sheet's rules are overwritten, and the facts band is cramped | Recorded by Phase 132's own verifier | ✅ shipped |
 | 14 | **135** the project rail's controls, the ＋, and the stranded activity bar | He reported it on 2026-08-22 with a screenshot | ✅ shipped |
-| 15 | **Run B** 123 | The six runtime cycles | queued |
+| 14.5 | **136** the file icon credit names the holder who ships it | Found by the Phase 134 verifier | ✅ shipped |
+| 15 | **Run B** 123 | The six runtime cycles | running |
 | 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
 | 17 | **Run D** 127 | App, FileTree and state to app | queued |
 | 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
