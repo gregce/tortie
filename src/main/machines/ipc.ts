@@ -203,11 +203,14 @@ import {
 // Phase 79.1. The sentences, the hash and the composed strings. It starts
 // nothing, which is why the runner above and not this module owns the terminal.
 import {
-  MACHINE_KEY_NO_ID,
   MACHINE_KEY_STALE,
   composeKeyInstallCopy,
   describeKeyInstall
 } from './key-install';
+// Phase 123. One refusal sentence, from the leaf that holds it. It moved out of
+// `./key-install.ts` so that file and `./key-material.ts` stopped loading each
+// other. The sentence did not change.
+import { MACHINE_KEY_NO_ID } from './key-codes';
 // Phase 79.1. The key itself. `machineKeyPath` is pure and makes nothing, so a
 // failed connection test can name the file on the block without a key existing.
 // `ensureMachineKey` is the one call that runs ssh-keygen, and it runs only

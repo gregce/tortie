@@ -278,10 +278,15 @@ export {
   resetMachineTestForTests,
   sendMachineTestInput,
   startMachineTest,
-  SSH_BATCH_MODE_INTERACTIVE,
   TEST_DEADLINE_MS,
   TEST_MAX_OUTPUT_BYTES
 } from './connection-test';
+
+// Phase 123. The one option that lets a machine ask a person a question. It
+// moved out of `./connection-test.ts` into a leaf that imports nothing, so
+// `./key-install.ts` could read it without importing the file that owns a pty.
+// The value did not change.
+export { SSH_BATCH_MODE_INTERACTIVE } from './ssh-options';
 
 export { registerMachinesIpc } from './ipc';
 

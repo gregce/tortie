@@ -46,7 +46,7 @@ import {
   dirListUnreachable
 } from './remote-copy';
 import { runRemoteRead } from './remote-run';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
 /**

@@ -39,10 +39,14 @@ export type BootBlock =
   | null;
 
 /**
- * Boot and retry. The bodies live in ./subscriptions (the one lifecycle
- * owner), so hydration and event subscription cannot be re-entangled: boot
- * hydrates and then starts the subscriptions, retry hydrates again while the
- * subscription start is a no-op because the handlers are already attached.
+ * What one window knows about its own boot.
+ *
+ * PHASE 123. The two verbs that used to sit here are gone from the type, and
+ * they are `bootApp` and `retryBootApp` in ./subscriptions now. A caller
+ * imports them. The fields stay, because they are state and the store is where
+ * state lives. Booting hydrates and then starts the subscriptions, and a retry
+ * hydrates again while the subscription start is a no-op, which is the same
+ * behaviour the verbs always had.
  */
 export interface LifecycleSlice {
   ready: boolean;
@@ -57,9 +61,6 @@ export interface LifecycleSlice {
    * its old job, which is the technical line at the foot.
    */
   bootBlockMessage: string | null;
-
-  boot(): Promise<void>;
-  retryBoot(): Promise<void>;
 }
 
 export type AppState = LifecycleSlice &

@@ -35,7 +35,7 @@ import {
   InstallKindNote,
   InstallSourceNote,
   ShadowedNote
-} from '../AgentsSection';
+} from '../AgentRow';
 
 /** The composed sentence as plain text. */
 function text(line: InstallCopySegment[] | null): string | null {

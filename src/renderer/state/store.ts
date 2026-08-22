@@ -14,8 +14,14 @@
  *   machines-slice.ts   the link state of every machine, as main reports it
  *   overlays-slice.ts   dialogs, native menu choke point, rename
  *   notices-slice.ts    the toast queue
- *   subscriptions.ts    hydration + bridge event handlers (one owner, so a
- *                       boot retry hydrates again WITHOUT resubscribing)
+ *   subscriptions.ts    hydration, bridge event handlers and the two boot
+ *                       verbs (one owner, so a boot retry hydrates again
+ *                       WITHOUT resubscribing)
+ *
+ * Phase 123: `bootApp` and `retryBootApp` are imported from subscriptions.ts,
+ * not read off this store. They are the window's lifecycle rather than state,
+ * and the store importing its own lifecycle owner was the edge that closed a
+ * runtime cycle of five modules.
  *
  * Session status is MAIN's, full stop (Phase 13). The renderer used to derive
  * working / needs-input / idle itself from the `term:data:<id>` byte stream
@@ -46,7 +52,6 @@ import { createOverlaysSlice } from './overlays-slice';
 import { createProjectsSlice } from './projects-slice';
 import { createSessionsSlice } from './sessions-slice';
 import type { SidebarViewId } from './sidebar-views';
-import { hydrateAppState, startAppSubscriptions } from './subscriptions';
 
 // ---------------------------------------------------------------------------
 // The stable export surface — everything a component ever imported from this
@@ -101,32 +106,20 @@ export const useApp = create<AppState>((set, get, api) => ({
   // a machine that has not answered has no rows here at all.
   ...createMachinesSlice(set, get, api),
 
-  // -- lifecycle -----------------------------------------------------------
+  // -- lifecycle state -----------------------------------------------------
   //
-  // The bodies live in ./subscriptions, the one lifecycle owner: hydration
-  // and event subscription are separate steps, and the subscription start is
-  // idempotent. So boot() and retryBoot() share one shape, and a retry after
-  // the tmux-missing screen hydrates fresh state without attaching a second
-  // set of bridge handlers.
+  // PHASE 123. The four fields are here and the two VERBS are not. `bootApp`
+  // and `retryBootApp` live in ./subscriptions, the one lifecycle owner, and a
+  // caller imports them from there. This module used to import that one for
+  // their bodies, and that import was the edge that closed a runtime cycle of
+  // five modules through shell-open.ts and the editor store. A window's
+  // lifecycle is not state, so it went to the owner and this file kept the
+  // state. What a boot does did not change.
 
   ready: false,
   bootBlock: null,
   bootErrorDetail: null,
-  bootBlockMessage: null,
-
-  async boot() {
-    if (!window.gmux) return;
-    await hydrateAppState(api);
-    startAppSubscriptions(api);
-  },
-
-  async retryBoot() {
-    // Phase 41: the version block is the one a retry is really for. The user
-    // ends the old server themselves and presses Check again, and main
-    // re-probes because it never remembers a block.
-    set({ bootBlock: null, bootBlockMessage: null });
-    await get().boot();
-  }
+  bootBlockMessage: null
 }));
 
 /**

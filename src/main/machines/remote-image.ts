@@ -72,7 +72,7 @@ import {
   imageTooLargeRefusal
 } from './remote-copy';
 import { machineGeneration, type RemoteMachineContext } from './context';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { runRemoteRead, runRemoteWrite } from './remote-run';
 import { REMOTE_SCRIPT_EMPTY } from './remote-scripts';
 

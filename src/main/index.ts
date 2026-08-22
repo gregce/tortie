@@ -42,6 +42,10 @@ import {
   runLogBootSequence
 } from './log';
 import { startCrashCapture } from './log/crash';
+// The boot.env collector, imported here rather than by ./log, because it
+// probes tmux and the tmux layer logs through ./log. This file is the
+// composition root, so it is where the two sides meet.
+import { collectBootEnv } from './log/snapshot';
 import { postDurabilityNotice } from './notice';
 import {
   registerAssetSchemePrivileged
@@ -405,7 +409,7 @@ app.whenReady().then(async () => {
   // logging is on (app.isPackaged, or GMUX_LOG_FILE=1). That gate is what
   // stops a harness that ends in app.exit() from leaving a sentinel behind
   // and faking a crash at the next smoke boot.
-  runLogBootSequence({ postNotice: postDurabilityNotice });
+  runLogBootSequence({ postNotice: postDurabilityNotice, collectBootEnv });
 
   // A harness launch (GMUX_SMOKE / GMUX_SHOT) owns the process from here:
   // every harness ends in app.exit, or, for the quit smoke, the real

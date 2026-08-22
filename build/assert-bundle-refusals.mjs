@@ -883,6 +883,12 @@ const MACHINE_REFUSALS = [
   // computer, so every one of them stands between a person's agreement and a
   // credential being installed somewhere.
   // ---------------------------------------------------------------------------
+  //
+  // Phase 123 moved two of the seven sentences out of `key-install.ts` and into
+  // `key-codes.ts`, so that `key-material.ts` could read them without loading
+  // the file that composes an install command line. Both strings are unchanged
+  // byte for byte, and only the `source` path on those two rows moved with
+  // them. The other five rows still name `key-install.ts`.
   {
     id: 'machine.key-stale',
     source: 'src/main/machines/key-install.ts',
@@ -897,7 +903,7 @@ const MACHINE_REFUSALS = [
   },
   {
     id: 'machine.key-no-id',
-    source: 'src/main/machines/key-install.ts',
+    source: 'src/main/machines/key-codes.ts',
     why:
       'the machine name is part of what is hashed and it is what tells one ' +
       "machine's key from another's, so a key with no machine behind it is a " +
@@ -909,7 +915,7 @@ const MACHINE_REFUSALS = [
   },
   {
     id: 'machine.key-keygen-missing',
-    source: 'src/main/machines/key-install.ts',
+    source: 'src/main/machines/key-codes.ts',
     why:
       'without this sentence a Mac with no key program would fail somewhere ' +
       'later and the person would not know that nothing was ever sent',

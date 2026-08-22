@@ -75,6 +75,7 @@ function installGlobals(): void {
 installGlobals();
 
 const { useApp } = await import('../store');
+const { bootApp } = await import('../subscriptions');
 
 /** Run the notice through the store and read back the toast it produced. */
 function say(notice: GmuxNotice): { text: string; kind: string; action?: string } {
@@ -98,7 +99,7 @@ beforeEach(() => {
 describe('the subscription exists at boot', () => {
   it('and the notice backlog is drained exactly once', async () => {
     pending = [{ kind: 'snapshot-repaired', sessionName: 'auth' }];
-    await useApp.getState().boot();
+    await bootApp();
     expect(onNoticeCb).not.toBeNull();
     expect(pendingCalls).toBe(1);
     const texts = useApp.getState().toasts.map((t) => t.text);

@@ -44,7 +44,7 @@
 import type { Project } from '@shared/types';
 import type { MachineStateView } from '@shared/ipc';
 import { useApp } from '../state/store';
-import { launchAgent } from './integration';
+import { launchAgent } from './launch-agent';
 
 export interface P94CreateProbeSpec {
   /** The machine id the injected tab claims. Nothing is signed in to it. */

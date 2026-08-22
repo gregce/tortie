@@ -109,9 +109,8 @@ vi.stubGlobal('document', {
 });
 
 const { useApp } = await import('../store');
-const { appSubscriptionsActive, startAppSubscriptions } = await import(
-  '../subscriptions'
-);
+const { appSubscriptionsActive, bootApp, retryBootApp, startAppSubscriptions } =
+  await import('../subscriptions');
 
 /** Let fire-and-forget promise chains (the drain) settle. */
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
@@ -125,7 +124,7 @@ beforeEach(() => {
 describe('first boot', () => {
   it('hydrates, subscribes every channel once, and drains the backlog once', async () => {
     pending = [{ kind: 'snapshot-repaired', sessionName: 'auth' }];
-    await useApp.getState().boot();
+    await bootApp();
     await settle();
     expect(useApp.getState().ready).toBe(true);
     expect(useApp.getState().projects.map((p) => p.id)).toEqual(['proj-1']);
@@ -143,7 +142,7 @@ describe('first boot', () => {
 describe('repeated start', () => {
   it('a second boot() hydrates again and registers nothing', async () => {
     const listsBefore = counts.listCalls;
-    await useApp.getState().boot();
+    await bootApp();
     await settle();
     expect(counts.listCalls).toBeGreaterThan(listsBefore);
     expect(counts.onChanged).toBe(1);
@@ -194,7 +193,7 @@ describe('the three boot blocks', () => {
       'This is a development build, so Tortie uses the tmux on your PATH, and there is none.',
       'probed /opt/homebrew/bin, /usr/local/bin, /usr/bin and PATH'
     );
-    await useApp.getState().boot();
+    await bootApp();
     expect(useApp.getState().bootBlock).toBe('tmux-missing');
     expect(useApp.getState().bootBlockMessage).toContain('development build');
     expect(useApp.getState().bootErrorDetail).toContain('/opt/homebrew/bin');
@@ -206,7 +205,7 @@ describe('the three boot blocks', () => {
       'Tortie is missing the program that keeps your sessions alive.',
       'the bundled tmux is not at /A/Contents/Resources/bin/tmux'
     );
-    await useApp.getState().boot();
+    await bootApp();
     expect(useApp.getState().bootBlock).toBe('tmux-bundle-incomplete');
     expect(useApp.getState().bootBlockMessage).toContain('missing the program');
   });
@@ -217,7 +216,7 @@ describe('the three boot blocks', () => {
       'The session server on this machine is running tmux 3.5a. Tortie runs tmux 3.7b. Tortie has not tested that pair, so it will not attach to it.',
       'server 3.5a, client 3.7b, socket gmux, client at /A/bin/tmux'
     );
-    await useApp.getState().boot();
+    await bootApp();
     expect(useApp.getState().bootBlock).toBe('tmux-version-blocked');
     expect(useApp.getState().bootBlockMessage).toContain('3.5a');
     expect(useApp.getState().bootBlockMessage).toContain('3.7b');
@@ -229,7 +228,7 @@ describe('the three boot blocks', () => {
     // product, and this case is about a failure that must not RAISE one.
     useApp.setState({ bootBlock: null, bootBlockMessage: null } as never);
     failWith('GIT_FAILED', 'git said no', 'exit 128');
-    await useApp.getState().boot();
+    await bootApp();
     expect(useApp.getState().bootBlock).toBeNull();
     expect(useApp.getState().ready).toBe(true);
     expect(useApp.getState().toasts.map((t) => t.text).join('')).toContain(
@@ -239,10 +238,10 @@ describe('the three boot blocks', () => {
 
   it('a successful boot clears the sentence as well as the block', async () => {
     failWith('TMUX_VERSION_UNTESTED', 'blocked', 'server 3.5a, client 3.7b');
-    await useApp.getState().boot();
+    await bootApp();
     expect(useApp.getState().bootBlockMessage).toBe('blocked');
     failListsWith = null;
-    await useApp.getState().retryBoot();
+    await retryBootApp();
     await settle();
     expect(useApp.getState().bootBlock).toBeNull();
     expect(useApp.getState().bootBlockMessage).toBeNull();
@@ -256,12 +255,12 @@ describe('retry after the tmux-missing block', () => {
     failListsWith = new Error(
       'gmux: {"code":"TMUX_NOT_FOUND","message":"tmux is not installed","detail":"looked in PATH"}'
     );
-    await useApp.getState().boot();
+    await bootApp();
     expect(useApp.getState().bootBlock).toBe('tmux-missing');
     expect(useApp.getState().bootErrorDetail).toBe('looked in PATH');
 
     failListsWith = null;
-    await useApp.getState().retryBoot();
+    await retryBootApp();
     await settle();
     expect(useApp.getState().bootBlock).toBeNull();
     expect(useApp.getState().ready).toBe(true);
@@ -289,7 +288,7 @@ describe('cleanup', () => {
 
     // The next boot attaches a fresh set and drains whatever queued since.
     pending = [{ kind: 'backup-failing' } as DurabilityNotice];
-    await useApp.getState().boot();
+    await bootApp();
     await settle();
     expect(counts.onChanged).toBe(2);
     expect(counts.pendingCalls).toBe(2);
@@ -369,7 +368,7 @@ describe('the machine agents answer (Phase 109)', () => {
         return () => {};
       }
     };
-    await useApp.getState().boot();
+    await bootApp();
     await settle();
     // The seed asks for every held view and starts nothing: fresh is false.
     expect(agentsCalls).toEqual([[null, false]]);
@@ -379,7 +378,7 @@ describe('the machine agents answer (Phase 109)', () => {
     pushCb!([PUSHED]);
     expect(useApp.getState().machineAgents).toEqual([PUSHED]);
     // A second hydrate re-seeds and registers nothing.
-    await useApp.getState().boot();
+    await bootApp();
     await settle();
     expect(agentsCalls).toEqual([
       [null, false],
@@ -395,7 +394,7 @@ describe('the machine agents answer (Phase 109)', () => {
       onStateChanged: () => () => {}
     };
     useApp.setState({ machineAgents: [VIEW] } as never);
-    await useApp.getState().boot();
+    await bootApp();
     await settle();
     // No method, no read, and the held list is left alone.
     expect(useApp.getState().machineAgents).toEqual([VIEW]);

@@ -24,6 +24,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
+// Phase 123: the two boot verbs are the lifecycle owner's, not the store's.
+import { retryBootApp } from '../state/subscriptions';
 import {
   agentsGreyedByMachine,
   buildAgentOptions,
@@ -321,7 +323,6 @@ function CheckAgainButton({
   label: string;
   busyLabel: string;
 }): React.JSX.Element {
-  const retryBoot = useApp((s) => s.retryBoot);
   const [checking, setChecking] = useState(false);
   return (
     <div className="empty-actions">
@@ -331,7 +332,7 @@ function CheckAgainButton({
         disabled={checking}
         onClick={() => {
           setChecking(true);
-          void retryBoot().finally(() => setChecking(false));
+          void retryBootApp().finally(() => setChecking(false));
         }}
       >
         {checking ? busyLabel : label}

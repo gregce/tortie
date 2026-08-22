@@ -5,7 +5,7 @@
  *
  * The first build of this phase put the tab machine rule in the store's
  * `createSession` and recorded in the spec that every create surface already
- * called it. That sentence was false. `launchAgent` in `../integration.ts`
+ * called it. That sentence was false. `launchAgent` in `../launch-agent.ts`
  * called `window.gmux.sessions.create` itself and composed its own payload.
  * The payload carried neither `machineId` nor `projectMachineId`, so the
  * store's rule never ran for it and main's own backstop had nothing to read.
@@ -115,7 +115,7 @@ vi.stubGlobal('document', {
 });
 
 const { useApp } = await import('../../state/store');
-const { launchAgent } = await import('../integration');
+const { launchAgent } = await import('../launch-agent');
 
 /** The sentence the person reads, word for word. */
 const REFUSAL =

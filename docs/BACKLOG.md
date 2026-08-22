@@ -29,7 +29,7 @@ release.
 | 13 | **132.1** the install sheet's rules are overwritten, and the facts band is cramped | Recorded by Phase 132's own verifier | ✅ shipped |
 | 14 | **135** the project rail's controls, the ＋, and the stranded activity bar | He reported it on 2026-08-22 with a screenshot | ✅ shipped |
 | 14.5 | **136** the file icon credit names the holder who ships it | Found by the Phase 134 verifier | ✅ shipped |
-| 15 | **Run B** 123 | The six runtime cycles | running |
+| 15 | **Run B** 123 | The six runtime cycles | ✅ shipped |
 | 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
 | 17 | **Run D** 127 | App, FileTree and state to app | queued |
 | 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
@@ -6908,7 +6908,7 @@ every member of an INSTALLED bridge required, then remove the `Extras` intersect
 compile-time missing-member fixtures, plus the exact declared, preload and main closure from Phase
 121. Every cast removed is named in the commit body.
 
-## Phase 123 — six runtime dependency cycles, and a gate that cannot see them (audit phase 4) QUEUED
+## Phase 123 — six runtime dependency cycles, and a gate that cannot see them (audit phase 4) ✅ SHIPPED 2026-08-22 (this commit, 0.68.4, gates green, 8,162 tests)
 
 **Subject:** `fix(arch): no production runtime cycles, proven by a graph gate`
 **First body line:** `Phase 123: six runtime dependency cycles`
@@ -6932,6 +6932,68 @@ renderer state cycles are the architectural problems; the two 2-node ones are na
 hygiene, not correctness. **Proof:** zero production runtime SCCs, plus a fixture proving a type-only
 edge does NOT fail the gate and a real runtime cycle DOES. Replace the fixed-string check with the
 AST gate in the same commit.
+
+### What landed
+
+`build/assert-no-runtime-cycles.mjs` reports 0 strongly connected components over 802 production
+files and 2,820 runtime edges. It runs in 0.64 s to 0.67 s over three runs and it is the last step of
+`npm run typecheck`.
+
+The gate parses every `.ts` and `.tsx` file under `src/shared`, `src/main`, `src/preload` and
+`src/renderer` with the TypeScript parser, skipping `__tests__` and `.d.ts` files, and runs Tarjan
+over the result. Four import shapes count as a runtime edge, being a static import, a side-effect
+import, an `export ... from` that carries a value, and a `import('...')` call with a string literal.
+A type-only edge is not an edge, in all five of its spellings. The dynamic decision is recorded in
+the file with the reason. Vite reports that several intended dynamic imports in this tree are also
+statically reachable, so the bundler puts them in the same chunk, and a dynamic import the bundler
+cannot split is a runtime edge in different syntax. A later round that wants a split dynamic boundary
+to be free has to prove the split with a number and then flip `DYNAMIC_IS_AN_EDGE`.
+
+When the gate was first run it found seven components across thirty-eight modules, one more than the
+audit's six across thirty-two. The extra component and the extra modules are the reason a graph gate
+replaced a string table. The string table named one specifier per known cycle, so it saw only the
+edge somebody had written down.
+
+Six cuts, one per component. Every one of them moved a symbol and changed no value.
+
+| The cycle | Modules | The cut |
+| --- | ---: | --- |
+| Main logging, tmux, machines, config, the remote executions table | 18 | `runLogBootSequence` takes `collectBootEnv` as an argument, beside the `postNotice` it already took. `src/main/log/index.ts` no longer imports `./snapshot`, which probes tmux, and every one of the tmux files logs through the logging module. `src/main/index.ts` is the composition root and it already imported both sides |
+| Main remote sessions | 6 | `src/main/machines/ready-context.ts` and `src/main/machines/remote-stamps.ts`. Three files asked `remote-sessions.ts` for the readiness check and two of them were files it imports back. `pane-env-rescue.ts` wanted the four stamps and nothing else. `remote-sessions.ts` re-exports all four names, so its callers are unchanged |
+| Renderer state and editor | 5 | `bootApp` and `retryBootApp` moved from the store's state into `src/renderer/state/subscriptions.ts`, which was already the one lifecycle owner. The store used to import its own lifecycle owner for those two bodies, and that edge closed the cycle through `shell-open.ts`. The four boot FIELDS stay in the store, because they are state |
+| Main key setup | 3 | `src/main/machines/ssh-options.ts` holds `SSH_BATCH_MODE_INTERACTIVE`, and `src/main/machines/key-codes.ts` holds the two refusal sentences. `key-install.ts` read the first out of `connection-test.ts`, and `key-material.ts` read the second pair out of `key-install.ts` |
+| Renderer probe registration | 2 | `src/renderer/settings/launch-agent.ts`. `p94-create-drive.ts` wanted this one function out of `integration.ts` while `integration.ts` wanted the drive's registration. `integration.ts` still calls `registerP94CreateDrive()` at module scope from the same line |
+| Renderer connection remedy | 2 | `src/renderer/settings/Remedy.tsx`, plus `src/renderer/settings/AgentRow.tsx` for the AgentsSection and MachineAgents pair the gate found beside it. Three surfaces draw the remedy block and two draw the agent row, so neither belongs to a page that draws it |
+
+Fifteen fixtures run inside the gate before any real file is read, through the same `buildGraph` and
+`findCycles` the repository goes through. They read nothing from disk. Two of them are the ones the
+phase brief asked for, being a type-only edge that does not fail the gate and a real runtime cycle
+that does. The other thirteen cover the type-only spellings, the value binding beside a type, the
+dynamic call, `import('./b').T` in a type position, a re-export chain, a side-effect import, a cycle
+through an index barrel, the `@shared` and `@renderer` aliases, a bare package specifier, a
+`__tests__` file in either direction, and a module that imports itself.
+
+Two test files hold what the graph gate cannot say, which is that the values did not change while the
+files moved. `src/main/machines/__tests__/p123-leaves.test.ts` reads the four moved symbols and holds
+the stamp names and their order, because a session that carries neither `@gmux-id` nor the
+`GMUX_SESSION_ID` pane stamp is not Tortie's. `src/main/log/__tests__/boot-injection.test.ts` holds
+that the sequence calls the function it was handed and that this module's own source no longer
+imports the collector. The two files are 12 tests and they run in 125 ms.
+
+`src/shared/__tests__/source-scan.test.ts` lost four of its five forbidden-edge rows to the gate. The
+fifth stays, and the file says why. `renderer/app/ContextMenu.tsx` must import nothing from
+`../state/`, which is stricter than "no cycle": ContextMenu importing a state leaf closes no cycle, so
+the graph gate would pass it while the boundary is broken all the same.
+
+### What is not true
+
+The gate reads static syntax, so a specifier assembled at runtime is invisible to it, the same limit
+`build/assert-import-boundaries.mjs` records.
+
+Zero components is a fact about the four `src/` layers only. `build/` and `scripts/` are not walked.
+
+The `AgentRow.tsx` extraction was not named in the phase brief. The gate found the AgentsSection and
+MachineAgents pair beside the remedy cycle, and it is cut the same way.
 
 ## Phase 124 — the TypeScript project graph states a weaker boundary than production follows (audit phase 5) ✅ SHIPPED 2026-08-20 (this commit, 0.60.1, gates green, 7,260 tests)
 
@@ -15549,3 +15611,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 131 shipped, the machine row leads with whether the machine is ready, one disclosure holds the address and the rest, and the version acceptance moved to its own sheet instead of a fourth copy of the same four lines, this commit, 0.68.2
 - 2026-08-22, Phase 136 shipped, DESIGN.md, generate-file-icons.mjs, its emitted banner in file-icons.generated.ts and the icons index now credit Material Extensions for the Material Icon Theme, which is the holder the installed 5.37.0 LICENSE names, this commit, 0.68.3
 - 2026-08-22, Research 62 delivered and Phase 137 queued, docs/research/62-session-overview.md, catch me up on this project, one page on a chord built from each agent own log AND from git, no model, no counter, no watcher, $0.00 and 106 ms warm, and it supersedes the held Phases 44 and 45. Git is in it because across his seven live gmux sessions git records 973 changed paths in seven days while the sessions name 16, an overlap of 1.2%
+- 2026-08-22, Phase 123 shipped, build/assert-no-runtime-cycles.mjs parses every production source file and reports 0 strongly connected components over 802 files and 2,820 runtime edges in 0.64 s, six cuts closed six cycles covering main logging with tmux, remote sessions, renderer state with the editor, key setup, probe registration and the connection remedy, and the string table it replaced had passed for months while seven components existed across thirty-eight modules, this commit, 0.68.4

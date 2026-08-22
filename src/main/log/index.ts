@@ -46,7 +46,6 @@ import {
   readRunSentinel,
   writeRunSentinel
 } from './sentinel';
-import { collectBootEnv } from './snapshot';
 import {
   configureFileTransport,
   makeWriteFailureShim,
@@ -273,6 +272,13 @@ export function clearLogRunSentinel(): void {
 export interface LogBootDeps {
   /** src/main/notice's postDurabilityNotice, injected to avoid a cycle. */
   postNotice: (notice: DurabilityNotice) => boolean;
+  /**
+   * ./snapshot's collectBootEnv, injected to avoid a cycle. The collector
+   * probes tmux, so importing it here would make this module reach the tmux
+   * layer, and the tmux layer logs through this module. src/main/index.ts is
+   * the composition root and it already imports both sides.
+   */
+  collectBootEnv: () => Promise<Record<string, unknown>>;
 }
 
 /**
@@ -354,7 +360,8 @@ export function runLogBootSequence(deps: LogBootDeps): void {
     app.on('will-quit', () => clearLogRunSentinel());
 
     // h. The boot environment snapshot, detached because of its one spawn.
-    void collectBootEnv()
+    void deps
+      .collectBootEnv()
       .then((env) => {
         logEvent('boot', 'info', 'boot.env', 'boot', env, { console: false });
       })

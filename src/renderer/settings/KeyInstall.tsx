@@ -26,17 +26,16 @@
  * which two is written beside the partition in the component below. Nothing
  * was deleted, nothing was reworded, and no consent fact moved.
  *
- * WHY THIS IMPORTS FROM ITS OWN PARENT. `Remedy` is defined in
- * ConnectionTestView.tsx, which renders this component, so the two modules
- * refer to each other. It is safe because both are function declarations and
- * neither runs at module scope. The alternative was a second copy of the
- * remedy block, and one advice table drawn two ways is how two answers to the
- * same question start to disagree.
+ * PHASE 123. `Remedy` used to be defined in ConnectionTestView.tsx, which
+ * renders this component, so the two modules imported each other. It lives in
+ * Remedy.tsx now and both files read it from there. A second copy of the remedy
+ * block was never an option, because one advice table drawn two ways is how two
+ * answers to the same question start to disagree.
  */
 
 import React, { useState } from 'react';
 import type { MachineKeySheet, MachineTestClass } from '@shared/ipc';
-import { Remedy } from './ConnectionTestView';
+import { Remedy } from './Remedy';
 import {
   BTN_INSTALL_KEY,
   INSTALLING_KEY,

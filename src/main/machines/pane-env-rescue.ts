@@ -78,20 +78,23 @@
  * nothing to seed from and it still cannot be rescued across a restart. It is
  * running on that machine and it shows as a session Tortie did not create.
  *
- * ## Why this file imports `./remote-sessions.ts`
+ * ## Where the four stamp names come from
  *
- * For the four stamp names and the one composer that writes them. There is one
+ * From `./remote-stamps.ts`, which is a leaf that imports nothing. There is one
  * definition of what Tortie stamps on a session it created, and a second copy
- * here would be a second place a stamp could be dropped. The import is used
- * inside functions only, never at module load, so the pair loading each other is
- * not a hazard.
+ * here would be a second place a stamp could be dropped.
+ *
+ * IT USED TO COME FROM `./remote-sessions.ts`, and Phase 123 moved it. That file
+ * imports this one, so the two loaded each other, and the pair sat inside a six
+ * module runtime cycle. Reading the names from a leaf ends the cycle and changes
+ * no value: the same four names in the same order compose the same stamps.
  */
 
 import { getLog } from '../log';
 import type { RemoteMachineContext } from './context';
 import { LOCAL_MACHINE_ID, machineGeneration } from './context';
 import { execOn } from './exec-plane';
-import { REMOTE_STAMPS, oneLine, remoteStampArgs } from './remote-sessions';
+import { REMOTE_STAMPS, oneLine, remoteStampArgs } from './remote-stamps';
 
 const machinesLog = getLog('config');
 

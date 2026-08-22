@@ -31,6 +31,10 @@
  * class, so main still says what happened and this file only says what to do
  * about it. A class with nothing for a person to do draws nothing.
  *
+ * PHASE 123. That line is drawn by `Remedy`, which moved to Remedy.tsx. This
+ * file and KeyInstall.tsx both draw it, so it is owned by neither of them. The
+ * words and the classes are the bytes they were.
+ *
  * PHASE 130. The second header line no longer claims that Tortie does not
  * change the bytes. It did claim that, and the paragraph above this one is why
  * it was not exactly true: main removes the ANSI control sequences and this
@@ -50,46 +54,24 @@
  */
 
 import React, { useState } from 'react';
-import type {
-  MachineTestClass,
-  MachineTestOutcome,
-  MachineTestStarted
-} from '@shared/ipc';
+import type { MachineTestOutcome, MachineTestStarted } from '@shared/ipc';
 import { KeyInstall } from './KeyInstall';
+import { Remedy } from './Remedy';
 import {
   ANSWER_HINT,
   ANSWER_LABEL,
   BTN_CANCEL_TEST,
   BTN_SEND,
-  REMEDY,
-  REMEDY_LABEL,
   TESTING,
   TRANSCRIPT_RUNNING_LABEL,
   TRANSCRIPT_SOURCE_LINE
 } from './machines-copy';
 import { keySheetOf, type KeyInstallState } from './machines-store';
 
-/**
- * What a person can do about one outcome, drawn apart from what happened.
- *
- * Main names the outcome and this names the next step, and the two are kept
- * visually separate so a person can tell the report from the advice. It is
- * exported because Prepare answers with the same classes and a second copy of
- * this block would be the duplication the growth guardrail forbids.
- *
- * A class with nothing for a person to do draws nothing at all. Advice under
- * an outcome that worked would be noise.
- */
-export function Remedy({ cls }: { cls: MachineTestClass }): React.JSX.Element | null {
-  const text = REMEDY[cls];
-  if (text === null) return null;
-  return (
-    <div className="mach-remedy" data-remedy-class={cls}>
-      <div className="mach-remedy-label">{REMEDY_LABEL}</div>
-      <p className="mach-remedy-text">{text}</p>
-    </div>
-  );
-}
+// MachineRow.tsx reads `Remedy` through this file, which is where it lived
+// until Phase 123. The re-export keeps that call site as it is, and it points
+// one way, so no cycle comes back with it.
+export { Remedy };
 
 export interface ConnectionTestViewProps {
   started: MachineTestStarted;

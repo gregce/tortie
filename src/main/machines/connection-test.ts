@@ -132,6 +132,7 @@ import {
   redactPassword
 } from './key-install';
 
+import { SSH_BATCH_MODE_INTERACTIVE } from './ssh-options';
 import { getLog } from '../log';
 
 const machinesLog = getLog('config');
@@ -164,14 +165,14 @@ export {
   type MachineHostKeyFiles
 } from './carriage';
 
-/**
- * What the ONE visible test carries, and nothing else in the tree may.
- *
- * The whole point of this test is that a person is watching and can answer. It
- * stays in this file rather than moving to `./carriage.ts`, because the exec
- * plane must never be able to read it.
- */
-export const SSH_BATCH_MODE_INTERACTIVE = 'BatchMode=no';
+// PHASE 123 MOVED `SSH_BATCH_MODE_INTERACTIVE` to `./ssh-options.ts`, and its
+// value did not change. `./key-install.ts` read it back out of this file while
+// this file imports eight names from that one, so the two loaded each other.
+// The constant is imported below and re-exported here, so every caller of this
+// module, including `build/machines-conformance-probe.mts`, is unchanged. It
+// did not move to `./carriage.ts`, because the exec plane reads the carriage and
+// the exec plane must never be able to read this value.
+export { SSH_BATCH_MODE_INTERACTIVE } from './ssh-options';
 
 /** How long the whole test may run. Generous, because a person may be reading. */
 export const TEST_DEADLINE_MS = 60_000;

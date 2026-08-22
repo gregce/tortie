@@ -57,14 +57,18 @@
  *
  * ## One rule this file follows, and a later edit must keep
  *
- * `./connection-test.ts` imports this module for the runner, and this module
- * imports one constant back from it, being `SSH_BATCH_MODE_INTERACTIVE`. That
- * constant stays where it is because the header of that file says why: the exec
- * plane must never be able to read it. Two modules importing each other is safe
- * only while neither reads the other's binding while its own body is running.
- * So NOTHING in this file may read an imported binding at module scope. Every
- * use is inside a function body, and `keyInstallRequiredOptions()` is a
- * function rather than an array for exactly that reason.
+ * NOTHING in this file may read an imported binding at module scope. Every use
+ * is inside a function body, and `keyInstallRequiredOptions()` is a function
+ * rather than an array for exactly that reason.
+ *
+ * PHASE 123 IS WHY THAT RULE IS NO LONGER LOAD BEARING, and it is kept anyway.
+ * This file used to import `SSH_BATCH_MODE_INTERACTIVE` back out of
+ * `./connection-test.ts`, which imports this module for the runner, so the two
+ * loaded each other and the module scope rule was what made that safe. The
+ * constant now lives in `./ssh-options.ts` and the two error sentences this file
+ * used to hold for `./key-material.ts` now live in `./key-codes.ts`. Both are
+ * leaves that import nothing, so `./connection-test.ts` to this file to
+ * `./key-material.ts` is a straight line.
  */
 
 import { createHash } from 'node:crypto';
@@ -75,7 +79,7 @@ import { SSH_CONNECT_TIMEOUT_SECONDS, composeKnownHostsOption } from './carriage
 import type { MachineHostKeyFiles } from './carriage';
 import { machineRecordKey } from './confirm';
 import type { MachineExecutionFields } from './confirm';
-import { SSH_BATCH_MODE_INTERACTIVE } from './connection-test';
+import { SSH_BATCH_MODE_INTERACTIVE } from './ssh-options';
 import {
   classifyMachineOutput,
   composeOutcomeCopy,
@@ -376,16 +380,10 @@ export const MACHINE_KEY_STALE =
   'shown. Read what it says now and agree to that. Nothing was sent to the ' +
   'machine.';
 
-export const MACHINE_KEY_NO_ID =
-  'Name this machine before Tortie makes a key for it. The name is part of ' +
-  "what you are agreeing to, and it is what tells one machine's key from " +
-  "another's.";
-
-export const MACHINE_KEY_KEYGEN_MISSING =
-  'Tortie could not find the program macOS uses to make a key, at ' +
-  '/usr/bin/ssh-keygen. That program ships with macOS, so a missing one means ' +
-  'something removed it or the disk is damaged. Nothing was sent to the ' +
-  'machine.';
+// PHASE 123 MOVED `MACHINE_KEY_NO_ID` and `MACHINE_KEY_KEYGEN_MISSING` to
+// `./key-codes.ts`, with both sentences unchanged. `./key-material.ts` read
+// them out of this file while this file imports that one, so the two loaded
+// each other. Nothing in this file used either sentence.
 
 export const MACHINE_KEY_PASSWORD_REFUSED =
   'That machine did not accept the password. Tortie stopped there and did not ' +

@@ -69,6 +69,7 @@ vi.stubGlobal('document', {
 });
 
 const { useApp } = await import('../store');
+const { bootApp } = await import('../subscriptions');
 
 /** Let fire-and-forget promise chains settle. */
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
@@ -80,7 +81,7 @@ beforeEach(() => {
 describe('shellPathReady when a boot read fails', () => {
   it('is still asked for, and Restore turns on when main answers', async () => {
     expect(useApp.getState().shellPathReady).toBe(false);
-    await useApp.getState().boot();
+    await bootApp();
     await settle();
 
     // The boot read failed the ordinary way. The app is ready, there is no

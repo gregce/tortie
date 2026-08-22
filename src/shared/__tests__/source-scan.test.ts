@@ -10,10 +10,15 @@
  *     differ". The byte is now spelled as a backslash-u escape and no
  *     source file may contain a raw control byte again.
  *
- *  2. The production import cycles the audit named are broken, and the
- *     specific edge that closed each cycle stays gone. These are string
- *     scans of the one forbidden specifier per file, not a graph walk: the
- *     other direction of each former cycle is legitimate and stays.
+ *  2. Phase 123 replaced this stage's cycle checks with a graph gate.
+ *     build/assert-no-runtime-cycles.mjs parses every production source
+ *     file, builds the runtime import graph and reports every strongly
+ *     connected component, so a cycle that closes through a new edge is
+ *     caught. The string table that used to live here named one specifier
+ *     per known cycle, and it passed for months while seven components
+ *     existed across thirty-eight modules. One row of that table survives,
+ *     because it is stricter than the graph rule rather than weaker. See
+ *     the describe below for why.
  *
  *  3. The manifest's JSON-object column reader has exactly one copy.
  *     contract.ts and context-snapshot.ts carried byte-identical private
@@ -55,27 +60,26 @@ describe('every source file is text', () => {
   });
 });
 
-describe('the broken cycle edges stay broken', () => {
+describe('the one boundary the graph gate cannot see', () => {
   /**
-   * file → the import specifier that would re-close its former cycle.
-   * Each pair reads as: `file` must never import `specifier` again.
+   * Phase 123 moved every cycle check to build/assert-no-runtime-cycles.mjs,
+   * which runs on `npm run typecheck`. Four of the five rows that used to be
+   * here named a two-module cycle, and the graph gate now catches all four
+   * whichever edge closes them.
+   *
+   * This row is not a cycle rule and the graph gate would not catch it.
+   * state/overlays-slice.ts imports ../app/ContextMenu, so ContextMenu
+   * importing state/store.ts would close a cycle and the graph gate would
+   * fail. ContextMenu importing a state LEAF, e.g. state/errors.ts, closes
+   * no cycle, so the graph gate would pass it while the boundary is broken
+   * all the same. MenuSpec lives with the bridge in ContextMenu, and
+   * ContextMenu imports nothing from state at all. That is a stricter rule
+   * than "no cycle", so it stays stated here as a string.
+   *
+   * A later round that deletes this row for tidiness weakens the boundary.
+   * Delete it only with a replacement rule that is at least as strict.
    */
   const FORBIDDEN_EDGES: [string, string][] = [
-    // stores.ts <-> agy-owner.ts: the shared leaves moved to
-    // harvest/process-table.ts. stores → agy-owner stays; the back edge must not.
-    ['main/manifest/harvest/agy-owner.ts', './stores'],
-    // SearchView.tsx <-> QueryBlock.tsx: focusResultsList moved to
-    // search/results-focus.ts. SearchView → QueryBlock stays.
-    ['renderer/search/QueryBlock.tsx', './SearchView'],
-    // editor/store.ts <-> tab-io.ts: EditorTab moved to editor/tab-types.ts.
-    // store → tab-io stays.
-    ['renderer/editor/tab-io.ts', './store'],
-    // highlight-pool.ts <-> highlight-pool-impl.ts: DIFF_RENDER_OPTIONS moved
-    // to pierre/diff-render-options.ts. The lazy pool → impl import stays.
-    ['renderer/pierre/highlight-pool-impl.ts', './highlight-pool'],
-    // state/store.ts <-> app/ContextMenu.tsx: MenuSpec now lives with the
-    // bridge in ContextMenu. The overlays slice → ContextMenu import stays;
-    // ContextMenu must import nothing from state.
     ['renderer/app/ContextMenu.tsx', '../state/']
   ];
 

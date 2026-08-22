@@ -75,7 +75,7 @@ import { join } from 'node:path';
 
 import { gmuxError } from '../errors';
 import { machineRecordKey } from './confirm';
-import { MACHINE_KEY_KEYGEN_MISSING, MACHINE_KEY_NO_ID } from './key-install';
+import { MACHINE_KEY_KEYGEN_MISSING, MACHINE_KEY_NO_ID } from './key-codes';
 // The one definition of where Tortie's own machine bookkeeping lives. A second
 // copy of that join would be a second thing to keep in step.
 import { machineRecordDir } from './store';

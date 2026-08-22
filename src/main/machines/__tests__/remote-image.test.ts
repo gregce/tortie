@@ -54,7 +54,10 @@ vi.mock('../remote-run', () => ({
   }
 }));
 
-vi.mock('../remote-sessions', () => ({
+// Phase 123 moved `readyRemoteContext` into `../ready-context.ts`, and
+// `../remote-image.ts` now names that leaf. The stub is unchanged and it stands
+// in for the same function.
+vi.mock('../ready-context', () => ({
   readyRemoteContext: (machineId: string) => ({ kind: 'remote', machineId })
 }));
 

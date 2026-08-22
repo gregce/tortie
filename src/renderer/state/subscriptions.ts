@@ -9,8 +9,8 @@
  * duplicate handler set per click of "Check again", so one notice could
  * toast twice. Now:
  *
- *   boot()      → hydrateAppState() then startAppSubscriptions()
- *   retryBoot() → the same, and the start is a NO-OP while handlers are live
+ *   bootApp()      → hydrateAppState() then startAppSubscriptions()
+ *   retryBootApp() → the same, and the start is a NO-OP while handlers are live
  *
  * `startAppSubscriptions` returns its disposer. The store's boot path keeps
  * the subscriptions for the life of the window (there is nothing to hand
@@ -20,6 +20,16 @@
  * The notice SENTENCES live here with the channel they arrive on: main sends
  * the fact, this module writes the words, the notices slice only queues the
  * toast.
+ *
+ * PHASE 123. The two boot verbs are HERE now, as `bootApp` and `retryBootApp`.
+ * They were two members of the store's own state, so store.ts imported this
+ * module and this module imported shell-open.ts, which imported store.ts back.
+ * That closed a runtime cycle of five modules, and the new graph gate refuses
+ * it. Booting a window is a lifecycle step and this file is the lifecycle
+ * owner, so the two verbs came to the owner and the arrow between the two files
+ * now points one way. The four boot FIELDS stay in the store, because they are
+ * state. Nothing about what a boot does changed: the same two statements run in
+ * the same order they ran in.
  */
 
 import type { StoreApi } from 'zustand';
@@ -33,6 +43,7 @@ import { errorPayload, errorText } from './errors';
 import { loadLocal } from './local';
 import { LS_ACTIVE_PROJECT } from './projects-slice';
 import { pullPendingShellOpen } from './shell-open';
+import { useApp } from './store';
 import { gmuxBridge } from '../bridge';
 
 type AppStore = StoreApi<AppState>;
@@ -743,4 +754,38 @@ export function startAppSubscriptions(store: AppStore): () => void {
 /** Whether a handler set is currently attached (tests). */
 export function appSubscriptionsActive(): boolean {
   return activeDispose !== null;
+}
+
+// ---------------------------------------------------------------------------
+// The two boot verbs
+// ---------------------------------------------------------------------------
+
+/**
+ * Bring one window up: hydrate main's truth, then attach the bridge handlers.
+ *
+ * PHASE 123 MOVED THIS OUT OF THE STORE, and it is a module function rather
+ * than a store action for a reason a caller can see. A component used to read
+ * it with `useApp((s) => s.boot)`, which returned the same function reference
+ * on every render, so an imported binding is the same thing with one less
+ * subscription. There is nothing to select, because a boot verb holds no state.
+ *
+ * Safe to call again. Hydration re-fetches and the subscription start is a
+ * no-op while a handler set is live, which is what the retry below relies on.
+ */
+export async function bootApp(): Promise<void> {
+  if (!window.gmux) return;
+  await hydrateAppState(useApp);
+  startAppSubscriptions(useApp);
+}
+
+/**
+ * The "Check again" button on a boot block screen.
+ *
+ * Phase 41: the version block is the one a retry is really for. The user ends
+ * the old server themselves and presses Check again, and main re-probes because
+ * it never remembers a block.
+ */
+export async function retryBootApp(): Promise<void> {
+  useApp.setState({ bootBlock: null, bootBlockMessage: null });
+  await bootApp();
 }

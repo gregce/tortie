@@ -72,6 +72,7 @@ vi.stubGlobal('document', {
 });
 
 const { useApp } = await import('../store');
+const { bootApp } = await import('../subscriptions');
 
 const STUDIO: SessionMachine = {
   id: 'studio',
@@ -120,7 +121,7 @@ function say(notice: GmuxNotice): string {
 beforeEach(async () => {
   killed = [];
   useApp.setState({ toasts: [], confirm: null } as never);
-  if (onNoticeCb === null) await useApp.getState().boot();
+  if (onNoticeCb === null) await bootApp();
 });
 
 describe('the end confirm for a session on another machine', () => {

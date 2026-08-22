@@ -48,7 +48,7 @@ import type {
 } from '@shared/ipc';
 import { machineNotSignedInOption } from '../app/machine-copy';
 import { formatAge, useNow } from '../app/format';
-import { AgentRow } from './AgentsSection';
+import { AgentRow } from './AgentRow';
 import {
   AGENTS_NEVER_ASKED,
   AGENTS_NOT_SIGNED_IN,

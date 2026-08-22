@@ -63,6 +63,7 @@ vi.stubGlobal('document', {
 });
 
 const { useApp } = await import('../store');
+const { bootApp } = await import('../subscriptions');
 
 /** Let fire-and-forget promise chains settle. */
 const settle = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
@@ -74,7 +75,7 @@ beforeEach(() => {
 describe('shellPathReady', () => {
   it('starts false on a preload that can answer, and flips when main does', async () => {
     expect(useApp.getState().shellPathReady).toBe(false);
-    await useApp.getState().boot();
+    await bootApp();
     await settle();
     // The session list is on screen and the shell has still said nothing.
     expect(useApp.getState().ready).toBe(true);

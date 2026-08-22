@@ -42,6 +42,8 @@ import { cloneAction } from '../state/clone';
 // than only through this component.
 import { openRecentOnMachine } from './open-recent-on-machine';
 import { pullPendingShellOpen } from '../state/shell-open';
+// Phase 123: the two boot verbs are the lifecycle owner's, not the store's.
+import { bootApp } from '../state/subscriptions';
 import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
 import { useEditor } from '../editor/store';
@@ -1460,7 +1462,6 @@ function FocusWash(): React.JSX.Element {
 export function App(): React.JSX.Element {
   const ready = useApp((s) => s.ready);
   const bootBlock = useApp((s) => s.bootBlock);
-  const boot = useApp((s) => s.boot);
   const projects = useApp((s) => s.projects);
   const sidebarVisible = useApp((s) => s.sidebarVisible);
   // Phase 135. Read here for one job only, being which shape the activity
@@ -1482,7 +1483,7 @@ export function App(): React.JSX.Element {
   useFileDropRouter();
 
   useEffect(() => {
-    void boot().then(() => {
+    void bootApp().then(() => {
       // Phase 38: adopt each open project's UUID-keyed layout entry under
       // its path, then drop the orphans. The call lives here because
       // store.ts cannot import the layout store without an import cycle.

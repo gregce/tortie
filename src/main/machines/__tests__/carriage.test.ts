@@ -118,8 +118,10 @@ describe('no caller of the connection test module changed', () => {
   });
 
   it('keeps the interactive batch mode out of the carriage', () => {
-    // The exec plane must never be able to read this one. It stays in the
-    // connection test module, and it is the only site in the tree.
+    // The exec plane must never be able to read this one. Phase 123 moved it
+    // from `../connection-test.ts` into `../ssh-options.ts`, which is a leaf
+    // that imports nothing, and `../connection-test.ts` re-exports it so this
+    // assertion is unchanged. It is still the only site in the tree.
     expect(connectionTest.SSH_BATCH_MODE_INTERACTIVE).toBe('BatchMode=no');
     expect(carriageSource).not.toContain('BatchMode=no');
   });

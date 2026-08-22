@@ -192,6 +192,15 @@ import {
   machineGeneration,
   type RemoteMachineContext
 } from './context';
+// Phase 123. Two leaves this file used to own, moved out so the six module
+// runtime cycle under src/main/machines/ is gone. Both are re-exported below,
+// so every caller of this module is unchanged. `./ready-context.ts` holds the
+// readiness check `./dir-list.ts` and `./remote-image.ts` ask for, and
+// `./remote-stamps.ts` holds the four stamp names and the two pure composers
+// `./pane-env-rescue.ts` asks for. This file imports all three of those files,
+// which is why it could not also be what they import.
+import { readyRemoteContext } from './ready-context';
+import { REMOTE_STAMPS, oneLine, remoteStampArgs } from './remote-stamps';
 import { execOn } from './exec-plane';
 import { machineColorOf, machineLabelOf, machineRow } from './store';
 // Phase 72, widened in Phase 84. The per machine program path, captured on that
@@ -272,7 +281,6 @@ import {
 } from './control-plane';
 import {
   CREATE_ANSWER_LOST,
-  MACHINE_NOT_READY,
   REMOTE_DIR_MISSING,
   TARGET_UNBOUND,
   noRemoteRowFor
@@ -282,6 +290,10 @@ import {
 // function the conformance gate can read without starting anything.
 import { assertRemoteEnvAllowed } from './remote-env';
 
+// The re-export half of the Phase 123 move. Every existing caller of these four
+// names goes on reading them from this module.
+export { readyRemoteContext };
+export { REMOTE_STAMPS, oneLine, remoteStampArgs };
 
 const machinesLog = getLog('config');
 
@@ -361,14 +373,6 @@ export const REMOTE_LIST_FIELDS = 10;
  * process chose it.
  */
 export const REMOTE_CREATE_FORMAT = '#{session_id}';
-
-/** The four options Tortie stamps on a session it created on a machine. */
-export const REMOTE_STAMPS = [
-  '@gmux-id',
-  '@gmux-agent',
-  '@gmux-name',
-  '@gmux-project'
-] as const;
 
 // ---------------------------------------------------------------------------
 // The cadence
@@ -695,21 +699,6 @@ export function onRemoteSessionsChanged(listener: Listener): () => void {
 // The pure composition
 // ---------------------------------------------------------------------------
 
-/**
- * One value, with every tab and newline replaced by a single space.
- *
- * Applied to the display name and the project path before either is stamped on
- * the far side. A newline would end the line the poll reads, and a tab comes
- * back as an underscore from a client with no UTF-8 locale, which is measured in
- * the header of {@link REMOTE_LIST_FORMAT}. So the value Tortie writes is the
- * value Tortie reads back. A display name with a tab in it is something a paste
- * can produce, and it is worth one space rather than a value that changes on the
- * way home.
- */
-export function oneLine(value: string): string {
-  return value.replace(/[\t\r\n]+/g, ' ');
-}
-
 /** What a remote create needs. Every path in it belongs to the other machine. */
 export interface RemoteCreateInput {
   readonly machineId: string;
@@ -794,15 +783,6 @@ export function remoteCreateArgs(input: {
 /** The list argv. Pure. */
 export function remoteListArgs(): string[] {
   return ['list-sessions', '-F', REMOTE_LIST_FORMAT];
-}
-
-/** One stamp, aimed at an immutable identifier. Pure. */
-export function remoteStampArgs(
-  tmuxId: string,
-  option: string,
-  value: string
-): string[] {
-  return ['set-option', '-t', tmuxId, option, value];
 }
 
 /**
@@ -1140,46 +1120,6 @@ function remoteRecordStatus(
 // ---------------------------------------------------------------------------
 // The four verbs
 // ---------------------------------------------------------------------------
-
-/**
- * The context for a machine Tortie has already signed in to, or a refusal.
- *
- * Two things are asked, and both have to be true. There has to be a registered
- * context, which only `prepareMachine` creates and which the confirm gate stands
- * in front of. And the machine's own program search list has to have been read
- * for the current connection, which is what `prepareMachine` step 5 does. The
- * exec plane refuses a mutating verb without the second one anyway; asking here
- * as well is what turns that into a sentence a person can act on.
- *
- * @throws GmuxError INVALID_INPUT with {@link MACHINE_NOT_READY}.
- */
-export function readyRemoteContext(machineId: string): RemoteMachineContext {
-  let ctx;
-  try {
-    ctx = machineContext(machineId);
-  } catch {
-    throw gmuxError(
-      'INVALID_INPUT',
-      MACHINE_NOT_READY,
-      `${machineId} has no registered connection in this run`
-    );
-  }
-  if (ctx.kind !== 'remote') {
-    throw gmuxError(
-      'INVALID_INPUT',
-      MACHINE_NOT_READY,
-      `${machineId} resolved to this Mac rather than to a machine`
-    );
-  }
-  if (machineGeneration(machineId).remotePath === null) {
-    throw gmuxError(
-      'INVALID_INPUT',
-      MACHINE_NOT_READY,
-      `no program search list is recorded for ${machineId}'s current connection`
-    );
-  }
-  return ctx;
-}
 
 /**
  * The entry one agent launches from, with the confirm gate asked on the way.
