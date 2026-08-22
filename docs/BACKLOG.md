@@ -15115,6 +15115,54 @@ Photograph both, choose one, and write the reason in the commit body. A choice w
 - No new store value. `projectsPosition` and `projectsCollapsed` stay the only two.
 
 
+## Phase 136 — four files still credit the wrong copyright holder for the file icons (found 2026-08-22 by the Phase 134 verifier) QUEUED
+
+**Subject:** `docs(icons): the file icons are credited to the holder who ships them`
+**First body line:** `Phase 136: four files credit the wrong holder for the Material Icon Theme`
+**Semver:** patch. It corrects four comments and one document. No code path changes and no capability moves.
+**Tier 1**, gates only. It edits comments and prose. It touches no durability path, no manifest, no machines file and no rendered string.
+**Charter:** this entry, plus the `## Phase 134` entry above it, whose verifier found this while proving the About panel credit, plus `NOTICE`, which already carries the correct holder.
+
+### What is wrong
+
+Phase 134 read the licence of `material-icon-theme` version 5.37.0 out of the installed package and found its LICENSE file reads `Copyright (c) 2025 Material Extensions`. `NOTICE` line 31 now carries that name, because Phase 134 copied the MIT text from the package rather than paraphrasing it.
+
+Four places in the tree still name Philipp Kief, who was the holder when the dependency was chosen on 2026-08-09 and is not the holder the package ships today.
+
+| File | Line | What it says |
+| --- | ---: | --- |
+| `src/renderer/icons/generate-file-icons.mjs` | 7 | `the package's LICENSE file and npm registry metadata; © Philipp Kief` |
+| `src/renderer/icons/generate-file-icons.mjs` | 163 | `© Philipp Kief, https://github.com/material-extensions/vscode-material-icon-theme` |
+| `src/renderer/icons/file-icons.generated.ts` | 6 | `© Philipp Kief, https://github.com/material-extensions/vscode-material-icon-theme` |
+| `src/renderer/icons/index.ts` | 20 | `material-icon-theme MIT (© Philipp Kief)` |
+| `DESIGN.md` | 272 | `material-icon-theme ... MIT, © Philipp Kief; LICENSE verified in node_modules/material-icon-theme 2026-08-09` |
+
+Two of those rows sit in the URL's own project, `material-extensions/vscode-material-icon-theme`, so the file names one holder and links to another.
+
+This is a correctness fix on an attribution, which is why it is worth a phase rather than a drive-by edit. It is not urgent. The About panel and `NOTICE`, which are the two places the obligation is actually discharged, are already correct as of Phase 134.
+
+### Mechanism, with the paths read from the tree
+
+- Replace `© Philipp Kief` with `© Material Extensions` at the four code comment sites in the table.
+- `src/renderer/icons/file-icons.generated.ts` is GENERATED. Its header comes from `src/renderer/icons/generate-file-icons.mjs`. Fix the generator first, then re-run it, so the generated file is not hand edited and does not drift back on the next run. Find the generator's npm script in `package.json`.
+- `DESIGN.md` line 272 keeps its sentence and changes the holder and the verification date. The date becomes 2026-08-22, because that is when the licence was read again.
+- Read the licence out of `node_modules/material-icon-theme/LICENSE` yourself and quote it in the commit body. Do not copy the name out of this entry.
+
+### Proof this phase must produce, run rather than read
+
+- `grep -rn "Philipp Kief" .` over the whole tree returns nothing outside `docs/BACKLOG.md`, where this entry and the Phase 134 entry record the history.
+- The generated file was produced by running the generator, shown by a clean `git diff` after a second run of it.
+- `npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`.
+
+### What is NOT in this phase
+
+- No change to the About panel, which Phase 134 already made correct.
+- No change to `NOTICE` or `LICENSE`, which already carry the right holder.
+- No change to which icons are embedded, to the curated subset, or to the matching order.
+- No change to the codicon credit, which is a separate set under a separate licence.
+- No rewriting of history. The `docs/BACKLOG.md` entries and the CHANGELOG record what was true when written.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -15233,3 +15281,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 135 queued, the project rail's controls move to the head of its band, the ＋ is visible in all four states, and the activity bar stops being a stranded column while the projects are on the left
 - 2026-08-22, the run order was extended, he asked on 2026-08-22 for 131, 132.1, 135, 123, 125, 126, 127 and 128 to be queued all at once and for a release to be cut after them, and the release stays his to cut
 - 2026-08-22, Phase 134 shipped, the About panel now names codicons by Microsoft under CC BY 4.0 and Material Icon Theme by Material Extensions under MIT, and the company is spelled Ita Vero, LLC in LICENSE, NOTICE, package.json and CLAUDE.md, this commit, 0.67.2
+- 2026-08-22, Phase 136 queued, four files still credit Philipp Kief for the file icons while the package that ships today names Material Extensions, found by the Phase 134 verifier
