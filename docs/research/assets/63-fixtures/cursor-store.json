@@ -1,0 +1,196 @@
+{
+ "_fixture": "cursor CLI (agent id cursor). Real shape of ~/.cursor/chats/<md5hex(cwd)>/<sessionId>/. Paths and ids anonymised. store.db has exactly two tables: blobs(id TEXT PRIMARY KEY, data BLOB) and meta(key TEXT PRIMARY KEY, value TEXT).",
+ "_paths": {
+  "storeDb": "~/.cursor/chats/<md5hex(cwd)>/<sessionId>/store.db",
+  "metaJson": "~/.cursor/chats/<md5hex(cwd)>/<sessionId>/meta.json",
+  "promptHistoryJson": "~/.cursor/chats/<md5hex(cwd)>/<sessionId>/prompt_history.json"
+ },
+ "_traps": [
+  "blob index 1 is the <user_info> preamble. Its content is a STRING, never a list. It is not a human ask.",
+  "blob index 7 carries an image part beside the ask. Keep the ask text, drop the image.",
+  "blob index 3 is assistant narration before a tool call. It is not the closing answer. The closing answer is the LAST assistant text part before the next ask."
+ ],
+ "meta_table": [
+  {
+   "key": "0",
+   "value_hex": "7b226167656e744964223a2231313131313131312d323232322d343333332d383434342d353535353535353535353535222c226c6174657374526f6f74426c6f624964223a2231323866616138333162373935366536386663646365613337303932396363336666383637366335383230643633373461306131306564663263366634366337222c226e616d65223a224e6577204167656e74222c226d6f6465223a2264656661756c74222c22697352756e45766572797468696e67223a66616c73652c22637265617465644174223a313738373330383433373030302c226c617374557365644d6f64656c223a2264656661756c74222c22626c6f62456e6372797074696f6e4b6579223a2230303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030227d",
+   "value_decoded": {
+    "agentId": "11111111-2222-4333-8444-555555555555",
+    "latestRootBlobId": "128faa831b7956e68fcdcea370929cc3ff8676c5820d6374a0a10edf2c6f46c7",
+    "name": "New Agent",
+    "mode": "default",
+    "isRunEverything": false,
+    "createdAt": 1787308437000,
+    "lastUsedModel": "default",
+    "blobEncryptionKey": "0000000000000000000000000000000000000000000000000000000000000000"
+   }
+  }
+ ],
+ "root_blob_id": "128faa831b7956e68fcdcea370929cc3ff8676c5820d6374a0a10edf2c6f46c7",
+ "root_blob_hex": "0a207390f45315add8acec39d9e7a27756046fcfdc25985c1a90289153839af257f70a206a21ace10fb402432041353c130673243fe96279285e69adc9ae6d2c2369de0a0a20ab9972ddb754a81bb91ae6b52e9fba1fa711d4e63402bdcc31e4936e0eef1aee0a200f1ebb53afcdcdf2d833f49bd8023f85ff706e039176ed0782716ae2bb043e0d0a20565e682cd9359a664af4b91ecd4637b7eae41ac959d5782789b3cd3aa7735bb40a20ca8e5315a491b2e751acd9293af46edb6113ee1d169951b29ba914b6e531f6300a2088a8f7181a517dd8002f8aa99897dcf9e68ef70d74b3fd7055c1012d7d63ebaf0a207f9f0797b7fc1c14bf93cb25d448940371821af150d58ccd02589dcb843127920a207834fccdf2102d0c84e4a5508fc55524c39bdb2a8ca79abb4fbad24bf8b605eaaa01180a162f55736572732f6578616d706c652f726f6f6b657279b20103636c69d001c0f3899f8234da0110416d65726963612f4e65775f596f726b",
+ "root_blob_fields": {
+  "1": "repeated 32 byte sha256 digests, one per message, IN ORDER",
+  "21.1": "the workspace folder, present on 4 of 44 real stores",
+  "22": "the client, 'cli'",
+  "26": "epoch ms of the first request. CONSTANT for the session, NOT a per turn time",
+  "27": "the IANA timezone"
+ },
+ "blobs": {
+  "7390f45315add8acec39d9e7a27756046fcfdc25985c1a90289153839af257f7": {
+   "role": "system",
+   "content": "You are an AI coding assistant, powered by Composer. You are an interactive CLI tool that helps users with software engineering tasks.\n\nYour main goal is to follow the USER's instructions, which are denoted by the <user_query> tag.\n"
+  },
+  "6a21ace10fb402432041353c130673243fe96279285e69adc9ae6d2c2369de0a": {
+   "role": "user",
+   "content": "<user_info>\nOS Version: darwin 24.6.0\n\nShell: zsh\n\nWorkspace Path: /Users/example/rookery\n\nIs directory a git repo: Yes, at /Users/example/rookery\n\nToday's date: Thursday Aug 20, 2026\n</user_info>\n\n<git_status>\n```\n## main...origin/main\n?? notes/\n```\n</git_status>\n\n<rules>\n<always_applied_workspace_rule name=\"/Users/example/rookery/AGENTS.md\">Prefer absolute paths. Run the tests before you push.</always_applied_workspace_rule>\n</rules>\n"
+  },
+  "ab9972ddb754a81bb91ae6b52e9fba1fa711d4e63402bdcc31e4936e0eef1aee": {
+   "role": "user",
+   "content": [
+    {
+     "type": "text",
+     "text": "<timestamp>Thursday, Aug 20, 2026, 9:14 AM (UTC-4)</timestamp>\n<user_query>\nadd a health endpoint to the worker and wire it into the smoke test\n</user_query>"
+    }
+   ],
+   "providerOptions": {
+    "cursor": {
+     "requestId": "00000000-0000-4000-8000-000000000001"
+    }
+   }
+  },
+  "0f1ebb53afcdcdf2d833f49bd8023f85ff706e039176ed0782716ae2bb043e0d": {
+   "role": "assistant",
+   "content": [
+    {
+     "type": "reasoning",
+     "text": "",
+     "signature": "REDACTED_SIGNATURE_BLOB"
+    },
+    {
+     "type": "text",
+     "text": "Looking at the worker entry point first."
+    },
+    {
+     "type": "tool-call",
+     "toolCallId": "call_1",
+     "toolName": "read_file",
+     "input": {
+      "path": "/Users/example/rookery/worker/index.ts"
+     }
+    }
+   ],
+   "id": "msg_0001",
+   "providerOptions": {
+    "cursor": {
+     "modelProviderMessageId": "msg_0001"
+    }
+   }
+  },
+  "565e682cd9359a664af4b91ecd4637b7eae41ac959d5782789b3cd3aa7735bb4": {
+   "role": "tool",
+   "content": [
+    {
+     "type": "tool-result",
+     "toolCallId": "call_1",
+     "toolName": "read_file",
+     "output": {
+      "type": "text",
+      "value": "export default {\n  async fetch(req) {\n    return new Response('ok')\n  }\n}\n"
+     }
+    }
+   ],
+   "id": "msg_0002"
+  },
+  "ca8e5315a491b2e751acd9293af46edb6113ee1d169951b29ba914b6e531f630": {
+   "role": "assistant",
+   "content": [
+    {
+     "type": "reasoning",
+     "text": "",
+     "signature": "REDACTED_SIGNATURE_BLOB"
+    },
+    {
+     "type": "text",
+     "text": "Added `GET /health` to `worker/index.ts` and a case for it in `test/smoke.test.ts`. Both tests pass."
+    }
+   ],
+   "id": "msg_0003",
+   "providerOptions": {
+    "cursor": {
+     "modelProviderMessageId": "msg_0003"
+    }
+   }
+  },
+  "88a8f7181a517dd8002f8aa99897dcf9e68ef70d74b3fd7055c1012d7d63ebaf": {
+   "role": "user",
+   "content": [
+    {
+     "type": "text",
+     "text": "<timestamp>Thursday, Aug 20, 2026, 9:31 AM (UTC-4)</timestamp>\n<user_query>\nnow make it report the build sha too\n</user_query>"
+    }
+   ],
+   "providerOptions": {
+    "cursor": {
+     "requestId": "00000000-0000-4000-8000-000000000002"
+    }
+   }
+  },
+  "7f9f0797b7fc1c14bf93cb25d448940371821af150d58ccd02589dcb84312792": {
+   "role": "user",
+   "content": [
+    {
+     "type": "image",
+     "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    },
+    {
+     "type": "text",
+     "text": "<timestamp>Thursday, Aug 20, 2026, 9:33 AM (UTC-4)</timestamp>\n<user_query>\nthis is what the dashboard shows\n</user_query>"
+    }
+   ],
+   "providerOptions": {
+    "cursor": {
+     "requestId": "00000000-0000-4000-8000-000000000003"
+    }
+   }
+  },
+  "7834fccdf2102d0c84e4a5508fc55524c39bdb2a8ca79abb4fbad24bf8b605ea": {
+   "role": "assistant",
+   "content": [
+    {
+     "type": "reasoning",
+     "text": "",
+     "signature": "REDACTED_SIGNATURE_BLOB"
+    },
+    {
+     "type": "text",
+     "text": "`/health` now returns `{\"ok\":true,\"sha\":\"<7 char build sha>\"}`. The sha comes from the `BUILD_SHA` binding, and the smoke test asserts it is 7 hex characters."
+    }
+   ],
+   "id": "msg_0004",
+   "providerOptions": {
+    "cursor": {
+     "modelProviderMessageId": "msg_0004"
+    }
+   }
+  },
+  "128faa831b7956e68fcdcea370929cc3ff8676c5820d6374a0a10edf2c6f46c7": "<the root blob above, binary>"
+ },
+ "expected": {
+  "turns": 3,
+  "asks": [
+   "add a health endpoint to the worker and wire it into the smoke test",
+   "now make it report the build sha too",
+   "this is what the dashboard shows"
+  ],
+  "closingAnswers": [
+   "Added `GET /health` to `worker/index.ts` and a case for it in `test/smoke.test.ts`. Both tests pass.",
+   "`/health` now returns `{\"ok\":true,\"sha\":\"<7 char build sha>\"}`. The sha comes from the `BUILD_SHA` binding, and the smoke test asserts it is 7 hex characters."
+  ],
+  "askTimestamps": [
+   "Thursday, Aug 20, 2026, 9:14 AM (UTC-4)",
+   "Thursday, Aug 20, 2026, 9:31 AM (UTC-4)",
+   "Thursday, Aug 20, 2026, 9:33 AM (UTC-4)"
+  ],
+  "watermark": "128faa831b7956e68fcdcea370929cc3ff8676c5820d6374a0a10edf2c6f46c7"
+ }
+}

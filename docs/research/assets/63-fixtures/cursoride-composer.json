@@ -1,0 +1,235 @@
+{
+ "_fixture": "cursoride (agent id cursoride). Real shape of ~/Library/Application Support/Cursor/User/globalStorage/state.vscdb. Paths, ids and text anonymised. cursoride is launchable:false in the registry, so no Tortie session can ever join to it. This fixture exists so the gate can prove the reader is CORRECT if it is ever pointed at one.",
+ "_tables": {
+  "cursorDiskKV": "key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB. Keys used here are composerData:<composerId> and bubbleId:<composerId>:<bubbleId>.",
+  "composerHeaders": "composerId TEXT PRIMARY KEY, workspaceId, createdAt, lastUpdatedAt, isArchived, isSubagent, recency, checkpointAt, value TEXT"
+ },
+ "_traps": [
+  "bubble 3 is a real ask with the machine written prefix '[Request interrupted by user for tool use]'. Strip the prefix, keep the ask.",
+  "bubble 5 is a skill preamble injected as a type 1 bubble. In the real store one of these is 551034 characters. The human's ask is the text after the LAST '\\n## User Request\\n\\n'. Taking the whole bubble tells the operator he said 551034 characters he never typed.",
+  "every ask in this vintage ends with '\\n\\n---'. Strip it.",
+  "bubble 7 has a NULL value. 3400 of 24204 real bubbleId rows are NULL. A header can point at a bubble with no content.",
+  "assistant text carries <tool-use ...>...</tool-use> HTML inline. Strip those blocks before showing the answer.",
+  "every createdAt in this conversation is within 27 ms of every other. It is the row WRITE time, and an imported or resumed conversation writes them all at once. It is not the time the turn happened."
+ ],
+ "composerHeaders_row": {
+  "composerId": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+  "workspaceId": "8612d14bee9c5a199de1d50c8fe01b3a",
+  "createdAt": 1784231124004,
+  "lastUpdatedAt": 1784231196022,
+  "isArchived": 0,
+  "isSubagent": 0,
+  "recency": 1784231196022,
+  "checkpointAt": 1784231216724,
+  "value": {
+   "type": "head",
+   "composerId": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+   "lastUpdatedAt": 1784231196022,
+   "createdAt": 1784231124004,
+   "unifiedMode": "agent",
+   "isArchived": false,
+   "isSubagent": false,
+   "workspaceIdentifier": {
+    "id": "8612d14bee9c5a199de1d50c8fe01b3a"
+   }
+  }
+ },
+ "cursorDiskKV": {
+  "composerData:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee": {
+   "_v": 3,
+   "composerId": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+   "name": "(1) add a health endpoint to the worker",
+   "createdAt": 1784231124004,
+   "lastUpdatedAt": 1784231196022,
+   "unifiedMode": "agent",
+   "status": "completed",
+   "hasLoaded": true,
+   "isAgentic": true,
+   "workspaceIdentifier": {
+    "id": "8612d14bee9c5a199de1d50c8fe01b3a",
+    "uri": {
+     "$mid": 1,
+     "fsPath": "/Users/example/rookery",
+     "external": "file:///Users/example/rookery",
+     "path": "/Users/example/rookery",
+     "scheme": "file"
+    }
+   },
+   "subtitle": "The last thing we worked on was the health endpoint\u2026",
+   "contextTokensUsed": 21355,
+   "contextTokenLimit": 256000,
+   "todos": [],
+   "queueItems": [],
+   "subagentComposerIds": [],
+   "fullConversationHeadersOnly": [
+    {
+     "bubbleId": "b00000001-0000-4000-8000-000000000000",
+     "type": 1,
+     "serverBubbleId": "s0000001",
+     "grouping": {
+      "isRenderable": true,
+      "hasText": true
+     },
+     "createdAt": "2026-07-16T19:45:24.030Z"
+    },
+    {
+     "bubbleId": "b00000002-0000-4000-8000-000000000000",
+     "type": 2,
+     "serverBubbleId": "s0000002",
+     "grouping": {
+      "isRenderable": true,
+      "hasText": true,
+      "isKeptFinalAiVisibleOutsideWorkedForGroup": true
+     },
+     "createdAt": "2026-07-16T19:45:24.032Z"
+    },
+    {
+     "bubbleId": "b00000003-0000-4000-8000-000000000000",
+     "type": 1,
+     "serverBubbleId": "s0000003",
+     "grouping": {
+      "isRenderable": true,
+      "hasText": true
+     },
+     "createdAt": "2026-07-16T19:45:24.032Z"
+    },
+    {
+     "bubbleId": "b00000004-0000-4000-8000-000000000000",
+     "type": 2,
+     "serverBubbleId": "s0000004",
+     "grouping": {
+      "isRenderable": true,
+      "hasText": true,
+      "isKeptFinalAiVisibleOutsideWorkedForGroup": true
+     },
+     "createdAt": "2026-07-16T19:45:24.040Z"
+    },
+    {
+     "bubbleId": "b00000005-0000-4000-8000-000000000000",
+     "type": 1,
+     "serverBubbleId": "s0000005",
+     "grouping": {
+      "isRenderable": true,
+      "hasText": true
+     },
+     "createdAt": "2026-07-16T19:45:24.041Z"
+    },
+    {
+     "bubbleId": "b00000006-0000-4000-8000-000000000000",
+     "type": 2,
+     "serverBubbleId": "s0000006",
+     "grouping": {
+      "isRenderable": true,
+      "hasText": true,
+      "isKeptFinalAiVisibleOutsideWorkedForGroup": true
+     },
+     "createdAt": "2026-07-16T19:45:24.057Z"
+    },
+    {
+     "bubbleId": "b00000007-0000-4000-8000-000000000000",
+     "type": 2,
+     "serverBubbleId": "s0000007",
+     "grouping": {
+      "isRenderable": false,
+      "hasText": false
+     },
+     "createdAt": "2026-07-16T19:45:24.060Z"
+    }
+   ]
+  },
+  "bubbleId:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:b00000001-0000-4000-8000-000000000000": {
+   "_v": 3,
+   "type": 1,
+   "bubbleId": "b00000001-0000-4000-8000-000000000000",
+   "text": "add a health endpoint to the worker and wire it into the smoke test\n\n---",
+   "richText": "{\"root\":{\"children\":[{\"children\":[{\"text\":\"add a health endpoint to the worker and wire it into the smoke test\"}]}]}}",
+   "context": {
+    "fileSelections": [],
+    "folderSelections": []
+   },
+   "tokenCount": {
+    "inputTokens": 0,
+    "outputTokens": 0
+   },
+   "createdAt": "2026-07-16T19:45:24.030Z",
+   "isAgentic": true
+  },
+  "bubbleId:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:b00000002-0000-4000-8000-000000000000": {
+   "_v": 3,
+   "type": 2,
+   "bubbleId": "b00000002-0000-4000-8000-000000000000",
+   "text": "I'll read the worker entry point first.\n\n<tool-use data-tool-type=\"read\" data-tool-name=\"Read\"><details>\n<summary>Tool use: **Read**</summary>\n\n```text\nworker/index.ts, 42 lines\n```\n\n</details></tool-use>\n\nAdded `GET /health` to `worker/index.ts` and a case for it in `test/smoke.test.ts`. Both tests pass.",
+   "richText": "{\"root\":{\"children\":[]}}",
+   "serverBubbleId": "s0000002",
+   "createdAt": "2026-07-16T19:45:24.032Z",
+   "isAgentic": true
+  },
+  "bubbleId:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:b00000003-0000-4000-8000-000000000000": {
+   "_v": 3,
+   "type": 1,
+   "bubbleId": "b00000003-0000-4000-8000-000000000000",
+   "text": "[Request interrupted by user for tool use]\n\nactually stop, tell me what you found first\n\n---",
+   "richText": "{\"root\":{\"children\":[]}}",
+   "createdAt": "2026-07-16T19:45:24.032Z",
+   "isAgentic": true
+  },
+  "bubbleId:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:b00000004-0000-4000-8000-000000000000": {
+   "_v": 3,
+   "type": 2,
+   "bubbleId": "b00000004-0000-4000-8000-000000000000",
+   "text": "The worker had no route table at all. Every request fell through to a single `return new Response('ok')`.",
+   "richText": "{\"root\":{\"children\":[]}}",
+   "serverBubbleId": "s0000004",
+   "createdAt": "2026-07-16T19:45:24.040Z",
+   "isAgentic": true
+  },
+  "bubbleId:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:b00000005-0000-4000-8000-000000000000": {
+   "_v": 3,
+   "type": 1,
+   "bubbleId": "b00000005-0000-4000-8000-000000000000",
+   "text": "Base directory for this skill: /private/tmp/bundled-skills/1.0.0/deadbeef/example-skill\n\n# Example skill\n\nRead the reference before opening the target file.\n\n- a documented rule the harness injects, repeated in the real record until the block is 551034 characters long\n- a documented rule the harness injects, repeated in the real record until the block is 551034 characters long\n- a documented rule the harness injects, repeated in the real record until the block is 551034 characters long\n- a documented rule the harness injects, repeated in the real record until the block is 551034 characters long\n- a documented rule the harness injects, repeated in the real record until the block is 551034 characters long\n- a documented rule the harness injects, repeated in the real record until the block is 551034 characters long\n\n## User Request\n\ncorrect flag to pass to the worker build in CI\n\n---",
+   "richText": "{\"root\":{\"children\":[]}}",
+   "createdAt": "2026-07-16T19:45:24.041Z",
+   "isAgentic": true
+  },
+  "bubbleId:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:b00000006-0000-4000-8000-000000000000": {
+   "_v": 3,
+   "type": 2,
+   "bubbleId": "b00000006-0000-4000-8000-000000000000",
+   "text": "Use `--minify=false` for the CI build. The default strips the build sha the health route reports.",
+   "richText": "{\"root\":{\"children\":[]}}",
+   "serverBubbleId": "s0000006",
+   "createdAt": "2026-07-16T19:45:24.057Z",
+   "isAgentic": true
+  },
+  "bubbleId:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee:b00000007-0000-4000-8000-000000000000": null
+ },
+ "workspace_json": {
+  "path": "~/Library/Application Support/Code|Cursor/User/workspaceStorage/8612d14bee9c5a199de1d50c8fe01b3a/workspace.json",
+  "content": {
+   "folder": "file:///Users/example/rookery"
+  }
+ },
+ "expected": {
+  "turns": 3,
+  "asks": [
+   "add a health endpoint to the worker and wire it into the smoke test",
+   "actually stop, tell me what you found first",
+   "correct flag to pass to the worker build in CI"
+  ],
+  "closingAnswers": [
+   "Added `GET /health` to `worker/index.ts` and a case for it in `test/smoke.test.ts`. Both tests pass.",
+   "The worker had no route table at all. Every request fell through to a single `return new Response('ok')`.",
+   "Use `--minify=false` for the CI build. The default strips the build sha the health route reports."
+  ],
+  "watermark": {
+   "table": "composerHeaders",
+   "column": "lastUpdatedAt",
+   "value": 1784231196022
+  },
+  "naiveAskCharacters": 1057,
+  "correctAskCharacters": 156
+ },
+ "_closingAnswerRule": "The closing answer is the LAST type 2 bubble with non empty text before the next type 1 bubble. 9768 of 18185 real type 2 bubbles have no text at all, and those are tool and thought bubbles. If that bubble's text contains a <tool-use> block, being an imported Claude Code session, take the text after the LAST </tool-use>, stripped of surrounding '-' characters. If that tail is under 40 characters, fall back to the whole text with every <tool-use> block removed. 162 of 8417 real type 2 bubbles with text have such a block, and 11 of those 162 need the fallback.",
+ "_askRule": "The human's ask is a type 1 bubble's `text`, after four removals: the leading '[Request interrupted by user ...]' marker, any <system-reminder> block, the trailing '\\n\\n---' separator, and every '[Image: source: ...]' line. If the text begins 'Base directory for this skill:' the real ask is the text after the LAST '\\n## User Request\\n\\n'."
+}

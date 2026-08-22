@@ -1,0 +1,9 @@
+{
+ "schema_version": 1,
+ "pid": 40001,
+ "session_id": "11111111-2222-4333-8444-555555555555",
+ "work_dir": "/Users/dev/demo-project",
+ "hostname": "dev-mac",
+ "started_at": 1787220000.0,
+ "qwen_version": "0.21.9"
+}

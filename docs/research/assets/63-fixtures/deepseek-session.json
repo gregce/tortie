@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "title": "<turn_meta>",
+    "created_at": "2026-08-10T15:57:16.901785Z",
+    "updated_at": "2026-08-10T19:57:47.358535Z",
+    "message_count": 8,
+    "total_tokens": 88016,
+    "model": "deepseek-v4-pro",
+    "workspace": "/Users/example/demo-project",
+    "mode": "agent"
+  },
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "<turn_meta>\nCurrent local date: 2026-08-10\n## Repo Working Set\nWorkspace: /Users/example/demo-project\nKey files: README.md, NOTES.md, package.json\nTop-level dirs: docs, src\nWhen in doubt, use tools to verify and keep changes focused on the working set.\n</turn_meta>"
+        },
+        {
+          "type": "text",
+          "text": "whats up"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "<turn_meta>\nCurrent local date: 2026-08-10\n## Repo Working Set\nWorkspace: /Users/example/demo-project\nKey files: README.md, NOTES.md, package.json\nTop-level dirs: docs, src\nWhen in doubt, use tools to verify and keep changes focused on the working set.\n</turn_meta>"
+        },
+        {
+          "type": "text",
+          "text": "what all can you do?"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "The user greeted me and then asked what I can do. Give a short overview of the tools available in this workspace."
+        },
+        {
+          "type": "text",
+          "text": "Here. Working out of demo-project.\n\nWhat I can do in this workspace:\n\n- **Read and search code** in any file in the repo\n- **Edit code** with targeted patches or new files\n- **Run shell commands** once you approve them\n\nWhat do you want to start on?"
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "<turn_meta>\nCurrent local date: 2026-08-10\n## Repo Working Set\nWorkspace: /Users/example/demo-project\nKey files: README.md, NOTES.md, package.json\nTop-level dirs: docs, src\nActive paths (prioritize these):\n- NOTES.md (file)\nWhen in doubt, use tools to verify and keep changes focused on the working set.\n</turn_meta>"
+        },
+        {
+          "type": "text",
+          "text": "read NOTES.md and tell me what it says"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "The user wants the contents of NOTES.md. Let me read it."
+        },
+        {
+          "type": "tool_use",
+          "id": "call_00_EXAMPLEIDAAAAAAAAAAAAAAA",
+          "name": "read_file",
+          "input": {
+            "path": "NOTES.md"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call_00_EXAMPLEIDAAAAAAAAAAAAAAA",
+          "content": "# Notes\n\nThe release checklist lives in docs/RELEASE.md.\nRemember to bump the version before tagging.\n",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "thinking",
+          "thinking": "NOTES.md points at docs/RELEASE.md. Let me open that too before I answer."
+        },
+        {
+          "type": "text",
+          "text": "NOTES.md points at `docs/RELEASE.md` for the checklist. Let me open that as well before I answer."
+        },
+        {
+          "type": "tool_use",
+          "id": "call_01_EXAMPLEIDBBBBBBBBBBBBBBB",
+          "name": "read_file",
+          "input": {
+            "path": "docs/RELEASE.md"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call_01_EXAMPLEIDBBBBBBBBBBBBBBB",
+          "content": "Error: Tool 'read_file' was denied: denied by user. Adjust approval mode or request permission.",
+          "is_error": true
+        }
+      ]
+    }
+  ],
+  "system_prompt": "You are an interactive CLI coding agent working inside a user's repository.\n\n## Tools\nUse read_file to read files. Use task_shell_start and task_shell_wait to run commands.\n\n## Style\nBe brief. Prefer showing the change over describing it.\n\n(The real system prompt on this machine is 35 KB to 62 KB. It is truncated here on purpose: it is 66.2% of the real store and the keep map never reads it.)\n"
+}

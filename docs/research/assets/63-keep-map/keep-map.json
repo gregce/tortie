@@ -1,0 +1,402 @@
+{
+  "mapVersion": 1,
+  "note": "Research 63. Per provider, the five things the session overview page needs, as DATA. The engine in lib/ reads this file and nothing else provider specific. A vendor change edits this file, not the code.",
+  "slots": ["ask", "answer", "turnBoundary", "join", "watermark"],
+  "providers": {
+
+    "claude": {
+      "status": "mapped",
+      "container": "jsonl",
+      "store": "~/.claude/projects/<dashEncode(realpath(cwd))>/<agentSessionId>.jsonl",
+      "join": { "resolve": "path-arithmetic", "idIsFilename": true, "cwdField": "cwd", "confirm": "cwd" },
+      "watermark": { "kind": "byte-offset", "guard": "head-sha256-4096", "neverUse": "timestamp, which goes backwards 2572 times in 102024 records" },
+      "prefilter": {
+        "headBytes": 512,
+        "rules": [
+          { "class": "answer", "head": "\"role\":\"assistant\"", "requireAnywhere": ["\"type\":\"text\""] },
+          { "class": "ask", "head": "\"type\":\"user\"", "rejectAnywhere": ["\"type\":\"tool_result\""] }
+        ]
+      },
+      "filter": { "ne": ["isSidechain", true] },
+      "ask": {
+        "when": { "eq": ["type", "user"] },
+        "text": { "stringOrParts": "message.content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" },
+        "time": { "path": "timestamp", "format": "iso" },
+        "transform": [
+          { "op": "commandEcho", "nameTag": "command-name", "argsTag": "command-args",
+            "dropCommands": ["/model", "/effort", "/login", "/config", "/logout", "/status", "/theme", "/vim", "/terminal-setup"] }
+        ],
+        "drop": [
+          { "reason": "meta record", "when": { "eq": ["isMeta", true] } },
+          { "reason": "compaction handover", "when": { "eq": ["isCompactSummary", true] } },
+          { "reason": "machine injected as the person", "when": { "eq": ["promptSource", "system"] } },
+          { "reason": "task notification", "when": { "or": [ { "eq": ["origin.kind", "task-notification"] }, { "startsWith": ["_text", "<task-notification>"] } ] } },
+          { "reason": "scheduler re-injection", "when": { "exists": "queuePriority" } },
+          { "reason": "peer agent message", "when": { "or": [ { "eq": ["origin.kind", "peer"] }, { "startsWith": ["_text", "Another Claude session sent a message"] } ] } },
+          { "reason": "slash command output", "when": { "startsWithAny": ["_text", ["<local-command-stdout>", "<local-command-stderr>"]] } },
+          { "reason": "bash mode line", "when": { "startsWithAny": ["_text", ["<bash-input>", "<bash-stdout>", "<bash-stderr>"]] } },
+          { "reason": "interrupt marker", "when": { "eq": ["_text", "[Request interrupted by user]"] } },
+          { "reason": "empty after transform", "when": { "blank": "_text" } }
+        ]
+      },
+      "answer": {
+        "when": { "eq": ["type", "assistant"] },
+        "text": { "stringOrParts": "message.content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" },
+        "time": { "path": "timestamp", "format": "iso" },
+        "drop": [
+          { "reason": "CLI notice, not the agent", "when": { "eq": ["message.model", "<synthetic>"] } },
+          { "reason": "api error", "when": { "eq": ["isApiErrorMessage", true] } },
+          { "reason": "empty", "when": { "blank": "_text" } }
+        ]
+      },
+      "turn": { "open": "ask", "close": "nextAskOr", "alsoCloseWhen": { "exists": "queuePriority" }, "pick": "last-answer-before-close" }
+    },
+
+    "codex": {
+      "status": "mapped",
+      "container": "jsonl",
+      "store": "~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<ISO>-<agentSessionId>.jsonl",
+      "join": { "resolve": "path-arithmetic", "idIsFilenameSuffix": true, "metaRecord": { "eq": ["type", "session_meta"] }, "cwdField": "payload.cwd",
+                "reject": { "eq": ["payload.thread_source", "subagent"] } },
+      "watermark": { "kind": "byte-offset", "crossCheck": "ordinal", "neverUse": "ordinal alone, absent on 496 of 500 sampled files" },
+      "prefilter": {
+        "headBytes": 200,
+        "rules": [
+          { "class": "any", "head": "\"session_meta\"" },
+          { "class": "ask", "head": "\"user_message\"" },
+          { "class": "any", "head": "\"item_completed\"" },
+          { "class": "boundary", "head": "\"task_started\"" },
+          { "class": "answer", "head": "\"task_complete\"" },
+          { "class": "answer", "head": "\"agent_message\"" }
+        ]
+      },
+      "filter": { "eq": ["type", "event_msg"] },
+      "ask": {
+        "when": { "or": [
+          { "eq": ["payload.type", "user_message"] },
+          { "and": [ { "eq": ["payload.type", "item_completed"] }, { "eq": ["payload.item.type", "UserMessage"] } ] }
+        ] },
+        "text": { "firstOf": [
+          { "field": "payload.message" },
+          { "parts": "payload.item.content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" }
+        ] },
+        "time": { "path": "timestamp", "format": "iso" },
+        "transform": [
+          { "op": "afterMarker", "marker": "## My request for Codex:", "onlyIfStartsWith": ["\n# Files mentioned by the user:", "# Files mentioned by the user:"] }
+        ],
+        "drop": [
+          { "reason": "machine preamble", "when": { "startsWithAny": ["_text", ["<environment_context>", "<user_instructions>", "<goal_context>", "<turn_aborted>", "<subagent_notification>", "<codex_internal_context", "<skill>", "<recommended_plugins>", "<image ", "# AGENTS.md instructions for"]] } },
+          { "reason": "empty", "when": { "blank": "_text" } }
+        ]
+      },
+      "answer": {
+        "when": { "or": [
+          { "eq": ["payload.type", "agent_message"] },
+          { "and": [ { "eq": ["payload.type", "item_completed"] }, { "eq": ["payload.item.type", "AgentMessage"] } ] }
+        ] },
+        "text": { "firstOf": [ { "field": "payload.message" }, { "parts": "payload.item.content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" } ] },
+        "time": { "path": "timestamp", "format": "iso" },
+        "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "turn": {
+        "open": { "eq": ["payload.type", "task_started"] },
+        "close": { "eq": ["payload.type", "task_complete"] },
+        "answerFrom": { "field": "payload.last_agent_message" },
+        "pick": "close-answer-else-last-answer",
+        "dropTurnsWithNoAsk": true,
+        "reason": "328 of 786 turns in the 12 largest files were started by codex's own goal loop and hold no human ask"
+      }
+    },
+
+    "grok": {
+      "status": "mapped",
+      "container": "jsonl",
+      "store": "~/.grok/sessions/<urlencode(realpath(cwd))>/<agentSessionId>/updates.jsonl",
+      "join": { "resolve": "path-arithmetic", "idIsLeafDir": true, "sidecar": "summary.json", "sidecarCwdField": "info.cwd" },
+      "watermark": { "kind": "byte-offset", "neverUse": "summary.json updated_at, which moved 4.7 days after the last real turn" },
+      "prefilter": {
+        "headBytes": 192,
+        "rules": [
+          { "class": "ask", "head": "\"user_message_chunk\"" },
+          { "class": "answer", "head": "\"agent_message_chunk\"" },
+          { "class": "boundary", "head": "\"turn_completed\"" },
+          { "class": "any", "head": "\"session_recap\"" },
+          { "class": "any", "head": "\"subagent_spawned\"" }
+        ]
+      },
+      "ask": {
+        "when": { "eq": ["params.update.sessionUpdate", "user_message_chunk"] },
+        "text": { "field": "params.update.content.text" },
+        "time": { "path": "params._meta.agentTimestampMs", "format": "epoch-ms" },
+        "drop": [
+          { "reason": "grok's own hidden injection", "when": { "eq": ["params.update._meta.hideFromScrollback", true] } },
+          { "reason": "empty", "when": { "blank": "_text" } }
+        ]
+      },
+      "answer": {
+        "when": { "eq": ["params.update.sessionUpdate", "agent_message_chunk"] },
+        "text": { "field": "params.update.content.text" },
+        "time": { "path": "params._meta.agentTimestampMs", "format": "epoch-ms" },
+        "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "turn": { "open": "ask", "close": { "eq": ["params.update.sessionUpdate", "turn_completed"] }, "pick": "last-answer-before-close",
+                "carry": { "stopReason": "params.update.stop_reason" } }
+    },
+
+    "antigravity": {
+      "status": "mapped",
+      "container": "jsonl",
+      "store": "~/.gemini/antigravity-cli/brain/<agentSessionId>/.system_generated/logs/transcript_full.jsonl",
+      "join": { "resolve": "path-arithmetic", "idIsBrainDir": true,
+                "confirmVia": "conversations/<agentSessionId>.db trajectory_metadata_blob, file:// uri, because 2 of 4 live rows point at the wrong conversation" },
+      "watermark": { "kind": "byte-offset", "crossCheck": "step_index", "neverUse": "conversation_summaries.db, stale since 2026-05-26" },
+      "prefilter": {
+        "headBytes": 80,
+        "rules": [
+          { "class": "ask", "head": "\"USER_INPUT\"" },
+          { "class": "answer", "head": "\"PLANNER_RESPONSE\"", "requireAnywhere": ["\"content\""] }
+        ]
+      },
+      "ask": {
+        "when": { "and": [ { "eq": ["source", "USER_EXPLICIT"] }, { "eq": ["type", "USER_INPUT"] } ] },
+        "text": { "field": "content" },
+        "time": { "path": "created_at", "format": "iso" },
+        "transform": [ { "op": "between", "open": "<USER_REQUEST>", "close": "</USER_REQUEST>" } ],
+        "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "answer": {
+        "when": { "and": [ { "eq": ["source", "MODEL"] }, { "eq": ["type", "PLANNER_RESPONSE"] }, { "notExists": "tool_calls" } ] },
+        "text": { "field": "content" },
+        "time": { "path": "created_at", "format": "iso" },
+        "drop": [ { "reason": "narration beside a tool call", "when": { "exists": "tool_calls" } }, { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "turn": { "open": "ask", "close": "nextAskOr", "pick": "last-answer-before-close" }
+    },
+
+    "muse": {
+      "status": "mapped",
+      "container": "jsonl",
+      "store": "$XDG_DATA_HOME/muse/sessions/<YYYY>/<MM>/<DD>/<agentSessionId>/session.jsonl",
+      "join": { "resolve": "index-or-glob", "index": "~/.local/share/muse/session-index.db sessions.session_log_path",
+                "cwdField": "payload.record.workspace_root", "neverDescendInto": "subagent/" },
+      "watermark": { "kind": "byte-offset", "crossCheck": "sequence", "neverUse": "session-index.db updated_at_us, 14.5 hours behind on the live session" },
+      "prefilter": {
+        "headBytes": 512,
+        "rules": [
+          { "class": "ask", "head": "\"kind\":\"started\"", "requireAnywhere": ["\"runtime.session\""] },
+          { "class": "answer", "head": "assistant_message_committed" },
+          { "class": "boundary", "head": "\"kind\":\"terminal\"" }
+        ]
+      },
+      "filter": { "eq": ["stream.id", "$sessionId"] },
+      "ask": {
+        "when": { "and": [ { "eq": ["payload_type", "runtime.session"] }, { "eq": ["payload.kind", "run"] }, { "eq": ["payload.event.kind", "started"] } ] },
+        "text": { "field": "payload.event.prompt" },
+        "time": { "path": "recorded_at", "format": "epoch-us" },
+        "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "answer": {
+        "when": { "eq": ["payload.event.kind", "assistant_message_committed"] },
+        "text": { "field": "payload.event.text" },
+        "time": { "path": "recorded_at", "format": "epoch-us" },
+        "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "turn": { "open": "ask", "close": { "eq": ["payload.event.kind", "terminal"] }, "pick": "last-answer-before-close",
+                "carry": { "stopReason": "payload.event.reason" } }
+    },
+
+    "qwen": {
+      "status": "mapped",
+      "container": "jsonl",
+      "store": "~/.qwen/projects/<charSubstitute(realpath(cwd))>/chats/<agentSessionId>.jsonl",
+      "join": { "resolve": "path-arithmetic", "idIsFilename": true, "cwdField": "cwd", "sidecar": "<agentSessionId>.runtime.json" },
+      "watermark": { "kind": "byte-offset" },
+      "prefilter": {
+        "headBytes": 256,
+        "rules": [
+          { "class": "ask", "head": "\"provenance\":\"real_user\"" },
+          { "class": "answer", "head": "\"type\":\"assistant\"" },
+          { "class": "ask", "head": "\"type\":\"user\"", "rejectHead": ["\"provenance\":"] }
+        ]
+      },
+      "ask": {
+        "when": { "and": [ { "eq": ["type", "user"] }, { "or": [ { "eq": ["provenance", "real_user"] }, { "notExists": "provenance" } ] } ] },
+        "text": { "parts": "message.parts", "partWhen": { "exists": "text" }, "take": "text", "join": "\n" },
+        "time": { "path": "timestamp", "format": "iso" },
+        "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "answer": {
+        "when": { "eq": ["type", "assistant"] },
+        "text": { "parts": "message.parts", "partWhen": { "and": [ { "exists": "text" }, { "notExists": "thought" } ] }, "take": "text", "join": "\n" },
+        "time": { "path": "timestamp", "format": "iso" },
+        "drop": [ { "reason": "reasoning only, 246.2% more text than the answer", "when": { "blank": "_text" } } ]
+      },
+      "turn": { "open": "ask", "close": "nextAskOr", "pick": "last-answer-before-close" }
+    },
+
+    "pi": {
+      "status": "mapped",
+      "container": "jsonl",
+      "store": "~/.pi/agent/sessions/--<cwd mangled>--/<ISO>_<agentSessionId>.jsonl",
+      "join": { "resolve": "path-arithmetic", "idIsFilenameSuffix": true, "cwdField": "cwd",
+                "warning": "match on the FILENAME uuid, not on line 1 id. They differ in 6 of 55 files" },
+      "watermark": { "kind": "byte-offset" },
+      "prefilter": {
+        "headBytes": 200,
+        "rules": [
+          { "class": "ask", "head": "\"role\":\"user\"" },
+          { "class": "answer", "head": "\"role\":\"assistant\"" }
+        ]
+      },
+      "ask": {
+        "when": { "and": [ { "eq": ["type", "message"] }, { "eq": ["message.role", "user"] } ] },
+        "text": { "parts": "message.content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" },
+        "time": { "path": "timestamp", "format": "iso" },
+        "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "answer": {
+        "when": { "and": [ { "eq": ["type", "message"] }, { "eq": ["message.role", "assistant"] }, { "ne": ["message.stopReason", "toolUse"] } ] },
+        "text": { "parts": "message.content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" },
+        "time": { "path": "timestamp", "format": "iso" },
+        "drop": [ { "reason": "narration before a tool call", "when": { "eq": ["message.stopReason", "toolUse"] } }, { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "turn": { "open": "ask", "close": "nextAskOr", "pick": "last-answer-before-close" }
+    },
+
+    "gemini": {
+      "status": "mapped-with-loss",
+      "container": "jsonl",
+      "store": "~/.gemini/tmp/<projectSlug>/chats/session-<ts>-<first8>.jsonl",
+      "join": { "resolve": "glob-by-first8", "headerRecord": true, "cwdVia": ".project_root" },
+      "watermark": { "kind": "byte-offset", "invalidateOn": ["{\"$rewindTo\"", "{\"$set\":{\"messages\""] },
+      "quirks": ["expand-set-messages", "rewind-to", "dedupe-by-id-last-wins"],
+      "prefilter": {
+        "headBytes": 128,
+        "rules": [
+          { "class": "any", "head": "\"$set\":{\"messages\"" },
+          { "class": "any", "head": "\"$rewindTo\"" },
+          { "class": "ask", "head": "\"type\":\"user\"" },
+          { "class": "answer", "head": "\"type\":\"gemini\"" }
+        ]
+      },
+      "ask": {
+        "when": { "eq": ["type", "user"] },
+        "text": { "stringOrParts": "content", "partWhen": { "exists": "text" }, "take": "text", "join": "\n" },
+        "time": { "path": "timestamp", "format": "iso" },
+        "transform": [ { "op": "cutAt", "marker": "\n--- Content from referenced files ---" } ],
+        "drop": [
+          { "reason": "vendor's own ignore rule", "when": { "startsWithAny": ["_text", ["/", "?", "<session_context>", "<hook_context>"]] } },
+          { "reason": "empty", "when": { "blank": "_text" } }
+        ]
+      },
+      "answer": {
+        "when": { "eq": ["type", "gemini"] },
+        "text": { "field": "content" },
+        "time": { "path": "timestamp", "format": "iso" },
+        "drop": [ { "reason": "partial write", "when": { "blank": "_text" } } ]
+      },
+      "turn": { "open": "ask", "close": "nextAskOr", "pick": "last-answer-before-close" },
+      "honest": "The current store records an answer in 1 of 216 files on this machine. The ask is recoverable, the answer usually is not."
+    },
+
+    "deepseek": {
+      "status": "mapped",
+      "container": "json-doc",
+      "store": "~/.deepseek/sessions/<agentSessionId>.json",
+      "docStopAt": "\n  \"system_prompt\":",
+      "messagesPath": "messages",
+      "join": { "resolve": "path-arithmetic", "idField": "metadata.id", "cwdField": "metadata.workspace" },
+      "watermark": { "kind": "whole-doc", "stage1": "size+mtime", "stage2": "metadata.message_count from the first 1 KiB",
+                     "reason": "mtime moves without the conversation moving in 5 of 33 files, by up to 2429 s" },
+      "ask": {
+        "when": { "eq": ["role", "user"] },
+        "text": { "parts": "content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n", "dropPartWhen": { "startsWith": ["text", "<turn_meta>"] } },
+        "time": null,
+        "drop": [ { "reason": "tool result wearing the user role", "when": { "hasPartOfType": ["content", "tool_result"] } }, { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "answer": {
+        "when": { "eq": ["role", "assistant"] },
+        "text": { "parts": "content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" },
+        "time": null,
+        "drop": [ { "reason": "unfinished turn, narration before a tool call", "when": { "hasPartOfType": ["content", "tool_use"] } }, { "reason": "empty", "when": { "blank": "_text" } } ]
+      },
+      "turn": { "open": "ask", "close": "nextAskOr", "pick": "last-answer-before-close" },
+      "honest": "No per message timestamp exists. Only metadata.created_at and metadata.updated_at, so only the first turn and the last turn can carry a clock."
+    },
+
+    "copilotide": {
+      "status": "mapped",
+      "launchable": false,
+      "container": "json-doc",
+      "store": "~/Library/Application Support/Code/User/workspaceStorage/<hash>/chatSessions/<id>.{json,jsonl}",
+      "unwrap": "v",
+      "messagesPath": "requests",
+      "join": { "resolve": "workspace.json folder", "note": "no Tortie session can ever point here, launchable is false" },
+      "watermark": { "kind": "whole-doc", "stage1": "size+mtime", "stage2": "lastMessageDate" },
+      "turnPerElement": true,
+      "ask": { "when": { "exists": "message.text" }, "text": { "field": "message.text" }, "time": { "path": "timestamp", "format": "epoch-ms" },
+               "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ] },
+      "answer": { "when": { "exists": "response" },
+                  "text": { "parts": "response", "partWhen": { "and": [ { "exists": "value" }, { "notExists": "kind" } ] }, "take": "value", "join": "" },
+                  "time": { "path": "timestamp", "format": "epoch-ms" },
+                  "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ] },
+      "turn": { "open": "ask", "close": "sameElement", "pick": "same-element" }
+    },
+
+    "cursor": {
+      "status": "mapped",
+      "container": "sqlite-cursor",
+      "store": "~/.cursor/chats/<md5hex(cwd)>/<agentSessionId>/store.db",
+      "join": { "resolve": "path-arithmetic", "idIsLeafDir": true, "metaKey": "0", "idField": "agentId" },
+      "open": { "mode": "ro", "immutable": false, "reason": "18 of 44 stores keep 82.3% of their content in the write ahead log. immutable=1 returns no such table: blobs" },
+      "watermark": { "kind": "content-hash", "field": "meta['0'].latestRootBlobId" },
+      "rootBlob": { "encoding": "protobuf-field1-sha256-list", "entryPrefixHex": "0a20", "digestBytes": 32 },
+      "blobProbeBytes": 24,
+      "ask": { "when": { "and": [ { "eq": ["role", "user"] }, { "isArray": "content" } ] },
+               "text": { "parts": "content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" },
+               "time": { "path": "_text", "format": "cursor-timestamp-tag" },
+               "transform": [ { "op": "between", "open": "<user_query>", "close": "</user_query>", "keepWholeIfMissing": true } ],
+               "drop": [ { "reason": "the <user_info> preamble, which is a STRING content", "when": { "isString": "content" } },
+                         { "reason": "empty", "when": { "blank": "_text" } } ] },
+      "answer": { "when": { "eq": ["role", "assistant"] },
+                  "text": { "parts": "content", "partWhen": { "eq": ["type", "text"] }, "take": "text", "join": "\n" },
+                  "time": null,
+                  "drop": [ { "reason": "empty", "when": { "blank": "_text" } } ] },
+      "turn": { "open": "ask", "close": "nextAskOr", "pick": "last-answer-before-close" }
+    },
+
+    "cursoride": {
+      "status": "mapped",
+      "launchable": false,
+      "container": "sqlite-cursoride",
+      "store": "~/Library/Application Support/Cursor/User/globalStorage/state.vscdb",
+      "join": { "resolve": "composerData.workspaceIdentifier.uri.path", "note": "no Tortie session can ever point here, launchable is false" },
+      "open": { "mode": "ro", "immutable": true, "checkWalFirst": true },
+      "watermark": { "kind": "row-value", "field": "composerHeaders.lastUpdatedAt", "fallback": "length(value) of the composerData row" },
+      "bubbleKey": "bubbleId:<composerId>:<bubbleId>",
+      "orderPath": ["fullConversationHeadersOnly", "conversation"],
+      "ask": { "when": { "eq": ["type", 1] }, "text": { "field": "text" }, "time": { "path": "createdAt", "format": "iso" },
+               "transform": [ { "op": "afterMarker", "marker": "\n## User Request\n\n", "onlyIfStartsWith": ["Base directory for this skill:"] },
+                              { "op": "stripPrefix", "prefixes": ["[Request interrupted by user for tool use]"] },
+                              { "op": "stripSuffix", "suffixes": ["\n\n---"] } ],
+               "drop": [ { "reason": "empty or deleted row", "when": { "blank": "_text" } } ] },
+      "answer": { "when": { "eq": ["type", 2] }, "text": { "field": "text" }, "time": { "path": "createdAt", "format": "iso" },
+                  "transform": [ { "op": "afterLast", "marker": "</tool-use>", "minLength": 40 } ],
+                  "drop": [ { "reason": "thought or tool bubble, 53.7% of type 2 bubbles have no text", "when": { "blank": "_text" } } ] },
+      "turn": { "open": "ask", "close": "nextAskOr", "pick": "last-answer-before-close" }
+    },
+
+    "droid": {
+      "status": "absent",
+      "container": "none",
+      "store": "~/.factory/sessions",
+      "honest": "No store on this machine. ~/.factory holds only skills/ and droid is not on PATH. The page draws the honest line naming the agent.",
+      "unverifiedShape": {
+        "source": "a third party parser on this machine, specstory-cli@v1.5.0/pkg/providers/droidcli, not a droid log",
+        "ask": "type == message, message.role == user, content[] of type text",
+        "answer": "type == message, message.role != user, content[] of type text",
+        "traps": ["tool results arrive under role user as content type tool_result", "<system-reminder> blocks inside the human's own text"]
+      }
+    }
+  }
+}
