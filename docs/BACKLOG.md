@@ -14860,6 +14860,59 @@ At a 586 px viewport with two agents ticked, read from the Phase 132 after run, 
 - No merging of surface.css into install.css and no new stylesheet.
 
 
+## Phase 133 — a keychain cannot be found, because a pane outlives the login session it was stamped with (operator reported 2026-08-21) QUEUED
+
+**Subject:** `fix(sessions): an agent joins the login session that is live now`
+**First body line:** `Phase 133: a keychain cannot be found for an agent in an old pane`
+**Semver:** patch. It repairs a defect and adds no capability.
+**Tier 3.** It is durability adjacent and the operator personally reported it, and CLAUDE.md sends both to Tier 3 without exception. It changes what every managed pane inherits, so a mistake here reaches every agent on the machine.
+**Charter:** this entry, plus `docs/research/47-agent-installs.md` section 2, whose measurement is the reason this diagnosis holds, plus the 2026-08-16 incident recorded at `src/main/index.ts:155`.
+
+### The defect, and it is caused by the feature
+
+macOS scopes keychain access to a login session, and a process learns which session it belongs to from an inherited environment variable, `SECURITYSESSIONID`. When the value names a session that has ended, the Security framework returns no default keychain and macOS shows a modal reading `A keychain cannot be found to store "<name>"`. He has hit it repeatedly with antigravity, which is Electron and so reads Chromium safe storage at startup.
+
+**What was measured on his running machine on 2026-08-21, read only from the process table.**
+
+- His agent at pid 5610 carries `SECURITYSESSIONID=186ad`.
+- The tmux server at pid 1281 carries **no** `SECURITYSESSIONID` at all.
+- `HOME` is `/Users/gdc` everywhere, so the 2026-08-16 cause, a redirected HOME with no keychain under it, does **not** apply here.
+- His server has been alive since 19 August. The machine booted on 9 August.
+- `grep -rn SECURITYSESSIONID src/ build/` returns nothing, so Tortie is unaware the variable exists.
+
+**Why the pane has it when the server does not.** Research 47 section 2 measured, twice and independently on a pristine socket, that a pane receives the CLIENT's environment. So the value is stamped into the pane when the pane is made, from whichever Tortie process attached, and it never changes again for the life of that pane. Durable sessions are the product, so a pane routinely outlives the login session that stamped it.
+
+**Why it never repairs itself.** tmux has `update-environment`, the list of variables it re-reads from each attaching client. `resources/gmux-tmux.conf` never sets it, so his server carries the stock list, being DISPLAY, KRB5CCNAME, MSYSTEM, SSH_ASKPASS, SSH_AUTH_SOCK, SSH_AGENT_PID, SSH_CONNECTION, WINDOWID and XAUTHORITY. `SECURITYSESSIONID` is not among them.
+
+### What the phase must do
+
+**Reproduce it first, and do not skip this.** At the time of writing his `186ad` was still valid, so the failure was not reproducible on demand. A phase that assumes the cause and fixes it has proven nothing. Make a pane, capture the value it was stamped with, end that login session or otherwise invalidate the value, then start an Electron agent in that pane and get the dialog. Only then fix it.
+
+**Two candidate fixes, and the phase MEASURES both rather than picking one from reading.**
+
+1. Add `SECURITYSESSIONID` to `update-environment` in `resources/gmux-tmux.conf`, so tmux re-reads it from the attaching client. One line. The open question the phase must answer: whether that reaches an ALREADY RUNNING pane or only a newly created one, because his broken panes already exist and a fix that only helps new panes does not help him.
+2. Strip or refresh it on the pane env path, so macOS assigns the right session per process.
+
+State which was chosen, with the measurement that decided it, and say plainly what the fix does NOT repair.
+
+**THE SOCKET AND THE IDENTIFIERS DO NOT MOVE.** `-L gmux`, the `@gmux-*` options, `GMUX_SESSION_ID` and `GMUX_MANAGED` are what live sessions are bound to. Nothing here renames or drops any of them.
+
+### The proof, run rather than read
+
+- The dialog reproduced on a scratch socket with a deliberately invalidated session, photographed or its Security error code captured.
+- The same case after the fix, showing the agent starts and reaches a keychain.
+- The value read from a pane before and after an attach, to prove whether the refresh reaches a running pane.
+- His own situation answered directly: does an already open session recover, or must it be recreated. Say which in the user facing summary.
+- `npm run conformance:resume:capture` green, because that gate spawns real agent CLIs and claude reads its OAuth credentials from the keychain at boot, which is the exact path the 2026-08-16 incident hung.
+
+### What is NOT in this phase
+
+- No change to the socket name, the session options, the pane marker variables or the manifest.
+- No keychain reading, writing or storing by Tortie. Tortie holds no credential here and gains none. It only stops handing an agent a stale session number.
+- No change to `--use-mock-keychain`, which is the harness path from 2026-08-16 and is correct as it stands.
+- No new IPC channel and no new user facing surface. If the fix needs one, STOP and report rather than adding it.
+
+
 ---
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -14971,3 +15024,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 132.1 queued, the install sheet's own rules are overwritten by the file it imports, and the facts band gets the least room, both recorded while Phase 132 was verified
 - 2026-08-21, Phase 132 shipped, the skill preview scrolls on its own inside a wider sheet and the install button is reachable at every window height, this commit, 0.66.2
 - 2026-08-21, Phase 129 shipped, the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file, this commit, 0.67.0
+- 2026-08-21, Phase 133 queued, a keychain cannot be found because a pane outlives the login session it was stamped with
