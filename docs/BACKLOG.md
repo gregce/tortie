@@ -14913,6 +14913,48 @@ State which was chosen, with the measurement that decided it, and say plainly wh
 - No new IPC channel and no new user facing surface. If the fix needs one, STOP and report rather than adding it.
 
 
+## Research 61 — is there an icon set that gives Tortie more spunk than codicons, that is not the one everybody uses (operator asked 2026-08-21) QUEUED
+
+**Deliverable:** `docs/research/61-icon-set.md`. **Nothing under `src` changes** until he reads it and queues a build.
+**Charter:** this entry plus DESIGN.md and docs/DESIGN-SPEC.md, whose token and density rules any candidate must survive.
+
+### What he asked, in his words
+
+He asked what icon set draws everything except the Explorer pane, and whether a similar but more modern and sleek set exists. He then ruled two out by name: **Lucide and Phosphor are overused everywhere and he does not want them.** He is happy to keep codicons unless something newer, meaning current in 2026, gives Tortie more spunk.
+
+**So the default answer is KEEP CODICONS.** This round has to beat an incumbent that already works, and saying it did not is a good outcome. It must not recommend a change for the sake of having recommended one.
+
+### What is already known, measured on 2026-08-21
+
+- The chrome set is **codicons**, Microsoft's own, drawn through `src/renderer/icons/Codicon.tsx`, which imports `@vscode/codicons/dist/codicon.css` and renders one span per glyph with a class name.
+- It is **one TTF of about 80 KB** carrying every glyph, tinted with `currentColor`, designed on a **16 px grid**.
+- **38 distinct glyph names** appear as literals in `Codicon name="..."` across the renderer. That is the migration surface, and it is small.
+- Licence is **CC BY 4.0**, attribution required, credited in NOTICE and About. Any replacement keeps that credit while any codicon remains.
+- The Explorer tree is a different set, **material-icon-theme**, generated into `src/renderer/icons/file-icons.generated.ts`. **It is out of scope.** People recognise those file glyphs and VS Code itself mixes the two.
+
+### The questions it must answer
+
+1. **What exists in 2026 that is not Lucide or Phosphor.** Name every candidate with its licence, its grid, its glyph count, its maintenance signal and whether it ships as a font, as SVG components, or both. Anything whose licence is not clearly compatible is dropped and the drop is recorded.
+2. **Does the candidate cover our 38 names**, one for one, without a gap that needs a hand drawn glyph. A set that misses five of them is a worse answer than staying.
+3. **Font versus SVG, priced against zoom.** Codicons are one font on a 16 px grid, so tinting is free and there is one asset. SVG components render crisper at other sizes and allow stroke width control. Tortie multiplies sizes with zoom, so this matters more here than in most apps. Measure the bundle cost both ways rather than asserting it.
+4. **What a 24 px design looks like at 16 px**, because most modern sets are drawn on 24 and read lighter when scaled down. Say whether that is the spunk he wants or a loss of clarity in a dense chrome.
+5. **The cost of the change**, being every file that would move. `Codicon.tsx` is one 30 line component behind one prop, so the answer is probably small, and the document should say the number rather than call it small.
+
+### What the document must contain
+
+- **A verdict in the first sentence**, being keep codicons, or change to a named set.
+- **A table of every candidate** with the deciding reason on each row, including the rejected ones and including Lucide and Phosphor marked as refused by the operator rather than silently absent.
+- **Pictures.** Take a real screenshot of Tortie's chrome and mock the top two candidates against it, the activity rail and the source control header at least, so he is choosing from images rather than adjectives. A recommendation with no picture is not a recommendation on a question of taste.
+- **What is not true**, naming every candidate whose rendering was not actually tried.
+
+### What is NOT in this round
+
+- No change to any file under `src`, and no dependency added or removed.
+- No change to the Explorer file icons.
+- No recommendation of Lucide or Phosphor, which he ruled out by name.
+- No agent brand icons, which are a separate set with their own rules.
+
+
 ---
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -15025,3 +15067,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 132 shipped, the skill preview scrolls on its own inside a wider sheet and the install button is reachable at every window height, this commit, 0.66.2
 - 2026-08-21, Phase 129 shipped, the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file, this commit, 0.67.0
 - 2026-08-21, Phase 133 queued, a keychain cannot be found because a pane outlives the login session it was stamped with
+- 2026-08-21, Research 61 queued, is there an icon set with more spunk than codicons that is not Lucide or Phosphor, which he ruled out
