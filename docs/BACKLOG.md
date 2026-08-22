@@ -15399,63 +15399,79 @@ This is a correctness fix on an attribution, which is why it is worth a phase ra
 - No rewriting of history. The `docs/BACKLOG.md` entries and the CHANGELOG record what was true when written.
 
 
-## Phase 137 — catch me up on this project: the conversation I have been having with every session here (operator asked 2026-08-22, research 62, re-specified by him the same day) QUEUED
+## Phase 137 — catch me up on this project: the conversation you have been having with every session here (operator asked 2026-08-22, research 62 and 63) QUEUED
 
 **Subject:** `feat(overview): catch me up on the conversation with every session here`
 **First body line:** `Phase 137: catch me up on this project`
-**Semver:** minor. It adds a user facing surface, one chord, one View menu item and one store. It changes no existing behaviour, removes nothing, and alters no shape anything else reads.
-**Tier 3.** Research 62 asked for Tier 2 and the reasons it gave are true and are not the deciding question. The page draws a line for EVERY session in the project whatever its agent, so this phase makes a claim about all thirteen agents in `src/main/agents/registry.ts` and not only about the four with a reducer. CLAUDE.md puts anything claimed to work universally across agents at Tier 3 without exception and names a per agent matrix as the evidence. The nine agents with no reducer are the risky half, because the failure mode there is a page that quietly shows nothing for a session that did a day of work. The model fold and the store are Tier 3 in their own right, because a fold that runs on a turn boundary reads a live file and spawns a process. The page's layout and the View menu item are verified at Tier 2 inside the phase.
-**Charter:** this entry, plus docs/research/62-session-overview.md, which holds every measured number quoted below, plus the operator's re-specification of 2026-08-22, which is recorded in the next section because it changes the design the research recommended. It is bound by docs/research/44-session-digests.md, by docs/ZEN-OF-TORTIE.md, by Phase 23 refusal 5 in CLAUDE.md, which freezes status, and by bound C, which leaves spawning a confirmed agent CLI as the only network path.
+**Semver:** minor. It adds a user facing surface, one chord, one View menu item and one store. It changes no existing behaviour and removes nothing.
+**Tier 3.** The page draws a line for EVERY session in the project whatever its agent, so this phase claims something about all thirteen agents in `src/main/agents/registry.ts`. CLAUDE.md puts anything claimed to work universally across agents at Tier 3 without exception and names a per agent matrix as the evidence. The store is Tier 3 in its own right, because it now keeps a copy of the operator's own words and the redaction pass is load bearing rather than cosmetic. The page's layout and the View menu item are verified at Tier 2 inside the phase.
+**Charter:** this entry, plus `docs/research/62-session-overview.md`, which holds the surface measurements, plus `docs/research/63-provider-keep-map.md`, which holds the per provider map and its seven defects, plus the operator's own re-specification of 2026-08-22 recorded below. It is bound by `docs/research/44-session-digests.md`, by `docs/ZEN-OF-TORTIE.md`, by Phase 23 refusal 5 in CLAUDE.md, which freezes status, and by bound C, which leaves spawning a confirmed agent CLI as the only network path.
 
-**Phase 44 and Phase 45 are superseded by this entry, and that reading is HIS to confirm.** He held both on 2026-08-15, in his words, pending more thinking, and he asked for Research 62 on 2026-08-22. This entry reads that as replacing the hold. If the reading is wrong, this phase does not start and he says so.
+**NO MODEL IS IN THIS PHASE.** The fold is Phase 138. This phase costs $0.00 to run and 47.3 ms to open. If Phase 138 is never built, this page still gives every session's conversation, what each session operated on and whether git agrees.
 
-### What he changed after reading the research, in his words
+**Phase 44 and Phase 45 are superseded by this entry, and that reading is HIS to confirm.** He held both on 2026-08-15 pending more thinking, and asked for Research 62 on 2026-08-22. If the reading is wrong, this phase does not start and he says so.
 
-Research 62 recommended a page whose first zone is git, whose content is what each session wrote to disk, and which ships no model at all. He read it and moved three things.
+### What he decided after reading the research
 
-1. **The main thread conversation is the unit, not file attribution.** In his words, the main conversation window is the key, since subagent use is so prevalent, and what he ultimately wants is a summary of how he is interacting with the agent sessions in his project.
-2. **A small model IS in scope**, keeping the summaries current.
-3. **A persistence store IS in scope**, keeping the running summary so the page is up to date rather than rebuilt.
+Research 62 recommended a page whose first zone is git and whose content is what each session wrote to disk. He moved it. In his words, the main conversation window is the key, since subagent use is so prevalent, and what he ultimately wants is a summary of how he is interacting with the agent sessions in his project.
 
-He also asked for the surface to feel like the session zoom on `⇧⌘Enter`, being the chrome dissolving away in one flight.
+Five further decisions he made on 2026-08-22, each recorded here because the design would be wrong without it.
 
-**Why the re-specification is right, and it is a measurement rather than a preference.** Research 62's headline finding was that the transcript does not know what changed, evidenced by a gmux session with 986 shell calls and zero `Write` or `Edit` calls. That session was re-measured on 2026-08-22. It is session `69469eba`, the operator's own driving session, and the claim was overstated.
+1. **He picks the harness and the model**, not the product. That is Phase 138's Settings work and it is named here so this phase leaves room for it.
+2. **The trigger is the activity monitor**, not a timer, and it covers the whole fleet rather than the open project. Also Phase 138.
+3. **The store keeps a copy of the parsed slice.** Several providers can be configured to delete history from disk, and cursor and cursoride replace rows rather than appending, so a turn can vanish while the session is still live. Re-reading would quietly lose turns he had already read.
+4. **The path index**, so what a session operated on is a record rather than a claim. See the section below, which carries the measurement that decided it.
+5. **The copy rule.** The person is always `you`. The agent is always `the agent`. Neither is ever `it`.
 
-| What its 1,031 shell commands do | Count | Share |
-| --- | ---: | ---: |
-| Reads or inspects something | 421 | 41% |
-| Reads git | 198 | 19% |
-| Writes a file | 177 | 17% |
-| Writes git, being commit, push, add, rebase | 106 | 10% |
-| Looks at processes | 53 | 5% |
-| Reads tmux | 42 | 4% |
-| Runs a build or a test | 35 | 3% |
+**Why the re-specification is right, and it is a measurement.** Research 62's headline rested on one session with 986 shell calls and zero `Write` or `Edit` calls. That session was re-measured on 2026-08-22. It is the operator's own driving session. 41% of its commands read something, 17% write a file, and 81 of those writes land in scratch directories. Its 40 repository edits sit in the log as python heredocs and it carries 92 `git commit` calls each holding its subject. The log does know. The detector counted only `Write` and `Edit` tool calls, and that field is empty for a session told to prefer bash.
 
-Of the writes, 81 land in scratch directories, 40 touch files in the repository and 28 go elsewhere. The 40 are in the log as `python3 - <<'PY'` heredocs with the whole script in the text, and the session also carries 92 `git commit` calls each holding its subject line. So the log does know. The detector the research tested counted only `Write` and `Edit` tool calls, and that field is empty for a session whose instructions tell it to prefer bash.
+The conversation is also the portable part. Tool call semantics differ per vendor. Human turns and assistant text are the most uniform records in every log format.
 
-The accurate statement is narrower. The easy field misses shell driven work and the command text recovers most of it. That is a much smaller claim, and it does not justify making git the first zone.
+### The keep set, and it is the same five things for every provider
 
-**And the conversation is the portable part.** Tool call semantics differ per vendor, which is why only 4 of 13 agents have a reducer today. Human turns and assistant text are the most uniform part of every log format, not the least. Leading with the conversation shrinks the coverage problem rather than needing nine new tool call reducers.
+1. Your ask, verbatim, with its timestamp.
+2. The agent's closing answer for that turn, verbatim, with its timestamp.
+3. The turn boundary.
+4. The join to one Tortie session.
+5. A cheap freshness check.
 
-**Where git goes.** It stays, as one quiet corroboration mark beside a claim the agent made, being `git agrees` or `git has no record of it`. It is not a zone and it is not the lead.
+Everything else is dropped. That is tool call payloads, tool result payloads, reasoning and thinking blocks, pasted images and attachments, token accounting, queue operations, permission mode records, titles, world state and telemetry.
 
-### What the manifest does and does not hold
+**Measured over his 25 live manifest sessions, the keep set is 0.166%**, being 161.48 MB down to 274.8 KB, a 602x reduction. Opening his gmux project costs 47.3 ms cold and 0.040 ms warm. Every number in this entry comes from research 63 and was taken on 2026-08-22.
 
-`src/main/manifest/schema.ts` line 28 gives the `sessions` table thirteen columns and none of them carries transcript content. What it carries is `agent_session_id`, which is the pointer from a Tortie session to that agent's own log. That column is the join key this whole feature needs and it already exists and is already durable. The manifest's job here is to say which log belongs to which named session in which project. It is opened READ ONLY and nothing in this phase writes to it.
+**The keep map is DATA, versioned PER PROVIDER.** Research 63 proved the map will change, because different CLI versions of one agent write their JSON keys in different orders. So each provider entry carries its own version, a claude bump does not invalidate codex rows, and every stored row records which map version read it. The map lives in one JSON file and a vendor change edits data rather than code.
+
+### The path index, and the measurement that decided it
+
+The operator asked whether the design tracks files deterministically or only takes the agent's word. It only took the agent's word, and that was not comprehensive.
+
+Measured on his own driving session on 2026-08-22:
+
+| Fact | Number |
+| --- | ---: |
+| Tool call payloads in the file | 2.13 MB, being 8.0% of it |
+| Distinct paths those payloads name | 218 |
+| Paths found via `Write`, `Edit` and `Read` | 4 |
+| Paths found in the text of `Bash` commands | 918 |
+| Cost of storing the paths and dropping the payloads | 8.0 KB, a 259x reduction |
+
+Reading tool calls alone finds four paths in a session that touched 218. Reading the command text finds them and ranks `docs/BACKLOG.md` first at 262 mentions, which is what he spent that day editing.
+
+So the reader extracts PATHS at parse time and throws the payload away. The store keeps the path list. No model ever sees any of it. The page gains a third thing it can say, being that the agent named twenty files and git agrees, where before it could only check a claim the agent happened to make.
+
+**Two limits this does not fix, and the entry states them rather than hiding them.** Attribution between two concurrent sessions in one project cannot be solved, because git records the change and records nothing about who, and the only real fix is a working tree per session, which he has called an anti pattern. And a write that names no path stays invisible, so the honest fallback is that something changed here and no session claimed it.
 
 ### The surface, and it is the session zoom landing on a different layer
 
-`src/renderer/app/focus-mode.css` already dissolves the titlebar, the project rail, the activity bar, the sidebar, the session strip, the session dock and the term header, over a 200 ms flight, with `.gmux-focusing` on the shell root during it and `[data-focus-arriving]` for the 200 ms after a leave. This phase reuses that flight exactly. The session opens into its story instead of its terminal.
+`src/renderer/app/focus-mode.css` already dissolves the titlebar, the project rail, the activity bar, the sidebar, the session strip, the session dock and the term header over a 200 ms flight, with `.gmux-focusing` on the shell root during it and `[data-focus-arriving]` for the 200 ms after. This phase reuses that flight exactly rather than writing a second animation.
 
-**One chord, three levels, decided by what has focus when it is pressed.**
+**One chord, three levels, decided by what has focus.**
 
 | What has focus | What opens |
 | --- | --- |
-| One session | That session's story, full width |
-| Several sessions selected in the rail | Those conversations as columns, side by side |
+| One session | That session's conversation, full width |
+| Several sessions selected in the rail | Those conversations as columns |
 | No session, or the project rail | The project, one line per session |
-
-A separate chord per level was considered and refused. One key that zooms whatever you are on costs nothing to learn and matches how `⇧⌘Enter` already behaves.
 
 **One session.**
 
@@ -15464,188 +15480,250 @@ A separate chord per level was considered and refused. One key that zooms whatev
                                                               live · last turn 4m ago
 ────────────────────────────────────────────────────────────────────────────────────
 
-  16:53   you    We can commit and push these files please
+  16:53   you         We can commit and push these files please
 
-          it     Pushed as 0b07266 on main. It adds docs/method/HOW-WE-VERIFY-THIS.md
-                 and the link from HOW-WE-BUILT-THIS.md.
+          the agent   Pushed as 0b07266 on main. It adds
+                      docs/method/HOW-WE-VERIFY-THIS.md and the link from
+                      HOW-WE-BUILT-THIS.md.
                                                                         ✓ git agrees
 
-  16:31   you    can you also add the section about how verification is tiered
+  16:31   you         can you also add the section about how verification is tiered
 
-          it     Added. The tier table now names what each tier costs and what it
-                 buys, and it links the three conformance gates by name.
+          the agent   Added. The tier table now names what each tier costs and what
+                      it buys, and it links the three conformance gates by name.
                                                                         ✓ git agrees
 
 ────────────────────────────────────────────────────────────────────────────────────
   ↑↓ move   ⏎ jump to this turn in the session   esc back
 ```
 
-**Several, multiplexed.**
+**Several, multiplexed.** The label sits on its own line rather than eating the column.
 
 ```
 ────────────────────────────────────────────────────────────────────────────────────
-  claude-6              │  codex-2                    │  grok-1
-  live · 4m ago         │  waiting on you · 2h        │  idle · 3d
-──────────────────────  │  ─────────────────────────  │  ────────────────────────────
-  you  commit and push  │  you  write the comparison  │  you  can you draw it in the
-       these files      │       to docs/research      │       terminal
-                        │                             │
-  it   Pushed as        │  it   Written to            │  it   We wrote the audit and
-       0b07266 on main  │       60-tortie-orca-       │       Phase 77, then sketched
-            ✓ git       │       comparison.md         │       now versus proposed
-                        │            ⚠ git has no     │            ✓ git agrees
-                        │              record         │
+  claude-6                  │  codex-2                   │  grok-1
+  live · 4m ago             │  waiting on you · 2h       │  idle · 3d
+────────────────────────    │  ───────────────────────   │  ─────────────────────────
+  you                       │  you                       │  you
+    commit and push these   │    write the comparison    │    can you draw it in the
+    files                   │    to docs/research        │    terminal
+                            │                            │
+  the agent                 │  the agent                 │  the agent
+    Pushed as 0b07266 on    │    Written to 60-tortie-   │    We wrote the audit and
+    main                    │    orca-comparison.md      │    Phase 77, then sketched
+              ✓ git agrees  │       ⚠ git has no record  │              ✓ git agrees
 ────────────────────────────────────────────────────────────────────────────────────
 ```
 
-**The whole project.** This is the view he will open most, and it is the only place where a verbatim closing answer does not fit, because a closing answer is often three sentences.
+**The whole project.** Your ask leads every line and the outcome follows without a pronoun. `the agent` appears only where the line reports a claim rather than a fact.
 
 ```
   gmux                                                       8 sessions · read 13:31
 ────────────────────────────────────────────────────────────────────────────────────
 
-  claude-6            live · 4m       you asked it to commit and push the method docs,
-                                      and it did
-  codex-2        waiting on you · 2h  you asked for the Orca comparison. It says it
-                                      wrote the file. git has never seen it
-  claude-5            idle · 20h      you asked it to copy the workflow scripts to
-                                      Downloads. It did, outside this project
-  grok-1              idle · 3d       you asked it to sketch the session zoom in the
-                                      terminal, and it drew it
-  claude-4                 no turns   started Tuesday, never asked anything
+  claude-6            live · 4m       you asked for the method docs to be committed
+                                      and pushed. Done, as 0b07266
+  codex-2        waiting on you · 2h  you asked for the Orca comparison. The agent
+                                      says the file was written. git has never seen it
+  claude-5            idle · 20h      you asked for the workflow scripts to be copied
+                                      to Downloads. Done, outside this project
+  grok-1              idle · 3d       you asked for a sketch of the session zoom in
+                                      the terminal. Drawn
+  claude-4                 no turns   started Tuesday, nothing asked yet
   shell-2                    shell    no agent here
 
 ────────────────────────────────────────────────────────────────────────────────────
-  ↑↓ move   ⏎ open this session's story   esc back
+  ↑↓ move   ⏎ open this session's conversation   esc back
 ```
 
-**The rule that keeps it inside the Zen, and it is mechanical.** No integer appears on any of the three views except a clock time, a date or an elapsed time. No counts, no bars, no percentages, no badge, and nothing on this surface may set a session's status.
+**WITHOUT PHASE 138 the project view's one line is BUILT RATHER THAN WRITTEN**, being your ask clipped to its first clause plus the deterministic outcome from git and the path index. That is honest and it is duller. Phase 138 replaces that one line with a written sentence and changes nothing else on any view.
+
+**The rule that keeps this inside the Zen, and it is mechanical.** No integer appears on any view except a clock time, a date or an elapsed time. No counts, no bars, no percentages, no badge. Nothing on this surface may set a session's status.
 
 ### The chord, and an existing test refuses the obvious one
 
-**`⇧⌘U` is refused.** `src/main/agents/registry.ts` gives cursor a `defaultHotkeyHint` of `'u'`, and `src/renderer/settings/KeyboardSection.tsx` shows the same letter as `cursor: 'U'` in `HINT_LETTER`. The per agent recorder proposes the shape ⇧⌘\<letter\>, so taking `⇧⌘U` as a built in would put it in `RESERVED_APP_CHORDS` and make cursor's own suggested hotkey un-recordable. The test named `takes no chord the product suggests as a per-agent mnemonic`, in `src/shared/__tests__/focus-chord.test.ts`, reads every `defaultHotkeyHint` out of the registry and fails on exactly this. It is the same defect the keymap comment above `view.sessionFocus` records for `⇧⌘C`.
+**`⇧⌘U` is refused.** `src/main/agents/registry.ts` gives cursor a `defaultHotkeyHint` of `'u'` and `src/renderer/settings/KeyboardSection.tsx` shows the same letter as `cursor: 'U'` in `HINT_LETTER`. Taking `⇧⌘U` as a built in would put it in `RESERVED_APP_CHORDS` and make cursor's own suggested hotkey un-recordable. The test `takes no chord the product suggests as a per-agent mnemonic`, in `src/shared/__tests__/focus-chord.test.ts`, reads every `defaultHotkeyHint` out of the registry and fails on exactly this.
 
-**The chord is `⌃⇧U`.** It keeps the letter and sits beside `⌃⇧C` for Context and `⌃⇧G` for Symbols, which is where the tree already puts a view chord that must stay out of the ⇧⌘\<letter\> space. No row in `src/shared/keymap.ts` carries it and `RESERVED_MACOS_CHORDS` in `src/renderer/settings/chords.ts` does not hold it. A different chord is allowed, and the constraint is the test above, and the reason goes in the commit body.
+**The chord is `⌃⇧U`**, beside `⌃⇧C` for Context and `⌃⇧G` for Symbols. No row in `src/shared/keymap.ts` carries it and `RESERVED_MACOS_CHORDS` in `src/renderer/settings/chords.ts` does not hold it. A different chord is allowed and the reason goes in the commit body.
 
 ### The store, and it is NOT the manifest
 
-A separate SQLite file beside the manifest under `<userData>/gmux/`. The manifest is the source of truth for restore and CLAUDE.md forbids moving durability critical state, so summary churn does not go near it. Losing this store entirely costs a rebuild and costs nothing else, and the phase must prove that by deleting it and reopening the page.
+A separate SQLite file beside the manifest under `<userData>/gmux/`. The manifest is the source of truth for restore and CLAUDE.md forbids moving durability critical state there.
 
-What it stores is the FOLD, not the transcript. The verbatim turns stay in the agent's own log and are re-read at open, which is what keeps the file small.
+**Four tables.**
 
-- One row is one VERSION of one session's running summary.
-- Each row names the session id, the agent session id, the turn range it covers, the id of the version it folded from, the model that wrote it, the parser version that fed it, and a hash of its inputs.
-- The hash is the cache key, so an unchanged session costs nothing to check.
-- Rows are APPENDED and never mutated. A crash mid fold leaves the previous version intact and readable, and the phase must prove that with a real interrupted run rather than a claim.
-- A version is written in ONE transaction, after the model returns, never before.
+- **`session`**, one row per Tortie session read. The Tortie session id, the `agent_session_id`, the provider, the resolved log path, the watermark and `map_version_at_last_read`. The watermark is whatever that provider supports, e.g. a byte offset plus size plus mtime plus a hash of the first 4 KB for claude, a root blob digest for cursor, a message count for deepseek.
+- **`turn`**, the kept slice. Your ask, the agent's closing answer, both timestamps, both REDACTED. This is the copy he asked for.
+- **`turn_fact`**, what no model ever touches. The stop reason, the turn duration, whether the turn was interrupted, the path list from the path index, and the git verdict.
+- **`provider_map`**, the versions, so any row can be traced to the rules that produced it.
 
-### The fold, and its trigger is an event rather than a timer
+**REDACTION MOVES TO WRITE TIME AND IS LOAD BEARING.** It ran at render before, where a miss showed him a key he already had. It now runs before a row is written, where a miss puts a key in a second file. Research 63 measured the exposure in the KEPT SLICE over 1,500 of his claude files, being 37 Anthropic shaped API keys, 22 JWTs, 16 bearer tokens and 5,399 email addresses on the ask side, plus 7 Stripe keys and one RSA private key on the ANSWER side. So redaction covers both sides, not his alone. The 24 line vendored extract of `SECRET_PATTERNS` and `redactSecrets` from his own lore skill is Apache-2.0 and adds no package. A miss on the fixture is a BLOCKING defect.
 
-Tortie already detects when a session's turn ends, because that is how the status oracles decide `needs input`. The fold runs once per completed turn, as a reaction to that event. Nothing polls and nothing wakes on a schedule.
+**The store is disposable with a stated cost.** Deleting it loses turns whose provider has since deleted them. The phase says that plainly rather than claiming it is free.
 
-The fold sends the PREVIOUS summary plus the NEW turn, never the whole conversation. That is what makes the cost per turn flat as a session grows.
+### Git, and it is one mark rather than a zone
 
-**The model is Haiku through the operator's own `claude` CLI, spawned as a separate one shot process.** Bound C leaves no other path, because Tortie may not hold an API key and may not send conversation content to an endpoint Tortie owns. It is opt in through the Phase 23 Settings gate, exactly as any configured executable is.
+The page pulls path shaped strings out of the agent's closing answer and out of the path index, asks git whether those paths changed, and marks the line `✓ git agrees`, `⚠ git has no record` or `nothing to check`. It costs about 106 ms, being 73.0 ms for `git log --since` and 33.2 ms for `git status --porcelain`, both measured in research 62. `src/main/git/` already exists.
 
-**Scope of the fold: sessions in the OPEN project only**, plus a catch up pass when a project is opened. That takes the steady rate from 23 sessions to about 7 and bounds the cost by what he is actually looking at.
+No model is involved in the mark. It is a fact or it is absent. Research 62's "what changed here since you last looked" zone is NOT built, because under this design it is a git log and he has better tools for reading one.
 
-**The model writes one thing and one thing only**, being the one sentence per session line in the project view. The one session view and the multiplexed view stay verbatim, so the words he reads there cannot be wrong. This boundary is the phase's most important refusal and it is repeated in the refusals section below.
+### The seven defects this phase inherits from research 63, all named with their fix
 
-### The cost, from research 62's measured ledger
+| Provider | Defect | Measured cost | The fix |
+| --- | --- | --- | --- |
+| claude | The prefilter reads `"role":"assistant"` in the first 512 bytes, and cli 2.1.178 sorts its keys so the marker lands thousands of bytes in | 91.1% of kept bytes lost on one real 21.48 MB file, and 5,093 of 64,794 answers across 1,350 files | Detect the key order from line 1, widen the head read or fall back to a full parse. The gate asserts the fallback fires |
+| claude | Three false asks not in the drop list, being `[Request interrupted by user for tool use]`, `<teammate-message …>` and `<bash-notification>` | 472 of 13,004 asks, 3.8% inflation against a claimed zero | Three prefix rules. NEVER key the second on `teamName`, because 353 of 568 records carrying it are genuine asks |
+| codex | The same defect from the other side, cli 0.139.0 writes `payload` first and `type` last | 99.55% lost on one real 103.90 MB session, 58 asks found against 341 real ones | The same vintage detection |
+| codex | No turn boundary for cli 0.87 and earlier, which writes no `task_started` and no `task_complete` | That 103.90 MB file returns 1 turn | An ask to ask boundary and an `agent_message` answer fallback, selected on `session_meta.payload.cli_version` |
+| codex | The unwrap rule is gated on the `# Files mentioned by the user:` heading and another preamble uses the same marker | 4 leaks in a twelve file run, one printing a path under his home as if he typed it | Unwrap on `## My request for Codex:` and drop the heading gate |
+| cursor | `blobProbeBytes` is 24 and the marker closes at byte 29 | 50 of 221 blobs lost, and zero answers in 10 of 40 stores | Change 24 to 32. At 32 it is 221 of 221 |
+| all | The mtime watermark calls `statSync` without `{ bigint: true }`, so it compares the string `"undefined"` to itself | Only size equality is actually guarding. Six bytes changed inside a fixture went undetected | Pass `{ bigint: true }`, add a newline check before the resume offset, and hash the bytes immediately before it rather than only the head |
 
-His real turn rate is 0.278 human turns per session-hour, measured across 23 sessions holding 139 human turns over 499.4 session-hours. One fold measured over 17 real invocations costs $0.019603 at the mean, $0.004704 at the minimum and $0.052718 at the maximum, and takes 8.14 s at the median. Each spawn peaked at 451 MB resident, measured once.
+### What every agent gets, corrected by research 63
 
-| Situation | Folds per hour | At the mean |
-| --- | ---: | ---: |
-| One project open, 7 gmux sessions live for an hour | 1.95 | $0.038 |
-| An eight hour day at that rate | 15.6 | $0.31 |
-| Twenty working days | 312 | $6.12 |
-
-The deterministic read costs $0.00 and takes 106 ms warm, 161 ms cold, on `~/gmux`.
-
-### THE GATE THAT DECIDES WHETHER THE FOLD SHIPS ON, AND IT IS NOT THE DOLLARS
-
-The dollars are notional, because the lean flag set runs under his OAuth subscription where a reported cost is a price rather than a bill. The scarce resource is his subscription RATE WINDOW, and that window is shared with the twelve agents doing the actual work. Nobody has measured it.
-
-**This phase MUST measure it before the fold is enabled by default.** Run the fold at his real rate for a bounded period beside real agent work, and report whether an agent turn was ever slowed, deferred or refused because a fold was in flight. If it was, the fold ships OFF by default with a switch, and the phase says so plainly. If it was not, it may ship on. A phase that ships the fold on without that measurement has not done this item.
-
-### Mechanism, with the paths read from the tree
-
-**Main process.** A new directory owning the reader, the fold and the store. The reader opens the manifest READ ONLY, joins `sessions.agent_session_id` to the agent's log, and returns the main thread only.
-
-**Subagent activity is dropped, and that is his instruction.** A turn that delegated collapses to at most one line saying work was delegated. No subagent transcript is read, summarised or counted.
-
-**The bridge.** One new domain file under `src/shared/ipc/`, exported through the `index.ts` facade. No parallel wrapper. Note that Run C is splitting `src/shared/ipc/machines.ts` into domains right now, so read the facade rule as it stands when this phase starts.
-
-**Renderer.** The three views, reusing the focus mode flight in `src/renderer/app/focus-mode.css` rather than a second animation. One View menu item in `src/main/menu.ts`, because CLAUDE.md requires a phase that adds a user facing surface to update the native menus in the same commit.
-
-**Redaction.** A 24 line vendored extract of `SECRET_PATTERNS` and `redactSecrets` from the operator's own lore skill, which is Apache-2.0 and adds no package. It is needed because the page renders verbatim agent bytes. Research 62 found 0 matches in 1,311 clipped shell commands and a separate lane found 1 in 1,201 unclipped ones, so this is justified by the shape of the risk rather than by a proven leak.
-
-**The gate.** `build/conformance-overview.mjs` and a `"conformance:overview"` script in `package.json`, beside the gates already there. It prints, per agent, which slots fill from a fixture corpus, and fails when a slot that filled yesterday is empty today. Add it to the CLAUDE.md gate list in the same commit.
-
-**Two parser bugs the mechanism lab found by running rather than reading, and both corrupt the PRIMARY content under this design.** `task-notification` blocks were counted as human asks, which inflated his own instruction count by 37%. And claude's compaction handover was counted as a human ask, which is the more dangerous of the two, because the handover text reads like a person describing the work. Under a conversation first design a false human ask is not a rounding error, it is the page telling him he said something he never said. The gate must assert both.
-
-### What every agent gets, and this table is the phase's own claim
-
-| Agent | What day one gives it |
+| Agent | Day one |
 | --- | --- |
-| claude | Full block. The ask verbatim, the closing message, the git mark |
-| codex | Full block, plus the full final message from `task_complete.last_agent_message` |
-| grok | Full block, plus grok's own free per turn recap, labelled with who wrote it and when |
-| antigravity | Full block, with timestamps rounded to the second |
-| qwen, pi, muse | One honest line naming the agent and saying Tortie does not read its log yet |
-| gemini | One honest line. Its newer store mixes bare records with `$set` state replacements, so it needs a replay and not a forward read |
-| deepseek | One honest line. It rewrites one whole JSON document per turn and carries no per message timestamp |
-| cursor, cursoride, copilotide | One honest line. All three keep rows that are replaced rather than added, behind SQLite |
-| droid | One honest line. It is not installed on this machine |
+| claude | Full block, once the vintage fix lands |
+| codex | Full block, and its `task_complete.last_agent_message` is the fullest closing answer any provider gives |
+| grok | Full block, plus its own per turn recap, plus `tmux_socket_path` and `tmux_pane` for free. The only provider reproduced by two independent implementations, agreeing to 0.012 points |
+| muse, qwen, pi | Full block. Research 62 gave all three an honest line and it was wrong |
+| antigravity | Full block, timestamps rounded to the second, no end of turn marker |
+| cursor | Full block once `blobProbeBytes` is fixed. It is a CLI and it CAN be a Tortie session, which research 62 also had wrong |
+| deepseek | Conversation in order, and NO per turn clock. The array index is the only ordering. The session gets a last touched time from `metadata.updated_at` and its turns get none |
+| gemini | Your asks only. Its current store records no agent answer, and the answer rule has never been tested against a real file because 215 of his 216 gemini files are conformance probes that never got a reply |
+| cursoride, copilotide | Readable, and both are `launchable: false`, so neither can ever be a Tortie session. They get no line |
+| droid | The honest line. It has no store on this machine |
 | shell sessions | One line saying no agent runs here. This is 17 of his 47 live sessions |
-
-Three agents are live in his projects right now with no reducer, being muse and pi in `/Users/gdc/getspecstory` and cursor in `/Users/gdc/the-zen-of-tortie`. Those three render one honest line each on day one.
 
 ### Proof this phase must produce, run rather than read
 
-- Photograph all three views, driven in the real app on an isolated profile. `npm run shot` is FORBIDDEN because it attaches to his own server.
-- Photograph the flight, being one frame mid transition, and show it reuses the focus mode classes rather than a second animation.
-- A PER AGENT MATRIX over a fixture corpus, one row per agent in the registry, showing which slots fill and which say the honest line. This is the Tier 3 evidence and the table above is the claim it tests.
-- Prove the two parser bugs are fixed, by feeding a fixture containing a `task-notification` block and a compaction handover and showing neither is counted as a human ask.
-- Prove the store is disposable, by deleting it and reopening the page.
-- Prove the version chain survives a crash, by killing the process mid fold and showing the previous version is intact and readable.
-- Prove the cache key works, by opening twice with nothing changed and showing the second open spawns no process.
-- MEASURE THE RATE WINDOW, per the gate above, and state the verdict and the default.
-- Prove nothing sets a session's status, by grep and by a test.
+- Photograph all three views, driven in the real app on an isolated profile. `npm run shot` is FORBIDDEN.
+- Photograph the flight mid transition and show it reuses the focus mode classes.
+- A PER AGENT MATRIX over the committed fixture corpus in `docs/research/assets/63-fixtures/`, one row per agent, showing which slots fill and which say the honest line.
+- Prove each of the seven inherited defects is fixed, each with the measurement research 63 used.
+- Prove every trap in research 63 section 16 is caught, by fixture. That section names more than twenty five, and the claude task notification inflation is 105.8% rather than the 37% first reported.
+- Prove REDACTION on a fixture carrying every pattern research 63 found, on the ask side AND the answer side. A miss is blocking.
+- Prove the path index, by taking a real session and showing the path list matches what git recorded.
+- Prove the store survives a crash mid write, by killing the process and reading the store afterwards.
+- Prove the cache key works, by opening twice with nothing changed and showing no re-read.
+- Prove nothing sets a session's status, by grep and by test.
 - Prove no integer appears on any view except a clock time, a date or an elapsed time.
 - Report `tmux -L gmux list-sessions | wc -l` before and after every run.
-- The full battery, plus `npm run conformance:overview` and `npm run conformance:agents`.
+- The full battery, plus a new `npm run conformance:overview` added to the CLAUDE.md gate list in the same commit. It prints the per provider slot matrix AND the keep ratio per provider, because a vendor change shows up as a ratio that moves before it shows up as an empty page.
 
 ### What is NOT in this phase
 
-**The model writes exactly one thing.** The one sentence per session line in the project view. It never writes the verbatim ask, it never writes the verbatim answer, it never decides the git mark, it never decides freshness and it never sets a status. Every other string on every view is either the person's own bytes, the agent's own bytes, or a fact from git.
+**No model, anywhere.** The fold is Phase 138. The project view's one line is built from your ask and the deterministic outcome until then.
 
-**No subagent transcript is read, summarised or counted.** He said subagent use is so prevalent that the main thread is the key, and this is the refusal that keeps the page from drifting back into a process view.
+**No subagent transcript is read, summarised or counted.** He said subagent use is so prevalent that the main thread is the key, and this refusal keeps the page from drifting back into a process view.
 
-**No counters, no feed, no badge, no progress bar and no percentage anywhere.** The Zen refuses a number that rises on its own, and no integer appears on any view except a clock time, a date or an elapsed time.
+**No tool payloads and no reasoning are stored.** Only the paths they name, at 8.0 KB per session.
 
-**No Zen amendment.** The Zen says Tortie watches many sessions so the human does not have to, and that complexity belongs beneath the surface, so a quiet fold on a turn boundary is within it. What the Zen refuses is SURFACING noise, and this page surfaces none. Research 62 wrote that a fold behind a closed page is a supervisor's console with the screen off; that is the research author's sentence and not a line in docs/ZEN-OF-TORTIE.md. If a later round disagrees, the amendment is his edit and not a build round's.
+**No counters, no feed, no badge, no progress bar and no percentage.** No integer on any view except a clock time, a date or an elapsed time.
 
-**Nothing in CLAUDE.md is edited by this phase.**
+**No Zen amendment.** The Zen says Tortie watches many sessions so the human does not have to, and that complexity belongs beneath the surface. It refuses SURFACING noise, and this page surfaces none.
 
-**No runtime dependency.** The permission he granted on 2026-08-22 was for the research and it came back unspent. The only thing adopted from outside is the 24 line lore extract, which adds no package.
+**Nothing in CLAUDE.md's permanent refusals is edited.** That is his edit and not a build round's.
 
-**No fleet wide view.** One project at a time. Research 44 section 6.2 rejected a wall of digests across every project by name.
+**No runtime dependency.** The permission he granted on 2026-08-22 was for the research and it came back unspent. The only outside code is the 24 line lore extract, which adds no package.
 
-**No writing to the manifest, and no change to its schema.** It is opened read only.
+**No fleet wide view.** One project at a time. Research 44 section 6.2 rejected a wall of digests by name.
 
-**No tool call reducer for the nine uncovered agents.** They get the honest line. Covering them is a later entry and it needs a full entry of its own.
+**No writing to the manifest and no change to its schema.** It is opened read only.
 
-**No file attribution engine.** Git supplies one mark beside a claim and nothing more. Research 62's byte offset replay, its rewrite guard and its truncation guard are all out, because the store makes them unnecessary.
+**No worktree per session.** He called it an anti pattern, and it is the only thing that would make concurrent attribution solvable. So the page states the ambiguity instead.
 
-**Later phases, named so nothing is queued that has not been written properly. Each needs a full entry of its own and none starts before the decision gate below.**
-
-- Reducers for the nine uncovered agents, probably two entries, because gemini and deepseek need a replay rather than a forward read and the three cursor family agents need SQLite.
-- A fleet view, only if he asks for one after living with the project view.
-- The counts, only if he takes the amendment in research 62 section 10.2.
+**Later, and each needs a full entry before it starts.** A gemini answer rule once a real gemini session with a reply exists. A fleet view, only if he asks after living with the project view. The counts, only if he takes the amendment in research 62 section 10.2.
 
 **The decision gate, and it is his.** Does he open the page in a second week. If not, stop, and the store is deleted with nothing else lost.
+
+
+## Phase 138 — the fold, so the project line is written rather than built (operator decided 2026-08-22) QUEUED, AFTER PHASE 137
+
+**Subject:** `feat(overview): a small model keeps the project line current`
+**First body line:** `Phase 138: the fold`
+**Semver:** minor. It adds a Settings choice and a background reaction, both opt in.
+**Tier 3.** It spawns a process on a turn boundary, it reads a live file, and it sends his own words to a model. Any one of those is Tier 3 on its own.
+**Charter:** this entry, plus the `## Phase 137` entry above, whose store and reader it depends on entirely, plus `docs/research/62-session-overview.md` section 9 for the measured cost ledger, plus bound C, which leaves spawning a confirmed agent CLI as the only network path.
+
+**IT DOES NOT START BEFORE PHASE 137 SHIPS.** It writes one line on one view and everything else it needs already exists.
+
+### What it changes, and it is one line
+
+Phase 137's project view builds its one line per session from your ask and the deterministic outcome. This phase replaces that with a sentence a model writes. Nothing else on any view changes.
+
+**THE MODEL WRITES EXACTLY ONE THING AND THIS IS THE PHASE'S STRONGEST REFUSAL.** It never writes the verbatim ask, never the verbatim answer, never the git mark, never the path list, never freshness and never a status. The one session view and the multiplexed view are re-read from the store and stay verbatim, so the words he reads closely can never be wrong. The one place a model could be wrong is the place he is least likely to be relying on for detail, and it is one keystroke from the real words.
+
+### He picks the harness and the model
+
+Not the product. His words on 2026-08-22 were that Haiku is probably fine but the user should determine which agent harness and which model they want running.
+
+This fits Phase 23's boundary exactly, which reads that configuration selects from choices the compiled world already contains, or names an executable the user has personally confirmed. So Settings offers the harnesses already confirmed through the Phase 23 gate and the models each one exposes. Haiku through his own `claude` CLI is a SUGGESTED default. **"None" is a valid choice and it must stay valid**, because Phase 137's built line is what it falls back to.
+
+Tortie holds no API key and sends nothing to an endpoint Tortie owns. The fold is a separate one shot process, exactly as any confirmed executable is.
+
+### The trigger is an event, not a timer
+
+`src/main/activity/monitor.ts` already samples every session every tick, at 2.75 ms of CPU for 16 panes, being 0.28% of one core. `src/main/activity/state-machine.ts` already decides the moment a session goes from `working` to `idle` or to `needs_input`. That transition IS the turn boundary and it is the same signal that raises `needs input`.
+
+The fold hooks that transition. Three things follow.
+
+- **The whole fleet is covered**, every open project, not only the focused one.
+- **An idle session costs nothing**, because no transition fires. Cost is driven by turns taken rather than by sessions existing.
+- **Nothing polls and nothing wakes on a schedule.**
+
+### The fold, and the version chain
+
+The fold sends the PREVIOUS summary plus the NEW turns since the watermark. Never the whole session. That is what keeps the cost per turn flat as a session grows, so a session on its two hundredth turn costs what one on its second costs.
+
+A new `summary` table in Phase 137's store. One row is one version, naming the session, its parent version, the turn range it covers, the summary text, the harness and model that wrote it, the provider map version, a hash of its inputs and when it was written. Rows are APPENDED and never edited, and a version is written in ONE transaction after the model returns, so a crash mid fold leaves the previous version intact.
+
+**Three providers cannot use a watermark and it does not matter.** deepseek rewrites its whole document per turn, cursor replaces its pointer and gemini has records that reach backwards. All three take a full re-read, and a full re-read of the KEPT SLICE is under one percent of the file.
+
+### The cost, from research 62's measured ledger
+
+His real turn rate is 0.278 human turns per session-hour, measured across 23 sessions holding 139 human turns over 499.4 session-hours. One fold measured over 17 real invocations cost $0.019603 at the mean, $0.004704 at the minimum and $0.052718 at the maximum, and took 8.14 s at the median. Each spawn peaked at 451 MB resident, measured once.
+
+| Situation | Folds per hour | At the mean |
+| --- | ---: | ---: |
+| 7 gmux sessions live for an hour | 1.95 | $0.038 |
+| His whole readable fleet, 23 sessions | 6.39 | $0.125 |
+| An eight hour day at the fleet rate | 51 | $1.00 |
+| Twenty working days | 1,022 | $20.04 |
+
+### TWO MEASUREMENTS GATE WHETHER THE FOLD SHIPS ON, AND NEITHER IS THE DOLLARS
+
+**One. The rate window.** The dollars are notional, because the lean flag set runs under his OAuth subscription where a reported cost is a price rather than a bill. The scarce resource is his subscription RATE WINDOW, and that window is shared with the twelve agents doing the actual work. Nobody has measured it. Run the fold at his real rate beside real agent work for a bounded period and report whether an agent turn was ever slowed, deferred or refused because a fold was in flight. If it was, the fold ships OFF by default with a switch and the phase says so plainly.
+
+**Two. Fold drift.** A summary folded two hundred times can drift from what happened, because each fold trusts the last. Research 62's lab was asked to measure this and its judgment cut the fold before the numbers reached the document, so nobody has the figure. Fold a real session N times and compare against one full summarize of the same content. Say plainly whether the folded version is still true, and at what N it stops being true. If it drifts, the answer is a periodic full rebuild and the phase names the interval.
+
+**A phase that ships the fold on by default without both measurements has not done this item.**
+
+### Proof this phase must produce, run rather than read
+
+- Both gate measurements above, with their verdicts and the resulting default.
+- Photograph the project view with the fold on and with it off, and show every other view is byte identical between them.
+- Prove the version chain survives a crash mid fold, by killing the process and reading the store.
+- Prove an idle session costs nothing, by leaving a fleet idle for an hour and showing zero spawns.
+- Prove the cost, by running at his real rate and reporting the measured spend against the table above.
+- Prove "None" works, by selecting it and showing Phase 137's built line returns.
+- Prove the model wrote nothing but the one line, by diffing every other rendered string against the fold being off.
+- Report `tmux -L gmux list-sessions | wc -l` before and after.
+- The full battery plus `npm run conformance:overview`.
+
+### What is NOT in this phase
+
+**The model writes one line on one view.** Nothing else, ever.
+
+**No API key in Tortie, and no endpoint Tortie owns.** Bound C is not amendable here.
+
+**No timer, no poll and no daemon.** The only trigger is the activity monitor's existing transition.
+
+**No change to the store's other tables**, to the keep map, to the reader or to any of Phase 137's views.
+
+**Nothing may set a session's status.** Phase 23 refusal 5.
+
+**No fold for a session whose project is closed**, unless the fleet measurement shows it is free.
 
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -15777,3 +15855,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 137 re-specified by the operator after he read research 62, the main thread conversation is the unit rather than file attribution, a small model folds one summary per completed turn, a separate SQLite store keeps the version chain, and the surface is the session zoom flight at one session, several multiplexed, or the whole project
 - 2026-08-22, Run C shipped, Phases 125 and 126 as one commit, src/shared/ipc/machines.ts went from 3,117 lines to a 273 line barrel over nine domain files holding the same 105 members, GmuxCore shed the local create, the conversation id feed, the mutation ledger and the quit generation so src/main/sessions/core.ts went from 4,080 lines to 3,045, remote SCM now reads runs through src/main/actions/runs-read.ts and parsers through src/main/git/parsers.ts instead of five private local files, no channel name moved and the contract baseline is byte for byte what Phase 123 left, this commit, 0.68.5
 - 2026-08-22, Research 63 delivered, docs/research/63-provider-keep-map.md, the per provider keep map, what to read and what to skip in every agent log. Twelve of thirteen agents have a store here and eleven fill all five slots, keeping only the ask and the closing answer leaves 0.166% over his 25 live sessions, being 161.48 MB down to 274.8 KB, opening gmux costs 47.3 ms once and 0.040 ms after. It corrects Phase 137 on four rows, being qwen, pi and muse are readable rather than an honest line, cursor the CLI is readable and joinable, gemini needs a forward read rather than a replay, and the task notification inflation is 105.8% rather than 37% with nine traps rather than two. claude, codex and cursor are NOT READY, each on one silent prefilter defect named in section 19
+- 2026-08-22, Phase 137 re-specified and Phase 138 split out of it, the page is deterministic and costs nothing while the fold is its own phase gated on two unmeasured things, being his subscription rate window and fold drift; the store now keeps a copy of the parsed slice because providers can delete history from disk, and it gains a path index at 8.0 KB a session after a measurement showed tool calls name 4 paths where command text names 918
