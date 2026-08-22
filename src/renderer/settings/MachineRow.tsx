@@ -41,6 +41,25 @@
  * sealing sentence sits in the block a person reads before they press Confirm,
  * which is the moment of agreement. It arrives as a prop from the section so
  * this file can neither omit it nor reword it, exactly as the Add sheet does.
+ *
+ * PHASE 131. The order changed and four things went behind one disclosure. A
+ * person opening this row wants to know whether the machine works, and that
+ * answer used to sit at block 9 of 15, under five paragraphs of qualification.
+ * Prepare's answer is now the first thing in the open row. Behind the
+ * disclosure named "More about this machine" are the settings Tortie set on
+ * that machine, the note that it read the list of places the machine looks for
+ * programs, the fingerprint of what was confirmed, and the promise that Tortie
+ * adopts nothing. Not one consent fact moved. What Tortie runs there, that it
+ * signs in as you, which key it uses and the Saving files state are all still
+ * on the face of the row.
+ *
+ * ONE THING CAME OUT OF THAT MOVE AND DID NOT TRAVEL WITH IT. Phase 83's
+ * acceptance sheet used to be drawn inside {@link PrepareResult}, and its lines
+ * are the row's own lines with one entry added for the version being accepted.
+ * Moving the state block to the top put those lines directly above the row's
+ * own copy of them, so a person read the same four lines twice. The sheet is
+ * {@link AcceptVersionSheet} now, drawn beside the row's other agreements,
+ * which is the distance it had before this phase.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -75,13 +94,13 @@ import {
   PREPARE_OPTION_DISAGREES,
   PREPARE_PATH_MISSING,
   PREPARE_PATH_READ,
-  PREPARE_SERVER_BORN,
-  PREPARE_SERVER_WARM,
   PREPARE_SETTINGS_LABEL,
   PREPARE_SUPPORTED_LABEL,
   PREPARE_VERSION_LABEL,
   PREPARING,
   removeQuestion,
+  ROW_HASH_LABEL,
+  ROW_MORE_LABEL,
   SAVING_TITLE,
   savingOffExplain,
   savingOnLine,
@@ -99,23 +118,17 @@ import { useMachinesStore } from './machines-store';
  * Every sentence here comes from main on the result. This component writes no
  * sentence of its own beyond the labels in machines-copy.ts, so a later edit to
  * this file cannot draw a refusal as a success or an alarm calmly.
+ *
+ * PHASE 131. This block is the STATE of the machine and nothing else. The
+ * acceptance sheet used to be inside it and is now {@link AcceptVersionSheet},
+ * drawn far below beside the row's other agreements. The reason is measured
+ * and it is in the comment on that component.
  */
 function PrepareResult({
-  result,
-  accepting,
-  onAccept
+  result
 }: {
   result: MachinePrepareResult;
-  /** True while this row's acceptance and the prepare after it are in flight. */
-  accepting: boolean;
-  onAccept: () => void;
 }): React.JSX.Element {
-  // PHASE 83. Main sends a sheet only for a machine that named a version Tortie
-  // has not measured. A machine Tortie measured needs no acceptance, and a
-  // machine that would not name a version has nothing to bind one to, so the
-  // block below simply does not exist for either.
-  const sheet =
-    result.class === 'version-unmeasured' ? (result.acceptSheet ?? null) : null;
   return (
     <div
       className="mach-prepare-result"
@@ -143,65 +156,75 @@ function PrepareResult({
         </div>
       ) : null}
 
-      {result.class === 'prepared' ? (
-        <>
-          <p className="mach-prepare-note">
-            {result.serverBorn ? PREPARE_SERVER_BORN : PREPARE_SERVER_WARM}
-          </p>
-          <p className="mach-prepare-note">
-            {result.pathCaptured ? PREPARE_PATH_READ : PREPARE_PATH_MISSING}
-          </p>
-        </>
+      {/* PHASE 131. The success note about the program list and the settings
+          table moved behind the row's disclosure. This refusal did not. It
+          says Tortie will not start work on that machine, and a refusal stays
+          where a person cannot miss it. */}
+      {result.class === 'prepared' && !result.pathCaptured ? (
+        <p className="mach-prepare-note">{PREPARE_PATH_MISSING}</p>
       ) : null}
-
-      {result.options.length === 0 ? null : (
-        <div className="mach-prepare-options">
-          <div className="mach-prepare-label">{PREPARE_SETTINGS_LABEL}</div>
-          <ul className="set-config-lines">
-            {result.options.map((option) => (
-              <li
-                key={option.name}
-                data-prepare-option={option.name}
-                data-prepare-agrees={option.agrees ? 'yes' : 'no'}
-              >
-                {option.name} {option.wanted}
-                {option.agrees ? null : (
-                  <span className="mach-prepare-disagrees">
-                    {PREPARE_OPTION_DISAGREES}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* PHASE 83. The sheet a person reads before they accept a version
-          Tortie has not measured. Every line and the warning come from main
-          with the result, and the hash they are bound to goes back unchanged,
-          so this surface can neither compose the sheet nor reword it. */}
-      {sheet === null ? null : (
-        <div className="mach-accept" data-machines-accept={result.id}>
-          <p className="mach-prepare-explain">{ACCEPTED_VERSION_NONE}</p>
-          <Lines label={null} lines={sheet.lines} />
-          <p className="set-config-warning">{sheet.warning}</p>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={accepting}
-            data-machines-action="accept-version"
-            onClick={onAccept}
-          >
-            {accepting ? ACCEPTING_VERSION : BTN_ACCEPT_VERSION}
-          </button>
-        </div>
-      )}
 
       {/* PHASE 79. Prepare answers with main's own classes, so it gets the
           same advice the connection test gets, from the same table. A person
           who reads that the machine has no program should not have to go
           looking for what to do about it. */}
       <Remedy cls={result.class} />
+    </div>
+  );
+}
+
+/**
+ * PHASE 83. The sheet a person reads before they accept a version Tortie has
+ * not measured.
+ *
+ * Every line and the warning come from main with the result, and the hash they
+ * are bound to goes back unchanged, so this surface can neither compose the
+ * sheet nor reword it.
+ *
+ * WHY IT IS DRAWN HERE RATHER THAN INSIDE {@link PrepareResult}, AND THE
+ * NUMBER THAT DECIDED IT. `sheet.lines` is `describeMachine` over the row's own
+ * fields with one entry added for the version being accepted, so on a row whose
+ * Prepare refused a version, four of its lines are the row's own lines and its
+ * warning is the row's own warning. Phase 131 moved `PrepareResult` to the top
+ * of the row. That put those four lines directly above the row's own copy of
+ * them, and a person read the same four lines twice with one short block
+ * between. Before Phase 131 the two copies were six blocks apart. This
+ * component is drawn at that same distance, beside the Prepare button and the
+ * Saving files block, which are the row's other agreements. Not one line of
+ * either copy was dropped, because both are moments of agreement and each one
+ * has to state in full what it binds.
+ */
+function AcceptVersionSheet({
+  result,
+  accepting,
+  onAccept
+}: {
+  result: MachinePrepareResult;
+  /** True while this row's acceptance and the prepare after it are in flight. */
+  accepting: boolean;
+  onAccept: () => void;
+}): React.JSX.Element | null {
+  // Main sends a sheet only for a machine that named a version Tortie has not
+  // measured. A machine Tortie measured needs no acceptance, and a machine that
+  // would not name a version has nothing to bind one to, so this block simply
+  // does not exist for either.
+  const sheet =
+    result.class === 'version-unmeasured' ? (result.acceptSheet ?? null) : null;
+  if (sheet === null) return null;
+  return (
+    <div className="mach-accept" data-machines-accept={result.id}>
+      <p className="mach-prepare-explain">{ACCEPTED_VERSION_NONE}</p>
+      <Lines label={null} lines={sheet.lines} />
+      <p className="set-config-warning">{sheet.warning}</p>
+      <button
+        type="button"
+        className="btn btn-secondary"
+        disabled={accepting}
+        data-machines-action="accept-version"
+        onClick={onAccept}
+      >
+        {accepting ? ACCEPTING_VERSION : BTN_ACCEPT_VERSION}
+      </button>
     </div>
   );
 }
@@ -475,6 +498,14 @@ export function MachineRow({
 
       {open ? (
         <div className="set-config-detail">
+          {/* PHASE 131. Whether this machine works is the answer a person
+              opened the row for, so it is the first thing in the row. It used
+              to be drawn last, under everything a person might need to read
+              before they confirmed. The block says the state and nothing
+              else. Its acceptance sheet is drawn further down, beside the
+              row's other agreements. */}
+          {prepared === undefined ? null : <PrepareResult result={prepared} />}
+
           {row.state === 'changed' ? (
             <>
               <Lines label={CONFIRMED_LIST_LABEL} lines={row.confirmedLines} />
@@ -573,14 +604,6 @@ export function MachineRow({
             >
               {BTN_TEST_AGAIN}
             </button>
-
-            <span
-              className="set-config-hash"
-              title={row.hash}
-              data-machine-hash={row.hash}
-            >
-              {row.hash.slice(0, 12)}
-            </span>
           </div>
 
           {/* PHASE 69. The first affordance in Tortie that STARTS something on
@@ -590,10 +613,6 @@ export function MachineRow({
               the bridge, so this button being off is a courtesy rather than the
               safeguard. */}
           <div className="mach-prepare">
-            {/* PHASE 79. First, because it is the promise this button is
-                bound by. Tortie creates what it runs there and leaves
-                everything else alone. */}
-            <p className="mach-prepare-explain">{HONESTY_NO_ADOPTION}</p>
             <p className="mach-prepare-explain">{PREPARE_EXPLAIN}</p>
             <button
               type="button"
@@ -650,8 +669,13 @@ export function MachineRow({
               the row. */}
           <SavingFiles row={row} busy={busy} onError={setError} />
 
+          {/* PHASE 83, moved by PHASE 131. The sheet that accepts a version
+              Tortie has not measured. It is a moment of agreement, so it sits
+              with the row's other agreements rather than under the state
+              block at the top, where its lines landed directly above the
+              row's own copy of the same lines. */}
           {prepared === undefined ? null : (
-            <PrepareResult
+            <AcceptVersionSheet
               result={prepared}
               accepting={accepting}
               onAccept={() => {
@@ -660,6 +684,58 @@ export function MachineRow({
               }}
             />
           )}
+
+          {/* PHASE 131. Four things a person needs when they go looking and
+              does not need on every visit. Nothing here was deleted and
+              nothing here was reworded. The settings and the program list note
+              are drawn only after Prepare has answered; the promise and the
+              fingerprint are on every row. */}
+          <details className="mach-more" data-machines-more={row.id}>
+            <summary>{ROW_MORE_LABEL}</summary>
+
+            <p className="mach-prepare-explain">{HONESTY_NO_ADOPTION}</p>
+
+            <div className="mach-prepare-fact">
+              <span className="mach-prepare-label">{ROW_HASH_LABEL}</span>
+              <span
+                className="set-config-hash"
+                title={row.hash}
+                data-machine-hash={row.hash}
+              >
+                {row.hash.slice(0, 12)}
+              </span>
+            </div>
+
+            {prepared !== undefined &&
+            prepared.class === 'prepared' &&
+            prepared.pathCaptured ? (
+              <p className="mach-prepare-note">{PREPARE_PATH_READ}</p>
+            ) : null}
+
+            {prepared === undefined || prepared.options.length === 0 ? null : (
+              <div className="mach-prepare-options">
+                <div className="mach-prepare-label">
+                  {PREPARE_SETTINGS_LABEL}
+                </div>
+                <ul className="set-config-lines">
+                  {prepared.options.map((option) => (
+                    <li
+                      key={option.name}
+                      data-prepare-option={option.name}
+                      data-prepare-agrees={option.agrees ? 'yes' : 'no'}
+                    >
+                      {option.name} {option.wanted}
+                      {option.agrees ? null : (
+                        <span className="mach-prepare-disagrees">
+                          {PREPARE_OPTION_DISAGREES}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </details>
 
           {/* PHASE 72. The question names the sessions Tortie holds a record
               of on that machine, counted, because removing a machine turns

@@ -233,10 +233,13 @@ describe('words and punctuation', () => {
       // after it and carries nothing of its own past the colon.
       'Version on that machine:',
       'Versions Tortie has measured:',
-      'Settings Tortie asserted:',
+      'Settings Tortie set on that machine:',
       // Phase 83. It stands immediately before the version a person accepted
       // and carries nothing of its own past the colon.
-      'Version you accepted:'
+      'Version you accepted:',
+      // Phase 131. It stands immediately before the first twelve characters of
+      // the confirm hash and carries nothing of its own past the colon.
+      'Fingerprint of what you confirmed:'
     ]);
   });
 
@@ -288,10 +291,11 @@ describe('the transcript exemption', () => {
 
 describe('the sentences the charter fixes', () => {
   it('carries the standing honesty line, word for word', () => {
-    // Phase 79 moved this onto the machine row, above the Prepare button. The
-    // words did not change. The second standing line, which claimed a session
-    // could not be opened on a machine, is deleted and is held dead by the
-    // retired claims block below.
+    // Phase 79 moved this onto the machine row, above the Prepare button.
+    // Phase 131 moved it again, behind the row's own disclosure, which sits
+    // below that button. The words did not change in either phase. The second
+    // standing line, which claimed a session could not be opened on a machine,
+    // is deleted and is held dead by the retired claims block below.
     expect(copy.HONESTY_NO_ADOPTION).toBe(
       'Tortie never adopts work that is already running on your machines, ' +
         'and it never touches it. Anything Tortie runs there, it creates itself.'
@@ -299,11 +303,15 @@ describe('the sentences the charter fixes', () => {
   });
 
   it('says what Prepare will do, before a person presses it', () => {
+    // Phase 131 deleted the third sentence. It said that anything already
+    // running on that machine is left alone, which is the same fact
+    // HONESTY_NO_ADOPTION states two blocks below it on the same row.
     expect(copy.PREPARE_EXPLAIN).toBe(
       'Tortie starts the program on that machine that keeps your work alive, ' +
         'and sets it up the way Tortie needs. This is the first thing Tortie ' +
-        'runs there. Anything already running on that machine is left alone.'
+        'runs there.'
     );
+    expect(copy.PREPARE_EXPLAIN).not.toContain('already running');
     expect(copy.BTN_PREPARE).toBe('Prepare this machine');
   });
 
@@ -864,5 +872,30 @@ describe('which agents each machine has (Phase 110)', () => {
     expect(copy.rescanAgentsLabel('Studio')).toBe(
       'Ask Studio which agents it has'
     );
+  });
+});
+
+describe('the one telling that survived (Phase 131)', () => {
+  it('says "already running" in exactly one string, the no adoption promise', () => {
+    // The machine row said this fact three times. The operator counted it on a
+    // photograph. Two of the three tellings are deleted and this check is the
+    // mechanical form of his complaint, so a later edit cannot add a fourth.
+    const carriers = STRINGS.filter((s) => s.text.includes('already running')).map(
+      (s) => s.name
+    );
+    expect(carriers).toEqual(['HONESTY_NO_ADOPTION']);
+  });
+
+  it('names the fingerprint label among the labels allowed a colon', () => {
+    // The hash sat in the button row with nothing saying what it was. It now
+    // carries a label, and a label ending in a colon has to be named here or
+    // the punctuation check above fails.
+    expect(copy.ROW_HASH_LABEL).toBe('Fingerprint of what you confirmed:');
+    expect([...copy.LABELS_ENDING_IN_A_COLON]).toContain(copy.ROW_HASH_LABEL);
+  });
+
+  it('names the disclosure a person presses to reach the rest', () => {
+    expect(copy.ROW_MORE_LABEL).toBe('More about this machine');
+    expect(copy.ROW_MORE_LABEL).not.toContain(':');
   });
 });

@@ -25,7 +25,7 @@ release.
 | 9 | **104** commit on a remote tab | | ✅ shipped |
 | 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | ✅ shipped |
 | 11 | **134** the About panel credit, and one spelling of Ita Vero, LLC | A licence obligation the NOTICE file already promises | running |
-| 12 | **131** the machine row says four times what it should say once | He reported it. Waited for 130, which shipped | queued |
+| 12 | **131** the machine row says four times what it should say once | He reported it. Waited for 130, which shipped | ✅ shipped |
 | 13 | **132.1** the install sheet's rules are overwritten, and the facts band is cramped | Recorded by Phase 132's own verifier | ✅ shipped |
 | 14 | **135** the project rail's controls, the ＋, and the stranded activity bar | He reported it on 2026-08-22 with a screenshot | ✅ shipped |
 | 15 | **Run B** 123 | The six runtime cycles | queued |
@@ -14686,7 +14686,7 @@ the two bands DESIGN.md section 1.7 names, and that was a judgement rather than 
 - It touches NONE of Phase 129's files, being AgentsSection.tsx, MachineAgents.tsx, SessionRail.tsx, Titlebar.tsx, chrome-slice.ts and keymap.ts.
 
 
-## Phase 131 — the machine row says four times what it should say once (operator reported 2026-08-21) QUEUED, AFTER PHASE 130
+## Phase 131 — the machine row says four times what it should say once (operator reported 2026-08-21) ✅ SHIPPED 2026-08-22 (this commit, 0.68.2, gates green, 8,154 tests)
 
 **Subject:** `fix(settings): a machine row a person can read at a glance`
 **First body line:** `Phase 131: the machine row says four times what it should say once`
@@ -14716,6 +14716,86 @@ State first, then identity, then the things a person must consent to, then every
 4. **Everything else behind one disclosure**, being the asserted settings, the PATH read, the hash and the never-adopts sentence. A person who wants them can open them.
 
 **The hash gets a label or it goes.** `5fbded51f334` appears with nothing saying what it is. Either say it is the fingerprint of what you confirmed, or move it behind the disclosure.
+
+### What landed, with the numbers read from the running app
+
+`npm run probe:p131` reports 34 checks passed and 0 failed. It starts a real `/usr/sbin/sshd` on
+127.0.0.1, adds and confirms a machine by pressing the controls a person presses, presses Prepare,
+and reads the expanded row back in five states. The operator's own tmux server held 47 sessions
+before the run and 47 after.
+
+**The answer he opened the row for is now the first line of it.** The probe reads the open row's
+first line as "This machine is ready." and the block order as state at position 0, the row's own
+lines at 6, the key line at 14, Prepare at 20, Saving files at 21 and the disclosure at 25. It was
+block 9 of 15.
+
+**Three tellings of one fact became one.** Counted in the built bundle:
+
+| String | At HEAD | Now |
+| --- | ---: | ---: |
+| `Tortie never adopts work that is already running` | 1 | 1 |
+| `Anything already running on that machine is left alone` | 1 | 0 |
+| `was already running on that machine, so Tortie left it running` | 1 | 0 |
+| `Tortie started the program on that machine on this visit` | 1 | 0 |
+
+The fact that the program was already running is still stated once, by main, in the sentence at
+`src/main/machines/errors.ts:465`, which also names the path. Deleting `PREPARE_SERVER_WARM` and
+`PREPARE_SERVER_BORN` loses no fact, because `errors.ts:463` carries the birth case in the same
+sentence.
+
+**One disclosure holds four things and it is shut on every render.** It is named "More about this
+machine". With it open the probe reads 18 lines inside it: the promise that Tortie adopts nothing,
+the fingerprint label and the fingerprint, the note that Tortie read the list of places the machine
+looks for programs, the settings label, and the 12 settings. All 12 setting rows on the page are
+inside it. A row whose Prepare has not answered holds only the promise and the fingerprint.
+
+**No consent fact moved.** Measured on the live page in every state, each of these is on the face of
+the row and none is inside the disclosure: the "Runs this program on that machine:" line, the "Signs
+in as:" line, the key line, and the Saving files block.
+
+**The hash has a label.** It read `5fbded51f334` with nothing saying what it was, in the button row.
+It now reads "Fingerprint of what you confirmed:" and sits inside the disclosure.
+
+**No tmux vocabulary is drawn.** Counted on the live page in every state, with the disclosure shut
+and open: pane 0, window 0, prefix 0, session option 0. The 12 settings keep their own raw names,
+e.g. `escape-time 0`, and this entry's remedy for those was to put them behind the disclosure rather
+than to rename them.
+
+### The fix round, and the one defect this phase caused
+
+The first build of this phase moved `PrepareResult` from last to first with the Phase 83 acceptance
+sheet still inside it. That sheet's lines are `describeMachine` over the row's own fields with one
+entry added for the version being accepted, and its warning is the row's own warning. So on a row
+refused for a version nobody measured, a person read four lines, then one short block, then the same
+four lines again. At HEAD the two copies were six blocks apart.
+
+The sheet is now its own component, `AcceptVersionSheet`, drawn below the Saving files block, which
+is the distance it had before. Not one line of either copy was cut, because both are moments of
+agreement and each has to state in full what it binds. Measured on the refused row: the two copies of
+the program line are 15 lines apart, and the block order reads state 0, the row's own lines 12, the
+key line 20, Prepare 26, Saving files 27, the acceptance sheet 31, the disclosure 42.
+
+Three more things the fix round repaired:
+
+- `build/probe-machines.mjs` step 11 read `'Settings Tortie asserted:'`, a string this phase renamed,
+  and two sentences this phase deleted. An absence check on a string that is nowhere in the product
+  cannot fail and measures nothing. Step 11 now reads the row twice, shut and then open, and it
+  reads the born and warm fact off main's own detail sentence. Step 12's setting count was scoped
+  inside `.mach-prepare-result`, which the table no longer lives in, so it too could not fail. It
+  counts over the whole page with the disclosure pressed open, and it checks the block order.
+- The comment at `machines-copy.test.ts:295` still said the promise sits above the Prepare button.
+- The worktree's vendored specstory was 2.8.0 against a 2.10.0 pin, which failed one test. The 2.10.0
+  binary was put in place and its SHA-256 checked against `build/specstory-release.json`.
+
+### What is still not true
+
+- The `unknown` confirm state was not photographed. Reaching it needs the record in the system
+  keychain to be unreadable. It has a unit render only.
+- No real machine was contacted. Every connection went to 127.0.0.1 against a scratch sshd whose keys
+  were generated in the run's own directory.
+- `npm run smoke:t3` and `npm run package` were not run.
+- The 12 settings are still their own raw names. They are behind the disclosure and they are not
+  rewritten in a person's words.
 
 ### What is NOT in this phase
 
@@ -15287,3 +15367,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 135 shipped, the position button and the collapse chevron now sit at the head of the project rail's band, the ＋ is drawn in all four project states, and the activity bar becomes a 36px row at the head of the sidebar while the projects are on the left, this commit, 0.68.0
 - 2026-08-22, Phase 132.1 shipped, surface.css is emitted once and first so the install sheet's own rules finally draw, the control band stays the column the app has always drawn, and the facts band leads the raw skill text 143 px to 127.5 px at a 586 px window, this commit, 0.68.1
 - 2026-08-22, Phase 132.1 note, the 192 px floor the spec named was driven in the real app and REJECTED, at a 586 px window with six acknowledgement rows it put the Install button 28.5 px below the sheet's bottom and the hit test stopped returning it, so the floor shipped at 144 px where the same reading has 19.5 px to spare
+- 2026-08-22, Phase 131 shipped, the machine row leads with whether the machine is ready, one disclosure holds the address and the rest, and the version acceptance moved to its own sheet instead of a fourth copy of the same four lines, this commit, 0.68.2

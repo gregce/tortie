@@ -23,6 +23,9 @@
  * - PHASE 83. A row that carries a version a person accepted says which one,
  *   says that withdrawing it withdraws the confirmation too, and offers the one
  *   button that does it. A row that carries none draws none of that.
+ * - PHASE 131. Whether the machine works is the first thing in an open row,
+ *   and the four things a person only goes looking for sit behind the row's
+ *   own disclosure, shut.
  *
  * The vitest environment is node, so these read static markup from
  * react-dom/server rather than a mounted DOM. They render `MachinesView`
@@ -31,9 +34,14 @@
  * component would read defaults and assert nothing at all.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { MachineRowView, MachinesResult } from '@shared/ipc';
+import type {
+  MachinePrepareResult,
+  MachineRowView,
+  MachinesResult
+} from '@shared/ipc';
+
 import { MachinesView } from '../MachinesSection';
 import {
   ACCEPTED_VERSION_LABEL,
@@ -41,10 +49,33 @@ import {
   DISCLOSURE_LABEL,
   HONESTY_NO_ADOPTION,
   HONESTY_OWN_RECORD,
+  ROW_HASH_LABEL,
+  ROW_MORE_LABEL,
   SECTION_CAPTION,
   SECTION_CONFIRM_LINE,
   WITHDRAW_VERSION_EXPLAIN
 } from '../machines-copy';
+
+/**
+ * PHASE 131. What Prepare answered for one row, seeded.
+ *
+ * The store is zustand 5, and a server render reads `getInitialState` rather
+ * than the live state, so seeding the real store would change nothing on the
+ * page. This replacement runs the same selector against the same initial
+ * state with one field overridden, which is what the real hook returns on a
+ * server render. Every other test in this file reads exactly what it read
+ * before, because `preparedSeed` is empty for all of them.
+ */
+let preparedSeed: Readonly<Record<string, MachinePrepareResult>> = {};
+
+vi.mock('../machines-store', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../machines-store')>();
+  const real = actual.useMachinesStore;
+  const hook = (selector: (state: unknown) => unknown): unknown =>
+    selector({ ...real.getInitialState(), prepared: preparedSeed });
+  return { ...actual, useMachinesStore: Object.assign(hook, real) };
+});
 
 /** The sentence main owns. The surface may draw it and may not touch it. */
 const HONESTY =
@@ -105,6 +136,15 @@ function result(over: Partial<MachinesResult>): MachinesResult {
     ssh: { path: '/usr/bin/ssh', source: 'pinned' },
     ...over
   };
+}
+
+/** The row's own disclosure, so what is inside it can be read alone. */
+function rowMore(html: string): string {
+  const at = html.indexOf('<details class="mach-more"');
+  expect(at).toBeGreaterThan(-1);
+  const end = html.indexOf('</details>', at);
+  expect(end).toBeGreaterThan(at);
+  return html.slice(at, end + '</details>'.length);
 }
 
 /** The one disclosure element, so what is inside it can be read alone. */
@@ -210,12 +250,20 @@ describe('the honesty sentences, where they now stand', () => {
     result({ rows: [row({ state: 'never', usable: false })] })
   );
 
-  it('promises never to adopt other work right above the button that runs one', () => {
+  it('keeps the promise never to adopt other work, one press away', () => {
+    // PHASE 131. It stood immediately above Prepare from Phase 79 until this
+    // phase, and the row said the same thing three times. The other two
+    // tellings were deleted and this one is the survivor. It is behind the
+    // row's own disclosure, which is shut, and the Prepare button is outside
+    // that disclosure and above it.
     expect(html).toContain(HONESTY_NO_ADOPTION);
-    const promise = html.indexOf(HONESTY_NO_ADOPTION);
+    expect(rowMore(html)).toContain(HONESTY_NO_ADOPTION);
+
     const button = html.indexOf('data-machines-action="prepare"');
-    expect(promise).toBeGreaterThan(-1);
-    expect(button).toBeGreaterThan(promise);
+    const more = html.indexOf('<details class="mach-more"');
+    expect(button).toBeGreaterThan(-1);
+    expect(more).toBeGreaterThan(button);
+    expect(rowMore(html)).not.toContain('data-machines-action="prepare"');
   });
 
   it('draws main’s sealing sentence in the block a person confirms from', () => {
@@ -489,5 +537,212 @@ describe('a row carrying no accepted version', () => {
 
   it('draws no accept button, because Prepare has not answered yet', () => {
     expect(html).not.toContain('data-machines-action="accept-version"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 131. The answer first, and one disclosure for the rest
+// ---------------------------------------------------------------------------
+
+/** What Prepare answered for a machine that works. */
+function preparedResult(
+  over: Partial<MachinePrepareResult> = {}
+): MachinePrepareResult {
+  return {
+    id: 'pop-os',
+    class: 'prepared',
+    alarm: false,
+    headline: 'This machine is ready.',
+    detail:
+      'Tortie started the program at /usr/bin/tmux on this machine and set ' +
+      'it up the way it needs.',
+    version: '3.5a',
+    supported: ['3.4', '3.5a'],
+    serverBorn: true,
+    options: [
+      { name: 'escape-time', wanted: '0', observed: '0', agrees: true },
+      { name: 'history-limit', wanted: '50000', observed: '2000', agrees: false }
+    ],
+    pathCaptured: true,
+    durationMs: 412,
+    ...over
+  };
+}
+
+describe('an open row whose Prepare has answered', () => {
+  preparedSeed = { 'pop-os': preparedResult() };
+  const html = machineRow(
+    draw(result({ rows: [row({ state: 'never', usable: false })] }))
+  );
+  preparedSeed = {};
+
+  it('puts the readiness answer above everything else in the row', () => {
+    // The operator's complaint, made mechanical. The headline sat at block 9
+    // of 15 and it is block 1 now.
+    const headline = html.indexOf('This machine is ready.');
+    const firstLine = html.indexOf('Machine: pop-os.tail1a2b.ts.net');
+    expect(headline).toBeGreaterThan(-1);
+    expect(firstLine).toBeGreaterThan(-1);
+    expect(headline).toBeLessThan(firstLine);
+  });
+
+  it('puts the settings and the program list note behind the disclosure', () => {
+    const inside = rowMore(html);
+    expect(inside).toContain('escape-time');
+    expect(inside).toContain('history-limit');
+    expect(inside).toContain('data-prepare-option="escape-time"');
+    expect(inside).toContain('data-prepare-agrees="no"');
+  });
+
+  it('keeps the version fact on the face of the row', () => {
+    expect(rowMore(html)).not.toContain('data-prepare-version');
+    expect(html).toContain('data-prepare-version');
+    expect(html).toContain('>3.5a<');
+  });
+
+  it('says the born fact once, in the sentence main wrote', () => {
+    expect(html).toContain('Tortie started the program at /usr/bin/tmux');
+    expect(html).not.toContain(
+      'Tortie started the program on that machine on this visit.'
+    );
+    expect(html).not.toContain(
+      'The program was already running on that machine, so Tortie left it ' +
+        'running.'
+    );
+  });
+});
+
+describe('an open row whose Prepare has not answered', () => {
+  // `unknown` is the state of a row whose confirmation record cannot be read.
+  // It gets a render here rather than a photograph, because reaching it on a
+  // running Mac needs the record in the system keychain to be unreadable.
+  const html = machineRow(
+    draw(
+      result({
+        rows: [
+          row({
+            state: 'unknown',
+            usable: false,
+            keyFile: '/Users/x/Library/Application Support/Tortie/gmux/keys/pop-os'
+          })
+        ]
+      })
+    )
+  );
+
+  it('draws the disclosure, shut', () => {
+    expect(html).toContain(ROW_MORE_LABEL);
+    expect(rowMore(html)).not.toContain('open');
+  });
+
+  it('holds the fingerprint under a label that says what it is', () => {
+    const inside = rowMore(html);
+    expect(inside).toContain(ROW_HASH_LABEL);
+    expect(inside).toContain('a1b2c3d4e5f6');
+    expect(inside.indexOf(ROW_HASH_LABEL)).toBeLessThan(
+      inside.indexOf('a1b2c3d4e5f6')
+    );
+  });
+
+  it('holds the promise that Tortie adopts nothing', () => {
+    expect(rowMore(html)).toContain(HONESTY_NO_ADOPTION);
+  });
+
+  it('draws no settings and no program list note, because none were read', () => {
+    const inside = rowMore(html);
+    expect(inside).not.toContain('data-prepare-option');
+    expect(inside).not.toContain('mach-prepare-note');
+  });
+
+  it('keeps the four consent facts on the face of the row', () => {
+    // None of these may move behind the disclosure. The row's own lines say
+    // what Tortie runs there and who it signs in as, the key line says which
+    // key it uses, and the Saving files block says whether it may replace a
+    // file.
+    const inside = rowMore(html);
+    expect(html).toContain('Runs this program on that machine: /usr/bin/tmux');
+    expect(inside).not.toContain(
+      'Runs this program on that machine: /usr/bin/tmux'
+    );
+    expect(html).toContain('Signs in as: greg');
+    expect(inside).not.toContain('Signs in as: greg');
+    expect(html).toContain('data-machine-key-line');
+    expect(inside).not.toContain('data-machine-key-line');
+    expect(html).toContain('data-machines-writes="pop-os"');
+    expect(inside).not.toContain('data-machines-writes');
+  });
+});
+
+describe('an open row whose Prepare refused a version nobody measured', () => {
+  // PHASE 131 FIX ROUND. `sheet.lines` is the row's own lines with one entry
+  // added for the version being accepted, and `sheet.warning` is the row's own
+  // warning. Moving the state block to the top of the row put that sheet
+  // directly above the row's own copy, so a person read the same four lines
+  // twice with one short block between them. The sheet now sits beside the
+  // row's other agreements, which is where it was before this phase.
+  preparedSeed = {
+    'pop-os': preparedResult({
+      class: 'version-unmeasured',
+      alarm: true,
+      headline: 'Tortie has not measured the version that machine runs.',
+      detail:
+        'The program at /usr/bin/tmux reports version 3.6a. This release has ' +
+        'measured 3.4 and 3.5a, so nothing was started.',
+      version: '3.6a',
+      serverBorn: false,
+      options: [],
+      pathCaptured: false,
+      acceptSheet: {
+        hash: 'a1b2c3d4e5f6a7b8c9d0',
+        lines: [
+          'Machine: pop-os.tail1a2b.ts.net',
+          'Signs in as: greg',
+          'Runs this program on that machine: /usr/bin/tmux',
+          'Accepts this version of the program, which Tortie has not ' +
+            'measured: 3.6a'
+        ],
+        warning: WARNING,
+        writeHonesty: null
+      }
+    })
+  };
+  const html = machineRow(
+    draw(result({ rows: [row({ state: 'never', usable: false })] }))
+  );
+  preparedSeed = {};
+
+  it('draws the refusal and the accept button', () => {
+    expect(html).toContain(
+      'Tortie has not measured the version that machine runs.'
+    );
+    expect(html).toContain('data-machines-action="accept-version"');
+  });
+
+  it('keeps the state block at the top and the sheet far below it', () => {
+    const state = html.indexOf('class="mach-prepare-result"');
+    const ownLines = html.indexOf('Machine: pop-os.tail1a2b.ts.net');
+    const prepare = html.indexOf('data-machines-action="prepare"');
+    const saving = html.indexOf('data-machines-writes="pop-os"');
+    const sheet = html.indexOf('data-machines-accept="pop-os"');
+    expect(state).toBeGreaterThan(-1);
+    expect(sheet).toBeGreaterThan(-1);
+    expect(state).toBeLessThan(ownLines);
+    expect(ownLines).toBeLessThan(prepare);
+    expect(prepare).toBeLessThan(saving);
+    expect(saving).toBeLessThan(sheet);
+  });
+
+  it('draws no copy of the row lines inside the state block', () => {
+    const state = html.indexOf('class="mach-prepare-result"');
+    const ownLines = html.indexOf('Machine: pop-os.tail1a2b.ts.net');
+    const block = html.slice(state, ownLines);
+    expect(block).not.toContain('Machine: pop-os.tail1a2b.ts.net');
+    expect(block).not.toContain(WARNING);
+    expect(block).not.toContain('data-machines-accept');
+  });
+
+  it('leaves the sheet outside the row disclosure', () => {
+    expect(rowMore(html)).not.toContain('data-machines-accept');
+    expect(rowMore(html)).not.toContain('data-machines-action="accept-version"');
   });
 });

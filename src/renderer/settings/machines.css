@@ -757,6 +757,43 @@
 }
 
 /* ---------------------------------------------------------------------------
+   The one disclosure a machine row has (Phase 131)
+   ---------------------------------------------------------------------------
+   It copies `.mach-key-more` in key-install.css, which Phase 130 built one
+   screen away, so a person who has opened one has learned the other. It sits
+   on the same top border `.mach-writes` and `.mach-accepted` sit on, because
+   it is the next band of the same row. */
+
+.mach-more {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.mach-more > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.mach-more > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mach-more[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+.mach-more > .mach-prepare-explain + .mach-prepare-fact,
+.mach-more > .mach-prepare-fact + .mach-prepare-note,
+.mach-more > .mach-prepare-fact + .mach-prepare-options,
+.mach-more > .mach-prepare-note + .mach-prepare-options {
+  margin-top: var(--space-3);
+}
+
+/* ---------------------------------------------------------------------------
    Setting up a key for one machine (Phase 79.1)
    ---------------------------------------------------------------------------
    The block hangs off the bottom of the connection test, under the advice,

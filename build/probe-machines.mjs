@@ -571,7 +571,28 @@ const HONESTY_THREE = 'It can never seal the bytes of that program.';
  * button are there, and the five sentences that used to crowd the empty screen
  * are not. Step 4 checks that the disclosure appears once a row exists, and
  * step 11 checks that `HONESTY_ONE` is on the prepared row.
+ *
+ * PHASE 131 moved `HONESTY_ONE` once more, behind the machine row's own
+ * disclosure. Step 1 is unaffected, because the promise was never on the empty
+ * screen after Phase 79 and it is not on it now. Step 11 is the step that
+ * changed, and it now reads the row shut and then open.
  */
+/**
+ * PHASE 131. The three strings the machine row's disclosure is read by, copied
+ * from src/renderer/settings/machines-copy.ts because a probe cannot import
+ * TypeScript. Each must match its constant word for word.
+ *
+ * `SETTINGS_LABEL` is `PREPARE_SETTINGS_LABEL`, renamed by Phase 131 from
+ * "Settings Tortie asserted:". `PATH_READ` is `PREPARE_PATH_READ`, unchanged.
+ * `HASH_LABEL` is `ROW_HASH_LABEL` and `ROW_MORE_LABEL` is the summary of the
+ * disclosure itself, and both are new in Phase 131.
+ */
+const SETTINGS_LABEL = 'Settings Tortie set on that machine:';
+const PATH_READ =
+  'Tortie read the list of places that machine looks for programs.';
+const HASH_LABEL = 'Fingerprint of what you confirmed:';
+const ROW_MORE_LABEL = 'More about this machine';
+
 const SECTION_CAPTION =
   'Tortie can keep your work running on another machine you own.';
 const RETIRED_EMPTY_LINE = 'No machines yet.';
@@ -1225,7 +1246,25 @@ function writeMadeUpVersionProgram() {
  * The machine is the one step 4 confirmed, so the identity record file already
  * holds this machine's key from the one visible test, which is the production
  * path. Prepare is pressed, and the row then draws the version the machine
- * reported, the table of settings Tortie asserted, and the two honesty lines.
+ * reported and the table of settings Tortie set on that machine.
+ *
+ * PHASE 131 CHANGED WHAT THIS STEP HAS TO DO, AND THIS IS THE WHOLE OF IT.
+ * The row now has one disclosure, named "More about this machine", and it is
+ * shut when the row opens. Four things are behind it: the settings table, the
+ * note that Tortie read the list of places the machine looks for programs, the
+ * confirm fingerprint, and the promise that Tortie adopts nothing. `text()`
+ * reads `innerText`, which does not carry the contents of a shut `details`, so
+ * this step reads the row TWICE. It reads the face first and requires those
+ * four to be absent, then presses the disclosure and requires all four to be
+ * there.
+ *
+ * Two constants this step used to read are gone from the product. Phase 131
+ * deleted `PREPARE_SERVER_BORN` and `PREPARE_SERVER_WARM`, which said in a
+ * second sentence what main's own detail sentence already says, and it renamed
+ * `PREPARE_SETTINGS_LABEL` from "Settings Tortie asserted:" to "Settings
+ * Tortie set on that machine:". A probe that reads a string which is nowhere in
+ * the product cannot fail and measures nothing, so the born and warm reads move
+ * onto main's detail sentence and the label read is on the new words.
  */
 async function step11PreparePhoto(env) {
   const shot = join(outDir, 'p69-prepared.png');
@@ -1282,6 +1321,40 @@ async function step11PreparePhoto(env) {
       };
       show('.mach-row');
       await wait(400);
+
+      // PHASE 131. What the row draws with its one disclosure SHUT. The four
+      // things behind it must all be absent here, and every consent fact must
+      // be present, because none of them was allowed to move.
+      const face = text();
+
+      const more = id === null
+        ? null
+        : document.querySelector('[data-machine-id="' + id + '"] [data-machines-more]');
+      const moreLabel = more === null
+        ? null
+        : (more.querySelector('summary').textContent || '').trim();
+      const wasShut = more === null ? null : more.open === false;
+      const headlineTop = read('.mach-prepare-headline');
+      // Where the readiness answer sits, counted in characters from the top of
+      // the row's open detail. The operator's complaint was that it arrived
+      // after five paragraphs, so the probe measures the order rather than
+      // reading it.
+      const detailBox = id === null
+        ? null
+        : document.querySelector('[data-machine-id="' + id + '"] .set-config-detail');
+      const faceOfRow = detailBox === null ? '' : (detailBox.innerText || '');
+      const headlineAt = headlineTop === null ? -1 : faceOfRow.indexOf(headlineTop);
+      const firstOwnLineAt = faceOfRow.indexOf('Runs this program on that machine:');
+
+      if (more !== null) { more.open = true; }
+      await wait(400);
+      show('.mach-row');
+      await wait(300);
+      const opened = text();
+      const inside = more === null ? '' : (more.innerText || '');
+
+      const count = (hay, needle) => hay.split(needle).length - 1;
+
       return {
         trail,
         id,
@@ -1290,23 +1363,79 @@ async function step11PreparePhoto(env) {
         drewBlock: block !== null,
         drawnClass: block === null ? null : block.getAttribute('data-prepare-class'),
         drawnAlarm: block === null ? null : block.getAttribute('data-prepare-alarm'),
-        headline: read('.mach-prepare-headline'),
+        headline: headlineTop,
         detail: read('.mach-prepare-detail'),
         version: read('[data-prepare-version]'),
         optionRows: document.querySelectorAll('[data-prepare-option]').length,
-        settingsLabelOnScreen: text().includes('Settings Tortie asserted:'),
-        versionLabelOnScreen: text().includes('Version on that machine:'),
-        bornLineOnScreen: text().includes('started the program on that machine on this visit'),
-        warmLineOnScreen: text().includes('was already running on that machine, so Tortie left it running'),
-        pathLineOnScreen: text().includes('read the list of places that machine looks for programs'),
-        supportedLabelOnScreen: text().includes('Versions Tortie has measured:'),
-        // PHASE 79 deleted the "cannot open a session yet" sentence and moved
-        // the no adoption promise from the top of the section onto this row,
-        // directly above the Prepare button. This row is where that promise
-        // now has to be, so the probe reads it here.
-        noAdoptionLineOnScreen: text().includes(${JSON.stringify(HONESTY_ONE)}),
-        retiredNoSessionsOnScreen: text().includes(${JSON.stringify(RETIRED_NO_SESSIONS)}),
-        anyDash: text().includes('\\u2014') || text().includes('\\u2013')
+        versionLabelOnScreen: face.includes('Version on that machine:'),
+        supportedLabelOnScreen: face.includes('Versions Tortie has measured:'),
+
+        // PHASE 131. The disclosure itself.
+        moreFound: more !== null,
+        moreLabel,
+        wasShut,
+        // The readiness answer is the first thing in the open row.
+        headlineAt,
+        firstOwnLineAt,
+
+        // The four things that moved. False on the face, true once opened.
+        settingsLabelOnFace: face.includes(${JSON.stringify(SETTINGS_LABEL)}),
+        settingsLabelInside: inside.includes(${JSON.stringify(SETTINGS_LABEL)}),
+        pathLineOnFace: face.includes(${JSON.stringify(PATH_READ)}),
+        pathLineInside: inside.includes(${JSON.stringify(PATH_READ)}),
+        hashLabelOnFace: face.includes(${JSON.stringify(HASH_LABEL)}),
+        hashLabelInside: inside.includes(${JSON.stringify(HASH_LABEL)}),
+        noAdoptionOnFace: face.includes(${JSON.stringify(HONESTY_ONE)}),
+        noAdoptionInside: inside.includes(${JSON.stringify(HONESTY_ONE)}),
+
+        // PHASE 131. The four consent facts did not move. Each one is on the
+        // face of the row and none is inside the disclosure.
+        runsProgramOnFace: face.includes('Runs this program on that machine:'),
+        runsProgramInside: inside.includes('Runs this program on that machine:'),
+        keyLineNodes: document.querySelectorAll('[data-machine-key-line]').length,
+        keyLineInside: more === null ? 0 : more.querySelectorAll('[data-machine-key-line]').length,
+        writesNodes: document.querySelectorAll('[data-machines-writes]').length,
+        writesInside: more === null ? 0 : more.querySelectorAll('[data-machines-writes]').length,
+
+        // PHASE 131. Main's own detail sentence carries the fact that the
+        // program was already running, or that Tortie started it, and it is
+        // the ONLY telling of it left. Exactly one shape, exactly once.
+        bornInDetail: count(opened, 'on this machine and set it up the way it needs'),
+        warmInDetail: count(opened, 'was already running on this machine, so Tortie left it running'),
+        // The two deleted sentences, and the deleted third sentence of
+        // PREPARE_EXPLAIN. None may be anywhere on the page in either state.
+        retiredBornLine: opened.includes('started the program on that machine on this visit'),
+        retiredWarmLine: opened.includes('was already running on that machine, so Tortie left it running'),
+        retiredLeftAlone: opened.includes('Anything already running on that machine is left alone'),
+        retiredSettingsLabel: opened.includes('Settings Tortie asserted:'),
+        // The one telling that survived, counted on the whole page with the
+        // disclosure open. It must be exactly one.
+        //
+        // IT IS NOT A COUNT OF THE WORDS "already running", AND THIS IS WHY.
+        // Main's own detail sentence carries those words in its warm shape, so
+        // a warm machine reads them twice and a machine Tortie just started
+        // reads them once, and neither is a repetition. The two sentences say
+        // different things. The repetition the operator counted was three
+        // tellings of the one fact that Tortie leaves running work alone, so
+        // that sentence is what is counted.
+        noAdoptionTellings: count(opened, ${JSON.stringify(HONESTY_ONE)}),
+
+        retiredNoSessionsOnScreen: opened.includes(${JSON.stringify(RETIRED_NO_SESSIONS)}),
+        // No tmux vocabulary is drawn, in either state. The program path a
+        // person consented to and the value tmux-256color both carry the word
+        // and neither is vocabulary, so this counts the four forbidden words
+        // rather than that one.
+        forbiddenOnFace:
+          count(face.toLowerCase(), 'pane') +
+          count(face.toLowerCase(), 'window') +
+          count(face.toLowerCase(), 'prefix') +
+          count(face.toLowerCase(), 'session option'),
+        forbiddenInside:
+          count(inside.toLowerCase(), 'pane') +
+          count(inside.toLowerCase(), 'window') +
+          count(inside.toLowerCase(), 'prefix') +
+          count(inside.toLowerCase(), 'session option'),
+        anyDash: opened.includes('\\u2014') || opened.includes('\\u2013')
       };
     `)
   });
@@ -1322,27 +1451,56 @@ async function step11PreparePhoto(env) {
     d.version.length > 0 &&
     d.optionRows >= 12 &&
     d.versionLabelOnScreen === true &&
-    d.settingsLabelOnScreen === true &&
-    d.pathLineOnScreen === true &&
-    // EXACTLY ONE of the two honesty lines, never both and never neither. Which
-    // one it is depends on the machine rather than on Tortie, and on this probe
-    // it is the warm one for a reason worth writing down: the far side of this
-    // connection is this same Mac, on the same socket the app under test boots
-    // its own server on, so the server is already there before Prepare runs.
-    // The BIRTH is measured elsewhere, by `GMUX_SMOKE=exec-plane` step 3 and by
+    // PHASE 131. The row has one disclosure and it is shut when the row opens.
+    d.moreFound === true &&
+    d.moreLabel === ROW_MORE_LABEL &&
+    d.wasShut === true &&
+    // The readiness answer is the first thing in the open row. It used to be
+    // block 9 of 15.
+    d.headlineAt === 0 &&
+    d.firstOwnLineAt > 0 &&
+    // The four things Phase 131 moved. Absent on the face, present once the
+    // disclosure is pressed. Both halves are required, because a string that
+    // is nowhere at all would pass the first half on its own.
+    d.settingsLabelOnFace === false &&
+    d.settingsLabelInside === true &&
+    d.pathLineOnFace === false &&
+    d.pathLineInside === true &&
+    d.hashLabelOnFace === false &&
+    d.hashLabelInside === true &&
+    d.noAdoptionOnFace === false &&
+    d.noAdoptionInside === true &&
+    // The four consent facts did not move. Each one is on the face of the row
+    // and none of them is inside the disclosure.
+    d.runsProgramOnFace === true &&
+    d.runsProgramInside === false &&
+    d.keyLineNodes === 1 &&
+    d.keyLineInside === 0 &&
+    d.writesNodes === 1 &&
+    d.writesInside === 0 &&
+    // EXACTLY ONE telling of the born or warm fact, never both and never
+    // neither, and it is main's own detail sentence. Which one it is depends on
+    // the machine rather than on Tortie, and on this probe it is the warm one
+    // for a reason worth writing down: the far side of this connection is this
+    // same Mac, on the same socket the app under test boots its own server on,
+    // so the server is already there before Prepare runs. The BIRTH is measured
+    // elsewhere, by `GMUX_SMOKE=exec-plane` step 3 and by
     // `build/probe-execplane.mjs` steps 7 to 9, both of which end the scratch
     // server first and watch it come back.
-    d.bornLineOnScreen !== d.warmLineOnScreen &&
-    // The detail sentence and the honesty line beside it must say the same
-    // thing. They did not in the first build, and the photograph is what showed
-    // it: "Tortie started the program" sat directly above "The program was
-    // already running on that machine".
-    d.bornLineOnScreen === d.detail.includes('Tortie started the program') &&
-    // PHASE 79. The promise that Tortie creates what it runs and adopts
-    // nothing lives on this row now, and the sentence Phase 70 made false is
-    // gone from the product.
-    d.noAdoptionLineOnScreen === true &&
+    d.bornInDetail + d.warmInDetail === 1 &&
+    (d.bornInDetail === 1) === d.detail.includes('Tortie started the program') &&
+    // PHASE 131. The row said the same fact three times. Two tellings are
+    // deleted and the survivor is the no adoption promise, which the page
+    // carries exactly once with the disclosure open.
+    d.noAdoptionTellings === 1 &&
+    d.retiredBornLine === false &&
+    d.retiredWarmLine === false &&
+    d.retiredLeftAlone === false &&
+    d.retiredSettingsLabel === false &&
     d.retiredNoSessionsOnScreen === false &&
+    // No tmux vocabulary is drawn in either state.
+    d.forbiddenOnFace === 0 &&
+    d.forbiddenInside === 0 &&
     d.anyDash === false;
   note(
     11,
@@ -1355,16 +1513,38 @@ async function step11PreparePhoto(env) {
       `${JSON.stringify(d?.drawnAlarm ?? null)}, headline ` +
       `${JSON.stringify(d?.headline ?? null)}, version ` +
       `${JSON.stringify(d?.version ?? null)}, ${String(d?.optionRows)} setting ` +
-      `rows. On screen: the version label ${String(d?.versionLabelOnScreen)}, the ` +
-      `settings label ${String(d?.settingsLabelOnScreen)}, the program list line ` +
-      `${String(d?.pathLineOnScreen)}. Of the two honesty lines it drew the ` +
-      `server born line ${String(d?.bornLineOnScreen)} and the server warm line ` +
-      `${String(d?.warmLineOnScreen)}, and exactly one of them must be true. On ` +
-      `this probe it is the warm one, because the far side is this same Mac on ` +
-      `the socket the app under test already booted its own server on. The ` +
-      `no adoption promise is on this row ${String(d?.noAdoptionLineOnScreen)} ` +
-      `and the retired "cannot open a session yet" sentence is on screen ` +
-      `${String(d?.retiredNoSessionsOnScreen)}. A long dash anywhere on the page: ` +
+      `rows. The version label is on the face of the row ` +
+      `${String(d?.versionLabelOnScreen)}. The disclosure was found ` +
+      `${String(d?.moreFound)}, reads ${JSON.stringify(d?.moreLabel ?? null)} and ` +
+      `was shut ${String(d?.wasShut)}. The readiness answer starts at character ` +
+      `${String(d?.headlineAt)} of the open row and the first of the row's own ` +
+      `lines at ${String(d?.firstOwnLineAt)}. Shut then open, the settings label ` +
+      `reads ${String(d?.settingsLabelOnFace)} then ` +
+      `${String(d?.settingsLabelInside)}, the program list line ` +
+      `${String(d?.pathLineOnFace)} then ${String(d?.pathLineInside)}, the ` +
+      `fingerprint label ${String(d?.hashLabelOnFace)} then ` +
+      `${String(d?.hashLabelInside)}, and the no adoption promise ` +
+      `${String(d?.noAdoptionOnFace)} then ${String(d?.noAdoptionInside)}. The ` +
+      `consent facts stayed on the face: the program line ` +
+      `${String(d?.runsProgramOnFace)} with ${String(d?.runsProgramInside)} ` +
+      `inside, ${String(d?.keyLineNodes)} key line with ` +
+      `${String(d?.keyLineInside)} inside, ${String(d?.writesNodes)} Saving ` +
+      `files block with ${String(d?.writesInside)} inside. Main's detail ` +
+      `sentence tells the birth ${String(d?.bornInDetail)} times and the warm ` +
+      `case ${String(d?.warmInDetail)} times, and exactly one of them must be ` +
+      `once. On this probe it is the warm one, because the far side is this ` +
+      `same Mac on the socket the app under test already booted its own server ` +
+      `on. The page tells the no adoption promise ` +
+      `${String(d?.noAdoptionTellings)} times, which must be once. The retired ` +
+      `strings are on screen: the born ` +
+      `line ${String(d?.retiredBornLine)}, the warm line ` +
+      `${String(d?.retiredWarmLine)}, the left alone sentence ` +
+      `${String(d?.retiredLeftAlone)}, the old settings label ` +
+      `${String(d?.retiredSettingsLabel)}, the "cannot open a session yet" ` +
+      `sentence ${String(d?.retiredNoSessionsOnScreen)}, and every one of those ` +
+      `five is a failure if it is true. Forbidden words: ` +
+      `${String(d?.forbiddenOnFace)} on the face and ` +
+      `${String(d?.forbiddenInside)} inside. A long dash anywhere on the page: ` +
       `${String(d?.anyDash)}. Screenshot ${shot}`
   );
   return ok;
@@ -1377,6 +1557,15 @@ async function step11PreparePhoto(env) {
  * program path in Advanced pointing at a program that reports a made up version.
  * Prepare is pressed, and the refusal must name the version it found, the list
  * Tortie has measured, and what to do next.
+ *
+ * PHASE 131 FIX ROUND ADDED THE ORDER CHECK, AND THIS IS THE DEFECT IT HOLDS
+ * SHUT. The acceptance sheet's lines are the row's own lines with one entry
+ * added for the version being accepted, and its warning is the row's own
+ * warning. Phase 131 moved the state block to the top of the row, which put
+ * that sheet directly above the row's own copy of the same four lines, with one
+ * short block between them. The sheet is drawn below the Saving files block
+ * now, which is where it sat before Phase 131, and this step reads the order
+ * from the document so a later edit cannot put them back together.
  */
 async function step12PrepareRefusedPhoto(env, stubPath) {
   const shot = join(outDir, 'p69-version-refused.png');
@@ -1422,6 +1611,19 @@ async function step12PrepareRefusedPhoto(env, stubPath) {
       const scope = row === null ? document : document.querySelector('[data-machine-id="' + row.id + '"]');
       if (scope !== null) scope.scrollIntoView({ block: 'center' });
       await wait(300);
+      // PHASE 131 moved the settings table out of .mach-prepare-result and
+      // behind the row's disclosure. The old selector could no longer match
+      // anything, so a count of zero from it proved nothing. The disclosure is
+      // pressed and the count is taken over the whole page instead.
+      // NO BACKTICK MAY APPEAR IN THIS BODY. It is the inside of a template
+      // literal, so one backtick ends the literal and everything after it is
+      // read as this file's own code. The first build of this comment quoted a
+      // class name in backticks and the run died with "prepare is not defined".
+      const more = row === null
+        ? null
+        : document.querySelector('[data-machine-id="' + row.id + '"] [data-machines-more]');
+      if (more !== null) { more.open = true; }
+      await wait(300);
       return {
         trail,
         added,
@@ -1436,7 +1638,32 @@ async function step12PrepareRefusedPhoto(env, stubPath) {
         supportedOnScreen: read('.mach-prepare-result[data-prepare-class="version-unmeasured"] [data-prepare-supported]'),
         remedyOnScreen: text().includes('then prepare it again'),
         nothingChangedOnScreen: text().includes('Nothing was changed on either machine.'),
-        optionRows: document.querySelectorAll('.mach-prepare-result[data-prepare-class="version-unmeasured"] [data-prepare-option]').length,
+        moreOpened: more !== null,
+        optionRows: document.querySelectorAll('[data-prepare-option]').length,
+        // PHASE 131 FIX ROUND. The acceptance sheet carries the row's own
+        // lines with one entry added and the row's own warning, so it may not
+        // be drawn beside the row's own copy of them. The order is read from
+        // the document itself rather than from character offsets, so there is
+        // one coordinate system and no string to get wrong.
+        rowOrder: (() => {
+          const box = row === null
+            ? null
+            : document.querySelector('[data-machine-id="' + row.id + '"] .set-config-detail');
+          if (box === null) return null;
+          const seen = Array.from(box.querySelectorAll('*'));
+          const at = (sel) => {
+            const el = box.querySelector(sel);
+            return el === null ? -1 : seen.indexOf(el);
+          };
+          return {
+            state: at('.mach-prepare-result'),
+            ownLines: at('.mach-lines-block'),
+            prepare: at('[data-machines-action="prepare"]'),
+            saving: at('[data-machines-writes]'),
+            accept: at('[data-machines-accept]'),
+            more: at('[data-machines-more]')
+          };
+        })(),
         anyDash: text().includes('\\u2014') || text().includes('\\u2013')
       };
     `)
@@ -1453,7 +1680,19 @@ async function step12PrepareRefusedPhoto(env, stubPath) {
     typeof d.supportedOnScreen === 'string' &&
     d.supportedOnScreen.length > 0 &&
     d.nothingChangedOnScreen === true &&
+    d.moreOpened === true &&
     d.optionRows === 0 &&
+    // PHASE 131 FIX ROUND. The state block first, then the row's own lines,
+    // then Prepare, then Saving files, then the acceptance sheet, then the
+    // disclosure. The sheet repeats the row's own lines, so those two may not
+    // be neighbours.
+    d.rowOrder !== null &&
+    d.rowOrder.state === 0 &&
+    d.rowOrder.state < d.rowOrder.ownLines &&
+    d.rowOrder.ownLines < d.rowOrder.prepare &&
+    d.rowOrder.prepare < d.rowOrder.saving &&
+    d.rowOrder.saving < d.rowOrder.accept &&
+    d.rowOrder.accept < d.rowOrder.more &&
     d.anyDash === false;
   note(
     12,
@@ -1469,9 +1708,13 @@ async function step12PrepareRefusedPhoto(env, stubPath) {
       `measured as ${JSON.stringify(d?.supportedOnScreen ?? null)}. The remedy ` +
       `sentence is on screen ${String(d?.remedyOnScreen)}, the "nothing was ` +
       `changed" sentence ${String(d?.nothingChangedOnScreen)}, and it drew ` +
-      `${String(d?.optionRows)} setting rows, which must be zero because nothing ` +
-      `was started. A long dash anywhere on the page: ${String(d?.anyDash)}. ` +
-      `Screenshot ${shot}`
+      `${String(d?.optionRows)} setting rows with the disclosure pressed open ` +
+      `${String(d?.moreOpened)}, and the count must be zero because nothing ` +
+      `was started. The order of the row's blocks, counted as positions in the ` +
+      `open detail, is ${JSON.stringify(d?.rowOrder ?? null)}, and it must read ` +
+      `state, then the row's own lines, then Prepare, then Saving files, then ` +
+      `the acceptance sheet, then the disclosure. A long dash anywhere on the ` +
+      `page: ${String(d?.anyDash)}. Screenshot ${shot}`
   );
   return ok;
 }
@@ -1592,6 +1835,19 @@ async function main() {
   for (const pid of recordedPids) {
     if (isAlive(pid)) killRecorded(pid);
   }
+  // And the scratch tmux server this run left behind. Step 11 ends it before it
+  // measures a birth, and nothing ended it afterwards, so a passing run left a
+  // server standing until a person found it. The socket name is the literal
+  // scratch one, written out here rather than held in a variable, so this line
+  // can never reach the operator's own server on -L gmux.
+  try {
+    execFileSync('tmux', ['-L', 'gmux-p68-probe', 'kill-server'], {
+      encoding: 'utf8',
+      stdio: 'pipe'
+    });
+  } catch {
+    /* no server is the state this wants */
+  }
   await sleep(500);
   rmSync(scratch, { recursive: true, force: true });
 
@@ -1621,11 +1877,22 @@ async function main() {
     process.exit(1);
   }
   console.log('\nPASS.');
+  // The exit is explicit, and it is not tidying. On the failure path this file
+  // has always called process.exit(1). On the success path it returned and let
+  // node decide, and node kept the process alive on an open handle, so a run
+  // that passed printed PASS and then hung until a person ended it. Measured on
+  // 2026-08-22, when this probe passed all 12 steps for the first time since
+  // Phase 131 changed the row.
+  process.exit(0);
 }
 
 
 main().catch((err) => {
+  // The stack, not only the message. A probe that throws its own error prints
+  // one line and the next reader has no idea which step it came from, which
+  // cost a run to find out once.
   console.error(`[p68] the probe itself failed: ${err.message}`);
+  console.error(String(err.stack ?? ''));
   for (const pid of recordedPids) {
     if (isAlive(pid)) killRecorded(pid);
   }

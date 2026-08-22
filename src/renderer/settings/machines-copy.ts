@@ -76,14 +76,21 @@ export const SECTION_CONFIRM_LINE =
 export const DISCLOSURE_LABEL = 'How Tortie treats your machines';
 
 /**
- * The first standing honesty line. Research 51 section 4.6 makes this a
- * promise rather than a note, so it is never behind a disclosure.
+ * The first standing honesty line. The words have not changed since Phase 68.
  *
- * Phase 79 moved it from a standing block at the top of the section onto the
- * machine row itself, directly above the Prepare button. The words are
- * unchanged. Prepare is the affordance that starts something on the other
- * machine, so that is where the promise decides something rather than being
- * read once and scrolled past.
+ * WHERE IT LIVES, AND THE CORRECTION PHASE 131 MADE. Phase 79 moved it from a
+ * standing block at the top of the section onto the machine row, directly
+ * above the Prepare button, and wrote here that research 51 section 4.6 makes
+ * it a promise that is never behind a disclosure. Section 4.6 of
+ * docs/research/51-remote-machines.md is the failure case table and this
+ * sentence is not in it. The sentence is in section 0, line 44, in the list of
+ * three sentences of FIRST RUN copy. Research 51 asks that a person meets it,
+ * not that every row repeats it forever.
+ *
+ * Phase 131 put it behind the row's own disclosure, because the row said the
+ * same thing three times and the answer a person came for sat at block 9 of
+ * 15. The other two tellings were deleted. This one is the survivor and it is
+ * one press away on every row.
  */
 export const HONESTY_NO_ADOPTION =
   'Tortie never adopts work that is already running on your machines, and it ' +
@@ -205,8 +212,7 @@ export const BTN_PREPARE = 'Prepare this machine';
 
 export const PREPARE_EXPLAIN =
   'Tortie starts the program on that machine that keeps your work alive, and ' +
-  'sets it up the way Tortie needs. This is the first thing Tortie runs there. ' +
-  'Anything already running on that machine is left alone.';
+  'sets it up the way Tortie needs. This is the first thing Tortie runs there.';
 
 export const PREPARING = 'Preparing this machine';
 
@@ -316,14 +322,12 @@ export const PREPARE_VERSION_LABEL = 'Version on that machine:';
 /** Stands immediately before the list of versions Tortie has measured. */
 export const PREPARE_SUPPORTED_LABEL = 'Versions Tortie has measured:';
 
-/** Stands immediately before the settings table. */
-export const PREPARE_SETTINGS_LABEL = 'Settings Tortie asserted:';
-
-export const PREPARE_SERVER_BORN =
-  'Tortie started the program on that machine on this visit.';
-
-export const PREPARE_SERVER_WARM =
-  'The program was already running on that machine, so Tortie left it running.';
+/**
+ * Stands immediately before the settings table, which Phase 131 moved behind
+ * the row's disclosure. "asserted" was the word the mechanism uses. A person
+ * reading this panel is not reading about the mechanism.
+ */
+export const PREPARE_SETTINGS_LABEL = 'Settings Tortie set on that machine:';
 
 /** One line per setting in the table, when a value did not stick. */
 export const PREPARE_OPTION_DISAGREES =
@@ -337,6 +341,27 @@ export const PREPARE_PATH_READ =
 export const PREPARE_PATH_MISSING =
   'Tortie could not read the list of places that machine looks for programs, ' +
   'so it will not start work there.';
+
+// ---------------------------------------------------------------------------
+// The one disclosure a machine row has (Phase 131)
+// ---------------------------------------------------------------------------
+//
+// Four things a person needs when they go looking and does not need on every
+// visit. It is shut on every render and it remembers nothing, because a row
+// that opened itself would put the height straight back.
+
+/** The summary of the one disclosure a machine row has. */
+export const ROW_MORE_LABEL = 'More about this machine';
+
+/**
+ * Stands immediately before the first twelve characters of the confirm hash.
+ *
+ * The hash used to sit in the button row with nothing at all saying what it
+ * was. The operator read `5fbded51f334` and could not tell what it referred
+ * to. It is the fingerprint of the facts the agreement covers, so the label
+ * says that in the words a person would use.
+ */
+export const ROW_HASH_LABEL = 'Fingerprint of what you confirmed:';
 
 /**
  * Removing takes two clicks. It deletes the row and the confirmation behind
@@ -1072,5 +1097,8 @@ export const LABELS_ENDING_IN_A_COLON: readonly string[] = [
   PREPARE_SETTINGS_LABEL,
   // Phase 83. It stands immediately before the version a person accepted and
   // carries nothing of its own past the colon.
-  ACCEPTED_VERSION_LABEL
+  ACCEPTED_VERSION_LABEL,
+  // Phase 131. It stands immediately before the first twelve characters of the
+  // confirm hash and carries nothing of its own past the colon.
+  ROW_HASH_LABEL
 ];
