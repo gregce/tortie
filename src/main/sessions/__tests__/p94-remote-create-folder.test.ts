@@ -47,9 +47,14 @@ const { remoteProjectPathFor } = await import('../../machines/remote-rehome');
 
 const M = 'macpro';
 
-/** The one read of core.ts, shared by the two wiring cases at the end. */
+/**
+ * The one read of the local create, shared by the wiring cases at the end.
+ *
+ * PHASE 125 moved the create body out of `../core.ts` into `../create-local.ts`
+ * without changing a line of it, so this read moved with it.
+ */
 const coreSource = (): string =>
-  readFileSync(resolve(import.meta.dirname, '../core.ts'), 'utf8');
+  readFileSync(resolve(import.meta.dirname, '../create-local.ts'), 'utf8');
 
 describe('remoteCreateFolders, one row per case of the table', () => {
   it('A. a remote tab with the Directory field untouched runs in that tab', () => {
@@ -309,8 +314,9 @@ describe('both rules are read in createSession, in the right order', () => {
     // method itself, from its own signature to the local branch below it.
     const source = coreSource();
     const start = source.indexOf(
-      // Phase 116 moved the body behind the admission gate.
-      'async createSessionAdmitted('
+      // Phase 116 moved the body behind the admission gate, and Phase 125
+      // moved it into its own file.
+      'export async function createLocalSession('
     );
     const end = source.indexOf('await tmux.installUserPath();', start);
     expect(start).toBeGreaterThan(-1);

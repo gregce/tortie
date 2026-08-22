@@ -356,7 +356,7 @@ export interface LaunchRecordFacts {
  * `tmuxName` is PREDICTED; the caller replaces it with the name tmux actually
  * applied (dedupe may append "-2"). The provenance records the route and
  * makes no claim for a harvesting agent — the watcher replaces it with the
- * evidence it actually had (see startIdCapture in core.ts).
+ * evidence it actually had (see startIdCapture in id-harvest.ts).
  */
 export function newSessionRecord(facts: LaunchRecordFacts): ManifestSessionRecord {
   const { id, input, cwd, spec, capture, agentVersion, binPath, cwdReal, projectReal, now } = facts;

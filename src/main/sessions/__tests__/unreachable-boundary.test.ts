@@ -289,7 +289,13 @@ describe('the guards that keep unknown until a list completes', () => {
   });
 
   it('the snapshot pass skips an unreachable session', () => {
-    expect(src).toMatch(
+    // PHASE 125 moved the pass into ../quit-generation.ts unchanged, so the
+    // read moved with it. The claim is the one it made before the move.
+    const pass = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), '..', 'quit-generation.ts'),
+      'utf8'
+    );
+    expect(pass).toMatch(
       /const unwritten: UnwrittenSnapshot\[\] = \[\];[\s\S]{0,600}rec\.status === 'unknown'/
     );
   });

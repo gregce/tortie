@@ -213,6 +213,25 @@ import { gmuxError } from '../src/main/errors';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const machinesDir = join(repoRoot, 'src', 'main', 'machines');
 
+/**
+ * The machines contract as ONE piece of text.
+ *
+ * Phase 125 split src/shared/ipc/machines.ts into nine domain files under
+ * src/shared/ipc/machines/ and left the file itself as the barrel, so a
+ * condition that reads a member of the contract now reads the barrel plus the
+ * nine. Three conditions below did their own single-file read, and this is
+ * that read written once. It changes what is scanned and no condition.
+ */
+function machinesContractSource(): string {
+  const barrel = join(repoRoot, 'src', 'shared', 'ipc', 'machines.ts');
+  const dir = join(repoRoot, 'src', 'shared', 'ipc', 'machines');
+  const parts = [readFileSync(barrel, 'utf8')];
+  for (const name of readdirSync(dir).sort()) {
+    if (name.endsWith('.ts')) parts.push(readFileSync(join(dir, name), 'utf8'));
+  }
+  return parts.join('\n');
+}
+
 /** The machine every comparison below is made against. */
 const BASE: MachineExecutionFields = {
   host: 'pop-os.tail1a2b.ts.net',
@@ -1807,10 +1826,7 @@ process.stdout.write(
         entryPresent = false;
       }
       const ipcSource = readFileSync(join(machinesDir, 'ipc.ts'), 'utf8');
-      const contractSource = readFileSync(
-        join(repoRoot, 'src', 'shared', 'ipc', 'machines.ts'),
-        'utf8'
-      );
+      const contractSource = machinesContractSource();
       // The two input types, read as text, so "no root crosses" is checkable
       // rather than claimed. A member called `root` on either one would let a
       // folder chosen in the renderer decide what is written under.
@@ -1890,10 +1906,7 @@ process.stdout.write(
         stagePresent = false;
       }
       const ipcSource = readFileSync(join(machinesDir, 'ipc.ts'), 'utf8');
-      const contractSource = readFileSync(
-        join(repoRoot, 'src', 'shared', 'ipc', 'machines.ts'),
-        'utf8'
-      );
+      const contractSource = machinesContractSource();
       const readOrEmpty = (path: string): string => {
         try {
           return readFileSync(path, 'utf8');
@@ -2028,10 +2041,7 @@ process.stdout.write(
         commitPresent = false;
       }
       const ipcSource = readFileSync(join(machinesDir, 'ipc.ts'), 'utf8');
-      const contractSource = readFileSync(
-        join(repoRoot, 'src', 'shared', 'ipc', 'machines.ts'),
-        'utf8'
-      );
+      const contractSource = machinesContractSource();
       const reviewSource = readFileSync(
         join(machinesDir, 'remote-review.ts'),
         'utf8'

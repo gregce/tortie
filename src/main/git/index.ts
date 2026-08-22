@@ -8,6 +8,12 @@
  * tab is removed. `getGitService(path)` for in-main consumers (e.g. a diff
  * provider wanting binary-safe showHeadBuffer / null-distinguishing
  * showHead).
+ *
+ * THE PARSERS COME FROM `./parsers` SINCE PHASE 126, and that file is the door
+ * a caller who wants a parser and nothing that spawns should use. This barrel
+ * still exports every one of them, so no local caller changed. It exports the
+ * git service and the IPC registrars too, which is why the remote read modules
+ * under src/main/machines take `./parsers` instead of this file.
  */
 
 export { GitService } from './service';
@@ -19,42 +25,12 @@ export {
 } from './ipc';
 export { runGit, runGitOrThrow, type GitResult } from './exec';
 export {
-  parsePorcelainV2Status,
-  STATUS_LIMIT,
-  type ParsedStatus
-} from './parse';
-export {
   registerGitDepthIpc,
   type GitDepthDeps
 } from './depth-ipc';
-export {
-  BRANCH_FORMAT,
-  COMMIT_META_FORMAT,
-  parseForEachRefBranches,
-  parseCommitMeta,
-  parseNameStatusZ,
-  parseNumstatZ,
-  parseUpstreamTrack,
-  mergeCommitFiles,
-  normalizeGitHubRemote,
-  type ParsedCommitMeta,
-  type NameStatusEntry,
-  type NumstatEntry,
-  type ParsedNumstat,
-  type UpstreamTrack
-} from './parse';
-// Phase 14.5 — the history graph's data layer (docs/research/24-git-graph.md).
-export {
-  GRAPH_LOG_FORMAT,
-  LOCAL_REF_FORMAT,
-  SCOPE_REF_FORMAT,
-  annotateDivergence,
-  parseDecoration,
-  parseGraphLog,
-  parseLeftRight,
-  parseLocalRefs,
-  parseScopeRefs,
-  sanitizeRefNames,
-  type ParseGraphLogOptions,
-  type ParsedLocalRef
-} from './graph-parse';
+// The parsers, every one of them, from the one door that holds the list.
+// Phase 126 wrote the names out here as well as in `./parsers`, which is the
+// same list in two files. It lives in `./parsers` alone now. A star re-export
+// of a file that names each of its own exports adds exactly those names, so
+// this barrel's exported set is the thirty nine it has always had.
+export * from './parsers';

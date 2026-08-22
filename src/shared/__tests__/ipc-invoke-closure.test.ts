@@ -28,6 +28,11 @@
  * added or renamed unnoticed. It never opens the preload and never opens main.
  * The two checks stay separate and neither is folded into the other.
  *
+ * PHASE 125 CHANGED HOW THE DECLARED SET IS FOUND, and nothing about what is
+ * checked. `GmuxInvokeChannelMap` used to name interfaces only. It now names
+ * `MachinesInvokeChannelMap`, which is itself an intersection of nine domain
+ * interfaces, so the walk below follows an alias to an alias.
+ *
  * WHEN THIS FAILS, the fix is never to widen an allow list. There is no allow
  * list here on purpose. The fix is to declare the channel in its domain file
  * under src/shared/ipc/, call it exactly once from src/preload/, and register
@@ -60,11 +65,42 @@ const IPC_SOURCE = sourceOf('shared', 'ipc');
 const PRELOAD_SOURCE = sourceOf('preload');
 const MAIN_SOURCE = sourceOf('main');
 
-/** The member map names `GmuxInvokeChannelMap` is the intersection of. */
+/**
+ * The channel-map names one `export type X = A & B;` alias joins, or null when
+ * no alias of that name exists.
+ */
+function aliasMembers(name: string): string[] | null {
+  const alias = new RegExp(`export type ${name} =([\\s\\S]*?);`).exec(IPC_SOURCE);
+  if (alias === null) return null;
+  return (alias[1] ?? '').match(/\b[A-Z]\w*ChannelMap\b/g) ?? [];
+}
+
+/**
+ * Every channel-map INTERFACE `GmuxInvokeChannelMap` reaches, following an
+ * alias that names another alias.
+ *
+ * It used to read one level, because every member was an interface. Phase 125
+ * split the machines contract into nine domain files, so
+ * `MachinesInvokeChannelMap` is an intersection of nine interfaces rather than
+ * one interface with thirty seven keys. This walk is the same rule at any
+ * depth, so a later domain split needs no edit here. An alias that names
+ * itself is stopped by `seen`.
+ */
 function intersectionMembers(): string[] {
-  const alias = /export type GmuxInvokeChannelMap =([\s\S]*?);/.exec(IPC_SOURCE);
-  expect(alias, 'GmuxInvokeChannelMap must exist').not.toBeNull();
-  return (alias?.[1] ?? '').match(/\b[A-Z]\w*ChannelMap\b/g) ?? [];
+  const top = aliasMembers('GmuxInvokeChannelMap');
+  expect(top, 'GmuxInvokeChannelMap must exist').not.toBeNull();
+  const leaves: string[] = [];
+  const seen = new Set<string>();
+  const queue = [...(top ?? [])];
+  while (queue.length > 0) {
+    const name = queue.shift() as string;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    const nested = aliasMembers(name);
+    if (nested === null) leaves.push(name);
+    else queue.push(...nested);
+  }
+  return leaves;
 }
 
 /** Every `'<channel>':` key on one interface, or null when it is not there. */

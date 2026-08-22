@@ -12,6 +12,10 @@
  * source order. There is no way to observe "this line is above that line" by
  * calling the function, and a mock that proved the ordering would be proving
  * the mock.
+ *
+ * PHASE 125 moved the create body out of `../core.ts` into `../create-local.ts`
+ * and changed no line of it. The file this test reads changed with it, and the
+ * four claims below are the ones it made before the move.
  */
 
 import { readFileSync } from 'node:fs';
@@ -19,7 +23,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(
-  resolve(import.meta.dirname, '../core.ts'),
+  resolve(import.meta.dirname, '../create-local.ts'),
   'utf8'
 );
 
@@ -46,7 +50,7 @@ describe('what each half of createSession does with the answer', () => {
     // product and it does not become fatal here.
     const branch = source.slice(
       source.indexOf('const session = await remoteCreate({'),
-      source.indexOf('this.broadcastSessions();\n      return session;')
+      source.indexOf('deps.broadcastSessions();\n    return session;')
     );
     expect(branch).toContain('EVT_CAPTURE_NOTICE');
     expect(branch).toContain("kind: 'declined'");

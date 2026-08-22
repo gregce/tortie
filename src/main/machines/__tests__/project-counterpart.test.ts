@@ -78,7 +78,10 @@ vi.mock('../remote-image', () => ({
   remoteMachineHome: (): Promise<string> => Promise.resolve('/Users/gdc')
 }));
 
-vi.mock('../../git', () => ({
+// Phase 126: `../project-counterpart.ts` takes `runGit` from the `../../git/exec`
+// leaf rather than the `../../git` barrel, so the barrel no longer pulls the git
+// service and the git IPC registrar into this test's graph.
+vi.mock('../../git/exec', () => ({
   runGit: (): Promise<{ code: number; stdout: Buffer; stderr: string }> =>
     Promise.resolve(
       origin === null

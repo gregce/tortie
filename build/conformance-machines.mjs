@@ -7127,7 +7127,7 @@ process.stdout.write(
   const split = (data.phase103 ?? {}).split ?? {};
   if (!split.contractHasIndexState || !split.contractHasWorktreeState) {
     fail(
-      'MachineReviewFile in src/shared/ipc/machines.ts does not carry both ' +
+      'MachineReviewFile in the machines contract does not carry both ' +
         'indexState and worktreeState. Without the pair the remote list cannot ' +
         'tell a staged file from an unstaged one, and the two new verbs would ' +
         'mean nothing.'

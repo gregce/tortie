@@ -74,7 +74,8 @@ export interface HarvestContext {
    * so an unresolved value gives pi and qwen a directory that does not exist
    * and gives the claim map two folders where there is one.
    *
-   * `sessions/core.ts` resolves it at every call. The claim map resolves it
+   * `sessions/id-harvest.ts` resolves it at every call. The claim map
+   * resolves it
    * again on the way in, because a caller that forgets produces a wrong owner
    * rather than an empty listing.
    */
@@ -136,7 +137,8 @@ export interface HarvestedSessionId {
   /**
    * Phase 32. Present on a winner whose exact confirm displaced another
    * session's grace claim: the claimant that lost the id. The loser's own
-   * manifest row is corrected by the reclaim handler in sessions/core.ts.
+   * manifest row is corrected by the reclaim handler in
+   * sessions/id-harvest.ts.
    */
   reclaimedFrom?: string;
   /**

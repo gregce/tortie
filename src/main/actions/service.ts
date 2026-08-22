@@ -61,11 +61,9 @@ import { onRepoChanged } from '../watcher';
 import {
   MAX_LIMIT,
   buildAuthStatusArgv,
-  buildRunListForBranchArgv,
   buildRunListForCommitArgv,
   buildRunViewArgv
 } from './argv';
-import { mergeRunQueries } from './merge';
 import { parseJsonOrNull, parseRunJobs, parseRunList } from './parse';
 import {
   readBranch,
@@ -73,6 +71,7 @@ import {
   readOwnerRepo,
   readUpstreamSha
 } from './repo';
+import { readMergedRuns } from './runs-read';
 import { AUTH_TIMEOUT_MS, READ_TIMEOUT_MS, runGh } from './spawn';
 import {
   WATCH_LIMITS,
@@ -360,60 +359,43 @@ async function runBranchRead(rec: RepoRecord): Promise<ActionsUpdate> {
   const tipSha =
     (await readUpstreamSha(rec.repoPath)) ?? (await readHeadSha(rec.repoPath));
 
-  const outcome = await runGh(
-    buildRunListForBranchArgv({ ownerRepo, branch, limit: rec.limit }),
-    { cwd: rec.repoPath, timeoutMs: READ_TIMEOUT_MS }
-  );
-  if (!outcome.ok) {
+  // BOTH gh reads, and the fold, live in `./runs-read.ts` since Phase 126.
+  // The remote Runs section calls the same function with the same rules, so
+  // the two panels cannot disagree about what a merged list is.
+  //
+  // `cap: false` IS THE ONE THING THIS PATH ASKS FOR AND THE REMOTE ONE DOES
+  // NOT. `mergeRuns` below folds the incoming rows into the rows already on
+  // screen and caps that result against `rec.limit`, keeping the commit it is
+  // watching past the limit. Capping in both places can drop a row this fold
+  // would have kept, so only this fold caps. The reasons are written out in
+  // the header of `./runs-read.ts`.
+  const read = await readMergedRuns({
+    ownerRepo,
+    branch,
+    tipSha,
+    limit: rec.limit,
+    cwd: rec.repoPath,
+    cap: false
+  });
+  if (!read.branchOk) {
     // A broken gh makes ONE process per read, not two: the commit query is
     // never run after a branch failure.
-    rec.health = outcome.health;
-    if (outcome.health.state === 'rate-limited') stopTimer(rec);
+    rec.health = read.health;
+    if (read.health.state === 'rate-limited') stopTimer(rec);
     return snapshot(rec);
   }
+  if (read.commitFailed && read.health.state === 'rate-limited') stopTimer(rec);
 
-  const branchParsed = parseRunList(parseJsonOrNull(outcome.stdout));
-
-  // The SECOND query (Phase 120): the runs the tip commit started. GitHub
-  // records a tag push run's head branch as the tag name, so the branch
-  // query alone can never return a release run. Sequential on this same
-  // lane, never in parallel, per the ceiling in the file header.
-  let commitRuns: readonly ActionsRun[] = [];
-  let commitIssues: readonly ActionsParseIssue[] = [];
-  let commitHealth: ActionsHealth = { state: 'ready' };
-  if (tipSha !== null) {
-    const commitOutcome = await runGh(
-      buildRunListForCommitArgv({
-        ownerRepo,
-        sha: tipSha,
-        limit: WATCH_LIMITS.COMMIT_RUN_LIMIT
-      }),
-      { cwd: rec.repoPath, timeoutMs: READ_TIMEOUT_MS }
-    );
-    if (commitOutcome.ok) {
-      const commitParsed = parseRunList(parseJsonOrNull(commitOutcome.stdout));
-      commitRuns = commitParsed.runs;
-      commitIssues = commitParsed.issues;
-    } else {
-      // The branch rows below still fold in and `lastCheckedAt` is still
-      // set, because a check did happen. Health carries the COMMIT failure
-      // so the panel does not claim a full read that did not happen.
-      commitHealth = commitOutcome.health;
-      if (commitOutcome.health.state === 'rate-limited') stopTimer(rec);
-    }
-  }
-
-  rec.runs = mergeRuns(
-    rec,
-    mergeRunQueries(branchParsed.runs, commitRuns),
-    'branch'
-  );
-  rec.issues = [...branchParsed.issues, ...commitIssues];
+  rec.runs = mergeRuns(rec, read.runs, 'branch');
+  rec.issues = [...read.issues];
+  // A check did happen, so the age caption moves even when the commit query
+  // failed. Health carries that failure so the panel does not claim a full
+  // read that did not happen.
   rec.lastCheckedAt = Date.now();
-  rec.health = commitHealth;
+  rec.health = read.health;
   // A read is a user action, so it lifts a poller that a rate limit stopped.
   if (
-    commitHealth.state !== 'rate-limited' &&
+    read.health.state !== 'rate-limited' &&
     (rec.watch.phase === 'discovering' || rec.watch.phase === 'watching')
   ) {
     ensureTimer(rec);

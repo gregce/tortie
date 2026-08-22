@@ -30,7 +30,7 @@ release.
 | 14 | **135** the project rail's controls, the ＋, and the stranded activity bar | He reported it on 2026-08-22 with a screenshot | ✅ shipped |
 | 14.5 | **136** the file icon credit names the holder who ships it | Found by the Phase 134 verifier | ✅ shipped |
 | 15 | **Run B** 123 | The six runtime cycles | ✅ shipped |
-| 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
+| 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | ✅ shipped |
 | 17 | **Run D** 127 | App, FileTree and state to app | queued |
 | 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
 | — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release. NOT delegated. He cuts it | operator |
@@ -7045,7 +7045,7 @@ The gate reads text rather than a syntax tree, so a specifier assembled at runti
 it. A type only import of a node builtin is rejected as well, which is stricter than the runtime
 needs and costs nothing today.
 
-## Phase 125 — `shared/ipc/machines.ts` is one superdomain, and `GmuxCore` owns too many workflows (audit phase 6) QUEUED
+## Phase 125 — `shared/ipc/machines.ts` is one superdomain, and `GmuxCore` owns too many workflows (audit phase 6) ✅ SHIPPED 2026-08-22 (this commit, 0.68.5, gates green, 8,222 tests)
 
 **Subject:** `refactor(machines): contracts and orchestration split behind stable facades`
 **First body line:** `Phase 125: the machine contracts and orchestration split`
@@ -7064,7 +7064,63 @@ point tests preserve declaration before spawn, rollback, restore, identity and f
 **This phase must land AFTER 117 and 118**, because they change the very workflows it moves, and the
 audit forbids combining durability work with file moves.
 
-## Phase 126 — remote SCM reaches into private local action leaves (audit phase 6, third P2) QUEUED
+### What landed
+
+The contract split and the orchestration split both happened, and no channel name moved. The
+contract inventory is byte for byte identical to the file Phase 123 left, which `node
+build/contract-inventory.mjs --check` proves on the committed tree.
+
+`src/shared/ipc/machines.ts` went from 3,117 lines to 273. The 105 contract members moved into nine
+domain files under `src/shared/ipc/machines/`, one per capability family.
+
+| File | Lines | What it owns |
+| --- | ---: | --- |
+| `rows.ts` | 400 | the machine as a configuration row a person confirms |
+| `connection.ts` | 277 | the connection test and the key install |
+| `presence.ts` | 202 | the link state and which agents a machine has |
+| `filesystem.ts` | 764 | folders, files and image bytes on a machine |
+| `scm.ts` | 942 | git on a machine |
+| `projects.ts` | 219 | finding and cloning a folder on a machine |
+| `sessions.ts` | 180 | reading a session's lines from a machine |
+| `search.ts` | 134 | searching a machine's files |
+| `context.ts` | 139 | the Context panel's read of a folder on a machine |
+
+`machines.ts` keeps the two compositions that span every family, being `MachinesInvokeChannelMap` and
+`GmuxMachinesExtras`, plus the contract table. Nothing outside `src/shared/ipc/` may name one of the
+nine. `build/assert-import-boundaries.mjs` gained a `FACADE_ONLY` rule with seven fixtures that run
+before any real file is read, and `src/shared/__tests__/p125-machines-surface.test.ts` holds the 105
+names by name so a member the barrel stops re-exporting fails `npm run typecheck` and names itself.
+
+`GmuxCore` shed four workflows and `src/main/sessions/core.ts` went from 4,080 lines to 3,045. The
+extractions are `create-local.ts` at 676 lines, being ⌘T from the typed name to the row and the pane,
+`id-harvest.ts` at 505 lines, being the conversation id feed with its boot rescue and its Phase 32
+reclaim correction, `mutation-ledger.ts` at 119 lines, being the fail closed durability gate Phase
+116 built, and `quit-generation.ts` at 205 lines, being the snapshot pass and the manifest generation.
+Every `faultPoint` kept its name because `npm run smoke:fault` drives them by name, and the order of
+statements is the order they had at `8ce91a0`.
+
+Two rules keep the split safe and `src/main/sessions/__tests__/p125-core-split.test.ts` reads both as
+source text. No extracted leaf imports `./core`, which would be a two node runtime cycle. Every
+public method `GmuxCore` had at `8ce91a0` is still declared with that name, because `../ipc.ts` calls
+20 of them and `../capabilities.ts` calls 3 more, and neither file was edited.
+
+The stale header count was corrected rather than quietly fixed. The file's opening line read thirty
+two while the paragraph above the channel table read twenty six and the map held thirty seven. Both
+lines now say thirty seven. The event count was stale in the same sentence, reading two while three
+channels existed, because Phase 109 added `machines:agentsChanged` without moving it.
+
+### What is not true
+
+The remote create, the ready context, the feed ownership and the removal were named in the brief and
+did NOT move. `src/main/machines/remote-sessions.ts` is 2,917 lines and this phase did not edit it.
+The four workflows that left `GmuxCore` are the four that could move without touching the durable
+remote path, and the brief itself forbids combining durability work with file moves. Phase 128 reads
+this evidence and decides whether the rest is worth moving.
+
+The boundary gate reads text rather than a syntax tree, so a specifier assembled at runtime stays
+invisible to it. That is the same limit Phase 124 recorded for the platform rule.
+
+## Phase 126 — remote SCM reaches into private local action leaves (audit phase 6, third P2) ✅ SHIPPED 2026-08-22 (this commit, 0.68.5, gates green, 8,222 tests)
 
 **Subject:** `refactor(scm): one read-only runs service for local and remote`
 **First body line:** `Phase 126: remote SCM reaches into private local leaves`
@@ -7074,6 +7130,41 @@ Remote SCM imports private local action leaves and a broad Git barrel. Promote a
 runs and parser service used by BOTH paths, with transport staying under machines. **Proof:** an
 import boundary test plus local and remote parity fixtures. Note Phase 120 already added the merged
 runs read on both paths, so this phase inherits that shape rather than changing it.
+
+### What landed
+
+Each side got one door and the duplicated read became one function.
+
+`src/main/actions/runs-read.ts` at 280 lines holds the read only merged runs read that BOTH the local
+Runs section and the remote one now call. Phase 120 wrote that read twice, once in
+`src/main/actions/service.ts` and once in `src/main/machines/remote-runs.ts`, and the two copies were
+about 45 lines of the same work. The remote copy reached its shape by importing four private files of
+the actions directory, being `./argv`, `./merge`, `./parse` and `./spawn`, plus one number from
+`./watch`. That was 11 values and 1 type read across the directory's own wall. `service.ts` went from
+650 lines to 632 and `remote-runs.ts` went from 482 to 439.
+
+`src/main/git/parsers.ts` at 60 lines is the door onto the git parsers. Four files under
+`src/main/machines/` wanted a pure parser and imported `../git` to get one, which put `GitService`
+and `registerGitIpc` in a remote read module's runtime graph. A fifth reached past the barrel into
+`../git/parse`, which is private. The new file holds no function bodies and no effects. It re-exports
+from `./parse` and `./graph-parse` and imports nothing else.
+
+Two tests hold it. `src/main/actions/__tests__/p126-boundary.test.ts` reads the source text of every
+production file under `src/main/machines/` and fails when one uses a door other than
+`../actions/runs-read`, `../git/parsers` or `../git/exec`, naming the file, the line and the door it
+should have used. `src/main/actions/__tests__/p126-parity.test.ts` hands `readMergedRuns` the exact
+bytes gh would print and asserts the answer, the health rung and the number of gh processes for both
+call shapes. Nothing in it spawns, because the `spawner` seam is called instead of gh.
+
+### What is not true
+
+The two call shapes still differ in one field. The local service passes `cap: false` because its own
+`mergeRuns` folds and caps against the rows already on screen, and the remote path takes the default
+of true. The parity fixtures run both shapes on every case and assert they agree, except the one case
+built to show where the cap bites, which says so.
+
+Transport stayed under `src/main/machines/`. This phase moved the read and the parsers, not the ssh
+path.
 
 ## Phase 127 — `App.tsx` and `FileTree.tsx` carry controllers, and state imports app (audit phases 7 and 8) QUEUED
 
@@ -15684,3 +15775,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Research 62 delivered and Phase 137 queued, docs/research/62-session-overview.md, catch me up on this project, one page on a chord built from each agent own log AND from git, no model, no counter, no watcher, $0.00 and 106 ms warm, and it supersedes the held Phases 44 and 45. Git is in it because across his seven live gmux sessions git records 973 changed paths in seven days while the sessions name 16, an overlap of 1.2%
 - 2026-08-22, Phase 123 shipped, build/assert-no-runtime-cycles.mjs parses every production source file and reports 0 strongly connected components over 802 files and 2,820 runtime edges in 0.64 s, six cuts closed six cycles covering main logging with tmux, remote sessions, renderer state with the editor, key setup, probe registration and the connection remedy, and the string table it replaced had passed for months while seven components existed across thirty-eight modules, this commit, 0.68.4
 - 2026-08-22, Phase 137 re-specified by the operator after he read research 62, the main thread conversation is the unit rather than file attribution, a small model folds one summary per completed turn, a separate SQLite store keeps the version chain, and the surface is the session zoom flight at one session, several multiplexed, or the whole project
+- 2026-08-22, Run C shipped, Phases 125 and 126 as one commit, src/shared/ipc/machines.ts went from 3,117 lines to a 273 line barrel over nine domain files holding the same 105 members, GmuxCore shed the local create, the conversation id feed, the mutation ledger and the quit generation so src/main/sessions/core.ts went from 4,080 lines to 3,045, remote SCM now reads runs through src/main/actions/runs-read.ts and parsers through src/main/git/parsers.ts instead of five private local files, no channel name moved and the contract baseline is byte for byte what Phase 123 left, this commit, 0.68.5

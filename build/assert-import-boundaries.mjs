@@ -2,6 +2,7 @@
 /**
  * Phase 42 stage 7: the forbidden-import check.
  * Phase 124: the platform rule, and the fixtures that prove it.
+ * Phase 125: the facade rule, and the seven fixtures that prove it.
  *
  * The five TypeScript projects (tsconfig.shared.json, tsconfig.main.json,
  * tsconfig.preload.json, tsconfig.web.json for production, and
@@ -32,6 +33,16 @@
  *                 Node integration and reaches the system over the bridge.
  *   src/main      allowed. Main is the Node process.
  *   src/preload   allowed. The preload must reach contextBridge.
+ *
+ * One directory has ONE door (Phase 125). src/shared/ipc/machines/ holds nine
+ * domain files and src/shared/ipc/machines.ts is the barrel that composes
+ * them. Only a file already inside src/shared/ipc/ may name one of the nine.
+ * Phase 42 set that shape when it split src/shared/ipc.ts into domain files
+ * behind index.ts, and a second door is how the declared surface and the
+ * installed one drift apart. Tests are exempt, as they are from every rule
+ * here, and src/main/actions/index.ts already states the same house
+ * convention, that a directory's private files are imported directly by its
+ * tests.
  *
  * Other package imports are out of scope, with ONE exception (Phase 35,
  * research 42 §8 and §12): only src/main/log/ may import electron-log. The
@@ -138,6 +149,38 @@ const SOLE_OWNER_PACKAGES = {
   }
 };
 
+/**
+ * Phase 125. The directories that have ONE door, and the sentence each failure
+ * prints. `dir` is the private directory, `onlyFrom` is the one prefix allowed
+ * to name it, and `door` is what the importer should have used instead.
+ */
+const FACADE_ONLY = [
+  {
+    dir: 'shared/ipc/machines/',
+    onlyFrom: 'shared/ipc/',
+    door: 'src/shared/ipc/machines.ts',
+    why:
+      'the machines contract has ONE door. Phase 42 split src/shared/ipc.ts ' +
+      'into domain files behind index.ts and Phase 125 split machines.ts the ' +
+      'same way. A second door is how the declared surface and the installed ' +
+      'one drift apart.'
+  }
+];
+
+/**
+ * The src-relative path a specifier names, forward-slashed, or null when it
+ * names a bare package or resolves outside src/. It handles the same three
+ * shapes targetLayer() handles, and it is the only other resolver here.
+ */
+function targetPath(fromFile, spec) {
+  if (spec.startsWith('@shared/')) return `shared/${spec.slice('@shared/'.length)}`;
+  if (spec.startsWith('@renderer/')) return `renderer/${spec.slice('@renderer/'.length)}`;
+  if (!spec.startsWith('.')) return null;
+  const rel = relative(SRC, resolve(fromFile, '..', spec));
+  if (rel.startsWith('..')) return null;
+  return rel.split(sep).join('/');
+}
+
 /** The package a bare specifier names, or null for a relative or alias one. */
 function packageOf(spec) {
   if (spec.startsWith('.') || spec.startsWith('@shared/') || spec.startsWith('@renderer/')) {
@@ -193,6 +236,22 @@ function violationsFor(absFile, text) {
         continue;
       }
 
+      const named = targetPath(absFile, spec);
+      const facade =
+        named === null
+          ? undefined
+          : FACADE_ONLY.find(
+              (rule) =>
+                named.startsWith(rule.dir) && !relFromSrc.startsWith(rule.onlyFrom)
+            );
+      if (facade !== undefined) {
+        out.push(
+          `${relFromRoot}:${line()} imports '${spec}', and only src/` +
+            `${facade.onlyFrom} may. Import ${facade.door} instead: ${facade.why}`
+        );
+        continue;
+      }
+
       const why = NO_PLATFORM_ACCESS[layer];
       if (why !== undefined && isPlatformSpecifier(spec)) {
         out.push(
@@ -210,7 +269,7 @@ function violationsFor(absFile, text) {
 }
 
 // ---------------------------------------------------------------------------
-// The fixtures. Eleven synthetic files, each one line of source, run before
+// The fixtures. Eighteen synthetic files, each one line of source, run before
 // any real file is read. Nothing is written to disk and nothing is read from
 // it. A row that does not behave fails the gate with a non-zero exit.
 // ---------------------------------------------------------------------------
@@ -226,7 +285,40 @@ const FIXTURES = [
   ['shared/p124-fixture.ts', "import type { Foo } from './foo';", null],
   ['main/p124-fixture.ts', "import { readFileSync } from 'node:fs';", null],
   ['preload/p124-fixture.ts', "import { contextBridge } from 'electron';", null],
-  ['renderer/x/__tests__/p124-fixture.ts', "import { readFileSync } from 'node:fs';", null]
+  ['renderer/x/__tests__/p124-fixture.ts', "import { readFileSync } from 'node:fs';", null],
+  // Phase 125, the facade rule. Three rejections, one per layer that could
+  // reach around the barrel, and four acceptances that pin what the rule must
+  // NOT catch.
+  [
+    'main/p125-fixture.ts',
+    "import type { MachineRowView } from '@shared/ipc/machines/rows';",
+    '@shared/ipc/machines/rows'
+  ],
+  [
+    'renderer/p125-fixture.tsx',
+    "import { EVT_MACHINE_STATE } from '@shared/ipc/machines/presence';",
+    '@shared/ipc/machines/presence'
+  ],
+  [
+    'shared/p125-fixture.ts',
+    "import type { X } from './ipc/machines/scm';",
+    './ipc/machines/scm'
+  ],
+  ['main/p125-fixture.ts', "import type { MachineRowView } from '@shared/ipc';", null],
+  ['shared/ipc/index.ts', "export * from './machines';", null],
+  [
+    'shared/ipc/machines/filesystem.ts',
+    "import type { MachineRowView } from './rows';",
+    null
+  ],
+  // A test may name a private file, and every rule in this gate already
+  // exempts one. Making the facade rule stricter than that exemption would
+  // change the meaning of the gate rather than add to it.
+  [
+    'main/__tests__/p125-fixture.ts',
+    "import type { MachineRowView } from '@shared/ipc/machines/rows';",
+    null
+  ]
 ];
 
 function runFixtures() {
@@ -279,5 +371,6 @@ console.log(
   `import boundaries OK: ${fixturesChecked} fixtures behaved, ${filesScanned} ` +
     `production files, ${importsChecked} imports, 0 violations ` +
     `(${Object.keys(SOLE_OWNER_PACKAGES).length} sole-owner package rule, ` +
-    `${Object.keys(NO_PLATFORM_ACCESS).length} layers with no platform access)`
+    `${Object.keys(NO_PLATFORM_ACCESS).length} layers with no platform ` +
+    `access, ${FACADE_ONLY.length} facade directory)`
 );

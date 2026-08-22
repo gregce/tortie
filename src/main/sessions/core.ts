@@ -18,8 +18,7 @@
 
 import type { WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { existsSync, statSync } from 'node:fs';
-import { readdir, realpath, rm } from 'node:fs/promises';
+import { readdir, rm } from 'node:fs/promises';
 import { join, resolve as resolvePath } from 'node:path';
 import type {
   AddRemoteProjectInput,
@@ -44,11 +43,9 @@ import type {
 } from '@shared/scrollback';
 import type {
   CreateSessionInput,
-  LaunchableAgentKind,
   Project,
   RenameSessionInput,
   ResizeInput,
-  ResumeCapture,
   Session,
   SessionRestore,
   SessionStatus
@@ -61,30 +58,11 @@ import {
   hooksEnabled,
   readPreferredHookPort,
   SessionActivityMonitor,
-  withClaudeSettingsFlag,
   writePreferredHookPort,
   type ActivitySession
 } from '../activity';
 import { AttachHost } from '../attach';
-import {
-  agentBinaryName,
-  // PHASE 48. The structural preflight. It reads the first line of the file
-  // the resolve just found and asks whether the interpreter that line names
-  // is on the PATH the pane will get. It spawns nothing.
-  checkAgentBinary,
-  expandDirs,
-  listDetectedAgents,
-  // PHASE 49. The last RESOLVED scan, never a new one. The create path reads
-  // this synchronously, so a create can never start a version probe and can
-  // never wait on one.
-  peekDetectedAgents,
-  registryResumeArgv
-} from '../agents';
-// PHASE 23. One lookup, into the merged agent table, in memory. It is used to
-// find a configured agent's binary NAME when the compiled registry has never
-// heard of the id. It grants nothing: the confirm gate lives in
-// src/main/manifest/agents.ts and is asked on the same create path.
-import { agentEntry, launchableAgentEntry } from '../config/store';
+import { listDetectedAgents } from '../agents';
 // The durable writer's own failure type and its own out-of-space test
 // (Phase 19 item 2). Do not write a second copy of either.
 import { DurableWriteError, isOutOfSpace } from '../durable';
@@ -93,30 +71,19 @@ import { DurableWriteError, isOutOfSpace } from '../durable';
 import { faultPoint } from '../fault/inject';
 import { unwatchGitRepo } from '../git';
 import {
-  agentHarvestsId,
-  agentRescuesId,
-  agentRescuesIdAfterExit,
   claimConversationId,
   conversationClaimant,
-  conversationClaimStrength,
-  harvestProvenance,
   ManifestStore,
   onConversationReclaimed,
   releaseConversationClaims,
-  resolveClaimCwd,
   defaultManifestDbPath,
   prepareManifestForBoot,
-  resolveLaunchSpec,
-  SESSION_CONTRACT_VERSION,
   startManifestRing,
   toSession,
-  watchForSessionId,
-  type ConversationReclaim,
   type LiveTmuxSession,
   type ManifestRingSchedule,
   type ManifestSessionRecord,
   type RestoreAttemptRecord,
-  type ResumeProvenance,
   type RingTakeResult,
   type SessionIdWatch
 } from '../manifest';
@@ -154,12 +121,8 @@ import { getSettings, onSettingsUpdated } from '../settings/store';
 import {
   SYNC_QUIT_TIMEOUT_MS,
   SyncQueue,
-  captureRefusedOnMachine,
   cloudDisabledByEnv,
   unwrapArgv,
-  wrapForCapture,
-  wrapWithRecord,
-  type SpecstoryCaptureRecord,
   type SyncRequest
 } from '../specstory';
 import * as tmux from '../tmux';
@@ -192,7 +155,6 @@ import {
   projectRemoteRecord,
   readyRemoteContext,
   refuseRemoteRestore,
-  remoteCreate,
   remoteKill,
   remoteRename,
   remoteSessionRow,
@@ -269,19 +231,40 @@ function atHomeOnItsMachine(session: Session): Session {
 // PHASE 48. The last words of a dead pane, as one pure function beside this
 // file. The reaper is its only caller.
 import { exitDetailFrom } from './exit-detail';
+// PHASE 125. The fail closed durability gate, as its own leaf. It imports
+// nothing from this file: it learns whether the core is disposed and how to
+// build the refusal through the object the constructor hands it.
 import {
-  agentExtrasOf,
-  agentNotFoundMessage,
-  bareNameFor,
-  binaryCandidatesOf,
-  createMachineIdFor,
-  interpreterMissingMessage,
-  newSessionRecord,
-  paneEnvFor,
-  remoteCreateFolders,
-  snapshotRecipeOf,
-  spawnArgvFor
-} from './launch-plan';
+  MUTATION_JOIN_DEADLINE_MS,
+  MutationLedger
+} from './mutation-ledger';
+// PHASE 125. The local create, 520 lines, behind the same gate it always had.
+// `isDirectory` lives there because the create path is two of its three
+// readers; addProject below is the third.
+import {
+  createLocalSession,
+  isDirectory,
+  type CreateLocalDeps
+} from './create-local';
+// PHASE 125. The conversation id feed: the create-time harvest, the boot
+// rescue and the Phase 32 reclaim correction. It imports nothing from this
+// file and takes the three maps it shares with this class by reference.
+import {
+  cachedAgentVersion,
+  handleConversationReclaim,
+  resumeIdHarvests,
+  startIdCapture,
+  type IdHarvestDeps
+} from './id-harvest';
+// PHASE 125. The snapshot pass and the manifest generation the quit and sleep
+// paths take. The ORDER shutdownGmuxCore runs them in stays in this file.
+import {
+  snapshotAllSessions,
+  takeManifestGenerationOnQuit,
+  takeManifestGenerationOnSuspend,
+  type QuitGenerationDeps
+} from './quit-generation';
+import { snapshotRecipeOf } from './launch-plan';
 import {
   claimStrengthOf,
   identityProbeNeeded,
@@ -290,14 +273,10 @@ import {
   LOCAL_MACHINE,
   restoredStatus,
   retainedBindings,
-  snapshotFailureNotice,
-  snapshotPassLine,
   staleCreateIds,
   statusFlipActions,
   unreachableFlips,
-  type MachineId,
-  type SnapshotPassResult,
-  type UnwrittenSnapshot
+  type MachineId
 } from './reconcile-plan';
 
 // ---------------------------------------------------------------------------
@@ -332,14 +311,6 @@ const UNREACHABLE_RETRY_MS = 2_000;
  */
 const STATUS_POLL_MS = 1_000;
 const STATUS_POLL_IDLE_MS = 2_000;
-
-/**
- * How long a boot rescue looks for the record of a session whose process is
- * already gone. The store scan runs immediately and nothing will be written
- * afterwards, so this only has to outlast a slow disk — not the hours a LIVE
- * harvest waits for a trust prompt to be answered.
- */
-const DEAD_ROW_RESCUE_TIMEOUT_MS = 20_000;
 
 /** How long a create may claim to still be in flight — see createsInFlight. */
 const CREATE_IN_FLIGHT_MAX_MS = 60_000;
@@ -566,22 +537,62 @@ export class GmuxCore {
   private disposed = false;
 
   /**
-   * Phase 116, refusal site B. True from the moment `shutdownGmuxCore()` has
-   * settled the boot, set through {@link beginShutdown}. Main-process code
-   * that already holds a core reference, e.g. the tray or a timer, reaches
-   * the mutators without passing `getGmuxCore()`, so the instance carries its
-   * own flag rather than trusting the module gate alone.
+   * Phase 116, refusal site B, moved to ./mutation-ledger.ts by Phase 125.
+   *
+   * The ledger holds the shutdown flag and the set of admitted mutations.
+   * Every mutator still reads and writes through this class, and the three
+   * verbs below delegate in one line each.
    */
-  private shuttingDown = false;
+  private ledgerSlot: MutationLedger | null = null;
 
   /**
-   * Phase 116. The admission ledger: every mutation {@link admit} let in and
-   * that has not settled yet. `shutdownGmuxCore()` joins this set before the
-   * final snapshot, so work the core accepted is landed rather than abandoned
-   * mid write. Entries are settle-only wrappers, so the ledger can never turn
-   * a caller's handled rejection into an unhandled one.
+   * The ledger, built on first use rather than in a field initializer.
+   *
+   * It is lazy on purpose. Several seam tests in this tree borrow the real
+   * methods off `GmuxCore.prototype` and run them against a plain object made
+   * with `Object.create`, which runs no field initializer at all. A getter is
+   * reached the same way on both, so the refusal proof in
+   * `__tests__/core-singleton.test.ts` drives the real gate rather than a
+   * stand-in. `this.disposed` is undefined on such an object, which reads as
+   * false, exactly as it did when the guard was written inline.
    */
-  private readonly admitted = new Set<Promise<void>>();
+  private get ledger(): MutationLedger {
+    this.ledgerSlot ??= new MutationLedger({
+      isDisposed: () => this.disposed === true,
+      refusalFor: (entry) => shutdownRefusal(entry)
+    });
+    return this.ledgerSlot;
+  }
+
+  /**
+   * True from the moment `shutdownGmuxCore()` has settled the boot. Main
+   * process code that already holds a core reference, e.g. the tray or a
+   * timer, reaches the mutators without passing `getGmuxCore()`, so the
+   * instance carries its own answer rather than trusting the module gate
+   * alone. The four synchronous mutators read it inline, as they always did.
+   */
+  private get shuttingDown(): boolean {
+    return this.ledger.shuttingDown;
+  }
+
+  /**
+   * PHASE 125. What ./id-harvest.ts reads this class through. Built once in
+   * the constructor, because two of its five members are assigned there.
+   */
+  private readonly harvestDeps: IdHarvestDeps;
+
+  /**
+   * PHASE 125. What ./create-local.ts reads this class through. Built once in
+   * the constructor, because three of its eight members are assigned there.
+   */
+  private readonly createDeps: CreateLocalDeps;
+
+  /**
+   * PHASE 125. What ./quit-generation.ts reads this class through. Built once
+   * in the constructor. `ringSchedule` is a getter because the field is null
+   * until boot reaches it.
+   */
+  private readonly quitDeps: QuitGenerationDeps;
 
   /**
    * Diagnostic tap: called with (sessionId, byteLength) for every term:data
@@ -600,6 +611,18 @@ export class GmuxCore {
 
   private constructor(manifest: ManifestStore) {
     this.manifest = manifest;
+    // PHASE 125. The maps are handed over BY REFERENCE, so the feed and this
+    // class read and write the same entries. Copying them here would change
+    // the behaviour, which is the one thing this move must not do.
+    this.harvestDeps = {
+      manifest,
+      liveIds: this.liveIds,
+      idCaptureWatches: this.idCaptureWatches,
+      isDisposed: () => this.disposed,
+      broadcastSessions: () => {
+        this.broadcastSessions();
+      }
+    };
     // PHASE 72. The machine layer writes remote session rows through this one
     // handle rather than opening a second connection to a database this process
     // already holds open for writing. It is taken away again in dispose(), so a
@@ -649,6 +672,28 @@ export class GmuxCore {
         this.scrollbackWatch.observe(samples);
       }
     });
+    // PHASE 125. Built here rather than as a field initializer, because
+    // `hookServer` is assigned above in this same body. The three maps go over
+    // by reference, for the reason the harvest deps give.
+    this.createDeps = {
+      manifest,
+      hookServer: this.hookServer,
+      liveIds: this.liveIds,
+      byTmuxId: this.byTmuxId,
+      createsInFlight: this.createsInFlight,
+      broadcastSessions: () => {
+        this.broadcastSessions();
+      },
+      startIdCapture: (id, agent, ctx, extraArgs, options) => {
+        startIdCapture(this.harvestDeps, id, agent, ctx, extraArgs, options);
+      },
+      cachedAgentVersion: (agent) => cachedAgentVersion(agent)
+    };
+    this.quitDeps = {
+      manifest,
+      liveIds: this.liveIds,
+      ringSchedule: () => this.ringSchedule
+    };
     this.wireControlEvents();
     // Phase 32. When a session PROVES a conversation another session had
     // only guessed, the loser's row is corrected here: id withdrawn, watch
@@ -656,7 +701,7 @@ export class GmuxCore {
     // winner's own settle resolves, so at no observable moment do two rows
     // carry the same conversation id.
     this.unsubscribeReclaims = onConversationReclaimed((ev) => {
-      this.handleConversationReclaim(ev);
+      handleConversationReclaim(this.harvestDeps, ev);
     });
     // Phase 70. A poll of a machine, a remote create, a rename and a kill all
     // change what the list holds, and none of them touches the manifest, so the
@@ -754,20 +799,15 @@ export class GmuxCore {
 
   /**
    * Take a generation of the manifest because the machine is going to sleep
-   * (Phase 20 item 2).
-   *
-   * Sleep and quit are the two moments with no next tick, so both skip the five
-   * minute floor and keep the change test. Null means the manifest has not
-   * changed since the last generation, which is the common case and is not a
-   * failure.
+   * (Phase 20 item 2). The body is in ./quit-generation.ts.
    */
   async takeManifestGenerationOnSuspend(): Promise<RingTakeResult | null> {
-    return (await this.ringSchedule?.onSuspend()) ?? null;
+    return takeManifestGenerationOnSuspend(this.quitDeps);
   }
 
   /** The same, on the way out. Stops the poll first. */
   async takeManifestGenerationOnQuit(): Promise<RingTakeResult | null> {
-    return (await this.ringSchedule?.onQuit()) ?? null;
+    return takeManifestGenerationOnQuit(this.quitDeps);
   }
 
   /** Boot the whole durable core. Throws structured GmuxErrors on failure. */
@@ -1019,535 +1059,16 @@ export class GmuxCore {
   }
 
   // -------------------------------------------------------------------------
-  // The agent version at launch — Phase 21 (A8, research 30 §2.4 D1)
-  // -------------------------------------------------------------------------
-
-  /**
-   * The installed version of `agent`, or null when nothing can say yet.
-   *
-   * SYNCHRONOUS SINCE PHASE 49, and that is the point. `peekDetectedAgents()`
-   * returns the last RESOLVED scan and never starts one, so a create can
-   * never start a version probe and can never wait on one. The boot warm
-   * above starts the scan early; the one create that races it records
-   * agent_version NULL on its row, exactly as the harvest path has always
-   * tolerated. The column is nullable and nothing on the restore path reads
-   * it for correctness (Phase 21 recorded the contract on the row instead).
-   *
-   * The manifest records the SpecStory wrapper's version already, explicitly
-   * so a restore after a mid-flight upgrade replays the same binary. The agent
-   * is the thing whose resume semantics actually change, and five of nine
-   * installed agents drifted in the three days between research 30 being
-   * written and being re-measured, so this is the version that matters more.
-   */
-  private cachedAgentVersion(agent: LaunchableAgentKind): string | null {
-    if (agent === 'shell') return null;
-    return (
-      peekDetectedAgents()?.agents.find((a) => a.id === agent)?.version ?? null
-    );
-  }
-
-  // -------------------------------------------------------------------------
-  // Session-id harvest (create time + boot resume) — Phase 13.5
-  // -------------------------------------------------------------------------
-
-  /**
-   * Watch a harvesting agent's session store for the record that identifies
-   * this pane's conversation, and arm the resume argv the moment it appears.
-   * Used at create time AND re-armed on boot for sessions that were spawned
-   * but never harvested (e.g. gmux quit within the harvest window).
-   *
-   * Was codex-only until Phase 13.5; the per-agent store paths, filename
-   * patterns and correlation keys are now data in src/main/manifest/harvest.
-   */
-  private startIdCapture(
-    id: string,
-    agent: LaunchableAgentKind,
-    ctx: { cwd: string; sinceTs: number; panePid?: number; tmuxSessionId?: string },
-    extraArgs: readonly string[],
-    options: {
-      timeoutMs?: number;
-      markUnavailableOnFailure?: boolean;
-      /**
-       * TRUE when the watch was started with the pane (Phase 21, G6). FALSE
-       * means a later launch started it against a REMEMBERED spawn time, with
-       * no live process to correlate against, and the provenance records that
-       * difference permanently rather than letting the two look alike.
-       */
-      atCreate?: boolean;
-    } = {}
-  ): void {
-    if (agent === 'shell' || !agentRescuesId(agent)) return;
-    if (this.idCaptureWatches.has(id)) return;
-    const watch = watchForSessionId(agent, ctx, {
-      // PHASE 21 fix round. The session this watch is FOR. Two panes started
-      // seconds apart in one folder can both see the first record, and the
-      // freshness window is two seconds wide on purpose, so without this the
-      // second pane could arm the first pane's conversation and record the
-      // answer as proven. A record another session already has is not a
-      // candidate here, and the same session may retake its own id when the
-      // watch is started again.
-      claimant: id,
-      ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {})
-    });
-    this.idCaptureWatches.set(id, watch);
-    watch.promise
-      .then((harvested) => {
-        this.idCaptureWatches.delete(id);
-        // dispose() cancels every watch and then closes the manifest, so a
-        // settle that lands after teardown must touch nothing.
-        if (this.disposed) return;
-        // The session may have been killed/discarded while we watched.
-        const rec = this.manifest.getSession(id);
-        if (rec === undefined) return;
-        // Resume with the session's recorded ABSOLUTE binary (Bug A), and
-        // re-append the original extras — resume restores no launch flags.
-        //
-        // Phase 15: on a CAPTURED session, `rec.argv[0]` is the specstory
-        // wrapper, not the agent — the agent's own argv lives in the capture
-        // record, which is why it is stored verbatim. Compose the inner
-        // resume from THAT, then put the wrapper back around it, so a
-        // harvested session restores captured exactly like a pre-assigned one.
-        const capture = rec.specstory;
-        const innerBin =
-          capture?.agentArgv[0] ?? rec.argv[0] ?? agentBinaryName(agent);
-        const innerResume = registryResumeArgv(
-          agent,
-          harvested.sessionId,
-          extraArgs,
-          innerBin
-        );
-        if (innerResume.length === 0) return; // never persist an id-less argv
-        let resumeArgv = innerResume;
-        if (capture?.enabled === true) {
-          const rewrapped = wrapWithRecord(capture, innerResume);
-          if (rewrapped !== null) resumeArgv = rewrapped;
-          else {
-            // The wrap could not be rebuilt (an argument SpecStory cannot
-            // pass through). Arming the BARE resume is right — the
-            // conversation is what matters — but the user's capture would
-            // silently stop at the restore, so it is said out loud.
-            sessionsLog.warn(
-              `${agent} resume for "${rec.name}" could not keep ` +
-                'SpecStory capture; the armed command runs the agent directly.'
-            );
-          }
-        }
-        // PHASE 21 (G6) — persist how good the evidence was, not just the id.
-        //
-        // The watcher knows which key proved the record, whether a timer
-        // accepted it, and how many candidates were still in play. All of it
-        // used to end at the console line below, so an exact correlation and
-        // a timing guess reached the manifest as the same armed session.
-        const provenance = harvestProvenance(harvested, {
-          cwd: ctx.cwd,
-          agentVersion: this.cachedAgentVersion(agent),
-          atCreate: options.atCreate !== false
-        });
-        // ONE durable write, not two. The id and the claim about the id go
-        // into the same transaction, so no power cut can leave a row that is
-        // armed and silent about where the id came from.
-        this.manifest.setAgentSessionId(
-          id,
-          harvested.sessionId,
-          resumeArgv,
-          provenance
-        );
-        if (provenance.confidence !== 'exact') {
-          // Armed, but not PROVEN to be this pane's conversation. Said out
-          // loud in the log because the alternative is a confident restore
-          // into somebody else's session.
-          sessionsLog.warn(
-            `${agent} resume id ${harvested.sessionId} matched on ` +
-              `'${harvested.key}'${harvested.viaGraceTimer ? ' via the grace timer' : ''} ` +
-              `with ${harvested.rivals} candidate(s) in play ` +
-              `(${provenance.confidence}) — ${harvested.storePath}`
-          );
-        }
-        const live = this.liveIds.get(id);
-        if (live !== undefined) {
-          void tmux
-            .setSessionOption(live, '@gmux-session-id', harvested.sessionId)
-            .catch(() => undefined);
-        }
-        this.broadcastSessions();
-      })
-      .catch((err: unknown) => {
-        this.idCaptureWatches.delete(id);
-        if (this.disposed) return; // teardown cancelled us; the DB is closed
-        // A TIMEOUT IS NOT A SUCCESS. It is not terminal either, and that is
-        // a deliberate change from research 22 §4.1 point 2, which assumed a
-        // harvest "resolves within seconds for every Tier-2 agent". MEASURED
-        // 2026-08-11: codex and muse sit behind a first-run trust prompt and
-        // write nothing until it is answered, and codex writes no rollout at
-        // all until the first turn. Flipping to "directory only" while gmux
-        // is still watching — and will arm the moment the user types — would
-        // be a worse lie than the one this phase is fixing. The state goes
-        // terminal where the answer really is final: refresh() re-arms live
-        // sessions, and resumeIdHarvests() withdraws the promise once the
-        // session is gone without an id.
-        sessionsLog.warn(`${agent} session-id harvest: ${(err as Error).message}`);
-        // …EXCEPT for a rescue of a session that has already exited, where
-        // the answer really is final: no process will ever write that record
-        // now, so the row stops saying 'capturing' and says what a restore
-        // would actually give the user.
-        if (options.markUnavailableOnFailure === true) {
-          const rec = this.manifest.getSession(id);
-          if (rec?.resumeCapture === 'capturing') {
-            this.manifest.setResumeCapture(id, 'unavailable');
-          }
-        }
-        this.broadcastSessions();
-      });
-  }
-
-  /**
-   * Boot-time finalization: any session still missing its agentSessionId gets
-   * a fresh watch keyed to its original spawn time, so resume ids are
-   * recorded even across a gmux restart mid-harvest. extraArgs are recovered
-   * from the recorded launch argv.
-   *
-   * Phase 13.5.1 widened this past the harvesting agents, because the rows the
-   * user reported were being skipped by the very code written to rescue them:
-   * muse-1 and qwen-1 were re-armed here, and pi-1 and pi1 were not, since pi
-   * PRE-ASSIGNS and so never had a harvester — leaving two sessions with a
-   * NULL resume argv and their transcripts sitting on disk the whole time. A
-   * row with no id is a row the launch path already failed for, whatever its
-   * agent's normal strategy is, so the question is only whether the store can
-   * still answer (see agentRescuesId / agentRescuesIdAfterExit).
-   */
-  private resumeIdHarvests(): void {
-    // PHASE 21 fix round, and it has to happen before the first watch starts.
-    // The in-process record of who owns which conversation is empty at boot,
-    // so a rescue watch would be free to hand session A's conversation to
-    // session B. The manifest already knows. Every id it holds is claimed by
-    // the row that holds it, and the rescues below then look for a record
-    // nobody has.
-    for (const rec of this.manifest.listSessions()) {
-      // Phase 29: a tombstone claims nothing. Remove released the claim on
-      // purpose, and a tombstone re-claiming its conversation at the next
-      // boot would block a new session in that folder from recording the id.
-      if (rec.status === 'discarded') continue;
-      if (rec.agentSessionId === undefined) continue;
-      // Phase 32 (strength extracted to claimStrengthOf in Phase 29): a row
-      // armed by a grace GUESS must stay reclaimable across restarts. Phase
-      // 34 added the middle rung, so a folder match is takeable here too, and
-      // the row's cwd travels with the claim because that is what decides
-      // whether another session's folder match may take it.
-      if (
-        claimConversationId(
-          rec.agentSessionId,
-          rec.id,
-          claimStrengthOf(rec),
-          rec.cwd
-        )
-      ) {
-        continue;
-      }
-      // Two rows already record one conversation. This build cannot make that
-      // happen any more, and it cannot undo one that a previous build wrote:
-      // there is no way to know which row is right. It is said out loud
-      // because restoring both resumes the same conversation twice, and that
-      // is worth knowing before it surprises someone. MEASURED in the T1 smoke
-      // profile the moment this landed: codex-1 and codex-2 both carry
-      // 019febf5-e7fa-7e32-8fd5-c4a56e10a859.
-      sessionsLog.warn(
-        `sessions ${String(conversationClaimant(rec.agentSessionId))} ` +
-          `and ${rec.id} both record ${rec.agent} conversation ` +
-          `${rec.agentSessionId}. Restoring both resumes the same conversation.`
-      );
-    }
-    for (const rec of this.manifest.listSessions()) {
-      // Phase 29: never rescue an id for a tombstone. A rescue watch would
-      // write a conversation id onto a row the user removed.
-      if (rec.status === 'discarded') continue;
-      if (rec.agent === 'shell' || !agentRescuesId(rec.agent)) continue;
-      if (rec.agentSessionId !== undefined) continue;
-      const live = this.liveIds.get(rec.id);
-      if (
-        rec.status === 'exited' ||
-        rec.status === 'restorable' ||
-        live === undefined
-      ) {
-        // The process is gone. For most agents that ends it — their stores are
-        // keyed on a pid or a tmux pane that no longer exists — so leaving the
-        // row 'capturing' would spin forever over a session that comes back as
-        // a bare directory. A cwd+start-time store (pi) outlives its pane,
-        // though, and this is exactly the post-reboot case the phase is for:
-        // give it one bounded look, then say 'unavailable' if it finds nothing.
-        if (agentRescuesIdAfterExit(rec.agent)) {
-          this.startIdCapture(
-            rec.id,
-            rec.agent,
-            // Resolved, because `HarvestContext.cwd` is the store key for pi
-            // and qwen and the folder every ownership rule compares. The row
-            // keeps the folder the user chose, which can be a symlink to the
-            // folder another row spells directly.
-            { cwd: resolveClaimCwd(rec.cwd), sinceTs: rec.createdAt },
-            agentExtrasOf(rec),
-            {
-              // The record either exists now or never will: no process is
-              // going to write one. One scan, not a six-hour vigil.
-              timeoutMs: DEAD_ROW_RESCUE_TIMEOUT_MS,
-              markUnavailableOnFailure: true,
-              // No live pane to correlate against — this is time alone.
-              atCreate: false
-            }
-          );
-          continue;
-        }
-        if (rec.resumeCapture === 'capturing') {
-          this.manifest.setResumeCapture(rec.id, 'unavailable');
-        }
-        continue;
-      }
-      this.startIdCapture(
-        rec.id,
-        rec.agent,
-        {
-          cwd: resolveClaimCwd(rec.cwd),
-          sinceTs: rec.createdAt,
-          tmuxSessionId: live,
-          ...(rec.panePid !== undefined ? { panePid: rec.panePid } : {})
-        },
-        agentExtrasOf(rec),
-        // The pane is still alive, so the pane and pid keys still work, but
-        // the watch was started by a LATER launch against a remembered spawn
-        // time. That is weaker than a watch started with the pane, and the
-        // record says so.
-        { atCreate: false }
-      );
-    }
-  }
-
-  /**
-   * Correct the loser of a conversation reclaim (Phase 32).
-   *
-   * Another session PROVED, by its own agy process holding the record open,
-   * that a conversation id this row carries was a wrong grace guess. The map
-   * in the watcher was already corrected before this fired; what is left is
-   * the durable side: withdraw the id from the row, record why, and give the
-   * loser a fresh watch so it finds its OWN conversation on its own first
-   * turn.
-   *
-   * ORDERING GUARANTEE. This runs synchronously inside the winner's accept,
-   * before the winner's settle resolves, and better-sqlite3 writes are
-   * synchronous. The winner's own `setAgentSessionId` happens in its watch's
-   * `.then()` AFTER this returns, so at no observable moment do two manifest
-   * rows carry the same conversation id.
-   */
-  private handleConversationReclaim(ev: ConversationReclaim): void {
-    try {
-      if (this.disposed) return;
-      const rec = this.manifest.getSession(ev.from);
-      // The row is gone, or it no longer carries the reclaimed id (a test
-      // claimant, or a row corrected already). The claim map was fixed in
-      // the watcher; there is nothing durable to correct.
-      if (rec === undefined || rec.agentSessionId !== ev.conversationId) return;
-      const prior = rec.resumeProvenance;
-      // The correction keeps the withdrawn guess's own evidence: those
-      // fields describe the guess being taken back, and losing them would
-      // erase the only record of how the wrong id got there.
-      const provenance: ResumeProvenance = {
-        v: SESSION_CONTRACT_VERSION,
-        source: prior?.source === 'boot-rescue' ? 'boot-rescue' : 'store-harvest',
-        confidence: 'none',
-        at: ev.at,
-        cwd: prior?.cwd ?? rec.cwd,
-        ...(prior?.key !== undefined ? { key: prior.key } : {}),
-        ...(prior?.keyConfidence !== undefined
-          ? { keyConfidence: prior.keyConfidence }
-          : {}),
-        ...(prior?.viaGraceTimer !== undefined
-          ? { viaGraceTimer: prior.viaGraceTimer }
-          : {}),
-        ...(prior?.rivals !== undefined ? { rivals: prior.rivals } : {}),
-        ...(prior?.contestedByWatches !== undefined
-          ? { contestedByWatches: prior.contestedByWatches }
-          : {}),
-        ...(prior?.sameCwdWatches !== undefined
-          ? { sameCwdWatches: prior.sameCwdWatches }
-          : {}),
-        ...(prior?.storePath !== undefined ? { storePath: prior.storePath } : {}),
-        reclaimedBy: ev.to,
-        reclaimedAt: ev.at
-      };
-      const live = this.liveIds.get(ev.from);
-      const state: ResumeCapture =
-        live !== undefined &&
-        rec.agent !== 'shell' &&
-        agentHarvestsId(rec.agent)
-          ? 'capturing'
-          : 'unavailable';
-      this.manifest.clearAgentSessionId(ev.from, state, provenance);
-      if (live !== undefined) {
-        // Best effort: the tmux marker carried the wrong id too.
-        void tmux
-          .setSessionOption(live, '@gmux-session-id', '')
-          .catch(() => undefined);
-      }
-      if (live !== undefined && rec.agent !== 'shell') {
-        // The watch guard passes: the loser's old watch settled when its
-        // grace timer accepted, and a settled watch deletes its entry. The
-        // re-armed watch confirms the loser's OWN record the moment its agy
-        // takes a turn, because its agy holds those descriptors.
-        this.startIdCapture(
-          ev.from,
-          rec.agent,
-          {
-            cwd: resolveClaimCwd(rec.cwd),
-            sinceTs: rec.createdAt,
-            tmuxSessionId: live,
-            ...(rec.panePid !== undefined ? { panePid: rec.panePid } : {})
-          },
-          agentExtrasOf(rec),
-          { atCreate: false }
-        );
-      }
-      this.broadcastSessions();
-      // Phase 34: the line names the winner's evidence, because the ladder
-      // now has three rungs and "reclaimed" alone does not say which one
-      // took it. The operator reads this through Copy Diagnostics.
-      const winner = conversationClaimStrength(ev.conversationId);
-      const evidence =
-        winner === 'confirmed'
-          ? 'The winner proved ownership with an identity key.'
-          : 'The winner matched the folder the record names.';
-      sessionsLog.warn(
-        `${rec.agent} conversation ${ev.conversationId} moved from session ` +
-          `${ev.from} to ${ev.to}. ${evidence} The losing row was cleared and ` +
-          `its watch was ${
-            live !== undefined
-              ? 'restarted'
-              : 'not restarted, because the session has no live pane'
-          }.`
-      );
-    } catch (err) {
-      sessionsLog.warn(
-        `conversation reclaim correction failed for ${ev.from}: ` +
-          `${(err as Error).message}`
-      );
-    }
-  }
-
-  // -------------------------------------------------------------------------
   // Scrollback snapshots + restore (Phase 6 — §2.4 Steps 2–3)
   // -------------------------------------------------------------------------
 
   /**
-   * Snapshot every live manifested session's scrollback to
-   * <userData>/gmux/snapshots/<id>.txt. Best-effort and parallel — quit
-   * paths call this and must never hang on a sick server.
-   *
-   * Best-effort is not the same as silent (Phase 19 item 4). A pass whose
-   * WRITES failed has stopped protecting the user's work, and the pass says so
-   * once. See {@link reportUnwrittenSnapshots}.
-   *
-   * `reason` is recorded in each snapshot's capsule (Phase 19 item 3), because
-   * Phase 20 reconstruction cannot tell a capture taken on the way to sleep
-   * from one taken as the tmux server died, and the two are worth different
-   * amounts. It defaults to 'app-quit' because that is what an unqualified
-   * "snapshot everything" has always meant here.
+   * Snapshot every live manifested session's scrollback (§2.4 Step 2). The
+   * pass itself is in ./quit-generation.ts; this is the door the quit path,
+   * the sleep path, the %exit handler and the fault harness already call.
    */
   async snapshotAllSessions(reason: SnapshotReason = 'app-quit'): Promise<void> {
-    const jobs: Promise<unknown>[] = [];
-    // PHASE 111 — THE PASS ACCOUNTS FOR ITSELF. Nothing below decides
-    // anything: the three skip rules are exactly the ones that were already
-    // here. What is new is that every row records the outcome it took, so a
-    // red durability lane can say which of the five happened instead of
-    // leaving a person to guess. `snapshotPassLine` owns both the counting and
-    // the rule about which outcomes are worth a name.
-    const results: SnapshotPassResult[] = [];
-    /** Sessions whose scrollback this pass could not write. */
-    const unwritten: UnwrittenSnapshot[] = [];
-    for (const rec of this.manifest.listSessions()) {
-      // 'unknown' is skipped with the two dead statuses (Phase 67): capturing
-      // a pane on a server Tortie cannot reach only produces noise, and the
-      // session may still be alive to capture itself later.
-      if (
-        rec.status === 'exited' ||
-        rec.status === 'restorable' ||
-        rec.status === 'unknown'
-      ) {
-        results.push({ name: rec.name, outcome: 'notRunning' });
-        continue;
-      }
-      // F1: only capture panes we can prove are ours — a name-resolved
-      // capture would file a STRANGER's scrollback as this session's
-      // history and replay it on restore.
-      const target = this.liveIds.get(rec.id);
-      if (target === undefined) {
-        // A row the person removed is a tombstone rather than a session this
-        // Mac lost track of, so it is counted with the ones that were not
-        // running. Every other row here is live on a different machine, which
-        // `runsElsewhere` in reconciliation.ts is what keeps live.
-        results.push({
-          name: rec.name,
-          outcome: rec.status === 'discarded' ? 'notRunning' : 'noPaneHere'
-        });
-        continue;
-      }
-      jobs.push(
-        captureSessionSnapshot(target, rec.id, {
-          reason,
-          session: snapshotRecipeOf(rec)
-        }).then(
-          (stored) => {
-            // A false answer here is a live pane with an empty screen. Writing
-            // nothing is the right answer, and until Phase 111 it was also a
-            // silent one.
-            results.push({
-              name: rec.name,
-              outcome: stored ? 'written' : 'nothingOnScreen'
-            });
-          },
-          (err: unknown) => {
-            results.push({ name: rec.name, outcome: 'failed' });
-            // A failed WRITE is the failure that means protection stopped, and
-            // the durable writer's own error type is what identifies one. Every
-            // other failure here is a pane that went away, and the %exit path
-            // calls this with a dying tmux server, which produces a whole pass
-            // of those. Announcing on those would be a false alarm on the one
-            // channel that must never cry wolf.
-            if (err instanceof DurableWriteError) {
-              unwritten.push({ name: rec.name, outOfSpace: isOutOfSpace(err) });
-              return;
-            }
-            sessionsLog.warn(
-              `snapshot failed for "${rec.name}": ${(err as Error).message}`
-            );
-          }
-        )
-      );
-    }
-    await Promise.allSettled(jobs);
-    sessionsLog.info(snapshotPassLine(reason, results));
-    this.reportUnwrittenSnapshots(unwritten);
-  }
-
-  /**
-   * Say once that scrollback is no longer being saved (Phase 19 item 4).
-   *
-   * The whole pass produces at most one notice. A full volume fails every
-   * session in the pass with the same error, and forty three copies of one
-   * sentence is a dashboard. `postDurabilityNotice` owns the latch that also
-   * silences the next pass, so the count below is this pass's own.
-   *
-   * The names stay in the log, because that is where a person debugging wants
-   * them and it is not a surface the user reads. The log line is written even
-   * when the notice is swallowed as a repeat, which is what the returned
-   * boolean is for.
-   */
-  private reportUnwrittenSnapshots(
-    unwritten: readonly UnwrittenSnapshot[]
-  ): void {
-    const notice = snapshotFailureNotice(unwritten);
-    if (notice === null) return;
-    sessionsLog.warn(
-      `${notice.sessions} session(s) were not saved` +
-        `${notice.outOfSpace ? ' because the volume is full' : ''}: ` +
-        unwritten.map((one) => one.name).join(', ')
-    );
-    postDurabilityNotice(notice);
+    await snapshotAllSessions(this.quitDeps, reason);
   }
 
   /**
@@ -1599,7 +1120,7 @@ export class GmuxCore {
     // Phase 116: refused once shutdown starts, joined by the quit path when
     // admitted before it. A restore spawns locally or execs remotely, and
     // neither may begin against a core that is being disposed.
-    return this.admit('restoreSession', () =>
+    return this.ledger.admit('restoreSession', () =>
       this.restoreSessionAdmitted(sessionId, options)
     );
   }
@@ -2079,7 +1600,7 @@ export class GmuxCore {
 
     // Phase 6/13.5: harvesting sessions that outlived a gmux restart
     // mid-capture get their watch re-armed (no-op once the id is recorded).
-    this.resumeIdHarvests();
+    resumeIdHarvests(this.harvestDeps);
   }
 
   /**
@@ -2716,534 +2237,19 @@ export class GmuxCore {
    * ⌘T create. Manifest row is written BEFORE the tmux spawn (§2.4 Step 0);
    * on spawn failure the row is removed and the error surfaces to the UI.
    *
-   * Phase 116: the whole body runs inside {@link admit}. The guard therefore
+   * Phase 116: the whole body runs inside the ledger. The guard therefore
    * sits above `createMachineIdFor` and above the capture refusal read, which
    * Phase 94 placed first for exactly this reason: a path composed later
    * cannot sit above it. A refused remote create never reaches the exec plane.
+   *
+   * Phase 125 moved the body to ./create-local.ts. The gate, the entry name
+   * and the returned promise are unchanged, and the two load bearing positions
+   * above are now the first two statements of that file.
    */
   createSession(input: CreateSessionInput): Promise<Session> {
-    return this.admit('createSession', () => this.createSessionAdmitted(input));
-  }
-
-  private async createSessionAdmitted(
-    input: CreateSessionInput
-  ): Promise<Session> {
-    if (input.name.trim().length === 0) {
-      throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
-    }
-    // PHASE 94, ITEM 2. WHICH MACHINE THIS CREATE RUNS ON, DECIDED ONCE, HERE.
-    //
-    // It is the FIRST statement of the method, above the capture refusal read
-    // below, for the reason that read gives for its own position: a create path
-    // added later must not be composable above it. Every read of the machine
-    // inside this method is this value, and `input.machineId` is not read again.
-    //
-    // The defect it removes is the create the agent board and the per-agent
-    // hotkeys use. It sends no machine at all, so a hotkey pressed inside a tab
-    // whose files are on another computer started a process on THIS Mac, at a
-    // path only that computer has. See createMachineIdFor in ./launch-plan for
-    // the rule and for why it can take nothing away.
-    const machineId = createMachineIdFor(input);
-    // PHASE 91. The one place this product decides that a session on another
-    // machine is not captured. It is READ HERE, above the remote branch, so
-    // that it covers the branch below AND the wrap further down, and so that a
-    // create path added later cannot be composed above it.
-    //
-    // The operator dropped remote capture on 2026-08-19. His words were that
-    // it must flow through, so that a person cannot inadvertently start a
-    // remote session under capture from Cmd+T. Four renderer surfaces compose
-    // a create and a fifth will be added. A guard living in four of them is a
-    // guard the fifth misses, which is how the split leaf Restart defect
-    // happened and how Phase 84 fixed it.
-    const captureRefused = captureRefusedOnMachine(input.agent, machineId);
-    // PHASE 70. A create on another machine leaves this method here, before any
-    // local check runs. Every check below asks about this Mac: whether a folder
-    // exists here, which binary is here, what this Mac's login shell PATH holds.
-    // None of them can answer for a different computer, and running them anyway
-    // is how a create would refuse a folder that is perfectly there.
-    if (machineId !== undefined) {
-      // PHASE 90.3, AS PHASE 94 LEFT IT. Both folders sent to that machine are
-      // folders ON THAT MACHINE, and one function decides them both. The whole
-      // rule, every case it answers and the Phase 84 item 5 trace live on
-      // `remoteCreateFolders` in ./launch-plan. Two things are worth having in
-      // front of a reader of this call.
-      //
-      // `projectPath` may be the empty string, which records that Tortie sent
-      // no folder and leaves the machine's own list to report what its server
-      // chose, which is what the re-home reads.
-      //
-      // THE `cwd` KEY IS ABSENT rather than empty when no folder is to be sent.
-      // Phase 84 item 5 is that absence. It is NOT `?? input.projectPath`: that
-      // path is this Mac's project folder and it names nothing on the other
-      // computer, so an empty Directory field used to start the session in a
-      // folder named after a project that is not there. That fallback is not
-      // restored here, and `remoteCreateFolders` never reads a path belonging
-      // to this Mac.
-      const folders = remoteCreateFolders({
-        machineId,
-        ...(input.projectMachineId !== undefined
-          ? { projectMachineId: input.projectMachineId }
-          : {}),
-        projectPath: input.projectPath,
-        ...(input.cwd !== undefined ? { cwd: input.cwd } : {})
-      });
-      const farProjectPath = folders.projectPath;
-      const session = await remoteCreate({
-        machineId,
-        name: input.name,
-        projectPath: farProjectPath,
-        ...(folders.cwd !== undefined ? { cwd: folders.cwd } : {}),
-        agent: input.agent,
-        ...(input.extraArgs !== undefined ? { extraArgs: input.extraArgs } : {})
-      });
-      // PHASE 91. The session exists on that machine and it is not captured.
-      // Said now, next to the session it is about, because the alternative is
-      // a person finding an empty .specstory/history days later. This is the
-      // same notice a local declined capture raises, so the toast, the log and
-      // the contract are the ones Phase 15 already shipped.
-      //
-      // The session is NOT refused. A refused capture has never been fatal in
-      // this product and it does not become fatal here. The person gets the
-      // session they asked for, without capture, and one sentence saying so.
-      if (input.capture === true && captureRefused !== null) {
-        sessionsLog.warn(`${captureRefused} (session "${input.name}")`);
-        broadcast(EVT_CAPTURE_NOTICE, {
-          kind: 'declined',
-          sessionId: session.id,
-          sessionName: input.name,
-          message: captureRefused
-        });
-      }
-      // PHASE 90.3. The folder over there becomes a tab, so the session lands
-      // somewhere a person can see it and every sidebar in that tab reads the
-      // machine the session is on. It is upserted rather than checked: the
-      // create just proved the folder is usable on that machine, so asking again
-      // would be a second round trip for an answer already in hand.
-      //
-      // Nothing is sent to the machine by this line.
-      if (farProjectPath.startsWith('/')) {
-        try {
-          this.manifest.upsertRemoteProject({
-            machineId,
-            path: farProjectPath,
-            name: projectNameForPath(farProjectPath)
-          });
-        } catch (err) {
-          // A tab that could not be recorded is not a reason to fail a session
-          // that is already running over there. The next completed list re-homes
-          // it, because the same folder comes back on every pass.
-          sessionsLog.warn(
-            `the session started on ${machineId} and its folder could ` +
-              `not be opened as a tab: ${(err as Error).message}`
-          );
-        }
-      }
-      this.broadcastSessions();
-      return session;
-    }
-    // PHASE 81. The one wait a create still has. Every read below and the
-    // pane's own execvp must see the same PATH, and this is the line that
-    // guarantees they do. It is after the remote branch on purpose: a session
-    // on another machine takes that machine's PATH, and this Mac's capture
-    // answers nothing about it. See src/main/tmux/user-path.ts.
-    await tmux.installUserPath();
-    if (!isDirectory(input.projectPath)) {
-      throw gmuxError(
-        'PROJECT_NOT_FOUND',
-        'The project folder for this session does not exist.',
-        input.projectPath
-      );
-    }
-    const cwd = input.cwd ?? input.projectPath;
-    if (!isDirectory(cwd)) {
-      throw gmuxError(
-        'INVALID_INPUT',
-        'The working directory for this session does not exist.',
-        cwd
-      );
-    }
-
-    // Bug A (Phase 9.2): resolve the agent binary to an ABSOLUTE path against
-    // the captured login-shell PATH + known install dirs BEFORE anything is
-    // written or spawned. Not found → typed error → friendly modal message —
-    // never a dead pane. The manifest then stores only absolute paths (argv
-    // AND resume_argv), so restores survive PATH drift too.
-    let binPath: string | undefined;
-    let bareName: string | undefined;
-    // PHASE 23 FIX ROUND. Where to LOOK for the binary, which is as load
-    // bearing as its name and is on the confirm sheet as "Looks for it in".
-    // Declared out here because two readers need it: the resolve below, and
-    // the bare-name decision after the health check. (Phase 49 corrected
-    // this comment. It used to say the pane env at the spawn also read it;
-    // nothing on the spawn path has read it since the Phase 48 rework.)
-    let probeDirs: string[] = [];
-    if (input.agent !== 'shell') {
-      // Phase 10 (settings+hotkeys stream): the binary name comes from the
-      // agent REGISTRY, not the agent id — cursor's binary is `cursor-agent`,
-      // antigravity's is `agy`. See binaryCandidatesOf in ./launch-plan for
-      // the Phase 25.5 whole-list rule and the merged-table sourcing. The
-      // confirm gate is still asked below, inside resolveLaunchSpec — a name
-      // is not a permission.
-      probeDirs = expandDirs(agentEntry(input.agent)?.extraProbeDirs ?? []);
-      const candidates = binaryCandidatesOf(
-        input.agent,
-        launchableAgentEntry(input.agent)
-      );
-      let abs: string | null = null;
-      let bare: string = candidates[0] ?? input.agent;
-      for (const candidate of candidates) {
-        const hit = await tmux.resolveBinary(candidate, probeDirs);
-        if (hit !== null) {
-          abs = hit;
-          bare = candidate;
-          break;
-        }
-      }
-      if (abs === null) {
-        throw gmuxError(
-          'AGENT_NOT_FOUND',
-          agentNotFoundMessage(candidates),
-          candidates[0] ?? input.agent
-        );
-      }
-      binPath = abs;
-      // PHASE 48. The structural preflight (../agents/health). It opens the
-      // resolved file, reads its first line if it has a shebang, and asks
-      // whether the interpreter that line names resolves against the same
-      // PATH this pane will get. It never spawns anything and it never runs
-      // the agent. `interpreter-missing` is the only answer that stops a
-      // launch, and `Start it anyway` sends the same argv back with the check
-      // skipped, because the check can be wrong about a wrapper that re-execs
-      // through something Tortie cannot see.
-      if (input.startAnyway !== true) {
-        const health = await checkAgentBinary(abs);
-        if (health.answer === 'interpreter-missing') {
-          sessionsLog.warn(
-            `launch refused: ${bare} at ${abs} needs ${health.interpreter}, ` +
-              `which is not on the PATH this pane would get ` +
-              `(${health.elapsedMs} ms, shebang ${health.shebang})`
-          );
-          // `detail` is TWO LINES for this code. The first is the absolute
-          // path, which is what every other AGENT_* code puts there. The
-          // second is the interpreter's name, because the create sheet's two
-          // ways forward have to name the program the person is being asked
-          // to install or to reveal, and a renderer must never read a fact
-          // out of a prose sentence. See readInterpreterDetail in
-          // src/renderer/app/CreateSessionModal.tsx.
-          throw gmuxError(
-            'AGENT_INTERPRETER_MISSING',
-            interpreterMissingMessage(health.binPath, health.interpreter),
-            `${health.binPath}\n${health.interpreter}`
-          );
-        }
-      }
-      // PHASE 23 FIX ROUND, the second half of the `extraProbeDirs` fix, and
-      // this is the half a driver run found rather than a reading.
-      //
-      // The pane is spawned by BARE NAME (F3 above). tmux resolves that name
-      // against the PATH of the tmux CLIENT that asked for the session, which
-      // is this process, and it ignores the per-pane `-e PATH=` entirely.
-      // Phase 48 corrected this comment. It used to name the SERVER
-      // environment, and that reading was measured wrong twice,
-      // independently, on tmux 3.6a. What WAS measured: the same session
-      // created with an absolute argv[0] runs, and created with the bare name
-      // plus `-e PATH=<dir>` dies at once with "Pane is dead (status 1)". The
-      // client's PATH is set at the one assignment in
-      // src/main/tmux/user-path.ts, which `createSession` awaits above
-      // (Phase 81 moved the line; it used to sit in supervisor.ts
-      // ensureServer). See docs/research/47-agent-installs.md section 2.
-      //
-      // So an agent whose binary exists ONLY in a directory its own entry names
-      // cannot be launched by its bare name at all. Detection found it, the
-      // resolve above found it, the manifest recorded the absolute path, and
-      // the pane still died. For exactly that case, and nothing else, argv[0]
-      // stays absolute.
-      //
-      // It costs F3 nothing, and the reason is F3's own. F3 protects an agent a
-      // user might end with `pkill -f "$(command -v claude)"`, and `command -v`
-      // reads the same login-shell PATH the tmux server was given. A binary
-      // that PATH cannot find is one that command substitution cannot name
-      // either, so there is no pattern for that pkill to match and nothing for
-      // the bare name to protect.
-      // PHASE 49, research 47 §9 and §11. The decision itself lives in
-      // ./launch-plan (bareNameFor): the bare name is used only when it is
-      // really a bare name AND the file the pane's PATH would pick is
-      // byte-for-byte the file the manifest records. The old code tested
-      // `onLoginPath` for null where it must compare it with `abs`, and it
-      // passed a path-shaped Phase 23 override to tmux as argv[0], where no
-      // tilde is expanded and the pane died. The shortcut below is the same
-      // one as before, now refused for a path-shaped candidate so the rule
-      // in bareNameFor sees it.
-      const onLoginPath =
-        probeDirs.length === 0 && !bare.includes('/')
-          ? abs
-          : await tmux.resolveBinary(bare);
-      bareName = bareNameFor(bare, abs, onLoginPath);
-    }
-
-    const id = randomUUID();
-    // resolveLaunchSpec (not buildLaunchSpec): cursor's id comes from a side
-    // command that has to run BEFORE the pane exists.
-    const spec = await resolveLaunchSpec(
-      input.agent,
-      input.extraArgs ?? [],
-      binPath
+    return this.ledger.admit('createSession', () =>
+      createLocalSession(input, this.createDeps)
     );
-    // Phase 13: claude's deterministic hook channel. Purely a latency
-    // upgrade over its pid file, so a failure to write the settings file
-    // just means no flag — never a failed create (and never a `claude
-    // --settings <missing>` that would refuse to start).
-    if (input.agent === 'claude') {
-      const settingsPath = ensureClaudeHookSettings(this.hookServer, id);
-      if (settingsPath !== null) {
-        spec.argv = withClaudeSettingsFlag(spec.argv, settingsPath);
-        if (spec.resumeArgv !== undefined) {
-          spec.resumeArgv = withClaudeSettingsFlag(spec.resumeArgv, settingsPath);
-        }
-      }
-    }
-    // Phase 15 — SpecStory capture. The wrap is applied to BOTH argvs and to
-    // nothing else: `spec.argv` becomes `specstory run <provider> … -c "<the
-    // same argv>"`, and an already-armed `resumeArgv` gets the identical
-    // treatment, so a pre-assigned session (claude/gemini/pi) is armed
-    // WRAPPED from the moment the row is written and a restore keeps
-    // capturing without anyone having to remember to re-wrap it.
-    //
-    // A decline is never fatal and never silent: the session launches bare
-    // and the sentence reaches the user (toast) and the log.
-    let capture: SpecstoryCaptureRecord | undefined;
-    let captureDeclined: string | null = null;
-    // PHASE 91. The second term is the SAME answer read at the top of this
-    // method, above the remote branch. Read here as well, so that an edit
-    // which moves or removes that branch still cannot compose a wrap for a
-    // session that runs on another machine.
-    if (
-      input.capture === true &&
-      captureRefused === null &&
-      input.agent !== 'shell'
-    ) {
-      const wrapped = await wrapForCapture(input.agent, spec.argv);
-      if (wrapped.argv !== null && wrapped.record !== null) {
-        capture = wrapped.record;
-        spec.argv = wrapped.argv;
-        if (spec.resumeArgv !== undefined) {
-          const resumeWrapped = wrapWithRecord(wrapped.record, spec.resumeArgv);
-          if (resumeWrapped !== null) spec.resumeArgv = resumeWrapped;
-        }
-      } else {
-        captureDeclined = wrapped.declined;
-      }
-    }
-
-    // PHASE 21 (A8 + G6) — record the contract, not a pointer to the registry.
-    //
-    // Restore used to ask the LIVE registry whether this agent's resume needs
-    // its original directory, and the registry answers for the agent Tortie
-    // launches today. For an id it no longer launches the answer was `false`,
-    // and for a pi shaped agent `false` means restore opens an empty session
-    // that looks resumed. Everything restore reads for correctness is written
-    // here instead, while it is still true.
-    //
-    // Two awaits, neither of which spawns anything: the two realpath calls
-    // are one fs lookup each. The version read is SYNCHRONOUS since Phase 49
-    // (peekDetectedAgents never starts a scan and never waits on one), so a
-    // create can never stall behind a version probe. The resolved cwd is
-    // recorded because it is the store key for five of the eleven agents, so
-    // a moved or re-cloned checkout is the difference between finding the
-    // conversation and not.
-    const agentVersion = this.cachedAgentVersion(input.agent);
-    const cwdReal = await realpath(cwd).catch(() => cwd);
-    const projectReal = await realpath(input.projectPath).catch(
-      () => input.projectPath
-    );
-
-    const now = Date.now();
-    // The whole row is composed in ./launch-plan (Phase 42 stage 5): every
-    // field restore depends on is decided there, while it is still true
-    // (Phase 21, A8 + G6), and the composition has a direct unit test. The
-    // predicted tmuxName is replaced below with the name tmux actually
-    // applied (dedupe may append “-2”).
-    const record: ManifestSessionRecord = {
-      ...newSessionRecord({
-        id,
-        input,
-        cwd,
-        spec,
-        capture,
-        agentVersion,
-        binPath,
-        cwdReal,
-        projectReal,
-        now
-      }),
-      // PHASE 71, migration 013. Where a session runs is decided once, at
-      // create, and stated on the row rather than assumed by every later
-      // reader. This method is the local create, so the answer is this Mac. A
-      // session on another machine takes a different path entirely and gets no
-      // manifest row at all in this release, which is what the refusal in
-      // ../manifest/sessions-repository.ts holds true.
-      machineId: LOCAL_MACHINE
-    };
-
-    // §2.4 Step 0: durability record exists BEFORE the process does — which
-    // is exactly the window a concurrent reconcile must not judge (16.5.1).
-    // Held until the row is bound to a live tmux id below.
-    this.createsInFlight.set(id, now);
-    faultPoint('create.before-declaration');
-    this.manifest.insertSession(record);
-    faultPoint('create.after-declaration');
-
-    // F3 (Phase 12.7, research 21 §8) — LAUNCH BY BARE NAME. See
-    // spawnArgvFor in ./launch-plan for the whole rule: why the manifest
-    // keeps the absolute path while the spawn uses the bare name, and how a
-    // captured session gets the same protection one level in.
-    const launchArgv = spawnArgvFor(spec.argv, bareName, capture);
-
-    // PHASE 33. The variables this row asks Tortie to read from the login
-    // shell. One probe, 3 second deadline, group killed, and nothing is
-    // spawned at all when the row names none, which is every compiled agent.
-    //
-    // The resolved pairs live in this local and in the tmux `-e` set, and
-    // nowhere else. They are deliberately NOT put on `spec.env`, because that
-    // is written into the manifest row verbatim and replayed at restore, which
-    // is how option B in research 41 put provider keys into SQLite in plain
-    // text. Restore reads the NAMES off the row and probes again.
-    let resolvedEnv: Record<string, string> = {};
-    let envProbe: tmux.CaptureEnvResult | null = null;
-    if (spec.envPassthrough !== undefined && spec.envPassthrough.length > 0) {
-      envProbe = await tmux.captureLoginShellEnv(spec.envPassthrough);
-      resolvedEnv = envProbe.values;
-    }
-
-    let info: tmux.TmuxSessionInfo;
-    try {
-      info = await tmux.createSession({
-        displayName: input.name,
-        cwd,
-        argv: launchArgv,
-        env: paneEnvFor(spec.env, resolvedEnv, id)
-      });
-    } catch (err) {
-      // Spawn never happened — a lingering row would resurrect a session
-      // the user never got.
-      this.createsInFlight.delete(id);
-      this.manifest.deleteSession(id);
-      throw err;
-    }
-
-    faultPoint('create.after-spawn');
-
-    this.liveIds.set(id, info.sessionId);
-    this.byTmuxId.set(info.sessionId, id);
-    this.createsInFlight.delete(id);
-    // tmux may have deduped the name ("foo-2"), and `new-session -P -F`
-    // hands back the pane pid — the F2 forensic anchor, recorded once here
-    // because tmux forgets it the moment the dead pane is reaped.
-    if (info.tmuxName !== record.tmuxName || info.panePid !== undefined) {
-      this.manifest.updateSession(id, {
-        ...(info.tmuxName !== record.tmuxName
-          ? { tmuxName: info.tmuxName }
-          : {}),
-        ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
-      });
-    }
-
-    faultPoint('create.after-launch-record');
-
-    // PHASE 33. The pane is running and it is bound to its live tmux id, so
-    // the notice can name a session that exists. It says one thing: this pane
-    // started without a variable its row promises. Nothing else on the machine
-    // would ever say so, and the agent inside it fails much later with a
-    // message about its provider rather than about the shell.
-    if (envProbe !== null && (envProbe.missing.length > 0 || envProbe.probeFailed)) {
-      postDurabilityNotice({
-        kind: 'env-unresolved',
-        sessionId: id,
-        sessionName: input.name,
-        names: envProbe.missing,
-        probeFailed: envProbe.probeFailed
-      });
-    }
-
-    // Mirror metadata into tmux user options so the durable server is
-    // self-describing even if the manifest is lost (§2.4 Step 0.2).
-    // Best-effort: a failed mirror must not fail the create.
-    try {
-      await tmux.setSessionOption(info.sessionId, '@gmux-id', id);
-      faultPoint('create.after-identity-stamp');
-      await tmux.setSessionOption(info.sessionId, '@gmux-agent', input.agent);
-      if (spec.agentSessionId !== undefined) {
-        await tmux.setSessionOption(
-          info.sessionId,
-          '@gmux-session-id',
-          spec.agentSessionId
-        );
-      }
-    } catch (err) {
-      sessionsLog.warn(
-        `could not mirror metadata into tmux options: ${(err as Error).message}`
-      );
-    }
-
-    // Agents with no pre-assignment (codex, muse, qwen, deepseek,
-    // antigravity): read the id back out of their store after spawn and
-    // record the armed resume argv. The pane pid and tmux session id are the
-    // correlation keys — qwen writes a descendant pid, muse writes the pane.
-    if (spec.idCapture === 'store-harvest') {
-      this.startIdCapture(
-        id,
-        input.agent,
-        {
-          // `cwdReal`, not `cwd`. The row keeps the folder the user chose and
-          // the harvest needs the folder itself: pi and qwen build their
-          // store directory from it, and every ownership rule in
-          // ./claim-strength.ts compares it as a string. Two panes in one
-          // physical folder can spell it two ways, e.g. /tmp and /private/tmp.
-          cwd: cwdReal,
-          sinceTs: now,
-          tmuxSessionId: info.sessionId,
-          ...(info.panePid !== undefined ? { panePid: info.panePid } : {})
-        },
-        input.extraArgs ?? [],
-        { atCreate: true }
-      );
-    }
-
-    // A capture the user asked for and did not get is said NOW, next to the
-    // session it is about — the alternative is discovering an empty
-    // .specstory/history days later and blaming SpecStory for it.
-    if (captureDeclined !== null) {
-      sessionsLog.warn(`${captureDeclined} (session "${input.name}")`);
-      broadcast(EVT_CAPTURE_NOTICE, {
-        kind: 'declined',
-        sessionId: id,
-        sessionName: input.name,
-        message: captureDeclined
-      });
-    }
-
-    // Phase 22 (research 29 §8.2): record what this agent's configuration was
-    // at this moment, so that "why did that agent not use the skill I just
-    // wrote" has an answer later. No agent writes this down for itself, and
-    // Tortie owns the launch, so this is the only place it can be recorded.
-    //
-    // NOT AWAITED, AND THAT IS THE DESIGN RATHER THAN AN OMISSION. It returns
-    // void so nobody can await it. The scan walks configuration directories,
-    // which is about 15 ms warm and was measured at 7.1 s on a cold page cache
-    // for the equivalent walk, and a launch must never wait on either. It is
-    // last in this method for the same reason: every durability-critical
-    // effect above it has already happened, so nothing it does or fails to do
-    // can reach them.
-    recordLaunchContext(this.manifest, {
-      sessionId: id,
-      reason: 'create',
-      agent: input.agent,
-      cwd: cwdReal
-    });
-
-    this.broadcastSessions();
-    const stored = this.manifest.getSession(id);
-    return toSession(stored ?? record);
   }
 
   /**
@@ -3252,7 +2258,9 @@ export class GmuxCore {
    * Phase 116: admitted, because it writes the manifest and can exec remotely.
    */
   renameSession(input: RenameSessionInput): Promise<Session> {
-    return this.admit('renameSession', () => this.renameSessionAdmitted(input));
+    return this.ledger.admit('renameSession', () =>
+      this.renameSessionAdmitted(input)
+    );
   }
 
   private async renameSessionAdmitted(
@@ -3317,7 +2325,9 @@ export class GmuxCore {
     // Phase 116: admitted, because it destroys a session and can exec
     // remotely. A kill admitted before shutdown is joined so its capture and
     // its status write land before the final snapshot.
-    return this.admit('killSession', () => this.killSessionAdmitted(sessionId));
+    return this.ledger.admit('killSession', () =>
+      this.killSessionAdmitted(sessionId)
+    );
   }
 
   private async killSessionAdmitted(sessionId: string): Promise<void> {
@@ -3530,7 +2540,7 @@ export class GmuxCore {
    * Detach stays unguarded on purpose: the teardown itself detaches.
    */
   attachSession(sessionId: string, sender: WebContents): Promise<void> {
-    return this.admit('attachSession', () =>
+    return this.ledger.admit('attachSession', () =>
       this.attachSessionAdmitted(sessionId, sender)
     );
   }
@@ -3679,7 +2689,7 @@ export class GmuxCore {
   ): Promise<AddRemoteProjectResult> {
     // Phase 116: admitted, because it writes a durable project row and reads
     // the folder through the exec plane.
-    return this.admit('addRemoteProject', () =>
+    return this.ledger.admit('addRemoteProject', () =>
       this.addRemoteProjectAdmitted(input)
     );
   }
@@ -3802,7 +2812,7 @@ export class GmuxCore {
    * to be disposed.
    */
   beginShutdown(): void {
-    this.shuttingDown = true;
+    this.ledger.beginShutdown();
   }
 
   /**
@@ -3813,36 +2823,7 @@ export class GmuxCore {
    * is empty unless a mutation is actually in flight.
    */
   async joinAdmitted(deadlineMs: number): Promise<void> {
-    if (this.admitted.size === 0) return;
-    await Promise.race([
-      Promise.all([...this.admitted]),
-      new Promise<void>((resolve) => setTimeout(resolve, deadlineMs))
-    ]);
-  }
-
-  /**
-   * Phase 116, the gate in front of every asynchronous mutator. A call that
-   * arrives after shutdown began is refused with the typed error, before the
-   * body can insert a manifest row, spawn a process or reach the exec plane.
-   * A call that arrives before is recorded in {@link admitted}, so the quit
-   * path can join it ahead of the final snapshot.
-   *
-   * The tracked copy swallows the settlement on purpose. The caller keeps
-   * the original promise and its own error handling; the ledger only needs
-   * to know when the work is over.
-   */
-  private admit<T>(entry: string, work: () => Promise<T>): Promise<T> {
-    if (this.shuttingDown || this.disposed) {
-      return Promise.reject(shutdownRefusal(entry));
-    }
-    const p = work();
-    const tracked = p.then(
-      () => undefined,
-      () => undefined
-    );
-    this.admitted.add(tracked);
-    void tracked.then(() => this.admitted.delete(tracked));
-    return p;
+    await this.ledger.join(deadlineMs);
   }
 
   dispose(): void {
@@ -3898,14 +2879,6 @@ export class GmuxCore {
   }
 }
 
-function isDirectory(path: string): boolean {
-  try {
-    return existsSync(path) && statSync(path).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Core lifecycle — boot once, retry on demand after a failed boot
 // ---------------------------------------------------------------------------
@@ -3931,14 +2904,6 @@ const SHUTDOWN_REFUSAL = 'Tortie is quitting, so this action was not started.';
 function shutdownRefusal(entry: string): Error {
   return gmuxError('SHUTTING_DOWN', SHUTDOWN_REFUSAL, entry);
 }
-
-/**
- * Phase 116. How long the quit path waits for admitted mutations to settle
- * before the final snapshot. Ten seconds covers a remote create over ssh,
- * which is the slowest admitted mutation, and the wait is spent only when a
- * mutation is actually in flight. The common quit pays zero.
- */
-const ADMITTED_JOIN_TIMEOUT_MS = 10_000;
 
 /**
  * Phase 116. Where the module singleton is in its life. `shuttingDown` is the
@@ -4042,7 +3007,7 @@ export async function shutdownGmuxCore(): Promise<void> {
       // admitted work's result, e.g. the session a create just declared. The
       // join is bounded, so quit cannot wedge on a sick call.
       core.beginShutdown();
-      await core.joinAdmitted(ADMITTED_JOIN_TIMEOUT_MS).catch(() => undefined);
+      await core.joinAdmitted(MUTATION_JOIN_DEADLINE_MS).catch(() => undefined);
       faultPoint('quit.before-snapshots');
       await Promise.race([
         core.snapshotAllSessions(),

@@ -46,8 +46,10 @@
  *
  * `review-list` answers with the repository root and the bytes of
  * `git status --porcelain=v2 --branch -z --untracked-files=all`. The porcelain
- * is read by `parsePorcelainV2Status` in `../git/parse.ts`, which has read that
- * shape since Phase 4. A second porcelain reader in this tree would be a review
+ * is read by `parsePorcelainV2Status`, which has read that shape since Phase 4
+ * and which this file takes from `../git/parsers` since Phase 126. That file is
+ * the parsers and nothing that spawns, and it replaced a deep import into the
+ * private `../git/parse.ts`. A second porcelain reader in this tree would be a review
  * finding, so there is not one: an answer this module does not recognise is
  * refused with a detail naming the shape it expected, which makes a mismatch
  * loud instead of empty.
@@ -93,7 +95,7 @@ import type {
 } from '@shared/ipc';
 import type { GitCommitFileState } from '@shared/types';
 import { gmuxError } from '../errors';
-import { STATUS_LIMIT, parsePorcelainV2Status } from '../git/parse';
+import { STATUS_LIMIT, parsePorcelainV2Status } from '../git/parsers';
 import { runRemoteRead } from './remote-run';
 import {
   REVIEW_NOTHING_CHANGED,

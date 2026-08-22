@@ -32,9 +32,9 @@
  *                             ◀────────── <word> <head> <upstream> <base>
  *                                         <log b64> <sides b64>
  *                             │
- *                             │ parseGraphLog     (../git, reused unchanged)
- *                             │ parseLeftRight    (../git, reused unchanged)
- *                             │ annotateDivergence(../git, reused unchanged)
+ *                             │ parseGraphLog     (../git/parsers, unchanged)
+ *                             │ parseLeftRight    (../git/parsers, unchanged)
+ *                             │ annotateDivergence(../git/parsers, unchanged)
  *                             ▼
  *                           MachineHistoryResult
  * ```
@@ -46,7 +46,9 @@
  * The far side's `--format` literal is exactly `GRAPH_LOG_FORMAT` from
  * `src/main/git/graph-parse.ts`, so `parseGraphLog`, `parseLeftRight` and
  * `annotateDivergence` read the answer unchanged. All three were already
- * exported from `../git` and are used here as they are. Condition 57d of
+ * exported and are used here as they are. Phase 126 moved this import from the
+ * `../git` barrel to `../git/parsers`, which is the parsers and nothing that
+ * spawns. The barrel still exports all three names. Condition 57d of
  * `build/conformance-machines.mjs` asserts that the script's literal equals the
  * constant, so the two copies cannot drift.
  *
@@ -153,7 +155,7 @@
 import type { MachineHistoryInput, MachineHistoryResult } from '@shared/ipc';
 import { REMOTE_HISTORY_MAX_COMMITS, REMOTE_HISTORY_PAGE } from '@shared/ipc';
 import type { GitGraphLogEntry } from '@shared/types';
-import { annotateDivergence, parseGraphLog, parseLeftRight } from '../git';
+import { annotateDivergence, parseGraphLog, parseLeftRight } from '../git/parsers';
 import type { RemoteMachineContext } from './context';
 import { machineIsConnected, runRemoteRead } from './remote-run';
 import { readyRemoteContext } from './remote-sessions';

@@ -55,31 +55,32 @@
  * GitHub records a tag push run's head branch as the TAG NAME, so the branch
  * query alone can never return a release run. After a good branch read the
  * same gh is asked for the runs the head commit started, one after the
- * other, never in parallel, and the two answers are folded through
- * `../actions/merge`. The ONE REMOTE READ property is untouched: still
- * exactly one `repo-facts` read per call, which is what condition 55g of
- * `build/conformance-machines.mjs` counts. The worst case time grows to the
- * facts deadline plus two `READ_TIMEOUT_MS`, being 15 s plus 20 s.
+ * other, never in parallel, and the two answers are folded into one list. The
+ * ONE REMOTE READ property is untouched: still exactly one `repo-facts` read
+ * per call, which is what condition 55g of `build/conformance-machines.mjs`
+ * counts. The worst case time grows to the facts deadline plus two read
+ * timeouts, being 15 s plus 20 s.
  *
- * ## Five modules from `src/main/actions` are imported, and that directory is
- * owned by its own phase
+ * ## ONE module from `src/main/actions` is imported since Phase 126
  *
- * | From | Names |
- * | --- | --- |
- * | `../actions/argv` | `MAX_LIMIT`, `assertReadOnlyArgv`, `buildRunListForBranchArgv`, `buildRunListForCommitArgv` |
- * | `../actions/merge` | `capRuns`, `mergeRunQueries` |
- * | `../actions/parse` | `parseJsonOrNull`, `parseRunList` |
- * | `../actions/spawn` | `READ_TIMEOUT_MS`, `runGh` |
- * | `../actions/watch` | `WATCH_LIMITS` |
+ * Both gh reads, the fold and the cap live in `../actions/runs-read.ts`, and
+ * the local Runs section calls the same function. This file imports that one
+ * module and nothing else from that directory.
  *
- * ONE SENTENCE IN THE TREE IS NOW STALE AND THIS PHASE DOES NOT EDIT IT. The
- * header of `../actions/index.ts` says the argv allowlist, the gh spawn and the
- * parser are "an implementation detail of this directory and is imported
- * directly by its tests". From this phase one production module outside that
- * directory imports three of them. The phase brief forbids any edit under
- * `src/main/actions/`, so the sentence stands, this header names it, the commit
- * body names it, and a nit is queued so a later round fixes the sentence rather
- * than a later reader trusting it.
+ * Before Phase 126 this file imported five private files of that directory for
+ * 11 values and 1 type, being `../actions/argv`, `../actions/merge`,
+ * `../actions/parse`, `../actions/spawn` and `../actions/watch`. None of the
+ * five was named in that directory's barrel, and the barrel's own header said
+ * everything except the two IPC functions was an implementation detail. That
+ * was the layering violation the audit ranked as the third P2 of its phase 6,
+ * and it is closed. `../actions/index.ts` now names `readMergedRuns` as public,
+ * and `src/main/actions/__tests__/p126-boundary.test.ts` fails when any file
+ * under this directory imports anything else from there.
+ *
+ * The import is the leaf and not the `../actions` barrel, on purpose. The
+ * barrel pulls `./ipc` and `./service` into the graph, and `./service` pulls
+ * `../watcher` and `../typed-events` after it. `../actions/runs-read.ts`
+ * imports four pure files and the gh spawn, and nothing else in the repository.
  *
  * ## Two differences from the local Runs path, both deliberate
  *
@@ -125,18 +126,12 @@ import type {
   MachineRunsMode,
   MachineRunsResult
 } from '@shared/ipc';
-import type { ActionsHealth, ActionsParseIssue, ActionsRun } from '@shared/actions';
 import {
-  MAX_LIMIT,
-  assertReadOnlyArgv,
-  buildRunListForBranchArgv,
-  buildRunListForCommitArgv
-} from '../actions/argv';
-import { capRuns, mergeRunQueries } from '../actions/merge';
-import { parseJsonOrNull, parseRunList } from '../actions/parse';
-import { READ_TIMEOUT_MS, runGh, type GhSpawner } from '../actions/spawn';
-import { WATCH_LIMITS } from '../actions/watch';
-import { normalizeGitHubRemote } from '../git';
+  RUNS_READ_LIMITS,
+  readMergedRuns,
+  type GhSpawner
+} from '../actions/runs-read';
+import { normalizeGitHubRemote } from '../git/parsers';
 import type { RemoteMachineContext } from './context';
 import { machineIsConnected, runRemoteRead } from './remote-run';
 import { readyRemoteContext } from './remote-sessions';
@@ -272,9 +267,10 @@ function labelOf(machineId: string): string {
 
 /** How many rows gh is asked for, after the clamp. Pure. */
 export function runLimitOf(limit: number | undefined): number {
-  const asked = limit === undefined ? WATCH_LIMITS.RUN_LIMIT : Math.trunc(limit);
-  if (!Number.isFinite(asked)) return WATCH_LIMITS.RUN_LIMIT;
-  return Math.max(1, Math.min(asked, MAX_LIMIT));
+  const asked =
+    limit === undefined ? RUNS_READ_LIMITS.RUN_LIMIT : Math.trunc(limit);
+  if (!Number.isFinite(asked)) return RUNS_READ_LIMITS.RUN_LIMIT;
+  return Math.max(1, Math.min(asked, RUNS_READ_LIMITS.MAX_LIMIT));
 }
 
 /** The test seam. Both fields are undefined in the product. */
@@ -385,84 +381,45 @@ export async function readRunsOnMachine(
     return answerWithout(input, 'noBranch', started, facts, ownerRepo);
   }
   const limit = runLimitOf(input.limit);
-  const argv = buildRunListForBranchArgv({
-    ownerRepo,
-    branch: facts.branch,
-    limit
-  });
-  try {
-    // The allowlist's own rule, asked here rather than copied. `runGh` asks it
-    // again before it makes a process. A branch name gh would read as a flag is
-    // refused by it, and git cannot make such a name, so this is a guard on a
-    // case nobody has rather than a case anybody has hit.
-    assertReadOnlyArgv(argv);
-  } catch {
+  // BOTH gh READS AND THE FOLD LIVE IN `../actions/runs-read.ts` SINCE PHASE
+  // 126, and the local Runs section calls the same function with the same
+  // rules, so the two panels cannot disagree about what a merged list is.
+  //
+  // THIS MAC'S HOME DIRECTORY, for BOTH gh reads. `--repo` is explicit in every
+  // argv the allowlist permits, so no folder on either computer can change the
+  // answer, and there is no local repository to point gh at for a project that
+  // lives somewhere else. The seam fields are the same for both reads, so a
+  // test that captures one captures the other.
+  //
+  // The cap is left at its default of true. This path has no rows on screen to
+  // fold into and no watched commit, so this is the only place it caps. The
+  // local service passes `cap: false` and caps in its own fold instead.
+  const read = await readMergedRuns(
+    {
+      ownerRepo,
+      branch: facts.branch,
+      tipSha: facts.headSha,
+      limit,
+      cwd: homedir()
+    },
+    {
+      ...(seam.ghSpawner === undefined ? {} : { spawner: seam.ghSpawner }),
+      ...(seam.ghBin === undefined ? {} : { bin: seam.ghBin })
+    }
+  );
+  if (read.refused) {
+    // A branch name gh would read as a flag is refused before a process is
+    // made, and git cannot make such a name, so this is a guard on a case
+    // nobody has rather than a case anybody has hit.
     return answerWithout(input, 'noBranch', started, facts, ownerRepo);
   }
-  // THIS MAC'S HOME DIRECTORY, for BOTH gh reads. `--repo` is explicit in
-  // every argv above and below, so no folder on either computer can change
-  // the answer. The seam fields are the same for both reads, so a test that
-  // captures one captures the other.
-  const ghOptions = {
-    cwd: homedir(),
-    timeoutMs: READ_TIMEOUT_MS,
-    ...(seam.ghSpawner === undefined ? {} : { spawner: seam.ghSpawner }),
-    ...(seam.ghBin === undefined ? {} : { bin: seam.ghBin })
-  };
-  const outcome = await runGh(argv, ghOptions);
-  let runs: readonly ActionsRun[] = [];
-  let issues: readonly ActionsParseIssue[] = [];
-  let health: ActionsHealth = { state: 'ready' };
-  if (outcome.ok) {
-    const parsed = parseRunList(parseJsonOrNull(outcome.stdout));
-    runs = parsed.runs;
-    issues = parsed.issues;
-
-    // The SECOND gh read (Phase 120): the runs the head commit started.
-    // GitHub records a tag push run's head branch as the tag name, so the
-    // branch query alone can never return a release run. Sequential, after
-    // the branch read, and never run at all when the branch read failed, so
-    // a broken gh still makes one process per read. `facts.headSha` already
-    // matched SHA_ONLY above, so the argv module's own sha rule accepts it.
-    if (facts.headSha !== null) {
-      const commitArgv = buildRunListForCommitArgv({
-        ownerRepo,
-        sha: facts.headSha,
-        limit: WATCH_LIMITS.COMMIT_RUN_LIMIT
-      });
-      let commitRefused = false;
-      try {
-        // The allowlist's own rule, the same belt the branch argv gets.
-        assertReadOnlyArgv(commitArgv);
-      } catch {
-        // A sha SHA_ONLY accepted and SHA_RE refuses does not exist, so this
-        // is a guard on a case nobody has. The branch rows stand.
-        commitRefused = true;
-      }
-      if (!commitRefused) {
-        const commitOutcome = await runGh(commitArgv, ghOptions);
-        if (commitOutcome.ok) {
-          const commitParsed = parseRunList(
-            parseJsonOrNull(commitOutcome.stdout)
-          );
-          runs = capRuns(
-            mergeRunQueries(runs, commitParsed.runs),
-            limit,
-            facts.headSha
-          );
-          issues = [...issues, ...commitParsed.issues];
-        } else {
-          // The branch rows stand, and the rung names the commit failure so
-          // the panel does not claim a full read that did not happen.
-          health = commitOutcome.health;
-        }
-      }
-    }
-  } else {
-    // The machine answered fine and GitHub is a separate question, so the mode
-    // stays `ok` and the rung says what went wrong with gh.
-    health = outcome.health;
-  }
+  // The machine answered fine and GitHub is a separate question, so the mode
+  // stays `ok` either way and the rung says what went wrong with gh. A branch
+  // read that failed carries its own rung and no rows. A commit read that
+  // failed carries its rung and the branch rows stand.
+  const runs = read.runs;
+  const issues = read.issues;
+  const health = read.health;
   const now = Date.now();
   return {
     machineId: input.machineId,

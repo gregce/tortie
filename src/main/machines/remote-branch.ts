@@ -31,7 +31,7 @@
  *                                          base64, tr
  *                             ◀────────── <mode word> <base64 or none>
  *                             │
- *                             │ parseForEachRefBranches (../git, reused)
+ *                             │ parseForEachRefBranches (../git/parsers)
  *                             ▼
  *                           MachineBranchResult
  * ```
@@ -45,7 +45,9 @@
  * `parseUpstreamTrack` read the answer unchanged. Condition 56d of
  * `build/conformance-machines.mjs` asserts that relation, so the two copies
  * cannot drift. Grepped for before anything was written here: both functions
- * and the `UpstreamTrack` type already existed and are exported from `../git`.
+ * and the `UpstreamTrack` type already existed. Phase 126 moved this import
+ * from the `../git` barrel to `../git/parsers`, which is the parsers and
+ * nothing that spawns. The barrel still exports all three names.
  *
  * ONE RAW FIELD IS READ BESIDE THAT PARSER, and it is read for one reason.
  * `parseForEachRefBranches` answers 0 and 0 for an empty tracking field, which
@@ -99,7 +101,7 @@
 
 import type { MachineBranchInput, MachineBranchResult } from '@shared/ipc';
 import type { GitBranchInfo } from '@shared/types';
-import { parseForEachRefBranches } from '../git';
+import { parseForEachRefBranches } from '../git/parsers';
 import type { RemoteMachineContext } from './context';
 import { machineIsConnected, runRemoteRead } from './remote-run';
 import { readyRemoteContext } from './remote-sessions';

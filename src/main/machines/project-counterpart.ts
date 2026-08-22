@@ -52,7 +52,7 @@ import {
   type RemoteProjectFindResult,
   type RemoteProjectMatch
 } from '@shared/ipc';
-import { runGit } from '../git';
+import { runGit } from '../git/exec';
 import { machineGeneration, type RemoteMachineContext } from './context';
 import {
   counterpartAbsent,

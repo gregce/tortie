@@ -128,9 +128,9 @@ interface ConversationClaim {
  * the caller happened to type. A folder that no longer exists resolves to
  * itself, which is the only spelling anyone has for it.
  *
- * It is exported because `sessions/core.ts` resolves the same way before it
- * builds a `HarvestContext`, and one implementation is what keeps the two
- * from drifting.
+ * It is exported because `sessions/id-harvest.ts` resolves the same way
+ * before it builds a `HarvestContext`, and one implementation is what keeps
+ * the two from drifting.
  */
 export function resolveClaimCwd(cwd: string): string {
   try {
@@ -293,8 +293,8 @@ export function forgetConversationClaims(): void {
  * An exact confirm displaced another session's provisional claim. Fired
  * synchronously inside the winner's accept, BEFORE its settle, so a decide
  * running in any other watch in the same tick already sees the new owner.
- * The handler in sessions/core.ts corrects the loser's manifest row and
- * restarts its watch.
+ * The handler in sessions/id-harvest.ts corrects the loser's manifest row
+ * and restarts its watch.
  */
 export interface ConversationReclaim {
   agent: LaunchableAgentId;
@@ -585,8 +585,8 @@ export function watchForSessionId(
       // Another session holds this id on weaker evidence than this watch has.
       // The claim moves, the reclaim event fires synchronously so a same-tick
       // decide in any other watch already sees the new owner, and the loser's
-      // manifest row is corrected by the handler in sessions/core.ts before
-      // this watch's own settle resolves.
+      // manifest row is corrected by the handler in sessions/id-harvest.ts
+      // before this watch's own settle resolves.
       reclaimedFrom = existing.claimant;
       claimedConversations.set(c.sessionId, { claimant, ...mine });
       emitReclaim({

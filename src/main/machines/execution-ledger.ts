@@ -11,8 +11,8 @@
  *
  * ## The shape, which is Phase 116's shape rather than a second one
  *
- * `../sessions/core.ts` already owns a lifecycle with a typed refusal, an admit
- * set and a bounded join. This file copies it:
+ * `../sessions/mutation-ledger.ts` already owns a lifecycle with a typed
+ * refusal, an admit set and a bounded join. This file copies it:
  *
  *  1. {@link beginRemoteExecutionShutdown} sets a flag SYNCHRONOUSLY, with no
  *     await in front of it, so the gate closes in the same tick the quit starts.
