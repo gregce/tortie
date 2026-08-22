@@ -23,12 +23,16 @@ release.
 | 7 | **102** new folder and rename | | ✅ shipped |
 | 8 | **103** stage and unstage | | ✅ shipped |
 | 9 | **104** commit on a remote tab | | ✅ shipped |
-| — | **RELEASE POINT** | The writes are the next release's story. NOT delegated; the grant above is for one release only | operator |
 | 10 | **Run A** 121, 122, 124 | Architecture, invisible to a person. Compile time and gates | ✅ shipped |
-| 11 | **Run B** 123 | The six runtime cycles | queued |
-| 12 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
-| 13 | **Run D** 127 | App, FileTree and state to app | queued |
-| 14 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
+| 11 | **134** the About panel credit, and one spelling of Ita Vero, LLC | A licence obligation the NOTICE file already promises | running |
+| 12 | **131** the machine row says four times what it should say once | He reported it. Waited for 130, which shipped | queued |
+| 13 | **132.1** the install sheet's rules are overwritten, and the facts band is cramped | Recorded by Phase 132's own verifier | queued |
+| 14 | **135** the project rail's controls, the ＋, and the stranded activity bar | He reported it on 2026-08-22 with a screenshot | queued |
+| 15 | **Run B** 123 | The six runtime cycles | queued |
+| 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | queued |
+| 17 | **Run D** 127 | App, FileTree and state to app | queued |
+| 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
+| — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release. NOT delegated. He cuts it | operator |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
 **THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
@@ -15033,6 +15037,84 @@ He confirmed on 2026-08-22 that the legal name is **`Ita Vero, LLC`**. The tree 
 
 ---
 
+## Phase 135 — the project rail's controls sit where nothing else sits, the ＋ disappears when the projects collapse, and the activity bar is stranded in the middle (operator reported 2026-08-22) QUEUED
+
+**Subject:** `fix(chrome): the project rail's controls sit at its head and the ＋ never leaves`
+**First body line:** `Phase 135: the project rail's controls, the ＋, and the stranded activity bar`
+**Semver:** minor. Item three changes where a whole surface is drawn in one of the two positions.
+**Tier 2**, with screenshot reads at four states, being projects on top expanded, projects on top collapsed, projects on the left expanded and projects on the left collapsed. It touches no durability path, no manifest, no machines file and no tmux code. Item three is promoted to **two photographs and a written choice** because it moves a load bearing surface.
+**Charter:** this entry, plus the `## Phase 129` entry above it, which built the left rail and wrote the reasons the rail is the window's outermost column, plus DESIGN.md section 11.2 on labels naming their destination, plus docs/DESIGN-SPEC.md.
+
+### Three things he reported, and he sent a screenshot of the third
+
+**One. The rail's own controls are at the far end of its band, and they should be at its head.**
+
+`src/renderer/app/ProjectRail.tsx` draws the expanded band as the word Projects, the count, a `.prail-spacer` that eats the rest of the width, then the collapse chevron, then `<ProjectsPositionButton />`, then the ＋. So all three controls are pushed to the rail's right edge, which is the edge against the rest of the window rather than the edge the traffic lights are on.
+
+He asked for the controls to sit at the LEFT of the band, and he named the order. The position button, which is the small panel glyph, goes first, closest to the traffic lights. The collapse chevron goes beside it. The ＋ is not part of this move and item two says where it goes.
+
+**The glyphs themselves do not change.** He described the chevron as up and down. On the left rail it is `chevron-left` and `chevron-right`, and on the top band it is `fold-up` and `fold-down`, and both pairs are decided in one place, being `collapseIcon()` in `src/renderer/app/projects-position.ts`, which explains why each pair was chosen. This phase moves the ORDER of the controls and changes no glyph and no label.
+
+**Two. The ＋ disappears in both collapsed states, and it should never disappear.**
+
+The ＋ opens the native menu with the two verbs behind it, being open a project that exists and make one that does not. It is present in exactly one of the four states.
+
+| Projects position | State | What the band draws | Is the ＋ there |
+| --- | --- | --- | --- |
+| Top | Expanded | tabs, ＋, chevron, position | yes |
+| Top | Collapsed | chip, chevron, position | **no** |
+| Left | Expanded | Projects, count, spacer, chevron, position, ＋ | yes |
+| Left | Collapsed | chevron only, and the position button in `.prail-footer` | **no** |
+
+The collapsed left rail drops it deliberately. The comment at `src/renderer/app/ProjectRail.tsx` in the `.prail-footer` block says two 24px buttons do not fit in a 48px band and that the ＋ is dropped rather than squeezed, because the chords reach it from anywhere. He has now said that is the wrong trade. The ＋ is visible in all four states, and it is to the RIGHT of where the projects are drawn.
+
+The 48px constraint the old comment names is real and it still binds. Two 24px buttons do not fit ACROSS a 48px band. They do fit STACKED, and `.prail-footer` is already a 36px row pinned to the rail's foot with `margin-top: auto`, so a second row under it is the cheap answer. Whatever the builder chooses, no control may overlap another and no control may be clipped.
+
+**Three. With the projects on the left, the activity bar is a 48px strip stranded in the middle of the window.**
+
+His screenshot shows it. The window reads as a 200px projects rail, then a 48px column holding Explorer, Search, Source Control, Context and the Settings gear, then the Explorer panel. That middle column has a border on each side and it starts its icons at the top, level with the project list, so it reads as a third panel rather than as the window's navigation.
+
+He was explicit about the limit on this. He likes the activity bar where it normally is and does not want it changed for every view. **This item changes the activity bar ONLY while `projectsPosition` is `left`.** With the projects on top, nothing about the activity bar moves, and the phase must show that by photograph.
+
+**The default answer, which the phase may overturn only with a photograph that beats it.** While the projects are on the left, the activity bar stops being a full height column and becomes a row of the same icons at the head of the sidebar, above the panel's own title band, with the Settings gear at the row's right end rather than pinned to a floor it no longer has. That removes 48px of chrome and removes the stranded column, and it leaves the top position untouched.
+
+**The alternative the phase must also photograph** is keeping the column and fusing it to the projects rail, being one shared background, no border between the two, and the icons offset down from the project list's first row so the two columns do not read as one list in two halves.
+
+Photograph both, choose one, and write the reason in the commit body. A choice with no photograph beside it is not a choice.
+
+**The refusal Phase 129 wrote, and it still binds.** The project rail is the window's OUTERMOST left column, drawn before the activity bar, so that a collapsed rail is the window's bookend rather than a second 48px strip pressed against the activity bar. This phase does not reorder those two. Putting the activity bar outside the project rail recreates exactly the defect 129 refused, because a collapsed rail is 48px and the activity bar is 48px.
+
+### Mechanism, with the paths read from the tree
+
+- `src/renderer/app/ProjectRail.tsx`, the `.prail-band` block in `ProjectRail()`, which holds the label, the count, the `.prail-spacer`, the chevron, `<ProjectsPositionButton />` and the ＋, and the `.prail-footer` block below the list.
+- `src/renderer/app/Titlebar.tsx`, the collapsed branch at the `CollapsedProjectChip` line, which draws the chip, the chevron and the position button and no ＋, and the expanded branch below it, which draws the ＋ before the chevron.
+- `src/renderer/app/project-rail.css`, `.prail-band`, `.project-rail.collapsed .prail-band`, `.prail-spacer` and `.prail-footer`, which are the four rules that decide the arrangement.
+- `src/renderer/app/projects-position.ts`, `collapseIcon()` and `collapseLabel()`, which are READ and not changed.
+- `src/renderer/app/ActivityBar.tsx` and `src/renderer/app/App.tsx` at the `<ProjectRail />` and `<ActivityBar />` lines, for item three.
+- `src/renderer/state/chrome-geometry.ts`, which owns `projectsRenderedWidth` and `PROJECT_RAIL_COLLAPSED_W` and is the one place a layout limit may be defined. Item three changes the sidebar's ceiling if the activity bar stops being a column, and that arithmetic belongs here and nowhere else.
+- `src/renderer/app/focus-mode.css`, which hides `[data-slot='activity-bar']` in four rules. If item three changes what carries that slot, these four rules must still hide it, and focus mode must be photographed.
+- `src/renderer/app/__tests__/p129-projects-position.test.ts`, the existing tests for the position vocabulary.
+
+### Proof this phase must produce, run rather than read
+
+- Four photographs of the project controls, being top expanded, top collapsed, left expanded and left collapsed, each one showing the ＋ present and showing the position button and chevron in his order at the head of the left rail's band.
+- A measured statement that no control overlaps another and none is clipped, read from `getBoundingClientRect()` in every one of the four states, not from looking at the picture.
+- Two photographs for item three, being the default treatment and the alternative, with the chosen one named in the commit body and the reason written down.
+- One photograph with the projects on TOP after item three lands, showing the activity bar drawn exactly as it is today.
+- One photograph of focus mode with the projects on the left, showing the activity bar hidden.
+- `npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`.
+
+### What is NOT in this phase
+
+- No change to any glyph, any label or any tooltip. `collapseIcon()` and `collapseLabel()` are read and not edited.
+- No change to the order of `<ProjectRail />` and `<ActivityBar />` in App.tsx. The rail stays outermost, for the reason Phase 129 wrote.
+- No third position for the projects and no drag handle. Two widths and two positions, and that is all.
+- No change to what the ＋ menu contains, no second button beside it, and no DOM drawn menu.
+- No change to the activity bar while the projects are on TOP, which he asked for by name.
+- No change to any session surface, the session rail or the session dock.
+- No new store value. `projectsPosition` and `projectsCollapsed` stay the only two.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -15148,3 +15230,5 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 133 shipped, a pane now joins the login session Tortie is in, so an agent started from now on can reach the keychain, this commit, 0.67.1
 - 2026-08-21, Phase 133 note, the macOS keychain dialog was NOT reproduced on demand, a real Electron process reading safe storage inside a pane carrying a dead login session number still got its keychain, so the fix is proven at the environment level and the modal itself stays unproven
 - 2026-08-22, Phase 134 queued, the About panel credit the NOTICE file promises, and one spelling of Ita Vero, LLC
+- 2026-08-22, Phase 135 queued, the project rail's controls move to the head of its band, the ＋ is visible in all four states, and the activity bar stops being a stranded column while the projects are on the left
+- 2026-08-22, the run order was extended, he asked on 2026-08-22 for 131, 132.1, 135, 123, 125, 126, 127 and 128 to be queued all at once and for a release to be cut after them, and the release stays his to cut
