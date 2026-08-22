@@ -34,7 +34,7 @@ release.
 | 17 | **Run D** 127 | App, FileTree and state to app | queued |
 | 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
 | 19 | **139** hovering an uninstalled agent moves the whole screen | He reported it 2026-08-22 with a photograph and asked for it before the release | queued |
-| — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release. NOT delegated. He cuts it | operator |
+| — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release, and later the same day he DELEGATED the cut. See the grant below | **delegated, one release only** |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
 **THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
@@ -15808,6 +15808,31 @@ A choice with no photograph beside it is not a choice, which is the rule Phase 1
 - No new store value and no new state. The `hint` state already exists.
 
 
+**THE RELEASE AFTER 128 AND 139 IS DELEGATED, AND THIS IS THE SECOND SUCH GRANT.** The standing rule
+everywhere else in this file and in every phase brief is that an agent NEVER tags and NEVER cuts a
+release. On 2026-08-22 the operator asked, in his words, whether the cut could just be done once we
+get there, before 137 and 138 start. That grant is:
+
+- **ONE release only**, the one at the release point after Phase 128 and Phase 139. It does not become
+  a standing permission and it does not extend to any later release. The first grant, for v0.62.1, is
+  spent and this one replaces nothing.
+- **It runs BEFORE Phase 137 and Phase 138 start.** Those two are the catch me up page and its fold,
+  and neither is in this release.
+- **The order is fixed.** Append the missing CHANGELOG items first, one per commit in the house shape,
+  one commit one section with unwrapped lines because the release page renders newlines as breaks, and
+  retitle the entry to the version being tagged. Then confirm the working tree is clean and main is
+  pushed. Then tag `v<version>` and push the tag. `release.yml` fires only on a `v*` tag.
+- **It covers PUBLISHING, not only tagging.** `release.yml` publishes as a DRAFT, and the grant includes
+  taking that draft to Latest, because he asked for the release to be cut rather than prepared. Watch
+  the run to its end and report the artifacts and the notarization result.
+- **If any gate is red, or the changelog cannot be completed honestly, DO NOT TAG.** Report and stop. A
+  release is the one action here that cannot be taken back.
+- **A tag is never moved or deleted once pushed.** If something is wrong afterwards, the answer is
+  another release, not a retag.
+- **Closing issues is NOT in this grant.** He asked for that separately last time and has not asked for
+  it here. Report what the release appears to fix and leave every issue alone until he says so.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -15939,3 +15964,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Research 63 delivered, docs/research/63-provider-keep-map.md, the per provider keep map, what to read and what to skip in every agent log. Twelve of thirteen agents have a store here and eleven fill all five slots, keeping only the ask and the closing answer leaves 0.166% over his 25 live sessions, being 161.48 MB down to 274.8 KB, opening gmux costs 47.3 ms once and 0.040 ms after. It corrects Phase 137 on four rows, being qwen, pi and muse are readable rather than an honest line, cursor the CLI is readable and joinable, gemini needs a forward read rather than a replay, and the task notification inflation is 105.8% rather than 37% with nine traps rather than two. claude, codex and cursor are NOT READY, each on one silent prefilter defect named in section 19
 - 2026-08-22, Phase 137 re-specified and Phase 138 split out of it, the page is deterministic and costs nothing while the fold is its own phase gated on two unmeasured things, being his subscription rate window and fold drift; the store now keeps a copy of the parsed slice because providers can delete history from disk, and it gains a path index at 8.0 KB a session after a measurement showed tool calls name 4 paths where command text names 918
 - 2026-08-22, Phase 139 queued, hovering an uninstalled agent on the empty state moves the heading, the twelve tiles and the hint line, because Phase 130 turned the caption into a column holding a command row and left behind the 22px reservation that was true when it was one line, and the empty state is vertically centred so the growth reaches everything above it
+- 2026-08-22, THE RELEASE AFTER 128 AND 139 IS DELEGATED, one release only, cut it before Phase 137 and Phase 138 start, publishing included, closing issues not included
