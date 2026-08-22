@@ -14913,7 +14913,24 @@ State which was chosen, with the measurement that decided it, and say plainly wh
 - No new IPC channel and no new user facing surface. If the fix needs one, STOP and report rather than adding it.
 
 
-## Research 61 — is there an icon set that gives Tortie more spunk than codicons, that is not the one everybody uses (operator asked 2026-08-21) QUEUED
+## Research 61 — is there an icon set that gives Tortie more spunk than codicons, that is not the one everybody uses (operator asked 2026-08-21) ✅ DELIVERED 2026-08-21 (this commit), docs/research/61-icon-set.md, checked against the tree of `eb69116`, NOTHING QUEUED FROM IT
+
+**The ruling, recorded. KEEP CODICONS.** Nothing released in 2026 beats the incumbent, and the
+reason is coverage rather than taste. The chrome does not draw 38 glyphs, it draws 96 distinct
+codicon ids over 95 glyphs, and 13 of those are the language symbol kinds the Go to Symbol palette
+uses to tell a class from an enum member. No candidate that survives licence and maintenance
+screening carries a language symbol vocabulary at all, so Fluent UI System Icons misses 15 of the
+96 and Tabler misses 12, and a change would mean commissioning 13 glyphs in a second style, which
+`CLAUDE.md` and `DESIGN.md` both already refuse. The picture at
+`docs/research/assets/61-chrome-compare.png` shows the two live challengers in Tortie's own chrome
+at Tortie's own sizes, and the honest reading is that Fluent is a small pleasant difference rather
+than spunk while Tabler carries 28 percent more ink at 16 px.
+
+**One defect it found on the way, and it is worth queueing whatever he decides.** The CC BY 4.0
+credit that `NOTICE`, `DESIGN.md` and three comments under `src/renderer/icons/` all promise is not
+in the About panel. `app.setAboutPanelOptions` in `src/main/menu.ts` carries no icon credit. The
+fix is one line and it is Tier 1. It stays true whatever set he picks, because `monaco-editor`
+ships its own copy of the codicon font regardless. Section 9 of the document has it.
 
 **Deliverable:** `docs/research/61-icon-set.md`. **Nothing under `src` changes** until he reads it and queues a build.
 **Charter:** this entry plus DESIGN.md and docs/DESIGN-SPEC.md, whose token and density rules any candidate must survive.
@@ -15068,3 +15085,4 @@ cycle rather than only the evening it was written.
 - 2026-08-21, Phase 129 shipped, the Agents tab is pages, the session rail answers the arrow keys, the project tabs can be a left rail, and the fill chord works from a file, this commit, 0.67.0
 - 2026-08-21, Phase 133 queued, a keychain cannot be found because a pane outlives the login session it was stamped with
 - 2026-08-21, Research 61 queued, is there an icon set with more spunk than codicons that is not Lucide or Phosphor, which he ruled out
+- 2026-08-21, Research 61 delivered, docs/research/61-icon-set.md, the ruling is KEEP CODICONS on coverage, being 96 ids over 95 glyphs of which 13 are language symbol kinds no candidate has, nothing queued from it except the About panel attribution gap in section 9
