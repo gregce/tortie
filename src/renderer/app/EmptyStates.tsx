@@ -281,19 +281,26 @@ export function NoSessions(): React.JSX.Element {
           directory.
         </p>
 
-        <div className="onb-caption" aria-live="polite">
-          {hinted !== null ? (
-            <HintedInstallCaption
-              option={hinted}
-              machineLabel={machineLabel}
-              onCopy={(command) => {
-                void navigator.clipboard.writeText(command).then(
-                  () => toast('info', COPY_COMMAND_TOASTS.ok),
-                  () => toast('error', COPY_COMMAND_TOASTS.failed)
-                );
-              }}
-            />
-          ) : null}
+        {/* PHASE 139. The slot reserves the height and the caption is
+            overlaid inside it, so a long install command cannot move the
+            heading, the tiles or the hint line above it. The caption element
+            is unchanged, so it is still the aria-live region that announces
+            the command. empty-states.css carries the measurements. */}
+        <div className="onb-caption-slot">
+          <div className="onb-caption" aria-live="polite">
+            {hinted !== null ? (
+              <HintedInstallCaption
+                option={hinted}
+                machineLabel={machineLabel}
+                onCopy={(command) => {
+                  void navigator.clipboard.writeText(command).then(
+                    () => toast('info', COPY_COMMAND_TOASTS.ok),
+                    () => toast('error', COPY_COMMAND_TOASTS.failed)
+                  );
+                }}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

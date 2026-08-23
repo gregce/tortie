@@ -82,14 +82,48 @@
   color: var(--text-secondary);
 }
 
-/* Reserved so revealing an install line never nudges the centered column. */
-.onb-caption {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
+/* PHASE 139. The slot reserves the height and the slot's height never
+   changes. The caption is overlaid inside it, out of normal flow, so a
+   caption of any height leaves the heading, the tiles and the hint line
+   exactly where they were.
+
+   The rule here used to put min-height: 22px on the caption itself, under a
+   comment saying that the reservation stopped the centered column being
+   nudged. That was true while the caption was one sentence on one line. Phase
+   130 made the caption a column of three things and the reservation was never
+   re-derived. The shortest caption carrying a command measures 74px against
+   22px reserved, and the longest command in the registry measures 86px, so
+   the operator saw the heading, all twelve tiles and the hint line rise 26px
+   the moment he hovered an agent that is not installed. .empty is
+   justify-content: safe center, so a column that grows moves everything above
+   it by half the growth.
+
+   No single number can be right here, because the caption's height depends on
+   the command and on the column width. A reservation the caption cannot
+   exceed is the only one that stays true, and a slot the caption does not sit
+   inside is how you get one. ProjectRail.tsx already uses this pattern for
+   the ⌘-held row number, in the slot the close × reserves.
+
+   22px is the height the page reserved before this phase. Keeping it keeps
+   the resting page pixel for pixel where it was. */
+.onb-caption-slot {
+  position: relative;
+  align-self: stretch;
   min-height: 22px;
   margin-top: var(--space-2);
+}
+
+/* left and right pin the overlay to the slot's full width, so the caption
+   wraps at the column measure rather than shrinking to its own content. */
+.onb-caption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-3);
   max-width: 100%;
 }
 

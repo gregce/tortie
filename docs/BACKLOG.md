@@ -33,7 +33,7 @@ release.
 | 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | ✅ shipped |
 | 17 | **Run D** 127 | App, FileTree and state to app | ✅ shipped |
 | 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
-| 19 | **139** hovering an uninstalled agent moves the whole screen | He reported it 2026-08-22 with a photograph and asked for it before the release | queued |
+| 19 | **139** hovering an uninstalled agent moves the whole screen | He reported it 2026-08-22 with a photograph and asked for it before the release | ✅ shipped |
 | — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release, and later the same day he DELEGATED the cut. See the grant below | **delegated, one release only** |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
@@ -15740,7 +15740,7 @@ His real turn rate is 0.278 human turns per session-hour, measured across 23 ses
 **No fold for a session whose project is closed**, unless the fleet measurement shows it is free.
 
 
-## Phase 139 — hovering an uninstalled agent moves the whole screen (operator reported 2026-08-22, with a photograph) QUEUED, BEFORE THE RELEASE
+## Phase 139 — hovering an uninstalled agent moves the whole screen (operator reported 2026-08-22, with a photograph) ✅ SHIPPED 2026-08-22 (this commit, 0.68.7, gates green, 8,338 tests)
 
 **Subject:** `fix(onboarding): revealing the install command moves nothing`
 **First body line:** `Phase 139: hovering an uninstalled agent moves the whole screen`
@@ -15980,3 +15980,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, THE RELEASE AFTER 128 AND 139 IS DELEGATED, one release only, cut it before Phase 137 and Phase 138 start, publishing included, closing issues not included
 - 2026-08-22, the hold on Phases 44 and 45 is ANSWERED, he confirmed 137 and 138 are not what was planned on 15 August, so 137 no longer waits on that question
 - 2026-08-22, Phase 127 shipped, src/renderer/app/App.tsx went from 1,632 lines and 81 imports to 351 lines and 40 imports over keyboard.ts, menu-actions.ts, quit.ts and shell-actions.ts, src/renderer/tree/FileTree.tsx went from 1,789 lines to 678 over use-tree-model.ts, use-tree-rename.ts, use-tree-menu.ts, use-tree-drag.ts and row-events.ts, the harness drives now load through one import() in src/renderer/app/probe-loader.ts gated on a harness=1 query string that main appends only when src/main/harness/launch-gate.ts says the launch is a harness run, so 122,910 bytes of probe code left the 3,525,030 byte chunk a person's launch loads and build/assert-probe-containment.mjs fails if any of the five markers comes back to it, and build/assert-import-boundaries.mjs gained a directory wall with ten fixtures saying src/renderer/state may not name src/renderer/app or src/renderer/editor, which is why the machine vocabulary, resume readiness, the format helpers, the clone words and the menu types moved down and a shell operation is now injected through src/renderer/state/shell-ops.ts. No keyboard chord and no rendered string changed, this commit, 0.68.6
+- 2026-08-22, Phase 139 shipped, the caption now sits out of normal flow inside a 22px slot whose height never changes, so hovering an uninstalled agent moves the heading, the twelve tiles and the hint line 0px where the parent commit moved all three up 26px for a typical install command, 32px for the registry's longest one, being Qwen Code at 111 characters, and 56px at a 300px column where the sentence wraps, read from getBoundingClientRect over 12 caption shapes at two column widths. Candidate A, the reserved slot ProjectRail.tsx already uses for the ⌘ hint, beat candidate B, which anchored the empty column to the top of the pane and left every empty state in the app 217.4px higher at rest. The aria-live region still announces, the copy button is still the topmost element at its own coordinates and the command text is still selectable, this commit, 0.68.7
