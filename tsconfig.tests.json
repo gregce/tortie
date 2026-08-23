@@ -52,6 +52,7 @@
   "include": [
     "src/**/__tests__/**/*.ts",
     "src/**/__tests__/**/*.tsx",
+    "src/main/overview/*.json",
     "src/renderer/env.d.ts"
   ],
   "references": [

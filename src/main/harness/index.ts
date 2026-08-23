@@ -290,6 +290,7 @@ import { runRemoteMatrixSmoke } from './remote-matrix';
 import { runSmokeShadow } from './shadow';
 import { runSmokeShim } from './shim-smoke';
 import { runShot } from './shot';
+import { seedOverviewSessions } from './overview-seed';
 
 export interface HarnessDeps {
   /** The real app window factory, owned by the composition root. */
@@ -553,6 +554,12 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
         `[gmux] the machines file was not read: ${(err as Error).message}`
       );
     });
+    // Phase 137: the Catch Me Up photograph probe seeds manifest rows for its
+    // scratch project before the window opens. The seed refuses to run
+    // outside an isolated harness launch on a harness profile.
+    if ((process.env['GMUX_OVERVIEW_SEED'] ?? '') !== '') {
+      await seedOverviewSessions();
+    }
     await runShot(shot, deps);
     return true;
   }

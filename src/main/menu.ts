@@ -557,6 +557,11 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         item('Search', 'show-search', accel('view.search')),
         item('Source Control', 'show-scm', accel('view.scm')),
         item('Context', 'show-context', accel('view.context')),
+        // Phase 137: Catch Me Up sits directly under Context. Both answer a
+        // question about the whole project rather than opening a sidebar
+        // view. The accelerator comes from the shared keymap, so the row and
+        // the chord cannot drift.
+        item('Catch Me Up', 'show-overview', accel('view.overview')),
         { type: 'separator' },
         // Session-surface orientation — a radio pair drawn from the cached
         // store value, so a rebuild reproduces the truth instead of resetting

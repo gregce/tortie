@@ -45,6 +45,8 @@ const ARMS = [
   'show-explorer',
   'show-scm',
   'show-context',
+  // Phase 137. View > Catch Me Up, directly under Context.
+  'show-overview',
   'show-search',
   'go-to-symbol',
   'sessions-top',
@@ -56,7 +58,7 @@ const ARMS = [
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 32 actions and no more', () => {
+  it('answers all 33 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

@@ -26,7 +26,7 @@
       "@shared/*": ["src/shared/*"]
     }
   },
-  "include": ["src/main/**/*.ts"],
+  "include": ["src/main/**/*.ts", "src/main/overview/*.json"],
   "exclude": ["src/main/__tests__/**", "src/main/**/__tests__/**"],
   "references": [{ "path": "./tsconfig.shared.json" }]
 }

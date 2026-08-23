@@ -17,6 +17,7 @@ import type {
 import type { FindMenuActionId } from './search';
 import type { PastSessionsMenuActionId } from './sessions';
 import type { ContextMenuActionId } from './context';
+import type { OverviewMenuActionId } from './overview';
 import type { ShellOpenMenuActionId } from './shell';
 
 // ---------------------------------------------------------------------------
@@ -435,6 +436,8 @@ export type AnyMenuActionWithProjects =
   | PastSessionsMenuActionId
   // Phase 60. The View menu gained "Context", the same one-line fold.
   | ContextMenuActionId
+  // Phase 137. The View menu gained "Catch Me Up", the same one-line fold.
+  | OverviewMenuActionId
   // Phase 51. The payload-free nudge that a shell open is pending.
   | ShellOpenMenuActionId
   // Phase 90.3. File > Open Folder on a Machine…, the same one-line fold.

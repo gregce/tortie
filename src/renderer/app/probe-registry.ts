@@ -50,6 +50,11 @@ import { driveContext } from '../context/shot-probe';
 import type { ContextProbeSpec } from '../context/shot-probe';
 import { driveSessionFocus } from './focus-shot-drive';
 import type { SessionFocusProbeSpec } from './focus-shot-drive';
+// PHASE 137. The Catch Me Up page's drive, read by
+// build/probe-p137-overview.mjs. It presses the real ⌃⇧U where it can and
+// says so when it cannot.
+import { driveOverview } from '../overview/shot-probe';
+import type { OverviewProbeSpec } from '../overview/shot-probe';
 import { armShellPathProbe, driveShellPath } from './shell-path-shot-drive';
 import type { ShellPathProbeSpec } from './shell-path-shot-drive';
 // PHASE 100. The screenshot read's own hook. It opens the last lines panel on a
@@ -164,6 +169,14 @@ interface ShotLayoutExtras {
    * the harness socket at the same time as the second, independent witness.
    */
   sessionFocus?: SessionFocusProbeSpec;
+  /**
+   * Phase 137. Open the Catch Me Up page at one of its three levels and
+   * report what it drew. The project and session levels are opened with the
+   * real ⌃⇧U keydown on window, so the shipped handler runs. The several
+   * level goes through the store, because the rail has no multi select for
+   * a drive to stage, and the console report names which route ran.
+   */
+  overview?: OverviewProbeSpec;
   /**
    * Phase 100. Open the last lines panel on a session that runs on another
    * machine, wait for the read to answer, and report what the panel drew.
@@ -473,6 +486,13 @@ function installShotLayoutExtras(): void {
     if (ext.sessionFocus !== undefined) {
       window.__gmuxShotReady = false;
       await driveSessionFocus(ext.sessionFocus);
+      window.__gmuxShotReady = true;
+    }
+    // Phase 137. After the layout knobs, so the page opens over the finished
+    // layout and the picture shows it in its real surroundings.
+    if (ext.overview !== undefined) {
+      window.__gmuxShotReady = false;
+      await driveOverview(ext.overview);
       window.__gmuxShotReady = true;
     }
     // Phase 100. After everything else, so the panel opens over the finished

@@ -40,6 +40,9 @@ import { toggleSessionFocus } from './focus-flight';
 // The Escape branch below still calls toggleSessionFocus directly, because
 // Escape is only ever the way out of session focus.
 import { runFillChord } from './fill-chord';
+// Phase 137. The Catch Me Up page. The chord toggles it and Escape steps
+// back out of it, one rung above the session focus rung.
+import { backOrLeaveOverview, toggleOverview } from '../overview/open-overview';
 import { useQuickOpen } from '../quickopen';
 import {
   focusInsideSearch,
@@ -137,6 +140,15 @@ export function useKeyboardMap(): void {
           // that can make the call, because it is capture-phase on window and
           // runs before anything inside the overlay.
           if (!shortcutSearchTookEscape()) s.setShortcutsOpen(false);
+        } else if (s.overview !== null) {
+          // Phase 137. Escape steps out of the Catch Me Up page. A
+          // conversation opened from the project view goes back to the
+          // project view, and anything else leaves. The rung sits above
+          // session focus because the page draws over the whole work area,
+          // so while it is open Escape can only mean the page.
+          e.preventDefault();
+          e.stopPropagation();
+          void backOrLeaveOverview();
         } else if (s.sessionFocus && !inTerminal) {
           // Phase 80.1. Escape leaves session focus, but ONLY when the
           // keyboard is not in a session. Escape inside a terminal belongs to
@@ -258,6 +270,24 @@ export function useKeyboardMap(): void {
       ) {
         e.preventDefault();
         showViewAction('context');
+        return;
+      }
+
+      // ⌃⇧U — Catch Me Up (Phase 137). Registered beside ⌃⇧C and ⌃⇧G
+      // because it is the same gesture family on the same rail. ⇧⌘U is
+      // deliberately NOT used: cursor's defaultHotkeyHint is 'u', and the
+      // per-agent hotkey space belongs to the person. preventDefault runs
+      // whether or not the keyboard is in a terminal, exactly as ⌃⇧C above,
+      // and the View menu's Catch Me Up row mirrors it as 'show-overview'.
+      if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'u'
+      ) {
+        e.preventDefault();
+        void toggleOverview('chord');
         return;
       }
 

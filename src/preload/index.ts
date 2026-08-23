@@ -34,6 +34,7 @@ import { fs, preview } from './files';
 import { git } from './git';
 import { log } from './log';
 import { machines } from './machines';
+import { overview } from './overview';
 import { projects, recents } from './projects';
 import { notice, sessions } from './sessions';
 import { quickOpen, search, symbols } from './search';
@@ -87,6 +88,10 @@ const api: InstalledGmuxApi = {
   machines,
   notice,
   preview,
+  // Phase 137 extra: the Catch Me Up page's two reads. Both read agent logs
+  // through main and write only Tortie's own overview store. The page
+  // feature-detects the object, so a build without it says one sentence.
+  overview,
   // Phase 46 optional extra: the SCM view's Runs section. Read only, and the
   // renderer feature-detects it, so a build without it simply has no section.
   actions,

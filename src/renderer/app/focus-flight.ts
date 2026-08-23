@@ -263,7 +263,7 @@ export function flightTiming(): { ms: number; easing: string } {
 }
 
 /** Drop the arrival attribute now, and cancel any removal already scheduled. */
-function clearArrival(shell: HTMLElement | null): void {
+export function clearArrival(shell: HTMLElement | null): void {
   if (arriveTimer !== null) {
     clearTimeout(arriveTimer);
     arriveTimer = null;
@@ -281,7 +281,7 @@ function clearArrival(shell: HTMLElement | null): void {
  * guaranteed to be true. An animation starts when the element is first drawn,
  * whenever that is.
  */
-function beginArrival(shell: HTMLElement, ms: number): void {
+export function beginArrival(shell: HTMLElement, ms: number): void {
   clearArrival(shell);
   shell.setAttribute(ARRIVE_ATTR, '');
   arriveTimer = setTimeout(() => {
@@ -290,7 +290,7 @@ function beginArrival(shell: HTMLElement, ms: number): void {
   }, ms + 60);
 }
 
-function nextFrame(): Promise<void> {
+export function nextFrame(): Promise<void> {
   return new Promise<void>((resolve) => {
     if (typeof requestAnimationFrame !== 'function') {
       setTimeout(() => {

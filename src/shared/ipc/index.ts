@@ -146,6 +146,10 @@ import type {
   MachineTestEventPayloadMap
 } from './machines';
 import type {
+  GmuxOverviewExtras,
+  OverviewInvokeChannelMap
+} from './overview';
+import type {
   GmuxSpecStoryExtras,
   CaptureEventPayloadMap,
   SpecStoryStatusInvokeChannelMap
@@ -172,6 +176,7 @@ export * from './files';
 export * from './git';
 export * from './log';
 export * from './machines';
+export * from './overview';
 export * from './projects';
 export * from './search';
 export * from './sessions';
@@ -241,7 +246,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   MachinesInvokeChannelMap &
   ProjectPickerInvokeChannelMap &
   RemoteProjectInvokeChannelMap &
-  ShellPathInvokeChannelMap;
+  ShellPathInvokeChannelMap &
+  OverviewInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -382,4 +388,5 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxActionsExtras &
   GmuxLogExtras &
   GmuxShellExtras &
-  GmuxMachinesExtras;
+  GmuxMachinesExtras &
+  GmuxOverviewExtras;

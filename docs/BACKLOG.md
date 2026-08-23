@@ -35,6 +35,7 @@ release.
 | 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | ✅ shipped, it ruled against itself |
 | 19 | **139** hovering an uninstalled agent moves the whole screen | He reported it 2026-08-22 with a photograph and asked for it before the release | ✅ shipped |
 | — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release, and later the same day he DELEGATED the cut. See the grant below | ✅ DONE, v0.68.7 published as Latest 2026-08-23 |
+| 20 | **137** catch me up on this project | The page he re-specified on 2026-08-22, one chord over each agent's own log with a git mark beside each claim, no model in it | ✅ shipped |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
 **THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
@@ -15400,7 +15401,7 @@ This is a correctness fix on an attribution, which is why it is worth a phase ra
 - No rewriting of history. The `docs/BACKLOG.md` entries and the CHANGELOG record what was true when written.
 
 
-## Phase 137 — catch me up on this project: the conversation you have been having with every session here (operator asked 2026-08-22, research 62 and 63) QUEUED
+## Phase 137 — catch me up on this project: the conversation you have been having with every session here (operator asked 2026-08-22, research 62 and 63) ✅ SHIPPED 2026-08-23 (this commit, 0.69.0, gates green, 8,615 tests)
 
 **Subject:** `feat(overview): catch me up on the conversation with every session here`
 **First body line:** `Phase 137: catch me up on this project`
@@ -16038,3 +16039,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 140 queued, 43 of the 50 probes that launch Electron close it only on the happy path, which is how the machine crashed on 2026-08-22, and the fix is one launch helper with the kill in finally plus a gate so it cannot drift back
 - 2026-08-23, Phase 132.2 shipped, the skill preview sheet widens to min(1600px, 92vw) at his ask, Tier 1 at his word, `75991fd`, 0.68.8
 - 2026-08-23, Phases 44 and 45 marked SUPERSEDED by 137 and 138 on his word, their entries stay as the record of the 2026-08-15 thinking
+- 2026-08-23, Phase 137 shipped, the chord ⌃⇧U opens the conversation you have been having with every session here, at one session, several as columns, or the whole project, built from each agent's own log through the per provider keep map with a git mark beside each claim, no model in it and the seven research 63 defects fixed, this commit, 0.69.0

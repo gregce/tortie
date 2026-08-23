@@ -56,6 +56,10 @@ import './work-area.css';
 // Phase 80.1. Every region session focus hides is hidden from this one
 // stylesheet, by one class on the shell root.
 import './focus-mode.css';
+// Phase 137. The Catch Me Up page. It renders null while the store's
+// overview is null, and while it is open the shell root carries
+// `overview-open`, which hides the same regions session focus hides.
+import { OverviewLayer } from '../overview/OverviewLayer';
 import { CreateSessionModal } from './CreateSessionModal';
 import { NewProjectModal } from './NewProjectModal';
 import { RemoteProjectModal } from './RemoteProjectModal';
@@ -187,6 +191,9 @@ export function App(): React.JSX.Element {
   // Phase 80.1. A boolean selector, so the shell re-renders on the swap and
   // on nothing else. The 200 ms of flight before it are CSS and a copy.
   const sessionFocus = useApp((s) => s.sessionFocus);
+  // Phase 137. The same shape for the Catch Me Up page, and for the same
+  // reason. The shell re-renders on open and close and on nothing else.
+  const overviewOpen = useApp((s) => s.overview !== null);
 
   // The hook list, in the order it was in before Phase 127 moved three of
   // these into modules of their own. React reads hooks by position, so the
@@ -249,12 +256,17 @@ export function App(): React.JSX.Element {
   }
 
   return (
-    <div className={`shell${sessionFocus ? ' session-focus' : ''}`}>
+    <div
+      className={`shell${sessionFocus ? ' session-focus' : ''}${overviewOpen ? ' overview-open' : ''}`}
+    >
       {/* Phase 80.1. First child, and deliberately not in the boot-block
           returns above. The wash is only ever seen in focus mode, and focus
           mode cannot be entered from a screen with no session on it. */}
       <FocusWash />
       <Titlebar />
+      {/* Phase 137. The Catch Me Up page, over the work area and under the
+          title band. It renders null while the page is closed. */}
+      <OverviewLayer />
       {ready && projects.length === 0 ? (
         // PHASE 71 fix round. A confirmed machine that did not answer is named
         // here too. The board below is the whole window in this state and the

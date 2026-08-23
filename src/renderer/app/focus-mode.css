@@ -59,6 +59,12 @@
 
    The title band's CHILDREN go, not the band. The traffic lights sit in its
    76px inset, and the band must keep its height so they do not move.
+
+   PHASE 137. `.shell.overview-open` joins both grouped rules in this section
+   and the next. The Catch Me Up page hides exactly the set session focus
+   hides and keeps the band exactly as session focus keeps it, so the page is
+   the same flight landing on a different layer. The page's own layer rules
+   are in ../overview/overview.css, including the work area's display none.
 --------------------------------------------------------------------------- */
 
 .shell.session-focus .titlebar > *,
@@ -76,7 +82,15 @@
 .shell.gmux-focus-measure [data-slot='session-strip'],
 .shell.gmux-focus-measure [data-slot='session-dock'],
 .shell.gmux-focus-measure .center > .term-header,
-.shell.gmux-focus-measure .ed-panel {
+.shell.gmux-focus-measure .ed-panel,
+.shell.overview-open .titlebar > *,
+.shell.overview-open [data-slot='project-rail'],
+.shell.overview-open [data-slot='activity-bar'],
+.shell.overview-open [data-slot='sidebar'],
+.shell.overview-open [data-slot='session-strip'],
+.shell.overview-open [data-slot='session-dock'],
+.shell.overview-open .center > .term-header,
+.shell.overview-open .ed-panel {
   display: none;
 }
 
@@ -90,7 +104,8 @@
 --------------------------------------------------------------------------- */
 
 .shell.session-focus .titlebar,
-.shell.gmux-focus-measure .titlebar {
+.shell.gmux-focus-measure .titlebar,
+.shell.overview-open .titlebar {
   height: 38px;
   flex: 0 0 38px;
   padding-left: 76px; /* traffic-light inset, as app.css sets it */

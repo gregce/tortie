@@ -28,6 +28,7 @@ import { registerConfigIpc } from './config/ipc';
 // teardown that matches the boot read.
 import { stopAgentOverlayWatch } from './config/store';
 import { registerContextIpc } from './context/ipc';
+import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
 import { installLaunchContextResolver } from './context/launch-resolver';
 import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc, registerImageIpc } from './fs';
@@ -159,6 +160,18 @@ export function installMainCapabilities(
   // about to run. It takes a getter because the manifest is opened during boot
   // and the registrars are installed before that finishes.
   registerContextIpc(ipcMain, async () => {
+    const core = await getGmuxCore();
+    return core.manifest;
+  });
+  // Phase 137: the ONE `overview:*` registrar. Two channels, and both read.
+  // They list the project's manifest rows read only, open the agent logs
+  // through the keep map, keep a redacted copy in Tortie's own overview
+  // store, and answer from that store. Neither channel spawns a process,
+  // writes the manifest or sets a session's status. It takes the same
+  // manifest getter the context registrar takes, for the same boot reason.
+  // The overview store opens on the first call and the ordered disposer
+  // below closes it.
+  registerOverviewIpc(ipcMain, async () => {
     const core = await getGmuxCore();
     return core.manifest;
   });
@@ -393,6 +406,11 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   await Promise.race([
     Promise.allSettled([
       disposeGitIpc(),
+      // Phase 137: close the overview store, so its write ahead log settles
+      // before the process ends. The call never throws, and it costs nothing
+      // when the page was never opened, because the store opens on the first
+      // read.
+      disposeOverviewIpc(),
       stopAgentOverlayWatch(),
       // Phase 68: the machines.json watcher, closed through the same tracked
       // path the agents.json one uses, for the same Phase 36 reason.

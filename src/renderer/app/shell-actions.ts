@@ -85,6 +85,10 @@ export function modalLayerOpen(): boolean {
     s.remoteProjectOpen ||
     s.shortcutsOpen ||
     s.attentionOpen ||
-    s.pastOpen
+    s.pastOpen ||
+    // Phase 137. The Catch Me Up page counts as a layer, so ⇧⌘↩ and the
+    // other view actions are swallowed while it is open. Its own chord and
+    // Escape are handled above this guard and still work.
+    s.overview !== null
   );
 }

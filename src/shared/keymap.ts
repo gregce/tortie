@@ -817,6 +817,22 @@ export const KEYMAP = [
     menuAction: 'show-context'
   },
   {
+    // Phase 137. ⌃⇧U sits beside ⌃⇧C and ⌃⇧G. ⇧⌘U is refused because cursor's
+    // defaultHotkeyHint is 'u' and src/shared/__tests__/focus-chord.test.ts
+    // reads every hint out of the registry, so taking ⇧⌘U would make the
+    // suggested cursor hotkey un-recordable.
+    id: 'view.overview',
+    keys: [k('Ctrl+Shift+U')],
+    action: 'Catch me up',
+    explain:
+      'Shows the conversation you have been having with each session in this project, being your ask and the agent’s closing answer for each turn, with a mark saying whether git agrees. With the keyboard in a session it shows that session alone. With a split on screen it shows the split side by side. Anywhere else it shows one line per session. Press it again, or Escape, to go back.',
+    group: 'views',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'show-overview'
+  },
+  {
     id: 'view.sidebar',
     keys: [k('Cmd+B')],
     action: 'Toggle sidebar',

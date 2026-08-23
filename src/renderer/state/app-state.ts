@@ -15,6 +15,7 @@ import type { ChromeSlice } from './chrome-slice';
 import type { MachinesSlice } from './machines-slice';
 import type { NoticesSlice } from './notices-slice';
 import type { OverlaysSlice } from './overlays-slice';
+import type { OverviewSlice } from './overview-slice';
 import type { ProjectsSlice } from './projects-slice';
 import type { SessionsSlice } from './sessions-slice';
 
@@ -72,4 +73,7 @@ export type AppState = LifecycleSlice &
   // Phase 71: the link state of every machine, which is the one thing that can
   // be stated about a machine that has not answered. Session rows cannot carry
   // it, because a machine that never answered produces none.
-  MachinesSlice;
+  MachinesSlice &
+  // Phase 137: the Catch Me Up page. One field holds the open page and its
+  // request, or null while the page is closed.
+  OverviewSlice;

@@ -182,6 +182,45 @@ describe('.session-focus and .gmux-focus-measure', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The Catch Me Up page hides the same set (Phase 137)
+// ---------------------------------------------------------------------------
+
+describe('.overview-open', () => {
+  it('hides every section 1 region .session-focus hides, in the same rule', () => {
+    const hide = rules.find(
+      (r) =>
+        r.body.replace(/\s/g, '') === 'display:none;' &&
+        r.selectors.some((s) => s.includes('.session-focus'))
+    );
+    expect(hide, 'the grouped display:none rule').toBeDefined();
+    const list = (hide?.selectors ?? []).join(' | ');
+    for (const region of [
+      '.titlebar > *',
+      "[data-slot='project-rail']",
+      "[data-slot='activity-bar']",
+      "[data-slot='sidebar']",
+      "[data-slot='session-strip']",
+      "[data-slot='session-dock']",
+      '.center > .term-header',
+      '.ed-panel'
+    ]) {
+      expect(
+        list,
+        `${region} must be hidden while the overview is open`
+      ).toContain(`.shell.overview-open ${region}`);
+    }
+  });
+
+  it('keeps the title band exactly as section 2 keeps it', () => {
+    const band = rules.find(
+      (r) =>
+        r.selectors.includes('.shell.session-focus .titlebar') && movesABox(r)
+    );
+    expect(band?.selectors).toContain('.shell.overview-open .titlebar');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Nothing the mode touches may animate a box
 // ---------------------------------------------------------------------------
 
@@ -373,9 +412,9 @@ describe('the wash tokens', () => {
 // ---------------------------------------------------------------------------
 
 describe('App.tsx', () => {
-  it('puts session-focus on the SAME element that carries shell', () => {
+  it('puts session-focus and overview-open on the SAME element that carries shell', () => {
     expect(appSource).toContain(
-      "className={`shell${sessionFocus ? ' session-focus' : ''}`}"
+      "className={`shell${sessionFocus ? ' session-focus' : ''}${overviewOpen ? ' overview-open' : ''}`}"
     );
   });
 

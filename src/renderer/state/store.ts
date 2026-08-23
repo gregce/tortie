@@ -49,6 +49,7 @@ import {
 import { createMachinesSlice } from './machines-slice';
 import { createNoticesSlice } from './notices-slice';
 import { createOverlaysSlice } from './overlays-slice';
+import { createOverviewSlice } from './overview-slice';
 import { createProjectsSlice } from './projects-slice';
 import { createSessionsSlice } from './sessions-slice';
 import type { SidebarViewId } from './sidebar-views';
@@ -105,6 +106,8 @@ export const useApp = create<AppState>((set, get, api) => ({
   // because it is the one fact about a machine that no session row can carry:
   // a machine that has not answered has no rows here at all.
   ...createMachinesSlice(set, get, api),
+  // Phase 137: the Catch Me Up page, one field and four verbs.
+  ...createOverviewSlice(set, get, api),
 
   // -- lifecycle state -----------------------------------------------------
   //

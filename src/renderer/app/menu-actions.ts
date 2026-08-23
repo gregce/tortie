@@ -34,6 +34,8 @@ import { useEditor } from '../editor/store';
 import { toggleEditorFill } from '../editor';
 import { focusTerminal, jumpToSession } from './session-focus';
 import { runFillChord } from './fill-chord';
+// Phase 137. View > Catch Me Up. The same router the ⌃⇧U chord runs.
+import { toggleOverview } from '../overview/open-overview';
 import { useQuickOpen } from '../quickopen';
 import { useSymbols } from '../search';
 import { gmuxBridge } from '../bridge';
@@ -187,6 +189,15 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     // menu item and the chord cannot drift.
     case 'show-context':
       showViewAction('context');
+      return;
+    // Phase 137. View > Catch Me Up, directly under Context. The renderer's
+    // ⌃⇧U branch is what runs when the chord is pressed (it precedes the
+    // accelerator and preventDefaults it), so this path only fires on a real
+    // menu click. It is handled without the layer guard on purpose, because
+    // while the page is open modalLayerOpen() counts it, and the row must
+    // still be able to CLOSE the page.
+    case 'show-overview':
+      void toggleOverview('menu');
       return;
     // Phase 14 Find menu.
     case 'show-search':
