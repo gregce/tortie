@@ -128,20 +128,71 @@ or three sentences and lists nothing. The long form with every measurement and e
 belongs in the commit body, where it already is. Release pages carry the CHANGELOG entry verbatim,
 and when CHANGELOG.md changes the release pages are synced to match.
 
-## Verification tiers — match the check to the risk, do not default to maximum
-Heavyweight verification (driving the real app with synthetic input, screenshot reads, per-agent matrices) is expensive in wall clock and tokens. Spend it where a wrong answer costs the user their work; do not spend it on cosmetics.
-**Polish rounds verify in ONE app run, not one run per claim.** A round of small user facing items,
-e.g. a rail, a scroll behaviour, a menu row and an icon, is verified by ONE probe that launches the
-app once, drives every item in that session, and reads every rectangle and photograph it needs before
-it exits. Phase 137.2 verified five small items with ten separate app launches and its verifier spent
-64 minutes, which bought no evidence a single driven session would have missed. The exception, and it
-is absolute: **anything the operator personally reported gets its own before and after measurement on
-the parent commit**, because that is his proof rather than the builder's.
+## Verification (rewritten 2026-08-23 from what actually caught defects)
 
-- **Tier 1 — gates only** (`typecheck`, `build`, `test`, `smoke:t1`): icons and assets, CSS/spacing, copy and labels, tooltips, menu items, additive UI with no new state, doc changes. A screenshot only if the change is visual and cheap to capture.
-- **Tier 2 — gates + one targeted probe + one screenshot read**: ordinary features touching a single subsystem (a new SCM verb, an editor affordance, a settings field). Probe the thing you changed and its nearest neighbour; do not sweep the app.
-- **Tier 3 — full treatment** (live-app driving, adversarial verifier pair, exhaustive matrix, before/after measurements): anything touching **durability** (tmux, manifest, restore, session lifecycle), anything claimed to work **universally across agents**, anything that can **lose or destroy user data**, **performance regressions with a number attached**, and **any bug the user personally reported** (they get proof, not assurance).
-When a round mixes tiers, verify per item at its own tier rather than promoting the whole round to Tier 3. State the tier chosen in the phase brief so the choice is deliberate and reviewable.
+The old section said how MUCH to verify and never said what KIND. That is why a five item polish round
+spent 64 minutes and ten app launches while a one line ruling caught the most important finding of the
+day. Both axes are here now, and the second one is the governing rule.
+
+### What actually caught something, measured over one day of phases
+
+| What the verifier did | Where | What it caught |
+| --- | --- | --- |
+| Wrote its OWN detector by a different method | 123 | A second cycle detector, hand lexer and Kosaraju against the phase's AST and Tarjan. Disagreed by 3 edges, found the bug was ITS OWN, then agreed exactly |
+| Attacked the ruling instead of confirming it | 128 | Refuted the stop question outright. The phase had judged the two COLDEST large files and never looked at the one with 30 commits in 6 days |
+| Wrote its OWN hostile fixture | 137.1 | Twelve attack shapes the builder never tried, being svg onload, data: URIs, srcdoc, case mangled javascript: |
+| Drove its own harness over REAL data | 137 | 35 real sessions across twelve providers, and one trap that leaked |
+| Measured before and after on the PARENT commit | 139 | Minus 26px before and 0px after, and a rest photograph byte identical by md5 |
+| Re-ran the builder's gates | 131 | npm test red, and an existing probe this phase broke and left broken |
+| Read the code and reasoned about it | everywhere | Nothing, all day |
+
+**The pattern is independence, not repetition.** Every finding above came from the verifier doing
+something the builder did NOT do. Re-running the builder's own checks the builder's own way found red
+gates and nothing else, which is worth its two minutes and no more.
+
+### THE GOVERNING RULE
+
+**The verifier must do at least one thing the builder did not.** Name it in the verdict. A verdict
+whose evidence is only the builder's own checks re-run is not a verification, and a verifier that
+reports approved without naming its independent step has not done the job.
+
+The five independent methods, and pick the ones the risk earns:
+
+| Method | Use it when | Cost |
+| --- | --- | --- |
+| **Re-derive independently** | A claim is computed, e.g. a count, a graph, a ratio, a parse | High, and it is the highest yield thing in this table |
+| **Attack, do not confirm** | The phase concluded something, especially that it is finished or that something is impossible | Low, and it caught the biggest finding of the day |
+| **Write a hostile fixture** | Anything that renders, parses or sanitizes bytes somebody else wrote | Medium |
+| **Run over real data** | Anything claimed to work across agents, machines or providers | Medium, and it is the only proof of universality |
+| **Measure the parent commit** | The operator reported it, or a number is claimed | Low, and it is the only honest proof a defect is fixed |
+
+### The tier sets the BUDGET, and risk sets the tier
+
+Answer these about the phase. Any yes takes the tier named.
+
+- Can it lose or corrupt the person's work, being tmux, the manifest, restore or session lifecycle? **Tier 3.**
+- Does it claim to work across every agent, machine or provider? **Tier 3**, and the evidence is a per row matrix over real data.
+- Did the operator personally report it? **Tier 2 at least**, and the parent commit measurement is mandatory whatever the tier.
+- Does it spawn a process, hold his credentials, or send his words anywhere? **Tier 3.**
+- Is it invisible to a person? **Tier 2**, and the gates ARE the evidence, so the verifier re-derives rather than photographs.
+- Is it a rendered surface with no new state? **Tier 2**, one app run.
+- Is it copy, an icon, a token or a document? **Tier 1.**
+
+| Tier | Budget |
+| --- | --- |
+| **Tier 1** | The gates. One photograph if the change is visual and cheap. No probe. |
+| **Tier 2** | The gates, plus ONE app run that drives every claim in that one session, plus one independent method from the table above. |
+| **Tier 3** | The gates, plus real data or a per row matrix, plus TWO independent methods, one of which is an attack, plus a fix round if any verdict is needs_work. |
+
+### The four rules that stop the waste
+
+1. **One app run per phase, not one per claim.** A probe launches the app once, drives every item, reads every rectangle and photograph it needs, and exits. Phase 137.2 used ten launches for five items and bought nothing a single session would have missed.
+2. **Do not re-run a gate the same way twice.** Re-run the battery once to catch a red one. After that, spend the time on an independent method.
+3. **Count Electrons once, at the end.** Not between every step. That bookkeeping cost 18 shell calls in one phase and prevented nothing.
+4. **Mixed rounds verify per item at its own tier.** Do not promote a whole round to Tier 3 because one item earns it, and do not demote the item that earns it.
+
+State the tier AND the independent methods in the phase brief, so the choice is deliberate and
+reviewable before the work starts rather than after.
 
 ## Gates before any commit
 `npm run typecheck && npm run build && npm run smoke:t1` minimum; integrators run the full battery (test, smoke, smoke:t3, package). Commit with a conventional subject `type(scope): summary`; the phase label goes on the first body line as `Phase N[.x]: summary`; no trailers.
