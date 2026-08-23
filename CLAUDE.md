@@ -105,9 +105,14 @@ written here. Measure before writing a number into this file.
   count between every step; that bookkeeping cost 18 shell calls in one phase and prevented nothing.
 - **Two phase workflows may run at once** when the machine is quiet. Three or more only when none of
   them photographs.
-- **Stop on swap, not on free pages.** macOS keeps free pages near zero on purpose. The only real
-  alarm is `sysctl vm.swapusage` showing swap actually in use, or
-  `memory_pressure | grep percentage` under 20 percent free.
+- **Stop on swap AND pressure together, never on free pages.** macOS keeps free pages near zero on
+  purpose, so that number is meaningless. Swap in use is not enough on its own either: on 2026-08-23
+  swap read 5,039 MB while `memory_pressure` read 77 percent free, and every one of the top consumers
+  was the operator's own work, being a Virtualization.framework VM at 2,662 MB, `tessl mcp` at
+  1,995 MB, a node process at 1,724 MB and Chrome at about 3,300 MB. The alarm is
+  `memory_pressure | grep percentage` under 20 percent free, and swap in use is the second signal that
+  confirms it. Before stopping anything, read the top consumers by RSS and say whether they are yours.
+  Never stop a phase for pressure another program caused.
 - **A crash means RESTART FRESH, not resume.** `resumeFromRunId` replays an agent's TEXT and not the
   files it wrote, so a wiped or half-written worktree makes the cached reports a fiction. Reset the
   worktree to origin/main's tip before any resume.
