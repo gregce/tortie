@@ -36,6 +36,7 @@ import {
 } from '../state/resume';
 import { Codicon } from '../icons';
 import { openSessionContext } from '../context/open-session';
+import { openOverviewForSession } from '../overview/open-overview';
 import {
   badgeTitle,
   remoteStatusNote,
@@ -354,6 +355,27 @@ function savedOutputItem(session: Session): MenuItemSpec {
 }
 
 /**
+ * PHASE 137.2. The Catch Me Up page, for exactly this row's session.
+ *
+ * The row sits with "Show what it loaded…" and "Show saved output" because it
+ * is the same kind of verb, a read about this session. It reads Tortie's own
+ * overview store and the agent's log, it touches nothing on the tmux side,
+ * and it lands on the same one session view the chord reaches. It carries no
+ * chord hint on purpose, because the chord's level depends on where the
+ * keyboard sits while this row always names one session. A remote or shell
+ * session still opens the page and gets its honest line there, so the row is
+ * never hidden and never disabled.
+ */
+function catchMeUpItem(session: Session): MenuItemSpec {
+  return {
+    label: 'Catch me up…',
+    run: () => {
+      void openOverviewForSession(session.id, session.projectPath);
+    }
+  };
+}
+
+/**
  * PHASE 73, M6, item 4 — the read only review of a session's folder on the
  * machine it runs on.
  *
@@ -561,9 +583,13 @@ export function sessionMenuItems(
   // alive is how a second agent lands on one conversation. What remains are
   // the two verbs that read only Tortie's own records.
   if (status === 'unknown') {
+    // Phase 137.2. The Catch Me Up row joins this branch because it is the
+    // same kind of verb the branch exists to keep, a read of Tortie's own
+    // records that touches no tmux side.
     return [
       showLoadedItem(session),
       savedOutputItem(session),
+      catchMeUpItem(session),
       copyDirectoryPathItem(session)
     ];
   }
@@ -662,6 +688,7 @@ export function sessionMenuItems(
       : []),
     showLoadedItem(session),
     savedOutputItem(session),
+    catchMeUpItem(session),
     // PHASE 73. Only for a session on another machine, because a session on
     // this Mac already has the git surfaces of the project it belongs to.
     ...(machine !== undefined ? [reviewChangesItem(session, machine)] : []),

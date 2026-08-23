@@ -186,6 +186,12 @@
   border-right: none;
 }
 
+/* Phase 137.2. Which column the up and down arrows scroll. A quiet token
+   colored edge at the left, and nothing else changes on the column. */
+.overview-column.focused {
+  box-shadow: inset 2px 0 0 var(--accent-soft);
+}
+
 /* The label on its own lines rather than eating the column. */
 .overview-column-name {
   font-family: var(--font-mono);
@@ -199,23 +205,16 @@
   margin-bottom: 8px;
 }
 
+/* Phase 137.2. The column holds the whole conversation in its own
+   scroller, so a wheel over one column moves that column only. The bottom
+   fade this rule used to carry is gone, because it marked a clipping that
+   no longer exists. */
 .overview-column-body {
   position: relative;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-}
-
-/* The quiet fade where a long exchange leaves the column. */
-.overview-column-body::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 48px;
-  background: linear-gradient(to bottom, transparent, var(--bg-canvas));
-  pointer-events: none;
+  overflow-y: auto;
+  padding-bottom: 16px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -244,8 +243,23 @@
   min-width: 0;
 }
 
+/* Phase 137.2. The agent's mark sits beside the name, so the name cell is
+   a row: the mark keeps its size and the text keeps its ellipsis. */
 .overview-line-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-family: var(--font-mono);
+}
+
+.overview-line-name .gmux-icon {
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.overview-line-name-text {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

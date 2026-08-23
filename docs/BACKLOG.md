@@ -37,6 +37,7 @@ release.
 | — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release, and later the same day he DELEGATED the cut. See the grant below | ✅ DONE, v0.68.7 published as Latest 2026-08-23 |
 | 20 | **137** catch me up on this project | The page he re-specified on 2026-08-22, one chord over each agent's own log with a git mark beside each claim, no model in it | ✅ shipped |
 | 21 | **137.1** markdown in the overview, and the chord moves | He asked on 2026-08-23. The answers render as markdown and the chord is ⇧⌘U | ✅ shipped |
+| 22 | **137.2** the ask rail | He asked on 2026-08-23. Five items on one page, every ask one press away | ✅ shipped |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
 **THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
@@ -15951,7 +15952,7 @@ He asked for ⇧⌘U instead of ⌃⇧U. It was refused in Phase 137 because cur
 - No model. Phase 138 is still next and still separate.
 
 
-## Phase 137.2 — a rail of your asks beside the conversation (operator asked 2026-08-23) QUEUED, AFTER 137.1, BEFORE 138
+## Phase 137.2 — a rail of your asks beside the conversation (operator asked 2026-08-23) ✅ SHIPPED 2026-08-23 (this commit, 0.70.0, gates green, 8,676 tests)
 
 **Subject:** `feat(overview): every ask in the conversation is one press away`
 **First body line:** `Phase 137.2: the ask rail`
@@ -16168,3 +16169,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 137.2 gains its fourth item, the agent's own mark draws in the project overview rows and the one-session header through the AgentIcon the session views already use
 - 2026-08-23, Phase 137.2 gains its fifth item, each column in the multiplexed view scrolls independently with pointer and keyboard, and one column scrolling never moves its neighbour
 - 2026-08-23, Phase 137.1 shipped, an agent's answer in the overview renders as markdown through the editor's own sanitizing pipeline with rehype-raw absent so hostile HTML draws as text and reaches no DOM node, your own asks stay plain, the chord moves to ⇧⌘U with cursor's suggested letter moving from u to s, and a recorded ⇧⌘U per-agent hotkey still wins over the built-in, this commit, 0.69.1
+- 2026-08-23, Phase 137.2 shipped, the ask rail on the right of the one-session view with every ask one press away, keyboard scrolling that keeps the current exchange in view, a Catch me up row in the session actions menu, the agent's own mark beside the session name, and columns that scroll independently, this commit, 0.70.0

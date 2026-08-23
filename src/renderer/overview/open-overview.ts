@@ -76,6 +76,38 @@ export async function toggleOverview(_source: 'chord' | 'menu'): Promise<void> {
   });
 }
 
+/**
+ * The session menu's "Catch me up…" row (Phase 137.2). Opens the one
+ * session view for exactly this session, which need not be the focused one,
+ * so the row lands where the chord lands for that session. While the page
+ * is closed it takes the same flight and token dance toggleOverview takes.
+ * While the page is already open it swaps in place the way
+ * showOverviewSession does. `openedFromProject` is false either way, so
+ * Escape leaves the page rather than stepping to the project view.
+ */
+export async function openOverviewForSession(
+  sessionId: string,
+  projectPath: string
+): Promise<void> {
+  const app = useApp.getState();
+  const req: OverviewRequest = {
+    level: 'session',
+    projectPath,
+    sessionIds: [sessionId],
+    openedFromProject: false
+  };
+  if (app.overview !== null) {
+    const token = app.openOverview(req);
+    await app.loadOverview(req, token);
+    return;
+  }
+  const token = nextOverviewToken();
+  void app.loadOverview(req, token);
+  await enterOverviewFlight(() => {
+    useApp.getState().openOverview(req);
+  });
+}
+
 /** ⏎ on a project line. The page stays up and shows that conversation. */
 export async function showOverviewSession(sessionId: string): Promise<void> {
   const app = useApp.getState();

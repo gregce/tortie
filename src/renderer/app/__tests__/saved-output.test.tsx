@@ -429,6 +429,9 @@ describe('the session menu item', () => {
     expect(labels).toEqual([
       'Show what it loaded…',
       SAVED_OUTPUT_ITEM,
+      // Phase 137.2 added this row. It reads Tortie's own overview store and
+      // the agent's log, so it belongs on an unknown row too.
+      'Catch me up…',
       'Copy directory path'
     ]);
   });

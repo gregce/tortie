@@ -13,6 +13,7 @@ import type { OverviewProject } from '@shared/overview';
 import type { SessionStatus } from '@shared/types';
 import { statusVisual } from '../app/status';
 import { formatAge } from '../format';
+import { AgentIcon } from '../icons';
 import { buildProjectLine, honestLineHasClock } from './line';
 import { EMPTY_PROJECT, YOU_ASKED_LEAD } from './copy';
 
@@ -55,10 +56,20 @@ export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
             }}
           >
             <div className="overview-line-left">
-              {/* A name is the person's own words, so its digits are
-                  accounted for as quoted text rather than as a count. */}
-              <div className="overview-line-name" data-quoted>
-                {session.name}
+              {/* Phase 137.2. The agent's mark beside the name, through the
+                  same component the session rail draws. A shell row draws NO
+                  icon element at all. The guard is explicit because
+                  AgentIcon's fallback for 'shell' is a terminal glyph, and a
+                  placeholder is refused here. A name is the person's own
+                  words, so its digits are accounted for as quoted text
+                  rather than as a count. */}
+              <div className="overview-line-name">
+                {session.agent !== 'shell' ? (
+                  <AgentIcon agent={session.agent} size={16} />
+                ) : null}
+                <span className="overview-line-name-text" data-quoted>
+                  {session.name}
+                </span>
               </div>
               <div className="overview-line-state">
                 {statusVisual(status).label}

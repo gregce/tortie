@@ -49,6 +49,8 @@ import {
   overviewChordYields,
   toggleOverview
 } from '../overview/open-overview';
+// Phase 137.2. The ask rail's share of Escape, asked at the overview rung.
+import { askRailTookEscape } from '../overview/session-keys';
 import { useQuickOpen } from '../quickopen';
 import {
   focusInsideSearch,
@@ -152,8 +154,15 @@ export function useKeyboardMap(): void {
           // project view, and anything else leaves. The rung sits above
           // session focus because the page draws over the whole work area,
           // so while it is open Escape can only mean the page.
+          //
+          // Phase 137.2. The ask rail is asked first. While the keyboard is
+          // in the rail, Escape returns the keyboard to the conversation and
+          // must not also step the page back, and only this ladder can make
+          // that call because it is capture phase on window and runs before
+          // any handler on the page.
           e.preventDefault();
           e.stopPropagation();
+          if (askRailTookEscape()) return;
           void backOrLeaveOverview();
         } else if (s.sessionFocus && !inTerminal) {
           // Phase 80.1. Escape leaves session focus, but ONLY when the

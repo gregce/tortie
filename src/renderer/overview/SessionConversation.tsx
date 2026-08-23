@@ -8,13 +8,16 @@
  * newest turn is the one the person came for.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import type { OverviewSessionView } from '@shared/overview';
 import type { SessionStatus } from '@shared/types';
 import { statusVisual } from '../app/status';
 import { formatAge } from '../format';
+import { AgentIcon } from '../icons';
 import { honestLineFor, honestLineHasClock } from './line';
 import { NO_CLOCK_NOTE } from './copy';
+import { AskRail } from './AskRail';
+import { registerConversation, scrollTurnIntoView } from './session-keys';
 import { TurnBlock } from './TurnBlock';
 
 export interface SessionConversationProps {
@@ -42,12 +45,44 @@ export function SessionConversation(
   // accident, and the layer is the one caller of the jump.
   const { session, status, selected, onSelect, now } = props;
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const hasTurns = session.line === 'turns' && session.turns.length > 0;
+
+  // The rail and the layer's key seam read the mounted conversation through
+  // this registration (Phase 137.2). The refs keep the hooks current without
+  // re-registering on every selection change.
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+  useEffect(() => {
+    registerConversation({
+      scroller: scrollRef.current,
+      turnCount: hasTurns ? session.turns.length : 0,
+      selected: () => selectedRef.current,
+      select: (i) => {
+        onSelectRef.current(i);
+      }
+    });
+    return () => {
+      registerConversation(null);
+    };
+  }, [session.sessionId, session.turns.length, hasTurns]);
 
   // The end is where the newest turn is, so the view opens there.
   useEffect(() => {
     const el = scrollRef.current;
     if (el !== null) el.scrollTop = el.scrollHeight;
   }, [session.sessionId, session.turns.length]);
+
+  // The arrows track (Phase 137.2). When the selection moves, the newly
+  // selected exchange is put on screen before the selection paint lands.
+  // This is the same landing function jumpToAsk uses, so the keyboard, a
+  // rail press and the rail's Return cannot drift apart. No scroll or wheel
+  // listener writes the selection back, so plain scrolling moves nothing.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el !== null) scrollTurnIntoView(el, selected);
+  }, [selected]);
 
   const title = [
     session.name,
@@ -67,6 +102,13 @@ export function SessionConversation(
         {/* The name, the model and the branch are outside words, so their
             digits are accounted for as quoted text. */}
         <div className="overview-session-title" data-quoted>
+          {/* The agent's mark, the same component the session rail draws.
+              A shell session draws no icon at all, because AgentIcon's
+              fallback for a shell is a terminal glyph and a placeholder is
+              refused here. */}
+          {session.agent !== 'shell' ? (
+            <AgentIcon agent={session.agent} size={16} />
+          ) : null}
           {title}
         </div>
         <div className="overview-session-sub">
@@ -76,28 +118,36 @@ export function SessionConversation(
           {noClocks(session) ? ` · ${NO_CLOCK_NOTE}` : ''}
         </div>
       </div>
-      <div className="overview-scroll" ref={scrollRef}>
-        {session.line !== 'turns' || session.turns.length === 0 ? (
-          <div
-            className="overview-honest"
-            data-clock={honestLineHasClock(session) ? true : undefined}
-          >
-            {honestLineFor(session, now)}
-          </div>
-        ) : (
-          session.turns.map((turn, i) => (
-            <TurnBlock
-              key={turn.index}
-              turn={turn}
-              status={status}
-              now={now}
-              selected={i === selected}
-              onSelect={() => {
-                onSelect(i);
-              }}
-            />
-          ))
-        )}
+      <div className="overview-session-body">
+        <div className="overview-scroll" ref={scrollRef}>
+          {!hasTurns ? (
+            <div
+              className="overview-honest"
+              data-clock={honestLineHasClock(session) ? true : undefined}
+            >
+              {honestLineFor(session, now)}
+            </div>
+          ) : (
+            session.turns.map((turn, i) => (
+              <TurnBlock
+                key={turn.index}
+                turn={turn}
+                status={status}
+                now={now}
+                selected={i === selected}
+                onSelect={() => {
+                  onSelect(i);
+                }}
+              />
+            ))
+          )}
+        </div>
+        {/* The rail (Phase 137.2). Session level only, and only when there
+            are exchanges to list. An honest line session has no asks, and a
+            rail with nothing in it would be furniture. */}
+        {hasTurns ? (
+          <AskRail session={session} selected={selected} now={now} />
+        ) : null}
       </div>
     </div>
   );

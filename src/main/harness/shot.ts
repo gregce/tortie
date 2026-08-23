@@ -91,6 +91,19 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
   }
 
   const mainWindow = deps.createWindow();
+  // Phase 137.2. GMUX_SHOT_SIZE=<width>x<height> resizes the window before
+  // the drive runs, so a probe can photograph a narrow layout. The window's
+  // own minimum still applies, which is the point: the narrowest photograph
+  // is the narrowest window a person can make.
+  const sizeSpec = process.env['GMUX_SHOT_SIZE'];
+  if (sizeSpec !== undefined && sizeSpec.length > 0) {
+    const parsed = /^(\d+)x(\d+)$/.exec(sizeSpec);
+    if (parsed !== null) {
+      mainWindow.setSize(Number(parsed[1]), Number(parsed[2]));
+    } else {
+      console.error(`[gmux-shot] GMUX_SHOT_SIZE not understood: ${sizeSpec}`);
+    }
+  }
   // GMUX_SHOT_VERBOSE=1 tees the renderer's console into the harness output —
   // the only way to see WHERE a drive stalled, since the drive runs entirely
   // inside the renderer.

@@ -100,5 +100,6 @@ export const OPEN_A_PROJECT_FIRST = 'Open a project first.';
 /** The three footers. The spacing is kept by white-space in the stylesheet. */
 export const FOOTER_PROJECT =
   '↑↓ move   ⏎ open this session’s conversation   esc back';
-export const FOOTER_SESSION = '↑↓ move   ⏎ go to this session   esc back';
+export const FOOTER_SESSION =
+  '↑↓ move   ⏎ go to this session   ⇥ your asks   esc back';
 export const FOOTER_COLUMNS = 'esc back';

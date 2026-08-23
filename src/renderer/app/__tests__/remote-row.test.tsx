@@ -192,8 +192,15 @@ describe('the menu for a row on this Mac', () => {
     // Phase 67's own rule first: an unknown row gets only verbs that read
     // Tortie's own records. Phase 72 added a third one of those, being the
     // saved output panel, which reads one file on this Mac and sends nothing.
+    // Phase 137.2 added a fourth, the Catch Me Up page, which reads Tortie's
+    // own overview store and the agent's log.
     expect(labelsOf(sessionMenuItems(sess({ status: 'unknown' }), 'x'))).toEqual(
-      ['Show what it loaded…', 'Show saved output…', 'Copy directory path']
+      [
+        'Show what it loaded…',
+        'Show saved output…',
+        'Catch me up…',
+        'Copy directory path'
+      ]
     );
     for (const status of ['exited', 'restorable'] as const) {
       const labels = labelsOf(sessionMenuItems(sess({ status }), 'x'));
@@ -208,6 +215,8 @@ describe('the menu for a row on this Mac', () => {
         'Show what it loaded…',
         // Phase 72 added this one, for every row.
         'Show saved output…',
+        // Phase 137.2 added this one, also for every row.
+        'Catch me up…',
         'Copy directory path',
         'End session…'
       ]);

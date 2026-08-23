@@ -24,8 +24,9 @@ import {
 } from './open-overview';
 import { formatReadClock } from './clock';
 import { FOOTER_COLUMNS, FOOTER_PROJECT, FOOTER_SESSION } from './copy';
+import { handleSessionLevelKey } from './session-keys';
 import { SessionConversation } from './SessionConversation';
-import { SessionColumns } from './SessionColumns';
+import { SessionColumns, handleColumnsLevelKey } from './SessionColumns';
 import { ProjectLines } from './ProjectLines';
 import './overview.css';
 
@@ -94,6 +95,14 @@ export function OverviewLayer(): React.JSX.Element | null {
   const onKeyDown = (e: React.KeyboardEvent): void => {
     const state = useApp.getState().overview;
     if (state === null) return;
+    // Phase 137.2. The session level's keys, being the tracking arrows and
+    // the ask rail's reach, live in ./session-keys.ts. True means the press
+    // was consumed there and the generic branches below must not also run.
+    if (state.level === 'session' && handleSessionLevelKey(e)) return;
+    // Phase 137.2. At the columns level the arrows belong to the columns:
+    // left and right move focus between them, up and down scroll the focused
+    // one. The focus itself is SessionColumns' own React state.
+    if (state.level === 'several' && handleColumnsLevelKey(e)) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       e.stopPropagation();

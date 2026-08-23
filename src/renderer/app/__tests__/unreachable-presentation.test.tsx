@@ -107,13 +107,18 @@ describe('the unknown row menu', () => {
    * sends nothing anywhere, so it belongs with the other two rather than with
    * the verbs that act on a session Tortie cannot see. On a row with no copy it
    * is offered disabled with the reason under it.
+   *
+   * PHASE 137.2 added the fourth. "Catch me up…" reads Tortie's own overview
+   * store and the agent's log, and it touches nothing on the tmux side, so it
+   * passes the same test the other three pass.
    */
-  it('offers exactly the three verbs that read Tortie’s own records', () => {
+  it('offers exactly the four verbs that read Tortie’s own records', () => {
     const items = sessionMenuItems(sess({}), 'x');
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
     expect(labelsOf(items)).toEqual([
       'Show what it loaded…',
       'Show saved output…',
+      'Catch me up…',
       'Copy directory path'
     ]);
   });

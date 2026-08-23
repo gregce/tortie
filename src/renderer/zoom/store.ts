@@ -61,8 +61,13 @@ export interface ZoomState {
 
 /** Write the panel custom properties. The terminal has no var — it has a font. */
 function applyVars(levels: ZoomLevels): void {
-  if (typeof document === 'undefined') return;
-  const root = document.documentElement;
+  // This runs at module scope, and unit tests that stub `document` with a
+  // bare object reach this module through the editor's import graph. The
+  // guard therefore checks for the root element itself, not only for the
+  // global, so a partial stub is as safe as no document at all.
+  const root =
+    typeof document === 'undefined' ? undefined : document.documentElement;
+  if (root == null) return;
   for (const region of ZOOM_REGIONS) {
     if (region === 'terminal') continue;
     root.style.setProperty(zoomVarName(region), String(levels[region]));

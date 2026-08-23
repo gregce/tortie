@@ -8,9 +8,16 @@
  * The Catch Me Up page opens over the window at each of its three levels,
  * draws real conversations read from real fixture logs, fits the window, and
  * carries no integer outside a clock, a date or an elapsed time. It launches
- * the real app four times, one at a time, photographs the project view, the
+ * the real app seven times, one at a time, photographs the project view, the
  * session view and the columns view, and captures one frame while the 200 ms
  * flight is stretched to 2000 ms so the picture lands mid flight.
+ *
+ * Phase 137.2 adds three launches for the ask rail. A short conversation
+ * shows the rail with one row per ask, a sixty ask conversation shows the
+ * rail scrolling on its own while a press, the arrows at repeat speed, a
+ * wheel scroll and the Tab, Return and Escape reach are proven by rectangle
+ * and index reads rather than by eye, and a narrow window shows the rail
+ * collapsed with the conversation still fitting.
  *
  * ## How the sessions exist without an agent running
  *
@@ -119,7 +126,8 @@ const IDS = {
   codex: '0000aaaa-1111-7000-8000-222233334444',
   grok: '0199aaaa-1111-7000-8000-abcdefabcdef',
   deepseek: '00000000-0000-4000-8000-000000000001',
-  qwen: '11111111-2222-4333-8444-555555555555'
+  qwen: '11111111-2222-4333-8444-555555555555',
+  claude7: 'bbbbbbbb-2222-4333-8444-777777777777'
 };
 
 function place(rel, fixtureName) {
@@ -204,6 +212,65 @@ place(join('.claude', 'projects', project.replace(/\//g, '-'), `${IDS.claude}.js
   ];
   writeFileSync(claudeCopy, readFileSync(claudeCopy, 'utf8') + lines.join('\n') + '\n', 'utf8');
 }
+// Phase 137.2. A sixty ask conversation, GENERATED into the scratch home
+// and never committed anywhere. It is a second claude session in the same
+// project, so the rail's long run and the narrow run have a conversation
+// deep enough that the rail must scroll. The reader caps the view at its
+// own turn limit, which is fine: the rail draws the rows the view holds.
+{
+  const dir = join(home, '.claude', 'projects', project.replace(/\//g, '-'));
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, `${IDS.claude7}.jsonl`);
+  const base = {
+    isSidechain: false,
+    userType: 'external',
+    entrypoint: 'cli',
+    cwd: project,
+    sessionId: IDS.claude7,
+    version: '2.1.238',
+    gitBranch: 'main'
+  };
+  const pad = (n) => String(n).padStart(4, '0');
+  const lines = [];
+  for (let i = 0; i < 60; i += 1) {
+    const askAt = new Date(Date.UTC(2026, 7, 20, 6, 0, 0) + i * 60_000).toISOString();
+    const ansAt = new Date(Date.UTC(2026, 7, 20, 6, 0, 30) + i * 60_000).toISOString();
+    lines.push(
+      JSON.stringify({
+        parentUuid: null,
+        ...base,
+        type: 'user',
+        message: {
+          role: 'user',
+          content: `drill ask ${pad(i)}: run the release drill again and tell me what changed`
+        },
+        uuid: `bbbb${pad(i)}-1111-4111-8111-111111111111`,
+        timestamp: askAt,
+        promptSource: 'typed',
+        promptId: `p-7-${pad(i)}`,
+        origin: { kind: 'human' }
+      })
+    );
+    lines.push(
+      JSON.stringify({
+        parentUuid: null,
+        ...base,
+        message: {
+          model: 'claude-opus-5',
+          id: `msg_b${pad(i)}`,
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: `the drill ran clean on pass ${pad(i)} and nothing changed` }]
+        },
+        requestId: `req_b${pad(i)}`,
+        type: 'assistant',
+        uuid: `cccc${pad(i)}-1111-4111-8111-111111111111`,
+        timestamp: ansAt
+      })
+    );
+  }
+  writeFileSync(file, lines.join('\n') + '\n', 'utf8');
+}
 place(
   join('.codex', 'sessions', '2026', '08', '19', `rollout-2026-08-19T10-05-03-${IDS.codex}.jsonl`),
   `codex-rollout-2026-08-19T10-05-03-${IDS.codex}.jsonl`
@@ -239,6 +306,7 @@ writeFileSync(
   seedPath,
   JSON.stringify([
     { name: 'claude-6', agent: 'claude', agentSessionId: IDS.claude, cwd: project, createdAt: startedAt },
+    { name: 'claude-7', agent: 'claude', agentSessionId: IDS.claude7, cwd: project, createdAt: Date.UTC(2026, 7, 20, 6, 0, 0) },
     { name: 'codex-2', agent: 'codex', agentSessionId: IDS.codex, cwd: project, createdAt: Date.UTC(2026, 7, 19, 10, 0, 0) },
     { name: 'grok-1', agent: 'grok', agentSessionId: IDS.grok, cwd: project, createdAt: startedAt },
     { name: 'deepseek-1', agent: 'deepseek', agentSessionId: IDS.deepseek, cwd: project, createdAt: startedAt },
@@ -326,6 +394,12 @@ function readerJs(spec) {
       inlineCode: layer.querySelectorAll('.md-answer-rendered :not(pre) > code').length
     };
 
+    // Phase 137.2. The ask rail, read by rectangle and by index.
+    let rail = null;
+    ${spec.rail === true ? RAIL_READ_JS : ''}
+    let railDrive = null;
+    ${spec.railDrive === true ? RAIL_DRIVE_JS : ''}
+
     const flat = (layer.innerText || '').replace(/\\s+/g, ' ').trim();
     const gitMarks = ['git agrees', 'git has no record', 'nothing to check'].filter((s) => flat.includes(s));
     const namesShown = ${JSON.stringify(spec.names ?? [])}.filter((n) => flat.includes(n));
@@ -340,6 +414,8 @@ function readerJs(spec) {
       namesShown,
       hostile,
       markdown,
+      rail,
+      railDrive,
       textHead: flat.slice(0, 1500)
     };
   } catch (err) {
@@ -347,6 +423,119 @@ function readerJs(spec) {
   }
 })()`;
 }
+
+/**
+ * Phase 137.2. The rail's still reading: presence, row count against turn
+ * count, its own scrollability, the header's agent mark, and which row
+ * carries the current tick.
+ */
+const RAIL_READ_JS = `
+    {
+      const railEl = layer.querySelector('.overview-ask-rail');
+      const conv = layer.querySelector('.overview-scroll');
+      rail = {
+        present: railEl !== null,
+        visible:
+          railEl !== null &&
+          getComputedStyle(railEl).display !== 'none' &&
+          railEl.getClientRects().length > 0,
+        rows: railEl === null ? 0 : railEl.querySelectorAll('.overview-ask-rail-row').length,
+        turns: layer.querySelectorAll('.overview-turn').length,
+        railScrolls: railEl !== null && railEl.scrollHeight > railEl.clientHeight + 1,
+        convScrolls: conv !== null && conv.scrollHeight > conv.clientHeight + 1,
+        headerMark: layer.querySelector('.overview-session-title svg') !== null,
+        marked:
+          railEl === null
+            ? -1
+            : Array.from(railEl.querySelectorAll('.overview-ask-rail-row')).findIndex((r) =>
+                r.classList.contains('current')
+              )
+      };
+    }
+`;
+
+/**
+ * Phase 137.2. The rail driven for real: a press on a row, a wheel scroll,
+ * ArrowUp at repeat speed with a rectangle read per press, then Tab into the
+ * rail, Return to jump and Escape back through the window ladder. Everything
+ * is asserted node side from the numbers this returns.
+ */
+const RAIL_DRIVE_JS = `
+    {
+      const layerEl = document.querySelector('.overview-layer');
+      const conv = layer.querySelector('.overview-scroll');
+      const railEl = layer.querySelector('.overview-ask-rail');
+      const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(1))));
+      const rows = () => Array.from(railEl.querySelectorAll('.overview-ask-rail-row'));
+      const marked = () => rows().findIndex((r) => r.classList.contains('current'));
+      const cursorAt = () => rows().findIndex((r) => r.classList.contains('cursor'));
+      const selRect = () => {
+        const el = conv.querySelector('.overview-turn.selected');
+        if (el === null) return null;
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+      };
+      const box = conv.getBoundingClientRect();
+      const inView = () => {
+        const r = selRect();
+        return r !== null && r.bottom > box.top + 1 && r.top < box.bottom - 1;
+      };
+      const press = (k) => {
+        layerEl.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+      };
+
+      // One press on a rail row lands the conversation on that exchange.
+      const clickIndex = 5;
+      rows()[clickIndex].click();
+      await frame();
+      const click = { wanted: clickIndex, marked: marked(), inView: inView() };
+
+      // A wheel scroll moves no selection.
+      const beforeWheel = marked();
+      conv.dispatchEvent(new WheelEvent('wheel', { deltaY: 240, bubbles: true, cancelable: true }));
+      conv.scrollTop += 240;
+      await frame();
+      const wheel = { before: beforeWheel, after: marked(), scrollMoved: conv.scrollTop > 0 };
+
+      // Back to the newest exchange, then ArrowUp at repeat speed. Per press,
+      // the marked rail row and whether the selected exchange's rectangle
+      // sits inside the conversation's viewport.
+      rows()[rows().length - 1].click();
+      await frame();
+      const repeat = [];
+      for (let i = 0; i < 12; i += 1) {
+        press('ArrowUp');
+        await frame();
+        repeat.push({ marked: marked(), inView: inView() });
+        await wait(30);
+      }
+
+      // Keyboard reach. Tab in, one arrow up, Return jumps, Escape returns
+      // the keyboard through the WINDOW capture ladder with the page open.
+      press('Tab');
+      await frame();
+      let keys = { wired: railEl.classList.contains('active') };
+      if (keys.wired) {
+        const c0 = cursorAt();
+        press('ArrowUp');
+        await frame();
+        const c1 = cursorAt();
+        press('Enter');
+        await frame();
+        const jump = { cursor: c1, marked: marked(), inView: inView() };
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        await frame();
+        keys = {
+          wired: true,
+          cursorMoved: c1 === c0 - 1,
+          jump,
+          stillOpen: document.querySelector('.overview-layer') !== null,
+          railInactive: !railEl.classList.contains('active')
+        };
+      }
+      railDrive = { click, wheel, repeat, keys };
+    }
+`;
 
 /**
  * The real chord, dispatched on window. The keyboard sits on the shell, so
@@ -365,7 +554,39 @@ const PRESS_JS = `
 
 const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
-async function launch(label, overviewSpec, jsSpec) {
+/**
+ * Ends a recorded pid AND every process descended from it. A SIGKILL to the
+ * main pid alone leaves the renderer, the GPU helper, the utility helpers
+ * and crashpad alive, which a rail long run under load measured: four
+ * orphans stayed up after the watchdog fired. The descendants are read with
+ * pgrep -P while the parent still holds them, because a dead parent's
+ * children reparent and can no longer be found this way. Nothing outside
+ * the one recorded process tree can be named here.
+ */
+function killTree(pid) {
+  const found = [];
+  const stack = [pid];
+  while (stack.length > 0) {
+    const p = stack.pop();
+    const r = spawnSync('pgrep', ['-P', String(p)], { encoding: 'utf8' });
+    for (const line of (r.stdout ?? '').split('\n')) {
+      const n = Number(line.trim());
+      if (Number.isInteger(n) && n > 0 && !found.includes(n)) {
+        found.push(n);
+        stack.push(n);
+      }
+    }
+  }
+  for (const p of [...found, pid]) {
+    try {
+      process.kill(p, 'SIGKILL');
+    } catch {
+      /* already gone, which is the state we wanted */
+    }
+  }
+}
+
+async function launch(label, overviewSpec, jsSpec, extraEnv = {}) {
   const png = join(outDir, `p137-${label}.png`);
   rmSync(png, { force: true });
   const drive = { projectPath: project, overview: overviewSpec };
@@ -385,7 +606,8 @@ async function launch(label, overviewSpec, jsSpec) {
           GMUX_SHOT_DELAY_MS: '9000',
           GMUX_OVERVIEW_SEED: seedPath,
           GMUX_SHOT_DRIVE: JSON.stringify(drive),
-          GMUX_SHOT_JS: readerJs(jsSpec)
+          GMUX_SHOT_JS: readerJs(jsSpec),
+          ...extraEnv
         }
       }
     );
@@ -397,11 +619,9 @@ async function launch(label, overviewSpec, jsSpec) {
     const code = await new Promise((r) => {
       const watchdog = setTimeout(() => {
         console.error(`${TAG} ${label} passed its ceiling. Ending the pid I started.`);
-        try {
-          child.kill('SIGKILL');
-        } catch {
-          /* already gone */
-        }
+        // The whole recorded tree goes, because a SIGKILL to the main
+        // pid alone orphans the helper processes.
+        if (child.pid !== undefined) killTree(child.pid);
       }, 300_000);
       child.on('error', (err) => {
         clearTimeout(watchdog);
@@ -430,14 +650,9 @@ async function launch(label, overviewSpec, jsSpec) {
     return { code, png: existsSync(png) ? png : null, report, text };
   } finally {
     // Whatever happened above, the Electron this function started is ended
-    // here. Only the pid recorded in this scope is touched.
-    if (child !== null && child.pid !== undefined) {
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone, which is the state we wanted */
-      }
-    }
+    // here, together with every process descended from it. Only the tree
+    // under the pid recorded in this scope is touched.
+    if (child !== null && child.pid !== undefined) killTree(child.pid);
   }
 }
 
@@ -474,12 +689,37 @@ async function main() {
       overview: { level: 'project', stretchFlightMs: 2000, pressOnly: true },
       js: { press: true },
       midFlight: true
+    },
+    // Phase 137.2. The rail at a short conversation: one row per ask, the
+    // newest row marked, and the header wearing the agent's mark.
+    {
+      label: 'rail-short',
+      overview: { level: 'session', sessionNames: ['qwen-1'] },
+      js: { names: ['qwen-1'], rail: true },
+      railShort: true
+    },
+    // Phase 137.2. The rail at sixty asks, driven: press, wheel, arrows at
+    // repeat speed, Tab, Return and Escape, all read back as numbers.
+    {
+      label: 'rail-long',
+      overview: { level: 'session', sessionNames: ['claude-7'] },
+      js: { names: ['claude-7'], rail: true, railDrive: true },
+      railLong: true
+    },
+    // Phase 137.2. The narrow window. The rail collapses before the
+    // conversation does and the page still fits.
+    {
+      label: 'rail-narrow',
+      overview: { level: 'session', sessionNames: ['claude-7'] },
+      js: { names: ['claude-7'], rail: true },
+      railNarrow: true,
+      env: { GMUX_SHOT_SIZE: '960x700' }
     }
   ];
 
   const results = {};
   for (const run of runs) {
-    const res = await launch(run.label, run.overview, run.js);
+    const res = await launch(run.label, run.overview, run.js, run.env ?? {});
     results[run.label] = res;
     if (res.png === null) failures.push(`${run.label}: no picture was written`);
     if (res.report === null) {
@@ -537,6 +777,77 @@ async function main() {
         failures.push(`${run.label}: the answer did not draw as markdown: ${JSON.stringify(md)}`);
       }
     }
+    // Phase 137.2. The ask rail's own assertions, by index and rectangle.
+    const rail = rep.rail ?? null;
+    if (run.railShort === true) {
+      if (rail === null || rail.present !== true || rail.visible !== true) {
+        failures.push(`${run.label}: the rail is not on the page: ${JSON.stringify(rail)}`);
+      } else {
+        if (rail.rows !== rail.turns || rail.rows < 1) {
+          failures.push(`${run.label}: the rail draws ${String(rail.rows)} rows for ${String(rail.turns)} turns`);
+        }
+        if (rail.marked !== rail.rows - 1) {
+          failures.push(`${run.label}: the page opens at the newest exchange, so the marked rail row must be the last. It is ${String(rail.marked)} of ${String(rail.rows)}.`);
+        }
+        if (rail.headerMark !== true) {
+          failures.push(`${run.label}: the header carries no agent mark`);
+        }
+      }
+    }
+    if (run.railLong === true) {
+      if (rail === null || rail.present !== true || rail.visible !== true) {
+        failures.push(`${run.label}: the rail is not on the page: ${JSON.stringify(rail)}`);
+      } else {
+        if (rail.rows < 40) failures.push(`${run.label}: only ${String(rail.rows)} rail rows for the sixty ask conversation`);
+        if (rail.railScrolls !== true) failures.push(`${run.label}: the rail does not scroll on its own`);
+        if (rail.convScrolls !== true) failures.push(`${run.label}: the conversation does not scroll`);
+        if (rail.headerMark !== true) failures.push(`${run.label}: the header carries no agent mark`);
+      }
+      const drive = rep.railDrive ?? null;
+      if (drive === null) {
+        failures.push(`${run.label}: the rail drive returned nothing`);
+      } else {
+        if (drive.click.marked !== drive.click.wanted || drive.click.inView !== true) {
+          failures.push(`${run.label}: a press on rail row ${String(drive.click.wanted)} landed on ${String(drive.click.marked)}, inView ${String(drive.click.inView)}`);
+        }
+        if (drive.wheel.after !== drive.wheel.before || drive.wheel.scrollMoved !== true) {
+          failures.push(`${run.label}: a wheel scroll moved the selection from ${String(drive.wheel.before)} to ${String(drive.wheel.after)} (scrollMoved ${String(drive.wheel.scrollMoved)})`);
+        }
+        const startAt = (rail?.rows ?? 0) - 1;
+        (drive.repeat ?? []).forEach((step, i) => {
+          const want = Math.max(0, startAt - 1 - i);
+          if (step.marked !== want) {
+            failures.push(`${run.label}: repeat press ${String(i)} marked row ${String(step.marked)}, wanted ${String(want)}`);
+          }
+          if (step.inView !== true) {
+            failures.push(`${run.label}: repeat press ${String(i)} left the selected exchange off screen`);
+          }
+        });
+        if ((drive.repeat ?? []).length !== 12) {
+          failures.push(`${run.label}: the repeat run pressed ${String((drive.repeat ?? []).length)} times, wanted 12`);
+        }
+        if (drive.keys.wired !== true) {
+          failures.push(`${run.label}: Tab did not reach the rail. OverviewLayer must call handleSessionLevelKey first at the session level.`);
+        } else {
+          if (drive.keys.cursorMoved !== true) failures.push(`${run.label}: ArrowUp in the rail did not move the cursor by one`);
+          if (drive.keys.jump.marked !== drive.keys.jump.cursor || drive.keys.jump.inView !== true) {
+            failures.push(`${run.label}: Return in the rail landed on ${String(drive.keys.jump.marked)}, cursor was ${String(drive.keys.jump.cursor)}, inView ${String(drive.keys.jump.inView)}`);
+          }
+          if (drive.keys.stillOpen !== true) failures.push(`${run.label}: Escape in the rail closed the page`);
+          if (drive.keys.railInactive !== true) failures.push(`${run.label}: Escape in the rail left the rail active`);
+        }
+      }
+    }
+    if (run.railNarrow === true) {
+      if (rail === null || rail.present !== true) {
+        failures.push(`${run.label}: the rail element is missing`);
+      } else if (rail.visible !== false) {
+        failures.push(`${run.label}: the rail is still visible at ${String(rep.win.w)} wide, and it must collapse before the conversation does`);
+      }
+      if (rep.win.w > 1000) {
+        failures.push(`${run.label}: the window is ${String(rep.win.w)} wide, so the narrow photograph is not narrow`);
+      }
+    }
     say(
       `${run.label}: fits ${String(rep.fits)}, layer ${String(rep.rect.width)}x${String(rep.rect.height)} in ` +
         `${String(rep.win.w)}x${String(rep.win.h)}, digit runs outside allowed spans ${String((rep.digitRuns ?? []).length)}, ` +
@@ -570,4 +881,4 @@ if (failures.length > 0) {
   for (const f of failures) console.log(`  - ${f}`);
   process.exit(1);
 }
-say('PASS. Four launches, four pictures, four readings, and the operator server untouched.');
+say('PASS. Seven launches, seven pictures, seven readings, and the operator server untouched.');
