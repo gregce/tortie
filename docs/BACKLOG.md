@@ -15987,12 +15987,17 @@ He reported it the same day. In the one-session view, pressing up and down moves
 - Your words stay yours, being clipped and never summarised. The model never touches this rail, in this phase or in 138.
 - All colors via tokens. The rail must not steal focus from the conversation on hover, following the hover rules ProjectRail already follows.
 
+### The third item, the menu names the page
+
+The session actions menu, being the ellipsis on a session's header drawn by `src/renderer/app/session-actions.tsx`, gains one row that opens this session's conversation in the overview. It sits with Show what it loaded and Show saved output, because it is the same kind of verb, being a read about this session. The row's words follow the copy rules, e.g. "Catch me up...", and the native menu is the ui:popupMenu bridge as always. The same landing the chord reaches, being the one-session view for exactly that session.
+
 ### Proof, run rather than read
 
 - Photographs at a 3-ask and a 60-ask conversation, and at a narrow window showing the collapse, read by eye.
 - Drive a jump in the probe and prove the conversation landed at the pressed exchange, by rectangle rather than by eye.
 - Prove the marked row follows the scroll.
 - Prove keyboard reach, jump and return in the probe.
+- Prove the menu row opens the one-session view for the session whose menu it was, by driving the native menu in the probe the way probe-p119-menu already drives one.
 - The integer rule and the copy rule by grep.
 - The standard battery plus conformance:overview and the focus-chord test.
 
@@ -16148,3 +16153,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 137.1 queued, the overview renders markdown through the sanitizing pipeline the editor already owns and the chord becomes ⇧⌘U with cursor's suggested letter moving, before Phase 138
 - 2026-08-23, Phase 137.2 queued, a rail of your asks on the right of the one-session view, one press to any exchange, after 137.1 and before 138
 - 2026-08-23, Phase 137.2 gains its second item on his report, keyboard up and down in the one-session view scroll the page and the rail tracks the movement
+- 2026-08-23, Phase 137.2 gains its third item, the session actions menu gets a row opening that session in the overview
