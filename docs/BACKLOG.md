@@ -15899,6 +15899,57 @@ The 43, by name: `p117-create-unknown` `p118-remote-children` `p118-shot` `p132-
 - No new memory check anywhere. The operator said not to be overly cautious about memory and the fix is cleanup rather than caution.
 
 
+## Phase 137.1 — the overview renders markdown, and the chord is the one his hands expect (operator asked 2026-08-23) QUEUED, BEFORE PHASE 138
+
+**Subject:** `fix(overview): the answer renders as markdown and the chord is ⇧⌘U`
+**First body line:** `Phase 137.1: markdown in the overview, and the chord moves`
+**Semver:** patch. It reshapes how existing content draws and which chord opens it. No new capability.
+**Tier 2**, with one probe run and photograph reads of the three views. The markdown item carries one Tier 3 shaped check, being that no raw HTML from an agent's answer can reach the DOM, proven by fixture rather than read.
+**Charter:** this entry, plus the `## Phase 137` entry above it, plus `src/renderer/editor/markdown/pipeline.ts`, which is the sanitizing pipeline the tree already owns.
+
+### Item one, the answer renders as markdown
+
+Agents answer in markdown, and Phase 137 draws those answers as plain text, so backticks, lists, headings and fences arrive as punctuation rather than as what they mean. He asked for full rendering in the overview.
+
+The tree already owns the machinery. `react-markdown`, `remark-gfm` and `rehype-sanitize` are runtime dependencies and `src/renderer/editor/markdown/pipeline.ts` composes them for the markdown preview. The overview REUSES that pipeline rather than composing a second one.
+
+The rules that bind the rendering:
+
+- **`rehype-sanitize` is in the chain and `rehype-raw` is NOT.** The answer is an agent's bytes and raw HTML in it must never reach the DOM. A fixture whose answer carries a script tag, an img onerror and an iframe must render them as text or drop them, and that fixture is part of the phase's proof.
+- The redacted store text is what renders. Rendering happens after redaction, never before, so a secret cannot hide inside a code fence.
+- Code fences draw in the mono the terminal already uses, links draw as links but open through the existing external-open bridge with its confirmation, never a bare navigation. A relative link renders inert.
+- YOUR OWN ASKS stay plain text. He types prose, and rendering a person's words would change what he wrote, e.g. an asterisk he typed as an asterisk.
+- The project view's one-line summaries stay plain, because a one-line row has no room for structure.
+- The integer rule and the copy rule from Phase 137 are unchanged and re-proven after the change.
+
+### Item two, the chord becomes ⇧⌘U
+
+He asked for ⇧⌘U instead of ⌃⇧U. It was refused in Phase 137 because cursor's `defaultHotkeyHint` in `src/main/agents/registry.ts` is `'u'`, and the test `takes no chord the product suggests as a per-agent mnemonic` in `src/shared/__tests__/focus-chord.test.ts` fails on exactly that collision. The suggestion is Tortie's own registry row, so the collision is ours to move.
+
+- Cursor's `defaultHotkeyHint` moves off `'u'`. Hints in use today are c u x g d k a m q p r. The letter chosen must be free, must appear in the word cursor if any such letter is free, and `HINT_LETTER` in `src/renderer/settings/KeyboardSection.tsx` moves with it in the same commit.
+- `view.overview` in `src/shared/keymap.ts` becomes ⇧⌘U, joins `RESERVED_APP_CHORDS`, and leaves the ⌃⇧ row. The View menu accelerator follows automatically if it reads the keymap, and is changed by hand if it does not.
+- **A person's own recorded hotkey wins.** Anyone who already recorded ⇧⌘U as a per-agent hotkey keeps it, and the built-in yields. The existing precedence between recorded chords and built-ins decides this, and the phase proves which way it falls with a test rather than asserting it.
+- The focus-chord test is UPDATED, not deleted, and must still refuse a built-in that collides with any REMAINING suggested mnemonic.
+
+### Proof this phase must produce, run rather than read
+
+- The hostile markdown fixture, being script, onerror, iframe and a javascript: link, rendered with none reaching the DOM, proven by reading the DOM in the probe rather than the source.
+- One photograph per view after the change, read by eye, showing a real answer with a list, a fence and inline code drawn as those things.
+- Prove your own asks still draw plain.
+- Prove ⇧⌘U opens the overview at all three focus levels, and ⌃⇧U no longer does.
+- Prove a recorded ⇧⌘U per-agent hotkey still wins over the built-in.
+- The integer rule and the copy rule, re-proven by grep.
+- `npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`, `npm run conformance:overview`, `npm run conformance:agents`, and the focus-chord test file by name.
+
+### What is NOT in this phase
+
+- No `rehype-raw` anywhere in the overview's chain, ever.
+- No second markdown pipeline. The editor's is reused or this phase says why it cannot be.
+- No change to the reader, the store, the keep map, the git mark or the fold.
+- No change to any other chord and no new chord surface.
+- No model. Phase 138 is still next and still separate.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16040,3 +16091,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 132.2 shipped, the skill preview sheet widens to min(1600px, 92vw) at his ask, Tier 1 at his word, `75991fd`, 0.68.8
 - 2026-08-23, Phases 44 and 45 marked SUPERSEDED by 137 and 138 on his word, their entries stay as the record of the 2026-08-15 thinking
 - 2026-08-23, Phase 137 shipped, the chord ⌃⇧U opens the conversation you have been having with every session here, at one session, several as columns, or the whole project, built from each agent's own log through the per provider keep map with a git mark beside each claim, no model in it and the seven research 63 defects fixed, this commit, 0.69.0
+- 2026-08-23, Phase 137.1 queued, the overview renders markdown through the sanitizing pipeline the editor already owns and the chord becomes ⇧⌘U with cursor's suggested letter moving, before Phase 138
