@@ -81,33 +81,34 @@ Each phase runs as ONE Workflow with the same shape that produced Phases 1-13: *
 
 ## Machine discipline when running phases (learned the hard way, 2026-08-22)
 
-Two phase workflows ran at once, the operator's machine ran out of memory and crashed, `/private/tmp`
-was wiped, every worktree was destroyed and 163 files of uncommitted builder work were lost. Nothing
-committed was lost, because everything committed was already on `origin/main`. These rules follow
-from that and they bind every future round.
+The operator's machine ran out of memory and crashed, `/private/tmp` was wiped, every worktree was
+destroyed and 163 files of uncommitted builder work were lost. Nothing committed was lost. The cause
+was NOT memory being tight in general. It was probes that launched Electron and never closed it. Of
+the 16 probes in `build/` that launch Electron, 2 kill it in a `finally` block and 14 kill it only on
+the happy path, so any assertion that throws leaves an Electron running, and a verifier retrying a
+probe stacks them until the machine falls over. The operator said not to be overly cautious about
+memory, and he is right. The rule is cleanup, not caution.
 
-- **ONE phase workflow in flight at a time**, unless the phases are provably light and neither drives
-  Electron. Two workflows can put more than thirty agents on the machine at once.
-- **ONE Electron instance at a time inside a workflow.** It measures about 451 MB resident. Close it
-  before starting the next one. Never run a build or a test suite while a probe is up.
-- **Every probe kills its own Electron and ends its own scratch tmux server in a `finally` block**,
-  whatever happened. After a probe run, check `ps aux | grep -c Electron` and report the number.
-- **Check memory pressure before launching a workflow, and read the right gauge.** `vm_stat`'s
-  "Pages free" is the wrong one, because macOS keeps free pages near zero on purpose and holds tens of
-  GB in reclaimable inactive pages. Read `memory_pressure | grep percentage` and
-  `sysctl vm.swapusage`. Under 30 percent free, or with swap in use, do not launch. Inside a run, if
-  swap starts being used, stop, clean up and say so rather than pressing on.
+- **Every probe that launches Electron kills it in a `finally` block**, and ends its own scratch tmux
+  server there too, whatever happened. No probe ships without that. A probe that kills only on the
+  happy path is a defect and the verifier names it.
+- **After a probe run, count what is left.** `ps aux | grep -c "[E]lectron"` and
+  `ps aux | grep -c chrome_crashpad_handler`. Report the numbers. If a probe of yours left one, kill it
+  by pid after reading its `--user-data-dir` or `--database` path, and never one under
+  `/Users/gdc/Library`.
+- **One phase workflow in flight at a time** while both would drive Electron. Two light phases that
+  do not photograph may run together.
+- **Do not gate launches on `vm_stat` free pages.** macOS keeps that near zero on purpose. If you want
+  a number, `memory_pressure | grep percentage` and `sysctl vm.swapusage`, and the only real alarm is
+  swap in use.
 - **A crash means RESTART FRESH, not resume.** `resumeFromRunId` replays an agent's TEXT and not the
   files it wrote. If the worktree was wiped, the cached builder reports describe changes that no
-  longer exist and the integrator would build on a fiction. Only resume when the worktree survived
-  intact, and check that it did before deciding.
+  longer exist. Only resume when the worktree survived intact, and check before deciding.
 - **`/private/tmp` does not survive a reboot.** Rebuilding a worktree means `git worktree prune`,
   `git worktree add --detach`, then `cp -Rc node_modules` and `cp -Rc build/vendor` from the
-  operator's checkout. Confirm `build/vendor/specstory/bin/specstory --version` before starting, or
-  the specstory provider test fails for a reason that is not a product defect.
+  operator's checkout. Confirm `build/vendor/specstory/bin/specstory --version` before starting.
 - **The exposure is structural and it is the price of committing once per phase.** The committer is
-  the last agent, so a crash at any earlier point loses the whole phase. That trade is deliberate,
-  because it keeps main clean and keeps the gates meaningful. Know the cost when a phase is long.
+  the last agent, so a crash at any earlier point loses the whole phase. That trade is deliberate.
 
 ## How to write to the operator (every report, not only when a phase lands)
 The operator gave these rules directly. They are requirements, not preferences. They apply to chat replies, commit messages, backlog entries and research documents.
