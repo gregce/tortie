@@ -92,8 +92,11 @@ from that and they bind every future round.
   before starting the next one. Never run a build or a test suite while a probe is up.
 - **Every probe kills its own Electron and ends its own scratch tmux server in a `finally` block**,
   whatever happened. After a probe run, check `ps aux | grep -c Electron` and report the number.
-- **Check `vm_stat` before launching a workflow.** Under 3 GB free, do not launch. Under 2 GB free
-  inside a run, stop, clean up and say so rather than pressing on.
+- **Check memory pressure before launching a workflow, and read the right gauge.** `vm_stat`'s
+  "Pages free" is the wrong one, because macOS keeps free pages near zero on purpose and holds tens of
+  GB in reclaimable inactive pages. Read `memory_pressure | grep percentage` and
+  `sysctl vm.swapusage`. Under 30 percent free, or with swap in use, do not launch. Inside a run, if
+  swap starts being used, stop, clean up and say so rather than pressing on.
 - **A crash means RESTART FRESH, not resume.** `resumeFromRunId` replays an agent's TEXT and not the
   files it wrote. If the worktree was wiped, the cached builder reports describe changes that no
   longer exist and the integrator would build on a fiction. Only resume when the worktree survived
