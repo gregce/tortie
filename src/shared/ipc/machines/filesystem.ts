@@ -84,7 +84,7 @@ export interface RemoteDirListing {
    *
    * THE PICKER DOES NOT DRAW IT, and that is deliberate rather than an
    * oversight. The three answers a machine gives about a folder are fixed, so
-   * their sentences live in src/renderer/app/machine-copy.ts where the
+   * their sentences live in src/renderer/machines/presentation.ts where the
    * vocabulary audit reads them, and `unreachable` is composed on this side
    * because main never sends it. The field is here for a surface that has no
    * copy of its own and for a log line that wants one string.
@@ -218,7 +218,7 @@ export type RemoteTreeListing =
 // through this channel and hands the whole list to the worker, which adopts it.
 //
 // NO PROSE CROSSES THIS CHANNEL. Every sentence a person reads about a name
-// list is drawn by the renderer from src/renderer/app/machine-copy.ts, where
+// list is drawn by the renderer from src/renderer/machines/presentation.ts, where
 // the vocabulary audit reads it. This answer carries a mode word and counts.
 
 /**
@@ -443,7 +443,7 @@ export interface MachineFilePutResult {
 // NAMED HERE RATHER THAN DENIED: a machine Tortie is not signed in to throws
 // `MACHINE_NOT_CONNECTED`, which is main's own sentence. Every sentence a
 // person reads about one of these answers is composed in
-// `src/renderer/app/machine-copy.ts`.
+// `src/renderer/machines/presentation.ts`.
 //
 // WHAT NEITHER OF THEM DOES. Neither removes anything on either computer.
 // Neither copies anything. The rename is a plain `mv`, so git on that machine
@@ -646,7 +646,7 @@ export interface MachinesFilesystemInvokeChannelMap {
   // A folder that is not there, a machine that did not answer and a machine
   // Tortie is not signed in to all come back as a mode word. No prose crosses
   // this channel: the renderer draws every sentence from
-  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
   'machines:listFiles': {
     req: [input: MachineFileListInput];
     res: MachineFileListResult;

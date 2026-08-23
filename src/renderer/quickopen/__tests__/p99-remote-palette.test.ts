@@ -148,7 +148,7 @@ const { onOpenFile } = await import('../../state/open-file');
 const { machineNoteLines, projectNameFor, rowKeyOf } = await import(
   '../QuickOpenPalette'
 );
-const copy = await import('../../app/machine-copy');
+const copy = await import('../../machines/presentation');
 
 const HERE = { id: 'p1', path: '/Users/gdc/gmux', name: 'gmux' };
 const THERE = {

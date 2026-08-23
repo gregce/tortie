@@ -54,7 +54,7 @@ import {
   searchNotConnected,
   searchOnMachineLine,
   searchPatternRefused
-} from '../machine-copy';
+} from '../../machines/presentation';
 
 const ROOT = resolve(import.meta.dirname, '../../../..');
 
@@ -87,7 +87,7 @@ describe('what Context says about a project on a machine (Phase 108)', () => {
   });
 
   it('takes the body Phase 108 made false out of the file', async () => {
-    const copy = (await import('../machine-copy')) as Record<string, unknown>;
+    const copy = (await import('../../machines/presentation')) as Record<string, unknown>;
     expect(copy.CONTEXT_ELSEWHERE_BODY).toBeUndefined();
   });
 
@@ -209,15 +209,15 @@ describe('what Search says about a folder on a machine (Phase 98)', () => {
   });
 
   it('takes the two sentences Phase 98 made false out of the file', async () => {
-    const copy = (await import('../machine-copy')) as Record<string, unknown>;
+    const copy = (await import('../../machines/presentation')) as Record<string, unknown>;
     expect(copy.searchElsewhereTitle).toBeUndefined();
     expect(copy.SEARCH_ELSEWHERE_BODY).toBeUndefined();
   });
 });
 
-describe('the writing rules, over every sentence in machine-copy.ts', () => {
+describe('the writing rules, over every sentence in presentation.ts', () => {
   const source = readFileSync(
-    resolve(ROOT, 'src/renderer/app/machine-copy.ts'),
+    resolve(ROOT, 'src/renderer/machines/presentation.ts'),
     'utf8'
   );
   const literals = copyLiteralsOf(source);

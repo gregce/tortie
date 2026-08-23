@@ -19,7 +19,7 @@
 
 import React, { useEffect } from 'react';
 import { localPathOf } from '@shared/workspace-target';
-import { contextRefreshOnMachineTitle } from '../app/machine-copy';
+import { contextRefreshOnMachineTitle } from '../machines/presentation';
 import { AgentIcon, agentMenuIcon, Codicon, warmAgentMenuIcons } from '../icons';
 import { agentShortLabel } from '../state/agents';
 import { machineLabelFor } from '../state/machines-slice';

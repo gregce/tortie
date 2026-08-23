@@ -31,7 +31,7 @@ import { FileIcon, Codicon } from '../icons';
 import {
   SEARCH_FILTERS_ON_THIS_MAC,
   SEARCH_NO_BRIDGE
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import { useApp } from '../state/store';
 import {
   machineEmptyLine,
@@ -474,7 +474,7 @@ function EmptyResults(): React.JSX.Element {
       );
     }
     // The four words that mean no rows at all. Each one is a whole sentence
-    // from machine-copy.ts, and the note under the summary stays silent for
+    // from presentation.ts, and the note under the summary stays silent for
     // all four so the same thing is never said twice.
     const refusal = machineEmptyLine(
       remoteMode,

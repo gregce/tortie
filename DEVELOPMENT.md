@@ -47,7 +47,7 @@ npm run dev        # electron-vite dev server + Electron with HMR
 
 | Script              | What it does                                                        |
 | ------------------- | ------------------------------------------------------------------- |
-| `npm run dev`       | Dev mode with HMR (renderer) and hot restart (main/preload)          |
+| `npm run dev`       | Dev mode with HMR (renderer) and hot restart (main/preload). Set `GMUX_PROBES=1` to load the harness drives in the dev window (Phase 127). Without it the window loads none of them. |
 | `npm run build`     | Production bundles into `out/`                                       |
 | `npm run typecheck` | Strict `tsc --noEmit` over node (main/preload/shared) + web configs  |
 | `npm run smoke`     | Build, then headless boot check: window + native modules + private tmux server reachable, exits 0 in <15 s |
@@ -137,7 +137,8 @@ it as `GMUX_HARNESS_DIR`.
 | `npm run probe:p106` | `/tmp/p106-branch-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p106-branch-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
 | `npm run probe:p107` | `/tmp/p107-history-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p107-history-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
 | `npm run probe:p104` | `/tmp/p104-commit-<pid>`, made fresh on every run and removed at the end. It drives no Electron, so it reads no config root. | `gmux-p104-commit-<pid>`, on the scratch machine, which is this Mac over a loopback sshd. `refuseRealSockets` rejects the names `gmux` and `default` before anything starts. This probe starts no tmux session at all. |
-| `npm run probe:p104shot` | the harness root `build/harness-socket.mjs` composes, being `<tmpdir>/gmux-p104-shot-<worktree>-<pid>`. It drives the real app under that profile and never the operator's own. | `gmux-p104-shot-<worktree>-<pid>`. `activeTmuxSocket` honours `GMUX_TMUX_SOCKET` only while one of `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL` is set, so this probe sets one. |
+| `npm run probe:p104shot` | the harness root `build/harness-socket.mjs` composes, being `<tmpdir>/gmux-p104-shot-<worktree>-<pid>`. It drives the real app under that profile and never the operator's own. | `gmux-p104-shot-<worktree>-<pid>`. `activeTmuxSocket` honours `GMUX_TMUX_SOCKET` only while one of `GMUX_SMOKE`, `GMUX_SHOT`, `GMUX_UPDATE_REHEARSAL` or `GMUX_PROBES` is set, so this probe sets one. The four terms live in `src/main/harness/launch-gate.ts`. |
+| `npm run probe:p127` | the same harness root. It launches the app TWICE on one throwaway profile, once with `GMUX_PROBES=1` and once with `GMUX_PROBES=0`, and reads `typeof window.__gmuxP93` over the devtools protocol each time. Armed must answer `object` and unarmed must answer `undefined`. | `gmux-p127-probes-<worktree>-<pid>`. The unarmed leg still sets `GMUX_PROBES=0`, which is a harness term for the socket and is not the string `1` the loader tests for, so the socket override stays honoured while the probes stay out. A launch with no harness term at all would attach to socket `gmux`, which is the operator's live server, and is forbidden. |
 
 `smoke:execplane`, `smoke:remote`, `smoke:capture:remote`, `smoke:p93remote`
 and `smoke:p117` all honour a `GMUX_CONFIG_ROOT` already in the environment and

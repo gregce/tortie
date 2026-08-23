@@ -27,7 +27,7 @@ import {
   targetOfSession
 } from '@shared/workspace-target';
 import { badgeMachineOf, effectiveStatusOf, sortProjects, useApp } from '../state/store';
-import { remoteTabTooltip } from './machine-copy';
+import { remoteTabTooltip } from '../machines/presentation';
 import { rollupDot } from './status';
 import type { DotKind } from './status';
 
@@ -91,7 +91,7 @@ export function useProjectTabs(): TabData[] {
               canRestore: false,
               restoreReason: null
             };
-      // Every sentence about a machine comes from ./machine-copy.ts, which is
+      // Every sentence about a machine comes from ../machines/presentation.ts, which is
       // the one file the vocabulary audit reads.
       const title =
         machine === null

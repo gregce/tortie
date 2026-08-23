@@ -31,9 +31,9 @@ import {
 } from '../settings/machines-copy';
 import { agentShortLabel } from '../state/agents';
 import { useApp } from '../state/store';
-import { displayPath } from './format';
+import { displayPath } from '../format';
 import { modalKeyDown } from './focus-trap';
-import { pastSessionPromise, SHELL_PATH_PENDING_TITLE } from './resume';
+import { pastSessionPromise, SHELL_PATH_PENDING_TITLE } from '../state/resume';
 import './past-sessions.css';
 
 const MONTHS = [

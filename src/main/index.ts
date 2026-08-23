@@ -33,6 +33,10 @@ import { initMachines } from './machines/store';
 // Phase 28: one log line when a helper or renderer process dies. Log only.
 import { installProcessGoneLogging } from './diagnostics/process-gone';
 import { dispatchHarness } from './harness';
+// Phase 127. What counts as a harness launch, in one place. The three
+// predicates are deliberately different and this file reads two of them. See
+// the module for why merging them would change which launches take the lock.
+import { isIsolatedLaunch, probesRequested } from './harness/launch-gate';
 // Phase 35: one structured log file, local crash capture. initLogging and
 // startCrashCapture run at module scope below, before whenReady; the boot
 // sequence (sentinel, Crashpad diff, boot.env, prune) runs inside whenReady.
@@ -153,9 +157,7 @@ const bootLog = getLog('boot');
 // case the measurements above did not reach, e.g. a profile on a volume where
 // the lock files cannot be created. A forced copy still takes the lock when it
 // can get it, so it is itself protected against a third copy.
-const harnessLaunch =
-  (process.env['GMUX_SMOKE'] ?? '') !== '' ||
-  (process.env['GMUX_SHOT'] ?? '') !== '';
+const harnessLaunch = isIsolatedLaunch(process.env);
 // A harness launch never touches the macOS keychain (2026-08-16 incident).
 // Chromium stores its safe-storage key in the DEFAULT keychain, and a probe
 // that redirects HOME has no keychain there, so macOS pops "A keychain
@@ -351,10 +353,18 @@ function createWindow(): BrowserWindow {
 
   // electron-vite: dev server URL in dev, bundled file otherwise.
   const devUrl = process.env['ELECTRON_RENDERER_URL'];
+  // Phase 127. A launch that asked for the probes, and only such a launch,
+  // carries `harness=1` on the renderer's own URL. That query string is the
+  // whole gate on src/renderer/app/probe-registry.ts, which holds the fourteen
+  // probe modules App.tsx used to load into the entry chunk on every launch. A
+  // person's launch appends nothing and so loads none of them. This reads
+  // `probesRequested` and NOT `isHarnessLaunch`, because `GMUX_PROBES=0` must
+  // stay a harness launch for the tmux socket while loading no probes.
+  const search = probesRequested(process.env) ? 'harness=1' : '';
   if (!app.isPackaged && devUrl) {
-    void win.loadURL(devUrl);
+    void win.loadURL(search === '' ? devUrl : `${devUrl}?${search}`);
   } else {
-    void win.loadFile(join(__dirname, '../renderer/index.html'));
+    void win.loadFile(join(__dirname, '../renderer/index.html'), { search });
   }
 
   win.on('closed', () => {

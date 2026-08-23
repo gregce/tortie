@@ -51,7 +51,7 @@ import { NewProjectButton } from './NewProjectButton';
 import { useCommandHeld } from './modifier-held';
 import { tabDigit, tabShortcutLabel } from './project-shortcuts';
 import { MachineBadge } from './MachineBadge';
-import { truncateMiddle } from './format';
+import { truncateMiddle } from '../format';
 import { Codicon } from '../icons';
 import './project-rail.css';
 

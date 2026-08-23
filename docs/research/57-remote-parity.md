@@ -588,7 +588,7 @@ Four details must not be missed.
    list. Git prints tracked entries first, so a repository with more than 30 tracked changes would
    show no untracked row at all.
 2. Two sentences become false about a person's work. `REVIEW_NOTHING_CHANGED` in
-   `src/main/machines/remote-copy.ts` and `remoteChangesNone` in `src/renderer/app/machine-copy.ts`
+   `src/main/machines/remote-copy.ts` and `remoteChangesNone` in `src/renderer/machines/presentation.ts`
    both say nothing has changed in that folder.
 3. `STATUS_LIMIT` in `src/main/git/parse.ts` is 10,000 and it becomes reachable. A repository with an
    untracked build directory reaches it, and the truncated flag is not currently carried into
@@ -680,7 +680,7 @@ A folder that is not a repository answers with 0 lines in about 78 ms, so the sc
 
 The guardrail asks whether a feature serves the agentic coding workflow or exists because IDEs have
 it. The destination tab is the same for both features, being a remote tab that `remoteFileChip` in
-`src/renderer/app/machine-copy.ts` already labels as one Tortie cannot save. So "the destination is
+`src/renderer/machines/presentation.ts` already labels as one Tortie cannot save. So "the destination is
 read only" does not separate them, and an earlier draft used it as if it did. What separates them is
 cost and reach. Quick Open moves 31,964 bytes for a whole project's names and reaches any file by
 name. Symbols moves 4,014,080 bytes compressed on a keystroke, has to re-derive its own file list on

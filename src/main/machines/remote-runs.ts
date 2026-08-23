@@ -116,7 +116,7 @@
  * GitHub address, a detached head, a machine that did not answer and a machine
  * Tortie is not signed in to are all ordinary states. Each comes back as a
  * result carrying its own mode word, and the renderer draws the sentence from
- * `src/renderer/app/machine-copy.ts`. No prose crosses this boundary.
+ * `src/renderer/machines/presentation.ts`. No prose crosses this boundary.
  */
 
 import { homedir } from 'node:os';

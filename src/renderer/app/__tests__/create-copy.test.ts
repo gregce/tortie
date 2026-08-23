@@ -30,11 +30,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { CREATE_DIR_HINT, CREATE_HONESTY_LINES } from '../machine-copy';
+import { CREATE_DIR_HINT, CREATE_HONESTY_LINES } from '../../machines/presentation';
 
 /** The two files this phase edited, read as text. */
 const COPY_SOURCE = readFileSync(
-  resolve(import.meta.dirname, '../machine-copy.ts'),
+  resolve(import.meta.dirname, '../../machines/presentation.ts'),
   'utf8'
 );
 const MODAL_SOURCE = readFileSync(
@@ -55,7 +55,7 @@ const BLOCK_SOURCE = readFileSync(
   'utf8'
 );
 
-/** Every export this phase deleted from `machine-copy.ts`. */
+/** Every export this phase deleted from `presentation.ts`. */
 const DELETED: readonly string[] = [
   'POLL_HONESTY',
   'CAPTURE_HONESTY',

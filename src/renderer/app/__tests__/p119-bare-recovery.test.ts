@@ -29,7 +29,7 @@ import {
   bareRestartConfirm,
   bareRestoreConfirm,
   offersBareRecovery
-} from '../resume';
+} from '../../state/resume';
 
 function session(over: Partial<Session> = {}): Session {
   return {

@@ -34,7 +34,7 @@ import {
   remoteSaveLostAnswer,
   remoteSaveRefusal,
   remoteSaveRefused
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import type {
   OpenFileCommitRef,
   OpenFileRemoteRef
@@ -537,7 +537,7 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // PHASE 101. It is a save now, on the machines a person has confirmed a
     // folder for, and it is still the same refusal on every other machine.
     // `saveOnMachine` below owns both halves, and every sentence it says is in
-    // ./../app/machine-copy.ts with every other sentence this renderer says
+    // ./../machines/presentation.ts with every other sentence this renderer says
     // about a machine, so the vocabulary audit reads one file.
     if (tab.remote !== undefined) return saveOnMachine(id, tab, tab.remote);
     if (tab.deleted || tab.truncated || tab.error !== null) return false;

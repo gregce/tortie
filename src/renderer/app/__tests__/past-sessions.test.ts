@@ -11,7 +11,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import type { Session } from '@shared/types';
-import { pastSessionPromise } from '../resume';
+import { pastSessionPromise } from '../../state/resume';
 
 // PastSessionsModal imports the app store, which reads window/localStorage
 // as the module loads, stub the three globals first, then import (the same

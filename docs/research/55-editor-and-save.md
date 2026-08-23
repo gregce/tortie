@@ -172,7 +172,7 @@ tree.
 ```
 
 Two strings on one tab contradict each other. `reviewTabTooltip` in
-`src/renderer/app/machine-copy.ts` returns `'<name> on <machine>. This view is
+`src/renderer/machines/presentation.ts` returns `'<name> on <machine>. This view is
 read only.'` and it is the tab's tooltip. `modeOptions` in
 `src/renderer/editor/EditorPanel.tsx` gives the chip beside it the title
 `'Edit the file'`, because the branch that composes that title tests
@@ -193,7 +193,7 @@ three strings.
 | add `\|\| tab.remote !== undefined` to `readOnly` | `src/renderer/editor/MonacoHost.tsx` | 1 clause |
 | add a review arm to the read-only banner chain beside the `tab.commit !== null` arm | `src/renderer/editor/EditorPanel.tsx` | 1 arm |
 | give the File chip a review title, and stop saying "Edit" | `src/renderer/editor/EditorPanel.tsx`, `modeOptions` | 1 string |
-| the sentence itself, beside `reviewTabTooltip` | `src/renderer/app/machine-copy.ts` | 1 export |
+| the sentence itself, beside `reviewTabTooltip` | `src/renderer/machines/presentation.ts` | 1 export |
 
 Note what does NOT need to change. `markDirty` and `save` already refuse. The
 defect is that three drawing files were never told.

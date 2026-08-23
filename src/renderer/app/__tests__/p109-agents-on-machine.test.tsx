@@ -41,7 +41,7 @@ import {
   agentNotOnMachineTitle,
   agentsAbsentHint,
   askMachineAgainLabel
-} from '../machine-copy';
+} from '../../machines/presentation';
 import { AgentGrid } from '../AgentGrid';
 import { AgentNotOnMachineBlock } from '../CreateSessionModal';
 import { HintedInstallCaption } from '../EmptyStates';

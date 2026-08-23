@@ -30,7 +30,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@shared/types';
 import { accelerator, keyDisplay } from '@shared/keymap';
 import { effectiveStatusOf, useApp } from '../state/store';
-import { displayPath, formatAge, truncateMiddle, useNow } from './format';
+import { displayPath, formatAge, truncateMiddle, useNow } from '../format';
 import { jumpToSession } from './session-focus';
 import { closeSession, sessionMenuItems } from './session-actions';
 import { AgentIcon } from '../icons';

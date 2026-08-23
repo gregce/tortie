@@ -28,7 +28,7 @@ import { highlightRuns } from '../quickopen/highlight';
 import {
   SYMBOLS_ELSEWHERE_BODY,
   symbolsElsewhereTitle
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import { splitPath } from './rows';
 import { symbolIcon, symbolKindLabel } from './symbol-kinds';
 import { useSymbols } from './symbols-store';

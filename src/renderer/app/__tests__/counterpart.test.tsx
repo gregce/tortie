@@ -34,7 +34,7 @@ import type {
   RemoteProjectFindResult
 } from '@shared/ipc';
 
-// The block's module graph reaches machine-copy and the shared contract,
+// The block's module graph reaches machines/presentation and the shared contract,
 // neither of which reads the bridge. The bare window is here for the stateful
 // wrapper's one feature detection, and it is the shape a renderer has before
 // its preload has answered.
@@ -61,7 +61,7 @@ import {
   COUNTERPART_CLONE_BUTTON,
   COUNTERPART_USE_MATCH,
   counterpartLooking
-} from '../machine-copy';
+} from '../../machines/presentation';
 import {
   cloneOffered,
   copyLanded,
@@ -82,8 +82,10 @@ const BLOCK_SOURCE = readFileSync(
   resolve(import.meta.dirname, '../CounterpartBlock.tsx'),
   'utf8'
 );
-const APP_SOURCE = readFileSync(
-  resolve(import.meta.dirname, '../App.tsx'),
+// Phase 127 moved the Escape ladder out of App.tsx and into its own module.
+// The ladder is the same code and this test reads it where it now lives.
+const LADDER_SOURCE = readFileSync(
+  resolve(import.meta.dirname, '../keyboard.ts'),
   'utf8'
 );
 
@@ -453,10 +455,10 @@ describe('Escape while a copy is running', () => {
     // One branch, and the guard is inside it. A ladder that closed the sheet
     // without asking is the defect this round fixed, so the unguarded line is
     // asserted absent rather than only the guarded one asserted present.
-    expect(APP_SOURCE).toContain(
+    expect(LADDER_SOURCE).toContain(
       'if (escapeMayCloseCreateSheet()) s.setCreateOpen(false);'
     );
-    expect(APP_SOURCE).not.toContain('\n          s.setCreateOpen(false);');
+    expect(LADDER_SOURCE).not.toContain('\n          s.setCreateOpen(false);');
   });
 
   it('says nothing at all while no sheet is open', () => {

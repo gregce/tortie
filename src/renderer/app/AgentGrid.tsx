@@ -65,7 +65,7 @@ import { AgentIcon } from '../icons';
 // PHASE 109. On a machine tab a greyed tile means that MACHINE does not have
 // the agent, and the aria label says so rather than claiming "not installed"
 // about a disk the session will never touch.
-import { agentNotOnMachineAria } from './machine-copy';
+import { agentNotOnMachineAria } from '../machines/presentation';
 import { ENTER_SUBMITS_ATTR } from './focus-trap';
 import './agent-grid.css';
 

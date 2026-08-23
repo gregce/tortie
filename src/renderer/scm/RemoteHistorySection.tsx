@@ -122,7 +122,7 @@ import {
   historyReading,
   historyRefsAreThatMachines,
   machineReadAt
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import { CommitGraph, CommitGraphSpacer, useLaneCap } from './graph/CommitGraph';
 import { capRow, gutterColumns, layoutGraph, makeRoleResolver } from './graph';
 import type { CappedRow, GraphLayout, GraphRow } from './graph';
@@ -144,7 +144,7 @@ import './remote-history.css';
  * rows to draw.
  *
  * Every mode except `ok` has exactly one sentence and it is written in
- * machine-copy.ts. This function is the whole mapping, so a mode that gains a
+ * presentation.ts. This function is the whole mapping, so a mode that gains a
  * sentence gains it in one place and the test reads the same table the group
  * draws from.
  */
@@ -363,7 +363,7 @@ export function RemoteHistoryPanel({
             <CommitGraphSpacer lanes={layout.tailLanes} columns={columns} />
             {/* The label does not change while a read is running. It is
                 disabled instead, so the one string a person reads on this
-                control is the one named in machine-copy.ts. */}
+                control is the one named in presentation.ts. */}
             {HISTORY_LOAD_MORE}
           </button>
         ) : layout.tailLanes.length > 0 ? (

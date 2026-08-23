@@ -7,7 +7,7 @@
 
 import type { OpenFileRequest } from '../state/open-file';
 import type { EditorTab } from './tab-types';
-import { reviewTabTooltip } from '../app/machine-copy';
+import { reviewTabTooltip } from '../machines/presentation';
 
 /**
  * The identity a request opens into: one tab per absolute path for the

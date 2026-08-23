@@ -13,7 +13,7 @@
 
 import React from 'react';
 import type { DetectedAgent } from '@shared/types';
-import { truncateMiddle, displayPath } from '../app/format';
+import { truncateMiddle, displayPath } from '../format';
 import { AgentIcon } from '../icons';
 import {
   installKindLine,

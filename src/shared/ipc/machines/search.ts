@@ -40,7 +40,7 @@ import type { SearchFileResult } from '../search';
 // bound this answer too. No new number is invented for any of the three.
 //
 // NO PROSE CROSSES THIS CHANNEL. Every sentence a person reads about a remote
-// search is drawn by the renderer from src/renderer/app/machine-copy.ts, where
+// search is drawn by the renderer from src/renderer/machines/presentation.ts, where
 // the vocabulary audit reads it. This answer carries a status word and counts.
 //
 // THERE IS NO STREAM, because there is nothing to stream. The far side has
@@ -116,7 +116,7 @@ export interface MachinesSearchInvokeChannelMap {
   // A folder that is not there, a pattern that machine's grep refused and a
   // machine that did not answer all come back as a status word. No prose
   // crosses this channel: the renderer draws every sentence from
-  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
   'machines:searchContent': {
     req: [input: MachineSearchInput];
     res: MachineSearchResult;

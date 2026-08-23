@@ -41,7 +41,7 @@
  * press while one is in flight is dropped.
  *
  * NO SENTENCE IS COMPOSED HERE. Every word a person reads about this answer is
- * a named export in src/renderer/app/machine-copy.ts, which is the file the
+ * a named export in src/renderer/machines/presentation.ts, which is the file the
  * vocabulary audit reads.
  */
 

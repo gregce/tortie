@@ -45,11 +45,14 @@ import { CLONE_GH_HINT, cloneFailureMessage } from '@shared/clone-copy';
 import { normalizeCloneUrl } from '@shared/clone-url';
 import type { NormalizedCloneUrl } from '@shared/clone-url';
 import { validateProjectName } from '@shared/project-create';
-import { CLONE_PHASE_WORDS, cloneCancelledNote } from '../app/clone-copy';
+import { CLONE_PHASE_WORDS, cloneCancelledNote } from './clone-copy';
 // The keyboard handoff and the "where does a new project go" guess are shared
-// with NewProjectModal.tsx — one definition each, extracted at the Phase 18.6
-// integration (research 35 §4.1).
-import { focusFleetPrimary } from '../app/focus-trap';
+// with NewProjectModal.tsx, being one definition each, extracted at the Phase
+// 18.6 integration (research 35 §4.1). PHASE 127. The handoff itself is
+// `focusFleetPrimary` in ../app/focus-trap.ts, and this store now reaches it
+// through the injection seam in ./shell-ops.ts, because the store may not
+// name the app shell that composes it.
+import { shellOps } from './shell-ops';
 import {
   errorPayload,
   errorText,
@@ -557,7 +560,7 @@ export const useClone = create<CloneState>((set, get) => {
       // Main already wrote the manifest row; this is the idempotent open that
       // lists the projects again and focuses the new tab.
       void useApp.getState().addProjectPath(path);
-      focusFleetPrimary();
+      shellOps().focusFleetPrimary();
     }
   };
 

@@ -46,6 +46,10 @@ import { killProcessGroup, trackGuardedChild } from '../proc/guarded';
 import { gmuxError, type GmuxError } from '../errors';
 
 import { getLog } from '../log';
+// Phase 127. The harness-launch predicate, which used to be typed out here
+// and again in src/main/index.ts with a different meaning. Both spellings now
+// live in one module, each named for what it decides.
+import { isHarnessLaunch } from '../harness/launch-gate';
 
 /**
  * Scope "tmux" (Phase 35). Every error and warning from this
@@ -1011,9 +1015,12 @@ export const TMUX_SOCKET = 'gmux';
  * no sessions listed, hours of agent work alive and unreachable. A normal
  * launch ignores the variable entirely, so that cannot happen.
  *
- * A HARNESS LAUNCH IS `GMUX_SMOKE`, `GMUX_SHOT` OR `GMUX_UPDATE_REHEARSAL`
- * (Phase 24). The first two terms match the definition `src/main/index.ts`
- * uses for the single-instance lock, and those two must keep matching. The
+ * A HARNESS LAUNCH IS `GMUX_SMOKE`, `GMUX_SHOT`, `GMUX_UPDATE_REHEARSAL`
+ * (Phase 24) or `GMUX_PROBES` (Phase 127). The definition now lives in
+ * `src/main/harness/launch-gate.ts` rather than being typed out here, and the
+ * fourth term arms the renderer's probe chunk for a person driving the dev app
+ * by hand. The first two terms match the definition `src/main/index.ts` uses
+ * for the single-instance lock, and those two must keep matching. The
  * definitions disagreed until Phase 22: this function honoured only
  * `GMUX_SMOKE`, so a shot-harness run that created a session put it on the
  * socket carrying the user's live work while printing that the override had
@@ -1038,10 +1045,7 @@ export function activeTmuxSocket(
 ): string {
   const want = (env['GMUX_TMUX_SOCKET'] ?? '').trim();
   if (want === '') return TMUX_SOCKET;
-  const harnessLaunch =
-    (env['GMUX_SMOKE'] ?? '') !== '' ||
-    (env['GMUX_SHOT'] ?? '') !== '' ||
-    (env['GMUX_UPDATE_REHEARSAL'] ?? '') !== '';
+  const harnessLaunch = isHarnessLaunch(env);
   if (!harnessLaunch) {
     tmuxLog.warn(
       'GMUX_TMUX_SOCKET is set but this is not a harness launch, so it is ignored.'

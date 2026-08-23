@@ -37,10 +37,10 @@ import {
   bareRestoreConfirm,
   pastRestoreNeedsAsk,
   resumeReadiness
-} from '../app/resume';
+} from './resume';
 // Every sentence about a machine comes from one file, which is the one the
 // vocabulary audit reads.
-import { remoteTabOpened } from '../app/machine-copy';
+import { remoteTabOpened } from '../machines/presentation';
 // PHASE 94. The label a person gave the tab's machine, for the one refusal
 // sentence below. It falls back to the machine's id when no row is held, so the
 // sentence never has a hole in it.

@@ -70,7 +70,7 @@ import {
   conversationCopyLine,
   savedOutputHeader,
   savedOutputHeaderLocal
-} from './machine-copy';
+} from '../machines/presentation';
 import './saved-output.css';
 
 export interface SavedOutputPanelProps {

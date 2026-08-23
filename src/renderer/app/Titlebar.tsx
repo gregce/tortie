@@ -57,7 +57,7 @@ import { effectiveStatusOf, useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { MachineBadge } from './MachineBadge';
 import { useGit } from '../state/git';
-import { truncateMiddle } from './format';
+import { truncateMiddle } from '../format';
 import { Codicon } from '../icons';
 import {
   armPointerDrag,

@@ -462,7 +462,7 @@ Four items in the session list still need work, and they are cheap.
 | 1 | Delete the worktree chip for a remote row. One line in `isOutsideProject` in `src/renderer/app/session-actions.tsx` | The function is `session.cwd !== session.projectPath && !session.cwd.startsWith(...)`. Under model A a remote row's `projectPath` becomes the far folder, so the chip stops firing for the ordinary case by itself. The explicit machine test still belongs there, so the chip can never mean two things |
 | 2 | Draw `MachineBadge` in the split surface | `src/renderer/app/split/SplitSurface.tsx` imports `isOutsideProject` and draws it at line 129, and it does not import `MachineBadge`. `MachineBadge` renders at 6 sites in 4 files, all under `src/renderer/app`, and the split surface is not one of them |
 | 3 | Guard Split Terminal on a remote session | `canSplit` in `src/renderer/terminal/terminal-menu.ts` has no machine test, and `quickCreate` in `src/renderer/state/sessions-slice.ts` composes a `createSession` call with no `machineId`, so main takes the local branch. Splitting a remote pane creates a local session beside it with no sentence saying so. This is the same shape as Phase 84 item 1, which guards Restart in a split leaf and does not mention Split Terminal |
-| 4 | Fix `displayPath` for a far path | `displayPath` in `src/renderer/app/format.ts` matches `/^\/Users\/[^/]+(\/.*)?$/` and replaces it with a tilde. It has 9 call sites, and 2 of them can receive a path on another machine. A second Mac's `/Users/them/proj` is drawn as `~/proj` |
+| 4 | Fix `displayPath` for a far path | `displayPath` in `src/renderer/format.ts` matches `/^\/Users\/[^/]+(\/.*)?$/` and replaces it with a tilde. It has 9 call sites, and 2 of them can receive a path on another machine. A second Mac's `/Users/them/proj` is drawn as `~/proj` |
 
 Add the four files to the 13 file list in `src/renderer/app/__tests__/machine-vocabulary.test.ts` in
 the same commit.
@@ -499,7 +499,7 @@ because focus no longer moves it. The two refused surfaces still carry their own
 refusal with no reason on it is worse than the label.
 
 It ships in the same commit as the per-tab refusal, it is written once in
-`src/renderer/app/machine-copy.ts` beside the 19 sentences already there, and it names the machine's
+`src/renderer/machines/presentation.ts` beside the 19 sentences already there, and it names the machine's
 own label rather than the word "remote".
 
 ---
@@ -548,7 +548,7 @@ nothing in `src/main/machines` counts.
 | 1 | Split Terminal on a remote session silently creates a local session in the same split | `canSplit` in `src/renderer/terminal/terminal-menu.ts` has no machine test. `quickCreate` in `src/renderer/state/sessions-slice.ts` sends no `machineId` |
 | 2 | The empty Directory field promise is kept by luck | `CREATE_DIR_EMPTY_HINT` promises the home directory. `createSession` in `src/main/sessions/core.ts` sends `cwd: input.cwd ?? input.projectPath`. Measured in section 1.3, tmux 3.7c on his Mac Pro accepts the absent path and starts in `/Users/gdc`, so the promise holds only while that folder is absent |
 | 3 | The split surface draws the worktree chip and no machine badge | `src/renderer/app/split/SplitSurface.tsx` line 129 |
-| 4 | `displayPath` rewrites another person's home path to a tilde | `src/renderer/app/format.ts`, 9 call sites, 2 reachable with a far path |
+| 4 | `displayPath` rewrites another person's home path to a tilde | `src/renderer/format.ts`, 9 call sites, 2 reachable with a far path |
 | 5 | Nothing counts calls in flight to one machine | `remote-run.ts` and `exec-plane.ts` hold no counter. Three modules keep private per-machine sets. The ceiling is 10 and it is unguarded |
 
 Defect 2 overlaps Phase 84, which already decided a read only pre-create check. Model A moves that

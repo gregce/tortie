@@ -21,7 +21,7 @@ import {
   resumeMarkLabel,
   resumeNote,
   resumeReadiness
-} from '../resume';
+} from '../../state/resume';
 
 /**
  * `Session.agent` is typed against the FROZEN three-value AgentKind while the

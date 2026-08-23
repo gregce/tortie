@@ -84,7 +84,7 @@ import {
   contextNotConnected,
   contextOnMachineLine,
   contextReadingOn
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import { machineLabelFor } from '../state/machines-slice';
 import { useApp } from '../state/store';
 import { openFileAt, requestOpenContext } from './open-detail';

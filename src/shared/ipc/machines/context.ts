@@ -119,7 +119,7 @@ export interface MachinesContextInvokeChannelMap {
   // a machine that did not say where its home folder is, and a machine that
   // did not answer all come back as a mode word. No prose crosses this
   // channel: the renderer draws every sentence from
-  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
   'machines:readContext': {
     req: [input: MachineContextInput];
     res: MachineContextResult;

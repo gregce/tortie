@@ -70,8 +70,8 @@ import {
   remoteReadAt,
   remoteStageOutsideRoot,
   remoteWritesNotConfirmed
-} from '../app/machine-copy';
-import type { RemoteCommitFacts } from '../app/machine-copy';
+} from '../machines/presentation';
+import type { RemoteCommitFacts } from '../machines/presentation';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import {

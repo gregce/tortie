@@ -169,7 +169,7 @@ things that cannot be compared. Here is what it actually produces, using the mec
 Case 1 is the default path through the create sheet. `CreateSessionModal.tsx` blanks the directory
 the moment a machine is chosen, in the machine `select`'s `onChange`, which runs
 `setCwd(next === 'local' ? (project?.path ?? '') : '')`. `CREATE_DIR_EMPTY_HINT` in
-`src/renderer/app/machine-copy.ts` then tells the person to leave it empty to start in their home
+`src/renderer/machines/presentation.ts` then tells the person to leave it empty to start in their home
 directory. They do, and `core.ts` substitutes the local project path, and `remoteCreateArgs` sends
 that as `-c`.
 
@@ -188,7 +188,7 @@ Neither needs a model change and neither is in an earlier document.
 
 ### 4.1 Another Mac's home directory is drawn as this Mac's
 
-`displayPath` in `src/renderer/app/format.ts` is four lines.
+`displayPath` in `src/renderer/format.ts` is four lines.
 
 ```
 const m = /^\/Users\/[^/]+(\/.*)?$/.exec(path);

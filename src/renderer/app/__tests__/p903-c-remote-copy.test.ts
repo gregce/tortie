@@ -136,7 +136,7 @@ import {
   runsReadingBranch,
   SYMBOLS_ELSEWHERE_BODY,
   symbolsElsewhereTitle
-} from '../machine-copy';
+} from '../../machines/presentation';
 
 const ROOT = resolve(import.meta.dirname, '../../../..');
 const L = 'Studio';
@@ -284,7 +284,7 @@ describe('Source Control', () => {
     // the two constants Phase 97 deleted. A constant that is renamed and left
     // behind under both names is how two surfaces come to say two things.
     const source = readFileSync(
-      resolve(ROOT, 'src/renderer/app/machine-copy.ts'),
+      resolve(ROOT, 'src/renderer/machines/presentation.ts'),
       'utf8'
     );
     // The old name survives in ONE place on purpose, being the comment above
@@ -304,7 +304,7 @@ describe('Source Control', () => {
     // This is the shape the `Files pair` describe at the foot of this file
     // already uses, which is how this file pins a deletion.
     for (const rel of [
-      'src/renderer/app/machine-copy.ts',
+      'src/renderer/machines/presentation.ts',
       'src/renderer/scm/ScmSection.tsx'
     ]) {
       const source = readFileSync(resolve(ROOT, rel), 'utf8');
@@ -382,7 +382,7 @@ describe('Quick Open on a folder that is on a machine (Phase 99)', () => {
 
   it('takes the pair Phase 99 made false out of the file', () => {
     const source = readFileSync(
-      resolve(ROOT, 'src/renderer/app/machine-copy.ts'),
+      resolve(ROOT, 'src/renderer/machines/presentation.ts'),
       'utf8'
     );
     expect(source).not.toContain('QUICK_OPEN_ELSEWHERE_BODY');
@@ -998,7 +998,7 @@ describe('the two sentences Phase 102 made false are gone', () => {
     // folder when it can now change what is under it, and the other said
     // Tortie cannot make a folder on that machine.
     const source = readFileSync(
-      resolve(ROOT, 'src/renderer/app/machine-copy.ts'),
+      resolve(ROOT, 'src/renderer/machines/presentation.ts'),
       'utf8'
     );
     expect(source).not.toContain('export function remoteTreeCanSave');
@@ -1011,7 +1011,7 @@ describe('the two sentences Phase 102 made false are gone', () => {
 describe('the Files pair Phase 90.1 shipped is gone', () => {
   it('is not exported any more, because the Explorer now lists rows', () => {
     const source = readFileSync(
-      resolve(ROOT, 'src/renderer/app/machine-copy.ts'),
+      resolve(ROOT, 'src/renderer/machines/presentation.ts'),
       'utf8'
     );
     expect(source).not.toContain('FILES_ELSEWHERE_BODY');

@@ -33,7 +33,7 @@ import React, {
 import type { GitBranchInfo, GitRemoteBranchInfo } from '@shared/types';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
-import { useNow } from '../app/format';
+import { useNow } from '../format';
 import { Codicon } from '../icons';
 import {
   depthRepoState,

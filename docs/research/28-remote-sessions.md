@@ -480,7 +480,7 @@ const { info } = outcome;
 status: 'running',
 ```
 
-`replayed` and `armedCommand` are computed, returned, and destructured out of existence. The session becomes `running`. Because a `resumeArgv` still exists on the record, the renderer's resume presentation model (`src/renderer/app/resume.ts`) continues to describe the session as one whose conversation recovers — when nothing was typed into the pane.
+`replayed` and `armedCommand` are computed, returned, and destructured out of existence. The session becomes `running`. Because a `resumeArgv` still exists on the record, the renderer's resume presentation model (`src/renderer/state/resume.ts`) continues to describe the session as one whose conversation recovers — when nothing was typed into the pane.
 
 This destroys no data. It destroys the only thing a recovery product sells, which is the accuracy of its own status.
 
@@ -1182,7 +1182,7 @@ Project evidence, read at `c726627` on 12 August 2026:
 - `src/main/agents/registry.ts` — per-agent session-store paths and `realpath(cwd)` keying
 - `src/main/index.ts` — `window-all-closed` → `app.quit()`; the `GMUX_SMOKE` harness family
 - `src/main/tray/` — the tray that already exists and is disposed on quit
-- `src/renderer/state/layout.ts`, `src/renderer/state/store.ts`, `src/renderer/app/resume.ts`
+- `src/renderer/state/layout.ts`, `src/renderer/state/store.ts`, `src/renderer/state/resume.ts`
 - `resources/gmux-tmux.conf` — `remain-on-exit failed`
 - `package.json` — `smoke:t1`, `smoke:t3`, `conformance:resume`, `conformance:resume:capture`
 

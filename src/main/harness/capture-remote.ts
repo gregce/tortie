@@ -95,7 +95,7 @@ const LABEL = 'Capture Probe';
  * IT IS WRITTEN OUT HERE, and that is not a second source of truth by
  * accident. Main cannot import renderer code, so the sentence cannot be shared
  * as a value. `src/renderer/app/__tests__/capture-on-a-machine.test.tsx` reads
- * BOTH this file and `machine-copy.ts` and fails when the two texts differ, so
+ * BOTH this file and `presentation.ts` and fails when the two texts differ, so
  * a reword in one place cannot leave the other behind.
  */
 function expectedCaption(label: string): string {

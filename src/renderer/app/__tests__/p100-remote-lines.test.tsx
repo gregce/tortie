@@ -93,7 +93,7 @@ vi.stubGlobal('document', {
 
 const { RemoteLinesDepths, RemoteLinesPanel, scrollToNewest, showsAllThere } =
   await import('../RemoteLinesModal');
-const copy = await import('../machine-copy');
+const copy = await import('../../machines/presentation');
 const { REMOTE_SESSION_LINE_DEPTHS, REMOTE_SESSION_LINES_BYTES_MAX } =
   await import('@shared/ipc');
 const { formatScrollbackBytes } = await import('@shared/scrollback');
@@ -556,7 +556,7 @@ describe('the two sentences Phase 100 made false', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('are no longer exported by machine-copy.ts', () => {
+  it('are no longer exported by presentation.ts', () => {
     const all = copy as unknown as Record<string, unknown>;
     expect(all.NO_SCROLLBACK_HERE).toBeUndefined();
     expect(all.NO_SCROLLBACK_HERE_TITLE).toBeUndefined();

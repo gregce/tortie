@@ -41,8 +41,8 @@ import {
 } from '@shared/workspace-target';
 import { useApp } from '../state/store';
 import { machineLabelFor } from '../state/machines-slice';
-import { displayPath } from './format';
-import { addRemoteRefusal } from './machine-copy';
+import { displayPath } from '../format';
+import { addRemoteRefusal } from '../machines/presentation';
 import {
   NO_SUCH_SESSION,
   cannotOpenOnMachine,

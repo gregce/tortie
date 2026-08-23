@@ -39,7 +39,7 @@ const ROOT = resolve(import.meta.dirname, '../../../..');
  * draw those sentences.
  */
 const FILES: readonly string[] = [
-  'src/renderer/app/machine-copy.ts',
+  'src/renderer/machines/presentation.ts',
   'src/renderer/app/MachineBadge.tsx',
   'src/renderer/app/CreateSessionModal.tsx',
   'src/renderer/app/session-actions.tsx',
@@ -68,11 +68,11 @@ const FILES: readonly string[] = [
   // Phase 90.3. The sheet that opens a folder on a machine as a project tab. It
   // is a new surface that says things about a machine, so it is audited like
   // the rest. Every sentence it draws is a named export in that file, which is
-  // where they live until they move to machine-copy.ts.
+  // where they live until they move to presentation.ts.
   'src/renderer/app/RemoteProjectModal.tsx',
   // Phase 92. The home screen. It now names a machine in two places, being the
   // action row that opens a folder on another machine and the quiet run of text
-  // after a recent project's path. Both come from machine-copy.ts, and the file
+  // after a recent project's path. Both come from presentation.ts, and the file
   // is on this list so a later round cannot type a sentence straight into the
   // screen without the audit reading it.
   'src/renderer/app/HomeScreen.tsx',
@@ -109,7 +109,7 @@ const FILES: readonly string[] = [
   // of its files now draw a sentence about one. `SearchView.tsx` draws the note
   // under the summary, `ResultsList.tsx` draws the states that mean no rows,
   // and `QueryBlock.tsx` draws the sentence on the three filters that do not go
-  // there. Every one of those sentences is a named export in machine-copy.ts,
+  // there. Every one of those sentences is a named export in presentation.ts,
   // which is the first file on this list. The three files are read as well, so
   // a later round cannot type a sentence straight into the view.
   'src/renderer/search/SearchView.tsx',
@@ -118,24 +118,24 @@ const FILES: readonly string[] = [
   // Phase 99. Quick Open ranks the file names in a folder on another machine,
   // and the palette draws a line above the rows saying which machine they came
   // from and when they were read. Every one of those sentences is a named
-  // export in machine-copy.ts, which is the first file on this list. The panel
+  // export in presentation.ts, which is the first file on this list. The panel
   // is read as well, so a later round cannot type a sentence straight into it.
   'src/renderer/quickopen/QuickOpenPalette.tsx',
   // Phase 100. The panel that reads the last lines of a session on another
   // machine. It draws a machine's label, an instant, a count and a size, and it
   // draws the sentence for each of the three answers that mean no lines. Every
-  // one of those is a named export in machine-copy.ts, which is the first file
+  // one of those is a named export in presentation.ts, which is the first file
   // on this list. The panel is read as well, so a later round cannot type a
   // sentence straight into it.
   'src/renderer/app/RemoteLinesModal.tsx',
   // Phase 100. The session menu draws the item that opens that panel. Its label
-  // is composed in machine-copy.ts and the file is read here so it stays that
+  // is composed in presentation.ts and the file is read here so it stays that
   // way.
   'src/renderer/terminal/terminal-menu.ts',
   // Phase 105. The Runs group for a folder on another machine, being the store
   // that holds one answer per folder and the section that draws it. Between
   // them they name a machine, a branch, a commit and an instant. Every sentence
-  // they draw is a named export in machine-copy.ts, which is the first file on
+  // they draw is a named export in presentation.ts, which is the first file on
   // this list. Both are read as well, so a later round cannot type a sentence
   // straight into the section.
   'src/renderer/scm/remote-runs.ts',
@@ -144,7 +144,7 @@ const FILES: readonly string[] = [
   // store that holds one answer per folder and the section that draws it.
   // Between them they name a machine, a branch, a second branch it follows, a
   // commit, two counts and an instant. Every sentence they draw is a named
-  // export in machine-copy.ts, which is the first file on this list. Both are
+  // export in presentation.ts, which is the first file on this list. Both are
   // read as well, so a later round cannot type a sentence straight into the
   // group.
   'src/renderer/scm/remote-branch.ts',
@@ -152,7 +152,7 @@ const FILES: readonly string[] = [
   // Phase 107. The History group for a folder on another machine, being the
   // store that holds one page per folder and the section that draws it.
   // Between them they name a machine, a commit, an author, a branch mark and an
-  // instant. Every sentence they draw is a named export in machine-copy.ts,
+  // instant. Every sentence they draw is a named export in presentation.ts,
   // which is the first file on this list. Both are read as well, so a later
   // round cannot type a sentence straight into the group.
   'src/renderer/scm/remote-history.ts',
@@ -160,7 +160,7 @@ const FILES: readonly string[] = [
   // Phase 108. The Context view reads what agents will load in a folder on
   // another machine, being the body that draws the states and the notes, and
   // the band whose Refresh tooltip names the machine. Every sentence they
-  // draw is a named export in machine-copy.ts, which is the first file on
+  // draw is a named export in presentation.ts, which is the first file on
   // this list. Both are read as well, so a later round cannot type a sentence
   // straight into the view.
   'src/renderer/context/ContextView.tsx',
@@ -169,7 +169,7 @@ const FILES: readonly string[] = [
   // about a machine: the board composes a greyed tile's aria label naming the
   // machine, the empty state draws the one no-command sentence for a missing
   // agent over there, and the quick create menu greys its rows on that
-  // machine's answer. Every sentence is a named export in machine-copy.ts,
+  // machine's answer. Every sentence is a named export in presentation.ts,
   // which is the first file on this list. The three files are read as well,
   // so a later round cannot type a sentence straight into them.
   'src/renderer/app/AgentGrid.tsx',

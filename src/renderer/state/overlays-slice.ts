@@ -5,15 +5,16 @@
  */
 
 import type { StateCreator } from 'zustand';
-import { showNativeMenu } from '../app/ContextMenu';
-import type { MenuSpec } from '../app/ContextMenu';
-import { cancelPointerDrag } from '../app/split/pointer-drag';
+import type { MenuSpec } from '../menus/spec';
 import type { AppState } from './app-state';
+import { shellOps } from './shell-ops';
 
 // The menu vocabulary moved to ../app/ContextMenu with the bridge that
-// consumes it (Phase 42 stage 8). Re-exported here so ./store.ts and every
-// site importing from it keep their existing names.
-export type { MenuItemSpec, MenuSpec } from '../app/ContextMenu';
+// consumes it (Phase 42 stage 8), and Phase 127 moved it one step lower to
+// ../menus/spec, because the store may not name the app shell. Re-exported
+// here so ./store.ts and every site importing from it keep their existing
+// names.
+export type { MenuItemSpec, MenuSpec } from '../menus/spec';
 
 export interface ConfirmSpec {
   title: string;
@@ -96,16 +97,21 @@ export const createOverlaysSlice: StateCreator<
     // grab, so the pointerup that would have torn that drag down never
     // arrives. Cancel here and no surface can be left tracking the pointer
     // underneath an open menu.
+    //
+    // PHASE 127. Both calls go through ./shell-ops.ts. The two operations
+    // belong to the app shell, the shell composes this store, and the store
+    // may not name what composes it. The order is unchanged: revoke the
+    // drag, then draw the menu.
     if (menu !== null) {
-      cancelPointerDrag();
-      showNativeMenu(menu);
+      shellOps().cancelPointerDrag();
+      shellOps().showNativeMenu(menu);
     }
   },
 
   setRenaming(sessionId) {
     // Belt and braces for any path that arms a drag before a rename starts
     // — the rename box must never be fought by a row tracking the pointer.
-    if (sessionId !== null) cancelPointerDrag();
+    if (sessionId !== null) shellOps().cancelPointerDrag();
     set({ renamingSessionId: sessionId });
   }
 });

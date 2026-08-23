@@ -45,7 +45,7 @@ vi.hoisted(() => {
 import {
   MACHINE_NOT_SIGNED_IN_HINT,
   machineNotSignedInOption
-} from '../machine-copy';
+} from '../../machines/presentation';
 import { anyMachineNotReady, MachineOptions } from '../CreateSessionModal';
 
 /** A confirmed row with quiet defaults, overridden per case. */

@@ -243,7 +243,7 @@ export interface MachineIndexWriteResult {
    * What that machine's git printed on the first command that failed, decoded.
    * Null otherwise. IT IS LOGGED AND NEVER DRAWN, because it is that machine's
    * prose rather than Tortie's, and every sentence a person reads about a
-   * machine is composed in src/renderer/app/machine-copy.ts.
+   * machine is composed in src/renderer/machines/presentation.ts.
    */
   readonly machineSaid: string | null;
   /** The review read main ran before composing, in ms. */
@@ -832,7 +832,7 @@ export interface MachinesScmInvokeChannelMap {
   // no GitHub address, a detached head, a machine that did not answer and a
   // machine Tortie is not signed in to all come back as a mode word. No prose
   // crosses this channel: the renderer draws every sentence from
-  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
   'machines:readRuns': {
     req: [input: MachineRunsInput];
     res: MachineRunsResult;
@@ -861,7 +861,7 @@ export interface MachinesScmInvokeChannelMap {
   // git too old to answer, a machine that did not answer and a machine Tortie is
   // not signed in to all come back as a mode word. No prose crosses this
   // channel: the renderer draws every sentence from
-  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
   'machines:readBranch': {
     req: [input: MachineBranchInput];
     res: MachineBranchResult;
@@ -889,7 +889,7 @@ export interface MachinesScmInvokeChannelMap {
   // A folder that is not there, a folder git does not track, a repository with
   // no commits, a machine that did not answer and a machine Tortie is not
   // signed in to all come back as a mode word. No prose crosses this channel:
-  // the renderer draws every sentence from src/renderer/app/machine-copy.ts,
+  // the renderer draws every sentence from src/renderer/machines/presentation.ts,
   // where the vocabulary audit reads it.
   'machines:readHistory': {
     req: [input: MachineHistoryInput];

@@ -32,7 +32,7 @@ import type { MenuItemSpec } from '../state/store';
 import { useLayout } from '../state/layout';
 import type { Surface } from '../state/layout';
 import { rollupDot, statusVisual } from './status';
-import { useNow } from './format';
+import { useNow } from '../format';
 import {
   ReadLastLinesButton,
   RenameInput,

@@ -14,7 +14,7 @@
  *   mark, draws its path with no `~`, and its label carries no fill, no border
  *   and no colour of its own.
  * - A click on such a row asks that machine, and a refusal becomes the sentence
- *   machine-copy.ts writes for that reason word.
+ *   presentation.ts writes for that reason word.
  * - A local row behaves exactly as it did before, including handing over the
  *   picker when the folder is gone.
  *
@@ -76,7 +76,7 @@ const {
   recentRowTitle
 } = await import('../HomeScreen');
 const { confirmedMachines } = await import('../../state/machines-slice');
-const { addRemoteRefusal } = await import('../machine-copy');
+const { addRemoteRefusal } = await import('../../machines/presentation');
 
 // ---------------------------------------------------------------------------
 // Fixtures

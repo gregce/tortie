@@ -78,7 +78,7 @@ import { confirmedMachines, machineLabelFor } from '../state/machines-slice';
 // existence check all live behind that module.
 import { useHomeRecents, useRecents } from '../state/recents';
 import type { HomeRecentRow } from '../state/recents';
-import { displayPath, parentDir, truncateMiddle } from './format';
+import { displayPath, parentDir, truncateMiddle } from '../format';
 // Every sentence this screen says about a machine comes from the one file the
 // vocabulary audit reads, including the refusal a click can produce.
 import {
@@ -87,7 +87,7 @@ import {
   OPEN_ON_MACHINE_SUBTITLE,
   openOnMachineTitle,
   remoteRecentTooltip
-} from './machine-copy';
+} from '../machines/presentation';
 // Phase 62.1. The one line that mirrors the update ring's state, because
 // this screen has no activity bar and a manual check started here was
 // silent. It is text only and its slot is reserved, so nothing shifts.
@@ -274,7 +274,7 @@ export interface OpenRecentInput {
  *
  * A local row keeps exactly what it did before, including handing over the
  * picker when the folder is gone. A row on another machine asks that machine,
- * and a refusal becomes the sentence machine-copy.ts already writes for that
+ * and a refusal becomes the sentence presentation.ts already writes for that
  * reason word. It cannot hang: main's own add checks the link first and answers
  * `notConnected` without contacting anything when the machine is not signed in.
  */

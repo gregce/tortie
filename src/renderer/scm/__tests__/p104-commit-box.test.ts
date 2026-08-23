@@ -52,8 +52,8 @@ import {
   remoteCommitNotConnected,
   remoteCommitStanding,
   remoteWritesNotConfirmed
-} from '../../app/machine-copy';
-import type { RemoteCommitFacts } from '../../app/machine-copy';
+} from '../../machines/presentation';
+import type { RemoteCommitFacts } from '../../machines/presentation';
 
 const reviewFiles = vi.fn();
 const stage = vi.fn();

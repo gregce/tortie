@@ -92,7 +92,7 @@ import {
   branchTrackUnreadable,
   branchUpstreamGone,
   machineReadAt
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import {
   machineAnsweredBranch,
   remoteBranchAvailable,
@@ -108,7 +108,7 @@ import './remote-branch.css';
  * facts to draw.
  *
  * Every mode except `ok` has exactly one sentence and it is written in
- * machine-copy.ts. This function is the whole mapping, so a mode that gains a
+ * presentation.ts. This function is the whole mapping, so a mode that gains a
  * sentence gains it in one place and the test reads the same table the group
  * draws from.
  */

@@ -22,7 +22,7 @@ import { errorText, useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
 import { statusVisual } from './status';
 import type { StatusVisual } from './status';
-import { displayPath, formatAge } from './format';
+import { displayPath, formatAge } from '../format';
 import {
   BARE_RESTART_LABEL,
   BARE_RESTART_SUBLABEL,
@@ -33,7 +33,7 @@ import {
   resumeMarkLabel,
   resumeNote,
   resumeReadiness
-} from './resume';
+} from '../state/resume';
 import { Codicon } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import {
@@ -50,7 +50,7 @@ import {
   reviewListTitle,
   reviewNotAnsweringSublabel,
   reviewUntrackedTitle
-} from './machine-copy';
+} from '../machines/presentation';
 import { gmuxBridge } from '../bridge';
 
 /**
@@ -432,7 +432,7 @@ function openReviewTab(
  *
  * A list with nothing in it, and a list main could not read, both end as one
  * sentence composed IN MAIN. This file never writes a sentence about what a
- * machine did or did not do, for the reason `./machine-copy.ts` states: the
+ * machine did or did not do, for the reason `../machines/presentation.ts` states: the
  * vocabulary audit reads one file.
  */
 async function openRemoteReview(

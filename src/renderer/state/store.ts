@@ -38,7 +38,7 @@ import type { InstalledGmuxApi } from '@shared/ipc';
 import { gmuxBridge } from '../bridge';
 // A pure string helper with no imports of its own, so this does not close a
 // cycle back through the shell.
-import { parentDir } from '../app/format';
+import { parentDir } from '../format';
 import type { AppState } from './app-state';
 import {
   chromeGeometryOf,

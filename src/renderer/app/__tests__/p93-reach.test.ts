@@ -37,7 +37,7 @@ import {
   folderRefused,
   tabOpenedForSession
 } from '../reach-copy';
-import { addRemoteRefusal } from '../machine-copy';
+import { addRemoteRefusal } from '../../machines/presentation';
 
 const HERE = '/Users/gdc/scratch-93';
 const SHOWN_HERE = '~/scratch-93';

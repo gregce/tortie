@@ -2,7 +2,7 @@
  * Phase 85 — the sentence a remote row's dot carries.
  *
  * WHAT THIS PHASE CHANGED IN THE RENDERER. One new sentence in
- * ../machine-copy.ts, and one branch in `sessionTooltip` that draws it. Before
+ * ../../machines/presentation.ts, and one branch in `sessionTooltip` that draws it. Before
  * this phase a session on another machine had no second tooltip line at all,
  * because the line a session on this Mac uses says what a restart brings back
  * and Tortie refused to restart a remote session. The dot on that row was read
@@ -50,7 +50,7 @@ vi.stubGlobal('document', {
 });
 
 const { sessionTooltip } = await import('../session-actions');
-const { remoteStatusNote } = await import('../machine-copy');
+const { remoteStatusNote } = await import('../../machines/presentation');
 
 /** A machine that is answering, which is the case the note is drawn for. */
 const STUDIO: SessionMachine = {

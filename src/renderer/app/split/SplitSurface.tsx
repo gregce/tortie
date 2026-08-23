@@ -40,7 +40,7 @@ import {
   resumeNote,
   resumeReadiness,
   SHELL_PATH_PENDING_TITLE
-} from '../resume';
+} from '../../state/resume';
 import { AgentIcon, Codicon } from '../../icons';
 import { armPointerDrag, isSecondaryPress } from './pointer-drag';
 import { pressSelectsLeafNow } from './leaf-press';

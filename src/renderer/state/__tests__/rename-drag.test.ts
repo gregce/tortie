@@ -59,9 +59,22 @@ installGlobals();
 const { armPointerDrag, isDragActive } = await import(
   '../../app/split/pointer-drag'
 );
+const { installAppShellOps } = await import('../../app/shell-ops-install');
 const { useApp } = await import('../store');
 
-beforeEach(installGlobals);
+// PHASE 127. The store no longer imports the drag engine or the menu helper,
+// because the store may not name the app shell that composes it. It calls
+// both through the seam in ../shell-ops.ts, and src/renderer/main.tsx fills
+// that seam once before the first render. This test fills it the same way, so
+// what it drives is the shipped pair rather than a stand-in. Filling it with
+// the two real functions by hand would be a second composition, and a second
+// composition is how a test starts passing against something the product does
+// not do.
+
+beforeEach(() => {
+  installGlobals();
+  installAppShellOps();
+});
 
 /** Press a row, then travel far enough that the drag is genuinely armed. */
 function armRealDrag(): { onEnd: ReturnType<typeof vi.fn> } {

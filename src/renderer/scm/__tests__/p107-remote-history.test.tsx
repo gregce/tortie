@@ -96,7 +96,7 @@ const {
   remoteHistoryAvailable,
   useRemoteHistory
 } = await import('../remote-history');
-const copy = await import('../../app/machine-copy');
+const copy = await import('../../machines/presentation');
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -480,7 +480,7 @@ describe('the store asks once, and only when it is asked to', () => {
 // The seven modes, each with its own sentence
 // ---------------------------------------------------------------------------
 
-describe('every mode says its own sentence, and it comes from machine-copy', () => {
+describe('every mode says its own sentence, and it comes from machines/presentation', () => {
   const table: [MachineHistoryMode, string | null][] = [
     ['ok', null],
     ['noCommits', copy.historyNoCommits(L)],

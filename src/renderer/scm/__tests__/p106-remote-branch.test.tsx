@@ -84,7 +84,7 @@ const { RemoteBranchPanel, branchFollowSentence, branchModeSentence } =
   await import('../RemoteBranchSection');
 const { machineAnsweredBranch, remoteBranchAvailable, useRemoteBranch } =
   await import('../remote-branch');
-const copy = await import('../../app/machine-copy');
+const copy = await import('../../machines/presentation');
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -326,7 +326,7 @@ describe('the store asks once, and only when it is asked to', () => {
 // The eight modes, each with its own sentence
 // ---------------------------------------------------------------------------
 
-describe('every mode says its own sentence, and it comes from machine-copy', () => {
+describe('every mode says its own sentence, and it comes from machines/presentation', () => {
   const table: [MachineBranchMode, string | null][] = [
     ['ok', null],
     ['noBranch', copy.branchNone(L)],

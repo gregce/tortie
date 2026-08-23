@@ -23,7 +23,7 @@
  */
 
 import type { Session } from '@shared/types';
-import { agentShortLabel } from '../state/agents';
+import { agentShortLabel } from './agents';
 
 /**
  * What this session brings back, as of now.

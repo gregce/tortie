@@ -11,7 +11,7 @@
 import type { Session } from '@shared/types';
 import type { MenuItemSpec } from '../../state/store';
 import { useApp } from '../../state/store';
-import { resumeReadiness } from '../resume';
+import { resumeReadiness } from '../../state/resume';
 import { useLayout } from '../../state/layout';
 import type { Surface } from '../../state/layout';
 import { MAX_LEAVES } from '../../state/split-tree';

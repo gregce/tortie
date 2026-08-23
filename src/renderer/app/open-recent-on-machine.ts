@@ -13,13 +13,13 @@
  * site is one line and the test needs no store at all.
  *
  * IT WRITES NO SENTENCE OF ITS OWN. Every refusal a click here can produce is
- * already written in ./machine-copy.ts, which is the one file the vocabulary
+ * already written in ../machines/presentation.ts, which is the one file the vocabulary
  * audit reads.
  */
 
 import type { AddRemoteProjectResult, MachineStateView } from '@shared/ipc';
 import { machineLabelFor } from '../state/machines-slice';
-import { addRemoteRefusal } from './machine-copy';
+import { addRemoteRefusal } from '../machines/presentation';
 
 /** What opening a remote recent row needs. The app store already provides it. */
 export interface RecentOnMachineDeps {

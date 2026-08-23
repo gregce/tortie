@@ -8,39 +8,20 @@
  * environments) the request is a silent no-op.
  */
 
-import type { PopupMenuIcon, PopupMenuInput } from '@shared/ipc';
+import type { PopupMenuInput } from '@shared/ipc';
+import type { MenuItemSpec, MenuSpec } from '../menus/spec';
 import { gmuxBridge } from '../bridge';
 
 /**
- * The menu vocabulary lives HERE, with the bridge that consumes it (Phase 42
- * stage 8). It lived in the app store, which made this module import the
- * store while the store's overlays slice imported `showNativeMenu` back — a
- * production import cycle. The store re-exports both types, so every site
- * that imports these names from the state store still works.
+ * The menu vocabulary lives in src/renderer/menus/spec.ts (Phase 127). It
+ * lived in the app store, which made this module import the store while the
+ * store's overlays slice imported `showNativeMenu` back, being a production
+ * import cycle. Phase 42 stage 8 moved it here, beside the bridge that
+ * consumes it. Phase 127 moved it one step lower, because the store names
+ * `MenuSpec` in the type of `setMenu` and the store may not name the app
+ * shell. The store still re-exports both names, so every site that imports
+ * them from the state store is unchanged.
  */
-export interface MenuItemSpec {
-  label: string;
-  hint?: string;
-  /** Grey second line under the label — prose the hint slot cannot carry. */
-  sublabel?: string;
-  /** Leading icon; see src/renderer/icons/agent-menu-icon.ts. */
-  icon?: PopupMenuIcon;
-  destructive?: boolean;
-  disabled?: boolean;
-  /**
-   * Nested items (Phase 39, the explorer's Open With). An item that carries
-   * a submenu never fires its own `run`, so give it one that does nothing.
-   * Optional, so every existing menu site is unchanged.
-   */
-  submenu?: (MenuItemSpec | 'sep')[];
-  run: () => void;
-}
-
-export interface MenuSpec {
-  x: number;
-  y: number;
-  items: (MenuItemSpec | 'sep')[];
-}
 
 /**
  * One level of the item array → the bridge's wire shape.

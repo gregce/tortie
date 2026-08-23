@@ -73,7 +73,7 @@ import {
   REMOTE_BAND_BODY,
   remoteBandTitle,
   remoteTreeReadOnly
-} from './machine-copy';
+} from '../machines/presentation';
 import './machine-band.css';
 
 /**

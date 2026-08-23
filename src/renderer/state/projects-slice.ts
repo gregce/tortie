@@ -16,11 +16,11 @@ import { isLocalTarget, targetOfProject } from '@shared/workspace-target';
 import { machineLabelFor } from './machines-slice';
 // Every sentence about a machine comes from one file, which is the one the
 // vocabulary audit reads.
-import type { AddRemoteRefusalReason } from '../app/machine-copy';
+import type { AddRemoteRefusalReason } from '../machines/presentation';
 import {
   remoteTabCloseBody,
   remoteTabCloseTitle
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import { errorPayload, errorText } from './errors';
 import { loadLocal, saveLocal } from './local';
 import type { AppState } from './app-state';
@@ -84,7 +84,8 @@ export interface ProjectsSlice {
    *
    * It lives on this slice rather than on the overlays slice because it is a
    * project verb and its whole state is one boolean. The Escape handling in
-   * ../app/App.tsx reads it beside the other sheets.
+   * ../app/keyboard.ts reads it beside the other sheets. That was
+   * ../app/App.tsx until Phase 127 cut the keyboard controller out.
    */
   remoteProjectOpen: boolean;
   setRemoteProjectOpen(open: boolean): void;

@@ -55,7 +55,7 @@ import type {
   TailscaleSourceResult
 } from '@shared/ipc';
 import { MACHINE_COLORS } from '@shared/machines';
-import { formatAge, useNow } from '../app/format';
+import { formatAge, useNow } from '../format';
 import { Codicon } from '../icons';
 import { ConnectionTestView } from './ConnectionTestView';
 import { CopyButton } from './CopyButton';

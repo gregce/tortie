@@ -56,13 +56,13 @@ import {
   openRemoteFolderLabel,
   openRemoteHonesty,
   remoteProjectAlreadyOpen
-} from './machine-copy';
+} from '../machines/presentation';
 import { modalKeyDown } from './focus-trap';
 
 /**
  * The three words this sheet needs that are not about a machine.
  *
- * Every sentence that names a machine comes from `./machine-copy.ts`, which is
+ * Every sentence that names a machine comes from `../machines/presentation.ts`, which is
  * where the vocabulary audit reads them. These three label a button and a state
  * of this sheet and say nothing about any computer, so they stay beside the
  * buttons they label.

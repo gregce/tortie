@@ -102,7 +102,7 @@ const wait = (ms: number): Promise<void> =>
 
 /**
  * The three sentences, matched on a distinctive fragment rather than the whole
- * string. The whole string is in machine-copy.ts and a unit test pins it there.
+ * string. The whole string is in presentation.ts and a unit test pins it there.
  * This reading only has to answer whether the words are on screen.
  *
  * PHASE 98 MOVED THE SEARCH MARK. It read "Tortie searches files on this Mac
@@ -111,7 +111,7 @@ const wait = (ms: number): Promise<void> =>
  * folder on a machine now, so the mark named a sentence no build draws. What
  * the injected tab reaches instead is a machine main has never heard of, and
  * the panel says so. The fragment is the tail of `searchNotConnected` in
- * machine-copy.ts and it appears in no other sentence in this renderer.
+ * presentation.ts and it appears in no other sentence in this renderer.
  *
  * THE EXPLORER MARK IS STALE TOO and this phase leaves it alone rather than
  * quietly widening its own edit. Phase 90.3 changed that second line to
@@ -124,7 +124,7 @@ const wait = (ms: number): Promise<void> =>
  * deleted that refusal, because the Context view reads a project on a machine
  * now. What the injected tab reaches instead is a machine main has never
  * heard of, and the panel says so. The fragment is the tail of
- * `contextNotConnected` in machine-copy.ts, and it appears in no other
+ * `contextNotConnected` in presentation.ts, and it appears in no other
  * sentence in this renderer: the search sentence ends "searched nothing" and
  * this one ends "read nothing".
  */

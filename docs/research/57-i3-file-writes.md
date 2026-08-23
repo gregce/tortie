@@ -82,7 +82,7 @@ Other current facts that bound this question.
 
 The renderer refuses a remote save today and says so out loud. `save` in
 `src/renderer/editor/tab-io.ts` returns false for any tab with `remote !== undefined` and
-raises `remoteSaveRefused` from `src/renderer/app/machine-copy.ts`. The tree's context
+raises `remoteSaveRefused` from `src/renderer/machines/presentation.ts`. The tree's context
 menu drops New File, New Folder, Rename, Duplicate and Move to Trash for a remote row,
 and `TreeMenuCapabilities.readOnlyNote` in `src/renderer/tree/tree-menu.ts` carries the
 reason for each in its own comment.
@@ -543,7 +543,7 @@ commit body rather than only here.
 - `src/renderer/tree/tree-menu.ts`, because the tree's context menu is native through
   `ui:popupMenu` and its `readOnlyNote` comment currently states why four verbs are
   absent. A phase that lands three of them updates that comment in the same commit.
-- `src/renderer/app/machine-copy.ts`, because every sentence the renderer says about a
+- `src/renderer/machines/presentation.ts`, because every sentence the renderer says about a
   machine lives there, and `remoteSaveRefused` and `remoteFileChip` both become wrong the
   day a save works.
 

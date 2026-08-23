@@ -477,8 +477,10 @@ function lastSegment(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
 }
 
-/** Home-relative display form, duplicated from app/format's displayPath so
- *  this module keeps zero imports from the component layer. */
+/** Home-relative display form, duplicated from `displayPath` in
+ *  ../format.ts so this module keeps zero imports from the component layer.
+ *  That file was src/renderer/app/format.ts until Phase 127 moved it down to
+ *  a top-level leaf, which is the shape ../bridge.ts already uses. */
 function homePath(path: string): string {
   const m = /^\/Users\/[^/]+(\/.*)?$/.exec(path);
   return m !== null ? `~${m[1] ?? ''}` : path;

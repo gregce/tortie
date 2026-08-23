@@ -75,7 +75,7 @@ import {
   MACHINE_NOT_SIGNED_IN_HINT,
   machineNotSignedInOption,
   THIS_MAC
-} from './machine-copy';
+} from '../machines/presentation';
 import { RemoteDirPicker } from './RemoteDirPicker';
 import {
   sameTarget,

@@ -68,16 +68,23 @@ vi.mock('../open-file', () => ({
   requestOpenFile: (req: OpenFileRequest) => requestOpenFile(req)
 }));
 
-// The dynamic import inside the delivery resolves to this mock, so the
-// test proves init() is called before the emit without loading Monaco.
+// PHASE 127. The delivery used to reach the editor store through a dynamic
+// import, and the mock below stood in for it. The state layer may now name
+// neither the app shell nor the editor, so the call goes through the seam in
+// ../shell-ops.ts. The test installs a stand-in for that one operation, which
+// is what src/renderer/app/shell-ops-install.ts fills with the editor store's
+// own init. The journal shape is unchanged, so this still proves the
+// subscription happens BEFORE the emit, and it still loads no Monaco.
 const editorInit = vi.fn(() => {
   journal.push('editor.init');
 });
-vi.mock('../../editor/store', () => ({
-  useEditor: {
-    getState: () => ({ init: editorInit })
-  }
-}));
+const { installShellOps } = await import('../shell-ops');
+installShellOps({
+  showNativeMenu() {},
+  cancelPointerDrag() {},
+  focusFleetPrimary() {},
+  ensureEditorSubscribed: editorInit
+});
 
 vi.stubGlobal('window', {
   get gmux() {

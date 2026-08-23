@@ -55,7 +55,7 @@ import type {
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { useGit } from '../state/git';
-import { useNow } from '../app/format';
+import { useNow } from '../format';
 import { Codicon } from '../icons';
 import {
   depthRepoState,

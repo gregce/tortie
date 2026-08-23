@@ -58,7 +58,7 @@ vi.stubGlobal('document', {
 
 const { useEditor } = await import('../store');
 const { useApp } = await import('../../state/store');
-const copy = await import('../../app/machine-copy');
+const copy = await import('../../machines/presentation');
 type OpenFileRequest = import('../../state/open-file').OpenFileRequest;
 type MachineStateView = import('@shared/ipc').MachineStateView;
 

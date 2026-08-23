@@ -31,7 +31,7 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import { useNow } from '../app/format';
+import { useNow } from '../format';
 import { Codicon } from '../icons';
 import { depthRepoState, useGitDepth } from './depth';
 import { usePersistedBool } from './sections';

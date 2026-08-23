@@ -26,7 +26,7 @@ import { useApp } from '../state/store';
 import { machineLabelFor } from '../state/machines-slice';
 import type { MenuItemSpec } from '../state/store';
 import { gitErrorLine, repoState, useGit } from '../state/git';
-import { displayPath, useNow } from '../app/format';
+import { displayPath, useNow } from '../format';
 import { Codicon } from '../icons';
 import { depthRepoState, hasGitDepth, hasGitSync, useGitDepth } from './depth';
 import { shortenRemoteUrl } from './format';
@@ -37,7 +37,7 @@ import {
   honestSyncTooltip
 } from './freshness';
 import { remoteChangesOf, useRemoteChanges } from './remote-changes';
-import { readClockTime, remoteReadAt } from '../app/machine-copy';
+import { readClockTime, remoteReadAt } from '../machines/presentation';
 import { requestManageBranches } from './manage-branches';
 import { MiniModal } from './MiniModal';
 import type { MiniModalSpec } from './MiniModal';

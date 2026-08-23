@@ -32,7 +32,7 @@ which is also what `MACHINE_NOT_SIGNED_IN_HINT` already does for the machine fie
 ## 1. The Phase 84 item 8 pattern, stated as four rules
 
 Read from `machineNotSignedInOption` and `MACHINE_NOT_SIGNED_IN_HINT` in
-`src/renderer/app/machine-copy.ts`, and from `MachineOptions` and `anyMachineNotReady` in
+`src/renderer/machines/presentation.ts`, and from `MachineOptions` and `anyMachineNotReady` in
 `src/renderer/app/CreateSessionModal.tsx`.
 
 | # | The rule | Where it is written today |
@@ -184,7 +184,7 @@ third state must have words, and gives them.
 
 ## 6. The exact words
 
-Every string below is a named export in `src/renderer/app/machine-copy.ts`, which is the rule the tree
+Every string below is a named export in `src/renderer/machines/presentation.ts`, which is the rule the tree
 already follows and the reason the vocabulary audit can read one file. `AgentGrid.tsx`, `EmptyStates.tsx`
 and `new-session-menu.ts` must be **added to the `FILES` list** in
 `src/renderer/app/__tests__/machine-vocabulary.test.ts` in the same commit, because each of them will

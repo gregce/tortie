@@ -79,7 +79,7 @@ const { ReadLastLinesButton, showsReadLastLines } = await import(
   '../session-actions'
 );
 const { READ_LAST_LINES_HERE, READ_LAST_LINES_HERE_TITLE } = await import(
-  '../machine-copy'
+  '../../machines/presentation'
 );
 const { useApp } = await import('../../state/store');
 
@@ -219,9 +219,9 @@ describe('pressing the button opens the panel', () => {
   });
 });
 
-describe('the words live in machine-copy.ts', () => {
+describe('the words live in presentation.ts', () => {
   it('is what lets the vocabulary audit read them', () => {
-    // machine-vocabulary.test.ts already reads machine-copy.ts,
+    // machine-vocabulary.test.ts already reads presentation.ts,
     // session-actions.tsx, SessionStrip.tsx and TerminalRegion.tsx, so its word
     // list does not change for this phase. What has to stay true is that the
     // sentence is composed there and not typed into a component.

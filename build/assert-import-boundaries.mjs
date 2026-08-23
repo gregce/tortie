@@ -3,6 +3,7 @@
  * Phase 42 stage 7: the forbidden-import check.
  * Phase 124: the platform rule, and the fixtures that prove it.
  * Phase 125: the facade rule, and the seven fixtures that prove it.
+ * Phase 127: the directory wall, and the ten fixtures that prove it.
  *
  * The five TypeScript projects (tsconfig.shared.json, tsconfig.main.json,
  * tsconfig.preload.json, tsconfig.web.json for production, and
@@ -43,6 +44,23 @@
  * here, and src/main/actions/index.ts already states the same house
  * convention, that a directory's private files are imported directly by its
  * tests.
+ *
+ * One directory may not name two others (Phase 127). src/renderer/state may
+ * not name src/renderer/app or src/renderer/editor. The store is COMPOSED BY
+ * the app shell and the editor, so it may not name either of them. Facts and
+ * sentences about the data the store holds belong at or below the store, which
+ * is why Phase 127 moved the machine vocabulary, resume readiness, the format
+ * helpers, the clone words and the menu types down. An operation on the shell
+ * is injected instead, through src/renderer/state/shell-ops.ts, which the
+ * composition root fills once in src/renderer/main.tsx.
+ *
+ * A TYPE ONLY import is rejected by that rule too. This gate reads text and
+ * does not distinguish, and here that is correct rather than a limitation.
+ * A type-only import of an app file is still the state layer naming its
+ * composition owner, and the whole point of the rule is that
+ * the store's declared surface names nothing above it. That makes this rule
+ * stricter than build/assert-no-runtime-cycles.mjs, which counts runtime edges
+ * only, and the two are meant to differ.
  *
  * Other package imports are out of scope, with ONE exception (Phase 35,
  * research 42 §8 and §12): only src/main/log/ may import electron-log. The
@@ -168,6 +186,24 @@ const FACADE_ONLY = [
 ];
 
 /**
+ * Phase 127. The directories one directory may not name, and the sentence each
+ * failure prints. `dir` is the walled directory, and `forbidden` is the list of
+ * prefixes it may not reach.
+ */
+const DIRECTORY_WALLS = [
+  {
+    dir: 'renderer/state/',
+    forbidden: ['renderer/app/', 'renderer/editor/'],
+    why:
+      'the store is composed BY the app shell and the editor, so it may not ' +
+      'name either of them. Facts and sentences about the data the store ' +
+      'holds belong at or below the store. An operation on the shell is ' +
+      'INJECTED through src/renderer/state/shell-ops.ts, which the ' +
+      'composition root fills once in src/renderer/main.tsx.'
+  }
+];
+
+/**
  * The src-relative path a specifier names, forward-slashed, or null when it
  * names a bare package or resolves outside src/. It handles the same three
  * shapes targetLayer() handles, and it is the only other resolver here.
@@ -252,6 +288,22 @@ function violationsFor(absFile, text) {
         continue;
       }
 
+      const wall =
+        named === null
+          ? undefined
+          : DIRECTORY_WALLS.find(
+              (rule) =>
+                relFromSrc.startsWith(rule.dir) &&
+                rule.forbidden.some((bad) => named.startsWith(bad))
+            );
+      if (wall !== undefined) {
+        out.push(
+          `${relFromRoot}:${line()} imports '${spec}', and src/${wall.dir} ` +
+            `may not name src/${wall.forbidden.join(' or src/')}: ${wall.why}`
+        );
+        continue;
+      }
+
       const why = NO_PLATFORM_ACCESS[layer];
       if (why !== undefined && isPlatformSpecifier(spec)) {
         out.push(
@@ -318,6 +370,47 @@ const FIXTURES = [
     'main/__tests__/p125-fixture.ts',
     "import type { MachineRowView } from '@shared/ipc/machines/rows';",
     null
+  ],
+  // Phase 127, the directory wall. Four rejections, one per shape that can
+  // break the wall, and six acceptances that pin what the rule must NOT catch.
+  [
+    'renderer/state/p127-fixture.ts',
+    "import { focusFleetPrimary } from '../app/focus-trap';",
+    '../app/focus-trap'
+  ],
+  [
+    'renderer/state/p127-fixture.ts',
+    "import type { MenuSpec } from '@renderer/app/ContextMenu';",
+    '@renderer/app/ContextMenu'
+  ],
+  [
+    'renderer/state/p127-fixture.ts',
+    "const m = await import('../editor/store');",
+    '../editor/store'
+  ],
+  [
+    'renderer/state/nested/p127-fixture.ts',
+    "export { showNativeMenu } from '../../app/ContextMenu';",
+    '../../app/ContextMenu'
+  ],
+  ['renderer/state/p127-fixture.ts', "import { shellOps } from './shell-ops';", null],
+  [
+    'renderer/state/p127-fixture.ts',
+    "import { remoteTabOpened } from '../machines/presentation';",
+    null
+  ],
+  ['renderer/state/p127-fixture.ts', "import type { MenuSpec } from '../menus/spec';", null],
+  // The wall is one-directional. The app shell and the editor compose the
+  // store, so both may name it and neither is caught here.
+  ['renderer/app/p127-fixture.tsx', "import { useApp } from '../state/store';", null],
+  ['renderer/editor/p127-fixture.ts', "import { requestOpenFile } from '../state/open-file';", null],
+  // A test may name what its production neighbour may not, and every rule in
+  // this gate already exempts one. Making this rule stricter than that
+  // exemption would change the meaning of the gate rather than add to it.
+  [
+    'renderer/state/__tests__/p127-fixture.ts',
+    "import { focusFleetPrimary } from '../../app/focus-trap';",
+    null
   ]
 ];
 
@@ -372,5 +465,6 @@ console.log(
     `production files, ${importsChecked} imports, 0 violations ` +
     `(${Object.keys(SOLE_OWNER_PACKAGES).length} sole-owner package rule, ` +
     `${Object.keys(NO_PLATFORM_ACCESS).length} layers with no platform ` +
-    `access, ${FACADE_ONLY.length} facade directory)`
+    `access, ${FACADE_ONLY.length} facade directory, ` +
+    `${DIRECTORY_WALLS.length} directory wall)`
 );

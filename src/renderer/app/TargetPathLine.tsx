@@ -20,7 +20,7 @@
  */
 
 import React from 'react';
-import { displayPath, truncateMiddle } from './format';
+import { displayPath, truncateMiddle } from '../format';
 
 /** How much of the path is shown before truncateMiddle folds the middle. */
 const TARGET_PATH_CHARS = 52;

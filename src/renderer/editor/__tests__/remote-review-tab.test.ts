@@ -47,7 +47,7 @@ vi.stubGlobal('document', {
 
 const { useEditor } = await import('../store');
 const { tabTooltipIdentity } = await import('../tab-identity');
-const { reviewTabTooltip } = await import('../../app/machine-copy');
+const { reviewTabTooltip } = await import('../../machines/presentation');
 type OpenFileRequest = import('../../state/open-file').OpenFileRequest;
 
 const REMOTE = {

@@ -54,7 +54,7 @@ import {
   type ContextSnapshot,
   type SessionContextHeader
 } from '@shared/context-snapshot';
-import { formatAge } from '../app/format';
+import { formatAge } from '../format';
 import type { InstalledGmuxApi } from '@shared/ipc';
 import { gmuxBridge } from '../bridge';
 

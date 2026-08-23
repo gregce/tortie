@@ -590,7 +590,7 @@ This is not a design question. Today Tortie invites the edit, accepts the typing
 | --- | --- |
 | Monaco is editable on a remote review tab | `const readOnly = tab.deleted \|\| tab.truncated \|\| tab.commit !== null` in `src/renderer/editor/MonacoHost.tsx`. `tab.remote` is absent |
 | The chip says "Edit the file" | `modeOptions` in `src/renderer/editor/EditorPanel.tsx`, the last branch |
-| The tab's own tooltip contradicts it | `reviewTabTooltip` in `src/renderer/app/machine-copy.ts` says "This view is read only." Two contradictory strings on one tab |
+| The tab's own tooltip contradicts it | `reviewTabTooltip` in `src/renderer/machines/presentation.ts` says "This view is read only." Two contradictory strings on one tab |
 | The refusal reaches nobody | `save` in `src/renderer/editor/tab-io.ts` begins `if (tab.commit !== null \|\| tab.remote !== undefined) return false;` and prints nothing. The store's `save(): Promise<void>` drops the boolean, and both callers write `void ed.save()` |
 | File then Save is always enabled | `item('Save', 'save-file', accel('editor.save'))` in `src/main/menu.ts`, and the `item` helper sets no `enabled` |
 | The view layer has never heard of a remote tab | occurrences of the word `remote`: `store.ts` 13, `tab-io.ts` 6, `EditorPanel.tsx` 0, `MonacoHost.tsx` 0 |

@@ -27,7 +27,7 @@ import { keyDisplay } from '@shared/keymap';
 import type { KeymapId } from '@shared/keymap';
 import { localPathOf } from '@shared/workspace-target';
 import { Codicon } from '../icons';
-import { SEARCH_FILTERS_ON_THIS_MAC } from '../app/machine-copy';
+import { SEARCH_FILTERS_ON_THIS_MAC } from '../machines/presentation';
 import { focusResultsList } from './results-focus';
 import { useSearch } from './store';
 

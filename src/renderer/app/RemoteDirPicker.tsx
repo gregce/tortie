@@ -50,7 +50,7 @@ import {
   dirPickerTitle,
   dirPickerTruncated,
   dirPickerUnreachable
-} from './machine-copy';
+} from '../machines/presentation';
 import { Codicon } from '../icons';
 import './remote-dir-picker.css';
 
@@ -58,12 +58,12 @@ import './remote-dir-picker.css';
  * The sentence for a folder that was not listed.
  *
  * The four codes are the whole of {@link RemoteDirRefusal}, and each maps to
- * one sentence in machine-copy.ts. `unreachable` is the only one that names the
+ * one sentence in presentation.ts. `unreachable` is the only one that names the
  * machine, because it is the only one that is about the machine rather than
  * about the folder.
  *
  * MAIN'S OWN `refusalText` IS NOT DRAWN. The three answers a machine gives
- * about a folder are fixed, so their sentences live in machine-copy.ts where
+ * about a folder are fixed, so their sentences live in presentation.ts where
  * the vocabulary audit reads them, and the fourth is composed here because main
  * never sends it. Drawing main's string as well would put one fact on screen in
  * two wordings.

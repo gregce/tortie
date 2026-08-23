@@ -39,7 +39,7 @@ import {
 // with NO install command, because the command Tortie holds was read for
 // this Mac.
 import { machineAgentsFor, machineLabelFor } from '../state/machines-slice';
-import { agentMissingOnMachine, agentsAbsentHint } from './machine-copy';
+import { agentMissingOnMachine, agentsAbsentHint } from '../machines/presentation';
 import { useSettingsStore } from '../settings/settings-store';
 import { cloneAction } from '../state/clone';
 // Phase 12.12 item 1: the fleet board is a shared component now — the ⌘T

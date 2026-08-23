@@ -11,7 +11,7 @@
  *  - Descending composes the question and never the answer, and the root case
  *    does not ask about a doubled separator.
  *  - The panel writes no sentence of its own. Every string it draws comes from
- *    machine-copy.ts, which is the file the vocabulary audit reads.
+ *    presentation.ts, which is the file the vocabulary audit reads.
  *
  * The vitest environment is node, so these read static markup from
  * react-dom/server. Clicking through two levels on a real machine is the Tier
@@ -22,7 +22,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { RemoteDirListing } from '@shared/ipc';
 
-// The picker's module graph reaches machine-copy and the icon set, neither of
+// The picker's module graph reaches machines/presentation and the icon set, neither of
 // which reads the bridge. The bare window is here for the stateful wrapper's
 // one feature detection, and it is the shape a renderer has before its preload
 // has answered.
@@ -49,7 +49,7 @@ import {
   dirPickerTitle,
   dirPickerTruncated,
   dirPickerUnreachable
-} from '../machine-copy';
+} from '../../machines/presentation';
 import {
   dirPickerRefusalText,
   joinRemotePath,

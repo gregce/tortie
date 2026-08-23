@@ -24,7 +24,7 @@
 
 import React from 'react';
 import type { SessionMachine } from '@shared/types';
-import { badgeQuietTitle, badgeTitle } from './machine-copy';
+import { badgeQuietTitle, badgeTitle } from '../machines/presentation';
 import './machine-badge.css';
 
 export function MachineBadge({

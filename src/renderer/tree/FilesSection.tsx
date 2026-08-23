@@ -14,7 +14,7 @@
  * Phase 90.1 said the files were elsewhere and drew nothing. This section now
  * draws the tree for that tab too, and adds ONE line under the header saying
  * when the folder was read and that Refresh reads it again. Every sentence
- * comes from src/renderer/app/machine-copy.ts, which is where the machine
+ * comes from src/renderer/machines/presentation.ts, which is where the machine
  * vocabulary audit reads them; this module writes none of its own.
  *
  * REFRESH IS THE ONLY THING THAT RE-READS A MACHINE. There is no timer in this
@@ -45,7 +45,7 @@ import {
   remoteTreeReadOnly,
   remoteTreeTruncated,
   remoteTreeUnreachable
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import { registerTargetShotDrive } from '../app/target-shot-drive';
 import { registerRemoteBootDrive } from '../app/remote-boot-drive';
 import {
@@ -136,7 +136,7 @@ export function FilesSection({
    * tree needs, or null for a folder on this Mac.
    *
    * The label is that machine's own label and never a name Tortie chose. Both
-   * strings are composed in machine-copy.ts, so this module writes neither.
+   * strings are composed in presentation.ts, so this module writes neither.
    */
   const remote = useMemo(() => {
     if (target === null || isLocalTarget(target)) return null;

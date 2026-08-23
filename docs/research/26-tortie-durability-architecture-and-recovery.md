@@ -334,7 +334,7 @@ The harness is opt-in and version results are not yet stored with sessions. It n
 
 ### 5.8 Recovery readiness is visible before reboot
 
-The [resume presentation model](../../src/renderer/app/resume.ts) now distinguishes conversation recovery, capture in progress, directory-only recovery and plain shells. Restore-all tells the user how many conversations will return before acting. This closes a major honesty gap from the first assessment.
+The [resume presentation model](../../src/renderer/state/resume.ts) now distinguishes conversation recovery, capture in progress, directory-only recovery and plain shells. Restore-all tells the user how many conversations will return before acting. This closes a major honesty gap from the first assessment.
 
 ## 6. Failure boundaries at the 11 August baseline
 

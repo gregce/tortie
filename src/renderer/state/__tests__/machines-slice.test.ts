@@ -10,7 +10,7 @@
  * - The slice replaces the whole list on every push, because main sends the
  *   whole list on every push.
  *
- * The sentences themselves are in ../../app/machine-copy and are covered by
+ * The sentences themselves are in ../../machines/presentation and are covered by
  * the vocabulary audit and by a person reading them.
  */
 

@@ -88,7 +88,7 @@ import {
   readLinesTitle,
   readLinesUnreachable,
   savedWhen
-} from './machine-copy';
+} from '../machines/presentation';
 import './remote-lines.css';
 
 export interface RemoteLinesPanelProps {

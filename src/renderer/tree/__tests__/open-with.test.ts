@@ -10,7 +10,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { OpenWithApp, OpenWithApps } from '@shared/ipc';
 import { OPEN_WITH_DEADLINE_MS } from '../../../main/fs/open-with';
-import type { MenuItemSpec } from '../../app/ContextMenu';
+import type { MenuItemSpec } from '../../menus/spec';
 import {
   OPEN_DEFAULT_LABEL,
   OPEN_WITH_MENU_DEADLINE_MS,

@@ -564,7 +564,7 @@ from `.mach-dot`, the label, `.mach-host` and `.set-config-id`, all of which
 returns `null` when there are no machines, so a person with none sees the tab exactly as today. Each
 row shows the agent name, whether it was found, and the absolute path ON THAT MACHINE through
 `truncateMiddle`. One age line reuses `.set-scan-age` with `formatAge` and `useNow` from
-`src/renderer/app/format.ts`.
+`src/renderer/format.ts`.
 
 Rescan is one button per machine, `.btn.btn-secondary.set-rescan`, and it costs one round trip. While
 it runs, that button alone becomes disabled and shows `.set-spinner` beside the word Scanning, and
@@ -576,7 +576,7 @@ The button is gated on `MachineRowView.ready` and not on the link, because
 `src/shared/ipc/machines.ts` documents `ready` as exactly the condition `readyRemoteContext` tests,
 which includes the captured PATH the scan needs. A machine that is not ready keeps its rows and its
 age, greys the button and says it is not signed in, reusing `machineNotSignedInOption` from
-`src/renderer/app/machine-copy.ts`.
+`src/renderer/machines/presentation.ts`.
 
 **One line of plumbing.** `useMachinesStore.init` in `src/renderer/settings/machines-store.ts`
 subscribes to `b.onTestEvent` and to nothing else, so the Settings window learns nothing about a

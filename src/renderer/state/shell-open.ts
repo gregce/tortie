@@ -6,7 +6,9 @@
  * asks for:
  *
  *  1. the end of `hydrateAppState` (./subscriptions.ts), the COLD leg;
- *  2. the `shell-open-pending` menu action (../app/App.tsx), the WARM leg.
+ *  2. the `shell-open-pending` menu action (../app/menu-actions.ts, which was
+ *     ../app/App.tsx until Phase 127 cut the menu controller out), the WARM
+ *     leg.
  *
  * The pull is take-and-clear main-side, so the double coverage can never
  * deliver twice. Since Phase 61 the pull returns a folder-and-file pair:
@@ -34,6 +36,7 @@
 import type { ShellPendingOpen } from '@shared/ipc';
 import { isLocalTarget, targetOfProject } from '@shared/workspace-target';
 import { requestOpenFile } from './open-file';
+import { shellOps } from './shell-ops';
 import { useApp } from './store';
 import { gmuxBridge } from '../bridge';
 
@@ -97,10 +100,18 @@ async function deliverPendingShellOpen(): Promise<void> {
   // project of a window, that mount happens on a React render AFTER
   // addProjectPath resolves, so a request emitted right now would be
   // dropped. init() is idempotent, so calling it here guarantees the
-  // subscriber exists before the emit. The import is dynamic so this
-  // module adds no static edge from the state layer to the editor.
-  const { useEditor } = await import('../editor/store');
-  useEditor.getState().init();
+  // subscriber exists before the emit.
+  //
+  // PHASE 127. The reason above still holds and only the direction changed.
+  // This used to be a dynamic import of the editor store, written that way so
+  // the state layer added no static edge to the editor. The state layer may
+  // now name neither the app shell nor the editor at all, in any spelling,
+  // and build/assert-import-boundaries.mjs rejects the dynamic spelling as
+  // well as the static one. So the call is injected instead. ./shell-ops.ts
+  // declares it and ../app/shell-ops-install.ts fills it with the editor
+  // store's own init. The seam is filled in ../main.tsx before the first
+  // render, which is earlier than any pull can run.
+  shellOps().ensureEditorSubscribed();
 
   // `mode: 'file'` because there is no gesture asking for a diff.
   // `source: 'tree'` because the open behaves exactly like a tree open.

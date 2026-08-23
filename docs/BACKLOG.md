@@ -31,7 +31,7 @@ release.
 | 14.5 | **136** the file icon credit names the holder who ships it | Found by the Phase 134 verifier | ✅ shipped |
 | 15 | **Run B** 123 | The six runtime cycles | ✅ shipped |
 | 16 | **Run C** 125, 126 | Machines contract and orchestration split. Needs 117 and 118 done | ✅ shipped |
-| 17 | **Run D** 127 | App, FileTree and state to app | queued |
+| 17 | **Run D** 127 | App, FileTree and state to app | ✅ shipped |
 | 18 | **128** reassess the three large files | Reads the evidence the runs produced. May rule against itself | queued |
 | 19 | **139** hovering an uninstalled agent moves the whole screen | He reported it 2026-08-22 with a photograph and asked for it before the release | queued |
 | — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release, and later the same day he DELEGATED the cut. See the grant below | **delegated, one release only** |
@@ -7167,7 +7167,7 @@ built to show where the cap bites, which says so.
 Transport stayed under `src/main/machines/`. This phase moved the read and the parsers, not the ssh
 path.
 
-## Phase 127 — `App.tsx` and `FileTree.tsx` carry controllers, and state imports app (audit phases 7 and 8) QUEUED
+## Phase 127 — `App.tsx` and `FileTree.tsx` carry controllers, and state imports app (audit phases 7 and 8) ✅ SHIPPED 2026-08-22 (this commit, 0.68.6, gates green, 8,338 tests)
 
 **Subject:** `refactor(renderer): controllers move behind the shells they belong to`
 **First body line:** `Phase 127: App and FileTree controllers move out`
@@ -15979,3 +15979,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 139 queued, hovering an uninstalled agent on the empty state moves the heading, the twelve tiles and the hint line, because Phase 130 turned the caption into a column holding a command row and left behind the 22px reservation that was true when it was one line, and the empty state is vertically centred so the growth reaches everything above it
 - 2026-08-22, THE RELEASE AFTER 128 AND 139 IS DELEGATED, one release only, cut it before Phase 137 and Phase 138 start, publishing included, closing issues not included
 - 2026-08-22, the hold on Phases 44 and 45 is ANSWERED, he confirmed 137 and 138 are not what was planned on 15 August, so 137 no longer waits on that question
+- 2026-08-22, Phase 127 shipped, src/renderer/app/App.tsx went from 1,632 lines and 81 imports to 351 lines and 40 imports over keyboard.ts, menu-actions.ts, quit.ts and shell-actions.ts, src/renderer/tree/FileTree.tsx went from 1,789 lines to 678 over use-tree-model.ts, use-tree-rename.ts, use-tree-menu.ts, use-tree-drag.ts and row-events.ts, the harness drives now load through one import() in src/renderer/app/probe-loader.ts gated on a harness=1 query string that main appends only when src/main/harness/launch-gate.ts says the launch is a harness run, so 122,910 bytes of probe code left the 3,525,030 byte chunk a person's launch loads and build/assert-probe-containment.mjs fails if any of the five markers comes back to it, and build/assert-import-boundaries.mjs gained a directory wall with ten fixtures saying src/renderer/state may not name src/renderer/app or src/renderer/editor, which is why the machine vocabulary, resume readiness, the format helpers, the clone words and the menu types moved down and a shell operation is now injected through src/renderer/state/shell-ops.ts. No keyboard chord and no rendered string changed, this commit, 0.68.6

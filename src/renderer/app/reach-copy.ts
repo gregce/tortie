@@ -23,7 +23,7 @@
  * be the same characters.
  *
  * WHAT IS NOT HERE. Every sentence about a machine is composed by
- * `addRemoteRefusal` in ./machine-copy.ts, which this phase does not rewrite.
+ * `addRemoteRefusal` in ../machines/presentation.ts, which this phase does not rewrite.
  * {@link couldNotReachMachine} takes that sentence and adds the one clause it
  * does not carry.
  */

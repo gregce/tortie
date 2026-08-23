@@ -72,7 +72,7 @@ import {
   renderedEditorWidth,
   saveEditorWidths
 } from './panel-width';
-import { remoteFileChip } from '../app/machine-copy';
+import { remoteFileChip } from '../machines/presentation';
 import { machineWriteRootFor } from '../state/machines-slice';
 import './editor.css';
 

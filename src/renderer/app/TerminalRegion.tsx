@@ -48,7 +48,7 @@ import {
   machineSilentText,
   restoreNotOfferedBody,
   restoreRemoteBody
-} from './machine-copy';
+} from '../machines/presentation';
 import {
   ReadLastLinesButton,
   RenameInput,
@@ -66,7 +66,7 @@ import {
   restoreSummary,
   resumeNote,
   SHELL_PATH_PENDING_TITLE
-} from './resume';
+} from '../state/resume';
 import { AgentIcon, Codicon } from '../icons';
 // §6.2 lives with the other full-window empty states (./EmptyStates).
 import { NoSessions } from './EmptyStates';

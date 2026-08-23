@@ -68,7 +68,7 @@ import React, { useEffect, useMemo } from 'react';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { targetKey } from '@shared/workspace-target';
 import type { MachineRunsMode } from '@shared/ipc';
-import { useNow } from '../app/format';
+import { useNow } from '../format';
 import { Codicon } from '../icons';
 import {
   RUNS_NOT_LIVE,
@@ -86,7 +86,7 @@ import {
   runsOnMachineBand,
   runsReadAt,
   runsReadingBranch
-} from '../app/machine-copy';
+} from '../machines/presentation';
 import { RunRow } from './RunRow';
 import {
   machineAnsweredRuns,
@@ -104,7 +104,7 @@ import './runs.css';
  * The one sentence that stands in place of rows, or null when there are rows.
  *
  * Every mode except `ok` has exactly one sentence and it is written in
- * machine-copy.ts. This function is the whole mapping, so a mode that gains a
+ * presentation.ts. This function is the whole mapping, so a mode that gains a
  * sentence gains it in one place and the test reads the same table the section
  * draws from.
  */

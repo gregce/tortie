@@ -40,7 +40,7 @@
 // button, and each of those is one read.
 //
 // NO PROSE CROSSES THIS CHANNEL. Every sentence a person reads about a read is
-// drawn by the renderer from src/renderer/app/machine-copy.ts, where the
+// drawn by the renderer from src/renderer/machines/presentation.ts, where the
 // vocabulary audit reads it. This answer carries a mode word, the body and
 // counts.
 //
@@ -159,7 +159,7 @@ export interface MachinesSessionsInvokeChannelMap {
   // A session Tortie holds no row for, a machine that did not answer and a
   // machine Tortie is not signed in to all come back as a mode word. No prose
   // crosses this channel: the renderer draws every sentence from
-  // src/renderer/app/machine-copy.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
   'machines:readSessionLines': {
     req: [input: MachineSessionLinesInput];
     res: MachineSessionLinesResult;

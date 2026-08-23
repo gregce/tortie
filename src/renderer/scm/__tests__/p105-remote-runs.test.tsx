@@ -86,7 +86,7 @@ const { openLabel, RUNS_EMPTY, hiddenNotes, healthNote } = await import(
   '../runs-format'
 );
 const { runRowClick } = await import('../RunRow');
-const copy = await import('../../app/machine-copy');
+const copy = await import('../../machines/presentation');
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -302,7 +302,7 @@ describe('the store asks once, and only when it is asked to', () => {
 // The eight modes, each with its own sentence
 // ---------------------------------------------------------------------------
 
-describe('every mode says its own sentence, and it comes from machine-copy', () => {
+describe('every mode says its own sentence, and it comes from machines/presentation', () => {
   const table: [MachineRunsMode, string | null][] = [
     ['ok', null],
     ['notRepo', copy.runsNotRepo(L)],

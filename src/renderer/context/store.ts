@@ -118,7 +118,7 @@ export interface ContextViewState {
   /**
    * PHASE 108. What the machine answered about this project, or null when the
    * scan came from this Mac. It is a mode word and never a sentence. Every
-   * sentence a person reads is drawn from src/renderer/app/machine-copy.ts.
+   * sentence a person reads is drawn from src/renderer/machines/presentation.ts.
    * The three fields are set with the answer they describe and cleared with
    * it, so a note can never outlive its rows.
    */

@@ -35,8 +35,8 @@ import {
   CLONE_STRIPPED_CREDENTIAL_NOTE
 } from '@shared/clone-url';
 import { useClone } from '../state/clone';
-import { CLONE_CHECKING_NOTE } from './clone-copy';
-import { displayPath, truncateMiddle } from './format';
+import { CLONE_CHECKING_NOTE } from '../state/clone-copy';
+import { displayPath, truncateMiddle } from '../format';
 import { TargetPathLine } from './TargetPathLine';
 import { modalKeyDown } from './focus-trap';
 import './clone-repo.css';

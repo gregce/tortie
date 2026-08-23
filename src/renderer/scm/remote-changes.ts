@@ -52,7 +52,7 @@
  * THE SENTENCE IS NEVER COMPOSED HERE. A verb records three things, being which
  * verb ran, which word main answered, and the sentence main refused with when
  * it refused. The view turns the first two into a sentence out of
- * src/renderer/app/machine-copy.ts, and it draws the third as main sent it.
+ * src/renderer/machines/presentation.ts, and it draws the third as main sent it.
  * That is the same rule `failed` and `note` already follow, and it keeps every
  * word a person reads about a machine in a file the vocabulary audit reads.
  *
@@ -136,7 +136,7 @@ export type RemoteIndexVerb = 'stage' | 'unstage';
  * (Phase 104).
  *
  * It is a word and never a sentence, for the reason every other word in this
- * store is one. The three sentences are in src/renderer/app/machine-copy.ts.
+ * store is one. The three sentences are in src/renderer/machines/presentation.ts.
  *
  *  - `ran`: that machine's HEAD is not the sha the commit was sent with, so the
  *    commit ran.
@@ -182,7 +182,7 @@ export interface RemoteChangesEntry {
    *
    * It is a word and never a sentence. The view turns it into one, because
    * every sentence a person reads about a machine is composed in
-   * src/renderer/app/machine-copy.ts and this store composes none.
+   * src/renderer/machines/presentation.ts and this store composes none.
    */
   writeOutcome: MachineIndexWriteOutcome | null;
   /**
