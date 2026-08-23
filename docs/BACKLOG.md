@@ -38,6 +38,13 @@ release.
 | 20 | **137** catch me up on this project | The page he re-specified on 2026-08-22, one chord over each agent's own log with a git mark beside each claim, no model in it | ✅ shipped |
 | 21 | **137.1** markdown in the overview, and the chord moves | He asked on 2026-08-23. The answers render as markdown and the chord is ⇧⌘U | ✅ shipped |
 | 22 | **137.2** the ask rail | He asked on 2026-08-23. Five items on one page, every ask one press away | ✅ shipped |
+| — | **THE ORDER HE SET ON 2026-08-23** | | |
+| 23 | **138** the fold | Tier 3. Running. Its gate measurements are done | running |
+| 24 | **142** presentation.ts splits by reason to change | 31 phases wrote into one file. NO VERSION BUMP | queued |
+| — | **RELEASE POINT, DELEGATED, AT v0.70.0** | All the way to public. See the grant below | **delegated, one release** |
+| 25 | **140** every probe ends the Electron it started | The crash preventer | queued |
+| 26 | **143** the summary timeline | Reads the chain 138 writes | queued |
+| 27 | **141** the drop to a plain shell | From research 64. He placed it last by not placing it, and it moves on his word | queued |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
 **THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
@@ -16021,6 +16028,184 @@ He sent both screenshots on 2026-08-23. The project overview names sessions in b
 - No new chord. The rail lives inside the view ⇧⌘U already opens.
 
 
+## Phase 141 — an agent that dropped to a plain shell, and the one press back into it (operator asked 2026-08-23, research 64) QUEUED
+
+**Subject:** `feat(sessions): resume an agent that left its shell running`
+**First body line:** `Phase 141: the drop to a plain shell, and the way back`
+**Semver:** minor. It adds a verb, a stored state and a detection rule.
+**Tier 3.** It watches a process, it writes a conversation id to the manifest row, and it arms a command into a live session. Any one of those is Tier 3 under the rules at `f5b6185`. Its two independent methods must include an ATTACK on the false positive set, because the research proved the obvious detection rule fires on every restored session.
+**Charter:** this entry, plus `docs/research/64-agent-dropped-to-shell.md`, 908 lines, which is the decision document and holds every number below. Build DESIGN D from its section 1. Designs A, B and C were each refuted and the document says why.
+
+### What he asked for
+
+He starts an agent in a Tortie session. He then ends the agent while the shell lives on, with Control C or the agent's own quit verb. Both of his reasons are ordinary, being that the agent wants to update itself and so must exit first, and that he forgot a flag such as dangerously-skip-permissions. Tortie stops watching, and the session becomes a plain shell.
+
+He wants an easy and obvious way to resume back into that conversation from inside that same session, and he wants Tortie to manage it again afterwards. Two conditions he stated. It may only work when Tortie has a record of that shell being started as an agent session first. And if he types or pastes the resume himself, which he will because agents print the command as they leave, Tortie must detect that too.
+
+### The finding that decides the design, and it refuted all three first attempts
+
+**A session Tortie has just restored, sitting with its command armed and unpressed, is byte for byte the same shape as one whose agent has left.** `src/main/restore/restore.ts` line 779 creates a restored session with an empty argv, so its own program is his login shell, and then arms. Any rule that reads the SHAPE of a pane, being a screen capture or a process table, fires on every restored session and announces that an agent left when no agent ever ran.
+
+So the rule reads a WITNESS rather than a shape. Tortie remembers the specific process it watched being the agent in that session, and reacts when THAT pid goes away. One read, measured at 2.5 ms, and it is immune to the restore shape, to pagers, to background jobs, to nested shells and to Control Z.
+
+### What lands
+
+- **The drop.** Within 0.6 s to 1.6 s of the witnessed process ending, the word Resume appears on that session's row, and nowhere else. No badge, no count, no status. Phase 23 refusal 5 is untouched, because this is not a status.
+- **The press.** Choosing Resume, from the row or the session menu, types the resume command onto his prompt through the arming door `src/main/machines/remote-arm.ts` already shipped in Phase 89, which reads the screen back and says whether the command landed. **He presses Enter.** Nothing starts on Tortie's initiative.
+- **The return he types himself.** When a new process appears in that pane, Tortie asks the agent which conversation it is in and re-adopts the session ONLY when the answer matches what the row already holds. When it cannot be sure, it stays unadopted and says so, because adopting the wrong conversation is the worst outcome available here.
+- **Every conversation id write goes through one function**, being `claimConversationId`, so an unconfirmed click can never overwrite a saved id. Design B was rejected partly for allowing exactly that.
+
+### Coverage on day one, from research 64 section 6
+
+| What works | Agents |
+| --- | --- |
+| Drop seen, verb offered, return seen | 10 of the 11 that run in a session, being claude, codex, cursor, gemini, deepseek, antigravity, muse, qwen, pi and grok |
+| Conversation confirmed with no help from him | 5, being claude at 0.80 s, codex at 1.91 s, plus muse, antigravity and cursor |
+| Confirmed only when he pastes a command carrying the id | 4, being gemini, pi, grok and qwen |
+| Cannot be confirmed at all | deepseek, whose store is keyed on the workspace, and droid, for which no conversation id is ever captured |
+
+10 of his 16 live session shapes are served. The other 6 run the agent as the session's own program, so its exit ends the session and Restore already covers them.
+
+### Proof this phase must produce, run rather than read
+
+- **THE RESTORED SESSION CASE, first and non negotiable.** Restore a session, leave its command armed and unpressed, and prove the verb does NOT appear. This is the case that killed three designs.
+- The false positive set, each driven on a scratch server: an agent paging output, an agent running a full screen tool, a shell escape from inside an agent, an idle agent at its own prompt, an agent mid tool call, a background job, a nested shell and Control Z. None may offer the verb.
+- A shell that was always a shell never offers the verb, whatever it runs.
+- The drop to verb latency, measured, against the 0.6 s to 1.6 s the research recorded.
+- The typed resume path, driven for at least claude and codex, showing re-adoption and the measured confirm times.
+- The WRONG conversation case: paste a different session's resume command into the pane and prove Tortie refuses to adopt and says so.
+- A per agent matrix over the eleven, marking which of the four coverage rows each falls into.
+- The full battery plus `npm run conformance:agents` and `npm run conformance:resume:capture`.
+
+### What is NOT in this phase
+
+- **Nothing is ever typed into his session unasked.** Candidate A proposed it and is dead: its own gate is unbuildable, because `capture-pane` strips the trailing space so an empty line check is exactly inverted, and with his right side prompt a captured row reads 99 of 100 columns whether the line is empty or holds `rm -rf build`. An adversary measured a file changed on disk by the armed text alone.
+- No status, no badge, no count. The verb appears on one row or it does not.
+- No change to Restore, to the manifest schema beyond what the conversation id already uses, to the tmux layer or to session addressing.
+- No detection of a drop that happened while Tortie was closed, for most rows. Section 4.4 of the research names which rows survive a restart and why.
+- Nothing for a session created fresh rather than restored, since the agent is that session's own program there and its exit ends the session outright.
+
+
+## Phase 142 — `presentation.ts` is 31 files wearing one filename (found 2026-08-23 by the Phase 128 adversary, queued by the operator) QUEUED, BEFORE THE 0.70.0 RELEASE
+
+**Subject:** `refactor(machines): the machine presentation splits by what it is for`
+**First body line:** `Phase 142: presentation.ts splits by reason to change`
+**Semver:** NONE. **THE VERSION STAYS AT 0.70.0.** The operator asked on 2026-08-23 for the release to be cut at 0.70.0 with this work inside it, so this phase changes neither `package.json` nor `package-lock.json`. A committer that bumps the version has broken the release he asked for.
+**Tier 2.** It is invisible to a person, so the gates ARE the evidence and the verifier re-derives rather than photographs. One independent method is required and it must be a re-derivation, being the verifier's own count of exports, importers and single symbol importers against the builders'.
+**Charter:** this entry, plus `docs/audits/2026-08-23-large-file-reassessment.md`, whose adversary found this while the phase itself was judging three other files, plus the growth guardrail in CLAUDE.md, being organize by domain rather than by accretion and split when a file accumulates unrelated domains.
+
+### Why this file and not the three Phase 128 judged
+
+Phase 128 ruled LEAVE on `shared/types.ts`, `agents/registry.ts` and `git/service.ts`, and the ruling holds. Its adversary then refuted the phase's own stop question by showing it had judged the two COLDEST large files in the tree, and named this one, which nobody had read.
+
+Measured on 2026-08-23 at `f829009`:
+
+| Fact | `presentation.ts` | The three Phase 128 left alone |
+| --- | ---: | --- |
+| Lines | 2,948 | 1,526 to 1,724 |
+| Exported members | 249 | 78 to 105 |
+| Production importers | 51 | 3 to 152 |
+| **Importers naming exactly ONE symbol** | **11** | none found |
+| Section banners | 42 | few |
+| **Distinct phases named in those banners** | **31** | not applicable |
+
+31 phases wrote into one file. That is 31 reasons to change it, which is the test Phase 128 itself proposed, and this file fails it where the other three passed. The eleven importers naming one symbol are the strongest single argument, because each is a module that wants one thing and must name a 2,948 line file to get it. They are `app/session-focus.ts`, `app/CreateSessionModal.tsx`, `app/open-recent-on-machine.ts`, `app/session-actions.tsx`, `app/RemoteDirPicker.tsx`, `app/RemoteProjectModal.tsx`, `state/projects-slice.ts`, `state/sessions-slice.ts`, `search/ResultsList.tsx`, `scm/RemoteRunsSection.tsx` and `editor/tab-identity.ts`.
+
+### Mechanism
+
+- **Split by REASON TO CHANGE, using the file's own 42 banners as the map.** The banners already group by phase and by subject; the phase reads them and groups those subjects into domains rather than inventing a taxonomy.
+- Each new file gets a small deliberate export surface. The measure of success is that the eleven single symbol importers each end up naming a file about the thing they wanted.
+- **The directory wall from Phase 127 still binds.** `src/renderer/state` may not name `src/renderer/app` or `src/renderer/editor`, and `build/assert-import-boundaries.mjs` enforces it with ten fixtures. Two of the eleven importers are state slices, so place their targets accordingly or the gate fails.
+- **The runtime cycle gate from Phase 123 still binds.** Zero strongly connected components, and a split that creates one is caught in about 650 ms. Run it early rather than at the end.
+- No behaviour changes. No user facing string moves. The machine presentation is what it was.
+
+### Proof, run rather than read
+
+- The counts before and after, being lines, exports, importers and single symbol importers per new file.
+- Every one of the eleven single symbol importers now names a file whose subject is the symbol it wanted. Name each pairing.
+- `node build/assert-no-runtime-cycles.mjs` reporting zero components.
+- `node build/assert-import-boundaries.mjs` with the directory wall intact.
+- `npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`, `node build/assert-bundle-refusals.mjs`, `node build/contract-inventory.mjs --check`.
+- **Prove no rendered string changed**, by diffing every user facing literal against the parent commit. This is the one thing a person could notice and it must not happen.
+- Confirm `package.json` and `package-lock.json` are untouched.
+
+### What is NOT in this phase
+
+- **No version bump.** The release is cut at 0.70.0 with this inside it.
+- No behaviour change, no new capability, no copy change.
+- No touching the three files Phase 128 ruled LEAVE on. That ruling stands and this phase does not reopen it.
+- No new gate. The two that already watch this are enough.
+- No split of `main/machines/ipc.ts` or `main/sessions/core.ts`, which the same adversary also named. Each needs its own entry and its own evidence.
+
+
+## Phase 143 — the story a session told, version by version (operator asked 2026-08-23) QUEUED, AFTER THE RELEASE AND AFTER 140
+
+**Subject:** `feat(overview): read back how a session's story changed`
+**First body line:** `Phase 143: the summary timeline`
+**Semver:** minor. It adds a surface over data that already exists.
+**Tier 2.** It reads a table Phase 138 already writes and draws it. It spawns nothing, sends nothing and changes no stored shape. One independent method, and the natural one is a hostile fixture, being a chain with a gap, a rebuild and two models in it.
+**Charter:** this entry, plus the `## Phase 138` entry, which builds the `summary` table this reads, plus `## Phase 137`, whose views this joins.
+
+### What he asked for, and why it is nearly free
+
+He asked on 2026-08-23 whether the versioned history of how a session unfolded could be seen, given what is already stored. It can, because the version chain IS the design rather than an addition to it. Phase 138's `summary` table appends one row per fold and never edits one, and each row names the session, the parent version it folded from, the turn range it covers, the text, the harness and model that wrote it, the provider map version and the time.
+
+The drift lab proved the shape is worth reading. Folding one of his own gmux sessions 200 times produced a chain that tracked what he was doing at each point rather than staying anchored to how the session opened, e.g. fold 1 reading "You asked the agent to research building a durable, lightweight agentic coding shell for macOS" and fold 200 reading "You asked for a simple board of where phases stand, and the agent showed you phases 27-30 shipped".
+
+### The surface
+
+Inside the one session view, reachable from the session's own header rather than from a new chord. It draws one row per version, newest first, each showing the summary text and the clock time it was written. Pressing a row shows the turns that version covered, since the store already holds the range.
+
+**The rules that bind it.**
+
+- **No integer, per Phase 137's rule.** No "version 47", no "200 versions", no scroll percentage. Times and dates only. This is the one place a count would be tempting and the rule does not bend.
+- Where two versions in a row say the same thing, they collapse into one row with the later time, because a fold that changed nothing is not news.
+- Where the model changed between versions, say which model wrote each, because that matters the first time he switches harness.
+- Where a full rebuild broke the chain, say so plainly on that row rather than pretending the chain is unbroken.
+- **This is a history of the SUMMARIES, not of the conversation.** The verbatim turns in the `turn` table are the real record. The page says which it is showing, in one sentence, so nobody mistakes one for the other.
+- With the fold off, or with "None" chosen as the model, there is no chain and the surface says so in one line rather than drawing an empty list.
+
+### Proof, run rather than read
+
+- Photograph the timeline at a chain of 3 versions, at a chain of 200, and with the fold off, all in ONE app run.
+- Prove the collapse rule with a fixture holding two identical consecutive versions.
+- Prove the model change line with a fixture whose chain switches model partway.
+- Prove the broken chain line with a fixture holding a rebuild.
+- Prove no integer appears, by grep over the rendered strings.
+- Prove pressing a row shows the right turns, by rectangle rather than by eye.
+- The full battery plus `npm run conformance:overview`.
+
+### What is NOT in this phase
+
+- No model. It reads what Phase 138 already wrote.
+- No new store column and no schema change. If the surface wants something the table lacks, say so in the commit body rather than adding it here.
+- No editing or deleting a version. The chain is append only and this surface only reads.
+- No timeline in the project view or the columns view. One session at a time.
+- No export, no copy of the whole chain, and no diff between two versions. Each is its own decision if he asks.
+
+
+**THE 0.70.0 RELEASE IS DELEGATED, AND THIS IS THE THIRD SUCH GRANT.** The standing rule is that an
+agent NEVER tags and NEVER cuts a release. On 2026-08-23 the operator asked for the release to be cut
+and taken all the way to public, after Phase 142 and before Phase 140. That grant is:
+
+- **ONE release only.** It does not become standing permission. The grants for v0.62.1 and v0.68.7 are
+  both spent and this one replaces neither.
+- **THE TAG IS `v0.70.0` AND THE VERSION STAYS AT 0.70.0.** He asked for it at that number with this
+  work inside it. Phase 137.2 already set 0.70.0. Phase 138 was launched before he said so and its
+  committer was told to bump, so if main reads higher when 142 lands, ONE commit sets `package.json`
+  and `package-lock.json` back to 0.70.0 and says why. `release.yml` has a step named "The tag and
+  package.json must agree on the version" and it will refuse otherwise.
+- **The order is fixed.** Append the missing CHANGELOG items first, in the style he set on 2026-08-23,
+  being one or two sentences per item saying what a person can now do or what no longer goes wrong.
+  Then confirm the tree is clean and main is pushed. Then tag and push the tag.
+- **It covers PUBLISHING to Latest**, not only tagging, because he said all the way to public. Watch
+  the run to its end and report the artifacts and the notarization result.
+- **If any gate is red, or the changelog cannot be written honestly, DO NOT TAG.** Report and stop.
+- **A pushed tag is never moved or deleted.** If something is wrong afterwards, the answer is another
+  release.
+- **Closing issues is NOT in this grant.** He has not asked for it here.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16171,3 +16356,7 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 137.1 shipped, an agent's answer in the overview renders as markdown through the editor's own sanitizing pipeline with rehype-raw absent so hostile HTML draws as text and reaches no DOM node, your own asks stay plain, the chord moves to ⇧⌘U with cursor's suggested letter moving from u to s, and a recorded ⇧⌘U per-agent hotkey still wins over the built-in, this commit, 0.69.1
 - 2026-08-23, Phase 137.2 shipped, the ask rail on the right of the one-session view with every ask one press away, keyboard scrolling that keeps the current exchange in view, a Catch me up row in the session actions menu, the agent's own mark beside the session name, and columns that scroll independently, this commit, 0.70.0
 - 2026-08-23, research 64 landed, getting back into an agent session that dropped to a plain shell, and the recommendation is to remember the agent process Tortie watched alive and offer one Resume verb on that session's row when that exact process goes, arming it through the screen-reading door Phase 89 already built, because all three candidate designs read a shape instead and a session just restored is the same shape as one whose agent left
+- 2026-08-23, Phase 141 queued from research 64, an agent that dropped to a plain shell gets one Resume verb driven by a witnessed process rather than the shape of a pane, because a restored session with its command armed looks identical to one whose agent left
+- 2026-08-23, Phase 142 queued, presentation.ts is 2,948 lines with 249 exports and 42 banners naming 31 distinct phases, and 11 importers name exactly one symbol, so it fails Phase 128's own split test where the three files that phase judged all passed
+- 2026-08-23, Phase 143 queued, the summary timeline reads the version chain Phase 138 writes and shows how a session's story changed, with no integer on it and no model in it
+- 2026-08-23, THE RUN ORDER IS HIS, being 138 then 142 then the v0.70.0 RELEASE all the way to public, then 140, then 143, then 141; the release is DELEGATED, one release only, and the version stays at 0.70.0 with this work inside it
