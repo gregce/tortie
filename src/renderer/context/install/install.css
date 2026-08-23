@@ -174,15 +174,15 @@
    --------------------------------------------------------------------------- */
 
 .ctx-install-sheet {
-  /* Widened in Phase 132, from 880px. tokens.css carries spacing, type, radii,
-     colors, durations and z-layers and no width scale at all, so a modal states
-     its own width as a number, the way `.modal` (480px) in app.css and
-     `.ctxd-install-modal` (560px) above already do. The guard keeps the sheet
-     inside a small window. At 1120px the card's content is 1040px and the plan
-     column is about 588px, which is about 81 characters of Menlo at 12px
-     against about 62 at the old width. Fewer wrapped lines in the command is a
-     shorter preview, which is half of the complaint this phase answers. */
-  width: min(1120px, calc(100vw - var(--space-8) * 2));
+  /* Widened in Phase 132 from 880px to 1120px, and again on 2026-08-23 when
+     the operator asked for the sheet to take up more of the screen. tokens.css
+     carries spacing, type, radii, colors, durations and z-layers and no width
+     scale at all, so a modal states its own width as a number, the way
+     `.modal` (480px) in app.css and `.ctxd-install-modal` (560px) above
+     already do. 92vw keeps a margin at every window size and the 1600px cap
+     stops the two column preview stretching past readable on a wide display.
+     On a 1440px window the sheet is 1325px against 1120px before. */
+  width: min(1600px, 92vw);
   max-height: calc(100vh - var(--space-8) * 2);
   display: flex;
   flex-direction: column;

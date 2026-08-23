@@ -188,12 +188,15 @@ describe('every scroll region this phase added is scoped to the sheet', () => {
 });
 
 describe('the width keeps its small-window guard', () => {
-  it('states 1120px and the guard inside one min()', () => {
+  it('states the 1600px cap and the viewport guard inside one min()', () => {
+    // Widened on 2026-08-23 at the operator's ask. The cap stops the two
+    // column preview stretching past readable on a wide display, and the vw
+    // term keeps a margin at every window size.
     const sheet = oneRule('.ctx-install-sheet');
     const width = /width:\s*min\(([^)]*\([^)]*\)[^)]*|[^;]*)\);/.exec(sheet);
     expect(width).not.toBeNull();
-    expect(width?.[1]).toContain('1120px');
-    expect(width?.[1]).toContain('calc(100vw - var(--space-8) * 2');
+    expect(width?.[1]).toContain('1600px');
+    expect(width?.[1]).toContain('92vw');
   });
 });
 
