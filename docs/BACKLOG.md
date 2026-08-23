@@ -15971,6 +15971,15 @@ When looking at one session's conversation, a sidebar on the right like a minima
 - A conversation of two asks draws a two-row rail without apology. A conversation of two hundred scrolls the rail independently of the conversation.
 - At a narrow window the rail collapses before the conversation does, and the chord view still fits.
 
+### The second item he asked for, keyboard scrolling that tracks
+
+He reported it the same day. In the one-session view, pressing up and down moves a selection but the page does not follow it, so the keyboard walks off screen. Not the project view, which already behaves.
+
+- Up and down in the conversation SCROLL the page, keeping the current exchange in view, the way a list keeps its selected row visible. Moving from one exchange to the next brings the next one on screen before the selection lands on it.
+- The rail's marked row TRACKS the same movement, so the keyboard, the scroll position and the rail always agree on which exchange is current.
+- Plain scrolling without moving the selection stays possible, e.g. trackpad and page keys, and the selection does not jump to follow a pointer scroll.
+- Holding a key repeats smoothly rather than stuttering, proven by rectangle reads at repeat speed rather than by eye.
+
 ### The rules that bind it
 
 - The rail reads the SAME rows the view already holds. No new reader work, no new store column, no new bridge channel unless the view genuinely lacks the ask list, and if it does, say so in the commit body.
@@ -16138,3 +16147,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 137 shipped, the chord ⌃⇧U opens the conversation you have been having with every session here, at one session, several as columns, or the whole project, built from each agent's own log through the per provider keep map with a git mark beside each claim, no model in it and the seven research 63 defects fixed, this commit, 0.69.0
 - 2026-08-23, Phase 137.1 queued, the overview renders markdown through the sanitizing pipeline the editor already owns and the chord becomes ⇧⌘U with cursor's suggested letter moving, before Phase 138
 - 2026-08-23, Phase 137.2 queued, a rail of your asks on the right of the one-session view, one press to any exchange, after 137.1 and before 138
+- 2026-08-23, Phase 137.2 gains its second item on his report, keyboard up and down in the one-session view scroll the page and the rail tracks the movement
