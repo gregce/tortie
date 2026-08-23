@@ -7,11 +7,17 @@
  * the git mark quiet at the right edge. The quoted text is wrapped in
  * data-quoted and the clock in data-clock, which is what the probe reads to
  * prove the page draws no other digit.
+ *
+ * Phase 137.1: the ANSWER renders as markdown through AnswerBody, because
+ * agents answer in markdown and drawing it plain turned lists and fences
+ * into punctuation. The ASK stays plain text on purpose — the person types
+ * prose, and rendering a person's words would change what they wrote.
  */
 
 import React from 'react';
 import type { OverviewGitMark, OverviewTurnView } from '@shared/overview';
 import type { SessionStatus } from '@shared/types';
+import { AnswerBody } from './AnswerBody';
 import { formatTurnClock } from './clock';
 import {
   AGENT_LABEL,
@@ -73,7 +79,7 @@ export function TurnBlock(props: TurnBlockProps): React.JSX.Element {
       <div className="overview-label">{AGENT_LABEL}</div>
       {turn.answerText !== null ? (
         <div className="overview-answer">
-          <span data-quoted>{turn.answerText}</span>
+          <AnswerBody text={turn.answerText} />
           {turn.answerClipped ? (
             <div className="overview-clip-note">{REST_NOT_SHOWN}</div>
           ) : null}

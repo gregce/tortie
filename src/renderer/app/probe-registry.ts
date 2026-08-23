@@ -51,7 +51,7 @@ import type { ContextProbeSpec } from '../context/shot-probe';
 import { driveSessionFocus } from './focus-shot-drive';
 import type { SessionFocusProbeSpec } from './focus-shot-drive';
 // PHASE 137. The Catch Me Up page's drive, read by
-// build/probe-p137-overview.mjs. It presses the real ⌃⇧U where it can and
+// build/probe-p137-overview.mjs. It presses the real ⇧⌘U where it can and
 // says so when it cannot.
 import { driveOverview } from '../overview/shot-probe';
 import type { OverviewProbeSpec } from '../overview/shot-probe';
@@ -172,7 +172,7 @@ interface ShotLayoutExtras {
   /**
    * Phase 137. Open the Catch Me Up page at one of its three levels and
    * report what it drew. The project and session levels are opened with the
-   * real ⌃⇧U keydown on window, so the shipped handler runs. The several
+   * real ⇧⌘U keydown on window, so the shipped handler runs. The several
    * level goes through the store, because the rail has no multi select for
    * a drive to stage, and the console report names which route ran.
    */

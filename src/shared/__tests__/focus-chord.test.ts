@@ -212,6 +212,11 @@ describe('the chord Phase 80.1 refused', () => {
     // The generalisation of the test above. Shift+Cmd+<letter> is the shape
     // the recorder proposes, so no built-in may own one. This is the check
     // that would have caught the mistake before it was made.
+    //
+    // Phase 137.1 note: ⇧⌘U IS a built-in now (Catch Me Up), and this test
+    // still passes because the phase moved cursor's suggested letter off
+    // 'u' in the same commit. The check keeps refusing a collision with
+    // every REMAINING suggested mnemonic.
     const taken: string[] = [];
     for (const letter of suggestedHotkeyLetters()) {
       const chord = normalizeAccelerator(`Shift+Cmd+${letter}`);
@@ -219,5 +224,13 @@ describe('the chord Phase 80.1 refused', () => {
       if (owner !== undefined) taken.push(`${chord} is held by ${owner}`);
     }
     expect(taken).toEqual([]);
+  });
+
+  it('no longer suggests U anywhere, because ⇧⌘U is Catch Me Up (Phase 137.1)', () => {
+    // The other half of the move. If a registry row or the Settings hint map
+    // ever suggests 'u' again, the recorder would propose a chord the test
+    // above must refuse, and this failure names the phase that decided it.
+    expect(suggestedHotkeyLetters().has('U')).toBe(false);
+    expect(RESERVED_APP_CHORDS['Shift+Cmd+U']).toBe('Catch me up');
   });
 });

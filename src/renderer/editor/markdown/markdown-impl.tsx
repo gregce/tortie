@@ -25,7 +25,7 @@ import type { Element as HastElement, Node as HastNode } from 'hast';
 import type { HighlighterGeneric } from '@shikijs/types';
 import { Codicon } from '../../icons';
 import { GMUX_THEME_NAME } from '../../pierre/theme-bridge';
-import { markdownRehypePlugins } from './pipeline';
+import { answerRehypePlugins, markdownRehypePlugins } from './pipeline';
 import { resolveAssetSrc, resolveLinkPath } from './asset-url';
 
 export type MarkdownHighlighter = HighlighterGeneric<string, string>;
@@ -98,6 +98,52 @@ export function headingSlug(text: string): string {
     .trim()
     .replace(/\s+/g, '-');
   return `md-${base === '' ? 'section' : base}`;
+}
+
+// ---------------------------------------------------------------------------
+// Components both renderers share
+// ---------------------------------------------------------------------------
+
+/**
+ * GFM task lists. Read-only: the preview renders the file, it does not edit
+ * it — Source mode is the edit path. The answer renderer reuses it because
+ * an agent's answer is not editable either.
+ *
+ * NOT an <input>: Chromium ignores `accent-color` on a DISABLED checkbox,
+ * so the OS widget painted itself grey-on-grey (a #757575 fill with a
+ * #3B3B3B tick, and unchecked boxes at 1.5:1 against the canvas) — the one
+ * element that made the preview read as a web page rather than as gmux. A
+ * box gmux draws, with a codicon tick.
+ */
+function readOnlyTaskInput({
+  type,
+  checked,
+  ...rest
+}: React.InputHTMLAttributes<HTMLInputElement>): React.JSX.Element {
+  if (type !== 'checkbox') return <input type={type} {...rest} />;
+  const on = checked === true;
+  return (
+    <span
+      className={`md-task${on ? ' checked' : ''}`}
+      role="checkbox"
+      aria-checked={on}
+      aria-disabled="true"
+    >
+      {on ? <Codicon name="check" size={11} /> : null}
+    </span>
+  );
+}
+
+/** Wide tables scroll inside their own box; the document never does. */
+function scrollingTable({
+  children,
+  ...rest
+}: React.TableHTMLAttributes<HTMLTableElement>): React.JSX.Element {
+  return (
+    <div className="md-table-scroll">
+      <table {...rest}>{children}</table>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -238,39 +284,103 @@ export function MarkdownDocument({
         );
       },
 
-      input({ type, checked, ...rest }) {
-        // GFM task lists. Read-only: the preview renders the file, it does
-        // not edit it — Source mode is the edit path.
-        //
-        // NOT an <input>: Chromium ignores `accent-color` on a DISABLED
-        // checkbox, so the OS widget painted itself grey-on-grey (a #757575
-        // fill with a #3B3B3B tick, and unchecked boxes at 1.5:1 against the
-        // canvas) — the one element that made this preview read as a web page
-        // rather than as gmux. A box gmux draws, with a codicon tick.
-        if (type !== 'checkbox') return <input type={type} {...rest} />;
-        const on = checked === true;
+      input: readOnlyTaskInput,
+      table: scrollingTable
+    };
+  }, [filePath, rootPath, onOpenFile]);
+
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={rehypePlugins}
+      components={components}
+    >
+      {source}
+    </Markdown>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// An agent's answer (Phase 137.1) — the Catch Me Up page's renderer
+// ---------------------------------------------------------------------------
+
+export interface AnswerMarkdownProps {
+  /** The agent's closing answer, already redacted by the store. */
+  source: string;
+  highlighter: MarkdownHighlighter | null;
+}
+
+/**
+ * The agent's closing answer as markdown, for the Catch Me Up page.
+ *
+ * The same react-markdown, the same remark-gfm and the same sanitize schema
+ * as the preview above, through `answerRehypePlugins`, which leaves
+ * `rehype-raw` OUT: raw HTML in an answer is dropped before it can become a
+ * node, and the sanitizer stays in the chain behind that. The components map
+ * is smaller than the preview's on purpose:
+ *
+ *  - A link opens through the existing external-open bridge, being
+ *    `window.open` routed by main's window-open handler to the system
+ *    browser. That is the one way any link leaves this window. A relative
+ *    link renders inert, because an answer has no file to hang it off, and
+ *    an in-page anchor renders inert because the page it names is not this
+ *    one. A `javascript:` href never reaches this component at all — the
+ *    sanitizer strips the attribute and the link arrives with no href.
+ *  - An image never loads. An answer is an agent's bytes, and a remote
+ *    image in one is exactly the shape of a tracking pixel, so the alt text
+ *    is drawn instead, the way the preview treats remote images.
+ *  - Task-list checkboxes reuse the preview's read-only box.
+ *  - Headings render as plain heading tags with no anchor ids, because the
+ *    heading ruler and its slugs belong to the file preview.
+ */
+export function AnswerMarkdown({
+  source,
+  highlighter
+}: AnswerMarkdownProps): React.JSX.Element {
+  const rehypePlugins = useMemo(
+    () => answerRehypePlugins(highlighter, GMUX_THEME_NAME),
+    [highlighter]
+  );
+
+  const components = useMemo<Components>(() => {
+    return {
+      a({ href, children, ...rest }) {
+        const target = href ?? '';
+        if (/^https?:\/\//i.test(target)) {
+          return (
+            <a
+              {...rest}
+              href={target}
+              title={target}
+              onClick={(e) => {
+                // Never navigate the renderer — main's window-open handler
+                // sends it to the system browser (and will-navigate is the
+                // backstop if anything slips through).
+                e.preventDefault();
+                window.open(target, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              {children}
+            </a>
+          );
+        }
+        // Relative links, anchors, and anything whose scheme the sanitizer
+        // stripped: the words stay, the link does not.
+        return <span {...rest}>{children}</span>;
+      },
+
+      img({ alt }) {
         return (
-          <span
-            className={`md-task${on ? ' checked' : ''}`}
-            role="checkbox"
-            aria-checked={on}
-            aria-disabled="true"
-          >
-            {on ? <Codicon name="check" size={11} /> : null}
+          <span className="md-blocked">
+            {alt !== undefined && alt !== '' ? alt : 'Image'} — not loaded
           </span>
         );
       },
 
-      table({ children, ...rest }) {
-        // Wide tables scroll inside their own box; the document never does.
-        return (
-          <div className="md-table-scroll">
-            <table {...rest}>{children}</table>
-          </div>
-        );
-      }
+      input: readOnlyTaskInput,
+      table: scrollingTable
     };
-  }, [filePath, rootPath, onOpenFile]);
+  }, []);
 
   return (
     <Markdown

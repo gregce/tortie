@@ -102,3 +102,41 @@ export function markdownRehypePlugins(
   }
   return plugins;
 }
+
+/**
+ * The rehype plugin list for an AGENT'S ANSWER (Phase 137.1) — the same
+ * schema, the same sanitizer, the same Shiki step, and NO `rehype-raw`.
+ *
+ * The difference from `markdownRehypePlugins` is deliberate and permanent.
+ * A README is a file the person chose to open, so raw HTML in it is parsed
+ * into nodes and then sanitized. An answer is an agent's bytes arriving on
+ * a page the person opened for a different reason, so raw HTML in it never
+ * becomes a node at all: with `rehype-raw` absent, react-markdown drops
+ * every raw HTML fragment before the tree reaches the DOM, and
+ * `rehype-sanitize` stays in the chain as the second wall. The Phase 137.1
+ * backlog entry forbids `rehype-raw` in the overview's chain, ever.
+ *
+ * Sanitize still runs BEFORE Shiki for the reason the file header gives:
+ * the only inline styles that may reach the DOM are the ones Shiki writes
+ * after the allowlist has run.
+ */
+export function answerRehypePlugins(
+  highlighter: HighlighterGeneric<string, string> | null,
+  theme: string
+): PluggableList {
+  const plugins: PluggableList = [[rehypeSanitize, gmuxMarkdownSchema]];
+  if (highlighter !== null) {
+    plugins.push([
+      rehypeShikiFromHighlighter,
+      highlighter,
+      {
+        theme,
+        lazy: false,
+        addLanguageClass: true,
+        fallbackLanguage: 'text',
+        defaultLanguage: 'text'
+      }
+    ]);
+  }
+  return plugins;
+}

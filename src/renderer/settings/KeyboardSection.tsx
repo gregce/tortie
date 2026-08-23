@@ -57,7 +57,9 @@ import { useSettingsStore } from './settings-store';
  */
 const HINT_LETTER: Readonly<Partial<Record<string, string>>> = {
   claude: 'C',
-  cursor: 'U',
+  // 'S' as in curSor since Phase 137.1, when ⇧⌘U became the Catch Me Up
+  // chord and the registry's defaultHotkeyHint moved with it.
+  cursor: 'S',
   codex: 'X',
   gemini: 'G',
   droid: 'D',

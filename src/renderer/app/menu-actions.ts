@@ -34,7 +34,7 @@ import { useEditor } from '../editor/store';
 import { toggleEditorFill } from '../editor';
 import { focusTerminal, jumpToSession } from './session-focus';
 import { runFillChord } from './fill-chord';
-// Phase 137. View > Catch Me Up. The same router the ⌃⇧U chord runs.
+// Phase 137. View > Catch Me Up. The same router the ⇧⌘U chord runs.
 import { toggleOverview } from '../overview/open-overview';
 import { useQuickOpen } from '../quickopen';
 import { useSymbols } from '../search';
@@ -191,9 +191,12 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
       showViewAction('context');
       return;
     // Phase 137. View > Catch Me Up, directly under Context. The renderer's
-    // ⌃⇧U branch is what runs when the chord is pressed (it precedes the
-    // accelerator and preventDefaults it), so this path only fires on a real
-    // menu click. It is handled without the layer guard on purpose, because
+    // ⇧⌘U branch is what runs when the chord is pressed (it precedes the
+    // accelerator and preventDefaults it), so this path fires on a real menu
+    // click — or on the accelerator itself when a recorded per-agent ⇧⌘U
+    // exists and the renderer branch yields, in which case the Session
+    // menu's recorded item precedes this one and takes the chord first.
+    // It is handled without the layer guard on purpose, because
     // while the page is open modalLayerOpen() counts it, and the row must
     // still be able to CLOSE the page.
     case 'show-overview':

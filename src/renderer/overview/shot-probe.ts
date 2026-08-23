@@ -3,7 +3,7 @@
  *
  * Driven from the GMUX_SHOT_DRIVE spec (`overview: {…}`) through
  * ../app/probe-registry.ts and inert otherwise. The project and the session
- * levels are opened by dispatching the real ⌃⇧U keydown on `window`, which
+ * levels are opened by dispatching the real ⇧⌘U keydown on `window`, which
  * is where ../app/keyboard.ts listens, so the picture shows what the shipped
  * handler produced rather than what a store call staged. The several level
  * is opened through the slice directly, because the rail has no multi
@@ -36,13 +36,13 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** The real chord, as a capture phase keydown on window. */
+/** The real chord, ⇧⌘U, as a capture phase keydown on window. */
 function pressChord(): void {
   window.dispatchEvent(
     new KeyboardEvent('keydown', {
       key: 'u',
       code: 'KeyU',
-      ctrlKey: true,
+      metaKey: true,
       shiftKey: true,
       bubbles: true
     })

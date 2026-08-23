@@ -580,7 +580,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'MEASURED 2026-08-11 (bundled 2.8.0): child exits 42/127 -> wrapper 42/127. Executable: specstory/__tests__/wrap.integration.test.ts.'
     },
     iconKey: 'cursor',
-    defaultHotkeyHint: 'u',
+    // 's', as in curSor. It was 'u' until Phase 137.1 gave ⇧⌘U to the Catch
+    // Me Up page as a built-in, and a suggested mnemonic must never name a
+    // reserved chord (src/shared/__tests__/focus-chord.test.ts). Of the
+    // letters in the word cursor, c belongs to claude, u to the page, r to
+    // another agent's hint, and s is the first free one. HINT_LETTER in
+    // src/renderer/settings/KeyboardSection.tsx moves with this field.
+    defaultHotkeyHint: 's',
     multilineKey: {
       sequence: LF,
       verified: true,

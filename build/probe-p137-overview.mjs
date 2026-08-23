@@ -129,6 +129,81 @@ function place(rel, fixtureName) {
 }
 
 place(join('.claude', 'projects', project.replace(/\//g, '-'), `${IDS.claude}.jsonl`), 'claude-session.jsonl');
+
+// Phase 137.1. Two turns appended to the claude COPY, never to the committed
+// fixture. The first carries the hostile answer the backlog entry names, so
+// the DOM reading below can prove a script tag, an img onerror, an iframe
+// and a javascript: link reach nothing. The second is the markdown showcase
+// the photographs are read for, being a list, a fence and inline code, with
+// an ask that carries a literal asterisk to prove asks stay plain.
+{
+  const claudeCopy = join(home, '.claude', 'projects', project.replace(/\//g, '-'), `${IDS.claude}.jsonl`);
+  const base = {
+    isSidechain: false,
+    userType: 'external',
+    entrypoint: 'cli',
+    cwd: '/Users/dev/demo-app',
+    sessionId: IDS.claude,
+    version: '2.1.238',
+    gitBranch: 'main'
+  };
+  const ask = (uuid, ts, text, promptId) =>
+    JSON.stringify({
+      parentUuid: null,
+      ...base,
+      type: 'user',
+      message: { role: 'user', content: text },
+      uuid,
+      timestamp: ts,
+      promptSource: 'typed',
+      promptId,
+      origin: { kind: 'human' }
+    });
+  const answer = (uuid, ts, text) =>
+    JSON.stringify({
+      parentUuid: null,
+      ...base,
+      message: {
+        model: 'claude-opus-5',
+        id: `msg_${uuid.slice(0, 8)}`,
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'text', text }]
+      },
+      requestId: `req_${uuid.slice(0, 8)}`,
+      type: 'assistant',
+      uuid,
+      timestamp: ts
+    });
+  const hostileAnswer = [
+    'Before the attack.',
+    '<script>window.gmux.terminalWrite("rm -rf ~")</script>',
+    '<img src=x onerror="fetch(\'https://evil.example/x\')">',
+    '<iframe src="https://evil.example/frame"></iframe>',
+    '[click me](javascript:alert(document.title))',
+    'After the attack.'
+  ].join('\n\n');
+  const showcaseAnswer = [
+    'The release steps, in order:',
+    '',
+    '- build the DMG',
+    '- staple the ticket',
+    '- run `scripts/release.sh` last',
+    '',
+    '```sh',
+    'sh scripts/release.sh --dry-run',
+    '```',
+    '',
+    'The dry run printed the order above and nothing else changed.'
+  ].join('\n');
+  const lines = [
+    ask('aaaa0001-1111-4111-8111-111111111111', '2026-08-20T10:07:00.000Z', 'please try rendering some html in your answer so we can see what happens', 'p-0101'),
+    answer('aaaa0002-1111-4111-8111-111111111111', '2026-08-20T10:07:30.000Z', hostileAnswer),
+    ask('aaaa0003-1111-4111-8111-111111111111', '2026-08-20T10:08:00.000Z', 'can you list the release steps and mark the *manual* one with `code`', 'p-0102'),
+    answer('aaaa0004-1111-4111-8111-111111111111', '2026-08-20T10:08:40.000Z', showcaseAnswer)
+  ];
+  writeFileSync(claudeCopy, readFileSync(claudeCopy, 'utf8') + lines.join('\n') + '\n', 'utf8');
+}
 place(
   join('.codex', 'sessions', '2026', '08', '19', `rollout-2026-08-19T10-05-03-${IDS.codex}.jsonl`),
   `codex-rollout-2026-08-19T10-05-03-${IDS.codex}.jsonl`
@@ -224,6 +299,33 @@ function readerJs(spec) {
       for (const m of text.match(/[0-9]+/g) || []) digitRuns.push(m);
     }
 
+    // Phase 137.1. The answers render as markdown through a lazily loaded
+    // chunk, so give the chunk a moment where an answer is on the page.
+    if (layer.querySelector('.md-answer') !== null) {
+      const mdDeadline = Date.now() + 5000;
+      while (Date.now() < mdDeadline && layer.querySelector('.md-answer-rendered') === null) {
+        await wait(100);
+      }
+      await wait(200);
+    }
+
+    // The hostile shapes the Phase 137.1 entry names, read off the LIVE DOM.
+    // Every count must be zero on every view.
+    const hostile = {
+      scriptOrIframe: layer.querySelectorAll('script, iframe').length,
+      onerrorAttrs: layer.querySelectorAll('[onerror]').length,
+      javascriptHrefs: Array.from(layer.querySelectorAll('a')).filter(
+        (a) => (a.getAttribute('href') || '').trim().toLowerCase().startsWith('javascript:')
+      ).length
+    };
+    // What the markdown actually drew, for the runs that show an answer.
+    const markdown = {
+      rendered: layer.querySelectorAll('.md-answer-rendered').length,
+      listItems: layer.querySelectorAll('.md-answer-rendered ul li, .md-answer-rendered ol li').length,
+      fences: layer.querySelectorAll('.md-answer-rendered pre code').length,
+      inlineCode: layer.querySelectorAll('.md-answer-rendered :not(pre) > code').length
+    };
+
     const flat = (layer.innerText || '').replace(/\\s+/g, ' ').trim();
     const gitMarks = ['git agrees', 'git has no record', 'nothing to check'].filter((s) => flat.includes(s));
     const namesShown = ${JSON.stringify(spec.names ?? [])}.filter((n) => flat.includes(n));
@@ -236,6 +338,8 @@ function readerJs(spec) {
       digitRuns,
       gitMarks,
       namesShown,
+      hostile,
+      markdown,
       textHead: flat.slice(0, 1500)
     };
   } catch (err) {
@@ -250,7 +354,7 @@ function readerJs(spec) {
  */
 const PRESS_JS = `
     window.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'U', code: 'KeyU', ctrlKey: true, shiftKey: true,
+      key: 'U', code: 'KeyU', metaKey: true, shiftKey: true,
       bubbles: true, cancelable: true, view: window
     }));
 `;
@@ -355,13 +459,15 @@ async function main() {
       label: 'session',
       overview: { level: 'session', sessionNames: ['claude-6'] },
       js: { names: ['claude-6'] },
-      wantGitMark: true
+      wantGitMark: true,
+      wantMarkdown: true
     },
     {
       label: 'several',
       overview: { level: 'several', sessionNames: ['claude-6', 'codex-2', 'grok-1'] },
       js: { names: ['claude-6', 'codex-2', 'grok-1'] },
-      wantNames: 3
+      wantNames: 3,
+      wantMarkdown: true
     },
     {
       label: 'flight',
@@ -416,10 +522,26 @@ async function main() {
     if (run.wantGitMark === true && (rep.gitMarks ?? []).length === 0) {
       failures.push(`${run.label}: no git mark text is on the page`);
     }
+    // Phase 137.1. No hostile shape may reach the DOM, on any view.
+    const hostile = rep.hostile ?? { scriptOrIframe: 0, onerrorAttrs: 0, javascriptHrefs: 0 };
+    if (hostile.scriptOrIframe !== 0 || hostile.onerrorAttrs !== 0 || hostile.javascriptHrefs !== 0) {
+      failures.push(
+        `${run.label}: hostile markup reached the DOM: ${JSON.stringify(hostile)}`
+      );
+    }
+    // Phase 137.1. The views that draw an answer must draw the showcase's
+    // list, fence and inline code as those things.
+    if (run.wantMarkdown === true) {
+      const md = rep.markdown ?? { rendered: 0, listItems: 0, fences: 0, inlineCode: 0 };
+      if (md.rendered === 0 || md.listItems === 0 || md.fences === 0 || md.inlineCode === 0) {
+        failures.push(`${run.label}: the answer did not draw as markdown: ${JSON.stringify(md)}`);
+      }
+    }
     say(
       `${run.label}: fits ${String(rep.fits)}, layer ${String(rep.rect.width)}x${String(rep.rect.height)} in ` +
         `${String(rep.win.w)}x${String(rep.win.h)}, digit runs outside allowed spans ${String((rep.digitRuns ?? []).length)}, ` +
-        `git marks [${(rep.gitMarks ?? []).join(', ')}], names [${(rep.namesShown ?? []).join(', ')}]`
+        `git marks [${(rep.gitMarks ?? []).join(', ')}], names [${(rep.namesShown ?? []).join(', ')}], ` +
+        `hostile ${JSON.stringify(rep.hostile ?? null)}, markdown ${JSON.stringify(rep.markdown ?? null)}`
     );
     writeFileSync(join(outDir, `p137-${run.label}.json`), JSON.stringify(rep, null, 2), 'utf8');
   }

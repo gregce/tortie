@@ -36,6 +36,7 @@ release.
 | 19 | **139** hovering an uninstalled agent moves the whole screen | He reported it 2026-08-22 with a photograph and asked for it before the release | ✅ shipped |
 | — | **RELEASE POINT** | On 2026-08-22 he said to queue all of the above and then cut a release, and later the same day he DELEGATED the cut. See the grant below | ✅ DONE, v0.68.7 published as Latest 2026-08-23 |
 | 20 | **137** catch me up on this project | The page he re-specified on 2026-08-22, one chord over each agent's own log with a git mark beside each claim, no model in it | ✅ shipped |
+| 21 | **137.1** markdown in the overview, and the chord moves | He asked on 2026-08-23. The answers render as markdown and the chord is ⇧⌘U | ✅ shipped |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
 **THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
@@ -15899,7 +15900,7 @@ The 43, by name: `p117-create-unknown` `p118-remote-children` `p118-shot` `p132-
 - No new memory check anywhere. The operator said not to be overly cautious about memory and the fix is cleanup rather than caution.
 
 
-## Phase 137.1 — the overview renders markdown, and the chord is the one his hands expect (operator asked 2026-08-23) QUEUED, BEFORE PHASE 138
+## Phase 137.1 — the overview renders markdown, and the chord is the one his hands expect (operator asked 2026-08-23) ✅ SHIPPED 2026-08-23 (this commit, 0.69.1, gates green, 8,636 tests)
 
 **Subject:** `fix(overview): the answer renders as markdown and the chord is ⇧⌘U`
 **First body line:** `Phase 137.1: markdown in the overview, and the chord moves`
@@ -16166,3 +16167,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 137.2 gains its third item, the session actions menu gets a row opening that session in the overview
 - 2026-08-23, Phase 137.2 gains its fourth item, the agent's own mark draws in the project overview rows and the one-session header through the AgentIcon the session views already use
 - 2026-08-23, Phase 137.2 gains its fifth item, each column in the multiplexed view scrolls independently with pointer and keyboard, and one column scrolling never moves its neighbour
+- 2026-08-23, Phase 137.1 shipped, an agent's answer in the overview renders as markdown through the editor's own sanitizing pipeline with rehype-raw absent so hostile HTML draws as text and reaches no DOM node, your own asks stay plain, the chord moves to ⇧⌘U with cursor's suggested letter moving from u to s, and a recorded ⇧⌘U per-agent hotkey still wins over the built-in, this commit, 0.69.1

@@ -41,8 +41,14 @@ import { toggleSessionFocus } from './focus-flight';
 // Escape is only ever the way out of session focus.
 import { runFillChord } from './fill-chord';
 // Phase 137. The Catch Me Up page. The chord toggles it and Escape steps
-// back out of it, one rung above the session focus rung.
-import { backOrLeaveOverview, toggleOverview } from '../overview/open-overview';
+// back out of it, one rung above the session focus rung. Phase 137.1 moved
+// the chord to ⇧⌘U, and overviewChordYields is how a recorded per-agent
+// ⇧⌘U keeps winning over the built-in.
+import {
+  backOrLeaveOverview,
+  overviewChordYields,
+  toggleOverview
+} from '../overview/open-overview';
 import { useQuickOpen } from '../quickopen';
 import {
   focusInsideSearch,
@@ -273,25 +279,27 @@ export function useKeyboardMap(): void {
         return;
       }
 
-      // ⌃⇧U — Catch Me Up (Phase 137). Registered beside ⌃⇧C and ⌃⇧G
-      // because it is the same gesture family on the same rail. ⇧⌘U is
-      // deliberately NOT used: cursor's defaultHotkeyHint is 'u', and the
-      // per-agent hotkey space belongs to the person. preventDefault runs
-      // whether or not the keyboard is in a terminal, exactly as ⌃⇧C above,
-      // and the View menu's Catch Me Up row mirrors it as 'show-overview'.
-      if (
-        e.ctrlKey &&
-        e.shiftKey &&
-        !e.metaKey &&
-        !e.altKey &&
-        e.key.toLowerCase() === 'u'
-      ) {
+      if (!meta) return;
+
+      // ⇧⌘U — Catch Me Up (Phase 137.1). Phase 137 put the page on ⌃⇧U
+      // because cursor's defaultHotkeyHint was 'u'; this phase moved that
+      // hint to 's' and gave the page the chord the operator asked for.
+      //
+      // THE PERSON'S OWN CHORD WINS. ⇧⌘U was recordable as a per-agent
+      // hotkey before this phase reserved it, so a recorded ⇧⌘U may exist.
+      // This ladder runs before the native accelerators, and preventDefault
+      // here would suppress them, so when a recorded hotkey owns the chord
+      // this branch does nothing at all: the event runs on to the menu,
+      // where the Session menu's recorded item precedes the View menu's
+      // Catch Me Up item and takes the accelerator. Without a recorded
+      // owner this branch is the one that runs, and the View menu row
+      // mirrors it as 'show-overview' for discoverability.
+      if (e.shiftKey && e.key.toLowerCase() === 'u') {
+        if (overviewChordYields()) return;
         e.preventDefault();
         void toggleOverview('chord');
         return;
       }
-
-      if (!meta) return;
 
       // ⇧⌘↩, session focus (Phase 80.1). Registered above the shift chords
       // below because it is matched on e.key === 'Enter' rather than on a

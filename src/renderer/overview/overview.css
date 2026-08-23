@@ -276,3 +276,118 @@
   color: var(--text-muted);
   white-space: pre; /* the footer's key hints keep their triple spaces */
 }
+
+/* ---------------------------------------------------------------------------
+   The answer as markdown (Phase 137.1)
+
+   AnswerBody wraps every answer in .md-answer. Until the markdown chunk
+   arrives the answer is plain text and keeps the pre-wrap the block above
+   declares. Once rendered, .md-answer-rendered hands the whitespace back to
+   the markup, because a paragraph's source newlines are not line breaks.
+
+   Code draws in the mono face the terminal shows. The terminal's own token,
+   --font-terminal, is reserved for xterm alone (tokens.css §1.8), and it
+   resolves to the same faces as --font-mono, so the face reaches these rules
+   through --font-mono.
+--------------------------------------------------------------------------- */
+
+.md-answer-rendered {
+  white-space: normal;
+}
+
+.md-answer-rendered > :first-child {
+  margin-top: 0;
+}
+
+.md-answer-rendered > :last-child {
+  margin-bottom: 0;
+}
+
+.md-answer-rendered p,
+.md-answer-rendered ul,
+.md-answer-rendered ol,
+.md-answer-rendered pre,
+.md-answer-rendered blockquote,
+.md-answer-rendered table {
+  margin: 6px 0;
+}
+
+.md-answer-rendered ul,
+.md-answer-rendered ol {
+  padding-left: 22px;
+}
+
+.md-answer-rendered li {
+  margin: 2px 0;
+}
+
+/* Headings in an answer stay conversation sized. Bold carries the rank. */
+.md-answer-rendered h1,
+.md-answer-rendered h2,
+.md-answer-rendered h3,
+.md-answer-rendered h4,
+.md-answer-rendered h5,
+.md-answer-rendered h6 {
+  margin: 8px 0 4px;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.md-answer-rendered a {
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.md-answer-rendered a:hover {
+  text-decoration: underline;
+}
+
+.md-answer-rendered code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* Inline code only — Shiki's block output styles itself. */
+.md-answer-rendered :not(pre) > code {
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.md-answer-rendered pre {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  tab-size: 2;
+}
+
+.md-answer-rendered pre code {
+  display: block;
+  font-size: inherit;
+}
+
+.md-answer-rendered blockquote {
+  padding-left: 10px;
+  border-left: 2px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.md-answer-rendered table {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.md-answer-rendered th,
+.md-answer-rendered td {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+}
+
+/* An image in an answer never loads; the alt text stands in for it. */
+.md-answer-rendered .md-blocked {
+  color: var(--text-muted);
+}

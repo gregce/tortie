@@ -15,15 +15,30 @@ import { nextOverviewToken } from '../state/overview-slice';
 import { activeFillRegion } from '../app/fill-chord';
 import { focusedSessionRowId } from '../app/shell-actions';
 import { focusTerminal, jumpToSession } from '../app/session-focus';
+import { useSettingsStore } from '../settings/settings-store';
 import { enterOverviewFlight, leaveOverviewFlight } from './overview-flight';
 import { decideOverviewLevel } from './level';
+import { recordedOverviewChordOwner } from './overview-chord';
 import { OPEN_A_PROJECT_FIRST } from './copy';
 
 export { decideOverviewLevel } from './level';
 export type { LevelDecision, LevelInput } from './level';
+export { recordedOverviewChordOwner } from './overview-chord';
 
 /**
- * ⌃⇧U, and View > Catch Me Up. Opens the page at the level focus decides,
+ * The live read the keyboard map's ⇧⌘U branch uses, over the shared
+ * settings store. True when a recorded per-agent hotkey owns the overview
+ * chord, in which case the branch does nothing and the person's own menu
+ * accelerator fires. The decision itself, and the reason the person wins,
+ * live in ./overview-chord.ts.
+ */
+export function overviewChordYields(): boolean {
+  const hotkeys = useSettingsStore.getState().settings.hotkeys;
+  return recordedOverviewChordOwner(hotkeys) !== null;
+}
+
+/**
+ * ⇧⌘U, and View > Catch Me Up. Opens the page at the level focus decides,
  * or closes the open page. The chord and the menu do the same thing, which
  * is why the source parameter is unread today. It stays in the signature so
  * a later phase that gives the menu a spoken refusal does not have to change

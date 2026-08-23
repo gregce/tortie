@@ -817,12 +817,19 @@ export const KEYMAP = [
     menuAction: 'show-context'
   },
   {
-    // Phase 137. ⌃⇧U sits beside ⌃⇧C and ⌃⇧G. ⇧⌘U is refused because cursor's
-    // defaultHotkeyHint is 'u' and src/shared/__tests__/focus-chord.test.ts
-    // reads every hint out of the registry, so taking ⇧⌘U would make the
-    // suggested cursor hotkey un-recordable.
+    // Phase 137 took ⌃⇧U, because cursor's defaultHotkeyHint was 'u' and a
+    // built-in ⇧⌘U would have made the suggested cursor hotkey un-recordable.
+    // Phase 137.1 moved cursor's hint to 's' (the next free letter in the
+    // word cursor) and gave this row the ⇧⌘U the operator's hands expect.
+    // The chord joins RESERVED_APP_CHORDS by carrying Cmd, so the recorder
+    // refuses it from here on. A person who recorded ⇧⌘U before this phase
+    // keeps it: the renderer's ⇧⌘U branch yields when a recorded per-agent
+    // hotkey owns the chord (src/renderer/app/keyboard.ts), and the Session
+    // menu's recorded item then takes the accelerator ahead of the View
+    // menu's, because the Session menu precedes the View menu.
+    // src/shared/__tests__/overview-contract.test.ts holds all of this down.
     id: 'view.overview',
-    keys: [k('Ctrl+Shift+U')],
+    keys: [k('Shift+Cmd+U')],
     action: 'Catch me up',
     explain:
       'Shows the conversation you have been having with each session in this project, being your ask and the agent’s closing answer for each turn, with a mark saying whether git agrees. With the keyboard in a session it shows that session alone. With a split on screen it shows the split side by side. Anywhere else it shows one line per session. Press it again, or Escape, to go back.',
