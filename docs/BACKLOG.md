@@ -15950,6 +15950,51 @@ He asked for ⇧⌘U instead of ⌃⇧U. It was refused in Phase 137 because cur
 - No model. Phase 138 is still next and still separate.
 
 
+## Phase 137.2 — a rail of your asks beside the conversation (operator asked 2026-08-23) QUEUED, AFTER 137.1, BEFORE 138
+
+**Subject:** `feat(overview): every ask in the conversation is one press away`
+**First body line:** `Phase 137.2: the ask rail`
+**Semver:** minor. It adds a surface inside the one-session view.
+**Tier 2**, with photographs at a short conversation, a long one, and a narrow window.
+**Charter:** this entry, plus the `## Phase 137` entry, plus DESIGN.md. The copy rule and the integer rule from Phase 137 bind every string here.
+
+### What he asked for
+
+When looking at one session's conversation, a sidebar on the right like a minimap, listing the prompts that begin each exchange, so any ask is one press away.
+
+### The shape
+
+- A narrow rail on the RIGHT of the one-session view only. Not the columns view, whose columns have no room, and not the project view, which is already one line per session.
+- One row per YOUR ask, in order, top to bottom, each showing the ask's first words clipped to the row and its clock time. Verbatim words, plain text, never rendered and never rewritten.
+- Press a row and the conversation scrolls to that exchange, with the same landing the ⏎ jump already uses. The current exchange's row is marked as the view scrolls, quietly, e.g. a left edge tick, never a count and never a badge.
+- Keyboard: the rail is reachable without the pointer. Up and down move along asks from within it, ⏎ jumps, Escape returns to the conversation. The existing up and down inside the conversation keep their meaning.
+- A conversation of two asks draws a two-row rail without apology. A conversation of two hundred scrolls the rail independently of the conversation.
+- At a narrow window the rail collapses before the conversation does, and the chord view still fits.
+
+### The rules that bind it
+
+- The rail reads the SAME rows the view already holds. No new reader work, no new store column, no new bridge channel unless the view genuinely lacks the ask list, and if it does, say so in the commit body.
+- No integer anywhere on it except the clock time. No counts, no "12 exchanges", no scroll percentage.
+- Your words stay yours, being clipped and never summarised. The model never touches this rail, in this phase or in 138.
+- All colors via tokens. The rail must not steal focus from the conversation on hover, following the hover rules ProjectRail already follows.
+
+### Proof, run rather than read
+
+- Photographs at a 3-ask and a 60-ask conversation, and at a narrow window showing the collapse, read by eye.
+- Drive a jump in the probe and prove the conversation landed at the pressed exchange, by rectangle rather than by eye.
+- Prove the marked row follows the scroll.
+- Prove keyboard reach, jump and return in the probe.
+- The integer rule and the copy rule by grep.
+- The standard battery plus conformance:overview and the focus-chord test.
+
+### What is NOT in this phase
+
+- Nothing in the columns view or the project view.
+- No rendering in the rail, no summaries, no model.
+- No change to the reader, the store, the keep map or the git mark.
+- No new chord. The rail lives inside the view ⇧⌘U already opens.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16092,3 +16137,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phases 44 and 45 marked SUPERSEDED by 137 and 138 on his word, their entries stay as the record of the 2026-08-15 thinking
 - 2026-08-23, Phase 137 shipped, the chord ⌃⇧U opens the conversation you have been having with every session here, at one session, several as columns, or the whole project, built from each agent's own log through the per provider keep map with a git mark beside each claim, no model in it and the seven research 63 defects fixed, this commit, 0.69.0
 - 2026-08-23, Phase 137.1 queued, the overview renders markdown through the sanitizing pipeline the editor already owns and the chord becomes ⇧⌘U with cursor's suggested letter moving, before Phase 138
+- 2026-08-23, Phase 137.2 queued, a rail of your asks on the right of the one-session view, one press to any exchange, after 137.1 and before 138
