@@ -4690,7 +4690,7 @@ added.
 - `release/mac-arm64/Tortie.app` is a 0.18.1 rehearsal build, which is the harness's normal end
   state. `release/` is gitignored.
 
-## Phase 44 — Catch Me Up, the structural digest (research 44) HELD 2026-08-15 by the operator, pending more thinking; do not build until they say so
+## Phase 44 — Catch Me Up, the structural digest (research 44) SUPERSEDED 2026-08-23 by Phase 137, on his word; the hold ended when he confirmed 137 and 138 are not this plan, and this entry stays as the record of what was thought on 2026-08-15
 
 **Specification.** docs/research/44-session-digests.md, Phase A. A per session Catch Me Up verb
 opens a digest computed on demand from the SpecStory capture, keyed by agent_session_id: turns,
@@ -4702,7 +4702,7 @@ in file timestamp; mtime never trusted alone. Nothing badges, pushes, or sets st
 parse update_plan inputs as a substance line for headless codex sessions. **Tier 2** plus a
 fixture matrix over real captures from every agent with captures on disk. **Semver:** feat.
 
-## Phase 45 — Catch Me Up, the model summary opt in (research 44) HELD 2026-08-15 by the operator, pending more thinking; do not build until they say so
+## Phase 45 — Catch Me Up, the model summary opt in (research 44) SUPERSEDED 2026-08-23 by Phase 138, on his word; same record rule as Phase 44 above
 
 **Specification.** docs/research/44-session-digests.md, Phase B. Behind the same verb, an opt in
 model written summary produced by one shot of an agent CLI the user confirmed through the Phase
@@ -16037,3 +16037,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, RELEASE CUT AND PUBLISHED, tag v0.68.7 on `91ea9a0`, signed, notarized and stapled, published as Latest with 5 artifacts, carrying the four remote write phases, the four chrome phases, the keychain fix, the About panel credit and Runs A to D; the delegated grant is now spent and does not renew
 - 2026-08-23, Phase 140 queued, 43 of the 50 probes that launch Electron close it only on the happy path, which is how the machine crashed on 2026-08-22, and the fix is one launch helper with the kill in finally plus a gate so it cannot drift back
 - 2026-08-23, Phase 132.2 shipped, the skill preview sheet widens to min(1600px, 92vw) at his ask, Tier 1 at his word, `75991fd`, 0.68.8
+- 2026-08-23, Phases 44 and 45 marked SUPERSEDED by 137 and 138 on his word, their entries stay as the record of the 2026-08-15 thinking
