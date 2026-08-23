@@ -140,6 +140,17 @@ The operator gave these rules directly. They are requirements, not preferences. 
 - Say what is not true. Name what did not land. Name what is unverified. Name what you assumed.
 - Use numbers rather than adjectives. Write "0.57 s, from 23 s" rather than "much faster".
 
+## Release notes (the operator set the style on 2026-08-23)
+
+He rewrote every CHANGELOG entry by hand and said future release writing follows that style. The
+rules are at the top of CHANGELOG.md and they bind every entry after. In short: one or two sentences
+per item, what a person can now do or what no longer goes wrong, a limit a person will hit in one
+clause in the same item, nothing a person will not hit, no numbers unless the number is the point, no
+build story, no file names, no gate names. The lead paragraph says what the release is about in two
+or three sentences and lists nothing. The long form with every measurement and every admission
+belongs in the commit body, where it already is. Release pages carry the CHANGELOG entry verbatim,
+and when CHANGELOG.md changes the release pages are synced to match.
+
 ## Verification tiers — match the check to the risk, do not default to maximum
 Heavyweight verification (driving the real app with synthetic input, screenshot reads, per-agent matrices) is expensive in wall clock and tokens. Spend it where a wrong answer costs the user their work; do not spend it on cosmetics.
 - **Tier 1 — gates only** (`typecheck`, `build`, `test`, `smoke:t1`): icons and assets, CSS/spacing, copy and labels, tooltips, menu items, additive UI with no new state, doc changes. A screenshot only if the change is visual and cheap to capture.
