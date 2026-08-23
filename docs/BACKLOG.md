@@ -15846,6 +15846,58 @@ get there, before 137 and 138 start. That grant is:
   it here. Report what the release appears to fix and leave every issue alone until he says so.
 
 
+## Phase 140 — 43 probes launch Electron and close it only when nothing goes wrong (found 2026-08-23, and it is how the machine crashed) QUEUED
+
+**Subject:** `fix(build): every probe ends the Electron it started, whatever happened`
+**First body line:** `Phase 140: 43 probes close Electron only on the happy path`
+**Semver:** patch. No product file changes. Only scripts under `build/` move.
+**Tier 2.** No product code is touched, so the gates are the proof, plus one deliberate failure run per probe shape showing the Electron count returns to what it was. Tier 2 rather than Tier 1 because the whole point is a behaviour under failure, and that has to be driven rather than read.
+**Charter:** this entry, plus the machine discipline section of CLAUDE.md, which names this as the cause of the 2026-08-22 crash, plus `build/probe-p139-caption.mjs`, which is the model every other probe is brought up to.
+
+### What happened, in the operator's words
+
+He said the crash was not memory being tight. It was that something verified a change by opening sixty or more instances of Tortie and never closing them. He is right, and the count in the tree says how.
+
+### The count, measured on 2026-08-23 at `96a98e4`
+
+| Probes under `build/` that launch Electron | 50 |
+| --- | ---: |
+| Kill it in a `finally` block | 7 |
+| Kill it only on the happy path | **43** |
+
+A probe that kills only on the happy path leaves an Electron running whenever an assertion throws before the kill line. A verifier that retries a failing probe, or runs five probes in sequence where the first one throws, stacks them. Each one is about 451 MB resident. Sixty of them is the machine.
+
+The 43, by name: `p117-create-unknown` `p118-remote-children` `p118-shot` `p132-install-sheet` `p134-about-shot` `probe-control-dialect` `probe-home-machines` `probe-home-update-line` `probe-key-install` `probe-machines` `probe-openwith` `probe-p101-save` `probe-p101-shot` `probe-p102-shot` `probe-p103-shot` `probe-p103-stage` `probe-p104-commit` `probe-p104-shot` `probe-p119-menu` `probe-p120-shot` `probe-p121-recents` `probe-p129-agents` `probe-p129-chord` `probe-p129-projects` `probe-p129-rail` `probe-p130-install-copy` `probe-p130-prose` `probe-p130-spacing` `probe-p131-row` `probe-p133-login-session` `probe-p135-chrome` `probe-p135-verify` `probe-p93-attention` `probe-p94-hotkey` `probe-p95-scroll` `probe-p96-remote-surfaces` `probe-p97-untracked` `probe-remote-attach` `probe-remote-env` `probe-remote-project` `probe-remote-recents` `probe-shell-path` `probe-workspace-target`.
+
+### The model, and it already exists in the tree
+
+`build/probe-p139-caption.mjs` line 498 is the shape. The launch is inside a `try`, the `finally` kills the pid recorded in that scope and nothing else, and the comment says why. Its header at line 77 states the rule in one sentence, being that at most one Electron runs at a time, each launch is awaited to exit, and the pid it started is killed in a `finally` block whatever happened.
+
+### Mechanism
+
+- **Extract the launch into one helper** rather than patching 43 files by hand. `build/harness-socket.mjs` already owns the scratch tmux socket. A sibling that owns the Electron launch, takes a callback, and guarantees the kill in `finally` means every probe calls one function and the guarantee lives in one place. Grep for an existing helper first, because one may already exist under a different name.
+- **Convert all 43** to call it. The conversion is mechanical and each probe must still pass afterwards.
+- **Add the scratch tmux server to the same `finally`**, because an orphaned scratch server is the other half of the same leak.
+- **Add a gate** under `build/` that reads every probe that names Electron and fails if its launch is not inside the helper. Model it on `build/assert-probe-containment.mjs`, which Run D wrote and which reads source in the same way. A rule with no gate is a rule that drifts back, and this one has already drifted to 43.
+
+### Proof this phase must produce, run rather than read
+
+- The count, before and after, from the same command that produced the table above. After must read 50 of 50.
+- For each distinct probe SHAPE, not each probe, one deliberate failure run. Inject a throw after the launch and before the old kill line, run it, and show `ps aux | grep -c "[E]lectron"` reads the same before and after. Three or four shapes cover the 43.
+- Every converted probe still passes on its own happy path. Run each one once, ONE AT A TIME, with the Electron count checked between runs.
+- The new gate fails on a fixture probe that launches outside the helper and passes on the 50.
+- `npm run typecheck`, `npm run build`, `npm test`, `npm run smoke:t1`.
+- Report `tmux -L gmux list-sessions | wc -l` before and after. It must not move.
+
+### What is NOT in this phase
+
+- No product file changes. Nothing under `src/` moves.
+- No change to what any probe measures or asserts. Only how it launches and how it ends.
+- No change to the scratch socket naming, which `harness-socket.mjs` owns.
+- No rewriting of the seven probes that already do this correctly, beyond calling the shared helper if the conversion is trivial.
+- No new memory check anywhere. The operator said not to be overly cautious about memory and the fix is cleanup rather than caution.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -15983,3 +16035,4 @@ cycle rather than only the evening it was written.
 - 2026-08-22, Phase 139 shipped, the caption now sits out of normal flow inside a 22px slot whose height never changes, so hovering an uninstalled agent moves the heading, the twelve tiles and the hint line 0px where the parent commit moved all three up 26px for a typical install command, 32px for the registry's longest one, being Qwen Code at 111 characters, and 56px at a 300px column where the sentence wraps, read from getBoundingClientRect over 12 caption shapes at two column widths. Candidate A, the reserved slot ProjectRail.tsx already uses for the ⌘ hint, beat candidate B, which anchored the empty column to the top of the pane and left every empty state in the app 217.4px higher at rest. The aria-live region still announces, the copy button is still the topmost element at its own coordinates and the command text is still selectable, this commit, 0.68.7
 - 2026-08-23, Phase 128 shipped and it ruled against itself, docs/audits/2026-08-23-large-file-reassessment.md, src/shared/types.ts at 1,526 lines, src/main/agents/registry.ts at 1,724 and src/main/git/service.ts at 1,642 ALL STAY, no src/ file changed and the version does not move. Reasons to change alone said split all three at 6, 8 and 6, and the second test decided every case, being whether any importer wants one reason without the others: types.ts has 152 production importers but src/shared/ipc names five of its six sections so no extraction shrinks a rebuild set and the best measured saving was 1.7 s on a 7.09 s typecheck, registry.ts has 51 executable statements in 1,724 lines with one runtime out edge to a terminal leaf and 0 of the last 182 commits touched it, service.ts has 3 importers and not one wants a single reason while 38 internal calls from five of its six reasons land in one 97 line validation core. Runs A to D changed 0 lines in all three across 399 file changes. THE STOP RECOMMENDATION WAS WITHDRAWN after an adversary showed the three files judged include the two coldest large files in the tree, that seven production files are larger rather than five, and that src/renderer/machines/presentation.ts at 2,948 lines has 30 of the last 182 commits with 14 of its 41 importers naming exactly one symbol, so it is recorded as the one candidate and deliberately NOT queued. The principle is written out in section 8 in three clauses, being reasons to change, then demand, then recency, and it is NOT pasted into CLAUDE.md because the two clause version was refuted and its repair has not been attacked, this commit, 0.68.7
 - 2026-08-23, RELEASE CUT AND PUBLISHED, tag v0.68.7 on `91ea9a0`, signed, notarized and stapled, published as Latest with 5 artifacts, carrying the four remote write phases, the four chrome phases, the keychain fix, the About panel credit and Runs A to D; the delegated grant is now spent and does not renew
+- 2026-08-23, Phase 140 queued, 43 of the 50 probes that launch Electron close it only on the happy path, which is how the machine crashed on 2026-08-22, and the fix is one launch helper with the kill in finally plus a gate so it cannot drift back
