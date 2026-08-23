@@ -79,66 +79,43 @@ Each phase runs as ONE Workflow with the same shape that produced Phases 1-13: *
 - **Never leave the queue idle.** When a phase's workflow completes, immediately launch the next batch in the order recorded at the top of docs/BACKLOG.md. Do not wait to be asked. If a verdict blocks, fix it and continue.
 - **Report to the user in their terms** when a phase lands: what they can now do that they could not before, and what is still not true.
 
-## Machine discipline when running phases (learned the hard way, 2026-08-22)
+## Machine discipline when running phases (rewritten 2026-08-23 with real numbers)
 
-The operator's machine ran out of memory and crashed, `/private/tmp` was wiped, every worktree was
-destroyed and 163 files of uncommitted builder work were lost. Nothing committed was lost. The cause
-was NOT memory being tight in general. It was probes that launched Electron and never closed it. Of
-the 16 probes in `build/` that launch Electron, 2 kill it in a `finally` block and 14 kill it only on
-the happy path, so any assertion that throws leaves an Electron running, and a verifier retrying a
-probe stacks them until the machine falls over. The operator said not to be overly cautious about
-memory, and he is right. The rule is cleanup, not caution.
+On 2026-08-22 the machine ran out of memory and crashed, `/private/tmp` was wiped and 163 files of
+uncommitted builder work were lost. The rule written that day blamed concurrency and was wrong. The
+numbers, measured on 2026-08-23: the machine has **48 GB**, one probe's Electron holds **241 MB**, and
+the operator's entire running Tortie with all its sessions holds **1,524 MB across 18 processes**. Four
+probes at once is under 1 GB. That was never the crash.
 
+**The crash was a leak, not concurrency.** Of the 50 probes under `build/` that launch Electron, 43
+kill it only on the happy path, so any assertion that throws leaves one running and a retried or
+sequenced probe stacks them. Sixty stacked instances is 15 GB or more, and that is the machine. Phase
+140 fixes it at the source with one launch helper that kills in `finally` plus a gate.
+
+An earlier version of this section claimed Electron costs 451 MB per instance. That number was taken
+from research 62, where it measures a MODEL SPAWN rather than Electron, and it should never have been
+written here. Measure before writing a number into this file.
+
+- **Probes may run concurrently, up to four at once.** Beyond four, queue them. This is a headroom
+  rule rather than a safety rule, and the safety is the `finally` block.
 - **Every probe that launches Electron kills it in a `finally` block**, and ends its own scratch tmux
-  server there too, whatever happened. No probe ships without that. A probe that kills only on the
-  happy path is a defect and the verifier names it.
-- **After a probe run, count what is left.** `ps aux | grep -c "[E]lectron"` and
-  `ps aux | grep -c chrome_crashpad_handler`. Report the numbers. If a probe of yours left one, kill it
-  by pid after reading its `--user-data-dir` or `--database` path, and never one under
-  `/Users/gdc/Library`.
-- **One phase workflow in flight at a time** while both would drive Electron. Two light phases that
-  do not photograph may run together.
-- **Do not gate launches on `vm_stat` free pages.** macOS keeps that near zero on purpose. If you want
-  a number, `memory_pressure | grep percentage` and `sysctl vm.swapusage`, and the only real alarm is
-  swap in use.
+  server there too, whatever happened. A probe that kills only on the happy path is a defect and the
+  verifier names it. This is the rule that actually prevents the crash.
+- **Count what is left after a probe run, once, at the end.** `ps aux | grep -c "[E]lectron"`. Do not
+  count between every step; that bookkeeping cost 18 shell calls in one phase and prevented nothing.
+- **Two phase workflows may run at once** when the machine is quiet. Three or more only when none of
+  them photographs.
+- **Stop on swap, not on free pages.** macOS keeps free pages near zero on purpose. The only real
+  alarm is `sysctl vm.swapusage` showing swap actually in use, or
+  `memory_pressure | grep percentage` under 20 percent free.
 - **A crash means RESTART FRESH, not resume.** `resumeFromRunId` replays an agent's TEXT and not the
-  files it wrote. If the worktree was wiped, the cached builder reports describe changes that no
-  longer exist. Only resume when the worktree survived intact, and check before deciding.
+  files it wrote, so a wiped or half-written worktree makes the cached reports a fiction. Reset the
+  worktree to origin/main's tip before any resume.
 - **`/private/tmp` does not survive a reboot.** Rebuilding a worktree means `git worktree prune`,
   `git worktree add --detach`, then `cp -Rc node_modules` and `cp -Rc build/vendor` from the
   operator's checkout. Confirm `build/vendor/specstory/bin/specstory --version` before starting.
 - **The exposure is structural and it is the price of committing once per phase.** The committer is
   the last agent, so a crash at any earlier point loses the whole phase. That trade is deliberate.
-
-## How to write to the operator (every report, not only when a phase lands)
-The operator gave these rules directly. They are requirements, not preferences. They apply to chat replies, commit messages, backlog entries and research documents.
-
-**Words and sentences**
-- Use simple, everyday words. Prefer the common word over the fancy one. Write "use" rather than "leverage". Short familiar words are faster to read.
-- Write complete sentences. Each sentence states one clear thing and has a subject and a verb. Do not write fragments. Do not stitch several ideas into one dense line. If a sentence is doing two jobs, split it into two.
-- Do not use em dashes or en dashes anywhere, including in number ranges. Join clauses with a period, or with a word such as "and". Write ranges with the word "to", e.g., "0.94 to 0.96".
-- Use a colon only to introduce a list. Do not use a colon to join two clauses. Do not use a colon to set up a point.
-- Do not use jargon. If a technical term is needed, say it once and explain it in plain words. Avoid a word such as "calibrated" unless you define it simply.
-- Do not use analogies, metaphors or imagery. Do not explain one thing by comparing it to a different thing. Describe the actual thing in literal terms.
-- Cut filler. Drop a phrase such as "it is worth noting that". Every sentence should add something the reader needs.
-- Do not give inanimate things human actions. Name the person who acts. Write "the authors argue" rather than "the paper argues". A plain factual verb for an inanimate subject is fine, e.g., "the table shows the scores".
-- Do not invent hyphenated adjectives. A common compound that people already use is fine, e.g., "well-crafted". If you catch yourself coining one, write it out in plain words instead.
-- Do not pad with empty emphasis. Drop "really" and "real". Do not say that something "matters" or "carries weight". State the actual point, or cut the sentence.
-- Do not write a three-part series inside a sentence. It sounds practiced. When you have items to list, use a bullet list. Do not pad a list to three for rhythm.
-- When you use an example, give one example and introduce it with "e.g.". Do not stack several examples for the same point.
-
-**Length**
-- Plain does not mean terse. If an idea is compressed into one cramped sentence, expand it so each point gets its own sentence and the reader can follow it.
-- When you have several distinct things to list, give each one its own sentence or its own bullet. Do not run them together in one long line.
-- Clarity comes before shortness. Clarity also comes before length.
-
-**Shape of a report**
-- Lead with the answer. State the verdict, the number or the decision in the first sentence. Put the reasoning after it.
-- Use a table when there are three or more of anything, e.g., a set of options with a verdict on each.
-- When you recommend one option, show the rejected options in the same table, with the deciding reason on each row.
-- Draw a diagram when the thing has a shape, e.g., how data moves between two processes. Use plain text drawings, because they survive in a terminal.
-- Say what is not true. Name what did not land. Name what is unverified. Name what you assumed.
-- Use numbers rather than adjectives. Write "0.57 s, from 23 s" rather than "much faster".
 
 ## Release notes (the operator set the style on 2026-08-23)
 
@@ -153,6 +130,14 @@ and when CHANGELOG.md changes the release pages are synced to match.
 
 ## Verification tiers — match the check to the risk, do not default to maximum
 Heavyweight verification (driving the real app with synthetic input, screenshot reads, per-agent matrices) is expensive in wall clock and tokens. Spend it where a wrong answer costs the user their work; do not spend it on cosmetics.
+**Polish rounds verify in ONE app run, not one run per claim.** A round of small user facing items,
+e.g. a rail, a scroll behaviour, a menu row and an icon, is verified by ONE probe that launches the
+app once, drives every item in that session, and reads every rectangle and photograph it needs before
+it exits. Phase 137.2 verified five small items with ten separate app launches and its verifier spent
+64 minutes, which bought no evidence a single driven session would have missed. The exception, and it
+is absolute: **anything the operator personally reported gets its own before and after measurement on
+the parent commit**, because that is his proof rather than the builder's.
+
 - **Tier 1 — gates only** (`typecheck`, `build`, `test`, `smoke:t1`): icons and assets, CSS/spacing, copy and labels, tooltips, menu items, additive UI with no new state, doc changes. A screenshot only if the change is visual and cheap to capture.
 - **Tier 2 — gates + one targeted probe + one screenshot read**: ordinary features touching a single subsystem (a new SCM verb, an editor affordance, a settings field). Probe the thing you changed and its nearest neighbour; do not sweep the app.
 - **Tier 3 — full treatment** (live-app driving, adversarial verifier pair, exhaustive matrix, before/after measurements): anything touching **durability** (tmux, manifest, restore, session lifecycle), anything claimed to work **universally across agents**, anything that can **lose or destroy user data**, **performance regressions with a number attached**, and **any bug the user personally reported** (they get proof, not assurance).
