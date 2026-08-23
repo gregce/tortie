@@ -15980,6 +15980,10 @@ He reported it the same day. In the one-session view, pressing up and down moves
 - Plain scrolling without moving the selection stays possible, e.g. trackpad and page keys, and the selection does not jump to follow a pointer scroll.
 - Holding a key repeats smoothly rather than stuttering, proven by rectangle reads at repeat speed rather than by eye.
 
+### The fifth item, the columns scroll
+
+He sent the screenshot on 2026-08-23, being a grouped split opened as columns where codex-1's conversation runs past the bottom and nothing scrolls. Each column in the multiplexed view scrolls its own conversation independently, the way the one-session view scrolls, with the pointer and with the keyboard once a column has focus. Left and right move focus between columns, up and down scroll the focused column, and which column has focus is visible. One column scrolling never moves its neighbours.
+
 ### The rules that bind it
 
 - The rail reads the SAME rows the view already holds. No new reader work, no new store column, no new bridge channel unless the view genuinely lacks the ask list, and if it does, say so in the commit body.
@@ -16003,6 +16007,7 @@ He sent both screenshots on 2026-08-23. The project overview names sessions in b
 - Prove keyboard reach, jump and return in the probe.
 - Prove the menu row opens the one-session view for the session whose menu it was, by driving the native menu in the probe the way probe-p119-menu already drives one.
 - Photograph the project view and the one-session header showing the marks, and show a shell row drawing none.
+- Drive a two-column split in the probe, scroll one column by keyboard and by wheel, and prove by rectangle reads that it moved and its neighbour did not.
 - The integer rule and the copy rule by grep.
 - The standard battery plus conformance:overview and the focus-chord test.
 
@@ -16160,3 +16165,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 137.2 gains its second item on his report, keyboard up and down in the one-session view scroll the page and the rail tracks the movement
 - 2026-08-23, Phase 137.2 gains its third item, the session actions menu gets a row opening that session in the overview
 - 2026-08-23, Phase 137.2 gains its fourth item, the agent's own mark draws in the project overview rows and the one-session header through the AgentIcon the session views already use
+- 2026-08-23, Phase 137.2 gains its fifth item, each column in the multiplexed view scrolls independently with pointer and keyboard, and one column scrolling never moves its neighbour
