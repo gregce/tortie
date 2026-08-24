@@ -61,7 +61,7 @@
  * A folder that is not there, a machine that did not answer and a machine
  * Tortie is not signed in to are three ordinary states. Each comes back as a
  * result carrying its own mode word, and the renderer draws the sentence from
- * `src/renderer/machines/presentation.ts`. No prose crosses this boundary, and
+ * `src/renderer/machines/explorer.ts`. No prose crosses this boundary, and
  * nothing in this module throws at all.
  */
 

@@ -96,7 +96,14 @@ const {
   remoteHistoryAvailable,
   useRemoteHistory
 } = await import('../remote-history');
-const copy = await import('../../machines/presentation');
+// Three files. The history's own words are in machines/history.ts, the note above
+// the groups is in machines/scm.ts, and the instant every group prints is in
+// machines/presentation.ts.
+const copy = {
+  ...(await import('../../machines/history')),
+  ...(await import('../../machines/presentation')),
+  ...(await import('../../machines/scm'))
+};
 
 // ---------------------------------------------------------------------------
 // Fixtures

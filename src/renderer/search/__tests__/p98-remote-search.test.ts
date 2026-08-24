@@ -145,7 +145,7 @@ const {
   searchNotConnected,
   searchOnMachineLine,
   searchPatternRefused
-} = await import('../../machines/presentation');
+} = await import('../../machines/search');
 
 const REMOTE: WorkspaceTarget = { machineId: 'p98', path: '/home/greg/api' };
 const LOCAL: WorkspaceTarget = { machineId: 'local', path: '/l1' };

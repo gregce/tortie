@@ -38,7 +38,7 @@ vi.hoisted(() => {
   };
 });
 
-import { captureNotOnMachine } from '../../machines/presentation';
+import { captureNotOnMachine } from '../../machines/create-sheet';
 import { CaptureField } from '../CreateSessionModal';
 
 const LOCAL_CAPTION = 'Saved in this folder under .specstory/history.';

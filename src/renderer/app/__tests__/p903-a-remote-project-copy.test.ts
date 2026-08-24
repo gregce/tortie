@@ -4,7 +4,7 @@
  *
  * ## What is here and what is next door
  *
- * Every SENTENCE about a machine lives in `../../machines/presentation.ts` and is read by
+ * Every SENTENCE about a machine lives in `../../machines/project-tab.ts` and is read by
  * `./p903-c-remote-copy.test.ts`, which is where the writing rules are held.
  * This file holds the three things that file cannot see.
  *
@@ -39,7 +39,7 @@ vi.stubGlobal('document', {
   body: { classList: { add() {}, remove() {}, contains: () => false } }
 });
 
-const { addRemoteRefusal } = await import('../../machines/presentation');
+const { addRemoteRefusal } = await import('../../machines/project-tab');
 const { displayPath } = await import('../../format');
 const { isOutsideProject } = await import('../session-actions');
 

@@ -28,7 +28,7 @@
  * ## Where the sentences live
  *
  * Every sentence a person reads on this path is in this file, next to the
- * decision that produces it, which is the shape `src/renderer/machines/presentation.ts`
+ * decision that produces it, which is the shape `src/renderer/machines/`
  * already has for the machine surfaces.
  *
  * {@link REMOTE_DROP_IMAGES_ONLY} is deliberately the same text as the constant

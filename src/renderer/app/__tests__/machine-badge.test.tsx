@@ -52,7 +52,7 @@ const {
   badgeSilentTitle,
   badgeTitle,
   machineSilentText
-} = await import('../../machines/presentation');
+} = await import('../../machines/session-badge');
 const { sessionAriaLabel } = await import('../session-actions');
 const { statusVisual, unreachableMachines } = await import('../status');
 const { MachineSilentBar, UnreachableBar } = await import('../TerminalRegion');

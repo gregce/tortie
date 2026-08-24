@@ -124,7 +124,7 @@
  * home is, a machine that did not answer and a machine that answered something
  * unreadable are all ordinary states. Each comes back as a result carrying its
  * own mode word, and the renderer draws the sentence from
- * `src/renderer/machines/presentation.ts`. No prose crosses this boundary.
+ * `src/renderer/machines/context.ts`. No prose crosses this boundary.
  */
 
 import type { ContextScanResult } from '@shared/context';

@@ -28,10 +28,7 @@ import {
   targetOfProject
 } from '@shared/workspace-target';
 import { FileIcon, Codicon } from '../icons';
-import {
-  SEARCH_FILTERS_ON_THIS_MAC,
-  SEARCH_NO_BRIDGE
-} from '../machines/presentation';
+import { SEARCH_FILTERS_ON_THIS_MAC, SEARCH_NO_BRIDGE } from '../machines/search';
 import { useApp } from '../state/store';
 import {
   machineEmptyLine,

@@ -37,21 +37,17 @@ import {
 import { Codicon } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import { openOverviewForSession } from '../overview/open-overview';
+import { READ_LAST_LINES_HERE, READ_LAST_LINES_HERE_TITLE } from '../machines/read-lines';
 import {
-  badgeTitle,
-  remoteStatusNote,
-  READ_LAST_LINES_HERE,
-  READ_LAST_LINES_HERE_TITLE,
-  NO_SNAPSHOT,
   REVIEW_ITEM_SUBLABEL,
   REVIEW_READING,
-  SAVED_OUTPUT_ITEM,
-  SAVED_OUTPUT_NONE,
   reviewItemLabel,
   reviewListTitle,
   reviewNotAnsweringSublabel,
   reviewUntrackedTitle
-} from '../machines/presentation';
+} from '../machines/review';
+import { badgeTitle, remoteStatusNote } from '../machines/session-badge';
+import { NO_SNAPSHOT, SAVED_OUTPUT_ITEM, SAVED_OUTPUT_NONE } from '../machines/session-restore';
 import { gmuxBridge } from '../bridge';
 
 /**
@@ -454,8 +450,8 @@ function openReviewTab(
  *
  * A list with nothing in it, and a list main could not read, both end as one
  * sentence composed IN MAIN. This file never writes a sentence about what a
- * machine did or did not do, for the reason `../machines/presentation.ts` states: the
- * vocabulary audit reads one file.
+ * machine did or did not do, for the reason `../machines/presentation.ts` states, being
+ * that the vocabulary audit reads one directory.
  */
 async function openRemoteReview(
   session: Session,

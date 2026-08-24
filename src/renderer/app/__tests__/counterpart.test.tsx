@@ -34,7 +34,7 @@ import type {
   RemoteProjectFindResult
 } from '@shared/ipc';
 
-// The block's module graph reaches machines/presentation and the shared contract,
+// The block's module graph reaches machines/counterpart and the shared contract,
 // neither of which reads the bridge. The bare window is here for the stateful
 // wrapper's one feature detection, and it is the shape a renderer has before
 // its preload has answered.
@@ -61,7 +61,7 @@ import {
   COUNTERPART_CLONE_BUTTON,
   COUNTERPART_USE_MATCH,
   counterpartLooking
-} from '../../machines/presentation';
+} from '../../machines/counterpart';
 import {
   cloneOffered,
   copyLanded,

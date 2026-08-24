@@ -59,7 +59,7 @@ import {
   COUNTERPART_CLONE_BUTTON,
   COUNTERPART_USE_MATCH,
   counterpartLooking
-} from '../machines/presentation';
+} from '../machines/counterpart';
 import './counterpart-block.css';
 
 /**

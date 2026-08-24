@@ -69,11 +69,8 @@ import { Codicon } from '../icons';
 // drawn here as a 36px row while the projects are on the left, and only
 // one of the two is ever on screen.
 import { ActivityBar } from './ActivityBar';
-import {
-  REMOTE_BAND_BODY,
-  remoteBandTitle,
-  remoteTreeReadOnly
-} from '../machines/presentation';
+import { remoteTreeReadOnly } from '../machines/explorer';
+import { REMOTE_BAND_BODY, remoteBandTitle } from '../machines/project-tab';
 import './machine-band.css';
 
 /**

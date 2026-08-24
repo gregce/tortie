@@ -50,7 +50,7 @@ import {
   dirPickerTitle,
   dirPickerTruncated,
   dirPickerUnreachable
-} from '../machines/presentation';
+} from '../machines/dir-picker';
 import { Codicon } from '../icons';
 import './remote-dir-picker.css';
 

@@ -112,17 +112,17 @@ import {
   historyMarksCut,
   historyNoAnswer,
   historyNoCommits,
-  historyNoWrite,
   historyNotConnected,
   historyNotLive,
   historyNotRepo,
+  historyNoWrite,
   historyOlderExist,
   historyOnMachineBand,
   historyPagesAreFresh,
   historyReading,
-  historyRefsAreThatMachines,
-  machineReadAt
-} from '../machines/presentation';
+  historyRefsAreThatMachines
+} from '../machines/history';
+import { machineReadAt } from '../machines/presentation';
 import { CommitGraph, CommitGraphSpacer, useLaneCap } from './graph/CommitGraph';
 import { capRow, gutterColumns, layoutGraph, makeRoleResolver } from './graph';
 import type { CappedRow, GraphLayout, GraphRow } from './graph';

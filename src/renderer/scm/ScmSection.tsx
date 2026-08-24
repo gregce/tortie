@@ -51,6 +51,7 @@ import type { MachineIndexWriteOutcome } from '@shared/ipc';
 import type { PendingOp, ScmGroups } from '../state/git';
 import { Codicon } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
+import { remoteReadAt } from '../machines/presentation';
 import {
   REMOTE_SCM_SECTIONS_NOTE,
   remoteChangesBand,
@@ -67,11 +68,10 @@ import {
   remoteConflictNoVerb,
   remoteIndexWritePartial,
   remoteIndexWriteUnsure,
-  remoteReadAt,
   remoteStageOutsideRoot,
   remoteWritesNotConfirmed
-} from '../machines/presentation';
-import type { RemoteCommitFacts } from '../machines/presentation';
+} from '../machines/scm';
+import type { RemoteCommitFacts } from '../machines/scm';
 import { splitPath } from './format';
 import { requestOpenFile } from './open-file';
 import {

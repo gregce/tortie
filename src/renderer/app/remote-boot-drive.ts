@@ -108,7 +108,7 @@ const wait = (ms: number): Promise<void> =>
 
 /**
  * The two sentences, matched on a distinctive fragment rather than the whole
- * string. Both whole strings live in ../machines/presentation.ts and unit tests pin them
+ * string. Both whole strings live in ../machines/ and unit tests pin them
  * there. This reading only has to answer whether the words are on screen.
  */
 const SENTENCE_MARKS: Readonly<Record<string, string>> = {

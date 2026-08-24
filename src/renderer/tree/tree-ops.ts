@@ -37,7 +37,7 @@ import type { UseFileTreeResult } from '@pierre/trees/react';
 import { isProtectedFsPath } from '@shared/fs-ops';
 // PHASE 101 AND PHASE 102. What a create, a new folder and a rename on another
 // machine answer. The words are main's and the sentence for each one is
-// composed in ../machines/presentation.ts.
+// composed in ../machines/explorer.ts.
 import type {
   MachineFilePutResult,
   MachineMakeDirResult,
@@ -47,6 +47,7 @@ import { errorPayload, errorText, useApp } from '../state/store';
 import { followMoves } from './editor-follow';
 import * as fsOps from './fs-ops-bridge';
 import { requestOpenFile } from './open-file';
+import { remoteSaveRefusal } from '../machines/editor';
 import {
   remoteEntryExists,
   remoteEntryGone,
@@ -55,9 +56,8 @@ import {
   remoteEntryWritesOff,
   remoteParentGone,
   remoteRenameAlreadyDone,
-  remoteSaveRefusal,
   remoteWriteDenied
-} from '../machines/presentation';
+} from '../machines/explorer';
 import { machineLabelFor } from '../state/machines-slice';
 import type { TreeRenameView } from './rename-view';
 import { useFileTree } from './store';

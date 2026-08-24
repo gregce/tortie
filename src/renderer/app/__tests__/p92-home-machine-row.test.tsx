@@ -76,7 +76,7 @@ const {
   recentRowTitle
 } = await import('../HomeScreen');
 const { confirmedMachines } = await import('../../state/machines-slice');
-const { addRemoteRefusal } = await import('../../machines/presentation');
+const { addRemoteRefusal } = await import('../../machines/project-tab');
 
 // ---------------------------------------------------------------------------
 // Fixtures

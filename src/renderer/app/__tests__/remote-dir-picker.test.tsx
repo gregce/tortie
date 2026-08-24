@@ -22,7 +22,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { RemoteDirListing } from '@shared/ipc';
 
-// The picker's module graph reaches machines/presentation and the icon set, neither of
+// The picker's module graph reaches machines/dir-picker and the icon set, neither of
 // which reads the bridge. The bare window is here for the stateful wrapper's
 // one feature detection, and it is the shape a renderer has before its preload
 // has answered.
@@ -49,7 +49,7 @@ import {
   dirPickerTitle,
   dirPickerTruncated,
   dirPickerUnreachable
-} from '../../machines/presentation';
+} from '../../machines/dir-picker';
 import {
   dirPickerRefusalText,
   joinRemotePath,

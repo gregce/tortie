@@ -78,9 +78,10 @@ const { IdentityStrip } = await import('../TerminalRegion');
 const { ReadLastLinesButton, showsReadLastLines } = await import(
   '../session-actions'
 );
-const { READ_LAST_LINES_HERE, READ_LAST_LINES_HERE_TITLE } = await import(
-  '../../machines/presentation'
-);
+const {
+  READ_LAST_LINES_HERE,
+  READ_LAST_LINES_HERE_TITLE
+} = await import('../../machines/read-lines');
 const { useApp } = await import('../../state/store');
 
 // ---------------------------------------------------------------------------

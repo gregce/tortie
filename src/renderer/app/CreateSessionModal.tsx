@@ -60,22 +60,25 @@ import type { MachineRowView, RemoteProjectFindResult } from '@shared/ipc';
 import { CounterpartBlock } from './CounterpartBlock';
 import { setCreateSheetCopyRunning } from './create-copy-running';
 import {
-  addRemoteRefusal,
-  agentNotOnMachineTitle,
-  agentsAbsentHint,
-  askMachineAgainLabel,
   captureNotOnMachine,
-  createInRemoteProject,
   CREATE_DIR_HINT,
   CREATE_HONESTY_LINES,
   createDirLabel,
-  createDirPlaceholder,
-  DIR_PICKER_OPEN,
+  createDirPlaceholder
+} from '../machines/create-sheet';
+import { DIR_PICKER_OPEN } from '../machines/dir-picker';
+import {
+  agentNotOnMachineTitle,
+  agentsAbsentHint,
+  askMachineAgainLabel
+} from '../machines/machine-agents';
+import {
   MACHINE_FIELD_LABEL,
   MACHINE_NOT_SIGNED_IN_HINT,
   machineNotSignedInOption,
   THIS_MAC
-} from '../machines/presentation';
+} from '../machines/machine-choice';
+import { addRemoteRefusal, createInRemoteProject } from '../machines/project-tab';
 import { RemoteDirPicker } from './RemoteDirPicker';
 import {
   sameTarget,

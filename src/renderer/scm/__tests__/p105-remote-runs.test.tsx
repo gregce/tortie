@@ -86,7 +86,12 @@ const { openLabel, RUNS_EMPTY, hiddenNotes, healthNote } = await import(
   '../runs-format'
 );
 const { runRowClick } = await import('../RunRow');
-const copy = await import('../../machines/presentation');
+// Two files, because the Runs group's own words are in machines/runs.ts and the
+// note above the Source Control groups is in machines/scm.ts.
+const copy = {
+  ...(await import('../../machines/runs')),
+  ...(await import('../../machines/scm'))
+};
 
 // ---------------------------------------------------------------------------
 // Fixtures

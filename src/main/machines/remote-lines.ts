@@ -58,7 +58,7 @@
  * A session Tortie holds no row for, a machine Tortie is not signed in to and a
  * machine that did not answer are three ordinary states. Each comes back as a
  * result carrying its own mode word, and the renderer draws the sentence from
- * `src/renderer/machines/presentation.ts`. No prose crosses this boundary.
+ * `src/renderer/machines/read-lines.ts`. No prose crosses this boundary.
  *
  * ## What is not measured
  *
@@ -270,7 +270,7 @@ export async function readSessionLinesOnMachine(
     // than the ceiling the cut was applied to, and a cut answer of 1.5 MB
     // under an 8,388,608 byte ceiling reads as a contradiction unless the
     // sentence says why. `READ_LINES_CUT` in
-    // `src/renderer/machines/presentation.ts` names the ceiling and says that the
+    // `src/renderer/machines/read-lines.ts` names the ceiling and says that the
     // size above it counts the text that was left. Changing either number here
     // means reading that sentence again.
     lines: countLines(text),

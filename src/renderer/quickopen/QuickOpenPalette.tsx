@@ -47,7 +47,7 @@ import {
   quickOpenNotConnected,
   quickOpenNotRepo,
   quickOpenReadingNames
-} from '../machines/presentation';
+} from '../machines/quick-open';
 import { useEditor } from '../editor/store';
 import { parseQuickOpen } from './parse';
 import { highlightRuns, splitRelPath } from './highlight';
@@ -70,7 +70,7 @@ function formatCount(n: number): string {
  * because that folder's list came from a walk and the walk includes files git
  * would have skipped. Each of the two caps adds its own sentence when it bit,
  * the name cap first because its sentence carries the earlier cut point. Every
- * sentence is written in ../machines/presentation.ts and none of them is composed
+ * sentence is written in ../machines/quick-open.ts and none of them is composed
  * here.
  */
 export function machineNoteLines(

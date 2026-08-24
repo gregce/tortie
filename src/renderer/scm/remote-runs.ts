@@ -30,7 +30,7 @@
  * which branch is checked out and which repository the folder is. Nothing in
  * this file knows how either half is fetched, and no sentence in it is composed
  * here: every word a person reads about this answer is a named export in
- * src/renderer/machines/presentation.ts, which is the file the vocabulary audit
+ * src/renderer/machines/runs.ts, which is the file the vocabulary audit
  * reads.
  */
 

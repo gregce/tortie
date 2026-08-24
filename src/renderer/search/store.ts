@@ -58,7 +58,7 @@ import {
   searchNoAnswer,
   searchNotConnected,
   searchPatternRefused
-} from '../machines/presentation';
+} from '../machines/search';
 import { useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
 import type { ContextLine } from './rows';
@@ -165,7 +165,7 @@ export interface SearchState {
   /**
    * PHASE 98. What the machine answered about this folder, or null when the
    * rows came from this Mac. It is a status word and never a sentence. Every
-   * sentence a person reads is drawn from src/renderer/machines/presentation.ts.
+   * sentence a person reads is drawn from src/renderer/machines/search.ts.
    */
   remoteMode: MachineSearchMode | null;
   /** PHASE 98. That machine's own label, as main sent it. Never composed here. */

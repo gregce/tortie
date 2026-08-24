@@ -396,7 +396,7 @@ const FIXTURES = [
   ['renderer/state/p127-fixture.ts', "import { shellOps } from './shell-ops';", null],
   [
     'renderer/state/p127-fixture.ts',
-    "import { remoteTabOpened } from '../machines/presentation';",
+    "import { remoteTabOpened } from '../machines/project-tab';",
     null
   ],
   ['renderer/state/p127-fixture.ts', "import type { MenuSpec } from '../menus/spec';", null],

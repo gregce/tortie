@@ -27,7 +27,7 @@
 
 import { keyDisplay } from '@shared/keymap';
 import { cloneAction } from '../state/clone';
-import { OPEN_REMOTE_FOLDER_MENU_ITEM } from '../machines/presentation';
+import { OPEN_REMOTE_FOLDER_MENU_ITEM } from '../machines/project-tab';
 import type { MenuSpec } from '../state/store';
 import { useApp } from '../state/store';
 

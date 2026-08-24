@@ -25,10 +25,7 @@ import { Codicon } from '../icons';
 // fuzzy-match vocabulary (scorer, positions, runs); this is its renderer half.
 // An inline copy lived here until Phase 14 integration deleted it.
 import { highlightRuns } from '../quickopen/highlight';
-import {
-  SYMBOLS_ELSEWHERE_BODY,
-  symbolsElsewhereTitle
-} from '../machines/presentation';
+import { SYMBOLS_ELSEWHERE_BODY, symbolsElsewhereTitle } from '../machines/search';
 import { splitPath } from './rows';
 import { symbolIcon, symbolKindLabel } from './symbol-kinds';
 import { useSymbols } from './symbols-store';

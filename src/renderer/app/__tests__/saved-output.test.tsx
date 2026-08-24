@@ -57,15 +57,15 @@ vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => {
 });
 
 const {
+  conversationCopyLine,
   RESTORE_KEPT_HERE,
   SAVED_OUTPUT_ITEM,
   SAVED_OUTPUT_NONE,
   SAVED_OUTPUT_UNVERIFIED,
-  conversationCopyLine,
   savedOutputHeader,
   savedOutputHeaderLocal,
   savedWhen
-} = await import('../../machines/presentation');
+} = await import('../../machines/session-restore');
 const { SavedOutputModal, SavedOutputPanel } = await import(
   '../SavedOutputModal'
 );

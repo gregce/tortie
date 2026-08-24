@@ -14,7 +14,7 @@
  * Phase 90.1 said the files were elsewhere and drew nothing. This section now
  * draws the tree for that tab too, and adds ONE line under the header saying
  * when the folder was read and that Refresh reads it again. Every sentence
- * comes from src/renderer/machines/presentation.ts, which is where the machine
+ * comes from src/renderer/machines/explorer.ts, which is where the machine
  * vocabulary audit reads them; this module writes none of its own.
  *
  * REFRESH IS THE ONLY THING THAT RE-READS A MACHINE. There is no timer in this
@@ -35,17 +35,17 @@ import {
 import { useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
 import {
+  remoteTreeCanWrite,
   remoteTreeDenied,
   remoteTreeMissingBody,
   remoteTreeMissingTitle,
   remoteTreeNotAFolder,
-  remoteTreeCanWrite,
   remoteTreeNotConnected,
   remoteTreeReadAt,
   remoteTreeReadOnly,
   remoteTreeTruncated,
   remoteTreeUnreachable
-} from '../machines/presentation';
+} from '../machines/explorer';
 import { registerTargetShotDrive } from '../app/target-shot-drive';
 import { registerRemoteBootDrive } from '../app/remote-boot-drive';
 import {

@@ -96,7 +96,7 @@
  * git too old to answer the format, a machine that did not answer and a machine
  * Tortie is not signed in to are all ordinary states. Each comes back as a
  * result carrying its own mode word, and the renderer draws the sentence from
- * `src/renderer/machines/presentation.ts`. No prose crosses this boundary.
+ * `src/renderer/machines/branch.ts`. No prose crosses this boundary.
  */
 
 import type { MachineBranchInput, MachineBranchResult } from '@shared/ipc';

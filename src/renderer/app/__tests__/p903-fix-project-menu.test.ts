@@ -46,7 +46,7 @@ function labelsOf(items: readonly (MenuItemSpec | 'sep')[]): string[] {
     .filter((one): one is MenuItemSpec => one !== 'sep')
     .map((one) => one.label);
 }
-const { OPEN_REMOTE_FOLDER_MENU_ITEM } = await import('../../machines/presentation');
+const { OPEN_REMOTE_FOLDER_MENU_ITEM } = await import('../../machines/project-tab');
 const { useApp } = await import('../../state/store');
 
 function machine(link: MachineLink): MachineStateView {

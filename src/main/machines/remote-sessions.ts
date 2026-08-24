@@ -387,7 +387,7 @@ export const REMOTE_CREATE_FORMAT = '#{session_id}';
  * SINCE PHASE 85 IT IS TRUE OF EVERY MACHINE. It used to apply only to a machine
  * on the fallback timer, and a machine on a live connection listed on that
  * machine's own events instead. Both feeds now carry it, which is what lets
- * `remoteStatusNote` in `../../renderer/machines/presentation.ts` state one number on
+ * `remoteStatusNote` in `../../renderer/machines/session-badge.ts` state one number on
  * a remote row's tooltip and have it be true whichever feed drew the row.
  */
 export const REMOTE_POLL_FOCUSED_MS = 5_000;

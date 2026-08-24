@@ -16,11 +16,8 @@ import { isLocalTarget, targetOfProject } from '@shared/workspace-target';
 import { machineLabelFor } from './machines-slice';
 // Every sentence about a machine comes from one file, which is the one the
 // vocabulary audit reads.
-import type { AddRemoteRefusalReason } from '../machines/presentation';
-import {
-  remoteTabCloseBody,
-  remoteTabCloseTitle
-} from '../machines/presentation';
+import type { AddRemoteRefusalReason } from '../machines/project-tab';
+import { remoteTabCloseBody, remoteTabCloseTitle } from '../machines/project-tab';
 import { errorPayload, errorText } from './errors';
 import { loadLocal, saveLocal } from './local';
 import type { AppState } from './app-state';

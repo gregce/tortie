@@ -71,7 +71,7 @@
  * A folder that is not there, a pattern that machine's grep refused, a machine
  * that did not answer and a machine Tortie is not signed in to are four ordinary
  * states. Each comes back as a result carrying its own mode word, and the
- * renderer draws the sentence from `src/renderer/machines/presentation.ts`. No prose
+ * renderer draws the sentence from `src/renderer/machines/search.ts`. No prose
  * crosses this boundary. The ONE thing that throws is an empty query, because
  * that is a caller error rather than a state of a machine.
  */

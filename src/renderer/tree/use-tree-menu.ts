@@ -14,7 +14,7 @@ import { useCallback } from 'react';
 import type { OpenWithApps, OpenWithHandler } from '@shared/ipc';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
-import { REMOTE_COPIED_WITH_MACHINE } from '../machines/presentation';
+import { REMOTE_COPIED_WITH_MACHINE } from '../machines/explorer';
 import { showOneTimeTip } from '../app/one-time-tip';
 import { canReveal, reveal } from './fs-bridge';
 import { canDuplicate, canMutate } from './fs-ops-bridge';

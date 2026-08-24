@@ -101,7 +101,7 @@ import {
   useFileTreeSearch
 } from '@pierre/trees/react';
 import type { GitFileStatus } from '@shared/types';
-import { remoteTreeEmpty as remoteEmptyLine } from '../machines/presentation';
+import { remoteTreeEmpty as remoteEmptyLine } from '../machines/explorer';
 import { treeStyles } from '../pierre/theme-bridge';
 import { Codicon } from '../icons';
 import { openModeFor } from './decorations';
@@ -609,7 +609,7 @@ export function FileTree({
 
   /**
    * PHASE 90.3. The empty folder line names the machine when the folder is on
-   * one. The sentence itself comes from machines/presentation.ts; this picks
+   * one. The sentence itself comes from machines/explorer.ts; this picks
    * which of the two to draw and writes neither.
    */
   const emptyLine =

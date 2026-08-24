@@ -63,14 +63,14 @@ import type { Session } from '@shared/types';
 import { useApp } from '../state/store';
 import { modalKeyDown } from './focus-trap';
 import {
+  conversationCopyLine,
   SAVED_OUTPUT_LOADING,
   SAVED_OUTPUT_NONE,
   SAVED_OUTPUT_TITLE,
   SAVED_OUTPUT_UNVERIFIED,
-  conversationCopyLine,
   savedOutputHeader,
   savedOutputHeaderLocal
-} from '../machines/presentation';
+} from '../machines/session-restore';
 import './saved-output.css';
 
 export interface SavedOutputPanelProps {

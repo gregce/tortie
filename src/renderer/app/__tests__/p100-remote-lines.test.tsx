@@ -93,7 +93,12 @@ vi.stubGlobal('document', {
 
 const { RemoteLinesDepths, RemoteLinesPanel, scrollToNewest, showsAllThere } =
   await import('../RemoteLinesModal');
-const copy = await import('../../machines/presentation');
+// Two files, because the panel's own words are in machines/read-lines.ts and the
+// instant it prints is composed by machines/session-restore.ts.
+const copy = {
+  ...(await import('../../machines/read-lines')),
+  ...(await import('../../machines/session-restore'))
+};
 const { REMOTE_SESSION_LINE_DEPTHS, REMOTE_SESSION_LINES_BYTES_MAX } =
   await import('@shared/ipc');
 const { formatScrollbackBytes } = await import('@shared/scrollback');

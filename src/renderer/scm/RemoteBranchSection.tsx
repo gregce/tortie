@@ -71,8 +71,8 @@ import { targetKey } from '@shared/workspace-target';
 import type { MachineBranchMode } from '@shared/ipc';
 import { Codicon } from '../icons';
 import {
-  BRANCH_NOT_LIVE,
   BRANCH_NO_BRIDGE,
+  BRANCH_NOT_LIVE,
   branchCountsAreThatMachines,
   branchFolderDenied,
   branchFolderMissing,
@@ -80,19 +80,19 @@ import {
   branchNameOn,
   branchNoAnswer,
   branchNoDetails,
-  branchNoSwitch,
-  branchNoUpstream,
   branchNone,
+  branchNoSwitch,
   branchNotConnected,
   branchNotRepo,
-  branchOnMachineBand,
+  branchNoUpstream,
   branchOnlyCurrent,
+  branchOnMachineBand,
   branchReading,
   branchTip,
   branchTrackUnreadable,
-  branchUpstreamGone,
-  machineReadAt
-} from '../machines/presentation';
+  branchUpstreamGone
+} from '../machines/branch';
+import { machineReadAt } from '../machines/presentation';
 import {
   machineAnsweredBranch,
   remoteBranchAvailable,

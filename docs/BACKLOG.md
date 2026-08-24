@@ -40,7 +40,7 @@ release.
 | 22 | **137.2** the ask rail | He asked on 2026-08-23. Five items on one page, every ask one press away | ✅ shipped |
 | — | **THE ORDER HE SET ON 2026-08-23** | | |
 | 23 | **138** the fold | Tier 3. Both gate measurements ran. It ships OFF, and None is a valid choice forever | ✅ shipped |
-| 24 | **142** presentation.ts splits by reason to change | 31 phases wrote into one file. NO VERSION BUMP | queued |
+| 24 | **142** presentation.ts splits by reason to change | 31 phases wrote into one file. NO VERSION BUMP | ✅ shipped |
 | 24.5 | **138.1** every harness writes the line, the page is cut, the fold is visible | He asked for all harnesses, not just claude. Tier 3. NO VERSION BUMP | queued |
 | — | **RELEASE POINT, DELEGATED, AT v0.70.0** | All the way to public. See the grant below | **delegated, one release** |
 | 25 | **140** every probe ends the Electron it started | The crash preventer | ✅ shipped |
@@ -16087,7 +16087,7 @@ So the rule reads a WITNESS rather than a shape. Tortie remembers the specific p
 - Nothing for a session created fresh rather than restored, since the agent is that session's own program there and its exit ends the session outright.
 
 
-## Phase 142 — `presentation.ts` is 31 files wearing one filename (found 2026-08-23 by the Phase 128 adversary, queued by the operator) QUEUED, BEFORE THE 0.70.0 RELEASE
+## Phase 142 — `presentation.ts` is 31 files wearing one filename (found 2026-08-23 by the Phase 128 adversary, queued by the operator) ✅ SHIPPED 2026-08-23 (this commit, 0.71.0, gates green, 8,971 tests)
 
 **Subject:** `refactor(machines): the machine presentation splits by what it is for`
 **First body line:** `Phase 142: presentation.ts splits by reason to change`
@@ -16450,3 +16450,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 138.1 queued, the Project line settings page draws eleven near identical sentences and two paragraphs that repeat the pickers, and nothing anywhere tells him a fold ran; his store held one written summary tonight and the only way to know was to read the database
 - 2026-08-23, Phase 138.2 queued, measure a fold recipe for every agent CLI, in the order he actually uses them, and ship no recipe for an agent that could not be authenticated and measured
 - 2026-08-23, Phase 138.2 was FOLDED INTO 138.1 on his word, because he asked for every harness to be able to write the line rather than only claude, so the recipes are measured before the release rather than after it, and 138.1 becomes Tier 3
+- 2026-08-23, Phase 142 shipped, `src/renderer/machines/presentation.ts` went from 2,948 lines and 249 exports down to 78 lines holding only the four fragments every subject composes with, and nineteen files named for what they are for now sit beside it, so the eleven importers name the subject they draw rather than one filename that thirty one phases had written into; no rendered string moved, which two counts prove, being 447 string literals before and 455 after where all 8 of the new ones are import paths, and `node build/contract-inventory.mjs --out` left `docs/audits/contract-baseline.txt` byte identical; the only new export is `commitCount`, which the Branch group and the history both used as one private helper and now share as one public fragment; the version did not move, this commit, 0.71.0

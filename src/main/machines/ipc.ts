@@ -1211,7 +1211,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // a path that is a file, a folder the account cannot read, a machine that did
   // not answer and a machine Tortie is not signed in to all come back as a
   // status word. No prose crosses this channel: the renderer draws the sentence
-  // from src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
+  // from src/renderer/machines/explorer.ts, where the vocabulary audit reads it.
   handle(
     ipc,
     'machines:listTree',
@@ -1251,7 +1251,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // sentence saying the machine did not answer and the work may have gone
   // through, because Phase 101 measured a killed ssh completing the far side
   // write. No prose about a machine's answer crosses either channel: the
-  // renderer draws every sentence from src/renderer/machines/presentation.ts.
+  // renderer draws every sentence from src/renderer/machines/explorer.ts.
   handle(
     ipc,
     'machines:makeDir',
@@ -1295,7 +1295,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // measured a killed ssh completing the far side write, so that word means the
   // machine did not say, and the panel re-reads rather than claiming. No prose
   // about a machine's answer crosses either channel: the renderer draws every
-  // sentence from src/renderer/machines/presentation.ts.
+  // sentence from src/renderer/machines/scm.ts.
   handle(
     ipc,
     'machines:stage',
@@ -1370,7 +1370,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // a pattern that machine's grep refused, a machine that did not answer and a
   // machine Tortie is not signed in to all come back as a mode word. No prose
   // crosses this channel: the renderer draws the sentence from
-  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it. The
+  // src/renderer/machines/search.ts, where the vocabulary audit reads it. The
   // one thing that throws is an empty pattern, which is a caller error rather
   // than a state of a machine, and nothing is sent for it.
   handle(
@@ -1409,7 +1409,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // It NEVER THROWS. A folder that is not there, a machine that did not answer
   // and a machine Tortie is not signed in to all come back as a mode word. No
   // prose crosses this channel: the renderer draws the sentence from
-  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/quick-open.ts, where the vocabulary audit reads it.
   handle(
     ipc,
     'machines:listFiles',
@@ -1449,7 +1449,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // It NEVER THROWS. A session Tortie holds no row for, a machine that did not
   // answer and a machine Tortie is not signed in to all come back as a mode
   // word. No prose crosses this channel: the renderer draws the sentence from
-  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/read-lines.ts, where the vocabulary audit reads it.
   handle(
     ipc,
     'machines:readSessionLines',
@@ -1493,7 +1493,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // repository with no GitHub address, a detached head, a machine that did not
   // answer and a machine Tortie is not signed in to all come back as a mode
   // word. No prose crosses this channel: the renderer draws the sentence from
-  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/runs.ts, where the vocabulary audit reads it.
   handle(
     ipc,
     'machines:readRuns',
@@ -1534,7 +1534,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // detached head, a git too old to answer the format, a machine that did not
   // answer and a machine Tortie is not signed in to all come back as a mode
   // word. No prose crosses this channel: the renderer draws the sentence from
-  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/branch.ts, where the vocabulary audit reads it.
   handle(
     ipc,
     'machines:readBranch',
@@ -1580,7 +1580,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // repository with no commits, a machine that did not answer and a machine
   // Tortie is not signed in to all come back as a mode word. No prose crosses
   // this channel: the renderer draws every sentence from
-  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/history.ts, where the vocabulary audit reads it.
   handle(
     ipc,
     'machines:readHistory',
@@ -1623,7 +1623,7 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // a machine that did not say where its home folder is, and a machine that
   // did not answer all come back as a mode word. No prose crosses this
   // channel: the renderer draws every sentence from
-  // src/renderer/machines/presentation.ts, where the vocabulary audit reads it.
+  // src/renderer/machines/context.ts, where the vocabulary audit reads it.
   handle(
     ipc,
     'machines:readContext',

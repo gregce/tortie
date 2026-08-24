@@ -26,17 +26,25 @@
  * uses for the reset rule. The environment is node and nothing here renders.
  */
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { CREATE_DIR_HINT, CREATE_HONESTY_LINES } from '../../machines/presentation';
+import { CREATE_DIR_HINT, CREATE_HONESTY_LINES } from '../../machines/create-sheet';
 
-/** The two files this phase edited, read as text. */
-const COPY_SOURCE = readFileSync(
-  resolve(import.meta.dirname, '../../machines/presentation.ts'),
-  'utf8'
-);
+/**
+ * Every machine sentence file, read as text and joined.
+ *
+ * PHASE 142 SPLIT ONE FILE INTO TWENTY. The guard below pins a deletion, so it
+ * has to read the whole directory. Reading one file would let a deleted name
+ * come back in a sibling and the guard would still pass.
+ */
+const MACHINES_DIR = resolve(import.meta.dirname, '../../machines');
+const COPY_SOURCE = readdirSync(MACHINES_DIR)
+  .filter((name) => name.endsWith('.ts'))
+  .sort()
+  .map((name) => readFileSync(join(MACHINES_DIR, name), 'utf8'))
+  .join('\n');
 const MODAL_SOURCE = readFileSync(
   resolve(import.meta.dirname, '../CreateSessionModal.tsx'),
   'utf8'

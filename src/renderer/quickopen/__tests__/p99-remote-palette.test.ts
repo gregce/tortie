@@ -148,7 +148,10 @@ const { onOpenFile } = await import('../../state/open-file');
 const { machineNoteLines, projectNameFor, rowKeyOf } = await import(
   '../QuickOpenPalette'
 );
-const copy = await import('../../machines/presentation');
+const copy = await import('../../machines/quick-open');
+// Phase 142 moved the symbol palette's own refusal to machines/search.ts, which
+// is where the rest of what Search says about a machine lives.
+const searchCopy = await import('../../machines/search');
 
 const HERE = { id: 'p1', path: '/Users/gdc/gmux', name: 'gmux' };
 const THERE = {
@@ -393,8 +396,10 @@ describe('which sentence the panel draws', () => {
     const gone = copy as unknown as Record<string, unknown>;
     expect(gone.quickOpenElsewhereTitle).toBeUndefined();
     expect(gone.QUICK_OPEN_ELSEWHERE_BODY).toBeUndefined();
-    // Symbols still reach this Mac only, so that refusal is still here.
-    expect(typeof gone.symbolsElsewhereTitle).toBe('function');
+    // Symbols still reach this Mac only, so that refusal is still written, and
+    // it is written in machines/search.ts rather than in this palette's file.
+    const stillThere = searchCopy as unknown as Record<string, unknown>;
+    expect(typeof stillThere.symbolsElsewhereTitle).toBe('function');
   });
 });
 

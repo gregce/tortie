@@ -27,7 +27,7 @@
  * phase report and this file is not a substitute for it.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -39,7 +39,31 @@ const ROOT = resolve(import.meta.dirname, '../../../..');
  * draw those sentences.
  */
 const FILES: readonly string[] = [
+  // PHASE 142 SPLIT ONE FILE INTO TWENTY, and all twenty are written out here
+  // rather than globbed. The rule above says why: a file left off is a file the
+  // audit silently stops reading, and a glob hides that. A new file in
+  // src/renderer/machines is added to this list in the same commit that
+  // creates it.
   'src/renderer/machines/presentation.ts',
+  'src/renderer/machines/branch.ts',
+  'src/renderer/machines/context.ts',
+  'src/renderer/machines/counterpart.ts',
+  'src/renderer/machines/create-sheet.ts',
+  'src/renderer/machines/dir-picker.ts',
+  'src/renderer/machines/editor.ts',
+  'src/renderer/machines/explorer.ts',
+  'src/renderer/machines/history.ts',
+  'src/renderer/machines/machine-agents.ts',
+  'src/renderer/machines/machine-choice.ts',
+  'src/renderer/machines/project-tab.ts',
+  'src/renderer/machines/quick-open.ts',
+  'src/renderer/machines/read-lines.ts',
+  'src/renderer/machines/review.ts',
+  'src/renderer/machines/runs.ts',
+  'src/renderer/machines/scm.ts',
+  'src/renderer/machines/search.ts',
+  'src/renderer/machines/session-badge.ts',
+  'src/renderer/machines/session-restore.ts',
   'src/renderer/app/MachineBadge.tsx',
   'src/renderer/app/CreateSessionModal.tsx',
   'src/renderer/app/session-actions.tsx',
@@ -247,6 +271,24 @@ export function copyLiteralsOf(source: string): string[] {
 }
 
 describe('the machine vocabulary audit', () => {
+  it('names every file in src/renderer/machines, and misses none', () => {
+    // PHASE 142 SPLIT ONE FILE INTO TWENTY, and the list above is still written
+    // out by hand for the reason at the top of this file. This check is what
+    // makes the hand written list safe: a twenty first file in that directory
+    // fails here until somebody adds it, so the audit cannot quietly stop
+    // reading a whole subject. The list stays visible and the omission is
+    // caught, which the glob the rule refuses would not do.
+    const dir = resolve(ROOT, 'src/renderer/machines');
+    const onDisk = readdirSync(dir)
+      .filter((name) => name.endsWith('.ts'))
+      .map((name) => `src/renderer/machines/${name}`)
+      .sort();
+    const onList = FILES.filter((file) =>
+      file.startsWith('src/renderer/machines/')
+    ).sort();
+    expect(onList).toEqual(onDisk);
+  });
+
   it('reads every file it claims to read', () => {
     for (const file of FILES) {
       expect(

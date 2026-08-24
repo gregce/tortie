@@ -29,8 +29,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import {
   CONTEXT_NESTED_NOT_LISTED,
   CONTEXT_NO_BRIDGE,
@@ -42,7 +42,9 @@ import {
   contextNotConnected,
   contextOnMachineLine,
   contextReadingOn,
-  contextRefreshOnMachineTitle,
+  contextRefreshOnMachineTitle
+} from '../../machines/context';
+import {
   SEARCH_ANSWER_TOO_LARGE,
   SEARCH_FILTERS_ON_THIS_MAC,
   SEARCH_NO_BRIDGE,
@@ -54,7 +56,7 @@ import {
   searchNotConnected,
   searchOnMachineLine,
   searchPatternRefused
-} from '../../machines/presentation';
+} from '../../machines/search';
 
 const ROOT = resolve(import.meta.dirname, '../../../..');
 
@@ -87,7 +89,7 @@ describe('what Context says about a project on a machine (Phase 108)', () => {
   });
 
   it('takes the body Phase 108 made false out of the file', async () => {
-    const copy = (await import('../../machines/presentation')) as Record<string, unknown>;
+    const copy = (await import('../../machines/context')) as Record<string, unknown>;
     expect(copy.CONTEXT_ELSEWHERE_BODY).toBeUndefined();
   });
 
@@ -209,17 +211,22 @@ describe('what Search says about a folder on a machine (Phase 98)', () => {
   });
 
   it('takes the two sentences Phase 98 made false out of the file', async () => {
-    const copy = (await import('../../machines/presentation')) as Record<string, unknown>;
+    const copy = (await import('../../machines/search')) as Record<string, unknown>;
     expect(copy.searchElsewhereTitle).toBeUndefined();
     expect(copy.SEARCH_ELSEWHERE_BODY).toBeUndefined();
   });
 });
 
-describe('the writing rules, over every sentence in presentation.ts', () => {
-  const source = readFileSync(
-    resolve(ROOT, 'src/renderer/machines/presentation.ts'),
-    'utf8'
-  );
+describe('the writing rules, over every sentence in src/renderer/machines', () => {
+  // PHASE 142 SPLIT ONE FILE INTO TWENTY, so the sweep reads the directory. A
+  // sweep of one file would pass by reading a file that no longer holds the
+  // sentences.
+  const dir = resolve(ROOT, 'src/renderer/machines');
+  const source = readdirSync(dir)
+    .filter((name) => name.endsWith('.ts'))
+    .sort()
+    .map((name) => readFileSync(join(dir, name), 'utf8'))
+    .join('\n');
   const literals = copyLiteralsOf(source);
 
   it('reads a set of sentences rather than nothing', () => {

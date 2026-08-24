@@ -25,7 +25,7 @@
  * note under the summary, drawn only when the folder being searched is on
  * another machine. It says at most two sentences, being what happened and then
  * which program did it, and every one of them is drawn from
- * src/renderer/machines/presentation.ts. The two refusals were the disabled Refresh
+ * src/renderer/machines/search.ts. The two refusals were the disabled Refresh
  * and Clear controls Phase 90.3 put on a tab whose folder is over there. Both
  * work now, so neither is drawn off.
  */
@@ -33,7 +33,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { Codicon } from '../icons';
-import { SEARCH_STOP_WAITING, searchOnMachineLine } from '../machines/presentation';
+import { SEARCH_STOP_WAITING, searchOnMachineLine } from '../machines/search';
 import { useApp } from '../state/store';
 import { QueryBlock } from './QueryBlock';
 import { ResultsList } from './ResultsList';

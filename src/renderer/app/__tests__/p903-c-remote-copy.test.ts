@@ -47,27 +47,26 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { REMOTE_FILE_MAX_BYTES } from '@shared/ipc';
 import {
-  addRemoteRefusal,
-  createInRemoteProject,
-  openRemoteFolderLabel,
-  openRemoteHonesty,
-  OPEN_REMOTE_BUTTON,
-  OPEN_REMOTE_FOLDER_MENU_ITEM,
-  OPEN_REMOTE_TITLE,
-  quickOpenFolderMissing,
-  quickOpenNamesCapped,
-  quickOpenNamesFrom,
-  quickOpenNamesTruncated,
-  quickOpenNoAnswer,
-  quickOpenNotConnected,
-  quickOpenNotRepo,
-  quickOpenReadingNames,
-  readClockTime,
   remoteCreateExists,
+  remoteFileChip,
+  remoteOpenTooLarge,
+  remoteOpenTooLargeOver,
+  remoteSaveLostAnswer,
+  remoteSaveMissing,
+  remoteSaveNoMode,
+  remoteSaveNoSum,
+  remoteSaveOutsideRoot,
+  remoteSaveRefusal,
+  remoteSaveRefused,
+  remoteSaveStale,
+  remoteSaveTooLarge
+} from '../../machines/editor';
+import {
+  REMOTE_COPIED_WITH_MACHINE,
   remoteEntryExists,
   remoteEntryGone,
   remoteEntryLostAnswer,
@@ -76,38 +75,6 @@ import {
   remoteParentGone,
   remoteRenameAlreadyDone,
   remoteTreeCanWrite,
-  remoteWriteDenied,
-  remoteOpenTooLarge,
-  remoteOpenTooLargeOver,
-  remoteSaveMissing,
-  remoteSaveNoMode,
-  remoteSaveNoSum,
-  remoteSaveLostAnswer,
-  remoteSaveOutsideRoot,
-  remoteSaveRefusal,
-  remoteSaveStale,
-  remoteSaveTooLarge,
-  REMOTE_BAND_BODY,
-  REMOTE_COPIED_WITH_MACHINE,
-  REMOTE_SCM_SECTIONS_NOTE,
-  remoteBandTitle,
-  remoteChangesBand,
-  remoteChangesNone,
-  remoteChangesNotRepo,
-  remoteChangesUnreachable,
-  remoteConflictNoVerb,
-  remoteIndexWritePartial,
-  remoteIndexWriteUnsure,
-  remoteStageOutsideRoot,
-  remoteWritesNotConfirmed,
-  remoteFileChip,
-  remoteProjectAlreadyOpen,
-  remoteReadAt,
-  remoteSaveRefused,
-  remoteTabCloseBody,
-  remoteTabCloseTitle,
-  remoteTabOpened,
-  remoteTabTooltip,
   remoteTreeDenied,
   remoteTreeEmpty,
   remoteTreeMissingBody,
@@ -118,9 +85,39 @@ import {
   remoteTreeReadOnly,
   remoteTreeTruncated,
   remoteTreeUnreachable,
-  reviewUntrackedTitle,
-  RUNS_NOT_LIVE,
+  remoteWriteDenied
+} from '../../machines/explorer';
+import { readClockTime, remoteReadAt } from '../../machines/presentation';
+import {
+  addRemoteRefusal,
+  createInRemoteProject,
+  OPEN_REMOTE_BUTTON,
+  OPEN_REMOTE_FOLDER_MENU_ITEM,
+  OPEN_REMOTE_TITLE,
+  openRemoteFolderLabel,
+  openRemoteHonesty,
+  REMOTE_BAND_BODY,
+  remoteBandTitle,
+  remoteProjectAlreadyOpen,
+  remoteTabCloseBody,
+  remoteTabCloseTitle,
+  remoteTabOpened,
+  remoteTabTooltip
+} from '../../machines/project-tab';
+import {
+  quickOpenFolderMissing,
+  quickOpenNamesCapped,
+  quickOpenNamesFrom,
+  quickOpenNamesTruncated,
+  quickOpenNoAnswer,
+  quickOpenNotConnected,
+  quickOpenNotRepo,
+  quickOpenReadingNames
+} from '../../machines/quick-open';
+import { reviewUntrackedTitle } from '../../machines/review';
+import {
   RUNS_NO_BRIDGE,
+  RUNS_NOT_LIVE,
   RUNS_STEPS_ELSEWHERE,
   runsBranchAt,
   runsFolderDenied,
@@ -133,12 +130,39 @@ import {
   runsNotRepo,
   runsOnMachineBand,
   runsReadAt,
-  runsReadingBranch,
-  SYMBOLS_ELSEWHERE_BODY,
-  symbolsElsewhereTitle
-} from '../../machines/presentation';
+  runsReadingBranch
+} from '../../machines/runs';
+import {
+  REMOTE_SCM_SECTIONS_NOTE,
+  remoteChangesBand,
+  remoteChangesNone,
+  remoteChangesNotRepo,
+  remoteChangesUnreachable,
+  remoteConflictNoVerb,
+  remoteIndexWritePartial,
+  remoteIndexWriteUnsure,
+  remoteStageOutsideRoot,
+  remoteWritesNotConfirmed
+} from '../../machines/scm';
+import { SYMBOLS_ELSEWHERE_BODY, symbolsElsewhereTitle } from '../../machines/search';
 
 const ROOT = resolve(import.meta.dirname, '../../../..');
+
+/**
+ * Every machine sentence file, read as text and joined.
+ *
+ * PHASE 142 SPLIT ONE FILE INTO TWENTY. Five guards below pin a deletion, so
+ * each of them has to read the whole directory. Reading one file would let a
+ * deleted name come back in a sibling and the guard would still pass.
+ */
+const MACHINES_SOURCE = ((): string => {
+  const dir = resolve(ROOT, 'src/renderer/machines');
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.ts'))
+    .sort()
+    .map((name) => readFileSync(join(dir, name), 'utf8'))
+    .join('\n');
+})();
 const L = 'Studio';
 const P = '/home/greg/api';
 /** PHASE 101. One machine's confirmed folder, and the save cap in bytes. */
@@ -283,10 +307,7 @@ describe('Source Control', () => {
     // PHASE 107 PINS THE RENAME, which is the shape this file already uses for
     // the two constants Phase 97 deleted. A constant that is renamed and left
     // behind under both names is how two surfaces come to say two things.
-    const source = readFileSync(
-      resolve(ROOT, 'src/renderer/machines/presentation.ts'),
-      'utf8'
-    );
+    const source = MACHINES_SOURCE;
     // The old name survives in ONE place on purpose, being the comment above
     // the constant that records the rename. The export itself is gone, and so
     // is the sentence it used to hold.
@@ -303,11 +324,10 @@ describe('Source Control', () => {
     // constant is gone from the copy module and from the surface that drew it.
     // This is the shape the `Files pair` describe at the foot of this file
     // already uses, which is how this file pins a deletion.
-    for (const rel of [
-      'src/renderer/machines/presentation.ts',
-      'src/renderer/scm/ScmSection.tsx'
+    for (const source of [
+      MACHINES_SOURCE,
+      readFileSync(resolve(ROOT, 'src/renderer/scm/ScmSection.tsx'), 'utf8')
     ]) {
-      const source = readFileSync(resolve(ROOT, rel), 'utf8');
       expect(source).not.toContain('REMOTE_SCM_UNTRACKED_ABSENT');
       expect(source).not.toContain(
         'A file that git is not yet tracking is not listed here.'
@@ -381,10 +401,7 @@ describe('Quick Open on a folder that is on a machine (Phase 99)', () => {
   });
 
   it('takes the pair Phase 99 made false out of the file', () => {
-    const source = readFileSync(
-      resolve(ROOT, 'src/renderer/machines/presentation.ts'),
-      'utf8'
-    );
+    const source = MACHINES_SOURCE;
     expect(source).not.toContain('QUICK_OPEN_ELSEWHERE_BODY');
     expect(source).not.toContain('quickOpenElsewhereTitle');
     expect(source).not.toContain('Quick Open does not reach');
@@ -997,10 +1014,7 @@ describe('the two sentences Phase 102 made false are gone', () => {
     // something this phase makes untrue: one said Tortie can save under a
     // folder when it can now change what is under it, and the other said
     // Tortie cannot make a folder on that machine.
-    const source = readFileSync(
-      resolve(ROOT, 'src/renderer/machines/presentation.ts'),
-      'utf8'
-    );
+    const source = MACHINES_SOURCE;
     expect(source).not.toContain('export function remoteTreeCanSave');
     expect(source).not.toContain('export function remoteNewFolderNotYet');
     expect(source).not.toContain('can save under ${root}');
@@ -1010,10 +1024,7 @@ describe('the two sentences Phase 102 made false are gone', () => {
 
 describe('the Files pair Phase 90.1 shipped is gone', () => {
   it('is not exported any more, because the Explorer now lists rows', () => {
-    const source = readFileSync(
-      resolve(ROOT, 'src/renderer/machines/presentation.ts'),
-      'utf8'
-    );
+    const source = MACHINES_SOURCE;
     expect(source).not.toContain('FILES_ELSEWHERE_BODY');
     expect(source).not.toContain('filesElsewhereTitle');
     expect(source).not.toContain(

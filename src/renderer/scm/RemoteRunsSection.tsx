@@ -71,8 +71,8 @@ import type { MachineRunsMode } from '@shared/ipc';
 import { useNow } from '../format';
 import { Codicon } from '../icons';
 import {
-  RUNS_NOT_LIVE,
   RUNS_NO_BRIDGE,
+  RUNS_NOT_LIVE,
   RUNS_STEPS_ELSEWHERE,
   runsBranchAt,
   runsFolderDenied,
@@ -86,7 +86,7 @@ import {
   runsOnMachineBand,
   runsReadAt,
   runsReadingBranch
-} from '../machines/presentation';
+} from '../machines/runs';
 import { RunRow } from './RunRow';
 import {
   machineAnsweredRuns,

@@ -58,7 +58,7 @@ export type TreeModel = UseFileTreeResult['model'];
  *
  * `label` is that machine's own label and `readOnlyNote` is the one sentence
  * its context menu ends with. Both are composed in
- * src/renderer/machines/presentation.ts and passed in, because the tree writes
+ * src/renderer/machines/explorer.ts and passed in, because the tree writes
  * no sentence of its own.
  *
  * PHASE 101 ADDED `writeRoot`, being the folder on that machine a person

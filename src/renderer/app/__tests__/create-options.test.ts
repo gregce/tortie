@@ -190,7 +190,7 @@ describe('the ask-that-machine-again action', () => {
   });
 
   it('is labelled with the machine and is not Try again', async () => {
-    const { askMachineAgainLabel } = await import('../../machines/presentation');
+    const { askMachineAgainLabel } = await import('../../machines/machine-agents');
     expect(askMachineAgainLabel('Studio')).toBe('Ask Studio again');
     expect(askMachineAgainLabel('Studio')).not.toContain('Try again');
   });

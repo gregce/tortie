@@ -86,9 +86,9 @@ import {
   readLinesNotConnected,
   readLinesReading,
   readLinesTitle,
-  readLinesUnreachable,
-  savedWhen
-} from '../machines/presentation';
+  readLinesUnreachable
+} from '../machines/read-lines';
+import { savedWhen } from '../machines/session-restore';
 import './remote-lines.css';
 
 export interface RemoteLinesPanelProps {

@@ -41,14 +41,12 @@ import {
 } from './status';
 import './unreachable.css';
 import { MachineBadge } from './MachineBadge';
+import { badgeQuietTitle, badgeSilentTitle, machineSilentText } from '../machines/session-badge';
 import {
   RESTORE_KEPT_HERE,
-  badgeQuietTitle,
-  badgeSilentTitle,
-  machineSilentText,
   restoreNotOfferedBody,
   restoreRemoteBody
-} from '../machines/presentation';
+} from '../machines/session-restore';
 import {
   ReadLastLinesButton,
   RenameInput,

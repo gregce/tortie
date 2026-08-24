@@ -62,9 +62,11 @@ vi.stubGlobal('document', {
 
 const { sessionMenuItems } = await import('../session-actions');
 const { endedBodyText } = await import('../TerminalRegion');
-const { NO_SNAPSHOT, restoreNotOfferedBody, restoreRemoteBody } = await import(
-  '../../machines/presentation'
-);
+const {
+  NO_SNAPSHOT,
+  restoreNotOfferedBody,
+  restoreRemoteBody
+} = await import('../../machines/session-restore');
 
 /** A machine whose gate said yes for this row. */
 const STUDIO: SessionMachine = {

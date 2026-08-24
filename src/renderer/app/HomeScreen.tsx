@@ -87,7 +87,7 @@ import {
   OPEN_ON_MACHINE_SUBTITLE,
   openOnMachineTitle,
   remoteRecentTooltip
-} from '../machines/presentation';
+} from '../machines/project-tab';
 // Phase 62.1. The one line that mirrors the update ring's state, because
 // this screen has no activity bar and a manual check started here was
 // silent. It is text only and its slot is reserved, so nothing shifts.

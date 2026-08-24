@@ -59,7 +59,7 @@ vi.stubGlobal('document', {
 
 const { useEditor } = await import('../store');
 const { useApp } = await import('../../state/store');
-const { remoteSaveRefused } = await import('../../machines/presentation');
+const { remoteSaveRefused } = await import('../../machines/editor');
 type OpenFileRequest = import('../../state/open-file').OpenFileRequest;
 
 const REMOTE = {

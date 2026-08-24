@@ -46,7 +46,7 @@ import type {
   MachineAgentsView,
   MachineRowView
 } from '@shared/ipc';
-import { machineNotSignedInOption } from '../machines/presentation';
+import { machineNotSignedInOption } from '../machines/machine-choice';
 import { formatAge, useNow } from '../format';
 import { AgentRow } from './AgentRow';
 import {

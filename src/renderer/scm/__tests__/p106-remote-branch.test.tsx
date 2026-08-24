@@ -84,7 +84,16 @@ const { RemoteBranchPanel, branchFollowSentence, branchModeSentence } =
   await import('../RemoteBranchSection');
 const { machineAnsweredBranch, remoteBranchAvailable, useRemoteBranch } =
   await import('../remote-branch');
-const copy = await import('../../machines/presentation');
+// Four files. The Branch group's own words are in machines/branch.ts, the four
+// wrappers Phase 105 kept are in machines/runs.ts, the note above the groups is
+// in machines/scm.ts, and the instant every group prints is in
+// machines/presentation.ts.
+const copy = {
+  ...(await import('../../machines/branch')),
+  ...(await import('../../machines/presentation')),
+  ...(await import('../../machines/runs')),
+  ...(await import('../../machines/scm'))
+};
 
 // ---------------------------------------------------------------------------
 // Fixtures

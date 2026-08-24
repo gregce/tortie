@@ -48,12 +48,12 @@ import {
   remoteCommitCheckRan,
   remoteCommitConflicts,
   remoteCommitDisabledReason,
-  remoteCommitNothingStagedYet,
   remoteCommitNotConnected,
+  remoteCommitNothingStagedYet,
   remoteCommitStanding,
   remoteWritesNotConfirmed
-} from '../../machines/presentation';
-import type { RemoteCommitFacts } from '../../machines/presentation';
+} from '../../machines/scm';
+import type { RemoteCommitFacts } from '../../machines/scm';
 
 const reviewFiles = vi.fn();
 const stage = vi.fn();

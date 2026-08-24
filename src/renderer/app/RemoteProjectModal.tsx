@@ -47,22 +47,21 @@ import type { MachineRowView } from '@shared/ipc';
 import { useApp } from '../state/store';
 import { RemoteDirPicker } from './RemoteDirPicker';
 import { MachineOptions, anyMachineNotReady } from './CreateSessionModal';
+import { MACHINE_FIELD_LABEL, MACHINE_NOT_SIGNED_IN_HINT } from '../machines/machine-choice';
 import {
-  MACHINE_FIELD_LABEL,
-  MACHINE_NOT_SIGNED_IN_HINT,
+  addRemoteRefusal,
   OPEN_REMOTE_BUTTON,
   OPEN_REMOTE_TITLE,
-  addRemoteRefusal,
   openRemoteFolderLabel,
   openRemoteHonesty,
   remoteProjectAlreadyOpen
-} from '../machines/presentation';
+} from '../machines/project-tab';
 import { modalKeyDown } from './focus-trap';
 
 /**
  * The three words this sheet needs that are not about a machine.
  *
- * Every sentence that names a machine comes from `../machines/presentation.ts`, which is
+ * Every sentence that names a machine comes from `../machines/project-tab.ts` and `../machines/machine-choice.ts`, which is
  * where the vocabulary audit reads them. These three label a button and a state
  * of this sheet and say nothing about any computer, so they stay beside the
  * buttons they label.

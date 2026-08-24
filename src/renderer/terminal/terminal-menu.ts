@@ -41,7 +41,7 @@
 import type { Session } from '@shared/types';
 // Phase 100. Every sentence about a machine is composed in one file, which is
 // the one the vocabulary audit reads. The menu item's label is one of them.
-import { READ_LAST_LINES_ITEM } from '../machines/presentation';
+import { READ_LAST_LINES_ITEM } from '../machines/read-lines';
 import type { SessionScrollbackFacts } from '@shared/scrollback';
 import { formatScrollbackSummary } from '@shared/scrollback';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';

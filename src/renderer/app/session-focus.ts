@@ -42,7 +42,7 @@ import {
 import { useApp } from '../state/store';
 import { machineLabelFor } from '../state/machines-slice';
 import { displayPath } from '../format';
-import { addRemoteRefusal } from '../machines/presentation';
+import { addRemoteRefusal } from '../machines/project-tab';
 import {
   NO_SUCH_SESSION,
   cannotOpenOnMachine,

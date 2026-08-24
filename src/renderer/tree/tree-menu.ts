@@ -65,7 +65,7 @@ export interface TreeMenuCapabilities {
    *    equal, and a remote `rm` would turn a recoverable delete into an
    *    unrecoverable one.
    *
-   * The sentence itself is written once in src/renderer/machines/presentation.ts and
+   * The sentence itself is written once in src/renderer/machines/explorer.ts and
    * this module never composes one.
    */
   readOnlyNote?: string | null;
