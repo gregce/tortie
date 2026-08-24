@@ -555,6 +555,19 @@ Do not award a point because a planned file exists. Award it only when the owner
 
 If any row remains at 2, publish the measured score and the remaining exception. Do not weaken the rubric to reach 36.
 
+### Stage 6 ran on 2026-08-24 and the measured score is 35
+
+The adversarial rescore is docs/audits/2026-08-24-run-f-rescore.md, produced by a reviewer that
+implemented none of the stages, on the tree at `1b04801`. Eleven areas earn 3. Composition, domain
+cohesion and test seam all earned their points on the audit's own counts, gate runs and three
+independent experiments. Failure flow stays at 2 on one named exception: `smoke:matrix` rows 1 and 5
+are red on this tree and identically red on the clean parent at `f929080`, and nobody has yet
+adjudicated whether the harness expectations went stale against deliberate status changes or the
+status truth drifted under transport loss and clock skew. The exception costs one point whichever
+side is wrong, so the published score is 35 out of 36 either way, and the plan's own rule decides
+the outcome: a published 35 with a named exception beats an unearned 36. The point comes back when
+the queued adjudication phase turns the matrix green or corrects its expectations with evidence.
+
 ## Score ledger
 
 This is the expected score movement. Stage 6 may revise it.
