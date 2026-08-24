@@ -4,6 +4,27 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## 0.70.0 (2026-08-24)
+
+This release adds Catch Me Up, a page that shows the conversation you have been having with every session in a project, taken word for word from each agent's own log. One keyboard chord opens it, and most of the rest of the release makes that page better. A small model can also keep the project view's one line per session current, and that stays off until you pick an agent for it.
+
+### Added
+
+- You can now read the conversation you have been having with every session in a project, with your asks and each agent's closing answer word for word from its own log, and a mark beside a claim about files says whether git agrees. It opens on the session you are in, on the sessions in a split side by side, or on the whole project at one line each, and Return jumps to that turn in the live session, though a Gemini session shows your asks only because Gemini records no agent answer ([`cecd6fe`](https://github.com/gregce/tortie/commit/cecd6fe))
+- The one session view now carries a rail of your asks down the right side, showing your first words and the time, and pressing a row or walking the rail with the arrow keys lands the conversation on that exchange. The arrow keys now scroll the conversation as the selection moves, each session in the side by side view scrolls on its own, an agent session shows its agent's mark, and a session's actions menu can open the page for that session alone, though the rail leaves the screen on a narrow window ([`ca90b63`](https://github.com/gregce/tortie/commit/ca90b63))
+- You can now pick an agent and a model under Settings, then Catch Me Up, and a small model writes the project view's one line for a session after that session finishes a turn, in place of the line Tortie builds from your ask and from git. It ships off and stays off until you pick an agent, and a sentence that names a file, carries a number or says what state the session is in is refused whole, so that row keeps the line Tortie built ([`56c9c59`](https://github.com/gregce/tortie/commit/56c9c59))
+- Claude Code, Codex CLI, Cursor CLI, Pi and Grok can each write that line now, and every other agent stays in the picker as a row you cannot choose, on a line saying Tortie has not measured it yet. A row whose line a model wrote says written and the time at the end of the row, though nothing on screen tells you when writing a line failed ([`d4c4d29`](https://github.com/gregce/tortie/commit/d4c4d29))
+
+### Changed
+
+- The wording Tortie uses about remote machines moved out of one large file into files named for the surface each one describes, so changing what one surface says no longer reaches the rest. Nothing a person reads on screen changed ([`2905051`](https://github.com/gregce/tortie/commit/2905051))
+- Every internal script that starts the app now closes it again even when the script fails partway, so abandoned copies no longer pile up and exhaust the machine. Nothing a person sees in the app changed ([`4d246f1`](https://github.com/gregce/tortie/commit/4d246f1))
+
+### Fixed
+
+- The agent's closing answer on Catch Me Up now renders as real markdown instead of plain text, and raw HTML inside an answer never becomes part of the page, while your own asks and the project view's one line summaries stay plain. The chord that opens the page is Shift+Command+U, and a per-agent hotkey you recorded on that chord before this release still wins ([`2aa7b6b`](https://github.com/gregce/tortie/commit/2aa7b6b))
+- The skill preview sheet is wider and uses more of the window, so more of a long command and its details are readable at once ([`75991fd`](https://github.com/gregce/tortie/commit/75991fd))
+
 ## 0.68.7 (2026-08-23)
 
 This release adds a guarded workflow for editing and committing projects on remote machines, from file changes through staging and commit. It also improves navigation and setup screens, and strengthens internal architecture checks. Remote write operations have only been verified on macOS.
