@@ -199,6 +199,7 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
+import { tsxCli } from './ts-runner.mjs';
 
 const REPO = '__REPO__';
 const input = JSON.parse(readFileSync(process.argv[2] ?? '', 'utf8'));
@@ -297,8 +298,8 @@ function drive(input) {
   const outPath = join(root, `p791-out-${String(driverCalls)}.json`);
   writeFileSync(inPath, JSON.stringify(input), 'utf8');
   const out = sh(
-    'npx',
-    ['tsx', '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
+    process.execPath,
+    [tsxCli(), '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
     { cwd: repoRoot, timeout: 180_000 }
   );
   if (!existsSync(outPath)) {

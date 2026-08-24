@@ -230,6 +230,7 @@ import {
   TmuxControlClient
 } from '${repoRoot}/src/main/tmux/control-client';
 import { execFileSync } from 'node:child_process';
+import { tsxCli } from './ts-runner.mjs';
 
 const cfg = JSON.parse(readFileSync(process.env['P83_CONFIG'] as string, 'utf8'));
 const out: Record<string, unknown> = { deadlineMs: CONTROL_GREETING_DEADLINE_MS };
@@ -475,8 +476,8 @@ mkdirSync(config.controlDir, { recursive: true, mode: 0o700 });
 writeFileSync(join(runDir, 'p83-config.json'), JSON.stringify(config, null, 2), 'utf8');
 
 const run = spawnSync(
-  'npx',
-  ['tsx', '--tsconfig', join(repoRoot, 'tsconfig.node.json'), driver],
+  process.execPath,
+  [tsxCli(), '--tsconfig', join(repoRoot, 'tsconfig.node.json'), driver],
   {
     cwd: repoRoot,
     encoding: 'utf8',

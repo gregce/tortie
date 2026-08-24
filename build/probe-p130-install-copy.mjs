@@ -77,6 +77,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { withElectron } from './electron-run.mjs';
+import { tsxCli } from './ts-runner.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[p130-install-copy]';
@@ -157,9 +158,9 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 /** id -> the canonical install command, straight out of the compiled registry. */
 function registryCommands() {
   const out = spawnSync(
-    'npx',
+    process.execPath,
     [
-      'tsx',
+      tsxCli(),
       '--tsconfig',
       'tsconfig.node.json',
       'build/installs-conformance-probe.mts'

@@ -174,6 +174,7 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
+import { tsxCli } from './ts-runner.mjs';
 
 async function main(): Promise<void> {
 
@@ -333,8 +334,8 @@ function driveAsync(input) {
   const outPath = join(root, `p103-stage-out-${String(driverCalls)}.json`);
   writeFileSync(inPath, JSON.stringify(input), 'utf8');
   const child = spawn(
-    'npx',
-    ['tsx', '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
+    process.execPath,
+    [tsxCli(), '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
     {
       cwd: repoRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -363,8 +364,8 @@ function drive(input) {
   const outPath = join(root, `p103-stage-out-${String(driverCalls)}.json`);
   writeFileSync(inPath, JSON.stringify(input), 'utf8');
   const out = sh(
-    'npx',
-    ['tsx', '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
+    process.execPath,
+    [tsxCli(), '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
     {
       cwd: repoRoot,
       timeout: 240_000,

@@ -248,6 +248,7 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
+import { tsxCli } from './ts-runner.mjs';
 
 // An async main rather than top level await: the driver is compiled to a
 // CommonJS module and top level await is not available there.
@@ -322,8 +323,8 @@ function drive(input) {
   const outPath = join(root, `p99-out-${String(driverCalls)}.json`);
   writeFileSync(inPath, JSON.stringify(input), 'utf8');
   const out = sh(
-    'npx',
-    ['tsx', '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
+    process.execPath,
+    [tsxCli(), '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
     {
       cwd: repoRoot,
       timeout: 300_000,

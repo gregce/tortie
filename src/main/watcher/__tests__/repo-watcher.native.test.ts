@@ -1,6 +1,15 @@
 /**
  * Integration test: RepoWatcher over real FSEvents (@parcel/watcher) on a
  * throwaway repo. Timing-tolerant — FSEvents delivery can lag ~1 s.
+ *
+ * Check type: adapter integration test, native watcher lane (Phase 145
+ * stage 5). Environment requirement: the platform's native file event stream
+ * through the repository's installed @parcel/watcher binding, which is
+ * FSEvents on macOS, plus the git binary. Skip rule: none; a missing or
+ * broken binding here is a failure, never a silent skip, because this lane is
+ * the only proof the native primitive honors the contract that
+ * repo-watcher-contract.test.ts pins over an injected backend. Run this lane
+ * alone with `npm run test:native`; `npm test` includes it.
  */
 
 import { execFileSync } from 'node:child_process';

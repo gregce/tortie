@@ -242,6 +242,7 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
+import { tsxCli } from './ts-runner.mjs';
 
 const REPO = '__REPO__';
 const input = JSON.parse(readFileSync(process.argv[2] ?? '', 'utf8'));
@@ -438,8 +439,8 @@ function drive(op) {
     'utf8'
   );
   const out = sh(
-    'npx',
-    ['tsx', '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
+    process.execPath,
+    [tsxCli(), '--tsconfig', 'tsconfig.node.json', driverPath, inPath, outPath],
     { cwd: repoRoot, env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
   );
   if (!existsSync(outPath)) {

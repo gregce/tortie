@@ -74,11 +74,12 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { tsxCli } from './ts-runner.mjs';
 
 const probe = spawnSync(
-  'npx',
+  process.execPath,
   [
-    'tsx',
+    tsxCli(),
     '--tsconfig',
     'tsconfig.node.json',
     'build/handback-conformance-probe.mts'

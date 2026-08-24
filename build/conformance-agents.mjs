@@ -99,10 +99,11 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { tsxCli } from './ts-runner.mjs';
 
 const probe = spawnSync(
-  'npx',
-  ['tsx', '--tsconfig', 'tsconfig.node.json', 'build/agents-conformance-probe.mts'],
+  process.execPath,
+  [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/agents-conformance-probe.mts'],
   { encoding: 'utf8', cwd: process.cwd() }
 );
 

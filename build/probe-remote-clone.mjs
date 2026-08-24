@@ -65,6 +65,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { tsxCli } from './ts-runner.mjs';
 import {
   assertReachable,
   closeMaster,
@@ -114,9 +115,9 @@ const REPO_FIND_MAX = 200;
  */
 function catalogue() {
   const out = spawnSync(
-    'npx',
+    process.execPath,
     [
-      'tsx',
+      tsxCli(),
       '--tsconfig',
       'tsconfig.node.json',
       'build/machines-conformance-probe.mts'

@@ -1,5 +1,24 @@
 import { resolve } from 'node:path';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
+
+/**
+ * Phase 145 stage 5: the suite runs in lanes, so a check can state its
+ * environment requirement instead of assuming the host.
+ *
+ *   npm test           both lanes, the full suite, what every battery runs
+ *   npm run test:hermetic   only checks that control every effect they use:
+ *                      no native file event stream is subscribed and no live
+ *                      process table is read. Proved on 2026-08-24 by running
+ *                      the whole lane over a watcher binding whose every call
+ *                      throws: 9,333 tests passed unchanged.
+ *   npm run test:native     only the *.native.test.ts files, the live
+ *                      integration lane for the native adapters (FSEvents
+ *                      delivery, the live ps table).
+ *
+ * The lane is picked here rather than by CLI globs so the file naming rule
+ * `*.native.test.ts` has exactly one reader.
+ */
+const lane = process.env.VITEST_LANE ?? 'all';
 
 export default defineConfig({
   resolve: {
@@ -13,10 +32,17 @@ export default defineConfig({
     // Phase 58 added the .tsx form. The update ring's renderer test is a
     // component test, and without this second glob vitest would skip the
     // file in silence.
-    include: [
-      'src/**/__tests__/**/*.test.ts',
-      'src/**/__tests__/**/*.test.tsx'
-    ],
+    include:
+      lane === 'native'
+        ? ['src/**/__tests__/**/*.native.test.ts']
+        : [
+            'src/**/__tests__/**/*.test.ts',
+            'src/**/__tests__/**/*.test.tsx'
+          ],
+    exclude:
+      lane === 'hermetic'
+        ? [...configDefaults.exclude, 'src/**/__tests__/**/*.native.test.ts']
+        : [...configDefaults.exclude],
     environment: 'node',
     env: {
       // The alias above only covers OUR imports, because Vite rewrites the

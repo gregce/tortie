@@ -55,6 +55,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tsxCli } from './ts-runner.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -93,8 +94,8 @@ if (realFile !== null) {
 }
 
 const probe = spawnSync(
-  'npx',
-  ['tsx', '--tsconfig', 'tsconfig.node.json', 'build/overview-conformance-probe.mts'],
+  process.execPath,
+  [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/overview-conformance-probe.mts'],
   { encoding: 'utf8', cwd: root, env, maxBuffer: 64 * 1024 * 1024 }
 );
 

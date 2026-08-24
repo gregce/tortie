@@ -28,6 +28,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
+import { tsxCli } from './ts-runner.mjs';
 
 /**
  * Launchable rows whose provider publishes NO install command. muse ships
@@ -61,8 +62,8 @@ const PACKAGE_MANAGERS = [
 ];
 
 const probe = spawnSync(
-  'npx',
-  ['tsx', '--tsconfig', 'tsconfig.node.json', 'build/installs-conformance-probe.mts'],
+  process.execPath,
+  [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/installs-conformance-probe.mts'],
   { encoding: 'utf8', cwd: process.cwd() }
 );
 

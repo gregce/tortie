@@ -25,6 +25,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let userData = '';
 
+/**
+ * Every subscription the watcher opened, so the contract tests can deliver
+ * events by hand (Phase 145 stage 5). The native FSEvents delivery half lives
+ * in store-watch.native.test.ts.
+ */
+const watcherSubs: {
+  dir: string;
+  cb: (err: Error | null, events: Array<{ path: string; type: string }>) => void;
+  unsubscribed: boolean;
+}[] = [];
+
+vi.mock('@parcel/watcher', () => {
+  const subscribe = (
+    dir: string,
+    cb: (err: Error | null, events: Array<{ path: string; type: string }>) => void
+  ): Promise<{ unsubscribe: () => Promise<void> }> => {
+    const rec = { dir, cb, unsubscribed: false };
+    watcherSubs.push(rec);
+    return Promise.resolve({
+      unsubscribe: () => {
+        rec.unsubscribed = true;
+        return Promise.resolve();
+      }
+    });
+  };
+  return { default: { subscribe }, subscribe };
+});
+
 vi.mock('electron', () => ({
   app: { getPath: () => userData },
   safeStorage: {
@@ -76,6 +104,7 @@ function writeOverlay(value: unknown): void {
 
 beforeEach(() => {
   userData = mkdtempSync(join(tmpdir(), 'tortie-config-'));
+  watcherSubs.length = 0;
   resetAgentOverlayStoreForTests();
 });
 
@@ -267,27 +296,49 @@ describe('what the confirm gate is handed', () => {
 });
 
 describe('the watcher', () => {
-  // Real FSEvents through @parcel/watcher, which is the same primitive the
-  // repository watcher uses. Delivery can lag about a second, so the wait is
-  // generous and the assertion is on the result rather than on the timing.
-  it('re-reads the file after it changes on disk', async () => {
+  // Contract over an injected backend (Phase 145 stage 5): the events are
+  // delivered by calling the callback the store registered, so what is pinned
+  // is the subscription target, the filename filter, the debounced re-read
+  // and the awaited stop. Whether real FSEvents delivers a disk write to this
+  // subscription is the native lane, store-watch.native.test.ts.
+  it('re-reads when the backend reports agents.json, and ignores other names', async () => {
     ensureConfigDir();
     loadAgentOverlay('boot');
     expect(agentEntry('owl')).toBeNull();
     const watching = await startAgentOverlayWatch();
     expect(watching).toBe(true);
     try {
+      const sub = watcherSubs.at(-1);
+      expect(sub?.dir).toBe(configDir());
       writeOverlay(OWL);
-      const deadline = Date.now() + 10_000;
+
+      // A foreign filename in the watched directory schedules nothing.
+      sub?.cb(null, [
+        { path: join(configDir(), 'other.json'), type: 'update' }
+      ]);
+      await new Promise((r) => setTimeout(r, 450));
+      expect(agentEntry('owl')).toBeNull();
+
+      const before = agentOverlayDiskReads();
+      sub?.cb(null, [{ path: agentOverlayPath(), type: 'update' }]);
+      const deadline = Date.now() + 5_000;
       while (Date.now() < deadline && agentEntry('owl') === null) {
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 25));
       }
       expect(agentEntry('owl')?.displayName).toBe('Owl');
-      expect(agentOverlayDiskReads()).toBeGreaterThan(1);
+      expect(agentOverlayDiskReads()).toBe(before + 1);
     } finally {
       await stopAgentOverlayWatch();
     }
-  }, 20_000);
+  }, 10_000);
+
+  it('stop awaits the unsubscribe of the one subscription it opened', async () => {
+    ensureConfigDir();
+    expect(await startAgentOverlayWatch()).toBe(true);
+    expect(watcherSubs).toHaveLength(1);
+    await stopAgentOverlayWatch();
+    expect(watcherSubs[0]?.unsubscribed).toBe(true);
+  });
 });
 
 describe('what a launch path gets', () => {
