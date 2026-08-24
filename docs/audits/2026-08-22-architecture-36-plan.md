@@ -334,6 +334,16 @@ Type truth scores 3 only when each process receives the ambient types it can use
 
 Projected score: 33 out of 36.
 
+### Stage 3 ran on 2026-08-24 and shared no longer sees the DOM library
+
+Phase 144 removed `DOM` from the lib set of `tsconfig.shared.json` and added `src/shared/browser-globals.d.ts`, a hand written ambient file declaring only the two members shared production code really uses: the WHATWG `URL` members `clone-url.ts` touches, being the constructor, `protocol`, `hostname`, `host`, `pathname`, `search`, `hash`, `username`, `password` and `toString`, and an opaque `File` handle with `name`, `size` and `type` for the preload drop contract in `ipc/terminal.ts`. `File` is deliberately an interface with no constructor, because research 16 §4.2 forbids ever constructing one. No Node types were added to compensate, and the full `tsc -b` compiled with exactly those two names as the whole gap. The ambient file is an input to the shared project only: an input `.d.ts` is never re-emitted through a project reference, so main, preload and the renderer keep resolving `URL` and `File` against their own ambient types.
+
+The proof is `build/assert-shared-types.mjs`, wired into `npm run typecheck`. It compiles three fixture programs that extend the real `tsconfig.shared.json` and copy in the real ambient file, from a scratch directory inside the repo so package resolution matches the real project rather than failing for every import. The positive fixture performs every `URL` operation `clone-url.ts` performs plus the `File` handle shape and must compile. The six negative fixtures, one identifier per file, must each fail by name: `window`, `document`, `process`, `Buffer`, `electron/main` and `electron/renderer`, the last two failing honestly because the electron package ships no type entry for either subpath. The control compiles the window fixture once more with `DOM` forced back on and must pass, so a broken scratch program cannot masquerade as a refusal. The project references and the Phase 124 builtin fixtures are untouched.
+
+The mutation control ran in both directions. `DOM` put back into the real config turns the gate red at its pre-check, and `"types": ["node"]` added to the real config turns it red at the fixtures with `neg-process.ts` and `neg-buffer.ts` named as compiling when they must not. The independent verification planted sixteen DOM-only identifiers into a real shared source file, in value and type position, being `window`, `document`, `navigator`, `fetch`, `localStorage`, `alert`, `DataTransfer`, `Blob`, `FileReader`, `CustomEvent`, `AbortController`, `atob`, `Worker`, `HTMLElement`, `MouseEvent` and `DragEvent`, and the real shared compile refused all sixteen by name.
+
+Score after this stage: 33 out of 36.
+
 ## Landed before this refresh: renderer direction and shell controllers
 
 Phase 127 completed the old Stages 4 and 5. The import gate now contains a renderer directory wall, `App.tsx` is a shell rather than a controller warehouse, `FileTree.tsx` delegates its model, drag, menu and rename work, and probe registration loads through a gated owner. The normal renderer entry no longer pays for the shipped-path probe graph.
