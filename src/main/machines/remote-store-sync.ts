@@ -101,7 +101,7 @@ import {
 import { machineIsConnected, runRemoteRead } from './remote-run';
 // The one word every script prints when it looked and found nothing.
 import { REMOTE_SCRIPT_EMPTY } from './remote-scripts';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 
 const syncLog = getLog('restore');
 

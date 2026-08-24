@@ -150,7 +150,7 @@ import {
   CONTEXT_READ_FILE_MAX_BYTES,
   CONTEXT_READ_LIST_MAX_BYTES
 } from './remote-scripts';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
 /**

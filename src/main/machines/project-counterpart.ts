@@ -66,7 +66,7 @@ import {
 } from './remote-copy';
 import { remoteMachineHome } from './remote-image';
 import { runRemoteRead } from './remote-run';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
 /**

@@ -66,7 +66,7 @@ import {
 } from '@shared/ipc';
 import { gmuxError } from '../errors';
 import { assertMachineMayConnect } from './confirm';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { runRemoteWrite } from './remote-run';
 import { machineFieldsOf, machineRow } from './store';
 

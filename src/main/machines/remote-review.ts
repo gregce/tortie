@@ -104,7 +104,7 @@ import {
   reviewTooLargeNote,
   reviewTooManyEntries
 } from './remote-copy';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
 /**

@@ -109,7 +109,7 @@ import {
   walkRemoteRepos
 } from './project-counterpart';
 import { machineIsConnected, runRemoteWrite } from './remote-run';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
 /**

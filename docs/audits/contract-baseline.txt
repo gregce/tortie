@@ -409,7 +409,7 @@ GMUX_TMUX_TARBALL_DIR
 GMUX_UPDATE_REHEARSAL
 GMUX_UPDATE_STATE_ROOT
 
-[harness.smoke.modes] count=33
+[harness.smoke.modes] count=34
 agent
 basic
 capture
@@ -432,6 +432,7 @@ partition
 power
 procid
 quit
+quit-doors
 reconstruct
 refusal
 remote-matrix

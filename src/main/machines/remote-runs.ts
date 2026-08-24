@@ -134,7 +134,7 @@ import {
 import { normalizeGitHubRemote } from '../git/parsers';
 import type { RemoteMachineContext } from './context';
 import { machineIsConnected, runRemoteRead } from './remote-run';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { machineLabelOf, machineRow } from './store';
 
 /**

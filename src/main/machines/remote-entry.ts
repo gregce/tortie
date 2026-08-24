@@ -74,7 +74,7 @@ import type {
 import { gmuxError } from '../errors';
 import { confirmedWriteRoot, relativeUnderRoot } from './remote-file';
 import { runRemoteWrite } from './remote-run';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 
 /**
  * How long one of these two commands gets. 15,000 ms.

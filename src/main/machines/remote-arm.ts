@@ -81,7 +81,7 @@ import {
   RESUME_NOT_LANDED,
   RESUME_TYPED_TWICE
 } from './remote-copy';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 
 const machinesLog = getLog('config');
 

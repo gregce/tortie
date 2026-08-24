@@ -57,7 +57,7 @@ vi.mock('../remote-run', () => ({
   }
 }));
 
-vi.mock('../remote-sessions', () => ({
+vi.mock('../ready-context', () => ({
   readyRemoteContext: (): RemoteMachineContext => CTX
 }));
 

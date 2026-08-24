@@ -127,7 +127,7 @@ import {
 import { confirmedWriteRoot } from './remote-file';
 import { reviewFilesOn } from './remote-review';
 import { machineIsConnected, runRemoteWrite } from './remote-run';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 import { rootHolds } from './remote-stage';
 import { machineLabelOf, machineRow } from './store';
 

@@ -58,9 +58,13 @@ describe('the Phase 123 leaves import nothing that imports them', () => {
   });
 
   it('keeps every old caller of the two remote leaves reading this module', () => {
-    // About thirty production files import `readyRemoteContext` from
-    // `../remote-sessions.ts`. Phase 123 rewrote two of those import lines and
-    // no others, because this module re-exports all four names.
+    // Phase 123 rewrote two import lines and left the rest reading this
+    // module through the re-export. Phase 145 stage 4 then pointed the sixteen
+    // callers that name ONLY the readiness check at `./ready-context.ts`
+    // itself, so a future import from `./remote-sessions.ts` into one of those
+    // leaves cannot close a cycle. The re-export stays, because the callers
+    // that read the readiness check beside session rows or the feed still
+    // come through this module.
     expect(remoteSessionsSource).toContain("export { readyRemoteContext };");
     expect(remoteSessionsSource).toContain(
       "export { REMOTE_STAMPS, oneLine, remoteStampArgs };"

@@ -50,7 +50,7 @@ vi.mock('../remote-run', () => ({
   }
 }));
 
-vi.mock('../remote-sessions', () => ({
+vi.mock('../ready-context', () => ({
   readyRemoteContext: (machineId: string) => {
     if (!contextReady.has(machineId)) throw new Error('no connection');
     return { kind: 'remote', machineId };

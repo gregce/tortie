@@ -157,7 +157,7 @@ import { confirmedWriteRoot } from './remote-file';
 import { reviewFilesOn } from './remote-review';
 import { composeRemoteScriptCommand, runRemoteWrite } from './remote-run';
 import { remoteScript } from './remote-scripts';
-import { readyRemoteContext } from './remote-sessions';
+import { readyRemoteContext } from './ready-context';
 
 /**
  * How long one stage or one unstage gets on the machine. 20,000 ms.

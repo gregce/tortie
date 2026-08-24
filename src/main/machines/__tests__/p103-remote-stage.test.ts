@@ -90,7 +90,7 @@ vi.mock('../remote-review', () => ({
   }
 }));
 
-vi.mock('../remote-sessions', () => ({
+vi.mock('../ready-context', () => ({
   readyRemoteContext: (machineId: string) => ({ kind: 'remote', machineId })
 }));
 
