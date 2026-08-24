@@ -14,6 +14,22 @@ import * as copy from '../copy';
 
 const source = readFileSync(join(__dirname, '..', 'copy.ts'), 'utf8');
 
+/**
+ * Comments first (Phase 138.1), so the prose above a string may say what the
+ * rule is.
+ *
+ * Without this a lone apostrophe in a comment, e.g. "the CLI's own notice",
+ * opens a quote the scanner then closes on the next real string, and whole
+ * paragraphs of comment are read as one sentence. That is how a comment
+ * carrying a phase number failed the no digit rule while every string in the
+ * file obeyed it.
+ */
+function stripComments(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
 /** Every quoted string in the file, template literals included. */
 function stringLiterals(text: string): string[] {
   const out: string[] = [];
@@ -32,7 +48,9 @@ const IT_WHITELIST = new Set([
 ]);
 
 describe('every string in copy.ts', () => {
-  const literals = stringLiterals(source).filter((s) => s.length > 0);
+  const literals = stringLiterals(stripComments(source)).filter(
+    (s) => s.length > 0
+  );
 
   it('found the sentences at all', () => {
     expect(literals.length).toBeGreaterThan(10);

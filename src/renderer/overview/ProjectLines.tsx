@@ -13,6 +13,13 @@
  *
  * THIS IS THE ONLY VIEW A MODEL WRITES ANYTHING ON. The one session view and
  * the multiplexed view are re-read from the store and stay verbatim.
+ *
+ * Phase 138.1 added the quiet clock at the end of a written sentence. The
+ * operator turned the fold on and could not tell whether anything had
+ * happened, because a fold is silent by design and reading his database was
+ * the only way to find out. A line a model wrote now says when the model
+ * wrote it. A line Tortie built says nothing, because a built line is the
+ * default and silence is right for a default.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -21,8 +28,9 @@ import type { SessionStatus } from '@shared/types';
 import { statusVisual } from '../app/status';
 import { formatAge } from '../format';
 import { AgentIcon } from '../icons';
+import { formatTurnClock } from './clock';
 import { honestLineHasClock, projectLineFor } from './line';
-import { EMPTY_PROJECT, YOU_ASKED_LEAD } from './copy';
+import { EMPTY_PROJECT, WRITTEN_LEAD, YOU_ASKED_LEAD } from './copy';
 
 export interface ProjectLinesProps {
   project: OverviewProject;
@@ -115,6 +123,21 @@ export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
               >
                 {line.outcome}
               </span>
+              {/* Phase 138.1. The clock beside a sentence a MODEL wrote, and
+                  nothing at all beside a line Tortie built. `summary` and
+                  `summaryWrittenAt` are filled by one function in main, so
+                  this can never draw a clock on a built line. The clock
+                  carries its date when the day differs, and its digits sit
+                  inside data-clock, which is what the integer rule allows. */}
+              {session.summaryWrittenAt !== null ? (
+                <span className="overview-line-written">
+                  {' '}
+                  {WRITTEN_LEAD}
+                  <span data-clock>
+                    {formatTurnClock(session.summaryWrittenAt, now)}
+                  </span>
+                </span>
+              ) : null}
             </div>
           </div>
         );

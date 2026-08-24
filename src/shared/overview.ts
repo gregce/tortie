@@ -60,6 +60,19 @@ export interface OverviewSessionView {
    * view are re-read from the store and stay verbatim.
    */
   summary: string | null;
+  /**
+   * When that sentence was written, epoch ms, or null when no sentence is
+   * drawn (Phase 138.1).
+   *
+   * The project view draws "written HH:MM" beside a sentence a model wrote,
+   * and draws nothing at all beside the line Tortie builds, because a built
+   * line is the default and silence is right for a default. Before this the
+   * only way to find out whether a fold had ever run was to read the store.
+   *
+   * ONE FUNCTION FILLS BOTH FIELDS, so they cannot disagree. `summary` null
+   * implies this is null.
+   */
+  summaryWrittenAt: number | null;
 }
 
 export type OverviewReadWork = 'full' | 'tail' | 'suffix' | 'none' | 'skipped';

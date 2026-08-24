@@ -1,15 +1,19 @@
 /**
- * Settings then Project line (Phase 138), run rather than read.
+ * Settings then Catch Me Up (Phase 138, cut down in Phase 138.1), run rather
+ * than read.
  *
- * Four refusals are held here.
+ * Five refusals are held here.
  *
  *  - None is the shipped answer and it is what the picker shows on a fresh
  *    install. Nothing is applied on its own, not even the suggested row.
  *  - The list comes from MAIN. This file scans FoldSection.tsx and fails if
  *    any agent id appears in it, so the picker can never grow a hardcoded
  *    array that drifts from the registry.
- *  - An agent Tortie cannot offer is DRAWN and disabled with main's own
- *    sentence beside it, rather than hidden.
+ *  - An agent Tortie cannot offer is DRAWN rather than hidden, and every
+ *    agent that shares a reason is named on ONE line. Phase 138 drew one
+ *    paragraph per agent, ten of them on the operator's Mac.
+ *  - The page draws a small, fixed number of sentences. This file counts
+ *    them, because the count is what the operator complained about.
  *  - A write that main did not keep is reported rather than shown as if the
  *    choice were in force. That is what the danger seal does to a fold choice
  *    that did not come from this window.
@@ -35,9 +39,6 @@ import {
 import { FOLD_NONE_OPTION, FOLD_SUGGESTED_MARK } from '../fold-copy';
 import { useSettingsStore } from '../settings-store';
 
-const NOT_MEASURED =
-  'Tortie has not measured a one shot recipe for this agent yet.';
-
 function options(): FoldOptions {
   return {
     harnesses: [
@@ -59,8 +60,26 @@ function options(): FoldOptions {
         models: [],
         suggestedModel: null,
         available: false,
-        reason: NOT_MEASURED,
+        reason: 'not-measured',
         measuredOn: null
+      },
+      {
+        agentId: 'grok',
+        agentLabel: 'Grok CLI',
+        models: [],
+        suggestedModel: null,
+        available: false,
+        reason: 'not-measured',
+        measuredOn: null
+      },
+      {
+        agentId: 'cursor',
+        agentLabel: 'Cursor CLI',
+        models: [{ id: 'small-fast', label: 'Small' }],
+        suggestedModel: 'small-fast',
+        available: false,
+        reason: 'not-confirmed',
+        measuredOn: '2026-08-23'
       }
     ],
     suggestedAgentId: 'claude',
@@ -156,8 +175,25 @@ describe('an agent Tortie cannot offer', () => {
     expect(markup).toMatch(/<option value="codex" disabled=""/);
   });
 
-  it("carries main's own sentence for why", () => {
-    expect(markup).toContain(NOT_MEASURED);
+  it('is named with every other unmeasured agent on ONE line', () => {
+    expect(markup).toContain('Not measured yet: Codex, Grok CLI.');
+  });
+
+  it('is named ONCE, and never once per agent', () => {
+    expect(markup.split('Not measured yet').length - 1).toBe(1);
+  });
+
+  it('keeps an unconfirmed agent on its own line, sent to Agents', () => {
+    expect(markup).toContain('Not confirmed yet: Cursor CLI.');
+    expect(markup).toContain('Confirm what each one runs under Agents');
+  });
+
+  it('draws neither line when every row can be picked', () => {
+    const every = draw({ agentId: null, model: null }, {
+      harnesses: options().harnesses.map((h) => ({ ...h, available: true, reason: null }))
+    });
+    expect(every).not.toContain('Not measured yet');
+    expect(every).not.toContain('Not confirmed yet');
   });
 
   it('cannot be written even by calling the writer directly', async () => {
@@ -295,6 +331,60 @@ describe('the list is built in main', () => {
 
   it('names no model either', () => {
     expect(code).not.toMatch(/haiku|sonnet|opus|gpt|gemini-/i);
+  });
+});
+
+/**
+ * Phase 138.1. The operator photographed the Phase 138 page and said the
+ * extra text was crap. The count was twenty three sentences with Claude Code
+ * chosen, ten of them the same sentence with a different name in it. This
+ * counts what the page draws, so a later round cannot quietly put paragraphs
+ * back.
+ */
+describe('how much the page says', () => {
+  /** The rendered text of the page, tags stripped, up to the block at the end. */
+  function cardText(markup: string): string {
+    return markup
+      .slice(0, markup.indexOf('What Catch Me Up is'))
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&#x27;/g, '’')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /** Every full stop is one sentence. No string on this page holds another. */
+  function fullStops(text: string): number {
+    return (text.match(/\./g) ?? []).length;
+  }
+
+  it('says five sentences on the operator’s own page', () => {
+    // His shape: Claude Code chosen and measured, every other agent
+    // unmeasured, nothing configured and therefore nothing unconfirmed.
+    const markup = draw({ agentId: 'claude', model: 'haiku-small' }, {
+      harnesses: options().harnesses.filter((h) => h.reason !== 'not-confirmed')
+    });
+    // The agent caption is two, the model caption is one, the measured date
+    // is one, and the unmeasured agents are one line rather than ten.
+    expect(fullStops(cardText(markup))).toBe(5);
+  });
+
+  it('adds one line, not one per agent, when a row is unconfirmed', () => {
+    const markup = draw({ agentId: 'claude', model: 'haiku-small' });
+    expect(fullStops(cardText(markup))).toBe(7);
+  });
+
+  it('ends with the block that says what Catch Me Up is', () => {
+    const markup = draw({ agentId: 'claude', model: 'haiku-small' });
+    expect(markup).toContain('What Catch Me Up is');
+    expect(markup).toContain('word for word');
+    expect(markup).toContain('View menu');
+  });
+
+  it('drew none of the three paragraphs Phase 138 ended with', () => {
+    const markup = draw({ agentId: 'claude', model: 'haiku-small' });
+    expect(markup).not.toContain('None is what Tortie ships with');
+    expect(markup).not.toContain('Tortie holds no key');
+    expect(markup).not.toContain('This choice decides that a program runs');
   });
 });
 

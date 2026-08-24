@@ -1,5 +1,14 @@
 /**
- * The one shot spawn (Phase 138).
+ * The one shot spawn (Phase 138, widened in Phase 138.1).
+ *
+ * PHASE 138.1 MOVED THREE THINGS OFF THIS FILE AND ONTO THE RECIPE, because
+ * every one of them was claude shaped and blocked every other agent. The
+ * parse is now `recipe.read`, in ./readers.ts. The environment is now a
+ * function, because one recipe needs the fold's own directory in a variable.
+ * And the instruction goes on a flag or at the head of the prompt, whichever
+ * that agent's CLI measured cheaper. What stayed here is the part that is the
+ * same for all five: resolve the binary, run it once in Tortie's own
+ * directory, and never throw.
  *
  * BOUND C IS NOT AMENDABLE AND THIS FILE IS WHERE IT IS HELD. Tortie holds no
  * API key and reaches no endpoint Tortie owns. The only path a fold has to a
@@ -20,11 +29,40 @@
  * The child's environment carries the login shell PATH, for the same reason
  * the version probe passes one: a node shebang CLI needs a real PATH to find
  * its interpreter.
+ *
+ * The child also runs in the fold's own directory rather than in whatever the
+ * main process happens to be sitting in. See ./home.ts for the measurement
+ * that made that necessary.
  */
 
 import { runGuarded } from '../../proc/guarded';
 import { getUserPath, resolveBinary } from '../../tmux/resolve';
+import { foldHome } from './home';
+import type { FoldRateWindow } from './readers';
+import {
+  readClaudeStream,
+  readCodexJson,
+  readCursorJson,
+  readGrokJson,
+  readPiNdjson
+} from './readers';
 import type { FoldRecipe } from './recipes';
+
+export type { FoldRateWindow, FoldReading } from './readers';
+export {
+  readClaudeStream,
+  readCodexJson,
+  readCursorJson,
+  readGrokJson,
+  readPiNdjson
+};
+
+/**
+ * The claude reader under the name Phase 138 gave it. Kept so a caller that
+ * asks for the stream parse by its old name still gets it, and so the export
+ * surface of this module did not move under a phase that only widened it.
+ */
+export const readFoldStream = readClaudeStream;
 
 /** How one fold ended, before the validator has seen anything. */
 export type FoldOutcome =
@@ -35,17 +73,6 @@ export type FoldOutcome =
   | 'overloaded'
   | 'spawn-failed'
   | 'bad-output';
-
-/**
- * The live rate window, read from the CLI's own `rate_limit_event` message.
- * Gate one proved this message arrives on every invocation, before the result.
- */
-export interface FoldRateWindow {
-  status: string;
-  limitType: string;
-  utilization: number;
-  resetsAtMs: number | null;
-}
 
 export interface FoldRun {
   outcome: FoldOutcome;
@@ -59,7 +86,8 @@ export interface FoldRun {
    * What the CLI reported this cost. Recorded for diagnostics and NEVER
    * drawn. Gate one found a 2.66 times price spread over 117 folds with byte
    * identical token counts, so the number is not reliable enough to show a
-   * person.
+   * person. Three of the five recipes report no figure at all, being codex,
+   * cursor and, on a refusal, claude.
    */
   costUsd: number | null;
 }
@@ -76,6 +104,8 @@ export interface FoldSpawnDeps {
   resolve?(bin: string): Promise<string | null>;
   /** The login shell PATH the child gets. */
   path?(): Promise<string>;
+  /** Tortie's own directory for this fold. Injected so a test names its own. */
+  home?(): string;
   now?(): number;
 }
 
@@ -84,6 +114,10 @@ export interface FoldSpawnDeps {
  * a rate limit at 1,878 times the operator's fleet rate, and his own window
  * sat at 0.33 throughout, so this is the untested condition the suspension
  * rule exists for.
+ *
+ * Only claude reports a window. Under the other four recipes the suspension
+ * rests on the three consecutive failure rule alone, and that is a limit
+ * rather than an oversight.
  */
 export const FOLD_SUSPEND_UTILIZATION = 0.9;
 
@@ -93,127 +127,18 @@ const ALLOWED_WARNING = 'allowed_warning';
 /** How long a suspension lasts when a refusal names no reset time. */
 export const FOLD_BLIND_SUSPEND_MS = 15 * 60_000;
 
-// ---------------------------------------------------------------------------
-// The stream parse. Two messages matter and everything else is ignored.
-// ---------------------------------------------------------------------------
-
-interface StreamReading {
-  window: FoldRateWindow | null;
-  resultText: string | null;
-  isError: boolean;
-  subtype: string | null;
-  apiErrorStatus: number | null;
-  costUsd: number | null;
-  sawResult: boolean;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object'
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function asNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null;
-}
-
-/** Milliseconds from either an epoch seconds number or an ISO string. */
-function asResetMs(value: unknown): number | null {
-  const num = asNumber(value);
-  if (num !== null) return num > 1e11 ? num : num * 1_000;
-  const text = asString(value);
-  if (text === null) return null;
-  const parsed = Date.parse(text);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
 /**
- * The window, read out of whichever member carries it.
+ * The prompt the child actually receives.
  *
- * MEASURED ON 2026-08-23 rather than guessed. The CLI writes the message as
- * `{"type":"rate_limit_event","rate_limit_info":{"status":"allowed_warning",
- * "resetsAt":1788076800,"rateLimitType":"seven_day","utilization":0.36}}`, so
- * the payload is nested under `rate_limit_info` and its keys are camel case.
- * The snake case names and the outer position are kept beside them because a
- * CLI upgrade may move it back, and reading both costs one property lookup.
+ * A recipe whose CLI has a working system prompt flag gets the prompt alone
+ * and the instruction on the flag. A recipe whose CLI has no such flag, or
+ * whose flag costs more than it saves, gets the instruction at the head of
+ * the prompt instead. grok is the measured case and the reason is written on
+ * its row in ./recipes.ts.
  */
-function readRateWindow(message: Record<string, unknown>): FoldRateWindow | null {
-  const event =
-    asRecord(message['rate_limit_info']) ??
-    asRecord(message['rate_limit_event']) ??
-    message;
-  const status = asString(event['status']);
-  if (status === null) return null;
-  return {
-    status,
-    limitType:
-      asString(event['rateLimitType']) ??
-      asString(event['limit_type']) ??
-      asString(event['limitType']) ??
-      '',
-    utilization:
-      asNumber(event['utilization']) ?? asNumber(event['used_percent']) ?? 0,
-    resetsAtMs:
-      asResetMs(event['resetsAt']) ??
-      asResetMs(event['resets_at']) ??
-      asResetMs(event['unified_rate_limit_reset']) ??
-      null
-  };
-}
-
-/**
- * Read the stream of JSON lines. Two of them matter: the `rate_limit_event`
- * carries the live window state, and the `result` carries the sentence, the
- * error shape and the reported cost. Every other line is ignored, including
- * every line that is not JSON at all, because a CLI is free to print a notice.
- */
-export function readFoldStream(stdout: string): StreamReading {
-  const out: StreamReading = {
-    window: null,
-    resultText: null,
-    isError: false,
-    subtype: null,
-    apiErrorStatus: null,
-    costUsd: null,
-    sawResult: false
-  };
-  for (const line of stdout.split('\n')) {
-    const text = line.trim();
-    if (text === '' || !text.startsWith('{')) continue;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      continue;
-    }
-    const message = asRecord(parsed);
-    if (message === null) continue;
-    const type = asString(message['type']);
-    if (
-      type === 'rate_limit_event' ||
-      message['rate_limit_info'] !== undefined ||
-      message['rate_limit_event'] !== undefined
-    ) {
-      const window = readRateWindow(message);
-      if (window !== null) out.window = window;
-      if (type === 'rate_limit_event') continue;
-    }
-    if (type !== 'result') continue;
-    out.sawResult = true;
-    out.resultText = asString(message['result']);
-    out.isError = message['is_error'] === true;
-    out.subtype = asString(message['subtype']);
-    out.apiErrorStatus =
-      asNumber(message['api_error_status']) ??
-      asNumber(message['apiErrorStatus']);
-    out.costUsd =
-      asNumber(message['total_cost_usd']) ?? asNumber(message['totalCostUsd']);
-  }
-  return out;
+export function foldPromptFor(input: FoldSpawnInput): string {
+  if (input.recipe.systemPromptMode === 'flag') return input.prompt;
+  return `${input.systemPrompt}\n\n${input.prompt}`;
 }
 
 /**
@@ -298,24 +223,36 @@ export async function runFold(
   }
 
   const pathValue = await (deps.path ?? getUserPath)();
+  // EVERY FOLD RUNS IN TORTIE'S OWN DIRECTORY. Research 64 measured that each
+  // agent keys its history on the directory it was started in, so a fold that
+  // inherited the main process working directory would write a transcript
+  // into whatever that happened to be. In a packaged build that is the root
+  // of the disk. See ./home.ts.
+  const home = (deps.home ?? foldHome)();
   const run = await runGuarded(
     binary,
     input.recipe.argv({
-      prompt: input.prompt,
+      prompt: foldPromptFor(input),
       model: input.model,
-      systemPrompt: input.systemPrompt
+      systemPrompt: input.systemPrompt,
+      foldHome: home
     }),
     {
       timeoutMs: input.recipe.timeoutMs,
       maxOutputBytes: 512 * 1024,
-      env: { ...process.env, PATH: pathValue, ...input.recipe.env }
+      cwd: home,
+      env: {
+        ...process.env,
+        PATH: pathValue,
+        ...input.recipe.env({ foldHome: home })
+      }
     }
   );
 
   if (run.spawnError !== null) {
     return done({ outcome: 'spawn-failed', reason: run.spawnError });
   }
-  const reading = readFoldStream(run.stdout);
+  const reading = input.recipe.read(run.stdout);
   if (run.timedOut) {
     return done({
       outcome: 'timed-out',
@@ -330,7 +267,7 @@ export async function runFold(
     );
     return done({ outcome, reason, window: reading.window, costUsd: reading.costUsd });
   }
-  if (!reading.sawResult || reading.resultText === null) {
+  if (!reading.sawResult || reading.text === null) {
     return done({
       outcome: 'bad-output',
       reason: run.code === 0 ? 'no-result' : `exit-${String(run.code)}`,
@@ -347,7 +284,7 @@ export async function runFold(
   }
   return done({
     outcome: 'ok',
-    text: reading.resultText,
+    text: reading.text,
     window: reading.window,
     costUsd: reading.costUsd
   });

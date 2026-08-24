@@ -1,5 +1,5 @@
 /**
- * The copy rules for Settings then Project line (Phase 138), made mechanical.
+ * The copy rules for Settings then Catch Me Up (Phase 138), made mechanical.
  *
  * The same rules the Catch Me Up page carries bind this section, because a
  * person reads the two on the same afternoon. The person is "you". A harness
@@ -37,6 +37,17 @@ const literals = stringLiterals(stripComments(source)).filter(
   (s) => s.trim().length > 0
 );
 
+/**
+ * The two sentences where a colon introduces a list, which is the one job a
+ * colon has in this product's copy (Phase 138.1). Both name every agent that
+ * shares a reason on one line, in place of the paragraph per agent Phase 138
+ * drew. Any OTHER colon in this file is still a defect.
+ */
+const COLON_INTRODUCES_A_LIST = [
+  'Not measured yet: ${names}.',
+  'Not confirmed yet: ${names}. Confirm what each one runs under Agents.'
+];
+
 describe('every sentence in fold-copy.ts', () => {
   it('found the sentences at all', () => {
     expect(literals.length).toBeGreaterThan(10);
@@ -73,9 +84,16 @@ describe('every sentence in fold-copy.ts', () => {
 
   it('uses a colon only to introduce a list', () => {
     for (const text of literals) {
+      if (COLON_INTRODUCES_A_LIST.includes(text)) continue;
       expect(text, `"${text}" joins two clauses with a colon`).not.toMatch(
         /\w:\s/
       );
+    }
+  });
+
+  it('names both list sentences, so the exception cannot rot', () => {
+    for (const text of COLON_INTRODUCES_A_LIST) {
+      expect(literals, `${text} is no longer in fold-copy.ts`).toContain(text);
     }
   });
 });
@@ -86,15 +104,30 @@ describe('the sentences that take a value', () => {
     expect(copy.foldChosenUnavailable('Claude Code')).not.toContain(' it ');
   });
 
-  it('joins a refused row to its reason with a full stop', () => {
-    expect(copy.foldUnavailable('Codex', 'Tortie has not measured a recipe.'))
-      .toBe('Codex. Tortie has not measured a recipe.');
+  // Phase 138.1. The unmeasured agents are named TOGETHER on one line. Phase
+  // 138 drew one paragraph per agent here, ten of them on the operator's Mac,
+  // and he said the page looked like trash.
+  it('names every unmeasured agent on one line', () => {
+    expect(copy.foldNotMeasured('Codex, Cursor, Grok')).toBe(
+      'Not measured yet: Codex, Cursor, Grok.'
+    );
+  });
+
+  it('sends the unconfirmed agents to Agents on one line', () => {
+    const line = copy.foldNotConfirmed('A patched claude');
+    expect(line).toContain('A patched claude');
+    expect(line).toContain('Agents');
   });
 
   it('puts the measured date in a sentence of its own', () => {
     expect(copy.foldMeasuredOn('2026-08-23')).toBe(
-      'The flags behind this agent were measured on 2026-08-23.'
+      'Tortie measured these flags on 2026-08-23.'
     );
+  });
+
+  it('reads the chord rather than typing one', () => {
+    expect(copy.foldAboutOpen('⇧⌘U')).toContain('⇧⌘U');
+    expect(copy.foldAboutOpen('⇧⌘U')).toContain('View menu');
   });
 
   it('calls the absence of a choice None', () => {

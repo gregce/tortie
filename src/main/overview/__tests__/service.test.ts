@@ -717,10 +717,54 @@ describe('the written line reaches ONE payload and no other', () => {
     });
     const { deps } = withSummary('kept');
     const after = await projectOverview(deps, { projectPath: PROJECT });
-    expect({ ...after.sessions[0], summary: null }).toEqual({
+    // Phase 138.1 added `summaryWrittenAt`, which is filled by the same call
+    // as `summary`, so both are blanked here and both are checked below.
+    expect({
+      ...after.sessions[0],
+      summary: null,
+      summaryWrittenAt: null
+    }).toEqual({
       ...before.sessions[0],
-      summary: null
+      summary: null,
+      summaryWrittenAt: null
     });
+  });
+
+  // Phase 138.1. The operator turned folding on and could not tell whether
+  // anything had happened. The project view answers that with the moment the
+  // sentence was written, and the two fields come from one call so they can
+  // never disagree.
+  it('carries the moment the sentence was written', async () => {
+    const { deps } = withSummary('kept');
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summaryWrittenAt).toBe(NOW);
+  });
+
+  it('carries no moment when no model wrote the line', async () => {
+    const store = new FakeStore();
+    seams.readSessionLog.mockReturnValue(
+      readResult({ turns: [turn(0)], watermark: byteWatermark(1) })
+    );
+    const out = await projectOverview(makeDeps([row({ id: 'A' })], store), {
+      projectPath: PROJECT
+    });
+    expect(out.sessions[0]?.summary).toBeNull();
+    expect(out.sessions[0]?.summaryWrittenAt).toBeNull();
+  });
+
+  it('carries no moment when the newest row was refused', async () => {
+    const { deps } = withSummary('refused');
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summaryWrittenAt).toBeNull();
+  });
+
+  it('carries no moment on the sessions payload', async () => {
+    const { deps } = withSummary('kept');
+    const out = await sessionsOverview(deps, {
+      projectPath: PROJECT,
+      sessionIds: ['A']
+    });
+    expect(out.sessions[0]?.summaryWrittenAt).toBeNull();
   });
 
   // -------------------------------------------------------------------------

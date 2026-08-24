@@ -23,7 +23,7 @@ import {
   foldRecipeFor,
   overviewStore,
   refreshSessionForFold,
-  type FoldInput,
+  type FoldPrepared,
   type FoldSchedulerDeps
 } from '../overview';
 
@@ -70,6 +70,11 @@ export interface FoldWiringInput {
  * verdict was, so a refused fold does not make the next fold re-send the same
  * turns forever. The cost is that the turns in a refused fold are never
  * summarized, and gate two's control run says that costs nothing measurable.
+ *
+ * `prepare` has TWO ways of having nothing to send and it names which one
+ * happened. A session with no readable record answers `no-store`. A session
+ * whose newest turn is already covered answers `no-new-turns`, and that is
+ * the ordinary case rather than a fault.
  */
 export function foldSchedulerDepsFor(input: FoldWiringInput): FoldSchedulerDeps {
   const store = (): ReturnType<typeof overviewStore> => overviewStore();
@@ -78,7 +83,7 @@ export function foldSchedulerDepsFor(input: FoldWiringInput): FoldSchedulerDeps 
     session: (sessionId: string): ManifestSessionRecord | null =>
       input.manifest.getSession(sessionId) ?? null,
     openProjectPaths: input.openProjectPaths,
-    prepare: async (sessionId: string): Promise<FoldInput | null> => {
+    prepare: async (sessionId: string): Promise<FoldPrepared> => {
       const refreshed = await refreshSessionForFold(
         {
           manifest: () => Promise.resolve(input.manifest),
@@ -86,7 +91,10 @@ export function foldSchedulerDepsFor(input: FoldWiringInput): FoldSchedulerDeps 
         },
         sessionId
       );
-      if (refreshed === null) return null;
+      // There is no readable record for this session at all. The manifest may
+      // not hold the session. The session may have been discarded. Its agent
+      // may keep no log Tortie can read. The read may have failed.
+      if (refreshed === null) return { ok: false, reason: 'no-store' };
       const db = store();
       const newest = db.latestSummary(sessionId);
       const kept = db.latestKeptSummary(sessionId);
@@ -94,14 +102,20 @@ export function foldSchedulerDepsFor(input: FoldWiringInput): FoldSchedulerDeps 
       const newTurns = refreshed.turns.filter(
         (turn) => turn.index > floor && turn.closed
       );
-      if (newTurns.length === 0) return null;
+      // The record reads fine and its newest turn is already covered. This is
+      // the commonest dropped boundary there is, and Phase 138.1 stopped it
+      // being logged as `no-store`.
+      if (newTurns.length === 0) return { ok: false, reason: 'no-new-turns' };
       return {
-        sessionId,
-        previousSummary: kept?.text ?? null,
-        previousVersion: kept?.version ?? null,
-        newTurns,
-        previousInputHash: newest?.inputHash ?? null,
-        providerMapVersion: refreshed.providerMapVersion
+        ok: true,
+        input: {
+          sessionId,
+          previousSummary: kept?.text ?? null,
+          previousVersion: kept?.version ?? null,
+          newTurns,
+          previousInputHash: newest?.inputHash ?? null,
+          providerMapVersion: refreshed.providerMapVersion
+        }
       };
     },
     append: (row) => {

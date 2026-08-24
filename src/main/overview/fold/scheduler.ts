@@ -16,6 +16,15 @@
  * the scheduler has no way to reach a status at all: it is handed a manifest
  * reader, a store appender and a spawner, and none of those writes one.
  *
+ * THE FOLD IS QUIET ON THE SCREEN AND LOUD IN THE LOG (Phase 138.1). The
+ * operator turned folding on and could not tell whether anything had
+ * happened, because a fold that never fires and a fold that is broken look
+ * the same from outside. Three records answer that from the log: `fold.ran`
+ * when a fold finished, whatever its verdict, `fold.skipped` when a boundary
+ * was dropped, and `fold.suspended` when folding stopped. Every one of them
+ * names the session. NONE of them carries the prompt, the conversation or the
+ * sentence, because the log is not the place for a person's own words.
+ *
  * WHAT HAPPENS WHEN TORTIE IS CLOSED. Nothing is persisted, because there is
  * nothing to persist. A settle timer that is armed at quit dies with the
  * process and that session's turn is never folded, which costs one sentence
@@ -28,6 +37,7 @@
 
 import type { FoldSettings } from '@shared/settings';
 import { foldIsChosen } from '@shared/settings';
+import { logEvent } from '../../log';
 import type { ManifestSessionRecord } from '../../manifest';
 import type { NewFoldVersion, StoredSummary, StoredTurn } from '../store';
 import { composeFoldPrompt, foldInputHash, FOLD_SYSTEM_PROMPT } from './compose';
@@ -78,12 +88,41 @@ export type FoldSkipReason =
   | 'project-closed'
   | 'shell'
   | 'remote'
-  /** Decided by `prepare` returning null, because the reader has nothing to send. */
+  /**
+   * Decided by `prepare`. There is no readable record to fold at all. The
+   * manifest may not hold the session. The session may have been discarded.
+   * Its agent may keep no log Tortie can read. The read may have failed. A
+   * session that reads fine and has nothing new is `no-new-turns` instead,
+   * and that is the common one.
+   */
   | 'no-store'
   | 'no-recipe'
   | 'no-new-turns'
   | 'same-input'
   | 'unknown-session';
+
+/**
+ * How loudly each dropped boundary is written to the log (Phase 138.1).
+ *
+ * The reasons are not equally interesting and logging them at one level
+ * would be useless in both directions. `no-choice` fires on every turn
+ * boundary of every session for everyone who never turned folding on, so it
+ * is written at NO level at all and is absent from this table. The three at
+ * info each mean a fold a person expected did not happen. The rest are at
+ * debug, which the default level drops and the Settings then Diagnostics
+ * switch turns on.
+ */
+const SKIP_LEVEL: Partial<Record<FoldSkipReason, 'info' | 'debug'>> = {
+  'no-recipe': 'info',
+  suspended: 'info',
+  'project-closed': 'info',
+  shell: 'debug',
+  remote: 'debug',
+  'no-store': 'debug',
+  'no-new-turns': 'debug',
+  'same-input': 'debug',
+  'unknown-session': 'debug'
+};
 
 export interface FoldCounts {
   boundaries: number;
@@ -110,6 +149,18 @@ export interface FoldInput {
   providerMapVersion: number;
 }
 
+/**
+ * What `prepare` answers.
+ *
+ * `ok` true carries the fold's inputs. `ok` false carries the reason the
+ * boundary is dropped, and there are exactly two of those. Only these two
+ * skip reasons can come from `prepare`, so the type names them rather than
+ * accepting any reason at all.
+ */
+export type FoldPrepared =
+  | { ok: true; input: FoldInput }
+  | { ok: false; reason: 'no-store' | 'no-new-turns' };
+
 export interface FoldSchedulerDeps {
   /** The person's choice, re-read at every boundary and at every spawn. */
   choice(): FoldSettings;
@@ -117,8 +168,17 @@ export interface FoldSchedulerDeps {
   session(sessionId: string): ManifestSessionRecord | null;
   /** The project paths that are open right now. */
   openProjectPaths(): ReadonlySet<string>;
-  /** The store read that builds the fold's inputs. Null when there is nothing to send. */
-  prepare(sessionId: string): Promise<FoldInput | null>;
+  /**
+   * The store read that builds the fold's inputs.
+   *
+   * IT SAYS WHY IT HAS NOTHING RATHER THAN JUST SAYING NOTHING (Phase
+   * 138.1). It used to answer null for two different things, being a session
+   * with no readable record and a session whose newest turn is already
+   * covered. The second one is the commonest boundary there is, and the log
+   * called every one of them `no-store`, which reads as a broken database.
+   * The answer is a verdict now, so the log says which of the two happened.
+   */
+  prepare(sessionId: string): Promise<FoldPrepared>;
   /** The spawn. Injected so every test and every probe runs without one. */
   run?(
     input: FoldInput,
@@ -175,7 +235,7 @@ export class FoldScheduler {
     this.boundaries += 1;
     const reason = this.skipReason(sessionId);
     if (reason !== null) {
-      this.skipped += 1;
+      this.noteSkip(sessionId, reason);
       return;
     }
     this.arm(sessionId);
@@ -200,6 +260,24 @@ export class FoldScheduler {
       return null;
     }
     return this.suspendedBecause;
+  }
+
+  /**
+   * Count one dropped boundary and write it to the log (Phase 138.1).
+   *
+   * The count is what the probe and the gate read. The log line is what a
+   * person reads when a fold they expected never happened. `no-choice` is
+   * counted and never logged, because it fires on every turn boundary for
+   * everyone who never turned folding on.
+   */
+  private noteSkip(sessionId: string, reason: FoldSkipReason): void {
+    this.skipped += 1;
+    const level = SKIP_LEVEL[reason];
+    if (level === undefined) return;
+    logEvent('fold', level, 'fold.skipped', 'a turn boundary was dropped', {
+      sessionId,
+      reason
+    });
   }
 
   /** Cancel every settle timer. Nothing is persisted, so there is nothing else to do. */
@@ -259,8 +337,9 @@ export class FoldScheduler {
   /** The timer fired. Take a slot, or wait for one on the pending set. */
   private release(sessionId: string): void {
     if (this.disposed) return;
-    if (this.skipReason(sessionId) !== null) {
-      this.skipped += 1;
+    const reason = this.skipReason(sessionId);
+    if (reason !== null) {
+      this.noteSkip(sessionId, reason);
       return;
     }
     if (this.inFlight >= FOLD_MAX_IN_FLIGHT) {
@@ -277,8 +356,9 @@ export class FoldScheduler {
       const next = this.pending.values().next();
       if (next.done === true) return;
       this.pending.delete(next.value);
-      if (this.skipReason(next.value) !== null) {
-        this.skipped += 1;
+      const reason = this.skipReason(next.value);
+      if (reason !== null) {
+        this.noteSkip(next.value, reason);
         continue;
       }
       void this.fold(next.value);
@@ -293,19 +373,26 @@ export class FoldScheduler {
     const choice = this.deps.choice();
     const recipe = choice.agentId === null ? null : foldRecipeFor(choice.agentId);
     if (recipe === null || choice.agentId === null || choice.model === null) {
-      this.skipped += 1;
+      this.noteSkip(sessionId, 'no-recipe');
       return;
     }
     this.inFlight += 1;
     try {
-      const input = await this.deps.prepare(sessionId);
-      if (input === null || input.newTurns.length === 0) {
-        this.skipped += 1;
+      const prepared = await this.deps.prepare(sessionId);
+      if (prepared.ok === false) {
+        this.noteSkip(sessionId, prepared.reason);
+        return;
+      }
+      const input = prepared.input;
+      // `prepare` already refuses an empty range, and a reader that grew a
+      // new way to return one would land here rather than spawning.
+      if (input.newTurns.length === 0) {
+        this.noteSkip(sessionId, 'no-new-turns');
         return;
       }
       const composed = composeFoldPrompt(input.previousSummary, input.newTurns);
       if (composed === null) {
-        this.skipped += 1;
+        this.noteSkip(sessionId, 'no-new-turns');
         return;
       }
       const inputHash = foldInputHash({
@@ -319,7 +406,7 @@ export class FoldScheduler {
       if (inputHash === input.previousInputHash) {
         // The same bytes produced the newest row already. Spending again
         // would buy the same sentence.
-        this.skipped += 1;
+        this.noteSkip(sessionId, 'same-input');
         return;
       }
 
@@ -330,7 +417,7 @@ export class FoldScheduler {
         choice,
         composed.prompt
       );
-      this.readWindow(run);
+      this.readWindow(run, sessionId);
 
       const base = {
         sessionId,
@@ -343,14 +430,36 @@ export class FoldScheduler {
         writtenAt: this.now()
       };
 
-      if (run.outcome !== 'ok' || run.text === null) {
-        this.noteFailure(run);
-        this.deps.append({
-          ...base,
-          text: null,
-          verdict: 'failed',
-          reason: run.reason ?? run.outcome
+      /**
+       * Append the row and write the ONE `fold.ran` record.
+       *
+       * All three verdicts come through here, so a fold that failed and a
+       * fold that was refused are as readable in the log as one that was
+       * kept. The sentence itself is never a field, because the log is not
+       * the place for a person's own words.
+       */
+      const finish = (
+        verdict: 'kept' | 'refused' | 'failed',
+        text: string | null,
+        reason: string | null
+      ): void => {
+        this.deps.append({ ...base, text, verdict, reason });
+        logEvent('fold', 'info', 'fold.ran', 'a fold finished', {
+          sessionId,
+          harness: base.harness,
+          model: base.model,
+          verdict,
+          reason,
+          fromTurn: base.fromTurn,
+          toTurn: base.toTurn,
+          wallMs: run.wallMs,
+          costUsd: run.costUsd
         });
+      };
+
+      if (run.outcome !== 'ok' || run.text === null) {
+        this.noteFailure(run, sessionId);
+        finish('failed', null, run.reason ?? run.outcome);
         return;
       }
       const ruling = validateFoldText(run.text, composed.turns);
@@ -360,21 +469,11 @@ export class FoldScheduler {
         // climbs after a model upgrade is something somebody must be able to
         // read.
         this.consecutiveFailures = 0;
-        this.deps.append({
-          ...base,
-          text: null,
-          verdict: 'refused',
-          reason: ruling.refusal
-        });
+        finish('refused', null, ruling.refusal);
         return;
       }
       this.consecutiveFailures = 0;
-      this.deps.append({
-        ...base,
-        text: ruling.kept,
-        verdict: 'kept',
-        reason: null
-      });
+      finish('kept', ruling.kept, null);
     } catch {
       // A fold that throws must never reach the tick that started it. It is
       // one sentence on one line, and the page has a correct fallback.
@@ -420,26 +519,38 @@ export class FoldScheduler {
    * safe at the one condition gate one could not test, which is a window near
    * its cap rather than at the 0.33 it sat at.
    */
-  private readWindow(run: FoldRun): void {
+  private readWindow(run: FoldRun, sessionId: string): void {
     if (run.outcome === 'rate-limited') {
-      this.suspend(run.window, 'The model refused because your usage limit was reached.');
+      this.suspend(
+        run.window,
+        'The model refused because your usage limit was reached.',
+        'usage-limit',
+        sessionId
+      );
       return;
     }
     // A 529 is the server limiting requests for a moment, and it is not a
     // usage limit. Skip the turn and never suspend on one.
     if (run.outcome === 'overloaded') return;
     if (windowSuspends(run.window)) {
-      this.suspend(run.window, 'Your usage window is close to its limit.');
+      this.suspend(
+        run.window,
+        'Your usage window is close to its limit.',
+        'window-near-limit',
+        sessionId
+      );
     }
   }
 
-  private noteFailure(run: FoldRun): void {
+  private noteFailure(run: FoldRun, sessionId: string): void {
     if (run.outcome === 'overloaded') return;
     this.consecutiveFailures += 1;
     if (this.consecutiveFailures < FOLD_FAILURES_BEFORE_SUSPEND) return;
     this.suspend(
       null,
-      'Three folds in a row did not finish, so Tortie has stopped folding for now.'
+      'Three folds in a row did not finish, so Tortie has stopped folding for now.',
+      'three-failures',
+      sessionId
     );
   }
 
@@ -448,8 +559,22 @@ export class FoldScheduler {
    * draws anything on the overview page. The page shows Phase 137's built
    * line for a session with no summary, which is what it does anyway.
    */
-  private suspend(window: FoldRateWindow | null, sentence: string): void {
+  private suspend(
+    window: FoldRateWindow | null,
+    sentence: string,
+    because: 'usage-limit' | 'window-near-limit' | 'three-failures',
+    sessionId: string
+  ): void {
     const until = window?.resetsAtMs ?? this.now() + FOLD_BLIND_SUSPEND_MS;
+    // Phase 138.1. A silently suspended fold is exactly the state the
+    // operator could not diagnose, so this is a warning rather than a note.
+    // The session named is the one whose fold tripped the rule.
+    logEvent('fold', 'warn', 'fold.suspended', 'folding is suspended', {
+      sessionId,
+      because,
+      untilMs: until,
+      consecutiveFailures: this.consecutiveFailures
+    });
     this.suspendedUntil = until;
     this.suspendedBecause = sentence;
     this.consecutiveFailures = 0;

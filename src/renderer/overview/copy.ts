@@ -81,6 +81,16 @@ export const OUTCOME_REMOTE =
 /** The lead of a project line whose session has turns. The ask follows in quotes. */
 export const YOU_ASKED_LEAD = 'you asked ';
 
+/**
+ * The lead of the clock beside a line a MODEL wrote (Phase 138.1).
+ *
+ * A line Tortie built carries nothing at all, because a built line is the
+ * default and silence is right for a default. The clock itself comes from
+ * formatTurnClock in ./clock.ts, so a line written yesterday says its date
+ * rather than claiming a today that is not true.
+ */
+export const WRITTEN_LEAD = 'written ';
+
 // ---------------------------------------------------------------------------
 // The page
 // ---------------------------------------------------------------------------

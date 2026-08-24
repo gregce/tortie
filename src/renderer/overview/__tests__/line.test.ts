@@ -47,6 +47,7 @@ function session(
     lastTouchedAt: null,
     turns: [turn()],
     summary: null,
+    summaryWrittenAt: null,
     ...over
   };
 }

@@ -12,10 +12,15 @@
  * - the compiled recipe table, being whether Tortie has measured a one shot
  *   recipe for that agent and which models it exposes
  *
- * A row with no compiled recipe is SHOWN AND DISABLED, with one honest
- * sentence saying Tortie has not measured a recipe for it yet. It is shown
- * rather than hidden, because a person looking for codex should read why it
- * is absent rather than wonder.
+ * A row with no compiled recipe is SHOWN AND DISABLED, carrying the reason it
+ * cannot be picked. It is shown rather than hidden, because a person looking
+ * for codex should read why it is absent rather than wonder.
+ *
+ * MAIN NAMES THE REASON AND THE RENDERER WRITES THE WORDS (Phase 138.1). This
+ * module used to compose a finished sentence per row, and the page then drew
+ * one paragraph per agent with no recipe, ten of them on the operator's Mac.
+ * The reason is now a token, so the page gathers every row that shares one
+ * onto a single line.
  *
  * Phase 23's boundary decides the confirm half. A compiled row needs no
  * confirmation, because configuration selects from choices the compiled world
@@ -32,22 +37,6 @@ import { foldRecipeFor } from './recipes';
 
 /** The row Settings preselects when nothing has been chosen. A suggestion only. */
 export const FOLD_SUGGESTED_AGENT_ID = 'claude';
-
-/** The sentence a row without a measured recipe carries. */
-export function noRecipeSentence(label: string): string {
-  return (
-    `Tortie has not measured a one shot recipe for ${label} yet, so it ` +
-    'cannot write the line.'
-  );
-}
-
-/** The sentence a configured row that has not been confirmed carries. */
-export function notConfirmedSentence(label: string): string {
-  return (
-    `You have not confirmed what ${label} runs, so Tortie will not start it. ` +
-    'Confirm it in Settings, then Agents.'
-  );
-}
 
 export interface FoldOptionsDeps {
   /** Injected so a test builds the list without a config file. */
@@ -80,7 +69,7 @@ export function foldOptions(deps: FoldOptionsDeps = {}): FoldOptions {
         models: [],
         suggestedModel: null,
         available: false,
-        reason: noRecipeSentence(entry.displayName),
+        reason: 'not-measured',
         measuredOn: null
       });
       continue;
@@ -94,7 +83,7 @@ export function foldOptions(deps: FoldOptionsDeps = {}): FoldOptions {
       models: recipe.models.map((model) => ({ ...model })),
       suggestedModel: recipe.suggestedModel,
       available: confirmed,
-      reason: confirmed ? null : notConfirmedSentence(entry.displayName),
+      reason: confirmed ? null : 'not-confirmed',
       measuredOn: recipe.measuredOn
     });
   }

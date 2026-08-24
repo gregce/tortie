@@ -24,6 +24,7 @@ import type {
   OverviewTurnView
 } from '@shared/overview';
 import { ProjectLines } from '../ProjectLines';
+import { formatTurnClock } from '../clock';
 import { buildProjectLine, projectLineFor } from '../line';
 
 const NOW = Date.UTC(2026, 7, 23, 12, 0, 0);
@@ -64,6 +65,7 @@ function session(
     lastTouchedAt: NOW - 600_000,
     turns: [turn()],
     summary: null,
+    summaryWrittenAt: null,
     ...over
   };
 }
@@ -134,8 +136,64 @@ describe('the project view with a written sentence', () => {
     expect(markup).not.toContain('Fix the flaky restore test');
   });
 
-  it('marks no clock on the written sentence', () => {
+  it('puts no clock inside the sentence itself', () => {
     expect(markup).not.toContain('data-clock');
+  });
+});
+
+/**
+ * Phase 138.1. The operator turned folding on and asked how he would know.
+ * It was working, and reading his database was the only way to find out. A
+ * line a model wrote now says when the model wrote it. A line Tortie built
+ * says nothing, because a built line is the default.
+ */
+describe('you can tell a model wrote the line', () => {
+  const WRITTEN_AT = NOW - 900_000;
+
+  function drawn(over: Partial<OverviewSessionView>): string {
+    return renderToStaticMarkup(
+      <ProjectLines
+        project={project([session(over)])}
+        statuses={{ one: 'idle' }}
+        selected={0}
+        onSelect={() => undefined}
+        onActivate={() => undefined}
+        now={NOW}
+      />
+    );
+  }
+
+  it('says written and the clock beside a sentence a model wrote', () => {
+    const markup = drawn({ summary: WRITTEN, summaryWrittenAt: WRITTEN_AT });
+    expect(markup).toContain('overview-line-written');
+    expect(markup).toContain('written ');
+    expect(markup).toContain(formatTurnClock(WRITTEN_AT, NOW) ?? '');
+  });
+
+  it('keeps every digit inside a clock, which the integer rule allows', () => {
+    const markup = drawn({ summary: WRITTEN, summaryWrittenAt: WRITTEN_AT });
+    // The probe allows a digit only inside data-clock, data-date, data-age
+    // and data-quoted. Strip those four and nothing with a digit is left.
+    const outside = markup
+      .replace(
+        /<span[^>]*\bdata-(?:clock|date|age|quoted)\b[^>]*>[^<]*<\/span>/g,
+        ''
+      )
+      .replace(/<[^>]+>/g, ' ');
+    expect(outside).not.toMatch(/\d/);
+  });
+
+  it('carries the date as well when the line was written on an earlier day', () => {
+    const yesterday = NOW - 30 * 60 * 60 * 1000;
+    const markup = drawn({ summary: WRITTEN, summaryWrittenAt: yesterday });
+    expect(markup).toContain(formatTurnClock(yesterday, NOW) ?? '');
+    expect(formatTurnClock(yesterday, NOW)).toMatch(/[A-Z][a-z]{2} /);
+  });
+
+  it('says nothing at all beside a line Tortie built', () => {
+    const markup = drawn({});
+    expect(markup).not.toContain('overview-line-written');
+    expect(markup).not.toContain('written ');
   });
 });
 

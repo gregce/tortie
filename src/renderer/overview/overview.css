@@ -279,6 +279,13 @@
   color: var(--text-secondary);
 }
 
+/* Phase 138.1. The quiet clock beside a line a model wrote. It sits at the
+   end of the sentence, because the clock is about the sentence and the left
+   column is about the session. */
+.overview-line-written {
+  color: var(--text-muted);
+}
+
 /* ---------------------------------------------------------------------------
    The footer
 --------------------------------------------------------------------------- */

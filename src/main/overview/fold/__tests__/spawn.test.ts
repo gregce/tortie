@@ -23,7 +23,21 @@ import {
   windowSuspends,
   FOLD_SUSPEND_UTILIZATION
 } from '../spawn';
-import { foldRecipeFor } from '../recipes';
+import { foldRecipeAgentIds, foldRecipeFor } from '../recipes';
+
+/** The one directory a fold in a test is ever allowed to name. */
+const TEST_HOME = join(import.meta.dirname, 'fold-home-that-is-never-made');
+
+/** The fold home, injected, so no test ever reaches the person's userData. */
+const HOME_DEPS = { home: (): string => TEST_HOME };
+
+/** Everything a recipe's argv builder is handed. */
+const ARGV_INPUT = {
+  prompt: 'p',
+  model: 'm',
+  systemPrompt: 's',
+  foldHome: TEST_HOME
+};
 
 const FOLD_DIR = join(import.meta.dirname, '..');
 
@@ -83,7 +97,7 @@ describe('readFoldStream', () => {
         '{"type":"result","is_error":false,"result":"the sentence","total_cost_usd":0.0029}'
       ].join('\n')
     );
-    expect(out.resultText).toBe('the sentence');
+    expect(out.text).toBe('the sentence');
     expect(out.costUsd).toBeCloseTo(0.0029);
     expect(out.isError).toBe(false);
     expect(out.sawResult).toBe(true);
@@ -106,7 +120,7 @@ describe('readFoldStream', () => {
     expect(out.window?.limitType).toBe('seven_day');
     expect(out.window?.utilization).toBeCloseTo(0.36);
     expect(out.window?.resetsAtMs).toBe(1788076800 * 1_000);
-    expect(out.resultText).toBe('a sentence');
+    expect(out.text).toBe('a sentence');
   });
 
   it('reads the older flat shape too, in case a CLI upgrade moves it back', () => {
@@ -140,7 +154,7 @@ describe('readFoldStream', () => {
       ].join('\n')
     );
     expect(out.sawResult).toBe(false);
-    expect(out.resultText).toBeNull();
+    expect(out.text).toBeNull();
   });
 
   it('survives a truncated line without throwing', () => {
@@ -214,9 +228,21 @@ describe('windowSuspends', () => {
 describe('runFold against a real child', () => {
   const recipe = foldRecipeFor('claude');
 
-  it('has a recipe for claude and for nothing else yet', () => {
+  it('has the five recipes Phase 138.1 measured and no sixth', () => {
     expect(recipe).not.toBeNull();
-    expect(foldRecipeFor('codex')).toBeNull();
+    // The order is the order the operator uses them, which research 63
+    // measured. Six agents are deliberately absent and ./recipes.ts says
+    // which of the six measured things failed for each one.
+    expect(foldRecipeAgentIds()).toEqual([
+      'claude',
+      'codex',
+      'cursor',
+      'grok',
+      'pi'
+    ]);
+    for (const absent of ['gemini', 'qwen', 'muse', 'antigravity', 'deepseek', 'droid']) {
+      expect(foldRecipeFor(absent), absent).toBeNull();
+    }
   });
 
   it('reports a missing binary rather than throwing', async () => {
@@ -227,7 +253,11 @@ describe('runFold against a real child', () => {
         systemPrompt: 'x',
         prompt: 'y'
       },
-      { resolve: () => Promise.resolve(null), path: () => Promise.resolve('') }
+      {
+        ...HOME_DEPS,
+        resolve: () => Promise.resolve(null),
+        path: () => Promise.resolve('')
+      }
     );
     expect(run.outcome).toBe('spawn-failed');
     expect(run.reason).toBe('no-binary');
@@ -242,6 +272,7 @@ describe('runFold against a real child', () => {
         prompt: 'y'
       },
       {
+        ...HOME_DEPS,
         resolve: () => Promise.resolve('/bin/sh'),
         path: () => Promise.resolve('/usr/bin:/bin')
       }
@@ -257,7 +288,7 @@ describe('the recipe itself', () => {
   const recipe = foldRecipeFor('claude');
 
   it('keeps the four load bearing flags', () => {
-    const argv = recipe!.argv({ prompt: 'p', model: 'm', systemPrompt: 's' });
+    const argv = recipe!.argv(ARGV_INPUT);
     expect(argv).toContain('--disable-slash-commands');
     expect(argv).toContain('--no-session-persistence');
     expect(argv).toContain('--setting-sources');
@@ -266,17 +297,68 @@ describe('the recipe itself', () => {
   });
 
   it('keeps the two load bearing environment values', () => {
-    expect(recipe!.env['MAX_THINKING_TOKENS']).toBe('0');
-    expect(recipe!.env['DISABLE_PROMPT_CACHING']).toBe('1');
+    const env = recipe!.env({ foldHome: TEST_HOME });
+    expect(env['MAX_THINKING_TOKENS']).toBe('0');
+    expect(env['DISABLE_PROMPT_CACHING']).toBe('1');
   });
 
   it('never reaches for the low effort flag, which made it worse', () => {
-    const argv = recipe!.argv({ prompt: 'p', model: 'm', systemPrompt: 's' });
+    const argv = recipe!.argv(ARGV_INPUT);
     expect(argv).not.toContain('--effort');
     expect(argv).not.toContain('--bare');
   });
 
   it('suggests a model it actually exposes', () => {
     expect(recipe!.models.map((m) => m.id)).toContain(recipe!.suggestedModel);
+  });
+});
+
+describe('every recipe, and the rules each one has to keep', () => {
+  const recipes = foldRecipeAgentIds().map((id) => foldRecipeFor(id)!);
+
+  it('suggests a model it actually exposes', () => {
+    for (const recipe of recipes) {
+      expect(recipe.models.map((m) => m.id), recipe.agentId).toContain(
+        recipe.suggestedModel
+      );
+    }
+  });
+
+  it('names the fold home rather than inheriting a working directory', () => {
+    // claude is the exception and it earns it: --no-session-persistence
+    // writes nothing anywhere, and codex earns it the same way with
+    // --ephemeral. Every other recipe has no such flag, so the directory is
+    // the only thing keeping a transcript out of one of the person's
+    // projects, and it must appear in the argv or in the environment.
+    for (const recipe of recipes) {
+      if (recipe.agentId === 'claude' || recipe.agentId === 'pi') continue;
+      const argv = recipe.argv(ARGV_INPUT);
+      const env = Object.values(recipe.env({ foldHome: TEST_HOME }));
+      expect([...argv, ...env], recipe.agentId).toContain(TEST_HOME);
+    }
+  });
+
+  it('sends the instruction exactly once, on the flag or at the head', () => {
+    for (const recipe of recipes) {
+      const argv = recipe.argv(ARGV_INPUT);
+      const onFlag = argv.includes('s');
+      expect(onFlag, recipe.agentId).toBe(recipe.systemPromptMode === 'flag');
+    }
+  });
+
+  it('gives every recipe its own reader', () => {
+    for (const recipe of recipes) {
+      expect(typeof recipe.read, recipe.agentId).toBe('function');
+      // A reader never throws on a shape it does not know.
+      expect(() => recipe.read('not json\n{"a":1}')).not.toThrow();
+      expect(recipe.read('').sawResult, recipe.agentId).toBe(false);
+    }
+  });
+
+  it('gives every fold a deadline it can actually finish inside', () => {
+    for (const recipe of recipes) {
+      expect(recipe.timeoutMs, recipe.agentId).toBeGreaterThanOrEqual(30_000);
+      expect(recipe.timeoutMs, recipe.agentId).toBeLessThanOrEqual(60_000);
+    }
   });
 });

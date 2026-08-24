@@ -1,15 +1,39 @@
 /**
- * The trigger, the debounce, the caps and the suspension (Phase 138).
+ * The trigger, the debounce, the caps, the suspension and the log records
+ * (Phase 138, records added in Phase 138.1).
  *
- * The three claims this file proves, and each one is the entry's own:
+ * The four claims this file proves, and each one is an entry's own:
  * - an idle session costs nothing, because no boundary means no fold
  * - ten turns in a minute costs one fold rather than ten
  * - a session whose project is closed is never folded
+ * - a fold that ran, a boundary that was dropped and a suspension each write
+ *   one record naming the session, so a person can find out from the log
+ *   whether folding is working
  *
  * Every clock is fake, so the file runs in milliseconds and never sleeps.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * The log is mocked rather than initialised, so nothing is written to disk
+ * and every record is readable as a value.
+ */
+const logged = vi.hoisted(
+  () => [] as { level: string; event: string; fields: Record<string, unknown> }[]
+);
+vi.mock('../../../log', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../log')>()),
+  logEvent: (
+    _scope: string,
+    level: string,
+    event: string,
+    _msg: string,
+    fields: Record<string, unknown>
+  ): void => {
+    logged.push({ level, event, fields });
+  }
+}));
 import type { FoldSettings } from '@shared/settings';
 import type { ManifestSessionRecord } from '../../../manifest';
 import type { NewFoldVersion, StoredTurn } from '../../store';
@@ -18,7 +42,7 @@ import {
   FOLD_MAX_IN_FLIGHT,
   FOLD_MIN_INTERVAL_MS,
   FOLD_SETTLE_MS,
-  type FoldInput,
+  type FoldPrepared,
   type FoldSchedulerDeps
 } from '../scheduler';
 import type { FoldRun } from '../spawn';
@@ -94,16 +118,19 @@ function harness(over: Partial<FoldSchedulerDeps> = {}, choice = CHOSEN): Harnes
     choice: () => choice,
     session: () => record(),
     openProjectPaths: () => new Set([PROJECT]),
-    prepare: (sessionId: string): Promise<FoldInput | null> => {
+    prepare: (sessionId: string): Promise<FoldPrepared> => {
       state.prepares += 1;
       turnCounter += 1;
       return Promise.resolve({
-        sessionId,
-        previousSummary: null,
-        previousVersion: null,
-        newTurns: [storedTurn(turnCounter)],
-        previousInputHash: null,
-        providerMapVersion: 1
+        ok: true,
+        input: {
+          sessionId,
+          previousSummary: null,
+          previousVersion: null,
+          newTurns: [storedTurn(turnCounter)],
+          previousInputHash: null,
+          providerMapVersion: 1
+        }
       });
     },
     run: () => {
@@ -129,8 +156,14 @@ function harness(over: Partial<FoldSchedulerDeps> = {}, choice = CHOSEN): Harnes
 }
 
 beforeEach(() => {
+  logged.length = 0;
   vi.useFakeTimers();
 });
+
+/** Every record of one kind, newest last. */
+function records(event: string): typeof logged {
+  return logged.filter((line) => line.event === event);
+}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -282,13 +315,16 @@ describe('the skips, taken before anything is scheduled', () => {
     const h = harness({
       prepare: (sessionId) =>
         Promise.resolve({
-          sessionId,
-          previousSummary: null,
-          previousVersion: null,
-          newTurns: [storedTurn(1)],
-          // The hash the composer will produce for these exact inputs.
-          previousInputHash: 'set below',
-          providerMapVersion: 1
+          ok: true,
+          input: {
+            sessionId,
+            previousSummary: null,
+            previousVersion: null,
+            newTurns: [storedTurn(1)],
+            // The hash the composer will produce for these exact inputs.
+            previousInputHash: 'set below',
+            providerMapVersion: 1
+          }
         })
     });
     // Run once to learn the hash, then feed it back.
@@ -299,12 +335,15 @@ describe('the skips, taken before anything is scheduled', () => {
     const second = harness({
       prepare: (sessionId) =>
         Promise.resolve({
-          sessionId,
-          previousSummary: null,
-          previousVersion: null,
-          newTurns: [storedTurn(1)],
-          previousInputHash: hash,
-          providerMapVersion: 1
+          ok: true,
+          input: {
+            sessionId,
+            previousSummary: null,
+            previousVersion: null,
+            newTurns: [storedTurn(1)],
+            previousInputHash: hash,
+            providerMapVersion: 1
+          }
         })
     });
     second.scheduler.noteTurnBoundary('s1');
@@ -316,11 +355,44 @@ describe('the skips, taken before anything is scheduled', () => {
   });
 
   it('spends nothing when there is no new turn', async () => {
-    const h = harness({ prepare: () => Promise.resolve(null) });
+    const h = harness({
+      prepare: () => Promise.resolve({ ok: false, reason: 'no-new-turns' })
+    });
     h.scheduler.noteTurnBoundary('s1');
     await settle(FOLD_SETTLE_MS + 100);
     expect(h.runs).toBe(0);
     expect(h.rows.length).toBe(0);
+    h.scheduler.dispose();
+  });
+
+  /**
+   * The Phase 138.1 defect. `prepare` used to answer null for two different
+   * things and the log called both of them `no-store`, so the commonest
+   * dropped boundary there is read as a broken database. Each reason now
+   * reaches the log as itself.
+   */
+  it('says no new turns rather than no store when the record reads fine', async () => {
+    const h = harness({
+      prepare: () => Promise.resolve({ ok: false, reason: 'no-new-turns' })
+    });
+    h.scheduler.noteTurnBoundary('s1');
+    await settle(FOLD_SETTLE_MS + 100);
+    const skips = records('fold.skipped');
+    expect(skips.length).toBe(1);
+    expect(skips[0]?.fields?.reason).toBe('no-new-turns');
+    h.scheduler.dispose();
+  });
+
+  it('says no store when the session has no readable record', async () => {
+    const h = harness({
+      prepare: () => Promise.resolve({ ok: false, reason: 'no-store' })
+    });
+    h.scheduler.noteTurnBoundary('s1');
+    await settle(FOLD_SETTLE_MS + 100);
+    expect(h.runs).toBe(0);
+    const skips = records('fold.skipped');
+    expect(skips.length).toBe(1);
+    expect(skips[0]?.fields?.reason).toBe('no-store');
     h.scheduler.dispose();
   });
 });
@@ -513,6 +585,102 @@ describe('nothing here may set a session status', () => {
   it('noteTurnBoundary answers with nothing at all', () => {
     const h = harness();
     expect(h.scheduler.noteTurnBoundary('s1')).toBeUndefined();
+    h.scheduler.dispose();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The three log records (Phase 138.1)
+// ---------------------------------------------------------------------------
+
+describe('a person can find out from the log whether folding is working', () => {
+  it('writes one record when a fold ran, naming the session and the verdict', async () => {
+    const h = harness();
+    h.scheduler.noteTurnBoundary('s1');
+    await settle(FOLD_SETTLE_MS + 100);
+    const ran = records('fold.ran');
+    expect(ran).toHaveLength(1);
+    expect(ran[0]?.level).toBe('info');
+    expect(ran[0]?.fields.sessionId).toBe('s1');
+    expect(ran[0]?.fields.verdict).toBe('kept');
+    expect(ran[0]?.fields.harness).toBe('claude');
+    h.scheduler.dispose();
+  });
+
+  it('writes that record for a fold that failed as well as one that was kept', async () => {
+    const h = harness({
+      run: () =>
+        Promise.resolve({
+          outcome: 'spawn-failed',
+          text: null,
+          reason: 'enoent',
+          window: null,
+          wallMs: 3,
+          costUsd: null
+        })
+    });
+    h.scheduler.noteTurnBoundary('s1');
+    await settle(FOLD_SETTLE_MS + 100);
+    const ran = records('fold.ran');
+    expect(ran).toHaveLength(1);
+    expect(ran[0]?.fields.verdict).toBe('failed');
+    expect(ran[0]?.fields.reason).toBe('enoent');
+    h.scheduler.dispose();
+  });
+
+  it('never puts the sentence in a record', async () => {
+    const h = harness();
+    h.scheduler.noteTurnBoundary('s1');
+    await settle(FOLD_SETTLE_MS + 100);
+    for (const line of logged) {
+      expect(JSON.stringify(line.fields)).not.toContain('the agent answered');
+    }
+    h.scheduler.dispose();
+  });
+
+  it('writes one record when a boundary was dropped, naming the reason', () => {
+    const h = harness({ openProjectPaths: () => new Set<string>() });
+    h.scheduler.noteTurnBoundary('s1');
+    const skipped = records('fold.skipped');
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]?.level).toBe('info');
+    expect(skipped[0]?.fields).toEqual({
+      sessionId: 's1',
+      reason: 'project-closed'
+    });
+    h.scheduler.dispose();
+  });
+
+  it('writes nothing at all for a person who never turned folding on', () => {
+    const h = harness({}, NONE);
+    for (let i = 0; i < 20; i += 1) h.scheduler.noteTurnBoundary('s1');
+    expect(logged).toHaveLength(0);
+    expect(h.scheduler.counts().skipped).toBe(20);
+    h.scheduler.dispose();
+  });
+
+  it('writes the suspension after three folds in a row did not finish', async () => {
+    const h = harness({
+      run: () =>
+        Promise.resolve({
+          outcome: 'spawn-failed',
+          text: null,
+          reason: 'enoent',
+          window: null,
+          wallMs: 1,
+          costUsd: null
+        })
+    });
+    for (let i = 0; i < 3; i += 1) {
+      h.scheduler.noteTurnBoundary('s1');
+      await settle(FOLD_MIN_INTERVAL_MS + FOLD_SETTLE_MS + 100);
+    }
+    const suspended = records('fold.suspended');
+    expect(suspended).toHaveLength(1);
+    expect(suspended[0]?.level).toBe('warn');
+    expect(suspended[0]?.fields.sessionId).toBe('s1');
+    expect(suspended[0]?.fields.because).toBe('three-failures');
+    expect(h.scheduler.suspension()).not.toBeNull();
     h.scheduler.dispose();
   });
 });

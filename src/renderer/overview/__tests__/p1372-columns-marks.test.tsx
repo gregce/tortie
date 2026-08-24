@@ -65,7 +65,8 @@ function session(
     turns: Array.from({ length: turnCount }, (_, i) => turn(i)),
     // Phase 138. The columns view never reads this field, and main never
     // fills it on the overview:sessions payload these columns are built from.
-    summary: null
+    summary: null,
+    summaryWrittenAt: null
   };
 }
 

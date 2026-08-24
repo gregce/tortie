@@ -1,19 +1,27 @@
 /**
- * Settings then Project line (Phase 138): who writes the one line Catch Me Up
- * draws for each session in a project.
+ * Settings then Catch Me Up (Phase 138, cut down in Phase 138.1): who writes
+ * the one line the project view draws for each session.
  *
  * TWO CONTROLS AND NOTHING ELSE. One picks the agent, one picks the model
  * that agent uses. There is no switch per session, no switch per turn and no
  * interval, because a fold runs when a session finishes a turn and at no
  * other moment.
  *
+ * PHASE 138.1 CUT THE PAGE DOWN. The operator photographed it and said the
+ * extra text was crap. With Claude Code chosen it drew twenty three
+ * sentences, and ten of those were the same sentence with a different agent's
+ * name in it, one per agent Tortie has no measured recipe for. Those ten are
+ * now ONE line naming the agents together. The three paragraphs under the
+ * card are gone, because each of them repeated what a picker already said.
+ * The unmeasured agents are still named, because hiding them would hide the
+ * truth.
+ *
  * THE LIST IS BUILT IN MAIN AND THERE IS NO ARRAY OF AGENT IDS IN THIS FILE.
  * Main joins three things and offers a row only when all three agree: the
  * merged agent table, the Phase 23 confirm gate, and the compiled table of
- * one shot recipes Tortie has actually measured. An agent Tortie has not
- * measured a recipe for is drawn and disabled with main's own sentence
- * beside it, rather than hidden, because a person looking for an agent should
- * read why the agent is absent.
+ * one shot recipes Tortie has actually measured. Main names WHY a row cannot
+ * be picked and this file writes the words, so every user facing string lives
+ * in ./fold-copy.ts where the copy rules test reads it.
  *
  * NONE IS THE SHIPPED ANSWER AND IT STAYS A VALID ONE FOREVER. With None
  * chosen nothing spawns, no sentence is ever written, and the project view
@@ -24,15 +32,20 @@
  * refusal 8 reads that nothing may cause a process to start on a
  * configuration change alone, and that a person confirms the bytes out of
  * band of any agent turn. Main drops a fold choice that its seal does not
- * cover, so a settings file an agent edited comes back as None and this
- * section says one sentence about it.
+ * cover, so a settings file an agent edited comes back as None and the page
+ * says one sentence about it.
  */
 
 import React, { useState } from 'react';
 import type { FoldHarnessOption, FoldOptions } from '@shared/fold';
+import { keyDisplay } from '@shared/keymap';
 import type { FoldSettings } from '@shared/settings';
 import { noFoldChosen } from '@shared/settings';
 import {
+  FOLD_ABOUT_BOUNDARY,
+  FOLD_ABOUT_GROUP,
+  FOLD_ABOUT_LEVELS,
+  FOLD_ABOUT_WHAT,
   FOLD_AGENT_CAPTION,
   FOLD_AGENT_LABEL,
   FOLD_BRIDGE_MISSING,
@@ -41,16 +54,15 @@ import {
   FOLD_LOADING,
   FOLD_MODEL_CAPTION,
   FOLD_MODEL_LABEL,
-  FOLD_NONE_NOTE,
   FOLD_NONE_OPTION,
   FOLD_NO_HARNESSES,
-  FOLD_SEAL_NOTE,
-  FOLD_SPAWN_NOTE,
   FOLD_SUGGESTED_MARK,
   FOLD_TITLE,
+  foldAboutOpen,
   foldChosenUnavailable,
   foldMeasuredOn,
-  foldUnavailable
+  foldNotConfirmed,
+  foldNotMeasured
 } from './fold-copy';
 import { useSettingsStore } from './settings-store';
 
@@ -74,6 +86,22 @@ export function foldHarnessById(
 export function firstFoldModel(harness: FoldHarnessOption): string | null {
   if (harness.suggestedModel !== null) return harness.suggestedModel;
   return harness.models[0]?.id ?? null;
+}
+
+/**
+ * The labels of every row main refused for one reason, joined for one line.
+ *
+ * Empty in, empty out, and the caller draws nothing at all then. The agent
+ * table's own order is kept, which is the order the picker shows.
+ */
+export function foldRefusedNames(
+  options: FoldOptions,
+  reason: FoldHarnessOption['reason']
+): string {
+  return options.harnesses
+    .filter((h) => !h.available && h.reason === reason)
+    .map((h) => h.agentLabel)
+    .join(', ');
 }
 
 /**
@@ -239,7 +267,12 @@ export function FoldSectionView(
 ): React.JSX.Element {
   const { options, loaded, fold, dropped, onAgent, onModel } = props;
   const harness = foldHarnessById(options, fold.agentId);
-  const refused = options?.harnesses.filter((h) => !h.available) ?? [];
+  // The two groups of refused rows, each named together on one line rather
+  // than one paragraph per agent.
+  const notMeasured =
+    options === null ? '' : foldRefusedNames(options, 'not-measured');
+  const notConfirmed =
+    options === null ? '' : foldRefusedNames(options, 'not-confirmed');
 
   return (
     <section aria-label={FOLD_TITLE}>
@@ -282,21 +315,30 @@ export function FoldSectionView(
               <CaptionRow text={FOLD_NO_HARNESSES} />
             ) : null}
 
-            {/* An agent Tortie cannot offer is drawn with the reason, rather
-                than hidden. The sentence is main's own. */}
-            {refused.map((h) => (
-              <CaptionRow
-                key={h.agentId}
-                text={foldUnavailable(h.agentLabel, h.reason ?? '')}
-              />
-            ))}
+            {/* The agents Tortie cannot offer are named rather than hidden,
+                on one line per reason. */}
+            {notMeasured !== '' ? (
+              <CaptionRow text={foldNotMeasured(notMeasured)} />
+            ) : null}
+            {notConfirmed !== '' ? (
+              <CaptionRow text={foldNotConfirmed(notConfirmed)} />
+            ) : null}
           </>
         )}
       </div>
 
-      <p className="set-section-caption">{FOLD_NONE_NOTE}</p>
-      <p className="set-section-caption">{FOLD_SPAWN_NOTE}</p>
-      <p className="set-section-caption">{FOLD_SEAL_NOTE}</p>
+      {/* The one block of prose, and the operator asked for it by name. It
+          sits under the controls, because someone who came to change a
+          dropdown should reach the dropdown first. The chord is read from
+          the shared keymap, so this block cannot drift from the keys the app
+          answers. */}
+      <div className="set-group-label">{FOLD_ABOUT_GROUP}</div>
+      <p className="set-section-caption">{FOLD_ABOUT_WHAT}</p>
+      <p className="set-section-caption">
+        {foldAboutOpen(keyDisplay('view.overview'))}
+      </p>
+      <p className="set-section-caption">{FOLD_ABOUT_LEVELS}</p>
+      <p className="set-section-caption">{FOLD_ABOUT_BOUNDARY}</p>
     </section>
   );
 }

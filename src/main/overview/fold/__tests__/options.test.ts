@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MergedAgentEntry } from '../../../config/overlay';
 import type { ConfigConfirmState, ConfigRowStatus } from '../../../config/confirm';
-import { foldOptions, noRecipeSentence, notConfirmedSentence } from '../options';
+import { foldOptions } from '../options';
 import { foldRecipeFor } from '../recipes';
 
 function entry(
@@ -45,6 +45,16 @@ function gate(state: ConfigConfirmState): (id: string) => ConfigRowStatus {
     }) as ConfigRowStatus;
 }
 
+/**
+ * An id the compiled recipe table will never hold (Phase 138.1).
+ *
+ * These tests used to reach for codex as the unmeasured agent, and then
+ * Phase 138.1 measured codex and two of them went red for a reason that had
+ * nothing to do with what they check. An id no registry row can carry keeps
+ * the join under test rather than the recipe table.
+ */
+const UNMEASURED = 'a-harness-nobody-measured';
+
 describe('foldOptions', () => {
   it('offers a compiled claude with the models the recipe exposes', () => {
     const out = foldOptions({
@@ -61,15 +71,15 @@ describe('foldOptions', () => {
     expect(out.suggestedAgentId).toBe('claude');
   });
 
-  it('shows an agent with no measured recipe, disabled, with one sentence', () => {
+  it('shows an agent with no measured recipe, disabled, and names why', () => {
     const out = foldOptions({
-      table: () => [entry('codex', 'builtin', 'Codex')],
+      table: () => [entry(UNMEASURED, 'builtin', 'Nobody Measured')],
       status: gate('confirmed')
     });
     const row = out.harnesses[0];
     expect(row?.available).toBe(false);
     expect(row?.models).toEqual([]);
-    expect(row?.reason).toBe(noRecipeSentence('Codex'));
+    expect(row?.reason).toBe('not-measured');
     expect(out.suggestedAgentId).toBeNull();
   });
 
@@ -80,7 +90,7 @@ describe('foldOptions', () => {
     });
     const row = out.harnesses[0];
     expect(row?.available).toBe(false);
-    expect(row?.reason).toBe(notConfirmedSentence('A patched claude'));
+    expect(row?.reason).toBe('not-confirmed');
   });
 
   it('offers a configured row the confirm gate has confirmed', () => {
@@ -101,10 +111,13 @@ describe('foldOptions', () => {
 
   it('puts the rows that can be picked first', () => {
     const out = foldOptions({
-      table: () => [entry('codex', 'builtin'), entry('claude', 'builtin')],
+      table: () => [entry(UNMEASURED, 'builtin'), entry('claude', 'builtin')],
       status: gate('confirmed')
     });
-    expect(out.harnesses.map((row) => row.agentId)).toEqual(['claude', 'codex']);
+    expect(out.harnesses.map((row) => row.agentId)).toEqual([
+      'claude',
+      UNMEASURED
+    ]);
   });
 
   it('leaves out an agent that cannot be launched at all', () => {
@@ -136,13 +149,24 @@ describe('foldOptions', () => {
     expect(out.suspended).toBeNull();
   });
 
-  it('names no integer in any sentence it writes', () => {
+  // Phase 138.1. Main names the reason and the renderer writes the words, so
+  // this file holds the token rather than a sentence. Every row that cannot
+  // be picked must carry one, because the page groups the rows by it and a
+  // row with no token would be silently dropped from both lines.
+  it('gives every refused row one of the two reasons', () => {
     const out = foldOptions({
-      table: () => [entry('codex', 'builtin', 'Codex'), entry('claude', 'overlay')],
+      table: () => [
+        entry(UNMEASURED, 'builtin', 'Nobody Measured'),
+        entry('claude', 'overlay')
+      ],
       status: gate('never')
     });
     for (const row of out.harnesses) {
-      if (row.reason !== null) expect(row.reason).not.toMatch(/[0-9]/);
+      if (row.available) {
+        expect(row.reason).toBeNull();
+        continue;
+      }
+      expect(['not-measured', 'not-confirmed']).toContain(row.reason);
     }
   });
 });

@@ -32,12 +32,7 @@ export {
 } from './compose';
 export type { FoldComposition } from './compose';
 
-export {
-  foldOptions,
-  noRecipeSentence,
-  notConfirmedSentence,
-  FOLD_SUGGESTED_AGENT_ID
-} from './options';
+export { foldOptions, FOLD_SUGGESTED_AGENT_ID } from './options';
 export type { FoldOptionsDeps } from './options';
 
 export {
@@ -75,6 +70,7 @@ export {
 export type {
   FoldCounts,
   FoldInput,
+  FoldPrepared,
   FoldSchedulerDeps,
   FoldSkipReason
 } from './scheduler';

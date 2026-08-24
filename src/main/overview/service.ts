@@ -418,6 +418,12 @@ function toSessionView(
       namedOnlyOutside: mark.namedOnlyOutside
     };
   });
+  // Phase 138.1. ONE call fills both fields, so `summary` and
+  // `summaryWrittenAt` cannot disagree and the row can never draw a clock
+  // beside a line Tortie built.
+  const writtenLine = withSummary
+    ? writtenLineFor(store, state.row.id, newestTurnIndex(state))
+    : NO_WRITTEN_LINE;
   return {
     sessionId: state.row.id,
     name: state.row.name,
@@ -432,9 +438,7 @@ function toSessionView(
     startedAt: state.row.createdAt,
     lastTouchedAt: state.lastTouchedAtMs,
     turns,
-    summary: withSummary
-      ? writtenLineFor(store, state.row.id, newestTurnIndex(state))
-      : null
+    ...writtenLine
   };
 }
 
@@ -443,6 +447,21 @@ function newestTurnIndex(state: RowState): number | null {
   // listTurns answers oldest first, so the last member is the newest turn.
   return state.turns.at(-1)?.index ?? null;
 }
+
+/**
+ * The sentence and the moment a model wrote it, as one value (Phase 138.1).
+ *
+ * The pair is returned together and spread together, so the view cannot end
+ * up with a clock beside a line Tortie built. There is no path that sets one
+ * field without the other.
+ */
+interface WrittenLine {
+  summary: string | null;
+  summaryWrittenAt: number | null;
+}
+
+/** No model wrote this session's line, so no clock is drawn beside it. */
+const NO_WRITTEN_LINE: WrittenLine = { summary: null, summaryWrittenAt: null };
 
 /**
  * The one sentence a model wrote, or null.
@@ -469,12 +488,13 @@ function writtenLineFor(
   store: OverviewStore,
   sessionId: string,
   newestTurn: number | null
-): string | null {
+): WrittenLine {
   const row = store.latestSummary(sessionId);
-  if (row === null || row.verdict !== 'kept') return null;
-  if (newestTurn === null || row.toTurn < newestTurn) return null;
+  if (row === null || row.verdict !== 'kept') return NO_WRITTEN_LINE;
+  if (newestTurn === null || row.toTurn < newestTurn) return NO_WRITTEN_LINE;
   const text = row.text;
-  return text === null || text === '' ? null : text;
+  if (text === null || text === '') return NO_WRITTEN_LINE;
+  return { summary: text, summaryWrittenAt: row.writtenAt };
 }
 
 /**

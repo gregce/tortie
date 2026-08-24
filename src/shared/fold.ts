@@ -19,6 +19,17 @@ export interface FoldModelOption {
   label: string;
 }
 
+/**
+ * Why one row cannot be picked (Phase 138.1).
+ *
+ * Main names the reason and the renderer writes the words. Phase 138 sent a
+ * finished sentence per row instead, and the page then drew ten near identical
+ * paragraphs, one per agent with no recipe. A token lets the page gather every
+ * row with the same reason onto one line, and it keeps every user facing
+ * string in the renderer's own copy file where the copy rules test reads them.
+ */
+export type FoldUnavailableReason = 'not-measured' | 'not-confirmed';
+
 /** One harness row as Settings draws it. */
 export interface FoldHarnessOption {
   agentId: string;
@@ -27,8 +38,8 @@ export interface FoldHarnessOption {
   suggestedModel: string | null;
   /** False when Tortie has no measured recipe, or the confirm gate refuses it. */
   available: boolean;
-  /** One sentence saying why it cannot be picked. Null when it can. */
-  reason: string | null;
+  /** Why the row cannot be picked. Null when the row can be picked. */
+  reason: FoldUnavailableReason | null;
   /** The ISO date the flags behind this row were measured. */
   measuredOn: string | null;
 }

@@ -100,7 +100,10 @@ export const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // `comment` glyph, because the one thing this section decides is who writes
   // a sentence. It is not `hubot`, which already means an agent row under
   // Agents, and it is not `sparkle`, which would promise more than one line.
-  { id: 'project-line', label: 'Project line', icon: { codicon: 'comment' } },
+  // Phase 138.1 renamed the LABEL to the name of the feature a person knows,
+  // which is the View menu's own row. The section id stays `project-line`,
+  // because an id is not user facing and moving one buys nothing.
+  { id: 'project-line', label: 'Catch Me Up', icon: { codicon: 'comment' } },
   // Phase 35 put this here for the reason SpecStory above gives, being that it
   // was the newest section and the least often visited. Phase 87 moved it to
   // the end and it now sits last on purpose. Diagnostics is the one section a
