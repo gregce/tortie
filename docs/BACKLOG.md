@@ -41,7 +41,9 @@ release.
 | — | **THE ORDER HE SET ON 2026-08-23** | | |
 | 23 | **138** the fold | Tier 3. Both gate measurements ran. It ships OFF, and None is a valid choice forever | ✅ shipped |
 | 24 | **142** presentation.ts splits by reason to change | 31 phases wrote into one file. NO VERSION BUMP | queued |
+| 24.5 | **138.1** the settings page, and knowing a fold ran | He photographed the page and could not tell the fold was working. NO VERSION BUMP | queued |
 | — | **RELEASE POINT, DELEGATED, AT v0.70.0** | All the way to public. See the grant below | **delegated, one release** |
+| 26.5 | **138.2** a measured recipe per agent | Ten agents are disabled because only claude is measured | queued |
 | 25 | **140** every probe ends the Electron it started | The crash preventer | ✅ shipped |
 | 26 | **143** the summary timeline | Reads the chain 138 writes | queued |
 | 27 | **141** the drop to a plain shell | From research 64. He placed it last by not placing it, and it moves on his word | queued |
@@ -16206,6 +16208,102 @@ and taken all the way to public, after Phase 142 and before Phase 140. That gran
 - **Closing issues is NOT in this grant.** He has not asked for it here.
 
 
+## Phase 138.1 — the Project line settings page says the same thing eleven times, and nothing tells you a fold ran (operator reported 2026-08-23) QUEUED, BEFORE THE 0.70.0 RELEASE
+
+**Subject:** `fix(overview): the project line settings page says what it needs and nothing more`
+**First body line:** `Phase 138.1: the settings page, and knowing a fold ran`
+**Semver:** NONE. **THE VERSION DOES NOT MOVE.** The release is cut at 0.70.0 with this inside it.
+**Tier 2.** It is a rendered surface with no new state and one new read. ONE app run drives every claim, and the independent method is the verifier writing its own count of rendered strings rather than re-reading the builder's. He reported the settings page himself, so the parent commit gets a photograph for comparison.
+**Charter:** this entry, plus the `## Phase 138` entry above it, plus the writing rules in CLAUDE.md, being simple everyday words, complete sentences, no em dashes, a colon only to introduce a list.
+
+### Item one, the page he photographed
+
+He opened Settings then Project line and said it looks like trash, that the extra text is crap, and that he wants what he needs to configure it and nothing else. He is right, and the count says so. `src/renderer/settings/FoldSection.tsx` is 327 lines and the page draws **eleven near identical sentences**, one per unmeasured agent, each a variation of "Tortie has not measured a one shot recipe for X yet, so it cannot write the line", composed at `src/main/overview/fold/options.ts` line 39. Beneath them sit two more paragraphs about None and about keys.
+
+**What the page becomes.** Two controls and a short line under each. The agent picker and the model picker, both showing only what can actually be chosen. A sentence saying None is the default and picking it again brings the built line back. The unmeasured agents are still listed, because hiding them would hide the truth, but they are ONE quiet line naming them together rather than eleven paragraphs, e.g. "Not measured yet: Codex, Cursor, Gemini, Grok, Qwen, Pi, Muse, Antigravity, CodeWhale, Factory Droid." The date the flags were measured stays, because it is a fact with a number in it and it belongs somewhere, though it may move under the model row.
+
+**The two long paragraphs at the bottom go.** The one about None repeats what the picker already says. The one about Tortie holding no key belongs in the confirm sheet a person reads once, not on a settings page a person visits to change a dropdown.
+
+Read the whole page aloud before and after. If a sentence does not change what he can do or what he must know to do it, it goes.
+
+### Item two, nothing tells him a fold ran
+
+He turned the fold on and could not tell whether it did anything. He was right to doubt it. On 2026-08-23 his store held one summary row, written by claude with Haiku 4.5, verdict kept, covering turns 0 to 5 of one session. **The feature was working and there was no way for him to know.** He had to ask, and the answer came from reading his database.
+
+The cause is that the fold is deliberately quiet. It fires on the activity monitor's move from working to idle, waits `FOLD_SETTLE_MS` of 4 seconds, allows one fold per session per minute and two in flight fleet wide. A session that has been idle since he enabled it fires nothing, ever, which is correct and looks identical to broken.
+
+**What lands, and it is the smallest honest thing.** On the Catch Me Up project view, a session whose line was WRITTEN says so quietly, with the time it was written, e.g. `written 23:14`. A session whose line was BUILT says nothing, because that is the default and silence is right for a default. That is one short line per row, it carries a clock time rather than a count so the integer rule holds, and it answers his question without a dashboard.
+
+**And a log line**, because the page cannot tell him about a fold that FAILED. One line to the existing log when a fold starts, finishes or is refused, naming the session and the verdict. The suspension after three consecutive failures must log too, because a silently suspended fold is exactly the state he could not diagnose tonight.
+
+### Proof, run rather than read
+
+- Photograph the settings page on the parent commit and on this one, side by side, and count the rendered sentences in each. He reported this, so the before shot is mandatory.
+- Read the new page aloud in the report and justify every sentence that survived.
+- Prove the unmeasured agents are still discoverable, being named on the page rather than hidden.
+- Drive a real fold in one app run and photograph the project view showing `written HH:MM` on that row and nothing on a row whose line was built.
+- Prove the integer rule still holds on every overview view, by grep.
+- Show the log lines for a fold that ran, one that was refused, and the suspension after three failures.
+- Confirm `package.json` and `package-lock.json` are untouched.
+- The full battery plus `npm run conformance:overview`.
+
+### What is NOT in this phase
+
+- **No version bump.** The release is cut at 0.70.0.
+- **No new recipes.** Measuring the other agent CLIs is Phase 138.2 and it is a separate, expensive piece of work.
+- No change to the fold itself, its trigger, its cost, its refusals or its store.
+- No badge, no count, no percentage. One clock time on a row, and log lines a person can tail.
+- No hiding of the unmeasured agents. He must be able to see what is not available and why, in one line.
+
+
+## Phase 138.2 — measure a fold recipe for every agent CLI Tortie supports (operator asked 2026-08-23) QUEUED, AFTER THE 0.70.0 RELEASE
+
+**Subject:** `feat(overview): every agent that can write the project line, measured`
+**First body line:** `Phase 138.2: a measured recipe per agent`
+**Semver:** minor. It makes a choice available that was disabled.
+**Tier 3.** It spawns processes, it runs under his own accounts and it sends his words to models he has not used this way before. It claims to work across agents, which CLAUDE.md puts at Tier 3 without exception and whose evidence is a per agent matrix over real data.
+**Charter:** this entry, plus the `## Phase 138` entry, whose `src/main/overview/fold/recipes.ts` holds the one measured recipe and the shape every new one must fill, plus `docs/research/63-provider-keep-map.md` for what each agent's log holds.
+
+### What he asked for
+
+The Project line picker offers eleven agents and disables ten of them, because only claude has a measured recipe. He asked for the others to be measured so the choice is real.
+
+### What a recipe is, and why it cannot be guessed
+
+`CLAUDE_RECIPE` in `src/main/overview/fold/recipes.ts` is not a binary name. It is a measured set of flags with a number beside each, and Phase 138 proved why they matter: turning thinking off alone took a fold from $0.012217 and 23.58 s to $0.002882 and 2.65 s. The claude recipe also pins a working directory, so a fold never writes a transcript into a project the person is using, which research 64 confirmed matters because every agent writes its history keyed on cwd.
+
+So each new recipe needs, per agent, measured rather than assumed:
+
+- The one shot invocation, being the flags that make it print an answer and exit.
+- The flags that turn OFF tool use, extra context, thinking and caching, or the honest statement that this agent has no such flag.
+- The model options worth offering, and which is suggested.
+- A structured output mode if it has one, so the answer can be read without guessing.
+- A working directory rule that keeps the fold's own transcript out of his projects.
+- The measured cost and wall clock, over enough runs to have a median rather than one sample.
+- Whether the agent needs an account he actually has. **An agent he cannot authenticate is not measurable and the phase says so rather than shipping a recipe that fails at first use.**
+
+### The order to work in, and it is by what he actually runs
+
+Research 63 measured which agents are live in his projects. Do the ones he uses first, being codex, then cursor, then grok, then the rest. An agent with no recipe at the end keeps its one line saying so, which is the honest outcome and not a failure.
+
+### Proof, run rather than read
+
+- **A per agent matrix over real turns from his own sessions**, one row per agent, with the measured median cost, median wall clock and the flag set. This is the Tier 3 evidence.
+- For each agent measured, at least ten real folds so the median means something.
+- **Prove the refusals still hold per agent.** Phase 138 found 167 of 215 unguarded summaries carried a digit, which the integer rule forbids, and the guard is code that runs after the model answers. Prove that guard catches each new model's output too, because a different model fails differently.
+- **Prove the working directory rule per agent**, by running a fold and showing no transcript landed in a project directory.
+- Name every agent that could NOT be measured and why, e.g. no account, no one shot mode, no flag to disable tools.
+- Itemize every invocation with its cost and report the total at the top.
+- The full battery plus `npm run conformance:overview`.
+
+### What is NOT in this phase
+
+- No change to the fold's trigger, its scheduler constants, its store or its refusals.
+- No change to the settings page beyond the picker now offering more real choices, since Phase 138.1 rewrote that page.
+- No recipe shipped on an agent the phase could not authenticate and measure. A guess is worse than a disabled row.
+- No default changes. None stays what Tortie ships with, whatever recipes exist.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16362,3 +16460,5 @@ cycle rather than only the evening it was written.
 - 2026-08-23, THE RUN ORDER IS HIS, being 138 then 142 then the v0.70.0 RELEASE all the way to public, then 140, then 143, then 141; the release is DELEGATED, one release only, and the version stays at 0.70.0 with this work inside it
 - 2026-08-23, Phase 138 shipped, a small model writes the one line each session gets in the project view and it ships OFF, because None is what Tortie installs with and you pick the agent and the model yourself in Settings then Project line; the rate window gate ran 346 folds beside 30 real agent turns at 1,878 times his fleet rate and no turn was slowed, deferred or refused, the drift gate ran 500 folds and found a two hundred fold chain still true under a recency rule while a cumulative rule held one wrong fact for eleven folds, and the ten refusals run in code after the model answers so the sentence can never carry a digit, a git mark, a path, a quote or a status, this commit, 0.71.0
 - 2026-08-23, Phase 140 shipped, one helper at build/electron-run.mjs owns every Electron a script under build/ starts and ends the tree it started in a finally block, 49 scripts were moved onto it by hand and a 50th was caught by the new gate when Phase 138 landed a probe that started its own, npm run gate:electron reads both directions and proves its scanner on three fixtures it writes itself and it runs inside npm run build, and four deliberate failure shapes each left 0 processes and 0 KB where the pre-Phase-140 shape left 6 processes and 521,520 KB, this commit, 0.71.0
+- 2026-08-23, Phase 138.1 queued, the Project line settings page draws eleven near identical sentences and two paragraphs that repeat the pickers, and nothing anywhere tells him a fold ran; his store held one written summary tonight and the only way to know was to read the database
+- 2026-08-23, Phase 138.2 queued, measure a fold recipe for every agent CLI, in the order he actually uses them, and ship no recipe for an agent that could not be authenticated and measured
