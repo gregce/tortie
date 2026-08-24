@@ -58,6 +58,11 @@ import { PREVIEW_PRIVILEGED_SCHEME } from './preview';
 import { getGmuxCore } from './sessions';
 import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import { migrateUserDataIfNeeded, showRenameNoticeOnce } from './migrate';
+// Phase 144 stage 1: the one main owned lifecycle state. The before-quit
+// handler below flips it synchronously in its first pass, and the one typed
+// invoke wrapper (src/main/typed-ipc.ts) refuses every new renderer invoke
+// from that moment.
+import { appLifecycleState, markAppQuitting } from './lifecycle';
 // Phase 21 fix round: the refusal, and the screen that says it in words.
 import { manifestRefusal } from './manifest/refusal';
 import { isSchemaRefusal } from './db/schema-version';
@@ -202,7 +207,7 @@ if (!harnessLaunch) {
   // nudge is skipped while a recreated window is still loading; the fresh
   // renderer's hydrate pull delivers instead (take-and-clear, never twice).
   app.on('second-instance', (_event, argv) => {
-    if (quitFlowStarted) return;
+    if (appLifecycleState() === 'quitting') return;
     console.log('[gmux] a second launch was refused; showing this window');
     const opened = noteShellOpenArgs(argv.slice(app.isPackaged ? 1 : 2));
     showAppWindow();
@@ -637,10 +642,16 @@ installProcessGoneLogging(app);
 // shutdownGmuxCore bounds the capture at 8 s so quit can never wedge. The
 // ordered teardown itself is disposeMainCapabilities (capabilities.ts),
 // Phase 36's order preserved whole.
-let quitFlowStarted = false;
 app.on('before-quit', (event) => {
-  if (quitFlowStarted) return; // second pass: let the quit proceed
-  quitFlowStarted = true;
+  if (appLifecycleState() === 'quitting') return; // second pass: let the quit proceed
+  // Phase 144 stage 1: quit intent is recorded SYNCHRONOUSLY, in the one main
+  // owned lifecycle module, before event.preventDefault and before any await.
+  // From this line the typed invoke wrapper (src/main/typed-ipc.ts) refuses
+  // every NEW renderer invoke with the typed SHUTTING_DOWN payload, so no
+  // request can reach a filesystem, git or machine mutation handler while the
+  // teardown below is awaiting and the renderer is still alive. Admission
+  // closes here; ownership and joins stay exactly where they were.
+  markAppQuitting();
   event.preventDefault();
   void (async () => {
     // 'killed' means a wedged watcher close forced SIGKILL to self inside

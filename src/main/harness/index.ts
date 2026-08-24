@@ -141,6 +141,14 @@
  *                       create admitted before shutdown resolved before the
  *                       snapshot, and proves a clean second boot in the same
  *                       process. `npm run smoke:shutdown`.
+ *  - GMUX_SMOKE=quit-doors  every IPC door closes the moment quit starts
+ *                       (Phase 144 stage 1, Tier 3). Starts the REAL quit
+ *                       through the composition root, holds the shutdown
+ *                       inside the snapshot pass, and drives four real
+ *                       mutation handlers from the real renderer: all four
+ *                       reject with the typed SHUTTING_DOWN payload, nothing
+ *                       is written or spawned, and the create admitted before
+ *                       quit still resolved. `npm run smoke:quitdoors`.
  *  - GMUX_SMOKE=p117-prep / p117-verify  a remote create whose answer was
  *                       lost keeps its row, and a later run binds the same
  *                       session (Phase 117, Tier 3). TWO launches against one
@@ -280,6 +288,10 @@ import { runRestoreBareSmoke } from './restore-bare';
 // Phase 116: the shutdown refusal proof. LEAF import like ../fault/harness,
 // because it pulls in the session core.
 import { runShutdownRefusalSmoke } from './shutdown-refusal';
+// Phase 144 stage 1: every IPC door closes the moment quit starts. Real
+// handlers driven through the real window and the real preload while the real
+// quit is held open inside the snapshot pass.
+import { runQuitDoorsSmoke } from './quit-doors';
 // Phase 71: the partition harness's Electron leg. It is the only place the
 // "a cut link never says a session ended" rule is measured against a real app
 // holding a real connection with a real terminal attached.
@@ -337,6 +349,15 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // clean second boot in the same process. `npm run smoke:shutdown`.
   if (smoke === 'shutdown-refusal') {
     await runShutdownRefusalSmoke();
+    return true;
+  }
+  // Phase 144 stage 1: after the first before-quit pass, every renderer
+  // invoke is refused by the one typed wrapper. Proven against four real
+  // mutation handlers through the real window while the real quit is held
+  // open inside the snapshot pass, which is before the remote execution
+  // ledger closes. `npm run smoke:quitdoors`.
+  if (smoke === 'quit-doors') {
+    await runQuitDoorsSmoke(deps);
     return true;
   }
   if (smoke === 't3-prep') {

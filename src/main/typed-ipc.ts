@@ -21,6 +21,8 @@ import type {
   GmuxInvokeReq,
   GmuxInvokeRes
 } from '@shared/ipc';
+import { gmuxError } from './errors';
+import { APP_QUIT_REFUSAL, appLifecycleState } from './lifecycle';
 import { assertTrustedIpcSender } from './security/trusted-window';
 
 export function handle<C extends GmuxInvokeChannel>(
@@ -37,6 +39,21 @@ export function handle<C extends GmuxInvokeChannel>(
     // all of them, because this wrapper is THE one invoke registrar
     // (guardrail: ipc-single-bridge.test.ts).
     assertTrustedIpcSender(event, channel);
+    // Phase 144 stage 1: once the quit has started, no NEW renderer invoke is
+    // admitted. The composition root flips the state synchronously in the
+    // first before-quit pass (src/main/lifecycle.ts), so no request can reach
+    // a filesystem, git or machine mutation handler while the ordered
+    // teardown is awaiting and the renderer is still alive. The refusal is
+    // the existing typed SHUTTING_DOWN shape, which every renderer call site
+    // already catches. Work admitted before this line keeps its handler and
+    // is joined where it always was; this check closes admission only.
+    if (appLifecycleState() === 'quitting') {
+      throw gmuxError(
+        'SHUTTING_DOWN',
+        APP_QUIT_REFUSAL,
+        `refused ${channel}: the quit has started`
+      );
+    }
     return fn(event, ...(args as GmuxInvokeReq<C>));
   });
 }
