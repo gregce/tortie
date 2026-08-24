@@ -136,6 +136,14 @@ written here. Measure before writing a number into this file.
 - **A crash means RESTART FRESH, not resume.** `resumeFromRunId` replays an agent's TEXT and not the
   files it wrote, so a wiped or half-written worktree makes the cached reports a fiction. Reset the
   worktree to origin/main's tip before any resume.
+- **NEVER `git reset --keep origin/main` in his checkout without checking for local commits first.**
+  On 2026-08-23 that command discarded his own commit `a3bbd45`, "docs(audit): restore the
+  architecture 36 plan", 517 lines he had just written. `--keep` protects uncommitted changes and does
+  NOT protect a local commit that is not on the remote. The correct sync is
+  `git -C /Users/gdc/gmux log --oneline origin/main..HEAD` first, and if it prints anything, stop and
+  tell him rather than resetting. `git merge --ff-only origin/main` is the safe form, because it
+  refuses instead of discarding. The file was recovered from the reflog at `13393f2`, and the reflog
+  is the only reason it survived.
 - **`/private/tmp` does not survive a reboot.** Rebuilding a worktree means `git worktree prune`,
   `git worktree add --detach`, then `cp -Rc node_modules` and `cp -Rc build/vendor` from the
   operator's checkout. Confirm `build/vendor/specstory/bin/specstory --version` before starting.
