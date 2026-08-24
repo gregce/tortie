@@ -26,6 +26,29 @@ function sym(
   };
 }
 
+/**
+ * Time a fixed chunk of integer arithmetic. The chunk never changes, so how
+ * long it takes is a reading of how fast this process is running RIGHT NOW,
+ * preemption included. On the operator's machine it takes about 24 ms when
+ * the machine is quiet (measured 2026-08-24, min 22.2 ms over 20 runs) and it
+ * slowed to 67 to 111 ms under the same load that once pushed the query past
+ * its budget. The xorshift result feeds an assertion so the loop cannot be
+ * optimized away.
+ */
+const QUIET_CALIBRATION_MS = 24;
+function timeFixedWork(): { took: number; acc: number } {
+  let x = 0x9e3779b9 | 0;
+  let acc = 0;
+  const started = performance.now();
+  for (let i = 0; i < 5_000_000; i++) {
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    acc = (acc + x) | 0;
+  }
+  return { took: performance.now() - started, acc };
+}
+
 describe('SymbolTable', () => {
   it('is empty until something is put in it', () => {
     const t = new SymbolTable();
@@ -188,14 +211,27 @@ describe('SymbolTable', () => {
     }
     expect(t.symbolCount).toBe(100_000);
     t.query('warm', 50);
+    const before = timeFixedWork();
     const started = performance.now();
     const hits = t.query('shn', 50);
     const elapsed = performance.now() - started;
+    const after = timeFixedWork();
     expect(hits.length).toBe(50);
-    // 80 ms is the tripwire on a developer machine. Shared CI runners are
-    // slower and uneven, and this line failed at 88 ms on a run whose diff
-    // never touched symbols. 200 ms keeps the tripwire real there: the
-    // regression this test exists to catch would cost far more than that.
-    expect(elapsed).toBeLessThan(process.env.CI ? 200 : 80);
+    expect(Number.isFinite(before.acc + after.acc)).toBe(true);
+    // 80 ms is the budget on a QUIET developer machine, and the calibration
+    // scales it when the machine is not quiet. This line once read a flat 80
+    // and failed at 84.66 ms during the v0.70.0 release battery at load
+    // average 29, on a file byte identical to v0.68.7: the clock was
+    // measuring the machine, not the code. The fixed arithmetic before and
+    // after the query slows down exactly as much as the query does, so
+    // dividing the slower of the two readings by its quiet cost gives the
+    // slowdown the query actually ran under. Load average cannot do this
+    // job: it read 20 while a fresh load made this query take 233 ms, and it
+    // still read 47 on a quiet machine moments after that load was killed,
+    // both measured 2026-08-24. The budget never drops below 80, so a quiet
+    // machine is judged exactly as before. CI keeps its own flat 200 ms from commit 87339d7: shared
+    // runners are uneven in ways one in-process reading does not capture.
+    const slowdown = Math.max(1, Math.max(before.took, after.took) / QUIET_CALIBRATION_MS);
+    expect(elapsed).toBeLessThan(process.env.CI ? 200 : 80 * slowdown);
   });
 });
