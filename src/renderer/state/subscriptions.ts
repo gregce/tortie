@@ -33,7 +33,7 @@
  */
 
 import type { StoreApi } from 'zustand';
-import type { InstalledGmuxApi } from '@shared/ipc';
+import type { InstalledGmuxApi, SessionActivityInfo } from '@shared/ipc';
 import type { DurabilityNotice, GmuxNotice } from '@shared/notice';
 import { isDurabilityNotice } from '@shared/notice';
 import { formatScrollbackBytes } from '@shared/scrollback';
@@ -43,10 +43,52 @@ import { errorPayload, errorText } from './errors';
 import { loadLocal } from './local';
 import { LS_ACTIVE_PROJECT } from './projects-slice';
 import { pullPendingShellOpen } from './shell-open';
+import type { HandbackState, SessionHandback } from './resume';
 import { useApp } from './store';
 import { gmuxBridge } from '../bridge';
 
 type AppStore = StoreApi<AppState>;
+
+// ---------------------------------------------------------------------------
+// PHASE 141 — reading the handback off the activity update.
+//
+// WHY THIS IS A CHECKED READ RATHER THAN A FIELD ACCESS. The activity update is
+// a message that crossed a process boundary, and this one field is the only one
+// on it whose value decides whether a person is offered a verb that types into
+// a live session. A field that arrived misshapen, from a build of main older or
+// newer than this window, is dropped whole and the row keeps whatever it had.
+// That is the same rule the configuration overlay follows: an invalid row is
+// dropped whole, never partially merged.
+//
+// Three answers, and each one means something different to the caller.
+//   undefined — the update said nothing about the handback. Leave the record.
+//   null      — main says there is nothing to say here. Delete the record.
+//   a record  — replace it.
+// ---------------------------------------------------------------------------
+
+/** The states a record may carry. `none` is main clearing it, and is not one. */
+const HANDBACK_STATES: readonly HandbackState[] = [
+  'left',
+  'returning',
+  'unconfirmed'
+];
+
+export function readHandback(
+  update: SessionActivityInfo
+): SessionHandback | null | undefined {
+  const raw = (update as { handback?: unknown }).handback;
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  if (typeof raw !== 'object') return undefined;
+  const { state, leftAt } = raw as { state?: unknown; leftAt?: unknown };
+  if (state === 'none') return null;
+  if (typeof state !== 'string') return undefined;
+  if (!HANDBACK_STATES.includes(state as HandbackState)) return undefined;
+  return {
+    state: state as HandbackState,
+    leftAt: typeof leftAt === 'number' && Number.isFinite(leftAt) ? leftAt : 0
+  };
+}
 
 /**
  * Fetch main's truth (projects + sessions) and adopt it, including the boot
@@ -726,13 +768,27 @@ export function startAppSubscriptions(store: AppStore): () => void {
       setState((s) => {
         const excerpts = { ...s.excerpts };
         const lastActivity = { ...s.lastActivity };
+        // PHASE 141. The third fact on this channel, and it rides here for one
+        // reason: this is main's channel for per session facts that are NOT the
+        // status, so a fact that must never become a status has no other honest
+        // road into the window. It touches no dot and no `SessionStatus`.
+        const handbacks = { ...s.handbacks };
         for (const u of updates) {
           if (u.excerpt !== undefined) excerpts[u.sessionId] = u.excerpt;
           if (u.lastActivityAt !== undefined) {
             lastActivity[u.sessionId] = u.lastActivityAt;
           }
+          const handback = readHandback(u);
+          // Three answers, and they are deliberately different. `undefined` is
+          // an update that says nothing about the handback and leaves the
+          // record alone, which is every ordinary tick. `null` is main saying
+          // there is nothing to say about this session, and it deletes the
+          // record rather than storing a fourth state. Anything else replaces
+          // it.
+          if (handback === null) delete handbacks[u.sessionId];
+          else if (handback !== undefined) handbacks[u.sessionId] = handback;
         }
-        return { excerpts, lastActivity };
+        return { excerpts, lastActivity, handbacks };
       });
     })
   );

@@ -43,6 +43,8 @@ import {
   watchForSessionId,
   type ConversationReclaim,
   type HarvestContext,
+  type ManifestSessionRecord,
+  type ResumeIdSource,
   type ResumeProvenance,
   type SessionIdWatch
 } from '../manifest';
@@ -502,4 +504,150 @@ export function handleConversationReclaim(
         `${(err as Error).message}`
     );
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// PHASE 141 — the one place a conversation confirmed after a handback is
+// written, and the lift of the gate that used to make that impossible
+// ---------------------------------------------------------------------------
+
+/**
+ * Where an id confirmed after a handback is recorded as having come from.
+ *
+ * `ResumeIdSource` lives in `../manifest/agents.ts` and this phase does not own
+ * that file, so the closest true member is used: the id was read out of the
+ * agent's own store or off the process the person started, which is what
+ * 'store-harvest' describes. It is a CONSTANT so the integrator has one line to
+ * change if a 'handback-confirmed' member is added.
+ */
+const HANDBACK_ID_SOURCE: ResumeIdSource = 'store-harvest';
+
+/** What {@link admitConfirmedConversationId} did, in the caller's terms. */
+export type ConfirmedIdAdmission =
+  /** The id and a rebuilt resume argv went to the drive in one write. */
+  | 'written'
+  /** The row already carries a conversation. Nothing was touched. */
+  | 'row-holds-one'
+  /** Another row holds that conversation. Nothing was written. */
+  | 'claim-refused'
+  /** No resume argv could be composed for it, so nothing was written. */
+  | 'no-resume-argv';
+
+/**
+ * Admit ONE confirmed conversation id onto a row that holds none.
+ *
+ * ## The hole this closes
+ *
+ * The boot rescue above reads `if (rec.agentSessionId !== undefined) continue;`
+ * and the create time watch deletes itself the moment an id settles, so a
+ * conversation started later, in a shell that outlived its agent, was never
+ * recorded anywhere. That is the data loss Phase 141 exists to end.
+ *
+ * ## The gate, lifted exactly as far as that and no further
+ *
+ * A row that HOLDS a conversation is refused here, in the same words the boot
+ * loop refuses it. This function cannot re-point `agent_session_id`, cannot
+ * take a conversation another row holds, and cannot write an id without
+ * rebuilding the resume argv in the same durable write, so a row can never name
+ * one conversation on screen and arm a different one on the next restart.
+ *
+ * ## The order, and it matters
+ *
+ * The argv is composed BEFORE the claim, so a row that turns out to have no
+ * composable resume never leaves a claim behind it. The claim is taken next,
+ * because a refused claim must write nothing at all. The manifest write is
+ * last, and it is one write rather than two.
+ *
+ * Its only product caller is `./resume-in-place.ts`, which owns the decision
+ * about WHETHER an id may be admitted. This function owns the mechanics of
+ * admitting one.
+ */
+export function admitConfirmedConversationId(
+  deps: IdHarvestDeps,
+  rec: ManifestSessionRecord,
+  conversationId: string,
+  at: number
+): ConfirmedIdAdmission {
+  if (deps.isDisposed()) return 'no-resume-argv';
+  // The lift of the boot loop's gate: a row that holds a conversation keeps it.
+  if (rec.agentSessionId !== undefined) return 'row-holds-one';
+  if (rec.agent === 'shell') return 'row-holds-one';
+  if (rec.status === 'discarded') return 'row-holds-one';
+
+  // The same composition the harvest write above makes, for the same reason:
+  // on a captured session `rec.argv[0]` is the SpecStory wrapper rather than
+  // the agent, so the inner argv is composed first and the wrapper goes back
+  // around it afterwards.
+  const capture = rec.specstory;
+  const innerBin =
+    capture?.agentArgv[0] ?? rec.argv[0] ?? agentBinaryName(rec.agent);
+  const extras = agentExtrasOf(rec);
+  // FOUND BY THIS PHASE'S OWN TEST. `registryResumeArgv` THROWS for an agent
+  // the registry holds but cannot launch in a session, e.g. cursoride, whose
+  // resume is a row written into another program's database rather than a
+  // command. `startIdCapture` above never meets that case because
+  // `agentRescuesId` filters it out first, and this path has no such filter in
+  // front of it: the agent column is whatever the row records. A throw here
+  // would land inside a confirmation nobody is awaiting, so it is an answer
+  // rather than an exception.
+  let innerResume: string[];
+  try {
+    innerResume = registryResumeArgv(rec.agent, conversationId, extras, innerBin);
+  } catch {
+    return 'no-resume-argv';
+  }
+  if (innerResume.length === 0) return 'no-resume-argv';
+  let resumeArgv = innerResume;
+  if (capture?.enabled === true) {
+    const rewrapped = wrapWithRecord(capture, innerResume);
+    if (rewrapped !== null) resumeArgv = rewrapped;
+    else {
+      sessionsLog.warn(
+        `${rec.agent} resume for "${rec.name}" could not keep SpecStory ` +
+          'capture; the armed command runs the agent directly.'
+      );
+    }
+  }
+
+  // 'confirmed' rather than `claimStrengthOf`, and the difference is the
+  // point: this id was read out of the process that is running in that session
+  // right now, which is the same quality of evidence an identity harvest key
+  // gives. A row with no key reads 'confirmed' in `claimStrengthOf` too.
+  if (!claimConversationId(conversationId, rec.id, 'confirmed', rec.cwd)) {
+    // The shipped comment on the boot loop is explicit that two rows on one
+    // conversation cannot be undone, because there is no way to know which row
+    // is right. So this writes nothing and says so.
+    sessionsLog.warn(
+      `session ${String(conversationClaimant(conversationId))} already ` +
+        `records ${rec.agent} conversation ${conversationId}, so session ` +
+        `${rec.id} was not bound to it and nothing was written.`
+    );
+    return 'claim-refused';
+  }
+
+  const agentVersion = cachedAgentVersion(rec.agent);
+  const provenance: ResumeProvenance = {
+    v: SESSION_CONTRACT_VERSION,
+    source: HANDBACK_ID_SOURCE,
+    confidence: 'exact',
+    at,
+    cwd: resolveClaimCwd(rec.cwd),
+    ...(agentVersion !== null ? { agentVersion } : {})
+  };
+  deps.manifest.setAgentSessionId(rec.id, conversationId, resumeArgv, provenance);
+  const live = deps.liveIds.get(rec.id);
+  if (live !== undefined) {
+    // Best effort, exactly as the harvest write does it: the tmux marker is a
+    // second copy of the same fact and losing it costs a diagnostic.
+    void tmux
+      .setSessionOption(live, '@gmux-session-id', conversationId)
+      .catch(() => undefined);
+  }
+  deps.broadcastSessions();
+  sessionsLog.info(
+    `session ${rec.id} was bound to ${rec.agent} conversation ` +
+      `${conversationId} after its agent came back.`
+  );
+  return 'written';
 }

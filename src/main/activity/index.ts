@@ -10,6 +10,8 @@ export {
   SessionActivityMonitor,
   type ActivityMonitorDeps,
   type ActivitySession,
+  type ClaudeConversation,
+  type HandbackFact,
   type SessionActivityUpdate
 } from './monitor';
 
@@ -25,6 +27,19 @@ export {
   type HookServerEvents
 } from './hooks';
 
-export { isTurnBoundary } from './state-machine';
+export {
+  isTurnBoundary,
+  offersResume,
+  type HandbackOutcome,
+  type HandbackState
+} from './state-machine';
 
 export { toSessionStatus, type ActivityState } from './types';
+
+/**
+ * PHASE 141, exported at integration. The one process table reader, so the
+ * session core can hand it to the monitor for the witness alone. See
+ * `readProcForWitness` on ActivityMonitorDeps for what that is for and what it
+ * costs.
+ */
+export { readProcSnapshot } from './process';

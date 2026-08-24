@@ -112,6 +112,13 @@ export type MenuActionId =
   | 'new-session'
   | 'rename-session'
   | 'end-session'
+  // Phase 141. Put the command that continues the active session's
+  // conversation back on its own prompt. It sits with 'end-session' and is
+  // unaccelerated for the same reason: it acts on a live session the person is
+  // looking at. It is not a status and it sets none. The renderer returns
+  // silently when the active session's agent has not left, exactly as
+  // 'end-session' returns silently for a session that has already exited.
+  | 'resume-conversation'
   | 'next-session'
   | 'prev-session'
   | 'open-project'

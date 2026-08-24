@@ -22,7 +22,7 @@
  * written as the agent's fault.
  */
 
-import type { Session } from '@shared/types';
+import type { Session, SessionStatus } from '@shared/types';
 import { agentShortLabel } from './agents';
 
 /**
@@ -133,10 +133,48 @@ function resumeReason(
 /**
  * The sentence appended to a session's tooltip on every surface — the layer
  * where the user reads the detail behind the mark.
+ *
+ * PHASE 141 gives it a second argument, and the reason is that the sentence it
+ * used to return without one was true and pointed a person at the wrong thing.
+ * "Its conversation comes back after a restart" is correct for a session whose
+ * agent has just left, and useless, because that conversation is one press
+ * away in the session they are looking at rather than a restart away. When the
+ * caller has a handback record for the row, its sentence wins.
+ *
+ * The argument is optional because four surfaces call this and only two of
+ * them hold the record. A caller with no record reads exactly what it read
+ * before this phase.
+ *
+ * THE RECORD ALONE DOES NOT WIN THE SLOT (fix round). markLeft publishes
+ * 'left' on every witnessed drop of a non shell agent, including agents that
+ * hand Tortie no conversation id, so a record can sit on a row with nothing
+ * to resume. The judge is the same predicate that draws the verb,
+ * `showsResumeVerb` below, so this sentence can never disagree with the word
+ * on the row. The 'left' sentence names Resume, so it shows only while the
+ * verb is actually offered. The other two claim a conversation is held, so
+ * they need the row shape the verb needs, and they keep showing while
+ * something runs because something running is exactly what they describe. A
+ * refused row reads what it read before any handback existed.
  */
 export function resumeNote(
-  session: Pick<Session, 'agent' | 'resumeArgv' | 'resumeCapture'>
+  session: Pick<
+    Session,
+    | 'agent'
+    | 'machine'
+    | 'status'
+    | 'agentSessionId'
+    | 'resumeArgv'
+    | 'resumeCapture'
+  >,
+  handback?: SessionHandback | undefined
 ): string | null {
+  if (handback !== undefined) {
+    const honest =
+      handback.state === 'left'
+        ? showsResumeVerb(session, handback, session.status)
+        : holdsResumableConversation(session);
+    if (honest) return handbackNote(handback);
+  }
   const readiness = resumeReadiness(session);
   if (readiness === 'conversation') {
     return 'Its conversation comes back after a restart.';
@@ -402,4 +440,332 @@ export function bareRestartConfirm(session: Session): BareRecoveryConfirm {
       'which is what Restart always does. SpecStory does not save the new ' +
       "session's history. The history it already saved stays where it is."
   };
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 141 — the agent that left, and the one press back into it.
+//
+// A person starts an agent in a session, then ends the agent while the shell
+// lives on, with Control C or the agent's own quit verb. The session is still
+// there and its conversation is still on disk, so Tortie offers one word on
+// that row, and choosing it puts the resume command on the prompt. The person
+// presses Enter. Nothing starts on Tortie's initiative.
+//
+// EVERY SENTENCE BELOW IS BOUND BY ONE REFUSAL: none of them ever claims that
+// an agent is running. Research 64 section 7.3 fixed that, because a card that
+// says an agent is there when it is not is worse than a card that says nothing.
+//
+// This is copy and a small amount of reading, and it is deliberately NOT a
+// status. Nothing here reaches `statusVisual`, nothing here reaches the dot,
+// and no value below is ever a `SessionStatus`. Phase 23 refusal 5 says no
+// mechanism outside session behaviour may set a status, and the way this phase
+// keeps that promise is by travelling on its own field the whole way.
+// ---------------------------------------------------------------------------
+
+/**
+ * What Tortie can currently say about a session whose agent left.
+ *
+ * - `left`        — the witnessed process went away and nothing has run in the
+ *                   session since. This is the only state that offers the verb.
+ * - `returning`   — something is running in the session again and Tortie has
+ *                   not yet been told which conversation it is in.
+ * - `unconfirmed` — something ran and named a conversation that is not the one
+ *                   this row holds, so Tortie did not adopt it.
+ *
+ * Main reports `none` for a session in none of those states, and the renderer
+ * holds no record at all for one, so `none` has no member here.
+ */
+export type HandbackState = 'left' | 'returning' | 'unconfirmed';
+
+/** One session's handback record, as the renderer holds it. */
+export interface SessionHandback {
+  state: HandbackState;
+  /**
+   * Epoch ms of the moment the witnessed process went away, or 0 when Tortie
+   * did not see the clock. The card names the time only when it has one.
+   */
+  leftAt: number;
+}
+
+/**
+ * The four landings of a press, which are the four answers `decideArmLanding`
+ * in src/main/machines/remote-arm.ts already produces. The union is re-typed
+ * here rather than imported because a renderer file cannot import main.
+ */
+export type ResumeInPlaceLanding = 'armed' | 'twice' | 'absent' | 'unknown';
+
+/** The word itself. One string, drawn by both row surfaces. */
+export const RESUME_VERB = 'Resume';
+
+/** The label the native menus use, on the row and in the menu bar. */
+export const RESUME_IN_PLACE_LABEL = 'Resume conversation';
+
+/**
+ * The grey second line under the native menu row. A native menu carries no
+ * tooltip, so this slot is the only room the menu has for prose, and it is the
+ * slot `BARE_RESTORE_SUBLABEL` above already uses.
+ *
+ * It says where the command goes and who presses Enter, because those are the
+ * two things a person needs to know before choosing it.
+ */
+export const RESUME_IN_PLACE_SUBLABEL =
+  'The command goes on your prompt. You press Enter.';
+
+/**
+ * Whether this row holds a conversation Tortie could put back: it runs on
+ * this Mac, a conversation id was harvested, and a resume command is
+ * recorded. These are the three row refusals inside `showsResumeVerb`, split
+ * out because `resumeNote` above asks the same question before it lets a
+ * handback sentence claim a conversation is held. One reading, two surfaces,
+ * so the tooltip and the word on the row can never disagree.
+ */
+function holdsResumableConversation(
+  session: Pick<Session, 'machine' | 'agentSessionId' | 'resumeArgv'>
+): boolean {
+  if (session.machine !== undefined) return false;
+  if (session.agentSessionId === undefined) return false;
+  return (session.resumeArgv?.length ?? 0) > 0;
+}
+
+/**
+ * Whether the verb is offered for this session, on the row and in both menus.
+ *
+ * ONE PREDICATE, READ BY EVERY SURFACE AND BY THE STORE'S OWN VERB, so the word
+ * on the row, the row in the native menu and the row in the menu bar can never
+ * disagree about whether the verb exists. It lives in this module rather than
+ * beside the component because the sessions slice reads it too, and a state
+ * module cannot import an app one.
+ *
+ * Five conditions, and each one is a refusal that matters.
+ *
+ *  - The row has a conversation to put back AND a command that carries it.
+ *    Main refuses the press with `no-conversation` when the row records no
+ *    conversation id, and with `not-composed` when there is no recorded resume
+ *    command to type, so a row in either shape used to be offered a word that
+ *    could only ever answer a refusal. Research 64 section 6 says droid's verb
+ *    is not offered for exactly this reason, and every row whose id was never
+ *    harvested is the same shape.
+ *
+ *  - The session runs on this Mac. A session on another machine has no local
+ *    process table, so Tortie never witnessed a process for it and can never
+ *    hold a record for one. `resumeMarkLabel` above already says nothing for
+ *    every remote row for the same family of reasons.
+ *  - Main says the agent left AND nothing has run since. `returning` and
+ *    `unconfirmed` both mean something is running in that session, and typing
+ *    into a session a program owns is how armed text reaches a program in raw
+ *    mode. The word goes away for the length of whatever is running and comes
+ *    back after, and Tortie says nothing about it either way.
+ *  - The session is still alive. A session that has ended offers Restore, and
+ *    the two can never appear together: Restore needs the session to be over
+ *    and this needs it to be alive.
+ *  - Tortie can currently see the session. An `unknown` row is one the session
+ *    server did not answer for, and every verb that acts on the tmux side is
+ *    withheld from it.
+ *
+ * NOTHING HERE READS THE SHAPE OF THE SESSION, and that is the whole design. A
+ * session Tortie has just restored, sitting with its command armed and
+ * unpressed, has an agent on its row, an armed resume command, a running
+ * status and a login shell as its own program, which is byte for byte the shape
+ * of a session whose agent left. The only thing that separates them is the
+ * record, and main holds one only for a process it actually watched.
+ */
+export function showsResumeVerb(
+  session: Pick<Session, 'machine' | 'agentSessionId' | 'resumeArgv'>,
+  handback: SessionHandback | undefined,
+  status: SessionStatus
+): boolean {
+  if (!holdsResumableConversation(session)) return false;
+  if (handback?.state !== 'left') return false;
+  return status !== 'exited' && status !== 'restorable' && status !== 'unknown';
+}
+
+/** The hover sentence on the word itself, for the pointer and the reader. */
+export const RESUME_VERB_TITLE =
+  'Put the command that continues this conversation on your prompt. ' +
+  'You press Enter.';
+
+/** A clock time in the person's own locale, or null when there is no time. */
+function clockTime(epochMs: number): string | null {
+  if (!Number.isFinite(epochMs) || epochMs <= 0) return null;
+  try {
+    return new Date(epochMs).toLocaleTimeString(undefined, {
+      timeStyle: 'short'
+    });
+  } catch {
+    // A build with no Intl data still gets the sentence, without the time.
+    return null;
+  }
+}
+
+/**
+ * The card sentence for a session whose agent left, one of three.
+ *
+ * Research 64 section 7.3 wrote these three and the rule that binds them: only
+ * ever one of them, and none of them ever says an agent is running.
+ */
+export function handbackNote(handback: SessionHandback): string {
+  switch (handback.state) {
+    case 'left': {
+      const at = clockTime(handback.leftAt);
+      const opened = at === null ? 'The agent left.' : `The agent left at ${at}.`;
+      return (
+        `${opened} Its conversation is still here, and Resume puts the ` +
+        'command back on your prompt.'
+      );
+    }
+    case 'returning':
+      return (
+        'Something is running here. Tortie is waiting to see which ' +
+        'conversation it is.'
+      );
+    case 'unconfirmed':
+      return (
+        'A different conversation is open here. Tortie is still holding the ' +
+        'one it saved.'
+      );
+  }
+}
+
+/**
+ * What a person reads after choosing Resume, one sentence per landing.
+ *
+ * THESE ARE NEW SENTENCES AND NOT THE FOUR IN src/main/machines/remote-copy.ts,
+ * and that is a refusal rather than duplication. Every one of those four says
+ * "on that machine", because they were written for a session on another
+ * computer. This session is on this Mac and in front of the person, so the
+ * sentences say "this session" and name no machine at all.
+ *
+ * The split between `absent` and `unknown` is kept exactly as the remote ones
+ * keep it: a screen Tortie READ and found nothing on is a different claim from
+ * a screen Tortie could not read, and saying "it is not there" when nobody
+ * looked is the shape of dishonesty the restore gate already took apart.
+ */
+export function resumeInPlaceNote(landing: ResumeInPlaceLanding): string {
+  switch (landing) {
+    case 'armed':
+      return (
+        'The command is on your prompt. Press Enter to bring the ' +
+        'conversation back.'
+      );
+    case 'twice':
+      return (
+        'There are two copies of the command on the line. Nothing ran, ' +
+        'because Tortie never presses Enter. Clear the line and choose ' +
+        'Resume again.'
+      );
+    case 'absent':
+      return (
+        'Tortie typed the command and it is not on the screen. Nothing ran.'
+      );
+    case 'unknown':
+      return (
+        'Tortie typed the command and could not read the screen to check, ' +
+        'so it cannot say whether the command is there. Nothing ran, because ' +
+        'Tortie never presses Enter.'
+      );
+  }
+}
+
+/**
+ * Whether a landing is good news. The store picks the toast kind from this
+ * rather than re-deciding it beside each sentence.
+ */
+export function resumeInPlaceLanded(landing: ResumeInPlaceLanding): boolean {
+  return landing === 'armed';
+}
+
+/**
+ * Why Tortie typed nothing at all. The six tokens are the ones main answers
+ * with, and they are re-typed here rather than imported because a renderer file
+ * cannot import main. `npm run conformance:handback` reads this copy, the one
+ * in src/shared/ipc/sessions.ts and the one in
+ * src/main/sessions/resume-in-place.ts, and fails when any of the three drift.
+ */
+export type ResumeInPlaceRefusal =
+  | 'not-dropped'
+  | 'not-here'
+  | 'no-conversation'
+  | 'running'
+  | 'agent-back'
+  | 'not-composed';
+
+/** The six tokens, as a list, so an answer can be checked against them. */
+export const RESUME_IN_PLACE_REFUSALS: readonly ResumeInPlaceRefusal[] = [
+  'not-dropped',
+  'not-here',
+  'no-conversation',
+  'running',
+  'agent-back',
+  'not-composed'
+];
+
+/**
+ * What a person reads when the press typed nothing, one sentence per reason.
+ *
+ * A REFUSAL IS NOT A FAILURE AND IT IS NOT A LANDING. Main re-reads that one
+ * session at the moment of the press, because a poll answer up to two seconds
+ * old is not good enough to type into a live session with. When what it reads
+ * is not what the row said, it types nothing and answers with one of these,
+ * and every one of them says plainly that nothing was typed.
+ *
+ * The integrator added these at the end of the phase. The store called
+ * `resumeInPlaceNote` for every answer, which covers the four landings and has
+ * no word for a refusal, so a refused press showed a toast with no text in it.
+ */
+export function resumeInPlaceRefusalNote(
+  refusal: ResumeInPlaceRefusal
+): string {
+  switch (refusal) {
+    case 'not-dropped':
+      return (
+        'Tortie has no record of an agent leaving this session, so it typed ' +
+        'nothing.'
+      );
+    case 'not-here':
+      return (
+        'Tortie could not find this session running on this Mac, so it typed ' +
+        'nothing.'
+      );
+    case 'no-conversation':
+      return (
+        'Tortie has not saved a conversation for this session, so there is ' +
+        'nothing to put back on your prompt.'
+      );
+    case 'running':
+      return 'Something is running in this session now, so Tortie typed nothing.';
+    case 'agent-back':
+      // IT SAYS WHAT TORTIE FOUND, not what is true. Main read the command
+      // line of the one process under this session and it names this row's
+      // agent, which is evidence and not a certainty, and the rest of this
+      // module never claims an agent is running for the same reason.
+      return (
+        "Tortie found this session's agent running here, so there is nothing " +
+        'to put back.'
+      );
+    case 'not-composed':
+      return (
+        'Tortie could not build the command that continues this ' +
+        'conversation, so it typed nothing.'
+      );
+  }
+}
+
+/**
+ * The sentence for one whole answer, whichever half of it is set.
+ *
+ * ONE DOOR, so the store never has to decide which of the two sentence
+ * functions to call. Exactly one of the two fields is set, and an answer from a
+ * build of main this window does not understand falls through to the honest
+ * sentence rather than to an empty toast.
+ */
+export function resumeInPlaceAnswerNote(answer: {
+  landing: ResumeInPlaceLanding | null;
+  refusal?: ResumeInPlaceRefusal | null;
+}): string {
+  if (answer.landing !== null) return resumeInPlaceNote(answer.landing);
+  const refusal = answer.refusal;
+  if (refusal != null && RESUME_IN_PLACE_REFUSALS.includes(refusal)) {
+    return resumeInPlaceRefusalNote(refusal);
+  }
+  return 'Tortie typed nothing and did not say why.';
 }

@@ -38,7 +38,11 @@ export const sessions: InstalledSessionsApi = {
   askRestoreProject: (input) => invoke('sessions:askRestoreProject', input),
   // Phase 81. Whether Tortie has the PATH from the user's login shell yet.
   // The five Restore controls are off until this resolves.
-  shellPathReady: () => invoke('sessions:shellPathReady')
+  shellPathReady: () => invoke('sessions:shellPathReady'),
+  // Phase 141. Put the resume command back on the prompt of a session whose
+  // agent left the shell running. Main types it and reads the screen back; the
+  // person presses Enter.
+  resumeInPlace: (sessionId) => invoke('sessions:resumeInPlace', sessionId)
 };
 
 /**

@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import type { Session, SessionMachine } from '@shared/types';
+import type { Session, SessionMachine, SessionStatus } from '@shared/types';
 // Phase 73. The read only review reads one folder on one machine through the
 // machines bridge. It is feature detected the way Settings detects it, so a
 // build without the bridge simply does not offer the verb.
@@ -18,7 +18,7 @@ import type {
   MachineReviewList
 } from '@shared/ipc';
 import type { MenuItemSpec } from '../state/store';
-import { errorText, useApp } from '../state/store';
+import { effectiveStatusOf, errorText, useApp } from '../state/store';
 import { requestOpenFile } from '../state/open-file';
 import { statusVisual } from './status';
 import type { StatusVisual } from './status';
@@ -28,12 +28,18 @@ import {
   BARE_RESTART_SUBLABEL,
   BARE_RESTORE_LABEL,
   BARE_RESTORE_SUBLABEL,
+  RESUME_IN_PLACE_LABEL,
+  RESUME_IN_PLACE_SUBLABEL,
+  RESUME_VERB,
+  RESUME_VERB_TITLE,
   hasRestoreMaterial,
   offersBareRecovery,
   resumeMarkLabel,
   resumeNote,
-  resumeReadiness
+  resumeReadiness,
+  showsResumeVerb
 } from '../state/resume';
+import type { SessionHandback } from '../state/resume';
 import { Codicon } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import { openOverviewForSession } from '../overview/open-overview';
@@ -87,7 +93,8 @@ export function sessionTooltip(
   session: Session,
   visual: StatusVisual,
   lastActivity: number | undefined,
-  now: number
+  now: number,
+  handback?: SessionHandback | undefined
 ): string {
   const age = formatAge(lastActivity ?? session.createdAt, now);
   const parts = [session.agent, visual.label, age];
@@ -105,9 +112,16 @@ export function sessionTooltip(
   // over there. A machine that is not answering gets no note at all, because
   // the badge beside the row already says it did not answer and a promise to
   // ask every 5 seconds would be false beside it.
+  //
+  // PHASE 141 hands the same slot the handback sentence when this row has one.
+  // The three sentences it can carry are in resume.ts, and the one that used to
+  // be here for an armed row was true and pointed a person at a restart while
+  // their conversation was one press away in the session in front of them. A
+  // row on another machine never has a record, because Tortie never witnessed a
+  // process over there, so that branch is untouched.
   const note =
     session.machine === undefined
-      ? resumeNote(session)
+      ? resumeNote(session, handback)
       : session.machine.answering
         ? remoteStatusNote(session.machine.label)
         : null;
@@ -139,7 +153,8 @@ export function resumeMark(session: Session): string | null {
  */
 export function sessionAriaLabel(
   session: Session,
-  visual: StatusVisual
+  visual: StatusVisual,
+  handback?: SessionHandback | undefined
 ): string {
   const mark = resumeMark(session);
   // Phase 70. The machine badge is a descendant of a row that carries its own
@@ -149,7 +164,19 @@ export function sessionAriaLabel(
   // which is every session before this release.
   const machine =
     session.machine === undefined ? '' : `, ${badgeTitle(session.machine.label)}`;
-  return `${session.name}, ${visual.label}${mark === null ? '' : `, ${mark}`}${machine}`;
+  // PHASE 141, and it is here for the same reason the machine badge is. The
+  // word carrying the verb is a descendant of a row that owns an `aria-label`,
+  // so its own name is never read, and a person using a screen reader would be
+  // told nothing about the one verb on the row. The fragment asks the SAME
+  // predicate that draws the word, so it is added only while the verb is
+  // actually drawn: a record alone is not enough, because markLeft publishes
+  // 'left' for agents that hand Tortie no conversation id, and those rows
+  // have nothing to resume. Every row without the drawn verb reads exactly as
+  // it did before this phase.
+  const resume = showsResumeVerb(session, handback, effectiveStatusOf(session))
+    ? `, ${RESUME_VERB.toLowerCase()} available`
+    : '';
+  return `${session.name}, ${visual.label}${mark === null ? '' : `, ${mark}`}${machine}${resume}`;
 }
 
 /**
@@ -173,6 +200,74 @@ export function ResumeMark({
     <span className="resume-mark">
       <Codicon name="folder" size={12} />
     </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 141 — the word on the row of a session whose agent left.
+//
+// ONE COMPONENT, DRAWN BY BOTH ROW SURFACES, and that is the whole reason it
+// lives in this file. Sessions on the right and sessions on top are two
+// surfaces a person switches between, and a verb written into one of them is
+// invisible to half the product. `ResumeMark`, `SavedMark`, `EndSessionButton`
+// and `ReadLastLinesButton` above all follow the same rule for the same reason.
+//
+// IT IS NOT A STATUS, A BADGE OR A COUNT. It is a word that is either on one
+// row or on no row at all. The status dot beside it is untouched and stays
+// hollow, because nothing is running and that is true.
+// ---------------------------------------------------------------------------
+
+/** This session's handback record, or undefined when it has none. */
+export function useSessionHandback(
+  session: Session
+): SessionHandback | undefined {
+  return useApp((s) => s.handbacks[session.id]);
+}
+
+/**
+ * The word itself.
+ *
+ * A real `<button type="button">` rather than a span, because it does
+ * something. `tabIndex={-1}` matches `EndSessionButton` beside it: the row owns
+ * the keyboard and a second tab stop per row would put a person through two
+ * stops for every session in the list. The keyboard road to this verb is the
+ * Session menu in the menu bar, which is also the only road that works in
+ * session focus mode.
+ *
+ * The click stops propagating, because the row underneath it selects a session
+ * and choosing a verb is not choosing a row.
+ *
+ * IT TAKES THE TWO FACTS AS PROPS rather than reading them from the store, and
+ * that is the shape `EndSessionButton` beside it already has. Both row surfaces
+ * hold the status and the record already, for the card sentence and the row's
+ * accessible name, so reading them a second time in here would be a second
+ * reading of one truth. It also keeps the component drivable from a test with
+ * no store behind it.
+ */
+export function ResumeVerb({
+  session,
+  handback,
+  status
+}: {
+  session: Session;
+  handback: SessionHandback | undefined;
+  status: SessionStatus;
+}): React.JSX.Element | null {
+  if (!showsResumeVerb(session, handback, status)) return null;
+  return (
+    <button
+      type="button"
+      className="resume-verb"
+      tabIndex={-1}
+      title={RESUME_VERB_TITLE}
+      aria-label={`${RESUME_VERB} ${session.name}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        void useApp.getState().resumeInPlace(session.id);
+      }}
+    >
+      {RESUME_VERB}
+    </button>
   );
 }
 
@@ -616,6 +711,16 @@ export function sessionMenuItems(
   // read here and on the ended card so the two cannot drift: this Mac, a
   // capture that is on, and a session that has ended.
   const offersBare = offersBareRecovery(session);
+  // PHASE 141. The row that puts the resume command on the person's prompt. It
+  // reads the same predicate the word on the row reads, so the menu and the row
+  // can never disagree about whether the verb exists. The `unknown` branch
+  // above deliberately does NOT get it: that branch keeps only the verbs that
+  // read Tortie's own records, and this one types into a live session.
+  const offersResumeInPlace = showsResumeVerb(
+    session,
+    s.handbacks[session.id],
+    status
+  );
 
   return [
     {
@@ -682,6 +787,21 @@ export function sessionMenuItems(
           }
         ]
       : []),
+    // PHASE 141. It sits directly above the read only rows, because it is the
+    // one verb on this menu that acts on the session in front of the person,
+    // and well above the separator and End session. Its second line says where
+    // the command goes and who presses Enter, which are the two things a person
+    // needs before choosing it. A native menu carries no tooltip, so that grey
+    // line is the only room the menu has to say either.
+    ...(offersResumeInPlace
+      ? [
+          {
+            label: RESUME_IN_PLACE_LABEL,
+            sublabel: RESUME_IN_PLACE_SUBLABEL,
+            run: () => void useApp.getState().resumeInPlace(session.id)
+          }
+        ]
+      : []),
     showLoadedItem(session),
     savedOutputItem(session),
     catchMeUpItem(session),
@@ -729,6 +849,14 @@ export function closeSession(session: Session): void {
 
 /** Re-export for surfaces that already import from here. */
 export { statusVisual };
+
+/**
+ * PHASE 141. Re-exported for the same reason `statusVisual` is: the surfaces
+ * and the tests already import their session vocabulary from this file. The
+ * rule itself lives in ../state/resume.ts, because the sessions slice reads it
+ * too and a state module cannot import an app one.
+ */
+export { showsResumeVerb };
 
 // ---------------------------------------------------------------------------
 // Shared rename gesture (extracted by the Phase-10 integrator dup-scan —

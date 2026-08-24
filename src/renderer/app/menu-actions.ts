@@ -54,9 +54,46 @@ import {
 /** `focus-session:<id>` — see FocusSessionActionId in src/shared/ipc.ts. */
 const FOCUS_SESSION_PREFIX = 'focus-session:';
 
+/**
+ * PHASE 141 — Session > Resume Conversation.
+ *
+ * WHY THE MENU BAR ROW IS NOT OPTIONAL. The row on the session itself is the
+ * obvious road to this verb, and it does not exist in session focus mode, where
+ * the session list is hidden by design. The menu bar is the only surface that
+ * works there, so it carries the same verb.
+ *
+ * IT IS ALWAYS PRESENT AND IT ACTS ON THE ACTIVE SESSION, returning in silence
+ * when that session's agent has not left. That is not an invention: `end-session`
+ * below already returns in silence when the active session has ended. The menu
+ * bar template has no per session rebuild path, only the recents, updates,
+ * machines and hotkeys subscriptions, so a row that greys itself per session is
+ * not buildable without a new rebuild trigger and this phase does not add one.
+ *
+ * IT CARRIES NO ACCELERATOR, deliberately, and for the reason End Session
+ * carries none: it acts on a live session a person is looking at, and typing
+ * into that session deserves the same care as ending it.
+ */
+export const RESUME_CONVERSATION_ACTION = 'resume-conversation';
+
 export function runMenuAction(action: AnyMenuActionWithProjects): void {
   const s = useApp.getState();
   const layerOpen = modalLayerOpen();
+
+  // PHASE 141. This is read before the switch rather than as a case in it, and
+  // the reason is a build ordering one rather than a design one: the id belongs
+  // in `MenuActionId` in src/shared/ipc/app.ts, which this phase adds, and a
+  // switch over that union cannot name a member the union does not carry yet.
+  // Once the id is in the union this branch is one `case` line in the switch
+  // beside `end-session`, and nothing about what it does changes.
+  if ((action as string) === RESUME_CONVERSATION_ACTION) {
+    const target = s.activeSession();
+    if (!target) return;
+    // Every condition worth checking is checked once, in the store's own verb:
+    // this Mac, a session whose agent actually left, and one press at a time.
+    // A second reading here would be a second answer to the same question.
+    void s.resumeInPlace(target.id);
+    return;
+  }
 
   switch (action) {
     case 'new-session':

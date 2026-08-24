@@ -76,6 +76,10 @@ describe('every public method of GmuxCore kept its name', () => {
     'boot',
     'snapshotAllSessions',
     'restoreSession',
+    // Phase 141. The same verb aimed at a session that is still alive: its
+    // agent left and its shell carried on, so nothing is recreated and the
+    // recorded command is typed onto the prompt that is already there.
+    'resumeSessionInPlace',
     'scheduleRefresh',
     'refresh',
     'startStatusWatcher',

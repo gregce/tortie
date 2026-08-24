@@ -57,8 +57,10 @@ import {
   GmuxHookServer,
   hooksEnabled,
   readPreferredHookPort,
+  readProcSnapshot,
   SessionActivityMonitor,
   writePreferredHookPort,
+  type ActivityMonitorDeps,
   type ActivitySession
 } from '../activity';
 import { AttachHost } from '../attach';
@@ -269,6 +271,15 @@ import {
   takeManifestGenerationOnSuspend,
   type QuitGenerationDeps
 } from './quit-generation';
+// PHASE 141. The verb for a session whose agent left its shell running, the
+// guard that runs at the moment of the press, and the one function that may
+// bind a conversation to a row on that path. It imports nothing from this
+// file: it reads the core through the harvest feed's own dependency object,
+// which this class already builds.
+import {
+  ResumeInPlaceService,
+  type ResumeInPlaceResult
+} from './resume-in-place';
 import { snapshotRecipeOf } from './launch-plan';
 import {
   claimStrengthOf,
@@ -470,6 +481,14 @@ export class GmuxCore {
   /** Phase 13: per-agent activity detection (src/main/activity). */
   readonly activity: SessionActivityMonitor;
   /**
+   * Phase 141. The one verb for a session whose agent left its shell running.
+   *
+   * It holds a FACT per session and never a status, so it has no path to
+   * `applyDetectedStatus` and none to a dot. The activity poll hands it the
+   * two edges and it decides everything after them.
+   */
+  readonly resumeInPlace: ResumeInPlaceService;
+  /**
    * Phase 138. Turns a turn boundary into at most one fold per session per
    * minute. It holds no timer of its own beyond a settle timer armed by a
    * boundary, so a fleet that is idle costs nothing.
@@ -656,15 +675,64 @@ export class GmuxCore {
       }
     });
     this.control = new tmux.TmuxControlClient();
+    // PHASE 141. Built before the monitor, because the monitor's own
+    // dependency object hands it the drop and return edges.
+    this.resumeInPlace = new ResumeInPlaceService({
+      harvest: this.harvestDeps,
+      exec: (args) => tmux.execTmux(args),
+      // The fact rides the activity facts event beside the excerpt and the
+      // age, which is the channel that already exists for things that are NOT
+      // a status. Nothing here touches the manifest projection, so there is no
+      // code path from this value to a session's dot.
+      publish: (updates) => {
+        broadcast(EVT_ACTIVITY_CHANGED, [...updates]);
+      },
+      // PHASE 141, wired at integration. The poll holds a handback state of its
+      // own and it has to be told when a return has been decided, or a session
+      // it watched come back stays `returning` in the poll for the rest of the
+      // run while the window was told the answer seconds after it happened.
+      onResolved: (sessionId, outcome) => {
+        this.activity.noteHandbackResolved(sessionId, outcome);
+      }
+    });
     this.hookServer = new GmuxHookServer({
       onEvent: (sessionId, state) => {
         this.activity.noteHookEvent(sessionId, state);
       },
       onSessionEnd: (sessionId) => {
-        this.activity.forget(sessionId);
+        // PHASE 141. THE FREE ACCELERATOR, and it runs BEFORE the state that
+        // holds the witness is dropped. Claude's own hook reaches this line the
+        // instant a claude session ends, which removes the poll wait for the
+        // agent the operator uses most. It is never a dependency: every other
+        // agent, and claude with no hook installed, takes the ordinary tick.
+        //
+        // TWO READINGS, WIRED AT INTEGRATION, and they answer different
+        // questions. `checkWitness` asks the poll whether the process it
+        // watched being the agent is still there, which is the phase's own rule
+        // and costs one process read. `noteAgentEnded` asks the session itself
+        // whether anything is running in it, which is what answers for a claude
+        // session the poll never managed to take a witness for. Whichever
+        // decides first wins and the second is a no operation, because a record
+        // that already says the agent left is never written twice.
+        //
+        // FORGETTING WAITS FOR THE FIRST OF THEM, because forgetting drops the
+        // witness along with everything else, and a check that ran afterwards
+        // could never see anything.
+        this.resumeInPlace.noteAgentEnded(sessionId);
+        void this.activity.checkWitness(sessionId).finally(() => {
+          // KEEP THE DROP. This session is still there and the person may type
+          // their resume into it at any moment, which only the poll can see.
+          // Forgetting it whole meant the monitor began the next tick knowing
+          // nothing, so the return was never noticed and the row went on
+          // offering the verb with the agent already back.
+          this.activity.forget(sessionId, true);
+        });
       }
     });
-    this.activity = new SessionActivityMonitor({
+    // PHASE 141 named this literal rather than passing it inline, so the one
+    // new callback below reads beside the others rather than at the end of a
+    // constructor argument. Nothing else about it changed.
+    const activityDeps: ActivityMonitorDeps = {
       sessions: () => this.activitySessions(),
       exec: tmux.execTmux,
       run: this.runScrollCommand,
@@ -687,8 +755,36 @@ export class GmuxCore {
       // status: noteTurnBoundary returns void.
       onTurnBoundary: (sessionId) => {
         this.fold.noteTurnBoundary(sessionId);
-      }
-    });
+      },
+      // PHASE 141. The drop edge and the return edge, and nothing else. The
+      // poll is the only thing that watches processes every second, so it
+      // detects the edge; every decision after the edge is made in
+      // ./resume-in-place.ts. It may never set a status and it does not.
+      onHandback: (sessionId, observation) => {
+        this.resumeInPlace.noteHandback(sessionId, observation);
+      },
+      // PHASE 141, wired at integration, and it closes the codex hole the
+      // builder left open on purpose because it is a cost decision.
+      //
+      // The witness is free for an agent whose own oracle cannot answer,
+      // because such a session is already ambiguous and the tick already holds
+      // the process table. It is NOT free for codex: its title oracle answers
+      // `idle` whenever the pane title is the working directory's name, so an
+      // idle codex session never joins the ambiguous set, the table is never
+      // read for it, and it would run its whole life with no witness and never
+      // offer the verb. The phase's own coverage table names codex in the row
+      // that says the drop is seen, so leaving it out would have made that
+      // table untrue.
+      //
+      // WHAT IT COSTS, and why it is bounded. One process table, at most once
+      // every five seconds, and only on a tick where some agent session still
+      // has no witness. As soon as every agent session has one, this stops
+      // being called at all, so it is a start up cost rather than a running
+      // one. The snapshot goes ONLY to the witness recorder and never into a
+      // verdict's inputs, so no session's dot moves because of it.
+      readProcForWitness: () => readProcSnapshot()
+    };
+    this.activity = new SessionActivityMonitor(activityDeps);
     this.fold = new FoldScheduler(
       foldSchedulerDepsFor({
         manifest,
@@ -1854,6 +1950,12 @@ export class GmuxCore {
         .catch(() => undefined) // unreachable server — next tick retries
         .finally(() => {
           this.statusPollBusy = false;
+          // PHASE 141, added at integration. The handback publish is otherwise
+          // an edge, and an edge is lost on a window that reloaded after it
+          // went out. This repeats the whole map at its own slower cadence and
+          // returns on its second line while nothing has dropped, which is the
+          // ordinary case. It reads no screen and no process table.
+          this.resumeInPlace.heartbeat();
         });
     }, intervalMs);
     // Never hold the process open just for the poll (smoke harness exits).
@@ -1960,6 +2062,10 @@ export class GmuxCore {
           : '')
     );
     this.activity.forget(sessionId);
+    // PHASE 141, added at integration. A session that has ended holds no
+    // handback, and this is what tells every window to drop the record rather
+    // than leaving it for the next sweep.
+    this.resumeInPlace.forget(sessionId);
     this.hookServer.revoke(sessionId);
     broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
   }
@@ -2449,6 +2555,10 @@ export class GmuxCore {
     // without this the debounced tail of the conversation is simply lost.
     this.queueCaptureSync(rec);
     this.activity.forget(sessionId);
+    // PHASE 141, added at integration. A session that has ended holds no
+    // handback, and this is what tells every window to drop the record rather
+    // than leaving it for the next sweep.
+    this.resumeInPlace.forget(sessionId);
     this.hookServer.revoke(sessionId);
     broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
     this.broadcastSessions();
@@ -2551,6 +2661,10 @@ export class GmuxCore {
     if (live !== undefined) this.byTmuxId.delete(live);
     this.liveIds.delete(sessionId);
     this.activity.forget(sessionId);
+    // PHASE 141, added at integration. A session that has ended holds no
+    // handback, and this is what tells every window to drop the record rather
+    // than leaving it for the next sweep.
+    this.resumeInPlace.forget(sessionId);
     this.hookServer.revoke(sessionId);
     void deleteSnapshot(sessionId).catch(() => undefined);
     rm(claudeHookSettingsPath(sessionId), { force: true }).catch(
@@ -2851,6 +2965,28 @@ export class GmuxCore {
     await this.ledger.join(deadlineMs);
   }
 
+  /**
+   * PHASE 141. Put the command that continues this session's conversation back
+   * on the person's prompt, and say what the screen showed afterwards.
+   *
+   * IT NEVER PRESSES ENTER. The person presses Enter, at the end of the line
+   * Tortie typed, in the session he is already looking at. That is the only
+   * press that starts anything, and it is the same promise the armed restore
+   * has made since the first release.
+   *
+   * A SESSION ON ANOTHER MACHINE IS NOT SERVED AND SAYS SO. There is no local
+   * process table over there, so no witness can ever exist for such a row, and
+   * `resumeMark` in the renderer already returns nothing for every remote row
+   * for the same family of reasons. A remote version of this would be its own
+   * phase.
+   */
+  async resumeSessionInPlace(sessionId: string): Promise<ResumeInPlaceResult> {
+    if (isRemoteSessionId(sessionId)) {
+      return { landing: null, refusal: 'not-here', before: 0, after: 0 };
+    }
+    return this.resumeInPlace.resumeInPlace(sessionId);
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -2883,6 +3019,10 @@ export class GmuxCore {
     this.unwatchSettings?.();
     this.unwatchSettings = null;
     this.activity.dispose();
+    // PHASE 141. Its confirmation timers are unref'd, so this is about a
+    // settle landing after teardown rather than about holding the process
+    // open: a confirmation that fired later would touch a closed manifest.
+    this.resumeInPlace.dispose();
     this.fold.dispose();
     setLiveFoldScheduler(null);
     this.hookServer.stop();

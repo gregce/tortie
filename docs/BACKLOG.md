@@ -16053,19 +16053,51 @@ So the rule reads a WITNESS rather than a shape. Tortie remembers the specific p
 
 ### What lands
 
-- **The drop.** Within 0.6 s to 1.6 s of the witnessed process ending, the word Resume appears on that session's row, and nowhere else. No badge, no count, no status. Phase 23 refusal 5 is untouched, because this is not a status.
+- **The drop.** Within 0.6 s to 1.6 s of the witnessed process ending, the word Resume appears on that session's row, and nowhere else. Five measured trials came in between 390 ms and 1,055 ms. The read rides the activity poll, which slows from one second to two while the window is not focused, so the ceiling is about two seconds in that case and the person is not looking at the row then. No badge, no count, no status. Phase 23 refusal 5 is untouched, because this is not a status.
 - **The press.** Choosing Resume, from the row or the session menu, types the resume command onto his prompt through the arming door `src/main/machines/remote-arm.ts` already shipped in Phase 89, which reads the screen back and says whether the command landed. **He presses Enter.** Nothing starts on Tortie's initiative.
 - **The return he types himself.** When a new process appears in that pane, Tortie asks the agent which conversation it is in and re-adopts the session ONLY when the answer matches what the row already holds. When it cannot be sure, it stays unadopted and says so, because adopting the wrong conversation is the worst outcome available here.
 - **Every conversation id write goes through one function**, being `claimConversationId`, so an unconfirmed click can never overwrite a saved id. Design B was rejected partly for allowing exactly that.
 
-### Coverage on day one, from research 64 section 6
+### Coverage on day one, MEASURED in the fix round rather than read
+
+The table below replaces the one this entry carried when it was queued, which
+was copied from research 64 section 6. The Tier 3 verifier launched all ten
+installed agents by bare name inside real tmux sessions on its own scratch
+server, read each pane's foreground child with `ps -o command=`, and fed those
+measured strings through the shipped matcher. Two rows of the research's claim
+did not survive that, and the fix round closed one of them in code and wrote
+the other two down here.
 
 | What works | Agents |
 | --- | --- |
 | Drop seen, verb offered, return seen | 10 of the 11 that run in a session, being claude, codex, cursor, gemini, deepseek, antigravity, muse, qwen, pi and grok |
-| Conversation confirmed with no help from him | 5, being claude at 0.80 s, codex at 1.91 s, plus muse, antigravity and cursor |
-| Confirmed only when he pastes a command carrying the id | 4, being gemini, pi, grok and qwen |
-| Cannot be confirmed at all | deepseek, whose store is keyed on the workspace, and droid, for which no conversation id is ever captured |
+| Conversation confirmed with no help from him | 2, being claude and antigravity |
+| Confirmed when he pastes a command carrying the id | every one of the ten above except pi, whose own arguments are unreadable |
+| Cannot be confirmed at all | pi, and droid, for which no conversation id is ever captured |
+
+Four corrections, and each one is a measurement:
+
+- **muse and qwen reached row one only because the fix round widened the
+  matcher.** Neither process carries its own name. muse's launcher ends in a
+  plain `exec "$binary" "$@"` with no `-a`, so the process reads
+  `.../muse-bin-0.2.1-R1215.1`, and qwen's launcher execs its own bundled node
+  on `.../qwen-code/lib/cli-entry.js`. As queued, both got no witness, no drop
+  and no verb.
+- **Row two is 2 rather than 5.** The research counted codex and cursor on an
+  open descriptor reader that this tree does not have, and counted muse on a
+  reader that walks its store by pane rather than by time, which it also does
+  not have. Writing either was never in this phase, and the module says so at
+  the source. The 0.80 s and 1.91 s figures in the research were not
+  reproduced: claude's own record arrived after 2,102 ms on this Mac, and in a
+  directory claude has not been trusted in it never arrived at all, which drops
+  that row back to the command line for that one session.
+- **pi cannot be confirmed at all.** Its own startup sets the process title,
+  which on macOS overwrites the argument area, so the only string Tortie can
+  read is the single word `pi`. Its witness, its drop and its verb all work.
+- **The verb is offered only on a row that holds a conversation to put back.**
+  droid never captures one, so droid never gets the word, and neither does any
+  other row whose id was never harvested. That was the shipped behaviour of the
+  press all along, and the fix round moved the same condition onto the word.
 
 10 of his 16 live session shapes are served. The other 6 run the agent as the session's own program, so its exit ends the session and Restore already covers them.
 
@@ -16085,7 +16117,7 @@ So the rule reads a WITNESS rather than a shape. Tortie remembers the specific p
 - **Nothing is ever typed into his session unasked.** Candidate A proposed it and is dead: its own gate is unbuildable, because `capture-pane` strips the trailing space so an empty line check is exactly inverted, and with his right side prompt a captured row reads 99 of 100 columns whether the line is empty or holds `rm -rf build`. An adversary measured a file changed on disk by the armed text alone.
 - No status, no badge, no count. The verb appears on one row or it does not.
 - No change to Restore, to the manifest schema beyond what the conversation id already uses, to the tmux layer or to session addressing.
-- No detection of a drop that happened while Tortie was closed, for most rows. Section 4.4 of the research names which rows survive a restart and why.
+- **No detection of a drop that happened while Tortie was closed, for any row.** The witness lives in memory and nothing about it is written down, so a restart of Tortie forgets every drop it had seen. Research 64 section 4.6 asked for two manifest columns that would have let a row naming the same live screen get its verb back, and this phase does not add them. The entry said "for most rows" when it was queued, which overstated what ships.
 - Nothing for a session created fresh rather than restored, since the agent is that session's own program there and its exit ends the session outright.
 
 

@@ -42,12 +42,14 @@ import { useNow } from '../format';
 import {
   RenameInput,
   ResumeMark,
+  ResumeVerb,
   EndSessionButton,
   SavedMark,
   isOutsideProject,
   sessionAriaLabel,
   sessionTooltip,
-  useRenameDraft
+  useRenameDraft,
+  useSessionHandback
 } from './session-actions';
 import { MachineBadge } from './MachineBadge';
 import { AgentIcon, Codicon } from '../icons';
@@ -88,6 +90,10 @@ function DockRow({
   now: number;
 }): React.JSX.Element {
   const lastActivity = useApp((s) => s.lastActivity);
+  // PHASE 141. The row reads its own handback record for the card sentence and
+  // for its accessible name. The word itself reads the record again inside
+  // `ResumeVerb`, so a surface that draws the word never has to plumb it.
+  const handback = useSessionHandback(session);
   const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session);
   const rename = useRenameDraft(session);
@@ -100,13 +106,19 @@ function DockRow({
       <div
         role="option"
         aria-selected={selected}
-        aria-label={sessionAriaLabel(session, visual)}
+        aria-label={sessionAriaLabel(session, visual, handback)}
         data-session-id={session.id}
         data-surface-id={surface.id}
         title={
           renaming
             ? undefined
-            : sessionTooltip(session, visual, lastActivity[session.id], now)
+            : sessionTooltip(
+                session,
+                visual,
+                lastActivity[session.id],
+                now,
+                handback
+              )
         }
         className={[
           'srow',
@@ -143,6 +155,10 @@ function DockRow({
           </span>
         ) : null}
         <span className="srow-space" />
+        {/* Phase 141: the word for a session whose agent left, in the slot the
+            resume mark already occupies and immediately before the dot. The dot
+            itself is untouched and stays hollow. */}
+        <ResumeVerb session={session} handback={handback} status={status} />
         <ResumeMark session={session} />
         <span className={`dot dot-${visual.dot}`} />
         {status === 'restorable' ? <SavedMark className="srow-saved" /> : null}

@@ -286,8 +286,14 @@ export function restoreRecordOf(
  * Type literal text into a session's active pane. `-l` sends the string
  * verbatim (no key-name lookup); the trailing named `Enter` is sent only
  * when `pressEnter` — the armed resume command is typed WITHOUT it.
+ *
+ * PHASE 141 exported it, and that is the whole change to this file. The resume
+ * a person asks for in a session whose agent has left is typed with the SAME
+ * function and the same quoting the armed restore has always used, so the two
+ * lines cannot drift into two different sends. Its one new caller is
+ * `../sessions/resume-in-place.ts`, which passes `pressEnter` false.
  */
-async function typeIntoPane(
+export async function typeIntoPane(
   target: string,
   text: string,
   pressEnter: boolean

@@ -526,6 +526,20 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // Deliberately unaccelerated: ending a session is menu-only and
         // always confirmed (DESIGN.md §4).
         item('End Session…', 'end-session'),
+        // Phase 141. Sits with End Session and is unaccelerated for the same
+        // reason: it acts on the live session the person is looking at, and
+        // typing into that session deserves the same care as ending it.
+        //
+        // It is always present and never greyed. The menu bar template is
+        // rebuilt for recents, updates, machines and hotkeys and for nothing
+        // per session, so a row that greyed itself per session would need a
+        // rebuild trigger this phase does not add. The renderer returns
+        // silently when the active session's agent has not left, which is what
+        // 'end-session' already does for a session that has exited.
+        //
+        // This is the only surface for the verb in session focus mode, where
+        // the session list is hidden by design, so it is not optional.
+        item('Resume Conversation', 'resume-conversation'),
         // User-recorded per-agent shortcuts (S13 Hotkeys) — present only
         // when assigned; rebuilt on every hotkey change.
         ...agentHotkeyItems(),

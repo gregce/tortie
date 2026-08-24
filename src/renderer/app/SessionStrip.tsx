@@ -37,12 +37,14 @@ import {
   ReadLastLinesButton,
   RenameInput,
   ResumeMark,
+  ResumeVerb,
   EndSessionButton,
   SavedMark,
   isOutsideProject,
   sessionAriaLabel,
   sessionTooltip,
-  useRenameDraft
+  useRenameDraft,
+  useSessionHandback
 } from './session-actions';
 import { MachineBadge } from './MachineBadge';
 import { AgentIcon, Codicon } from '../icons';
@@ -117,6 +119,9 @@ function SessionTab({
 }): React.JSX.Element {
   const lastActivity = useApp((s) => s.lastActivity);
   const setActiveSession = useApp((s) => s.setActiveSession);
+  // PHASE 141. Sessions on top is where his eyes already are, so this surface
+  // draws the same word the dock draws, from the same component.
+  const handback = useSessionHandback(session);
 
   const status = effectiveStatusOf(session);
   const visual = statusVisual(status, session);
@@ -127,7 +132,8 @@ function SessionTab({
     session,
     visual,
     lastActivity[session.id],
-    now
+    now,
+    handback
   );
   const ended = status === 'exited' || status === 'restorable';
 
@@ -135,7 +141,7 @@ function SessionTab({
     <div
       role="tab"
       aria-selected={active}
-      aria-label={sessionAriaLabel(session, visual)}
+      aria-label={sessionAriaLabel(session, visual, handback)}
       tabIndex={active ? 0 : -1}
       data-session-id={session.id}
       data-surface-id={surface.id}
@@ -186,6 +192,8 @@ function SessionTab({
           <Codicon name="git-branch" size={12} />
         </span>
       ) : null}
+      {/* Phase 141: same word, same slot, one component. */}
+      <ResumeVerb session={session} handback={handback} status={status} />
       <ResumeMark session={session} />
       <span className={`dot dot-${visual.dot}`} />
       {status === 'restorable' ? <SavedMark className="stab-saved" /> : null}

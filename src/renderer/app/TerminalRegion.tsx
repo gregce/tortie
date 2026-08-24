@@ -52,7 +52,8 @@ import {
   RenameInput,
   resumeMark,
   sessionMenuItems,
-  useRenameDraft
+  useRenameDraft,
+  useSessionHandback
 } from './session-actions';
 import {
   BARE_RECOVERY_NOTE,
@@ -94,6 +95,12 @@ export function IdentityStrip({
   // Phase 70: null for a session on another machine, because the mark answers
   // a question about a restart that Tortie will not perform there.
   const mark = resumeMark(session);
+  // PHASE 141. The record for this session, when its agent has left. It is
+  // read here for one reason: without it this band's sentence reads "Its
+  // conversation comes back after a restart", which is true and points a
+  // person at a restart while the conversation is one press away in the
+  // session in front of them.
+  const handback = useSessionHandback(session);
   // Marker suffix so the dock row's rename input (plain id) never doubles up.
   const rename = useRenameDraft(session, `strip:${session.id}`);
   const renaming = rename.renaming;
@@ -134,7 +141,10 @@ export function IdentityStrip({
       {/* The strip has room the 24px rows do not, so here the resume state is
           words rather than a glyph — DESIGN.md §1.3's own split. */}
       {mark !== null ? (
-        <span className="strip-resume" title={resumeNote(session) ?? undefined}>
+        <span
+          className="strip-resume"
+          title={resumeNote(session, handback) ?? undefined}
+        >
           <Codicon name="folder" size={12} />
           {mark}
         </span>

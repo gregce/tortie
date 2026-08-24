@@ -72,6 +72,26 @@ export interface RestoreInvokeChannelMap {
     req: [sessionId: string, options?: CaptureChoice];
     res: RestoreSession;
   };
+  /**
+   * Phase 141. Type the command that continues this session's conversation
+   * onto the prompt of the session it is already running in, and read the
+   * screen back to say whether it landed. THE PERSON PRESSES ENTER. Tortie
+   * never does, on this channel or on any other.
+   *
+   * Main re-reads that one session at the moment of the press and refuses,
+   * having typed nothing, when the session is not in the state the last poll
+   * described. A poll answer up to two seconds old is not good enough to type
+   * into a live session with. See {@link ResumeInPlaceResult}.
+   *
+   * It never creates, kills or renames anything, and it never touches a row's
+   * conversation id. It always resolves: a refusal is an answer a person reads
+   * rather than an error, and it comes back with a null landing and a
+   * {@link ResumeInPlaceRefusal} that says why nothing was typed.
+   */
+  'sessions:resumeInPlace': {
+    req: [sessionId: string];
+    res: ResumeInPlaceResult;
+  };
   /** Read the 'Launch gmux at login' state (app.getLoginItemSettings). */
   'app:getLoginItem': { req: []; res: { openAtLogin: boolean } };
   /**
@@ -101,6 +121,12 @@ export interface GmuxSessionRestoreExtras {
     sessionId: string,
     options?: CaptureChoice
   ): Promise<RestoreSession>;
+  /**
+   * Phase 141. Put the command that continues this session's conversation back
+   * on its own prompt, and say whether it landed. Nothing runs: the person
+   * presses Enter.
+   */
+  resumeInPlace(sessionId: string): Promise<ResumeInPlaceResult>;
 }
 
 /**
@@ -147,6 +173,19 @@ export interface SessionActivityInfo {
   excerpt?: string;
   /** Epoch ms of the last output tmux saw in that pane. */
   lastActivityAt?: number;
+  /**
+   * Phase 141. Whether the agent Tortie watched in this session has left the
+   * shell running, and what has happened since. See {@link SessionHandbackInfo}.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. `SessionStatus` gains no
+   * member for it and the status dot is not drawn from it.
+   *
+   * Absent means this update carries no news about the handback, exactly as an
+   * absent `excerpt` does, and the renderer keeps what it already had. Main
+   * sends an explicit `{ state: 'none' }` on the tick a session stops being
+   * dropped, so the renderer never has to read a clear out of an absence.
+   */
+  handback?: SessionHandbackInfo;
 }
 
 /** New event channel appended by the activity stream. */
@@ -398,4 +437,137 @@ export interface ShellPathInvokeChannelMap {
  */
 export interface GmuxShellPathExtras {
   shellPathReady(): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 141 (the drop to a plain shell, and the way back) — one
+// optional field on the activity payload, one invoke channel, and one preload
+// method. Nothing above was changed except the `handback` line inside
+// SessionActivityInfo, which is annotated where it sits.
+//
+// WHY THE ACTIVITY PAYLOAD AND NOT THE SESSION PROJECTION. An agent that left
+// its shell running is a runtime fact about a pane, in the same family as the
+// excerpt and the last-output time that already ride this channel. It is NOT a
+// status, and Phase 23 refusal 5 says nothing may set one. Carrying it here
+// rather than on `Session` is what makes that refusal structural: there is no
+// code path from this field to a status dot, because the field never reaches
+// the manifest projection at all.
+//
+// WHY THE CHANNEL LIVES IN THE RESTORE MAP. `sessions:resumeInPlace` is
+// registered in src/main/restore/ipc.ts beside `sessions:restore`, and it is
+// the same verb aimed at a session that is still alive. It is folded into
+// GmuxInvokeChannelMap through RestoreInvokeChannelMap, so src/shared/ipc/
+// index.ts needs no edit for it.
+// ---------------------------------------------------------------------------
+
+/**
+ * What Tortie can say about an agent that left the shell running.
+ *
+ * There are four answers and no fifth, and none of them is a status.
+ *
+ * - `none`: nothing to say. Either an agent is running, or this session was
+ *   always a shell, or Tortie never watched an agent alive in it.
+ * - `left`: the process Tortie watched being the agent has gone, and nothing
+ *   has run in that session since. This is the only state that offers the
+ *   verb.
+ * - `returning`: something is running in that session again and Tortie has not
+ *   been told which conversation it is in yet.
+ * - `unconfirmed`: something is running and Tortie could not confirm that it
+ *   is the conversation the row holds. The row stays unadopted and says so,
+ *   because adopting the wrong conversation is the worst outcome here.
+ *
+ * A RESTORED SESSION SITTING WITH ITS COMMAND ARMED AND UNPRESSED IS `none`.
+ * That session's own program is the login shell and its shape is byte for byte
+ * the shape of a session whose agent left, so the rule behind this field reads
+ * a witness, being a specific process Tortie watched alive, and never a shape.
+ * Tortie never watched an agent alive in a session it has only just restored,
+ * so there is no witness to lose and the field stays `none`.
+ */
+export type SessionHandbackState = 'none' | 'left' | 'returning' | 'unconfirmed';
+
+/**
+ * The handback fact for one session, plus the one time a person is told.
+ *
+ * `leftAt` is the epoch ms at which the witnessed process went away. It is
+ * present for `left`, `returning` and `unconfirmed`, and absent for `none`.
+ * The renderer prints it as a time and never as a duration or a count.
+ */
+export interface SessionHandbackInfo {
+  state: SessionHandbackState;
+  /** Epoch ms the witnessed process went away. Absent while the state is `none`. */
+  leftAt?: number;
+}
+
+/**
+ * Landing of one `sessions:resumeInPlace` call: what the session's own screen
+ * showed after Tortie typed.
+ *
+ * These are the four answers `decideArmLanding` in
+ * src/main/machines/remote-arm.ts has produced since Phase 89, and there is no
+ * fifth. `absent` is a screen Tortie READ and did not find the command on;
+ * `unknown` is a screen Tortie could not read. Telling a person a thing is not
+ * there when nobody looked is a different claim from telling them it is not
+ * there, and the two are kept apart here for the same reason the restore gate
+ * keeps them apart.
+ *
+ * A REFUSAL IS NOT A LANDING. When Tortie types nothing there is no screen to
+ * read, so the landing is null and {@link ResumeInPlaceRefusal} says why.
+ *
+ * NOTHING IN THIS UNION MEANS A COMMAND RAN. Tortie types and never presses
+ * Enter, on this channel as on every other.
+ */
+export type ResumeInPlaceLanding = 'armed' | 'twice' | 'absent' | 'unknown';
+
+/**
+ * Why Tortie typed nothing. A token rather than a sentence, because every
+ * sentence a person reads about resume lives with the rest of the resume copy
+ * in the renderer.
+ *
+ * Four of these six come from the re-read of that ONE session at the moment of
+ * the press, and that re-read is the guard the whole design turns on: a poll
+ * answer up to two seconds old is not good enough to type into a live session
+ * with. An earlier candidate armed from a stale poll and an adversary measured
+ * the armed text landing inside a running agent's input box.
+ *
+ * THIS UNION IS WRITTEN DOWN TWICE, here and in
+ * src/main/sessions/resume-in-place.ts, because a renderer file cannot import
+ * main. `npm run conformance:handback` reads both and fails when they drift,
+ * which is the only thing that keeps two hand kept copies honest.
+ */
+export type ResumeInPlaceRefusal =
+  /** The row is not one that dropped, so there is nothing to put back. */
+  | 'not-dropped'
+  /** The session has no live pane on this Mac, or it is on another machine. */
+  | 'not-here'
+  /** The row records no conversation, so there is nothing to arm. */
+  | 'no-conversation'
+  /** Something is running in the session. Tortie types into nobody's program. */
+  | 'running'
+  /** The agent is back on its own. Nothing needs putting back. */
+  | 'agent-back'
+  /** Tortie could not compose a command out of its own compiled catalogue. */
+  | 'not-composed';
+
+/**
+ * What one press did. The renderer composes the sentence, so every word a
+ * person reads about this verb lives with the rest of the resume copy.
+ *
+ * EXACTLY ONE OF `landing` AND `refusal` IS SET. A landing means Tortie typed
+ * and then looked at the screen. A refusal means Tortie typed nothing, and
+ * there was no screen to look at.
+ *
+ * `before` and `after` are how many times the composed command was found on
+ * the session's screen, read once before the send and once after. They are
+ * what the landing was decided from, and they are returned so a probe can
+ * check the decision rather than trust it.
+ */
+export interface ResumeInPlaceResult {
+  /** Null when the command was refused before anything was sent. */
+  landing: ResumeInPlaceLanding | null;
+  /** Null when something was typed. */
+  refusal: ResumeInPlaceRefusal | null;
+  /** Copies of the command on the screen before the send. */
+  before: number;
+  /** Copies after. */
+  after: number;
 }

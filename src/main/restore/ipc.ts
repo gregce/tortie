@@ -11,6 +11,14 @@
  *                          the tombstone rather than deleting the row; the
  *                          CHANNEL NAME does not change, because renaming a
  *                          shipped channel breaks an old preload for nothing.
+ *   - sessions:resumeInPlace → GmuxCore.resumeSessionInPlace (Phase 141, the
+ *                          same verb aimed at a session that is still ALIVE:
+ *                          its agent left and its shell carried on, so there
+ *                          is nothing to recreate and the recorded resume is
+ *                          typed onto the prompt that is already there. It is
+ *                          registered beside sessions:restore because the two
+ *                          are one verb in two situations, and because both
+ *                          type a command and neither presses Enter.
  *   - sessions:listRemoved → GmuxCore.listRemovedSessions (Phase 29, the
  *                          Past Sessions panel's data: discarded rows,
  *                          newest removal first).
@@ -36,6 +44,15 @@ export function registerRestoreIpc(ipc: IpcMain): void {
   // restore, which is what it has always got.
   handle(ipc, 'sessions:restore', async (_e, sessionId, options) =>
     (await getGmuxCore()).restoreSession(sessionId, options)
+  );
+
+  // Phase 141. It ALWAYS resolves. A refusal is an answer a person reads
+  // rather than an error, so nothing here throws for a session that is not in
+  // the state the last poll described: main re-reads that one session at the
+  // moment of the press and comes back with a null landing and the token that
+  // says why it typed nothing.
+  handle(ipc, 'sessions:resumeInPlace', async (_e, sessionId) =>
+    (await getGmuxCore()).resumeSessionInPlace(sessionId)
   );
 
   handle(ipc, 'sessions:discard', async (_e, sessionId) => {

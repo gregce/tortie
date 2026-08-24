@@ -169,3 +169,154 @@ export function cpuPercent(
   const delta = Math.max(0, nextSeconds - prevSeconds);
   return (100 * delta) / (deltaMs / 1000);
 }
+
+// ---------------------------------------------------------------------------
+// Phase 141: the witness
+// ---------------------------------------------------------------------------
+
+/**
+ * What one `ps -o stat=,ppid= -p <pid>` said about a single process.
+ *
+ * This is the whole of the drop edge's per-tick cost, measured in research 64
+ * §4.2 at 2.5 ms, median of 15 runs. It reads ONE process id, never a tree,
+ * and it is taken only for a session that already has a witness.
+ */
+export interface WitnessReading {
+  /** `ps` printed a line for this exact pid. */
+  found: boolean;
+  /** The STAT column, e.g. `S+` or `T`. Empty when nothing was found. */
+  stat: string;
+  /** The parent it reported, or null when nothing was found. */
+  ppid: number | null;
+}
+
+const WITNESS_GONE: WitnessReading = { found: false, stat: '', ppid: null };
+
+/** Parse `ps -o stat=,ppid=` output for one process. */
+export function parseWitnessLine(stdout: string): WitnessReading {
+  for (const line of stdout.split('\n')) {
+    const f = line.trim().split(/\s+/);
+    const stat = f[0];
+    const parent = Number(f[1]);
+    if (stat === undefined || stat.length === 0) continue;
+    if (!Number.isInteger(parent)) continue;
+    return { found: true, stat, ppid: parent };
+  }
+  return WITNESS_GONE;
+}
+
+/**
+ * Read the witnessed process. A failed read means gone: `ps` exits non-zero
+ * when the pid does not exist, and a pid that does not exist is exactly the
+ * fact the drop edge is looking for.
+ */
+export async function readWitnessProcess(pid: number): Promise<WitnessReading> {
+  if (!Number.isInteger(pid) || pid <= 1) return WITNESS_GONE;
+  try {
+    const { stdout } = await execFileP(
+      '/bin/ps',
+      ['-o', 'stat=,ppid=', '-p', String(pid)],
+      { timeout: 5_000, maxBuffer: 64 * 1024 }
+    );
+    return parseWitnessLine(stdout);
+  } catch {
+    return WITNESS_GONE;
+  }
+}
+
+/**
+ * The whole command line of one process, or null when it is gone. Measured at
+ * 2.3 ms. It runs when a process first appears in a session, never per tick,
+ * and it is what makes the witness a NAMED process rather than any child.
+ */
+export async function readProcessCommand(pid: number): Promise<string | null> {
+  if (!Number.isInteger(pid) || pid <= 1) return null;
+  try {
+    const { stdout } = await execFileP(
+      '/bin/ps',
+      ['-o', 'command=', '-p', String(pid)],
+      { timeout: 5_000, maxBuffer: 256 * 1024 }
+    );
+    const line = stdout.split('\n')[0]?.trim() ?? '';
+    return line.length > 0 ? line : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The direct children of one process, ascending. Measured at 14.6 ms, which
+ * is why it runs once when something appears in a session that dropped and
+ * never on an ordinary tick.
+ */
+export async function readChildPids(pid: number): Promise<number[]> {
+  if (!Number.isInteger(pid) || pid <= 1) return [];
+  try {
+    const { stdout } = await execFileP('/usr/bin/pgrep', ['-P', String(pid)], {
+      timeout: 5_000,
+      maxBuffer: 64 * 1024
+    });
+    const pids: number[] = [];
+    for (const line of stdout.split('\n')) {
+      const n = Number(line.trim());
+      if (Number.isInteger(n) && n > 1) pids.push(n);
+    }
+    return pids.sort((a, b) => a - b);
+  } catch {
+    // pgrep exits 1 when there are no children, which is not an error here.
+    return [];
+  }
+}
+
+/**
+ * The direct child of a pane's own process that holds the terminal, being the
+ * one whose STAT carries `+`. Ascending by pid, so the answer is the same on
+ * every tick when an agent has spawned a foreground helper of its own.
+ *
+ * This is a CANDIDATE and never the witness on its own. Candidate C of
+ * research 64 witnessed any foreground child and its card then said an agent
+ * was running when `npm test` was running, which is what ended it. The caller
+ * reads the candidate's command line and keeps it only when it names the
+ * agent the row says this session holds.
+ */
+export function foregroundChildOf(
+  snap: ProcSnapshot,
+  panePid: number
+): number | null {
+  const kids = [...(snap.children.get(panePid) ?? [])].sort((a, b) => a - b);
+  for (const pid of kids) {
+    if ((snap.stat.get(pid) ?? '').includes('+')) return pid;
+  }
+  return null;
+}
+
+/**
+ * Whether this pid is in the foreground process group of its terminal, being
+ * `+` in its STAT, or null when the table does not know the pid at all. The
+ * three answers are kept apart on purpose: research 64 §4.3 measured this as
+ * a secondary check, and a check that reads "no" for a process it has never
+ * heard of is not a check.
+ */
+export function holdsTerminal(
+  snap: ProcSnapshot,
+  pid: number
+): boolean | null {
+  const stat = snap.stat.get(pid);
+  if (stat === undefined) return null;
+  return stat.includes('+');
+}
+
+/**
+ * The same reading, taken from a fleet snapshot that has already been read
+ * this tick. Free where the targeted read costs 2.5 ms, and it answers with
+ * the same three fields, so the drop edge cannot tell the two apart.
+ */
+export function witnessFromSnapshot(
+  snap: ProcSnapshot,
+  pid: number
+): WitnessReading {
+  const stat = snap.stat.get(pid);
+  const parent = snap.ppid.get(pid);
+  if (stat === undefined || parent === undefined) return WITNESS_GONE;
+  return { found: true, stat, ppid: parent };
+}

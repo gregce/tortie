@@ -36,7 +36,15 @@ import {
   bareRestartConfirm,
   bareRestoreConfirm,
   pastRestoreNeedsAsk,
-  resumeReadiness
+  resumeInPlaceAnswerNote,
+  resumeInPlaceLanded,
+  resumeReadiness,
+  showsResumeVerb
+} from './resume';
+import type {
+  ResumeInPlaceLanding,
+  ResumeInPlaceRefusal,
+  SessionHandback
 } from './resume';
 // Every sentence about a machine comes from one file, which is the one the
 // vocabulary audit reads.
@@ -92,6 +100,33 @@ export interface SessionsSlice {
    * can only hide a fast death and can never invent one.
    */
   endedSeenAt: Record<string, number>;
+
+  /**
+   * PHASE 141. The sessions whose agent has left, keyed by session id.
+   *
+   * A record exists for a session only while main says one of the three
+   * handback states holds for it. Main clears it by sending `none`, and this
+   * store deletes the key rather than holding a fourth state, so "there is no
+   * record" and "nothing has happened here" are the same fact and cannot
+   * disagree.
+   *
+   * IT IS NOT A STATUS AND IT NEVER BECOMES ONE. It arrives on the activity
+   * channel beside the excerpt and the last output time, which is the channel
+   * for per session facts that are not the status, and no code path leads from
+   * this record to `statusVisual`, to the dot or to `SessionStatus`. That is
+   * what keeps Phase 23 refusal 5 structural rather than promised.
+   */
+  handbacks: Record<string, SessionHandback>;
+
+  /**
+   * PHASE 141. Put the command that continues this session's conversation on
+   * its own prompt, and press nothing.
+   *
+   * Offered only for a session that has a `left` record, on this Mac, and main
+   * re-reads that one session before it types anything. Every answer is a
+   * sentence a person reads, including the three that mean nothing landed.
+   */
+  resumeInPlace(sessionId: string): Promise<void>;
 
   setActiveSession(sessionId: string): void;
   cycleSession(delta: 1 | -1): void;
@@ -472,6 +507,54 @@ export const createSessionsSlice: StateCreator<
     return api.machines ?? null;
   };
 
+  // -------------------------------------------------------------------------
+  // PHASE 141. The one press back into an agent that left.
+  //
+  // WHY THE CALL IS FEATURE DETECTED AT CALL TIME. `sessions:resumeInPlace` is
+  // the phase's only new invoke channel, and a build whose preload predates it
+  // simply never offers the verb: the row draws nothing, the menu row is
+  // absent, and the menu bar item returns in silence. That is the same posture
+  // `canRestore` and `canDiscard` above already take, and it is why no surface
+  // in this phase asks main a question it might not be able to answer.
+  //
+  // WHAT MAIN DOES WITH IT, so nothing here re-decides it. Main re-reads that
+  // ONE session at the moment of the press and refuses when the pane's own
+  // process no longer holds the terminal, when something is running under it,
+  // or when the witnessed process somehow came back. It then types the command
+  // through the Phase 89 arming door, which never presses Enter, and reads the
+  // screen back. The renderer's whole job is to say which of the four things
+  // happened.
+  // -------------------------------------------------------------------------
+  // EXACTLY ONE OF THE TWO IS SET. A landing means main typed and then read
+  // the screen. A refusal means main re-read that one session at the moment of
+  // the press, found it was not in the state the last poll described, and typed
+  // nothing at all. Both are sentences a person reads rather than errors, which
+  // is why the channel resolves in both cases.
+  interface ResumeInPlaceAnswer {
+    landing: ResumeInPlaceLanding | null;
+    refusal?: ResumeInPlaceRefusal | null;
+  }
+  type ResumeInPlaceCall = (sessionId: string) => Promise<ResumeInPlaceAnswer>;
+
+  const resumeInPlaceCall = (): ResumeInPlaceCall | null => {
+    const api = gmuxBridge()?.sessions as
+      | { resumeInPlace?: unknown }
+      | undefined;
+    const fn = api?.resumeInPlace;
+    return typeof fn === 'function' ? (fn as ResumeInPlaceCall) : null;
+  };
+
+  /**
+   * One press at a time per session.
+   *
+   * This is not a spinner, it is a safety guard. The one landing that means
+   * something went wrong on screen is `twice`, being two copies of the command
+   * on one line, and the cheapest way to produce it is two presses of a word
+   * that is one pointer move from the status dot. A second press while the
+   * first is in the air does nothing at all.
+   */
+  const armingInFlight = new Set<string>();
+
   /**
    * PHASE 119. The one restore runner, shared by the ordinary restore and the
    * declined one, so the in-flight guard, the active-session switch and the
@@ -624,6 +707,7 @@ export const createSessionsSlice: StateCreator<
     excerpts: {},
     lastActivity: {},
     endedSeenAt: {},
+    handbacks: {},
 
     setActiveSession(sessionId) {
       const { activeProjectId } = get();
@@ -1052,6 +1136,48 @@ export const createSessionsSlice: StateCreator<
 
     applyShellPathReady() {
       set({ shellPathReady: true });
+    },
+
+    // PHASE 141 ------------------------------------------------------------
+
+    async resumeInPlace(sessionId) {
+      const call = resumeInPlaceCall();
+      if (call === null) return;
+      const session = get().sessions.find((x) => x.id === sessionId);
+      if (session === undefined) return;
+      // THE SAME PREDICATE THE ROW AND THE TWO MENUS READ, asked again here and
+      // deliberately not re-derived. The Session menu in the menu bar is always
+      // present and acts on whichever session is active, so this is the one
+      // path where the verb can be reached for a session it was never offered
+      // for: a remote row, an ended row, a row Tortie cannot see, or a row with
+      // something running in it again. Every one of those returns in silence,
+      // which is what `end-session` in the same menu already does for a session
+      // that has ended.
+      const handback = get().handbacks[sessionId];
+      const status = get().effectiveStatus(session);
+      if (!showsResumeVerb(session, handback, status)) return;
+      if (armingInFlight.has(sessionId)) return;
+      armingInFlight.add(sessionId);
+      try {
+        const answer = await call(sessionId);
+        const note = resumeInPlaceAnswerNote(answer);
+        // The three landings that mean nothing is on the prompt stay on screen
+        // until the person dismisses them, because each one asks them to look
+        // at the session before they press anything. Every refusal stays for
+        // the same reason: nothing was typed and the person needs to know why.
+        if (answer.landing !== null && resumeInPlaceLanded(answer.landing)) {
+          get().toast('success', note);
+        } else {
+          get().toast('info', note, { sticky: true });
+        }
+      } catch (err) {
+        // Main writes the sentence for every case it refuses, and echoing it is
+        // what keeps the log and the screen saying the same thing. This file
+        // does not rewrite a refusal it did not decide.
+        get().toast('error', errorText(err), { sticky: true });
+      } finally {
+        armingInFlight.delete(sessionId);
+      }
     },
 
     async restoreSession(sessionId, options) {

@@ -1886,6 +1886,54 @@
   color: var(--text-secondary);
 }
 
+/* ---------------------------------------------------------------------------
+   PHASE 141 — the word on a row whose agent left.
+
+   It sits in the same slot as the mark above, immediately before the status
+   dot, on both row surfaces. It is drawn by one component so the two cannot
+   drift, and it is styled here for the same reason.
+
+   THE RULE ZEN-OF-TORTIE SETS FOR IT is the one the mark above already
+   follows: this is information, not an alarm. So it takes no status colour, no
+   fill, no border and no badge. An agent that left is an ordinary thing a
+   person did on purpose, and the loudest object in this interface is reserved
+   for "needs you". It is muted at rest and lifts to secondary on a raised or
+   selected row, which is exactly the contrast rule the mark states above.
+
+   It is a word rather than a glyph because it is a verb and a person has to be
+   able to read what it does. It is at --text-xs, which is the badge and age
+   step, so a 24px row keeps its height and the session name stays the largest
+   thing on it.
+--------------------------------------------------------------------------- */
+
+.resume-verb {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 var(--space-2);
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.stab:hover .resume-verb,
+.stab.active .resume-verb,
+.srow:hover .resume-verb,
+.srow.selected .resume-verb {
+  color: var(--text-secondary);
+}
+
+/* The pointer is on the word itself, which is the only place in this phase
+   where the verb is louder than the row it sits on. */
+.resume-verb:hover {
+  color: var(--text-primary);
+}
+
 /* Identity strip has room the 24px rows do not, so it says the state in
    words next to the status label instead of relying on a glyph alone. */
 .strip-resume {

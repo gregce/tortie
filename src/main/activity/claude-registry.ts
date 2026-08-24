@@ -43,6 +43,21 @@ export interface ClaudeSessionEntry {
   /** Epoch ms of the last status write. */
   statusUpdatedAt: number;
   version?: string;
+  /**
+   * The conversation this process has open, from the file's own `sessionId`
+   * (Phase 141, research 64 §3.2). Claude publishes it and Tortie used to
+   * throw it away, which is why nothing could ever say which conversation a
+   * returning claude was in. Measured at 0.80 s after his Enter.
+   */
+  sessionId?: string;
+  /**
+   * The working directory the file names. Claude derives a transcript's PATH
+   * from the directory while the conversation id does not move with it, so a
+   * conversation resumed from a second directory writes a second file under
+   * one id (research 64 §5.3). Anything resolving a claude transcript reads
+   * the directory the session is in NOW, and this is that reading.
+   */
+  cwd?: string;
 }
 
 const STATUSES = new Set(['busy', 'shell', 'idle', 'waiting']);
@@ -81,6 +96,8 @@ export function parseClaudeSessionFile(json: string): ClaudeSessionEntry | null 
   const waitingFor = obj['waitingFor'];
   const updated = obj['statusUpdatedAt'];
   const version = obj['version'];
+  const sessionId = obj['sessionId'];
+  const cwd = obj['cwd'];
   return {
     pid,
     status: status as ClaudeSessionStatus,
@@ -89,7 +106,14 @@ export function parseClaudeSessionFile(json: string): ClaudeSessionEntry | null 
       : {}),
     ...(paneId !== undefined ? { paneId } : {}),
     statusUpdatedAt: typeof updated === 'number' ? updated : 0,
-    ...(typeof version === 'string' ? { version } : {})
+    ...(typeof version === 'string' ? { version } : {}),
+    // Phase 141: kept, not acted on here. A missing or empty value stays
+    // absent rather than becoming an empty string, so a reader can never
+    // mistake "claude said nothing" for "claude said the conversation is ''".
+    ...(typeof sessionId === 'string' && sessionId.length > 0
+      ? { sessionId }
+      : {}),
+    ...(typeof cwd === 'string' && cwd.length > 0 ? { cwd } : {})
   };
 }
 
@@ -176,5 +200,10 @@ export class ClaudeSessionRegistry {
   /** Entries with no pane id — candidates for the pid/subtree fallback. */
   unmapped(): ClaudeSessionEntry[] {
     return [...this.byPid.values()].filter((e) => e.paneId === undefined);
+  }
+
+  /** The entry claude wrote for one process id (Phase 141). */
+  forPid(pid: number): ClaudeSessionEntry | undefined {
+    return this.byPid.get(pid);
   }
 }

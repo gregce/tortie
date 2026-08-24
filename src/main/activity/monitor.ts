@@ -38,29 +38,69 @@ import {
   type AgentActivityProfile
 } from '../agents/registry';
 import type { execTmux as ExecTmux, TmuxScrollRunner } from '../tmux';
-import { ClaudeSessionRegistry } from './claude-registry';
+import {
+  ClaudeSessionRegistry,
+  type ClaudeSessionEntry
+} from './claude-registry';
 import { claudeVerdict } from './oracles';
 import { readPaneFacts, type PaneFacts } from './panes';
 import type { ScrollbackSample } from '../scrollback/watch';
-import { readProcSnapshot, type ProcSnapshot } from './process';
+import {
+  readChildPids,
+  readProcessCommand,
+  readProcSnapshot,
+  readWitnessProcess,
+  witnessFromSnapshot,
+  type ProcSnapshot,
+  type WitnessReading
+} from './process';
 import { excerptFromCapture } from './screen';
 import {
+  binaryCandidatesFor,
+  commandNamesAgent,
   commitVerdict,
+  dropIsSafeToDeclare,
   isTurnBoundary,
   freshState,
   inferredVerdict,
   isMidDialog,
   nativeVerdict,
+  needsReturnBaseline,
+  noteAgentLeft,
+  noteHandbackResolved,
+  noteReturn,
+  noteWitness,
   REFLOW_GRACE_MS,
+  returnTriggered,
+  witnessCandidate,
+  witnessEligible,
+  witnessVerdict,
   worthProbing,
+  type HandbackOutcome,
+  type HandbackState,
   type SessionState
 } from './state-machine';
 import { toSessionStatus, type ActivityState, type ActivityVerdict } from './types';
 
 /** Screen captures per tick — T3 is the only per-pane cost in the loop. */
 const MAX_CAPTURES_PER_TICK = 6;
+/**
+ * Phase 141: the least time between two fleet process tables taken for the
+ * witness alone. See `readProcForWitness` below for what asks for them and
+ * what it costs.
+ */
+const WITNESS_TABLE_MIN_GAP_MS = 5_000;
 /** ⌘J excerpt / age writes are coalesced to this granularity. */
 const ACTIVITY_WRITE_MS = 15_000;
+/**
+ * Phase 141: how far above a candidate the pane's own process may sit before
+ * the walk in `confirmUnderPane` gives up. Two hops covers every shape
+ * measured on this Mac, being claude as the pane's own program, claude as a
+ * child of the login shell in the restore shape, and claude as a grandchild
+ * under SpecStory capture. The cap is there so a pathological or cyclic
+ * process table can never spin a tick, the same reason `descendants` has one.
+ */
+const MAX_DESCENT_HOPS = 8;
 
 // ---------------------------------------------------------------------------
 // Wiring
@@ -97,6 +137,14 @@ export interface ActivityMonitorDeps {
   run: TmuxScrollRunner;
   /** Tier-2 snapshot; injectable so tests never shell out to the real `ps`. */
   readProc?: () => Promise<ProcSnapshot | null>;
+  /**
+   * Phase 141's three one-process reads, in the same spirit as `readProc`:
+   * injectable so tests drive the drop edge without a process on the machine
+   * having to play the part. Production leaves all three alone.
+   */
+  readWitness?: (pid: number) => Promise<WitnessReading>;
+  readCommand?: (pid: number) => Promise<string | null>;
+  readChildren?: (pid: number) => Promise<number[]>;
   /** claude's registry directory; injectable so tests never read `~`. */
   claudeSessionsDir?: string;
   onStatus(sessionId: string, status: SessionStatus, at: number): void;
@@ -127,7 +175,94 @@ export interface ActivityMonitorDeps {
    * session's status. Optional, so tests and the smoke harness need not care.
    */
   onTurnBoundary?(sessionId: string, at: number): void;
+  /**
+   * Phase 141. The agent Tortie watched in this session went away, or
+   * something came back. ONE dependency beside `onDead`, and it is deliberate
+   * that it sits beside that one rather than beside `onStatus`: this is a
+   * fact about a session and never a status. It may not set a status, it may
+   * not move a dot and it adds no member to `SessionStatus`. It never throws
+   * into the tick and it is never awaited. Optional, so tests and the smoke
+   * harness need not care.
+   */
+  onHandback?(sessionId: string, fact: HandbackFact): void;
+  /**
+   * Phase 141, and NOTHING WIRES THIS YET ON PURPOSE.
+   *
+   * The witness is free for an agent whose oracle answers nothing, because a
+   * session nobody can read is already ambiguous and the fleet process table
+   * is already in hand. It is NOT free for codex: `codexTitleVerdict` answers
+   * `idle` whenever the pane title equals the working directory's name, so an
+   * idle codex session never joins the ambiguous set and the table is never
+   * read for it. Such a session can run its whole life with no witness and
+   * would never offer the verb.
+   *
+   * Closing that costs one fleet table read, at most once every
+   * WITNESS_TABLE_MIN_GAP_MS, on a tick where an agent session has no
+   * witness. The snapshot goes ONLY to the witness recorder and never to a
+   * verdict's inputs, because forcing the table into the verdict hands
+   * `noteCpu` and `hasToolChild` to every other session on ticks they would
+   * not otherwise have had them, which moves an unrelated session's dot and
+   * is Phase 23 refusal 5 through a side door.
+   *
+   * That is 18.4 ms every 5 seconds in the worst case, and it stops being
+   * called at all once every agent session has a witness, so it is a start up
+   * cost rather than a running one. It is wired at the one call site, in
+   * src/main/sessions/core.ts, and it stays optional so a test can leave it out
+   * and drive the loop with no process table at all.
+   */
+  readProcForWitness?: () => Promise<ProcSnapshot | null>;
   now?(): number;
+}
+
+/**
+ * What the witness saw (Phase 141). Two edges and no levels: the loop reports
+ * the moment something changed, never the state it is already in.
+ */
+export type HandbackFact =
+  | {
+      kind: 'left';
+      /** Epoch ms this edge was seen. */
+      at: number;
+      /** Epoch ms the AGENT left, which is not `at` on a second drop. */
+      leftAt: number;
+    }
+  | {
+      kind: 'returning';
+      at: number;
+      leftAt: number;
+      /** The process that appeared under the pane's own process. */
+      pid: number;
+      /**
+       * Its whole command line, read once. When he pasted a command carrying
+       * a conversation id, this is where that id is. It is a reading and not
+       * a claim: two live codex processes on this machine name no
+       * conversation at all (research 64 §5.1).
+       */
+      command: string;
+    };
+
+/**
+ * What a targeted walk found out about a pid claude's own record named
+ * (Phase 141 fix round). Kept in this file because nothing outside the loop
+ * asks the question and nothing outside the loop can answer it.
+ */
+interface DescentReading {
+  /** The pid is a live process under the pane's own process. */
+  under: boolean;
+  /** Its real parent, or null when the pane's own process IS the pid. */
+  ppid: number | null;
+}
+
+const NOT_UNDER_PANE: DescentReading = { under: false, ppid: null };
+
+/** What claude's own record says about the conversation open in a pane. */
+export interface ClaudeConversation {
+  /** The `sessionId` claude published, being the conversation it has open. */
+  sessionId: string;
+  /** The directory claude names, which decides where its transcript is. */
+  cwd?: string;
+  /** The process that published it. */
+  pid: number;
 }
 
 /** Does this agent publish its state through claude's session registry? */
@@ -151,14 +286,32 @@ export class SessionActivityMonitor {
   private readonly lastPane = new Map<string, PaneFacts>();
   private readonly claude: ClaudeSessionRegistry;
   private readonly readProc: () => Promise<ProcSnapshot | null>;
+  private readonly readWitness: (pid: number) => Promise<WitnessReading>;
+  private readonly readCommand: (pid: number) => Promise<string | null>;
+  private readonly readChildren: (pid: number) => Promise<number[]>;
   private readonly now: () => number;
   private captureCursor = 0;
   private ticking = false;
   private disposed = false;
+  /**
+   * Phase 141: the process this session has already been asked about and
+   * refused, being a foreground child whose command line did not name the
+   * agent, or a pid out of claude's own record that no reading could place
+   * under this pane. One reading per process, not one per tick, so a session
+   * where somebody is working at the prompt costs 2.3 ms per command rather
+   * than 2.3 ms per second, and a session living beside a leftover record
+   * costs one read once.
+   */
+  private readonly rejectedChild = new Map<string, number>();
+  /** When the last witness-only fleet table was taken (Phase 141). */
+  private witnessTableAt = 0;
 
   constructor(private readonly deps: ActivityMonitorDeps) {
     this.now = deps.now ?? ((): number => Date.now());
     this.readProc = deps.readProc ?? readProcSnapshot;
+    this.readWitness = deps.readWitness ?? readWitnessProcess;
+    this.readCommand = deps.readCommand ?? readProcessCommand;
+    this.readChildren = deps.readChildren ?? readChildPids;
     this.claude = new ClaudeSessionRegistry(deps.claudeSessionsDir);
   }
 
@@ -178,12 +331,49 @@ export class SessionActivityMonitor {
     this.claude.stop();
     this.states.clear();
     this.lastPane.clear();
+    this.rejectedChild.clear();
   }
 
-  /** Drop per-session state (session ended / was discarded). */
-  forget(sessionId: string): void {
+  /**
+   * Drop per-session state (session ended / was discarded).
+   *
+   * `keepHandback` is for the ONE caller whose session is still there, being
+   * claude's own `SessionEnd` hook. That hook means the agent ended and the
+   * session did not, and forgetting everything took the drop with it: the
+   * monitor started the next tick knowing nothing, so it could never see the
+   * person type their resume, and the row kept offering the verb while the
+   * agent was back. Found in the fix round while re-deriving the second
+   * verdict. The activity state and the status memory are still cleared, which
+   * is the whole of what that caller wanted.
+   *
+   * THE WITNESS IS KEPT TOO, and that half matters more than the drop does.
+   * claude's `SessionEnd` hook is installed synchronously on purpose, because
+   * an asynchronous one loses the event when the process exits, so CLAUDE IS
+   * STILL RUNNING when the hook reaches us. `checkWitness` reads a live
+   * process, correctly declares nothing, and no drop exists yet. Dropping the
+   * pid there left the next tick with nothing to read, and claude had by then
+   * deleted its own record, so no new witness could be taken either. The drop
+   * was seen only when a tick happened to land inside the second claude took
+   * to wind down. Keeping the pid and its parent is the whole of what the next
+   * tick needs to declare the drop, and nothing else about the witness is
+   * carried, because nothing else is read to declare one.
+   */
+  forget(sessionId: string, keepHandback = false): void {
+    const before = this.states.get(sessionId);
     this.states.delete(sessionId);
     this.lastPane.delete(sessionId);
+    this.rejectedChild.delete(sessionId);
+    if (!keepHandback || before === undefined) return;
+    if (before.handback === 'none' && before.witnessPid === null) return;
+    const kept = freshState(this.now());
+    kept.handback = before.handback;
+    kept.leftAt = before.leftAt;
+    // Null on the accelerated path, so the next tick sets it from a real
+    // reading rather than from the facts that were already one tick old.
+    kept.leftCommand = before.leftCommand;
+    kept.witnessPid = before.witnessPid;
+    kept.witnessPpid = before.witnessPpid;
+    this.states.set(sessionId, kept);
   }
 
   private ensureState(sessionId: string): SessionState {
@@ -343,6 +533,13 @@ export class SessionActivityMonitor {
       if (update !== null) updates.push(update);
     }
     if (updates.length > 0) this.deps.onActivity(updates);
+
+    // Phase 141, the witness. It runs after the verdicts on purpose: it
+    // reads nothing a verdict reads, it writes nothing a verdict writes, and
+    // it cannot delay a status by a single tick.
+    await this.witnessPass(live, proc, now);
+    if (this.disposed) return;
+
     // Two integers per live session, straight off the read above — no extra
     // sample, no extra process, no extra timer (Phase 13.7).
     this.deps.onScrollback?.(
@@ -352,6 +549,342 @@ export class SessionActivityMonitor {
         limit: e.pane.historyLimit
       }))
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // Phase 141: the drop and the way back
+  // -------------------------------------------------------------------------
+
+  /**
+   * One pass over the sessions whose row says they hold an agent. Three
+   * things happen and each is skipped when it costs anything it need not:
+   *
+   *  - a session with a witness has that ONE process read, free when the
+   *    fleet table was already taken this tick and 2.5 ms when it was not;
+   *  - a session with no witness is offered a candidate, and a candidate from
+   *    the process table has its command line read once before it is kept;
+   *  - a session that dropped is checked against a field already on the line
+   *    tier 1 reads, and only a change there costs anything at all.
+   *
+   * Nothing here sets a status, and nothing here can.
+   */
+  private async witnessPass(
+    live: readonly LiveSession[],
+    proc: ProcSnapshot | null,
+    now: number
+  ): Promise<void> {
+    const watched = live.filter((e) => witnessEligible(e.session.agent));
+    if (watched.length === 0) return;
+    const forWitness = await this.procForWitness(watched, proc, now);
+    if (this.disposed) return;
+    await Promise.all(
+      watched.map(async (e) => {
+        await this.witnessOne(e, forWitness, now);
+      })
+    );
+  }
+
+  /**
+   * The process table the witness recorder may use. It is the one the tick
+   * already took, and it is only taken again when the wiring supplies a reader
+   * and some watched session still has no witness. See `readProcForWitness`.
+   */
+  private async procForWitness(
+    watched: readonly LiveSession[],
+    proc: ProcSnapshot | null,
+    now: number
+  ): Promise<ProcSnapshot | null> {
+    if (proc !== null) return proc;
+    const extra = this.deps.readProcForWitness;
+    if (extra === undefined) return null;
+    if (now - this.witnessTableAt < WITNESS_TABLE_MIN_GAP_MS) return null;
+    const wanted = watched.some(
+      (e) =>
+        e.st.witnessPid === null &&
+        e.st.handback === 'none' &&
+        e.profile.native !== 'claude-session-registry'
+    );
+    if (!wanted) return null;
+    this.witnessTableAt = now;
+    return extra();
+  }
+
+  /**
+   * `paneIsFresh` is false on the one caller that does not run inside a tick,
+   * being claude's own `SessionEnd` hook. Its pane facts are the previous
+   * tick's, so it may declare the drop and must do nothing else: the return
+   * rules all read `#{pane_current_command}`, and on those facts that field
+   * still names the agent that has just gone.
+   */
+  private async witnessOne(
+    e: LiveSession,
+    proc: ProcSnapshot | null,
+    now: number,
+    paneIsFresh = true
+  ): Promise<void> {
+    const { st, pane } = e;
+    if (st.witnessPid !== null) {
+      const reading =
+        proc !== null
+          ? witnessFromSnapshot(proc, st.witnessPid)
+          : await this.readWitness(st.witnessPid);
+      if (this.disposed) return;
+      const verdict = witnessVerdict(st, reading);
+      if (
+        (verdict === 'gone' || verdict === 'reused') &&
+        dropIsSafeToDeclare(pane, proc) &&
+        noteAgentLeft(st, pane, now, paneIsFresh)
+      ) {
+        this.deps.onHandback?.(e.session.id, {
+          kind: 'left',
+          at: now,
+          leftAt: st.leftAt
+        });
+      }
+    } else if (st.handback === 'none') {
+      await this.acquireWitness(e, proc);
+      if (this.disposed) return;
+    }
+    // `needsReturnBaseline` is the tick after a drop that was declared from
+    // claude's own hook, which carries no fresh pane facts of its own. It goes
+    // through the same door as an ordinary return: if something really is in
+    // the session, it is picked up here, and if nothing is, the baseline is
+    // set from this tick's reading and the session stays dropped.
+    if (paneIsFresh && (needsReturnBaseline(st) || returnTriggered(st, pane))) {
+      await this.noteSomethingRan(e, now);
+    }
+  }
+
+  /**
+   * Take the witness, and only a NAMED process that is really there. claude
+   * names its own process in the record the native tier already reads,
+   * including in the restore shape where the pane runs the login shell.
+   * Everyone else offers the foreground child of the pane's own process, and
+   * that child's command line is read once and kept only when it names this
+   * row's agent.
+   *
+   * That last sentence is the one that keeps the promise this phase is built
+   * on. A session Tortie restored, sitting with its command armed and
+   * unpressed, has no children at all and so has no witness. Run an ordinary
+   * command in it and a child appears and later leaves, which is the shape of
+   * an agent leaving, and the command line is what refuses it.
+   *
+   * A CANDIDATE OUT OF CLAUDE'S OWN RECORD GETS THE SAME TREATMENT, added in
+   * the fix round after the re-verifier drove it. The record is a file, and a
+   * leftover file names a pid that is gone while naming a pane that a restored
+   * session now wears, so a session where no agent ever ran was witnessed and
+   * then announced as one an agent had left. `descent` is that candidate, and
+   * it is confirmed by reading the process before it is believed.
+   *
+   * Both refusals are remembered per pid rather than per tick, so a session
+   * living beside a leftover record costs one process read once and nothing
+   * per second after it.
+   */
+  private async acquireWitness(
+    e: LiveSession,
+    proc: ProcSnapshot | null
+  ): Promise<void> {
+    const candidate = witnessCandidate(
+      e.pane,
+      e.profile,
+      this.claude,
+      proc
+    );
+    if (candidate === null) return;
+    if (candidate.confirm === 'none') {
+      noteWitness(e.st, e.pane, candidate.pid, candidate.ppid);
+      return;
+    }
+    if (this.rejectedChild.get(e.session.id) === candidate.pid) return;
+    if (candidate.confirm === 'descent') {
+      const reading = await this.confirmUnderPane(
+        candidate.pid,
+        e.pane.panePid
+      );
+      if (this.disposed) return;
+      if (reading.under) {
+        noteWitness(e.st, e.pane, candidate.pid, reading.ppid);
+        this.rejectedChild.delete(e.session.id);
+        return;
+      }
+      this.rejectedChild.set(e.session.id, candidate.pid);
+      return;
+    }
+    const command = await this.readCommand(candidate.pid);
+    if (this.disposed) return;
+    if (
+      command !== null &&
+      commandNamesAgent(command, binaryCandidatesFor(e.session.agent))
+    ) {
+      noteWitness(e.st, e.pane, candidate.pid, candidate.ppid);
+      this.rejectedChild.delete(e.session.id);
+      return;
+    }
+    this.rejectedChild.set(e.session.id, candidate.pid);
+  }
+
+  /**
+   * Is this pid a live process under that pane's own process, and what is its
+   * real parent. One targeted read of the candidate, then one of each process
+   * above it until the pane's own process is reached.
+   *
+   * It exists because the fleet table is not read on a tick where every
+   * session is answered by its oracle, which is most ticks of a healthy claude
+   * session, and a record with nothing read about it is exactly the leftover
+   * file case. A pid that is simply GONE is answered by the first read alone,
+   * which is the cheap half and the one that matters most.
+   *
+   * The parent it reports is THE ONE THAT WAS READ. An agent under SpecStory
+   * capture is a grandchild of its pane, so its parent is not the pane's own
+   * process, and writing that down on faith is what made a healthy captured
+   * agent read as a reused pid on every tick.
+   */
+  private async confirmUnderPane(
+    pid: number,
+    panePid: number
+  ): Promise<DescentReading> {
+    const reading = await this.readWitness(pid);
+    if (!reading.found) return NOT_UNDER_PANE;
+    // The agent IS the pane's own program, which is how a session Tortie
+    // created runs it. There is nothing above it to walk to, and null is what
+    // `noteWitness` records for that shape anyway.
+    if (pid === panePid) return { under: true, ppid: null };
+    let cur = pid;
+    let parent = reading.ppid;
+    for (let hops = 0; hops < MAX_DESCENT_HOPS; hops += 1) {
+      if (parent === null || parent <= 1 || parent === cur) {
+        return NOT_UNDER_PANE;
+      }
+      if (parent === panePid) return { under: true, ppid: reading.ppid };
+      const up = await this.readWitness(parent);
+      if (this.disposed || !up.found) return NOT_UNDER_PANE;
+      cur = parent;
+      parent = up.ppid;
+    }
+    return NOT_UNDER_PANE;
+  }
+
+  /**
+   * Something is running in a session that dropped. Two reads, once, never
+   * per tick: the pane's own process's children, then the newest one's whole
+   * command line. The fleet table is deliberately NOT forced here, because
+   * forcing it hands two extra signals to every other session's verdict on a
+   * tick they would not otherwise have had them.
+   *
+   * The new process becomes the witness, so a resume that failed, which looks
+   * exactly like a resume that never happened one to two seconds later,
+   * brings the verb back on its own.
+   */
+  private async noteSomethingRan(
+    e: LiveSession,
+    now: number
+  ): Promise<void> {
+    const kids = await this.readChildren(e.pane.panePid);
+    if (this.disposed) return;
+    const pid = await this.foregroundOf(kids);
+    if (this.disposed) return;
+    if (pid === null) {
+      // The trigger is a reason to look and nothing more. Nothing was there,
+      // so the baseline moves rather than the state, and the next change
+      // is looked at once too.
+      e.st.leftCommand = e.pane.currentCommand;
+      return;
+    }
+    const command = (await this.readCommand(pid)) ?? '';
+    if (this.disposed) return;
+    const leftAt = e.st.leftAt;
+    noteReturn(e.st, e.pane, pid);
+    this.deps.onHandback?.(e.session.id, {
+      kind: 'returning',
+      at: now,
+      leftAt,
+      pid,
+      command
+    });
+  }
+
+  /**
+   * Which of these children holds the terminal, newest first.
+   *
+   * IT USED TO TAKE THE HIGHEST NUMBERED CHILD WITH NO CHECK AT ALL, and a
+   * background job in the same session was therefore adopted as the agent
+   * coming back. The person's verb appeared and was cancelled 199 ms later. A
+   * process the person typed at their own prompt holds the terminal; a
+   * background job does not, and neither does anything left over from before.
+   *
+   * A return read a fraction too early, before the shell has handed the
+   * terminal over, simply answers null. Nothing is announced, the baseline
+   * moves to this tick's reading, and the next change is looked at again.
+   */
+  private async foregroundOf(kids: readonly number[]): Promise<number | null> {
+    for (let i = kids.length - 1; i >= 0; i -= 1) {
+      const pid = kids[i];
+      if (pid === undefined) continue;
+      const reading = await this.readWitness(pid);
+      if (this.disposed) return null;
+      if (reading.found && reading.stat.includes('+')) return pid;
+    }
+    return null;
+  }
+
+  /**
+   * claude's `SessionEnd` hook reached us, so the process it names is on its
+   * way out. Checking the witness here removes the poll wait entirely for the
+   * agent he uses most. It is an ACCELERATOR and never a dependency: every
+   * agent, claude included, still reaches the same edge through the tick.
+   *
+   * A caller that also forgets this session must call this FIRST, because
+   * forgetting drops the witness along with everything else.
+   */
+  async checkWitness(sessionId: string): Promise<void> {
+    if (this.disposed) return;
+    const st = this.states.get(sessionId);
+    const pane = this.lastPane.get(sessionId);
+    if (st === undefined || pane === undefined) return;
+    const session = this.deps.sessions().find((x) => x.id === sessionId);
+    if (session === undefined || !witnessEligible(session.agent)) return;
+    await this.witnessOne(
+      { session, pane, profile: activityProfileFor(session.agent), st },
+      null,
+      this.now(),
+      false
+    );
+  }
+
+  /** Where this session sits between an agent leaving and one coming back. */
+  handbackFor(sessionId: string): HandbackState {
+    return this.states.get(sessionId)?.handback ?? 'none';
+  }
+
+  /**
+   * The conversation question was answered, or it was not. `adopted` puts the
+   * session back to being an ordinary agent session; `unconfirmed` leaves it
+   * saying that Tortie cannot tell which conversation is open, which is a
+   * legitimate answer and the correct one for several agents.
+   */
+  noteHandbackResolved(sessionId: string, outcome: HandbackOutcome): void {
+    const st = this.states.get(sessionId);
+    if (st === undefined) return;
+    noteHandbackResolved(st, outcome);
+  }
+
+  /**
+   * What claude's own record says about the conversation open in one pane.
+   * Read only, and it opens nothing new: the registry is already read and
+   * watched six or more times a second, and Phase 141 only kept two fields
+   * that were already in the JSON and were being thrown away.
+   *
+   * The pid is tried second because in the restore shape claude's record
+   * names no pane at all, which is the shape this whole phase serves.
+   */
+  claudeConversationForPane(
+    paneId: string,
+    pid?: number
+  ): ClaudeConversation | null {
+    const entry =
+      this.claude.forPane(paneId) ??
+      (pid === undefined ? undefined : this.claude.forPid(pid));
+    return conversationOf(entry);
   }
 
   /**
@@ -466,4 +999,16 @@ export class SessionActivityMonitor {
     );
     return out;
   }
+}
+
+/** One claude registry entry, as the conversation question needs it. */
+function conversationOf(
+  entry: ClaudeSessionEntry | undefined
+): ClaudeConversation | null {
+  if (entry === undefined || entry.sessionId === undefined) return null;
+  return {
+    sessionId: entry.sessionId,
+    ...(entry.cwd !== undefined ? { cwd: entry.cwd } : {}),
+    pid: entry.pid
+  };
 }
