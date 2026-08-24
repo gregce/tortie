@@ -37,15 +37,18 @@ import {
 } from './reader';
 import type { ReadResult } from './reader';
 import type { OverviewStore, StoredSession, StoredTurn } from './store';
+import { MAX_TURN_LIMIT, toTurnView } from './turn-view';
 
 /** Turns per session when the caller names none. */
 const DEFAULT_TURN_LIMIT = 50;
 
-/** The cap main holds `turnLimit` to, whatever the renderer asks for. */
-const MAX_TURN_LIMIT = 200;
-
-/** The payload text clip. The store keeps the full text. */
-const CLIP_CHARACTERS = 4_000;
+/**
+ * The cap, the clip and the one turn shape all moved to ./turn-view.ts in
+ * Phase 143, because the story's turn read draws the same turn and a second
+ * copy of that mapping would be a second answer. They are re-exported here so
+ * every existing caller of this module still finds them.
+ */
+export { CLIP_CHARACTERS, MAX_TURN_LIMIT, clip, toTurnView } from './turn-view';
 
 export interface OverviewServiceDeps {
   /** The same getter registerContextIpc takes, because the manifest opens during boot. */
@@ -401,22 +404,7 @@ function toSessionView(
       projectPath
     });
     store.setGitVerdict(state.row.id, turn.index, mark.git, now);
-    const ask = clip(turn.askText);
-    const answer = turn.answerText === null ? null : clip(turn.answerText);
-    return {
-      index: turn.index,
-      askText: ask.text,
-      askClipped: ask.clipped,
-      askAt: turn.askAt,
-      answerText: answer === null ? null : answer.text,
-      answerClipped: answer !== null && answer.clipped,
-      answerAt: turn.answerAt,
-      closed: turn.closed,
-      interrupted: turn.interrupted,
-      notice: turn.notice,
-      git: mark.git,
-      namedOnlyOutside: mark.namedOnlyOutside
-    };
+    return toTurnView(turn, mark.git, mark.namedOnlyOutside);
   });
   // Phase 138.1. ONE call fills both fields, so `summary` and
   // `summaryWrittenAt` cannot disagree and the row can never draw a clock
@@ -591,9 +579,4 @@ function parseIsoMs(iso: string | null): number | null {
   if (iso === null) return null;
   const ms = Date.parse(iso);
   return Number.isNaN(ms) ? null : ms;
-}
-
-function clip(text: string): { text: string; clipped: boolean } {
-  if (text.length <= CLIP_CHARACTERS) return { text, clipped: false };
-  return { text: text.slice(0, CLIP_CHARACTERS), clipped: true };
 }

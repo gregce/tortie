@@ -293,6 +293,7 @@ import { runShot } from './shot';
 import { installFoldStub } from './fold-stub';
 import { seedFold } from './fold-seed';
 import { seedOverviewSessions } from './overview-seed';
+import { seedSummaries } from './summary-seed';
 
 export interface HarnessDeps {
   /** The real app window factory, owned by the composition root. */
@@ -572,6 +573,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
     // the same two refusals both of those carry.
     if ((process.env['GMUX_FOLD_SEED'] ?? '') !== '') {
       await seedFold();
+    }
+    // Phase 143: the story's own seed, which writes version chains straight
+    // through the shipped appendSummary path so a probe can photograph a
+    // chain of three, a chain of two hundred, a run of identical sentences
+    // and a switch of model without asking a model anything. It carries the
+    // same two refusals the two seeds above carry.
+    if ((process.env['GMUX_SUMMARY_SEED'] ?? '') !== '') {
+      await seedSummaries();
     }
     await runShot(shot, deps);
     return true;

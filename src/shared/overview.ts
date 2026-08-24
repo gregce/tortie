@@ -97,3 +97,79 @@ export interface OverviewSessionsInput {
   /** Turns per session, newest last. Default 50. Main caps it at 200. */
   turnLimit?: number;
 }
+
+// ---------------------------------------------------------------------------
+// The story a session told, version by version (Phase 143)
+// ---------------------------------------------------------------------------
+
+/**
+ * One drawn row of the story.
+ *
+ * The sentence is `text`, and it is a sentence a MODEL wrote about the
+ * session rather than anything the session itself said. The real record is
+ * the conversation, and the page says so in its own words above the list.
+ *
+ * Only versions the fold kept reach this shape. A refused fold and a failed
+ * fold carry no sentence at all, so there is nothing on them for a person to
+ * read. They stay on record in the store exactly as Phase 138 wrote them, and
+ * their only mark here is the coverage flag on the next row.
+ */
+export interface OverviewTimelineEntry {
+  /** The sentence a model wrote. Never empty, because an empty one is dropped. */
+  text: string;
+  /**
+   * When the writing finished, epoch ms. It is NOT the time of any turn the
+   * row covers, and the page says which clock this is.
+   */
+  writtenAt: number;
+  /** The first turn index this row covers. */
+  fromTurn: number;
+  /** The last turn index this row covers. */
+  toTurn: number;
+  /** The harness that wrote it, being the registry id. */
+  harness: string;
+  /** The model that wrote it. */
+  model: string;
+  /**
+   * True when more than one version in a row said exactly this, so they were
+   * drawn as one. The row carries the LATER writing time, because a fold that
+   * changed nothing is not news. Versions are drawn as one only when nothing
+   * is lost by it, so the same harness and model wrote every one of them and
+   * no turns between them are missing from the story.
+   */
+  repeated: boolean;
+  /**
+   * True when turns before this row are in no kept version, so the story
+   * jumps over them. It happens in ordinary use: a fold that was refused
+   * still moves the next fold's floor, so the turns it covered end up in
+   * nothing a person can read. It is measured against the furthest turn any
+   * earlier version reached, which only ever moves forward, so a row can
+   * never claim a break that an earlier row already covered.
+   */
+  gapBefore: boolean;
+}
+
+/**
+ * The whole story of one session, newest first.
+ *
+ * `chosen` is the person's own setting. When no harness and model are chosen
+ * nothing is writing these, so main answers with `chosen` false and an empty
+ * list and the page says that in one line rather than drawing an empty list.
+ *
+ * `modelChanged` is decided ONCE, here in main, so the page cannot reach a
+ * different answer. It is true when the drawn rows were not all written by
+ * the same harness and model, and only then does every row name its own.
+ */
+export interface OverviewTimeline {
+  sessionId: string;
+  entries: OverviewTimelineEntry[];
+  chosen: boolean;
+  modelChanged: boolean;
+}
+
+/** The turns one drawn row covers. The range comes from that row. */
+export interface OverviewTimelineTurnsInput {
+  sessionId: string;
+  fromTurn: number;
+  toTurn: number;
+}

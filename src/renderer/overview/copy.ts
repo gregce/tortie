@@ -107,9 +107,73 @@ export const EMPTY_PROJECT =
 /** The chord was pressed with no project open. */
 export const OPEN_A_PROJECT_FIRST = 'Open a project first.';
 
-/** The three footers. The spacing is kept by white-space in the stylesheet. */
+/** The four footers. The spacing is kept by white-space in the stylesheet. */
 export const FOOTER_PROJECT =
   '↑↓ move   ⏎ open this session’s conversation   esc back';
 export const FOOTER_SESSION =
   '↑↓ move   ⏎ go to this session   ⇥ your asks   esc back';
 export const FOOTER_COLUMNS = 'esc back';
+
+/**
+ * Phase 143. While the story stands in for the conversation the footer says
+ * the story's own keys, because the keys behind the panel are not the ones a
+ * press reaches.
+ */
+export const FOOTER_STORY =
+  '↑↓ move   ⏎ open the conversation behind this sentence   esc back';
+
+// ---------------------------------------------------------------------------
+// The story of what a model wrote about one session (Phase 143)
+// ---------------------------------------------------------------------------
+
+/** The press target in the session header, while the conversation is showing. */
+export const STORY_OPEN = 'what has been written';
+
+/** The same press target, while the story is showing. */
+export const STORY_CLOSE = 'back to the conversation';
+
+/**
+ * The first line of the panel. Always drawn, above everything else, because a
+ * person must never mistake these sentences for the conversation.
+ */
+export const STORY_LEAD =
+  'You are reading the sentences a model wrote about this session, ' +
+  'not the conversation itself, which is the real record.';
+
+/** The second line. The clock on a row belongs to the writing, not to a turn. */
+export const STORY_CLOCK_NOTE =
+  'Each time below is when that sentence was written, ' +
+  'and not when you asked for anything.';
+
+/** No agent and model are chosen, so nothing is being written at all. */
+export const STORY_NO_MODEL =
+  'No model is writing these sentences, so there is no story to read. ' +
+  'You can choose one in Settings, under Catch Me Up.';
+
+/** A model is chosen and nothing has been written for this session yet. */
+export const STORY_NOTHING_YET =
+  'Nothing has been written for this session yet. A sentence is written ' +
+  'after the agent has finished a piece of work.';
+
+/** The lead of the model line, drawn only when the rows do not agree. */
+export const STORY_MODEL_LEAD = 'written by ';
+
+/** A row whose stretch of the conversation no sentence covers. */
+export const STORY_GAP =
+  'Some of the conversation before this point is not part of the story.';
+
+/** A pressed row whose turns could not be read. */
+export const STORY_TURNS_UNREADABLE =
+  'Tortie could not read the turns behind this sentence.';
+
+/** A pressed row whose turns have left the record. */
+export const STORY_TURNS_GONE =
+  'The turns behind this sentence are no longer on record.';
+
+/** A pressed row over a wide stretch, where only the newest turns are shown. */
+export const STORY_TURNS_CLIPPED =
+  'Only the newest turns of this stretch are shown.';
+
+/** A build whose bridge has no reader for the story. */
+export const STORY_BRIDGE_MISSING =
+  'This build cannot read what has been written about this session.';

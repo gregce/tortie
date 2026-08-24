@@ -10,6 +10,12 @@
  * select and a split of two seeded restorable sessions cannot be staged by
  * a drive. The console report names which route ran.
  *
+ * Phase 143 added two more drives, being the story panel and a press on one
+ * of its rows. Both go through the SHIPPED control rather than through the
+ * store: the panel opens by clicking the real button in the session header,
+ * and a row opens by clicking the real row. A drive that staged the store
+ * would photograph a state no person can reach.
+ *
  * Findings go to `console.log`, which GMUX_SHOT_VERBOSE=1 tees into the
  * harness output, and the page itself is what GMUX_SHOT_JS reads back.
  */
@@ -17,6 +23,7 @@
 import { useApp } from '../state/store';
 import type { OverviewRequest } from '../state/overview-slice';
 import { focusTerminal } from '../app/session-focus';
+import { storySnapshot } from './story';
 
 export interface OverviewProbeSpec {
   level: 'project' | 'session' | 'several';
@@ -26,6 +33,17 @@ export interface OverviewProbeSpec {
   stretchFlightMs?: number;
   /** When true the drive prepares focus and presses nothing. GMUX_SHOT_JS presses. */
   pressOnly?: boolean;
+  /**
+   * Press the story control in the session header once the page is open, and
+   * wait for the read to answer (Phase 143). Session level only, because that
+   * is the only view the control lives in.
+   */
+  openStory?: boolean;
+  /**
+   * Press one row of the story, by position in the drawn list, newest first
+   * (Phase 143). Implies openStory, and waits for the turns to arrive.
+   */
+  pressStoryRow?: number;
 }
 
 function log(line: string): void {
@@ -60,6 +78,70 @@ async function settle(timeoutMs: number): Promise<boolean> {
     await wait(50);
   }
   return false;
+}
+
+/** Poll until the story has an answer of some kind, or the time is up. */
+async function settleStory(timeoutMs: number): Promise<boolean> {
+  const until = Date.now() + timeoutMs;
+  while (Date.now() < until) {
+    const story = storySnapshot();
+    if (story.timeline !== null || story.error !== null) return true;
+    await wait(50);
+  }
+  return false;
+}
+
+/** Poll until the pressed row has its turns, or its own sentence, or time is up. */
+async function settleStoryTurns(timeoutMs: number): Promise<boolean> {
+  const until = Date.now() + timeoutMs;
+  while (Date.now() < until) {
+    const story = storySnapshot();
+    if (story.turns !== null || story.turnsError !== null) return true;
+    await wait(50);
+  }
+  return false;
+}
+
+/**
+ * Drive the story the way a person does. The control is a real button in the
+ * session header and the rows are real press targets, so a click is the whole
+ * of it and nothing is staged.
+ */
+async function driveStory(spec: OverviewProbeSpec): Promise<void> {
+  const button = document.querySelector('.overview-story-toggle');
+  if (!(button instanceof HTMLElement)) {
+    log('the story control is not on the page');
+    return;
+  }
+  button.click();
+  const settled = await settleStory(10_000);
+  const story = storySnapshot();
+  log(
+    `story open=${String(story.open)} settled=${String(settled)} ` +
+      `chosen=${String(story.timeline?.chosen ?? false)} ` +
+      `rows=${story.timeline?.entries.length ?? 0} ` +
+      `modelChanged=${String(story.timeline?.modelChanged ?? false)} ` +
+      `error=${story.error ?? 'none'}`
+  );
+  await wait(150);
+
+  const wanted = spec.pressStoryRow;
+  if (wanted === undefined) return;
+  const rows = document.querySelectorAll('.overview-story-row');
+  const row = rows[wanted];
+  if (!(row instanceof HTMLElement)) {
+    log(`there is no story row at ${wanted}`);
+    return;
+  }
+  row.click();
+  const gotTurns = await settleStoryTurns(10_000);
+  const after = storySnapshot();
+  log(
+    `story row ${wanted} pressed settled=${String(gotTurns)} ` +
+      `turns=${after.turns?.length ?? 0} ` +
+      `error=${after.turnsError ?? 'none'}`
+  );
+  await wait(150);
 }
 
 /** Names to ids, keeping the asked order. */
@@ -163,4 +245,9 @@ export async function driveOverview(spec: OverviewProbeSpec): Promise<void> {
   }
   // Let the fade finish before the harness reads the page.
   await wait(spec.stretchFlightMs ?? 400);
+
+  // Phase 143. The story, once the page behind it is settled and painted.
+  if (spec.openStory === true || spec.pressStoryRow !== undefined) {
+    await driveStory(spec);
+  }
 }

@@ -379,6 +379,18 @@ export class OverviewStore {
     [string],
     SummaryRow
   >;
+  // Phase 143. Two more SELECTs, and nothing else. The first reads the whole
+  // version chain of one session so the story can be drawn, and the second
+  // reads the turns one version covered.
+  private readonly stmtListSummaries: Database.Statement<[string], SummaryRow>;
+  private readonly stmtListTurnsBetweenAsc: Database.Statement<
+    [string, number, number],
+    TurnJoinRow
+  >;
+  private readonly stmtListTurnsBetweenTail: Database.Statement<
+    [string, number, number, number],
+    TurnJoinRow
+  >;
 
   /** Internal. Open through openOverviewStore, which runs the schema first. */
   constructor(db: Database.Database, dbPath: string) {
@@ -470,6 +482,17 @@ export class OverviewStore {
       "SELECT * FROM summary WHERE session_id = ? AND verdict = 'kept' " +
         'ORDER BY version DESC LIMIT 1'
     );
+    this.stmtListSummaries = db.prepare(
+      'SELECT * FROM summary WHERE session_id = ? ORDER BY version ASC'
+    );
+    this.stmtListTurnsBetweenAsc = db.prepare(
+      `${TURN_JOIN_SELECT} AND t.turn_index >= ? AND t.turn_index <= ? ` +
+        'ORDER BY t.turn_index ASC'
+    );
+    this.stmtListTurnsBetweenTail = db.prepare(
+      `${TURN_JOIN_SELECT} AND t.turn_index >= ? AND t.turn_index <= ? ` +
+        'ORDER BY t.turn_index DESC LIMIT ?'
+    );
   }
 
   getSession(sessionId: string): StoredSession | null {
@@ -553,6 +576,35 @@ export class OverviewStore {
       return this.stmtListTurnsAsc.all(sessionId).map(toStoredTurn);
     }
     const tail = this.stmtListTurnsTail.all(sessionId, limit);
+    tail.reverse();
+    return tail.map(toStoredTurn);
+  }
+
+  /**
+   * The turns of one session between two indexes, both ends included,
+   * ascending by index (Phase 143).
+   *
+   * With a limit it answers the LAST limit turns of that range, which is the
+   * same shape listTurns already takes: the tail is read descending and
+   * reversed, so one wide range cannot read a whole session into memory.
+   */
+  listTurnsBetween(
+    sessionId: string,
+    fromTurn: number,
+    toTurn: number,
+    limit?: number
+  ): StoredTurn[] {
+    if (limit === undefined) {
+      return this.stmtListTurnsBetweenAsc
+        .all(sessionId, fromTurn, toTurn)
+        .map(toStoredTurn);
+    }
+    const tail = this.stmtListTurnsBetweenTail.all(
+      sessionId,
+      fromTurn,
+      toTurn,
+      limit
+    );
     tail.reverse();
     return tail.map(toStoredTurn);
   }
@@ -655,6 +707,18 @@ export class OverviewStore {
   latestKeptSummary(sessionId: string): StoredSummary | null {
     const row = this.stmtLatestKeptSummary.get(sessionId);
     return row === undefined ? null : toStoredSummary(row);
+  }
+
+  /**
+   * Every version of one session, oldest first, whatever the verdict
+   * (Phase 143).
+   *
+   * The refused rows and the failed rows come back too, because the caller
+   * decides what a person may read and this read decides nothing. Only the
+   * kept rows carry a sentence, so those are the only ones the story draws.
+   */
+  listSummaries(sessionId: string): StoredSummary[] {
+    return this.stmtListSummaries.all(sessionId).map(toStoredSummary);
   }
 
   close(): void {

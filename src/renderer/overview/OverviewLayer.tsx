@@ -12,7 +12,12 @@
  * this surface sets one.
  */
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore
+} from 'react';
 import type { OverviewProject, OverviewSessionView } from '@shared/overview';
 import type { OverviewState } from '../state/overview-slice';
 import type { SessionStatus } from '@shared/types';
@@ -23,11 +28,17 @@ import {
   showOverviewSession
 } from './open-overview';
 import { formatReadClock } from './clock';
-import { FOOTER_COLUMNS, FOOTER_PROJECT, FOOTER_SESSION } from './copy';
+import {
+  FOOTER_COLUMNS,
+  FOOTER_PROJECT,
+  FOOTER_SESSION,
+  FOOTER_STORY
+} from './copy';
 import { handleSessionLevelKey } from './session-keys';
 import { SessionConversation } from './SessionConversation';
 import { SessionColumns, handleColumnsLevelKey } from './SessionColumns';
 import { ProjectLines } from './ProjectLines';
+import { storySnapshot, subscribeStory } from './story';
 import './overview.css';
 
 /** The rows the arrow keys walk at each level. */
@@ -83,6 +94,15 @@ export function OverviewLayer(): React.JSX.Element | null {
     return out;
   }, [sessions]);
 
+  // Phase 143. The story panel stands in for the conversation at the session
+  // level, so while it is open the footer must say the story's keys rather
+  // than the conversation's. Nothing else on this layer reads that store.
+  const story = useSyncExternalStore(
+    subscribeStory,
+    storySnapshot,
+    storySnapshot
+  );
+
   if (overview === null) return null;
 
   const data: OverviewProject | null = overview.data;
@@ -133,7 +153,9 @@ export function OverviewLayer(): React.JSX.Element | null {
     overview.level === 'project'
       ? FOOTER_PROJECT
       : overview.level === 'session'
-        ? FOOTER_SESSION
+        ? story.open
+          ? FOOTER_STORY
+          : FOOTER_SESSION
         : FOOTER_COLUMNS;
 
   return (

@@ -198,8 +198,10 @@ describe('the overview channels close', () => {
 
   // Phase 138 added the third. It is the fold's option list, and it belongs
   // on this map because Settings reads it through the same overview object.
-  // It reads a table main already holds, so it starts nothing.
-  it('declares the three channels on OverviewInvokeChannelMap and nothing else', () => {
+  // It reads a table main already holds, so it starts nothing. Phase 143 added
+  // the last two. They are the summary chain for one session and the turns
+  // behind one row of it, and both only read.
+  it('declares the five channels on OverviewInvokeChannelMap and nothing else', () => {
     const body = /export interface OverviewInvokeChannelMap \{([\s\S]*?)\n\}/.exec(
       ipcSource
     );
@@ -210,7 +212,9 @@ describe('the overview channels close', () => {
     expect(channels.sort()).toEqual([
       'fold:options',
       'overview:project',
-      'overview:sessions'
+      'overview:sessions',
+      'overview:timeline',
+      'overview:timelineTurns'
     ]);
   });
 
@@ -223,6 +227,8 @@ describe('the overview channels close', () => {
     expect(count(preloadSource, /\binvoke\('overview:project'/g)).toBe(1);
     expect(count(preloadSource, /\binvoke\('overview:sessions'/g)).toBe(1);
     expect(count(preloadSource, /\binvoke\('fold:options'/g)).toBe(1);
+    expect(count(preloadSource, /\binvoke\('overview:timeline'/g)).toBe(1);
+    expect(count(preloadSource, /\binvoke\('overview:timelineTurns'/g)).toBe(1);
   });
 
   it('registers each channel exactly once in main', () => {
@@ -234,6 +240,8 @@ describe('the overview channels close', () => {
     expect(count(mainSource, registration('overview:project'))).toBe(1);
     expect(count(mainSource, registration('overview:sessions'))).toBe(1);
     expect(count(mainSource, registration('fold:options'))).toBe(1);
+    expect(count(mainSource, registration('overview:timeline'))).toBe(1);
+    expect(count(mainSource, registration('overview:timelineTurns'))).toBe(1);
   });
 
   it('gives the View menu one Catch Me Up row wearing the keymap chord', () => {

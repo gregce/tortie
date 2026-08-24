@@ -51,6 +51,9 @@ import {
 } from '../overview/open-overview';
 // Phase 137.2. The ask rail's share of Escape, asked at the overview rung.
 import { askRailTookEscape } from '../overview/session-keys';
+// Phase 143. The story panel's share of the same rung, asked FIRST, so
+// Escape steps out of the story before it steps out of the page.
+import { storyTookEscape } from '../overview/story';
 import { useQuickOpen } from '../quickopen';
 import {
   focusInsideSearch,
@@ -160,8 +163,13 @@ export function useKeyboardMap(): void {
           // must not also step the page back, and only this ladder can make
           // that call because it is capture phase on window and runs before
           // any handler on the page.
+          //
+          // Phase 143. The story panel is asked before the rail, because it
+          // stands in for the whole body of the one session view. While it is
+          // open Escape puts the conversation back and does nothing else.
           e.preventDefault();
           e.stopPropagation();
+          if (storyTookEscape()) return;
           if (askRailTookEscape()) return;
           void backOrLeaveOverview();
         } else if (s.sessionFocus && !inTerminal) {

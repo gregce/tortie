@@ -15,6 +15,11 @@
  * `git status` against the project, which is a read of the repository and
  * not a change to it.
  *
+ * Phase 143 added two more reads behind the same registrar. One answers the
+ * story a session told, version by version, and the other answers the turns
+ * one drawn row of that story covers. Both are SELECTs against tables Tortie
+ * already wrote. Neither spawns a model, and neither runs a git command.
+ *
  * MAIN: src/main/overview/ipc.ts, the one `overview:*` registrar.
  */
 
@@ -22,7 +27,10 @@ import type { FoldOptions } from '../fold';
 import type {
   OverviewProject,
   OverviewProjectInput,
-  OverviewSessionsInput
+  OverviewSessionsInput,
+  OverviewTimeline,
+  OverviewTimelineTurnsInput,
+  OverviewTurnView
 } from '../overview';
 
 export interface OverviewInvokeChannelMap {
@@ -36,6 +44,22 @@ export interface OverviewInvokeChannelMap {
    * recipe table. It starts nothing and it spawns nothing.
    */
   'fold:options': { req: []; res: FoldOptions };
+  /**
+   * The story one session told, version by version (Phase 143). Main reads
+   * the `summary` table the fold already wrote, keeps the versions it kept,
+   * collapses the ones that say the same thing, and answers newest first. It
+   * spawns nothing and it writes nothing.
+   */
+  'overview:timeline': { req: [sessionId: string]; res: OverviewTimeline };
+  /**
+   * The turns one drawn row of that story covers (Phase 143). Main reads the
+   * turns it already stored, uses the git mark it already stored, and runs no
+   * git command of its own.
+   */
+  'overview:timelineTurns': {
+    req: [input: OverviewTimelineTurnsInput];
+    res: OverviewTurnView[];
+  };
 }
 
 /**
@@ -48,6 +72,10 @@ export interface GmuxOverviewExtras {
     project(input: OverviewProjectInput): Promise<OverviewProject>;
     sessions(input: OverviewSessionsInput): Promise<OverviewProject>;
     foldOptions(): Promise<FoldOptions>;
+    timeline(sessionId: string): Promise<OverviewTimeline>;
+    timelineTurns(
+      input: OverviewTimelineTurnsInput
+    ): Promise<OverviewTurnView[]>;
   };
 }
 

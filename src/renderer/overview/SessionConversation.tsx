@@ -6,19 +6,38 @@
  * "you" then "the agent" with the time, and the git mark quiet at the right
  * edge of the answer. The view scrolls to the end on open, because the
  * newest turn is the one the person came for.
+ *
+ * Phase 143. The sub line carries one press target that swaps the body for
+ * the story of what a model wrote about this session. The header itself never
+ * moves, so the name of the session being read stays on screen either way,
+ * and the conversation comes back with its selection untouched.
  */
 
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useSyncExternalStore
+} from 'react';
 import type { OverviewSessionView } from '@shared/overview';
 import type { SessionStatus } from '@shared/types';
 import { statusVisual } from '../app/status';
 import { formatAge } from '../format';
 import { AgentIcon } from '../icons';
 import { honestLineFor, honestLineHasClock } from './line';
-import { NO_CLOCK_NOTE } from './copy';
+import { NO_CLOCK_NOTE, STORY_CLOSE, STORY_OPEN } from './copy';
 import { AskRail } from './AskRail';
 import { registerConversation, scrollTurnIntoView } from './session-keys';
+import { SessionStory } from './SessionStory';
+import {
+  closeStory,
+  noteStorySession,
+  storySnapshot,
+  subscribeStory,
+  toggleStory
+} from './story';
 import { TurnBlock } from './TurnBlock';
+import './story.css';
 
 export interface SessionConversationProps {
   session: OverviewSessionView;
@@ -47,6 +66,27 @@ export function SessionConversation(
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const hasTurns = session.line === 'turns' && session.turns.length > 0;
 
+  // Phase 143. The story's own store, which is module scope and separate from
+  // the page's slice. The third reader is the same one, so the panel renders
+  // the same way on both sides of a render.
+  const story = useSyncExternalStore(
+    subscribeStory,
+    storySnapshot,
+    storySnapshot
+  );
+  const storyOpen = story.open && story.sessionId === session.sessionId;
+
+  // A different session clears the story, because a story belongs to exactly
+  // one session and a cursor must never outlive the rows it was counting.
+  // Leaving the page clears it too, so reopening the page always lands on the
+  // conversation rather than on a list read some time ago.
+  useEffect(() => {
+    noteStorySession(session.sessionId);
+    return () => {
+      closeStory();
+    };
+  }, [session.sessionId]);
+
   // The rail and the layer's key seam read the mounted conversation through
   // this registration (Phase 137.2). The refs keep the hooks current without
   // re-registering on every selection change.
@@ -57,7 +97,7 @@ export function SessionConversation(
   useEffect(() => {
     registerConversation({
       scroller: scrollRef.current,
-      turnCount: hasTurns ? session.turns.length : 0,
+      turnCount: hasTurns && !storyOpen ? session.turns.length : 0,
       selected: () => selectedRef.current,
       select: (i) => {
         onSelectRef.current(i);
@@ -66,7 +106,7 @@ export function SessionConversation(
     return () => {
       registerConversation(null);
     };
-  }, [session.sessionId, session.turns.length, hasTurns]);
+  }, [session.sessionId, session.turns.length, hasTurns, storyOpen]);
 
   // The end is where the newest turn is, so the view opens there.
   useEffect(() => {
@@ -116,38 +156,59 @@ export function SessionConversation(
           {' · '}
           <span data-age>{sub[1]}</span>
           {noClocks(session) ? ` · ${NO_CLOCK_NOTE}` : ''}
+          {' · '}
+          {/* Phase 143. A real button, so the keyboard reaches it, and no
+              icon, because the sub line is words. */}
+          <button
+            type="button"
+            className="overview-story-toggle"
+            onClick={() => {
+              toggleStory(session.sessionId);
+            }}
+          >
+            {storyOpen ? STORY_CLOSE : STORY_OPEN}
+          </button>
         </div>
       </div>
       <div className="overview-session-body">
-        <div className="overview-scroll" ref={scrollRef}>
-          {!hasTurns ? (
-            <div
-              className="overview-honest"
-              data-clock={honestLineHasClock(session) ? true : undefined}
-            >
-              {honestLineFor(session, now)}
+        {/* Phase 143. The story stands in for the whole body, being the
+            scroller and the rail together, and the header above is
+            untouched. */}
+        {storyOpen ? (
+          <SessionStory state={story} status={status} now={now} />
+        ) : (
+          <>
+            <div className="overview-scroll" ref={scrollRef}>
+              {!hasTurns ? (
+                <div
+                  className="overview-honest"
+                  data-clock={honestLineHasClock(session) ? true : undefined}
+                >
+                  {honestLineFor(session, now)}
+                </div>
+              ) : (
+                session.turns.map((turn, i) => (
+                  <TurnBlock
+                    key={turn.index}
+                    turn={turn}
+                    status={status}
+                    now={now}
+                    selected={i === selected}
+                    onSelect={() => {
+                      onSelect(i);
+                    }}
+                  />
+                ))
+              )}
             </div>
-          ) : (
-            session.turns.map((turn, i) => (
-              <TurnBlock
-                key={turn.index}
-                turn={turn}
-                status={status}
-                now={now}
-                selected={i === selected}
-                onSelect={() => {
-                  onSelect(i);
-                }}
-              />
-            ))
-          )}
-        </div>
-        {/* The rail (Phase 137.2). Session level only, and only when there
-            are exchanges to list. An honest line session has no asks, and a
-            rail with nothing in it would be furniture. */}
-        {hasTurns ? (
-          <AskRail session={session} selected={selected} now={now} />
-        ) : null}
+            {/* The rail (Phase 137.2). Session level only, and only when
+                there are exchanges to list. An honest line session has no
+                asks, and a rail with nothing in it would be furniture. */}
+            {hasTurns ? (
+              <AskRail session={session} selected={selected} now={now} />
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );
