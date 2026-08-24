@@ -46,6 +46,8 @@ release.
 | 25 | **140** every probe ends the Electron it started | The crash preventer | ✅ shipped |
 | 26 | **143** the summary timeline | Reads the chain 138 writes | queued |
 | 27 | **141** the drop to a plain shell | From research 64. He placed it last by not placing it, and it moves on his word | queued |
+| 28 | **144** Run E, the 36 plan's stages 0 to 3 | Baseline lock, quit closes IPC, a clone refuses without its journal row, shared loses the DOM library. 30 to 33 | queued |
+| 29 | **145** Run F, the 36 plan's stages 4 to 6 | Main composition and machine cohesion, hermetic test seams, then an adversarial rescore. 33 to 36 or an honest lower number | queued |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
 
 **THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
@@ -16291,6 +16293,120 @@ which of the six things above could not be established.
 - No hiding of the unmeasured agents. He must be able to see what is not available and why, in one line.
 
 
+## Phase 144 — Run E, the architecture plan's safety and type stages (operator queued 2026-08-23) QUEUED, AFTER PHASE 141
+
+**Subject:** three commits, one per stage, listed in the mechanism below
+**First body line:** `Phase 144: Run E, stages 0 to 3 of the 36 plan`
+**Semver:** patch for each commit. No capability moves and nothing a person can see changes.
+**Tier 3 for stages 1 and 2**, being quit ordering and durable clone admission, each with real handler race tests. **Tier 1 for stage 3**, being TypeScript declarations only, whose evidence is compile fixtures. Verify per stage at its own tier rather than promoting the run.
+**Charter:** this entry, plus `docs/audits/2026-08-22-architecture-36-plan.md`, which is the plan and holds every number below, plus `docs/audits/2026-08-20-electron-typescript-architecture.md`, which remains the architecture authority the plan supplements.
+
+**HE SET THE CONSTRAINT HIMSELF ON 2026-08-23**, being to get the codebase tidy without impacting anything user facing or any technical invariant. The plan already carries that as eleven preserved rules and eight exclusions, and they bind every commit in this run.
+
+### Where the score is, and what these three stages buy
+
+30 of 36 at the refreshed baseline `2905051`. Runs A to D and Phases 127, 128, 140 and 142 earned three points already and they are not repeated here.
+
+| Stage | Area | From | To | Total after |
+| ---: | --- | ---: | ---: | ---: |
+| 0 | lock the baseline | | | 30 |
+| 1 | Lifecycle | 2 | 3 | 31 |
+| 2 | Failure flow | 2 | 3 | 32 |
+| 3 | Type truth | 2 | 3 | 33 |
+
+### Stage 0, lock the baseline. One commit, no production file changes
+
+Record these in the commit body and prove each: 184 invoke channels, 904 production files in the import gate, 903 in the runtime graph, 5,159 production imports, 3,072 runtime edges, 0 strongly connected components, manifest schema 17, and the contract inventory matching `docs/audits/contract-baseline.txt`. Classify any host sensitive failure with evidence rather than waving at it.
+
+**THE NUMBERS WILL HAVE MOVED**, because Phase 138, 138.1 and 140 landed after the plan's refresh. Report today's numbers against the plan's and say which moved and why. A number that moved is not a failure; a number reported without checking is.
+
+### Stage 1, close every IPC door when quit starts. Tier 3
+
+`src/main/index.ts` records `quitFlowStarted` before it awaits teardown, and the state is local to that file so `src/main/typed-ipc.ts` cannot read it. `disposeMainCapabilities()` awaits `shutdownGmuxCore()` before `beginRemoteExecutionShutdown()`, and the renderer stays alive through that wait, so a renderer request can still reach filesystem, git or machine mutation handlers.
+
+One main owned lifecycle module with a monotonic `running` to `quitting`. The composition root sets `quitting` synchronously in the first `before-quit` pass, with **no await before that state change**. The one typed invoke wrapper refuses every new renderer invoke after it, using the existing `SHUTTING_DOWN` shape rather than a second error transport. Ownership and joins stay where they are; this changes WHEN admission closes, not who owns each child.
+
+**Proof, and it must drive real handlers rather than fakes.** Hold core shutdown open at its first await, start quit through the real composition root, then invoke a real filesystem write, a real git mutation, a real machine mutation and a real remote execution handler. Prove each receives `SHUTTING_DOWN`, that none writes, spawns or touches the manifest, and that work admitted before quit is still joined. Add a gate proving every `ipcMain.handle` still goes through `typed-ipc.ts`.
+
+### Stage 2, refuse an unjournaled remote clone. Tier 3
+
+`src/main/machines/execution-ledger.ts` tries to write a durable start row before a remote clone starts, and when that write fails it logs and starts the clone anyway. The next launch then cannot explain a partial remote folder. **A current unit test protects that fail open behaviour**, so the phase must mutate that test back and show the new proof fails, which is how it proves the test is not vacuous.
+
+A journaled remote write completes its durable declaration before it calls the spawn closure, or returns a typed durability refusal and does not call it. Non journaled reads keep their path, so capture, harvest, store sync and ordinary reads need no manifest row. The existing open row resolution on next launch stays, because it explains a clone that started and was cut off.
+
+**Proof.** Inject a manifest write failure before clone admission and prove the spawn closure is never called, no SSH child is owned and no remote path changes. Then start a clone with a good row, cut it off during quit, restart, and prove the existing notice reports the uncertain folder once. The person must get a sentence they can act on.
+
+### Stage 3, remove the DOM library from shared. Tier 1
+
+`tsconfig.shared.json` includes the whole DOM library so `window` and `document` look valid in shared code that runs in main. Shared needs exactly two browser shaped things, being the `URL` constructor in `src/shared/clone-url.ts` and the `File` handle in the preload drop contract.
+
+Remove DOM, add narrow declarations for only those members in one clearly named shared ambient file, and add no Node types to compensate.
+
+**Proof is compile fixtures**, being that the required `URL` operations compile, the preload file handle compiles, and that `window`, `document`, `process`, `Buffer`, `electron/main` and `electron/renderer` each FAIL in shared. Keep the existing project reference and builtin fixtures.
+
+### The rules every commit preserves, quoted from the plan
+
+Sessions stay in the private tmux server and the app stays a disposable client. Session and machine identity stay immutable. The manifest commits before a durability sensitive process starts. Remote commands stay allowlisted. Control feeds and poll feeds stay exclusive. One context isolated preload bridge stays the only renderer capability door. **Every current IPC channel keeps its name, request, response and event payload.** Normal copy and behaviour stay unchanged unless a stage describes a failure only correction. Shipped path probes keep using production paths. User work and live sessions stay untouched by verification.
+
+### What is NOT in this run
+
+- No framework, no service container, no second preload bridge, no extension system, no durable schema rewrite, no tmux identifier rename, no visual redesign, no line count target, and no combined product and architecture phase. All eight are the plan's own exclusions.
+- **No stage combined with another.** The plan says one conventional commit per stage and this run is three commits.
+- Nothing from stages 4, 5 or 6. Those are Phase 145.
+- **The plan's own machine discipline section is STALE and CLAUDE.md wins.** The plan says check `vm_stat` and stop below 3 GB free. That rule was rewritten on 2026-08-23 after it proved wrong twice: free pages are meaningless on macOS, and swap alone is not the alarm either. Read the CLAUDE.md section instead.
+
+### The stop conditions, and any one of them ends a stage with the score unchanged
+
+An IPC or durable contract would have to change for convenience. A split needs a second source of truth. A new owner cannot state one responsibility. A test seam needs product code to detect a test environment. A renderer extraction changes keyboard, menu, focus or visual behaviour. A main extraction changes manifest order or session identity. A gate passes only by excluding what it protects. The stage cannot be reverted alone. **A stable 33 is better than a nominal 36 that weakens durability.**
+
+
+## Phase 145 — Run F, the architecture plan's structure, test seams and rescore (operator queued 2026-08-23) QUEUED, AFTER PHASE 144
+
+**Subject:** three commits, one per stage, listed in the mechanism below
+**First body line:** `Phase 145: Run F, stages 4 to 6 of the 36 plan`
+**Semver:** patch for stages 4 and 5. None for stage 6, which changes no production code.
+**Tier 3 for stage 4**, which can touch durable session and remote machine ownership. **Tier 1 for stage 5's test infrastructure**, promoted to Tier 3 for any production seam moved to support it. **Stage 6 is read only** and its rule is an adversarial reviewer who did not implement the stages.
+**Charter:** this entry, plus `docs/audits/2026-08-22-architecture-36-plan.md`, plus the `## Phase 144` entry above, which must have landed first because the plan says durability work and structural moves never share a commit.
+
+**IT MAY RULE AGAINST ITSELF, and the plan says so.** Phase 128 already ruled LEAVE on three large files and was right. Stage 4 applies the same reasons to change test to the remaining candidates, and a ruling to keep an owner whole is a valid outcome that must be recorded with its evidence.
+
+### Stage 4, finish main composition and machine cohesion. Tier 3
+
+Three candidates remain broad because of responsibility rather than length. `src/main/machines/ipc.ts` registers several capability families. `src/main/machines/remote-sessions.ts` owns projection, remote create, kill, rename, restore facts, reconciliation and feed coordination. `GmuxCore` still combines restore, refresh, status, scrollback and project operations.
+
+Where the evidence supports a split: divide machine IPC registration by the same capability families the shared contract already uses, keep one `installMachinesIpc` facade and one typed wrapper, separate remote session state and projection from remote create and feed coordination, keep one remote sessions facade for existing callers, and keep `GmuxCore` as the session lifecycle and identity owner. **Move an effectful workflow only when it has a narrow dependency interface and a separate failure table.**
+
+**Proof.** Keep the contract inventory byte for byte and all invoke channels closed across declaration, preload and main. Keep zero runtime cycles and the facade rules green. Run local and remote create, restore, kill and rename, the remote feed exclusivity matrix, fault injection for declaration, spawn and rollback order, quit generation and manifest reconstruction, plus `smoke:t1`, `smoke:t3`, `smoke:fault` and the machine conformance gate. Drive one real remote machine only if he has loaded the SSH key, and say plainly if not.
+
+Composition scores 3 when the composition roots assemble narrow owners rather than implementing their details. Cohesion scores 3 when each machine capability has one contract owner, one main owner and one renderer owner behind stable facades.
+
+### Stage 5, make the test seams hermetic. Tier 1 to 3
+
+Phase 140 already closed the Electron cleanup gap. What remains is whether the full suite depends on host FSEvents or process lineage, and whether every conformance runner is available from the lockfile with no network.
+
+Pass filesystem watcher and process tree adapters into pure workflow tests, and keep separate live integration tests for the native implementations. **Pin every verification executable in the lockfile**, because a conformance command must never reach the network to find its runner. Use the seams stage 4 extracted and **add no test only branches to production code**, which is also a stop condition.
+
+Classify every check as one of five types, being a pure contract or state test, an adapter integration test, an Electron harness, a tmux harness, or a remote machine probe. Each states its environment requirement and its skip rule. A missing SSH key may block a remote probe and must never make a static gate ambiguous.
+
+**Proof.** Run the full suite twice on the same clean checkout with the same result. Run machine conformance with network access disabled. Run watcher contract tests without FSEvents, and a separate native watcher lane on macOS. Run process lineage rules against injected fixtures plus one live check. Then remove one injected refusal and show its focused test fails.
+
+### Stage 6, audit again before claiming 36. Read only
+
+Use the same twelve area rubric and the same production graph rules as the 20 August audit, and compare the final tree against the baseline and against each stage commit.
+
+**The reviewer must be adversarial and must not have implemented any stage.** It inspects current code rather than trusting stage commit messages, builds the runtime graph with type only and test edges excluded, runs the import, IPC closure and facade gates, and traces five paths end to end: quit from `before-quit` to the last joined owner, a journaled clone from durable declaration to restart notice, one local and one remote session mutation, one local and one remote SCM read, and renderer state, app, tree and editor direction.
+
+**Do not award a point because a planned file exists.** Award it only when the owner, the interface and the prevention gate are all present. **If a row stays at 2, publish the measured score and the remaining exception rather than weakening the rubric.** A published 34 with two named exceptions is a better outcome than an unearned 36.
+
+### What is NOT in this run
+
+- The plan's eight exclusions, unchanged, being no framework or service container, no second preload bridge, no extension system, no durable schema rewrite, no tmux identifier rename, no visual redesign, no line count target and no combined product and architecture phase.
+- **No stage combined with another.** Three commits.
+- **No release cut between a structural stage and its fix round.** The plan says so and it is right.
+- No reopening of Phase 128's ruling on `shared/types.ts`, the agent registry or the git service. That ruling stands unless stage 4 produces new evidence, and new evidence means measurements rather than an opinion.
+- **`ScmSection.tsx` is not queued.** The plan names it as large and says length alone does not justify a split. Reassess it only if reasons to change and importer evidence show a real breach.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16451,3 +16567,5 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 138.2 queued, measure a fold recipe for every agent CLI, in the order he actually uses them, and ship no recipe for an agent that could not be authenticated and measured
 - 2026-08-23, Phase 138.2 was FOLDED INTO 138.1 on his word, because he asked for every harness to be able to write the line rather than only claude, so the recipes are measured before the release rather than after it, and 138.1 becomes Tier 3
 - 2026-08-23, Phase 142 shipped, `src/renderer/machines/presentation.ts` went from 2,948 lines and 249 exports down to 78 lines holding only the four fragments every subject composes with, and nineteen files named for what they are for now sit beside it, so the eleven importers name the subject they draw rather than one filename that thirty one phases had written into; no rendered string moved, which two counts prove, being 447 string literals before and 455 after where all 8 of the new ones are import paths, and `node build/contract-inventory.mjs --out` left `docs/audits/contract-baseline.txt` byte identical; the only new export is `commitCount`, which the Branch group and the history both used as one private helper and now share as one public fragment; the version did not move, this commit, 0.71.0
+- 2026-08-23, his own commit a3bbd45 restoring the architecture 36 plan was discarded by my git reset --keep in his checkout, recovered from the reflog and pushed at 13393f2, and CLAUDE.md now forbids that sync without listing origin/main..HEAD first
+- 2026-08-23, Phases 144 and 145 queued from docs/audits/2026-08-22-architecture-36-plan.md at his word, being two runs of three stages each, one commit per stage as the plan requires, taking the score from 30 toward 36 with no user facing change and no technical invariant touched
