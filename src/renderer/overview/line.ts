@@ -128,3 +128,30 @@ export function buildProjectLine(
   }
   return { ask, outcome: OUTCOME_NO_ANSWER };
 }
+
+/**
+ * The line the project view draws (Phase 138).
+ *
+ * The written sentence when a model wrote one, and Phase 137's built line
+ * when a model did not. The written sentence replaces the WHOLE line, lead
+ * and all, because the model writes exactly one thing. So there is no
+ * `you asked "…"` in front of a written sentence and no quotes around any
+ * part of one.
+ *
+ * `buildProjectLine` above is untouched, which is what makes the fallback
+ * provably identical to what Phase 137 shipped. With no harness chosen the
+ * summary field is null for every session and this function is that function.
+ *
+ * `summary` is filled ONLY on the overview:project payload. The one session
+ * view and the multiplexed view read overview:sessions, where the field is
+ * null, so those two stay verbatim whether a model is chosen or not.
+ */
+export function projectLineFor(
+  session: OverviewSessionView,
+  status: SessionStatus,
+  nowMs: number
+): ProjectLine {
+  const written = session.summary;
+  if (written !== null && written !== '') return { ask: null, outcome: written };
+  return buildProjectLine(session, status, nowMs);
+}

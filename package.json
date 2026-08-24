@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.70.0",
+  "version": "0.71.0",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -57,6 +57,7 @@
     "probe:p137": "npm run build && node build/harness-socket.mjs gmux-p137-overview 'node build/probe-p137-overview.mjs'",
     "probe:p1372columns": "npm run build && node build/harness-socket.mjs gmux-p1372-columns 'node build/probe-p1372-columns.mjs'",
     "probe:p1372menu": "npm run build && node build/probe-p1372-menu.mjs",
+    "probe:p138": "npm run build && node build/harness-socket.mjs gmux-p138-fold 'node build/probe-p138-fold.mjs'",
     "probe:shellpath": "npm run build && node build/harness-socket.mjs gmux-p81-path 'node build/probe-shell-path.mjs'",
     "probe:p127": "npm run build && node build/harness-socket.mjs gmux-p127-probes 'node build/probe-p127-probes.mjs'",
     "smoke:power": "npm run build && node build/harness-socket.mjs gmux-power 'GMUX_POWER_ROOT=\"$GMUX_HARNESS_DIR\" GMUX_SMOKE=power electron . --user-data-dir=\"$GMUX_HARNESS_DIR/profile\" -ApplePersistenceIgnoreState YES'",

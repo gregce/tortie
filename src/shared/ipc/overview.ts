@@ -18,6 +18,7 @@
  * MAIN: src/main/overview/ipc.ts, the one `overview:*` registrar.
  */
 
+import type { FoldOptions } from '../fold';
 import type {
   OverviewProject,
   OverviewProjectInput,
@@ -29,6 +30,12 @@ export interface OverviewInvokeChannelMap {
   'overview:project': { req: [input: OverviewProjectInput]; res: OverviewProject };
   /** The named sessions with their last turns. Same read path, filtered. */
   'overview:sessions': { req: [input: OverviewSessionsInput]; res: OverviewProject };
+  /**
+   * The harnesses and models Settings offers for the fold (Phase 138). Main
+   * joins the merged agent table, the Phase 23 confirm gate and the compiled
+   * recipe table. It starts nothing and it spawns nothing.
+   */
+  'fold:options': { req: []; res: FoldOptions };
 }
 
 /**
@@ -40,6 +47,7 @@ export interface GmuxOverviewExtras {
   overview: {
     project(input: OverviewProjectInput): Promise<OverviewProject>;
     sessions(input: OverviewSessionsInput): Promise<OverviewProject>;
+    foldOptions(): Promise<FoldOptions>;
   };
 }
 

@@ -54,6 +54,20 @@ export interface OverviewServiceDeps {
   store(): OverviewStore;
   /** Passed through to resolveSessionLog. Defaults to the process's own home. */
   home?: string;
+  /**
+   * Has a person picked an agent to write the project line (Phase 138)?
+   *
+   * THE READ PATH ASKS THIS, not only the scheduler. Settings then Project
+   * line tells a person that picking None brings the built line straight back,
+   * and without this seam that sentence was false: None stopped new folds and
+   * left every sentence already written on the page forever, because no newer
+   * row would ever replace one. It is a function rather than a value because
+   * the choice can change between two calls.
+   *
+   * It defaults to false, so a caller that does not pass it draws Phase 137's
+   * built line. That is the shipped answer and the safe direction.
+   */
+  foldChosen?(): boolean;
   now?: () => number;
 }
 
@@ -65,7 +79,7 @@ export function projectOverview(
   deps: OverviewServiceDeps,
   input: OverviewProjectInput
 ): Promise<OverviewProject> {
-  return buildOverview(deps, input.projectPath, null, 1);
+  return buildOverview(deps, input.projectPath, null, 1, true);
 }
 
 /** The named sessions with their last turns. The same read path, filtered. */
@@ -77,7 +91,18 @@ export function sessionsOverview(
     1,
     Math.min(input.turnLimit ?? DEFAULT_TURN_LIMIT, MAX_TURN_LIMIT)
   );
-  return buildOverview(deps, input.projectPath, new Set(input.sessionIds), limit);
+  // withSummary is FALSE here, and that is the whole of the entry's second
+  // strongest refusal. The one session view and the multiplexed view read
+  // this channel, so they are re-read from the store and stay verbatim. A
+  // model's sentence can never reach them, because the field they would draw
+  // it from is never filled on this payload.
+  return buildOverview(
+    deps,
+    input.projectPath,
+    new Set(input.sessionIds),
+    limit,
+    false
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +127,8 @@ async function buildOverview(
   deps: OverviewServiceDeps,
   projectPath: string,
   only: ReadonlySet<string> | null,
-  turnLimit: number
+  turnLimit: number,
+  withSummary: boolean
 ): Promise<OverviewProject> {
   const manifest = await deps.manifest();
   const store = deps.store();
@@ -138,8 +164,14 @@ async function buildOverview(
   const sinceMs = floors.length > 0 ? Math.min(...floors) : now;
   const evidence = await readGitEvidence(projectPath, sinceMs);
 
+  // Phase 138. A model's sentence is drawn only while a person's choice says
+  // so. `withSummary` is the channel's answer and `foldChosen` is the
+  // person's, and both must say yes.
+  const drawSummary = withSummary && (deps.foldChosen?.() ?? false);
   const sessions = orderSessions(
-    states.map((state) => toSessionView(state, evidence, store, projectPath, now))
+    states.map((state) =>
+      toSessionView(state, evidence, store, projectPath, now, drawSummary)
+    )
   );
   const reads: Record<string, OverviewReadWork> = {};
   for (const state of states) reads[state.row.id] = state.work;
@@ -298,6 +330,56 @@ function readOneRow(
 }
 
 // ---------------------------------------------------------------------------
+// The fold's read (Phase 138)
+// ---------------------------------------------------------------------------
+
+/**
+ * Bring ONE session's stored turns up to date, for the fold.
+ *
+ * It is the same read path the page uses, on one row rather than a project.
+ * It resolves the log, reads what changed since the watermark, writes the
+ * redacted slice into the store, and answers with STORE ROWS, so what the
+ * fold sends has been through redaction exactly as what the page draws has.
+ * It runs no git command, because the model never writes the git mark.
+ *
+ * Returns null for a row this phase has nothing to send for, being a shell, a
+ * remote session, a provider with no readable store, and a file that could
+ * not be read. The scheduler drops the boundary and the page keeps Phase
+ * 137's built line.
+ */
+export async function refreshSessionForFold(
+  deps: OverviewServiceDeps,
+  sessionId: string
+): Promise<{ turns: StoredTurn[]; providerMapVersion: number } | null> {
+  const manifest = await deps.manifest();
+  const store = deps.store();
+  const now = (deps.now ?? Date.now)();
+  const row = manifest
+    .listSessions()
+    .find((candidate) => candidate.id === sessionId);
+  if (row === undefined || row.status === 'discarded') return null;
+  if (row.machine !== undefined || row.agent === 'shell') return null;
+
+  const state = readOneRow(
+    deps,
+    store,
+    row,
+    row.projectPath,
+    MAX_TURN_LIMIT,
+    new Set<string>(),
+    now
+  );
+  if (state.provider === null || state.line !== 'turns') return null;
+  // readOneRow already listed the tail, bounded by MAX_TURN_LIMIT. Reading it
+  // again unbounded would grow with the session, and the fold's whole promise
+  // is that its cost per turn stays flat as a session grows.
+  return {
+    turns: state.turns,
+    providerMapVersion: providerVersion(state.provider)
+  };
+}
+
+// ---------------------------------------------------------------------------
 // The view build. Store rows in, wire shapes out.
 // ---------------------------------------------------------------------------
 
@@ -306,7 +388,8 @@ function toSessionView(
   evidence: GitEvidence,
   store: OverviewStore,
   projectPath: string,
-  now: number
+  now: number,
+  withSummary: boolean
 ): OverviewSessionView {
   const turns: OverviewTurnView[] = state.turns.map((turn) => {
     const mark = markTurn(evidence, {
@@ -348,8 +431,50 @@ function toSessionView(
     noTurnClock: state.provider === 'deepseek',
     startedAt: state.row.createdAt,
     lastTouchedAt: state.lastTouchedAtMs,
-    turns
+    turns,
+    summary: withSummary
+      ? writtenLineFor(store, state.row.id, newestTurnIndex(state))
+      : null
   };
+}
+
+/** The index of the newest stored turn, or null when the session has none. */
+function newestTurnIndex(state: RowState): number | null {
+  // listTurns answers oldest first, so the last member is the newest turn.
+  return state.turns.at(-1)?.index ?? null;
+}
+
+/**
+ * The one sentence a model wrote, or null.
+ *
+ * TWO THINGS DECIDE, and both of them are the same failure.
+ *
+ * The NEWEST row is what is read, whatever its verdict, and a refused newest
+ * row deliberately does NOT fall back to an older kept one.
+ *
+ * A kept row is then drawn only when it covers the newest turn the store
+ * holds. The written sentence replaces the WHOLE line, the ask included, so a
+ * sentence written for an older turn would leave a person reading about a turn
+ * that is no longer the one on screen, with nothing saying so. That happens in
+ * ordinary use rather than in a corner: folding is suspended by the rate
+ * window, or the project is closed, or Tortie quits with a settle timer armed,
+ * and the session keeps taking turns.
+ *
+ * A turn that is still in flight counts, because the built line reports it and
+ * a sentence about the turn before it does not. So the written line steps
+ * aside while a turn runs and comes back when the next fold lands. The
+ * fallback is Phase 137's built line, which is current by construction.
+ */
+function writtenLineFor(
+  store: OverviewStore,
+  sessionId: string,
+  newestTurn: number | null
+): string | null {
+  const row = store.latestSummary(sessionId);
+  if (row === null || row.verdict !== 'kept') return null;
+  if (newestTurn === null || row.toTurn < newestTurn) return null;
+  const text = row.text;
+  return text === null || text === '' ? null : text;
 }
 
 /**

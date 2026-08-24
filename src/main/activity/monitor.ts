@@ -46,6 +46,7 @@ import { readProcSnapshot, type ProcSnapshot } from './process';
 import { excerptFromCapture } from './screen';
 import {
   commitVerdict,
+  isTurnBoundary,
   freshState,
   inferredVerdict,
   isMidDialog,
@@ -119,6 +120,13 @@ export interface ActivityMonitorDeps {
     exitCode: number | undefined,
     deadSignal: string | undefined
   ): void;
+  /**
+   * A session finished a turn (Phase 138). Fired from the ONE commit point
+   * below, and only for the transition `isTurnBoundary` names. It never
+   * throws into the tick, it is never awaited, and it may never set a
+   * session's status. Optional, so tests and the smoke harness need not care.
+   */
+  onTurnBoundary?(sessionId: string, at: number): void;
   now?(): number;
 }
 
@@ -408,9 +416,12 @@ export class SessionActivityMonitor {
     verdict: ActivityVerdict
   ): void {
     const now = this.now();
+    // Read BEFORE commitVerdict, which mutates st.state.
+    const from = st.state;
     const next = commitVerdict(st, verdict, now);
     if (next === null) return;
     this.deps.onStatus(sessionId, toSessionStatus(next), now);
+    if (isTurnBoundary(from, next)) this.deps.onTurnBoundary?.(sessionId, now);
   }
 
   /**

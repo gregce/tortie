@@ -119,6 +119,11 @@ import {
 // which imports ../menu, and the registrar that owns this core already does.
 import { getSettings, onSettingsUpdated } from '../settings/store';
 import {
+  FoldScheduler,
+  foldSchedulerDepsFor,
+  setLiveFoldScheduler
+} from './fold-wiring';
+import {
   SYNC_QUIT_TIMEOUT_MS,
   SyncQueue,
   cloudDisabledByEnv,
@@ -464,6 +469,12 @@ export class GmuxCore {
 
   /** Phase 13: per-agent activity detection (src/main/activity). */
   readonly activity: SessionActivityMonitor;
+  /**
+   * Phase 138. Turns a turn boundary into at most one fold per session per
+   * minute. It holds no timer of its own beyond a settle timer armed by a
+   * boundary, so a fleet that is idle costs nothing.
+   */
+  readonly fold: FoldScheduler;
   /** Loopback channel for injected agent hooks (claude only, §3). */
   readonly hookServer: GmuxHookServer;
 
@@ -670,8 +681,22 @@ export class GmuxCore {
       },
       onScrollback: (samples) => {
         this.scrollbackWatch.observe(samples);
+      },
+      // Phase 138. The ONE call site of the fold. It is fired from the
+      // monitor's single commit point, it is not awaited, and it cannot set a
+      // status: noteTurnBoundary returns void.
+      onTurnBoundary: (sessionId) => {
+        this.fold.noteTurnBoundary(sessionId);
       }
     });
+    this.fold = new FoldScheduler(
+      foldSchedulerDepsFor({
+        manifest,
+        openProjectPaths: () =>
+          new Set(this.manifest.listProjects().map((project) => project.path))
+      })
+    );
+    setLiveFoldScheduler(this.fold);
     // PHASE 125. Built here rather than as a field initializer, because
     // `hookServer` is assigned above in this same body. The three maps go over
     // by reference, for the reason the harvest deps give.
@@ -2858,6 +2883,8 @@ export class GmuxCore {
     this.unwatchSettings?.();
     this.unwatchSettings = null;
     this.activity.dispose();
+    this.fold.dispose();
+    setLiveFoldScheduler(null);
     this.hookServer.stop();
     this.attachHost.disposeAll();
     this.control.stop();

@@ -27,6 +27,7 @@ import specstorySvg from '../assets/brand/specstory.svg?raw';
 import { AgentsSection } from './AgentsSection';
 import { AppearanceSection } from './AppearanceSection';
 import { DiagnosticsSection } from './DiagnosticsSection';
+import { FoldSection } from './FoldSection';
 import { GeneralSection } from './GeneralSection';
 import { KeyboardSection } from './KeyboardSection';
 import { LaunchDefaultsSection } from './LaunchDefaultsSection';
@@ -43,7 +44,8 @@ type SectionId =
   | 'specstory'
   | 'diagnostics'
   | 'appearance'
-  | 'machines';
+  | 'machines'
+  | 'project-line';
 
 /**
  * A rail entry wears either a codicon, which is what app chrome uses, or a
@@ -93,6 +95,12 @@ export const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // glyph draws. `remote` already means "this branch is on a remote"
   // everywhere else in this app.
   { id: 'machines', label: 'Machines', icon: { codicon: 'vm' } },
+  // Phase 138 appended this one, under the same rule as Appearance and
+  // Machines above, and before Diagnostics, which the test pins last. The
+  // `comment` glyph, because the one thing this section decides is who writes
+  // a sentence. It is not `hubot`, which already means an agent row under
+  // Agents, and it is not `sparkle`, which would promise more than one line.
+  { id: 'project-line', label: 'Project line', icon: { codicon: 'comment' } },
   // Phase 35 put this here for the reason SpecStory above gives, being that it
   // was the newest section and the least often visited. Phase 87 moved it to
   // the end and it now sits last on purpose. Diagnostics is the one section a
@@ -179,6 +187,7 @@ export function SettingsApp(): React.JSX.Element {
         {section === 'diagnostics' ? <DiagnosticsSection /> : null}
         {section === 'appearance' ? <AppearanceSection /> : null}
         {section === 'machines' ? <MachinesSection /> : null}
+        {section === 'project-line' ? <FoldSection /> : null}
       </main>
     </div>
   );

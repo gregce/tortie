@@ -290,6 +290,8 @@ import { runRemoteMatrixSmoke } from './remote-matrix';
 import { runSmokeShadow } from './shadow';
 import { runSmokeShim } from './shim-smoke';
 import { runShot } from './shot';
+import { installFoldStub } from './fold-stub';
+import { seedFold } from './fold-seed';
 import { seedOverviewSessions } from './overview-seed';
 
 export interface HarnessDeps {
@@ -559,6 +561,17 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
     // outside an isolated harness launch on a harness profile.
     if ((process.env['GMUX_OVERVIEW_SEED'] ?? '') !== '') {
       await seedOverviewSessions();
+    }
+    // Phase 138: the fold's stub binary, so a probe can drive the whole fold
+    // path and spend nothing. It carries the same two refusals the seed above
+    // carries, and it returns null rather than throwing when either fires.
+    installFoldStub();
+    // Phase 138: the fold's own seed, which sets the sealed choice and drives
+    // one real fold per named session against the stub above. It runs after
+    // the stub is installed and after the manifest rows exist, and it carries
+    // the same two refusals both of those carry.
+    if ((process.env['GMUX_FOLD_SEED'] ?? '') !== '') {
+      await seedFold();
     }
     await runShot(shot, deps);
     return true;

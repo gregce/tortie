@@ -24,6 +24,15 @@
  * See "The danger seal" below for the mechanism and for what it does not
  * cover.
  *
+ * THE FOLD CHOICE IS SEALED THE SAME WAY (Phase 138), and for the same reason
+ * written in CLAUDE.md refusal 8: nothing may cause a process to start on a
+ * configuration change alone, and a human confirms the bytes out of band of
+ * any agent turn. The fold spawns a process, and this file sits in the home
+ * directory that every agent Tortie runs can write. So a `fold` key an agent
+ * put here is dropped before the value leaves this module, because the agent
+ * cannot produce the seal. The choice reaches a spawn only when the Settings
+ * window wrote it, which is a person acting out of band.
+ *
  * Ownership: src/main/settings/** (settings+hotkeys stream).
  */
 
@@ -31,6 +40,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { app, safeStorage } from 'electron';
 import type {
+  FoldSettings,
   GmuxSettings,
   GmuxSettingsPatch
 } from '@shared/settings';
@@ -39,10 +49,13 @@ import {
   clampScrollbackLines,
   dangerKey,
   defaultGmuxSettings,
+  foldKey,
+  noFoldChosen,
   sanitizeContrastLevel,
   sanitizeHighlightScheme,
   sanitizeWorkAreaFont
 } from '@shared/settings';
+import { foldRecipeFor, recipeHasModel } from '../overview/fold/recipes';
 import type { LaunchableAgentId, LaunchableAgentKind } from '@shared/types';
 import { LAUNCHABLE_AGENT_IDS } from '../agents/registry';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
@@ -155,6 +168,13 @@ export interface DangerState {
   readonly defaults: readonly string[];
   /** Danger confirms the user has accepted, which skip the confirm modal. */
   readonly acks: readonly string[];
+  /**
+   * "<agentId> <model>" when a fold harness is chosen, null for None
+   * (Phase 138). It is here rather than in a second seal because it is the
+   * same question: did a person set this, or did something else write the
+   * file?
+   */
+  readonly fold: string | null;
 }
 
 /** The danger state of a settings object, sorted so it seals to one text. */
@@ -167,15 +187,24 @@ export function dangerStateOf(settings: GmuxSettings): DangerState {
       if (danger.has(flag)) defaults.push(dangerKey(id, flag));
     }
   }
+  const fold =
+    settings.fold.agentId !== null && settings.fold.model !== null
+      ? foldKey(settings.fold.agentId, settings.fold.model)
+      : null;
   return {
     defaults: defaults.sort(),
-    acks: [...settings.dangerAcknowledged].sort()
+    acks: [...settings.dangerAcknowledged].sort(),
+    fold
   };
 }
 
 /** No danger state at all, which is the case for almost every settings file. */
 export function isDangerStateEmpty(state: DangerState): boolean {
-  return state.defaults.length === 0 && state.acks.length === 0;
+  return (
+    state.defaults.length === 0 &&
+    state.acks.length === 0 &&
+    state.fold === null
+  );
 }
 
 /**
@@ -193,6 +222,16 @@ export function withSealedDangerState(
   const sealedDefaults = new Set(sealed.defaults);
   const sealedAcks = new Set(sealed.acks);
   const rejected: string[] = [];
+  // Phase 138. The fold choice is dropped back to None unless the seal covers
+  // that exact pair, and it IS reported, so the Settings window can say one
+  // sentence about it. A dropped fold choice costs nothing: the page draws
+  // Phase 137's built line, which is complete on its own.
+  const chosenFold =
+    settings.fold.agentId !== null && settings.fold.model !== null
+      ? foldKey(settings.fold.agentId, settings.fold.model)
+      : null;
+  const foldRejected = chosenFold !== null && chosenFold !== sealed.fold;
+  if (foldRejected) rejected.push(chosenFold);
   const launchDefaults: GmuxSettings['launchDefaults'] = {};
   for (const [id, flags] of Object.entries(settings.launchDefaults)) {
     if (!Array.isArray(flags)) continue;
@@ -210,7 +249,12 @@ export function withSealedDangerState(
     return { settings, rejected };
   }
   return {
-    settings: { ...settings, launchDefaults, dangerAcknowledged: acks },
+    settings: {
+      ...settings,
+      launchDefaults,
+      dangerAcknowledged: acks,
+      fold: foldRejected ? noFoldChosen() : settings.fold
+    },
     rejected
   };
 }
@@ -257,7 +301,7 @@ export function withSealedDangerState(
  */
 const SEAL_PREFIX = 'gmux-danger-seal-v1:';
 
-const EMPTY_DANGER_STATE: DangerState = { defaults: [], acks: [] };
+const EMPTY_DANGER_STATE: DangerState = { defaults: [], acks: [], fold: null };
 
 /** Is `safeStorage` usable right now? False before `app` is ready. */
 function sealAvailable(): boolean {
@@ -304,9 +348,12 @@ function openDangerSeal(blob: unknown): DangerState | null {
     const asState = parsed as Partial<DangerState>;
     const strings = (v: unknown): string[] =>
       Array.isArray(v) ? v.filter((k): k is string => typeof k === 'string') : [];
+    // `fold` defaults to null, so an old seal written before Phase 138 still
+    // opens and still covers exactly what it always covered.
     return {
       defaults: strings(asState.defaults),
-      acks: strings(asState.acks)
+      acks: strings(asState.acks),
+      fold: typeof asState.fold === 'string' ? asState.fold : null
     };
   } catch {
     // Forged, truncated, or written by a different machine's key. It proves
@@ -395,7 +442,37 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
   out.contrastLevel = sanitizeContrastLevel(obj['contrastLevel']);
   out.workAreaFont = sanitizeWorkAreaFont(obj['workAreaFont']);
 
+  // The fold choice (Phase 138). Membership FIRST, and the seal after, in
+  // getSettings. This is the shape check and it cannot tell who wrote the
+  // file, which is what the seal is for.
+  out.fold = sanitizeFoldSettings(obj['fold']);
+
   return out;
+}
+
+/**
+ * Coerce a parsed `fold` value into a valid choice.
+ *
+ * AN INVALID VALUE DROPS THE WHOLE OBJECT TO NONE rather than merging half of
+ * it. That mirrors the rule CLAUDE.md already states for an overlay row: an
+ * invalid row is dropped whole and never partially merged. Half a fold choice
+ * would be an agent with no model or a model no recipe exposes, and either one
+ * would put an unmeasured argv in front of a person's own subscription.
+ *
+ * None is the answer for a file with no `fold` key, which is every settings
+ * file written before this phase and every fresh install.
+ */
+export function sanitizeFoldSettings(raw: unknown): FoldSettings {
+  if (raw === null || typeof raw !== 'object') return noFoldChosen();
+  const obj = raw as Record<string, unknown>;
+  const agentId = obj['agentId'];
+  const model = obj['model'];
+  if (typeof agentId !== 'string' || typeof model !== 'string') {
+    return noFoldChosen();
+  }
+  const recipe = foldRecipeFor(agentId);
+  if (recipe === null || !recipeHasModel(recipe, model)) return noFoldChosen();
+  return { agentId, model };
 }
 
 /** Apply a shallow patch (present keys replace wholesale), re-sanitized. */
@@ -461,10 +538,9 @@ function loadFile(): SettingsFile {
 function warnRejected(rejected: readonly string[]): void {
   if (rejected.length === 0) return;
   settingsLog.warn(
-    `ignoring ${rejected.length} launch default(s) that turn a ` +
-      `safeguard off and were not switched on in Tortie's Settings window: ` +
-      `${rejected.join(', ')}. Switch them on in Settings → Launch defaults ` +
-      `if you want them.`
+    `ignoring ${rejected.length} setting(s) that decide what runs and were ` +
+      `not set in Tortie's Settings window: ${rejected.join(', ')}. Set them ` +
+      `in Settings if you want them.`
   );
 }
 
@@ -497,8 +573,8 @@ function persistSettings(next: GmuxSettings): GmuxSettings {
     const stripped = withSealedDangerState(settings, EMPTY_DANGER_STATE);
     settings = stripped.settings;
     settingsLog.warn(
-      `the OS keystore is unavailable, so these launch defaults ` +
-        `cannot be recorded: ${stripped.rejected.join(', ')}`
+      `the OS keystore is unavailable, so these choices cannot be ` +
+        `recorded: ${stripped.rejected.join(', ')}`
     );
   }
   cached = {

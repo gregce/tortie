@@ -72,13 +72,57 @@ beforeEach(() => {
 });
 
 describe('registerOverviewIpc', () => {
-  it('registers exactly the two overview channels', () => {
+  it('registers exactly the three channels, and all three READ', () => {
     const { ipc, handlers } = fakeIpc();
     registerOverviewIpc(ipc, manifestGetter);
     expect([...handlers.keys()].sort()).toEqual([
+      // Phase 138 added the third. Answering it reads the agent table and the
+      // confirm gate and starts nothing.
+      'fold:options',
       'overview:project',
       'overview:sessions'
     ]);
+  });
+
+  it('answers fold:options without opening the store', async () => {
+    const { ipc, handlers } = fakeIpc();
+    registerOverviewIpc(ipc, manifestGetter);
+    const out = await handlers.get('fold:options')?.(EVENT);
+    expect(out).toHaveProperty('harnesses');
+    expect(seams.openOverviewStore).not.toHaveBeenCalled();
+  });
+
+  it('carries the suspension sentence the caller handed it', async () => {
+    const { ipc, handlers } = fakeIpc();
+    registerOverviewIpc(ipc, manifestGetter, () => 'Folding is paused.');
+    const out = (await handlers.get('fold:options')?.(EVENT)) as {
+      suspended: string | null;
+    };
+    expect(out.suspended).toBe('Folding is paused.');
+  });
+
+  // -------------------------------------------------------------------------
+  // The person's choice reaches the READ path (Phase 138, the fix round)
+  // -------------------------------------------------------------------------
+
+  it('hands the service the choice getter it was given', async () => {
+    let chosen = true;
+    const { ipc, handlers } = fakeIpc();
+    registerOverviewIpc(ipc, manifestGetter, () => null, () => chosen);
+    await handlers.get('overview:project')?.(EVENT, { projectPath: '/p' });
+    const deps = lastDeps();
+    expect(deps.foldChosen?.()).toBe(true);
+    // It is a function rather than a value, so a person who picks None while
+    // the page is open is read on the next call rather than on the next launch.
+    chosen = false;
+    expect(deps.foldChosen?.()).toBe(false);
+  });
+
+  it('answers that nothing is chosen when the caller passes no getter', async () => {
+    const { ipc, handlers } = fakeIpc();
+    registerOverviewIpc(ipc, manifestGetter);
+    await handlers.get('overview:project')?.(EVENT, { projectPath: '/p' });
+    expect(lastDeps().foldChosen?.()).toBe(false);
   });
 
   it('opens no store at registration', () => {

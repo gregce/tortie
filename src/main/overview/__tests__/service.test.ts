@@ -12,7 +12,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ManifestSessionRecord, ManifestStore } from '../../manifest';
 import type { ReadResult, ReadTurn, Watermark } from '../reader';
-import type { OverviewStore, StoredSession, StoredTurn } from '../store';
+import type {
+  NewFoldVersion,
+  OverviewStore,
+  StoredSession,
+  StoredSummary,
+  StoredTurn
+} from '../store';
 
 const seams = vi.hoisted(() => ({
   readSessionLog: vi.fn(),
@@ -218,16 +224,47 @@ class FakeStore {
     return null;
   }
 
+  // Phase 138. The fold's chain. The fake holds one row per session, which is
+  // all the service ever reads.
+  readonly summaries = new Map<string, StoredSummary>();
+
+  appendSummary(rowIn: NewFoldVersion): StoredSummary {
+    const written: StoredSummary = {
+      ...rowIn,
+      version: 1,
+      parentVersion: null
+    };
+    this.summaries.set(rowIn.sessionId, written);
+    return written;
+  }
+
+  latestSummary(sessionId: string): StoredSummary | null {
+    return this.summaries.get(sessionId) ?? null;
+  }
+
+  latestKeptSummary(sessionId: string): StoredSummary | null {
+    const found = this.summaries.get(sessionId);
+    return found !== undefined && found.verdict === 'kept' ? found : null;
+  }
+
   close(): void {}
 }
 
-function makeDeps(rows: ManifestSessionRecord[], store: FakeStore) {
+function makeDeps(
+  rows: ManifestSessionRecord[],
+  store: FakeStore,
+  foldChosen = false
+) {
   return {
     manifest: () =>
       Promise.resolve({
         listSessions: () => rows
       } as unknown as ManifestStore),
     store: () => store as unknown as OverviewStore,
+    // Phase 138. False by default, which is what the product ships with, so
+    // every test above this one reads the page as a person with no agent
+    // chosen reads it.
+    foldChosen: () => foldChosen,
     now: () => NOW
   };
 }
@@ -591,5 +628,206 @@ describe('sessionsOverview', () => {
       turnLimit: 5_000
     });
     expect(store.listLimits).toEqual([200]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The fold's one line (Phase 138)
+// ---------------------------------------------------------------------------
+
+describe('the written line reaches ONE payload and no other', () => {
+  const SENTENCE = 'You asked the agent to settle the rail and it did.';
+
+  function withSummary(
+    verdict: 'kept' | 'refused' | 'failed',
+    options: { toTurn?: number; turns?: number; chosen?: boolean } = {}
+  ): {
+    store: FakeStore;
+    deps: ReturnType<typeof makeDeps>;
+  } {
+    const store = new FakeStore();
+    const rows = [row({ id: 'A' })];
+    const count = options.turns ?? 1;
+    const turns = Array.from({ length: count }, (_, i) => turn(i));
+    seams.readSessionLog.mockReturnValue(
+      readResult({ turns, watermark: byteWatermark(count) })
+    );
+    const toTurn = options.toTurn ?? count - 1;
+    store.appendSummary({
+      sessionId: 'A',
+      fromTurn: toTurn,
+      toTurn,
+      text: verdict === 'kept' ? SENTENCE : null,
+      verdict,
+      reason: verdict === 'kept' ? null : 'digit',
+      harness: 'claude',
+      model: 'claude-haiku-4-5-20251001',
+      providerMapVersion: 1,
+      inputHash: 'a'.repeat(64),
+      writtenAt: NOW
+    });
+    return { store, deps: makeDeps(rows, store, options.chosen ?? true) };
+  }
+
+  it('fills the sentence on the project payload', async () => {
+    const { deps } = withSummary('kept');
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summary).toBe(SENTENCE);
+  });
+
+  it('fills NOTHING on the sessions payload, whatever the store holds', async () => {
+    const { deps } = withSummary('kept');
+    const out = await sessionsOverview(deps, {
+      projectPath: PROJECT,
+      sessionIds: ['A']
+    });
+    expect(out.sessions[0]?.summary).toBeNull();
+  });
+
+  it('draws nothing when the newest row was refused', async () => {
+    const { deps } = withSummary('refused');
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summary).toBeNull();
+  });
+
+  it('draws nothing when the newest row failed', async () => {
+    const { deps } = withSummary('failed');
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summary).toBeNull();
+  });
+
+  it('draws nothing at all when no model has written one', async () => {
+    const store = new FakeStore();
+    seams.readSessionLog.mockReturnValue(
+      readResult({ turns: [turn(0)], watermark: byteWatermark(1) })
+    );
+    const out = await projectOverview(makeDeps([row({ id: 'A' })], store), {
+      projectPath: PROJECT
+    });
+    expect(out.sessions[0]?.summary).toBeNull();
+  });
+
+  it('changes nothing else on the payload when a sentence is present', async () => {
+    const off = new FakeStore();
+    seams.readSessionLog.mockReturnValue(
+      readResult({ turns: [turn(0)], watermark: byteWatermark(1) })
+    );
+    const before = await projectOverview(makeDeps([row({ id: 'A' })], off), {
+      projectPath: PROJECT
+    });
+    const { deps } = withSummary('kept');
+    const after = await projectOverview(deps, { projectPath: PROJECT });
+    expect({ ...after.sessions[0], summary: null }).toEqual({
+      ...before.sessions[0],
+      summary: null
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // The freshness rule. A sentence is drawn only beside the turn it was
+  // written for.
+  // -------------------------------------------------------------------------
+
+  it('draws a sentence written for the newest turn', async () => {
+    const { deps } = withSummary('kept', { turns: 6, toTurn: 5 });
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summary).toBe(SENTENCE);
+  });
+
+  it('drops a sentence written for an older turn', async () => {
+    const { deps } = withSummary('kept', { turns: 6, toTurn: 0 });
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summary).toBeNull();
+  });
+
+  it('falls back to the built line when the sentence is behind', async () => {
+    // The built line needs the ask, and the ask is only on the payload when
+    // the written sentence is not drawn. This is the fallback being current.
+    const { deps } = withSummary('kept', { turns: 6, toTurn: 0 });
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.turns.at(-1)?.index).toBe(5);
+    expect(out.sessions[0]?.summary).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // The choice rule. None brings Phase 137's built line straight back.
+  // -------------------------------------------------------------------------
+
+  it('draws nothing when the person has picked None', async () => {
+    const { deps } = withSummary('kept', { chosen: false });
+    const out = await projectOverview(deps, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summary).toBeNull();
+  });
+
+  it('draws nothing when the caller passes no choice at all', async () => {
+    const store = new FakeStore();
+    seams.readSessionLog.mockReturnValue(
+      readResult({ turns: [turn(0)], watermark: byteWatermark(1) })
+    );
+    store.appendSummary({
+      sessionId: 'A',
+      fromTurn: 0,
+      toTurn: 0,
+      text: SENTENCE,
+      verdict: 'kept',
+      reason: null,
+      harness: 'claude',
+      model: 'claude-haiku-4-5-20251001',
+      providerMapVersion: 1,
+      inputHash: 'a'.repeat(64),
+      writtenAt: NOW
+    });
+    const bare = {
+      manifest: () =>
+        Promise.resolve({
+          listSessions: () => [row({ id: 'A' })]
+        } as unknown as ManifestStore),
+      store: () => store as unknown as OverviewStore,
+      now: () => NOW
+    };
+    const out = await projectOverview(bare, { projectPath: PROJECT });
+    expect(out.sessions[0]?.summary).toBeNull();
+  });
+
+  it('brings the sentence back when the person picks the agent again', async () => {
+    const store = new FakeStore();
+    const rows = [row({ id: 'A' })];
+    seams.readSessionLog.mockReturnValue(
+      readResult({ turns: [turn(0)], watermark: byteWatermark(1) })
+    );
+    store.appendSummary({
+      sessionId: 'A',
+      fromTurn: 0,
+      toTurn: 0,
+      text: SENTENCE,
+      verdict: 'kept',
+      reason: null,
+      harness: 'claude',
+      model: 'claude-haiku-4-5-20251001',
+      providerMapVersion: 1,
+      inputHash: 'a'.repeat(64),
+      writtenAt: NOW
+    });
+    let chosen = true;
+    const deps = {
+      manifest: () =>
+        Promise.resolve({
+          listSessions: () => rows
+        } as unknown as ManifestStore),
+      store: () => store as unknown as OverviewStore,
+      foldChosen: () => chosen,
+      now: () => NOW
+    };
+    expect((await projectOverview(deps, { projectPath: PROJECT })).sessions[0]?.summary).toBe(
+      SENTENCE
+    );
+    chosen = false;
+    expect(
+      (await projectOverview(deps, { projectPath: PROJECT })).sessions[0]?.summary
+    ).toBeNull();
+    chosen = true;
+    expect((await projectOverview(deps, { projectPath: PROJECT })).sessions[0]?.summary).toBe(
+      SENTENCE
+    );
   });
 });

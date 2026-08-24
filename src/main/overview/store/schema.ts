@@ -15,6 +15,10 @@
  *   verdict.
  * - provider_map: the map version and hash per provider, so any row can be
  *   traced to the rules that produced it.
+ * - summary: the fold's version chain (Phase 138). One row is one version of
+ *   the one sentence a model wrote for a session. Rows are appended and never
+ *   edited, so the chain is a record of what was written and when, and a
+ *   refused candidate is on record beside the kept ones.
  *
  * The schema runs when the meta table is absent or its recorded version is
  * lower than OVERVIEW_SCHEMA_VERSION. A file stamped with a HIGHER version
@@ -27,12 +31,17 @@
 import type Database from 'better-sqlite3';
 import { immediateTransaction } from '../../db/sqlite';
 
-export const OVERVIEW_SCHEMA_VERSION = 1;
+export const OVERVIEW_SCHEMA_VERSION = 2;
 
 /** The meta key the version is stored under. */
 const VERSION_KEY = 'schema_version';
 
-/** The four tables plus the meta table, exactly as the Phase 137 spec wrote them. */
+/**
+ * The five tables plus the meta table. The first four are Phase 137's and
+ * this phase does not touch a column of them. `summary` is Phase 138's, and
+ * it arrives by the version bump: every statement is CREATE TABLE IF NOT
+ * EXISTS, so a store already on version 1 gains the table and loses no row.
+ */
 export const OVERVIEW_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS session (
   session_id               TEXT PRIMARY KEY,
@@ -80,15 +89,32 @@ CREATE TABLE IF NOT EXISTS provider_map (
   map_hash    TEXT NOT NULL,
   recorded_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS summary (
+  session_id           TEXT NOT NULL,
+  version              INTEGER NOT NULL,
+  parent_version       INTEGER,
+  from_turn            INTEGER NOT NULL,
+  to_turn              INTEGER NOT NULL,
+  text                 TEXT,
+  verdict              TEXT NOT NULL,     -- 'kept' | 'refused' | 'failed'
+  reason               TEXT,
+  harness              TEXT NOT NULL,
+  model                TEXT NOT NULL,
+  provider_map_version INTEGER NOT NULL,
+  input_hash           TEXT NOT NULL,
+  written_at           INTEGER NOT NULL,
+  PRIMARY KEY (session_id, version)
+);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `;
 
 /** Every table the schema owns, for the rebuild on a newer stamp. */
-const OVERVIEW_TABLES = [
+export const OVERVIEW_TABLES = [
   'session',
   'turn',
   'turn_fact',
   'provider_map',
+  'summary',
   'meta'
 ] as const;
 

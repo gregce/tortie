@@ -53,6 +53,13 @@ export interface OverviewSessionView {
   startedAt: number;          // the manifest createdAt, epoch ms
   lastTouchedAt: number | null;
   turns: OverviewTurnView[];  // ascending index, newest LAST
+  /**
+   * The one sentence a model wrote for this session (Phase 138), or null when
+   * none was written or the newest one was refused. Filled ONLY on the
+   * overview:project payload, because the one session view and the multiplexed
+   * view are re-read from the store and stay verbatim.
+   */
+  summary: string | null;
 }
 
 export type OverviewReadWork = 'full' | 'tail' | 'suffix' | 'none' | 'skipped';

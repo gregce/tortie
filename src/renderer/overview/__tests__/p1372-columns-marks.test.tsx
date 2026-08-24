@@ -62,7 +62,10 @@ function session(
     noTurnClock: false,
     startedAt: NOW - 3_600_000,
     lastTouchedAt: NOW - 60_000,
-    turns: Array.from({ length: turnCount }, (_, i) => turn(i))
+    turns: Array.from({ length: turnCount }, (_, i) => turn(i)),
+    // Phase 138. The columns view never reads this field, and main never
+    // fills it on the overview:sessions payload these columns are built from.
+    summary: null
   };
 }
 

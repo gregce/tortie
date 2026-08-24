@@ -18,6 +18,7 @@ import type {
 } from '@shared/settings';
 import { defaultGmuxSettings } from '@shared/settings';
 import type { AgentsScanResult } from '@shared/types';
+import type { FoldOptions } from '@shared/fold';
 import type { ConfigRowsResult, InstalledGmuxApi } from '@shared/ipc';
 import { gmuxBridge } from '../bridge';
 
@@ -54,7 +55,26 @@ export interface SettingsStoreState {
   config: ConfigRowsResult | null;
   configBusy: string | null;
 
-  /** Idempotent: load settings + catalogs + scan + config, subscribe. */
+  /**
+   * PHASE 138. Which agents may write the project line, and which models each
+   * one exposes.
+   *
+   * Null means "not read yet", and it stays null for the life of the window
+   * on a build whose preload has no overview member. Settings draws one
+   * sentence then rather than a dead picker. The list is built in MAIN, out
+   * of the merged agent table, the Phase 23 confirm gate and the compiled
+   * table of recipes Tortie has measured. The renderer never assembles it and
+   * never carries a copy of it, which is why there is no array of agent ids
+   * anywhere in FoldSection.tsx.
+   *
+   * Reading the list starts nothing. It cannot spawn an agent, and picking a
+   * row in the section cannot either. A fold runs only when a session
+   * finishes a turn.
+   */
+  foldOptions: FoldOptions | null;
+  foldOptionsLoaded: boolean;
+
+  /** Idempotent: load settings + catalogs + scan + config + fold options, subscribe. */
   init(): void;
   /** Persist a shallow patch; resolves the post-patch settings (or null
    *  when the bridge is absent). Optimistically applies locally first. */
@@ -75,6 +95,9 @@ export interface SettingsStoreState {
   confirmConfigRow(id: string): Promise<string | null>;
   /** Withdraw one agreement, so the row asks again before it may launch. */
   forgetConfigRow(id: string): Promise<string | null>;
+
+  /** Re-read which agents and models may write the project line. Reads only. */
+  refreshFoldOptions(): Promise<void>;
 }
 
 let initialized = false;
@@ -89,6 +112,8 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
   scanning: false,
   config: null,
   configBusy: null,
+  foldOptions: null,
+  foldOptionsLoaded: false,
 
   init() {
     if (initialized) return;
@@ -125,6 +150,11 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
     // Phase 23. One read at init. It reaches memory in main, so it costs no
     // disk access, and a build with no `config` member leaves this null.
     void get().refreshConfig();
+
+    // Phase 138. One read at init, for the same reason. Main answers from a
+    // compiled table and the agreements it already holds, so nothing is
+    // spawned and no file under the person's home is opened.
+    void get().refreshFoldOptions();
 
     // Never unsubscribed — the store lives as long as the window.
     b.onSettingsChanged?.((settings) => set({ settings, settingsLoaded: true }));
@@ -209,6 +239,22 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
       return err instanceof Error ? err.message : String(err);
     } finally {
       set({ configBusy: null });
+    }
+  },
+
+  async refreshFoldOptions() {
+    const b = bridge();
+    // Feature detected on the one method, not on the object, because the
+    // overview object shipped in Phase 137 without this call on it.
+    if (typeof b?.overview?.foldOptions !== 'function') {
+      set({ foldOptionsLoaded: true });
+      return;
+    }
+    try {
+      set({ foldOptions: await b.overview.foldOptions(), foldOptionsLoaded: true });
+    } catch {
+      // Leave the last good list up rather than blanking the picker.
+      set({ foldOptionsLoaded: true });
     }
   }
 }));

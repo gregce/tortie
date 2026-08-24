@@ -8,4 +8,5 @@ export * from './reader';
 export * from './store';
 export * from './service';
 export * from './git-mark';
-export { disposeOverviewIpc, registerOverviewIpc } from './ipc';
+export { disposeOverviewIpc, overviewStore, registerOverviewIpc } from './ipc';
+export * from './fold';

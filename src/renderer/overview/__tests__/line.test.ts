@@ -46,6 +46,7 @@ function session(
     startedAt: new Date(2026, 7, 22, 9, 0).getTime(),
     lastTouchedAt: null,
     turns: [turn()],
+    summary: null,
     ...over
   };
 }

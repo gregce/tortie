@@ -191,12 +191,15 @@ describe('a recorded \u21e7\u2318U per-agent hotkey still wins (Phase 137.1)', (
   });
 });
 
-describe('the two overview channels close', () => {
+describe('the overview channels close', () => {
   const ipcSource = sourceOf('shared', 'ipc');
   const preloadSource = sourceOf('preload');
   const mainSource = sourceOf('main');
 
-  it('declares both channels on OverviewInvokeChannelMap and nothing else', () => {
+  // Phase 138 added the third. It is the fold's option list, and it belongs
+  // on this map because Settings reads it through the same overview object.
+  // It reads a table main already holds, so it starts nothing.
+  it('declares the three channels on OverviewInvokeChannelMap and nothing else', () => {
     const body = /export interface OverviewInvokeChannelMap \{([\s\S]*?)\n\}/.exec(
       ipcSource
     );
@@ -204,7 +207,11 @@ describe('the two overview channels close', () => {
     const channels = [...(body?.[1] ?? '').matchAll(/^\s*'([^']+)':/gm)].map(
       (m) => m[1]
     );
-    expect(channels.sort()).toEqual(['overview:project', 'overview:sessions']);
+    expect(channels.sort()).toEqual([
+      'fold:options',
+      'overview:project',
+      'overview:sessions'
+    ]);
   });
 
   it('joins OverviewInvokeChannelMap into the one intersection', () => {
@@ -215,6 +222,7 @@ describe('the two overview channels close', () => {
   it('invokes each channel exactly once in the preload', () => {
     expect(count(preloadSource, /\binvoke\('overview:project'/g)).toBe(1);
     expect(count(preloadSource, /\binvoke\('overview:sessions'/g)).toBe(1);
+    expect(count(preloadSource, /\binvoke\('fold:options'/g)).toBe(1);
   });
 
   it('registers each channel exactly once in main', () => {
@@ -225,6 +233,7 @@ describe('the two overview channels close', () => {
       );
     expect(count(mainSource, registration('overview:project'))).toBe(1);
     expect(count(mainSource, registration('overview:sessions'))).toBe(1);
+    expect(count(mainSource, registration('fold:options'))).toBe(1);
   });
 
   it('gives the View menu one Catch Me Up row wearing the keymap chord', () => {

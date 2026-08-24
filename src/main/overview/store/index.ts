@@ -6,6 +6,13 @@
  * every write keeps and ./schema.ts for the four tables.
  */
 
-export { OVERVIEW_SCHEMA_VERSION } from './schema';
+export { OVERVIEW_SCHEMA_VERSION, OVERVIEW_TABLES } from './schema';
 export { OverviewStore, openOverviewStore } from './store';
-export type { StoredReadState, StoredSession, StoredTurn } from './store';
+export type {
+  NewFoldVersion,
+  StoredReadState,
+  StoredSession,
+  StoredSummary,
+  StoredSummaryVerdict,
+  StoredTurn
+} from './store';

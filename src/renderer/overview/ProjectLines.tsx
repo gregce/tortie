@@ -2,10 +2,17 @@
  * The whole project, one line per session (Phase 137).
  *
  * The left of a line is the session's name with its state and age. The
- * right is the built sentence, your ask leading and the outcome following
- * without a pronoun. No model writes any of it. The outcome comes from git
- * and the path index through ./line.ts, and "the agent" appears only where
- * the line reports a claim rather than a fact.
+ * right is one sentence about that session.
+ *
+ * Phase 137 built that sentence, being your ask leading and the outcome
+ * following without a pronoun, where the outcome comes from git and the path
+ * index through ./line.ts. Phase 138 lets a small model write the sentence
+ * instead, when a person has picked a harness under Settings then Project
+ * line. The built sentence is what is drawn whenever no model wrote one, so
+ * this view is complete with no model at all.
+ *
+ * THIS IS THE ONLY VIEW A MODEL WRITES ANYTHING ON. The one session view and
+ * the multiplexed view are re-read from the store and stay verbatim.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -14,7 +21,7 @@ import type { SessionStatus } from '@shared/types';
 import { statusVisual } from '../app/status';
 import { formatAge } from '../format';
 import { AgentIcon } from '../icons';
-import { buildProjectLine, honestLineHasClock } from './line';
+import { honestLineHasClock, projectLineFor } from './line';
 import { EMPTY_PROJECT, YOU_ASKED_LEAD } from './copy';
 
 export interface ProjectLinesProps {
@@ -45,7 +52,10 @@ export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
     <div className="overview-lines" ref={listRef}>
       {project.sessions.map((session, i) => {
         const status = statuses[session.sessionId] ?? 'idle';
-        const line = buildProjectLine(session, status, now);
+        // Phase 138. The written sentence when a model wrote one for this
+        // session, and Phase 137's built line when a model did not. Nothing
+        // else on this view changes, and no other view reads the field.
+        const line = projectLineFor(session, status, now);
         return (
           <div
             key={session.sessionId}
@@ -95,7 +105,13 @@ export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
                   says so and the probe can account for the digits. */}
               <span
                 className="overview-line-outcome"
-                data-clock={honestLineHasClock(session) ? true : undefined}
+                data-clock={
+                  // Phase 138. A written sentence carries no clock, so the
+                  // attribute is only for the built line.
+                  session.summary === null && honestLineHasClock(session)
+                    ? true
+                    : undefined
+                }
               >
                 {line.outcome}
               </span>

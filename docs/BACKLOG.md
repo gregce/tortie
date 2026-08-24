@@ -39,7 +39,7 @@ release.
 | 21 | **137.1** markdown in the overview, and the chord moves | He asked on 2026-08-23. The answers render as markdown and the chord is ⇧⌘U | ✅ shipped |
 | 22 | **137.2** the ask rail | He asked on 2026-08-23. Five items on one page, every ask one press away | ✅ shipped |
 | — | **THE ORDER HE SET ON 2026-08-23** | | |
-| 23 | **138** the fold | Tier 3. Running. Its gate measurements are done | running |
+| 23 | **138** the fold | Tier 3. Both gate measurements ran. It ships OFF, and None is a valid choice forever | ✅ shipped |
 | 24 | **142** presentation.ts splits by reason to change | 31 phases wrote into one file. NO VERSION BUMP | queued |
 | — | **RELEASE POINT, DELEGATED, AT v0.70.0** | All the way to public. See the grant below | **delegated, one release** |
 | 25 | **140** every probe ends the Electron it started | The crash preventer | queued |
@@ -15662,7 +15662,7 @@ No model is involved in the mark. It is a fact or it is absent. Research 62's "w
 **The decision gate, and it is his.** Does he open the page in a second week. If not, stop, and the store is deleted with nothing else lost.
 
 
-## Phase 138 — the fold, so the project line is written rather than built (operator decided 2026-08-22) QUEUED, AFTER PHASE 137
+## Phase 138 — the fold, so the project line is written rather than built (operator decided 2026-08-22) ✅ SHIPPED 2026-08-23 (this commit, 0.71.0, gates green, 8,970 tests)
 
 **Subject:** `feat(overview): a small model keeps the project line current`
 **First body line:** `Phase 138: the fold`
@@ -16360,3 +16360,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 142 queued, presentation.ts is 2,948 lines with 249 exports and 42 banners naming 31 distinct phases, and 11 importers name exactly one symbol, so it fails Phase 128's own split test where the three files that phase judged all passed
 - 2026-08-23, Phase 143 queued, the summary timeline reads the version chain Phase 138 writes and shows how a session's story changed, with no integer on it and no model in it
 - 2026-08-23, THE RUN ORDER IS HIS, being 138 then 142 then the v0.70.0 RELEASE all the way to public, then 140, then 143, then 141; the release is DELEGATED, one release only, and the version stays at 0.70.0 with this work inside it
+- 2026-08-23, Phase 138 shipped, a small model writes the one line each session gets in the project view and it ships OFF, because None is what Tortie installs with and you pick the agent and the model yourself in Settings then Project line; the rate window gate ran 346 folds beside 30 real agent turns at 1,878 times his fleet rate and no turn was slowed, deferred or refused, the drift gate ran 500 folds and found a two hundred fold chain still true under a recency rule while a cumulative rule held one wrong fact for eleven folds, and the ten refusals run in code after the model answers so the sentence can never carry a digit, a git mark, a path, a quote or a status, this commit, 0.71.0

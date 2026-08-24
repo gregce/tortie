@@ -81,6 +81,50 @@ export interface StoredTurn {
   gitCheckedAt: number | null;
 }
 
+/** How one fold ended. A refusal and a failure are both on record. */
+export type StoredSummaryVerdict = 'kept' | 'refused' | 'failed';
+
+/**
+ * One version of the one sentence a model wrote (Phase 138). Every fold
+ * appends one of these, whatever happened, so a refusal rate that climbs
+ * after a model upgrade is something a person can read rather than something
+ * that was silently discarded.
+ */
+export interface StoredSummary {
+  sessionId: string;
+  version: number;
+  /** The version of the newest KEPT row when this fold ran, or null. */
+  parentVersion: number | null;
+  fromTurn: number;
+  toTurn: number;
+  /** The sentence. Null when the verdict is not 'kept'. */
+  text: string | null;
+  verdict: StoredSummaryVerdict;
+  /** The refusal name or the failure name. Null when the verdict is 'kept'. */
+  reason: string | null;
+  harness: string;
+  model: string;
+  providerMapVersion: number;
+  /** sha256 over the recipe, its version, the model and the prompt bytes. */
+  inputHash: string;
+  writtenAt: number;
+}
+
+/** One version as the caller hands it in. The version number is the store's. */
+export interface NewFoldVersion {
+  sessionId: string;
+  fromTurn: number;
+  toTurn: number;
+  text: string | null;
+  verdict: StoredSummaryVerdict;
+  reason: string | null;
+  harness: string;
+  model: string;
+  providerMapVersion: number;
+  inputHash: string;
+  writtenAt: number;
+}
+
 // ---------------------------------------------------------------------------
 // Row shapes, named so every read is typed end to end.
 // ---------------------------------------------------------------------------
@@ -119,6 +163,40 @@ interface TurnJoinRow {
   path_source: string | null;
   git_verdict: string | null;
   git_checked_at: number | null;
+}
+
+interface SummaryRow {
+  session_id: string;
+  version: number;
+  parent_version: number | null;
+  from_turn: number;
+  to_turn: number;
+  text: string | null;
+  verdict: string;
+  reason: string | null;
+  harness: string;
+  model: string;
+  provider_map_version: number;
+  input_hash: string;
+  written_at: number;
+}
+
+function toStoredSummary(row: SummaryRow): StoredSummary {
+  return {
+    sessionId: row.session_id,
+    version: row.version,
+    parentVersion: row.parent_version,
+    fromTurn: row.from_turn,
+    toTurn: row.to_turn,
+    text: row.text,
+    verdict: row.verdict as StoredSummaryVerdict,
+    reason: row.reason,
+    harness: row.harness,
+    model: row.model,
+    providerMapVersion: row.provider_map_version,
+    inputHash: row.input_hash,
+    writtenAt: row.written_at
+  };
 }
 
 const TURN_JOIN_SELECT =
@@ -271,6 +349,36 @@ export class OverviewStore {
     [string],
     { map_version: number }
   >;
+  // Phase 138. THREE statements, and every one of them is a SELECT or an
+  // INSERT. There is no UPDATE and no DELETE against `summary` anywhere in
+  // this file, which is what makes the version chain a record rather than a
+  // value. A test greps this module for both verbs and fails on either.
+  private readonly stmtInsertSummary: Database.Statement<
+    [
+      string,
+      number,
+      number | null,
+      number,
+      number,
+      string | null,
+      string,
+      string | null,
+      string,
+      string,
+      number,
+      string,
+      number
+    ]
+  >;
+  private readonly stmtNextSummaryVersion: Database.Statement<
+    [string],
+    { next: number }
+  >;
+  private readonly stmtLatestSummary: Database.Statement<[string], SummaryRow>;
+  private readonly stmtLatestKeptSummary: Database.Statement<
+    [string],
+    SummaryRow
+  >;
 
   /** Internal. Open through openOverviewStore, which runs the schema first. */
   constructor(db: Database.Database, dbPath: string) {
@@ -344,6 +452,23 @@ export class OverviewStore {
     );
     this.stmtProviderMapVersion = db.prepare(
       'SELECT map_version FROM provider_map WHERE provider = ?'
+    );
+    this.stmtInsertSummary = db.prepare(
+      'INSERT INTO summary (session_id, version, parent_version, from_turn, ' +
+        'to_turn, text, verdict, reason, harness, model, ' +
+        'provider_map_version, input_hash, written_at) ' +
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+    this.stmtNextSummaryVersion = db.prepare(
+      'SELECT COALESCE(MAX(version), 0) + 1 AS next FROM summary ' +
+        'WHERE session_id = ?'
+    );
+    this.stmtLatestSummary = db.prepare(
+      'SELECT * FROM summary WHERE session_id = ? ORDER BY version DESC LIMIT 1'
+    );
+    this.stmtLatestKeptSummary = db.prepare(
+      "SELECT * FROM summary WHERE session_id = ? AND verdict = 'kept' " +
+        'ORDER BY version DESC LIMIT 1'
     );
   }
 
@@ -456,6 +581,80 @@ export class OverviewStore {
 
   providerMapVersion(provider: string): number | null {
     return this.stmtProviderMapVersion.get(provider)?.map_version ?? null;
+  }
+
+  // -------------------------------------------------------------------------
+  // The fold's version chain (Phase 138). Appended, never edited.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Appends ONE version. The version number is max(version) + 1 for that
+   * session, and the parent is the newest KEPT row at this moment, so a
+   * refused row never becomes the parent of the next one.
+   *
+   * The whole thing runs inside one durable transaction, and it is called
+   * only after the model has returned and the validator has ruled. Nothing is
+   * written before the spawn and nothing during it, so a crash mid fold
+   * leaves the previous version intact and readable.
+   */
+  appendSummary(row: NewFoldVersion): StoredSummary {
+    return durableTransaction(this.db, () => {
+      const version = this.stmtNextSummaryVersion.get(row.sessionId)?.next ?? 1;
+      const parent = this.stmtLatestKeptSummary.get(row.sessionId);
+      const parentVersion = parent === undefined ? null : parent.version;
+      this.stmtInsertSummary.run(
+        row.sessionId,
+        version,
+        parentVersion,
+        row.fromTurn,
+        row.toTurn,
+        row.text,
+        row.verdict,
+        row.reason,
+        row.harness,
+        row.model,
+        row.providerMapVersion,
+        row.inputHash,
+        row.writtenAt
+      );
+      return {
+        sessionId: row.sessionId,
+        version,
+        parentVersion,
+        fromTurn: row.fromTurn,
+        toTurn: row.toTurn,
+        text: row.text,
+        verdict: row.verdict,
+        reason: row.reason,
+        harness: row.harness,
+        model: row.model,
+        providerMapVersion: row.providerMapVersion,
+        inputHash: row.inputHash,
+        writtenAt: row.writtenAt
+      };
+    });
+  }
+
+  /**
+   * The newest row for the session, whatever its verdict. This is what the
+   * page reads, and it deliberately does not reach past a refused row to an
+   * older kept one.
+   *
+   * THIS ROW IS NOT KNOWN TO BE CURRENT. It carries the range it was written
+   * for in `fromTurn` and `toTurn`, and the caller compares `toTurn` to the
+   * newest turn the store holds before drawing anything. The freshness rule
+   * lives at the call site in ../service.ts, because only the call site knows
+   * how far the session has got.
+   */
+  latestSummary(sessionId: string): StoredSummary | null {
+    const row = this.stmtLatestSummary.get(sessionId);
+    return row === undefined ? null : toStoredSummary(row);
+  }
+
+  /** The newest row whose verdict is 'kept'. This is the fold's parent. */
+  latestKeptSummary(sessionId: string): StoredSummary | null {
+    const row = this.stmtLatestKeptSummary.get(sessionId);
+    return row === undefined ? null : toStoredSummary(row);
   }
 
   close(): void {

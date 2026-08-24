@@ -25,4 +25,6 @@ export {
   type HookServerEvents
 } from './hooks';
 
+export { isTurnBoundary } from './state-machine';
+
 export { toSessionStatus, type ActivityState } from './types';

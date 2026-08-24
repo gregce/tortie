@@ -94,6 +94,43 @@ export interface GmuxSettings {
    * hand-edited file can at worst pick a different preset.
    */
   workAreaFont: WorkAreaFont;
+  /**
+   * Who writes the project line (Phase 138). Absent on every install that has
+   * never opened Settings and picked one, which is what "None" is.
+   *
+   * This value DECIDES WHAT RUNS, so it is not a preference in the sense the
+   * three above are. It is sealed exactly the way a danger launch default is,
+   * because CLAUDE.md refusal 8 reads that nothing may cause a process to
+   * start on a configuration change alone. See src/main/settings/store.ts.
+   */
+  fold: FoldSettings;
+}
+
+/**
+ * The fold choice (Phase 138). Null on both fields means None, and None is
+ * the shipped answer: Phase 137's built line is what the page draws then, and
+ * the page is complete without any model.
+ */
+export interface FoldSettings {
+  /** The registry id of the agent that writes the project line. Null means None. */
+  agentId: string | null;
+  /** A model id from that agent's compiled list. Null means None. */
+  model: string | null;
+}
+
+/** No fold harness chosen. The shipped answer, and a valid one forever. */
+export function noFoldChosen(): FoldSettings {
+  return { agentId: null, model: null };
+}
+
+/** Has a person picked a harness and a model? Both are needed to spawn. */
+export function foldIsChosen(fold: FoldSettings): boolean {
+  return fold.agentId !== null && fold.model !== null;
+}
+
+/** The sealed key for a fold choice, being the pair that decides what runs. */
+export function foldKey(agentId: string, model: string): string {
+  return `${agentId} ${model}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -253,7 +290,8 @@ export function defaultGmuxSettings(): GmuxSettings {
     savedScrollbackLines: DEFAULT_SAVED_SCROLLBACK_LINES,
     highlightScheme: DEFAULT_HIGHLIGHT_SCHEME,
     contrastLevel: DEFAULT_CONTRAST_LEVEL,
-    workAreaFont: DEFAULT_WORK_AREA_FONT
+    workAreaFont: DEFAULT_WORK_AREA_FONT,
+    fold: noFoldChosen()
   };
 }
 

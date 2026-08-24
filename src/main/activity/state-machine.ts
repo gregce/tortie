@@ -346,3 +346,17 @@ export function commitVerdict(
   if (verdict.state !== 'needs_input') st.dialogTicks = 0;
   return verdict.state;
 }
+
+/**
+ * Is this transition a turn boundary (Phase 138)?
+ *
+ * A session that was working and has gone quiet, or has asked you something,
+ * has finished a turn. That is the same moment the product already raises
+ * needs input, so the fold costs no new sampling and no new timer.
+ *
+ * The rule lives with the rules rather than in the loop, so it is testable
+ * without a tmux server, which is what this file exists for.
+ */
+export function isTurnBoundary(from: ActivityState, to: ActivityState): boolean {
+  return from === 'working' && (to === 'idle' || to === 'needs_input');
+}

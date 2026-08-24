@@ -5,11 +5,14 @@
  *     import { registerOverviewIpc } from './overview/ipc';
  *     registerOverviewIpc(ipcMain, async () => (await getGmuxCore()).manifest);
  *
- * Two channels, and both READ. Each one lists the project's manifest rows
+ * Three channels, and all three READ. Each one lists the project's manifest rows
  * read only, opens the agent logs through the keep map, writes the redacted
  * slice into Tortie's own overview store, and answers from store rows.
- * Neither channel spawns a process, writes the manifest, touches tmux or
- * sets a session's status.
+ * No channel here spawns a process, writes the manifest, touches tmux or
+ * sets a session's status. The third channel, `fold:options`, answers what
+ * Settings offers for the fold, and building that list is a read of the agent
+ * table and the confirm gate. Choosing a harness in Settings does not start
+ * anything either: a fold runs only when a session finishes a turn.
  *
  * The store opens on the first call, at `<userData>/gmux/overview.db`, inside
  * the protected inner `gmux/` directory beside the manifest. It never opens
@@ -28,12 +31,17 @@ import {
   sessionsOverview,
   type OverviewServiceDeps
 } from './service';
+import { foldOptions } from './fold';
 import { openOverviewStore, type OverviewStore } from './store';
 
 let store: OverviewStore | null = null;
 
-/** The one open of the overview store, lazy, shared by both channels. */
-function overviewStore(): OverviewStore {
+/**
+ * The one open of the overview store, lazy, shared by the three channels and
+ * by the fold. Exported since Phase 138, because the fold reads and writes the
+ * same file and a second open of one SQLite file is a second answer.
+ */
+export function overviewStore(): OverviewStore {
   if (store === null) {
     store = openOverviewStore(
       join(app.getPath('userData'), 'gmux', 'overview.db')
@@ -43,17 +51,29 @@ function overviewStore(): OverviewStore {
 }
 
 /**
- * Registers the two `overview:*` channels exactly once. It takes a manifest
- * getter rather than a manifest, because the manifest is opened during boot
- * and the registrars are installed before that finishes.
+ * Registers the three channels exactly once. It takes a manifest getter
+ * rather than a manifest, because the manifest is opened during boot and the
+ * registrars are installed before that finishes.
+ *
+ * `suspended` is the fold scheduler's own sentence, handed in rather than
+ * imported, because the scheduler is built by the session core and this
+ * registrar must not reach into it.
+ *
+ * `foldChosen` is the person's choice, handed in for the same reason. The
+ * project channel asks it before it draws any sentence a model wrote, so
+ * picking None brings Phase 137's built line back on the next read. It
+ * defaults to false, which is the shipped answer.
  */
 export function registerOverviewIpc(
   ipc: IpcMain,
-  getManifest: () => Promise<ManifestStore>
+  getManifest: () => Promise<ManifestStore>,
+  suspended: () => string | null = () => null,
+  foldChosen: () => boolean = () => false
 ): void {
   const deps: OverviewServiceDeps = {
     manifest: getManifest,
-    store: overviewStore
+    store: overviewStore,
+    foldChosen
   };
   handle(ipc, 'overview:project', (_event, input) =>
     projectOverview(deps, input)
@@ -61,6 +81,7 @@ export function registerOverviewIpc(
   handle(ipc, 'overview:sessions', (_event, input) =>
     sessionsOverview(deps, input)
   );
+  handle(ipc, 'fold:options', () => foldOptions({ suspended }));
 }
 
 /**

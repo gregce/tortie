@@ -29,6 +29,7 @@ import { registerConfigIpc } from './config/ipc';
 import { stopAgentOverlayWatch } from './config/store';
 import { registerContextIpc } from './context/ipc';
 import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
+import { foldChosenNow, foldSuspension } from './sessions/fold-wiring';
 import { installLaunchContextResolver } from './context/launch-resolver';
 import { registerDropIpc, startDropStorePruning } from './drop';
 import { registerFsIpc, registerImageIpc } from './fs';
@@ -171,10 +172,20 @@ export function installMainCapabilities(
   // manifest getter the context registrar takes, for the same boot reason.
   // The overview store opens on the first call and the ordered disposer
   // below closes it.
-  registerOverviewIpc(ipcMain, async () => {
-    const core = await getGmuxCore();
-    return core.manifest;
-  });
+  // Phase 138 adds the third channel, being what Settings offers for the
+  // fold. The suspension sentence comes from the session core's own fold
+  // scheduler, so the registrar reads it rather than owning it.
+  registerOverviewIpc(
+    ipcMain,
+    async () => {
+      const core = await getGmuxCore();
+      return core.manifest;
+    },
+    () => foldSuspension(),
+    // Phase 138. The project channel draws a model's sentence only while this
+    // says a person picked an agent. Picking None brings the built line back.
+    () => foldChosenNow()
+  );
   // Phase 22: turn the launch snapshot on. Without this call every session gets
   // a NULL snapshot and the readout shows its unrecorded sentence, which is
   // correct behaviour and not a stub, so the feature simply does nothing. The
