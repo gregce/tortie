@@ -1064,6 +1064,23 @@ const MACHINE_REFUSALS = [
   {
     // PHASE 90.2. The first of the two TypeScript refusals that stand in front
     // of the second write this product can make on another computer.
+    id: 'machine.clone-not-recorded',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'this is the sentence a person reads when a copy was refused because ' +
+      'its durable start row could not be written. It has one caller, behind ' +
+      'a guard that only an injected journal failure makes true, which is ' +
+      'exactly the shape rollup can fold away. Losing it would leave the ' +
+      'refusal firing with no sentence naming the machine',
+    fragments: [
+      'Tortie could not write down that this copy was starting, so it sent ',
+      'nothing to ',
+      ' and nothing was written there. That record is what ',
+      'explains an interrupted copy at the next launch, so a copy does not ',
+      'start without it. Try again.'
+    ]
+  },
+  {
     id: 'machine.clone-not-web-address',
     source: 'src/main/machines/remote-copy.ts',
     why:
@@ -1203,6 +1220,19 @@ const MACHINE_REFUSALS = [
       'that would start a new one nobody would ever join. Without this refusal ' +
       'a copy could be started during the teardown that cancels copies',
     fragments: ['Tortie is quitting, so nothing more was sent to that machine.']
+  },
+  {
+    id: 'machine.remote-exec-not-recorded',
+    source: 'src/main/machines/execution-ledger.ts',
+    why:
+      'a copy writes on the other computer, and its durable start row is the ' +
+      'only thing that lets the next launch explain a copy that was cut off. ' +
+      'Without this refusal a copy whose row could not be written would start ' +
+      'anyway, which is the fail open behaviour stage 2 of the 36 plan closed',
+    fragments: [
+      'Tortie could not write down that this work was starting, so nothing was ',
+      'sent to that machine. Try again.'
+    ]
   },
   {
     id: 'machine.removal-not-recorded',
@@ -1675,7 +1705,7 @@ function main() {
     ['REFUSALS', REFUSALS.length, 23],
     ['SKILLS_REFUSALS', SKILLS_REFUSALS.length, 6],
     ['CONFIG_REFUSALS', CONFIG_REFUSALS.length, 6],
-    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 50],
+    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 52],
     ['UPDATER_REFUSALS', UPDATER_REFUSALS.length, 8],
     ['LOG_REFUSALS', LOG_REFUSALS.length, 1]
   ];

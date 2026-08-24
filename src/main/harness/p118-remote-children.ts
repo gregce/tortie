@@ -92,6 +92,16 @@ import { machineIsConnected } from '../machines/remote-run';
 // The two sentences this phase pins, imported from the modules that produce
 // them so a rewording that forgets this harness fails the gate.
 import { REMOTE_EXEC_SHUTDOWN } from '../machines/execution-ledger';
+// Phase 144, stage 2 of the 36 plan: a copy whose durable start row cannot be
+// written is refused before its spawn closure runs. The journal is swapped at
+// its one real seam, which is the same function `setRemoteManifest` calls, so
+// nothing in the ledger or the exec plane knows this harness exists.
+import {
+  admitRemoteExecution,
+  isRemoteExecUnjournaled,
+  setRemoteExecutionJournal
+} from '../machines/execution-ledger';
+import { cloneNotRecorded } from '../machines/remote-copy';
 import {
   MACHINE_REMOVAL_NOT_RECORDED,
   armRemovalFault,
@@ -196,6 +206,39 @@ interface Facts {
   cloneOutcome: string;
   unfinishedRows: number;
   operatorSessions: number;
+  /**
+   * Phase 144, stage 2 of the 36 plan. What happened when the copy's durable
+   * start row could not be written: the refusal must be the typed one, the
+   * spawn closure must never run, no ssh child may appear and no remote path
+   * may change, while the non journaled kinds keep their path.
+   */
+  unjournaled: {
+    /** Times the spawn closure ran across both refusals. It owes zero. */
+    closureRan: number;
+    /** The failed write was refused with the typed durability refusal. */
+    failedWriteTyped: boolean;
+    /** The absent journal was refused with the same typed refusal. */
+    absentJournalTyped: boolean;
+    /** What the real clone door answered. It owes `refused`. */
+    cloneOutcome: string;
+    /** The sentence is the one that names the machine and no path. */
+    sentenceIsClonesOwn: boolean;
+    /** What the far side said about the refused destination. It owes `no`. */
+    refusedPathExists: string;
+    /** Processes naming the copy, before and after the refusals. */
+    namingBefore: number;
+    namingAfter: number;
+    /**
+     * Ledger entries of kind clone, open and classified, after the refusals.
+     * Both owe zero: the good copy has not started yet, and a refusal opens
+     * nothing. Deltas over ALL kinds are not used, because the machine feeds
+     * run their own commands concurrently and settle entries of their own.
+     */
+    openCloneEntries: number;
+    settledCloneEntries: number;
+    /** Unfinished rows in the REAL manifest while the journal was broken. */
+    unfinishedRowsDuring: number;
+  };
 }
 
 function readCarriage(root: string): Carriage | null {
@@ -392,6 +435,227 @@ export async function runP118PrepSmoke(): Promise<void> {
     }
     const ctx = machineContext(CLONE_ID) as RemoteMachineContext;
     log(`1. ${CLONE_LABEL} is signed in on 127.0.0.1:${String(carriage.port)}`);
+
+    // --- 1b. No row, no copy (Phase 144, stage 2 of the 36 plan) ------------
+    //
+    // The journal is swapped at its one real seam, the same function
+    // `setRemoteManifest` calls, for one that will not write. The copy must
+    // then be REFUSED before its spawn closure runs: typed, with no ssh child,
+    // no ledger entry, no remote path and no row, while the non journaled
+    // kinds keep their path. Before this stage the failed write was logged and
+    // the copy started anyway, and a unit test protected that.
+    const realJournal = remoteManifest();
+    const countNaming = (): number => {
+      const now = processesNamingTheCopy();
+      return now.sshClients + now.farSide;
+    };
+    const namingBeforeInjection = countNaming();
+    let closureRan = 0;
+    setRemoteExecutionJournal({
+      beginRemoteExecution: (): number => {
+        throw new Error('p144 injected: the disk is full');
+      },
+      finishRemoteExecution: (): void => undefined,
+      listUnfinishedRemoteExecutions: () => []
+    });
+    let failedWriteTyped = false;
+    let failedWriteDetail = '';
+    try {
+      await admitRemoteExecution(
+        {
+          machineId: CLONE_ID,
+          kind: 'clone',
+          subject: `${carriage.destination}-refused`,
+          machineLabel: CLONE_LABEL
+        },
+        async () => {
+          closureRan += 1;
+          return 'never';
+        }
+      );
+      fail(
+        'a copy whose start row could not be written was ADMITTED. Stage 2 ' +
+          'of the 36 plan says it is refused before the spawn closure runs, ' +
+          'and this is the fail open behaviour coming back.'
+      );
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('a copy whose')) {
+        throw err;
+      }
+      failedWriteTyped = isRemoteExecUnjournaled(err);
+      failedWriteDetail =
+        err instanceof GmuxError ? (err.payload.detail ?? '') : '';
+    }
+    if (!failedWriteTyped) {
+      fail(
+        'the refusal of a copy whose row could not be written is not the ' +
+          'typed durability refusal, FS_FAILED carrying the pinned sentence'
+      );
+    }
+    if (!failedWriteDetail.includes('p144 injected')) {
+      fail(
+        `the refusal's detail does not carry the injected write failure. It ` +
+          `reads: ${failedWriteDetail}`
+      );
+    }
+    if (closureRan !== 0) {
+      fail(
+        `the spawn closure ran ${String(closureRan)} time(s) for a copy ` +
+          `whose row was never written`
+      );
+    }
+    log(
+      `1b. a copy whose start row could not be written was refused, typed, ` +
+        `before its spawn closure ran`
+    );
+
+    // --- 1c. The same refusal through the real clone door -------------------
+    //
+    // This one goes through `cloneProjectOnMachine`, `runRemoteWrite` and the
+    // real spawn closure in `execRemoteShell`, aimed at a destination of its
+    // own, so a fail open here would REALLY copy the project onto the far
+    // side. The answer must be `refused`, the sentence must be the one that
+    // names the machine and no path, and the destination must not exist.
+    const refusedDestination = `${carriage.destination}-refused`;
+    const injectedOrigin = await readOriginUrl(carriage.localProject);
+    if (injectedOrigin === null) {
+      fail(`${carriage.localProject} has no origin address to copy from`);
+    }
+    const injectedUrl = remoteCloneUrl(injectedOrigin);
+    if (injectedUrl === null) {
+      fail(`${injectedOrigin} is not an address a copy can be made from`);
+    }
+    const refused = await cloneProjectOnMachine({
+      machineId: CLONE_ID,
+      localPath: carriage.localProject,
+      expectUrl: injectedUrl,
+      path: refusedDestination
+    });
+    if (refused.outcome !== 'refused') {
+      fail(
+        `the clone door answered ${JSON.stringify(refused.outcome)} for a ` +
+          `copy whose row could not be written, and it owes refused`
+      );
+    }
+    const sentenceIsClonesOwn =
+      refused.sentences[0] === cloneNotRecorded(CLONE_LABEL);
+    if (!sentenceIsClonesOwn) {
+      fail(
+        `the refused copy's sentence is not the one this stage ships. It ` +
+          `reads: ${JSON.stringify(refused.sentences[0])}`
+      );
+    }
+    if (refused.sentences[0]?.includes(refusedDestination) === true) {
+      fail(
+        'the refused copy names the destination, and nothing over there was ' +
+          'touched, so the sentence may name no path'
+      );
+    }
+    // The far side is asked itself, with a non journaled read, which is also
+    // the proof that capture, harvest, store sync and plain commands keep
+    // their path while the journal will not write.
+    const pathAnswer = (
+      await execRemoteShell(
+        ctx,
+        `test -e ${refusedDestination} && echo yes || echo no`
+      )
+    ).trim();
+    if (pathAnswer !== 'no') {
+      fail(
+        `the far side says ${JSON.stringify(pathAnswer)} about ` +
+          `${refusedDestination}, and a refused copy may change no remote path`
+      );
+    }
+    const unfinishedRowsDuring =
+      realJournal.listUnfinishedRemoteExecutions().length;
+    if (unfinishedRowsDuring !== 0) {
+      fail(
+        `${String(unfinishedRowsDuring)} unfinished row(s) are in the real ` +
+          `manifest and every write to it was refused`
+      );
+    }
+    log(
+      `1c. the real clone door answered refused with the sentence naming ` +
+        `${CLONE_LABEL} and no path, the far side says no about ` +
+        `${refusedDestination}, and a non journaled read crossed while the ` +
+        `journal would not write`
+    );
+
+    // --- 1d. A copy with no journal at all is the same refusal --------------
+    setRemoteExecutionJournal(null);
+    let absentJournalTyped = false;
+    try {
+      await admitRemoteExecution(
+        {
+          machineId: CLONE_ID,
+          kind: 'clone',
+          subject: refusedDestination,
+          machineLabel: CLONE_LABEL
+        },
+        async () => {
+          closureRan += 1;
+          return 'never';
+        }
+      );
+      fail('a copy was admitted while no journal was installed at all');
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith('a copy was')) {
+        throw err;
+      }
+      absentJournalTyped = isRemoteExecUnjournaled(err);
+    }
+    if (!absentJournalTyped || closureRan !== 0) {
+      fail(
+        'a copy with no journal installed was not refused with the typed ' +
+          'durability refusal before its spawn closure ran'
+      );
+    }
+    log(`1d. a copy with no journal installed at all got the same refusal`);
+
+    // --- 1e. The real journal goes back, and the refusals left nothing ------
+    setRemoteExecutionJournal(realJournal);
+    const namingAfterInjection = countNaming();
+    // The machine feeds run their own commands concurrently and settle
+    // entries of their own, so deltas over ALL kinds would race them. What
+    // the refusals owe is exact: no entry of kind clone exists anywhere,
+    // because the good copy has not started yet and a refusal opens nothing.
+    const openCloneEntries = liveRemoteExecutions().filter(
+      (one) => one.kind === 'clone'
+    ).length;
+    const settledCloneEntries = settledRemoteExecutions().filter(
+      (one) => one.kind === 'clone'
+    ).length;
+    if (namingAfterInjection > namingBeforeInjection) {
+      fail(
+        `${String(namingBeforeInjection)} process(es) named the copy before ` +
+          `the refusals and ${String(namingAfterInjection)} after them, so a ` +
+          `child was spawned for a refused copy`
+      );
+    }
+    if (openCloneEntries !== 0 || settledCloneEntries !== 0) {
+      fail(
+        `the ledger holds ${String(openCloneEntries)} open and ` +
+          `${String(settledCloneEntries)} classified clone entry(s) after ` +
+          `the refusals, and a refusal opens nothing`
+      );
+    }
+    const unjournaledFacts = {
+      closureRan,
+      failedWriteTyped,
+      absentJournalTyped,
+      cloneOutcome: refused.outcome,
+      sentenceIsClonesOwn,
+      refusedPathExists: pathAnswer,
+      namingBefore: namingBeforeInjection,
+      namingAfter: namingAfterInjection,
+      openCloneEntries,
+      settledCloneEntries,
+      unfinishedRowsDuring
+    };
+    log(
+      `1e. the real journal is installed again, no ssh child appeared and ` +
+        `the ledger holds nothing it did not hold before`
+    );
 
     // --- 2. The copy, started and NOT awaited -------------------------------
     //
@@ -656,7 +920,8 @@ export async function runP118PrepSmoke(): Promise<void> {
       refusalSentence,
       cloneOutcome,
       unfinishedRows: rows.length,
-      operatorSessions: operatorBefore
+      operatorSessions: operatorBefore,
+      unjournaled: unjournaledFacts
     };
     writeFileSync(
       join(iso.root, FACTS_FILE),

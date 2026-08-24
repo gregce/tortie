@@ -47,6 +47,13 @@
  * reasoning is at the head of `../manifest/remote-executions.ts` and the
  * migration repeats it.
  *
+ * THE JOURNALED KIND DOES NOT START WITHOUT ITS ROW (Phase 144, stage 2 of the
+ * 36 plan). A copy whose start row cannot be written, or that arrives while no
+ * journal is installed, is refused with {@link REMOTE_EXEC_NOT_RECORDED}
+ * before its spawn closure runs. Fail open was the old behaviour, a unit test
+ * protected it, and the cost was a partial folder on another computer the next
+ * launch could not explain.
+ *
  * ## The edge is one way
  *
  * `./remote-record.ts` imports this module, to install the journal and to run
@@ -56,7 +63,7 @@
  */
 
 import type { ChildProcess } from 'node:child_process';
-import { gmuxError } from '../errors';
+import { GmuxError, gmuxError } from '../errors';
 import { getLog } from '../log';
 // IMPORTED FROM THE MODULE AND NOT FROM `../manifest`, and that is load
 // bearing rather than a style choice. The manifest barrel re-exports
@@ -95,6 +102,38 @@ const ledgerLog = getLog('config');
  */
 export const REMOTE_EXEC_SHUTDOWN =
   'Tortie is quitting, so nothing more was sent to that machine.';
+
+/**
+ * The refusal a journaled remote write gets when its durable start row cannot
+ * be written (Phase 144, stage 2 of the 36 plan).
+ *
+ * PINNED as `machine.remote-exec-not-recorded` in
+ * `build/assert-bundle-refusals.mjs`.
+ *
+ * Before this stage the ledger logged the failed write and started the copy
+ * anyway. A copy that then got cut off had no row, so the next launch could
+ * say nothing about a folder partly written on another computer. The journal
+ * exists for exactly that sentence, so a copy whose row cannot be written is
+ * refused before its spawn closure runs, and the person is told to try again.
+ * The same shape as `MACHINE_REMOVAL_NOT_RECORDED` in `./removal.ts`: the
+ * code is `FS_FAILED` and the sentence is the constant.
+ */
+export const REMOTE_EXEC_NOT_RECORDED =
+  'Tortie could not write down that this work was starting, so nothing was ' +
+  'sent to that machine. Try again.';
+
+/**
+ * True when `err` is the refusal above. `./remote-clone.ts` reads it to draw
+ * the sentence that names the machine, and the harness reads it to prove the
+ * refusal is the typed one rather than a look alike.
+ */
+export function isRemoteExecUnjournaled(err: unknown): boolean {
+  return (
+    err instanceof GmuxError &&
+    err.payload.code === 'FS_FAILED' &&
+    err.payload.message === REMOTE_EXEC_NOT_RECORDED
+  );
+}
 
 /**
  * Between SIGTERM and SIGKILL. 250 ms. CHOSEN, not measured.
@@ -293,7 +332,18 @@ function factOf(entry: LedgerEntry): RemoteExecutionFact {
  * `GmuxCore.admit` does, because the ledger only needs to know when the work is
  * over.
  *
- * @throws GmuxError SHUTTING_DOWN carrying {@link REMOTE_EXEC_SHUTDOWN}.
+ * THE JOURNALED KIND COMPLETES ITS DURABLE DECLARATION FIRST (Phase 144,
+ * stage 2 of the 36 plan). The row goes down before `run` is called, and a row
+ * that cannot go down is a refusal rather than a warning: `run` is never
+ * called, no argv is composed and no ssh child is spawned. Before this stage
+ * the failed write was logged and the copy started anyway, which left the one
+ * kind of remote work that writes on the other computer with no record for the
+ * next launch to explain. The four non journaled kinds are reads a later pass
+ * redoes, so they keep their path and need no row.
+ *
+ * @throws GmuxError SHUTTING_DOWN carrying {@link REMOTE_EXEC_SHUTDOWN}, or
+ *   FS_FAILED carrying {@link REMOTE_EXEC_NOT_RECORDED} for a journaled kind
+ *   whose start row could not be written.
  */
 export function admitRemoteExecution<T>(
   start: RemoteExecutionStart,
@@ -309,7 +359,44 @@ export function admitRemoteExecution<T>(
       )
     );
   }
-  const entry = openEntry(start);
+  // The durable row goes down BEFORE the child is spawned, which is the whole
+  // point of it. better-sqlite3 does not await, so there is no window between
+  // the row committing and the spawn.
+  const startedAt = Date.now();
+  let journalId: number | null = null;
+  if (start.kind === JOURNALED_REMOTE_EXECUTION_KIND) {
+    if (journal === null) {
+      return Promise.reject(
+        gmuxError(
+          'FS_FAILED',
+          REMOTE_EXEC_NOT_RECORDED,
+          `refused ${start.kind} for machine ${start.machineId}: no journal ` +
+            `is installed to record it`
+        )
+      );
+    }
+    try {
+      journalId = journal.beginRemoteExecution(
+        {
+          machineId: start.machineId,
+          machineLabel: labelOf(start),
+          kind: start.kind,
+          subject: start.subject
+        },
+        startedAt
+      );
+    } catch (err) {
+      return Promise.reject(
+        gmuxError(
+          'FS_FAILED',
+          REMOTE_EXEC_NOT_RECORDED,
+          `refused ${start.kind} for machine ${start.machineId}: the start ` +
+            `row could not be written: ${(err as Error).message}`
+        )
+      );
+    }
+  }
+  const entry = openEntry(start, startedAt, journalId);
   let work: Promise<T>;
   try {
     work = run({
@@ -330,12 +417,25 @@ export function admitRemoteExecution<T>(
   return work;
 }
 
-function openEntry(start: RemoteExecutionStart): LedgerEntry {
+/** The label the row and the log carry: what the caller said, or the id. */
+function labelOf(start: RemoteExecutionStart): string {
+  return start.machineLabel !== undefined && start.machineLabel.length > 0
+    ? start.machineLabel
+    : start.machineId;
+}
+
+/**
+ * Open one in memory entry. The durable declaration is NOT here: for the
+ * journaled kind, `admitRemoteExecution` completed it before this runs, and
+ * `journalId` is the row it wrote. An entry is only ever opened for work that
+ * is about to run.
+ */
+function openEntry(
+  start: RemoteExecutionStart,
+  startedAt: number,
+  journalId: number | null
+): LedgerEntry {
   counter += 1;
-  const machineLabel =
-    start.machineLabel !== undefined && start.machineLabel.length > 0
-      ? start.machineLabel
-      : start.machineId;
   let markSettled = (): void => undefined;
   const settled = new Promise<void>((resolve) => {
     markSettled = resolve;
@@ -343,42 +443,18 @@ function openEntry(start: RemoteExecutionStart): LedgerEntry {
   const entry: LedgerEntry = {
     seq: counter,
     machineId: start.machineId,
-    machineLabel,
+    machineLabel: labelOf(start),
     kind: start.kind,
     subject: start.subject,
-    startedAt: Date.now(),
+    startedAt,
     child: null,
     pid: null,
-    journalId: null,
+    journalId,
     outcome: null,
     cancelled: false,
     settled,
     markSettled
   };
-  // The durable row goes down BEFORE the child is spawned, which is the whole
-  // point of it. better-sqlite3 does not await, so there is no window between
-  // the row committing and the spawn.
-  if (entry.kind === JOURNALED_REMOTE_EXECUTION_KIND && journal !== null) {
-    try {
-      entry.journalId = journal.beginRemoteExecution(
-        {
-          machineId: entry.machineId,
-          machineLabel: entry.machineLabel,
-          kind: entry.kind,
-          subject: entry.subject
-        },
-        entry.startedAt
-      );
-    } catch (err) {
-      // A journal that will not write must never stop the work a person asked
-      // for. The consequence is that a copy cut off by a quit is not reported
-      // at the next launch, and this line is the only record of that.
-      ledgerLog.warn(
-        `could not record the start of a ${entry.kind} on ${entry.machineId}: ` +
-          `${(err as Error).message}`
-      );
-    }
-  }
   open.add(entry);
   return entry;
 }

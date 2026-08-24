@@ -86,9 +86,11 @@ import {
 // only import, so nothing new is loaded at run time.
 import type { HandbackFact, HandbackOutcome } from '../activity';
 // The pure parts of the Phase 89 arming door. They are already exported, so
-// nothing is extracted and nothing is copied. `sendArmedResumeText` is
-// deliberately NOT named here: gate 65 of build/conformance-machines.mjs pins
-// the two files that may name it, and the local send is a local send.
+// nothing is extracted and nothing is copied. The remote typing door itself is
+// deliberately not named here, not even in prose: gate 65 of
+// build/conformance-machines.mjs pins the two files that may carry its name,
+// and it reads bytes rather than code, so a comment counts. The local send is
+// a local send.
 import {
   composeArmedResumeText,
   countOccurrences,

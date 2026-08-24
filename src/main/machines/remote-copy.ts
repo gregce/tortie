@@ -719,6 +719,24 @@ export function cloneNotSent(label: string): string {
 }
 
 /**
+ * The record a copy writes before it starts could not be written, so the copy
+ * was refused before anything was sent (Phase 144, stage 2 of the 36 plan).
+ *
+ * That record is the one thing that lets the next launch explain a copy that
+ * was cut off, so a copy does not start without it. The refusal fires before
+ * an argv is composed, so nothing crossed and nothing on the other machine
+ * changed, and the sentence says so and names no path.
+ */
+export function cloneNotRecorded(label: string): string {
+  return (
+    `Tortie could not write down that this copy was starting, so it sent ` +
+    `nothing to ${label} and nothing was written there. That record is what ` +
+    `explains an interrupted copy at the next launch, so a copy does not ` +
+    `start without it. Try again.`
+  );
+}
+
+/**
  * Main's own read of the remote disagreed with the address the sheet drew.
  *
  * This is the sentence behind the rule that the renderer never chooses the

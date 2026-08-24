@@ -83,6 +83,7 @@ import type { RemoteCloneInput, RemoteCloneResult } from '@shared/ipc';
 import { type RemoteMachineContext } from './context';
 import {
   REMOTE_EXEC_SHUTDOWN,
+  isRemoteExecUnjournaled,
   remoteExecutionsAccepted
 } from './execution-ledger';
 import {
@@ -94,6 +95,7 @@ import {
   cloneExists,
   cloneExistsSame,
   cloneFailed,
+  cloneNotRecorded,
   cloneNotSent,
   cloneOffline,
   cloneTimedOut,
@@ -296,6 +298,15 @@ export async function cloneProjectOnMachine(
     // and what that leaves behind is the same as a deadline: a folder that may
     // hold part of the project, and a next attempt that refuses the path by
     // name.
+    // PHASE 144, stage 2 of the 36 plan. The copy's durable start row could
+    // not be written, so the ledger refused it before an argv was composed.
+    // Nothing crossed and nothing over there changed, so the sentence names
+    // no path and the person is told to try again. This arm goes first
+    // because the refusal can only fire while the ledger is still accepting
+    // work, so neither shutdown arm below can be the truth about it.
+    if (isRemoteExecUnjournaled(err)) {
+      return answer('refused', url, '', [cloneNotRecorded(label)]);
+    }
     if ((err as Error).message === REMOTE_EXEC_SHUTDOWN) {
       return answer('cutOff', url, '', [cloneNotSent(label)]);
     }

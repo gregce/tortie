@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.72.1",
+  "version": "0.72.2",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -84,6 +84,7 @@
     "smoke:partition": "npm run build && node build/harness-socket.mjs --fresh gmux-p71-partition 'node build/partition-harness.mjs'",
     "smoke:matrix": "npm run build && node build/harness-socket.mjs --fresh gmux-p72-matrix 'node build/remote-matrix.mjs'",
     "smoke:p117": "npm run build && node build/harness-socket.mjs --fresh gmux-p117-unknown 'export GMUX_CONFIG_ROOT=\"${GMUX_CONFIG_ROOT:-$GMUX_HARNESS_DIR}\"; node build/p117-create-unknown.mjs'",
+    "smoke:p118": "npm run build && node build/harness-socket.mjs --fresh gmux-p118-children 'export GMUX_CONFIG_ROOT=\"${GMUX_CONFIG_ROOT:-$GMUX_HARNESS_DIR}\"; node build/p118-remote-children.mjs'",
     "smoke:p93remote": "npm run build && node build/harness-socket.mjs --fresh gmux-p93-remote 'export GMUX_CONFIG_ROOT=\"${GMUX_CONFIG_ROOT:-$GMUX_HARNESS_DIR}\"; node build/with-scratch-machine.mjs -- GMUX_SMOKE=p93-remote-clear electron . --user-data-dir=$GMUX_CONFIG_ROOT/profile -ApplePersistenceIgnoreState YES'",
     "smoke:capture:remote": "npm run build && node build/harness-socket.mjs --fresh gmux-p91-capture 'export GMUX_CONFIG_ROOT=\"${GMUX_CONFIG_ROOT:-$GMUX_HARNESS_DIR}\"; node build/with-scratch-machine.mjs -- GMUX_SMOKE=capture-remote electron . --user-data-dir=$GMUX_CONFIG_ROOT/profile -ApplePersistenceIgnoreState YES'",
     "smoke:remote": "npm run build && node build/harness-socket.mjs --fresh gmux-p70-remote 'export GMUX_CONFIG_ROOT=\"${GMUX_CONFIG_ROOT:-$GMUX_HARNESS_DIR}\"; node build/with-scratch-machine.mjs -- GMUX_SMOKE=remote-sessions electron . --user-data-dir=$GMUX_CONFIG_ROOT/profile -ApplePersistenceIgnoreState YES'",

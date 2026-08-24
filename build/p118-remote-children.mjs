@@ -522,6 +522,65 @@ if (facts !== null) {
         `after the quit, and exactly one copy was cut off`
     );
   }
+  // Phase 144, stage 2 of the 36 plan: a copy whose durable start row could
+  // not be written was refused before anything ran, spawned or changed. The
+  // supervisor grades the app's own record of it, so a prep leg that skipped
+  // the injection cannot pass by saying nothing.
+  const uj = facts.unjournaled;
+  if (uj === undefined || uj === null) {
+    fail(
+      'the prep leg recorded nothing about the refused unjournaled copy, so ' +
+        'the stage 2 injection never ran'
+    );
+  } else {
+    if (uj.closureRan !== 0) {
+      fail(
+        `the spawn closure ran ${String(uj.closureRan)} time(s) for a copy ` +
+          `whose row was never written`
+      );
+    }
+    if (uj.failedWriteTyped !== true || uj.absentJournalTyped !== true) {
+      fail(
+        'a copy without its durable row was not refused with the typed ' +
+          'durability refusal'
+      );
+    }
+    if (uj.cloneOutcome !== 'refused' || uj.sentenceIsClonesOwn !== true) {
+      fail(
+        `the clone door answered ${JSON.stringify(uj.cloneOutcome)} with ` +
+          `the wrong sentence for a copy whose row could not be written`
+      );
+    }
+    if (uj.refusedPathExists !== 'no') {
+      fail(
+        `the far side says ${JSON.stringify(uj.refusedPathExists)} about the ` +
+          `refused destination, and a refused copy may change no remote path`
+      );
+    }
+    if (uj.namingAfter > uj.namingBefore) {
+      fail(
+        `${String(uj.namingBefore)} process(es) named the copy before the ` +
+          `refusals and ${String(uj.namingAfter)} after them`
+      );
+    }
+    if (uj.openCloneEntries !== 0 || uj.settledCloneEntries !== 0) {
+      fail(
+        `the ledger held ${String(uj.openCloneEntries)} open and ` +
+          `${String(uj.settledCloneEntries)} classified clone entry(s) after ` +
+          `the refusals, before the good copy started`
+      );
+    }
+    if (uj.unfinishedRowsDuring !== 0) {
+      fail(
+        `${String(uj.unfinishedRowsDuring)} row(s) reached the real manifest ` +
+          `while every write to it was refused`
+      );
+    }
+    say(
+      'the unjournaled copy was refused typed with no spawn, no ssh child, ' +
+        'no ledger entry, no row and no remote path change'
+    );
+  }
   say(
     `the copy answered ${JSON.stringify(facts.cloneOutcome)}, the whole real ` +
       `teardown took ${String(facts.teardownMs)} ms, and the far side held ` +

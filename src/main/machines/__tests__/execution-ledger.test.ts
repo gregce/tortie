@@ -27,8 +27,10 @@ vi.mock('../../notice', () => ({
 
 const {
   CANCEL_GRACE_MS,
+  REMOTE_EXEC_NOT_RECORDED,
   REMOTE_EXEC_SHUTDOWN,
   admitRemoteExecution,
+  isRemoteExecUnjournaled,
   beginRemoteExecutionShutdown,
   cancelRemoteExecutions,
   joinRemoteExecutions,
@@ -88,6 +90,11 @@ function deferred(): {
 
 beforeEach(() => {
   resetRemoteExecutionLedgerForTests();
+  // A journal that accepts every write, because since Phase 144 a clone with
+  // no journal is REFUSED rather than started, and most tests here are about
+  // the lifecycle rather than the journal. The tests about the journal itself
+  // install their own instrumented one over this.
+  setRemoteExecutionJournal(fakeJournal().store);
   posted.length = 0;
 });
 
@@ -474,7 +481,16 @@ describe('what is written down', () => {
     expect(journal.rows[0]?.outcome).toBeNull();
   });
 
-  it('never lets a journal that will not write stop the work', async () => {
+  /**
+   * PHASE 144, STAGE 2 OF THE 36 PLAN. This test replaces one named "never
+   * lets a journal that will not write stop the work", which protected the
+   * fail open behaviour: the ledger logged the failed write and started the
+   * copy anyway, so a copy cut off later had no row and the next launch could
+   * explain nothing. The copy is the one kind that writes on the other
+   * computer, so its durable declaration completes before the spawn closure
+   * runs or the copy does not start at all.
+   */
+  it('refuses a copy whose start row cannot be written, before the work runs', async () => {
     setRemoteExecutionJournal({
       beginRemoteExecution: () => {
         throw new Error('the disk is full');
@@ -482,13 +498,87 @@ describe('what is written down', () => {
       finishRemoteExecution: () => undefined,
       listUnfinishedRemoteExecutions: () => []
     } as unknown as Journal);
+    let ran = 0;
+    let payload: GmuxError['payload'] | null = null;
+    try {
+      await admitRemoteExecution(
+        { machineId: 'studio', kind: 'clone', subject: '/x' },
+        async () => {
+          ran += 1;
+          return 'never';
+        }
+      );
+    } catch (err) {
+      payload = err instanceof GmuxError ? err.payload : null;
+    }
+    expect(ran).toBe(0);
+    expect(payload?.code).toBe('FS_FAILED');
+    expect(payload?.message).toBe(REMOTE_EXEC_NOT_RECORDED);
+    expect(payload?.detail).toContain('the disk is full');
+    // A refused copy opens no entry, so nothing can be joined, cancelled or
+    // classified for it, and the quit has nothing of it to own.
+    expect(liveRemoteExecutions()).toHaveLength(0);
+    expect(settledRemoteExecutions()).toHaveLength(0);
+  });
+
+  it('refuses a copy when no journal is installed at all', async () => {
+    setRemoteExecutionJournal(null);
+    let ran = 0;
     await expect(
       admitRemoteExecution(
         { machineId: 'studio', kind: 'clone', subject: '/x' },
-        async () => 'cloned'
+        async () => {
+          ran += 1;
+          return 'never';
+        }
       )
-    ).resolves.toBe('cloned');
-    expect(settledRemoteExecutions()[0]?.journalId).toBeNull();
+    ).rejects.toSatisfy((err: unknown) => isRemoteExecUnjournaled(err));
+    expect(ran).toBe(0);
+    expect(liveRemoteExecutions()).toHaveLength(0);
+    expect(settledRemoteExecutions()).toHaveLength(0);
+  });
+
+  it('lets every non journaled kind keep its path when the journal is gone', async () => {
+    // Capture, harvest, store sync and plain commands are reads a later pass
+    // redoes, so they need no row and a broken journal must not stop them.
+    setRemoteExecutionJournal(null);
+    for (const kind of ['capture', 'harvest', 'store-sync', 'command'] as const) {
+      await expect(
+        admitRemoteExecution(
+          { machineId: 'studio', kind, subject: 'x' },
+          async () => 'ok'
+        )
+      ).resolves.toBe('ok');
+    }
+    expect(settledRemoteExecutions()).toHaveLength(4);
+    expect(
+      settledRemoteExecutions().every((one) => one.outcome === 'answered')
+    ).toBe(true);
+  });
+
+  it('says one plain refusal sentence with no dash in it', () => {
+    expect(REMOTE_EXEC_NOT_RECORDED).toBe(
+      'Tortie could not write down that this work was starting, so nothing ' +
+        'was sent to that machine. Try again.'
+    );
+    expect(REMOTE_EXEC_NOT_RECORDED).not.toContain('—');
+    expect(REMOTE_EXEC_NOT_RECORDED).not.toContain('–');
+  });
+
+  it('recognises only its own refusal', () => {
+    expect(isRemoteExecUnjournaled(new Error(REMOTE_EXEC_NOT_RECORDED))).toBe(
+      false
+    );
+    expect(
+      isRemoteExecUnjournaled(
+        new GmuxError('FS_FAILED', 'some other filesystem failure')
+      )
+    ).toBe(false);
+    expect(
+      isRemoteExecUnjournaled(
+        new GmuxError('FS_FAILED', REMOTE_EXEC_NOT_RECORDED, 'why')
+      )
+    ).toBe(true);
   });
 });
 

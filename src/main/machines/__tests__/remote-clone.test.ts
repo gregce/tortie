@@ -17,6 +17,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { GmuxError } from '../../errors';
 import type { RemoteMachineContext } from '../context';
 
 const CTX: RemoteMachineContext = {
@@ -76,12 +77,28 @@ vi.mock('../remote-sessions', () => ({
 /** Phase 118. Whether the ledger is still accepting remote work. */
 let accepting = true;
 
+/**
+ * Phase 144. What the real `isRemoteExecUnjournaled` matches: a GmuxError
+ * whose code is FS_FAILED and whose payload message is the pinned sentence.
+ * The mock reads the payload off the error the same way the real one does, so
+ * the arm under test cannot pass here while missing the real shape.
+ */
+const NOT_RECORDED =
+  'Tortie could not write down that this work was starting, so nothing was ' +
+  'sent to that machine. Try again.';
+
 vi.mock('../execution-ledger', () => ({
   remoteExecutionsAccepted: (): boolean => accepting,
-  // The real constant, so the arm that reads it here cannot drift from the one
-  // the exec plane throws.
+  // The real constants, so the arms that read them here cannot drift from the
+  // ones the exec plane throws.
   REMOTE_EXEC_SHUTDOWN:
-    'Tortie is quitting, so nothing more was sent to that machine.'
+    'Tortie is quitting, so nothing more was sent to that machine.',
+  REMOTE_EXEC_NOT_RECORDED: NOT_RECORDED,
+  isRemoteExecUnjournaled: (err: unknown): boolean => {
+    const payload = (err as { payload?: { code?: string; message?: string } })
+      .payload;
+    return payload?.code === 'FS_FAILED' && payload.message === NOT_RECORDED;
+  }
 }));
 
 vi.mock('../store', () => ({
@@ -335,6 +352,51 @@ describe('a copy the quit cut off', () => {
   it('still says timeout when the quit is not what ended it', async () => {
     accepting = true;
     answers['git-clone'] = new Error('the link dropped');
+    const out = await call();
+    expect(out.outcome).toBe('failed');
+  });
+});
+
+/**
+ * PHASE 144, stage 2 of the 36 plan. A copy whose durable start row could not
+ * be written is refused by the ledger before an argv is composed. The person
+ * reads a sentence that names the machine, says nothing crossed, and tells
+ * them to try again. It names no path, because no folder over there was
+ * touched, and it is a different fact from the quit having started.
+ */
+describe('a copy whose record could not be written', () => {
+  it('is refused with the sentence that names the machine and no path', async () => {
+    answers['git-clone'] = new GmuxError(
+      'FS_FAILED',
+      NOT_RECORDED,
+      'refused clone for machine studio: the start row could not be written'
+    );
+    const out = await call();
+    expect(out.outcome).toBe('refused');
+    expect(out.sentences[0]).toContain('could not write down');
+    expect(out.sentences[0]).toContain("Greg's Mac Pro");
+    expect(out.sentences[0]).toContain('nothing was written there');
+    expect(out.sentences[0]).toContain('Try again.');
+    expect(out.sentences[0]).not.toContain('/Users/gdc/gmux');
+    expect(out.sentences[0]).not.toContain('may still be running');
+  });
+
+  it('is not read as a quit, even while the ledger is refusing new work', async () => {
+    // The refusal can only fire while the ledger is still accepting, but the
+    // order of the arms is asserted anyway: a typed durability refusal is its
+    // own fact, and neither shutdown arm may claim it.
+    accepting = false;
+    answers['git-clone'] = new GmuxError('FS_FAILED', NOT_RECORDED, 'why');
+    const out = await call();
+    expect(out.outcome).toBe('refused');
+    expect(out.sentences[0]).toContain('could not write down');
+  });
+
+  it('leaves an ordinary filesystem failure on the failed arm', async () => {
+    answers['git-clone'] = new GmuxError(
+      'FS_FAILED',
+      'some other filesystem failure'
+    );
     const out = await call();
     expect(out.outcome).toBe('failed');
   });
