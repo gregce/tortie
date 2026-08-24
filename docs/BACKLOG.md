@@ -16141,7 +16141,7 @@ Measured on 2026-08-23 at `f829009`:
 - No split of `main/machines/ipc.ts` or `main/sessions/core.ts`, which the same adversary also named. Each needs its own entry and its own evidence.
 
 
-## Phase 143 — the story a session told, version by version (operator asked 2026-08-23) QUEUED, AFTER THE RELEASE AND AFTER 140
+## Phase 143 — the story a session told, version by version (operator asked 2026-08-23) ✅ SHIPPED 2026-08-24 (`75a5298`, 0.71.0, gates green, 9,153 tests)
 
 **Subject:** `feat(overview): read back how a session's story changed`
 **First body line:** `Phase 143: the summary timeline`
@@ -16431,6 +16431,52 @@ Use the same twelve area rubric and the same production graph rules as the 20 Au
 - **`ScmSection.tsx` is not queued.** The plan names it as large and says length alone does not justify a split. Reassess it only if reasons to change and importer evidence show a real breach.
 
 
+## Phase 146 — the symbol timing tripwire fails on a busy machine and not on a slow one (found 2026-08-24 during the v0.70.0 release battery) QUEUED
+
+**Subject:** `test(search): the symbol budget tripwire reads the load it ran under`
+**First body line:** `Phase 146: the symbol timing tripwire is made load aware`
+**Semver:** NONE. **The version does not move.** This changes one assertion in one test file and nothing a person can run.
+**Tier 1.** It is a test budget, so the gates ARE the evidence. No probe, no photograph, no app run.
+**Charter:** this entry, plus the running log line of 2026-08-24 that queued it, plus commit `87339d7`, "test(search): give the symbol budget tripwire CI headroom", which is the last time this same line was widened and which explains why CI already carries a different number.
+
+### What happened
+
+During the v0.70.0 release battery on 2026-08-24, `npm test` came back red on one line. The test is "answers a three-letter query over 100k symbols inside the budget" in `src/main/symbols/__tests__/store.test.ts`, and it measured 84.66 ms against a budget of 80 ms. The machine's load average at that moment was 29, because a release battery, a packaging run and the operator's own work were all going at once.
+
+Three facts say the product did not regress:
+
+- The file is byte identical to the one tagged at v0.68.7. `git diff v0.68.7 HEAD -- src/main/symbols/__tests__/store.test.ts` prints nothing, and neither does the same diff over `src/main/symbols/store.ts`.
+- The same test passed on the first run in every quieter battery that day, including the one that committed Phase 143.
+- CI already carries a second number for exactly this reason. Line 199 reads `expect(elapsed).toBeLessThan(process.env.CI ? 200 : 80);`, and the comment above it says the line failed at 88 ms on a run whose diff never touched symbols.
+
+So the local budget of 80 ms is not measuring the code. It is measuring how busy the machine was, and a battery is the busiest the machine ever gets. A tripwire that goes off when nothing is wrong is a tripwire people learn to ignore, and this one is the only thing standing between the tree and a future "let's just use a regex per symbol".
+
+### Mechanism
+
+The budget lives at `src/main/symbols/__tests__/store.test.ts` line 199, and the whole test runs from line 176 to line 200. Two shapes are worth writing and the phase picks one, with the reason in the commit body:
+
+- **Read the load and widen the budget when the machine is busy.** Node's `os.loadavg()` gives the one minute average. The budget stays at 80 ms on a quiet machine and rises on a busy one, so a real regression is still caught where it matters and a busy machine is not called a regression. The CI branch is left alone, since CI already has its own number and its own reason.
+- **Or measure the machine instead of the clock.** Time a fixed amount of arithmetic just before the query and scale the budget by how long that took. This measures the same slowdown the query suffers, and it does not need a load average at all.
+
+Whichever is chosen, the comment above the assertion is rewritten to say what the number now means, because the current comment says 80 ms is the budget on a developer machine and that sentence is what turned out to be wrong.
+
+### Proof, run rather than read
+
+- The failing shape reproduced first, by running the test under a deliberate load and showing the old assertion red and the new one green. Report the measured elapsed time and the load average for both.
+- The tripwire still catches what it exists to catch, proved by a deliberately slowed query, being one copy of the store with the index turned off, which must fail the new assertion on a quiet machine.
+- `npm test` green on a quiet machine, on the first run, with no isolation runs needed.
+- `npm run typecheck` and `npm run build`.
+- Confirm `package.json` and `package-lock.json` are untouched.
+
+### What is NOT in this phase
+
+- **No change to `src/main/symbols/store.ts`.** The code is not the problem and this phase does not touch it.
+- No change to any other timing assertion in the tree. If others have the same weakness, name them in the commit body and queue them, rather than widening them here.
+- No removal of the tripwire. A budget that cannot fail is not a tripwire, and deleting this one is the outcome the phase exists to prevent.
+- No new gate, no new script and no change to the CI number.
+- **It is NOT fixed inside another phase.** The operator queued it on its own so the widening is a decision somebody made on purpose rather than a line a committer changed to get a battery green.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16594,3 +16640,6 @@ cycle rather than only the evening it was written.
 - 2026-08-23, his own commit a3bbd45 restoring the architecture 36 plan was discarded by my git reset --keep in his checkout, recovered from the reflog and pushed at 13393f2, and CLAUDE.md now forbids that sync without listing origin/main..HEAD first
 - 2026-08-23, Phases 144 and 145 queued from docs/audits/2026-08-22-architecture-36-plan.md at his word, being two runs of three stages each, one commit per stage as the plan requires, taking the score from 30 toward 36 with no user facing change and no technical invariant touched
 - 2026-08-23, Phase 138.1 shipped, five of the eleven agents can write the project line now and six keep a disabled row with the reason on the page, the measured medians over ten real folds each being claude at $0.002447 and 2.4 s, pi at $0.00029928 and 3.0 s, grok at $0.00546788 and 17.0 s, and codex at 5.6 s and cursor at 6.2 s which report no dollar figure at all so a fold's cost is never recorded for them; the six refused are gemini which is not signed in on this Mac, qwen which has no flag that turns its 55 tools off and sent 28,157 input tokens for one sentence, muse which never says what a run cost, antigravity whose database is keyed on a conversation id so no working directory rule reaches it, deepseek whose exec help documents no options at all, and droid which is not installed; the settings section is now called Catch Me Up rather than Project line and the page draws 15 sentences where the parent drew 23, and only 5 of the 15 configure the two pickers where all 23 of the parent's were configuration prose with the same sentence in it ten times under a different agent's name, the other 10 being the block he asked for saying what the feature is, how to open it with the chord read from src/shared/keymap.ts, what the three levels are, and that a model writes only the one line while every other word is the agent's own; a line a model wrote now says `written HH:MM` on the project view and a line Tortie built says nothing, and the log carries fold.ran with the verdict, fold.skipped with the reason and fold.suspended as a warning; the version did not move and `node build/contract-inventory.mjs --check` came back byte identical, this commit, 0.71.0
+- 2026-08-24, RELEASE CUT AND PUBLISHED, tag v0.70.0 on `27f64e3`, signed, notarized and stapled, published as Latest with 5 artifacts, verified on the DOWNLOADED artifact being spctl accepted as Notarized Developer ID with stapled tickets valid on both the app and the DMG and the latest-mac.yml sha512 re-derived by hand and matching the zip, carrying Catch Me Up at three levels, the ask rail, markdown rendering, the model written project line across five harnesses and the Electron teardown helper; the delegated grant is now spent and does not renew
+- 2026-08-24, Phase 143 shipped, a session's header now opens "what has been written", the whole run of summary sentences a model wrote about that session newest first with the clock time on each, where pressing a row shows the turns that version covered, a repeated sentence is drawn once carrying the later time, a model change names both models, missing turns are said plainly, and no model chosen draws one line rather than an empty list, with no version number and no count anywhere because the probe walks every text node in six states and found 0 loose digits; the first verifier returned needs_work with three findings against the reader, being a gap swallowed by a repeat, a watermark moving backwards and a model change hidden by a repeat, and all three were re-derived four ways before anything changed, being a unit fixture, a real SQLite store driven through the shipped appendSummary, a real browser over the bundled renderer, and a reference reader written from this entry's rules alone and compared against the shipped reader over five thousand random chains, and all four agreed with the shipped code while three copies each missing one guard reproduced the verifier's output word for word, so nothing was changed for those three; the second verifier drove the real keyboard in one app run and found the real defect, being that the commonest chain of all, a summary rewritten from turn zero as the session grows, drew 5 rows where it should draw 3, which is now fixed and locked by two tests, this commit `75a5298`, 0.71.0, 9,153 tests
+- 2026-08-24, Phase 146 queued, `src/main/symbols/__tests__/store.test.ts` wants a 100k symbol three letter query under 80 ms on a developer machine and measured 84.66 ms at load average 29 during the v0.70.0 release battery, where the file is byte identical to v0.68.7 and CI already carries a 200 ms budget for exactly this reason, so the local budget is made load aware or widened and it is NOT fixed inside another phase
