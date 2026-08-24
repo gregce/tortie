@@ -151,6 +151,30 @@ Exit rule: The baseline is recorded. Existing host-sensitive failures are classi
 
 Score after this stage: 30 out of 36.
 
+### Stage 0 ran on 2026-08-24 and re-locked the baseline
+
+Phase 144 ran this stage on tree `6e3bdb5`, version 0.72.0. Every number below was measured by running the real gate on that tree, and every plan number was re-derived by running the same gate at the refresh source baseline `2905051` in a scratch worktree rather than trusting the list above.
+
+| Fact | Plan | Measured at `2905051` | Today at `6e3bdb5` |
+| --- | ---: | ---: | ---: |
+| invoke channels | 184 | 187 | 190 |
+| production files in the import gate | 904 | 904 | 912 |
+| production imports | 5,159 | 5,159 | 5,229 |
+| production files in the runtime graph | 903 | 903 | 911 |
+| runtime edges | 3,072 | 3,072 | 3,113 |
+| strongly connected components | 0 | 0 | 0 |
+| manifest schema version | 17 | 17 | 17, min compatible 13 |
+| contract inventory | matches | matches | matches byte for byte |
+
+Why each number moved, with every mover named:
+
+- The plan's 184 invoke channels was already stale at its own refresh. The committed `docs/audits/contract-baseline.txt` at `2905051` reads 187, because Phase 137 added `overview:project` and `overview:sessions` at `cecd6fe` and Phase 138 added `fold:options` at `56c9c59` earlier that same day, and the refresh carried the new file and edge counts but not the new channel count. After the refresh, Phase 143 added `overview:timeline` and `overview:timelineTurns` at `75a5298`, and Phase 141 added `sessions:resumeInPlace` at `b4f0fc9`. 184 plus those six is 190, and each addition re-baselined the inventory in its own commit, so `--check` stays byte for byte.
+- The file, import and edge counts were exact at `2905051`. They moved in three production commits, measured by running both gates at each commit in the scratch worktree. Phase 138.1 at `d4c4d29` added 2 files, 11 imports and 6 edges. Phase 143 at `75a5298` added 5 files, 34 imports and 20 edges. Phase 141 at `b4f0fc9` added 1 file, 25 imports and 15 edges. Phase 146 at `ed056da` touched one test file and moved no production number.
+- Cycles and the manifest schema did not move. The runtime graph still has 0 strongly connected components, and the scratch manifest the inventory builds through the real migration runner still reads `user_version=17` and `min_compatible_version=13`.
+
+The whole Stage 0 battery ran green on `6e3bdb5`. `npm run typecheck` and `npm run build` both exit 0, with the Electron teardown gate reading 129 files under `build/` and finding every launcher on `build/electron-run.mjs`. `node build/contract-inventory.mjs --check` matches byte for byte. `npm test` passes 9,311 tests with 2 skipped. `npm run smoke:t1` passes 6 of 6 and ends its scratch tmux server. There is no host sensitive failure to classify because nothing failed. The one skipped test file is `src/main/tmux/__tests__/scroll.integration.test.ts`, and that skip is opt-in by design behind `GMUX_SCROLL_IT=1` at its line 45 because it builds a 200,000 line scratch session. The two host conditional integration files, the context scan and the search time to first result, both ran and passed on this machine.
+
+
 ## Stage 1 close IPC when quit starts
 
 Target area: Lifecycle, 2 to 3.
