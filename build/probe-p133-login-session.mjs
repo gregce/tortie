@@ -87,6 +87,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { runElectron } from './electron-run.mjs';
+
 const TAG = '[probe:p133]';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -745,17 +747,19 @@ if (runIdentity) {
   say('E1. GMUX_SMOKE=identity against this scratch server');
   const profile = join(dir, 'identity-profile');
   mkdirSync(profile, { recursive: true });
-  const out = spawnSync(
-    electronBinary(),
-    ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-    {
-      cwd: repoRoot,
-      encoding: 'utf8',
-      timeout: 180_000,
-      env: { ...process.env, GMUX_SMOKE: 'identity' }
-    }
-  );
-  const text = `${out.stdout ?? ''}${out.stderr ?? ''}`;
+  // build/electron-run.mjs owns this launch (Phase 140) and ends the tree it
+  // started in a finally block whatever happened. It starts the Electron binary
+  // itself rather than the node_modules/.bin/electron shim, which is what the
+  // note above asks for.
+  const out = await runElectron({
+    label: 'p133 identity',
+    program: 'app',
+    userDataDir: profile,
+    cwd: repoRoot,
+    env: { ...process.env, GMUX_SMOKE: 'identity' },
+    ceilingMs: 180_000
+  });
+  const text = out.text;
   for (const line of text.split('\n')) {
     if (line.includes('login session') || line.includes('/10 ')) {
       say(`  ${line.trim()}`);
@@ -764,8 +768,8 @@ if (runIdentity) {
   record(
     'E1 the identity harness',
     'exit 0, and the pane joined the app\'s login session',
-    `exit ${String(out.status)}`,
-    out.status === 0 ? 'PASS' : 'FAIL',
+    `exit ${String(out.code)}`,
+    out.code === 0 ? 'PASS' : 'FAIL',
     true
   );
 } else {

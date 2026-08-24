@@ -36,11 +36,13 @@
  * not. 2 when the probe refuses to run at all.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { runElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p135chrome]';
@@ -156,7 +158,6 @@ const PROBE_JS = `(async () => {
 // The launch
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const out = join(outDir, `p135-${label}.png`);
 rmSync(out, { force: true });
 
@@ -167,52 +168,22 @@ const drive = {
 };
 
 say(`launch ${label}`);
-const child = spawn(
-  electronBin,
-  [
-    '.',
-    `--user-data-dir=${join(root, 'profile')}`,
-    '-ApplePersistenceIgnoreState',
-    'YES'
-  ],
-  {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      GMUX_SHOT: out,
-      GMUX_SHOT_VERBOSE: '1',
-      GMUX_SHOT_DELAY_MS: '11000',
-      GMUX_SHOT_DRIVE: JSON.stringify(drive),
-      GMUX_SHOT_JS: PROBE_JS
-    }
-  }
-);
-
-let text = '';
-const onText = (chunk) => {
-  process.stdout.write(chunk);
-  text += chunk;
-};
-child.stdout.on('data', (b) => { onText(b.toString()); });
-child.stderr.on('data', (b) => { onText(b.toString()); });
-
-const code = await new Promise((r) => {
-  const watchdog = setTimeout(() => {
-    console.error(`${TAG} ${label} passed its ceiling. Ending the pid I started.`);
-    child.kill('SIGTERM');
-  }, 180_000);
-  child.on('error', (err) => {
-    clearTimeout(watchdog);
-    console.error(`${TAG} electron could not start: ${err.message}`);
-    r(1);
-  });
-  child.on('exit', (c) => {
-    clearTimeout(watchdog);
-    setTimeout(() => { r(c ?? 1); }, 750);
-  });
+const { code, text } = await runElectron({
+  label: 'p135-chrome',
+  userDataDir: join(root, 'profile'),
+  cwd: repoRoot,
+  env: {
+    ...process.env,
+    GMUX_SHOT: out,
+    GMUX_SHOT_VERBOSE: '1',
+    GMUX_SHOT_DELAY_MS: '11000',
+    GMUX_SHOT_DRIVE: JSON.stringify(drive),
+    GMUX_SHOT_JS: PROBE_JS
+  },
+  ceilingMs: 180_000,
+  settleMs: 750,
+  echo: true
 });
-child.stdout.destroy();
-child.stderr.destroy();
 
 const failures = [];
 const marker = '[gmux-shot] probe ';

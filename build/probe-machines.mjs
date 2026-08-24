@@ -68,6 +68,8 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { withElectron } from './electron-run.mjs';
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = join(tmpdir(), 'p68-machines-probe');
 const profile = join(scratch, 'profile');
@@ -344,50 +346,51 @@ function writeSshStandIn() {
  * step is still there in the next one.
  */
 function driveSettings({ shot, js, env = {}, timeoutMs = 90_000 }) {
-  return new Promise((resolvedrive) => {
-    const child = spawn(
-      'npx',
-      ['electron', '.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-      {
-        cwd: repoRoot,
-        env: {
-          ...process.env,
-          GMUX_SHOT: shot,
-          GMUX_SHOT_SETTINGS: '1',
-          GMUX_SHOT_SETTINGS_JS: js,
-          GMUX_TMUX_SOCKET: 'gmux-p68-probe',
-          // The private key holder this run started, holding one scratch key.
-          // Without it the client has nothing the scratch server accepts.
-          ...(agentSocket === '' ? {} : { SSH_AUTH_SOCK: agentSocket }),
-          ...env
-        },
-        stdio: ['ignore', 'pipe', 'pipe']
+  return withElectron(
+    {
+      label: 'machines',
+      userDataDir: profile,
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GMUX_SHOT: shot,
+        GMUX_SHOT_SETTINGS: '1',
+        GMUX_SHOT_SETTINGS_JS: js,
+        GMUX_TMUX_SOCKET: 'gmux-p68-probe',
+        // The private key holder this run started, holding one scratch key.
+        // Without it the client has nothing the scratch server accepts.
+        ...(agentSocket === '' ? {} : { SSH_AUTH_SOCK: agentSocket }),
+        ...env
       }
-    );
-    recordedPids.push(child.pid);
-    let out = '';
-    child.stdout.on('data', (chunk) => {
-      out += String(chunk);
-    });
-    child.stderr.on('data', (chunk) => {
-      out += String(chunk);
-    });
-    const timer = setTimeout(() => {
-      killRecorded(child.pid);
-    }, timeoutMs);
-    child.on('exit', (code) => {
-      clearTimeout(timer);
-      const line = out.split('\n').find((l) => l.includes('[gmux-shot] driver')) ?? '';
-      const payload = line.slice(line.indexOf('driver') + 8).trim();
-      let parsed = null;
-      try {
-        parsed = JSON.parse(payload.replace(/^→\s*/, ''));
-      } catch {
-        parsed = null;
-      }
-      resolvedrive({ code, out, payload, parsed, pid: child.pid });
-    });
-  });
+    },
+    (handle) =>
+      new Promise((resolvedrive) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
+        let out = '';
+        child.stdout.on('data', (chunk) => {
+          out += String(chunk);
+        });
+        child.stderr.on('data', (chunk) => {
+          out += String(chunk);
+        });
+        const timer = setTimeout(() => {
+          killRecorded(child.pid);
+        }, timeoutMs);
+        child.on('exit', (code) => {
+          clearTimeout(timer);
+          const line = out.split('\n').find((l) => l.includes('[gmux-shot] driver')) ?? '';
+          const payload = line.slice(line.indexOf('driver') + 8).trim();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(payload.replace(/^→\s*/, ''));
+          } catch {
+            parsed = null;
+          }
+          resolvedrive({ code, out, payload, parsed, pid: child.pid });
+        });
+      })
+  );
 }
 
 /**

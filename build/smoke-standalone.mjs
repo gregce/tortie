@@ -45,11 +45,12 @@
  * Usage: node build/smoke-standalone.mjs [--print] <create|verify>
  */
 
-import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirSlug, refuseReason, MAX_SOCKET_NAME } from './harness-run-tag.mjs';
+
+import { runElectron } from './electron-run.mjs';
 
 function refuse(why) {
   console.error(`[smoke-standalone] ${why}`);
@@ -122,26 +123,22 @@ if (standalone) {
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const binDir = join(repoRoot, 'node_modules', '.bin');
 
-const child = spawn(
-  'electron',
-  ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-  {
-    stdio: 'inherit',
-    env: {
-      ...process.env,
-      PATH: `${binDir}:${process.env['PATH'] ?? ''}`,
-      GMUX_SMOKE: mode,
-      GMUX_TMUX_SOCKET: socket
-    }
-  }
-);
-
-child.on('error', (err) => {
-  console.error(`[smoke-standalone] could not start electron: ${err.message}`);
-  process.exit(1);
+// build/electron-run.mjs owns the launch (Phase 140) and ends the tree it
+// started in a finally block whatever happened. `echo` is on because this
+// script's whole output is the app's output, and a parent reads it line by
+// line.
+const run = await runElectron({
+  label: `smoke-standalone ${mode}`,
+  userDataDir: profile,
+  env: {
+    ...process.env,
+    PATH: `${binDir}:${process.env['PATH'] ?? ''}`,
+    GMUX_SMOKE: mode,
+    GMUX_TMUX_SOCKET: socket
+  },
+  echo: true,
+  ceilingMs: 600_000
 });
 
 // The child's exit code is the wrapper's exit code.
-child.on('close', (code, signal) => {
-  process.exit(signal ? 1 : (code ?? 1));
-});
+process.exit(run.code);

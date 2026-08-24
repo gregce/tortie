@@ -51,7 +51,7 @@
  * edges. Nothing here measures 0.47.0 by itself, and the report has to say so.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   createWriteStream,
@@ -65,6 +65,8 @@ import { connect as netConnect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -472,17 +474,12 @@ async function main() {
   seedProfile();
 
   const logStream = createWriteStream(appLogPath, { flags: 'w' });
-  const child = spawn(
-    electronBin,
-    [
-      '.',
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      '-ApplePersistenceIgnoreState',
-      'YES'
-    ],
+  return withElectron(
     {
+      label: 'home-machines',
+      userDataDir: profile,
       cwd: repoRoot,
+      args: ['--remote-debugging-port=0'],
       env: {
         ...process.env,
       // PHASE 92 FIX ROUND. THIS ENV IS WHAT MAKES THE SOCKET OVERRIDE REAL.
@@ -506,204 +503,205 @@ async function main() {
       // `assertHarnessLaunch` below reads the app log and fails the run if the
       // refusal line appears anyway, so this can never silently regress.
       GMUX_UPDATE_REHEARSAL: '1',
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
-    }
-  );
-  appPid = child.pid;
-  child.stdout.pipe(logStream);
-  child.stderr.pipe(logStream);
-  child.on('exit', () => {
-    appExited = true;
-  });
-  log(`launched the dev app, pid ${appPid}, log ${appLogPath}`);
-
-  let cdp;
-  try {
-    cdp = await cdpForProfile(profile, 60_000);
-  } catch (err) {
-    return fail(err.message);
-  }
-
-  // Wait for the home screen and for the drive to be assigned.
-  let ready = false;
-  for (let waited = 0; waited < 60_000; waited += 500) {
-    ready = await cdpEval(
-      cdp,
-      "document.querySelector('.home') !== null && " +
-        "typeof window.__gmuxHomeMachinesProbe === 'function'"
-    );
-    if (ready === true) break;
-    await sleep(500);
-  }
-  if (ready !== true) {
-    return fail('the home screen and its drive never appeared within 60 s');
-  }
-  log('the home screen is up and the drive is assigned');
-
-  const ignored = assertHarnessLaunch();
-  if (ignored !== null) return fail(ignored);
-  log('the app honoured the harness socket, so the operator server was untouched');
-
-  for (const height of HEIGHTS) {
-    await cdp.call('Emulation.setDeviceMetricsOverride', {
-      width: 1200,
-      height,
-      deviceScaleFactor: 1,
-      mobile: false
+      }
+    },
+    async (handle) => {
+    const child = handle.child;
+    appPid = child.pid;
+    child.stdout.pipe(logStream);
+    child.stderr.pipe(logStream);
+    child.on('exit', () => {
+      appExited = true;
     });
-    await sleep(600);
-    for (const machines of MACHINE_COUNTS) {
-      let answer;
-      try {
-        answer = await cdpEval(
-          cdp,
-          `window.__gmuxHomeMachinesProbe(${JSON.stringify({
+    log(`launched the dev app, pid ${appPid}, log ${appLogPath}`);
+
+    let cdp;
+    try {
+      cdp = await cdpForProfile(profile, 60_000);
+    } catch (err) {
+      return fail(err.message);
+    }
+
+    // Wait for the home screen and for the drive to be assigned.
+    let ready = false;
+    for (let waited = 0; waited < 60_000; waited += 500) {
+      ready = await cdpEval(
+        cdp,
+        "document.querySelector('.home') !== null && " +
+          "typeof window.__gmuxHomeMachinesProbe === 'function'"
+      );
+      if (ready === true) break;
+      await sleep(500);
+    }
+    if (ready !== true) {
+      return fail('the home screen and its drive never appeared within 60 s');
+    }
+    log('the home screen is up and the drive is assigned');
+
+    const ignored = assertHarnessLaunch();
+    if (ignored !== null) return fail(ignored);
+    log('the app honoured the harness socket, so the operator server was untouched');
+
+    for (const height of HEIGHTS) {
+      await cdp.call('Emulation.setDeviceMetricsOverride', {
+        width: 1200,
+        height,
+        deviceScaleFactor: 1,
+        mobile: false
+      });
+      await sleep(600);
+      for (const machines of MACHINE_COUNTS) {
+        let answer;
+        try {
+          answer = await cdpEval(
+            cdp,
+            `window.__gmuxHomeMachinesProbe(${JSON.stringify({
             machines,
             hold: true,
             settleMs: 350
           })})`,
-          true
-        );
-      } catch (err) {
-        return fail(`the drive threw at ${height} px, ${machines} machines: ${err.message}`);
+            true
+          );
+        } catch (err) {
+          return fail(`the drive threw at ${height} px, ${machines} machines: ${err.message}`);
+        }
+        if (answer === null || answer.ok !== true) {
+          return fail(
+            `the drive refused at ${height} px, ${machines} machines: ${answer?.why ?? 'no answer'}`
+          );
+        }
+        cells.push({ height, machines, ...answer.reading });
       }
-      if (answer === null || answer.ok !== true) {
-        return fail(
-          `the drive refused at ${height} px, ${machines} machines: ${answer?.why ?? 'no answer'}`
-        );
-      }
-      cells.push({ height, machines, ...answer.reading });
+      // One photograph per height, with one machine held, which is the state the
+      // phase is about.
+      await cdpEval(
+        cdp,
+        'window.__gmuxHomeMachinesProbe({ machines: 1, hold: true, settleMs: 350 })',
+        true
+      );
+      await screenshot(cdp, `p92-home-${label.replace(/\W+/g, '-')}-${height}.png`);
     }
-    // One photograph per height, with one machine held, which is the state the
-    // phase is about.
-    await cdpEval(
-      cdp,
-      'window.__gmuxHomeMachinesProbe({ machines: 1, hold: true, settleMs: 350 })',
-      true
+
+    // -- the table -------------------------------------------------------------
+
+    console.log('');
+    console.log(`${TAG} the column at three viewport heights by three machine states (${label})`);
+    console.log('  viewport  machines  lockup top  col height  actions  second row title            recents shown  needs/has    scrolls');
+    console.log('  --------  --------  ----------  ----------  -------  --------------------------  -------------  -----------  -------');
+    for (const c of cells) {
+      console.log(
+        `  ${String(c.height).padStart(8)}  ${String(c.machines).padStart(8)}  ` +
+          `${String(c.lockupTop).padStart(10)}  ${String(c.colHeight).padStart(10)}  ` +
+          `${String(c.actionCount).padStart(7)}  ${String(c.actionTitles[1] ?? '').padEnd(26)}  ` +
+          `${String(c.recentRowsVisible).padStart(13)}  ` +
+          `${`${c.homeScrollHeight}/${c.homeClientHeight}`.padStart(11)}  ` +
+          `${String(c.homeScrolls).padStart(7)}`
+      );
+    }
+    console.log('');
+
+    // -- the assertions --------------------------------------------------------
+
+    for (const height of HEIGHTS) {
+      const row = cells.filter((c) => c.height === height);
+      const tops = row.map((c) => c.lockupTop);
+      const same = tops.every((t) => t === tops[0]);
+      if (!same) {
+        failures.push(
+          `at ${height} px the wordmark's top edge moved with the machine list: ${tops.join(', ')}`
+        );
+      }
+      const counts = row.map((c) => c.actionCount);
+      if (counts[0] !== 3 || counts[1] !== 4 || counts[2] !== 4) {
+        failures.push(
+          `at ${height} px the action row count is ${counts.join(', ')} and should be 3, 4, 4`
+        );
+      }
+      if (row[1]?.actionTitles[1] !== 'Open on Mac Pro…') {
+        failures.push(
+          `at ${height} px one machine draws "${row[1]?.actionTitles[1]}" and should draw "Open on Mac Pro…"`
+        );
+      }
+      if (row[2]?.actionTitles[1] !== 'Open on another machine…') {
+        failures.push(
+          `at ${height} px two machines draw "${row[2]?.actionTitles[1]}" and should draw "Open on another machine…"`
+        );
+      }
+      for (const c of row) {
+        if (c.animations.length > 0) {
+          failures.push(
+            `at ${height} px, ${c.machines} machines, something in .home animates: ${c.animations.join(', ')}`
+          );
+        }
+        const bad = c.rowTransitions.filter((p) => p !== 'background-color');
+        if (bad.length > 0) {
+          failures.push(
+            `at ${height} px a .home-row transitions ${bad.join(', ')} and should transition background-color only`
+          );
+        }
+        const shown = c.recentRowsVisible;
+        if (height <= SHORT_WINDOW && shown !== 3) {
+          failures.push(`at ${height} px ${shown} recent rows are visible and the cap is 3`);
+        }
+        if (height > SHORT_WINDOW && shown !== 5) {
+          failures.push(`at ${height} px ${shown} recent rows are visible and 5 were seeded`);
+        }
+        if (c.homeScrolls) {
+          failures.push(
+            `at ${height} px, ${c.machines} machines, the home screen has to ` +
+              `scroll: it needs ${c.homeScrollHeight} px in ${c.homeClientHeight} px`
+          );
+        }
+      }
+    }
+
+    // The machine name on a recent row carries no ornament. Read once, at the
+    // tallest viewport with one machine, from the COMPUTED style.
+    const withName = cells.find(
+      (c) => c.height === 900 && c.machines === 1 && c.recentMachineStyle !== null
     );
-    await screenshot(cdp, `p92-home-${label.replace(/\W+/g, '-')}-${height}.png`);
-  }
-
-  // -- the table -------------------------------------------------------------
-
-  console.log('');
-  console.log(`${TAG} the column at three viewport heights by three machine states (${label})`);
-  console.log('  viewport  machines  lockup top  col height  actions  second row title            recents shown  needs/has    scrolls');
-  console.log('  --------  --------  ----------  ----------  -------  --------------------------  -------------  -----------  -------');
-  for (const c of cells) {
-    console.log(
-      `  ${String(c.height).padStart(8)}  ${String(c.machines).padStart(8)}  ` +
-        `${String(c.lockupTop).padStart(10)}  ${String(c.colHeight).padStart(10)}  ` +
-        `${String(c.actionCount).padStart(7)}  ${String(c.actionTitles[1] ?? '').padEnd(26)}  ` +
-        `${String(c.recentRowsVisible).padStart(13)}  ` +
-        `${`${c.homeScrollHeight}/${c.homeClientHeight}`.padStart(11)}  ` +
-        `${String(c.homeScrolls).padStart(7)}`
-    );
-  }
-  console.log('');
-
-  // -- the assertions --------------------------------------------------------
-
-  for (const height of HEIGHTS) {
-    const row = cells.filter((c) => c.height === height);
-    const tops = row.map((c) => c.lockupTop);
-    const same = tops.every((t) => t === tops[0]);
-    if (!same) {
-      failures.push(
-        `at ${height} px the wordmark's top edge moved with the machine list: ${tops.join(', ')}`
-      );
-    }
-    const counts = row.map((c) => c.actionCount);
-    if (counts[0] !== 3 || counts[1] !== 4 || counts[2] !== 4) {
-      failures.push(
-        `at ${height} px the action row count is ${counts.join(', ')} and should be 3, 4, 4`
-      );
-    }
-    if (row[1]?.actionTitles[1] !== 'Open on Mac Pro…') {
-      failures.push(
-        `at ${height} px one machine draws "${row[1]?.actionTitles[1]}" and should draw "Open on Mac Pro…"`
-      );
-    }
-    if (row[2]?.actionTitles[1] !== 'Open on another machine…') {
-      failures.push(
-        `at ${height} px two machines draw "${row[2]?.actionTitles[1]}" and should draw "Open on another machine…"`
-      );
-    }
-    for (const c of row) {
-      if (c.animations.length > 0) {
+    if (withName === undefined) {
+      failures.push('no recent row drew a machine name, so the ornament read never happened');
+    } else {
+      const s = withName.recentMachineStyle;
+      console.log(`${TAG} the machine name's computed style: ${JSON.stringify(s)}`);
+      if (withName.recentMachineNames[0] !== 'Mac Pro') {
         failures.push(
-          `at ${height} px, ${c.machines} machines, something in .home animates: ${c.animations.join(', ')}`
+          `the recent row names "${withName.recentMachineNames[0]}" and should name "Mac Pro"`
         );
       }
-      const bad = c.rowTransitions.filter((p) => p !== 'background-color');
-      if (bad.length > 0) {
-        failures.push(
-          `at ${height} px a .home-row transitions ${bad.join(', ')} and should transition background-color only`
-        );
+      if (!/rgba\(0, 0, 0, 0\)|transparent/.test(s.backgroundColor)) {
+        failures.push(`the machine name has a fill: ${s.backgroundColor}`);
       }
-      const shown = c.recentRowsVisible;
-      if (height <= SHORT_WINDOW && shown !== 3) {
-        failures.push(`at ${height} px ${shown} recent rows are visible and the cap is 3`);
+      if (s.borderRadius !== '0px') {
+        failures.push(`the machine name has a border radius: ${s.borderRadius}`);
       }
-      if (height > SHORT_WINDOW && shown !== 5) {
-        failures.push(`at ${height} px ${shown} recent rows are visible and 5 were seeded`);
+      if (s.borderTopWidth !== '0px') {
+        failures.push(`the machine name has a border: ${s.borderTopWidth}`);
       }
-      if (c.homeScrolls) {
-        failures.push(
-          `at ${height} px, ${c.machines} machines, the home screen has to ` +
-            `scroll: it needs ${c.homeScrollHeight} px in ${c.homeClientHeight} px`
-        );
+      if (/mono|Menlo/i.test(s.fontFamily)) {
+        failures.push(`the machine name is set in a mono face: ${s.fontFamily}`);
       }
     }
-  }
 
-  // The machine name on a recent row carries no ornament. Read once, at the
-  // tallest viewport with one machine, from the COMPUTED style.
-  const withName = cells.find(
-    (c) => c.height === 900 && c.machines === 1 && c.recentMachineStyle !== null
-  );
-  if (withName === undefined) {
-    failures.push('no recent row drew a machine name, so the ornament read never happened');
-  } else {
-    const s = withName.recentMachineStyle;
-    console.log(`${TAG} the machine name's computed style: ${JSON.stringify(s)}`);
-    if (withName.recentMachineNames[0] !== 'Mac Pro') {
-      failures.push(
-        `the recent row names "${withName.recentMachineNames[0]}" and should name "Mac Pro"`
-      );
-    }
-    if (!/rgba\(0, 0, 0, 0\)|transparent/.test(s.backgroundColor)) {
-      failures.push(`the machine name has a fill: ${s.backgroundColor}`);
-    }
-    if (s.borderRadius !== '0px') {
-      failures.push(`the machine name has a border radius: ${s.borderRadius}`);
-    }
-    if (s.borderTopWidth !== '0px') {
-      failures.push(`the machine name has a border: ${s.borderTopWidth}`);
-    }
-    if (/mono|Menlo/i.test(s.fontFamily)) {
-      failures.push(`the machine name is set in a mono face: ${s.fontFamily}`);
-    }
-  }
+    console.log('');
+    log('WHAT THIS RUN DID NOT MEASURE');
+    log('  the 0.47.0 top edges. This probe measures one build at a time. Put the');
+    log('  0.47.0 numbers back into home-screen.css, which are a 514 px box');
+    log('  everywhere and the cap at nth-of-type(n + 4), rebuild, and run this');
+    log('  probe with --label 0.47.0. The fix round did exactly that and wrote');
+    log('  the twelve numbers into the note at the top of home-screen.css.');
+    log('  the window manager\'s own resize. The viewport was emulated over CDP.');
+    log('  anything about a real machine. Nothing was contacted.');
+    console.log('');
 
-  console.log('');
-  log('WHAT THIS RUN DID NOT MEASURE');
-  log('  the 0.47.0 top edges. This probe measures one build at a time. Put the');
-  log('  0.47.0 numbers back into home-screen.css, which are a 514 px box');
-  log('  everywhere and the cap at nth-of-type(n + 4), rebuild, and run this');
-  log('  probe with --label 0.47.0. The fix round did exactly that and wrote');
-  log('  the twelve numbers into the note at the top of home-screen.css.');
-  log('  the window manager\'s own resize. The viewport was emulated over CDP.');
-  log('  anything about a real machine. Nothing was contacted.');
-  console.log('');
-
-  if (failures.length > 0) {
-    for (const f of failures) console.error(`${TAG} FAIL ${f}`);
-    return finish(1);
-  }
-  log(`all checks passed across ${cells.length} cells`);
-  return finish(0);
+    if (failures.length > 0) {
+      for (const f of failures) console.error(`${TAG} FAIL ${f}`);
+      return finish(1);
+    }
+    log(`all checks passed across ${cells.length} cells`);
+    return finish(0);
+  });
 }
 
 await main();

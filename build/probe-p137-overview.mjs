@@ -40,8 +40,9 @@
  *  - Every Electron launch uses a scratch `--user-data-dir` under the harness
  *    directory and a scratch HOME. The operator's profile and home are never
  *    opened.
- *  - At most one Electron runs at a time. Each launch is awaited to exit and
- *    the pid it started is killed in a finally block whatever happened.
+ *  - At most one Electron runs at a time. Every launch goes through
+ *    build/electron-run.mjs, which ends the whole tree it started in a finally
+ *    block whatever happened.
  *  - There is no pkill and no kill-server anywhere in this file.
  *
  * ## Usage, from the worktree root
@@ -52,7 +53,7 @@
  * 1 when they did not. 2 when the probe refuses to run at all.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -65,6 +66,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { runElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p137overview]';
@@ -552,108 +555,44 @@ const PRESS_JS = `
 // One launch, one picture, one reading. Never two at a time.
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
-
-/**
- * Ends a recorded pid AND every process descended from it. A SIGKILL to the
- * main pid alone leaves the renderer, the GPU helper, the utility helpers
- * and crashpad alive, which a rail long run under load measured: four
- * orphans stayed up after the watchdog fired. The descendants are read with
- * pgrep -P while the parent still holds them, because a dead parent's
- * children reparent and can no longer be found this way. Nothing outside
- * the one recorded process tree can be named here.
- */
-function killTree(pid) {
-  const found = [];
-  const stack = [pid];
-  while (stack.length > 0) {
-    const p = stack.pop();
-    const r = spawnSync('pgrep', ['-P', String(p)], { encoding: 'utf8' });
-    for (const line of (r.stdout ?? '').split('\n')) {
-      const n = Number(line.trim());
-      if (Number.isInteger(n) && n > 0 && !found.includes(n)) {
-        found.push(n);
-        stack.push(n);
-      }
-    }
-  }
-  for (const p of [...found, pid]) {
-    try {
-      process.kill(p, 'SIGKILL');
-    } catch {
-      /* already gone, which is the state we wanted */
-    }
-  }
-}
 
 async function launch(label, overviewSpec, jsSpec, extraEnv = {}) {
   const png = join(outDir, `p137-${label}.png`);
   rmSync(png, { force: true });
   const drive = { projectPath: project, overview: overviewSpec };
-  let child = null;
-  let text = '';
-  try {
-    say(`launch ${label}`);
-    child = spawn(
-      electronBin,
-      ['.', `--user-data-dir=${join(root, `profile-${label}`)}`, '-ApplePersistenceIgnoreState', 'YES'],
-      {
-        cwd: repoRoot,
-        env: {
-          ...process.env,
-          HOME: home,
-          GMUX_SHOT: png,
-          GMUX_SHOT_DELAY_MS: '9000',
-          GMUX_OVERVIEW_SEED: seedPath,
-          GMUX_SHOT_DRIVE: JSON.stringify(drive),
-          GMUX_SHOT_JS: readerJs(jsSpec),
-          ...extraEnv
-        }
-      }
-    );
-    const onText = (b) => {
-      text += b.toString();
-    };
-    child.stdout.on('data', onText);
-    child.stderr.on('data', onText);
-    const code = await new Promise((r) => {
-      const watchdog = setTimeout(() => {
-        console.error(`${TAG} ${label} passed its ceiling. Ending the pid I started.`);
-        // The whole recorded tree goes, because a SIGKILL to the main
-        // pid alone orphans the helper processes.
-        if (child.pid !== undefined) killTree(child.pid);
-      }, 300_000);
-      child.on('error', (err) => {
-        clearTimeout(watchdog);
-        console.error(`${TAG} electron could not start: ${err.message}`);
-        r(1);
-      });
-      child.on('exit', (c) => {
-        clearTimeout(watchdog);
-        setTimeout(() => {
-          r(c ?? 1);
-        }, 500);
-      });
-    });
-    child.stdout.destroy();
-    child.stderr.destroy();
-    const marker = '[gmux-shot] probe ';
-    const at = text.lastIndexOf(marker);
-    let report = null;
-    if (at !== -1) {
-      try {
-        report = JSON.parse(text.slice(at + marker.length).split('\n')[0] ?? '');
-      } catch {
-        report = null;
-      }
+  say(`launch ${label}`);
+  // build/electron-run.mjs owns the launch and ends the whole tree it started
+  // in a finally block whatever happened here (Phase 140). The tree walk this
+  // file used to carry lives there now, with a SIGTERM before it, because the
+  // shim at node_modules/.bin/electron cannot forward SIGKILL.
+  const { code, text } = await runElectron({
+    label: `p137 ${label}`,
+    userDataDir: join(root, `profile-${label}`),
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      HOME: home,
+      GMUX_SHOT: png,
+      GMUX_SHOT_DELAY_MS: '9000',
+      GMUX_OVERVIEW_SEED: seedPath,
+      GMUX_SHOT_DRIVE: JSON.stringify(drive),
+      GMUX_SHOT_JS: readerJs(jsSpec),
+      ...extraEnv
+    },
+    ceilingMs: 300_000,
+    settleMs: 500
+  });
+  const marker = '[gmux-shot] probe ';
+  const at = text.lastIndexOf(marker);
+  let report = null;
+  if (at !== -1) {
+    try {
+      report = JSON.parse(text.slice(at + marker.length).split('\n')[0] ?? '');
+    } catch {
+      report = null;
     }
-    return { code, png: existsSync(png) ? png : null, report, text };
-  } finally {
-    // Whatever happened above, the Electron this function started is ended
-    // here, together with every process descended from it. Only the tree
-    // under the pid recorded in this scope is touched.
-    if (child !== null && child.pid !== undefined) killTree(child.pid);
   }
+  return { code, png: existsSync(png) ? png : null, report, text };
 }
 
 // ---------------------------------------------------------------------------

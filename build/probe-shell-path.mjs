@@ -56,7 +56,7 @@
  * to run at all.
  */
 
-import { execFile, spawn, spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -70,6 +70,8 @@ import { loadavg, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+
+import { withElectron } from './electron-run.mjs';
 
 const execFileP = promisify(execFile);
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -231,9 +233,6 @@ const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
  * millisecond at which the process was spawned.
  */
 function runApp({ drive, slowShell, delayMs, ceilingMs, profileDir }) {
-  const args = packaged
-    ? [`--user-data-dir=${profileDir}`, '-ApplePersistenceIgnoreState', 'YES']
-    : ['.', `--user-data-dir=${profileDir}`, '-ApplePersistenceIgnoreState', 'YES'];
   const env = {
     ...process.env,
     GMUX_TMUX_SOCKET: socket,
@@ -248,36 +247,44 @@ function runApp({ drive, slowShell, delayMs, ceilingMs, profileDir }) {
   // measures stays the real one unless this run replaces it on purpose.
   if (slowShell) env['SHELL'] = fakeShell;
   const spawnedAtEpochMs = Date.now();
-  const child = spawn(packaged ? packagedBin : electronBin, args, {
-    cwd: repoRoot,
-    env
-  });
-  let text = '';
-  const onText = (chunk) => {
-    process.stdout.write(chunk);
-    text += chunk;
-  };
-  child.stdout.on('data', (b) => onText(b.toString()));
-  child.stderr.on('data', (b) => onText(b.toString()));
-  return new Promise((r) => {
-    const watchdog = setTimeout(() => {
-      console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
-      child.kill('SIGTERM');
-    }, ceilingMs);
-    child.on('error', (err) => {
-      clearTimeout(watchdog);
-      console.error(`${TAG} the app could not start: ${err.message}`);
-      r({ code: 1, text, spawnedAtEpochMs });
-    });
-    // `exit`, not `close`. The tmux server inherits this child's stdout, so
-    // `close` waits for an end that never comes.
-    child.on('exit', (code) => {
-      clearTimeout(watchdog);
-      setTimeout(() => {
-        child.stdout.destroy();
-        child.stderr.destroy();
-        r({ code: code ?? 1, text, spawnedAtEpochMs });
-      }, 750);
+  return withElectron(
+    {
+      label: 'shell-path',
+      program: packaged ? packagedBin : electronBin,
+      userDataDir: profileDir,
+      cwd: repoRoot,
+      env: env,
+      entry: !packaged
+    },
+    async (handle) => {
+    const child = handle.child;
+    let text = '';
+    const onText = (chunk) => {
+      process.stdout.write(chunk);
+      text += chunk;
+    };
+    child.stdout.on('data', (b) => onText(b.toString()));
+    child.stderr.on('data', (b) => onText(b.toString()));
+    return new Promise((r) => {
+      const watchdog = setTimeout(() => {
+        console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
+        child.kill('SIGTERM');
+      }, ceilingMs);
+      child.on('error', (err) => {
+        clearTimeout(watchdog);
+        console.error(`${TAG} the app could not start: ${err.message}`);
+        r({ code: 1, text, spawnedAtEpochMs });
+      });
+      // `exit`, not `close`. The tmux server inherits this child's stdout, so
+      // `close` waits for an end that never comes.
+      child.on('exit', (code) => {
+        clearTimeout(watchdog);
+        setTimeout(() => {
+          child.stdout.destroy();
+          child.stderr.destroy();
+          r({ code: code ?? 1, text, spawnedAtEpochMs });
+        }, 750);
+      });
     });
   });
 }

@@ -113,7 +113,7 @@
  * Every scratch file carries a `p119-` prefix.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -125,6 +125,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p119menu]';
@@ -300,12 +302,11 @@ const probeJs = `(async () => {
 // One run of the app
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
-const child = spawn(
-  electronBin,
-  ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
+await withElectron(
   {
+    label: 'p119-menu',
+    userDataDir: profile,
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -316,46 +317,47 @@ const child = spawn(
       GMUX_SHOT_DRIVE: drive,
       GMUX_SHOT_JS: probeJs
     }
+  },
+  async (handle) => {
+  const child = handle.child;
+  say(`launched the app, pid ${String(child.pid)} (recorded)`);
+
+  /** The pid that owns the window: the shim's one child, or the shim itself. */
+  function guiPid() {
+    const out = spawnSync('pgrep', ['-P', String(child.pid)], {
+      encoding: 'utf8'
+    });
+    const first = (out.stdout ?? '')
+      .split('\n')
+      .map((line) => Number(line.trim()))
+      .find((n) => Number.isInteger(n) && n > 0);
+    return first ?? child.pid;
   }
-);
-say(`launched the app, pid ${String(child.pid)} (recorded)`);
 
-/** The pid that owns the window: the shim's one child, or the shim itself. */
-function guiPid() {
-  const out = spawnSync('pgrep', ['-P', String(child.pid)], {
-    encoding: 'utf8'
-  });
-  const first = (out.stdout ?? '')
-    .split('\n')
-    .map((line) => Number(line.trim()))
-    .find((n) => Number.isInteger(n) && n > 0);
-  return first ?? child.pid;
-}
+  function frontmostPid() {
+    const r = spawnSync(
+      'osascript',
+      [
+        '-e',
+        'tell application "System Events" to get unix id of (first application process whose frontmost is true)'
+      ],
+      { encoding: 'utf8', timeout: 10_000 }
+    );
+    if (r.status !== 0) return null;
+    const n = Number((r.stdout ?? '').trim());
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }
 
-function frontmostPid() {
-  const r = spawnSync(
-    'osascript',
-    [
-      '-e',
-      'tell application "System Events" to get unix id of (first application process whose frontmost is true)'
-    ],
-    { encoding: 'utf8', timeout: 10_000 }
-  );
-  if (r.status !== 0) return null;
-  const n = Number((r.stdout ?? '').trim());
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
-
-/**
- * The JXA that lists on screen windows. THE PID FILTER IS INSIDE IT, so this
- * script can never hand back, print or photograph a window belonging to any
- * other application. It reports a window's id, its layer and its size, and it
- * does not report window names at all.
- */
-const WINDOW_LIST_JS = join(root, 'p119-window-list.js');
-writeFileSync(
-  WINDOW_LIST_JS,
-  `ObjC.import('CoreGraphics');
+  /**
+   * The JXA that lists on screen windows. THE PID FILTER IS INSIDE IT, so this
+   * script can never hand back, print or photograph a window belonging to any
+   * other application. It reports a window's id, its layer and its size, and it
+   * does not report window names at all.
+   */
+  const WINDOW_LIST_JS = join(root, 'p119-window-list.js');
+  writeFileSync(
+    WINDOW_LIST_JS,
+    `ObjC.import('CoreGraphics');
 ObjC.import('Foundation');
 function run(argv) {
   const pid = parseInt(argv[0], 10);
@@ -378,307 +380,308 @@ function run(argv) {
   return JSON.stringify(mine);
 }
 `
-);
-
-/** Every on screen window owned by `pid`, and nothing else. */
-function windowsOf(pid) {
-  const r = spawnSync(
-    'osascript',
-    ['-l', 'JavaScript', WINDOW_LIST_JS, String(pid)],
-    { encoding: 'utf8', timeout: 15_000 }
   );
-  if (r.status !== 0) return null;
-  try {
-    return JSON.parse((r.stdout ?? '').trim());
-  } catch {
-    return null;
+
+  /** Every on screen window owned by `pid`, and nothing else. */
+  function windowsOf(pid) {
+    const r = spawnSync(
+      'osascript',
+      ['-l', 'JavaScript', WINDOW_LIST_JS, String(pid)],
+      { encoding: 'utf8', timeout: 15_000 }
+    );
+    if (r.status !== 0) return null;
+    try {
+      return JSON.parse((r.stdout ?? '').trim());
+    } catch {
+      return null;
+    }
   }
-}
 
-/** The app's own windows before any menu exists, so a menu is the diff. */
-let beforeIds = null;
-let appPid = null;
-let frontOk = null;
-/** What each menu measured: label to { id, layer, w, h } or null. */
-const menus = { A: null, B: null };
-const menuShots = { A: null, B: null };
+  /** The app's own windows before any menu exists, so a menu is the diff. */
+  let beforeIds = null;
+  let appPid = null;
+  let frontOk = null;
+  /** What each menu measured: label to { id, layer, w, h } or null. */
+  const menus = { A: null, B: null };
+  const menuShots = { A: null, B: null };
 
-/** Raise the app and record the windows it owns while no menu exists yet. */
-function armTheShot() {
-  appPid = guiPid();
-  // MEASURED: one `set frontmost` and an immediate read said the app was not
-  // in front, because the activation had not landed yet. The raise is asked
-  // for and then read back, up to six times.
-  let front = null;
-  for (let i = 0; i < 6; i++) {
+  /** Raise the app and record the windows it owns while no menu exists yet. */
+  function armTheShot() {
+    appPid = guiPid();
+    // MEASURED: one `set frontmost` and an immediate read said the app was not
+    // in front, because the activation had not landed yet. The raise is asked
+    // for and then read back, up to six times.
+    let front = null;
+    for (let i = 0; i < 6; i++) {
+      spawnSync(
+        'osascript',
+        [
+          '-e',
+          `tell application "System Events" to set frontmost of (first process whose unix id is ${String(appPid)}) to true`
+        ],
+        { encoding: 'utf8', timeout: 10_000 }
+      );
+      spawnSync('sleep', ['0.4']);
+      front = frontmostPid();
+      if (front === appPid) break;
+    }
+    frontOk = front === appPid;
+    const before = windowsOf(appPid);
+    beforeIds = before === null ? null : new Set(before.map((w) => w.id));
+    say(
+      `the app owns ${before === null ? 'an unreadable number of' : String(before.length)} on screen windows before any menu opens` +
+        (frontOk ? ', and it is in front' : ', and it is NOT in front')
+    );
+  }
+
+  /**
+   * Measure the window the menu added, photograph it, and close the menu again.
+   *
+   * What is read here is the menu's own window: that it exists, that the app
+   * owns it, what layer it sits on, and how big it is. The size is the
+   * measurement that separates the two menus. The photograph is bounded to that
+   * same window rectangle, which is what makes it safe to take, and the header
+   * section "the photograph, and the route that takes it" says why.
+   */
+  function measureMenu(label) {
+    if (appPid === null || beforeIds === null) return;
+    // POLLED RATHER THAN LOOKED AT ONCE. Measured across seven runs, the menu's
+    // window appeared between about 0.4 s and 1.5 s after the click.
+    let added = [];
+    const deadline = Date.now() + 4000;
+    for (;;) {
+      const after = windowsOf(appPid);
+      if (after !== null) {
+        added = after.filter((w) => !beforeIds.has(w.id));
+        if (added.length > 0) break;
+      }
+      if (Date.now() >= deadline) break;
+    }
+    if (added.length === 0) {
+      say(`menu ${label}: the click added no window, so no menu was on screen`);
+    } else {
+      // A popup menu sits above the ordinary window layer, so the highest layer
+      // among the added windows is the menu itself.
+      added.sort((a, b) => b.layer - a.layer);
+      menus[label] = added[0];
+      say(
+        `menu ${label}: window id ${String(added[0].id)}, layer ${String(added[0].layer)}, ` +
+          `${String(added[0].w)} by ${String(added[0].h)} points`
+      );
+    }
+    // Photograph the menu's OWN rectangle while it is still open, bounded to the
+    // window CoreGraphics just reported rather than to the app's window. That is
+    // the whole trick, and it is why the earlier attempts failed: the app's
+    // rectangle is 1440 by 888 points at 36,38, which is where a person's own
+    // running Tortie also sits, so anything on top of that area lands in the
+    // frame. A menu is 333 by 285 points and is the topmost thing over its own
+    // bounds for as long as it is open, so its own rectangle holds only itself.
+    if (menus[label] !== null) {
+      const m = menus[label];
+      const shot = join(scratch, `p119-menu-${label}.png`);
+      const rect = `${String(m.x)},${String(m.y)},${String(m.w)},${String(m.h)}`;
+      const cap = spawnSync(
+        'screencapture',
+        ['-x', '-o', `-R${rect}`, shot],
+        { encoding: 'utf8', timeout: 20_000 }
+      );
+      menuShots[label] =
+        cap.status === 0 && existsSync(shot) && statSync(shot).size > 0
+          ? shot
+          : null;
+      say(
+        `menu ${label} photograph: rectangle ${rect}, status ${String(cap.status)}, ` +
+          `${menuShots[label] === null ? 'no file' : `${String(statSync(shot).size)} bytes -> ${shot}`}`
+      );
+    }
+    // Close the menu so the driver can move on.
     spawnSync(
       'osascript',
-      [
-        '-e',
-        `tell application "System Events" to set frontmost of (first process whose unix id is ${String(appPid)}) to true`
-      ],
+      ['-e', 'tell application "System Events" to key code 53'],
       { encoding: 'utf8', timeout: 10_000 }
     );
-    spawnSync('sleep', ['0.4']);
-    front = frontmostPid();
-    if (front === appPid) break;
   }
-  frontOk = front === appPid;
-  const before = windowsOf(appPid);
-  beforeIds = before === null ? null : new Set(before.map((w) => w.id));
-  say(
-    `the app owns ${before === null ? 'an unreadable number of' : String(before.length)} on screen windows before any menu opens` +
-      (frontOk ? ', and it is in front' : ', and it is NOT in front')
-  );
-}
 
-/**
- * Measure the window the menu added, photograph it, and close the menu again.
- *
- * What is read here is the menu's own window: that it exists, that the app
- * owns it, what layer it sits on, and how big it is. The size is the
- * measurement that separates the two menus. The photograph is bounded to that
- * same window rectangle, which is what makes it safe to take, and the header
- * section "the photograph, and the route that takes it" says why.
- */
-function measureMenu(label) {
-  if (appPid === null || beforeIds === null) return;
-  // POLLED RATHER THAN LOOKED AT ONCE. Measured across seven runs, the menu's
-  // window appeared between about 0.4 s and 1.5 s after the click.
-  let added = [];
-  const deadline = Date.now() + 4000;
-  for (;;) {
-    const after = windowsOf(appPid);
-    if (after !== null) {
-      added = after.filter((w) => !beforeIds.has(w.id));
-      if (added.length > 0) break;
+  const HOLD_MARK = '[p119] holding the frame';
+  const MARK_A = '[p119] menu A';
+  const MARK_B = '[p119] menu B';
+  let armed = false;
+  let seenA = false;
+  let seenB = false;
+  let text = '';
+  const onText = (chunk) => {
+    process.stdout.write(chunk);
+    text += chunk;
+    if (!armed && text.includes(HOLD_MARK)) {
+      armed = true;
+      setTimeout(armTheShot, 200);
     }
-    if (Date.now() >= deadline) break;
+    if (!seenA && text.includes(MARK_A)) {
+      seenA = true;
+      setTimeout(() => measureMenu('A'), 900);
+    }
+    if (!seenB && text.includes(MARK_B)) {
+      seenB = true;
+      setTimeout(() => measureMenu('B'), 900);
+    }
+  };
+  child.stdout.on('data', (b) => onText(b.toString()));
+  child.stderr.on('data', (b) => onText(b.toString()));
+
+  await new Promise((r) => {
+    const watchdog = setTimeout(() => {
+      console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
+      child.kill('SIGTERM');
+    }, 300_000);
+    child.on('error', (err) => {
+      clearTimeout(watchdog);
+      console.error(`${TAG} electron could not start: ${err.message}`);
+      r(1);
+    });
+    child.on('exit', (c) => {
+      clearTimeout(watchdog);
+      setTimeout(() => r(c ?? 1), 750);
+    });
+  });
+  child.stdout.destroy();
+  child.stderr.destroy();
+
+  // ---------------------------------------------------------------------------
+  // Reading the evidence back
+  // ---------------------------------------------------------------------------
+
+  const marker = '[gmux-shot] probe ';
+  const at = text.lastIndexOf(marker);
+  let reading = null;
+  if (at !== -1) {
+    const line = text.slice(at + marker.length).split('\n')[0] ?? '';
+    try {
+      reading = JSON.parse(line);
+    } catch {
+      reading = null;
+    }
   }
-  if (added.length === 0) {
-    say(`menu ${label}: the click added no window, so no menu was on screen`);
+
+  const failures = [];
+  const results = [];
+  function check(step, claim, pass, detail) {
+    results.push({ step, claim, verdict: pass ? 'pass' : 'FAIL', detail });
+    if (!pass) failures.push(`${String(step)}. ${claim}. ${detail}`);
+  }
+
+  const BARE_RESTORE_LABEL = 'Restore without saving history';
+  const NOTE_TAIL = 'You can bring it back without that';
+
+  if (reading === null) {
+    failures.push('0. the drive printed no reading, so nothing was measured');
   } else {
-    // A popup menu sits above the ordinary window layer, so the highest layer
-    // among the added windows is the menu itself.
-    added.sort((a, b) => b.layer - a.layer);
-    menus[label] = added[0];
-    say(
-      `menu ${label}: window id ${String(added[0].id)}, layer ${String(added[0].layer)}, ` +
-        `${String(added[0].w)} by ${String(added[0].h)} points`
+    check(
+      1,
+      'one ended row is captured and the other is not',
+      reading.statusA === 'exited' &&
+        reading.statusB === 'exited' &&
+        reading.captureA !== null &&
+        reading.captureB === null,
+      `A ${JSON.stringify(reading.statusA)}/${JSON.stringify(reading.captureA)}, ` +
+        `B ${JSON.stringify(reading.statusB)}/${JSON.stringify(reading.captureB)}`
+    );
+    check(
+      2,
+      'the harvest armed the wrapped resume command before the end',
+      typeof reading.armedBeforeEnd === 'string' &&
+        reading.armedBeforeEnd.includes('specstory'),
+      `resumeArgv[0] ${JSON.stringify(reading.armedBeforeEnd)}`
+    );
+    check(
+      3,
+      'the captured card draws the bare recovery note and the plain card does not',
+      (reading.cardBody ?? []).some((p) => p.includes(NOTE_TAIL)) &&
+        !(reading.cardBodyB ?? []).some((p) => p.includes(NOTE_TAIL)),
+      `captured ${JSON.stringify(reading.cardBody)}, plain ${JSON.stringify(reading.cardBodyB)}`
+    );
+    check(
+      4,
+      'the captured card draws the bare button between Restore and Restart, and the plain card draws no such button',
+      (reading.cardButtons ?? [])[0] === 'Restore' &&
+        (reading.cardButtons ?? [])[1] === BARE_RESTORE_LABEL &&
+        !(reading.cardButtonsB ?? []).includes(BARE_RESTORE_LABEL),
+      `captured ${JSON.stringify(reading.cardButtons)}, plain ${JSON.stringify(reading.cardButtonsB)}`
+    );
+    check(
+      5,
+      'the shipped session actions button opened a menu for both rows',
+      reading.openedA === true && reading.openedB === true,
+      `A ${String(reading.openedA)}, B ${String(reading.openedB)}`
     );
   }
-  // Photograph the menu's OWN rectangle while it is still open, bounded to the
-  // window CoreGraphics just reported rather than to the app's window. That is
-  // the whole trick, and it is why the earlier attempts failed: the app's
-  // rectangle is 1440 by 888 points at 36,38, which is where a person's own
-  // running Tortie also sits, so anything on top of that area lands in the
-  // frame. A menu is 333 by 285 points and is the topmost thing over its own
-  // bounds for as long as it is open, so its own rectangle holds only itself.
-  if (menus[label] !== null) {
-    const m = menus[label];
-    const shot = join(scratch, `p119-menu-${label}.png`);
-    const rect = `${String(m.x)},${String(m.y)},${String(m.w)},${String(m.h)}`;
-    const cap = spawnSync(
-      'screencapture',
-      ['-x', '-o', `-R${rect}`, shot],
-      { encoding: 'utf8', timeout: 20_000 }
-    );
-    menuShots[label] =
-      cap.status === 0 && existsSync(shot) && statSync(shot).size > 0
-        ? shot
-        : null;
-    say(
-      `menu ${label} photograph: rectangle ${rect}, status ${String(cap.status)}, ` +
-        `${menuShots[label] === null ? 'no file' : `${String(statSync(shot).size)} bytes -> ${shot}`}`
-    );
-  }
-  // Close the menu so the driver can move on.
-  spawnSync(
-    'osascript',
-    ['-e', 'tell application "System Events" to key code 53'],
-    { encoding: 'utf8', timeout: 10_000 }
+
+  check(
+    6,
+    'each click put a real native menu window on screen, owned by the app, above the ordinary window layer',
+    menus.A !== null &&
+      menus.B !== null &&
+      menus.A.layer > 0 &&
+      menus.B.layer > 0,
+    `captured ${JSON.stringify(menus.A)}, plain ${JSON.stringify(menus.B)}`
   );
-}
+  // THE ONE THAT DECIDES THE MENU CLAIM. The two menus differ only in the row's
+  // capture, so every extra point of height belongs to the two rows this phase
+  // added. A native row with a grey sublabel is about 55 points tall, so two of
+  // them is about 110, and the two long labels are what widen the menu.
+  const grew =
+    menus.A !== null && menus.B !== null
+      ? { h: menus.A.h - menus.B.h, w: menus.A.w - menus.B.w }
+      : null;
+  check(
+    7,
+    'the captured menu is two sublabelled rows taller than the plain one, and wider',
+    grew !== null && grew.h >= 90 && grew.h <= 130 && grew.w > 0,
+    grew === null
+      ? 'one of the two menus was never measured'
+      : `${String(menus.B.w)} by ${String(menus.B.h)} points without the rows, ` +
+        `${String(menus.A.w)} by ${String(menus.A.h)} with them, so ${String(grew.w)} points wider and ${String(grew.h)} points taller`
+  );
+  check(
+    8,
+    'the ended card photograph was written by the harness itself',
+    existsSync(cardShot) && statSync(cardShot).size > 0,
+    existsSync(cardShot) ? `${String(statSync(cardShot).size)} bytes` : 'missing'
+  );
+  check(
+    9,
+    'the app was in front while the menus were driven',
+    frontOk === true,
+    `frontmost check ${String(frontOk)}`
+  );
 
-const HOLD_MARK = '[p119] holding the frame';
-const MARK_A = '[p119] menu A';
-const MARK_B = '[p119] menu B';
-let armed = false;
-let seenA = false;
-let seenB = false;
-let text = '';
-const onText = (chunk) => {
-  process.stdout.write(chunk);
-  text += chunk;
-  if (!armed && text.includes(HOLD_MARK)) {
-    armed = true;
-    setTimeout(armTheShot, 200);
-  }
-  if (!seenA && text.includes(MARK_A)) {
-    seenA = true;
-    setTimeout(() => measureMenu('A'), 900);
-  }
-  if (!seenB && text.includes(MARK_B)) {
-    seenB = true;
-    setTimeout(() => measureMenu('B'), 900);
-  }
-};
-child.stdout.on('data', (b) => onText(b.toString()));
-child.stderr.on('data', (b) => onText(b.toString()));
+  const operatorAfter = operatorSessionCount();
+  check(
+    10,
+    "the operator's session count did not move",
+    operatorAfter === operatorBefore,
+    `${String(operatorBefore)} before, ${String(operatorAfter)} after`
+  );
 
-await new Promise((r) => {
-  const watchdog = setTimeout(() => {
-    console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
-    child.kill('SIGTERM');
-  }, 300_000);
-  child.on('error', (err) => {
-    clearTimeout(watchdog);
-    console.error(`${TAG} electron could not start: ${err.message}`);
-    r(1);
-  });
-  child.on('exit', (c) => {
-    clearTimeout(watchdog);
-    setTimeout(() => r(c ?? 1), 750);
-  });
+  say('');
+  say('  step  verdict  claim');
+  for (const r of results) {
+    say(
+      `  ${String(r.step).padStart(4)}  ${r.verdict.padEnd(7)}  ${r.claim} — ${r.detail}`
+    );
+  }
+  say('');
+  say(`ended card photograph: ${cardShot}`);
+  for (const label of ['A', 'B']) {
+    say(
+      `menu ${label} photograph: ${menuShots[label] === null ? 'not taken' : String(menuShots[label])}`
+    );
+  }
+  if (!keep) rmSync(root, { recursive: true, force: true });
+
+  if (failures.length > 0) {
+    console.error(`${TAG} FAIL`);
+    for (const f of failures) console.error(`${TAG}   ${f}`);
+    process.exit(1);
+  }
+  say('PASS');
 });
-child.stdout.destroy();
-child.stderr.destroy();
-
-// ---------------------------------------------------------------------------
-// Reading the evidence back
-// ---------------------------------------------------------------------------
-
-const marker = '[gmux-shot] probe ';
-const at = text.lastIndexOf(marker);
-let reading = null;
-if (at !== -1) {
-  const line = text.slice(at + marker.length).split('\n')[0] ?? '';
-  try {
-    reading = JSON.parse(line);
-  } catch {
-    reading = null;
-  }
-}
-
-const failures = [];
-const results = [];
-function check(step, claim, pass, detail) {
-  results.push({ step, claim, verdict: pass ? 'pass' : 'FAIL', detail });
-  if (!pass) failures.push(`${String(step)}. ${claim}. ${detail}`);
-}
-
-const BARE_RESTORE_LABEL = 'Restore without saving history';
-const NOTE_TAIL = 'You can bring it back without that';
-
-if (reading === null) {
-  failures.push('0. the drive printed no reading, so nothing was measured');
-} else {
-  check(
-    1,
-    'one ended row is captured and the other is not',
-    reading.statusA === 'exited' &&
-      reading.statusB === 'exited' &&
-      reading.captureA !== null &&
-      reading.captureB === null,
-    `A ${JSON.stringify(reading.statusA)}/${JSON.stringify(reading.captureA)}, ` +
-      `B ${JSON.stringify(reading.statusB)}/${JSON.stringify(reading.captureB)}`
-  );
-  check(
-    2,
-    'the harvest armed the wrapped resume command before the end',
-    typeof reading.armedBeforeEnd === 'string' &&
-      reading.armedBeforeEnd.includes('specstory'),
-    `resumeArgv[0] ${JSON.stringify(reading.armedBeforeEnd)}`
-  );
-  check(
-    3,
-    'the captured card draws the bare recovery note and the plain card does not',
-    (reading.cardBody ?? []).some((p) => p.includes(NOTE_TAIL)) &&
-      !(reading.cardBodyB ?? []).some((p) => p.includes(NOTE_TAIL)),
-    `captured ${JSON.stringify(reading.cardBody)}, plain ${JSON.stringify(reading.cardBodyB)}`
-  );
-  check(
-    4,
-    'the captured card draws the bare button between Restore and Restart, and the plain card draws no such button',
-    (reading.cardButtons ?? [])[0] === 'Restore' &&
-      (reading.cardButtons ?? [])[1] === BARE_RESTORE_LABEL &&
-      !(reading.cardButtonsB ?? []).includes(BARE_RESTORE_LABEL),
-    `captured ${JSON.stringify(reading.cardButtons)}, plain ${JSON.stringify(reading.cardButtonsB)}`
-  );
-  check(
-    5,
-    'the shipped session actions button opened a menu for both rows',
-    reading.openedA === true && reading.openedB === true,
-    `A ${String(reading.openedA)}, B ${String(reading.openedB)}`
-  );
-}
-
-check(
-  6,
-  'each click put a real native menu window on screen, owned by the app, above the ordinary window layer',
-  menus.A !== null &&
-    menus.B !== null &&
-    menus.A.layer > 0 &&
-    menus.B.layer > 0,
-  `captured ${JSON.stringify(menus.A)}, plain ${JSON.stringify(menus.B)}`
-);
-// THE ONE THAT DECIDES THE MENU CLAIM. The two menus differ only in the row's
-// capture, so every extra point of height belongs to the two rows this phase
-// added. A native row with a grey sublabel is about 55 points tall, so two of
-// them is about 110, and the two long labels are what widen the menu.
-const grew =
-  menus.A !== null && menus.B !== null
-    ? { h: menus.A.h - menus.B.h, w: menus.A.w - menus.B.w }
-    : null;
-check(
-  7,
-  'the captured menu is two sublabelled rows taller than the plain one, and wider',
-  grew !== null && grew.h >= 90 && grew.h <= 130 && grew.w > 0,
-  grew === null
-    ? 'one of the two menus was never measured'
-    : `${String(menus.B.w)} by ${String(menus.B.h)} points without the rows, ` +
-      `${String(menus.A.w)} by ${String(menus.A.h)} with them, so ${String(grew.w)} points wider and ${String(grew.h)} points taller`
-);
-check(
-  8,
-  'the ended card photograph was written by the harness itself',
-  existsSync(cardShot) && statSync(cardShot).size > 0,
-  existsSync(cardShot) ? `${String(statSync(cardShot).size)} bytes` : 'missing'
-);
-check(
-  9,
-  'the app was in front while the menus were driven',
-  frontOk === true,
-  `frontmost check ${String(frontOk)}`
-);
-
-const operatorAfter = operatorSessionCount();
-check(
-  10,
-  "the operator's session count did not move",
-  operatorAfter === operatorBefore,
-  `${String(operatorBefore)} before, ${String(operatorAfter)} after`
-);
-
-say('');
-say('  step  verdict  claim');
-for (const r of results) {
-  say(
-    `  ${String(r.step).padStart(4)}  ${r.verdict.padEnd(7)}  ${r.claim} — ${r.detail}`
-  );
-}
-say('');
-say(`ended card photograph: ${cardShot}`);
-for (const label of ['A', 'B']) {
-  say(
-    `menu ${label} photograph: ${menuShots[label] === null ? 'not taken' : String(menuShots[label])}`
-  );
-}
-if (!keep) rmSync(root, { recursive: true, force: true });
-
-if (failures.length > 0) {
-  console.error(`${TAG} FAIL`);
-  for (const f of failures) console.error(`${TAG}   ${f}`);
-  process.exit(1);
-}
-say('PASS');

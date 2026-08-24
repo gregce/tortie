@@ -42,7 +42,7 @@ release.
 | 23 | **138** the fold | Tier 3. Both gate measurements ran. It ships OFF, and None is a valid choice forever | ✅ shipped |
 | 24 | **142** presentation.ts splits by reason to change | 31 phases wrote into one file. NO VERSION BUMP | queued |
 | — | **RELEASE POINT, DELEGATED, AT v0.70.0** | All the way to public. See the grant below | **delegated, one release** |
-| 25 | **140** every probe ends the Electron it started | The crash preventer | queued |
+| 25 | **140** every probe ends the Electron it started | The crash preventer | ✅ shipped |
 | 26 | **143** the summary timeline | Reads the chain 138 writes | queued |
 | 27 | **141** the drop to a plain shell | From research 64. He placed it last by not placing it, and it moves on his word | queued |
 | — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
@@ -15856,7 +15856,7 @@ get there, before 137 and 138 start. That grant is:
   it here. Report what the release appears to fix and leave every issue alone until he says so.
 
 
-## Phase 140 — 43 probes launch Electron and close it only when nothing goes wrong (found 2026-08-23, and it is how the machine crashed) QUEUED
+## Phase 140 — 43 probes launch Electron and close it only when nothing goes wrong (found 2026-08-23, and it is how the machine crashed) ✅ SHIPPED 2026-08-23 (this commit, 0.71.0, gates green, 8,970 tests)
 
 **Subject:** `fix(build): every probe ends the Electron it started, whatever happened`
 **First body line:** `Phase 140: 43 probes close Electron only on the happy path`
@@ -16361,3 +16361,4 @@ cycle rather than only the evening it was written.
 - 2026-08-23, Phase 143 queued, the summary timeline reads the version chain Phase 138 writes and shows how a session's story changed, with no integer on it and no model in it
 - 2026-08-23, THE RUN ORDER IS HIS, being 138 then 142 then the v0.70.0 RELEASE all the way to public, then 140, then 143, then 141; the release is DELEGATED, one release only, and the version stays at 0.70.0 with this work inside it
 - 2026-08-23, Phase 138 shipped, a small model writes the one line each session gets in the project view and it ships OFF, because None is what Tortie installs with and you pick the agent and the model yourself in Settings then Project line; the rate window gate ran 346 folds beside 30 real agent turns at 1,878 times his fleet rate and no turn was slowed, deferred or refused, the drift gate ran 500 folds and found a two hundred fold chain still true under a recency rule while a cumulative rule held one wrong fact for eleven folds, and the ten refusals run in code after the model answers so the sentence can never carry a digit, a git mark, a path, a quote or a status, this commit, 0.71.0
+- 2026-08-23, Phase 140 shipped, one helper at build/electron-run.mjs owns every Electron a script under build/ starts and ends the tree it started in a finally block, 49 scripts were moved onto it by hand and a 50th was caught by the new gate when Phase 138 landed a probe that started its own, npm run gate:electron reads both directions and proves its scanner on three fixtures it writes itself and it runs inside npm run build, and four deliberate failure shapes each left 0 processes and 0 KB where the pre-Phase-140 shape left 6 processes and 521,520 KB, this commit, 0.71.0

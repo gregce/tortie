@@ -76,7 +76,7 @@
  * Exit code 0 when every row passes. 1 when one does not. 2 when it refuses.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -87,6 +87,8 @@ import {
 } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p103shot]';
@@ -306,63 +308,69 @@ writeFileSync(
 // ---------------------------------------------------------------------------
 
 function launch({ shot, js, settings, timeoutMs = 240_000, delayMs = 8000 }) {
-  return new Promise((done) => {
-    const env = {
-      ...process.env,
-      GMUX_SHOT: shot,
-      GMUX_SHOT_DELAY_MS: String(delayMs),
-      GMUX_TMUX_SOCKET: socket
-    };
-    if (settings) {
-      env['GMUX_SHOT_SETTINGS'] = '1';
-      env['GMUX_SHOT_SETTINGS_JS'] = js;
-    } else {
-      env['GMUX_SHOT_JS'] = js;
-    }
-    const child = spawn(
-      join(repoRoot, 'node_modules', '.bin', 'electron'),
-      ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-      { cwd: repoRoot, env, stdio: ['ignore', 'pipe', 'pipe'] }
-    );
-    recordedPids.push(child.pid);
-    let out = '';
-    const take = (chunk) => {
-      out += String(chunk);
-    };
-    child.stdout.on('data', take);
-    child.stderr.on('data', take);
-    const timer = setTimeout(() => {
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone */
-      }
-    }, timeoutMs);
-    child.on('exit', (code) => {
-      clearTimeout(timer);
-      child.stdout.destroy();
-      child.stderr.destroy();
-      const marker = settings ? '[gmux-shot] driver' : '[gmux-shot] probe ';
-      const at = out.lastIndexOf(marker);
-      let parsed = null;
-      if (at !== -1) {
-        const line = out.slice(at + marker.length).split('\n')[0] ?? '';
-        try {
-          parsed = JSON.parse(line.replace(/^\s*→\s*/, '').trim());
-        } catch {
-          parsed = null;
-        }
-      }
-      if (typeof parsed === 'string') {
-        try {
-          parsed = JSON.parse(parsed);
-        } catch {
-          /* the driver answered a plain string */
-        }
-      }
-      done({ code, out, parsed });
-    });
-  });
+
+  const env = {
+    ...process.env,
+    GMUX_SHOT: shot,
+    GMUX_SHOT_DELAY_MS: String(delayMs),
+    GMUX_TMUX_SOCKET: socket
+  };
+  if (settings) {
+    env['GMUX_SHOT_SETTINGS'] = '1';
+    env['GMUX_SHOT_SETTINGS_JS'] = js;
+  } else {
+    env['GMUX_SHOT_JS'] = js;
+  }
+  return withElectron(
+    {
+      label: 'p103-shot',
+      userDataDir: profile,
+      cwd: repoRoot,
+      env: env
+    },
+    (handle) =>
+      new Promise((done) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
+        let out = '';
+        const take = (chunk) => {
+          out += String(chunk);
+        };
+        child.stdout.on('data', take);
+        child.stderr.on('data', take);
+        const timer = setTimeout(() => {
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }, timeoutMs);
+        child.on('exit', (code) => {
+          clearTimeout(timer);
+          child.stdout.destroy();
+          child.stderr.destroy();
+          const marker = settings ? '[gmux-shot] driver' : '[gmux-shot] probe ';
+          const at = out.lastIndexOf(marker);
+          let parsed = null;
+          if (at !== -1) {
+            const line = out.slice(at + marker.length).split('\n')[0] ?? '';
+            try {
+              parsed = JSON.parse(line.replace(/^\s*→\s*/, '').trim());
+            } catch {
+              parsed = null;
+            }
+          }
+          if (typeof parsed === 'string') {
+            try {
+              parsed = JSON.parse(parsed);
+            } catch {
+              /* the driver answered a plain string */
+            }
+          }
+          done({ code, out, parsed });
+        });
+      })
+  );
 }
 
 const shotPath = (name) => join(outDir, `p103-${name}.png`);

@@ -24,11 +24,13 @@
  * place, a read only session count taken before and after.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { runElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p135verify]';
@@ -172,7 +174,6 @@ const PROBE_JS = `(async () => {
 
 // --- the launch ------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const out = join(outDir, `p135v-${state}.png`);
 rmSync(out, { force: true });
 
@@ -187,34 +188,22 @@ if (state === 'focus-left') {
 }
 
 say(`launch ${state} (profile ${profileDir})`);
-const child = spawn(
-  electronBin,
-  ['.', `--user-data-dir=${profileDir}`, '-ApplePersistenceIgnoreState', 'YES'],
-  {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      GMUX_SHOT: out,
-      GMUX_SHOT_VERBOSE: '1',
-      GMUX_SHOT_DELAY_MS: state === 'focus-left' ? '20000' : '12000',
-      GMUX_SHOT_DRIVE: JSON.stringify(drive),
-      GMUX_SHOT_JS: PROBE_JS
-    }
-  }
-);
-
-let text = '';
-const onText = (c) => { process.stdout.write(c); text += c; };
-child.stdout.on('data', (b) => { onText(b.toString()); });
-child.stderr.on('data', (b) => { onText(b.toString()); });
-
-const code = await new Promise((r) => {
-  const wd = setTimeout(() => { console.error(`${TAG} ceiling. Ending the pid I started.`); child.kill('SIGTERM'); }, 200_000);
-  child.on('error', (e) => { clearTimeout(wd); console.error(`${TAG} electron: ${e.message}`); r(1); });
-  child.on('exit', (c) => { clearTimeout(wd); setTimeout(() => { r(c ?? 1); }, 750); });
+const { code, text } = await runElectron({
+  label: 'p135-verify',
+  userDataDir: profileDir,
+  cwd: repoRoot,
+  env: {
+    ...process.env,
+    GMUX_SHOT: out,
+    GMUX_SHOT_VERBOSE: '1',
+    GMUX_SHOT_DELAY_MS: state === 'focus-left' ? '20000' : '12000',
+    GMUX_SHOT_DRIVE: JSON.stringify(drive),
+    GMUX_SHOT_JS: PROBE_JS
+  },
+  ceilingMs: 200_000,
+  settleMs: 750,
+  echo: true
 });
-child.stdout.destroy();
-child.stderr.destroy();
 
 const failures = [];
 const marker = '[gmux-shot] probe ';

@@ -49,12 +49,14 @@
  *                      run refuses until it is gone, which is deliberate.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const require = createRequire(import.meta.url);
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -418,33 +420,37 @@ export async function runTmuxPair({
 /** Launch one smoke half in a development Electron, with the built tmux. */
 function makeDevLaunch({ scratch, socket, clientBin }) {
   return (mode) =>
-    new Promise((done) => {
-      const electron = require('electron');
-      const child = spawn(
-        electron,
-        ['.', `--user-data-dir=${scratch}`, '-ApplePersistenceIgnoreState', 'YES'],
-        {
-          cwd: ROOT,
-          env: {
-            ...process.env,
-            TMUX: undefined,
-            GMUX_TMUX_SOCKET: socket,
-            GMUX_TMUX_BIN: clientBin,
-            GMUX_SMOKE: mode
-          }
+    // build/electron-run.mjs owns the launch (Phase 140) and ends the tree it
+    // started in a finally block whatever happened.
+    withElectron(
+      {
+        label: `tmux-pair ${mode}`,
+        program: 'app',
+        userDataDir: scratch,
+        cwd: ROOT,
+        env: {
+          ...process.env,
+          TMUX: undefined,
+          GMUX_TMUX_SOCKET: socket,
+          GMUX_TMUX_BIN: clientBin,
+          GMUX_SMOKE: mode
         }
-      );
-      let output = '';
-      child.stdout.on('data', (chunk) => {
-        output += String(chunk);
-        process.stdout.write(chunk);
-      });
-      child.stderr.on('data', (chunk) => {
-        output += String(chunk);
-        process.stderr.write(chunk);
-      });
-      child.on('close', (code) => done({ output, code }));
-    });
+      },
+      (handle) =>
+        new Promise((done) => {
+          const child = handle.child;
+          let output = '';
+          child.stdout.on('data', (chunk) => {
+            output += String(chunk);
+            process.stdout.write(chunk);
+          });
+          child.stderr.on('data', (chunk) => {
+            output += String(chunk);
+            process.stderr.write(chunk);
+          });
+          child.on('close', (code) => done({ output, code }));
+        })
+    );
 }
 
 async function main() {

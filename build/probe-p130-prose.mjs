@@ -81,10 +81,12 @@
  * Exit code 0 when every reading passes. 1 otherwise, with each failure named.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = join('/tmp', `p130-prose-${String(process.pid)}`);
@@ -262,50 +264,56 @@ const CLIENT_AUTH = fakeClient(
 // ---------------------------------------------------------------------------
 
 function driveSettings({ shot, js, sshBin = null, timeoutMs = 120_000 }) {
-  return new Promise((done) => {
-    const env = {
-      ...process.env,
-      GMUX_SHOT: shot,
-      GMUX_SHOT_SETTINGS: '1',
-      GMUX_SHOT_SETTINGS_JS: js,
-      GMUX_TMUX_SOCKET: `gmux-p130-prose-${String(process.pid)}`
-    };
-    if (sshBin !== null) env.GMUX_SSH_BIN = sshBin;
-    const child = spawn(
-      'npx',
-      ['electron', '.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-      { cwd: repoRoot, env, stdio: ['ignore', 'pipe', 'pipe'], detached: false }
-    );
-    recordedPids.push(child.pid);
-    let out = '';
-    child.stdout.on('data', (chunk) => {
-      out += String(chunk);
-    });
-    child.stderr.on('data', (chunk) => {
-      out += String(chunk);
-    });
-    const timer = setTimeout(() => {
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone */
-      }
-    }, timeoutMs);
-    child.on('exit', (code) => {
-      clearTimeout(timer);
-      child.stdout.destroy();
-      child.stderr.destroy();
-      const line = out.split('\n').find((l) => l.includes('[gmux-shot] driver')) ?? '';
-      const payload = line.slice(line.indexOf('driver') + 8).trim();
-      let parsed = null;
-      try {
-        parsed = JSON.parse(payload.replace(/^→\s*/, ''));
-      } catch {
-        parsed = null;
-      }
-      done({ code, out, parsed });
-    });
-  });
+
+  const env = {
+    ...process.env,
+    GMUX_SHOT: shot,
+    GMUX_SHOT_SETTINGS: '1',
+    GMUX_SHOT_SETTINGS_JS: js,
+    GMUX_TMUX_SOCKET: `gmux-p130-prose-${String(process.pid)}`
+  };
+  if (sshBin !== null) env.GMUX_SSH_BIN = sshBin;
+  return withElectron(
+    {
+      label: 'p130-prose',
+      userDataDir: profile,
+      cwd: repoRoot,
+      env: env
+    },
+    (handle) =>
+      new Promise((done) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
+        let out = '';
+        child.stdout.on('data', (chunk) => {
+          out += String(chunk);
+        });
+        child.stderr.on('data', (chunk) => {
+          out += String(chunk);
+        });
+        const timer = setTimeout(() => {
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }, timeoutMs);
+        child.on('exit', (code) => {
+          clearTimeout(timer);
+          child.stdout.destroy();
+          child.stderr.destroy();
+          const line = out.split('\n').find((l) => l.includes('[gmux-shot] driver')) ?? '';
+          const payload = line.slice(line.indexOf('driver') + 8).trim();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(payload.replace(/^→\s*/, ''));
+          } catch {
+            parsed = null;
+          }
+          done({ code, out, parsed });
+        });
+      })
+  );
 }
 
 /** A driver expression that runs in the Settings renderer and returns JSON. */

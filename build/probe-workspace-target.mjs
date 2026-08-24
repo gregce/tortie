@@ -52,11 +52,13 @@
  * cell named. Exit code 2 when the probe refuses to run at all.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { runElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:workspacetarget]';
@@ -140,7 +142,6 @@ writeFileSync(join(project, 'src', 'gamma.ts'), 'export const gamma = 1;\n', 'ut
 // One run of the app
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
 /**
  * Launch the app once, drive it to the scratch project, call the probe through
@@ -150,12 +151,9 @@ async function runOnce(name, spec) {
   const shotPath = join(scratch, `p90.1-target-${name}.png`);
   rmSync(shotPath, { force: true });
   const drive = { projectPath: project };
-  const child = spawn(electronBin, [
-    '.',
-    `--user-data-dir=${profile}-${name}`,
-    '-ApplePersistenceIgnoreState',
-    'YES'
-  ], {
+  const { code, text } = await runElectron({
+    label: 'workspace-target',
+    userDataDir: `${profile}-${name}`,
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -164,37 +162,11 @@ async function runOnce(name, spec) {
       GMUX_SHOT_DELAY_MS: '6000',
       GMUX_SHOT_DRIVE: JSON.stringify(drive),
       GMUX_SHOT_JS: `window.__gmuxTargetProbe(${JSON.stringify(spec)})`
-    }
+    },
+    ceilingMs: 180_000,
+    settleMs: 750,
+    echo: true
   });
-
-  let text = '';
-  const onText = (chunk) => {
-    process.stdout.write(chunk);
-    text += chunk;
-  };
-  child.stdout.on('data', (b) => onText(b.toString()));
-  child.stderr.on('data', (b) => onText(b.toString()));
-
-  const code = await new Promise((r) => {
-    const watchdog = setTimeout(() => {
-      console.error(`${TAG} run ${name} passed its ceiling. Ending the pid I started.`);
-      child.kill('SIGTERM');
-    }, 180_000);
-    child.on('error', (err) => {
-      clearTimeout(watchdog);
-      console.error(`${TAG} electron could not start: ${err.message}`);
-      r(1);
-    });
-    child.on('exit', (c) => {
-      clearTimeout(watchdog);
-      setTimeout(() => r(c ?? 1), 750);
-    });
-  });
-  // The app starts a tmux server that inherits these two pipes, so they are
-  // destroyed by hand. Without this node never exits. See the same note in
-  // build/probe-session-focus.mjs.
-  child.stdout.destroy();
-  child.stderr.destroy();
 
   const marker = '[gmux-shot] probe ';
   const at = text.lastIndexOf(marker);

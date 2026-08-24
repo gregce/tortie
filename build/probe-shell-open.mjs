@@ -28,11 +28,11 @@
  *   node build/probe-shell-open.mjs [--keep] [--skip-build]
  */
 
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
+  createWriteStream,
   existsSync,
   mkdirSync,
-  openSync,
   readFileSync,
   realpathSync,
   rmSync
@@ -41,6 +41,8 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { runElectron, withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const keep = process.argv.includes('--keep');
@@ -125,7 +127,6 @@ if ((process.env['GMUX_TMUX_SOCKET'] ?? '') !== SOCKET) {
 const require2 = createRequire(join(repoRoot, 'package.json'));
 const Database = require2('better-sqlite3');
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const profile = join(root, 'profile');
 const coldDir = join(root, 'cold');
 const warmDir = join(root, 'warm');
@@ -188,130 +189,107 @@ const rehearsalEnv = {
   GMUX_UPDATE_REHEARSAL: '1'
 };
 
-const holderOut = openSync(holderLogPath, 'w');
-const holder = spawn(
-  electronBin,
-  [
-    '.',
-    `--user-data-dir=${profile}`,
-    '-ApplePersistenceIgnoreState',
-    'YES',
-    coldDir
-  ],
-  { cwd: repoRoot, env: rehearsalEnv, stdio: ['ignore', holderOut, holderOut] }
-);
-console.log(`[probe:shellopen] holder pid ${holder.pid} (recorded)`);
+// build/electron-run.mjs owns all three launches (Phase 140) and ends each
+// tree in a finally block whatever happened. The hand written teardown that
+// used to sit at the bottom of this file is gone with it.
+await withElectron(
+  {
+    label: 'shell-open holder',
+    userDataDir: profile,
+    cwd: repoRoot,
+    args: [coldDir],
+    env: rehearsalEnv
+  },
+  async (handle) => {
+    const holder = handle.child;
+    const holderLog = createWriteStream(holderLogPath, { flags: 'w' });
+    holder.stdout.pipe(holderLog);
+    holder.stderr.pipe(holderLog);
+    console.log(`[probe:shellopen] holder pid ${holder.pid} (recorded)`);
 
-let holderExited = false;
-holder.on('exit', () => {
-  holderExited = true;
-});
+    let holderExited = false;
+    holder.on('exit', () => {
+      holderExited = true;
+    });
 
-try {
-  // Cold leg: the first launch's own argv folder becomes a project row.
-  await waitForProjectRow(profile, coldDir, 'cold leg', 90_000);
+    // Cold leg: the first launch's own argv folder becomes a project row.
+    await waitForProjectRow(profile, coldDir, 'cold leg', 90_000);
 
-  if (holderExited) {
-    failures.push('the holder exited before the warm leg ran');
-  }
-
-  // Warm leg: a second copy against the same profile, a different folder.
-  const warmStart = Date.now();
-  const warm = spawnSync(
-    electronBin,
-    ['.', `--user-data-dir=${profile}`, warmDir],
-    { cwd: repoRoot, env: rehearsalEnv, encoding: 'utf8', timeout: 60_000 }
-  );
-  const warmMs = Date.now() - warmStart;
-  console.log(
-    `[probe:shellopen] warm leg: second copy exited ${warm.status} after ${warmMs} ms`
-  );
-  if (warm.status !== 0) {
-    failures.push(
-      `warm leg: the second copy exited ${warm.status}, expected 0. stderr: ${(warm.stderr ?? '').slice(0, 400)}`
-    );
-  }
-  await waitForProjectRow(profile, warmDir, 'warm leg', 60_000);
-
-  // Recents: projects:add records every route, so the warm folder is there.
-  const recentsPath = join(profile, 'recents.json');
-  const recentsText = existsSync(recentsPath)
-    ? readFileSync(recentsPath, 'utf8')
-    : '';
-  const warmReal = (() => {
-    try {
-      return realpathSync(warmDir);
-    } catch {
-      return warmDir;
+    if (holderExited) {
+      failures.push('the holder exited before the warm leg ran');
     }
-  })();
-  if (!recentsText.includes(warmDir) && !recentsText.includes(warmReal)) {
-    failures.push(`warm leg: recents.json has no entry for ${warmDir}`);
-  } else {
-    console.log('[probe:shellopen] warm leg: recents.json entry present');
-  }
 
-  // Shot leg: a fresh profile, a third folder on argv, one PNG. The capture
-  // shows the tab the pending-open pull created on a cold boot.
-  const shot = spawnSync(
-    electronBin,
-    [
-      '.',
-      `--user-data-dir=${shotProfile}`,
-      '-ApplePersistenceIgnoreState',
-      'YES',
-      shotDir
-    ],
-    {
+    // Warm leg: a second copy against the same profile, a different folder.
+    const warmStart = Date.now();
+    const warm = await runElectron({
+      label: 'shell-open warm',
+      userDataDir: profile,
       cwd: repoRoot,
-      encoding: 'utf8',
-      timeout: 120_000,
+      args: [warmDir],
+      persistence: false,
+      env: rehearsalEnv,
+      ceilingMs: 60_000
+    });
+    const warmMs = Date.now() - warmStart;
+    console.log(
+      `[probe:shellopen] warm leg: second copy exited ${warm.code} after ${warmMs} ms`
+    );
+    if (warm.code !== 0) {
+      failures.push(
+        `warm leg: the second copy exited ${warm.code}, expected 0. output: ${warm.text.slice(0, 400)}`
+      );
+    }
+    await waitForProjectRow(profile, warmDir, 'warm leg', 60_000);
+
+    // Recents: projects:add records every route, so the warm folder is there.
+    const recentsPath = join(profile, 'recents.json');
+    const recentsText = existsSync(recentsPath)
+      ? readFileSync(recentsPath, 'utf8')
+      : '';
+    const warmReal = (() => {
+      try {
+        return realpathSync(warmDir);
+      } catch {
+        return warmDir;
+      }
+    })();
+    if (!recentsText.includes(warmDir) && !recentsText.includes(warmReal)) {
+      failures.push(`warm leg: recents.json has no entry for ${warmDir}`);
+    } else {
+      console.log('[probe:shellopen] warm leg: recents.json entry present');
+    }
+
+    // Shot leg: a fresh profile, a third folder on argv, one PNG. The capture
+    // shows the tab the pending-open pull created on a cold boot.
+    const shot = await runElectron({
+      label: 'shell-open shot',
+      userDataDir: shotProfile,
+      cwd: repoRoot,
+      args: [shotDir],
       env: {
         ...process.env,
         GMUX_SHOT: shotPath,
         GMUX_SHOT_DELAY_MS: '6000'
-      }
+      },
+      ceilingMs: 120_000
+    });
+    if (shot.code !== 0) {
+      failures.push(`shot leg: exited ${shot.code}`);
     }
-  );
-  if (shot.status !== 0) {
-    failures.push(`shot leg: exited ${shot.status}`);
-  }
-  if (existsSync(shotPath)) {
-    console.log(`[probe:shellopen] screenshot ${shotPath}`);
-  } else {
-    failures.push(`shot leg: no screenshot was written to ${shotPath}`);
-  }
-  if (!pathsMatch(manifestProjectPaths(shotProfile), shotDir)) {
-    failures.push(
-      'shot leg: the shot profile manifest has no row for the argv folder'
-    );
-  } else {
-    console.log('[probe:shellopen] shot leg: manifest row present');
-  }
-} finally {
-  // Kill ONLY the recorded pid. SIGTERM first so the holder quits cleanly;
-  // SIGKILL after 15 s only if it wedged. harness-socket ends the scratch
-  // tmux server after this process exits.
-  if (!holderExited && holder.pid !== undefined) {
-    try {
-      holder.kill('SIGTERM');
-    } catch {
-      /* already gone */
+    if (existsSync(shotPath)) {
+      console.log(`[probe:shellopen] screenshot ${shotPath}`);
+    } else {
+      failures.push(`shot leg: no screenshot was written to ${shotPath}`);
     }
-    const deadline = Date.now() + 15_000;
-    while (!holderExited && Date.now() < deadline) {
-      await sleep(250);
-    }
-    if (!holderExited) {
-      console.error('[probe:shellopen] holder did not quit in 15 s; SIGKILL');
-      try {
-        holder.kill('SIGKILL');
-      } catch {
-        /* already gone */
-      }
+    if (!pathsMatch(manifestProjectPaths(shotProfile), shotDir)) {
+      failures.push(
+        'shot leg: the shot profile manifest has no row for the argv folder'
+      );
+    } else {
+      console.log('[probe:shellopen] shot leg: manifest row present');
     }
   }
-}
+);
 
 if (failures.length > 0) {
   console.error('');

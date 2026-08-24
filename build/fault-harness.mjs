@@ -75,7 +75,7 @@
  * PASS/FAIL line. Exit 0 only when every invariant held in every case.
  */
 
-import { execFile, spawn } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -88,6 +88,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+
+import { withElectron } from './electron-run.mjs';
 
 const execFileP = promisify(execFile);
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -229,105 +231,106 @@ function mulberry32(seed) {
  * 12 minute hang it exists to catch.
  */
 function runApp({ mode, profile, socket, root, fault, trace, killAfterBeginMs }) {
-  return new Promise((resolveRun) => {
-    const started = Date.now();
-    let beganAt = null;
-    let timedOut = false;
-    const env = {
-      ...process.env,
-      GMUX_SMOKE: mode,
-      GMUX_FAULT_ROOT: root,
-      GMUX_TMUX_SOCKET: socket,
-      // A migration into a scratch profile would copy the user's real data.
-      // The app already guards this by path; belt and braces.
-      GMUX_SKIP_USERDATA_MIGRATION: '1',
-      GMUX_SPECSTORY_NO_CLOUD: '1'
-    };
-    if (fault) env.GMUX_FAULT = fault;
-    if (trace) env.GMUX_FAULT_TRACE = trace;
+  const started = Date.now();
+  let beganAt = null;
+  let timedOut = false;
+  const env = {
+    ...process.env,
+    GMUX_SMOKE: mode,
+    GMUX_FAULT_ROOT: root,
+    GMUX_TMUX_SOCKET: socket,
+    // A migration into a scratch profile would copy the user's real data.
+    // The app already guards this by path; belt and braces.
+    GMUX_SKIP_USERDATA_MIGRATION: '1',
+    GMUX_SPECSTORY_NO_CLOUD: '1'
+  };
+  if (fault) env.GMUX_FAULT = fault;
+  if (trace) env.GMUX_FAULT_TRACE = trace;
 
-    const child = spawn(
-      ELECTRON,
-      [
-        '.',
-        `--user-data-dir=${profile}`,
-        // AppKit's post-crash "reopen your windows?" modal. It blocks the main
-        // thread before JavaScript runs, so nothing inside the app can defend
-        // against it. See LAUNCH_DEADLINE_MS.
-        '-ApplePersistenceIgnoreState',
-        'YES'
-      ],
-      {
-        cwd: REPO,
-        env,
-        stdio: ['ignore', 'pipe', 'pipe']
-      }
-    );
+  // The launch goes through build/electron-run.mjs (Phase 140), so the app and
+  // every process under it is ended in a finally block whatever this run did.
+  // The helper adds the app path, the --user-data-dir and
+  // -ApplePersistenceIgnoreState YES. That last one is there for AppKit's
+  // post-crash "reopen your windows?" modal, which blocks the main thread
+  // before JavaScript runs, so nothing inside the app can defend against it.
+  // See LAUNCH_DEADLINE_MS.
+  return withElectron(
+    {
+      label: `fault ${mode}`,
+      program: 'app',
+      userDataDir: profile,
+      cwd: REPO,
+      env
+    },
+    (handle) =>
+      new Promise((resolveRun) => {
+        const child = handle.child;
 
-    let stdout = '';
-    let stderr = '';
-    let timer = null;
-    child.stdout.on('data', (b) => {
-      stdout += b.toString();
-      // Time the kill from the moment the app is BOOTED and about to write,
-      // not from spawn. Electron's boot is most of a run and its duration
-      // varies by more than the writing phase is wide, so a delay measured
-      // from spawn lands after the run has already finished.
-      if (beganAt === null && stdout.includes('[gmux-fault] work-ready')) {
-        beganAt = Date.now();
-        if (typeof killAfterBeginMs === 'number') {
-          timer = setTimeout(() => {
-            try {
-              process.kill(child.pid, 'SIGKILL');
-            } catch {
-              /* already gone: the run finished before the moment we picked */
+        let stdout = '';
+        let stderr = '';
+        let timer = null;
+        child.stdout.on('data', (b) => {
+          stdout += b.toString();
+          // Time the kill from the moment the app is BOOTED and about to write,
+          // not from spawn. Electron's boot is most of a run and its duration
+          // varies by more than the writing phase is wide, so a delay measured
+          // from spawn lands after the run has already finished.
+          if (beganAt === null && stdout.includes('[gmux-fault] work-ready')) {
+            beganAt = Date.now();
+            if (typeof killAfterBeginMs === 'number') {
+              timer = setTimeout(() => {
+                try {
+                  process.kill(child.pid, 'SIGKILL');
+                } catch {
+                  /* already gone: the run finished before the moment we picked */
+                }
+              }, killAfterBeginMs);
             }
-          }, killAfterBeginMs);
-        }
-      }
-    });
-    child.stderr.on('data', (b) => (stderr += b.toString()));
+          }
+        });
+        child.stderr.on('data', (b) => (stderr += b.toString()));
 
-    const deadline = setTimeout(() => {
-      timedOut = true;
-      console.error(
-        `[fault] launch exceeded ${String(LAUNCH_DEADLINE_MS)} ms; killing pid ${String(child.pid)}`
-      );
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone */
-      }
-    }, LAUNCH_DEADLINE_MS);
+        const deadline = setTimeout(() => {
+          timedOut = true;
+          console.error(
+            `[fault] launch exceeded ${String(LAUNCH_DEADLINE_MS)} ms; killing pid ${String(child.pid)}`
+          );
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }, LAUNCH_DEADLINE_MS);
 
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      if (timer) clearTimeout(timer);
-      clearTimeout(deadline);
-      resolveRun({
-        code: child.exitCode,
-        signal: child.signalCode,
-        timedOut,
-        ms: Date.now() - started,
-        startedAt: started,
-        beganAt,
-        pid: child.pid,
-        stdout,
-        stderr
-      });
-    };
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          if (timer) clearTimeout(timer);
+          clearTimeout(deadline);
+          resolveRun({
+            code: child.exitCode,
+            signal: child.signalCode,
+            timedOut,
+            ms: Date.now() - started,
+            startedAt: started,
+            beganAt,
+            pid: child.pid,
+            stdout,
+            stderr
+          });
+        };
 
-    // `exit` means the app is gone. `close` also waits for every pipe, and a
-    // surviving Chromium helper can hold one open long after the main process
-    // is dead. Wait for `exit`, then give the pipes a short grace to drain.
-    child.on('close', finish);
-    child.on('exit', () => {
-      const grace = setTimeout(finish, STDIO_DRAIN_MS);
-      grace.unref?.();
-    });
-  });
+        // `exit` means the app is gone. `close` also waits for every pipe, and a
+        // surviving Chromium helper can hold one open long after the main process
+        // is dead. Wait for `exit`, then give the pipes a short grace to drain.
+        child.on('close', finish);
+        child.on('exit', () => {
+          const grace = setTimeout(finish, STDIO_DRAIN_MS);
+          grace.unref?.();
+        });
+      })
+  );
 }
 
 /**

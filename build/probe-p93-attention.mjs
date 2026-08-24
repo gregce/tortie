@@ -86,7 +86,7 @@
  * Every scratch file carries a `p93-` prefix.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   createWriteStream,
@@ -102,6 +102,8 @@ import { connect as netConnect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p93]';
@@ -444,23 +446,22 @@ async function shoot(cdp, path) {
 // The app, launched and quit
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const recordedPids = [];
 
-function launch(tag) {
+/**
+ * Hold the app open for exactly as long as `body` runs, and end its whole
+ * process tree afterwards whatever happened (Phase 140). This used to be
+ * `launch(tag)`, which handed a live child back to its caller, so an assertion
+ * that threw between the launch and the quit left about 480 MB running.
+ */
+function runInApp(tag, body) {
   const stream = createWriteStream(appLog, { flags: 'a' });
-  const child = spawn(
-    electronBin,
-    [
-      '.',
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      '--use-mock-keychain',
-      '-ApplePersistenceIgnoreState',
-      'YES'
-    ],
+  return withElectron(
     {
+      label: `p93 ${tag}`,
+      userDataDir: profile,
       cwd: repoRoot,
+      args: ['--remote-debugging-port=0', '--use-mock-keychain'],
       env: {
         ...process.env,
         GMUX_TMUX_SOCKET: socket,
@@ -472,15 +473,17 @@ function launch(tag) {
         GMUX_UPDATE_REHEARSAL: '1',
         GMUX_CONFIG_ROOT: join(profile, 'gmux', 'config'),
         GMUX_SPECSTORY_NO_CLOUD: '1'
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
+      }
+    },
+    async (handle) => {
+      const child = handle.child;
+      recordedPids.push(child.pid);
+      child.stdout.pipe(stream);
+      child.stderr.pipe(stream);
+      say(`launched ${tag}, pid ${String(child.pid)}, log ${appLog}`);
+      return body(child);
     }
   );
-  recordedPids.push(child.pid);
-  child.stdout.pipe(stream);
-  child.stderr.pipe(stream);
-  say(`launched ${tag}, pid ${String(child.pid)}, log ${appLog}`);
-  return child;
 }
 
 /** Quit the app the way the operating system does, and wait for it to go. */
@@ -639,309 +642,314 @@ function finish(code) {
 }
 
 async function main() {
-  let child = launch('the first run');
-  let cdp;
-  try {
-    cdp = await cdpForProfile(profile, 120_000);
-  } catch (err) {
-    note(0, 'the window came up and could be driven', 'FAIL', err.message);
-    return finish(1);
-  }
-  await waitForDrive(cdp, 60_000);
-  if (!honouredTheSocket()) {
-    note(
-      0,
-      'the app honoured the harness socket, so the operator server was untouched',
-      'FAIL',
-      'the app logged that the socket override was ignored'
-    );
-    return finish(1);
-  }
-
-  // -- setup ----------------------------------------------------------------
-  let state = await drive(cdp, 'setup', { path: project, names: ['p93-a', 'p93-b'] });
-  if (state?.missing === true) {
-    note(
-      0,
-      'this build carries the Phase 93 drive',
-      'FAIL',
-      'window.__gmuxP93 is not there after 60 s of waiting for it. The ' +
-        'renderer half of this probe is ' +
-        'src/renderer/app/p93-attention-drive.ts and App.tsx registers it.'
-    );
-    return finish(1);
-  }
-  const rowOf = (s, name) => s.sessions.find((x) => x.name === name);
-  const a = rowOf(state, 'p93-a');
-  const b = rowOf(state, 'p93-b');
-  if (a === undefined || b === undefined) {
-    note(
-      0,
-      'two real sessions were made in the scratch project',
-      'FAIL',
-      `sessions: ${JSON.stringify(state.sessions.map((x) => x.name))}`
-    );
-    return finish(1);
-  }
-  say(`two real sessions: ${a.id} and ${b.id}`);
-  await drive(cdp, 'hold', a.id, 'waiting for you');
-
-  // -- 1. the row is in the list while the tab is open ----------------------
-  state = await drive(cdp, 'openPanel');
-  const row1 = state.rows.find((r) => r.name === 'p93-a');
-  note(
-    1,
-    'the row is in the list while its tab is open',
-    row1 !== undefined ? 'pass' : 'FAIL',
-    `rows: ${JSON.stringify(state.rows.map((r) => r.name))}`
-  );
-  await drive(cdp, 'closePanel');
-
-  // -- 2. the tab is closed and the row stays, with its folder --------------
-  state = await drive(cdp, 'closeTab', project, null);
-  const tabGone = !state.projects.some((p) => p.path === project);
-  state = await drive(cdp, 'openPanel');
-  const row2 = state.rows.find((r) => r.name === 'p93-a');
-  await shoot(cdp, shotLocal);
-  // The path SPAN is middle truncated so the panel's width does not move, and
-  // the row's own accessible name carries the whole path. Both are read: the
-  // span must be there and say something, and the name must be the full folder.
-  const step2 =
-    tabGone &&
-    row2 !== undefined &&
-    typeof row2.path === 'string' &&
-    row2.path !== '' &&
-    row2.label === `p93-a in ${project}` &&
-    row2.machine === null;
-  note(
-    2,
-    'with the tab closed the row is still listed and draws the folder',
-    step2 ? 'pass' : 'FAIL',
-    `tab closed ${String(tabGone)}, row ${JSON.stringify(row2 ?? null)}, ` +
-      `expected the name "p93-a in ${project}", a non empty path span and no ` +
-      'machine span'
-  );
-
-  // -- 3. Enter opens the folder again and lands in the session -------------
-  await drive(cdp, 'select', 'p93-a');
-  state = await drive(cdp, 'pressEnter');
-  const backTab = state.projects.find((p) => p.path === project);
-  const step3 =
-    backTab !== undefined &&
-    state.activeProjectId === backTab.id &&
-    state.activeSessionId === a.id;
-  note(
-    3,
-    'Enter opens the folder as a tab again and selects the session',
-    step3 ? 'pass' : 'FAIL',
-    `tab ${JSON.stringify(backTab ?? null)}, active project ` +
-      `${String(state.activeProjectId)}, active session ` +
-      `${String(state.activeSessionId)}, wanted ${a.id}. toasts ` +
-      JSON.stringify(state.toasts)
-  );
-
-  // -- 4. the folder is gone, so Enter says so and opens nothing ------------
-  await drive(cdp, 'closeTab', project, null);
-  renameSync(project, movedAway);
-  say(`renamed the scratch folder away, so ${project} is not there`);
-  state = await drive(cdp, 'openPanel');
-  await drive(cdp, 'select', 'p93-a');
-  state = await drive(cdp, 'pressEnter');
-  const wanted4 = folderGone(project);
-  const step4 =
-    state.toasts.includes(wanted4) &&
-    state.panelOpen === true &&
-    !state.projects.some((p) => p.path === project);
-  note(
-    4,
-    'a folder that is not there draws one sentence and the panel stays open',
-    step4 ? 'pass' : 'FAIL',
-    `toasts ${JSON.stringify(state.toasts)}, wanted ${JSON.stringify(wanted4)}, ` +
-      `panel open ${String(state.panelOpen)}, tabs ` +
-      JSON.stringify(state.projects.map((p) => p.path))
-  );
-
-  // -- 4b. the whole sentence is on screen, measured ------------------------
-  //
-  // FIX ROUND. `.toast-text` is clamped and a cut is silent. MEASURED on
-  // 2026-08-19 before the fix: a 197 character refusal wanted 100 px inside a
-  // 40 px box, so 3 of its 5 lines were hidden and the clause saying the
-  // session is still running was one of them.
-  const fits = await drive(cdp, 'measureToasts');
-  const cut = (fits ?? []).filter((one) => one.whole !== true);
-  note(
-    '4b',
-    'every line of the refusal is on screen, so the half that says nothing ended is readable',
-    cut.length === 0 ? 'pass' : 'FAIL',
-    (fits ?? [])
-      .map(
-        (one) =>
-          `${String(one.chars)} chars, wants ${String(one.scrollHeight)} px, ` +
-          `has ${String(one.clientHeight)} px, clamp ${String(one.clamp)}`
-      )
-      .join(' | ')
-  );
-
-  // -- 5. the folder is back, so Enter works from the same open panel -------
-  renameSync(movedAway, project);
-  say('put the scratch folder back');
-  state = await drive(cdp, 'openPanel');
-  await drive(cdp, 'select', 'p93-a');
-  state = await drive(cdp, 'pressEnter');
-  const backTab5 = state.projects.find((p) => p.path === project);
-  const step5 =
-    backTab5 !== undefined && state.activeSessionId === a.id;
-  note(
-    5,
-    'with the folder back, the same row opens the tab and lands in the session',
-    step5 ? 'pass' : 'FAIL',
-    `tabs ${JSON.stringify(state.projects.map((p) => p.path))}, active session ` +
-      `${String(state.activeSessionId)}`
-  );
-
-  // -- 6. ⌘⌫ on the row ends the session, read off the session server -------
-  const namesBefore = harnessSessions();
-  state = await drive(cdp, 'openPanel');
-  await drive(cdp, 'select', 'p93-a');
-  state = await drive(cdp, 'pressEnd');
-  const askedFirst = state.confirm !== null;
-  if (askedFirst) state = await drive(cdp, 'acceptConfirm');
-  await drive(cdp, 'release');
-  await sleep(2_000);
-  const namesAfter = harnessSessions();
-  const wentAway = namesBefore.filter((one) => !namesAfter.includes(one));
-  const step6 = askedFirst && wentAway.length === 1;
-  note(
-    6,
-    'the row can be cleared from where it is seen, and the session really ends',
-    step6 ? 'pass' : 'FAIL',
-    `a confirm was asked for first: ${String(askedFirst)}. server before ` +
-      `${JSON.stringify(namesBefore)}, after ${JSON.stringify(namesAfter)}`
-  );
-
-  // -- 7. a row on another machine names the machine and the folder ---------
-  state = await drive(cdp, 'injectRemote', {
-    machineId: MACHINE_ID,
-    label: MACHINE_LABEL,
-    path: FAR_PATH,
-    name: 'p93-far'
-  });
-  state = await drive(cdp, 'openPanel');
-  const row7 = state.rows.find((r) => r.name === 'p93-far');
-  await shoot(cdp, shotRemote);
-  const step7 =
-    row7 !== undefined &&
-    row7.machine === MACHINE_LABEL &&
-    row7.label === `p93-far in ${FAR_PATH} on ${MACHINE_LABEL}` &&
-    typeof row7.path === 'string' &&
-    row7.path !== '';
-  note(
-    7,
-    'a row for a session on another machine draws the machine and the folder',
-    step7 ? 'pass' : 'FAIL',
-    `row ${JSON.stringify(row7 ?? null)}, wanted the machine span ` +
-      `${MACHINE_LABEL}, a non empty path span, and the name ` +
-      `"p93-far in ${FAR_PATH} on ${MACHINE_LABEL}"`
-  );
-
-  // -- 8. Enter on that row draws the machine's own sentence ----------------
-  await drive(cdp, 'select', 'p93-far');
-  state = await drive(cdp, 'pressEnter');
-  const allowed = machineSentences(FAR_PATH, MACHINE_LABEL);
-  const said = state.toasts.filter((t) => allowed.includes(t));
-  const step8 =
-    said.length === 1 &&
-    state.panelOpen === true &&
-    !state.projects.some((p) => p.path === FAR_PATH);
-  note(
-    8,
-    'a folder on a machine that cannot be reached draws that machine sentence',
-    step8 ? 'pass' : 'FAIL',
-    `said ${JSON.stringify(said)}, all toasts ${JSON.stringify(state.toasts)}, ` +
-      `panel open ${String(state.panelOpen)}`
-  );
-
-  // -- 9. quit, start again, and the second session is still reachable ------
-  await drive(cdp, 'closePanel');
-  await drive(cdp, 'closeTab', project, null);
-  const beforeQuit = await drive(cdp, 'state');
-  const stampBefore = beforeQuit.sessions.find((x) => x.id === b.id)?.closedProject ?? null;
-  cdp.close();
-  await quit(child);
-  say('the app was quit. Starting it again on the same profile.');
-
-  child = launch('the second run');
-  try {
-    cdp = await cdpForProfile(profile, 120_000);
-  } catch (err) {
-    note(9, 'the app comes back and the session is still reachable', 'FAIL', err.message);
-    return finish(1);
-  }
-  if (!(await waitForDrive(cdp, 60_000))) {
-    note(
-      9,
-      'the app comes back and the session is still reachable',
-      'FAIL',
-      'window.__gmuxP93 never arrived on the second run'
-    );
-    return finish(1);
-  }
-  await sleep(4_000);
-  state = await drive(cdp, 'state');
-  const stampAfter = state.sessions.find((x) => x.id === b.id)?.closedProject ?? null;
-  const tabStillClosed = !state.projects.some((p) => p.path === project);
-  await drive(cdp, 'hold', b.id, 'waiting for you');
-  state = await drive(cdp, 'openPanel');
-  await drive(cdp, 'select', 'p93-b');
-  state = await drive(cdp, 'pressEnter');
-  const backTab9 = state.projects.find((p) => p.path === project);
-  const step9 =
-    tabStillClosed && backTab9 !== undefined && state.activeSessionId === b.id;
-  note(
-    9,
-    'after a quit and a start, the closed tab is still closed and the row still reaches its session',
-    step9 ? 'pass' : 'FAIL',
-    `tab still closed ${String(tabStillClosed)}, tab back ` +
-      `${JSON.stringify(backTab9 ?? null)}, active session ` +
-      `${String(state.activeSessionId)}, wanted ${b.id}`
-  );
-  // FIX ROUND. This used to be a note that reported a null on both sides
-  // instead of failing on it, and on 2026-08-19 it read null before the quit
-  // and a record after it. The record was in the manifest the whole time and
-  // the window had not been told, because closing a tab pushed the project list
-  // and not the session list. `jumpToSession` reads this field to decide
-  // whether a tab coming back needs a sentence, so a person who closed a tab
-  // themselves could be told the folder had never had one. `removeProject` now
-  // pushes the session list when it stamps, and this step holds that.
-  const step10 = stampBefore !== null && stampAfter !== null;
-  note(
-    10,
-    'the record of the closed tab reaches the window at once and survives a quit',
-    step10 ? 'pass' : 'FAIL',
-    `before the quit ${JSON.stringify(stampBefore)}, after it ` +
-      `${JSON.stringify(stampAfter)}`
-  );
-
-  // -- cleanup --------------------------------------------------------------
-  await drive(cdp, 'release');
-  await drive(cdp, 'killAll', [a.id, b.id]);
-  cdp.close();
-  await quit(child);
-
-  const failed = results.filter((r) => r.verdict !== 'pass');
-  if (failed.length > 0) {
-    console.log('');
-    for (const one of failed) {
-      console.error(`${TAG} FAIL step ${String(one.step)}: ${one.claim}`);
+  // The two runs nest, so each app is held by its own withElectron and
+  // ended in that call's finally block. The first one is already quit by
+  // the `quit` above before the second starts, so only one app is ever up.
+  return runInApp('the first run', async (child) => {
+    let cdp;
+    try {
+      cdp = await cdpForProfile(profile, 120_000);
+    } catch (err) {
+      note(0, 'the window came up and could be driven', 'FAIL', err.message);
+      return finish(1);
     }
-    return finish(1);
-  }
-  console.log('');
-  say(
-    'every step passed. A session whose project is closed says where it is, ' +
-      'can be reached, and can be cleared from the list that shows it.'
-  );
-  return finish(0);
+    await waitForDrive(cdp, 60_000);
+    if (!honouredTheSocket()) {
+      note(
+        0,
+        'the app honoured the harness socket, so the operator server was untouched',
+        'FAIL',
+        'the app logged that the socket override was ignored'
+      );
+      return finish(1);
+    }
+
+    // -- setup ----------------------------------------------------------------
+    let state = await drive(cdp, 'setup', { path: project, names: ['p93-a', 'p93-b'] });
+    if (state?.missing === true) {
+      note(
+        0,
+        'this build carries the Phase 93 drive',
+        'FAIL',
+        'window.__gmuxP93 is not there after 60 s of waiting for it. The ' +
+          'renderer half of this probe is ' +
+          'src/renderer/app/p93-attention-drive.ts and App.tsx registers it.'
+      );
+      return finish(1);
+    }
+    const rowOf = (s, name) => s.sessions.find((x) => x.name === name);
+    const a = rowOf(state, 'p93-a');
+    const b = rowOf(state, 'p93-b');
+    if (a === undefined || b === undefined) {
+      note(
+        0,
+        'two real sessions were made in the scratch project',
+        'FAIL',
+        `sessions: ${JSON.stringify(state.sessions.map((x) => x.name))}`
+      );
+      return finish(1);
+    }
+    say(`two real sessions: ${a.id} and ${b.id}`);
+    await drive(cdp, 'hold', a.id, 'waiting for you');
+
+    // -- 1. the row is in the list while the tab is open ----------------------
+    state = await drive(cdp, 'openPanel');
+    const row1 = state.rows.find((r) => r.name === 'p93-a');
+    note(
+      1,
+      'the row is in the list while its tab is open',
+      row1 !== undefined ? 'pass' : 'FAIL',
+      `rows: ${JSON.stringify(state.rows.map((r) => r.name))}`
+    );
+    await drive(cdp, 'closePanel');
+
+    // -- 2. the tab is closed and the row stays, with its folder --------------
+    state = await drive(cdp, 'closeTab', project, null);
+    const tabGone = !state.projects.some((p) => p.path === project);
+    state = await drive(cdp, 'openPanel');
+    const row2 = state.rows.find((r) => r.name === 'p93-a');
+    await shoot(cdp, shotLocal);
+    // The path SPAN is middle truncated so the panel's width does not move, and
+    // the row's own accessible name carries the whole path. Both are read: the
+    // span must be there and say something, and the name must be the full folder.
+    const step2 =
+      tabGone &&
+      row2 !== undefined &&
+      typeof row2.path === 'string' &&
+      row2.path !== '' &&
+      row2.label === `p93-a in ${project}` &&
+      row2.machine === null;
+    note(
+      2,
+      'with the tab closed the row is still listed and draws the folder',
+      step2 ? 'pass' : 'FAIL',
+      `tab closed ${String(tabGone)}, row ${JSON.stringify(row2 ?? null)}, ` +
+        `expected the name "p93-a in ${project}", a non empty path span and no ` +
+        'machine span'
+    );
+
+    // -- 3. Enter opens the folder again and lands in the session -------------
+    await drive(cdp, 'select', 'p93-a');
+    state = await drive(cdp, 'pressEnter');
+    const backTab = state.projects.find((p) => p.path === project);
+    const step3 =
+      backTab !== undefined &&
+      state.activeProjectId === backTab.id &&
+      state.activeSessionId === a.id;
+    note(
+      3,
+      'Enter opens the folder as a tab again and selects the session',
+      step3 ? 'pass' : 'FAIL',
+      `tab ${JSON.stringify(backTab ?? null)}, active project ` +
+        `${String(state.activeProjectId)}, active session ` +
+        `${String(state.activeSessionId)}, wanted ${a.id}. toasts ` +
+        JSON.stringify(state.toasts)
+    );
+
+    // -- 4. the folder is gone, so Enter says so and opens nothing ------------
+    await drive(cdp, 'closeTab', project, null);
+    renameSync(project, movedAway);
+    say(`renamed the scratch folder away, so ${project} is not there`);
+    state = await drive(cdp, 'openPanel');
+    await drive(cdp, 'select', 'p93-a');
+    state = await drive(cdp, 'pressEnter');
+    const wanted4 = folderGone(project);
+    const step4 =
+      state.toasts.includes(wanted4) &&
+      state.panelOpen === true &&
+      !state.projects.some((p) => p.path === project);
+    note(
+      4,
+      'a folder that is not there draws one sentence and the panel stays open',
+      step4 ? 'pass' : 'FAIL',
+      `toasts ${JSON.stringify(state.toasts)}, wanted ${JSON.stringify(wanted4)}, ` +
+        `panel open ${String(state.panelOpen)}, tabs ` +
+        JSON.stringify(state.projects.map((p) => p.path))
+    );
+
+    // -- 4b. the whole sentence is on screen, measured ------------------------
+    //
+    // FIX ROUND. `.toast-text` is clamped and a cut is silent. MEASURED on
+    // 2026-08-19 before the fix: a 197 character refusal wanted 100 px inside a
+    // 40 px box, so 3 of its 5 lines were hidden and the clause saying the
+    // session is still running was one of them.
+    const fits = await drive(cdp, 'measureToasts');
+    const cut = (fits ?? []).filter((one) => one.whole !== true);
+    note(
+      '4b',
+      'every line of the refusal is on screen, so the half that says nothing ended is readable',
+      cut.length === 0 ? 'pass' : 'FAIL',
+      (fits ?? [])
+        .map(
+          (one) =>
+            `${String(one.chars)} chars, wants ${String(one.scrollHeight)} px, ` +
+            `has ${String(one.clientHeight)} px, clamp ${String(one.clamp)}`
+        )
+        .join(' | ')
+    );
+
+    // -- 5. the folder is back, so Enter works from the same open panel -------
+    renameSync(movedAway, project);
+    say('put the scratch folder back');
+    state = await drive(cdp, 'openPanel');
+    await drive(cdp, 'select', 'p93-a');
+    state = await drive(cdp, 'pressEnter');
+    const backTab5 = state.projects.find((p) => p.path === project);
+    const step5 =
+      backTab5 !== undefined && state.activeSessionId === a.id;
+    note(
+      5,
+      'with the folder back, the same row opens the tab and lands in the session',
+      step5 ? 'pass' : 'FAIL',
+      `tabs ${JSON.stringify(state.projects.map((p) => p.path))}, active session ` +
+        `${String(state.activeSessionId)}`
+    );
+
+    // -- 6. ⌘⌫ on the row ends the session, read off the session server -------
+    const namesBefore = harnessSessions();
+    state = await drive(cdp, 'openPanel');
+    await drive(cdp, 'select', 'p93-a');
+    state = await drive(cdp, 'pressEnd');
+    const askedFirst = state.confirm !== null;
+    if (askedFirst) state = await drive(cdp, 'acceptConfirm');
+    await drive(cdp, 'release');
+    await sleep(2_000);
+    const namesAfter = harnessSessions();
+    const wentAway = namesBefore.filter((one) => !namesAfter.includes(one));
+    const step6 = askedFirst && wentAway.length === 1;
+    note(
+      6,
+      'the row can be cleared from where it is seen, and the session really ends',
+      step6 ? 'pass' : 'FAIL',
+      `a confirm was asked for first: ${String(askedFirst)}. server before ` +
+        `${JSON.stringify(namesBefore)}, after ${JSON.stringify(namesAfter)}`
+    );
+
+    // -- 7. a row on another machine names the machine and the folder ---------
+    state = await drive(cdp, 'injectRemote', {
+      machineId: MACHINE_ID,
+      label: MACHINE_LABEL,
+      path: FAR_PATH,
+      name: 'p93-far'
+    });
+    state = await drive(cdp, 'openPanel');
+    const row7 = state.rows.find((r) => r.name === 'p93-far');
+    await shoot(cdp, shotRemote);
+    const step7 =
+      row7 !== undefined &&
+      row7.machine === MACHINE_LABEL &&
+      row7.label === `p93-far in ${FAR_PATH} on ${MACHINE_LABEL}` &&
+      typeof row7.path === 'string' &&
+      row7.path !== '';
+    note(
+      7,
+      'a row for a session on another machine draws the machine and the folder',
+      step7 ? 'pass' : 'FAIL',
+      `row ${JSON.stringify(row7 ?? null)}, wanted the machine span ` +
+        `${MACHINE_LABEL}, a non empty path span, and the name ` +
+        `"p93-far in ${FAR_PATH} on ${MACHINE_LABEL}"`
+    );
+
+    // -- 8. Enter on that row draws the machine's own sentence ----------------
+    await drive(cdp, 'select', 'p93-far');
+    state = await drive(cdp, 'pressEnter');
+    const allowed = machineSentences(FAR_PATH, MACHINE_LABEL);
+    const said = state.toasts.filter((t) => allowed.includes(t));
+    const step8 =
+      said.length === 1 &&
+      state.panelOpen === true &&
+      !state.projects.some((p) => p.path === FAR_PATH);
+    note(
+      8,
+      'a folder on a machine that cannot be reached draws that machine sentence',
+      step8 ? 'pass' : 'FAIL',
+      `said ${JSON.stringify(said)}, all toasts ${JSON.stringify(state.toasts)}, ` +
+        `panel open ${String(state.panelOpen)}`
+    );
+
+    // -- 9. quit, start again, and the second session is still reachable ------
+    await drive(cdp, 'closePanel');
+    await drive(cdp, 'closeTab', project, null);
+    const beforeQuit = await drive(cdp, 'state');
+    const stampBefore = beforeQuit.sessions.find((x) => x.id === b.id)?.closedProject ?? null;
+    cdp.close();
+    await quit(child);
+    say('the app was quit. Starting it again on the same profile.');
+
+    return runInApp('the second run', async (child) => {
+      try {
+        cdp = await cdpForProfile(profile, 120_000);
+      } catch (err) {
+        note(9, 'the app comes back and the session is still reachable', 'FAIL', err.message);
+        return finish(1);
+      }
+      if (!(await waitForDrive(cdp, 60_000))) {
+        note(
+          9,
+          'the app comes back and the session is still reachable',
+          'FAIL',
+          'window.__gmuxP93 never arrived on the second run'
+        );
+        return finish(1);
+      }
+      await sleep(4_000);
+      state = await drive(cdp, 'state');
+      const stampAfter = state.sessions.find((x) => x.id === b.id)?.closedProject ?? null;
+      const tabStillClosed = !state.projects.some((p) => p.path === project);
+      await drive(cdp, 'hold', b.id, 'waiting for you');
+      state = await drive(cdp, 'openPanel');
+      await drive(cdp, 'select', 'p93-b');
+      state = await drive(cdp, 'pressEnter');
+      const backTab9 = state.projects.find((p) => p.path === project);
+      const step9 =
+        tabStillClosed && backTab9 !== undefined && state.activeSessionId === b.id;
+      note(
+        9,
+        'after a quit and a start, the closed tab is still closed and the row still reaches its session',
+        step9 ? 'pass' : 'FAIL',
+        `tab still closed ${String(tabStillClosed)}, tab back ` +
+          `${JSON.stringify(backTab9 ?? null)}, active session ` +
+          `${String(state.activeSessionId)}, wanted ${b.id}`
+      );
+      // FIX ROUND. This used to be a note that reported a null on both sides
+      // instead of failing on it, and on 2026-08-19 it read null before the quit
+      // and a record after it. The record was in the manifest the whole time and
+      // the window had not been told, because closing a tab pushed the project list
+      // and not the session list. `jumpToSession` reads this field to decide
+      // whether a tab coming back needs a sentence, so a person who closed a tab
+      // themselves could be told the folder had never had one. `removeProject` now
+      // pushes the session list when it stamps, and this step holds that.
+      const step10 = stampBefore !== null && stampAfter !== null;
+      note(
+        10,
+        'the record of the closed tab reaches the window at once and survives a quit',
+        step10 ? 'pass' : 'FAIL',
+        `before the quit ${JSON.stringify(stampBefore)}, after it ` +
+          `${JSON.stringify(stampAfter)}`
+      );
+
+      // -- cleanup --------------------------------------------------------------
+      await drive(cdp, 'release');
+      await drive(cdp, 'killAll', [a.id, b.id]);
+      cdp.close();
+      await quit(child);
+
+      const failed = results.filter((r) => r.verdict !== 'pass');
+      if (failed.length > 0) {
+        console.log('');
+        for (const one of failed) {
+          console.error(`${TAG} FAIL step ${String(one.step)}: ${one.claim}`);
+        }
+        return finish(1);
+      }
+      console.log('');
+      say(
+        'every step passed. A session whose project is closed says where it is, ' +
+          'can be reached, and can be cleared from the list that shows it.'
+      );
+      return finish(0);
+    });
+  });
 }
 
 main().catch((err) => {

@@ -45,7 +45,7 @@
  * Exit 0 when every check passes, 1 otherwise, 2 when the probe refuses.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -57,6 +57,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p1372menu]';
@@ -204,12 +206,11 @@ const probeJs = `(async () => {
 // One run of the app
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
-const child = spawn(
-  electronBin,
-  ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
+await withElectron(
   {
+    label: 'p1372-menu',
+    userDataDir: profile,
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -220,77 +221,78 @@ const child = spawn(
       GMUX_SHOT_DRIVE: drive,
       GMUX_SHOT_JS: probeJs
     }
-  }
-);
-say(`launched the app, pid ${String(child.pid)} (recorded)`);
+  },
+  async (handle) => {
+  const child = handle.child;
+  say(`launched the app, pid ${String(child.pid)} (recorded)`);
 
-/**
- * Ends the recorded pid AND every process descended from it. A SIGKILL to
- * the main pid alone leaves the renderer, the GPU helper, the utility
- * helpers and crashpad alive, which a rail long run of the overview probe
- * measured: four orphans stayed up after its watchdog fired. The
- * descendants are read with pgrep -P while the parent still holds them,
- * because a dead parent's children reparent and can no longer be found this
- * way. Nothing outside this one recorded process tree can be named here.
- */
-function killTree(pid) {
-  const found = [];
-  const stack = [pid];
-  while (stack.length > 0) {
-    const p = stack.pop();
-    const r = spawnSync('pgrep', ['-P', String(p)], { encoding: 'utf8' });
-    for (const line of (r.stdout ?? '').split('\n')) {
-      const n = Number(line.trim());
-      if (Number.isInteger(n) && n > 0 && !found.includes(n)) {
-        found.push(n);
-        stack.push(n);
+  /**
+   * Ends the recorded pid AND every process descended from it. A SIGKILL to
+   * the main pid alone leaves the renderer, the GPU helper, the utility
+   * helpers and crashpad alive, which a rail long run of the overview probe
+   * measured: four orphans stayed up after its watchdog fired. The
+   * descendants are read with pgrep -P while the parent still holds them,
+   * because a dead parent's children reparent and can no longer be found this
+   * way. Nothing outside this one recorded process tree can be named here.
+   */
+  function killTree(pid) {
+    const found = [];
+    const stack = [pid];
+    while (stack.length > 0) {
+      const p = stack.pop();
+      const r = spawnSync('pgrep', ['-P', String(p)], { encoding: 'utf8' });
+      for (const line of (r.stdout ?? '').split('\n')) {
+        const n = Number(line.trim());
+        if (Number.isInteger(n) && n > 0 && !found.includes(n)) {
+          found.push(n);
+          stack.push(n);
+        }
+      }
+    }
+    for (const p of [...found, pid]) {
+      try {
+        process.kill(p, 'SIGKILL');
+      } catch {
+        /* already gone, which is the state we wanted */
       }
     }
   }
-  for (const p of [...found, pid]) {
-    try {
-      process.kill(p, 'SIGKILL');
-    } catch {
-      /* already gone, which is the state we wanted */
-    }
+
+  /** The pid that owns the window: the shim's one child, or the shim itself. */
+  function guiPid() {
+    const out = spawnSync('pgrep', ['-P', String(child.pid)], {
+      encoding: 'utf8'
+    });
+    const first = (out.stdout ?? '')
+      .split('\n')
+      .map((line) => Number(line.trim()))
+      .find((n) => Number.isInteger(n) && n > 0);
+    return first ?? child.pid;
   }
-}
 
-/** The pid that owns the window: the shim's one child, or the shim itself. */
-function guiPid() {
-  const out = spawnSync('pgrep', ['-P', String(child.pid)], {
-    encoding: 'utf8'
-  });
-  const first = (out.stdout ?? '')
-    .split('\n')
-    .map((line) => Number(line.trim()))
-    .find((n) => Number.isInteger(n) && n > 0);
-  return first ?? child.pid;
-}
+  function frontmostPid() {
+    const r = spawnSync(
+      'osascript',
+      [
+        '-e',
+        'tell application "System Events" to get unix id of (first application process whose frontmost is true)'
+      ],
+      { encoding: 'utf8', timeout: 10_000 }
+    );
+    if (r.status !== 0) return null;
+    const n = Number((r.stdout ?? '').trim());
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }
 
-function frontmostPid() {
-  const r = spawnSync(
-    'osascript',
-    [
-      '-e',
-      'tell application "System Events" to get unix id of (first application process whose frontmost is true)'
-    ],
-    { encoding: 'utf8', timeout: 10_000 }
-  );
-  if (r.status !== 0) return null;
-  const n = Number((r.stdout ?? '').trim());
-  return Number.isInteger(n) && n > 0 ? n : null;
-}
-
-/**
- * The JXA that lists on screen windows, copied from probe-p119-menu.mjs.
- * THE PID FILTER IS INSIDE IT, so this script can never hand back a window
- * belonging to any other application. Ids, layers and sizes only, no names.
- */
-const WINDOW_LIST_JS = join(root, 'p1372-window-list.js');
-writeFileSync(
-  WINDOW_LIST_JS,
-  `ObjC.import('CoreGraphics');
+  /**
+   * The JXA that lists on screen windows, copied from probe-p119-menu.mjs.
+   * THE PID FILTER IS INSIDE IT, so this script can never hand back a window
+   * belonging to any other application. Ids, layers and sizes only, no names.
+   */
+  const WINDOW_LIST_JS = join(root, 'p1372-window-list.js');
+  writeFileSync(
+    WINDOW_LIST_JS,
+    `ObjC.import('CoreGraphics');
 ObjC.import('Foundation');
 function run(argv) {
   const pid = parseInt(argv[0], 10);
@@ -310,39 +312,39 @@ function run(argv) {
   return JSON.stringify(mine);
 }
 `
-);
+  );
 
-/**
- * The JXA that presses the row THROUGH THE ACCESSIBILITY INTERFACE, and
- * through the raw pid addressed half of it on purpose. THE PID IS ITS
- * FIRST ARGUMENT: AXUIElementCreateApplication takes the unix id itself,
- * so there is no name lookup anywhere in this script. That is not a
- * nicety. System Events resolves a process specifier BY NAME behind the
- * scenes, every Electron app's process is named Electron, and a measured
- * run of an earlier System Events draft of this script answered questions
- * about the operator's own running Tortie while holding a specifier built
- * from this probe's pid. Raw AX cannot do that.
- *
- * The open menu is not among the application element's AX children, which
- * a controlled experiment measured against a three row test menu. The
- * route that reaches it is a position hit test: the menu's own window is
- * read from CoreGraphics filtered to this pid, AXUIElementCopyElementAtPosition
- * is asked what sits just inside that window's top edge, and the walk goes
- * up to the enclosing AXMenu. The hit test is scoped to the app element,
- * so it can only ever answer with this app's own elements. The row is then
- * matched by its exact title and pressed with its own AXPress action, so
- * nothing here types keystrokes, a label that matches no row presses
- * nothing at all, and the experiment confirmed the row the hit test
- * LANDED on does not fire, only the row the title names. The second
- * argument picks the verb: 'select' presses the row named by the third
- * argument, 'escape' performs AXCancel on the open menu so a failed run
- * does not sit under it until the watchdog. The script prints one JSON
- * line: found, pressed, closed, the items it saw, and a detail sentence.
- */
-const MENU_PRESS_JS = join(root, 'p1372-menu-press.js');
-writeFileSync(
-  MENU_PRESS_JS,
-  `ObjC.import('Cocoa');
+  /**
+   * The JXA that presses the row THROUGH THE ACCESSIBILITY INTERFACE, and
+   * through the raw pid addressed half of it on purpose. THE PID IS ITS
+   * FIRST ARGUMENT: AXUIElementCreateApplication takes the unix id itself,
+   * so there is no name lookup anywhere in this script. That is not a
+   * nicety. System Events resolves a process specifier BY NAME behind the
+   * scenes, every Electron app's process is named Electron, and a measured
+   * run of an earlier System Events draft of this script answered questions
+   * about the operator's own running Tortie while holding a specifier built
+   * from this probe's pid. Raw AX cannot do that.
+   *
+   * The open menu is not among the application element's AX children, which
+   * a controlled experiment measured against a three row test menu. The
+   * route that reaches it is a position hit test: the menu's own window is
+   * read from CoreGraphics filtered to this pid, AXUIElementCopyElementAtPosition
+   * is asked what sits just inside that window's top edge, and the walk goes
+   * up to the enclosing AXMenu. The hit test is scoped to the app element,
+   * so it can only ever answer with this app's own elements. The row is then
+   * matched by its exact title and pressed with its own AXPress action, so
+   * nothing here types keystrokes, a label that matches no row presses
+   * nothing at all, and the experiment confirmed the row the hit test
+   * LANDED on does not fire, only the row the title names. The second
+   * argument picks the verb: 'select' presses the row named by the third
+   * argument, 'escape' performs AXCancel on the open menu so a failed run
+   * does not sit under it until the watchdog. The script prints one JSON
+   * line: found, pressed, closed, the items it saw, and a detail sentence.
+   */
+  const MENU_PRESS_JS = join(root, 'p1372-menu-press.js');
+  writeFileSync(
+    MENU_PRESS_JS,
+    `ObjC.import('Cocoa');
 ObjC.import('CoreGraphics');
 ObjC.bindFunction('AXUIElementCreateApplication', ['id', ['int']]);
 ObjC.bindFunction('AXUIElementCopyAttributeValue', ['int', ['id', 'id', 'id*']]);
@@ -453,280 +455,281 @@ function run(argv) {
   return JSON.stringify(out);
 }
 `
-);
-
-function windowsOf(pid) {
-  const r = spawnSync(
-    'osascript',
-    ['-l', 'JavaScript', WINDOW_LIST_JS, String(pid)],
-    { encoding: 'utf8', timeout: 15_000 }
   );
-  if (r.status !== 0) return null;
-  try {
-    return JSON.parse((r.stdout ?? '').trim());
-  } catch {
-    return null;
-  }
-}
 
-let frontOk = null;
-let menuSeen = false;
-let appPid = null;
-let beforeIds = null;
-
-/**
- * Runs on the first mark, while the driven window holds the frame and no
- * menu exists yet. Raises the app and records the windows it owns, so the
- * menu can be found as the one window the click adds.
- */
-function armTheCensus() {
-  appPid = guiPid();
-  let front = null;
-  for (let i = 0; i < 6; i++) {
-    spawnSync(
-      'osascript',
-      [
-        '-e',
-        `tell application "System Events" to set frontmost of (first process whose unix id is ${String(appPid)}) to true`
-      ],
-      { encoding: 'utf8', timeout: 10_000 }
-    );
-    spawnSync('sleep', ['0.4']);
-    front = frontmostPid();
-    if (front === appPid) break;
-  }
-  frontOk = front === appPid;
-  const before = windowsOf(appPid);
-  beforeIds = before === null ? null : new Set(before.map((w) => w.id));
-  say(
-    `the app owns ${before === null ? 'an unreadable number of' : String(before.length)} windows before any menu opens` +
-      (frontOk ? ', and it is in front' : ', and it is NOT in front')
-  );
-}
-
-/**
- * Runs on the second mark, after the click. It presses the row THROUGH THE
- * ACCESSIBILITY INTERFACE, addressed to the app's own pid, which is the
- * script MENU_PRESS_JS above. Nothing here types system wide keystrokes,
- * and nothing here types addressed keystrokes either: an earlier draft
- * posted the letters of the label and Return to the app's pid, and a
- * verifier photographed those keys running inside the scratch session's own
- * terminal, because a posted key lands wherever the app's own focus sits
- * while an AXPress can only fire the one named row.
- *
- * The window census is kept as evidence, not as a gate. A verifier's run
- * saw no added window inside the old four second window while the menu was
- * in fact open, so the press script does its own wait for the menu on the
- * process and refuses by itself when there is none. Either sighting counts
- * as the menu having been on screen, and the run says which one it got.
- */
-const CATCH_ROW_LABEL = 'Catch me up…';
-let clickOk = false;
-let menuSeenByCensus = false;
-let menuSeenByAx = false;
-function pressTheRow() {
-  if (appPid === null) {
-    say('the census never armed, so nothing is pressed and the run will fail honestly');
-    return;
-  }
-  if (beforeIds !== null) {
-    const deadline = Date.now() + 4000;
-    for (;;) {
-      const after = windowsOf(appPid);
-      if (after !== null) {
-        const added = after.filter((w) => !beforeIds.has(w.id));
-        if (added.length > 0) {
-          menuSeenByCensus = true;
-          added.sort((a, b) => b.layer - a.layer);
-          say(
-            `the menu's window is on screen, layer ${String(added[0].layer)}, ` +
-              `${String(added[0].w)} by ${String(added[0].h)} points`
-          );
-          break;
-        }
-      }
-      if (Date.now() >= deadline) break;
-    }
-  }
-  if (!menuSeenByCensus) {
-    say('the window census did not sight the menu, so the press script\'s own accessibility read is the sighting that counts');
-  }
-  for (let i = 0; i < 3 && !clickOk; i++) {
+  function windowsOf(pid) {
     const r = spawnSync(
       'osascript',
-      ['-l', 'JavaScript', MENU_PRESS_JS, String(appPid), 'select', CATCH_ROW_LABEL],
-      { encoding: 'utf8', timeout: 30_000 }
+      ['-l', 'JavaScript', WINDOW_LIST_JS, String(pid)],
+      { encoding: 'utf8', timeout: 15_000 }
     );
-    const line = `${(r.stdout ?? '').trim()} ${(r.stderr ?? '').trim()}`.trim();
-    say(`accessibility press, addressed to pid ${String(appPid)}: ${line}`);
-    let read = null;
+    if (r.status !== 0) return null;
     try {
-      read = JSON.parse((r.stdout ?? '').trim());
+      return JSON.parse((r.stdout ?? '').trim());
     } catch {
-      read = null;
+      return null;
     }
-    if (read !== null) {
-      if (read.found === true) menuSeenByAx = true;
-      if (read.pressed === true && read.closed === true) clickOk = true;
-    }
-    if (!clickOk) spawnSync('sleep', ['0.6']);
   }
-  menuSeen = menuSeenByCensus || menuSeenByAx;
-  if (clickOk) {
-    say('the named row was pressed through the accessibility interface and the menu closed');
-  } else {
-    // Close the menu the same addressed way, so the app can finish its run
-    // rather than sit under an open menu until the watchdog.
-    spawnSync(
-      'osascript',
-      ['-l', 'JavaScript', MENU_PRESS_JS, String(appPid), 'escape'],
-      { encoding: 'utf8', timeout: 30_000 }
+
+  let frontOk = null;
+  let menuSeen = false;
+  let appPid = null;
+  let beforeIds = null;
+
+  /**
+   * Runs on the first mark, while the driven window holds the frame and no
+   * menu exists yet. Raises the app and records the windows it owns, so the
+   * menu can be found as the one window the click adds.
+   */
+  function armTheCensus() {
+    appPid = guiPid();
+    let front = null;
+    for (let i = 0; i < 6; i++) {
+      spawnSync(
+        'osascript',
+        [
+          '-e',
+          `tell application "System Events" to set frontmost of (first process whose unix id is ${String(appPid)}) to true`
+        ],
+        { encoding: 'utf8', timeout: 10_000 }
+      );
+      spawnSync('sleep', ['0.4']);
+      front = frontmostPid();
+      if (front === appPid) break;
+    }
+    frontOk = front === appPid;
+    const before = windowsOf(appPid);
+    beforeIds = before === null ? null : new Set(before.map((w) => w.id));
+    say(
+      `the app owns ${before === null ? 'an unreadable number of' : String(before.length)} windows before any menu opens` +
+        (frontOk ? ', and it is in front' : ', and it is NOT in front')
     );
-    say('the row was never pressed, the menu was told to close, and the run will fail honestly');
   }
-}
 
-const HOLD_MARK = '[p1372] holding the frame';
-const MARK = '[p1372] menu opening';
-let seenHold = false;
-let seenMark = false;
-let text = '';
-const onText = (chunk) => {
-  process.stdout.write(chunk);
-  text += chunk;
-  if (!seenHold && text.includes(HOLD_MARK)) {
-    seenHold = true;
-    setTimeout(armTheCensus, 200);
+  /**
+   * Runs on the second mark, after the click. It presses the row THROUGH THE
+   * ACCESSIBILITY INTERFACE, addressed to the app's own pid, which is the
+   * script MENU_PRESS_JS above. Nothing here types system wide keystrokes,
+   * and nothing here types addressed keystrokes either: an earlier draft
+   * posted the letters of the label and Return to the app's pid, and a
+   * verifier photographed those keys running inside the scratch session's own
+   * terminal, because a posted key lands wherever the app's own focus sits
+   * while an AXPress can only fire the one named row.
+   *
+   * The window census is kept as evidence, not as a gate. A verifier's run
+   * saw no added window inside the old four second window while the menu was
+   * in fact open, so the press script does its own wait for the menu on the
+   * process and refuses by itself when there is none. Either sighting counts
+   * as the menu having been on screen, and the run says which one it got.
+   */
+  const CATCH_ROW_LABEL = 'Catch me up…';
+  let clickOk = false;
+  let menuSeenByCensus = false;
+  let menuSeenByAx = false;
+  function pressTheRow() {
+    if (appPid === null) {
+      say('the census never armed, so nothing is pressed and the run will fail honestly');
+      return;
+    }
+    if (beforeIds !== null) {
+      const deadline = Date.now() + 4000;
+      for (;;) {
+        const after = windowsOf(appPid);
+        if (after !== null) {
+          const added = after.filter((w) => !beforeIds.has(w.id));
+          if (added.length > 0) {
+            menuSeenByCensus = true;
+            added.sort((a, b) => b.layer - a.layer);
+            say(
+              `the menu's window is on screen, layer ${String(added[0].layer)}, ` +
+                `${String(added[0].w)} by ${String(added[0].h)} points`
+            );
+            break;
+          }
+        }
+        if (Date.now() >= deadline) break;
+      }
+    }
+    if (!menuSeenByCensus) {
+      say('the window census did not sight the menu, so the press script\'s own accessibility read is the sighting that counts');
+    }
+    for (let i = 0; i < 3 && !clickOk; i++) {
+      const r = spawnSync(
+        'osascript',
+        ['-l', 'JavaScript', MENU_PRESS_JS, String(appPid), 'select', CATCH_ROW_LABEL],
+        { encoding: 'utf8', timeout: 30_000 }
+      );
+      const line = `${(r.stdout ?? '').trim()} ${(r.stderr ?? '').trim()}`.trim();
+      say(`accessibility press, addressed to pid ${String(appPid)}: ${line}`);
+      let read = null;
+      try {
+        read = JSON.parse((r.stdout ?? '').trim());
+      } catch {
+        read = null;
+      }
+      if (read !== null) {
+        if (read.found === true) menuSeenByAx = true;
+        if (read.pressed === true && read.closed === true) clickOk = true;
+      }
+      if (!clickOk) spawnSync('sleep', ['0.6']);
+    }
+    menuSeen = menuSeenByCensus || menuSeenByAx;
+    if (clickOk) {
+      say('the named row was pressed through the accessibility interface and the menu closed');
+    } else {
+      // Close the menu the same addressed way, so the app can finish its run
+      // rather than sit under an open menu until the watchdog.
+      spawnSync(
+        'osascript',
+        ['-l', 'JavaScript', MENU_PRESS_JS, String(appPid), 'escape'],
+        { encoding: 'utf8', timeout: 30_000 }
+      );
+      say('the row was never pressed, the menu was told to close, and the run will fail honestly');
+    }
   }
-  if (!seenMark && text.includes(MARK)) {
-    seenMark = true;
-    setTimeout(pressTheRow, 900);
-  }
-};
-child.stdout.on('data', (b) => onText(b.toString()));
-child.stderr.on('data', (b) => onText(b.toString()));
 
-try {
-  await new Promise((r) => {
-    const watchdog = setTimeout(() => {
-      console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
-      child.kill('SIGTERM');
-      // An app wedged under an open native menu shrugs off SIGTERM, which a
-      // wedged run of this very probe measured, so the term escalates. The
-      // escalation takes the whole recorded tree, because a SIGKILL to the
-      // main pid alone orphans the helper processes.
-      setTimeout(() => {
-        if (child.pid !== undefined) killTree(child.pid);
-      }, 15_000);
-    }, 300_000);
-    child.on('error', (err) => {
-      clearTimeout(watchdog);
-      console.error(`${TAG} electron could not start: ${err.message}`);
-      r(1);
-    });
-    child.on('exit', (c) => {
-      clearTimeout(watchdog);
-      setTimeout(() => r(c ?? 1), 750);
-    });
-  });
-} finally {
-  // Whatever happened above, the Electron this run started is ended here,
-  // together with every process descended from it. Only the tree under the
-  // pid recorded at spawn is touched.
-  if (child.pid !== undefined) killTree(child.pid);
-}
-child.stdout.destroy();
-child.stderr.destroy();
+  const HOLD_MARK = '[p1372] holding the frame';
+  const MARK = '[p1372] menu opening';
+  let seenHold = false;
+  let seenMark = false;
+  let text = '';
+  const onText = (chunk) => {
+    process.stdout.write(chunk);
+    text += chunk;
+    if (!seenHold && text.includes(HOLD_MARK)) {
+      seenHold = true;
+      setTimeout(armTheCensus, 200);
+    }
+    if (!seenMark && text.includes(MARK)) {
+      seenMark = true;
+      setTimeout(pressTheRow, 900);
+    }
+  };
+  child.stdout.on('data', (b) => onText(b.toString()));
+  child.stderr.on('data', (b) => onText(b.toString()));
 
-// ---------------------------------------------------------------------------
-// Reading the evidence back
-// ---------------------------------------------------------------------------
-
-const marker = '[gmux-shot] probe ';
-const at = text.lastIndexOf(marker);
-let reading = null;
-if (at !== -1) {
-  const line = text.slice(at + marker.length).split('\n')[0] ?? '';
   try {
-    reading = JSON.parse(line);
-  } catch {
-    reading = null;
+    await new Promise((r) => {
+      const watchdog = setTimeout(() => {
+        console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
+        child.kill('SIGTERM');
+        // An app wedged under an open native menu shrugs off SIGTERM, which a
+        // wedged run of this very probe measured, so the term escalates. The
+        // escalation takes the whole recorded tree, because a SIGKILL to the
+        // main pid alone orphans the helper processes.
+        setTimeout(() => {
+          if (child.pid !== undefined) killTree(child.pid);
+        }, 15_000);
+      }, 300_000);
+      child.on('error', (err) => {
+        clearTimeout(watchdog);
+        console.error(`${TAG} electron could not start: ${err.message}`);
+        r(1);
+      });
+      child.on('exit', (c) => {
+        clearTimeout(watchdog);
+        setTimeout(() => r(c ?? 1), 750);
+      });
+    });
+  } finally {
+    // Whatever happened above, the Electron this run started is ended here,
+    // together with every process descended from it. Only the tree under the
+    // pid recorded at spawn is touched.
+    if (child.pid !== undefined) killTree(child.pid);
   }
-}
+  child.stdout.destroy();
+  child.stderr.destroy();
 
-const failures = [];
-const results = [];
-function check(step, claim, pass, detail) {
-  results.push({ step, claim, verdict: pass ? 'pass' : 'FAIL', detail });
-  if (!pass) failures.push(`${String(step)}. ${claim}. ${detail}`);
-}
+  // ---------------------------------------------------------------------------
+  // Reading the evidence back
+  // ---------------------------------------------------------------------------
 
-if (reading === null) {
-  failures.push('0. the drive printed no reading, so nothing was measured');
-} else {
+  const marker = '[gmux-shot] probe ';
+  const at = text.lastIndexOf(marker);
+  let reading = null;
+  if (at !== -1) {
+    const line = text.slice(at + marker.length).split('\n')[0] ?? '';
+    try {
+      reading = JSON.parse(line);
+    } catch {
+      reading = null;
+    }
+  }
+
+  const failures = [];
+  const results = [];
+  function check(step, claim, pass, detail) {
+    results.push({ step, claim, verdict: pass ? 'pass' : 'FAIL', detail });
+    if (!pass) failures.push(`${String(step)}. ${claim}. ${detail}`);
+  }
+
+  if (reading === null) {
+    failures.push('0. the drive printed no reading, so nothing was measured');
+  } else {
+    check(
+      1,
+      'the session was created and its row reached the screen',
+      typeof reading.id === 'string' && reading.rowOnScreen === true,
+      `id ${JSON.stringify(reading.id)}, row ${String(reading.rowOnScreen)}`
+    );
+    check(
+      2,
+      'the shipped ellipsis button was found by its accessible name',
+      reading.buttonFound === true,
+      `button ${String(reading.buttonFound)}`
+    );
+    check(
+      3,
+      'the Catch Me Up layer opened at the one session view naming that session',
+      reading.opened === true &&
+        typeof reading.headerTitle === 'string' &&
+        reading.headerTitle.includes(SESSION_NAME),
+      `opened ${String(reading.opened)}, header ${JSON.stringify(reading.headerTitle ?? null)}`
+    );
+  }
+
   check(
-    1,
-    'the session was created and its row reached the screen',
-    typeof reading.id === 'string' && reading.rowOnScreen === true,
-    `id ${JSON.stringify(reading.id)}, row ${String(reading.rowOnScreen)}`
+    4,
+    'the click put a real native menu on screen before anything was pressed',
+    menuSeen === true,
+    `window census ${String(menuSeenByCensus)}, accessibility read ${String(menuSeenByAx)}`
   );
   check(
-    2,
-    'the shipped ellipsis button was found by its accessible name',
-    reading.buttonFound === true,
-    `button ${String(reading.buttonFound)}`
+    5,
+    'the accessibility press, addressed to the named row alone, landed and closed the menu',
+    clickOk === true,
+    `press ${String(clickOk)}, frontmost during the raise ${String(frontOk)}`
   );
   check(
-    3,
-    'the Catch Me Up layer opened at the one session view naming that session',
-    reading.opened === true &&
-      typeof reading.headerTitle === 'string' &&
-      reading.headerTitle.includes(SESSION_NAME),
-    `opened ${String(reading.opened)}, header ${JSON.stringify(reading.headerTitle ?? null)}`
+    6,
+    'the landing photograph was written by the harness itself',
+    existsSync(landingShot) && statSync(landingShot).size > 0,
+    existsSync(landingShot) ? `${String(statSync(landingShot).size)} bytes -> ${landingShot}` : 'missing'
   );
-}
 
-check(
-  4,
-  'the click put a real native menu on screen before anything was pressed',
-  menuSeen === true,
-  `window census ${String(menuSeenByCensus)}, accessibility read ${String(menuSeenByAx)}`
-);
-check(
-  5,
-  'the accessibility press, addressed to the named row alone, landed and closed the menu',
-  clickOk === true,
-  `press ${String(clickOk)}, frontmost during the raise ${String(frontOk)}`
-);
-check(
-  6,
-  'the landing photograph was written by the harness itself',
-  existsSync(landingShot) && statSync(landingShot).size > 0,
-  existsSync(landingShot) ? `${String(statSync(landingShot).size)} bytes -> ${landingShot}` : 'missing'
-);
-
-const operatorAfter = operatorSessionCount();
-check(
-  7,
-  "the operator's session count did not move",
-  operatorAfter === operatorBefore,
-  `${String(operatorBefore)} before, ${String(operatorAfter)} after`
-);
-
-say('');
-say('  step  verdict  claim');
-for (const r of results) {
-  say(
-    `  ${String(r.step).padStart(4)}  ${r.verdict.padEnd(7)}  ${r.claim}. ${r.detail}`
+  const operatorAfter = operatorSessionCount();
+  check(
+    7,
+    "the operator's session count did not move",
+    operatorAfter === operatorBefore,
+    `${String(operatorBefore)} before, ${String(operatorAfter)} after`
   );
-}
-say('');
-say(`landing photograph: ${landingShot}`);
-rmSync(root, { recursive: true, force: true });
 
-if (failures.length > 0) {
-  console.error(`${TAG} FAIL`);
-  for (const f of failures) console.error(`${TAG}   ${f}`);
-  process.exit(1);
-}
-say('PASS');
+  say('');
+  say('  step  verdict  claim');
+  for (const r of results) {
+    say(
+      `  ${String(r.step).padStart(4)}  ${r.verdict.padEnd(7)}  ${r.claim}. ${r.detail}`
+    );
+  }
+  say('');
+  say(`landing photograph: ${landingShot}`);
+  rmSync(root, { recursive: true, force: true });
+
+  if (failures.length > 0) {
+    console.error(`${TAG} FAIL`);
+    for (const f of failures) console.error(`${TAG}   ${f}`);
+    process.exit(1);
+  }
+  say('PASS');
+});

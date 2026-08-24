@@ -45,7 +45,7 @@
  * Every scratch file carries a `p94-` prefix.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -56,6 +56,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { runElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p94hotkey]';
@@ -134,59 +136,30 @@ const REFUSAL =
 // One run of the app
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const shotPath = join(scratch, 'p94-hotkey.png');
 rmSync(shotPath, { force: true });
 
-const child = spawn(
-  electronBin,
-  ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-  {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      GMUX_SHOT: shotPath,
-      GMUX_SHOT_VERBOSE: '1',
-      GMUX_SHOT_DELAY_MS: '6000',
-      GMUX_SHOT_DRIVE: JSON.stringify({ projectPath: project }),
-      GMUX_SHOT_JS: `window.__gmuxP94CreateProbe(${JSON.stringify({
-        machineId: MACHINE_ID,
-        label: LABEL,
-        farPath: FAR_PATH,
-        settleMs: 2500
-      })})`
-    }
-  }
-);
-
-let text = '';
-const onText = (chunk) => {
-  process.stdout.write(chunk);
-  text += chunk;
-};
-child.stdout.on('data', (b) => onText(b.toString()));
-child.stderr.on('data', (b) => onText(b.toString()));
-
-const code = await new Promise((r) => {
-  const watchdog = setTimeout(() => {
-    console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
-    child.kill('SIGTERM');
-  }, 180_000);
-  child.on('error', (err) => {
-    clearTimeout(watchdog);
-    console.error(`${TAG} electron could not start: ${err.message}`);
-    r(1);
-  });
-  child.on('exit', (c) => {
-    clearTimeout(watchdog);
-    setTimeout(() => r(c ?? 1), 750);
-  });
+const { code, text } = await runElectron({
+  label: 'p94-hotkey',
+  userDataDir: profile,
+  cwd: repoRoot,
+  env: {
+    ...process.env,
+    GMUX_SHOT: shotPath,
+    GMUX_SHOT_VERBOSE: '1',
+    GMUX_SHOT_DELAY_MS: '6000',
+    GMUX_SHOT_DRIVE: JSON.stringify({ projectPath: project }),
+    GMUX_SHOT_JS: `window.__gmuxP94CreateProbe(${JSON.stringify({
+      machineId: MACHINE_ID,
+      label: LABEL,
+      farPath: FAR_PATH,
+      settleMs: 2500
+    })})`
+  },
+  ceilingMs: 180_000,
+  settleMs: 750,
+  echo: true
 });
-// The app starts a tmux server that inherits these two pipes, so they are
-// destroyed by hand. Without this node never exits. See the same note in
-// build/probe-remote-project.mjs.
-child.stdout.destroy();
-child.stderr.destroy();
 
 const marker = '[gmux-shot] probe ';
 const at = text.lastIndexOf(marker);

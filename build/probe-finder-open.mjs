@@ -54,7 +54,7 @@
  *   node build/probe-finder-open.mjs [--keep] [--skip-build]
  */
 
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   existsSync,
@@ -70,6 +70,8 @@ import { connect as netConnect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const keep = process.argv.includes('--keep');
@@ -207,7 +209,6 @@ const electronApp = join(
   'Electron.app'
 );
 const electronMainBinary = join(electronApp, 'Contents', 'MacOS', 'Electron');
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const profile = join(root, 'profile');
 const repo = join(root, 'repo');
 const plain = join(root, 'plain');
@@ -579,357 +580,353 @@ for (const name of [
 }
 
 const holderOut = openSync(holderLogPath, 'w');
-const holder = spawn(
-  electronBin,
-  [
-    '.',
-    `--user-data-dir=${profile}`,
-    '--remote-debugging-port=0',
-    '-ApplePersistenceIgnoreState',
-    'YES'
-  ],
+await withElectron(
   {
+    label: 'finder-open',
+    userDataDir: profile,
     cwd: repoRoot,
-    env: { ...process.env, GMUX_UPDATE_REHEARSAL: '1' },
-    stdio: ['ignore', holderOut, holderOut]
-  }
-);
-console.log(`[probe:finderopen] holder pid ${holder.pid} (recorded)`);
-recordedPids.add(holder.pid);
+    args: ['--remote-debugging-port=0'],
+    env: { ...process.env, GMUX_UPDATE_REHEARSAL: '1' }
+  },
+  async (handle) => {
+  const holder = handle.child;
+  console.log(`[probe:finderopen] holder pid ${holder.pid} (recorded)`);
+  recordedPids.add(holder.pid);
 
-let holderExited = false;
-holder.on('exit', () => {
-  holderExited = true;
-});
+  let holderExited = false;
+  holder.on('exit', () => {
+    holderExited = true;
+  });
 
-let cdp = null;
-try {
-  cdp = await cdpAttach(90_000);
-  // Let boot settle: the renderer exists once CDP answers, and the manifest
-  // appears when the core is up. The session baseline on the probe's own
-  // socket is taken BEFORE any open, so leg 6 can prove the opens created
-  // nothing.
-  await waitFor('boot: manifest exists', 60_000, () =>
-    existsSync(join(profile, 'gmux', 'manifest.db'))
-  );
-  const socketSessionsBefore = probeSocketSessions();
-  const pidsBaseline = devElectronPids();
-
-  // Leg 1, FOLDER: the repository directory becomes a project row.
-  if (deliverOpen('leg 1 (folder)', repo, pidsBaseline)) {
-    await waitFor('leg 1 (folder): manifest row for the repo', 30_000, () =>
-      manifestProjectPaths().includes(repo)
+  let cdp = null;
+  try {
+    cdp = await cdpAttach(90_000);
+    // Let boot settle: the renderer exists once CDP answers, and the manifest
+    // appears when the core is up. The session baseline on the probe's own
+    // socket is taken BEFORE any open, so leg 6 can prove the opens created
+    // nothing.
+    await waitFor('boot: manifest exists', 60_000, () =>
+      existsSync(join(profile, 'gmux', 'manifest.db'))
     );
-    await screenshot(cdp, 'p61-finder-1-folder.png');
-  }
+    const socketSessionsBefore = probeSocketSessions();
+    const pidsBaseline = devElectronPids();
 
-  // Leg 2, GIT ROOT: a file two levels deep. The project is the repository
-  // root, never sub/dir, and the tab is the markdown file, pinned.
-  if (deliverOpen('leg 2 (git root)', readmePath, pidsBaseline)) {
-    await waitFor('leg 2 (git root): readme.md is the active tab', 30_000, () =>
-      cdpEval(
-        cdp,
-        `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'readme.md'`
-      )
-    );
-    const rows = manifestProjectPaths();
-    if (rows.includes(join(repo, 'sub', 'dir')) || rows.includes(join(repo, 'sub'))) {
-      failures.push(
-        'leg 2 (git root): the manifest gained a row for the directory of ' +
-          'the file instead of the repository root'
+    // Leg 1, FOLDER: the repository directory becomes a project row.
+    if (deliverOpen('leg 1 (folder)', repo, pidsBaseline)) {
+      await waitFor('leg 1 (folder): manifest row for the repo', 30_000, () =>
+        manifestProjectPaths().includes(repo)
       );
+      await screenshot(cdp, 'p61-finder-1-folder.png');
     }
-    if (!appLogText().includes(`opening file from Finder: ${readmePath} (project ${repo})`)) {
-      failures.push('leg 2 (git root): the arrival log line is missing');
-    }
-    const previewTab = await cdpEval(
-      cdp,
-      `!!document.querySelector('.ed-tab.active .ed-tab-name.preview')`
-    );
-    if (previewTab === true) {
-      failures.push('leg 2 (git root): the tab opened as a preview, not pinned');
-    }
-    await screenshot(cdp, 'p61-finder-2-gitroot.png');
-  }
 
-  // Leg 3, FALLBACK: no repository above notes.txt, so its parent folder is
-  // the project.
-  if (deliverOpen('leg 3 (fallback)', notesPath, pidsBaseline)) {
-    await waitFor('leg 3 (fallback): manifest row for the plain folder', 30_000, () =>
-      manifestProjectPaths().includes(plain)
-    );
-    await waitFor('leg 3 (fallback): notes.txt is the active tab', 30_000, () =>
-      cdpEval(
-        cdp,
-        `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'notes.txt'`
-      )
-    );
-    if (
-      !appLogText().includes(
-        `opening file from Finder: ${notesPath} (no git repository above it, ` +
-          `so the project is its parent folder ${plain})`
-      )
-    ) {
-      failures.push('leg 3 (fallback): the parent-folder log line is missing');
-    }
-    await screenshot(cdp, 'p61-finder-3-fallback.png');
-  }
-
-  // Leg 4, IMAGE: the png opens the image viewer.
-  if (deliverOpen('leg 4 (image)', picPath, pidsBaseline)) {
-    await waitFor('leg 4 (image): the image viewer is showing', 30_000, () =>
-      cdpEval(
-        cdp,
-        `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'pic.png'` +
-          ` && !!document.querySelector('.ed-body img')`
-      )
-    );
-    await screenshot(cdp, 'p61-finder-4-image.png');
-  }
-
-  // Leg 5, BINARY: forced through. The project is already open; the tab
-  // shows the existing no-viewer sentence, and main logged the one arrival
-  // line naming the reason.
-  if (deliverOpen('leg 5 (binary)', blobPath, pidsBaseline)) {
-    await waitFor('leg 5 (binary): the no-viewer sentence is showing', 30_000, () =>
-      cdpEval(
-        cdp,
-        `((document.querySelector('.ed-state-body')||{}).textContent||'')` +
-          `.includes('is a binary file')`
-      )
-    );
-    if (
-      !appLogText().includes(
-        `opening file from Finder: ${blobPath} (Tortie has no viewer for ` +
-          'this file type, so its tab will say so)'
-      )
-    ) {
-      failures.push('leg 5 (binary): the no-viewer arrival log line is missing');
-    }
-    await screenshot(cdp, 'p61-finder-5-binary.png');
-  }
-
-  // Leg 7, LAST FILE WINS (Phase 62.1): a.md then b.md, back to back with
-  // no sleep between them, ten rounds. The renderer's serial pull queue
-  // must land focus on b.md, the LAST delivered file, every round. When
-  // both arrivals land before the first pull, the main-side slot holds
-  // only b.md and a.md never opens a tab; that is the pending-slot
-  // semantics this phase does not change, so how many tabs opened is
-  // REPORTED and the ACTIVE tab is the assertion.
-  {
-    const aPath = join(race, 'a.md');
-    const bPath = join(race, 'b.md');
-    const ROUNDS = 10;
-    /** How long a round waits past the first sighting before re-reading. */
-    const SETTLE_MS = 2000;
-    const bothTabsExpr =
-      `(() => { const names = [...document.querySelectorAll('.ed-tab .ed-tab-name')]` +
-      `.map((e) => e.textContent); ` +
-      `return names.includes('a.md') && names.includes('b.md'); })()`;
-    const activeIsBExpr =
-      `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'b.md'`;
-    const paneShowsBExpr =
-      `(() => { const body = document.querySelector('.ed-body'); ` +
-      `const text = body ? body.innerText : ''; ` +
-      `return text.includes('MARKER-B-LAST') && !text.includes('MARKER-A-FIRST'); })()`;
-    // One close click per poll until the strip is empty. Run before every
-    // round, so round one also clears the tabs legs 2 to 5 left open.
-    const closeOneExpr =
-      `(() => { const btn = document.querySelector('.ed-tab-close'); ` +
-      `if (btn) btn.click(); ` +
-      `return document.querySelectorAll('.ed-tab').length === 0; })()`;
-    let greenRounds = 0;
-    for (let round = 1; round <= ROUNDS; round += 1) {
-      const label = `leg 7 (last file wins) round ${round}`;
-      const cleared = await waitFor(`${label}: the tab strip is empty`, 20_000, () =>
-        cdpEval(cdp, closeOneExpr)
-      );
-      if (cleared === null) break;
-      if (!deliverOpen(`${label} a.md`, aPath, pidsBaseline)) break;
-      if (!deliverOpen(`${label} b.md`, bPath, pidsBaseline)) break;
-      const active = await waitFor(`${label}: the active tab is b.md`, 30_000, () =>
-        cdpEval(cdp, activeIsBExpr)
-      );
-      if (active === null) break;
-      // Read the tab count AFTER the active assertion, once, with no wait.
-      // The serial queue emits a's open strictly before b's, so by the time
-      // b.md is active, a.md's tab already exists if a.md was ever taken.
-      // A missing a.md tab therefore means the two arrivals coalesced in the
-      // main-side slot, which is a legitimate outcome and not a failure.
-      const bothTabs = (await cdpEval(cdp, bothTabsExpr)) === true;
-      const witness = await waitFor(
-        `${label}: the pane shows b.md's own sentence and not a.md's`,
-        15_000,
-        () => cdpEval(cdp, paneShowsBExpr)
-      );
-      if (witness === null) break;
-      // The settle re-read, and it is the part that makes the leg honest.
-      // A first sighting is not enough on its own. Under the defect this
-      // leg pins, b.md's open emitted first and a.md's emitted a moment
-      // later, so b.md WAS briefly the active tab before a.md stole it. A
-      // poll that stopped at the first sighting would report that run as
-      // green. So the leg waits past any late emission and reads the same
-      // two facts once more, and a round is green only if they still hold.
-      await sleep(SETTLE_MS);
-      const stillActive = (await cdpEval(cdp, activeIsBExpr)) === true;
-      const stillShowing = (await cdpEval(cdp, paneShowsBExpr)) === true;
-      if (!stillActive || !stillShowing) {
-        const name = await cdpEval(
+    // Leg 2, GIT ROOT: a file two levels deep. The project is the repository
+    // root, never sub/dir, and the tab is the markdown file, pinned.
+    if (deliverOpen('leg 2 (git root)', readmePath, pidsBaseline)) {
+      await waitFor('leg 2 (git root): readme.md is the active tab', 30_000, () =>
+        cdpEval(
           cdp,
-          `((document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent||'none')`
-        );
+          `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'readme.md'`
+        )
+      );
+      const rows = manifestProjectPaths();
+      if (rows.includes(join(repo, 'sub', 'dir')) || rows.includes(join(repo, 'sub'))) {
         failures.push(
-          `${label}: b.md was the active tab, then lost it ${SETTLE_MS} ms ` +
-            `later. The active tab is now ${name}. A later open emitted ` +
-            'after the last delivered file, which is the ordering defect ' +
-            'this leg exists to catch.'
+          'leg 2 (git root): the manifest gained a row for the directory of ' +
+            'the file instead of the repository root'
         );
-        break;
+      }
+      if (!appLogText().includes(`opening file from Finder: ${readmePath} (project ${repo})`)) {
+        failures.push('leg 2 (git root): the arrival log line is missing');
+      }
+      const previewTab = await cdpEval(
+        cdp,
+        `!!document.querySelector('.ed-tab.active .ed-tab-name.preview')`
+      );
+      if (previewTab === true) {
+        failures.push('leg 2 (git root): the tab opened as a preview, not pinned');
+      }
+      await screenshot(cdp, 'p61-finder-2-gitroot.png');
+    }
+
+    // Leg 3, FALLBACK: no repository above notes.txt, so its parent folder is
+    // the project.
+    if (deliverOpen('leg 3 (fallback)', notesPath, pidsBaseline)) {
+      await waitFor('leg 3 (fallback): manifest row for the plain folder', 30_000, () =>
+        manifestProjectPaths().includes(plain)
+      );
+      await waitFor('leg 3 (fallback): notes.txt is the active tab', 30_000, () =>
+        cdpEval(
+          cdp,
+          `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'notes.txt'`
+        )
+      );
+      if (
+        !appLogText().includes(
+          `opening file from Finder: ${notesPath} (no git repository above it, ` +
+            `so the project is its parent folder ${plain})`
+        )
+      ) {
+        failures.push('leg 3 (fallback): the parent-folder log line is missing');
+      }
+      await screenshot(cdp, 'p61-finder-3-fallback.png');
+    }
+
+    // Leg 4, IMAGE: the png opens the image viewer.
+    if (deliverOpen('leg 4 (image)', picPath, pidsBaseline)) {
+      await waitFor('leg 4 (image): the image viewer is showing', 30_000, () =>
+        cdpEval(
+          cdp,
+          `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'pic.png'` +
+            ` && !!document.querySelector('.ed-body img')`
+        )
+      );
+      await screenshot(cdp, 'p61-finder-4-image.png');
+    }
+
+    // Leg 5, BINARY: forced through. The project is already open; the tab
+    // shows the existing no-viewer sentence, and main logged the one arrival
+    // line naming the reason.
+    if (deliverOpen('leg 5 (binary)', blobPath, pidsBaseline)) {
+      await waitFor('leg 5 (binary): the no-viewer sentence is showing', 30_000, () =>
+        cdpEval(
+          cdp,
+          `((document.querySelector('.ed-state-body')||{}).textContent||'')` +
+            `.includes('is a binary file')`
+        )
+      );
+      if (
+        !appLogText().includes(
+          `opening file from Finder: ${blobPath} (Tortie has no viewer for ` +
+            'this file type, so its tab will say so)'
+        )
+      ) {
+        failures.push('leg 5 (binary): the no-viewer arrival log line is missing');
+      }
+      await screenshot(cdp, 'p61-finder-5-binary.png');
+    }
+
+    // Leg 7, LAST FILE WINS (Phase 62.1): a.md then b.md, back to back with
+    // no sleep between them, ten rounds. The renderer's serial pull queue
+    // must land focus on b.md, the LAST delivered file, every round. When
+    // both arrivals land before the first pull, the main-side slot holds
+    // only b.md and a.md never opens a tab; that is the pending-slot
+    // semantics this phase does not change, so how many tabs opened is
+    // REPORTED and the ACTIVE tab is the assertion.
+    {
+      const aPath = join(race, 'a.md');
+      const bPath = join(race, 'b.md');
+      const ROUNDS = 10;
+      /** How long a round waits past the first sighting before re-reading. */
+      const SETTLE_MS = 2000;
+      const bothTabsExpr =
+        `(() => { const names = [...document.querySelectorAll('.ed-tab .ed-tab-name')]` +
+        `.map((e) => e.textContent); ` +
+        `return names.includes('a.md') && names.includes('b.md'); })()`;
+      const activeIsBExpr =
+        `(document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent === 'b.md'`;
+      const paneShowsBExpr =
+        `(() => { const body = document.querySelector('.ed-body'); ` +
+        `const text = body ? body.innerText : ''; ` +
+        `return text.includes('MARKER-B-LAST') && !text.includes('MARKER-A-FIRST'); })()`;
+      // One close click per poll until the strip is empty. Run before every
+      // round, so round one also clears the tabs legs 2 to 5 left open.
+      const closeOneExpr =
+        `(() => { const btn = document.querySelector('.ed-tab-close'); ` +
+        `if (btn) btn.click(); ` +
+        `return document.querySelectorAll('.ed-tab').length === 0; })()`;
+      let greenRounds = 0;
+      for (let round = 1; round <= ROUNDS; round += 1) {
+        const label = `leg 7 (last file wins) round ${round}`;
+        const cleared = await waitFor(`${label}: the tab strip is empty`, 20_000, () =>
+          cdpEval(cdp, closeOneExpr)
+        );
+        if (cleared === null) break;
+        if (!deliverOpen(`${label} a.md`, aPath, pidsBaseline)) break;
+        if (!deliverOpen(`${label} b.md`, bPath, pidsBaseline)) break;
+        const active = await waitFor(`${label}: the active tab is b.md`, 30_000, () =>
+          cdpEval(cdp, activeIsBExpr)
+        );
+        if (active === null) break;
+        // Read the tab count AFTER the active assertion, once, with no wait.
+        // The serial queue emits a's open strictly before b's, so by the time
+        // b.md is active, a.md's tab already exists if a.md was ever taken.
+        // A missing a.md tab therefore means the two arrivals coalesced in the
+        // main-side slot, which is a legitimate outcome and not a failure.
+        const bothTabs = (await cdpEval(cdp, bothTabsExpr)) === true;
+        const witness = await waitFor(
+          `${label}: the pane shows b.md's own sentence and not a.md's`,
+          15_000,
+          () => cdpEval(cdp, paneShowsBExpr)
+        );
+        if (witness === null) break;
+        // The settle re-read, and it is the part that makes the leg honest.
+        // A first sighting is not enough on its own. Under the defect this
+        // leg pins, b.md's open emitted first and a.md's emitted a moment
+        // later, so b.md WAS briefly the active tab before a.md stole it. A
+        // poll that stopped at the first sighting would report that run as
+        // green. So the leg waits past any late emission and reads the same
+        // two facts once more, and a round is green only if they still hold.
+        await sleep(SETTLE_MS);
+        const stillActive = (await cdpEval(cdp, activeIsBExpr)) === true;
+        const stillShowing = (await cdpEval(cdp, paneShowsBExpr)) === true;
+        if (!stillActive || !stillShowing) {
+          const name = await cdpEval(
+            cdp,
+            `((document.querySelector('.ed-tab.active .ed-tab-name')||{}).textContent||'none')`
+          );
+          failures.push(
+            `${label}: b.md was the active tab, then lost it ${SETTLE_MS} ms ` +
+              `later. The active tab is now ${name}. A later open emitted ` +
+              'after the last delivered file, which is the ordering defect ' +
+              'this leg exists to catch.'
+          );
+          break;
+        }
+        console.log(
+          `[probe:finderopen] ${label}: active tab b.md, pane shows b.md, ` +
+            `still true after ${SETTLE_MS} ms` +
+            `${bothTabs ? ', both tabs present' : ', only b.md opened (both arrivals landed before the first pull)'}`
+        );
+        if (round === 1) {
+          await screenshot(cdp, 'p62.1-last-file-wins.png');
+        }
+        greenRounds += 1;
       }
       console.log(
-        `[probe:finderopen] ${label}: active tab b.md, pane shows b.md, ` +
-          `still true after ${SETTLE_MS} ms` +
-          `${bothTabs ? ', both tabs present' : ', only b.md opened (both arrivals landed before the first pull)'}`
+        `[probe:finderopen] leg 7 (last file wins): ${greenRounds} of ${ROUNDS} rounds green`
       );
-      if (round === 1) {
-        await screenshot(cdp, 'p62.1-last-file-wins.png');
+      if (greenRounds < ROUNDS && failures.length === 0) {
+        failures.push(
+          `leg 7 (last file wins): only ${greenRounds} of ${ROUNDS} rounds ran green`
+        );
       }
-      greenRounds += 1;
-    }
-    console.log(
-      `[probe:finderopen] leg 7 (last file wins): ${greenRounds} of ${ROUNDS} rounds green`
-    );
-    if (greenRounds < ROUNDS && failures.length === 0) {
-      failures.push(
-        `leg 7 (last file wins): only ${greenRounds} of ${ROUNDS} rounds ran green`
-      );
-    }
 
-    // Leg 7b, THE COALESCING PATH. Leg 7 above never reaches it: its two
-    // `open -a` calls are far enough apart that the renderer pulls the first
-    // file before the second arrives, so the main-side slot is always empty
-    // when the second lands and the drop line is never written. This leg
-    // hands macOS both files in one call, so both arrivals land in the same
-    // turn, the second replaces the first in the slot whole, and main writes
-    // "a newer shell open replaced a pending one". Then b.md is the only tab
-    // and it is active. That is the pending-slot semantics this phase does
-    // not change, proven live instead of by unit test alone.
-    if (failures.length === 0) {
-      const label = 'leg 7b (both files in one open)';
-      const cleared = await waitFor(
-        `${label}: the tab strip is empty`,
-        20_000,
-        () => cdpEval(cdp, closeOneExpr)
-      );
-      if (cleared !== null) {
-        const dropsBefore = (
-          appLogText().match(/a newer shell open replaced a pending one/g) ?? []
-        ).length;
-        if (deliverOpenTogether(label, [aPath, bPath], pidsBaseline)) {
-          const active = await waitFor(
-            `${label}: the active tab is b.md`,
-            30_000,
-            () => cdpEval(cdp, activeIsBExpr)
-          );
-          if (active !== null) {
-            await sleep(SETTLE_MS);
-            const stillActive = (await cdpEval(cdp, activeIsBExpr)) === true;
-            const dropsAfter = (
-              appLogText().match(
-                /a newer shell open replaced a pending one/g
-              ) ?? []
-            ).length;
-            const drops = dropsAfter - dropsBefore;
-            const tabNames = await cdpEval(
-              cdp,
-              `[...document.querySelectorAll('.ed-tab .ed-tab-name')].map((e) => e.textContent).join(',')`
+      // Leg 7b, THE COALESCING PATH. Leg 7 above never reaches it: its two
+      // `open -a` calls are far enough apart that the renderer pulls the first
+      // file before the second arrives, so the main-side slot is always empty
+      // when the second lands and the drop line is never written. This leg
+      // hands macOS both files in one call, so both arrivals land in the same
+      // turn, the second replaces the first in the slot whole, and main writes
+      // "a newer shell open replaced a pending one". Then b.md is the only tab
+      // and it is active. That is the pending-slot semantics this phase does
+      // not change, proven live instead of by unit test alone.
+      if (failures.length === 0) {
+        const label = 'leg 7b (both files in one open)';
+        const cleared = await waitFor(
+          `${label}: the tab strip is empty`,
+          20_000,
+          () => cdpEval(cdp, closeOneExpr)
+        );
+        if (cleared !== null) {
+          const dropsBefore = (
+            appLogText().match(/a newer shell open replaced a pending one/g) ?? []
+          ).length;
+          if (deliverOpenTogether(label, [aPath, bPath], pidsBaseline)) {
+            const active = await waitFor(
+              `${label}: the active tab is b.md`,
+              30_000,
+              () => cdpEval(cdp, activeIsBExpr)
             );
-            console.log(
-              `[probe:finderopen] ${label}: active tab b.md (still true after ${SETTLE_MS} ms: ${stillActive}), ` +
-                `tabs [${tabNames}], drop lines this leg: ${drops}`
-            );
-            if (!stillActive) {
-              failures.push(
-                `${label}: b.md was the active tab and then lost it ${SETTLE_MS} ms later. Tabs: ${tabNames}`
+            if (active !== null) {
+              await sleep(SETTLE_MS);
+              const stillActive = (await cdpEval(cdp, activeIsBExpr)) === true;
+              const dropsAfter = (
+                appLogText().match(
+                  /a newer shell open replaced a pending one/g
+                ) ?? []
+              ).length;
+              const drops = dropsAfter - dropsBefore;
+              const tabNames = await cdpEval(
+                cdp,
+                `[...document.querySelectorAll('.ed-tab .ed-tab-name')].map((e) => e.textContent).join(',')`
               );
-            }
-            if (drops < 1) {
-              failures.push(
-                `${label}: main never wrote "a newer shell open replaced a pending one", ` +
-                  'so the two arrivals did not coalesce and this leg proved nothing. ' +
-                  'Both files were handed to one `open -a` call, so they should have landed in one turn.'
+              console.log(
+                `[probe:finderopen] ${label}: active tab b.md (still true after ${SETTLE_MS} ms: ${stillActive}), ` +
+                  `tabs [${tabNames}], drop lines this leg: ${drops}`
               );
+              if (!stillActive) {
+                failures.push(
+                  `${label}: b.md was the active tab and then lost it ${SETTLE_MS} ms later. Tabs: ${tabNames}`
+                );
+              }
+              if (drops < 1) {
+                failures.push(
+                  `${label}: main never wrote "a newer shell open replaced a pending one", ` +
+                    'so the two arrivals did not coalesce and this leg proved nothing. ' +
+                    'Both files were handed to one `open -a` call, so they should have landed in one turn.'
+                );
+              }
             }
           }
         }
       }
     }
-  }
 
-  // Leg 6, THE CAP: no open started anything. Zero session rows, and the
-  // probe's own tmux socket shows nothing the opens created.
-  const sessionRows = manifestSessionCount();
-  if (sessionRows !== 0) {
-    failures.push(
-      `leg 6 (the cap): the manifest session table holds ${sessionRows} rows, expected 0`
-    );
-  }
-  const socketSessionsAfter = probeSocketSessions();
-  // `gmux-control` is the app's own pinned control session
-  // (src/main/tmux/control-client.ts, CONTROL_SESSION_NAME). The supervisor
-  // creates it at boot to carry the tmux control stream, and it can appear at
-  // any point after launch, so whether it is in the baseline depends only on
-  // how fast the app booted. It is never something a file open created, so it
-  // is excluded by name rather than left to make this leg flaky.
-  const created = socketSessionsAfter.filter(
-    (s) => !socketSessionsBefore.includes(s) && s.trim() !== 'gmux-control'
-  );
-  if (created.length > 0) {
-    failures.push(
-      `leg 6 (the cap): the opens created tmux sessions: ${created.join(', ')}`
-    );
-  }
-  if (holderExited) {
-    failures.push('the holder exited before the run finished');
-  }
-} catch (err) {
-  failures.push(`the run stopped early: ${err.message}`);
-} finally {
-  cdp?.close();
-  // Kill ONLY the recorded pid. SIGTERM first so the holder quits cleanly;
-  // SIGKILL after 15 s only if it wedged. harness-socket ends the scratch
-  // tmux server after this process exits.
-  if (!holderExited && holder.pid !== undefined) {
-    try {
-      holder.kill('SIGTERM');
-    } catch {
-      // Already gone.
+    // Leg 6, THE CAP: no open started anything. Zero session rows, and the
+    // probe's own tmux socket shows nothing the opens created.
+    const sessionRows = manifestSessionCount();
+    if (sessionRows !== 0) {
+      failures.push(
+        `leg 6 (the cap): the manifest session table holds ${sessionRows} rows, expected 0`
+      );
     }
-    const deadline = Date.now() + 15_000;
-    while (!holderExited && Date.now() < deadline) {
-      await sleep(250);
+    const socketSessionsAfter = probeSocketSessions();
+    // `gmux-control` is the app's own pinned control session
+    // (src/main/tmux/control-client.ts, CONTROL_SESSION_NAME). The supervisor
+    // creates it at boot to carry the tmux control stream, and it can appear at
+    // any point after launch, so whether it is in the baseline depends only on
+    // how fast the app booted. It is never something a file open created, so it
+    // is excluded by name rather than left to make this leg flaky.
+    const created = socketSessionsAfter.filter(
+      (s) => !socketSessionsBefore.includes(s) && s.trim() !== 'gmux-control'
+    );
+    if (created.length > 0) {
+      failures.push(
+        `leg 6 (the cap): the opens created tmux sessions: ${created.join(', ')}`
+      );
     }
-    if (!holderExited) {
-      console.error('[probe:finderopen] holder did not quit in 15 s; SIGKILL');
+    if (holderExited) {
+      failures.push('the holder exited before the run finished');
+    }
+  } catch (err) {
+    failures.push(`the run stopped early: ${err.message}`);
+  } finally {
+    cdp?.close();
+    // Kill ONLY the recorded pid. SIGTERM first so the holder quits cleanly;
+    // SIGKILL after 15 s only if it wedged. harness-socket ends the scratch
+    // tmux server after this process exits.
+    if (!holderExited && holder.pid !== undefined) {
       try {
-        holder.kill('SIGKILL');
+        holder.kill('SIGTERM');
       } catch {
         // Already gone.
       }
+      const deadline = Date.now() + 15_000;
+      while (!holderExited && Date.now() < deadline) {
+        await sleep(250);
+      }
+      if (!holderExited) {
+        console.error('[probe:finderopen] holder did not quit in 15 s; SIGKILL');
+        try {
+          holder.kill('SIGKILL');
+        } catch {
+          // Already gone.
+        }
+      }
     }
   }
-}
 
-if (failures.length > 0) {
-  console.error('');
-  for (const failure of failures) {
-    console.error(`[probe:finderopen] FAIL ${failure}`);
+  if (failures.length > 0) {
+    console.error('');
+    for (const failure of failures) {
+      console.error(`[probe:finderopen] FAIL ${failure}`);
+    }
+    console.error(`[probe:finderopen] holder log: ${holderLogPath}`);
+    console.error(`[probe:finderopen] app log: ${appLogPath}`);
+    process.exit(1);
   }
-  console.error(`[probe:finderopen] holder log: ${holderLogPath}`);
-  console.error(`[probe:finderopen] app log: ${appLogPath}`);
-  process.exit(1);
-}
-console.log(
-  '[probe:finderopen] PASS: folder, git root, fallback, image, binary, ' +
-    'last-file and coalescing legs all delivered, and the cap held'
-);
+  console.log(
+    '[probe:finderopen] PASS: folder, git root, fallback, image, binary, ' +
+      'last-file and coalescing legs all delivered, and the cap held'
+  );
+});

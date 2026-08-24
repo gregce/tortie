@@ -69,10 +69,12 @@
  * Exit code 0 when every reading matches the target. 1 otherwise.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = join('/tmp', `p130-spacing-${String(process.pid)}`);
@@ -138,53 +140,53 @@ writeFileSync(
 // ---------------------------------------------------------------------------
 
 function driveSettings({ shot, js, timeoutMs = 150_000 }) {
-  return new Promise((done) => {
-    const child = spawn(
-      'npx',
-      ['electron', '.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-      {
-        cwd: repoRoot,
-        env: {
-          ...process.env,
-          GMUX_SHOT: shot,
-          GMUX_SHOT_SETTINGS: '1',
-          GMUX_SHOT_SETTINGS_JS: js,
-          GMUX_TMUX_SOCKET: `gmux-p130-spacing-${String(process.pid)}`
-        },
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: false
+  return withElectron(
+    {
+      label: 'p130-spacing',
+      userDataDir: profile,
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GMUX_SHOT: shot,
+        GMUX_SHOT_SETTINGS: '1',
+        GMUX_SHOT_SETTINGS_JS: js,
+        GMUX_TMUX_SOCKET: `gmux-p130-spacing-${String(process.pid)}`
       }
-    );
-    recordedPids.push(child.pid);
-    let out = '';
-    child.stdout.on('data', (chunk) => {
-      out += String(chunk);
-    });
-    child.stderr.on('data', (chunk) => {
-      out += String(chunk);
-    });
-    const timer = setTimeout(() => {
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone */
-      }
-    }, timeoutMs);
-    child.on('exit', (code) => {
-      clearTimeout(timer);
-      child.stdout.destroy();
-      child.stderr.destroy();
-      const line = out.split('\n').find((l) => l.includes('[gmux-shot] driver')) ?? '';
-      const payload = line.slice(line.indexOf('driver') + 8).trim();
-      let parsed = null;
-      try {
-        parsed = JSON.parse(payload.replace(/^→\s*/, ''));
-      } catch {
-        parsed = null;
-      }
-      done({ code, out, parsed });
-    });
-  });
+    },
+    (handle) =>
+      new Promise((done) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
+        let out = '';
+        child.stdout.on('data', (chunk) => {
+          out += String(chunk);
+        });
+        child.stderr.on('data', (chunk) => {
+          out += String(chunk);
+        });
+        const timer = setTimeout(() => {
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }, timeoutMs);
+        child.on('exit', (code) => {
+          clearTimeout(timer);
+          child.stdout.destroy();
+          child.stderr.destroy();
+          const line = out.split('\n').find((l) => l.includes('[gmux-shot] driver')) ?? '';
+          const payload = line.slice(line.indexOf('driver') + 8).trim();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(payload.replace(/^→\s*/, ''));
+          } catch {
+            parsed = null;
+          }
+          done({ code, out, parsed });
+        });
+      })
+  );
 }
 
 /**

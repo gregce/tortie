@@ -75,7 +75,7 @@
  *   node build/p118-remote-children.mjs --json <p> write the full report
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -93,6 +93,8 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+
+import { withElectron } from './electron-run.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -361,16 +363,6 @@ writeFileSync(
 // The two Electron launches
 // ---------------------------------------------------------------------------
 
-const ELECTRON = join(
-  REPO,
-  'node_modules',
-  'electron',
-  'dist',
-  'Electron.app',
-  'Contents',
-  'MacOS',
-  'Electron'
-);
 
 /**
  * How long one leg may take before it is killed and the run fails.
@@ -399,66 +391,68 @@ function recordCrashpadOf(profileDir) {
 }
 
 function runLeg(mode) {
-  return new Promise((resolveRun) => {
-    const child = spawn(
-      ELECTRON,
-      ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-      {
-        cwd: REPO,
-        env: {
-          ...process.env,
-          GMUX_SMOKE: mode,
-          GMUX_CONFIG_ROOT: root,
-          GMUX_TMUX_SOCKET: SOCKET,
-          GMUX_SKIP_USERDATA_MIGRATION: '1',
-          GMUX_SPECSTORY_NO_CLOUD: '1',
-          SSH_AUTH_SOCK: yard.authSock
-        },
-        stdio: ['ignore', 'pipe', 'pipe']
+  return withElectron(
+    {
+      label: `p118 ${mode}`,
+      program: 'app',
+      userDataDir: profile,
+      cwd: REPO,
+      env: {
+        ...process.env,
+        GMUX_SMOKE: mode,
+        GMUX_CONFIG_ROOT: root,
+        GMUX_TMUX_SOCKET: SOCKET,
+        GMUX_SKIP_USERDATA_MIGRATION: '1',
+        GMUX_SPECSTORY_NO_CLOUD: '1',
+        SSH_AUTH_SOCK: yard.authSock
       }
-    );
-    recordedPids.push(child.pid);
+    },
+    (handle) =>
+      new Promise((resolveRun) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
 
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (b) => {
-      const text = b.toString();
-      stdout += text;
-      process.stdout.write(text);
-    });
-    child.stderr.on('data', (b) => {
-      const text = b.toString();
-      stderr += text;
-      process.stderr.write(text);
-    });
+        let stdout = '';
+        let stderr = '';
+        child.stdout.on('data', (b) => {
+          const text = b.toString();
+          stdout += text;
+          process.stdout.write(text);
+        });
+        child.stderr.on('data', (b) => {
+          const text = b.toString();
+          stderr += text;
+          process.stderr.write(text);
+        });
 
-    const deadline = setTimeout(() => {
-      fail(`the ${mode} leg exceeded ${String(LEG_DEADLINE_MS)} ms`);
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone */
-      }
-    }, LEG_DEADLINE_MS);
+        const deadline = setTimeout(() => {
+          fail(`the ${mode} leg exceeded ${String(LEG_DEADLINE_MS)} ms`);
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }, LEG_DEADLINE_MS);
 
-    child.on('exit', (code, signal) => {
-      clearTimeout(deadline);
-      setTimeout(() => {
-        // MEASURED: each launch leaves a `chrome_crashpad_handler` behind, and
-        // it is not a child of anything this run still holds once the app is
-        // gone. It is found by the ONE thing that identifies it as this run's,
-        // being this run's own profile path on its command line.
-        recordCrashpadOf(profile);
-        // The same two lines build/partition-harness.mjs carries, and for the
-        // same measured reason: Electron leaves a crashpad handler holding the
-        // write end of both pipes, so the read ends never close and this
-        // process would print its report and then never return.
-        child.stdout.destroy();
-        child.stderr.destroy();
-        resolveRun({ code, signal, stdout, stderr });
-      }, 1_000);
-    });
-  });
+        child.on('exit', (code, signal) => {
+          clearTimeout(deadline);
+          setTimeout(() => {
+            // MEASURED: each launch leaves a `chrome_crashpad_handler` behind, and
+            // it is not a child of anything this run still holds once the app is
+            // gone. It is found by the ONE thing that identifies it as this run's,
+            // being this run's own profile path on its command line.
+            recordCrashpadOf(profile);
+            // The same two lines build/partition-harness.mjs carries, and for the
+            // same measured reason: Electron leaves a crashpad handler holding the
+            // write end of both pipes, so the read ends never close and this
+            // process would print its report and then never return.
+            child.stdout.destroy();
+            child.stderr.destroy();
+            resolveRun({ code, signal, stdout, stderr });
+          }, 1_000);
+        });
+      })
+  );
 }
 
 // ---------------------------------------------------------------------------

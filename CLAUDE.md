@@ -87,10 +87,12 @@ numbers, measured on 2026-08-23: the machine has **48 GB**, one probe's Electron
 the operator's entire running Tortie with all its sessions holds **1,524 MB across 18 processes**. Four
 probes at once is under 1 GB. That was never the crash.
 
-**The crash was a leak, not concurrency.** Of the 50 probes under `build/` that launch Electron, 43
-kill it only on the happy path, so any assertion that throws leaves one running and a retried or
-sequenced probe stacks them. Sixty stacked instances is 15 GB or more, and that is the machine. Phase
-140 fixes it at the source with one launch helper that kills in `finally` plus a gate.
+**The crash was a leak, not concurrency.** Of the 51 scripts under `build/` that started an Electron,
+8 ended it in a `finally` block and the other 43 ended it only on the happy path. Any assertion that
+threw left one running, and a retried or sequenced probe stacked them. Sixty stacked instances is
+15 GB or more, and that is the machine. Phase 140 fixed it at the source. One helper,
+`build/electron-run.mjs`, owns every launch and ends the tree it started in a `finally` block, and
+`npm run gate:electron` is what keeps it there.
 
 An earlier version of this section claimed Electron costs 451 MB per instance. That number was taken
 from research 62, where it measures a MODEL SPAWN rather than Electron, and it should never have been
@@ -101,8 +103,26 @@ written here. Measure before writing a number into this file.
 - **Every probe that launches Electron kills it in a `finally` block**, and ends its own scratch tmux
   server there too, whatever happened. A probe that kills only on the happy path is a defect and the
   verifier names it. This is the rule that actually prevents the crash.
-- **Count what is left after a probe run, once, at the end.** `ps aux | grep -c "[E]lectron"`. Do not
-  count between every step; that bookkeeping cost 18 shell calls in one phase and prevented nothing.
+- **Count what is left after a probe run, once, at the end.** The command everybody reaches for,
+  `ps aux | grep -c "[E]lectron"`, misses the largest process in the leak. Electron's main process
+  renames itself to `Tortie`, and its command line is the single word `Tortie` with no arguments at
+  all, so neither that grep nor a search for the profile path finds it. A deliberate leak measured on
+  2026-08-23 held six processes and 521,520 KB, and the process both of those searches missed was
+  179,984 KB of it. Count with
+  `ps -Ao pid,ppid,rss,comm | grep -E "[E]lectron|Tortie$|chrome_crashpad" | grep -v defunct`.
+  Every line except the bare `Tortie` one carries a `--user-data-dir` you can read under
+  `ps -p <pid> -o command=`. The bare `Tortie` line is identified by its parent pid instead, which is
+  the `node_modules/.bin/electron` shim your own run started. An entry marked `<defunct>` holds no
+  memory and is not a leak. Do not count between every step. That bookkeeping cost 18 shell calls in
+  one phase and prevented nothing.
+- **Never send SIGKILL to the `node_modules/.bin/electron` shim.** That shim is a nine line Node
+  forwarder. It passes SIGINT, SIGTERM and SIGUSR2 to the app it started, and nothing can forward
+  SIGKILL. A SIGKILL to the shim kills the shim, the app reparents to launchd, and the app runs on.
+  That was measured on 2026-08-23. The shim died and 482 MB of Tortie stayed up. Send SIGTERM first,
+  wait for the pid to go, then SIGKILL the descendants by pid. Do not treat SIGTERM as enough on its
+  own. On 2026-08-23 a leaked app was still up 16 seconds after one, and only the SIGKILL of the tree
+  ended it. `build/electron-run.mjs` already does the whole sequence, so a probe should launch
+  through `withElectron` rather than signal anything itself.
 - **Two phase workflows may run at once** when the machine is quiet. Three or more only when none of
   them photographs.
 - **Stop on swap AND pressure together, never on free pages.** macOS keeps free pages near zero on
@@ -207,6 +227,8 @@ reviewable before the work starts rather than after.
 **Touching the install map?** Add `npm run conformance:installs` (about 1 s, spawns no agent, makes no request) for any commit under `src/main/agents/registry.ts`. It asserts the six shape rules from research 47 §10, and it is what keeps the map's promise, that nothing in it can run, checkable instead of asserted.
 **Touching machines?** Add `npm run conformance:machines` (about 1 s, starts no ssh, opens no file under the person's home, launches no Electron) for any commit under `src/main/machines/**`. It proves the confirm hash moves for `host`, `user`, `port` and `remoteTmuxPath` and for neither presentation field, that a machine and a configured agent with the same bare id cannot share one agreement, that an invalid row is dropped whole with the field named, that `BatchMode=no` exists at exactly one call site, and that the connection test argv names Tortie's own host key file FIRST and the person's second. The last one replaced a weaker rule that passed while the product added three lines to the operator's `~/.ssh/known_hosts`, measured at 932 bytes before a probe run and 1229 bytes after.
 **Touching the overview reader, the keep map or the overview store?** Add `npm run conformance:overview` (about 3 s, spawns no agent, opens no Electron, starts no tmux server, reads nothing under the person's home) for any commit under `src/main/overview/**`. It prints the per provider slot matrix, the keep ratio and the trap count over the committed fixture corpus, proves the seven defects research 63 section 19 named stay fixed, proves every trap in section 16 stays caught, proves redaction on both sides against every secret shape found, and proves the store survives a kill mid write. A vendor change shows up as a ratio that moves before it shows up as an empty page.
+
+**Touching a script under `build/` that starts an Electron?** Add `npm run gate:electron` (about 0.1 s, spawns nothing, opens no profile, launches no Electron) for any commit under `build/`. It runs inside `npm run build` too, so nothing that builds can skip it. It asserts that no file under `build/` except `build/electron-run.mjs` hands an Electron program to a spawn, that all 50 scripts that launch one still reach that helper, that the helper's kill is inside a `finally` block read by matching braces rather than by searching for the word, and it proves the scanner on three fixtures it writes itself. It is what stops the 2026-08-22 crash coming back. 43 of the 51 scripts that started an Electron ended it only on the happy path, so any assertion that threw before the kill line left about 480 MB running. The gate earned its place before it shipped. Phase 138 landed a probe that started an Electron of its own while Phase 140 was being written, and this gate is what found it.
 
 ## UI rules
 - All colors via tokens (src/renderer/styles/tokens.css); no hardcoded literals outside theme constant files.

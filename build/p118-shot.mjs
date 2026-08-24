@@ -44,6 +44,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { runElectron } from './electron-run.mjs';
+
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[p118-shot]';
 const say = (line) => console.log(`${TAG} ${line}`);
@@ -77,30 +79,36 @@ const profile = join(root, 'profile');
 mkdirSync(profile, { recursive: true, mode: 0o700 });
 
 const shotPath = join(root, 'p118-cut-off.png');
-const electron = join(REPO, 'node_modules', '.bin', 'electron');
-
-/** One launch that photographs the window and quits. */
-function launch(out) {
-  return spawnSync(
-    electron,
-    ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-    {
-      cwd: REPO,
-      encoding: 'utf8',
-      timeout: 180_000,
-      env: {
-        ...process.env,
-        GMUX_SHOT: out,
-        GMUX_SHOT_DELAY_MS: '6000',
-        GMUX_SKIP_USERDATA_MIGRATION: '1',
-        GMUX_SPECSTORY_NO_CLOUD: '1'
-      }
-    }
-  );
+/**
+ * One launch that photographs the window and quits.
+ *
+ * It goes through build/electron-run.mjs (Phase 140), which ends the tree it
+ * started in a finally block whatever happened. That is why this is now
+ * asynchronous: the blocking spawnSync it used to call could not be given a
+ * teardown that runs on a throw. The shape of the answer is unchanged, being
+ * an object with `status`, `stdout` and `stderr`, so the readings below did
+ * not move. Both streams arrive on `stdout` now, because the helper collects
+ * them in arrival order and the two callers print both.
+ */
+async function launch(out) {
+  const r = await runElectron({
+    label: 'p118-shot',
+    userDataDir: profile,
+    cwd: REPO,
+    env: {
+      ...process.env,
+      GMUX_SHOT: out,
+      GMUX_SHOT_DELAY_MS: '6000',
+      GMUX_SKIP_USERDATA_MIGRATION: '1',
+      GMUX_SPECSTORY_NO_CLOUD: '1'
+    },
+    ceilingMs: 180_000
+  });
+  return { status: r.code, stdout: r.text, stderr: '' };
 }
 
 // --- 1. The first launch, only to create the manifest ------------------------
-const first = launch(join(root, 'p118-warmup.png'));
+const first = await launch(join(root, 'p118-warmup.png'));
 if (first.status !== 0) {
   say(first.stdout ?? '');
   say(first.stderr ?? '');
@@ -135,7 +143,7 @@ if (insert.status !== 0) {
 say('one unfinished copy is in the manifest, with no outcome');
 
 // --- 3. The launch that draws the sentence -----------------------------------
-const second = launch(shotPath);
+const second = await launch(shotPath);
 if (second.status !== 0) {
   say(second.stdout ?? '');
   say(second.stderr ?? '');

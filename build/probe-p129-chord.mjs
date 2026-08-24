@@ -51,11 +51,13 @@
  * failing row named. 2 when the probe refuses to run at all.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p129chord]';
@@ -271,7 +273,6 @@ ${PRELUDE}
 // The launches
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const failures = [];
 
 function shotPath(name) {
@@ -282,10 +283,10 @@ async function launch(name, drive, probeJs, onMark = null) {
   const out = shotPath(name);
   rmSync(out, { force: true });
   say(`launch ${name}`);
-  const child = spawn(
-    electronBin,
-    ['.', `--user-data-dir=${join(root, `profile-${name}`)}`, '-ApplePersistenceIgnoreState', 'YES'],
+  return withElectron(
     {
+      label: `p129-chord ${name}`,
+      userDataDir: join(root, `profile-${name}`),
       cwd: repoRoot,
       env: {
         ...process.env,
@@ -295,56 +296,58 @@ async function launch(name, drive, probeJs, onMark = null) {
         GMUX_SHOT_DRIVE: JSON.stringify(drive),
         GMUX_SHOT_JS: probeJs
       }
-    }
-  );
-  let text = '';
-  const onText = (chunk) => {
-    process.stdout.write(chunk);
-    text += chunk;
-    if (onMark !== null) onMark(text, child);
-  };
-  child.stdout.on('data', (b) => {
-    onText(b.toString());
-  });
-  child.stderr.on('data', (b) => {
-    onText(b.toString());
-  });
-  const code = await new Promise((r) => {
-    const watchdog = setTimeout(() => {
-      console.error(`${TAG} ${name} passed its ceiling. Ending the pid I started.`);
-      child.kill('SIGTERM');
-    }, 180_000);
-    child.on('error', (err) => {
-      clearTimeout(watchdog);
-      console.error(`${TAG} electron could not start: ${err.message}`);
-      r(1);
+    },
+    async (handle) => {
+    const child = handle.child;
+    let text = '';
+    const onText = (chunk) => {
+      process.stdout.write(chunk);
+      text += chunk;
+      if (onMark !== null) onMark(text, child);
+    };
+    child.stdout.on('data', (b) => {
+      onText(b.toString());
     });
-    child.on('exit', (c) => {
-      clearTimeout(watchdog);
-      setTimeout(() => {
-        r(c ?? 1);
-      }, 750);
+    child.stderr.on('data', (b) => {
+      onText(b.toString());
     });
-  });
-  child.stdout.destroy();
-  child.stderr.destroy();
+    const code = await new Promise((r) => {
+      const watchdog = setTimeout(() => {
+        console.error(`${TAG} ${name} passed its ceiling. Ending the pid I started.`);
+        child.kill('SIGTERM');
+      }, 180_000);
+      child.on('error', (err) => {
+        clearTimeout(watchdog);
+        console.error(`${TAG} electron could not start: ${err.message}`);
+        r(1);
+      });
+      child.on('exit', (c) => {
+        clearTimeout(watchdog);
+        setTimeout(() => {
+          r(c ?? 1);
+        }, 750);
+      });
+    });
+    child.stdout.destroy();
+    child.stderr.destroy();
 
-  const marker = '[gmux-shot] probe ';
-  const at = text.lastIndexOf(marker);
-  let report = null;
-  if (at !== -1) {
-    try {
-      report = JSON.parse(text.slice(at + marker.length).split('\n')[0] ?? '');
-    } catch {
-      report = null;
+    const marker = '[gmux-shot] probe ';
+    const at = text.lastIndexOf(marker);
+    let report = null;
+    if (at !== -1) {
+      try {
+        report = JSON.parse(text.slice(at + marker.length).split('\n')[0] ?? '');
+      } catch {
+        report = null;
+      }
     }
-  }
-  if (report === null) {
-    failures.push(`${name}: the driven window printed no probe value (electron exited ${String(code)})`);
-  }
-  if (!existsSync(out)) failures.push(`${name}: no screenshot was written to ${out}`);
-  else say(`${name}: screenshot ${out}`);
-  return report;
+    if (report === null) {
+      failures.push(`${name}: the driven window printed no probe value (electron exited ${String(code)})`);
+    }
+    if (!existsSync(out)) failures.push(`${name}: no screenshot was written to ${out}`);
+    else say(`${name}: screenshot ${out}`);
+    return report;
+  });
 }
 
 const sameBox = (a, b) =>

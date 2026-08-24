@@ -45,7 +45,7 @@
  * probe refuses to run at all.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   createWriteStream,
@@ -58,6 +58,8 @@ import { connect as netConnect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p127]';
@@ -311,7 +313,6 @@ async function cdpEval(cdp, expression) {
 // One leg
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
 /**
  * Launch once, read the window, quit.
@@ -326,18 +327,12 @@ async function runLeg(probesValue) {
   const tag = probesValue === '1' ? 'armed' : 'unarmed';
   rmSync(join(profile, 'DevToolsActivePort'), { force: true });
   const stream = createWriteStream(appLog, { flags: 'a' });
-  const child = spawn(
-    electronBin,
-    [
-      '.',
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      '--use-mock-keychain',
-      '-ApplePersistenceIgnoreState',
-      'YES'
-    ],
+  return withElectron(
     {
+      label: `p127 ${tag}`,
+      userDataDir: profile,
       cwd: repoRoot,
+      args: ['--remote-debugging-port=0', '--use-mock-keychain'],
       env: {
         ...process.env,
         GMUX_TMUX_SOCKET: socket,
@@ -348,32 +343,32 @@ async function runLeg(probesValue) {
         GMUX_PROBES: probesValue,
         GMUX_CONFIG_ROOT: join(profile, 'gmux', 'config'),
         GMUX_SPECSTORY_NO_CLOUD: '1'
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
-    }
-  );
-  child.stdout.pipe(stream);
-  child.stderr.pipe(stream);
-  say(`launched ${tag}, pid ${String(child.pid)}, log ${appLog}`);
+      }
+    },
+    async (handle) => {
+    const child = handle.child;
+    child.stdout.pipe(stream);
+    child.stderr.pipe(stream);
+    say(`launched ${tag}, pid ${String(child.pid)}, log ${appLog}`);
 
-  let reading = null;
-  let noise = [];
-  let cdp = null;
-  try {
-    cdp = await cdpForProfile(profile, 60_000);
-    // Turn the console on before anything is read, so a loader that failed
-    // says so in this probe's own output instead of only in a devtools window
-    // nobody has open.
-    await cdp.call('Runtime.enable', {});
-    // The armed leg installs its drives before the first render, so a poll of
-    // a few seconds is more than it can need. The unarmed leg is polled for
-    // exactly as long, so the two legs get the same chance and the difference
-    // in the answers cannot be a difference in patience.
-    const deadline = Date.now() + 20_000;
-    for (;;) {
-      reading = await cdpEval(
-        cdp,
-        `({
+    let reading = null;
+    let noise = [];
+    let cdp = null;
+    try {
+      cdp = await cdpForProfile(profile, 60_000);
+      // Turn the console on before anything is read, so a loader that failed
+      // says so in this probe's own output instead of only in a devtools window
+      // nobody has open.
+      await cdp.call('Runtime.enable', {});
+      // The armed leg installs its drives before the first render, so a poll of
+      // a few seconds is more than it can need. The unarmed leg is polled for
+      // exactly as long, so the two legs get the same chance and the difference
+      // in the answers cannot be a difference in patience.
+      const deadline = Date.now() + 20_000;
+      for (;;) {
+        reading = await cdpEval(
+          cdp,
+          `({
            p93: typeof window.__gmuxP93,
            p95: typeof window.__gmuxP95,
            p96: typeof window.__gmuxP96RemoteSurfaces,
@@ -383,45 +378,46 @@ async function runLeg(probesValue) {
            url: String(window.location.href).replace(/^.*renderer/, 'renderer'),
            search: String(window.location.search)
          })`
-      );
-      if (reading?.p93 === 'object' || Date.now() > deadline) break;
-      await sleep(500);
-    }
-    noise = cdp
-      .events()
-      .filter(
-        (e) =>
-          e.method === 'Runtime.exceptionThrown' ||
-          ['error', 'warning'].includes(e.params?.type)
-      )
-      .map((e) =>
-        e.method === 'Runtime.exceptionThrown'
-          ? `throw: ${String(e.params?.exceptionDetails?.text ?? '')} ${String(
+        );
+        if (reading?.p93 === 'object' || Date.now() > deadline) break;
+        await sleep(500);
+      }
+      noise = cdp
+        .events()
+        .filter(
+          (e) =>
+            e.method === 'Runtime.exceptionThrown' ||
+            ['error', 'warning'].includes(e.params?.type)
+        )
+        .map((e) =>
+          e.method === 'Runtime.exceptionThrown'
+            ? `throw: ${String(e.params?.exceptionDetails?.text ?? '')} ${String(
               e.params?.exceptionDetails?.exception?.description ?? ''
             )}`
-          : `${String(e.params?.type)}: ${(e.params?.args ?? [])
+            : `${String(e.params?.type)}: ${(e.params?.args ?? [])
               .map((a) => String(a.value ?? a.description ?? a.type))
               .join(' ')}`
-      )
-      .slice(0, 12);
-  } finally {
-    if (cdp !== null) cdp.close();
-    if (child.exitCode === null) child.kill('SIGTERM');
-    for (let i = 0; i < 80; i += 1) {
-      if (child.exitCode !== null || child.signalCode !== null) break;
-      await sleep(250);
+        )
+        .slice(0, 12);
+    } finally {
+      if (cdp !== null) cdp.close();
+      if (child.exitCode === null) child.kill('SIGTERM');
+      for (let i = 0; i < 80; i += 1) {
+        if (child.exitCode !== null || child.signalCode !== null) break;
+        await sleep(250);
+      }
+      if (child.exitCode === null && child.signalCode === null) {
+        say(`${tag} did not go on SIGTERM, sending SIGKILL to pid ${String(child.pid)}`);
+        child.kill('SIGKILL');
+        await sleep(1000);
+      }
+      child.stdout.destroy();
+      child.stderr.destroy();
+      stream.end();
+      await sleep(750);
     }
-    if (child.exitCode === null && child.signalCode === null) {
-      say(`${tag} did not go on SIGTERM, sending SIGKILL to pid ${String(child.pid)}`);
-      child.kill('SIGKILL');
-      await sleep(1000);
-    }
-    child.stdout.destroy();
-    child.stderr.destroy();
-    stream.end();
-    await sleep(750);
-  }
-  return { tag, reading, noise };
+    return { tag, reading, noise };
+  });
 }
 
 // ---------------------------------------------------------------------------

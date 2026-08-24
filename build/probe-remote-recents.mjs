@@ -62,7 +62,7 @@
  *   Options: [--scratch <dir>] [--keep]
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   createWriteStream,
@@ -76,6 +76,8 @@ import { connect as netConnect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -627,22 +629,14 @@ function forgetTheMachine() {
 async function main() {
   seed();
   const logStream = createWriteStream(appLogPath, { flags: 'w' });
-  const child = spawn(
-    'npx',
-    [
-      'electron',
-      '.',
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      // The MAIN process inspector, on a port the OS picks. It is what step 4
-      // reads the native menu through. See mainProcessCdp below.
-      '--inspect=0',
-      '--use-mock-keychain',
-      '-ApplePersistenceIgnoreState',
-      'YES'
-    ],
+  return withElectron(
     {
+      label: 'remote-recents',
+      userDataDir: profile,
       cwd: repoRoot,
+      args: ['--remote-debugging-port=0', // The MAIN process inspector, on a port the OS picks. It is what step 4
+      // reads the native menu through. See mainProcessCdp below.
+      '--inspect=0', '--use-mock-keychain'],
       env: {
         ...process.env,
         HOME: home,
@@ -668,244 +662,245 @@ async function main() {
         // `assertHarnessLaunch` below reads the app log and fails the run if the
         // refusal line appears anyway, so this can never silently regress.
         GMUX_UPDATE_REHEARSAL: '1'
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
-    }
-  );
-  appPid = child.pid;
-  child.stdout.pipe(logStream);
-  child.stderr.pipe(logStream);
-  child.on('exit', () => {
-    appExited = true;
-  });
-  log(`launched electron in dev mode, pid ${appPid}, log ${appLogPath}`);
+      }
+    },
+    async (handle) => {
+    const child = handle.child;
+    appPid = child.pid;
+    child.stdout.pipe(logStream);
+    child.stderr.pipe(logStream);
+    child.on('exit', () => {
+      appExited = true;
+    });
+    log(`launched electron in dev mode, pid ${appPid}, log ${appLogPath}`);
 
-  let cdp;
-  try {
-    cdp = await cdpForProfile(profile, 90_000);
-  } catch (err) {
-    return fail(err.message);
-  }
-
-  const ignored = assertHarnessLaunch();
-  if (ignored !== null) return fail(ignored);
-  log('the app honoured the harness socket, so the operator server was untouched');
-
-  let mainCdp;
-  try {
-    mainCdp = await mainProcessCdp(60_000);
-  } catch (err) {
-    return fail(err.message);
-  }
-
-  // Step 1. What main answers.
-  let listed = null;
-  for (let waited = 0; waited < 30_000; waited += 500) {
+    let cdp;
     try {
-      listed = await cdpEval(cdp, LIST_READ);
-    } catch {
-      listed = null;
+      cdp = await cdpForProfile(profile, 90_000);
+    } catch (err) {
+      return fail(err.message);
     }
-    if (Array.isArray(listed) && listed.length > 0) break;
-    await sleep(500);
-  }
-  if (!Array.isArray(listed)) return fail('recents:list never answered');
-  const paths = listed.map((r) => r.path);
-  const step1 =
-    listed.length === 2 &&
-    paths.includes(MAC_PATH) &&
-    paths.includes(LOCAL_PATH) &&
-    !paths.includes(GONE_PATH);
-  note(
-    1,
-    'recents:list hides the row whose machine has gone',
-    step1 ? 'pass' : 'FAIL',
-    `${listed.length} rows: ${JSON.stringify(listed)}`
-  );
-  if (!step1) return fail('step 1');
 
-  // Steps 2 and 3. What the home screen drew.
-  let drawn = [];
-  for (let waited = 0; waited < 20_000; waited += 500) {
-    drawn = (await cdpEval(cdp, ROWS_READ)) ?? [];
-    if (drawn.length >= 2) break;
-    await sleep(500);
-  }
-  const remoteRow = drawn.find((r) => (r.title ?? '').includes(MAC_PATH));
-  const step2 =
-    remoteRow !== undefined &&
-    typeof remoteRow.machine === 'string' &&
-    remoteRow.machine.includes('Probe Mac') &&
-    !drawn.some((r) => (r.text ?? '').includes(GONE_PATH));
-  note(
-    2,
-    'the home screen names the machine on the remote row and draws no forgotten row',
-    step2 ? 'pass' : 'FAIL',
-    `rows ${drawn.length}, machine text ${JSON.stringify(remoteRow?.machine ?? null)}`
-  );
+    const ignored = assertHarnessLaunch();
+    if (ignored !== null) return fail(ignored);
+    log('the app honoured the harness socket, so the operator server was untouched');
 
-  const painted =
-    remoteRow === undefined
-      ? []
-      : remoteRow.parts.filter(
-          (p) =>
-            (p.background !== 'rgba(0, 0, 0, 0)' &&
-              p.background !== 'transparent') ||
-            (p.radius !== '0px' && p.radius !== '')
-        );
-  const step2b = remoteRow !== undefined && painted.length === 0;
-  note(
-    '2b',
-    'the machine name is drawn as quiet text, with no fill, badge or rounded box',
-    step2b ? 'pass' : 'FAIL',
-    painted.length === 0
-      ? 'no element inside the row has a background fill or a border radius'
-      : `painted parts: ${JSON.stringify(painted)}`
-  );
+    let mainCdp;
+    try {
+      mainCdp = await mainProcessCdp(60_000);
+    } catch (err) {
+      return fail(err.message);
+    }
 
-  const step3 =
-    remoteRow !== undefined &&
-    !String(remoteRow.path ?? '').includes('~') &&
-    !String(remoteRow.title ?? '').includes('~');
-  note(
-    3,
-    "the remote row's path is drawn in full, with no tilde",
-    step3 ? 'pass' : 'FAIL',
-    `path ${JSON.stringify(remoteRow?.path ?? null)} title ${JSON.stringify(remoteRow?.title ?? null)}`
-  );
+    // Step 1. What main answers.
+    let listed = null;
+    for (let waited = 0; waited < 30_000; waited += 500) {
+      try {
+        listed = await cdpEval(cdp, LIST_READ);
+      } catch {
+        listed = null;
+      }
+      if (Array.isArray(listed) && listed.length > 0) break;
+      await sleep(500);
+    }
+    if (!Array.isArray(listed)) return fail('recents:list never answered');
+    const paths = listed.map((r) => r.path);
+    const step1 =
+      listed.length === 2 &&
+      paths.includes(MAC_PATH) &&
+      paths.includes(LOCAL_PATH) &&
+      !paths.includes(GONE_PATH);
+    note(
+      1,
+      'recents:list hides the row whose machine has gone',
+      step1 ? 'pass' : 'FAIL',
+      `${listed.length} rows: ${JSON.stringify(listed)}`
+    );
+    if (!step1) return fail('step 1');
 
-  // Step 4. The native menu, read out of the main process.
-  const menu = await openRecentMenuFromMain(mainCdp);
-  const items = menu.rows;
-  const labels = items === null ? [] : items.map((i) => i.label);
-  const remoteItem = items === null ? undefined : items.find((i) => i.label === 'remote project');
-  const step4 =
-    items !== null &&
-    labels.includes('remote project') &&
-    labels.includes('local project') &&
-    !labels.includes('forgotten project') &&
-    remoteItem !== undefined &&
-    remoteItem.sublabel.includes('Probe Mac') &&
-    !remoteItem.sublabel.includes('~') &&
-    remoteItem.toolTip.includes(MAC_PATH) &&
-    remoteItem.toolTip.includes('Probe Mac');
-  note(
-    4,
-    'File > Open Recent lists the same two rows and not the third, and the remote row names its machine',
-    step4 ? 'pass' : 'FAIL',
-    items === null
-      ? `the main process did not answer: ${menu.why}`
-      : `items: ${JSON.stringify(items)}`
-  );
+    // Steps 2 and 3. What the home screen drew.
+    let drawn = [];
+    for (let waited = 0; waited < 20_000; waited += 500) {
+      drawn = (await cdpEval(cdp, ROWS_READ)) ?? [];
+      if (drawn.length >= 2) break;
+      await sleep(500);
+    }
+    const remoteRow = drawn.find((r) => (r.title ?? '').includes(MAC_PATH));
+    const step2 =
+      remoteRow !== undefined &&
+      typeof remoteRow.machine === 'string' &&
+      remoteRow.machine.includes('Probe Mac') &&
+      !drawn.some((r) => (r.text ?? '').includes(GONE_PATH));
+    note(
+      2,
+      'the home screen names the machine on the remote row and draws no forgotten row',
+      step2 ? 'pass' : 'FAIL',
+      `rows ${drawn.length}, machine text ${JSON.stringify(remoteRow?.machine ?? null)}`
+    );
 
-  // The same read through the accessibility interface, printed and never
-  // asserted. It answers only where a person has granted the permission.
-  const axNames = openRecentMenuNames(appPid);
-  log(
-    axNames === null
-      ? '  cross-check through System Events: no answer, which means the terminal has no accessibility access. Nothing failed on that.'
-      : `  cross-check through System Events: ${JSON.stringify(axNames)}`
-  );
+    const painted =
+      remoteRow === undefined
+        ? []
+        : remoteRow.parts.filter(
+            (p) =>
+              (p.background !== 'rgba(0, 0, 0, 0)' &&
+                p.background !== 'transparent') ||
+              (p.radius !== '0px' && p.radius !== '')
+          );
+    const step2b = remoteRow !== undefined && painted.length === 0;
+    note(
+      '2b',
+      'the machine name is drawn as quiet text, with no fill, badge or rounded box',
+      step2b ? 'pass' : 'FAIL',
+      painted.length === 0
+        ? 'no element inside the row has a background fill or a border radius'
+        : `painted parts: ${JSON.stringify(painted)}`
+    );
 
-  // Step 6 is measured BEFORE step 5, because step 5 removes the row.
-  const clickedAt = Date.now();
-  await cdpEval(
-    cdp,
-    `(() => {
+    const step3 =
+      remoteRow !== undefined &&
+      !String(remoteRow.path ?? '').includes('~') &&
+      !String(remoteRow.title ?? '').includes('~');
+    note(
+      3,
+      "the remote row's path is drawn in full, with no tilde",
+      step3 ? 'pass' : 'FAIL',
+      `path ${JSON.stringify(remoteRow?.path ?? null)} title ${JSON.stringify(remoteRow?.title ?? null)}`
+    );
+
+    // Step 4. The native menu, read out of the main process.
+    const menu = await openRecentMenuFromMain(mainCdp);
+    const items = menu.rows;
+    const labels = items === null ? [] : items.map((i) => i.label);
+    const remoteItem = items === null ? undefined : items.find((i) => i.label === 'remote project');
+    const step4 =
+      items !== null &&
+      labels.includes('remote project') &&
+      labels.includes('local project') &&
+      !labels.includes('forgotten project') &&
+      remoteItem !== undefined &&
+      remoteItem.sublabel.includes('Probe Mac') &&
+      !remoteItem.sublabel.includes('~') &&
+      remoteItem.toolTip.includes(MAC_PATH) &&
+      remoteItem.toolTip.includes('Probe Mac');
+    note(
+      4,
+      'File > Open Recent lists the same two rows and not the third, and the remote row names its machine',
+      step4 ? 'pass' : 'FAIL',
+      items === null
+        ? `the main process did not answer: ${menu.why}`
+        : `items: ${JSON.stringify(items)}`
+    );
+
+    // The same read through the accessibility interface, printed and never
+    // asserted. It answers only where a person has granted the permission.
+    const axNames = openRecentMenuNames(appPid);
+    log(
+      axNames === null
+        ? '  cross-check through System Events: no answer, which means the terminal has no accessibility access. Nothing failed on that.'
+        : `  cross-check through System Events: ${JSON.stringify(axNames)}`
+    );
+
+    // Step 6 is measured BEFORE step 5, because step 5 removes the row.
+    const clickedAt = Date.now();
+    await cdpEval(
+      cdp,
+      `(() => {
       const rows = [...document.querySelectorAll('.home-recent')];
       const row = rows.find((r) => (r.getAttribute('title') ?? '').includes(${JSON.stringify(MAC_PATH)}));
       if (row) row.click();
       return row !== undefined;
     })()`
-  );
-  let toast = null;
-  while (Date.now() - clickedAt < 20_000) {
-    toast = await cdpEval(cdp, TOAST_READ);
-    if (typeof toast === 'string' && toast.includes('Probe Mac')) break;
-    await sleep(50);
-  }
-  const refusalMs = Date.now() - clickedAt;
-  const step6 =
-    typeof toast === 'string' && toast.includes('Tortie is not connected to Probe Mac.');
-  note(
-    6,
-    'clicking the remote row while nothing is signed in says so',
-    step6 ? 'pass' : 'FAIL',
-    `${refusalMs} ms from click to sentence. Sentence: ${JSON.stringify(toast)}`
-  );
-
-  // Step 7. The defect the fix round closed. The seeded machine is in the file
-  // and nobody has confirmed it, so the home screen draws three action rows.
-  // Confirming it through the real bridge must add the fourth row while the
-  // window stays open. Before the fix a confirmation touched neither the link
-  // nor machines.json, so nothing pushed and the row waited for a relaunch.
-  const beforeActions = (await cdpEval(cdp, ACTIONS_READ)) ?? [];
-  const confirmed = await cdpEval(cdp, CONFIRM_DRIVE);
-  const confirmedAt = Date.now();
-  let afterActions = beforeActions;
-  while (Date.now() - confirmedAt < 20_000) {
-    afterActions = (await cdpEval(cdp, ACTIONS_READ)) ?? [];
-    if (afterActions.length > beforeActions.length) break;
-    await sleep(50);
-  }
-  const rowMs = Date.now() - confirmedAt;
-  const step7 =
-    confirmed === 'confirmed' &&
-    beforeActions.length === 3 &&
-    afterActions.length === 4 &&
-    afterActions[1] === 'Open on Probe Mac…';
-  note(
-    7,
-    'confirming a machine adds the action row with no relaunch',
-    step7 ? 'pass' : 'FAIL',
-    `${rowMs} ms from the confirmation to the row. before ${JSON.stringify(beforeActions)}, after ${JSON.stringify(afterActions)}, bridge said ${JSON.stringify(confirmed)}`
-  );
-
-  // Step 5. Forget the machine while the window is open.
-  forgetTheMachine();
-  const forgotAt = Date.now();
-  let afterList = null;
-  while (Date.now() - forgotAt < 20_000) {
-    afterList = await cdpEval(cdp, LIST_READ);
-    if (Array.isArray(afterList) && afterList.length === 1) break;
-    await sleep(200);
-  }
-  const liveMs = Date.now() - forgotAt;
-  const afterRows = (await cdpEval(cdp, ROWS_READ)) ?? [];
-  const afterMenu = await openRecentMenuFromMain(mainCdp);
-  const afterLabels =
-    afterMenu.rows === null ? null : afterMenu.rows.map((i) => i.label);
-  const step5 =
-    Array.isArray(afterList) &&
-    afterList.length === 1 &&
-    afterList[0]?.path === LOCAL_PATH &&
-    !afterRows.some((r) => (r.text ?? '').includes(MAC_PATH)) &&
-    afterLabels !== null &&
-    !afterLabels.includes('remote project');
-  note(
-    5,
-    'forgetting the machine takes its row off the open home screen and out of the menu',
-    step5 ? 'pass' : 'FAIL',
-    `${liveMs} ms after the file was rewritten. list ${JSON.stringify(afterList)}, menu ${JSON.stringify(afterLabels)}`
-  );
-
-  // The evidence photo, of the window's own content.
-  try {
-    const reply = await cdp.call('Page.captureScreenshot', { format: 'png' });
-    const data = reply.result?.data;
-    if (typeof data === 'string' && data.length > 0) {
-      mkdirSync(dirname(shotPath), { recursive: true });
-      writeFileSync(shotPath, Buffer.from(data, 'base64'));
-      log(`screenshot saved to ${shotPath} (window content over CDP)`);
+    );
+    let toast = null;
+    while (Date.now() - clickedAt < 20_000) {
+      toast = await cdpEval(cdp, TOAST_READ);
+      if (typeof toast === 'string' && toast.includes('Probe Mac')) break;
+      await sleep(50);
     }
-  } catch {
-    log('no screenshot. The reads above are the evidence.');
-  }
+    const refusalMs = Date.now() - clickedAt;
+    const step6 =
+      typeof toast === 'string' && toast.includes('Tortie is not connected to Probe Mac.');
+    note(
+      6,
+      'clicking the remote row while nothing is signed in says so',
+      step6 ? 'pass' : 'FAIL',
+      `${refusalMs} ms from click to sentence. Sentence: ${JSON.stringify(toast)}`
+    );
 
-  cdp.close();
-  mainCdp.close();
-  const allPassed = results.every((r) => r.verdict === 'pass');
-  return finish(allPassed ? 0 : 1);
+    // Step 7. The defect the fix round closed. The seeded machine is in the file
+    // and nobody has confirmed it, so the home screen draws three action rows.
+    // Confirming it through the real bridge must add the fourth row while the
+    // window stays open. Before the fix a confirmation touched neither the link
+    // nor machines.json, so nothing pushed and the row waited for a relaunch.
+    const beforeActions = (await cdpEval(cdp, ACTIONS_READ)) ?? [];
+    const confirmed = await cdpEval(cdp, CONFIRM_DRIVE);
+    const confirmedAt = Date.now();
+    let afterActions = beforeActions;
+    while (Date.now() - confirmedAt < 20_000) {
+      afterActions = (await cdpEval(cdp, ACTIONS_READ)) ?? [];
+      if (afterActions.length > beforeActions.length) break;
+      await sleep(50);
+    }
+    const rowMs = Date.now() - confirmedAt;
+    const step7 =
+      confirmed === 'confirmed' &&
+      beforeActions.length === 3 &&
+      afterActions.length === 4 &&
+      afterActions[1] === 'Open on Probe Mac…';
+    note(
+      7,
+      'confirming a machine adds the action row with no relaunch',
+      step7 ? 'pass' : 'FAIL',
+      `${rowMs} ms from the confirmation to the row. before ${JSON.stringify(beforeActions)}, after ${JSON.stringify(afterActions)}, bridge said ${JSON.stringify(confirmed)}`
+    );
+
+    // Step 5. Forget the machine while the window is open.
+    forgetTheMachine();
+    const forgotAt = Date.now();
+    let afterList = null;
+    while (Date.now() - forgotAt < 20_000) {
+      afterList = await cdpEval(cdp, LIST_READ);
+      if (Array.isArray(afterList) && afterList.length === 1) break;
+      await sleep(200);
+    }
+    const liveMs = Date.now() - forgotAt;
+    const afterRows = (await cdpEval(cdp, ROWS_READ)) ?? [];
+    const afterMenu = await openRecentMenuFromMain(mainCdp);
+    const afterLabels =
+      afterMenu.rows === null ? null : afterMenu.rows.map((i) => i.label);
+    const step5 =
+      Array.isArray(afterList) &&
+      afterList.length === 1 &&
+      afterList[0]?.path === LOCAL_PATH &&
+      !afterRows.some((r) => (r.text ?? '').includes(MAC_PATH)) &&
+      afterLabels !== null &&
+      !afterLabels.includes('remote project');
+    note(
+      5,
+      'forgetting the machine takes its row off the open home screen and out of the menu',
+      step5 ? 'pass' : 'FAIL',
+      `${liveMs} ms after the file was rewritten. list ${JSON.stringify(afterList)}, menu ${JSON.stringify(afterLabels)}`
+    );
+
+    // The evidence photo, of the window's own content.
+    try {
+      const reply = await cdp.call('Page.captureScreenshot', { format: 'png' });
+      const data = reply.result?.data;
+      if (typeof data === 'string' && data.length > 0) {
+        mkdirSync(dirname(shotPath), { recursive: true });
+        writeFileSync(shotPath, Buffer.from(data, 'base64'));
+        log(`screenshot saved to ${shotPath} (window content over CDP)`);
+      }
+    } catch {
+      log('no screenshot. The reads above are the evidence.');
+    }
+
+    cdp.close();
+    mainCdp.close();
+    const allPassed = results.every((r) => r.verdict === 'pass');
+    return finish(allPassed ? 0 : 1);
+  });
 }
 
 main().catch((err) => {

@@ -145,7 +145,7 @@
  * ShipIt directory, and the point of P2 and P3 is that nothing real moves.
  */
 
-import { spawn, spawnSync, execFileSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { connect as netConnect } from 'node:net';
@@ -167,6 +167,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { withElectron } from './electron-run.mjs';
 import { frontmostPid, windowShot } from './window-shot.mjs';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -511,36 +512,76 @@ class AppRun {
     for (const [k, v] of Object.entries(opts.extraEnv ?? {})) env[k] = v;
     usedSockets.add(socket);
     createdHarnessServer = true;
-    this.child = spawn(
-      binary,
-      [...(opts.extraArgs ?? []), `--user-data-dir=${profile}`],
+    // The launch goes through build/electron-run.mjs (Phase 140). The helper
+    // holds the app for as long as `body` runs and ends its whole tree
+    // afterwards, so the hold is released when the app exits and again when
+    // `quit` returns. Nothing this class already did was removed: the recorded
+    // pid, `killRecordedPids` and the SIGTERM then SIGKILL in `quit` are all
+    // still here, and the helper's teardown is what runs when this script dies
+    // between a launch and a quit. `persistence` is off and `entry` is false
+    // because this launch is a packaged bundle and its argv has not moved.
+    this.started = new Promise((r) => {
+      this.markStarted = r;
+    });
+    const holding = new Promise((r) => {
+      this.releaseHold = r;
+    });
+    this.held = withElectron(
       {
-        env,
-        stdio: ['ignore', 'pipe', 'pipe']
+        label: `rehearsal ${name}`,
+        program: binary,
+        entry: false,
+        persistence: false,
+        userDataDir: profile,
+        args: opts.extraArgs ?? [],
+        env
+      },
+      async (handle) => {
+        this.child = handle.child;
+        this.pid = handle.pid;
+        livePids.add(this.pid);
+        log(`${name} launched, pid ${this.pid}, log ${this.logPath}`);
+        let buf = '';
+        const onData = (chunk) => {
+          buf += chunk.toString();
+          let nl;
+          while ((nl = buf.indexOf('\n')) !== -1) {
+            const line = buf.slice(0, nl);
+            buf = buf.slice(nl + 1);
+            this.ingest(line);
+          }
+        };
+        this.child.stdout.on('data', onData);
+        this.child.stderr.on('data', onData);
+        this.child.on('exit', (code, signal) => {
+          this.exited = true;
+          livePids.delete(this.pid);
+          this.ingest(`(process exited, code ${code}, signal ${signal})`);
+          this.stream.end();
+          this.resolveExit();
+          this.releaseHold();
+        });
+        this.markStarted();
+        await holding;
       }
     );
-    this.pid = this.child.pid;
-    livePids.add(this.pid);
-    log(`${name} launched, pid ${this.pid}, log ${this.logPath}`);
-    let buf = '';
-    const onData = (chunk) => {
-      buf += chunk.toString();
-      let nl;
-      while ((nl = buf.indexOf('\n')) !== -1) {
-        const line = buf.slice(0, nl);
-        buf = buf.slice(nl + 1);
-        this.ingest(line);
-      }
-    };
-    this.child.stdout.on('data', onData);
-    this.child.stderr.on('data', onData);
-    this.child.on('exit', (code, signal) => {
+    this.held.catch((err) => {
+      log(`${name} could not be launched: ${String(err?.message ?? err)}`);
       this.exited = true;
-      livePids.delete(this.pid);
-      this.ingest(`(process exited, code ${code}, signal ${signal})`);
-      this.stream.end();
+      this.markStarted();
       this.resolveExit();
     });
+  }
+
+  /**
+   * Launch and wait until the child exists, because every caller reads
+   * `run.pid` and `run.child` on the next line. The constructor cannot wait,
+   * so this is the way in.
+   */
+  static async start(name, feedUrl, opts = {}) {
+    const run = new AppRun(name, feedUrl, opts);
+    await run.started;
+    return run;
   }
 
   ingest(line) {
@@ -595,6 +636,7 @@ class AppRun {
     }, deadlineMs);
     await this.exitPromise;
     clearTimeout(killer);
+    this.releaseHold();
   }
 }
 
@@ -882,7 +924,7 @@ async function roundtrip(feedUrl) {
   log(`fresh ${V1} copy at ${appPath}, fresh profile at ${profileDir}`);
 
   // Run 1. Boot, plant keepers, watch the timers, watch the download stage.
-  const run1 = new AppRun('run1', feedUrl);
+  const run1 = await AppRun.start('run1', feedUrl);
   await run1.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
   log('run1 booted and its tmux server is up');
 
@@ -951,7 +993,7 @@ async function roundtrip(feedUrl) {
   log(`bundle swap moment. ${swapMoment}. Info.plist now reads ${plistVersion(appPath)}.`);
 
   // Run 2. Relaunch the same command line. The acceptance is the end state.
-  let finalRun = new AppRun('run2', feedUrl);
+  let finalRun = await AppRun.start('run2', feedUrl);
   const updatesJson = join(profileDir, 'updates.json');
   const readLastSeen = () => {
     try {
@@ -973,7 +1015,7 @@ async function roundtrip(feedUrl) {
     // is still the old binary. One more launch runs the new bundle.
     log('the swap landed at relaunch rather than at quit. Quitting and launching once more.');
     await finalRun.quit(45_000);
-    finalRun = new AppRun('run3', feedUrl);
+    finalRun = await AppRun.start('run3', feedUrl);
     for (let waited = 0; waited < 120_000; waited += 2_000) {
       if (readLastSeen() === V2) {
         sawNewVersion = true;
@@ -1143,7 +1185,7 @@ async function probeReadyDialog(feedUrl) {
   // Phase 43, probe P4. Everything ShipIt writes from here to the quit
   // belongs to this run, and exactly one install request may appear in it.
   const runShipItOffset = shipItStderrSize();
-  const run = new AppRun('ready-a', feedUrl);
+  const run = await AppRun.start('ready-a', feedUrl);
   await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
   // Give the menu bar a moment to exist, then click the real item well
   // before the 30 second background timer, so the check that follows can
@@ -1254,7 +1296,7 @@ function freshV1Copy() {
  * staged and ready for a quit.
  */
 async function stageOnPrimary(feedUrl, runName) {
-  const run = new AppRun(runName, feedUrl);
+  const run = await AppRun.start(runName, feedUrl);
   await run.waitFor(/tmux conf verified/, 120_000, `${runName} booting its tmux server`);
   await run.waitFor(/is downloaded and staging has started/, 300_000, `${runName} downloading ${V2}`);
   const staged = await run.waitFor(/is staged and installs when you quit/, 300_000, `${runName} staging ${V2}`);
@@ -1325,7 +1367,7 @@ async function probeR1(feedUrl) {
   // quits. ShipIt snapshotted its wait list when it started, at staging
   // time, before B existed. If the wait gate does not re-enumerate, A's
   // exit starts the install and the post verification abort check counts B.
-  let runB = new AppRun('r1-b', deadFeed, {
+  let runB = await AppRun.start('r1-b', deadFeed, {
     profile: freshProfile(profileBDir),
     socket: SOCKET_B
   });
@@ -1375,7 +1417,7 @@ async function probeR1(feedUrl) {
     }
     if (beganAtMs === null) fail('ShipIt never logged Beginning installation after the quit');
     log(`Beginning installation ${((beganAtMs - quitAtMs) / 1000).toFixed(1)} s after the quit. Spawning instance B inside the install window, the operator timeline.`);
-    runB = new AppRun('r1-b2', deadFeed, {
+    runB = await AppRun.start('r1-b2', deadFeed, {
       profile: freshProfile(profileBDir),
       socket: SOCKET_B
     });
@@ -1408,7 +1450,7 @@ async function probeR1(feedUrl) {
   // lets boot finish and the background check restage from the cached
   // zip, and quits with nothing else running. The install must complete.
   await runB.quit(45_000);
-  const recovery = new AppRun('r1-recovery', feedUrl);
+  const recovery = await AppRun.start('r1-recovery', feedUrl);
   await recovery.waitFor(/showing the refusal dialog for/, 90_000, 'the refusal dialog log line');
   log('the relaunch detected the refused install and logged showing the dialog');
   const refusalNeedle = 'did not install because another copy of Tortie was running';
@@ -1452,7 +1494,7 @@ async function probeR2(feedUrl) {
   log('probe R2. Same bundle id at a different path.');
   freshV1Copy();
   const runA = await stageOnPrimary(feedUrl, 'r2-a');
-  const runC = new AppRun('r2-c', `${feedUrl}/absent`, {
+  const runC = await AppRun.start('r2-c', `${feedUrl}/absent`, {
     binary: pristineBinary,
     profile: freshProfile(profileCDir),
     socket: SOCKET_C
@@ -1761,7 +1803,7 @@ async function probeWreckAndHeal(feedUrl) {
   log(`state root at ${stateRoot}. The state file names ${stagedBundle}, which does not exist.`);
   log(`${WRECK_DEFAULTS_DOMAIN} before the launch: ${defaultsRead(WRECK_DEFAULTS_DOMAIN)}`);
 
-  const run = new AppRun('p43-wreck', `${feedUrl}/absent`, {
+  const run = await AppRun.start('p43-wreck', `${feedUrl}/absent`, {
     extraEnv: { GMUX_UPDATE_STATE_ROOT: stateRoot }
   });
   await run.waitFor(/showing the refusal dialog for/, 90_000, 'the refusal dialog log line');
@@ -1852,7 +1894,7 @@ async function probeWreckAndHeal(feedUrl) {
   // the newest terminal line and this launch would offer the same repair
   // again. That false alarm was measured live before the mark existed.
   rmSync(profileDir, { recursive: true, force: true });
-  const after = new AppRun('p43-wreck-after', `${feedUrl}/absent`, {
+  const after = await AppRun.start('p43-wreck-after', `${feedUrl}/absent`, {
     extraEnv: { GMUX_UPDATE_STATE_ROOT: stateRoot }
   });
   await after.waitFor(/the updater state on disk reads unknown/, 60_000, 'the healed verdict on the next launch');
@@ -1891,7 +1933,7 @@ async function probeWreckHealthy(feedUrl) {
   });
   rmSync(profileDir, { recursive: true, force: true });
   const beforeA = listWithSizes(stateRoot).join('\n');
-  const runA = new AppRun('p43-healthy-a', `${feedUrl}/absent`, {
+  const runA = await AppRun.start('p43-healthy-a', `${feedUrl}/absent`, {
     extraEnv: { GMUX_UPDATE_STATE_ROOT: stateRoot }
   });
   await runA.waitFor(/tmux conf verified/, 120_000, 'leg A booting, which proves no dialog blocked it');
@@ -1920,7 +1962,7 @@ async function probeWreckHealthy(feedUrl) {
     tail: operatorWreckTail
   });
   seedPendingRecord(profileDir);
-  const runB = new AppRun('p43-healthy-b', `${feedUrl}/absent`, {
+  const runB = await AppRun.start('p43-healthy-b', `${feedUrl}/absent`, {
     extraEnv: { GMUX_UPDATE_STATE_ROOT: stateRoot }
   });
   await waitForDialogOnScreen(runB.pid, WRECK_NEEDLE, 90_000, 'the wreck dialog in leg B');
@@ -2003,7 +2045,7 @@ async function probeWreckLive(feedUrl) {
   if (held !== V1) fail(`after the wreck Info.plist reads ${held}, expected ${V1}`);
 
   // The relaunch must say so, and must offer the repair.
-  const recovery = new AppRun('p43-live-recovery', feedUrl);
+  const recovery = await AppRun.start('p43-live-recovery', feedUrl);
   const texts = await waitForDialogOnScreen(recovery.pid, WRECK_NEEDLE, 120_000, 'the wreck dialog on the relaunch');
   log(`the relaunch shows the wreck dialog. The window reads, verbatim:\n${texts}`);
   screenshot('p43-live-dialog.png', recovery.pid);
@@ -2175,23 +2217,34 @@ async function probeTmuxPair() {
       // harness owns that server and ends it in its own finally block, with a
       // prefix check immediately before the kill. Two owners for one socket is
       // how a teardown ends up racing itself.
-      const child = spawn(
-        join(pristineApp, 'Contents', 'MacOS', 'Tortie'),
-        [`--user-data-dir=${profile}`],
-        { env, stdio: ['ignore', 'pipe', 'pipe'] }
+      // build/electron-run.mjs owns this launch too (Phase 140).
+      void withElectron(
+        {
+          label: `rehearsal pair ${mode}`,
+          program: join(pristineApp, 'Contents', 'MacOS', 'Tortie'),
+          entry: false,
+          persistence: false,
+          userDataDir: profile,
+          env
+        },
+        (handle) =>
+          new Promise((ended) => {
+            const child = handle.child;
+            livePids.add(child.pid);
+            let output = '';
+            const onData = (chunk) => {
+              output += chunk.toString();
+              process.stdout.write(chunk);
+            };
+            child.stdout.on('data', onData);
+            child.stderr.on('data', onData);
+            child.on('exit', (code) => {
+              livePids.delete(child.pid);
+              ended();
+              done({ output, code });
+            });
+          })
       );
-      livePids.add(child.pid);
-      let output = '';
-      const onData = (chunk) => {
-        output += chunk.toString();
-        process.stdout.write(chunk);
-      };
-      child.stdout.on('data', onData);
-      child.stderr.on('data', onData);
-      child.on('exit', (code) => {
-        livePids.delete(child.pid);
-        done({ output, code });
-      });
     });
 
   const result = await runTmuxPair({
@@ -2268,7 +2321,7 @@ function ringInstallRequestsSince(offset) {
 
 /** Launch the app under test with the isolated HOME and the mock keychain. */
 function launchRingApp(name, feedUrl) {
-  return new AppRun(name, feedUrl, {
+  return AppRun.start(name, feedUrl, {
     extraEnv: { HOME: ringHome },
     extraArgs: ['--use-mock-keychain', '--remote-debugging-port=0']
   });
@@ -2712,7 +2765,7 @@ async function probeRingJourney(feedUrl) {
   freshV1Copy();
   freshRingHome();
   const shipItOffset = shipItStderrSize();
-  const run = launchRingApp('ring-journey', feedUrl);
+  const run = await launchRingApp('ring-journey', feedUrl);
   await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
   let cdp = await cdpForProfile(profileDir, 60_000);
   cdp = await ensureProjectOpen(cdp, profileDir);
@@ -2830,7 +2883,7 @@ async function probeRingSilence(feedUrl) {
   log('ring probe P2. Background silence: no ring until staged, then ready.');
   freshV1Copy();
   freshRingHome();
-  const run = launchRingApp('ring-silence', feedUrl);
+  const run = await launchRingApp('ring-silence', feedUrl);
   await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
   let cdp = await cdpForProfile(profileDir, 60_000);
   cdp = await ensureProjectOpen(cdp, profileDir);
@@ -2893,7 +2946,7 @@ async function probeRingFailed(deadFeedUrl) {
   log('ring probe P3. The failed ring against a dead feed.');
   freshV1Copy();
   freshRingHome();
-  const run = launchRingApp('ring-failed', deadFeedUrl);
+  const run = await launchRingApp('ring-failed', deadFeedUrl);
   await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
   let cdp = await cdpForProfile(profileDir, 60_000);
   cdp = await ensureProjectOpen(cdp, profileDir);
@@ -3040,7 +3093,7 @@ async function probeRingRestart(feedUrl) {
 
   freshV1Copy();
   freshRingHome();
-  const run = launchRingApp('ring-restart', feedUrl);
+  const run = await launchRingApp('ring-restart', feedUrl);
   await run.waitFor(/tmux conf verified/, 120_000, 'the app booting its tmux server');
   execFileSync('tmux', [
     '-L', REHEARSAL_SOCKET, 'new-session', '-d', '-s', 'p58-keeper1',
@@ -3201,7 +3254,7 @@ async function probeRingRestart(feedUrl) {
 
   // The comeback: the swapped bundle boots healthy on the new version with
   // the harness environment, and the sessions are byte identical.
-  const back = launchRingApp('ring-restart-back', feedUrl);
+  const back = await launchRingApp('ring-restart-back', feedUrl);
   const updatesJson = join(profileDir, 'updates.json');
   let sawNewVersion = false;
   for (let waited = 0; waited < 120_000; waited += 2_000) {

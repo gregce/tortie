@@ -61,7 +61,7 @@
  * Every scratch file carries a `p97-` prefix.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -73,6 +73,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { runElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p97]';
@@ -163,7 +165,6 @@ rmSync(shotPath, { force: true });
 // One run of the app, driven and photographed
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
 /**
  * The sentence Phase 90.3 put under a capped list, which Phase 97 deleted.
@@ -185,51 +186,22 @@ const spec = {
   absentMarks: [DELETED_SENTENCE, 'is not yet tracking is not listed here']
 };
 
-const child = spawn(
-  electronBin,
-  ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-  {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      GMUX_SHOT: shotPath,
-      GMUX_SHOT_VERBOSE: '1',
-      GMUX_SHOT_DELAY_MS: '6000',
-      GMUX_SHOT_DRIVE: JSON.stringify({ projectPath: project }),
-      GMUX_SHOT_JS: `window.__gmuxP97Untracked(${JSON.stringify(spec)})`
-    }
-  }
-);
-say(`launched the app, pid ${String(child.pid)}`);
-
-let text = '';
-const onText = (chunk) => {
-  process.stdout.write(chunk);
-  text += chunk;
-};
-child.stdout.on('data', (b) => onText(b.toString()));
-child.stderr.on('data', (b) => onText(b.toString()));
-
-await new Promise((r) => {
-  const watchdog = setTimeout(() => {
-    console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
-    child.kill('SIGTERM');
-  }, 180_000);
-  child.on('error', (err) => {
-    clearTimeout(watchdog);
-    console.error(`${TAG} electron could not start: ${err.message}`);
-    r(1);
-  });
-  child.on('exit', (c) => {
-    clearTimeout(watchdog);
-    setTimeout(() => r(c ?? 1), 750);
-  });
+const { code, text, pid } = await runElectron({
+  label: 'p97-untracked',
+  userDataDir: profile,
+  cwd: repoRoot,
+  env: {
+    ...process.env,
+    GMUX_SHOT: shotPath,
+    GMUX_SHOT_VERBOSE: '1',
+    GMUX_SHOT_DELAY_MS: '6000',
+    GMUX_SHOT_DRIVE: JSON.stringify({ projectPath: project }),
+    GMUX_SHOT_JS: `window.__gmuxP97Untracked(${JSON.stringify(spec)})`
+  },
+  ceilingMs: 180_000,
+  settleMs: 750,
+  echo: true
 });
-// The app starts a session server that inherits these two pipes, so they are
-// destroyed by hand. Without this node never exits. The same note is in
-// build/probe-remote-project.mjs.
-child.stdout.destroy();
-child.stderr.destroy();
 
 // ---------------------------------------------------------------------------
 // Reading the evidence back
@@ -387,12 +359,7 @@ if (operatorAfter !== operatorBefore) {
   );
 }
 
-try {
-  process.kill(child.pid, 'SIGKILL');
-} catch {
-  // Already gone, which is the ordinary case: the shot harness quits the app.
-}
-say(`signalled only the pid this run started: ${String(child.pid)}`);
+say(`build/electron-run.mjs ended the pid this run started: ${String(pid)}`);
 
 if (!keep) rmSync(root, { recursive: true, force: true });
 

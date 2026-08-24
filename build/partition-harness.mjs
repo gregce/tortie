@@ -53,7 +53,7 @@
  * invariant held in every case.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -68,6 +68,8 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+
+import { withElectron } from './electron-run.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -307,16 +309,6 @@ const ackPath = join(root, 'p71-ack.json');
 const samplesPath = join(root, 'p71-samples.jsonl');
 const reportPath = join(root, 'p71-report.json');
 
-const ELECTRON = join(
-  REPO,
-  'node_modules',
-  'electron',
-  'dist',
-  'Electron.app',
-  'Contents',
-  'MacOS',
-  'Electron'
-);
 
 /**
  * How long the whole app leg may take before it is killed and the run fails.
@@ -382,70 +374,72 @@ function serveRequests() {
 }
 
 function runApp() {
-  return new Promise((resolveRun) => {
-    const child = spawn(
-      ELECTRON,
-      ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-      {
-        cwd: REPO,
-        env: {
-          ...process.env,
-          GMUX_SMOKE: 'partition',
-          GMUX_CONFIG_ROOT: root,
-          GMUX_TMUX_SOCKET: SOCKET,
-          GMUX_SKIP_USERDATA_MIGRATION: '1',
-          GMUX_SPECSTORY_NO_CLOUD: '1',
-          SSH_AUTH_SOCK: yard.authSock
-        },
-        stdio: ['ignore', 'pipe', 'pipe']
+  return withElectron(
+    {
+      label: 'partition',
+      program: 'app',
+      userDataDir: profile,
+      cwd: REPO,
+      env: {
+        ...process.env,
+        GMUX_SMOKE: 'partition',
+        GMUX_CONFIG_ROOT: root,
+        GMUX_TMUX_SOCKET: SOCKET,
+        GMUX_SKIP_USERDATA_MIGRATION: '1',
+        GMUX_SPECSTORY_NO_CLOUD: '1',
+        SSH_AUTH_SOCK: yard.authSock
       }
-    );
-    recordedPids.push(child.pid);
+    },
+    (handle) =>
+      new Promise((resolveRun) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
 
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (b) => {
-      const text = b.toString();
-      stdout += text;
-      process.stdout.write(text);
-    });
-    // The app's own refusal sentence goes to stderr, so it is printed as it
-    // arrives rather than collected and thrown away. A harness that hides the
-    // one line saying why the app stopped is a harness nobody can debug.
-    child.stderr.on('data', (b) => {
-      const text = b.toString();
-      stderr += text;
-      process.stderr.write(text);
-    });
+        let stdout = '';
+        let stderr = '';
+        child.stdout.on('data', (b) => {
+          const text = b.toString();
+          stdout += text;
+          process.stdout.write(text);
+        });
+        // The app's own refusal sentence goes to stderr, so it is printed as it
+        // arrives rather than collected and thrown away. A harness that hides the
+        // one line saying why the app stopped is a harness nobody can debug.
+        child.stderr.on('data', (b) => {
+          const text = b.toString();
+          stderr += text;
+          process.stderr.write(text);
+        });
 
-    const pump = setInterval(serveRequests, 50);
-    const deadline = setTimeout(() => {
-      fail(`the app leg exceeded ${String(APP_DEADLINE_MS)} ms`);
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone */
-      }
-    }, APP_DEADLINE_MS);
+        const pump = setInterval(serveRequests, 50);
+        const deadline = setTimeout(() => {
+          fail(`the app leg exceeded ${String(APP_DEADLINE_MS)} ms`);
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }, APP_DEADLINE_MS);
 
-    child.on('exit', (code, signal) => {
-      clearInterval(pump);
-      clearTimeout(deadline);
-      setTimeout(() => {
-        // MEASURED 2026-08-17 by the committer: without these two lines the
-        // harness printed its whole report, printed PASS, and then never
-        // returned. Electron leaves a `chrome_crashpad_handler` behind that
-        // holds the WRITE end of both pipes, so the read ends never close and
-        // two live handles keep this process alive with nothing left to do. A
-        // gate that prints PASS and hangs cannot be run by anything, so the
-        // pipes are dropped the moment the app itself is gone. Every byte has
-        // already been read, because the handlers above collect on arrival.
-        child.stdout.destroy();
-        child.stderr.destroy();
-        resolveRun({ code, signal, stdout, stderr });
-      }, 1_000);
-    });
-  });
+        child.on('exit', (code, signal) => {
+          clearInterval(pump);
+          clearTimeout(deadline);
+          setTimeout(() => {
+            // MEASURED 2026-08-17 by the committer: without these two lines the
+            // harness printed its whole report, printed PASS, and then never
+            // returned. Electron leaves a `chrome_crashpad_handler` behind that
+            // holds the WRITE end of both pipes, so the read ends never close and
+            // two live handles keep this process alive with nothing left to do. A
+            // gate that prints PASS and hangs cannot be run by anything, so the
+            // pipes are dropped the moment the app itself is gone. Every byte has
+            // already been read, because the handlers above collect on arrival.
+            child.stdout.destroy();
+            child.stderr.destroy();
+            resolveRun({ code, signal, stdout, stderr });
+          }, 1_000);
+        });
+      })
+  );
 }
 
 const appRun = await runApp();

@@ -71,10 +71,12 @@
  * to run at all.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[p130-install-copy]';
@@ -227,7 +229,6 @@ function check(n, claim, pass, detail) {
 // One launch, one photograph, one reading
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
 /**
  * The pid that owns the window. node_modules/.bin/electron is a Node shim
@@ -259,63 +260,64 @@ function raise(shimPid) {
 }
 
 function drive({ shot, js, timeoutMs = 180_000 }) {
-  return new Promise((done) => {
-    const child = spawn(
-      electronBin,
-      ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-      {
-        cwd: repoRoot,
-        env: {
-          ...process.env,
-          GMUX_SHOT: shot,
-          GMUX_SHOT_DELAY_MS: '5000',
-          GMUX_SHOT_DRIVE: JSON.stringify({ projectPath: project }),
-          GMUX_SHOT_JS: js
-        },
-        stdio: ['ignore', 'pipe', 'pipe']
+  return withElectron(
+    {
+      label: 'p130-install-copy',
+      userDataDir: profile,
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GMUX_SHOT: shot,
+        GMUX_SHOT_DELAY_MS: '5000',
+        GMUX_SHOT_DRIVE: JSON.stringify({ projectPath: project }),
+        GMUX_SHOT_JS: js
       }
-    );
-    recordedPids.push(child.pid);
-    // The window is raised three times while the app settles. The clipboard
-    // write refuses on a document that is not focused, and the harness only
-    // raises the window AFTER the driver has run.
-    const raises = [4_000, 9_000, 15_000].map((ms) =>
-      setTimeout(() => raise(child.pid), ms)
-    );
-    let text = '';
-    const onText = (chunk) => {
-      text += String(chunk);
-    };
-    child.stdout.on('data', onText);
-    child.stderr.on('data', onText);
-    const watchdog = setTimeout(() => {
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone, which is the state we wanted */
-      }
-    }, timeoutMs);
-    child.on('exit', (code) => {
-      clearTimeout(watchdog);
-      for (const timer of raises) clearTimeout(timer);
-      // The session server inherits these pipes and outlives the app, so they
-      // are destroyed by hand. Without this node never exits.
-      child.stdout.destroy();
-      child.stderr.destroy();
-      const marker = '[gmux-shot] probe ';
-      const at = text.lastIndexOf(marker);
-      let reading = null;
-      if (at !== -1) {
-        const line = text.slice(at + marker.length).split('\n')[0] ?? '';
-        try {
-          reading = JSON.parse(line);
-        } catch {
-          reading = null;
-        }
-      }
-      setTimeout(() => done({ code, text, reading }), 750);
-    });
-  });
+    },
+    (handle) =>
+      new Promise((done) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
+        // The window is raised three times while the app settles. The clipboard
+        // write refuses on a document that is not focused, and the harness only
+        // raises the window AFTER the driver has run.
+        const raises = [4_000, 9_000, 15_000].map((ms) =>
+          setTimeout(() => raise(child.pid), ms)
+        );
+        let text = '';
+        const onText = (chunk) => {
+          text += String(chunk);
+        };
+        child.stdout.on('data', onText);
+        child.stderr.on('data', onText);
+        const watchdog = setTimeout(() => {
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch {
+            /* already gone, which is the state we wanted */
+          }
+        }, timeoutMs);
+        child.on('exit', (code) => {
+          clearTimeout(watchdog);
+          for (const timer of raises) clearTimeout(timer);
+          // The session server inherits these pipes and outlives the app, so they
+          // are destroyed by hand. Without this node never exits.
+          child.stdout.destroy();
+          child.stderr.destroy();
+          const marker = '[gmux-shot] probe ';
+          const at = text.lastIndexOf(marker);
+          let reading = null;
+          if (at !== -1) {
+            const line = text.slice(at + marker.length).split('\n')[0] ?? '';
+            try {
+              reading = JSON.parse(line);
+            } catch {
+              reading = null;
+            }
+          }
+          setTimeout(() => done({ code, text, reading }), 750);
+        });
+      })
+  );
 }
 
 /** The shared driver preamble, wrapped so one expression is handed to main. */

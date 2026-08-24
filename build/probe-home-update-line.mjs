@@ -38,7 +38,7 @@
  *   Options: [--scratch <dir>] [--keep]
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   createWriteStream,
@@ -54,6 +54,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { windowShot } from './window-shot.mjs';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -429,120 +431,120 @@ async function main() {
     TORTIE_UPDATE_FEED: 'http://127.0.0.1:9/feed'
   };
   const logStream = createWriteStream(appLogPath, { flags: 'w' });
-  const child = spawn(
-    appBinary,
-    [
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      '--use-mock-keychain',
-      '-ApplePersistenceIgnoreState',
-      'YES'
-    ],
-    { env, stdio: ['ignore', 'pipe', 'pipe'] }
-  );
-  appPid = child.pid;
-  child.stdout.pipe(logStream);
-  child.stderr.pipe(logStream);
-  child.on('exit', () => {
-    appExited = true;
-  });
-  log(`launched ${appBinary} directly, pid ${appPid}, log ${appLogPath}`);
+  return withElectron(
+    {
+      label: 'home-update-line',
+      program: appBinary,
+      userDataDir: profile,
+      args: ['--remote-debugging-port=0', '--use-mock-keychain'],
+      env: env
+    },
+    async (handle) => {
+    const child = handle.child;
+    appPid = child.pid;
+    child.stdout.pipe(logStream);
+    child.stderr.pipe(logStream);
+    child.on('exit', () => {
+      appExited = true;
+    });
+    log(`launched ${appBinary} directly, pid ${appPid}, log ${appLogPath}`);
 
-  let cdp;
-  try {
-    cdp = await cdpForProfile(profile, 60_000);
-  } catch (err) {
-    return fail(err.message);
-  }
-
-  // Step 1. The home screen is up and the slot is empty. This is the
-  // background-silence read: no user check has started, and main hides
-  // everything the user did not start, so the line must show nothing. If a
-  // first-run surface ever hides the home screen, this read fails loudly
-  // rather than clicking through it.
-  let first = null;
-  for (let waited = 0; waited < 30_000; waited += 500) {
-    first = await cdpEval(cdp, LINE_READ);
-    if (first !== null) break;
-    await sleep(500);
-  }
-  if (first === null) {
-    await screenshot(cdp);
-    return fail(
-      'no .home-update-line within 30 s. The home screen is not on screen.'
-    );
-  }
-  if (first.home !== true) {
-    await screenshot(cdp);
-    return fail('the .home container is missing around the update line');
-  }
-  if (first.stage !== 'hidden' || first.text !== '') {
-    await screenshot(cdp);
-    return fail(
-      `the slot is not empty before any user check. It reads stage="${first.stage}" text="${first.text}"`
-    );
-  }
-  log(
-    'the empty slot is proven: data-stage="hidden" and no text before any click'
-  );
-
-  // Step 2. The user's check, through the app's real menu, by unix pid.
-  await sleep(2_000);
-  const clickErr = clickCheckForUpdates(appPid);
-  if (clickErr !== null) {
-    await screenshot(cdp);
-    return fail(`could not click "Check for Updates…". ${clickErr}`);
-  }
-  const clickedAt = Date.now();
-  log('clicked "Check for Updates…" in the Tortie menu, by unix pid');
-
-  // Step 3. Poll at 50 ms. The dead feed fails fast, so catching the
-  // checking words is best effort and their absence is not a failure. The
-  // assertion is the end state.
-  let sawChecking = null;
-  let last = first;
-  let reachedFailed = false;
-  while (Date.now() - clickedAt < 30_000) {
-    const read = await cdpEval(cdp, LINE_READ);
-    if (read !== null) {
-      if (read.text !== last.text || read.stage !== last.stage) {
-        log(`the line moved: stage="${read.stage}" text="${read.text}"`);
-        last = read;
-      }
-      if (read.text === 'Checking for updates' && sawChecking === null) {
-        sawChecking = Date.now() - clickedAt;
-      }
-      if (
-        read.stage === 'failed' &&
-        read.text === 'The update check failed.'
-      ) {
-        reachedFailed = true;
-        break;
-      }
+    let cdp;
+    try {
+      cdp = await cdpForProfile(profile, 60_000);
+    } catch (err) {
+      return fail(err.message);
     }
-    await sleep(50);
-  }
-  if (sawChecking !== null) {
-    log(`caught "Checking for updates" ${sawChecking} ms after the click`);
-  } else {
-    log(
-      'the checking words were not caught. The dead feed fails fast; this is recorded, not a failure.'
-    );
-  }
-  if (!reachedFailed) {
-    await screenshot(cdp);
-    return fail(
-      `the line never reached "The update check failed." within 30 s. Last read: stage="${last.stage}" text="${last.text}"`
-    );
-  }
-  log(
-    `PASS the line reached "The update check failed." with data-stage="failed" ${Date.now() - clickedAt} ms after the click`
-  );
 
-  // Step 4. The evidence photo, with the failed words on screen.
-  await screenshot(cdp);
-  cdp.close();
-  return finish(0);
+    // Step 1. The home screen is up and the slot is empty. This is the
+    // background-silence read: no user check has started, and main hides
+    // everything the user did not start, so the line must show nothing. If a
+    // first-run surface ever hides the home screen, this read fails loudly
+    // rather than clicking through it.
+    let first = null;
+    for (let waited = 0; waited < 30_000; waited += 500) {
+      first = await cdpEval(cdp, LINE_READ);
+      if (first !== null) break;
+      await sleep(500);
+    }
+    if (first === null) {
+      await screenshot(cdp);
+      return fail(
+        'no .home-update-line within 30 s. The home screen is not on screen.'
+      );
+    }
+    if (first.home !== true) {
+      await screenshot(cdp);
+      return fail('the .home container is missing around the update line');
+    }
+    if (first.stage !== 'hidden' || first.text !== '') {
+      await screenshot(cdp);
+      return fail(
+        `the slot is not empty before any user check. It reads stage="${first.stage}" text="${first.text}"`
+      );
+    }
+    log(
+      'the empty slot is proven: data-stage="hidden" and no text before any click'
+    );
+
+    // Step 2. The user's check, through the app's real menu, by unix pid.
+    await sleep(2_000);
+    const clickErr = clickCheckForUpdates(appPid);
+    if (clickErr !== null) {
+      await screenshot(cdp);
+      return fail(`could not click "Check for Updates…". ${clickErr}`);
+    }
+    const clickedAt = Date.now();
+    log('clicked "Check for Updates…" in the Tortie menu, by unix pid');
+
+    // Step 3. Poll at 50 ms. The dead feed fails fast, so catching the
+    // checking words is best effort and their absence is not a failure. The
+    // assertion is the end state.
+    let sawChecking = null;
+    let last = first;
+    let reachedFailed = false;
+    while (Date.now() - clickedAt < 30_000) {
+      const read = await cdpEval(cdp, LINE_READ);
+      if (read !== null) {
+        if (read.text !== last.text || read.stage !== last.stage) {
+          log(`the line moved: stage="${read.stage}" text="${read.text}"`);
+          last = read;
+        }
+        if (read.text === 'Checking for updates' && sawChecking === null) {
+          sawChecking = Date.now() - clickedAt;
+        }
+        if (
+          read.stage === 'failed' &&
+          read.text === 'The update check failed.'
+        ) {
+          reachedFailed = true;
+          break;
+        }
+      }
+      await sleep(50);
+    }
+    if (sawChecking !== null) {
+      log(`caught "Checking for updates" ${sawChecking} ms after the click`);
+    } else {
+      log(
+        'the checking words were not caught. The dead feed fails fast; this is recorded, not a failure.'
+      );
+    }
+    if (!reachedFailed) {
+      await screenshot(cdp);
+      return fail(
+        `the line never reached "The update check failed." within 30 s. Last read: stage="${last.stage}" text="${last.text}"`
+      );
+    }
+    log(
+      `PASS the line reached "The update check failed." with data-stage="failed" ${Date.now() - clickedAt} ms after the click`
+    );
+
+    // Step 4. The evidence photo, with the failed words on screen.
+    await screenshot(cdp);
+    cdp.close();
+    return finish(0);
+  });
 }
 
 main().catch((err) => {

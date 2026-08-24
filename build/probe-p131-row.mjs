@@ -61,6 +61,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { withElectron } from './electron-run.mjs';
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = join(
   process.env['GMUX_HARNESS_DIR'] ?? tmpdir(),
@@ -302,52 +304,47 @@ async function startScratchSshd() {
 // ---------------------------------------------------------------------------
 
 function driveSettings({ shot, js, timeoutMs = 150_000 }) {
-  return new Promise((done) => {
-    const child = spawn(
-      'npx',
-      [
-        'electron',
-        '.',
-        `--user-data-dir=${profile}`,
-        '-ApplePersistenceIgnoreState',
-        'YES'
-      ],
-      {
-        cwd: repoRoot,
-        env: {
-          ...process.env,
-          GMUX_SHOT: shot,
-          GMUX_SHOT_SETTINGS: '1',
-          GMUX_SHOT_SETTINGS_JS: js,
-          GMUX_TMUX_SOCKET: SOCKET,
-          ...(agentSocket === '' ? {} : { SSH_AUTH_SOCK: agentSocket })
-        },
-        stdio: ['ignore', 'pipe', 'pipe']
+  return withElectron(
+    {
+      label: 'p131-row',
+      userDataDir: profile,
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GMUX_SHOT: shot,
+        GMUX_SHOT_SETTINGS: '1',
+        GMUX_SHOT_SETTINGS_JS: js,
+        GMUX_TMUX_SOCKET: SOCKET,
+        ...(agentSocket === '' ? {} : { SSH_AUTH_SOCK: agentSocket })
       }
-    );
-    recordedPids.push(child.pid);
-    let out = '';
-    child.stdout.on('data', (c) => {
-      out += String(c);
-    });
-    child.stderr.on('data', (c) => {
-      out += String(c);
-    });
-    const timer = setTimeout(() => killRecorded(child.pid), timeoutMs);
-    child.on('exit', (code) => {
-      clearTimeout(timer);
-      const line =
-        out.split('\n').find((l) => l.includes('[gmux-shot] driver')) ?? '';
-      const payload = line.slice(line.indexOf('driver') + 8).trim();
-      let parsed = null;
-      try {
-        parsed = JSON.parse(payload.replace(/^→\s*/, ''));
-      } catch {
-        parsed = null;
-      }
-      done({ code, out, payload, parsed });
-    });
-  });
+    },
+    (handle) =>
+      new Promise((done) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
+        let out = '';
+        child.stdout.on('data', (c) => {
+          out += String(c);
+        });
+        child.stderr.on('data', (c) => {
+          out += String(c);
+        });
+        const timer = setTimeout(() => killRecorded(child.pid), timeoutMs);
+        child.on('exit', (code) => {
+          clearTimeout(timer);
+          const line =
+            out.split('\n').find((l) => l.includes('[gmux-shot] driver')) ?? '';
+          const payload = line.slice(line.indexOf('driver') + 8).trim();
+          let parsed = null;
+          try {
+            parsed = JSON.parse(payload.replace(/^→\s*/, ''));
+          } catch {
+            parsed = null;
+          }
+          done({ code, out, payload, parsed });
+        });
+      })
+  );
 }
 
 function driver(body) {

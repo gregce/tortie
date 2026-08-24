@@ -78,7 +78,7 @@
  * Every scratch file carries a `p96-` prefix.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   createWriteStream,
@@ -93,6 +93,8 @@ import { connect as netConnect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p96]';
@@ -450,23 +452,22 @@ async function shoot(cdp, path) {
 // The app, launched and quit
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 const recordedPids = [];
 
-function launch(tag) {
+/**
+ * Hold the app open for exactly as long as `body` runs, and end its whole
+ * process tree afterwards whatever happened (Phase 140). This used to be
+ * `launch(tag)`, which handed a live child back to its caller, so an assertion
+ * that threw between the launch and the quit left about 480 MB running.
+ */
+function runInApp(tag, body) {
   const stream = createWriteStream(appLog, { flags: 'a' });
-  const child = spawn(
-    electronBin,
-    [
-      '.',
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      '--use-mock-keychain',
-      '-ApplePersistenceIgnoreState',
-      'YES'
-    ],
+  return withElectron(
     {
+      label: `p96 ${tag}`,
+      userDataDir: profile,
       cwd: repoRoot,
+      args: ['--remote-debugging-port=0', '--use-mock-keychain'],
       env: {
         ...process.env,
         GMUX_TMUX_SOCKET: socket,
@@ -479,15 +480,17 @@ function launch(tag) {
         GMUX_UPDATE_REHEARSAL: '1',
         GMUX_CONFIG_ROOT: join(profile, 'gmux', 'config'),
         GMUX_SPECSTORY_NO_CLOUD: '1'
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
+      }
+    },
+    async (handle) => {
+      const child = handle.child;
+      recordedPids.push(child.pid);
+      child.stdout.pipe(stream);
+      child.stderr.pipe(stream);
+      say(`launched ${tag}, pid ${String(child.pid)}, log ${appLog}`);
+      return body(child);
     }
   );
-  recordedPids.push(child.pid);
-  child.stdout.pipe(stream);
-  child.stderr.pipe(stream);
-  say(`launched ${tag}, pid ${String(child.pid)}, log ${appLog}`);
-  return child;
 }
 
 /** The app refuses the socket override on a launch it does not think is a harness. */
@@ -626,173 +629,174 @@ function cellOf(reading, label) {
 }
 
 async function main() {
-  const child = launch('the run');
-  let cdp;
-  try {
-    cdp = await cdpForProfile(profile, 120_000);
-  } catch (err) {
-    note(0, 'the window came up and could be driven', 'FAIL', err.message);
-    return finish(1);
-  }
-  await waitForDrive(cdp, 60_000);
-  if (!honouredTheSocket()) {
-    note(
-      0,
-      'the app honoured the harness socket, so the operator server was untouched',
-      'FAIL',
-      'the app logged that the socket override was ignored'
-    );
-    return finish(1);
-  }
+  return runInApp('the run', async (child) => {
+    let cdp;
+    try {
+      cdp = await cdpForProfile(profile, 120_000);
+    } catch (err) {
+      note(0, 'the window came up and could be driven', 'FAIL', err.message);
+      return finish(1);
+    }
+    await waitForDrive(cdp, 60_000);
+    if (!honouredTheSocket()) {
+      note(
+        0,
+        'the app honoured the harness socket, so the operator server was untouched',
+        'FAIL',
+        'the app logged that the socket override was ignored'
+      );
+      return finish(1);
+    }
 
-  // -- 1. the control reading: a real file in a real Monaco -----------------
-  const readingA = await drive(cdp, 'openFile', {
-    repoPath: project,
-    relPath: REL_PATH,
-    path: FILE_PATH
+    // -- 1. the control reading: a real file in a real Monaco -----------------
+    const readingA = await drive(cdp, 'openFile', {
+      repoPath: project,
+      relPath: REL_PATH,
+      path: FILE_PATH
+    });
+    if (readingA?.missing === true) {
+      note(
+        0,
+        'this build carries the Phase 96 drive and mounted a Monaco editor',
+        'FAIL',
+        'window.__gmuxP96RemoteSurfaces is not there, or no editor was mounted ' +
+          'within 15 s. The renderer half of this probe is ' +
+          'src/renderer/app/p96-remote-surfaces-drive.ts and App.tsx registers it.'
+      );
+      return finish(1);
+    }
+    await shoot(cdp, shotLocal);
+    const step1 =
+      readingA.readOnly === false &&
+      readingA.accepted === true &&
+      readingA.remote === false;
+    note(
+      1,
+      'a file on THIS Mac is editable and Monaco takes the character',
+      step1 ? 'pass' : 'FAIL',
+      `readOnly ${String(readingA.readOnly)}, before ` +
+        `${JSON.stringify(readingA.before)}, after ${JSON.stringify(readingA.after)}`
+    );
+
+    // -- 2. the measurement: the same tab, on another machine -----------------
+    const readingB = await drive(cdp, 'makeRemote', { repoPath: FAR_REPO });
+    await shoot(cdp, shotRemote);
+    const sameTab = readingA.tabId !== null && readingA.tabId === readingB.tabId;
+    const step2 =
+      sameTab &&
+      readingB.remote === true &&
+      readingB.readOnly === true &&
+      readingB.accepted === false &&
+      // The tab is already dirty, because step 1 typed into it while it was a
+      // file on this Mac and that character was accepted. What must hold here is
+      // that the refused keystroke moved NOTHING, so the flag is compared with
+      // itself rather than with false.
+      readingB.dirtyAfter === readingB.dirtyBefore;
+    note(
+      2,
+      'the same tab, naming a file on another machine, refuses the keystroke',
+      step2 ? 'pass' : 'FAIL',
+      `same tab ${String(sameTab)}, remote ${String(readingB.remote)}, readOnly ` +
+        `${String(readingB.readOnly)}, before ${JSON.stringify(readingB.before)}, ` +
+        `after ${JSON.stringify(readingB.after)}, dirty ` +
+        `${String(readingB.dirtyBefore)} then ${String(readingB.dirtyAfter)}`
+    );
+
+    // -- 3. one image with the band and the editor on it ----------------------
+    note(
+      3,
+      'the window was photographed with the lock band over the editor',
+      existsSync(shotRemote) ? 'pass' : 'FAIL',
+      `${shotLocal} and ${shotRemote}`
+    );
+
+    // -- 4. a real session's menu, on this Mac --------------------------------
+    const menuA = await drive(cdp, 'makeSession', 'p96-a');
+    const step4 =
+      menuA?.live === true &&
+      menuA.machine === null &&
+      cellOf(menuA, 'Capture Last 250 Lines') === 'enabled' &&
+      cellOf(menuA, 'Capture Last 1,000 Lines') === 'enabled' &&
+      cellOf(menuA, 'Clear') === 'enabled';
+    note(
+      4,
+      'a real session on this Mac draws both history presets and an enabled Clear',
+      step4 ? 'pass' : 'FAIL',
+      `live ${String(menuA?.live)}, labels ` +
+        JSON.stringify((menuA?.rows ?? []).map((r) => r.label))
+    );
+
+    // -- 5. the same session, on another machine ------------------------------
+    const menuB = await drive(cdp, 'setMachine', true);
+    await shoot(cdp, shotSession);
+    const step5 =
+      menuB?.machine === MACHINE_LABEL &&
+      menuB.live === true &&
+      cellOf(menuB, 'Capture Last 250 Lines') === 'absent' &&
+      cellOf(menuB, 'Capture Last 1,000 Lines') === 'absent' &&
+      cellOf(menuB, 'Clear') === 'disabled';
+    note(
+      5,
+      'the same session on another machine loses both presets and Clear is disabled',
+      step5 ? 'pass' : 'FAIL',
+      `machine ${String(menuB?.machine)}, live ${String(menuB?.live)}, terminal ` +
+        `put back by the drive ${String(menuB?.terminalHeld)}, labels ` +
+        JSON.stringify((menuB?.rows ?? []).map((r) => r.label))
+    );
+
+    // -- 6. exactly four cells moved, and no fifth ----------------------------
+    //
+    // The list was three until Phase 100 shipped "Read Last Lines…", which is
+    // drawn ONLY for a session on another machine (terminal-menu.ts guards it
+    // with `if (!onThisMac)`). That is a fourth cell that moves by design, and
+    // nobody added it here, so this step read FAIL from 2026-08-20 until Phase
+    // 127 ran the probe again on 2026-08-22. The product was right and the
+    // expectation was stale.
+    const labels = allLabels(menuA, menuB);
+    const table = labels.map((label) => ({
+      label,
+      onThisMac: cellOf(menuA, label),
+      onAnotherMachine: cellOf(menuB, label)
+    }));
+    const moved = table.filter((r) => r.onThisMac !== r.onAnotherMachine);
+    const wanted = [
+      'Capture Last 250 Lines',
+      'Capture Last 1,000 Lines',
+      'Clear',
+      'Read Last Lines…'
+    ];
+    const step6 =
+      moved.length === 4 && moved.every((r) => wanted.includes(r.label));
+    console.log('');
+    say('the two menus, cell by cell');
+    console.log('  item                        on this Mac   on another machine');
+    console.log('  --------------------------  ------------  ------------------');
+    for (const r of table) {
+      console.log(
+        `  ${r.label.padEnd(26)}  ${r.onThisMac.padEnd(12)}  ${r.onAnotherMachine}`
+      );
+    }
+    console.log('');
+    note(
+      6,
+      'exactly four cells moved, and every other item is untouched',
+      step6 ? 'pass' : 'FAIL',
+      `moved ${JSON.stringify(moved.map((r) => r.label))}, wanted ` +
+        JSON.stringify(wanted)
+    );
+
+    // -- teardown -------------------------------------------------------------
+    const ids = await drive(cdp, 'sessionIds');
+    await drive(cdp, 'setMachine', false);
+    await drive(cdp, 'killAll', ids ?? []);
+    await sleep(1_000);
+    cdp.close();
+    child.kill('SIGTERM');
+    await sleep(1_500);
+
+    const failed = results.filter((r) => r.verdict !== 'pass');
+    return finish(failed.length === 0 ? 0 : 1);
   });
-  if (readingA?.missing === true) {
-    note(
-      0,
-      'this build carries the Phase 96 drive and mounted a Monaco editor',
-      'FAIL',
-      'window.__gmuxP96RemoteSurfaces is not there, or no editor was mounted ' +
-        'within 15 s. The renderer half of this probe is ' +
-        'src/renderer/app/p96-remote-surfaces-drive.ts and App.tsx registers it.'
-    );
-    return finish(1);
-  }
-  await shoot(cdp, shotLocal);
-  const step1 =
-    readingA.readOnly === false &&
-    readingA.accepted === true &&
-    readingA.remote === false;
-  note(
-    1,
-    'a file on THIS Mac is editable and Monaco takes the character',
-    step1 ? 'pass' : 'FAIL',
-    `readOnly ${String(readingA.readOnly)}, before ` +
-      `${JSON.stringify(readingA.before)}, after ${JSON.stringify(readingA.after)}`
-  );
-
-  // -- 2. the measurement: the same tab, on another machine -----------------
-  const readingB = await drive(cdp, 'makeRemote', { repoPath: FAR_REPO });
-  await shoot(cdp, shotRemote);
-  const sameTab = readingA.tabId !== null && readingA.tabId === readingB.tabId;
-  const step2 =
-    sameTab &&
-    readingB.remote === true &&
-    readingB.readOnly === true &&
-    readingB.accepted === false &&
-    // The tab is already dirty, because step 1 typed into it while it was a
-    // file on this Mac and that character was accepted. What must hold here is
-    // that the refused keystroke moved NOTHING, so the flag is compared with
-    // itself rather than with false.
-    readingB.dirtyAfter === readingB.dirtyBefore;
-  note(
-    2,
-    'the same tab, naming a file on another machine, refuses the keystroke',
-    step2 ? 'pass' : 'FAIL',
-    `same tab ${String(sameTab)}, remote ${String(readingB.remote)}, readOnly ` +
-      `${String(readingB.readOnly)}, before ${JSON.stringify(readingB.before)}, ` +
-      `after ${JSON.stringify(readingB.after)}, dirty ` +
-      `${String(readingB.dirtyBefore)} then ${String(readingB.dirtyAfter)}`
-  );
-
-  // -- 3. one image with the band and the editor on it ----------------------
-  note(
-    3,
-    'the window was photographed with the lock band over the editor',
-    existsSync(shotRemote) ? 'pass' : 'FAIL',
-    `${shotLocal} and ${shotRemote}`
-  );
-
-  // -- 4. a real session's menu, on this Mac --------------------------------
-  const menuA = await drive(cdp, 'makeSession', 'p96-a');
-  const step4 =
-    menuA?.live === true &&
-    menuA.machine === null &&
-    cellOf(menuA, 'Capture Last 250 Lines') === 'enabled' &&
-    cellOf(menuA, 'Capture Last 1,000 Lines') === 'enabled' &&
-    cellOf(menuA, 'Clear') === 'enabled';
-  note(
-    4,
-    'a real session on this Mac draws both history presets and an enabled Clear',
-    step4 ? 'pass' : 'FAIL',
-    `live ${String(menuA?.live)}, labels ` +
-      JSON.stringify((menuA?.rows ?? []).map((r) => r.label))
-  );
-
-  // -- 5. the same session, on another machine ------------------------------
-  const menuB = await drive(cdp, 'setMachine', true);
-  await shoot(cdp, shotSession);
-  const step5 =
-    menuB?.machine === MACHINE_LABEL &&
-    menuB.live === true &&
-    cellOf(menuB, 'Capture Last 250 Lines') === 'absent' &&
-    cellOf(menuB, 'Capture Last 1,000 Lines') === 'absent' &&
-    cellOf(menuB, 'Clear') === 'disabled';
-  note(
-    5,
-    'the same session on another machine loses both presets and Clear is disabled',
-    step5 ? 'pass' : 'FAIL',
-    `machine ${String(menuB?.machine)}, live ${String(menuB?.live)}, terminal ` +
-      `put back by the drive ${String(menuB?.terminalHeld)}, labels ` +
-      JSON.stringify((menuB?.rows ?? []).map((r) => r.label))
-  );
-
-  // -- 6. exactly four cells moved, and no fifth ----------------------------
-  //
-  // The list was three until Phase 100 shipped "Read Last Lines…", which is
-  // drawn ONLY for a session on another machine (terminal-menu.ts guards it
-  // with `if (!onThisMac)`). That is a fourth cell that moves by design, and
-  // nobody added it here, so this step read FAIL from 2026-08-20 until Phase
-  // 127 ran the probe again on 2026-08-22. The product was right and the
-  // expectation was stale.
-  const labels = allLabels(menuA, menuB);
-  const table = labels.map((label) => ({
-    label,
-    onThisMac: cellOf(menuA, label),
-    onAnotherMachine: cellOf(menuB, label)
-  }));
-  const moved = table.filter((r) => r.onThisMac !== r.onAnotherMachine);
-  const wanted = [
-    'Capture Last 250 Lines',
-    'Capture Last 1,000 Lines',
-    'Clear',
-    'Read Last Lines…'
-  ];
-  const step6 =
-    moved.length === 4 && moved.every((r) => wanted.includes(r.label));
-  console.log('');
-  say('the two menus, cell by cell');
-  console.log('  item                        on this Mac   on another machine');
-  console.log('  --------------------------  ------------  ------------------');
-  for (const r of table) {
-    console.log(
-      `  ${r.label.padEnd(26)}  ${r.onThisMac.padEnd(12)}  ${r.onAnotherMachine}`
-    );
-  }
-  console.log('');
-  note(
-    6,
-    'exactly four cells moved, and every other item is untouched',
-    step6 ? 'pass' : 'FAIL',
-    `moved ${JSON.stringify(moved.map((r) => r.label))}, wanted ` +
-      JSON.stringify(wanted)
-  );
-
-  // -- teardown -------------------------------------------------------------
-  const ids = await drive(cdp, 'sessionIds');
-  await drive(cdp, 'setMachine', false);
-  await drive(cdp, 'killAll', ids ?? []);
-  await sleep(1_000);
-  cdp.close();
-  child.kill('SIGTERM');
-  await sleep(1_500);
-
-  const failed = results.filter((r) => r.verdict !== 'pass');
-  return finish(failed.length === 0 ? 0 : 1);
 }
 
 main().catch((err) => {

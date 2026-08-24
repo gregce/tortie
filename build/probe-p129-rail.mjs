@@ -113,13 +113,15 @@
  * Every scratch file carries a `p129-` prefix.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { windowShot } from './window-shot.mjs';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p129rail]';
@@ -461,12 +463,11 @@ const probeJs = `(async () => {
 // One run of the app
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
-const child = spawn(
-  electronBin,
-  ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
+await withElectron(
   {
+    label: 'p129-rail',
+    userDataDir: profile,
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -477,277 +478,279 @@ const child = spawn(
       GMUX_SHOT_DRIVE: drive,
       GMUX_SHOT_JS: probeJs
     }
+  },
+  async (handle) => {
+  const child = handle.child;
+  say(`launched the app, pid ${String(child.pid)} (recorded)`);
+
+  /**
+   * The pid that owns the window. node_modules/.bin/electron is a Node shim that
+   * spawns the Electron binary as its one child, so the window belongs to that
+   * child when there is one and to the spawned pid otherwise. It is read so the
+   * window can be raised and photographed, and it is never killed.
+   */
+  function guiPid() {
+    const out = spawnSync('pgrep', ['-P', String(child.pid)], {
+      encoding: 'utf8'
+    });
+    const first = (out.stdout ?? '')
+      .split('\n')
+      .map((line) => Number(line.trim()))
+      .find((n) => Number.isInteger(n) && n > 0);
+    return first ?? child.pid;
   }
-);
-say(`launched the app, pid ${String(child.pid)} (recorded)`);
 
-/**
- * The pid that owns the window. node_modules/.bin/electron is a Node shim that
- * spawns the Electron binary as its one child, so the window belongs to that
- * child when there is one and to the spawned pid otherwise. It is read so the
- * window can be raised and photographed, and it is never killed.
- */
-function guiPid() {
-  const out = spawnSync('pgrep', ['-P', String(child.pid)], {
-    encoding: 'utf8'
-  });
-  const first = (out.stdout ?? '')
-    .split('\n')
-    .map((line) => Number(line.trim()))
-    .find((n) => Number.isInteger(n) && n > 0);
-  return first ?? child.pid;
-}
+  /** What the outside photograph reported. Null until it ran. */
+  let outsideShot = null;
 
-/** What the outside photograph reported. Null until it ran. */
-let outsideShot = null;
-
-function takeExpandedShot() {
-  const pid = guiPid();
-  spawnSync(
-    'osascript',
-    [
-      '-e',
-      `tell application "System Events" to set frontmost of (first process whose unix id is ${String(pid)}) to true`
-    ],
-    { encoding: 'utf8', timeout: 10_000 }
-  );
-  outsideShot = windowShot({
-    pid,
-    path: expandedShot,
-    log: (line) => say(line)
-  });
-}
-
-const HOLD_MARK = '[p129] expanded shot';
-let holdSeen = false;
-
-let text = '';
-const onText = (chunk) => {
-  process.stdout.write(chunk);
-  text += chunk;
-  if (!holdSeen && text.includes(HOLD_MARK)) {
-    holdSeen = true;
-    setTimeout(takeExpandedShot, 700);
-  }
-};
-child.stdout.on('data', (b) => onText(b.toString()));
-child.stderr.on('data', (b) => onText(b.toString()));
-
-await new Promise((r) => {
-  const watchdog = setTimeout(() => {
-    console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
-    child.kill('SIGTERM');
-  }, 300_000);
-  child.on('error', (err) => {
-    clearTimeout(watchdog);
-    console.error(`${TAG} electron could not start: ${err.message}`);
-    r(1);
-  });
-  child.on('exit', (c) => {
-    clearTimeout(watchdog);
-    setTimeout(() => r(c ?? 1), 750);
-  });
-});
-child.stdout.destroy();
-child.stderr.destroy();
-
-// ---------------------------------------------------------------------------
-// Reading the evidence back
-// ---------------------------------------------------------------------------
-
-const marker = '[gmux-shot] probe ';
-const at = text.lastIndexOf(marker);
-let reading = null;
-if (at !== -1) {
-  const line = text.slice(at + marker.length).split('\n')[0] ?? '';
-  try {
-    reading = JSON.parse(line);
-  } catch {
-    reading = null;
-  }
-}
-
-const failures = [];
-const results = [];
-
-function check(step, claim, pass, detail) {
-  results.push({ step, claim, verdict: pass ? 'pass' : 'FAIL', detail });
-  if (!pass) failures.push(`${String(step)}. ${claim}. ${detail}`);
-}
-
-check(
-  0,
-  'the drive answered with a reading',
-  reading !== null,
-  reading === null ? 'no [gmux-shot] probe line was printed' : 'read back'
-);
-
-if (reading !== null) {
-  // ---- the measurement block, printed whatever the verdicts say ----------
-  console.log('');
-  console.log(`${TAG} MEASUREMENT, the three click shapes on the collapsed rail`);
-  for (const name of ['A', 'B', 'C']) {
-    const shape = reading.shapes?.[name] ?? null;
-    const presses = shape === null ? '-' : String(shape.presses);
-    console.log(
-      `${TAG}   shape ${name}: ${presses} press(es) before the selection and ` +
-        `the drawn leaf both moved` +
-        (shape && shape.presses === 0 ? ' (never moved in three)' : '')
+  function takeExpandedShot() {
+    const pid = guiPid();
+    spawnSync(
+      'osascript',
+      [
+        '-e',
+        `tell application "System Events" to set frontmost of (first process whose unix id is ${String(pid)}) to true`
+      ],
+      { encoding: 'utf8', timeout: 10_000 }
     );
+    outsideShot = windowShot({
+      pid,
+      path: expandedShot,
+      log: (line) => say(line)
+    });
   }
-  console.log(`${TAG} MEASUREMENT, where the keyboard sits after each arrow`);
-  for (const density of ['expanded', 'collapsed']) {
-    for (const step of reading.arrows?.[density] ?? []) {
-      console.log(
-        `${TAG}   ${density} ${step.key}: selected=${String(step.selected)} ` +
-          `inDock=${String(step.keyboardInDock)} ` +
-          `inTerminal=${String(step.keyboardInTerminal)} ` +
-          `active=${String(step.active)}`
-      );
-      // Printed only when the keyboard left the dock, which is the only case
-      // a later reader has to explain. It names the element it went to and
-      // what the project chrome was drawing at that moment.
-      if (step.strayed) {
-        console.log(`${TAG}     strayed to ${step.strayed.html}`);
-        console.log(
-          `${TAG}     project chrome then: ${JSON.stringify(step.strayed.chrome)}`
-        );
-      }
+
+  const HOLD_MARK = '[p129] expanded shot';
+  let holdSeen = false;
+
+  let text = '';
+  const onText = (chunk) => {
+    process.stdout.write(chunk);
+    text += chunk;
+    if (!holdSeen && text.includes(HOLD_MARK)) {
+      holdSeen = true;
+      setTimeout(takeExpandedShot, 700);
+    }
+  };
+  child.stdout.on('data', (b) => onText(b.toString()));
+  child.stderr.on('data', (b) => onText(b.toString()));
+
+  await new Promise((r) => {
+    const watchdog = setTimeout(() => {
+      console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
+      child.kill('SIGTERM');
+    }, 300_000);
+    child.on('error', (err) => {
+      clearTimeout(watchdog);
+      console.error(`${TAG} electron could not start: ${err.message}`);
+      r(1);
+    });
+    child.on('exit', (c) => {
+      clearTimeout(watchdog);
+      setTimeout(() => r(c ?? 1), 750);
+    });
+  });
+  child.stdout.destroy();
+  child.stderr.destroy();
+
+  // ---------------------------------------------------------------------------
+  // Reading the evidence back
+  // ---------------------------------------------------------------------------
+
+  const marker = '[gmux-shot] probe ';
+  const at = text.lastIndexOf(marker);
+  let reading = null;
+  if (at !== -1) {
+    const line = text.slice(at + marker.length).split('\n')[0] ?? '';
+    try {
+      reading = JSON.parse(line);
+    } catch {
+      reading = null;
     }
   }
-  console.log('');
 
-  const labels = reading.rowsAtStart ?? [];
-  check(
-    1,
-    'three session rows were drawn, so the arrows have somewhere to go',
-    labels.length === 3,
-    `rows: ${JSON.stringify(labels)}`
-  );
+  const failures = [];
+  const results = [];
 
-  const expandedArrows = reading.arrows?.expanded ?? [];
-  const collapsedArrows = reading.arrows?.collapsed ?? [];
-
-  const secondThirdSecond = (steps) => {
-    if (steps.length !== 3) return false;
-    return (
-      steps[0].selected === labels[1] &&
-      steps[1].selected === labels[2] &&
-      steps[2].selected === labels[1]
-    );
-  };
-
-  check(
-    3,
-    'expanded, ArrowDown ArrowDown ArrowUp select the second, third and second row',
-    secondThirdSecond(expandedArrows),
-    JSON.stringify(expandedArrows.map((s) => s.selected))
-  );
-  check(
-    4,
-    'expanded, the keyboard stays inside the session dock after every press',
-    expandedArrows.length === 3 && expandedArrows.every((s) => s.keyboardInDock),
-    JSON.stringify(
-      expandedArrows.map((s) => ({ key: s.key, active: s.active }))
-    )
-  );
-  const realName = reading.realName ?? '';
-  const landedOnReal = expandedArrows.some(
-    (s) => typeof s.selected === 'string' && s.selected.startsWith(realName)
-  );
-  check(
-    5,
-    'at least one press landed on the real session and the keyboard stayed put',
-    landedOnReal &&
-      expandedArrows
-        .filter((s) => typeof s.selected === 'string' && s.selected.startsWith(realName))
-        .every((s) => s.keyboardInDock),
-    `real session name: ${realName}`
-  );
-  check(
-    6,
-    'collapsed, the same three presses give the same three answers',
-    reading.railDrawn === true && secondThirdSecond(collapsedArrows),
-    JSON.stringify(collapsedArrows.map((s) => s.selected))
-  );
-
-  const shapes = reading.shapes ?? {};
-  for (const name of ['A', 'B', 'C']) {
-    const shape = shapes[name] ?? null;
-    check(
-      7,
-      `click shape ${name} switches the session in exactly one press`,
-      shape !== null && shape.presses === 1,
-      shape === null ? 'not measured' : `presses: ${String(shape.presses)}`
-    );
+  function check(step, claim, pass, detail) {
+    results.push({ step, claim, verdict: pass ? 'pass' : 'FAIL', detail });
+    if (!pass) failures.push(`${String(step)}. ${claim}. ${detail}`);
   }
 
   check(
-    8,
-    'after the click path the keyboard is in the terminal',
-    reading.keyboardAfterClick?.inTerminal === true,
-    JSON.stringify(reading.keyboardAfterClick ?? null)
+    0,
+    'the drive answered with a reading',
+    reading !== null,
+    reading === null ? 'no [gmux-shot] probe line was printed' : 'read back'
   );
 
-  // The outside photograph is taken last, after every keyboard reading, so
-  // the dock is put back to expanded through the shipped button first. If
-  // that button was not there, the expanded PNG is not of an expanded dock
-  // and the photograph proves nothing, so it is a row rather than a note.
+  if (reading !== null) {
+    // ---- the measurement block, printed whatever the verdicts say ----------
+    console.log('');
+    console.log(`${TAG} MEASUREMENT, the three click shapes on the collapsed rail`);
+    for (const name of ['A', 'B', 'C']) {
+      const shape = reading.shapes?.[name] ?? null;
+      const presses = shape === null ? '-' : String(shape.presses);
+      console.log(
+        `${TAG}   shape ${name}: ${presses} press(es) before the selection and ` +
+          `the drawn leaf both moved` +
+          (shape && shape.presses === 0 ? ' (never moved in three)' : '')
+      );
+    }
+    console.log(`${TAG} MEASUREMENT, where the keyboard sits after each arrow`);
+    for (const density of ['expanded', 'collapsed']) {
+      for (const step of reading.arrows?.[density] ?? []) {
+        console.log(
+          `${TAG}   ${density} ${step.key}: selected=${String(step.selected)} ` +
+            `inDock=${String(step.keyboardInDock)} ` +
+            `inTerminal=${String(step.keyboardInTerminal)} ` +
+            `active=${String(step.active)}`
+        );
+        // Printed only when the keyboard left the dock, which is the only case
+        // a later reader has to explain. It names the element it went to and
+        // what the project chrome was drawing at that moment.
+        if (step.strayed) {
+          console.log(`${TAG}     strayed to ${step.strayed.html}`);
+          console.log(
+            `${TAG}     project chrome then: ${JSON.stringify(step.strayed.chrome)}`
+          );
+        }
+      }
+    }
+    console.log('');
+
+    const labels = reading.rowsAtStart ?? [];
+    check(
+      1,
+      'three session rows were drawn, so the arrows have somewhere to go',
+      labels.length === 3,
+      `rows: ${JSON.stringify(labels)}`
+    );
+
+    const expandedArrows = reading.arrows?.expanded ?? [];
+    const collapsedArrows = reading.arrows?.collapsed ?? [];
+
+    const secondThirdSecond = (steps) => {
+      if (steps.length !== 3) return false;
+      return (
+        steps[0].selected === labels[1] &&
+        steps[1].selected === labels[2] &&
+        steps[2].selected === labels[1]
+      );
+    };
+
+    check(
+      3,
+      'expanded, ArrowDown ArrowDown ArrowUp select the second, third and second row',
+      secondThirdSecond(expandedArrows),
+      JSON.stringify(expandedArrows.map((s) => s.selected))
+    );
+    check(
+      4,
+      'expanded, the keyboard stays inside the session dock after every press',
+      expandedArrows.length === 3 && expandedArrows.every((s) => s.keyboardInDock),
+      JSON.stringify(
+        expandedArrows.map((s) => ({ key: s.key, active: s.active }))
+      )
+    );
+    const realName = reading.realName ?? '';
+    const landedOnReal = expandedArrows.some(
+      (s) => typeof s.selected === 'string' && s.selected.startsWith(realName)
+    );
+    check(
+      5,
+      'at least one press landed on the real session and the keyboard stayed put',
+      landedOnReal &&
+        expandedArrows
+          .filter((s) => typeof s.selected === 'string' && s.selected.startsWith(realName))
+          .every((s) => s.keyboardInDock),
+      `real session name: ${realName}`
+    );
+    check(
+      6,
+      'collapsed, the same three presses give the same three answers',
+      reading.railDrawn === true && secondThirdSecond(collapsedArrows),
+      JSON.stringify(collapsedArrows.map((s) => s.selected))
+    );
+
+    const shapes = reading.shapes ?? {};
+    for (const name of ['A', 'B', 'C']) {
+      const shape = shapes[name] ?? null;
+      check(
+        7,
+        `click shape ${name} switches the session in exactly one press`,
+        shape !== null && shape.presses === 1,
+        shape === null ? 'not measured' : `presses: ${String(shape.presses)}`
+      );
+    }
+
+    check(
+      8,
+      'after the click path the keyboard is in the terminal',
+      reading.keyboardAfterClick?.inTerminal === true,
+      JSON.stringify(reading.keyboardAfterClick ?? null)
+    );
+
+    // The outside photograph is taken last, after every keyboard reading, so
+    // the dock is put back to expanded through the shipped button first. If
+    // that button was not there, the expanded PNG is not of an expanded dock
+    // and the photograph proves nothing, so it is a row rather than a note.
+    check(
+      8.5,
+      'the dock was put back to expanded before the outside photograph',
+      reading.reExpandedForShot === true && reading.railDrawnForFinalShot === true,
+      `re-expanded: ${String(reading.reExpandedForShot)} / rail back for the final frame: ${String(reading.railDrawnForFinalShot)}`
+    );
+
+    const attentionSet = (list) =>
+      (list ?? [])
+        .filter((row) => row.attention)
+        .map((row) => row.label)
+        .sort()
+        .join(' | ');
+    check(
+      9,
+      'no row gained or lost the needs input state across the run',
+      attentionSet(reading.dotsBefore) === attentionSet(reading.dotsAfter),
+      `before: ${attentionSet(reading.dotsBefore)} / after: ${attentionSet(reading.dotsAfter)}`
+    );
+  }
+
+  const collapsedOk =
+    existsSync(collapsedShot) && statSync(collapsedShot).size > 1000;
+  const expandedOk =
+    existsSync(expandedShot) && statSync(expandedShot).size > 1000;
   check(
-    8.5,
-    'the dock was put back to expanded before the outside photograph',
-    reading.reExpandedForShot === true && reading.railDrawnForFinalShot === true,
-    `re-expanded: ${String(reading.reExpandedForShot)} / rail back for the final frame: ${String(reading.railDrawnForFinalShot)}`
-  );
-
-  const attentionSet = (list) =>
-    (list ?? [])
-      .filter((row) => row.attention)
-      .map((row) => row.label)
-      .sort()
-      .join(' | ');
-  check(
-    9,
-    'no row gained or lost the needs input state across the run',
-    attentionSet(reading.dotsBefore) === attentionSet(reading.dotsAfter),
-    `before: ${attentionSet(reading.dotsBefore)} / after: ${attentionSet(reading.dotsAfter)}`
-  );
-}
-
-const collapsedOk =
-  existsSync(collapsedShot) && statSync(collapsedShot).size > 1000;
-const expandedOk =
-  existsSync(expandedShot) && statSync(expandedShot).size > 1000;
-check(
-  10,
-  'two PNGs were written, one expanded and one collapsed',
-  collapsedOk && expandedOk,
-  `collapsed: ${collapsedOk ? collapsedShot : 'missing'} / expanded: ${
+    10,
+    'two PNGs were written, one expanded and one collapsed',
+    collapsedOk && expandedOk,
+    `collapsed: ${collapsedOk ? collapsedShot : 'missing'} / expanded: ${
     expandedOk ? expandedShot : `missing (${JSON.stringify(outsideShot)})`
   }`
-);
+  );
 
-const operatorAfter = operatorSessionCount();
-check(
-  11,
-  "the operator's session count did not move",
-  operatorAfter === operatorBefore,
-  `before ${String(operatorBefore)}, after ${String(operatorAfter)}`
-);
+  const operatorAfter = operatorSessionCount();
+  check(
+    11,
+    "the operator's session count did not move",
+    operatorAfter === operatorBefore,
+    `before ${String(operatorBefore)}, after ${String(operatorAfter)}`
+  );
 
-console.log('');
-for (const row of results) {
-  console.log(`${TAG} ${row.verdict.padEnd(4)} ${String(row.step)}. ${row.claim}`);
-  console.log(`${TAG}      ${row.detail}`);
-}
+  console.log('');
+  for (const row of results) {
+    console.log(`${TAG} ${row.verdict.padEnd(4)} ${String(row.step)}. ${row.claim}`);
+    console.log(`${TAG}      ${row.detail}`);
+  }
 
-if (!keep) rmSync(root, { recursive: true, force: true });
-else say(`kept the scratch directory at ${root}`);
+  if (!keep) rmSync(root, { recursive: true, force: true });
+  else say(`kept the scratch directory at ${root}`);
 
-if (failures.length > 0) {
-  console.error('');
-  for (const line of failures) console.error(`${TAG} FAIL ${line}`);
-  process.exit(1);
-}
-say('every row passed');
-process.exit(0);
+  if (failures.length > 0) {
+    console.error('');
+    for (const line of failures) console.error(`${TAG} FAIL ${line}`);
+    process.exit(1);
+  }
+  say('every row passed');
+  process.exit(0);
+});

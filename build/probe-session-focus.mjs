@@ -54,12 +54,14 @@
  * failing row named. Exit code 2 when the probe refuses to run at all.
  */
 
-import { execFile, spawn, spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { loadavg, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+
+import { withElectron } from './electron-run.mjs';
 
 const execFileP = promisify(execFile);
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -240,294 +242,297 @@ const loadBefore = loadavg()[0];
 let rendererReport = null;
 let text = '';
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
-const args = ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'];
-if (reduced) args.push('--force-prefers-reduced-motion');
-
 say(`launching electron${reduced ? ' with reduced motion forced' : ''}`);
 
-const child = spawn(electronBin, args, {
-  cwd: repoRoot,
-  env: {
-    ...process.env,
-    GMUX_SHOT: shotPath,
-    GMUX_SHOT_VERBOSE: '1',
-    GMUX_SHOT_DELAY_MS: String(armMs + settleMs * 2 + 14_000),
-    GMUX_SHOT_DRIVE: JSON.stringify(drive)
-  }
-});
+await withElectron(
+  {
+    label: 'session-focus',
+    userDataDir: profile,
+    cwd: repoRoot,
+    args: reduced ? ['--force-prefers-reduced-motion'] : [],
+    env: {
+      ...process.env,
+      GMUX_SHOT: shotPath,
+      GMUX_SHOT_VERBOSE: '1',
+      GMUX_SHOT_DELAY_MS: String(armMs + settleMs * 2 + 14_000),
+      GMUX_SHOT_DRIVE: JSON.stringify(drive)
+    }
+  },
+  async (handle) => {
+  const child = handle.child;
 
-function onText(chunk) {
-  process.stdout.write(chunk);
-  text += chunk;
-  if (chunk.includes('[focus-probe] arming')) startPolling();
-  const marker = '[focus-probe] result ';
-  let at = text.lastIndexOf(marker);
-  if (at === -1) return;
-  const line = text.slice(at + marker.length).split('\n')[0] ?? '';
-  try {
-    rendererReport = JSON.parse(line);
-  } catch {
-    // The line is still arriving. Try again on the next chunk.
-  }
-}
-
-child.stdout.on('data', (b) => {
-  onText(b.toString());
-});
-child.stderr.on('data', (b) => {
-  onText(b.toString());
-});
-
-/**
- * `exit`, not `close`, AND the two pipes are destroyed once it resolves.
- *
- * The app starts a tmux server, and that server inherits this child's stdout
- * and stderr. Two things follow and the probe needs both fixes.
- *
- *  1. `close` waits for a stdio end that never comes, because the tmux server
- *     is still holding the write end long after Electron has quit. Awaiting
- *     `exit` instead is what lets the reading below run at all. Measured on
- *     2026-08-18: the run finished, wrote its screenshot, and then sat for
- *     448 s until it was stopped by hand.
- *  2. Awaiting `exit` still leaves those two readable streams referenced by
- *     the event loop, so node never exits on its own and the promised exit
- *     code is never delivered. Measured on 2026-08-18: the probe printed
- *     "both readings agree" and was still alive 13 minutes 38 seconds later
- *     for a run whose work took about 40 seconds. Destroying both handles
- *     after the drain is what lets the process end, and it is what lets
- *     build/harness-socket.mjs reach its own cleanup instead of leaving a
- *     scratch tmux server behind.
- *
- * A short drain after `exit` collects the last lines before either destroy.
- */
-const exitCode = await new Promise((r) => {
-  const watchdog = setTimeout(
-    () => {
-      console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
-      child.kill('SIGTERM');
-    },
-    armMs + settleMs * 2 + 120_000
-  );
-  child.on('error', (err) => {
-    clearTimeout(watchdog);
-    console.error(`${TAG} electron could not start: ${err.message}`);
-    r(1);
-  });
-  child.on('exit', (code) => {
-    clearTimeout(watchdog);
-    setTimeout(() => {
-      r(code ?? 1);
-    }, 750);
-  });
-});
-// The two lines that let this file be a gate. See the note above the promise.
-child.stdout.destroy();
-child.stderr.destroy();
-stopPolling();
-const loadAfter = loadavg()[0];
-
-// ---------------------------------------------------------------------------
-// Reading the evidence back
-// ---------------------------------------------------------------------------
-
-const failures = [];
-const loadNote = `load average ${loadBefore.toFixed(1)} before and ${loadAfter.toFixed(1)} after`;
-
-if (rendererReport === null) {
-  failures.push(
-    'the renderer printed no focus-probe result, so nothing was measured ' +
-      `(electron exited ${String(exitCode)})`
-  );
-}
-
-const gestures = rendererReport?.gestures ?? [];
-const enter = gestures.find((g) => g.name === 'enter') ?? null;
-const leave = gestures.find((g) => g.name === 'leave') ?? null;
-const leafIds = rendererReport?.leafIds ?? [];
-
-console.log('');
-say(`${loadNote}`);
-say(`visible leaves: ${String(leafIds.length)}`);
-
-for (const gesture of gestures) {
-  console.log('');
-  say(`reading one, the renderer. ${gesture.name}: ${String(gesture.rows.length)} resize events`);
-  console.log('  leaf                                  cols  rows   t_ms');
-  console.log('  ------------------------------------  ----  ----  -----');
-  for (const row of gesture.rows) {
-    console.log(
-      `  ${String(row.leafId).padEnd(38)}${String(row.cols).padStart(4)}` +
-        `  ${String(row.rows).padStart(4)}  ${String(row.tMs).padStart(5)}`
-    );
-  }
-}
-
-for (const copy of rendererReport?.copies ?? []) {
-  say(
-    `still copy: leaf=${copy.leafId} grabbed=${String(copy.grabbed)} ` +
-      `ink=${copy.ink === null ? 'not measured' : Number(copy.ink).toFixed(4)} ` +
-      `sampled=${String(copy.sampled)} ` +
-      `sources=[${(copy.sources ?? []).join(' ')}]`
-  );
-}
-
-const copyWindows = rendererReport?.copyWindows ?? [];
-say(
-  `copy node seen in ${String(copyWindows.length)} windows over ` +
-    `${String(rendererReport?.polls ?? 0)} polls at ` +
-    `${String(rendererReport?.pollMs ?? 0)} ms`
-);
-
-// -- reading two ------------------------------------------------------------
-
-/** Distinct consecutive sizes per session inside one time window. */
-function sizeRuns(fromAt, toAt) {
-  const runs = new Map();
-  for (const sample of timeline) {
-    if (sample.at < fromAt || sample.at > toAt) continue;
-    for (const [name, size] of Object.entries(sample.panes)) {
-      const list = runs.get(name) ?? [];
-      const last = list[list.length - 1];
-      if (last === undefined || last.size !== size) {
-        list.push({ size, at: sample.at });
-      }
-      runs.set(name, list);
+  function onText(chunk) {
+    process.stdout.write(chunk);
+    text += chunk;
+    if (chunk.includes('[focus-probe] arming')) startPolling();
+    const marker = '[focus-probe] result ';
+    let at = text.lastIndexOf(marker);
+    if (at === -1) return;
+    const line = text.slice(at + marker.length).split('\n')[0] ?? '';
+    try {
+      rendererReport = JSON.parse(line);
+    } catch {
+      // The line is still arriving. Try again on the next chunk.
     }
   }
-  return runs;
-}
 
-console.log('');
-say(`reading two, tmux on -L ${socket}. ${String(timeline.length)} samples`);
-if (enter !== null) {
-  const from = enter.pressedAtEpochMs - 100;
-  const to = enter.pressedAtEpochMs + settleMs;
-  const runs = sizeRuns(from, to);
-  console.log('  session                sizes over the enter gesture');
-  console.log('  ---------------------  ----------------------------');
+  child.stdout.on('data', (b) => {
+    onText(b.toString());
+  });
+  child.stderr.on('data', (b) => {
+    onText(b.toString());
+  });
+
   /**
-   * Sessions that changed size at all. The app's own control session never
-   * resizes and is not a leaf, so a session that held one size is evidence
-   * rather than a failure. What would be a failure is a THIRD size, which is
-   * the staircase this reading exists to make impossible to hide.
+   * `exit`, not `close`, AND the two pipes are destroyed once it resolves.
+   *
+   * The app starts a tmux server, and that server inherits this child's stdout
+   * and stderr. Two things follow and the probe needs both fixes.
+   *
+   *  1. `close` waits for a stdio end that never comes, because the tmux server
+   *     is still holding the write end long after Electron has quit. Awaiting
+   *     `exit` instead is what lets the reading below run at all. Measured on
+   *     2026-08-18: the run finished, wrote its screenshot, and then sat for
+   *     448 s until it was stopped by hand.
+   *  2. Awaiting `exit` still leaves those two readable streams referenced by
+   *     the event loop, so node never exits on its own and the promised exit
+   *     code is never delivered. Measured on 2026-08-18: the probe printed
+   *     "both readings agree" and was still alive 13 minutes 38 seconds later
+   *     for a run whose work took about 40 seconds. Destroying both handles
+   *     after the drain is what lets the process end, and it is what lets
+   *     build/harness-socket.mjs reach its own cleanup instead of leaving a
+   *     scratch tmux server behind.
+   *
+   * A short drain after `exit` collects the last lines before either destroy.
    */
-  let moved = 0;
-  for (const [name, list] of runs) {
-    console.log(
-      `  ${name.padEnd(21)}  ` +
-        list
-          .map(
-            (s) => `${s.size}@+${String(s.at - enter.pressedAtEpochMs)}ms`
-          )
-          .join('  ')
+  const exitCode = await new Promise((r) => {
+    const watchdog = setTimeout(
+      () => {
+        console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
+        child.kill('SIGTERM');
+      },
+      armMs + settleMs * 2 + 120_000
     );
-    if (reduced) continue;
-    if (list.length > 2) {
-      failures.push(
-        `${name} showed ${String(list.length)} distinct pane sizes over the ` +
-          'enter gesture, expected at most two. Three or more is a staircase, ' +
-          'which means the live layout box was animated'
+    child.on('error', (err) => {
+      clearTimeout(watchdog);
+      console.error(`${TAG} electron could not start: ${err.message}`);
+      r(1);
+    });
+    child.on('exit', (code) => {
+      clearTimeout(watchdog);
+      setTimeout(() => {
+        r(code ?? 1);
+      }, 750);
+    });
+  });
+  // The two lines that let this file be a gate. See the note above the promise.
+  child.stdout.destroy();
+  child.stderr.destroy();
+  stopPolling();
+  const loadAfter = loadavg()[0];
+
+  // ---------------------------------------------------------------------------
+  // Reading the evidence back
+  // ---------------------------------------------------------------------------
+
+  const failures = [];
+  const loadNote = `load average ${loadBefore.toFixed(1)} before and ${loadAfter.toFixed(1)} after`;
+
+  if (rendererReport === null) {
+    failures.push(
+      'the renderer printed no focus-probe result, so nothing was measured ' +
+        `(electron exited ${String(exitCode)})`
+    );
+  }
+
+  const gestures = rendererReport?.gestures ?? [];
+  const enter = gestures.find((g) => g.name === 'enter') ?? null;
+  const leave = gestures.find((g) => g.name === 'leave') ?? null;
+  const leafIds = rendererReport?.leafIds ?? [];
+
+  console.log('');
+  say(`${loadNote}`);
+  say(`visible leaves: ${String(leafIds.length)}`);
+
+  for (const gesture of gestures) {
+    console.log('');
+    say(`reading one, the renderer. ${gesture.name}: ${String(gesture.rows.length)} resize events`);
+    console.log('  leaf                                  cols  rows   t_ms');
+    console.log('  ------------------------------------  ----  ----  -----');
+    for (const row of gesture.rows) {
+      console.log(
+        `  ${String(row.leafId).padEnd(38)}${String(row.cols).padStart(4)}` +
+          `  ${String(row.rows).padStart(4)}  ${String(row.tMs).padStart(5)}`
       );
-      continue;
-    }
-    if (list.length < 2) continue;
-    moved += 1;
-    const changedAt = (list[1]?.at ?? 0) - enter.pressedAtEpochMs;
-    if (changedAt < flightMs) {
-      failures.push(
-        `${name} changed size ${String(changedAt)} ms after the press, ` +
-          `before the ${String(flightMs)} ms flight ended`
-      );
     }
   }
-  if (runs.size === 0) {
-    failures.push(
-      'the tmux poll captured no pane sizes during the enter gesture, so ' +
-        'reading two measured nothing'
-    );
-  } else if (!reduced && moved !== leafIds.length) {
-    failures.push(
-      `${String(moved)} tmux sessions changed size over the enter gesture, ` +
-        `expected ${String(leafIds.length)}, one per visible leaf`
-    );
-  }
-}
 
-// -- the pass conditions ----------------------------------------------------
+  for (const copy of rendererReport?.copies ?? []) {
+    say(
+      `still copy: leaf=${copy.leafId} grabbed=${String(copy.grabbed)} ` +
+        `ink=${copy.ink === null ? 'not measured' : Number(copy.ink).toFixed(4)} ` +
+        `sampled=${String(copy.sampled)} ` +
+        `sources=[${(copy.sources ?? []).join(' ')}]`
+    );
+  }
 
-if (enter === null) {
-  failures.push('the renderer recorded no enter gesture');
-} else if (reduced) {
-  for (const row of enter.rows) {
-    if (row.tMs >= 32) {
-      failures.push(
-        `${row.leafId} resized ${String(row.tMs)} ms after the press under ` +
-          'reduced motion, which must be instant'
-      );
-    }
-  }
-  if (copyWindows.length > 0) {
-    failures.push(
-      `the copy node appeared ${String(copyWindows.length)} times under ` +
-        'reduced motion, and it must never be built at all'
-    );
-  }
-} else {
-  const early = enter.rows.filter((r) => r.tMs > 0 && r.tMs < flightMs);
-  for (const row of early) {
-    failures.push(
-      `${row.leafId} resized at ${String(row.tMs)} ms, inside the ` +
-        `${String(flightMs)} ms flight. Nothing may resize before the swap`
-    );
-  }
-  const afterSwap = enter.rows.filter((r) => r.tMs >= flightMs);
-  const distinct = new Set(afterSwap.map((r) => r.leafId));
-  if (leafIds.length > 0 && afterSwap.length !== leafIds.length) {
-    failures.push(
-      `${String(afterSwap.length)} resize events after the swap, expected ` +
-        `exactly ${String(leafIds.length)}, one per visible leaf`
-    );
-  }
-  if (leafIds.length > 0 && distinct.size !== leafIds.length) {
-    failures.push(
-      `${String(distinct.size)} distinct leaves resized after the swap, ` +
-        `expected ${String(leafIds.length)}`
-    );
-  }
-  if (leave === null && !stayFocused) {
-    failures.push('the renderer recorded no leave gesture');
-  }
-}
-
-if (existsSync(shotPath)) {
-  say(`screenshot ${shotPath}`);
-} else {
-  failures.push(`no screenshot was written to ${shotPath}`);
-}
-
-const operatorAfter = operatorSessionCount();
-say(`operator sessions on -L gmux after: ${String(operatorAfter)}`);
-if (operatorAfter !== operatorBefore) {
-  failures.push(
-    `the operator's server went from ${String(operatorBefore)} sessions to ` +
-      `${String(operatorAfter)}. This probe must never touch it`
+  const copyWindows = rendererReport?.copyWindows ?? [];
+  say(
+    `copy node seen in ${String(copyWindows.length)} windows over ` +
+      `${String(rendererReport?.polls ?? 0)} polls at ` +
+      `${String(rendererReport?.pollMs ?? 0)} ms`
   );
-}
 
-if (!keep) rmSync(root, { recursive: true, force: true });
+  // -- reading two ------------------------------------------------------------
 
-const named = [...new Set(failures)];
-if (named.length > 0) {
-  console.error('');
-  for (const failure of named) console.error(`${TAG} FAIL ${failure}`);
-  process.exit(1);
-}
-console.log('');
-say(
-  reduced
-    ? `both readings agree. Every leaf resized inside 32 ms and the copy was ` +
-        `never built, ${loadNote}`
-    : `both readings agree. No leaf resized before ${String(flightMs)} ms, ` +
-        `${loadNote}`
-);
+  /** Distinct consecutive sizes per session inside one time window. */
+  function sizeRuns(fromAt, toAt) {
+    const runs = new Map();
+    for (const sample of timeline) {
+      if (sample.at < fromAt || sample.at > toAt) continue;
+      for (const [name, size] of Object.entries(sample.panes)) {
+        const list = runs.get(name) ?? [];
+        const last = list[list.length - 1];
+        if (last === undefined || last.size !== size) {
+          list.push({ size, at: sample.at });
+        }
+        runs.set(name, list);
+      }
+    }
+    return runs;
+  }
+
+  console.log('');
+  say(`reading two, tmux on -L ${socket}. ${String(timeline.length)} samples`);
+  if (enter !== null) {
+    const from = enter.pressedAtEpochMs - 100;
+    const to = enter.pressedAtEpochMs + settleMs;
+    const runs = sizeRuns(from, to);
+    console.log('  session                sizes over the enter gesture');
+    console.log('  ---------------------  ----------------------------');
+    /**
+     * Sessions that changed size at all. The app's own control session never
+     * resizes and is not a leaf, so a session that held one size is evidence
+     * rather than a failure. What would be a failure is a THIRD size, which is
+     * the staircase this reading exists to make impossible to hide.
+     */
+    let moved = 0;
+    for (const [name, list] of runs) {
+      console.log(
+        `  ${name.padEnd(21)}  ` +
+          list
+            .map(
+              (s) => `${s.size}@+${String(s.at - enter.pressedAtEpochMs)}ms`
+            )
+            .join('  ')
+      );
+      if (reduced) continue;
+      if (list.length > 2) {
+        failures.push(
+          `${name} showed ${String(list.length)} distinct pane sizes over the ` +
+            'enter gesture, expected at most two. Three or more is a staircase, ' +
+            'which means the live layout box was animated'
+        );
+        continue;
+      }
+      if (list.length < 2) continue;
+      moved += 1;
+      const changedAt = (list[1]?.at ?? 0) - enter.pressedAtEpochMs;
+      if (changedAt < flightMs) {
+        failures.push(
+          `${name} changed size ${String(changedAt)} ms after the press, ` +
+            `before the ${String(flightMs)} ms flight ended`
+        );
+      }
+    }
+    if (runs.size === 0) {
+      failures.push(
+        'the tmux poll captured no pane sizes during the enter gesture, so ' +
+          'reading two measured nothing'
+      );
+    } else if (!reduced && moved !== leafIds.length) {
+      failures.push(
+        `${String(moved)} tmux sessions changed size over the enter gesture, ` +
+          `expected ${String(leafIds.length)}, one per visible leaf`
+      );
+    }
+  }
+
+  // -- the pass conditions ----------------------------------------------------
+
+  if (enter === null) {
+    failures.push('the renderer recorded no enter gesture');
+  } else if (reduced) {
+    for (const row of enter.rows) {
+      if (row.tMs >= 32) {
+        failures.push(
+          `${row.leafId} resized ${String(row.tMs)} ms after the press under ` +
+            'reduced motion, which must be instant'
+        );
+      }
+    }
+    if (copyWindows.length > 0) {
+      failures.push(
+        `the copy node appeared ${String(copyWindows.length)} times under ` +
+          'reduced motion, and it must never be built at all'
+      );
+    }
+  } else {
+    const early = enter.rows.filter((r) => r.tMs > 0 && r.tMs < flightMs);
+    for (const row of early) {
+      failures.push(
+        `${row.leafId} resized at ${String(row.tMs)} ms, inside the ` +
+          `${String(flightMs)} ms flight. Nothing may resize before the swap`
+      );
+    }
+    const afterSwap = enter.rows.filter((r) => r.tMs >= flightMs);
+    const distinct = new Set(afterSwap.map((r) => r.leafId));
+    if (leafIds.length > 0 && afterSwap.length !== leafIds.length) {
+      failures.push(
+        `${String(afterSwap.length)} resize events after the swap, expected ` +
+          `exactly ${String(leafIds.length)}, one per visible leaf`
+      );
+    }
+    if (leafIds.length > 0 && distinct.size !== leafIds.length) {
+      failures.push(
+        `${String(distinct.size)} distinct leaves resized after the swap, ` +
+          `expected ${String(leafIds.length)}`
+      );
+    }
+    if (leave === null && !stayFocused) {
+      failures.push('the renderer recorded no leave gesture');
+    }
+  }
+
+  if (existsSync(shotPath)) {
+    say(`screenshot ${shotPath}`);
+  } else {
+    failures.push(`no screenshot was written to ${shotPath}`);
+  }
+
+  const operatorAfter = operatorSessionCount();
+  say(`operator sessions on -L gmux after: ${String(operatorAfter)}`);
+  if (operatorAfter !== operatorBefore) {
+    failures.push(
+      `the operator's server went from ${String(operatorBefore)} sessions to ` +
+        `${String(operatorAfter)}. This probe must never touch it`
+    );
+  }
+
+  if (!keep) rmSync(root, { recursive: true, force: true });
+
+  const named = [...new Set(failures)];
+  if (named.length > 0) {
+    console.error('');
+    for (const failure of named) console.error(`${TAG} FAIL ${failure}`);
+    process.exit(1);
+  }
+  console.log('');
+  say(
+    reduced
+      ? `both readings agree. Every leaf resized inside 32 ms and the copy was ` +
+          `never built, ${loadNote}`
+      : `both readings agree. No leaf resized before ${String(flightMs)} ms, ` +
+          `${loadNote}`
+  );
+});

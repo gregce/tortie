@@ -72,7 +72,7 @@
  * runs are the same measurement. `npm run probe:p132` passes `--phase after`.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   createWriteStream,
@@ -87,6 +87,8 @@ import { connect as netConnect } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -800,17 +802,12 @@ async function main() {
   seedScratch();
 
   const logStream = createWriteStream(appLogPath, { flags: 'w' });
-  const child = spawn(
-    electronBin,
-    [
-      '.',
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      '-ApplePersistenceIgnoreState',
-      'YES'
-    ],
+  return withElectron(
     {
+      label: 'p132-install',
+      userDataDir: profile,
       cwd: repoRoot,
+      args: ['--remote-debugging-port=0'],
       env: {
         ...process.env,
         // `activeTmuxSocket` honours GMUX_TMUX_SOCKET only on a harness launch,
@@ -819,137 +816,137 @@ async function main() {
         // which photographs and exits before CDP could drive anything, so this
         // uses the same term the other CDP probes here use.
         GMUX_UPDATE_REHEARSAL: '1'
-      },
-      stdio: ['ignore', 'pipe', 'pipe']
+      }
+    },
+    async (handle) => {
+    const child = handle.child;
+    appPid = child.pid;
+    child.stdout.pipe(logStream);
+    child.stderr.pipe(logStream);
+    child.on('exit', () => {
+      appExited = true;
+    });
+    log(`launched the dev app, pid ${appPid}, log ${appLogPath}`);
+
+    let cdp;
+    try {
+      cdp = await cdpForProfile(profile, 60_000);
+    } catch (err) {
+      return fail(err.message);
     }
-  );
-  appPid = child.pid;
-  child.stdout.pipe(logStream);
-  child.stderr.pipe(logStream);
-  child.on('exit', () => {
-    appExited = true;
-  });
-  log(`launched the dev app, pid ${appPid}, log ${appLogPath}`);
 
-  let cdp;
-  try {
-    cdp = await cdpForProfile(profile, 60_000);
-  } catch (err) {
-    return fail(err.message);
-  }
+    await waitFor(
+      cdp,
+      "typeof window.__gmuxShotDrive === 'function'",
+      'the drive hook'
+    );
+    const ignored = assertHarnessLaunch();
+    if (ignored !== null) return fail(ignored);
+    log('the app honoured the harness socket, so the operator server was untouched');
 
-  await waitFor(
-    cdp,
-    "typeof window.__gmuxShotDrive === 'function'",
-    'the drive hook'
-  );
-  const ignored = assertHarnessLaunch();
-  if (ignored !== null) return fail(ignored);
-  log('the app honoured the harness socket, so the operator server was untouched');
+    await setViewport(cdp, WIDE, HEIGHTS[0]);
 
-  await setViewport(cdp, WIDE, HEIGHTS[0]);
-
-  // Open the scratch project with the Context view live. `context: { live: true }`
-  // is the shipped drive spec, so the sidebar shows what the real reader found
-  // rather than a fixture, which is what makes the agent list real.
-  await cdpEval(
-    cdp,
-    `window.__gmuxShotDrive(${JSON.stringify({
+    // Open the scratch project with the Context view live. `context: { live: true }`
+    // is the shipped drive spec, so the sidebar shows what the real reader found
+    // rather than a fixture, which is what makes the agent list real.
+    await cdpEval(
+      cdp,
+      `window.__gmuxShotDrive(${JSON.stringify({
       projectPath: projectDir,
       context: { live: true, width: 340 }
     })}).then(() => true)`,
-    true
-  );
-  await waitFor(cdp, "document.querySelector('.ctx-sections') !== null", 'the Context view');
-  log('the Context view is up on the scratch project');
+      true
+    );
+    await waitFor(cdp, "document.querySelector('.ctx-sections') !== null", 'the Context view');
+    log('the Context view is up on the scratch project');
 
-  await cdpEval(cdp, PAGE_KIT);
-  log('the page kit and the clipboard spy are installed');
+    await cdpEval(cdp, PAGE_KIT);
+    log('the page kit and the clipboard spy are installed');
 
-  // --- open the sheet by the real control ----------------------------------
-  const typed = await cdpEval(
-    cdp,
-    `(() => {
+    // --- open the sheet by the real control ----------------------------------
+    const typed = await cdpEval(
+      cdp,
+      `(() => {
       const el = document.querySelector('input[aria-label="Search skills.sh for a new skill"]');
       if (el === null) return 'no search box in the Context view';
       window.__p132.setInput(el, ${JSON.stringify(query)});
       return 'ok';
     })()`
-  );
-  if (typed !== 'ok') return fail(String(typed));
-  await sleep(300);
-  const submitted = await cdpEval(
-    cdp,
-    `(() => {
+    );
+    if (typed !== 'ok') return fail(String(typed));
+    await sleep(300);
+    const submitted = await cdpEval(
+      cdp,
+      `(() => {
       const el = document.querySelector('input[aria-label="Search skills.sh for a new skill"]');
       const form = el === null ? null : el.closest('form');
       if (form === null) return 'no form around the search box';
       form.requestSubmit();
       return 'ok';
     })()`
-  );
-  if (submitted !== 'ok') return fail(String(submitted));
-  await waitFor(cdp, "document.querySelector('.ctx-install-sheet') !== null", 'the sheet');
-  await waitFor(
-    cdp,
-    "document.querySelectorAll('.ctx-sheet-hit').length > 0 || " +
-      "document.querySelector('.ctx-install-sheet .ctxd-error') !== null",
-    'the search results'
-  );
-  const searchProblem = await cdpEval(
-    cdp,
-    "(() => { const e = document.querySelector('.ctx-install-sheet .ctxd-error');" +
-      ' return e === null ? null : e.textContent; })()'
-  );
-  if (searchProblem !== null) {
-    return fail(
-      `the registry was not reachable, so nothing below is proven: ${String(searchProblem)}`
     );
-  }
-  // The search step, at the tightest window, before anything is chosen.
-  readings.search = {};
-  for (const height of HEIGHTS) {
-    await setViewport(cdp, WIDE, height);
-    const m = await cdpEval(cdp, 'window.__p132.measureSearch()');
-    readings.search[height] = m;
-    log(`search step at ${height} px: ${JSON.stringify(m)}`);
-    await screenshot(cdp, `p132-${phase}-search-${height}.png`);
-    check(
-      `search at ${height} px: the sheet does not scroll`,
-      m.sheetScrollHeight === m.sheetClientHeight,
-      `scrollHeight ${m.sheetScrollHeight} against clientHeight ${m.sheetClientHeight}`
+    if (submitted !== 'ok') return fail(String(submitted));
+    await waitFor(cdp, "document.querySelector('.ctx-install-sheet') !== null", 'the sheet');
+    await waitFor(
+      cdp,
+      "document.querySelectorAll('.ctx-sheet-hit').length > 0 || " +
+        "document.querySelector('.ctx-install-sheet .ctxd-error') !== null",
+      'the search results'
     );
-    check(
-      `search at ${height} px: the telemetry sentence is on screen`,
-      m.noteOnScreen === true,
-      `note bottom ${m.noteBottom}, viewport ${m.innerHeight}, ` +
-        `${m.hitRows} rows, hits ${m.hitsScrollHeight}/${m.hitsClientHeight}`
+    const searchProblem = await cdpEval(
+      cdp,
+      "(() => { const e = document.querySelector('.ctx-install-sheet .ctxd-error');" +
+        ' return e === null ? null : e.textContent; })()'
     );
-  }
+    if (searchProblem !== null) {
+      return fail(
+        `the registry was not reachable, so nothing below is proven: ${String(searchProblem)}`
+      );
+    }
+    // The search step, at the tightest window, before anything is chosen.
+    readings.search = {};
+    for (const height of HEIGHTS) {
+      await setViewport(cdp, WIDE, height);
+      const m = await cdpEval(cdp, 'window.__p132.measureSearch()');
+      readings.search[height] = m;
+      log(`search step at ${height} px: ${JSON.stringify(m)}`);
+      await screenshot(cdp, `p132-${phase}-search-${height}.png`);
+      check(
+        `search at ${height} px: the sheet does not scroll`,
+        m.sheetScrollHeight === m.sheetClientHeight,
+        `scrollHeight ${m.sheetScrollHeight} against clientHeight ${m.sheetClientHeight}`
+      );
+      check(
+        `search at ${height} px: the telemetry sentence is on screen`,
+        m.noteOnScreen === true,
+        `note bottom ${m.noteBottom}, viewport ${m.innerHeight}, ` +
+          `${m.hitRows} rows, hits ${m.hitsScrollHeight}/${m.hitsClientHeight}`
+      );
+    }
 
-  // One reading BELOW the app's own minimum window, and it is a diagnostic
-  // rather than a photograph. The registry returned ten rows, which fit inside
-  // the sheet at every real height, so nothing above exercises the results
-  // scroller. This forces it: the sentence under the list must still be on
-  // screen when the list itself has to scroll.
-  await setViewport(cdp, WIDE, 420);
-  const cramped = await cdpEval(cdp, 'window.__p132.measureSearch()');
-  readings.search[420] = cramped;
-  log(`search step at 420 px (below the app minimum): ${JSON.stringify(cramped)}`);
-  check(
-    'search at 420 px: the results list is the one thing that scrolls',
-    cramped.sheetScrollHeight === cramped.sheetClientHeight &&
-      cramped.hitsScrollHeight > cramped.hitsClientHeight &&
-      cramped.noteOnScreen === true,
-    `sheet ${cramped.sheetScrollHeight}/${cramped.sheetClientHeight}, ` +
-      `hits ${cramped.hitsScrollHeight}/${cramped.hitsClientHeight}, ` +
-      `note bottom ${cramped.noteBottom} against viewport ${cramped.innerHeight}`
-  );
-  await setViewport(cdp, WIDE, HEIGHTS[0]);
+    // One reading BELOW the app's own minimum window, and it is a diagnostic
+    // rather than a photograph. The registry returned ten rows, which fit inside
+    // the sheet at every real height, so nothing above exercises the results
+    // scroller. This forces it: the sentence under the list must still be on
+    // screen when the list itself has to scroll.
+    await setViewport(cdp, WIDE, 420);
+    const cramped = await cdpEval(cdp, 'window.__p132.measureSearch()');
+    readings.search[420] = cramped;
+    log(`search step at 420 px (below the app minimum): ${JSON.stringify(cramped)}`);
+    check(
+      'search at 420 px: the results list is the one thing that scrolls',
+      cramped.sheetScrollHeight === cramped.sheetClientHeight &&
+        cramped.hitsScrollHeight > cramped.hitsClientHeight &&
+        cramped.noteOnScreen === true,
+      `sheet ${cramped.sheetScrollHeight}/${cramped.sheetClientHeight}, ` +
+        `hits ${cramped.hitsScrollHeight}/${cramped.hitsClientHeight}, ` +
+        `note bottom ${cramped.noteBottom} against viewport ${cramped.innerHeight}`
+    );
+    await setViewport(cdp, WIDE, HEIGHTS[0]);
 
-  const chosen = await cdpEval(
-    cdp,
-    `(() => {
+    const chosen = await cdpEval(
+      cdp,
+      `(() => {
       const row = document.querySelector('.ctx-sheet-hit');
       if (row === null) return null;
       const name = row.querySelector('.ctx-sheet-hit-name').textContent;
@@ -957,52 +954,52 @@ async function main() {
       row.click();
       return { name, source };
     })()`
-  );
-  if (chosen === null) return fail('the search returned no rows');
-  readings.chosen = chosen;
-  log(`chose the first result: ${chosen.name} from ${chosen.source}`);
+    );
+    if (chosen === null) return fail('the search returned no rows');
+    readings.chosen = chosen;
+    log(`chose the first result: ${chosen.name} from ${chosen.source}`);
 
-  await waitFor(
-    cdp,
-    "document.querySelector('.ctx-install-sheet .ctxd-preview') !== null",
-    'the preview card',
-    90_000
-  );
-  await sleep(1200);
-
-  // --- step 1 and 2. the three heights -------------------------------------
-  readings.heights = {};
-  for (const height of HEIGHTS) {
-    await setViewport(cdp, WIDE, height);
-    const m = await cdpEval(cdp, 'window.__p132.measure()');
-    readings.heights[height] = m;
-    log(`${height} px: ${JSON.stringify(m)}`);
-    await screenshot(cdp, `p132-${phase}-${height}.png`);
-  }
-
-  // --- the width claim ------------------------------------------------------
-  await setViewport(cdp, WIDE, HEIGHTS[0]);
-  const wide = await cdpEval(cdp, 'window.__p132.measure()');
-  await setViewport(cdp, NARROW, HEIGHTS[0]);
-  const narrow = await cdpEval(cdp, 'window.__p132.measure()');
-  await setViewport(cdp, WIDE, HEIGHTS[0]);
-  readings.width = {
-    wideViewport: WIDE,
-    wideSheet: wide.sheetWidth,
-    widePreviewScrollHeight: wide.previewScrollHeight,
-    wideColumns: wide.previewColumns,
-    narrowViewport: NARROW,
-    narrowSheet: narrow.sheetWidth,
-    narrowPreviewScrollHeight: narrow.previewScrollHeight,
-    narrowColumns: narrow.previewColumns
-  };
-  log(`width: ${JSON.stringify(readings.width)}`);
-
-  // --- step 3. the driven install ------------------------------------------
-  if (!skipInstall) {
-    const ticked = await cdpEval(
+    await waitFor(
       cdp,
-      `(() => {
+      "document.querySelector('.ctx-install-sheet .ctxd-preview') !== null",
+      'the preview card',
+      90_000
+    );
+    await sleep(1200);
+
+    // --- step 1 and 2. the three heights -------------------------------------
+    readings.heights = {};
+    for (const height of HEIGHTS) {
+      await setViewport(cdp, WIDE, height);
+      const m = await cdpEval(cdp, 'window.__p132.measure()');
+      readings.heights[height] = m;
+      log(`${height} px: ${JSON.stringify(m)}`);
+      await screenshot(cdp, `p132-${phase}-${height}.png`);
+    }
+
+    // --- the width claim ------------------------------------------------------
+    await setViewport(cdp, WIDE, HEIGHTS[0]);
+    const wide = await cdpEval(cdp, 'window.__p132.measure()');
+    await setViewport(cdp, NARROW, HEIGHTS[0]);
+    const narrow = await cdpEval(cdp, 'window.__p132.measure()');
+    await setViewport(cdp, WIDE, HEIGHTS[0]);
+    readings.width = {
+      wideViewport: WIDE,
+      wideSheet: wide.sheetWidth,
+      widePreviewScrollHeight: wide.previewScrollHeight,
+      wideColumns: wide.previewColumns,
+      narrowViewport: NARROW,
+      narrowSheet: narrow.sheetWidth,
+      narrowPreviewScrollHeight: narrow.previewScrollHeight,
+      narrowColumns: narrow.previewColumns
+    };
+    log(`width: ${JSON.stringify(readings.width)}`);
+
+    // --- step 3. the driven install ------------------------------------------
+    if (!skipInstall) {
+      const ticked = await cdpEval(
+        cdp,
+        `(() => {
         const boxes = [...document.querySelectorAll(
           '.ctx-install-sheet .ctxd-target input[type="checkbox"]'
         )].filter((b) => !b.disabled);
@@ -1014,14 +1011,14 @@ async function main() {
         }
         return { names };
       })()`
-    );
-    if (ticked.error !== undefined) return fail(ticked.error);
-    readings.agents = ticked.names;
-    log(`ticked two agents: ${ticked.names.join(' and ')}`);
+      );
+      if (ticked.error !== undefined) return fail(ticked.error);
+      readings.agents = ticked.names;
+      log(`ticked two agents: ${ticked.names.join(' and ')}`);
 
-    const scoped = await cdpEval(
-      cdp,
-      `(() => {
+      const scoped = await cdpEval(
+        cdp,
+        `(() => {
         const label = [...document.querySelectorAll('.ctx-sheet-scope label')].find(
           (l) => l.textContent.trim() === 'This project only'
         );
@@ -1031,153 +1028,153 @@ async function main() {
         input.click();
         return 'ok';
       })()`
-    );
-    if (scoped !== 'ok') return fail(String(scoped));
-    log('chose "This project only"');
+      );
+      if (scoped !== 'ok') return fail(String(scoped));
+      log('chose "This project only"');
 
-    await waitFor(
-      cdp,
-      "(() => { const t = window.__p132.commandLine(); return t !== null && t.indexOf(' add ') !== -1; })()",
-      'the plan'
-    );
-
-    // The SECOND set of photographs, and it is the one that matters most. With
-    // two agents ticked the control carries the acknowledgements and the
-    // command section carries a real command line, so the sheet is at its
-    // tallest and the button sits at its lowest. This is the state a person is
-    // in at the moment they want to press it.
-    readings.plannedHeights = {};
-    for (const height of HEIGHTS) {
-      await setViewport(cdp, WIDE, height);
-      const m = await cdpEval(cdp, 'window.__p132.measure()');
-      readings.plannedHeights[height] = m;
-      log(`planned, ${height} px: ${JSON.stringify(m)}`);
-      await screenshot(cdp, `p132-${phase}-planned-${height}.png`);
-    }
-
-    // --- Phase 132.1. The balance between band 1 and band 3 ----------------
-    // The tightest window is the one that decides this, because that is where
-    // the two bands compete. Phase 132 gave the facts band a 96 px floor and
-    // the raw text band a 240 px cap, and at 586 px the facts band drew 95 px
-    // against the raw band's 175.5 px. The person was given more of the text
-    // they had not started reading than of the two facts the decision needs,
-    // being which agents get the skill and what will run. This check fails on
-    // Phase 132's numbers, which is the point of writing it.
-    const tightest = HEIGHTS[HEIGHTS.length - 1];
-    const balance = readings.plannedHeights[tightest];
-    check(
-      `planned, ${tightest} px: the facts and the plan get more room than the raw skill text`,
-      balance.previewClientHeight > balance.remoteClientHeight,
-      `facts and plan ${balance.previewClientHeight} px against raw text ` +
-        `${balance.remoteClientHeight} px`
-    );
-
-    // The fleet section is whole, at the tightest window, without scrolling.
-    await setViewport(cdp, WIDE, tightest);
-    const fleet = await cdpEval(cdp, 'window.__p132.measureFleet()');
-    readings.fleet = fleet;
-    log(`fleet at ${tightest} px: ${JSON.stringify(fleet)}`);
-    check(
-      `planned, ${tightest} px: the agent grid is whole without scrolling the band`,
-      fleet.gridWhole === true,
-      `grid bottom ${fleet.gridBottom} against band bottom ` +
-        `${fleet.bodyBottom}, grid ${fleet.gridHeight} px tall with ` +
-        `${fleet.targets} agent rows, band ${fleet.bodyClientHeight} px tall. ` +
-        `The whole section, being the grid plus the notes that name the ` +
-        `agents the skills CLI has no name for, is ${fleet.sectionHeight} px ` +
-        `tall and its bottom is at ${fleet.sectionBottom}, so the notes are ` +
-        `${String(fleet.sectionWhole ? 'also' : 'not')} inside the band.`
-    );
-
-    // The control band draws a column at both widths this probe drives. Phase
-    // 132.1 deleted the `flex-direction: row` the container query used to
-    // state, so this is the answer at every container width rather than only
-    // below the query's 680 px threshold.
-    readings.controlDirection = {};
-    for (const width of [WIDE, NARROW]) {
-      await setViewport(cdp, width, tightest);
-      const m = await cdpEval(cdp, 'window.__p132.measureControl()');
-      const columns = await cdpEval(
+      await waitFor(
         cdp,
-        `(() => { const b = window.__p132.previewBody(); return b === null ? null : getComputedStyle(b).gridTemplateColumns; })()`
+        "(() => { const t = window.__p132.commandLine(); return t !== null && t.indexOf(' add ') !== -1; })()",
+        'the plan'
       );
-      readings.controlDirection[width] = { ...m, previewColumns: columns };
-      log(`control at ${width} px wide: ${JSON.stringify(m)}, preview columns ${String(columns)}`);
-      check(
-        `the control band is a column at a ${width} px viewport`,
-        m.flexDirection === 'column' && m.flexWrap === 'nowrap',
-        `flex-direction ${m.flexDirection}, flex-wrap ${m.flexWrap}, ` +
-          `preview columns ${String(columns)}, ` +
-          `button bottom ${m.buttonBottom}, inside the sheet ${String(m.buttonInsideSheet)}`
-      );
-    }
-    await setViewport(cdp, WIDE, tightest);
 
-    // --- the stress on the control band, at the tightest window -------------
-    // WHY THIS EXISTS. The first verification of this phase found a regression
-    // the readings above were blind to. The container query in install.css put
-    // `flex-wrap: wrap` on the control, and surface.css's `flex-direction:
-    // column` landed after it in the bundled stylesheet, so the band was a
-    // wrapping column. Phase 132.1 deleted that wrap and repaired the ordering,
-    // and these two readings are what say so. A wrapping column only wraps when its height is
-    // constrained, and this phase is what constrains it. At a 586 px viewport
-    // with four children the rows wrapped into side by side columns and the
-    // button left the sheet's box, with the sheet reading 536/536, so no
-    // scrollbar appeared in either direction and nothing above noticed. These
-    // two readings are what make the one-line fix checkable.
-    readings.stress = {};
-    await setViewport(cdp, WIDE, HEIGHTS[HEIGHTS.length - 1]);
-    for (const rows of [4, 6]) {
-      const injected = await cdpEval(cdp, `window.__p132.stress(${rows})`);
-      if (injected.error !== undefined) return fail(String(injected.error));
-      await sleep(300);
-      const m = await cdpEval(cdp, 'window.__p132.measureControl()');
-      readings.stress[rows] = m;
-      log(`stress, ${rows} rows at ${m.innerHeight} px: ${JSON.stringify(m)}`);
-      await screenshot(
+      // The SECOND set of photographs, and it is the one that matters most. With
+      // two agents ticked the control carries the acknowledgements and the
+      // command section carries a real command line, so the sheet is at its
+      // tallest and the button sits at its lowest. This is the state a person is
+      // in at the moment they want to press it.
+      readings.plannedHeights = {};
+      for (const height of HEIGHTS) {
+        await setViewport(cdp, WIDE, height);
+        const m = await cdpEval(cdp, 'window.__p132.measure()');
+        readings.plannedHeights[height] = m;
+        log(`planned, ${height} px: ${JSON.stringify(m)}`);
+        await screenshot(cdp, `p132-${phase}-planned-${height}.png`);
+      }
+
+      // --- Phase 132.1. The balance between band 1 and band 3 ----------------
+      // The tightest window is the one that decides this, because that is where
+      // the two bands compete. Phase 132 gave the facts band a 96 px floor and
+      // the raw text band a 240 px cap, and at 586 px the facts band drew 95 px
+      // against the raw band's 175.5 px. The person was given more of the text
+      // they had not started reading than of the two facts the decision needs,
+      // being which agents get the skill and what will run. This check fails on
+      // Phase 132's numbers, which is the point of writing it.
+      const tightest = HEIGHTS[HEIGHTS.length - 1];
+      const balance = readings.plannedHeights[tightest];
+      check(
+        `planned, ${tightest} px: the facts and the plan get more room than the raw skill text`,
+        balance.previewClientHeight > balance.remoteClientHeight,
+        `facts and plan ${balance.previewClientHeight} px against raw text ` +
+          `${balance.remoteClientHeight} px`
+      );
+
+      // The fleet section is whole, at the tightest window, without scrolling.
+      await setViewport(cdp, WIDE, tightest);
+      const fleet = await cdpEval(cdp, 'window.__p132.measureFleet()');
+      readings.fleet = fleet;
+      log(`fleet at ${tightest} px: ${JSON.stringify(fleet)}`);
+      check(
+        `planned, ${tightest} px: the agent grid is whole without scrolling the band`,
+        fleet.gridWhole === true,
+        `grid bottom ${fleet.gridBottom} against band bottom ` +
+          `${fleet.bodyBottom}, grid ${fleet.gridHeight} px tall with ` +
+          `${fleet.targets} agent rows, band ${fleet.bodyClientHeight} px tall. ` +
+          `The whole section, being the grid plus the notes that name the ` +
+          `agents the skills CLI has no name for, is ${fleet.sectionHeight} px ` +
+          `tall and its bottom is at ${fleet.sectionBottom}, so the notes are ` +
+          `${String(fleet.sectionWhole ? 'also' : 'not')} inside the band.`
+      );
+
+      // The control band draws a column at both widths this probe drives. Phase
+      // 132.1 deleted the `flex-direction: row` the container query used to
+      // state, so this is the answer at every container width rather than only
+      // below the query's 680 px threshold.
+      readings.controlDirection = {};
+      for (const width of [WIDE, NARROW]) {
+        await setViewport(cdp, width, tightest);
+        const m = await cdpEval(cdp, 'window.__p132.measureControl()');
+        const columns = await cdpEval(
+          cdp,
+          `(() => { const b = window.__p132.previewBody(); return b === null ? null : getComputedStyle(b).gridTemplateColumns; })()`
+        );
+        readings.controlDirection[width] = { ...m, previewColumns: columns };
+        log(`control at ${width} px wide: ${JSON.stringify(m)}, preview columns ${String(columns)}`);
+        check(
+          `the control band is a column at a ${width} px viewport`,
+          m.flexDirection === 'column' && m.flexWrap === 'nowrap',
+          `flex-direction ${m.flexDirection}, flex-wrap ${m.flexWrap}, ` +
+            `preview columns ${String(columns)}, ` +
+            `button bottom ${m.buttonBottom}, inside the sheet ${String(m.buttonInsideSheet)}`
+        );
+      }
+      await setViewport(cdp, WIDE, tightest);
+
+      // --- the stress on the control band, at the tightest window -------------
+      // WHY THIS EXISTS. The first verification of this phase found a regression
+      // the readings above were blind to. The container query in install.css put
+      // `flex-wrap: wrap` on the control, and surface.css's `flex-direction:
+      // column` landed after it in the bundled stylesheet, so the band was a
+      // wrapping column. Phase 132.1 deleted that wrap and repaired the ordering,
+      // and these two readings are what say so. A wrapping column only wraps when its height is
+      // constrained, and this phase is what constrains it. At a 586 px viewport
+      // with four children the rows wrapped into side by side columns and the
+      // button left the sheet's box, with the sheet reading 536/536, so no
+      // scrollbar appeared in either direction and nothing above noticed. These
+      // two readings are what make the one-line fix checkable.
+      readings.stress = {};
+      await setViewport(cdp, WIDE, HEIGHTS[HEIGHTS.length - 1]);
+      for (const rows of [4, 6]) {
+        const injected = await cdpEval(cdp, `window.__p132.stress(${rows})`);
+        if (injected.error !== undefined) return fail(String(injected.error));
+        await sleep(300);
+        const m = await cdpEval(cdp, 'window.__p132.measureControl()');
+        readings.stress[rows] = m;
+        log(`stress, ${rows} rows at ${m.innerHeight} px: ${JSON.stringify(m)}`);
+        await screenshot(
+          cdp,
+          `p132-${phase}-stress-${HEIGHTS[HEIGHTS.length - 1]}-${rows}rows.png`
+        );
+        check(
+          `stress, ${rows} rows at ${m.innerHeight} px: the control band is one column`,
+          m.flexWrap === 'nowrap',
+          `flex-direction ${m.flexDirection}, flex-wrap ${m.flexWrap}, ` +
+            `${m.rows} rows, ${m.children} children`
+        );
+        check(
+          `stress, ${rows} rows at ${m.innerHeight} px: the button is hit-tested at its own centre`,
+          m.buttonOnScreen === true && m.buttonInsideSheet === true,
+          `button bottom ${m.buttonBottom}, right ${m.buttonRight}, ` +
+            `sheet bottom ${m.sheetBottom}, right ${m.sheetRight}, ` +
+            `inside the sheet ${String(m.buttonInsideSheet)}`
+        );
+        check(
+          `stress, ${rows} rows at ${m.innerHeight} px: nothing runs off the sheet sideways`,
+          m.sheetScrollWidth === m.sheetClientWidth,
+          `sheet scrollWidth ${m.sheetScrollWidth} against clientWidth ${m.sheetClientWidth}, ` +
+            `control right ${m.controlRight} against sheet right ${m.sheetRight}`
+        );
+        await cdpEval(cdp, 'window.__p132.unstress()');
+        await sleep(200);
+      }
+      const recovered = await cdpEval(cdp, 'window.__p132.measureControl()');
+      readings.stressRecovered = recovered;
+      check(
+        'the probe left no injected rows behind, and the button is still reachable',
+        recovered.stressLeft === 0 && recovered.buttonOnScreen === true,
+        `${recovered.stressLeft} injected rows left, ${recovered.rows} real rows, ` +
+          `button bottom ${recovered.buttonBottom}`
+      );
+
+      await setViewport(cdp, WIDE, HEIGHTS[0]);
+
+      const previewCommand = await cdpEval(cdp, 'window.__p132.commandLine()');
+      readings.previewCommand = previewCommand;
+
+      // --- step 4a. the preview's copy control -------------------------------
+      const copiedPreview = await cdpEval(
         cdp,
-        `p132-${phase}-stress-${HEIGHTS[HEIGHTS.length - 1]}-${rows}rows.png`
-      );
-      check(
-        `stress, ${rows} rows at ${m.innerHeight} px: the control band is one column`,
-        m.flexWrap === 'nowrap',
-        `flex-direction ${m.flexDirection}, flex-wrap ${m.flexWrap}, ` +
-          `${m.rows} rows, ${m.children} children`
-      );
-      check(
-        `stress, ${rows} rows at ${m.innerHeight} px: the button is hit-tested at its own centre`,
-        m.buttonOnScreen === true && m.buttonInsideSheet === true,
-        `button bottom ${m.buttonBottom}, right ${m.buttonRight}, ` +
-          `sheet bottom ${m.sheetBottom}, right ${m.sheetRight}, ` +
-          `inside the sheet ${String(m.buttonInsideSheet)}`
-      );
-      check(
-        `stress, ${rows} rows at ${m.innerHeight} px: nothing runs off the sheet sideways`,
-        m.sheetScrollWidth === m.sheetClientWidth,
-        `sheet scrollWidth ${m.sheetScrollWidth} against clientWidth ${m.sheetClientWidth}, ` +
-          `control right ${m.controlRight} against sheet right ${m.sheetRight}`
-      );
-      await cdpEval(cdp, 'window.__p132.unstress()');
-      await sleep(200);
-    }
-    const recovered = await cdpEval(cdp, 'window.__p132.measureControl()');
-    readings.stressRecovered = recovered;
-    check(
-      'the probe left no injected rows behind, and the button is still reachable',
-      recovered.stressLeft === 0 && recovered.buttonOnScreen === true,
-      `${recovered.stressLeft} injected rows left, ${recovered.rows} real rows, ` +
-        `button bottom ${recovered.buttonBottom}`
-    );
-
-    await setViewport(cdp, WIDE, HEIGHTS[0]);
-
-    const previewCommand = await cdpEval(cdp, 'window.__p132.commandLine()');
-    readings.previewCommand = previewCommand;
-
-    // --- step 4a. the preview's copy control -------------------------------
-    const copiedPreview = await cdpEval(
-      cdp,
-      `(() => {
+        `(() => {
         const btn = [...document.querySelectorAll('.ctx-install-sheet button')].find(
           (b) => b.textContent === 'Copy the command'
         );
@@ -1186,18 +1183,18 @@ async function main() {
         btn.click();
         return window.__p132.copied[0] ?? null;
       })()`
-    );
-    readings.copiedPreview = copiedPreview;
-    check(
-      'the preview copies the command it shows',
-      copiedPreview !== null && copiedPreview === previewCommand,
-      copiedPreview === previewCommand ? 'byte for byte equal' : 'they differ'
-    );
+      );
+      readings.copiedPreview = copiedPreview;
+      check(
+        'the preview copies the command it shows',
+        copiedPreview !== null && copiedPreview === previewCommand,
+        copiedPreview === previewCommand ? 'byte for byte equal' : 'they differ'
+      );
 
-    // --- open the confirm --------------------------------------------------
-    const opened = await cdpEval(
-      cdp,
-      `(() => {
+      // --- open the confirm --------------------------------------------------
+      const opened = await cdpEval(
+        cdp,
+        `(() => {
         const btn = window.__p132.primary();
         if (btn === null) return 'no primary control on the sheet';
         if (btn.disabled) {
@@ -1209,49 +1206,49 @@ async function main() {
         btn.click();
         return 'ok';
       })()`
-    );
-    if (opened !== 'ok') return fail(String(opened));
-    await waitFor(
-      cdp,
-      "document.querySelector('.ctxd-install-modal') !== null",
-      'the confirm'
-    );
-    log('the confirm opened, and nothing has spawned yet');
-
-    readings.confirm = {};
-    for (const height of HEIGHTS) {
-      await setViewport(cdp, WIDE, height);
-      const c = await cdpEval(cdp, 'window.__p132.measureConfirm()');
-      readings.confirm[height] = c;
-      log(`confirm at ${height} px: ${JSON.stringify(c)}`);
-      await screenshot(cdp, `p132-${phase}-confirm-${height}.png`);
-    }
-    await setViewport(cdp, WIDE, HEIGHTS[0]);
-
-    for (const height of HEIGHTS) {
-      const c = readings.confirm[height];
-      check(
-        `confirm at ${height} px: the primary control is on screen without scrolling it`,
-        c.buttonOnScreen === true,
-        `button bottom ${c.buttonBottom}, modal visible bottom ${c.modalBottom}, ` +
-          `viewport ${c.innerHeight}, modal ${c.modalScrollHeight}/${c.modalClientHeight}`
       );
-    }
+      if (opened !== 'ok') return fail(String(opened));
+      await waitFor(
+        cdp,
+        "document.querySelector('.ctxd-install-modal') !== null",
+        'the confirm'
+      );
+      log('the confirm opened, and nothing has spawned yet');
 
-    const confirmCommand = readings.confirm[HEIGHTS[0]].commandLine;
-    readings.confirmCommand = confirmCommand;
-    check(
-      'the confirm shows the command the preview showed',
-      confirmCommand === previewCommand,
-      confirmCommand === previewCommand
-        ? 'byte for byte equal'
-        : `preview ${JSON.stringify(previewCommand)} against confirm ${JSON.stringify(confirmCommand)}`
-    );
+      readings.confirm = {};
+      for (const height of HEIGHTS) {
+        await setViewport(cdp, WIDE, height);
+        const c = await cdpEval(cdp, 'window.__p132.measureConfirm()');
+        readings.confirm[height] = c;
+        log(`confirm at ${height} px: ${JSON.stringify(c)}`);
+        await screenshot(cdp, `p132-${phase}-confirm-${height}.png`);
+      }
+      await setViewport(cdp, WIDE, HEIGHTS[0]);
 
-    // --- step 4b. the confirm's copy control -------------------------------
-    const copiedConfirm = await cdpEval(
-      cdp,
-      `(() => {
+      for (const height of HEIGHTS) {
+        const c = readings.confirm[height];
+        check(
+          `confirm at ${height} px: the primary control is on screen without scrolling it`,
+          c.buttonOnScreen === true,
+          `button bottom ${c.buttonBottom}, modal visible bottom ${c.modalBottom}, ` +
+            `viewport ${c.innerHeight}, modal ${c.modalScrollHeight}/${c.modalClientHeight}`
+        );
+      }
+
+      const confirmCommand = readings.confirm[HEIGHTS[0]].commandLine;
+      readings.confirmCommand = confirmCommand;
+      check(
+        'the confirm shows the command the preview showed',
+        confirmCommand === previewCommand,
+        confirmCommand === previewCommand
+          ? 'byte for byte equal'
+          : `preview ${JSON.stringify(previewCommand)} against confirm ${JSON.stringify(confirmCommand)}`
+      );
+
+      // --- step 4b. the confirm's copy control -------------------------------
+      const copiedConfirm = await cdpEval(
+        cdp,
+        `(() => {
         const btn = [...document.querySelectorAll('.ctxd-install-modal button')].find(
           (b) => b.textContent === 'Copy'
         );
@@ -1260,20 +1257,20 @@ async function main() {
         btn.click();
         return window.__p132.copied[0] ?? null;
       })()`
-    );
-    readings.copiedConfirm = copiedConfirm;
-    check(
-      'the confirm copies the command it shows',
-      copiedConfirm !== null && copiedConfirm === confirmCommand,
-      copiedConfirm === confirmCommand ? 'byte for byte equal' : 'they differ'
-    );
+      );
+      readings.copiedConfirm = copiedConfirm;
+      check(
+        'the confirm copies the command it shows',
+        copiedConfirm !== null && copiedConfirm === confirmCommand,
+        copiedConfirm === confirmCommand ? 'byte for byte equal' : 'they differ'
+      );
 
-    // --- the one call that spawns ------------------------------------------
-    const skillsRoot = join(projectDir, '.claude', 'skills');
-    const before = existsSync(skillsRoot);
-    const ran = await cdpEval(
-      cdp,
-      `(() => {
+      // --- the one call that spawns ------------------------------------------
+      const skillsRoot = join(projectDir, '.claude', 'skills');
+      const before = existsSync(skillsRoot);
+      const ran = await cdpEval(
+        cdp,
+        `(() => {
         const btn = document.querySelector('.ctxd-install-modal .modal-actions .btn-primary');
         if (btn === null) return 'no primary control on the confirm';
         if (btn.disabled) return 'the confirm primary is disabled';
@@ -1281,158 +1278,159 @@ async function main() {
         btn.click();
         return 'ok:' + label;
       })()`
-    );
-    if (!String(ran).startsWith('ok')) return fail(String(ran));
-    log(`clicked the confirm's ${String(ran).slice(3)} control`);
+      );
+      if (!String(ran).startsWith('ok')) return fail(String(ran));
+      log(`clicked the confirm's ${String(ran).slice(3)} control`);
 
-    let landed = null;
-    for (let waited = 0; waited < 180_000; waited += 1000) {
-      if (existsSync(skillsRoot)) {
-        const names = readdirSync(skillsRoot);
-        const withFile = names.find((n) =>
-          existsSync(join(skillsRoot, n, 'SKILL.md'))
-        );
-        if (withFile !== undefined) {
-          landed = join(skillsRoot, withFile, 'SKILL.md');
-          break;
+      let landed = null;
+      for (let waited = 0; waited < 180_000; waited += 1000) {
+        if (existsSync(skillsRoot)) {
+          const names = readdirSync(skillsRoot);
+          const withFile = names.find((n) =>
+            existsSync(join(skillsRoot, n, 'SKILL.md'))
+          );
+          if (withFile !== undefined) {
+            landed = join(skillsRoot, withFile, 'SKILL.md');
+            break;
+          }
         }
+        await sleep(1000);
       }
-      await sleep(1000);
-    }
-    readings.installedPath = landed;
-    check(
-      'a real install landed in the scratch project',
-      landed !== null,
-      landed === null
-        ? `nothing under ${skillsRoot} after 180 s (existed before: ${before})`
-        : landed
-    );
-    const failureText = await cdpEval(
-      cdp,
-      "(() => { const e = document.querySelector('.ctxd-failure');" +
-        ' return e === null ? null : e.textContent; })()'
-    );
-    if (failureText !== null) log(`the confirm reported a failure: ${String(failureText)}`);
-    const appLog = readFileSync(appLogPath, 'utf8');
-    const spawnLine = appLog
-      .split('\n')
-      .filter((l) => l.includes('cli.mjs') || l.includes('skills'))
-      .slice(-4)
-      .join('\n');
-    readings.spawnLog = spawnLine;
-    log(`the app log's last skills lines:\n${spawnLine}`);
-  } else {
-    log('--no-install: the driven install was skipped for this run');
-  }
-
-  // --- the checks the AFTER run must hold ----------------------------------
-  const sets = [['opened', readings.heights]];
-  if (readings.plannedHeights !== undefined) {
-    sets.push(['planned', readings.plannedHeights]);
-  }
-  for (const [state, set] of sets) {
-  for (const height of HEIGHTS) {
-    const m = set[height];
-    check(
-      `${state}, ${height} px: the sheet does not scroll`,
-      m.sheetScrollHeight === m.sheetClientHeight,
-      `scrollHeight ${m.sheetScrollHeight} against clientHeight ${m.sheetClientHeight}`
-    );
-    // Phase 132.1 split this in two. Phase 132 asserted that the facts band
-    // OVERFLOWS at every height and in every state, and that assertion started
-    // failing at 900 px with no agents ticked, because this phase gave the
-    // band 96 px more and its content now fits. An assertion that the band
-    // must always overflow forbids the improvement. What Phase 132 was proving
-    // is that the band is the region that scrolls and the sheet is not, so
-    // that is what is asserted at every height, and the overflow itself is
-    // asserted at the tightest window, which is where the claim has to hold.
-    check(
-      `${state}, ${height} px: the facts band is the region that scrolls, not the sheet`,
-      m.previewOverflowY === 'auto' && m.sheetOverflowY === 'hidden',
-      `preview overflow-y ${String(m.previewOverflowY)}, sheet overflow-y ` +
-        `${String(m.sheetOverflowY)}, preview scrollHeight ` +
-        `${m.previewScrollHeight} against clientHeight ${m.previewClientHeight}`
-    );
-    if (height === HEIGHTS[HEIGHTS.length - 1]) {
+      readings.installedPath = landed;
       check(
-        `${state}, ${height} px: the preview scrolls inside itself`,
-        m.previewScrollHeight > m.previewClientHeight,
-        `preview scrollHeight ${m.previewScrollHeight} against clientHeight ${m.previewClientHeight}`
+        'a real install landed in the scratch project',
+        landed !== null,
+        landed === null
+          ? `nothing under ${skillsRoot} after 180 s (existed before: ${before})`
+          : landed
+      );
+      const failureText = await cdpEval(
+        cdp,
+        "(() => { const e = document.querySelector('.ctxd-failure');" +
+          ' return e === null ? null : e.textContent; })()'
+      );
+      if (failureText !== null) log(`the confirm reported a failure: ${String(failureText)}`);
+      const appLog = readFileSync(appLogPath, 'utf8');
+      const spawnLine = appLog
+        .split('\n')
+        .filter((l) => l.includes('cli.mjs') || l.includes('skills'))
+        .slice(-4)
+        .join('\n');
+      readings.spawnLog = spawnLine;
+      log(`the app log's last skills lines:\n${spawnLine}`);
+    } else {
+      log('--no-install: the driven install was skipped for this run');
+    }
+
+    // --- the checks the AFTER run must hold ----------------------------------
+    const sets = [['opened', readings.heights]];
+    if (readings.plannedHeights !== undefined) {
+      sets.push(['planned', readings.plannedHeights]);
+    }
+    for (const [state, set] of sets) {
+    for (const height of HEIGHTS) {
+      const m = set[height];
+      check(
+        `${state}, ${height} px: the sheet does not scroll`,
+        m.sheetScrollHeight === m.sheetClientHeight,
+        `scrollHeight ${m.sheetScrollHeight} against clientHeight ${m.sheetClientHeight}`
+      );
+      // Phase 132.1 split this in two. Phase 132 asserted that the facts band
+      // OVERFLOWS at every height and in every state, and that assertion started
+      // failing at 900 px with no agents ticked, because this phase gave the
+      // band 96 px more and its content now fits. An assertion that the band
+      // must always overflow forbids the improvement. What Phase 132 was proving
+      // is that the band is the region that scrolls and the sheet is not, so
+      // that is what is asserted at every height, and the overflow itself is
+      // asserted at the tightest window, which is where the claim has to hold.
+      check(
+        `${state}, ${height} px: the facts band is the region that scrolls, not the sheet`,
+        m.previewOverflowY === 'auto' && m.sheetOverflowY === 'hidden',
+        `preview overflow-y ${String(m.previewOverflowY)}, sheet overflow-y ` +
+          `${String(m.sheetOverflowY)}, preview scrollHeight ` +
+          `${m.previewScrollHeight} against clientHeight ${m.previewClientHeight}`
+      );
+      if (height === HEIGHTS[HEIGHTS.length - 1]) {
+        check(
+          `${state}, ${height} px: the preview scrolls inside itself`,
+          m.previewScrollHeight > m.previewClientHeight,
+          `preview scrollHeight ${m.previewScrollHeight} against clientHeight ${m.previewClientHeight}`
+        );
+      }
+      check(
+        `${state}, ${height} px: the button is inside the viewport with no sheet scroll`,
+        m.sheetScrollTop === 0 && m.buttonBottom !== null && m.buttonBottom <= m.innerHeight && m.buttonTop >= 0,
+        `button top ${m.buttonTop}, bottom ${m.buttonBottom}, viewport ${m.innerHeight}, sheet scrollTop ${m.sheetScrollTop}`
+      );
+      check(
+        `${state}, ${height} px: the raw SKILL.md is a bounded box that scrolls`,
+        m.remoteHeight !== null && m.remoteHeight <= 144 && m.remoteScrollHeight > m.remoteClientHeight,
+        `remote box ${m.remoteHeight} px tall, scrollHeight ${m.remoteScrollHeight} against clientHeight ${m.remoteClientHeight}`
+      );
+      check(
+        `${state}, ${height} px: the head stays put when the preview is scrolled`,
+        m.headTopBefore === m.headTopAfterScroll,
+        `head top ${m.headTopBefore} before and ${m.headTopAfterScroll} after`
+      );
+      check(
+        `${state}, ${height} px: the preview still reads as two columns`,
+        typeof m.previewColumns === 'string' && m.previewColumns.trim().split(/\s+/).length === 2,
+        `gridTemplateColumns ${m.previewColumns}`
       );
     }
+    }
     check(
-      `${state}, ${height} px: the button is inside the viewport with no sheet scroll`,
-      m.sheetScrollTop === 0 && m.buttonBottom !== null && m.buttonBottom <= m.innerHeight && m.buttonTop >= 0,
-      `button top ${m.buttonTop}, bottom ${m.buttonBottom}, viewport ${m.innerHeight}, sheet scrollTop ${m.sheetScrollTop}`
+      'the sheet is 1120 px wide at a 1440 px viewport',
+      readings.width.wideSheet === 1120,
+      `${readings.width.wideSheet} px`
     );
     check(
-      `${state}, ${height} px: the raw SKILL.md is a bounded box that scrolls`,
-      m.remoteHeight !== null && m.remoteHeight <= 144 && m.remoteScrollHeight > m.remoteClientHeight,
-      `remote box ${m.remoteHeight} px tall, scrollHeight ${m.remoteScrollHeight} against clientHeight ${m.remoteClientHeight}`
+      'the guard still shrinks the sheet in a narrow window',
+      readings.width.narrowSheet === NARROW - 48,
+      `${readings.width.narrowSheet} px at a ${NARROW} px viewport`
     );
     check(
-      `${state}, ${height} px: the head stays put when the preview is scrolled`,
-      m.headTopBefore === m.headTopAfterScroll,
-      `head top ${m.headTopBefore} before and ${m.headTopAfterScroll} after`
+      'the columns survive at the narrow width',
+      typeof readings.width.narrowColumns === 'string' &&
+        readings.width.narrowColumns.trim().split(/\s+/).length === 2,
+      `gridTemplateColumns ${readings.width.narrowColumns}`
     );
-    check(
-      `${state}, ${height} px: the preview still reads as two columns`,
-      typeof m.previewColumns === 'string' && m.previewColumns.trim().split(/\s+/).length === 2,
-      `gridTemplateColumns ${m.previewColumns}`
-    );
-  }
-  }
-  check(
-    'the sheet is 1120 px wide at a 1440 px viewport',
-    readings.width.wideSheet === 1120,
-    `${readings.width.wideSheet} px`
-  );
-  check(
-    'the guard still shrinks the sheet in a narrow window',
-    readings.width.narrowSheet === NARROW - 48,
-    `${readings.width.narrowSheet} px at a ${NARROW} px viewport`
-  );
-  check(
-    'the columns survive at the narrow width',
-    typeof readings.width.narrowColumns === 'string' &&
-      readings.width.narrowColumns.trim().split(/\s+/).length === 2,
-    `gridTemplateColumns ${readings.width.narrowColumns}`
-  );
 
-  // -- the report ------------------------------------------------------------
-  console.log('');
-  console.log(`${TAG} ==== ${phase} ====`);
-  console.log(`${TAG} skill: ${readings.chosen.name} from ${readings.chosen.source}`);
-  console.log(
-    `${TAG} state | height | sheet scroll | button bottom | viewport | button from sheet top | preview scroll | remote box`
-  );
-  for (const [state, set] of sets) {
-  for (const height of HEIGHTS) {
-    const m = set[height];
+    // -- the report ------------------------------------------------------------
+    console.log('');
+    console.log(`${TAG} ==== ${phase} ====`);
+    console.log(`${TAG} skill: ${readings.chosen.name} from ${readings.chosen.source}`);
     console.log(
-      `${TAG} ${state.padEnd(7)} | ${String(height).padStart(6)} | ` +
-        `${String(m.sheetScrollHeight)}/${String(m.sheetClientHeight)} | ` +
-        `${String(m.buttonBottom)} | ${String(m.innerHeight)} | ` +
-        `${String(m.buttonFromSheetTop)} | ` +
-        `${String(m.previewScrollHeight)}/${String(m.previewClientHeight)} | ` +
-        `${String(m.remoteHeight)}`
+      `${TAG} state | height | sheet scroll | button bottom | viewport | button from sheet top | preview scroll | remote box`
     );
-  }
-  }
-  console.log(`${TAG} readings: ${JSON.stringify(readings, null, 2)}`);
-  const failed = checks.filter((c) => !c.ok);
-  console.log(`${TAG} ${checks.length - failed.length} checks passed, ${failed.length} failed`);
+    for (const [state, set] of sets) {
+    for (const height of HEIGHTS) {
+      const m = set[height];
+      console.log(
+        `${TAG} ${state.padEnd(7)} | ${String(height).padStart(6)} | ` +
+          `${String(m.sheetScrollHeight)}/${String(m.sheetClientHeight)} | ` +
+          `${String(m.buttonBottom)} | ${String(m.innerHeight)} | ` +
+          `${String(m.buttonFromSheetTop)} | ` +
+          `${String(m.previewScrollHeight)}/${String(m.previewClientHeight)} | ` +
+          `${String(m.remoteHeight)}`
+      );
+    }
+    }
+    console.log(`${TAG} readings: ${JSON.stringify(readings, null, 2)}`);
+    const failed = checks.filter((c) => !c.ok);
+    console.log(`${TAG} ${checks.length - failed.length} checks passed, ${failed.length} failed`);
 
-  if (phase === 'after' && failed.length > 0) {
-    for (const c of failed) console.error(`${TAG} FAILED CHECK ${c.name} — ${c.detail}`);
-    return finish(1);
-  }
-  if (phase !== 'after' && failed.length > 0) {
-    console.log(
-      `${TAG} this is the "${phase}" run, so a failed check above is the defect being recorded, not a regression`
-    );
-  }
-  return finish(0);
+    if (phase === 'after' && failed.length > 0) {
+      for (const c of failed) console.error(`${TAG} FAILED CHECK ${c.name} — ${c.detail}`);
+      return finish(1);
+    }
+    if (phase !== 'after' && failed.length > 0) {
+      console.log(
+        `${TAG} this is the "${phase}" run, so a failed check above is the defect being recorded, not a regression`
+      );
+    }
+    return finish(0);
+  });
 }
 
 main().catch(async (err) => {

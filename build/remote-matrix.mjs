@@ -58,7 +58,7 @@
  * Exit 0 only when all ten rows hold.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -70,6 +70,8 @@ import {
   scratchYard,
   writeVersionStub
 } from './scratch-machine.mjs';
+
+import { withElectron } from './electron-run.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -370,16 +372,6 @@ const requestPath = join(root, 'p72-request.json');
 const ackPath = join(root, 'p72-ack.json');
 const carriagePath = join(root, 'p72-carriage.json');
 
-const ELECTRON = join(
-  REPO,
-  'node_modules',
-  'electron',
-  'dist',
-  'Electron.app',
-  'Contents',
-  'MacOS',
-  'Electron'
-);
 
 /**
  * How long each leg may take before it is killed and the run fails.
@@ -561,51 +553,53 @@ function sessionsOnMachine(machine) {
 function runLeg(leg, profile, carriage) {
   mkdirSync(profile, { recursive: true, mode: 0o700 });
   writeFileSync(carriagePath, JSON.stringify(carriage, null, 2), 'utf8');
-  return new Promise((resolveRun) => {
-    const child = spawn(
-      ELECTRON,
-      ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
-      {
-        cwd: REPO,
-        env: {
-          ...process.env,
-          GMUX_SMOKE: 'remote-matrix',
-          GMUX_CONFIG_ROOT: root,
-          GMUX_TMUX_SOCKET: SOCKET,
-          GMUX_SKIP_USERDATA_MIGRATION: '1',
-          GMUX_SPECSTORY_NO_CLOUD: '1',
-          SSH_AUTH_SOCK: yard.authSock
-        },
-        stdio: ['ignore', 'pipe', 'pipe']
+  return withElectron(
+    {
+      label: `matrix ${leg}`,
+      program: 'app',
+      userDataDir: profile,
+      cwd: REPO,
+      env: {
+        ...process.env,
+        GMUX_SMOKE: 'remote-matrix',
+        GMUX_CONFIG_ROOT: root,
+        GMUX_TMUX_SOCKET: SOCKET,
+        GMUX_SKIP_USERDATA_MIGRATION: '1',
+        GMUX_SPECSTORY_NO_CLOUD: '1',
+        SSH_AUTH_SOCK: yard.authSock
       }
-    );
-    recordedPids.push(child.pid);
-    child.stdout.on('data', (b) => process.stdout.write(b.toString()));
-    child.stderr.on('data', (b) => process.stderr.write(b.toString()));
+    },
+    (handle) =>
+      new Promise((resolveRun) => {
+        const child = handle.child;
+        recordedPids.push(child.pid);
+        child.stdout.on('data', (b) => process.stdout.write(b.toString()));
+        child.stderr.on('data', (b) => process.stderr.write(b.toString()));
 
-    const pump = setInterval(serveRequests, 50);
-    const deadline = setTimeout(() => {
-      fail(`the ${leg} leg exceeded ${String(DEADLINE_MS[leg])} ms`);
-      try {
-        process.kill(child.pid, 'SIGKILL');
-      } catch {
-        /* already gone */
-      }
-    }, DEADLINE_MS[leg]);
+        const pump = setInterval(serveRequests, 50);
+        const deadline = setTimeout(() => {
+          fail(`the ${leg} leg exceeded ${String(DEADLINE_MS[leg])} ms`);
+          try {
+            process.kill(child.pid, 'SIGKILL');
+          } catch {
+            /* already gone */
+          }
+        }, DEADLINE_MS[leg]);
 
-    child.on('exit', (code, signal) => {
-      clearInterval(pump);
-      clearTimeout(deadline);
-      setTimeout(() => {
-        // Electron leaves a crash handler holding the write end of both pipes,
-        // so the read ends never close and this process would stay alive with
-        // nothing left to do. Measured in Phase 71 on the partition harness.
-        child.stdout.destroy();
-        child.stderr.destroy();
-        resolveRun({ code, signal });
-      }, 1_000);
-    });
-  });
+        child.on('exit', (code, signal) => {
+          clearInterval(pump);
+          clearTimeout(deadline);
+          setTimeout(() => {
+            // Electron leaves a crash handler holding the write end of both pipes,
+            // so the read ends never close and this process would stay alive with
+            // nothing left to do. Measured in Phase 71 on the partition harness.
+            child.stdout.destroy();
+            child.stderr.destroy();
+            resolveRun({ code, signal });
+          }, 1_000);
+        });
+      })
+  );
 }
 
 const machinesForApp = MACHINES.map((one) => ({

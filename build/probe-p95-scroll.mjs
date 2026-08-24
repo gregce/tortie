@@ -43,7 +43,7 @@
  *      node build/with-scratch-machine.mjs -- node build/probe-p95-scroll.mjs'
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import {
   createWriteStream,
@@ -58,6 +58,8 @@ import { connect as netConnect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p95]';
@@ -440,7 +442,6 @@ const electronBin =
   packagedBin === ''
     ? join(repoRoot, 'node_modules', '.bin', 'electron')
     : packagedBin;
-const appArgs = packagedBin === '' ? ['.'] : [];
 const recordedPids = [];
 
 /**
@@ -460,20 +461,20 @@ function profileLogScrollErrors() {
   return 0;
 }
 
-function launch(tag) {
+/**
+ * Hold the app open for exactly as long as `body` runs, and end its whole
+ * process tree afterwards whatever happened (Phase 140). This used to be
+ * `launch(tag)`, which handed a live child back to its caller, so an assertion
+ * that threw between the launch and the quit left about 480 MB running.
+ */
+function runInApp(tag, body) {
   const stream = createWriteStream(appLog, { flags: 'a' });
-  const child = spawn(
-    electronBin,
-    [
-      ...appArgs,
-      `--user-data-dir=${profile}`,
-      '--remote-debugging-port=0',
-      '--use-mock-keychain',
-      '-ApplePersistenceIgnoreState',
-      'YES'
-    ],
+  return withElectron(
     {
+      label: `p95 ${tag}`,
+      userDataDir: profile,
       cwd: repoRoot,
+      args: ['--remote-debugging-port=0', '--use-mock-keychain'],
       env: {
         ...process.env,
         GMUX_TMUX_SOCKET: socket,
@@ -484,16 +485,18 @@ function launch(tag) {
         GMUX_CONFIG_ROOT: configRoot,
         GMUX_SPECSTORY_NO_CLOUD: '1'
       },
-      stdio: ['ignore', 'pipe', 'pipe']
+      program: electronBin,
+      entry: packagedBin === ''
+    },
+    async (handle) => {
+      const child = handle.child;
+      recordedPids.push(child.pid);
+      child.stdout.pipe(stream);
+      child.stderr.pipe(stream);
+      say(`launched ${tag}, pid ${String(child.pid)}, log ${appLog}`);
+      return body(child);
     }
   );
-  recordedPids.push(child.pid);
-  child.stdout.pipe(stream);
-  child.stderr.pipe(stream);
-  say(
-    `launched ${tag}, pid ${String(child.pid)}, log ${appLog}, binary ${electronBin}`
-  );
-  return child;
 }
 
 async function quit(child) {
@@ -622,254 +625,255 @@ function finish(code) {
 }
 
 async function main() {
-  const child = launch('the run');
-  let cdp;
-  try {
-    cdp = await cdpForProfile(profile, 120_000);
-  } catch (err) {
-    note(0, 'the window came up and could be driven', 'FAIL', err.message);
-    return finish(1);
-  }
-  const haveDrive = await waitForDrive(cdp, 90_000);
-  if (!haveDrive) {
-    note(0, 'this build carries the Phase 95 drive', 'FAIL', 'no window.__gmuxP95');
-    return finish(1);
-  }
-  if (!honouredTheSocket()) {
-    note(0, 'the app honoured the harness socket', 'FAIL', 'override ignored');
-    return finish(1);
-  }
-  note(1, 'the app is on the harness socket and its own profile', 'pass', socket);
+  return runInApp('the run', async (child) => {
+    let cdp;
+    try {
+      cdp = await cdpForProfile(profile, 120_000);
+    } catch (err) {
+      note(0, 'the window came up and could be driven', 'FAIL', err.message);
+      return finish(1);
+    }
+    const haveDrive = await waitForDrive(cdp, 90_000);
+    if (!haveDrive) {
+      note(0, 'this build carries the Phase 95 drive', 'FAIL', 'no window.__gmuxP95');
+      return finish(1);
+    }
+    if (!honouredTheSocket()) {
+      note(0, 'the app honoured the harness socket', 'FAIL', 'override ignored');
+      return finish(1);
+    }
+    note(1, 'the app is on the harness socket and its own profile', 'pass', socket);
 
-  // -- the machine ----------------------------------------------------------
-  const up = await drive(cdp, 'machineUp', MACHINE_ID);
-  say(`machine rows after prepare: ${JSON.stringify(up.rows)}`);
-  say(`prepare said: ${JSON.stringify(up.prepare).slice(0, 400)}`);
-  const usable = (up.rows ?? []).some((r) => r.id === MACHINE_ID && r.usable);
-  note(
-    2,
-    'the loopback machine is confirmed and prepared',
-    usable ? 'pass' : 'FAIL',
-    JSON.stringify(up.rows)
-  );
-  if (!usable) return finish(1);
-
-  // -- a real session on that machine ---------------------------------------
-  //
-  // The first ask can come back "unreachable" while the renderer still holds
-  // the machine's state from before prepare finished, so the ask is retried a
-  // few times rather than once. It is the same ask each time and nothing is
-  // supplied to make it succeed.
-  let opened = { result: null };
-  for (let attempt = 1; attempt <= 6; attempt += 1) {
-    opened = await drive(cdp, 'openRemote', MACHINE_ID, farProject);
-    say(
-      `openRemote attempt ${String(attempt)} said: ${JSON.stringify(opened.result).slice(0, 400)}`
+    // -- the machine ----------------------------------------------------------
+    const up = await drive(cdp, 'machineUp', MACHINE_ID);
+    say(`machine rows after prepare: ${JSON.stringify(up.rows)}`);
+    say(`prepare said: ${JSON.stringify(up.prepare).slice(0, 400)}`);
+    const usable = (up.rows ?? []).some((r) => r.id === MACHINE_ID && r.usable);
+    note(
+      2,
+      'the loopback machine is confirmed and prepared',
+      usable ? 'pass' : 'FAIL',
+      JSON.stringify(up.rows)
     );
-    if (opened.result?.ok === true) break;
-    await sleep(3000);
-  }
-  let state = await drive(cdp, 'create', {
-    name: 'p95-far',
-    agent: 'shell',
-    machineId: MACHINE_ID
-  });
-  const far = (state.sessions ?? []).find((s) => s.name === 'p95-far');
-  note(
-    3,
-    'a session is running on the loopback machine',
-    far !== undefined && far.machineId === MACHINE_ID ? 'pass' : 'FAIL',
-    JSON.stringify(state.sessions)
-  );
-  if (far === undefined) return finish(1);
-  await drive(cdp, 'select', far.id);
-  state = await drive(cdp, 'state');
-  say(`with the remote session on screen: ${JSON.stringify(state)}`);
+    if (!usable) return finish(1);
 
-  // -- STEP 4. the watch window --------------------------------------------
-  const beforeRemote = scrollErrorCount();
-  const t0 = Date.now();
-  await drive(cdp, 'sleep', WATCH_MS);
-  const remoteErrors = scrollErrorCount() - beforeRemote;
-  measured.remoteWatchMs = Date.now() - t0;
-  measured.remoteScrollErrors = remoteErrors;
-  // The file the charter's packaged claim is about, read whichever binary is
-  // being driven, so the development run states its number too.
-  measured.profileLogScrollErrors = profileLogScrollErrors();
-  say(
-    `scroll error lines in ${profile}/logs/app.log: ${String(measured.profileLogScrollErrors)}`
-  );
-  note(
-    4,
-    `a remote session on screen for ${String(Math.round(measured.remoteWatchMs / 1000))} s prints no scroll error`,
-    remoteErrors === 0 ? 'pass' : 'FAIL',
-    `${String(remoteErrors)} lines matching "handler for 'terminal:scroll"`
-  );
-
-  // -- STEP 5. what the band offers and what the lane draws -----------------
-  //
-  // BOTH orientations are checked and both must offer it. The first build of
-  // this phase wrote the note into the identity strip only, and the identity
-  // strip is the band for the "right" orientation. `sessionOrientation`
-  // defaults to "top", where App renders the session tab strip instead, so
-  // the note was off screen in the layout most people have. Checking one
-  // orientation is what let that through, so this step checks two.
-  //
-  // PHASE 100 CHANGED THE ELEMENT AND THIS STEP FOLLOWS IT. Phase 95 drew a
-  // span saying that scrolling back was not available. Phase 100 makes a
-  // person able to read back, so the band draws a button that opens the last
-  // lines panel, and the sentence about scrolling is its tooltip. The element
-  // is read out of the same field of the drive's state, so this step still
-  // proves the same thing: the band above a session on another machine
-  // carries the affordance, in both orientations. `readBack` below is the one
-  // reading, written once so the two orientations cannot drift apart.
-  const readBack = (s) =>
-    s.note !== null &&
-    s.note.text.includes('Read last lines') &&
-    s.note.title.includes('cannot scroll back');
-  state = await drive(cdp, 'orientation', 'top');
-  await sleep(1500);
-  state = await drive(cdp, 'state');
-  measured.remoteStateTop = state;
-  await shoot(cdp, join(root, 'p95-remote-top.png'));
-  note(
-    '5a',
-    'the DEFAULT band, being the session tab strip, offers to read the last lines',
-    readBack(state) ? 'pass' : 'FAIL',
-    `orientation ${String(state.orientation)}, note ${JSON.stringify(state.note)}`
-  );
-  state = await drive(cdp, 'orientation', 'right');
-  await sleep(1500);
-  state = await drive(cdp, 'state');
-  measured.remoteStateRight = state;
-  await shoot(cdp, join(root, 'p95-remote-right.png'));
-  note(
-    '5b',
-    'the identity strip offers to read the last lines',
-    readBack(state) ? 'pass' : 'FAIL',
-    `orientation ${String(state.orientation)}, note ${JSON.stringify(state.note)}`
-  );
-
-  // -- STEP 6. the wheel and typing over the remote pane --------------------
-  const beforeWheel = scrollErrorCount();
-  await drive(cdp, 'wheel', 20, -120);
-  measured.wheelScrollErrors = scrollErrorCount() - beforeWheel;
-  const read = await drive(cdp, 'read', far.id);
-  measured.remoteRead = read;
-  note(
-    6,
-    'the wheel over a remote pane produces no error and no movement',
-    measured.wheelScrollErrors === 0 && read.ok === true ? 'pass' : 'FAIL',
-    `${String(measured.wheelScrollErrors)} error lines, read ${JSON.stringify(read)}`
-  );
-  await drive(cdp, 'type', 'echo p95-typed\r');
-  await sleep(2000);
-  measured.afterTyping = await drive(cdp, 'state');
-
-  // -- STEP 7. a local session that is not running --------------------------
-  await drive(cdp, 'orientation', 'top');
-  await drive(cdp, 'openLocal', project);
-  state = await drive(cdp, 'create', { name: 'p95-local', agent: 'shell' });
-  const local = (state.sessions ?? []).find((s) => s.name === 'p95-local');
-  if (local === undefined) {
-    note(7, 'a local session was made', 'FAIL', JSON.stringify(state.sessions));
-    return finish(1);
-  }
-  await drive(cdp, 'select', local.id);
-  await sleep(1500);
-
-  // -- STEP 8. the local RUNNING session's scrollbar, before anything ends --
-  // Fill the pane so there is history to scroll through, then read, scroll,
-  // drag, page and hold across a resize. Every number here is the bridge's.
-  await drive(cdp, 'type', 'for i in $(seq 1 400); do echo "p95 line $i"; done\r');
-  await sleep(3000);
-  const live0 = await drive(cdp, 'read', local.id);
-  const up30 = await drive(cdp, 'by', local.id, 30);
-  const pageState = await drive(cdp, 'pageKey', 'PageUp', 2);
-  const afterPage = await drive(cdp, 'read', local.id);
-  const dragTo = await drive(cdp, 'to', local.id, 100);
-  await drive(cdp, 'resize');
-  const afterResize = await drive(cdp, 'read', local.id);
-  const backLive = await drive(cdp, 'live', local.id);
-  measured.localRunning = {
-    live0,
-    up30,
-    pageState,
-    afterPage,
-    dragTo,
-    afterResize,
-    backLive
-  };
-  const moved =
-    up30.ok === true &&
-    up30.state !== null &&
-    up30.state.position === 30 &&
-    dragTo.ok === true &&
-    dragTo.state.position === 100 &&
-    afterResize.ok === true &&
-    afterResize.state.position > 0 &&
-    backLive.ok === true &&
-    backLive.state.position === 0;
-  note(
-    8,
-    'a session running on this Mac scrolls, drags, pages and holds its place',
-    moved ? 'pass' : 'FAIL',
-    JSON.stringify(measured.localRunning)
-  );
-
-  // -- STEP 9. the local session stops running while its pane is on screen --
-  //
-  // The session server is told to end it, NOT the app. The app's own End verb
-  // marks the row exited in the same turn, the pane is unmounted at once and
-  // there is no poll left to measure. A session that dies on the server is the
-  // case the operator hit, and the pane stays mounted until the app notices.
-  measured.harnessSessionsBeforeKill = harnessSessions();
-  const killed = spawnSync(
-    'tmux',
-    ['-L', socket, 'kill-session', '-t', `=${local.tmuxName}`],
-    { encoding: 'utf8' }
-  );
-  measured.killStatus = killed.status;
-  say(`ended ${local.tmuxName} on the harness server, status ${String(killed.status)}`);
-  const beforeLocal = scrollErrorCount();
-  const t1 = Date.now();
-  // Read the screen every second, so the moment the pane goes is recorded
-  // rather than guessed at.
-  const paneTrace = [];
-  while (Date.now() - t1 < WATCH_MS) {
-    const now = await drive(cdp, 'state');
-    paneTrace.push({
-      ms: Date.now() - t1,
-      terminal: now.terminal,
-      status: (now.sessions.find((x) => x.id === local.id) ?? {}).status ?? 'gone'
+    // -- a real session on that machine ---------------------------------------
+    //
+    // The first ask can come back "unreachable" while the renderer still holds
+    // the machine's state from before prepare finished, so the ask is retried a
+    // few times rather than once. It is the same ask each time and nothing is
+    // supplied to make it succeed.
+    let opened = { result: null };
+    for (let attempt = 1; attempt <= 6; attempt += 1) {
+      opened = await drive(cdp, 'openRemote', MACHINE_ID, farProject);
+      say(
+        `openRemote attempt ${String(attempt)} said: ${JSON.stringify(opened.result).slice(0, 400)}`
+      );
+      if (opened.result?.ok === true) break;
+      await sleep(3000);
+    }
+    let state = await drive(cdp, 'create', {
+      name: 'p95-far',
+      agent: 'shell',
+      machineId: MACHINE_ID
     });
-    await sleep(1000);
-  }
-  const localErrors = scrollErrorCount() - beforeLocal;
-  measured.localWatchMs = Date.now() - t1;
-  measured.localScrollErrors = localErrors;
-  measured.paneTrace = paneTrace;
-  measured.paneMountedSeconds = paneTrace.filter((x) => x.terminal).length;
-  const readDead = await drive(cdp, 'read', local.id);
-  measured.deadRead = readDead;
-  measured.afterKill = await drive(cdp, 'state');
-  note(
-    9,
-    `a local session that stopped running, watched for ${String(Math.round(measured.localWatchMs / 1000))} s, prints no scroll error`,
-    localErrors === 0 ? 'pass' : 'FAIL',
-    `${String(localErrors)} lines, the pane was mounted for ` +
-      `${String(measured.paneMountedSeconds)} of ${String(paneTrace.length)} reads. ` +
-      `Asking main directly answered ${JSON.stringify(readDead)}`
-  );
-  await shoot(cdp, join(root, 'p95-local-dead.png'));
+    const far = (state.sessions ?? []).find((s) => s.name === 'p95-far');
+    note(
+      3,
+      'a session is running on the loopback machine',
+      far !== undefined && far.machineId === MACHINE_ID ? 'pass' : 'FAIL',
+      JSON.stringify(state.sessions)
+    );
+    if (far === undefined) return finish(1);
+    await drive(cdp, 'select', far.id);
+    state = await drive(cdp, 'state');
+    say(`with the remote session on screen: ${JSON.stringify(state)}`);
 
-  measured.logLines = logLength();
-  measured.totalScrollErrors = scrollErrorCount();
-  say(`the app log holds ${String(measured.logLines)} lines in total`);
-  say(`scroll error lines in the whole run: ${String(measured.totalScrollErrors)}`);
+    // -- STEP 4. the watch window --------------------------------------------
+    const beforeRemote = scrollErrorCount();
+    const t0 = Date.now();
+    await drive(cdp, 'sleep', WATCH_MS);
+    const remoteErrors = scrollErrorCount() - beforeRemote;
+    measured.remoteWatchMs = Date.now() - t0;
+    measured.remoteScrollErrors = remoteErrors;
+    // The file the charter's packaged claim is about, read whichever binary is
+    // being driven, so the development run states its number too.
+    measured.profileLogScrollErrors = profileLogScrollErrors();
+    say(
+      `scroll error lines in ${profile}/logs/app.log: ${String(measured.profileLogScrollErrors)}`
+    );
+    note(
+      4,
+      `a remote session on screen for ${String(Math.round(measured.remoteWatchMs / 1000))} s prints no scroll error`,
+      remoteErrors === 0 ? 'pass' : 'FAIL',
+      `${String(remoteErrors)} lines matching "handler for 'terminal:scroll"`
+    );
 
-  await quit(child);
-  return finish(results.some((r) => r.verdict !== 'pass') ? 1 : 0);
+    // -- STEP 5. what the band offers and what the lane draws -----------------
+    //
+    // BOTH orientations are checked and both must offer it. The first build of
+    // this phase wrote the note into the identity strip only, and the identity
+    // strip is the band for the "right" orientation. `sessionOrientation`
+    // defaults to "top", where App renders the session tab strip instead, so
+    // the note was off screen in the layout most people have. Checking one
+    // orientation is what let that through, so this step checks two.
+    //
+    // PHASE 100 CHANGED THE ELEMENT AND THIS STEP FOLLOWS IT. Phase 95 drew a
+    // span saying that scrolling back was not available. Phase 100 makes a
+    // person able to read back, so the band draws a button that opens the last
+    // lines panel, and the sentence about scrolling is its tooltip. The element
+    // is read out of the same field of the drive's state, so this step still
+    // proves the same thing: the band above a session on another machine
+    // carries the affordance, in both orientations. `readBack` below is the one
+    // reading, written once so the two orientations cannot drift apart.
+    const readBack = (s) =>
+      s.note !== null &&
+      s.note.text.includes('Read last lines') &&
+      s.note.title.includes('cannot scroll back');
+    state = await drive(cdp, 'orientation', 'top');
+    await sleep(1500);
+    state = await drive(cdp, 'state');
+    measured.remoteStateTop = state;
+    await shoot(cdp, join(root, 'p95-remote-top.png'));
+    note(
+      '5a',
+      'the DEFAULT band, being the session tab strip, offers to read the last lines',
+      readBack(state) ? 'pass' : 'FAIL',
+      `orientation ${String(state.orientation)}, note ${JSON.stringify(state.note)}`
+    );
+    state = await drive(cdp, 'orientation', 'right');
+    await sleep(1500);
+    state = await drive(cdp, 'state');
+    measured.remoteStateRight = state;
+    await shoot(cdp, join(root, 'p95-remote-right.png'));
+    note(
+      '5b',
+      'the identity strip offers to read the last lines',
+      readBack(state) ? 'pass' : 'FAIL',
+      `orientation ${String(state.orientation)}, note ${JSON.stringify(state.note)}`
+    );
+
+    // -- STEP 6. the wheel and typing over the remote pane --------------------
+    const beforeWheel = scrollErrorCount();
+    await drive(cdp, 'wheel', 20, -120);
+    measured.wheelScrollErrors = scrollErrorCount() - beforeWheel;
+    const read = await drive(cdp, 'read', far.id);
+    measured.remoteRead = read;
+    note(
+      6,
+      'the wheel over a remote pane produces no error and no movement',
+      measured.wheelScrollErrors === 0 && read.ok === true ? 'pass' : 'FAIL',
+      `${String(measured.wheelScrollErrors)} error lines, read ${JSON.stringify(read)}`
+    );
+    await drive(cdp, 'type', 'echo p95-typed\r');
+    await sleep(2000);
+    measured.afterTyping = await drive(cdp, 'state');
+
+    // -- STEP 7. a local session that is not running --------------------------
+    await drive(cdp, 'orientation', 'top');
+    await drive(cdp, 'openLocal', project);
+    state = await drive(cdp, 'create', { name: 'p95-local', agent: 'shell' });
+    const local = (state.sessions ?? []).find((s) => s.name === 'p95-local');
+    if (local === undefined) {
+      note(7, 'a local session was made', 'FAIL', JSON.stringify(state.sessions));
+      return finish(1);
+    }
+    await drive(cdp, 'select', local.id);
+    await sleep(1500);
+
+    // -- STEP 8. the local RUNNING session's scrollbar, before anything ends --
+    // Fill the pane so there is history to scroll through, then read, scroll,
+    // drag, page and hold across a resize. Every number here is the bridge's.
+    await drive(cdp, 'type', 'for i in $(seq 1 400); do echo "p95 line $i"; done\r');
+    await sleep(3000);
+    const live0 = await drive(cdp, 'read', local.id);
+    const up30 = await drive(cdp, 'by', local.id, 30);
+    const pageState = await drive(cdp, 'pageKey', 'PageUp', 2);
+    const afterPage = await drive(cdp, 'read', local.id);
+    const dragTo = await drive(cdp, 'to', local.id, 100);
+    await drive(cdp, 'resize');
+    const afterResize = await drive(cdp, 'read', local.id);
+    const backLive = await drive(cdp, 'live', local.id);
+    measured.localRunning = {
+      live0,
+      up30,
+      pageState,
+      afterPage,
+      dragTo,
+      afterResize,
+      backLive
+    };
+    const moved =
+      up30.ok === true &&
+      up30.state !== null &&
+      up30.state.position === 30 &&
+      dragTo.ok === true &&
+      dragTo.state.position === 100 &&
+      afterResize.ok === true &&
+      afterResize.state.position > 0 &&
+      backLive.ok === true &&
+      backLive.state.position === 0;
+    note(
+      8,
+      'a session running on this Mac scrolls, drags, pages and holds its place',
+      moved ? 'pass' : 'FAIL',
+      JSON.stringify(measured.localRunning)
+    );
+
+    // -- STEP 9. the local session stops running while its pane is on screen --
+    //
+    // The session server is told to end it, NOT the app. The app's own End verb
+    // marks the row exited in the same turn, the pane is unmounted at once and
+    // there is no poll left to measure. A session that dies on the server is the
+    // case the operator hit, and the pane stays mounted until the app notices.
+    measured.harnessSessionsBeforeKill = harnessSessions();
+    const killed = spawnSync(
+      'tmux',
+      ['-L', socket, 'kill-session', '-t', `=${local.tmuxName}`],
+      { encoding: 'utf8' }
+    );
+    measured.killStatus = killed.status;
+    say(`ended ${local.tmuxName} on the harness server, status ${String(killed.status)}`);
+    const beforeLocal = scrollErrorCount();
+    const t1 = Date.now();
+    // Read the screen every second, so the moment the pane goes is recorded
+    // rather than guessed at.
+    const paneTrace = [];
+    while (Date.now() - t1 < WATCH_MS) {
+      const now = await drive(cdp, 'state');
+      paneTrace.push({
+        ms: Date.now() - t1,
+        terminal: now.terminal,
+        status: (now.sessions.find((x) => x.id === local.id) ?? {}).status ?? 'gone'
+      });
+      await sleep(1000);
+    }
+    const localErrors = scrollErrorCount() - beforeLocal;
+    measured.localWatchMs = Date.now() - t1;
+    measured.localScrollErrors = localErrors;
+    measured.paneTrace = paneTrace;
+    measured.paneMountedSeconds = paneTrace.filter((x) => x.terminal).length;
+    const readDead = await drive(cdp, 'read', local.id);
+    measured.deadRead = readDead;
+    measured.afterKill = await drive(cdp, 'state');
+    note(
+      9,
+      `a local session that stopped running, watched for ${String(Math.round(measured.localWatchMs / 1000))} s, prints no scroll error`,
+      localErrors === 0 ? 'pass' : 'FAIL',
+      `${String(localErrors)} lines, the pane was mounted for ` +
+        `${String(measured.paneMountedSeconds)} of ${String(paneTrace.length)} reads. ` +
+        `Asking main directly answered ${JSON.stringify(readDead)}`
+    );
+    await shoot(cdp, join(root, 'p95-local-dead.png'));
+
+    measured.logLines = logLength();
+    measured.totalScrollErrors = scrollErrorCount();
+    say(`the app log holds ${String(measured.logLines)} lines in total`);
+    say(`scroll error lines in the whole run: ${String(measured.totalScrollErrors)}`);
+
+    await quit(child);
+    return finish(results.some((r) => r.verdict !== 'pass') ? 1 : 0);
+  });
 }
 
 main().catch((err) => {

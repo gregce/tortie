@@ -73,7 +73,7 @@
  * Every scratch file carries a `p120-` prefix.
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -87,6 +87,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { windowShot } from './window-shot.mjs';
+
+import { withElectron } from './electron-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p120shot]';
@@ -187,7 +189,6 @@ rmSync(windowShotPath, { force: true });
 // One run of the app, driven, held, and photographed twice
 // ---------------------------------------------------------------------------
 
-const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
 
 /**
  * How long the driver holds the drawn frame after its readings are out. The
@@ -196,10 +197,10 @@ const electronBin = join(repoRoot, 'node_modules', '.bin', 'electron');
  */
 const DWELL_MS = 6000;
 
-const child = spawn(
-  electronBin,
-  ['.', `--user-data-dir=${profile}`, '-ApplePersistenceIgnoreState', 'YES'],
+await withElectron(
   {
+    label: 'p120-shot',
+    userDataDir: profile,
     cwd: repoRoot,
     env: {
       ...process.env,
@@ -212,264 +213,266 @@ const child = spawn(
       }),
       GMUX_SHOT_JS: 'window.__gmuxP120Runs'
     }
+  },
+  async (handle) => {
+  const child = handle.child;
+  say(`launched the app, pid ${String(child.pid)} (recorded)`);
+
+  /**
+   * The pid that owns the window. node_modules/.bin/electron is a Node shim
+   * that spawns the Electron binary as its one child, so the window belongs to
+   * that child when there is one and to the spawned pid otherwise. The pid is
+   * read so the window can be raised and photographed. It is never killed; the
+   * shot harness quits the app itself, and the shim passes signals down.
+   */
+  function guiPid() {
+    const out = spawnSync('pgrep', ['-P', String(child.pid)], {
+      encoding: 'utf8'
+    });
+    const first = (out.stdout ?? '')
+      .split('\n')
+      .map((line) => Number(line.trim()))
+      .find((n) => Number.isInteger(n) && n > 0);
+    return first ?? child.pid;
   }
-);
-say(`launched the app, pid ${String(child.pid)} (recorded)`);
 
-/**
- * The pid that owns the window. node_modules/.bin/electron is a Node shim
- * that spawns the Electron binary as its one child, so the window belongs to
- * that child when there is one and to the spawned pid otherwise. The pid is
- * read so the window can be raised and photographed. It is never killed; the
- * shot harness quits the app itself, and the shim passes signals down.
- */
-function guiPid() {
-  const out = spawnSync('pgrep', ['-P', String(child.pid)], {
-    encoding: 'utf8'
+  /** What the outside photograph attempt reported. Null until it ran. */
+  let outsideShot = null;
+
+  function takeOutsideShot() {
+    const pid = guiPid();
+    // Raise the app the way build/probe-fullscreen-menu.mjs does, by unix pid,
+    // so the frontmost refusal in window-shot.mjs is satisfied by the app
+    // under test and by nothing else.
+    spawnSync(
+      'osascript',
+      [
+        '-e',
+        `tell application "System Events" to set frontmost of (first process whose unix id is ${String(pid)}) to true`
+      ],
+      { encoding: 'utf8', timeout: 10_000 }
+    );
+    outsideShot = windowShot({
+      pid,
+      path: windowShotPath,
+      log: (line) => say(line)
+    });
+  }
+
+  /** The driver prints this line when the hold begins. */
+  const HOLD_MARK = '[p120] holding the frame';
+  let holdSeen = false;
+
+  let text = '';
+  const onText = (chunk) => {
+    process.stdout.write(chunk);
+    text += chunk;
+    if (!holdSeen && text.includes(HOLD_MARK)) {
+      holdSeen = true;
+      // Give the raise a moment to land before the frontmost check runs.
+      setTimeout(takeOutsideShot, 700);
+    }
+  };
+  child.stdout.on('data', (b) => onText(b.toString()));
+  child.stderr.on('data', (b) => onText(b.toString()));
+
+  await new Promise((r) => {
+    const watchdog = setTimeout(() => {
+      console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
+      child.kill('SIGTERM');
+    }, 240_000);
+    child.on('error', (err) => {
+      clearTimeout(watchdog);
+      console.error(`${TAG} electron could not start: ${err.message}`);
+      r(1);
+    });
+    child.on('exit', (c) => {
+      clearTimeout(watchdog);
+      setTimeout(() => r(c ?? 1), 750);
+    });
   });
-  const first = (out.stdout ?? '')
-    .split('\n')
-    .map((line) => Number(line.trim()))
-    .find((n) => Number.isInteger(n) && n > 0);
-  return first ?? child.pid;
-}
+  // The app starts a session server that inherits these two pipes, so they are
+  // destroyed by hand. Without this node never exits. The same note is in
+  // build/probe-p97-untracked.mjs.
+  child.stdout.destroy();
+  child.stderr.destroy();
 
-/** What the outside photograph attempt reported. Null until it ran. */
-let outsideShot = null;
+  // ---------------------------------------------------------------------------
+  // Reading the evidence back
+  // ---------------------------------------------------------------------------
 
-function takeOutsideShot() {
-  const pid = guiPid();
-  // Raise the app the way build/probe-fullscreen-menu.mjs does, by unix pid,
-  // so the frontmost refusal in window-shot.mjs is satisfied by the app
-  // under test and by nothing else.
-  spawnSync(
-    'osascript',
-    [
-      '-e',
-      `tell application "System Events" to set frontmost of (first process whose unix id is ${String(pid)}) to true`
-    ],
-    { encoding: 'utf8', timeout: 10_000 }
+  const marker = '[gmux-shot] probe ';
+  const at = text.lastIndexOf(marker);
+  let readings = null;
+  if (at !== -1) {
+    const line = text.slice(at + marker.length).split('\n')[0] ?? '';
+    try {
+      readings = JSON.parse(line);
+    } catch {
+      readings = null;
+    }
+  }
+  const reading =
+    Array.isArray(readings) && readings.length > 0
+      ? readings[readings.length - 1]
+      : null;
+
+  const failures = [];
+  const results = [];
+
+  function check(step, claim, pass, detail) {
+    results.push({ step, claim, verdict: pass ? 'pass' : 'FAIL', detail });
+    if (!pass) failures.push(`${String(step)}. ${claim}. ${detail}`);
+  }
+
+  if (reading === null) {
+    failures.push(
+      '0. the drive printed no reading, so nothing was measured. The renderer ' +
+        'half of this probe is src/renderer/scm/p120-runs-shot.ts and ' +
+        'src/renderer/app/App.tsx wires it under the localRuns spec field'
+    );
+  } else {
+    const rows = reading.rows ?? [];
+    const glyph = (i) =>
+      rows[i] === undefined
+        ? 'missing'
+        : `${rows[i].icon}/${rows[i].tone}/${rows[i].spin ? 'spin' : 'still'}`;
+
+    check(
+      1,
+      'the section is present and open',
+      reading.present === true && reading.expanded === true,
+      `present ${String(reading.present)}, expanded ${String(reading.expanded)}`
+    );
+    check(
+      2,
+      'the header count reads 5',
+      reading.count === '5',
+      `count ${JSON.stringify(reading.count)}`
+    );
+    check(
+      3,
+      'five rows are drawn, in the seeded order',
+      rows.length === 5 &&
+        rows[0]?.name === 'gates' &&
+        rows[1]?.name === 'gates' &&
+        rows[2]?.name === 'gates' &&
+        rows[3]?.name === 'package' &&
+        rows[4]?.name === 'release',
+      `rows ${JSON.stringify(rows.map((one) => one.name))}`
+    );
+    check(
+      4,
+      'row 1 draws the queued glyph, and it does not spin',
+      rows[0]?.icon === 'circle-large-outline' &&
+        rows[0]?.tone === 'muted' &&
+        rows[0]?.spin === false,
+      `row 1 ${glyph(0)}`
+    );
+    check(
+      5,
+      'rows 2 and 5 spin with the working tone, and row 5 is the v9.9.9 release stand in',
+      rows[1]?.icon === 'sync' &&
+        rows[1]?.tone === 'working' &&
+        rows[1]?.spin === true &&
+        rows[4]?.icon === 'sync' &&
+        rows[4]?.tone === 'working' &&
+        rows[4]?.spin === true &&
+        (reading.seededHeadBranches ?? [])[4] === 'v9.9.9',
+      `row 2 ${glyph(1)}, row 5 ${glyph(4)}, seeded head branches ` +
+        `${JSON.stringify(reading.seededHeadBranches)}`
+    );
+    check(
+      6,
+      'row 3 draws the success glyph and row 4 the failure glyph',
+      rows[2]?.icon === 'pass-filled' &&
+        rows[2]?.tone === 'success' &&
+        rows[3]?.icon === 'error' &&
+        rows[3]?.tone === 'error',
+      `row 3 ${glyph(2)}, row 4 ${glyph(3)}`
+    );
+    check(
+      7,
+      'the header tooltip reads "A run is queued." and never says "for this branch"',
+      reading.headerTooltip === 'A run is queued.' &&
+        !String(reading.headerTooltip).includes('for this branch'),
+      `tooltip ${JSON.stringify(reading.headerTooltip)}`
+    );
+  }
+
+  check(
+    8,
+    'the harness wrote the driven frame to a PNG',
+    existsSync(shotPath),
+    existsSync(shotPath)
+      ? `${shotPath}, ${String(statSync(shotPath).size)} bytes`
+      : `no image was written to ${shotPath}`
   );
-  outsideShot = windowShot({
-    pid,
-    path: windowShotPath,
-    log: (line) => say(line)
-  });
-}
+  check(
+    9,
+    'build/window-shot.mjs photographed the window from outside',
+    outsideShot === 'saved' && existsSync(windowShotPath),
+    outsideShot === 'saved'
+      ? `${windowShotPath}, ${String(statSync(windowShotPath).size)} bytes`
+      : `the attempt reported ${JSON.stringify(outsideShot)}. The helper takes ` +
+          'no photograph rather than a wrong one, so the harness PNG above is ' +
+          'the standing picture'
+  );
 
-/** The driver prints this line when the hold begins. */
-const HOLD_MARK = '[p120] holding the frame';
-let holdSeen = false;
-
-let text = '';
-const onText = (chunk) => {
-  process.stdout.write(chunk);
-  text += chunk;
-  if (!holdSeen && text.includes(HOLD_MARK)) {
-    holdSeen = true;
-    // Give the raise a moment to land before the frontmost check runs.
-    setTimeout(takeOutsideShot, 700);
+  console.log('');
+  say('the table, one row per claim');
+  console.log('  step  verdict  claim');
+  console.log('  ----  -------  -----');
+  for (const r of results) {
+    console.log(
+      `  ${String(r.step).padStart(4)}  ${r.verdict.padEnd(7)}  ${r.claim}`
+    );
+    if (r.detail !== undefined && r.detail !== '') {
+      console.log(`                 ${r.detail}`);
+    }
   }
-};
-child.stdout.on('data', (b) => onText(b.toString()));
-child.stderr.on('data', (b) => onText(b.toString()));
 
-await new Promise((r) => {
-  const watchdog = setTimeout(() => {
-    console.error(`${TAG} the run passed its ceiling. Ending the pid I started.`);
-    child.kill('SIGTERM');
-  }, 240_000);
-  child.on('error', (err) => {
-    clearTimeout(watchdog);
-    console.error(`${TAG} electron could not start: ${err.message}`);
-    r(1);
-  });
-  child.on('exit', (c) => {
-    clearTimeout(watchdog);
-    setTimeout(() => r(c ?? 1), 750);
-  });
-});
-// The app starts a session server that inherits these two pipes, so they are
-// destroyed by hand. Without this node never exits. The same note is in
-// build/probe-p97-untracked.mjs.
-child.stdout.destroy();
-child.stderr.destroy();
+  const operatorAfter = operatorSessionCount();
+  console.log('');
+  say(`operator sessions on -L gmux after: ${String(operatorAfter)}`);
+  if (operatorAfter !== operatorBefore) {
+    failures.push(
+      `10. the operator's server went from ${String(operatorBefore)} sessions ` +
+        `to ${String(operatorAfter)}. This probe must never touch it. The ` +
+        'count is taken while the operator is using the app, so read it again ' +
+        'by hand before treating a difference as a violation'
+    );
+  }
 
-// ---------------------------------------------------------------------------
-// Reading the evidence back
-// ---------------------------------------------------------------------------
-
-const marker = '[gmux-shot] probe ';
-const at = text.lastIndexOf(marker);
-let readings = null;
-if (at !== -1) {
-  const line = text.slice(at + marker.length).split('\n')[0] ?? '';
   try {
-    readings = JSON.parse(line);
+    process.kill(child.pid, 'SIGKILL');
   } catch {
-    readings = null;
+    // Already gone, which is the ordinary case: the shot harness quits the app.
   }
-}
-const reading =
-  Array.isArray(readings) && readings.length > 0
-    ? readings[readings.length - 1]
-    : null;
+  say(`signalled only the pid this run started: ${String(child.pid)}`);
 
-const failures = [];
-const results = [];
+  if (!keep) rmSync(root, { recursive: true, force: true });
 
-function check(step, claim, pass, detail) {
-  results.push({ step, claim, verdict: pass ? 'pass' : 'FAIL', detail });
-  if (!pass) failures.push(`${String(step)}. ${claim}. ${detail}`);
-}
+  say(
+    'WHAT THIS RUN DID NOT PROVE. It SUPPLIED the five rows. No gh process ' +
+      'started, GitHub was asked nothing, and the tag run on the image is a ' +
+      'stand in. What is measured above is what Tortie draws for such an ' +
+      'answer. That the merged query really returns a tag started run the ' +
+      'branch query alone omits is proven by npm run probe:p120 against a ' +
+      'real repository.'
+  );
 
-if (reading === null) {
-  failures.push(
-    '0. the drive printed no reading, so nothing was measured. The renderer ' +
-      'half of this probe is src/renderer/scm/p120-runs-shot.ts and ' +
-      'src/renderer/app/App.tsx wires it under the localRuns spec field'
-  );
-} else {
-  const rows = reading.rows ?? [];
-  const glyph = (i) =>
-    rows[i] === undefined
-      ? 'missing'
-      : `${rows[i].icon}/${rows[i].tone}/${rows[i].spin ? 'spin' : 'still'}`;
-
-  check(
-    1,
-    'the section is present and open',
-    reading.present === true && reading.expanded === true,
-    `present ${String(reading.present)}, expanded ${String(reading.expanded)}`
-  );
-  check(
-    2,
-    'the header count reads 5',
-    reading.count === '5',
-    `count ${JSON.stringify(reading.count)}`
-  );
-  check(
-    3,
-    'five rows are drawn, in the seeded order',
-    rows.length === 5 &&
-      rows[0]?.name === 'gates' &&
-      rows[1]?.name === 'gates' &&
-      rows[2]?.name === 'gates' &&
-      rows[3]?.name === 'package' &&
-      rows[4]?.name === 'release',
-    `rows ${JSON.stringify(rows.map((one) => one.name))}`
-  );
-  check(
-    4,
-    'row 1 draws the queued glyph, and it does not spin',
-    rows[0]?.icon === 'circle-large-outline' &&
-      rows[0]?.tone === 'muted' &&
-      rows[0]?.spin === false,
-    `row 1 ${glyph(0)}`
-  );
-  check(
-    5,
-    'rows 2 and 5 spin with the working tone, and row 5 is the v9.9.9 release stand in',
-    rows[1]?.icon === 'sync' &&
-      rows[1]?.tone === 'working' &&
-      rows[1]?.spin === true &&
-      rows[4]?.icon === 'sync' &&
-      rows[4]?.tone === 'working' &&
-      rows[4]?.spin === true &&
-      (reading.seededHeadBranches ?? [])[4] === 'v9.9.9',
-    `row 2 ${glyph(1)}, row 5 ${glyph(4)}, seeded head branches ` +
-      `${JSON.stringify(reading.seededHeadBranches)}`
-  );
-  check(
-    6,
-    'row 3 draws the success glyph and row 4 the failure glyph',
-    rows[2]?.icon === 'pass-filled' &&
-      rows[2]?.tone === 'success' &&
-      rows[3]?.icon === 'error' &&
-      rows[3]?.tone === 'error',
-    `row 3 ${glyph(2)}, row 4 ${glyph(3)}`
-  );
-  check(
-    7,
-    'the header tooltip reads "A run is queued." and never says "for this branch"',
-    reading.headerTooltip === 'A run is queued.' &&
-      !String(reading.headerTooltip).includes('for this branch'),
-    `tooltip ${JSON.stringify(reading.headerTooltip)}`
-  );
-}
-
-check(
-  8,
-  'the harness wrote the driven frame to a PNG',
-  existsSync(shotPath),
-  existsSync(shotPath)
-    ? `${shotPath}, ${String(statSync(shotPath).size)} bytes`
-    : `no image was written to ${shotPath}`
-);
-check(
-  9,
-  'build/window-shot.mjs photographed the window from outside',
-  outsideShot === 'saved' && existsSync(windowShotPath),
-  outsideShot === 'saved'
-    ? `${windowShotPath}, ${String(statSync(windowShotPath).size)} bytes`
-    : `the attempt reported ${JSON.stringify(outsideShot)}. The helper takes ` +
-        'no photograph rather than a wrong one, so the harness PNG above is ' +
-        'the standing picture'
-);
-
-console.log('');
-say('the table, one row per claim');
-console.log('  step  verdict  claim');
-console.log('  ----  -------  -----');
-for (const r of results) {
-  console.log(
-    `  ${String(r.step).padStart(4)}  ${r.verdict.padEnd(7)}  ${r.claim}`
-  );
-  if (r.detail !== undefined && r.detail !== '') {
-    console.log(`                 ${r.detail}`);
+  const named = [...new Set(failures)];
+  if (named.length > 0) {
+    console.error('');
+    for (const failure of named) console.error(`${TAG} FAIL ${failure}`);
+    process.exit(1);
   }
-}
-
-const operatorAfter = operatorSessionCount();
-console.log('');
-say(`operator sessions on -L gmux after: ${String(operatorAfter)}`);
-if (operatorAfter !== operatorBefore) {
-  failures.push(
-    `10. the operator's server went from ${String(operatorBefore)} sessions ` +
-      `to ${String(operatorAfter)}. This probe must never touch it. The ` +
-      'count is taken while the operator is using the app, so read it again ' +
-      'by hand before treating a difference as a violation'
+  console.log('');
+  say(
+    'every claim passed. The section drew a queued run, two running runs with ' +
+      'the spinning glyph, a succeeded run and a failed run side by side, and ' +
+      'one of the running rows is the release stand in whose head branch is a ' +
+      'tag name.'
   );
-}
-
-try {
-  process.kill(child.pid, 'SIGKILL');
-} catch {
-  // Already gone, which is the ordinary case: the shot harness quits the app.
-}
-say(`signalled only the pid this run started: ${String(child.pid)}`);
-
-if (!keep) rmSync(root, { recursive: true, force: true });
-
-say(
-  'WHAT THIS RUN DID NOT PROVE. It SUPPLIED the five rows. No gh process ' +
-    'started, GitHub was asked nothing, and the tag run on the image is a ' +
-    'stand in. What is measured above is what Tortie draws for such an ' +
-    'answer. That the merged query really returns a tag started run the ' +
-    'branch query alone omits is proven by npm run probe:p120 against a ' +
-    'real repository.'
-);
-
-const named = [...new Set(failures)];
-if (named.length > 0) {
-  console.error('');
-  for (const failure of named) console.error(`${TAG} FAIL ${failure}`);
-  process.exit(1);
-}
-console.log('');
-say(
-  'every claim passed. The section drew a queued run, two running runs with ' +
-    'the spinning glyph, a succeeded run and a failed run side by side, and ' +
-    'one of the running rows is the release stand in whose head branch is a ' +
-    'tag name.'
-);
+});
