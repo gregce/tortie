@@ -16209,7 +16209,7 @@ and taken all the way to public, after Phase 142 and before Phase 140. That gran
 - **Closing issues is NOT in this grant.** He has not asked for it here.
 
 
-## Phase 138.1 — every harness can write the project line, the settings page says only what it must, and you can tell a fold ran (operator asked 2026-08-23) QUEUED, BEFORE THE 0.70.0 RELEASE
+## Phase 138.1 — every harness can write the line, the settings page is called Catch me Up and says only what it must, and you can tell a fold ran (operator asked 2026-08-23) QUEUED, BEFORE THE 0.70.0 RELEASE
 
 **Subject:** `fix(overview): the project line settings page says what it needs and nothing more`
 **First body line:** `Phase 138.1: the settings page, and knowing a fold ran`
@@ -16226,6 +16226,30 @@ He opened Settings then Project line and said it looks like trash, that the extr
 **The two long paragraphs at the bottom go.** The one about None repeats what the picker already says. The one about Tortie holding no key belongs in the confirm sheet a person reads once, not on a settings page a person visits to change a dropdown.
 
 Read the whole page aloud before and after. If a sentence does not change what he can do or what he must know to do it, it goes.
+
+**THE SECTION IS CALLED "Catch me Up..." AND NOT "Project line".** He asked for that on 2026-08-23. The
+person configuring this is not thinking about a line, they are thinking about the page the line lives
+on, and the settings row should name the feature they know. Rename the section heading and the row in
+the settings sidebar. The two controls inside may still say what they configure, e.g. the agent and the
+model that write each session's one line.
+
+**THE PAGE ENDS WITH A SHORT EXPLANATION OF THE WHOLE FEATURE**, which he also asked for, and it is the
+one place on this page where prose earns its keep. It goes at the BOTTOM, under the controls, because
+someone who came to change a dropdown should reach the dropdown first. It says, in a few sentences and
+no more:
+
+- what Catch Me Up is, being the page that shows the conversation you have been having with each
+  session in a project;
+- how to open it, naming the chord that actually ships, read from `src/shared/keymap.ts` rather than
+  typed from memory, and the View menu row and the session menu row that also open it;
+- what the three levels are, being one session, several selected sessions as columns, and the whole
+  project, and that which one opens depends on what has focus;
+- that the conversation you read is the real words from the agent's own log, and that the model, if you
+  pick one, writes only the single line in the project view.
+
+That last sentence is the one that matters most, because it is the boundary the whole design rests on,
+and this page is where a person would want to know it. Every chord and menu name in this block is read
+from the source at build time or asserted by a test, so it can never drift from what the app does.
 
 ### Item two, nothing tells him a fold ran
 
