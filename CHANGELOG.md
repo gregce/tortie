@@ -4,6 +4,26 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## 0.73.0 (2026-08-25)
+
+This release is about picking work back up and reading it back. An agent that ends inside a surviving shell can be resumed on the spot, and every session's one line summary now keeps a history you can open from its row in the project view. Quitting and cloning a project to a remote machine both got safer along the way.
+
+### Added
+
+- End an agent by hand and, if its shell survives, Resume appears on that session's row within about a second, and pressing it types the resume command onto your prompt for you to send, re-adopting the session only when the agent confirms it is the same conversation. Nothing here survives a restart of Tortie, a restored session never shows the verb, Claude Code and Antigravity CLI confirm unaided, every other agent confirms once you send the pasted command, though Pi can never be confirmed and Factory Droid CLI never shows Resume at all ([`b4f0fc9`](https://github.com/gregce/tortie/commit/b4f0fc9))
+- You can now press story on a session's row in the project view and read every version of that session's one line summary, newest first, each with its time, and pressing a version shows the turns it covered. Repeated lines collapse into one row, a change of model is named where it happened, and a session whose line never changed shows just that one line, though until you choose a model for the one line summaries the page says there is no story to read ([`75a5298`](https://github.com/gregce/tortie/commit/75a5298))
+- The current release's installer is now always available at one download link that never changes, so a page can point at the latest version without naming it. The in-app updater is unaffected ([`b2442f5`](https://github.com/gregce/tortie/commit/b2442f5))
+
+### Changed
+
+- The story control is now the one word story at the far right of each session's row in the project view, sitting in one shared column, and it opens that session's timeline in place, one session at a time with no rolled up story for the project. The conversation view no longer carries the story control, so it is purely the word for word record ([`8443052`](https://github.com/gregce/tortie/commit/8443052))
+- Your asks in Catch Me Up now carry a light accent glow so your eye finds them among the answers, and the top band's collapse and position controls sit beside the traffic lights while the add button stays at the end of the tabs ([`7d7c071`](https://github.com/gregce/tortie/commit/7d7c071))
+
+### Fixed
+
+- Once quit starts, no request can reach files, git or your machines mid teardown, so quitting can no longer race a write ([`f711dac`](https://github.com/gregce/tortie/commit/f711dac))
+- A clone to a remote machine that cannot record itself durably now refuses to start instead of starting untracked, and a clone cut off partway through the copy is reported once at the next launch ([`1508c6c`](https://github.com/gregce/tortie/commit/1508c6c))
+
 ## 0.70.0 (2026-08-24)
 
 This release adds Catch Me Up, a page that shows the conversation you have been having with every session in a project, taken word for word from each agent's own log. One keyboard chord opens it, and most of the rest of the release makes that page better. A small model can also keep the project view's one line per session current, and that stays off until you pick an agent for it.

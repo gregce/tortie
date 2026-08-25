@@ -1,8 +1,8 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.72.6",
-  "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
+  "version": "0.73.0",
+  "description": "Tortie \u2014 a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
   "author": "Ita Vero, LLC",
