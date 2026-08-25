@@ -16529,10 +16529,16 @@ Looking at the project overlay on 2026-08-24 he said the timeline should be reac
 - A session whose line was never model written still answers the empty story states Phase 143 defined, being one line rather than an empty list.
 - The native menus: if the session actions menu carries a story row, it follows the same placement decision; the brief says what changed in the menus.
 
+### His refinement, added 2026-08-24 while the build ran, and it binds
+
+- **The control is the one word "story"**, lowercase in the band's own style, not "what has been written". Any copy that still says the long form is a defect.
+- **It sits at the FAR RIGHT of every project overlay row, in the same exact horizontal position on every row**, aligned as a column rather than trailing each row's text, so the eye finds it in one place whatever the row's line length. The drop down opens from there.
+
 ### Proof, run rather than read
 
 - One app run photographing the project overlay with a story open, and proving the conversation view no longer offers the control, by reading the rendered strings rather than by eye.
 - The Phase 143 rules re-driven at the new surface, being no integer, collapse, model naming and the no chain line, using the existing timeline tests pointed at the new mount.
+- The story control read by bounding box on every row, proving one shared right aligned x position, and the word on it being "story".
 - The full battery plus `npm run conformance:overview`.
 
 ### What is NOT in this phase
