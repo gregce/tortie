@@ -17208,6 +17208,59 @@ The replacement sentence is the one the code has actually been holding: **the op
 - **No edit to `docs/research/31-extensions.md`.** It stays as written, including the parts research 65 corrects, because the losing arguments are the record a future round has to defeat.
 - **No answer to the question the document says decides everything**, being who writes the plugin when a Tortie user wants one. That is named as the open question and is not settled here.
 
+## Phase 154 — drop a file onto the tree from anywhere, and drag one out (operator asked 2026-08-25) QUEUED, AFTER 153
+
+**Subject:** `feat(tree): the file tree takes a drop from outside and gives a drag out`
+**First body line:** `Phase 154: dropping in and dragging out`
+**Semver:** minor. It adds two capabilities the tree does not have.
+**Tier 3.** It writes files into the person's project from outside the app, and it can overwrite. Anything that can lose his work is Tier 3 without exception. Two independent methods, one an attack, and the attack is about destroying data.
+**Charter:** this entry, plus his report of 2026-08-25 with the Finder drag attached, plus `docs/research/16-image-drop.md`, whose transport chain this reuses, plus the `## Phase 90.3` work that made a project able to live on another machine.
+
+### What works today, and what does not
+
+**Internal move already works**, and the phase must not break it. `src/renderer/tree/FileTree.tsx` carries Pierre's `canDrag` and `canDrop` with `.git` locked as both source and destination, and a root drop on the empty space below the rows because Pierre only offers the root through a top level file row, which is not where anyone aims.
+
+**One drag already has TWO meanings**, written out at `FileTree.tsx` line 33: a drag starting in the tree means MOVE over the tree and ATTACH over a terminal pane, and the contract lives in `src/renderer/terminal/drop/tree-drag.ts`. The comment names the line that is easy to miss, being `effectAllowed`, because Pierre stamps `move` and Chromium then refuses the pane's `copy` outright so the drop never fires, and widening it to `copyMove` is what lets the cursor name which family you are in. **This phase adds a THIRD meaning to the same surface and that is its main design risk.**
+
+**Dropping in from Finder does nothing.** Nothing in the tree reads `dataTransfer.files`.
+
+**Dragging out does not exist.** There is no `startDrag` anywhere in the tree.
+
+### The two mechanisms, and the constraint on each
+
+**Dropping in.** The path resolver already exists and must be reused rather than rewritten, which is the growth guardrail. `src/preload/terminal.ts` line 61 exposes `webUtils.getPathForFile(file)`, and `src/renderer/terminal/drop/acquire.ts` documents it as a real path at zero cost. Electron removed `File.path`, so this preload call is the only correct way to learn where a dropped file came from. The phase decides where that helper should live now that two surfaces want it.
+
+**Dragging out is NOT a renderer capability.** A renderer cannot start a native file drag to Finder. Only `webContents.startDrag()` in the main process can, and it needs a real path and an icon. So this half needs a new channel on the one typed preload bridge, and the phase says what that channel is and what it refuses.
+
+### What lands, and the file movement questions he asked about
+
+- A drop from outside onto the tree copies the file in, with a hover effect that says where it will land.
+- **A folder dropped from outside is detected and brought in whole**, which he named specifically.
+- **Dropping onto a folder row puts the file inside that folder**, and dropping on empty space puts it at the project root, matching the internal move rule already there.
+- **A drop that would overwrite asks first and never clobbers silently.** This is the rule the existing move path already states and it carries over.
+- Dragging a row out to Finder gives a real file.
+- The phase answers these, each with its decision in the commit body: whether a modifier key means copy rather than move for an internal drag, whether more than one row can be dragged at once, whether a drag can cross from one project tab to another, and what the drop indicator looks like between rows rather than on them.
+- **THE REMOTE CASE, and it must not be forgotten.** Since Phase 90.3 a project can be a folder on another machine. A Finder drop onto a remote project's tree is an upload over ssh, and the machines layer's confirmed write root rules bind it. If the phase decides that is out of scope, it says so plainly and the surface REFUSES the drop with a sentence rather than appearing to work and silently doing nothing.
+
+### Proof, run rather than read
+
+- ONE app run driving every case: a file dropped on a folder row, on a file row, on empty space, a folder dropped whole, and a multi item drop.
+- **THE ATTACK, and it is about losing his work:** drop a file whose name already exists and prove it asks rather than overwrites; drop into `.git` and prove it is refused; drop a folder onto itself or into its own child and prove it is refused; drop while the tree is filtered and prove the file lands where the row says rather than where the unfiltered index would put it.
+- **Prove the existing two meanings still work**, being an internal move over the tree and an attach over a terminal pane, because a third meaning on the same surface is exactly what would break them.
+- The drag out driven to a real Finder destination with the resulting file compared byte for byte against the source.
+- The remote project case driven or explicitly refused, with evidence either way.
+- The hover effect photographed at each target kind, in both themes.
+- The full battery plus `npm run conformance:machines` if the remote case is in scope.
+
+### What is NOT in this phase
+
+- No change to what an internal move does today, and no change to the terminal attach contract. Both are proved still working rather than touched.
+- No new file verb beyond copying in and dragging out. Renaming, deleting and creating stay where they are.
+- No upload to a remote machine unless the phase explicitly takes it on, and if it does not, the refusal is visible to a person rather than silent.
+- No drag out of a folder as an archive, and no drag out of anything on a remote machine.
+- No change to the image drop into a terminal, which research 16 settled and which is a different surface with a different meaning.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -17398,3 +17451,4 @@ cycle rather than only the evening it was written.
 - 2026-08-25, Phase 153 queued at his word, every menu row carries the icon its own part of the product already uses and only rows with no natural source get a chosen one; the mechanism already exists at src/main/menu-popup.ts line 46 with template image support at line 56 and a grep that day found ZERO popup rows using it, so the phase is about walking through a door that is already built rather than building one; it runs after 152 because both touch session-actions.tsx and the native menus
 - 2026-08-25, Phase 149 SHIPPED on `fa590ea` at 0.73.1, the empty project's heading came down from 20px on 28px to 13px on 20px and its sentence from 15px on 22px to 12px on 18px with the words untouched and the three boot blocks proved unchanged, the app's own cat now sits behind and above the agent grid out of flow at a token size and a token opacity, the four side views moved onto ONE scale named in tokens.css section 1.8b where the Explorer's numbers won because two of the four views and every button in the app already drew them, being an 11px heading, an 11px label, a 28px box and 12px type inside it, so Search's two glob boxes went 24px to 28px, Context's two boxes went 13px to 12px and the commit box went 30px at 13px to 28px at 12px, and Commit gained a sheen, an accent glow that grows on hover and a real press with the disabled state deliberately untouched; the cat was proved not to move the board by removing the image node and separately tripling the mark to 600px at four column widths with the agent grid box and the install hint box identical to the pixel in all twelve readings, the accent derivation was proved by swapping the three accent tokens to a magenta at runtime, and the parent was measured a second time in a plain browser which is the only thing that could reach the two glob boxes behind their closed disclosure; ONE DEVIATION, the charter said the cat is `tortie.png` at the repository root and that file is the README product screenshot referenced at README.md line 33 rather than a cat, so the phase used `docs/brand/tortie/dock/tortie-dock-512.png` copied byte for byte at sha256 0815e6d0 with `npm run icon` keeping it fresh, and reversing it is the one import at the top of `src/renderer/app/EmptyStates.tsx`
 - 2026-08-25, Research 65 delivered, docs/research/65-plugins-reconsidered.md, plugins reconsidered on his question, and the refusals STAND with the deciding reason being adoption rather than security: `gh api repos/gregce/tortie` reads 4 stars and about 175 downloads while herdr produced one plugin repository per 39 stars and grew 26 times over BEFORE its plugin system existed, so a plugin system is a multiplier and Tortie does not have the thing it multiplies; research 31's own section 7.3 trigger already said no, being that the update channel shipped but the command layer has not and no three named requests exist; one plugin in the top sixty of a live marketplace in Tortie's exact category needs code inside the host process and it is an embedded browser, so refusal 1 blocks almost nothing and is nearly free to keep; the record above authorizes TWO DOCUMENTS and no code, being the rewrite of refusals 1, 3 and 6 which are false against the tree at src/main/symbols/worker.ts, src/renderer/context/install/InstallSheet.tsx and build/vendor/, and the substrate documentation research 31 promised twice and never shipped, which must say in those words that the tmux socket is a WRITE surface; rungs 1 and 1.5, being a tool row and a session set format, are recommended as their own later phases and the agent recipe is HELD until somebody measures whether the status oracle, the keep map, the context precedence and the fold recipe are expressible as data at all
+- 2026-08-25, Phase 154 queued at his word, the file tree takes a drop from outside including a whole folder with a hover effect saying where it lands, and gives a drag out to Finder; the entry records that internal move already works and that a tree drag ALREADY has two meanings, move over the tree and attach over a terminal pane, so this adds a third to the same surface which is its main risk, that the path resolver already exists at src/preload/terminal.ts line 61 and must be reused, that dragging out is not a renderer capability at all and needs webContents.startDrag from main, and that a Finder drop onto a REMOTE project is an ssh upload bound by the confirmed write root or an explicit visible refusal
