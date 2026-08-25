@@ -69,12 +69,18 @@ export function TurnBlock(props: TurnBlockProps): React.JSX.Element {
           <span data-clock>{clock}</span>
         </div>
       ) : null}
-      <div className="overview-label">{YOU_LABEL}</div>
-      <div className="overview-ask">
-        <span data-quoted>{turn.askText}</span>
-        {turn.askClipped ? (
-          <div className="overview-clip-note">{REST_NOT_SHOWN}</div>
-        ) : null}
+      {/* Phase 148. The you section carries the accent wash and a soft glow,
+          because that is where the eyes naturally go. Both values are the
+          §1.2 accent tokens, so a future accent choice recolors this without
+          touching this file. The agent's answer below stays as it is. */}
+      <div className="overview-you">
+        <div className="overview-label">{YOU_LABEL}</div>
+        <div className="overview-ask">
+          <span data-quoted>{turn.askText}</span>
+          {turn.askClipped ? (
+            <div className="overview-clip-note">{REST_NOT_SHOWN}</div>
+          ) : null}
+        </div>
       </div>
       <div className="overview-label">{AGENT_LABEL}</div>
       {turn.answerText !== null ? (

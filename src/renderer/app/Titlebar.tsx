@@ -39,9 +39,17 @@
  * stays in the same place in the reading order when the row collapses.
  *
  * SAY WHAT IS NOT TRUE HERE TOO. Nothing moved leftward into the traffic
- * lights. `.titlebar` carries `padding-left: 76px`, the whole `<nav>` starts
- * after that inset, and the + was added at the END of the collapsed branch's
- * chip, so the chip's own left edge did not move by one pixel.
+ * lights. `.titlebar` carries `padding-left: 76px` and the whole `<nav>`
+ * starts after that inset.
+ *
+ * PHASE 148. The band's controls moved to its HEAD, reversed. The position
+ * control now sits first, nearest the traffic lights, then the collapse
+ * chevron, and then the projects begin, whether they are the row of tabs or
+ * the collapsed chip. That mirrors Phase 135's call for the left rail's
+ * band, where the same two controls in the same order open the band. The +
+ * did not move: it stays at the END of the tabs in both top branches, and
+ * the vertical orientations are untouched because ProjectRail.tsx draws
+ * those and this file draws none of them.
  */
 
 import React, {
@@ -408,15 +416,23 @@ export function Titlebar(): React.JSX.Element {
           rail does, and drawing both would be two answers to one question.
           The band itself stays, at its 38px, because the traffic lights live
           in its first 76px. */}
+      {/* PHASE 148. The band's own controls sit at its HEAD, reversed, so the
+          position control is the one nearest the traffic lights and the
+          chevron sits beside it, then the projects begin. This mirrors Phase
+          135's call for the left rail's band, and the operator asked for the
+          two bands to agree. The + is not part of the move: it stays at the
+          END of the tabs, where it has always been. */}
       {projectsPosition === 'left' ? null : projectsCollapsed ? (
         <nav className="titlebar-tabs" aria-label="Projects">
+          <ProjectsPositionButton />
+          {collapseControl}
           <CollapsedProjectChip tabs={tabs} activeProjectId={activeProjectId} />
           {addControl}
-          {collapseControl}
-          <ProjectsPositionButton />
         </nav>
       ) : (
         <nav className="titlebar-tabs" aria-label="Projects" ref={navRef}>
+          <ProjectsPositionButton />
+          {collapseControl}
           {tabs.map((t, i) => (
             <ProjectTab
               key={t.project.id}
@@ -432,10 +448,9 @@ export function Titlebar(): React.JSX.Element {
             <TabIndicator index={dropIndex} navRef={navRef} />
           ) : null}
           {/* The + sits after the tabs, which is where it has always been.
-              Phase 135 changed nothing in this branch. */}
+              Phase 148 moved the chevron and the position control to the
+              band's head and left the + alone. */}
           {addControl}
-          {collapseControl}
-          <ProjectsPositionButton />
         </nav>
       )}
       <div className="titlebar-spacer" />

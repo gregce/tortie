@@ -127,6 +127,25 @@
   margin: 6px 0 2px;
 }
 
+/* Phase 148. The you section of every exchange sits on the accent wash with
+   a soft glow, because the person's own ask is where the eyes go first. Both
+   values derive from the §1.2 accent tokens and nothing here names a color
+   of its own, so a future accent choice follows automatically. The glow is
+   the soft token thinned to a low alpha with color-mix rather than a second
+   literal. The text inside keeps its own tokens, and the agent's answer
+   below this block is untouched. */
+.overview-you {
+  background: var(--accent-wash);
+  border-radius: 6px;
+  padding: 4px 10px 8px;
+  margin: 4px 0 2px;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-soft) 25%, transparent);
+}
+
+.overview-you .overview-label {
+  margin-top: 2px;
+}
+
 .overview-ask,
 .overview-answer {
   white-space: pre-wrap;

@@ -1,7 +1,9 @@
 /**
- * Phase 135, item two, states A and B. The + is in the title band whether the
- * project row is expanded or collapsed, and it sits to the right of wherever
- * the projects are drawn.
+ * Phase 135, item two, states A and B, reordered by Phase 148. The + is in
+ * the title band whether the project row is expanded or collapsed, and it
+ * sits to the right of wherever the projects are drawn. Phase 148 moved the
+ * band's own controls to its HEAD, reversed, so the position control is the
+ * one nearest the traffic lights, then the chevron, then the projects.
  *
  * The defect this file guards against is one missing element. Collapsing the
  * project row on top left the band holding a chip, a collapse chevron and a
@@ -94,12 +96,12 @@ describe('the collapsed project row keeps the +', () => {
     inOrder(navBlocks().collapsed, ['<CollapsedProjectChip', '{addControl}']);
   });
 
-  it('reads chip, then +, then chevron, then position button', () => {
+  it('reads position button, then chevron, then chip, then + (Phase 148)', () => {
     inOrder(navBlocks().collapsed, [
-      '<CollapsedProjectChip',
-      '{addControl}',
+      '<ProjectsPositionButton />',
       '{collapseControl}',
-      '<ProjectsPositionButton />'
+      '<CollapsedProjectChip',
+      '{addControl}'
     ]);
   });
 
@@ -116,13 +118,13 @@ describe('the collapsed project row keeps the +', () => {
 // State A. Projects on top, expanded. Nothing here moved.
 // ---------------------------------------------------------------------------
 
-describe('the expanded project row is unchanged', () => {
-  it('draws the tabs, then the +, then the chevron, then the position button', () => {
+describe('the expanded project row carries its controls at its head (Phase 148)', () => {
+  it('draws the position button, then the chevron, then the tabs, then the +', () => {
     inOrder(navBlocks().expanded, [
-      '<ProjectTab',
-      '{addControl}',
+      '<ProjectsPositionButton />',
       '{collapseControl}',
-      '<ProjectsPositionButton />'
+      '<ProjectTab',
+      '{addControl}'
     ]);
   });
 
