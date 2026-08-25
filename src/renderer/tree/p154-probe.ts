@@ -85,6 +85,20 @@ function listed(rootPath: string, rel: string): boolean {
   );
 }
 
+/**
+ * PHASE 155. Does the person actually SEE this row?
+ *
+ * `listed` above reads the listing cache, and the listing cache is not the
+ * screen. That is why this probe passed the day the operator found a dropped
+ * file that had landed, was in the cache, and had no row: the rows come from a
+ * diff against a separate baseline, and the import had poisoned it. A probe
+ * that reads one belief can never catch a disagreement between two, so every
+ * import step below is now asked both questions.
+ */
+function onScreen(handle: TreeHandle, canonical: string): boolean {
+  return rowElement(handle, canonical) !== null;
+}
+
 /** A drag from another application, as far as the DOM can tell. */
 function fileTransfer(count = 1): DataTransfer {
   const dt = new DataTransfer();
@@ -304,6 +318,37 @@ export async function driveP154(spec: P154ProbeSpec): Promise<P154Result> {
     multiA && multiB
       ? 'both files are in the folder'
       : `multi-a=${String(multiA)} multi-b=${String(multiB)}`
+  );
+
+  // ---- PHASE 155: the same drop, asked of the SCREEN ---------------------
+  // Every step above asked whether the file ARRIVED. This one asks whether he
+  // can SEE it, which is the question he asked the day after Phase 154 shipped
+  // and the one this probe could not answer.
+  //
+  // Two questions, and only about rows at the TOP LEVEL of the tree, because a
+  // row inside a folder is legitimately absent when the folder is closed and an
+  // assertion that cannot tell those two apart is not an assertion.
+  //
+  //   1. `root-drop.md`, dropped on the empty space below the rows, has a row.
+  //      That is his gesture exactly. On the parent commit it had none.
+  //   2. Nothing at the top level is believed and unshown. The two beliefs are
+  //      the model's own feed baseline and the mounted rows, and the defect was
+  //      precisely a disagreement between them, so this compares them directly
+  //      rather than trusting either one.
+  const topLevel = (): string[] =>
+    handle.paths().filter((p) => !p.slice(0, -1).includes('/'));
+  const agreed = await until(
+    () =>
+      onScreen(handle, 'root-drop.md') &&
+      topLevel().every((canonical) => onScreen(handle, canonical))
+  );
+  const unshown = topLevel().filter((canonical) => !onScreen(handle, canonical));
+  record(
+    'PHASE 155. an imported file has a ROW, and no top level path is believed and unshown',
+    agreed,
+    agreed
+      ? `root-drop.md is on screen and all ${String(topLevel().length)} top level paths have rows`
+      : `believed with no row: ${unshown.join(', ') || 'root-drop.md itself'}`
   );
 
   // ---- THE ATTACK, live: a name that is already taken --------------------

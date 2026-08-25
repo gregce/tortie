@@ -29,6 +29,17 @@ export interface TreeHandle {
   ops: TreeOps;
   /** Canonical paths the tree currently knows about. */
   paths(): string[];
+  /**
+   * PHASE 155. Re-point the rows at what the listings say, trusting nothing.
+   *
+   * The Files header's Refresh calls this after the store has re-read the
+   * folders. Re-reading a folder is only half of a refresh: the rows come from
+   * a diff against a baseline of what the model is believed to hold, and a
+   * baseline that has drifted starves that diff forever. This rebuilds the
+   * baseline from the rows the model actually has and drops every hold, so a
+   * drift from any cause costs one button press instead of a tab switch.
+   */
+  reconcile(): void;
   /** Start an inline rename on a row (F2's path). */
   startRename(canonical: string): void;
   /**

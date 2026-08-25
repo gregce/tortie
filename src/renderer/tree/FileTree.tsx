@@ -210,6 +210,7 @@ export function FileTree({
     opsRef,
     openMenuRef,
     fedRef,
+    reconcile,
     openDirs,
     sanctionFilterClose,
     sanctionUntilRef
@@ -257,6 +258,7 @@ export function FileTree({
       filterValue: () => model.getSearchValue(),
       ops,
       paths: () => [...fedRef.current],
+      reconcile,
       startRename: (canonical) => ops.startRename(canonical),
       newEntryTarget: () => headerDestDir(model.getSelectedPaths()),
       collapseAll: () => {
@@ -279,7 +281,8 @@ export function FileTree({
     registerHandle,
     openDirs,
     opsCreated,
-    sanctionFilterClose
+    sanctionFilterClose,
+    reconcile
   ]);
 
   useEffect(() => {

@@ -112,7 +112,11 @@ const KEPT_EFFECTS: { what: string; deps: string }[] = [
       '    registerHandle,\n' +
       '    openDirs,\n' +
       '    opsCreated,\n' +
-      '    sanctionFilterClose\n' +
+      '    sanctionFilterClose,\n' +
+      // PHASE 155. The Refresh button reaches the model through this handle
+      // now, so the effect that registers it depends on the model's own
+      // `reconcile`. It is stable while `model` is, which is already here.
+      '    reconcile\n' +
       '  ]);'
   },
   { what: 'push the filter open state', deps: '}, [search.isOpen, setFilterOpen]);' },

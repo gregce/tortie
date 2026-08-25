@@ -154,6 +154,79 @@ export function asDirectory(
     : null;
 }
 
+/**
+ * PHASE 155. The listing to model diff, as one pure function.
+ *
+ * It was inline in the effect below, and it is out here now because it is the
+ * exact mechanism the operator's defect ran through and a mechanism nothing can
+ * call on its own is a mechanism nothing can test. Read it as one sentence:
+ * `fed` is what the model is BELIEVED to hold, `next` is what the listings say
+ * is on disk, and the answer is the operations that carry the first to the
+ * second plus the baseline they leave behind.
+ *
+ * THE LINE THE DEFECT LIVED ON is the add arm's `!fed.has(path)`. Anything that
+ * writes a path into `fed` without the model gaining that row makes the row
+ * unemittable for the life of the mount, by any route, including Refresh.
+ * `reconcile` in `useTreeModel` is the answer to that, and it is why it asks the
+ * model what it holds rather than trusting this baseline.
+ */
+export function planListingDiff(
+  fed: ReadonlySet<string>,
+  next: ReadonlySet<string>,
+  isHeld: (path: string) => boolean
+): { ops: FileTreeBatchOperation[]; applied: Set<string> } {
+  const ops: FileTreeBatchOperation[] = [];
+  const removedDirs: string[] = [];
+  for (const path of fed) {
+    if (next.has(path) || isHeld(path)) continue;
+    // A recursive dir removal already covers its descendants.
+    if (removedDirs.some((dir) => path !== dir && path.startsWith(dir))) {
+      continue;
+    }
+    if (path.endsWith('/')) removedDirs.push(path);
+    ops.push({ type: 'remove', path, recursive: true });
+  }
+  for (const path of next) {
+    if (!fed.has(path) && !isHeld(path)) ops.push({ type: 'add', path });
+  }
+  // The baseline advances by the ops we ACTUALLY emitted, not to `next`
+  // wholesale: a held path was deliberately left alone, and overwriting the
+  // baseline with the disk's answer would forget it exists.
+  const applied = new Set(fed);
+  for (const op of ops) {
+    if (op.type === 'add') {
+      applied.add(op.path);
+    } else if (op.type === 'remove') {
+      applied.delete(op.path);
+      if (!op.path.endsWith('/')) continue;
+      for (const path of [...applied]) {
+        if (path.startsWith(op.path)) applied.delete(path);
+      }
+    }
+  }
+  return { ops, applied };
+}
+
+/**
+ * PHASE 155. The baseline Refresh rebuilds, from the rows that really exist.
+ *
+ * `holdsRow` is the model being asked a question about itself, one path at a
+ * time. A path either side believes in is kept only if the model answers yes,
+ * so a path the store knows and the model never got is DROPPED, which is what
+ * lets the very next diff add it, and a row the model holds that the baseline
+ * had forgotten is put BACK, which is what lets a later diff remove it.
+ */
+export function baselineFromModel(
+  fed: ReadonlySet<string>,
+  listed: ReadonlySet<string>,
+  holdsRow: (path: string) => boolean
+): Set<string> {
+  const rebuilt = new Set<string>();
+  for (const path of fed) if (holdsRow(path)) rebuilt.add(path);
+  for (const path of listed) if (holdsRow(path)) rebuilt.add(path);
+  return rebuilt;
+}
+
 // ---------------------------------------------------------------------------
 // Styling that must live inside the shadow root
 // ---------------------------------------------------------------------------
@@ -494,39 +567,62 @@ export function useTreeModel({
     };
   }, []);
 
+  /**
+   * PHASE 155. What the store last said, for `reconcile` below to read. The
+   * diff effect gets it from its own closure; a button press has no closure.
+   */
+  const pathsRef = useRef<ReadonlySet<string>>(treeInput.paths);
+  useEffect(() => {
+    pathsRef.current = treeInput.paths;
+  }, [treeInput]);
+
+  /**
+   * PHASE 155. Make the Refresh button incapable of doing nothing.
+   *
+   * The store half of Refresh already cannot be a no-op (see `listInto` in
+   * store.ts). This is the other half, and it is the one that failed him: the
+   * diff above only ever emits an add for a path `fed` does not already claim,
+   * so a baseline that has drifted starves every future refresh of that path,
+   * by any route, for the life of the mount. Refresh is the manual override, so
+   * it trusts nothing it has been told and asks the MODEL what it holds.
+   *
+   * Two things go, in this order:
+   *
+   * 1. THE BASELINE IS REBUILT FROM THE ROWS THAT REALLY EXIST. A path is kept
+   *    only if `model.getItem` answers with something. A path the store knows
+   *    about and the model never got is dropped from the baseline, which is
+   *    what lets the next pass add it. A row the model holds that the baseline
+   *    had forgotten is put back, which is what lets a later pass remove it.
+   * 2. EVERY HOLD IS DROPPED. A hold is a promise that some operation will
+   *    finish and release it, and a hold that leaks would swallow every future
+   *    refresh with nothing logged. The two gestures a person can hold open for
+   *    seconds were MEASURED across a press in the real app rather than argued
+   *    about here: an inline rename with a name already typed keeps the same
+   *    input node and the same characters, and a New Entry placeholder with a
+   *    name typed keeps both and still creates the file when Return is pressed
+   *    after the press. The one window that cannot be driven from outside is
+   *    the sub second one inside an optimistic move, where the model holds the
+   *    destination row before main has answered. A press landing exactly there
+   *    would put that row into the baseline, the same diff would take it away
+   *    again because the disk does not have it yet, and the move's own re-list
+   *    would put it back. That is a flicker that heals itself rather than a
+   *    lost row, and it is the price of a Refresh that cannot be swallowed.
+   */
+  const reconcile = useCallback((): void => {
+    fedRef.current = baselineFromModel(
+      fedRef.current,
+      pathsRef.current,
+      (path) => model.getItem(path) !== null
+    );
+    heldRef.current.clear();
+    setSyncTick((n) => n + 1);
+  }, [model]);
+
   useEffect(() => {
     const fed = fedRef.current;
     const next = treeInput.paths;
-    const ops: FileTreeBatchOperation[] = [];
-    const removedDirs: string[] = [];
-    for (const path of fed) {
-      if (next.has(path) || isHeld(path)) continue;
-      // A recursive dir removal already covers its descendants.
-      if (removedDirs.some((dir) => path !== dir && path.startsWith(dir))) {
-        continue;
-      }
-      if (path.endsWith('/')) removedDirs.push(path);
-      ops.push({ type: 'remove', path, recursive: true });
-    }
-    for (const path of next) {
-      if (!fed.has(path) && !isHeld(path)) ops.push({ type: 'add', path });
-    }
+    const { ops, applied } = planListingDiff(fed, next, isHeld);
     if (ops.length > 0) {
-      // The baseline advances by the ops we ACTUALLY emitted, not to `next`
-      // wholesale: a held path was deliberately left alone, and overwriting
-      // the baseline with the disk's answer would forget it exists.
-      const applied = new Set(fed);
-      for (const op of ops) {
-        if (op.type === 'add') {
-          applied.add(op.path);
-        } else if (op.type === 'remove') {
-          applied.delete(op.path);
-          if (!op.path.endsWith('/')) continue;
-          for (const path of [...applied]) {
-            if (path.startsWith(op.path)) applied.delete(path);
-          }
-        }
-      }
       try {
         model.batch(ops);
       } catch {
@@ -644,6 +740,8 @@ export function useTreeModel({
     openMenuRef,
     fedRef,
     hold,
+    /** PHASE 155. What the Refresh button calls so it can never be a no-op. */
+    reconcile,
     openDirs,
     sanctionFilterClose,
     sanctionUntilRef

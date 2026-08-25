@@ -148,11 +148,23 @@ interface FileTreeState {
 export const useFileTree = create<FileTreeState>((set, get) => {
   /** Guards against out-of-order async results after a root switch. */
   let rootSeq = 0;
-  const inFlight = new Set<string>();
+  /** Reads running right now, one per directory. */
+  const inFlight = new Map<string, Promise<void>>();
+  /**
+   * PHASE 155. A second read already promised to a caller that asked while
+   * another was running, one per directory. It exists so that "read it again"
+   * costs ONE extra read however many people ask for it in the same burst.
+   */
+  const queued = new Map<string, Promise<void>>();
+  /**
+   * The remote walk's own guard, deliberately separate from the two above. A
+   * `machines:listTree` is one call that fills many directories and it is not
+   * a `readDir`, so it must never be mistaken for one by the forced path
+   * below. Phase 155 changed nothing about how a remote tree refreshes.
+   */
+  const remoteInFlight = new Set<string>();
 
-  const listInto = async (dirPath: string, seq: number): Promise<void> => {
-    if (inFlight.has(dirPath)) return;
-    inFlight.add(dirPath);
+  const readInto = async (dirPath: string, seq: number): Promise<void> => {
     try {
       const result = await readDir(dirPath);
       if (seq !== rootSeq) return; // root switched while listing
@@ -171,8 +183,49 @@ export const useFileTree = create<FileTreeState>((set, get) => {
           return { entriesByDir: next };
         });
       }
+    }
+  };
+
+  /**
+   * List one directory into the cache.
+   *
+   * PHASE 155. `force` is the difference between a lazy load and a person
+   * asking. A read that is ALREADY RUNNING started before the caller asked, so
+   * its answer cannot speak for what the caller has just done, and returning it
+   * is how Refresh and an explicit re-list became capable of doing nothing at
+   * all. A forced call therefore waits for the running read and then reads
+   * again, and everyone who asks while that second read is still waiting joins
+   * it rather than adding a third. A lazy load keeps the old behaviour: it
+   * wanted a listing, one is coming, and that is enough.
+   */
+  const listInto = async (
+    dirPath: string,
+    seq: number,
+    force = false
+  ): Promise<void> => {
+    const running = inFlight.get(dirPath);
+    if (running !== undefined) {
+      if (!force) return;
+      const already = queued.get(dirPath);
+      if (already !== undefined) {
+        await already;
+        return;
+      }
+      const next = (async () => {
+        await running.catch(() => undefined);
+        queued.delete(dirPath);
+        await listInto(dirPath, seq, true);
+      })();
+      queued.set(dirPath, next);
+      await next;
+      return;
+    }
+    const run = readInto(dirPath, seq);
+    inFlight.set(dirPath, run);
+    try {
+      await run;
     } finally {
-      inFlight.delete(dirPath);
+      if (inFlight.get(dirPath) === run) inFlight.delete(dirPath);
     }
   };
 
@@ -189,8 +242,8 @@ export const useFileTree = create<FileTreeState>((set, get) => {
     dir: string,
     seq: number
   ): Promise<void> => {
-    if (inFlight.has(dir)) return;
-    inFlight.add(dir);
+    if (remoteInFlight.has(dir)) return;
+    remoteInFlight.add(dir);
     set((s) => ({
       remote: { ...(s.remote ?? REMOTE_IDLE), root: dir, loading: true }
     }));
@@ -202,7 +255,7 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       // a person as a machine that did not answer, and the Explorer says so.
       answer = { status: 'unreachable', root: dir };
     } finally {
-      inFlight.delete(dir);
+      remoteInFlight.delete(dir);
     }
     if (seq !== rootSeq) return;
     if (answer.status !== 'ok') {
@@ -257,6 +310,8 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       if (sameTarget(get().root, target)) return;
       const seq = ++rootSeq;
       inFlight.clear();
+      queued.clear();
+      remoteInFlight.clear();
       const remoteTab = target !== null && !isLocalTarget(target);
       const bridgeMissing = remoteTab ? !canListTree() : !canReadDir();
       set({
@@ -323,7 +378,10 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       const wanted = dirPaths.filter(
         (d) => d === rootPath || d.startsWith(rootPath + '/')
       );
-      await Promise.all(wanted.map((d) => listInto(d, seq)));
+      // FORCED, because this verb's whole contract is "re-list NOW, cached or
+      // not". A read already running was started before the file operation
+      // that is calling this, so it can only answer with the folder as it was.
+      await Promise.all(wanted.map((d) => listInto(d, seq, true)));
     },
 
     forgetUnder(dirPaths) {
@@ -367,7 +425,11 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       set({ rootError: null });
       const dirs = new Set(Object.keys(get().entriesByDir));
       dirs.add(rootPath);
-      await Promise.all([...dirs].map((d) => listInto(d, seq)));
+      // FORCED. Refresh is the manual override and it must never be a no-op.
+      // Before Phase 155 a press that landed while any other read of the same
+      // folder was in flight returned at once and repainted nothing, and the
+      // watcher starts one of those every few hundred milliseconds under churn.
+      await Promise.all([...dirs].map((d) => listInto(d, seq, true)));
       if (seq === rootSeq && !get().rootLoaded && get().rootError === null) {
         set({ rootLoaded: true });
       }

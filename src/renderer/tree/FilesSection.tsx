@@ -58,6 +58,7 @@ import { useTreeDensity } from './density';
 import { useTreeGitStatus } from './git-status';
 import { useTreeIgnored } from './ignored';
 import { useFileTree } from './store';
+import { useTreeHandle } from './tree-handle';
 import { registerP154Probe } from './p154-probe';
 import { FileTree } from './FileTree';
 import './tree.css';
@@ -305,7 +306,16 @@ export function FilesSection({
   };
 
   const refresh = (): void => {
-    void refreshLoaded();
+    // PHASE 155. Re-reading the folders is only half of a refresh, and it was
+    // the half that already worked. The rows come from a diff against a
+    // baseline of what the model is believed to hold, and a baseline that has
+    // drifted starves that diff for good: he pressed this button on a file
+    // that was on disk and in the store, and nothing moved. So the press
+    // re-reads the folders AND then makes the rows agree with them, whatever
+    // either side believed a moment ago.
+    void refreshLoaded().finally(() => {
+      useTreeHandle.getState().handle?.reconcile();
+    });
     // PHASE 90.3. A tab on another machine has no ignore set to distrust and no
     // git status on this Mac to re-read, so Refresh there is exactly one call
     // to that machine and nothing else.

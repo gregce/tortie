@@ -842,9 +842,20 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
           return;
         }
 
-        for (const pair of result.imported) {
-          addToFed(toCanonical(pair.to.relPath, pair.to.kind === 'dir'));
-        }
+        // PHASE 155. NOTHING is added to `fed` here, and adding it is the
+        // defect this phase removes. `fed` is the diff's record of what the
+        // MODEL already holds, and an import creates no model row: the comment
+        // above says so, and the re-list below is what makes the rows. Putting
+        // the imported path into the baseline told the diff a row existed that
+        // never did, and its add arm is `!fed.has(path)`, so from that moment
+        // the row could never be emitted by any route for the life of the
+        // mount. That is why the drop did not show, why Refresh did not fix it,
+        // and why switching tabs did: a tab switch builds a new baseline.
+        // Every other `addToFed` call site pairs with a real row. Create pairs
+        // with the placeholder the library renamed into place, and duplicate
+        // pairs with an explicit `model.add` on the line above. This one had
+        // nothing to pair with.
+        //
         // A replaced FOLDER's old children are stale in the listing cache and
         // the new ones have never been read, so forget the subtree before the
         // re-list rather than letting a merged listing describe two folders.
