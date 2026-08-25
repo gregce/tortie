@@ -16549,7 +16549,7 @@ Looking at the project overlay on 2026-08-24 he said the timeline should be reac
 - No change to the session view's verbatim conversation beyond removing the story control.
 
 
-## Phase 148 — the you line glows, and the band's controls sit by the traffic lights (operator asked 2026-08-24) QUEUED, AFTER 147
+## Phase 148 — the you line glows, and the band's controls sit by the traffic lights (operator asked 2026-08-24) SHIPPED 2026-08-24
 
 **Subject:** `fix(ui): your asks carry the accent glow and the band controls move to its head`
 **First body line:** `Phase 148: the you glow, and the band head`
@@ -16761,3 +16761,4 @@ cycle rather than only the evening it was written.
 - 2026-08-24, Phase 147 queued, the summary timeline moves to the project overlay rows where the model written line lives and leaves the verbatim conversation view, at his word, because only the project level is supposed to carry model generated synthesis
 - 2026-08-24, Phase 148 queued, the you section of each exchange glows with a light accent wash because that is where the eyes go, and the horizontal band's chevron and position controls move to the head of the band reversed so the position control sits nearest the traffic lights, mirroring Phase 135, after 147 lands
 - 2026-08-24, Phase 147 shipped, the story control is the one word "story" at one shared far right column position on every project overlay row, opening that session's timeline in place, and the control left the verbatim conversation view; his mid build refinement was caught by the verifier attacking the builder's charter satisfied claim, a fix round landed the word and the column and was re-driven at the exact cases; no native menu carried a story row so none changed; `8443052`, 0.72.5
+- 2026-08-24, Phase 148 shipped, the you section of every exchange in the session Catch Me Up view sits on the accent wash with a soft glow built from the section 1.2 tokens so a future accent choice recolors it automatically, and the top band's controls moved to its head reversed, position control at x 76 nearest the traffic lights, then the chevron, then the projects, with the add button staying at the end of the tabs; both surfaces were measured at the parent commit first because he reported them himself, the other three orientations were measured unmoved, and the verifier re-derived the glow in a separate Chromium render stack and ran a selection attack showing the wash reads over --bg-active; `7d7c071`, 0.72.6
