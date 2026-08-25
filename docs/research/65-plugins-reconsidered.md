@@ -24,6 +24,41 @@ a band without my own re-check are attributed to that band.
 
 ## 1. The answer
 
+### Correction, added 2026-08-25
+
+**Read this before the answer below it.** After this document was delivered the operator said, in
+his own words, "i haven't really launched tortie yet so ...". He is right, and it takes the
+headline reason out.
+
+The 4 stars, 0 forks and about 175 downloads are pre launch figures. They measure whether the
+product has been put in front of anyone yet. They do not measure whether plugins would work for
+it. Using them to predict a post launch ecosystem is a category error, because the thing being
+predicted is on the other side of an event that has not happened. Section 10 lists eight things
+nobody measured and is unusually thorough about them, and it does not list this one. So the
+headline argument rested on a premise that nobody flagged as load bearing.
+
+What falls and what stands:
+
+- **The star ratio arithmetic falls.** One plugin repository per 39 stars applied to 4 stars
+  predicts zero plugins, and that prediction is about today's audience rather than about plugins.
+  It cannot carry the answer.
+- **The claim that "no case in this category went the other way round" is weakened.** It was one
+  case, herdr, generalised into a rule about the whole category. One download curve is not a law.
+- **The three condition gate from research 31 section 7.3 stands.** It asks for three named
+  requests configuration cannot express, a command layer shipped as first party work, and an
+  update channel that has shipped. None of those three is an adoption number, so nothing above
+  touches it.
+- **The three false refusals stand.** Refusals 1, 3 and 6 were checked against the shipping tree
+  on this machine and found false there, and a measurement of the tree does not depend on how many
+  people have the product.
+
+The rest of this document, being the threat model, the ladder, the herdr and pi readings and the
+three things to do instead, is unchanged and was never resting on the star count.
+
+**Research 66 asks the question again with launch as a given.** It assumes Tortie ships and finds
+an audience, and it asks what plugin shape would be right then, what would have to be true to
+start walking toward it, and which decisions taken now would foreclose it or make it cheap.
+
 **The refusals stand. Do not build a plugin system, and the deciding reason is not security.**
 It is that `gregce/tortie` has 4 stars, 0 forks and about 175 downloads across every release ever
 (**measured**, `gh api repos/gregce/tortie` on 2026-08-25). herdr produced roughly one plugin
@@ -1045,6 +1080,9 @@ and did not re-fetch any external page myself.
   policy file in herdr's repository. Absence of a report over ten weeks is weak evidence.
 - **Whether the four agent tables can be expressed as data.** The load bearing unknown under the
   most valuable idea in this document.
+- **Whether Tortie's adoption numbers say anything at all about plugins.** They were taken as the
+  headline reason without anyone asking whether a pre launch product's star and download counts
+  can predict a post launch ecosystem. See the correction at the top of section 1.
 - **Whether the platform secret store actually prompts** when another process running as the same
   user asks for Tortie's key. Two modules assert it does. Nobody tested it, because testing it
   means attempting to read his real keychain. It is **remembered**, and it is load bearing for both
