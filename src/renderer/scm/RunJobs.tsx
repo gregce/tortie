@@ -19,6 +19,7 @@ import React from 'react';
 import type { ActionsJob, ActionsRun, ActionsStep } from '@shared/actions';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
+import { menuGlyph } from '../icons';
 import { useRuns, runsRepoState } from './runs';
 import {
   RUNS_JOBS_EMPTY,
@@ -44,8 +45,16 @@ import { RunStatusIcon, copyUrl, openOnGitHub } from './RunRow';
  */
 function jobMenuItems(job: ActionsJob): MenuItemSpec[] {
   return [
-    { label: 'Open on GitHub', run: () => openOnGitHub(job.url) },
-    { label: 'Copy job URL', run: () => copyUrl(job.url, 'Job URL copied.') }
+    {
+      label: 'Open on GitHub',
+      ...menuGlyph('globe'),
+      run: () => openOnGitHub(job.url)
+    },
+    {
+      label: 'Copy job URL',
+      ...menuGlyph('copy'),
+      run: () => copyUrl(job.url, 'Job URL copied.')
+    }
   ];
 }
 

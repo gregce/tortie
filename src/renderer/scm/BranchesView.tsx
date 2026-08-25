@@ -34,7 +34,7 @@ import type { GitBranchInfo, GitRemoteBranchInfo } from '@shared/types';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { useNow } from '../format';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 import {
   depthRepoState,
   hasBranchManagement,
@@ -234,17 +234,27 @@ export function BranchesView({
         if (!row.local.current) {
           items.push({
             label: 'Checkout',
+            // The mark the row itself wears once it IS the current branch,
+            // which is what this verb makes it.
+            ...menuGlyph('check'),
             disabled: busy !== null,
             run: () => activate(row)
           });
         }
         items.push({
           label: 'Copy branch name',
+          ...menuGlyph('copy'),
           run: () => copyName(row.name)
         });
         if (!row.local.current && manageable) {
           items.push('sep', {
             label: 'Delete branch…',
+            // `git-branch-delete` is an alias of the plain branch glyph in
+            // the shipped stylesheet, so it would draw a branch and say
+            // nothing about deleting. `trash` is the one mark in Tortie's
+            // set that means this row destroys the thing it names, and it
+            // is what the tree's own destructive row wears.
+            ...menuGlyph('trash'),
             destructive: true,
             disabled: busy !== null,
             run: () => confirmDelete(row.local)
@@ -254,10 +264,15 @@ export function BranchesView({
         items.push(
           {
             label: 'Checkout as local branch',
+            ...menuGlyph('check'),
             disabled: busy !== null,
             run: () => activate(row)
           },
-          { label: 'Copy branch name', run: () => copyName(row.name) }
+          {
+            label: 'Copy branch name',
+            ...menuGlyph('copy'),
+            run: () => copyName(row.name)
+          }
         );
       }
       setMenu({ x: e.clientX, y: e.clientY, items });
@@ -519,12 +534,14 @@ export function BranchesView({
                               const items: MenuItemSpec[] = [
                                 {
                                   label: 'Copy Remote URL',
+                                  ...menuGlyph('copy'),
                                   run: () => copyUrl(info.name, info.fetchUrl)
                                 }
                               ];
                               if (info.pushUrl !== info.fetchUrl) {
                                 items.push({
                                   label: 'Copy Push URL',
+                                  ...menuGlyph('copy'),
                                   run: () => copyUrl(info.name, info.pushUrl)
                                 });
                               }

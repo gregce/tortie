@@ -12,6 +12,7 @@
  */
 
 import type { MenuItemSpec } from '../state/store';
+import { menuGlyph } from '../icons';
 
 /** The row the menu was opened on. */
 export interface RecentMenuTarget {
@@ -53,13 +54,25 @@ export function recentMenuItems(
   canReveal: boolean
 ): (MenuItemSpec | 'sep')[] {
   const items: (MenuItemSpec | 'sep')[] = [
-    { label: 'Open', run: () => actions.open() }
+    { label: 'Open', ...menuGlyph('folder-opened'), run: () => actions.open() }
   ];
   if (target.missing !== true && target.remote !== true && canReveal) {
-    items.push({ label: 'Reveal in Finder', run: () => actions.reveal() });
+    items.push({
+      label: 'Reveal in Finder',
+      ...menuGlyph('link-external'),
+      run: () => actions.reveal()
+    });
   }
-  items.push({ label: 'Copy Path', run: () => actions.copyPath() });
+  items.push({
+    label: 'Copy Path',
+    ...menuGlyph('copy'),
+    run: () => actions.copyPath()
+  });
   items.push('sep');
-  items.push({ label: 'Remove from Recent', run: () => actions.remove() });
+  items.push({
+    label: 'Remove from Recent',
+    ...menuGlyph('close'),
+    run: () => actions.remove()
+  });
   return items;
 }

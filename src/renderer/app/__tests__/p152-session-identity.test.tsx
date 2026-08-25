@@ -140,11 +140,18 @@ describe('the three identifier rows', () => {
   });
 
   /**
-   * The charter names `Copy directory path` as untouched, so it is checked
-   * here rather than trusted: same label, same clipboard bytes, both toasts,
-   * and no grey second line where the three new rows have one.
+   * PHASE 152 pinned this row as untouched, including the absence of a grey
+   * second line, and left the question of whether it should have one to the
+   * phase after it.
+   *
+   * PHASE 153 ANSWERED IT THE OTHER WAY and this check now pins the answer.
+   * The reason is at `copyDirectoryPathItem`: a session's cwd is not always
+   * the project's folder, and the surfaces that notice say a session is
+   * somewhere else without ever saying where, so the tab cannot be relied on
+   * to answer what this row copies. What has NOT changed, and is still checked
+   * here, is the label and the clipboard bytes.
    */
-  it('leaves Copy directory path exactly as it was', () => {
+  it('shows the folder it will copy, and copies the absolute path', () => {
     written.length = 0;
     const one = sess({ cwd: '/repo/worktrees/auth' });
     const item = (sessionMenuItems(one, 'x') as unknown as Item[]).find(
@@ -152,9 +159,25 @@ describe('the three identifier rows', () => {
     );
     expect(item).toBeDefined();
     expect(item?.disabled).toBeUndefined();
-    expect(item?.sublabel).toBeUndefined();
+    expect(item?.sublabel).toBe('/repo/worktrees/auth');
     item?.run();
     expect(written).toEqual(['/repo/worktrees/auth']);
+  });
+
+  /**
+   * The `~` form is drawn and the absolute path is copied, which is the rule
+   * `recordPathItem` already states for the same reason: `~` is the readable
+   * form and an absolute path is the one a terminal and an editor can open.
+   */
+  it('draws the home folder as ~ and still copies it in full', () => {
+    written.length = 0;
+    const one = sess({ cwd: '/Users/someone/code/tortie' });
+    const item = (sessionMenuItems(one, 'x') as unknown as Item[]).find(
+      (x) => x.label === 'Copy directory path'
+    );
+    expect(item?.sublabel).toBe('~/code/tortie');
+    item?.run();
+    expect(written).toEqual(['/Users/someone/code/tortie']);
   });
 
   it('sits directly above Copy directory path, so the copy verbs are one block', () => {

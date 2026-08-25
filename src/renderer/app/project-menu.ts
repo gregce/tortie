@@ -28,6 +28,7 @@
 import { keyDisplay } from '@shared/keymap';
 import { cloneAction } from '../state/clone';
 import { OPEN_REMOTE_FOLDER_MENU_ITEM } from '../machines/project-tab';
+import { menuGlyph } from '../icons';
 import type { MenuSpec } from '../state/store';
 import { useApp } from '../state/store';
 
@@ -46,6 +47,7 @@ export function projectMenuItems(canCreate: boolean): MenuSpec['items'] {
   const items: MenuSpec['items'] = [
     {
       label: 'Open Project…',
+      ...menuGlyph('folder-opened'),
       hint: keyDisplay('project.open'),
       run: () => void s.openProject()
     }
@@ -53,6 +55,7 @@ export function projectMenuItems(canCreate: boolean): MenuSpec['items'] {
   if (canCreate) {
     items.push({
       label: 'New Project…',
+      ...menuGlyph('new-folder'),
       hint: keyDisplay('project.new'),
       run: () => s.setNewProjectOpen(true)
     });
@@ -73,12 +76,17 @@ export function projectMenuItems(canCreate: boolean): MenuSpec['items'] {
   ) {
     items.push({
       label: OPEN_REMOTE_FOLDER_MENU_ITEM,
+      ...menuGlyph('vm'),
       run: () => s.setRemoteProjectOpen(true)
     });
   }
   const clone = cloneAction();
   if (clone !== undefined) {
-    items.push({ label: 'Clone Repository…', run: clone });
+    items.push({
+      label: 'Clone Repository…',
+      ...menuGlyph('repo-clone'),
+      run: clone
+    });
   }
   return items;
 }

@@ -76,3 +76,13 @@ export async function warmAgentMenuIcons(keys: readonly string[]): Promise<void>
 export function agentMenuIcon(key: string): PopupMenuIcon | undefined {
   return cache.get(key);
 }
+
+/**
+ * The same mark as an `icon` field ready to spread, which is the shape
+ * `menuGlyph` in the sibling file returns. A row that composes both a codicon
+ * and an agent mark then reads the same way whichever it is asking for.
+ */
+export function agentGlyph(key: string): { icon?: PopupMenuIcon } {
+  const icon = cache.get(key);
+  return icon === undefined ? {} : { icon };
+}

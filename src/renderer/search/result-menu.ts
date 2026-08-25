@@ -13,6 +13,7 @@
  * app never keeps.
  */
 
+import { menuGlyph } from '../icons';
 import type { MenuSpec } from '../state/store';
 import type { SearchRow } from './rows';
 
@@ -55,11 +56,26 @@ export function resultMenu(input: ResultMenuInput): MenuSpec {
 
   if (row.kind === 'file') {
     items.push(
-      { label: 'Open File', run: () => open(row, true) },
-      { label: 'Open in New Tab', run: () => open(row, false) },
+      {
+        label: 'Open File',
+        ...menuGlyph('go-to-file'),
+        run: () => open(row, true)
+      },
+      {
+        label: 'Open in New Tab',
+        ...menuGlyph('pin'),
+        run: () => open(row, false)
+      },
       'sep',
       {
         label: row.file.matches.length > 0 ? 'Collapse Matches' : 'Expand Matches',
+        // `collapse-all` is the Search header's own collapse button.
+        // `expand-all` is a CHOSEN mark, and its whole reason is the half it
+        // shares this row with: the opposite of a drawn mark, so the pair
+        // reads as one toggle.
+        ...menuGlyph(
+          row.file.matches.length > 0 ? 'collapse-all' : 'expand-all'
+        ),
         run: () => toggleGroup(relPath)
       }
     );
@@ -67,24 +83,37 @@ export function resultMenu(input: ResultMenuInput): MenuSpec {
     if (all !== null && all.length > 0) {
       items.push({
         label: 'Copy All Matches in File',
+        ...menuGlyph('copy'),
         run: () => copy('Matches', all)
       });
     }
   } else {
     items.push(
-      { label: 'Open', run: () => open(row, true) },
-      { label: 'Open in New Tab', run: () => open(row, false) }
+      { label: 'Open', ...menuGlyph('go-to-file'), run: () => open(row, true) },
+      {
+        label: 'Open in New Tab',
+        ...menuGlyph('pin'),
+        run: () => open(row, false)
+      }
     );
     const text = matchText(row);
     if (text !== null) {
-      items.push('sep', { label: 'Copy', run: () => copy('Line', text) });
+      items.push('sep', {
+        label: 'Copy',
+        ...menuGlyph('copy'),
+        run: () => copy('Line', text)
+      });
     }
   }
 
   items.push(
     'sep',
-    { label: 'Copy Path', run: () => copy('Path', absPath) },
-    { label: 'Copy Relative Path', run: () => copy('Path', relPath) }
+    { label: 'Copy Path', ...menuGlyph('copy'), run: () => copy('Path', absPath) },
+    {
+      label: 'Copy Relative Path',
+      ...menuGlyph('copy'),
+      run: () => copy('Path', relPath)
+    }
   );
 
   return { x: input.x, y: input.y, items };

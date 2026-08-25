@@ -47,7 +47,13 @@ import {
   useSessionHandback
 } from './session-actions';
 import { MachineBadge } from './MachineBadge';
-import { AgentIcon, Codicon } from '../icons';
+import {
+  AgentIcon,
+  agentGlyph,
+  Codicon,
+  menuGlyph,
+  warmAgentMenuIcons
+} from '../icons';
 import {
   pressBlocksSurfaceDrag,
   sessionGestureProps,
@@ -415,6 +421,20 @@ function SessionTabStrip({
     };
   }, [measure]);
 
+  // PHASE 153. The overflow menu below lists the tabs this strip drew, so its
+  // rows wear the marks those tabs wear. An agent mark has to be pixels before
+  // the menu is composed, so the set on screen is warmed as it changes.
+  useEffect(() => {
+    void warmAgentMenuIcons(
+      surfaces.flatMap((surf) =>
+        surf.leafIds.flatMap((id) => {
+          const agent = sessionsById.get(id)?.agent;
+          return agent === undefined ? [] : [agent as string];
+        })
+      )
+    );
+  }, [surfaces, sessionsById]);
+
   // Keep the active tab scrolled into view when selection moves.
   const activeSurfaceId = activeSurface?.id ?? null;
   useEffect(() => {
@@ -437,8 +457,17 @@ function SessionTabStrip({
       const visual = sess
         ? statusVisual(effectiveStatusOf(sess), sess)
         : null;
+      // A group tab draws `split-horizontal` and a single tab draws its
+      // agent's mark. The row repeats whichever one the tab it names is
+      // wearing, so a person picks by the same thing they were looking at.
+      const icon = surf.isGroup
+        ? menuGlyph('split-horizontal')
+        : sess === undefined
+          ? {}
+          : agentGlyph(sess.agent);
       return {
         label: `${surf.id === activeSurfaceId ? '✓ ' : ''}${label}`,
+        ...icon,
         ...(visual ? { hint: visual.label } : {}),
         run: () => selectLeaf(projectPath, leafId)
       };

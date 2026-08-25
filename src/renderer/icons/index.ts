@@ -10,6 +10,12 @@
  *                @pierre/trees sprite sheet because it renders in shadow DOM;
  *                both go through the generated maps so one file never wears
  *                two icons.
+ * - menuGlyph  — the same codicon as a NATIVE MENU icon: a template PNG main
+ *                hands to nativeImage, so a menu row and the surface it acts
+ *                on draw one character out of one font file. `agentGlyph` is
+ *                the vendor mark in the same shape. Both read a cache that
+ *                `warmMenuIcons` / `warmAgentMenuIcons` fill once per app run,
+ *                because a native menu is composed synchronously at click time.
  * - InlineSvg  — the renderer underneath AgentIcon and FileIcon, exported for
  *                the few places that hold a bundled SVG string of their own
  *                (today: the SpecStory brand mark on the Settings rail, which
@@ -24,7 +30,9 @@ import './icons.css';
 
 export { AgentIcon, agentSvgFor } from './AgentIcon';
 export type { AgentIconProps } from './AgentIcon';
-export { agentMenuIcon, warmAgentMenuIcons } from './agent-menu-icon';
+export { agentGlyph, agentMenuIcon, warmAgentMenuIcons } from './agent-menu-icon';
+export { MENU_CODICONS, menuGlyph, warmMenuIcons } from './codicon-menu-icon';
+export type { MenuCodicon } from './codicon-menu-icon';
 export { Codicon } from './Codicon';
 export type { CodiconProps } from './Codicon';
 export { FileIcon, fileIconIdFor } from './FileIcon';

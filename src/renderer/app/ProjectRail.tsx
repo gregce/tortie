@@ -52,7 +52,7 @@ import { useCommandHeld } from './modifier-held';
 import { tabDigit, tabShortcutLabel } from './project-shortcuts';
 import { MachineBadge } from './MachineBadge';
 import { truncateMiddle } from '../format';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 import './project-rail.css';
 
 /** Distance the hover card keeps from the top and bottom of the window. */
@@ -201,7 +201,13 @@ function RailRow({
         setMenu({
           x: e.clientX,
           y: e.clientY,
-          items: [{ label: 'Close project', run: () => closeProject(project.id) }]
+          items: [
+            {
+              label: 'Close project',
+              ...menuGlyph('close'),
+              run: () => closeProject(project.id)
+            }
+          ]
         });
       }}
       onPointerEnter={(e) => {

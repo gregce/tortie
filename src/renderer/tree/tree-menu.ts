@@ -22,6 +22,7 @@
 
 import type { FsMoveConflict } from '@shared/fs-ops';
 import type { MenuItemSpec } from '../state/store';
+import { menuGlyph } from '../icons';
 import { OPEN_WITH_LABEL } from './open-with';
 import { baseNameOf, isDirPath } from './tree-paths';
 
@@ -142,8 +143,23 @@ export function buildTreeMenu(
   // Naming both openings here is the teaching surface.
   if (canonical !== null && !isFolder && target.openable && !many) {
     items.push(
-      { label: 'Open', run: () => actions.open(canonical, false) },
-      { label: 'Open in New Tab', run: () => actions.open(canonical, true) }
+      {
+        label: 'Open',
+        // A CHOSEN mark: no surface draws `go-to-file`. Its reason, and the
+        // reason for every other chosen mark, is in the table in
+        // src/renderer/icons/codicon-menu-icon.ts.
+        ...menuGlyph('go-to-file'),
+        run: () => actions.open(canonical, false)
+      },
+      {
+        label: 'Open in New Tab',
+        // A CHOSEN mark. The one difference between these two rows is that
+        // the second keeps the tab, which is what VS Code's own vocabulary and
+        // this codicon both call pinning. The glyph is the only place a menu
+        // can say it.
+        ...menuGlyph('pin'),
+        run: () => actions.open(canonical, true)
+      }
     );
     // Open With sits with the two openings, under exactly their condition:
     // one file, not a folder, not a multi-row selection, and openable. A
@@ -151,6 +167,10 @@ export function buildTreeMenu(
     if (openWith !== null && !remote) {
       items.push({
         label: OPEN_WITH_LABEL,
+        // A CHOSEN mark, and one reason covers all six rows that wear it. It
+        // hands the file to a program outside Tortie, which is the same
+        // journey `Reveal in Finder` makes below and the same mark.
+        ...menuGlyph('link-external'),
         submenu: openWith,
         // A parent item never fires on macOS; the id that comes back is
         // always a leaf's.
@@ -176,12 +196,16 @@ export function buildTreeMenu(
   if (canCreateFile) {
     items.push({
       label: 'New File…',
+      // The Explorer header's own two buttons, which do exactly these two
+      // things and draw exactly these two glyphs.
+      ...menuGlyph('new-file'),
       run: () => actions.newEntry(target.destDir, 'file')
     });
   }
   if (canCreateFolder) {
     items.push({
       label: 'New Folder…',
+      ...menuGlyph('new-folder'),
       run: () => actions.newEntry(target.destDir, 'dir')
     });
   }
@@ -196,12 +220,22 @@ export function buildTreeMenu(
   if (canRename && single !== undefined) {
     items.push('sep', {
       label: 'Rename…',
+      // A CHOSEN mark, shared by all three Rename rows in the product. Rename
+      // is the one verb here that changes a name in place, and `edit` is the
+      // pencil the codicon set binds to editing a value in place.
+      ...menuGlyph('edit'),
       hint: 'F2',
       run: () => actions.rename(single)
     });
   }
   if (caps.mutate && !remote && single !== undefined && caps.duplicate) {
-    items.push({ label: 'Duplicate', run: () => actions.duplicate(single) });
+    items.push({
+      label: 'Duplicate',
+      // A second copy of the file on disk, which is the same idea the copy
+      // glyph carries everywhere else, applied to bytes instead of text.
+      ...menuGlyph('copy'),
+      run: () => actions.duplicate(single)
+    });
   }
 
   if (caps.mutate && !remote && selection.length > 0) {
@@ -211,6 +245,10 @@ export function buildTreeMenu(
       label: many
         ? `Move ${countedNoun(selection)} to Trash`
         : 'Move to Trash',
+      // The one row in this menu that reaches the Trash, and the one glyph in
+      // the set that draws it. It stays destructive, because the confirm
+      // behind it is where the red lives.
+      ...menuGlyph('trash'),
       hint: '⌫',
       destructive: true,
       run: () => actions.trash(selection)
@@ -225,6 +263,9 @@ export function buildTreeMenu(
   if (canLocate) {
     locate.push({
       label: 'Reveal in Finder',
+      // It hands the file to Finder, so it wears the glyph this app uses for
+      // leaving Tortie. Every `Reveal in Finder` row in the product wears it.
+      ...menuGlyph('link-external'),
       run: () => actions.reveal(revealTarget)
     });
   }
@@ -232,10 +273,12 @@ export function buildTreeMenu(
     locate.push(
       {
         label: many ? 'Copy Paths' : 'Copy Path',
+        ...menuGlyph('copy'),
         run: () => actions.copyPaths(selection, false)
       },
       {
         label: many ? 'Copy Relative Paths' : 'Copy Relative Path',
+        ...menuGlyph('copy'),
         run: () => actions.copyPaths(selection, true)
       }
     );
@@ -243,6 +286,7 @@ export function buildTreeMenu(
     // Root menu: the project folder itself is still worth reaching.
     locate.push({
       label: 'Copy Path',
+      ...menuGlyph('copy'),
       run: () => actions.copyPaths([''], false)
     });
   }

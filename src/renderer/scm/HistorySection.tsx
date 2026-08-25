@@ -56,7 +56,7 @@ import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { useGit } from '../state/git';
 import { useNow } from '../format';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 import {
   depthRepoState,
   detailKey,
@@ -544,11 +544,17 @@ export function HistorySection({
     e.stopPropagation();
     closeCard();
     const items: (MenuItemSpec | 'sep')[] = [
-      { label: 'Open Changes', run: () => openChanges(entry) }
+      {
+        label: 'Open Changes',
+        ...menuGlyph('git-compare'),
+        run: () => openChanges(entry)
+      }
     ];
     if (remoteUrl !== null) {
       items.push({
         label: 'Open on GitHub',
+        // The hover card's own button for the same journey draws `globe`.
+        ...menuGlyph('globe'),
         run: () => {
           window.open(`${remoteUrl}/commit/${entry.hash}`, '_blank');
         }
@@ -557,14 +563,39 @@ export function HistorySection({
     if (depthAvailable) {
       items.push(
         'sep',
-        { label: 'Checkout (Detached)', run: () => confirmDetached(entry) },
+        {
+          label: 'Checkout (Detached)',
+          // A detached HEAD is what the branch header draws `git-commit` for,
+          // so the row that produces one wears the mark of the state it makes.
+          ...menuGlyph('git-commit'),
+          run: () => confirmDetached(entry)
+        },
         'sep',
-        { label: 'Create Branch…', run: () => branchFromCommit(entry) },
+        {
+          label: 'Create Branch…',
+          // `git-branch`, not `git-branch-create`, which is an alias of
+          // the same codepoint. See build/assert-menu-glyphs.mjs.
+          ...menuGlyph('git-branch'),
+          run: () => branchFromCommit(entry)
+        },
         'sep',
-        { label: 'Create Tag…', run: () => tagFromCommit(entry) },
+        {
+          label: 'Create Tag…',
+          // NOT a chosen mark. The glyph map at scm/ref-badges.tsx:230 binds
+          // the tag ref badge to this glyph, so history already draws it
+          // beside every tag and this row wears the mark of the thing it
+          // makes.
+          ...menuGlyph('tag'),
+          run: () => tagFromCommit(entry)
+        },
         'sep',
         {
           label: 'Cherry Pick',
+          // A CHOSEN mark. Nothing in the set names a cherry pick, and
+          // `git-stash-apply` draws a commit being applied onto the current
+          // branch, which is the shape of this verb. Tortie has no stash
+          // surface anywhere, so the mark cannot be read as one.
+          ...menuGlyph('git-stash-apply'),
           run: () => void depth.cherryPick(repoPath, entry.hash)
         }
       );
@@ -573,10 +604,12 @@ export function HistorySection({
       'sep',
       {
         label: 'Copy Commit ID',
+        ...menuGlyph('copy'),
         run: () => copyText(entry.hash, 'Commit ID copied')
       },
       {
         label: 'Copy Commit Message',
+        ...menuGlyph('copy'),
         run: () => copyCommitMessage(entry)
       }
     );

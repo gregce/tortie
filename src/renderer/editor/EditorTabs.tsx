@@ -19,7 +19,7 @@ import type { MenuItemSpec } from '../state/store';
 import { showNativeMenu } from '../app/ContextMenu';
 import { tabTooltipIdentity } from './tab-identity';
 import { canReveal, reveal } from '../tree/fs-bridge';
-import { Codicon, FileIcon } from '../icons';
+import { Codicon, FileIcon, menuGlyph } from '../icons';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
 
@@ -34,41 +34,57 @@ function tabMenuItems(tab: EditorTab): (MenuItemSpec | 'sep')[] {
   const items: (MenuItemSpec | 'sep')[] = [
     {
       label: 'Close',
+      // Every one of the five closes wears the × the tab itself draws, which
+      // is the glyph a person is already pointing at when they open this menu.
+      // The label is what says how many tabs go.
+      ...menuGlyph('close'),
       hint: keyDisplay('editor.close'),
       run: () => ed.closeTab(tab.id)
     },
     {
       label: 'Close Others',
+      ...menuGlyph('close'),
       disabled: tabs.length < 2,
       run: () => ed.closeOthers(tab.id)
     },
     {
       label: 'Close to the Right',
+      ...menuGlyph('close'),
       disabled: index === -1 || index === tabs.length - 1,
       run: () => ed.closeToRight(tab.id)
     },
     {
       label: 'Close Saved',
+      ...menuGlyph('close'),
       disabled: !tabs.some((t) => !t.dirty),
       run: () => ed.closeSaved()
     },
-    { label: 'Close All', run: () => ed.closeAll() },
+    { label: 'Close All', ...menuGlyph('close'), run: () => ed.closeAll() },
     'sep'
   ];
   if (tab.preview) {
-    items.push({ label: 'Keep Open', run: () => ed.pin(tab.id) });
+    items.push({
+      label: 'Keep Open',
+      // Keeping a preview tab is the same act `Open in New Tab` names in the
+      // tree and in search, and it wears the same mark.
+      ...menuGlyph('pin'),
+      run: () => ed.pin(tab.id)
+    });
     items.push('sep');
   }
   items.push({
     label: 'Copy Path',
+    ...menuGlyph('copy'),
     run: () => void navigator.clipboard.writeText(tab.path)
   });
   items.push({
     label: 'Copy Relative Path',
+    ...menuGlyph('copy'),
     run: () => void navigator.clipboard.writeText(tab.relPath)
   });
   items.push({
     label: 'Reveal in Finder',
+    ...menuGlyph('link-external'),
     disabled: !canReveal() || tab.deleted,
     run: () => {
       void reveal(tab.path).catch(() =>

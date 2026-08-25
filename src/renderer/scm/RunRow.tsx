@@ -24,7 +24,7 @@ import React from 'react';
 import type { ActionsRun } from '@shared/actions';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 import {
   activityDurationText,
   expandLabel,
@@ -144,8 +144,16 @@ export function RunRow({
     e.preventDefault();
     e.stopPropagation();
     const items: MenuItemSpec[] = [
-      { label: 'Open on GitHub', run: () => openOnGitHub(run.url) },
-      { label: 'Copy run URL', run: () => copyUrl(run.url, 'Run URL copied.') }
+      {
+        label: 'Open on GitHub',
+        ...menuGlyph('globe'),
+        run: () => openOnGitHub(run.url)
+      },
+      {
+        label: 'Copy run URL',
+        ...menuGlyph('copy'),
+        run: () => copyUrl(run.url, 'Run URL copied.')
+      }
     ];
     setMenu({ x: e.clientX, y: e.clientY, items });
   };

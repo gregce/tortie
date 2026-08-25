@@ -13,6 +13,8 @@
  */
 
 import { otherSessionsPosition } from '@shared/sessions-position';
+import { menuGlyph } from '../icons';
+import type { MenuCodicon } from '../icons';
 import type { SessionOrientation } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 
@@ -43,7 +45,7 @@ export function movePositionLabel(current: SessionOrientation): string {
  * are one drawing with the highlighted region moved: a bar across the top, or
  * a column down the right.
  */
-export function destinationIcon(current: SessionOrientation): string {
+export function destinationIcon(current: SessionOrientation): MenuCodicon {
   return current === 'top' ? 'layout-sidebar-right' : 'layout-menubar';
 }
 
@@ -59,6 +61,9 @@ export function sessionsPositionMenuItems(
     'sep',
     {
       label: movePositionLabel(current),
+      // The icon button beside the ˅ draws exactly this glyph for exactly this
+      // verb, so the row and the button cannot name different destinations.
+      ...menuGlyph(destinationIcon(current)),
       run: () => move(otherPosition(current))
     }
   ];

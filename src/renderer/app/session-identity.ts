@@ -33,6 +33,7 @@ import type { MenuItemSpec } from '../state/store';
 import { useApp } from '../state/store';
 import { agentShortLabel } from '../state/agents';
 import { displayPath } from '../format';
+import { menuGlyph } from '../icons';
 
 // ---------------------------------------------------------------------------
 // The words
@@ -139,6 +140,11 @@ export function copyMenuItem(spec: {
 }): MenuItemSpec {
   return {
     label: spec.label,
+    // PHASE 153. Every copy row in the app wears the glyph the hover cards and
+    // the create sheet already use for a copy, and this helper is the one
+    // place the session menu's four copy rows are built, so they cannot drift
+    // apart from each other.
+    ...menuGlyph('copy'),
     ...(spec.shows !== undefined ? { sublabel: spec.shows } : {}),
     run: () => {
       void navigator.clipboard.writeText(spec.value).then(
@@ -151,7 +157,16 @@ export function copyMenuItem(spec: {
 
 /** The disabled form: the same label, the reason under it, and no copy. */
 function refusedMenuItem(label: string, why: string): MenuItemSpec {
-  return { label, sublabel: why, disabled: true, run: () => {} };
+  // It keeps the copy glyph. macOS tints a template image with the disabled
+  // row, so the mark greys out with the label rather than shouting from a row
+  // nobody can press, and the block stays four rows of one shape.
+  return {
+    label,
+    ...menuGlyph('copy'),
+    sublabel: why,
+    disabled: true,
+    run: () => {}
+  };
 }
 
 /** The agent's conversation id, leading the copy group. */

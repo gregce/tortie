@@ -15,13 +15,21 @@ import { resumeReadiness } from '../../state/resume';
 import { useLayout } from '../../state/layout';
 import type { Surface } from '../../state/layout';
 import { MAX_LEAVES } from '../../state/split-tree';
+import { menuGlyph } from '../../icons';
+import type { MenuCodicon } from '../../icons';
 import type { SplitEdge } from '../../state/split-tree';
 
-const EDGES: { edge: SplitEdge; label: string }[] = [
-  { edge: 'left', label: 'Open in split left' },
-  { edge: 'right', label: 'Open in split right' },
-  { edge: 'top', label: 'Open in split top' },
-  { edge: 'bottom', label: 'Open in split bottom' }
+/**
+ * PHASE 153 gave each edge the codicon that draws the split it makes: a pair
+ * side by side for left and right, a pair stacked for top and bottom. The
+ * glyph is the same family the group tab and the dock row already wear for a
+ * split, so the four rows read as one control rather than four verbs.
+ */
+const EDGES: { edge: SplitEdge; label: string; icon: MenuCodicon }[] = [
+  { edge: 'left', label: 'Open in split left', icon: 'split-horizontal' },
+  { edge: 'right', label: 'Open in split right', icon: 'split-horizontal' },
+  { edge: 'top', label: 'Open in split top', icon: 'split-vertical' },
+  { edge: 'bottom', label: 'Open in split bottom', icon: 'split-vertical' }
 ];
 
 /**
@@ -42,8 +50,9 @@ export function openInSplitItems(
     activeLeafId === '';
   return [
     'sep',
-    ...EDGES.map(({ edge, label }) => ({
+    ...EDGES.map(({ edge, label, icon }) => ({
       label,
+      ...menuGlyph(icon),
       disabled,
       run: () =>
         useLayout
@@ -66,6 +75,9 @@ export function groupMenuItems(
   return [
     {
       label: 'Rename',
+      // A CHOSEN mark, the same one every other Rename row wears: it changes a
+      // name in place, which is what this pencil is.
+      ...menuGlyph('edit'),
       hint: 'F2',
       // Renames the focused leaf's session — the input opens in its
       // split header (shared inline-rename spec).
@@ -73,11 +85,19 @@ export function groupMenuItems(
     },
     {
       label: 'Break up into tabs',
+      // A CHOSEN mark. The destination, not the source, being several
+      // separate tabs where one split surface stood. `Move to its own tab` on
+      // a leaf wears the same mark, because it is the same journey for one
+      // session, and a split glyph would name the thing being left behind.
+      ...menuGlyph('multiple-windows'),
       run: () => useLayout.getState().breakUp(projectPath, surface.id)
     },
     'sep',
     {
       label: 'End all sessions…',
+      // The same glyph `End session…` wears, which is the × every session
+      // surface draws for it.
+      ...menuGlyph('close'),
       destructive: true,
       disabled: live.length === 0,
       run: () => {

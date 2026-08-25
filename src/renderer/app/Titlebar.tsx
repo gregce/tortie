@@ -66,7 +66,7 @@ import type { MenuItemSpec } from '../state/store';
 import { MachineBadge } from './MachineBadge';
 import { useGit } from '../state/git';
 import { truncateMiddle } from '../format';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 import {
   armPointerDrag,
   createGhost,
@@ -171,6 +171,7 @@ function ProjectTab({
           items: [
             {
               label: 'Close project',
+              ...menuGlyph('close'),
               run: () => closeProject(project.id)
             }
           ]

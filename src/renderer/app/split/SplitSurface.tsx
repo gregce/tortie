@@ -41,7 +41,7 @@ import {
   resumeReadiness,
   SHELL_PATH_PENDING_TITLE
 } from '../../state/resume';
-import { AgentIcon, Codicon } from '../../icons';
+import { AgentIcon, Codicon, menuGlyph } from '../../icons';
 import { armPointerDrag, isSecondaryPress } from './pointer-drag';
 import { pressSelectsLeafNow } from './leaf-press';
 import { startHeaderDrag } from './surface-dnd';
@@ -115,6 +115,9 @@ function SplitHeader({
             'sep',
             {
               label: 'Move to its own tab',
+              // A CHOSEN mark, and the reason is the one written on `Break up
+              // into tabs` in split-menu.ts: the mark names the destination.
+              ...menuGlyph('multiple-windows'),
               run: () => popOut(projectPath, session.id, null)
             }
           ]

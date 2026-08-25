@@ -148,6 +148,7 @@ export const CHECKS = [
   // Build gates and pins.
   pure('gate:electron'),
   pure('gate:checks'),
+  pure('gate:menu-glyphs'),
   pure('assert:doctypes'),
   pure('pin:tmux:check'),
   pure(

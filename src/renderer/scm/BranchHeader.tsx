@@ -27,7 +27,7 @@ import { machineLabelFor } from '../state/machines-slice';
 import type { MenuItemSpec } from '../state/store';
 import { gitErrorLine, repoState, useGit } from '../state/git';
 import { displayPath, useNow } from '../format';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 import { depthRepoState, hasGitDepth, hasGitSync, useGitDepth } from './depth';
 import { shortenRemoteUrl } from './format';
 import {
@@ -179,12 +179,28 @@ export function BranchHeader(): React.JSX.Element {
       if (items.length > 0) items.push('sep');
       items.push({
         label: 'Create branch…',
+        // The branch rows above it carry no mark, because every one of them
+        // would carry the SAME mark and a glyph repeated down a list names the
+        // menu rather than the row. The two verbs under the separator do
+        // differ from each other, so they get theirs.
+        //
+        // `git-branch` rather than `git-branch-create`: the shipped codicon
+        // stylesheet binds create, delete and the plain branch to ONE
+        // codepoint, U+EC6F, so all three draw the same picture.
+        // build/assert-menu-glyphs.mjs is the gate that found it and keeps it
+        // found. The glyph names the thing this row makes.
+        ...menuGlyph('git-branch'),
         run: () => openCreateBranchModal(path)
       });
       // Round 2: the menu stays the one-keystroke switcher; the BRANCHES
       // section is the full UI — this expands + focuses it.
       items.push('sep', {
         label: 'Manage branches',
+        // A CHOSEN mark: no surface draws `list-selection`. It is right here
+        // because this row leaves the one-keystroke switcher for the whole
+        // list. The reason sits with every other chosen mark in the table in
+        // src/renderer/icons/codicon-menu-icon.ts.
+        ...menuGlyph('list-selection'),
         run: () => {
           useApp.getState().setSidebarView('scm');
           requestManageBranches();
@@ -219,6 +235,7 @@ export function BranchHeader(): React.JSX.Element {
       y: 120,
       items: remotes.map((r) => ({
         label: `Publish to ${r.name}`,
+        ...menuGlyph('cloud-upload'),
         hint: shortenRemoteUrl(r.pushUrl),
         run: () => void runPublish(path, r.name)
       }))
@@ -238,11 +255,15 @@ export function BranchHeader(): React.JSX.Element {
     const items: (MenuItemSpec | 'sep')[] = [
       {
         label: 'Pull',
+        // The three sync verbs wear the marks the header's own buttons wear
+        // for them: down from the remote, up to it, and both ways.
+        ...menuGlyph('cloud-download'),
         disabled: busy || !hasUpstream,
         run: () => void runPull(path)
       },
       {
         label: 'Push',
+        ...menuGlyph('cloud-upload'),
         disabled: busy || !hasUpstream,
         run: () => {
           void runPush(path).then((result) => {
@@ -252,12 +273,16 @@ export function BranchHeader(): React.JSX.Element {
       },
       {
         label: 'Sync',
+        ...menuGlyph('sync'),
         disabled: busy || !hasUpstream,
         run: () => void runSync(path)
       },
       'sep',
       {
         label: 'Fetch',
+        // It re-reads the remote without changing this branch, which is what
+        // the refresh buttons on every SCM section header mean.
+        ...menuGlyph('refresh'),
         disabled: busy || depthRepo.fetching || remotes.length === 0,
         // The menu is where the user comes to act on the remote, so it says
         // how old the picture they are acting on is — plainly, in the hint
@@ -271,6 +296,7 @@ export function BranchHeader(): React.JSX.Element {
     if (!hasUpstream && remotes.length > 0) {
       items.push({
         label: 'Publish Branch…',
+        ...menuGlyph('cloud-upload'),
         disabled: busy,
         run: () => publishBranch(path)
       });
@@ -485,6 +511,7 @@ export function BranchHeader(): React.JSX.Element {
             items: [
               {
                 label: detached ? 'Copy commit SHA' : 'Copy branch name',
+                ...menuGlyph('copy'),
                 run: () => copyBranch(branchLabel)
               }
             ]

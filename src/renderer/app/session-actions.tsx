@@ -40,7 +40,7 @@ import {
   showsResumeVerb
 } from '../state/resume';
 import type { SessionHandback } from '../state/resume';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import { openOverviewForSession } from '../overview/open-overview';
 import { READ_LAST_LINES_HERE, READ_LAST_LINES_HERE_TITLE } from '../machines/read-lines';
@@ -443,6 +443,9 @@ function showLoadedItem(session: Session): MenuItemSpec {
   if (session.machine !== undefined) {
     return {
       label: 'Show what it loaded…',
+      // The Context view's own mark, the one the activity rail draws for it.
+      // This row opens that view, so it wears what that view wears.
+      ...menuGlyph('layers'),
       sublabel: NO_SNAPSHOT,
       disabled: true,
       run: () => {}
@@ -450,6 +453,7 @@ function showLoadedItem(session: Session): MenuItemSpec {
   }
   return {
     label: 'Show what it loaded…',
+    ...menuGlyph('layers'),
     run: () => openSessionContext(session)
   };
 }
@@ -471,6 +475,7 @@ function savedOutputItem(session: Session): MenuItemSpec {
   if (session.savedOutputAt === undefined) {
     return {
       label: SAVED_OUTPUT_ITEM,
+      ...menuGlyph('output'),
       sublabel: SAVED_OUTPUT_NONE,
       disabled: true,
       run: () => {}
@@ -478,6 +483,7 @@ function savedOutputItem(session: Session): MenuItemSpec {
   }
   return {
     label: SAVED_OUTPUT_ITEM,
+    ...menuGlyph('output'),
     run: () => useApp.getState().openSavedOutput(session.id)
   };
 }
@@ -497,6 +503,9 @@ function savedOutputItem(session: Session): MenuItemSpec {
 function catchMeUpItem(session: Session): MenuItemSpec {
   return {
     label: 'Catch me up…',
+    // Settings draws `comment` on the Catch Me Up section's rail, for the
+    // reason Phase 138 wrote there. This row opens that feature.
+    ...menuGlyph('comment'),
     run: () => {
       void openOverviewForSession(session.id, session.projectPath);
     }
@@ -619,6 +628,7 @@ async function openRemoteReview(
       'sep',
       ...list.files.map((file) => ({
         label: file.path,
+        ...menuGlyph('git-compare'),
         run: () => openReviewTab(list, file)
       }))
     );
@@ -637,6 +647,7 @@ async function openRemoteReview(
       'sep',
       ...list.untracked.map((file) => ({
         label: file.path,
+        ...menuGlyph('git-compare'),
         run: () => openReviewTab(list, file)
       }))
     );
@@ -666,6 +677,7 @@ function reviewChangesItem(
   if (!machine.answering) {
     return {
       label,
+      ...menuGlyph('git-compare'),
       sublabel: reviewNotAnsweringSublabel(machine.label),
       disabled: true,
       run: () => {}
@@ -673,6 +685,7 @@ function reviewChangesItem(
   }
   return {
     label,
+    ...menuGlyph('git-compare'),
     sublabel: REVIEW_ITEM_SUBLABEL,
     run: () => void openRemoteReview(session, machine)
   };
@@ -680,16 +693,29 @@ function reviewChangesItem(
 
 /**
  * PHASE 152 routed this through the one copy helper its three new neighbours
- * use, so the app has one place that writes to the clipboard from a menu. The
- * row is otherwise untouched, which its own charter asked for by name: same
- * label, same clipboard bytes, same two toasts, and NO grey second line. The
- * three rows above it show their value there because a person cannot otherwise
- * read an identifier at all, and a folder is already legible from the tab.
+ * use, so the app has one place that writes to the clipboard from a menu, and
+ * its charter forbade giving the row a grey second line. Its stated reason was
+ * that the three rows above it show their value because a person cannot
+ * otherwise read an identifier, while a folder is already legible from the tab.
+ *
+ * PHASE 153 CARRIED THAT QUESTION AND ANSWERED IT THE OTHER WAY, because the
+ * second half of that reason is not true of every row. `isOutsideProject`
+ * above exists precisely because `session.cwd` can be a folder that is not the
+ * project's, and the surfaces that notice mark it with a glyph that says a
+ * session is somewhere else WITHOUT ever saying where. For those rows the tab
+ * answers nothing, and this is the only place in the app that can.
+ *
+ * So the row gets the same shape as its three neighbours: the label, the value
+ * under it, the copy glyph in front of it. The value is drawn in the `~` form
+ * and copied absolute, which is exactly the rule `recordPathItem` already
+ * states, because `~` is the readable form and an absolute path is the one a
+ * terminal and an editor can both open. The clipboard bytes are unchanged.
  */
 function copyDirectoryPathItem(session: Session): MenuItemSpec {
   return copyMenuItem({
     label: 'Copy directory path',
     value: session.cwd,
+    shows: displayPath(session.cwd, session.machine?.id),
     copied: 'Directory path copied',
     failed: 'Could not copy the path'
   });
@@ -772,6 +798,9 @@ export function sessionMenuItems(
   return [
     {
       label: 'Rename',
+      // A CHOSEN mark, the same one the tree's Rename… and the split group's
+      // Rename wear. It changes a name in place, which is what this pencil is.
+      ...menuGlyph('edit'),
       hint: 'F2',
       run: () => useApp.getState().setRenaming(renameTarget)
     },
@@ -779,6 +808,9 @@ export function sessionMenuItems(
       ? [
           {
             label: 'Restore',
+            // The glyph the `SavedMark` above draws under the tooltip
+            // "Saved — ready to restore", which is the state this row acts on.
+            ...menuGlyph('history'),
             // PHASE 81. Off until the login shell has said where the person's
             // tools are installed. A native menu carries no tooltip, so this
             // item says nothing extra, and a greyed item for about one second
@@ -796,6 +828,14 @@ export function sessionMenuItems(
       ? [
           {
             label: 'Restart',
+            // A CHOSEN mark, and the bare row below wears it for the same
+            // reason. It is the one mark in the set for starting a stopped
+            // thing again under the SAME identity, which is this row exactly:
+            // the same session, the same name, a new process. `refresh` and
+            // `sync` both say re-read something already running. The word
+            // debug is the codicon's own naming rather than the act, and
+            // Tortie draws no debugger, so nothing contradicts it.
+            ...menuGlyph('debug-restart'),
             run: () => void useApp.getState().restartSession(session.id)
           }
         ]
@@ -810,6 +850,7 @@ export function sessionMenuItems(
       ? [
           {
             label: BARE_RESTORE_LABEL,
+            ...menuGlyph('history'),
             sublabel: BARE_RESTORE_SUBLABEL,
             // The same gate the Restore row above carries, for the same
             // reason: an armed command cannot find the agent until the login
@@ -826,6 +867,7 @@ export function sessionMenuItems(
       ? [
           {
             label: BARE_RESTART_LABEL,
+            ...menuGlyph('debug-restart'),
             sublabel: BARE_RESTART_SUBLABEL,
             run: () =>
               void useApp
@@ -844,6 +886,9 @@ export function sessionMenuItems(
       ? [
           {
             label: RESUME_IN_PLACE_LABEL,
+            // It types into the session in front of the person, and the
+            // terminal is the surface it acts on.
+            ...menuGlyph('terminal'),
             sublabel: RESUME_IN_PLACE_SUBLABEL,
             run: () => void useApp.getState().resumeInPlace(session.id)
           }
@@ -866,6 +911,9 @@ export function sessionMenuItems(
       ? [
           {
             label: 'Remove',
+            // The × on the row performs exactly this verb and draws exactly
+            // this glyph, so the two cannot read as different things.
+            ...menuGlyph('close'),
             destructive: true,
             disabled: !s.canDiscard(),
             run: () => void useApp.getState().removeSession(session.id)
@@ -874,6 +922,8 @@ export function sessionMenuItems(
       : [
           {
             label: 'End session…',
+            // The × on the row performs exactly this verb for a live session.
+            ...menuGlyph('close'),
             destructive: true,
             run: () => useApp.getState().endSession(session.id)
           }

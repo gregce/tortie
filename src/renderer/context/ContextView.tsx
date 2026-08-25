@@ -53,7 +53,7 @@ import React, {
   useState
 } from 'react';
 import { FilterField } from '../controls';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 // A DEEP import on purpose. These three hooks are the SIDEBAR's section
 // mechanism, not an SCM concept — DESIGN-SPEC S3 says the section-drag block
 // "already applies to any view with ≥2 sections" — and they happen to live in
@@ -625,6 +625,9 @@ export function ContextSection({
         items.unshift(
           {
             label: 'Review what changed…',
+            // It opens the diff tab, and `git-compare` is the glyph that tab
+            // already wears in the editor.
+            ...menuGlyph('git-compare'),
             run: () => reviewPin(entry, pin)
           },
           'sep'

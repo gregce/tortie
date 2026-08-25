@@ -17,6 +17,7 @@
  */
 
 import type { MenuItemSpec, MenuSpec } from '../state/store';
+import { menuGlyph } from '../icons';
 import type { ContextEntry, ContextScope } from './model';
 
 /** Where a menu was asked for. */
@@ -79,7 +80,7 @@ function copyItem(
   text: string,
   deps: ContextMenuDeps
 ): MenuItemSpec {
-  return { label, run: () => deps.copyText(text) };
+  return { label, ...menuGlyph('copy'), run: () => deps.copyText(text) };
 }
 
 /** What "Open" means per category — the file the user should end up in. */
@@ -115,6 +116,7 @@ export function rowMenuItems(
   if (!deps.remote) {
     items.push({
       label: openLabelFor(entry),
+      ...menuGlyph('go-to-file'),
       run: () =>
         deps.openPath(
           entry.sourcePath,
@@ -130,6 +132,9 @@ export function rowMenuItems(
       if (script !== null && !entry.payload.scriptMissing) {
         items.push({
           label: 'Open the script',
+          // The same mark as the row above it. Both open a file in the editor,
+          // and the label is what says which file.
+          ...menuGlyph('go-to-file'),
           run: () => deps.openPath(script)
         });
       }
@@ -137,6 +142,7 @@ export function rowMenuItems(
 
     items.push({
       label: 'Reveal in Finder',
+      ...menuGlyph('link-external'),
       run: () => deps.revealPath(entry.sourcePath)
     });
   }
@@ -145,7 +151,13 @@ export function rowMenuItems(
     const check = actions.checkConnection;
     // A verb, never a refresh: listing an MCP server's tools means starting
     // someone else's process or making a network call with credentials (§7.4).
-    items.push({ label: 'Check connection…', run: () => check(entry) });
+    items.push({
+      label: 'Check connection…',
+      // An MCP server is a program this row can reach out to, and `plug` is
+      // the codicon that names exactly that.
+      ...menuGlyph('plug'),
+      run: () => check(entry)
+    });
   }
 
   // §6.3 — the shadowed entry is always reachable from the winner. Without
@@ -157,6 +169,9 @@ export function rowMenuItems(
     if (first !== undefined) {
       items.push({
         label: 'Show the entry this beats',
+        // The row's own shadowed mark, drawn by context/ContextRow.tsx for
+        // exactly this fact. The menu row and the mark on the row agree.
+        ...menuGlyph('layers'),
         run: () => deps.openPath(first.sourcePath)
       });
     }
@@ -170,17 +185,30 @@ export function rowMenuItems(
   const writable = entry.category === 'skill' && entry.state !== 'managed';
   if (writable && actions.enableFor !== undefined) {
     const enableFor = actions.enableFor;
-    writes.push({ label: 'Enable for…', run: () => enableFor(entry) });
+    writes.push({
+      label: 'Enable for…',
+      ...menuGlyph('check'),
+      run: () => enableFor(entry)
+    });
   }
   if (writable && actions.update !== undefined) {
     const update = actions.update;
-    writes.push({ label: 'Update…', run: () => update(entry) });
+    writes.push({
+      label: 'Update…',
+      // It fetches a newer copy of somebody else's skill, which is a download
+      // and not a re-read of what is already here.
+      ...menuGlyph('cloud-download'),
+      run: () => update(entry)
+    });
   }
   if (actions.setEnabled !== undefined && entry.state !== 'managed') {
     const setEnabled = actions.setEnabled;
     const off = entry.state === 'disabled';
     writes.push({
       label: off ? 'Enable' : 'Disable',
+      // `circle-slash` is the mark context/ContextRow.tsx already draws on a
+      // row Tortie has switched off, so the verb and the state agree.
+      ...menuGlyph(off ? 'check' : 'circle-slash'),
       run: () => setEnabled(entry, off)
     });
   }
@@ -194,6 +222,9 @@ export function rowMenuItems(
     const remove = actions.remove;
     writes.push({
       label: 'Remove…',
+      // The one row in this menu that destroys the entry it names, and the
+      // same mark the tree and the branches list give their destructive row.
+      ...menuGlyph('trash'),
       destructive: true,
       run: () => remove(entry)
     });
@@ -230,10 +261,12 @@ export function groupMenuItems(
   const items: (MenuItemSpec | 'sep')[] = [
     {
       label: 'Open the file this group comes from',
+      ...menuGlyph('go-to-file'),
       run: () => deps.openPath(first.sourcePath)
     },
     {
       label: 'Reveal in Finder',
+      ...menuGlyph('link-external'),
       run: () => deps.revealPath(first.sourcePath)
     }
   ];

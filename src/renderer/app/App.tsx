@@ -32,6 +32,7 @@ import { useLayout } from '../state/layout';
 // drawn as the 48px column here or as a 36px row inside the sidebar.
 import { activityBarIsRow } from '../state/chrome-geometry';
 // Phase 127. The three controllers this file used to hold inline.
+import { warmMenuIcons } from '../icons';
 import { useKeyboardMap } from './keyboard';
 import { useMenuActions } from './menu-actions';
 import { useQuitRequests } from './quit';
@@ -223,6 +224,14 @@ export function App(): React.JSX.Element {
   // DEFINES the row instead, which is the honest majority of the detail tab, so
   // this call adds the header card rather than switching the gesture on.
   useEffect(() => installContextDetailHost(), []);
+
+  // PHASE 153. Rasterize every menu glyph once, before the first right click.
+  // A native menu is composed synchronously at click time, so the marks have
+  // to be pixels already; a menu opened during the warm is a menu with no
+  // icons rather than a menu that waits. See icons/codicon-menu-icon.ts.
+  useEffect(() => {
+    void warmMenuIcons();
+  }, []);
 
   if (!window.gmux) {
     return (

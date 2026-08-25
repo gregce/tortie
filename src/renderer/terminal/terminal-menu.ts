@@ -45,6 +45,7 @@ import { READ_LAST_LINES_ITEM } from '../machines/read-lines';
 import type { SessionScrollbackFacts } from '@shared/scrollback';
 import { formatScrollbackSummary } from '@shared/scrollback';
 import { acceleratorToDisplay, keyDisplay } from '@shared/keymap';
+import { menuGlyph } from '../icons';
 import type { MenuItemSpec } from '../state/store';
 import { useApp } from '../state/store';
 import { deriveSurfaces, surfaceOf, useLayout } from '../state/layout';
@@ -137,34 +138,49 @@ export function terminalMenuItems(
   const items: (MenuItemSpec | 'sep')[] = [
     {
       label: 'New Session…',
+      // The + button on the sessions header draws `add` for this same verb.
+      ...menuGlyph('add'),
       hint: keyDisplay('session.new'),
       run: () => useApp.getState().setCreateOpen(true)
     },
     {
       label: 'Split Session',
+      // The mark a split tab and a split dock row already wear.
+      ...menuGlyph('split-horizontal'),
       disabled: options.splittable === false,
       run: () => void splitSession(session)
     },
     'sep',
     {
       label: 'Copy',
+      ...menuGlyph('copy'),
       hint: keyDisplay('terminal.copyOrInterrupt'),
       disabled: !selected,
       run: () => void copySelection(session.id, snapshot)
     },
     {
       label: 'Copy as HTML',
+      // Not the copy glyph, because the row beside it has that one and the
+      // difference between the two is the payload. `code` is what the editor
+      // draws for markup, which is what this one puts on the clipboard.
+      ...menuGlyph('code'),
       disabled: !selected || !canCapture,
       run: () => void copySelectionAsHtml(session.id, snapshot)
     },
     {
       label: 'Paste',
+      // A CHOSEN mark. The clipboard itself. There is no paste glyph in the
+      // set at all, and the clipboard is the thing this row reads while `copy`
+      // is the thing the rows above write to, so sharing `copy` would give two
+      // opposite verbs one mark.
+      ...menuGlyph('clippy'),
       hint: acceleratorToDisplay('Cmd+V'),
       disabled: !canCapture,
       run: () => void pasteIntoSession()
     },
     {
       label: 'Select All',
+      ...menuGlyph('list-selection'),
       hint: keyDisplay('terminal.selectAll'),
       disabled: !live,
       run: () => selectAll(session.id)
@@ -173,11 +189,17 @@ export function terminalMenuItems(
 
   if (canCapture) {
     items.push('sep', {
+      // A CHOSEN mark, and all three capture rows wear it, because Capture is
+      // one feature in this product and each row is a different extent of the
+      // same photograph. It is the only camera in the set, and what lands on
+      // the clipboard is an image.
       label: 'Capture Screen',
+      ...menuGlyph('device-camera'),
       run: () => void captureVisible(session)
     });
     items.push({
       label: 'Capture Selection',
+      ...menuGlyph('device-camera'),
       disabled: !selected,
       run: () => void captureSelection(session, snapshot)
     });
@@ -192,6 +214,7 @@ export function terminalMenuItems(
           // `disabled: isAlternateScreen(…)` was always true, because `tmux
           // attach` puts the CLIENT in the alternate buffer on connect.
           label: `Capture Last ${lines.toLocaleString()} Lines`,
+          ...menuGlyph('device-camera'),
           run: () => void captureHistory(session, lines)
         });
       }
@@ -213,6 +236,9 @@ export function terminalMenuItems(
     if (!canCapture) items.push('sep');
     items.push({
       label: READ_LAST_LINES_ITEM,
+      // The same mark `Show saved output…` wears on the session menu, because
+      // both rows answer the one question: what did this session print.
+      ...menuGlyph('output'),
       run: () => useApp.getState().openRemoteLines(session.id)
     });
   }
@@ -230,6 +256,7 @@ export function terminalMenuItems(
   }
   items.push({
     label: 'Clear',
+    ...menuGlyph('clear-all'),
     hint: keyDisplay('terminal.clear'),
     // Present rather than absent for a session on another machine: the item is
     // a fact about this session, and a verb that vanishes reads as a bug.

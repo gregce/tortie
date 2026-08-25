@@ -49,7 +49,7 @@ import {
 } from '../state/git';
 import type { MachineIndexWriteOutcome } from '@shared/ipc';
 import type { PendingOp, ScmGroups } from '../state/git';
-import { Codicon } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
 import { showOneTimeTip } from '../app/one-time-tip';
 import { remoteReadAt } from '../machines/presentation';
 import {
@@ -305,6 +305,14 @@ function ScmFileRow({
           : group === 'untracked' || group === 'merge'
             ? 'Open file'
             : 'Open diff',
+        // The tab this row opens: a diff tab wears `git-compare` in the
+        // editor and a plain file tab is opened the way every other Open in
+        // the app opens one.
+        ...menuGlyph(
+          multi || group === 'untracked' || group === 'merge'
+            ? 'go-to-file'
+            : 'git-compare'
+        ),
         run: () => openAll(false)
       }
     ];
@@ -315,6 +323,7 @@ function ScmFileRow({
     if (!multi) {
       items.push({
         label: 'Open in New Tab',
+        ...menuGlyph('pin'),
         run: () => {
           onActivate(row, true);
           showOneTimeTip('open-in-new-tab');
@@ -325,6 +334,9 @@ function ScmFileRow({
     if (verbs.unstage.length > 0) {
       items.push({
         label: verbLabel('Unstage', verbs.unstage.length),
+        // The hover action beside this row draws `remove` to unstage and
+        // `add` to stage. The menu repeats them.
+        ...menuGlyph('remove'),
         disabled: busy,
         run: doUnstage
       });
@@ -336,6 +348,9 @@ function ScmFileRow({
           verbs.merge.length > 1
             ? `Mark ${fileCount(verbs.merge.length)} resolved (stage)`
             : 'Mark resolved (stage)',
+        // It stages, and the word in its own label says so, so it wears the
+        // staging glyph rather than a second mark for the same act.
+        ...menuGlyph('add'),
         disabled: busy,
         run: () => void stage(repoPath, pathsOf(verbs.merge))
       });
@@ -343,6 +358,7 @@ function ScmFileRow({
     if (plainStage.length > 0) {
       items.push({
         label: verbLabel('Stage', plainStage.length),
+        ...menuGlyph('add'),
         disabled: busy,
         run: () => void stage(repoPath, pathsOf(plainStage))
       });
@@ -351,6 +367,9 @@ function ScmFileRow({
       items.push('sep');
       items.push({
         label: discardLabel(verbs, false),
+        // The hover action's own `discard` glyph, and the confirm behind the
+        // row is still where the red lives.
+        ...menuGlyph('discard'),
         destructive: true,
         disabled: busy,
         run: doDiscard
@@ -1244,6 +1263,9 @@ function RemoteScmSection({
           {
             label:
               group === 'untracked' || conflicted ? 'Open file' : 'Open diff',
+            ...menuGlyph(
+              group === 'untracked' || conflicted ? 'go-to-file' : 'git-compare'
+            ),
             run: () => open(file)
           }
         ];
@@ -1251,6 +1273,7 @@ function RemoteScmSection({
           items.push('sep');
           items.push({
             label: word,
+            ...menuGlyph(verb === 'stage' ? 'add' : 'remove'),
             disabled: busy,
             run: () => runVerb(verb, [file])
           });

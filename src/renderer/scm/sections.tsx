@@ -19,6 +19,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
+import { menuGlyph } from '../icons';
 // Phase 12.11: Source Control is a CSS-zoomable region, so the drag ghost and
 // the drop line convert from client-rect pixels to the container's own.
 import { toLocalPx } from '../zoom/coords';
@@ -322,11 +323,17 @@ export function useSectionDrag(
       const items: (MenuItemSpec | 'sep')[] = [
         {
           label: 'Move section up',
+          // TWO CHOSEN marks. No surface in the sidebar draws a reordering
+          // mark, so the pair takes the arrows that name the direction each
+          // label states. A drag handle would say the row is grabbable, which
+          // in a menu it is not.
+          ...menuGlyph('arrow-up'),
           disabled: idx <= 0,
           run: () => moveSection(id, -1)
         },
         {
           label: 'Move section down',
+          ...menuGlyph('arrow-down'),
           disabled: idx === -1 || idx >= order.length - 1,
           run: () => moveSection(id, 1)
         }
