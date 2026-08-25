@@ -67,8 +67,8 @@ const SURFACE_CONTROL = 'border-top:1px solid var(--border-strong)';
 const SURFACE_HEAD = '.ctxd-detail{';
 /** surface.css's last rule. */
 const SURFACE_LAST = '@media (max-width:420px){.ctxd-card-row{grid-template-columns:1fr';
-/** install.css's first own rule. */
-const INSTALL_FIRST = '.ctxd-install-modal{width:560px';
+/** install.css's first own rule. Phase 150 doubled the width in it. */
+const INSTALL_FIRST = '.ctxd-install-modal{width:min(1120px,92vw)';
 /** The rule that lays the preview out in two columns, and the control band. */
 const INSTALL_CONTAINER = '@container ctxd-preview (min-width:680px)';
 

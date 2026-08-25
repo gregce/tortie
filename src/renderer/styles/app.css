@@ -257,10 +257,42 @@
   height: 48px;
   color: var(--text-muted);
   flex: 0 0 auto;
-  transition: color var(--dur-fast) var(--ease-out);
+  /* Phase 150 added `background` here. The tab above transitions the same
+     property with the same duration and the same curve, so the two ribbons
+     answer the pointer at the same speed as well as in the same colour. */
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 
+/* PHASE 150. The ribbon answers the pointer, in the project tab's own grey.
+   The operator hovered this bar and reported that nothing happened. He was
+   right: measured at the parent commit, every icon here read
+   `rgba(0, 0, 0, 0)` at rest AND under the pointer, in both orientations, so
+   the only reply was a text colour moving from --text-muted to
+   --text-secondary. The fill is `--bg-raised`, which is the value `.ptab:hover`
+   above already states, rather than a second grey invented for this bar. Both
+   greys were then read from the running window under a real pointer: the
+   project tab draws `rgb(34, 37, 43)` on hover and so does every one of the
+   five icons here, in the column and in the row.
+
+   It reaches BOTH orientations from this one rule, because the row variant in
+   app/activity-bar.css overturns only size and marker position and never
+   restates a colour.
+
+   TWO THINGS THIS MUST NOT DISTURB, and neither can be. The selected view's
+   2px marker is `.ab-item.active::before`, a positioned pseudo-element, and a
+   pseudo-element paints after its originating element's own background. The
+   change count badge is `.ab-badge`, a positioned child, and a child paints
+   after its parent's background too. Both were measured under the pointer
+   after this landed and both still draw at `--accent`.
+
+   The square is full bleed rather than a rounded chip. The tab is a chip in a
+   row of chips with space between them; an item here is a cell of a band that
+   the marker runs along the edge of, and a radius would cut the corner off
+   the marker. */
 .ab-item:hover {
+  background: var(--bg-raised);
   color: var(--text-secondary);
 }
 
@@ -869,7 +901,68 @@
   user-select: none;
 }
 
+/* PHASE 150. The word yields before any control does.
+
+   THE DEFECT, measured at the parent commit with the list dragged by its own
+   resizer. The band's content wants 212px: two 12px paddings, four controls at
+   20 + 24 + 20 + 20, six 6px gaps, the word at 60px and the count. Nothing in
+   the row could give way, because `.icon-btn` is `flex: 0 0 auto` and
+   "Sessions" is one word, so its automatic minimum size is the whole word and
+   a shrinkable item that cannot shrink is a fixed item. At the list's DEFAULT
+   200px the band bought the difference out of its own right padding, so the
+   last control's right edge measured 1440.6 against a list edge of 1440.0. At
+   the list's FLOOR of 160px there was nothing left to spend: the band's
+   content measured 200px inside a 161px box, and the add button and its
+   options chevron sat at 1452.6 and 1478.6 against that same 1440.0 edge.
+   They were not merely past the edge, they were past the WINDOW's edge, and
+   `document.elementFromPoint` at each one's own centre returned something
+   else. Two controls were unclickable.
+
+   THE MECHANISM, and it is the one the project rail already ships. Giving the
+   word `min-width: 0` and an ellipsis makes it the only thing in the row that
+   can give way, so the 140px of controls, gaps and padding always fits inside
+   the 159px the 160px floor leaves. `.prail-title` in app/project-rail.css
+   states these four declarations for exactly this reason, and its comment
+   predicted this case. Copying it is what keeps the two bands answering a
+   narrow width the same way. Measured after: at 160px all four controls end at
+   1346, 1376, 1402 and 1428, every one inside the list's box and every one
+   hit-tested as itself.
+
+   WHAT THIS COSTS, said plainly rather than left to be discovered, and said
+   at the FLOOR as well as at the default, because the floor is the width this
+   whole comment is about. The band never fitted at 200px either, so the word
+   truncates at the default too, where it drew "SESSIONS" flush against the
+   window edge. With a two digit count its box measures 40.1px there, which
+   holds "SES…" at 34.5px and not "SESS…" at 42.7px. At the 160px floor the
+   word does not shorten at all, it GOES. Its box measures 0.1px, a lone
+   ellipsis needs 10.4px, so the band draws the count and the four controls and
+   no label whatsoever. That is the trade, and it is deliberate. A label that
+   names the list a person is already looking at can go; a button that creates
+   a session cannot move out of reach.
+
+   THE LIMIT OF THIS, since the paragraph above would otherwise read as a
+   promise without one. The word can only pay until it reaches zero, and after
+   that the band spends its 12px of right padding. Measured at the floor, a
+   count of one, two or three characters keeps all four controls inside the
+   list and a FOURTH character does not. "999" ends the last control 4.7px
+   inside the edge and "9999" ends it 2.7px outside. That needs a thousand
+   sessions in one project, so nobody reaches it, but it is where the mechanism
+   actually stops rather than where it appears to.
+
+   WHY NOT A WIDER FLOOR. Raising the list's minimum would take away the narrow
+   list he had just chosen, which is the opposite of what he asked for, to save
+   a word rather than a control. */
+.dock-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The number never truncates. A count clipped mid digit states a different
+   number, so it holds its width and the word beside it gives way instead. */
 .dock-count {
+  flex: 0 0 auto;
   font-weight: var(--weight-regular);
 }
 

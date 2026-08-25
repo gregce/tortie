@@ -33,7 +33,32 @@
 --------------------------------------------------------------------------- */
 
 .ctxd-install-modal {
-  width: 560px;
+  width: min(1120px, 92vw);
+  /* PHASE 150 DOUBLED IT, from a flat 560px, because the operator opened a
+     skill and asked for about twice the width with the text filling it.
+     tokens.css carries spacing, type, radii, colors, durations and z-layers
+     and no width scale at all, which the comment on `.ctx-install-sheet`
+     below already records, so this modal states its own number in the same
+     style and with the same kind of `min()` guard. 1120 is exactly twice 560.
+     92vw keeps a margin at every window size, so the modal never exceeds a
+     small window: measured at a 700px window it draws 644px and its content
+     does not scroll sideways.
+
+     WHAT THE WIDTH BUYS. The command line is the thing this confirm exists to
+     show in full, and at 560px it wrapped onto three lines. At 1120px it is
+     one.
+
+     NO CONTENT CAP MOVED WITH IT, and that was measured rather than assumed.
+     Nothing inside this modal is capped: at the parent commit the body text
+     drew 518px inside a 558px content box, and the 40px difference is the
+     modal's own `--space-7` padding on each side rather than a gutter. So
+     every block here already takes the width it is given and widening alone
+     answers him. The `max-width: 72ch` further down this file is NOT this
+     modal's: it caps `.ctxd-preview > .ctxd-remote-text`, which is the
+     preview card the SHEET draws, and this confirm renders no preview card at
+     all. The container query below it is scoped to `.ctxd-preview` for the
+     same reason, so a wider confirm cannot reach that two column layout and
+     this phase does not give it one. */
   /* Phase 132. The confirm gets the same treatment the sheet gets below, and
      it was measured before it was applied. At a 586 px viewport the modal is
      capped at 538 px while its content is 580 px, so the Install button sat
