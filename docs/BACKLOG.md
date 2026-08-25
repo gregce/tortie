@@ -16925,7 +16925,7 @@ Blocked on Phases 64 and 65 being in use, plus the observed number, plus the spi
 **Subject:** `fix(ui): the empty state quiets down and the side views share one type scale`
 **First body line:** `Phase 149: the empty state, the side view type scale, and Commit`
 **Semver:** patch. Rendered surfaces only, no data and no new state.
-**Tier 2.** Every item is a rendered surface with no new state, and HE REPORTED ALL SIX HIMSELF, so the parent commit measurement is mandatory: photograph and measure each surface at the parent before claiming a change. One app run drives all four items.
+**Tier 2.** Every item is a rendered surface with no new state, and HE REPORTED ALL FOUR HIMSELF, so the parent commit measurement is mandatory: photograph and measure each surface at the parent before claiming a change. One app run drives all four items.
 **Charter:** this entry, plus the four screenshots he attached on 2026-08-25, plus `docs/DESIGN-SPEC.md` and `src/renderer/styles/tokens.css`, which own the type scale the side views must share.
 
 ### Item one, the empty project says less and shows the cat
@@ -16942,14 +16942,6 @@ He showed the search view's inputs and labels beside the explorer header and fil
 
 He said the commit button should be more premium. It is drawn in the Source Control view and today reads as a flat disabled slab even when it is enabled. It gets a treatment that says pressable, built from the accent tokens the way Phase 148 built the ask glow, with its disabled state still plainly disabled, since a commit is the one irreversible verb in that panel.
 
-### Item five, the activity bar icons highlight on hover
-
-He hovered the main navigation ribbon and nothing happened. Every icon on that ribbon gets a light grey hover highlight, the SAME treatment the project tabs across the top already give on hover, so the two ribbons agree. It applies in BOTH orientations, being the left vertical ribbon and the top horizontal one, and it must not disturb the selected view's own indicator or the change count badge that sits on the source control icon. The phase reads the project tab's existing hover values and reuses those tokens rather than inventing a second grey.
-
-### Item six, narrowing the session list never pushes its buttons off screen
-
-He made the session list narrower and the buttons in its header ran off the right edge, so the collapse chevron, the position control and the add button became unreachable. The header keeps its controls reachable at every width the list can be dragged to. The phase decides how, with the reason in the commit body, being that the title truncates before the controls do, or the controls hold a reserved minimum, or the list has a minimum width that the controls fit inside. Whichever is chosen, the proof is that at the NARROWEST width the list allows, every control's bounding box still sits inside the list's own box.
-
 ### Proof, run rather than read
 
 - ONE app run photographing all four surfaces, plus the PARENT COMMIT photographs of each, because he reported all four.
@@ -16957,8 +16949,6 @@ He made the session list narrower and the buttons in its header ran off the righ
 - The cat proved not to move the agent grid, by the grid's bounding box being identical before and after at two window widths.
 - A table of the four side views' measured heading size, label size, input height and input type size, before and after, proving they agree after.
 - The Commit button photographed enabled and disabled, with its computed values derived from tokens.
-- Every activity bar icon hovered in BOTH orientations with its computed background read, proving it matches the project tab's hover values and that the selected indicator and the count badge still draw.
-- The session list dragged to its NARROWEST width with every header control's bounding box proved inside the list's box, at the parent commit too so the before and after are both recorded.
 - A grep proving no new color or size literal entered a component file, and the full battery.
 
 ### What is NOT in this phase
@@ -16968,6 +16958,38 @@ He made the session list narrower and the buttons in its header ran off the righ
 - No change to the agent grid, its order, its hotkeys or the install hint under it.
 - No change to what Commit DOES, and no change to any other button in the app.
 - No change to the activity bar itself or to which views exist.
+
+
+## Phase 150 — the ribbon answers the pointer, and a narrow session list keeps its buttons (operator asked 2026-08-25) QUEUED, AFTER 149 AND BEFORE 63
+
+**Subject:** `fix(ui): the activity bar highlights on hover and a narrow session list keeps its controls`
+**First body line:** `Phase 150: the ribbon hover, and the session list controls`
+**Semver:** patch. Two rendered surfaces, no data and no new state.
+**Tier 2.** Both items are rendered surfaces with no new state, and HE REPORTED BOTH HIMSELF, so the parent commit measurement is mandatory. One app run drives both, in both orientations.
+**Charter:** this entry, plus the four screenshots he attached on 2026-08-25, plus the `## Phase 135` and `## Phase 148` entries, which settled where the band's own controls sit and how a hover treatment is built from tokens.
+
+### Item one, the activity bar icons highlight on hover
+
+He hovered the main navigation ribbon and nothing happened. Every icon on that ribbon gets a light grey hover highlight, the SAME treatment the project tabs across the top already give on hover, so the two ribbons agree. It applies in BOTH orientations, being the left vertical ribbon and the top horizontal one, and it must not disturb the selected view's own indicator or the change count badge that sits on the source control icon. The phase reads the project tab's existing hover values and reuses those tokens rather than inventing a second grey.
+
+### Item two, narrowing the session list never pushes its buttons off screen
+
+He made the session list narrower and the buttons in its header ran off the right edge, so the collapse chevron, the position control and the add button became unreachable. The header keeps its controls reachable at every width the list can be dragged to. The phase decides how, with the reason in the commit body, being that the title truncates before the controls do, or the controls hold a reserved minimum, or the list has a minimum width the controls fit inside. Whichever is chosen, the proof is that at the NARROWEST width the list allows, every control's bounding box still sits inside the list's own box.
+
+### Proof, run rather than read
+
+- ONE app run, plus the PARENT COMMIT measurements of both surfaces, because he reported both.
+- Every activity bar icon hovered in BOTH orientations with its computed background read, proving it matches the project tab's hover values and that the selected indicator and the count badge still draw.
+- The session list dragged to its NARROWEST width with every header control's bounding box proved inside the list's box, at the parent commit too so the before and after are both recorded.
+- A grep proving no new color or size literal entered a component file, and the full battery.
+
+### What is NOT in this phase
+
+- No change to which icons the ribbon holds, their order, or what they open.
+- No change to the selected view indicator or to the change count badge beyond proving they survive.
+- No change to where the band's own controls sit, which Phase 135 and Phase 148 settled.
+- No new minimum width for any panel other than the session list, and only if that is the mechanism chosen.
+- No change to what any session row does.
 
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
@@ -17154,3 +17176,4 @@ cycle rather than only the evening it was written.
 - 2026-08-25, the Arch hold is ANSWERED on his word, being that he wants Arch built tonight in the phases planned, and Phases 63 to 66 from research 49 are now queued in the house shape at the end of this file, 63 the standing contract with its format, its resolver, its five checkers with the argv defense, the fifth sidebar view and the Zen text landing inside 63's own commit by his first rider with README.md untouched by his second, blocked on NOTHING, then 64 the aiming verb and 65 the refresh loop which are parallel and each blocked on 63 alone, then 66 the canvas which stays gated on the CSS zoom spike passing and on an observed usage number from the earlier slices rather than a promised one
 - 2026-08-25, RELEASE CUT AND PUBLISHED, tag v0.73.0 on `6f815c3`, signed, notarized and stapled, published as Latest with 6 artifacts, verified on the DOWNLOADED artifact being spctl accepted as Notarized Developer ID with stapled tickets valid on the app and the DMG and the latest-mac.yml sha512 re-derived by hand, and carrying his stable website name Tortie-arm64.dmg proved byte identical to the versioned DMG so the permanent download link resolves from this release on; the grant is spent and does not renew
 - 2026-08-25, Phase 149 queued at his word, the empty project's heading and sentence come down in size with the app's own cat mark placed dark above the agent grid, the four side views move onto one shared type scale, and the Commit button gets a treatment that says pressable; it runs BEFORE the Arch phases because it is small and he is looking at it now
+- 2026-08-25, Phase 150 queued at his word as its own phase rather than inside 149, the main navigation ribbon's icons take the same light grey hover the project tabs already have in both orientations, and narrowing the session list never pushes its header controls off the right edge; it runs after 149 and BEFORE the Arch phases
