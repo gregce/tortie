@@ -26,6 +26,13 @@
  *                       isolated socket, and it refuses the real socket by name
  *                       because the far side of its connection is this same Mac.
  *                       `npm run smoke:capture:remote`.
+ *  - GMUX_SMOKE=p156-menus  the application menu and the tray menu, walked out
+ *    of the real Menu.getApplicationMenu() after the real installAppMenu() ran,
+ *    with every row's label, accelerator, icon size and template flag. It
+ *    photographs nothing, because a native macOS menu cannot be read or
+ *    photographed from outside the app (Phases 119, 152 and 153 each measured
+ *    it). `npm run probe:p156`.
+ *
  *  - GMUX_SMOKE=identity  sessions bind by @gmux-id, never by name: external
  *                       rename, a foreign session squatting the freed name,
  *                       kill, stale-row reconcile, pane markers, and an
@@ -279,6 +286,7 @@ import {
   runSmokeVerify
 } from './durability';
 import { runSmokeIdentity } from './identity';
+import { runP156MenusSmoke } from './p156-menus';
 import { runSmokeProcId } from './procid';
 import { runSmokeQuit } from './quit';
 // Phase 119: declining capture on restore. LEAF-free like the capture smoke,
@@ -387,6 +395,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   }
   if (smoke === 'identity') {
     await runSmokeIdentity();
+    return true;
+  }
+  // Phase 156: the application menu and the tray menu, read back from the real
+  // main process after the real installAppMenu() ran. It photographs nothing,
+  // because a native macOS menu cannot be photographed from outside the app,
+  // and it says so at its own head. `npm run probe:p156`.
+  if (smoke === 'p156-menus') {
+    await runP156MenusSmoke();
     return true;
   }
   // Phase 119: a captured session can come back bare, and the ordinary restore

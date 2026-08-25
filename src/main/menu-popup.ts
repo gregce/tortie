@@ -6,9 +6,12 @@
  * The section banner below is the original.
  */
 
-import { BrowserWindow, ipcMain, Menu, nativeImage } from 'electron';
+import { BrowserWindow, ipcMain, Menu } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
-import type { PopupMenuIcon, PopupMenuItem } from '@shared/ipc';
+import type { PopupMenuItem } from '@shared/ipc';
+// PHASE 156. The decode used to live in this file. The menu bar and the tray
+// now need the same ten lines, so it moved to the one module all three read.
+import { menuIcon } from './native-menu-icon';
 import { handle } from './typed-ipc';
 
 // ---------------------------------------------------------------------------
@@ -33,32 +36,6 @@ function hintToAccelerator(hint: string | undefined): string | null {
     .replace(/⌃/g, 'Ctrl+')
     .replace(/↩|⏎/g, 'Return');
   return /^([A-Za-z]+\+)*[A-Za-z0-9]+$/.test(acc) ? acc : null;
-}
-
-/**
- * A renderer-rasterized menu icon → NativeImage at 16pt.
- *
- * The PNG arrives at 32×32 physical pixels; scaleFactor 2 is what makes it a
- * 16pt image rather than a 32pt one. Template images let macOS tint the alpha
- * for light/dark, highlight and disabled — which is the whole reason the
- * monochrome marks look right greyed out.
- */
-function menuIcon(icon: PopupMenuIcon | undefined): Electron.NativeImage | null {
-  if (icon === undefined) return null;
-  const comma = icon.dataUrl.indexOf(',');
-  if (!icon.dataUrl.startsWith('data:image/png;base64,') || comma < 0) return null;
-  try {
-    const img = nativeImage.createFromBuffer(
-      Buffer.from(icon.dataUrl.slice(comma + 1), 'base64'),
-      { scaleFactor: 2 }
-    );
-    if (img.isEmpty()) return null;
-    if (icon.template) img.setTemplateImage(true);
-    return img;
-  } catch {
-    // A bad icon must never cost the user their menu.
-    return null;
-  }
 }
 
 /**

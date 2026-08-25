@@ -22,6 +22,29 @@
  * the key before the Edit menu's `role:'copy'` and can suppress it.
  * Renderer-only chords (⌘1…⌘9, ⌘⇧]/⌘⇧[, ⌘↩ commit) stay off the menu on
  * purpose: they are context-sensitive or would bloat it.
+ *
+ * ICONS (Phase 156). Every row that has a mark wears the one its own part of
+ * the product already draws, and every mark and every refusal carries its
+ * reason at the row. The pixels come from ./menu-icons.generated.ts, produced
+ * at build time from the ONE closed table in @shared/menu-codicons by
+ * build/generate-menu-icons.mjs, because this menu is installed before any
+ * window exists and there is no renderer to ask.
+ *
+ * NO ICON ON ANY TOP LEVEL TITLE, and the answer is no rather than unmentioned.
+ * The app menu's own title, File, Edit, Find, Session, Project, View, Window
+ * and Help all stay bare. Three reasons, in order of weight. First, nothing has
+ * MEASURED that AppKit paints one: Phase 153's build/p153-appmenu-main.cjs
+ * proved only that Electron 43.3.0 RETAINS a non empty NativeImage on a top
+ * level item through setApplicationMenu and back out of getApplicationMenu, and
+ * its own report field says so in those words. Shipping a top level icon would
+ * be shipping an unmeasured pixel, which is the mistake Phase 60 made with the
+ * full screen row and Phase 62.1 had to reverse. Second, the macOS menu bar is
+ * the most conventional surface in the operating system and no Mac app puts a
+ * glyph beside a menu bar title. Third, the bar has a hard width budget: on a
+ * notched display the titles must fit to the left of the notch, and nine titles
+ * each carrying an extra 16 points is how the rightmost ones get collapsed
+ * away. The marks belong on the submenu rows, which is where a person is
+ * looking for them and where Phase 153's measurement did cover the round trip.
  */
 
 import { app, BrowserWindow, Menu } from 'electron';
@@ -35,6 +58,12 @@ import type { MenuActionWithFind } from '@shared/ipc';
 // type a chord string into this file — add it to src/shared/keymap.ts and
 // read it back, or the menu and the ⌘/ overlay start drifting again.
 import { accelerator as accel } from '@shared/keymap';
+// PHASE 156. A row's mark, decoded once from the build time set in
+// ./menu-icons.generated.ts. The names are the ONE closed table in
+// @shared/menu-codicons, so a row here and a row in a right click menu cannot
+// wear two different pictures for one verb. A name with no bitmap yields no
+// `icon` key at all, so every menu composes exactly the rows it did before.
+import { nativeMenuGlyph as glyph } from './native-menu-icon';
 // The View-menu radio pair as DATA (ids, labels, actions) — shared with the
 // renderer's controls so the three cannot name different things.
 import {
@@ -50,6 +79,7 @@ import {
 } from '@shared/projects-position';
 import type { ProjectsPosition } from '@shared/projects-position';
 import type { LaunchableAgentId } from '@shared/types';
+import type { MenuCodicon } from '@shared/menu-codicons';
 // Direct module imports (NOT the ./settings barrel): settings/ipc.ts imports
 // rebuildAppMenu from this file — the barrel would close a require cycle.
 import { getSettings } from './settings/store';
@@ -186,14 +216,26 @@ export function requestQuit(): void {
   setTimeout(() => app.quit(), 3_000);
 }
 
+/**
+ * One forwarding row.
+ *
+ * PHASE 156 added the fourth argument. It is a `MenuCodicon`, so a chord of
+ * letters that is not in the closed table will not compile, and it is spread so
+ * a row given no mark, or a mark the generated set is missing, composes exactly
+ * as it did before. Every mark passed here has its reason written at the call
+ * site, which is the rule Phase 153 set and the reason its first re-verify
+ * refused.
+ */
 function item(
   label: string,
   action: MenuActionWithFind,
-  accelerator?: string
+  accelerator?: string,
+  mark?: MenuCodicon
 ): MenuItemConstructorOptions {
   return {
     label,
     ...(accelerator !== undefined ? { accelerator } : {}),
+    ...(mark !== undefined ? glyph(mark) : {}),
     click: () => sendMenuAction(action)
   };
 }
@@ -221,6 +263,13 @@ function agentHotkeyItems(): MenuItemConstructorOptions[] {
     } catch {
       continue; // unknown id survived in the file — skip, never throw
     }
+    // PHASE 156 LEFT THESE BARE ON PURPOSE. The mark a session row wears in
+    // the app is its AGENT's, and agent art is SVG rather than a font glyph
+    // (src/renderer/icons/agent-menu-icon.ts), so main holds no raster for it.
+    // Generating a second set from that art roughly doubles the generator's
+    // scope, and a user-configured agent's mark would not come from a closed
+    // set at all. Giving every one of them one generic mark instead would say
+    // less than the label already says. It is queued rather than guessed.
     items.push({
       label: `New ${displayName} Session`,
       accelerator,
@@ -358,16 +407,30 @@ function updateMenuItems(): MenuItemConstructorOptions[] {
   if (staged !== null) {
     items.push({
       label: `Update to ${staged}, installs when you quit`,
+      // A CHOSEN mark. It draws bytes coming down to THIS computer, which is
+      // exactly the state this row announces: the download already happened
+      // and the file is on disk waiting for the quit. `cloud-download` is in
+      // the set and was refused here, because Phase 153 bound it to the
+      // branches list's incoming arrow.
+      ...glyph('desktop-download'),
       click: () => void confirmInstallStagedUpdate()
     });
   }
   items.push({
     label: 'Check for Updates…',
+    // The sidebar's refresh button, the Context header's and the branch
+    // header's all draw `refresh` for "ask again", and that is this row.
+    ...glyph('refresh'),
     click: () => void runInteractiveUpdateCheck()
   });
   if (needsRepair) {
     items.push({
       label: 'Repair Updates…',
+      // A CHOSEN mark. Nothing in Tortie draws a wrench, so it cannot be
+      // misread as pointing at another surface, and fixing broken state on
+      // disk is the whole of what this row does. `refresh` is two rows above
+      // it and `debug-restart` would say the row starts something again.
+      ...glyph('tools'),
       click: () => void offerUpdaterRepair()
     });
   }
@@ -389,6 +452,9 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         {
           label: 'Settings…',
           accelerator: accel('app.settings'),
+          // The gear the activity bar draws at ActivityBar.tsx:171 and :238,
+          // and the one Settings' own General section wears.
+          ...glyph('settings-gear'),
           click: () => openSettingsWindow()
         },
         // Phase 23: the one affordance for the configuration folder. It sits
@@ -397,6 +463,11 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // twice a year does not earn a chord.
         {
           label: 'Open Configuration Folder',
+          // `revealConfigFolder` hands the folder to Finder through
+          // shell.openPath, and six rows across four menus already wear this
+          // mark for exactly that journey off this app. `folder-opened` would
+          // say Tortie opened it.
+          ...glyph('link-external'),
           click: () => void revealConfigFolder()
         },
         { type: 'separator' },
@@ -407,6 +478,16 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // menu rather than behind a flag because the day it is needed is the
         // day the session list is gone, and a person looking for a way out
         // opens menus.
+        //
+        // NO MARK, and the refusal is argued rather than an omission. The
+        // obvious candidate is `refresh`, because this row surveys the live
+        // tmux server and rewrites the list from it. It is refused twice over:
+        // Check for Updates… two rows above already wears `refresh` in this
+        // same submenu, and one picture on two different verbs inside one menu
+        // is the defect build/assert-menu-glyphs.mjs exists to stop; and every
+        // surface that draws `refresh` in Tortie is a button that re-reads
+        // something cheaply and at once, which this row, sitting behind two
+        // dialogs, is not.
         {
           label: 'Rebuild the Session List…',
           click: () => void runOperatorReconstruction()
@@ -421,6 +502,12 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // Quitting is safe by design (sessions live on the tmux server).
         // Routed through the renderer for the one-time §4 first-quit toast
         // ("Quitting — your sessions keep running.") — see requestQuit().
+        //
+        // NO MARK, argued. This is the standard AppKit row at the foot of the
+        // app menu and every Mac app draws it bare, so a glyph here would be
+        // the one thing in this submenu that is not what a Mac user expects.
+        // No Tortie surface draws a quit mark either, so there is nothing to
+        // take by provenance.
         {
           label: `Quit ${app.name}`,
           accelerator: accel('app.quit'),
@@ -433,8 +520,15 @@ function buildTemplate(): MenuItemConstructorOptions[] {
       submenu: [
         // Phase 12.9 item 1: until now the File menu could only OPEN. New
         // first, the way every Mac app orders them.
-        item('New Project…', 'new-project', accel('project.new')),
-        item('Open Project…', 'open-project', accel('project.open')),
+        // The three project verbs wear the marks the + menu already gives
+        // them for the same three labels, at project-menu.ts:58, :50 and :87.
+        item('New Project…', 'new-project', accel('project.new'), 'new-folder'),
+        item(
+          'Open Project…',
+          'open-project',
+          accel('project.open'),
+          'folder-opened'
+        ),
         // PHASE 90.3. Directly under Open Project…, because it is the same
         // verb aimed at a different computer. No accelerator, for the reason
         // Clone Repository has none: every built in chord is one a person can
@@ -445,12 +539,13 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // opens a sheet with an empty list would spend a person a click to
         // learn nothing.
         {
-          ...item('Open Folder on a Machine…', 'open-remote-project'),
+          // `vm` is what project-menu.ts:79 gives this same label.
+          ...item('Open Folder on a Machine…', 'open-remote-project', undefined, 'vm'),
           enabled: anyConfirmedMachine()
         },
         // Phase 18.6. The third project verb, in the same order the + menu
         // lists them (src/renderer/app/project-menu.ts). No accelerator.
-        item('Clone Repository…', 'clone-repository'),
+        item('Clone Repository…', 'clone-repository', undefined, 'repo-clone'),
         // Phase 18.6. Directly under the three verbs, which is where macOS
         // puts it. The rows are built from <userData>/recents.json at the
         // moment the menu is built, and `rebuildAppMenu()` runs on every
@@ -468,7 +563,10 @@ function buildTemplate(): MenuItemConstructorOptions[] {
           clear: () => clearRecents()
         }),
         { type: 'separator' },
-        item('Save', 'save-file', accel('editor.save')),
+        // A CHOSEN mark. Nothing in Tortie draws a save button anywhere, so
+        // it cannot be misread as pointing at another surface. `save-as` is a
+        // different verb.
+        item('Save', 'save-file', accel('editor.save'), 'save'),
         { type: 'separator' },
         // ⌘W closes an editor tab ONLY — never the main window, a session,
         // or a project (DESIGN.md §4). One exception (S13): when the
@@ -476,6 +574,9 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         {
           label: 'Close Editor Tab',
           accelerator: accel('editor.close'),
+          // The × the tab itself draws, and the mark EditorTabs.tsx:40 gives
+          // the row labelled Close.
+          ...glyph('close'),
           click: () => {
             if (closeSettingsWindowIfFocused(BrowserWindow.getFocusedWindow())) {
               return;
@@ -485,6 +586,11 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         }
       ]
     },
+    // NO MARKS ON ANY ROW OF THIS MENU, argued rather than omitted. All seven
+    // are AppKit's own roles, every Mac app draws them bare, and the terminal's
+    // own right click menu already carries the marked versions of Copy, Paste
+    // and Select All at terminal-menu.ts:156, :176 and :183 for the surface
+    // where those verbs are not the system's.
     {
       label: 'Edit',
       submenu: [
@@ -508,24 +614,42 @@ function buildTemplate(): MenuItemConstructorOptions[] {
       submenu: [
         // ⌘P first: it is the one people reach for constantly, and it is the
         // only way anybody discovers the chord exists.
-        item('Go to File…', 'quick-open', accel('view.quickOpen')),
+        // `go-to-file` is the mark the codicon set binds to this exact act,
+        // and src/shared/keymap.ts calls this palette the go-to-file palette.
+        item('Go to File…', 'quick-open', accel('view.quickOpen'), 'go-to-file'),
         { type: 'separator' },
-        item('Find in Project…', 'show-search', accel('view.search')),
-        item('Go to Symbol…', 'go-to-symbol', accel('view.symbols'))
+        // The activity bar's Search mark, ActivityBar.tsx:313.
+        item('Find in Project…', 'show-search', accel('view.search'), 'search'),
+        // The mark the symbol palette this row opens draws in its own input
+        // row, SymbolPalette.tsx:129.
+        item(
+          'Go to Symbol…',
+          'go-to-symbol',
+          accel('view.symbols'),
+          'symbol-method'
+        )
       ]
     },
     {
       label: 'Session',
       submenu: [
-        item('New Session…', 'new-session', accel('session.new')),
-        item('Rename Session', 'rename-session', accel('session.rename')),
+        // The + on the sessions header, which terminal-menu.ts:140 already
+        // gives this identical label.
+        item('New Session…', 'new-session', accel('session.new'), 'add'),
+        // The pencil the session row's own Rename wears at
+        // session-actions.tsx:803, and the tree's and the split group's.
+        item('Rename Session', 'rename-session', accel('session.rename'), 'edit'),
         { type: 'separator' },
-        item('Next Session', 'next-session', accel('session.next')),
-        item('Previous Session', 'prev-session', accel('session.prev')),
+        // The keymap's own sentence for these two is that they move down and
+        // up the session list, and the chords ARE the down and up arrows, so
+        // each takes the arrow its own label states.
+        item('Next Session', 'next-session', accel('session.next'), 'arrow-down'),
+        item('Previous Session', 'prev-session', accel('session.prev'), 'arrow-up'),
         { type: 'separator' },
         // Deliberately unaccelerated: ending a session is menu-only and
         // always confirmed (DESIGN.md §4).
-        item('End Session…', 'end-session'),
+        // The × the session row draws for this verb, session-actions.tsx:926.
+        item('End Session…', 'end-session', undefined, 'close'),
         // Phase 141. Sits with End Session and is unaccelerated for the same
         // reason: it acts on the live session the person is looking at, and
         // typing into that session deserves the same care as ending it.
@@ -539,7 +663,10 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         //
         // This is the only surface for the verb in session focus mode, where
         // the session list is hidden by design, so it is not optional.
-        item('Resume Conversation', 'resume-conversation'),
+        // `terminal`, the mark session-actions.tsx:891 wears on the same verb
+        // in the row menu: it types into the session in front of the person,
+        // and the terminal is the surface it acts on.
+        item('Resume Conversation', 'resume-conversation', undefined, 'terminal'),
         // User-recorded per-agent shortcuts (S13 Hotkeys) — present only
         // when assigned; rebuilt on every hotkey change.
         ...agentHotkeyItems(),
@@ -547,16 +674,24 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // Phase 29. Deliberately unaccelerated and at the bottom: restoring
         // starts a process, so the user reads a name first. No badge, no
         // count.
-        item('Past Sessions…', 'past-sessions')
+        // `history`, the mark session-actions.tsx:853 wears on Restore, which
+        // is the verb this modal performs, and the one the SavedMark draws
+        // under "Saved — ready to restore".
+        item('Past Sessions…', 'past-sessions', undefined, 'history')
       ]
     },
     {
       label: 'Project',
       submenu: [
+        // NO MARK ON THESE TWO, argued. The project tabs run across the top
+        // in one position and down the left rail in the other, and the person
+        // chooses which. No arrow in the set is true in both, and an icon that
+        // is wrong half the time has no reason to be there.
         item('Next Project', 'next-project', accel('project.next')),
         item('Previous Project', 'prev-project', accel('project.prev')),
         { type: 'separator' },
-        item('Close Project…', 'close-project')
+        // The × the project rail draws for this verb, ProjectRail.tsx:207.
+        item('Close Project…', 'close-project', undefined, 'close')
       ]
     },
     {
@@ -567,16 +702,38 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // activity bar's own order. The shift+cmd+F chord therefore displays
         // here and on Find in Project…, which is deliberate. The renderer
         // keydown map runs first, so nothing fires twice.
-        item('Explorer', 'show-explorer', accel('view.explorer')),
-        item('Search', 'show-search', accel('view.search')),
-        item('Source Control', 'show-scm', accel('view.scm')),
-        item('Context', 'show-context', accel('view.context')),
+        // Each row wears the mark the activity bar draws for the view it
+        // opens: ActivityBar.tsx:304, :313, :330 and :352.
+        item('Explorer', 'show-explorer', accel('view.explorer'), 'files'),
+        item('Search', 'show-search', accel('view.search'), 'search'),
+        // `git-branch` RATHER THAN `source-control`, and this is not a
+        // substitute. The shipped codicon font draws source-control at U+EA68
+        // and git-branch at U+EC6F as ONE IDENTICAL OUTLINE, measured byte for
+        // byte at 284 ink pixels each by build/generate-menu-icons.mjs. So this
+        // row wears exactly the pixels ActivityBar.tsx:330 draws for the Source
+        // Control view, under the name already in the closed set. Adding the
+        // second name would have put one picture in the table twice, which is
+        // the U+EC6F defect build/assert-menu-glyphs.mjs was written for, one
+        // level deeper: the codepoints differ, so only the bitmaps say so.
+        item('Source Control', 'show-scm', accel('view.scm'), 'git-branch'),
+        item('Context', 'show-context', accel('view.context'), 'layers'),
         // Phase 137: Catch Me Up sits directly under Context. Both answer a
         // question about the whole project rather than opening a sidebar
         // view. The accelerator comes from the shared keymap, so the row and
         // the chord cannot drift.
-        item('Catch Me Up', 'show-overview', accel('view.overview')),
+        // `comment`, the mark Settings' own Catch Me Up section wears at
+        // SettingsApp.tsx:106 and the session row menu wears at
+        // session-actions.tsx:508 for this same feature.
+        item('Catch Me Up', 'show-overview', accel('view.overview'), 'comment'),
         { type: 'separator' },
+        // NO MARK ON ANY OF THE FOUR RADIOS BELOW, argued twice over. A macOS
+        // radio item already draws a state mark, so an icon would sit beside a
+        // check. More decisively, the closed set holds three layout marks,
+        // being layout-menubar, layout-sidebar-left and layout-sidebar-right,
+        // for two axes with two states each, so at least two of the four rows
+        // would wear one identical picture inside one submenu. That is the
+        // exact defect build/assert-menu-glyphs.mjs exists to stop.
+        //
         // Session-surface orientation — a radio pair drawn from the cached
         // store value, so a rebuild reproduces the truth instead of resetting
         // it. Clicking one does NOT set the mark: it forwards to the store,
@@ -604,8 +761,25 @@ function buildTemplate(): MenuItemConstructorOptions[] {
           })
         ),
         { type: 'separator' },
+        // NO MARK ON TOGGLE SIDEBAR, argued. `layout-sidebar-left` is the
+        // obvious candidate and it is refused: projects-position.ts:40 already
+        // draws that picture as the destination of "Move projects to the left",
+        // and a mark that means "move the project tabs to that edge" cannot
+        // also mean "hide and show the sidebar" without one of the two being
+        // wrong. Nothing else in Tortie draws a sidebar toggle at all, so there
+        // is nothing to take by provenance either. The name is therefore not in
+        // the closed set, because a name no row wears is a bitmap generated for
+        // nothing.
         item('Toggle Sidebar', 'toggle-sidebar', accel('view.sidebar')),
-        item('Fill the Window', 'toggle-editor-fill', accel('view.fillEditor')),
+        // `screen-full` is what EditorPanel.tsx:822 draws on the button whose
+        // aria-label is the literal string "Fill the window", which is this
+        // row's label.
+        item(
+          'Fill the Window',
+          'toggle-editor-fill',
+          accel('view.fillEditor'),
+          'screen-full'
+        ),
         // Phase 80.1. Session focus is fill's sibling, so it sits directly
         // under it. Fill gives the open file the window. Focus gives the
         // session surface the window. Nothing else in this menu moved when
@@ -616,14 +790,31 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // per item, so the keys stay here and the label says both regions.
         // The renderer routes this action through the same router the chord
         // uses, so the row and the keys printed on it cannot drift.
+        //
+        // NO MARK ON THIS ROW, argued. Nothing in Tortie draws one for it, and
+        // the only candidate is `screen-full`, which the row directly above
+        // owns by provenance. Two adjacent rows in one submenu wearing one
+        // picture is the case the glyph gate exists to prevent, and it is not
+        // the Phase 153 `device-camera` case, where several rows were different
+        // extents of ONE feature.
         item(
           'Focus the Session or File',
           'toggle-session-focus',
           accel('view.sessionFocus')
         ),
-        item('Toggle Editor', 'toggle-editor', accel('editor.toggle')),
+        // `code` is what EditorPanel.tsx:240 binds to the editor's Source
+        // mode, which is the surface this row shows.
+        item('Toggle Editor', 'toggle-editor', accel('editor.toggle'), 'code'),
         { type: 'separator' },
-        item('Sessions That Need Input', 'attention', accel('session.attention')),
+        // The bell in the titlebar, Titlebar.tsx:469, whose title string is
+        // built from keyDisplay('session.attention') — the same chord and the
+        // same verb as this row.
+        item(
+          'Sessions That Need Input',
+          'attention',
+          accel('session.attention'),
+          'bell'
+        ),
         // Full screen (Phase 60, corrected by measurement in Phase 62.1).
         // The app declares NO VISIBLE full screen row. macOS puts one there
         // by itself, named "Enter Full Screen" and bound to the globe key
@@ -683,6 +874,19 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // never appeared in the shortcuts overlay, so there is nothing for it
         // to drift from.
         //
+        // PHASE 156 RE-EXAMINED THAT AND KEPT IT RAW, because its charter
+        // asked for a keymap row or a written reason. This is the reason, and
+        // it is stronger than the one above. Adding this chord to KEYMAP would
+        // put it into RESERVED_APP_CHORDS, because hasCommandModifier at
+        // src/shared/keymap.ts:98 answers true for Ctrl, so the per agent
+        // hotkey recorder would start refusing a chord macOS owns rather than
+        // Tortie. And this item is `visible: false`, so no menu row would ever
+        // display what the keymap held. That is a behaviour change to the
+        // recorder's conflict table bought for nothing a person can see. It is
+        // the ONE literal accelerator in this file, and
+        // build/assert-menu-accelerators.mjs names it as the one exception so
+        // no second one can be typed quietly.
+        //
         // TWO THINGS KEEP THIS TRUE, and neither is enough alone.
         // build/probe-fullscreen-menu.mjs reads the live packaged menu and
         // asserts the one row it finds is macOS's own "Enter Full Screen" on
@@ -715,7 +919,11 @@ function buildTemplate(): MenuItemConstructorOptions[] {
     { role: 'windowMenu' },
     {
       role: 'help',
-      submenu: [item('Keyboard Shortcuts', 'shortcuts', accel('app.shortcuts'))]
+      submenu: [
+        // The mark Settings' Keyboard section wears on its own rail,
+        // SettingsApp.tsx:66.
+        item('Keyboard Shortcuts', 'shortcuts', accel('app.shortcuts'), 'keyboard')
+      ]
     }
   ];
   return template;

@@ -84,11 +84,11 @@ const adapter = (name, needs, skip = SKIP.never) => ({
   needs,
   skip
 });
-const electron = (name) => ({
+const electron = (name, needs = NEEDS.electron, skip = SKIP.neverFinally) => ({
   name,
   type: 'electron harness',
-  needs: NEEDS.electron,
-  skip: SKIP.neverFinally
+  needs,
+  skip
 });
 const tmux = (name) => ({
   name,
@@ -144,11 +144,25 @@ export const CHECKS = [
   electron('conformance:resume'),
   electron('conformance:resume:capture'),
   electron('conformance:resume:specstory'),
+  // PHASE 156. Not a check: it WRITES src/main/menu-icons.generated.ts, by
+  // starting the built renderer and reading back the marks the product's own
+  // rasterizer produced. It is classified here because it starts an Electron
+  // and this file is the record of everything that does, and it is run by hand
+  // when the closed set in src/shared/menu-codicons.ts changes. The gate that
+  // proves its output is gate:menu-glyphs, which runs in every build.
+  electron(
+    'gen:menu-icons',
+    NEEDS.electron,
+    'never skips, and it is not in any battery: it is a generator run by hand ' +
+      'when the menu icon set changes, and build/assert-menu-glyphs.mjs is ' +
+      'what holds the committed output to the table'
+  ),
 
   // Build gates and pins.
   pure('gate:electron'),
   pure('gate:checks'),
   pure('gate:menu-glyphs'),
+  pure('gate:menu-accelerators'),
   pure('assert:doctypes'),
   pure('pin:tmux:check'),
   pure(
@@ -248,6 +262,7 @@ export const CHECKS = [
   electron('probe:p143'),
   electron('probe:p149'),
   electron('probe:p150'),
+  electron('probe:p156'),
   electron('probe:shellpath'),
   electron('probe:p101shot'),
   electron('probe:p102shot'),

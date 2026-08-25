@@ -24,6 +24,10 @@ import { join } from 'node:path';
 import type { Project, Session } from '@shared/types';
 import { getGmuxCore } from '../sessions';
 import { requestQuit, sendMenuAction } from '../menu';
+// PHASE 156. The same marks and the same chords the menu bar names, out of the
+// one closed table and the one keymap. Nothing here is typed as a literal.
+import { accelerator as accel } from '@shared/keymap';
+import { nativeMenuGlyph as glyph } from '../native-menu-icon';
 import { attentionRows, blockedSince } from './attention';
 import { getLog } from '../log';
 
@@ -57,9 +61,36 @@ function templateImagePath(): string {
     : join(app.getAppPath(), 'resources', 'menu-bar', 'TortieTemplate.png');
 }
 
-function buildMenu(sessions: readonly Session[], projects: readonly Project[]): Menu {
-  const rows = attentionRows(sessions, projects, since);
+/**
+ * The status menu's rows, as a TEMPLATE and nothing else (Phase 156).
+ *
+ * Extracted from `buildMenu` for the reason `toMenuTemplate` was extracted from
+ * the popup handler in Phase 39: a `Tray`'s menu is an OS owned surface that
+ * cannot be read, clicked or photographed from outside the app, so the template
+ * is the only place its shape can be read back. Now a unit test can pin which
+ * row wears which mark and which chord with no Electron at all, and the phase's
+ * one app run can report the live decode without planting an icon in the
+ * person's menu bar, which is what `installTray` deliberately refuses to let a
+ * harness do.
+ *
+ * It is pure: it reads its three arguments and nothing else, and its only
+ * outside contact is the two callbacks it stores.
+ */
+export function trayMenuTemplate(
+  sessions: readonly Session[],
+  projects: readonly Project[],
+  blocked: Map<string, number>
+): MenuItemConstructorOptions[] {
+  const rows = attentionRows(sessions, projects, blocked);
 
+  // NO MARK ON THE HEADER, which the charter asked for in those words: it is a
+  // disabled header and it stays a header.
+  //
+  // NO MARK ON A BLOCKED SESSION ROW EITHER, and that one is argued. The mark a
+  // session row wears in the app is its AGENT's, drawn from SVG art rather than
+  // a font glyph, so main holds no raster for it and the build time set is
+  // codicons only. One generic mark repeated down every row would say less than
+  // "name — project" already says.
   const attention: MenuItemConstructorOptions[] =
     rows.length === 0
       ? [{ label: 'Nothing needs you', enabled: false }]
@@ -76,12 +107,40 @@ function buildMenu(sessions: readonly Session[], projects: readonly Project[]): 
           )
         ];
 
-  return Menu.buildFromTemplate([
+  return [
     ...attention,
     { type: 'separator' },
-    { label: `Show ${app.name}`, click: () => deps?.showWindow() },
+    {
+      label: `Show ${app.name}`,
+      // A CHOSEN mark. It brings the app's one window forward, and Tortie
+      // draws no window glyph anywhere, so it cannot point at another surface.
+      // `multiple-windows` is in the set and says the opposite, being several
+      // separate tabs where one surface stood.
+      ...glyph('window'),
+      click: () => deps?.showWindow()
+    },
     {
       label: 'New Session',
+      // The + on the sessions header, the same mark the ⌘T row in the Session
+      // menu wears, for the same action.
+      ...glyph('add'),
+      // PHASE 156 PUT THE TWO CHORDS ON THIS MENU, and this is why it costs
+      // nothing. Both are read from the one keymap rather than typed, and
+      // BOTH ARE ALREADY REGISTERED BY THE APPLICATION MENU, so this phase
+      // adds no chord at all to the set the app answers. Nothing can be taken
+      // from a terminal pane that was not already taken.
+      //
+      // A tray menu is not the application menu, and macOS searches key
+      // equivalents in the application menu during event dispatch, which is
+      // the same fact menu-popup.ts:22 records for a popup menu's
+      // accelerators. Electron's own `registerAccelerator` option, the one
+      // way to say "display only", is documented linux and win32 only, so
+      // there is nothing to set here. The claim is measured by the phase's app
+      // run rather than assumed, and if a tray accelerator did register, the
+      // worst case is still equivalent behaviour: this row's click shows the
+      // window and then forwards the SAME 'new-session' action the menu bar
+      // forwards, and Quit below calls the SAME requestQuit().
+      accelerator: accel('session.new'),
       click: () => {
         // Same action the ⌘T menu item forwards — the window has to be up
         // first, because what it opens is a modal inside that window.
@@ -92,8 +151,23 @@ function buildMenu(sessions: readonly Session[], projects: readonly Project[]): 
     { type: 'separator' },
     // The same forwarded quit ⌘Q takes, so the one-time "sessions keep
     // running" toast still gets its chance (DESIGN.md §4).
-    { label: `Quit ${app.name}`, click: () => requestQuit() }
-  ]);
+    //
+    // NO MARK, the same argued refusal the application menu's Quit carries:
+    // it is the standard AppKit row every Mac app draws bare, and no Tortie
+    // surface draws a quit mark to take one from.
+    {
+      label: `Quit ${app.name}`,
+      accelerator: accel('app.quit'),
+      click: () => requestQuit()
+    }
+  ];
+}
+
+function buildMenu(
+  sessions: readonly Session[],
+  projects: readonly Project[]
+): Menu {
+  return Menu.buildFromTemplate(trayMenuTemplate(sessions, projects, since));
 }
 
 /** Rebuild the status menu from a fresh session list. */

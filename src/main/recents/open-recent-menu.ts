@@ -39,6 +39,10 @@ import { dirname } from 'node:path';
 import type { MenuItemConstructorOptions } from 'electron';
 import type { MenuActionWithFind } from '@shared/ipc';
 import { OPEN_RECENT_ON_PREFIX, OPEN_RECENT_PREFIX } from '@shared/ipc';
+// PHASE 156. The same marks the + menu gives a local folder and a folder on a
+// machine, decoded from the one build time set. A name with no bitmap yields no
+// `icon` key, so a row composes exactly as it did before.
+import { nativeMenuGlyph as glyph } from '../native-menu-icon';
 import { isLocalRecent, recentMachineOf } from './store';
 import { recentMachineLabel, visibleRecents } from './visible';
 
@@ -121,6 +125,11 @@ export function openRecentMenuItem(
     const label = local ? null : recentMachineLabel(recentMachineOf(row));
     return {
       label: row.name,
+      // A local row wears `folder-opened` and a row on another machine wears
+      // `vm`, which are exactly the two marks project-menu.ts:50 and :79 give
+      // Open Project… and Open Folder on a Machine…. Each of these rows opens
+      // one of those two things, and the row already knows which it is.
+      ...glyph(local ? 'folder-opened' : 'vm'),
       // Two projects can share a name, and the parent is what tells them apart.
       // A row on another machine says which machine as well, because two
       // machines can hold the same path under the same parent.
@@ -135,8 +144,16 @@ export function openRecentMenuItem(
   if (submenu.length > 0) submenu.push({ type: 'separator' });
   submenu.push({
     label: 'Clear Menu',
+    // The Search view's own clear button draws `clear-all`, and the terminal
+    // menu's Clear wears it at terminal-menu.ts:259.
+    ...glyph('clear-all'),
     enabled: rows.length > 0,
     click: () => handlers.clear()
   });
+  // NO MARK ON THIS PARENT, argued. A submenu parent on macOS already reads as
+  // a container and draws its own disclosure arrow, and `history`, the one
+  // candidate, is bound in this product to restoring a past session
+  // (session-actions.tsx:853). The leaves carry the marks instead, which is
+  // where the verbs are.
   return { label: 'Open Recent', submenu };
 }

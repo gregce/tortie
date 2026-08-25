@@ -10,9 +10,10 @@
  *     PAGE  keydown Cmd+d + preventDefault()  → the menu item NEVER fired
  *
  * So a page-side `preventDefault()` suppresses the application-menu
- * accelerator, and these handlers get the final say. (The comment in
- * src/main/menu.ts saying accelerators pre-empt the renderer is the opposite
- * of what this build does — worth correcting when that file is next touched.)
+ * accelerator, and these handlers get the final say. (This note used to end by
+ * asking for src/main/menu.ts to be corrected, because that file claimed
+ * accelerators pre-empt the renderer. It was corrected, and its header now
+ * carries the same measurement. Phase 156 removed the request.)
  *
  * What that buys us, in order of importance:
  *  - **⌘C keeps working as interrupt.** With a selection it copies; with no

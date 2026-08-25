@@ -68,6 +68,10 @@ import type { RemoteBranchProbeSpec } from '../scm/p106-branch-shot';
 import { driveRemoteHistory } from '../scm/p107-history-shot';
 import type { RemoteHistoryProbeSpec } from '../scm/p107-history-shot';
 // PHASE 120. The LOCAL Runs section's own hook, in the Phase 105 shape.
+// PHASE 156. The build time menu icon generator's hook. It reads back the
+// cache `warmMenuIcons()` fills, so the PNG set main ships is the output of
+// the ONE rasterizer this product has rather than a second copy of it.
+import { registerP156MenuIconsDrive } from '../icons/p156-menu-icons-drive';
 import { driveLocalRuns } from '../scm/p120-runs-shot';
 import type { LocalRunsProbeSpec } from '../scm/p120-runs-shot';
 
@@ -275,6 +279,9 @@ function armModuleLoadDrives(): void {
 
   // PHASE 95 harness hook, in the same shape and for the same reason.
   registerP95ScrollDrive();
+
+  // PHASE 156 hook, same shape again, read by build/generate-menu-icons.mjs.
+  registerP156MenuIconsDrive();
 }
 
 /**

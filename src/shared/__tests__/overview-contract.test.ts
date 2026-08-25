@@ -244,12 +244,19 @@ describe('the overview channels close', () => {
     expect(count(mainSource, registration('overview:timelineTurns'))).toBe(1);
   });
 
-  it('gives the View menu one Catch Me Up row wearing the keymap chord', () => {
+  it('gives the View menu one Catch Me Up row wearing the keymap chord and the comment mark', () => {
     const menu = stripComments(
       readFileSync(join(SRC, 'main', 'menu.ts'), 'utf8')
     );
+    // PHASE 156 added the fourth argument, being the row's mark. It is pinned
+    // here rather than allowed for: `comment` is what SettingsApp.tsx:106
+    // draws on the Catch Me Up section's own rail and what
+    // session-actions.tsx:508 draws on the row menu's Catch me up…, so all
+    // three surfaces for this one feature wear one picture.
     const rows = [
-      ...menu.matchAll(/item\('Catch Me Up', 'show-overview', accel\('view\.overview'\)\)/g)
+      ...menu.matchAll(
+        /item\('Catch Me Up', 'show-overview', accel\('view\.overview'\), 'comment'\)/g
+      )
     ];
     expect(rows).toHaveLength(1);
   });

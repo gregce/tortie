@@ -48,6 +48,14 @@ interface FakeItem {
   role?: string;
   type?: string;
   accelerator?: string;
+  /**
+   * PHASE 156. The real menu.ts spreads a NativeImage in here for a row that
+   * has a mark, and no key at all for a row that does not, which is what lets
+   * a test say "this row is bare" and mean it. The fake electron below answers
+   * a distinguishable object per name, so a test can pin WHICH mark a row
+   * wears without an Electron and without decoding a PNG.
+   */
+  icon?: unknown;
   acceleratorWorksWhenHidden?: boolean;
   visible?: boolean;
   checked?: boolean;
@@ -122,6 +130,21 @@ vi.mock('../settings/window', () => ({
 }));
 
 vi.mock('../settings/store', () => ({ getSettings: () => ({ hotkeys: {} }) }));
+
+/**
+ * PHASE 156. The mark decoder, faked so this suite stays free of Electron.
+ *
+ * It answers `{ icon: { name } }` for every name, which is the same SHAPE the
+ * real `nativeMenuGlyph` answers, so a row's template entry carries an icon key
+ * exactly when the real one would. What it does not do is decode a PNG, and it
+ * does not need to: build/assert-menu-glyphs.mjs is what proves the bitmaps are
+ * real, present and distinct, and this suite's job is which row wears which
+ * name.
+ */
+vi.mock('../native-menu-icon', () => ({
+  nativeMenuGlyph: (name: string) => ({ icon: { name } }),
+  menuIcon: () => null
+}));
 
 vi.mock('../manifest/reconstruct-operator', () => ({
   runOperatorReconstruction: () => Promise.resolve()
@@ -306,5 +329,144 @@ describe('the full screen row, measured on the packaged build in Phase 62.1', ()
     const hidden = fullscreenItems()[0];
     expect(hidden?.click).toBeDefined();
     expect(() => hidden?.click?.()).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 156: the marks, and the argued refusals
+//
+// This is the cheap half of the phase's proof. It runs the REAL menu.ts against
+// the template-capturing fake above, so every claim below is read off the
+// template the product composes rather than off a photograph, which is what the
+// charter forbids anyway: Phases 119, 152 and 153 all measured that a native
+// macOS menu cannot be read or photographed from outside the app.
+//
+// A bare row is pinned as hard as a marked one. Every refusal in this phase was
+// argued at the row in menu.ts, and a later round that quietly adds a mark to
+// one of them should turn this suite red rather than ship.
+// ---------------------------------------------------------------------------
+
+/** The named submenu of the CURRENT application menu. */
+function submenuOf(label: string): FakeItem[] {
+  const top = state.applicationMenu?.template.find((it) => it.label === label);
+  if (!Array.isArray(top?.submenu)) throw new Error(`no ${label} submenu`);
+  return top.submenu;
+}
+
+/** The mark one row wears, or null when it is bare. */
+function markOf(items: FakeItem[], label: string): string | null {
+  const row = items.find((it) => it.label === label);
+  if (row === undefined) throw new Error(`no row labelled ${label}`);
+  const icon = row.icon as { name?: string } | undefined;
+  return icon?.name ?? null;
+}
+
+describe('Phase 156: every menu bar row wears the mark its own surface draws', () => {
+  beforeEach(() => {
+    setPlatform('darwin');
+    installAppMenu();
+  });
+
+  it('marks the four activity bar views with the activity bar’s own glyphs', () => {
+    const view = submenuOf('View');
+    expect(markOf(view, 'Explorer')).toBe('files');
+    expect(markOf(view, 'Search')).toBe('search');
+    expect(markOf(view, 'Context')).toBe('layers');
+    // `git-branch` and not `source-control`: the shipped font draws the two as
+    // one identical outline, so this row wears the pixels the activity bar
+    // draws for it under the name already in the closed set.
+    expect(markOf(view, 'Source Control')).toBe('git-branch');
+  });
+
+  it('marks the rest of the View menu', () => {
+    const view = submenuOf('View');
+    expect(markOf(view, 'Catch Me Up')).toBe('comment');
+    expect(markOf(view, 'Fill the Window')).toBe('screen-full');
+    expect(markOf(view, 'Toggle Editor')).toBe('code');
+    expect(markOf(view, 'Sessions That Need Input')).toBe('bell');
+  });
+
+  it('leaves Toggle Sidebar and Focus the Session or File bare, as argued', () => {
+    const view = submenuOf('View');
+    // layout-sidebar-left already means "move the project tabs to the left".
+    expect(markOf(view, 'Toggle Sidebar')).toBeNull();
+    // Its only candidate is the mark the row above it owns by provenance.
+    expect(markOf(view, 'Focus the Session or File')).toBeNull();
+  });
+
+  it('leaves every position radio bare, so none of them shares a picture', () => {
+    const radios = submenuOf('View').filter((it) => it.type === 'radio');
+    expect(radios).toHaveLength(4);
+    for (const radio of radios) expect(radio.icon).toBeUndefined();
+  });
+
+  it('marks the File menu with the + menu’s own glyphs', () => {
+    const file = submenuOf('File');
+    expect(markOf(file, 'New Project…')).toBe('new-folder');
+    expect(markOf(file, 'Open Project…')).toBe('folder-opened');
+    expect(markOf(file, 'Open Folder on a Machine…')).toBe('vm');
+    expect(markOf(file, 'Clone Repository…')).toBe('repo-clone');
+    expect(markOf(file, 'Save')).toBe('save');
+    expect(markOf(file, 'Close Editor Tab')).toBe('close');
+    // A submenu parent is a container, so the leaves carry the marks.
+    expect(markOf(file, 'Open Recent')).toBeNull();
+  });
+
+  it('marks the Session menu, including the two direction arrows', () => {
+    const session = submenuOf('Session');
+    expect(markOf(session, 'New Session…')).toBe('add');
+    expect(markOf(session, 'Rename Session')).toBe('edit');
+    expect(markOf(session, 'Next Session')).toBe('arrow-down');
+    expect(markOf(session, 'Previous Session')).toBe('arrow-up');
+    expect(markOf(session, 'End Session…')).toBe('close');
+    expect(markOf(session, 'Resume Conversation')).toBe('terminal');
+    expect(markOf(session, 'Past Sessions…')).toBe('history');
+  });
+
+  it('marks the Find menu', () => {
+    const find = submenuOf('Find');
+    expect(markOf(find, 'Go to File…')).toBe('go-to-file');
+    expect(markOf(find, 'Find in Project…')).toBe('search');
+    expect(markOf(find, 'Go to Symbol…')).toBe('symbol-method');
+  });
+
+  it('leaves both project direction rows bare, because no arrow is true in both positions', () => {
+    const project = submenuOf('Project');
+    expect(markOf(project, 'Next Project')).toBeNull();
+    expect(markOf(project, 'Previous Project')).toBeNull();
+    expect(markOf(project, 'Close Project…')).toBe('close');
+  });
+
+  it('marks the app menu and leaves Quit and Rebuild bare, as argued', () => {
+    const tortie = submenuOf('Tortie');
+    expect(markOf(tortie, 'Settings…')).toBe('settings-gear');
+    expect(markOf(tortie, 'Open Configuration Folder')).toBe('link-external');
+    expect(markOf(tortie, 'Check for Updates…')).toBe('refresh');
+    // `refresh` is already two rows above it in this same submenu.
+    expect(markOf(tortie, 'Rebuild the Session List…')).toBeNull();
+    // The standard AppKit row every Mac app draws bare.
+    expect(markOf(tortie, 'Quit Tortie')).toBeNull();
+  });
+
+  it('leaves every Edit role bare, because they are AppKit’s rows', () => {
+    for (const row of submenuOf('Edit')) {
+      expect(row.icon).toBeUndefined();
+    }
+  });
+
+  it('puts no mark on any top level title, which is the phase’s stated answer', () => {
+    const top = state.applicationMenu?.template ?? [];
+    expect(top.length).toBeGreaterThan(0);
+    for (const title of top) expect(title.icon).toBeUndefined();
+  });
+
+  it('marks the Help menu’s one row', () => {
+    // The Help top level entry carries `role: 'help'` and no label of its own,
+    // so it is found by role rather than by name.
+    const help = state.applicationMenu?.template.find(
+      (it) => it.role === 'help'
+    );
+    if (!Array.isArray(help?.submenu)) throw new Error('no Help submenu');
+    expect(markOf(help.submenu, 'Keyboard Shortcuts')).toBe('keyboard');
   });
 });
