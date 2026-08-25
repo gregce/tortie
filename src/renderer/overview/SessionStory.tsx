@@ -1,9 +1,11 @@
 /**
  * The story of what a model wrote about one session (Phase 143).
  *
- * This stands in for the conversation inside the one session view, and the
- * session's own header stays where it was, so the name of what you are
- * reading never leaves the screen.
+ * Phase 147 moved the mount. The panel opens in place under a session's row
+ * on the PROJECT view, beside the one line the model writes, because that
+ * view is the only one a model writes on and the story is the history of
+ * that line. The row above stays on screen, so the name of what you are
+ * reading never leaves it.
  *
  * The panel always opens with a line saying what a person is reading, because
  * these sentences are a model's account and the turns are the real record. It
@@ -130,8 +132,8 @@ function rowAt(
  * that must never take a key out of a control that answers it itself. A text
  * field answers every key, so nothing is taken while one has focus. A button
  * or a link answers Return, so Return is left to it, which is why pressing
- * Return on the header's own press target closes the panel rather than opening
- * a row. The arrows do nothing on a button, so the walk still works after a
+ * Return on the row's own press target closes the panel rather than opening
+ * a story row. The arrows do nothing on a button, so the walk still works after a
  * person opens the panel by pressing it.
  *
  * A row is in that list too, because a row can be pressed and it answers

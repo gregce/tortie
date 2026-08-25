@@ -94,9 +94,9 @@ export function OverviewLayer(): React.JSX.Element | null {
     return out;
   }, [sessions]);
 
-  // Phase 143. The story panel stands in for the conversation at the session
-  // level, so while it is open the footer must say the story's keys rather
-  // than the conversation's. Nothing else on this layer reads that store.
+  // Phase 143, moved in Phase 147. The story panel opens under a project
+  // row, and while it is open the footer must say the story's keys rather
+  // than the level's own. Nothing else on this layer reads that store.
   const story = useSyncExternalStore(
     subscribeStory,
     storySnapshot,
@@ -149,13 +149,12 @@ export function OverviewLayer(): React.JSX.Element | null {
   };
 
   const one = overview.level === 'session' ? sessionOf(overview) : null;
-  const footer =
-    overview.level === 'project'
+  const footer = story.open
+    ? FOOTER_STORY
+    : overview.level === 'project'
       ? FOOTER_PROJECT
       : overview.level === 'session'
-        ? story.open
-          ? FOOTER_STORY
-          : FOOTER_SESSION
+        ? FOOTER_SESSION
         : FOOTER_COLUMNS;
 
   return (

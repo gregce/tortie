@@ -1,5 +1,6 @@
 /**
- * The story panel's own state (Phase 143).
+ * The story panel's own state (Phase 143, opened from the project rows since
+ * Phase 147).
  *
  * The Catch Me Up slice in ../state/overview-slice.ts is NOT touched. This is
  * a module scope external store of its own, read with useSyncExternalStore the
@@ -72,7 +73,7 @@ function publish(next: StoryState): void {
   for (const listener of listeners) listener();
 }
 
-/** For useSyncExternalStore in SessionConversation.tsx. */
+/** For useSyncExternalStore in ProjectLines.tsx and OverviewLayer.tsx. */
 export function subscribeStory(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
@@ -132,9 +133,12 @@ export function storyTurnsClipped(
 }
 
 /**
- * The conversation view says which session it is drawing on every mount. A
+ * A surface that draws exactly one session says which one on every mount. A
  * different session closes the panel and drops everything, because a story
- * belongs to exactly one session.
+ * belongs to exactly one session. Since Phase 147 the project rows open the
+ * panel through toggleStory, which carries the same guarantee on its own,
+ * and this seam stays for any one session mount and for the tests that
+ * drive it.
  */
 export function noteStorySession(sessionId: string): void {
   if (state.sessionId === sessionId) return;
@@ -142,7 +146,9 @@ export function noteStorySession(sessionId: string): void {
   publish({ ...CLOSED, sessionId });
 }
 
-/** The header's press target. Opening reads the story again. */
+/** The row's press target. Opening reads the story again, and opening a
+ * different session's story closes the one that was open, so one panel is
+ * open at a time. */
 export function toggleStory(sessionId: string): void {
   if (state.open && state.sessionId === sessionId) {
     closeStory();
@@ -159,7 +165,7 @@ export function toggleStory(sessionId: string): void {
   void readStory(sessionId, mine);
 }
 
-/** The way back to the conversation. The selection behind it is untouched. */
+/** The way back to the rows. The selection behind it is untouched. */
 export function closeStory(): void {
   token += 1;
   publish({ ...CLOSED, sessionId: state.sessionId });

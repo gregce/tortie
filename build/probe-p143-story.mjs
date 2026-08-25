@@ -5,9 +5,12 @@
  *
  * ## What it proves, in ONE launch
  *
- * The story panel opens from the one session view's own header and draws the
- * chain of sentences the fold wrote for that session. In a single Electron it
- * drives six states and reads every one of them:
+ * The story panel opens from the session's own row on the PROJECT view
+ * (Phase 147) and draws the chain of sentences the fold wrote for that
+ * session. The one session view is opened first for every state and must
+ * offer no story control at all, read off the rendered tree, because Phase
+ * 147 moved the surface to where the model written line lives. In a single
+ * Electron it drives six states and reads every one of them:
  *
  *   three         a chain of three, one harness and one model throughout. It
  *                 draws three rows, names no model on any row, says nothing
@@ -428,13 +431,13 @@ chmodSync(stubPath, 0o755);
 // ---------------------------------------------------------------------------
 
 /**
- * The selectors the panel is looked up by. The names follow the plan's own
- * word for the surface, and each one falls back to a data attribute and then
- * to the only button the session header carries, so a rename that keeps the
- * shape still reads.
+ * The selectors the panel is looked up by. The names follow the shipped
+ * classes, and each one falls back to a data attribute and then to the only
+ * button a project row carries, so a rename that keeps the shape still
+ * reads. The open selector is only ever asked INSIDE the named row.
  */
 const SEL = {
-  open: '.overview-story-open, [data-story-open], .overview-session-sub button, .overview-session-head button',
+  open: '.overview-story-toggle, [data-story-open], button',
   panel: '.overview-story, [data-story]',
   row: '.overview-story-row, [data-story-row]',
   model: '.overview-story-model, [data-story-model]'
@@ -462,6 +465,7 @@ function copyString(name) {
 
 const STORY_GAP = copyString('STORY_GAP');
 const STORY_NO_MODEL = copyString('STORY_NO_MODEL');
+const STORY_WORD = copyString('STORY_WORD');
 
 function readerJs(spec) {
   return `(async () => {
@@ -503,11 +507,11 @@ function readerJs(spec) {
     return layer() === null;
   }
 
-  async function openSession(name) {
+  async function openLevel(level, name) {
     await closePage();
     await window.__gmuxShotDrive({
       projectPath: SPEC.projectPath,
-      overview: { level: 'session', sessionNames: [name] }
+      overview: { level, sessionNames: [name] }
     });
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
@@ -519,18 +523,28 @@ function readerJs(spec) {
     return layer() !== null;
   }
 
+  const openSession = (name) => openLevel('session', name);
+  const openProject = (name) => openLevel('project', name);
+
   function pressTarget(el) {
     if (el === null) return null;
     if (el.tagName === 'BUTTON') return el;
     return el.querySelector('button') || el;
   }
 
-  async function openStory() {
+  /**
+   * Phase 147. The control lives on the session's own PROJECT row, so the
+   * row is found by the name on it and the press lands on that row's own
+   * button, never on another session's.
+   */
+  async function openStory(name) {
     const l = layer();
     if (l === null) return { opened: false, why: 'the page is not open' };
-    const btn = l.querySelector(SEL.open);
+    const btn = l.querySelector(
+      SEL.open.split(',')[0].trim() + '[data-session-name="' + name + '"]'
+    );
     if (btn === null) {
-      return { opened: false, why: 'no press target matched ' + SEL.open };
+      return { opened: false, why: 'no story control on the row named ' + name };
     }
     const label = (btn.textContent || '').trim();
     pressTarget(btn).click();
@@ -541,6 +555,30 @@ function readerJs(spec) {
     }
     await wait(500);
     return { opened: layer().querySelector(SEL.panel) !== null, why: null, label };
+  }
+
+  /**
+   * Phase 147 refinement. Every project row's story control, read by
+   * bounding box against its own row, while no panel is open. One shared x
+   * position on every row and the one word on it are what the charter
+   * requires, so the numbers are read here and judged outside.
+   */
+  function readToggles() {
+    const l = layer();
+    if (l === null) return null;
+    return Array.from(l.querySelectorAll('.overview-line')).map((row) => {
+      const btn = row.querySelector(SEL.open.split(',')[0].trim());
+      const rr = row.getBoundingClientRect();
+      if (btn === null) return { present: false, rowRight: Math.round(rr.right) };
+      const br = btn.getBoundingClientRect();
+      return {
+        present: true,
+        label: (btn.textContent || '').trim(),
+        left: Math.round(br.left),
+        right: Math.round(br.right),
+        rowRight: Math.round(rr.right)
+      };
+    });
   }
 
   function readRows() {
@@ -610,9 +648,9 @@ function readerJs(spec) {
    * and the row's own listener both see it, exactly as they do for a person.
    */
   async function keyDrive(name) {
-    const ok = await openSession(name);
+    const ok = await openProject(name);
     if (!ok) return { error: 'the page did not open for ' + name };
-    const open = await openStory();
+    const open = await openStory(name);
     if (!open.opened) return { error: 'the story did not open: ' + String(open.why) };
     const rows = () => Array.from(layer().querySelectorAll(SEL.row));
     const at = (el) => rows().findIndex((r) => r === el);
@@ -698,15 +736,33 @@ function readerJs(spec) {
   }
 
   async function readState(name, opts) {
-    const ok = await openSession(name);
-    if (!ok) return { error: 'the page did not open for ' + name };
+    // The one session view first, for two readings the project level cannot
+    // give. The turns the verbatim record draws, which the pressed rows are
+    // checked against, and the Phase 147 proof that this view no longer
+    // offers the story control at all, read off the rendered tree rather
+    // than by eye.
+    const okSession = await openSession(name);
+    if (!okSession) return { error: 'the session view did not open for ' + name };
     const conversation = Array.from(layer().querySelectorAll('.overview-turn')).map(
       (el) => Number(el.getAttribute('data-turn'))
     );
-    const open = await openStory();
+    const sessionOffersControl =
+      layer().querySelector('.overview-story-toggle') !== null;
+    // Then the project view, where the control lives now.
+    const ok = await openProject(name);
+    if (!ok) return { error: 'the page did not open for ' + name, conversation };
+    const toggles = readToggles();
+    const open = await openStory(name);
     if (!open.opened) return { error: 'the story did not open: ' + String(open.why), conversation };
     const body = readRows();
-    const out = { conversation, openLabel: open.label, ...body, ...frameRead() };
+    const out = {
+      conversation,
+      sessionOffersControl,
+      toggles,
+      openLabel: open.label,
+      ...body,
+      ...frameRead()
+    };
     if (opts && Array.isArray(opts.press)) {
       out.presses = [];
       for (const i of opts.press) out.presses.push(await pressRow(i));
@@ -764,7 +820,7 @@ async function main() {
   rmSync(png, { force: true });
   const drive = {
     projectPath: project,
-    overview: { level: 'session', sessionNames: ['claude-6'] }
+    overview: { level: 'project', sessionNames: ['claude-6'] }
   };
   say('launching once');
   // build/electron-run.mjs owns the launch and ends the whole tree it started
@@ -852,6 +908,15 @@ async function main() {
       failures.push(`${label}: ${String(state?.error ?? 'no reading')}`);
       continue;
     }
+    // Phase 147. The story left the one session view. Every state opens that
+    // view first and reads the rendered tree, so an offered control there is
+    // a regression rather than a suspicion.
+    if (state.sessionOffersControl === true) {
+      failures.push(
+        `${label}: the one session view still offers the story control, and ` +
+          `Phase 147 moved it to the project rows`
+      );
+    }
     if (state.fits !== true) {
       failures.push(
         `${label}: the page does not fit the window. Layer ` +
@@ -864,6 +929,41 @@ async function main() {
         `${label}: ${String(loose.length)} digit runs sit outside a clock, a date, ` +
           `an elapsed time or quoted text: ${loose.slice(0, 10).join(', ')}`
       );
+    }
+    // Phase 147 refinement, judged by bounding box rather than by eye. The
+    // control is the one word on every row, and it holds one shared x
+    // position at the far right of every row whatever the line's length.
+    const toggles = state.toggles ?? [];
+    if (toggles.length < 2) {
+      failures.push(
+        `${label}: the project view drew ${String(toggles.length)} rows, and the ` +
+          `shared column claim needs at least two`
+      );
+    } else if (toggles.some((t) => t.present !== true)) {
+      failures.push(`${label}: a project row carries no story control at all`);
+    } else {
+      const words = [...new Set(toggles.map((t) => t.label))];
+      if (words.length !== 1 || words[0] !== STORY_WORD) {
+        failures.push(
+          `${label}: the control must read "${STORY_WORD}" on every row, and the ` +
+            `labels read ${JSON.stringify(words)}`
+        );
+      }
+      const lefts = [...new Set(toggles.map((t) => t.left))];
+      const rights = [...new Set(toggles.map((t) => t.right))];
+      if (lefts.length !== 1 || rights.length !== 1) {
+        failures.push(
+          `${label}: the control must hold one shared x position on every row. ` +
+            `Left edges ${JSON.stringify(lefts)}, right edges ${JSON.stringify(rights)}`
+        );
+      }
+      const gaps = toggles.map((t) => t.rowRight - t.right);
+      if (gaps.some((g) => g < 0 || g > 40)) {
+        failures.push(
+          `${label}: the control must sit at the far right of its row, and the ` +
+            `gaps to the row edge read ${JSON.stringify(gaps)}`
+        );
+      }
     }
   }
 

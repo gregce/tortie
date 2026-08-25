@@ -294,13 +294,13 @@ describe('the sentences this phase added', () => {
 describe('the footer while the panel stands in', () => {
   const layer = readFileSync(join(DIR, 'OverviewLayer.tsx'), 'utf8');
 
-  it('says the story keys rather than the conversation keys', () => {
+  it('says the story keys rather than the level keys', () => {
     expect(layer, 'the layer never reads the story store').toContain(
       'storySnapshot'
     );
     expect(layer).toContain('FOOTER_STORY');
     expect(layer.replace(/\s+/g, ' ')).toContain(
-      'story.open ? FOOTER_STORY : FOOTER_SESSION'
+      'story.open ? FOOTER_STORY :'
     );
   });
 
@@ -312,6 +312,71 @@ describe('the footer while the panel stands in', () => {
     for (const word of ['pane', 'prefix', 'tmux', 'window']) {
       expect(copy.FOOTER_STORY.toLowerCase()).not.toContain(word);
     }
+  });
+});
+
+describe('the mount (Phase 147)', () => {
+  const lines = readFileSync(join(DIR, 'ProjectLines.tsx'), 'utf8');
+  const conversation = readFileSync(
+    join(DIR, 'SessionConversation.tsx'),
+    'utf8'
+  );
+
+  it('the project rows mount the panel and press the store through the one toggle', () => {
+    expect(lines).toContain('SessionStory');
+    expect(lines).toContain('toggleStory(session.sessionId)');
+    expect(lines).toContain('overview-story-toggle');
+  });
+
+  it('every row gets the control, not only a written one', () => {
+    // The toggle must not sit inside the summaryWrittenAt branch: the button
+    // is rendered after that conditional block closes.
+    const written = lines.indexOf('session.summaryWrittenAt !== null');
+    const toggle = lines.indexOf('overview-story-toggle');
+    expect(written).toBeGreaterThan(-1);
+    expect(toggle).toBeGreaterThan(written);
+    const between = lines.slice(written, toggle);
+    expect(between, 'the toggle sits inside the written branch').toContain(
+      ': null}'
+    );
+  });
+
+  it('what announces the panel reads the same condition that draws it', () => {
+    // One storyOpen per row decides the aria answer and the mount, so no
+    // surface can announce what is not on screen. The label itself never
+    // changes: his refinement of 2026-08-24 makes the control the one word,
+    // and aria-expanded alone carries the open state.
+    expect(lines).toContain('aria-expanded={storyOpen}');
+    expect(lines.replace(/\s+/g, ' ')).toContain('{STORY_WORD}');
+    expect(lines.replace(/\s+/g, ' ')).toContain('{storyOpen ? ( <div className="overview-line-story">');
+  });
+
+  it('the control is the one word, lowercase, and sits as its own far right cell', () => {
+    // His refinement of 2026-08-24: the word is "story", and the button is a
+    // cell of the row itself rather than inline with the sentence, so it
+    // holds one shared x position on every row.
+    expect(copy.STORY_WORD).toBe('story');
+    expect(lines).not.toContain('what has been written');
+    const right = lines.indexOf('className="overview-line-right"');
+    const rightClose = lines.indexOf('</div>', right);
+    const toggle = lines.indexOf('overview-story-toggle');
+    expect(right).toBeGreaterThan(-1);
+    expect(toggle, 'the toggle sits inline inside the sentence cell').toBeGreaterThan(rightClose);
+    expect(css).toContain('margin-left: auto');
+  });
+
+  it('the conversation view no longer offers the story at all', () => {
+    expect(conversation).not.toContain('SessionStory');
+    expect(conversation).not.toContain('overview-story-toggle');
+    expect(conversation).not.toContain('toggleStory');
+    expect(conversation).not.toContain('STORY_WORD');
+  });
+
+  it('a press on the toggle never also opens the session under it', () => {
+    const toggle = lines.slice(lines.indexOf('overview-story-toggle'));
+    const button = toggle.slice(0, toggle.indexOf('</button>'));
+    expect(button).toContain('e.stopPropagation()');
+    expect(button, 'the keydown reaches the layer').toContain('onKeyDown=');
   });
 });
 

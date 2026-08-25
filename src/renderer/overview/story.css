@@ -1,15 +1,29 @@
 /* ---------------------------------------------------------------------------
-   The story of what a model wrote about one session (Phase 143)
+   The story of what a model wrote about one session (Phase 143, moved onto
+   the project rows in Phase 147)
 
-   The panel takes the whole body of the one session view, so the header above
-   it keeps naming the session while the conversation is out of the way. It
-   scrolls on its own, because a long chain is a long list and there is no
-   count anywhere to shorten it.
+   The panel opens in place under its session's row on the project view, so
+   the row above it keeps naming the session and the model written line the
+   story belongs to. It scrolls on its own, because a long chain is a long
+   list and there is no count anywhere to shorten it.
 
    Every colour is a token from ../styles/tokens.css. This file declares no
    keyframes and no transition, so the page keeps riding the one flight the
    layer already owns.
 --------------------------------------------------------------------------- */
+
+/* The in place mount under one row. The cap is what keeps a long chain from
+   pushing the other rows out of the window, and the panel inside keeps its
+   own scroll. A press in here belongs to the panel, never to the row above. */
+.overview-line-story {
+  display: flex;
+  min-height: 0;
+  max-height: 55vh;
+  margin: 2px 24px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  cursor: default;
+}
 
 .overview-story {
   flex: 1;
@@ -103,11 +117,13 @@
 }
 
 /* ---------------------------------------------------------------------------
-   The press target in the session header
+   The press target on each project row
 
-   A plain word on the sub line, quiet enough to sit beside the state and the
-   age without becoming a button in the visual sense. It is a real button in
-   the tree, so the keyboard reaches it.
+   One quiet word at the FAR RIGHT of every row, its own flex cell after the
+   sentence rather than inline with it, so it sits at the same horizontal
+   position on every row whatever the line's length and the eye finds it in
+   one place (his refinement of 2026-08-24). It is a real button in the tree,
+   so the keyboard reaches it.
 --------------------------------------------------------------------------- */
 
 .overview-story-toggle {
@@ -119,6 +135,12 @@
   font: inherit;
   color: var(--accent-text);
   cursor: pointer;
+  /* The row is the flex container. The sentence cell before this one takes
+     the slack, so this cell lands on the row's right padding edge, the same
+     x on every row. It holds the row's first line rather than stretching. */
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: flex-start;
 }
 
 .overview-story-toggle:hover {

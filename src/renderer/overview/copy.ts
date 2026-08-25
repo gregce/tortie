@@ -115,22 +115,27 @@ export const FOOTER_SESSION =
 export const FOOTER_COLUMNS = 'esc back';
 
 /**
- * Phase 143. While the story stands in for the conversation the footer says
- * the story's own keys, because the keys behind the panel are not the ones a
- * press reaches.
+ * Phase 143. While a story is open the footer says the story's own keys,
+ * because the keys behind the panel are not the ones a press reaches. Since
+ * Phase 147 the panel opens under a project row rather than inside the one
+ * session view, and the sentence holds either way.
  */
 export const FOOTER_STORY =
   '↑↓ move   ⏎ open the conversation behind this sentence   esc back';
 
 // ---------------------------------------------------------------------------
-// The story of what a model wrote about one session (Phase 143)
+// The story of what a model wrote about one session (Phase 143, moved onto
+// the project rows in Phase 147, because the project view is the only view a
+// model writes on and the story is the history of that one line)
 // ---------------------------------------------------------------------------
 
-/** The press target in the session header, while the conversation is showing. */
-export const STORY_OPEN = 'what has been written';
-
-/** The same press target, while the story is showing. */
-export const STORY_CLOSE = 'back to the conversation';
+/**
+ * The press target on each project row, one word at the far right of every
+ * row (his refinement of 2026-08-24). The word never changes with the panel:
+ * aria-expanded carries the open state, read from the same condition that
+ * mounts the panel, so no surface announces what is not on screen.
+ */
+export const STORY_WORD = 'story';
 
 /**
  * The first line of the panel. Always drawn, above everything else, because a

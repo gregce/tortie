@@ -12,9 +12,9 @@
  *
  * Phase 143 added two more drives, being the story panel and a press on one
  * of its rows. Both go through the SHIPPED control rather than through the
- * store: the panel opens by clicking the real button in the session header,
- * and a row opens by clicking the real row. A drive that staged the store
- * would photograph a state no person can reach.
+ * store: since Phase 147 the panel opens by clicking the real button on the
+ * session's own PROJECT row, and a row opens by clicking the real row. A
+ * drive that staged the store would photograph a state no person can reach.
  *
  * Findings go to `console.log`, which GMUX_SHOT_VERBOSE=1 tees into the
  * harness output, and the page itself is what GMUX_SHOT_JS reads back.
@@ -34,9 +34,11 @@ export interface OverviewProbeSpec {
   /** When true the drive prepares focus and presses nothing. GMUX_SHOT_JS presses. */
   pressOnly?: boolean;
   /**
-   * Press the story control in the session header once the page is open, and
-   * wait for the read to answer (Phase 143). Session level only, because that
-   * is the only view the control lives in.
+   * Press the story control on one session's row once the page is open, and
+   * wait for the read to answer (Phase 143, moved in Phase 147). Project
+   * level only, because that is the only view the control lives in. The row
+   * is the one named by the first entry of sessionNames, and the first
+   * control on the page when no name is given.
    */
   openStory?: boolean;
   /**
@@ -103,12 +105,18 @@ async function settleStoryTurns(timeoutMs: number): Promise<boolean> {
 }
 
 /**
- * Drive the story the way a person does. The control is a real button in the
- * session header and the rows are real press targets, so a click is the whole
- * of it and nothing is staged.
+ * Drive the story the way a person does. The control is a real button on the
+ * session's own project row and the rows are real press targets, so a click
+ * is the whole of it and nothing is staged.
  */
 async function driveStory(spec: OverviewProbeSpec): Promise<void> {
-  const button = document.querySelector('.overview-story-toggle');
+  const name = spec.sessionNames?.[0];
+  const button =
+    name === undefined
+      ? document.querySelector('.overview-story-toggle')
+      : document.querySelector(
+          `.overview-story-toggle[data-session-name="${CSS.escape(name)}"]`
+        );
   if (!(button instanceof HTMLElement)) {
     log('the story control is not on the page');
     return;

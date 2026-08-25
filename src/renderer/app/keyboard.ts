@@ -164,9 +164,9 @@ export function useKeyboardMap(): void {
           // that call because it is capture phase on window and runs before
           // any handler on the page.
           //
-          // Phase 143. The story panel is asked before the rail, because it
-          // stands in for the whole body of the one session view. While it is
-          // open Escape puts the conversation back and does nothing else.
+          // Phase 143, moved in Phase 147. The story panel is asked before
+          // the rail. It opens under a session's row on the project view,
+          // and while it is open Escape closes it and does nothing else.
           e.preventDefault();
           e.stopPropagation();
           if (storyTookEscape()) return;

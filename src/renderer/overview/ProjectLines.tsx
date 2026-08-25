@@ -20,9 +20,16 @@
  * the only way to find out. A line a model wrote now says when the model
  * wrote it. A line Tortie built says nothing, because a built line is the
  * default and silence is right for a default.
+ *
+ * Phase 147 put the story here, because the story is the version history of
+ * the very sentence this view draws, and this view is the only one a model
+ * writes on. Every row carries the press target, since a session whose line
+ * was never written still answers with one honest line rather than nothing,
+ * and pressing it opens the panel in place under that row. One panel is open
+ * at a time, which is the store's own rule.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { OverviewProject } from '@shared/overview';
 import type { SessionStatus } from '@shared/types';
 import { statusVisual } from '../app/status';
@@ -30,7 +37,20 @@ import { formatAge } from '../format';
 import { AgentIcon } from '../icons';
 import { formatTurnClock } from './clock';
 import { honestLineHasClock, projectLineFor } from './line';
-import { EMPTY_PROJECT, WRITTEN_LEAD, YOU_ASKED_LEAD } from './copy';
+import {
+  EMPTY_PROJECT,
+  STORY_WORD,
+  WRITTEN_LEAD,
+  YOU_ASKED_LEAD
+} from './copy';
+import { SessionStory } from './SessionStory';
+import {
+  closeStory,
+  storySnapshot,
+  subscribeStory,
+  toggleStory
+} from './story';
+import './story.css';
 
 export interface ProjectLinesProps {
   project: OverviewProject;
@@ -44,6 +64,32 @@ export interface ProjectLinesProps {
 export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
   const { project, statuses, selected, onSelect, onActivate, now } = props;
   const listRef = useRef<HTMLDivElement | null>(null);
+
+  // Phase 147. The story's own store, module scope and separate from the
+  // page's slice. It is read here because this is now the view the panel
+  // opens from, and the layer reads the same one for the footer.
+  const story = useSyncExternalStore(
+    subscribeStory,
+    storySnapshot,
+    storySnapshot
+  );
+
+  // Leaving the view closes the panel, so reopening the page always lands on
+  // the rows rather than on a list read some time ago. And a panel must never
+  // outlive its session: when the open session leaves the payload, the panel
+  // goes with it.
+  useEffect(() => {
+    return () => {
+      closeStory();
+    };
+  }, []);
+  useEffect(() => {
+    if (!story.open || story.sessionId === null) return;
+    const there = project.sessions.some(
+      (s) => s.sessionId === story.sessionId
+    );
+    if (!there) closeStory();
+  }, [story.open, story.sessionId, project.sessions]);
 
   // The arrows move the selection, so the selection stays on screen.
   useEffect(() => {
@@ -64,82 +110,123 @@ export function ProjectLines(props: ProjectLinesProps): React.JSX.Element {
         // session, and Phase 137's built line when a model did not. Nothing
         // else on this view changes, and no other view reads the field.
         const line = projectLineFor(session, status, now);
+        // Phase 147. Whether THIS row's story is open under it. The control
+        // and everything that announces it read this one condition, so no
+        // surface can say the panel is open when it is not.
+        const storyOpen = story.open && story.sessionId === session.sessionId;
         return (
-          <div
-            key={session.sessionId}
-            className={`overview-line${i === selected ? ' selected' : ''}`}
-            onClick={() => {
-              onSelect(i);
-              onActivate(session.sessionId);
-            }}
-          >
-            <div className="overview-line-left">
-              {/* Phase 137.2. The agent's mark beside the name, through the
-                  same component the session rail draws. A shell row draws NO
-                  icon element at all. The guard is explicit because
-                  AgentIcon's fallback for 'shell' is a terminal glyph, and a
-                  placeholder is refused here. A name is the person's own
-                  words, so its digits are accounted for as quoted text
-                  rather than as a count. */}
-              <div className="overview-line-name">
-                {session.agent !== 'shell' ? (
-                  <AgentIcon agent={session.agent} size={16} />
-                ) : null}
-                <span className="overview-line-name-text" data-quoted>
-                  {session.name}
-                </span>
-              </div>
-              <div className="overview-line-state">
-                {statusVisual(status).label}
-                {' · '}
-                <span data-age>
-                  {formatAge(
-                    session.lastTouchedAt ?? session.startedAt,
-                    now
-                  )}
-                </span>
-              </div>
-            </div>
-            <div className="overview-line-right">
-              {line.ask !== null ? (
-                <>
-                  <span className="overview-line-lead">{YOU_ASKED_LEAD}</span>
-                  {'“'}
-                  <span data-quoted>{line.ask}</span>
-                  {'”. '}
-                </>
-              ) : null}
-              {/* A no-turns outcome carries its started clock, so the span
-                  says so and the probe can account for the digits. */}
-              <span
-                className="overview-line-outcome"
-                data-clock={
-                  // Phase 138. A written sentence carries no clock, so the
-                  // attribute is only for the built line.
-                  session.summary === null && honestLineHasClock(session)
-                    ? true
-                    : undefined
-                }
-              >
-                {line.outcome}
-              </span>
-              {/* Phase 138.1. The clock beside a sentence a MODEL wrote, and
-                  nothing at all beside a line Tortie built. `summary` and
-                  `summaryWrittenAt` are filled by one function in main, so
-                  this can never draw a clock on a built line. The clock
-                  carries its date when the day differs, and its digits sit
-                  inside data-clock, which is what the integer rule allows. */}
-              {session.summaryWrittenAt !== null ? (
-                <span className="overview-line-written">
-                  {' '}
-                  {WRITTEN_LEAD}
-                  <span data-clock>
-                    {formatTurnClock(session.summaryWrittenAt, now)}
+          <React.Fragment key={session.sessionId}>
+            <div
+              className={`overview-line${i === selected ? ' selected' : ''}`}
+              onClick={() => {
+                onSelect(i);
+                onActivate(session.sessionId);
+              }}
+            >
+              <div className="overview-line-left">
+                {/* Phase 137.2. The agent's mark beside the name, through the
+                    same component the session rail draws. A shell row draws NO
+                    icon element at all. The guard is explicit because
+                    AgentIcon's fallback for 'shell' is a terminal glyph, and a
+                    placeholder is refused here. A name is the person's own
+                    words, so its digits are accounted for as quoted text
+                    rather than as a count. */}
+                <div className="overview-line-name">
+                  {session.agent !== 'shell' ? (
+                    <AgentIcon agent={session.agent} size={16} />
+                  ) : null}
+                  <span className="overview-line-name-text" data-quoted>
+                    {session.name}
                   </span>
+                </div>
+                <div className="overview-line-state">
+                  {statusVisual(status).label}
+                  {' · '}
+                  <span data-age>
+                    {formatAge(
+                      session.lastTouchedAt ?? session.startedAt,
+                      now
+                    )}
+                  </span>
+                </div>
+              </div>
+              <div className="overview-line-right">
+                {line.ask !== null ? (
+                  <>
+                    <span className="overview-line-lead">{YOU_ASKED_LEAD}</span>
+                    {'“'}
+                    <span data-quoted>{line.ask}</span>
+                    {'”. '}
+                  </>
+                ) : null}
+                {/* A no-turns outcome carries its started clock, so the span
+                    says so and the probe can account for the digits. */}
+                <span
+                  className="overview-line-outcome"
+                  data-clock={
+                    // Phase 138. A written sentence carries no clock, so the
+                    // attribute is only for the built line.
+                    session.summary === null && honestLineHasClock(session)
+                      ? true
+                      : undefined
+                  }
+                >
+                  {line.outcome}
                 </span>
-              ) : null}
+                {/* Phase 138.1. The clock beside a sentence a MODEL wrote, and
+                    nothing at all beside a line Tortie built. `summary` and
+                    `summaryWrittenAt` are filled by one function in main, so
+                    this can never draw a clock on a built line. The clock
+                    carries its date when the day differs, and its digits sit
+                    inside data-clock, which is what the integer rule allows. */}
+                {session.summaryWrittenAt !== null ? (
+                  <span className="overview-line-written">
+                    {' '}
+                    {WRITTEN_LEAD}
+                    <span data-clock>
+                      {formatTurnClock(session.summaryWrittenAt, now)}
+                    </span>
+                  </span>
+                ) : null}
+              </div>
+              {/* Phase 147. The story's press target, a real button so the
+                  keyboard reaches it. It is its own cell at the far right of
+                  the row, never inline with the sentence, so it sits at the
+                  same x position on every row whatever the line's length
+                  (his refinement of 2026-08-24). Every row carries one,
+                  because a row with no written line still answers with one
+                  honest line. The word is constant; aria-expanded carries the
+                  open state from the same storyOpen that mounts the panel.
+                  Its clicks and its keys stay its own: a press here must not
+                  also open the session the row underneath would open, and
+                  the keydown must not reach the layer's own Return. */}
+              <button
+                type="button"
+                className="overview-story-toggle"
+                data-session-name={session.name}
+                aria-expanded={storyOpen}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleStory(session.sessionId);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.stopPropagation();
+                  }
+                }}
+              >
+                {STORY_WORD}
+              </button>
             </div>
-          </div>
+            {/* Phase 147. The panel, in place under its row. It is a sibling
+                of the row rather than a child, so a press on a story row can
+                never bubble into the row's own jump to the session. */}
+            {storyOpen ? (
+              <div className="overview-line-story">
+                <SessionStory state={story} status={status} now={now} />
+              </div>
+            ) : null}
+          </React.Fragment>
         );
       })}
     </div>
