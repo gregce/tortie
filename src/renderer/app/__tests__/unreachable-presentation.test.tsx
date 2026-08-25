@@ -111,14 +111,23 @@ describe('the unknown row menu', () => {
    * PHASE 137.2 added the fourth. "Catch me up…" reads Tortie's own overview
    * store and the agent's log, and it touches nothing on the tmux side, so it
    * passes the same test the other three pass.
+   *
+   * PHASE 152 added the three identifier rows, and they pass the same test for
+   * the same reason: each reads a value Tortie already holds and writes it to
+   * the clipboard. A row Tortie cannot currently see is exactly the row a
+   * person needs to identify by hand, so they belong here rather than being
+   * withheld with the tmux verbs.
    */
-  it('offers exactly the four verbs that read Tortie’s own records', () => {
+  it('offers exactly the verbs that read Tortie’s own records', () => {
     const items = sessionMenuItems(sess({}), 'x');
-    expect(items).toHaveLength(4);
+    expect(items).toHaveLength(7);
     expect(labelsOf(items)).toEqual([
       'Show what it loaded…',
       'Show saved output…',
       'Catch me up…',
+      "Copy the agent's conversation id",
+      "Copy the agent's record path",
+      "Copy Tortie's session id",
       'Copy directory path'
     ]);
   });

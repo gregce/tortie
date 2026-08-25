@@ -432,6 +432,10 @@ describe('the session menu item', () => {
       // Phase 137.2 added this row. It reads Tortie's own overview store and
       // the agent's log, so it belongs on an unknown row too.
       'Catch me up…',
+      // Phase 152 added these three, for the same reason.
+      "Copy the agent's conversation id",
+      "Copy the agent's record path",
+      "Copy Tortie's session id",
       'Copy directory path'
     ]);
   });

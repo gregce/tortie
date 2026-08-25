@@ -195,12 +195,16 @@ describe('the menu for a row on this Mac', () => {
     // Tortie's own records. Phase 72 added a third one of those, being the
     // saved output panel, which reads one file on this Mac and sends nothing.
     // Phase 137.2 added a fourth, the Catch Me Up page, which reads Tortie's
-    // own overview store and the agent's log.
+    // own overview store and the agent's log. Phase 152 added the three
+    // identifier rows, which read values Tortie already holds.
     expect(labelsOf(sessionMenuItems(sess({ status: 'unknown' }), 'x'))).toEqual(
       [
         'Show what it loaded…',
         'Show saved output…',
         'Catch me up…',
+        "Copy the agent's conversation id",
+        "Copy the agent's record path",
+        "Copy Tortie's session id",
         'Copy directory path'
       ]
     );
@@ -219,6 +223,12 @@ describe('the menu for a row on this Mac', () => {
         'Show saved output…',
         // Phase 137.2 added this one, also for every row.
         'Catch me up…',
+        // Phase 152 added these three, leading the copy block, also for every
+        // row. The agent's conversation id is first because it is the
+        // identifier a person reads, copies and hands back to the agent.
+        "Copy the agent's conversation id",
+        "Copy the agent's record path",
+        "Copy Tortie's session id",
         'Copy directory path',
         'End session…'
       ]);

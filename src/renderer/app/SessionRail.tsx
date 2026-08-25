@@ -134,6 +134,13 @@ function RailCard({ spec }: { spec: CardSpec }): React.JSX.Element {
  * — which is what stops the rail from growing its own status vocabulary.
  * The tooltip is `"<name> — <agent> · <status> · <age>"` plus, when the
  * session has one, the resume sentence on a second line.
+ *
+ * PHASE 152. The tooltip can now carry a THIRD line, being the agent's
+ * conversation id, so `note` is everything after the first line rather than
+ * one sentence. It is handed to the card as it is, newlines included, and
+ * `.rail-card-note` keeps them with `white-space: pre-line`. Splitting it here
+ * would put the rail back in the business of knowing what the tooltip's lines
+ * mean, which is the one thing this function exists to avoid.
  */
 function bodyOf(name: string, tooltip: string): { detail: string; note: string } {
   const prefix = `${name} — `;

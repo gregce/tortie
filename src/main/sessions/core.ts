@@ -125,6 +125,9 @@ import {
   foldSchedulerDepsFor,
   setLiveFoldScheduler
 } from './fold-wiring';
+// PHASE 152. Where the agent keeps this conversation's record, derived by the
+// one resolver that answers that question. See ./record-path.ts.
+import { stampRecordLocations } from './record-path';
 import {
   SYNC_QUIT_TIMEOUT_MS,
   SyncQueue,
@@ -2341,7 +2344,18 @@ export class GmuxCore {
       const savedAt = savedOutputAt(session.id);
       out.push(savedAt === null ? shown : { ...shown, savedOutputAt: savedAt });
     }
-    return out;
+    // PHASE 152. Where the agent keeps this conversation's record, stamped in
+    // the one place the two lists are merged, for exactly the reason
+    // `savedOutputAt` is stamped here: it is a fact from a third place, it is
+    // the same fact for a local row and a remote one, and one surface drawing
+    // it from a second reading is how two answers to one question begin.
+    //
+    // It is derived rather than stored, and ../overview/reader is the one
+    // resolver that derives it. The cost per row is one stat for a session
+    // whose record is already known, and the whole list is handed over in one
+    // call so that the re-asking about rows whose record is NOT known yet has a
+    // budget for the pass rather than a cost per row. See ./record-path.ts.
+    return stampRecordLocations(out);
   }
 
   /**

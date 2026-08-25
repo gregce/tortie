@@ -55,6 +55,16 @@ import {
 import { badgeTitle, remoteStatusNote } from '../machines/session-badge';
 import { NO_SNAPSHOT, SAVED_OUTPUT_ITEM, SAVED_OUTPUT_NONE } from '../machines/session-restore';
 import { gmuxBridge } from '../bridge';
+// PHASE 152. The two identifiers a session carries, the path of the record the
+// agent keeps its conversation in, and the words for each. They live in their
+// own module because the one thing this phase has to get right is that the two
+// identifiers are never presented as interchangeable, and that rule reads
+// better in one place than spread across this file.
+import {
+  conversationTooltipLine,
+  copyMenuItem,
+  sessionIdentityItems
+} from './session-identity';
 
 /**
  * True when the session runs outside the project checkout (a git worktree
@@ -88,6 +98,10 @@ export function isOutsideProject(session: Session): boolean {
  * second line now carries `remoteStatusNote` instead, which says how often
  * Tortie asks that machine and says what its dot cannot tell you. A machine
  * that is not answering carries no second line at all.
+ *
+ * PHASE 152 puts the agent's conversation id between the two, when there is
+ * one. Three short lines is still a tooltip; the id is the fact a person is
+ * hovering to read, and the sentence stays where it was and says what it said.
  */
 export function sessionTooltip(
   session: Session,
@@ -125,7 +139,30 @@ export function sessionTooltip(
       : session.machine.answering
         ? remoteStatusNote(session.machine.label)
         : null;
-  return note === null ? head : `${head}\n${note}`;
+  // PHASE 152. The agent's conversation id, on its own line directly under the
+  // glance line, so a person can read which conversation this is without
+  // opening a menu. It sits ABOVE the sentence because the sentence is the
+  // quiet paragraph that explains the mark, and this is a fact about which
+  // session you are looking at.
+  //
+  // ONE FUNCTION DECIDES WHETHER IT IS DRAWN, being `conversationIdOf` in
+  // `session-identity.ts`, which the tooltip line and the menu row both call.
+  // The fix round found them carrying a copy of the same test each and joined
+  // them. Phase 141 paid for the lesson: a fragment composed a second time
+  // somewhere else is a second answer, and a surface that announces a value the
+  // row does not draw is worse than one that announces nothing.
+  //
+  // WHY THE ROW'S `aria-label` DOES NOT GAIN IT, said plainly rather than left
+  // as an omission. An `aria-label` REPLACES its descendants' names, so every
+  // row's accessible name would end in a spoken 36 character uuid, on every row
+  // of the list, every time the selection moved. The identifiers reach a screen
+  // reader through the native menu instead, where each is one row a person
+  // chose to open and where the label says whose identifier it is.
+  const conversation = conversationTooltipLine(session);
+  const lines = [head, conversation, note].filter(
+    (one): one is string => one !== null
+  );
+  return lines.join('\n');
 }
 
 /**
@@ -641,16 +678,21 @@ function reviewChangesItem(
   };
 }
 
+/**
+ * PHASE 152 routed this through the one copy helper its three new neighbours
+ * use, so the app has one place that writes to the clipboard from a menu. The
+ * row is otherwise untouched, which its own charter asked for by name: same
+ * label, same clipboard bytes, same two toasts, and NO grey second line. The
+ * three rows above it show their value there because a person cannot otherwise
+ * read an identifier at all, and a folder is already legible from the tab.
+ */
 function copyDirectoryPathItem(session: Session): MenuItemSpec {
-  return {
+  return copyMenuItem({
     label: 'Copy directory path',
-    run: () => {
-      void navigator.clipboard.writeText(session.cwd).then(
-        () => useApp.getState().toast('info', 'Directory path copied'),
-        () => useApp.getState().toast('error', 'Could not copy the path')
-      );
-    }
-  };
+    value: session.cwd,
+    copied: 'Directory path copied',
+    failed: 'Could not copy the path'
+  });
 }
 
 /**
@@ -681,6 +723,11 @@ export function sessionMenuItems(
       showLoadedItem(session),
       savedOutputItem(session),
       catchMeUpItem(session),
+      // PHASE 152. The identifier rows belong in this branch for the reason the
+      // branch exists: they read Tortie's own records and the clipboard, and
+      // they touch nothing on the tmux side. A row Tortie cannot currently see
+      // is exactly the row a person needs to identify by hand.
+      ...sessionIdentityItems(session),
       copyDirectoryPathItem(session)
     ];
   }
@@ -808,6 +855,11 @@ export function sessionMenuItems(
     // PHASE 73. Only for a session on another machine, because a session on
     // this Mac already has the git surfaces of the project it belongs to.
     ...(machine !== undefined ? [reviewChangesItem(session, machine)] : []),
+    // PHASE 152. The copy verbs are one block, and the agent's conversation id
+    // leads it because that is the identifier a person reads, copies and hands
+    // back to the agent. `Copy directory path` keeps its place at the foot of
+    // the block and is unchanged.
+    ...sessionIdentityItems(session),
     copyDirectoryPathItem(session),
     'sep',
     ...(ended

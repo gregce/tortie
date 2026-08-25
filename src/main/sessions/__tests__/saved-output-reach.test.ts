@@ -83,12 +83,28 @@ function body(decl: string, end: string): string {
 }
 
 describe('listSessions, the manifest loop', () => {
-  const loop = body('const covered = new Set<string>();', 'return out;');
+  // PHASE 152 changed the tail of this loop from `return out;` to a call that
+  // stamps where each session's record lives, and the fix round made that call
+  // take the whole list at once so the re-asking has a budget for the pass. The
+  // marker follows it and still ends the slice at the same statement.
+  const loop = body('const covered = new Set<string>();', 'return stampRecordLocations(out)');
 
   it('stamps savedOutputAt on a remote manifest row', () => {
     const manifestArm = loop.slice(0, loop.indexOf('for (const session of'));
     expect(manifestArm).toContain('projectRemoteRecord(rec)');
     expect(manifestArm).toContain('savedOutputAt(');
+  });
+
+  /**
+   * PHASE 152. Where the agent keeps this conversation's record is stamped on
+   * BOTH arms at once, after the merge, because the answer does not depend on
+   * which list the row came from. The instrument reads the tail rather than the
+   * loop, so a future edit that stamps only one arm fails here.
+   */
+  it('stamps the record location on every row, after the merge', () => {
+    const tail = body('for (const session of remoteSessions())', '\n  }');
+    expect(tail).toContain('stampRecordLocation');
+    expect(src).toContain("from './record-path'");
   });
 
   /**

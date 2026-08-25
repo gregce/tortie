@@ -326,7 +326,58 @@ export interface Session {
     /** Local epoch ms of the close. */
     closedAt: number;
   };
+  /**
+   * APPENDED (Phase 152): the absolute path of the AGENT'S OWN record for this
+   * conversation, when Tortie can find it on this Mac right now.
+   *
+   * Derived, never stored. It comes from `resolveSessionLog`, the one resolver
+   * that turns a manifest row into a path, and it is stamped on the projection
+   * rather than written to the manifest because the file appears, moves and is
+   * deleted by the agent rather than by Tortie. A row that carries it has been
+   * proved to name a real file: the resolver returns a path only after a stat
+   * says it is one, so a surface may draw this without checking again.
+   *
+   * Absent whenever there is no such path, and `recordAbsence` then says why.
+   */
+  recordPath?: string;
+  /**
+   * APPENDED (Phase 152): why this session has no `recordPath`.
+   *
+   * Present exactly when `recordPath` is absent, so a surface can say the
+   * honest sentence instead of drawing an empty value. The two fields are
+   * written together in one place, being `stampRecordLocation` in
+   * src/main/sessions/record-path.ts.
+   */
+  recordAbsence?: SessionRecordAbsence;
 }
+
+/**
+ * Why Tortie cannot name the file an agent keeps this conversation in.
+ *
+ * Phases 141 and 138.1 measured that this is normal rather than exceptional:
+ * some agents hand Tortie no conversation id at all, one keeps no record a
+ * reader can open, and a fresh conversation has written nothing yet. Each of
+ * those is a different sentence to a person, so they are different values here
+ * and the renderer never has to guess which one it is looking at.
+ *
+ *  - `shell`       a plain shell. It has no conversation and no record.
+ *  - `remote`      the session runs on another machine, so its record is over
+ *                  there. Tortie never looks for it on this Mac, because a
+ *                  path that happened to match here would name a stranger's file.
+ *  - `no-id`       no conversation id was captured, so there is nothing to
+ *                  look for.
+ *  - `not-yet`     the id is known and nothing is on disk under it yet. This is
+ *                  the ordinary state of a conversation before its first turn.
+ *  - `no-store`    the agent keeps no record Tortie can read.
+ *  - `unsupported` Tortie has no map for where this agent keeps its records.
+ */
+export type SessionRecordAbsence =
+  | 'shell'
+  | 'remote'
+  | 'no-id'
+  | 'not-yet'
+  | 'no-store'
+  | 'unsupported';
 
 /**
  * The machine this session runs on, when it is not this Mac (Phase 70).

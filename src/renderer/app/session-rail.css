@@ -198,6 +198,9 @@
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   color: var(--text-muted);
+  /* Phase 152: the tooltip this is taken from can carry more than one line
+     now, and a line break in it is a break the reader is meant to see. */
+  white-space: pre-line;
 }
 
 @keyframes rail-card-in {
