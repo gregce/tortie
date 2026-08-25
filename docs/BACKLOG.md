@@ -17043,6 +17043,58 @@ The phase researches and then chooses, with the reason in the commit body:
 - No change to the targeted dotgit watcher's own exclusions, which are deliberate and separate.
 
 
+## Phase 152 — a session says which one it is, and where it lives on disk (operator asked 2026-08-25) QUEUED, BEFORE ARCH
+
+**Subject:** `feat(sessions): a session shows its identifiers and where its record lives`
+**First body line:** `Phase 152: the identifiers, and the path on disk`
+**Semver:** minor. It adds copy verbs and shows identifiers that exist but are not reachable today.
+**Tier 2.** It draws stored values and copies them, spawning nothing. But it puts a filesystem path in front of a person, so the verifier drives a REAL session of each supported agent and proves every drawn path exists on disk.
+**Charter:** this entry, plus his report of 2026-08-25 with the ellipsis menu and the hover tooltip attached.
+
+### What he asked for
+
+He wants any Tortie started session to say plainly which session it is, being its exact identifier, in the ellipsis menu and on the hover tooltip on the right hand list, and he wants to copy that as well as the full path to where the session lives natively on disk.
+
+### The thing to get right, and it decides the whole entry
+
+**A Tortie session carries TWO identifiers and they are not interchangeable.**
+
+- **Tortie's own session id.** The manifest primary key, the `@gmux-id` tmux option and the `GMUX_SESSION_ID` pane stamp. It identifies the session to Tortie and it never changes.
+- **The agent's conversation id**, being `agentSessionId` on `src/shared/types.ts` line 181. It identifies the conversation to the agent, it is what `--resume` takes, and it is what NAMES THE RECORD ON DISK. It is absent on a shell session and absent on an agent session before the agent has written a record.
+
+Showing one and calling it "the session id" would be wrong, and a person copying the wrong one would resume nothing. The surface names both, in the person's words rather than in field names, and says plainly when the agent's own id does not exist yet.
+
+### Where the record lives, and the honest limit
+
+The path is per agent and it is derived, not stored on the manifest row. `src/main/manifest/harvest/stores.ts` already knows how to find an agent's record, and `src/main/overview/store/store.ts` carries a `log_path` per session at line 53 and 137, so the read path exists. The phase uses the existing resolver rather than writing a second one, which is CLAUDE.md's rule.
+
+**The limit is that not every agent has one.** Phase 141 measured this: the identifier is captured for some agents and never for others, and Phase 138.1 measured that some agents keep no readable record at all. So the surface shows the path only when Tortie actually knows it, and says one plain sentence when it does not, rather than drawing an empty value or a guess. A shell session has no conversation and no record and the surface says so.
+
+### What lands
+
+- The ellipsis menu gains rows to copy each identifier and to copy the record's path, sitting beside the existing "Copy directory path" row so all the copy verbs are together.
+- The hover tooltip on the session list names the session's own identifier, so a person can read it without opening a menu. It keeps the sentence it already carries about the conversation coming back after a restart.
+- Every row that would copy something Tortie does not have is absent or plainly disabled rather than copying an empty string.
+- The native menus are updated in the same commit, which the project rule requires, and the brief says what changed.
+
+### Proof, run rather than read
+
+- ONE app run driving a real session per supported agent, with a per agent matrix naming, for each, whether Tortie's own id, the agent's conversation id and the record path are present, and what the surface drew for each.
+- **Every drawn path proved to EXIST on disk**, by reading it, since a path a person cannot open is worse than no path.
+- Each copy verb driven and the clipboard read back, proving the exact bytes match what was drawn.
+- A shell session and a fresh agent session with no record yet, both proving the absent case draws its sentence rather than an empty value.
+- The tooltip read as a rendered string rather than by eye.
+- The full battery.
+
+### What is NOT in this phase
+
+- No new stored column and no manifest schema change. Every value already exists or is derived by a resolver that already exists.
+- No second path resolver. If the existing one cannot answer for an agent, the answer is that Tortie does not know, and the commit body names which agents those are.
+- No opening of the record, no revealing it in Finder and no reading its contents. This phase copies text.
+- No change to what any existing menu row does, including "Copy directory path".
+- No identifier shown anywhere else in the app, and no identifier in the session's own row label.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -17229,3 +17281,4 @@ cycle rather than only the evening it was written.
 - 2026-08-25, Phase 149 queued at his word, the empty project's heading and sentence come down in size with the app's own cat mark placed dark above the agent grid, the four side views move onto one shared type scale, and the Commit button gets a treatment that says pressable; it runs BEFORE the Arch phases because it is small and he is looking at it now
 - 2026-08-25, Phase 150 queued at his word as its own phase rather than inside 149, the main navigation ribbon's icons take the same light grey hover the project tabs already have in both orientations, and narrowing the session list never pushes its header controls off the right edge; it runs after 149 and BEFORE the Arch phases
 - 2026-08-25, Phase 151 queued from his FSEvents report, and the cause was read from the library source rather than guessed: the stream asks for per file events with a one millisecond coalescing window and watches the whole worktree excluding only `.git`, so his gitignored `scratch/` churn overflows the buffer, AND `handleWorktreeEvents` logs the drop and returns without ever re-scanning, so the tree can be silently stale; the naive fix of excluding everything git ignores does not scale because `FSEventStreamSetExclusionPaths` is capped at 8 paths
+- 2026-08-25, Phase 152 queued at his word and it runs BEFORE Arch, a session names both of its identifiers and the path to its record on disk in the ellipsis menu and on the hover tooltip with a copy verb for each, and the entry is explicit that Tortie's own session id and the agent's conversation id are different things because copying the wrong one resumes nothing, and that some agents have no record path at all so the surface says so rather than guessing
