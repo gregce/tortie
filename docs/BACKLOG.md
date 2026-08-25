@@ -16509,7 +16509,7 @@ Whichever is chosen, the comment above the assertion is rewritten to say what th
 - **It is NOT fixed inside another phase.** The operator queued it on its own so the widening is a decision somebody made on purpose rather than a line a committer changed to get a battery green.
 
 
-## Phase 147 — the story moves to where the model's sentence lives (operator asked 2026-08-24) QUEUED
+## Phase 147 — the story moves to where the model's sentence lives (operator asked 2026-08-24) SHIPPED 2026-08-24
 
 **Subject:** `fix(overview): the summary timeline opens from the project rows and leaves the conversation view`
 **First body line:** `Phase 147: the story belongs to the project line`
@@ -16760,3 +16760,4 @@ cycle rather than only the evening it was written.
 - 2026-08-24, Phase 145 shipped, Run F of the 36 plan landed all three stages with one commit each, stage 4 ruled three times to keep the owners whole, the machines registrar, the remote sessions coordinator and GmuxCore, each ruling recorded with its evidence in the plan document, and moved sixteen imports of readyRemoteContext to its Phase 123 owner at `f9200df` (0.72.4), stage 5 made every check name its environment and no runner reach the network, pinning tsx exactly and splitting the suite into hermetic and native lanes at `1b04801`, and stage 6, the adversarial rescore, published 35 out of 36 in docs/audits/2026-08-24-run-f-rescore.md at `1cca3ff`, the one point withheld on the named exception, the pre existing smoke:matrix red on rows 1 and 5 that is identical on the parent tree and waits on its own adjudication phase; no stop condition fired and the version stays 0.72.4, this commit
 - 2026-08-24, Phase 147 queued, the summary timeline moves to the project overlay rows where the model written line lives and leaves the verbatim conversation view, at his word, because only the project level is supposed to carry model generated synthesis
 - 2026-08-24, Phase 148 queued, the you section of each exchange glows with a light accent wash because that is where the eyes go, and the horizontal band's chevron and position controls move to the head of the band reversed so the position control sits nearest the traffic lights, mirroring Phase 135, after 147 lands
+- 2026-08-24, Phase 147 shipped, the story control is the one word "story" at one shared far right column position on every project overlay row, opening that session's timeline in place, and the control left the verbatim conversation view; his mid build refinement was caught by the verifier attacking the builder's charter satisfied claim, a fix round landed the word and the column and was re-driven at the exact cases; no native menu carried a story row so none changed; `8443052`, 0.72.5
