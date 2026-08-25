@@ -21,7 +21,81 @@
 /* The in-window Tortie mark left this file in Phase 18.6. It was a 44px
    dimmed mark above the first-run title, and its one caller is gone: the
    state with no project open is now the home screen, which sets the mark at
-   48px at full opacity inside the TORTIE.sh lockup (app/home-screen.css). */
+   48px at full opacity inside the TORTIE.sh lockup (app/home-screen.css).
+
+   PHASE 149 BROUGHT A MARK BACK, and it is a different thing from that one.
+   That mark was a 44px logo IN the column, in normal flow, above the title.
+   This one is a watermark: the same cat the dock icon draws, large, quiet, and
+   OUT of flow, so the board under it cannot be moved by it.
+--------------------------------------------------------------------------- */
+
+/* PHASE 149. The cat on the state a project with no sessions draws.
+
+   THE RULE IT OBEYS IS PHASE 139's. `.empty` is `justify-content: safe
+   center`, so anything that grows inside the column moves everything above it
+   by half the growth. Phase 139 learned that when a caption pushed the
+   heading, all twelve tiles and the hint line up 26px. So the mark is
+   `position: absolute`, anchored to the TOP of the column rather than sitting
+   in it, and the column's height therefore does not know it exists. The proof
+   is the grid's bounding box with the mark drawn and with it hidden, which is
+   the same rectangle.
+
+   `bottom: 100%` puts its foot on the column's top edge, and the negative
+   margin lifts the heading back into its foot by one step, so the cat reads as
+   being behind the words rather than balanced on them. In a short window the
+   top of the cat is clipped, which is what should happen: overflow above a
+   scroll container's origin is not scrollable, so nothing gains a scrollbar
+   and nothing moves.
+
+   The size and the opacity are both tokens, so the one number anybody will
+   argue about is in tokens.css and not here. */
+.empty-fleet .empty-inner.onb-inner {
+  position: relative;
+}
+
+.empty-mark {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: var(--empty-mark-size);
+  height: auto;
+  margin-bottom: calc(-1 * var(--space-6));
+  transform: translateX(-50%);
+  opacity: var(--empty-mark-opacity);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ---------------------------------------------------------------------------
+   PHASE 149. The heading and the sentence come down.
+
+   The operator opened a project with no sessions and said both were too big.
+   They were the shared `.empty-title` at --text-lg (20px) and, through the
+   `.onb-inner` override below, --text-md (15px), which are the sizes a MODAL
+   uses for its title and its body. On this screen the twelve tile board is the
+   subject and the two lines are its caption, so they now sit under it rather
+   than over it: --text-base for the heading, one step above the side view
+   heading's --text-xs, and --text-sm for the sentence, which is the small body
+   size.
+
+   --text-xs itself was tried for the heading and is wrong: at 11px the heading
+   is SMALLER than the 13px tile names under it and stops reading as a heading
+   at all.
+
+   SCOPED TO `.empty-fleet`, and that is deliberate. `.empty-title` and
+   `.empty-body` are the shared primitives every full window state uses,
+   including the three boot blocks, and those screens carry real prose a person
+   has to read and act on. Only the state this phase is about changes.
+--------------------------------------------------------------------------- */
+.empty-fleet .empty-title {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.empty-fleet .onb-inner .empty-body {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
 
 /* The type-only states read at 420px; the fleet grid needs a wider column.
    width:100% is load-bearing — .empty centers its child, so without it the

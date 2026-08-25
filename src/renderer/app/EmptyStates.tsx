@@ -54,6 +54,27 @@ import { cloneAction } from '../state/clone';
 import { AgentGrid } from './AgentGrid';
 import { Codicon } from '../icons';
 import { HomeScreen } from './HomeScreen';
+// PHASE 149. The in-window mark on the state a project with no sessions
+// draws. It is the SAME cat the dock icon draws, copied out of the brand
+// package by `npm run icon` exactly the way tortie-128.png beside it is, so
+// the bundler emits it and the packaged build carries it. It is out of flow
+// and it is not announced, because it says nothing a screen reader needs.
+//
+// READ THIS BEFORE CHANGING THE PATH. The charter named a different file, and
+// the phase did not follow it. Its words are "the source is decided and it is
+// `tortie.png` at the repository root, 3196 by 1980, which he confirmed is the
+// cat he wants, being the same one the dock icon draws". Those two halves
+// cannot both be true. `tortie.png` at the root is the README product
+// screenshot of the Tortie window, referenced at README.md line 33, and it is
+// not a cat. The cat is `docs/brand/tortie/dock/tortie-dock-512.png`, and the
+// file imported below is a byte for byte copy of it, sha256 0815e6d0, so no
+// artwork was drawn or altered, which is the refusal the charter actually
+// binds. The phase followed the half that names the picture rather than the
+// half that names the path, because a ghost of the app's own screenshot
+// behind its own empty state is plainly not what was asked for.
+//
+// IF THE SCREENSHOT WAS MEANT LITERALLY, this import is the whole change.
+import tortieMark from '../assets/brand/tortie-512.png';
 // PHASE 109 PUT THIS IMPORT ON ONE LINE. This file joined the machine
 // vocabulary audit, which strips single line import declarations before it
 // reads string literals, and a module path is not copy. Splitting it back
@@ -242,8 +263,21 @@ export function NoSessions(): React.JSX.Element {
   const hinted = options.find((o) => o.id === hint?.id) ?? null;
 
   return (
-    <div className="empty">
+    <div className="empty empty-fleet">
       <div className="empty-inner onb-inner">
+        {/* PHASE 149. The cat sits above the heading and behind it, out of
+            normal flow, so it cannot move the board the way Phase 139's
+            caption moved this heading 26px. Its size and its opacity are both
+            tokens. aria-hidden and an empty alt, because the sentence under it
+            already says what this screen is. */}
+        <img
+          className="empty-mark"
+          data-slot="empty-mark"
+          src={tortieMark}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
         <h2 className="empty-title">No sessions yet</h2>
         <p className="empty-body">
           A session is a named terminal that survives quits, crashes, and

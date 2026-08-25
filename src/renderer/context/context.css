@@ -153,7 +153,17 @@
 }
 
 /* The input itself is the shared `.input` from globals.css — the same class
-   the global filter wears — so the box invents no second input look. */
+   the global filter wears — so the box invents no second input look.
+
+   PHASE 149. What it did NOT share was its type size. `.input` draws
+   --text-base (13px), which is right in a modal and one step too loud beside
+   the Explorer's 12px filter and the Search view's 12px boxes. Both of this
+   view's boxes now read the side view scale's own token. The height was
+   already --field-h through `.input`, so only the type moved. */
+.ctx-filter .input,
+.ctx-skill-search .input {
+  font-size: var(--view-field-text);
+}
 
 .ctx-skill-search-btn {
   width: 100%;

@@ -233,6 +233,7 @@ export const CHECKS = [
   electron('probe:p1372menu'),
   electron('probe:p138'),
   electron('probe:p143'),
+  electron('probe:p149'),
   electron('probe:shellpath'),
   electron('probe:p101shot'),
   electron('probe:p102shot'),

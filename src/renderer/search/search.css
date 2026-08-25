@@ -38,11 +38,15 @@
   gap: var(--space-2);
 }
 
+/* PHASE 149. The query box is a side view text box, so its type size is the
+   scale's own token. The value has not moved: --view-field-text is --text-sm,
+   which is what this rule already said. The face stays mono, because the thing
+   being typed is a pattern rather than prose, and a face is not a size. */
 .search-input {
   flex: 1;
   min-width: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--view-field-text);
 }
 
 .search-input:focus-visible {
@@ -125,16 +129,22 @@
   color: var(--text-disabled);
 }
 
+/* PHASE 149. The only labels any side view draws, on the scale's label token.
+   Same 11px as before. */
 .search-field-label {
-  font-size: var(--text-xs);
+  font-size: var(--view-label-text);
   line-height: var(--lh-xs);
   color: var(--text-muted);
 }
 
+/* PHASE 149. 24px BECAME --field-h, which is 28px. These two were the boxes
+   the operator put beside the Explorer's filter: a side view drew three text
+   boxes and two of them were four pixels shorter than the third. Nothing else
+   about them changes. */
 .search-glob {
-  height: 24px;
+  height: var(--field-h);
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--view-field-text);
 }
 
 .search-ignore {

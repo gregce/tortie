@@ -210,7 +210,11 @@ textarea {
 .input {
   --input-pad-start: var(--space-4);
   --input-pad-end: var(--space-4);
-  height: 28px;
+  /* PHASE 149. The same 28px this control has always been, named. It is the
+     height the four side views agreed on, so the number lives in tokens.css
+     as --field-h and every box that has to match it reads it from there
+     rather than repeating the literal. */
+  height: var(--field-h);
   width: 100%;
   padding-block: 0;
   padding-inline: var(--input-pad-start) var(--input-pad-end);

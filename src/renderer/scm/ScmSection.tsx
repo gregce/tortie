@@ -526,16 +526,38 @@ function useCommitController(
   };
 }
 
+/**
+ * How tall the commit box may grow, in lines. The S3 spec's number, and the
+ * only number this component still holds about that box: its leading, its
+ * padding and its resting height are all in scm.css.
+ */
+const MAX_COMMIT_LINES = 5;
+
 function CommitBox({ ctrl }: { ctrl: CommitController }): React.JSX.Element {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Auto-grow 1–5 lines (S3 spec).
+  //
+  // PHASE 149 TOOK THE TWO NUMBERS OUT OF THIS FUNCTION. They were `18` for
+  // the leading and `12` for the vertical padding, both copied by hand from
+  // scm.css, and both wrong the moment that file put the box on the side view
+  // type scale. The ceiling is now read off the element itself, so the type
+  // scale is stated once in CSS and this effect follows it. A leading of
+  // `normal`, which is not a number, falls back to the five line box the
+  // browser would draw anyway.
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
-    const line = 18; // --lh-sm; content-box grows in whole lines
-    const max = line * 5 + 12; // + vertical padding
+    const style = window.getComputedStyle(ta);
+    const line = Number.parseFloat(style.lineHeight);
+    const padding =
+      Number.parseFloat(style.paddingTop) +
+      Number.parseFloat(style.paddingBottom);
+    const max =
+      Number.isFinite(line) && Number.isFinite(padding)
+        ? line * MAX_COMMIT_LINES + padding
+        : ta.scrollHeight;
     ta.style.height = `${Math.min(ta.scrollHeight, max)}px`;
   }, [ctrl.message]);
 

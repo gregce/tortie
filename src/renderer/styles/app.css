@@ -384,7 +384,11 @@
   padding: 0 var(--space-5);
   border-bottom: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: var(--text-xs);
+  /* PHASE 149. --view-heading-text, not --text-xs, and the value is the same
+     11px it has always been. The four side views now name ONE token for their
+     heading, so Explorer, Search, Source Control and Context cannot drift the
+     way their text boxes had. */
+  font-size: var(--view-heading-text);
   line-height: var(--lh-xs);
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
@@ -467,7 +471,9 @@
   padding: 0 var(--space-4) 0 var(--space-4);
   background: var(--bg-sidebar);
   color: var(--text-muted);
-  font-size: var(--text-xs);
+  /* PHASE 149. The section heading inside a side view is the same step as the
+     view heading above it, and now says so with the same token. */
+  font-size: var(--view-heading-text);
   line-height: var(--lh-xs);
   font-weight: var(--weight-semibold);
   text-transform: uppercase;

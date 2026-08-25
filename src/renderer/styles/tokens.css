@@ -183,6 +183,38 @@
   --text-brand: 28px;
   --lh-brand: 32px;
 
+  /* §1.8b The ONE type scale the four side views share (Phase 149).
+
+     The operator put the Search view beside the Explorer and said they must
+     match. They did not: Search drew its two filter boxes 24px tall in a mono
+     face, Context drew its two boxes at 13px in the UI face, and the commit
+     box in Source Control drew 30px tall at 13px. Three heights and two sizes
+     in four views that sit in the same column, one at a time, a keystroke
+     apart.
+
+     These four names are what every side view now points at, so the scale is
+     stated once and a fifth view (Arch, when Phase 63 adds it) inherits it
+     without deciding anything.
+
+     WHY THE EXPLORER'S SCALE WON. It is the densest of the four and the one
+     the others must not out-shout, its heading and its filter box already read
+     from --text-xs and --text-sm, and its own filter box renders 28px tall at
+     the shipped row spacing, which is the height of `.input`, the app's one
+     text box primitive, and of `.btn`. So the winning numbers were already
+     drawn by two of the four views and by every button in the app, and moving
+     the other two onto them moved the minority.
+
+     THE ONE BOX THAT DOES NOT READ --field-h, said here so a later round does
+     not "finish it off". The Explorer's filter field lives inside
+     @pierre/trees' shadow root and takes its height from --trees-row-height,
+     which is the row spacing a person chooses in the Explorer header. That is
+     correct: a box that filters the tree should follow the tree. At the
+     shipped compact spacing it renders at exactly --field-h. */
+  --view-heading-text: var(--text-xs); /* EXPLORER, SEARCH, CHANGES, SKILLS */
+  --view-label-text: var(--text-xs); /* "files to include" and its kin      */
+  --view-field-text: var(--text-sm); /* the type inside every side view box */
+  --field-h: 28px; /* every side view text box, and `.input` everywhere     */
+
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
@@ -268,6 +300,49 @@
   --focus-wash-attention: rgba(245, 184, 74, 0.14); /* --status-attention */
   --focus-wash-working: rgba(77, 157, 232, 0.14); /* --accent-wash's value */
   --focus-wash-idle: rgba(34, 37, 43, 0.5); /* --bg-raised, low */
+
+  /* Phase 149. The in-window Tortie mark on the state a project with no
+     sessions draws. It is the same cat the dock icon draws, sitting behind and
+     above the fleet the way an editor's own mark sits behind an empty tab, and
+     it is out of flow, so it can never move the board under it.
+
+     The opacity is a token rather than a hardcoded alpha because it is the one
+     number anybody will want to argue about. At 0.10 over --bg-canvas the cat
+     reads as a shape rather than as a picture, which is the whole point of a
+     watermark, and the heading that overlaps its foot still measures better
+     than 11:1. */
+  --empty-mark-size: 200px;
+  --empty-mark-opacity: 0.1;
+
+  /* Phase 149. The pressable treatment on Commit, which is the one
+     irreversible verb in the Source Control panel. No component file names a
+     colour, a blur or a radius of its own, and every value here is composed
+     from a token that already existed. There is no disabled counterpart on
+     purpose: globals.css already drops a disabled button to the neutral raised
+     surface, and none of these reach it.
+
+     THE THREE COLOURED VALUES DERIVE FROM THE §1.2 ACCENT TOKENS the way Phase
+     148's ask glow does, so a future accent choice recolours them
+     automatically. That was proved rather than asserted: swapping --accent,
+     --accent-hover and --accent-soft to a magenta at runtime moved the sheen
+     and both glows and left the disabled button unchanged.
+
+     --press-inset IS THE ONE THAT DOES NOT, and a later round should not
+     "finish it off" by pointing it at the accent. A press reads as the surface
+     going DOWN under the finger, which is a shadow rather than a hue, so it
+     reuses --shadow-1 above instead of naming a fourth colour. `inset
+     var(--shadow-1)` substitutes textually and computes byte for byte the same
+     as writing the shadow out by hand, which was measured in a browser before
+     it was written here. It follows the shadow family, not the accent. */
+  --press-sheen: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--accent-hover) 70%, transparent),
+    transparent
+  );
+  --press-glow: 0 0 12px color-mix(in srgb, var(--accent-soft) 22%, transparent);
+  --press-glow-hover: 0 0 18px
+    color-mix(in srgb, var(--accent-soft) 36%, transparent);
+  --press-inset: inset var(--shadow-1);
 }
 
 /* The one authored moment (DESIGN.md §5): the needs-input pulse.

@@ -259,17 +259,29 @@
   background: var(--bg-sidebar);
 }
 
+/* PHASE 149. The commit box joins the side view scale.
+
+   It was 30px tall at --text-base (13px) on --lh-sm (18px) leading, which made
+   it the tallest and the loudest text box in any of the four views. It is now
+   --field-h at --view-field-text on --lh-base leading, and the two numbers
+   multiply out exactly: 20px of leading plus 4px of padding above and below is
+   28px, so ONE line of a commit message rests at the scale's own height rather
+   than merely being allowed to reach it.
+
+   The autosize in ScmSection.tsx reads this element's own computed leading and
+   padding, so the arithmetic above lives in exactly one place and this rule is
+   it. */
 .scm-commit-input {
   width: 100%;
-  min-height: 30px;
-  padding: var(--space-3) var(--space-4);
+  min-height: var(--field-h);
+  padding: var(--space-2) var(--space-4);
   background: var(--bg-surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-sm);
   color: var(--text-primary);
   font-family: var(--font-ui);
-  font-size: var(--text-base);
-  line-height: var(--lh-sm);
+  font-size: var(--view-field-text);
+  line-height: var(--lh-base);
   resize: none;
   overflow-y: auto;
 }
@@ -287,8 +299,51 @@
   color: var(--text-disabled);
 }
 
+/* ---------------------------------------------------------------------------
+   PHASE 149. Commit looks worth pressing.
+
+   The operator said this button reads as a flat disabled slab even when it is
+   enabled, and he is right: it was `.btn-primary` and nothing else, so the one
+   irreversible verb in this panel was drawn exactly like the Refresh in a
+   toast. It now carries a sheen, a soft accent glow that grows on hover, and a
+   real press, and every one of those values is a token composed from the §1.2
+   accent tokens the way Phase 148 built the ask glow. Nothing here names a
+   colour, a radius or a blur of its own, so a future accent choice recolours
+   the whole treatment.
+
+   THE DISABLED STATE IS UNTOUCHED, AND THAT IS THE POINT. A commit cannot be
+   taken back, so a button that cannot accept the click must not invite it.
+   Every rule below is qualified `:not(:disabled)`, so a disabled Commit keeps
+   exactly what globals.css gives it, being the neutral raised surface,
+   --text-disabled and no glow at all. `.btn:disabled` sets the `background`
+   shorthand, which clears the sheen with it.
+--------------------------------------------------------------------------- */
 .scm-commit-btn {
   width: 100%;
+}
+
+.scm-commit-btn:not(:disabled) {
+  background-image: var(--press-sheen);
+  box-shadow: var(--press-glow);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.scm-commit-btn:not(:disabled):hover {
+  box-shadow: var(--press-glow-hover);
+}
+
+/* The press itself: the sheen goes, the glow goes, and the inset says the
+   surface moved under the finger. */
+.scm-commit-btn:not(:disabled):active {
+  background-image: none;
+  box-shadow: var(--press-inset);
+}
+
+.scm-commit-btn:not(:disabled):focus-visible {
+  outline: none;
+  box-shadow: var(--press-glow-hover), var(--focus-ring);
 }
 
 .scm-commit-caption {
