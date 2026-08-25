@@ -16543,6 +16543,38 @@ Looking at the project overlay on 2026-08-24 he said the timeline should be reac
 - No change to the session view's verbatim conversation beyond removing the story control.
 
 
+## Phase 148 — the you line glows, and the band's controls sit by the traffic lights (operator asked 2026-08-24) QUEUED, AFTER 147
+
+**Subject:** `fix(ui): your asks carry the accent glow and the band controls move to its head`
+**First body line:** `Phase 148: the you glow, and the band head`
+**Semver:** patch. Two rendered surfaces move or restyle; no data changes.
+**Tier 2.** Both items are rendered surfaces with no new state, and he reported both personally, so the parent commit measurement is mandatory: photograph or measure the parent's rendering before claiming the change. One app run drives both items.
+**Charter:** this entry, plus the `## Phase 135` entry, which did the same head of band move for the vertical orientation and whose reasoning carries, plus the Phase 147 entry whose session view item one styles.
+
+### Item one, the you section glows with the accent
+
+In the session Catch Me Up view, the "you" section of each exchange gets a light version of the accent color with a soft glow, because that is where the eyes naturally go. The app has ONE accent today, the token family at src/renderer/styles/tokens.css section 1.2, and no picker, so the glow is built from the accent tokens, the wash for the ground and a soft shadow from the soft token at low alpha, rather than a literal, and it follows any future accent choice automatically. The agent's answer stays as it is. The ask rail's rows may pick up the same tint only if the phase can show it does not fight the rail's selection state; otherwise the rail is untouched and the brief says so.
+
+### Item two, the horizontal band's controls move to its head, reversed
+
+On the top horizontal project band, the collapse chevron and the position control currently sit at the right end past the add button. They move to the LEFT of the first project, with the order REVERSED so the position control is closest to the Mac traffic lights and the chevron sits beside it, then the projects begin. The add button stays at the end of the tabs where it is. This mirrors Phase 135, which made the same call for the left vertical orientation, being controls at the head of the band with the position button nearest the traffic lights, and he asked for the two bands to agree.
+
+### Proof, run rather than read
+
+- ONE app run photographing the session view with the glow and the band with the reordered head, plus the PARENT COMMIT's photographs of both, because he reported both surfaces himself.
+- The glow read from getComputedStyle rather than by eye, being the background and shadow of a you block, proving the values derive from the accent tokens and no literal entered a component file.
+- The band order read from the DOM, being the control's bounding boxes strictly left of the first tab's, position control leftmost.
+- All four orientations of the band photographed once, proving the other three did not move, because Phase 135's rule was that the main nav stays put in the other views.
+- The full battery plus a grep proving no new color literal outside the token files.
+
+### What is NOT in this phase
+
+- No accent color picker. The glow reads the existing tokens so a future picker inherits it, and the picker is its own decision.
+- No change to the agent answer styling, the markdown pipeline, or the rail selection states beyond what item one explicitly earns.
+- No change to the vertical orientations of the band. Phase 135 settled those.
+- No change to the add button's place.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16721,3 +16753,4 @@ cycle rather than only the evening it was written.
 - 2026-08-24, Phase 145 stage 6 landed, the adversarial rescore read the tree at `1b04801` and published 35 out of 36 in docs/audits/2026-08-24-run-f-rescore.md, awarding composition, domain cohesion and test seam their 3 on its own counts, gate runs and three independent experiments, being a re-derived importer census, a planted import proving the cycle gate in both directions, and a sabotaged watcher binding proving the hermetic lane, while failure flow stays at 2 on one named exception, the unadjudicated `smoke:matrix` red on rows 1 and 5 that is identical on the parent tree, which costs one point whichever side is wrong and comes back when the queued adjudication phase rules; no production code and no test changed, the version stays 0.72.4, this commit
 - 2026-08-24, Phase 145 shipped, Run F of the 36 plan landed all three stages with one commit each, stage 4 ruled three times to keep the owners whole, the machines registrar, the remote sessions coordinator and GmuxCore, each ruling recorded with its evidence in the plan document, and moved sixteen imports of readyRemoteContext to its Phase 123 owner at `f9200df` (0.72.4), stage 5 made every check name its environment and no runner reach the network, pinning tsx exactly and splitting the suite into hermetic and native lanes at `1b04801`, and stage 6, the adversarial rescore, published 35 out of 36 in docs/audits/2026-08-24-run-f-rescore.md at `1cca3ff`, the one point withheld on the named exception, the pre existing smoke:matrix red on rows 1 and 5 that is identical on the parent tree and waits on its own adjudication phase; no stop condition fired and the version stays 0.72.4, this commit
 - 2026-08-24, Phase 147 queued, the summary timeline moves to the project overlay rows where the model written line lives and leaves the verbatim conversation view, at his word, because only the project level is supposed to carry model generated synthesis
+- 2026-08-24, Phase 148 queued, the you section of each exchange glows with a light accent wash because that is where the eyes go, and the horizontal band's chevron and position controls move to the head of the band reversed so the position control sits nearest the traffic lights, mirroring Phase 135, after 147 lands
