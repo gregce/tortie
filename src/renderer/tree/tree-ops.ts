@@ -61,10 +61,15 @@ import {
 import { machineLabelFor } from '../state/machines-slice';
 import type { TreeRenameView } from './rename-view';
 import { useFileTree } from './store';
-import { describeConflicts, describeEntries } from './tree-menu';
+import {
+  describeConflicts,
+  describeEntries,
+  describeImportConflicts
+} from './tree-menu';
 import {
   absOf,
   baseNameOf,
+  destinationFor,
   invertMoves,
   isDirPath,
   parentOf,
@@ -185,6 +190,20 @@ export interface TreeOps {
     draggedCanonical: readonly string[],
     destDirCanonical: string,
     modelAlreadyMoved: boolean
+  ): void;
+  /**
+   * PHASE 154. A drop from OUTSIDE the app: copy these absolute paths into
+   * `destDirCanonical` ('' is the project root).
+   *
+   * `unresolved` is how many dropped items had no path at all, which is what
+   * a drag out of a browser produces. They are counted rather than dropped
+   * silently, because a person who drags four things and gets three deserves
+   * to be told which arithmetic happened.
+   */
+  importPaths(
+    sources: readonly string[],
+    destDirCanonical: string,
+    unresolved: number
   ): void;
   /**
    * The placeholder's canonical path while a New File / New Folder editor is
@@ -757,6 +776,105 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       });
   };
 
+  // ---- import from outside (Phase 154) ------------------------------------
+
+  /**
+   * The drop from outside, and it is `applyMove`'s shape on purpose.
+   *
+   * The same three beats: ask main, and if main says the names are taken put
+   * the question to the person with `Replace` and `destructive: true`; on a
+   * yes, ask again with `overwrite`, which trashes each displaced entry before
+   * writing. Nothing about the confirmation is new, because a person cannot
+   * tell whether the file about to be replaced came from inside the project or
+   * from Finder, and the promise they need is the same one either way.
+   *
+   * ONE DIFFERENCE FROM A MOVE, and it is why the model is left alone here.
+   * A move has rows on both ends, so Pierre has something to move
+   * optimistically and something to put back on a refusal. An import has no
+   * source row at all: there is nothing on screen until main says a file
+   * landed. So this never touches the model and never reverts it. It re-lists
+   * the destination folder when main answers, which is exactly what the
+   * watcher would have done a moment later anyway, and the listing diff adds
+   * the rows.
+   */
+  const applyImport = (
+    sources: readonly string[],
+    destDirCanonical: string,
+    overwrite: boolean
+  ): void => {
+    // Hold the names the copy is aiming at, so a watcher tick that arrives
+    // mid-copy cannot add a half-written row and then have the diff argue
+    // about it. BOTH spellings of each name are held: the renderer is holding
+    // an absolute path and nothing else, so it does not know yet whether what
+    // is coming is a file or a folder, and a folder is spelled with a
+    // trailing slash. Holding a path nothing lands on costs nothing.
+    const landing = sources.flatMap((abs) => {
+      const name = baseNameOf(abs);
+      return [
+        destinationFor(name, destDirCanonical),
+        destinationFor(name + '/', destDirCanonical)
+      ];
+    });
+    const release = ctx.hold(landing);
+    void fsOps
+      .importPaths({
+        root: ctx.rootPath,
+        sources,
+        destDir: toRel(destDirCanonical),
+        ...(overwrite ? { overwrite: true } : {})
+      })
+      .then((result) => {
+        if (result.status === 'would-overwrite') {
+          // Nothing was written. Ask, naming every collision at once.
+          release();
+          app().setConfirm({
+            title:
+              result.conflicts.length === 1
+                ? 'Replace the existing item?'
+                : `Replace ${result.conflicts.length} existing items?`,
+            body: describeImportConflicts(result.conflicts),
+            confirmLabel: 'Replace',
+            destructive: true,
+            onConfirm: () => {
+              applyImport(sources, destDirCanonical, true);
+            }
+          });
+          return;
+        }
+
+        for (const pair of result.imported) {
+          addToFed(toCanonical(pair.to.relPath, pair.to.kind === 'dir'));
+        }
+        // A replaced FOLDER's old children are stale in the listing cache and
+        // the new ones have never been read, so forget the subtree before the
+        // re-list rather than letting a merged listing describe two folders.
+        files().forgetUnder(
+          result.imported
+            .filter((pair) => pair.to.kind === 'dir')
+            .map((pair) => pair.to.path)
+        );
+        void files()
+          .relist([absOf(ctx.rootPath, destDirCanonical)])
+          .finally(release);
+
+        if (result.imported.length === 0 && result.skipped.length > 0) {
+          // The drag-out-and-straight-back-in case, and the honest answer to
+          // it is a sentence rather than silence.
+          const [first] = result.skipped;
+          app().toast(
+            'info',
+            result.skipped.length === 1 && first !== undefined
+              ? `"${baseNameOf(first.relPath)}" is already in that folder.`
+              : `Those ${result.skipped.length} items are already in that folder.`
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        release();
+        toastError(err, 'Could not copy that in.');
+      });
+  };
+
   /**
    * Open the destination and everything above it, so the placeholder row is
    * somewhere the user can actually see.
@@ -1001,6 +1119,38 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       // the disk would be a no-op, and there is nothing to reconcile.
       if (moves.length === 0) return;
       applyMove(moves, destDirCanonical, modelAlreadyMoved, false);
+    },
+
+    importPaths(sources, destDirCanonical, unresolved) {
+      // The destination is decided in the drag hook and refused there; this
+      // is the second door, and it is the same predicate at both ends.
+      if (isProtectedFsPath(destDirCanonical)) return;
+      if (sources.length === 0) {
+        if (unresolved > 0) {
+          app().toast(
+            'error',
+            unresolved === 1
+              ? 'Tortie could not tell where that file came from.'
+              : 'Tortie could not tell where those files came from.'
+          );
+        }
+        return;
+      }
+      if (!fsOps.canImport()) {
+        app().toast('error', 'This build cannot copy files in.');
+        return;
+      }
+      applyImport(sources, destDirCanonical, false);
+      if (unresolved > 0) {
+        // Never a silent partial: what could not be resolved is named
+        // alongside what is being copied.
+        app().toast(
+          'info',
+          unresolved === 1
+            ? 'One dropped item had no file on disk, so it was left out.'
+            : `${unresolved} dropped items had no file on disk, so they were left out.`
+        );
+      }
     }
   };
 }

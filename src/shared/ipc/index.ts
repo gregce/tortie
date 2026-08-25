@@ -71,8 +71,10 @@ import type {
 import type {
   FileOpsInvokeChannelMap,
   FsDuplicateInvokeChannelMap,
+  FsImportInvokeChannelMap,
   GmuxFsDuplicateExtras,
   GmuxFsExtras,
+  GmuxFsImportExtras,
   GmuxFsOpsExtras,
   GmuxOpenWithExtras,
   GmuxPreviewExtras,
@@ -247,7 +249,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   ProjectPickerInvokeChannelMap &
   RemoteProjectInvokeChannelMap &
   ShellPathInvokeChannelMap &
-  OverviewInvokeChannelMap;
+  OverviewInvokeChannelMap &
+  FsImportInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -329,7 +332,8 @@ export type InstalledFsApi = GmuxApi['fs'] &
   GmuxFsOpsExtras &
   GmuxFsDuplicateExtras &
   GmuxImageExtras &
-  GmuxOpenWithExtras;
+  GmuxOpenWithExtras &
+  GmuxFsImportExtras;
 
 /** The `term` object the preload installs: base plus acks and exit notices. */
 export type InstalledTermApi = GmuxApi['term'] & GmuxTermStreamExtras;

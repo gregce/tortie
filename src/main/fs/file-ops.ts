@@ -16,6 +16,11 @@
  *    overwrite is still not a destruction.
  *  - Moves and renames are plain `fs.rename`: git infers the rename, so a
  *    tracked file keeps its history and `git status` stays sane.
+ *  - PHASE 154. `importPaths` is the one verb whose SOURCE is deliberately
+ *    outside the root, and it obeys every rule above: the destination goes
+ *    through the same unchanged guard, collisions are found before a byte is
+ *    written, and a confirmed overwrite trashes the displaced entry first. It
+ *    COPIES, so the original stays where it was.
  *
  * Nothing here writes file CONTENT — created files are empty, which is what
  * the tree's inline-rename-on-create flow wants.
@@ -27,6 +32,10 @@ import { basename, dirname, join, relative, sep } from 'node:path';
 import type {
   FsCreateInput,
   FsDuplicateInput,
+  FsImportConflict,
+  FsImportInput,
+  FsImportPair,
+  FsImportResult,
   FsMoveConflict,
   FsMoveInput,
   FsMovePair,
@@ -38,11 +47,14 @@ import type {
   FsTrashInput,
   FsTrashResult
 } from '@shared/fs-ops';
+import { MAX_IMPORT_SOURCES } from '@shared/fs-ops';
 import { gmuxError } from '../errors';
 import { fsOpError, fsOpMessage } from './errors';
 import type { ResolvedFsPath } from './paths';
 import {
   assertBasename,
+  assertIncomingBasename,
+  resolveIncomingSource,
   resolveInsideRoot,
   resolveOpenProjectRoot
 } from './paths';
@@ -65,6 +77,7 @@ export interface FileOpsService {
   rename(input: FsRenameInput): Promise<FsRenameResult>;
   duplicate(input: FsDuplicateInput): Promise<FsOpEntry>;
   move(input: FsMoveInput): Promise<FsMoveResult>;
+  importPaths(input: FsImportInput): Promise<FsImportResult>;
   trash(input: FsTrashInput): Promise<FsTrashResult>;
 }
 
@@ -359,6 +372,145 @@ export function createFileOps(deps: FileOpsDeps): FileOpsService {
         });
       }
       return { status: 'moved', moved, skipped };
+    },
+
+    /**
+     * PHASE 154. Copy entries from anywhere on this Mac into one folder of
+     * the project.
+     *
+     * It is `move` with three differences and no fourth: the source guard is
+     * `resolveIncomingSource` rather than `resolveInsideRoot`, the write is
+     * `cp` rather than `rename`, and a source ALREADY sitting in the
+     * destination is skipped instead of being a no-op rename.
+     *
+     * That last one is not a nicety. A row dragged out of Tortie to Finder
+     * and dropped straight back onto the folder it came from arrives here as
+     * a source whose parent IS the destination. Copying it would be `cp` from
+     * a path to itself, and with a confirmed overwrite the displaced entry
+     * would be trashed FIRST, so the file would be destroyed and nothing
+     * would replace it. The check is two lines and it is the reason this
+     * comment is long.
+     */
+    async importPaths(input: FsImportInput): Promise<FsImportResult> {
+      const realRoot = await root(input.root);
+      const destDir = await resolveInsideRoot(realRoot, input.destDir, {
+        allowRoot: true
+      });
+      const destStats = await statLeaf(destDir.abs);
+      if (destStats === null || !destStats.isDirectory()) {
+        throw fsOpError(
+          Object.assign(new Error('ENOTDIR'), { code: 'ENOTDIR' }),
+          'copy',
+          basename(destDir.abs)
+        );
+      }
+
+      if (!Array.isArray(input.sources) || input.sources.length === 0) {
+        throw gmuxError('INVALID_INPUT', 'Nothing was dropped.');
+      }
+      if (input.sources.length > MAX_IMPORT_SOURCES) {
+        throw gmuxError(
+          'INVALID_INPUT',
+          `One drop can bring in ${String(MAX_IMPORT_SOURCES)} items at most.`,
+          String(input.sources.length)
+        );
+      }
+
+      // ---- plan first; not one byte is written until every source is known
+      interface PlannedImport {
+        sourceAbs: string;
+        kind: FsOpEntry['kind'];
+        destAbs: string;
+        displaced: FsOpEntry | null;
+      }
+      const planned: PlannedImport[] = [];
+      const skipped: FsOpEntry[] = [];
+      const conflicts: FsImportConflict[] = [];
+
+      for (const raw of input.sources) {
+        const sourceAbs = await resolveIncomingSource(raw);
+        const sourceStats = await statLeaf(sourceAbs);
+        if (sourceStats === null) {
+          throw fsOpError(
+            Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+            'copy',
+            basename(sourceAbs)
+          );
+        }
+        const kind = kindOf(sourceStats);
+
+        // A folder can never be copied into itself or into anything under
+        // it. Both spellings are already real paths, so a symlink cannot
+        // make this comparison lie. Without it `cp` would either refuse with
+        // a raw errno or, on a shape it does not catch, recurse forever.
+        if (kind === 'dir' && isAtOrUnder(sourceAbs, destDir.abs)) {
+          throw gmuxError(
+            'INVALID_INPUT',
+            `"${basename(sourceAbs)}" cannot be copied inside itself.`,
+            sourceAbs
+          );
+        }
+
+        // ALREADY HERE. See the comment above this function: this is the
+        // drag-out-and-back-in case and copying would destroy the file.
+        if (dirname(sourceAbs) === destDir.abs) {
+          skipped.push(entry(realRoot, sourceAbs, kind));
+          continue;
+        }
+
+        // The leaf is validated on its own, so a dropped folder called
+        // ".git" is refused by the same predicate that refuses it as a
+        // destination. It is validated by the INCOMING rule rather than the
+        // typed-name one: this name is already on disk, so it is checked and
+        // handed back byte for byte. See `assertIncomingBasename`, which
+        // carries the two measurements that made the difference matter.
+        const name = assertIncomingBasename(basename(sourceAbs));
+        const dest = await resolveInsideRoot(realRoot, join(destDir.abs, name));
+        const destLeaf = await statLeaf(dest.abs);
+        // The destination IS the source under another spelling — a
+        // case-insensitive volume, or a link resolved to the same inode.
+        if (sameEntry(sourceStats, destLeaf)) {
+          skipped.push(entry(realRoot, sourceAbs, kind));
+          continue;
+        }
+        const displaced =
+          destLeaf !== null ? entry(realRoot, dest.abs, kindOf(destLeaf)) : null;
+        if (displaced !== null) conflicts.push({ name, to: displaced });
+        planned.push({ sourceAbs, kind, destAbs: dest.abs, displaced });
+      }
+
+      if (conflicts.length > 0 && input.overwrite !== true) {
+        return { status: 'would-overwrite', conflicts };
+      }
+
+      // ---- apply
+      const imported: FsImportPair[] = [];
+      for (const item of planned) {
+        try {
+          if (item.displaced !== null) {
+            // Even a confirmed overwrite goes to the Trash, never away.
+            await deps.trashItem(item.displaced.path);
+          }
+          // `errorOnExist` stays true even on a confirmed overwrite: the
+          // displaced entry went to the Trash a line ago, so the name is
+          // free, and anything still standing there is a race worth failing
+          // on rather than silently clobbering.
+          await cp(item.sourceAbs, item.destAbs, {
+            recursive: item.kind === 'dir',
+            force: false,
+            errorOnExist: true,
+            preserveTimestamps: true,
+            verbatimSymlinks: true
+          });
+        } catch (err) {
+          throw fsOpError(err, 'copy', basename(item.sourceAbs));
+        }
+        imported.push({
+          source: item.sourceAbs,
+          to: entry(realRoot, item.destAbs, item.kind)
+        });
+      }
+      return { status: 'imported', imported, skipped };
     },
 
     async trash(input: FsTrashInput): Promise<FsTrashResult> {

@@ -367,3 +367,69 @@ export interface GmuxOpenWithExtras {
   openWithApps(input: OpenWithAppsInput): Promise<OpenWithApps>;
   openWith(input: OpenWithInput): Promise<OpenWithOutcome>;
 }
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 154 (the file tree takes a drop from outside and gives a
+// drag out) — two new invoke channels and one preload extra. Append only, per
+// the src/shared rule.
+//
+// fs:importPaths — copy entries from anywhere on this Mac into one folder of
+//   the project. It is a NEW verb rather than a widened fs:move for one
+//   reason: every path fs:move takes runs through `resolveInsideRoot`, whose
+//   refusal of anything outside the root is the guard the whole mutation
+//   surface rests on. An import needs a source that is deliberately outside,
+//   so it gets its own source guard (`resolveIncomingSource` in
+//   src/main/fs/paths.ts) and leaves that one alone. The DESTINATION goes
+//   through the unchanged guard, so '.git', '..' and a directory symlink
+//   escape are refused by exactly the same code as every other mutation.
+//
+//   It copies and never moves. It plans every collision BEFORE writing a byte
+//   and resolves 'would-overwrite' with nothing touched, and a confirmed
+//   overwrite trashes the displaced entry first, so an overwrite is still
+//   recoverable from Finder. It refuses a folder dropped onto itself or into
+//   its own child, and it SKIPS a source already sitting in the destination
+//   rather than copying a file over itself.
+//   MAIN: src/main/fs/ipc.ts → src/main/fs/file-ops.ts.
+//
+// fs:startDrag — hand rows to the operating system's own drag, so a row can
+//   be dragged to Finder and land there as a real file. This is NOT a
+//   renderer capability at all. A renderer can start an HTML drag and nothing
+//   else; only `webContents.startDrag` can begin a native one, and it needs a
+//   real path and a non empty icon or macOS throws. So the channel exists
+//   because the capability lives in main, not because main is a convenient
+//   place to put it.
+//   MAIN: src/main/fs/ipc.ts → src/main/fs/drag-out.ts.
+//
+// Both go on the existing `fs` object rather than in a new domain file. Both
+// are questions about files inside a project root, `fs:reveal` is already the
+// member that hands a path to Finder, and a module holding one channel is the
+// accretion the growth guardrail names.
+// ---------------------------------------------------------------------------
+
+import type {
+  FsImportInput,
+  FsImportResult,
+  FsStartDragInput
+} from '../fs-ops';
+
+/** The two channels Phase 154 needs. */
+export interface FsImportInvokeChannelMap {
+  /** Copy entries from outside into a folder; may resolve 'would-overwrite'. */
+  'fs:importPaths': { req: [input: FsImportInput]; res: FsImportResult };
+  /** Begin the operating system's own drag for these rows. */
+  'fs:startDrag': { req: [input: FsStartDragInput]; res: void };
+}
+
+/**
+ * Extensions to GmuxApi['fs'].
+ *
+ * Phase 122 made every member required. There is one preload file and it
+ * makes one `exposeInMainWorld` call, so the whole bridge can be absent and,
+ * when it is present, these members are present with it. The renderer keeps
+ * its own `typeof x === 'function'` checks, which now ask about a window
+ * that has no preload at all.
+ */
+export interface GmuxFsImportExtras {
+  importPaths(input: FsImportInput): Promise<FsImportResult>;
+  startDrag(input: FsStartDragInput): Promise<void>;
+}

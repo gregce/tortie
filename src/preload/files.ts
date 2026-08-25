@@ -31,7 +31,13 @@ export const fs: InstalledFsApi = {
   // starts a process that is NOT a child of Tortie: main spawns
   // /usr/bin/open, which hands the request to LaunchServices and exits.
   openWithApps: (input) => invoke('fs:openWithApps', input),
-  openWith: (input) => invoke('fs:openWith', input)
+  openWith: (input) => invoke('fs:openWith', input),
+  // Phase 154. `importPaths` copies entries from outside the project into
+  // one folder of it, and it is the one file verb whose source is deliberately
+  // outside the root. `startDrag` hands rows to the operating system's own
+  // drag, which a renderer cannot begin at all.
+  importPaths: (input) => invoke('fs:importPaths', input),
+  startDrag: (input) => invoke('fs:startDrag', input)
 };
 
 /**

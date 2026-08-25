@@ -205,3 +205,28 @@ export function remoteEntryLostAnswer(label: string): string {
 /** Copy Path on a machine's file puts the machine in front of the path. */
 export const REMOTE_COPIED_WITH_MACHINE =
   'Copied the path with the machine in front of it.';
+
+/**
+ * PHASE 154. A file dropped from Finder onto a folder that is on another
+ * machine.
+ *
+ * IT IS REFUSED, AND THE REFUSAL IS VISIBLE, which is the whole point of this
+ * sentence existing. Bringing a file in over ssh is an upload, and nothing
+ * Tortie has can carry one: `machines:putFile` takes UTF-8 text, so binary is
+ * impossible, and it is capped at 90,000 bytes because the payload rides
+ * inside one argument of that machine's login shell. A real upload needs a
+ * chunked transport with its own confirm story and its own answer for a
+ * connection that dies mid write, and that is a phase of its own rather than a
+ * corner of this one.
+ *
+ * So the surface says no rather than lighting up and doing nothing. It names
+ * the machine, it says plainly that nothing was copied, and it says where the
+ * file still is, because the person is holding it and needs to know they have
+ * not lost it.
+ */
+export function remoteTreeNoImport(label: string): string {
+  return (
+    `Tortie cannot copy files onto ${label} yet. Nothing was copied, and ` +
+    `that file is still where it was.`
+  );
+}

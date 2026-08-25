@@ -16,11 +16,14 @@
 import type {
   FsCreateInput,
   FsDuplicateInput,
+  FsImportInput,
+  FsImportResult,
   FsMoveInput,
   FsMoveResult,
   FsOpEntry,
   FsRenameInput,
   FsRenameResult,
+  FsStartDragInput,
   FsTrashInput,
   FsTrashResult
 } from '@shared/fs-ops';
@@ -86,4 +89,30 @@ export function move(input: FsMoveInput): Promise<FsMoveResult> {
 export function trash(input: FsTrashInput): Promise<FsTrashResult> {
   const fn = ops()?.trash;
   return typeof fn === 'function' ? fn(input) : missing('trash');
+}
+
+/**
+ * PHASE 154. Copy entries from outside the project into one folder of it.
+ *
+ * Feature-detected like every member above, and separately from `canMutate`:
+ * a build whose preload predates this channel keeps every menu verb it always
+ * had, and a drop from outside says one sentence rather than throwing.
+ */
+export function canImport(): boolean {
+  return typeof ops()?.importPaths === 'function';
+}
+
+export function importPaths(input: FsImportInput): Promise<FsImportResult> {
+  const fn = ops()?.importPaths;
+  return typeof fn === 'function' ? fn(input) : missing('importPaths');
+}
+
+/** PHASE 154. True when this build can begin the operating system's drag. */
+export function canDragOut(): boolean {
+  return typeof ops()?.startDrag === 'function';
+}
+
+export function startDrag(input: FsStartDragInput): Promise<void> {
+  const fn = ops()?.startDrag;
+  return typeof fn === 'function' ? fn(input) : missing('startDrag');
 }

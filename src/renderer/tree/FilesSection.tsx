@@ -58,6 +58,7 @@ import { useTreeDensity } from './density';
 import { useTreeGitStatus } from './git-status';
 import { useTreeIgnored } from './ignored';
 import { useFileTree } from './store';
+import { registerP154Probe } from './p154-probe';
 import { FileTree } from './FileTree';
 import './tree.css';
 
@@ -68,6 +69,10 @@ registerTargetShotDrive();
 // The Phase 90.3 fix round hook, registered here for the same reason: this
 // module is the one the Explorer always loads, so no edit to App.tsx is needed.
 registerRemoteBootDrive();
+// The Phase 154 hook, registered here for the same reason as the two above:
+// this module is the one the Explorer always loads. It assigns one function to
+// `window` and changes nothing else.
+registerP154Probe();
 
 // Collapse persistence (spec: "collapse state persists per project").
 const LS_COLLAPSED = 'gmux.filesCollapsed';

@@ -21,6 +21,7 @@ export type FsOpVerb =
   | 'rename'
   | 'duplicate'
   | 'move'
+  | 'copy'
   | 'delete';
 
 const KNOWN_ERRNOS: readonly FsOpErrno[] = [
@@ -84,6 +85,7 @@ const FALLBACK: Record<FsOpVerb, string> = {
   rename: 'Could not rename',
   duplicate: 'Could not duplicate',
   move: 'Could not move',
+  copy: 'Could not copy',
   delete: 'Could not delete'
 };
 

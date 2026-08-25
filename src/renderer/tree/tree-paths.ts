@@ -15,6 +15,8 @@
  * watcher tick issues nonsense operations against the model.
  */
 
+import { isProtectedFsPath } from '@shared/fs-ops';
+
 /** Strip the canonical directory slash: 'src/' → 'src'. */
 export function toRel(canonical: string): string {
   return canonical.endsWith('/') ? canonical.slice(0, -1) : canonical;
@@ -183,4 +185,38 @@ export function uniqueName(base: string, taken: ReadonlySet<string>): string {
     const candidate = `${base} ${n}`;
     if (!taken.has(candidate)) return candidate;
   }
+}
+
+/**
+ * Where a drop from OUTSIDE the app lands, given the row under the pointer
+ * (Phase 154). Null means the tree refuses this spot and paints nothing.
+ *
+ * The rule is the internal move's rule, said once more for a drag that has no
+ * source inside the project:
+ *
+ *   a folder row        →  inside that folder
+ *   a file row          →  that file's own folder, which is what "put it here"
+ *                          means when you aim at a neighbour
+ *   the empty space     →  the project root, spelled ''
+ *   `.git`, or anything under it, or a row that is not on disk yet  →  null
+ *
+ * It is a pure function of the row so the whole rule can be tested without a
+ * DOM, a model or a disk, which is the only way the FILTERED case can be
+ * proved: a filter changes which rows are mounted and never changes a mounted
+ * row's own path, so the answer comes from the row and cannot drift.
+ */
+export function importTargetFor(
+  row: { rel: string; isFolder: boolean } | null,
+  pendingPath: string | null
+): string | null {
+  if (row === null) return '';
+  const canonical = toCanonical(toRel(row.rel), row.isFolder);
+  // The pending create's row is not on disk yet, so it is neither a folder
+  // you can drop into nor a neighbour whose folder you can name.
+  if (pendingPath !== null && canonical === pendingPath) return null;
+  const dir = row.isFolder ? canonical : parentOf(canonical);
+  if (dir.length > 0 && isProtectedFsPath(dir)) return null;
+  if (isProtectedFsPath(canonical)) return null;
+  if (pendingPath !== null && dir === pendingPath) return null;
+  return dir;
 }

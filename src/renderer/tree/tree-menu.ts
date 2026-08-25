@@ -20,7 +20,7 @@
  * `setMenu` takes everywhere else in the app.
  */
 
-import type { FsMoveConflict } from '@shared/fs-ops';
+import type { FsImportConflict, FsMoveConflict } from '@shared/fs-ops';
 import type { MenuItemSpec } from '../state/store';
 import { menuGlyph } from '../icons';
 import { OPEN_WITH_LABEL } from './open-with';
@@ -361,6 +361,30 @@ export function describeEntries(canonicals: readonly string[]): string {
  * Replace actually does — which, because a displaced entry is trashed first,
  * is still recoverable.
  */
+/**
+ * PHASE 154. The same sentence for a drop from OUTSIDE the project.
+ *
+ * It is a second function rather than a widened `describeConflicts` because
+ * the two answers name different things. A move conflict carries the entry
+ * that cannot land, which is a row inside the project. An import conflict
+ * carries only the incoming NAME, because the thing being brought in has no
+ * path inside the project at all and never will until it lands. What both
+ * sentences do share is the promise at the end, which is the one that matters:
+ * replacing sends the existing entry to the Trash rather than away.
+ */
+export function describeImportConflicts(
+  conflicts: readonly FsImportConflict[]
+): string {
+  const names = conflicts.map((c) => `"${c.name}"`);
+  const [only] = names;
+  if (names.length === 1 && only !== undefined) {
+    return `${only} already exists there. Replacing it moves the existing one to the Trash.`;
+  }
+  const head = names.slice(0, 3).join(', ');
+  const rest = names.length > 3 ? `, and ${names.length - 3} more,` : '';
+  return `${head}${rest} already exist there. Replacing them moves the existing ones to the Trash.`;
+}
+
 export function describeConflicts(
   conflicts: readonly FsMoveConflict[]
 ): string {

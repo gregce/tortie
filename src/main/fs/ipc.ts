@@ -20,7 +20,7 @@
  *                  live in file-ops.ts + paths.ts; this file is wiring.
  */
 
-import { BrowserWindow, dialog, shell } from 'electron';
+import { app, BrowserWindow, dialog, nativeImage, shell } from 'electron';
 import type { IpcMain, IpcMainInvokeEvent } from 'electron';
 import { open as openFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, resolve as resolvePath } from 'node:path';
@@ -31,6 +31,8 @@ import type { FileOpsDeps } from './file-ops';
 import { createFileOps } from './file-ops';
 import type { OpenWithDeps } from './open-with';
 import { createOpenWith, defaultOpenWithDeps } from './open-with';
+import type { DragOutDeps } from './drag-out';
+import { createDragOut } from './drag-out';
 
 
 function entryKind(d: {
@@ -115,6 +117,37 @@ function defaultFileOpsDeps(): FileOpsDeps {
  * into. Parenting to the sender's window follows projects:pickDirectory in
  * src/main/ipc.ts, which is the existing precedent for a modal panel.
  */
+/**
+ * Production dependencies for the drag out (Phase 154).
+ *
+ * `listProjectRoots` is the same reader the file verbs use, so "what is a
+ * project root" has one authority. `startDrag` belongs to the sender, which
+ * is why these are built per call rather than once. The placeholder icon is a
+ * one pixel transparent image: macOS throws on an empty one, and
+ * `nativeImage.createEmpty()` IS empty, so it cannot be the fallback.
+ */
+function defaultDragOutDeps(event: IpcMainInvokeEvent): DragOutDeps {
+  return {
+    listProjectRoots: async () => {
+      const { getGmuxCore } = await import('../sessions');
+      return (await getGmuxCore()).listProjects().map((p) => p.path);
+    },
+    fileIcon: (path) => app.getFileIcon(path),
+    placeholderIcon: () =>
+      nativeImage.createFromDataURL(
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ' +
+          'AAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+      ),
+    startDrag: (item) => {
+      event.sender.startDrag(
+        item as unknown as Parameters<
+          typeof event.sender.startDrag
+        >[0]
+      );
+    }
+  };
+}
+
 async function chooseAppFor(event: IpcMainInvokeEvent): Promise<string | null> {
   const options = {
     properties: ['openFile'] as Array<'openFile'>,
@@ -142,7 +175,8 @@ async function chooseAppFor(event: IpcMainInvokeEvent): Promise<string | null> {
 export function registerFsIpc(
   ipc: IpcMain,
   deps?: FileOpsDeps,
-  openWithDeps?: OpenWithDeps
+  openWithDeps?: OpenWithDeps,
+  dragOutDeps?: DragOutDeps
 ): void {
   const fileOps = createFileOps(deps ?? defaultFileOpsDeps());
 
@@ -222,6 +256,23 @@ export function registerFsIpc(
   handle(ipc, 'fs:duplicate', (_e, input) => fileOps.duplicate(input));
   handle(ipc, 'fs:move', (_e, input) => fileOps.move(input));
   handle(ipc, 'fs:trash', (_e, input) => fileOps.trash(input));
+
+  // ----- Phase 154 the drop from outside ---------------------------------
+  // Thin for the same reason as the block above: the source guard, the
+  // collision plan, the trash-before-replace rule and the copy itself all
+  // live in file-ops.ts.
+
+  handle(ipc, 'fs:importPaths', (_e, input) => fileOps.importPaths(input));
+
+  // ----- Phase 154 the drag out ------------------------------------------
+  // The one channel in this file whose handler needs the SENDER, because
+  // `startDrag` belongs to the webContents that is dragging. The service is
+  // built per call for that reason and holds nothing between calls; every
+  // refusal is in drag-out.ts.
+
+  handle(ipc, 'fs:startDrag', (e, input) =>
+    createDragOut(dragOutDeps ?? defaultDragOutDeps(e)).begin(input)
+  );
 
   // ----- Phase 39 Open With ----------------------------------------------
   // Thin by design, like the block above: the deadline, the cache, the

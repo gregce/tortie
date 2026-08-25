@@ -80,6 +80,40 @@
   border-radius: var(--r-sm);
 }
 
+/* A DROP FROM OUTSIDE THE APP (Phase 154). Same language as the root drop
+   above, one step louder, because this one WRITES A FILE into the project and
+   the root drop only moves one that is already in it. The whole box lights
+   when the destination is the project root or when the destination folder has
+   been scrolled out of view. */
+.files-tree.import-drop {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+/* THE REFUSAL, and it must not look like the acceptance above. A folder on
+   another machine cannot take a file from Finder, and the sentence saying so
+   arrives on the drop — so before the drop this says, in the muted colour the
+   product uses for something that is off rather than wrong, that this tree is
+   the one handling the drag and is not going to take it. */
+.files-tree.import-refused {
+  box-shadow: inset 0 0 0 2px var(--text-muted);
+  border-radius: var(--r-sm);
+}
+
+/* THE DESTINATION FOLDER'S ROW. Drawn by the host over the row's live rect,
+   the same technique the filter's clear button and the create editor's
+   refusal note already use — the row itself is inside the library's shadow
+   root and nothing here reaches into it. */
+.files-import-target {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
 /* THE FILTER'S CLEAR BUTTON (Phase 47 item 2). @pierre/trees renders no clear
    affordance, and after this phase the filter no longer falls away when you
    click a result, so there has to be one deliberate way out that is not a

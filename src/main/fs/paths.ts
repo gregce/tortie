@@ -152,10 +152,34 @@ export async function resolveInsideRoot(
   input: unknown,
   options: { allowRoot?: boolean } = {}
 ): Promise<ResolvedFsPath> {
-  if (typeof input !== 'string' || input.trim().length === 0) {
+  if (typeof input !== 'string') {
     throw gmuxError('INVALID_INPUT', 'A path is required.');
   }
   if (input.includes('\0')) throw outside(input);
+
+  // PHASE 154 FOUND THIS, AND IT IS A REPAIR RATHER THAN A WIDENING.
+  //
+  // '' is how the ENTIRE renderer spells the project root: `parentOf` returns
+  // it for a top-level entry, `destinationFor` and `planMoves` take it as the
+  // destination, and the root drop on the empty space below the rows passes it
+  // literally (`opsRef.current?.drop(dragged, '', false)`). Every one of those
+  // reached this function through `toRel('')`, which is '', and was refused
+  // here with "A path is required." So the root drop shipped in Phase 12.9 has
+  // never once landed, and neither has a drop on a TOP-LEVEL FILE row, which
+  // Pierre reports as `directoryPath: null` and the model hook turns into ''.
+  // A move to the root toasted a sentence about a missing path.
+  //
+  // `allowRoot` is the flag that already means "the project folder itself is
+  // an acceptable answer here", and it is true for exactly the callers that
+  // want a destination directory. So the empty spelling is admitted under it
+  // and under nothing else: a rename, a trash and a source path still refuse,
+  // because for them the root is not a legal answer at all.
+  if (input.trim().length === 0) {
+    if (options.allowRoot !== true) {
+      throw gmuxError('INVALID_INPUT', 'A path is required.');
+    }
+    return { abs: realRoot, rel: '' };
+  }
 
   // Pierre spells directories with a trailing slash; the filesystem does not.
   let trimmed = input;
@@ -217,4 +241,115 @@ export function assertBasename(name: unknown): string {
   }
   if (isProtectedFsPath(trimmed)) throw protectedPath(trimmed);
   return trimmed;
+}
+
+/**
+ * Validate the name of a file that is arriving from OUTSIDE the project, and
+ * hand it back BYTE FOR BYTE (Phase 154, repaired in the fix round).
+ *
+ * WHY THIS IS NOT `assertBasename`. That function exists for a name a PERSON
+ * TYPED, into the inline rename box or the New File sheet, and its `trim()` is
+ * the right answer there: somebody who types a trailing space did not mean it.
+ * This function exists for a name that is ALREADY ON DISK, which nobody is
+ * typing and which Tortie has no business editing.
+ *
+ * Running an incoming name through the typed-name rule did two things, both
+ * measured end to end before this was written:
+ *
+ *  1. It SILENTLY RENAMED the file. A drop of `novel.txt ` landed as
+ *     `novel.txt` and the person was told nothing. Finder does not do that,
+ *     and Tortie's own internal move does not do it either: moving ` mv.ts`
+ *     into `src/` keeps the space.
+ *  2. Worse, it MANUFACTURED an overwrite. A file genuinely named ` keep.ts`
+ *     dropped into a folder holding `keep.ts` trimmed onto the existing name,
+ *     so the confirm sheet asked about `keep.ts`, a file the person never
+ *     dragged. Confirming trashed the real `keep.ts` and put different bytes
+ *     in its place. Recoverable from the Trash, and still the wrong question
+ *     answered, which is the one thing this whole surface promises not to do.
+ *
+ * So the name is checked and never edited. The checks are the ones that
+ * decide whether a name can escape the destination folder or name something
+ * Tortie must not write, and nothing about taste:
+ *
+ *   - a non-empty string, and not one that is ONLY whitespace, because that
+ *     is a name no sheet can show and no person can read back;
+ *   - not '.' or '..' in either its real spelling or its trimmed one;
+ *   - no '/' and no NUL, which are the two bytes that could reach outside the
+ *     folder that was aimed at;
+ *   - not `.git`, and the TRIMMED spelling is tested for that too. This is
+ *     the one place the trim survives on purpose. Before this repair a folder
+ *     named ` .git ` was caught by accident, because the trim ran first, and
+ *     dropping the trim without this line would have quietly given that back.
+ *     It is refused on how it READS rather than on what it is.
+ */
+export function assertIncomingBasename(name: unknown): string {
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    throw gmuxError('INVALID_INPUT', 'A name is required.');
+  }
+  const trimmed = name.trim();
+  if (name === '.' || name === '..' || trimmed === '.' || trimmed === '..') {
+    throw gmuxError('INVALID_INPUT', `"${trimmed}" is not a usable name.`);
+  }
+  if (name.includes('/') || name.includes('\0')) {
+    throw gmuxError('INVALID_INPUT', 'A name cannot contain "/".', name);
+  }
+  if (isProtectedFsPath(name) || isProtectedFsPath(trimmed)) {
+    throw protectedPath(name);
+  }
+  return name;
+}
+
+/**
+ * Resolve a path that is coming INTO the project from outside it (Phase 154).
+ *
+ * This is the one input in the whole fs contract that is allowed to name
+ * something the project does not contain, so it gets its own function rather
+ * than a flag on `resolveInsideRoot`. That refusal is the guard every other
+ * mutation rests on and it stays exactly as strict as it was.
+ *
+ * What it proves, and each is load bearing:
+ *
+ *   1. It is a non empty string with no NUL. A dropped file whose path could
+ *      not be read arrives as '', and copying from '' would resolve to the
+ *      process's working directory.
+ *   2. It is ABSOLUTE. There is no base to resolve a relative one against:
+ *      the source is not in the project, so `realRoot` is the wrong anchor
+ *      and the working directory is nobody's intent.
+ *   3. It EXISTS, and every symlink in it is resolved, LEAF INCLUDED. This is
+ *      the one place the module's own symlink rule is deliberately inverted,
+ *      and the reason is containment rather than taste: the caller compares
+ *      this answer against the destination to refuse a folder copied into
+ *      itself, and a link left unresolved defeats that comparison. A link in
+ *      /tmp pointing at the project's own folder would otherwise read as a
+ *      stranger. The cost is that dropping an alias brings in what it points
+ *      at, which is what "bring this in" means for a file you can only see
+ *      through a link.
+ */
+export async function resolveIncomingSource(input: unknown): Promise<string> {
+  if (typeof input !== 'string' || input.trim().length === 0) {
+    throw gmuxError('INVALID_INPUT', 'Tortie could not tell where that came from.');
+  }
+  if (input.includes('\0')) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      'Tortie could not tell where that came from.',
+      input
+    );
+  }
+  if (!isAbsolute(input)) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      'Tortie could not tell where that came from.',
+      input
+    );
+  }
+  try {
+    return await realpath(resolve(input));
+  } catch {
+    throw gmuxError(
+      'FS_FAILED',
+      `"${basename(input)}" is no longer there.`,
+      'ENOENT'
+    );
+  }
 }

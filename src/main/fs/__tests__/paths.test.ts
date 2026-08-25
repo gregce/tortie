@@ -14,7 +14,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { GmuxErrorPayload } from '@shared/types';
-import { assertBasename, resolveInsideRoot, resolveProjectRoot } from '../paths';
+import {
+  assertBasename,
+  assertIncomingBasename,
+  resolveIncomingSource,
+  resolveInsideRoot,
+  resolveProjectRoot
+} from '../paths';
 
 let scratch: string;
 let root: string;
@@ -200,5 +206,124 @@ describe('assertBasename', () => {
       expect(() => assertBasename(name)).toThrow();
     }
     expect(() => assertBasename(undefined)).toThrow();
+  });
+});
+
+describe('assertIncomingBasename', () => {
+  it('hands back a name that is already on disk, byte for byte', () => {
+    // The whole point of the second function. A name a person TYPED is
+    // tidied; a name the filesystem already holds is not Tortie's to edit.
+    for (const name of [
+      '  notes.md  ',
+      ' leading.txt',
+      'trailing.txt ',
+      'new\nline.txt',
+      'star*.txt',
+      '...',
+      '-rf',
+      '.gitfoo',
+      'emoji-\u{1f600}.txt'
+    ]) {
+      expect(assertIncomingBasename(name)).toBe(name);
+    }
+  });
+
+  it('refuses names that are empty, whitespace, dots, paths, or .git', () => {
+    for (const name of ['', '   ', '.', '..', ' . ', 'a/b', 'x\0y', '.git']) {
+      expect(() => assertIncomingBasename(name)).toThrow();
+    }
+    expect(() => assertIncomingBasename(undefined)).toThrow();
+  });
+
+  it('still refuses ".git" wearing spaces, which the old trim caught by luck', () => {
+    expect(() => assertIncomingBasename(' .git ')).toThrow();
+    expect(() => assertIncomingBasename('.git ')).toThrow();
+  });
+
+  it('disagrees with assertBasename exactly where it is meant to', () => {
+    expect(assertBasename(' keep.ts')).toBe('keep.ts');
+    expect(assertIncomingBasename(' keep.ts')).toBe(' keep.ts');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 154 — the empty spelling of the project root, and the incoming source
+// guard. Both are new here, and the first is a REPAIR of a defect Phase 154
+// found in the surface it was extending.
+// ---------------------------------------------------------------------------
+
+describe('the empty spelling of the project root (Phase 154 repair)', () => {
+  it("accepts '' as the root when allowRoot is set", async () => {
+    const resolved = await resolveInsideRoot(root, '', { allowRoot: true });
+    expect(resolved.abs).toBe(root);
+    expect(resolved.rel).toBe('');
+  });
+
+  it("still refuses '' where the root is not a legal answer", async () => {
+    const payload = await refusal(resolveInsideRoot(root, ''));
+    expect(payload.code).toBe('INVALID_INPUT');
+    expect(payload.message).toBe('A path is required.');
+  });
+
+  it('refuses a non string whatever allowRoot says', async () => {
+    const payload = await refusal(
+      resolveInsideRoot(root, 42, { allowRoot: true })
+    );
+    expect(payload.code).toBe('INVALID_INPUT');
+  });
+
+  it('refuses a NUL before anything else, allowRoot or not', async () => {
+    const payload = await refusal(
+      resolveInsideRoot(root, 'src/\0evil', { allowRoot: true })
+    );
+    expect(payload.code).toBe('INVALID_INPUT');
+  });
+});
+
+describe('resolveIncomingSource, the one input allowed to be outside', () => {
+  it('accepts an absolute path outside the project and resolves it', async () => {
+    expect(await resolveIncomingSource(join(outside, 'secret.txt'))).toBe(
+      join(outside, 'secret.txt')
+    );
+  });
+
+  it('resolves the LEAF symlink too, which the inside guard deliberately does not', async () => {
+    const alias = join(outside, 'alias.txt');
+    await symlink(join(root, 'src', 'index.ts'), alias);
+    // This inversion is what lets the caller compare a source against a
+    // destination and refuse a folder copied into itself.
+    expect(await resolveIncomingSource(alias)).toBe(
+      join(root, 'src', 'index.ts')
+    );
+  });
+
+  it('refuses a relative path: nothing is a legal base for it', async () => {
+    const payload = await refusal(resolveIncomingSource('secret.txt'));
+    expect(payload.code).toBe('INVALID_INPUT');
+  });
+
+  it('refuses an empty string, which is an unreadable drop', async () => {
+    const payload = await refusal(resolveIncomingSource(''));
+    expect(payload.code).toBe('INVALID_INPUT');
+  });
+
+  it('refuses a NUL', async () => {
+    const payload = await refusal(
+      resolveIncomingSource(join(outside, 'a\0b'))
+    );
+    expect(payload.code).toBe('INVALID_INPUT');
+  });
+
+  it('refuses a non string', async () => {
+    const payload = await refusal(resolveIncomingSource(null));
+    expect(payload.code).toBe('INVALID_INPUT');
+  });
+
+  it('refuses a path that is not on disk', async () => {
+    const payload = await refusal(
+      resolveIncomingSource(join(outside, 'nope.txt'))
+    );
+    expect(payload.code).toBe('FS_FAILED');
+    expect(payload.detail).toBe('ENOENT');
   });
 });

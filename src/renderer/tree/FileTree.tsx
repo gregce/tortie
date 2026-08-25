@@ -30,8 +30,8 @@
  *   where anyone aims.
  * · NAME FILTER (item 4): the library's own field, `hide-non-matches`.
  *
- * ── ONE DRAG, TWO MEANINGS ────────────────────────────────────────────────
- * A drag that starts here means MOVE over the tree and ATTACH over a terminal
+ * ── ONE SURFACE, FOUR MEANINGS (Phase 154 added the last two) ─────────────
+ * A drag that STARTS here means MOVE over the tree and ATTACH over a terminal
  * pane. The contract is written once in terminal/drop/tree-drag.ts; this
  * component performs the tree's three obligations and nothing else — it arms
  * `beginTreeDrag` on the host's bubbled dragstart, it never installs a
@@ -40,6 +40,21 @@
  * stamps 'move', and Chromium then REFUSES the pane's 'copy' outright (the
  * drop event never fires). Widening it to 'copyMove' is what lets the cursor
  * name which family you are in.
+ *
+ * With OPTION held, the same gesture means DRAG OUT: the HTML drag is ended
+ * before it begins and `fs:startDrag` starts the operating system's own one,
+ * so a row can be dropped into Finder as a real file. A renderer cannot do
+ * that at all, which is why there is a channel.
+ *
+ * A drag that STARTS OUTSIDE THE APP and carries files means IMPORT: what is
+ * dropped is copied into the folder under the pointer, or into the project
+ * root over the empty space, matching the move rule exactly. Before this
+ * phase that gesture belonged to the window router and opened a NEW PROJECT
+ * TAB, and over the tree box it no longer does. Everywhere else in the window
+ * it still does.
+ *
+ * All four live in use-tree-drag.ts, which is where the rules that keep them
+ * apart are written down.
  *
  * ── PHASE 90.3 — the same tree, rows on another machine ───────────────────
  * A project can be a folder on another machine now, and this component draws
@@ -586,12 +601,45 @@ export function FileTree({
 
   const {
     rootArmed,
+    importHover,
     onDragStart,
     onDragOver,
     onDragLeave,
     onDrop,
     onDragEnd
-  } = useTreeDrag({ rootPath, isRemote, model, hostRef, opsRef });
+  } = useTreeDrag({
+    rootPath,
+    isRemote,
+    remoteLabel: remote?.label ?? null,
+    model,
+    hostRef,
+    opsRef,
+    treeShadow
+  });
+
+  /**
+   * PHASE 154. What the drop from outside paints, and why it is drawn by the
+   * HOST rather than inside Pierre's shadow root.
+   *
+   * The library paints `data-item-drag-target` on a row for its OWN drags and
+   * has no affordance for anybody else's, so there are two ways to show where
+   * an external drop will land: set the library's attribute on its own row, or
+   * draw a rectangle over that row from the host. The second is the one this
+   * component already uses twice — the filter's clear button and the create
+   * editor's refusal note are both placed from a live rect out of the shadow
+   * root — so it is the pattern rather than a new one, and it reaches into
+   * nothing the library owns.
+   *
+   * WHICH ROW. The ring goes on the DESTINATION FOLDER, which for a file row
+   * is that file's own folder rather than the row under the pointer, because
+   * the file is not where the drop lands. When the destination is the project
+   * root, or when the destination folder has been scrolled out of view, the
+   * whole tree box takes the ring instead: that is the same affordance the
+   * root drop has worn since Phase 12.9, and it is the honest reduced
+   * statement when no row on screen is the answer.
+   */
+  const importBox = importHover?.box ?? null;
+  const importWholeBox = importHover !== null && importHover.box === null;
 
   // Host styles: the theme bridge's --trees-theme-* vars plus gmux type
   // tokens (fonts/sizes inherit as custom properties across the shadow
@@ -617,7 +665,12 @@ export function FileTree({
 
   return (
     <div
-      className={`files-tree${rootArmed ? ' root-drop' : ''}`}
+      className={
+        'files-tree' +
+        (rootArmed ? ' root-drop' : '') +
+        (importWholeBox && importHover?.refused !== true ? ' import-drop' : '') +
+        (importHover?.refused === true ? ' import-refused' : '')
+      }
       ref={hostRef}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -638,6 +691,18 @@ export function FileTree({
           aria-label="Project files"
         />
       )}
+      {importBox !== null ? (
+        <div
+          className="files-import-target"
+          aria-hidden="true"
+          style={{
+            top: importBox.top,
+            left: importBox.left,
+            width: importBox.width,
+            height: importBox.height
+          }}
+        />
+      ) : null}
       {clearBox !== null ? (
         <button
           type="button"
