@@ -17107,6 +17107,52 @@ The path is per agent and it is derived, not stored on the manifest row. `src/ma
 - No identifier shown anywhere else in the app, and no identifier in the session's own row label.
 
 
+## Phase 153 — every menu row carries the icon its own part of the product already uses (operator asked 2026-08-25) QUEUED, AFTER 152
+
+**Subject:** `feat(ui): menu rows carry the icons their surfaces already use`
+**First body line:** `Phase 153: the menu iconography`
+**Semver:** patch. Menus gain icons; no row changes what it does.
+**Tier 2.** Rendered surfaces with no new state, and he reported it himself so the parent commit measurement is mandatory. One app run photographs every menu.
+**Charter:** this entry, plus the three Screen Studio menus he attached on 2026-08-25 as the reference, plus the UI rules in `CLAUDE.md`, which require native macOS menus through the `ui:popupMenu` bridge and never a DOM drawn menu.
+
+### What he asked, and his rule for choosing
+
+He wants the dropdown menus to carry icons the way the reference does. **His rule, in his words: the icon should be consistent with the iconography of that part of the product if there is a good one to select, and otherwise be the right representative icon.** So this is not a free choice per row. A row that opens Catch Me Up wears the icon Catch Me Up already wears. A row that acts on a file wears the icon the file tree already uses. Only a row whose surface has no icon of its own gets a newly chosen one, and the phase says which rows those were and why each choice is right.
+
+### The mechanism already exists, which changes what this phase is
+
+`src/main/menu-popup.ts` line 46 already carries a `menuIcon()` that turns a renderer rasterized PNG data URL into an Electron `NativeImage` at 16 point, and line 56 already calls `setTemplateImage(true)` when the icon says it is a template, which is what makes an icon read correctly in both light and dark. **The door is built and almost nothing walks through it.** A grep on 2026-08-25 found zero popup menu rows setting an icon, and only four mentions of icon in `src/main/menu.ts`.
+
+So the phase is not building a mechanism. It is using the one that is there, and finding out where it falls short. Two questions it must answer by measurement rather than assumption:
+
+- **Does the app menu bar support this too?** The popup path is proven. `src/main/menu.ts` builds the application menu, and whether a top level menu item can carry an icon on macOS, and whether that is even desirable there, is a question the phase answers before touching it. The reference screenshots are application menus, so he is asking for both, but macOS convention may differ and the phase says what it found.
+- **Where do the icons come from?** Tortie draws with codicons and the material icon theme today. The icons must be rasterized from the SAME source the surfaces use, so a menu row and its surface can never drift apart, and they must be template images so they follow the theme.
+
+### What lands
+
+- Every row in every popup menu that has a matching surface icon carries it, being the session actions menu, the file tree menu, the source control menus, the editor tab menu and any other the phase finds by enumerating the callers of the popup bridge.
+- Rows with no natural source icon get a chosen one, listed in the commit body with the reason for each.
+- Separators and destructive rows keep reading as they do now. A destructive row is not made prettier at the cost of reading as ordinary.
+- The application menu gains icons only if the phase's own measurement says it should, and it says plainly either way.
+
+### Proof, run rather than read
+
+- ONE app run photographing EVERY popup menu, before at the parent commit and after, since he reported this himself.
+- A table of every menu row, the icon it now carries, and the surface that icon comes from, so the consistency rule is checkable rather than asserted.
+- Both themes photographed, proving the template image treatment works and no icon reads wrong on either ground.
+- The rows that got a newly chosen icon named, with each choice's reason.
+- A count of menu rows before and after, proving no row was added, removed or reordered.
+- The full battery.
+
+### What is NOT in this phase
+
+- No new menu row, no removed row, no reordered row, and no change to what any row does.
+- No DOM drawn menu. The UI rule stands and every menu stays native through the existing bridge.
+- No new icon set and no third party icon package. The icons come from what Tortie already draws with.
+- No icon on a row whose surface has none and where no representative icon is clearly right. Saying nothing is better than a wrong icon.
+- No change to the tray menu unless the enumeration finds it shares a builder, and then the commit body says so.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -17294,3 +17340,4 @@ cycle rather than only the evening it was written.
 - 2026-08-25, Phase 150 queued at his word as its own phase rather than inside 149, the main navigation ribbon's icons take the same light grey hover the project tabs already have in both orientations, and narrowing the session list never pushes its header controls off the right edge; it runs after 149 and BEFORE the Arch phases
 - 2026-08-25, Phase 151 queued from his FSEvents report, and the cause was read from the library source rather than guessed: the stream asks for per file events with a one millisecond coalescing window and watches the whole worktree excluding only `.git`, so his gitignored `scratch/` churn overflows the buffer, AND `handleWorktreeEvents` logs the drop and returns without ever re-scanning, so the tree can be silently stale; the naive fix of excluding everything git ignores does not scale because `FSEventStreamSetExclusionPaths` is capped at 8 paths
 - 2026-08-25, Phase 152 queued at his word and it runs BEFORE Arch, a session names both of its identifiers and the path to its record on disk in the ellipsis menu and on the hover tooltip with a copy verb for each, and the entry is explicit that Tortie's own session id and the agent's conversation id are different things because copying the wrong one resumes nothing, and that some agents have no record path at all so the surface says so rather than guessing
+- 2026-08-25, Phase 153 queued at his word, every menu row carries the icon its own part of the product already uses and only rows with no natural source get a chosen one; the mechanism already exists at src/main/menu-popup.ts line 46 with template image support at line 56 and a grep that day found ZERO popup rows using it, so the phase is about walking through a door that is already built rather than building one; it runs after 152 because both touch session-actions.tsx and the native menus
