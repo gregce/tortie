@@ -16925,7 +16925,7 @@ Blocked on Phases 64 and 65 being in use, plus the observed number, plus the spi
 **Subject:** `fix(ui): the empty state quiets down and the side views share one type scale`
 **First body line:** `Phase 149: the empty state, the side view type scale, and Commit`
 **Semver:** patch. Rendered surfaces only, no data and no new state.
-**Tier 2.** Every item is a rendered surface with no new state, and HE REPORTED ALL FOUR HIMSELF, so the parent commit measurement is mandatory: photograph and measure each surface at the parent before claiming a change. One app run drives all four items.
+**Tier 2.** Every item is a rendered surface with no new state, and HE REPORTED ALL SIX HIMSELF, so the parent commit measurement is mandatory: photograph and measure each surface at the parent before claiming a change. One app run drives all four items.
 **Charter:** this entry, plus the four screenshots he attached on 2026-08-25, plus `docs/DESIGN-SPEC.md` and `src/renderer/styles/tokens.css`, which own the type scale the side views must share.
 
 ### Item one, the empty project says less and shows the cat
@@ -16942,6 +16942,14 @@ He showed the search view's inputs and labels beside the explorer header and fil
 
 He said the commit button should be more premium. It is drawn in the Source Control view and today reads as a flat disabled slab even when it is enabled. It gets a treatment that says pressable, built from the accent tokens the way Phase 148 built the ask glow, with its disabled state still plainly disabled, since a commit is the one irreversible verb in that panel.
 
+### Item five, the activity bar icons highlight on hover
+
+He hovered the main navigation ribbon and nothing happened. Every icon on that ribbon gets a light grey hover highlight, the SAME treatment the project tabs across the top already give on hover, so the two ribbons agree. It applies in BOTH orientations, being the left vertical ribbon and the top horizontal one, and it must not disturb the selected view's own indicator or the change count badge that sits on the source control icon. The phase reads the project tab's existing hover values and reuses those tokens rather than inventing a second grey.
+
+### Item six, narrowing the session list never pushes its buttons off screen
+
+He made the session list narrower and the buttons in its header ran off the right edge, so the collapse chevron, the position control and the add button became unreachable. The header keeps its controls reachable at every width the list can be dragged to. The phase decides how, with the reason in the commit body, being that the title truncates before the controls do, or the controls hold a reserved minimum, or the list has a minimum width that the controls fit inside. Whichever is chosen, the proof is that at the NARROWEST width the list allows, every control's bounding box still sits inside the list's own box.
+
 ### Proof, run rather than read
 
 - ONE app run photographing all four surfaces, plus the PARENT COMMIT photographs of each, because he reported all four.
@@ -16949,6 +16957,8 @@ He said the commit button should be more premium. It is drawn in the Source Cont
 - The cat proved not to move the agent grid, by the grid's bounding box being identical before and after at two window widths.
 - A table of the four side views' measured heading size, label size, input height and input type size, before and after, proving they agree after.
 - The Commit button photographed enabled and disabled, with its computed values derived from tokens.
+- Every activity bar icon hovered in BOTH orientations with its computed background read, proving it matches the project tab's hover values and that the selected indicator and the count badge still draw.
+- The session list dragged to its NARROWEST width with every header control's bounding box proved inside the list's box, at the parent commit too so the before and after are both recorded.
 - A grep proving no new color or size literal entered a component file, and the full battery.
 
 ### What is NOT in this phase
