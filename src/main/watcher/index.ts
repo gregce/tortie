@@ -12,9 +12,18 @@
 export {
   RepoWatcher,
   isRelevantDotGitPath,
+  isRescanRequired,
   readGitdirPointer,
   type RepoWatcherOptions
 } from './repo-watcher';
+export {
+  EXCLUSION_PATH_BUDGET,
+  parseIgnoredRoots,
+  planWorktreeIgnore,
+  rankIgnoredRoots,
+  readIgnoredRoots,
+  type WorktreeIgnorePlan
+} from './ignored-roots';
 export {
   emitRepoChanged,
   onRepoChanged,

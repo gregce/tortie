@@ -123,10 +123,22 @@ export const CHECKS = [
   pure('conformance:installs'),
   pure('conformance:context'),
   pure('conformance:overview'),
+  pure('conformance:watcher'),
   pure('conformance:handback'),
   adapter(
     'conformance:specstory:entitlement',
     'macOS codesign and the vendored specstory binary; it signs scratch copies and runs them'
+  ),
+  adapter(
+    'conformance:watcher:cap',
+    'clang from the Xcode command line tools and the macOS CoreServices ' +
+      'framework; it compiles build/fsevents-cap.c and opens real FSEvents ' +
+      'streams on a scratch directory it removes in a finally block',
+    'on any platform other than macOS it prints SKIP and exits 0, because ' +
+      'FSEventStreamSetExclusionPaths is what it measures and that API exists ' +
+      'nowhere else. On macOS it never skips. It is not in the commit ' +
+      'battery: it takes about 25 seconds, and npm run conformance:watcher is ' +
+      'the fast gate that holds the code to the number it measures'
   ),
   tmux('conformance:tmux-pair'),
   electron('conformance:resume'),

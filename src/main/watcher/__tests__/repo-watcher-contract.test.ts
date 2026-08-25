@@ -15,8 +15,18 @@
  * events that honor this contract is the separate native lane,
  * `repo-watcher.native.test.ts`, which runs the same class over the real
  * primitive.
+ *
+ * PHASE 151 ADDED TWO GROUPS HERE. The first pins which exclusions reach
+ * `subscribe`, including the eight path ceiling. The second pins the drop:
+ * that a "must be re-scanned" error produces an onChange, that a storm of
+ * them still produces one per window, and that a FATAL error does not. What
+ * this file cannot prove is that a real FSEvents stream drops less often with
+ * the exclusions on, or that the tree actually recovers afterwards. Both need
+ * a real stream under real churn for a real minute, and both belong to the
+ * verifier's churn run rather than here.
  */
 
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -30,7 +40,7 @@ interface FakeEvent {
 interface FakeSub {
   dir: string;
   cb: (err: Error | null, events: FakeEvent[]) => void;
-  ignore: string[];
+  ignore: (string | RegExp)[];
   unsubscribed: boolean;
 }
 
@@ -41,7 +51,7 @@ vi.mock('@parcel/watcher', () => {
   const subscribe = (
     dir: string,
     cb: (err: Error | null, events: FakeEvent[]) => void,
-    opts?: { ignore?: string[] }
+    opts?: { ignore?: (string | RegExp)[] }
   ): Promise<{ unsubscribe: () => Promise<void> }> => {
     const rec: FakeSub = {
       dir,
@@ -60,9 +70,12 @@ vi.mock('@parcel/watcher', () => {
   return { default: { subscribe }, subscribe };
 });
 
-const { RepoWatcher, isRelevantDotGitPath, readGitdirPointer } = await import(
-  '../repo-watcher'
-);
+const {
+  RepoWatcher,
+  isRelevantDotGitPath,
+  isRescanRequired,
+  readGitdirPointer
+} = await import('../repo-watcher');
 
 /** Fast debounce so a window can be crossed with a short real wait. */
 const DEBOUNCE_MS = 20;
@@ -199,6 +212,197 @@ describe('RepoWatcher contract over an injected backend', () => {
   });
 });
 
+describe('the worktree exclusions (Phase 151)', () => {
+  it('excludes the repository\'s own ignored directories beside .git', async () => {
+    execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
+    writeFileSync(join(dir, '.gitignore'), 'node_modules/\nscratch/\n');
+    mkdirSync(join(dir, 'node_modules'));
+    writeFileSync(join(dir, 'node_modules', 'a'), 'x');
+    mkdirSync(join(dir, 'scratch'));
+    writeFileSync(join(dir, 'scratch', 'a'), 'x');
+
+    const rw = await RepoWatcher.watch(dir, { onChange: () => undefined });
+    try {
+      const worktree = subs[0]!;
+      expect(worktree.ignore).toContain(join(worktree.dir, '.git'));
+      expect(worktree.ignore).toContain(join(worktree.dir, 'node_modules'));
+      expect(worktree.ignore).toContain(join(worktree.dir, 'scratch'));
+    } finally {
+      await rw.dispose();
+    }
+  });
+
+  it('never passes more than eight plain paths, because the ninth disables all eight', async () => {
+    execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
+    const names = Array.from({ length: 12 }, (_, i) => `ig${String(i).padStart(2, '0')}`);
+    writeFileSync(join(dir, '.gitignore'), `${names.join('/\n')}/\n`);
+    for (const n of names) {
+      mkdirSync(join(dir, n));
+      writeFileSync(join(dir, n, 'a'), 'x');
+    }
+
+    const rw = await RepoWatcher.watch(dir, { onChange: () => undefined });
+    try {
+      const ignore = subs[0]!.ignore;
+      // A plain string is the only shape that consumes a CoreServices slot.
+      // A RegExp is routed to the userspace matcher by
+      // `node_modules/@parcel/watcher/wrapper.js` and costs nothing.
+      const plain = ignore.filter((e) => typeof e === 'string');
+      const overflow = ignore.filter((e): e is RegExp => e instanceof RegExp);
+      expect(plain).toHaveLength(8);
+      expect(overflow).toHaveLength(5);
+      // Nothing was lost: twelve roots plus .git are all still represented.
+      expect(ignore).toHaveLength(13);
+      for (const m of overflow) {
+        // Relative and anchored, which is what the userspace matcher wants:
+        // it is run against the path relative to the watch root.
+        expect(m.source.startsWith('^/')).toBe(false);
+        expect(m.source.startsWith('^')).toBe(true);
+        // No flags at all, because wrapper.js throws on any.
+        expect(m.flags).toBe('');
+      }
+    } finally {
+      await rw.dispose();
+    }
+  });
+
+  it('subscribes with .git alone when the directory is not a repository', async () => {
+    mkdirSync(join(dir, '.git'));
+    const rw = await RepoWatcher.watch(dir, { onChange: () => undefined });
+    try {
+      expect(subs[0]!.ignore).toEqual([join(subs[0]!.dir, '.git')]);
+    } finally {
+      await rw.dispose();
+    }
+  });
+});
+
+describe('a dropped batch causes a re-read (Phase 151)', () => {
+  const dropped = (): Error =>
+    new Error(
+      'Events were dropped by the FSEvents client. File system must be re-scanned.'
+    );
+
+  it('re-reads on a worktree drop, where it used to log and do nothing', async () => {
+    mkdirSync(join(dir, '.git'));
+    let fires = 0;
+    const errors: string[] = [];
+    const rw = await RepoWatcher.watch(dir, {
+      debounceMs: DEBOUNCE_MS,
+      onChange: () => {
+        fires += 1;
+      },
+      onError: (e) => errors.push(e.message)
+    });
+    try {
+      subs[0]!.cb(dropped(), []);
+      await flushWindow();
+      expect(fires).toBe(1);
+      // The error is still reported. The re-read is in addition, not instead.
+      expect(errors).toHaveLength(1);
+    } finally {
+      await rw.dispose();
+    }
+  });
+
+  it('re-reads on a dotgit drop even though no path is known to be relevant', async () => {
+    mkdirSync(join(dir, '.git'));
+    let fires = 0;
+    const rw = await RepoWatcher.watch(dir, {
+      debounceMs: DEBOUNCE_MS,
+      onChange: () => {
+        fires += 1;
+      },
+      onError: () => undefined
+    });
+    try {
+      subs[1]!.cb(dropped(), []);
+      await flushWindow();
+      expect(fires).toBe(1);
+    } finally {
+      await rw.dispose();
+    }
+  });
+
+  it('does not discard the real events that arrived beside the error', async () => {
+    // The library hands the error AND the batch to one callback
+    // (Watcher.cc line 124), and the old early return threw the batch away.
+    mkdirSync(join(dir, '.git'));
+    let fires = 0;
+    const rw = await RepoWatcher.watch(dir, {
+      debounceMs: DEBOUNCE_MS,
+      onChange: () => {
+        fires += 1;
+      },
+      onError: () => undefined
+    });
+    try {
+      subs[0]!.cb(dropped(), [{ path: join(dir, 'src/f2.go'), type: 'update' }]);
+      await flushWindow();
+      expect(fires).toBe(1);
+    } finally {
+      await rw.dispose();
+    }
+  });
+
+  it('collapses a STORM of drops into one re-read per window', async () => {
+    mkdirSync(join(dir, '.git'));
+    let fires = 0;
+    const rw = await RepoWatcher.watch(dir, {
+      debounceMs: DEBOUNCE_MS,
+      onChange: () => {
+        fires += 1;
+      },
+      onError: () => undefined
+    });
+    try {
+      for (let i = 0; i < 50; i++) subs[0]!.cb(dropped(), []);
+      await flushWindow();
+      expect(fires).toBe(1);
+    } finally {
+      await rw.dispose();
+    }
+  });
+
+  it('does NOT re-read on a fatal error, which kills the subscription anyway', async () => {
+    // Watcher.cc notifyError calls clearCallbacks(), so nothing can follow.
+    mkdirSync(join(dir, '.git'));
+    let fires = 0;
+    const errors: string[] = [];
+    const rw = await RepoWatcher.watch(dir, {
+      debounceMs: DEBOUNCE_MS,
+      onChange: () => {
+        fires += 1;
+      },
+      onError: (e) => errors.push(e.message)
+    });
+    try {
+      subs[0]!.cb(new Error('Error starting FSEvents stream'), []);
+      await flushWindow();
+      expect(fires).toBe(0);
+      expect(errors).toEqual(['Error starting FSEvents stream']);
+    } finally {
+      await rw.dispose();
+    }
+  });
+
+  it('stays quiet when a drop lands after dispose', async () => {
+    mkdirSync(join(dir, '.git'));
+    let fires = 0;
+    const rw = await RepoWatcher.watch(dir, {
+      debounceMs: DEBOUNCE_MS,
+      onChange: () => {
+        fires += 1;
+      },
+      onError: () => undefined
+    });
+    await rw.dispose();
+    subs[0]!.cb(dropped(), []);
+    await flushWindow();
+    expect(fires).toBe(0);
+  });
+});
+
 describe('the pure filters', () => {
   it('accepts head, refs and sequencer state and refuses locks and noise', () => {
     expect(isRelevantDotGitPath('HEAD')).toBe(true);
@@ -210,6 +414,33 @@ describe('the pure filters', () => {
     expect(isRelevantDotGitPath('refs/heads/main.lock')).toBe(false);
     expect(isRelevantDotGitPath('objects/zz/fake')).toBe(false);
     expect(isRelevantDotGitPath('')).toBe(false);
+  });
+
+  it('recognises all three macOS drop messages and no other error', () => {
+    // FSEventsBackend.cc lines 84, 86 and 88, verbatim.
+    expect(
+      isRescanRequired(
+        new Error(
+          'Events were dropped by the FSEvents client. File system must be re-scanned.'
+        )
+      )
+    ).toBe(true);
+    expect(
+      isRescanRequired(
+        new Error(
+          'Events were dropped by the kernel. File system must be re-scanned.'
+        )
+      )
+    ).toBe(true);
+    expect(
+      isRescanRequired(
+        new Error('Too many events. File system must be re-scanned.')
+      )
+    ).toBe(true);
+    expect(isRescanRequired(new Error('Error starting FSEvents stream'))).toBe(
+      false
+    );
+    expect(isRescanRequired(new Error('ENOTDIR'))).toBe(false);
   });
 
   it('reads a gitdir pointer relative to the pointer file', () => {

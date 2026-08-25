@@ -13,7 +13,13 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -135,6 +141,107 @@ describe('RepoWatcher', () => {
         'b'.repeat(40) + '\n'
       );
       expect(await waitFor(() => fires > base, 8000)).toBe(true);
+    }
+  );
+
+  it(
+    'ignores churn inside an ignored directory and still sees a tracked edit (Phase 151)',
+    { timeout: 40_000 },
+    async () => {
+      // The attack, in miniature, over the real primitive: an exclusion that
+      // silenced real edits would be far worse than the noise it removes. The
+      // verifier owes the same shape at scale, being four churn workers and a
+      // real minute; this lane owes only that the wiring is the right way up.
+      const dir = realpathSync(mkdtempSync(join(tmpdir(), 'gmux-watch-excl-')));
+      cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
+      execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
+      writeFileSync(join(dir, '.gitignore'), 'scratch/\n');
+      mkdirSync(join(dir, 'scratch'));
+      writeFileSync(join(dir, 'scratch', 'seed'), 'x');
+      mkdirSync(join(dir, 'src'));
+      writeFileSync(join(dir, 'src', 'f1.go'), 'package main\n');
+
+      let fires = 0;
+      const rw = await RepoWatcher.watch(dir, {
+        onChange: () => {
+          fires++;
+        }
+      });
+      cleanups.push(() => rw.dispose());
+      await sleep(800); // let FSEvents settle
+
+      // 1. Heavy churn inside the ignored directory produces NOTHING.
+      const quiet = fires;
+      for (let i = 0; i < 400; i++) {
+        writeFileSync(join(dir, 'scratch', `f${i}`), String(i));
+      }
+      for (let i = 0; i < 400; i++) {
+        rmSync(join(dir, 'scratch', `f${i}`), { force: true });
+      }
+      await sleep(2000);
+      expect(fires).toBe(quiet);
+
+      // 2. One edit to a TRACKED file is still seen, which is the point.
+      writeFileSync(join(dir, 'src', 'f1.go'), 'package main // edited\n');
+      expect(await waitFor(() => fires > quiet, 8000)).toBe(true);
+    }
+  );
+
+  it(
+    'stays sighted when an ignored root is named `!archive` (Phase 151 fix round)',
+    { timeout: 40_000 },
+    async () => {
+      // THE DEFECT THIS EXISTS FOR. Past the eighth CoreServices slot a root
+      // is excluded in userspace instead, and the first version of that built
+      // the glob string `<name>/**` out of the raw directory name. `picomatch`
+      // read the leading `!` as negation and compiled a pattern matching every
+      // path in the tree EXCEPT `archive/**`, so the whole repository went
+      // blind and nothing at all was logged. Driven exactly like this, the
+      // five edits below were seen 5 of 5 before that change and 0 of 5 after.
+      //
+      // A name is a LITERAL. The eleven roots are what forces one of them into
+      // the overflow, and the direct entry ranking is what makes it be this
+      // one: the loud roots hold six entries each and `!archive` holds one.
+      const dir = realpathSync(mkdtempSync(join(tmpdir(), 'gmux-watch-bang-')));
+      cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
+      execFileSync('git', ['init', '-b', 'main'], { cwd: dir });
+
+      mkdirSync(join(dir, 'src'));
+      writeFileSync(join(dir, 'src', 'main.ts'), 'export const v = 0;\n');
+      // The ordinary `/*` then `!/…` shape people really write, which is how
+      // a directory whose NAME starts with `!` ends up ignored.
+      writeFileSync(join(dir, '.gitignore'), '/*\n!/.gitignore\n!/src/\n');
+      for (let i = 1; i <= 10; i++) {
+        const loud = join(dir, `d${String(i).padStart(2, '0')}`);
+        mkdirSync(loud);
+        for (let j = 0; j < 6; j++) writeFileSync(join(loud, `f${j}`), 'x');
+      }
+      mkdirSync(join(dir, '!archive'));
+      writeFileSync(join(dir, '!archive', 'only'), 'x');
+
+      let fires = 0;
+      const rw = await RepoWatcher.watch(dir, {
+        onChange: () => {
+          fires++;
+        }
+      });
+      cleanups.push(() => rw.dispose());
+      await sleep(800);
+
+      // 1. The tracked file is still seen. This is the assertion that failed.
+      const quiet = fires;
+      writeFileSync(join(dir, 'src', 'main.ts'), 'export const v = 1;\n');
+      expect(await waitFor(() => fires > quiet, 8000)).toBe(true);
+
+      // 2. And the overflow root really is excluded, so the escaping did not
+      // simply turn the exclusion off.
+      await sleep(700);
+      const settled = fires;
+      for (let i = 0; i < 200; i++) {
+        writeFileSync(join(dir, '!archive', `f${i}`), String(i));
+      }
+      await sleep(2000);
+      expect(fires).toBe(settled);
     }
   );
 });

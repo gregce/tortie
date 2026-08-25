@@ -22,12 +22,52 @@
  * submodules — the pointer is followed. A repo that is not (yet) a git repo
  * simply gets no dotgit watcher; each debounced flush retries attaching it,
  * so `git init` is picked up without a restart.
+ *
+ * PHASE 151 CHANGED TWO THINGS, and the second one is the important one.
+ *
+ *   1. The worktree subscription now also excludes the directories the
+ *      repository itself ignores, inside the eight path budget the macOS API
+ *      actually enforces. Anything past the eighth is excluded in userspace
+ *      instead, by an anchored matcher built from the ESCAPED directory name,
+ *      because a directory name is a literal and handing it to a glob engine
+ *      made one repository whose root was named `!archive` go completely
+ *      blind. See ./ignored-roots.ts, which carries the measurements and the
+ *      reason a ninth path would silently disable all eight. Measured on 2026-08-25 with two subscriptions on ONE tree under
+ *      one lot of churn, so both arms saw identical conditions: three 60
+ *      second runs delivered 300,357, 318,368 and 343,577 events to the old
+ *      single `.git` exclusion, and 29, 26 and 26 to this one.
+ *   2. A DROPPED BATCH NOW CAUSES A RE-READ. FSEvents overflow is reported on
+ *      the same callback as ordinary events, and this file used to log it and
+ *      return, so the message that says "File system must be re-scanned" was
+ *      answered by no re-scan at all and the events that arrived beside it
+ *      were discarded too. That is what could lose a person's edit from view.
+ *
+ * THEY HAD TO LAND TOGETHER, and this is the thing to understand before
+ * touching either. Excluding the noise WITHOUT fixing the drop would have
+ * made the product worse. The ordinary events were accidentally covering for
+ * the defect: enough non error batches arrived that some flush usually
+ * happened anyway. Take them away and the drop is often the only callback in
+ * the minute, and under the old rule a drop did nothing at all.
+ *
+ * The number, measured over three 60 second churn runs driving this class,
+ * with a real edit to a tracked file every two seconds:
+ *
+ *                              parent a2d7ad0      this commit
+ *     drops logged per minute  124, 115, 118       22, 29, 25
+ *     onChange calls           1, 14, 7            23, 29, 25
+ *     edits seen within 5 s    0/28, 10/28, 8/28   27/28, 29/29, 29/29
+ *     median latency           none, 1786, 2087    309, 310, 311 ms
+ *
+ * The first run of the parent commit surfaced NONE of the twenty eight edits,
+ * and its median latency after this change is the 300 ms debounce and nothing
+ * else.
  */
 
 import watcher from '@parcel/watcher';
 import type { AsyncSubscription, Event } from '@parcel/watcher';
-import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
+import { planWorktreeIgnore, readIgnoredRoots } from './ignored-roots';
 import { trackWatcherClose } from './teardown';
 import { getLog } from '../log';
 
@@ -87,6 +127,32 @@ export function readGitdirPointer(
   return resolve(dirname(dotGitFile), target);
 }
 
+/**
+ * Does this watcher error mean "the file system must be re-scanned"?
+ *
+ * The three macOS drop messages are written in
+ * `node_modules/@parcel/watcher/src/macos/FSEventsBackend.cc` lines 84, 86
+ * and 88, one per drop cause, and all three end with that same sentence:
+ *
+ *   "Events were dropped by the FSEvents client. File system must be re-scanned."
+ *   "Events were dropped by the kernel. File system must be re-scanned."
+ *   "Too many events. File system must be re-scanned."
+ *
+ * The sentence is the stable part, so it is what is matched.
+ *
+ * WHY THIS IS NOT SIMPLY "any error". `Watcher::notifyError` in
+ * `node_modules/@parcel/watcher/src/Watcher.cc` line 113 delivers a FATAL
+ * error on this same callback, for example the watched root being deleted,
+ * and it calls `clearCallbacks()` immediately after, so the subscription is
+ * dead. Re-scanning on that would be a re-read that can never be followed by
+ * another event, and treating it as a reason to keep going would be a lie
+ * about whether we are still watching. A drop is the opposite: the
+ * subscription is alive and healthy, and the only thing lost is the batch.
+ */
+export function isRescanRequired(err: Error): boolean {
+  return /must be re-scanned/i.test(err.message);
+}
+
 export class RepoWatcher {
   /** The path as the caller gave it — reported verbatim in onChange. */
   readonly repoPath: string;
@@ -136,12 +202,35 @@ export class RepoWatcher {
   ): Promise<RepoWatcher> {
     const rw = new RepoWatcher(resolve(repoPath), options);
 
+    // Phase 151. Everything the repository itself ignores is churn Tortie
+    // will never act on, and until this phase all of it was inside the
+    // stream. `readIgnoredRoots` is one git read of about 20 ms; it never
+    // throws, and `ensureWatcher` in src/main/git/ipc.ts stores this promise
+    // without awaiting it, so no `git:status` waits on it. The plan spends
+    // the eight CoreServices slots first and falls back to userspace globs,
+    // for the reasons written out in full in ./ignored-roots.ts.
+    const plan = planWorktreeIgnore(
+      rw.watchRoot,
+      existsSync(join(rw.watchRoot, '.git'))
+        ? await readIgnoredRoots(rw.watchRoot)
+        : []
+    );
+    if (plan.overflow.length > 0) {
+      watcherLog.info(
+        `${repoPath}: ${plan.paths.length} ignored roots excluded in the ` +
+          `kernel, ${plan.overflow.length} past the 8 path cap filtered in ` +
+          'userspace instead',
+        // A RegExp serialises to `{}`, so log the source a person can read.
+        { paths: plan.paths, overflow: plan.overflow.map((r) => r.source) }
+      );
+    }
+
     rw.worktreeSub = await watcher.subscribe(
       rw.watchRoot,
       (err, events) => rw.handleWorktreeEvents(err, events),
-      // Exclude ALL of .git from the worktree watcher; the targeted dotgit
-      // watcher below covers HEAD/refs.
-      { ignore: [join(rw.watchRoot, '.git')] }
+      // `.git` is always the first exclusion; the targeted dotgit watcher
+      // below covers HEAD/refs. The rest are this repository's ignored roots.
+      { ignore: plan.ignore }
     );
 
     await rw.tryStartDotgitWatcher();
@@ -180,19 +269,61 @@ export class RepoWatcher {
 
   // -------------------------------------------------------------------------
 
+  /**
+   * Phase 151: A DROPPED BATCH NOW CAUSES A RE-READ.
+   *
+   * Until this phase this method called `onError` and returned, so the one
+   * message that says in plain words "File system must be re-scanned" was
+   * the one message Tortie answered by doing nothing. After a drop the tree
+   * and the SCM view could stay stale until an unrelated event happened to
+   * arrive, and with this phase's exclusions in place the drop is often the
+   * ONLY callback in a whole minute, so nothing unrelated arrives.
+   *
+   * Two things are wrong with the old three lines and both are fixed here.
+   * First, no re-scan. Second, `Watcher::triggerCallbacks` in
+   * `node_modules/@parcel/watcher/src/Watcher.cc` line 124 builds ONE
+   * `CallbackData(error, events)` and hands the callback both at once, so the
+   * early return threw away the real events that arrived beside the error.
+   * Measured on 2026-08-25 over a 60 second churn run with the exclusions on
+   * and a real edit to a tracked file every two seconds: 25 of the 29 edits
+   * arrived inside a batch that also carried the drop, and the old rule threw
+   * all 25 away. Only 4 batches in that whole minute carried events and no
+   * error, so the old rule would have fired four times for twenty nine edits.
+   *
+   * The re-scan is one `scheduleFlush()`, which is the same call an ordinary
+   * event makes, and that is deliberate. Every consumer of `onChange` answers
+   * a repo change by re-reading from scratch rather than by patching
+   * incremental state, so the correct response to a drop IS an ordinary
+   * change notification. Routing it into the existing 300 ms non resetting
+   * window also means a storm of drops is bounded exactly as a storm of
+   * events already is, at about three notifications a second, with no second
+   * timer and no new number.
+   *
+   * Returning after the flush stays correct: `scheduleFlush` is idempotent
+   * inside a window, so the events that came with the error would only
+   * schedule the very same flush.
+   */
   private handleWorktreeEvents(err: Error | null, events: Event[]): void {
     if (this.disposed) return;
     if (err) {
       this.onError(err);
+      if (isRescanRequired(err)) this.scheduleFlush();
       return;
     }
     if (events.length > 0) this.scheduleFlush();
   }
 
+  /**
+   * Phase 151, the same fix. Here the flush is UNCONDITIONAL on a drop rather
+   * than filtered by `isRelevantDotGitPath`, because a dropped batch tells us
+   * nothing about which paths were in it. A ref may have moved and we cannot
+   * know, so the only honest answer is to re-status.
+   */
   private handleDotgitEvents(err: Error | null, events: Event[]): void {
     if (this.disposed) return;
     if (err) {
       this.onError(err);
+      if (isRescanRequired(err)) this.scheduleFlush();
       return;
     }
     const gitDir = this.dotgitDir;
