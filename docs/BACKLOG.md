@@ -17062,7 +17062,7 @@ He wants any Tortie started session to say plainly which session it is, being it
 - **Tortie's own session id.** The manifest primary key, the `@gmux-id` tmux option and the `GMUX_SESSION_ID` pane stamp. It identifies the session to Tortie and it never changes.
 - **The agent's conversation id**, being `agentSessionId` on `src/shared/types.ts` line 181. It identifies the conversation to the agent, it is what `--resume` takes, and it is what NAMES THE RECORD ON DISK. It is absent on a shell session and absent on an agent session before the agent has written a record.
 
-Showing one and calling it "the session id" would be wrong, and a person copying the wrong one would resume nothing. The surface names both, in the person's words rather than in field names, and says plainly when the agent's own id does not exist yet.
+**HE CONFIRMED ON 2026-08-25 THAT HE MEANS THE AGENT'S CONVERSATION ID.** So that one is the subject of this phase and it is what the surface leads with, being the identifier a person reads, copies and can hand to the agent themselves. Tortie's own session id is still worth carrying, because a person reading a log or a manifest needs it, but it is secondary and it is labelled so that neither can be mistaken for the other. A person copying the wrong one would resume nothing, which is why both are named in the person's words rather than in field names, and why the surface says plainly when the agent's own id does not exist yet.
 
 ### Where the record lives, and the honest limit
 
@@ -17072,8 +17072,8 @@ The path is per agent and it is derived, not stored on the manifest row. `src/ma
 
 ### What lands
 
-- The ellipsis menu gains rows to copy each identifier and to copy the record's path, sitting beside the existing "Copy directory path" row so all the copy verbs are together.
-- The hover tooltip on the session list names the session's own identifier, so a person can read it without opening a menu. It keeps the sentence it already carries about the conversation coming back after a restart.
+- The ellipsis menu gains a row to copy the agent's conversation id, which is the one he asked for, a row to copy the record's path, and a row for Tortie's own session id, all sitting beside the existing "Copy directory path" row so the copy verbs are together.
+- The hover tooltip on the session list names the agent's conversation id, so a person can read it without opening a menu. It keeps the sentence it already carries about the conversation coming back after a restart, and it stays short enough to remain a tooltip.
 - Every row that would copy something Tortie does not have is absent or plainly disabled rather than copying an empty string.
 - The native menus are updated in the same commit, which the project rule requires, and the brief says what changed.
 
