@@ -48,7 +48,7 @@ release.
 | 27 | **141** the drop to a plain shell | From research 64. He placed it last by not placing it, and it moves on his word | queued |
 | 28 | **144** Run E, the 36 plan's stages 0 to 3 | Baseline lock, quit closes IPC, a clone refuses without its journal row, shared loses the DOM library. 30 to 33 | queued |
 | 29 | **145** Run F, the 36 plan's stages 4 to 6 | Main composition and machine cohesion, hermetic test seams, then an adversarial rescore. 33 to 36 or an honest lower number | queued |
-| — | **THEN** | Arch, Phases 63 to 66, unheld only after 128 | operator |
+| 30 | **63 to 66** the Arch work | ✅ HOLD ANSWERED 2026-08-25. He unheld it in his own words, saying he wants Arch built tonight in the phases planned. All four entries are queued in the house shape at the end of this file, and 63 is blocked on nothing | queued |
 
 **THE RELEASE AFTER PHASE 119 IS DELEGATED, AND THIS IS THE ONE EXCEPTION TO A STANDING RULE.** The
 standing rule everywhere else in this file and in every phase brief is that an agent NEVER tags and
@@ -5270,7 +5270,7 @@ same phase as the words.
 
 | # | Slice, recorded NOT queued | Contents | Blocked on |
 | --- | --- | --- | --- |
-| 63 | The contract without the canvas, HELD 2026-08-16 by the operator AFTER acceptance, his words being that SSH is immediately valuable; the Zen acceptance stands recorded, the build resumes on his word from workflow run wf_70ed709c-c02 | The docs/arch format with schema and validator, the arch IPC domain, import captures with the manifest-aware resolver for TS, JS and Go, the five checkers with the argv defense and hostile fixture, the fifth sidebar view through the full registration cascade including the View menu item, the teaching empty state with the corpus-seeded prompt, conformance:arch, divergence rows in the SCM view. Tier 3 checkers, Tier 2 UI. Zero new packages | NOTHING. The operator ACCEPTED the Zen addition on 2026-08-16, with two riders: the addition's text lands inside Phase 63's own commit so its two sequencing conditions hold, being the argv defense before the nothing-starts-a-process bullet is true and the accepted-divergence visibility rule in the same phase as the words; and README.md is NOT touched, the Zen lives in docs/ZEN-OF-TORTIE.md only |
+| 63 | The contract without the canvas. HELD 2026-08-16 by the operator AFTER acceptance, his words being that SSH is immediately valuable, and ✅ UNHELD 2026-08-25 in his own words, saying he wants Arch built tonight in the phases planned. The full entry in the house shape is `## Phase 63` at the end of this file | The docs/arch format with schema and validator, the arch IPC domain, import captures with the manifest-aware resolver for TS, JS and Go, the five checkers with the argv defense and hostile fixture, the fifth sidebar view through the full registration cascade including the View menu item, the teaching empty state with the corpus-seeded prompt, conformance:arch, divergence rows in the SCM view. Tier 3 checkers, Tier 2 UI. Zero new packages | NOTHING. The operator ACCEPTED the Zen addition on 2026-08-16, with two riders: the addition's text lands inside Phase 63's own commit so its two sequencing conditions hold, being the argv defense before the nothing-starts-a-process bullet is true and the accepted-divergence visibility rule in the same phase as the words; and README.md is NOT touched, the Zen lives in docs/ZEN-OF-TORTIE.md only |
 | 64 | The aiming verb | The payload composer with byte-deterministic proof, delivery through tmux load-buffer with bracketed paste restricted to registry-launched sessions, per-agent matrix at Tier 3, the computed level 2 module view. This is the north star's point-and-riff sentence made textual | 63 |
 | 65 | The refresh loop | The delta prompt scoped to drifted claims, the session-change diff view from verdict deltas, the headless narration confirm sheet | 63 |
 | 66 | The canvas | An arch EditorMode arm on @xyflow/react 12.11.3 plus @dagrejs/dagre 3.1.1, both MIT, both verified free of eval, wasm and native code so the CSP stands. Gated FIRST on the CSS zoom spike and SECOND on an observed usage number from slices 1 to 3, e.g. 20 composed payloads or gate catches in a month | 64 and 65 in use, plus the number |
@@ -12510,7 +12510,7 @@ conversation.
 
 | Item | State | Why it might make sense now |
 | --- | --- | --- |
-| **63 to 66, the Arch work** (research 49, 1531 lines) | HELD 2026-08-16 by the operator AFTER he accepted the Zen addition. His recorded words were that SSH was immediately valuable | **The largest ready thing in the repository, and Phase 63 is blocked on nothing.** The reason for the hold was the remote work, and the remote work is finishing. Zero new npm packages, zero tokens spent forever |
+| **63 to 66, the Arch work** (research 49, 1531 lines) | ✅ HOLD ANSWERED 2026-08-25. He held it on 2026-08-16 after he had already accepted the Zen addition, because SSH was immediately valuable. On 2026-08-25 he unheld it in his own words, saying he wants Arch built tonight in the phases planned | **The largest ready thing in the repository, and Phase 63 is blocked on nothing.** The reason for the hold was the remote work, and the remote work is finished. All four entries are now queued in the house shape at the end of this file. Zero new npm packages, zero tokens spent forever |
 | **82** cross-machine conversation reconstruction | NOT QUEUED | The operator's own stated destination for all the remote work. It was blocked on needing a real machine with a real agent on it, and Phase 83 provides exactly that for the first time |
 | **Issues 4 and 2** from the eight GitHub issues | Recorded as "Blocked by 75" | **Phase 75 landed on 2026-08-18 and nobody re-checked these.** Issue 4 is an immediate work surface on the New Tab chord and issue 2 is a positional shortcut that reaches a session. Both are now unblocked |
 | **The audit refresh, and `src/main/machines` in particular** | Recorded 2026-08-17 as drifted | Twelve counted figures moved and five claims are wrong about the code rather than merely old. Neither audit mentions `src/main/machines`, which is 24 files and 9,603 lines on the boot path, whose largest file is bigger than the two files the architecture audit named as split targets. **This round adds to that domain, so the refresh belongs after it, not before** |
@@ -16581,6 +16581,345 @@ On the top horizontal project band, the collapse chevron and the position contro
 - No change to the add button's place.
 
 
+## Phase 63 — the standing contract, without the canvas (research 49 slice 1, unheld by the operator 2026-08-25) QUEUED 2026-08-25
+
+**Subject:** `feat(arch): the standing contract and the checkers that keep it honest`
+**First body line:** `Phase 63: the contract without the canvas`
+**Semver:** minor. It adds a fifth sidebar view, a file format a person writes by hand, and a new gate. Nothing that already exists changes shape. The tree is at 0.73.0 today.
+**Tier: mixed, and CLAUDE.md's fourth verification rule says verify each item at its own tier.**
+
+- The format, the resolver and the five checkers are **Tier 3**. The fourth risk question answers yes, because this code spawns git and ripgrep on every burst of file changes, and the whole legitimacy of the design rests on no field of a contract file ever reaching a spawned argv. The second question answers yes too, because the checkers claim to be correct about any repository a person points them at.
+- The sidebar view is **Tier 2**. It is a rendered surface that carries new state, so it earns one app run driving every claim plus one independent method.
+- The seeding prompt is **Tier 3**, and this is a correction the checker made. It reads as part of the teaching empty state, but it routes into the ordinary new session flow, and that flow spawns an agent process under the person's own credentials. The fourth risk question answers yes on those words alone, so the seeding path is verified beside the checkers rather than beside the view.
+- The Zen text is **Tier 1**. It is a document.
+
+Do not promote the whole round to Tier 3, and do not demote the checkers or the seeding prompt.
+
+**Charter:** this entry, plus `docs/research/49-arch-pane.md` at 1531 lines, whose section 10 is this slice and whose section 8.2 holds the Zen text; plus `docs/ZEN-OF-TORTIE.md`, which the text lands in; plus `docs/audits/2026-08-20-electron-typescript-architecture.md`, which CLAUDE.md names as the architecture authority and which is the candidate seed document named below; plus the slice table above at the head of "The Arch work, from research 49".
+
+### The operator's word, and what it unblocked
+
+He held this work on 2026-08-16, after he had already accepted the Zen addition, because SSH was immediately valuable to him and this was not. The remote work is finished. On 2026-08-25 he unheld it, in his words, saying he wants Arch built tonight in the phases already planned. Nothing else about the design moved while it waited.
+
+### The two riders he attached to his acceptance, and they bind this phase
+
+1. **The Zen addition's text lands inside this phase's own commit**, so that its two sequencing conditions hold. The argv defense from research 49 section 4.7 must be built before the bullet "Nothing Tortie draws ever starts a process on its own" is written down, because the bullet is false without it. The rule that an accepted divergence stays visible must ship in the same phase as the words, so that "a person's agent doing the work where they can see it" can never be read as blessing a silent agent write to `baseline.json`.
+2. **README.md is NOT touched.** The Zen lives in `docs/ZEN-OF-TORTIE.md` only.
+
+The addition is three edits to that one file, and the file has not moved since research 49 read it. It is still 132 lines. Line 45 is still `## Give every thread a place`, line 61 is still `## Hide the machinery`, and line 104 still reads `A principle that forbids nothing is decoration. These are the refusals:`. The two bullets section 8.1 quotes as surviving unedited are present byte for byte at lines 106 to 111, so section 8.2's insertion instructions apply exactly as written with no correction for line drift.
+
+- One new section, `## The shape of the work is a promise, and promises are checked`, inserted between the section at line 45 and the section at line 61. The full text is in research 49 section 8.2 and is copied rather than rewritten.
+- Two new bullets in `## What Tortie is not`, being **Not a diagram you maintain.** and **Not a map that acts.**
+- One clause appended to the existing `Not an IDE rebuilt from scratch` bullet, being `A checked map of the project earns its place for the same reason.`
+
+### What the phase contains
+
+- The `docs/arch/` format. It holds the contract, the components, the edges, a reserved place for flows, and the baseline. The schema is hand written and so is the validator. An invalid row is dropped whole and surfaces as a visible error naming the file, the field and the reason. The path rules include rejecting a leading dash, which is the argv defense at the format layer.
+- The `arch` IPC domain, being `arch:load`, `arch:check`, `arch:skeleton`, `arch:checked` and `arch:progress`, with its registrar and its disposer.
+- Import captures added to the existing tags queries, an edge table in a new disposable `arch.db`, and a resolver that reads the package manifest so aliased imports resolve. TypeScript, JavaScript and Go resolve. Rust and Python are deferred rather than shipped wrong, and their imports are marked unverifiable rather than dropped.
+- The five checkers, being imports under the conservative rule, manifest, glob, evidence at HEAD, and freshness including the line about uncommitted files. The argv defense and its hostile fixture belong here.
+- Re-checks ridden on the existing watcher, the snapshot pair taken at launch, coalescing, the settle window and the generation stamp.
+- The fifth sidebar view through the whole registration cascade. It draws the verdict strip reported by coverage, the failure list that jumps to the offending line, the component outline with provenance glyphs, the gap strip, the freshness ribbon, and a prose panel that renders plain text only.
+- The teaching empty state, a "Draft a contract" skeleton that is deterministic and opens as unsaved editor buffers, a prompt seeded from an existing document that goes through the ordinary new session flow, and the guidance that a healthy promise set is 5 to 10 promises.
+- `npm run conformance:arch`, joined to the pre-commit sentence in CLAUDE.md.
+- Divergence rows surfaced in the SCM view beside the changed files that caused them. This is the second rider made real.
+- One documented line pointing agents at `docs/arch/`.
+- The Zen text, by the first rider.
+
+### The mechanism, with paths read from the tree at `6f815c3`
+
+New files:
+
+- `src/shared/arch.ts`, the hand written record types. It may not name a browser type, because `src/shared/` no longer sees the DOM library and `build/assert-shared-types.mjs` fails the typecheck if it does. `src/shared/browser-globals.d.ts` is the only place a hand declared browser shape may live.
+- `src/shared/ipc/arch.ts`, the domain file. `ArchMenuActionId = 'show-arch'` is declared here, in the pattern `src/shared/ipc/context.ts:293` already uses.
+- `src/main/arch/`, holding the loader, the validator, the five checkers, the skeleton generator, and `registerArchIpc` with `disposeArchIpc`.
+- `src/renderer/arch/`, holding the view, its own zustand store, its shot probe and its colocated CSS.
+- `build/conformance-arch.mjs`. The naming is exact, because every `conformance:<x>` script in package.json runs `node build/conformance-<x>.mjs`.
+- `src/preload/arch.ts`, whose siblings are `src/preload/overview.ts` and `src/preload/context.ts`.
+
+Edited files:
+
+- `src/shared/ipc/index.ts`, three composition lines, being `GmuxInvokeChannelMap`, `AllEventPayloadMap` and `InstalledGmuxApi`.
+- `src/shared/ipc/app.ts:111` and `:438`, folding `ArchMenuActionId` into the union the way `ContextMenuActionId` and `OverviewMenuActionId` are folded at `:19` and `:20`.
+- `src/preload/index.ts`.
+- `src/main/capabilities.ts`, registering and disposing beside `registerOverviewIpc` at line 31.
+- `src/main/symbols/queries.ts`, adding import captures to the five tags queries. That file's own header states the two rules for editing them, and it also documents the failure mode where a bundled grammar works in `out/` and dies in the packaged app.
+- `src/main/symbols/pool.ts` and `src/main/symbols/worker.ts`, the existing worker pool.
+- `src/main/db/sqlite.ts:115`, where `openGmuxDatabase` is the one opener, and it opens the new `arch.db`.
+- `src/main/watcher/bus.ts`, with `onRepoChanged` at `:44` and `emitRepoChanged` at `:52`, and `src/main/watcher/repo-watcher.ts`.
+- `src/main/git/exec.ts` and `src/main/git/service.ts`, for the git calls with fixed argv.
+- `src/renderer/state/sidebar-views.ts:23` for `SIDEBAR_VIEW_IDS` and `:37` for `SIDEBAR_VIEW_LABELS`.
+- `src/renderer/app/ActivityBar.tsx`, the `ViewItem` entry.
+- `src/renderer/app/Sidebar.tsx:401` onward, the view branch chain, where `view === 'scm'` opens a chain that runs through `:410` and `:419`. Line 395 is the Phase 135 activity bar comment above it.
+- `src/renderer/zoom/zoom.css`, one hand written `--zoom-arch` rule. `src/renderer/zoom/regions.ts:54` picks the region up for free, because it spreads `SIDEBAR_VIEW_IDS`.
+- `src/shared/keymap.ts`, one `KeymapEntry` in group `views`, and it carries its `menuAction`. The Context view's Phase 22 build forgot that and Phase 60 had to repair it. The entry at `:808` is the shape to copy.
+- `src/main/menu.ts:573`, the View menu list.
+- `src/renderer/app/menu-actions.ts:227`, the `show-arch` case beside `show-context`.
+- `src/renderer/scm/ScmSection.tsx:140`, where `SCM_SECTION_IDS = ['changes', 'history', 'branches', 'runs']` is the list a divergence section joins.
+- `src/renderer/editor/shot-hook.ts:222`, where the harness declares `sidebarView?: 'scm' | 'explorer'`. That union must gain `'arch'` or the photograph cannot be driven. The wider union at `src/renderer/app/target-shot-drive.ts:58` is a separate drive and is decided separately.
+- `src/renderer/app/probe-registry.ts`, where the shot probe registers, reached through `src/renderer/app/probe-loader.ts`.
+- `build/assert-import-boundaries.mjs:193`, `DIRECTORY_WALLS`, which is the real extension point for the wall saying `main/arch` may not name `main/manifest`, `main/restore` or `main/context`.
+- `build/verification-checks.mjs`, which is mandatory and is explained below.
+- `package.json` scripts.
+- `CLAUDE.md`, the pre-commit gate sentence.
+- `docs/ZEN-OF-TORTIE.md`, the rider.
+- `docs/DESIGN-SPEC.md` at line 57 and line 63.
+
+### What research 49 no longer knows, and the builder reads the tree instead
+
+Research 49 landed at `eb54669` on 2026-08-16. HEAD is `6f815c3` on 2026-08-25, and 248 commits landed in between while the version moved from 0.31.0 to 0.73.0, read from `package.json` at each of those two commits. These items are corrections, and each one is a place where the entry beats the research.
+
+1. **Every timing number in research 49 measures a smaller tree.** It uses 905 files as its scan denominator and 943 as its raw count. The tree carried 951 tracked `.ts` and `.tsx` files under `src` then and carries 1,504 today, of which 915 sit outside `__tests__`. The raw count has grown by about 58 percent. So the 45 ms warm import scan, the roughly half second full deterministic check, the 1.25 ms per changed file, the 359 evidence claims under a second, and the 174 ms channel scan are all unmeasured on this tree, as are the 14 divergences and 2 absences the deep read found. **The phase remeasures every one of them and writes the new numbers into its own commit body.**
+2. **The 534 aliased imports are unmeasured too.** That count is what makes the resolver mandatory rather than optional. The resolver is still right. The number is stale and gets remeasured.
+3. **The debounce number in research 49 is simply wrong.** Section 4.7 says the checker rides a 150 ms debounced fan-out. `src/main/watcher/repo-watcher.ts:52` reads `const DEFAULT_DEBOUNCE_MS = 300;`. The builder reads the constant from the file and never from the research.
+4. **Four build gates exist now that research 49 could not know about, and every one of them binds this phase.**
+   - `build/verification-checks.mjs` with `build/assert-hermetic-checks.mjs`, from Phase 145 stage 5. Every check script in package.json must carry exactly one classified entry with its environment requirement and its skip rule. There are 104 classified scripts today. A `conformance:arch` that is not classified fails `npm run build`. The correct classification is `pure('conformance:arch')`, matching `pure('conformance:overview')` at line 125.
+   - `build/ts-runner.mjs`, from the same phase. No file under `build/` may hand `npx` to a spawn. The probe reaches the pinned tsx through `tsxCli()`.
+   - `build/assert-electron-teardown.mjs` and `npm run gate:electron`, from Phase 140. A script under `build/` that starts an Electron goes through `build/electron-run.mjs` and ends the tree in a `finally` block. This runs inside `npm run build`, so nothing that builds can skip it.
+   - `build/assert-probe-containment.mjs`, from Phase 127. A renderer shot probe is reached through `src/renderer/app/probe-loader.ts` and lands in the probe chunk rather than the entry chunk.
+   - `build/assert-shared-types.mjs`, from Phase 144 stage 3, already named above.
+   - The vitest suite is split into a `test:hermetic` lane and a `test:native` lane by a naming rule, and any new arch test respects it.
+5. **The verification vocabulary moved after research 49 was written.** Section 10 says "Tier 3 checkers, Tier 2 UI" and gives an evidence list. That predates the 2026-08-23 rewrite of CLAUDE.md. The evidence list is compatible with the new rules, but the tiers are restated in the new vocabulary rather than copied, and the governing rule now is that the verifier does at least one thing the builder did not and names it.
+6. **The View menu has a row research 49 did not know about.** `src/main/menu.ts:573` lists Explorer, then Search, then Source Control, then Context, then Catch Me Up from Phase 137, which is a View menu item that is not a sidebar view. Arch is still the fifth sidebar view, because `SIDEBAR_VIEW_IDS` still holds four. **Where the Arch item sits relative to Catch Me Up is a decision this phase makes and records, not one it inherits.**
+7. **The DESIGN-SPEC edit is smaller and staler than research 49 says.** They are bullets rather than tables, and they are already stale by two views. Line 57 still says the sidebar shows Source Control or Explorer only. Line 63 still lists two icons. Search shipped in Phase 14 and Context in Phase 22, and neither was ever added. **This phase repairs both omissions while adding its own**, so the document stops lying.
+8. **The hard coded `'scm'` fallback is still in four places**, at `src/renderer/app/ActivityBar.tsx:124`, `src/renderer/app/Sidebar.tsx:301`, and `src/renderer/state/chrome-slice.ts:495` and `:496`. `SIDEBAR_VIEW_DEFAULT` at `src/renderer/state/sidebar-views.ts:55` is the constant those four should read, and research 49's warning still stands.
+9. **`git ls-files` has no local call site today.** `grep -rn "ls-files" src/main/` matches only `src/main/machines/remote-scripts.ts`. The local git layer uses `--porcelain=v2` and its relatives. So the glob checker's single fixed argv `git ls-files -z` is a new local verb rather than a reuse, and the phase says so plainly.
+10. **Tortie's own repository has nothing to seed from.** `find . -name 'AS-BUILT*'` returns nothing, because the operator's 30 such documents live in his other repositories. The seeding prompt therefore names `docs/audits/2026-08-20-electron-typescript-architecture.md` as the candidate here, or the first demonstration on Tortie itself falls back to the deterministic skeleton with nothing to convert.
+11. **No package pin has drifted.** `web-tree-sitter` 0.26.12, `@vscode/tree-sitter-wasm` 0.3.1, `@vscode/ripgrep` 1.18.0, `better-sqlite3` at `^13.0.3`, `@parcel/watcher` at `^2.6.0` and `zustand` at `^5.0.14` are all exactly what research 49 recorded. `rehype-raw` 7.0.0 is still in the dependency tree, so the refusal about prose rendering keeps its reason.
+12. **Two conditions research 49 owes are still owed.** One is the release notes watch on `claude --bare`, because the docs announce a future release flips the default and the design deliberately omits the flag so subscription auth keeps working. The other is one real narration run, measured, and research 49 section 4.13 says in its own words that one number is owed before the first phase closes.
+
+### Proof, run rather than read
+
+1. `npm run conformance:arch` over a committed fixture repository with planted breaks, printing one row per claim and failing on a byte comparison against a written expectation table. It plants a divergence, an absence, a stale quote, a hostile anchor and a hostile blob oid, and it fails if either hostile string appears in any composed argv.
+2. The resolver matrix printed one row per language, with Rust and Python printed as `unverifiable` rather than left out.
+3. A negative control on the argv defense. Blind it in a copy, prove the hostile fixture goes red, then restore the file and prove it came back byte for byte by md5. This is the attack method, and it is what makes the Zen bullet true rather than asserted.
+4. One live app run that opens the arch view, reads the verdict strip text, jumps to an offending line, and photographs the view at the 220px sidebar minimum. Research 49 section 9.6 admits that width is an estimate rather than a measurement, so the run measures it.
+5. A measured count of processes started by a contract file change alone, read with CLAUDE.md's counting command `ps -Ao pid,ppid,rss,comm | grep -E "[E]lectron|Tortie$|chrome_crashpad"`. The number must be zero.
+6. One real narration run, measured, replacing the modelled dollar and wall clock figures in research 49 section 4.13.
+7. Every timing number in item 1 of the staleness list remeasured on this tree and written into the commit body.
+8. The seeding prompt driven in the same app run, proving it composes a prompt and hands it to the ordinary new session flow, and proving it starts nothing of its own and reaches the same launch assertion every other create path reaches, at `src/main/context/launch-resolver.ts` and `src/main/context/executes.ts`.
+9. The battery, being `npm run typecheck && npm run build && npm run smoke:t1`, plus `npm run test`, plus `npm run gate:electron`, because this phase adds a script under `build/`.
+
+### Verification shape
+
+Spec, then builders with disjoint file ownership, being one on the format and the checkers, one on the IPC domain and the resolver, and one on the renderer view and its cascade. Then the integrator. Then the verifier, at Tier 3 for the checkers and the seeding prompt and Tier 2 for the view, doing at least one thing the builders did not and naming it in the verdict. Tier 3 here means real data plus two independent methods, one of them an attack, and the natural pair is a hostile fixture written by the verifier rather than the builder, and a run of the checkers over this repository itself rather than over the fixture. Then a fix round with re-derivation if any verdict is needs_work, then a REVERIFY stage, because a fix round can introduce a blocking defect. Then the committer, one commit for the phase.
+
+### What is NOT in this phase
+
+- No canvas and no rendering package. Zero new npm packages.
+- No flows rendering and no level 3.
+- No computed level 2 view.
+- No payload composer and no send to a session.
+- No headless narration sheet.
+- No layout persistence.
+- No regroup suggestion.
+- No SCIP absorption.
+- No Rust or Python resolver arm.
+- Tortie never calls a model, holds no key and reaches no network host.
+- No verified call graph, and no verified dataflow arrow, ever. A behavioural edge tops out at `partly-checked`.
+- Nothing about a source change, a verdict change or a freshness number ever starts an agent.
+- Tortie reads `baseline.json` and never writes it. Recording a new baseline is a person editing a file.
+- No count badge on any node. Counts live in the verdict strip and in the prose panel, because the dashboard refusal survives.
+- No verdict ever sets a session's status.
+- Contract prose renders as plain text only, never through the markdown pipeline with raw HTML enabled.
+- No ajv and no library that compiles a schema. The validator is about 200 lines and hand written.
+- README.md is not touched.
+
+
+## Phase 64 — the aiming verb, so a person can point an agent at a promise (research 49 slice 2) QUEUED 2026-08-25
+
+**Subject:** `feat(arch): compose a scope and hand it to a session`
+**First body line:** `Phase 64: the aiming verb`
+**Semver:** minor. It adds a verb and a view level. No existing behaviour changes.
+**Tier 3.** Two of the seven risk questions answer yes. The fourth answers yes because the composed text reaches a running agent that will act on it, which is sending his words somewhere. The second answers yes because the delivery claim is universal across agents, and the antigravity finding already proves bracketed paste misbehaves in at least one of them, so the evidence has to be a matrix with one row per agent over real agents.
+**Charter:** this entry, plus `docs/research/49-arch-pane.md` section 11's slice 2 row and the grafts in section 4.9, plus the `## Phase 63` entry above, which this is blocked on, plus `docs/research/16-image-drop.md`, whose section 1 is the transport chain the insertion module's own header cites, plus the Phase 138.1 running log entry, which names the agents actually installed and signed in on this Mac.
+
+### What it contains
+
+- The payload composer, proven deterministic byte for byte. The block carries the names, the resolved anchor paths, the interior edges, the crossing edges marked as crossing, the current verdicts including every contradiction, and the freshness sentence. It never carries an image and it never carries file bytes.
+- The gate for a target that no longer exists. A selection whose anchors resolve to zero files at HEAD demands one extra confirmation.
+- The gap staple. Selecting a gap staples its honest paragraph into the payload.
+- The payload in two grades. The deterministic content composed at HEAD always ships. Authored prose ships only while its component's count of commits behind is under a threshold, and above that the payload carries one line saying the prose predates N commits. Every quoted contract line is marked "from docs/arch, unverified".
+- Delivery restricted to sessions whose foreground process Tortie itself launched from the agent registry, with a matrix of multi line paste behaviour, one row per agent.
+- A picker chord reachable from inside a session. One chord opens the component list as a native menu and inserts the composed scope with no view switch.
+- The computed level 2 module view with the divergence overlay, capped at 30 boxes and then falling back to a dependency matrix, capped near 200 rows and then falling back to a list of top importers and importees.
+
+### The mechanism, with paths read from the tree
+
+- `src/shared/ipc/arch.ts` gains `arch:composePayload` and `arch:modules`.
+- `src/main/arch/` gains the composer and the module view reader.
+- `src/renderer/arch/` gains the selection model and the picker menu.
+- `src/renderer/menus/` and the `ui:popupMenu` bridge draw the native picker, because CLAUDE.md forbids a menu drawn in the DOM.
+- `src/shared/keymap.ts` carries the picker chord, with its `menuAction`.
+- `src/main/agents/registry.ts` is where the restriction to a session Tortie launched is read from.
+- `build/conformance-arch.mjs` gains the composition proof.
+
+**The insertion path is a ruling this phase makes, and research 49 guessed wrong.** Research 49's graft says insertion goes through tmux `load-buffer` and `paste-buffer -p` and never through typed keystrokes. The tree's shipping insertion path is on the renderer side at `src/renderer/terminal/drop/insert.ts`, with `src/renderer/terminal/drop/pipeline.ts` and `src/renderer/terminal/drop/registry.ts` beside it, and it calls xterm's `term.paste()`. That module's own header says why, citing research 16 sections 1.1 to 1.5.
+
+- `term.paste()` wraps in the bracketed markers only when the remote side enabled DECSET 2004, and tmux's attach client always does.
+- Both `paste()` and `input()` fire `onData`, which is where `TerminalPane` notes the input for the activity monitor. So a drop answers a pending prompt instead of leaving it flagged, and that is what keeps CLAUDE.md's rule that a person's own input may never raise "needs input".
+- `onData` is also where the bytes reach `ScrollSurface.sendInput`, so an insertion into a scrolled pane returns it to live output first, at no extra cost.
+
+It carries measured constants, being `INTER_PASTE_MS = 80` and `MAX_REFERENCES = 8`, and a rule of one paste per file, because Codex matches at most one path per paste and Claude reorders prose that shares a paste with a path. `load-buffer` with `paste-buffer` exists in the tree at exactly one place, `src/main/machines/remote-capsule.ts:20`, and that is the remote path. **The phase rules between the two rather than assuming, and the tree's own path carries the stronger evidence.** Research 49 section 4.12 also says that if an audit shows the path is not a typed channel the phase adds `terminal:insertText`. The audit answer is that it is on the renderer side through the `window.gmux.term` bridge, so no new channel is needed unless the composer runs in main.
+
+### Proof, run rather than read
+
+1. Byte for byte payload composition proven in `npm run conformance:arch`, with the same input producing the same bytes across runs and across machines.
+2. A matrix of multi line paste over the real agent binaries installed on this Mac, one row per agent, reading the pane back to prove the text arrived once and whole. The Phase 138.1 running log entry names which agents are installed and signed in here, and that is the honest denominator. An agent that is not installed is a row that says so rather than a row that is quietly skipped.
+3. The gate for a target that no longer exists, driven with a contract whose anchors resolve to zero files at HEAD, proving one extra confirmation is demanded.
+4. A negative control that removes the restriction to a session Tortie launched, proving the guard is what refuses a foreign pane rather than luck.
+5. The level 2 caps driven past 30 boxes and past 200 matrix rows, proving both fallbacks fire.
+6. One app run that drives every item, per CLAUDE.md's rule of one app run per phase.
+7. The battery, plus `npm run gate:electron` because the probe launches an Electron.
+
+### Verification shape
+
+Spec, then builders with disjoint file ownership, being one on the composer and its conformance proof, one on delivery and the picker, and one on the level 2 view. Then the integrator. Then the verifier at Tier 3, naming its independent step in the verdict. Real data here means the real agents on this Mac, and the two independent methods are a matrix the verifier drives itself over agents the builder did not use, and an attack that tries to reach a pane Tortie did not launch. Then a fix round with re-derivation, then a REVERIFY stage, then the committer.
+
+### Conditions
+
+Blocked on Phase 63 only. **It is not blocked on Phase 65, and 65 is not blocked on it.** The two are parallel.
+
+### What is NOT in this phase
+
+- Never an image and never file bytes in a payload. Deterministic text only.
+- Never typed keystrokes for the payload, and never insertion into a session Tortie did not launch from the agent registry.
+- Never a payload that presents authored prose as something Tortie verified.
+- No canvas. This phase draws no picture.
+- No headless narration and no confirm sheet. Those are Phase 65.
+- No flows and no level 3.
+- A selection sets no session's status.
+- No layout persistence.
+
+
+## Phase 65 — the refresh loop, so a drifted promise gets fixed where you can see it (research 49 slice 3) QUEUED 2026-08-25
+
+**Subject:** `feat(arch): the delta prompt and the session change diff`
+**First body line:** `Phase 65: the refresh loop`
+**Semver:** minor. It adds a surface and a launch path. Nothing existing changes shape.
+**Tier 3, earned by the confirm sheet alone.** The fourth risk question answers yes, because the sheet spawns an agent process under the person's own credentials and hands it his composed prompt. The delta prompt and the session change diff view would each be Tier 2 on their own, and CLAUDE.md says do not demote the item that earns the tier.
+**Charter:** this entry, plus `docs/research/49-arch-pane.md` section 11's slice 3 row, plus the `## Phase 63` entry above, which this is blocked on, plus CLAUDE.md's refusal 8, which the confirm sheet must not weaken.
+
+### What it contains
+
+- The delta prompt, naming only the claims that drifted or were contradicted and the computed edges that diverged. It is one keypress from the freshness ribbon.
+- The session change diff view, built from the verdict deltas the checker already computes, showing which promises and which components the last burst of commits touched.
+- The standing instruction, being one documented line in the project's agent facing docs saying that a session which finishes work touching contracted anchors updates `docs/arch/` in that same session.
+- The headless narration confirm sheet. Its standing is pinned, and it is a launch surface rather than a second confirmation gate. It launches only agents already confirmed through Settings then Agents. It calls the same launch assertion every other path calls. It records no confirmation of any kind. Its flag templates are string constants compiled into the app. It states in one plain sentence that a headless run executes the target repository's own hooks and MCP servers.
+
+### The mechanism, with paths read from the tree
+
+- `src/main/arch/` gains the delta prompt composer and the verdict delta reader.
+- `src/renderer/arch/` gains the session change diff view and the confirm sheet.
+- `src/main/agents/registry.ts` and `src/main/config/` are where the check for an already confirmed agent is read from.
+- `src/main/context/launch-resolver.ts` and `src/main/context/executes.ts` are the launch assertion path the sheet must call rather than bypass.
+- `src/main/sessions/` is the ordinary session flow the sheet routes into, so the sheet starts nothing of its own.
+- `CLAUDE.md` carries the standing instruction line. It is the only agent facing document in this repository, because there is no `AGENTS.md` here and the phase does not add one.
+- `build/conformance-arch.mjs` gains the delta prompt proof.
+
+### Proof, run rather than read
+
+1. The confirm sheet driven in a real app run, proving it offers only agents already confirmed through Settings then Agents, and proving it records no confirmation of its own. A confirmed agent list mutated in a copy must change what the sheet offers.
+2. `npm run conformance:agents` re-run, because the sheet composes an argv, and `npm run conformance:installs` if the install map is touched.
+3. The delta prompt composed byte for byte in `npm run conformance:arch`, over a fixture with planted drift.
+4. The session change diff driven over real verdict deltas across two real commits of this repository, not over a fixture.
+5. A measured count of processes started by a contract file change alone, and by a freshness number changing alone, both at zero. This is the proof for refusal 8, and it is the only thing that keeps the Zen bullet true after this phase adds a launch surface.
+6. An attack on the sheet's standing. Try to reach it with an agent that was never confirmed, and try to make it write a confirmation record.
+7. The battery, plus `npm run gate:electron`.
+
+### Verification shape
+
+Spec, then builders with disjoint file ownership, being one on the delta prompt and the verdict delta reader, one on the session change diff view, and one on the confirm sheet and its launch path. Then the integrator. Then the verifier at Tier 3, naming its independent step. Real data here is this repository's own commits, and the two independent methods are the attack on the sheet's standing and a re-derivation of the verdict deltas by a different means than the builder used. Then a fix round with re-derivation, then a REVERIFY stage, then the committer.
+
+### Conditions
+
+Blocked on Phase 63 only. **It is not blocked on Phase 64, and 64 is not blocked on it.** The two are parallel.
+
+The two conditions research 49 owes and nothing has retired come due here as well. The release notes watch on `claude --bare` stays open, and the one real measured narration run is owed before Phase 63 closes rather than this one.
+
+### What is NOT in this phase
+
+- The sheet is a launch surface and not a confirmation gate. It records no confirmation of any kind. The gate stays at Settings then Agents and nowhere else.
+- The `claude` invocation deliberately omits `--bare`, because bare mode never reads OAuth credentials or the keychain and would break subscription auth. The phase carries a release notes watch, because the docs announce a future release flips the default.
+- No watcher and no schedule may start an agent. Nothing about a source change, a verdict change or a freshness number ever starts one.
+- Tortie never walks another repository and never launches an agent across repositories. Seeding is per repository. The operator's 30 documents in his other repositories get no batch pass inside Tortie.
+- No canvas.
+- Tortie still holds no key and still spends zero tokens.
+
+
+## Phase 66 — the canvas, and only if the earlier slices earned it (research 49 slice 4) QUEUED 2026-08-25, GATED
+
+**Subject:** `feat(arch): draw the map`
+**First body line:** `Phase 66: the canvas`
+**Semver:** minor. It adds an editor surface and two dependencies.
+**Tier 2.** The sixth risk question answers yes, because it is a rendered surface. It spawns nothing, holds no credentials, sends nothing anywhere, and touches neither the manifest nor tmux nor restore. Its only new state is layout positions in a disposable database whose loss costs a re-layout. So one app run plus one independent method, and the independent method should be the package admission re-derived by a different means than the builder used, because two new packages entering a signed bundle is the real risk here and the CSP is the thing that must not move.
+**Charter:** this entry, plus `docs/research/49-arch-pane.md` section 11's slice 4 row and section 4.10, plus the `## Phase 63`, `## Phase 64` and `## Phase 65` entries above, plus CLAUDE.md's refusals about third party code, which the two packages are admitted under rather than around.
+
+### THE PRECONDITION, and it is a precondition rather than a note
+
+Research 49 section 11 states it and the slice table above states it again. **Two things must be true before this phase is built, and if either is not, it is not built.**
+
+1. **The CSS zoom spike passes**, run first and written down before any canvas code exists. The priced fallback if it does not pass is hand written SVG in the pattern the commit graph already uses at `src/renderer/scm/graph/`.
+2. **An observed usage number from the earlier slices**, and observed rather than promised. Research 49's example is 20 composed payloads or gate catches in a month. The number is read from real recorded use of Phases 63, 64 and 65. **Where it is read from matters, because nothing in 63 to 65 as specified records a usage count today, and adding a counter is itself close to the dashboard refusal.** The honest reading is that the count is taken by hand from the operator, or from the log lines those phases already write, and never from a new counter on any surface.
+
+If the number is never reached, the canvas was never going to be opened, and research 49 says why in its own words, "If the usage number is never reached, the canvas was never going to be opened, and the finding costs almost nothing because every earlier slice stands alone."
+
+### The spike's premise needs rewriting, because the editor has no container zoom
+
+Research 49 section 4.10 names the `transform: scale` viewport inside a CSS zoom region as this slice's first spike. `src/renderer/zoom/zoom.css` line 70 says the opposite about the editor, being "Editor: three surfaces, three levers, no container zoom." Monaco takes `updateOptions({ fontSize })`. Rendered markdown takes `zoom` on `.md-content`. The diff takes `--diffs-font-size`. So an arch `EditorMode` arm does not sit inside a CSS `zoom` region at all, and **the spike's real question is which of those three levers the canvas takes, given that React Flow brings a `transform: scale` viewport of its own.** The spike is still owed. Its premise is not what the research says it is.
+
+### What it contains
+
+- The `arch` arm of `EditorMode`, on `@xyflow/react` 12.11.3 with `@dagrejs/dagre` 3.1.1. Both are MIT. Both must be verified free of eval, of wasm and of native code, so the CSP stands.
+- Levels 0 and 1 drawn with verdict styling, with provenance geometry, and with the legend filter.
+- The treegrid keyboard model, with the edge list opening as a native menu.
+- F to center then fit, which is the Perfetto key.
+- Layout generated on demand, with positions persisted only once the surface earns repeat visits.
+
+### The mechanism, with paths read from the tree
+
+- `src/renderer/editor/tab-types.ts:31`, where `EditorMode = 'diff' | 'file' | 'preview' | 'split' | 'image'` gains `'arch'`.
+- `src/renderer/editor/EditorPanel.tsx`, the mode branch at `:633` and `:642`.
+- `src/renderer/editor/store.ts` and `src/renderer/editor/tab-identity.ts`.
+- `src/renderer/editor/editor.css` and `src/renderer/zoom/zoom.css`, per the spike's answer above.
+- `src/shared/ipc/arch.ts` gains `arch:layout:get` and `arch:layout:set`.
+- `src/main/arch/` gains the layout store, held in `arch.db`.
+- `package.json` gains the two dependencies.
+- `build/assert-bundle-refusals.mjs` and `build/assert-preview-containment.mjs` are the admission gates, and they run inside `npm run build`.
+
+### Proof, run rather than read
+
+1. The CSS zoom spike, run first and written down before any canvas code, answering the rewritten question above.
+2. `npm run build`, which runs `assert-bundle-refusals.mjs` and `assert-preview-containment.mjs`, proving the two packages carry no eval, no wasm and no native binding, and proving the main renderer's CSP did not move.
+3. An independent re-derivation of that package claim, being a grep of the tarballs for `eval`, for `new Function` and for `.wasm`, performed by the verifier rather than by re-running the builder's gate.
+4. One app run photographing levels 0 and 1, driving the treegrid keyboard model, and driving the edge list native menu.
+5. `npm run package` and a launch of the packaged app, because a bundled package that works in `out/` and dies inside the `.app` is the failure mode `src/main/symbols/queries.ts` documents at its own head.
+6. A layout persistence test that deletes `arch.db` and proves only a re-layout was lost.
+7. The battery, plus `npm run gate:electron`.
+
+### Verification shape
+
+The spike first, and it stands alone. Then spec, then builders with disjoint file ownership, being one on the editor arm and its store and one on the drawing and the keyboard model. Then the integrator. Then the verifier at Tier 2, doing one thing the builders did not and naming it, and the named thing is the package admission re-derived from the tarballs by hand. Then a fix round with re-derivation, then a REVERIFY stage, then the committer.
+
+### Conditions
+
+Blocked on Phases 64 and 65 being in use, plus the observed number, plus the spike.
+
+### What is NOT in this phase
+
+- No WebGL. Chromium's default budget is 16 live WebGL contexts per renderer, and the terminals already spend from it.
+- No edge bundling. Bundling trades faithfulness for legibility, and an arrow that looks wrong on this surface is a lie.
+- No continuous semantic zoom. Levels are discrete and they are named.
+- No hue spent on provenance. One hue per category is refused, because DESIGN.md spends color on exactly one thing, being state.
+- No yellow and no amber, ever, for staleness or for provenance.
+- No motion. Nothing pulses, loops or animates. The needs input pulse stays the only perpetual motion in the app.
+- No count badge on any node.
+- No full re-layout without a person's explicit command. Existing nodes keep their stored positions, and dagre places only new nodes.
+- Layout never enters the person's repository. It lives in `arch.db` only.
+- elkjs is refused on EPL-2.0. Reconsidering it is a written license decision in a phase brief and never a quiet dependency. tldraw, `@cosmograph/cosmos`, GoJS, `@joint/core` and both Graphviz wasm wrappers are refused and are not relitigated.
+- No flows and no level 3. Those are the `later` row.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16762,3 +17101,4 @@ cycle rather than only the evening it was written.
 - 2026-08-24, Phase 148 queued, the you section of each exchange glows with a light accent wash because that is where the eyes go, and the horizontal band's chevron and position controls move to the head of the band reversed so the position control sits nearest the traffic lights, mirroring Phase 135, after 147 lands
 - 2026-08-24, Phase 147 shipped, the story control is the one word "story" at one shared far right column position on every project overlay row, opening that session's timeline in place, and the control left the verbatim conversation view; his mid build refinement was caught by the verifier attacking the builder's charter satisfied claim, a fix round landed the word and the column and was re-driven at the exact cases; no native menu carried a story row so none changed; `8443052`, 0.72.5
 - 2026-08-24, Phase 148 shipped, the you section of every exchange in the session Catch Me Up view sits on the accent wash with a soft glow built from the section 1.2 tokens so a future accent choice recolors it automatically, and the top band's controls moved to its head reversed, position control at x 76 nearest the traffic lights, then the chevron, then the projects, with the add button staying at the end of the tabs; both surfaces were measured at the parent commit first because he reported them himself, the other three orientations were measured unmoved, and the verifier re-derived the glow in a separate Chromium render stack and ran a selection attack showing the wash reads over --bg-active; `7d7c071`, 0.72.6
+- 2026-08-25, the Arch hold is ANSWERED on his word, being that he wants Arch built tonight in the phases planned, and Phases 63 to 66 from research 49 are now queued in the house shape at the end of this file, 63 the standing contract with its format, its resolver, its five checkers with the argv defense, the fifth sidebar view and the Zen text landing inside 63's own commit by his first rider with README.md untouched by his second, blocked on NOTHING, then 64 the aiming verb and 65 the refresh loop which are parallel and each blocked on 63 alone, then 66 the canvas which stays gated on the CSS zoom spike passing and on an observed usage number from the earlier slices rather than a promised one
