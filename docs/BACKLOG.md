@@ -16960,12 +16960,12 @@ He said the commit button should be more premium. It is drawn in the Source Cont
 - No change to the activity bar itself or to which views exist.
 
 
-## Phase 150 — the ribbon answers the pointer, and a narrow session list keeps its buttons (operator asked 2026-08-25) QUEUED, AFTER 149 AND BEFORE 63
+## Phase 150 — the ribbon answers the pointer, a narrow session list keeps its buttons, and the install modal is twice as wide (operator asked 2026-08-25) QUEUED, AFTER 149 AND BEFORE 63
 
 **Subject:** `fix(ui): the activity bar highlights on hover and a narrow session list keeps its controls`
 **First body line:** `Phase 150: the ribbon hover, and the session list controls`
 **Semver:** patch. Two rendered surfaces, no data and no new state.
-**Tier 2.** Both items are rendered surfaces with no new state, and HE REPORTED BOTH HIMSELF, so the parent commit measurement is mandatory. One app run drives both, in both orientations.
+**Tier 2.** All three items are rendered surfaces with no new state, and HE REPORTED ALL THREE HIMSELF, so the parent commit measurement is mandatory. One app run drives all three, and the ribbon in both orientations.
 **Charter:** this entry, plus the four screenshots he attached on 2026-08-25, plus the `## Phase 135` and `## Phase 148` entries, which settled where the band's own controls sit and how a hover treatment is built from tokens.
 
 ### Item one, the activity bar icons highlight on hover
@@ -16976,11 +16976,23 @@ He hovered the main navigation ribbon and nothing happened. Every icon on that r
 
 He made the session list narrower and the buttons in its header ran off the right edge, so the collapse chevron, the position control and the add button became unreachable. The header keeps its controls reachable at every width the list can be dragged to. The phase decides how, with the reason in the commit body, being that the title truncates before the controls do, or the controls hold a reserved minimum, or the list has a minimum width the controls fit inside. Whichever is chosen, the proof is that at the NARROWEST width the list allows, every control's bounding box still sits inside the list's own box.
 
+### Item three, the skill install modal is twice as wide and its text fills it
+
+He opened a skill he found and asked for the modal to be about twice as wide, with the text filling it appropriately rather than leaving a gutter.
+
+**This is NOT the sheet Phase 132.2 widened.** That one is `.ctx-install-sheet` in `src/renderer/context/install/install.css` line 185, already at `min(1600px, 92vw)`. The one he photographed is `.ctxd-install-modal` at line 36, a flat `width: 560px`, and it is a different modal.
+
+**Widening it alone would not answer him**, and this is the part a builder would miss. Line 348 caps the preview's description at `max-width: 72ch`, so a wider modal gains an empty gutter rather than more text. The phase moves BOTH, being the modal's width to about twice what it is, stated as a `min()` with a viewport guard the way line 185 already does so it never exceeds a small window, and the content's own cap so the text actually uses the room. It reads the two column rule already in that file, at the container query on line 359, and says whether the wider modal should now reach that two column layout at this size.
+
+The sheet has no width token to reach for. `tokens.css` carries spacing, type, radii, colors, durations and z layers and no width scale, which the comment at line 179 already records, so this modal states its own number in the same style and with the same kind of comment saying why.
+
 ### Proof, run rather than read
 
 - ONE app run, plus the PARENT COMMIT measurements of both surfaces, because he reported both.
 - Every activity bar icon hovered in BOTH orientations with its computed background read, proving it matches the project tab's hover values and that the selected indicator and the count badge still draw.
 - The session list dragged to its NARROWEST width with every header control's bounding box proved inside the list's box, at the parent commit too so the before and after are both recorded.
+- The install modal measured before and after at three window widths, proving it roughly doubles and that it still fits inside the smallest window without clipping.
+- The description's rendered line length measured after, proving the text uses the new width rather than sitting in a gutter.
 - A grep proving no new color or size literal entered a component file, and the full battery.
 
 ### What is NOT in this phase
