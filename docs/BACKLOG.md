@@ -16992,6 +16992,57 @@ He made the session list narrower and the buttons in its header ran off the righ
 - No change to what any session row does.
 
 
+## Phase 151 — the watcher stops drowning, and a dropped batch is actually re-scanned (operator reported 2026-08-25) QUEUED, AFTER ARCH
+
+**Subject:** `fix(watcher): the worktree stream stops overflowing and a dropped batch is re-read`
+**First body line:** `Phase 151: the watcher flood, and the re-scan that never happens`
+**Semver:** patch. No new capability and nothing a person configures.
+**Tier 3.** It changes what the file watcher sees, and the tree, the Explorer and the SCM view all read from it, so a wrong exclusion means a person's edit does not appear. Two independent methods, one an attack, and real data from a repository under real churn.
+**Charter:** this entry, plus his report of 2026-08-25 and the measurements in it.
+
+### What he saw, and the two separate problems behind it
+
+He was running `go test` in `/Users/gdc/runstory` and Tortie logged dozens of lines reading "Events were dropped by the FSEvents client. File system must be re-scanned." `fseventsd` itself measured 32 percent CPU at the time. There are TWO problems and the second one is the more serious.
+
+**Problem one, why the stream overflows.** Measured by reading `node_modules/@parcel/watcher/src/macos/FSEventsBackend.cc` on 2026-08-25:
+
+- Line 233 creates the stream with `kFSEventStreamCreateFlagFileEvents`, so every individual file create, write and delete is its own event rather than one notification per directory.
+- Line 209 sets `CFAbsoluteTime latency = 0.001`, being one millisecond. Latency is the coalescing window and it is FSEvents' own defence against overflow, so at one millisecond there is almost no coalescing and the kernel delivers a flood of tiny batches.
+- `src/main/watcher/repo-watcher.ts` line 144 subscribes the WHOLE worktree with the single exclusion `.git`. In his case `scratch/`, where a probe was cloning and deleting an entire CLI tree, sits inside the stream, and every one of those events is noise Tortie will never act on because git ignores that directory.
+
+When the per stream buffer overflows the kernel drops the batch and sets `kFSEventStreamEventFlagMustScanSubDirs`, which the library reports as that sentence.
+
+**Problem two, and nobody noticed it.** `src/main/watcher/repo-watcher.ts` line 183, `handleWorktreeEvents`, calls `this.onError(err)` and RETURNS. Nothing re-scans. The message says the file system must be re-scanned and Tortie logs it and does nothing, so after a drop the tree and the SCM view can be silently stale until an unrelated event happens to arrive. The noise is what he noticed; this is what can lose his work from view.
+
+### Mechanism, and one correction that is already known
+
+Exclusions ARE kernel side rather than a filter after delivery, which is good news: line 245 calls `FSEventStreamSetExclusionPaths`, so an excluded path never enters the stream. There is also a second userspace filter at line 108.
+
+**But `FSEventStreamSetExclusionPaths` is documented as capped at 8 paths.** So "exclude everything git ignores" does not scale, and a repository with more than eight ignored roots would silently lose every exclusion past the eighth. His runstory has five, so his case fits, and the phase MUST verify that cap itself rather than trusting this entry, then decide what happens above it, being the largest or churniest roots chosen with a stated rule, or a different mechanism entirely.
+
+The phase researches and then chooses, with the reason in the commit body:
+
+- Pass the repository's own ignored roots as exclusions, within whatever the measured cap turns out to be.
+- Raise the latency, if the library allows it without a fork, since a larger coalescing window is the documented defence and the cost is that a change appears slightly later.
+- Handle the drop properly, being an actual re-read of the tree and the SCM state on `MustScanSubDirs` rather than a log line, debounced so a storm of drops does not become a storm of re-scans.
+
+### Proof, run rather than read
+
+- Reproduce the flood first, on a scratch repository under deliberate churn, and record the drop count per minute before the change.
+- The same churn after the change, with the drop count recorded, and a real number rather than "improved".
+- THE ATTACK: prove no real edit is lost. Under churn, edit a tracked file and prove the tree and the SCM view both show it, and do it again with a file inside an excluded directory to prove the exclusion was deliberate rather than accidental.
+- Verify the 8 path cap by measurement, and prove what happens with more than eight ignored roots.
+- Prove the re-scan actually runs on a drop, by forcing a drop and watching the tree recover, and prove a storm of drops does not become a storm of re-scans.
+- The full battery.
+
+### What is NOT in this phase
+
+- No fork of the watcher library and no vendored patch of it. If the latency cannot be changed through its API, say so and leave it.
+- No change to what the tree, the Explorer or the SCM view DO with an event.
+- No new setting. A person does not configure their watcher.
+- No change to the targeted dotgit watcher's own exclusions, which are deliberate and separate.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -17177,3 +17228,4 @@ cycle rather than only the evening it was written.
 - 2026-08-25, RELEASE CUT AND PUBLISHED, tag v0.73.0 on `6f815c3`, signed, notarized and stapled, published as Latest with 6 artifacts, verified on the DOWNLOADED artifact being spctl accepted as Notarized Developer ID with stapled tickets valid on the app and the DMG and the latest-mac.yml sha512 re-derived by hand, and carrying his stable website name Tortie-arm64.dmg proved byte identical to the versioned DMG so the permanent download link resolves from this release on; the grant is spent and does not renew
 - 2026-08-25, Phase 149 queued at his word, the empty project's heading and sentence come down in size with the app's own cat mark placed dark above the agent grid, the four side views move onto one shared type scale, and the Commit button gets a treatment that says pressable; it runs BEFORE the Arch phases because it is small and he is looking at it now
 - 2026-08-25, Phase 150 queued at his word as its own phase rather than inside 149, the main navigation ribbon's icons take the same light grey hover the project tabs already have in both orientations, and narrowing the session list never pushes its header controls off the right edge; it runs after 149 and BEFORE the Arch phases
+- 2026-08-25, Phase 151 queued from his FSEvents report, and the cause was read from the library source rather than guessed: the stream asks for per file events with a one millisecond coalescing window and watches the whole worktree excluding only `.git`, so his gitignored `scratch/` churn overflows the buffer, AND `handleWorktreeEvents` logs the drop and returns without ever re-scanning, so the tree can be silently stale; the naive fix of excluding everything git ignores does not scale because `FSEventStreamSetExclusionPaths` is capped at 8 paths
