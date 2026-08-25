@@ -16920,6 +16920,46 @@ Blocked on Phases 64 and 65 being in use, plus the observed number, plus the spi
 - No flows and no level 3. Those are the `later` row.
 
 
+## Phase 149 — the empty project reads quieter, the side views agree on their type, and Commit looks worth pressing (operator asked 2026-08-25) QUEUED, BEFORE 63
+
+**Subject:** `fix(ui): the empty state quiets down and the side views share one type scale`
+**First body line:** `Phase 149: the empty state, the side view type scale, and Commit`
+**Semver:** patch. Rendered surfaces only, no data and no new state.
+**Tier 2.** Every item is a rendered surface with no new state, and HE REPORTED ALL FOUR HIMSELF, so the parent commit measurement is mandatory: photograph and measure each surface at the parent before claiming a change. One app run drives all four items.
+**Charter:** this entry, plus the four screenshots he attached on 2026-08-25, plus `docs/DESIGN-SPEC.md` and `src/renderer/styles/tokens.css`, which own the type scale the side views must share.
+
+### Item one, the empty project says less and shows the cat
+
+He opened a project with no sessions and said the heading and its sentence are too big. `src/renderer/app/EmptyStates.tsx` draws "No sessions yet" and "A session is a named terminal that survives quits, crashes, and restarts." Both come down to a size that sits under the agent grid rather than over it, being a heading near the side view heading size and a sentence at the small body size, both from tokens rather than literals.
+
+Above them goes the Tortie cat, large, very dark, sitting behind and above the agent grid the way an editor's own mark sits behind its empty tab. The source is the app's own dock icon, and the artwork already in the repository is `tortie.png` at the root, 3196 by 1980, which is the same cat. The phase picks ONE source, states which, and renders it at a low opacity from a token rather than a hardcoded alpha. It must not shift the agent grid: the mark sits behind or in reserved space, which is the rule Phase 139 wrote after a caption moved a heading 26px.
+
+### Item two, the four side views share one type scale
+
+He showed the search view's inputs and labels beside the explorer header and filter and said they must match. Today the search view draws larger text and taller boxes than the explorer. Every side view listed on the activity bar, being Explorer, Search, Source Control and Context, and Arch when Phase 63 adds it, uses the SAME heading size, the same label size, the same input height and the same input type size, all from tokens. The phase reads the current values, names the one that wins with a reason, and moves the others onto it.
+
+### Item three, Commit looks worth pressing
+
+He said the commit button should be more premium. It is drawn in the Source Control view and today reads as a flat disabled slab even when it is enabled. It gets a treatment that says pressable, built from the accent tokens the way Phase 148 built the ask glow, with its disabled state still plainly disabled, since a commit is the one irreversible verb in that panel.
+
+### Proof, run rather than read
+
+- ONE app run photographing all four surfaces, plus the PARENT COMMIT photographs of each, because he reported all four.
+- The empty state's heading and sentence font sizes read from getComputedStyle before and after, with the numbers in the commit body.
+- The cat proved not to move the agent grid, by the grid's bounding box being identical before and after at two window widths.
+- A table of the four side views' measured heading size, label size, input height and input type size, before and after, proving they agree after.
+- The Commit button photographed enabled and disabled, with its computed values derived from tokens.
+- A grep proving no new color or size literal entered a component file, and the full battery.
+
+### What is NOT in this phase
+
+- No change to what any empty state SAYS beyond size. The words stay.
+- No new artwork. The cat is the app's own mark, already in the repository.
+- No change to the agent grid, its order, its hotkeys or the install hint under it.
+- No change to what Commit DOES, and no change to any other button in the app.
+- No change to the activity bar itself or to which views exist.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -17102,3 +17142,5 @@ cycle rather than only the evening it was written.
 - 2026-08-24, Phase 147 shipped, the story control is the one word "story" at one shared far right column position on every project overlay row, opening that session's timeline in place, and the control left the verbatim conversation view; his mid build refinement was caught by the verifier attacking the builder's charter satisfied claim, a fix round landed the word and the column and was re-driven at the exact cases; no native menu carried a story row so none changed; `8443052`, 0.72.5
 - 2026-08-24, Phase 148 shipped, the you section of every exchange in the session Catch Me Up view sits on the accent wash with a soft glow built from the section 1.2 tokens so a future accent choice recolors it automatically, and the top band's controls moved to its head reversed, position control at x 76 nearest the traffic lights, then the chevron, then the projects, with the add button staying at the end of the tabs; both surfaces were measured at the parent commit first because he reported them himself, the other three orientations were measured unmoved, and the verifier re-derived the glow in a separate Chromium render stack and ran a selection attack showing the wash reads over --bg-active; `7d7c071`, 0.72.6
 - 2026-08-25, the Arch hold is ANSWERED on his word, being that he wants Arch built tonight in the phases planned, and Phases 63 to 66 from research 49 are now queued in the house shape at the end of this file, 63 the standing contract with its format, its resolver, its five checkers with the argv defense, the fifth sidebar view and the Zen text landing inside 63's own commit by his first rider with README.md untouched by his second, blocked on NOTHING, then 64 the aiming verb and 65 the refresh loop which are parallel and each blocked on 63 alone, then 66 the canvas which stays gated on the CSS zoom spike passing and on an observed usage number from the earlier slices rather than a promised one
+- 2026-08-25, RELEASE CUT AND PUBLISHED, tag v0.73.0 on `6f815c3`, signed, notarized and stapled, published as Latest with 6 artifacts, verified on the DOWNLOADED artifact being spctl accepted as Notarized Developer ID with stapled tickets valid on the app and the DMG and the latest-mac.yml sha512 re-derived by hand, and carrying his stable website name Tortie-arm64.dmg proved byte identical to the versioned DMG so the permanent download link resolves from this release on; the grant is spent and does not renew
+- 2026-08-25, Phase 149 queued at his word, the empty project's heading and sentence come down in size with the app's own cat mark placed dark above the agent grid, the four side views move onto one shared type scale, and the Commit button gets a treatment that says pressable; it runs BEFORE the Arch phases because it is small and he is looking at it now
