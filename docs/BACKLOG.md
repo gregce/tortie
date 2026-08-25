@@ -16509,6 +16509,40 @@ Whichever is chosen, the comment above the assertion is rewritten to say what th
 - **It is NOT fixed inside another phase.** The operator queued it on its own so the widening is a decision somebody made on purpose rather than a line a committer changed to get a battery green.
 
 
+## Phase 147 — the story moves to where the model's sentence lives (operator asked 2026-08-24) QUEUED
+
+**Subject:** `fix(overview): the summary timeline opens from the project rows and leaves the conversation view`
+**First body line:** `Phase 147: the story belongs to the project line`
+**Semver:** patch. A surface moves; no data changes.
+**Tier 2.** A rendered surface with no new state. One app run driving both levels, plus one independent method.
+**Charter:** this entry, plus the `## Phase 143` entry whose surface this moves, plus the `## Phase 138` entry whose boundary sentence decides the placement.
+
+### What he asked, and the reasoning that decides it
+
+Looking at the project overlay on 2026-08-24 he said the timeline should be reachable from there too, and that he is not sure it makes sense on the session Catch Me Up at all, "since only the sessions level overlay is supposed to be providing model generated synthesis". That reasoning is the design's own: Phase 138's boundary sentence says the model writes only the one line per session on the project view, and the conversation you read is never written by a model. The timeline is the version history of THAT line, so it belongs beside the line, and its presence inside the verbatim conversation view blurs the one boundary the settings page promises.
+
+### What lands
+
+- Each session row on the PROJECT overlay gains the story control, opening that session's timeline in place, drawn from the same read the session view used. The row that says a model wrote its line (`written HH:MM`) is the natural anchor.
+- The "what has been written" control LEAVES the single session conversation view, and SessionStory is no longer mounted there.
+- The keyboard reach the timeline had (arrows, Return, space) survives the move.
+- A session whose line was never model written still answers the empty story states Phase 143 defined, being one line rather than an empty list.
+- The native menus: if the session actions menu carries a story row, it follows the same placement decision; the brief says what changed in the menus.
+
+### Proof, run rather than read
+
+- One app run photographing the project overlay with a story open, and proving the conversation view no longer offers the control, by reading the rendered strings rather than by eye.
+- The Phase 143 rules re-driven at the new surface, being no integer, collapse, model naming and the no chain line, using the existing timeline tests pointed at the new mount.
+- The full battery plus `npm run conformance:overview`.
+
+### What is NOT in this phase
+
+- No change to the timeline reader, the store or the fold. The data layer is Phase 143's and it does not move.
+- No new chord. The overlay already opens with the chord it has.
+- No project level synthesis beyond what already exists, being the one line per session.
+- No change to the session view's verbatim conversation beyond removing the story control.
+
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -16686,3 +16720,4 @@ cycle rather than only the evening it was written.
 - 2026-08-24, Phase 145 stage 5 landed and no check reaches the network to find its runner: the audit found all six static conformance gates and 22 probes, 28 files and 31 call sites, started their probe with `npx tsx` while tsx was not in the lockfile, measured on the parent shape by an empty npm cache and a blackholed registry making `conformance:context` print a registry request before checking anything, so tsx 4.23.12 is now an exact devDependency, `build/ts-runner.mjs` is the one resolver and every site spawns the pinned path, proved by machine conformance passing whole under a sandbox denying all IP traffic while a control fetch under the same profile was refused; the vitest suite split into lanes by one naming rule, `test:hermetic` controls every effect and passed all 9,333 tests unchanged over a watcher binding whose every call throws, `test:native` holds the three live adapter tests, FSEvents to the repo watcher, FSEvents to the agents.json watcher, and the live process table through the production reader, which failed loudly over the stub and came back green with the binding restored; new contract tests pin the RepoWatcher and config store watch workflows over injected backends, the orphan matcher's `never ANY server` refusal was removed in a copy and exactly its focused test went red, and all 104 check scripts are classified by the five types with environment requirement and skip rule each, 12 pure, 15 adapter, 52 Electron, 1 tmux, 23 remote and 1 aggregate, held complete both directions by `build/assert-hermetic-checks.mjs` inside `npm run build`; the full suite ran three times with the identical 9,338 passed and 2 skipped, no production code changed so the version stays, the exit rule reads met and stage 6 decides the award, this commit, 0.72.4
 - 2026-08-24, Phase 145 stage 6 landed, the adversarial rescore read the tree at `1b04801` and published 35 out of 36 in docs/audits/2026-08-24-run-f-rescore.md, awarding composition, domain cohesion and test seam their 3 on its own counts, gate runs and three independent experiments, being a re-derived importer census, a planted import proving the cycle gate in both directions, and a sabotaged watcher binding proving the hermetic lane, while failure flow stays at 2 on one named exception, the unadjudicated `smoke:matrix` red on rows 1 and 5 that is identical on the parent tree, which costs one point whichever side is wrong and comes back when the queued adjudication phase rules; no production code and no test changed, the version stays 0.72.4, this commit
 - 2026-08-24, Phase 145 shipped, Run F of the 36 plan landed all three stages with one commit each, stage 4 ruled three times to keep the owners whole, the machines registrar, the remote sessions coordinator and GmuxCore, each ruling recorded with its evidence in the plan document, and moved sixteen imports of readyRemoteContext to its Phase 123 owner at `f9200df` (0.72.4), stage 5 made every check name its environment and no runner reach the network, pinning tsx exactly and splitting the suite into hermetic and native lanes at `1b04801`, and stage 6, the adversarial rescore, published 35 out of 36 in docs/audits/2026-08-24-run-f-rescore.md at `1cca3ff`, the one point withheld on the named exception, the pre existing smoke:matrix red on rows 1 and 5 that is identical on the parent tree and waits on its own adjudication phase; no stop condition fired and the version stays 0.72.4, this commit
+- 2026-08-24, Phase 147 queued, the summary timeline moves to the project overlay rows where the model written line lives and leaves the verbatim conversation view, at his word, because only the project level is supposed to carry model generated synthesis
