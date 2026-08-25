@@ -17153,6 +17153,61 @@ So the phase is not building a mechanism. It is using the one that is there, and
 - No change to the tray menu unless the enumeration finds it shares a builder, and then the commit body says so.
 
 
+
+## Research 65, plugins reconsidered. The refusals stand, and the words are made true (operator asked 2026-08-25) RECORD, NO BUILD, TWO DOCUMENTS
+
+**Subject:** `docs(research): plugins reconsidered, the refusals stand`
+**First body line:** `Research 65: plugins reconsidered`
+**Semver:** none for the record itself. The two documents it authorizes are `docs` and carry no version.
+**Tier 1.** Documents only. No code path changes, nothing spawns, nothing renders differently. The gates are the evidence and there is nothing to photograph.
+**Charter:** `docs/research/65-plugins-reconsidered.md`, which supersedes nothing and amends nothing, plus `docs/research/31-extensions.md` and the eight refusals in `CLAUDE.md` that it tested.
+
+### What he asked, and what the answer is
+
+He asked on 2026-08-25 whether Tortie should support plugins and how it might actually want to, saying the project initially decided on pure configuration, that `/Users/gdc/herdr` and `/Users/gdc/pi` support plugins to great success, and that this is "not to make vscode and the like". He wanted the pros and cons, how plugins work elsewhere, the distribution model, and what it might unlock for Tortie to really take off.
+
+**The refusals stand, and the deciding reason is not security.** `gh api repos/gregce/tortie` on 2026-08-25 returns 4 stars, 0 forks and about 175 downloads across every release ever. herdr produced roughly one plugin repository per 39 stars, so the same ratio predicts zero plugins for Tortie. herdr's own download curve settles the order of events, growing from 81 to 2,108 downloads in the seven weeks BEFORE its plugin system existed. **A plugin system is a multiplier and Tortie does not yet have the thing it multiplies.** No case was found in this category where it happened the other way round.
+
+### Why this is a record and not a phase
+
+Six bands and three adversaries went looking for new evidence. Every argument in research 31 about isolation inside a process is untouched: a utility process is still not a boundary, `node:vm` is still documented by Node as not a security mechanism, and a sandbox whose guest may launch a program still has no boundary at the moment that matters. Five killing arguments were retired and four of the five were retired **because Tortie built the fix**, not because the argument was wrong.
+
+Three things did change and the document carries all three. The cost picture moved by a factor of ten, because the right comparator is herdr's 2,926 line host at 1.1 percent of Tortie rather than bb's 35,231 line in process SDK. herdr shipped a system violating none of the eight refusals and reached about 800 plugin repositories in ten weeks. And Orca built the design research 31 rejected, in Electron, at 19,106 lines with a forked host per worker, a closed capability set, a consent fingerprint and a signed remote kill list, and **still labels plugins experimental**.
+
+**And Tortie's own decision procedure already said no.** Research 31 section 7.3 defers the peer behind three written conditions. Condition 3, a shipped update channel, is now met. Condition 2, a shipped command layer, is not: the only trace in the tree is one comment at `src/renderer/quickopen/parse.ts` reserving the `>` prefix. Condition 1, three named requests configuration provably cannot express, is not met and none exist. Nobody ran that gate before hunting for evidence to overturn eight refusals.
+
+### The two documents this record authorizes, and they are the whole build
+
+**One. Make the words true, in `CLAUDE.md`.** Three refusals are false against the shipping tree and the operator wrote every exception himself with a gate around it:
+
+- Refusal 1 says no third party WebAssembly executes in any Tortie process and names workers explicitly. `src/main/symbols/worker.ts` is a `worker_threads` entry point of the main process whose own header reads "PURE WASM, and that is the whole reason this design was chosen", loading six grammars plus the runtime from `@vscode/tree-sitter-wasm`.
+- Refusal 3 says no in application browse and install. `src/renderer/context/install/InstallSheet.tsx` searches a remote third party catalog, previews, rates and installs.
+- Refusal 6's surrounding narrative implies no third party binary ships. `build/vendor/` holds `skills`, `skills-cache`, `specstory` and `tmux`, and `build/sign-nested-binaries.cjs` re-signs them.
+
+The replacement sentence is the one the code has actually been holding: **the operator chose the exact bytes, pinned them by hash, and can be held responsible for them, or a person confirmed them once out of band of any agent turn.** It is narrower than "no third party code" in one direction and wider in another, and it excludes every plugin ecosystem in the survey. Two constraints on the edit, both from the adversaries: it happens with no plugin proposal attached, and the replacement is narrower than the original rather than broader. In particular "no browse and install of things Tortie runs" silently concedes that browse and install of things Tortie does not run is fine, and every future proposal will argue its plugin is one of those.
+
+**Two. Ship the substrate documentation, in `DEVELOPMENT.md`.** Research 31 promised it twice, called it a README section that is free and true today, listed it under what ships regardless of the decision, and wrote that a refusal is only credible with an alternative attached. **A grep on 2026-08-25 found the word "substrate" zero times in `DEVELOPMENT.md`, `README.md` and `docs/ZEN-OF-TORTIE.md`.** The refusal has been running without its own credibility condition since Phase 23. The content is the durable layer that already lives outside the app, being `tmux -L gmux` with the `@gmux-*` options, `manifest.db`, the `GMUX_SESSION_ID` pane stamp and the SpecStory transcripts.
+
+**And the one honest sentence that document must carry, which the band that called it free got wrong.** The socket is not a read surface. It is mode 0770 owned by the user, and `tmux -L gmux list-sessions` and `tmux -L gmux send-keys` are the same permission. The document says in those words that anything running as you can already drive your sessions and Tortie cannot stop it, and it says that the frozen identifiers become a promise owed outward once other software depends on them.
+
+### Proof, run rather than read
+
+- `grep -n "substrate" DEVELOPMENT.md` returns lines after, and returned nothing before.
+- Every claim in the rewritten refusals re-checked against the tree by the command that disproved the old one, being the worker header, the install sheet path and the `build/vendor/` listing, with the output in the commit body.
+- `npm run typecheck && npm run build && npm run smoke:t1`, because `npm run build` runs `gate:electron` and the bundle refusal assertions, and a `CLAUDE.md` edit must not be assumed to be inert.
+- `build/assert-bundle-refusals.mjs` re-run and its verdict recorded, so that a reworded refusal in prose is proved to still match the refusal asserted against the shipped bytes.
+- No app run. There is nothing to photograph.
+
+### What is NOT in this phase
+
+- **No plugin system, no plugin API, no SDK, no type definition file, no contribution point registry, no marketplace, no index, no store, no install verb for anything Tortie runs.** Rungs 4, 5 and 6 of the document's ladder are refused.
+- **No relaxation of any refusal.** The edit makes three sentences true. It moves no boundary, and a rewritten sentence that permits more than the old one is a defect the verifier names.
+- **No `kind` field on an overlay row, no session set format and no agent recipe.** Those are rungs 1, 1.5 and 2 and the document recommends the first two and holds the third. Each is its own phase with its own charter, and none is queued here.
+- **No command line verb, read or write.** `tortie .` stays capped exactly where Phase 51 capped it.
+- **No change to `src/main/config/**`, `src/main/machines/**`, the manifest, the restore path or the confirm gate.** This record touches two documents and nothing else.
+- **No edit to `docs/research/31-extensions.md`.** It stays as written, including the parts research 65 corrects, because the losing arguments are the record a future round has to defeat.
+- **No answer to the question the document says decides everything**, being who writes the plugin when a Tortie user wants one. That is named as the open question and is not settled here.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -17342,3 +17397,4 @@ cycle rather than only the evening it was written.
 - 2026-08-25, Phase 152 queued at his word and it runs BEFORE Arch, a session names both of its identifiers and the path to its record on disk in the ellipsis menu and on the hover tooltip with a copy verb for each, and the entry is explicit that Tortie's own session id and the agent's conversation id are different things because copying the wrong one resumes nothing, and that some agents have no record path at all so the surface says so rather than guessing
 - 2026-08-25, Phase 153 queued at his word, every menu row carries the icon its own part of the product already uses and only rows with no natural source get a chosen one; the mechanism already exists at src/main/menu-popup.ts line 46 with template image support at line 56 and a grep that day found ZERO popup rows using it, so the phase is about walking through a door that is already built rather than building one; it runs after 152 because both touch session-actions.tsx and the native menus
 - 2026-08-25, Phase 149 SHIPPED on `fa590ea` at 0.73.1, the empty project's heading came down from 20px on 28px to 13px on 20px and its sentence from 15px on 22px to 12px on 18px with the words untouched and the three boot blocks proved unchanged, the app's own cat now sits behind and above the agent grid out of flow at a token size and a token opacity, the four side views moved onto ONE scale named in tokens.css section 1.8b where the Explorer's numbers won because two of the four views and every button in the app already drew them, being an 11px heading, an 11px label, a 28px box and 12px type inside it, so Search's two glob boxes went 24px to 28px, Context's two boxes went 13px to 12px and the commit box went 30px at 13px to 28px at 12px, and Commit gained a sheen, an accent glow that grows on hover and a real press with the disabled state deliberately untouched; the cat was proved not to move the board by removing the image node and separately tripling the mark to 600px at four column widths with the agent grid box and the install hint box identical to the pixel in all twelve readings, the accent derivation was proved by swapping the three accent tokens to a magenta at runtime, and the parent was measured a second time in a plain browser which is the only thing that could reach the two glob boxes behind their closed disclosure; ONE DEVIATION, the charter said the cat is `tortie.png` at the repository root and that file is the README product screenshot referenced at README.md line 33 rather than a cat, so the phase used `docs/brand/tortie/dock/tortie-dock-512.png` copied byte for byte at sha256 0815e6d0 with `npm run icon` keeping it fresh, and reversing it is the one import at the top of `src/renderer/app/EmptyStates.tsx`
+- 2026-08-25, Research 65 delivered, docs/research/65-plugins-reconsidered.md, plugins reconsidered on his question, and the refusals STAND with the deciding reason being adoption rather than security: `gh api repos/gregce/tortie` reads 4 stars and about 175 downloads while herdr produced one plugin repository per 39 stars and grew 26 times over BEFORE its plugin system existed, so a plugin system is a multiplier and Tortie does not have the thing it multiplies; research 31's own section 7.3 trigger already said no, being that the update channel shipped but the command layer has not and no three named requests exist; one plugin in the top sixty of a live marketplace in Tortie's exact category needs code inside the host process and it is an embedded browser, so refusal 1 blocks almost nothing and is nearly free to keep; the record above authorizes TWO DOCUMENTS and no code, being the rewrite of refusals 1, 3 and 6 which are false against the tree at src/main/symbols/worker.ts, src/renderer/context/install/InstallSheet.tsx and build/vendor/, and the substrate documentation research 31 promised twice and never shipped, which must say in those words that the tmux socket is a WRITE surface; rungs 1 and 1.5, being a tool row and a session set format, are recommended as their own later phases and the agent recipe is HELD until somebody measures whether the status oracle, the keep map, the context precedence and the fold recipe are expressible as data at all
