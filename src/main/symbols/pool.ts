@@ -22,7 +22,12 @@
 import { cpus } from 'node:os';
 import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
-import type { IndexedFile, SymbolWorkerData, SymbolWorkerMessage } from './worker';
+import type {
+  IndexedFile,
+  SymbolWorkerData,
+  SymbolWorkerMessage,
+  SymbolWorkerRequest
+} from './worker';
 import { WORKER_NAMES } from '../proc/identity';
 
 /** Idle time after which the pool gives its threads back. */
@@ -75,6 +80,7 @@ export class SymbolPool {
   private readonly slots: Slot[] = [];
   private readonly queue: {
     files: { relPath: string; absPath: string }[];
+    wantImports: boolean;
     pending: Pending;
   }[] = [];
   private nextBatchId = 1;
@@ -83,12 +89,28 @@ export class SymbolPool {
 
   constructor(private readonly options: PoolOptions) {}
 
-  /** Parse a batch of files. Resolves with whatever the worker could read. */
-  run(files: { relPath: string; absPath: string }[]): Promise<IndexedFile[]> {
+  /**
+   * Parse a batch of files. Resolves with whatever the worker could read.
+   *
+   * `options.imports` asks the worker to send the imports back as well
+   * (Phase 63). It is off by default and the symbol index never turns it on:
+   * the extractor finds imports out of the same walk either way, so this flag
+   * decides only what crosses the thread boundary. ONE pool serves both
+   * readers, which is research 19's worker budget working as intended rather
+   * than a second resident pool.
+   */
+  run(
+    files: { relPath: string; absPath: string }[],
+    options: { imports?: boolean } = {}
+  ): Promise<IndexedFile[]> {
     if (this.disposed) return Promise.resolve([]);
     this.cancelIdleEviction();
     return new Promise<IndexedFile[]>((resolve, reject) => {
-      this.queue.push({ files, pending: { resolve, reject } });
+      this.queue.push({
+        files,
+        wantImports: options.imports === true,
+        pending: { resolve, reject }
+      });
       this.pump();
     });
   }
@@ -103,7 +125,12 @@ export class SymbolPool {
       slot.busy = true;
       slot.pending.set(batchId, job.pending);
       void slot.ready.then(
-        () => slot.worker.postMessage({ batchId, files: job.files }),
+        () =>
+          slot.worker.postMessage({
+            batchId,
+            files: job.files,
+            imports: job.wantImports
+          } satisfies SymbolWorkerRequest),
         (err: unknown) => {
           slot.pending.delete(batchId);
           slot.busy = false;

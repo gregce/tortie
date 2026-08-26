@@ -467,7 +467,11 @@ export const useEditor = create<EditorState>((set, get) => {
         savedContents: '',
         headContents: null,
         lastUsed: now,
-        contextEntry: req.contextEntry ?? null
+        contextEntry: req.contextEntry ?? null,
+        // PHASE 63. Non-null makes this a DRAFT: no disk read, dirty from the
+        // moment it appears, and the model seeded from these bytes rather than
+        // from `savedContents`, which stays empty because nothing is saved.
+        draft: req.draft ?? null
       };
 
       set((s) => {
@@ -500,7 +504,15 @@ export const useEditor = create<EditorState>((set, get) => {
         return { tabs, activeId: tab.id, panelOpen: true };
       });
 
-      if (req.remote !== undefined) {
+      if (req.draft !== undefined) {
+        // PHASE 63. A DRAFT reads nothing. There may be no file at this path
+        // at all, and asking for one would land an error on a tab whose whole
+        // purpose is to hold text that has never been saved. `loading` goes
+        // false here because the content already arrived with the request, and
+        // `dirty` goes true because it has: closing the tab prompts to save,
+        // which is what makes "Tortie wrote nothing" survivable.
+        patchTab(id, { loading: false, dirty: true, savedContents: '' });
+      } else if (req.remote !== undefined) {
         // Phase 73. One call to main fills BOTH sides, from the machine. The
         // worktree loaders are deliberately not run: this file is not on this
         // Mac, and reading a file of the same name here would show a person a

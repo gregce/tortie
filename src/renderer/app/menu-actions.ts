@@ -227,6 +227,12 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'show-context':
       showViewAction('context');
       return;
+    // Phase 63. View > Architecture. Same body as the ⌃⇧A keydown branch, so
+    // the menu item and the chord cannot drift, which is the thing the Context
+    // view got wrong for thirty-eight phases.
+    case 'show-arch':
+      showViewAction('arch');
+      return;
     // Phase 137. View > Catch Me Up, directly under Context. The renderer's
     // ⇧⌘U branch is what runs when the chord is pressed (it precedes the
     // accelerator and preventDefaults it), so this path fires on a real menu

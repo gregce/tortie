@@ -568,6 +568,15 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // commit's contents with the live file's.
     const tabs = deps.worktreeTabsIn(repoPath);
     for (const tab of tabs) {
+      // PHASE 63. A DRAFT THAT HAS NEVER BEEN SAVED IS SKIPPED WHOLE.
+      //
+      // Its file does not exist yet, which is the point of it. The existence
+      // check below would find nothing at that path and mark the tab
+      // `deleted`, which makes it read only and puts "deleted on disk" over a
+      // buffer the person is still typing into. `savedContents === ''` is what
+      // says it has never been saved: the moment it is, that string holds the
+      // bytes, the file is on disk, and this tab refreshes like any other.
+      if (tab.draft != null && tab.savedContents === '') continue;
       // An image tab re-reads through the image channel and bumps its
       // revision, which is what re-fetches the asset URL: an agent that
       // regenerates a chart must change the picture on screen, and the URL

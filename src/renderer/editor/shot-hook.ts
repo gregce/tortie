@@ -218,8 +218,14 @@ export interface ShotDriveSpec {
   /**
    * Switch the sidebar view before capture ('explorer' shows the Pierre
    * file tree; readiness waits for shadow-DOM rows to render).
+   *
+   * PHASE 63 ADDED 'arch', and it had to: the Architecture view's own claim is
+   * that its header and its rows survive the 220px sidebar minimum, that claim
+   * is about the shipped stylesheet under a live layout engine, and a
+   * photograph is the only thing that can see it. A union that did not name
+   * the view could not drive the picture at all.
    */
-  sidebarView?: 'scm' | 'explorer';
+  sidebarView?: 'scm' | 'explorer' | 'arch';
   /**
    * Collapse the sidebar (⌘B). The editor panel is a FRACTION of the center
    * region, so this is the only lever the harness has on how wide the panel

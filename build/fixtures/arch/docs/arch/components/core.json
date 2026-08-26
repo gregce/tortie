@@ -1,0 +1,20 @@
+{
+  "id": "core",
+  "name": "core",
+  "kind": "component",
+  "layer": "engine",
+  "provenance": "first-party",
+  "anchors": ["src/core"],
+  "boundary": "closed",
+  "description": "The work itself.",
+  "evidence": [
+    {
+      "path": "src/core/engine.ts",
+      "lineStart": 2,
+      "lineEnd": 2,
+      "quote": "this quote is gone"
+    }
+  ],
+  "deprecated": false,
+  "gaps": ["The engine still owns the schema, and it should not."]
+}

@@ -89,7 +89,16 @@ export interface RepoWatcherOptions {
   onError?: (err: Error) => void;
 }
 
-const DEFAULT_DEBOUNCE_MS = 300;
+/**
+ * The coalescing window every consumer of the repo-changed fan-out inherits.
+ *
+ * EXPORTED SINCE PHASE 63, and the reason is worth one sentence. The arch
+ * checker's settle window is stated as a multiple of this number rather than as
+ * a second copy of it, so the two can never disagree. Research 49 wrote this
+ * number down as 150 ms, which was never true of this file; a consumer that
+ * reads the constant cannot inherit that mistake.
+ */
+export const DEFAULT_DEBOUNCE_MS = 300;
 
 /** dotgit files whose change means "HEAD/refs/index moved — re-status". */
 const DOTGIT_FILES = new Set([

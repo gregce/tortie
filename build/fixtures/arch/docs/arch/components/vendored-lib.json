@@ -1,0 +1,13 @@
+{
+  "id": "vendored-lib",
+  "name": "vendored lib",
+  "kind": "component",
+  "layer": "foundation",
+  "provenance": "vendored",
+  "anchors": ["vendor/lib"],
+  "boundary": "open",
+  "description": "A copy of somebody else's code.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": []
+}

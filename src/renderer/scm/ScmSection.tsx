@@ -115,6 +115,7 @@ import {
   verbsFor
 } from './selection';
 import type { ScmGroupId, ScmRow, ScmSelection, ScmVerbs } from './selection';
+import { PromisesSection } from '../arch/PromisesSection';
 import './scm.css';
 import { gmuxBridge } from '../bridge';
 
@@ -137,14 +138,27 @@ registerP104CommitDrive();
  * order and gets Runs last, because sanitizeOrder appends every id it does
  * not find. No migration is written.
  */
-const SCM_SECTION_IDS = ['changes', 'history', 'branches', 'runs'] as const;
+const SCM_SECTION_IDS = [
+  'changes',
+  'history',
+  'branches',
+  'runs',
+  // PHASE 63. A person whose stored order predates this keeps that order and
+  // gets Promises last, because sanitizeOrder appends every id it does not
+  // find. No migration is written, which is the same answer Phase 46 gave when
+  // it appended `runs`.
+  'promises'
+] as const;
 type ScmSectionId = (typeof SCM_SECTION_IDS)[number];
 
 const SCM_SECTION_LABELS: Record<ScmSectionId, string> = {
   changes: 'Changes',
   history: 'History',
   branches: 'Branches',
-  runs: 'Runs'
+  runs: 'Runs',
+  // Phase 63. Promises the code broke, each naming the file and the line, so
+  // a person reviewing a diff cannot review past a break without seeing it.
+  promises: 'Promises'
 };
 
 // ---------------------------------------------------------------------------
@@ -1868,6 +1882,12 @@ export function ScmSection(): React.JSX.Element | null {
     // no GitHub remote has three sections and no empty fourth one.
     runs: isRepo ? (
       <RunsSection key={`runs-${repoPath}`} repoPath={repoPath} />
+    ) : null,
+    // Phase 63. Renders null unless the Architecture view holds a verdict that
+    // broke, so a repository with no contract has four sections and no empty
+    // fifth one. That is the rule the Runs section above already follows.
+    promises: isRepo ? (
+      <PromisesSection key={`promises-${repoPath}`} repoPath={repoPath} />
     ) : null
   };
 

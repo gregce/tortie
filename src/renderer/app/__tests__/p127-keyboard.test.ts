@@ -25,6 +25,10 @@ import { describe, expect, it } from 'vitest';
 const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 const source = readFileSync(join(APP_DIR, 'keyboard.ts'), 'utf8');
 const shellActions = readFileSync(join(APP_DIR, 'shell-actions.ts'), 'utf8');
+const keymapSource = readFileSync(
+  join(APP_DIR, '..', '..', 'shared', 'keymap.ts'),
+  'utf8'
+);
 
 describe('the listener contract', () => {
   it('registers two capture-phase keydown listeners on window', () => {
@@ -42,6 +46,41 @@ describe('the listener contract', () => {
     expect(
       source.split("window.removeEventListener('keydown'").length - 1
     ).toBe(2);
+  });
+});
+
+describe('every Ctrl+Shift view chord has a renderer branch (Phase 63)', () => {
+  /**
+   * WHY THIS TEST EXISTS. A view chord that lives only as a native accelerator
+   * does not fire, because this ladder runs first and its preventDefault
+   * suppresses the application menu, which is the measurement recorded at
+   * src/renderer/terminal/keys/index.ts:10-15. Phase 22 shipped the Context
+   * view without a branch and Phase 60 had to repair it. Phase 63 shipped the
+   * Architecture view the same way, with a comment in menu-actions.ts naming a
+   * branch that was not there. So the list is derived from the keymap rather
+   * than written down here, and a sixth view added tomorrow fails this test
+   * until it has a branch.
+   */
+  const CHORDS: Array<[string, string]> = [
+    ['g', 'scm'],
+    ['c', 'context'],
+    ['a', 'arch']
+  ];
+
+  it('names every Ctrl+Shift chord the keymap declares', () => {
+    const declared = [...keymapSource.matchAll(/k\('Ctrl\+Shift\+([A-Z])'\)/g)].map(
+      (m) => (m[1] ?? '').toLowerCase()
+    );
+    expect([...declared].sort()).toEqual(CHORDS.map(([key]) => key).sort());
+  });
+
+  it('handles each of them in the ladder, and routes it to its own view', () => {
+    for (const [key, view] of CHORDS) {
+      expect(source, `no keydown branch for Ctrl+Shift+${key.toUpperCase()}`).toContain(
+        `e.key.toLowerCase() === '${key}'`
+      );
+      expect(source).toContain(`showViewAction('${view}')`);
+    }
   });
 });
 

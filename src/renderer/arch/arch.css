@@ -1,0 +1,575 @@
+/* Architecture view (Phase 63).
+ *
+ * EVERY COLOUR IS A TOKEN. There is not one literal in this file, which is the
+ * DESIGN.md rule and also the only way the view is right in both themes.
+ *
+ * THE COLOUR BUDGET, and what it deliberately does not spend. Three status
+ * tokens carry the three verdicts, being --success for a promise that holds,
+ * --error for one that broke, and --text-muted for one Tortie cannot check.
+ * NO AMBER ANYWHERE. That hue belongs to "an agent needs you" and nothing on
+ * this surface is that, so an amber "stale" mark would be the surface
+ * competing with the one signal the product reserves. Research 49 section 9.5
+ * rejected it by name and this file is where that holds or does not.
+ *
+ * COLOUR IS NEVER THE ONLY CHANNEL. Every verdict on screen carries a codicon
+ * and a word beside its colour, so the strip reads the same in greyscale.
+ *
+ * THE TYPE SCALE IS PHASE 149'S. The header band uses `.view-header` and every
+ * section heading uses `.section-header`, both of which already name
+ * --view-heading-text. Nothing here writes a heading font size by hand, which
+ * is the drift Phase 149 existed to end.
+ *
+ * THE 220px MINIMUM IS THE ONE THAT HAS TO WORK. The sidebar's floor is 220px
+ * (styles/app.css). Nothing in this file has a fixed width, every row is a
+ * flex line that wraps or ellipsises, and the header carries one control. */
+
+.arch {
+  /* The container the row's one responsive rule measures. It is this element
+     rather than the sidebar, so a probe that sets the sidebar's width measures
+     the same box the rows are laid out in. */
+  container-type: inline-size;
+  container-name: arch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) 0 var(--space-6);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* The subject: the one line the contract draws at the top of everything. */
+.arch-subject {
+  padding: 0 var(--space-5);
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  font-weight: var(--weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One sentence, for every state with nothing to draw. */
+.arch-note {
+  padding: var(--space-4) var(--space-5);
+  color: var(--text-muted);
+}
+
+.arch-note-inline {
+  padding: var(--space-2) var(--space-5);
+}
+
+/* The freshness ribbon. Quiet on purpose: it is context for the numbers under
+   it, not a claim of its own. */
+.arch-ribbon {
+  padding: 0 var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* -- the verdict strip --------------------------------------------------- */
+
+.arch-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-raised);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.arch-lane {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.arch-lane-name {
+  color: var(--text-muted);
+  font-size: var(--view-label-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.arch-lane-counts {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.arch-lane-counts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.arch-strip-note {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* The accepted divergences, ALWAYS with the reason their author gave. Tortie
+   reads this file and never writes it, so a person is looking at somebody's
+   own words rather than at something the app decided. */
+.arch-accepted ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.arch-accepted li {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.arch-accepted-pair {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.arch-accepted-why {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* -- the three verdict colours, and nothing else uses them ---------------- */
+
+.arch-v-holds {
+  color: var(--success);
+}
+
+.arch-v-broke {
+  color: var(--error);
+}
+
+/* Missing is a failure and reads as one, and it keeps its own glyph so the two
+   are told apart without reading the word. */
+.arch-v-missing {
+  color: var(--error);
+}
+
+.arch-v-unknown {
+  color: var(--text-muted);
+}
+
+/* -- rows that would not load -------------------------------------------- */
+
+.arch-schema li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  color: var(--error);
+  min-width: 0;
+}
+
+.arch-schema-file,
+.arch-schema-field {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.arch-schema-field {
+  color: var(--text-secondary);
+}
+
+.arch-schema-reason {
+  color: var(--text-muted);
+  flex: 1 1 100%;
+}
+
+/* -- the failure list ----------------------------------------------------- */
+
+.arch-failures li {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1) 0 var(--space-2);
+  min-width: 0;
+}
+
+.arch-failure-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-5);
+  color: inherit;
+  text-align: left;
+  min-width: 0;
+}
+
+.arch-failure-head:hover {
+  background: var(--bg-raised);
+}
+
+.arch-failure-subject {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.arch-failure-word {
+  color: inherit;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* The jump. It is a button rather than a row decoration because it is the one
+   thing on this surface that has to be reachable from the keyboard: a verdict
+   that cannot say where is an accusation rather than a finding. */
+.arch-offending {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-5) var(--space-1) var(--space-8);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: left;
+  min-width: 0;
+}
+
+.arch-offending:hover:not(:disabled) {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.arch-offending:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.arch-offending-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  direction: rtl;
+  text-align: left;
+}
+
+.arch-offending-line,
+.arch-offending-spec {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.arch-failure-reason {
+  padding: 0 var(--space-5) 0 var(--space-8);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* -- the component outline ------------------------------------------------ */
+
+.arch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  height: 24px;
+  padding: 0 var(--space-5);
+  color: var(--text-secondary);
+  text-align: left;
+  min-width: 0;
+}
+
+.arch-row:hover {
+  background: var(--bg-raised);
+}
+
+.arch-row.selected {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+/* Struck through and NEVER hidden. The corpus already strikes things through
+   in prose because plain text had no other way, and hiding a deprecated part
+   loses the one fact its author went out of their way to write down. */
+.arch-row-deprecated .arch-row-name {
+  text-decoration: line-through;
+}
+
+.arch-row-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* The word beside the glyph. It is what makes the provenance readable in
+   greyscale and to a screen reader, and it is the first thing to go when the
+   pane is narrow, because the glyph and the name both survive at 220px. */
+.arch-row-prov {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.arch-row-v {
+  display: inline-flex;
+  align-items: center;
+}
+
+@container arch (max-width: 260px) {
+  .arch-row-prov {
+    display: none;
+  }
+}
+
+/* -- the gap strip -------------------------------------------------------- */
+
+.arch-gap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-5);
+  text-align: left;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.arch-gap:hover {
+  background: var(--bg-raised);
+}
+
+.arch-gap-where {
+  color: var(--text-muted);
+  font-size: var(--view-label-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.arch-gap-text {
+  overflow-wrap: anywhere;
+}
+
+/* -- the prose panel ------------------------------------------------------ */
+
+.arch-prose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+
+.arch-prose-title {
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.arch-prose-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.arch-prose-body {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  /* white-space so a contract author's own line breaks survive. This is a text
+     node, never markdown: the bytes are shown, not rendered. */
+  white-space: pre-wrap;
+}
+
+.arch-prose-note {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.arch-prose-anchors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* -- the teaching empty state --------------------------------------------- */
+
+.arch-empty {
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-5) var(--space-8);
+}
+
+.arch-empty-title {
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
+  font-weight: var(--weight-semibold);
+}
+
+.arch-empty-body {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.arch-empty-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.arch-empty-action {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+  align-items: start;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  text-align: left;
+  min-width: 0;
+}
+
+.arch-empty-action:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.arch-empty-action:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.arch-empty-action > .codicon {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.arch-empty-action-title {
+  grid-row: 1;
+  grid-column: 2;
+  color: inherit;
+  font-weight: var(--weight-medium);
+}
+
+.arch-empty-action-body {
+  grid-row: 2;
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.arch-empty-prompt summary {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: default;
+}
+
+.arch-empty-prompt-text {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* The one moving number on this surface, and it exists only while a check is
+   in flight. Nothing here rises on its own. */
+.arch-progress {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* -- the Source Control view's fifth section ------------------------------ */
+
+.arch-scm-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  height: 22px;
+  padding: 0 var(--space-5);
+  color: var(--error);
+  text-align: left;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.arch-scm-row:hover {
+  background: var(--bg-raised);
+}
+
+.arch-scm-path {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  direction: rtl;
+  text-align: left;
+}
+
+.arch-scm-line {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The promise's own id, last and quietest: a person scanning this list is
+   looking for the FILE, and the id is what they read once they have found it. */
+.arch-scm-subject {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* The banner over the last good rows. It uses --error rather than a wash,
+   because the sentence has to be readable at 220px and a tinted band there
+   costs the height a row needs. */
+.arch-lastvalid {
+  padding: var(--space-2) var(--space-5);
+  color: var(--error);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}

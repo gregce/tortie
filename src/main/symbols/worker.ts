@@ -18,7 +18,7 @@ import { parentPort, workerData } from 'node:worker_threads';
 import { join } from 'node:path';
 import type { GrammarId } from './languages';
 import { SymbolExtractor } from './extract';
-import type { ExtractedSymbol } from './extract';
+import type { ExtractedImport, ExtractedSymbol } from './extract';
 
 /** What the pool hands each worker at construction. */
 export interface SymbolWorkerData {
@@ -30,6 +30,13 @@ export interface SymbolWorkerData {
 export interface SymbolWorkerRequest {
   batchId: number;
   files: { relPath: string; absPath: string }[];
+  /**
+   * Send the imports back too (Phase 63). Off by default, and that default is
+   * the point: the extractor finds them either way out of the same walk, and
+   * this flag decides only whether they are structured cloned back across the
+   * thread boundary. ⌘⇧O never asks for them, so it never pays for them.
+   */
+  imports?: boolean;
 }
 
 /** One file's contribution to the index. */
@@ -38,6 +45,8 @@ export interface IndexedFile {
   mtimeMs: number;
   size: number;
   symbols: ExtractedSymbol[];
+  /** Present only when the request asked for imports (Phase 63). */
+  imports?: ExtractedImport[];
 }
 
 export type SymbolWorkerMessage =
@@ -88,7 +97,8 @@ async function run(port_: NonNullable<typeof parentPort>): Promise<void> {
             relPath: file.relPath,
             mtimeMs: got.mtimeMs,
             size: got.size,
-            symbols: got.symbols
+            symbols: got.symbols,
+            ...(raw.imports === true ? { imports: got.imports } : {})
           });
         } catch {
           skipped += 1;

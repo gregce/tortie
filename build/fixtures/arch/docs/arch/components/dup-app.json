@@ -1,0 +1,13 @@
+{
+  "id": "app",
+  "name": "app again",
+  "kind": "component",
+  "layer": "surface",
+  "provenance": "first-party",
+  "anchors": ["src/app"],
+  "boundary": "open",
+  "description": "Dropped whole, because app.json already used this id.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": []
+}

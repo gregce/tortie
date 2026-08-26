@@ -1,0 +1,13 @@
+{
+  "id": "store",
+  "name": "store",
+  "kind": "store",
+  "layer": "foundation",
+  "provenance": "data-store",
+  "anchors": ["src/store"],
+  "boundary": "closed",
+  "description": "Where the rows live.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": []
+}

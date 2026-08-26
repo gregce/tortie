@@ -817,6 +817,29 @@ export const KEYMAP = [
     menuAction: 'show-context'
   },
   {
+    // Phase 63. ⌃⇧A joins the ⌃⇧ family the other two side views already use,
+    // being ⌃⇧G for Source Control and ⌃⇧C for Context. ⇧⌘A is deliberately
+    // left free for the same reason ⇧⌘C is: DESIGN.md §4 spends the ⇧⌘ letters
+    // on per agent hotkeys a person records themselves, and a built-in there
+    // would make a recordable chord un-recordable.
+    //
+    // THE `menuAction` IS ON THE ROW FROM THE FIRST DAY, and that is not an
+    // accident of copying. The Context view's Phase 22 build left it off, the
+    // View menu could not reach the view for thirty-eight phases, and Phase 60
+    // had to go back and repair it. One field, written once, is what stops the
+    // menu row and the chord ever drifting apart.
+    id: 'view.arch',
+    keys: [k('Ctrl+Shift+A')],
+    action: 'Architecture',
+    explain:
+      'Shows what this project promises about its own shape, being which parts it is made of, which of them you wrote and which you lean on, and how the parts are allowed to touch. Tortie checks the promises against the code and says which ones broke and at which line. Press it again while the list has focus to hand the keyboard back to the session.',
+    group: 'views',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'show-arch'
+  },
+  {
     // Phase 137 took ⌃⇧U, because cursor's defaultHotkeyHint was 'u' and a
     // built-in ⇧⌘U would have made the suggested cursor hotkey un-recordable.
     // Phase 137.1 moved cursor's hint to 's' (the next free letter in the

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "subject": "A small imaginary app, used only by npm run conformance:arch",
+  "strictness": "not-wrong",
+  "layers": [
+    { "id": "surface", "name": "surface", "order": 0 },
+    { "id": "engine", "name": "engine", "order": 1 },
+    { "id": "foundation", "name": "foundation", "order": 2 }
+  ],
+  "flows": []
+}

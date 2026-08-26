@@ -152,6 +152,11 @@ import type {
   OverviewInvokeChannelMap
 } from './overview';
 import type {
+  ArchEventPayloadMap,
+  ArchInvokeChannelMap,
+  GmuxArchExtras
+} from './arch';
+import type {
   GmuxSpecStoryExtras,
   CaptureEventPayloadMap,
   SpecStoryStatusInvokeChannelMap
@@ -171,6 +176,7 @@ import type {
 
 export * from './base';
 export * from './app';
+export * from './arch';
 export * from './actions';
 export * from './agents';
 export * from './context';
@@ -250,7 +256,9 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   RemoteProjectInvokeChannelMap &
   ShellPathInvokeChannelMap &
   OverviewInvokeChannelMap &
-  FsImportInvokeChannelMap;
+  FsImportInvokeChannelMap &
+  // Phase 63. The standing contract's three reads.
+  ArchInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -281,7 +289,9 @@ export type AllEventPayloadMap = EventPayloadMap &
   // Phase 71. The machine link state, pushed on every change. It is a second
   // map rather than a member of the one above because that one is the
   // connection test's own bytes and this is not about a test at all.
-  MachinesEventPayloadMap;
+  MachinesEventPayloadMap &
+  // Phase 63. A finished re-check, and how far a running one has got.
+  ArchEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -393,4 +403,5 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxLogExtras &
   GmuxShellExtras &
   GmuxMachinesExtras &
-  GmuxOverviewExtras;
+  GmuxOverviewExtras &
+  GmuxArchExtras;

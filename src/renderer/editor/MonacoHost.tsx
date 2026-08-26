@@ -257,7 +257,18 @@ export function MonacoHost({
     if (!ready || m === null || !contentReady) return;
 
     const language = languageFor(m, tab.path);
-    const model = workingModel(m, tab.id, tab.savedContents, language);
+    // PHASE 63. A DRAFT seeds the model from the bytes the request carried,
+    // because nothing was ever read from disk and `savedContents` is empty on
+    // purpose: that emptiness is what keeps the tab dirty. `workingModel`
+    // creates once per tab id and returns the existing model afterwards, so
+    // this expression only decides the FIRST text and never overwrites a
+    // buffer the person has typed into.
+    const model = workingModel(
+      m,
+      tab.id,
+      tab.draft ?? tab.savedContents,
+      language
+    );
 
     // Save the outgoing tab's view state.
     const prev = prevShownId.current;

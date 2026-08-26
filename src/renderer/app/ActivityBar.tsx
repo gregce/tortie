@@ -42,6 +42,7 @@ import {
 import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
+import { SIDEBAR_VIEW_DEFAULT } from '../state/sidebar-views';
 import { useSearch } from '../search';
 import {
   remoteChangesCount,
@@ -121,7 +122,12 @@ function ViewItem({
 
   const currentView: SidebarViewId =
     (activeProjectId !== null ? viewByProject[activeProjectId] : undefined) ??
-    'scm';
+    // PHASE 63. `SIDEBAR_VIEW_DEFAULT`, not the literal 'scm' that was here.
+    // The literal was one of four copies of the same answer and research 49
+    // warned about exactly this: a view added later has to be able to become
+    // the default by changing one constant, and four hand written copies mean
+    // three of them will be missed.
+    SIDEBAR_VIEW_DEFAULT;
   const active = sidebarVisible && currentView === view;
 
   return (
@@ -352,6 +358,32 @@ export function ActivityBar({
         icon="layers"
         label="Context"
         shortcut={keyDisplay('view.context')}
+      />
+      {/* Phase 63 — Architecture, fifth, after Context and before the spacer.
+
+          `checklist` because the subject of the view IS a list of promises
+          that are checked. The runners up and why each lost: `circuit-board`
+          draws a diagram, and this phase deliberately ships no canvas, so it
+          would promise a picture that is not there; `law` reads as legal
+          rather than as engineering; `verified` names the verdict rather than
+          the thing being judged, and most promises here are not verified;
+          `symbol-structure` sits in the symbol family and would collide with
+          the symbols vocabulary the quick open picker already owns.
+
+          The View menu row wears the SAME mark, which is menu.ts's own stated
+          rule, and `checklist` had to be added to `MENU_CODICONS` for it.
+
+          NO BADGE, EVER, and the reason is stronger here than it was for
+          Context. A count of broken promises is exactly the number that would
+          sit on the rail and rise on its own, which is the dashboard the Zen
+          refuses by name and which research 49 section 9.5 rejected in its own
+          table. The counts live in the verdict strip, where a person went to
+          look for them. */}
+      <ViewItem
+        view="arch"
+        icon="checklist"
+        label="Architecture"
+        shortcut={keyDisplay('view.arch')}
       />
       <div className="ab-spacer" />
       {/* Phase 58. The update ring sits directly above the gear and carries

@@ -296,6 +296,24 @@ export function useKeyboardMap(): void {
         return;
       }
 
+      // ⌃⇧A — Architecture view (Phase 63). Registered beside its two siblings
+      // for the reason recorded at src/renderer/terminal/keys/index.ts:10-15: a
+      // page-side preventDefault suppresses an application-menu accelerator, so
+      // a view chord that exists only as an accelerator is the one this ladder
+      // reaches first and swallows. The menu item in ./menu-actions.ts runs the
+      // same body, so the row and the chord cannot drift.
+      if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'a'
+      ) {
+        e.preventDefault();
+        showViewAction('arch');
+        return;
+      }
+
       if (!meta) return;
 
       // ⇧⌘U — Catch Me Up (Phase 137.1). Phase 137 put the page on ⌃⇧U

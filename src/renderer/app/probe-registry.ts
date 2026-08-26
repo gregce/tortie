@@ -2,7 +2,8 @@
  * Every harness drive App.tsx used to carry, in one chunk the person's launch
  * never loads (Phase 127).
  *
- * WHAT THIS FILE IS. Fourteen probe modules, the four registrar calls that arm
+ * WHAT THIS FILE IS. Fifteen probe modules (Phase 63 added the Architecture
+ * view's), the four registrar calls that arm
  * them, and the shot-layout wrapper that adds the layout stream's knobs to the
  * editor stream's base drive. Nothing here runs in a normal launch, because
  * `./probe-loader.ts` only imports this file when the renderer's own URL
@@ -48,6 +49,15 @@ import { driveSearch, driveSymbols } from '../search/shot-probe';
 import type { SearchProbeSpec, SymbolProbeSpec } from '../search/shot-probe';
 import { driveContext } from '../context/shot-probe';
 import type { ContextProbeSpec } from '../context/shot-probe';
+// PHASE 63. The Architecture view's drive, read by build/probe-p63-arch.mjs.
+// It stages the ten awkward verdict shapes and measures what the rendered rows
+// carried at the width it was given. The runner launches ONE app, drives this
+// hook again from inside the window for each width, and asserts the section 9.6
+// estimate at the 220px floor rather than printing it. An earlier version of
+// this comment named a runner file that did not exist, and the version after
+// that claimed a measurement nobody had taken.
+import { driveArch } from '../arch/shot-probe';
+import type { ArchProbeSpec } from '../arch/shot-probe';
 import { driveSessionFocus } from './focus-shot-drive';
 import type { SessionFocusProbeSpec } from './focus-shot-drive';
 // PHASE 137. The Catch Me Up page's drive, read by
@@ -154,6 +164,13 @@ interface ShotLayoutExtras {
    * stylesheet under a live layout engine, which no unit test can see.
    */
   context?: ContextProbeSpec;
+  /**
+   * Phase 63: stage the Architecture view and MEASURE what it is carrying.
+   * Research 49 section 9.6 admits in its own words that the 220px fit is an
+   * estimate rather than a measurement, "because nobody launched the app in
+   * this workflow", and names this probe as where it gets checked.
+   */
+  arch?: ArchProbeSpec;
   /**
    * Open the ⌘/ shortcuts overlay for capture. Phase 14 added a seventh
    * KEYMAP group and the overlay is a three-column flow, so "does the new
@@ -485,6 +502,20 @@ function installShotLayoutExtras(): void {
       }
       await wait(300);
       await driveContext(ext.context);
+      window.__gmuxShotReady = true;
+    }
+    // Phase 63, in the shape of the Context knob directly above it. The view
+    // is shown through the store's own action and the width is set through the
+    // store's own setter, which is what a drag does, so the container query
+    // being measured is the one a person would produce.
+    if (ext.arch !== undefined) {
+      window.__gmuxShotReady = false;
+      useApp.getState().showSidebarView('arch');
+      if (ext.arch.width !== undefined) {
+        useApp.getState().setSidebarWidth(ext.arch.width);
+      }
+      await wait(300);
+      await driveArch(ext.arch);
       window.__gmuxShotReady = true;
     }
     // Phase 80.1, after everything else, so the chord fires over the

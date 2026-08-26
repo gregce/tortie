@@ -34,6 +34,12 @@ export const MENU_CODICONS = [
   'arrow-up',
   'bell',
   'check',
+  // PHASE 63. The Architecture view's mark, on the View menu row and on the
+  // activity rail, which is one picture rather than two. `check` is already in
+  // this set and draws a bare tick, which reads as "done" rather than as a set
+  // of promises being judged; `checklist` draws the list with the tick and is
+  // a different codepoint and a different bitmap.
+  'checklist',
   'circle-slash',
   'clear-all',
   'clippy',

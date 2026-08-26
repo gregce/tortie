@@ -192,6 +192,20 @@ const FACADE_ONLY = [
  */
 const DIRECTORY_WALLS = [
   {
+    dir: 'main/arch/',
+    forbidden: ['main/manifest/', 'main/restore/', 'main/context/'],
+    why:
+      'the standing contract is DERIVED and disposable, and the manifest and ' +
+      'the restore path are the durability record. Arch reads a repository ' +
+      'and answers about files, so it has no business naming the thing that ' +
+      'decides whether a session comes back. Context is walled for the other ' +
+      'reason: a repository local directory that arrives with a git pull must ' +
+      'never be able to reach what an agent launched with. Research 49 ' +
+      'section 4.5 states the wall and CLAUDE.md refusal 4 is why it is not ' +
+      'negotiable. Everything arch needs from git is in src/main/arch/' +
+      'argv-guard.ts, which composes five fixed argv and no others.'
+  },
+  {
     dir: 'renderer/state/',
     forbidden: ['renderer/app/', 'renderer/editor/'],
     why:

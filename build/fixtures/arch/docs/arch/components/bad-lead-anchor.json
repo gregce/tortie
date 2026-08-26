@@ -1,0 +1,13 @@
+{
+  "id": "bad-lead-anchor",
+  "name": "bad lead anchor",
+  "kind": "component",
+  "layer": "engine",
+  "provenance": "first-party",
+  "anchors": ["-hostile-lead-63"],
+  "boundary": "open",
+  "description": "Dropped whole, because an anchor starting with a hyphen would be read by git as an option.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": []
+}

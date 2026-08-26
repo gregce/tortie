@@ -22,6 +22,7 @@ import {
 } from './chrome-geometry';
 import { loadLocal, saveLocal } from './local';
 import type { SidebarViewId } from './sidebar-views';
+import { SIDEBAR_VIEW_DEFAULT } from './sidebar-views';
 import type { AppState } from './app-state';
 import { gmuxBridge } from '../bridge';
 
@@ -492,8 +493,13 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
 
   activeSidebarView() {
     const { activeProjectId, sidebarViewByProject } = get();
-    if (activeProjectId === null) return 'scm';
-    return sidebarViewByProject[activeProjectId] ?? 'scm';
+    // PHASE 63. `SIDEBAR_VIEW_DEFAULT` in both arms, not the literal 'scm'
+    // that was in each of them. These were two of the four copies of one
+    // answer; the other two were in ActivityBar.tsx and Sidebar.tsx and moved
+    // in the same commit. Research 49 warned that a view added later cannot
+    // become the default while the answer is written out four times.
+    if (activeProjectId === null) return SIDEBAR_VIEW_DEFAULT;
+    return sidebarViewByProject[activeProjectId] ?? SIDEBAR_VIEW_DEFAULT;
   }
 });
 

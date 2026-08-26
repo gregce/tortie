@@ -123,6 +123,7 @@ export const CHECKS = [
   pure('conformance:installs'),
   pure('conformance:context'),
   pure('conformance:overview'),
+  pure('conformance:arch'),
   pure('conformance:watcher'),
   pure('conformance:handback'),
   adapter(

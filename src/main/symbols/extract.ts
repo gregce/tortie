@@ -27,13 +27,35 @@ import type { GrammarId } from './languages';
 import { grammarFor, MAX_INDEXED_FILE_BYTES } from './languages';
 import {
   GO_QUERY,
+  IMPORT_BY_CAPTURE,
   JS_QUERY,
   KIND_BY_CAPTURE,
   kindWins,
   PYTHON_QUERY,
   RUST_QUERY,
-  TS_QUERY
+  TS_QUERY,
+  type ImportForm
 } from './queries';
+
+/**
+ * One import, before it is resolved (Phase 63).
+ *
+ * The specifier is exactly the text the author wrote, with the quotes already
+ * off. Nothing here has been resolved, classified or judged: resolution is
+ * src/main/arch/resolver's job and it happens in main, where the manifests are.
+ *
+ * A SPECIFIER NEVER REACHES AN ARGV, here or anywhere downstream. It is matched
+ * in process against a file list, and that is the whole argv defense for this
+ * half of the fact base.
+ */
+export interface ExtractedImport {
+  /** The specifier as written, quotes stripped. */
+  specifier: string;
+  /** 1-based line of the specifier. */
+  line: number;
+  /** How it was written. Provenance, never a verdict. */
+  form: ImportForm;
+}
 
 /** One definition, before it is given a `relPath`. */
 export interface ExtractedSymbol {
@@ -116,15 +138,31 @@ export class SymbolExtractor {
 
   /** Symbols in one file's text. `[]` for an unsupported language. */
   async extract(relPath: string, source: string): Promise<ExtractedSymbol[]> {
+    return (await this.extractAll(relPath, source)).symbols;
+  }
+
+  /**
+   * Symbols AND imports in one file's text, from ONE parse and ONE walk of the
+   * matches (Phase 63).
+   *
+   * There is no second query and no second traversal. The import patterns live
+   * in the same five strings as the definition patterns, so a match carrying
+   * `@import.path` and a match carrying `@definition.function` come out of the
+   * same `matches()` call and are separated by capture name below.
+   */
+  async extractAll(
+    relPath: string,
+    source: string
+  ): Promise<{ symbols: ExtractedSymbol[]; imports: ExtractedImport[] }> {
     const id = grammarFor(relPath);
-    if (id === null) return [];
+    if (id === null) return { symbols: [], imports: [] };
     const g = await this.grammar(id);
-    if (g === null) return [];
+    if (g === null) return { symbols: [], imports: [] };
 
     let tree: Tree | null = null;
     try {
       tree = g.parser.parse(source);
-      if (tree === null) return [];
+      if (tree === null) return { symbols: [], imports: [] };
       return collect(g.query, tree.rootNode);
     } finally {
       tree?.delete();
@@ -138,7 +176,12 @@ export class SymbolExtractor {
   async extractFile(
     relPath: string,
     absPath: string
-  ): Promise<{ symbols: ExtractedSymbol[]; mtimeMs: number; size: number } | null> {
+  ): Promise<{
+    symbols: ExtractedSymbol[];
+    imports: ExtractedImport[];
+    mtimeMs: number;
+    size: number;
+  } | null> {
     if (grammarFor(relPath) === null) return null;
     let buf: Buffer;
     let mtimeMs: number;
@@ -157,8 +200,8 @@ export class SymbolExtractor {
     // binary file is not wrong so much as pointless, and it is slow.
     const probe = buf.subarray(0, 8192);
     if (probe.includes(0)) return null;
-    const symbols = await this.extract(relPath, buf.toString('utf8'));
-    return { symbols, mtimeMs, size };
+    const found = await this.extractAll(relPath, buf.toString('utf8'));
+    return { symbols: found.symbols, imports: found.imports, mtimeMs, size };
   }
 
   /** Free every loaded grammar. Called when a worker is about to exit. */
@@ -186,13 +229,23 @@ export class SymbolExtractor {
  * One row per (line, column, name) survives, and `kindWins` decides which —
  * "function" tells the reader more than "constant".
  */
-function collect(query: Query, root: TsNode): ExtractedSymbol[] {
+function collect(
+  query: Query,
+  root: TsNode
+): { symbols: ExtractedSymbol[]; imports: ExtractedImport[] } {
   const out = new Map<string, ExtractedSymbol>();
+  const imports: ExtractedImport[] = [];
+  const seenImports = new Set<string>();
 
   for (const match of query.matches(root)) {
     let container: string | null = null;
     const defs: { kind: SymbolKind; node: TsNode }[] = [];
     const names: TsNode[] = [];
+    // Phase 63. The import half of the same match stream. A match either
+    // carries `@import.path` or it carries `@name`, never both, so the two
+    // families never contend for the same match.
+    let importForm: ImportForm | null = null;
+    let importPath: TsNode | null = null;
 
     for (const capture of match.captures) {
       if (capture.name === 'container') {
@@ -203,9 +256,34 @@ function collect(query: Query, root: TsNode): ExtractedSymbol[] {
         names.push(capture.node);
         continue;
       }
+      if (capture.name === 'import.path') {
+        importPath = capture.node;
+        continue;
+      }
+      const form = IMPORT_BY_CAPTURE[capture.name];
+      if (form !== undefined) {
+        importForm = form;
+        continue;
+      }
       const kind = KIND_BY_CAPTURE[capture.name];
       if (kind !== undefined) defs.push({ kind, node: capture.node });
     }
+
+    if (importPath !== null && importForm !== null) {
+      const specifier = unquote(importPath.text);
+      if (specifier.length > 0 && specifier.length <= 512) {
+        const line = importPath.startPosition.row + 1;
+        // One import per (line, specifier, form). The re-export and static
+        // patterns can both match one `export ... from` on some grammars, and
+        // the fact base should hold one edge rather than two.
+        const key = `${line}:${importForm}:${specifier}`;
+        if (!seenImports.has(key)) {
+          seenImports.add(key);
+          imports.push({ specifier, line, form: importForm });
+        }
+      }
+    }
+
     if (names.length === 0 || defs.length === 0) continue;
 
     for (const nameNode of names) {
@@ -234,7 +312,30 @@ function collect(query: Query, root: TsNode): ExtractedSymbol[] {
     }
   }
 
-  return [...out.values()];
+  return { symbols: [...out.values()], imports };
+}
+
+/**
+ * The specifier without its quotes.
+ *
+ * The JavaScript, TypeScript and Python patterns capture a `string_fragment` or
+ * a `dotted_name`, which carries no quotes at all, so this is a no-op for them.
+ * Go has no `string_fragment` node, so its capture arrives as
+ * `"github.com/foo/bar"` including the quotes, and a Go raw string uses
+ * backticks. Stripping here rather than in five places is what keeps the fact
+ * base holding one shape.
+ */
+function unquote(text: string): string {
+  const first = text[0];
+  const last = text[text.length - 1];
+  if (
+    text.length >= 2 &&
+    (first === '"' || first === "'" || first === '`') &&
+    last === first
+  ) {
+    return text.slice(1, -1);
+  }
+  return text;
 }
 
 /**

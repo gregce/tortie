@@ -54,16 +54,16 @@ Conventions: `[h:28]` = height 28px. Hairlines are 1px `--border`. Every interac
 
 ## S3 — Activity bar & sidebar views
 
-Sessions no longer live in the sidebar (S4). The sidebar shows ONE view at a time — Source Control (S3A) or Explorer (S3B) — selected from a VS Code-style activity bar. Active view persists per project.
+Sessions no longer live in the sidebar (S4). The sidebar shows ONE view at a time, selected from a VS Code-style activity bar, and the active view persists per project. There are five: Explorer (S3B), Search (Phase 14), Source Control (S3A), Context (Phase 22) and Architecture (Phase 63). This line listed two of them until Phase 63, which is what Search and Context shipping without updating it cost: the document said the sidebar had two views for a hundred and forty phases.
 
 ### Activity bar `[w:48]`
 
 Full height below the titlebar, bg `--bg-sidebar`, 1px `--border` right hairline. No horizontal hairline crosses it at the band's y.
 
-- Items 48×48 hit area, codicon 24px centered: `files` (Explorer, ⌘⇧E) then `source-control` (⌃⇧G), top-aligned; `settings-gear` pinned at the bottom (opens the Settings window — S13, ⌘,).
+- Items 48×48 hit area, codicon 24px centered, top-aligned, in rail order: `files` (Explorer, ⌘⇧E), `search` (Search, ⇧⌘F), `source-control` (Source Control, ⌃⇧G), `layers` (Context, ⌃⇧C) and `checklist` (Architecture, ⌃⇧A). `settings-gear` is pinned at the bottom (opens the Settings window — S13, ⌘,). This list carried two icons until Phase 63, for the same reason the line above carried two views.
 - States: active — icon `--text-primary` + 2px `--accent` inset bar on the item's LEFT edge, full 48px item height; inactive — `--text-muted`; hover — `--text-secondary` (color change only, no fill); `:focus-visible` — `--focus-ring` inset.
 - SCM badge: dirty-file count on the `source-control` item — pill `[h:16]` min-w:16, bg `--accent`, text 11px/600 `--on-accent` tabular-nums, anchored bottom-right of the icon (overlapping 2px); hidden at 0. Never amber — amber is attention-only.
-- Tooltips (right side, 600ms): "Explorer ⌘⇧E" / "Source control ⌃⇧G" / "Settings ⌘," with keycap chips per DESIGN.md §3.
+- Tooltips (right side, 600ms): the view's own label and its chord, e.g. "Explorer ⌘⇧E" or "Architecture ⌃⇧A", plus "Settings ⌘,", with keycap chips per DESIGN.md §3. Every label and every chord is read from `SIDEBAR_VIEW_LABELS` and the shared keymap rather than written here, so a view added later cannot drift from this page.
 - Click inactive item → switch view. Click ACTIVE item → toggle sidebar collapse (= ⌘B), VS Code behavior. ⌘⇧E/⌃⇧G: show + focus the view; pressed again while focused → focus returns to the terminal.
 
 ### Sidebar view header (in the band, `[h:36]`)
@@ -72,7 +72,7 @@ Padding 0 12px, bg `--bg-sidebar`, shared band hairline below. Content per view 
 
 ### Sidebar section reordering (round 2, user ref media_Ncoe1XIPhD — VS Code GRAPH drag)
 
-Applies to any view with ≥2 sections — today that is Source Control (CHANGES / HISTORY / BRANCHES); Explorer has one section, nothing to reorder yet. The draggable unit is the section: its sticky `[h:24]` header plus its whole body (the commit box travels with CHANGES).
+Applies to any view with ≥2 sections — today that is Source Control (CHANGES / HISTORY / BRANCHES / RUNS, and PROMISES once a contract has a broken one, Phase 63); Explorer has one section, nothing to reorder yet. The draggable unit is the section: its sticky `[h:24]` header plus its whole body (the commit box travels with CHANGES).
 
 - Hover a section header → cursor `grab`; codicon `gripper` 14 `--text-muted` appears at the far right, before the hover accessories (advertises draggability).
 - Press + 4px vertical travel lifts a GHOST of the header row only (bg `--bg-raised`, 90% opacity, `--shadow-2`, full sidebar width minus 8px insets) that follows the pointer's y, clamped to the view; the sections themselves never move mid-drag (VS Code behavior per the reference).
@@ -269,6 +269,29 @@ A drag that STARTS in the file tree means **MOVE** when it lands on the tree and
 - **The one line that silently kills it**: the library stamps `effectAllowed = 'move'` on dragstart, and Chromium then nullifies the pane's `dropEffect = 'copy'` — the drop event never fires at all. The tree widens it to `'copyMove'` on the same bubbled dragstart where it arms the session. This is a dependency between the two halves, not an implementation detail of either.
 - **Identity rides a custom MIME** (`application/x-gmux-tree-drag`) carrying no payload: `getData` is unreadable during dragover, but `types` is readable throughout, so the router can tell an internal drag from a Finder drag on every single dragover. The paths themselves ride a module singleton, because the overlay has to be able to promise "attach 3 files" while the drag is still in flight.
 - **A refused drag arms neither.** `.git` and out-of-root fail `canDrag`, Pierre cancels the gesture by preventing the dragstart's default, and both halves read that as "nothing to arm".
+
+### S3G — Architecture view (Phase 63, research 49 §9.6)
+
+The fifth sidebar view. It renders `docs/arch/`, being a small set of promises about how the parts of the project are allowed to touch, and the verdicts Tortie computed for them. There is NO CANVAS in this phase and no rendering package: the outline is a list.
+
+Band `[h:36]`, the shared `.view-header`: the label `ARCHITECTURE` and ONE action, a refresh that re-checks. The one control is what makes the band fit at the 220px sidebar minimum, and the shot probe measures that rather than asserting it.
+
+Body, top to bottom, and the order is the reading order:
+
+- **Subject** — the contract's one line, `--text-md`, ellipsised.
+- **Freshness ribbon** — one sentence, in COMMITS and never in days, plus the uncommitted-files clause. Git arithmetic replaces the hand-typed "Last updated" stamp entirely, because git cannot lie about it.
+- **Verdict strip** — reported BY COVERAGE, three lanes (checked / partly checked / not checkable) and never one total. Accepted divergences are counted here with the `because` text their author wrote, so an agent cannot quietly accept its own violation. `--bg-raised`, hairline top and bottom.
+- **Would not load** — one row per dropped contract row, naming the file, the field and the reason. A row is dropped WHOLE, never partially merged.
+- **Did not hold** — the failure list. Every offending row carries a path and a 1-based line and opens the file there through the canonical open-file bus, so the editor reveals, selects and flashes the range exactly as it does for a search hit.
+- **Components** — a treegrid listing everything, with a provenance codicon AND its word on each row. Deprecated is struck through and never hidden.
+- **Known gaps** — pinned, first class, prose, never verified and labelled as such.
+- **Prose panel** — whatever is selected. **PLAIN TEXT ONLY**, never the markdown pipeline: `rehype-raw` is in this product's dependency tree and these bytes come out of a file an agent can write.
+
+Colour: `--success` holds, `--error` broke and missing, `--text-muted` cannot be checked. **No amber anywhere** — that hue is "an agent needs you" and nothing here is that. Every verdict carries a codicon and a word beside its colour, so the strip reads in greyscale.
+
+Refused on this surface, permanently: no count badge on any row or on the rail item (counts live in the strip); no verdict ever sets a session's status; nothing here writes any file under `docs/arch/`, `baseline.json` least of all.
+
+Empty state: the teaching one. What a promise is, the 5-to-10 guidance, **Draft a contract** (deterministic skeleton, opens as unsaved editor buffers, Tortie writes nothing but the folder they would be saved into) and **Ask an agent to draft it** (composes a prompt, copies it, opens the ORDINARY new session sheet — it starts nothing and types into no session).
 
 ## S4 — Terminal region & session surfaces
 

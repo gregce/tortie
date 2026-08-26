@@ -167,4 +167,23 @@ export interface EditorTab {
    * every fixture in the tests, is still a valid tab.
    */
   remote?: OpenFileRemoteRef;
+  /**
+   * PHASE 63 — the bytes a DRAFT tab opened with, or null for every other tab.
+   *
+   * Non-null means the tab was opened from composed text rather than from
+   * disk: no read was made, `savedContents` is empty because nothing has been
+   * saved, and the tab is dirty from the moment it appears. MonacoHost seeds
+   * the model from this rather than from `savedContents`, which is the one
+   * place it is read.
+   *
+   * It stays on the tab after a save rather than being cleared, because the
+   * model registry is keyed by tab id and already holds the live text by then;
+   * clearing it would buy nothing and would make the tab's history unreadable.
+   *
+   * Optional rather than required, for the reason `remote` is optional: every
+   * tab built before this phase, and every fixture in the tests, is still a
+   * valid tab. The store sets it explicitly on every tab it creates, so the
+   * `undefined` case only ever reaches a hand written fixture.
+   */
+  draft?: string | null;
 }

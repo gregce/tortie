@@ -698,12 +698,13 @@ function buildTemplate(): MenuItemConstructorOptions[] {
       label: 'View',
       submenu: [
         // Activity-bar views: the sidebar hosts one view at a time. Phase 60
-        // made this list tell the truth. It now lists all four views in the
-        // activity bar's own order. The shift+cmd+F chord therefore displays
+        // made this list tell the truth, and Phase 63 kept it true by adding
+        // Architecture. It lists all FIVE sidebar views in the activity bar's
+        // own order. The shift+cmd+F chord therefore displays
         // here and on Find in Project…, which is deliberate. The renderer
         // keydown map runs first, so nothing fires twice.
         // Each row wears the mark the activity bar draws for the view it
-        // opens: ActivityBar.tsx:304, :313, :330 and :352.
+        // opens, being the five ViewItem calls in ActivityBar.tsx.
         item('Explorer', 'show-explorer', accel('view.explorer'), 'files'),
         item('Search', 'show-search', accel('view.search'), 'search'),
         // `git-branch` RATHER THAN `source-control`, and this is not a
@@ -717,10 +718,32 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // level deeper: the codepoints differ, so only the bitmaps say so.
         item('Source Control', 'show-scm', accel('view.scm'), 'git-branch'),
         item('Context', 'show-context', accel('view.context'), 'layers'),
-        // Phase 137: Catch Me Up sits directly under Context. Both answer a
-        // question about the whole project rather than opening a sidebar
-        // view. The accelerator comes from the shared keymap, so the row and
-        // the chord cannot drift.
+        // PHASE 63 PUT ARCHITECTURE HERE, ABOVE CATCH ME UP, and the placement
+        // is a decision this phase made rather than one it inherited.
+        //
+        // The rule this list already states two comments above is that it runs
+        // in the ACTIVITY BAR'S OWN ORDER. Architecture is a sidebar view and
+        // sits fifth on that rail, after Context. Catch Me Up is not a sidebar
+        // view at all: Phase 137 put it under Context because both answer a
+        // question about the whole project, and it opens a page rather than a
+        // view. So the five sidebar views stay contiguous and in rail order,
+        // and the one row that is not a sidebar view stays last. Putting
+        // Architecture under Catch Me Up would have split the rail's own order
+        // around a row that is not part of it.
+        //
+        // `checklist`, the mark ActivityBar.tsx draws for this view, which is
+        // this submenu's rule: a row wears the icon of the surface it opens.
+        // The name was added to `MENU_CODICONS` in the same commit and the
+        // generated set was regenerated, because `build/assert-menu-glyphs.mjs`
+        // fails the build for a name with no bitmap and for two names with the
+        // same bitmap.
+        item('Architecture', 'show-arch', accel('view.arch'), 'checklist'),
+        // Phase 137: Catch Me Up sits LAST, under the sidebar views, because
+        // it answers a question about the whole project rather than opening a
+        // sidebar view. It sat directly under Context until Phase 63 added
+        // Architecture as the fifth sidebar view above it; the rule it was
+        // placed by is unchanged and the row it follows moved. The accelerator
+        // comes from the shared keymap, so the row and the chord cannot drift.
         // `comment`, the mark Settings' own Catch Me Up section wears at
         // SettingsApp.tsx:106 and the session row menu wears at
         // session-actions.tsx:508 for this same feature.

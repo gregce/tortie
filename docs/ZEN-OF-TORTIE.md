@@ -58,6 +58,27 @@ instead of a wall of terminals and a pile of editor windows.
 One window is not the goal by itself. A coherent place for the whole body of
 work is.
 
+## The shape of the work is a promise, and promises are checked
+
+Agents write more code than a person can read.
+
+A file tree answers where something is. It cannot answer what the project is
+made of, which parts are ours and which are leaned on, or whether the shape the
+team agreed on is still true. When most of the code was written by an agent,
+those are the questions a person needs answered, and today they live only in the
+head of whoever last read the whole thing.
+
+So Tortie holds the project's shape as a set of promises written into the
+repository. Each promise names two parts and the way they are allowed to touch.
+Tortie checks the promises against the code and says which ones hold, which ones
+broke at exactly which line, and which ones it cannot check. The drawing is a
+picture of the promises, never the source of truth, because the repository
+always wins.
+
+Two things keep it honest. A promise that fails names the offending line. A
+promise Tortie cannot check says so on its face, because a map that goes quietly
+stale is worse than no map at all.
+
 ## Hide the machinery
 
 Durability requires machinery. Using Tortie should not.
@@ -106,9 +127,17 @@ A principle that forbids nothing is decoration. These are the refusals:
 - **Not a dashboard.** No counters, no activity feeds, no progress theatre. A
   number that rises on its own is not a signal, it is noise in a nicer font.
 - **Not an IDE rebuilt from scratch.** Search across projects earns its place,
-  because agents rewrite code faster than a human can track it. Structural
-  search, replace-in-files, language servers, debuggers, task runners and
-  extensions do not.
+  because agents rewrite code faster than a human can track it. A checked map of
+  the project earns its place for the same reason. Structural search,
+  replace-in-files, language servers, debuggers, task runners and extensions do
+  not.
+- **Not a diagram you maintain.** Tortie never asks a person to draw the
+  architecture, keep a picture current, or learn a notation. The promises are
+  stated once, in plain files, and the code is measured against them.
+- **Not a map that acts.** Checking a promise is Tortie reading files. Writing
+  or rewriting the promises is a person's decision, or a person's agent doing
+  the work where they can see it. Nothing Tortie draws ever starts a process on
+  its own, and no verdict ever touches a session's status.
 - **Not a supervisor's console.** Tortie never asks the human to watch an agent
   work.
 - **Not a tool that teaches its own internals.** No prefix keys, no attach

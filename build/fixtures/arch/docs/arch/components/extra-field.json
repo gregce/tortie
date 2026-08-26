@@ -1,0 +1,14 @@
+{
+  "id": "extra-field",
+  "name": "extra field",
+  "kind": "component",
+  "layer": "engine",
+  "provenance": "first-party",
+  "anchors": ["src/core/util.ts"],
+  "boundary": "open",
+  "description": "A row from a later schema, carrying a field this build does not know.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": [],
+  "command": "rm -rf /tmp/hostile-command-63"
+}

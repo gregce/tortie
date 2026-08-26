@@ -1,0 +1,290 @@
+{
+  "note": "The written expectation table. Every row is compared byte for byte against what the checkers produced. A row that moves is either a defect or a deliberate change, and either way it shows up here before it shows up on the person's screen.",
+  "problems": [
+    {
+      "file": "docs/arch/components/bad-layer.json",
+      "field": "component.layer",
+      "contains": "has no band with that name"
+    },
+    {
+      "file": "docs/arch/components/bad-lead-anchor.json",
+      "field": "component.anchors[0]",
+      "contains": "starts with a hyphen"
+    },
+    {
+      "file": "docs/arch/components/bad-oid.json",
+      "field": "component.evidence[0].blobOid",
+      "contains": "is not an object name"
+    },
+    {
+      "file": "docs/arch/components/bomb-glob.json",
+      "field": "component.anchors[0]",
+      "contains": "holds 9 wildcards"
+    },
+    {
+      "file": "docs/arch/components/dup-app.json",
+      "field": "component.id",
+      "contains": "is already used by another file"
+    },
+    {
+      "file": "docs/arch/components/extra-field.json",
+      "field": "component.command",
+      "contains": "this build ignores"
+    },
+    {
+      "file": "docs/arch/edges.json",
+      "field": "edges.dangling.to",
+      "contains": "no component file declares"
+    },
+    {
+      "file": "docs/arch/edges.json",
+      "field": "edges[8].id",
+      "contains": "repeats the id"
+    }
+  ],
+  "keptComponentIds": [
+    "ajv",
+    "app",
+    "core",
+    "extra-field",
+    "hostile-glob",
+    "left-pad",
+    "store",
+    "vendored-lib"
+  ],
+  "keptEdgeIds": [
+    "app-may-core",
+    "app-must-left-pad",
+    "app-must-not-ajv",
+    "app-must-not-store",
+    "core-calls-store",
+    "core-must-vendored",
+    "vendored-must-not-core"
+  ],
+  "verdicts": [
+    {
+      "subjectId": "edge:app-must-not-store",
+      "status": "divergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "The planted divergence. Two imports cross the line and only one of them is accepted, so the promise is broken."
+    },
+    {
+      "subjectId": "edge:core-must-vendored",
+      "status": "absent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "The planted absence. The contract says this import happens and it does not."
+    },
+    {
+      "subjectId": "edge:vendored-must-not-core",
+      "status": "unverifiable",
+      "coverage": "unverifiable",
+      "accepted": false,
+      "why": "The conservative rule. One import out of this part did not resolve, so a must-not can never be green."
+    },
+    {
+      "subjectId": "edge:app-may-core",
+      "status": "convergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "A permission cannot break."
+    },
+    {
+      "subjectId": "component:store#boundary",
+      "status": "divergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "Two parts import into a closed one, and only one of the two is accepted."
+    },
+    {
+      "subjectId": "component:core#boundary",
+      "status": "divergent",
+      "coverage": "checked",
+      "accepted": true,
+      "why": "The one import into this closed part was accepted on purpose, and it stays a divergence with the reason on its face."
+    },
+    {
+      "subjectId": "edge:app-must-not-ajv",
+      "status": "convergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "The manifest declares no ajv, and a manifest is a closed list, so an absence here is provable."
+    },
+    {
+      "subjectId": "edge:app-must-left-pad",
+      "status": "convergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "The manifest declares left-pad."
+    },
+    {
+      "subjectId": "component:left-pad#manifest",
+      "status": "convergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "A package this project draws and declares."
+    },
+    {
+      "subjectId": "component:app#anchor:0",
+      "status": "convergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "The anchor matches tracked files."
+    },
+    {
+      "subjectId": "component:hostile-glob#anchor:0",
+      "status": "absent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "The planted hostile anchor matches nothing, and its unique word reaches no argv."
+    },
+    {
+      "subjectId": "component:left-pad",
+      "status": "unverifiable",
+      "coverage": "unverifiable",
+      "accepted": false,
+      "why": "A package lives outside the tree, so there is no file to check it against."
+    },
+    {
+      "subjectId": "evidence:component:core#0",
+      "status": "divergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "The planted stale quote. The file at HEAD no longer holds those words."
+    },
+    {
+      "subjectId": "evidence:component:app#0",
+      "status": "convergent",
+      "coverage": "checked",
+      "accepted": false,
+      "why": "The quote still reads as written, at the line it says."
+    },
+    {
+      "subjectId": "edge:core-calls-store",
+      "status": "convergent",
+      "coverage": "partly-checked",
+      "accepted": false,
+      "why": "A behavioural verb backed by evidence. It can never be better than partly checked, however much evidence is piled on it."
+    }
+  ],
+  "counts": {
+    "checkedHold": 12,
+    "broke": 5,
+    "cannotCheck": 3,
+    "accepted": 1,
+    "unresolvedImports": 1,
+    "totalImports": 8
+  },
+  "resolverMatrix": [
+    {
+      "language": "typescript",
+      "arm": "shipped",
+      "firstParty": 1,
+      "external": 1,
+      "unresolved": 1,
+      "unverifiable": 0
+    },
+    {
+      "language": "javascript",
+      "arm": "shipped",
+      "firstParty": 1,
+      "external": 1,
+      "unresolved": 0,
+      "unverifiable": 0
+    },
+    {
+      "language": "go",
+      "arm": "shipped",
+      "firstParty": 1,
+      "external": 1,
+      "unresolved": 0,
+      "unverifiable": 0
+    },
+    {
+      "language": "rust",
+      "arm": "unverifiable",
+      "firstParty": 0,
+      "external": 0,
+      "unresolved": 0,
+      "unverifiable": 1
+    },
+    {
+      "language": "python",
+      "arm": "unverifiable",
+      "firstParty": 0,
+      "external": 0,
+      "unresolved": 0,
+      "unverifiable": 1
+    }
+  ],
+  "freshness": [
+    {
+      "subjectId": "component:ajv#freshness",
+      "sentence": "Nothing has landed under ajv since this was written."
+    },
+    {
+      "subjectId": "component:app#freshness",
+      "sentence": "Nothing has landed under app since this was written, and 1 file is changed and not committed under it right now."
+    },
+    {
+      "subjectId": "component:core#freshness",
+      "sentence": "2 commits have landed under core since this was written, and 2 files are changed and not committed under it right now."
+    },
+    {
+      "subjectId": "component:extra-field#freshness",
+      "sentence": "1 commit has landed under extra field since this was written."
+    },
+    {
+      "subjectId": "component:hostile-glob#freshness",
+      "sentence": "Nothing has landed under hostile glob since this was written."
+    },
+    {
+      "subjectId": "component:left-pad#freshness",
+      "sentence": "Nothing has landed under left-pad since this was written."
+    },
+    {
+      "subjectId": "component:store#freshness",
+      "sentence": "1 commit has landed under store since this was written."
+    },
+    {
+      "subjectId": "component:vendored-lib#freshness",
+      "sentence": "Nothing has landed under vendored lib since this was written."
+    }
+  ],
+  "freshnessUncommittedContract": [
+    {
+      "subjectId": "component:ajv#freshness",
+      "sentence": "Nothing has landed under ajv since this was written."
+    },
+    {
+      "subjectId": "component:app#freshness",
+      "sentence": "Nothing has landed under app since this was written, and 1 file is changed and not committed under it right now."
+    },
+    {
+      "subjectId": "component:core#freshness",
+      "sentence": "Nothing has landed under core since this was written, and 2 files are changed and not committed under it right now."
+    },
+    {
+      "subjectId": "component:extra-field#freshness",
+      "sentence": "Nothing has landed under extra field since this was written."
+    },
+    {
+      "subjectId": "component:hostile-glob#freshness",
+      "sentence": "Nothing has landed under hostile glob since this was written."
+    },
+    {
+      "subjectId": "component:left-pad#freshness",
+      "sentence": "Nothing has landed under left-pad since this was written."
+    },
+    {
+      "subjectId": "component:store#freshness",
+      "sentence": "Nothing has landed under store since this was written."
+    },
+    {
+      "subjectId": "component:vendored-lib#freshness",
+      "sentence": "Nothing has landed under vendored lib since this was written."
+    }
+  ],
+  "freshnessNote": "Word for word, because the numbers are the claim. Two runs are pinned. `freshness` is over the fixture's own log, which holds a commit that touched docs/arch with an older commit behind it, so a row reading anything other than what is written here means the cut at the contract commit stopped happening. `freshnessUncommittedContract` is over the same log with that one commit filtered out, which is the case of a contract nobody has committed yet, and every part must read that nothing has landed. The second run exists because the first fix of this defect passed the first check and still handed back the whole history in the second case."
+}

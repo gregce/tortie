@@ -1,0 +1,21 @@
+{
+  "id": "bad-oid",
+  "name": "bad oid",
+  "kind": "component",
+  "layer": "engine",
+  "provenance": "first-party",
+  "anchors": ["src/core"],
+  "boundary": "open",
+  "description": "Dropped whole, because the object name is not forty hex characters.",
+  "evidence": [
+    {
+      "path": "src/core/engine.ts",
+      "blobOid": "--upload-pack=hostile-oid-63",
+      "lineStart": 1,
+      "lineEnd": 1,
+      "quote": "export"
+    }
+  ],
+  "deprecated": false,
+  "gaps": []
+}

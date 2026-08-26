@@ -50,7 +50,9 @@ import {
   useWindowWidth
 } from '../state/chrome-geometry';
 import { useGit } from '../state/git';
+import { SIDEBAR_VIEW_DEFAULT } from '../state/sidebar-views';
 import { useResizeHandle } from '../controls';
+import { ArchHeader, ArchView } from '../arch';
 import { ContextHeader, ContextSection, useContextActions } from '../context';
 import { BranchHeader, ScmSection } from '../scm';
 import { SearchHeader, SearchSection } from '../search';
@@ -298,7 +300,9 @@ export function Sidebar(): React.JSX.Element {
 
   const view =
     (activeProjectId !== null ? viewByProject[activeProjectId] : undefined) ??
-    'scm';
+    // PHASE 63. The constant rather than the literal, for the reason written
+    // at ActivityBar.tsx's copy of this line.
+    SIDEBAR_VIEW_DEFAULT;
 
   const project = useMemo(
     () => projects.find((p) => p.id === activeProjectId) ?? null,
@@ -431,6 +435,18 @@ export function Sidebar(): React.JSX.Element {
                 shipped this with nothing, so no user could install, remove or
                 update a skill from the app. */}
             <ContextSection actions={contextActions} />
+          </div>
+        </div>
+      ) : view === 'arch' ? (
+        // Phase 63. It keeps `.sidebar-rest` for the reason Context keeps it:
+        // that wrapper is the element zoom.css binds `--zoom-arch` to, so the
+        // view zooms with the same one line rule Explorer, Source Control and
+        // Context use rather than with Search's exception.
+        <div className="sidebar-view" data-view="arch" tabIndex={-1}>
+          <ArchHeader />
+          <MachineBand label={machineLabel} />
+          <div className="sidebar-rest">
+            <ArchView />
           </div>
         </div>
       ) : (

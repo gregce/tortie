@@ -20,6 +20,7 @@ import { app, BrowserWindow, type IpcMain } from 'electron';
 import { writeSync } from 'node:fs';
 import { disposeActionsIpc, registerActionsIpc } from './actions';
 import { registerAgentsIpc } from './agents';
+import { disposeArchIpc, registerArchIpc } from './arch/ipc';
 import { registerAssetProtocol } from './assets';
 import { registerCaptureIpc } from './capture';
 import { registerConfigIpc } from './config/ipc';
@@ -186,6 +187,13 @@ export function installMainCapabilities(
     // says a person picked an agent. Picking None brings the built line back.
     () => foldChosenNow()
   );
+  // Phase 63: the ONE `arch:*` registrar. Three channels, and none of them
+  // writes a file, starts an agent or sets a session's status. Two read, and
+  // the third drafts bytes for unsaved editor buffers. Registering it opens no
+  // database, arms no watcher and spawns no git: the store opens on the first
+  // call and the re-checks ride the repo-changed fan out that already exists,
+  // so a person who never opens the arch view pays three handle calls.
+  registerArchIpc(ipcMain);
   // Phase 22: turn the launch snapshot on. Without this call every session gets
   // a NULL snapshot and the readout shows its unrecorded sentence, which is
   // correct behaviour and not a stub, so the feature simply does nothing. The
@@ -422,6 +430,11 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       // when the page was never opened, because the store opens on the first
       // read.
       disposeOverviewIpc(),
+      // Phase 63: drop every arch watch, end the shared tree-sitter workers and
+      // close the arch database, so its write ahead log settles before the
+      // process ends. The call never throws, and it costs nothing when the view
+      // was never opened, because the store opens on the first read.
+      disposeArchIpc(),
       stopAgentOverlayWatch(),
       // Phase 68: the machines.json watcher, closed through the same tracked
       // path the agents.json one uses, for the same Phase 36 reason.

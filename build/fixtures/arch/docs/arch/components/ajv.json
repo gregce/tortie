@@ -1,0 +1,13 @@
+{
+  "id": "ajv",
+  "name": "ajv",
+  "kind": "external-service",
+  "layer": "foundation",
+  "provenance": "package",
+  "anchors": [],
+  "boundary": "open",
+  "description": "A dependency this project refuses.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": []
+}

@@ -31,6 +31,30 @@
  *     capture is silently dropped. `src/main/symbols/__tests__` compiles all
  *     five against all six grammars, so a grammar bump that breaks a pattern
  *     fails the test run rather than the user's palette.
+ *
+ * PHASE 63 ADDED THE IMPORT LAYER, and both rules above govern it unchanged.
+ * `IMPORT_BY_CAPTURE` is the second capture table and it is rule 2 applied to
+ * imports: an `@import.<kind>` missing from it is dropped exactly the way an
+ * unmapped `@definition.<kind>` is. Rule 1 is why `import_require_clause`, the
+ * `import x = require('y')` form, is in TS_QUERY rather than in JS_QUERY: it is
+ * a TypeScript-only node and it throws `Bad node name` on the javascript
+ * grammar. Every pattern below was compiled against all six shipped grammars
+ * before it was written down.
+ *
+ * The import patterns live INSIDE these same five strings on purpose. One
+ * string is one compile and one walk of the tree, which is the decision
+ * src/main/symbols/extract.ts states in its own header. Measured on this tree
+ * at 1,546 `.ts` and `.tsx` files under `src`, adding them moved the walk by
+ * less than the run to run noise, because the cost of this pass is the parse
+ * and not the query.
+ *
+ * Two of the five carry import patterns whose results are never resolved.
+ * Python and Rust imports are captured, and then marked `unverifiable` by
+ * src/main/arch/resolver, because research 49 section 4.8 fix 4 says those two
+ * resolvers ship later rather than shipping wrong. Capturing them is what keeps
+ * them COUNTED. Dropping them at the query would make a Rust repository look
+ * like a repository with no imports, which is the one output this design must
+ * never produce.
  */
 
 import type { SymbolKind } from '@shared/symbols';
@@ -69,6 +93,30 @@ export const JS_QUERY = `
     declaration: (lexical_declaration
       "const"
       (variable_declarator name: (identifier) @name) @definition.constant)))
+
+; ---------------------------------------------------------------------------
+; Imports (Phase 63). Every one of these captures the SPECIFIER's string
+; fragment, so the quotes are never part of the value and nothing downstream
+; has to strip them.
+; ---------------------------------------------------------------------------
+
+; import x from './y'  /  import './y'  /  import type { T } from './y'
+(import_statement source: (string (string_fragment) @import.path)) @import.static
+
+; export { x } from './y'  /  export * from './y'
+(export_statement source: (string (string_fragment) @import.path)) @import.reexport
+
+; require('./y'). The predicate is what keeps this from matching every call
+; that takes one string, which on this tree would be thousands of them.
+(call_expression
+  function: (identifier) @import.callee
+  arguments: (arguments . (string (string_fragment) @import.path))
+  (#eq? @import.callee "require")) @import.require
+
+; await import('./y')
+(call_expression
+  function: (import)
+  arguments: (arguments . (string (string_fragment) @import.path))) @import.dynamic
 `;
 
 /** Layered AFTER JS_QUERY, for both the `typescript` and `tsx` grammars. */
@@ -95,6 +143,10 @@ export const TS_QUERY = `
 (public_field_definition
   name: (property_identifier) @name
   value: (arrow_function)) @definition.method
+
+; import x = require('./y'). TypeScript only — see rule 1 in the header.
+(import_require_clause
+  source: (string (string_fragment) @import.path)) @import.require
 `;
 
 export const GO_QUERY = `
@@ -131,6 +183,11 @@ export const GO_QUERY = `
     type: (struct_type
       (field_declaration_list
         (field_declaration name: (field_identifier) @name) @definition.field))))
+
+; Imports (Phase 63). Go has no string_fragment node, so this capture arrives
+; WITH its quotes and src/main/symbols/extract.ts strips them. Both the bare
+; and the aliased form (\`x "path"\`) are the same import_spec.
+(import_spec path: (interpreted_string_literal) @import.path) @import.static
 `;
 
 export const PYTHON_QUERY = `
@@ -150,6 +207,15 @@ export const PYTHON_QUERY = `
 (module
   (expression_statement
     (assignment left: (identifier) @name)) @definition.constant)
+
+; Imports (Phase 63). Captured and then marked unverifiable by the resolver,
+; never dropped — see the header for why that is the whole point.
+(import_statement name: (dotted_name) @import.path) @import.static
+(import_statement
+  name: (aliased_import name: (dotted_name) @import.path)) @import.static
+(import_from_statement module_name: (dotted_name) @import.path) @import.static
+(import_from_statement
+  module_name: (relative_import) @import.path) @import.static
 `;
 
 export const RUST_QUERY = `
@@ -188,6 +254,11 @@ export const RUST_QUERY = `
   name: (type_identifier) @container
   body: (field_declaration_list
     (field_declaration name: (field_identifier) @name) @definition.field))
+
+; Imports (Phase 63). Captured and then marked unverifiable by the resolver,
+; never dropped — see the header for why that is the whole point.
+(use_declaration argument: (_) @import.path) @import.static
+(extern_crate_declaration name: (identifier) @import.path) @import.static
 `;
 
 /**
@@ -243,3 +314,33 @@ const KIND_RANK: Readonly<Record<SymbolKind, number>> = {
 export function kindWins(next: SymbolKind, cur: SymbolKind): boolean {
   return (KIND_RANK[next] ?? 0) > (KIND_RANK[cur] ?? 0);
 }
+
+// ---------------------------------------------------------------------------
+// The import layer (Phase 63)
+// ---------------------------------------------------------------------------
+
+/** How one import was written. It is presentation and provenance, never a verdict. */
+export type ImportForm =
+  | 'static'
+  | 'reexport'
+  | 'require'
+  | 'dynamic';
+
+/**
+ * `@import.<x>` capture name → the form the reader records.
+ *
+ * This is rule 2 of the header applied to imports. A capture missing from this
+ * table is DROPPED, for the same reason an unmapped `@definition.<kind>` is: an
+ * unmapped form would reach the fact base as a shape nothing downstream knows
+ * how to name.
+ *
+ * `import.callee` and `import.path` are deliberately absent. They are the
+ * pieces of a match rather than a form of their own, and extract.ts reads them
+ * by name.
+ */
+export const IMPORT_BY_CAPTURE: Readonly<Record<string, ImportForm>> = {
+  'import.static': 'static',
+  'import.reexport': 'reexport',
+  'import.require': 'require',
+  'import.dynamic': 'dynamic'
+};

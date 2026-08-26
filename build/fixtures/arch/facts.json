@@ -1,0 +1,213 @@
+{
+  "note": "The imaginary repository npm run conformance:arch drives the five checkers over. Nothing here is a real git repository, and nothing in this file is ever spawned. The fake runner in build/arch-conformance-probe.mts turns these fields into the exact bytes git would have printed, so the parsers in src/main/arch/git-facts.ts are exercised as well as the checkers.",
+  "headCommit": "0123456789abcdef0123456789abcdef01234567",
+  "trackedFiles": [
+    "package.json",
+    "src/app/main.ts",
+    "src/app/view.ts",
+    "src/core/engine.ts",
+    "src/core/helper.go",
+    "src/core/main.go",
+    "src/core/util.ts",
+    "src/native/lib.rs",
+    "src/store/db.ts",
+    "src/store/schema.sql",
+    "tools/gen.py",
+    "vendor/lib/thing.ts"
+  ],
+  "headBytes": {
+    "package.json": "{\n  \"name\": \"imaginary\",\n  \"dependencies\": {\n    \"left-pad\": \"^1.0.0\"\n  }\n}\n",
+    "src/app/main.ts": "export function main(): void {\n  view();\n}\n",
+    "src/core/engine.ts": "import { helper } from './util';\nexport function run(): void {\n  db.write(1);\n}\n"
+  },
+  "log": [
+    {
+      "commit": "4444444444444444444444444444444444444444",
+      "paths": [
+        "src/core/engine.ts",
+        "src/store/db.ts"
+      ]
+    },
+    {
+      "commit": "5555555555555555555555555555555555555555",
+      "paths": [
+        "src/core/util.ts"
+      ]
+    },
+    {
+      "commit": "7777777777777777777777777777777777777777",
+      "paths": [
+        "docs/arch/contract.json",
+        "docs/arch/edges.json"
+      ]
+    },
+    {
+      "commit": "6666666666666666666666666666666666666666",
+      "paths": [
+        "src/app/main.ts"
+      ]
+    }
+  ],
+  "status": [
+    " M src/core/engine.ts",
+    "?? src/core/new-thing.ts",
+    " M src/app/view.ts"
+  ],
+  "imports": [
+    {
+      "fromPath": "src/app/main.ts",
+      "specifier": "../store/db",
+      "line": 3,
+      "toPath": "src/store/db.ts",
+      "resolution": "first-party",
+      "reason": null
+    },
+    {
+      "fromPath": "src/app/view.ts",
+      "specifier": "../store/db",
+      "line": 4,
+      "toPath": "src/store/db.ts",
+      "resolution": "first-party",
+      "reason": null
+    },
+    {
+      "fromPath": "src/app/main.ts",
+      "specifier": "../core/engine",
+      "line": 2,
+      "toPath": "src/core/engine.ts",
+      "resolution": "first-party",
+      "reason": null
+    },
+    {
+      "fromPath": "src/app/main.ts",
+      "specifier": "left-pad",
+      "line": 1,
+      "toPath": null,
+      "resolution": "external",
+      "reason": "The specifier names a dependency rather than a file in this repository"
+    },
+    {
+      "fromPath": "src/core/engine.ts",
+      "specifier": "./util",
+      "line": 1,
+      "toPath": "src/core/util.ts",
+      "resolution": "first-party",
+      "reason": null
+    },
+    {
+      "fromPath": "src/store/db.ts",
+      "specifier": "../core/util",
+      "line": 2,
+      "toPath": "src/core/util.ts",
+      "resolution": "first-party",
+      "reason": null
+    },
+    {
+      "fromPath": "vendor/lib/thing.ts",
+      "specifier": "unknown-package",
+      "line": 1,
+      "toPath": null,
+      "resolution": "unresolved",
+      "reason": "The specifier names a package no manifest declares."
+    },
+    {
+      "fromPath": "src/core/main.go",
+      "specifier": "./helper",
+      "line": 3,
+      "toPath": "src/core/helper.go",
+      "resolution": "first-party",
+      "reason": null
+    },
+    {
+      "fromPath": "src/native/lib.rs",
+      "specifier": "serde",
+      "line": 1,
+      "toPath": null,
+      "resolution": "unverifiable",
+      "reason": "Imports are not checked for Rust."
+    },
+    {
+      "fromPath": "tools/gen.py",
+      "specifier": "os",
+      "line": 1,
+      "toPath": null,
+      "resolution": "unverifiable",
+      "reason": "Imports are not checked for Python."
+    }
+  ],
+  "unparsed": [
+    {
+      "language": "Rust",
+      "files": 1
+    },
+    {
+      "language": "Python",
+      "files": 1
+    }
+  ],
+  "hostileStrings": [
+    "hostile-anchor-63",
+    "hostile-lead-63",
+    "hostile-oid-63",
+    "hostile-command-63",
+    "rm -rf",
+    "--upload-pack",
+    "1111111111111111111111111111111111111111"
+  ],
+  "resolverProbe": {
+    "note": "Specifiers the gate hands to the REAL resolveImport, so the matrix below is an assertion about the code rather than a bucketing of hand written facts. The context is built from trackedFiles above plus these three declarations.",
+    "goModule": "example.com/imaginary",
+    "packageName": "imaginary",
+    "dependencies": [
+      "left-pad"
+    ],
+    "specifiers": [
+      {
+        "language": "typescript",
+        "fromPath": "src/app/main.ts",
+        "specifier": "../store/db"
+      },
+      {
+        "language": "typescript",
+        "fromPath": "src/app/main.ts",
+        "specifier": "left-pad"
+      },
+      {
+        "language": "typescript",
+        "fromPath": "vendor/lib/thing.ts",
+        "specifier": "unknown-package"
+      },
+      {
+        "language": "javascript",
+        "fromPath": "src/core/legacy.js",
+        "specifier": "./engine"
+      },
+      {
+        "language": "javascript",
+        "fromPath": "src/core/legacy.js",
+        "specifier": "left-pad"
+      },
+      {
+        "language": "go",
+        "fromPath": "src/core/main.go",
+        "specifier": "example.com/imaginary/src/core"
+      },
+      {
+        "language": "go",
+        "fromPath": "src/core/main.go",
+        "specifier": "fmt"
+      },
+      {
+        "language": "rust",
+        "fromPath": "src/native/lib.rs",
+        "specifier": "serde"
+      },
+      {
+        "language": "python",
+        "fromPath": "tools/gen.py",
+        "specifier": "os"
+      }
+    ]
+  },
+  "logNote": "The walk is the whole history, newest first, and the cut is made in process at the first commit that touched docs/arch. So 6666 is BEFORE the contract was written and never counts as staleness, and app reads nothing behind while core reads two."
+}

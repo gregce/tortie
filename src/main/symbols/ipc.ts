@@ -26,10 +26,12 @@ import type { SymbolIndexProgress } from '@shared/symbols';
 import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
 import { onRepoChanged } from '../watcher';
-import { assetProblem, grammarDir, runtimeWasmPath } from './paths';
+import { assetProblem } from './paths';
 import { SymbolPersistence } from './persist';
-import { SymbolPool } from './pool';
 import { SymbolService } from './service';
+// Phase 63: the pool is shared with the arch import scan, so the two readers
+// of one parse share research 19's worker budget instead of doubling it.
+import { sharedSymbolPool, shutdownSharedSymbolPool } from './shared-pool';
 import { getLog } from '../log';
 
 /**
@@ -52,12 +54,8 @@ function broadcast(progress: SymbolIndexProgress): void {
 function getService(): SymbolService {
   if (service !== null) return service;
   persistence = new SymbolPersistence();
-  const pool = new SymbolPool({
-    runtimeWasm: runtimeWasmPath(),
-    grammarDir: grammarDir()
-  });
   service = new SymbolService({
-    pool,
+    pool: sharedSymbolPool(),
     persistence,
     onProgress: broadcast,
     onRepoChanged,
@@ -99,6 +97,12 @@ export async function disposeSymbolsIpc(): Promise<void> {
   const current = service;
   service = null;
   await current?.dispose();
+  // Phase 63. The service shuts the pool down because it always has, and this
+  // drops the shared reference to it so a pool that has been shut down is never
+  // handed to a later caller. It is idempotent and the arch disposer calls it
+  // too, because whichever of the two runs first should be the one that ends
+  // the threads.
+  await shutdownSharedSymbolPool();
   persistence?.close();
   persistence = null;
 }

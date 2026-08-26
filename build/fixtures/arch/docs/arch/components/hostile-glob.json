@@ -1,0 +1,13 @@
+{
+  "id": "hostile-glob",
+  "name": "hostile glob",
+  "kind": "component",
+  "layer": "engine",
+  "provenance": "first-party",
+  "anchors": ["src/hostile-anchor-63-*"],
+  "boundary": "open",
+  "description": "This anchor passes every path rule and matches no tracked file. It is the planted absence, and its unique word is what the gate scans every composed argv for.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": []
+}

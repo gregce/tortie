@@ -1,0 +1,13 @@
+{
+  "id": "bomb-glob",
+  "name": "bomb glob",
+  "kind": "component",
+  "layer": "engine",
+  "provenance": "first-party",
+  "anchors": ["**a**a**a**a**a**a**a**a**azz"],
+  "boundary": "open",
+  "description": "The wildcard bomb. Twenty nine characters, every path rule satisfied, and under the first build's regular expression matcher one repository path took 33 seconds to test. It is refused at the format layer now, by the wildcard ceiling, and this row proves the ceiling still bites.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": []
+}

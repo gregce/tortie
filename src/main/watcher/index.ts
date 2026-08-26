@@ -7,9 +7,15 @@
  * broadcasts EVT_GIT_CHANGED, quick open subscribes and refreshes its path
  * index. One FSEvents subscription per repo, two consumers — see bus.ts for
  * why a second subscription was not an option.
+ *
+ * Phase 63 added a THIRD consumer, being the arch checker, on the same terms.
+ * It subscribes to the bus and it starts nothing: no new FSEvents subscription,
+ * no new exclusion path, and therefore no change to the eight path budget
+ * `npm run conformance:watcher` exists to protect.
  */
 
 export {
+  DEFAULT_DEBOUNCE_MS,
   RepoWatcher,
   isRelevantDotGitPath,
   isRescanRequired,

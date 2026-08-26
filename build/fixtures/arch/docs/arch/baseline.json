@@ -1,0 +1,16 @@
+{
+  "accepted": [
+    {
+      "fromPath": "src/app/view.ts",
+      "toPath": "src/store/db.ts",
+      "because": "The view reads one row directly while the read path is being moved, and it is on the list.",
+      "at": "2026-08-25"
+    },
+    {
+      "fromPath": "src/store/db.ts",
+      "toPath": "src/core/util.ts",
+      "because": "The store borrows one helper from the engine, and moving it is a separate piece of work.",
+      "at": "2026-08-25"
+    }
+  ]
+}

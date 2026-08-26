@@ -1,0 +1,21 @@
+{
+  "id": "app",
+  "name": "app",
+  "kind": "component",
+  "layer": "surface",
+  "provenance": "first-party",
+  "anchors": ["src/app"],
+  "boundary": "open",
+  "description": "What a person sees.",
+  "evidence": [
+    {
+      "path": "src/app/main.ts",
+      "blobOid": "1111111111111111111111111111111111111111",
+      "lineStart": 1,
+      "lineEnd": 1,
+      "quote": "export function main"
+    }
+  ],
+  "deprecated": false,
+  "gaps": []
+}

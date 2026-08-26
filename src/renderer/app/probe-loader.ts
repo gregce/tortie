@@ -15,8 +15,9 @@
  *              { search: 'harness=1' })  -> ARMED, read at module scope here
  *     no  -> loadFile(index.html)        -> not armed
  *
- * WHAT IT BUYS. `./probe-registry.ts` statically imports fourteen probe
- * modules, being 224,900 bytes of source that a person's launch used to load
+ * WHAT IT BUYS. `./probe-registry.ts` statically imports fifteen probe
+ * modules, being 224,900 bytes of source at Phase 127 and more since, that a
+ * person's launch used to load
  * inside the single entry chunk. `import(...)` below is the only reference to
  * that file in production, so Rollup emits it as its own chunk and the entry
  * chunk carries none of it. `build/assert-probe-containment.mjs` reads the

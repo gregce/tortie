@@ -1,0 +1,13 @@
+{
+  "id": "bad-layer",
+  "name": "bad layer",
+  "kind": "component",
+  "layer": "nowhere",
+  "provenance": "first-party",
+  "anchors": ["src/core"],
+  "boundary": "open",
+  "description": "Dropped whole, because no band in the contract has that name.",
+  "evidence": [],
+  "deprecated": false,
+  "gaps": []
+}

@@ -230,6 +230,28 @@ export interface OpenFileRequest {
    * special case.
    */
   remote?: OpenFileRemoteRef;
+  /**
+   * PHASE 63 — a DRAFT. The bytes to open, for a file that may not exist.
+   *
+   * Present means: put this text in the buffer, read nothing from disk, and
+   * open the tab DIRTY. The path is where the file WOULD be saved, so the
+   * tab's name, its icon and its language detection need no special case and
+   * ⌘S writes it exactly where the person expects.
+   *
+   * WHY IT EXISTS. The Architecture view's "Draft a contract" composes a
+   * skeleton in main and main writes NOTHING. The whole point is that the
+   * person reads what was composed and decides whether it becomes a file. An
+   * open request that could only name a path on disk could not express that,
+   * so the alternative was for main to write four files nobody asked for.
+   *
+   * It is additive in the same shape as `preview`, `commit` and `selection`
+   * before it: every existing emitter still compiles, and a request without it
+   * behaves exactly as it did.
+   *
+   * IT IS NOT AN UNTITLED BUFFER. There is no "Untitled-1" here and no new tab
+   * kind. A draft tab is an ordinary file tab whose file does not exist yet.
+   */
+  draft?: string;
 }
 
 /** Emit an open request (fire-and-forget). */

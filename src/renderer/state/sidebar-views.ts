@@ -24,7 +24,8 @@ export const SIDEBAR_VIEW_IDS = [
   'explorer',
   'search',
   'scm',
-  'context'
+  'context',
+  'arch'
 ] as const;
 
 export type SidebarViewId = (typeof SIDEBAR_VIEW_IDS)[number];
@@ -44,7 +45,18 @@ export const SIDEBAR_VIEW_LABELS: Readonly<Record<SidebarViewId, string>> = {
   // ships; the ONE thing that does not follow is the CSS rule binding
   // `--zoom-context` to a selector, which zoom.css maps by hand because it is
   // the only part that has to know the view's DOM shape.
-  context: 'Context'
+  context: 'Context',
+  // Phase 63. The view of what the project PROMISES about its own shape, and
+  // whether those promises still hold against the code.
+  //
+  // THE LABEL IS THE FULL WORD, and that is a decision rather than an
+  // oversight. The backlog entry, research 49 and every internal name call it
+  // `arch`, which is right for an id, a CSS custom property and a menu action.
+  // It is wrong for a person: "Arch" alone reads as an archive or a curve, and
+  // every other label in this record is a whole word. The id stays `arch`
+  // everywhere it is machinery, being `--zoom-arch`, `show-arch`, `view.arch`
+  // and `data-view="arch"`; only what a person reads says Architecture.
+  arch: 'Architecture'
 };
 
 /**

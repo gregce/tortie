@@ -1,0 +1,102 @@
+{
+  "edges": [
+    {
+      "id": "app-must-not-store",
+      "from": "app",
+      "to": "store",
+      "kind": "imports",
+      "rule": "must-not",
+      "checker": "imports",
+      "label": "no direct rows",
+      "note": "The planted divergence. Two imports cross it and one of them is accepted.",
+      "evidence": []
+    },
+    {
+      "id": "core-must-vendored",
+      "from": "core",
+      "to": "vendored-lib",
+      "kind": "imports",
+      "rule": "must",
+      "checker": "imports",
+      "note": "The planted absence. Nothing imports it.",
+      "evidence": []
+    },
+    {
+      "id": "vendored-must-not-core",
+      "from": "vendored-lib",
+      "to": "core",
+      "kind": "imports",
+      "rule": "must-not",
+      "checker": "imports",
+      "note": "The conservative rule. One import out of this part did not resolve, so the answer is not green.",
+      "evidence": []
+    },
+    {
+      "id": "app-may-core",
+      "from": "app",
+      "to": "core",
+      "kind": "imports",
+      "rule": "may",
+      "checker": "imports",
+      "note": "A permission, which is what keeps the closed boundary quiet.",
+      "evidence": []
+    },
+    {
+      "id": "app-must-not-ajv",
+      "from": "app",
+      "to": "ajv",
+      "kind": "imports",
+      "rule": "must-not",
+      "checker": "manifest",
+      "note": "A dependency this project refuses, and the manifest agrees.",
+      "evidence": []
+    },
+    {
+      "id": "app-must-left-pad",
+      "from": "app",
+      "to": "left-pad",
+      "kind": "imports",
+      "rule": "must",
+      "checker": "manifest",
+      "note": "A dependency this project declares.",
+      "evidence": []
+    },
+    {
+      "id": "core-calls-store",
+      "from": "core",
+      "to": "store",
+      "kind": "calls",
+      "rule": "may",
+      "checker": "evidence",
+      "note": "A behavioural verb. It can never be better than partly checked.",
+      "evidence": [
+        {
+          "path": "src/core/engine.ts",
+          "lineStart": 3,
+          "lineEnd": 3,
+          "quote": "db.write("
+        }
+      ]
+    },
+    {
+      "id": "dangling",
+      "from": "app",
+      "to": "nope",
+      "kind": "imports",
+      "rule": "must",
+      "checker": "imports",
+      "note": "Dropped whole, because no component file declares the far end.",
+      "evidence": []
+    },
+    {
+      "id": "app-may-core",
+      "from": "app",
+      "to": "store",
+      "kind": "imports",
+      "rule": "may",
+      "checker": "imports",
+      "note": "Ignored, because the first promise with this id is the one that counts.",
+      "evidence": []
+    }
+  ]
+}
