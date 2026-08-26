@@ -120,6 +120,29 @@ the human is ready to return.
 The product succeeds when the developer can look away without anxiety and come
 back without reconstruction.
 
+## Tortie spends your model, to make you better at spending it
+
+Some of the reading is work no person has time for. What every session has been
+doing since you last looked. Whether the shape of the project still holds after
+four hundred commits an agent wrote.
+
+Tortie does not answer those itself. It holds no key, reaches no endpoint of its
+own, and has no budget. What it has is the agent you already confirmed, and it
+spawns that as a one shot process, on a prompt you can read, for an answer it
+checks before showing you.
+
+The check is the point. An answer that names a file it should not, carries a
+number it invented, or breaks the shape that was asked for is refused whole
+rather than trimmed, and you keep what was there before. A model that gets it
+wrong costs you nothing.
+
+Determinism does the work determinism can do, and the model is asked only for
+the judgement it cannot. What a part is made of is measured. What a part is for
+is a sentence somebody has to write.
+
+None of this makes a decision. It reads faster than you can, so that the
+deciding is still yours.
+
 ## What Tortie is not
 
 A principle that forbids nothing is decoration. These are the refusals:
