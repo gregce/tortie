@@ -45,49 +45,49 @@ sessions.
 <table>
   <tbody>
     <tr>
-      <td width="40%" valign="top">
+      <td width="45%" valign="top">
         <h3>One window for every project</h3>
         <p>Every project is a tab with its own sessions, Git state, file tree and editor. Use <kbd>⌘P</kbd> to find files in the active project or across every open project.</p>
       </td>
-      <td width="60%" valign="top">
-        <img src="docs/readme/one-project-window.gif" alt="Tortie switching between project tabs, each with its own files and coding-agent sessions" width="640" />
+      <td width="55%" valign="top">
+        <img src="docs/readme/one-project-window.gif" alt="Tortie switching between project tabs, each with its own files and coding-agent sessions" width="560" />
       </td>
     </tr>
     <tr>
-      <td width="40%" valign="top">
+      <td width="45%" valign="top">
         <h3>Agents keep working</h3>
         <p>Quit Tortie without stopping the work. Named sessions run outside the app window and return when you reopen it.</p>
       </td>
-      <td width="60%" valign="top">
-        <img src="docs/readme/durable-sessions.gif" alt="Tortie closing while its coding-agent sessions continue running, then reconnecting to them" width="640" />
+      <td width="55%" valign="top">
+        <img src="docs/readme/durable-sessions.gif" alt="Tortie closing while its coding-agent sessions continue running, then reconnecting to them" width="560" />
       </td>
     </tr>
     <tr>
-      <td width="40%" valign="top">
+      <td width="45%" valign="top">
         <h3>Resume the conversation</h3>
         <p>After a restart, Tortie replays the scrollback and prepares each agent's own resume command. You choose when to reconnect the conversation.</p>
       </td>
-      <td width="60%" valign="top">
-        <img src="docs/readme/resume-conversation.gif" alt="Tortie restoring a coding-agent session and preparing its conversation resume command" width="640" />
+      <td width="55%" valign="top">
+        <img src="docs/readme/resume-conversation.gif" alt="Tortie restoring a coding-agent session and preparing its conversation resume command" width="560" />
       </td>
     </tr>
     <tr>
-      <td width="40%" valign="top">
+      <td width="45%" valign="top">
         <h3>Jump to what needs you</h3>
         <p>Working agents stay quiet. Press <kbd>⌘J</kbd> to jump to the session waiting for input, even when another project is open.</p>
       </td>
-      <td width="60%" valign="top">
-        <img src="docs/readme/needs-input.gif" alt="Tortie notifying the user that an agent needs input and jumping to that session" width="640" />
+      <td width="55%" valign="top">
+        <img src="docs/readme/needs-input.gif" alt="Tortie notifying the user that an agent needs input and jumping to that session" width="560" />
       </td>
     </tr>
     <tr>
-      <td width="40%" valign="top">
+      <td width="45%" valign="top">
         <h3>Catch Me Up</h3>
         <p>Press <kbd>⇧⌘U</kbd> to see every session in a project at a glance. Open one to read your asks and the agent's closing answers from its own log, then jump back to any exchange.</p>
         <p>The conversation stays word for word. An optional model can write only the one-line project summary.</p>
       </td>
-      <td width="60%" valign="top">
-        <img src="docs/readme/catch-me-up.gif" alt="Tortie opening Catch Me Up, reviewing a project summary and reading one coding-agent conversation exchange by exchange" width="640" />
+      <td width="55%" valign="top">
+        <img src="docs/readme/catch-me-up.gif" alt="Tortie opening Catch Me Up, reviewing a project summary and reading one coding-agent conversation exchange by exchange" width="560" />
       </td>
     </tr>
   </tbody>
