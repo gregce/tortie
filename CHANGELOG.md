@@ -4,6 +4,27 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## 0.76.1 (2026-08-26)
+
+This release is about the file tree and the menus. You can now bring files into a project from Finder and take them back out again, every menu row carries an icon and says which key runs it, and a session will tell you which conversation it is and where that conversation lives on disk. Several things you reported along the way no longer go wrong.
+
+### Added
+
+- You can now drag a file, several files or a whole folder from Finder onto the file tree and it lands inside the folder row you aimed at, or at the project root over the empty space below the rows. The original stays where it was because this is a copy, a name that already exists asks you first and names every collision at once, and Replace moves the displaced entry to the Trash so it is recoverable. Dragging a folder onto the file tree now brings it into the project instead of opening a new project tab, though a folder dropped anywhere else in the window still opens one, and a project on another machine refuses the drop with a sentence rather than appearing to work ([`29ff027`](https://github.com/gregce/tortie/commit/29ff027))
+- Hold Option and drag a row out of the file tree to hand that file to Finder, or to any other app that takes a file ([`29ff027`](https://github.com/gregce/tortie/commit/29ff027))
+- A session's actions menu now shows the agent's own conversation id, which is what resume takes, the file that agent keeps the conversation in, and Tortie's own id for the session last. Each one shows its value as well as copying it, so the menu is a place to read an identifier rather than only to copy one, though a shell session has none of these and Factory Droid CLI keeps no record to point at ([`4b6247d`](https://github.com/gregce/tortie/commit/4b6247d))
+- Every row in a right click menu now carries the icon its own part of the product already uses ([`c25d16d`](https://github.com/gregce/tortie/commit/c25d16d))
+- The menu bar along the top of the screen and the menu behind the cat in the status bar now carry those same icons, and every row that has a keyboard shortcut says what it is ([`3c3ea84`](https://github.com/gregce/tortie/commit/3c3ea84))
+
+### Fixed
+
+- A file you drop into the tree now appears immediately, and the Refresh button at the top of the Explorer re-reads the folder every time you press it ([`f1562d3`](https://github.com/gregce/tortie/commit/f1562d3))
+- Running a build or a test suite in a project no longer floods Tortie with dropped file events, and when the system does drop a batch Tortie re-reads what it missed instead of quietly showing you a stale tree. A folder the repository ignores is no longer watched at all, so a change inside one will not appear until something else in the project changes ([`ef1c497`](https://github.com/gregce/tortie/commit/ef1c497))
+- The icons down the left edge now light up under the pointer, so you can tell what you are about to press ([`33f5593`](https://github.com/gregce/tortie/commit/33f5593))
+- Narrowing the session list no longer pushes its add button and chevron off the edge, because the word SESSIONS shortens instead, and at the narrowest width it goes entirely ([`33f5593`](https://github.com/gregce/tortie/commit/33f5593))
+- The confirm sheet for installing a skill is now about twice as wide, so the command it is asking you to approve reads on one line instead of three ([`33f5593`](https://github.com/gregce/tortie/commit/33f5593))
+- The empty state is quieter, and the Explorer, Source Control and Context views now share one set of text sizes instead of each choosing its own ([`fa590ea`](https://github.com/gregce/tortie/commit/fa590ea))
+
 ## 0.73.0 (2026-08-25)
 
 This release is about picking work back up and reading it back. An agent that ends inside a surviving shell can be resumed on the spot, and every session's one line summary now keeps a history you can open from its row in the project view. Quitting and cloning a project to a remote machine both got safer along the way.
