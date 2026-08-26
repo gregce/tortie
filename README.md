@@ -10,6 +10,9 @@
   <a href="https://github.com/gregce/tortie/releases/latest">
     <img src="https://img.shields.io/badge/Download_for_macOS-Apple_silicon-4D9DE8?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS" />
   </a>
+  <a href="https://tortie.sh">
+    <img src="https://img.shields.io/badge/Tortie.sh_website-2A2E36?style=for-the-badge" alt="Tortie.sh website" />
+  </a>
 </p>
 
 <p align="center">
@@ -30,52 +33,97 @@ projects in one window and be able to easily organize and not lose my agent
 sessions.
 
 <p align="center">
-  <img src="tortie.png" alt="The Tortie window: project tabs, session list, terminal and git sidebar" width="900" />
+  <a href="https://tortie.sh">
+    <img src="docs/readme/tortie-hero.png" alt="Tortie showing one project with files, several durable coding-agent sessions, restored conversations and split terminals in one window" width="960" />
+  </a>
 </p>
 
-## Key Features
+<p align="center"><a href="https://tortie.sh"><strong>Explore Tortie, read the docs and compare agent tools at tortie.sh →</strong></a></p>
 
-### One Window pane for your projects
+## Key features
 
-- **Every project is a tab.** Switch with `⌘1` through `⌘9`, and each tab scopes its own sessions, git state, file tree explorer and editor.
-- **Universal project search.** Quickly find a file in your active project or any opened project with cmd+P. 
-- **Context is first class.** The new context pane lists every skill, MCP server, hook, plugin and instruction file on your machine, per agent. Install skills from Skills.sh built in.
+<table>
+  <tbody>
+    <tr>
+      <td width="40%" valign="top">
+        <h3>One window for every project</h3>
+        <p>Every project is a tab with its own sessions, Git state, file tree and editor. Use <kbd>⌘P</kbd> to find files in the active project or across every open project.</p>
+      </td>
+      <td width="60%" valign="top">
+        <img src="docs/readme/one-project-window.gif" alt="Tortie switching between project tabs, each with its own files and coding-agent sessions" width="640" />
+      </td>
+    </tr>
+    <tr>
+      <td width="40%" valign="top">
+        <h3>Agents keep working</h3>
+        <p>Quit Tortie without stopping the work. Named sessions run outside the app window and return when you reopen it.</p>
+      </td>
+      <td width="60%" valign="top">
+        <img src="docs/readme/durable-sessions.gif" alt="Tortie closing while its coding-agent sessions continue running, then reconnecting to them" width="640" />
+      </td>
+    </tr>
+    <tr>
+      <td width="40%" valign="top">
+        <h3>Resume the conversation</h3>
+        <p>After a restart, Tortie replays the scrollback and prepares each agent's own resume command. You choose when to reconnect the conversation.</p>
+      </td>
+      <td width="60%" valign="top">
+        <img src="docs/readme/resume-conversation.gif" alt="Tortie restoring a coding-agent session and preparing its conversation resume command" width="640" />
+      </td>
+    </tr>
+    <tr>
+      <td width="40%" valign="top">
+        <h3>Jump to what needs you</h3>
+        <p>Working agents stay quiet. Press <kbd>⌘J</kbd> to jump to the session waiting for input, even when another project is open.</p>
+      </td>
+      <td width="60%" valign="top">
+        <img src="docs/readme/needs-input.gif" alt="Tortie notifying the user that an agent needs input and jumping to that session" width="640" />
+      </td>
+    </tr>
+    <tr>
+      <td width="40%" valign="top">
+        <h3>Catch Me Up</h3>
+        <p>Press <kbd>⇧⌘U</kbd> to see every session in a project at a glance. Open one to read your asks and the agent's closing answers from its own log, then jump back to any exchange.</p>
+        <p>The conversation stays word for word. An optional model can write only the one-line project summary.</p>
+      </td>
+      <td width="60%" valign="top">
+        <img src="docs/readme/catch-me-up.gif" alt="Tortie opening Catch Me Up, reviewing a project summary and reading one coding-agent conversation exchange by exchange" width="640" />
+      </td>
+    </tr>
+  </tbody>
+</table>
 
-### Durable Agent Sessions
+## Other features
 
-- **Quit the app and the agents keep working.** Sessions are named and live outside the app process in a private tmux server so the window is just a view.
-- **Reboot and everything comes back.** Scrollback replayed. Each agent's own resume command is typed and waiting for you to hit Enter.
-- **Split, zoom and drag.** Drop one session onto another to split, zoom any pane, drag an image from the tree into an agent. Learning tmux is not required.
-- **Your session list keeps backups,** refreshed automatically as it changes.
+### Supported coding agents
 
-### Supported Coding Agents
-
-- **Thirteen agents supported out of the box.** Claude Code, Codex, Cursor, Gemini, Qwen, Muse, Pi, CodeWhale, Antigravity, Droid and Grok in the terminal. Each agent has its own icon, a settable hotkey and launch flags.
-- **Add your own with one JSON file.** No rebuild required. Anything that could start a process asks you first. See [how here](https://github.com/gregce/tortie/blob/main/resources/config/README.md).
-- **Conversations are captured.** The bundled SpecStory integration can record each session's conversation as markdown as it happens.
+- **13 built-in profiles.** Claude Code, Codex CLI, Cursor CLI, Gemini CLI, Qwen Code, Muse Code, Pi, CodeWhale, Antigravity CLI, Factory Droid CLI and Grok run in terminals. Cursor IDE and VS Code Copilot are capture-only.
+- **Add your own with one JSON file.** No rebuild required. Anything that could start a process asks you first. See [how to add an agent](https://github.com/gregce/tortie/blob/main/resources/config/README.md).
+- **Capture conversations as they happen.** The bundled SpecStory integration can record each session as Markdown.
 
 ### Familiar IDE features
 
-- **A full git sidebar.** Staging, history, branches, a rich commit graph, built from VS Code's own parsers. See action runs in Tortie if you have gh cli installed.
+- **A full Git sidebar.** Stage, commit, browse branches and history, and inspect a rich commit graph built from VS Code's parsers. See GitHub Actions runs when the GitHub CLI is installed.
 - **Click a file, see the diff.** Monaco opens modified files as a diff against HEAD by default, and plain editing is a toggle away.
-- **A decorated file tree** with git status colors, the icons you are used to and fast file search (very helpful!)
+- **A decorated file tree.** See Git status colors and familiar file icons, then drag files in from Finder or out to another app.
 - **Search everything at once.** ripgrep across every open project, fast on large trees.
 - **Rich previews.** Markdown and HTML render in place. Untrusted pages open in a sandboxed frame with no scripts and no network.
+- **Context for every agent.** See each agent's skills, MCP servers, hooks, plugins and instruction files, and install skills through Skills.sh.
 
-### Remote machines (Early)
+### Remote machines (early)
 
-- **Open a folder on another Mac as a project tab.** Add the machine in Settings. Supports Tailscale out of the box. The file tree, search, cmd+P, the git sidebar and action runs all read from that machine.
+- **Open a folder on another Mac as a project tab.** Add the machine in Settings. Tailscale works out of the box. The file tree, search, `⌘P`, Git sidebar and GitHub Actions runs all read from that machine.
 - **Run agents there.** Start a session on the machine, see what is already running, and get it back after a restart with its resume command waiting.
 - **Editing is off until you switch it on.** Pick one folder per machine in Settings. Tortie writes only under it. You get save, new folder and rename. There is no undo.
 - **Nothing gets installed over there.** Tortie uses that machine's tmux over ssh, and can make and install a key for you.
 
 Early because it has only been tested against Macs. The machine needs ssh, Remote Login on and tmux. Nothing in the code turns a Linux host away and the scripts handle both BSD and GNU tools, so a Linux VM should work, but has not been fully tested.
 
-## What Tortie doesn't do
+## What Tortie does not do
 
-- It won't touche your own tmux server or `~/.tmux.conf`, on this Mac or on a machine you add.
-- It won't render a key file or anything that looks like a secret as a friendly preview.
-- It won't runs third party plugin code inside its own processes. Adding an agent is configuration, not code.
+- It does not touch your own tmux server or `~/.tmux.conf`, on this Mac or on a machine you add.
+- It does not render a key file or anything that looks like a secret as a friendly preview.
+- It does not run third-party plugin code inside its own processes. Adding an agent is configuration, not code.
 
 ## Install
 
@@ -114,5 +162,7 @@ The full list with licenses is in [`NOTICE`](NOTICE).
 - License: Apache 2.0, see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE)
 
 Tortie is not affiliated with, endorsed by, or sponsored by any of the companies whose products it launches. All product names and logos are the property of their respective owners, and are used here only to identify the supported product.
+
+<p align="center"><a href="https://tortie.sh/docs/">Read the Tortie product documentation →</a></p>
 
 <p align="center">Made by <a href="https://github.com/gregce">gregce</a>.<br /><i>Your sessions are never interrupted.</i></p>
