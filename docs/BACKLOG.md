@@ -16792,7 +16792,9 @@ Blocked on Phase 63 only. **It is not blocked on Phase 65, and 65 is not blocked
 - No layout persistence.
 
 
-## Phase 65 — the refresh loop, so a drifted promise gets fixed where you can see it (research 49 slice 3) QUEUED 2026-08-25
+## Phase 65 — the refresh loop, so a drifted promise gets fixed where you can see it (research 49 slice 3) QUEUED 2026-08-25, SUPERSEDED 2026-08-26 BY PHASES 158 AND 159
+
+**READ THIS FIRST.** He rewrote this work on 2026-08-26 and it is now two phases at the end of this file. Phase 158 took the drafting, because he ruled that picking determinism or not must not be an operator choice, and Phase 159 took the drift trigger and the change diff. **The refusal line below reading "Nothing about a source change, a verdict change or a freshness number ever starts one" was drawn one notch too tight and Phase 158 corrects it.** The honest rule is that Tortie never starts a process from configuration alone and never one the person has not confirmed in Settings, which is what `docs/ZEN-OF-TORTIE.md` already allowed in the same breath at line 137. Build 158 and 159; do not build this entry as written.
 
 **Subject:** `feat(arch): the delta prompt and the session change diff`
 **First body line:** `Phase 65: the refresh loop`
@@ -17434,6 +17436,157 @@ He likes what Phase 153 did to the right click menus and wants the same care in 
 - No global shortcut, and nothing registered outside the app's own focus.
 - No second icon table. If a build time PNG set is generated, it is generated FROM Phase 153's closed set and not typed again.
 
+## Phase 157 — the map means something in a Rust, a Python or a Ruby repository (operator asked 2026-08-26)
+
+**Subject:** `feat(arch): imports resolve in Rust, Python and Ruby`
+**First body line:** `Phase 157: the resolver arms`
+**Semver:** minor. Three languages start producing edges where they produced none.
+**Tier 3.** The second risk question answers yes in its own words: this claims to work across languages, so the evidence is a per row matrix over REAL repositories rather than over a fixture. Two independent methods, one an attack, and the attack is about a FALSE GREEN rather than a crash.
+**Charter:** this entry, plus the Phase 63 entry above and what shipped at `0586263`, plus his ask of 2026-08-26 naming ts, js, python, rust, go and ruby as the eighty twenty.
+
+### Why this comes before the headless work and not after
+
+He asked for the deterministic scaffold first and a model second. The scaffold draws its BOXES from the directory structure and its EDGES from imports that resolved. In his herdr repository NOTHING resolves today, so the scaffold there would be boxes and almost no promises, and a model asked to enrich it would be rewriting from nothing rather than filling something in. **Every phase after this one is only as good as the edges this one produces.**
+
+### What is already true, read from the tree at `42c4a1e`
+
+This phase is much smaller than it sounds, and these are the reasons.
+
+- **Sixteen tree-sitter grammars already ship inside the signed bundle**, at `node_modules/@vscode/tree-sitter-wasm/wasm/`, including `tree-sitter-rust.wasm`, `tree-sitter-python.wasm` and `tree-sitter-ruby.wasm`. **ZERO NEW PACKAGES.** That refusal from Phase 63 holds without effort.
+- **Rust and Python ALREADY HAVE import queries.** `src/main/symbols/queries.ts` exports `JS_QUERY`, `TS_QUERY`, `GO_QUERY`, `PYTHON_QUERY` and `RUST_QUERY`. Their imports are already found and parsed. What is missing is only the RESOLUTION step.
+- **Ruby has the grammar and no query**, so Ruby costs one query plus one arm where Rust and Python cost one arm each.
+- **`src/main/arch/scan.ts:94` names the two refusals in its own words today**, being "Imports are not resolved for Rust" and "Imports are not resolved for Python", and `:271` iterates the pair. Ruby is not in that list because Ruby is not scanned at all.
+
+### The mechanism
+
+Each arm is three things and nothing more: a manifest reader, a set of path rules, and a stated limit.
+
+- **Rust.** `Cargo.toml` for the crate name and any `[workspace] members`. `use crate::a::b`, `use super::`, `use self::` and a bare crate name are the four shapes. `a` resolves to `src/a.rs` OR `src/a/mod.rs`, and the walk stops when the next segment names no file or directory, because the tail of a use path is an ITEM rather than a module. His herdr is the shape to build against: one crate plus a vendored `portable-pty`, 15 `mod.rs` against 37 top level files, and the use lines overwhelmingly `crate::` prefixed.
+- **Python.** `pyproject.toml`, `setup.cfg` or `setup.py` for the package roots. `import a.b`, `from a.b import c` and the leading dot relative forms. `a.b` resolves to `a/b.py` or `a/b/__init__.py`.
+- **Ruby.** `Gemfile` and any `.gemspec` for the gem name and the require paths. `require`, `require_relative` and `autoload`. `require_relative` is the one that resolves reliably; a bare `require` is a load path search and the arm says so rather than guessing.
+
+**THE RULE THAT BINDS EVERY ARM, AND IT IS THE ONE THE LAST ROUND WAS CAUGHT BY.** An arm that cannot answer returns `unresolved`, NEVER `external`. Phase 63's verifier found the resolver answering `external` when it had run out of ideas, and named the consequence exactly: the moment the count is repaired, a wrong `external` produces a FALSE GREEN on a `must-not` promise, which is the single outcome the conservative rule exists to prevent. Each new arm can reintroduce that, three times over.
+
+**What each arm may NOT claim.** Module level resolution only. "Does `app` import from `layout`" is answerable. "Does `app` use `layout::Foo`" is not, and no arm pretends otherwise. A re-export chain resolves to the file that forwards, not to the file that defines, and that limit is stated on the arm's face.
+
+### Proof, run rather than read
+
+- **A PER ROW MATRIX OVER REAL REPOSITORIES**, one row per language, and the repositories are real ones on this machine rather than fixtures. His herdr at `6e8b138d` is the Rust row and it is 271 files. A real Python repository and a real Ruby repository are chosen by the phase and named. **A COPY of each, never the original**, and never `/Users/gdc/herdr` itself.
+- For each row: how many imports were found, how many resolved, how many are honestly `unresolved`, and how many are `external`. **A number for `external` that is not justified by a real manifest dependency is a defect.**
+- **THE ATTACK IS THE FALSE GREEN.** Write a contract with a `must-not` promise that IS violated in the real repository, and prove each arm reports it as violated rather than green. Then write one that is NOT violated and prove it is not reported. A verifier that only proves the arm resolves has proved nothing about the thing that matters.
+- The Rust arm driven at the four shapes, being `crate::`, `super::`, `self::` and a bare crate name, and at both `a.rs` and `a/mod.rs`.
+- A hostile fixture: a module path that walks out of the repository, a `require` of an absolute path, a use path holding a leading dash, and a re-export chain three deep.
+- `npm run conformance:arch` extended so the resolver matrix is derived FROM THE RESOLVER rather than from a committed fixture file, which Phase 63's verifier named as a defect at `build/arch-conformance-probe.mts:173`.
+- The battery.
+
+### What is NOT in this phase
+
+- **No new npm package.** Every grammar is already in the bundle and that is the whole reason this is affordable.
+- No Java, C#, PHP or C++ arm, even though their grammars ship. They are the next tier and they are not his eighty twenty.
+- No item level resolution in any language, and no call graph. A behavioural edge still tops out at `partly-checked`.
+- No change to the TypeScript, JavaScript or Go arms beyond the `external` rule, which applies to all six.
+- No change to the checkers, the format, the view or the skeleton. This phase produces better edges and changes nothing about what reads them.
+- No headless model call of any kind. That is Phase 158.
+
+---
+
+## Phase 158 — one way in, and the model you already trust fills it (operator asked 2026-08-26)
+
+**Subject:** `feat(arch): the contract drafts itself and a confirmed agent fills it in`
+**First body line:** `Phase 158: one path in`
+**Semver:** minor. It removes a surface, makes another automatic, and adds a headless pass.
+**Tier 3.** The fourth risk question answers yes twice over: this spawns a process under his own credentials and hands it his repository. It is not demoted for any part of it.
+**Charter:** this entry, plus the Phase 63 entry and what shipped at `0586263`, plus `docs/ZEN-OF-TORTIE.md` at `42c4a1e` whose new section states the contract this phase must keep, plus the fold's own modules named below, which are the machinery being reused rather than re-invented.
+
+### His words, and the design they settle
+
+He said it should not be an operator choice to pick determinism or no determinism. Today the empty state offers two buttons, being a deterministic skeleton and a prompt to paste at an agent, and he pressed the second one and it was bad. **The fork itself is the defect.** There is one way a contract starts, and a model improves it afterwards where a model is the right tool.
+
+### The three things
+
+1. **The paste-a-prompt option is DELETED.** `src/renderer/arch/seed-prompt.ts` goes, and its button with it. That also removes the defect he found: `CANDIDATE_DOCS` is a module constant naming `AS-BUILT-ARCHITECTURE.md`, which is his personal filename convention, and `docs/audits/2026-08-20-electron-typescript-architecture.md`, which is TORTIE'S OWN FILE, so every repository on this machine was told to go and read a file that only exists in one of them.
+2. **The deterministic skeleton stops being a choice and becomes what happens.** `src/main/arch/skeleton.ts` already exists, is already byte deterministic and already writes every promise as a `may` because it only saw an import happen. It moves from one of two buttons to the thing a project with no contract already has.
+3. **A headless pass enriches it, through the fold's existing machinery.** The model's job is the part determinism cannot do: turning a `may` into a `must` or a `must-not`, naming what a part is FOR, and writing the gaps. `docs/ZEN-OF-TORTIE.md` states that split in its own words now, being that what a part is made of is measured and what a part is for is a sentence somebody has to write.
+
+### The mechanism, and the reuse is the point
+
+**Grep before writing. `src/main/overview/fold/` already does this exact shape and this phase reuses it rather than growing a second one.**
+
+- `src/main/overview/fold/spawn.ts` runs a confirmed CLI as a ONE SHOT child through `runGuarded`, resolving the binary to an absolute path, carrying the login shell PATH, settling always and reaping by process group so a run in flight at quit cannot become an orphan. Its header holds Bound C, being that Tortie holds no API key and reaches no endpoint Tortie owns, and there is no http client in that directory. **That bound is inherited unchanged.**
+- `src/main/overview/fold/recipes.ts` is the per agent argv table, each row carrying its own version and the ISO date its flags were measured. Arch adds ROWS, and the reason a row exists at all is that the flags were run by hand.
+- `src/main/overview/fold/validate.ts` is where an answer is refused WHOLE rather than trimmed. Arch's validator is its own, because the shape being checked is a contract file rather than a sentence, but the refusal discipline is copied exactly.
+- `src/main/overview/fold/scheduler.ts` holds the settle window, the minimum interval, the in flight cap and the suspend after repeated failure. Arch rides those rather than inventing new numbers.
+- `src/main/overview/fold/options.ts` is how Settings builds the offer list IN MAIN, joining the merged agent table, the Phase 23 confirm gate and the compiled recipe table, and showing a row with no recipe DISABLED with its reason rather than hiding it. Arch's Settings surface is built the same way and in the same place.
+- `src/renderer/settings/` gains the Arch section beside the Catch Me Up one.
+
+**IT SHIPS OFF AND STAYS OFF until he picks an agent, exactly as the fold does.** A project with no configured agent gets the deterministic skeleton and nothing else, and says so plainly rather than appearing broken.
+
+**IT IS VISIBLE WHILE IT RUNS.** The view says what is happening and when the contract was last written, the way a session row says written and the time.
+
+### The refusal that has to be corrected, and it is a backlog line rather than shipped copy
+
+The Phase 63 and Phase 65 entries both carry the words "Nothing about a source change, a verdict change or a freshness number ever starts an agent." **That is stricter than the shipped Zen and it forbids this phase.** `docs/ZEN-OF-TORTIE.md` line 137 says the opposite in the same breath: writing or rewriting the promises is a person's decision, **or a person's agent doing the work where they can see it**. The honest rule, and the one this phase writes into both entries: **Tortie never starts a process from configuration alone, and never one the person has not confirmed in Settings.** Refusal 8 is untouched by that, because the confirm gate is exactly what it demands.
+
+### Proof, run rather than read
+
+- **IS THE SKELETON ANY GOOD ON A REPOSITORY THAT IS NOT TORTIE?** Nobody has ever read its output for another repository. Run it over three real repositories of different languages, print the draft, and say plainly whether a person would keep it. This decides whether the model is filling something in or rewriting from scratch, and it is the cheapest finding available in this phase.
+- The headless pass driven END TO END over a real repository with a real confirmed agent, producing a real enriched contract, with the before and the after both shown.
+- **A NEGATIVE CONTROL ON THE REFUSAL:** feed the validator an answer that names a file it should not, one that invents a number, and one that breaks the shape, and prove each is refused WHOLE and that the previous contract survives untouched.
+- **THE PROCESS COUNT, and it is the proof that the Zen section is true.** With no agent configured, a contract file change and a freshness change each start ZERO processes, counted with the CLAUDE.md command. With an agent configured, the count is exactly one, it is the confirmed binary, and it is reaped.
+- **AN ATTACK ON THE GATE:** try to make the pass run with an agent that was never confirmed in Settings, and try to make it write a confirmation record of its own. Both must fail.
+- `npm run conformance:agents` re-run, because a recipe composes an argv.
+- One app run driving every claim, and the battery.
+
+### What is NOT in this phase
+
+- **No second spawn path.** If this phase writes its own child process launcher instead of reaching `fold/spawn.ts`, it has failed the growth guardrail.
+- No API key, no endpoint Tortie owns, no http client anywhere near this code. Bound C is not amendable.
+- **Tortie never writes `docs/arch/baseline.json`.** Accepting a divergence stays a person editing a file.
+- The pass proposes; it never commits, never stages, and never writes a file the person has not seen.
+- No batch pass across repositories. Seeding is per repository, and his thirty documents in other repositories get no sweep.
+- No canvas, no flows, no level 3.
+- No verdict sets a session's status.
+- README.md is not touched.
+
+---
+
+## Phase 159 — a promise that drifted gets fixed where you can see it (operator asked 2026-08-26, replaces the drafting half of Phase 65)
+
+**Subject:** `feat(arch): drift proposes its own repair`
+**First body line:** `Phase 159: the freshness loop`
+**Semver:** minor. It adds a trigger and a view.
+**Tier 3**, for the same reason Phase 158 is: it spawns under his credentials. The change diff view alone would be Tier 2 and it is not demoted.
+**Charter:** this entry, plus Phase 158 which it is blocked on and whose machinery it reuses entirely, plus the Phase 65 entry above, whose delta prompt and change diff this inherits and whose drafting half Phase 158 absorbed.
+
+### What it contains
+
+- **The drift trigger.** When the checkers say a promise broke or a component fell behind, the same headless pass Phase 158 built composes a prompt naming ONLY what drifted, rather than the whole contract. One keypress from the freshness ribbon, and automatic under the same configured agent and the same gate.
+- **The session change diff**, built from the verdict deltas the checker already computes, showing which promises and which components the last burst of commits touched.
+- **The standing instruction**, being one documented line in the project's agent facing docs saying that a session which finishes work touching contracted anchors updates `docs/arch/` in that same session.
+
+### The mechanism
+
+- `src/main/arch/` gains the delta prompt composer and the verdict delta reader.
+- `src/renderer/arch/` gains the change diff view.
+- Everything about spawning, validating, scheduling and gating is Phase 158's and is REUSED. This phase adds no launch path of its own.
+- `CLAUDE.md` carries the standing instruction line. It is the only agent facing document in this repository and this phase does not add an `AGENTS.md`.
+
+### Proof, run rather than read
+
+- The delta prompt composed BYTE FOR BYTE in `npm run conformance:arch` over a fixture with planted drift, naming only what drifted and nothing else.
+- The change diff driven over REAL verdict deltas across two real commits of this repository, not over a fixture.
+- The drift trigger driven end to end: break a promise for real, watch the pass propose the repair, and read it.
+- **The process count again, at zero with no agent configured and exactly one with an agent configured.** A freshness number changing must not start anything on its own account.
+- The battery.
+
+### What is NOT in this phase
+
+- **No second spawn path, no second validator, no second scheduler.** All of it is Phase 158's.
+- No canvas.
+- Tortie still holds no key and still spends zero tokens of its own.
+- The pass proposes and never commits.
+- No watcher may start an agent for a repository whose agent was never confirmed in Settings.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -17636,3 +17789,6 @@ cycle rather than only the evening it was written.
 - 2026-08-25, Phase 156 SHIPPED on `3c3ea84` at 0.76.0, the menu bar and tray rows carry icons and name their shortcuts; 30 application menu rows and 2 tray rows now wear a mark, all 32 at 16×16 points and every one flagged as a template image so macOS tints them for light, dark, highlight and disabled, and the tray's New Session and Quit now say Cmd+T and Cmd+Q; TWO CHARTER FACTS WERE WRONG and they were the ones that set the size of the job, `src/shared/keymap.ts` holds 64 rows rather than 71 and the application menu already spelled 25 distinct ids through 26 `accel()` calls rather than three, so NOT ONE menu bar row was missing a shortcut it owns and the charter's stated bulk of work did not exist, leaving the icons, the tray and the ruling on the one raw chord; THE RASTER IS GENERATED AT BUILD TIME rather than at boot, `build/generate-menu-icons.mjs` opening one offscreen window on the real built renderer, awaiting the product's own `warmMenuIcons()` and writing `src/main/menu-icons.generated.ts`, because the application menu is installed before any window exists so a boot time raster would show a bare menu first, would make the menu depend on a window, and would leave the bytes unreviewable; the ONE closed table moved to `src/shared/menu-codicons.ts` since main may import only main and shared, the renderer re-exports it so no call site changed, and it grew from 48 names to 59; THE MOST USEFUL THING MEASURED is that the shipped codicon font draws `source-control` at U+EA68 and `git-branch` at U+EC6F as ONE IDENTICAL OUTLINE, 284 ink pixels each on a 32×32 bitmap, which no gate reading the stylesheet can see, so View > Source Control wears `git-branch` and `build/assert-menu-glyphs.mjs` now compares generated BITMAPS as well as codepoints; FOUR CHOSEN MARKS each argued at the row, being `desktop-download` on the staged update row, `save` on File > Save, `tools` on Repair Updates and `window` on the tray's Show Tortie, and every refusal is written down too rather than left silent, the Edit roles, both Quits, Rebuild the Session List, the four View radios, Toggle Sidebar, Focus the Session or File, Next and Previous Project, the agent hotkey rows and the blocked tray rows; TOP LEVEL TITLES STAY BARE and the answer is no rather than unmentioned, because nothing has MEASURED that AppKit paints one, because no Mac app does it, and because nine titles each carrying 16 extra points is how a notched display collapses the rightmost ones; TWO NEW CHORDS ONLY, both on the tray, both read from the keymap and both ALREADY registered by the application menu so the set the app answers did not grow, and `'Control+Command+F'` stays a raw literal with a stronger reason than before since adding it to KEYMAP would put it in RESERVED_APP_CHORDS and make the per agent hotkey recorder refuse a chord macOS owns rather than Tortie, while the item is `visible: false` so no row would ever display it; THE ATTACK WAS ABOUT KEYSTROKES rather than pixels, `globalShortcut.isRegistered` answering 0 of 4 and a real shell session on a scratch tmux socket with `cat -v` in the pane taking six control keys dispatched at xterm's own textarea at this commit AND at the parent, the two reads agreeing; the parent walk was done twice by two methods, the verifier walking `getApplicationMenu()` at `ac56d37` with its own harness and the committer extracting every row label from the AST-stripped source at both commits, 47 and 47 with the sets identical; the verifier also PARSED THE FONT BINARY itself, table directory, format-12 cmap, loca and glyf, hashing the outline bytes at each of the 59 glyph ids, which neither the builder nor Phase 153 had done since one compared bitmaps and the other codepoints; the re-verify round found three defects and all three were reproduced and fixed, the one visible in the tree being that `build/assert-menu-accelerators.mjs` could not see a chord written in backticks because it blanked every template literal whole, now covered by 21 fixtures; NO PIXEL OF A NATIVE MENU WAS PHOTOGRAPHED because it cannot be, and if AppKit declines to draw one of these images this commit cannot tell
 - 2026-08-25, Phase 155 SHIPPED on `f1562d3` at 0.76.1, a file dropped from Finder gets its row at once and Refresh re-reads the folders and then makes the rows agree with them; THE CAUSE WAS FOUND AND IT WAS THE SIXTH FACT, being that the rows come from a diff between the listings and a separate record of what the tree is believed to hold whose add arm is `!fed.has(path)`, and Phase 154's import wrote every imported path into that record while creating no row for it, so from that moment the row could not be emitted by any route for the life of the mount, which is why the drop did not show, why Refresh did not help, and why a tab switch did since it mounts a new tree and builds the record from nothing; of the entry's six facts two were RIGHT, one was HALF WRONG since the in flight guard's `finally` always clears it so it could only ever swallow a press that landed while a read was running rather than swallow them forever, and TWO WERE WRONG, being that local operations never refresh explicitly when in truth they all do through `relist` in five places in `tree-ops.ts` and `refreshLoaded` in two more in `use-tree-rename.ts`, and that the git watcher is therefore the only local path, so the honest question the entry asked answers itself and the watcher is left exactly as it is with Phase 151's exclusions untouched; the parent was measured with the same instrument, the same drive file and the same fixtures, 4 passed and 11 failed at `ac56d37` against 15 passed and 0 failed here, and his sequence reproduced line for line including the cure, the disk holding the dropped file while the screen did not, two presses of Refresh changing nothing, and the tab switch showing it; the independent method was a FOURTH route to the truth, the disk asked straight down the bridge beside the listing store, the feed baseline and the rows in the Pierre shadow root at 17 sampled instants, all 17 agreeing in both directions here and twelve of seventeen disagreeing at the parent on exactly the set of imported names; five attacks all survived, being ten presses of Refresh in one burst, a press with an inline rename open and a name typed, a press with a New Entry placeholder open and a name typed and then committed, a folder deleted underneath the app between the press and the read, and a project that is not a git repository, and two of the five fail at the parent; the watcher question was settled by timestamps rather than by inference, a file inside an ignored folder being absent for 37 consecutive one second samples and on screen 701 ms after the press; NO TIMER and no polling of any kind, proved by `out/main/index.js` and `out/preload/index.js` being md5 identical to the parent's; the one trade taken knowingly is that Refresh drops EVERY hold rather than only the stale ones, both gestures a person can hold open for seconds surviving a press with the same input node and the same characters, and only the sub second window inside an optimistic move being able to flicker, which heals itself; the re-verify then read only the TWO ENDS and nothing between them, the disk asked down the bridge and the screen read as rows in the shadow root, with Refresh driven by clicking the real button rather than by calling anything behind it, so no internal could agree with another internal and look like a pass; rebased onto Phase 156 which landed first and took 0.76.0, and the whole battery was run again on the rebased tree, being typecheck, build, 9573 tests over 588 files, smoke:t1 at 6 of 6, smoke:t3 at 3 of 3 and the watcher gate at four subscribe call sites inside the eight path budget
 - 2026-08-26, Phase 63 SHIPPED on `0586263` at 0.77.0, the standing contract and the checkers that keep it honest; a fifth sidebar view lists the parts of a project and the promises between them and gives every promise one of four answers, being holds, broke, cannot be checked, or the thing it named is not there, with a broken one naming the file and the line and clicking it opening the editor; Draft writes the folders and opens the skeletons as unsaved buffers and Ask an agent copies a prompt into the ordinary new session sheet, so nothing here ever starts a process on a contract change alone and the process count was 12 before the gates and 12 after with every one of them his own Tortie or another application's crash handler; THREE DEFECTS BLOCKED IT and the third survived the first fix round, being an anchor matcher that turned `**` into `.*` and froze the main thread for over twelve seconds on a 26 character anchor a stranger can push, now a token scan whose cost is tokens times path length with the worst accepted anchor remeasured at 0.97 ms over all 2,151 tracked files, a Ctrl Shift A chord that was dead because the renderer's own keydown ladder swallowed the accelerator and a probe runner named in a comment that had never been written so the phase's own 220px proof had never been run, and a freshness walk that handed back the whole history as staleness so a contract written two minutes earlier read 169 commits behind, re-derived here over two real git repositories against `git rev-list --count` and now exact on both the committed and the never committed arm; the 220px estimate in research 49 section 9.6 is now a measurement, being a 219px header and a 93px unclipped title with the provenance glyph surviving and the word gone, all five readings out of one Electron; the charter's `menu.ts:573` and `repo-watcher.ts:52` were both wrong and the fix round's `:707` and `:92` are both right against the parent, which is how a verifier's two findings turned out to be measured against the wrong tree; ZERO npm packages added and README.md untouched, and the Zen carries one new section, two new refusals and one appended clause in exactly the words research 49 section 8.2 proposed; STILL NOT TRUE is that this repository ships no `docs/arch` of its own, that the Draft gesture creates three folders while its sentence names two, and that the resolver answers `external` for the bare name `electron` before any alias table is asked
+- 2026-08-26, Phase 157 QUEUED, imports resolve in Rust, Python and Ruby, from his ask naming ts, js, python, rust, go and ruby as the eighty twenty; TIER 3 because it claims to work across languages so the evidence is a per row matrix over REAL repositories rather than fixtures, with two independent methods one of which is an attack, and THE ATTACK IS THE FALSE GREEN rather than a crash, being a `must-not` promise that IS violated in a real repository proved to report as violated; IT COMES BEFORE THE HEADLESS WORK AND NOT AFTER, because the deterministic scaffold draws its boxes from the directory structure and its EDGES from imports that resolved, and in his herdr nothing resolves today so the scaffold there would be boxes and almost no promises and a model asked to enrich it would be rewriting from nothing; THE PHASE IS FAR SMALLER THAN IT SOUNDS and three facts read at `42c4a1e` are why, being that sixteen tree-sitter grammars ALREADY SHIP inside the signed bundle including rust, python and ruby so there are ZERO NEW PACKAGES, that Rust and Python ALREADY HAVE import queries in `src/main/symbols/queries.ts` so their imports are already found and parsed and only RESOLUTION is missing, and that Ruby has the grammar and no query so it costs one query plus one arm where the other two cost one arm each; each arm is a manifest reader, a set of path rules and a stated limit, being Cargo.toml with the four use shapes and the a.rs or a/mod.rs pair for Rust, pyproject or setup with the dotted and relative forms for Python, and Gemfile with require_relative resolving reliably while a bare require is a load path search the arm refuses to guess at; THE RULE THAT BINDS EVERY ARM is the one Phase 63's verifier was caught by, that an arm which cannot answer returns `unresolved` and NEVER `external`, because a wrong external produces a FALSE GREEN on a must-not promise the moment the count is repaired and three new arms can reintroduce that three times over; module level only, so does app import from layout is answerable and does app use layout::Foo is not, and a re-export chain resolves to the file that forwards rather than the one that defines
+- 2026-08-26, Phase 158 QUEUED, one way in and the model you already trust fills it, from his ruling that IT SHOULD NOT BE AN OPERATOR CHOICE TO PICK DETERMINISM OR NO DETERMINISM; THE FORK ITSELF IS THE DEFECT, because the empty state offers a deterministic skeleton and a prompt to paste at an agent and he pressed the second and it was bad; three things, being that `src/renderer/arch/seed-prompt.ts` and its button are DELETED which also removes the defect he found where `CANDIDATE_DOCS` is a module constant naming his personal AS-BUILT filename convention and TORTIE'S OWN AUDIT FILE so every repository on the machine was told to read a file that exists in one of them, that the already byte deterministic `src/main/arch/skeleton.ts` stops being one of two buttons and becomes what a project with no contract already has, and that a headless pass enriches it for the part determinism cannot do, being turning a `may` into a `must-not`, naming what a part is FOR and writing the gaps; THE MACHINERY IS REUSED RATHER THAN GROWN A SECOND TIME and `src/main/overview/fold/` is all of it, `spawn.ts` running a confirmed CLI as a one shot child through runGuarded and carrying Bound C that Tortie holds no API key and reaches no endpoint Tortie owns, `recipes.ts` the per agent argv table where every row carries the ISO date its flags were measured, `validate.ts` where an answer is refused WHOLE rather than trimmed, `scheduler.ts` for the settle window and the suspend after repeated failure, and `options.ts` where Settings builds the offer list IN MAIN by joining the merged agent table, the Phase 23 confirm gate and the compiled recipe table and shows a row with no recipe DISABLED with its reason; it ships OFF and stays off until he picks an agent and a project without one gets the skeleton and says so plainly; A REFUSAL IS CORRECTED HERE and it is a backlog line rather than shipped copy, because the Phase 63 and Phase 65 entries both say "Nothing about a source change, a verdict change or a freshness number ever starts an agent" which is STRICTER THAN THE SHIPPED ZEN whose line 137 allows a person's agent doing the work where they can see it, so the honest rule is that Tortie never starts a process from configuration alone and never one the person has not confirmed in Settings, leaving refusal 8 untouched because the confirm gate is exactly what it demands; the cheapest finding available is whether THE SKELETON IS ANY GOOD ON A REPOSITORY THAT IS NOT TORTIE, which nobody has ever read
+- 2026-08-26, Phase 159 QUEUED, a promise that drifted gets fixed where you can see it, taking the drift trigger and the change diff from Phase 65 after Phase 158 absorbed its drafting; the same headless pass composes a prompt naming ONLY what drifted rather than the whole contract, one keypress from the freshness ribbon and automatic under the same configured agent and the same gate; the session change diff is built from the verdict deltas the checker already computes and is driven over REAL verdict deltas across two real commits of this repository rather than a fixture; the standing instruction is one documented line in CLAUDE.md, which is the only agent facing document in this repository, saying that a session which finishes work touching contracted anchors updates `docs/arch/` in that same session; NO SECOND SPAWN PATH, NO SECOND VALIDATOR AND NO SECOND SCHEDULER, all of it is Phase 158's, and the process count is proved again at zero with no agent configured and exactly one with an agent configured because a freshness number changing must never start anything on its own account; Phase 65 is marked SUPERSEDED in place rather than deleted, with a note at its head saying to build 158 and 159 instead
