@@ -17707,6 +17707,123 @@ Pan and zoom over the level 1 and level 2 maps; a layout that stays where a pers
 - No flows rendering yet.
 - No export to file and no image copy; the map is a place, not an artifact.
 
+## Phase 163 — the app can explain its own time, memory and processes (audit 2026-08-26 P0, queued 2026-08-28)
+
+**Subject:** `feat(diagnostics): an on demand report explains cpu, memory, processes and cache`
+**First body line:** `Phase 163: the app explains itself`
+**Semver:** minor. A new surface, nothing existing changes.
+**Tier 2**, one app run and one named independent method, plus the audit's own five proof items. It spawns nothing new and holds no credentials; it reads process metrics on demand.
+**Charter:** this entry plus `docs/audits/2026-08-26-code-quality-memory-and-performance.md` sections P0 and P2 scale experiment. **Every number in that audit is a BASELINE TO REMEASURE, never a fact to inherit**: it was taken at `6507b5e` and the tree has moved by the whole visualization arc since.
+
+### What it builds
+
+One on demand diagnostics report and the scenario harness that drives it repeatedly, which are one piece of machinery: the report is a single capture, the harness is the same capture in a loop over the audit's profiles.
+
+- Process name, type and pid; CPU and PRIVATE memory for main, renderer, GPU and utility processes, with RSS retained only as the familiar secondary number, because the audit is right that macOS RSS lies.
+- Renderer V8 heap and Blink memory; live sessions, mounted terminal surfaces, windows, watchers and remote feeds; recent renderer long tasks and IPC rate.
+- Owned tmux and ssh helper count and memory SEPARATE from agent workloads, and this split is the reason the surface passes the parity guardrail: an agent CLI inside a pane is real workload and would exist in a plain terminal, and no generic tool can make that attribution.
+- Chromium cache, code cache and gmux durable data sizes; watcher drops, scheduled rescans and rescan completions, which is the observation Phase 151 left owed.
+- Startup milestones through `performance.mark`, from app ready through window shown, sessions listed, PATH ready and first attach, which today do not exist anywhere in the tree.
+
+### The refusals, from the audit's own exclusions and the Zen
+
+- ON DEMAND OR A BRIEF SAMPLED CAPTURE ONLY. No permanent dashboard, no heartbeat, no counter that rises on its own. The dashboard refusal survives because a person opens this when they have a question.
+- Heap snapshots are OPT IN artifacts behind their own explicit action, excluded from logs and ordinary reports, because they can carry paths and user text.
+- A copied report carries no project contents, no environment values and no command line secrets, proven rather than asserted.
+- No telemetry. The report is local and it is his.
+
+### Proof, run rather than read
+
+The audit's five: a capture on a zero session profile and a 25 session profile; every process `app.getAppMetrics()` shows is named or explicitly excluded; agent workloads visually separate from shell totals; opening and closing the surface leaves no timer, listener or process behind; the copied report scanned for secrets. Plus one independent method the verifier names, and the battery.
+
+### What is NOT in this phase
+
+No optimization of anything. This phase only makes the evidence exist. No always on collection, no network, no new packages.
+
+## Phase 164 — startup stops doing invisible work (audit P2, queued 2026-08-28)
+
+**Subject:** `perf(boot): git status and agent discovery wait for a surface that needs them`
+**First body line:** `Phase 164: invisible work moves to demand`
+**Semver:** patch.
+**Tier 2**, and the parent commit measurement is mandatory because the claims are measured behaviours. Blocked on Phase 163, whose milestones are the ruler.
+**Charter:** this entry plus audit section P2. Both call sites were verified against the tree on 2026-08-27: `src/renderer/app/Titlebar.tsx:353` fires `ensureStatus` for every open local project whenever the project list changes, and `src/main/sessions/core.ts:999` fire and forgets the full agent scan at boot.
+
+### What it builds
+
+One status request for the ACTIVE project promptly, other projects on selection intent or after the app settles; agent discovery runs from Create Session, Settings or another surface that needs the answer, behind the existing shared cache.
+
+### Proof
+
+The audit's five, measured with Phase 163's report: zero hidden project statuses in the first two seconds; zero agent version subprocesses in the first five seconds when reopening an existing terminal; Create Session and Settings still get one complete cached scan; switching projects never shows another project's status under the active identity; cold and warm first attach distributions do not regress, measured against the parent commit.
+
+### What is NOT in this phase
+
+No change to what status or discovery COMPUTE, only to when. No new cache. No removal of the boot warm for a genuinely first run where Create Session is the first screen, if measurement shows it is.
+
+## Phase 165 — the eager renderer splits (audit P1a, queued 2026-08-28)
+
+**Subject:** `perf(renderer): secondary surfaces load when opened`
+**First body line:** `Phase 165: the bundle diet`
+**Semver:** patch.
+**Tier 2.** Blocked on Phase 162, because the map's final shape and any vendored camera math must be inside the split, not churned after it.
+**Charter:** this entry plus audit P1. The audit's bundle numbers are STALE by design: it measured a 2026-08-25 build at 4.37 MB raw eager, and the entry chunk alone read 3.71 MB in Phase 63's battery and has since gained Phases 157, 64, 160 and 161. THE FIRST ACT IS A FRESH BASELINE AT HEAD with the real chunk graph written down.
+
+### What it builds
+
+Keep eager: window chrome, active project and session identity, the first terminal attach path with its xterm needs, and refusal and recovery surfaces that can be the first screen. Lazy or post paint prefetch: Overview, Architecture including the map tab, inactive sidebar subjects, editor only and diff only surfaces, modal families not needed during boot.
+
+### The budget rule, verbatim from the audit
+
+Acceptance begins at the existing budget, eager JavaScript under 2 MB raw and 500 KB gzip with warm DOMContentLoaded p95 under 200 ms over five runs. If evidence shows that budget is no longer compatible with required first paint, PUBLISH THE MEASURED REASON before revising it. The budget is never weakened only to make the gate green.
+
+### Proof
+
+The fresh baseline; the split; before and after chunk graphs; the p95; a drive proving every lazy surface still opens correctly the first time including offline; the probe containment gate still green; the battery.
+
+### What is NOT in this phase
+
+No behaviour change to any surface. No removal of anything. No budget revision without the published measured reason.
+
+## Phase 166 — the cache is attributed before it is bounded (audit P1b, queued 2026-08-28)
+
+**Subject:** `perf(cache): chromium cache growth gets an owner and a ceiling`
+**First body line:** `Phase 166: the cache gets attributed`
+**Semver:** patch.
+**Tier 2.** May run beside Phase 165: main process cache policy against renderer chunking, disjoint files.
+**Charter:** this entry plus audit P1 cache section. The audit measured 1.14 GB of Chromium cache against 69 MB of durable gmux data, and measured it during an unusually active day, so the growth rate is UNKNOWN and the first act is attribution, not deletion.
+
+### What it builds
+
+Attribution first: local file application resources across builds, gmux-asset project images through net.fetch, preview resources, code cache from changing hashed bundles, or another facility, with at least 90 percent of bytes attributed or the reason Chromium prevents it stated. Then the NARROWEST policy that fits what was found: response cache headers, a measured disk cache ceiling, or version aware retirement of obsolete entries.
+
+### The one absolute
+
+`userData/gmux` (the manifest, arch.db, snapshots, logs) is durable state and is NEVER a target. Proven by watching it across the policy's whole test run.
+
+### Proof
+
+The audit's five: the attribution table; twenty same version launches and five simulated version changes with cache use plateauing; a markdown document with large local images reopened with correctness, latency and memory before and after; offline images, editor resources and recovery screens still working; no path under gmux removed or rewritten. Plus the battery.
+
+### What is NOT in this phase
+
+No cache deletion before attribution. No touching durable data. No cleanup on a timer without a measured cost, which is the Phase 152 lesson.
+
+## Phase 167 — the app is attacked at scale and what leaks is fixed (audit P2 retained memory, queued 2026-08-28)
+
+**Subject:** `perf(memory): repeated cycles must plateau and what does not gets owned`
+**First body line:** `Phase 167: the scale attacks`
+**Semver:** patch, unless a found leak's fix earns more.
+**Tier 3, because what it finds it also fixes**, and fixes under memory pressure can touch session lifecycle. Blocked on Phase 163, whose harness is the instrument.
+**Charter:** this entry plus audit P2. The audit's regression rules are adopted as written: no resource count growth after a completed open and close cycle, no monotonic private memory growth across settled cycles, the 25 session profile gets a recorded p50 and p95 baseline before any optimization, hidden sessions do not retain mounted terminal surfaces, and a high one time allocation that plateaus is NOT a leak.
+
+### What it builds
+
+The audit's five scenario profiles driven by Phase 163's harness: launches at zero through fifty sessions, fifty project switches and SCM refreshes, fifty open and close cycles of Overview, Architecture, editor, diff and preview, repeated split, close and reattach, and remote disconnect, reconnect and quit while remote work is pending. Any retained upward slope earns a heap snapshot and an owner trace, and the fix ships in this phase with its own before and after.
+
+### What is NOT in this phase
+
+Restore All concurrency. The audit calls it the most behaviour sensitive optimization in the document and gates it on THIS phase proving Restore All is a material wait; if the data says so, it is queued as its own phase with the audit's reserve names, cap concurrency, journal per session shape, and if not, that is recorded and it is never built.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -17918,3 +18035,4 @@ cycle rather than only the evening it was written.
 - 2026-08-27, PHASE 160 AMENDED BEFORE ITS FIRST FILE WAS WRITTEN, the first run was stopped clean and relaunched on the new charter: the operator ruled the map does not live in the sidebar, in his words do not cram it all into the sidebar, it should open a new file-like tab and use as much interface space as possible, with controls and information in the pane that opens when you click Arch; so the sidebar pane is the cockpit, being the strip, the failure list, the outline and the control that opens the map tab, and the MAP IS A FULL SIZE TAB in the editor area found from the house pattern under src/renderer/editor and Catch Me Up's page; the ruling binds 161, whose drill happens in the tab with the pane scoping alongside, and 162, whose pan and zoom belong to the tab; separately RESEARCH 67 IS RUNNING on how the map gets drawn, being libraries, prior art and the feel of weight he described as almost like a CAD model but not necessarily 3d, SVG-first with the null result legitimate, feeding Phase 162 before it builds
 - 2026-08-27, RESEARCH 68 LANDED, how the Arch map gets drawn and how it moves, chartered as research 67 in the line above and renumbered at landing because 67 was already taken on disk by the teammate splits research: THE RULING FOR PHASE 162 IS STAY HAND WRITTEN SVG WITH ZERO NEW PACKAGES, the camera a single hand written `<g transform>` with two vendored ISC extracts in the Pierre pattern, being d3-zoom's zoom-toward-cursor algebra and interpolateZoom's van Wijk and Nuij fly-to path, and the map tab EXEMPTED from `--zoom-arch` with the panel zoom chord routed into the camera's own scale, the Monaco and Pierre precedent; the CSS zoom spike the Phase 162 entry carries as a precondition was RUN outside Electron and answered, React Flow 12.11.5 dragging a node 122.5 screen pixels for a 100 pixel gesture inside a zoom 1.25 region with zero currentCSSZoom handling upstream, while plain SVG under a moving camera measured vsync locked at 120 Hz at every scale the product can emit including the 40,000 mark matrix, so what remains for the phase is the re-measurement inside Electron 43 as its first act; @xyflow/react plus dagre is DEMOTED from research 49's admitted pair to priced fallback at about 97 KB gzip, @msagl/core moves from watch to reject, and the weight he asked for is six deterministic drawing devices on the existing token ladder, being elevation by luminance, cushion shading, the chamfer edge, the ISO line weight grammar, the poche wall and hatching for machine written code, the static ones already inside Phase 160 and 161's existing charters; the ruling REVISES the Phase 162 entry, being its CSS zoom spike precondition line, its two-package admission paragraph and its what-it-builds paragraph, with the exact replacement text in research 68 section 7, and those entry edits are left for the operator conversation rather than made here
 - 2026-08-27, Phase 160 SHIPPED on `9b8a667` at 0.80.0, the map without a contract; clicking Arch on any repository opens the cockpit and the map opens as a FULL SIZE TAB in the editor area, up to nine boxes sized by file count, styled by provenance, banded surface to foundation, edges thickened by import count, with a contract when present overlaying the person's names where its anchors hold a majority and verdict colour riding the judged edges worst first; THE COST MEASURED in the verifier's own app run on a cold profile, this repository at 2,195 tracked files and 9,527 imports drew its first picture 306 ms after the press with the pre-existing checker scan settling at 2.9 s behind it, 102 ms warm and about 25 ms on the channel, the herdr copy scanning cold in about 1.4 s with the map 12 ms behind; NO SECOND SCAN, scanArchImports stays the single scanner and a reopen produced zero progress events, zero map updates and an unchanged scannedAt; DETERMINISM, close and reopen drew byte identical SVG by sha256 and conformance:arch composes the model twice from shuffled facts; THE VERIFIER RE-DERIVED the herdr grouping and edges with its own parsers, its own Rust use and mod resolution with the Cargo patch.crates-io rule, its own JS, TS and Python resolvers and its own PageRank and fold, agreeing EXACTLY on all 9 boxes, every file count, band and provenance, and both aggregated edges at count 9, while this repository drew 7 boxes and 1 edge, build to src at 69; its five hostile repositories caught a no-commit repository pushing 615 map updates in 20 seconds, fixed at the source, and the first re-verify refused over the flat sentence showing whenever the grouping came back empty, so the second fix round made prefixAt keep a file's deepest available prefix, a repository of src and test now drawing two true boxes and only a truly flat repository being called flat, the second re-verify driving both defect cases in the built app and saying safe to commit; THE CHARTER CLAIM THAT WAS WRONG is that the skeleton groups any repository into 5 to 9 parts, whose low end was false, and fewer than five is now an accepted answer; zero new packages, no canvas, no WebGL, no pan, no zoom and no drill down yet, which are Phases 161 and 162, and one rebase conflict resolved by keeping the circuit board mark main gained mid phase on both Architecture rows
+- 2026-08-28, Phases 163 to 167 QUEUED, the performance round from docs/audits/2026-08-26-code-quality-memory-and-performance.md, whose premises were CHECKED against the tree before queueing and held, being Titlebar.tsx:353 really firing ensureStatus for every open project, sessions/core.ts:999 really warming the full agent scan at boot, performance.mark really absent, and the eager entry chunk really past the budget at 3.71 MB and grown since; 163 is the diagnostics report and scenario harness as ONE machinery, on demand only with the dashboard refusal intact, its parity pass earned by the one attribution no generic tool can make, being shell memory split from supervised agent memory, and it carries the watcher observation Phase 151 left owed; 164 moves the two verified invisible startup paths to demand, measured against the parent by 163's milestones; 165 splits the eager renderer AFTER Phase 162 so the map's final shape and any vendored camera math are inside the split, first act a fresh baseline at HEAD, and the 2 MB budget is never weakened without a published measured reason; 166 attributes the 1.14 GB Chromium cache before bounding it, gmux durable data never a target; 167 drives the audit's five scale profiles through 163's harness at Tier 3 and fixes what leaks, with Restore All concurrency NOT queued and gated on 167 proving it is a material wait; ORDER: 163 after the arch arc, then 164, then 165 beside 166, then 167, and EVERY audit number is a baseline to remeasure rather than a fact to inherit
