@@ -16849,7 +16849,9 @@ The two conditions research 49 owes and nothing has retired come due here as wel
 - Tortie still holds no key and still spends zero tokens.
 
 
-## Phase 66 — the canvas, and only if the earlier slices earned it (research 49 slice 4) QUEUED 2026-08-25, GATED
+## Phase 66 — the canvas, and only if the earlier slices earned it (research 49 slice 4) QUEUED 2026-08-25, GATED, SUPERSEDED 2026-08-27 BY PHASE 162
+
+**READ THIS FIRST.** On 2026-08-27 the operator ruled the visualization IS the product rather than a reward for using the promise features, so the usage number precondition below no longer matches the product intent and Phase 162 at the end of this file replaces this entry. The CSS zoom spike SURVIVES as an engineering precondition and Phase 162 carries it. Do not build this entry as written.
 
 **Subject:** `feat(arch): draw the map`
 **First body line:** `Phase 66: the canvas`
@@ -17490,7 +17492,9 @@ Each arm is three things and nothing more: a manifest reader, a set of path rule
 
 ---
 
-## Phase 158 — one way in, and the model you already trust fills it (operator asked 2026-08-26)
+## Phase 158 — one way in, and the model you already trust fills it (operator asked 2026-08-26) HELD 2026-08-27, BUILDS AFTER THE VISUALIZATION ARC
+
+**THE HOLD, in his words of 2026-08-27:** "Arch needs to be a high fidelity way of visualizing a codebase. While promises etc and drift may be useful down the road, the ideal user experience is to make it so that pane produces a view of the codebase in a way that allows someone to hold the mental model of it in their head." So Phases 160 to 162 build the map first and this phase follows them. TWO AMENDMENTS HE ALREADY MADE bind this entry when it builds: the pass writes `docs/arch/` DIRECTLY so the write lands as an ordinary uncommitted change in Source Control rather than unsaved buffers a person must save, and accepting a divergence becomes a BUTTON on the failing row that writes `baseline.json` rather than JSON a person hand edits. The decision stays the person's; the typing does not.
 
 **Subject:** `feat(arch): the contract drafts itself and a confirmed agent fills it in`
 **First body line:** `Phase 158: one path in`
@@ -17550,7 +17554,7 @@ The Phase 63 and Phase 65 entries both carry the words "Nothing about a source c
 
 ---
 
-## Phase 159 — a promise that drifted gets fixed where you can see it (operator asked 2026-08-26, replaces the drafting half of Phase 65)
+## Phase 159 — a promise that drifted gets fixed where you can see it (operator asked 2026-08-26, replaces the drafting half of Phase 65) HELD 2026-08-27, BUILDS AFTER PHASE 158
 
 **Subject:** `feat(arch): drift proposes its own repair`
 **First body line:** `Phase 159: the freshness loop`
@@ -17586,6 +17590,110 @@ The Phase 63 and Phase 65 entries both carry the words "Nothing about a source c
 - Tortie still holds no key and still spends zero tokens of its own.
 - The pass proposes and never commits.
 - No watcher may start an agent for a repository whose agent was never confirmed in Settings.
+
+## Phase 160 — the map of any repository, drawn the moment you open it (operator redirected 2026-08-27)
+
+**Subject:** `feat(arch): the pane draws the codebase with no contract needed`
+**First body line:** `Phase 160: the map without a contract`
+**Semver:** minor. The pane stops being empty for a repository with no `docs/arch/`.
+**Tier 2**, being a rendered surface, plus the Phase 152 lesson made mandatory: this computes a whole-repository map on open, so its COST IS MEASURED on his real repositories before it ships, and a number over a second on his largest repo is a defect. One app run driving every claim, one independent method named.
+**Charter:** this entry, plus his ruling of 2026-08-27: Arch is a high fidelity way of visualizing a codebase, so a person can hold the mental model in their head, understandable at a few levels of aggregation. Promises and drift are useful down the road and are NOT the product. Phases 63, 157 and 64 as shipped at `b0f8c6e` and `172af3c` are the substrate.
+
+### The reorientation, stated so no later round undoes it
+
+Research 49 framed the pane promises-first with the picture gated last. The operator inverted that on 2026-08-27: **the map is the product and the contract is annotation on it.** Nothing shipped is wasted, and the entry says exactly what is reused so the builder greps before writing:
+
+- **The level 1 aggregation exists.** `src/main/arch/skeleton.ts` already groups any repository into 5 to 9 parts deterministically: `groupTree` reads workspace declarations before raw tree depth, `rankGroups` is a personalised PageRank over the group import graph, `mergeToTarget` folds to `SKELETON_TARGET` of min 5 max 9. Today it only runs when a person asks for a draft contract. This phase runs it ALWAYS.
+- **The edges exist in six languages.** The resolver arms from Phases 63 and 157 turn imports into file-to-file edges for TS, JS, Go, Rust, Python and Ruby. The fact base the checkers read is the same one the map reads. NO SECOND SCAN.
+- **The provenance classifier exists** and fills the computable categories, being first party, vendored, generated and native.
+- **The drawing pattern exists.** `src/renderer/scm/graph/` is the house hand-written SVG: `layout.ts`, `geometry.ts`, `colors.ts`, a cap module, colocated CSS. Research 49 itself priced this pattern as the canvas fallback. ZERO NEW PACKAGES.
+
+### What the phase builds
+
+1. **The pane draws level 1 for ANY repository on open, contract or none.** Five to nine boxes from the skeleton's grouping, edges between them aggregated from the resolved file-to-file imports. No gesture, no draft step, no agent, zero tokens.
+2. **Weight is information.** A box's visual weight carries its file count; an edge's weight carries its import count; a box is styled by provenance. A mental model needs to know what is big, what is central and what leans on what, and a diagram whose boxes are all the same size answers none of that.
+3. **The contract, when present, overlays the same picture:** a person's part names replace computed ones where anchors match, and verdict colour rides the edges it judges. A promise is a coloured edge on the map, not a separate world.
+4. **Unresolved and unverifiable stay visible.** A part whose language cannot be resolved says so on its face, in the honest grey Phase 63 established. herdr before Phase 157 would have been one grey box; after it, a real map. Both states must draw.
+5. **The strip and the failure list stay.** The map joins the view above them; nothing shipped is removed.
+
+### Proof, run rather than read
+
+- One app run over THREE real repositories of different shapes, being this one, a copy of herdr, and one more the phase names: the map drawn, photographed, and the box and edge counts written down.
+- **THE COST, measured.** Time from opening the pane to the map drawn, on his largest repository, with the number in the commit body. The fact base is built by the checker path already; the map must not add a second scan, and the proof is that the scan count did not change.
+- **THE INDEPENDENT METHOD:** the verifier re-derives the level 1 grouping and the aggregated edge counts for one real repository BY ITS OWN METHOD, from the language rules rather than from the product code, and diffs against what the pane drew. Phase 157's verifier proved this method finds what nothing else does.
+- The overlay driven both ways: a repo with no contract draws computed names; the same repo with a contract draws the person's names and verdict colours on the same boxes.
+- The battery.
+
+### What is NOT in this phase
+
+- No pan, no zoom, no layout persistence, no drag. The picture is static and fits the pane. That is Phase 162.
+- No drill down. Clicking a box does nothing yet. That is Phase 161.
+- No new npm package. The SVG is hand written in the `scm/graph/` pattern.
+- No canvas element and no WebGL.
+- Nothing about this map starts a process, and no verdict changes. The checkers run exactly as they do today.
+- No count badge on any node; weight is size and colour, never a number pinned to a box. The dashboard refusal survives.
+- No removal of the contract, the checkers, the strip or the failure list.
+
+## Phase 161 — the map opens up, level by level (operator redirected 2026-08-27)
+
+**Subject:** `feat(arch): click a part and see inside it`
+**First body line:** `Phase 161: drill down and up`
+**Semver:** minor.
+**Tier 2.** One app run, one named independent method. Blocked on Phase 160.
+**Charter:** this entry, his 2026-08-27 ruling, and the Phase 64 level 2 machinery at `172af3c` whose caps and fallbacks are the researched numbers.
+
+### What it builds
+
+1. **Click a level 1 box and the pane shows that part alone:** its modules as level 2, with the SAME weight and provenance encoding, and the crossing edges to the rest of the repository kept at the frame so context is never lost.
+2. **Click a module and see its files**, the existing level 2 box list scoped to one module, with the same caps: 30 boxes, then the dependency matrix, then the two lists. The caps are Phase 64's researched numbers and they are REUSED, not rewritten.
+3. **A breadcrumb up**, so the level a person is at is always named and one click returns to the whole map.
+4. **The failure list and the strip scope with the drill**, so a person inside one part sees that part's verdicts.
+
+### Proof, run rather than read
+
+- One app run driving the whole ladder down and back up on a real repository, photographed at each level.
+- The caps driven past 30 and past 200 INSIDE a scoped part, proving the fallbacks fire scoped.
+- **THE INDEPENDENT METHOD:** the verifier re-derives the scoped edge set for one part by its own method and diffs it against what the pane drew, including the crossing edges at the frame.
+- The battery.
+
+### What is NOT in this phase
+
+- No pan, no zoom, no layout persistence. Still Phase 162.
+- No new npm package, no canvas element.
+- No level 3 flows rendering.
+- No search inside the map and no filter; the ladder is the navigation.
+
+## Phase 162 — the canvas, no longer gated on the promise features (operator redirected 2026-08-27, replaces Phase 66)
+
+**Subject:** `feat(arch): the map pans, zooms and keeps its shape`
+**First body line:** `Phase 162: the canvas`
+**Semver:** minor.
+**Tier 2**, per the old Phase 66 reasoning: a rendered surface whose only new state is layout positions in a disposable database whose loss costs a re-layout.
+**Charter:** this entry, the superseded Phase 66 entry above for its engineering content, research 49 sections 4.10 and 11, and his 2026-08-27 ruling which is what removed the usage gate.
+
+### What changed and what survives from Phase 66
+
+- **The usage number precondition is REMOVED.** It gated the picture on observed use of the promise features, and the operator ruled the picture is the product. Recording that here is what stops a later round re-adding the gate from research 49.
+- **The CSS zoom spike SURVIVES as an engineering precondition**, run first and written down before any canvas code exists. The priced fallback if it fails is hand written SVG in the `scm/graph/` pattern, which Phases 160 and 161 will by then have proven at two levels.
+- **The two-package admission survives as a QUESTION, not a decision.** If 160 and 161's hand written SVG already draws well, the honest outcome is ZERO new packages and this phase adds only pan, zoom and layout persistence to it. A package enters the signed bundle only if the spike proves the SVG cannot do the job, and the commit body carries the measurement either way.
+
+### What it builds
+
+Pan and zoom over the level 1 and level 2 maps; a layout that stays where a person left it, in a disposable database whose loss costs a re-layout; and smooth traversal between the levels Phase 161 built.
+
+### Proof, run rather than read
+
+- The zoom spike's result written down first.
+- One app run driving pan, zoom, drill and restore of a kept layout.
+- The independent method per the old Phase 66 entry: the package admission, or the zero-package finding, re-derived by a different means than the builder used.
+- The battery.
+
+### What is NOT in this phase
+
+- The CSP does not move.
+- No third party code executes in any Tortie process; a rendering package, if admitted, is vendored code compiled into the bundle like Monaco and Pierre, and the Phase 23 refusals are untouched.
+- No flows rendering yet.
+- No export to file and no image copy; the map is a place, not an artifact.
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -17794,3 +17902,4 @@ cycle rather than only the evening it was written.
 - 2026-08-26, Phase 159 QUEUED, a promise that drifted gets fixed where you can see it, taking the drift trigger and the change diff from Phase 65 after Phase 158 absorbed its drafting; the same headless pass composes a prompt naming ONLY what drifted rather than the whole contract, one keypress from the freshness ribbon and automatic under the same configured agent and the same gate; the session change diff is built from the verdict deltas the checker already computes and is driven over REAL verdict deltas across two real commits of this repository rather than a fixture; the standing instruction is one documented line in CLAUDE.md, which is the only agent facing document in this repository, saying that a session which finishes work touching contracted anchors updates `docs/arch/` in that same session; NO SECOND SPAWN PATH, NO SECOND VALIDATOR AND NO SECOND SCHEDULER, all of it is Phase 158's, and the process count is proved again at zero with no agent configured and exactly one with an agent configured because a freshness number changing must never start anything on its own account; Phase 65 is marked SUPERSEDED in place rather than deleted, with a note at its head saying to build 158 and 159 instead
 - 2026-08-27, Phase 157 SHIPPED on `b0f8c6e` at 0.78.0, imports resolve in Rust, Python and Ruby; three arms ship and the unverifiable column is EMPTY for everything this build parses, where Rust and Python were captured and refused and Ruby was not read at all; THE PER ROW MATRIX IS OVER REAL REPOSITORIES rather than fixtures, being herdr at 6e8b138d with 1,889 imports and 633 first party, deadreckon with 2,762 and 1,037, lift-sys at ff1f696 with 2,826 and 1,718, HOMEBREW ITSELF at ac9e7acf4e with 28,565 and 14,380, rubocop with 995 and 797, and whitequark/parser with 147 and 121, and every single external answer is accounted for by a real manifest, by the interpreter's own stdlib list or by rubygems on this machine, with ZERO unjustified; THE ATTACK WAS THE FALSE GREEN AND IT FIRED TWICE, first on the fact base where a must-not that IS violated read CONVERGENT at the parent in both herdr and lift-sys and reads divergent now, because the extractor DROPPED any specifier over 512 characters and nine of herdr's use lines are longer, and because the Python query captured the module name alone so `from .routes import auth` recorded the package and lost the file, and second on the resolver where arms rigged to answer external instead of unresolved turned an honest unverifiable GREEN in herdr and in Homebrew and the shipped arms refuse to; ZERO NEW NPM PACKAGES, being 27 and 22 dependencies and 680 lockfile entries before and after with an empty set difference both ways, though the SIGNED BUNDLE grew 2.0 MB because it carried six grammars and not sixteen and Ruby had to be added to electron-builder.yml, which the charter had wrong; the charter also carried a retired Phase 63 finding at a line number that holds something else, so the gate now cross checks RESOLVER_MATRIX against what resolveImport really answers; the committer found FOUR MEASUREMENTS IN SHIPPED COMMENTS THAT NO LONGER REPRODUCED because they were taken before the fix round, re-derived every one and corrected them in the same commit; the whole battery green including smoke:t3 and conformance:arch
 - 2026-08-27, Phase 64 SHIPPED on `172af3c` at 0.79.0, the aiming verb, so a person can point an agent at a promise; Control Shift P inside a session opens a native list of the project's promises and puts the one he picks into that session's prompt UNSENT, being the parts, the files their anchors resolve to at HEAD, the interior edges, the crossing edges marked as crossing, every current verdict including the contradictions and the freshness sentence, with the same row on the Session menu next to Resume Conversation because it opens no view; THE PER AGENT PASTE MATRIX IS ELEVEN ROWS OVER REAL BINARIES on a scratch socket with fourteen marked lines, every marker's OCCURRENCES counted so a block arriving twice is a verdict and arrival ORDER checked, being claude, codex, gemini, muse, qwen, pi and grok WHOLE, cursor WINDOWED with lines 9 to 14 on screen and the rest scrolled above, deepseek RUN-ON with three rows carrying more than one line so the breaks are dropped, antigravity BLOCKED with a screen that never changed, and droid NOT INSTALLED on this Mac which is a row that says so rather than a row quietly skipped; nothing submitted early anywhere, which was the real risk because xterm turns every newline into a carriage return BEFORE it wraps and a bare carriage return submits on 6 of 10 agents outside bracketed paste; THE FIRST BUILD'S THREE LINE PRESENCE CHECK WAS WRONG ABOUT TWO AGENTS, calling deepseek whole because a substring survives concatenation and never reaching the length at which claude collapses the block into a chip, so the classifier is now a pure module unit tested against the real screens both agents drew; THE INSERTION PATH IS A RULING AND RESEARCH 49 GUESSED WRONG, since load-buffer with paste-buffer appears in this repository's source at exactly one place and it is a REFUSAL in a comment rather than an implementation, so the send is the renderer's own drop path which brings bracketing that tracks the pane's real mode, the noteTerminalInput call that keeps his own input from raising needs input, the copy mode cancel and the Phase 67 unknown refusal for free, and no new IPC channel was needed; THE NEGATIVE CONTROL WAS REAL ONLY ON THE SECOND TRY, because the builder's own test compared a session in the slice against one that was not while NO TERMINAL WAS REGISTERED AT ALL so the paste could never have landed either way, and the verifier registered a live fake terminal under a FOREIGN id then deleted the body of `canDeliverTo`, the foreign pane accepting the exact bytes with the guard gone and refusing with it intact, restored at md5 2e984590646a7c1f4c3bad1b6e843a00 and picker.ts at ea484b7670e04bdee1c1111632268311, both re-derived by the committer before the commit; TWO GRADES, everything computed at HEAD always ships and authored prose ships only under 20 commits behind, above which one line says N commits have landed since the contract last changed so Tortie will not present it as current, and every quoted line carries `from docs/arch, unverified` in the same line; BOTH LEVEL 2 FALLBACKS FIRE AT THE EXACT BOUNDARY, 30 files drawing boxes and 31 falling to the matrix, 200 participants drawing the matrix and 201 falling to the two ranked lists, with a part of 400 files where only 90 take part still drawing a matrix which proves the second cap counts participants and not files, and the keys of a drawn box pinned at broke, language and path because no count badge on any node is a refusal one line could undo; THREE CHARTER PATHS WERE WRONG, being `src/main/agents/registry.ts` named as where the launch restriction is read when the phase touches that file not at all and the load bearing condition is membership in the sessions slice, `remote-capsule.ts:20` called the remote path when the line number is right and it is a refusal comment, and `src/shared/ipc/arch.ts` said to gain arch:modules when the module view took its own domain file, while INTER_PASTE_MS at 80 and MAX_REFERENCES at 8 were both checked and correct; the verifier returned needs_work on six things the builders never did and cleared two first run trust gates the harness had refused, which is the only reason codex and deepseek have rows; ZERO npm packages added, one app run raising 1 native menu with 0 drawn in the DOM and 0 DOM nodes added, and his own tmux server holding 41 sessions before that run and 41 after; STILL NOT TRUE is that deepseek receives the block as one paragraph with its line breaks gone, that antigravity took the block at all in this measurement, that cursor shows more than the tail of a long block, and that anything here says what droid would do
+- 2026-08-27, THE ARCH REDIRECT, in his words: Arch needs to be a high fidelity way of visualizing a codebase, so a person can hold the mental model in their head, understandable at a few levels of aggregation, with promises and drift useful down the road; THE ORDER CHANGES AND THE SCOPE DOES NOT, in his own follow up: the foundation for the map IS important and the issues dealt with so far are not ignored, they are deferred and still owed; so Phases 160, 161 and 162 are QUEUED as the visualization arc, being the map of any repository drawn on open with no contract needed and weight carrying file and import counts, then drill down and up with Phase 64's caps reused scoped, then the canvas with pan and zoom whose USAGE GATE IS REMOVED because he ruled the picture is the product while the CSS zoom spike survives as an engineering precondition; Phase 66 is SUPERSEDED in place by 162, and Phases 158 and 159 are HELD rather than dropped, building after the arc with his two amendments recorded on 158, being that the pass writes docs/arch directly so it lands in Source Control and that accepting a divergence becomes a button; THE FOUNDATION DEBTS STAY OWED and live where they were recorded, being the deepseek newline swallowing and the antigravity row honesty from Phase 64's verification, the electron alias external shape from Phase 63's re-verify notes, and the held headless enrichment itself; nothing shipped is removed and the map reads the SAME fact base the checkers read, no second scan
