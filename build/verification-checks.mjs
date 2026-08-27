@@ -124,6 +124,7 @@ export const CHECKS = [
   pure('conformance:context'),
   pure('conformance:overview'),
   pure('conformance:arch'),
+  pure('conformance:arch:modules'),
   pure('conformance:watcher'),
   pure('conformance:handback'),
   adapter(
@@ -264,6 +265,30 @@ export const CHECKS = [
   electron('probe:p149'),
   electron('probe:p150'),
   electron('probe:p156'),
+  // PHASE 64. The multi line paste matrix. It is an Electron harness like the
+  // rows around it, and two things about it are unlike them and are stated
+  // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this
+  // machine, one session at a time, so it needs whatever those binaries need,
+  // which for several of them is a credential the operator has already signed
+  // in with. And it NEVER SKIPS A ROW: an agent that is not on PATH produces a
+  // row saying so, because a quietly missing row would make the denominator a
+  // fiction, which is the charter's own instruction.
+  electron(
+    'probe:p64',
+    NEEDS.electron +
+      ', plus the real agent CLIs installed on this machine and whatever ' +
+      'credential each already holds; it spawns them, and it never moves, ' +
+      'installs or removes one',
+    'never skips, and no ROW skips either: an agent that is not installed is ' +
+      'a row that says so. The Electron and the scratch tmux server are ended ' +
+      'in a finally block, and every session it made is killed in one too'
+  ),
+  // PHASE 64's FIX ROUND. The app run the phase owed. It opens ONE window,
+  // writes a small repository of its own and drives the level 2 module view
+  // over it through the real `arch:modules` channel, then presses the real
+  // picker chord with the native menu bridge wrapped so the rows it would have
+  // drawn are readable. It creates no session and spawns no agent.
+  electron('probe:p64arch'),
   electron('probe:shellpath'),
   electron('probe:p101shot'),
   electron('probe:p102shot'),

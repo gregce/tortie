@@ -80,6 +80,61 @@ export function canInsert(sessionId: string): boolean {
   return getTerminal(sessionId) !== null || window.gmux?.term !== undefined;
 }
 
+/**
+ * ONE bracketed paste of one block, for a programmatic caller (Phase 64).
+ *
+ * The one-paste-per-file rule above governs REFERENCES, being paths that an
+ * agent turns into attachment chips, and it is why `insertReferences` loops.
+ * A composed block is not that. It is prose that happens to contain paths and
+ * it is meant to read as literal text, so codex degrading prose-plus-path to
+ * literal text is the outcome that is wanted here rather than a defect.
+ * Chunking it would put the block into the prompt in pieces that an agent's
+ * line editor is free to reorder, so it goes in one call and neither
+ * INTER_PASTE_MS nor MAX_REFERENCES applies to it.
+ *
+ * IT REFUSES A PANE WITH NO LIVE TERMINAL rather than falling back to
+ * `sendDirect`. The fallback exists for programmatic callers and this is one,
+ * so the refusal is a decision rather than an inheritance: `sendDirect` writes
+ * through the bridge and therefore around the Phase 67 guard that drops
+ * everything while a session reads `unknown`, and a block of text that reaches
+ * an agent Tortie could not see the state of is exactly what this phase must
+ * not do. A pane with no registered terminal is also a pane that is not on
+ * screen, because TerminalHost mounts one only for a visible session, so the
+ * refusal costs a person nothing they can see.
+ *
+ * Newlines: xterm replaces every `\r?\n` with a CR before it wraps the text
+ * in the brackets (verified in this tree at node_modules/@xterm/xterm/lib/
+ * xterm.js module 7861, `i(e){return e.replace(/\r?\n/g,"\r")}`). An agent
+ * that honours bracketed paste treats that CR as a line break. An agent that
+ * does not honour it submits, which is why the caller measures per agent.
+ *
+ * IT DELIBERATELY DOES NOT READ `AgentImageDrop.insert`, and the fix round
+ * settled this rather than leaving it to look like an oversight. That field
+ * has one non default value in the whole registry, `type` for antigravity,
+ * because a bracketed PATH opens a completion popup there that swallows the
+ * next keystroke. `insertReferences` below honours it and is right to.
+ *
+ * A composed block is the opposite case on both counts. Phase 64's charter
+ * refuses typed keystrokes for the payload outright, and the measurement says
+ * the same thing: typing a block means writing its embedded carriage returns
+ * as keystrokes, and a bare CR submits the prompt on six of the ten agents
+ * `src/shared/agent-defaults.ts` measured. Typing a fourteen line block at an
+ * agent would start fourteen turns nobody asked for. So the one paste is the
+ * only shape this may take, and an agent that mishandles it is a ROW IN THE
+ * MATRIX rather than a branch here. deepseek is that row: measured 2026-08-27,
+ * it takes every line, once and in order, and drops every line break, so a
+ * payload arrives there as one paragraph. Typing would not have fixed that and
+ * would have submitted it.
+ */
+export function insertBlock(sessionId: string, text: string): boolean {
+  if (text.length === 0) return false;
+  const term = getTerminal(sessionId);
+  if (term === null) return false;
+  term.focus();
+  term.paste(text);
+  return true;
+}
+
 /** Insert already-escaped reference text, one paste per reference. */
 export async function insertReferences(
   sessionId: string,

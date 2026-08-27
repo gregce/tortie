@@ -47,6 +47,11 @@ const ARMS = [
   'show-context',
   // Phase 63. View > Architecture, the fifth sidebar view, above Catch Me Up.
   'show-arch',
+  // Phase 64. Session > Aim at a Promise…, beside Resume Conversation. It is
+  // in this list rather than with the view rows because it opens no view: it
+  // puts a composed block into the prompt of the session in front of the
+  // person. It sits here in source order, which is beside 'show-arch'.
+  'arch-aim',
   // Phase 137. View > Catch Me Up, last, under the five sidebar views.
   'show-overview',
   'show-search',
@@ -60,7 +65,7 @@ const ARMS = [
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 34 actions and no more', () => {
+  it('answers all 35 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

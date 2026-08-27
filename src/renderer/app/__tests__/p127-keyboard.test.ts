@@ -49,22 +49,30 @@ describe('the listener contract', () => {
   });
 });
 
-describe('every Ctrl+Shift view chord has a renderer branch (Phase 63)', () => {
+describe('every Ctrl+Shift letter chord has a renderer branch (Phase 63)', () => {
   /**
-   * WHY THIS TEST EXISTS. A view chord that lives only as a native accelerator
-   * does not fire, because this ladder runs first and its preventDefault
-   * suppresses the application menu, which is the measurement recorded at
+   * WHY THIS TEST EXISTS. A chord that lives only as a native accelerator does
+   * not fire, because this ladder runs first and its preventDefault suppresses
+   * the application menu, which is the measurement recorded at
    * src/renderer/terminal/keys/index.ts:10-15. Phase 22 shipped the Context
    * view without a branch and Phase 60 had to repair it. Phase 63 shipped the
    * Architecture view the same way, with a comment in menu-actions.ts naming a
    * branch that was not there. So the list is derived from the keymap rather
-   * than written down here, and a sixth view added tomorrow fails this test
-   * until it has a branch.
+   * than written down here, and a chord added tomorrow fails this test until it
+   * has a branch.
+   *
+   * PHASE 64 WIDENED IT FROM VIEW CHORDS TO ALL OF THEM. ⌃⇧P opens no view: it
+   * raises the aiming picker over the session the person is in. The failure
+   * this test exists to catch has nothing to do with views, so the second entry
+   * in each row is now the distinctive line of the branch rather than a view
+   * name, and the accelerator-is-swallowed rule now covers every chord in the
+   * family instead of three of them.
    */
   const CHORDS: Array<[string, string]> = [
-    ['g', 'scm'],
-    ['c', 'context'],
-    ['a', 'arch']
+    ['g', "showViewAction('scm')"],
+    ['c', "showViewAction('context')"],
+    ['a', "showViewAction('arch')"],
+    ['p', 'void openAimPicker();']
   ];
 
   it('names every Ctrl+Shift chord the keymap declares', () => {
@@ -74,12 +82,39 @@ describe('every Ctrl+Shift view chord has a renderer branch (Phase 63)', () => {
     expect([...declared].sort()).toEqual(CHORDS.map(([key]) => key).sort());
   });
 
-  it('handles each of them in the ladder, and routes it to its own view', () => {
-    for (const [key, view] of CHORDS) {
+  it('handles each of them in the ladder, and routes it to its own verb', () => {
+    for (const [key, body] of CHORDS) {
       expect(source, `no keydown branch for Ctrl+Shift+${key.toUpperCase()}`).toContain(
         `e.key.toLowerCase() === '${key}'`
       );
-      expect(source).toContain(`showViewAction('${view}')`);
+      expect(source).toContain(body);
+    }
+  });
+
+  /**
+   * THE ONE CHORD IN THE FAMILY THAT REFUSES BEHIND A SHEET.
+   *
+   * The Phase 64 integrator found the two paths disagreeing. The Session menu
+   * row for the aiming verb returns early while a modal layer is open, and the
+   * chord did not, so ⌃⇧P behind the create sheet or the Catch Me Up page
+   * would raise a native menu over it and type a composed block into a session
+   * the person could not see. Both files say in their own comments that the row
+   * and the chord run the same body, and this is what makes that true.
+   *
+   * The three view chords are deliberately NOT guarded. Toggling a sidebar view
+   * behind a sheet costs nothing, and the guard exists because this one types.
+   */
+  it('swallows only the typing chord while a layer holds the keyboard', () => {
+    const branchAt = source.indexOf("e.key.toLowerCase() === 'p'");
+    expect(branchAt).toBeGreaterThan(-1);
+    const branch = source.slice(branchAt, source.indexOf('}', source.indexOf('openAimPicker', branchAt)));
+    expect(branch).toContain('if (focusChordSwallowed()) return;');
+    for (const key of ['g', 'c', 'a']) {
+      const at = source.indexOf(`e.key.toLowerCase() === '${key}'`);
+      const view = source.slice(at, source.indexOf('showViewAction', at) + 40);
+      expect(view, `Ctrl+Shift+${key} should not have grown a guard`).not.toContain(
+        'focusChordSwallowed()'
+      );
     }
   });
 });

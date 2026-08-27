@@ -177,6 +177,13 @@ import type {
 export * from './base';
 export * from './app';
 export * from './arch';
+// Phase 64. `arch:modules` answers with the computed level 2 view, and its
+// shapes and its three caps live in their own domain file because the arch
+// contract file was already long. It is re-exported HERE, through the same
+// door as every other domain, so `@shared/ipc` stays the one import every
+// consumer writes. A file under src/shared/ipc/ still names it directly,
+// which is what `./arch` does to fold the channel into its own map.
+export * from './arch-modules';
 export * from './actions';
 export * from './agents';
 export * from './context';

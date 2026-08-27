@@ -303,12 +303,68 @@ describe('the refusals, kept executable rather than only written down', () => {
     );
   });
 
-  it('sends nothing to a session: that verb belongs to a later slice', () => {
+  /**
+   * PHASE 64 REWROTE THIS TEST DELIBERATELY, AND DID NOT DELETE IT.
+   *
+   * Phase 63 wrote it as "sends nothing to a session: that verb belongs to a
+   * later slice", scanning for three strings. Phase 64 IS that later slice, so
+   * one third of it had to change and two thirds became stronger rather than
+   * weaker.
+   *
+   * `load-buffer` and `paste-buffer` stay forbidden FOREVER, and that is now a
+   * ruling rather than a deferral. Research 49 guessed that insertion would go
+   * through them. It does not, and it never will from this folder. They appear
+   * in this repository at exactly one place, `src/main/machines/
+   * remote-capsule.ts`, and there they are REFUSED, because bytes pasted into a
+   * pane arrive as pane input and a shell executes them.
+   *
+   * `sendInput` is replaced rather than dropped. The old line banned every
+   * write; the new one bans every write that does not go through the one door.
+   * `../deliver.ts` may reach the drop module's own primitive and no other file
+   * here may write to a session at all, so a later round that adds a second
+   * send has to add it to a file this test names.
+   */
+  it('sends to a session only through the one guarded door', () => {
     for (const f of files) {
       const code = f.text.replace(/\/\*[\s\S]*?\*\//g, '');
-      expect(code, f.name).not.toContain('sendInput');
+      // The tmux paste path, refused for good.
       expect(code, f.name).not.toContain('load-buffer');
       expect(code, f.name).not.toContain('paste-buffer');
+      // The bridge write that goes around the Phase 67 `unknown` refusal.
+      expect(code, f.name).not.toContain('sendInput');
+      if (f.name === 'deliver.ts') continue;
+      // Nothing else in this folder may put bytes into a session by any name.
+      expect(code, f.name).not.toContain('insertBlock');
+      expect(code, f.name).not.toContain('insertReferences');
+      expect(code, f.name).not.toContain('.paste(');
+    }
+  });
+
+  it('keeps the delivery guard in one file, so there is one thing to remove', () => {
+    const guarded = files.filter((f) =>
+      f.text.replace(/\/\*[\s\S]*?\*\//g, '').includes('export function canDeliverTo')
+    );
+    expect(guarded.map((f) => f.name)).toEqual(['deliver.ts']);
+  });
+
+  it('draws no menu in the DOM: the picker composes a spec and nothing else', () => {
+    const picker = files.find((f) => f.name === 'picker.ts');
+    expect(picker).toBeDefined();
+    const code = (picker?.text ?? '').replace(/\/\*[\s\S]*?\*\//g, '');
+    // It reaches the store's setMenu, the one door on to ui:popupMenu.
+    expect(code).toContain('setMenu(');
+    // And it renders nothing itself.
+    expect(code).not.toContain('createElement');
+    expect(code).not.toContain('<div');
+    expect(code).not.toContain('document.createElement');
+  });
+
+  it('never presses Return for the person', () => {
+    for (const f of files) {
+      const code = f.text.replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(code, f.name).not.toContain("'Enter'");
+      expect(code, f.name).not.toContain('\\r');
+      expect(code, f.name).not.toContain('send-keys');
     }
   });
 });

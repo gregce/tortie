@@ -840,6 +840,35 @@ export const KEYMAP = [
     menuAction: 'show-arch'
   },
   {
+    // Phase 64, the aiming verb. ⌃⇧P joins the ⌃⇧ family the view chords
+    // already use, and it is free: ⌃⇧A, ⌃⇧C and ⌃⇧G are the three views, and
+    // ⌃⇧Tab and ⌃Tab are the project cycle. ⇧⌘P is deliberately left alone for
+    // the third time in this file: DESIGN.md section 4 spends the ⇧⌘ letters on
+    // per agent hotkeys a person records themselves, and a built-in there makes
+    // a recordable chord un-recordable.
+    //
+    // IT IS IN THE SESSION GROUP RATHER THAN THE VIEWS GROUP, because it opens
+    // no view and changes none. It puts a block of text into the prompt of the
+    // session the person is already looking at, which is what Resume
+    // Conversation does, and the Session menu is where that lives.
+    //
+    // THE `menuAction` IS ON THE ROW FROM THE FIRST DAY. Context's Phase 22
+    // build left it off and Phase 60 repaired it thirty-eight phases later,
+    // Phase 63 wrote the warning down, and this is the third time it has been
+    // said. One field, written once, is what stops the menu row and the chord
+    // ever drifting apart.
+    id: 'session.aim',
+    keys: [k('Ctrl+Shift+P')],
+    action: 'Aim at a promise',
+    explain:
+      'Opens the list of things this project promises about its own shape and puts the one you pick into this session’s prompt, as plain text naming the parts, the files they cover, how they are allowed to touch and which promises broke. Nothing is sent until you press Return.',
+    group: 'sessions',
+    scope: 'app',
+    assignable: false,
+    source: 'built-in',
+    menuAction: 'arch-aim'
+  },
+  {
     // Phase 137 took ⌃⇧U, because cursor's defaultHotkeyHint was 'u' and a
     // built-in ⇧⌘U would have made the suggested cursor hotkey un-recordable.
     // Phase 137.1 moved cursor's hint to 's' (the next free letter in the

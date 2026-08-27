@@ -8,7 +8,7 @@
  *
  *     await disposeArchIpc();
  *
- * Three channels, and what is NOT here is the point.
+ * Five channels since Phase 64, and what is NOT here is the point.
  *
  * There is no channel that writes `docs/arch/`. The skeleton channel drafts
  * bytes and hands them back for unsaved editor buffers, so recording a contract
@@ -36,6 +36,8 @@
 import type { IpcMain } from 'electron';
 import type {
   ArchCheckResult,
+  ArchComposePayloadInput,
+  ArchComposePayloadResult,
   ArchDraftFile,
   ArchLoadResult,
   ArchRepoInput,
@@ -66,9 +68,11 @@ import {
   keepLastValid,
   loadArchDocument
 } from './load';
+import { readArchModules } from './modules';
 import { gatherFacts } from './run';
 import { scanArchImports } from './scan';
 import { draftSkeleton as draftSkeletonBuffers } from './skeleton';
+import { composeArchPayload } from './payload';
 import { readArchManifests } from './resolver/manifest';
 import {
   ARCH_PROGRESS_THROTTLE_MS,
@@ -132,6 +136,20 @@ export function registerArchIpc(ipc: IpcMain): void {
     } satisfies ArchCheckResult;
   });
   handle(ipc, 'arch:skeleton', async (_event, input) => draftSkeleton(input));
+  // The composed scope (Phase 64). It composes text and hands it back. It
+  // writes nothing, it starts no check, and IT TAKES NO SESSION ID: this
+  // directory cannot name `main/manifest/`, so it could not decide where a
+  // block goes even if it wanted to. That decision is the renderer's one
+  // guard.
+  handle(ipc, 'arch:composePayload', async (_event, input) =>
+    composePayload(input)
+  );
+  // The computed level 2 view (Phase 64). It runs no checker, writes nothing
+  // to the database and composes no sixth argv: the one git call it makes is
+  // `lsFilesCall()`, which is already one of the five in ./argv-guard.ts.
+  handle(ipc, 'arch:modules', async (_event, input) =>
+    readArchModules({ ...input, store: archStore() })
+  );
 }
 
 /**
@@ -405,6 +423,59 @@ function publishProgress(repoPath: string, done: number, total: number): void {
   if (done < total && now - last < ARCH_PROGRESS_THROTTLE_MS) return;
   lastProgressAt.set(repoPath, now);
   broadcastEvent(EVT_ARCH_PROGRESS, { cwd: repoPath, done, total });
+}
+
+// ---------------------------------------------------------------------------
+// The composed scope
+// ---------------------------------------------------------------------------
+
+/**
+ * Compose one scope and hand back the bytes.
+ *
+ * IT DELIBERATELY DOES NOT GO THROUGH `readArch`. That function arms the watch
+ * and schedules the launch catch up check, which is right when a person opens
+ * the view and wrong when they press a chord inside a session: composing a
+ * block is not a reason to start a git run. So this reads the contract, asks
+ * for the tracked file list with the one fixed argv the anchors are matched
+ * against, and takes everything else from what the last completed check
+ * already wrote.
+ *
+ * The verdicts it carries are therefore as fresh as the last check and no
+ * fresher, which is the same thing the view is drawing at that moment, and the
+ * block says which commit they were computed at.
+ */
+async function composePayload(
+  input: ArchComposePayloadInput
+): Promise<ArchComposePayloadResult> {
+  const repoPath = input.cwd;
+  const document = keepLastValid(
+    lastValid.get(repoPath) ?? null,
+    await loadArchDocument(createArchFileSystem(repoPath))
+  );
+  const db = archStore();
+  const repoKey = archRepoKey(repoPath);
+  const state = db.repoState(repoKey);
+  const listed = await createArchGitRunner(repoPath).run(lsFilesCall());
+  const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
+  const block = composeArchPayload({
+    // The repository's own folder name, never a path. A block is read by an
+    // agent whose working directory is already the repository, and on a
+    // session running on another machine a local absolute path names nothing.
+    repoName:
+      repoPath.split('/').filter((part) => part.length > 0).pop() ?? repoPath,
+    document,
+    trackedFiles,
+    verdicts: db.verdicts(repoKey),
+    freshness: db.freshness(repoKey),
+    counts: state.counts ?? emptyCounts(),
+    checkedAtCommit: state.checkedAtCommit,
+    selection: {
+      componentIds: input.componentIds,
+      gapIds: input.gapIds,
+      verdictIds: input.verdictIds
+    }
+  });
+  return { cwd: repoPath, ...block };
 }
 
 // ---------------------------------------------------------------------------

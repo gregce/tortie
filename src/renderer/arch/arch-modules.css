@@ -1,0 +1,280 @@
+/* The computed level 2 module view (Phase 64).
+ *
+ * EVERY COLOUR IS A TOKEN. There is not one literal in this file. It spends the
+ * same three status tokens `arch.css` does, being --error for a file that broke
+ * a promise and --text-muted for everything the view is not claiming anything
+ * about, and it spends NO AMBER, because that hue belongs to "an agent needs
+ * you" and nothing on this surface is that.
+ *
+ * COLOUR IS NEVER THE ONLY CHANNEL. A file that broke a promise carries a
+ * codicon and the word "broke" beside its colour, exactly as the failure list
+ * above it does, so this section reads the same in greyscale.
+ *
+ * NOTHING MOVES. No transition, no animation, no transform. A drawing that
+ * settles into place while a person is reading it is the interruption the whole
+ * view is built against.
+ *
+ * THE 220px MINIMUM IS THE ONE THAT HAS TO WORK, because that is the sidebar's
+ * floor in styles/app.css. Nothing here has a fixed width except the matrix
+ * cell, and the matrix is the one thing that may be wider than the panel: it
+ * scrolls sideways INSIDE ITS OWN BOX so the panel itself never does.
+ *
+ * THE MATRIX IS SPARSE ON PURPOSE. The grid is declared with as many columns as
+ * there are participating files, and only the marks are elements, placed by
+ * grid-column and grid-row. A 200 by 200 matrix is therefore a few hundred
+ * nodes rather than forty thousand. */
+
+.arch-modules {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.arch-modules-body {
+  min-width: 0;
+}
+
+/* Everything countable, said once, under the drawing. This is where the
+   refusal of a count badge on a node is paid for. */
+.arch-modules-sentences {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-5) 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.arch-modules-failed {
+  padding: var(--space-2) var(--space-5);
+  color: var(--error);
+}
+
+/* -- grade one: one box per file ----------------------------------------- */
+
+.arch-modules-boxes {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.arch-modules-boxes > li {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.arch-module-box {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-5);
+  color: var(--text-secondary);
+  text-align: left;
+  min-width: 0;
+}
+
+.arch-module-box:hover {
+  background: var(--bg-raised);
+}
+
+.arch-module-box .codicon {
+  align-self: center;
+  color: var(--error);
+  flex: 0 0 auto;
+}
+
+.arch-module-dir {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.arch-module-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.arch-module-word {
+  color: var(--error);
+  font-size: var(--text-xs);
+  flex: 0 0 auto;
+}
+
+.arch-module-broke > .arch-module-box .arch-module-name {
+  color: var(--error);
+}
+
+/* One offending line, which jumps. The shape is the failure list's own. */
+.arch-module-offending {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0 var(--space-5) var(--space-1) var(--space-8);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: left;
+  min-width: 0;
+}
+
+.arch-module-offending:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.arch-module-line {
+  color: var(--error);
+  flex: 0 0 auto;
+}
+
+.arch-module-spec {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.arch-module-subject {
+  color: var(--text-disabled);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* -- grade two: the dependency matrix ------------------------------------- */
+
+/* The label column and the grid rows have to line up, so ONE value decides the
+   row height and the cell size, declared here and read by both. */
+.arch-modules-matrix {
+  --arch-matrix-cell: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  min-width: 0;
+}
+
+/* The numbered axis. The number on a row is the same number as its column, so
+   a person reads a mark back to a file without rotated headers, which nothing
+   can read at the sidebar's floor. */
+.arch-matrix-labels {
+  display: flex;
+  flex-direction: column;
+  /* At the sidebar's 220px floor the axis and the grid have to share about
+     190px, so the labels take a little under half and ellipsise, and the grid
+     takes the rest and scrolls. Widening the sidebar gives both more room. */
+  flex: 1 1 auto;
+  max-width: 45%;
+  min-width: 0;
+}
+
+.arch-matrix-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--arch-matrix-cell);
+  color: var(--text-secondary);
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+}
+
+.arch-matrix-label:hover {
+  background: var(--bg-raised);
+}
+
+.arch-matrix-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-disabled);
+  flex: 0 0 auto;
+}
+
+.arch-matrix-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* The one thing here that may be wider than the panel. It scrolls sideways
+     INSIDE ITS OWN BOX, so the sidebar itself never scrolls sideways. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.arch-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--arch-matrix-n), var(--arch-matrix-cell));
+  grid-auto-rows: var(--arch-matrix-cell);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+}
+
+.arch-matrix-cell {
+  background: var(--text-secondary);
+  margin: 2px;
+}
+
+.arch-matrix-cell.arch-module-broke {
+  background: var(--error);
+}
+
+/* -- grade three: the two lists ------------------------------------------- */
+
+.arch-modules-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.arch-rank-title {
+  padding: var(--space-2) var(--space-5) var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--view-label-text);
+  text-transform: uppercase;
+}
+
+.arch-rank-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-5);
+  color: var(--text-secondary);
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+}
+
+.arch-rank-row:hover {
+  background: var(--bg-raised);
+}
+
+.arch-rank-row .codicon {
+  align-self: center;
+  color: var(--error);
+  flex: 0 0 auto;
+}
+
+.arch-rank-count {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  flex: 0 0 auto;
+}
+
+.arch-module-broke > .arch-rank-row .arch-module-name {
+  color: var(--error);
+}

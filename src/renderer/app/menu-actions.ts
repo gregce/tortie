@@ -36,6 +36,10 @@ import { focusTerminal, jumpToSession } from './session-focus';
 import { runFillChord } from './fill-chord';
 // Phase 137. View > Catch Me Up. The same router the ⇧⌘U chord runs.
 import { toggleOverview } from '../overview/open-overview';
+// Phase 64: the aiming verb's picker. It opens a native menu over the session
+// the person is in and opens no view, which is why it is reached from here and
+// not through showViewAction.
+import { openAimPicker } from '../arch/picker';
 import { useQuickOpen } from '../quickopen';
 import { useSymbols } from '../search';
 import { gmuxBridge } from '../bridge';
@@ -232,6 +236,15 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     // view got wrong for thirty-eight phases.
     case 'show-arch':
       showViewAction('arch');
+      return;
+    // Phase 64. Session > Aim at a Promise…. Same body as the ⌃⇧P keydown
+    // branch, so the menu row and the chord cannot drift, which is the thing
+    // the Context view got wrong for thirty-eight phases. It opens no view: it
+    // reads the contract, raises a native menu over the session the person is
+    // in, and puts what they pick into that session's prompt.
+    case 'arch-aim':
+      if (layerOpen) return;
+      void openAimPicker();
       return;
     // Phase 137. View > Catch Me Up, directly under Context. The renderer's
     // ⇧⌘U branch is what runs when the chord is pressed (it precedes the

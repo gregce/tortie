@@ -1479,6 +1479,118 @@ const UPDATER_REFUSALS = [
  * express: the literal `uploadToServer: true` must appear NOWHERE in src/.
  * A later edit that flips it fails the build rather than shipping.
  */
+/**
+ * THE AIMING VERB'S REFUSALS (Phase 64), and they are RENDERER code.
+ *
+ * Phase 64 is the first thing in this product that puts a composed block of
+ * text into a running agent's prompt. The whole of what decides whether it may
+ * is one function, `canDeliverTo` in src/renderer/arch/deliver.ts, and each of
+ * its refusals ends in one of the sentences below.
+ *
+ * ## Why the sentences are a real proxy for the branches
+ *
+ * This gate exists because rollup deleted a refusal that had one call site and
+ * a constant argument, recorded at the head of this file. Every constant below
+ * is referenced at exactly ONE place in the product, being its own branch in
+ * `canDeliverTo`. A bundler that proved one of those branches dead would drop
+ * the branch and the string with it, because nothing else in the tree names it.
+ * So a missing sentence here is a missing refusal, not a reworded one.
+ *
+ * ## What each of them costs if it goes
+ *
+ * The foreign one is the load bearing one. Membership in the sessions slice is
+ * the launched-by-Tortie proof, because src/main/manifest/reconstruct.ts never
+ * adopts a session carrying no identity stamp. Without that branch Tortie would
+ * type into a pane somebody else started.
+ *
+ * The unknown one is the Phase 67 rule. While a session reads `unknown` the
+ * terminal's own onData handler drops everything at the source, so a composed
+ * block would vanish with no error anywhere and a person would believe they had
+ * handed an agent a scope.
+ *
+ * The shell one is what keeps the verb pointed at an agent prompt.
+ *
+ * ## The two MAIN side rows, added by the Phase 64 integrator
+ *
+ * The four rows above are the guard, and the guard is only half of what this
+ * phase promised. The other half is the two grade rule, and it runs in main,
+ * in `src/main/arch/payload.ts`, where the same hazard applies for the same
+ * reason: each of the two lines below is composed at exactly ONE place, so a
+ * bundler that proved that branch dead would take the sentence with it and
+ * nothing else in the tree would say so.
+ *
+ * They are the two things a person cannot check for themselves once the block
+ * is in front of an agent. The mark is what stops a quoted line of `docs/arch/`
+ * reading as something Tortie verified, and `docs/arch/` arrives with a git
+ * pull. The withheld line is what stops prose that predates the code being
+ * quoted as current. A payload that lost either would still look right.
+ */
+const ARCH_AIM_REFUSALS = [
+  {
+    id: 'arch.aim-refuses-a-foreign-session',
+    source: 'src/renderer/arch/aim-copy.ts',
+    bundle: 'renderer',
+    why:
+      'without it Tortie types a composed block into a session it did not ' +
+      'start, which is the one thing this verb must never do',
+    fragments: ['Tortie did not start this session, so it will not type into it.']
+  },
+  {
+    id: 'arch.aim-refuses-a-session-it-cannot-read',
+    source: 'src/renderer/arch/aim-copy.ts',
+    bundle: 'renderer',
+    why:
+      'a paste into a session that reads unknown reaches nothing at all and ' +
+      'still returns void, so the block would be swallowed silently',
+    fragments: [
+      'Tortie cannot currently tell what this session is doing, so it will not type into it.'
+    ]
+  },
+  {
+    id: 'arch.aim-refuses-a-shell',
+    source: 'src/renderer/arch/aim-copy.ts',
+    bundle: 'renderer',
+    why: 'a shell has no agent prompt to aim, and the verb is about a prompt',
+    fragments: [
+      'This session is a shell rather than an agent Tortie started, so there is no prompt to aim.'
+    ]
+  },
+  {
+    id: 'arch.aim-never-presses-return',
+    source: 'src/renderer/arch/aim-copy.ts',
+    bundle: 'renderer',
+    why:
+      'the promise a person reads before the block lands is that nothing is ' +
+      'sent until they press Return, and it has to be on the surface itself',
+    fragments: ['Nothing is sent until you press Return.']
+  },
+  {
+    id: 'arch.payload-marks-every-quoted-line',
+    source: 'src/shared/arch-copy.ts',
+    bundle: 'main',
+    why:
+      'a quoted line of docs/arch/ that lost its mark reads as something ' +
+      'Tortie checked, and that is the one lie this feature could tell that a ' +
+      'reader could not catch',
+    fragments: ['from docs/arch, unverified']
+  },
+  {
+    id: 'arch.payload-withholds-prose-that-predates-the-code',
+    source: 'src/main/arch/payload.ts',
+    bundle: 'main',
+    why:
+      'without it a part whose prose is twenty commits behind is quoted as ' +
+      'though it still described the code, and the payload says nothing about ' +
+      'the gap',
+    // ONE SOURCE LINE, deliberately. The sentence is built from four adjacent
+    // template pieces around an interpolated count, so the whole sentence
+    // exists only after the bundler folds them and only the pieces exist in
+    // the source. This fragment is a piece, and the folded sentence contains
+    // it, so the one string is true on both sides.
+    fragments: ['last changed, so that text predates the code and Tortie will not ']
+  }
+];
+
 const LOG_REFUSALS = [
   {
     id: 'log.crash-dumps-stay-local',
@@ -1707,7 +1819,8 @@ function main() {
     ['CONFIG_REFUSALS', CONFIG_REFUSALS.length, 6],
     ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 52],
     ['UPDATER_REFUSALS', UPDATER_REFUSALS.length, 8],
-    ['LOG_REFUSALS', LOG_REFUSALS.length, 1]
+    ['LOG_REFUSALS', LOG_REFUSALS.length, 1],
+    ['ARCH_AIM_REFUSALS', ARCH_AIM_REFUSALS.length, 6]
   ];
   const miscounted = EXPECTED_COUNTS.filter(([, found, want]) => found !== want);
   if (miscounted.length > 0) {
@@ -1735,7 +1848,8 @@ function main() {
     ...CONFIG_REFUSALS,
     ...MACHINE_REFUSALS,
     ...UPDATER_REFUSALS,
-    ...LOG_REFUSALS
+    ...LOG_REFUSALS,
+    ...ARCH_AIM_REFUSALS
   ]) {
     const sourcePath = join(repoRoot, refusal.source);
     if (!sources.has(refusal.source)) {
@@ -1811,6 +1925,9 @@ function main() {
   );
   console.log(
     `[refusals] ${String(LOG_REFUSALS.length)} crash-capture refusal is in out/main/index.js.`
+  );
+  console.log(
+    `[refusals] ${String(ARCH_AIM_REFUSALS.length)} aiming-verb refusals are in the shipped bundles (four are the renderer's delivery guard, two are the composer's two grade rule in main).`
   );
 
   assertNoUpload();

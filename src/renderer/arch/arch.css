@@ -573,3 +573,58 @@
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
 }
+
+/* ---------------------------------------------------------------------------
+   THE AIMING BAR (Phase 64)
+
+   It draws only while something is selected, so the view carries no control a
+   person has no use for. Every colour is a token from
+   src/renderer/styles/tokens.css, there is no amber anywhere on this surface
+   because that hue means "an agent needs you", and there is no count badge:
+   the count here is the size of a selection the person just made by hand, not
+   a number that rises on its own.
+   --------------------------------------------------------------------------- */
+
+.arch-aim {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.arch-aim-count {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.arch-aim-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.arch-aim-go:hover:not(:disabled) {
+  background: var(--bg-active);
+}
+
+.arch-aim-go:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.arch-aim-why {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}

@@ -63,6 +63,21 @@
  *     defect passed the first check and still handed back the whole history in
  *     the second case, which is every repository on the day the contract is
  *     drafted.
+ * 9.7 THE COMPOSED PAYLOAD MOVES BY ONE BYTE (Phase 64). The block a person
+ *     hands to a running agent is pinned LINE BY LINE, so a wording change is
+ *     a deliberate act in two files and a silent drift is a failure. Four
+ *     compositions are driven: a rich selection composed twice with the second
+ *     selection shuffled, which proves the bytes do not depend on the order a
+ *     person clicked in; the same selection over a doctored freshness row,
+ *     which is the two grade rule and the only way to reach it over a fixture
+ *     whose whole history is four commits; a part whose anchors resolve to
+ *     nothing at HEAD, which is the broken target gate; and a fact base whose
+ *     repository name, tracked path and import specifier carry an escape, a
+ *     carriage return and a NUL, which is the paste safety strip. The block is
+ *     delivered as ONE bracketed paste, and a control character inside it can
+ *     end that paste early and hand what follows to the agent as keystrokes.
+ *     The same control scan is run over a block with an escape put back on
+ *     purpose, and the gate fails if that block passes.
  * 10. The resolver matrix loses a row, or loses the distinction between the
  *     four answers. The numbers come from the REAL `resolveImport` over
  *     committed specifiers, so each row is an assertion about the code rather
@@ -441,6 +456,208 @@ if (uncommittedById.size !== expected.freshnessUncommittedContract.length) {
 }
 
 // ---------------------------------------------------------------------------
+// 9.7 The composed payload, line by line (Phase 64)
+// ---------------------------------------------------------------------------
+//
+// This is the block that lands in a running agent's prompt, so it is pinned the
+// way the freshness sentences are pinned: word for word, in a second file, so a
+// wording change shows up here before it shows up in somebody's session. The
+// composer is a pure function, so the same input has to give the same bytes on
+// this machine and on any other, and the shuffled second composition is what
+// proves the order a person clicked in never reaches the output.
+
+const payload = data.payload ?? null;
+const payloadRows = [];
+if (payload === null) {
+  fail('the probe composed no payload. The Phase 64 section did not run.');
+} else {
+  const gotLines = payload.text.split('\n');
+  const wantLines = expected.payload.text;
+  let firstDiff = -1;
+  for (let i = 0; i < Math.max(gotLines.length, wantLines.length); i += 1) {
+    if (gotLines[i] !== wantLines[i]) {
+      firstDiff = i;
+      break;
+    }
+  }
+  if (firstDiff !== -1) {
+    fail(
+      `payload: line ${firstDiff + 1} reads\n      ${JSON.stringify(gotLines[firstDiff] ?? null)}\n` +
+        `    and build/fixtures/arch/expected.json says\n      ` +
+        `${JSON.stringify(wantLines[firstDiff] ?? null)}\n` +
+        `    The block a person hands to an agent is pinned word for word. If ` +
+        `this change is deliberate, re-pin expected.payload.text.`
+    );
+  }
+  payloadRows.push([
+    'byte for byte',
+    `${gotLines.length} lines, ${payload.bytes} bytes`,
+    firstDiff === -1 ? 'as written' : `DIFFERS AT LINE ${firstDiff + 1}`
+  ]);
+
+  if (payload.repeatable !== true) {
+    fail(
+      'payload: the same selection in a different order composed different ' +
+        'bytes. The composer sorts and de-duplicates every list it is given, ' +
+        'so the order a person clicked in must never reach the output.'
+    );
+  }
+  payloadRows.push([
+    'order independence',
+    'the same three parts, shuffled and repeated',
+    payload.repeatable ? 'identical bytes' : 'DRIFTED'
+  ]);
+
+  if (payload.callsBefore !== payload.callsAfter) {
+    fail(
+      `payload: composing started ${payload.callsAfter - payload.callsBefore} ` +
+        `git calls. The composer is pure over its input and composes no argv ` +
+        `at all, so this number is zero or the design has moved.`
+    );
+  }
+  payloadRows.push([
+    'processes started',
+    `${payload.callsBefore} calls before, ${payload.callsAfter} after`,
+    payload.callsBefore === payload.callsAfter ? 'composing started nothing' : 'STARTED SOMETHING'
+  ]);
+
+  // The paste safety strip, and the control that proves it bites.
+  for (const which of payload.controlOffenders) {
+    fail(
+      `payload: the ${which} block carries a control character. It is ` +
+        `delivered as ONE bracketed paste, and an escape inside it can end ` +
+        `that paste early and hand what follows to the agent as keystrokes. A ` +
+        `bare carriage return submits the prompt on six of the ten agents ` +
+        `src/shared/agent-defaults.ts measured.`
+    );
+  }
+  if (payload.blindedCaught !== true) {
+    fail(
+      'control: a block with an escape put back on purpose passed the control ' +
+        'scan. A scan that cannot fail proves nothing.'
+    );
+  }
+  payloadRows.push([
+    'paste safety',
+    'four blocks, one with an escape, a carriage return and a NUL planted',
+    payload.controlOffenders.length === 0 && payload.blindedCaught
+      ? 'no control character survived, and the scan bites'
+      : 'LEAKED'
+  ]);
+
+  // The two grades.
+  const staleText = payload.stale.text;
+  for (const quoted of expected.payload.staleMustNotQuote) {
+    if (staleText.includes(quoted)) {
+      fail(
+        `payload: over the threshold the block still quotes "${quoted}". ` +
+          `Authored prose ships only while its part is under ` +
+          `${payload.proseThreshold} commits behind, and above it the block ` +
+          `carries one line saying the prose predates N commits.`
+      );
+    }
+  }
+  for (const wanted of expected.payload.staleMustSay) {
+    if (!staleText.includes(wanted)) {
+      fail(`payload: over the threshold the block does not say "${wanted}".`);
+    }
+  }
+  const withheld = payload.stale.proseWithheld.map((r) => r.componentId).sort().join(',');
+  if (withheld !== expected.payload.staleWithheld.join(',')) {
+    fail(
+      `payload: the parts whose prose was withheld are "${withheld}" and the ` +
+        `table says "${expected.payload.staleWithheld.join(',')}".`
+    );
+  }
+  if (payload.proseWithheld.length !== 0) {
+    fail(
+      'payload: the rich block withheld prose. Every part in the fixture is ' +
+        'under the threshold, so the first grade must ship every authored line.'
+    );
+  }
+  payloadRows.push([
+    'the two grades',
+    `threshold ${payload.proseThreshold} commits, ${payload.stale.proseWithheld.length} parts over it`,
+    'deterministic content shipped, prose withheld with the count'
+  ]);
+
+  // Every quoted line carries the mark. Counted rather than sampled: the mark
+  // is what stops the block presenting somebody's prose as something Tortie
+  // verified, and it is the one refusal in this phase a reader could not catch.
+  const quotedLines = payload.text
+    .split('\n')
+    .filter((l) => /^\s*(Description|Known gap|Note|Label|Accepted on purpose)/.test(l.trim()) ||
+      l.includes('Accepted on purpose'));
+  const unmarked = quotedLines.filter((l) => !l.includes('from docs/arch, unverified'));
+  for (const line of unmarked) {
+    fail(`payload: a quoted line carries no mark: ${JSON.stringify(line)}`);
+  }
+  payloadRows.push([
+    'the unverified mark',
+    `${quotedLines.length} quoted lines`,
+    unmarked.length === 0 ? 'every one marked' : `${unmarked.length} UNMARKED`
+  ]);
+
+  // The broken target gate.
+  if (payload.brokenTarget !== false) {
+    fail('payload: the rich selection reported a broken target and every part in it resolves.');
+  }
+  if (payload.broken.brokenTarget !== true) {
+    fail(
+      'payload: a part whose anchors resolve to zero tracked files at HEAD did ' +
+        'not raise the broken target gate. That gate is the one check typing a ' +
+        'scope by hand can never perform.'
+    );
+  }
+  const brokenIds = payload.broken.brokenTargetIds.join(',');
+  if (brokenIds !== expected.payload.brokenTargetIds.join(',')) {
+    fail(
+      `payload: the parts that resolve to nothing are "${brokenIds}" and the ` +
+        `table says "${expected.payload.brokenTargetIds.join(',')}".`
+    );
+  }
+  for (const wanted of expected.payload.brokenMustSay) {
+    if (!payload.broken.text.includes(wanted)) {
+      fail(`payload: the broken target block does not say "${wanted}".`);
+    }
+  }
+  payloadRows.push([
+    'broken target gate',
+    `${payload.broken.deadAnchors.length} anchor matching nothing at HEAD`,
+    payload.broken.brokenTarget ? 'one extra confirmation demanded' : 'NOT RAISED'
+  ]);
+
+  // The gap staple, and the counts the caller reports.
+  for (const wanted of expected.payload.mustSay) {
+    if (!payload.text.includes(wanted)) {
+      fail(`payload: the block does not say "${wanted}".`);
+    }
+  }
+  for (const banned of expected.payload.mustNotSay) {
+    if (payload.text.includes(banned)) {
+      fail(
+        `payload: the block says "${banned}". It never carries an image and ` +
+          `never carries file contents.`
+      );
+    }
+  }
+  if (JSON.stringify(payload.counts) !== JSON.stringify(expected.payload.counts)) {
+    fail(
+      `payload: the block reports ${JSON.stringify(payload.counts)} and the ` +
+        `table says ${JSON.stringify(expected.payload.counts)}.`
+    );
+  }
+  if (payload.unknownIds.length !== 0) {
+    fail(`payload: ${JSON.stringify(payload.unknownIds)} named nothing in the contract.`);
+  }
+  payloadRows.push([
+    'the gap staple',
+    `${payload.counts.gaps} gap, ${payload.counts.parts} parts, ${payload.counts.interiorPromises} inside and ${payload.counts.crossingPromises} crossing`,
+    'stapled verbatim under its own heading'
+  ]);
+}
+
+// ---------------------------------------------------------------------------
 // 10. The resolver matrix, with the deferred arms present
 // ---------------------------------------------------------------------------
 
@@ -672,7 +889,9 @@ rows.push([
 const pad = (v, w) => String(v).padEnd(w);
 const line = (w) => '-'.repeat(w);
 
-process.stdout.write('\nPhase 63 arch conformance, over build/fixtures/arch\n\n');
+process.stdout.write(
+  '\nPhase 63 and Phase 64 arch conformance, over build/fixtures/arch\n\n'
+);
 process.stdout.write(pad('what', 20) + pad('measured', 58) + 'verdict\n');
 process.stdout.write(line(120) + '\n');
 for (const r of rows) {
@@ -698,6 +917,13 @@ process.stdout.write(pad('subject', 50) + 'measured\n');
 process.stdout.write(line(120) + '\n');
 for (const r of freshnessRows) {
   process.stdout.write(pad(r[0], 50) + r[1] + '\n');
+}
+
+process.stdout.write('\nthe composed payload, one row per claim\n');
+process.stdout.write(pad('what', 24) + pad('measured', 62) + 'verdict\n');
+process.stdout.write(line(120) + '\n');
+for (const r of payloadRows) {
+  process.stdout.write(pad(r[0], 24) + pad(r[1], 62) + r[2] + '\n');
 }
 
 process.stdout.write('\nthe resolver, one row per language\n');
@@ -757,5 +983,7 @@ process.stdout.write(
   '\nPASS. No contract value reached any argv, the scan that proves it still ' +
     'bites, every planted break was caught at the verdict the table names, ' +
     'every invalid row cost itself and nothing else, the skeleton drafted the ' +
-    'same bytes twice, and no field of this format names anything Tortie runs.\n'
+    'same bytes twice, the composed payload matched its pinned block line for ' +
+    'line and carried no control character, and no field of this format names ' +
+    'anything Tortie runs.\n'
 );

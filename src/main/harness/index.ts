@@ -26,6 +26,15 @@
  *                       isolated socket, and it refuses the real socket by name
  *                       because the far side of its connection is this same Mac.
  *                       `npm run smoke:capture:remote`.
+ *  - GMUX_SMOKE=p64-paste-matrix  the multi line paste matrix (Phase 64,
+ *                       Tier 3). One row per launchable agent, over the real
+ *                       binaries on this machine, sending the exact bytes
+ *                       xterm's `term.paste()` produces and reading the pane
+ *                       back to say whether the block arrived whole or whether
+ *                       an embedded return submitted the prompt early. An
+ *                       agent that is not on PATH is a row that says so.
+ *                       Scratch socket only, refused by name otherwise, and it
+ *                       never presses Return. `npm run probe:p64`.
  *  - GMUX_SMOKE=p156-menus  the application menu and the tray menu, walked out
  *    of the real Menu.getApplicationMenu() after the real installAppMenu() ran,
  *    with every row's label, accelerator, icon size and template flag. It
@@ -307,6 +316,10 @@ import { runPartitionSmoke } from './partition';
 // Phase 72: the ten row fault matrix. It is the only place research 28's fault
 // list is executed against a running app rather than read.
 import { runRemoteMatrixSmoke } from './remote-matrix';
+// Phase 64: the multi line paste matrix. It is the only place the question
+// "does a bracketed paste with line breaks in it submit early on this agent"
+// is answered against the real binaries on this machine.
+import { runP64PasteMatrix } from './p64-paste-matrix';
 import { runSmokeShadow } from './shadow';
 import { runSmokeShim } from './shim-smoke';
 import { runShot } from './shot';
@@ -403,6 +416,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // and it says so at its own head. `npm run probe:p156`.
   if (smoke === 'p156-menus') {
     await runP156MenusSmoke();
+    return true;
+  }
+  // Phase 64: one row per launchable agent, over the real binaries, proving
+  // whether a bracketed multi line paste arrives whole or submits early. An
+  // agent that is not installed is a row that says so rather than a row that
+  // is quietly skipped. `npm run probe:p64`.
+  if (smoke === 'p64-paste-matrix') {
+    await runP64PasteMatrix();
     return true;
   }
   // Phase 119: a captured session can come back bare, and the ordinary restore

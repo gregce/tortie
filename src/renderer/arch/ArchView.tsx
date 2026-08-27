@@ -59,6 +59,7 @@ import type {
   ArchEdge,
   ArchVerdict
 } from '@shared/arch';
+import { archViewGapId } from '@shared/arch-ids';
 import {
   localPathOf,
   targetOfProject
@@ -87,7 +88,13 @@ import {
   provenanceTitle,
   provenanceWord
 } from './provenance';
+import { ArchModules } from './ArchModules';
 import { useArch } from './store';
+// Phase 64: the aiming verb. The view's own control for it composes nothing
+// itself; it hands the selection to the one picker every entry point uses.
+import { AIM_MENU_LABEL } from './aim-copy';
+import { canDeliverTo } from './deliver';
+import { aimSelection } from './picker';
 import './arch.css';
 
 // ---------------------------------------------------------------------------
@@ -120,6 +127,17 @@ export function verdictClass(status: string): string {
     default:
       return 'arch-v-unknown';
   }
+}
+
+/**
+ * The component the module view draws, which is the LAST subject picked.
+ *
+ * Null for a gap or an edge, because level 2 is a component's own files and a
+ * promise between two components is not one of them.
+ */
+export function focusedComponentId(selected: readonly string[]): string | null {
+  const last = selected[selected.length - 1] ?? '';
+  return last.startsWith('component:') ? last.slice('component:'.length) : null;
 }
 
 /** A verdict is a FAILURE when it broke or the thing it names is not there. */
@@ -183,6 +201,8 @@ export function ArchView(): React.JSX.Element {
   const error = useArch((s) => s.error);
   const selected = useArch((s) => s.selected);
   const select = useArch((s) => s.select);
+  const toggleSelected = useArch((s) => s.toggleSelected);
+  const nameOf = useArch((s) => s.nameOf);
   const syncProject = useArch((s) => s.syncProject);
 
   const project = useMemo(
@@ -254,13 +274,26 @@ export function ArchView(): React.JSX.Element {
         verdicts={verdicts}
         selected={selected}
         onSelect={select}
+        onToggle={toggleSelected}
       />
       <GapStrip components={components} onSelect={select} />
+      <AimBar />
       <ProsePanel
-        selected={selected}
+        selected={selected[selected.length - 1] ?? null}
         components={components}
         edges={edges}
         verdicts={verdicts}
+      />
+      {/* LEVEL 2, the computed module view. It draws only for a component, and
+          the component is the focused one, which is the same subject the prose
+          panel above is describing. The props were frozen in the phase spec
+          before either file was written, because the mount point and the
+          component belong to different hands. */}
+      <ArchModules
+        cwd={repoPath}
+        componentId={focusedComponentId(selected)}
+        componentName={nameOf(focusedComponentId(selected) ?? '')}
+        refreshKey={lastCheck?.generation ?? 0}
       />
     </div>
   );
@@ -482,12 +515,15 @@ function Outline({
   components,
   verdicts,
   selected,
-  onSelect
+  onSelect,
+  onToggle
 }: {
   components: readonly ArchComponent[];
   verdicts: readonly ArchVerdict[];
-  selected: string | null;
+  selected: readonly string[];
   onSelect: (id: string) => void;
+  /** ⌘-click, which builds a scope out of more than one part (Phase 64). */
+  onToggle: (id: string) => void;
 }): React.JSX.Element | null {
   if (components.length === 0) return null;
   const worst = (id: string): ArchVerdict | undefined =>
@@ -508,11 +544,18 @@ function Outline({
               <button
                 type="button"
                 role="treeitem"
-                aria-selected={selected === id}
-                className={`arch-row${selected === id ? ' selected' : ''}${
+                aria-selected={selected.includes(id)}
+                className={`arch-row${selected.includes(id) ? ' selected' : ''}${
                   c.deprecated ? ' arch-row-deprecated' : ''
                 }`}
-                onClick={() => onSelect(id)}
+                // ⌘-click adds to the selection instead of replacing it, which
+                // is what a scope of more than one part is built with. A plain
+                // click still means "this one", so nothing a person already
+                // knows about this list changed.
+                onClick={(e) => {
+                  if (e.metaKey) onToggle(id);
+                  else onSelect(id);
+                }}
               >
                 <Codicon
                   name={provenanceIcon(c.provenance)}
@@ -570,7 +613,7 @@ function GapStrip({
             <button
               type="button"
               className="arch-gap"
-              onClick={() => onSelect(`gap:${component.id}:${String(i)}`)}
+              onClick={() => onSelect(archViewGapId(component.id, i))}
             >
               <span className="arch-gap-where">{component.name}</span>
               <span className="arch-gap-text">{text}</span>
@@ -667,6 +710,61 @@ function ProsePanel({
         </ul>
       ) : null}
       <p className="arch-prose-note">{ARCH_PROSE_UNVERIFIED}</p>
+    </section>
+  );
+}
+
+/**
+ * THE AIMING BAR — the view's own way in to the verb (Phase 64).
+ *
+ * The chord is the primary surface and this is not a second one competing with
+ * it: the chord aims one thing from inside a session, and this aims a scope a
+ * person has built out of several rows in this list, which is the one thing a
+ * single native menu cannot express.
+ *
+ * It draws nothing at all until something is selected, so a person reading the
+ * view is not carrying a control they have no use for.
+ *
+ * It composes nothing itself and it writes to no session. Every path into the
+ * verb goes through ./picker.ts, which goes through ./deliver.ts, which holds
+ * the one guard. THE SELECTION SETS NO SESSION'S STATUS.
+ */
+function AimBar(): React.JSX.Element | null {
+  const selected = useArch((s) => s.selected);
+  // Subscribed rather than read once, so the row's reason follows a session
+  // that ends while a person is looking at this list.
+  const sessions = useApp((s) => s.sessions);
+  const activeByProject = useApp((s) => s.activeSessionByProject);
+  const activeProjectId = useApp((s) => s.activeProjectId);
+  const activeId =
+    activeProjectId === null ? undefined : activeByProject[activeProjectId];
+  const target = useMemo(
+    () => canDeliverTo(activeId ?? null),
+    // `sessions` is in the list because membership in it is the first thing
+    // the guard asks, so a session leaving the list must re-run this.
+    [activeId, sessions]
+  );
+
+  if (selected.length === 0) return null;
+  const count = selected.length;
+  return (
+    <section className="arch-aim" aria-label={AIM_MENU_LABEL}>
+      <p className="arch-aim-count">
+        {count === 1 ? '1 selected' : `${String(count)} selected`}
+      </p>
+      <button
+        type="button"
+        className="arch-aim-go"
+        disabled={!target.ok}
+        title={target.ok ? undefined : target.reason}
+        onClick={() => void aimSelection()}
+      >
+        <Codicon name="checklist" size={12} />
+        {AIM_MENU_LABEL}
+      </button>
+      {target.ok ? null : (
+        <p className="arch-aim-why">{target.reason}</p>
+      )}
     </section>
   );
 }

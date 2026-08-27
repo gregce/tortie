@@ -47,6 +47,7 @@ import type { ArchVerdict } from '@shared/arch';
 import type { ArchLoadResult } from '@shared/ipc';
 import { localTarget } from '@shared/workspace-target';
 import { useApp } from '../state/store';
+import { installShellOps, shellOps } from '../state/shell-ops';
 import { archAvailable, skeletonAvailable } from './bridge';
 import { archDivergences } from './divergences';
 import { seedPromptText } from './seed-prompt';
@@ -69,6 +70,57 @@ export interface ArchProbeSpec {
   jump?: boolean;
   /** Compose the seeding prompt and print its bytes. Sends nothing. */
   seed?: boolean;
+  /**
+   * The repository the drive stages itself against, default `/fixtures`.
+   *
+   * PHASE 64'S FIX ROUND ADDED THIS, and the reason is worth stating. The
+   * fixture target was a path that does not exist, which is fine for every
+   * claim above, because all of them are layout claims about rows already in
+   * the store. It is NOT fine for the level 2 module view: that section asks
+   * MAIN what a part is made of, over a real `docs/arch/` and a real
+   * `git ls-files`, so at `/fixtures` it can only ever reach the state that
+   * says the contract has no part with that name. Pointing the drive at a real
+   * repository is what lets the boxes, the matrix and the two lists be
+   * rendered at all.
+   */
+  cwd?: string;
+  /** Re-check before measuring, so the arch database holds this tree's imports. */
+  check?: boolean;
+  /**
+   * A part id to open the level 2 view on, and report what it actually drew.
+   *
+   * It reads the RENDERED section rather than the answer that produced it, so
+   * what is printed is what a person would see.
+   */
+  modules?: string;
+  /**
+   * Press the REAL picker chord and report what menu it raised.
+   *
+   * ## Why the menu is caught at `shellOps` and not at the bridge
+   *
+   * The obvious instrument, wrapping `window.gmux.popupMenu` from the page,
+   * DOES NOT WORK and the reason is worth writing down so nobody spends an
+   * afternoon on it again. That object comes from
+   * `contextBridge.exposeInMainWorld` under `contextIsolation: true`, so it is
+   * frozen: the assignment silently does nothing, the real bridge runs, and a
+   * REAL macOS popup opens over the window and waits for a person who is not
+   * there. That is what held the first version of `build/probe-p64-arch.mjs`
+   * open until its ceiling.
+   *
+   * `installShellOps` is the seam the store already uses and already exports
+   * for exactly this, and `setMenu` has one implementation which goes through
+   * it. So the recorder sits there for the length of the press and is taken
+   * out again, and what it proves is that a real keydown reaches the picker
+   * and produces the rows a native menu would have been built from. The last
+   * hop, being `showNativeMenu` to `ui:popupMenu` to
+   * `Menu.buildFromTemplate().popup()`, is not exercised here and is not
+   * claimed to be; a native popup cannot be read from outside the app, which
+   * Phases 119, 152 and 153 each measured separately.
+   *
+   * The DOM is counted across the press either way, because "no menu is ever
+   * drawn in the DOM" is a claim this can settle and does.
+   */
+  aim?: boolean;
 }
 
 function log(line: string): void {
@@ -291,16 +343,19 @@ function measure(): Record<string, unknown> {
 }
 
 export async function driveArch(spec: ArchProbeSpec): Promise<void> {
+  const cwd = spec.cwd ?? '/fixtures';
   if (spec.live !== true) {
     // Straight into the store. There is no channel to stub: `bridge.ts` is
     // feature detected and this build may have no reader at all, which is
     // exactly the build in which the layout claims still have to hold.
     useArch.setState({
-      target: localTarget('/fixtures'),
+      target: localTarget(cwd),
       status: 'ready',
       error: null,
       lastCheck: null,
-      selected: null,
+      // Phase 64 widened the selection to a list. Empty is the probe's start
+      // state exactly as `null` was.
+      selected: [],
       // `present: false` IS the empty state, so the teaching surface is
       // reached through the view's own condition rather than through a flag
       // only the probe can set.
@@ -308,6 +363,7 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
         spec.empty === true
           ? {
               ...fixtures(),
+              cwd,
               present: false,
               contract: null,
               components: [],
@@ -316,8 +372,16 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
               verdicts: [],
               freshness: []
             }
-          : fixtures()
+          : { ...fixtures(), cwd }
     });
+  }
+
+  if (spec.live === true && spec.cwd !== undefined) {
+    // The REAL reader, over a real repository. `ensureLoaded` is idempotent
+    // and `check` is what puts this tree's imports in the arch database, which
+    // is where the level 2 view's edges come from.
+    await useArch.getState().ensureLoaded(localTarget(cwd));
+    if (spec.check === true) await useArch.getState().check();
   }
 
   if (spec.select !== undefined) useArch.getState().select(spec.select);
@@ -353,13 +417,21 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
   if (spec.seed === true) {
     // COMPOSED AND PRINTED, never sent. Two runs must produce the same bytes,
     // which is the only claim this control makes.
-    const a = seedPromptText('/fixtures');
-    const b = seedPromptText('/fixtures');
+    const a = seedPromptText(cwd);
+    const b = seedPromptText(cwd);
     log(
       `seed: bytes=${String(new TextEncoder().encode(a).length)} ` +
         `deterministic=${String(a === b)} lines=${String(a.split('\n').length)}`
     );
     log(`seed first line: ${a.split('\n')[0] ?? ''}`);
+  }
+
+  if (spec.modules !== undefined) {
+    await driveModules(spec.modules);
+  }
+
+  if (spec.aim === true) {
+    await driveAim();
   }
 
   if (spec.jump === true) {
@@ -379,4 +451,110 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
         `sidebarStayed=${String(before === useApp.getState().sidebarVisible)}`
     );
   }
+}
+
+
+/**
+ * THE LEVEL 2 MODULE VIEW, OPENED AND READ BACK OFF THE SCREEN (Phase 64).
+ *
+ * The section fetches `arch:modules` in an effect, so this selects the part,
+ * waits for the answer to land, and then reads the RENDERED drawing rather
+ * than the answer. It reports the grade the element is carrying, how many of
+ * each drawing is on the page, and the sentences under it, which is the only
+ * form in which "the caps fell back" is a thing a person saw rather than a
+ * thing a pure function returned.
+ */
+async function driveModules(componentId: string): Promise<void> {
+  useArch.getState().select(`component:${componentId}`);
+  // The effect's fetch crosses the bridge, so this waits for the section to
+  // stop saying it is loading rather than for a fixed time.
+  const deadline = Date.now() + 20_000;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 250));
+    const section = document.querySelector<HTMLElement>('.arch-modules');
+    const grade = section?.getAttribute('data-grade') ?? null;
+    if (section !== null && grade !== 'none') break;
+    if (Date.now() > deadline) break;
+  }
+
+  const section = document.querySelector<HTMLElement>('.arch-modules');
+  const body = document.querySelector<HTMLElement>('.arch-modules-body');
+  const text = (sel: string): string =>
+    document.querySelector<HTMLElement>(sel)?.textContent ?? '';
+  log(
+    `modules: ${JSON.stringify({
+      part: componentId,
+      present: section !== null,
+      grade: section?.getAttribute('data-grade') ?? null,
+      drawing: body?.getAttribute('data-drawing') ?? null,
+      boxes: document.querySelectorAll('.arch-module-box').length,
+      matrixLabels: document.querySelectorAll('.arch-matrix-label').length,
+      rankRows: document.querySelectorAll('.arch-modules-top li').length,
+      broke: document.querySelectorAll('.arch-module-broke').length,
+      // A refusal, checked rather than asserted: research 49 section 6.3
+      // forbids a count badge on a node, so a box may carry a name and a
+      // folder and nothing else that is a bare number.
+      countBadges: document.querySelectorAll('.arch-module-box .arch-count, .arch-module-box [data-count]').length,
+      sentences: text('.arch-modules-sentences').slice(0, 400),
+      failed: text('.arch-modules-failed').slice(0, 200),
+      rawHtmlNodes: document.querySelectorAll('.arch-modules [data-raw-html]').length
+    })}`
+  );
+}
+
+
+/**
+ * THE PICKER CHORD, PRESSED FOR REAL, with the one door it opens recorded.
+ *
+ * See {@link ArchProbeSpec.aim} for why the recorder sits at `shellOps` rather
+ * than at the frozen preload bridge, and for what this does and does not
+ * claim.
+ */
+async function driveAim(): Promise<void> {
+  const raised: { items: readonly unknown[] }[] = [];
+  const real = shellOps();
+  installShellOps({
+    ...real,
+    showNativeMenu(menu) {
+      raised.push(menu as unknown as { items: readonly unknown[] });
+    }
+  });
+
+  const nodes = (): number => document.querySelectorAll('*').length;
+  const domMenus = (): number =>
+    document.querySelectorAll('[role=menu], .context-menu, .dom-menu').length;
+  const before = { nodes: nodes(), domMenus: domMenus() };
+
+  try {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'P',
+        code: 'KeyP',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    await new Promise((r) => setTimeout(r, 2500));
+  } finally {
+    // Put the real door back whatever happened, so nothing after this point
+    // runs against a recorder.
+    installShellOps(real);
+  }
+
+  const after = { nodes: nodes(), domMenus: domMenus() };
+  log(
+    `aim: ${JSON.stringify({
+      raised: raised.length,
+      rows: raised.map((m) =>
+        m.items.map((i) =>
+          i === 'sep' ? '—' : ((i as { label?: string }).label ?? '?')
+        )
+      ),
+      before,
+      after,
+      domNodesAdded: after.nodes - before.nodes
+    })}`
+  );
 }

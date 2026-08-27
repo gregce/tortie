@@ -667,6 +667,28 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // in the row menu: it types into the session in front of the person,
         // and the terminal is the surface it acts on.
         item('Resume Conversation', 'resume-conversation', undefined, 'terminal'),
+        // PHASE 64 PUT THE AIMING VERB HERE, and the placement is a decision
+        // rather than an inheritance. It sits in the Session menu and not in
+        // the View menu beside Architecture, because it opens no view and
+        // changes none: it puts a block of text into the prompt of the session
+        // in front of the person, which is exactly what Resume Conversation
+        // above does. It is next to that row for that reason.
+        //
+        // It IS accelerated, unlike the two rows above it, because the whole
+        // point of the verb is a chord that never leaves the terminal. The
+        // accelerator comes from the shared keymap, so the row and the chord
+        // cannot drift.
+        //
+        // The ellipsis is honest: it opens a list to choose from and puts
+        // nothing anywhere until a row is picked.
+        //
+        // `checklist`, the mark the Architecture view wears in the activity bar
+        // and in the View menu row. This submenu's rule is that a row wears the
+        // icon of the surface it opens, and what this opens is that view's own
+        // list of promises. The name is already in `MENU_CODICONS`, so the
+        // generated set is unchanged and build/assert-menu-glyphs.mjs has
+        // nothing new to weigh.
+        item('Aim at a Promise…', 'arch-aim', accel('session.aim'), 'checklist'),
         // User-recorded per-agent shortcuts (S13 Hotkeys) — present only
         // when assigned; rebuilt on every hotkey change.
         ...agentHotkeyItems(),

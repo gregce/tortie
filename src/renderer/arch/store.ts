@@ -26,8 +26,11 @@
  *     has not finished has nothing to say about whether anything moved.
  *
  * WHAT IS NOT HERE, so a later round has something to point at: no layout
- * positions, no computed module level, no payload composer, no send to a
- * session, and no count badge for any surface outside this view to draw.
+ * positions, no payload composer, no send to a session, and no count badge for
+ * any surface outside this view to draw. The SELECTION lives here (Phase 64
+ * widened it to a list) and the sending does not: composing and delivering are
+ * in ./deliver.ts and ./picker.ts, behind one guard, so this file still writes
+ * nothing to any session.
  */
 
 import { create } from 'zustand';
@@ -70,13 +73,31 @@ export type ArchStatus =
   | 'elsewhere';
 
 /**
- * What the person has selected, as ONE opaque string.
+ * What the person has selected, as an ORDERED list of opaque strings.
  *
- * It is the verdict's own `subjectId` vocabulary, being `component:<id>`,
- * `edge:<id>` and `gap:<componentId>:<n>`, so the prose panel and the verdict
- * table key on one thing rather than on two that can disagree.
+ * Each entry is the verdict's own `subjectId` vocabulary, being
+ * `component:<id>`, `edge:<id>` and `gap:<componentId>:<n>`, so the prose
+ * panel, the verdict table and the composed payload key on one thing rather
+ * than on three that can disagree.
+ *
+ * PHASE 64 WIDENED IT FROM ONE STRING TO A LIST, and the reason is the verb
+ * rather than the view. A scope a person hands to an agent is usually more
+ * than one part: two components and the edge between them, or a component and
+ * the gap they want closed. Composing that out of one selection at a time
+ * would mean composing it out of three separate gestures.
+ *
+ * THE ORDER IS THE PERSON'S OWN and it is kept. The payload reads in the
+ * order they picked, because the first thing they picked is the thing they
+ * are thinking about, and a set sorted by id would bury it.
+ *
+ * IT IS PRESENTATION AND NOTHING ELSE. Nothing here writes to the sessions
+ * slice and nothing here sets any session's status. Rule 2 at the head of
+ * this file is unchanged by the widening.
  */
-export type ArchSelection = string | null;
+export type ArchSelection = readonly string[];
+
+/** The empty selection, as ONE frozen array. See `NONE` below for why. */
+const NO_SELECTION: ArchSelection = Object.freeze([]);
 
 export interface ArchViewState {
   /** Which folder, on which computer, this reading belongs to. */
@@ -91,15 +112,52 @@ export interface ArchViewState {
   progress: { done: number; total: number } | null;
   /** A read that failed outright. One sentence, never a blank panel. */
   error: string | null;
-  /** The selected subject, which is what the prose panel draws. */
+  /** The selected subjects, in the order the person picked them. */
   selected: ArchSelection;
   /** Drafting in flight, so the control cannot be pressed twice. */
   drafting: boolean;
 
   syncProject(target: WorkspaceTarget | null): void;
+  /**
+   * Make sure this project's contract is loaded, and answer when it is.
+   *
+   * `syncProject` is what the VIEW calls, and it fires the read without
+   * waiting because a view has a loading state to draw. Phase 64's picker has
+   * no view: it opens a native menu straight out of a session, so it has to be
+   * able to wait for the rows it is about to draw. This is that wait, over the
+   * same `refresh`, so there is still one read of a contract and not two.
+   *
+   * It starts no process and it opens no view.
+   */
+  ensureLoaded(target: WorkspaceTarget | null): Promise<void>;
   refresh(): Promise<void>;
   check(): Promise<void>;
-  select(id: ArchSelection): void;
+  /** Replace the whole selection with one subject, or clear it with null. */
+  select(id: string | null): void;
+  /**
+   * Add a subject to the selection, or take it out again.
+   *
+   * This is what a ⌘-click reaches. It appends rather than inserting in any
+   * sorted position, so the list stays in the order the person built it.
+   */
+  toggleSelected(id: string): void;
+  /**
+   * Replace the whole selection with these subjects, in this order.
+   *
+   * The picker uses it so that what a person picked in the native menu and
+   * what the view shows selected cannot disagree about what was aimed. It is
+   * presentation and nothing else, like every other write in this file.
+   */
+  selectAll(ids: readonly string[]): void;
+  /**
+   * The subject the prose panel draws, being the LAST one picked.
+   *
+   * One panel and several selected subjects needs a rule, and the rule is
+   * recency: the thing a person just clicked is the thing they are reading
+   * about. The other selected rows keep their selected mark, so nothing about
+   * the wider selection is hidden by the panel showing one of them.
+   */
+  focused(): string | null;
   /** Compose the skeleton and open it as unsaved editor buffers. */
   draft(): Promise<void>;
   /** Put the seeding prompt on the clipboard and open the new session sheet. */
@@ -162,7 +220,7 @@ export const useArch = create<ArchViewState>((set, get) => ({
   checking: false,
   progress: null,
   error: null,
-  selected: null,
+  selected: NO_SELECTION,
   drafting: false,
 
   syncProject(target) {
@@ -173,10 +231,27 @@ export const useArch = create<ArchViewState>((set, get) => ({
       lastCheck: null,
       progress: null,
       error: null,
-      selected: null,
+      selected: NO_SELECTION,
       status: target === null ? 'idle' : 'loading'
     });
     if (target !== null) void get().refresh();
+  },
+
+  async ensureLoaded(target) {
+    if (target === null) return;
+    if (!sameTarget(get().target, target)) {
+      set({
+        target,
+        load: null,
+        lastCheck: null,
+        progress: null,
+        error: null,
+        selected: NO_SELECTION,
+        status: 'loading'
+      });
+    }
+    if (get().load !== null) return;
+    await get().refresh();
   },
 
   async refresh() {
@@ -229,7 +304,24 @@ export const useArch = create<ArchViewState>((set, get) => ({
   },
 
   select(id) {
-    set({ selected: id });
+    set({ selected: id === null ? NO_SELECTION : [id] });
+  },
+
+  toggleSelected(id) {
+    const current = get().selected;
+    const next = current.includes(id)
+      ? current.filter((s2) => s2 !== id)
+      : [...current, id];
+    set({ selected: next.length === 0 ? NO_SELECTION : next });
+  },
+
+  selectAll(ids) {
+    set({ selected: ids.length === 0 ? NO_SELECTION : [...ids] });
+  },
+
+  focused() {
+    const { selected } = get();
+    return selected.length === 0 ? null : (selected[selected.length - 1] ?? null);
   },
 
   async draft() {

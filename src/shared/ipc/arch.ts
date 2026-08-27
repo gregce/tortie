@@ -1,5 +1,6 @@
 /**
- * The arch contract (Phase 63): three reads and two pushes.
+ * The arch contract: three reads and two pushes from Phase 63, and one more
+ * read from Phase 64.
  *
  * `arch:load` answers with the `docs/arch/` a person wrote, the problems the
  * validator found in it, and whatever verdicts Tortie already holds for that
@@ -29,6 +30,16 @@
  * `build/assert-import-boundaries.mjs` holds the wall that keeps `main/arch/`
  * from naming `main/manifest/`, `main/restore/` or `main/context/`.
  *
+ * PHASE 64 ADDS TWO READS AND NEITHER OF THEM BREAKS THOSE THREE RULES.
+ * `arch:composePayload` turns a selection into one block of plain text and
+ * hands it back. It writes nothing, it starts nothing, and IT TAKES NO SESSION
+ * ID, because `build/assert-import-boundaries.mjs` keeps `main/arch/` from
+ * naming `main/manifest/`, so the composer cannot see a session and could not
+ * use one. Which session may be handed a block is decided in the renderer, by
+ * one exported guard, over data the renderer already holds. `arch:modules`
+ * reads the import graph that is already persisted and answers with the
+ * computed level 2 view. Neither composes a sixth git call.
+ *
  * MAIN: src/main/arch/ipc.ts, the one `arch:*` registrar.
  */
 
@@ -42,6 +53,10 @@ import type {
   ArchProblem,
   ArchVerdict
 } from '../arch';
+import type {
+  ArchModulesInput,
+  ArchModulesResult
+} from './arch-modules';
 import type { Unsubscribe } from './base';
 
 // ---------------------------------------------------------------------------
@@ -136,6 +151,81 @@ export interface ArchSkeletonResult {
   note: string;
 }
 
+// ---------------------------------------------------------------------------
+// The composed scope (Phase 64)
+// ---------------------------------------------------------------------------
+
+/**
+ * What a person picked, by id and nothing else.
+ *
+ * A gap has no id of its own in the format, so it is named by the part it
+ * belongs to and its position in that part's list, in the form
+ * `component:<id>#gap:<index>`. `archGapId` in `src/shared/arch-ids.ts`
+ * composes that string and `parseArchGapId` reads it, and the renderer's own
+ * `gap:<id>:<index>` spelling is translated into it by `archViewGapIdToChannel`
+ * in that same file, so no end of this channel writes the format out by hand
+ * and the three cannot disagree about the shape.
+ *
+ * A verdict is named by the subject id the checkers stamped, exactly as it
+ * arrived in `ArchLoadResult.verdicts`.
+ *
+ * Every list is sorted and de-duplicated by the composer before it is used, so
+ * the same set of ids composes the same bytes whatever order they arrive in.
+ */
+export interface ArchComposePayloadInput extends ArchRepoInput {
+  componentIds: string[];
+  gapIds: string[];
+  verdictIds: string[];
+}
+
+/**
+ * One composed scope, and everything the caller needs in order to act on it.
+ *
+ * `text` is ONE block and it is delivered as ONE paste. The one paste per file
+ * rule in `src/renderer/terminal/drop/insert.ts` governs REFERENCES, meaning
+ * paths that become attachment chips, and this is a prose block that happens to
+ * name paths and is meant to read as literal text.
+ *
+ * `brokenTarget` is the broken target gate. It is true when a selected part's
+ * anchors resolve to zero tracked files at HEAD, which means the scope points
+ * at something that is not there any more. The caller demands one extra
+ * confirmation before delivery, and that is the one check typing a scope by
+ * hand can never perform.
+ *
+ * `proseWithheld` is the second grade of the two grade rule, reported rather
+ * than hidden. A part over the commits behind threshold contributes one line
+ * to the block saying its prose predates N commits, and its row here so the
+ * caller can say the same thing in its own words.
+ */
+export interface ArchComposePayloadResult {
+  cwd: string;
+  /** The block itself. One paste, never chunked. */
+  text: string;
+  /** Bytes of `text` in UTF-8, so no caller has to guess at a paste's size. */
+  bytes: number;
+  /** True when any selected part's anchors resolve to zero files at HEAD. */
+  brokenTarget: boolean;
+  /** The parts that resolve to nothing, sorted. */
+  brokenTargetIds: string[];
+  /** Anchors on selected parts that match no tracked file at HEAD. */
+  deadAnchors: { componentId: string; anchor: string }[];
+  /** Parts whose authored prose was withheld, with the count that withheld it. */
+  proseWithheld: { componentId: string; commitsBehind: number }[];
+  /** Selected ids that name nothing in this contract. */
+  unknownIds: string[];
+  /** True when any list in the block was cut at its bound. */
+  truncated: boolean;
+  /** How much the block carries. */
+  counts: {
+    parts: number;
+    interiorPromises: number;
+    crossingPromises: number;
+    verdicts: number;
+    broke: number;
+    gaps: number;
+  };
+}
+
 export interface ArchInvokeChannelMap {
   /**
    * Read `docs/arch/` and the stored verdicts. Reads files and the arch
@@ -154,6 +244,22 @@ export interface ArchInvokeChannelMap {
    * writes no file: the bytes come back for unsaved editor buffers.
    */
   'arch:skeleton': { req: [input: ArchRepoInput]; res: ArchSkeletonResult };
+  /**
+   * Turn a selection into one block of plain text (Phase 64). Pure over the
+   * contract, the tracked file list and the stored verdicts, so the same
+   * selection composes the same bytes on any machine. It writes nothing, it
+   * starts nothing, and IT TAKES NO SESSION ID.
+   */
+  'arch:composePayload': {
+    req: [input: ArchComposePayloadInput];
+    res: ArchComposePayloadResult;
+  };
+  /**
+   * What one part is made of, computed (Phase 64). Reads the arch database and
+   * the one fixed `git ls-files -z` argv, judges nothing and writes nothing.
+   * Its shapes and its three caps live in ./arch-modules.ts.
+   */
+  'arch:modules': { req: [input: ArchModulesInput]; res: ArchModulesResult };
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +301,7 @@ export interface ArchEventPayloadMap {
 }
 
 /**
- * Extra on window.gmux: the arch view's three reads and its two subscriptions,
+ * Extra on window.gmux: the arch view's five reads and its two subscriptions,
  * behind one object, feature detected together. A build without the reader has
  * no `arch` object at all, and the view says one sentence instead of breaking.
  */
@@ -204,6 +310,8 @@ export interface GmuxArchExtras {
     load(input: ArchRepoInput): Promise<ArchLoadResult>;
     check(input: ArchRepoInput): Promise<ArchCheckResult>;
     skeleton(input: ArchRepoInput): Promise<ArchSkeletonResult>;
+    composePayload(input: ArchComposePayloadInput): Promise<ArchComposePayloadResult>;
+    modules(input: ArchModulesInput): Promise<ArchModulesResult>;
     onChecked(cb: (event: ArchCheckedEvent) => void): Unsubscribe;
     onProgress(cb: (progress: ArchProgressEvent) => void): Unsubscribe;
   };
@@ -216,3 +324,18 @@ export interface GmuxArchExtras {
  * person reads says Architecture.
  */
 export type ArchMenuActionId = 'show-arch';
+
+/**
+ * Session > Aim at a Promise… (Phase 64), the aiming verb's own menu action.
+ *
+ * It is a SECOND id rather than a second member on `ArchMenuActionId` because
+ * the two rows are different kinds of thing. `show-arch` opens a view and
+ * changes nothing. This one composes a block of text and puts it into the
+ * prompt of the session the person is looking at, so it sits in the Session
+ * menu beside Resume Conversation rather than in the View menu, and a reader
+ * looking for "what can type into a session" finds it under its own name.
+ *
+ * Older renderers ignore an id they do not know, which is the same property
+ * every other member of this union relies on.
+ */
+export type ArchAimMenuActionId = 'arch-aim';

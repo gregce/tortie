@@ -18,7 +18,7 @@ import type { FindMenuActionId } from './search';
 import type { PastSessionsMenuActionId } from './sessions';
 import type { ContextMenuActionId } from './context';
 import type { OverviewMenuActionId } from './overview';
-import type { ArchMenuActionId } from './arch';
+import type { ArchAimMenuActionId, ArchMenuActionId } from './arch';
 import type { ShellOpenMenuActionId } from './shell';
 
 // ---------------------------------------------------------------------------
@@ -450,6 +450,10 @@ export type AnyMenuActionWithProjects =
   // is a sidebar view like Context rather than a window like Catch Me Up, so
   // it sits with the sidebar views in the menu and rides the same channel.
   | ArchMenuActionId
+  // Phase 64. The Session menu gained "Aim at a Promise…", the same one-line
+  // fold. It is a verb on the session in front of the person rather than a
+  // view, which is why it carries its own id and sits in a different menu.
+  | ArchAimMenuActionId
   // Phase 51. The payload-free nudge that a shell open is pending.
   | ShellOpenMenuActionId
   // Phase 90.3. File > Open Folder on a Machine…, the same one-line fold.

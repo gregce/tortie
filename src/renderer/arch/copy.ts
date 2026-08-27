@@ -22,8 +22,6 @@
  * amber belongs to "an agent needs you" and nothing on this surface is that.
  */
 
-import type { ArchFreshness } from '@shared/arch';
-
 /** The view's own name, as a person reads it. */
 export const ARCH_VIEW_TITLE = 'Architecture';
 
@@ -91,91 +89,22 @@ export const ARCH_GAPS_TITLE = 'Known gaps';
 export const ARCH_ACCEPTED_NOTE =
   'Accepted divergences are counted here with the reason the author gave. Tortie reads that file and never writes it.';
 
-/** The four verdict words, and nothing else says them. */
-export function verdictWord(status: string): string {
-  switch (status) {
-    case 'convergent':
-      return 'holds';
-    case 'divergent':
-      return 'broke';
-    case 'absent':
-      return 'missing';
-    default:
-      return 'cannot be checked';
-  }
-}
-
-/** The three coverage words. */
-export function coverageWord(coverage: string): string {
-  switch (coverage) {
-    case 'checked':
-      return 'checked';
-    case 'partly-checked':
-      return 'partly checked';
-    default:
-      return 'not checkable';
-  }
-}
-
 /**
- * The freshness ribbon, in one sentence.
+ * THE FOUR VERDICT WORDS, THE THREE COVERAGE WORDS, THE FRESHNESS RIBBON AND
+ * THE UNRESOLVED SENTENCE NOW LIVE IN `src/shared/arch-copy.ts` (Phase 64).
  *
- * It is commits rather than days on purpose. A calendar date says how long ago
- * somebody typed, and the question a person is asking is how much code moved
- * under the promise since then. Research 49 section 9.1 replaced the corpus's
- * own "Last Updated" stamp with this arithmetic for exactly that reason,
- * because git cannot lie about it and a hand typed date can.
- *
- * IT NAMES THE WORST PART RATHER THAN A TOTAL, and that is deliberate. Adding
- * the per component commit counts together would double count every commit
- * that touched two parts, and the number a person can act on is which part has
- * moved furthest from what the contract says about it.
- *
- * THE UNCOMMITTED CLAUSE IS NOT DECORATION. A verdict computed while a worktree
- * is dirty is a different claim from one computed at HEAD, and agents work
- * uncommitted for hours at a time, so a commit only count reads zero in the
- * middle of exactly the rewrite this ribbon exists to catch.
+ * They moved because the main process composes a text block for a running
+ * agent, and that block says "broke" and carries the same freshness sentence
+ * this ribbon draws. Two copies of a sentence a person reads in two places is
+ * how the two drift, and nothing compares them. The names below are what this
+ * view already called them, so every caller in this directory is unchanged.
  */
-export function freshnessSentence(
-  rows: readonly ArchFreshness[],
-  /** Component id to display name, so the sentence says a name and not a slug. */
-  nameOf: (componentId: string) => string
-): string {
-  if (rows.length === 0) {
-    return 'Nothing has landed under these promises since the contract last changed.';
-  }
-  const moved = rows.filter((r) => r.commitsBehind > 0);
-  const worst = rows.reduce((a, b) => (b.commitsBehind > a.commitsBehind ? b : a));
-  const uncommitted = rows.reduce((m, r) => Math.max(m, r.uncommittedFiles), 0);
-
-  const head =
-    moved.length === 0
-      ? 'Nothing has landed under these promises since the contract last changed'
-      : `${String(moved.length)} of ${String(rows.length)} parts have had code land under them since the contract last changed, ${nameOf(worst.componentId)} by ${String(worst.commitsBehind)}`;
-
-  if (uncommitted === 0) return `${head}.`;
-  const files =
-    uncommitted === 1 ? '1 changed file' : `${String(uncommitted)} changed files`;
-  return `${head}, and ${files} are not committed yet, so those are checked against what is on disk rather than against HEAD.`;
-}
-
-/**
- * The unresolved count, which is what stops a resolver miss reading as green.
- *
- * This is the conservative verdict rule made visible. An import the resolver
- * could not follow is indistinguishable from an import that is genuinely
- * absent, and a false green on a `must-not` promise is the single most
- * damaging thing this feature could produce. So the number is on screen: a
- * person reading "nothing imports the tmux layer" can see how much of the
- * search actually returned a definite answer.
- */
-export function unresolvedSentence(
-  unresolved: number,
-  total: number
-): string | null {
-  if (unresolved === 0 || total === 0) return null;
-  return `${String(unresolved)} of ${String(total)} imports could not be resolved, so nothing here claims they are absent.`;
-}
+export {
+  archCoverageWord as coverageWord,
+  archFreshnessRibbon as freshnessSentence,
+  archUnresolvedSentence as unresolvedSentence,
+  archVerdictWord as verdictWord
+} from '@shared/arch-copy';
 
 /** A run that has not finished yet. Never a stale verdict wearing a fresh face. */
 export const ARCH_FIRST_CHECK = 'Not checked yet';

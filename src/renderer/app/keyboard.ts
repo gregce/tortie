@@ -55,6 +55,9 @@ import { askRailTookEscape } from '../overview/session-keys';
 // Escape steps out of the story before it steps out of the page.
 import { storyTookEscape } from '../overview/story';
 import { useQuickOpen } from '../quickopen';
+// Phase 64: the aiming verb's picker, reached by ⌃⇧P. It opens a native menu
+// over the session the person is in and opens no view.
+import { openAimPicker } from '../arch/picker';
 import {
   focusInsideSearch,
   focusResultsList,
@@ -311,6 +314,43 @@ export function useKeyboardMap(): void {
       ) {
         e.preventDefault();
         showViewAction('arch');
+        return;
+      }
+
+      // ⌃⇧P — Aim at a Promise (Phase 64). Registered here beside the three
+      // view chords for the same reason they are: a page-side preventDefault
+      // suppresses an application-menu accelerator, so a chord that existed
+      // only as an accelerator would be the one this ladder reaches first and
+      // swallows. The Session menu row in ./menu-actions.ts runs the same
+      // body, so the row and the chord cannot drift.
+      //
+      // It opens NO VIEW. The picker raises a native menu over the session the
+      // person is already in and puts what they pick into that session's
+      // prompt, and nothing is sent until they press Return.
+      //
+      // IT IS THE ONE CHORD IN THIS FAMILY THAT IS GUARDED, and the integrator
+      // added the guard. The three above it toggle a sidebar view, which is
+      // harmless behind a sheet. This one types into a session, and behind a
+      // modal the person cannot see the session it would type into. The Session
+      // menu row refuses in exactly that state, and two paths that the comments
+      // in both files call the same body have to actually be the same.
+      //
+      // `focusChordSwallowed()` rather than `modalLayerOpen()`, which is what
+      // the menu row asks: it is the same answer plus Quick Open and Go to
+      // Symbol, and both of those own the keyboard while they are open. The
+      // menu row cannot be clicked while either holds the keyboard, so the
+      // stricter answer is the one that makes the two paths agree rather than a
+      // second rule.
+      if (
+        e.ctrlKey &&
+        e.shiftKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'p'
+      ) {
+        e.preventDefault();
+        if (focusChordSwallowed()) return;
+        void openAimPicker();
         return;
       }
 
