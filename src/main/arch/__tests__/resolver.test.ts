@@ -14,6 +14,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { archResolveContext, resolveImport, RESOLVER_MATRIX } from '../resolver';
 import { readArchManifests } from '../resolver/manifest';
+import { GRAMMARS } from '../../symbols/languages';
+import { IMPORT_TRUNCATION_MARKER } from '../../symbols/queries';
+import { collapseSameAnswer } from '../scan';
 
 let root: string;
 
@@ -194,27 +197,113 @@ describe('the manifest aware resolver', () => {
     ).toBe('external');
   });
 
-  it('marks Rust and Python unverifiable rather than dropping or guessing', () => {
+  it('sends Rust, Python and Ruby to their own arms rather than to the script one', () => {
+    // Phase 157. These three used to answer `unverifiable` here. The point of
+    // this test is no longer the answer, it is WHICH ARM ANSWERED: the script
+    // arm would call `crate::foo::bar` and `os.path` unresolved for reasons of
+    // its own, so the assertions below name answers only a real arm can give.
     const c = ctx();
+    // The Rust arm, and nothing else in this file, knows `std` is Rust's own
+    // standard library. The script arm has no such list.
     expect(
-      resolveImport('crate::foo::bar', 'crates/thing/src/lib.rs', 'rust', c)
-    ).toEqual({ toPath: null, resolution: 'unverifiable' });
+      resolveImport('std::io::Write', 'crates/thing/src/lib.rs', 'rust', c)
+    ).toEqual({ toPath: null, resolution: 'external' });
+    // The Python arm, and nothing else, knows `os` is Python's.
     expect(resolveImport('os.path', 'py/app.py', 'python', c)).toEqual({
       toPath: null,
-      resolution: 'unverifiable'
+      resolution: 'external'
     });
+    // The Ruby arm, and nothing else, knows `pathname` is Ruby's.
+    expect(resolveImport('pathname', 'lib/app.rb', 'ruby', c)).toEqual({
+      toPath: null,
+      resolution: 'external'
+    });
+    // AND NONE OF THEM IS THE SCRIPT ARM. `fs` is a Node builtin, so a `.rb`
+    // file routed to the script arm would answer external here. It must not:
+    // Ruby has no `fs`, nobody declared the gem, and an external would leave a
+    // must-not promise across it green.
+    expect(resolveImport('fs', 'lib/app.rb', 'ruby', c).resolution).toBe(
+      'unresolved'
+    );
   });
 
-  it('prints one matrix row per language with the two deferred ones named', () => {
+  it('never answers unverifiable for a language this build parses', () => {
+    // THE ROW THAT USED TO SAY THE OPPOSITE. Phase 157 emptied this answer, and
+    // this test is what stops a later round quietly refilling it. It is not the
+    // same answer as `unresolved`: this one says nobody looked.
+    const c = ctx();
+    for (const [specifier, from, language] of [
+      ['crate::foo::bar', 'crates/thing/src/lib.rs', 'rust'],
+      ['os.path', 'py/app.py', 'python'],
+      ['./x', 'src/app/main.ts', 'typescript'],
+      ['./x', 'src/app/main.js', 'javascript'],
+      ['fmt', 'cmd/tool/main.go', 'go'],
+      ['app', 'lib/app.rb', 'ruby']
+    ] as const) {
+      expect(
+        resolveImport(specifier, from, language, c).resolution
+      ).not.toBe('unverifiable');
+    }
+  });
+
+  it('prints one matrix row per language and every one of them resolves', () => {
     expect(RESOLVER_MATRIX.map((r) => [r.language, r.resolves])).toEqual([
       ['typescript', true],
       ['javascript', true],
       ['go', true],
-      ['rust', false],
-      ['python', false]
+      ['rust', true],
+      ['python', true],
+      ['ruby', true]
     ]);
     for (const row of RESOLVER_MATRIX) {
       expect(row.resolves ? row.reason === null : row.reason !== null).toBe(true);
     }
+  });
+
+  it('refuses a truncated specifier in every language, Go included', () => {
+    // A specifier the extractor had to truncate is recorded rather than dropped,
+    // which is what keeps the checker counting it. Five of the six arms refuse
+    // it on syntax alone; Go's does not, because its rule is that a path not
+    // under the module directive IS a dependency, and that rule would have made
+    // a definite answer out of a mangled path. The facade refuses it first.
+    const ctx = archResolveContext(readArchManifests(root), FILES);
+    const long = `${'q'.repeat(5000)}${IMPORT_TRUNCATION_MARKER}`;
+    for (const language of RESOLVER_MATRIX.map((r) => r.language)) {
+      const answer = resolveImport(long, 'src/main/index.ts', language, ctx);
+      expect([language, answer.resolution]).toEqual([language, 'unresolved']);
+    }
+  });
+
+  it('collapses several specifiers on one line that share an answer', () => {
+    // `from .schemas import A, B, C` yields four specifiers and one answer when
+    // the names are classes rather than submodules. Keeping four facts would
+    // count one import four times and list one line four times in a promise's
+    // offending list. The shortest specifier survives, which is what the author
+    // wrote. A name that really is a submodule has a DIFFERENT answer and stays.
+    const rows = [
+      { fromPath: 'py/app.py', line: 3, specifier: '.schemas', toPath: 'py/schemas.py', resolution: 'first-party' as const, language: 'python' as const },
+      { fromPath: 'py/app.py', line: 3, specifier: '.schemas.A', toPath: 'py/schemas.py', resolution: 'first-party' as const, language: 'python' as const },
+      { fromPath: 'py/app.py', line: 3, specifier: '.schemas.B', toPath: 'py/schemas.py', resolution: 'first-party' as const, language: 'python' as const },
+      { fromPath: 'py/app.py', line: 4, specifier: '.routes', toPath: 'py/routes/__init__.py', resolution: 'first-party' as const, language: 'python' as const },
+      { fromPath: 'py/app.py', line: 4, specifier: '.routes.auth', toPath: 'py/routes/auth.py', resolution: 'first-party' as const, language: 'python' as const }
+    ];
+    expect(collapseSameAnswer(rows).map((r) => r.specifier)).toEqual([
+      '.schemas',
+      '.routes',
+      '.routes.auth'
+    ]);
+  });
+
+  it('names every language the scanner can produce, so none falls to the script arm', () => {
+    // `languageOf` in ../scan.ts ends in a default branch that answers
+    // `'typescript'`. A grammar added to ../../symbols/languages.ts and left out
+    // of `ArchResolverLanguage` is therefore read by the SCRIPT arm, which is
+    // worse than not reading it at all. This is the unit test half of the same
+    // assertion `npm run conformance:arch` makes.
+    const fromGrammars = new Set(
+      GRAMMARS.map((g) => (g === 'tsx' ? 'typescript' : g))
+    );
+    const fromMatrix = new Set(RESOLVER_MATRIX.map((r) => r.language));
+    expect([...fromGrammars].sort()).toEqual([...fromMatrix].sort());
   });
 });

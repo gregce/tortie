@@ -22,13 +22,22 @@
  * Research 19's worker budget is one resident plus six transient, and Phase 63
  * added a reader rather than a budget.
  *
- * ## The two languages that are captured and not resolved
+ * ## Every language this build parses is now resolved (Phase 157)
  *
- * Rust and Python imports are extracted and then marked `unverifiable` with a
- * reason. Research 49 section 4.8 fix 4 says those resolvers ship later rather
- * than shipping wrong. They are COUNTED, so a Rust component reports what
- * cannot be checked instead of reporting nothing, and the conservative verdict
- * rule then keeps them off every green answer.
+ * Rust and Python imports used to be extracted and then marked `unverifiable`,
+ * and Ruby was not read at all. All three have arms now, so this module marks
+ * nothing `unverifiable` and pushes nothing into the container that names what
+ * was not read. A `.rb`, `.rs` or `.py` import that finds no file is
+ * `unresolved`, which says somebody looked, rather than `unverifiable`, which
+ * says nobody did.
+ *
+ * `languageOf` below is the line that decides which arm reads a file, and its
+ * default branch answers `'typescript'`. A grammar added to
+ * ../symbols/languages.ts and not added there is read BY THE SCRIPT ARM, which
+ * is worse than not reading it: a Ruby `require "fs"` would answer `external`
+ * because `fs` is a Node builtin, and an `external` is dropped from both sides
+ * of the ledger in ./checkers/imports.ts, leaving a `must-not` promise across it
+ * green. `npm run conformance:arch` asserts the two lists agree.
  *
  * ## What is incremental and what is not
  *
@@ -77,7 +86,7 @@ export interface ArchScanResult {
 export const ARCH_SCAN_FILE_CEILING = 50_000;
 
 /** The grammar a path is read with, in the resolver's own vocabulary. */
-function languageOf(relPath: string): ArchResolverLanguage | null {
+export function languageOf(relPath: string): ArchResolverLanguage | null {
   const grammar = grammarFor(relPath);
   if (grammar === null) return null;
   if (grammar === 'tsx') return 'typescript';
@@ -85,15 +94,22 @@ function languageOf(relPath: string): ArchResolverLanguage | null {
   if (grammar === 'go') return 'go';
   if (grammar === 'python') return 'python';
   if (grammar === 'rust') return 'rust';
+  if (grammar === 'ruby') return 'ruby';
   return 'typescript';
 }
 
-/** Why one language's imports are captured and never resolved. */
+/**
+ * Why one language's imports would be captured and never resolved.
+ *
+ * IT IS EMPTY, and Phase 157 is what emptied it. It held Rust and Python, and
+ * both have arms now, as does Ruby. The map is kept rather than deleted because
+ * a language whose query lands before its arm does needs a row here for exactly
+ * that long, and `reasonFor` below still has to answer an `unverifiable` row an
+ * older build wrote into the fact base. `npm run conformance:arch` asserts that
+ * nothing this build parses produces one today.
+ */
 const DEFERRED_REASON: Readonly<Partial<Record<ArchResolverLanguage, string>>> =
-  {
-    rust: 'Imports are not resolved for Rust',
-    python: 'Imports are not resolved for Python'
-  };
+  {};
 
 export interface ArchScanInput {
   repoPath: string;
@@ -220,7 +236,12 @@ export async function scanArchImports(
           found.specifier,
           file.relPath,
           language,
-          ctx
+          ctx,
+          // THE FORM TRAVELS WITH THE SPECIFIER. Ruby's `require "utils"` and
+          // `require_relative "utils"` are the same six letters and name
+          // different files, and the extractor is the only thing that knows
+          // which was written. Every other arm ignores it.
+          found.form
         );
         edges.push({
           fromPath: file.relPath,
@@ -235,7 +256,7 @@ export async function scanArchImports(
         relPath: file.relPath,
         mtimeMs: file.mtimeMs,
         size: file.size,
-        imports: edges
+        imports: collapseSameAnswer(edges)
       });
     }
     store.saveImports(repoKey, rows);
@@ -265,13 +286,11 @@ export async function scanArchImports(
   const unparsed: ArchUnparsedLanguage[] = [...unparsedCounts.entries()]
     .map(([language, files]) => ({ language, files }))
     .sort((a, b) => b.files - a.files || a.language.localeCompare(b.language));
-  // The two grammars this build parses and does not resolve join the same
-  // container, because from the reader's seat "captured and not resolved" and
-  // "not read at all" are the same answer: those imports are not checked.
-  for (const language of ['rust', 'python'] as const) {
-    const files = parseable.filter((p) => languageOf(p) === language).length;
-    if (files > 0) unparsed.push({ language, files });
-  }
+  // NOTHING IS ADDED HERE ANY MORE. Until Phase 157 the two grammars this build
+  // parsed and did not resolve were pushed into this container, because from the
+  // reader's seat "captured and not resolved" and "not read at all" were the
+  // same answer. Rust, Python and Ruby all resolve now, so the container holds
+  // only what it says it holds: extensions this build has no grammar for.
 
   return {
     imports,
@@ -283,6 +302,44 @@ export async function scanArchImports(
     durationMs: Date.now() - started,
     overBudget
   };
+}
+
+/**
+ * One line that produced several specifiers with the SAME answer becomes one
+ * fact.
+ *
+ * Python is the only language that produces several, and it does so because the
+ * query captures each imported name beside its module: `from .schemas import A,
+ * B, C` yields `.schemas`, `.schemas.A`, `.schemas.B` and `.schemas.C`. That is
+ * deliberate and it is what stopped a `from package import submodule` hiding a
+ * real edge. But when the imported names are ordinary classes rather than
+ * submodules, all four answers are the same file, and keeping four facts would
+ * inflate the headline import count, count one unresolved import four times, and
+ * list one `import` line four times in a promise's offending list. Measured on
+ * 2026-08-26 over lift-sys: one `from .schemas import ...` in `api/server.py`
+ * turned two offending rows into 29.
+ *
+ * The SHORTEST specifier survives, which is the module the author wrote. A name
+ * that really is a submodule resolves to a DIFFERENT file, so it has a different
+ * answer and it is kept.
+ *
+ * Exported so a unit test can drive it without a worker pool, a store or a
+ * repository.
+ */
+export function collapseSameAnswer(edges: readonly ArchImportEdge[]): ArchImportEdge[] {
+  const best = new Map<string, ArchImportEdge>();
+  const order: string[] = [];
+  for (const edge of edges) {
+    const key = `${edge.line}\u0000${edge.resolution}\u0000${edge.toPath ?? ''}`;
+    const held = best.get(key);
+    if (held === undefined) {
+      best.set(key, edge);
+      order.push(key);
+      continue;
+    }
+    if (edge.specifier.length < held.specifier.length) best.set(key, edge);
+  }
+  return order.map((key) => best.get(key) as ArchImportEdge);
 }
 
 /**

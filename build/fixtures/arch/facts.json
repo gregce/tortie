@@ -155,7 +155,7 @@
     "1111111111111111111111111111111111111111"
   ],
   "resolverProbe": {
-    "note": "Specifiers the gate hands to the REAL resolveImport, so the matrix below is an assertion about the code rather than a bucketing of hand written facts. The context is built from trackedFiles above plus these three declarations.",
+    "note": "Specifiers the gate hands to the REAL resolveImport, so the matrix in expected.json is an assertion about the code rather than a bucketing of hand written facts. Phase 157 added the Rust, Python and Ruby rows. Those three arms need files a crate, a package and a gem really have, and trackedFiles above deliberately does NOT gain them, because every other checker's expectation is computed over that list. Each of them gets its own file list in `files` below and its own resolve context, so no other count moves.",
     "goModule": "example.com/imaginary",
     "packageName": "imaginary",
     "dependencies": [
@@ -198,16 +198,179 @@
         "specifier": "fmt"
       },
       {
+        "language": "python",
+        "fromPath": "tools/gen.py",
+        "specifier": "os"
+      },
+      {
         "language": "rust",
-        "fromPath": "src/native/lib.rs",
-        "specifier": "serde"
+        "fromPath": "native/src/app.rs",
+        "specifier": "crate::store::Thing"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app.rs",
+        "specifier": "crate::layout::Grid"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app.rs",
+        "specifier": "self::inner::Thing"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app/inner.rs",
+        "specifier": "super::forward::Thing"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/build.rs",
+        "specifier": "imaginary_native::store::Thing"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app.rs",
+        "specifier": "patched::PtySize"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app.rs",
+        "specifier": "std::io::Write"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app.rs",
+        "specifier": "left_pad_rs::pad"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app.rs",
+        "specifier": "nobody_declared_this::Thing"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app.rs",
+        "specifier": "crate::{store, layout}"
+      },
+      {
+        "language": "rust",
+        "fromPath": "native/src/app/inner.rs",
+        "specifier": "super::*"
       },
       {
         "language": "python",
         "fromPath": "tools/gen.py",
-        "specifier": "os"
+        "specifier": "tools.gen"
+      },
+      {
+        "language": "python",
+        "fromPath": "tools/gen.py",
+        "specifier": ".gen"
+      },
+      {
+        "language": "python",
+        "fromPath": "tools/gen.py",
+        "specifier": "requests"
+      },
+      {
+        "language": "ruby",
+        "fromPath": "lib/imaginary/version.rb",
+        "specifier": "../imaginary",
+        "form": "require-relative"
+      },
+      {
+        "language": "ruby",
+        "fromPath": "spec/thing_spec.rb",
+        "specifier": "imaginary/version",
+        "form": "require"
+      },
+      {
+        "language": "ruby",
+        "fromPath": "spec/thing_spec.rb",
+        "specifier": "rake",
+        "form": "require"
+      },
+      {
+        "language": "ruby",
+        "fromPath": "spec/thing_spec.rb",
+        "specifier": "pathname",
+        "form": "require"
+      },
+      {
+        "language": "ruby",
+        "fromPath": "spec/thing_spec.rb",
+        "specifier": "active_support",
+        "form": "require"
+      },
+      {
+        "language": "ruby",
+        "fromPath": "lib/imaginary.rb",
+        "specifier": "../../../../../etc/passwd",
+        "form": "require-relative"
+      },
+      {
+        "language": "ruby",
+        "fromPath": "lib/imaginary.rb",
+        "specifier": "fs",
+        "form": "require"
       }
-    ]
+    ],
+    "files": {
+      "rust": [
+        "native/Cargo.toml",
+        "native/build.rs",
+        "native/src/lib.rs",
+        "native/src/app.rs",
+        "native/src/app/inner.rs",
+        "native/src/app/forward.rs",
+        "native/src/layout/mod.rs",
+        "native/src/store.rs",
+        "native/vendor/patched/src/lib.rs"
+      ],
+      "ruby": [
+        "Gemfile",
+        "imaginary.gemspec",
+        "lib/imaginary.rb",
+        "lib/imaginary/version.rb",
+        "spec/thing_spec.rb"
+      ]
+    },
+    "cargo": {
+      "crates": [
+        [
+          "imaginary_native",
+          "native"
+        ]
+      ],
+      "dependencies": [
+        "left_pad_rs"
+      ],
+      "pathDependencies": [
+        [
+          "patched",
+          "native/vendor/patched"
+        ]
+      ]
+    },
+    "python": {
+      "name": "imaginary",
+      "dependencies": [
+        "left_pad"
+      ],
+      "declaredRoots": [],
+      "sources": [
+        "pyproject.toml"
+      ]
+    },
+    "ruby": {
+      "gems": [
+        "rake"
+      ],
+      "requirePaths": [
+        "lib"
+      ],
+      "present": true
+    }
   },
   "logNote": "The walk is the whole history, newest first, and the cut is made in process at the first commit that touched docs/arch. So 6666 is BEFORE the contract was written and never counts as staleness, and app reads nothing behind while core reads two."
 }

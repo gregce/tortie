@@ -1,5 +1,5 @@
 /**
- * The regression suite for the five hand-authored tags queries.
+ * The regression suite for the six hand-authored tags queries.
  *
  * This is the maintenance contract research 19 §7.2 asks for: gmux owns these
  * queries, so a grammar bump inside `@vscode/tree-sitter-wasm` that renames a
@@ -165,7 +165,7 @@ function kindOf(found: Found[], name: string): string | undefined {
   return found.find((s) => s.name === name)?.kind;
 }
 
-describe('the five gmux tags queries', () => {
+describe('the six gmux tags queries', () => {
   it('compiles every query against every shipped grammar', async () => {
     const extractor = await extractorPromise;
     // One trivially valid source per grammar; a query that failed to compile
@@ -180,7 +180,8 @@ describe('the five gmux tags queries', () => {
       javascript: ['a.js', 'export function probeName() {}', 'probeName'],
       go: ['a.go', 'package a\nfunc ProbeName() {}', 'ProbeName'],
       python: ['a.py', 'def probe_name():\n    pass', 'probe_name'],
-      rust: ['a.rs', 'pub fn probe_name() {}', 'probe_name']
+      rust: ['a.rs', 'pub fn probe_name() {}', 'probe_name'],
+      ruby: ['a.rb', 'class ProbeName\nend', 'ProbeName']
     };
     for (const id of GRAMMARS) {
       const [relPath, source, expected] = probes[id];
@@ -337,4 +338,46 @@ describe('the five gmux tags queries', () => {
       lines[(t?.line ?? 1) - 1]?.slice(t?.column ?? 0, t?.endColumn ?? 0)
     ).toBe('target');
   });
+
+  it('reads a Ruby class, its methods and its constants (Phase 157)', async () => {
+    const found = await symbolsOf(
+      'cask/cmd.rb',
+      [
+        'module Homebrew',
+        '  DEFAULT_PREFIX = "/opt/homebrew"',
+        '  class Cmd < AbstractCommand',
+        '    def run(args)',
+        '    end',
+        '    def self.parse',
+        '    end',
+        '  end',
+        'end',
+        'class Utils::Curl',
+        '  def value=(v); end',
+        'end',
+        'def top_level_helper; end'
+      ].join('\n')
+    );
+    const got = names(found);
+    for (const name of [
+      'Homebrew',
+      'DEFAULT_PREFIX',
+      'Cmd',
+      'run',
+      'parse',
+      'Curl',
+      'value=',
+      'top_level_helper'
+    ]) {
+      expect(got, `missing ${name}`).toContain(name);
+    }
+    expect(kindOf(found, 'Homebrew')).toBe('module');
+    expect(kindOf(found, 'Cmd')).toBe('class');
+    expect(kindOf(found, 'DEFAULT_PREFIX')).toBe('constant');
+    expect(kindOf(found, 'run')).toBe('method');
+    // The container comes off the class the method sits in, which is what tells
+    // a reader which `run` of the fourteen in a Ruby repository this one is.
+    expect(found.find((s) => s.name === 'run')?.container).toBe('Cmd');
+  });
+
 });

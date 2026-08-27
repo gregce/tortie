@@ -64,11 +64,27 @@
  *     the second case, which is every repository on the day the contract is
  *     drafted.
  * 10. The resolver matrix loses a row, or loses the distinction between the
- *     four answers. Rust and Python must be present and must read
- *     `unverifiable` rather than be left out or folded into `unresolved`. The
- *     numbers come from the REAL `resolveImport` over committed specifiers, so
- *     the row is an assertion about the code rather than a bucketing of facts
- *     an author wrote into the fixture.
+ *     four answers. The numbers come from the REAL `resolveImport` over
+ *     committed specifiers, so each row is an assertion about the code rather
+ *     than a bucketing of facts an author wrote into the fixture.
+ * 10.1 The hand written `RESOLVER_MATRIX` starts lying. Phase 157 found the
+ *     same defect one level up from the one Phase 63's verifier named: the
+ *     table in src/main/arch/resolver/index.ts CLAIMS which languages resolve
+ *     and nothing asked the code. So a language claiming `resolves: true` must
+ *     really produce an answer that is not `unverifiable`, one claiming
+ *     `resolves: false` must produce nothing else, and the set of languages the
+ *     table names must be exactly the set `languageOf` can produce. That last
+ *     one is the important half: `languageOf` ends in a default branch that
+ *     answers `'typescript'`, so a grammar added and left out of the table is
+ *     read BY THE SCRIPT ARM, and a Ruby `require "fs"` would answer `external`
+ *     because `fs` is a Node builtin.
+ * 10.2 THE FALSE GREEN, and it is the one control here that proves the STAKE
+ *     rather than the behaviour. The same `must-not` promise is judged twice
+ *     over the same real answer: once as the arm gives it, and once with
+ *     `unresolved` rewritten to `external`, which is exactly the defect Phase
+ *     63's verifier caught. The first must be `unverifiable` and the second
+ *     must be `convergent`. If they ever agree, either an arm has started
+ *     guessing or the checker has stopped caring.
  * 11. Anything under src/main/arch/ writes a file, composes a ripgrep argument
  *     list, or reaches for a schema compiling library. All three are scanned
  *     for in the source itself.
@@ -455,6 +471,104 @@ for (const want of expected.resolverMatrix) {
 }
 
 // ---------------------------------------------------------------------------
+// 10.1 The hand written table, held against what the code really answers
+// ---------------------------------------------------------------------------
+
+const answeredBy = new Map();
+for (const answer of data.answers) {
+  const bucket = answeredBy.get(answer.language) ?? [];
+  bucket.push(answer);
+  answeredBy.set(answer.language, bucket);
+}
+const declaredRows = [];
+for (const row of data.declaredMatrix) {
+  const given = answeredBy.get(row.language) ?? [];
+  if (given.length === 0) {
+    fail(
+      `resolver: RESOLVER_MATRIX names ${row.language} and no committed ` +
+        `specifier exercises it, so the row is a claim nothing checks. Add a ` +
+        `row to facts.json resolverProbe.specifiers.`
+    );
+    declaredRows.push([row.language, String(row.resolves), 'NOT EXERCISED']);
+    continue;
+  }
+  const real = given.filter((a) => a.resolution !== 'unverifiable').length;
+  if (row.resolves && real === 0) {
+    fail(
+      `resolver: RESOLVER_MATRIX says ${row.language} resolves and every one ` +
+        `of its ${given.length} answers came back unverifiable. The table is ` +
+        `a claim about the code and the code disagrees with it.`
+    );
+  }
+  if (!row.resolves && real > 0) {
+    fail(
+      `resolver: RESOLVER_MATRIX says ${row.language} does not resolve and ` +
+        `${real} of its ${given.length} answers are real ones. A deferred ` +
+        `language answers unverifiable and nothing else, because that is what ` +
+        `keeps its imports off every green verdict.`
+    );
+  }
+  if (row.resolves !== (row.reason === null)) {
+    fail(
+      `resolver: ${row.language} says resolves ${row.resolves} and carries ` +
+        `reason ${JSON.stringify(row.reason)}. A deferred language states its ` +
+        `reason on its face and a resolving one has none to state.`
+    );
+  }
+  declaredRows.push([
+    row.language,
+    String(row.resolves),
+    `${real} of ${given.length} answered`
+  ]);
+}
+
+// THE LINE THAT MATTERS MOST IN THIS SECTION. `languageOf` in
+// src/main/arch/scan.ts falls through to `'typescript'`, so a grammar the
+// symbol layer ships and the resolver's union never named is read by the SCRIPT
+// arm rather than skipped, and that is a wrong answer rather than a missing one.
+const declaredLanguages = data.declaredMatrix.map((r) => r.language).sort();
+if (declaredLanguages.join(',') !== data.scannerLanguages.join(',')) {
+  fail(
+    `resolver: the scanner can produce [${data.scannerLanguages.join(', ')}] ` +
+      `and RESOLVER_MATRIX names [${declaredLanguages.join(', ')}]. They have ` +
+      `to be the same set. languageOf ends in a default branch answering ` +
+      `'typescript', so a language in the first list and not the second is ` +
+      `resolved by the SCRIPT arm, and a Ruby require "fs" then answers ` +
+      `external because fs is a Node builtin.`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 10.2 The false green, run rather than described
+// ---------------------------------------------------------------------------
+
+if (data.falseGreen.shippedAnswer !== 'unresolved') {
+  fail(
+    `false green: the arm answered ${data.falseGreen.shippedAnswer} for a ` +
+      `dependency no manifest declares. It has to be unresolved. This control ` +
+      `is meaningless if the arm being controlled already guessed.`
+  );
+}
+if (data.falseGreen.shippedVerdict !== 'unverifiable') {
+  fail(
+    `false green: a must-not promise whose only import across it is ` +
+      `unresolved came back ${data.falseGreen.shippedVerdict}. It has to be ` +
+      `unverifiable. Extraction failure and genuine absence look identical ` +
+      `from the checker's seat, and a false green on a must-not is the most ` +
+      `damaging thing this feature can print.`
+  );
+}
+if (data.falseGreen.sloppyVerdict !== 'convergent') {
+  fail(
+    `false green: the CONTROL did not fire. The same promise judged with the ` +
+      `unresolved rewritten to external came back ` +
+      `${data.falseGreen.sloppyVerdict} rather than convergent, so this gate ` +
+      `is no longer proving what an external costs. Either the checker changed ` +
+      `or this control stopped reaching it.`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 11. What the source itself must be true about
 // ---------------------------------------------------------------------------
 
@@ -592,6 +706,34 @@ process.stdout.write(line(120) + '\n');
 for (const r of matrixRows) {
   process.stdout.write(pad(r[0], 16) + pad(r[1], 16) + r[2] + '\n');
 }
+
+process.stdout.write(
+  '\nRESOLVER_MATRIX held against what the code answered, and the languages ' +
+    'the scanner can produce\n'
+);
+process.stdout.write(pad('language', 16) + pad('claims resolves', 18) + 'measured\n');
+process.stdout.write(line(120) + '\n');
+for (const r of declaredRows) {
+  process.stdout.write(pad(r[0], 16) + pad(r[1], 18) + r[2] + '\n');
+}
+process.stdout.write(
+  `scanner produces: ${data.scannerLanguages.join(', ')}\n`
+);
+
+process.stdout.write(
+  '\nthe false green, the same must-not promise judged twice over the same ' +
+    'answer\n'
+);
+process.stdout.write(pad('arm', 40) + 'verdict\n');
+process.stdout.write(line(120) + '\n');
+process.stdout.write(
+  pad(`shipped, answers ${data.falseGreen.shippedAnswer}`, 40) +
+    `${data.falseGreen.shippedVerdict}\n`
+);
+process.stdout.write(
+  pad('the Phase 63 defect, answers external', 40) +
+    `${data.falseGreen.sloppyVerdict}, and it is a lie\n`
+);
 
 process.stdout.write('\nevery git call this run composed\n');
 process.stdout.write(pad('kind', 20) + pad('argv', 60) + 'stdin\n');

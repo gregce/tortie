@@ -21,15 +21,21 @@ import type { ArchGitCall } from '../src/main/arch/argv-guard';
 import { ARCH_ARGV_WORDS, assertArchArgv } from '../src/main/arch/argv-guard';
 import type { ArchGitRunner, ArchGitResult } from '../src/main/arch/git-facts';
 import { createArchFileSystem, loadArchDocument } from '../src/main/arch/load';
-import { coverageSentence } from '../src/main/arch/checkers';
+import { checkImports, coverageSentence } from '../src/main/arch/checkers';
+import type { ArchFactBase, ArchImportFact } from '../src/main/arch/checkers/facts';
 import { runArchCheck } from '../src/main/arch/run';
 import { draftSkeleton } from '../src/main/arch/skeleton';
 import type { ArchImportResolution } from '../src/main/arch/db';
 import {
   archResolveContext,
   resolveImport,
+  RESOLVER_MATRIX,
+  type ArchResolveContext,
   type ArchResolverLanguage
 } from '../src/main/arch/resolver';
+import { languageOf } from '../src/main/arch/scan';
+import { GRAMMARS } from '../src/main/symbols/languages';
+import type { ImportForm } from '../src/main/symbols/queries';
 import { ARCH_ROW_KEYS } from '../src/shared/arch';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -54,10 +60,35 @@ interface Facts {
     goModule: string;
     packageName: string;
     dependencies: string[];
+    /**
+     * Extra files, per language, that only that language's rows resolve
+     * against.
+     *
+     * The fixture's `trackedFiles` holds no crate and no `.rb` file, and adding
+     * one there would move every other checker's expected counts, because they
+     * are all computed over that list. So each arm gets its own file list and
+     * its own context, and `trackedFiles` is left exactly as it was.
+     */
+    files: Partial<Record<ArchResolverLanguage, string[]>>;
+    /** The Cargo manifest, carried as data. This gate opens no repository. */
+    cargo: {
+      crates: [string, string][];
+      dependencies: string[];
+      pathDependencies: [string, string][];
+    };
+    python: {
+      name: string | null;
+      dependencies: string[];
+      declaredRoots: string[];
+      sources: string[];
+    };
+    ruby: { gems: string[]; requirePaths: string[]; present: boolean };
     specifiers: {
       language: ArchResolverLanguage;
       fromPath: string;
       specifier: string;
+      /** Ruby only. `require` unless the row says otherwise. */
+      form?: ImportForm;
     }[];
   };
   hostileStrings: string[];
@@ -230,37 +261,226 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   // 5. The resolver matrix, from the REAL resolver rather than from the facts
   // -------------------------------------------------------------------------
-  // The first build of this gate bucketed `facts.imports` by file extension, so
-  // each row reported numbers an author had written into the fixture rather
-  // than answers the resolver gave, and it printed the two deferred languages
-  // as "0 resolved, 1 unresolved" while the arm column said unverifiable,
-  // conflating the two answers the whole design keeps apart. So the specifiers
-  // below go through `resolveImport` itself, and the row is an assertion about
-  // the code.
-  const probeCtx = archResolveContext(
-    {
-      packageName: facts.resolverProbe.packageName,
-      dependencies: new Set(facts.resolverProbe.dependencies),
-      aliases: [],
-      workspaces: new Map(),
-      goModule: facts.resolverProbe.goModule,
-      hasCargo: true,
-      hasPython: true
+  // Phase 63's verifier found this section bucketing `facts.imports` by file
+  // extension, so each row reported numbers an author had written into the
+  // fixture rather than answers the resolver gave, and it printed the two
+  // deferred languages as "0 resolved, 1 unresolved" while the arm column said
+  // unverifiable, conflating the two answers the whole design keeps apart. That
+  // was fixed inside Phase 63's own fix round, and the specifiers below have
+  // gone through `resolveImport` itself ever since.
+  //
+  // PHASE 157 TOOK IT ONE LEVEL UP, because the same defect was still here in a
+  // different shape. `RESOLVER_MATRIX` is a HAND WRITTEN table in
+  // src/main/arch/resolver/index.ts claiming which languages resolve, and
+  // nothing asked the code whether that was true. So the run now emits three
+  // things beside the counts: what the table CLAIMS, what the scanner can
+  // actually produce, and what the arms really answered. The gate cross checks
+  // all three.
+  const manifestsForProbe = {
+    packageName: facts.resolverProbe.packageName,
+    dependencies: new Set(facts.resolverProbe.dependencies),
+    aliases: [],
+    workspaces: new Map(),
+    goModule: facts.resolverProbe.goModule,
+    hasCargo: true,
+    hasPython: true,
+    cargo: {
+      crates: new Map(
+        facts.resolverProbe.cargo.crates.map(([name, dir]) => [
+          name,
+          { name, dir }
+        ])
+      ),
+      dependencies: new Set(facts.resolverProbe.cargo.dependencies),
+      pathDependencies: new Map(facts.resolverProbe.cargo.pathDependencies)
     },
-    facts.trackedFiles
-  );
+    python: {
+      name: facts.resolverProbe.python.name,
+      dependencies: new Set(facts.resolverProbe.python.dependencies),
+      declaredRoots: facts.resolverProbe.python.declaredRoots,
+      sources: facts.resolverProbe.python.sources
+    },
+    ruby: {
+      gems: new Set(facts.resolverProbe.ruby.gems),
+      requirePaths: facts.resolverProbe.ruby.requirePaths,
+      present: facts.resolverProbe.ruby.present
+    }
+  };
+  const baseCtx = archResolveContext(manifestsForProbe, facts.trackedFiles);
+  // One context per language that brought files of its own. Every other
+  // language uses the base one, so no other checker's expected counts move.
+  const perLanguageCtx = new Map<ArchResolverLanguage, ArchResolveContext>();
+  for (const [language, extra] of Object.entries(facts.resolverProbe.files)) {
+    perLanguageCtx.set(
+      language as ArchResolverLanguage,
+      archResolveContext(manifestsForProbe, [...facts.trackedFiles, ...extra])
+    );
+  }
+  const ctxFor = (language: ArchResolverLanguage): ArchResolveContext =>
+    perLanguageCtx.get(language) ?? baseCtx;
+
   const matrix = new Map<string, Record<ArchImportResolution, number>>();
+  const answers: {
+    language: ArchResolverLanguage;
+    specifier: string;
+    fromPath: string;
+    resolution: ArchImportResolution;
+    toPath: string | null;
+  }[] = [];
   for (const row of facts.resolverProbe.specifiers) {
-    const answers =
+    const bucket =
       matrix.get(row.language) ??
       ({ 'first-party': 0, external: 0, unresolved: 0, unverifiable: 0 } as Record<
         ArchImportResolution,
         number
       >);
-    const answer = resolveImport(row.specifier, row.fromPath, row.language, probeCtx);
-    answers[answer.resolution] += 1;
-    matrix.set(row.language, answers);
+    const answer = resolveImport(
+      row.specifier,
+      row.fromPath,
+      row.language,
+      ctxFor(row.language),
+      row.form
+    );
+    bucket[answer.resolution] += 1;
+    matrix.set(row.language, bucket);
+    answers.push({
+      language: row.language,
+      specifier: row.specifier,
+      fromPath: row.fromPath,
+      resolution: answer.resolution,
+      toPath: answer.toPath
+    });
   }
+
+  // WHAT THE SCANNER CAN PRODUCE, derived by running `languageOf` itself over
+  // one filename per shipped grammar. It is not a list written here: the
+  // extension map lives in src/main/symbols/languages.ts and the fall through
+  // lives in src/main/arch/scan.ts, and this asks both of them.
+  const EXTENSION_FOR: Readonly<Record<string, string>> = {
+    typescript: 'ts',
+    tsx: 'tsx',
+    javascript: 'js',
+    go: 'go',
+    python: 'py',
+    rust: 'rs',
+    ruby: 'rb'
+  };
+  const scannerLanguages = [
+    ...new Set(
+      GRAMMARS.map(
+        (grammar) => languageOf(`probe/file.${EXTENSION_FOR[grammar] ?? grammar}`)
+      ).filter((language): language is ArchResolverLanguage => language !== null)
+    )
+  ].sort();
+
+  // -------------------------------------------------------------------------
+  // 5.5 THE FALSE GREEN, run rather than described
+  // -------------------------------------------------------------------------
+  // THIS IS PHASE 157'S WHOLE POINT AND IT IS THE ONLY CONTROL IN THIS GATE
+  // THAT PROVES THE STAKE RATHER THAN THE BEHAVIOUR.
+  //
+  // Every arm is bound by one rule: an arm that cannot answer returns
+  // `unresolved`, NEVER `external`. The reason is mechanical and it is in
+  // src/main/arch/checkers/imports.ts. An `external` is dropped from BOTH sides
+  // of the ledger there, so it is neither a crossing nor an unresolved one, and
+  // a `must-not` promise whose only import across it wore that answer comes
+  // back CONVERGENT. Green. About a promise nobody verified.
+  //
+  // So the same promise is judged twice over the same real answers. Once as the
+  // arms really answered, and once with every `unresolved` rewritten to
+  // `external`, which is exactly the defect Phase 63's verifier caught. The
+  // shipped run must say `unverifiable` and the sloppy run must say
+  // `convergent`. If the two ever agree, either the arms have started guessing
+  // or the checker has stopped caring, and both are the same catastrophe.
+  const falseGreenComponents = [
+    {
+      id: 'probe-source',
+      name: 'Probe source',
+      kind: 'module' as const,
+      layer: 'main',
+      provenance: 'human' as const,
+      anchors: ['probe/src/**'],
+      boundary: 'open' as const,
+      description: '',
+      evidence: [],
+      deprecated: false,
+      gaps: []
+    },
+    {
+      id: 'probe-target',
+      name: 'Probe target',
+      kind: 'module' as const,
+      layer: 'main',
+      provenance: 'human' as const,
+      anchors: ['probe/target/**'],
+      boundary: 'open' as const,
+      description: '',
+      evidence: [],
+      deprecated: false,
+      gaps: []
+    }
+  ];
+  const falseGreenEdgeId = 'probe-source-must-not-probe-target';
+  const falseGreenBase = {
+    contract: document.contract,
+    components: falseGreenComponents,
+    edges: [
+      {
+        id: falseGreenEdgeId,
+        from: 'probe-source',
+        to: 'probe-target',
+        kind: 'imports' as const,
+        rule: 'must-not' as const,
+        checker: 'imports' as const,
+        evidence: []
+      }
+    ],
+    baseline: { accepted: [] },
+    trackedFiles: ['probe/src/app.rb', 'probe/target/thing.rb'],
+    manifest: { dependencies: new Set<string>(), scripts: new Map<string, string>() },
+    headBytes: new Map<string, string | null>(),
+    commitsBehind: new Map<string, number>(),
+    uncommittedFiles: new Map<string, number>(),
+    headCommit: facts.headCommit,
+    unparsed: []
+  };
+  // The one import out of the source part, wearing the answer a real arm gives
+  // a name no manifest declared, and then wearing the answer a lazy arm gives.
+  const falseGreenImport = (resolution: ArchImportResolution): ArchImportFact => ({
+    fromPath: 'probe/src/app.rb',
+    specifier: 'active_support',
+    line: 1,
+    toPath: null,
+    resolution,
+    reason: null
+  });
+  const shippedAnswerForUndeclared = resolveImport(
+    'active_support',
+    'probe/src/app.rb',
+    'ruby',
+    ctxFor('ruby'),
+    'require'
+  ).resolution;
+  const judge = (resolution: ArchImportResolution): string => {
+    const facts_ = {
+      ...falseGreenBase,
+      imports: [falseGreenImport(resolution)],
+      manifest: falseGreenBase.manifest
+    } as unknown as ArchFactBase;
+    const verdict = checkImports(facts_).verdicts.find(
+      (v) => v.subjectId === `edge:${falseGreenEdgeId}`
+    );
+    return verdict === undefined ? 'MISSING' : verdict.status;
+  };
+  const falseGreen = {
+    // What the shipped Ruby arm really answers for a gem nobody declared.
+    shippedAnswer: shippedAnswerForUndeclared,
+    // The verdict on the must-not promise under that answer.
+    shippedVerdict: judge(shippedAnswerForUndeclared),
+    // The verdict under the Phase 63 defect, being the same fact wearing
+    // `external`. This one is the lie the whole rule exists to prevent.
+    sloppyVerdict: judge('external')
+  };
 
   // -------------------------------------------------------------------------
   // 6. What the source tree itself must be true about
@@ -338,6 +558,22 @@ async function main(): Promise<void> {
           unresolved: row.unresolved,
           unverifiable: row.unverifiable
         })),
+        // The hand written claim, so the gate can hold it against the answers
+        // above rather than trusting it.
+        declaredMatrix: RESOLVER_MATRIX.map((r) => ({
+          language: r.language,
+          resolves: r.resolves,
+          reason: r.reason
+        })),
+        // What `languageOf` really produces for every shipped grammar. A
+        // grammar missing from `ArchResolverLanguage` shows up here as a
+        // language the table never named, and it would be read by the script
+        // arm.
+        scannerLanguages,
+        // Every answer, one row each, so the gate can say which specifier moved
+        // rather than only that a count did.
+        answers,
+        falseGreen,
         rowKeys: ARCH_ROW_KEYS,
         sources,
         hostileStrings: facts.hostileStrings

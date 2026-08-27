@@ -1,14 +1,14 @@
 /**
  * Source text → symbols. The whole tree-sitter surface gmux uses, in one
  * place, with NO worker and NO electron in scope so the unit tests can drive
- * it directly — which matters, because the five queries in `queries.ts` are
+ * it directly — which matters, because the six queries in `queries.ts` are
  * hand-authored and their regression test is the reason a grammar bump breaks
  * CI instead of breaking the user's palette (research 19 §7.2).
  *
  * Two decisions worth knowing before editing:
  *
  * **Grammars load lazily, one per language actually seen.** A worker that
- * eagerly loaded all six would pay 4.8 MB of wasm compile to index a Go repo
+ * eagerly loaded all seven would pay 6.8 MB of wasm compile to index a Go repo
  * that contains no TypeScript. Boot measured 39-94 ms per worker WITH the
  * grammar load included; per-language laziness keeps that at the low end.
  *
@@ -29,9 +29,11 @@ import {
   GO_QUERY,
   IMPORT_BY_CAPTURE,
   JS_QUERY,
+  IMPORT_TRUNCATION_MARKER,
   KIND_BY_CAPTURE,
   kindWins,
   PYTHON_QUERY,
+  RUBY_QUERY,
   RUST_QUERY,
   TS_QUERY,
   type ImportForm
@@ -73,13 +75,41 @@ export interface ExtractedSymbol {
  * Query text per grammar. TS and TSX get the JavaScript base layered under the
  * TypeScript patterns as ONE query — same node names, one compile, one walk.
  */
+/**
+ * How long an import specifier may be before it is recorded TRUNCATED.
+ *
+ * IT IS A TRUNCATION AND NEVER A DROP, and Phase 157's verifier is why. The
+ * first build of this cap dropped anything longer than 512 characters and said
+ * nothing, and that was harmless only while Rust imports were `unverifiable`.
+ * The Rust query captures the WHOLE `use` argument, braces and all, so a real
+ * `use super::{ ...sixty names... }` is over a thousand characters. Nine of
+ * herdr's 1,889 `use` statements and 27 of deadreckon's 2,762 were being
+ * dropped, and a dropped import is neither a crossing nor an unresolved, so
+ * `src/main/arch/checkers/imports.ts` could not know it existed and rendered a
+ * `must-not` promise that IS violated in the source as CONVERGENT. Green. That
+ * is the single outcome the conservative verdict rule exists to prevent, and it
+ * arrived through the fact base rather than through the checker.
+ *
+ * So the cap now bounds MEMORY and never VISIBILITY. A specifier longer than
+ * this is recorded with its head plus a marker that no grammar's path syntax
+ * can produce, so every arm answers `unresolved`, the checker counts it, and
+ * the promise goes grey instead of green. The one arm that answers `external`
+ * for an unrecognised specifier is Go's, and that is Go's own rule rather than
+ * a truncation artefact: a path not under the module directive is a dependency.
+ * A Go import path this long does not exist, and the longest real specifier
+ * measured on 2026-08-26 across herdr and deadreckon is 2,840 characters, so
+ * nothing real reaches the marker at all.
+ */
+const MAX_SPECIFIER_CHARS = 4096;
+
 const QUERY_TEXT: Readonly<Record<GrammarId, string>> = {
   javascript: JS_QUERY,
   typescript: `${JS_QUERY}\n${TS_QUERY}`,
   tsx: `${JS_QUERY}\n${TS_QUERY}`,
   go: GO_QUERY,
   python: PYTHON_QUERY,
-  rust: RUST_QUERY
+  rust: RUST_QUERY,
+  ruby: RUBY_QUERY
 };
 
 export interface ExtractorOptions {
@@ -246,6 +276,9 @@ function collect(
     // families never contend for the same match.
     let importForm: ImportForm | null = null;
     let importPath: TsNode | null = null;
+    // Python's `from a.b import c`. See `memberSpecifier` below for why the
+    // imported NAME is captured beside the module and what it is worth.
+    let importMember: TsNode | null = null;
 
     for (const capture of match.captures) {
       if (capture.name === 'container') {
@@ -260,6 +293,10 @@ function collect(
         importPath = capture.node;
         continue;
       }
+      if (capture.name === 'import.member') {
+        importMember = capture.node;
+        continue;
+      }
       const form = IMPORT_BY_CAPTURE[capture.name];
       if (form !== undefined) {
         importForm = form;
@@ -270,8 +307,15 @@ function collect(
     }
 
     if (importPath !== null && importForm !== null) {
-      const specifier = unquote(importPath.text);
-      if (specifier.length > 0 && specifier.length <= 512) {
+      const written =
+        importMember === null
+          ? unquote(importPath.text)
+          : memberSpecifier(unquote(importPath.text), importMember.text);
+      if (written.length > 0) {
+        const specifier =
+          written.length <= MAX_SPECIFIER_CHARS
+            ? written
+            : `${written.slice(0, MAX_SPECIFIER_CHARS)}${IMPORT_TRUNCATION_MARKER}`;
         const line = importPath.startPosition.row + 1;
         // One import per (line, specifier, form). The re-export and static
         // patterns can both match one `export ... from` on some grammars, and
@@ -322,9 +366,44 @@ function collect(
  * a `dotted_name`, which carries no quotes at all, so this is a no-op for them.
  * Go has no `string_fragment` node, so its capture arrives as
  * `"github.com/foo/bar"` including the quotes, and a Go raw string uses
- * backticks. Stripping here rather than in five places is what keeps the fact
- * base holding one shape.
+ * backticks. Ruby captures the whole string node on purpose, so its specifiers
+ * arrive quoted too, in either quote style. Stripping here rather than in six
+ * places is what keeps the fact base holding one shape.
  */
+/**
+ * `from a.b import c` to the dotted name `a.b.c`, which is the module that
+ * really gets executed when `c` is a submodule.
+ *
+ * WHY THIS EXISTS, and it is the second half of the same defect the truncation
+ * comment above describes. `PYTHON_QUERY` used to capture `module_name` alone,
+ * so `from .routes import auth` arrived at the Python arm as `.routes` and the
+ * arm answered `first-party lift_sys/api/routes/__init__.py`. That is a
+ * DEFINITE answer, so `src/main/arch/checkers/imports.ts` counted the search as
+ * resolved, and the real edge to `lift_sys/api/routes/auth.py` was neither
+ * recorded as a crossing nor counted as a miss. A `must-not` promise across it
+ * rendered CONVERGENT. Green. Measured on 2026-08-26: 6 such imports in
+ * lift-sys and 126 in last30days-skill.
+ *
+ * The join is Python's own dotted-name rule and this is the only language that
+ * uses `@import.member`. A relative module already ends in the dot that
+ * separates it, so `.` plus `http` is `.http` and `.routes` plus `auth` is
+ * `.routes.auth`.
+ *
+ * IT NEVER LOSES THE PACKAGE EDGE. The module-only pattern still matches the
+ * same statement, so `from .routes import auth` records BOTH `.routes` and
+ * `.routes.auth`, which is what Python really executes: the package's
+ * `__init__.py` runs and then the submodule does. And when the imported name is
+ * an ordinary class rather than a submodule, `resolvePython`'s walk stops at the
+ * last real file and answers the package `__init__.py` anyway, so the extra row
+ * is a harmless duplicate rather than a wrong answer.
+ */
+function memberSpecifier(moduleText: string, member: string): string {
+  const module = moduleText.trim();
+  const name = member.trim();
+  if (module.length === 0 || name.length === 0) return module;
+  return module.endsWith('.') ? `${module}${name}` : `${module}.${name}`;
+}
+
 function unquote(text: string): string {
   const first = text[0];
   const last = text[text.length - 1];

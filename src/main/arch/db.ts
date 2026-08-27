@@ -186,6 +186,30 @@ const MIGRATIONS: readonly SqliteMigration[] = [
         );
       `);
     }
+  },
+  {
+    // PHASE 157. THREE ARMS SHIPPED AND THE FACT BASE COULD NOT HAVE NOTICED.
+    //
+    // The freshness key for an import row is the file's mtime and size, held in
+    // arch_import_file. Phase 157 changed no Rust, Python or Ruby FILE, it
+    // changed the resolver that reads them, so every stamp still matches and a
+    // re-scan would have reused every stored row. A repository scanned by the
+    // previous build holds `unverifiable` for every Rust and Python import and
+    // holds nothing at all for Ruby, and those rows would have survived
+    // forever, on this machine and on every person's.
+    //
+    // So the fact base is dropped whole rather than aged. It is DERIVED: the
+    // next check re-parses the tree and writes it again, which was measured at
+    // about 1.25 ms per file, and nothing a person wrote lives in either table.
+    // The verdicts are left alone, because a run publishes over them anyway and
+    // deleting them would blank the view before the first re-scan finishes.
+    name: '002-arch-rescan-for-resolver-arms',
+    up: (db) => {
+      db.exec(`
+        DELETE FROM arch_import;
+        DELETE FROM arch_import_file;
+      `);
+    }
   }
 ];
 

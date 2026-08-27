@@ -1,5 +1,5 @@
 /**
- * Where the six grammars and the tree-sitter runtime actually live at runtime
+ * Where the seven grammars and the tree-sitter runtime actually live at runtime
  * — the ONE place that answers it, for the same reason `resolve.ts` is the one
  * place that answers it for the ripgrep binary.
  *

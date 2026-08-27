@@ -28,16 +28,40 @@
  * transitive dependency nobody declared reads as unresolved, which is grey
  * rather than green and is the safe side to be wrong on.
  *
- * WHAT IT DELIBERATELY DOES NOT READ. `Cargo.toml` workspace members and
- * Python's own packaging files. Rust and Python resolution ships later rather
- * than shipping wrong, per research 49 section 4.8 fix 4, and their imports are
- * marked `unverifiable` rather than dropped, so the count of what cannot be
- * checked stays visible instead of flattering the verdict strip.
+ * WHAT PHASE 157 ADDED, AND WHY THE PARAGRAPH THAT USED TO BE HERE IS GONE.
+ * Until Phase 157 this header said it deliberately did NOT read `Cargo.toml`
+ * or Python's own packaging files, because Rust and Python resolution shipped
+ * later rather than shipping wrong. Both arms shipped, and Ruby's with them, so
+ * that sentence is now false and is deleted rather than left to mislead. This
+ * file reads `Cargo.toml` through ./cargo.ts, `pyproject.toml`, `setup.cfg` and
+ * `setup.py` through ./pyproject.ts, and the root `Gemfile` and gemspecs
+ * through ./gemfile.ts. Each language's reader lives BESIDE ITS ARM and this
+ * file only joins them onto the one shape the resolver context carries, so
+ * adding a language adds a reader and one line here rather than growing this
+ * module.
+ *
+ * `setup.py` is READ AS TEXT AND NEVER EVALUATED, and a test proves it by
+ * writing a sentinel file from the top of a fixture `setup.py` and asserting
+ * the sentinel is not there afterwards.
+ *
+ * WHAT IT STILL DELIBERATELY DOES NOT READ. A NESTED manifest of any kind. A
+ * `go.mod`, a `Cargo.toml`, a `pyproject.toml` or a `Gemfile` in a
+ * subdirectory that is not a declared workspace member is not read, so an
+ * import that only a nested manifest could explain answers `unresolved` rather
+ * than `external`. That is the grey side of the trade and it is the safe one.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { readJsonFile } from './jsonc';
+import { expandDirGlob, normalizeRel } from './paths';
+// Phase 157. Each language arm's own manifest reader lives beside the arm, and
+// this file joins them onto the one shape the resolver context carries. That is
+// why the three imports below point outward rather than this file growing three
+// more readers.
+import { readCargoManifest, type CargoManifest } from './cargo';
+import { readRubyManifest, type RubyManifest } from './gemfile';
+import { readPythonProject, type PythonProject } from './pyproject';
 
 /** One `paths` rule from a tsconfig, already split at its single star. */
 export interface AliasRule {
@@ -98,6 +122,39 @@ export interface ArchManifests {
   hasCargo: boolean;
   /** True when a Python project file exists, for the same reason. */
   hasPython: boolean;
+  /**
+   * What the repository's own Python packaging files said about themselves
+   * (Phase 157): its package roots and the distributions it declares.
+   *
+   * The declared names are the ONLY thing that lets the Python arm answer
+   * `external`, for the same reason `dependencies` above is for the script arm.
+   * A repository with no packaging file gets the empty project and every bare
+   * import it cannot find a file for answers `unresolved`.
+   */
+  python: PythonProject;
+  /**
+   * What the repository's own `Cargo.toml` said, or null when it has none
+   * (Phase 157): every crate the workspace holds and where its sources live,
+   * the dependency names as a `use` line spells them, and any
+   * `[patch.crates-io]` or path dependency whose source is TRACKED IN THIS
+   * REPOSITORY.
+   *
+   * That last part is not a detail. herdr reaches `portable-pty` through
+   * `[patch.crates-io] portable-pty = { path = "vendor/portable-pty" }`, and
+   * eighteen of its imports land in that vendored source. Answering `external`
+   * there would hide eighteen real crossings behind a manifest's blessing.
+   */
+  cargo: CargoManifest | null;
+  /**
+   * What the root Gemfile and the root gemspecs said (Phase 157).
+   *
+   * The gem names are the ONLY thing that lets a bare `require` be answered
+   * `external` for a name Ruby itself does not ship, and the declared require
+   * paths are the only load path roots this build will resolve one through. A
+   * repository with no Ruby in it carries the empty answer and every bare
+   * require it cannot find a file for answers `unresolved`.
+   */
+  ruby: RubyManifest;
 }
 
 /** How many workspace directories a glob is allowed to expand to. */
@@ -126,7 +183,10 @@ export function readArchManifests(repoPath: string): ArchManifests {
     hasPython:
       exists(join(repoPath, 'pyproject.toml')) ||
       exists(join(repoPath, 'requirements.txt')) ||
-      exists(join(repoPath, 'setup.py'))
+      exists(join(repoPath, 'setup.py')),
+    cargo: readCargoManifest(repoPath),
+    python: readPythonProject(repoPath),
+    ruby: readRubyManifest(repoPath)
   };
   return manifests;
 }
@@ -280,7 +340,7 @@ function readWorkspaces(
       : [];
   for (const glob of globs) {
     if (out.size >= MAX_WORKSPACES) break;
-    for (const dir of expandWorkspaceGlob(repoPath, glob)) {
+    for (const dir of expandDirGlob(repoPath, glob)) {
       if (out.size >= MAX_WORKSPACES) break;
       const child = readJsonFile(join(repoPath, dir, 'package.json'));
       if (child === null) continue;
@@ -335,30 +395,6 @@ function entryCandidates(
 }
 
 /**
- * One workspace glob to the directories it names.
- *
- * Only the two shapes that actually appear in package manifests are handled: a
- * literal directory, and one trailing `*` segment. Anything more is left to the
- * directory read below finding nothing, which costs those packages their first
- * party classification and nothing else.
- */
-function expandWorkspaceGlob(repoPath: string, glob: string): string[] {
-  const clean = normalizeRel(glob);
-  if (!clean.includes('*')) return [clean];
-  const star = clean.indexOf('*');
-  const parent = normalizeRel(clean.slice(0, star));
-  let names: string[];
-  try {
-    names = readdirSync(join(repoPath, parent), { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
-  } catch {
-    return [];
-  }
-  return names.map((name) => (parent === '' ? name : `${parent}/${name}`));
-}
-
-/**
  * The `module` directive of a root `go.mod`.
  *
  * Read line by line rather than with a go.mod parser, because the directive is
@@ -384,17 +420,13 @@ function readGoModule(repoPath: string): string | null {
   return null;
 }
 
-/** A repository relative path with no `./`, no leading or trailing slash, forward slashed. */
-export function normalizeRel(path: string): string {
-  const forward = path.split('\\').join('/');
-  const parts: string[] = [];
-  for (const part of forward.split('/')) {
-    if (part === '' || part === '.') continue;
-    if (part === '..') {
-      parts.pop();
-      continue;
-    }
-    parts.push(part);
-  }
-  return parts.join('/');
-}
+/**
+ * A repository relative path in one shape, re-exported from ./paths.ts.
+ *
+ * It LIVES in ./paths.ts because this module reads ./pyproject.ts and
+ * ./gemfile.ts, so those two cannot import back out of here without a runtime
+ * cycle. It is re-exported because six call sites across the resolver already
+ * name this module for it, and one facade is what CLAUDE.md's growth guardrail
+ * asks for rather than a second import path to the same function.
+ */
+export { normalizeRel } from './paths';

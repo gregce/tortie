@@ -1,12 +1,18 @@
 /**
- * The six grammars gmux ships, and the extension → grammar map.
+ * The seven grammars gmux ships, and the extension → grammar map.
  *
- * SIX, not sixteen (research 19 §2.8, measured on disk): typescript 1,381 KB,
- * tsx 1,412 KB, rust 1,088 KB, python 447 KB, javascript 402 KB, go 212 KB =
- * 4.8 MB. `@vscode/tree-sitter-wasm` also carries cpp (5.1 MB), c-sharp
- * (4.9 MB), ruby (2.0 MB), bash, java, php, powershell, css, ini and regex —
- * ~14 MB for languages nobody in these repos writes. Adding a seventh is a
- * deliberate act with a size cost, not a convenience.
+ * SEVEN, not sixteen (research 19 §2.8, measured on disk): typescript 1,381 KB,
+ * tsx 1,412 KB, rust 1,088 KB, python 447 KB, javascript 402 KB, go 212 KB and,
+ * since Phase 157, ruby 2,057 KB = 6.8 MB. `@vscode/tree-sitter-wasm` also
+ * carries cpp (5.1 MB), c-sharp (4.9 MB), bash, java, php, powershell, css, ini
+ * and regex, which is about 12 MB for languages nobody in these repos writes.
+ *
+ * THE SEVENTH WAS A DELIBERATE ACT WITH A SIZE COST, which is what the rule
+ * here has always said it would take. Phase 157 spent 2.0 MB of signed bundle
+ * so that a Ruby repository's imports RESOLVE rather than being counted as
+ * files nobody read. Ruby was the one language of the phase's three that had no
+ * grammar in the bundle and no query, so it cost both. An eighth costs the same
+ * again, and the same argument has to be made for it.
  *
  * This module holds NO paths and imports NO electron: it is the vocabulary the
  * worker and the indexer share, and it has to be loadable in a plain vitest
@@ -20,7 +26,8 @@ export type GrammarId =
   | 'javascript'
   | 'go'
   | 'python'
-  | 'rust';
+  | 'rust'
+  | 'ruby';
 
 export const GRAMMARS: readonly GrammarId[] = [
   'typescript',
@@ -28,7 +35,8 @@ export const GRAMMARS: readonly GrammarId[] = [
   'javascript',
   'go',
   'python',
-  'rust'
+  'rust',
+  'ruby'
 ];
 
 /**
@@ -50,7 +58,8 @@ const BY_EXTENSION: Readonly<Record<string, GrammarId>> = {
   go: 'go',
   py: 'python',
   pyi: 'python',
-  rs: 'rust'
+  rs: 'rust',
+  rb: 'ruby'
 };
 
 /** The grammar for a path, or null when gmux does not index that language. */

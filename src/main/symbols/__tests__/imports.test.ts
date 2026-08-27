@@ -1,5 +1,6 @@
 /**
- * The import layer of the five hand-authored tags queries (Phase 63).
+ * The import layer of the six hand-authored tags queries (Phase 63, Ruby added
+ * in Phase 157).
  *
  * It is the sibling of extract.test.ts and it exists for the same reason: gmux
  * owns these queries, so a grammar bump inside `@vscode/tree-sitter-wasm` that
@@ -20,7 +21,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import type { GrammarId } from '../languages';
 import { SymbolExtractor } from '../extract';
-import { IMPORT_BY_CAPTURE } from '../queries';
+import { IMPORT_BY_CAPTURE, IMPORT_TRUNCATION_MARKER } from '../queries';
 
 const require_ = createRequire(import.meta.url);
 const grammarDir = dirname(require_.resolve('@vscode/tree-sitter-wasm'));
@@ -116,12 +117,32 @@ from . import sibling
 from .rel import thing
 from pkg.mod import other
 `;
+    // THE IMPORTED NAME IS CAPTURED BESIDE ITS MODULE, and a `from` statement
+    // therefore yields both. `from .rel import thing` really executes `.rel`
+    // and, when `thing` is a submodule, `.rel.thing` as well, and recording
+    // only the first is what left a `must-not` promise across the second green.
     expect((await importsOf('x.py', source)).sort()).toEqual([
       '.',
       '.rel',
+      '.rel.thing',
+      '.sibling',
       'os',
       'os.path',
-      'pkg.mod'
+      'pkg.mod',
+      'pkg.mod.other'
+    ]);
+  });
+
+  it('gives a Python star import no imported name to capture', async () => {
+    // A star is not a `dotted_name`, so the member patterns do not match and a
+    // star import stays the one module row it always was.
+    expect(await importsOf('x.py', 'from pkg.mod import *\n')).toEqual(['pkg.mod']);
+  });
+
+  it('captures the name an aliased Python import really binds', async () => {
+    expect((await importsOf('x.py', 'from .routes import auth as a\n')).sort()).toEqual([
+      '.routes',
+      '.routes.auth'
     ]);
   });
 
@@ -163,7 +184,87 @@ extern crate serde;
       'import.dynamic',
       'import.reexport',
       'import.require',
+      'import.require-relative',
       'import.static'
     ]);
   });
+
+  it('captures every Ruby require shape, with the relative one named apart', async () => {
+    const source = [
+      'require "json"',
+      'require_relative "utils/pretty"',
+      'require_relative("cask/cmd")',
+      'autoload :Formula, "formula"',
+      "require 'single_quoted'"
+    ].join('\n');
+    const found = await (await extractorPromise).extractAll('x.rb', source);
+    expect(
+      found.imports.map((i) => [i.specifier, i.form]).sort()
+    ).toEqual([
+      ['cask/cmd', 'require-relative'],
+      ['formula', 'require'],
+      ['json', 'require'],
+      ['single_quoted', 'require'],
+      ['utils/pretty', 'require-relative']
+    ]);
+  });
+
+  it('keeps an unreadable Ruby specifier counted rather than dropping it', async () => {
+    // An interpolated require is a real import of something this build cannot
+    // name. Capturing the whole string node is what keeps it in the ledger, and
+    // the resolver answers `unresolved` for it. Dropping it here would leave a
+    // `must-not` promise across it green because the crossing never arrived.
+    const source = [
+      'require "#{dir}/interpolated"',
+      'require_relative "#{__dir__}/also"'
+    ].join('\n');
+    const found = await (await extractorPromise).extractAll('x.rb', source);
+    expect(found.imports.map((i) => i.specifier).sort()).toEqual([
+      '#{__dir__}/also',
+      '#{dir}/interpolated'
+    ]);
+  });
+
+  it('records an over long specifier truncated rather than dropping it', async () => {
+    // THE DEFECT THIS PINS. A Rust `use` capture is the whole use tree argument,
+    // and the first build of the cap dropped anything over 512 characters in
+    // silence. A dropped import is neither a crossing nor an unresolved, so a
+    // `must-not` promise that IS violated in the source rendered green. Nine of
+    // herdr's 1,889 `use` statements were over the old cap.
+    const names = Array.from({ length: 900 }, (_, i) => `Name${i}`).join(', ');
+    const found = await (await extractorPromise).extractAll(
+      'x.rs',
+      `use super::types::{${names}};\n`
+    );
+    expect(found.imports).toHaveLength(1);
+    const specifier = found.imports[0]?.specifier ?? '';
+    expect(specifier.length).toBeLessThan(names.length);
+    expect(specifier.endsWith(IMPORT_TRUNCATION_MARKER)).toBe(true);
+  });
+
+  it('keeps a real Rust use tree of a thousand characters whole', async () => {
+    // The other half of the same rule: the cap has to sit above what people
+    // really write, or every long brace list comes back grey. The longest
+    // measured across herdr and deadreckon on 2026-08-26 is 2,840 characters.
+    const names = Array.from({ length: 200 }, (_, i) => `Name${i}`).join(', ');
+    const found = await (await extractorPromise).extractAll(
+      'x.rs',
+      `use super::types::{${names}};\n`
+    );
+    expect(found.imports).toHaveLength(1);
+    expect(found.imports[0]?.specifier).toContain('Name199');
+    expect(found.imports[0]?.specifier).not.toContain(IMPORT_TRUNCATION_MARKER);
+  });
+
+  it('does not mistake an ordinary Ruby call for a require', async () => {
+    const source = [
+      'describe "a thing" do',
+      'end',
+      'puts "not an import"',
+      'require File.join(__dir__, "expression_argument")',
+      'require "real"'
+    ].join('\n');
+    expect(await importsOf('x.rb', source)).toEqual(['real']);
+  });
+
 });

@@ -203,19 +203,27 @@
     },
     {
       "language": "rust",
-      "arm": "unverifiable",
-      "firstParty": 0,
-      "external": 0,
-      "unresolved": 0,
-      "unverifiable": 1
+      "arm": "shipped",
+      "firstParty": 6,
+      "external": 2,
+      "unresolved": 3,
+      "unverifiable": 0
     },
     {
       "language": "python",
-      "arm": "unverifiable",
-      "firstParty": 0,
-      "external": 0,
-      "unresolved": 0,
-      "unverifiable": 1
+      "arm": "shipped",
+      "firstParty": 2,
+      "external": 1,
+      "unresolved": 1,
+      "unverifiable": 0
+    },
+    {
+      "language": "ruby",
+      "arm": "shipped",
+      "firstParty": 2,
+      "external": 2,
+      "unresolved": 3,
+      "unverifiable": 0
     }
   ],
   "freshness": [

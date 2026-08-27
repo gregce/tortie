@@ -13,9 +13,15 @@
  *   COUNTED AND SHOWN, so a resolver miss can never masquerade as a verified
  *   absence.
  * - `unverifiable`, being a language whose resolution this build does not ship.
- *   Rust and Python import syntax is captured and then marked here rather than
- *   dropped, so a Rust file's imports appear in the container that names what
- *   cannot be checked instead of vanishing.
+ *   PHASE 157 EMPTIED THIS ANSWER. Rust and Python were captured and marked
+ *   here, and both now have arms, as does Ruby. Nothing this build parses is
+ *   marked `unverifiable` any more, and `conformance:arch` asserts that by
+ *   cross checking `RESOLVER_MATRIX` below against what `resolveImport` really
+ *   answers. The answer stays in the vocabulary because the fact base holds
+ *   rows an older build wrote, and because the next language added is
+ *   `unverifiable` between the day its query lands and the day its arm does. It
+ *   is not the same answer as `unresolved`: this one says nobody looked, and
+ *   that one says somebody looked and did not find it.
  *
  * THE RULE THAT GOVERNS ALL FOUR. A definite verdict requires a resolved search
  * that returned a definite answer. Nothing here ever guesses, and nothing here
@@ -31,28 +37,63 @@
  */
 
 import { builtinModules } from 'node:module';
-import type { ArchImportResolution } from '../db';
+import { IMPORT_TRUNCATION_MARKER, type ImportForm } from '../../symbols/queries';
+import { external, firstParty, unresolved, type ArchResolution } from './answers';
 import { normalizeRel, type AliasRule, type ArchManifests } from './manifest';
+import { resolvePython } from './python';
+import { resolveRuby } from './ruby';
+import { resolveRust } from './rust';
 
-/** What one specifier resolved to. */
-export interface ArchResolution {
-  /** Repository relative path, or the package directory for Go. Null unless first party. */
-  toPath: string | null;
-  resolution: ArchImportResolution;
-}
+/**
+ * What one specifier resolved to, and the four constructors that build one.
+ *
+ * The type and its constructors live in ./answers.ts, which is a leaf every arm
+ * can reach. They are re-exported here because this module is the resolver's
+ * one facade and every caller outside the directory names it.
+ */
+export type { ArchResolution } from './answers';
+export {
+  external,
+  firstParty,
+  unresolved,
+  unverifiable
+} from './answers';
 
-/** The languages this build resolves, and the two it deliberately does not. */
+/**
+ * Every language this build resolves. Since Phase 157 there is no second list.
+ *
+ * This union and `src/main/arch/scan.ts`'s `languageOf` have to agree, because
+ * `languageOf` is what turns a grammar into one of these names and its default
+ * branch answers `'typescript'`. A language added to the grammar table and not
+ * added here is resolved BY THE SCRIPT ARM, which is not a miss but a wrong
+ * answer: a Ruby `require "fs"` would read `external` because `fs` is a Node
+ * builtin, and an `external` leaves a `must-not` promise across it green.
+ * `conformance:arch` asserts the two lists agree for that reason.
+ */
 export type ArchResolverLanguage =
   | 'typescript'
   | 'javascript'
   | 'go'
   | 'python'
-  | 'rust';
+  | 'rust'
+  | 'ruby';
 
 /**
  * The one row per language the matrix prints, with the reason a deferred
- * language gives on its face. `conformance:arch` prints this table, and Rust
- * and Python are printed as `unverifiable` rather than left out.
+ * language would give on its face.
+ *
+ * EVERY ROW SAYS `resolves: true` NOW, and Phase 157 is what emptied the other
+ * column. The shape is kept because a language whose query lands before its arm
+ * does is `resolves: false` for exactly that long, and because the row is what
+ * makes the deferral visible rather than silent.
+ *
+ * THIS TABLE IS HAND WRITTEN AND IS THEREFORE A CLAIM. `conformance:arch`
+ * cross checks it against `resolveImport` itself: a language claiming
+ * `resolves: true` must produce at least one answer that is not `unverifiable`,
+ * and one claiming `resolves: false` must produce nothing else. Phase 63's
+ * verifier caught the gate bucketing hand written facts instead of asking the
+ * code, and a hand written table nothing checks is the same defect one level
+ * up.
  */
 export const RESOLVER_MATRIX: readonly {
   language: ArchResolverLanguage;
@@ -62,16 +103,9 @@ export const RESOLVER_MATRIX: readonly {
   { language: 'typescript', resolves: true, reason: null },
   { language: 'javascript', resolves: true, reason: null },
   { language: 'go', resolves: true, reason: null },
-  {
-    language: 'rust',
-    resolves: false,
-    reason: 'Imports are not resolved for Rust'
-  },
-  {
-    language: 'python',
-    resolves: false,
-    reason: 'Imports are not resolved for Python'
-  }
+  { language: 'rust', resolves: true, reason: null },
+  { language: 'python', resolves: true, reason: null },
+  { language: 'ruby', resolves: true, reason: null }
 ];
 
 const BUILTINS = new Set(builtinModules);
@@ -154,17 +188,38 @@ export function archResolveContext(
  *
  * `fromPath` is repository relative and is only ever used to walk a relative
  * specifier. It is never handed to anything that runs.
+ *
+ * `form` is HOW the import was written, and exactly one arm needs it. Ruby's
+ * `require "utils"` and `require_relative "utils"` are the same six letters and
+ * they name different files, and no amount of looking at the specifier text
+ * tells them apart. Homebrew holds both a root `utils.rb` and a `cask/utils.rb`,
+ * so an arm that guessed between them would report a real edge to the wrong
+ * file. Every other arm ignores it, and the one caller that has it,
+ * `src/main/arch/scan.ts`, already holds it as `found.form`.
  */
 export function resolveImport(
   specifier: string,
   fromPath: string,
   language: ArchResolverLanguage,
-  ctx: ArchResolveContext
+  ctx: ArchResolveContext,
+  form?: ImportForm
 ): ArchResolution {
-  if (language === 'rust' || language === 'python') {
-    return { toPath: null, resolution: 'unverifiable' };
-  }
+  // A SPECIFIER THE EXTRACTOR HAD TO TRUNCATE IS NOBODY'S ANSWER TO GIVE.
+  // It is recorded rather than dropped, which is what keeps the checker counting
+  // it, and it is refused here rather than in each arm so that Go's fallback
+  // cannot call a mangled path a dependency. See IMPORT_TRUNCATION_MARKER.
+  if (specifier.includes(IMPORT_TRUNCATION_MARKER)) return unresolved();
   if (language === 'go') return resolveGo(specifier, ctx);
+  if (language === 'rust') return resolveRust(specifier, fromPath, ctx);
+  if (language === 'python') return resolvePython(specifier, fromPath, ctx);
+  if (language === 'ruby') {
+    return resolveRuby(
+      specifier,
+      fromPath,
+      ctx,
+      form === 'require-relative' ? 'require-relative' : 'require'
+    );
+  }
   return resolveScript(specifier, fromPath, ctx);
 }
 
@@ -179,7 +234,7 @@ function resolveScript(
 ): ArchResolution {
   const specifier = withoutBundlerQuery(raw);
   if (specifier.length === 0) {
-    return { toPath: null, resolution: 'unresolved' };
+    return unresolved();
   }
   // The platform, named directly. `node:fs` and every bare builtin name.
   if (specifier.startsWith('node:')) return external();
@@ -193,14 +248,14 @@ function resolveScript(
     const joined = normalizeRel(dir === '' ? specifier : `${dir}/${specifier}`);
     const hit = firstExisting(joined, ctx);
     return hit === null
-      ? { toPath: null, resolution: 'unresolved' }
-      : { toPath: hit, resolution: 'first-party' };
+      ? unresolved()
+      : firstParty(hit);
   }
 
   if (specifier.startsWith('/')) {
     // An absolute specifier is not a repository relative path and this build
     // will not pretend to know what it names.
-    return { toPath: null, resolution: 'unresolved' };
+    return unresolved();
   }
 
   const aliased = resolveAlias(specifier, ctx);
@@ -235,7 +290,7 @@ function resolveScript(
   // first and the platform names second, and that is a later round's change
   // because it moves the answer for every builtin too.
   if (isDeclared(packageHead(specifier), ctx)) return external();
-  return { toPath: null, resolution: 'unresolved' };
+  return unresolved();
 }
 
 /**
@@ -286,12 +341,12 @@ function resolveAlias(
           : `${target.prefix}${target.suffix}`
       );
       const hit = firstExisting(candidate, ctx);
-      if (hit !== null) return { toPath: hit, resolution: 'first-party' };
+      if (hit !== null) return firstParty(hit);
     }
     // The rule matched and no target exists. This is the honest unresolved
     // case: the alias is real, the file behind it is not, and calling it
     // external would invent a dependency that does not exist.
-    return { toPath: null, resolution: 'unresolved' };
+    return unresolved();
   }
   return null;
 }
@@ -329,14 +384,14 @@ function resolveWorkspace(
     // TypeScript package's `main` usually points at output nobody tracks.
     for (const entry of workspace?.entries ?? []) {
       const hit = firstExisting(entry, ctx);
-      if (hit !== null) return { toPath: hit, resolution: 'first-party' };
+      if (hit !== null) return firstParty(hit);
     }
-    return { toPath: null, resolution: 'unresolved' };
+    return unresolved();
   }
   const candidate = normalizeRel(dir === '' ? rest : `${dir}/${rest}`);
   const hit = firstExisting(candidate, ctx);
-  if (hit !== null) return { toPath: hit, resolution: 'first-party' };
-  return { toPath: null, resolution: 'unresolved' };
+  if (hit !== null) return firstParty(hit);
+  return unresolved();
 }
 
 /** The first suffix that names a tracked file, or null. */
@@ -378,18 +433,18 @@ function resolveGo(
 ): ArchResolution {
   const module = ctx.manifests.goModule;
   if (specifier.length === 0) {
-    return { toPath: null, resolution: 'unresolved' };
+    return unresolved();
   }
   if (module !== null) {
     if (specifier === module) {
-      return { toPath: '', resolution: 'first-party' };
+      return firstParty('');
     }
     if (specifier.startsWith(`${module}/`)) {
       const dir = normalizeRel(specifier.slice(module.length + 1));
       if (ctx.directories.has(dir)) {
-        return { toPath: dir, resolution: 'first-party' };
+        return firstParty(dir);
       }
-      return { toPath: null, resolution: 'unresolved' };
+      return unresolved();
     }
   }
   return external();
@@ -398,10 +453,6 @@ function resolveGo(
 // ---------------------------------------------------------------------------
 // Small shared pieces
 // ---------------------------------------------------------------------------
-
-function external(): ArchResolution {
-  return { toPath: null, resolution: 'external' };
-}
 
 /**
  * The specifier without a bundler's query or fragment.
