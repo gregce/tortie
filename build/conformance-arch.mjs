@@ -492,6 +492,103 @@ rows.push([
 ]);
 
 // ---------------------------------------------------------------------------
+// 9.7 The drilled part (Phase 161): scoped, framed, pure, and it pops
+// ---------------------------------------------------------------------------
+// The scoped composer must repeat byte for byte from shuffled facts, add no
+// git call, keep the crossing edges at the frame with the outside parts'
+// REAL names in both states, and answer known false for a group id the
+// current partition does not hold.
+
+const part = data.part;
+if (part.repeatable !== true) {
+  fail(
+    'the drilled part composed twice from shuffled facts gave two answers. ' +
+      'Same repository, same scope, same picture is the whole promise.'
+  );
+}
+if (part.callsAfter !== part.callsBefore) {
+  fail(
+    `composing the drilled part moved the git call count from ` +
+      `${part.callsBefore} to ${part.callsAfter}. The scoped composer must ` +
+      `start nothing.`
+  );
+}
+if (part.model.known !== true || part.model.groupId !== 'src-app') {
+  fail('the drilled src-app answered unknown, and the fixture holds it.');
+}
+if (part.model.componentId !== 'app' || part.model.groupLabel !== 'app') {
+  fail(
+    `the drilled part wears ${part.model.componentId ?? 'nothing'} as ` +
+      `"${part.model.groupLabel}", and the contract's app paints that box at ` +
+      `level 1.`
+  );
+}
+const crossingsSeen = part.model.crossings.map(
+  (c) => `${c.moduleId}>${c.outsideId}:${c.direction}:${c.count}:${c.outsideLabel}`
+);
+const crossingsOwed = [
+  'src-app>src-store:out:2:store',
+  'src-app>src-core:out:1:core'
+];
+if (JSON.stringify(crossingsSeen) !== JSON.stringify(crossingsOwed)) {
+  fail(
+    `the drilled part's frame reads [${crossingsSeen.join(', ')}] and the ` +
+      `fixture's imports cross [${crossingsOwed.join(', ')}]. Context is ` +
+      `lost when the frame drops or misnames an outside part.`
+  );
+}
+const noContractCrossing = part.noContract.crossings[0];
+if (
+  part.noContract.groupLabel !== 'src/app' ||
+  part.noContract.componentId !== null ||
+  noContractCrossing?.outsideLabel !== 'src/store'
+) {
+  fail(
+    'the computed-only drilled part painted a name, and with no contract ' +
+      'every face is its directory.'
+  );
+}
+if (part.unknown.known !== false || part.unknown.modules.length !== 0) {
+  fail(
+    'a group id the partition does not hold must answer known false with ' +
+      'nothing to draw, so the drill pops rather than freezing.'
+  );
+}
+for (const module of part.model.modules) {
+  const badge = Object.keys(module).filter(
+    (key) =>
+      ![
+        'id',
+        'dir',
+        'label',
+        'componentId',
+        'band',
+        'provenance',
+        'fileCount',
+        'totalImports',
+        'resolvedImports',
+        'externalImports',
+        'unresolvedImports'
+      ].includes(key)
+  );
+  if (badge.length > 0) {
+    fail(
+      `a drilled module grew the field(s) ${badge.join(', ')}, and the box ` +
+        'shape is pinned so no count can ride a node.'
+    );
+  }
+}
+
+rows.push([
+  'drilled part',
+  `${part.model.modules.length} modules, ${part.model.edges.length} interior, ` +
+    `${part.model.crossings.length} at the frame`,
+  part.repeatable
+    ? 'byte for byte from shuffled facts, frame keeps the outside names'
+    : 'DRIFTED'
+]);
+
+// ---------------------------------------------------------------------------
 // 9.5 The freshness sentences, word for word
 // ---------------------------------------------------------------------------
 //

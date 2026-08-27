@@ -142,6 +142,43 @@ if (b.gradeFn.boxes !== 'boxes' || b.gradeFn.matrix !== 'matrix' || b.gradeFn.to
 }
 
 // ---------------------------------------------------------------------------
+// 4.5 The caps fire SCOPED (Phase 161)
+// ---------------------------------------------------------------------------
+// The drilled module reaches the same core through a synthesized component
+// whose one anchor is the directory. The caps are the same two comparisons,
+// so they must bite at the same boundaries, the two doors must answer the
+// same bytes over the same file set, and a directory naming nothing at HEAD
+// must answer known false so the drill pops rather than drawing an empty
+// scope as truth.
+
+const d = data.dirScoped;
+if (d.atBoxCap !== 'boxes' || d.pastBoxCap !== 'matrix') {
+  fail(
+    `the box cap does not bite dir scoped: ${String(b.boxCap)} files drew ` +
+      `${d.atBoxCap} and ${String(b.boxCap + 1)} drew ${d.pastBoxCap}`
+  );
+}
+if (d.atMatrixCap !== 'matrix' || d.pastMatrixCap !== 'top') {
+  fail(
+    `the matrix cap does not bite dir scoped: ${String(b.matrixCap)} ` +
+      `participants drew ${d.atMatrixCap} and ${String(b.matrixCap + 1)} ` +
+      `drew ${d.pastMatrixCap}`
+  );
+}
+if (d.equivalence !== true) {
+  fail(
+    'the dir scoped door and the authored part door answered different ' +
+      'bytes over the same file set, and there is supposed to be ONE core'
+  );
+}
+if (d.goneKnown !== false || d.goneDir !== 'no/such/dir') {
+  fail(
+    'a directory naming zero tracked files answered known, and the drill ' +
+      'must pop instead of drawing an empty scope'
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 5. No count on a node
 // ---------------------------------------------------------------------------
 
@@ -238,5 +275,6 @@ if (failures.length > 0) {
 }
 
 process.stdout.write(
-  'conformance:arch:modules OK: both fallbacks fire, both caps bite, no count on a node, no spawn\n'
+  'conformance:arch:modules OK: both fallbacks fire, both caps bite scoped ' +
+    'and unscoped, no count on a node, no spawn\n'
 );

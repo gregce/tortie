@@ -10,7 +10,12 @@
 
 import { describe, expect, it } from 'vitest';
 import type { ArchDocument } from '@shared/arch';
-import { composeArchMap, type ArchMapComposeInput } from '../map';
+import {
+  composeArchMap,
+  composeArchMapPart,
+  type ArchMapComposeInput,
+  type ArchMapPartComposeInput
+} from '../map';
 
 const tree = [
   'src/app/main.ts',
@@ -222,5 +227,317 @@ describe('the overlay', () => {
   it('leaves every edge uncoloured when nothing was judged', () => {
     const model = composeArchMap(input({ document: contract() }));
     for (const edge of model.edges) expect(edge.status).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The drilled part (Phase 161)
+// ---------------------------------------------------------------------------
+
+const deepTree = [
+  'app/ui/button.ts',
+  'app/ui/list.ts',
+  'app/state/store.ts',
+  'app/state/undo.ts',
+  'app/index.ts',
+  'core/run.ts',
+  'core/plan.ts',
+  'store/db.ts',
+  'net/http.ts',
+  'log/log.ts'
+];
+
+const deepImports = [
+  { fromPath: 'app/ui/button.ts', toPath: 'app/state/store.ts', resolution: 'first-party' },
+  { fromPath: 'app/ui/list.ts', toPath: 'app/state/store.ts', resolution: 'first-party' },
+  { fromPath: 'app/index.ts', toPath: 'app/ui/button.ts', resolution: 'first-party' },
+  { fromPath: 'app/state/store.ts', toPath: 'store/db.ts', resolution: 'first-party' },
+  { fromPath: 'core/run.ts', toPath: 'app/state/undo.ts', resolution: 'first-party' },
+  { fromPath: 'net/http.ts', toPath: 'core/plan.ts', resolution: 'first-party' },
+  { fromPath: 'app/ui/button.ts', toPath: null, resolution: 'external' },
+  { fromPath: 'app/state/undo.ts', toPath: null, resolution: 'unresolved' },
+  { fromPath: 'log/log.ts', toPath: null, resolution: 'unresolved' }
+];
+
+function deepContract(): ArchDocument {
+  return {
+    contract: {
+      version: 1,
+      subject: 'a deep test',
+      strictness: 'not-wrong',
+      layers: [],
+      flows: []
+    },
+    components: [
+      {
+        id: 'the-app',
+        name: 'The App',
+        kind: 'component',
+        layer: 'surface',
+        provenance: 'first-party',
+        anchors: ['app'],
+        boundary: 'open',
+        description: '',
+        evidence: [],
+        deprecated: false,
+        gaps: []
+      },
+      {
+        id: 'the-ui',
+        name: 'The UI',
+        kind: 'component',
+        layer: 'surface',
+        provenance: 'first-party',
+        anchors: ['app/ui'],
+        boundary: 'open',
+        description: '',
+        evidence: [],
+        deprecated: false,
+        gaps: []
+      },
+      {
+        id: 'the-core',
+        name: 'The Core',
+        kind: 'component',
+        layer: 'engine',
+        provenance: 'first-party',
+        anchors: ['core'],
+        boundary: 'open',
+        description: '',
+        evidence: [],
+        deprecated: false,
+        gaps: []
+      }
+    ],
+    edges: [
+      {
+        id: 'app-must-not-store',
+        from: 'the-app',
+        to: 'the-core',
+        kind: 'imports',
+        rule: 'must-not',
+        checker: 'imports',
+        evidence: []
+      }
+    ],
+    baseline: { accepted: [] },
+    problems: []
+  };
+}
+
+function partInput(
+  overrides?: Partial<ArchMapPartComposeInput>
+): ArchMapPartComposeInput {
+  return {
+    subject: 'a deep test',
+    trackedFiles: deepTree,
+    imports: deepImports,
+    document: null,
+    verdicts: [],
+    groupId: 'app',
+    ...overrides
+  };
+}
+
+describe('the drilled part', () => {
+  it('groups the part one directory level deeper, weights and bands scoped', () => {
+    const model = composeArchMapPart(partInput());
+    expect(model.known).toBe(true);
+    expect(model.groupId).toBe('app');
+    expect(model.groupDir).toBe('app');
+    expect(model.modules.map((m) => m.id)).toEqual(['app', 'app-state', 'app-ui']);
+    const ui = model.modules.find((m) => m.id === 'app-ui');
+    expect(ui?.fileCount).toBe(2);
+    expect(ui?.band).toBe('engine');
+    const state = model.modules.find((m) => m.id === 'app-state');
+    expect(state?.band).toBe('foundation');
+    // The loose file draws as a module wearing the part's own directory.
+    const loose = model.modules.find((m) => m.id === 'app');
+    expect(loose?.fileCount).toBe(1);
+    expect(loose?.band).toBe('surface');
+    expect(model.fileCount).toBe(5);
+  });
+
+  it('carries the part denominators and the per module honest grey', () => {
+    const model = composeArchMapPart(partInput());
+    expect(model.totalImports).toBe(6);
+    expect(model.resolvedImports).toBe(4);
+    expect(model.unresolvedImports).toBe(1);
+    const state = model.modules.find((m) => m.id === 'app-state');
+    expect(state?.totalImports).toBe(2);
+    expect(state?.resolvedImports).toBe(1);
+    expect(state?.unresolvedImports).toBe(1);
+    const ui = model.modules.find((m) => m.id === 'app-ui');
+    expect(ui?.externalImports).toBe(1);
+  });
+
+  it('draws the interior edges between modules, heaviest first', () => {
+    const model = composeArchMapPart(partInput());
+    expect(model.edges).toEqual([
+      { from: 'app-ui', to: 'app-state', count: 2, status: null, edgeId: null },
+      { from: 'app', to: 'app-ui', count: 1, status: null, edgeId: null }
+    ]);
+  });
+
+  it('keeps the crossing edges at the frame with direction, name and count', () => {
+    const model = composeArchMapPart(partInput());
+    expect(model.crossings).toEqual([
+      {
+        moduleId: 'app-state',
+        outsideId: 'core',
+        outsideLabel: 'core',
+        outsideBand: 'engine',
+        direction: 'in',
+        count: 1
+      },
+      {
+        moduleId: 'app-state',
+        outsideId: 'store',
+        outsideLabel: 'store',
+        outsideBand: 'foundation',
+        direction: 'out',
+        count: 1
+      }
+    ]);
+  });
+
+  it('answers known false when the partition no longer holds the group', () => {
+    const model = composeArchMapPart(partInput({ groupId: 'no-such-part' }));
+    expect(model.known).toBe(false);
+    expect(model.modules).toEqual([]);
+    expect(model.edges).toEqual([]);
+    expect(model.crossings).toEqual([]);
+    expect(model.fileCount).toBe(0);
+  });
+
+  it('gives the same bytes whatever order the facts arrive in', () => {
+    const one = composeArchMapPart(partInput());
+    const two = composeArchMapPart(
+      partInput({
+        imports: [...deepImports].reverse(),
+        trackedFiles: [...deepTree].reverse()
+      })
+    );
+    expect(JSON.stringify(two)).toBe(JSON.stringify(one));
+  });
+
+  it('wears the overlay name on the part and on a module a component sits in', () => {
+    const model = composeArchMapPart(partInput({ document: deepContract() }));
+    expect(model.groupLabel).toBe('The App');
+    expect(model.componentId).toBe('the-app');
+    const ui = model.modules.find((m) => m.id === 'app-ui');
+    expect(ui?.label).toBe('The UI');
+    expect(ui?.componentId).toBe('the-ui');
+    // The outside frame keeps the person's name too.
+    const crossing = model.crossings.find((c) => c.outsideId === 'core');
+    expect(crossing?.outsideLabel).toBe('The Core');
+  });
+
+  it('scopes the strip counts and the subject ids to the part', () => {
+    const model = composeArchMapPart(
+      partInput({
+        document: deepContract(),
+        verdicts: [
+          {
+            subjectId: 'component:the-app',
+            status: 'convergent',
+            coverage: 'checked'
+          },
+          {
+            subjectId: 'component:the-core',
+            status: 'convergent',
+            coverage: 'checked'
+          },
+          {
+            subjectId: 'edge:app-must-not-store',
+            status: 'divergent',
+            coverage: 'checked',
+            offending: [
+              {
+                fromPath: 'app/state/store.ts',
+                toPath: 'core/run.ts',
+                line: 3,
+                specifier: '../core/run'
+              }
+            ]
+          },
+          {
+            subjectId: 'component:the-app#gap:0',
+            status: 'unverifiable',
+            coverage: 'unverifiable'
+          },
+          {
+            subjectId: 'component:the-app#freshness',
+            status: 'convergent',
+            coverage: 'checked'
+          }
+        ]
+      })
+    );
+    // the-core holds its majority outside the part, so its component verdict
+    // stays out of scope; its promise touches the-app, so that one is in.
+    expect(model.subjectIds).toEqual([
+      'component:the-app',
+      'component:the-app#freshness',
+      'component:the-app#gap:0',
+      'edge:app-must-not-store'
+    ]);
+    expect(model.counts.checkedHold).toBe(1);
+    expect(model.counts.broke).toBe(1);
+    expect(model.counts.cannotCheck).toBe(1);
+    expect(model.counts.accepted).toBe(0);
+    expect(model.counts.totalImports).toBe(6);
+    expect(model.counts.unresolvedImports).toBe(1);
+  });
+
+  it('re-derives accepted from the baseline over the stored offences', () => {
+    const document = deepContract();
+    document.baseline = {
+      accepted: [
+        {
+          edgeId: 'app-must-not-store',
+          fromPath: 'app/state/store.ts',
+          toPath: 'core/run.ts',
+          because: 'grandfathered',
+          at: '2026-08-27'
+        }
+      ]
+    };
+    const model = composeArchMapPart(
+      partInput({
+        document,
+        verdicts: [
+          {
+            subjectId: 'edge:app-must-not-store',
+            status: 'divergent',
+            coverage: 'checked',
+            offending: [
+              {
+                fromPath: 'app/state/store.ts',
+                toPath: 'core/run.ts',
+                line: 3,
+                specifier: '../core/run'
+              }
+            ]
+          }
+        ]
+      })
+    );
+    expect(model.counts.accepted).toBe(1);
+    expect(model.counts.broke).toBe(0);
+  });
+
+  it('counts nothing scoped when no contract exists', () => {
+    const model = composeArchMapPart(partInput());
+    expect(model.contractPresent).toBe(false);
+    expect(model.subjectIds).toEqual([]);
+    expect(model.counts).toEqual({
+      checkedHold: 0,
+      broke: 0,
+      cannotCheck: 0,
+      accepted: 0,
+      unresolvedImports: 1,
+      totalImports: 6
+    });
   });
 });

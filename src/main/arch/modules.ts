@@ -47,6 +47,8 @@ import type { ArchComponent, ArchDocument, ArchVerdict } from '@shared/arch';
 import type {
   ArchModuleBox,
   ArchModuleBroke,
+  ArchModuleFilesInput,
+  ArchModuleFilesResult,
   ArchModuleGrade,
   ArchModuleMatrix,
   ArchModuleMatrixCell,
@@ -402,4 +404,91 @@ export async function readArchModules(
     imports: input.store.imports(repoKey),
     verdicts: input.store.verdicts(repoKey)
   });
+}
+
+// ---------------------------------------------------------------------------
+// The drilled module (Phase 161)
+// ---------------------------------------------------------------------------
+
+/**
+ * The synthetic part standing for one computed directory.
+ *
+ * A drilled module is a directory the level 2 map computed, not a row out of
+ * `docs/arch/components/`, and a repository with no contract still drills.
+ * `draftSkeleton` already writes `anchors: [group.dir]` for every computed
+ * part, so a bare directory anchor is the shape `componentFiles` was built
+ * for, and handing this to the SAME `computeArchModules` reuses the caps,
+ * the grade rule, the matrix and the two lists with zero new logic. Nothing
+ * of this component is ever written anywhere.
+ */
+export function moduleDirComponent(dir: string): ArchComponent {
+  return {
+    id: `module:${dir}`,
+    name: dir,
+    kind: 'component',
+    layer: 'engine',
+    provenance: 'first-party',
+    anchors: [dir],
+    boundary: 'open',
+    description: '',
+    evidence: [],
+    deprecated: false,
+    gaps: []
+  };
+}
+
+/** What the `arch:moduleFiles` handler hands in. The store is the one dependency. */
+export interface ArchModuleFilesReadInput extends ArchModuleFilesInput {
+  store: ArchStore;
+}
+
+/**
+ * Read one computed directory's files through the SAME pure core as
+ * `readArchModules`, with a synthesized component whose one anchor is the
+ * directory.
+ *
+ * Same properties as the component read: ONE git call and it is
+ * `lsFilesCall()`, no checker, no write, no scan, same bytes for the same
+ * tree. `known` is false when the directory names zero tracked files at
+ * HEAD, because the facts moved under the drill and an empty scope must pop
+ * rather than draw as truth.
+ */
+export async function readArchModuleFiles(
+  input: ArchModuleFilesReadInput
+): Promise<ArchModuleFilesResult> {
+  const repoPath = input.cwd;
+  const component = moduleDirComponent(input.dir);
+
+  const git = createArchGitRunner(repoPath);
+  const listed = await git.run(lsFilesCall());
+  const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
+  const repoKey = archRepoKey(repoPath);
+
+  const result = computeArchModules({
+    cwd: repoPath,
+    componentId: component.id,
+    component,
+    trackedFiles,
+    imports: input.store.imports(repoKey),
+    verdicts: input.store.verdicts(repoKey)
+  });
+  return toModuleFilesResult(result, input.dir);
+}
+
+/**
+ * The dir scoped envelope over the shared answer, pure so the tests drive it.
+ *
+ * `known` narrows: a directory that names zero tracked files at HEAD is a
+ * scope the facts no longer hold, and the caller pops the drill rather than
+ * drawing an empty part as truth.
+ */
+export function toModuleFilesResult(
+  result: ArchModulesResult,
+  dir: string
+): ArchModuleFilesResult {
+  return {
+    ...result,
+    known: result.known && result.fileCount > 0,
+    dir
+  };
 }

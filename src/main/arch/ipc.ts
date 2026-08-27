@@ -42,6 +42,8 @@ import type {
   ArchDraftFile,
   ArchLoadResult,
   ArchMapInput,
+  ArchMapPartInput,
+  ArchMapPartResult,
   ArchMapResult,
   ArchRepoInput,
   ArchSkeletonResult
@@ -80,8 +82,9 @@ import {
   keepLastValid,
   loadArchDocument
 } from './load';
-import { composeArchMap } from './map';
-import { readArchModules } from './modules';
+import { composeArchMap, composeArchMapPart } from './map';
+import type { ArchMapComposeInput, ArchMapPartVerdictFact } from './map';
+import { readArchModuleFiles, readArchModules } from './modules';
 import { gatherFacts } from './run';
 import { scanArchImports } from './scan';
 import { draftSkeleton as draftSkeletonBuffers } from './skeleton';
@@ -169,6 +172,17 @@ export function registerArchIpc(ipc: IpcMain): void {
   // fact base is still cold answers with what exists plus a building flag,
   // and the arch:mapUpdated push follows when the scan lands.
   handle(ipc, 'arch:map', async (_event, input) => readArchMap(input));
+  // The drilled part (Phase 161): one level 1 box opened into its modules,
+  // the crossing edges kept at the frame, and the strip's counts scoped, all
+  // composed over the SAME fact base through the same envelope as arch:map.
+  // It parses nothing, judges nothing, writes nothing and never waits for a
+  // scan.
+  handle(ipc, 'arch:mapPart', async (_event, input) => readArchMapPart(input));
+  // The drilled module (Phase 161): the level 2 answer scoped to one computed
+  // directory, through the SAME pure core and the same caps as arch:modules.
+  handle(ipc, 'arch:moduleFiles', async (_event, input) =>
+    readArchModuleFiles({ ...input, store: archStore() })
+  );
 }
 
 /**
@@ -513,7 +527,28 @@ function wireScannedAt(scannedAtCommit: string | null): string | null {
  * -z`, and a pure compose over stored rows, measured in milliseconds.
  */
 async function readArchMap(input: ArchMapInput): Promise<ArchMapResult> {
-  const repoPath = input.cwd;
+  const { envelope, compose } = await archMapReadFacts(input.cwd);
+  return { ...envelope, ...composeArchMap(compose) };
+}
+
+/**
+ * The one envelope both map reads share (extracted by the integrator, Phase
+ * 161): arm the watch, schedule the coalesced catch up when the watch was
+ * cold or the fact base is still owed, and gather the compose inputs from
+ * the stored facts plus the one fixed `git ls-files -z`. It NEVER waits for
+ * a scan.
+ */
+async function archMapReadFacts(repoPath: string): Promise<{
+  envelope: { cwd: string; building: boolean; scannedAtCommit: string | null };
+  compose: ArchMapComposeInput & {
+    /**
+     * The stored rows carry coverage and offences, which the SCOPED compose
+     * needs to re-derive `accepted`; the level 1 compose reads the narrower
+     * fact and the extra fields simply do not travel into its output.
+     */
+    verdicts: readonly ArchMapPartVerdictFact[];
+  };
+}> {
   const armed = watchArchRepo(repoPath);
   const db = archStore();
   const repoKey = archRepoKey(repoPath);
@@ -533,20 +568,43 @@ async function readArchMap(input: ArchMapInput): Promise<ArchMapResult> {
   const listed = await createArchGitRunner(repoPath).run(lsFilesCall());
   const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
   const manifests = readArchManifests(repoPath);
-  const model = composeArchMap({
-    subject:
-      manifests.packageName ?? repoPath.split('/').pop() ?? 'this project',
-    trackedFiles,
-    imports: db.imports(repoKey),
-    workspaces: [...manifests.workspaces.values()].map((w) => w.dir),
-    document: document.contract === null ? null : document,
-    verdicts: db.verdicts(repoKey)
-  });
   return {
-    cwd: repoPath,
-    building,
-    scannedAtCommit: wireScannedAt(state.scannedAtCommit),
-    ...model
+    envelope: {
+      cwd: repoPath,
+      building,
+      scannedAtCommit: wireScannedAt(state.scannedAtCommit)
+    },
+    compose: {
+      subject:
+        manifests.packageName ?? repoPath.split('/').pop() ?? 'this project',
+      trackedFiles,
+      imports: db.imports(repoKey),
+      workspaces: [...manifests.workspaces.values()].map((w) => w.dir),
+      document: document.contract === null ? null : document,
+      verdicts: db.verdicts(repoKey)
+    }
+  };
+}
+
+/**
+ * The drilled part, composed from whatever the fact base holds RIGHT NOW
+ * (Phase 161).
+ *
+ * The same envelope as `readArchMap` above: it arms the watch, schedules the
+ * coalesced catch up when the watch was cold or the fact base is still owed,
+ * and NEVER waits for a scan. The level 1 partition is recomposed inside the
+ * scoped compose from the same facts, which is what resolves the clicked
+ * group id without any file list crossing the wire, and a group id the
+ * current partition no longer holds answers `known: false` so the drill pops
+ * rather than freezing.
+ */
+async function readArchMapPart(
+  input: ArchMapPartInput
+): Promise<ArchMapPartResult> {
+  const { envelope, compose } = await archMapReadFacts(input.cwd);
+  return {
+    ...envelope,
+    ...composeArchMapPart({ ...compose, groupId: input.groupId })
   };
 }
 

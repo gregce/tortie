@@ -54,11 +54,15 @@ import type {
   ArchVerdict
 } from '../arch';
 import type {
+  ArchModuleFilesInput,
+  ArchModuleFilesResult,
   ArchModulesInput,
   ArchModulesResult
 } from './arch-modules';
 import type {
   ArchMapInput,
+  ArchMapPartInput,
+  ArchMapPartResult,
   ArchMapResult,
   ArchMapUpdatedEvent
 } from './arch-map';
@@ -278,6 +282,25 @@ export interface ArchInvokeChannelMap {
    * `building: true`, and the `arch:mapUpdated` push follows.
    */
   'arch:map': { req: [input: ArchMapInput]; res: ArchMapResult };
+  /**
+   * One level 1 part opened up (Phase 161): its modules as a map of the same
+   * kind, the crossing edges to the rest of the repository kept at the frame,
+   * and the verdict strip's counts scoped to the part. Composed in MAIN over
+   * the SAME fact base as `arch:map`, through the same envelope: it reads the
+   * arch database and the one fixed `git ls-files -z` argv, parses nothing,
+   * judges nothing, writes nothing, and NEVER waits for a scan.
+   */
+  'arch:mapPart': { req: [input: ArchMapPartInput]; res: ArchMapPartResult };
+  /**
+   * The level 2 answer scoped to one computed directory (Phase 161). Main
+   * synthesizes a component whose one anchor is the directory and hands it to
+   * the SAME pure core as `arch:modules`, so the three caps fire scoped with
+   * zero new cap logic. Same refusals as `arch:modules`, same one git call.
+   */
+  'arch:moduleFiles': {
+    req: [input: ArchModuleFilesInput];
+    res: ArchModuleFilesResult;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +356,8 @@ export interface GmuxArchExtras {
     composePayload(input: ArchComposePayloadInput): Promise<ArchComposePayloadResult>;
     modules(input: ArchModulesInput): Promise<ArchModulesResult>;
     map(input: ArchMapInput): Promise<ArchMapResult>;
+    mapPart(input: ArchMapPartInput): Promise<ArchMapPartResult>;
+    moduleFiles(input: ArchModuleFilesInput): Promise<ArchModuleFilesResult>;
     onChecked(cb: (event: ArchCheckedEvent) => void): Unsubscribe;
     onProgress(cb: (progress: ArchProgressEvent) => void): Unsubscribe;
     onMapUpdated(cb: (event: ArchMapUpdatedEvent) => void): Unsubscribe;

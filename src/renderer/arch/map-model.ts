@@ -24,7 +24,7 @@
  *    null means.
  */
 
-import type { ArchMapResult } from './bridge';
+import type { ArchMapPartResult, ArchMapResult } from './bridge';
 import type { ArchMapModel } from './map';
 
 /** Does the honest grey apply: imports exist and none could be followed. */
@@ -55,6 +55,53 @@ export function toMapModel(result: ArchMapResult): ArchMapModel {
       to: e.to,
       count: e.count,
       ...(e.status !== null ? { verdict: e.status } : {})
+    }))
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 161: the scoped picture, one part as its modules with a frame
+// ---------------------------------------------------------------------------
+
+/**
+ * What the scoped adapter reads out of the shared `arch:mapPart` answer:
+ * exactly the three lists the drawing needs, and nothing of the envelope.
+ * Reconciled to the shared wire type after the parallel round, so a change
+ * to the payload is a type error here rather than a silent drift.
+ */
+export type ArchMapPartSlice = Pick<
+  ArchMapPartResult,
+  'modules' | 'edges' | 'crossings'
+>;
+
+/**
+ * The scoped payload, reshaped into the drawing's model. The same three
+ * translations `toMapModel` makes, plus the frame: crossings become frame
+ * edges, and the drawing places one stub per outside part per side.
+ */
+export function toPartMapModel(part: ArchMapPartSlice): ArchMapModel {
+  return {
+    groups: part.modules.map((m) => ({
+      id: m.id,
+      label: m.label,
+      fileCount: m.fileCount,
+      band: m.band,
+      provenance: m.provenance,
+      unresolved: importsUnknown(m),
+      overlaid: m.componentId !== null
+    })),
+    edges: part.edges.map((e) => ({
+      from: e.from,
+      to: e.to,
+      count: e.count,
+      ...(e.status !== null ? { verdict: e.status } : {})
+    })),
+    frame: part.crossings.map((c) => ({
+      boxId: c.moduleId,
+      outsideId: c.outsideId,
+      outsideLabel: c.outsideLabel,
+      direction: c.direction,
+      count: c.count
     }))
   };
 }

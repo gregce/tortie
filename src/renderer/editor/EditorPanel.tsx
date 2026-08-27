@@ -72,6 +72,7 @@ import {
   renderedEditorWidth,
   saveEditorWidths
 } from './panel-width';
+import { stagedMapWidth } from './map-stage';
 import { remoteFileChip } from '../machines/editor';
 import { machineWriteRootFor } from '../state/machines-slice';
 import './editor.css';
@@ -414,6 +415,14 @@ export function EditorPanel(): React.JSX.Element | null {
   /** Filling is a split-mode state; the overlay already covers the terminal. */
   const filling = editorFill !== null && !overlay;
 
+  // PHASE 161. While the ACTIVE tab is the architecture map and the layout
+  // is a plain split, the panel is staged at the row's maximum, presentation
+  // only: nothing is written, a divider drag drops it, and every other tab
+  // returns the stored width byte for byte. The rule itself is map-stage.ts.
+  const activeIsMap =
+    tabs.find((t) => t.id === activeId)?.archMap !== undefined;
+  const [mapStageDropped, setMapStageDropped] = useState(false);
+
   // -- split width (persisted per project) -----------------------------------
   const [widths, setWidths] = useState<Record<string, number>>(
     loadEditorWidths
@@ -426,7 +435,18 @@ export function EditorPanel(): React.JSX.Element | null {
   // CSS (inset:0), not by this number, so nothing is written and leaving fill
   // returns the stored width byte for byte. The value still drives the panel's
   // own fit decisions (split view, minimap, two-column diff).
-  const panelWidth = overlay ? overlayWidth : filling ? workArea : splitWidth;
+  const stagedWidth = stagedMapWidth({
+    activeIsMap,
+    split: !overlay && !filling,
+    dropped: mapStageDropped,
+    splitWidth,
+    maxWidth: editorMaxWidth(workArea)
+  });
+  const panelWidth = overlay
+    ? overlayWidth
+    : filling
+      ? workArea
+      : (stagedWidth ?? splitWidth);
 
   const setProjectWidth = useCallback(
     (px: number): void => {
@@ -434,6 +454,8 @@ export function EditorPanel(): React.JSX.Element | null {
       // mode without replaying the memento — the store's fifth escape hatch,
       // alongside ⌘B, the activity bar and expanding the dock.
       useApp.getState().forgetEditorFill();
+      // Phase 161: the drag also drops the map stage for this panel's life.
+      setMapStageDropped(true);
       setWidths((prev) => {
         const next = { ...prev, [projectPath]: px };
         saveEditorWidths(next);
@@ -460,7 +482,9 @@ export function EditorPanel(): React.JSX.Element | null {
     // began in fill mode has to give the user their stored width back, not
     // overwrite it with the width of the whole row. (Pointer geometry never
     // reads this — it comes off the panel's own rect.)
-    width: splitWidth,
+    // Phase 161: while the map stage holds, the handle is handed the staged
+    // width, or an Esc cancel and the drag geometry would jump the panel.
+    width: stagedWidth ?? splitWidth,
     min: EDITOR_MIN,
     max: () => editorMaxWidth(workRowWidthNow()),
     onWidth: setProjectWidth,

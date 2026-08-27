@@ -187,3 +187,40 @@ export interface ArchModuleUnparsed {
  * channel map under shared/ipc to be joined into the intersection in
  * ./index.ts, and joining a second map for one channel would buy nothing.
  */
+
+// ---------------------------------------------------------------------------
+// The drilled module (Phase 161)
+// ---------------------------------------------------------------------------
+
+/**
+ * `arch:moduleFiles` — the SAME level 2 answer, scoped to one computed
+ * directory instead of a contract component (Phase 161).
+ *
+ * A drilled module is a directory the level 2 map computed, not a part out of
+ * `docs/arch/components/`, and a repository with no contract at all still
+ * drills. So this input names the directory, main synthesizes a component
+ * whose one anchor is that directory, and the SAME `computeArchModules` core
+ * answers: the caps above, the grade rule, the matrix and the two lists are
+ * REUSED whole, never rewritten, and they fire scoped for free because the
+ * pure core never knew where its file set came from.
+ */
+export interface ArchModuleFilesInput {
+  /** Absolute path of the project root. */
+  cwd: string;
+  /** The module's directory, repository relative, out of the level 2 map. */
+  dir: string;
+}
+
+/**
+ * The level 2 answer for one directory.
+ *
+ * `known` is false when the directory names zero tracked files at HEAD, which
+ * means the facts moved under the drill; the caller pops the drill rather
+ * than drawing an empty scope as truth. `componentId` carries the synthetic
+ * id `module:<dir>` so the shape stays {@link ArchModulesResult} for every
+ * renderer that already takes one.
+ */
+export interface ArchModuleFilesResult extends ArchModulesResult {
+  /** The directory as asked, repository relative. */
+  dir: string;
+}

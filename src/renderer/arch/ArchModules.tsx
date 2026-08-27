@@ -64,7 +64,12 @@ import type { ArchModulesResult } from '@shared/ipc';
 import { Codicon } from '../icons';
 import { requestOpenFile } from '../state/open-file';
 import { unresolvedSentence, verdictWord } from './copy';
+import { moduleKey, useArch } from './store';
+import type { ArchModuleViewEntry } from './store';
 import {
+  ARCH_MODULE_FILES_EMPTY,
+  ARCH_MODULE_FILES_NOTE,
+  ARCH_MODULE_FILES_TITLE,
   ARCH_MODULES_EMPTY,
   ARCH_MODULES_IMPORTEES,
   ARCH_MODULES_IMPORTERS,
@@ -79,6 +84,7 @@ import {
   isolatedSentence,
   moduleDir,
   moduleLabel,
+  moduleFilesAvailable,
   rankSentence,
   unparsedSentence
 } from './modules';
@@ -198,13 +204,21 @@ export function ArchModulesBody({
   result,
   loading,
   failed,
-  available
+  available,
+  emptyText
 }: {
   cwd: string;
   result: ArchModulesResult | null;
   loading: boolean;
   failed: string | null;
   available: boolean;
+  /**
+   * What an empty file set means HERE (Phase 161). The contract path keeps
+   * its anchors sentence; the drilled path names the module folder instead,
+   * because "this part anchors" would be false about a folder the drill
+   * chose. One body, one override, zero copied lines.
+   */
+  emptyText?: string;
 }): React.JSX.Element {
   if (!available) {
     return <p className="arch-note arch-note-inline">{ARCH_MODULES_NO_BRIDGE}</p>;
@@ -222,7 +236,11 @@ export function ArchModulesBody({
     return <p className="arch-note arch-note-inline">{ARCH_MODULES_UNKNOWN}</p>;
   }
   if (result.fileCount === 0) {
-    return <p className="arch-note arch-note-inline">{ARCH_MODULES_EMPTY}</p>;
+    return (
+      <p className="arch-note arch-note-inline">
+        {emptyText ?? ARCH_MODULES_EMPTY}
+      </p>
+    );
   }
   return (
     <>
@@ -474,4 +492,109 @@ function Rank({
       </ul>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 161, level 3 of the drill: one module opened up into its files
+// ---------------------------------------------------------------------------
+
+/**
+ * The drilled files view, mounted by the MAP TAB at level 3.
+ *
+ * IT IS PHASE 64'S VIEW, SCOPED. The drawing, the three caps, the grade rule
+ * and the broke overlay are all `ArchModulesBody` unchanged; what this adds
+ * is the framing and where the answer comes from. The answer routes through
+ * the store rather than local state, which is the one refresh path: a
+ * finished check or a landed scan re-reads every held scope in one place,
+ * and this component only draws what the store holds.
+ *
+ * PROPS FROZEN IN THE PHASE SPEC, because the mount point is owned by a
+ * different hand than this file.
+ */
+export function ArchModuleFiles({
+  repoPath,
+  dir,
+  label
+}: {
+  /** Absolute repository root. */
+  repoPath: string;
+  /** The module folder, repository relative. */
+  dir: string;
+  /** What the module is called on screen, the breadcrumb's own word. */
+  label: string;
+}): React.JSX.Element {
+  const entry = useArch((s) => s.moduleViews[moduleKey(repoPath, dir)] ?? null);
+  const loadModuleView = useArch((s) => s.loadModuleView);
+  useEffect(() => {
+    void loadModuleView(repoPath, dir);
+  }, [repoPath, dir, loadModuleView]);
+  return (
+    <ArchModuleFilesBody
+      cwd={repoPath}
+      label={label}
+      entry={entry}
+      available={moduleFilesAvailable()}
+    />
+  );
+}
+
+/**
+ * The face with the answer handed in, the `ArchModulesBody` seam one level
+ * up: this repository carries no jsdom, so the unit suite renders THIS with
+ * a held entry and reads the markup.
+ */
+export function ArchModuleFilesBody({
+  cwd,
+  label,
+  entry,
+  available
+}: {
+  cwd: string;
+  label: string;
+  entry: ArchModuleViewEntry | null;
+  available: boolean;
+}): React.JSX.Element {
+  const result = entry?.result ?? null;
+  return (
+    <section
+      className="arch-modules arch-module-files"
+      aria-label={`${ARCH_MODULE_FILES_TITLE}: ${label}`}
+      data-grade={result === null ? 'none' : result.grade}
+    >
+      <div className="section-header">
+        <span className="section-toggle">{ARCH_MODULE_FILES_TITLE}</span>
+      </div>
+      <p className="arch-note arch-note-inline">{ARCH_MODULE_FILES_NOTE}</p>
+      <ArchModulesBody
+        cwd={cwd}
+        result={result}
+        loading={entry?.status === 'loading'}
+        failed={entry?.status === 'error' ? entry.error : null}
+        available={available}
+        emptyText={ARCH_MODULE_FILES_EMPTY}
+      />
+    </section>
+  );
+}
+
+/**
+ * The name the MAP TAB mounts at level 3 (Phase 161). The tab reads this
+ * export structurally, with the part's id and label in the props so the seam
+ * carries the whole drill context; the files view itself needs only the
+ * folder and its label, and the part context already lives in the one drill
+ * record both surfaces read.
+ */
+export function ArchDrillFiles({
+  repoPath,
+  dir,
+  label
+}: {
+  repoPath: string;
+  /** The drilled part, part of the frozen seam. The drill record holds it. */
+  groupId: string;
+  groupLabel: string;
+  dir: string;
+  label: string;
+}): React.JSX.Element {
+  return <ArchModuleFiles repoPath={repoPath} dir={dir} label={label} />;
 }

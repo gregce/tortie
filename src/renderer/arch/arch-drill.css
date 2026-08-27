@@ -1,0 +1,68 @@
+/**
+ * Phase 161 — the pane's drill surfaces: the breadcrumb echo and the scoped
+ * strip's sentences. Colocated with ArchView, which is the only importer.
+ * Every colour is a token; nothing here animates and nothing is amber.
+ */
+
+.arch-crumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 8px;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-secondary);
+}
+
+.arch-crumb-seg {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+  font: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arch-crumb-seg:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.arch-crumb-here {
+  padding: 1px 4px;
+  color: var(--text-primary);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arch-crumb-sep {
+  color: var(--text-muted);
+}
+
+/* A computed row that can be opened up is a button: the pointer and the
+   hover come back, and the drilled one wears the same selected face the
+   contract outline uses. A build without the scoped read keeps the read
+   only rows exactly as Phase 160 shipped them. */
+button.arch-row-computed {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+}
+
+.arch-row-computed.arch-row-drill {
+  cursor: pointer;
+}
+
+.arch-row-computed.arch-row-drill:hover {
+  background: var(--bg-raised);
+}

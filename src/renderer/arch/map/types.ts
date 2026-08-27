@@ -67,10 +67,16 @@ export interface ArchMapEdge {
   verdict?: string;
 }
 
-/** The whole level 1 picture. */
+/** The whole picture, level 1 or a scoped level (Phase 161). */
 export interface ArchMapModel {
   groups: readonly ArchMapGroup[];
   edges: readonly ArchMapEdge[];
+  /**
+   * Phase 161: the crossing edges a scoped picture keeps at its frame, so a
+   * person inside one part still sees what leans on it and what it leans on.
+   * Absent or empty on the level 1 picture, which has no outside.
+   */
+  frame?: readonly ArchMapFrameEdge[];
 }
 
 /** The band a raw model value lands in. Unknown values go to the middle. */
@@ -90,4 +96,30 @@ export function bandWord(band: ArchMapBand): string {
   if (band === 'surface') return 'Surface';
   if (band === 'foundation') return 'Foundation';
   return 'Engine';
+}
+
+// ---------------------------------------------------------------------------
+// Phase 161: the frame, being what a scoped picture keeps of the outside
+// ---------------------------------------------------------------------------
+
+/**
+ * One aggregated crossing edge of a scoped picture: an import with exactly
+ * one end inside the drilled part. The outside end is a level 1 group, kept
+ * with its id AND its label so the frame names real parts and context is
+ * never lost.
+ *
+ * Direction reads from the part's point of view: `out` means a module inside
+ * the part imports the outside group, and `in` means the outside group's
+ * files import a module inside the part.
+ */
+export interface ArchMapFrameEdge {
+  /** The interior box the crossing touches, by its id in `groups`. */
+  boxId: string;
+  /** The outside level 1 group's id. */
+  outsideId: string;
+  /** The outside group's label, the overlay name where one is painted. */
+  outsideLabel: string;
+  direction: 'in' | 'out';
+  /** How many file to file imports the crossing aggregates. Thickness. */
+  count: number;
 }

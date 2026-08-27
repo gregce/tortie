@@ -141,3 +141,120 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* -- Phase 161: the drill, the frame and the fill ------------------------- */
+
+/* The svg centres inside the fill wrapper when its upscale bound holds it
+   below the tab's size. The wrapper is the measured element the layout wraps
+   against, so the picture recentres on every resize. */
+.arch-map-fill {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* A box is a button while the drill is wired. The affordance is the cursor
+   and the focus ring; the face of the box does not change, because the
+   picture's ink is information and hover is not information. */
+.arch-map-click {
+  cursor: pointer;
+}
+
+.arch-map-click:focus-visible {
+  outline: none;
+}
+
+.arch-map-click:focus-visible .arch-map-box-rect {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.arch-map-click:hover .arch-map-box-rect {
+  stroke: var(--text-secondary);
+}
+
+/* A frame stub: an outside part kept at the edge of a scoped picture. It is
+   context, never a button, so it wears the quiet face and no pointer. */
+.arch-map-stub-rect {
+  fill: var(--bg-surface);
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.arch-map-stub-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 0 8px;
+  font-family: var(--font-ui);
+}
+
+.arch-map-stub-name {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A crossing edge wears the quiet dress: it is context at the frame, and it
+   never carries a verdict colour, because verdicts belong to the level that
+   judged them. */
+.arch-map-frame-edge {
+  stroke: var(--border);
+  stroke-dasharray: 6 4;
+}
+
+/* -- Phase 161: the breadcrumb over the drawing --------------------------- */
+
+.arch-map-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  flex: none;
+  min-width: 0;
+}
+
+.arch-map-crumb {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: var(--text-sm);
+  font-family: var(--font-ui);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+button.arch-map-crumb {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+button.arch-map-crumb:hover {
+  background: var(--bg-raised);
+}
+
+.arch-map-crumb-here {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+}
+
+.arch-map-crumb-sep {
+  color: var(--text-muted);
+  flex: none;
+}

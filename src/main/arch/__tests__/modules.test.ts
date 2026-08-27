@@ -30,7 +30,12 @@ import {
   ARCH_MODULE_TOP_CAP
 } from '@shared/ipc';
 import type { ArchImportEdge } from '../db';
-import { archModuleGrade, computeArchModules } from '../modules';
+import {
+  archModuleGrade,
+  computeArchModules,
+  moduleDirComponent,
+  toModuleFilesResult
+} from '../modules';
 
 interface LargeFixture {
   expect: Record<string, string>;
@@ -319,5 +324,97 @@ describe('it is deterministic', () => {
     });
     expect(answer.edgeCount).toBe(0);
     expect(answer.participants).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The drilled module (Phase 161)
+// ---------------------------------------------------------------------------
+
+function dirGrade(files: number, chain: number): string {
+  const s = synthetic(files, chain);
+  const component = moduleDirComponent('src/p');
+  return computeArchModules({
+    cwd: '/imaginary',
+    componentId: component.id,
+    component,
+    trackedFiles: s.trackedFiles,
+    imports: s.imports,
+    verdicts: []
+  }).grade;
+}
+
+describe('the dir scoped read (Phase 161)', () => {
+  it('synthesizes a part whose one anchor is the directory', () => {
+    const component = moduleDirComponent('src/p');
+    expect(component.id).toBe('module:src/p');
+    expect(component.anchors).toEqual(['src/p']);
+  });
+
+  it('answers the same bytes as the equivalent authored part', () => {
+    const s = synthetic(12, 4);
+    const viaDir = computeArchModules({
+      cwd: '/imaginary',
+      componentId: 'module:src/p',
+      component: moduleDirComponent('src/p'),
+      trackedFiles: s.trackedFiles,
+      imports: s.imports,
+      verdicts: []
+    });
+    const viaComponent = computeArchModules({
+      cwd: '/imaginary',
+      componentId: 'p',
+      component: s.component,
+      trackedFiles: s.trackedFiles,
+      imports: s.imports,
+      verdicts: []
+    });
+    // Same file set, same everything except the ids the caller chose.
+    expect(JSON.stringify({ ...viaDir, componentId: '' })).toBe(
+      JSON.stringify({ ...viaComponent, componentId: '' })
+    );
+  });
+
+  it('fires both caps scoped, the researched numbers untouched', () => {
+    expect(dirGrade(ARCH_MODULE_BOX_CAP, 4)).toBe('boxes');
+    expect(dirGrade(ARCH_MODULE_BOX_CAP + 1, 4)).toBe('matrix');
+    expect(dirGrade(600, ARCH_MODULE_MATRIX_CAP)).toBe('matrix');
+    expect(dirGrade(600, ARCH_MODULE_MATRIX_CAP + 1)).toBe('top');
+  });
+
+  it('answers known false when the directory names nothing at HEAD', () => {
+    const component = moduleDirComponent('no/such/dir');
+    const result = toModuleFilesResult(
+      computeArchModules({
+        cwd: '/imaginary',
+        componentId: component.id,
+        component,
+        trackedFiles: synthetic(4, 2).trackedFiles,
+        imports: [],
+        verdicts: []
+      }),
+      'no/such/dir'
+    );
+    expect(result.known).toBe(false);
+    expect(result.dir).toBe('no/such/dir');
+    expect(result.fileCount).toBe(0);
+  });
+
+  it('keeps known true when the directory holds files', () => {
+    const s = synthetic(3, 2);
+    const component = moduleDirComponent('src/p');
+    const result = toModuleFilesResult(
+      computeArchModules({
+        cwd: '/imaginary',
+        componentId: component.id,
+        component,
+        trackedFiles: s.trackedFiles,
+        imports: s.imports,
+        verdicts: []
+      }),
+      'src/p'
+    );
+    expect(result.known).toBe(true);
+    expect(result.fileCount).toBe(3);
   });
 });

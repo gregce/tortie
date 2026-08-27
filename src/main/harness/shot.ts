@@ -15,10 +15,62 @@ import { saveLastCaptureTo } from '../capture';
 import { openSettingsWindow } from '../settings';
 import { broadcastEvent } from '../typed-events';
 import { EVT_POWER_RESUME } from '@shared/ipc';
+import {
+  drainWatcherCloses,
+  pendingWatcherCloseCount
+} from '../watcher/teardown';
 
 export interface ShotDeps {
   /** The real app window factory, owned by the composition root. */
   createWindow(): BrowserWindow;
+}
+
+/**
+ * Every exit from this harness goes through here (Phase 161 fix round).
+ *
+ * `app.exit()` never reaches before-quit, so it skips the watcher drain the
+ * real quit door runs (src/main/capabilities.ts, Phase 36). The cleanup a
+ * driven capture runs just before exiting closes the driven project and
+ * kills the driven sessions, and both of those issue tracked
+ * `@parcel/watcher` unsubscribes. When the uv threadpool is busy, an arch
+ * re-scan of the driven repository is exactly that, the unsubscribe
+ * completion is still queued when `node::FreeEnvironment` runs, napi
+ * refuses the late call, and the module aborts the process. That is the
+ * measured Phase 36 crash, and on 2026-08-27 it came through THIS door: a
+ * verifier run that quit within two seconds of file appends landing died
+ * with SIGABRT while three runs without a burst at quit exited 0.
+ *
+ * So the harness drains the same tracked set the quit door drains. The
+ * setImmediate beat first lets a close a dispose path has started but not
+ * yet issued reach the tracked set. When nothing is pending, which is every
+ * undriven capture, the whole thing costs one loop turn. When the drain
+ * expires, proceeding to ANY environment teardown is a guaranteed abort,
+ * so the harness ends itself the one way that cannot abort, SIGKILL to
+ * self, and says so first. That needs a wedged FSEvents, not a busy pool.
+ *
+ * Exported for the drain-order test only; nothing outside this file and its
+ * test may call it.
+ */
+export async function exitShot(code: number): Promise<void> {
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const pending = pendingWatcherCloseCount();
+  if (pending > 0) {
+    // One observable line, so a harness run is evidence the door is real:
+    // a driven capture's cleanup leaves closes here on every run.
+    console.log(
+      `[gmux-shot] draining ${pending} watcher close(s) before exit`
+    );
+  }
+  const leftover = await drainWatcherCloses(8_000);
+  if (leftover > 0) {
+    console.error(
+      `[gmux-shot] ${leftover} watcher close(s) still pending after 8 s; ` +
+        'ending the process hard because environment teardown would abort'
+    );
+    process.kill(process.pid, 'SIGKILL');
+    return;
+  }
+  app.exit(code);
 }
 
 export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
@@ -45,7 +97,7 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
     const win = BrowserWindow.getAllWindows()[0];
     if (!win) {
       console.error('[gmux-shot] FAIL: settings window did not open');
-      app.exit(1);
+      await exitShot(1);
       return;
     }
     win.webContents.once('did-finish-load', () => {
@@ -80,10 +132,10 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
           const image = await win.webContents.capturePage();
           await writeFile(outPath, image.toPNG());
           console.log(`[gmux-shot] wrote ${outPath}`);
-          app.exit(0);
+          await exitShot(0);
         } catch (err) {
           console.error(`[gmux-shot] FAIL: ${(err as Error).message}`);
-          app.exit(1);
+          await exitShot(1);
         }
       }, 2_000);
     });
@@ -135,7 +187,7 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
           }
           if (!hooked) {
             console.error('[gmux-shot] FAIL: drive hook never appeared');
-            app.exit(1);
+            await exitShot(1);
             return;
           }
           // NOT awaited. The IIFE returns a promise, and awaiting it here
@@ -162,13 +214,13 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
             )) as { ready: boolean; error: string | null };
             if (state.error !== null) {
               console.error(`[gmux-shot] FAIL: drive threw — ${state.error}`);
-              app.exit(1);
+              await exitShot(1);
               return;
             }
             if (state.ready) break;
             if (Date.now() > deadline) {
               console.error('[gmux-shot] FAIL: drive never finished');
-              app.exit(1);
+              await exitShot(1);
               return;
             }
             await new Promise((r) => setTimeout(r, 250));
@@ -234,10 +286,10 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
             .executeJavaScript('window.__gmuxShotCleanup?.()', true)
             .catch(() => undefined);
         }
-        app.exit(0);
+        await exitShot(0);
       } catch (err) {
         console.error(`[gmux-shot] FAIL: ${(err as Error).message}`);
-        app.exit(1);
+        await exitShot(1);
       }
     }, delayMs);
   });

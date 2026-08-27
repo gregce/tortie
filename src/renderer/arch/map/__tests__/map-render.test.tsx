@@ -227,10 +227,29 @@ describe('the refusals, kept executable', () => {
     }
   });
 
-  it('the picture is static: no click, no drag, no wheel', () => {
-    for (const banned of ['onClick', 'onMouseDown', 'onWheel', 'onDrag']) {
+  it('no pan, no zoom, no drag: the one interaction is the drill click', () => {
+    // Phase 161 made a box a button when the drill seam is handed in, so
+    // onClick and onKeyDown are now deliberate. Everything a canvas phase
+    // would add stays banned until Phase 162 earns it.
+    for (const banned of ['onMouseDown', 'onWheel', 'onDrag', 'onPointerDown']) {
       expect(TSX).not.toContain(banned);
     }
+  });
+
+  it('without the drill seam the picture stays static, with it every box is a button', () => {
+    const still = draw(fullModel());
+    expect(still).not.toContain('role="button"');
+    expect(still).not.toContain('tabindex');
+    const wired = renderToStaticMarkup(
+      <ArchMap model={fullModel()} onOpenGroup={() => undefined} />
+    );
+    const buttons = wired.match(/role="button"/g) ?? [];
+    expect(buttons).toHaveLength(fullModel().groups.length);
+    expect(wired.match(/tabindex="0"/g) ?? []).toHaveLength(
+      fullModel().groups.length
+    );
+    // The click affordance never rewrites what the box says.
+    expect(textOf(wired).includes('The App')).toBe(true);
   });
 
   it('never says a tmux word', () => {

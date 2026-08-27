@@ -54,10 +54,21 @@ import {
   archAvailable,
   archBridge,
   mapBridge,
+  mapPartBridge,
   skeletonBridge
 } from './bridge';
-import type { ArchMapResult } from './bridge';
-import { ARCH_MAP_ERROR, ARCH_MAP_NO_BRIDGE } from './copy';
+import type {
+  ArchMapPartResult,
+  ArchMapResult,
+  ArchModuleFilesResult
+} from './bridge';
+import { moduleFilesBridge } from './modules';
+import {
+  ARCH_DRILL_NO_BRIDGE,
+  ARCH_DRILL_PART_ERROR,
+  ARCH_MAP_ERROR,
+  ARCH_MAP_NO_BRIDGE
+} from './copy';
 import { ARCH_SEED_COPIED, ARCH_VIEW_TITLE } from './copy';
 import { seedPromptText } from './seed-prompt';
 
@@ -117,6 +128,63 @@ export interface ArchMapEntry {
   error: string | null;
 }
 
+/**
+ * PHASE 161. Where a person is in one repository's map.
+ *
+ * THE LADDER, and it is the navigation: level 1 is the whole map, level 2 is
+ * one part opened up into its modules, level 3 is one module opened up into
+ * its files under Phase 64's caps. The labels travel with the ids so the
+ * breadcrumb can name each level without waiting for any read to land.
+ *
+ * FROZEN IN THE PHASE SPEC: the map tab and the sidebar pane both read this
+ * one record, which is what keeps the two surfaces agreeing about where the
+ * person is. Never a second copy of this state anywhere.
+ */
+export type ArchDrill =
+  | { level: 1 }
+  | { level: 2; groupId: string; groupLabel: string }
+  | {
+      level: 3;
+      groupId: string;
+      groupLabel: string;
+      moduleDir: string;
+      moduleLabel: string;
+    };
+
+/** The whole map, the one drill state every repository starts at. */
+export const DRILL_HOME: ArchDrill = Object.freeze({ level: 1 });
+
+/**
+ * One part's scoped reading, held like `ArchMapEntry` and for the same
+ * reason: the last good picture stays through a failed re-read.
+ */
+export interface ArchPartMapEntry {
+  status: 'loading' | 'ready' | 'error';
+  model: ArchMapPartResult | null;
+  error: string | null;
+}
+
+/** One module's level 3 answer, the Phase 64 result scoped to a folder. */
+export interface ArchModuleViewEntry {
+  status: 'loading' | 'ready' | 'error';
+  result: ArchModuleFilesResult | null;
+  error: string | null;
+}
+
+/**
+ * The key one scoped entry lives under. NUL is the separator because it is
+ * the one byte a path cannot contain, so two different pairs can never fold
+ * into one key.
+ */
+export function partKey(repoPath: string, groupId: string): string {
+  return `${repoPath}\u0000${groupId}`;
+}
+
+/** The level 3 twin of {@link partKey}. */
+export function moduleKey(repoPath: string, moduleDir: string): string {
+  return `${repoPath}\u0000${moduleDir}`;
+}
+
 export interface ArchViewState {
   /** Which folder, on which computer, this reading belongs to. */
   target: WorkspaceTarget | null;
@@ -143,6 +211,20 @@ export interface ArchViewState {
    * an entry writes to any session and nothing in it touches the contract.
    */
   maps: Readonly<Record<string, ArchMapEntry>>;
+  /**
+   * PHASE 161. Where each repository's map is drilled to. A repository with
+   * no entry is at the whole map. The map tab and the sidebar pane both read
+   * this one record; there is never a second copy of the drill anywhere.
+   */
+  drills: Readonly<Record<string, ArchDrill>>;
+  /**
+   * The scoped part models this window holds, keyed by {@link partKey}. Only
+   * the parts the drill can still reach are kept, so the event fan-out never
+   * re-reads a scope nobody is looking at.
+   */
+  partMaps: Readonly<Record<string, ArchPartMapEntry>>;
+  /** The level 3 answers this window holds, keyed by {@link moduleKey}. */
+  moduleViews: Readonly<Record<string, ArchModuleViewEntry>>;
 
   syncProject(target: WorkspaceTarget | null): void;
   /**
@@ -196,6 +278,37 @@ export interface ArchViewState {
   loadMap(repoPath: string): Promise<void>;
   /** The held entry for one repository, or null before the first read. */
   mapFor(repoPath: string): ArchMapEntry | null;
+
+  // PHASE 161. The drill. Action names frozen in the phase spec because the
+  // map tab and this store belong to different hands.
+  /** Where this repository's map is drilled to. Never null. */
+  drillFor(repoPath: string): ArchDrill;
+  /** Open one part up: level 2, and the scoped read is fired. */
+  drillInto(repoPath: string, groupId: string, groupLabel: string): void;
+  /** Open one module of the drilled part up: level 3. */
+  drillIntoModule(
+    repoPath: string,
+    moduleDir: string,
+    moduleLabel: string
+  ): void;
+  /** One level up the ladder. */
+  drillUp(repoPath: string): void;
+  /** Back to the whole map. */
+  drillHome(repoPath: string): void;
+  /**
+   * Read one part's scoped model, or read it again. Idempotent while a read
+   * is in flight, in `loadMap`'s own shape: a burst folds to two reads.
+   */
+  loadPartMap(repoPath: string, groupId: string): Promise<void>;
+  /** The held scoped entry, or null before the first read. */
+  partMapFor(repoPath: string, groupId: string): ArchPartMapEntry | null;
+  /** Read one module's level 3 answer through the same fold. */
+  loadModuleView(repoPath: string, moduleDir: string): Promise<void>;
+  /** The held level 3 entry, or null before the first read. */
+  moduleViewFor(
+    repoPath: string,
+    moduleDir: string
+  ): ArchModuleViewEntry | null;
   /** Compose the skeleton and open it as unsaved editor buffers. */
   draft(): Promise<void>;
   /** Put the seeding prompt on the clipboard and open the new session sheet. */
@@ -240,6 +353,107 @@ export interface ArchViewState {
  */
 const pendingMapReads = new Set<string>();
 
+/** The scoped twins of {@link pendingMapReads}, keyed by the entry keys. */
+const pendingPartReads = new Set<string>();
+const pendingModuleReads = new Set<string>();
+
+/**
+ * The ONE read fold every map read uses (extracted by the integrator, Phase
+ * 161, from three copies of the same block).
+ *
+ * One read in flight per key. An ask that lands while one is out is NOT
+ * dropped: the facts may have moved between the send and the answer, so it
+ * queues exactly one follow up read, which runs when the current one
+ * settles. A burst of pushes still folds to two reads. The last good value
+ * stays on screen through a failed re-read, with the failure named beside
+ * it, and a missing bridge is an error entry rather than a hang.
+ */
+async function foldedRead<V>(opts: {
+  key: string;
+  pending: Set<string>;
+  /** True when the held entry is already loading, so this ask queues. */
+  loading: boolean;
+  /** The read itself, or null when the bridge is absent in this build. */
+  read: (() => Promise<V>) | null;
+  /** The value held before this ask, kept on screen while it runs. */
+  held: V | null;
+  /** The value held NOW, read after an await so a race cannot blank it. */
+  latest: () => V | null;
+  patch: (
+    status: 'loading' | 'ready' | 'error',
+    value: V | null,
+    error: string | null
+  ) => void;
+  noBridge: string;
+  fallback: string;
+  /** Runs after a ready patch, for the known-false pop. */
+  onReady?: (value: V) => void;
+  /** The queued follow up read. */
+  again: () => void;
+}): Promise<void> {
+  if (opts.loading) {
+    opts.pending.add(opts.key);
+    return;
+  }
+  if (opts.read === null) {
+    opts.patch('error', opts.held, opts.noBridge);
+    return;
+  }
+  opts.patch('loading', opts.held, null);
+  try {
+    const value = await opts.read();
+    opts.patch('ready', value, null);
+    opts.onReady?.(value);
+  } catch (err) {
+    opts.patch(
+      'error',
+      opts.latest(),
+      err instanceof Error && err.message.length > 0
+        ? err.message
+        : opts.fallback
+    );
+  }
+  if (opts.pending.delete(opts.key)) opts.again();
+}
+
+/**
+ * The next drill state applied, with everything it can no longer reach let
+ * go (Phase 161).
+ *
+ * PURE AND EXPORTED for the unit suite. Scoped entries are pruned to the ones
+ * the new drill still points at, so the event fan-out never re-reads a scope
+ * nobody can navigate back to without a fresh click, and the records cannot
+ * grow without bound over a long session. Entries for OTHER repositories are
+ * untouched: a background project's tab keeps its own drill and its own
+ * scoped picture.
+ */
+export function drillPatch(
+  s: Pick<ArchViewState, 'drills' | 'partMaps' | 'moduleViews'>,
+  repoPath: string,
+  next: ArchDrill
+): Pick<ArchViewState, 'drills' | 'partMaps' | 'moduleViews'> {
+  const drills = { ...s.drills };
+  if (next.level === 1) delete drills[repoPath];
+  else drills[repoPath] = next;
+
+  const keepPart = next.level === 1 ? null : partKey(repoPath, next.groupId);
+  const keepModule =
+    next.level === 3 ? moduleKey(repoPath, next.moduleDir) : null;
+  const prefix = `${repoPath}\u0000`;
+
+  const partMaps: Record<string, ArchPartMapEntry> = {};
+  for (const [key, entry] of Object.entries(s.partMaps)) {
+    if (!key.startsWith(prefix) || key === keepPart) partMaps[key] = entry;
+  }
+  const moduleViews: Record<string, ArchModuleViewEntry> = {};
+  for (const [key, entry] of Object.entries(s.moduleViews)) {
+    if (!key.startsWith(prefix) || key === keepModule) {
+      moduleViews[key] = entry;
+    }
+  }
+  return { drills, partMaps, moduleViews };
+}
+
 /**
  * The one empty array every "nothing yet" answer returns.
  *
@@ -268,6 +482,9 @@ export const useArch = create<ArchViewState>((set, get) => ({
   selected: NO_SELECTION,
   drafting: false,
   maps: {},
+  drills: {},
+  partMaps: {},
+  moduleViews: {},
 
   syncProject(target) {
     if (target !== null && sameTarget(get().target, target)) return;
@@ -372,45 +589,148 @@ export const useArch = create<ArchViewState>((set, get) => ({
 
   async loadMap(repoPath) {
     const held = get().maps[repoPath];
-    // One read in flight per repository. An ask that lands while one is out
-    // is NOT dropped: the facts may have moved between the send and the
-    // answer, so it queues exactly one follow up read, which runs when the
-    // current one settles. A burst of pushes still folds to two reads.
-    if (held?.status === 'loading') {
-      pendingMapReads.add(repoPath);
-      return;
-    }
     const api = mapBridge();
-    const patch = (entry: ArchMapEntry): void => {
-      set((s) => ({ maps: { ...s.maps, [repoPath]: entry } }));
-    };
-    if (api === null) {
-      patch({ status: 'error', model: held?.model ?? null, error: ARCH_MAP_NO_BRIDGE });
-      return;
-    }
-    patch({ status: 'loading', model: held?.model ?? null, error: null });
-    try {
-      const model = await api.map({ cwd: repoPath });
-      patch({ status: 'ready', model, error: null });
-    } catch (err) {
-      // The last good model stays on screen, with the failure named beside
-      // it, for the reason the entry's comment gives.
-      patch({
-        status: 'error',
-        model: get().maps[repoPath]?.model ?? null,
-        error:
-          err instanceof Error && err.message.length > 0
-            ? err.message
-            : ARCH_MAP_ERROR
-      });
-    }
-    if (pendingMapReads.delete(repoPath)) {
-      void get().loadMap(repoPath);
-    }
+    await foldedRead<ArchMapResult>({
+      key: repoPath,
+      pending: pendingMapReads,
+      loading: held?.status === 'loading',
+      read: api === null ? null : () => api.map({ cwd: repoPath }),
+      held: held?.model ?? null,
+      latest: () => get().maps[repoPath]?.model ?? null,
+      patch: (status, model, error) => {
+        set((s) => ({ maps: { ...s.maps, [repoPath]: { status, model, error } } }));
+      },
+      noBridge: ARCH_MAP_NO_BRIDGE,
+      fallback: ARCH_MAP_ERROR,
+      again: () => void get().loadMap(repoPath)
+    });
   },
 
   mapFor(repoPath) {
     return get().maps[repoPath] ?? null;
+  },
+
+  drillFor(repoPath) {
+    return get().drills[repoPath] ?? DRILL_HOME;
+  },
+
+  drillInto(repoPath, groupId, groupLabel) {
+    set((s) => drillPatch(s, repoPath, { level: 2, groupId, groupLabel }));
+    void get().loadPartMap(repoPath, groupId);
+  },
+
+  drillIntoModule(repoPath, moduleDir, moduleLabel) {
+    const d = get().drillFor(repoPath);
+    // A module belongs to a part. With no part drilled there is nothing this
+    // gesture could scope, so it does nothing rather than inventing a level.
+    if (d.level === 1) return;
+    set((s) =>
+      drillPatch(s, repoPath, {
+        level: 3,
+        groupId: d.groupId,
+        groupLabel: d.groupLabel,
+        moduleDir,
+        moduleLabel
+      })
+    );
+    void get().loadModuleView(repoPath, moduleDir);
+  },
+
+  drillUp(repoPath) {
+    const d = get().drillFor(repoPath);
+    if (d.level === 1) return;
+    const next: ArchDrill =
+      d.level === 3
+        ? { level: 2, groupId: d.groupId, groupLabel: d.groupLabel }
+        : DRILL_HOME;
+    set((s) => drillPatch(s, repoPath, next));
+  },
+
+  drillHome(repoPath) {
+    if (get().drills[repoPath] === undefined) return;
+    set((s) => drillPatch(s, repoPath, DRILL_HOME));
+  },
+
+  async loadPartMap(repoPath, groupId) {
+    const key = partKey(repoPath, groupId);
+    const held = get().partMaps[key];
+    const api = mapPartBridge();
+    await foldedRead<ArchMapPartResult>({
+      key,
+      pending: pendingPartReads,
+      loading: held?.status === 'loading',
+      read: api === null ? null : () => api.mapPart({ cwd: repoPath, groupId }),
+      held: held?.model ?? null,
+      latest: () => get().partMaps[key]?.model ?? null,
+      patch: (status, model, error) => {
+        set((s) => ({ partMaps: { ...s.partMaps, [key]: { status, model, error } } }));
+      },
+      noBridge: ARCH_DRILL_NO_BRIDGE,
+      fallback: ARCH_DRILL_PART_ERROR,
+      onReady: (model) => {
+        // The facts moved under the drill and this part is not in the
+        // partition any more. The drill pops to the deepest level that still
+        // resolves, which is the whole map: never a crash, never a frozen
+        // scope drawn as truth.
+        if (!model.known) {
+          const d = get().drillFor(repoPath);
+          if (d.level !== 1 && d.groupId === groupId) {
+            set((s) => drillPatch(s, repoPath, DRILL_HOME));
+          }
+        }
+      },
+      again: () => void get().loadPartMap(repoPath, groupId)
+    });
+  },
+
+  partMapFor(repoPath, groupId) {
+    return get().partMaps[partKey(repoPath, groupId)] ?? null;
+  },
+
+  async loadModuleView(repoPath, moduleDir) {
+    const key = moduleKey(repoPath, moduleDir);
+    const held = get().moduleViews[key];
+    const api = moduleFilesBridge();
+    await foldedRead<ArchModuleFilesResult>({
+      key,
+      pending: pendingModuleReads,
+      loading: held?.status === 'loading',
+      read:
+        api === null
+          ? null
+          : () => api.moduleFiles({ cwd: repoPath, dir: moduleDir }),
+      held: held?.result ?? null,
+      latest: () => get().moduleViews[key]?.result ?? null,
+      patch: (status, result, error) => {
+        set((s) => ({
+          moduleViews: { ...s.moduleViews, [key]: { status, result, error } }
+        }));
+      },
+      noBridge: ARCH_DRILL_NO_BRIDGE,
+      fallback: ARCH_DRILL_PART_ERROR,
+      onReady: (result) => {
+        // The folder names no tracked file any more: the facts moved under
+        // the drill. Pop one rung to the part, which still resolves, rather
+        // than drawing an empty scope as truth.
+        if (!result.known) {
+          const d = get().drillFor(repoPath);
+          if (d.level === 3 && d.moduleDir === moduleDir) {
+            set((s) =>
+              drillPatch(s, repoPath, {
+                level: 2,
+                groupId: d.groupId,
+                groupLabel: d.groupLabel
+              })
+            );
+          }
+        }
+      },
+      again: () => void get().loadModuleView(repoPath, moduleDir)
+    });
+  },
+
+  moduleViewFor(repoPath, moduleDir) {
+    return get().moduleViews[moduleKey(repoPath, moduleDir)] ?? null;
   },
 
   async draft() {
@@ -494,6 +814,7 @@ export const useArch = create<ArchViewState>((set, get) => ({
             if (get().maps[event.cwd] !== undefined) {
               void get().loadMap(event.cwd);
             }
+            reloadScopedReads(get(), event.cwd);
             const target = get().target;
             if (target === null || localPathOf(target) !== event.cwd) return;
             set({ checking: false, progress: null });
@@ -516,6 +837,11 @@ export const useArch = create<ArchViewState>((set, get) => ({
             if (get().maps[event.cwd] !== undefined) {
               void get().loadMap(event.cwd);
             }
+            // Phase 161. A scoped picture is a reading of the same fact
+            // base, so it moves when the base does. Only the scopes the
+            // drill can still reach are held, and the in flight fold in
+            // each read keeps a burst at two asks.
+            reloadScopedReads(get(), event.cwd);
           })
         : () => undefined;
     return () => {
@@ -565,6 +891,26 @@ export const useArch = create<ArchViewState>((set, get) => ({
     );
   }
 }));
+
+/**
+ * Ask again for every scoped reading this window holds of one repository
+ * (Phase 161). Runs on the same two pushes the level 1 map re-reads on, so
+ * the drilled picture and the whole picture can never sit at two different
+ * readings of the facts for longer than a read takes.
+ */
+function reloadScopedReads(s: ArchViewState, cwd: string): void {
+  const prefix = `${cwd}\u0000`;
+  for (const key of Object.keys(s.partMaps)) {
+    if (key.startsWith(prefix)) {
+      void s.loadPartMap(cwd, key.slice(prefix.length));
+    }
+  }
+  for (const key of Object.keys(s.moduleViews)) {
+    if (key.startsWith(prefix)) {
+      void s.loadModuleView(cwd, key.slice(prefix.length));
+    }
+  }
+}
 
 /**
  * Create the folders the drafts will be saved into, and say nothing when they

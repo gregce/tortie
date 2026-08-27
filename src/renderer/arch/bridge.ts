@@ -75,3 +75,35 @@ export function mapBridge(): ArchBridgeApi | null {
 export function mapAvailable(): boolean {
   return mapBridge() !== null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 161, the drill's two scoped reads
+// ---------------------------------------------------------------------------
+
+/**
+ * The scoped shapes, re-exported through the same seam the level 1 model
+ * travels, so the store, the tab and the pane name them from one place.
+ */
+export type {
+  ArchMapCrossing,
+  ArchMapPartInput,
+  ArchMapPartResult,
+  ArchModuleFilesInput,
+  ArchModuleFilesResult
+} from '@shared/ipc';
+
+/**
+ * The scoped part read (level 2 of the drill), or null when this build
+ * cannot look inside a part. Feature detected like every other method here:
+ * an older preload has no `mapPart`, the boxes then stop being buttons, and
+ * the level 1 picture still draws.
+ */
+export function mapPartBridge(): ArchBridgeApi | null {
+  const api = archBridge();
+  return typeof api?.mapPart === 'function' ? api : null;
+}
+
+/** Can this build open a part up at all? */
+export function mapPartAvailable(): boolean {
+  return mapPartBridge() !== null;
+}

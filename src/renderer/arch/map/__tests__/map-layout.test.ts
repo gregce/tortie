@@ -171,16 +171,21 @@ describe('the barycenter pass', () => {
     // edge a->e pulls e to a's end of the row: keys are e=0 (partner a's
     // initial position), c=0 (its own), d=0.5, so c and e tie at 0, the id
     // breaks the tie, and the order becomes c, e, d.
-    const layout = layoutMap({
-      groups: [
-        group('a', 'surface', 10),
-        group('b', 'surface', 10),
-        group('c', 'engine', 10),
-        group('d', 'engine', 10),
-        group('e', 'engine', 10)
-      ],
-      edges: [{ from: 'a', to: 'e', count: 1 }]
-    });
+    // A viewport too wide to wrap, so the row order IS the x order. The
+    // wrap itself is Phase 161 behavior with its own tests below.
+    const layout = layoutMap(
+      {
+        groups: [
+          group('a', 'surface', 10),
+          group('b', 'surface', 10),
+          group('c', 'engine', 10),
+          group('d', 'engine', 10),
+          group('e', 'engine', 10)
+        ],
+        edges: [{ from: 'a', to: 'e', count: 1 }]
+      },
+      { width: 4000, height: 400 }
+    );
     const engine = layout.boxes
       .filter((box) => box.band === 'engine')
       .sort((p, q) => p.x - q.x)
@@ -189,14 +194,17 @@ describe('the barycenter pass', () => {
   });
 
   it('a box with no partners keeps its id-order place', () => {
-    const layout = layoutMap({
-      groups: [
-        group('c', 'engine', 10),
-        group('d', 'engine', 10),
-        group('e', 'engine', 10)
-      ],
-      edges: []
-    });
+    const layout = layoutMap(
+      {
+        groups: [
+          group('c', 'engine', 10),
+          group('d', 'engine', 10),
+          group('e', 'engine', 10)
+        ],
+        edges: []
+      },
+      { width: 4000, height: 400 }
+    );
     const engine = [...layout.boxes]
       .sort((p, q) => p.x - q.x)
       .map((box) => box.group.id);

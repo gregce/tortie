@@ -28,7 +28,7 @@
  * drift by the last bit of a float between two renders of the same model.
  */
 
-import type { ArchMapEdge } from './types';
+import type { ArchMapEdge, ArchMapFrameEdge } from './types';
 import type { MapBox, MapLayout } from './layout';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +67,22 @@ export const MAP_ATTACH_INSET = 16;
 export const MAP_SAME_ROW_DIP = 40;
 /** Extra dip per further same row edge in the same row, so they never overlap. */
 export const MAP_SAME_ROW_STEP = 12;
+/** Phase 161: gap between wrapped lines inside one band. Smaller than
+ *  MAP_ROW_GAP, so a band still reads as one row of the scale. */
+export const MAP_LINE_GAP = 48;
+/** Phase 161: a frame stub's fixed width. Small on purpose: the frame is
+ *  context, never the subject. */
+export const MAP_STUB_W = 160;
+/** Phase 161: a frame stub's fixed height. */
+export const MAP_STUB_H = 36;
+/** Phase 161: gap between two stubs in one frame row. */
+export const MAP_STUB_GAP = 24;
+/** Phase 161: the corridor between a frame row and the boxes, so the
+ *  crossing curves have room to turn. */
+export const MAP_STUB_ROW_GAP = 64;
+/** Phase 161: the drawing never scales its abstract units up by more than
+ *  this, so a two box repository does not become a billboard. */
+export const MAP_MAX_UPSCALE = 2;
 
 // ---------------------------------------------------------------------------
 // Small pure helpers
@@ -96,7 +112,7 @@ export function edgeStrokeWidth(count: number, maxCount: number): number {
 }
 
 /** Horizontal attachment: the centre, pulled toward the partner, clamped. */
-function attachX(box: MapBox, otherCx: number): number {
+function attachX(box: Pick<MapBox, 'x' | 'w'>, otherCx: number): number {
   const cx = box.x + box.w / 2;
   const pulled = cx + (otherCx - cx) * MAP_ATTACH_PULL;
   const lo = box.x + MAP_ATTACH_INSET;
@@ -131,7 +147,8 @@ export interface PlannedEdge {
  */
 export function planEdges(
   layout: MapLayout,
-  edges: readonly ArchMapEdge[]
+  edges: readonly ArchMapEdge[],
+  sharedMaxCount?: number
 ): PlannedEdge[] {
   const ordered = [...edges].sort((a, b) => {
     if (a.from !== b.from) return a.from < b.from ? -1 : 1;
@@ -139,8 +156,13 @@ export function planEdges(
     return 0;
   });
 
-  let maxCount = 1;
-  for (const edge of ordered) maxCount = Math.max(maxCount, edge.count);
+  // Phase 161: a scoped picture weighs its interior and its frame on ONE
+  // scale, so the caller may hand the shared pool in. Alone, the pool is the
+  // edges themselves, which is exactly what level 1 always did.
+  let maxCount = sharedMaxCount ?? 1;
+  if (sharedMaxCount === undefined) {
+    for (const edge of ordered) maxCount = Math.max(maxCount, edge.count);
+  }
 
   const planned: PlannedEdge[] = [];
   const sameRowSeen = new Map<number, number>();
@@ -207,4 +229,96 @@ export function edgeMarkerId(verdict: string | undefined): string {
   if (cls === 'arch-map-e-holds') return 'arch-map-arrow-holds';
   if (cls === 'arch-map-e-broke') return 'arch-map-arrow-broke';
   return 'arch-map-arrow';
+}
+
+// ---------------------------------------------------------------------------
+// Phase 161: the frame, being the crossing edges a scoped picture keeps
+// ---------------------------------------------------------------------------
+
+/**
+ * The one weight pool a scoped picture uses: the heaviest count over the
+ * interior edges AND the crossing edges together, so a thick frame line and
+ * a thick interior line mean the same thing.
+ */
+export function edgeMaxCount(
+  edges: readonly { count: number }[],
+  frame: readonly { count: number }[] = []
+): number {
+  let max = 1;
+  for (const e of edges) max = Math.max(max, e.count);
+  for (const e of frame) max = Math.max(max, e.count);
+  return max;
+}
+
+/** The key a frame stub is looked up by: its side and its outside group. */
+export function stubKey(direction: 'in' | 'out', outsideId: string): string {
+  return `${direction} ${outsideId}`;
+}
+
+/** One drawable crossing edge between an interior box and a frame stub. */
+export interface PlannedFrameEdge {
+  edge: ArchMapFrameEdge;
+  path: string;
+  strokeWidth: number;
+}
+
+/**
+ * Turn a scoped model's crossing edges into drawable paths against a layout
+ * that placed the frame stubs.
+ *
+ * Sorted canonically first, being direction then outside id then box id, so
+ * the bytes cannot depend on arrival order. An edge naming a stub or a box
+ * the layout does not hold is skipped rather than guessed at, the same rule
+ * `planEdges` states. An `in` crossing falls from its top stub into the box,
+ * and an `out` crossing falls from the box onto its bottom stub, both with
+ * vertical tangents, so every arrow on the surface points the way the
+ * dependency flows.
+ */
+export function planFrameEdges(
+  layout: MapLayout,
+  frame: readonly ArchMapFrameEdge[],
+  maxCount: number
+): PlannedFrameEdge[] {
+  const ordered = [...frame].sort((a, b) => {
+    if (a.direction !== b.direction) return a.direction < b.direction ? -1 : 1;
+    if (a.outsideId !== b.outsideId) return a.outsideId < b.outsideId ? -1 : 1;
+    if (a.boxId !== b.boxId) return a.boxId < b.boxId ? -1 : 1;
+    return 0;
+  });
+
+  const planned: PlannedFrameEdge[] = [];
+  for (const edge of ordered) {
+    const stub = layout.stubByKey.get(stubKey(edge.direction, edge.outsideId));
+    const box = layout.boxById.get(edge.boxId);
+    if (stub === undefined || box === undefined) continue;
+
+    const boxCx = box.x + box.w / 2;
+    const stubCx = stub.x + stub.w / 2;
+    const sx = attachX(stub, boxCx);
+    const bx = attachX(box, stubCx);
+    let path: string;
+    if (edge.direction === 'in') {
+      const ay = stub.y + stub.h;
+      const by = box.y;
+      const mid = (by - ay) / 2;
+      path =
+        `M ${fmt(sx)} ${fmt(ay)} ` +
+        `C ${fmt(sx)} ${fmt(ay + mid)}, ${fmt(bx)} ${fmt(by - mid)}, ` +
+        `${fmt(bx)} ${fmt(by)}`;
+    } else {
+      const ay = box.y + box.h;
+      const by = stub.y;
+      const mid = (by - ay) / 2;
+      path =
+        `M ${fmt(bx)} ${fmt(ay)} ` +
+        `C ${fmt(bx)} ${fmt(ay + mid)}, ${fmt(sx)} ${fmt(by - mid)}, ` +
+        `${fmt(sx)} ${fmt(by)}`;
+    }
+    planned.push({
+      edge,
+      path,
+      strokeWidth: edgeStrokeWidth(edge.count, maxCount)
+    });
+  }
+  return planned;
 }

@@ -33,7 +33,7 @@ import type { ArchFreshness, ArchVerdict } from '../src/shared/arch';
 import { checkImports, coverageSentence } from '../src/main/arch/checkers';
 import type { ArchFactBase, ArchImportFact } from '../src/main/arch/checkers/facts';
 import { gatherFacts, runArchCheck } from '../src/main/arch/run';
-import { composeArchMap } from '../src/main/arch/map';
+import { composeArchMap, composeArchMapPart } from '../src/main/arch/map';
 import { draftSkeleton } from '../src/main/arch/skeleton';
 import type { ArchImportResolution } from '../src/main/arch/db';
 import {
@@ -682,6 +682,33 @@ async function main(): Promise<void> {
   const mapCallsAfter = payloadRecord.length;
 
   // -------------------------------------------------------------------------
+  // 6.6 The drilled part (Phase 161), composed twice, the second time from
+  // shuffled facts, plus the unknown group answer and the computed-only
+  // scope. The scoped composer is PURE too: no git call may be added, the
+  // crossing edges must carry the outside parts' names, and a group id the
+  // partition does not hold must answer known false rather than throwing.
+  // -------------------------------------------------------------------------
+  const partCallsBefore = payloadRecord.length;
+  const partOne = composeArchMapPart({ ...mapInput, groupId: 'src-app' });
+  const partTwo = composeArchMapPart({
+    ...mapInput,
+    trackedFiles: [...facts.trackedFiles].reverse(),
+    imports: [...facts.imports].reverse(),
+    groupId: 'src-app'
+  });
+  const partNoContract = composeArchMapPart({
+    ...mapInput,
+    document: null,
+    verdicts: [],
+    groupId: 'src-app'
+  });
+  const partUnknown = composeArchMapPart({
+    ...mapInput,
+    groupId: 'no-such-part'
+  });
+  const partCallsAfter = payloadRecord.length;
+
+  // -------------------------------------------------------------------------
   const archDir = join(root, 'src', 'main', 'arch');
   const walk = (dir: string): string[] => {
     const out: string[] = [];
@@ -806,6 +833,14 @@ async function main(): Promise<void> {
           noContract: mapNoContract,
           callsBefore: mapCallsBefore,
           callsAfter: mapCallsAfter
+        },
+        part: {
+          repeatable: JSON.stringify(partOne) === JSON.stringify(partTwo),
+          model: partOne,
+          noContract: partNoContract,
+          unknown: partUnknown,
+          callsBefore: partCallsBefore,
+          callsAfter: partCallsAfter
         },
         rowKeys: ARCH_ROW_KEYS,
         sources,

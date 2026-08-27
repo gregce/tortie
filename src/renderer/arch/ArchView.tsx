@@ -69,12 +69,18 @@ import { requestOpenFile } from '../state/open-file';
 import { useApp } from '../state/store';
 import { ArchContractOffer } from './ArchEmptyState';
 import { openArchMap } from './open-map';
-import { mapAvailable } from './bridge';
+import { mapAvailable, mapPartAvailable } from './bridge';
+import type { ArchMapPartResult } from './bridge';
 import {
   ARCH_COMPUTED_TITLE,
   ARCH_CONTRACT_ADDS,
+  ARCH_DRILL_CRUMB_LABEL,
+  ARCH_DRILL_WHOLE,
   ARCH_MAP_OPEN_BODY,
-  ARCH_MAP_OPEN_TITLE
+  ARCH_MAP_OPEN_TITLE,
+  ARCH_SCOPED_LOADING,
+  ARCH_SCOPED_NO_FAILURES,
+  ARCH_SCOPED_NO_PROMISES
 } from './copy';
 import {
   ARCH_ACCEPTED_NOTE,
@@ -97,13 +103,14 @@ import {
   provenanceWord
 } from './provenance';
 import { ArchModules } from './ArchModules';
-import { useArch } from './store';
+import { partKey, useArch } from './store';
 // Phase 64: the aiming verb. The view's own control for it composes nothing
 // itself; it hands the selection to the one picker every entry point uses.
 import { AIM_MENU_LABEL } from './aim-copy';
 import { canDeliverTo } from './deliver';
 import { aimSelection } from './picker';
 import './arch.css';
+import './arch-drill.css';
 
 // ---------------------------------------------------------------------------
 // Small pure helpers, exported where a probe or a test has to see them
@@ -151,6 +158,46 @@ export function focusedComponentId(selected: readonly string[]): string | null {
 /** A verdict is a FAILURE when it broke or the thing it names is not there. */
 export function isFailure(v: ArchVerdict): boolean {
   return v.status === 'divergent' || v.status === 'absent';
+}
+
+/**
+ * The verdicts inside the drilled scope (Phase 161), by MEMBERSHIP and never
+ * by a second arithmetic: main computed which subjects map into the part and
+ * shipped their ids with the scoped model, so the pane filters by that set
+ * rather than re-deriving the overlay here. Null means no scope, and the
+ * list passes through untouched.
+ */
+export function scopeVerdicts(
+  verdicts: readonly ArchVerdict[],
+  subjectIds: readonly string[] | null
+): readonly ArchVerdict[] {
+  if (subjectIds === null) return verdicts;
+  const inScope = new Set(subjectIds);
+  return verdicts.filter((v) => inScope.has(v.subjectId));
+}
+
+/**
+ * What the pane knows about the drilled scope, computed once in the view and
+ * handed to the strip and the failure list so the two cannot disagree.
+ */
+export interface ScopedView {
+  /** What the drilled part is called, the breadcrumb's own word. */
+  label: string;
+  /** The held scoped model, or null while the first read is out. */
+  model: ArchMapPartResult | null;
+}
+
+/**
+ * Which face the scoped strip wears, as one word a test can hold: `loading`
+ * while no scoped model has landed, `silent` when the contract's promises do
+ * not touch the part, `lanes` when there are scoped counts to draw.
+ */
+export function scopedStripFace(
+  scoped: ScopedView
+): 'loading' | 'silent' | 'lanes' {
+  if (scoped.model === null) return 'loading';
+  if (scoped.model.subjectIds.length === 0) return 'silent';
+  return 'lanes';
 }
 
 /**
@@ -236,6 +283,19 @@ export function ArchView(): React.JSX.Element {
   // a finished re-check announces nothing: it re-reads and the numbers move.
   useEffect(() => useArch.getState().subscribeEvents(), []);
 
+  // PHASE 161. Where this repository's map is drilled to, read from the ONE
+  // record the map tab writes too, so the cockpit and the picture cannot
+  // disagree about where the person is. Scoping applies only when the pane's
+  // repository is the drilled one, which this keying already guarantees.
+  const drill = useArch((s) =>
+    repoPath === null ? null : (s.drills[repoPath] ?? null)
+  );
+  const partEntry = useArch((s) =>
+    repoPath === null || drill === null || drill.level === 1
+      ? null
+      : (s.partMaps[partKey(repoPath, drill.groupId)] ?? null)
+  );
+
   if (status === 'unavailable') {
     return <ArchNote text={ARCH_NO_BRIDGE} />;
   }
@@ -254,6 +314,26 @@ export function ArchView(): React.JSX.Element {
   // full cockpit, because the person then needs to read the problems.
   const noContract = status === 'ready' && load !== null && !load.present;
 
+  // PHASE 161. The scoped reading the strip and the failure list share, so
+  // the two cannot disagree, and the verdicts inside the scope by membership
+  // in main's own id set rather than by a second arithmetic here.
+  const scoped: ScopedView | null =
+    drill !== null && drill.level !== 1
+      ? { label: drill.groupLabel, model: partEntry?.model ?? null }
+      : null;
+  const shownVerdicts =
+    scoped === null
+      ? verdicts
+      : scoped.model === null
+        ? []
+        : scopeVerdicts(verdicts, scoped.model.subjectIds);
+  const failuresEmptyText =
+    scoped === null
+      ? undefined
+      : scoped.model === null
+        ? ARCH_SCOPED_LOADING
+        : ARCH_SCOPED_NO_FAILURES;
+
   return (
     <div className="arch" data-slot="arch">
       {contract !== null ? (
@@ -262,6 +342,7 @@ export function ArchView(): React.JSX.Element {
         </div>
       ) : null}
       <MapSection repoPath={repoPath} />
+      <DrillCrumb repoPath={repoPath} />
       {noContract ? (
         // No contract: the computed parts the map draws, the quiet line about
         // what a contract adds, and the two ways to get one. The verdict
@@ -283,12 +364,13 @@ export function ArchView(): React.JSX.Element {
             <p className="arch-lastvalid">{ARCH_LAST_VALID}</p>
           ) : null}
           <FreshnessRibbon />
-          <VerdictStrip />
+          <VerdictStrip scoped={scoped} />
           <Problems />
           <FailureList
-            verdicts={verdicts}
+            verdicts={shownVerdicts}
             repoPath={repoPath}
             onSelect={select}
+            emptyText={failuresEmptyText}
           />
           <Outline
             components={components}
@@ -319,6 +401,74 @@ export function ArchView(): React.JSX.Element {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * THE BREADCRUMB ECHO (Phase 161). The pane names the level even when the
+ * map tab is behind another tab.
+ *
+ * The tab carries the primary breadcrumb; this is the cockpit's echo of the
+ * same one store record, so the two can never disagree. Every earlier
+ * segment is a button one click up the ladder, which is the charter's own
+ * control back to the whole. It draws nothing at the whole map, so the pane
+ * carries no control a person has no use for.
+ */
+function DrillCrumb({
+  repoPath
+}: {
+  repoPath: string | null;
+}): React.JSX.Element | null {
+  const drill = useArch((s) =>
+    repoPath === null ? null : (s.drills[repoPath] ?? null)
+  );
+  const subject = useArch((s) =>
+    repoPath === null ? null : (s.maps[repoPath]?.model?.subject ?? null)
+  );
+  const drillHome = useArch((s) => s.drillHome);
+  const drillUp = useArch((s) => s.drillUp);
+  if (repoPath === null || drill === null || drill.level === 1) return null;
+  const whole = subject ?? ARCH_DRILL_WHOLE;
+  return (
+    <nav className="arch-crumb" aria-label={ARCH_DRILL_CRUMB_LABEL}>
+      <button
+        type="button"
+        className="arch-crumb-seg"
+        title={whole}
+        onClick={() => {
+          drillHome(repoPath);
+        }}
+      >
+        {whole}
+      </button>
+      <span className="arch-crumb-sep" aria-hidden="true">
+        {'\u203a'}
+      </span>
+      {drill.level === 2 ? (
+        <span className="arch-crumb-here" title={drill.groupLabel}>
+          {drill.groupLabel}
+        </span>
+      ) : (
+        <>
+          <button
+            type="button"
+            className="arch-crumb-seg"
+            title={drill.groupLabel}
+            onClick={() => {
+              drillUp(repoPath);
+            }}
+          >
+            {drill.groupLabel}
+          </button>
+          <span className="arch-crumb-sep" aria-hidden="true">
+            {'\u203a'}
+          </span>
+          <span className="arch-crumb-here" title={drill.moduleLabel}>
+            {drill.moduleLabel}
+          </span>
+        </>
+      )}
+    </nav>
   );
 }
 
@@ -360,13 +510,17 @@ function MapSection({
 }
 
 /**
- * THE COMPUTED PARTS (Phase 160) — the cockpit's outline for a repository
- * with no contract, listing the same five to nine parts the map tab draws,
- * each with its provenance glyph and word, in the model's own order.
+ * THE COMPUTED PARTS (Phase 160, drillable since Phase 161). The cockpit's
+ * outline for a repository with no contract, listing the same five to nine
+ * parts the map tab draws, each with its provenance glyph and word, in the
+ * model's own order.
  *
- * The rows are read only in this phase: the drill belongs to Phase 161, and a
- * row that looked clickable and did nothing would be worse than a list. NO
- * COUNT ON ANY ROW. Weight belongs to the map, where it is size, and a number
+ * SINCE PHASE 161 each row is a way into its part: a click drills the shared
+ * record and focuses the map tab, and the drilled row wears the same selected
+ * face the contract outline uses. On a build whose preload has no scoped read
+ * the rows stay exactly the read only rows Phase 160 shipped, because a row
+ * that looked clickable and did nothing would be worse than a list. NO COUNT
+ * ON ANY ROW. Weight belongs to the map, where it is size, and a number
  * pinned to a row here is the count badge the view refuses.
  */
 function ComputedOutline({
@@ -378,20 +532,27 @@ function ComputedOutline({
     repoPath === null ? null : (s.maps[repoPath] ?? null)
   );
   const loadMap = useArch((s) => s.loadMap);
+  const drill = useArch((s) =>
+    repoPath === null ? null : (s.drills[repoPath] ?? null)
+  );
+  const drillInto = useArch((s) => s.drillInto);
   useEffect(() => {
     if (repoPath !== null) void loadMap(repoPath);
   }, [repoPath, loadMap]);
   const groups = entry?.model?.groups ?? [];
   if (repoPath === null || groups.length === 0) return null;
+  const canDrill = mapPartAvailable();
   return (
     <section className="arch-outline" aria-label={ARCH_COMPUTED_TITLE}>
       <div className="section-header">
         <span className="section-toggle">{ARCH_COMPUTED_TITLE}</span>
       </div>
       <ul role="list">
-        {groups.map((g) => (
-          <li key={g.id}>
-            <div className="arch-row arch-row-computed">
+        {groups.map((g) => {
+          const drilled =
+            drill !== null && drill.level !== 1 && drill.groupId === g.id;
+          const row = (
+            <>
               <Codicon name={provenanceIcon(g.provenance)} size={14} />
               <span className="arch-row-name">{g.label}</span>
               <span
@@ -400,9 +561,31 @@ function ComputedOutline({
               >
                 {provenanceWord(g.provenance)}
               </span>
-            </div>
-          </li>
-        ))}
+            </>
+          );
+          return (
+            <li key={g.id}>
+              {canDrill ? (
+                <button
+                  type="button"
+                  className={`arch-row arch-row-computed arch-row-drill${
+                    drilled ? ' selected' : ''
+                  }`}
+                  aria-current={drilled ? 'true' : undefined}
+                  title={`Open ${g.label} in the map`}
+                  onClick={() => {
+                    drillInto(repoPath, g.id, g.label);
+                    openArchMap(repoPath);
+                  }}
+                >
+                  {row}
+                </button>
+              ) : (
+                <div className="arch-row arch-row-computed">{row}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -434,11 +617,75 @@ function FreshnessRibbon(): React.JSX.Element | null {
   return <p className="arch-ribbon">{freshnessSentence(rows, nameOf)}</p>;
 }
 
-/** The strip. Three lanes, never one total. */
-function VerdictStrip(): React.JSX.Element | null {
+/** The three lanes themselves, one markup for the whole and for a part. */
+function Lanes({ counts }: { counts: ArchCoverageCounts }): React.JSX.Element {
+  return (
+    <div className="arch-lane">
+      <span className="arch-lane-counts">
+        {stripLanes(counts).map((lane) => (
+          <span className={lane.cls} key={lane.key}>
+            <Codicon name={lane.icon} size={12} />
+            {`${String(lane.n)} ${lane.word}`}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * THE SCOPED STRIP (Phase 161). The part's own verdict slice, or the one
+ * honest sentence when there is nothing to slice.
+ *
+ * The counts come from MAIN beside the scoped compose, for the same reason
+ * the unscoped strip reads a record rather than counting rows: a second
+ * arithmetic here would be a second answer to the same question. A contract
+ * whose promises do not touch the drilled part, shown by an empty in scope
+ * id set, gets a sentence rather than zero filled lanes, because a
+ * reassuring number about nothing is the exact thing the strip refuses. The accepted list and the first check line stay
+ * with the whole: both are repository wide claims and scoping their absence
+ * would misstate them.
+ */
+export function ScopedStrip({
+  scoped
+}: {
+  scoped: ScopedView;
+}): React.JSX.Element {
+  const face = scopedStripFace(scoped);
+  const counts = face === 'lanes' ? (scoped.model?.counts ?? null) : null;
+  if (counts === null) {
+    return (
+      <section className="arch-strip" aria-label="Promises by coverage">
+        <p className="arch-strip-note">
+          {face === 'loading' ? ARCH_SCOPED_LOADING : ARCH_SCOPED_NO_PROMISES}
+        </p>
+      </section>
+    );
+  }
+  const unresolved = unresolvedSentence(
+    counts.unresolvedImports,
+    counts.totalImports
+  );
+  return (
+    <section className="arch-strip" aria-label="Promises by coverage">
+      <Lanes counts={counts} />
+      {unresolved !== null ? (
+        <p className="arch-strip-note">{unresolved}</p>
+      ) : null}
+    </section>
+  );
+}
+
+/** The strip. Three lanes, never one total. Scopes with the drill. */
+function VerdictStrip({
+  scoped
+}: {
+  scoped: ScopedView | null;
+}): React.JSX.Element | null {
   const counts = useArch((s) => s.counts());
   const verdicts = useArch((s) => s.verdicts());
   const load = useArch((s) => s.load);
+  if (scoped !== null) return <ScopedStrip scoped={scoped} />;
   if (counts === null) return null;
   const accepted = load?.baseline.accepted ?? [];
   const unresolved = unresolvedSentence(
@@ -451,16 +698,7 @@ function VerdictStrip(): React.JSX.Element | null {
 
   return (
     <section className="arch-strip" aria-label="Promises by coverage">
-      <div className="arch-lane">
-        <span className="arch-lane-counts">
-          {stripLanes(counts).map((lane) => (
-            <span className={lane.cls} key={lane.key}>
-              <Codicon name={lane.icon} size={12} />
-              {`${String(lane.n)} ${lane.word}`}
-            </span>
-          ))}
-        </span>
-      </div>
+      <Lanes counts={counts} />
       {firstCheck ? (
         <div className="arch-lane">
           <span className="arch-lane-name">{ARCH_FIRST_CHECK}</span>
@@ -539,11 +777,18 @@ function Problems(): React.JSX.Element | null {
 function FailureList({
   verdicts,
   repoPath,
-  onSelect
+  onSelect,
+  emptyText
 }: {
   verdicts: readonly ArchVerdict[];
   repoPath: string | null;
   onSelect: (id: string) => void;
+  /**
+   * What no failures means HERE (Phase 161): the whole keeps its sentence,
+   * and a drilled scope names the part instead, because "every promise
+   * holds" about a scope still being read would be a claim nobody checked.
+   */
+  emptyText?: string;
 }): React.JSX.Element {
   const failures = verdicts.filter(isFailure);
   return (
@@ -552,7 +797,9 @@ function FailureList({
         <span className="section-toggle">Did not hold</span>
       </div>
       {failures.length === 0 ? (
-        <p className="arch-note arch-note-inline">{ARCH_NO_FAILURES}</p>
+        <p className="arch-note arch-note-inline">
+          {emptyText ?? ARCH_NO_FAILURES}
+        </p>
       ) : (
         <ul>
           {failures.map((v) => (

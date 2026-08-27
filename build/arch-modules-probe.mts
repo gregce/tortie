@@ -32,7 +32,12 @@ import {
   ARCH_MODULE_MATRIX_CAP,
   ARCH_MODULE_TOP_CAP
 } from '../src/shared/ipc/arch-modules';
-import { archModuleGrade, computeArchModules } from '../src/main/arch/modules';
+import {
+  archModuleGrade,
+  computeArchModules,
+  moduleDirComponent,
+  toModuleFilesResult
+} from '../src/main/arch/modules';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -136,6 +141,98 @@ const parts = Object.keys(fixture.expect).map((id) => {
     repeat: JSON.stringify(answer) === JSON.stringify(over(id))
   };
 });
+
+/**
+ * The dir scoped path (Phase 161), driven through the SAME pure core.
+ *
+ * A drilled module is a computed directory rather than an authored part, so
+ * the caps must fire for a synthesized component whose one anchor is the
+ * directory, with zero new cap logic. The equivalence probe proves the two
+ * doors answer the same bytes over the same file set, and the pop probe
+ * proves a directory naming nothing at HEAD answers known false.
+ */
+const dirScoped = (() => {
+  const scopedGrade = (files: number, chain: number): string => {
+    const trackedFiles: string[] = [];
+    for (let i = 0; i < files; i += 1) {
+      trackedFiles.push(`src/p/f${String(i).padStart(4, '0')}.ts`);
+    }
+    const imports: ArchImportEdge[] = [];
+    for (let i = 0; i < chain; i += 1) {
+      imports.push({
+        fromPath: `src/p/f${String(i).padStart(4, '0')}.ts`,
+        line: 1,
+        specifier: './next',
+        toPath: `src/p/f${String((i + 1) % chain).padStart(4, '0')}.ts`,
+        resolution: 'first-party',
+        language: 'typescript'
+      });
+    }
+    const component = moduleDirComponent('src/p');
+    return computeArchModules({
+      cwd: '/imaginary',
+      componentId: component.id,
+      component,
+      trackedFiles,
+      imports,
+      verdicts: []
+    }).grade;
+  };
+  const equivalence = (() => {
+    const trackedFiles = ['src/p/a.ts', 'src/p/b.ts', 'src/q/c.ts'];
+    const imports: ArchImportEdge[] = [
+      {
+        fromPath: 'src/p/a.ts',
+        line: 1,
+        specifier: './b',
+        toPath: 'src/p/b.ts',
+        resolution: 'first-party',
+        language: 'typescript'
+      }
+    ];
+    const component = moduleDirComponent('src/p');
+    const viaDir = computeArchModules({
+      cwd: '/imaginary',
+      componentId: component.id,
+      component,
+      trackedFiles,
+      imports,
+      verdicts: []
+    });
+    const viaPart = computeArchModules({
+      cwd: '/imaginary',
+      componentId: 'p',
+      component: PART_P,
+      trackedFiles,
+      imports,
+      verdicts: []
+    });
+    return (
+      JSON.stringify({ ...viaDir, componentId: '' }) ===
+      JSON.stringify({ ...viaPart, componentId: '' })
+    );
+  })();
+  const gone = toModuleFilesResult(
+    computeArchModules({
+      cwd: '/imaginary',
+      componentId: moduleDirComponent('no/such/dir').id,
+      component: moduleDirComponent('no/such/dir'),
+      trackedFiles: ['src/p/a.ts'],
+      imports: [],
+      verdicts: []
+    }),
+    'no/such/dir'
+  );
+  return {
+    atBoxCap: scopedGrade(ARCH_MODULE_BOX_CAP, 4),
+    pastBoxCap: scopedGrade(ARCH_MODULE_BOX_CAP + 1, 4),
+    atMatrixCap: scopedGrade(600, ARCH_MODULE_MATRIX_CAP),
+    pastMatrixCap: scopedGrade(600, ARCH_MODULE_MATRIX_CAP + 1),
+    equivalence,
+    goneKnown: gone.known,
+    goneDir: gone.dir
+  };
+})();
 
 const boundaries = {
   boxCap: ARCH_MODULE_BOX_CAP,
@@ -268,5 +365,5 @@ const overlayProbe = (() => {
 })();
 
 process.stdout.write(
-  `${JSON.stringify({ parts, boundaries, resolutionProbe, overlayProbe }, null, 2)}\n`
+  `${JSON.stringify({ parts, boundaries, dirScoped, resolutionProbe, overlayProbe }, null, 2)}\n`
 );

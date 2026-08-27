@@ -112,8 +112,12 @@ export function groupId(dir: string): string {
  * round measured it on real fixtures: `src/main.ts, test/main.test.ts` drew
  * nothing, and so did six files under `src/main`, `src/renderer` and
  * `src/shared` beside a `src/index.ts`).
+ *
+ * Exported since Phase 161, because the drilled part's sub grouping in
+ * ../map.ts descends by the SAME prefix rule, only starting from the part's
+ * own depth: one rule, two readers, and they cannot disagree.
  */
-function prefixAt(path: string, depth: number): string | null {
+export function prefixAt(path: string, depth: number): string | null {
   const parts = path.split('/');
   if (parts.length <= 1) return null;
   return parts.slice(0, Math.min(depth, parts.length - 1)).join('/');

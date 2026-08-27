@@ -156,3 +156,45 @@ export function rankSentence(count: number, importers: boolean): string {
 export function countPhrase(n: number, one: string, many: string): string {
   return `${String(n)} ${n === 1 ? one : many}`;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 161, level 3 of the drill, the same view scoped to one folder
+// ---------------------------------------------------------------------------
+
+/**
+ * The heading the drilled files view wears. The module's own label is beside
+ * it in the breadcrumb, so this stays one phrase for every module.
+ */
+export const ARCH_MODULE_FILES_TITLE = 'What this module is made of';
+
+/**
+ * The honest sentence under the drilled view. It differs from
+ * `ARCH_MODULES_NOTE` in one word only, because at level 3 the file set comes
+ * from a folder the drill chose rather than from a part's anchors.
+ */
+export const ARCH_MODULE_FILES_NOTE =
+  'Every file here sits under this module folder, and every line between them comes from the imports Tortie read. Nothing on this screen was written by hand.';
+
+/** A module folder that holds no tracked file any more. */
+export const ARCH_MODULE_FILES_EMPTY =
+  'No tracked file is under this module folder any more, so there is nothing to draw.';
+
+/**
+ * The folder scoped read (level 3 of the drill), or null when this build
+ * cannot make it.
+ *
+ * The answer is Phase 64's own result shape widened with the folder, because
+ * main hands the folder to the SAME pure compute the contract path uses, so
+ * the caps, the grades and the broke overlay all fire scoped for free.
+ */
+export function moduleFilesBridge():
+  | NonNullable<InstalledGmuxApi['arch']>
+  | null {
+  const api = gmuxBridge()?.arch;
+  return typeof api?.moduleFiles === 'function' ? api : null;
+}
+
+/** Can this build open a module up into its files? */
+export function moduleFilesAvailable(): boolean {
+  return moduleFilesBridge() !== null;
+}

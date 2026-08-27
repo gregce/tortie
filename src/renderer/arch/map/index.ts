@@ -6,19 +6,23 @@
 
 export { ArchMap, ARCH_MAP_EMPTY, ARCH_MAP_UNKNOWN_WORD } from './ArchMap';
 export type { ArchMapProps } from './ArchMap';
-export { layoutMap } from './layout';
-export type { MapBox, MapLayout, MapRow } from './layout';
+export { layoutMap, MAP_DEFAULT_VIEWPORT } from './layout';
+export type { MapBox, MapLayout, MapRow, MapStub, MapViewport } from './layout';
 export {
   edgeMarkerId,
+  edgeMaxCount,
   edgeStrokeWidth,
   edgeVerdictClass,
-  planEdges
+  planEdges,
+  planFrameEdges,
+  stubKey
 } from './geometry';
-export type { PlannedEdge } from './geometry';
+export type { PlannedEdge, PlannedFrameEdge } from './geometry';
 export { BAND_ORDER, bandWord, normalizeBand } from './types';
 export type {
   ArchMapBand,
   ArchMapEdge,
+  ArchMapFrameEdge,
   ArchMapGroup,
   ArchMapModel
 } from './types';

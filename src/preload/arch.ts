@@ -43,6 +43,11 @@ export const arch: GmuxArchExtras['arch'] = {
   // over the fact base that parses nothing and never waits for a scan, and
   // the push that says the facts behind it moved.
   map: (input) => invoke('arch:map', input),
+  // The drilled part and the drilled module (Phase 161). Two more reads over
+  // the same fact base, scoped in main; neither can start a scan or a check
+  // beyond what arch:map itself already schedules.
+  mapPart: (input) => invoke('arch:mapPart', input),
+  moduleFiles: (input) => invoke('arch:moduleFiles', input),
   onChecked: (cb) => on(EVT_ARCH_CHECKED, cb),
   onProgress: (cb) => on(EVT_ARCH_PROGRESS, cb),
   onMapUpdated: (cb) => on(EVT_ARCH_MAP_UPDATED, cb)

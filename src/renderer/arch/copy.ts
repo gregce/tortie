@@ -184,3 +184,41 @@ export const ARCH_NO_FAILURES = 'Every promise Tortie can check holds.';
  */
 export const ARCH_LAST_VALID =
   'These are the last rows that loaded. The files on disk did not, so what is on screen may be behind them.';
+
+/**
+ * PHASE 161, the drill's own sentences.
+ *
+ * The ladder is the navigation: the whole map, one part, one module. The
+ * breadcrumb names where a person is and one click returns to the whole. The
+ * pane's strip and failure list scope with the drill, and every scoped state
+ * below says what it means in one sentence rather than drawing zero filled
+ * lanes about nothing.
+ */
+
+/** The breadcrumb's own name, for the reader that cannot see it. */
+export const ARCH_DRILL_CRUMB_LABEL = 'Where you are in the map';
+
+/** The first breadcrumb segment when the model has no better name yet. */
+export const ARCH_DRILL_WHOLE = 'Whole map';
+
+/** An older preload with no scoped read. One sentence, and the map still draws. */
+export const ARCH_DRILL_NO_BRIDGE =
+  'This build cannot look inside a part. Everything else in Tortie works as it always did.';
+
+/** A scoped read that failed outright, with no earlier picture to keep. */
+export const ARCH_DRILL_PART_ERROR = 'The inside of this part could not be read.';
+
+/** The pane's strip while the scoped answer is on its way. */
+export const ARCH_SCOPED_LOADING = 'Reading the promises for this part.';
+
+/**
+ * A contract whose promises do not touch the drilled part. The sentence is
+ * the honest face here: zero filled lanes would be a reassuring number about
+ * nothing, which is the exact thing the unscoped strip refuses.
+ */
+export const ARCH_SCOPED_NO_PROMISES =
+  'No promise in the contract touches this part, so there is nothing to check inside it.';
+
+/** The scoped failure list when everything checkable in the part holds. */
+export const ARCH_SCOPED_NO_FAILURES =
+  'Every promise Tortie can check in this part holds.';
