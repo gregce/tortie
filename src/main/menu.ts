@@ -760,6 +760,19 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // fails the build for a name with no bitmap and for two names with the
         // same bitmap.
         item('Architecture', 'show-arch', accel('view.arch'), 'circuit-board'),
+        // PHASE 160. The architecture MAP, directly under the view that opens
+        // it, and above Catch Me Up so the five sidebar views stay contiguous
+        // in rail order and the two rows that open a page rather than a view
+        // sit together at the end. It opens the active project's map as a full
+        // size editor tab, or focuses the one that is already open, through
+        // the same door the Architecture pane's own control uses.
+        //
+        // `circuit-board` again, the Architecture surface's own mark. The
+        // closed set has no map glyph, and a row may wear a name the set
+        // already holds, the way `search` sits on Find in Project… and on the
+        // Search view row. build/assert-menu-glyphs.mjs forbids two NAMES with
+        // one bitmap, not one name on two rows.
+        item('Architecture Map', 'show-arch-map', undefined, 'circuit-board'),
         // Phase 137: Catch Me Up sits LAST, under the sidebar views, because
         // it answers a question about the whole project rather than opening a
         // sidebar view. It sat directly under Context until Phase 63 added

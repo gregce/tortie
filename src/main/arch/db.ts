@@ -108,6 +108,21 @@ export interface ArchFileStamp {
   size: number;
 }
 
+/**
+ * The scanned stamp for a repository that has no commits yet.
+ *
+ * `git rev-parse HEAD` has no commit to name there, and the fact base is
+ * still complete, being every one of its zero tracked files read. The stamp
+ * must be non null so the map's `building` flag clears; leaving it null put
+ * the map into a permanent scan loop, because every `arch:mapUpdated` push
+ * made the renderer re-read `arch:map`, whose building flag scheduled the
+ * next scan, about thirty times a second until quit (Phase 160 fix round,
+ * measured at 615 pushes in 20 seconds). The value can never collide with a
+ * real commit because a commit is forty hex characters, and the first real
+ * commit replaces it through the same mark.
+ */
+export const ARCH_SCANNED_NO_HEAD = 'no-commits-yet';
+
 /** What the store knows about one repository between runs. */
 export interface ArchRepoState {
   checkedAtCommit: string | null;

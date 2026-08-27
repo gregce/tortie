@@ -10,10 +10,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   SKELETON_TARGET,
+  aggregateGroupEdges,
   bandOf,
   classify,
   draftSkeleton,
   groupId,
+  groupOwners,
   groupTree,
   mergeToTarget,
   rankGroups
@@ -43,6 +45,47 @@ describe('the grouping', () => {
     const groups = groupTree({ subject: 's', trackedFiles: tree, imports });
     expect(groups.length).toBeGreaterThanOrEqual(SKELETON_TARGET.min);
     expect(groups.map((g) => g.id)).toContain('src-app');
+  });
+
+  it('draws a small nested repository as its real folders, never as nothing', () => {
+    // The Phase 160 second fix. Descending past depth 1 used to drop every
+    // file shallower than the current depth, so a repository of just src/ and
+    // test/ composed zero groups and the map tab called it flat, which was
+    // false. Fewer than SKELETON_TARGET.min true boxes beat one false
+    // sentence.
+    const young = ['src/main.ts', 'src/util.ts', 'test/main.test.ts'];
+    const groups = groupTree({ subject: 's', trackedFiles: young, imports: [] });
+    expect(groups.map((g) => g.dir)).toEqual(['src', 'test']);
+    expect(groups.flatMap((g) => g.files).sort()).toEqual([...young].sort());
+  });
+
+  it('never loses a foldered file when the loop descends past its depth', () => {
+    const mixed = [
+      'README.md',
+      'src/index.ts',
+      'src/main/a.ts',
+      'src/renderer/b.ts',
+      'src/shared/c.ts'
+    ];
+    const groups = groupTree({ subject: 's', trackedFiles: mixed, imports: [] });
+    // src/index.ts keeps its deepest available prefix instead of vanishing.
+    expect(groups.map((g) => g.dir)).toEqual([
+      'src',
+      'src/main',
+      'src/renderer',
+      'src/shared'
+    ]);
+    // The top level file is the only one outside every group.
+    expect(groups.flatMap((g) => g.files).sort()).toEqual(
+      mixed.filter((p) => p.includes('/')).sort()
+    );
+  });
+
+  it('composes zero groups only when no tracked file sits inside a folder', () => {
+    // This is the one shape the map tab may call flat, so the sentence about
+    // every file sitting at the top level stays exactly true.
+    const flat = ['a.ts', 'b.ts', 'README.md'];
+    expect(groupTree({ subject: 's', trackedFiles: flat, imports: [] })).toEqual([]);
   });
 
   it('draws the declared packages when a repository declares any', () => {
@@ -146,5 +189,65 @@ describe('the draft itself', () => {
       (b) => b.path === 'docs/arch/baseline.json'
     );
     expect(JSON.parse(baseline?.text ?? '{}')).toEqual({ accepted: [] });
+  });
+});
+
+describe('the shared rollup (Phase 160)', () => {
+  it('says which group owns each path, and nothing owns a stray', () => {
+    const groups = groupTree({ subject: 's', trackedFiles: tree, imports });
+    const owner = groupOwners(groups);
+    expect(owner.get('src/app/main.ts')).toBe('src-app');
+    expect(owner.get('vendor/lib/thing.ts')).toBe('vendor-lib');
+    expect(owner.get('nowhere/else.ts')).toBeUndefined();
+  });
+
+  it('rolls file imports up to group edges with counts, heaviest first', () => {
+    const groups = groupTree({ subject: 's', trackedFiles: tree, imports });
+    const edges = aggregateGroupEdges(groups, imports);
+    expect(edges[0]).toEqual({ from: 'src-app', to: 'src-core', count: 2 });
+    expect(edges).toContainEqual({ from: 'src-core', to: 'src-store', count: 1 });
+    expect(edges).toContainEqual({ from: 'src-net', to: 'src-core', count: 1 });
+    expect(edges.length).toBe(3);
+  });
+
+  it('drops interior imports and imports with an unowned end', () => {
+    const groups = groupTree({ subject: 's', trackedFiles: tree, imports });
+    const edges = aggregateGroupEdges(groups, [
+      { fromPath: 'src/core/engine.ts', toPath: 'src/core/util.ts' },
+      { fromPath: 'nowhere/else.ts', toPath: 'src/core/util.ts' },
+      { fromPath: 'src/core/engine.ts', toPath: 'nowhere/else.ts' }
+    ]);
+    expect(edges).toEqual([]);
+  });
+
+  it('gives the same edges whatever order the imports arrive in', () => {
+    const groups = groupTree({ subject: 's', trackedFiles: tree, imports });
+    const shuffled = [...imports].reverse();
+    expect(JSON.stringify(aggregateGroupEdges(groups, shuffled))).toBe(
+      JSON.stringify(aggregateGroupEdges(groups, imports))
+    );
+  });
+});
+
+describe('the classifier majority rule (Phase 160)', () => {
+  it('no longer lets one generated file flip a whole group', () => {
+    const files = [
+      'src/icons.generated.ts',
+      'src/a.ts',
+      'src/b.ts',
+      'src/c.ts'
+    ];
+    expect(classify({ id: 's', dir: 'src', files })).toBe('first-party');
+  });
+
+  it('still calls a group generated when most of it is', () => {
+    const files = ['src/a.generated.ts', 'src/b.generated.ts', 'src/c.ts'];
+    expect(classify({ id: 's', dir: 'src', files })).toBe('generated');
+  });
+
+  it('keeps the directory name tests whole, however few files', () => {
+    expect(
+      classify({ id: 'v', dir: 'vendor/lib', files: ['vendor/lib/one.ts'] })
+    ).toBe('vendored');
   });
 });

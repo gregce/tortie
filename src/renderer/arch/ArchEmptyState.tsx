@@ -1,12 +1,16 @@
 /**
- * The teaching empty state, which is what almost every repository sees first.
+ * THE TEACHING SECTION, demoted from a whole-surface empty state in Phase 160.
  *
- * ## Why it teaches rather than apologises
+ * ## Why this is a section now and not the view
  *
- * A view that opens on "No contract found" has told the person the one thing
- * they already knew and nothing they can act on. The whole idea here is
- * unusual enough that the empty state has to carry it: what a promise is, how
- * many of them a healthy set holds, and the two ways to get one.
+ * Until this phase a repository with no `docs/arch/` saw nothing but teaching
+ * copy, because the view had nothing to draw without a contract. The operator
+ * inverted that on 2026-08-27: the MAP is the product and the contract is
+ * annotation on it. The map draws for any repository from the code alone, so
+ * the pane is never empty again. What remains of the empty state is this: the
+ * two ways to get a contract, offered quietly under the things that already
+ * work, because a contract is something the map gets better with rather than
+ * something the view is useless without.
  *
  * ## The two routes, and what each of them writes
  *
@@ -20,8 +24,7 @@
  *     clipboard, and the ORDINARY new session sheet opens. The person picks
  *     the agent, the launch flags and the capture setting exactly as they
  *     would for any other session. Tortie starts nothing, and nothing is typed
- *     into any session: sending a composed payload to a running agent is a
- *     later slice's verb, and this phase refuses it in writing.
+ *     into any session.
  *
  * The prompt is shown in full underneath, in a plain text box, for two
  * reasons. A person should be able to read what they are about to hand an
@@ -32,7 +35,7 @@
  *
  * 5 to 10. Research 49 section 9.6 read thirty architecture documents the
  * operator wrote by hand and none of them opens with more than nine boxes. It
- * is in the empty state AND inside the prompt, because an agent told to "write
+ * is in the guidance AND inside the prompt, because an agent told to "write
  * the contract" with no number writes forty.
  */
 
@@ -41,10 +44,10 @@ import { targetOfProject, localPathOf } from '@shared/workspace-target';
 import { Codicon } from '../icons';
 import { useApp } from '../state/store';
 import {
+  ARCH_CONTRACT_OFFER_TITLE,
   ARCH_DRAFT_BODY,
   ARCH_DRAFT_TITLE,
   ARCH_EMPTY_BODY,
-  ARCH_EMPTY_TITLE,
   ARCH_PROMISE_GUIDANCE,
   ARCH_SEED_BODY,
   ARCH_SEED_TITLE
@@ -53,7 +56,7 @@ import { seedPromptText } from './seed-prompt';
 import { skeletonAvailable } from './bridge';
 import { useArch } from './store';
 
-export function ArchEmptyState(): React.JSX.Element {
+export function ArchContractOffer(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const drafting = useArch((s) => s.drafting);
@@ -69,8 +72,10 @@ export function ArchEmptyState(): React.JSX.Element {
   const canDraft = skeletonAvailable();
 
   return (
-    <div className="arch arch-empty">
-      <h2 className="arch-empty-title">{ARCH_EMPTY_TITLE}</h2>
+    <section className="arch-empty" aria-label={ARCH_CONTRACT_OFFER_TITLE}>
+      <div className="section-header">
+        <span className="section-toggle">{ARCH_CONTRACT_OFFER_TITLE}</span>
+      </div>
       <p className="arch-empty-body">{ARCH_EMPTY_BODY}</p>
       <p className="arch-empty-body">{ARCH_PROMISE_GUIDANCE}</p>
 
@@ -106,6 +111,6 @@ export function ArchEmptyState(): React.JSX.Element {
           <pre className="arch-empty-prompt-text">{prompt}</pre>
         </details>
       ) : null}
-    </div>
+    </section>
   );
 }

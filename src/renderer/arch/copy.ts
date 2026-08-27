@@ -33,6 +33,67 @@ export const ARCH_NO_BRIDGE =
 export const ARCH_ELSEWHERE =
   'A contract is read on the computer its repository is on, and this build cannot ask that computer anything.';
 
+/**
+ * PHASE 160, the map's own sentences.
+ *
+ * The map is the product and the contract is annotation on it, in the
+ * operator's own ruling. So the pane's first control opens the map, the map
+ * needs no contract, and the sentence about contracts says what one ADDS
+ * rather than what is missing.
+ */
+
+/** The control in the pane that opens or focuses the map tab. */
+export const ARCH_MAP_OPEN_TITLE = 'Open the map';
+
+export const ARCH_MAP_OPEN_BODY =
+  'Draws this repository as a small map in a full size tab. No contract is needed and nothing is written.';
+
+/** The map tab while main is still reading the code the first time. */
+export const ARCH_MAP_LOADING =
+  'Tortie is reading the code. The map draws the moment the reading lands, and every later open reuses it.';
+
+/** A map read that failed outright, when there is no earlier picture to keep. */
+export const ARCH_MAP_ERROR = 'The map could not be drawn.';
+
+/** The reading finished and found nothing to draw. Honest, never a spinner. */
+export const ARCH_MAP_EMPTY_REPO =
+  'There is nothing to draw. No tracked source files were found in this repository.';
+
+/**
+ * The reading finished, tracked files exist, and still nothing draws: every
+ * one of them sits at the top level of the repository, and the grouping draws
+ * folders (Phase 63's rule, which the map inherits). Saying no tracked files
+ * were found here would be false, which the Phase 160 fix round measured on a
+ * one file repository.
+ *
+ * The second fix round made this sentence exact: the grouping now composes
+ * zero groups ONLY when no tracked file sits inside a folder, so a small
+ * nested repository draws its real folders instead of being called flat.
+ */
+export const ARCH_MAP_FLAT_REPO =
+  'There is nothing to draw yet. Every tracked file sits at the top level of this repository, and the map draws the folders a codebase grows into.';
+
+/** An older preload with no map channel. One sentence, and the tab still renders. */
+export const ARCH_MAP_NO_BRIDGE =
+  'This build cannot draw the map. Everything else in Tortie works as it always did.';
+
+/** A newer read failed and the picture on screen is the read before it. */
+export const ARCH_MAP_STALE =
+  'The newest reading failed, so this picture is the one before it.';
+
+/** The cockpit's heading over the computed parts, when there is no contract. */
+export const ARCH_COMPUTED_TITLE = 'Computed parts';
+
+/**
+ * The quiet line under the cockpit when there is no contract. It says what a
+ * contract ADDS, because the map already exists without one.
+ */
+export const ARCH_CONTRACT_ADDS =
+  'The map is drawn from the code alone. A contract adds your own names for its parts and promises Tortie checks, and the same map then wears them.';
+
+/** The demoted teaching section's heading. */
+export const ARCH_CONTRACT_OFFER_TITLE = 'Add a contract';
+
 /** No `docs/arch/` at all, which is every repository until somebody writes one. */
 export const ARCH_EMPTY_TITLE = 'No contract in this repository yet';
 

@@ -33,6 +33,7 @@ import type { ArchFreshness, ArchVerdict } from '../src/shared/arch';
 import { checkImports, coverageSentence } from '../src/main/arch/checkers';
 import type { ArchFactBase, ArchImportFact } from '../src/main/arch/checkers/facts';
 import { gatherFacts, runArchCheck } from '../src/main/arch/run';
+import { composeArchMap } from '../src/main/arch/map';
 import { draftSkeleton } from '../src/main/arch/skeleton';
 import type { ArchImportResolution } from '../src/main/arch/db';
 import {
@@ -653,6 +654,34 @@ async function main(): Promise<void> {
   // -------------------------------------------------------------------------
   // 6. What the source tree itself must be true about
   // -------------------------------------------------------------------------
+  // 6.5 The map, composed twice, the second time from shuffled facts, plus the
+  // computed-only picture (Phase 160). The composer is PURE: it is handed the
+  // same fact base the run above used, it composes no git call, and the two
+  // states the charter demands both come out of the same boxes, being the
+  // person's names over a contract and the computed names over none.
+  // -------------------------------------------------------------------------
+  const mapCallsBefore = payloadRecord.length;
+  const mapInput = {
+    subject: 'A small imaginary app',
+    trackedFiles: facts.trackedFiles,
+    imports: facts.imports,
+    document,
+    verdicts: storedVerdicts
+  };
+  const mapOne = composeArchMap(mapInput);
+  const mapTwo = composeArchMap({
+    ...mapInput,
+    trackedFiles: [...facts.trackedFiles].reverse(),
+    imports: [...facts.imports].reverse()
+  });
+  const mapNoContract = composeArchMap({
+    ...mapInput,
+    document: null,
+    verdicts: []
+  });
+  const mapCallsAfter = payloadRecord.length;
+
+  // -------------------------------------------------------------------------
   const archDir = join(root, 'src', 'main', 'arch');
   const walk = (dir: string): string[] => {
     const out: string[] = [];
@@ -770,6 +799,13 @@ async function main(): Promise<void> {
           // Composing starts nothing at all, so the call count cannot move.
           callsBefore,
           callsAfter: payloadRecord.length
+        },
+        map: {
+          repeatable: JSON.stringify(mapOne) === JSON.stringify(mapTwo),
+          model: mapOne,
+          noContract: mapNoContract,
+          callsBefore: mapCallsBefore,
+          callsAfter: mapCallsAfter
         },
         rowKeys: ARCH_ROW_KEYS,
         sources,

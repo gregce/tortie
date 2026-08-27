@@ -57,7 +57,17 @@ import type {
   ArchModulesInput,
   ArchModulesResult
 } from './arch-modules';
+import type {
+  ArchMapInput,
+  ArchMapResult,
+  ArchMapUpdatedEvent
+} from './arch-map';
 import type { Unsubscribe } from './base';
+
+// Phase 160. The map shapes live in their own domain file, the arch-modules
+// precedent, and ride out through this one so the facade carries them with the
+// rest of the arch surface.
+export * from './arch-map';
 
 // ---------------------------------------------------------------------------
 // The reads
@@ -260,6 +270,14 @@ export interface ArchInvokeChannelMap {
    * Its shapes and its three caps live in ./arch-modules.ts.
    */
   'arch:modules': { req: [input: ArchModulesInput]; res: ArchModulesResult };
+  /**
+   * The level 1 map of any repository, contract or none (Phase 160). Reads the
+   * arch database and the one fixed `git ls-files -z` argv, parses nothing,
+   * judges nothing and writes nothing. It NEVER waits for a scan: a repository
+   * whose fact base is still being built answers with what exists plus
+   * `building: true`, and the `arch:mapUpdated` push follows.
+   */
+  'arch:map': { req: [input: ArchMapInput]; res: ArchMapResult };
 }
 
 // ---------------------------------------------------------------------------
@@ -298,6 +316,8 @@ export interface ArchProgressEvent {
 export interface ArchEventPayloadMap {
   'arch:checked': [event: ArchCheckedEvent];
   'arch:progress': [progress: ArchProgressEvent];
+  /** Phase 160: the fact base behind one repository's map moved. */
+  'arch:mapUpdated': [event: ArchMapUpdatedEvent];
 }
 
 /**
@@ -312,18 +332,25 @@ export interface GmuxArchExtras {
     skeleton(input: ArchRepoInput): Promise<ArchSkeletonResult>;
     composePayload(input: ArchComposePayloadInput): Promise<ArchComposePayloadResult>;
     modules(input: ArchModulesInput): Promise<ArchModulesResult>;
+    map(input: ArchMapInput): Promise<ArchMapResult>;
     onChecked(cb: (event: ArchCheckedEvent) => void): Unsubscribe;
     onProgress(cb: (progress: ArchProgressEvent) => void): Unsubscribe;
+    onMapUpdated(cb: (event: ArchMapUpdatedEvent) => void): Unsubscribe;
   };
 }
 
 /**
- * View > Architecture. Rides EVT_MENU_ACTION like 'show-context' and
- * 'show-overview', the same one member shape, and older renderers ignore an id
- * they do not know. The id stays `arch` because it is machinery; only what a
- * person reads says Architecture.
+ * View > Architecture, and View > Architecture Map (Phase 160). Both ride
+ * EVT_MENU_ACTION like 'show-context' and 'show-overview', the same one
+ * member shape, and older renderers ignore an id they do not know. The ids
+ * stay `arch` because it is machinery; only what a person reads says
+ * Architecture.
+ *
+ * `show-arch` opens the sidebar's cockpit view. `show-arch-map` opens the map
+ * of the active project as a full size editor tab, or focuses the tab that is
+ * already open, through the same door the cockpit's own control uses.
  */
-export type ArchMenuActionId = 'show-arch';
+export type ArchMenuActionId = 'show-arch' | 'show-arch-map';
 
 /**
  * Session > Aim at a Promise… (Phase 64), the aiming verb's own menu action.

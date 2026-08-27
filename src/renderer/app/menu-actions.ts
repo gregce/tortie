@@ -40,6 +40,9 @@ import { toggleOverview } from '../overview/open-overview';
 // the person is in and opens no view, which is why it is reached from here and
 // not through showViewAction.
 import { openAimPicker } from '../arch/picker';
+// Phase 160: the map tab's one opener, shared with the Architecture pane's
+// own control so the two gestures cannot drift.
+import { openArchMapForActiveProject } from '../arch/open-map';
 import { useQuickOpen } from '../quickopen';
 import { useSymbols } from '../search';
 import { gmuxBridge } from '../bridge';
@@ -236,6 +239,13 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     // view got wrong for thirty-eight phases.
     case 'show-arch':
       showViewAction('arch');
+      return;
+    // Phase 160. View > Architecture Map. The same door the Architecture
+    // pane's own control goes through, so the menu row and the control cannot
+    // drift: one repository has one map tab and a second ask focuses it.
+    case 'show-arch-map':
+      if (layerOpen) return;
+      openArchMapForActiveProject();
       return;
     // Phase 64. Session > Aim at a Promise…. Same body as the ⌃⇧P keydown
     // branch, so the menu row and the chord cannot drift, which is the thing

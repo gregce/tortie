@@ -77,11 +77,15 @@ function tabMenuItems(tab: EditorTab): (MenuItemSpec | 'sep')[] {
     ...menuGlyph('copy'),
     run: () => void navigator.clipboard.writeText(tab.path)
   });
-  items.push({
-    label: 'Copy Relative Path',
-    ...menuGlyph('copy'),
-    run: () => void navigator.clipboard.writeText(tab.relPath)
-  });
+  // Phase 160: the map tab's path IS the repository root, so Copy Path already
+  // says everything and a relative path of nothing would copy an empty string.
+  if (tab.archMap === undefined) {
+    items.push({
+      label: 'Copy Relative Path',
+      ...menuGlyph('copy'),
+      run: () => void navigator.clipboard.writeText(tab.relPath)
+    });
+  }
   items.push({
     label: 'Reveal in Finder',
     ...menuGlyph('link-external'),
@@ -155,7 +159,13 @@ function TabButton({
         if (e.key === 'Enter') activate(tab.id);
       }}
     >
-      <FileIcon path={tab.path} size={14} className="ed-tab-icon" />
+      {/* Phase 160. The map tab is not a file, so it wears the map codicon
+          rather than a file-type icon guessed from a repository root. */}
+      {tab.archMap !== undefined ? (
+        <Codicon name="map" size={14} className="ed-tab-icon" />
+      ) : (
+        <FileIcon path={tab.path} size={14} className="ed-tab-icon" />
+      )}
       <span
         className={`ed-tab-name${tab.preview ? ' preview' : ''}${
           tab.deleted ? ' deleted' : ''

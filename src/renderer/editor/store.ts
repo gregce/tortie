@@ -59,6 +59,7 @@ import type { OpenFileRequest } from '../state/open-file';
 import { disposeModels, dropViewState } from './monaco-loader';
 import type { EditorMode, EditorTab } from './tab-types';
 import {
+  ARCH_MAP_TAB_NAME,
   fileInRepo,
   leftPathFor,
   remoteTabId,
@@ -243,12 +244,17 @@ export const useEditor = create<EditorState>((set, get) => {
     // nothing about it, and re-running the worktree refresh over one would
     // replace a file from that machine with whatever this Mac holds at the
     // same path.
+    // Phase 160: the map tab is excluded the way a history tab is. Its body
+    // is a drawing rather than a file, so there is nothing on disk for the
+    // refresh to re-read, and running the worktree refresh over it would mark
+    // it deleted because no file exists at its id.
     worktreeTabsIn: (repoPath) =>
       get().tabs.filter(
         (t) =>
           t.repoPath === repoPath &&
           t.commit === null &&
-          t.remote === undefined
+          t.remote === undefined &&
+          t.archMap === undefined
       )
   });
 
@@ -423,7 +429,11 @@ export const useEditor = create<EditorState>((set, get) => {
         relPath: req.relPath,
         origRelPath,
         repoPath: req.repoPath,
-        name: baseName(req.path),
+        // Phase 160. The map tab's `path` is a repository root, and the last
+        // segment of a repository root is a folder name wearing a file's
+        // clothes. The tab says what it is instead.
+        name:
+          req.archMap !== undefined ? ARCH_MAP_TAB_NAME : baseName(req.path),
         // A .md file with tracked changes still opens as a diff — that is
         // the P4 gesture, and it is why the file was clicked. Everything
         // else markdown opens rendered. A history open is ALWAYS a diff:
@@ -455,6 +465,10 @@ export const useEditor = create<EditorState>((set, get) => {
         // Every reader treats it the way it treats `commit`: read only, no
         // save, no watcher refresh, no read of a working tree on this Mac.
         ...(req.remote !== undefined ? { remote: req.remote } : {}),
+        // Phase 160. Present only for the architecture map tab. Every reader
+        // treats it the way it treats `commit`: no save, no dirty state, no
+        // watcher refresh, and the panel draws the map instead of a file.
+        ...(req.archMap !== undefined ? { archMap: req.archMap } : {}),
         pendingSelection: navigate ? selection : null,
         // Only ever false while there is a selection waiting to be consumed,
         // so a tab can never get stuck refusing focus: the landing resets it.
@@ -462,7 +476,10 @@ export const useEditor = create<EditorState>((set, get) => {
         dirty: false,
         deleted: false,
         truncated: false,
-        loading: true,
+        // Phase 160. The map tab has nothing to load through this store: its
+        // model lives in main's fact base and the map body fetches it itself.
+        // Every other tab starts loading until its reader lands.
+        loading: req.archMap === undefined,
         error: null,
         savedContents: '',
         headContents: null,
@@ -504,7 +521,12 @@ export const useEditor = create<EditorState>((set, get) => {
         return { tabs, activeId: tab.id, panelOpen: true };
       });
 
-      if (req.draft !== undefined) {
+      if (req.archMap !== undefined) {
+        // Phase 160. NOTHING RUNS. The map tab reads no file, so every loader
+        // below would land an error on a tab whose id names no file. The map
+        // body asks main for the model itself, over the arch bridge, which is
+        // what makes closing the tab free and reopening a redraw.
+      } else if (req.draft !== undefined) {
         // PHASE 63. A DRAFT reads nothing. There may be no file at this path
         // at all, and asking for one would land an error on a tab whose whole
         // purpose is to hold text that has never been saved. `loading` goes
@@ -678,7 +700,16 @@ export const useEditor = create<EditorState>((set, get) => {
       // a stronger reason than a history tab: the file it shows is not on this
       // Mac at all, so a save would write over whatever this Mac holds at that
       // path, which is somebody else's file or nothing.
-      if (tab.commit !== null || tab.remote !== undefined) return;
+      // Phase 160: the map tab has no text under it at all, so nothing can
+      // legitimately mark it dirty, and a dirty map tab would prompt to save
+      // a drawing over a repository root on close.
+      if (
+        tab.commit !== null ||
+        tab.remote !== undefined ||
+        tab.archMap !== undefined
+      ) {
+        return;
+      }
       const patch: Partial<EditorTab> = { dirty };
       if (dirty && tab.preview) patch.preview = false; // edited → permanent
       patchTab(id, patch);

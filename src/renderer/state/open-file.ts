@@ -252,6 +252,27 @@ export interface OpenFileRequest {
    * kind. A draft tab is an ordinary file tab whose file does not exist yet.
    */
   draft?: string;
+  /**
+   * PHASE 160 — the ARCHITECTURE MAP of one repository, as a full size tab.
+   *
+   * Present means: this tab is the drawn map of the repository at `repoPath`,
+   * not a file. The editor reads nothing from disk for it, offers no save, no
+   * dirty state and no watcher refresh, and keys it `arch-map:<repoPath>` so
+   * one repository has one map tab and opening it again focuses that tab.
+   *
+   * The model lives in main's fact base, so closing the tab loses nothing and
+   * reopening redraws from the same facts. `path` and `relPath` still carry
+   * the repository root so the tab needs no special case anywhere identity is
+   * not the question.
+   *
+   * It is additive in the same shape as `preview`, `commit`, `remote` and
+   * `draft` before it: every existing emitter still compiles, and a request
+   * without it behaves exactly as it did.
+   */
+  archMap?: {
+    /** The repository the map draws. Same value as `repoPath`. */
+    repoPath: string;
+  };
 }
 
 /** Emit an open request (fire-and-forget). */

@@ -47,6 +47,11 @@ const ARMS = [
   'show-context',
   // Phase 63. View > Architecture, the fifth sidebar view, above Catch Me Up.
   'show-arch',
+  // Phase 160. View > Architecture Map, directly under the view that opens
+  // it. It opens the active project's map as a full size editor tab, or
+  // focuses the one already open, through the same door the pane's control
+  // uses.
+  'show-arch-map',
   // Phase 64. Session > Aim at a Promise…, beside Resume Conversation. It is
   // in this list rather than with the view rows because it opens no view: it
   // puts a composed block into the prompt of the session in front of the
@@ -65,7 +70,7 @@ const ARMS = [
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 35 actions and no more', () => {
+  it('answers all 36 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

@@ -529,6 +529,12 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // here too, and for a stronger reason. Its path names a file on another
     // computer, so a write would land on whatever this Mac holds at that path.
     if (tab.commit !== null) return false;
+    // Phase 160. The architecture map is a drawing, not a file: there are no
+    // bytes to write and its `path` is a repository root, so a save could only
+    // ever try to write a file over a directory. Refused silently, like a
+    // commit tab, because the tab can never be dirty and ⌘S over it means
+    // nothing rather than something that failed.
+    if (tab.archMap !== undefined) return false;
     // PHASE 90.3. A review tab was refused here silently since Phase 73, so a
     // person who typed and pressed Save was told nothing at all, which reads as
     // a save that worked. It was refused OUT LOUD from that phase, naming the

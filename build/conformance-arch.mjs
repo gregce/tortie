@@ -381,6 +381,117 @@ rows.push([
 ]);
 
 // ---------------------------------------------------------------------------
+// 9.6 The map (Phase 160): one picture, two states, zero processes
+// ---------------------------------------------------------------------------
+// The charter's two states over one fixture: with the contract the SAME boxes
+// wear the person's names and the judged verdict rides the edge the promise
+// crosses; with no contract the same boxes wear their computed names and no
+// colour. The composer is pure, so composing may not add one git call, and
+// composed twice from shuffled facts it must give the same bytes.
+
+if (data.map.repeatable !== true) {
+  fail(
+    'the map composed twice from shuffled facts gave two answers. Same ' +
+      'repository, same picture is the whole promise.'
+  );
+}
+if (data.map.callsAfter !== data.map.callsBefore) {
+  fail(
+    `composing the map moved the git call count from ${data.map.callsBefore} ` +
+      `to ${data.map.callsAfter}. The composer must start nothing.`
+  );
+}
+
+const mapGroupIds = data.map.model.groups.map((g) => g.id);
+const noContractIds = data.map.noContract.groups.map((g) => g.id);
+if (JSON.stringify(mapGroupIds) !== JSON.stringify(noContractIds)) {
+  fail(
+    'the overlay changed which boxes exist. A contract may rename a box and ' +
+      'never redraw the grouping.'
+  );
+}
+
+// The overlay: a component whose anchors land whole in one box renames it,
+// the machine id stays, and the computed-only picture paints nobody.
+const overlays = [
+  ['src-app', 'app', 'app'],
+  ['src-core', 'core', 'core'],
+  ['src-store', 'store', 'store'],
+  ['vendor-lib', 'vendored-lib', 'vendored lib']
+];
+for (const [groupId, componentId, name] of overlays) {
+  const box = data.map.model.groups.find((g) => g.id === groupId);
+  if (box === undefined) {
+    fail(`map: no box ${groupId}, and the fixture tree puts one there.`);
+    continue;
+  }
+  if (box.componentId !== componentId || box.label !== name) {
+    fail(
+      `map: the box ${groupId} reads ${box.componentId ?? 'nothing'} as ` +
+        `"${box.label}", and the contract's ${componentId} holds a majority ` +
+        `in it.`
+    );
+  }
+}
+for (const box of data.map.noContract.groups) {
+  if (box.componentId !== null || box.label !== box.dir) {
+    fail(
+      `map: the computed-only picture painted ${box.id} as "${box.label}", ` +
+        'and with no contract every box wears its directory.'
+    );
+  }
+}
+
+// The verdict rides the judged edge, worst status first, and only there. The
+// planted divergence on app-must-not-store must colour app to store, and the
+// edge the contract never judged must stay uncoloured in both states.
+const judged = data.map.model.edges.find(
+  (e) => e.from === 'src-app' && e.to === 'src-store'
+);
+if (judged?.status !== 'divergent' || judged?.edgeId !== 'app-must-not-store') {
+  fail(
+    `map: the app to store edge carries ${judged?.status ?? 'nothing'} from ` +
+      `${judged?.edgeId ?? 'nothing'}, and the planted divergence must ride it.`
+  );
+}
+if (judged?.count !== 2) {
+  fail(
+    `map: the app to store edge weighs ${judged?.count}, and the fixture ` +
+      'crosses it twice.'
+  );
+}
+const unjudged = data.map.model.edges.find(
+  (e) => e.from === 'src-store' && e.to === 'src-core'
+);
+if (unjudged === undefined || unjudged.status !== null) {
+  fail(
+    'map: an edge the contract never judged is coloured, which invents a ' +
+      'verdict.'
+  );
+}
+if (data.map.noContract.edges.some((e) => e.status !== null)) {
+  fail('map: the computed-only picture carries a verdict colour.');
+}
+
+// The honest grey has its denominators: the fixture's Rust and Ruby style
+// misses land as per-box unresolved counts rather than vanishing.
+const native = data.map.model.groups.find((g) => g.id === 'src-native');
+if (native === undefined || native.unresolvedImports < 1) {
+  fail(
+    'map: src-native lost its unresolved count, and the honest grey has ' +
+      'nothing to say without it.'
+  );
+}
+
+rows.push([
+  'map',
+  `${data.map.model.groups.length} boxes, ${data.map.model.edges.length} edges`,
+  data.map.repeatable
+    ? 'byte for byte from shuffled facts, overlay and colour ride the same boxes'
+    : 'DRIFTED'
+]);
+
+// ---------------------------------------------------------------------------
 // 9.5 The freshness sentences, word for word
 // ---------------------------------------------------------------------------
 //
@@ -984,6 +1095,7 @@ process.stdout.write(
     'bites, every planted break was caught at the verdict the table names, ' +
     'every invalid row cost itself and nothing else, the skeleton drafted the ' +
     'same bytes twice, the composed payload matched its pinned block line for ' +
-    'line and carried no control character, and no field of this format names ' +
+    'line and carried no control character, the map composed one picture in ' +
+    'both of its states without a process, and no field of this format names ' +
     'anything Tortie runs.\n'
 );

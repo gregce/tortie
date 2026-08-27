@@ -13,7 +13,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ArchCoverageCounts, ArchVerdict } from '@shared/arch';
-import { ArchStore } from '../db';
+import { ARCH_SCANNED_NO_HEAD, ArchStore } from '../db';
 
 let dir: string;
 let store: ArchStore;
@@ -175,6 +175,22 @@ describe('the arch store', () => {
     ]);
     store.forgetImportFiles(KEY, ['src/gone.ts']);
     expect(store.importStamps(KEY).size).toBe(0);
+  });
+
+  it('records the no-head stamp for a repository with no commits, so building clears', () => {
+    // Phase 160 fix round. A repository with no commits has no HEAD for
+    // rev-parse to name, and leaving the stamp null kept the map's building
+    // flag true forever: every arch:mapUpdated push made the renderer re-read
+    // arch:map, whose building flag scheduled the next scan, measured live at
+    // 615 pushes in 20 seconds. The stamp lands with the sentinel instead,
+    // the sentinel round-trips, and it can never collide with a real commit
+    // because a commit is forty hex characters.
+    expect(store.repoState(KEY).scannedAtCommit).toBeNull();
+    store.markScanned(KEY, PATH, ARCH_SCANNED_NO_HEAD);
+    expect(store.repoState(KEY).scannedAtCommit).toBe(ARCH_SCANNED_NO_HEAD);
+    expect(/^[0-9a-f]{40}$/.test(ARCH_SCANNED_NO_HEAD)).toBe(false);
+    store.markScanned(KEY, PATH, 'a'.repeat(40));
+    expect(store.repoState(KEY).scannedAtCommit).toBe('a'.repeat(40));
   });
 
   it('drops a whole repository when its tab closes for good', () => {

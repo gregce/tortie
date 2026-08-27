@@ -417,18 +417,68 @@
   overflow-wrap: anywhere;
 }
 
-/* -- the teaching empty state --------------------------------------------- */
+/* -- the map (Phase 160) -------------------------------------------------- */
 
-.arch-empty {
-  gap: var(--space-4);
-  padding: var(--space-6) var(--space-5) var(--space-8);
+/* The cockpit's one control into the picture: opens or focuses the map tab. */
+.arch-map-section {
+  padding: 0 var(--space-5);
 }
 
-.arch-empty-title {
-  color: var(--text-primary);
-  font-size: var(--text-md);
-  line-height: var(--lh-md);
-  font-weight: var(--weight-semibold);
+.arch-map-open {
+  width: 100%;
+}
+
+/* The quiet line under the computed parts: what a contract adds. */
+.arch-contract-adds {
+  padding-top: 0;
+}
+
+/* Computed rows are read only in this phase; the drill is Phase 161. They
+   keep the outline's geometry and drop the hover that promises a click. */
+.arch-row-computed {
+  cursor: default;
+}
+
+.arch-row-computed:hover {
+  background: transparent;
+}
+
+/* The map tab's body fills the editor area the way a file does. The drawing
+   inside it owns its own geometry (src/renderer/arch/map/). */
+.arch-map-tab {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+/* The newest reading failed; the picture on screen is the one before it. */
+.arch-map-stale {
+  padding: var(--space-2) var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* -- the teaching section (a whole-surface empty state until Phase 160) ---- */
+
+.arch-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
+/* The section heading carries its own inset, so the inset here belongs to the
+   prose and the controls rather than to the section box. */
+.arch-empty > .arch-empty-body,
+.arch-empty > .arch-empty-actions,
+.arch-empty > .arch-empty-prompt {
+  margin: 0 var(--space-5);
 }
 
 .arch-empty-body {

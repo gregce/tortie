@@ -121,6 +121,21 @@ export interface ArchProbeSpec {
    * drawn in the DOM" is a claim this can settle and does.
    */
   aim?: boolean;
+  /**
+   * PHASE 160 — press the cockpit's OPEN THE MAP control for real, wait for
+   * the map tab to draw, and read the boxes and edges back off the model and
+   * the rendered SVG. `refocus` presses it a second time and proves the press
+   * focused the one tab rather than opening a twin.
+   *
+   * The wait is long on purpose: the first reading of a large repository is
+   * seconds of parsing (2.3 s measured on this repository in the phase spec),
+   * and the claim under test is that the map draws the moment it lands, not
+   * that the landing is instant.
+   */
+  map?: {
+    open: boolean;
+    refocus?: boolean;
+  };
 }
 
 function log(line: string): void {
@@ -426,6 +441,10 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
     log(`seed first line: ${a.split('\n')[0] ?? ''}`);
   }
 
+  if (spec.map !== undefined && spec.map.open) {
+    await driveMap(cwd, spec.map);
+  }
+
   if (spec.modules !== undefined) {
     await driveModules(spec.modules);
   }
@@ -453,6 +472,93 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
   }
 }
 
+
+/**
+ * THE MAP TAB, OPENED THROUGH THE SHIPPED GESTURE AND READ BACK OFF THE
+ * SCREEN (Phase 160).
+ *
+ * The press is a real click on the cockpit's control, so what is proved is
+ * the whole chain: the control, the open bus, the editor keying the tab
+ * `arch-map:<repoPath>`, the lazy chunk mounting, the store reading the model
+ * over the bridge, and the drawing landing as SVG. The counts printed are the
+ * charter's own proof line, being the box and the edge counts written down,
+ * and they are read from BOTH the model and the rendered picture so a drawing
+ * that silently dropped a box cannot pass on the model alone.
+ */
+async function driveMap(
+  cwd: string,
+  spec: NonNullable<ArchProbeSpec['map']>
+): Promise<void> {
+  const control = document.querySelector<HTMLElement>('.arch-map-open');
+  if (control === null) {
+    log('map: SKIP (no open control on screen)');
+    return;
+  }
+  const press = (): void => {
+    control.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })
+    );
+  };
+  press();
+
+  // Wait for the tab body to leave its reading state: either the SVG landed
+  // or the body settled on an error sentence. The ceiling covers a cold scan.
+  const deadline = Date.now() + 30_000;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 250));
+    const svg = document.querySelector('[data-slot="arch-map-tab"] svg');
+    const failed = document.querySelector(
+      '[data-slot="arch-map-tab"] .ed-state-body'
+    );
+    if (svg !== null || failed !== null || Date.now() > deadline) break;
+  }
+
+  const entry = useArch.getState().mapFor(cwd);
+  const model = entry?.model ?? null;
+  const tabs = (): number => document.querySelectorAll('.ed-tab').length;
+  const tabsBefore = tabs();
+  const activeTabName =
+    document.querySelector('.ed-tab.active .ed-tab-name')?.textContent ?? null;
+
+  const svg = document.querySelector('[data-slot="arch-map-tab"] svg');
+  log(
+    `map: ${JSON.stringify({
+      status: entry?.status ?? 'none',
+      error: entry?.error ?? null,
+      // The charter's proof line: the box and edge counts, written down.
+      modelGroups: model?.groups.length ?? 0,
+      modelEdges: model?.edges.length ?? 0,
+      groupLabels: model?.groups.map((g) => g.label) ?? [],
+      provenances: model?.groups.map((g) => g.provenance) ?? [],
+      building: model?.building ?? null,
+      contractPresent: model?.contractPresent ?? null,
+      svgPresent: svg !== null,
+      // Generic marks rather than the drawing's own class names, so this
+      // reader does not have to agree with the map component about its
+      // internals: every box is some shape and every name is a text node.
+      svgShapes:
+        svg === null
+          ? 0
+          : svg.querySelectorAll('rect, path, polygon, ellipse, circle').length,
+      svgTexts: svg === null ? 0 : svg.querySelectorAll('text').length,
+      tabName: activeTabName,
+      edTabs: tabsBefore
+    })}`
+  );
+
+  if (spec.refocus === true) {
+    press();
+    await new Promise((r) => setTimeout(r, 600));
+    const after = tabs();
+    log(
+      `map refocus: ${JSON.stringify({
+        tabsBefore,
+        tabsAfter: after,
+        oneTab: after === tabsBefore
+      })}`
+    );
+  }
+}
 
 /**
  * THE LEVEL 2 MODULE VIEW, OPENED AND READ BACK OFF THE SCREEN (Phase 64).

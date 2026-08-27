@@ -17,6 +17,12 @@ import { reviewTabTooltip } from '../machines/review';
  * dispose the other's model.
  */
 export function tabIdFor(req: OpenFileRequest): string {
+  // Phase 160. The map tab is keyed by the REPOSITORY, because the map is a
+  // reading of the whole repository rather than of any file in it. One
+  // repository has exactly one map tab, so pressing the pane's control a
+  // second time focuses the tab that is already open instead of opening a
+  // twin, which is the same rule `context:` and `machine:` ids follow.
+  if (req.archMap !== undefined) return archMapTabId(req.archMap.repoPath);
   // Phase 22. A context detail open is keyed by the ENTRY, not by the file, for
   // the same reason history is keyed by the commit: the same `SKILL.md` reached
   // from the tree and reached from the Context view are two different readings
@@ -51,6 +57,23 @@ export function remoteTabId(
   relPath: string
 ): string {
   return `machine:${machineId}:${repoPath}:${relPath}`;
+}
+
+/**
+ * The identity of a repository's ARCHITECTURE MAP tab (Phase 160), and the
+ * name the strip shows on it.
+ *
+ * The id carries the repository root for the reason `remoteTabId` carries one:
+ * two project tabs are two repositories, and each one's map is its own tab.
+ * The name is a constant rather than the folder's name because the tab shows a
+ * drawing of the repository, not a file called anything, and the tooltip below
+ * names the repository in full for the case where two projects both have a map
+ * open.
+ */
+export const ARCH_MAP_TAB_NAME = 'Architecture map';
+
+export function archMapTabId(repoPath: string): string {
+  return `arch-map:${repoPath}`;
 }
 
 /**
@@ -121,6 +144,12 @@ export function leftPathFor(req: OpenFileRequest): string | null {
  * its own absolute path on this Mac.
  */
 export function tabTooltipIdentity(tab: EditorTab): string {
+  // Phase 160. The map tab's `path` is a repository root rather than a file,
+  // so the tooltip says what the tab is and which repository it draws instead
+  // of showing a directory path that reads as a file that will not open.
+  if (tab.archMap !== undefined) {
+    return `The architecture map of ${tab.archMap.repoPath}. Redrawn from the code, so closing it loses nothing.`;
+  }
   if (tab.remote !== undefined) {
     return reviewTabTooltip(tab.name, tab.remote.machineLabel);
   }

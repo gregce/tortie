@@ -1,0 +1,143 @@
+/**
+ * The map's own stylesheet (Phase 160), colocated the way graph.css is.
+ *
+ * Every colour is a token from tokens.css, and the map spends NO new hue:
+ * boxes are surfaces, edges are borders, and the only chromatic ink is the
+ * verdict pair the cockpit already spends, being --success for a promise
+ * that holds and --error for one that broke or names something absent. A
+ * part nobody's resolver can read wears the honest grey, being the muted
+ * text colour on a plain border, so "Tortie does not know" never looks like
+ * an answer.
+ *
+ * The svg scales to its container through the viewBox, so everything in here
+ * that has a size is in the map's abstract units, not screen pixels.
+ */
+
+/* -- the surface --------------------------------------------------------- */
+
+.arch-map-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.arch-map-empty {
+  margin: 0;
+  padding: var(--space-6);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* -- the band scale ------------------------------------------------------ */
+
+.arch-map-band {
+  fill: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  dominant-baseline: middle;
+}
+
+.arch-map-band-rule {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+/* -- edges: thickness is weight, colour is verdict and nothing else ------ */
+
+.arch-map-edge {
+  stroke: var(--border-strong);
+  stroke-linecap: round;
+}
+
+.arch-map-e-holds {
+  stroke: var(--success);
+}
+
+.arch-map-e-broke {
+  stroke: var(--error);
+}
+
+.arch-map-head {
+  fill: var(--border-strong);
+}
+
+.arch-map-head-holds {
+  fill: var(--success);
+}
+
+.arch-map-head-broke {
+  fill: var(--error);
+}
+
+/* -- boxes: size is weight, provenance is style -------------------------- */
+
+.arch-map-box-rect {
+  fill: var(--bg-raised);
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+/* Somebody else's code: same box, quieter face, dashed border. The glyph
+   and the word carry the category; the style only says "not ours". */
+.arch-map-theirs .arch-map-box-rect {
+  stroke-dasharray: 6 4;
+  fill: var(--bg-surface);
+}
+
+.arch-map-theirs .arch-map-name {
+  color: var(--text-secondary);
+}
+
+/* The honest grey: a part whose imports no resolver arm can read. It says
+   so on its face, and it never borrows a verdict colour. */
+.arch-map-grey .arch-map-box-rect {
+  stroke: var(--border);
+  fill: var(--bg-surface);
+}
+
+.arch-map-grey .arch-map-name,
+.arch-map-grey .arch-map-prov {
+  color: var(--text-muted);
+}
+
+/* -- the label block inside a box ---------------------------------------- */
+
+.arch-map-label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-ui);
+}
+
+.arch-map-name {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arch-map-prov {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.arch-map-unknown {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -73,8 +73,13 @@ export interface SkeletonBuffer {
   text: string;
 }
 
-/** One candidate part, before it becomes a component. */
-interface Group {
+/**
+ * One candidate part, before it becomes a component.
+ *
+ * Exported since Phase 160, because the map draws the same groups the draft
+ * writes: one grouping, two readers, and they can never disagree.
+ */
+export interface Group {
   id: string;
   dir: string;
   files: string[];
@@ -93,11 +98,25 @@ export function groupId(dir: string): string {
   return cleaned.length === 0 ? 'root' : cleaned.slice(0, 63);
 }
 
-/** The prefix of a path at a given depth, or null when the path is shallower. */
+/**
+ * The directory prefix of a path at a given depth, capped at the path's own
+ * directory.
+ *
+ * A file at the top level has no directory, so it returns null at every depth
+ * and belongs to no group, which is what makes an empty grouping mean exactly
+ * "no tracked file sits inside a folder". Every other file keeps its deepest
+ * available prefix when the loop descends past it, rather than vanishing. The
+ * first version dropped any file shallower than the current depth, so a
+ * repository of just `src/` and `test/` composed ZERO groups at depth 2 and
+ * the map tab then called it flat, which was false (the Phase 160 second fix
+ * round measured it on real fixtures: `src/main.ts, test/main.test.ts` drew
+ * nothing, and so did six files under `src/main`, `src/renderer` and
+ * `src/shared` beside a `src/index.ts`).
+ */
 function prefixAt(path: string, depth: number): string | null {
   const parts = path.split('/');
-  if (parts.length <= depth) return null;
-  return parts.slice(0, depth).join('/');
+  if (parts.length <= 1) return null;
+  return parts.slice(0, Math.min(depth, parts.length - 1)).join('/');
 }
 
 /**
@@ -106,6 +125,12 @@ function prefixAt(path: string, depth: number): string | null {
  * Depth grows until there are enough groups to be worth drawing, and it stops
  * at three, because a fourth level of directory is a detail rather than a shape
  * and the merge step below is what handles the rest.
+ *
+ * Fewer than {@link SKELETON_TARGET}.min groups is an acceptable answer, not a
+ * failure: a repository of two folders draws two true boxes, and the only
+ * repository that composes zero groups is one where no tracked file sits
+ * inside a folder at all. Two real boxes beat one sentence about why nothing
+ * drew (Phase 160 second fix round).
  */
 export function groupTree(input: SkeletonInput): Group[] {
   const files = [...input.trackedFiles].sort();
@@ -136,6 +161,62 @@ export function groupTree(input: SkeletonInput): Group[] {
 }
 
 // ---------------------------------------------------------------------------
+// The rollup, shared by the ranking, the draft and the map (Phase 160)
+// ---------------------------------------------------------------------------
+
+/**
+ * Which group owns each path.
+ *
+ * This map used to be built inline in three places, being `rankGroups`,
+ * `bandOf` and `draftSkeleton`, and Phase 160 needed a fourth for the map, so
+ * it is one function now. A path outside every group has no entry.
+ */
+export function groupOwners(groups: readonly Group[]): Map<string, string> {
+  const owner = new Map<string, string>();
+  for (const group of groups) {
+    for (const path of group.files) owner.set(path, group.id);
+  }
+  return owner;
+}
+
+/** One aggregated edge: files in `from` import files in `to`, `count` times. */
+export interface ArchGroupEdge {
+  from: string;
+  to: string;
+  count: number;
+}
+
+/**
+ * Roll the file-to-file imports up to group-to-group edges with counts.
+ *
+ * UNSLICED, so the map draws every cross-group edge, and sorted heaviest
+ * first with ties broken by from then to, so the same facts give the same
+ * bytes whatever order the imports arrived in. Imports inside one group, and
+ * imports with either end outside every group, are not edges of the drawing.
+ * The draft slices this list to the promise guidance cap; the map does not.
+ */
+export function aggregateGroupEdges(
+  groups: readonly Group[],
+  imports: readonly { fromPath: string; toPath: string }[]
+): ArchGroupEdge[] {
+  const owner = groupOwners(groups);
+  const counted = new Map<string, number>();
+  for (const edge of imports) {
+    const from = owner.get(edge.fromPath);
+    const to = owner.get(edge.toPath);
+    if (from === undefined || to === undefined || from === to) continue;
+    const key = `${from}\u0000${to}`;
+    counted.set(key, (counted.get(key) ?? 0) + 1);
+  }
+  return [...counted.entries()]
+    .sort((a, b) => (b[1] - a[1] !== 0 ? b[1] - a[1] : a[0] < b[0] ? -1 : 1))
+    .map(([key, count]) => {
+      const [from = '', to = ''] = key.split('\u0000');
+      return { from, to, count };
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Ranking, so the merge is a decision rather than a coin toss
 // ---------------------------------------------------------------------------
 
@@ -154,15 +235,15 @@ export function rankGroups(
   imports: readonly { fromPath: string; toPath: string }[]
 ): Map<string, number> {
   const ids = groups.map((g) => g.id);
-  const owner = new Map<string, string>();
-  for (const group of groups) for (const path of group.files) owner.set(path, group.id);
-
-  const out = new Map<string, string[]>(ids.map((id) => [id, []]));
-  for (const edge of imports) {
-    const from = owner.get(edge.fromPath);
-    const to = owner.get(edge.toPath);
-    if (from === undefined || to === undefined || from === to) continue;
-    out.get(from)?.push(to);
+  // The rollup is the shared one the draft and the map read too (Phase 160).
+  // An edge's count is its weight, which is the same distribution the first
+  // build reached by pushing one entry per import occurrence.
+  const edges = aggregateGroupEdges(groups, imports);
+  const out = new Map<string, ArchGroupEdge[]>(ids.map((id) => [id, []]));
+  const outWeight = new Map<string, number>(ids.map((id) => [id, 0]));
+  for (const edge of edges) {
+    out.get(edge.from)?.push(edge);
+    outWeight.set(edge.from, (outWeight.get(edge.from) ?? 0) + edge.count);
   }
 
   const share = ids.length === 0 ? 0 : 1 / ids.length;
@@ -171,15 +252,19 @@ export function rankGroups(
     const next = new Map<string, number>(ids.map((id) => [id, 0.15 * share]));
     for (const id of ids) {
       const targets = out.get(id) ?? [];
+      const weight = outWeight.get(id) ?? 0;
       const value = rank.get(id) ?? 0;
-      if (targets.length === 0) {
+      if (targets.length === 0 || weight === 0) {
         for (const other of ids) {
           next.set(other, (next.get(other) ?? 0) + (0.85 * value) / ids.length);
         }
         continue;
       }
       for (const target of targets) {
-        next.set(target, (next.get(target) ?? 0) + (0.85 * value) / targets.length);
+        next.set(
+          target.to,
+          (next.get(target.to) ?? 0) + (0.85 * value * target.count) / weight
+        );
       }
     }
     rank = next;
@@ -218,15 +303,28 @@ export function mergeToTarget(
 // Classifying, and only what is fully computable
 // ---------------------------------------------------------------------------
 
-/** Where a group came from, from the four tests that need no judgement. */
+/**
+ * Where a group came from, from the four tests that need no judgement.
+ *
+ * The directory-name tests are about the WHOLE group, so they stay a single
+ * answer. The file-suffix tests ask for a MAJORITY since Phase 160, because
+ * one `*.generated.ts` file used to flip a whole group: measured on this
+ * repository, two generated files made the entire 1,711-file `src` group
+ * classify as generated, which was harmless in a draft a person edits and
+ * wrong on a map that styles every box by provenance.
+ */
 export function classify(group: Group): ArchProvenance {
   const dir = group.dir.toLowerCase();
   if (/(^|\/)(vendor|third_party|third-party)(\/|$)/.test(dir)) return 'vendored';
   if (/(^|\/)(out|dist|generated|build\/vendor)(\/|$)/.test(dir)) return 'generated';
-  if (group.files.some((path) => /\.(a|so|dylib)$|(^|\/)build\.rs$/.test(path))) {
-    return 'native';
-  }
-  if (group.files.some((path) => /\.generated\.[a-z]+$/.test(path))) return 'generated';
+  const native = group.files.filter(
+    (path) => /\.(a|so|dylib)$|(^|\/)build\.rs$/.test(path)
+  ).length;
+  if (native * 2 > group.files.length) return 'native';
+  const generated = group.files.filter(
+    (path) => /\.generated\.[a-z]+$/.test(path)
+  ).length;
+  if (generated * 2 > group.files.length) return 'generated';
   return 'first-party';
 }
 
@@ -243,8 +341,7 @@ export function bandOf(
   groups: readonly Group[],
   imports: readonly { fromPath: string; toPath: string }[]
 ): string {
-  const owner = new Map<string, string>();
-  for (const g of groups) for (const path of g.files) owner.set(path, g.id);
+  const owner = groupOwners(groups);
   let incoming = 0;
   let outgoing = 0;
   for (const edge of imports) {
@@ -287,21 +384,9 @@ export function draftSkeleton(input: SkeletonInput): SkeletonBuffer[] {
     gaps: []
   }));
 
-  const owner = new Map<string, string>();
-  for (const group of groups) for (const path of group.files) owner.set(path, group.id);
-  const counted = new Map<string, number>();
-  for (const edge of input.imports) {
-    const from = owner.get(edge.fromPath);
-    const to = owner.get(edge.toPath);
-    if (from === undefined || to === undefined || from === to) continue;
-    const key = `${from}\u0000${to}`;
-    counted.set(key, (counted.get(key) ?? 0) + 1);
-  }
-  const edges: ArchEdge[] = [...counted.entries()]
-    .sort((a, b) => (b[1] - a[1] !== 0 ? b[1] - a[1] : a[0] < b[0] ? -1 : 1))
+  const edges: ArchEdge[] = aggregateGroupEdges(groups, input.imports)
     .slice(0, ARCH_PROMISE_GUIDANCE.max)
-    .map(([key, count]) => {
-      const [from = '', to = ''] = key.split('\u0000');
+    .map(({ from, to, count }) => {
       const row: ArchEdge = {
         id: `${from}-imports-${to}`.slice(0, 63),
         from,

@@ -8,7 +8,8 @@
  *
  *     await disposeArchIpc();
  *
- * Five channels since Phase 64, and what is NOT here is the point.
+ * Five channels since Phase 64, a sixth (the map) since Phase 160, and what
+ * is NOT here is the point.
  *
  * There is no channel that writes `docs/arch/`. The skeleton channel drafts
  * bytes and hands them back for unsaved editor buffers, so recording a contract
@@ -40,10 +41,16 @@ import type {
   ArchComposePayloadResult,
   ArchDraftFile,
   ArchLoadResult,
+  ArchMapInput,
+  ArchMapResult,
   ArchRepoInput,
   ArchSkeletonResult
 } from '@shared/ipc';
-import { EVT_ARCH_CHECKED, EVT_ARCH_PROGRESS } from '@shared/ipc';
+import {
+  EVT_ARCH_CHECKED,
+  EVT_ARCH_MAP_UPDATED,
+  EVT_ARCH_PROGRESS
+} from '@shared/ipc';
 import type {
   ArchCoverageCounts,
   ArchDocument,
@@ -54,20 +61,26 @@ import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
 import { getLog } from '../log';
 import { shutdownSharedSymbolPool } from '../symbols/shared-pool';
-import { lsFilesCall, type ArchGitCall } from './argv-guard';
+import { lsFilesCall, revParseHeadCall, type ArchGitCall } from './argv-guard';
 import {
   countByCoverage,
   runCheckers,
   type ArchCheckerVerdict,
   type ArchFactBase
 } from './checkers';
-import { ArchStore, archRepoKey } from './db';
+import {
+  ARCH_SCANNED_NO_HEAD,
+  ArchStore,
+  archRepoKey,
+  type ArchRepoState
+} from './db';
 import { createArchGitRunner, readLsFiles } from './git-facts';
 import {
   createArchFileSystem,
   keepLastValid,
   loadArchDocument
 } from './load';
+import { composeArchMap } from './map';
 import { readArchModules } from './modules';
 import { gatherFacts } from './run';
 import { scanArchImports } from './scan';
@@ -150,6 +163,12 @@ export function registerArchIpc(ipc: IpcMain): void {
   handle(ipc, 'arch:modules', async (_event, input) =>
     readArchModules({ ...input, store: archStore() })
   );
+  // The level 1 map of any repository, contract or none (Phase 160). It reads
+  // the fact base the checkers already built, parses nothing, judges nothing
+  // and writes nothing, and it NEVER waits for a scan: a repository whose
+  // fact base is still cold answers with what exists plus a building flag,
+  // and the arch:mapUpdated push follows when the scan lands.
+  handle(ipc, 'arch:map', async (_event, input) => readArchMap(input));
 }
 
 /**
@@ -280,7 +299,16 @@ async function runOneCheck(
     lastValid.get(repoPath) ?? null,
     await loadArchDocument(createArchFileSystem(repoPath))
   );
-  if (document.contract === null) return null;
+  if (document.contract === null) {
+    // THE FACT-ONLY LEG (Phase 160). The map draws for any repository, so a
+    // repository with no contract still gets its fact base built and kept
+    // fresh here, through the SAME scanner and the same stamp table the
+    // checker path reads. No checker runs, no verdict is composed, no
+    // generation is claimed and nothing is published, so a contract added
+    // later reuses every fact this leg wrote.
+    await scanFactsOnly(repoPath, db, repoKey, before, signal);
+    return null;
+  }
   lastValid.set(repoPath, document);
 
   const generation = db.claimGeneration(repoKey, repoPath);
@@ -310,7 +338,7 @@ async function runOneCheck(
         // The one time cold scan is EXEMPT from the incremental budget, per
         // research 49 fix 5, which found one budget over the whole 11,000 to
         // 50,000 file range contradicts itself.
-        budgetMs: before.scannedAtCommit === null ? null : 5_000,
+        budgetMs: neverScannedAtACommit(before) ? null : 5_000,
         onProgress: (done, total) => publishProgress(repoPath, done, total)
       });
       if (scan.overBudget !== null) overBudget = scan.overBudget;
@@ -371,6 +399,13 @@ async function runOneCheck(
     broke,
     unchecked
   });
+  // The map listens too (Phase 160): a re-check moves the fact base and the
+  // verdict colours riding the edges, and the map tab is not always the
+  // surface that asked for the run.
+  broadcastEvent(EVT_ARCH_MAP_UPDATED, {
+    cwd: repoPath,
+    scannedAtCommit: wireScannedAt(db.repoState(repoKey).scannedAtCommit)
+  });
 
   return {
     cwd: repoPath,
@@ -381,6 +416,137 @@ async function runOneCheck(
     generation,
     overBudget,
     durationMs: Date.now() - started
+  };
+}
+
+/**
+ * Build the fact base for a repository with no contract, and stop.
+ *
+ * The scanner, the budget rule and the progress push are the checker path's
+ * own, so NO SECOND SCAN exists: `scanArchImports` stays the single scanner
+ * and the stamp table is shared, which is what makes a contract added later
+ * reuse everything this leg wrote. The repo-level scanned stamp is recorded
+ * only when the scan finished whole, so a cancelled or over-budget pass leaves
+ * `building` true and the next run reads the rest.
+ */
+async function scanFactsOnly(
+  repoPath: string,
+  db: ArchStore,
+  repoKey: string,
+  before: ArchRepoState,
+  signal: AbortSignal | null
+): Promise<void> {
+  const git = createArchGitRunner(repoPath);
+  const listed = await git.run(lsFilesCall());
+  const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
+  const scan = await scanArchImports({
+    repoPath,
+    repoKey,
+    store: db,
+    trackedFiles,
+    signal: signal ?? undefined,
+    // The one time cold scan is EXEMPT from the incremental budget, the same
+    // exemption the checker path carries from research 49 fix 5.
+    budgetMs: neverScannedAtACommit(before) ? null : 5_000,
+    onProgress: (done, total) => publishProgress(repoPath, done, total)
+  });
+  if (signal?.aborted === true) return;
+  if (scan.overBudget === null) {
+    const head = await git.run(revParseHeadCall());
+    const headCommit =
+      head.code === 0 ? head.stdout.toString('utf8').trim().slice(0, 40) : '';
+    // A repository with no commits yet has no HEAD to name, and the whole of
+    // it has still been read. The stamp is recorded either way, with the
+    // no-head sentinel where no commit exists, because a stamp left null kept
+    // `building` true forever and closed a loop: every `arch:mapUpdated`
+    // push made the renderer re-read `arch:map`, whose building flag
+    // scheduled the next scan, about thirty times a second until quit. The
+    // first real commit moves the stamp to a real hash through this same
+    // line.
+    db.markScanned(
+      repoKey,
+      repoPath,
+      headCommit.length > 0 ? headCommit : ARCH_SCANNED_NO_HEAD
+    );
+  }
+  broadcastEvent(EVT_ARCH_MAP_UPDATED, {
+    cwd: repoPath,
+    scannedAtCommit: wireScannedAt(db.repoState(repoKey).scannedAtCommit)
+  });
+}
+
+/**
+ * Whether this repository has never had a completed scan over a real commit.
+ *
+ * The no-head stamp counts as never: it is what an empty repository wears, so
+ * the first scan after its first real commit is still the cold scan and keeps
+ * research 49 fix 5's budget exemption.
+ */
+function neverScannedAtACommit(state: ArchRepoState): boolean {
+  return (
+    state.scannedAtCommit === null ||
+    state.scannedAtCommit === ARCH_SCANNED_NO_HEAD
+  );
+}
+
+/**
+ * The scanned stamp as the renderer may see it: a real commit or null. The
+ * no-head sentinel is the store's own bookkeeping and never a commit, so it
+ * does not travel.
+ */
+function wireScannedAt(scannedAtCommit: string | null): string | null {
+  return scannedAtCommit === ARCH_SCANNED_NO_HEAD ? null : scannedAtCommit;
+}
+
+// ---------------------------------------------------------------------------
+// The map (Phase 160)
+// ---------------------------------------------------------------------------
+
+/**
+ * The level 1 map, composed from whatever the fact base holds RIGHT NOW.
+ *
+ * It never waits for a scan. The first open of a repository in this session
+ * arms the watch and schedules one run, which is the full check when a
+ * contract exists and the fact-only leg when none does, and the cold scan
+ * lands as an `arch:mapUpdated` push rather than as a frozen pane. Every
+ * later open is the warm path: one directory read, one fixed `git ls-files
+ * -z`, and a pure compose over stored rows, measured in milliseconds.
+ */
+async function readArchMap(input: ArchMapInput): Promise<ArchMapResult> {
+  const repoPath = input.cwd;
+  const armed = watchArchRepo(repoPath);
+  const db = archStore();
+  const repoKey = archRepoKey(repoPath);
+  const state = db.repoState(repoKey);
+  const building = state.scannedAtCommit === null;
+  // The launch catch up, the map's own: Tortie was closed while somebody
+  // rebased, and the stored facts are about a tree that may have moved.
+  // Scheduled rather than awaited, and coalesced with anything the watcher
+  // already owes, so opening the map twice costs one run and not two.
+  if (armed || building) requestArchCheck(repoPath);
+
+  const fresh = await loadArchDocument(createArchFileSystem(repoPath));
+  const document = keepLastValid(lastValid.get(repoPath) ?? null, fresh);
+  if (document.contract !== null && fresh.contract !== null) {
+    lastValid.set(repoPath, document);
+  }
+  const listed = await createArchGitRunner(repoPath).run(lsFilesCall());
+  const trackedFiles = listed.code === 0 ? readLsFiles(listed.stdout) : [];
+  const manifests = readArchManifests(repoPath);
+  const model = composeArchMap({
+    subject:
+      manifests.packageName ?? repoPath.split('/').pop() ?? 'this project',
+    trackedFiles,
+    imports: db.imports(repoKey),
+    workspaces: [...manifests.workspaces.values()].map((w) => w.dir),
+    document: document.contract === null ? null : document,
+    verdicts: db.verdicts(repoKey)
+  });
+  return {
+    cwd: repoPath,
+    building,
+    scannedAtCommit: wireScannedAt(state.scannedAtCommit),
+    ...model
   };
 }
 

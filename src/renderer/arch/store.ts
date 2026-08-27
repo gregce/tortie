@@ -53,8 +53,11 @@ import { gmuxBridge } from '../bridge';
 import {
   archAvailable,
   archBridge,
+  mapBridge,
   skeletonBridge
 } from './bridge';
+import type { ArchMapResult } from './bridge';
+import { ARCH_MAP_ERROR, ARCH_MAP_NO_BRIDGE } from './copy';
 import { ARCH_SEED_COPIED, ARCH_VIEW_TITLE } from './copy';
 import { seedPromptText } from './seed-prompt';
 
@@ -99,6 +102,21 @@ export type ArchSelection = readonly string[];
 /** The empty selection, as ONE frozen array. See `NONE` below for why. */
 const NO_SELECTION: ArchSelection = Object.freeze([]);
 
+/**
+ * PHASE 160 — one repository's reading of the MAP model.
+ *
+ * The last good model stays through a reload, for the reason the contract's
+ * own `lastValid` rows stay through a bad read: a picture that blinks blank on
+ * every refresh is unusable in the exact minute agents are writing under it.
+ * `error` beside a non-null `model` means the newest read failed and what is
+ * on screen is the read before it.
+ */
+export interface ArchMapEntry {
+  status: 'loading' | 'ready' | 'error';
+  model: ArchMapResult | null;
+  error: string | null;
+}
+
 export interface ArchViewState {
   /** Which folder, on which computer, this reading belongs to. */
   target: WorkspaceTarget | null;
@@ -116,6 +134,15 @@ export interface ArchViewState {
   selected: ArchSelection;
   /** Drafting in flight, so the control cannot be pressed twice. */
   drafting: boolean;
+  /**
+   * PHASE 160 — the map models this window holds, keyed by repository root.
+   *
+   * Keyed by repository rather than living beside `load`, because a map tab
+   * outlives the active project: a person can switch projects and the tab for
+   * the first repository is still on screen and still has to draw. Nothing in
+   * an entry writes to any session and nothing in it touches the contract.
+   */
+  maps: Readonly<Record<string, ArchMapEntry>>;
 
   syncProject(target: WorkspaceTarget | null): void;
   /**
@@ -158,6 +185,17 @@ export interface ArchViewState {
    * the wider selection is hidden by the panel showing one of them.
    */
   focused(): string | null;
+  /**
+   * PHASE 160 — read one repository's map model from main, or read it again.
+   *
+   * Idempotent while a read is in flight, so the tab body, the cockpit and a
+   * finished check can all ask without stacking calls. It starts no process:
+   * `arch:map` composes over the fact base the checkers already build, and
+   * the one scan behind it is main's own, shared with the checker path.
+   */
+  loadMap(repoPath: string): Promise<void>;
+  /** The held entry for one repository, or null before the first read. */
+  mapFor(repoPath: string): ArchMapEntry | null;
   /** Compose the skeleton and open it as unsaved editor buffers. */
   draft(): Promise<void>;
   /** Put the seeding prompt on the clipboard and open the new session sheet. */
@@ -196,6 +234,13 @@ export interface ArchViewState {
 }
 
 /**
+ * Repositories whose map should be read AGAIN the moment the read in flight
+ * settles (Phase 160). Module scope rather than store state because it is
+ * bookkeeping about calls, not something any surface renders.
+ */
+const pendingMapReads = new Set<string>();
+
+/**
  * The one empty array every "nothing yet" answer returns.
  *
  * NOT COSMETIC. A selector that builds a fresh `[]` on every call returns a
@@ -222,6 +267,7 @@ export const useArch = create<ArchViewState>((set, get) => ({
   error: null,
   selected: NO_SELECTION,
   drafting: false,
+  maps: {},
 
   syncProject(target) {
     if (target !== null && sameTarget(get().target, target)) return;
@@ -324,6 +370,49 @@ export const useArch = create<ArchViewState>((set, get) => ({
     return selected.length === 0 ? null : (selected[selected.length - 1] ?? null);
   },
 
+  async loadMap(repoPath) {
+    const held = get().maps[repoPath];
+    // One read in flight per repository. An ask that lands while one is out
+    // is NOT dropped: the facts may have moved between the send and the
+    // answer, so it queues exactly one follow up read, which runs when the
+    // current one settles. A burst of pushes still folds to two reads.
+    if (held?.status === 'loading') {
+      pendingMapReads.add(repoPath);
+      return;
+    }
+    const api = mapBridge();
+    const patch = (entry: ArchMapEntry): void => {
+      set((s) => ({ maps: { ...s.maps, [repoPath]: entry } }));
+    };
+    if (api === null) {
+      patch({ status: 'error', model: held?.model ?? null, error: ARCH_MAP_NO_BRIDGE });
+      return;
+    }
+    patch({ status: 'loading', model: held?.model ?? null, error: null });
+    try {
+      const model = await api.map({ cwd: repoPath });
+      patch({ status: 'ready', model, error: null });
+    } catch (err) {
+      // The last good model stays on screen, with the failure named beside
+      // it, for the reason the entry's comment gives.
+      patch({
+        status: 'error',
+        model: get().maps[repoPath]?.model ?? null,
+        error:
+          err instanceof Error && err.message.length > 0
+            ? err.message
+            : ARCH_MAP_ERROR
+      });
+    }
+    if (pendingMapReads.delete(repoPath)) {
+      void get().loadMap(repoPath);
+    }
+  },
+
+  mapFor(repoPath) {
+    return get().maps[repoPath] ?? null;
+  },
+
   async draft() {
     const target = get().target;
     const api = skeletonBridge();
@@ -397,6 +486,14 @@ export const useArch = create<ArchViewState>((set, get) => ({
     const offChecked =
       typeof api.onChecked === 'function'
         ? api.onChecked((event) => {
+            // Phase 160. A finished check may have moved the facts the map is
+            // drawn from, so any held model for that repository is read again,
+            // whether or not it belongs to the active project: a map tab for a
+            // background project is still on screen. Nothing is announced; the
+            // picture moves the way the numbers do.
+            if (get().maps[event.cwd] !== undefined) {
+              void get().loadMap(event.cwd);
+            }
             const target = get().target;
             if (target === null || localPathOf(target) !== event.cwd) return;
             set({ checking: false, progress: null });
@@ -409,9 +506,22 @@ export const useArch = create<ArchViewState>((set, get) => ({
             get().applyProgress(p.cwd, p.done, p.total);
           })
         : () => undefined;
+    // Phase 160. The fact base behind a map moved, being a cold scan landing
+    // or a check republishing. Nothing heavy travels on the push; the store
+    // asks `arch:map` again for any repository it holds a picture of, and the
+    // in flight guard in `loadMap` folds a burst into one read.
+    const offMapUpdated =
+      typeof api.onMapUpdated === 'function'
+        ? api.onMapUpdated((event) => {
+            if (get().maps[event.cwd] !== undefined) {
+              void get().loadMap(event.cwd);
+            }
+          })
+        : () => undefined;
     return () => {
       offChecked();
       offProgress();
+      offMapUpdated();
     };
   },
 

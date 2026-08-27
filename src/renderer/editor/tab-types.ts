@@ -186,4 +186,21 @@ export interface EditorTab {
    * `undefined` case only ever reaches a hand written fixture.
    */
   draft?: string | null;
+  /**
+   * PHASE 160 — this tab is the ARCHITECTURE MAP of one repository.
+   *
+   * Present means the body is the drawn map rather than any file surface: no
+   * Monaco, no diff, no preview and no mode chip. The tab reads nothing from
+   * disk when it opens, is never dirty, refuses save, and the watcher never
+   * refreshes it, each refusal sitting where the matching `commit` or `remote`
+   * refusal already sits. Identity is `arch-map:<repoPath>` so one repository
+   * has one map tab and reopening focuses it.
+   *
+   * Optional rather than nullable, so every tab built before this phase, and
+   * every fixture in the tests, is still a valid tab.
+   */
+  archMap?: {
+    /** The repository the map draws. Same value as `repoPath`. */
+    repoPath: string;
+  };
 }

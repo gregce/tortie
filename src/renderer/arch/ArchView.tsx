@@ -67,7 +67,15 @@ import {
 import { Codicon } from '../icons';
 import { requestOpenFile } from '../state/open-file';
 import { useApp } from '../state/store';
-import { ArchEmptyState } from './ArchEmptyState';
+import { ArchContractOffer } from './ArchEmptyState';
+import { openArchMap } from './open-map';
+import { mapAvailable } from './bridge';
+import {
+  ARCH_COMPUTED_TITLE,
+  ARCH_CONTRACT_ADDS,
+  ARCH_MAP_OPEN_BODY,
+  ARCH_MAP_OPEN_TITLE
+} from './copy';
 import {
   ARCH_ACCEPTED_NOTE,
   ARCH_ELSEWHERE,
@@ -237,14 +245,14 @@ export function ArchView(): React.JSX.Element {
   if (status === 'error' && error !== null) {
     return <ArchNote text={error} />;
   }
-  // A repository with no `docs/arch/` at all, which is every repository until
-  // somebody writes one. `present` is main's own answer to that question, and
-  // it is separate from `contract === null` on purpose: a directory that
-  // exists but whose every row was dropped is NOT the teaching state, it is
-  // the state where the person needs to read the problems.
-  if (status === 'ready' && load !== null && !load.present) {
-    return <ArchEmptyState />;
-  }
+  // PHASE 160. A repository with no `docs/arch/` is NOT an empty surface any
+  // more. The map draws from the code alone, so the cockpit below renders for
+  // every repository: the open map control always, the strip, failures and
+  // outline when a contract exists, the computed parts and the quiet line
+  // about what a contract adds when none does. `present` is still main's own
+  // answer: a directory that exists but whose every row was dropped keeps the
+  // full cockpit, because the person then needs to read the problems.
+  const noContract = status === 'ready' && load !== null && !load.present;
 
   return (
     <div className="arch" data-slot="arch">
@@ -253,49 +261,150 @@ export function ArchView(): React.JSX.Element {
           {contract.subject}
         </div>
       ) : null}
-
-      {/* A read that failed over bytes on disk, showing the LAST GOOD rows
-          under a banner naming the failure. A half written contract file must
-          never blank this view: an agent rewriting `edges.json` would
-          otherwise make the whole surface disappear mid save. */}
-      {load?.lastValid === true ? (
-        <p className="arch-lastvalid">{ARCH_LAST_VALID}</p>
-      ) : null}
-      <FreshnessRibbon />
-      <VerdictStrip />
-      <Problems />
-      <FailureList
-        verdicts={verdicts}
-        repoPath={repoPath}
-        onSelect={select}
-      />
-      <Outline
-        components={components}
-        verdicts={verdicts}
-        selected={selected}
-        onSelect={select}
-        onToggle={toggleSelected}
-      />
-      <GapStrip components={components} onSelect={select} />
-      <AimBar />
-      <ProsePanel
-        selected={selected[selected.length - 1] ?? null}
-        components={components}
-        edges={edges}
-        verdicts={verdicts}
-      />
-      {/* LEVEL 2, the computed module view. It draws only for a component, and
-          the component is the focused one, which is the same subject the prose
-          panel above is describing. The props were frozen in the phase spec
-          before either file was written, because the mount point and the
-          component belong to different hands. */}
-      <ArchModules
-        cwd={repoPath}
-        componentId={focusedComponentId(selected)}
-        componentName={nameOf(focusedComponentId(selected) ?? '')}
-        refreshKey={lastCheck?.generation ?? 0}
-      />
+      <MapSection repoPath={repoPath} />
+      {noContract ? (
+        // No contract: the computed parts the map draws, the quiet line about
+        // what a contract adds, and the two ways to get one. The verdict
+        // machinery below has nothing to say about a repository with no
+        // promises, and zero-filled lanes would be a reassuring number about
+        // nothing, so it does not mount.
+        <>
+          <ComputedOutline repoPath={repoPath} />
+          <p className="arch-note arch-contract-adds">{ARCH_CONTRACT_ADDS}</p>
+          <ArchContractOffer />
+        </>
+      ) : (
+        <>
+          {/* A read that failed over bytes on disk, showing the LAST GOOD rows
+              under a banner naming the failure. A half written contract file
+              must never blank this view: an agent rewriting `edges.json` would
+              otherwise make the whole surface disappear mid save. */}
+          {load?.lastValid === true ? (
+            <p className="arch-lastvalid">{ARCH_LAST_VALID}</p>
+          ) : null}
+          <FreshnessRibbon />
+          <VerdictStrip />
+          <Problems />
+          <FailureList
+            verdicts={verdicts}
+            repoPath={repoPath}
+            onSelect={select}
+          />
+          <Outline
+            components={components}
+            verdicts={verdicts}
+            selected={selected}
+            onSelect={select}
+            onToggle={toggleSelected}
+          />
+          <GapStrip components={components} onSelect={select} />
+          <AimBar />
+          <ProsePanel
+            selected={selected[selected.length - 1] ?? null}
+            components={components}
+            edges={edges}
+            verdicts={verdicts}
+          />
+          {/* LEVEL 2, the computed module view. It draws only for a component,
+              and the component is the focused one, which is the same subject
+              the prose panel above is describing. The props were frozen in the
+              phase spec before either file was written, because the mount
+              point and the component belong to different hands. */}
+          <ArchModules
+            cwd={repoPath}
+            componentId={focusedComponentId(selected)}
+            componentName={nameOf(focusedComponentId(selected) ?? '')}
+            refreshKey={lastCheck?.generation ?? 0}
+          />
+        </>
+      )}
     </div>
+  );
+}
+
+/**
+ * THE MAP CONTROL (Phase 160) — the pane's way into the picture.
+ *
+ * The pane is the cockpit and the map is a full size tab, which is the
+ * operator's surface ruling. This control is the one door from the cockpit to
+ * the tab, and it goes through `openArchMap`, the same door the View menu row
+ * uses, so pressing it twice focuses the one tab rather than opening a twin.
+ *
+ * It renders for every repository on this computer, contract or none, because
+ * the map needs no contract. On a build whose preload has no map channel it
+ * disables itself and the title says why, in the feature detected shape every
+ * arch surface uses.
+ */
+function MapSection({
+  repoPath
+}: {
+  repoPath: string | null;
+}): React.JSX.Element | null {
+  if (repoPath === null) return null;
+  const canDraw = mapAvailable();
+  return (
+    <section className="arch-map-section" aria-label={ARCH_MAP_OPEN_TITLE}>
+      <button
+        type="button"
+        className="arch-empty-action arch-map-open"
+        disabled={!canDraw}
+        title={canDraw ? undefined : 'This build cannot draw the map.'}
+        onClick={() => openArchMap(repoPath)}
+      >
+        <Codicon name="map" size={14} />
+        <span className="arch-empty-action-title">{ARCH_MAP_OPEN_TITLE}</span>
+        <span className="arch-empty-action-body">{ARCH_MAP_OPEN_BODY}</span>
+      </button>
+    </section>
+  );
+}
+
+/**
+ * THE COMPUTED PARTS (Phase 160) — the cockpit's outline for a repository
+ * with no contract, listing the same five to nine parts the map tab draws,
+ * each with its provenance glyph and word, in the model's own order.
+ *
+ * The rows are read only in this phase: the drill belongs to Phase 161, and a
+ * row that looked clickable and did nothing would be worse than a list. NO
+ * COUNT ON ANY ROW. Weight belongs to the map, where it is size, and a number
+ * pinned to a row here is the count badge the view refuses.
+ */
+function ComputedOutline({
+  repoPath
+}: {
+  repoPath: string | null;
+}): React.JSX.Element | null {
+  const entry = useArch((s) =>
+    repoPath === null ? null : (s.maps[repoPath] ?? null)
+  );
+  const loadMap = useArch((s) => s.loadMap);
+  useEffect(() => {
+    if (repoPath !== null) void loadMap(repoPath);
+  }, [repoPath, loadMap]);
+  const groups = entry?.model?.groups ?? [];
+  if (repoPath === null || groups.length === 0) return null;
+  return (
+    <section className="arch-outline" aria-label={ARCH_COMPUTED_TITLE}>
+      <div className="section-header">
+        <span className="section-toggle">{ARCH_COMPUTED_TITLE}</span>
+      </div>
+      <ul role="list">
+        {groups.map((g) => (
+          <li key={g.id}>
+            <div className="arch-row arch-row-computed">
+              <Codicon name={provenanceIcon(g.provenance)} size={14} />
+              <span className="arch-row-name">{g.label}</span>
+              <span
+                className="arch-row-prov"
+                title={provenanceTitle(g.provenance)}
+              >
+                {provenanceWord(g.provenance)}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

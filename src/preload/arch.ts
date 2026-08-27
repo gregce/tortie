@@ -12,7 +12,11 @@
  */
 
 import type { GmuxArchExtras } from '../shared/ipc';
-import { EVT_ARCH_CHECKED, EVT_ARCH_PROGRESS } from '../shared/ipc';
+import {
+  EVT_ARCH_CHECKED,
+  EVT_ARCH_MAP_UPDATED,
+  EVT_ARCH_PROGRESS
+} from '../shared/ipc';
 import { invoke, on } from './bridge';
 
 /**
@@ -35,6 +39,11 @@ export const arch: GmuxArchExtras['arch'] = {
   skeleton: (input) => invoke('arch:skeleton', input),
   composePayload: (input) => invoke('arch:composePayload', input),
   modules: (input) => invoke('arch:modules', input),
+  // The level 1 map of any repository, contract or none (Phase 160). A read
+  // over the fact base that parses nothing and never waits for a scan, and
+  // the push that says the facts behind it moved.
+  map: (input) => invoke('arch:map', input),
   onChecked: (cb) => on(EVT_ARCH_CHECKED, cb),
-  onProgress: (cb) => on(EVT_ARCH_PROGRESS, cb)
+  onProgress: (cb) => on(EVT_ARCH_PROGRESS, cb),
+  onMapUpdated: (cb) => on(EVT_ARCH_MAP_UPDATED, cb)
 };

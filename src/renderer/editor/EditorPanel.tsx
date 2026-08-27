@@ -76,6 +76,17 @@ import { remoteFileChip } from '../machines/editor';
 import { machineWriteRootFor } from '../state/machines-slice';
 import './editor.css';
 
+/**
+ * PHASE 160. The architecture map tab's body, loaded the way the probe chunk
+ * is: only when a map tab is actually on screen. The map, its layout and its
+ * geometry are a whole drawing stack no ordinary launch of the editor needs,
+ * so a static import here would put them in the entry chunk of every window
+ * that never opens a map.
+ */
+const ArchMapTab = React.lazy(async () => ({
+  default: (await import('../arch/ArchMapTab')).ArchMapTab
+}));
+
 // Screenshot-harness hook: registered at module load so GMUX_SHOT_DRIVE can
 // drive a fresh profile (the panel itself may not be mounted yet). Inert
 // outside the harness.
@@ -652,7 +663,10 @@ export function EditorPanel(): React.JSX.Element | null {
     effectiveMode !== 'diff' &&
     effectiveMode !== 'image' &&
     (effectiveMode !== 'preview' || activeTab.markdown) &&
-    activeTab.error === null;
+    activeTab.error === null &&
+    // Phase 160: the map tab has no text to summarize, so the toggle stays
+    // out of its chrome the way it stays out of the image viewer's.
+    activeTab.archMap === undefined;
   const diffSplitFits = panelWidth >= DIFF_SPLIT_MIN_PX;
   const showDiffSplit = diffSideBySide && diffSplitFits;
   const diffSplitApplies = effectiveMode === 'diff' && activeTab.error === null;
@@ -828,12 +842,15 @@ activeTab.error !== null ? (
         </div>
 
         <div className="ed-body">
-          {/* Phase 22. A tab opened from the Context view wears the detail
-              header card, and the body below it is whatever this file would
-              have rendered as anyway. That is the whole difference between a
-              detail tab and a file tab, which is why there is no second tab
-              kind: the card is a wrapper, not a renderer. */}
-          {contextEntry !== null ? (
+          {/* Phase 160. The architecture map tab renders the map and nothing
+              else: no Monaco, no diff, no preview. It is asked about first
+              because its `path` is a repository root, and every branch below
+              would try to treat that root as a file. */}
+          {activeTab.archMap !== undefined ? (
+            <React.Suspense fallback={<div className="ed-state" />}>
+              <ArchMapTab repoPath={activeTab.archMap.repoPath} />
+            </React.Suspense>
+          ) : contextEntry !== null ? (
             <ContextDetailTab
               entry={contextEntry}
               repoPath={activeTab.repoPath}

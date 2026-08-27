@@ -21,6 +21,14 @@
 import type { InstalledGmuxApi } from '@shared/ipc';
 import { gmuxBridge } from '../bridge';
 
+/**
+ * Phase 160. THE ONE SEAM the map surfaces read the model type through. The
+ * shape itself lives in the shared ipc contract beside every other arch
+ * answer; re-exported here so the store, the tab body and the probe all name
+ * it from one place.
+ */
+export type { ArchMapResult } from '@shared/ipc';
+
 /** The bridge, typed by the shared declaration rather than a local mirror. */
 export type ArchBridgeApi = NonNullable<InstalledGmuxApi['arch']>;
 
@@ -49,4 +57,21 @@ export function skeletonAvailable(): boolean {
 /** Can this build re-check on demand? */
 export function checkAvailable(): boolean {
   return typeof archBridge()?.check === 'function';
+}
+
+/**
+ * The MAP half (Phase 160), or null when this build cannot compose one.
+ *
+ * Feature detected like every other method here: an older preload has no
+ * `map` at all, and the map surfaces then say one sentence instead of
+ * breaking, which is the same doctrine the whole file states at its head.
+ */
+export function mapBridge(): ArchBridgeApi | null {
+  const api = archBridge();
+  return typeof api?.map === 'function' ? api : null;
+}
+
+/** Can this build draw the architecture map at all? */
+export function mapAvailable(): boolean {
+  return mapBridge() !== null;
 }
