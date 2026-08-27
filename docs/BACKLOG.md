@@ -17684,14 +17684,14 @@ The surface ruling on Phase 160 binds here: the drill happens in the MAP TAB, an
 ### What changed and what survives from Phase 66
 
 - **The usage number precondition is REMOVED.** It gated the picture on observed use of the promise features, and the operator ruled the picture is the product. Recording that here is what stops a later round re-adding the gate from research 49.
-- **The CSS zoom spike SURVIVES as an engineering precondition**, run first and written down before any canvas code exists. The priced fallback if it fails is hand written SVG in the `scm/graph/` pattern, which Phases 160 and 161 will by then have proven at two levels.
-- **The two-package admission survives as a QUESTION, not a decision.** If 160 and 161's hand written SVG already draws well, the honest outcome is ZERO new packages and this phase adds only pan, zoom and layout persistence to it. A package enters the signed bundle only if the spike proves the SVG cannot do the job, and the commit body carries the measurement either way.
+- **The CSS zoom spike WAS RUN on 2026-08-27**, in research 68 section 6.3, outside Electron, and answered: there is no permanent blur under transform scale, the pointer math defect inside a zoom region is real and measured, and the fix is to EXEMPT THE MAP TAB from `--zoom-arch` and route the zoom chord into the camera's own scale, the Monaco and Pierre precedent. What remains for this phase is the re-measurement inside Electron 43 as its FIRST ACT. The fallback clause inverts: hand written SVG is the PRIMARY, and @xyflow/react 12.11.5 plus @dagrejs/dagre 3.1.1 under the zoom exemption is the priced fallback at about 97 KB gzip, taken only on the written conditions in research 68 section 7.
+- **The two-package admission is ANSWERED by research 68: ZERO new packages.** Plain SVG under a moving camera holds vsync at every scale the product can emit including the 40,000 cell matrix, measured. Two vendored ISC extracts enter as vendored code with NOTICE sections in the Pierre pattern: the d3-zoom zoom-toward-cursor transform algebra and the van Wijk and Nuij fly-to path (interpolateZoom), about 380 lines together, with inertial release hand written at about 60 lines. The commit body carries the in app measurement that confirms or overturns the ruling.
 
 ### What it builds
 
 The surface ruling on Phase 160 binds here: pan and zoom belong to the MAP TAB, which already has the whole editor area.
 
-Pan and zoom over the level 1 and level 2 maps; a layout that stays where a person left it, in a disposable database whose loss costs a re-layout; and smooth traversal between the levels Phase 161 built.
+Pan and zoom over the level 1 and level 2 maps; a layout that stays where a person left it, in a disposable database whose loss costs a re-layout; and smooth traversal between the levels Phase 161 built. Per research 68: camera state persists beside layout in arch.db, the Figma key set applies with F to frame per Perfetto, release carries inertia, the drill and F use the van Wijk and Nuij fly-to, and `prefers-reduced-motion` cuts every transition to its end state.
 
 ### Proof, run rather than read
 
