@@ -34,13 +34,14 @@ export const MENU_CODICONS = [
   'arrow-up',
   'bell',
   'check',
-  // PHASE 63. The Architecture view's mark, on the View menu row and on the
-  // activity rail, which is one picture rather than two. `check` is already in
-  // this set and draws a bare tick, which reads as "done" rather than as a set
-  // of promises being judged; `checklist` draws the list with the tick and is
-  // a different codepoint and a different bitmap.
-  'checklist',
   'circle-slash',
+  // PHASE 63, remarked by the operator on 2026-08-27. The Architecture view's
+  // mark, on the View menu row and on the activity rail, which is one picture
+  // rather than two. Phase 63 chose `checklist` and recorded that
+  // `circuit-board` lost only because no canvas shipped then; Phase 160 ships
+  // the map and the operator asked for the change himself, so the mark is now
+  // the board, being parts and their connections.
+  'circuit-board',
   'clear-all',
   'clippy',
   'close',

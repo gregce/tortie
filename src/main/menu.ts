@@ -682,13 +682,13 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // The ellipsis is honest: it opens a list to choose from and puts
         // nothing anywhere until a row is picked.
         //
-        // `checklist`, the mark the Architecture view wears in the activity bar
+        // `circuit-board`, the mark the Architecture view wears in the activity bar
         // and in the View menu row. This submenu's rule is that a row wears the
         // icon of the surface it opens, and what this opens is that view's own
         // list of promises. The name is already in `MENU_CODICONS`, so the
         // generated set is unchanged and build/assert-menu-glyphs.mjs has
         // nothing new to weigh.
-        item('Aim at a Promise…', 'arch-aim', accel('session.aim'), 'checklist'),
+        item('Aim at a Promise…', 'arch-aim', accel('session.aim'), 'circuit-board'),
         // User-recorded per-agent shortcuts (S13 Hotkeys) — present only
         // when assigned; rebuilt on every hotkey change.
         ...agentHotkeyItems(),
@@ -753,13 +753,13 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // Architecture under Catch Me Up would have split the rail's own order
         // around a row that is not part of it.
         //
-        // `checklist`, the mark ActivityBar.tsx draws for this view, which is
+        // `circuit-board`, the mark ActivityBar.tsx draws for this view, which is
         // this submenu's rule: a row wears the icon of the surface it opens.
         // The name was added to `MENU_CODICONS` in the same commit and the
         // generated set was regenerated, because `build/assert-menu-glyphs.mjs`
         // fails the build for a name with no bitmap and for two names with the
         // same bitmap.
-        item('Architecture', 'show-arch', accel('view.arch'), 'checklist'),
+        item('Architecture', 'show-arch', accel('view.arch'), 'circuit-board'),
         // Phase 137: Catch Me Up sits LAST, under the sidebar views, because
         // it answers a question about the whole project rather than opening a
         // sidebar view. It sat directly under Context until Phase 63 added

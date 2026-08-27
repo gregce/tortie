@@ -361,17 +361,20 @@ export function ActivityBar({
       />
       {/* Phase 63 — Architecture, fifth, after Context and before the spacer.
 
-          `checklist` because the subject of the view IS a list of promises
-          that are checked. The runners up and why each lost: `circuit-board`
-          draws a diagram, and this phase deliberately ships no canvas, so it
-          would promise a picture that is not there; `law` reads as legal
-          rather than as engineering; `verified` names the verdict rather than
-          the thing being judged, and most promises here are not verified;
-          `symbol-structure` sits in the symbol family and would collide with
-          the symbols vocabulary the quick open picker already owns.
+          `circuit-board` because the view's subject is the SHAPE of a made
+          thing, its parts and how they connect, and the operator ruled on
+          2026-08-27 that the map is the product. Phase 63 chose `checklist`
+          and recorded that `circuit-board` lost only because that phase
+          shipped no canvas and the mark would promise a picture that was not
+          there; Phase 160 ships the picture, so the original reason inverted
+          and the operator asked for the change himself, saying he did not
+          love the checklist. The runners up now: `map` reads geographic
+          rather than engineered; `type-hierarchy` draws one tree where the
+          map draws a graph; `symbol-structure` still collides with the
+          symbols vocabulary the quick open picker owns.
 
           The View menu row wears the SAME mark, which is menu.ts's own stated
-          rule, and `checklist` had to be added to `MENU_CODICONS` for it.
+          rule, and `circuit-board` had to be added to `MENU_CODICONS` for it.
 
           NO BADGE, EVER, and the reason is stronger here than it was for
           Context. A count of broken promises is exactly the number that would
@@ -381,7 +384,7 @@ export function ActivityBar({
           look for them. */}
       <ViewItem
         view="arch"
-        icon="checklist"
+        icon="circuit-board"
         label="Architecture"
         shortcut={keyDisplay('view.arch')}
       />
