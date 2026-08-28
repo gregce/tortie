@@ -254,3 +254,4 @@ A repository may carry a `docs/arch/` directory. It is the project's standing co
 - Native macOS menus via the ui:popupMenu bridge — never DOM-drawn context menus.
 - A phase that adds, renames or removes a user-facing surface updates the native menus in the same commit, and the phase brief says what changed in the menus.
 - Status semantics: "needs input" may only be triggered by session behavior, never by the user's own input to that session.
+- Just enough words (operator's rule, 2026-08-28, set on the Arch panel): a surface explains itself with short labels, one-liners and visual indication, never paragraphs. Explanation a person might want lives behind hover or a disclosure, not on the resting face. "TONS of words, bad."
