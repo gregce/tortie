@@ -43,63 +43,105 @@ sessions.
 ## Key features
 
 <table>
-  <tbody>
-    <tr>
-      <td width="45%" valign="top">
-        <h3>One window for every project</h3>
-        <p>Every project is a tab with its own sessions, Git state, file tree and editor. Use <kbd>⌘P</kbd> to find files in the active project or across every open project.</p>
-      </td>
-      <td width="55%" valign="top">
-        <img src="docs/readme/one-project-window.gif" alt="Tortie switching between project tabs, each with its own files and coding-agent sessions" width="560" />
-      </td>
-    </tr>
-    <tr>
-      <td width="45%" valign="top">
-        <h3>Agents keep working</h3>
-        <p>Quit Tortie without stopping the work. Named sessions run outside the app window and return when you reopen it.</p>
-      </td>
-      <td width="55%" valign="top">
-        <img src="docs/readme/durable-sessions.gif" alt="Tortie closing while its coding-agent sessions continue running, then reconnecting to them" width="560" />
-      </td>
-    </tr>
-    <tr>
-      <td width="45%" valign="top">
-        <h3>Resume the conversation</h3>
-        <p>After a restart, Tortie replays the scrollback and prepares each agent's own resume command. You choose when to reconnect the conversation.</p>
-      </td>
-      <td width="55%" valign="top">
-        <img src="docs/readme/resume-conversation.gif" alt="Tortie restoring a coding-agent session and preparing its conversation resume command" width="560" />
-      </td>
-    </tr>
-    <tr>
-      <td width="45%" valign="top">
-        <h3>Jump to what needs you</h3>
-        <p>Working agents stay quiet. Press <kbd>⌘J</kbd> to jump to the session waiting for input, even when another project is open.</p>
-      </td>
-      <td width="55%" valign="top">
-        <img src="docs/readme/needs-input.gif" alt="Tortie notifying the user that an agent needs input and jumping to that session" width="560" />
-      </td>
-    </tr>
-    <tr>
-      <td width="45%" valign="top">
-        <h3>Catch Me Up</h3>
-        <p>Press <kbd>⇧⌘U</kbd> to see every session in a project at a glance. Open one to read your asks and the agent's closing answers from its own log, then jump back to any exchange.</p>
-        <p>The conversation stays word for word. An optional model can write only the one-line project summary.</p>
-      </td>
-      <td width="55%" valign="top">
-        <img src="docs/readme/catch-me-up.gif" alt="Tortie opening Catch Me Up, reviewing a project summary and reading one coding-agent conversation exchange by exchange" width="560" />
-      </td>
-    </tr>
-  </tbody>
+<tr>
+<td width="45%" valign="middle">
+
+### One window for every project
+
+Every project is a tab with its own sessions, Git state, file tree and editor. Use <kbd>⌘P</kbd> to find files in the active project or across every open project.
+
+[Docs →](https://tortie.sh/docs/projects-and-sessions/#projects)
+
+</td>
+<td width="55%">
+  <a href="https://tortie.sh/docs/projects-and-sessions/#projects"><img src="docs/readme/one-project-window.gif" alt="Tortie switching between project tabs, each with its own files and coding-agent sessions" width="560" /></a>
+</td>
+</tr>
+<tr>
+<td width="45%" valign="middle">
+
+### Agents keep working
+
+Quit Tortie without stopping the work. Named sessions run outside the app window and return when you reopen it.
+
+[Docs →](https://tortie.sh/docs/durability-and-recovery/#quit)
+
+</td>
+<td width="55%">
+  <a href="https://tortie.sh/docs/durability-and-recovery/#quit"><img src="docs/readme/durable-sessions.gif" alt="Tortie closing while its coding-agent sessions continue running, then reconnecting to them" width="560" /></a>
+</td>
+</tr>
+<tr>
+<td width="45%" valign="middle">
+
+### Resume the conversation
+
+After a restart, Tortie replays the scrollback and prepares each agent's own resume command. You choose when to reconnect the conversation.
+
+[Docs →](https://tortie.sh/docs/durability-and-recovery/#reboot)
+
+</td>
+<td width="55%">
+  <a href="https://tortie.sh/docs/durability-and-recovery/#reboot"><img src="docs/readme/resume-conversation.gif" alt="Tortie restoring a coding-agent session and preparing its conversation resume command" width="560" /></a>
+</td>
+</tr>
+<tr>
+<td width="45%" valign="middle">
+
+### Jump to what needs you
+
+Working agents stay quiet. Press <kbd>⌘J</kbd> to jump to the session waiting for input, even when another project is open.
+
+[Docs →](https://tortie.sh/docs/attention-and-catch-me-up/#needs-input)
+
+</td>
+<td width="55%">
+  <a href="https://tortie.sh/docs/attention-and-catch-me-up/#needs-input"><img src="docs/readme/needs-input.gif" alt="Tortie notifying the user that an agent needs input and jumping to that session" width="560" /></a>
+</td>
+</tr>
+<tr>
+<td width="45%" valign="middle">
+
+### Catch Me Up
+
+Press <kbd>⇧⌘U</kbd> to see every session in a project at a glance. Open one to read your asks and the agent's closing answers from its own log, then jump back to any exchange.
+
+The conversation stays word for word. An optional model can write only the one-line project summary.
+
+[Docs →](https://tortie.sh/docs/attention-and-catch-me-up/#catch-me-up)
+
+</td>
+<td width="55%">
+  <a href="https://tortie.sh/docs/attention-and-catch-me-up/#catch-me-up"><img src="docs/readme/catch-me-up.gif" alt="Tortie opening Catch Me Up, reviewing a project summary and reading one coding-agent conversation exchange by exchange" width="560" /></a>
+</td>
+</tr>
 </table>
 
+## Supported agents
+
+Tortie includes **13 built-in profiles**: 11 CLI agents you can run in durable sessions, plus capture-only support for Cursor IDE and VS Code Copilot.
+
+<p>
+  <a href="https://code.claude.com/docs/en/setup"><kbd><img src="src/renderer/assets/agents/claude.svg" alt="Claude Code logo" width="16" valign="middle" /> Claude Code</kbd></a> &nbsp;
+  <a href="https://learn.chatgpt.com/docs/codex/cli"><kbd><img src="src/renderer/assets/agents/codex.svg" alt="Codex logo" width="16" valign="middle" /> Codex</kbd></a> &nbsp;
+  <a href="https://cursor.com/docs/cli/installation"><kbd><img src="src/renderer/assets/agents/cursor.svg" alt="Cursor CLI logo" width="16" valign="middle" /> Cursor CLI</kbd></a> &nbsp;
+  <a href="https://geminicli.com/docs/get-started/installation"><kbd><img src="src/renderer/assets/agents/gemini.svg" alt="Gemini CLI logo" width="16" valign="middle" /> Gemini CLI</kbd></a> &nbsp;
+  <a href="https://github.com/QwenLM/qwen-code"><kbd><img src="src/renderer/assets/agents/qwen.svg" alt="Qwen Code logo" width="16" valign="middle" /> Qwen Code</kbd></a> &nbsp;
+  <a href="https://tortie.sh/docs/supported-agents/#launchable-agents"><kbd><img src="src/renderer/assets/agents/muse.svg" alt="Muse Code logo" width="16" valign="middle" /> Muse Code</kbd></a> &nbsp;
+  <a href="https://pi.dev"><kbd><img src="src/renderer/assets/agents/pi.svg" alt="Pi logo" width="16" valign="middle" /> Pi</kbd></a> &nbsp;
+  <a href="https://github.com/Hmbown/CodeWhale"><kbd><img src="src/renderer/assets/agents/deepseek.svg" alt="CodeWhale logo" width="16" valign="middle" /> CodeWhale</kbd></a> &nbsp;
+  <a href="https://antigravity.google/docs/cli/install"><kbd><img src="src/renderer/assets/agents/antigravity.svg" alt="Antigravity CLI logo" width="16" valign="middle" /> Antigravity</kbd></a> &nbsp;
+  <a href="https://docs.factory.ai/cli/getting-started/quickstart"><kbd><img src="src/renderer/assets/agents/droid.svg" alt="Factory Droid CLI logo" width="16" valign="middle" /> Droid</kbd></a> &nbsp;
+  <a href="https://x.ai"><kbd><img src="src/renderer/assets/agents/grok.svg" alt="Grok logo" width="16" valign="middle" /> Grok</kbd></a> &nbsp;
+  <a href="https://cursor.com"><kbd><img src="src/renderer/assets/agents/cursor.svg" alt="Cursor IDE logo" width="16" valign="middle" /> Cursor IDE</kbd></a> &nbsp;
+  <a href="https://code.visualstudio.com/docs/copilot/overview"><kbd><img src="src/renderer/assets/agents/githubcopilot.svg" alt="VS Code Copilot logo" width="16" valign="middle" /> VS Code Copilot</kbd></a>
+</p>
+
+[See launch, resume and conversation support for every agent →](https://tortie.sh/docs/supported-agents/#launchable-agents)
+
+Need another CLI? [Add it with one JSON file](https://github.com/gregce/tortie/blob/main/resources/config/README.md)—no rebuild required. Tortie asks before a new definition starts a process. The bundled SpecStory integration can capture supported conversations as Markdown.
+
 ## Other features
-
-### Supported coding agents
-
-- **13 built-in profiles.** Claude Code, Codex CLI, Cursor CLI, Gemini CLI, Qwen Code, Muse Code, Pi, CodeWhale, Antigravity CLI, Factory Droid CLI and Grok run in terminals. Cursor IDE and VS Code Copilot are capture-only.
-- **Add your own with one JSON file.** No rebuild required. Anything that could start a process asks you first. See [how to add an agent](https://github.com/gregce/tortie/blob/main/resources/config/README.md).
-- **Capture conversations as they happen.** The bundled SpecStory integration can record each session as Markdown.
 
 ### Familiar IDE features
 
