@@ -30,6 +30,7 @@
 
 import type { ArchMapEdge, ArchMapFrameEdge } from './types';
 import type { MapBox, MapLayout } from './layout';
+import { cameraTranslate, type Camera, type CameraPoint } from './camera/transform';
 
 // ---------------------------------------------------------------------------
 // Constants, being the whole coordinate vocabulary, on the 4px grid
@@ -321,4 +322,129 @@ export function planFrameEdges(
     });
   }
   return planned;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 162: the camera's arithmetic, being fit, frame and the leash
+// ---------------------------------------------------------------------------
+//
+// The camera itself (the transform algebra) is the vendored extract in
+// `camera/transform.ts`; everything HERE is hand written map arithmetic in
+// the map's own constant vocabulary, which is why it lives in this file.
+
+/** How far out the camera can zoom, floor of the scale extent. A layout
+ *  whose fit is smaller may still fit, see {@link cameraScaleExtent}. */
+export const CAMERA_MIN_K = 0.1;
+/** How far in the camera can zoom. */
+export const CAMERA_MAX_K = 8;
+/** THE NAMED SLOP THRESHOLD, in screen pixels: a press that moves under it
+ *  is a click and reaches the drill, over it is a pan and the click is
+ *  swallowed. Four pixels is the house feel for a click that survives a
+ *  shaky hand. */
+export const CAMERA_DRAG_SLOP = 4;
+/** The leash: however far a pan runs, at least this much of the drawn
+ *  picture stays inside the viewport on each axis, so the map can never be
+ *  lost off screen. */
+export const CAMERA_KEEP_PX = 48;
+/** Margin, in screen pixels, around a framed box (F, Shift+2). */
+export const CAMERA_FRAME_MARGIN = 48;
+/** Framing one box never zooms past this, so F on a tiny box stays a view
+ *  of the neighbourhood rather than a wall of one label. */
+export const CAMERA_FRAME_MAX_K = 4;
+/** One keyboard zoom step (the deferred panel chords), Figma's half-octave. */
+export const CAMERA_KEY_STEP = Math.SQRT2;
+
+/** A rectangle in world units, the layout's own space. */
+export interface WorldRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** The drawn extent of a finished layout, as a world rectangle. */
+export function layoutRect(layout: {
+  width: number;
+  height: number;
+}): WorldRect {
+  return { x: 0, y: 0, w: layout.width, h: layout.height };
+}
+
+/**
+ * The scale extent for one layout in one viewport: the fit scale is always
+ * reachable even when the picture is enormous, and CAMERA_MIN_K is the
+ * floor otherwise.
+ */
+export function cameraScaleExtent(
+  layout: { width: number; height: number },
+  viewport: { width: number; height: number }
+): [number, number] {
+  return [Math.min(CAMERA_MIN_K, fitCamera(layout, viewport).k), CAMERA_MAX_K];
+}
+
+/**
+ * The rest camera: the whole layout fitted and centred in the viewport,
+ * scaled up by at most MAP_MAX_UPSCALE, which is exactly the picture the
+ * pre-camera `preserveAspectRatio="meet"` plus the inline max-size clamp
+ * drew, so Phase 160's rest picture survives the camera untouched.
+ */
+export function fitCamera(
+  layout: { width: number; height: number },
+  viewport: { width: number; height: number }
+): Camera {
+  const w = Math.max(1, layout.width);
+  const h = Math.max(1, layout.height);
+  const k = Math.min(viewport.width / w, viewport.height / h, MAP_MAX_UPSCALE);
+  return {
+    k,
+    x: (viewport.width - w * k) / 2,
+    y: (viewport.height - h * k) / 2
+  };
+}
+
+/**
+ * Frame one world rectangle (F on a focused box, Shift+2): fitted with a
+ * margin, centred, the zoom-in capped so one small box never becomes the
+ * whole wall. The zoom-out floor is the fit scale, so framing can always
+ * reach what it frames.
+ */
+export function frameCamera(
+  rect: WorldRect,
+  layout: { width: number; height: number },
+  viewport: { width: number; height: number }
+): Camera {
+  const w = Math.max(1, rect.w);
+  const h = Math.max(1, rect.h);
+  const kRaw = Math.min(
+    (viewport.width - CAMERA_FRAME_MARGIN * 2) / w,
+    (viewport.height - CAMERA_FRAME_MARGIN * 2) / h
+  );
+  const extent = cameraScaleExtent(layout, viewport);
+  const k = Math.max(extent[0], Math.min(CAMERA_FRAME_MAX_K, kRaw));
+  const centre: CameraPoint = { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
+  const screenCentre: CameraPoint = {
+    x: viewport.width / 2,
+    y: viewport.height / 2
+  };
+  return cameraTranslate({ k, x: 0, y: 0 }, screenCentre, centre);
+}
+
+/**
+ * The leash, applied after every gesture step: clamp the translation so at
+ * least CAMERA_KEEP_PX of the drawn picture stays visible on each axis.
+ * When the picture is smaller than the keep distance the whole picture is
+ * the keep distance.
+ */
+export function clampCamera(
+  t: Camera,
+  layout: { width: number; height: number },
+  viewport: { width: number; height: number }
+): Camera {
+  const drawnW = layout.width * t.k;
+  const drawnH = layout.height * t.k;
+  const keepX = Math.min(CAMERA_KEEP_PX, drawnW);
+  const keepY = Math.min(CAMERA_KEEP_PX, drawnH);
+  const x = Math.min(viewport.width - keepX, Math.max(keepX - drawnW, t.x));
+  const y = Math.min(viewport.height - keepY, Math.max(keepY - drawnH, t.y));
+  return x === t.x && y === t.y ? t : { k: t.k, x, y };
 }

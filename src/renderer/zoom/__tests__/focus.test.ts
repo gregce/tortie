@@ -60,6 +60,22 @@ describe('which region a zoom press belongs to', () => {
     expect(target(['.imgv', '.ed-panel'])).toBe('defer');
   });
 
+  it('leaves the architecture map its own ⌘+ / ⌘- / ⌘0 (Phase 162)', () => {
+    // The map tab nests inside `.ed-panel` exactly as the image viewer
+    // does, so the same ordering is the same whole test: before this
+    // branch existed, ⌘+ over the map silently moved `--zoom-editor`, a
+    // level the person had not asked to change and could not see move.
+    expect(target(['.arch-map-tab', '.ed-panel'])).toBe('defer');
+    // The camera chord routes into the camera, not into any CSS region.
+    expect(target(['.arch-map-tab'])).toBe('defer');
+  });
+
+  it('still zooms the arch COCKPIT as a sidebar view: only the map defers', () => {
+    // The sidebar pane (strip, failure list, outline) stays an ordinary CSS
+    // zoom region under --zoom-arch; the exemption is the map tab alone.
+    expect(target(['.sidebar-view'], 'top', 'arch')).toBe('arch');
+  });
+
   it('zooms the dock list from the dock', () => {
     expect(target(['[data-slot="session-dock"]'], 'right')).toBe('sessions');
   });

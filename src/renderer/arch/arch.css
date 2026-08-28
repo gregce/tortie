@@ -452,6 +452,9 @@
   min-height: 0;
   height: 100%;
   overflow: auto;
+  /* Phase 162: the staged drill's overlay positions against the tab, so
+     its container-local rectangles mean what they say. */
+  position: relative;
   background: var(--bg-surface);
   color: var(--text-secondary);
 }

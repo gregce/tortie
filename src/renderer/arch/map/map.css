@@ -258,3 +258,34 @@ button.arch-map-crumb:hover {
   color: var(--text-muted);
   flex: none;
 }
+
+/* -- Phase 162: the camera --------------------------------------------------
+
+   Nothing here moves by CSS: every motion is the camera engine rewriting one
+   transform attribute, which is the mechanism research 68 measured vsync
+   locked. CSS only dresses the states. */
+
+/* A pan must never start a text selection in the foreignObject labels. */
+.arch-map-svg {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The hand tool: Space held offers the grab, a live pan grips. */
+.arch-map-svg.arch-map-hand {
+  cursor: grab;
+}
+
+.arch-map-svg.arch-map-panning {
+  cursor: grabbing;
+}
+
+/* While the camera moves, boxes and stubs stop answering the pointer: no
+   hover restyle churns mid gesture (the research 68 rule that filters and
+   fancy dress are for rest), and the glide cannot land a stray hover. The
+   drill click is unaffected, because a press that stays under the slop
+   threshold never wears this class. */
+.arch-map-svg.arch-map-moving .arch-map-box,
+.arch-map-svg.arch-map-moving .arch-map-stub {
+  pointer-events: none;
+}

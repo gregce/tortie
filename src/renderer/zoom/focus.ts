@@ -13,7 +13,10 @@
  *    real magnifier with pointer-anchored scaling and a fit mode; the window
  *    handler runs in the capture phase and would otherwise swallow the chord
  *    before the viewer's own bubble-phase handler ever saw it. `'defer'`
- *    means "not ours — let it through untouched".
+ *    means "not ours — let it through untouched". The ARCHITECTURE MAP TAB
+ *    (Phase 162) defers for the same reason: its camera owns the coordinate
+ *    math, so the chord routes into the camera's own scale and never into a
+ *    CSS zoom region.
  *  - **A sidebar view is its own region, whichever view it is.** The region
  *    comes from the view's own identifier rather than from a branch that
  *    names the views it knows, so the sidebar's next view zooms on the day it
@@ -65,8 +68,15 @@ export function zoomTargetFor(
   closest: ClosestProbe,
   orientation: SessionSurfaceOrientation
 ): ZoomTarget {
-  // Surfaces that own the chord themselves.
+  // Surfaces that own the chord themselves. The MAP TAB (Phase 162) is the
+  // image viewer's twin: its camera owns the coordinate math, so ⌘+ over the
+  // map scales the camera rather than a CSS region (research 68 §6.3, the
+  // Monaco and Pierre precedent). ORDERING IS LOAD-BEARING: both surfaces
+  // nest inside `.ed-panel`, so deferring must win over the editor region,
+  // or the chord silently moves `--zoom-editor` — a level the person did not
+  // ask to change, the exact Phase 18.55 bug shape.
   if (closest('.imgv') !== null) return 'defer';
+  if (closest('.arch-map-tab') !== null) return 'defer';
 
   if (closest('.ed-panel') !== null) return 'editor';
   if (closest('.gmux-terminal-pane') !== null) return 'terminal';

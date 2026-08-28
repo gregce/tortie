@@ -285,3 +285,100 @@ export interface ArchMapPartResult extends ArchMapPartModel {
   /** The commit the fact base was scanned at, or null before any scan. */
   scannedAtCommit: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// The canvas (Phase 162): camera state and kept layout
+// ---------------------------------------------------------------------------
+
+/**
+ * Phase 162 gives the map a camera and a layout that stays where a person
+ * left it. Both persist in `arch.db`, the DISPOSABLE side of the standing
+ * contract: losing the file costs a re-layout and nothing else, exactly the
+ * doctrine the database's own header states. Nothing here touches the
+ * manifest, a session or any file in the person's repository.
+ *
+ * SCOPE is the drill rung the state belongs to: `root` for the whole map and
+ * `part:<groupId>` for one drilled part, so each level keeps its own camera
+ * and its own kept positions. Level 3 is a file list, not a drawing, and has
+ * no canvas state.
+ *
+ * The writes REPLACE WHOLE: a camera write replaces the scope's camera and a
+ * layout write replaces every kept position in the scope in one transaction.
+ * Existing nodes keep their stored positions across re-reads; a node new to
+ * the facts simply has no row and is laid out around the kept ones; and
+ * re-layout is an EXPLICIT act (`arch:clearLayout`) that drops the scope's
+ * rows so the next draw computes fresh. An invalid value (a non-finite
+ * number, an over-long id) refuses the WHOLE write with `ok: false` rather
+ * than persisting half a picture.
+ */
+
+/** The camera at rest over one scope: scale, then translate. */
+export interface ArchCameraState {
+  /** The zoom factor. Finite and positive, or the row is dropped whole. */
+  k: number;
+  /** Translation, screen pixels, applied after the scale. */
+  x: number;
+  y: number;
+}
+
+/** One kept node position, in the scene's own coordinate space. */
+export interface ArchNodePosition {
+  /** The group or module id the position belongs to. */
+  nodeId: string;
+  x: number;
+  y: number;
+}
+
+/** The whole-map scope. */
+export const ARCH_CANVAS_ROOT_SCOPE = 'root' as const;
+
+/** The scope one drilled part's canvas state lives under. */
+export function archCanvasPartScope(groupId: string): string {
+  return `part:${groupId}`;
+}
+
+/** One scope of one repository, the key every canvas call carries. */
+export interface ArchCanvasStateInput {
+  cwd: string;
+  scope: string;
+}
+
+/** What the one canvas read answers: both halves in one round trip. */
+export interface ArchCanvasStateResult {
+  cwd: string;
+  scope: string;
+  /** The kept camera, or null when none was ever saved for this scope. */
+  camera: ArchCameraState | null;
+  /** The kept positions, empty when the scope has no stored layout. */
+  positions: ArchNodePosition[];
+}
+
+/** Save the scope's camera. Written at rest, never per frame. */
+export interface ArchSetCameraInput {
+  cwd: string;
+  scope: string;
+  camera: ArchCameraState;
+}
+
+/** Replace the scope's kept layout whole, in one transaction. */
+export interface ArchSetLayoutInput {
+  cwd: string;
+  scope: string;
+  positions: ArchNodePosition[];
+}
+
+/** Drop the scope's kept layout: re-layout as an explicit act. */
+export interface ArchClearLayoutInput {
+  cwd: string;
+  scope: string;
+}
+
+/**
+ * Whether a canvas write was kept. `ok: false` means the write was refused
+ * whole, with the refusing field named, never a partial merge.
+ */
+export interface ArchCanvasWriteResult {
+  ok: boolean;
+  /** One sentence naming the field and the reason, when refused. */
+  reason: string | null;
+}

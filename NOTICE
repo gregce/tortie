@@ -67,6 +67,39 @@ reinvent.
   Licensed under the MIT Licence.
 
 --------------------------------------------------------------------------------
+Code copied from D3
+--------------------------------------------------------------------------------
+Two files contain algorithms copied from Mike Bostock's D3 rather than
+reimplemented, vendored under the same assemble-rather-than-reinvent rule as
+the VS Code extracts above. No d3 package ships in the application; only these
+two transcriptions do.
+
+  src/renderer/arch/map/camera/transform.ts   the zoom-toward-cursor transform
+                                              algebra from d3/d3-zoom v3.0.0
+                                              (src/transform.js and the scale
+                                              and translate pair plus the wheel
+                                              delta from src/zoom.js)
+  src/renderer/arch/map/camera/fly.ts         interpolateZoom, the van Wijk and
+                                              Nuij smooth zoom-and-pan path,
+                                              from d3/d3-interpolate v3.0.1
+                                              (src/zoom.js)
+
+  Copyright 2010-2021 Mike Bostock
+  Licensed under the ISC License.
+
+  Permission to use, copy, modify, and/or distribute this software for any
+  purpose with or without fee is hereby granted, provided that the above
+  copyright notice and this permission notice appear in all copies.
+
+  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+--------------------------------------------------------------------------------
 Third party marks
 --------------------------------------------------------------------------------
 The MIT licence on this repository covers Tortie's own code. It does not cover

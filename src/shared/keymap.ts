@@ -136,7 +136,8 @@ export type KeymapScope =
   | 'explorer'
   | 'git'
   | 'search'
-  | 'palette';
+  | 'palette'
+  | 'map';
 
 export const SCOPE_LABELS: Readonly<Record<KeymapScope, string>> = {
   app: 'Anywhere',
@@ -147,7 +148,8 @@ export const SCOPE_LABELS: Readonly<Record<KeymapScope, string>> = {
   explorer: 'In the file tree',
   git: 'In source control',
   search: 'In the search view',
-  palette: 'In the go-to-file palette'
+  palette: 'In the go-to-file palette',
+  map: 'In the architecture map'
 };
 
 export interface KeymapChord {
@@ -1014,6 +1016,45 @@ export const KEYMAP = [
     explain: 'Returns every region to its normal size at once.',
     group: 'views',
     scope: 'app',
+    assignable: false,
+    source: 'built-in'
+  },
+  // PHASE 162, the map's camera keys. DISPLAY ONLY, the `lit('S')`
+  // mechanism: every chord here is handled by the map tab's own bubble
+  // handler over its own element, never registered as an accelerator and
+  // never listened for at the window, so nothing can be taken from a
+  // terminal pane. ⌘+ / ⌘− / ⌘0 are not repeated here: those rows above
+  // already say "where you are working", and over the map that is the
+  // camera.
+  {
+    id: 'map.frame',
+    keys: [lit('F')],
+    action: 'Frame the selection',
+    explain:
+      'Centres the map on what is selected and zooms to fit it. With nothing selected it frames the whole map.',
+    group: 'views',
+    scope: 'map',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    id: 'map.fitAll',
+    keys: [lit('⇧1')],
+    action: 'Fit the whole map',
+    explain: 'Zooms the map camera so the whole drawing fits the tab.',
+    group: 'views',
+    scope: 'map',
+    assignable: false,
+    source: 'built-in'
+  },
+  {
+    id: 'map.fitSelection',
+    keys: [lit('⇧2')],
+    action: 'Fit the selection',
+    explain:
+      'Zooms the map camera so the selected boxes fill the tab. With nothing selected it fits the whole map.',
+    group: 'views',
+    scope: 'map',
     assignable: false,
     source: 'built-in'
   },

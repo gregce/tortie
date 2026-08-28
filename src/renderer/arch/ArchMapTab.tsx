@@ -36,10 +36,30 @@
  * judged promise rides carries that verdict. One picture for both states.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
+import { ARCH_CANVAS_ROOT_SCOPE, archCanvasPartScope } from '@shared/ipc';
 import { archBridge } from './bridge';
 import type { ArchMapResult } from './bridge';
 import { ArchMap, type MapViewport } from './map';
+import {
+  cameraKeyCommand,
+  isEditableTarget,
+  runCameraCommand
+} from './map/camera/keys';
+import type { ArchCameraHandle, ArchCanvasSeam } from './map/camera/seam';
+import {
+  boxElement,
+  containerStageRect,
+  rectInContainer,
+  runDrillStage
+} from './map/transitions';
 import { toMapModel, toPartMapModel } from './map-model';
 import {
   ARCH_MAP_EMPTY_REPO,
@@ -49,7 +69,7 @@ import {
   ARCH_MAP_STALE
 } from './copy';
 import { ArchDrillFiles } from './ArchModules';
-import { DRILL_HOME, partKey, useArch } from './store';
+import { canvasKey, DRILL_HOME, partKey, useArch } from './store';
 import type { ArchDrill, ArchMapEntry, ArchPartMapEntry } from './store';
 import './arch.css';
 
@@ -83,6 +103,83 @@ export function ArchMapTab({
   const drillUp = useArch((s) => s.drillUp);
   const drillHome = useArch((s) => s.drillHome);
   const loadPartMap = useArch((s) => s.loadPartMap);
+
+  // PHASE 162. The canvas scope this drill rung draws under: the whole map
+  // and each drilled part keep their own camera and their own layout. Level
+  // 3 is a file list, not a drawing, and keeps the part's scope so walking
+  // down and back does not lose the part's camera.
+  const scope =
+    drill.level === 1
+      ? ARCH_CANVAS_ROOT_SCOPE
+      : archCanvasPartScope(drill.groupId);
+  const canvasEntry = useArch((s) => s.canvas[canvasKey(repoPath, scope)] ?? null);
+  const loadCanvas = useArch((s) => s.loadCanvas);
+  const keepCamera = useArch((s) => s.keepCamera);
+  const keepLayout = useArch((s) => s.keepLayout);
+  useEffect(() => {
+    void loadCanvas(repoPath, scope);
+  }, [repoPath, scope, loadCanvas]);
+
+  // The live camera, populated by the drawing through the seam while it is
+  // mounted. The key set below drives it; before it mounts, every command is
+  // a safe no-op.
+  const cameraRef = useRef<ArchCameraHandle | null>(null);
+
+  // PHASE 162, the staged drill (integrator wiring). The stage overlay
+  // lives on the tab's own element, which survives the model swap that
+  // replaces the drawing beneath it. Drilling IN stages first and swaps on
+  // resolve; drilling UP swaps first and this ref carries the group id the
+  // picture shrinks back into, consumed by the layout effect below once the
+  // parent picture is on screen. `runDrillStage` itself is the reduced
+  // motion cut, so nothing here checks the preference twice.
+  const tabRef = useRef<HTMLDivElement | null>(null);
+  const pendingUpStage = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    const groupId = pendingUpStage.current;
+    if (groupId === null) return;
+    pendingUpStage.current = null;
+    if (drill.level !== 1) return;
+    const container = tabRef.current;
+    if (container === null) return;
+    const box = boxElement(container, groupId);
+    if (box === null) return;
+    void runDrillStage({
+      container,
+      groupId,
+      from: containerStageRect(container),
+      to: rectInContainer(box, container)
+    });
+  }, [drill]);
+
+  const canvas = useMemo<ArchCanvasSeam>(
+    () => ({
+      cameraRef,
+      camera: canvasEntry?.camera ?? null,
+      positions: canvasEntry?.positions ?? null,
+      onCameraRest: (camera) => keepCamera(repoPath, scope, camera),
+      onLayoutChange: (positions) => keepLayout(repoPath, scope, positions)
+    }),
+    [canvasEntry, repoPath, scope, keepCamera, keepLayout]
+  );
+
+  // THE FIGMA KEY SET, bubble phase on the tab's own element and nowhere
+  // wider: F frames, Shift+1 fits all, Shift+2 fits the selection, and the
+  // panel zoom chord lands here because `zoom/focus.ts` defers over
+  // `.arch-map-tab` (the image viewer precedent). Nothing is taken from a
+  // terminal pane, whose keys only arrive while a pane has focus, and a
+  // keydown that began in a field is never answered.
+  const onCameraKeyDown = useCallback(
+    (e: React.KeyboardEvent): void => {
+      if (isEditableTarget(e.target)) return;
+      const command = cameraKeyCommand(e);
+      if (command === null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      runCameraCommand(cameraRef.current, command);
+    },
+    []
+  );
 
   // The scan's own progress FOR THIS REPOSITORY, subscribed here rather than
   // read from the store's `progress`, because that one belongs to the active
@@ -129,21 +226,53 @@ export function ArchMapTab({
   // looking labels up in the payload so the breadcrumb says real names.
   const handlers = useMemo<ArchMapDrillHandlers>(() => {
     const model = entry?.model ?? null;
+    // The clicked box grows into the frame, then the model swaps. When the
+    // stage cannot run (no DOM yet, the box gone, reduced motion) the swap
+    // is immediate, which is the end state.
+    const stageInto = (groupId: string, swap: () => void): void => {
+      const container = tabRef.current;
+      const box = container === null ? null : boxElement(container, groupId);
+      if (container === null || box === null) {
+        swap();
+        return;
+      }
+      void runDrillStage({
+        container,
+        groupId,
+        from: rectInContainer(box, container),
+        to: containerStageRect(container),
+        hide: box
+      }).then(swap);
+    };
+    // Walking up from the drawn level swaps first; the layout effect above
+    // stages the shrink once the parent picture is on screen. Level 3 is a
+    // file list, not a drawing, so its walk stays a cut.
+    const stageUpFrom = drill.level === 2 ? drill.groupId : null;
     return {
       openPart: (groupId) => {
         const found = model?.groups.find((g) => g.id === groupId);
-        drillInto(repoPath, groupId, found?.label ?? groupId);
+        stageInto(groupId, () => {
+          drillInto(repoPath, groupId, found?.label ?? groupId);
+        });
       },
       openModule: (moduleId) => {
         const found = part?.model?.modules.find((m) => m.id === moduleId);
         if (found !== undefined) {
-          drillIntoModule(repoPath, found.dir, found.label);
+          stageInto(moduleId, () => {
+            drillIntoModule(repoPath, found.dir, found.label);
+          });
         }
       },
-      up: () => drillUp(repoPath),
-      home: () => drillHome(repoPath)
+      up: () => {
+        pendingUpStage.current = stageUpFrom;
+        drillUp(repoPath);
+      },
+      home: () => {
+        pendingUpStage.current = stageUpFrom;
+        drillHome(repoPath);
+      }
     };
-  }, [entry, part, repoPath, drillInto, drillIntoModule, drillUp, drillHome]);
+  }, [entry, part, repoPath, drill, drillInto, drillIntoModule, drillUp, drillHome]);
 
   return (
     <ArchMapTabBody
@@ -153,6 +282,9 @@ export function ArchMapTab({
       drill={drill}
       part={part}
       handlers={handlers}
+      canvas={canvas}
+      onCameraKeyDown={onCameraKeyDown}
+      tabRef={tabRef}
     />
   );
 }
@@ -244,10 +376,19 @@ export function ArchMapCrumbs({
  */
 function MeasuredMap({
   model,
-  onOpenGroup
+  onOpenGroup,
+  canvas
 }: {
   model: ReturnType<typeof toMapModel>;
   onOpenGroup?: (groupId: string) => void;
+  /**
+   * PHASE 162, THE SEAM: the kept camera and layout in, the live camera
+   * handle and the at-rest writes out. The INTEGRATOR wires this into
+   * `ArchMap`'s camera props when the camera lands in `./map`; until then
+   * the drawing renders exactly as Phase 161 left it and every key command
+   * is a safe no-op through the null handle.
+   */
+  canvas?: ArchCanvasSeam;
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<MapViewport | null>(null);
@@ -274,12 +415,17 @@ function MeasuredMap({
     return () => observer.disconnect();
   }, []);
 
+  // PHASE 162, integrated: the seam flows through, the camera engine in
+  // ./map/camera reads the kept state and publishes its handle back into
+  // `canvas.cameraRef`. Without a seam the drawing stays as static as the
+  // Phase 161 suites expect.
   return (
     <div className="arch-map-fill" ref={ref}>
       <ArchMap
         model={model}
         viewport={viewport ?? undefined}
         onOpenGroup={onOpenGroup}
+        canvas={canvas}
       />
     </div>
   );
@@ -301,7 +447,10 @@ export function ArchMapTabBody({
   repoPath = '',
   drill = DRILL_HOME,
   part = null,
-  handlers = NO_HANDLERS
+  handlers = NO_HANDLERS,
+  canvas,
+  onCameraKeyDown,
+  tabRef
 }: {
   entry: ArchMapEntry | null;
   progress: { done: number; total: number } | null;
@@ -309,14 +458,29 @@ export function ArchMapTabBody({
   drill?: ArchDrill;
   part?: ArchPartMapEntry | null;
   handlers?: ArchMapDrillHandlers;
+  /** PHASE 162: the canvas seam, absent in suites that predate the camera. */
+  canvas?: ArchCanvasSeam;
+  /** PHASE 162: the key set's bubble handler, attached at the drawing levels. */
+  onCameraKeyDown?: (e: React.KeyboardEvent) => void;
+  /** PHASE 162: the container element the staged drill rides on. */
+  tabRef?: React.Ref<HTMLDivElement>;
 }): React.JSX.Element {
   const subject = subjectOf(entry, repoPath);
 
   if (drill.level === 2) {
     return (
-      <div className="arch-map-tab" data-slot="arch-map-tab">
+      <div
+        className="arch-map-tab"
+        data-slot="arch-map-tab"
+        ref={tabRef}
+        // PHASE 162. Focusable so the key set works after a plain click on
+        // the ground, the image viewer's own pattern; -1 keeps it out of the
+        // tab order, where the boxes already are.
+        tabIndex={onCameraKeyDown === undefined ? undefined : -1}
+        onKeyDown={onCameraKeyDown}
+      >
         <ArchMapCrumbs subject={subject} drill={drill} handlers={handlers} />
-        <ScopedBody part={part} handlers={handlers} />
+        <ScopedBody part={part} handlers={handlers} canvas={canvas} />
       </div>
     );
   }
@@ -374,12 +538,18 @@ export function ArchMapTabBody({
   }
 
   return (
-    <div className="arch-map-tab" data-slot="arch-map-tab">
+    <div
+      className="arch-map-tab"
+      data-slot="arch-map-tab"
+      ref={tabRef}
+      tabIndex={onCameraKeyDown === undefined ? undefined : -1}
+      onKeyDown={onCameraKeyDown}
+    >
       <ArchMapCrumbs subject={subject} drill={drill} handlers={handlers} />
       {entry?.status === 'error' ? (
         <p className="arch-map-stale">{ARCH_MAP_STALE}</p>
       ) : null}
-      <MapBody model={model} onOpenGroup={handlers.openPart} />
+      <MapBody model={model} onOpenGroup={handlers.openPart} canvas={canvas} />
     </div>
   );
 }
@@ -387,10 +557,12 @@ export function ArchMapTabBody({
 /** The scoped level 2 face: one part as its modules, framed by the rest. */
 function ScopedBody({
   part,
-  handlers
+  handlers,
+  canvas
 }: {
   part: ArchPartMapEntry | null;
   handlers: ArchMapDrillHandlers;
+  canvas?: ArchCanvasSeam;
 }): React.JSX.Element {
   const model = part?.model ?? null;
 
@@ -426,7 +598,11 @@ function ScopedBody({
       {part?.status === 'error' ? (
         <p className="arch-map-stale">{ARCH_MAP_STALE}</p>
       ) : null}
-      <ScopedMapBody part={model} onOpenGroup={handlers.openModule} />
+      <ScopedMapBody
+        part={model}
+        onOpenGroup={handlers.openModule}
+        canvas={canvas}
+      />
     </>
   );
 }
@@ -437,23 +613,27 @@ function ScopedBody({
  */
 function MapBody({
   model,
-  onOpenGroup
+  onOpenGroup,
+  canvas
 }: {
   model: ArchMapResult;
   onOpenGroup?: (groupId: string) => void;
+  canvas?: ArchCanvasSeam;
 }): React.JSX.Element {
   const drawn = useMemo(() => toMapModel(model), [model]);
-  return <MeasuredMap model={drawn} onOpenGroup={onOpenGroup} />;
+  return <MeasuredMap model={drawn} onOpenGroup={onOpenGroup} canvas={canvas} />;
 }
 
 /** The same seam for the scoped payload. */
 function ScopedMapBody({
   part,
-  onOpenGroup
+  onOpenGroup,
+  canvas
 }: {
   part: NonNullable<ArchPartMapEntry['model']>;
   onOpenGroup?: (moduleId: string) => void;
+  canvas?: ArchCanvasSeam;
 }): React.JSX.Element {
   const drawn = useMemo(() => toPartMapModel(part), [part]);
-  return <MeasuredMap model={drawn} onOpenGroup={onOpenGroup} />;
+  return <MeasuredMap model={drawn} onOpenGroup={onOpenGroup} canvas={canvas} />;
 }

@@ -1,0 +1,71 @@
+/**
+ * The staged drill transition and the gesture gate (Phase 162).
+ * Colocated with transitions.ts, which owns every class named here.
+ *
+ * Two rules from research 68 govern this file. First, motion is one user
+ * gesture then still, so everything here exists only while a stage or a
+ * gesture is live and nothing loops. Second, a group level CSS filter
+ * measured 15.8 ms mean per frame while panning, so the gesture gate below
+ * kills every filter and every transition for the duration of a gesture.
+ * All colors are tokens.
+ */
+
+/* ------------------------------------------------------------------------
+ * The stage: the old picture dims under the travelling box
+ * ---------------------------------------------------------------------- */
+
+.arch-map-stage-out .arch-map-svg {
+  opacity: var(--graph-dim);
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
+
+/* The clicked box's own group hides while its stage box rides above, so
+ * the keyed datum appears exactly once. */
+.arch-map-stage-hide {
+  opacity: 0;
+}
+
+/* The travelling box, laid out at its destination and FLIPped back to its
+ * origin by transitions.ts. Only transform animates; left, top, width and
+ * height are written once before the animation starts. Painted with the
+ * box's own elevation step so it reads as the same slab. */
+.arch-map-stage-box {
+  position: absolute;
+  box-sizing: border-box;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transform-origin: 0 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ------------------------------------------------------------------------
+ * The gesture gate
+ *
+ * While a pan, zoom or inertial release is live, no filter and no
+ * transition may run anywhere in the map. The !important is deliberate and
+ * is the point: whatever rest styling any round adds to any map element,
+ * the gate wins during a gesture, without that round having to know the
+ * gate exists. Stillness gets the full device stack back by removing the
+ * class, and the reappearing filter costs one settled frame, not a moving
+ * one.
+ * ---------------------------------------------------------------------- */
+
+.arch-map-gesturing .arch-map-svg,
+.arch-map-gesturing .arch-map-svg * {
+  filter: none !important;
+  transition: none !important;
+}
+
+/* ------------------------------------------------------------------------
+ * Reduced motion: the JS gate already refuses to create a stage at all,
+ * and this is the belt for the one class with a transition, so even a
+ * stage forced by a probe cuts to its end state.
+ * ---------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .arch-map-stage-out .arch-map-svg {
+    transition: none;
+  }
+}

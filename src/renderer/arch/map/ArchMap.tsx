@@ -28,13 +28,29 @@
  * the layout uses one fixed default viewport, which keeps the server render
  * and the tests deterministic.
  *
+ * ## The camera (Phase 162)
+ *
+ * Every scene child sits inside ONE `<g class="arch-map-camera">` whose
+ * transform is the camera; `<defs>` stays outside because markers are
+ * definitions, not scenery. The svg's viewBox is the measured viewport in
+ * CSS pixels, so one viewBox unit is one screen pixel and the gesture
+ * layer's pointer math needs no fitting correction; the rest camera is the
+ * FIT transform of the layout against that viewport, clamped by
+ * MAP_MAX_UPSCALE, which draws the exact picture the Phase 161 `meet`
+ * fitting drew. The camera engine (`./camera/useCamera`) writes the
+ * transform attribute imperatively at 120 Hz during a gesture and commits
+ * through React at rest, so a given camera state always renders one exact,
+ * byte stable picture. Without the `canvas` seam the picture is exactly as
+ * static as Phase 161 left it.
+ *
  * ## What is deliberately absent
  *
  * No number appears on any node or edge, because weight is size and
- * thickness, and the dashboard refusal survives. No pan, no zoom, no drag:
- * still Phase 162. The one interaction is the drill: a box is a button when
- * the container hands `onOpenGroup` in, and the frame stubs of a scoped
- * picture are context, never buttons, because the ladder is the navigation.
+ * thickness, and the dashboard refusal survives. The interactions are the
+ * drill (a box is a button when the container hands `onOpenGroup` in) and
+ * the camera (when the container hands `canvas` in); the frame stubs of a
+ * scoped picture are context, never buttons, because the ladder is the
+ * navigation.
  */
 
 import { useMemo, type FC, type KeyboardEvent } from 'react';
@@ -44,7 +60,6 @@ import {
   MAP_BAND_COL,
   MAP_BOX_R,
   MAP_LABEL_INSET,
-  MAP_MAX_UPSCALE,
   MAP_PAD,
   edgeMarkerId,
   edgeMaxCount,
@@ -52,8 +67,16 @@ import {
   planEdges,
   planFrameEdges
 } from './geometry';
-import { layoutMap, type MapBox, type MapStub, type MapViewport } from './layout';
+import {
+  layoutMap,
+  MAP_DEFAULT_VIEWPORT,
+  type MapBox,
+  type MapStub,
+  type MapViewport
+} from './layout';
 import { bandWord, type ArchMapModel } from './types';
+import { useCamera } from './camera/useCamera';
+import type { ArchCanvasSeam } from './camera/seam';
 import './map.css';
 
 export interface ArchMapProps {
@@ -70,6 +93,12 @@ export interface ArchMapProps {
    * static as Phase 160 drew it.
    */
   onOpenGroup?: (groupId: string) => void;
+  /**
+   * Phase 162, the canvas seam: the kept camera in, the live camera handle
+   * and the at-rest saves out. When present the map pans, zooms and glides;
+   * absent, the camera stands at the fit and no listener attaches.
+   */
+  canvas?: ArchCanvasSeam;
 }
 
 /** What an empty model says instead of a blank surface. */
@@ -133,7 +162,12 @@ const NO_FRAME: readonly [] = [];
  * count, provenance is style, and the honest grey says whose imports nobody
  * could read.
  */
-export const ArchMap: FC<ArchMapProps> = ({ model, viewport, onOpenGroup }) => {
+export const ArchMap: FC<ArchMapProps> = ({
+  model,
+  viewport,
+  onOpenGroup,
+  canvas
+}) => {
   const layout = useMemo(() => layoutMap(model, viewport), [model, viewport]);
   const frame = model.frame ?? NO_FRAME;
   const maxCount = useMemo(() => edgeMaxCount(model.edges, frame), [model.edges, frame]);
@@ -145,6 +179,12 @@ export const ArchMap: FC<ArchMapProps> = ({ model, viewport, onOpenGroup }) => {
     () => planFrameEdges(layout, frame, maxCount),
     [layout, frame, maxCount]
   );
+
+  // The pixel space the svg draws in: the measured viewport, or the layout
+  // default, so a bare render stays deterministic. Hooks run before the
+  // empty-model return, per the rules of hooks.
+  const vp = viewport ?? MAP_DEFAULT_VIEWPORT;
+  const camera = useCamera(layout, vp, canvas);
 
   if (layout.boxes.length === 0) {
     return <p className="arch-map-empty">{ARCH_MAP_EMPTY}</p>;
@@ -159,13 +199,10 @@ export const ArchMap: FC<ArchMapProps> = ({ model, viewport, onOpenGroup }) => {
 
   return (
     <svg
+      ref={camera.bindSvg}
       className="arch-map-svg"
-      viewBox={`0 0 ${layout.width} ${layout.height}`}
+      viewBox={`0 0 ${vp.width} ${vp.height}`}
       preserveAspectRatio="xMidYMid meet"
-      style={{
-        maxWidth: layout.width * MAP_MAX_UPSCALE,
-        maxHeight: layout.height * MAP_MAX_UPSCALE
-      }}
       role="img"
       aria-label="Map of the codebase"
     >
@@ -175,6 +212,14 @@ export const ArchMap: FC<ArchMapProps> = ({ model, viewport, onOpenGroup }) => {
         <Arrow id="arch-map-arrow-broke" cls="arch-map-head-broke" />
       </defs>
 
+      {/* THE CAMERA: one transform over the whole scene, defs excluded.
+          The engine rewrites this attribute imperatively while a gesture,
+          glide or flight is live; at rest React renders the same bytes. */}
+      <g
+        ref={camera.bindScene}
+        className="arch-map-camera"
+        transform={camera.transform}
+      >
       {layout.rows.map((row) => (
         <text
           key={row.band}
@@ -315,6 +360,7 @@ export const ArchMap: FC<ArchMapProps> = ({ model, viewport, onOpenGroup }) => {
         x2={MAP_BAND_COL - 12}
         y2={layout.height - MAP_PAD}
       />
+      </g>
     </svg>
   );
 };

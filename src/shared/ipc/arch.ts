@@ -60,11 +60,17 @@ import type {
   ArchModulesResult
 } from './arch-modules';
 import type {
+  ArchCanvasStateInput,
+  ArchCanvasStateResult,
+  ArchCanvasWriteResult,
+  ArchClearLayoutInput,
   ArchMapInput,
   ArchMapPartInput,
   ArchMapPartResult,
   ArchMapResult,
-  ArchMapUpdatedEvent
+  ArchMapUpdatedEvent,
+  ArchSetCameraInput,
+  ArchSetLayoutInput
 } from './arch-map';
 import type { Unsubscribe } from './base';
 
@@ -301,6 +307,42 @@ export interface ArchInvokeChannelMap {
     req: [input: ArchModuleFilesInput];
     res: ArchModuleFilesResult;
   };
+  /**
+   * The canvas state for one scope of one repository (Phase 162): the kept
+   * camera and the kept layout, both halves in one round trip. Reads only
+   * Tortie's own arch database, spawns nothing and never waits on a scan.
+   */
+  'arch:canvasState': {
+    req: [input: ArchCanvasStateInput];
+    res: ArchCanvasStateResult;
+  };
+  /**
+   * Keep the scope's camera (Phase 162). Written at rest, never per frame;
+   * the debounce is the renderer's. It writes ONLY `arch.db`, the disposable
+   * database whose loss costs a re-layout, and an invalid value refuses the
+   * whole write with the field named rather than persisting half a camera.
+   */
+  'arch:setCamera': {
+    req: [input: ArchSetCameraInput];
+    res: ArchCanvasWriteResult;
+  };
+  /**
+   * Replace the scope's kept layout whole, in one transaction (Phase 162).
+   * Existing nodes keep stored positions across re-reads; a node new to the
+   * facts has no row and is laid out around the kept ones.
+   */
+  'arch:setLayout': {
+    req: [input: ArchSetLayoutInput];
+    res: ArchCanvasWriteResult;
+  };
+  /**
+   * Drop the scope's kept layout (Phase 162): re-layout as an EXPLICIT act,
+   * never a side effect of a resize or a re-read.
+   */
+  'arch:clearLayout': {
+    req: [input: ArchClearLayoutInput];
+    res: ArchCanvasWriteResult;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -358,6 +400,10 @@ export interface GmuxArchExtras {
     map(input: ArchMapInput): Promise<ArchMapResult>;
     mapPart(input: ArchMapPartInput): Promise<ArchMapPartResult>;
     moduleFiles(input: ArchModuleFilesInput): Promise<ArchModuleFilesResult>;
+    canvasState(input: ArchCanvasStateInput): Promise<ArchCanvasStateResult>;
+    setCamera(input: ArchSetCameraInput): Promise<ArchCanvasWriteResult>;
+    setLayout(input: ArchSetLayoutInput): Promise<ArchCanvasWriteResult>;
+    clearLayout(input: ArchClearLayoutInput): Promise<ArchCanvasWriteResult>;
     onChecked(cb: (event: ArchCheckedEvent) => void): Unsubscribe;
     onProgress(cb: (progress: ArchProgressEvent) => void): Unsubscribe;
     onMapUpdated(cb: (event: ArchMapUpdatedEvent) => void): Unsubscribe;

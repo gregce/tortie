@@ -42,6 +42,7 @@ import type {
   ArchVerdict,
   ArchVerdictStatus
 } from '@shared/arch';
+import type { ArchCameraState, ArchNodePosition } from '@shared/ipc';
 import {
   immediateTransaction,
   openGmuxDatabase,
@@ -225,8 +226,62 @@ const MIGRATIONS: readonly SqliteMigration[] = [
         DELETE FROM arch_import_file;
       `);
     }
+  },
+  {
+    // PHASE 162. The canvas: the camera and the kept layout, per repository
+    // and per drill scope (`root`, or `part:<groupId>`), so each rung of the
+    // ladder keeps its own picture. POSITIONS ONLY, never sizes: a box's size
+    // is computed from its weight and file counts move, so a stored size
+    // would freeze a lie. Both tables are as disposable as everything else in
+    // this file: losing them costs a re-layout and a re-fit, nothing a person
+    // wrote.
+    name: '003-arch-canvas',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS arch_camera (
+          repo_key TEXT NOT NULL,
+          scope    TEXT NOT NULL,
+          k        REAL NOT NULL,
+          x        REAL NOT NULL,
+          y        REAL NOT NULL,
+          PRIMARY KEY (repo_key, scope)
+        );
+        CREATE TABLE IF NOT EXISTS arch_layout (
+          repo_key TEXT NOT NULL,
+          scope    TEXT NOT NULL,
+          node_id  TEXT NOT NULL,
+          x        REAL NOT NULL,
+          y        REAL NOT NULL,
+          PRIMARY KEY (repo_key, scope, node_id)
+        );
+      `);
+    }
   }
 ];
+
+/**
+ * The canvas bounds (Phase 162). A scope is `root` or `part:<groupId>`, and a
+ * group id is a kebab directory name, so 256 characters is generous. The row
+ * cap covers every scale a drawing lays out — 5 to 9 boxes at level 1, the
+ * cap of 30 at level 2 — with two orders of headroom; matrix cells are never
+ * positioned one by one. Anything past a bound refuses the WHOLE write with
+ * the field named, never a truncation, so what is stored is always a picture
+ * somebody actually made.
+ */
+const MAX_SCOPE_CHARS = 256;
+const MAX_NODE_ID_CHARS = 256;
+const MAX_LAYOUT_ROWS = 512;
+
+/** One sentence naming the refusing field, or null when the scope is fine. */
+function refuseScope(scope: string): string | null {
+  if (scope.length === 0 || scope.length > MAX_SCOPE_CHARS) {
+    return `scope must be 1 to ${String(MAX_SCOPE_CHARS)} characters`;
+  }
+  if (scope !== 'root' && !scope.startsWith('part:')) {
+    return 'scope must be "root" or "part:<groupId>"';
+  }
+  return null;
+}
 
 interface ImportRow {
   from_path: string;
@@ -587,6 +642,129 @@ export class ArchStore {
     });
   }
 
+  // -------------------------------------------------------------------------
+  // The canvas (Phase 162): the camera and the kept layout
+  // -------------------------------------------------------------------------
+
+  /**
+   * The kept camera and the kept positions for one scope, in one read.
+   *
+   * A row that fails validation — a non-finite number, written by an older
+   * build or a hand edit — is dropped WHOLE rather than crashing the read or
+   * handing the renderer a camera it cannot draw. The view then falls back to
+   * the computed fit and the computed layout, which is exactly what a first
+   * run does.
+   */
+  canvasState(
+    repoKey: string,
+    scope: string
+  ): { camera: ArchCameraState | null; positions: ArchNodePosition[] } {
+    const cameraRow = this.db
+      .prepare<[string, string], { k: number; x: number; y: number }>(
+        'SELECT k, x, y FROM arch_camera WHERE repo_key = ? AND scope = ?'
+      )
+      .get(repoKey, scope);
+    const camera =
+      cameraRow !== undefined &&
+      Number.isFinite(cameraRow.k) &&
+      cameraRow.k > 0 &&
+      Number.isFinite(cameraRow.x) &&
+      Number.isFinite(cameraRow.y)
+        ? { k: cameraRow.k, x: cameraRow.x, y: cameraRow.y }
+        : null;
+    const rows = this.db
+      .prepare<[string, string], { node_id: string; x: number; y: number }>(
+        `SELECT node_id, x, y FROM arch_layout
+           WHERE repo_key = ? AND scope = ? ORDER BY node_id`
+      )
+      .all(repoKey, scope);
+    const positions: ArchNodePosition[] = [];
+    for (const row of rows) {
+      if (!Number.isFinite(row.x) || !Number.isFinite(row.y)) continue;
+      positions.push({ nodeId: row.node_id, x: row.x, y: row.y });
+    }
+    return { camera, positions };
+  }
+
+  /**
+   * Keep the scope's camera. Answers null when kept, or one sentence naming
+   * the field and the reason when the write was refused whole.
+   */
+  saveCamera(
+    repoKey: string,
+    scope: string,
+    camera: ArchCameraState
+  ): string | null {
+    const badScope = refuseScope(scope);
+    if (badScope !== null) return badScope;
+    if (!Number.isFinite(camera.k) || camera.k <= 0) {
+      return 'camera.k must be a finite positive number';
+    }
+    if (!Number.isFinite(camera.x)) return 'camera.x must be a finite number';
+    if (!Number.isFinite(camera.y)) return 'camera.y must be a finite number';
+    this.db
+      .prepare<[string, string, number, number, number]>(
+        `INSERT INTO arch_camera (repo_key, scope, k, x, y)
+           VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(repo_key, scope) DO UPDATE SET
+           k = excluded.k, x = excluded.x, y = excluded.y`
+      )
+      .run(repoKey, scope, camera.k, camera.x, camera.y);
+    return null;
+  }
+
+  /**
+   * Replace the scope's kept layout WHOLE, in one transaction: the old rows
+   * go and the new rows land together, so a kill between the two can never
+   * leave half of each picture. Validation runs before the transaction and an
+   * invalid position refuses the whole write, never a partial merge.
+   */
+  saveLayout(
+    repoKey: string,
+    scope: string,
+    positions: ArchNodePosition[]
+  ): string | null {
+    const badScope = refuseScope(scope);
+    if (badScope !== null) return badScope;
+    if (positions.length > MAX_LAYOUT_ROWS) {
+      return `positions has ${String(positions.length)} rows and the most a scope can hold is ${String(MAX_LAYOUT_ROWS)}`;
+    }
+    for (const p of positions) {
+      if (p.nodeId.length === 0 || p.nodeId.length > MAX_NODE_ID_CHARS) {
+        return `nodeId must be 1 to ${String(MAX_NODE_ID_CHARS)} characters`;
+      }
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+        return `position for ${p.nodeId} must be finite numbers`;
+      }
+    }
+    const drop = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_layout WHERE repo_key = ? AND scope = ?'
+    );
+    const insert = this.db.prepare<[string, string, string, number, number]>(
+      `INSERT INTO arch_layout (repo_key, scope, node_id, x, y)
+         VALUES (?, ?, ?, ?, ?)`
+    );
+    immediateTransaction(this.db, () => {
+      drop.run(repoKey, scope);
+      for (const p of positions) {
+        insert.run(repoKey, scope, p.nodeId, p.x, p.y);
+      }
+    });
+    return null;
+  }
+
+  /** Drop the scope's kept layout: re-layout as an explicit act. */
+  clearLayout(repoKey: string, scope: string): string | null {
+    const badScope = refuseScope(scope);
+    if (badScope !== null) return badScope;
+    this.db
+      .prepare<[string, string]>(
+        'DELETE FROM arch_layout WHERE repo_key = ? AND scope = ?'
+      )
+      .run(repoKey, scope);
+    return null;
+  }
+
   /** Drop everything about one repository. Its tab was closed for good. */
   forgetRepo(repoKey: string): void {
     immediateTransaction(this.db, () => {
@@ -595,6 +773,8 @@ export class ArchStore {
         'arch_import_file',
         'arch_verdict',
         'arch_freshness',
+        'arch_camera',
+        'arch_layout',
         'arch_repo'
       ]) {
         this.db

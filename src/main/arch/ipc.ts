@@ -36,6 +36,8 @@
 
 import type { IpcMain } from 'electron';
 import type {
+  ArchCanvasStateResult,
+  ArchCanvasWriteResult,
   ArchCheckResult,
   ArchComposePayloadInput,
   ArchComposePayloadResult,
@@ -183,6 +185,50 @@ export function registerArchIpc(ipc: IpcMain): void {
   handle(ipc, 'arch:moduleFiles', async (_event, input) =>
     readArchModuleFiles({ ...input, store: archStore() })
   );
+  // The canvas (Phase 162): the camera and the kept layout, per repository
+  // and per drill scope. All four channels touch ONLY `arch.db`, the
+  // disposable database whose loss costs a re-layout: no git call, no scan,
+  // no file under the person's repository, no session. An invalid value
+  // refuses the whole write with the field named, never a partial merge.
+  handle(ipc, 'arch:canvasState', async (_event, input) => {
+    const { camera, positions } = archStore().canvasState(
+      archRepoKey(input.cwd),
+      input.scope
+    );
+    return {
+      cwd: input.cwd,
+      scope: input.scope,
+      camera,
+      positions
+    } satisfies ArchCanvasStateResult;
+  });
+  handle(ipc, 'arch:setCamera', async (_event, input) =>
+    canvasWrite(
+      archStore().saveCamera(archRepoKey(input.cwd), input.scope, input.camera)
+    )
+  );
+  handle(ipc, 'arch:setLayout', async (_event, input) =>
+    canvasWrite(
+      archStore().saveLayout(
+        archRepoKey(input.cwd),
+        input.scope,
+        input.positions
+      )
+    )
+  );
+  handle(ipc, 'arch:clearLayout', async (_event, input) =>
+    canvasWrite(archStore().clearLayout(archRepoKey(input.cwd), input.scope))
+  );
+}
+
+/**
+ * A refused canvas write is an ANSWER, not an exception: the reason lands in
+ * the log and travels back named, so a bad value from a drifted renderer
+ * shows up in `app.log` instead of vanishing into a rejected promise.
+ */
+function canvasWrite(reason: string | null): ArchCanvasWriteResult {
+  if (reason !== null) archLog.warn('canvas write refused', { reason });
+  return { ok: reason === null, reason };
 }
 
 /**

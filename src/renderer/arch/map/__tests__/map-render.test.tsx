@@ -17,8 +17,10 @@
  *    dashed dress; ours does not.
  *  - Verdict colour rides only a judged edge, in the cockpit's own mapping.
  *  - The stylesheet spends tokens only, spends no amber, and moves nothing.
- *  - No canvas, no WebGL, no drawing package, no click handler: the picture
- *    is static, and drill down belongs to the next phase.
+ *  - No canvas, no WebGL, no drawing package: the picture is hand written
+ *    SVG. The drill (161) and the camera (162) are the two interactions,
+ *    and the camera is one group transform whose rest state renders byte
+ *    for byte through React.
  */
 
 import { readFileSync } from 'node:fs';
@@ -227,13 +229,29 @@ describe('the refusals, kept executable', () => {
     }
   });
 
-  it('no pan, no zoom, no drag: the one interaction is the drill click', () => {
-    // Phase 161 made a box a button when the drill seam is handed in, so
-    // onClick and onKeyDown are now deliberate. Everything a canvas phase
-    // would add stays banned until Phase 162 earns it.
+  it('the component owns no gesture: every listener lives in the camera layer', () => {
+    // Phase 162 earned pan and zoom, but the COMPONENT still declares no
+    // React gesture prop: the camera's listeners attach by hand in
+    // `camera/gestures.ts` (wheel must be non-passive, which React cannot
+    // express), and only when the canvas seam is handed in. This is the
+    // line that keeps the drawing pure props-in SVG-out.
     for (const banned of ['onMouseDown', 'onWheel', 'onDrag', 'onPointerDown']) {
       expect(TSX).not.toContain(banned);
     }
+  });
+
+  it('the camera is one group transform, and rest renders it byte for byte', () => {
+    const markup = draw(fullModel());
+    // One camera group wrapping the scene, defs outside it.
+    expect(markup.match(/class="arch-map-camera"/g) ?? []).toHaveLength(1);
+    expect(markup.indexOf('<defs>')).toBeLessThan(
+      markup.indexOf('arch-map-camera')
+    );
+    // The rest transform is the fit, an attribute, not a style: an SVG
+    // attribute transform re-paints vectors at the current scale every
+    // frame, so there is no raster snapshot to blur at rest.
+    expect(markup).toMatch(/class="arch-map-camera" transform="translate\(/);
+    expect(markup).not.toMatch(/style="[^"]*transform/);
   });
 
   it('without the drill seam the picture stays static, with it every box is a button', () => {

@@ -3,12 +3,14 @@
  * and its two subscriptions. Every one goes through the one typed invoke and
  * the one typed event subscription in ./bridge.
  *
- * None of these can change a session or write a file. `load` reads
- * `docs/arch/` and Tortie's own arch database, `check` runs the compiled in
- * checkers over git output, `skeleton` hands back drafted bytes for unsaved
- * editor buffers rather than writing them anywhere, `composePayload` composes
- * text and returns it, and `modules` reads the import graph that is already
- * stored.
+ * None of these can change a session or write a file in the person's
+ * repository. `load` reads `docs/arch/` and Tortie's own arch database,
+ * `check` runs the compiled in checkers over git output, `skeleton` hands
+ * back drafted bytes for unsaved editor buffers rather than writing them
+ * anywhere, `composePayload` composes text and returns it, and `modules`
+ * reads the import graph that is already stored. The canvas calls (Phase
+ * 162) write ONLY Tortie's own disposable arch database, whose loss costs a
+ * re-layout and nothing else.
  */
 
 import type { GmuxArchExtras } from '../shared/ipc';
@@ -48,6 +50,14 @@ export const arch: GmuxArchExtras['arch'] = {
   // beyond what arch:map itself already schedules.
   mapPart: (input) => invoke('arch:mapPart', input),
   moduleFiles: (input) => invoke('arch:moduleFiles', input),
+  // The canvas (Phase 162): the camera and the kept layout, per repository
+  // and per drill scope. The one write surface on this bridge, and it writes
+  // ONLY Tortie's own disposable arch database: no file in the person's
+  // repository, no session, no process.
+  canvasState: (input) => invoke('arch:canvasState', input),
+  setCamera: (input) => invoke('arch:setCamera', input),
+  setLayout: (input) => invoke('arch:setLayout', input),
+  clearLayout: (input) => invoke('arch:clearLayout', input),
   onChecked: (cb) => on(EVT_ARCH_CHECKED, cb),
   onProgress: (cb) => on(EVT_ARCH_PROGRESS, cb),
   onMapUpdated: (cb) => on(EVT_ARCH_MAP_UPDATED, cb)

@@ -25,9 +25,11 @@
  *     renders as "Not checked yet" and never as "changed", because a run that
  *     has not finished has nothing to say about whether anything moved.
  *
- * WHAT IS NOT HERE, so a later round has something to point at: no layout
- * positions, no payload composer, no send to a session, and no count badge for
- * any surface outside this view to draw. The SELECTION lives here (Phase 64
+ * WHAT IS NOT HERE, so a later round has something to point at: no payload
+ * composer, no send to a session, and no count badge for any surface outside
+ * this view to draw. Layout positions ARRIVED in Phase 162 as the kept
+ * canvas, but only as a mirror of `arch.db`, whose loss costs a re-layout
+ * and nothing else. The SELECTION lives here (Phase 64
  * widened it to a list) and the sending does not: composing and delivering are
  * in ./deliver.ts and ./picker.ts, behind one guard, so this file still writes
  * nothing to any session.
@@ -53,14 +55,17 @@ import { gmuxBridge } from '../bridge';
 import {
   archAvailable,
   archBridge,
+  canvasBridge,
   mapBridge,
   mapPartBridge,
   skeletonBridge
 } from './bridge';
 import type {
+  ArchCameraState,
   ArchMapPartResult,
   ArchMapResult,
-  ArchModuleFilesResult
+  ArchModuleFilesResult,
+  ArchNodePosition
 } from './bridge';
 import { moduleFilesBridge } from './modules';
 import {
@@ -183,6 +188,29 @@ export function partKey(repoPath: string, groupId: string): string {
 /** The level 3 twin of {@link partKey}. */
 export function moduleKey(repoPath: string, moduleDir: string): string {
   return `${repoPath}\u0000${moduleDir}`;
+}
+
+/**
+ * PHASE 162. One scope's canvas state as this window holds it: the kept
+ * camera and the kept layout, read once from `arch.db` and written back at
+ * rest.
+ *
+ * `camera: null` and `positions: null` both mean "nothing kept": the drawing
+ * computes its fit and its layout fresh, which is exactly what a first run
+ * and a lost database do. `status: 'error'` still answers with nulls rather
+ * than blocking anything, because persistence here is a convenience and the
+ * doctrine on `arch.db` is that losing it costs a re-layout and nothing
+ * else.
+ */
+export interface ArchCanvasEntry {
+  status: 'loading' | 'ready' | 'error';
+  camera: ArchCameraState | null;
+  positions: readonly ArchNodePosition[] | null;
+}
+
+/** The canvas twin of {@link partKey}: one repository, one drill scope. */
+export function canvasKey(repoPath: string, scope: string): string {
+  return `${repoPath}\u0000${scope}`;
 }
 
 export interface ArchViewState {
@@ -309,6 +337,43 @@ export interface ArchViewState {
     repoPath: string,
     moduleDir: string
   ): ArchModuleViewEntry | null;
+
+  // PHASE 162. The canvas: the kept camera and the kept layout, per
+  // repository and per drill scope. Reads and writes go to `arch.db` through
+  // the bridge; every write is refused whole in main when a value is invalid,
+  // and a missing bridge makes every call a quiet no-op because persistence
+  // is a convenience, never a load-bearing wall.
+  /**
+   * The canvas states this window holds, keyed by {@link canvasKey}. An
+   * absent entry means the scope was never read; the drawing then computes
+   * fresh exactly as a first run does.
+   */
+  canvas: Readonly<Record<string, ArchCanvasEntry>>;
+  /** Read one scope's kept camera and layout, once per window per scope. */
+  loadCanvas(repoPath: string, scope: string): Promise<void>;
+  /** The held canvas entry, or null before the first read. */
+  canvasFor(repoPath: string, scope: string): ArchCanvasEntry | null;
+  /**
+   * Keep the scope's camera: memory now, the database at rest. The write is
+   * debounced so inertia and a long gesture cost one write, not one per
+   * frame, which is spec open question 5 answered as "write at rest".
+   */
+  keepCamera(repoPath: string, scope: string, camera: ArchCameraState): void;
+  /**
+   * Keep the scope's layout WHOLE: memory now, the database immediately,
+   * because a layout only changes at the end of an explicit gesture and the
+   * end of a gesture is already rest.
+   */
+  keepLayout(
+    repoPath: string,
+    scope: string,
+    positions: readonly ArchNodePosition[]
+  ): void;
+  /**
+   * Drop the scope's kept layout, stored and held: re-layout as an EXPLICIT
+   * act. The next draw computes fresh from the facts.
+   */
+  relayout(repoPath: string, scope: string): Promise<void>;
   /** Compose the skeleton and open it as unsaved editor buffers. */
   draft(): Promise<void>;
   /** Put the seeding prompt on the clipboard and open the new session sheet. */
@@ -471,6 +536,44 @@ function errorText(err: unknown): string {
   return 'The contract could not be read.';
 }
 
+/**
+ * PHASE 162. The camera write-at-rest debounce (spec open question 5): keep
+ * calls land in memory immediately and the database write fires once the
+ * camera has been still for this long. Inertia glides for a few hundred
+ * milliseconds; one write per rest is the contract, one per frame is the
+ * defect this exists to prevent.
+ *
+ * Module scope rather than store state because it is bookkeeping about
+ * calls, the `pendingMapReads` precedent. A camera lost to a quit inside the
+ * window costs the next open one fit, on a database whose loss whole costs a
+ * re-layout, so no flush-on-quit machinery is warranted.
+ */
+const CAMERA_SAVE_REST_MS = 400;
+const cameraSaveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleCameraSave(
+  repoPath: string,
+  scope: string,
+  camera: ArchCameraState
+): void {
+  const api = canvasBridge();
+  if (api === null) return;
+  const key = canvasKey(repoPath, scope);
+  const held = cameraSaveTimers.get(key);
+  if (held !== undefined) clearTimeout(held);
+  cameraSaveTimers.set(
+    key,
+    setTimeout(() => {
+      cameraSaveTimers.delete(key);
+      // Fire and forget: a refused write is logged in main with the field
+      // named, and the in-memory camera above is already what draws.
+      void api
+        .setCamera({ cwd: repoPath, scope, camera })
+        .catch(() => undefined);
+    }, CAMERA_SAVE_REST_MS)
+  );
+}
+
 export const useArch = create<ArchViewState>((set, get) => ({
   target: null,
   status: 'idle',
@@ -483,6 +586,7 @@ export const useArch = create<ArchViewState>((set, get) => ({
   drafting: false,
   maps: {},
   drills: {},
+  canvas: {},
   partMaps: {},
   moduleViews: {},
 
@@ -731,6 +835,131 @@ export const useArch = create<ArchViewState>((set, get) => ({
 
   moduleViewFor(repoPath, moduleDir) {
     return get().moduleViews[moduleKey(repoPath, moduleDir)] ?? null;
+  },
+
+  async loadCanvas(repoPath, scope) {
+    const key = canvasKey(repoPath, scope);
+    // Once per window per scope: the held entry IS the answer, and the only
+    // other writer of these rows is this window's own keep calls, which
+    // update the held entry as they write. A second window's writes are not
+    // watched, deliberately: two cameras over one scope is a race nobody
+    // wins, and the last one to rest is the one that is kept.
+    if (get().canvas[key] !== undefined) return;
+    const api = canvasBridge();
+    if (api === null) {
+      // An older preload keeps nothing. Ready with nulls: the drawing
+      // computes its fit and its layout fresh, the first-run path.
+      set((s) => ({
+        canvas: {
+          ...s.canvas,
+          [key]: { status: 'ready', camera: null, positions: null }
+        }
+      }));
+      return;
+    }
+    set((s) => ({
+      canvas: {
+        ...s.canvas,
+        [key]: { status: 'loading', camera: null, positions: null }
+      }
+    }));
+    try {
+      const result = await api.canvasState({ cwd: repoPath, scope });
+      set((s) => ({
+        canvas: {
+          ...s.canvas,
+          [key]: {
+            status: 'ready',
+            camera: result.camera,
+            positions: result.positions.length === 0 ? null : result.positions
+          }
+        }
+      }));
+    } catch {
+      // A failed read costs a re-fit and a re-layout, nothing else, per the
+      // doctrine on arch.db. Nulls, and the drawing computes fresh.
+      set((s) => ({
+        canvas: {
+          ...s.canvas,
+          [key]: { status: 'error', camera: null, positions: null }
+        }
+      }));
+    }
+  },
+
+  canvasFor(repoPath, scope) {
+    return get().canvas[canvasKey(repoPath, scope)] ?? null;
+  },
+
+  keepCamera(repoPath, scope, camera) {
+    const key = canvasKey(repoPath, scope);
+    set((s) => {
+      const held = s.canvas[key];
+      return {
+        canvas: {
+          ...s.canvas,
+          [key]: {
+            status: held?.status ?? 'ready',
+            camera,
+            positions: held?.positions ?? null
+          }
+        }
+      };
+    });
+    scheduleCameraSave(repoPath, scope, camera);
+  },
+
+  keepLayout(repoPath, scope, positions) {
+    const key = canvasKey(repoPath, scope);
+    const kept = Object.freeze([...positions]);
+    set((s) => {
+      const held = s.canvas[key];
+      return {
+        canvas: {
+          ...s.canvas,
+          [key]: {
+            status: held?.status ?? 'ready',
+            camera: held?.camera ?? null,
+            positions: kept
+          }
+        }
+      };
+    });
+    const api = canvasBridge();
+    if (api === null) return;
+    // Fire and forget: a refused write is logged in main with the field
+    // named, and the held entry above still draws. Nothing here can throw at
+    // the gesture that caused it.
+    void api
+      .setLayout({ cwd: repoPath, scope, positions: [...positions] })
+      .catch(() => undefined);
+  },
+
+  async relayout(repoPath, scope) {
+    const key = canvasKey(repoPath, scope);
+    set((s) => {
+      const held = s.canvas[key];
+      if (held === undefined) return {};
+      return {
+        canvas: {
+          ...s.canvas,
+          [key]: {
+            status: held.status,
+            camera: held.camera,
+            positions: null
+          }
+        }
+      };
+    });
+    const api = canvasBridge();
+    if (api === null) return;
+    try {
+      await api.clearLayout({ cwd: repoPath, scope });
+    } catch {
+      // The stored rows outlived the click. The held entry is already null,
+      // so THIS window re-lays out either way, and the next open pays one
+      // more click. Nothing worth surfacing over a disposable database.
+    }
   },
 
   async draft() {

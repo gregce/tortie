@@ -107,3 +107,40 @@ export function mapPartBridge(): ArchBridgeApi | null {
 export function mapPartAvailable(): boolean {
   return mapPartBridge() !== null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 162, the canvas: the camera and the kept layout
+// ---------------------------------------------------------------------------
+
+/**
+ * The canvas shapes, re-exported through the same seam every other arch
+ * answer travels, so the store, the tab and the camera name them from one
+ * place.
+ */
+export type {
+  ArchCameraState,
+  ArchCanvasStateResult,
+  ArchNodePosition
+} from '@shared/ipc';
+
+/**
+ * The canvas half (Phase 162), or null when this build cannot keep a camera
+ * or a layout. Feature detected like every other method here: an older
+ * preload has none of the four calls, and the map then simply computes its
+ * fit and its layout fresh on every open, which is exactly what a lost
+ * database costs. Persistence is a convenience, never a load-bearing wall.
+ */
+export function canvasBridge(): ArchBridgeApi | null {
+  const api = archBridge();
+  return typeof api?.canvasState === 'function' &&
+    typeof api?.setCamera === 'function' &&
+    typeof api?.setLayout === 'function' &&
+    typeof api?.clearLayout === 'function'
+    ? api
+    : null;
+}
+
+/** Can this build keep the map's camera and layout between runs? */
+export function canvasAvailable(): boolean {
+  return canvasBridge() !== null;
+}
