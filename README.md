@@ -119,7 +119,7 @@ The conversation stays word for word. An optional model can write only the one-l
 
 ## Supported agents
 
-Tortie includes **13 built-in profiles**: 11 CLI agents you can run in durable sessions, plus capture-only support for Cursor IDE and VS Code Copilot.
+Tortie includes **11 built-in CLI agent profiles** you can run in durable sessions.
 
 <p>
   <a href="https://code.claude.com/docs/en/setup"><kbd><img src="src/renderer/assets/agents/claude.svg" alt="Claude Code logo" width="16" valign="middle" /> Claude Code</kbd></a> &nbsp;
@@ -132,9 +132,7 @@ Tortie includes **13 built-in profiles**: 11 CLI agents you can run in durable s
   <a href="https://github.com/Hmbown/CodeWhale"><kbd><img src="src/renderer/assets/agents/deepseek.svg" alt="CodeWhale logo" width="16" valign="middle" /> CodeWhale</kbd></a> &nbsp;
   <a href="https://antigravity.google/docs/cli/install"><kbd><img src="src/renderer/assets/agents/antigravity.svg" alt="Antigravity CLI logo" width="16" valign="middle" /> Antigravity</kbd></a> &nbsp;
   <a href="https://docs.factory.ai/cli/getting-started/quickstart"><kbd><img src="src/renderer/assets/agents/droid.svg" alt="Factory Droid CLI logo" width="16" valign="middle" /> Droid</kbd></a> &nbsp;
-  <a href="https://x.ai"><kbd><img src="src/renderer/assets/agents/grok.svg" alt="Grok logo" width="16" valign="middle" /> Grok</kbd></a> &nbsp;
-  <a href="https://cursor.com"><kbd><img src="src/renderer/assets/agents/cursor.svg" alt="Cursor IDE logo" width="16" valign="middle" /> Cursor IDE</kbd></a> &nbsp;
-  <a href="https://code.visualstudio.com/docs/copilot/overview"><kbd><img src="src/renderer/assets/agents/githubcopilot.svg" alt="VS Code Copilot logo" width="16" valign="middle" /> VS Code Copilot</kbd></a>
+  <a href="https://x.ai"><kbd><img src="src/renderer/assets/agents/grok.svg" alt="Grok logo" width="16" valign="middle" /> Grok</kbd></a>
 </p>
 
 [See launch, resume and conversation support for every agent →](https://tortie.sh/docs/supported-agents/#launchable-agents)
