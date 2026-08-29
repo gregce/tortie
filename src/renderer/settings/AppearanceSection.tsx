@@ -140,8 +140,22 @@ function ContrastRow(): React.JSX.Element {
   );
 }
 
+/** Persist the custom family as a one-field patch. Exported for the test. */
+export function commitWorkAreaFontCustom(
+  family: string
+): Promise<GmuxSettings | null> {
+  return useSettingsStore.getState().update({ workAreaFontCustom: family });
+}
+
 function WorkAreaFontRow(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
+  // Local draft for the custom field, committed on blur/Enter — the same
+  // pattern ScrollbackSection's Custom… number field uses, so a half-typed
+  // family never reaches the persisted settings.
+  const [draft, setDraft] = React.useState(settings.workAreaFontCustom);
+  const commit = (): void => {
+    void commitWorkAreaFontCustom(draft);
+  };
   return (
     <div className="set-row tall">
       <div className="set-row-text">
@@ -166,6 +180,21 @@ function WorkAreaFontRow(): React.JSX.Element {
           </option>
         ))}
       </select>
+      {settings.workAreaFont === 'custom' ? (
+        <input
+          className="set-select"
+          type="text"
+          aria-label="Custom font family"
+          placeholder="Font family name"
+          spellCheck={false}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

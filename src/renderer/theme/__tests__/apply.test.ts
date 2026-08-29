@@ -42,12 +42,14 @@ import {
 const BLUE_NORMAL: AppliedAppearance = {
   highlightScheme: 'blue',
   contrastLevel: 'normal',
-  workAreaFont: 'system'
+  workAreaFont: 'system',
+  workAreaFontCustom: ''
 };
 const TEAL_HIGH: AppliedAppearance = {
   highlightScheme: 'teal',
   contrastLevel: 'high',
-  workAreaFont: 'system'
+  workAreaFont: 'system',
+  workAreaFontCustom: ''
 };
 const BLUE_NORMAL_JETBRAINS: AppliedAppearance = {
   ...BLUE_NORMAL,
@@ -96,6 +98,7 @@ function fakeEnv(derived: Record<string, string>): {
       writes += 1;
       inline.set(token, value);
     },
+    setCustomFont: vi.fn(),
     removeProperty: (token) => {
       writes += 1;
       inline.delete(token);

@@ -56,7 +56,8 @@ import {
   noFoldChosen,
   sanitizeContrastLevel,
   sanitizeHighlightScheme,
-  sanitizeWorkAreaFont
+  sanitizeWorkAreaFont,
+  sanitizeWorkAreaFontCustom
 } from '@shared/settings';
 import {
   archRecipeFor,
@@ -481,6 +482,7 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
   out.highlightScheme = sanitizeHighlightScheme(obj['highlightScheme']);
   out.contrastLevel = sanitizeContrastLevel(obj['contrastLevel']);
   out.workAreaFont = sanitizeWorkAreaFont(obj['workAreaFont']);
+  out.workAreaFontCustom = sanitizeWorkAreaFontCustom(obj['workAreaFontCustom']);
 
   // The fold choice (Phase 138). Membership FIRST, and the seal after, in
   // getSettings. This is the shape check and it cannot tell who wrote the

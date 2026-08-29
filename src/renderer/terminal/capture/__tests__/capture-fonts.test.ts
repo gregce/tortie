@@ -42,6 +42,16 @@ describe('faceCssFor', () => {
     expect(asked).toEqual([]);
   });
 
+  it('inlines nothing for the Custom preset, which ships no bytes', async () => {
+    // A user-installed face cannot be inlined into the SVG, so a capture taken
+    // under Custom falls back to Menlo — the same byte-identity guarantee the
+    // System preset keeps, and the same "never reached for bytes" assertion.
+    const asked: string[] = [];
+    expect(await faceCssFor('custom', { bold: false }, fakeLoader(asked))).toBe('');
+    expect(await faceCssFor('custom', { bold: true }, fakeLoader(asked))).toBe('');
+    expect(asked).toEqual([]);
+  });
+
   it('inlines the regular face alone when nothing on screen is bold', async () => {
     const asked: string[] = [];
     const css = await faceCssFor(

@@ -85,7 +85,11 @@ export const WORK_FONTS: readonly WorkFontPreset[] = [
     label: 'Source Code Pro',
     familyName: 'Source Code Pro',
     stack: "'Source Code Pro', Menlo, monospace"
-  }
+  },
+  // The custom row's strings are null HERE: the family is user data, read at
+  // resolution time from useCustomWorkFontFamily (see workFont), not baked
+  // into a compiled row. Settings still lists it as one more option.
+  { id: 'custom', label: 'Custom…', familyName: null, stack: null }
 ];
 
 const SYSTEM_PRESET: WorkFontPreset = WORK_FONTS[0] as WorkFontPreset;
@@ -95,7 +99,14 @@ export const WORK_FONT_TOKENS = ['--font-terminal', '--font-editor'] as const;
 
 /** The row for an id. An unknown id reads as System rather than throwing. */
 export function workFont(id: WorkAreaFont): WorkFontPreset {
-  return WORK_FONTS.find((f) => f.id === id) ?? SYSTEM_PRESET;
+  const row = WORK_FONTS.find((f) => f.id === id) ?? SYSTEM_PRESET;
+  if (row.id !== 'custom') return row;
+  // The custom family is user data, not a compiled row, so it resolves here
+  // from the live mirror apply.ts feeds. An empty family means the user picked
+  // Custom but typed nothing yet, which reads as Menlo through the stack.
+  const family = useCustomWorkFontFamily.getState().family;
+  const stack = `'${family}', Menlo, monospace`;
+  return { id: 'custom', label: row.label, familyName: family, stack };
 }
 
 /**
@@ -159,6 +170,27 @@ export interface WorkAreaFontState {
 export const useWorkAreaFont = create<WorkAreaFontState>()(() => ({
   preset: DEFAULT_WORK_AREA_FONT
 }));
+
+export interface CustomWorkFontFamilyState {
+  family: string;
+}
+
+/**
+ * The family the 'custom' preset draws with, as a live mirror of the persisted
+ * `workAreaFontCustom`. Same posture as useWorkAreaFont: apply.ts is the only
+ * writer, fed by the settings read + broadcast, and nothing here is persisted.
+ * An empty string is "picked Custom but typed nothing yet", which the stack
+ * reads as Menlo (the terminal's guaranteed fallback).
+ */
+export const useCustomWorkFontFamily = create<CustomWorkFontFamilyState>()(() => ({
+  family: ''
+}));
+
+/** apply.ts calls this once per settings change, beside setWorkAreaFont. */
+export function setCustomWorkFontFamily(family: string): void {
+  if (useCustomWorkFontFamily.getState().family === family) return;
+  useCustomWorkFontFamily.setState({ family });
+}
 
 /** apply.ts calls this once per settings change. */
 export function setWorkAreaFont(id: WorkAreaFont): void {

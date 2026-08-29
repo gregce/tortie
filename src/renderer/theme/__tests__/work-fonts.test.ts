@@ -27,6 +27,7 @@ import { WORK_AREA_FONTS, type WorkAreaFont } from '@shared/settings';
 import {
   fontOverrides,
   loadWorkAreaFace,
+  setCustomWorkFontFamily,
   setWorkAreaFont,
   useWorkAreaFont,
   workFont,
@@ -41,7 +42,8 @@ describe('the preset table', () => {
     expect(WORK_FONTS.map((f) => f.id)).toEqual([
       'system',
       'jetbrains-mono',
-      'source-code-pro'
+      'source-code-pro',
+      'custom'
     ]);
     expect([...WORK_FONTS.map((f) => f.id)].sort()).toEqual(
       [...WORK_AREA_FONTS].sort()
@@ -52,7 +54,8 @@ describe('the preset table', () => {
     expect(WORK_FONTS.map((f) => f.label)).toEqual([
       'System',
       'JetBrains Mono',
-      'Source Code Pro'
+      'Source Code Pro',
+      'Custom…'
     ]);
   });
 
@@ -80,6 +83,44 @@ describe('the preset table', () => {
 
   it('reads an unknown id as System rather than throwing', () => {
     expect(workFont('not-a-preset' as WorkAreaFont).id).toBe('system');
+  });
+});
+
+describe('the custom preset', () => {
+  afterEach(() => {
+    // Reset the live family store so one test's family cannot leak into the
+    // next one's resolution.
+    setCustomWorkFontFamily('');
+  });
+
+  it('resolves the typed family into a Menlo-terminated stack', () => {
+    setCustomWorkFontFamily('Berkeley Mono');
+    const preset = workFont('custom');
+    expect(preset.familyName).toBe('Berkeley Mono');
+    expect(preset.stack).toBe("'Berkeley Mono', Menlo, monospace");
+  });
+
+  it('writes both work-area tokens for the custom stack', () => {
+    setCustomWorkFontFamily('Berkeley Mono');
+    const out = fontOverrides('custom');
+    expect(out['--font-terminal']).toBe("'Berkeley Mono', Menlo, monospace");
+    expect(out['--font-editor']).toBe("'Berkeley Mono', Menlo, monospace");
+  });
+
+  it('reads an empty family as Menlo through the stack, never a broken stack', () => {
+    setCustomWorkFontFamily('');
+    // The family name is the empty string, so the stack's first entry is ''
+    // and the browser falls straight through to Menlo — the System preset's
+    // own fallback, not an unparseable rule.
+    expect(workFont('custom').stack).toBe("'', Menlo, monospace");
+    expect(fontOverrides('custom')['--font-terminal']).toBe("'', Menlo, monospace");
+  });
+
+  it('awaits the custom face before re-measuring, like a bundled preset', async () => {
+    // No FontFaceSet in the node environment, so this proves the no-throw
+    // contract rather than a real fetch. The DOM load happens in TerminalPane.
+    setCustomWorkFontFamily('Berkeley Mono');
+    await expect(loadWorkAreaFace('custom', 13)).resolves.toBeUndefined();
   });
 });
 

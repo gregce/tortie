@@ -95,6 +95,11 @@ export interface GmuxSettings {
    */
   workAreaFont: WorkAreaFont;
   /**
+   * The family a 'custom' workAreaFont draws with (Phase 78.1). '' when none
+   * was typed, which reads as Menlo through the same fallback System uses.
+   */
+  workAreaFontCustom: string;
+  /**
    * Who writes the project line (Phase 138). Absent on every install that has
    * never opened Settings and picked one, which is what "None" is.
    *
@@ -245,11 +250,12 @@ export function sanitizeContrastLevel(value: unknown): ContrastLevel {
  * There is no size field anywhere. docs/DESIGN-SPEC.md:601 withdrew the size
  * stepper, and per-region zoom already changes the terminal's size for real.
  */
-export type WorkAreaFont = 'system' | 'jetbrains-mono' | 'source-code-pro';
+export type WorkAreaFont = 'system' | 'jetbrains-mono' | 'source-code-pro' | 'custom';
 export const WORK_AREA_FONTS: readonly WorkAreaFont[] = [
   'system',
   'jetbrains-mono',
-  'source-code-pro'
+  'source-code-pro',
+  'custom'
 ];
 export const DEFAULT_WORK_AREA_FONT: WorkAreaFont = 'system';
 
@@ -259,6 +265,23 @@ export function sanitizeWorkAreaFont(value: unknown): WorkAreaFont {
     (WORK_AREA_FONTS as readonly string[]).includes(value)
     ? (value as WorkAreaFont)
     : DEFAULT_WORK_AREA_FONT;
+}
+
+/**
+ * The family name a 'custom' `workAreaFont` resolves to (Phase 78.1). This is
+ * the one thing the preset table cannot hold: a user-typed family is data, not
+ * a compiled row, so it is persisted beside the id rather than baked into
+ * src/renderer/theme/work-fonts.ts. A custom face ships no bytes, so a capture
+ * taken under it falls back to Menlo exactly the way the System preset's does.
+ */
+export const DEFAULT_WORK_AREA_FONT_CUSTOM = '';
+
+/**
+ * A persisted custom family is a trimmed string, or '' when none was chosen.
+ * No membership check — the family is free text by design.
+ */
+export function sanitizeWorkAreaFontCustom(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : DEFAULT_WORK_AREA_FONT_CUSTOM;
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +361,7 @@ export function defaultGmuxSettings(): GmuxSettings {
     highlightScheme: DEFAULT_HIGHLIGHT_SCHEME,
     contrastLevel: DEFAULT_CONTRAST_LEVEL,
     workAreaFont: DEFAULT_WORK_AREA_FONT,
+    workAreaFontCustom: DEFAULT_WORK_AREA_FONT_CUSTOM,
     fold: noFoldChosen(),
     arch: noArchChosen()
   };
