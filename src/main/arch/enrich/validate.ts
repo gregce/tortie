@@ -20,25 +20,52 @@
  *     than load, which drops a bad row singly: the pass is proposing bytes,
  *     and a proposal that is partly wrong is wrong. An unknown key, tolerated
  *     on read, is a refusal here.
- *  4. `contract-changed`: subject, version or layers moved. Strictness is a
- *     judgement and may move.
+ *  4. `contract-changed`: subject, version, layers or flows moved.
+ *     Strictness is a judgement and may move in a whole pass. Under a drift
+ *     scope the whole contract must come back byte identical, because the
+ *     contract never drifts and a repair has no business in it (the fix
+ *     round of Phase 159 found strictness flipping beside an honest repair).
  *  5. `component-set-changed`, `anchors-changed`, `kind-changed`: the map
  *     binding. The component id set must equal the draft's exactly, each
  *     component's anchors must be byte identical, and its kind must stand.
  *     Enriching in place is what guarantees every component paints its own
  *     box under the strict majority rule in ../map.ts, so this check is the
  *     whole of map binding rule 1.
- *  6. `evidence-not-allowed`: any evidence row anywhere. The model never read
- *     the code, so a quote from it would be an invention by construction.
+ *  6. `evidence-not-allowed`: an evidence row that is not byte identical to a
+ *     row the draft already holds under the same part or promise. The model
+ *     never read the code, so a quote it wrote would be an invention by
+ *     construction; a quote a person wrote is carried forward as written, and
+ *     an answer may DROP one (a stale quote is a repair) and may never add
+ *     one. Phase 158 refused every row, which made a whole pass over a hand
+ *     written contract delete every quote in it; Phase 159 amended the rule.
  *  7. `edge-endpoints`: an edge end that names no drafted component. New
  *     edges BETWEEN drafted ids are allowed, because a must-not is precisely
  *     a promise about an import that does not happen.
  *  8. `invented-number`: a maximal digit run in a prose field that does not
  *     appear verbatim in the composed fact block. The fold's lesson applied:
- *     a prompt asks, this decides.
+ *     a prompt asks, this decides. A prose field the answer returns BYTE
+ *     IDENTICAL to the draft's own field is exempt, because the model did
+ *     not write it: the skeleton or a person did, and the digits were
+ *     already on disk. Without that exemption no drift repair over the
+ *     contract Phase 158 writes could ever be kept, because the skeleton's
+ *     own may note says "5 to 10 promises" and a scoped fact block does not.
  *  9. `suggestions-invalid`: a suggestion that is not a bounded plain
  *     sentence. Suggestions land on the run's face and are NEVER written to
  *     docs/arch/.
+ * 10. `outside-drift` (Phase 159), only when the context carries a scope: a
+ *     part not in the scope that is not byte identical to the draft's, a
+ *     promise not in the scope that is not byte identical to the draft's, a
+ *     promise the draft never held, or a promise the answer dropped. A drift
+ *     repair touches what drifted and nothing else, and this is the rule
+ *     that makes the instruction true. A promise IN the scope keeps its
+ *     from, to, kind and checker too: a repair may change what a promise
+ *     says (its rule, its words, its gap) and never what it is about, so a
+ *     broken "tests must not import scripts" cannot come back under the
+ *     same id as a promise about two other parts. A part IN the scope keeps
+ *     its layer, provenance, boundary and deprecated flag for the same
+ *     reason: a repair may change what a part says (its name, description,
+ *     gaps, a dropped quote) and never what it is. The re-verify of Phase
+ *     159 landed all four through a repair before this line existed.
  *
  * On refusal nothing downstream runs: the writer is never reached, the
  * previous contract stays byte identical on disk, and the run is recorded
@@ -58,6 +85,7 @@ import {
   validateContract,
   validateEdges
 } from '../validate';
+import type { ArchDriftScope } from './drift';
 
 /** A generous ceiling on the raw answer, far under the spawn's own 512 KB. */
 export const ARCH_ANSWER_MAX_BYTES = 256 * 1024;
@@ -80,7 +108,8 @@ export type ArchEnrichRefusal =
   | 'evidence-not-allowed'
   | 'edge-endpoints'
   | 'invented-number'
-  | 'suggestions-invalid';
+  | 'suggestions-invalid'
+  | 'outside-drift';
 
 /** One sentence per refusal, for the run's face. */
 export const ARCH_ENRICH_REFUSAL_REASONS: Readonly<
@@ -98,11 +127,13 @@ export const ARCH_ENRICH_REFUSAL_REASONS: Readonly<
   'anchors-changed': 'The answer moved an anchor, which would unpaint the map.',
   'kind-changed': 'The answer changed what kind of thing a part is.',
   'evidence-not-allowed':
-    'The answer quotes evidence it never read, so none of it can be trusted.',
+    'The answer adds or changes a quote it never read, so none of it can be trusted.',
   'edge-endpoints': 'A promise names a part the draft does not contain.',
   'invented-number':
     'The answer carries a number that is not in the facts it was given.',
-  'suggestions-invalid': 'A suggestion is not a bounded plain sentence.'
+  'suggestions-invalid': 'A suggestion is not a bounded plain sentence.',
+  'outside-drift':
+    'The answer changed a part or a promise that did not drift.'
 };
 
 /** The kept answer, normalized through the load side validators. */
@@ -128,6 +159,32 @@ export interface ArchEnrichContext {
   document: ArchDocument;
   /** The FACTS section of the composed prompt, byte for byte. */
   factBlock: string;
+  /**
+   * The drift a repair may touch, or null for a whole pass. Present, it arms
+   * rule 10: everything outside it must come back exactly as drafted.
+   */
+  scope?: ArchDriftScope | null;
+}
+
+/**
+ * One value as comparable bytes: keys sorted at every depth, so two records
+ * that hold the same fields in a different order compare equal and a record
+ * that moved one field does not.
+ */
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => canonicalJson(entry)).join(',')}]`;
+  }
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record)
+      .filter((key) => record[key] !== undefined)
+      .sort();
+    return `{${keys
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 const refuse = (
@@ -252,8 +309,19 @@ export function validateArchAnswer(
   }
   const edges = edgesResult.rows;
 
-  // 4. The contract itself stands. Strictness is a judgement and may move.
+  // 4. The contract itself stands. Strictness is a judgement and may move
+  // in a whole pass; under a drift scope nothing in the contract moves.
   const answered = contract.value;
+  const scope = context.scope ?? null;
+  if (
+    scope !== null &&
+    canonicalJson(answered) !== canonicalJson(draft.contract)
+  ) {
+    return refuse(
+      'contract-changed',
+      'the contract did not drift and a repair returns it exactly as given'
+    );
+  }
   if (
     answered.subject !== draft.contract.subject ||
     answered.version !== draft.contract.version ||
@@ -311,18 +379,33 @@ export function validateArchAnswer(
     }
   }
 
-  // 6. Evidence is an invention by construction here.
+  // 6. Evidence carries forward byte for byte or not at all. A quote the
+  // model wrote is an invention by construction; a quote the person wrote
+  // stands as written, and dropping one is allowed because a stale quote is
+  // exactly what a repair removes.
+  const draftEdgeById = new Map(draft.edges.map((e) => [e.id, e]));
   for (const component of components) {
-    if (component.evidence.length > 0) {
-      return refuse(
-        'evidence-not-allowed',
-        `component ${component.id} carries evidence`
-      );
+    const drafted = draftById.get(component.id);
+    const held = new Set((drafted?.evidence ?? []).map((row) => canonicalJson(row)));
+    for (const row of component.evidence) {
+      if (!held.has(canonicalJson(row))) {
+        return refuse(
+          'evidence-not-allowed',
+          `component ${component.id} carries a quote the draft does not hold`
+        );
+      }
     }
   }
   for (const edge of edges) {
-    if (edge.evidence.length > 0) {
-      return refuse('evidence-not-allowed', `edge ${edge.id} carries evidence`);
+    const drafted = draftEdgeById.get(edge.id);
+    const held = new Set((drafted?.evidence ?? []).map((row) => canonicalJson(row)));
+    for (const row of edge.evidence) {
+      if (!held.has(canonicalJson(row))) {
+        return refuse(
+          'evidence-not-allowed',
+          `edge ${edge.id} carries a quote the draft does not hold`
+        );
+      }
     }
   }
 
@@ -337,13 +420,104 @@ export function validateArchAnswer(
     }
   }
 
-  // 8. The invented number rule, mechanical.
+  // 10. Outside the drift, nothing moves. Only when a scope was handed in.
+  if (scope !== null) {
+    const inParts = new Set(scope.componentIds);
+    const inEdges = new Set(scope.edgeIds);
+    for (const component of components) {
+      const drafted = draftById.get(component.id);
+      if (drafted === undefined) continue;
+      if (inParts.has(component.id)) {
+        // In the drift: the name, the description, the gaps and the quotes
+        // may move, what the part IS may not. The anchors and the kind are
+        // already pinned by rule 5; these four are pinned here because the
+        // re-verify of Phase 159 landed every one of them through a repair.
+        if (
+          component.layer !== drafted.layer ||
+          component.provenance !== drafted.provenance ||
+          component.boundary !== drafted.boundary ||
+          component.deprecated !== drafted.deprecated
+        ) {
+          return refuse(
+            'outside-drift',
+            `component ${component.id} drifted, and a repair changes its ` +
+              `words but never its layer, its provenance, its boundary or ` +
+              `whether it is deprecated`
+          );
+        }
+        continue;
+      }
+      if (canonicalJson(component) !== canonicalJson(drafted)) {
+        return refuse(
+          'outside-drift',
+          `component ${component.id} did not drift and the answer changed it`
+        );
+      }
+    }
+    const answeredEdgeIds = edges.map((e) => e.id).sort();
+    const draftEdgeIds = [...draftEdgeById.keys()].sort();
+    for (const id of answeredEdgeIds) {
+      if (!draftEdgeById.has(id)) {
+        return refuse(
+          'outside-drift',
+          `edge ${id} is not in the contract and a repair adds no promise`
+        );
+      }
+    }
+    for (const id of draftEdgeIds) {
+      if (!answeredEdgeIds.includes(id)) {
+        return refuse(
+          'outside-drift',
+          `edge ${id} was removed and a repair changes a promise rather than removing it`
+        );
+      }
+    }
+    for (const edge of edges) {
+      const drafted = draftEdgeById.get(edge.id);
+      if (drafted === undefined) continue;
+      if (inEdges.has(edge.id)) {
+        // In the drift: the rule and the words may move, what the promise
+        // is about may not.
+        if (
+          edge.from !== drafted.from ||
+          edge.to !== drafted.to ||
+          edge.kind !== drafted.kind ||
+          edge.checker !== drafted.checker
+        ) {
+          return refuse(
+            'outside-drift',
+            `edge ${edge.id} drifted, and a repair changes its rule or its ` +
+              `words but never its ends, its kind or its checker`
+          );
+        }
+        continue;
+      }
+      if (canonicalJson(edge) !== canonicalJson(drafted)) {
+        return refuse(
+          'outside-drift',
+          `edge ${edge.id} did not drift and the answer changed it`
+        );
+      }
+    }
+  }
+
+  // 8. The invented number rule, mechanical. A field returned byte identical
+  // to the draft's own field was not written by the model and is not read.
+  const draftProse = new Map(
+    proseOf({
+      contract: draft.contract,
+      components: draft.components,
+      edges: draft.edges,
+      suggestions: []
+    }).map((row) => [row.field, row.text])
+  );
   for (const { field, text: prose } of proseOf({
     contract: answered,
     components,
     edges,
     suggestions: []
   })) {
+    if (draftProse.get(field) === prose) continue;
     for (const run of digitRuns(prose)) {
       if (!context.factBlock.includes(run)) {
         return refuse(

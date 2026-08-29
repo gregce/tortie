@@ -34,8 +34,7 @@ import { basename } from 'node:path';
 import { overviewStore } from '../overview';
 import { getGmuxCore } from '../sessions';
 import { getSettings, updateSettings } from '../settings/store';
-import { isInside } from './fold-stub';
-import { isIsolatedLaunch } from './launch-gate';
+import { seedRefusal } from './seed-gate';
 
 /** What the probe asks for, read from the file GMUX_FOLD_SEED names. */
 interface FoldSeedSpec {
@@ -79,17 +78,7 @@ export function foldSeedRefusal(
   env: NodeJS.ProcessEnv,
   userDataDir: string
 ): string | null {
-  if (!isIsolatedLaunch(env)) {
-    return 'GMUX_FOLD_SEED refused: this launch is not an isolated harness launch.';
-  }
-  const harnessDir = env['GMUX_HARNESS_DIR'] ?? '';
-  if (harnessDir === '' || !isInside(userDataDir, harnessDir)) {
-    return (
-      'GMUX_FOLD_SEED refused: the profile directory is not under the harness ' +
-      'directory, so this could be a real profile.'
-    );
-  }
-  return null;
+  return seedRefusal('GMUX_FOLD_SEED', env, userDataDir);
 }
 
 /** Called by dispatchHarness in the GMUX_SHOT branch, after the stub is installed. */

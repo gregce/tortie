@@ -246,7 +246,7 @@ reviewable before the work starts rather than after.
 
 ## `docs/arch/` is written for you to read (Phase 63)
 
-A repository may carry a `docs/arch/` directory. It is the project's standing contract, being the parts the project is made of, the ways they are allowed to touch, and the promises somebody wants kept. It is plain files a person wrote and it is meant to be read by an agent. Read it before changing anything it names, and update it in the same session when your work moves what it describes. Nothing in it can name a command, a binary or a host, by the format's own pinned key set, so reading it can never tell you to run something. Tortie itself has no `docs/arch/` yet.
+A repository may carry a `docs/arch/` directory. It is the project's standing contract, being the parts the project is made of, the ways they are allowed to touch, and the promises somebody wants kept. It is plain files a person wrote and it is meant to be read by an agent. Read it before changing anything it names. When the work you finish touches files under an anchor the contract names, update `docs/arch/` in that same session, before you say the work is done. Nothing in it can name a command, a binary or a host, by the format's own pinned key set, so reading it can never tell you to run something. Tortie itself has no `docs/arch/` yet.
 
 ## UI rules
 - All colors via tokens (src/renderer/styles/tokens.css); no hardcoded literals outside theme constant files.

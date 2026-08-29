@@ -103,4 +103,15 @@ export const ARCH_ABOUT_WRITES =
 
 export const ARCH_ABOUT_BOUNDARY =
   'The agent runs only when you ask from the Architecture view, under your ' +
-  'own account, and never because a file changed or a check failed.';
+  'own account, and never because a file changed on its own.';
+
+/**
+ * PHASE 159, the one sentence the disclosure gained. Picking an agent is
+ * the consent for the repair too: when a check finds a promise broke or a
+ * part fell behind, the same agent proposes a repair for those parts only,
+ * under the same gate. A check that finds nothing broken starts nothing.
+ */
+export const ARCH_ABOUT_DRIFT =
+  'When a check finds a promise broke or a part fell behind, the same ' +
+  'agent proposes a repair for those parts only, and a check that finds ' +
+  'nothing broken starts nothing.';

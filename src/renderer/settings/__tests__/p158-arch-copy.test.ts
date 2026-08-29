@@ -142,9 +142,15 @@ describe('what the disclosure promises', () => {
     expect(copy.ARCH_ABOUT_WRITES).toContain('review');
   });
 
-  it('says the agent runs only on your ask, never on a change', () => {
+  it('says the agent runs on your ask, never on a file change alone', () => {
     expect(copy.ARCH_ABOUT_BOUNDARY).toContain('only when you ask');
-    expect(copy.ARCH_ABOUT_BOUNDARY).toContain('never because a file changed');
+    expect(copy.ARCH_ABOUT_BOUNDARY).toContain('never because a file changed on its own');
+  });
+
+  it('says the repair rides the same choice and a clean check starts nothing (Phase 159)', () => {
+    expect(copy.ARCH_ABOUT_DRIFT).toContain('the same agent');
+    expect(copy.ARCH_ABOUT_DRIFT).toContain('those parts only');
+    expect(copy.ARCH_ABOUT_DRIFT).toContain('nothing broken starts nothing');
   });
 });
 

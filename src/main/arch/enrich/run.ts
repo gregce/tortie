@@ -10,8 +10,20 @@
  * discipline, composed from fold/suspension.ts, being three consecutive
  * failures or a turned rate window suspending the pass for the fold's own
  * blind window.
- * Phase 159, not this one, is where the settle and interval numbers start
- * doing automatic work.
+ * PHASE 159 ADDED THE DRIFT SCOPE AND THE AUTOMATIC TRIGGER, and still no
+ * timer, poll or scheduler class lives here. The settle a drift rides is the
+ * arch watch pipeline's own (../watch.ts: the watcher's debounce, one run in
+ * flight, and the downgrade hold), and the caller fires this runner only
+ * once a downgrade has settled. What this module adds for the automatic
+ * trigger is two refusals that spawn nothing: the fold's own minimum
+ * interval, applied per repository from memory and DROPPING a drift inside
+ * it rather than delaying it (a delay is a timer, and a timer is a
+ * scheduler), and the fold's same input hash against the newest recorded
+ * row, so a kept write that moves docs/arch/ and re-fires a check does not
+ * re-spend, a refused answer over the same drift is not retried every
+ * minute, and a relaunch does not pay again for a drift already answered.
+ * A person's own press, from the button or the ribbon, is never refused on
+ * either count.
  *
  * THE SPAWN IS THE FOLD'S. `runFold` in ../../overview/fold/spawn.ts is the
  * one path to a model, it inherits Bound C unchanged, and writing any other
@@ -33,12 +45,18 @@
  * enrichment.
  */
 
-import type { ArchDocument } from '@shared/arch';
+import type { ArchDocument, ArchFreshness } from '@shared/arch';
+// The scope and the trigger are the shared contract's own words
+// (src/shared/ipc/arch.ts), so the store, the wire and this runner agree by
+// construction. Only `drift` is refused on the interval or the hash.
+import type { ArchPassScope, ArchPassTrigger } from '@shared/ipc';
 import { logEvent } from '../../log';
 import { configRowStatus } from '../../config/confirm';
 import { currentAgentTable } from '../../config/store';
+import { foldInputHash } from '../../overview/fold/compose';
 import { harnessConfirmedNow } from '../../overview/fold/options';
 import { archRecipeFor, recipeHasModel } from '../../overview/fold/recipes';
+import { FOLD_MIN_INTERVAL_MS } from '../../overview/fold/scheduler';
 import {
   runFold,
   type FoldRun,
@@ -46,10 +64,14 @@ import {
 } from '../../overview/fold/spawn';
 import { HarnessSuspension } from '../../overview/fold/suspension';
 import {
+  composeArchDeltaPrompt,
   composeArchEnrichPrompt,
+  ARCH_DELTA_SYSTEM_PROMPT,
   ARCH_ENRICH_SYSTEM_PROMPT,
+  type ArchEnrichComposition,
   type ArchEnrichImport
 } from './compose';
+import { driftScope, readArchDrift, type ArchDriftVerdict } from './drift';
 import { validateArchAnswer, type ArchEnrichAnswer } from './validate';
 import { planEnrichedWrite, writeArchFiles } from './write';
 
@@ -59,13 +81,20 @@ export interface ArchPassChoice {
   model: string | null;
 }
 
-/** Why a gesture was refused before anything spawned. */
+/**
+ * Why a gesture was refused before anything spawned. The last three are
+ * Phase 159's: `no-drift` for a drift scope with nothing drifted, and
+ * `interval` and `same-input` for the automatic trigger only.
+ */
 export type ArchPassRefusal =
   | 'no-choice'
   | 'not-confirmed'
   | 'no-recipe'
   | 'in-flight'
-  | 'suspended';
+  | 'suspended'
+  | 'no-drift'
+  | 'interval'
+  | 'same-input';
 
 /** What one recorded run looks like, on the run's face and in the store. */
 export interface ArchPassRunRecord {
@@ -91,6 +120,14 @@ export interface ArchPassRunRecord {
   components: number | null;
   /** The model's explicit regroup suggestions, never written to docs/arch/. */
   suggestions: string[];
+  scope: ArchPassScope;
+  trigger: ArchPassTrigger;
+  /**
+   * The fold's input hash over recipe, version, model, system prompt and
+   * prompt, written whatever the verdict. Null only when the run threw
+   * before the prompt was composed.
+   */
+  inputHash: string | null;
 }
 
 /** What one gesture came back with. */
@@ -114,6 +151,14 @@ export interface ArchPassInput {
   subject: string;
   /** Workspace directories, for the same recompose. */
   workspaces: readonly string[];
+  /** Absent means `whole`, so the Phase 158 button is unchanged. */
+  scope?: ArchPassScope;
+  /** Absent means `gesture`. */
+  trigger?: ArchPassTrigger;
+  /** The published verdicts the drift is read from. Only a drift scope reads them. */
+  verdicts?: readonly ArchDriftVerdict[];
+  /** The published freshness rows, the same. */
+  freshness?: readonly ArchFreshness[];
 }
 
 export interface ArchPassDeps {
@@ -141,6 +186,12 @@ export interface ArchPassDeps {
   };
   /** The one record write, and it only ever appends. */
   append(record: ArchPassRunRecord & { repoPath: string }): void;
+  /**
+   * The newest recorded row's input hash for a repository, or null. Read
+   * from the store so a relaunch still refuses a drift it already answered.
+   * Absent, the same input check never refuses.
+   */
+  latestInputHash?(repoPath: string): string | null;
   now?(): number;
 }
 
@@ -162,6 +213,12 @@ export class ArchPassRunner {
   private readonly deps: ArchPassDeps;
   private readonly now: () => number;
   private readonly inFlight = new Set<string>();
+  /**
+   * When the automatic trigger last spawned for a repository, in memory
+   * like the fold's own `lastFoldAt`. A relaunch forgets it, and the same
+   * input hash is what keeps a relaunch from re-spending.
+   */
+  private readonly lastDriftAt = new Map<string, number>();
   /** The fold's suspension discipline, the one copy (fold/suspension.ts). */
   private readonly suspender: HarnessSuspension;
 
@@ -214,19 +271,78 @@ export class ArchPassRunner {
       return { started: false, refusal: 'no-recipe', run: null };
     }
 
+    const scope: ArchPassScope = input.scope ?? 'whole';
+    const trigger: ArchPassTrigger = input.trigger ?? 'gesture';
+    const skip = (refusal: ArchPassRefusal): ArchPassOutcome => {
+      logEvent('arch', 'info', 'arch.pass.skipped', 'a pass was skipped before any spawn', {
+        repoPath: input.repoPath,
+        scope,
+        trigger,
+        reason: refusal
+      });
+      return { started: false, refusal, run: null };
+    };
+
+    // The drift, read before anything else happens: a drift scope with
+    // nothing drifted has nothing to ask and spawns nothing.
+    const drift =
+      scope === 'drift'
+        ? readArchDrift(input.document, input.verdicts ?? [], input.freshness ?? [])
+        : null;
+    if (scope === 'drift' && drift === null) return skip('no-drift');
+
+    // The fold's minimum interval, per repository, automatic trigger only.
+    // A drift inside it is DROPPED rather than delayed, and the next check
+    // re-fires it.
+    if (trigger === 'drift') {
+      const last = this.lastDriftAt.get(input.repoPath);
+      if (last !== undefined && this.now() - last < FOLD_MIN_INTERVAL_MS) {
+        return skip('interval');
+      }
+    }
+
+    const systemPrompt =
+      drift === null ? ARCH_ENRICH_SYSTEM_PROMPT : ARCH_DELTA_SYSTEM_PROMPT;
+    const composed: ArchEnrichComposition =
+      drift === null
+        ? composeArchEnrichPrompt({
+            document: input.document,
+            trackedFiles: input.trackedFiles,
+            imports: input.imports
+          })
+        : composeArchDeltaPrompt({
+            document: input.document,
+            trackedFiles: input.trackedFiles,
+            imports: input.imports,
+            drift
+          });
+    const inputHash = foldInputHash({
+      recipeAgentId: recipe.agentId,
+      recipeVersion: recipe.version,
+      model,
+      systemPrompt,
+      prompt: composed.prompt
+    });
+    // The same input, automatic trigger only: the newest row already
+    // answered this exact ask, kept or refused, so asking again spends for
+    // nothing. A person's own press always spawns.
+    if (
+      trigger === 'drift' &&
+      this.deps.latestInputHash !== undefined &&
+      this.deps.latestInputHash(input.repoPath) === inputHash
+    ) {
+      return skip('same-input');
+    }
+
     this.inFlight.add(input.repoPath);
+    if (trigger === 'drift') this.lastDriftAt.set(input.repoPath, this.now());
     const startedAt = this.now();
     try {
-      const composed = composeArchEnrichPrompt({
-        document: input.document,
-        trackedFiles: input.trackedFiles,
-        imports: input.imports
-      });
       const spawnOne = this.deps.run ?? runFold;
       const run = await spawnOne({
         recipe,
         model,
-        systemPrompt: ARCH_ENRICH_SYSTEM_PROMPT,
+        systemPrompt,
         prompt: composed.prompt
       });
       this.suspender.readWindow(run, input.repoPath);
@@ -237,7 +353,10 @@ export class ArchPassRunner {
         model,
         recipeVersion: recipe.version,
         startedAt,
-        wallMs: this.now() - startedAt
+        wallMs: this.now() - startedAt,
+        scope,
+        trigger,
+        inputHash
       };
       const finish = (
         verdict: 'kept' | 'refused' | 'failed',
@@ -263,6 +382,8 @@ export class ArchPassRunner {
           repoPath: input.repoPath,
           agentId,
           model,
+          scope,
+          trigger,
           verdict,
           reason,
           detail,
@@ -288,7 +409,8 @@ export class ArchPassRunner {
       }
       const ruling = validateArchAnswer(run.text, {
         document: input.document,
-        factBlock: composed.factBlock
+        factBlock: composed.factBlock,
+        scope: drift === null ? null : driftScope(drift)
       });
       if (ruling.kept === null) {
         // A refusal is the validator doing its job, not the harness failing,
@@ -364,7 +486,10 @@ export class ArchPassRunner {
         painted: null,
         groupsTotal: null,
         components: null,
-        suggestions: []
+        suggestions: [],
+        scope,
+        trigger,
+        inputHash
       };
       // A thrown run is a row like every other run: the store is what makes
       // a failure rate readable after a restart. The append is guarded so

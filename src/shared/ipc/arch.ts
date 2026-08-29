@@ -51,7 +51,8 @@ import type {
   ArchEdge,
   ArchFreshness,
   ArchProblem,
-  ArchVerdict
+  ArchVerdict,
+  ArchVerdictChanges
 } from '../arch';
 import type {
   ArchModuleFilesInput,
@@ -127,6 +128,18 @@ export interface ArchLoadResult {
    * about what somebody else did and never a thing Tortie can cause.
    */
   narratedAtCommit: string | null;
+  /**
+   * PHASE 159. How much drifted, counted in main from these same verdicts
+   * and freshness rows, so the ribbon's repair control shows on a number
+   * the renderer never derives a second time.
+   */
+  drift: ArchDriftFace;
+  /**
+   * PHASE 159. The last burst of changes a check produced, or null before
+   * any check moved anything. Persisted beside the verdicts and read back
+   * here; the renderer computes none of it.
+   */
+  changes: ArchVerdictChanges | null;
 }
 
 /**
@@ -149,6 +162,10 @@ export interface ArchCheckResult {
   generation: number;
   overBudget: string | null;
   durationMs: number;
+  /** PHASE 159. The drift these verdicts hold, counted in main. */
+  drift: ArchDriftFace;
+  /** PHASE 159. What this check moved, or the last burst when it moved nothing. */
+  changes: ArchVerdictChanges | null;
 }
 
 /** One drafted file. It opens as an unsaved buffer, and main writes nothing. */
@@ -293,6 +310,16 @@ export interface ArchPassRunFace {
    * the run's face and are NEVER written to `docs/arch/`.
    */
   suggestions: string[];
+  /**
+   * PHASE 159. What the pass was asked to touch: the whole contract, or
+   * only what drifted. Null on a row an older build recorded.
+   */
+  scope: ArchPassScope | null;
+  /**
+   * PHASE 159. What started it: the Fill in button, the ribbon's repair
+   * control, or a check that found drift. Null on an older row.
+   */
+  trigger: ArchPassTrigger | null;
 }
 
 /**
@@ -454,7 +481,7 @@ export interface ArchInvokeChannelMap {
    * when no agent is chosen, the agent is not confirmed RIGHT NOW, no recipe
    * is measured, a pass is already in flight, or the pass is suspended.
    */
-  'arch:enrich': { req: [input: ArchRepoInput]; res: ArchEnrichResult };
+  'arch:enrich': { req: [input: ArchEnrichInput]; res: ArchEnrichResult };
   /** What the pass is doing and what last ran. A read; it starts nothing. */
   'arch:passStatus': { req: [input: ArchRepoInput]; res: ArchPassStatusResult };
   /**
@@ -541,7 +568,7 @@ export interface GmuxArchExtras {
     setLayout(input: ArchSetLayoutInput): Promise<ArchCanvasWriteResult>;
     clearLayout(input: ArchClearLayoutInput): Promise<ArchCanvasWriteResult>;
     seed(input: ArchRepoInput): Promise<ArchSeedResult>;
-    enrich(input: ArchRepoInput): Promise<ArchEnrichResult>;
+    enrich(input: ArchEnrichInput): Promise<ArchEnrichResult>;
     passStatus(input: ArchRepoInput): Promise<ArchPassStatusResult>;
     acceptDivergence(
       input: ArchAcceptDivergenceInput
@@ -580,3 +607,44 @@ export type ArchMenuActionId = 'show-arch' | 'show-arch-map';
  * every other member of this union relies on.
  */
 export type ArchAimMenuActionId = 'arch-aim';
+
+// ---------------------------------------------------------------------------
+// The freshness loop (Phase 159)
+// ---------------------------------------------------------------------------
+
+/**
+ * What one pass is asked to touch. `whole` is the Phase 158 pass over the
+ * whole contract. `drift` names only the promises that broke and the parts
+ * that fell behind, and the validator refuses an answer that edits anything
+ * outside that scope.
+ */
+export type ArchPassScope = 'whole' | 'drift';
+
+/**
+ * What started one pass. `gesture` is the Fill in button, `ribbon` is the
+ * repair control beside the freshness sentence, and `drift` is a finished
+ * check that found something broken and no settle hold in the way. The
+ * trigger is decided in MAIN from where the call came, never sent by the
+ * renderer, so a page cannot claim to be a check.
+ */
+export type ArchPassTrigger = 'gesture' | 'ribbon' | 'drift';
+
+/**
+ * The enrichment ask (Phase 159). `scope` absent means `whole`, so the
+ * shipped Fill in button sends exactly the bytes it sent before. There is no
+ * second channel: the ribbon's keypress is this same `arch:enrich` with
+ * `scope: 'drift'`, through the same gate, the same one shot spawn, the
+ * same validator and the same writer.
+ */
+export interface ArchEnrichInput extends ArchRepoInput {
+  scope?: ArchPassScope;
+}
+
+/**
+ * How much drifted, as the load and the check answer it. One number, used
+ * by the renderer as a yes or no for the repair control and never drawn as
+ * a count on the face. Zero means nothing is broken and nothing fell behind.
+ */
+export interface ArchDriftFace {
+  count: number;
+}

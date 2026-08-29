@@ -40,9 +40,15 @@ import type {
   ArchFreshness,
   ArchOffending,
   ArchVerdict,
+  ArchVerdictChanges,
   ArchVerdictStatus
 } from '@shared/arch';
-import type { ArchCameraState, ArchNodePosition } from '@shared/ipc';
+import type {
+  ArchCameraState,
+  ArchNodePosition,
+  ArchPassScope,
+  ArchPassTrigger
+} from '@shared/ipc';
 import {
   addColumnIfMissing,
   immediateTransaction,
@@ -302,6 +308,33 @@ const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'arch_pass_run', 'detail', 'TEXT');
     }
+  },
+  {
+    // PHASE 159. A pass now says what it covered (`scope`: whole or drift),
+    // who asked (`trigger`: the button, the ribbon, or the check itself) and
+    // the fold's input hash over everything that decided the ask, written
+    // whatever the verdict, so the automatic trigger can refuse the same
+    // input rather than re-spend on it. Older rows read as whole, gesture,
+    // and no hash. Beside them, one row per repository holding the last
+    // burst of verdict changes a check produced, replaced only when a check
+    // moved something. Derived and disposable like everything else here.
+    name: '006-arch-pass-scope',
+    up: (db) => {
+      addColumnIfMissing(db, 'arch_pass_run', 'scope', 'TEXT');
+      addColumnIfMissing(db, 'arch_pass_run', 'trigger', 'TEXT');
+      addColumnIfMissing(db, 'arch_pass_run', 'input_hash', 'TEXT');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS arch_verdict_change (
+          repo_key        TEXT PRIMARY KEY,
+          from_generation INTEGER NOT NULL,
+          to_generation   INTEGER NOT NULL,
+          from_commit     TEXT,
+          to_commit       TEXT NOT NULL,
+          at              INTEGER NOT NULL,
+          rows            TEXT NOT NULL
+        );
+      `);
+    }
   }
 ];
 
@@ -363,6 +396,9 @@ interface PassRunRow {
   groups_total: number | null;
   components: number | null;
   suggestions: string;
+  scope: string | null;
+  trigger: string | null;
+  input_hash: string | null;
 }
 
 /** One pass to record, whatever its verdict: the stored shape plus its keys. */
@@ -386,6 +422,12 @@ export interface StoredArchPassRun {
   groupsTotal: number | null;
   components: number | null;
   suggestions: string[];
+  /** Whole contract or drift only. Older rows read as whole. */
+  scope: ArchPassScope;
+  /** Who asked. Older rows read as gesture. */
+  trigger: ArchPassTrigger;
+  /** The fold's input hash, or null on an older row or a run that threw first. */
+  inputHash: string | null;
 }
 
 interface FreshnessRow {
@@ -644,6 +686,62 @@ export class ArchStore {
   }
 
   /**
+   * The last burst of changes a check produced for a repository, or null
+   * before any check moved anything. Read back whole; a row an older build
+   * or a hand edit mangled reads as null rather than crashing the view.
+   */
+  verdictChanges(repoKey: string): ArchVerdictChanges | null {
+    const row = this.db
+      .prepare<[string], VerdictChangeRow>(
+        `SELECT from_generation, to_generation, from_commit, to_commit, at, rows
+           FROM arch_verdict_change WHERE repo_key = ?`
+      )
+      .get(repoKey);
+    if (row === undefined) return null;
+    const parsed = parseChangeRows(row.rows);
+    if (parsed === null) return null;
+    return {
+      fromGeneration: row.from_generation,
+      toGeneration: row.to_generation,
+      fromCommit: row.from_commit,
+      toCommit: row.to_commit,
+      at: row.at,
+      verdicts: parsed.verdicts,
+      parts: parsed.parts
+    };
+  }
+
+  /**
+   * Replace the burst for one repository. `publish` calls this inside its
+   * own transaction; it is public so a caller with a burst and no publish,
+   * which today is only a test, can write one.
+   */
+  saveVerdictChanges(repoKey: string, changes: ArchVerdictChanges): void {
+    this.db
+      .prepare<[string, number, number, string | null, string, number, string]>(
+        `INSERT INTO arch_verdict_change
+           (repo_key, from_generation, to_generation, from_commit, to_commit, at, rows)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(repo_key) DO UPDATE SET
+           from_generation = excluded.from_generation,
+           to_generation = excluded.to_generation,
+           from_commit = excluded.from_commit,
+           to_commit = excluded.to_commit,
+           at = excluded.at,
+           rows = excluded.rows`
+      )
+      .run(
+        repoKey,
+        changes.fromGeneration,
+        changes.toGeneration,
+        changes.fromCommit,
+        changes.toCommit,
+        changes.at,
+        JSON.stringify({ verdicts: changes.verdicts, parts: changes.parts })
+      );
+  }
+
+  /**
    * Publish one finished run, in ONE transaction, under its generation stamp.
    *
    * It refuses when a newer run has already claimed a generation, and the
@@ -659,10 +757,19 @@ export class ArchStore {
     verdicts: ArchVerdict[];
     freshness: ArchFreshness[];
     counts: ArchCoverageCounts;
+    /**
+     * The burst this check produced (Phase 159), written in the same
+     * transaction. Null or absent keeps the last burst, so a check that
+     * moved nothing leaves the previous one on screen.
+     */
+    changes?: ArchVerdictChanges | null;
   }): boolean {
     return immediateTransaction(this.db, () => {
       const current = this.repoState(input.repoKey).generation;
       if (input.generation < current) return false;
+      if (input.changes !== undefined && input.changes !== null) {
+        this.saveVerdictChanges(input.repoKey, input.changes);
+      }
       this.db
         .prepare<[string]>('DELETE FROM arch_verdict WHERE repo_key = ?')
         .run(input.repoKey);
@@ -871,14 +978,17 @@ export class ArchStore {
           number | null,
           number | null,
           number | null,
-          string
+          string,
+          string,
+          string,
+          string | null
         ]
       >(
         `INSERT INTO arch_pass_run
            (repo_key, repo_path, started_at, wall_ms, agent_id, model,
             recipe_version, verdict, reason, detail, painted, groups_total,
-            components, suggestions)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            components, suggestions, scope, trigger, input_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         row.repoKey,
@@ -894,7 +1004,10 @@ export class ArchStore {
         row.painted,
         row.groupsTotal,
         row.components,
-        JSON.stringify(row.suggestions)
+        JSON.stringify(row.suggestions),
+        row.scope,
+        row.trigger,
+        row.inputHash
       );
   }
 
@@ -903,7 +1016,8 @@ export class ArchStore {
     const row = this.db
       .prepare<[string], PassRunRow>(
         `SELECT started_at, wall_ms, agent_id, model, recipe_version, verdict,
-                reason, detail, painted, groups_total, components, suggestions
+                reason, detail, painted, groups_total, components, suggestions,
+                scope, trigger, input_hash
            FROM arch_pass_run WHERE repo_key = ?
           ORDER BY id DESC LIMIT 1`
       )
@@ -921,7 +1035,13 @@ export class ArchStore {
       painted: row.painted,
       groupsTotal: row.groups_total,
       components: row.components,
-      suggestions: parseSuggestions(row.suggestions)
+      suggestions: parseSuggestions(row.suggestions),
+      scope: row.scope === 'drift' ? 'drift' : 'whole',
+      trigger:
+        row.trigger === 'ribbon' || row.trigger === 'drift'
+          ? row.trigger
+          : 'gesture',
+      inputHash: row.input_hash
     };
   }
 
@@ -936,6 +1056,7 @@ export class ArchStore {
         'arch_camera',
         'arch_layout',
         'arch_pass_run',
+        'arch_verdict_change',
         'arch_repo'
       ]) {
         this.db
@@ -987,6 +1108,33 @@ function parseSuggestions(raw: string): string[] {
     return parsed.filter((entry): entry is string => typeof entry === 'string');
   } catch {
     return [];
+  }
+}
+
+interface VerdictChangeRow {
+  from_generation: number;
+  to_generation: number;
+  from_commit: string | null;
+  to_commit: string;
+  at: number;
+  rows: string;
+}
+
+/** The stored burst rows, back as records, or null when the row is not one. */
+function parseChangeRows(
+  raw: string
+): Pick<ArchVerdictChanges, 'verdicts' | 'parts'> | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== 'object') return null;
+    const record = parsed as { verdicts?: unknown; parts?: unknown };
+    if (!Array.isArray(record.verdicts) || !Array.isArray(record.parts)) return null;
+    return {
+      verdicts: record.verdicts as ArchVerdictChanges['verdicts'],
+      parts: record.parts as ArchVerdictChanges['parts']
+    };
+  } catch {
+    return null;
   }
 }
 

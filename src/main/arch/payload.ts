@@ -128,7 +128,7 @@ import {
   archVerdictWord
 } from '@shared/arch-copy';
 import type { ArchCoverageCounts } from '@shared/arch';
-import { archGapId, parseArchGapId } from '@shared/arch-ids';
+import { archGapId, archSubjectOwner, parseArchGapId } from '@shared/arch-ids';
 import type { ArchComposePayloadResult } from '@shared/ipc';
 import { componentFiles, matchAnchor } from './checkers/glob';
 
@@ -203,24 +203,11 @@ export type ArchPayloadResult = Omit<ArchComposePayloadResult, 'cwd'>;
 // a main module, so the format was written out by hand in a second place. One
 // file both processes can name is the fix.
 
-/**
- * Which part or promise a verdict is about.
- *
- * The checkers stamp five shapes, being `edge:<id>`, `component:<id>` with an
- * optional `#anchor:<n>`, `#boundary`, `#manifest` or `#freshness` suffix, and
- * either of those behind an `evidence:` prefix. An id in this format matches
- * `ARCH_ID_PATTERN`, so it can hold neither a colon nor a hash and this split
- * is unambiguous.
- */
-export function archSubjectOwner(
-  subjectId: string
-): { kind: 'component' | 'edge'; id: string } | null {
-  const body = subjectId.startsWith('evidence:') ? subjectId.slice(9) : subjectId;
-  const head = body.split('#')[0] ?? '';
-  if (head.startsWith('component:')) return { kind: 'component', id: head.slice(10) };
-  if (head.startsWith('edge:')) return { kind: 'edge', id: head.slice(5) };
-  return null;
-}
+// `archSubjectOwner` USED TO BE DEFINED HERE TOO and moved to the same file in
+// Phase 159, when the change diff view needed the same split of a subject id
+// in the renderer. It is re-exported so this module's callers and its test
+// keep one import.
+export { archSubjectOwner };
 
 // ---------------------------------------------------------------------------
 // The words this module needs and nothing else says
@@ -234,7 +221,7 @@ export function archSubjectOwner(
  * keystrokes. A space is used rather than a removal so two words never run
  * together and so the length of the line does not depend on what was stripped.
  */
-function oneLine(value: string): string {
+export function oneLine(value: string): string {
   return value.replace(/[\u0000-\u001f\u007f]/g, ' ');
 }
 

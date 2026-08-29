@@ -13,6 +13,8 @@ import type { ArchDocument } from '@shared/arch';
 import type { MergedAgentEntry } from '../../../config/overlay';
 import type { ConfigRowStatus } from '../../../config/confirm';
 import type { FoldRun } from '../../../overview/fold/spawn';
+import { FOLD_MIN_INTERVAL_MS } from '../../../overview/fold/scheduler';
+import type { ArchDriftVerdict } from '../drift';
 import {
   archAgentConfirmed,
   ArchPassRunner,
@@ -424,5 +426,166 @@ describe('archAgentConfirmed', () => {
         statusOf('confirmed') as never
       )
     ).toBe(true);
+  });
+});
+
+describe('the drift scope and the automatic trigger (Phase 159)', () => {
+  const broken: ArchDriftVerdict[] = [
+    {
+      subjectId: 'component:src-app#anchor:0',
+      status: 'absent',
+      coverage: 'checked',
+      reason: 'src/app says it lives at "src/app", and no tracked file is there.'
+    }
+  ];
+
+  function driftInput(
+    trigger: 'gesture' | 'ribbon' | 'drift',
+    verdicts: ArchDriftVerdict[] = broken
+  ): ArchPassInput {
+    return { ...passInput(), scope: 'drift', trigger, verdicts, freshness: [] };
+  }
+
+  it('the Phase 158 button is unchanged: no scope means whole, gesture', async () => {
+    const h = harness();
+    const outcome = await h.runner.run(passInput());
+    expect(outcome.run?.scope).toBe('whole');
+    expect(outcome.run?.trigger).toBe('gesture');
+    expect(outcome.run?.inputHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(h.appended[0]?.inputHash).toBe(outcome.run?.inputHash);
+  });
+
+  it('refuses no-drift before any spawn when nothing drifted', async () => {
+    const h = harness();
+    const outcome = await h.runner.run(driftInput('drift', []));
+    expect(outcome).toEqual({ started: false, refusal: 'no-drift', run: null });
+    expect(h.spawns).toBe(0);
+    expect(h.appended).toHaveLength(0);
+  });
+
+  it('spawns the delta prompt over a drift and records scope, trigger and hash', async () => {
+    let prompt = '';
+    let systemPrompt = '';
+    const h = harness({
+      run: (input) => {
+        prompt = input.prompt;
+        systemPrompt = input.systemPrompt;
+        return Promise.resolve(okRun(validAnswerText()));
+      }
+    });
+    const outcome = await h.runner.run(driftInput('drift'));
+    expect(outcome.started).toBe(true);
+    expect(prompt).toContain('DRIFT\npromise component:src-app#anchor:0: broke,');
+    expect(systemPrompt).toContain('Change only the parts and promises DRIFT names.');
+    expect(h.appended[0]?.scope).toBe('drift');
+    expect(h.appended[0]?.trigger).toBe('drift');
+    expect(h.appended[0]?.inputHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('validates a drift answer under rule 10, so an out of drift edit is refused', async () => {
+    const doc = draft();
+    doc.components.push({
+      ...doc.components[0]!,
+      id: 'src-quiet',
+      anchors: ['src/quiet'],
+      name: 'Quiet'
+    });
+    const answer = JSON.stringify({
+      contract: doc.contract,
+      components: [
+        doc.components[0],
+        { ...doc.components[1], description: 'An edit outside the drift.' }
+      ],
+      edges: { edges: [] },
+      suggestions: []
+    });
+    const h = harness({ run: () => Promise.resolve(okRun(answer)) });
+    const outcome = await h.runner.run({
+      ...driftInput('ribbon'),
+      document: doc,
+      trackedFiles: ['src/app/a.ts', 'src/quiet/q.ts']
+    });
+    expect(outcome.run?.verdict).toBe('refused');
+    expect(outcome.run?.reason).toBe('outside-drift');
+    expect(h.writes).toHaveLength(0);
+  });
+
+  it('drops a second automatic drift inside the interval, and the ribbon is never dropped', async () => {
+    let clock = 1_000_000;
+    const h = harness({ now: () => clock });
+    const first = await h.runner.run(driftInput('drift'));
+    expect(first.started).toBe(true);
+    clock += FOLD_MIN_INTERVAL_MS - 1;
+    // The same drift again would also be the same input, so change it.
+    const other: ArchDriftVerdict[] = [{ ...broken[0]!, reason: 'A different sentence.' }];
+    const second = await h.runner.run(driftInput('drift', other));
+    expect(second).toEqual({ started: false, refusal: 'interval', run: null });
+    const pressed = await h.runner.run(driftInput('ribbon', other));
+    expect(pressed.started).toBe(true);
+    clock += 1;
+    const third = await h.runner.run(driftInput('drift', other));
+    expect(third.started).toBe(true);
+    expect(h.spawns).toBe(3);
+  });
+
+  it('refuses the same input automatically, from the store, and never for a press', async () => {
+    const hashes: string[] = [];
+    const h = harness({
+      latestInputHash: () => hashes[hashes.length - 1] ?? null,
+      append: (record) => {
+        if (record.inputHash !== null) hashes.push(record.inputHash);
+      }
+    });
+    const first = await h.runner.run(driftInput('ribbon'));
+    expect(first.started).toBe(true);
+    const again = await h.runner.run(driftInput('drift'));
+    expect(again).toEqual({ started: false, refusal: 'same-input', run: null });
+    const pressed = await h.runner.run(driftInput('ribbon'));
+    expect(pressed.started).toBe(true);
+    expect(h.spawns).toBe(2);
+  });
+
+  it('the same input is refused after a REFUSED answer too, so a bad drift is not retried every minute', async () => {
+    const hashes: string[] = [];
+    let spawns = 0;
+    const h = harness({
+      run: () => {
+        spawns += 1;
+        return Promise.resolve(okRun('not json {'));
+      },
+      latestInputHash: () => hashes[hashes.length - 1] ?? null,
+      append: (record) => {
+        if (record.inputHash !== null) hashes.push(record.inputHash);
+      }
+    });
+    const first = await h.runner.run(driftInput('ribbon'));
+    expect(first.run?.verdict).toBe('refused');
+    const again = await h.runner.run(driftInput('drift'));
+    expect(again.refusal).toBe('same-input');
+    expect(spawns).toBe(1);
+  });
+
+  it('a changed drift is a new input and spawns again', async () => {
+    const hashes: string[] = [];
+    const h = harness({
+      latestInputHash: () => hashes[hashes.length - 1] ?? null,
+      append: (record) => {
+        if (record.inputHash !== null) hashes.push(record.inputHash);
+      }
+    });
+    await h.runner.run(driftInput('ribbon'));
+    const other: ArchDriftVerdict[] = [{ ...broken[0]!, reason: 'Another reason.' }];
+    const next = await h.runner.run(driftInput('drift', other));
+    expect(next.started).toBe(true);
+    expect(h.spawns).toBe(2);
+  });
+
+  it('a thrown drift run still records scope, trigger and hash', async () => {
+    const h = harness({ write: () => Promise.reject(new Error('disk said no')) });
+    const outcome = await h.runner.run(driftInput('drift'));
+    expect(outcome.run?.verdict).toBe('failed');
+    expect(outcome.run?.scope).toBe('drift');
+    expect(outcome.run?.trigger).toBe('drift');
+    expect(outcome.run?.inputHash).toMatch(/^[0-9a-f]{64}$/);
   });
 });

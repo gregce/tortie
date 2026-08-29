@@ -92,6 +92,8 @@ import {
   ARCH_ACCEPT_REASON_LABEL,
   ARCH_ACCEPT_TITLE,
   ARCH_ACCEPT_WRITE,
+  ARCH_CHANGES_BODY,
+  ARCH_CHANGES_TITLE,
   ARCH_COMPUTED_TITLE,
   ARCH_CONTRACT_ADDS,
   ARCH_DRILL_CRUMB_LABEL,
@@ -108,10 +110,27 @@ import {
   ARCH_PASS_SUGGESTIONS,
   ARCH_PASS_SUGGESTIONS_NOTE,
   ARCH_PASS_TITLE,
+  ARCH_REPAIR_BODY,
+  ARCH_REPAIR_LABEL,
+  ARCH_REPAIR_WRITTEN,
   ARCH_SCOPED_LOADING,
   ARCH_SCOPED_NO_FAILURES,
-  ARCH_SCOPED_NO_PROMISES
+  ARCH_SCOPED_NO_PROMISES,
+  partChangeTitle
 } from './copy';
+// Phase 159: the change diff's pure half. Naming and ordering only; main
+// computed every row inside the check and the section counts nothing.
+import {
+  changeLabel,
+  changeSelectId,
+  changeWord,
+  hasChanges,
+  orderedChanges,
+  orderedParts,
+  partDelta,
+  partSelectId,
+  shortCommit
+} from './changes';
 import {
   ARCH_ACCEPTED_NOTE,
   ARCH_ELSEWHERE,
@@ -361,9 +380,15 @@ export function passLead(
   return writtenSentence(run);
 }
 
-/** The kept run's own line: written, and when. */
+/**
+ * The kept run's own line: written, and when. A repair (Phase 159) says so,
+ * because a pass scoped to what drifted wrote the drifted parts and left
+ * the rest of the contract exactly as it was.
+ */
 function writtenSentence(run: ArchPassRunFace): string {
-  return `The contract was last written at ${timeWord(run.startedAt + run.wallMs)}.`;
+  const head =
+    run.scope === 'drift' ? ARCH_REPAIR_WRITTEN : 'The contract was last written at';
+  return `${head} ${timeWord(run.startedAt + run.wallMs)}.`;
 }
 
 /**
@@ -498,7 +523,12 @@ export function ArchView(): React.JSX.Element {
             <p className="arch-lastvalid">{ARCH_LAST_VALID}</p>
           ) : null}
           <PassFace repoPath={repoPath} />
-          <FreshnessRibbon />
+          <FreshnessRibbon repoPath={repoPath} />
+          {/* PHASE 159. What the last check moved, between the ribbon that
+              says how far the code went and the strip that says where the
+              promises stand now. Repository wide, like the accepted list:
+              the drill does not scope it. */}
+          <ChangedSection onSelect={select} />
           <VerdictStrip scoped={scoped} />
           <Problems />
           <FailureList
@@ -926,11 +956,177 @@ function ArchNote({ text }: { text: string }): React.JSX.Element {
  * computed against a dirty worktree is a different claim from one computed
  * against HEAD, and a person reading a red row deserves to know which.
  */
-function FreshnessRibbon(): React.JSX.Element | null {
+export function FreshnessRibbon({
+  repoPath
+}: {
+  repoPath: string | null;
+}): React.JSX.Element | null {
   const rows = useArch((s) => s.freshness());
   const nameOf = useArch((s) => s.nameOf);
-  if (rows.length === 0) return null;
-  return <p className="arch-ribbon">{freshnessSentence(rows, nameOf)}</p>;
+  // PHASE 159, THE ONE KEYPRESS. Main says on every load and every check
+  // whether something drifted, being a promise that broke or a part that
+  // fell behind, and the control mounts on that answer alone: no second
+  // arithmetic here, and no number on the face. It asks for the SAME pass
+  // the fill in button asks for, scoped to what drifted, and main holds
+  // the gate exactly as it does for that button.
+  const drifted = useArch((s) => s.driftCount()) > 0;
+  const repairDrift = useArch((s) => s.repairDrift);
+  const enriching = useArch((s) => s.enriching);
+  const drafting = useArch((s) => s.drafting);
+  const entry = useArch((s) =>
+    repoPath === null ? null : (s.passes[repoPath] ?? null)
+  );
+  const face = repairFace({
+    drifted,
+    chosen: entry?.status?.chosen === true,
+    available: passAvailable(),
+    busy: enriching || drafting || entry?.status?.running === true
+  });
+  if (rows.length === 0 && face === 'none') return null;
+  return (
+    <RibbonRow
+      sentence={freshnessSentence(rows, nameOf)}
+      repair={face}
+      onRepair={() => void repairDrift()}
+    />
+  );
+}
+
+/** What the ribbon's one control is doing: absent, ready, or held while a pass runs. */
+export type RepairFace = 'none' | 'ready' | 'busy';
+
+/**
+ * The mount rule for the repair control, pure so the suite can hold it.
+ *
+ * It draws only when main counted drift, only when an agent is chosen, the
+ * run face's own rule, because a control that can only ever come back
+ * refused is not a control, and only in a build with the pass half. While
+ * any pass or draft is out it stays on screen and disabled, like the fill
+ * in button, so a second press cannot start a second ask.
+ */
+export function repairFace(input: {
+  drifted: boolean;
+  chosen: boolean;
+  available: boolean;
+  busy: boolean;
+}): RepairFace {
+  if (!input.drifted || !input.chosen || !input.available) return 'none';
+  return input.busy ? 'busy' : 'ready';
+}
+
+/** The ribbon's row: the sentence, and the one control when it has a face. */
+export function RibbonRow({
+  sentence,
+  repair,
+  onRepair
+}: {
+  sentence: string;
+  repair: RepairFace;
+  onRepair: () => void;
+}): React.JSX.Element {
+  return (
+    <div className="arch-ribbon-row">
+      <p className="arch-ribbon">{sentence}</p>
+      {repair !== 'none' ? (
+        <button
+          type="button"
+          className="icon-btn arch-ribbon-repair"
+          aria-label={ARCH_REPAIR_LABEL}
+          title={ARCH_REPAIR_BODY}
+          disabled={repair === 'busy'}
+          onClick={onRepair}
+        >
+          <Codicon name="sparkle" size={14} />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * THE CHANGE DIFF (Phase 159). What the last check moved, against the check
+ * before it, in the failure list's house shape.
+ *
+ * Every row here was computed in MAIN, inside the one check where the
+ * previous verdict set and the next both exist, and persisted as one burst
+ * per repository. The section draws that record and counts nothing: no
+ * second arithmetic over the verdicts, which is the store's own rule for
+ * the strip and holds here for the same reason. It does not mount at all
+ * when there is no burst or the burst is empty, so a repository whose
+ * checks keep agreeing shows no header over nothing.
+ *
+ * JUST ENOUGH WORDS. One header with the commit the burst landed at, one
+ * line per moved promise, being a glyph, the subject's name and two verdict
+ * words with an arrow between them, and one line per part that fell
+ * further behind with a chip saying by how much. The checker's reason is
+ * the hover title and is never on the face. Every row selects its subject
+ * through the same `select` the failure list uses, so the prose panel and
+ * the module view below answer to it.
+ */
+export function ChangedSection({
+  onSelect
+}: {
+  onSelect: (id: string) => void;
+}): React.JSX.Element | null {
+  const changes = useArch((s) => s.changes());
+  const verdicts = useArch((s) => s.verdicts());
+  const nameOf = useArch((s) => s.nameOf);
+  if (changes === null || !hasChanges(changes)) return null;
+  // The reason is the current verdict's own sentence for the subject, read
+  // from the set in force rather than carried twice on the burst.
+  const reasonOf = (subjectId: string): string | undefined =>
+    verdicts.find((v) => v.subjectId === subjectId)?.reason ?? undefined;
+  return (
+    <section className="arch-changes" aria-label={ARCH_CHANGES_TITLE}>
+      <div className="section-header" title={ARCH_CHANGES_BODY}>
+        <span className="section-toggle">{ARCH_CHANGES_TITLE}</span>
+        <span className="arch-changes-commit">
+          {shortCommit(changes.toCommit)}
+        </span>
+      </div>
+      <ul>
+        {orderedChanges(changes).map((c) => {
+          // A subject this check dropped wears the unknown glyph and colour:
+          // it is gone rather than broken, and grey says so without a word.
+          const shown = c.to ?? 'unverifiable';
+          return (
+            <li key={c.subjectId} className={verdictClass(shown)}>
+              <button
+                type="button"
+                className="arch-change-head"
+                title={reasonOf(c.subjectId)}
+                onClick={() => onSelect(changeSelectId(c))}
+              >
+                <Codicon name={verdictIcon(shown)} size={12} />
+                <span className="arch-change-name">
+                  {changeLabel(c.subjectId, nameOf)}
+                </span>
+                <span className="arch-change-verdicts">
+                  <span>{changeWord(c.from, 'from')}</span>
+                  <Codicon name="arrow-small-right" size={12} />
+                  <span>{changeWord(c.to, 'to')}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+        {orderedParts(changes).map((p) => (
+          <li key={`part:${p.componentId}`} className="arch-change-part">
+            <button
+              type="button"
+              className="arch-change-head"
+              title={partChangeTitle(p.commitsBehindDelta, p.uncommittedFiles)}
+              onClick={() => onSelect(partSelectId(p))}
+            >
+              <Codicon name="git-commit" size={12} />
+              <span className="arch-change-name">{nameOf(p.componentId)}</span>
+              <span className="arch-change-delta">{partDelta(p)}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 /** The three lanes themselves, one markup for the whole and for a part. */

@@ -24,11 +24,10 @@
 
 import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import type { ManifestSessionRecord } from '../manifest';
 import { getGmuxCore } from '../sessions';
-import { isIsolatedLaunch } from './launch-gate';
+import { seedRefusal } from './seed-gate';
 
 interface OverviewSeedRow {
   name: string;
@@ -38,29 +37,12 @@ interface OverviewSeedRow {
   createdAt: number;
 }
 
-function real(p: string): string {
-  try {
-    return realpathSync(p);
-  } catch {
-    return p;
-  }
-}
-
 /** Called by dispatchHarness in the GMUX_SHOT branch, before runShot. */
 export async function seedOverviewSessions(): Promise<void> {
   const file = process.env['GMUX_OVERVIEW_SEED'] ?? '';
   if (file === '') return;
-  if (!isIsolatedLaunch(process.env)) {
-    throw new Error('GMUX_OVERVIEW_SEED refused: this launch is not an isolated harness launch.');
-  }
-  const harnessDir = process.env['GMUX_HARNESS_DIR'] ?? '';
-  const userData = real(app.getPath('userData'));
-  if (harnessDir === '' || !userData.startsWith(real(harnessDir))) {
-    throw new Error(
-      'GMUX_OVERVIEW_SEED refused: the profile directory is not under the harness directory, ' +
-        'so this could be a real profile.'
-    );
-  }
+  const refusal = seedRefusal('GMUX_OVERVIEW_SEED', process.env, app.getPath('userData'));
+  if (refusal !== null) throw new Error(refusal);
   const rows = JSON.parse(await readFile(file, 'utf8')) as OverviewSeedRow[];
   const core = await getGmuxCore();
   for (const row of rows) {

@@ -45,11 +45,12 @@ import type {
   ArchEdge,
   ArchFreshness,
   ArchProblem,
-  ArchVerdict
+  ArchVerdict,
+  ArchVerdictChanges
 } from '@shared/arch';
 // The channel ANSWER shapes, which are the ipc domain's own and not the
 // repository's records.
-import type { ArchCheckResult, ArchLoadResult } from '@shared/ipc';
+import type { ArchCheckResult, ArchLoadResult, ArchPassScope } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { localPathOf, sameTarget } from '@shared/workspace-target';
 import { gmuxBridge } from '../bridge';
@@ -414,7 +415,15 @@ export interface ArchViewState {
    * gesture while one is out does nothing. Main refuses on its own
    * authority when no agent is configured or confirmed.
    */
-  enrich(): Promise<void>;
+  enrich(scope?: ArchPassScope): Promise<void>;
+  /**
+   * THE RIBBON'S KEYPRESS (Phase 159). The same ask as `enrich`, scoped to
+   * what drifted: main composes a prompt naming only the promises that
+   * broke and the parts that fell behind, and the same gate, the same
+   * validator and the same write answer it. No second channel and no
+   * second spawn path: this is `arch:enrich` with `scope: 'drift'`.
+   */
+  repairDrift(): Promise<void>;
   /** Read one repository's pass surface, once, so the run face can draw. */
   loadPass(repoPath: string): Promise<void>;
   /** Read it again, whatever is held: the pass event's own re-read. */
@@ -461,6 +470,20 @@ export interface ArchViewState {
   counts(): ArchCoverageCounts | null;
   /** One freshness row per component. */
   freshness(): readonly ArchFreshness[];
+  /**
+   * PHASE 159. What the last check moved, as main persisted it beside the
+   * verdicts: one burst per repository, replaced when a check moves
+   * something and kept on screen when a check moves nothing. Null before
+   * any check has moved anything. The renderer computes none of it.
+   */
+  changes(): ArchVerdictChanges | null;
+  /**
+   * PHASE 159. How many subjects main says drifted, being promises that
+   * broke and parts that fell behind. Read from main's own answer on the
+   * load or the check, never counted here, and it is used as a yes or no:
+   * the number itself is never drawn.
+   */
+  driftCount(): number;
   /** A component's display name, or its id when it is not in the contract. */
   nameOf(componentId: string): string;
 }
@@ -1079,7 +1102,7 @@ export const useArch = create<ArchViewState>((set, get) => ({
     if (passBridge() !== null) await get().enrich();
   },
 
-  async enrich() {
+  async enrich(scope: ArchPassScope = 'whole') {
     const target = get().target;
     const api = passBridge();
     if (target === null || api === null || get().enriching) return;
@@ -1087,7 +1110,11 @@ export const useArch = create<ArchViewState>((set, get) => ({
     if (cwd === null) return;
     set({ enriching: true });
     try {
-      const result = await api.enrich({ cwd });
+      // The whole pass sends exactly what it sent before Phase 159; only the
+      // drift scope adds a field, so the shipped button's bytes are unchanged.
+      const result = await api.enrich(
+        scope === 'drift' ? { cwd, scope } : { cwd }
+      );
       // The refusal that stopped the gesture before any spawn is kept
       // beside the status, because it never becomes a run record and the
       // face still owes the person a sentence about it.
@@ -1109,6 +1136,10 @@ export const useArch = create<ArchViewState>((set, get) => ({
     } finally {
       set({ enriching: false });
     }
+  },
+
+  async repairDrift() {
+    await get().enrich('drift');
   },
 
   async loadPass(repoPath) {
@@ -1283,6 +1314,16 @@ export const useArch = create<ArchViewState>((set, get) => ({
   freshness() {
     const { lastCheck, load } = get();
     return lastCheck?.freshness ?? load?.freshness ?? NONE;
+  },
+
+  changes() {
+    const { lastCheck, load } = get();
+    return lastCheck?.changes ?? load?.changes ?? null;
+  },
+
+  driftCount() {
+    const { lastCheck, load } = get();
+    return lastCheck?.drift.count ?? load?.drift.count ?? 0;
   },
 
   nameOf(componentId) {

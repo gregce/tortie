@@ -333,6 +333,7 @@ import { runP64PasteMatrix } from './p64-paste-matrix';
 import { runSmokeShadow } from './shadow';
 import { runSmokeShim } from './shim-smoke';
 import { runShot } from './shot';
+import { seedArch } from './arch-seed';
 import { installFoldStub } from './fold-stub';
 import { seedFold } from './fold-seed';
 import { seedOverviewSessions } from './overview-seed';
@@ -649,6 +650,13 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
     // the same two refusals both of those carry.
     if ((process.env['GMUX_FOLD_SEED'] ?? '') !== '') {
       await seedFold();
+    }
+    // Phase 159: the arch choice's own seed, which sets the sealed choice and
+    // fires nothing. The drift trigger is fired by the probe changing a file
+    // in its scratch repository, which is the real trigger, and the spawn is
+    // the stub above. It carries the same two refusals the seeds above carry.
+    if ((process.env['GMUX_ARCH_SEED'] ?? '') !== '') {
+      await seedArch();
     }
     // Phase 143: the story's own seed, which writes version chains straight
     // through the shipped appendSummary path so a probe can photograph a

@@ -99,3 +99,26 @@ export function archViewGapIdToChannel(id: string): string | null {
   const parsed = parseArchViewGapId(id);
   return parsed === null ? null : archGapId(parsed.componentId, parsed.index);
 }
+
+/**
+ * Which part or promise a verdict is about (moved here in Phase 159).
+ *
+ * The checkers stamp five shapes, being `edge:<id>`, `component:<id>` with an
+ * optional `#anchor:<n>`, `#boundary`, `#manifest` or `#freshness` suffix, and
+ * either of those behind an `evidence:` prefix. An id in this format matches
+ * {@link ARCH_ID_PATTERN}, so it can hold neither a colon nor a hash and this
+ * split is unambiguous.
+ *
+ * It lived in `src/main/arch/payload.ts` until the change diff view needed
+ * the same split in the renderer, which may not import a main module. The
+ * same argument as the gap ids above: one file both processes can name.
+ */
+export function archSubjectOwner(
+  subjectId: string
+): { kind: 'component' | 'edge'; id: string } | null {
+  const body = subjectId.startsWith('evidence:') ? subjectId.slice(9) : subjectId;
+  const head = body.split('#')[0] ?? '';
+  if (head.startsWith('component:')) return { kind: 'component', id: head.slice(10) };
+  if (head.startsWith('edge:')) return { kind: 'edge', id: head.slice(5) };
+  return null;
+}

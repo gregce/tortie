@@ -458,3 +458,91 @@ export const ARCH_ROW_KEYS = {
   flow: ['id', 'name', 'shape', 'steps'],
   flowStep: ['seq', 'componentId', 'label', 'note', 'group', 'evidence']
 } as const;
+
+// ---------------------------------------------------------------------------
+// The drift and the change burst (Phase 159), derived like the verdicts
+// ---------------------------------------------------------------------------
+
+/**
+ * One promise the checkers say is broken RIGHT NOW: a `divergent` or `absent`
+ * verdict the strip counts as broke. Wholly accepted divergences are not
+ * drift, and accepted offending rows are left out of `offending`.
+ */
+export interface ArchDriftPromise {
+  /** The checker's own subject id, e.g. `edge:app-must-not-store`. */
+  subjectId: string;
+  status: 'divergent' | 'absent';
+  /** The checker's own sentence. */
+  reason: string;
+  /** The open offences, sorted by path, line, specifier. Never an accepted one. */
+  offending: ArchOffending[];
+}
+
+/** One quoted span in the contract that no longer reads as written, or whose file is gone. */
+export interface ArchDriftQuote {
+  subjectId: string;
+  /** `component` or `edge`, and the id, of the record that holds the quote. */
+  owner: { kind: 'component' | 'edge'; id: string };
+  index: number;
+  path: string;
+  line: number;
+  quote: string;
+  status: 'divergent' | 'absent';
+}
+
+/** One part whose commit count crossed the prose threshold. Commits only, never uncommitted files. */
+export interface ArchDriftPart {
+  componentId: string;
+  commitsBehind: number;
+}
+
+/**
+ * Everything that drifted, as STATE: what is wrong now, not what moved. The
+ * delta prompt is composed from exactly this and nothing else, and `count`
+ * is the one number the ribbon's repair control shows on.
+ */
+export interface ArchDrift {
+  promises: ArchDriftPromise[];
+  quotes: ArchDriftQuote[];
+  parts: ArchDriftPart[];
+  /** The parts a repair may touch: every named part plus both ends of every broken promise. Sorted. */
+  componentIds: string[];
+  /** The promises a repair may touch. Sorted. */
+  edgeIds: string[];
+  count: number;
+}
+
+/** One subject whose status or coverage moved between two checks. Null means it was not there. */
+export interface ArchVerdictChange {
+  subjectId: string;
+  from: ArchVerdictStatus | null;
+  to: ArchVerdictStatus | null;
+  fromCoverage: ArchCoverage | null;
+  toCoverage: ArchCoverage | null;
+}
+
+/** One part whose commit count rose between two checks. */
+export interface ArchPartChange {
+  componentId: string;
+  commitsBehindDelta: number;
+  uncommittedFiles: number;
+}
+
+/** The pure diff of two checks, before it is stamped. */
+export interface ArchVerdictDiff {
+  verdicts: ArchVerdictChange[];
+  parts: ArchPartChange[];
+}
+
+/**
+ * The last burst of changes one repository's checks produced, stamped with
+ * the two generations and commits it sits between. Replaced only when a
+ * check moved something, so a quiet check keeps the last burst on screen.
+ */
+export interface ArchVerdictChanges extends ArchVerdictDiff {
+  fromGeneration: number;
+  toGeneration: number;
+  fromCommit: string | null;
+  toCommit: string;
+  at: number;
+}

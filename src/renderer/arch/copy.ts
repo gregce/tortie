@@ -339,3 +339,59 @@ export const ARCH_ACCEPT_REASON_LABEL = 'Why this divergence is fine';
 
 /** The confirm control inside the open accept form. */
 export const ARCH_ACCEPT_WRITE = 'Write it down';
+
+/**
+ * PHASE 159, the freshness loop: the change diff and the repair keypress.
+ *
+ * The diff draws what the last check moved, one line per row and a glyph
+ * before every word, with the checker's own reason on hover and never on
+ * the face. The keypress rides the freshness ribbon and asks main for the
+ * same pass the fill in button asks for, scoped to what drifted. Nothing
+ * here says "stale" or "drift" as a verdict; a promise broke, a part fell
+ * behind by a number of commits, and the words say exactly that.
+ */
+
+/** The change diff's own heading. The commit the burst landed at sits beside it. */
+export const ARCH_CHANGES_TITLE = 'Changed';
+
+/** What the section is, on the header's hover title only. */
+export const ARCH_CHANGES_BODY =
+  'What the last check moved, against the check before it. Press a row to read it.';
+
+/** A subject the check before did not have. One word beside the arrow. */
+export const ARCH_CHANGE_NEW = 'new';
+
+/** A subject this check no longer has. One word beside the arrow. */
+export const ARCH_CHANGE_GONE = 'gone';
+
+/** The one control on the ribbon, for the reader that cannot see the glyph. */
+export const ARCH_REPAIR_LABEL = 'Repair what drifted';
+
+/** What pressing it does, on the hover title only (the copy ruling). */
+export const ARCH_REPAIR_BODY =
+  'Runs the agent you confirmed in Settings once, over what broke or fell behind and nothing else. The answer is checked whole before anything is written.';
+
+/** The kept repair's own line, the twin of the whole pass's written sentence. */
+export const ARCH_REPAIR_WRITTEN = 'The repair was last written at';
+
+/**
+ * The hover title on a part row of the diff: how far the part moved since
+ * the check before, and whether some of that is still uncommitted. The
+ * number is the point here, so the sentence carries it.
+ */
+export function partChangeTitle(
+  commitsBehind: number,
+  uncommittedFiles: number
+): string {
+  const commits =
+    commitsBehind === 1
+      ? '1 more commit has landed'
+      : `${String(commitsBehind)} more commits have landed`;
+  const head = `${commits} under this part since the check before.`;
+  if (uncommittedFiles === 0) return head;
+  const files =
+    uncommittedFiles === 1
+      ? '1 changed file is'
+      : `${String(uncommittedFiles)} changed files are`;
+  return `${head} ${files} not committed yet.`;
+}

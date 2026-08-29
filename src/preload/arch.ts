@@ -67,6 +67,9 @@ export const arch: GmuxArchExtras['arch'] = {
   // `acceptDivergence` is the accept button's own append to baseline.json.
   // Every write lands as an ordinary uncommitted change in Source Control.
   seed: (input) => invoke('arch:seed', input),
+  // Phase 159: the same call carries an optional `scope`. `drift` is the
+  // ribbon's repair press; absent is the whole pass, bytes unchanged. There
+  // is no second channel and nothing on this side decides what started it.
   enrich: (input) => invoke('arch:enrich', input),
   passStatus: (input) => invoke('arch:passStatus', input),
   acceptDivergence: (input) => invoke('arch:acceptDivergence', input),

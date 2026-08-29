@@ -5,8 +5,10 @@
  * will write it, plus the measured facts, and it returns the prompt and the
  * FACT BLOCK as two strings. The fact block travels separately because the
  * validator's invented number rule is checked against it: every digit run in
- * a prose field the model wrote back must appear verbatim in the fact block,
- * or the whole answer is refused. A prompt asks; the validator decides.
+ * a prose field the model wrote must appear verbatim in the fact block, or
+ * the whole answer is refused. A field returned byte identical to the draft
+ * is not one the model wrote, and it is exempt. A prompt asks; the
+ * validator decides.
  *
  * This is deliberately NOT the fold's composer. The fold composes turns under
  * a 16 KB cap; this composes a whole drafted contract plus facts, so it has
@@ -21,9 +23,10 @@
  * the instruction is a courtesy and the refusal is the rule.
  */
 
-import type { ArchDocument } from '@shared/arch';
+import type { ArchDocument, ArchDrift } from '@shared/arch';
 import { ARCH_PROMISE_GUIDANCE } from '@shared/arch';
 import { componentFiles } from '../checkers/glob';
+import { oneLine } from '../payload';
 
 /** The whole composed prompt's ceiling, in bytes of UTF-8. */
 export const ARCH_ENRICH_PROMPT_MAX_BYTES = 65_536;
@@ -45,8 +48,33 @@ export const ARCH_ENRICH_SYSTEM_PROMPT = [
   'Edit each component\'s name into a person readable name, and write one or two sentences of description saying what the part is FOR.',
   'Write real gaps where a part owes something, as plain sentences in its gaps list.',
   'Judge the promises in edges. Keep a may that is only an observation, promote one to must where the dependency is the design, and add a must-not between drafted parts where an import must never happen. Edge from and to only ever name drafted component ids.',
-  'Leave every evidence list empty. Never quote code.',
+  'Return every evidence list exactly as given, or with rows removed. Never add a quote and never quote code.',
   'Write a number only if that exact number appears in the FACTS section.',
+  'If the parts should be grouped differently, say so in suggestions as plain sentences. Never reshape the answer itself.',
+  'Do not write a baseline and do not accept any divergence.',
+  'Do not use a dash of any kind. Use a colon only to introduce a list.'
+].join('\n');
+
+/**
+ * The instruction a DRIFT repair answers under (Phase 159). Its own text,
+ * NOT the whole instruction with two lines added: the first real run of the
+ * fix round proved that Claude Haiku, told first to "edit each component's
+ * name" and then to "change only the parts named in DRIFT", did the first,
+ * and the validator refused the answer outside-drift. So this asks for the
+ * repair and nothing else. Every line is a rule the validator enforces
+ * mechanically (rules 4, 5, 6, 8 and 10 in ./validate.ts), except the two
+ * sentences saying what a repair looks like, which is what the pass is for.
+ * The instruction is a courtesy and the refusal is the rule.
+ */
+export const ARCH_DELTA_SYSTEM_PROMPT = [
+  'You repair an architecture contract for a software repository after some of its promises drifted from the code.',
+  'Answer with ONE JSON object and nothing else, in the shape',
+  '{"contract": {...}, "components": [{...}], "edges": {"edges": [{...}]}, "suggestions": ["..."]}.',
+  'Return the contract exactly as given. Return every part and every promise that DRIFT does not name exactly as given, every field and every quote included.',
+  'Change only the parts and promises DRIFT names. Keep every id, every anchor, every kind and every checker exactly as given, keep every part in its layer with its provenance, its boundary and its deprecated flag as given, and keep every promise between the same two parts. Never add a part or a promise and never remove one.',
+  'Where a promise broke, either change its rule to what the code now does, or keep the rule and add one gap sentence to the part that broke it saying what has to change in the code.',
+  'Where a part fell behind or a quote no longer reads as written, bring that part\'s description and gaps up to date and drop the stale quote. Never add a quote and never quote code.',
+  'Write a number only if that exact number appears in the DRIFT or FACTS section, or you are returning text exactly as it was given.',
   'If the parts should be grouped differently, say so in suggestions as plain sentences. Never reshape the answer itself.',
   'Do not write a baseline and do not accept any divergence.',
   'Do not use a dash of any kind. Use a colon only to introduce a list.'
@@ -106,8 +134,19 @@ function ownerOf(
   return owner;
 }
 
-/** The FACTS section, deterministic for the same inputs. */
-function factsBlock(input: ArchEnrichComposeInput, sample: number): string {
+/**
+ * The FACTS section, deterministic for the same inputs.
+ *
+ * With a scope, only the parts in it get file lines and only the import
+ * pairs with an end in it are counted, and the promise count guidance is
+ * left out because a repair is not drafting promises. The tracked file count
+ * always travels, so the block is never empty.
+ */
+function factsBlock(
+  input: ArchEnrichComposeInput,
+  sample: number,
+  scope: ReadonlySet<string> | null
+): string {
   const lines: string[] = ['FACTS'];
   lines.push(`tracked files at HEAD: ${input.trackedFiles.length}`);
   const owner = ownerOf(input.document, input.trackedFiles);
@@ -119,9 +158,9 @@ function factsBlock(input: ArchEnrichComposeInput, sample: number): string {
     else list.push(path);
   }
 
-  const components = [...input.document.components].sort((a, b) =>
-    a.id < b.id ? -1 : 1
-  );
+  const components = [...input.document.components]
+    .filter((component) => scope === null || scope.has(component.id))
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
   for (const component of components) {
     const owned = (files.get(component.id) ?? []).sort();
     lines.push(
@@ -141,6 +180,7 @@ function factsBlock(input: ArchEnrichComposeInput, sample: number): string {
     const from = owner.get(edge.fromPath);
     const to = owner.get(edge.toPath);
     if (from === undefined || to === undefined || from === to) continue;
+    if (scope !== null && !scope.has(from) && !scope.has(to)) continue;
     const key = `${from} imports ${to}`;
     counted.set(key, (counted.get(key) ?? 0) + 1);
   }
@@ -152,58 +192,156 @@ function factsBlock(input: ArchEnrichComposeInput, sample: number): string {
   for (const [key, count] of pairs) {
     lines.push(`  ${key}: ${count} ${count === 1 ? 'time' : 'times'}`);
   }
-  lines.push(
-    `a healthy contract starts with ${ARCH_PROMISE_GUIDANCE.min} to ` +
-      `${ARCH_PROMISE_GUIDANCE.max} promises`
-  );
+  if (scope === null) {
+    lines.push(
+      `a healthy contract starts with ${ARCH_PROMISE_GUIDANCE.min} to ` +
+        `${ARCH_PROMISE_GUIDANCE.max} promises`
+    );
+  }
   lines.push('END FACTS');
   return lines.join('\n');
 }
 
-function assemble(input: ArchEnrichComposeInput, sample: number): {
-  prompt: string;
-  factBlock: string;
-} {
-  const factBlock = factsBlock(input, sample);
-  const doc = input.document;
-  const parts = [...doc.components]
+/**
+ * The DRIFT section: one line per broken promise with its open offences
+ * indented under it, one line per stale quote, one line per part that fell
+ * behind. Every value is a fact the checkers measured or a line the contract
+ * holds, passed through `oneLine` so a specifier read out of somebody's
+ * source cannot carry a control character into a prompt. The reader already
+ * sorted everything, so the same drift is the same bytes.
+ */
+function driftBlock(drift: ArchDrift): string {
+  const lines: string[] = ['DRIFT'];
+  for (const promise of drift.promises) {
+    lines.push(`promise ${promise.subjectId}: broke, ${oneLine(promise.reason)}`);
+    for (const row of promise.offending) {
+      lines.push(`  ${oneLine(row.fromPath)}:${String(row.line)} ${oneLine(row.specifier)}`);
+    }
+  }
+  for (const quote of drift.quotes) {
+    const where = `${oneLine(quote.path)}:${String(quote.line)}`;
+    const holder = `${quote.owner.kind} ${quote.owner.id}`;
+    lines.push(
+      quote.status === 'absent'
+        ? `quote ${where} in ${holder}: the file is gone`
+        : `quote ${where} in ${holder} no longer reads "${oneLine(quote.quote)}"`
+    );
+  }
+  for (const part of drift.parts) {
+    lines.push(`part ${part.componentId}: ${String(part.commitsBehind)} commits behind`);
+  }
+  lines.push('END DRIFT');
+  return lines.join('\n');
+}
+
+/**
+ * The three sentences that introduce the contract's three pieces. The whole
+ * pass says "drafted", because the skeleton drafted them a moment ago; a
+ * repair says "current", because a person has been keeping them.
+ */
+interface ArchPromptWording {
+  contract: string;
+  parts: string;
+  promises: string;
+}
+
+const WHOLE_WORDING: ArchPromptWording = {
+  contract: 'Here is the drafted contract.',
+  parts: 'Here are the drafted parts, one JSON object each.',
+  promises: 'Here are the drafted promises.'
+};
+
+const DELTA_WORDING: ArchPromptWording = {
+  contract: 'Here is the current contract.',
+  parts: 'Here are the parts, one JSON object each.',
+  promises: 'Here are the promises.'
+};
+
+/**
+ * The one prompt shape, for the whole pass and the repair alike: the
+ * contract, every part sorted by id, every promise, the fact block exactly
+ * as the validator will read it, and the ask. Only the wording and the fact
+ * block differ between the two, and both are handed in.
+ */
+function assemble(
+  document: ArchDocument,
+  factBlock: string,
+  wording: ArchPromptWording
+): string {
+  const parts = [...document.components]
     .sort((a, b) => (a.id < b.id ? -1 : 1))
     .map((component) => toText(component))
     .join('\n');
-  const prompt = [
-    'Here is the drafted contract.',
+  return [
+    wording.contract,
     '',
-    toText(doc.contract),
-    'Here are the drafted parts, one JSON object each.',
+    toText(document.contract),
+    wording.parts,
     '',
     parts,
-    'Here are the drafted promises.',
+    wording.promises,
     '',
-    toText({ edges: doc.edges }),
+    toText({ edges: document.edges }),
     factBlock,
     '',
     'Answer with the one JSON object.'
   ].join('\n');
-  return { prompt, factBlock };
 }
 
 /**
- * Build the prompt. When the composed text is over the cap, the file samples
- * shrink first, because the drafted contract itself must always travel whole:
- * an answer is validated against it byte for byte, so sending half of it
- * would make every honest answer a refusal.
+ * Build under the cap. When the composed text is over it, the file samples
+ * shrink first, because the contract itself must always travel whole: an
+ * answer is validated against it byte for byte, so sending half of it would
+ * make every honest answer a refusal.
  */
-export function composeArchEnrichPrompt(
-  input: ArchEnrichComposeInput
+function composeUnderCap(
+  build: (sample: number) => { prompt: string; factBlock: string }
 ): ArchEnrichComposition {
   let sample = ARCH_ENRICH_FILE_SAMPLE;
-  let built = assemble(input, sample);
+  let built = build(sample);
   while (
     Buffer.byteLength(built.prompt, 'utf8') > ARCH_ENRICH_PROMPT_MAX_BYTES &&
     sample > 0
   ) {
     sample = sample > 8 ? Math.floor(sample / 2) : sample - 1;
-    built = assemble(input, sample);
+    built = build(sample);
   }
   return { prompt: built.prompt, factBlock: built.factBlock, fileSample: sample };
+}
+
+/** Build the whole pass's prompt: the contract, every part's facts, and the guidance. */
+export function composeArchEnrichPrompt(
+  input: ArchEnrichComposeInput
+): ArchEnrichComposition {
+  return composeUnderCap((sample) => {
+    const factBlock = factsBlock(input, sample, null);
+    return { prompt: assemble(input.document, factBlock, WHOLE_WORDING), factBlock };
+  });
+}
+
+/** The whole composer's input plus the drift the reader found. */
+export interface ArchDeltaComposeInput extends ArchEnrichComposeInput {
+  drift: ArchDrift;
+}
+
+/**
+ * Build the DRIFT prompt (Phase 159). Narrower than the whole prompt in its
+ * facts, never in its contract: every part and every promise still travels,
+ * because the validator compares the answer against the whole draft and an
+ * answer must carry every part to be kept. What is narrowed is the FACTS
+ * block, scoped to the drifted parts, plus the DRIFT block that names what is
+ * wrong and nothing else. Both blocks are measured facts, so both feed the
+ * invented number rule: a gap sentence that repeats a line number or a
+ * commit count from DRIFT is repeating a fact, not inventing one. They sit
+ * in the prompt exactly as they sit in the fact block, one newline apart.
+ * The same cap and the same shrink rule apply.
+ */
+export function composeArchDeltaPrompt(
+  input: ArchDeltaComposeInput
+): ArchEnrichComposition {
+  const scope = new Set(input.drift.componentIds);
+  return composeUnderCap((sample) => {
+    const factBlock = `${driftBlock(input.drift)}\n${factsBlock(input, sample, scope)}`;
+    return { prompt: assemble(input.document, factBlock, DELTA_WORDING), factBlock };
+  });
 }

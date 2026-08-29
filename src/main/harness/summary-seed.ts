@@ -35,8 +35,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { overviewStore } from '../overview';
 import { getGmuxCore } from '../sessions';
-import { isInside } from './fold-stub';
-import { isIsolatedLaunch } from './launch-gate';
+import { seedRefusal } from './seed-gate';
 
 /** The three verdicts the table allows, mirrored so the spec is typed. */
 type SummarySeedVerdict = 'kept' | 'refused' | 'failed';
@@ -115,17 +114,7 @@ export function summarySeedRefusal(
   env: NodeJS.ProcessEnv,
   userDataDir: string
 ): string | null {
-  if (!isIsolatedLaunch(env)) {
-    return 'GMUX_SUMMARY_SEED refused: this launch is not an isolated harness launch.';
-  }
-  const harnessDir = env['GMUX_HARNESS_DIR'] ?? '';
-  if (harnessDir === '' || !isInside(userDataDir, harnessDir)) {
-    return (
-      'GMUX_SUMMARY_SEED refused: the profile directory is not under the harness ' +
-      'directory, so this could be a real profile.'
-    );
-  }
-  return null;
+  return seedRefusal('GMUX_SUMMARY_SEED', env, userDataDir);
 }
 
 /** The fold's own cache key, derived when the caller leaves it out. */

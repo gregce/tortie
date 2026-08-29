@@ -45,6 +45,7 @@ import type { ArchSettings } from '@shared/settings';
 import { noArchChosen } from '@shared/settings';
 import {
   ARCH_ABOUT_BOUNDARY,
+  ARCH_ABOUT_DRIFT,
   ARCH_ABOUT_GROUP,
   ARCH_ABOUT_WHAT,
   ARCH_ABOUT_WRITES,
@@ -223,6 +224,7 @@ export function ArchSectionView(
         <p className="set-section-caption">{ARCH_ABOUT_WHAT}</p>
         <p className="set-section-caption">{ARCH_ABOUT_WRITES}</p>
         <p className="set-section-caption">{ARCH_ABOUT_BOUNDARY}</p>
+        <p className="set-section-caption">{ARCH_ABOUT_DRIFT}</p>
         {options !== null && harness?.measuredOn != null ? (
           <p className="set-section-caption">
             {archMeasuredOn(harness.measuredOn)}

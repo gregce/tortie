@@ -273,6 +273,8 @@ describe('the run face (Phase 158)', () => {
       wallMs: 0,
       painted: 7,
       groupsTotal: 9,
+      scope: null,
+      trigger: null,
       components: 9,
       suggestions: [],
       ...over

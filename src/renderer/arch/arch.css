@@ -782,3 +782,101 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* -- the freshness loop (Phase 159): the change diff and the repair press -- */
+
+/* The ribbon and its one control share a row. The control is the shared
+   icon button, 20px, and it only mounts when main says something drifted
+   and an agent is chosen, so at rest the ribbon is the sentence it was. */
+.arch-ribbon-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-right: var(--space-3);
+}
+
+.arch-ribbon-row > .arch-ribbon {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.arch-ribbon-repair {
+  margin-top: -2px;
+}
+
+.arch-ribbon-repair:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+/* The change diff, in the failure list's house shape: one row per subject
+   that moved, a glyph, a short label, and two verdict words with an arrow
+   between them. No paragraph, no count, and the reason rides hover. */
+.arch-changes-commit {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-muted);
+}
+
+.arch-changes li {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.arch-change-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-5);
+  color: inherit;
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+}
+
+.arch-change-head:hover {
+  background: var(--bg-raised);
+}
+
+.arch-change-name {
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* The arrow is a glyph rather than a character so it reads as state, and the
+   word on either side keeps its own verdict colour through the row. */
+.arch-change-verdicts {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  color: inherit;
+}
+
+.arch-change-verdicts > .codicon {
+  color: var(--text-muted);
+}
+
+/* A part row wears no verdict colour: it moved, it did not break. */
+.arch-change-part {
+  color: var(--text-secondary);
+}
+
+/* The chip on a part row, in the offending chip's own face. */
+.arch-change-delta {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}

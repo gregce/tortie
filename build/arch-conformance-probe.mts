@@ -47,7 +47,11 @@ import { languageOf } from '../src/main/arch/scan';
 import { GRAMMARS } from '../src/main/symbols/languages';
 import type { ImportForm } from '../src/main/symbols/queries';
 import { ARCH_ROW_KEYS } from '../src/shared/arch';
-import { composeArchEnrichPrompt } from '../src/main/arch/enrich/compose';
+import {
+  composeArchDeltaPrompt,
+  composeArchEnrichPrompt
+} from '../src/main/arch/enrich/compose';
+import { readArchDrift, driftScope } from '../src/main/arch/enrich/drift';
 import { validateArchAnswer } from '../src/main/arch/enrich/validate';
 import {
   assertArchWritePath,
@@ -876,6 +880,210 @@ async function main(): Promise<void> {
   };
 
   // -------------------------------------------------------------------------
+  // Phase 159: the delta prompt over the planted drift, composed twice.
+  //
+  // The drift is read from the STORED verdict shape, which is what the
+  // automatic trigger reads and which carries no accepted flag, so the
+  // wholly accepted boundary on `core` has to be left out by its rows alone.
+  // The fixture plants every drift shape but a part behind, because nothing
+  // in its log is twenty commits deep, so `core` is planted at the prose
+  // threshold plus fourteen here, the way the stale payload plants it, and
+  // the pinned freshness sentences do not move.
+  // -------------------------------------------------------------------------
+  const deltaFreshness: ArchFreshness[] = freshnessRows.map((row) => ({
+    ...row,
+    commitsBehind: row.componentId === 'core' ? ARCH_PROSE_MAX_COMMITS_BEHIND + 14 : 0
+  }));
+  const deltaCallsBefore = payloadRecord.length;
+  const driftOne = readArchDrift(document, storedVerdicts, deltaFreshness);
+  const driftTwo = readArchDrift(
+    document,
+    [...storedVerdicts].reverse().map((verdict) => ({
+      ...verdict,
+      ...(verdict.offending === undefined
+        ? {}
+        : { offending: [...verdict.offending].reverse() })
+    })),
+    [...deltaFreshness].reverse()
+  );
+  const deltaPairs = facts.imports
+    .filter((i) => i.toPath !== null)
+    .map((i) => ({ fromPath: i.fromPath, toPath: i.toPath as string }));
+  const deltaOne =
+    driftOne === null
+      ? null
+      : composeArchDeltaPrompt({
+          document,
+          trackedFiles: facts.trackedFiles,
+          imports: deltaPairs,
+          drift: driftOne
+        });
+  const deltaTwo =
+    driftTwo === null
+      ? null
+      : composeArchDeltaPrompt({
+          document,
+          trackedFiles: [...facts.trackedFiles].reverse(),
+          imports: [...deltaPairs].reverse(),
+          drift: driftTwo
+        });
+  const deltaCallsAfter = payloadRecord.length;
+  // The no spawn control: the same verdicts with every failure removed, and
+  // every part at zero, must read as no drift at all.
+  const noDrift = readArchDrift(
+    document,
+    storedVerdicts.filter(
+      (verdict) => verdict.status !== 'divergent' && verdict.status !== 'absent'
+    ),
+    freshnessRows.map((row) => ({ ...row, commitsBehind: 0 }))
+  );
+  const driftText = deltaOne?.prompt ?? '';
+  const driftStart = driftText.indexOf('DRIFT\n');
+  const driftEnd = driftText.indexOf('\nEND DRIFT');
+  const driftBlock =
+    driftStart === -1 || driftEnd === -1 ? '' : driftText.slice(driftStart, driftEnd);
+
+  // The hostile answers under the drift scope, each refused whole, and two
+  // honest repairs kept, which is what proves the refusals can pass.
+  const deltaControls: Record<string, { refused: boolean; refusal: string | null }> = {};
+  if (driftOne !== null && deltaOne !== null && document.contract !== null) {
+    const deltaContext = {
+      document,
+      factBlock: deltaOne.factBlock,
+      scope: driftScope(driftOne)
+    };
+    const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+    const answerBase = () => ({
+      contract: clone(document.contract),
+      components: clone(document.components),
+      edges: { edges: clone(document.edges) },
+      suggestions: [] as string[]
+    });
+    const ruleOn = (answer: unknown) => {
+      const ruling = validateArchAnswer(JSON.stringify(answer), deltaContext);
+      return { refused: ruling.kept === null, refusal: ruling.refusal };
+    };
+    // A repair: the broken must-not becomes a may, the drifted part gets a gap.
+    const repair = answerBase();
+    const brokenEdge = repair.edges.edges.find((e) => e.id === 'app-must-not-store');
+    if (brokenEdge !== undefined) brokenEdge.rule = 'may';
+    const store = repair.components.find((c) => c.id === 'store');
+    if (store !== undefined) store.gaps = [...store.gaps, 'The app still reads rows directly.'];
+    deltaControls['repair'] = ruleOn(repair);
+    // A stale quote dropped from the drifted part.
+    const dropped = answerBase();
+    const core = dropped.components.find((c) => c.id === 'core');
+    if (core !== undefined) core.evidence = [];
+    deltaControls['droppedQuote'] = ruleOn(dropped);
+    // An edit to a promise outside the drift.
+    const outside = answerBase();
+    const quiet = outside.edges.edges.find((e) => e.id === 'app-must-not-ajv');
+    if (quiet !== undefined) quiet.note = 'An edit the drift never asked for.';
+    deltaControls['outsideEdge'] = ruleOn(outside);
+    // An edit to a part outside the drift.
+    const outsidePart = answerBase();
+    const ajv = outsidePart.components.find((c) => c.id === 'ajv');
+    if (ajv !== undefined) ajv.description = 'An edit the drift never asked for.';
+    deltaControls['outsidePart'] = ruleOn(outsidePart);
+    // A promise added.
+    const added = answerBase();
+    added.edges.edges.push({
+      id: 'store-must-not-app',
+      from: 'store',
+      to: 'app',
+      kind: 'imports',
+      rule: 'must-not',
+      checker: 'imports',
+      evidence: []
+    });
+    deltaControls['addedEdge'] = ruleOn(added);
+    // A new quote written onto a drifted part.
+    const invented = answerBase();
+    const app = invented.components.find((c) => c.id === 'app');
+    if (app !== undefined) {
+      app.evidence = [
+        ...app.evidence,
+        { path: 'src/app/main.ts', lineStart: 1, lineEnd: 1, quote: 'import' }
+      ];
+    }
+    deltaControls['newEvidence'] = ruleOn(invented);
+    // The fix round of Phase 159. A MODEL SHAPED repair: every drifted part
+    // gets a person readable name, a description and a gap, the stale quote
+    // is dropped, the broken must-not becomes a may, and every quiet part
+    // and promise comes back byte identical, including the quiet note that
+    // carries "2019", a digit the scoped facts never state. That note is
+    // what proves the invented number rule exempts text returned as given,
+    // without which no repair over the shipped skeleton could be kept.
+    const scopedParts = new Set(driftOne.componentIds);
+    const scopedEdges = new Set(driftOne.edgeIds);
+    const modelRepair = answerBase();
+    for (const component of modelRepair.components) {
+      if (!scopedParts.has(component.id)) continue;
+      component.name = `The ${component.id} part`;
+      component.description = `Holds what the ${component.id} part is for, over the 12 tracked files.`;
+      component.gaps = [...component.gaps, 'Somebody should say what this part owes.'];
+      component.evidence = [];
+    }
+    for (const edge of modelRepair.edges.edges) {
+      if (!scopedEdges.has(edge.id)) continue;
+      if (edge.rule === 'must-not') edge.rule = 'may';
+      edge.note = 'The code does this today, so the contract says so.';
+    }
+    deltaControls['modelRepair'] = ruleOn(modelRepair);
+    // The contract flipped beside an honest repair.
+    const strictness = answerBase();
+    strictness.contract.strictness = 'complete';
+    const strictnessEdge = strictness.edges.edges.find((e) => e.id === 'app-must-not-store');
+    if (strictnessEdge !== undefined) strictnessEdge.rule = 'may';
+    deltaControls['strictnessFlipped'] = ruleOn(strictness);
+    // The drifted promise re-pointed at two other drafted parts, id kept.
+    const repointed = answerBase();
+    const moved = repointed.edges.edges.find((e) => e.id === 'app-must-not-store');
+    if (moved !== undefined) {
+      moved.from = 'core';
+      moved.to = 'app';
+    }
+    deltaControls['repointed'] = ruleOn(repointed);
+    // The drifted promise with its checker changed.
+    const rechecked = answerBase();
+    const checked = rechecked.edges.edges.find((e) => e.id === 'app-must-not-store');
+    if (checked !== undefined) checked.checker = 'manifest';
+    deltaControls['checkerChanged'] = ruleOn(rechecked);
+    // The re-verify of Phase 159: a drifted PART reshaped under its own id,
+    // one field at a time. Its layer, its provenance, its boundary and its
+    // deprecated flag are what the part is, and a repair changes its words.
+    const drifted = [...scopedParts][0];
+    const reshape = (field: 'layer' | 'provenance' | 'boundary' | 'deprecated', value: unknown) => {
+      const answer = answerBase();
+      const part = answer.components.find((c) => c.id === drifted);
+      if (part !== undefined) (part as unknown as Record<string, unknown>)[field] = value;
+      return ruleOn(answer);
+    };
+    const otherLayer = document.contract.layers.map((l) => l.id).find((id) => id !== document.components.find((c) => c.id === drifted)?.layer);
+    deltaControls['layerMoved'] = reshape('layer', otherLayer ?? 'surface');
+    deltaControls['provenanceMoved'] = reshape('provenance', 'vendored');
+    const boundary = document.components.find((c) => c.id === drifted)?.boundary;
+    deltaControls['boundaryFlipped'] = reshape('boundary', boundary === 'open' ? 'closed' : 'open');
+    deltaControls['deprecatedSet'] = reshape('deprecated', true);
+  }
+  const delta = {
+    text: deltaOne?.prompt ?? '',
+    bytes: Buffer.byteLength(deltaOne?.prompt ?? '', 'utf8'),
+    repeatable: deltaOne !== null && deltaTwo !== null && deltaOne.prompt === deltaTwo.prompt,
+    driftBlock,
+    count: driftOne?.count ?? 0,
+    promises: driftOne?.promises.length ?? 0,
+    quotes: driftOne?.quotes.length ?? 0,
+    parts: driftOne?.parts.length ?? 0,
+    componentIds: driftOne?.componentIds ?? [],
+    edgeIds: driftOne?.edgeIds ?? [],
+    noDrift: noDrift === null,
+    callsBefore: deltaCallsBefore,
+    callsAfter: deltaCallsAfter,
+    controls: deltaControls
+  };
+
+  // -------------------------------------------------------------------------
   const archDir = join(root, 'src', 'main', 'arch');
   const walk = (dir: string): string[] => {
     const out: string[] = [];
@@ -1012,6 +1220,7 @@ async function main(): Promise<void> {
         rowKeys: ARCH_ROW_KEYS,
         sources,
         enrich,
+        delta,
         hostileStrings: facts.hostileStrings
       },
       null,

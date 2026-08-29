@@ -1126,6 +1126,129 @@ if (enrich === null) {
 }
 
 // ---------------------------------------------------------------------------
+// 11.6 The delta prompt, byte for byte over the planted drift (Phase 159)
+// ---------------------------------------------------------------------------
+//
+// The prompt a drift repair spawns under is pinned the way the payload block
+// is pinned: word for word in expected.json, composed twice from shuffled
+// verdicts and shuffled offending rows, and starting nothing. Beside the bytes
+// the gate reads the DRIFT block alone and asserts what is NOT in it: every
+// convergent promise, the wholly accepted boundary, and the accepted offence,
+// because "names only what drifted" is a refusal and a refusal is what a
+// later round undoes in one line.
+
+const delta = data.delta ?? null;
+const deltaRows = [];
+if (delta === null) {
+  fail('the probe composed no delta prompt. The Phase 159 section did not run.');
+} else {
+  const gotLines = delta.text.split('\n');
+  const wantLines = expected.delta.text;
+  let firstDiff = -1;
+  for (let i = 0; i < Math.max(gotLines.length, wantLines.length); i += 1) {
+    if (gotLines[i] !== wantLines[i]) {
+      firstDiff = i;
+      break;
+    }
+  }
+  if (firstDiff !== -1) {
+    fail(
+      `delta: line ${firstDiff + 1} reads\n      ${JSON.stringify(gotLines[firstDiff] ?? null)}\n` +
+        `    and build/fixtures/arch/expected.json says\n      ` +
+        `${JSON.stringify(wantLines[firstDiff] ?? null)}\n` +
+        `    The prompt a drift repair spawns under is pinned word for word. If ` +
+        `this change is deliberate, re-pin expected.delta.text.`
+    );
+  }
+  deltaRows.push([
+    'delta prompt',
+    `${gotLines.length} lines, ${delta.bytes} bytes`,
+    firstDiff === -1 ? 'matches the pinned text line for line' : `DIFFERS at line ${firstDiff + 1}`
+  ]);
+  if (delta.repeatable !== true) {
+    fail(
+      'delta: the same drift from shuffled verdicts and shuffled offending rows ' +
+        'composed different bytes. The reader sorts everything it is given.'
+    );
+  }
+  deltaRows.push(['composed twice', 'verdicts, offences, files and imports reversed', delta.repeatable ? 'identical bytes' : 'DRIFTED']);
+  if (delta.callsBefore !== delta.callsAfter) {
+    fail(`delta: composing started ${delta.callsAfter - delta.callsBefore} git calls.`);
+  }
+  for (const name of expected.delta.mustName) {
+    if (!delta.driftBlock.includes(name)) {
+      fail(`delta: the DRIFT block does not name "${name}", which drifted.`);
+    }
+  }
+  for (const name of expected.delta.mustNotName) {
+    if (delta.driftBlock.includes(name)) {
+      fail(
+        `delta: the DRIFT block names "${name}", which did not drift. The ` +
+          `prompt names only what drifted.`
+      );
+    }
+  }
+  deltaRows.push([
+    'names only drift',
+    `${expected.delta.mustName.length} drifted subjects named, ${expected.delta.mustNotName.length} quiet ones absent`,
+    'as the table says'
+  ]);
+  // The drift count is the strip's broke count plus the parts behind. Two
+  // definitions of broke would be two answers, and this is where they meet.
+  const wantCount = data.counts.broke + delta.parts;
+  if (delta.count !== wantCount) {
+    fail(
+      `delta: the drift counts ${delta.count} and the strip counts ${data.counts.broke} ` +
+        `broke plus ${delta.parts} behind. The reader's definition of broke must be the strip's.`
+    );
+  }
+  if (delta.parts !== 1) {
+    fail(`delta: ${delta.parts} parts read as behind and the probe planted exactly one.`);
+  }
+  deltaRows.push([
+    'drift count',
+    `${delta.promises} promises, ${delta.quotes} quotes, ${delta.parts} part behind`,
+    delta.count === wantCount ? `equals the strip's ${data.counts.broke} broke plus ${delta.parts}` : 'DISAGREES WITH THE STRIP'
+  ]);
+  if (delta.noDrift !== true) {
+    fail('delta: a verdict set with no failures still read as drift. That is the spawn that must never happen.');
+  }
+  deltaRows.push(['no failures', 'every failure removed, every part at zero', delta.noDrift ? 'no drift, nothing to spawn' : 'DRIFT READ']);
+  const controls = [
+    ['repair', null],
+    ['droppedQuote', null],
+    ['outsideEdge', 'outside-drift'],
+    ['outsidePart', 'outside-drift'],
+    ['addedEdge', 'outside-drift'],
+    ['newEvidence', 'evidence-not-allowed'],
+    ['modelRepair', null],
+    ['strictnessFlipped', 'contract-changed'],
+    ['repointed', 'outside-drift'],
+    ['checkerChanged', 'outside-drift'],
+    ['layerMoved', 'outside-drift'],
+    ['provenanceMoved', 'outside-drift'],
+    ['boundaryFlipped', 'outside-drift'],
+    ['deprecatedSet', 'outside-drift']
+  ];
+  for (const [name, want] of controls) {
+    const control = delta.controls?.[name];
+    if (control === undefined) {
+      fail(`delta: the ${name} control did not run.`);
+      continue;
+    }
+    if (want === null && control.refused !== false) {
+      fail(`delta: the ${name} control, an honest repair, was refused as "${control.refusal}".`);
+    }
+    if (want !== null && control.refused !== true) {
+      fail(`delta: the ${name} control was KEPT and must be refused as "${want}".`);
+    } else if (want !== null && control.refusal !== want) {
+      fail(`delta: the ${name} control was refused as "${control.refusal}" rather than "${want}".`);
+    }
+  }
+  deltaRows.push(['drift refusals', '11 answers that reach outside the drift refused whole', '3 honest repairs kept, one model shaped over a quiet note with a digit']);
+}
+
+// ---------------------------------------------------------------------------
 // 12. The accepted key set, pinned in full
 // ---------------------------------------------------------------------------
 
@@ -1229,6 +1352,13 @@ process.stdout.write('\nthe composed payload, one row per claim\n');
 process.stdout.write(pad('what', 24) + pad('measured', 62) + 'verdict\n');
 process.stdout.write(line(120) + '\n');
 for (const r of payloadRows) {
+  process.stdout.write(pad(r[0], 24) + pad(r[1], 62) + r[2] + '\n');
+}
+
+process.stdout.write('\nthe delta prompt, one row per claim (Phase 159)\n');
+process.stdout.write(pad('what', 24) + pad('measured', 62) + 'verdict\n');
+process.stdout.write(line(120) + '\n');
+for (const r of deltaRows) {
   process.stdout.write(pad(r[0], 24) + pad(r[1], 62) + r[2] + '\n');
 }
 

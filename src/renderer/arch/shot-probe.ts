@@ -48,8 +48,12 @@
 import type { ArchVerdict } from '@shared/arch';
 // The channel ANSWER shapes live in the ipc domain file; the record shapes
 // they carry live in `@shared/arch`. Both reach here through the one facade.
-import type { ArchLoadResult } from '@shared/ipc';
-import { localTarget } from '@shared/workspace-target';
+import type { ArchLoadResult, ArchPassStatusResult } from '@shared/ipc';
+import {
+  localPathOf,
+  localTarget,
+  targetOfProject
+} from '@shared/workspace-target';
 import { useApp } from '../state/store';
 import { installShellOps, shellOps } from '../state/shell-ops';
 import {
@@ -334,8 +338,52 @@ function fixtures(): ArchLoadResult {
       totalImports: 9800
     },
     checkedAtCommit: '0'.repeat(40),
-    narratedAtCommit: null
+    narratedAtCommit: null,
+    // PHASE 159. One burst, as main persists it beside the verdicts: two
+    // promises that moved and one part that fell further behind, so the
+    // change diff draws in the fixture pass and the app run can read it.
+    changes: {
+      fromGeneration: 6,
+      toGeneration: 7,
+      fromCommit: '1'.repeat(40),
+      toCommit: '0'.repeat(40),
+      at: 1_700_000_000_000,
+      verdicts: [
+        {
+          subjectId: 'edge:tmux-layer-must-not-renderer',
+          from: 'convergent',
+          to: 'divergent',
+          fromCoverage: 'checked',
+          toCoverage: 'checked'
+        },
+        {
+          subjectId: 'component:legacy-bridge',
+          from: 'convergent',
+          to: 'absent',
+          fromCoverage: 'checked',
+          toCoverage: 'checked'
+        }
+      ],
+      parts: [
+        { componentId: 'tmux-layer', commitsBehindDelta: 3, uncommittedFiles: 3 }
+      ]
+    },
+    drift: { count: 3 }
   };
+}
+
+/**
+ * The words a person reads inside one element, counted per text node so two
+ * spans with no whitespace between them are two words and not one.
+ */
+function wordsIn(el: Element | null): number {
+  if (el === null) return 0;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let n = 0;
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    n += (node.textContent ?? '').split(/\s+/).filter((w) => w.length > 0).length;
+  }
+  return n;
 }
 
 /** What the rendered header and the rendered rows are actually carrying. */
@@ -371,12 +419,46 @@ function measure(): Record<string, unknown> {
     offending: document.querySelectorAll('.arch-offending').length,
     gaps: document.querySelectorAll('.arch-gap').length,
     accepted: document.querySelectorAll('.arch-accepted li').length,
+    // PHASE 159. The change diff and the ribbon's repair press, read off the
+    // rendered section: the rows, the header's commit, and whether the one
+    // control mounted. The words on a row are what a person sees, so the
+    // first row's text is printed rather than described.
+    changes: document.querySelectorAll('.arch-changes li').length,
+    changesCommit:
+      document.querySelector('.arch-changes-commit')?.textContent ?? null,
+    changesFirstRow:
+      document.querySelector('.arch-changes li')?.textContent?.trim() ?? null,
+    changesWords: wordsIn(document.querySelector('.arch-changes')),
+    repairButtons: document.querySelectorAll('.arch-ribbon-repair').length,
     schemaErrors: document.querySelectorAll('.arch-schema li').length,
     prose: shown('.arch-prose'),
     // The refusal, checked rather than asserted. Nothing on this surface may
     // render HTML somebody else wrote.
     rawHtmlNodes: document.querySelectorAll('.arch [data-raw-html]').length
   };
+}
+
+/** The active project's local path, which is what the view keys the pass by. */
+function activeRepoPath(): string | null {
+  const app = useApp.getState();
+  const project = app.projects.find((p) => p.id === app.activeProjectId) ?? null;
+  const target = targetOfProject(project);
+  return target === null ? null : localPathOf(target);
+}
+
+/** A chosen, idle pass status under each of the given paths (Phase 159). */
+function chosenPasses(
+  paths: readonly (string | null)[]
+): Record<string, { status: ArchPassStatusResult; refusal: null }> {
+  const out: Record<string, { status: ArchPassStatusResult; refusal: null }> = {};
+  for (const cwd of paths) {
+    if (cwd === null) continue;
+    out[cwd] = {
+      status: { cwd, running: false, suspended: null, chosen: true, lastRun: null },
+      refusal: null
+    };
+  }
+  return out;
 }
 
 export async function driveArch(spec: ArchProbeSpec): Promise<void> {
@@ -409,7 +491,15 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
               verdicts: [],
               freshness: []
             }
-          : { ...fixtures(), cwd }
+          : { ...fixtures(), cwd },
+      // PHASE 159. The ribbon's repair control mounts only when main says
+      // an agent is chosen, the run face's own rule, so the fixture pass
+      // holds a chosen status. The view keys that status by the ACTIVE
+      // PROJECT'S path, not by the store's target, so it is seeded under
+      // both. A status held here is never read again by `loadPass`, so no
+      // bridge is asked for one and main's gate is not involved: this is a
+      // layout claim about a control, and the gate is the phase probe's.
+      passes: spec.empty === true ? {} : chosenPasses([cwd, activeRepoPath()])
     });
   }
 

@@ -48,7 +48,7 @@
       "kind": "imports",
       "rule": "must-not",
       "checker": "manifest",
-      "note": "A dependency this project refuses, and the manifest agrees.",
+      "note": "A dependency this project refuses, and the manifest agrees. It has been refused since 2019.",
       "evidence": []
     },
     {

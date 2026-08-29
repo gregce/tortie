@@ -21,15 +21,24 @@
  * the accept channel is its only writer, fired only by the person's own
  * button. An agent still cannot accept its own violation.
  *
- * ONE CHANNEL CAN START AN AGENT, being `arch:enrich`, and only a person's
- * gesture reaches it. The honest rule Phase 158 wrote into the backlog holds
- * here: Tortie never starts a process from configuration alone, and never one
- * the person has not confirmed in Settings. The confirm gate is re-checked at
- * the spawn, the spawn is the fold's one shot `runFold` and nothing else, and
- * a source change, a verdict change or a freshness number still starts
- * nothing. Beyond that one gesture the only processes this module can cause
- * are the five fixed argv git calls in `./argv-guard.ts`, and no field of any
- * contract file reaches any of their argv.
+ * ONE CHANNEL CAN START AN AGENT, being `arch:enrich`, and since Phase 159
+ * one finished check can too, through the SAME runner, the same gate and the
+ * same one shot spawn. The honest rule Phase 158 wrote into the backlog
+ * holds here: Tortie never starts a process from configuration alone, and
+ * never one the person has not confirmed in Settings. The confirm gate is
+ * re-checked at the spawn, the spawn is the fold's one shot `runFold` and
+ * nothing else, and a source change or a freshness number on its own still
+ * starts nothing. What changed in Phase 159 is narrow and it is all in
+ * `maybeRepairDrift` below: a check that PUBLISHED a broken promise or a
+ * part fallen behind, with an agent chosen and no downgrade held for the
+ * settle window's second opinion, hands that drift to the runner, which
+ * refuses on its own authority when nothing drifted, when the fold's minimum
+ * interval has not passed, when the prompt is the one it already answered,
+ * when a pass is in flight, or when the pass is suspended. No timer, no
+ * poll and no watcher hook were added; the trigger rides the check the
+ * watcher already coalesced. Beyond that the only processes this module can
+ * cause are the five fixed argv git calls in `./argv-guard.ts`, and no field
+ * of any contract file reaches any of their argv.
  *
  * There is no channel that sets a session's status, opens the manifest or
  * touches tmux, and `build/assert-import-boundaries.mjs` holds the wall that
@@ -52,6 +61,7 @@ import type {
   ArchComposePayloadInput,
   ArchComposePayloadResult,
   ArchDraftFile,
+  ArchEnrichInput,
   ArchEnrichResult,
   ArchLoadResult,
   ArchMapInput,
@@ -59,7 +69,9 @@ import type {
   ArchMapPartResult,
   ArchMapResult,
   ArchPassRunFace,
+  ArchPassScope,
   ArchPassStatusResult,
+  ArchPassTrigger,
   ArchRepoInput,
   ArchSeedResult,
   ArchSkeletonResult
@@ -73,12 +85,14 @@ import {
 import type {
   ArchCoverageCounts,
   ArchDocument,
+  ArchDrift,
   ArchFreshness,
-  ArchVerdict
+  ArchVerdict,
+  ArchVerdictChanges
 } from '@shared/arch';
 import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
-import { getLog } from '../log';
+import { getLog, logEvent } from '../log';
 import { shutdownSharedSymbolPool } from '../symbols/shared-pool';
 import { lsFilesCall, revParseHeadCall, type ArchGitCall } from './argv-guard';
 import {
@@ -109,9 +123,12 @@ import {
   ArchPassRunner,
   type ArchPassChoice,
   type ArchPassInput,
+  type ArchPassOutcome,
   type ArchPassRunRecord
 } from './enrich/run';
 import type { ArchEnrichImport } from './enrich/compose';
+import { diffArchVerdicts, readArchDrift } from './enrich/drift';
+import { driftFace, firstPartyPairs, repairSkipReason } from './repair-trigger';
 import {
   appendAcceptedDivergence,
   planSkeletonWrite,
@@ -179,7 +196,9 @@ export function registerArchIpc(ipc: IpcMain): void {
       checkedAtCommit: loaded.checkedAtCommit ?? '',
       generation: 0,
       overBudget: null,
-      durationMs: 0
+      durationMs: 0,
+      drift: loaded.drift,
+      changes: loaded.changes
     } satisfies ArchCheckResult;
   });
   handle(ipc, 'arch:skeleton', async (_event, input) => draftSkeleton(input));
@@ -332,6 +351,7 @@ async function readArch(input: ArchRepoInput): Promise<ArchLoadResult> {
   const repoKey = archRepoKey(repoPath);
   const state = db.repoState(repoKey);
   const verdicts = db.verdicts(repoKey);
+  const freshness = db.freshness(repoKey);
 
   if (armed && document.contract !== null) {
     // The FIRST load of this project in this session schedules one run, and
@@ -359,12 +379,17 @@ async function readArch(input: ArchRepoInput): Promise<ArchLoadResult> {
     problems: fresh.problems,
     lastValid: showingLastValid,
     verdicts,
-    freshness: db.freshness(repoKey),
+    freshness,
     counts: state.counts ?? emptyCounts(),
     checkedAtCommit: state.checkedAtCommit,
     // Tortie never calls a model, so this is a fact about what a person's own
     // agent did and never a thing Tortie can cause. Nothing writes it yet.
-    narratedAtCommit: null
+    narratedAtCommit: null,
+    // Phase 159. The drift is counted here from the same rows the view
+    // draws, and the last burst is read back rather than recomputed, so a
+    // load never disagrees with the check that wrote them.
+    drift: driftFace(readArchDrift(document, verdicts, freshness)),
+    changes: db.verdictChanges(repoKey)
   };
 }
 
@@ -468,9 +493,28 @@ async function runOneCheck(
     toStoredVerdict(verdict, checkedAtCommit, generation, firstCheck, run.durationMs)
   );
 
-  const settled = applySettleWindow(repoPath, db.verdicts(repoKey), verdicts);
+  // The previous set is read ONCE, here, and handed to both readers: the
+  // settle window that decides what this run may publish, and the diff that
+  // says what moved (Phase 159). The store keeps no history, so this is the
+  // only moment both sets exist.
+  const previousVerdicts = db.verdicts(repoKey);
+  const previousFreshness = db.freshness(repoKey);
+  const settled = applySettleWindow(repoPath, previousVerdicts, verdicts);
   const freshness = freshnessRows(facts);
   const counts = countByCoverage(run.verdicts, facts);
+  // The burst is stamped with the state read BEFORE this run claimed its
+  // generation (`before`, above), because `claimGeneration` already moved the
+  // row, and a first check has no check before it to diff against, so it
+  // leaves no burst: every subject would read as new and the section would
+  // draw one row per subject over nothing that moved.
+  const changes = firstCheck
+    ? null
+    : stampChanges(
+        diffArchVerdicts(previousVerdicts, settled.publish, previousFreshness, freshness),
+        before,
+        generation,
+        checkedAtCommit
+      );
   const published = db.publish({
     repoKey,
     repoPath,
@@ -478,7 +522,8 @@ async function runOneCheck(
     checkedAtCommit,
     verdicts: settled.publish,
     freshness,
-    counts
+    counts,
+    changes
   });
   if (!published) {
     // A newer run has already claimed the answer. Saying so is worth one line,
@@ -512,6 +557,21 @@ async function runOneCheck(
     scannedAtCommit: wireScannedAt(db.repoState(repoKey).scannedAtCommit)
   });
 
+  // THE DRIFT TRIGGER (Phase 159). The drift is read once from what this
+  // run published, answers the ribbon through `drift.count`, and is handed
+  // to the runner only when an agent is chosen and nothing is held. It is
+  // not awaited: the check is finished, and the pass is the runner's.
+  const drift = readArchDrift(document, settled.publish, freshness);
+  void maybeRepairDrift({
+    repoPath,
+    document,
+    facts,
+    held: settled.held,
+    verdicts: settled.publish,
+    freshness,
+    drift
+  });
+
   return {
     cwd: repoPath,
     verdicts: settled.publish,
@@ -520,7 +580,35 @@ async function runOneCheck(
     checkedAtCommit,
     generation,
     overBudget,
-    durationMs: Date.now() - started
+    durationMs: Date.now() - started,
+    drift: driftFace(drift),
+    // Read back rather than returned as computed, so a check that moved
+    // nothing answers with the last burst the store kept, the same answer a
+    // load gives.
+    changes: db.verdictChanges(repoKey)
+  };
+}
+
+/**
+ * Stamp a diff with the two generations and commits it sits between, or
+ * null when nothing moved. A null keeps the store's last burst on screen,
+ * which is the rule a quiet check follows. `prior` is the repository state
+ * as it stood before this run claimed its generation.
+ */
+function stampChanges(
+  diff: ReturnType<typeof diffArchVerdicts>,
+  prior: ArchRepoState,
+  generation: number,
+  checkedAtCommit: string
+): ArchVerdictChanges | null {
+  if (diff.verdicts.length === 0 && diff.parts.length === 0) return null;
+  return {
+    ...diff,
+    fromGeneration: prior.generation,
+    toGeneration: generation,
+    fromCommit: prior.checkedAtCommit,
+    toCommit: checkedAtCommit,
+    at: Date.now()
   };
 }
 
@@ -842,7 +930,14 @@ function archPassRunner(): ArchPassRunner {
         repoKey: archRepoKey(record.repoPath),
         ...record
       });
-    }
+    },
+    // Phase 159. The newest row's input hash, whatever its verdict, so the
+    // automatic trigger refuses the prompt it already answered: a kept write
+    // moves docs/arch, the watcher fires a check, and the drift is either
+    // gone or the same bytes. Without this seam the interval alone would
+    // spawn once a minute over a refused answer forever.
+    latestInputHash: (repoPath) =>
+      archStore().latestPassRun(archRepoKey(repoPath))?.inputHash ?? null
   });
   return passRunner;
 }
@@ -874,18 +969,25 @@ async function gatherEnrichFacts(repoPath: string): Promise<ArchGatheredFacts> {
     trackedFiles,
     budgetMs: null
   });
-  const manifests = readArchManifests(repoPath);
   return {
     trackedFiles,
     // Only the imports that resolved to a tracked file describe a part
     // talking to another part. An unresolved one names something this build
     // could not find, and drafting or enriching a promise from it would put
     // a guess in a person's contract.
-    pairs: scan.imports.flatMap((row) =>
-      row.toPath === null
-        ? []
-        : [{ fromPath: row.fromPath, toPath: row.toPath }]
-    ),
+    pairs: firstPartyPairs(scan.imports),
+    ...manifestFacts(repoPath)
+  };
+}
+
+/**
+ * The repository's own name and its workspace directories, read from the
+ * dependency files. One directory read and no process; the gesture and the
+ * drift trigger both take it, so it lives once.
+ */
+function manifestFacts(repoPath: string): Pick<ArchGatheredFacts, 'subject' | 'workspaces'> {
+  const manifests = readArchManifests(repoPath);
+  return {
     subject:
       manifests.packageName ?? repoPath.split('/').pop() ?? 'this project',
     workspaces: [...manifests.workspaces.values()].map((w) => w.dir)
@@ -924,8 +1026,13 @@ async function seedContract(input: ArchRepoInput): Promise<ArchSeedResult> {
  * spawn the one confirmed agent through the fold's one shot spawn, validate
  * whole, write on a kept answer, and count the painted boxes.
  */
-async function runEnrichPass(input: ArchRepoInput): Promise<ArchEnrichResult> {
+async function runEnrichPass(input: ArchEnrichInput): Promise<ArchEnrichResult> {
   const repoPath = input.cwd;
+  // The scope is the renderer's; the trigger is decided HERE from where the
+  // call came, so a page cannot claim to be a check. Absent means the whole
+  // pass, which keeps the shipped button's bytes unchanged.
+  const scope: ArchPassScope = input.scope === 'drift' ? 'drift' : 'whole';
+  const trigger: ArchPassTrigger = scope === 'drift' ? 'ribbon' : 'gesture';
   const facts = await gatherEnrichFacts(repoPath);
   let seeded: string[] = [];
   let document = await loadArchDocument(createArchFileSystem(repoPath));
@@ -946,34 +1053,120 @@ async function runEnrichPass(input: ArchRepoInput): Promise<ArchEnrichResult> {
       seeded
     };
   }
-  broadcastEvent(EVT_ARCH_PASS, { cwd: repoPath, phase: 'started', run: null });
-  const passInput: ArchPassInput = {
+  const db = archStore();
+  const repoKey = archRepoKey(repoPath);
+  const outcome = await drivePass({
     repoPath,
     document,
     trackedFiles: facts.trackedFiles,
     imports: facts.pairs,
     subject: facts.subject,
-    workspaces: facts.workspaces
+    workspaces: facts.workspaces,
+    scope,
+    trigger,
+    // The drift scope is read from what the last check published. A press
+    // before any check has run carries an empty set and the runner refuses
+    // it `no-drift`, spawning nothing.
+    verdicts: db.verdicts(repoKey),
+    freshness: db.freshness(repoKey)
+  });
+  return {
+    cwd: repoPath,
+    started: outcome.started,
+    refusal: outcome.refusal,
+    run: toPassFace(outcome.run),
+    seeded
   };
+}
+
+/**
+ * The one drive every pass takes, whatever started it: the started push,
+ * the runner, the finished push, and the re-check a kept write is owed.
+ * The gesture, the ribbon and the drift trigger all come through here, so
+ * there is exactly one place a pass begins and ends.
+ */
+async function drivePass(passInput: ArchPassInput): Promise<ArchPassOutcome> {
+  const repoPath = passInput.repoPath;
+  broadcastEvent(EVT_ARCH_PASS, { cwd: repoPath, phase: 'started', run: null });
   const outcome = await archPassRunner().run(passInput);
-  const face = toPassFace(outcome.run);
   broadcastEvent(EVT_ARCH_PASS, {
     cwd: repoPath,
     phase: 'finished',
-    run: face
+    run: toPassFace(outcome.run)
   });
   if (outcome.run?.verdict === 'kept') {
     // The write moved the contract, so the verdicts are owed a re-check. The
     // watcher would coalesce one anyway; asking now is prompt rather than new.
     requestArchCheck(repoPath);
   }
-  return {
-    cwd: repoPath,
-    started: outcome.started,
-    refusal: outcome.refusal,
-    run: face,
-    seeded
-  };
+  return outcome;
+}
+
+/** What one finished check hands the drift trigger. */
+interface ArchRepairInput {
+  repoPath: string;
+  document: ArchDocument;
+  /** The fact base the check built. The trigger never scans again. */
+  facts: ArchFactBase;
+  /** The subjects the settle window is holding for a second opinion. */
+  held: readonly string[];
+  /** The published set and its freshness rows, the drift's own source. */
+  verdicts: readonly ArchVerdict[];
+  freshness: readonly ArchFreshness[];
+  drift: ArchDrift | null;
+}
+
+/**
+ * THE AUTOMATIC PATH (Phase 159), fired by a finished check and by nothing
+ * else. No timer, no poll, no watcher hook of its own: it rides the check
+ * the watcher already coalesced and the settle window already judged.
+ *
+ * What stops a storm of drift becoming a storm of spawns, in order: the
+ * watcher's coalescing window, one check in flight per repository, the
+ * settle hold (`held` non empty skips here), the runner's own `in-flight`
+ * refusal, the fold's minimum interval, the same input hash, and the
+ * suspension after three failures. Every one of those after the hold is the
+ * runner's, re-checked at the spawn exactly as a person's gesture is, and
+ * the confirm gate is read RIGHT NOW: an agent withdrawn in Settings stops
+ * the next drift.
+ *
+ * It never throws into the check. A check that finished is finished
+ * whatever the pass did.
+ */
+async function maybeRepairDrift(input: ArchRepairInput): Promise<void> {
+  const { repoPath } = input;
+  try {
+    const choice = archChoiceNow();
+    const skip = repairSkipReason({
+      chosen: choice.agentId !== null && choice.model !== null,
+      held: input.held,
+      drift: input.drift
+    });
+    if (skip === 'held') {
+      // The one skip worth a line: a repair was owed and deferred until the
+      // second opinion the settle window is waiting for.
+      logEvent('arch', 'info', 'arch.pass.skipped', 'a drift repair waits for the settle window', {
+        repoPath,
+        reason: skip,
+        held: [...input.held]
+      });
+      return;
+    }
+    if (skip !== null) return;
+    await drivePass({
+      repoPath,
+      document: input.document,
+      trackedFiles: input.facts.trackedFiles,
+      imports: firstPartyPairs(input.facts.imports),
+      ...manifestFacts(repoPath),
+      scope: 'drift',
+      trigger: 'drift',
+      verdicts: input.verdicts,
+      freshness: input.freshness
+    });
+  } catch (err) {
+    archLog.warn('the drift trigger threw', { repoPath, error: String(err) });
+  }
 }
 
 /**
@@ -997,7 +1190,9 @@ function toPassFace(
     painted: row.painted,
     groupsTotal: row.groupsTotal,
     components: row.components,
-    suggestions: row.suggestions
+    suggestions: row.suggestions,
+    scope: row.scope,
+    trigger: row.trigger
   };
 }
 
