@@ -52,6 +52,7 @@ const DOC_HOSTS = {
   antigravity: 'antigravity.google',
   qwen: 'github.com',
   pi: 'pi.dev',
+  omp: 'omp.sh',
   grok: 'x.ai'
 };
 

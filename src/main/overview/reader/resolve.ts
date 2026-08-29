@@ -56,6 +56,7 @@ const PATH_ARITHMETIC_PROVIDERS = new Set<string>([
   'muse',
   'qwen',
   'pi',
+  'omp',
   'gemini',
   'deepseek',
   'cursor'
@@ -220,6 +221,18 @@ export function resolveSessionLog(input: ResolveInput, env?: Partial<ResolveEnv>
     case 'pi': {
       const dir = join(home, '.pi', 'agent', 'sessions', sanitizePiCwd(realCwd));
       // Match on the FILENAME uuid. It differs from the line 1 id in 6 of 55 files.
+      for (const name of listDir(dir)) {
+        if (name.endsWith(`_${id}.jsonl`)) {
+          const p = join(dir, name);
+          if (isFile(p)) return { state: 'resolved', provider, file: p, sessionId: null };
+        }
+      }
+      return { state: 'no-file', provider };
+    }
+    case 'omp': {
+      // The pi store moved (~/.pi/agent -> ~/.omp/agent); the per-cwd keying
+      // and the _<uuid>.jsonl filename grammar are unchanged.
+      const dir = join(home, '.omp', 'agent', 'sessions', sanitizePiCwd(realCwd));
       for (const name of listDir(dir)) {
         if (name.endsWith(`_${id}.jsonl`)) {
           const p = join(dir, name);

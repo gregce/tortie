@@ -62,6 +62,9 @@ export const BYPASS_FLAGS: Readonly<Record<LaunchableAgentId, readonly string[]>
   // pi has no approval system at all — its safety lever is --tools, and it
   // needs no gate answered to reach a prompt (research 22 §1.3).
   pi: [],
+  // omp shares pi's posture: no approval system, no gate to answer. Empty
+  // like pi, not a guess at a flag nobody ran.
+  omp: [],
   // grok needs no gate ANSWERED to reach a prompt. The first-run "Help
   // improve Grok" banner is a different problem: the typed prompt stays
   // live under it, but the REPLY never paints while it is on screen (Phase

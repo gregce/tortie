@@ -228,7 +228,7 @@ describe('windowSuspends', () => {
 describe('runFold against a real child', () => {
   const recipe = foldRecipeFor('claude');
 
-  it('has the five recipes Phase 138.1 measured and no sixth', () => {
+  it('has the six recipes measured through Phase 138.1 plus omp, and no seventh', () => {
     expect(recipe).not.toBeNull();
     // The order is the order the operator uses them, which research 63
     // measured. Six agents are deliberately absent and ./recipes.ts says
@@ -238,7 +238,8 @@ describe('runFold against a real child', () => {
       'codex',
       'cursor',
       'grok',
-      'pi'
+      'pi',
+      'omp'
     ]);
     for (const absent of ['gemini', 'qwen', 'muse', 'antigravity', 'deepseek', 'droid']) {
       expect(foldRecipeFor(absent), absent).toBeNull();
@@ -327,11 +328,12 @@ describe('every recipe, and the rules each one has to keep', () => {
   it('names the fold home rather than inheriting a working directory', () => {
     // claude is the exception and it earns it: --no-session-persistence
     // writes nothing anywhere, and codex earns it the same way with
-    // --ephemeral. Every other recipe has no such flag, so the directory is
-    // the only thing keeping a transcript out of one of the person's
-    // projects, and it must appear in the argv or in the environment.
+    // --ephemeral. pi and omp earn it with --no-session, which writes nothing
+    // under their own stores either. Every other recipe has no such flag, so
+    // the directory is the only thing keeping a transcript out of one of the
+    // person's projects, and it must appear in the argv or in the environment.
     for (const recipe of recipes) {
-      if (recipe.agentId === 'claude' || recipe.agentId === 'pi') continue;
+      if (recipe.agentId === 'claude' || recipe.agentId === 'pi' || recipe.agentId === 'omp') continue;
       const argv = recipe.argv(ARGV_INPUT);
       const env = Object.values(recipe.env({ foldHome: TEST_HOME }));
       expect([...argv, ...env], recipe.agentId).toContain(TEST_HOME);

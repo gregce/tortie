@@ -19,14 +19,15 @@ import { foldRecipeAgentIds, foldRecipeFor, recipeHasModel } from '../recipes';
 const HOME = '/tmp/a-fold-home-that-is-never-made';
 const INPUT = { prompt: 'p', model: 'm', systemPrompt: 's', foldHome: HOME };
 
-describe('the five measured rows', () => {
+describe('the six measured rows', () => {
   it('names the agents in the order the operator uses them', () => {
     expect(foldRecipeAgentIds()).toEqual([
       'claude',
       'codex',
       'cursor',
       'grok',
-      'pi'
+      'pi',
+      'omp'
     ]);
   });
 
@@ -71,7 +72,8 @@ describe('the five measured rows', () => {
       codex: '--json',
       cursor: 'json',
       grok: 'json',
-      pi: 'json'
+      pi: 'json',
+      omp: 'json'
     };
     for (const id of foldRecipeAgentIds()) {
       expect(foldRecipeFor(id)!.argv(INPUT), id).toContain(modes[id]);

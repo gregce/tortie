@@ -213,7 +213,7 @@ describe('the create path reads memory, never the disk', () => {
     const ids = registry.AGENT_REGISTRY.filter(
       (e) => e.launchable && e.launch !== null
     ).map((e) => e.id) as LaunchableAgentId[];
-    expect(ids.length).toBe(11);
+    expect(ids.length).toBe(12);
 
     for (const id of ids) {
       const spec = manifest.buildLaunchSpec(id, ['--flag'], `/abs/${id}`);

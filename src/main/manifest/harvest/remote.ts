@@ -177,7 +177,8 @@ export const REMOTE_HARVEST_AGENTS: readonly LaunchableAgentId[] = [
   'codex',
   'muse',
   'deepseek',
-  'pi'
+  'pi',
+  'omp'
 ];
 
 /** True when a connection can look for this agent's records. */
@@ -497,6 +498,15 @@ export function confirmRemoteCandidate(
       return sameRemotePath(workspace, ctx.cwd) ? 'match' : 'mismatch';
     }
     case 'pi': {
+      const first = firstJsonLine(head);
+      if (first === null || first['type'] !== 'session') return 'unknown';
+      const cwd = first['cwd'];
+      if (typeof cwd !== 'string') return 'unknown';
+      return sameRemotePath(cwd, ctx.cwd) ? 'match' : 'mismatch';
+    }
+    // omp's session record is the pi v3 shape byte for byte: line 2 is
+    // {"type":"session",…,"cwd":…}. Identical confirm to pi.
+    case 'omp': {
       const first = firstJsonLine(head);
       if (first === null || first['type'] !== 'session') return 'unknown';
       const cwd = first['cwd'];

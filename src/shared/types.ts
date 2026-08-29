@@ -886,7 +886,7 @@ export interface GitCommitDetail {
 // `cursor-agent`, antigravity's is `agy` — the bare id is NOT the binary).
 // ---------------------------------------------------------------------------
 
-/** Every agent in the gmux registry (research 11 plus later phases; all 13 entries). */
+/** Every agent in the gmux registry (research 11 plus later phases; all 14 entries). */
 export type AgentRegistryId =
   | 'claude'
   | 'cursor'
@@ -898,6 +898,7 @@ export type AgentRegistryId =
   | 'muse'
   | 'qwen'
   | 'pi'
+  | 'omp'
   | 'grok'
   | 'cursoride'
   | 'copilotide';

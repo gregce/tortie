@@ -49,16 +49,17 @@ const ALL_IDS: AgentRegistryId[] = [
   'muse',
   'qwen',
   'pi',
+  'omp',
   'grok',
   'cursoride',
   'copilotide'
 ];
 
 describe('registry shape', () => {
-  it('contains exactly the 13 researched agents, ids unique', () => {
-    expect(AGENT_REGISTRY).toHaveLength(13);
+  it('contains exactly the 14 researched agents, ids unique', () => {
+    expect(AGENT_REGISTRY).toHaveLength(14);
     expect([...AGENT_IDS].sort()).toEqual([...ALL_IDS].sort());
-    expect(new Set(AGENT_IDS).size).toBe(13);
+    expect(new Set(AGENT_IDS).size).toBe(14);
   });
 
   it('every entry has displayName, ≥1 binary, and an icon key', () => {
@@ -89,8 +90,8 @@ describe('capture-only IDE entries', () => {
     expect(() => getLaunchableEntry(id as never)).toThrow(/capture-only/);
   });
 
-  it('launchable ids are the 11 CLIs (no IDE pair)', () => {
-    expect(LAUNCHABLE_AGENT_IDS).toHaveLength(11);
+  it('launchable ids are the 12 CLIs (no IDE pair)', () => {
+    expect(LAUNCHABLE_AGENT_IDS).toHaveLength(12);
     expect(LAUNCHABLE_AGENT_IDS).not.toContain('cursoride');
     expect(LAUNCHABLE_AGENT_IDS).not.toContain('copilotide');
   });
@@ -191,6 +192,7 @@ describe('resume templates', () => {
       muse: 'resume', // subcommand
       qwen: '--resume',
       pi: '--session-id', // idempotent: the flag it launched with
+      omp: '--resume', // pi's successor; pre-assign --session-id is gone
       grok: '--resume' // launch flag is --session-id; the two differ, unlike pi
     };
     for (const id of LAUNCHABLE_AGENT_IDS) {
@@ -243,7 +245,7 @@ describe('resume templates', () => {
       const c = getRegistryEntry(id).resume.idCapture;
       return c.mode === 'harvest' && c.confidence === 'weak';
     });
-    expect([...weak].sort()).toEqual(['deepseek']);
+    expect([...weak].sort()).toEqual(['deepseek', 'omp']);
   });
 
   it('marks the cwd-scoped agents so restore cannot drift their directory', () => {

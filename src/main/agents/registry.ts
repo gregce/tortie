@@ -1254,6 +1254,88 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     unverified: false
   },
   {
+    id: 'omp',
+    displayName: 'Oh My Pi',
+    kind: 'cli',
+    launchable: true,
+    status:
+      'upstream-verified-hands-on (omp 18.0.10). The pi successor: same agent, renamed binary, moved store (~/.pi/agent -> ~/.omp/agent), and a DIVERGED resume surface.',
+    confidence: 'high',
+    binaries: ['omp'],
+    // PATH-only. Homebrew (the canonical install) links omp into
+    // /opt/homebrew/bin, which is on PATH; the pi-inherited probe dirs
+    // (~/.npm-global, ~/.local) are not where the brew formula puts it.
+    extraProbeDirs: [],
+    storeDirs: [
+      '$PI_CODING_AGENT_SESSION_DIR',
+      // $PI_CODING_AGENT_DIR is the CONFIG dir (default ~/.omp/agent);
+      // sessions live one level down. Verified in `omp --help`.
+      '$PI_CODING_AGENT_DIR/sessions',
+      '~/.omp/agent/sessions'
+    ],
+    install: {
+      canonical: {
+        command: 'brew install can1357/tap/omp',
+        docUrl: 'https://omp.sh',
+        readOn: '2026-08-29'
+      },
+      alternates: [],
+      canonicalIsPackageManager: true,
+      signature: null
+    },
+    // `omp --version` prints a BRANDED first line ("omp/18.0.10"), so unlike
+    // pi's bare semver there is a real identitySubstring to gate on.
+    versionProbe: { args: ['--version'], identitySubstring: 'omp/' },
+    launch: {
+      argv: ['omp'],
+      quirks: [
+        'NO PRE-ASSIGN: --session-id is GONE (absent from --help and from the compiled binary). The id only exists once omp writes its session file, which happens on the FIRST TURN — a codex-style harvest with availableAt first-turn is the capture route.',
+        'Ctrl-D quits; the TUI is the pi lineage TUI, so pi-shaped terminal handling applies.'
+      ]
+    },
+    resume: {
+      strategy: 'flag-uuid',
+      template: ['--resume', SESSION_ID_SLOT],
+      idCapture: {
+        mode: 'harvest',
+        key: 'cwd-newest',
+        source:
+          'filename `<ISO ts>_<uuid>.jsonl` under the per-cwd store dir; line 2 is {"type":"session","id":...,"cwd":...}',
+        availableAt: 'first-turn',
+        confidence: 'weak'
+      },
+      requiresOriginalCwd: false,
+      sessionStore:
+        '~/.omp/agent/sessions/--<cwd sans leading /, [/\\:]→->--/<ISO ts, :.→->_<sessionId>.jsonl',
+      notes:
+        'VERIFIED HANDS-ON (2026-08-29, omp 18.0.10, macOS arm64, three probes). --resume <full uuid> is CWD-PROOF: resumed from the recorded cwd AND from an unrelated directory, both <1 s, full transcript replay, zero prompts, subsequent turns append to the SAME session file (no fork). Unlike pi there is no silent empty-session trap on cwd drift, hence requiresOriginalCwd false. ' +
+        '--resume <abs path to .jsonl> verified identically — the belt-and-braces restore when the file is already known. ' +
+        'NEVER pass a partial id: ids are UUIDv7 (same layout as pi), so short prefixes collide for same-minute sessions in one project. ' +
+        'CWD-keyed store dir is a pure function of the cwd (sanitizePiCwd), so harvest needs no scan: watch the one directory, match the filename uuid, confirm on line-2 cwd. ' +
+        'SAME-FOLDER RESIDUAL: two omp panes in one folder both confirm the earliest record at/after spawn — a timing guess, held at matched-strength so an identity key could take it back. omp writes none.'
+    },
+    // The JSONL is the pi v3 session format ({"type":"session","version":3,...}),
+    // documented as writable by its lineage, so reconstruction can target it.
+    reconstructionTarget: true,
+    activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    iconKey: 'pi',
+    defaultHotkeyHint: 'm', // 'o' collides with ⇧⌘O Go to symbol (reserved)
+    multilineKey: {
+      sequence: LF,
+      verified: false,
+      notes:
+        'INFERRED from pi lineage (pi wants csi-u but LF works regardless); not yet measured against omp.'
+    },
+    imageDrop: {
+      strategy: 'path-text',
+      insert: 'paste',
+      verified: false,
+      notes:
+        'INFERRED from pi lineage (pi 0.16+ writes the pasteboard image to a temp file and inserts the path); not yet measured against omp.'
+    },
+    unverified: false
+  },
+  {
     id: 'grok',
     displayName: 'Grok',
     kind: 'cli',

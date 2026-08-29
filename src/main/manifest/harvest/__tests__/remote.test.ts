@@ -81,11 +81,12 @@ describe('parseMachineFacts', () => {
 });
 
 describe('which agents a connection may ask about', () => {
-  it('names four, and they are the four whose record carries its own owner', () => {
+  it('names five, and they are the five whose record carries its own owner', () => {
     expect([...REMOTE_HARVEST_AGENTS].sort()).toEqual([
       'codex',
       'deepseek',
       'muse',
+      'omp',
       'pi'
     ]);
   });
