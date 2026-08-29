@@ -28,6 +28,8 @@ import type { SplitGroupProbeSpec } from '../app/split/shot-probe';
 import { scrollBridge } from '../terminal/scroll/surface';
 import { setStoredEditorWidth } from './panel-width';
 import { useEditor } from './store';
+// PHASE 163. The report tab's one door, driven the way the menu row drives it.
+import { openDiagnosticsReport } from '../diagnostics/open-report';
 
 export interface ShotDriveSpec {
   /** Absolute path of a repo to open as a project tab. */
@@ -271,6 +273,15 @@ export interface ShotDriveSpec {
   imageZoom?: { notches: number };
   /** Show a toast before capture (kind defaults to info). */
   toast?: { kind?: 'info' | 'success' | 'error'; text: string };
+  /**
+   * PHASE 163. Open the diagnostics report tab through its one door, wait for
+   * the capture to land, and read the face back into
+   * `window.__gmuxP163Surface`: the group labels and totals, the row counts,
+   * whether any figure on the face is the sum of the two totals, and the
+   * exact bytes the Copy report button would place on the clipboard. The
+   * capture is the real one, over the real bridge.
+   */
+  diagnosticsReport?: boolean;
 }
 
 declare global {
@@ -280,6 +291,8 @@ declare global {
     __gmuxShotReady?: boolean;
     /** Set by main when the drive throws — the harness then exits non-zero. */
     __gmuxShotError?: string;
+    /** PHASE 163. What the diagnostics report drew, read off the DOM. */
+    __gmuxP163Surface?: unknown;
   }
 }
 
@@ -955,6 +968,65 @@ export function installShotHook(): void {
     if (spec.toast !== undefined) {
       useApp.getState().toast(spec.toast.kind ?? 'info', spec.toast.text);
       await wait(200);
+    }
+
+    if (spec.diagnosticsReport === true) {
+      step('opening the diagnostics report');
+      openDiagnosticsReport();
+      // A capture holds its window open for a moment; the face says Capturing
+      // on its first button until the report lands or fails.
+      const capturing = (): boolean =>
+        (document.querySelector('.diag-btn')?.textContent ?? '') === 'Capturing';
+      for (let i = 0; i < 120; i++) {
+        const drawn =
+          document.querySelector('.diag-body') !== null ||
+          document.querySelector('.diag-note') !== null;
+        if (drawn && !capturing()) break;
+        await wait(250);
+      }
+      await wait(300);
+      const text = (sel: string): string[] =>
+        Array.from(document.querySelectorAll(sel)).map(
+          (el) => el.textContent ?? ''
+        );
+      const totals = text('.diag-group-total');
+      const mb = (s: string): number => {
+        const m = /(\d+(?:\.\d+)?) MB/.exec(s);
+        return m === null ? 0 : Number(m[1]);
+      };
+      const sum = totals.length === 2 ? mb(totals[0] ?? '') + mb(totals[1] ?? '') : null;
+      const figures = text('.diag-fig-value').concat(text('.diag-line-value'));
+      const reportTab = useEditor
+        .getState()
+        .tabs.find((tab) => tab.diagnostics !== undefined);
+      window.__gmuxP163Surface = {
+        tabName: text('.ed-tab-name'),
+        title: text('.diag-title')[0] ?? null,
+        when: text('.diag-when')[0] ?? null,
+        note: text('.diag-note'),
+        groups: text('.diag-group-label'),
+        totals,
+        shellRows: document.querySelectorAll('.diag-group-shell tbody tr').length,
+        sessionRows: document.querySelectorAll('.diag-group-sessions tbody tr').length,
+        childRows: document.querySelectorAll('.diag-child').length,
+        kinds: text('.diag-group-shell .diag-kind'),
+        sumOfTotalsMb: sum,
+        sumAppearsOnFace:
+          sum !== null && figures.some((f) => mb(f) === sum && sum > 0),
+        milestones: text('.diag-milestones .diag-fig-value'),
+        electronProof: text('.diag-disclosure > summary')[0] ?? null,
+        unnamed: document.querySelectorAll('.diag-unnamed').length,
+        buttons: text('.diag-btn'),
+        openTabs: useEditor.getState().tabs.length,
+        // The exact bytes Copy report would place on the clipboard, so a
+        // verifier can scan them for a secret without a clipboard. Read off
+        // the DOM's own data attribute, set by the tab when a report lands.
+        copyText:
+          reportTab === undefined
+            ? null
+            : document.querySelector('.diag')?.getAttribute('data-copy') ?? null
+      };
+      step('diagnostics report read');
     }
 
     if (spec.openCommitFiles !== undefined && spec.openCommitFiles > 0) {

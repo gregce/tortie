@@ -273,6 +273,16 @@ export interface OpenFileRequest {
     /** The repository the map draws. Same value as `repoPath`. */
     repoPath: string;
   };
+  /**
+   * PHASE 163. Present means "open the diagnostics report tab". The same
+   * additive shape as `archMap` above: a request without it behaves exactly
+   * as it did, and the editor keys the tab `diagnostics:report` so the whole
+   * app has one. The body asks main for a capture when it mounts; nothing
+   * here reads a file or starts a process.
+   */
+  diagnostics?: {
+    kind: 'report';
+  };
 }
 
 /** Emit an open request (fire-and-forget). */

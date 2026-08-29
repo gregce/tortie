@@ -29,6 +29,7 @@ import { registerConfigIpc } from './config/ipc';
 // teardown that matches the boot read.
 import { stopAgentOverlayWatch } from './config/store';
 import { registerContextIpc } from './context/ipc';
+import { registerDiagnosticsIpc } from './diagnostics/ipc';
 import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
 import { foldChosenNow, foldSuspension } from './sessions/fold-wiring';
 import { installLaunchContextResolver } from './context/launch-resolver';
@@ -70,7 +71,7 @@ import {
   stopRemoteStoreSync
 } from './machines/remote-store-sync';
 import { stopMachinesWatch } from './machines/store';
-import { installAppMenu } from './menu';
+import { installAppMenu, installDiagnosticsDoor } from './menu';
 import { registerNoticeIpc } from './notice/ipc';
 import {
   registerPreviewIpc,
@@ -129,6 +130,9 @@ export function installMainCapabilities(
   // DESIGN.md §4 shortcut mirrored; ⌘W = close editor tab, never the
   // window). Installed in every mode — harness windows are unaffected.
   installAppMenu();
+  // Phase 163. The Settings window's one door to the diagnostics report tab,
+  // answered by a forward of the Help menu's own action (src/main/menu.ts).
+  installDiagnosticsDoor(ipcMain);
 
   // `gmux-asset:` handler — images referenced by rendered markdown (item 6).
   registerAssetProtocol();
@@ -299,6 +303,11 @@ export function installMainCapabilities(
   // of them can send a byte anywhere: Copy diagnostics returns text to the
   // clipboard and Open logs folder reveals a directory.
   registerLogIpc(ipcMain);
+  // Phase 163: the on demand diagnostics report. Two channels open and close
+  // one capture window and a third writes a heap snapshot to a path a person
+  // chose in a dialog. Nothing here runs on a timer, and a capture reads ps,
+  // footprint and du once each through the guarded runner.
+  registerDiagnosticsIpc(ipcMain);
   // Phase 8.2: renderer-confirmed quit (first-quit toast flow — the Quit
   // menu item forwards to the renderer, which invokes this after showing
   // the one-time §4 toast; see src/main/menu.ts for the fallback timer).

@@ -32,6 +32,9 @@ import { proveNativeModules } from './diagnostics/native-proof';
 import { initMachines } from './machines/store';
 // Phase 28: one log line when a helper or renderer process dies. Log only.
 import { installProcessGoneLogging } from './diagnostics/process-gone';
+// Phase 163: two of the startup milestones land in this file, app ready and
+// window shown. Each is one call that records once and then costs nothing.
+import { markMilestone, MILESTONES } from './diagnostics/milestones';
 import { dispatchHarness } from './harness';
 // Phase 127. What counts as a harness launch, in one place. The three
 // predicates are deliberately different and this file reads two of them. See
@@ -350,7 +353,12 @@ function createWindow(): BrowserWindow {
     }
   });
 
-  win.on('ready-to-show', () => win.show());
+  win.on('ready-to-show', () => {
+    // Phase 163: the first window a launch shows is the milestone; a second
+    // window (Settings, a harness window) finds the latch closed.
+    markMilestone(MILESTONES.windowShown);
+    win.show();
+  });
 
   // Navigation + new-window restrictions + trusted IPC sender registration —
   // one policy, stated once for every Tortie window (Phase 42 stage 1).
@@ -414,6 +422,9 @@ app.whenReady().then(async () => {
   // is free and keeps harness renderers from hitting "No handler registered"
   // noise. The return value is the one ordered disposer invoked at quit.
   disposeCapabilities = installMainCapabilities({ ipcMain });
+  // Phase 163: launch to ready, as the diagnostics report states it. The mark
+  // is relative to the process time origin, so nothing subtracts anything.
+  markMilestone(MILESTONES.appReady);
 
   // Phase 35: the crash story's whenReady half, before any window exists.
   // It reads the run sentinel, diffs the Crashpad directories, writes

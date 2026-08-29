@@ -33,6 +33,7 @@ import {
   termInputChannel
 } from '@shared/ipc';
 import type { TermExitPayload } from '@shared/ipc';
+import { beginIpcSample, endIpcSample } from '../../diagnostics/ipc-sample';
 import type { MachineKind, RemoteMachineContext } from '../../machines/context';
 
 // ---------------------------------------------------------------------------
@@ -416,6 +417,52 @@ describe('AttachHost cleanup', () => {
     expect(pty.kill).toHaveBeenCalledTimes(1);
     expect(listenerCount(termInputChannel(SID))).toBe(0);
     expect(listenerCount(termAckChannel(SID))).toBe(0);
+  });
+
+  // Phase 163 fix round. The diagnostics figure says "pushes back", and the
+  // first build counted only the typed senders, so terminal bytes and exits
+  // crossed uncounted. Every raw send here is one push in the sample.
+  it('every terminal push lands in the diagnostics IPC sample', () => {
+    vi.useFakeTimers();
+    const sender = makeSender();
+    const h = host();
+    attach(h, sender);
+    const pty = spawnedPtys[0]!;
+
+    beginIpcSample(0);
+    pty.emitData('one');
+    vi.advanceTimersByTime(10);
+    pty.emitData('two');
+    vi.advanceTimersByTime(10);
+    pty.emitData('three');
+    vi.advanceTimersByTime(10);
+    pty.emitExit(1);
+    const sample = endIpcSample(100);
+
+    const pushes = sender.send.mock.calls.filter(
+      (c) => c[0] === termDataChannel(SID) || c[0] === termExitChannel(SID)
+    );
+    expect(pushes).toHaveLength(4);
+    expect(sample.events).toBe(pushes.length);
+    expect(sample.invokes).toBe(0);
+  });
+
+  // The mirror of the case above. The renderer acks every data chunk and
+  // sends every keystroke through raw listeners the typed registrar never
+  // sees, so the "calls from this window" half read 0 while hundreds
+  // crossed. Every raw listener call is one invoke in the sample.
+  it('every keystroke and ack lands in the diagnostics IPC sample', () => {
+    const sender = makeSender();
+    const h = host();
+    attach(h, sender);
+
+    beginIpcSample(0);
+    fire(termInputChannel(SID), sender, 'ls\n');
+    for (let i = 0; i < 100; i += 1) fire(termAckChannel(SID), sender, 64);
+    const sample = endIpcSample(100);
+
+    expect(sample.invokes).toBe(101);
+    expect(sample.events).toBe(0);
   });
 });
 

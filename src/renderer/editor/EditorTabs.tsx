@@ -79,7 +79,8 @@ function tabMenuItems(tab: EditorTab): (MenuItemSpec | 'sep')[] {
   });
   // Phase 160: the map tab's path IS the repository root, so Copy Path already
   // says everything and a relative path of nothing would copy an empty string.
-  if (tab.archMap === undefined) {
+  // Phase 163: the report tab's path is a project root for the same reason.
+  if (tab.archMap === undefined && tab.diagnostics === undefined) {
     items.push({
       label: 'Copy Relative Path',
       ...menuGlyph('copy'),
@@ -163,6 +164,10 @@ function TabButton({
           rather than a file-type icon guessed from a repository root. */}
       {tab.archMap !== undefined ? (
         <Codicon name="map" size={14} className="ed-tab-icon" />
+      ) : tab.diagnostics !== undefined ? (
+        // Phase 163. The report tab wears the mark the Diagnostics section
+        // of Settings already wears, rather than a file icon for a folder.
+        <Codicon name="output" size={14} className="ed-tab-icon" />
       ) : (
         <FileIcon path={tab.path} size={14} className="ed-tab-icon" />
       )}

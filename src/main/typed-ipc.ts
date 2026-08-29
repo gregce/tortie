@@ -21,6 +21,7 @@ import type {
   GmuxInvokeReq,
   GmuxInvokeRes
 } from '@shared/ipc';
+import { noteInvoke } from './diagnostics/ipc-sample';
 import { gmuxError } from './errors';
 import { APP_QUIT_REFUSAL, appLifecycleState } from './lifecycle';
 import { assertTrustedIpcSender } from './security/trusted-window';
@@ -39,6 +40,8 @@ export function handle<C extends GmuxInvokeChannel>(
     // all of them, because this wrapper is THE one invoke registrar
     // (guardrail: ipc-single-bridge.test.ts).
     assertTrustedIpcSender(event, channel);
+    // Phase 163: one branch. Counts only while a diagnostics capture is open.
+    noteInvoke();
     // Phase 144 stage 1: once the quit has started, no NEW renderer invoke is
     // admitted. The composition root flips the state synchronously in the
     // first before-quit pass (src/main/lifecycle.ts), so no request can reach

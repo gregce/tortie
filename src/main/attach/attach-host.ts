@@ -72,6 +72,8 @@ import type {
 } from '../machines/context';
 import { attachPlan } from './attach-plan';
 import { getLog } from '../log';
+import { markMilestone, MILESTONES } from '../diagnostics/milestones';
+import { noteEvent, noteInvoke } from '../diagnostics/ipc-sample';
 
 /**
  * Scope "attach" (Phase 35). Every error and warning from this
@@ -248,6 +250,9 @@ export class AttachHost {
         (err as Error).message
       );
     }
+    // Phase 163: the first client this launch spawned is the milestone. It
+    // lands after the spawn so a failed spawn is never counted as an attach.
+    markMilestone(MILESTONES.firstAttach);
 
     const client: AttachClient = {
       sessionId: req.sessionId,
@@ -272,6 +277,9 @@ export class AttachHost {
     // ---- renderer → pty: keystrokes/paste --------------------------------
     const inputChannel = termInputChannel(req.sessionId);
     const onInput = (event: IpcMainEvent, data: unknown): void => {
+      // Phase 163: one branch, counted only while a capture is open. This
+      // is a raw listener, so the typed registrar's count never sees it.
+      noteInvoke();
       if (event.sender !== client.sender || client.cleaned) return;
       if (typeof data === 'string' && data.length > 0) {
         client.pty.write(data);
@@ -282,6 +290,9 @@ export class AttachHost {
     // ---- renderer → host: flow-control acks ------------------------------
     const ackChannel = termAckChannel(req.sessionId);
     const onAck = (event: IpcMainEvent, bytes: unknown): void => {
+      // Phase 163: one branch. The renderer acks every data chunk, so this
+      // is the busiest call up, and the diagnostics figure must see it.
+      noteInvoke();
       if (event.sender !== client.sender || client.cleaned) return;
       if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) {
         return;
@@ -346,6 +357,8 @@ export class AttachHost {
           exitCode,
           signal
         };
+        // Phase 163: one branch, counted only while a capture is open.
+        noteEvent();
         client.sender.send(termExitChannel(req.sessionId), payload);
       }
       this.opts.onExit?.(req.sessionId, exitCode, expected, client.kind);
@@ -458,6 +471,9 @@ export class AttachHost {
     client.pendingBytes = 0;
 
     // Buffers arrive in the renderer as Uint8Array (structured clone).
+    // Phase 163: one branch, counted only while a capture is open. This is
+    // the busiest push in the app, so the diagnostics figure must see it.
+    noteEvent();
     client.sender.send(client.dataChannel, chunk);
     this.opts.onData?.(client.sessionId, chunk.byteLength);
 

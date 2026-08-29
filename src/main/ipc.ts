@@ -40,6 +40,7 @@ import { getGmuxCore } from './sessions';
 // re-exports the supervisor and the control client, and this file needs the
 // one cached promise that installs the login shell PATH.
 import { installUserPath } from './tmux/user-path';
+import { markMilestone, MILESTONES } from './diagnostics/milestones';
 import { handle as handleTyped } from './typed-ipc';
 
 // ---------------------------------------------------------------------------
@@ -110,7 +111,13 @@ export function registerIpcHandlers(): void {
   handle('sessions:create', async (_e, input) =>
     (await getGmuxCore()).createSession(input)
   );
-  handle('sessions:list', async () => (await getGmuxCore()).listSessions());
+  handle('sessions:list', async () => {
+    const sessions = (await getGmuxCore()).listSessions();
+    // Phase 163: the first list a renderer receives is a milestone. Later
+    // hydrations find the latch closed and pay one Set lookup.
+    markMilestone(MILESTONES.sessionsListed);
+    return sessions;
+  });
   handle('sessions:rename', async (_e, input) =>
     (await getGmuxCore()).renameSession(input)
   );

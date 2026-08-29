@@ -23,11 +23,14 @@
  * IT DOES NOT AWAIT `ensureServer`. That direction is deliberate and it is
  * what stops the one development build branch that awaits this from
  * deadlocking. This module imports from ./resolve and ../notice and from
- * nothing else in this directory.
+ * nothing else in this directory. The Phase 163 milestone import below reads
+ * node:perf_hooks and the shared contract, which imports nothing under
+ * src/main, so it can never close a cycle.
  */
 
 import { getUserPath, userPathShell, userPathSource } from './resolve';
 import { postDurabilityNotice } from '../notice';
+import { markMilestone, MILESTONES } from '../diagnostics/milestones';
 
 let installPromise: Promise<string> | null = null;
 let installed = false;
@@ -58,6 +61,9 @@ export function installUserPath(): Promise<string> {
     // reporting an install that did not complete as done would be a lie the
     // retry could not correct.
     installed = true;
+    // Phase 163: PATH ready, the milestone the diagnostics report reads. It
+    // lands after the flag above for the same reason the flag is last.
+    markMilestone(MILESTONES.pathReady);
     return userPath;
   })().catch((err: unknown) => {
     installPromise = null;

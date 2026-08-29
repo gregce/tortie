@@ -41,6 +41,12 @@
  *    photographs nothing, because a native macOS menu cannot be read or
  *    photographed from outside the app (Phases 119, 152 and 153 each measured
  *    it). `npm run probe:p156`.
+ *  - GMUX_SMOKE=p163-capture  one diagnostics capture over a scratch profile
+ *    holding GMUX_P163_SESSIONS shell sessions, through the real window so
+ *    the startup milestones land as they do for a person, written as one JSON
+ *    file to GMUX_P163_OUT. Refuses any profile outside GMUX_P163_ROOT and
+ *    the real socket. `npm run probe:p163` drives it cold and warm at zero
+ *    and at twenty five (Phase 163).
  *
  *  - GMUX_SMOKE=identity  sessions bind by @gmux-id, never by name: external
  *                       rename, a foreign session squatting the freed name,
@@ -296,6 +302,10 @@ import {
 } from './durability';
 import { runSmokeIdentity } from './identity';
 import { runP156MenusSmoke } from './p156-menus';
+// Phase 163: the diagnostics capture on a scratch profile with N sessions,
+// through the real window. build/probe-p163-report.mjs drives it four times,
+// cold and warm at zero and at twenty five, and grades the files it writes.
+import { runP163CaptureSmoke } from './p163-capture';
 import { runSmokeProcId } from './procid';
 import { runSmokeQuit } from './quit';
 // Phase 119: declining capture on restore. LEAF-free like the capture smoke,
@@ -416,6 +426,14 @@ export async function dispatchHarness(deps: HarnessDeps): Promise<boolean> {
   // and it says so at its own head. `npm run probe:p156`.
   if (smoke === 'p156-menus') {
     await runP156MenusSmoke();
+    return true;
+  }
+  // Phase 163: one diagnostics capture over a scratch profile holding N shell
+  // sessions, through the real window so the startup milestones land the way
+  // they land for a person. It writes one JSON file and grades nothing; the
+  // supervisor build/probe-p163-report.mjs owns the verdict. `npm run probe:p163`.
+  if (smoke === 'p163-capture') {
+    await runP163CaptureSmoke(deps);
     return true;
   }
   // Phase 64: one row per launchable agent, over the real binaries, proving

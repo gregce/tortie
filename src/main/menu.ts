@@ -48,7 +48,11 @@
  */
 
 import { app, BrowserWindow, Menu } from 'electron';
-import type { MenuItemConstructorOptions } from 'electron';
+import type { IpcMain, MenuItemConstructorOptions } from 'electron';
+// Phase 163. The one invoke this file answers: the Settings window's door to
+// the diagnostics report. It lands here rather than in ipc.ts because the
+// answer IS a menu action forward, and the forwarder lives in this file.
+import { handle } from './typed-ipc';
 import {
   EVT_MENU_ACTION,
   EVT_QUIT_REQUESTED
@@ -980,7 +984,18 @@ function buildTemplate(): MenuItemConstructorOptions[] {
       submenu: [
         // The mark Settings' Keyboard section wears on its own rail,
         // SettingsApp.tsx:66.
-        item('Keyboard Shortcuts', 'shortcuts', accel('app.shortcuts'), 'keyboard')
+        item('Keyboard Shortcuts', 'shortcuts', accel('app.shortcuts'), 'keyboard'),
+        // PHASE 163. The diagnostics report: what Tortie is running right
+        // now, its own processes apart from the sessions it supervises, one
+        // capture taken when the row is pressed. It sits in Help because it
+        // is the row a person reaches for when something is slow or large,
+        // beside the other row that explains the app to them. No chord: it
+        // is a question a person asks now and then, not a verb they repeat.
+        // `output`, the mark the Diagnostics section of Settings wears on
+        // its rail (SettingsApp.tsx), so the two doors to one page share one
+        // picture. The closed set holds no memory or pulse glyph, and adding
+        // one means running the generator, which starts an Electron.
+        item('Diagnostics Report', 'show-diagnostics', undefined, 'output')
       ]
     }
   ];
@@ -1106,4 +1121,23 @@ export function installAppMenu(): void {
   watchUpdatesForMenu();
   watchMachinesForMenu();
   applyMenu();
+}
+
+/**
+ * PHASE 163. The Settings window's door to the diagnostics report tab.
+ *
+ * The Settings window cannot be a menu action target (canReceiveMenuAction
+ * above), so its Diagnostics section asks main over `ui:showDiagnostics` and
+ * main forwards the Help menu's OWN action to the app window. Same action,
+ * same dispatcher, one tab, so the two doors cannot drift. A window that is
+ * not there is logged by sendMenuAction and nothing else happens.
+ *
+ * Registered from the composition root with the ipcMain it hands every
+ * registrar, and not from installAppMenu, because the menu suites install the
+ * menu against a fake electron that has no ipcMain and install it many times.
+ */
+export function installDiagnosticsDoor(ipc: IpcMain): void {
+  handle(ipc, 'ui:showDiagnostics', () => {
+    sendMenuAction('show-diagnostics');
+  });
 }

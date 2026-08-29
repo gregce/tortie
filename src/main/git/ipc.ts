@@ -120,6 +120,33 @@ function ensureWatcher(repoPath: string): void {
   watchers.set(key, promise);
 }
 
+/** One repository's drop and re-read counts, for the diagnostics report. */
+export interface WatcherObservationRow {
+  repoPath: string;
+  drops: number;
+  rescansScheduled: number;
+  rescansCompleted: number;
+}
+
+/**
+ * Phase 163. Every live watcher's observation, read on demand. A repository
+ * whose watcher could not start has no row, because it has nothing to count.
+ */
+export async function watcherObservations(): Promise<WatcherObservationRow[]> {
+  const out: WatcherObservationRow[] = [];
+  for (const pending of watchers.values()) {
+    const rw = await pending.catch(() => null);
+    if (rw === null) continue;
+    out.push({ repoPath: rw.repoPath, ...rw.observation });
+  }
+  return out;
+}
+
+/** How many repositories have a live watcher, or one starting. */
+export function watchedRepoCount(): number {
+  return watchers.size;
+}
+
 /** Stop watching a repo (call when its project tab is removed). */
 export async function unwatchGitRepo(repoPath: string): Promise<void> {
   const key = resolvePath(repoPath);

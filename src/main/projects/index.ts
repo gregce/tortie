@@ -31,6 +31,7 @@ import type { IpcMain, WebContents } from 'electron';
 import { mkdir, stat } from 'node:fs/promises';
 import { cloneProgressChannel } from '@shared/ipc';
 import type { CloneDone, CloneProgress } from '@shared/ipc';
+import { noteEvent } from '../diagnostics/ipc-sample';
 import { runGitOrThrow } from '../git/exec';
 import { handle } from '../typed-ipc';
 import { CloneEngine, preflightClone } from './clone';
@@ -109,6 +110,8 @@ function sinkFor(sender: WebContents): CloneSink {
     alive: () => !sender.isDestroyed(),
     send: (cloneId: string, frame: CloneProgress | CloneDone) => {
       if (sender.isDestroyed()) return;
+      // Phase 163: one branch, counted only while a capture is open.
+      noteEvent();
       sender.send(cloneProgressChannel(cloneId), frame);
     }
   };

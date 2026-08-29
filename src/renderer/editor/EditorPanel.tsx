@@ -88,6 +88,15 @@ const ArchMapTab = React.lazy(async () => ({
   default: (await import('../arch/ArchMapTab')).ArchMapTab
 }));
 
+/**
+ * PHASE 163. The diagnostics report tab's body, loaded the same way and for
+ * the same reason: a person opens it when they have a question about what
+ * Tortie is running, and every other launch never pays for it.
+ */
+const DiagnosticsTab = React.lazy(async () => ({
+  default: (await import('../diagnostics/DiagnosticsTab')).DiagnosticsTab
+}));
+
 // Screenshot-harness hook: registered at module load so GMUX_SHOT_DRIVE can
 // drive a fresh profile (the panel itself may not be mounted yet). Inert
 // outside the harness.
@@ -690,7 +699,9 @@ export function EditorPanel(): React.JSX.Element | null {
     activeTab.error === null &&
     // Phase 160: the map tab has no text to summarize, so the toggle stays
     // out of its chrome the way it stays out of the image viewer's.
-    activeTab.archMap === undefined;
+    activeTab.archMap === undefined &&
+    // Phase 163: the report tab has none either.
+    activeTab.diagnostics === undefined;
   const diffSplitFits = panelWidth >= DIFF_SPLIT_MIN_PX;
   const showDiffSplit = diffSideBySide && diffSplitFits;
   const diffSplitApplies = effectiveMode === 'diff' && activeTab.error === null;
@@ -873,6 +884,12 @@ activeTab.error !== null ? (
           {activeTab.archMap !== undefined ? (
             <React.Suspense fallback={<div className="ed-state" />}>
               <ArchMapTab repoPath={activeTab.archMap.repoPath} />
+            </React.Suspense>
+          ) : activeTab.diagnostics !== undefined ? (
+            // Phase 163. The report tab renders the report and nothing else,
+            // asked about before the file branches for the map's reason.
+            <React.Suspense fallback={<div className="ed-state" />}>
+              <DiagnosticsTab />
             </React.Suspense>
           ) : contextEntry !== null ? (
             <ContextDetailTab

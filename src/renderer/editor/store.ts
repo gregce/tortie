@@ -60,6 +60,7 @@ import { disposeModels, dropViewState } from './monaco-loader';
 import type { EditorMode, EditorTab } from './tab-types';
 import {
   ARCH_MAP_TAB_NAME,
+  DIAGNOSTICS_TAB_NAME,
   fileInRepo,
   leftPathFor,
   remoteTabId,
@@ -254,7 +255,8 @@ export const useEditor = create<EditorState>((set, get) => {
           t.repoPath === repoPath &&
           t.commit === null &&
           t.remote === undefined &&
-          t.archMap === undefined
+          t.archMap === undefined &&
+          t.diagnostics === undefined
       )
   });
 
@@ -433,7 +435,12 @@ export const useEditor = create<EditorState>((set, get) => {
         // segment of a repository root is a folder name wearing a file's
         // clothes. The tab says what it is instead.
         name:
-          req.archMap !== undefined ? ARCH_MAP_TAB_NAME : baseName(req.path),
+          req.archMap !== undefined
+            ? ARCH_MAP_TAB_NAME
+            : // Phase 163. The report tab's path is a project root too.
+              req.diagnostics !== undefined
+              ? DIAGNOSTICS_TAB_NAME
+              : baseName(req.path),
         // A .md file with tracked changes still opens as a diff — that is
         // the P4 gesture, and it is why the file was clicked. Everything
         // else markdown opens rendered. A history open is ALWAYS a diff:
@@ -469,6 +476,12 @@ export const useEditor = create<EditorState>((set, get) => {
         // treats it the way it treats `commit`: no save, no dirty state, no
         // watcher refresh, and the panel draws the map instead of a file.
         ...(req.archMap !== undefined ? { archMap: req.archMap } : {}),
+        // Phase 163. Present only for the diagnostics report tab, read by every
+        // seam the way `archMap` is: no save, no dirty state, no watcher
+        // refresh, and the panel draws the report instead of a file.
+        ...(req.diagnostics !== undefined
+          ? { diagnostics: req.diagnostics }
+          : {}),
         pendingSelection: navigate ? selection : null,
         // Only ever false while there is a selection waiting to be consumed,
         // so a tab can never get stuck refusing focus: the landing resets it.
@@ -479,7 +492,7 @@ export const useEditor = create<EditorState>((set, get) => {
         // Phase 160. The map tab has nothing to load through this store: its
         // model lives in main's fact base and the map body fetches it itself.
         // Every other tab starts loading until its reader lands.
-        loading: req.archMap === undefined,
+        loading: req.archMap === undefined && req.diagnostics === undefined,
         error: null,
         savedContents: '',
         headContents: null,
@@ -521,11 +534,13 @@ export const useEditor = create<EditorState>((set, get) => {
         return { tabs, activeId: tab.id, panelOpen: true };
       });
 
-      if (req.archMap !== undefined) {
+      if (req.archMap !== undefined || req.diagnostics !== undefined) {
         // Phase 160. NOTHING RUNS. The map tab reads no file, so every loader
         // below would land an error on a tab whose id names no file. The map
         // body asks main for the model itself, over the arch bridge, which is
         // what makes closing the tab free and reopening a redraw.
+        // Phase 163. The diagnostics report tab is the same shape: its body
+        // asks main for one capture when it mounts, and nothing runs here.
       } else if (req.draft !== undefined) {
         // PHASE 63. A DRAFT reads nothing. There may be no file at this path
         // at all, and asking for one would land an error on a tab whose whole
@@ -703,10 +718,12 @@ export const useEditor = create<EditorState>((set, get) => {
       // Phase 160: the map tab has no text under it at all, so nothing can
       // legitimately mark it dirty, and a dirty map tab would prompt to save
       // a drawing over a repository root on close.
+      // Phase 163: the report tab has no text under it either.
       if (
         tab.commit !== null ||
         tab.remote !== undefined ||
-        tab.archMap !== undefined
+        tab.archMap !== undefined ||
+        tab.diagnostics !== undefined
       ) {
         return;
       }

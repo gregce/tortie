@@ -535,6 +535,9 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // commit tab, because the tab can never be dirty and ⌘S over it means
     // nothing rather than something that failed.
     if (tab.archMap !== undefined) return false;
+    // Phase 163. The diagnostics report is a capture, not a file, and its
+    // path is a project root. Refused silently for the map's reason.
+    if (tab.diagnostics !== undefined) return false;
     // PHASE 90.3. A review tab was refused here silently since Phase 73, so a
     // person who typed and pressed Save was told nothing at all, which reads as
     // a save that worked. It was refused OUT LOUD from that phase, naming the

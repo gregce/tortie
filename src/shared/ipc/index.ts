@@ -28,7 +28,9 @@ import type {
   InvokeChannelMap
 } from './base';
 import type {
+  DiagnosticsDoorInvokeChannelMap,
   GmuxAgentExtras,
+  GmuxDiagnosticsDoorExtras,
   GmuxMenuExtras,
   GmuxPopupMenuExtras,
   GmuxPowerExtras,
@@ -142,6 +144,10 @@ import type {
 } from './sessions';
 import type { GmuxLogExtras, LogInvokeChannelMap } from './log';
 import type {
+  DiagnosticsInvokeChannelMap,
+  GmuxDiagnosticsExtras
+} from './diagnostics';
+import type {
   GmuxMachinesExtras,
   MachinesEventPayloadMap,
   MachinesInvokeChannelMap,
@@ -187,6 +193,8 @@ export * from './arch-modules';
 export * from './actions';
 export * from './agents';
 export * from './context';
+// Phase 163. The on demand diagnostics report and the opt in heap snapshot.
+export * from './diagnostics';
 export * from './files';
 export * from './git';
 export * from './log';
@@ -237,6 +245,8 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   ImageProjectInvokeChannelMap &
   FsDuplicateInvokeChannelMap &
   ViewMenuInvokeChannelMap &
+  // Phase 163. The Settings window's door to the diagnostics report tab.
+  DiagnosticsDoorInvokeChannelMap &
   SearchInvokeChannelMap &
   QuickOpenInvokeChannelMap &
   SymbolsInvokeChannelMap &
@@ -265,7 +275,9 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   OverviewInvokeChannelMap &
   FsImportInvokeChannelMap &
   // Phase 63. The standing contract's three reads.
-  ArchInvokeChannelMap;
+  ArchInvokeChannelMap &
+  // Phase 163. A capture window's two ends, and the opt in heap snapshot.
+  DiagnosticsInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -405,10 +417,13 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxContextExtras &
   GmuxConfigExtras &
   GmuxViewMenuExtras &
+  // Phase 163. One required method, the Settings window's door to the report.
+  GmuxDiagnosticsDoorExtras &
   GmuxUpdatesExtras &
   GmuxActionsExtras &
   GmuxLogExtras &
   GmuxShellExtras &
   GmuxMachinesExtras &
   GmuxOverviewExtras &
-  GmuxArchExtras;
+  GmuxArchExtras &
+  GmuxDiagnosticsExtras;

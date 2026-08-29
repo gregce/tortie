@@ -43,3 +43,14 @@ export function getTerminal(sessionId: string): Terminal | null {
 export function forEachTerminal(fn: (term: Terminal) => void): void {
   for (const term of live.values()) fn(term);
 }
+
+/**
+ * How many terminals are mounted right now (Phase 163). Read on demand by
+ * the diagnostics capture and by nothing else. It is the renderer's own
+ * proof that a hidden session keeps no surface: TerminalHost mounts a pane
+ * for a visible session only, and this map holds one entry per mounted
+ * pane. A count, read when asked, never a number that rises on its own.
+ */
+export function liveTerminalCount(): number {
+  return live.size;
+}

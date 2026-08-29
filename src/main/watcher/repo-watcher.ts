@@ -190,6 +190,19 @@ export class RepoWatcher {
   private flushTimer: NodeJS.Timeout | null = null;
   private disposed = false;
 
+  /**
+   * Phase 163, the observation Phase 151 left owed. Three integers kept in
+   * memory and read only when a diagnostics capture asks: kernel drops, the
+   * re-reads a drop scheduled, and the re-reads that ran. Nothing reads them
+   * on a timer. `unservedDrops` is the alarm: drops since the last completed
+   * re-read, and when it climbs past one with nothing completing inside two
+   * debounce windows, one warning names the repository in the log.
+   */
+  readonly observation = { drops: 0, rescansScheduled: 0, rescansCompleted: 0 };
+  private unservedDrops = 0;
+  private lastRescanScheduledAt = 0;
+  private rescanPending = false;
+
   private constructor(repoPath: string, options: RepoWatcherOptions) {
     this.repoPath = repoPath;
     this.watchRoot = realpathSync(repoPath);
@@ -316,7 +329,7 @@ export class RepoWatcher {
     if (this.disposed) return;
     if (err) {
       this.onError(err);
-      if (isRescanRequired(err)) this.scheduleFlush();
+      if (isRescanRequired(err)) this.noteDrop();
       return;
     }
     if (events.length > 0) this.scheduleFlush();
@@ -332,7 +345,7 @@ export class RepoWatcher {
     if (this.disposed) return;
     if (err) {
       this.onError(err);
-      if (isRescanRequired(err)) this.scheduleFlush();
+      if (isRescanRequired(err)) this.noteDrop();
       return;
     }
     const gitDir = this.dotgitDir;
@@ -347,6 +360,34 @@ export class RepoWatcher {
   }
 
   /**
+   * Phase 163. A drop is counted, the re-read it needs is scheduled through
+   * the same window an ordinary event uses, and the one alarm fires when
+   * drops keep arriving and no re-read completes. The alarm is a log line
+   * and never a number on a surface.
+   */
+  private noteDrop(): void {
+    const now = Date.now();
+    this.observation.drops += 1;
+    this.unservedDrops += 1;
+    if (
+      this.unservedDrops > 1 &&
+      this.lastRescanScheduledAt !== 0 &&
+      now - this.lastRescanScheduledAt > this.debounceMs * 2
+    ) {
+      watcherLog.warn(
+        `repo watcher (${this.repoPath}): ${this.unservedDrops} dropped ` +
+          'batches and no re-read has completed since the first'
+      );
+    }
+    if (this.flushTimer === null) {
+      this.observation.rescansScheduled += 1;
+      this.lastRescanScheduledAt = now;
+    }
+    this.rescanPending = true;
+    this.scheduleFlush();
+  }
+
+  /**
    * First event opens a 300 ms window; everything inside it coalesces into
    * one onChange. Deliberately NOT resetting the timer on new events —
    * continuous churn still refreshes every window.
@@ -356,6 +397,11 @@ export class RepoWatcher {
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
       if (this.disposed) return;
+      if (this.rescanPending) {
+        this.rescanPending = false;
+        this.observation.rescansCompleted += 1;
+        this.unservedDrops = 0;
+      }
       // `git init` after the fact: attach the dotgit watcher when it appears.
       void this.tryStartDotgitWatcher();
       try {

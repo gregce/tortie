@@ -203,4 +203,23 @@ export interface EditorTab {
     /** The repository the map draws. Same value as `repoPath`. */
     repoPath: string;
   };
+  /**
+   * PHASE 163. This tab is the DIAGNOSTICS REPORT, one capture of what Tortie
+   * is running right now.
+   *
+   * Present means the body is the report and not any file surface, and every
+   * refusal the map tab has applies here for the same reasons: no disk read on
+   * open, never dirty, save refused, the watcher never refreshes it. Identity
+   * is `diagnostics:report`, so there is one report tab in the whole app and
+   * asking again focuses it. The tab is not a reading of any repository. Its
+   * `path` carries the active project's root only because a tab needs one,
+   * and the tooltip says what the tab actually is.
+   *
+   * Optional rather than nullable, so every tab built before this phase, and
+   * every fixture in the tests, is still a valid tab.
+   */
+  diagnostics?: {
+    /** The one report kind this phase draws. */
+    kind: 'report';
+  };
 }

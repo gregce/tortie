@@ -65,6 +65,7 @@ import {
 } from '../activity';
 import { AttachHost } from '../attach';
 import { listDetectedAgents } from '../agents';
+import { markMilestone, MILESTONES } from '../diagnostics/milestones';
 // The durable writer's own failure type and its own out-of-space test
 // (Phase 19 item 2). Do not write a second copy of either.
 import { DurableWriteError, isOutOfSpace } from '../durable';
@@ -671,6 +672,9 @@ export class GmuxCore {
       // talking to a different tmux server than the rest of the app.
       socketName: tmux.getTmuxContext().socket,
       onData: (sessionId, byteLength) => {
+        // Phase 163: first bytes, the last startup milestone. One Set lookup
+        // per chunk after it lands, and nothing else on this edge.
+        if (byteLength > 0) markMilestone(MILESTONES.firstBytes);
         this.onTermData?.(sessionId, byteLength);
       },
       onExit: (sessionId, _exitCode, expected) => {
@@ -977,6 +981,9 @@ export class GmuxCore {
         `initial refresh failed (showing last known sessions): ${(err as Error).message}`
       );
     });
+    // Phase 163: the core has reconciled against tmux once. It is a different
+    // fact from the first list a renderer receives, so both are marked.
+    markMilestone(MILESTONES.sessionsReconciled);
     core.startStatusWatcher();
     // Phase 20 item 2. The poll starts and the launch generation is taken here,
     // after reconcile, so the copy holds statuses that agree with tmux rather

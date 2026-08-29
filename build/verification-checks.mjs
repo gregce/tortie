@@ -270,6 +270,18 @@ export const CHECKS = [
   // at zero. It spawns no agent: the choice is None on its scratch profile
   // and the gate refuses before any spawn, which is the claim it proves.
   electron('probe:p158'),
+  // PHASE 163. The diagnostics capture, driven four times: cold and warm on
+  // a zero session profile and on a twenty five session profile, each pair on
+  // its own scratch socket, every session a shell running a date loop so no
+  // agent is spawned and no token is spent. It writes the four captures and
+  // grades the milestones, the split of shell rows from session rows, and
+  // what was left running afterwards.
+  electron('probe:p163'),
+  // PHASE 163, the surface. One app run: the report tab opened through its
+  // door over a scratch socket carrying two shell sessions, the two tables
+  // read off the DOM, the proof that no figure on the face is the sum of the
+  // two totals, and one photograph. The numbers themselves are probe:p163's.
+  electron('probe:p163surface'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

@@ -52,6 +52,11 @@ const ARMS = [
   // focuses the one already open, through the same door the pane's control
   // uses.
   'show-arch-map',
+  // Phase 163. Help > Diagnostics Report, and the row in Settings, which
+  // main forwards as this same action. It opens the report as a full size
+  // editor tab, or focuses the one already open. It sits here in source
+  // order, directly under the map tab whose shape it follows.
+  'show-diagnostics',
   // Phase 64. Session > Aim at a Promise…, beside Resume Conversation. It is
   // in this list rather than with the view rows because it opens no view: it
   // puts a composed block into the prompt of the session in front of the
@@ -70,7 +75,7 @@ const ARMS = [
 ];
 
 describe('runMenuAction', () => {
-  it('answers all 36 actions and no more', () => {
+  it('answers all 37 actions and no more', () => {
     const found = [...source.matchAll(/case '([a-z-]+)':/g)].map(
       (m) => m[1] ?? ''
     );

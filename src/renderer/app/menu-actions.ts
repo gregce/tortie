@@ -43,6 +43,8 @@ import { openAimPicker } from '../arch/picker';
 // Phase 160: the map tab's one opener, shared with the Architecture pane's
 // own control so the two gestures cannot drift.
 import { openArchMapForActiveProject } from '../arch/open-map';
+// Phase 163: the report tab's one opener, shared with the Settings door.
+import { openDiagnosticsReport } from '../diagnostics/open-report';
 import { useQuickOpen } from '../quickopen';
 import { useSymbols } from '../search';
 import { gmuxBridge } from '../bridge';
@@ -246,6 +248,13 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'show-arch-map':
       if (layerOpen) return;
       openArchMapForActiveProject();
+      return;
+    // Phase 163. Help > Diagnostics Report, and the row in Settings, which
+    // main forwards as this same action. One door, so the two cannot drift:
+    // the whole app has one report tab and a second ask focuses it.
+    case 'show-diagnostics':
+      if (layerOpen) return;
+      openDiagnosticsReport();
       return;
     // Phase 64. Session > Aim at a Promise…. Same body as the ⌃⇧P keydown
     // branch, so the menu row and the chord cannot drift, which is the thing

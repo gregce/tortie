@@ -23,6 +23,10 @@ export function tabIdFor(req: OpenFileRequest): string {
   // second time focuses the tab that is already open instead of opening a
   // twin, which is the same rule `context:` and `machine:` ids follow.
   if (req.archMap !== undefined) return archMapTabId(req.archMap.repoPath);
+  // Phase 163. The diagnostics report is about the whole app, not about any
+  // repository or file, so it has one identity for the whole app. A second
+  // ask from the Help menu or from Settings focuses the tab that is open.
+  if (req.diagnostics !== undefined) return DIAGNOSTICS_TAB_ID;
   // Phase 22. A context detail open is keyed by the ENTRY, not by the file, for
   // the same reason history is keyed by the commit: the same `SKILL.md` reached
   // from the tree and reached from the Context view are two different readings
@@ -75,6 +79,19 @@ export const ARCH_MAP_TAB_NAME = 'Architecture map';
 export function archMapTabId(repoPath: string): string {
   return `arch-map:${repoPath}`;
 }
+
+/**
+ * The identity of the DIAGNOSTICS REPORT tab (Phase 163), and the name the
+ * strip shows on it.
+ *
+ * One id for the whole app rather than one per repository, because the report
+ * describes Tortie's own processes and every session it runs, none of which
+ * belongs to a project. The name is a constant for the reason the map's is:
+ * the tab shows a report, not a file called anything.
+ */
+export const DIAGNOSTICS_TAB_NAME = 'Diagnostics report';
+
+export const DIAGNOSTICS_TAB_ID = 'diagnostics:report';
 
 /**
  * The `id` of a context entry carried on a request, or null when there is none.
@@ -149,6 +166,11 @@ export function tabTooltipIdentity(tab: EditorTab): string {
   // of showing a directory path that reads as a file that will not open.
   if (tab.archMap !== undefined) {
     return `The architecture map of ${tab.archMap.repoPath}. Redrawn from the code, so closing it loses nothing.`;
+  }
+  // Phase 163. The report tab's `path` is whatever project was active when it
+  // opened, which says nothing about the tab. The tooltip says what it is.
+  if (tab.diagnostics !== undefined) {
+    return 'What Tortie is running right now. One capture, taken when you asked for it, so closing it loses nothing.';
   }
   if (tab.remote !== undefined) {
     return reviewTabTooltip(tab.name, tab.remote.machineLabel);

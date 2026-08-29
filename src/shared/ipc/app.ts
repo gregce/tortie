@@ -459,7 +459,9 @@ export type AnyMenuActionWithProjects =
   // Phase 90.3. File > Open Folder on a Machine…, the same one-line fold.
   | RemoteProjectMenuActionId
   // Phase 129. The View menu's projects radio pair, the same one-line fold.
-  | ProjectsPositionMenuActionId;
+  | ProjectsPositionMenuActionId
+  // Phase 163. Help > Diagnostics Report, the same one-line fold.
+  | DiagnosticsMenuActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.12 item 2 (the inline sessions-position toggle) — one
@@ -760,4 +762,40 @@ export interface GmuxUpdatesExtras {
     repair(): Promise<void>;
     onChanged(cb: (state: UpdateUiState) => void): Unsubscribe;
   };
+}
+
+// ---------------------------------------------------------------------------
+// APPENDED by Phase 163 (the diagnostics report). One menu action id and one
+// door channel, nothing above was modified except the one-line fold of the id
+// into AnyMenuActionWithProjects, the same edit every id since Phase 14 made.
+// ---------------------------------------------------------------------------
+
+/**
+ * Help > Diagnostics Report (Phase 163). Rides EVT_MENU_ACTION like
+ * 'show-arch-map', the same one member shape, and an older renderer ignores an
+ * id it does not know. It opens the report as a full size editor tab in the
+ * main window, or focuses the one that is already open.
+ */
+export type DiagnosticsMenuActionId = 'show-diagnostics';
+
+/**
+ * The Settings window's door to the same tab. The Settings window is never a
+ * menu action target (src/main/menu.ts, canReceiveMenuAction), so its
+ * Diagnostics section cannot dispatch 'show-diagnostics' itself. It asks main
+ * over this channel, and main forwards the SAME action to the app window, so
+ * the two doors end in one place and cannot drift. One direction, no payload,
+ * no answer: nothing here reads a process or starts one.
+ */
+export interface DiagnosticsDoorInvokeChannelMap {
+  'ui:showDiagnostics': { req: []; res: void };
+}
+
+/**
+ * Top-level extra on window.gmux, required for the reason the View menu
+ * extras are: the preload ships in the same asar as the section that calls
+ * it, so a missing method is our own bug rather than an older preload.
+ */
+export interface GmuxDiagnosticsDoorExtras {
+  /** Open, or focus, the diagnostics report tab in the app window. */
+  showDiagnostics(): Promise<void>;
 }

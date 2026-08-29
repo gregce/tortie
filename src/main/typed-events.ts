@@ -26,6 +26,7 @@
 import { BrowserWindow } from 'electron';
 import type { WebContents } from 'electron';
 import type { AllEventChannel, AllEventPayloadMap } from '@shared/ipc';
+import { noteEvent } from './diagnostics/ipc-sample';
 
 /** Send one static event to one renderer. */
 export function sendEvent<C extends AllEventChannel>(
@@ -33,6 +34,8 @@ export function sendEvent<C extends AllEventChannel>(
   channel: C,
   ...payload: AllEventPayloadMap[C]
 ): void {
+  // Phase 163: one branch. Counts only while a diagnostics capture is open.
+  noteEvent();
   target.send(channel, ...payload);
 }
 
@@ -50,6 +53,7 @@ export function broadcastEvent<C extends AllEventChannel>(
 ): void {
   for (const win of BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) {
+      noteEvent();
       win.webContents.send(channel, ...payload);
     }
   }

@@ -2,7 +2,9 @@
  * Settings → Diagnostics (Phase 35, spec: docs/research/42-logging.md).
  *
  * Three affordances and nothing else: a runtime debug switch, the logs
- * folder, and the Copy diagnostics report. This is NOT a dashboard
+ * folder, and the Copy diagnostics report. Phase 163 added one door above
+ * them, a row that opens the diagnostics REPORT tab in the app window,
+ * which is where the process and memory picture lives. This is NOT a dashboard
  * (ZEN-OF-TORTIE): nothing here is a reading, nothing refreshes on its own,
  * and no number climbs while you watch it. Every control is an action a
  * person takes when something already went wrong.
@@ -69,6 +71,15 @@ export function DiagnosticsSection(): React.JSX.Element {
       .catch(() => undefined);
   };
 
+  // Phase 163. The Settings window cannot dispatch a menu action itself, so
+  // this asks main to forward the Help menu's own row to the app window. One
+  // tab, one door, whichever way a person reached it.
+  const openReport = (): void => {
+    void gmuxBridge()
+      ?.showDiagnostics()
+      .catch(() => undefined);
+  };
+
   const copyDiagnostics = (): void => {
     const api = bridge();
     if (api === null) return;
@@ -98,6 +109,28 @@ export function DiagnosticsSection(): React.JSX.Element {
   return (
     <section aria-label="Diagnostics">
       <h1 className="set-title">Diagnostics</h1>
+
+      {/* Phase 163. The report is a page in the app window, so this row is a
+          door and not the report: one line saying what is behind it. */}
+      <div className="set-group-label">Report</div>
+      <div className="set-card">
+        <div className="set-row tall">
+          <div className="set-row-text">
+            <span className="set-row-label">What Tortie is running</span>
+            <span className="set-row-caption">
+              Its own processes apart from your sessions, memory, startup
+              times and what is on disk. One capture, taken when you open it.
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={openReport}
+          >
+            Open report
+          </button>
+        </div>
+      </div>
 
       <div className="set-group-label">Logging</div>
       <div className="set-card">

@@ -22,6 +22,7 @@ import type { IpcMain, WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { searchResultsChannel } from '@shared/ipc';
 import type { SearchProgress } from '@shared/ipc';
+import { noteEvent } from '../diagnostics/ipc-sample';
 import { gmuxError } from '../errors';
 import { resolveProjectRoot } from '../fs/paths';
 import { handle } from '../typed-ipc';
@@ -46,6 +47,8 @@ function sinkFor(sender: WebContents): SearchSink {
     alive: () => !sender.isDestroyed(),
     send: (searchId: string, progress: SearchProgress) => {
       if (sender.isDestroyed()) return;
+      // Phase 163: one branch, counted only while a capture is open.
+      noteEvent();
       sender.send(searchResultsChannel(searchId), progress);
     }
   };

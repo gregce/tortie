@@ -31,6 +31,7 @@ import { actions } from './actions';
 import { arch } from './arch';
 import { invoke, on } from './bridge';
 import { config, context, contextSnapshot } from './context';
+import { diagnostics } from './diagnostics';
 import { fs, preview } from './files';
 import { git } from './git';
 import { log } from './log';
@@ -100,6 +101,10 @@ const api: InstalledGmuxApi = {
   // feature-detects the object, so a build without it says one sentence
   // instead of breaking.
   arch,
+  // Phase 163 extra: the on demand diagnostics report. Two invokes open and
+  // close one capture window, one reads this renderer's own memory in the
+  // preload, and one writes a heap snapshot to a path a person chose.
+  diagnostics,
   // Phase 46 optional extra: the SCM view's Runs section. Read only, and the
   // renderer feature-detects it, so a build without it simply has no section.
   actions,
@@ -148,6 +153,10 @@ const api: InstalledGmuxApi = {
   // main where the project tabs just moved, so the View-menu radios cannot go
   // stale when the titlebar's own button (not the menu) is what moved them.
   setProjectsPosition: (position) => invoke('ui:projectsPosition', position),
+  // Phase 163 required extra: the Settings window's door to the diagnostics
+  // report tab. Main forwards the Help menu's own action to the app window,
+  // so the row in Settings and the menu row end in one place.
+  showDiagnostics: () => invoke('ui:showDiagnostics'),
   // Phase 8.2 optional extras: first-quit toast flow (DESIGN.md §4 ⌘Q).
   onQuitRequested: (cb) => on(EVT_QUIT_REQUESTED, cb),
   quit: () => invoke('app:quit'),
