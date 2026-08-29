@@ -27,12 +27,15 @@
  * every problem from the new read, so the view says what failed while still
  * showing something true from a moment ago.
  *
- * ## Tortie never writes any of this
+ * ## The one reader, and since Phase 158 the one writer beside it
  *
- * There is no writer in this module and there is no writer anywhere under
- * `src/main/arch/`. `baseline.json` in particular is read and never written,
- * which is the ArchUnit pattern with store updates off. Recording a new
- * acceptance is a person editing a file.
+ * There is no writer in this module. Since Phase 158 exactly one module under
+ * `src/main/arch/` writes contract files, being `./enrich/write.ts`, and it
+ * holds this module's rule inverted: every path written is a compiled name,
+ * and no path from a model's answer ever reaches the filesystem.
+ * `baseline.json` keeps the ArchUnit pattern in its amended form: the
+ * enrichment pass can never write it, and its only writer is the accept
+ * button's own channel, fired by the person whose decision it records.
  */
 
 import { readdir, readFile } from 'node:fs/promises';

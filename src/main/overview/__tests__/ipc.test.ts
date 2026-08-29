@@ -72,14 +72,16 @@ beforeEach(() => {
 });
 
 describe('registerOverviewIpc', () => {
-  it('registers exactly the five channels, and all five READ', () => {
+  it('registers exactly the six channels, and all six READ', () => {
     const { ipc, handlers } = fakeIpc();
     registerOverviewIpc(ipc, manifestGetter);
     expect([...handlers.keys()].sort()).toEqual([
-      // Phase 138 added the third. Answering it reads the agent table and the
-      // confirm gate and starts nothing. Phase 143 added the last two. They
-      // read the summary chain and the turns behind one row, and they write
-      // nothing.
+      // Phase 138 added the fold option list. Answering it reads the agent
+      // table and the confirm gate and starts nothing. Phase 143 added the
+      // last two. They read the summary chain and the turns behind one row,
+      // and they write nothing. Phase 158 added the arch option list, the
+      // same join over the arch recipe table, and it reads too.
+      'arch:options',
       'fold:options',
       'overview:project',
       'overview:sessions',

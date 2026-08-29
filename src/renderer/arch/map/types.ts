@@ -48,6 +48,12 @@ export interface ArchMapGroup {
   unresolved: boolean;
   /** True when a contract component's name replaced the computed label. */
   overlaid?: boolean;
+  /**
+   * The purpose sentence the hover carries (Phase 158): what this part is
+   * FOR, in the contract author's own first sentence. Absent or null on a
+   * computed box, and the hover then says the provenance alone.
+   */
+  description?: string | null;
 }
 
 /** One aggregated import edge between two parts. */

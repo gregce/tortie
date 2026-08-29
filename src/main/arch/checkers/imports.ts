@@ -174,20 +174,35 @@ function acceptanceFor(
   return null;
 }
 
-/** Split offences into the ones a person accepted and the ones nobody has. */
+/**
+ * Split offences into the ones a person accepted and the ones nobody has.
+ *
+ * `marked` is the whole list again with the accepted ones carrying the
+ * person's reason, and it is what the verdict reports as `offending`. A
+ * promise with three offences accepted and six open stays divergent, and
+ * the failing row needs to know which three, or it offers an accept control
+ * on a line the person accepted a moment ago and the strip counts none of
+ * it (the Phase 158 verifier's finding).
+ */
 function partitionAccepted(
   facts: ArchFactBase,
   edge: ArchEdge | null,
   offences: readonly ArchOffence[]
-): { open: ArchOffence[]; accepted: string[] } {
+): { open: ArchOffence[]; accepted: string[]; marked: ArchOffence[] } {
   const open: ArchOffence[] = [];
   const accepted: string[] = [];
+  const marked: ArchOffence[] = [];
   for (const offence of offences) {
     const because = acceptanceFor(facts, edge, offence);
-    if (because === null) open.push(offence);
-    else accepted.push(because);
+    if (because === null) {
+      open.push(offence);
+      marked.push(offence);
+    } else {
+      accepted.push(because);
+      marked.push({ ...offence, accepted: because });
+    }
   }
-  return { open, accepted };
+  return { open, accepted, marked };
 }
 
 /** The best coverage this edge kind can ever earn. */
@@ -220,12 +235,12 @@ function checkEdge(
 
   if (edge.rule === 'must-not') {
     if (across.length > 0) {
-      const { open, accepted } = partitionAccepted(facts, edge, across);
+      const { open, accepted, marked } = partitionAccepted(facts, edge, across);
       return {
         subjectId,
         status: 'divergent',
         coverage,
-        offending: across,
+        offending: marked,
         ...(accepted.length > 0 && open.length === 0 ? { accepted: true } : {}),
         reason:
           accepted.length > 0 && open.length === 0
@@ -314,7 +329,7 @@ function checkBoundary(
     }
     return { subjectId, status: 'convergent', coverage: 'checked', reason: null };
   }
-  const { open, accepted } = partitionAccepted(facts, null, offences);
+  const { open, accepted, marked } = partitionAccepted(facts, null, offences);
   // The sentence says PARTS, so it counts parts. `open` is a list of offending
   // imports, and eight imports from one part is one part importing.
   const openParts = new Set(
@@ -324,7 +339,7 @@ function checkBoundary(
     subjectId,
     status: 'divergent',
     coverage: 'checked',
-    offending: offences,
+    offending: marked,
     ...(accepted.length > 0 && open.length === 0 ? { accepted: true } : {}),
     reason:
       accepted.length > 0 && open.length === 0

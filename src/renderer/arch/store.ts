@@ -17,10 +17,13 @@
  *  3. **A failed read never blanks the panel.** A contract file that will not
  *     parse is a dropped row with the file, the field and the reason on
  *     screen, beside every row that did load.
- *  4. **Tortie reads `baseline.json` and never writes it.** There is no accept
- *     verb here and there is no verb here that writes any file under
- *     `docs/arch/`. Drafting hands unsaved buffers to the editor; a person
- *     presses Save.
+ *  4. **Nothing here writes a file; every write is main's, behind its own
+ *     gate.** Phase 158 rewrote this rule from "Tortie never writes it".
+ *     Drafting asks main to write the skeleton, enriching asks main to run
+ *     the one confirmed agent, and accepting a divergence asks main to
+ *     append one row to `baseline.json`. All three are a person's gesture,
+ *     main validates whole before writing, and this store holds no path and
+ *     composes no bytes: it asks, and it reads back what landed.
  *  5. **The first check is a question, never a stale verdict.** `firstCheck`
  *     renders as "Not checked yet" and never as "changed", because a run that
  *     has not finished has nothing to say about whether anything moved.
@@ -49,23 +52,26 @@ import type {
 import type { ArchCheckResult, ArchLoadResult } from '@shared/ipc';
 import type { WorkspaceTarget } from '@shared/workspace-target';
 import { localPathOf, sameTarget } from '@shared/workspace-target';
-import { requestOpenFile } from '../state/open-file';
-import { useApp } from '../state/store';
 import { gmuxBridge } from '../bridge';
+import { useApp } from '../state/store';
 import {
+  acceptBridge,
   archAvailable,
   archBridge,
   canvasBridge,
   mapBridge,
   mapPartBridge,
-  skeletonBridge
+  passBridge,
+  seedBridge
 } from './bridge';
 import type {
+  ArchAcceptDivergenceInput,
   ArchCameraState,
   ArchMapPartResult,
   ArchMapResult,
   ArchModuleFilesResult,
-  ArchNodePosition
+  ArchNodePosition,
+  ArchPassStatusResult
 } from './bridge';
 import { moduleFilesBridge } from './modules';
 import {
@@ -74,8 +80,6 @@ import {
   ARCH_MAP_ERROR,
   ARCH_MAP_NO_BRIDGE
 } from './copy';
-import { ARCH_SEED_COPIED, ARCH_VIEW_TITLE } from './copy';
-import { seedPromptText } from './seed-prompt';
 
 /**
  * `elsewhere` carries exactly one meaning, and it is the one Context's store
@@ -213,6 +217,16 @@ export function canvasKey(repoPath: string, scope: string): string {
   return `${repoPath}\u0000${scope}`;
 }
 
+/**
+ * PHASE 158. One repository's pass surface as this window holds it: main's
+ * status answer, plus the refusal token that stopped the last gesture
+ * before any spawn, or null when the last gesture started or none was made.
+ */
+export interface ArchPassEntry {
+  status: ArchPassStatusResult | null;
+  refusal: string | null;
+}
+
 export interface ArchViewState {
   /** Which folder, on which computer, this reading belongs to. */
   target: WorkspaceTarget | null;
@@ -230,6 +244,16 @@ export interface ArchViewState {
   selected: ArchSelection;
   /** Drafting in flight, so the control cannot be pressed twice. */
   drafting: boolean;
+  /**
+   * PHASE 158. The pass surfaces this window holds, keyed by repository
+   * root. `status` is main's own answer, exactly as reported; `refusal` is
+   * the token that stopped the LAST gesture before any spawn, kept beside
+   * the status because a refused ask never becomes a run record and the
+   * face still owes the person a sentence about it.
+   */
+  passes: Readonly<Record<string, ArchPassEntry>>;
+  /** An enrich ask in flight, so the control cannot be pressed twice. */
+  enriching: boolean;
   /**
    * PHASE 160 — the map models this window holds, keyed by repository root.
    *
@@ -374,10 +398,40 @@ export interface ArchViewState {
    * act. The next draw computes fresh from the facts.
    */
   relayout(repoPath: string, scope: string): Promise<void>;
-  /** Compose the skeleton and open it as unsaved editor buffers. */
+  /**
+   * THE ONE PATH IN (Phase 158). Ask main to write the deterministic
+   * skeleton under `docs/arch/`, then, when the pass half exists in this
+   * build, ask main to run the enriching pass over what landed. Main holds
+   * the Settings choice and the confirm gate, so with no agent picked the
+   * second ask comes back idle and the skeleton is the whole story, said
+   * plainly. The write lands as an ordinary uncommitted change: Source
+   * Control shows it through the watcher with no help from here.
+   */
   draft(): Promise<void>;
-  /** Put the seeding prompt on the clipboard and open the new session sheet. */
-  seed(): void;
+  /**
+   * Ask main to run the enriching pass once, over this repository, under
+   * the agent the person confirmed in Settings. One ask in flight; a second
+   * gesture while one is out does nothing. Main refuses on its own
+   * authority when no agent is configured or confirmed.
+   */
+  enrich(): Promise<void>;
+  /** Read one repository's pass surface, once, so the run face can draw. */
+  loadPass(repoPath: string): Promise<void>;
+  /** Read it again, whatever is held: the pass event's own re-read. */
+  reloadPass(repoPath: string): Promise<void>;
+  /** The held pass surface, or null before any answer. */
+  passFor(repoPath: string): ArchPassEntry | null;
+  /**
+   * THE ACCEPT VERB (Phase 158, the operator's amendment). Ask main to
+   * append one accepted divergence to `docs/arch/baseline.json`, with the
+   * person's own reason. The decision and the reason are theirs, the typing
+   * is not, and main validates every field and refuses whole rather than
+   * writing half a row. On a kept write the contract is read back so the
+   * strip's accepted list moves at once.
+   */
+  acceptDivergence(
+    input: Omit<ArchAcceptDivergenceInput, 'cwd'>
+  ): Promise<{ ok: boolean; reason: string | null }>;
   /**
    * Subscribe to main's two pushes for as long as the view is mounted.
    *
@@ -574,6 +628,40 @@ function scheduleCameraSave(
   );
 }
 
+/** The one shape every pass patch goes through, so an entry is never torn. */
+type PassSetter = (
+  fn: (s: ArchViewState) => Pick<ArchViewState, 'passes'>
+) => void;
+
+function patchPass(
+  set: PassSetter,
+  cwd: string,
+  patch: Partial<ArchPassEntry>
+): void {
+  set((s) => {
+    const held = s.passes[cwd] ?? { status: null, refusal: null };
+    return { passes: { ...s.passes, [cwd]: { ...held, ...patch } } };
+  });
+}
+
+/**
+ * The held status marked running the moment the started event lands, so the
+ * face says so without waiting a round trip. A pass that started was chosen,
+ * whether or not this window ever read the status, and whether or not the
+ * status it holds predates the choice: main gated the spawn on the choice,
+ * so `chosen` is true by the fact of the event. The Phase 158 verifier
+ * watched a face keep saying "pick one in Settings" beside the spinner of
+ * the run that choice had started, because this kept the stale false.
+ */
+function runningStatus(
+  held: ArchPassStatusResult | null,
+  cwd: string
+): ArchPassStatusResult {
+  return held === null
+    ? { cwd, running: true, suspended: null, chosen: true, lastRun: null }
+    : { ...held, running: true, chosen: true };
+}
+
 export const useArch = create<ArchViewState>((set, get) => ({
   target: null,
   status: 'idle',
@@ -584,6 +672,8 @@ export const useArch = create<ArchViewState>((set, get) => ({
   error: null,
   selected: NO_SELECTION,
   drafting: false,
+  passes: {},
+  enriching: false,
   maps: {},
   drills: {},
   canvas: {},
@@ -964,69 +1054,99 @@ export const useArch = create<ArchViewState>((set, get) => ({
 
   async draft() {
     const target = get().target;
-    const api = skeletonBridge();
+    const api = seedBridge();
     if (target === null || api === null || get().drafting) return;
     const cwd = localPathOf(target);
     if (cwd === null) return;
     set({ drafting: true });
     try {
-      const result = await api.skeleton({ cwd });
-      // The directories the drafts would be saved into. Creating them is the
-      // ONLY write this gesture makes, `ARCH_DRAFT_BODY` in ./copy.ts names it
-      // before the button is pressed, and without it the person's first Save
-      // fails with ENOENT on a folder that has never existed. Main still writes no contract file: every byte of
-      // the skeleton arrives as text and lands in an editor buffer that is
-      // dirty from the moment it opens.
-      await ensureDraftFolders(
-        cwd,
-        result.files.map((f) => f.path)
-      );
-      for (const file of result.files) {
-        requestOpenFile({
-          repoPath: cwd,
-          relPath: file.path,
-          path: `${cwd}/${file.path}`,
-          mode: 'file',
-          source: 'tree',
-          preview: false,
-          draft: file.content
-        });
-      }
+      // MAIN WRITES, this store does not: the skeleton lands under
+      // `docs/arch/` as an ordinary uncommitted change, which is the
+      // operator's amendment. Source Control sees it through the watcher.
+      await api.seed({ cwd });
+      // Read the contract back so the cockpit draws what just landed.
+      await get().refresh();
     } catch (err) {
       useApp.getState().toast('error', errorText(err), { sticky: true });
-    } finally {
       set({ drafting: false });
+      return;
+    }
+    set({ drafting: false });
+    // THE SAME ONE GESTURE CONTINUES INTO THE PASS, where this build has
+    // one. There is no second button and no fork: main holds the Settings
+    // choice and the confirm gate, so with no agent picked this ask comes
+    // back idle, the record says so, and the skeleton is the whole story.
+    if (passBridge() !== null) await get().enrich();
+  },
+
+  async enrich() {
+    const target = get().target;
+    const api = passBridge();
+    if (target === null || api === null || get().enriching) return;
+    const cwd = localPathOf(target);
+    if (cwd === null) return;
+    set({ enriching: true });
+    try {
+      const result = await api.enrich({ cwd });
+      // The refusal that stopped the gesture before any spawn is kept
+      // beside the status, because it never becomes a run record and the
+      // face still owes the person a sentence about it.
+      patchPass(set, cwd, { refusal: result.started ? null : result.refusal });
+      // Whatever happened, main's status read is the truth the face draws.
+      await get().reloadPass(cwd);
+      // A kept run wrote the contract, so read it back, and read the map
+      // again where this window holds one: painted coverage is the proof
+      // surface and the picture must move with the files. The seed a
+      // contractless enrich performed lands the same way.
+      if (result.run?.verdict === 'kept' || result.seeded.length > 0) {
+        await get().refresh();
+        if (get().maps[cwd] !== undefined) void get().loadMap(cwd);
+      }
+    } catch (err) {
+      // A refused or failed run is a RECORD in main, not a throw, so a throw
+      // here is the ask itself failing. One sentence, never a blank face.
+      useApp.getState().toast('error', errorText(err), { sticky: true });
+    } finally {
+      set({ enriching: false });
     }
   },
 
-  seed() {
+  async loadPass(repoPath) {
+    if (get().passes[repoPath] !== undefined) return;
+    await get().reloadPass(repoPath);
+  },
+
+  async reloadPass(repoPath) {
+    const api = passBridge();
+    if (api === null) return;
+    try {
+      const status = await api.passStatus({ cwd: repoPath });
+      patchPass(set, repoPath, { status });
+    } catch {
+      // No status is an honest state the face already draws. Nothing to say.
+    }
+  },
+
+  passFor(repoPath) {
+    return get().passes[repoPath] ?? null;
+  },
+
+  async acceptDivergence(input) {
     const target = get().target;
-    if (target === null) return;
+    const api = acceptBridge();
+    if (target === null || api === null) {
+      return { ok: false, reason: 'This build cannot accept a divergence.' };
+    }
     const cwd = localPathOf(target);
-    if (cwd === null) return;
-    const text = seedPromptText(cwd);
-    void navigator.clipboard.writeText(text).then(
-      () => {
-        useApp.getState().toast('info', ARCH_SEED_COPIED);
-      },
-      () => {
-        // A refused clipboard is not a reason to hide the sheet: the prompt is
-        // on screen in the view and a person can select it by hand.
-        useApp
-          .getState()
-          .toast(
-            'error',
-            `${ARCH_VIEW_TITLE} could not reach the clipboard. The prompt is on screen and can be selected.`
-          );
-      }
-    );
-    // THE ORDINARY NEW SESSION SHEET, and nothing else. This is the same
-    // `setCreateOpen` the ⌘T chord and the dock's + button reach, so the
-    // person picks the agent, the launch flags and the capture setting exactly
-    // as they would for any other session. Tortie starts nothing here, and
-    // nothing is typed into any session: sending a composed payload to a
-    // running agent is a later slice's verb and this phase refuses it.
-    useApp.getState().setCreateOpen(true);
+    if (cwd === null) {
+      return { ok: false, reason: 'This repository is not on this computer.' };
+    }
+    const result = await api.acceptDivergence({ cwd, ...input });
+    // A kept write moved the baseline, so the strip's accepted list and the
+    // verdict counts are read back rather than patched here: main is the
+    // one place those live.
+    if (result.ok) await get().refresh();
+    return result;
   },
 
   subscribeEvents() {
@@ -1073,10 +1193,62 @@ export const useArch = create<ArchViewState>((set, get) => ({
             reloadScopedReads(get(), event.cwd);
           })
         : () => undefined;
+    // Phase 158. The pass says where it stands while it runs, the way a
+    // session row says written and the time. Nothing is announced, no toast
+    // and no badge, because a pass that finished is a face that changed,
+    // not an interruption.
+    const pass = passBridge();
+    // THE CHOICE IS MADE IN SETTINGS, AND THE PANE MUST LEARN OF IT. The pass
+    // status is main's reading of the sealed choice, and it is read once per
+    // repository and then held, so a person who picked an agent in Settings
+    // with the pane already open used to keep the "pick one in Settings"
+    // face and no run control until a relaunch (the Phase 158 verifier's
+    // blocking finding). The settings broadcast is the one signal that the
+    // choice moved, so every held status is read again on it. A read, never
+    // a spawn: main answers from the seal checked value and starts nothing.
+    const settingsBridge = gmuxBridge();
+    const offSettings =
+      pass !== null && typeof settingsBridge?.onSettingsChanged === 'function'
+        ? settingsBridge.onSettingsChanged(() => {
+            for (const cwd of Object.keys(get().passes)) {
+              void get().reloadPass(cwd);
+            }
+          })
+        : () => undefined;
+    const offPass =
+      pass !== null
+        ? pass.onPass((event) => {
+            if (event.phase === 'started') {
+              patchPass(set, event.cwd, {
+                refusal: null,
+                status: runningStatus(
+                  get().passes[event.cwd]?.status ?? null,
+                  event.cwd
+                )
+              });
+              return;
+            }
+            // Finished: main's status read is the truth the face draws, and
+            // a kept run moved `docs/arch/`, so the contract and any held
+            // map are read back the way a finished check is.
+            void get().reloadPass(event.cwd);
+            if (event.run?.verdict === 'kept') {
+              if (get().maps[event.cwd] !== undefined) {
+                void get().loadMap(event.cwd);
+              }
+              const target = get().target;
+              if (target !== null && localPathOf(target) === event.cwd) {
+                void get().refresh();
+              }
+            }
+          })
+        : () => undefined;
     return () => {
       offChecked();
       offProgress();
       offMapUpdated();
+      offSettings();
+      offPass();
     };
   },
 
@@ -1141,39 +1313,6 @@ function reloadScopedReads(s: ArchViewState, cwd: string): void {
   }
 }
 
-/**
- * Create the folders the drafts will be saved into, and say nothing when they
- * already exist.
- *
- * It uses `fs:createFolder`, the verb the Explorer's own New Folder command
- * already reaches, rather than anything new, and it goes through the typed
- * bridge rather than around it. A folder that is already there answers with a
- * rejection this swallows, because "it is already there" is the success case.
- *
- * THIS IS THE ONLY WRITE THE DRAFT GESTURE MAKES, and the control says so
- * before it is pressed. Without it a person's first Save fails on a folder
- * that has never existed, which reads as Tortie losing what they just wrote.
- */
-async function ensureDraftFolders(
-  cwd: string,
-  relPaths: readonly string[]
-): Promise<void> {
-  const fs = gmuxBridge()?.fs;
-  if (typeof fs?.createFolder !== 'function') return;
-  const dirs = new Set<string>();
-  for (const rel of relPaths) {
-    const parts = rel.split('/');
-    parts.pop();
-    // Every ancestor, shallowest first, so `docs` exists before `docs/arch`.
-    for (let i = 1; i <= parts.length; i += 1) {
-      dirs.add(parts.slice(0, i).join('/'));
-    }
-  }
-  for (const dir of [...dirs].sort((a, b) => a.length - b.length)) {
-    try {
-      await fs.createFolder({ root: cwd, path: dir });
-    } catch {
-      /* already there is the success case */
-    }
-  }
-}
+// `ensureDraftFolders` LIVED HERE UNTIL PHASE 158 and is gone on purpose:
+// the seed write happens in main, whose one writer module makes the folders
+// itself, so the renderer creates nothing and holds no path at all.

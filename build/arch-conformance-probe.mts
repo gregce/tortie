@@ -47,6 +47,13 @@ import { languageOf } from '../src/main/arch/scan';
 import { GRAMMARS } from '../src/main/symbols/languages';
 import type { ImportForm } from '../src/main/symbols/queries';
 import { ARCH_ROW_KEYS } from '../src/shared/arch';
+import { composeArchEnrichPrompt } from '../src/main/arch/enrich/compose';
+import { validateArchAnswer } from '../src/main/arch/enrich/validate';
+import {
+  assertArchWritePath,
+  planEnrichedWrite,
+  planSkeletonWrite
+} from '../src/main/arch/enrich/write';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const fixtureRoot = join(root, 'build', 'fixtures', 'arch');
@@ -709,6 +716,166 @@ async function main(): Promise<void> {
   const partCallsAfter = payloadRecord.length;
 
   // -------------------------------------------------------------------------
+  // Phase 158: the enrichment negative controls, pure over a tiny draft.
+  //
+  // Three hostile answers, each refused WHOLE, plus one valid answer that is
+  // KEPT, which is the control that proves the refusals can pass and are
+  // therefore meaningful. The write planner is driven directly over a hostile
+  // id, because the writer must hold its rule alone even for a caller that
+  // skipped the validator.
+  // -------------------------------------------------------------------------
+  const draftDoc = {
+    contract: {
+      version: 1,
+      subject: 'fixture',
+      strictness: 'not-wrong' as const,
+      layers: [
+        { id: 'surface', name: 'surface', order: 0 },
+        { id: 'engine', name: 'engine', order: 1 },
+        { id: 'foundation', name: 'foundation', order: 2 }
+      ],
+      flows: [] as string[]
+    },
+    components: [
+      {
+        id: 'src-app',
+        name: 'src/app',
+        kind: 'component' as const,
+        layer: 'surface',
+        provenance: 'first-party' as const,
+        anchors: ['src/app'],
+        boundary: 'open' as const,
+        description: '',
+        evidence: [],
+        deprecated: false,
+        gaps: [] as string[]
+      },
+      {
+        id: 'src-core',
+        name: 'src/core',
+        kind: 'component' as const,
+        layer: 'engine',
+        provenance: 'first-party' as const,
+        anchors: ['src/core'],
+        boundary: 'open' as const,
+        description: '',
+        evidence: [],
+        deprecated: false,
+        gaps: [] as string[]
+      }
+    ],
+    edges: [
+      {
+        id: 'src-app-imports-src-core',
+        from: 'src-app',
+        to: 'src-core',
+        kind: 'imports' as const,
+        rule: 'may' as const,
+        checker: 'imports' as const,
+        evidence: []
+      }
+    ],
+    baseline: { accepted: [] },
+    problems: []
+  };
+  const enrichComposed = composeArchEnrichPrompt({
+    document: draftDoc,
+    trackedFiles: ['src/app/a.ts', 'src/core/b.ts'],
+    imports: [{ fromPath: 'src/app/a.ts', toPath: 'src/core/b.ts' }]
+  });
+  const enrichContext = {
+    document: draftDoc,
+    factBlock: enrichComposed.factBlock
+  };
+  const validAnswer = {
+    contract: draftDoc.contract,
+    components: [
+      { ...draftDoc.components[0], name: 'The App', description: 'Draws the screen.' },
+      { ...draftDoc.components[1], name: 'The Core', description: 'Owns the rules.' }
+    ],
+    edges: {
+      edges: [
+        { ...draftDoc.edges[0], rule: 'must' },
+        {
+          id: 'src-core-must-not-import-src-app',
+          from: 'src-core',
+          to: 'src-app',
+          kind: 'imports',
+          rule: 'must-not',
+          checker: 'imports',
+          evidence: []
+        }
+      ]
+    },
+    suggestions: ['Consider one suggestion.']
+  };
+  const hostilePathAnswer = JSON.parse(JSON.stringify(validAnswer));
+  hostilePathAnswer.components[0].anchors = ['../../etc/passwd'];
+  const anchorMovedAnswer = JSON.parse(JSON.stringify(validAnswer));
+  anchorMovedAnswer.components[0].anchors = ['src/elsewhere'];
+  const inventedNumberAnswer = JSON.parse(JSON.stringify(validAnswer));
+  inventedNumberAnswer.components[0].description = 'Handles 99731 requests.';
+  const baselineAnswer = JSON.parse(JSON.stringify(validAnswer));
+  baselineAnswer.baseline = { accepted: [] };
+  const rulingOf = (answer: unknown): { refused: boolean; refusal: string | null } => {
+    const ruling = validateArchAnswer(
+      typeof answer === 'string' ? answer : JSON.stringify(answer),
+      enrichContext
+    );
+    return { refused: ruling.kept === null, refusal: ruling.refusal };
+  };
+  const keptRuling = validateArchAnswer(JSON.stringify(validAnswer), enrichContext);
+  let keptTargets: string[] = [];
+  let keptTargetsAllCompiled = false;
+  if (keptRuling.kept !== null) {
+    const plan = planEnrichedWrite(keptRuling.kept);
+    keptTargets = plan.map((file) => file.path);
+    keptTargetsAllCompiled = plan.every((file) => {
+      try {
+        assertArchWritePath(file.path);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+  }
+  let hostileIdRefused = false;
+  if (keptRuling.kept !== null) {
+    try {
+      planEnrichedWrite({
+        ...keptRuling.kept,
+        components: [
+          { ...keptRuling.kept.components[0]!, id: '../evil' }
+        ]
+      });
+    } catch {
+      hostileIdRefused = true;
+    }
+  }
+  const seedTargets = planSkeletonWrite(
+    draftSkeleton({
+      subject: 'fixture',
+      trackedFiles: ['src/app/a.ts', 'src/core/b.ts'],
+      imports: [{ fromPath: 'src/app/a.ts', toPath: 'src/core/b.ts' }]
+    })
+  ).map((file) => file.path);
+  const enrich = {
+    hostilePath: rulingOf(hostilePathAnswer),
+    anchorMoved: rulingOf(anchorMovedAnswer),
+    inventedNumber: rulingOf(inventedNumberAnswer),
+    brokenShape: rulingOf('this is not JSON {'),
+    baselineContent: rulingOf(baselineAnswer),
+    kept: {
+      kept: keptRuling.kept !== null,
+      refusal: keptRuling.refusal,
+      targets: keptTargets,
+      allCompiled: keptTargetsAllCompiled
+    },
+    hostileIdRefused,
+    seedTargets
+  };
+
+  // -------------------------------------------------------------------------
   const archDir = join(root, 'src', 'main', 'arch');
   const walk = (dir: string): string[] => {
     const out: string[] = [];
@@ -844,6 +1011,7 @@ async function main(): Promise<void> {
         },
         rowKeys: ARCH_ROW_KEYS,
         sources,
+        enrich,
         hostileStrings: facts.hostileStrings
       },
       null,

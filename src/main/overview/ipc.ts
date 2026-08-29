@@ -5,14 +5,18 @@
  *     import { registerOverviewIpc } from './overview/ipc';
  *     registerOverviewIpc(ipcMain, async () => (await getGmuxCore()).manifest);
  *
- * Five channels, and all five READ. Each one lists the project's manifest rows
+ * Six channels, and all six READ. Each one lists the project's manifest rows
  * read only, opens the agent logs through the keep map, writes the redacted
  * slice into Tortie's own overview store, and answers from store rows.
  * No channel here spawns a process, writes the manifest, touches tmux or
  * sets a session's status. The third channel, `fold:options`, answers what
  * Settings offers for the fold, and building that list is a read of the agent
  * table and the confirm gate. Choosing a harness in Settings does not start
- * anything either: a fold runs only when a session finishes a turn.
+ * anything either: a fold runs only when a session finishes a turn. Phase 158
+ * added `arch:options`, the same offer question asked about the arch
+ * enrichment over the compiled arch recipe table, and choosing there starts
+ * nothing either: the pass runs only from a person's gesture in the
+ * Architecture view.
  *
  * Phase 143 added the last two. One answers the story a session told, version
  * by version, and the other answers the turns one drawn row of that story
@@ -37,7 +41,7 @@ import {
   sessionsOverview,
   type OverviewServiceDeps
 } from './service';
-import { foldOptions } from './fold';
+import { archOptions, foldOptions } from './fold';
 import { buildTimeline, timelineTurns } from './timeline';
 import { openOverviewStore, type OverviewStore } from './store';
 
@@ -58,7 +62,7 @@ export function overviewStore(): OverviewStore {
 }
 
 /**
- * Registers the five channels exactly once. It takes a manifest getter
+ * Registers the six channels exactly once. It takes a manifest getter
  * rather than a manifest, because the manifest is opened during boot and the
  * registrars are installed before that finishes.
  *
@@ -72,12 +76,18 @@ export function overviewStore(): OverviewStore {
  * defaults to false, which is the shipped answer. The story channel asks the
  * same getter, and answers `chosen` false without reading a row when nothing
  * is writing these.
+ *
+ * `archSuspended` is the arch pass runner's own sentence (Phase 158), handed
+ * in for the reason `suspended` is: the runner is built elsewhere and this
+ * registrar must not reach into it. The default answers null, which is what
+ * a build with no runner wired has to say.
  */
 export function registerOverviewIpc(
   ipc: IpcMain,
   getManifest: () => Promise<ManifestStore>,
   suspended: () => string | null = () => null,
-  foldChosen: () => boolean = () => false
+  foldChosen: () => boolean = () => false,
+  archSuspended: () => string | null = () => null
 ): void {
   const deps: OverviewServiceDeps = {
     manifest: getManifest,
@@ -91,6 +101,14 @@ export function registerOverviewIpc(
     sessionsOverview(deps, input)
   );
   handle(ipc, 'fold:options', () => foldOptions({ suspended }));
+  // Phase 158. The same offer question asked about the arch enrichment, over
+  // the compiled arch recipe table. A read, exactly as the fold's is: it
+  // starts nothing, spawns nothing, and choosing a row in Settings starts
+  // nothing either. The pass runs only from a person's gesture in the
+  // Architecture view, behind its own re-read of the confirm gate.
+  handle(ipc, 'arch:options', () =>
+    archOptions({ suspended: archSuspended })
+  );
   handle(ipc, 'overview:timeline', (_event, sessionId) =>
     buildTimeline(deps.store(), sessionId, deps.foldChosen?.() ?? false)
   );

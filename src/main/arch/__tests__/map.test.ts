@@ -13,6 +13,7 @@ import type { ArchDocument } from '@shared/arch';
 import {
   composeArchMap,
   composeArchMapPart,
+  firstSentence,
   type ArchMapComposeInput,
   type ArchMapPartComposeInput
 } from '../map';
@@ -56,7 +57,7 @@ function contract(): ArchDocument {
         provenance: 'first-party',
         anchors: ['src/app'],
         boundary: 'open',
-        description: '',
+        description: 'Draws the window. Everything else feeds it.',
         evidence: [],
         deprecated: false,
         gaps: []
@@ -194,6 +195,31 @@ describe('the overlay', () => {
     expect(app?.componentId).toBe('the-app');
     expect(app?.id).toBe('src-app');
     expect(model.contractPresent).toBe(true);
+    // Phase 158: the painted box carries the purpose sentence, clipped to
+    // the description's first sentence, so the hover can say what the part
+    // is FOR. An empty description and a computed box both carry null.
+    expect(app?.description).toBe('Draws the window.');
+    const core = model.groups.find((g) => g.id === 'src-core');
+    expect(core?.description).toBeNull();
+    const log = model.groups.find((g) => g.id === 'src-log');
+    expect(log?.description).toBeNull();
+  });
+
+  it('clips a description to its first sentence, and keeps one with no stop', () => {
+    expect(firstSentence('Draws the window. Everything else feeds it.')).toBe(
+      'Draws the window.'
+    );
+    expect(firstSentence('One sentence with no full stop')).toBe(
+      'One sentence with no full stop'
+    );
+    expect(firstSentence('  padded.  ')).toBe('padded.');
+    expect(firstSentence('')).toBeNull();
+    expect(firstSentence('   ')).toBeNull();
+    // A dot inside a name does not end a sentence; only one that ends a
+    // word does.
+    expect(firstSentence('Owns config.json and reads it. Writes nothing.')).toBe(
+      'Owns config.json and reads it.'
+    );
   });
 
   it('never paints a spanning or an absent component onto any box', () => {

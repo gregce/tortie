@@ -32,13 +32,17 @@
  * the ten things the design has to get right, so they are the ten things the
  * picture shows.
  *
- * ## What it deliberately does not do
+ * ## What it deliberately does not do (rewritten in Phase 158)
  *
- * It never presses the seeding control. That control opens the ordinary new
- * session sheet, which creates a real session running a real agent under the
- * person's own credentials, and a screenshot probe is not the place for that.
- * `spec.seed` COMPOSES the prompt and prints its bytes and its sha, which is
- * the deterministic claim, and stops there.
+ * It never presses the draft control and never presses the run control. Both
+ * now ask MAIN to write under `docs/arch/`, and the run control asks main to
+ * start the one confirmed agent under the person's own credentials; a
+ * screenshot probe is not the place for either. `spec.onePath` READS the
+ * surfaces instead: that the offer carries exactly one action, that the
+ * pasted-prompt surface is gone, that the run face is on screen with its
+ * words, and that the accept controls sit on the failing rows. Pressing the
+ * real gestures is the phase probe's job, over a scratch repository, through
+ * `build/electron-run.mjs`.
  */
 
 import type { ArchVerdict } from '@shared/arch';
@@ -48,9 +52,14 @@ import type { ArchLoadResult } from '@shared/ipc';
 import { localTarget } from '@shared/workspace-target';
 import { useApp } from '../state/store';
 import { installShellOps, shellOps } from '../state/shell-ops';
-import { archAvailable, skeletonAvailable } from './bridge';
+import {
+  acceptAvailable,
+  archAvailable,
+  passAvailable,
+  seedAvailable,
+  skeletonAvailable
+} from './bridge';
 import { archDivergences } from './divergences';
-import { seedPromptText } from './seed-prompt';
 import { useArch } from './store';
 
 export interface ArchProbeSpec {
@@ -68,8 +77,21 @@ export interface ArchProbeSpec {
    * gesture rather than through a call to the function the gesture reaches.
    */
   jump?: boolean;
-  /** Compose the seeding prompt and print its bytes. Sends nothing. */
-  seed?: boolean;
+  /**
+   * PRESS the one offer, being the shipped Draft button, and read back what
+   * the gesture did (Phase 158). The press is a real click, so the whole
+   * chain runs: the store's `draft`, main's seed write under `docs/arch/`,
+   * and the same gesture continuing into the pass, which main refuses with
+   * `no-choice` when no agent is picked. The line printed is what the phase
+   * probe reads to prove the skeleton only path is inert and honest.
+   */
+  press?: boolean;
+  /**
+   * PHASE 158, the one-path surfaces, READ and never pressed: the offer's
+   * single action, the absence of the pasted prompt, the run face's words,
+   * and the accept controls on the failing rows.
+   */
+  onePath?: boolean;
   /**
    * The repository the drive stages itself against, default `/fixtures`.
    *
@@ -419,6 +441,17 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
 
   log(`measure: ${JSON.stringify(measure())}`);
 
+  // THE COPY RULING'S NUMBER (2026-08-28): the words a person reads on the
+  // pane at rest. `innerText` respects visibility, so a collapsed disclosure
+  // and every hover title stay out of the count, which is the point: the
+  // ruling is about the resting face, and this line is what the verifier
+  // reads before and after. Data the person put there (names, reasons) is
+  // in the count too, because the person reads it too.
+  const pane = document.querySelector<HTMLElement>('.arch');
+  const restText = pane === null ? '' : pane.innerText;
+  const restWords = restText.split(/\s+/).filter((w) => w.length > 0).length;
+  log(`restWords: ${String(restWords)}`);
+
   // The rows Source Control will draw, from the same verdicts. Printed here
   // rather than in a second probe, because they are a derivation of what is
   // already on screen and a second launch would buy nothing.
@@ -429,16 +462,39 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
       .join(' | ')}`
   );
 
-  if (spec.seed === true) {
-    // COMPOSED AND PRINTED, never sent. Two runs must produce the same bytes,
-    // which is the only claim this control makes.
-    const a = seedPromptText(cwd);
-    const b = seedPromptText(cwd);
+  if (spec.onePath === true) {
+    // READ, never pressed. The claims: one action in the offer, no pasted
+    // prompt surface anywhere, the run face present with its state words,
+    // and an accept control on every failing row that has a target path.
+    const text = (sel: string): string =>
+      document.querySelector<HTMLElement>(sel)?.textContent ?? '';
+    const entry =
+      useArch.getState().passFor(cwd) ??
+      (spec.cwd !== undefined ? useArch.getState().passFor(spec.cwd) : null);
     log(
-      `seed: bytes=${String(new TextEncoder().encode(a).length)} ` +
-        `deterministic=${String(a === b)} lines=${String(a.split('\n').length)}`
+      `onePath: ${JSON.stringify({
+        bridges: {
+          seed: seedAvailable(),
+          pass: passAvailable(),
+          accept: acceptAvailable()
+        },
+        offerActions: document.querySelectorAll('.arch-empty-action:not(.arch-pass-run)')
+          .length,
+        promptSurface: document.querySelectorAll('.arch-empty-prompt').length,
+        passFace: document.querySelectorAll('.arch-pass').length,
+        passWords: text('.arch-pass').slice(0, 300),
+        passRunning: entry?.status?.running ?? null,
+        passChosen: entry?.status?.chosen ?? null,
+        passLastVerdict: entry?.status?.lastRun?.verdict ?? null,
+        acceptButtons: document.querySelectorAll('.arch-accept-open').length,
+        acceptForms: document.querySelectorAll('.arch-accept').length,
+        offendingRows: document.querySelectorAll('.arch-offending').length
+      })}`
     );
-    log(`seed first line: ${a.split('\n')[0] ?? ''}`);
+  }
+
+  if (spec.press === true) {
+    await pressDraft(cwd);
   }
 
   if (spec.map !== undefined && spec.map.open) {
@@ -472,6 +528,61 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
   }
 }
 
+/**
+ * The one offer, PRESSED (Phase 158). A real click on the Draft button, then
+ * a wait for the store's own `drafting` and `enriching` flags to drop, then
+ * one line with what main answered: whether the contract is present now, how
+ * many parts it has, what refusal stopped the pass, and the words the pass
+ * face carries. Nothing here reads a file; the probe on the node side reads
+ * `docs/arch/` back and counts processes.
+ */
+async function pressDraft(cwd: string): Promise<void> {
+  // The offer's own button, scoped to the offer: the map open and the pass
+  // run share the action class and must not be the thing pressed here.
+  const button = document.querySelector<HTMLButtonElement>(
+    '.arch-empty .arch-empty-action'
+  );
+  if (button === null) {
+    log('press: SKIP (no offer button on screen)');
+    return;
+  }
+  const disabledBefore = button.disabled;
+  button.dispatchEvent(
+    new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 })
+  );
+  const t0 = Date.now();
+  // The draft flips `drafting` synchronously on the click; wait for both
+  // flags to drop, or for 30 s, whichever comes first.
+  await new Promise((r) => setTimeout(r, 100));
+  while (Date.now() - t0 < 30_000) {
+    const now = useArch.getState();
+    if (!now.drafting && !now.enriching) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  await new Promise((r) => setTimeout(r, 600));
+  const now = useArch.getState();
+  const entry = now.passFor(cwd);
+  const text = (sel: string): string =>
+    document.querySelector<HTMLElement>(sel)?.textContent ?? '';
+  log(
+    `press: ${JSON.stringify({
+      disabledBefore,
+      waitedMs: Date.now() - t0,
+      present: now.load?.present ?? null,
+      components: now.components().length,
+      edges: now.edges().length,
+      drafting: now.drafting,
+      enriching: now.enriching,
+      refusal: entry?.refusal ?? null,
+      running: entry?.status?.running ?? null,
+      chosen: entry?.status?.chosen ?? null,
+      lastRun: entry?.status?.lastRun ?? null,
+      offerStill: document.querySelectorAll('.arch-empty').length,
+      passWords: text('.arch-pass').slice(0, 300),
+      error: now.error
+    })}`
+  );
+}
 
 /**
  * THE MAP TAB, OPENED THROUGH THE SHIPPED GESTURE AND READ BACK OFF THE

@@ -275,6 +275,14 @@
   white-space: nowrap;
 }
 
+/* An offence a baseline row already covers: one word in the sans face so it
+   reads as state rather than as part of the path, and the reason on hover. */
+.arch-offending-accepted {
+  font-family: var(--font-ui);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .arch-failure-reason {
   padding: 0 var(--space-5) 0 var(--space-8);
   color: var(--text-muted);
@@ -479,8 +487,7 @@
 /* The section heading carries its own inset, so the inset here belongs to the
    prose and the controls rather than to the section box. */
 .arch-empty > .arch-empty-body,
-.arch-empty > .arch-empty-actions,
-.arch-empty > .arch-empty-prompt {
+.arch-empty > .arch-empty-actions {
   margin: 0 var(--space-5);
 }
 
@@ -498,11 +505,9 @@
 .arch-empty-action {
   display: grid;
   grid-template-columns: 16px 1fr;
-  grid-template-rows: auto auto;
   column-gap: var(--space-3);
-  row-gap: var(--space-1);
-  align-items: start;
-  padding: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--bg-raised);
@@ -533,33 +538,129 @@
   font-weight: var(--weight-medium);
 }
 
-.arch-empty-action-body {
-  grid-row: 2;
-  grid-column: 2;
+
+/* The pass sentence under the one action: quiet prose, never a control. */
+.arch-empty > .arch-pass-sentence {
+  margin: 0 var(--space-5);
+}
+
+/* The one collapsed disclosure (the copy ruling, 2026-08-28). The teaching
+   lives behind it, so the resting face stays one line. */
+.arch-more {
+  margin: 0 var(--space-5);
+}
+
+.arch-more > summary {
   color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  cursor: pointer;
+  user-select: none;
+}
+
+.arch-more > summary:hover {
+  color: var(--text-secondary);
+}
+
+.arch-more > .arch-empty-body {
+  margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
 }
 
-.arch-empty-prompt summary {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-  cursor: default;
+/* -- the run face and the accept verb (Phase 158) ------------------------- */
+
+.arch-pass {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
 }
 
-.arch-empty-prompt-text {
-  margin-top: var(--space-2);
-  padding: var(--space-3);
+.arch-pass > .arch-pass-run {
+  margin: 0 var(--space-5);
+}
+
+.arch-pass-suggestions ul {
+  margin: 0;
+  padding: 0 var(--space-5) 0 var(--space-8);
+  list-style: disc;
+}
+
+.arch-pass-suggestions li {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  overflow-wrap: anywhere;
+}
+
+/* One offence and its accept control share a row that wraps when narrow. */
+.arch-offending-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.arch-offending-row > .arch-offending {
+  flex: 1 1 auto;
+}
+
+.arch-accept-open {
+  padding: var(--space-1) var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.arch-accept-open:hover {
+  color: var(--text-primary);
+  background: var(--bg-raised);
+}
+
+.arch-accept {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-5) var(--space-1) var(--space-8);
+}
+
+.arch-accept-input {
+  flex: 1 1 120px;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
+  color: var(--text-primary);
   font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  user-select: text;
+}
+
+.arch-accept-write {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.arch-accept-write:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.arch-accept-write:disabled {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.arch-accept-refused {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 
 /* The one moving number on this surface, and it exists only while a check is

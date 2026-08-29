@@ -1020,3 +1020,36 @@
 .set-config-errors-foot {
   margin-top: var(--space-4);
 }
+
+/* ------------------------------------------------- the section disclosure */
+/* One shut disclosure at the bottom of a section, holding the sentences a
+   person needs once rather than on every visit (Phase 158, the just enough
+   words rule). The resting face is the summary line alone. The shape is the
+   Machines page's mach-disclosure, named for any section to reuse. */
+
+.set-disclosure {
+  margin-top: var(--space-5);
+}
+
+.set-disclosure > summary {
+  cursor: pointer;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+}
+
+.set-disclosure > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.set-disclosure[open] > summary {
+  margin-bottom: var(--space-4);
+}
+
+.set-disclosure > .set-section-caption {
+  margin: 0;
+}
+
+.set-disclosure > .set-section-caption + .set-section-caption {
+  margin-top: var(--space-4);
+}

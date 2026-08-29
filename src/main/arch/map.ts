@@ -214,6 +214,7 @@ export function composeArchMap(input: ArchMapComposeInput): ArchMapModel {
       dir: group.dir,
       label: painted?.name ?? group.dir,
       componentId: painted?.id ?? null,
+      description: painted?.description ?? null,
       band: bandOf(group, groups, resolved) as ArchMapBand,
       provenance: classify(group),
       fileCount: group.files.length,
@@ -244,6 +245,26 @@ interface OverlayName {
   name: string;
   /** The majority share that won the box, for the tie rule. */
   share: number;
+  /**
+   * The purpose sentence the hover carries (Phase 158): the first sentence
+   * of the component's description, or null when the author wrote none.
+   */
+  description: string | null;
+}
+
+/**
+ * The first sentence of a description, for the box hover (Phase 158).
+ *
+ * A whole description on a hover is a paragraph over a picture; the first
+ * sentence is what a part is FOR. The clip ends at the first full stop that
+ * ends a word, and a description with no full stop travels whole. Pure and
+ * exported so the conformance gate and the unit suite hold the same rule.
+ */
+export function firstSentence(text: string): string | null {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return null;
+  const match = /^[\s\S]*?\.(?=\s|$)/.exec(trimmed);
+  return match === null ? trimmed : match[0];
 }
 
 /**
@@ -278,7 +299,12 @@ function overlayComponents(
       // The larger share wins the box; a tie falls to the smaller component
       // id, which the id-sorted visit order already guarantees.
       if (held === undefined || share > held.share) {
-        painted.set(groupId, { id: component.id, name: component.name, share });
+        painted.set(groupId, {
+          id: component.id,
+          name: component.name,
+          share,
+          description: firstSentence(component.description)
+        });
       }
       break;
     }
@@ -447,6 +473,7 @@ export function composeArchMapPart(
       dir: module.dir,
       label: painted?.name ?? module.dir,
       componentId: painted?.id ?? null,
+      description: painted?.description ?? null,
       // The band is computed over the interior graph: `aggregateGroupEdges`
       // and `bandOf` both drop any edge with an end outside the owner map,
       // so passing the whole resolved slice scopes itself.

@@ -14,8 +14,10 @@
  * Surfacing a broken promise in Source Control is what makes that concrete. A
  * person reviewing a diff sees, on the same screen as the change, that the
  * change broke a promise. There is no way for that to happen quietly, and
- * there is no accept control anywhere near it: accepting a divergence is
- * editing `baseline.json` by hand, and Tortie never writes that file.
+ * there is no accept control anywhere near it. Since Phase 158 accepting a
+ * divergence is the person's own button on the Architecture pane's failing
+ * row, the one channel that ever writes the baseline, and every accepted row
+ * stays visible with the person's reason on its face.
  *
  * ## It is a derivation and never a second store
  *

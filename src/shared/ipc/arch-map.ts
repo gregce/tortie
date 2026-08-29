@@ -74,6 +74,15 @@ export interface ArchMapGroup {
    * blended into the picture.
    */
   componentId: string | null;
+  /**
+   * The purpose sentence the box carries on its hover (Phase 158): the first
+   * sentence of the painting component's description, or null when the box is
+   * computed only or the description is empty. What a part is FOR is readable
+   * from the picture itself, and the hover is the chosen surface because the
+   * emitted markup stays deterministic, so a gate can prove the sentence is
+   * on the box without a pointer or a photograph.
+   */
+  description: string | null;
   band: ArchMapBand;
   provenance: ArchProvenance;
   /** How many tracked files sit in this box. The box's visual weight. */

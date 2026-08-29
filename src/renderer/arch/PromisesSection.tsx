@@ -12,9 +12,11 @@
  * Source Control is where a person looks at what changed. Putting the broken
  * promise on that same screen is what makes the visibility structural instead
  * of promised: you cannot review a diff that broke a promise without the break
- * being in front of you. There is no accept control here and there is none
- * anywhere else either. Accepting a divergence is a person editing
- * `docs/arch/baseline.json` by hand, and Tortie never writes that file.
+ * being in front of you. THERE IS NO ACCEPT CONTROL HERE, and that stays the
+ * operator's recorded rider even after Phase 158 put an accept button on the
+ * Architecture pane's failing rows: this section is visibility only. Accepting
+ * a divergence is the person's own button over there, the one channel that
+ * ever writes `docs/arch/baseline.json`, and the reason is typed by them.
  *
  * ## Why a fifth SECTION rather than a mark on the changed rows
  *

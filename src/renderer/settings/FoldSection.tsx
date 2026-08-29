@@ -148,32 +148,42 @@ export async function selectFoldModel(model: string): Promise<boolean> {
   return next?.fold.model === model;
 }
 
-function AgentRow(props: {
+/**
+ * The agent picker row, shared with the Architecture section (Phase 158).
+ * The markup is identical on both pages, so the copy arrives as props rather
+ * than being read from either page's copy file here.
+ */
+export function HarnessAgentRow(props: {
   options: FoldOptions;
   chosen: string | null;
+  label: string;
+  caption: string;
+  noneLabel: string;
+  suggestedMark: string;
   onAgent(agentId: string): void;
 }): React.JSX.Element {
-  const { options, chosen, onAgent } = props;
+  const { options, chosen, label, caption, noneLabel, suggestedMark, onAgent } =
+    props;
   // A stored agent main no longer offers still shows as itself, so the
   // picker can never draw a different agent's name over the stored choice.
   const known = foldHarnessById(options, chosen) !== undefined;
   return (
     <div className="set-row tall">
       <div className="set-row-text">
-        <span className="set-row-label">{FOLD_AGENT_LABEL}</span>
-        <span className="set-row-caption">{FOLD_AGENT_CAPTION}</span>
+        <span className="set-row-label">{label}</span>
+        <span className="set-row-caption">{caption}</span>
       </div>
       <select
         className="set-select"
-        aria-label={FOLD_AGENT_LABEL}
+        aria-label={label}
         value={chosen ?? NONE}
         onChange={(e) => onAgent(e.target.value)}
       >
-        <option value={NONE}>{FOLD_NONE_OPTION}</option>
+        <option value={NONE}>{noneLabel}</option>
         {options.harnesses.map((h) => (
           <option key={h.agentId} value={h.agentId} disabled={!h.available}>
             {h.agentId === options.suggestedAgentId
-              ? `${h.agentLabel}${FOLD_SUGGESTED_MARK}`
+              ? `${h.agentLabel}${suggestedMark}`
               : h.agentLabel}
           </option>
         ))}
@@ -185,22 +195,25 @@ function AgentRow(props: {
   );
 }
 
-function ModelRow(props: {
+/** The model picker row, shared with the Architecture section (Phase 158). */
+export function HarnessModelRow(props: {
   harness: FoldHarnessOption;
   chosen: string | null;
+  label: string;
+  caption: string;
   onModel(model: string): void;
 }): React.JSX.Element {
-  const { harness, chosen, onModel } = props;
+  const { harness, chosen, label, caption, onModel } = props;
   const known = harness.models.some((m) => m.id === chosen);
   return (
     <div className="set-row tall">
       <div className="set-row-text">
-        <span className="set-row-label">{FOLD_MODEL_LABEL}</span>
-        <span className="set-row-caption">{FOLD_MODEL_CAPTION}</span>
+        <span className="set-row-label">{label}</span>
+        <span className="set-row-caption">{caption}</span>
       </div>
       <select
         className="set-select"
-        aria-label={FOLD_MODEL_LABEL}
+        aria-label={label}
         value={chosen ?? NONE}
         onChange={(e) => onModel(e.target.value)}
       >
@@ -218,7 +231,7 @@ function ModelRow(props: {
 }
 
 /** One sentence on its own row, in the section's caption voice. */
-function CaptionRow(props: { text: string }): React.JSX.Element {
+export function CaptionRow(props: { text: string }): React.JSX.Element {
   return (
     <div className="set-row">
       <div className="set-row-text">
@@ -229,7 +242,7 @@ function CaptionRow(props: { text: string }): React.JSX.Element {
 }
 
 /** One sentence on its own row, where something is wrong or withheld. */
-function ErrorRow(props: { text: string }): React.JSX.Element {
+export function ErrorRow(props: { text: string }): React.JSX.Element {
   return (
     <div className="set-row">
       <div className="set-row-text">
@@ -284,15 +297,21 @@ export function FoldSectionView(
           <CaptionRow text={loaded ? FOLD_BRIDGE_MISSING : FOLD_LOADING} />
         ) : (
           <>
-            <AgentRow
+            <HarnessAgentRow
               options={options}
               chosen={fold.agentId}
+              label={FOLD_AGENT_LABEL}
+              caption={FOLD_AGENT_CAPTION}
+              noneLabel={FOLD_NONE_OPTION}
+              suggestedMark={FOLD_SUGGESTED_MARK}
               onAgent={onAgent}
             />
             {harness !== undefined && harness.models.length > 0 ? (
-              <ModelRow
+              <HarnessModelRow
                 harness={harness}
                 chosen={fold.model}
+                label={FOLD_MODEL_LABEL}
+                caption={FOLD_MODEL_CAPTION}
                 onModel={onModel}
               />
             ) : null}

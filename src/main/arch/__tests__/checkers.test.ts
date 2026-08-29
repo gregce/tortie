@@ -303,6 +303,37 @@ describe('an accepted divergence stays a divergence', () => {
     expect(verdict?.reason).toContain('on the list');
   });
 
+  it('marks each accepted offence with the reason and leaves the open ones bare', () => {
+    // Two imports cross the same closed line; a baseline row covers one of
+    // them. The promise stays divergent with one open, the accepted offence
+    // carries the person's words, and the verdict is NOT accepted whole.
+    const second = { ...imported(), fromPath: 'src/app/other.ts', line: 3 };
+    const result = checkImports(
+      facts({
+        trackedFiles: ['src/app/main.ts', 'src/app/other.ts', 'src/store/db.ts'],
+        imports: [imported(), second],
+        baseline: {
+          accepted: [
+            {
+              fromPath: 'src/app/main.ts',
+              toPath: 'src/store/db.ts',
+              because: 'The read path is being moved.',
+              at: '2026-08-25'
+            }
+          ]
+        }
+      })
+    );
+    const verdict = result.verdicts.find((v) => v.subjectId === 'edge:app-must-not-store');
+    expect(verdict?.status).toBe('divergent');
+    expect(verdict?.accepted).toBeUndefined();
+    expect(verdict?.reason).toBe('1 import crosses a line this contract says nothing may cross.');
+    const byPath = new Map((verdict?.offending ?? []).map((o) => [o.fromPath, o.accepted]));
+    expect(byPath.get('src/app/main.ts')).toBe('The read path is being moved.');
+    expect(byPath.get('src/app/other.ts')).toBeUndefined();
+    expect(verdict?.offending).toHaveLength(2);
+  });
+
   it('is counted in its own column rather than folded into the ones that hold', () => {
     const base = facts({
       imports: [imported()],

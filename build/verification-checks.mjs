@@ -265,6 +265,11 @@ export const CHECKS = [
   electron('probe:p149'),
   electron('probe:p150'),
   electron('probe:p156'),
+  // PHASE 158. The one path in, driven: the skeleton press over a scratch
+  // repository, the pass refused with no agent chosen, and the process count
+  // at zero. It spawns no agent: the choice is None on its scratch profile
+  // and the gate refuses before any spawn, which is the claim it proves.
+  electron('probe:p158'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

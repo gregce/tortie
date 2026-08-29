@@ -135,7 +135,8 @@ describe('danger state', () => {
     const out = store.withSealedDangerState(settings, {
       defaults: [],
       acks: [],
-      fold: null
+      fold: null,
+      arch: null
     });
     expect(out.settings.launchDefaults.claude).toEqual([SAFE]);
     expect(out.rejected).toEqual([DANGER_KEY]);
@@ -153,7 +154,8 @@ describe('danger state', () => {
     const out = store.withSealedDangerState(settings, {
       defaults: [DANGER_KEY],
       acks: [DANGER_KEY],
-      fold: null
+      fold: null,
+      arch: null
     });
     expect(out.settings.launchDefaults.claude).toEqual([DANGER, SAFE]);
     expect(out.settings.dangerAcknowledged).toEqual([DANGER_KEY]);

@@ -8,8 +8,8 @@
  * the ordering, which a photograph cannot check at all: that the strip never
  * folds three coverage lanes into one flattering total, that the divergence
  * list is deterministic so two runs of the SCM section draw the same rows in
- * the same order, and that the seeding prompt is byte deterministic, which is
- * the only claim that control makes.
+ * the same order, and, since Phase 158, that the one path in stays one path
+ * and the accept verb composes exactly what the failing row shows.
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -18,9 +18,29 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { ArchVerdict } from '@shared/arch';
 import { archDivergences, divergencesForPath } from '../divergences';
-import { isFailure, stripLanes, verdictClass, verdictIcon } from '../ArchView';
-import { seedPromptText } from '../seed-prompt';
-import { freshnessSentence, unresolvedSentence, verdictWord } from '../copy';
+import {
+  acceptEdgeId,
+  canAcceptOffence,
+  isFailure,
+  paintedSentence,
+  passDetail,
+  passLead,
+  stripLanes,
+  timeWord,
+  verdictClass,
+  verdictIcon
+} from '../ArchView';
+import { passSentence } from '../ArchEmptyState';
+import type { ArchPassRunFace, ArchPassStatusResult } from '../bridge';
+import {
+  ARCH_PASS_OFF,
+  ARCH_PASS_QUIET,
+  ARCH_PASS_REFUSED,
+  ARCH_PASS_RUNNING,
+  freshnessSentence,
+  unresolvedSentence,
+  verdictWord
+} from '../copy';
 
 /** The shipped stylesheet, read as text: the colour claims are about IT. */
 const CSS = readFileSync(
@@ -205,31 +225,196 @@ describe('the freshness ribbon', () => {
   });
 });
 
-describe('the seeding prompt', () => {
-  it('is byte deterministic for one repository', () => {
-    expect(seedPromptText('/repo')).toBe(seedPromptText('/repo'));
-  });
-
-  it('names the repository exactly once', () => {
-    const text = seedPromptText('/Users/x/thing');
-    expect(text.split('/Users/x/thing')).toHaveLength(2);
-  });
-
-  it('carries the promise count, so an agent does not write forty', () => {
-    expect(seedPromptText('/repo')).toContain('5 to 10');
-  });
-
-  it('forbids writing the baseline, which only a person may add to', () => {
-    expect(seedPromptText('/repo')).toContain(
-      'Do not write docs/arch/baseline.json'
+describe('the accept verb composes exactly what the failing row shows', () => {
+  it('reads the promise id out of an edge subject, facet or none', () => {
+    expect(acceptEdgeId('edge:scm-no-terminal')).toBe('scm-no-terminal');
+    expect(acceptEdgeId('edge:scm-no-terminal#freshness')).toBe(
+      'scm-no-terminal'
     );
+    // A component's divergence has no promise id, and the baseline row then
+    // matches by path pair alone, which is the checker's own rule.
+    expect(acceptEdgeId('component:tmux-layer')).toBeUndefined();
+    expect(acceptEdgeId('gap:tmux-layer:0')).toBeUndefined();
+    expect(acceptEdgeId('edge:')).toBeUndefined();
   });
 
-  it('names a document to convert before it names the repository', () => {
-    const text = seedPromptText('/repo');
-    expect(text.indexOf('AS-BUILT-ARCHITECTURE.md')).toBeLessThan(
-      text.indexOf('read the repository itself')
+  it('offers no button on an offence a baseline row could never match', () => {
+    expect(canAcceptOffence({ fromPath: 'src/a.ts', toPath: 'src/b.ts' })).toBe(
+      true
     );
+    // The absent-component shape: a fromPath and no target at all.
+    expect(canAcceptOffence({ fromPath: 'src/a.ts', toPath: '' })).toBe(false);
+    expect(canAcceptOffence({ fromPath: '', toPath: 'src/b.ts' })).toBe(false);
+  });
+
+  it('offers no second button on an offence a baseline row already covers', () => {
+    // The verifier pressed Accept on one offence of nine and found nine
+    // buttons still there. An accepted offence carries the reason and gets
+    // the word instead of the control.
+    expect(
+      canAcceptOffence({
+        fromPath: 'src/a.ts',
+        toPath: 'vendor/b.ts',
+        accepted: 'The vendored parser is allowed for now.'
+      })
+    ).toBe(false);
+  });
+});
+
+describe('the run face (Phase 158)', () => {
+  function run(over: Partial<ArchPassRunFace>): ArchPassRunFace {
+    return {
+      verdict: 'kept',
+      reason: null,
+      detail: null,
+      agentId: 'claude',
+      model: 'claude-haiku-4-5-20251001',
+      startedAt: new Date(2026, 7, 28, 14, 2).getTime(),
+      wallMs: 0,
+      painted: 7,
+      groupsTotal: 9,
+      components: 9,
+      suggestions: [],
+      ...over
+    };
+  }
+
+  function status(over: Partial<ArchPassStatusResult>): ArchPassStatusResult {
+    return {
+      cwd: '/repo',
+      running: false,
+      suspended: null,
+      chosen: true,
+      lastRun: null,
+      ...over
+    };
+  }
+
+  it('says the clock word with two digits each side', () => {
+    const noon = new Date(2026, 7, 28, 9, 5).getTime();
+    expect(timeWord(noon)).toBe('09:05');
+  });
+
+  it('counts painted coverage as boxes against enriched parts', () => {
+    expect(paintedSentence(run({}))).toBe('Painted 7 of 9 parts on the map.');
+    // A refused run has no counts and the face says nothing about painting.
+    expect(
+      paintedSentence(run({ verdict: 'refused', painted: null, components: null }))
+    ).toBeNull();
+  });
+
+  it('leads with running while the pass runs', () => {
+    expect(passLead(status({ running: true }), null)).toBe(ARCH_PASS_RUNNING);
+  });
+
+  it('says a refused run wrote nothing, and names the refusal', () => {
+    const lead = passLead(
+      status({ lastRun: run({ verdict: 'refused', reason: 'invented-number' }) }),
+      null
+    );
+    expect(lead).toContain(ARCH_PASS_REFUSED);
+    expect(lead).toContain('invented-number');
+    // Refused with no name still says the load-bearing part.
+    expect(
+      passLead(status({ lastRun: run({ verdict: 'refused', reason: null }) }), null)
+    ).toBe(ARCH_PASS_REFUSED);
+  });
+
+  it('names the refusal that stopped a gesture before any spawn', () => {
+    const lead = passLead(status({}), 'not-confirmed');
+    expect(lead).toContain('not confirmed in Settings');
+    // An unknown token still gets an honest sentence with the token named.
+    expect(passLead(status({}), 'strange-token')).toContain('strange-token');
+  });
+
+  it('says when the contract was last written after a kept run', () => {
+    expect(
+      passLead(status({ lastRun: run({ wallMs: 60_000 }) }), null)
+    ).toBe('The contract was last written at 14:03.');
+  });
+
+  it('has nothing to say before the pass has ever run', () => {
+    expect(passLead(status({}), null)).toBeNull();
+  });
+
+  it('keeps the written time beside a suspension after a kept run', () => {
+    const lead = passLead(
+      status({
+        suspended: 'Your usage window is close to its limit.',
+        lastRun: run({ wallMs: 60_000 })
+      }),
+      null
+    );
+    expect(lead).toBe(
+      'Your usage window is close to its limit. The contract was last written at 14:03.'
+    );
+    // With no kept run behind it the suspension stands alone.
+    expect(passLead(status({ suspended: 'Paused.' }), null)).toBe('Paused.');
+  });
+
+  it('puts the validator own sentence under a refused run, and only there', () => {
+    const detail =
+      'answer:components[5] component.anchors[0] contains a step back up out of the repository';
+    const refused = status({
+      lastRun: run({ verdict: 'refused', reason: 'anchors-changed', detail })
+    });
+    expect(passDetail(refused)).toBe(detail);
+    // A kept run has no refusal to explain; a running pass says running.
+    expect(passDetail(status({ lastRun: run({}) }))).toBeNull();
+    expect(passDetail({ ...refused, running: true })).toBeNull();
+    // An older row that never carried the sentence still draws nothing extra.
+    expect(
+      passDetail(
+        status({ lastRun: run({ verdict: 'refused', reason: 'bad-shape', detail: null }) })
+      )
+    ).toBeNull();
+  });
+
+  it('promises the pass only when an agent is picked, and says off plainly', () => {
+    expect(passSentence(true, true)).toBe(ARCH_PASS_QUIET);
+    expect(passSentence(true, false)).toBe(ARCH_PASS_OFF);
+    // A build with no pass half says nothing about a pass at all.
+    expect(passSentence(false, false)).toBeNull();
+    expect(passSentence(false, true)).toBeNull();
+  });
+});
+
+describe('the writing rules on every Phase 158 sentence', () => {
+  it('uses no em dash and no en dash, and no tmux vocabulary', async () => {
+    const copy = await import('../copy');
+    const sentences = [
+      copy.ARCH_DRAFT_TITLE,
+      copy.ARCH_DRAFT_BODY,
+      copy.ARCH_PASS_QUIET,
+      copy.ARCH_PASS_OFF,
+      copy.ARCH_PASS_TITLE,
+      copy.ARCH_ENRICH_TITLE,
+      copy.ARCH_ENRICH_BODY,
+      copy.ARCH_PASS_RUNNING,
+      copy.ARCH_PASS_REFUSED,
+      copy.ARCH_PASS_FAILED,
+      copy.ARCH_PASS_SUSPENDED,
+      copy.ARCH_PASS_SUGGESTIONS,
+      copy.ARCH_PASS_SUGGESTIONS_NOTE,
+      copy.ARCH_ACCEPT_TITLE,
+      copy.ARCH_ACCEPT_BODY,
+      copy.ARCH_ACCEPT_REASON_LABEL,
+      copy.ARCH_ACCEPT_WRITE,
+      copy.ARCH_ACCEPTED_NOTE,
+      copy.ARCH_EMPTY_BODY,
+      copy.ARCH_EMPTY_MORE,
+      copy.ARCH_EMPTY_LONG,
+      copy.enrichRefusalSentence('no-choice'),
+      copy.enrichRefusalSentence('not-confirmed'),
+      copy.enrichRefusalSentence('no-recipe'),
+      copy.enrichRefusalSentence('in-flight'),
+      copy.enrichRefusalSentence('suspended'),
+      copy.enrichRefusalSentence('anything-else')
+    ];
+    for (const sentence of sentences) {
+      expect(sentence).not.toMatch(/[–—]/);
+      expect(sentence.toLowerCase()).not.toMatch(/\bpane\b|\btmux\b|prefix/);
+    }
   });
 });
 
@@ -279,28 +464,43 @@ describe('the refusals, kept executable rather than only written down', () => {
     }
   });
 
-  it('never writes any file under docs/arch, baseline.json least of all', () => {
-    // The one write the drafting gesture makes is `fs.createFolder`, and it is
-    // named here rather than banned, because a person's first Save fails on a
-    // folder that has never existed. `writeFile` under this folder would mean
-    // Tortie recording a contract, and recording one is a person's decision.
+  it('writes no file from this folder: every write is an ask to main', () => {
+    // PHASE 158 REWROTE THIS TEST DELIBERATELY, AND DID NOT DELETE IT. The
+    // old rule was "Tortie never writes docs/arch". The operator amended it:
+    // the seed writes directly, and accepting a divergence is a button. What
+    // survives, and what this scans for, is that the RENDERER still writes
+    // nothing itself: no fs write verb, no folder creation, no path
+    // composition toward a contract file. Asking main over the typed bridge
+    // is the only shape a write may take, and main validates whole behind
+    // its own gate.
     for (const f of files) {
       const code = f.text.replace(/\/\*[\s\S]*?\*\//g, '');
       expect(code, f.name).not.toContain('fs.writeFile');
+      expect(code, f.name).not.toContain('writeFile(');
       expect(code, f.name).not.toContain('createFile');
-      // `seed-prompt.ts` is the ONE file allowed to say the name, and it says
-      // it to forbid it: the prompt's last line tells the agent not to write
-      // that file. Every other file naming it would be a code path towards it.
-      if (f.name !== 'seed-prompt.ts') {
+      expect(code, f.name).not.toContain('createFolder');
+      // `copy.ts` is the ONE file allowed to say the baseline's name, and it
+      // says it to a person: the accept control names the file it writes
+      // before it is pressed. Every other file naming it would be a second
+      // code path toward that file.
+      if (f.name !== 'copy.ts') {
         expect(code, f.name).not.toContain('baseline.json');
       }
     }
   });
 
-  it('tells the agent not to write the baseline, in the prompt itself', () => {
-    expect(seedPromptText('/repo')).toContain(
-      'Do not write docs/arch/baseline.json'
-    );
+  it('keeps one path in: no pasted prompt and no clipboard anywhere', () => {
+    // The paste-a-prompt fork was DELETED in Phase 158, the operator's own
+    // ruling that the fork itself was the defect. This is the line that
+    // stops it growing back: nothing in this folder composes a prompt for a
+    // person to paste, and nothing here reaches the clipboard at all.
+    expect(files.some((f) => f.name === 'seed-prompt.ts')).toBe(false);
+    for (const f of files) {
+      const code = f.text.replace(/\/\*[\s\S]*?\*\//g, '');
+      expect(code, f.name).not.toContain('seedPromptText');
+      expect(code, f.name).not.toContain('navigator.clipboard');
+      expect(code, f.name).not.toContain('CANDIDATE_DOCS');
+    }
   });
 
   /**
@@ -366,5 +566,79 @@ describe('the refusals, kept executable rather than only written down', () => {
       expect(code, f.name).not.toContain('\\r');
       expect(code, f.name).not.toContain('send-keys');
     }
+  });
+});
+
+describe('the copy ruling (2026-08-28), kept executable', () => {
+  /**
+   * THE RULE: the resting face carries just enough words. Every sentence
+   * that renders at rest stays a one liner, and every longer explanation
+   * lives on a hover title or behind the one collapsed disclosure. The
+   * numbers here are a budget, not a target: a later round that grows a
+   * resting sentence back into a paragraph fails this suite before the
+   * operator sees it.
+   */
+  const words = (s: string): number =>
+    s.split(/\s+/).filter((w) => w.length > 0).length;
+
+  it('keeps every resting sentence a one liner', async () => {
+    const copy = await import('../copy');
+    const resting: Array<[string, string]> = [
+      ['ARCH_EMPTY_BODY', copy.ARCH_EMPTY_BODY],
+      ['ARCH_CONTRACT_ADDS', copy.ARCH_CONTRACT_ADDS],
+      ['ARCH_PASS_QUIET', copy.ARCH_PASS_QUIET],
+      ['ARCH_PASS_OFF', copy.ARCH_PASS_OFF],
+      ['ARCH_PASS_RUNNING', copy.ARCH_PASS_RUNNING],
+      ['ARCH_PASS_REFUSED', copy.ARCH_PASS_REFUSED],
+      ['ARCH_PASS_FAILED', copy.ARCH_PASS_FAILED],
+      ['ARCH_PASS_SUSPENDED', copy.ARCH_PASS_SUSPENDED],
+      ['ARCH_PASS_SUGGESTIONS_NOTE', copy.ARCH_PASS_SUGGESTIONS_NOTE],
+      ['ARCH_PROSE_UNVERIFIED', copy.ARCH_PROSE_UNVERIFIED],
+      ['ARCH_PARTLY_CHECKED_NOTE', copy.ARCH_PARTLY_CHECKED_NOTE]
+    ];
+    for (const [name, sentence] of resting) {
+      expect(words(sentence), name).toBeLessThanOrEqual(14);
+    }
+    // Labels are labels: a handful of words, never a sentence.
+    const labels: Array<[string, string]> = [
+      ['ARCH_MAP_OPEN_TITLE', copy.ARCH_MAP_OPEN_TITLE],
+      ['ARCH_DRAFT_TITLE', copy.ARCH_DRAFT_TITLE],
+      ['ARCH_ENRICH_TITLE', copy.ARCH_ENRICH_TITLE],
+      ['ARCH_PASS_TITLE', copy.ARCH_PASS_TITLE],
+      ['ARCH_ACCEPT_TITLE', copy.ARCH_ACCEPT_TITLE],
+      ['ARCH_ACCEPT_WRITE', copy.ARCH_ACCEPT_WRITE],
+      ['ARCH_EMPTY_MORE', copy.ARCH_EMPTY_MORE]
+    ];
+    for (const [name, label] of labels) {
+      expect(words(label), name).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('renders the long bodies only on hover titles or behind the disclosure', () => {
+    const DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const view = readFileSync(join(DIR, 'ArchView.tsx'), 'utf8');
+    const offer = readFileSync(join(DIR, 'ArchEmptyState.tsx'), 'utf8');
+    // A rendered text node looks like `>{NAME}<` or `{NAME}</`; a hover
+    // title looks like `title={NAME}`. The three button bodies and the
+    // accepted rule must only ever be the second shape.
+    for (const name of ['ARCH_DRAFT_BODY', 'ARCH_ENRICH_BODY', 'ARCH_MAP_OPEN_BODY', 'ARCH_ACCEPT_BODY', 'ARCH_ACCEPTED_NOTE']) {
+      const source = name === 'ARCH_DRAFT_BODY' ? offer : view;
+      expect(source, name).not.toContain(`>{${name}}<`);
+      expect(source, name).toContain(name);
+    }
+    // The action buttons carry no visible body span at all any more.
+    expect(view).not.toContain('arch-empty-action-body');
+    expect(offer).not.toContain('arch-empty-action-body');
+    // The teaching paragraph sits inside the one collapsed disclosure.
+    const details = offer.slice(offer.indexOf('<details'), offer.indexOf('</details>'));
+    expect(details).toContain('{ARCH_EMPTY_LONG}');
+    expect(details).toContain('{ARCH_PROMISE_GUIDANCE}');
+    expect(offer).not.toMatch(/<details[^>]*\sopen/);
+  });
+
+  it('shows running as a spinner beside the heading, state over sentences', () => {
+    const DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const view = readFileSync(join(DIR, 'ArchView.tsx'), 'utf8');
+    expect(view).toContain('codicon-modifier-spin');
   });
 });

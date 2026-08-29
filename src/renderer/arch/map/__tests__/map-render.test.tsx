@@ -58,7 +58,11 @@ function group(
 function fullModel(): ArchMapModel {
   return {
     groups: [
-      group('app', 'surface', 40, { label: 'The App', overlaid: true }),
+      group('app', 'surface', 40, {
+        label: 'The App',
+        overlaid: true,
+        description: 'Draws what a person sees.'
+      }),
       group('cli', 'surface', 12),
       group('core', 'engine', 800),
       group('render', 'engine', 300),
@@ -110,6 +114,17 @@ describe('the picture', () => {
     expect(markup).toContain('viewBox="0 0 ');
     expect(markup).not.toMatch(/<svg[^>]*\swidth=/);
     expect(markup).not.toMatch(/<svg[^>]*\sheight=/);
+  });
+
+  it('puts the purpose sentence on the box hover, right after the name', () => {
+    // Phase 158, map binding rule 3: what a part is FOR is readable from the
+    // picture itself. The hover was chosen over outline sync because this
+    // markup is deterministic, so the sentence is provable right here with
+    // no pointer and no photograph.
+    const markup = draw(fullModel());
+    expect(markup).toContain('The App. Draws what a person sees.');
+    // A computed box carries no purpose sentence and says provenance alone.
+    expect(markup).not.toContain('cli. Draws');
   });
 
   it('draws every part as a box and every edge as a path with an arrowhead', () => {

@@ -150,8 +150,10 @@ export function archFreshnessRibbon(
 
   if (uncommitted === 0) return `${head}.`;
   const files =
-    uncommitted === 1 ? '1 changed file' : `${String(uncommitted)} changed files`;
-  return `${head}, and ${files} are not committed yet, so those are checked against what is on disk rather than against HEAD.`;
+    uncommitted === 1
+      ? '1 changed file is'
+      : `${String(uncommitted)} changed files are`;
+  return `${head}, and ${files} not committed yet, so those are checked against what is on disk rather than against HEAD.`;
 }
 
 /**

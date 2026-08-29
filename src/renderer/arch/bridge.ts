@@ -13,9 +13,13 @@
  * ordinary state this view renders honestly: the verdicts are on screen and
  * only the Draft control is absent.
  *
- * NOTHING HERE STARTS A PROCESS. Every method is a read. `skeleton` composes
- * text in main and writes no file, which is why the drafting flow below opens
- * unsaved buffers rather than asking main to save anything.
+ * WHAT STARTS A PROCESS AND WHAT DOES NOT, said exactly (Phase 158). Every
+ * read here starts nothing. `seed` asks main to write the deterministic
+ * skeleton, which spawns no agent. `enrich` is the ONE method whose answer
+ * involves an agent process, and it only asks: main holds the Settings
+ * choice, the Phase 23 confirm gate and the fold's one spawn path, and it
+ * refuses on its own authority when no agent is confirmed. Nothing the
+ * renderer sends can widen that.
  */
 
 import type { InstalledGmuxApi } from '@shared/ipc';
@@ -143,4 +147,69 @@ export function canvasBridge(): ArchBridgeApi | null {
 /** Can this build keep the map's camera and layout between runs? */
 export function canvasAvailable(): boolean {
   return canvasBridge() !== null;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 158, the one path in: the seed write, the pass and the accept verb
+// ---------------------------------------------------------------------------
+
+/**
+ * The shapes live in the shared ipc contract beside every other arch answer
+ * and re-export through this one seam, so the store, the view and the probe
+ * name them from one place. Every accessor below feature detects, so a build
+ * whose preload lacks a method says one sentence instead of breaking, the
+ * doctrine this file states at its head.
+ *
+ * NOTHING HERE STARTS A PROCESS AND NOTHING HERE WRITES A FILE. `seed` asks
+ * MAIN to write the deterministic skeleton under `docs/arch/`, `enrich` asks
+ * MAIN to run the one confirmed agent once, and `acceptDivergence` asks MAIN
+ * to append one row to `docs/arch/baseline.json`. The confirm gate, the
+ * validator and the one writer module all live in main; the renderer only
+ * asks, and main refuses on its own authority whatever this side says.
+ */
+export type {
+  ArchAcceptDivergenceInput,
+  ArchAcceptDivergenceResult,
+  ArchEnrichResult,
+  ArchPassEvent,
+  ArchPassRunFace,
+  ArchPassStatusResult,
+  ArchSeedResult
+} from '@shared/ipc';
+
+/** The seed write, or null when this build cannot write a skeleton. */
+export function seedBridge(): ArchBridgeApi | null {
+  const api = archBridge();
+  return typeof api?.seed === 'function' ? api : null;
+}
+
+/** Can this build write the deterministic skeleton at all? */
+export function seedAvailable(): boolean {
+  return seedBridge() !== null;
+}
+
+/** The pass half, or null when this build cannot run or report one. */
+export function passBridge(): ArchBridgeApi | null {
+  const api = archBridge();
+  return typeof api?.enrich === 'function' &&
+    typeof api?.passStatus === 'function' &&
+    typeof api?.onPass === 'function'
+    ? api
+    : null;
+}
+
+/** Can this build run the enriching pass at all? */
+export function passAvailable(): boolean {
+  return passBridge() !== null;
+}
+
+/** The accept verb, or null when this build cannot write the baseline. */
+export function acceptBridge(): ArchBridgeApi | null {
+  const api = archBridge();
+  return typeof api?.acceptDivergence === 'function' ? api : null;
+}
+
+/** Can this build accept a divergence from the failing row? */
+export function acceptAvailable(): boolean {
+  return acceptBridge() !== null;
 }

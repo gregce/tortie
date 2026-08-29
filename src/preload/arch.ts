@@ -3,20 +3,23 @@
  * and its two subscriptions. Every one goes through the one typed invoke and
  * the one typed event subscription in ./bridge.
  *
- * None of these can change a session or write a file in the person's
- * repository. `load` reads `docs/arch/` and Tortie's own arch database,
- * `check` runs the compiled in checkers over git output, `skeleton` hands
- * back drafted bytes for unsaved editor buffers rather than writing them
- * anywhere, `composePayload` composes text and returns it, and `modules`
- * reads the import graph that is already stored. The canvas calls (Phase
- * 162) write ONLY Tortie's own disposable arch database, whose loss costs a
- * re-layout and nothing else.
+ * None of these can change a session. `load` reads `docs/arch/` and Tortie's
+ * own arch database, `check` runs the compiled in checkers over git output,
+ * `skeleton` hands back drafted bytes, `composePayload` composes text and
+ * returns it, and `modules` reads the import graph that is already stored.
+ * The canvas calls (Phase 162) write ONLY Tortie's own disposable arch
+ * database, whose loss costs a re-layout and nothing else. Since Phase 158
+ * exactly three calls write under the person's `docs/arch/`, all through
+ * main's single writer module and only under the compiled contract names:
+ * `seed`, `enrich` on a kept answer, and `acceptDivergence`, which is the
+ * one writer baseline.json has.
  */
 
 import type { GmuxArchExtras } from '../shared/ipc';
 import {
   EVT_ARCH_CHECKED,
   EVT_ARCH_MAP_UPDATED,
+  EVT_ARCH_PASS,
   EVT_ARCH_PROGRESS
 } from '../shared/ipc';
 import { invoke, on } from './bridge';
@@ -58,7 +61,17 @@ export const arch: GmuxArchExtras['arch'] = {
   setCamera: (input) => invoke('arch:setCamera', input),
   setLayout: (input) => invoke('arch:setLayout', input),
   clearLayout: (input) => invoke('arch:clearLayout', input),
+  // The one path in (Phase 158). `seed` writes the deterministic skeleton
+  // through main's single writer module, `enrich` runs the one confirmed
+  // agent once and writes a validated answer, `passStatus` is a read, and
+  // `acceptDivergence` is the accept button's own append to baseline.json.
+  // Every write lands as an ordinary uncommitted change in Source Control.
+  seed: (input) => invoke('arch:seed', input),
+  enrich: (input) => invoke('arch:enrich', input),
+  passStatus: (input) => invoke('arch:passStatus', input),
+  acceptDivergence: (input) => invoke('arch:acceptDivergence', input),
   onChecked: (cb) => on(EVT_ARCH_CHECKED, cb),
   onProgress: (cb) => on(EVT_ARCH_PROGRESS, cb),
-  onMapUpdated: (cb) => on(EVT_ARCH_MAP_UPDATED, cb)
+  onMapUpdated: (cb) => on(EVT_ARCH_MAP_UPDATED, cb),
+  onPass: (cb) => on(EVT_ARCH_PASS, cb)
 };

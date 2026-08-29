@@ -29,6 +29,9 @@ export const overview: GmuxOverviewExtras['overview'] = {
   project: (input) => invoke('overview:project', input),
   sessions: (input) => invoke('overview:sessions', input),
   foldOptions: () => invoke('fold:options'),
+  // Phase 158. The same offer question asked about the arch enrichment. A
+  // read of a table main already holds; nothing starts and nothing spawns.
+  archOptions: () => invoke('arch:options'),
   timeline: (sessionId) => invoke('overview:timeline', sessionId),
   timelineTurns: (input) => invoke('overview:timelineTurns', input)
 };

@@ -104,6 +104,17 @@ export interface GmuxSettings {
    * start on a configuration change alone. See src/main/settings/store.ts.
    */
   fold: FoldSettings;
+  /**
+   * Who fills in the architecture contract (Phase 158). Absent on every
+   * install that has never opened Settings and picked one, which is what
+   * "None" is. With None chosen a project still gets the deterministic
+   * skeleton, and no agent ever runs for the arch pass.
+   *
+   * This value DECIDES WHAT RUNS, exactly as `fold` above does, so it rides
+   * the same danger seal. A settings file an agent edited comes back as None,
+   * and the Settings page says one sentence about it.
+   */
+  arch: ArchSettings;
 }
 
 /**
@@ -130,6 +141,42 @@ export function foldIsChosen(fold: FoldSettings): boolean {
 
 /** The sealed key for a fold choice, being the pair that decides what runs. */
 export function foldKey(agentId: string, model: string): string {
+  return `${agentId} ${model}`;
+}
+
+/**
+ * The arch enrichment choice (Phase 158). Null on both fields means None, and
+ * None is the shipped answer: the deterministic skeleton is what a project
+ * with no contract gets then, and the Architecture view is complete without
+ * any model. The shape mirrors `FoldSettings` on purpose, because the two
+ * choices are the same question asked about two different surfaces, and the
+ * seal treats them the same way. They are separate FIELDS with separate seal
+ * entries, so agreeing to one never agrees to the other.
+ */
+export interface ArchSettings {
+  /** The registry id of the agent that fills in the contract. Null means None. */
+  agentId: string | null;
+  /** A model id from that agent's compiled arch recipe. Null means None. */
+  model: string | null;
+}
+
+/** No arch harness chosen. The shipped answer, and a valid one forever. */
+export function noArchChosen(): ArchSettings {
+  return { agentId: null, model: null };
+}
+
+/** Has a person picked a harness and a model? Both are needed to spawn. */
+export function archIsChosen(arch: ArchSettings): boolean {
+  return arch.agentId !== null && arch.model !== null;
+}
+
+/**
+ * The sealed key for an arch choice. Same "<agentId> <model>" text as
+ * `foldKey`, but sealed under the DangerState's own `arch` field, so a fold
+ * agreement can never be replayed as an arch agreement or the other way
+ * around.
+ */
+export function archKey(agentId: string, model: string): string {
   return `${agentId} ${model}`;
 }
 
@@ -291,7 +338,8 @@ export function defaultGmuxSettings(): GmuxSettings {
     highlightScheme: DEFAULT_HIGHLIGHT_SCHEME,
     contrastLevel: DEFAULT_CONTRAST_LEVEL,
     workAreaFont: DEFAULT_WORK_AREA_FONT,
-    fold: noFoldChosen()
+    fold: noFoldChosen(),
+    arch: noArchChosen()
   };
 }
 

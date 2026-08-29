@@ -109,12 +109,24 @@ export const ARCH_MAP_UNKNOWN_WORD = 'imports unknown';
 export const ARCH_MAP_UNKNOWN_TITLE =
   'Tortie cannot follow imports in this language yet, so this part draws grey rather than guessing.';
 
-/** The hover sentence for one box. Words only, never a count. */
+/**
+ * The hover sentence for one box. Words only, never a count.
+ *
+ * PHASE 158: the purpose sentence rides first, right after the name. It is
+ * the contract author's own first sentence about what the part is FOR, and
+ * putting it here is what makes the purpose readable from the picture itself
+ * rather than only from the cockpit's prose panel. A computed box has no
+ * purpose sentence and says its provenance alone, exactly as before.
+ */
 function boxTitle(box: MapBox, clickable: boolean): string {
   const prov = provenanceTitle(box.group.provenance);
+  const purpose =
+    box.group.description != null && box.group.description.length > 0
+      ? ` ${box.group.description}`
+      : '';
   const unknown = box.group.unresolved ? ` ${ARCH_MAP_UNKNOWN_TITLE}` : '';
   const open = clickable ? ' Click to look inside.' : '';
-  return `${box.group.label}. ${prov}${unknown}${open}`;
+  return `${box.group.label}.${purpose} ${prov}${unknown}${open}`;
 }
 
 /** The class list one box wears. */

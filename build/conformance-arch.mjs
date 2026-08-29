@@ -562,6 +562,10 @@ for (const module of part.model.modules) {
         'dir',
         'label',
         'componentId',
+        // Phase 158, map binding rule 3: the purpose sentence rides the box
+        // as its hover. It is prose and never a count, so the no-badge rule
+        // this pin exists for still holds.
+        'description',
         'band',
         'provenance',
         'fileCount',
@@ -997,15 +1001,26 @@ if (data.falseGreen.sloppyVerdict !== 'convergent') {
 // 11. What the source itself must be true about
 // ---------------------------------------------------------------------------
 
+/**
+ * PHASE 158 NARROWED THE WRITER RULE RATHER THAN DELETING IT. Exactly ONE
+ * module under src/main/arch may write a file, being the single writer in
+ * enrich/write.ts, whose every path is a compiled contract name. Everything
+ * else keeps the old rule word for word. The gate below also drives the
+ * writer's planner over a hostile id and the validator over three hostile
+ * answers, so the narrowing is proved rather than declared.
+ */
+const ARCH_WRITER_FILE = 'src/main/arch/enrich/write.ts';
 const BANNED_SOURCE = [
-  ['writeFile', 'nothing under src/main/arch may write a file. Tortie reads docs/arch and never writes it.'],
-  ['writeFileSync', 'nothing under src/main/arch may write a file.'],
+  ['writeFile', `only ${ARCH_WRITER_FILE} may write a file under src/main/arch, and only under the compiled contract names.`],
+  ['writeFileSync', `only ${ARCH_WRITER_FILE} may write a file under src/main/arch.`],
   ['buildListFilesArgs', 'a contract glob must never reach ripgrep.'],
   ['rgBinaryPath', 'nothing under src/main/arch spawns ripgrep.'],
   ["from 'ajv'", 'the validator is hand written. No library that compiles a schema enters the bundle.'],
-  ['spawn(', 'every process this feature starts goes through runGit in src/main/git/exec.ts.']
+  ['spawn(', 'every process this feature starts goes through runGit in src/main/git/exec.ts or through the fold\'s one shot runFold.']
 ];
+const writerFiles = [];
 for (const source of data.sources) {
+  let writesHere = false;
   for (const [token, why] of BANNED_SOURCE) {
     // argv-guard.ts names the ripgrep builder in prose, to say why it is
     // never called. A comment is the one place the word may appear.
@@ -1017,15 +1032,98 @@ for (const source of data.sources) {
       if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
         continue;
       }
+      if (
+        (token === 'writeFile' || token === 'writeFileSync') &&
+        source.path === ARCH_WRITER_FILE
+      ) {
+        writesHere = true;
+        continue;
+      }
       fail(`${source.path}:${i + 1} names ${token}. ${why}`);
     }
   }
+  if (writesHere) writerFiles.push(source.path);
+}
+if (JSON.stringify(writerFiles) !== JSON.stringify([ARCH_WRITER_FILE])) {
+  fail(
+    `the writer scan expected exactly [${ARCH_WRITER_FILE}] to write files ` +
+      `and found [${writerFiles.join(', ')}]. The one writer module moved or ` +
+      `stopped writing, and either way this gate no longer knows the writer.`
+  );
 }
 rows.push([
   'source scan',
   `${data.sources.length} files under src/main/arch`,
-  'no writer, no ripgrep, no schema compiler, no spawn'
+  `one writer (${ARCH_WRITER_FILE}), no ripgrep, no schema compiler, no spawn`
 ]);
+
+// ---------------------------------------------------------------------------
+// 11.5 The enrichment refusals, driven rather than described (Phase 158)
+// ---------------------------------------------------------------------------
+
+const enrich = data.enrich ?? null;
+if (enrich === null) {
+  fail('the probe did not run the enrichment controls.');
+} else {
+  const controls = [
+    // A path that escapes the repository dies at the field layer, which is
+    // the same globField refusal the loader uses, so its name is the row's.
+    ['hostilePath', 'invalid-row'],
+    // A legal path that is not the drafted anchor is the map binding refusal.
+    ['anchorMoved', 'anchors-changed'],
+    ['inventedNumber', 'invented-number'],
+    ['brokenShape', 'bad-shape'],
+    ['baselineContent', 'baseline-content']
+  ];
+  for (const [name, expectedRefusal] of controls) {
+    const control = enrich[name];
+    if (control?.refused !== true) {
+      fail(
+        `enrich: the ${name} control was NOT refused. An answer that ` +
+          `${name === 'hostilePath' ? 'names a path outside the repository' : name === 'anchorMoved' ? 'moves an anchor' : name === 'inventedNumber' ? 'invents a number' : name === 'brokenShape' ? 'breaks the shape' : 'carries baseline content'} ` +
+          `must be refused whole.`
+      );
+    } else if (control.refusal !== expectedRefusal) {
+      fail(
+        `enrich: the ${name} control was refused as "${control.refusal}" ` +
+          `rather than "${expectedRefusal}", so the refusal names moved.`
+      );
+    }
+  }
+  if (enrich.kept?.kept !== true) {
+    fail(
+      `enrich: the VALID control answer was refused (${enrich.kept?.refusal}). ` +
+        `A validator that refuses everything proves nothing about its refusals.`
+    );
+  }
+  const baselineTarget = 'docs/arch/baseline.json';
+  if ((enrich.kept?.targets ?? []).includes(baselineTarget)) {
+    fail(
+      'enrich: the enrichment write plan includes baseline.json. Tortie never ' +
+        'writes the baseline from the pass; its one writer is the accept button.'
+    );
+  }
+  if (enrich.kept?.allCompiled !== true) {
+    fail('enrich: a planned write path failed the compiled name check.');
+  }
+  if (enrich.hostileIdRefused !== true) {
+    fail(
+      'enrich: the write planner accepted a hostile component id. The writer ' +
+        'must hold its rule alone, even for a caller that skipped the validator.'
+    );
+  }
+  if ((enrich.seedTargets ?? []).includes(baselineTarget)) {
+    fail(
+      'enrich: the seed plan includes baseline.json. The seed skips it so the ' +
+        "file's first writer is always the person's own accept."
+    );
+  }
+  rows.push([
+    'enrichment refusals',
+    '4 hostile answers refused whole, 1 valid answer kept',
+    `plan writes ${enrich.kept?.targets?.length ?? 0} compiled paths, never the baseline`
+  ]);
+}
 
 // ---------------------------------------------------------------------------
 // 12. The accepted key set, pinned in full

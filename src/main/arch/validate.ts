@@ -394,10 +394,11 @@ export function validateEdges(raw: unknown, file: string): ArchRowsResult<ArchEd
 /**
  * The divergences a person decided to live with.
  *
- * Tortie reads this file and never writes it. That is the ArchUnit pattern with
- * store updates off, and it is what stops an agent quietly accepting its own
- * violation. Every accepted row is counted in the verdict strip with its reason
- * on the face of it.
+ * Since Phase 158 this file has exactly one writer, being the accept button's
+ * own channel through `./enrich/write.ts`; the enrichment pass can never
+ * reach it. That is the ArchUnit pattern in its amended form, and it still
+ * stops an agent quietly accepting its own violation. Every accepted row is
+ * counted in the verdict strip with its reason on the face of it.
  */
 export function validateBaseline(
   raw: unknown,

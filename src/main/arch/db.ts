@@ -44,6 +44,7 @@ import type {
 } from '@shared/arch';
 import type { ArchCameraState, ArchNodePosition } from '@shared/ipc';
 import {
+  addColumnIfMissing,
   immediateTransaction,
   openGmuxDatabase,
   runMigrations,
@@ -256,6 +257,51 @@ const MIGRATIONS: readonly SqliteMigration[] = [
         );
       `);
     }
+  },
+  {
+    // PHASE 158. One row per enrichment pass, whatever its verdict, so the
+    // run's face can say what happened and when the contract was last
+    // written, and a refusal rate that climbs after a model upgrade is
+    // readable. The row carries the painted coverage count, being map binding
+    // rule 2 made queryable, and the model's regroup suggestions as plain
+    // sentences, which land on the run's face and are NEVER written to
+    // docs/arch/. As disposable as everything else here: the contract itself
+    // is in the repository, and losing this table loses only the history of
+    // who wrote it.
+    name: '004-arch-pass',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS arch_pass_run (
+          id             INTEGER PRIMARY KEY AUTOINCREMENT,
+          repo_key       TEXT NOT NULL,
+          repo_path      TEXT NOT NULL,
+          started_at     INTEGER NOT NULL,
+          wall_ms        INTEGER NOT NULL,
+          agent_id       TEXT NOT NULL,
+          model          TEXT NOT NULL,
+          recipe_version INTEGER NOT NULL,
+          verdict        TEXT NOT NULL,
+          reason         TEXT,
+          painted        INTEGER,
+          groups_total   INTEGER,
+          components     INTEGER,
+          suggestions    TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_arch_pass_repo
+          ON arch_pass_run(repo_key, id);
+      `);
+    }
+  },
+  {
+    // PHASE 158, the fix round. A refused pass used to reach the face as a
+    // token alone ("anchors-changed") while the validator's sentence naming
+    // the field and the reason was dropped at the record. The sentence now
+    // rides the row. Through `addColumnIfMissing` for the recovery reason
+    // its own comment gives.
+    name: '005-arch-pass-detail',
+    up: (db) => {
+      addColumnIfMissing(db, 'arch_pass_run', 'detail', 'TEXT');
+    }
   }
 ];
 
@@ -302,6 +348,44 @@ interface VerdictRow {
   first_check: number;
   reason: string | null;
   duration_ms: number;
+}
+
+interface PassRunRow {
+  started_at: number;
+  wall_ms: number;
+  agent_id: string;
+  model: string;
+  recipe_version: number;
+  verdict: string;
+  reason: string | null;
+  detail: string | null;
+  painted: number | null;
+  groups_total: number | null;
+  components: number | null;
+  suggestions: string;
+}
+
+/** One pass to record, whatever its verdict: the stored shape plus its keys. */
+export interface NewArchPassRow extends StoredArchPassRun {
+  repoKey: string;
+  repoPath: string;
+}
+
+/** One recorded pass, read back for the run's face. */
+export interface StoredArchPassRun {
+  startedAt: number;
+  wallMs: number;
+  agentId: string;
+  model: string;
+  recipeVersion: number;
+  verdict: 'kept' | 'refused' | 'failed';
+  reason: string | null;
+  /** The validator's sentence on a refusal. Null on kept and on older rows. */
+  detail: string | null;
+  painted: number | null;
+  groupsTotal: number | null;
+  components: number | null;
+  suggestions: string[];
 }
 
 interface FreshnessRow {
@@ -765,6 +849,82 @@ export class ArchStore {
     return null;
   }
 
+  // -------------------------------------------------------------------------
+  // The enrichment pass record (Phase 158)
+  // -------------------------------------------------------------------------
+
+  /** Record one pass, whatever its verdict. Append only. */
+  appendPassRun(row: NewArchPassRow): void {
+    this.db
+      .prepare<
+        [
+          string,
+          string,
+          number,
+          number,
+          string,
+          string,
+          number,
+          string,
+          string | null,
+          string | null,
+          number | null,
+          number | null,
+          number | null,
+          string
+        ]
+      >(
+        `INSERT INTO arch_pass_run
+           (repo_key, repo_path, started_at, wall_ms, agent_id, model,
+            recipe_version, verdict, reason, detail, painted, groups_total,
+            components, suggestions)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        row.repoKey,
+        row.repoPath,
+        row.startedAt,
+        row.wallMs,
+        row.agentId,
+        row.model,
+        row.recipeVersion,
+        row.verdict,
+        row.reason,
+        row.detail,
+        row.painted,
+        row.groupsTotal,
+        row.components,
+        JSON.stringify(row.suggestions)
+      );
+  }
+
+  /** The newest recorded pass for a repository, or null before any ran. */
+  latestPassRun(repoKey: string): StoredArchPassRun | null {
+    const row = this.db
+      .prepare<[string], PassRunRow>(
+        `SELECT started_at, wall_ms, agent_id, model, recipe_version, verdict,
+                reason, detail, painted, groups_total, components, suggestions
+           FROM arch_pass_run WHERE repo_key = ?
+          ORDER BY id DESC LIMIT 1`
+      )
+      .get(repoKey);
+    if (row === undefined) return null;
+    return {
+      startedAt: row.started_at,
+      wallMs: row.wall_ms,
+      agentId: row.agent_id,
+      model: row.model,
+      recipeVersion: row.recipe_version,
+      verdict: row.verdict as StoredArchPassRun['verdict'],
+      reason: row.reason,
+      detail: row.detail,
+      painted: row.painted,
+      groupsTotal: row.groups_total,
+      components: row.components,
+      suggestions: parseSuggestions(row.suggestions)
+    };
+  }
+
   /** Drop everything about one repository. Its tab was closed for good. */
   forgetRepo(repoKey: string): void {
     immediateTransaction(this.db, () => {
@@ -775,6 +935,7 @@ export class ArchStore {
         'arch_freshness',
         'arch_camera',
         'arch_layout',
+        'arch_pass_run',
         'arch_repo'
       ]) {
         this.db
@@ -815,6 +976,20 @@ function parseOffending(raw: string | null): ArchOffending[] | undefined {
  * and the view says not yet checked rather than drawing a strip of zeroes that
  * would be read as a clean bill of health.
  */
+/**
+ * A stored suggestions list, back as sentences. A row an older build wrote,
+ * or one somebody edited, reads as an empty list rather than crashing.
+ */
+function parseSuggestions(raw: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((entry): entry is string => typeof entry === 'string');
+  } catch {
+    return [];
+  }
+}
+
 function parseCounts(raw: string | null): ArchCoverageCounts | null {
   if (raw === null || raw.length === 0) return null;
   try {

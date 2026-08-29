@@ -40,22 +40,29 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { app, safeStorage } from 'electron';
 import type {
+  ArchSettings,
   FoldSettings,
   GmuxSettings,
   GmuxSettingsPatch
 } from '@shared/settings';
 import {
+  archKey,
   clampSavedScrollbackLines,
   clampScrollbackLines,
   dangerKey,
   defaultGmuxSettings,
   foldKey,
+  noArchChosen,
   noFoldChosen,
   sanitizeContrastLevel,
   sanitizeHighlightScheme,
   sanitizeWorkAreaFont
 } from '@shared/settings';
-import { foldRecipeFor, recipeHasModel } from '../overview/fold/recipes';
+import {
+  archRecipeFor,
+  foldRecipeFor,
+  recipeHasModel
+} from '../overview/fold/recipes';
 import type { LaunchableAgentId, LaunchableAgentKind } from '@shared/types';
 import { LAUNCHABLE_AGENT_IDS } from '../agents/registry';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
@@ -175,6 +182,14 @@ export interface DangerState {
    * file?
    */
   readonly fold: string | null;
+  /**
+   * "<agentId> <model>" when an arch enrichment harness is chosen, null for
+   * None (Phase 158). A separate field from `fold` on purpose: the two
+   * choices spawn different passes, so agreeing to one must never be
+   * replayable as agreeing to the other. An old seal has no `arch` member at
+   * all, which opens as null and fails safe to None.
+   */
+  readonly arch: string | null;
 }
 
 /** The danger state of a settings object, sorted so it seals to one text. */
@@ -191,10 +206,15 @@ export function dangerStateOf(settings: GmuxSettings): DangerState {
     settings.fold.agentId !== null && settings.fold.model !== null
       ? foldKey(settings.fold.agentId, settings.fold.model)
       : null;
+  const arch =
+    settings.arch.agentId !== null && settings.arch.model !== null
+      ? archKey(settings.arch.agentId, settings.arch.model)
+      : null;
   return {
     defaults: defaults.sort(),
     acks: [...settings.dangerAcknowledged].sort(),
-    fold
+    fold,
+    arch
   };
 }
 
@@ -203,7 +223,8 @@ export function isDangerStateEmpty(state: DangerState): boolean {
   return (
     state.defaults.length === 0 &&
     state.acks.length === 0 &&
-    state.fold === null
+    state.fold === null &&
+    state.arch === null
   );
 }
 
@@ -232,6 +253,16 @@ export function withSealedDangerState(
       : null;
   const foldRejected = chosenFold !== null && chosenFold !== sealed.fold;
   if (foldRejected) rejected.push(chosenFold);
+  // Phase 158. The arch choice is dropped the same way, against its OWN seal
+  // field, so a fold agreement copied into the arch key by hand covers
+  // nothing. A dropped arch choice costs nothing either: the Architecture
+  // view keeps the deterministic skeleton, which is complete on its own.
+  const chosenArch =
+    settings.arch.agentId !== null && settings.arch.model !== null
+      ? archKey(settings.arch.agentId, settings.arch.model)
+      : null;
+  const archRejected = chosenArch !== null && chosenArch !== sealed.arch;
+  if (archRejected) rejected.push(chosenArch);
   const launchDefaults: GmuxSettings['launchDefaults'] = {};
   for (const [id, flags] of Object.entries(settings.launchDefaults)) {
     if (!Array.isArray(flags)) continue;
@@ -253,7 +284,8 @@ export function withSealedDangerState(
       ...settings,
       launchDefaults,
       dangerAcknowledged: acks,
-      fold: foldRejected ? noFoldChosen() : settings.fold
+      fold: foldRejected ? noFoldChosen() : settings.fold,
+      arch: archRejected ? noArchChosen() : settings.arch
     },
     rejected
   };
@@ -301,7 +333,12 @@ export function withSealedDangerState(
  */
 const SEAL_PREFIX = 'gmux-danger-seal-v1:';
 
-const EMPTY_DANGER_STATE: DangerState = { defaults: [], acks: [], fold: null };
+const EMPTY_DANGER_STATE: DangerState = {
+  defaults: [],
+  acks: [],
+  fold: null,
+  arch: null
+};
 
 /** Is `safeStorage` usable right now? False before `app` is ready. */
 function sealAvailable(): boolean {
@@ -349,11 +386,14 @@ function openDangerSeal(blob: unknown): DangerState | null {
     const strings = (v: unknown): string[] =>
       Array.isArray(v) ? v.filter((k): k is string => typeof k === 'string') : [];
     // `fold` defaults to null, so an old seal written before Phase 138 still
-    // opens and still covers exactly what it always covered.
+    // opens and still covers exactly what it always covered. `arch` defaults
+    // to null the same way (Phase 158), so a seal written before this phase
+    // covers no arch choice and the value fails safe to None.
     return {
       defaults: strings(asState.defaults),
       acks: strings(asState.acks),
-      fold: typeof asState.fold === 'string' ? asState.fold : null
+      fold: typeof asState.fold === 'string' ? asState.fold : null,
+      arch: typeof asState.arch === 'string' ? asState.arch : null
     };
   } catch {
     // Forged, truncated, or written by a different machine's key. It proves
@@ -447,6 +487,11 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
   // file, which is what the seal is for.
   out.fold = sanitizeFoldSettings(obj['fold']);
 
+  // The arch enrichment choice (Phase 158). The same two step check as the
+  // fold above: membership against the compiled ARCH recipe table here, and
+  // the seal after, in getSettings.
+  out.arch = sanitizeArchSettings(obj['arch']);
+
   return out;
 }
 
@@ -472,6 +517,30 @@ export function sanitizeFoldSettings(raw: unknown): FoldSettings {
   }
   const recipe = foldRecipeFor(agentId);
   if (recipe === null || !recipeHasModel(recipe, model)) return noFoldChosen();
+  return { agentId, model };
+}
+
+/**
+ * Coerce a parsed `arch` value into a valid choice (Phase 158).
+ *
+ * The same discipline as `sanitizeFoldSettings` above, against the compiled
+ * ARCH recipe table: an invalid value drops the whole object to None rather
+ * than merging half of it, because half a choice would be an agent with no
+ * model or a model no arch recipe exposes, and either one would put an
+ * unmeasured argv in front of a person's own subscription. None is the
+ * answer for a file with no `arch` key, which is every settings file written
+ * before this phase and every fresh install.
+ */
+export function sanitizeArchSettings(raw: unknown): ArchSettings {
+  if (raw === null || typeof raw !== 'object') return noArchChosen();
+  const obj = raw as Record<string, unknown>;
+  const agentId = obj['agentId'];
+  const model = obj['model'];
+  if (typeof agentId !== 'string' || typeof model !== 'string') {
+    return noArchChosen();
+  }
+  const recipe = archRecipeFor(agentId);
+  if (recipe === null || !recipeHasModel(recipe, model)) return noArchChosen();
   return { agentId, model };
 }
 

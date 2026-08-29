@@ -45,6 +45,7 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
         dir: 'src',
         label: 'src',
         componentId: null,
+        description: null,
         band: 'engine',
         provenance: 'first-party',
         fileCount: 100,
@@ -58,6 +59,7 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
         dir: 'vendor',
         label: 'Vendored blobs',
         componentId: 'vendored-things',
+        description: 'Holds the code we copied in on purpose.',
         band: 'foundation',
         provenance: 'vendored',
         fileCount: 10,
@@ -101,6 +103,12 @@ describe('the adapter (map-model.ts)', () => {
     // The machine identity survives the overlay, which is what the drill
     // and the payload key on.
     expect(model.groups[1]?.id).toBe('vendor');
+    // Phase 158: the purpose sentence travels to the drawing, so the hover
+    // can say what a part is FOR, and a computed box carries none.
+    expect(model.groups[1]?.description).toBe(
+      'Holds the code we copied in on purpose.'
+    );
+    expect(model.groups[0]?.description).toBeNull();
   });
 
   it('puts a verdict on a judged edge and none on a computed one', () => {

@@ -16717,7 +16717,7 @@ Spec, then builders with disjoint file ownership, being one on the format and th
 - No Rust or Python resolver arm.
 - Tortie never calls a model, holds no key and reaches no network host.
 - No verified call graph, and no verified dataflow arrow, ever. A behavioural edge tops out at `partly-checked`.
-- Nothing about a source change, a verdict change or a freshness number ever starts an agent.
+- Nothing here starts an agent. (Corrected in place by Phase 158, as its charter directs: the honest rule is that Tortie never starts a process from configuration alone, and never one the person has not confirmed in Settings. The line as first written also forbade a person's own gesture, which the shipped Zen allows.)
 - Tortie reads `baseline.json` and never writes it. Recording a new baseline is a person editing a file.
 - No count badge on any node. Counts live in the verdict strip and in the prose panel, because the dashboard refusal survives.
 - No verdict ever sets a session's status.
@@ -16843,7 +16843,7 @@ The two conditions research 49 owes and nothing has retired come due here as wel
 
 - The sheet is a launch surface and not a confirmation gate. It records no confirmation of any kind. The gate stays at Settings then Agents and nowhere else.
 - The `claude` invocation deliberately omits `--bare`, because bare mode never reads OAuth credentials or the keychain and would break subscription auth. The phase carries a release notes watch, because the docs announce a future release flips the default.
-- No watcher and no schedule may start an agent. Nothing about a source change, a verdict change or a freshness number ever starts one.
+- No watcher and no schedule may start an agent. (Corrected in place by Phase 158, as its charter directs: the honest rule is that Tortie never starts a process from configuration alone, and never one the person has not confirmed in Settings.)
 - Tortie never walks another repository and never launches an agent across repositories. Seeding is per repository. The operator's 30 documents in his other repositories get no batch pass inside Tortie.
 - No canvas.
 - Tortie still holds no key and still spends zero tokens.
@@ -17555,7 +17555,7 @@ The Phase 63 and Phase 65 entries both carry the words "Nothing about a source c
 
 - **No second spawn path.** If this phase writes its own child process launcher instead of reaching `fold/spawn.ts`, it has failed the growth guardrail.
 - No API key, no endpoint Tortie owns, no http client anywhere near this code. Bound C is not amendable.
-- **Tortie never writes `docs/arch/baseline.json`.** Accepting a divergence stays a person editing a file.
+- **The PASS never writes `docs/arch/baseline.json`.** (This line first said Tortie never writes it at all; the operator's second amendment in the hold note above governs, so the accept button's channel is the file's one writer and the decision stays the person's.)
 - The pass proposes; it never commits, never stages, and never writes a file the person has not seen.
 - No batch pass across repositories. Seeding is per repository, and his thirty documents in other repositories get no sweep.
 - No canvas, no flows, no level 3.

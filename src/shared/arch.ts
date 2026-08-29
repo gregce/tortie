@@ -4,7 +4,11 @@
  * A person writes `docs/arch/` by hand, or has their own agent write it in a
  * session they started. It says what the project is made of and what the parts
  * promise each other. Tortie reads it, checks the promises it can check, and
- * says which ones hold. Tortie never writes these files.
+ * says which ones hold. Since Phase 158 Tortie also writes these files, on a
+ * person's own gesture and through exactly one writer module
+ * (`src/main/arch/enrich/write.ts`): the deterministic skeleton, and a
+ * validated enrichment a confirmed agent answered. Every write is a compiled
+ * path and lands as an ordinary uncommitted change in Source Control.
  *
  * ## What this file is, and what it is not
  *
@@ -320,10 +324,12 @@ export interface ArchAcceptedRow {
 /**
  * `docs/arch/baseline.json`, the accepted divergences.
  *
- * Tortie reads this and never writes it. Recording a new acceptance is a person
- * editing a file. Accepted rows are always counted in the verdict strip with
- * their `because` text on the face of it, so an agent cannot quietly accept its
- * own violation.
+ * The decision to accept is always the person's. Since Phase 158 the typing is
+ * not: the accept button on a failing row writes this file through the one
+ * channel that can, with the person's own reason on the row. The enrichment
+ * pass can never reach it, so an agent still cannot quietly accept its own
+ * violation, and accepted rows are always counted in the verdict strip with
+ * their `because` text on the face of it.
  */
 export interface ArchBaseline {
   accepted: ArchAcceptedRow[];
@@ -370,6 +376,14 @@ export interface ArchOffending {
   toPath: string;
   line: number;
   specifier: string;
+  /**
+   * The person's own reason, when a `baseline.json` row already accepted
+   * this exact offence (Phase 158 fix round). Absent when nobody has. A
+   * promise with some offences accepted and some open stays divergent, and
+   * this is what lets the failing row show which is which rather than
+   * offering an accept control on a line that was accepted a moment ago.
+   */
+  accepted?: string;
 }
 
 /** What one check concluded about one subject. Derived, and it lives only in Tortie's own database. */

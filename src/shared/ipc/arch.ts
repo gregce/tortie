@@ -246,6 +246,102 @@ export interface ArchComposePayloadResult {
   };
 }
 
+// ---------------------------------------------------------------------------
+// The one path in (Phase 158)
+// ---------------------------------------------------------------------------
+
+/**
+ * What the seed wrote. The skeleton is written DIRECTLY under `docs/arch/`
+ * per the operator's amendment, so the change lands as an ordinary
+ * uncommitted edit in Source Control rather than as unsaved buffers.
+ * `baseline.json` is never among the written paths: its first writer is
+ * always the person's own accept.
+ */
+export interface ArchSeedResult {
+  cwd: string;
+  /** True when files were written. False when a contract already exists. */
+  ok: boolean;
+  /** Why nothing was written, or null. */
+  reason: string | null;
+  /** The repository relative paths that were written, sorted. */
+  wrote: string[];
+}
+
+/** One recorded enrichment pass, as the run's face draws it. */
+export interface ArchPassRunFace {
+  verdict: 'kept' | 'refused' | 'failed';
+  /** The refusal or failure name. Null on kept. */
+  reason: string | null;
+  /**
+   * One sentence a person can act on, naming the field and the reason, when
+   * the validator refused the answer or the run threw. Null on kept, and
+   * null on a row an older build recorded before the sentence travelled.
+   */
+  detail: string | null;
+  agentId: string;
+  model: string;
+  startedAt: number;
+  wallMs: number;
+  /** How many enriched parts painted a box on the map, on a kept write. */
+  painted: number | null;
+  /** How many boxes the map holds beside the painted count. */
+  groupsTotal: number | null;
+  /** How many parts the answer enriched. */
+  components: number | null;
+  /**
+   * The model's explicit regroup suggestions, plain sentences. They land on
+   * the run's face and are NEVER written to `docs/arch/`.
+   */
+  suggestions: string[];
+}
+
+/**
+ * What one enrichment gesture came back with. `started` false carries the
+ * refusal that stopped it before any spawn: `no-choice`, `not-confirmed`,
+ * `no-recipe`, `in-flight` or `suspended`.
+ */
+export interface ArchEnrichResult {
+  cwd: string;
+  started: boolean;
+  refusal: string | null;
+  run: ArchPassRunFace | null;
+  /** The paths the seed wrote first, when the repository had no contract. */
+  seeded: string[];
+}
+
+/** The pass surface as the view reads it: what is happening and what last ran. */
+export interface ArchPassStatusResult {
+  cwd: string;
+  /** True while a pass runs for this repository. */
+  running: boolean;
+  /** One sentence when the pass is suspended, null otherwise. */
+  suspended: string | null;
+  /** True when a person has picked an agent and a model for the pass. */
+  chosen: boolean;
+  /** The newest recorded pass, or null before any ran. */
+  lastRun: ArchPassRunFace | null;
+}
+
+/**
+ * The accept button's own write (Phase 158, the operator's second amendment).
+ * The decision and the reason are the person's; the JSON typing is not. The
+ * offending paths and the edge id come from the verdict's own record, never
+ * typed, and `because` is the person's reason from the row's input.
+ */
+export interface ArchAcceptDivergenceInput extends ArchRepoInput {
+  edgeId?: string;
+  fromPath: string;
+  toPath: string;
+  because: string;
+}
+
+export interface ArchAcceptDivergenceResult {
+  cwd: string;
+  ok: boolean;
+  /** One sentence a person can act on when the append was refused. */
+  reason: string | null;
+}
+
 export interface ArchInvokeChannelMap {
   /**
    * Read `docs/arch/` and the stored verdicts. Reads files and the arch
@@ -343,6 +439,34 @@ export interface ArchInvokeChannelMap {
     req: [input: ArchClearLayoutInput];
     res: ArchCanvasWriteResult;
   };
+  /**
+   * Write the deterministic skeleton under `docs/arch/` (Phase 158). The one
+   * write goes through the single writer module, every path a compiled name,
+   * and `baseline.json` is skipped so its first writer is always the person's
+   * own accept. Writes nothing when a contract already exists.
+   */
+  'arch:seed': { req: [input: ArchRepoInput]; res: ArchSeedResult };
+  /**
+   * Run the enrichment pass once for one repository (Phase 158). Seeds the
+   * skeleton first when no contract exists, then spawns the ONE confirmed
+   * agent through the fold's one shot spawn, validates the answer whole, and
+   * writes `docs/arch/` directly on a kept answer. Refused before any spawn
+   * when no agent is chosen, the agent is not confirmed RIGHT NOW, no recipe
+   * is measured, a pass is already in flight, or the pass is suspended.
+   */
+  'arch:enrich': { req: [input: ArchRepoInput]; res: ArchEnrichResult };
+  /** What the pass is doing and what last ran. A read; it starts nothing. */
+  'arch:passStatus': { req: [input: ArchRepoInput]; res: ArchPassStatusResult };
+  /**
+   * Append one accepted divergence to `docs/arch/baseline.json` (Phase 158).
+   * The ONLY code path that writes that file, invoked only by the accept
+   * button on a failing row. Every field is validated whole; a bad field
+   * refuses the append and the file is untouched.
+   */
+  'arch:acceptDivergence': {
+    req: [input: ArchAcceptDivergenceInput];
+    res: ArchAcceptDivergenceResult;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -378,11 +502,23 @@ export interface ArchProgressEvent {
   total: number;
 }
 
+/** Main to renderer: the enrichment pass started or finished (Phase 158). */
+export const EVT_ARCH_PASS = 'arch:pass' as const;
+
+/** One pass phase change: `started` carries no run, `finished` carries it. */
+export interface ArchPassEvent {
+  cwd: string;
+  phase: 'started' | 'finished';
+  run: ArchPassRunFace | null;
+}
+
 export interface ArchEventPayloadMap {
   'arch:checked': [event: ArchCheckedEvent];
   'arch:progress': [progress: ArchProgressEvent];
   /** Phase 160: the fact base behind one repository's map moved. */
   'arch:mapUpdated': [event: ArchMapUpdatedEvent];
+  /** Phase 158: the enrichment pass started or finished. */
+  'arch:pass': [event: ArchPassEvent];
 }
 
 /**
@@ -404,9 +540,16 @@ export interface GmuxArchExtras {
     setCamera(input: ArchSetCameraInput): Promise<ArchCanvasWriteResult>;
     setLayout(input: ArchSetLayoutInput): Promise<ArchCanvasWriteResult>;
     clearLayout(input: ArchClearLayoutInput): Promise<ArchCanvasWriteResult>;
+    seed(input: ArchRepoInput): Promise<ArchSeedResult>;
+    enrich(input: ArchRepoInput): Promise<ArchEnrichResult>;
+    passStatus(input: ArchRepoInput): Promise<ArchPassStatusResult>;
+    acceptDivergence(
+      input: ArchAcceptDivergenceInput
+    ): Promise<ArchAcceptDivergenceResult>;
     onChecked(cb: (event: ArchCheckedEvent) => void): Unsubscribe;
     onProgress(cb: (progress: ArchProgressEvent) => void): Unsubscribe;
     onMapUpdated(cb: (event: ArchMapUpdatedEvent) => void): Unsubscribe;
+    onPass(cb: (event: ArchPassEvent) => void): Unsubscribe;
   };
 }
 

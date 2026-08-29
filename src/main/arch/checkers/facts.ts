@@ -108,6 +108,8 @@ export interface ArchOffence {
   toPath: string;
   line: number;
   specifier: string;
+  /** The person's reason when a baseline row accepted this exact offence. */
+  accepted?: string;
 }
 
 /** What one checker concluded about one subject. */

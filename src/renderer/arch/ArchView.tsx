@@ -43,22 +43,29 @@
  *    sessions slice.
  *  - **No canvas.** There is no drawing in this phase and no rendering
  *    package. The outline is a list.
- *  - **Tortie reads `baseline.json` and never writes it.** There is no accept
- *    control on this surface. An accepted divergence is counted in the strip
- *    with the reason its author gave, so an agent cannot quietly accept its
- *    own violation.
+ *  - **Accepting a divergence is the person's button, and the one write.**
+ *    Phase 158 put the accept control on the failing row, on the operator's
+ *    own amendment: it asks main to append one row to `baseline.json` with
+ *    the person's reason, main validates whole and refuses whole, and that
+ *    channel is the only way Tortie ever writes that file. The decision and
+ *    the reason are the person's; the typing is not. Every accepted row is
+ *    still counted in the strip in the person's own words, so an agent
+ *    cannot quietly accept its own violation: no agent can press a button,
+ *    and the enriching pass's validator refuses any answer that carries
+ *    baseline content.
  *  - **No colour carries meaning on its own.** Every verdict is a glyph, a
  *    word and a colour, in that order of importance. No amber anywhere: that
  *    hue belongs to "an agent needs you" and nothing here is that.
  */
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type {
   ArchComponent,
   ArchCoverageCounts,
   ArchEdge,
   ArchVerdict
 } from '@shared/arch';
+import { ARCH_LIMITS } from '@shared/arch';
 import { archViewGapId } from '@shared/arch-ids';
 import {
   localPathOf,
@@ -67,17 +74,40 @@ import {
 import { Codicon } from '../icons';
 import { requestOpenFile } from '../state/open-file';
 import { useApp } from '../state/store';
-import { ArchContractOffer } from './ArchEmptyState';
+import { ArchContractOffer, passSentence } from './ArchEmptyState';
 import { openArchMap } from './open-map';
-import { mapAvailable, mapPartAvailable } from './bridge';
-import type { ArchMapPartResult } from './bridge';
 import {
+  acceptAvailable,
+  mapAvailable,
+  mapPartAvailable,
+  passAvailable
+} from './bridge';
+import type {
+  ArchMapPartResult,
+  ArchPassRunFace,
+  ArchPassStatusResult
+} from './bridge';
+import {
+  ARCH_ACCEPT_BODY,
+  ARCH_ACCEPT_REASON_LABEL,
+  ARCH_ACCEPT_TITLE,
+  ARCH_ACCEPT_WRITE,
   ARCH_COMPUTED_TITLE,
   ARCH_CONTRACT_ADDS,
   ARCH_DRILL_CRUMB_LABEL,
   ARCH_DRILL_WHOLE,
+  ARCH_ENRICH_BODY,
+  ARCH_ENRICH_TITLE,
+  ARCH_OFFENCE_ACCEPTED,
+  enrichRefusalSentence,
   ARCH_MAP_OPEN_BODY,
   ARCH_MAP_OPEN_TITLE,
+  ARCH_PASS_FAILED,
+  ARCH_PASS_REFUSED,
+  ARCH_PASS_RUNNING,
+  ARCH_PASS_SUGGESTIONS,
+  ARCH_PASS_SUGGESTIONS_NOTE,
+  ARCH_PASS_TITLE,
   ARCH_SCOPED_LOADING,
   ARCH_SCOPED_NO_FAILURES,
   ARCH_SCOPED_NO_PROMISES
@@ -244,6 +274,110 @@ export function stripLanes(
 }
 
 // ---------------------------------------------------------------------------
+// Phase 158, the run face and the accept verb: the pure parts
+// ---------------------------------------------------------------------------
+
+/**
+ * The promise id an accepted divergence names, out of the verdict's own
+ * subject vocabulary. `edge:<id>` and `edge:<id>#<facet>` both answer the
+ * id; a component or gap subject answers undefined, because a baseline row
+ * without an edge id matches offences by path pair alone.
+ */
+export function acceptEdgeId(subjectId: string): string | undefined {
+  if (!subjectId.startsWith('edge:')) return undefined;
+  const rest = subjectId.slice('edge:'.length);
+  const hash = rest.indexOf('#');
+  const id = hash === -1 ? rest : rest.slice(0, hash);
+  return id.length === 0 ? undefined : id;
+}
+
+/**
+ * Whether one offending record can be accepted at all. A baseline row names
+ * a `fromPath` and a `toPath`, so an offence with no target, which is what
+ * an absent component reports, has nothing a row could match and gets no
+ * button rather than a button that writes a row main must refuse.
+ */
+export function canAcceptOffence(o: {
+  fromPath: string;
+  toPath: string;
+  accepted?: string;
+}): boolean {
+  // An offence a baseline row already covers gets no second button: the
+  // person accepted it, and the row says so in their words instead.
+  return o.fromPath.length > 0 && o.toPath.length > 0 && o.accepted === undefined;
+}
+
+/** The clock word the run face says, hours and minutes, this computer's day. */
+export function timeWord(ms: number): string {
+  const d = new Date(ms);
+  const two = (n: number): string => String(n).padStart(2, '0');
+  return `${two(d.getHours())}:${two(d.getMinutes())}`;
+}
+
+/**
+ * The painted coverage sentence, on the run's face because the map binding
+ * makes it the proof: an enrichment that painted nothing did not reach the
+ * picture, and main records such a run failed rather than kept. Null when
+ * the run carries no counts, which a refused run does not.
+ */
+export function paintedSentence(run: ArchPassRunFace): string | null {
+  if (run.painted === null || run.components === null) return null;
+  return `Painted ${String(run.painted)} of ${String(run.components)} parts on the map.`;
+}
+
+/**
+ * The one sentence the run face leads with, decided by main's status and
+ * the last gesture's refusal alone, so the unit suite can hold every state.
+ * Null means the face has nothing to say yet, which is a chosen pass that
+ * has never run.
+ */
+export function passLead(
+  status: ArchPassStatusResult,
+  askRefusal: string | null
+): string | null {
+  if (status.running) return ARCH_PASS_RUNNING;
+  if (askRefusal !== null) return enrichRefusalSentence(askRefusal);
+  const run = status.lastRun;
+  if (status.suspended !== null) {
+    // A suspension after a kept run still owes the written time: the
+    // contract on disk is that run's, whatever the window is doing now.
+    return run !== null && run.verdict === 'kept'
+      ? `${status.suspended} ${writtenSentence(run)}`
+      : status.suspended;
+  }
+  if (run === null) return null;
+  if (run.verdict === 'refused') {
+    return run.reason === null
+      ? ARCH_PASS_REFUSED
+      : `${ARCH_PASS_REFUSED} The refusal is named ${run.reason}.`;
+  }
+  if (run.verdict === 'failed') {
+    return run.reason === null
+      ? ARCH_PASS_FAILED
+      : `${ARCH_PASS_FAILED} ${run.reason}`;
+  }
+  // Kept: the contract on disk is the run's own write, said with the time,
+  // the way a session row says written and when.
+  return writtenSentence(run);
+}
+
+/** The kept run's own line: written, and when. */
+function writtenSentence(run: ArchPassRunFace): string {
+  return `The contract was last written at ${timeWord(run.startedAt + run.wallMs)}.`;
+}
+
+/**
+ * The validator's own sentence under a refused run's lead, naming the field
+ * and the reason, so the person reads what to change and not only the
+ * token's name. Null unless the last run carried one.
+ */
+export function passDetail(status: ArchPassStatusResult): string | null {
+  const run = status.lastRun;
+  if (run === null || status.running || run.verdict === 'kept') return null;
+  return run.detail;
+}
+
+// ---------------------------------------------------------------------------
 // The view
 // ---------------------------------------------------------------------------
 
@@ -363,6 +497,7 @@ export function ArchView(): React.JSX.Element {
           {load?.lastValid === true ? (
             <p className="arch-lastvalid">{ARCH_LAST_VALID}</p>
           ) : null}
+          <PassFace repoPath={repoPath} />
           <FreshnessRibbon />
           <VerdictStrip scoped={scoped} />
           <Problems />
@@ -498,12 +633,11 @@ function MapSection({
         type="button"
         className="arch-empty-action arch-map-open"
         disabled={!canDraw}
-        title={canDraw ? undefined : 'This build cannot draw the map.'}
+        title={canDraw ? ARCH_MAP_OPEN_BODY : 'This build cannot draw the map.'}
         onClick={() => openArchMap(repoPath)}
       >
         <Codicon name="map" size={14} />
         <span className="arch-empty-action-title">{ARCH_MAP_OPEN_TITLE}</span>
-        <span className="arch-empty-action-body">{ARCH_MAP_OPEN_BODY}</span>
       </button>
     </section>
   );
@@ -588,6 +722,188 @@ function ComputedOutline({
         })}
       </ul>
     </section>
+  );
+}
+
+/**
+ * THE RUN FACE (Phase 158). What the pass is doing, when the contract was
+ * last written, the painted coverage, and the answer's regroup suggestions,
+ * on one quiet section of the cockpit.
+ *
+ * IT IS VISIBLE WHILE IT RUNS, the charter's own words: a headless pass a
+ * person cannot see is a pass they cannot trust. The face reads the pass
+ * record main reports and nothing else; it derives nothing of its own, so
+ * the numbers here are the numbers main counted. With no agent picked it
+ * says the pass is off, plainly, with the Settings pointer, and the one
+ * control it carries asks main to run the pass once. Main holds the gate:
+ * nothing this face sends can start an agent the person has not confirmed.
+ */
+function PassFace({
+  repoPath
+}: {
+  repoPath: string | null;
+}): React.JSX.Element | null {
+  const loadPass = useArch((s) => s.loadPass);
+  const enrich = useArch((s) => s.enrich);
+  const enriching = useArch((s) => s.enriching);
+  const drafting = useArch((s) => s.drafting);
+  const entry = useArch((s) =>
+    repoPath === null ? null : (s.passes[repoPath] ?? null)
+  );
+  useEffect(() => {
+    if (repoPath !== null) void loadPass(repoPath);
+  }, [repoPath, loadPass]);
+
+  if (repoPath === null || !passAvailable()) return null;
+
+  const status = entry?.status ?? null;
+  const chosen = status?.chosen ?? false;
+  const running = enriching || status?.running === true;
+  const lead =
+    status === null ? null : passLead(status, entry?.refusal ?? null);
+  const detail = status === null ? null : passDetail(status);
+  const run = status?.lastRun ?? null;
+  const painted = run === null ? null : paintedSentence(run);
+  const suggestions = run?.suggestions ?? [];
+  const offSentence = passSentence(true, chosen);
+
+  return (
+    <section className="arch-pass" aria-label={ARCH_PASS_TITLE}>
+      <div className="section-header">
+        <span className="section-toggle">{ARCH_PASS_TITLE}</span>
+        {running ? (
+          // VISUAL STATE OVER WORDS (the copy ruling): the header spins
+          // while the agent runs, the same modifier the SCM run row uses.
+          <Codicon name="sync" size={12} className="codicon-modifier-spin" />
+        ) : null}
+      </div>
+      {!chosen ? (
+        <p className="arch-note arch-note-inline">{offSentence}</p>
+      ) : (
+        <>
+          {lead !== null ? (
+            <p className="arch-note arch-note-inline">{lead}</p>
+          ) : null}
+          {detail !== null ? (
+            // PLAIN TEXT: the sentence quotes the model's answer by field.
+            <p className="arch-note arch-note-inline arch-pass-detail">
+              {detail}
+            </p>
+          ) : null}
+          {painted !== null ? (
+            <p className="arch-note arch-note-inline">{painted}</p>
+          ) : null}
+          <button
+            type="button"
+            className="arch-empty-action arch-pass-run"
+            disabled={running || drafting}
+            title={ARCH_ENRICH_BODY}
+            onClick={() => void enrich()}
+          >
+            <Codicon name="sparkle" size={14} />
+            <span className="arch-empty-action-title">{ARCH_ENRICH_TITLE}</span>
+          </button>
+          {suggestions.length > 0 ? (
+            <div className="arch-pass-suggestions">
+              <p className="arch-note arch-note-inline">
+                {`${ARCH_PASS_SUGGESTIONS} · ${ARCH_PASS_SUGGESTIONS_NOTE}`}
+              </p>
+              <ul>
+                {suggestions.map((sentence, i) => (
+                  // PLAIN TEXT, the prose panel's own rule: these sentences
+                  // came out of a model's answer and render as text nodes.
+                  <li key={`${String(i)}:${sentence.slice(0, 24)}`}>
+                    {sentence}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
+      )}
+    </section>
+  );
+}
+
+/**
+ * THE ACCEPT CONTROL on one failing row (Phase 158, the operator's
+ * amendment). The decision and the reason are the person's; the typing is
+ * not. The button opens a small reason form, the write stays disabled until
+ * the reason is non-empty, and the submit asks main to append one validated
+ * row to `docs/arch/baseline.json`. A refused write says main's own sentence
+ * on the row rather than vanishing.
+ */
+function AcceptDivergence({
+  edgeId,
+  fromPath,
+  toPath
+}: {
+  edgeId: string | undefined;
+  fromPath: string;
+  toPath: string;
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [because, setBecause] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+  const accept = useArch((s) => s.acceptDivergence);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="arch-accept-open"
+        title={ARCH_ACCEPT_BODY}
+        onClick={() => setOpen(true)}
+      >
+        {ARCH_ACCEPT_TITLE}
+      </button>
+    );
+  }
+  return (
+    <form
+      className="arch-accept"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (busy || because.trim().length === 0) return;
+        setBusy(true);
+        setRefused(null);
+        void accept(
+          edgeId === undefined
+            ? { fromPath, toPath, because: because.trim() }
+            : { edgeId, fromPath, toPath, because: because.trim() }
+        ).then((result) => {
+          setBusy(false);
+          if (result.ok) {
+            setOpen(false);
+            setBecause('');
+          } else {
+            setRefused(result.reason);
+          }
+        });
+      }}
+    >
+      <input
+        className="arch-accept-input"
+        type="text"
+        value={because}
+        maxLength={ARCH_LIMITS.maxBecause}
+        placeholder={ARCH_ACCEPT_REASON_LABEL}
+        aria-label={ARCH_ACCEPT_REASON_LABEL}
+        onChange={(e) => setBecause(e.target.value)}
+      />
+      <button
+        type="submit"
+        className="arch-accept-write"
+        disabled={busy || because.trim().length === 0}
+        title={ARCH_ACCEPT_BODY}
+      >
+        {ARCH_ACCEPT_WRITE}
+      </button>
+      {refused !== null ? (
+        <p className="arch-accept-refused">{refused}</p>
+      ) : null}
+    </form>
   );
 }
 
@@ -711,13 +1027,18 @@ function VerdictStrip({
           They are never folded into the held figure and they are never hidden.
           That is the whole mechanism behind the operator's second rider: an
           agent cannot quietly accept its own violation, because acceptance is
-          a person editing `baseline.json` and every accepted row shows up here
-          in that person's own words. Tortie reads that file and never writes
-          it, and there is no accept control anywhere on this surface. */}
+          the person's own button on the failing row (Phase 158), the reason
+          is typed by them, and every accepted row shows up here in their own
+          words. The accept channel is the one way that file is ever written,
+          and no agent can press a button. */}
       {accepted.length > 0 ? (
         <div className="arch-accepted">
-          <p className="arch-strip-note">
-            {`${String(counts.accepted)} accepted. ${ARCH_ACCEPTED_NOTE}`}
+          {/* The heading counts the rows under it, the person's own
+              acceptances, and not the promises accepted whole in the lane
+              arithmetic: one accepted row under a promise that still has
+              open offences read "0 accepted" above itself before this. */}
+          <p className="arch-strip-note" title={ARCH_ACCEPTED_NOTE}>
+            {`${String(accepted.length)} accepted`}
           </p>
           <ul>
             {accepted.map((row, i) => (
@@ -816,33 +1137,59 @@ function FailureList({
                 </span>
               </button>
               {(v.offending ?? []).map((o, i) => (
-                <button
+                <div
                   key={`${o.fromPath}:${String(o.line)}:${String(i)}`}
-                  type="button"
-                  className="arch-offending"
-                  disabled={repoPath === null}
-                  title={`Open ${o.fromPath} at line ${String(o.line)}`}
-                  onClick={() => {
-                    if (repoPath === null) return;
-                    requestOpenFile({
-                      repoPath,
-                      relPath: o.fromPath,
-                      path: `${repoPath}/${o.fromPath}`,
-                      mode: 'file',
-                      source: 'search',
-                      preview: false,
-                      selection: { line: o.line }
-                    });
-                  }}
+                  className="arch-offending-row"
                 >
-                  <span className="arch-offending-path">{o.fromPath}</span>
-                  <span className="arch-offending-line">
-                    {`:${String(o.line)}`}
-                  </span>
-                  {o.specifier.length > 0 ? (
-                    <span className="arch-offending-spec">{o.specifier}</span>
+                  <button
+                    type="button"
+                    className="arch-offending"
+                    disabled={repoPath === null}
+                    title={`Open ${o.fromPath} at line ${String(o.line)}`}
+                    onClick={() => {
+                      if (repoPath === null) return;
+                      requestOpenFile({
+                        repoPath,
+                        relPath: o.fromPath,
+                        path: `${repoPath}/${o.fromPath}`,
+                        mode: 'file',
+                        source: 'search',
+                        preview: false,
+                        selection: { line: o.line }
+                      });
+                    }}
+                  >
+                    <span className="arch-offending-path">{o.fromPath}</span>
+                    <span className="arch-offending-line">
+                      {`:${String(o.line)}`}
+                    </span>
+                    {o.specifier.length > 0 ? (
+                      <span className="arch-offending-spec">{o.specifier}</span>
+                    ) : null}
+                    {o.accepted !== undefined ? (
+                      // VISUAL STATE OVER WORDS: one word, the reason on
+                      // hover, and no accept control beside it.
+                      <span className="arch-offending-accepted" title={o.accepted}>
+                        {ARCH_OFFENCE_ACCEPTED}
+                      </span>
+                    ) : null}
+                  </button>
+                  {/* THE ACCEPT CONTROL (Phase 158) rides the offending row
+                      in the PANE ONLY. Source Control's Promises section
+                      stays visibility only, per the operator's recorded
+                      rider: there is no accept control there. An offence
+                      with no target path gets no button, because a baseline
+                      row could not match it. */}
+                  {repoPath !== null &&
+                  acceptAvailable() &&
+                  canAcceptOffence(o) ? (
+                    <AcceptDivergence
+                      edgeId={acceptEdgeId(v.subjectId)}
+                      fromPath={o.fromPath}
+                      toPath={o.toPath}
+                    />
                   ) : null}
-                </button>
+                </div>
               ))}
               {v.reason !== null && v.reason !== undefined ? (
                 <p className="arch-failure-reason">{v.reason}</p>

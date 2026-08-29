@@ -8,20 +8,28 @@
  *
  *     await disposeArchIpc();
  *
- * Five channels since Phase 64, a sixth (the map) since Phase 160, and what
- * is NOT here is the point.
+ * Five channels since Phase 64, the map since Phase 160, and the one path in
+ * since Phase 158. What is NOT here is still the point.
  *
- * There is no channel that writes `docs/arch/`. The skeleton channel drafts
- * bytes and hands them back for unsaved editor buffers, so recording a contract
- * and recording a new baseline are always a person editing a file. That is the
- * ArchUnit `allowStoreUpdate=false` pattern, and it is what stops an agent
- * silently accepting its own violation.
+ * THREE CHANNELS WRITE `docs/arch/` SINCE PHASE 158, and no others: the seed,
+ * the enrichment on a kept answer, and the accept button's baseline append.
+ * All three write through the ONE writer module in ./enrich/write.ts, every
+ * path a compiled name, and each write lands as an ordinary uncommitted
+ * change in Source Control, per the operator's amendment. `baseline.json`
+ * keeps the ArchUnit rule in its amended form: the enrichment pass can never
+ * reach it, its validator refuses an answer carrying baseline content, and
+ * the accept channel is its only writer, fired only by the person's own
+ * button. An agent still cannot accept its own violation.
  *
- * There is no channel that starts an agent, and no code path here that starts
- * one either. A source change, a verdict change and a freshness number are
- * facts about files. The only processes this module can cause are the five
- * fixed argv git calls in `./argv-guard.ts`, and no field of any contract file
- * reaches any of their argv.
+ * ONE CHANNEL CAN START AN AGENT, being `arch:enrich`, and only a person's
+ * gesture reaches it. The honest rule Phase 158 wrote into the backlog holds
+ * here: Tortie never starts a process from configuration alone, and never one
+ * the person has not confirmed in Settings. The confirm gate is re-checked at
+ * the spawn, the spawn is the fold's one shot `runFold` and nothing else, and
+ * a source change, a verdict change or a freshness number still starts
+ * nothing. Beyond that one gesture the only processes this module can cause
+ * are the five fixed argv git calls in `./argv-guard.ts`, and no field of any
+ * contract file reaches any of their argv.
  *
  * There is no channel that sets a session's status, opens the manifest or
  * touches tmux, and `build/assert-import-boundaries.mjs` holds the wall that
@@ -36,23 +44,30 @@
 
 import type { IpcMain } from 'electron';
 import type {
+  ArchAcceptDivergenceInput,
+  ArchAcceptDivergenceResult,
   ArchCanvasStateResult,
   ArchCanvasWriteResult,
   ArchCheckResult,
   ArchComposePayloadInput,
   ArchComposePayloadResult,
   ArchDraftFile,
+  ArchEnrichResult,
   ArchLoadResult,
   ArchMapInput,
   ArchMapPartInput,
   ArchMapPartResult,
   ArchMapResult,
+  ArchPassRunFace,
+  ArchPassStatusResult,
   ArchRepoInput,
+  ArchSeedResult,
   ArchSkeletonResult
 } from '@shared/ipc';
 import {
   EVT_ARCH_CHECKED,
   EVT_ARCH_MAP_UPDATED,
+  EVT_ARCH_PASS,
   EVT_ARCH_PROGRESS
 } from '@shared/ipc';
 import type {
@@ -90,6 +105,20 @@ import { readArchModuleFiles, readArchModules } from './modules';
 import { gatherFacts } from './run';
 import { scanArchImports } from './scan';
 import { draftSkeleton as draftSkeletonBuffers } from './skeleton';
+import {
+  ArchPassRunner,
+  type ArchPassChoice,
+  type ArchPassInput,
+  type ArchPassRunRecord
+} from './enrich/run';
+import type { ArchEnrichImport } from './enrich/compose';
+import {
+  appendAcceptedDivergence,
+  planSkeletonWrite,
+  writeArchFiles
+} from './enrich/write';
+import { getSettings } from '../settings/store';
+import type { StoredArchPassRun } from './db';
 import { composeArchPayload } from './payload';
 import { readArchManifests } from './resolver/manifest';
 import {
@@ -219,6 +248,19 @@ export function registerArchIpc(ipc: IpcMain): void {
   handle(ipc, 'arch:clearLayout', async (_event, input) =>
     canvasWrite(archStore().clearLayout(archRepoKey(input.cwd), input.scope))
   );
+  // The one path in (Phase 158). `arch:seed` writes the deterministic
+  // skeleton through the one writer module. `arch:enrich` is the ONE channel
+  // that can start an agent, and only a person's gesture reaches it: the
+  // confirm gate is re-checked at the spawn and the spawn is the fold's.
+  // `arch:passStatus` is a read. `arch:acceptDivergence` is the accept
+  // button's own append, and it is the only code path that writes
+  // baseline.json.
+  handle(ipc, 'arch:seed', async (_event, input) => seedContract(input));
+  handle(ipc, 'arch:enrich', async (_event, input) => runEnrichPass(input));
+  handle(ipc, 'arch:passStatus', async (_event, input) => passStatus(input));
+  handle(ipc, 'arch:acceptDivergence', async (_event, input) =>
+    acceptDivergence(input)
+  );
 }
 
 /**
@@ -243,6 +285,9 @@ export async function disposeArchIpc(): Promise<void> {
   stopArchWatch();
   lastValid.clear();
   lastProgressAt.clear();
+  // The pass runner holds no timer and no child of its own: a pass in flight
+  // is a runGuarded child, and reapGuardedChildren on before-quit ends it.
+  passRunner = null;
   await shutdownSharedSymbolPool();
   const open = store;
   store = null;
@@ -749,19 +794,74 @@ async function composePayload(
 }
 
 // ---------------------------------------------------------------------------
-// The draft
+// The one path in (Phase 158)
 // ---------------------------------------------------------------------------
 
 /**
- * Draft a contract from the fact base, and write nothing.
- *
- * The bytes come back for unsaved editor buffers. Main creating the files
- * itself would make "Tortie never writes docs/arch" a habit of this function
- * rather than a property of the design, and the next round would find the
- * habit easy to break.
+ * The person's arch choice, read from the sealed settings value at every
+ * gesture and never cached. `getSettings` answers the seal checked view, so
+ * a hand edited or replayed choice reaches here as None, and None starts
+ * nothing.
  */
-async function draftSkeleton(input: ArchRepoInput): Promise<ArchSkeletonResult> {
-  const repoPath = input.cwd;
+function archChoiceNow(): ArchPassChoice {
+  const { arch } = getSettings();
+  return { agentId: arch.agentId, model: arch.model };
+}
+
+/** The one live runner, made on first use. It holds no timer and no child. */
+let passRunner: ArchPassRunner | null = null;
+
+function archPassRunner(): ArchPassRunner {
+  if (passRunner !== null) return passRunner;
+  passRunner = new ArchPassRunner({
+    choice: archChoiceNow,
+    // Map binding rule 2: recompose the map over the same facts with the
+    // enriched document and count the boxes that wear a component. A kept
+    // write that paints nothing is recorded FAILED by the runner.
+    paint: (document, input) => {
+      const model = composeArchMap({
+        subject: input.subject,
+        trackedFiles: input.trackedFiles,
+        imports: input.imports.map((edge) => ({
+          fromPath: edge.fromPath,
+          toPath: edge.toPath,
+          resolution: 'first-party'
+        })),
+        workspaces: [...input.workspaces],
+        document,
+        verdicts: []
+      });
+      return {
+        painted: model.groups.filter((group) => group.componentId !== null)
+          .length,
+        groupsTotal: model.groups.length
+      };
+    },
+    append: (record) => {
+      archStore().appendPassRun({
+        repoKey: archRepoKey(record.repoPath),
+        ...record
+      });
+    }
+  });
+  return passRunner;
+}
+
+/** Everything the seed and the pass share, gathered once per gesture. */
+interface ArchGatheredFacts {
+  trackedFiles: string[];
+  /** Resolved first party pairs, the skeleton's own slice. */
+  pairs: ArchEnrichImport[];
+  subject: string;
+  workspaces: string[];
+}
+
+/**
+ * The same gather the draft channel does: the one fixed `git ls-files -z`,
+ * the one scanner over the shared stamp table, and the manifest read. No
+ * second scan exists; a fact this wrote is a fact the next check reuses.
+ */
+async function gatherEnrichFacts(repoPath: string): Promise<ArchGatheredFacts> {
   const db = archStore();
   const repoKey = archRepoKey(repoPath);
   const git = createArchGitRunner(repoPath);
@@ -775,17 +875,189 @@ async function draftSkeleton(input: ArchRepoInput): Promise<ArchSkeletonResult> 
     budgetMs: null
   });
   const manifests = readArchManifests(repoPath);
-  const files: ArchDraftFile[] = draftSkeletonBuffers({
-    subject: manifests.packageName ?? repoPath.split('/').pop() ?? 'this project',
+  return {
     trackedFiles,
-    // Only the imports that resolved to a tracked file describe a part talking
-    // to another part. An unresolved one names something this build could not
-    // find, and drafting a promise from it would put a guess in a person's
-    // contract.
-    imports: scan.imports.flatMap((row) =>
-      row.toPath === null ? [] : [{ fromPath: row.fromPath, toPath: row.toPath }]
+    // Only the imports that resolved to a tracked file describe a part
+    // talking to another part. An unresolved one names something this build
+    // could not find, and drafting or enriching a promise from it would put
+    // a guess in a person's contract.
+    pairs: scan.imports.flatMap((row) =>
+      row.toPath === null
+        ? []
+        : [{ fromPath: row.fromPath, toPath: row.toPath }]
     ),
+    subject:
+      manifests.packageName ?? repoPath.split('/').pop() ?? 'this project',
     workspaces: [...manifests.workspaces.values()].map((w) => w.dir)
+  };
+}
+
+/**
+ * Write the deterministic skeleton under `docs/arch/`, minus `baseline.json`.
+ *
+ * The operator's amendment: the write lands as an ordinary uncommitted change
+ * in Source Control, never unsaved buffers a person must save. A repository
+ * that already has a contract gets nothing written and says so.
+ */
+async function seedContract(input: ArchRepoInput): Promise<ArchSeedResult> {
+  const repoPath = input.cwd;
+  const fresh = await loadArchDocument(createArchFileSystem(repoPath));
+  if (fresh.contract !== null) {
+    return { cwd: repoPath, ok: false, reason: 'contract-exists', wrote: [] };
+  }
+  const facts = await gatherEnrichFacts(repoPath);
+  const buffers = draftSkeletonBuffers({
+    subject: facts.subject,
+    trackedFiles: facts.trackedFiles,
+    imports: facts.pairs,
+    workspaces: facts.workspaces
+  });
+  const wrote = await writeArchFiles(repoPath, planSkeletonWrite(buffers));
+  // The watcher fan out picks the write up anyway; asking now just makes the
+  // first verdicts arrive without waiting for the debounce.
+  requestArchCheck(repoPath);
+  return { cwd: repoPath, ok: true, reason: null, wrote: wrote.sort() };
+}
+
+/**
+ * One enrichment gesture, end to end: seed when no contract exists, gate,
+ * spawn the one confirmed agent through the fold's one shot spawn, validate
+ * whole, write on a kept answer, and count the painted boxes.
+ */
+async function runEnrichPass(input: ArchRepoInput): Promise<ArchEnrichResult> {
+  const repoPath = input.cwd;
+  const facts = await gatherEnrichFacts(repoPath);
+  let seeded: string[] = [];
+  let document = await loadArchDocument(createArchFileSystem(repoPath));
+  if (document.contract === null) {
+    const seed = await seedContract(input);
+    seeded = seed.wrote;
+    document = await loadArchDocument(createArchFileSystem(repoPath));
+  }
+  if (document.contract === null) {
+    // The seed could not produce a loadable contract, which means the write
+    // failed or the tree is unreadable. Refusing here is honest; nothing has
+    // spawned.
+    return {
+      cwd: repoPath,
+      started: false,
+      refusal: 'no-contract',
+      run: null,
+      seeded
+    };
+  }
+  broadcastEvent(EVT_ARCH_PASS, { cwd: repoPath, phase: 'started', run: null });
+  const passInput: ArchPassInput = {
+    repoPath,
+    document,
+    trackedFiles: facts.trackedFiles,
+    imports: facts.pairs,
+    subject: facts.subject,
+    workspaces: facts.workspaces
+  };
+  const outcome = await archPassRunner().run(passInput);
+  const face = toPassFace(outcome.run);
+  broadcastEvent(EVT_ARCH_PASS, {
+    cwd: repoPath,
+    phase: 'finished',
+    run: face
+  });
+  if (outcome.run?.verdict === 'kept') {
+    // The write moved the contract, so the verdicts are owed a re-check. The
+    // watcher would coalesce one anyway; asking now is prompt rather than new.
+    requestArchCheck(repoPath);
+  }
+  return {
+    cwd: repoPath,
+    started: outcome.started,
+    refusal: outcome.refusal,
+    run: face,
+    seeded
+  };
+}
+
+/**
+ * A pass run as the run's face draws it. The runner's fresh record and the
+ * store's read back row both carry the face's fields plus `recipeVersion`,
+ * which the face does not show, so one projection serves the gesture's
+ * answer and the status read alike.
+ */
+function toPassFace(
+  row: StoredArchPassRun | ArchPassRunRecord | null
+): ArchPassRunFace | null {
+  if (row === null) return null;
+  return {
+    verdict: row.verdict,
+    reason: row.reason,
+    detail: row.detail,
+    agentId: row.agentId,
+    model: row.model,
+    startedAt: row.startedAt,
+    wallMs: row.wallMs,
+    painted: row.painted,
+    groupsTotal: row.groupsTotal,
+    components: row.components,
+    suggestions: row.suggestions
+  };
+}
+
+/** What the pass is doing and what last ran. A read; it starts nothing. */
+async function passStatus(input: ArchRepoInput): Promise<ArchPassStatusResult> {
+  const repoPath = input.cwd;
+  const runner = archPassRunner();
+  const choice = archChoiceNow();
+  return {
+    cwd: repoPath,
+    running: runner.running(repoPath),
+    suspended: runner.suspension(),
+    chosen: choice.agentId !== null && choice.model !== null,
+    lastRun: toPassFace(archStore().latestPassRun(archRepoKey(repoPath)))
+  };
+}
+
+/**
+ * The accept button's own append (Phase 158, the operator's second
+ * amendment). `at` is composed HERE, in main, as today's date in the
+ * `dayField` shape, and every other field is validated whole by the writer.
+ */
+async function acceptDivergence(
+  input: ArchAcceptDivergenceInput
+): Promise<ArchAcceptDivergenceResult> {
+  const at = new Date().toISOString().slice(0, 10);
+  const result = await appendAcceptedDivergence(input.cwd, {
+    ...(input.edgeId === undefined ? {} : { edgeId: input.edgeId }),
+    fromPath: input.fromPath,
+    toPath: input.toPath,
+    because: input.because,
+    at
+  });
+  if (result.ok) {
+    // The baseline moved, so the strip's accepted count is owed a re-check.
+    requestArchCheck(input.cwd);
+  }
+  return { cwd: input.cwd, ok: result.ok, reason: result.reason };
+}
+
+// ---------------------------------------------------------------------------
+// The draft
+// ---------------------------------------------------------------------------
+
+/**
+ * Draft a contract from the fact base, and write nothing.
+ *
+ * The bytes come back for callers that want them as text, and the probes
+ * that pin the draft's determinism drive this channel. Since Phase 158 the
+ * WRITING path is `arch:seed`, which writes the same buffers through the one
+ * writer module in ./enrich/write.ts, minus `baseline.json`.
+ */
+async function draftSkeleton(input: ArchRepoInput): Promise<ArchSkeletonResult> {
+  const repoPath = input.cwd;
+  const facts = await gatherEnrichFacts(repoPath);
+  const files: ArchDraftFile[] = draftSkeletonBuffers({
+    subject: facts.subject,
+    trackedFiles: facts.trackedFiles,
+    imports: facts.pairs,
+    workspaces: facts.workspaces
   }).map((buffer) => ({ path: buffer.path, content: buffer.text }));
   return {
     cwd: repoPath,

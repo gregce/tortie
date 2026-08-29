@@ -25,6 +25,7 @@ import { Codicon, InlineSvg } from '../icons';
 // com.specstory.tortie.
 import specstorySvg from '../assets/brand/specstory.svg?raw';
 import { AgentsSection } from './AgentsSection';
+import { ArchSection } from './ArchSection';
 import { AppearanceSection } from './AppearanceSection';
 import { DiagnosticsSection } from './DiagnosticsSection';
 import { FoldSection } from './FoldSection';
@@ -45,7 +46,8 @@ type SectionId =
   | 'diagnostics'
   | 'appearance'
   | 'machines'
-  | 'project-line';
+  | 'project-line'
+  | 'arch';
 
 /**
  * A rail entry wears either a codicon, which is what app chrome uses, or a
@@ -104,6 +106,12 @@ export const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // which is the View menu's own row. The section id stays `project-line`,
   // because an id is not user facing and moving one buys nothing.
   { id: 'project-line', label: 'Catch Me Up', icon: { codicon: 'comment' } },
+  // Phase 158 appended this one, under the same rule as the sections above,
+  // and before Diagnostics, which the test pins last. The `circuit-board`
+  // glyph, because that is the mark the Architecture view already wears in
+  // the activity bar and the View menu, and the one thing this section
+  // decides is who fills in that view's contract.
+  { id: 'arch', label: 'Architecture', icon: { codicon: 'circuit-board' } },
   // Phase 35 put this here for the reason SpecStory above gives, being that it
   // was the newest section and the least often visited. Phase 87 moved it to
   // the end and it now sits last on purpose. Diagnostics is the one section a
@@ -191,6 +199,7 @@ export function SettingsApp(): React.JSX.Element {
         {section === 'appearance' ? <AppearanceSection /> : null}
         {section === 'machines' ? <MachinesSection /> : null}
         {section === 'project-line' ? <FoldSection /> : null}
+        {section === 'arch' ? <ArchSection /> : null}
       </main>
     </div>
   );

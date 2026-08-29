@@ -32,10 +32,17 @@ export {
 } from './compose';
 export type { FoldComposition } from './compose';
 
-export { foldOptions, FOLD_SUGGESTED_AGENT_ID } from './options';
+export {
+  archOptions,
+  foldOptions,
+  ARCH_SUGGESTED_AGENT_ID,
+  FOLD_SUGGESTED_AGENT_ID
+} from './options';
 export type { FoldOptionsDeps } from './options';
 
 export {
+  archRecipeAgentIds,
+  archRecipeFor,
   foldRecipeAgentIds,
   foldRecipeFor,
   recipeHasModel

@@ -51,3 +51,14 @@ export interface FoldOptions {
   /** One sentence when folding is suspended, null otherwise. */
   suspended: string | null;
 }
+
+/**
+ * The offer Settings draws for the arch enrichment (Phase 158). The SAME
+ * joined shape as the fold's, because the question is the same: which agents
+ * on this machine may run a one shot pass, and which models each one exposes.
+ * The join happens once, in src/main/overview/fold/options.ts, against the
+ * arch recipe table instead of the fold's, and the renderer never assembles
+ * either list. A row with no measured arch recipe arrives disabled with the
+ * same reason tokens the fold uses.
+ */
+export type ArchOptions = FoldOptions;

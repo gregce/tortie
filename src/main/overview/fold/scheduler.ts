@@ -42,14 +42,13 @@ import type { ManifestSessionRecord } from '../../manifest';
 import type { NewFoldVersion, StoredSummary, StoredTurn } from '../store';
 import { composeFoldPrompt, foldInputHash, FOLD_SYSTEM_PROMPT } from './compose';
 import { foldRecipeFor, recipeHasModel } from './recipes';
-import {
-  runFold,
-  windowSuspends,
-  FOLD_BLIND_SUSPEND_MS,
-  type FoldRateWindow,
-  type FoldRun
-} from './spawn';
+import { runFold, type FoldRun } from './spawn';
+import { HarnessSuspension } from './suspension';
 import { validateFoldText } from './validate';
+
+// The threshold moved into fold/suspension.ts with the discipline it names.
+// Re-exported here so every shipped import path keeps working.
+export { FOLD_FAILURES_BEFORE_SUSPEND } from './suspension';
 
 // ---------------------------------------------------------------------------
 // The three constants, each with the reason it is that number
@@ -73,9 +72,6 @@ export const FOLD_MIN_INTERVAL_MS = 60_000;
  * held 3,552 MB.
  */
 export const FOLD_MAX_IN_FLIGHT = 2;
-
-/** Consecutive failures of any kind, fleet wide, before folding suspends. */
-export const FOLD_FAILURES_BEFORE_SUSPEND = 3;
 
 // ---------------------------------------------------------------------------
 // What a boundary is dropped for, and the diagnostics that count it
@@ -215,14 +211,36 @@ export class FoldScheduler {
   private boundaries = 0;
   private spawns = 0;
   private skipped = 0;
-  private consecutiveFailures = 0;
-  private suspendedUntil: number | null = null;
-  private suspendedBecause: string | null = null;
+  /**
+   * The shared suspension discipline (fold/suspension.ts). A suspension
+   * never sets a session's status and never draws anything on the overview
+   * page: the page shows Phase 137's built line for a session with no
+   * summary, which is what it does anyway. Phase 138.1 made the log line a
+   * warning, because a silently suspended fold is exactly the state the
+   * operator could not diagnose.
+   */
+  private readonly suspender: HarnessSuspension;
   private disposed = false;
 
   constructor(deps: FoldSchedulerDeps) {
     this.deps = deps;
     this.now = deps.now ?? ((): number => Date.now());
+    this.suspender = new HarnessSuspension({
+      threeFailuresSentence:
+        'Three folds in a row did not finish, so Tortie has stopped folding for now.',
+      now: this.now,
+      onSuspend: (report) => {
+        logEvent('fold', 'warn', 'fold.suspended', 'folding is suspended', {
+          sessionId: report.key,
+          because: report.cause,
+          untilMs: report.untilMs,
+          consecutiveFailures: report.consecutiveFailures
+        });
+        for (const timer of this.settling.values()) clearTimeout(timer);
+        this.settling.clear();
+        this.pending.clear();
+      }
+    });
   }
 
   /**
@@ -253,13 +271,7 @@ export class FoldScheduler {
 
   /** One sentence when folding is suspended, null otherwise. */
   suspension(): string | null {
-    if (this.suspendedUntil === null) return null;
-    if (this.now() >= this.suspendedUntil) {
-      this.suspendedUntil = null;
-      this.suspendedBecause = null;
-      return null;
-    }
-    return this.suspendedBecause;
+    return this.suspender.suspension();
   }
 
   /**
@@ -417,7 +429,7 @@ export class FoldScheduler {
         choice,
         composed.prompt
       );
-      this.readWindow(run, sessionId);
+      this.suspender.readWindow(run, sessionId);
 
       const base = {
         sessionId,
@@ -458,7 +470,7 @@ export class FoldScheduler {
       };
 
       if (run.outcome !== 'ok' || run.text === null) {
-        this.noteFailure(run, sessionId);
+        this.suspender.noteFailure(run, sessionId);
         finish('failed', null, run.reason ?? run.outcome);
         return;
       }
@@ -468,16 +480,18 @@ export class FoldScheduler {
         // toward the suspension. It IS recorded, because a refusal rate that
         // climbs after a model upgrade is something somebody must be able to
         // read.
-        this.consecutiveFailures = 0;
+        this.suspender.reset();
         finish('refused', null, ruling.refusal);
         return;
       }
-      this.consecutiveFailures = 0;
+      this.suspender.reset();
       finish('kept', ruling.kept, null);
     } catch {
       // A fold that throws must never reach the tick that started it. It is
-      // one sentence on one line, and the page has a correct fallback.
-      this.consecutiveFailures += 1;
+      // one sentence on one line, and the page has a correct fallback. The
+      // throw counts toward the threshold quietly, suspending on the next
+      // counted failure, which is the shipped behavior kept exactly.
+      this.suspender.countQuietly();
     } finally {
       this.inFlight -= 1;
       this.drain();
@@ -508,78 +522,4 @@ export class FoldScheduler {
     });
   };
 
-  // -------------------------------------------------------------------------
-  // The rate window and the suspension
-  // -------------------------------------------------------------------------
-
-  /**
-   * Read the window off every fold and stop folding when it turns.
-   *
-   * This is gate one's third condition, and it is what makes a running fold
-   * safe at the one condition gate one could not test, which is a window near
-   * its cap rather than at the 0.33 it sat at.
-   */
-  private readWindow(run: FoldRun, sessionId: string): void {
-    if (run.outcome === 'rate-limited') {
-      this.suspend(
-        run.window,
-        'The model refused because your usage limit was reached.',
-        'usage-limit',
-        sessionId
-      );
-      return;
-    }
-    // A 529 is the server limiting requests for a moment, and it is not a
-    // usage limit. Skip the turn and never suspend on one.
-    if (run.outcome === 'overloaded') return;
-    if (windowSuspends(run.window)) {
-      this.suspend(
-        run.window,
-        'Your usage window is close to its limit.',
-        'window-near-limit',
-        sessionId
-      );
-    }
-  }
-
-  private noteFailure(run: FoldRun, sessionId: string): void {
-    if (run.outcome === 'overloaded') return;
-    this.consecutiveFailures += 1;
-    if (this.consecutiveFailures < FOLD_FAILURES_BEFORE_SUSPEND) return;
-    this.suspend(
-      null,
-      'Three folds in a row did not finish, so Tortie has stopped folding for now.',
-      'three-failures',
-      sessionId
-    );
-  }
-
-  /**
-   * Suspend folding. A suspension never sets a session's status and never
-   * draws anything on the overview page. The page shows Phase 137's built
-   * line for a session with no summary, which is what it does anyway.
-   */
-  private suspend(
-    window: FoldRateWindow | null,
-    sentence: string,
-    because: 'usage-limit' | 'window-near-limit' | 'three-failures',
-    sessionId: string
-  ): void {
-    const until = window?.resetsAtMs ?? this.now() + FOLD_BLIND_SUSPEND_MS;
-    // Phase 138.1. A silently suspended fold is exactly the state the
-    // operator could not diagnose, so this is a warning rather than a note.
-    // The session named is the one whose fold tripped the rule.
-    logEvent('fold', 'warn', 'fold.suspended', 'folding is suspended', {
-      sessionId,
-      because,
-      untilMs: until,
-      consecutiveFailures: this.consecutiveFailures
-    });
-    this.suspendedUntil = until;
-    this.suspendedBecause = sentence;
-    this.consecutiveFailures = 0;
-    for (const timer of this.settling.values()) clearTimeout(timer);
-    this.settling.clear();
-    this.pending.clear();
-  }
 }

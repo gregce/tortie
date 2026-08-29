@@ -48,7 +48,8 @@ export function toMapModel(result: ArchMapResult): ArchMapModel {
       band: g.band,
       provenance: g.provenance,
       unresolved: importsUnknown(g),
-      overlaid: g.componentId !== null
+      overlaid: g.componentId !== null,
+      description: g.description
     })),
     edges: result.edges.map((e) => ({
       from: e.from,
@@ -88,7 +89,8 @@ export function toPartMapModel(part: ArchMapPartSlice): ArchMapModel {
       band: m.band,
       provenance: m.provenance,
       unresolved: importsUnknown(m),
-      overlaid: m.componentId !== null
+      overlaid: m.componentId !== null,
+      description: m.description
     })),
     edges: part.edges.map((e) => ({
       from: e.from,

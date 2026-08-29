@@ -18,7 +18,7 @@ import type {
 } from '@shared/settings';
 import { defaultGmuxSettings } from '@shared/settings';
 import type { AgentsScanResult } from '@shared/types';
-import type { FoldOptions } from '@shared/fold';
+import type { ArchOptions, FoldOptions } from '@shared/fold';
 import type { ConfigRowsResult, InstalledGmuxApi } from '@shared/ipc';
 import { gmuxBridge } from '../bridge';
 
@@ -74,6 +74,17 @@ export interface SettingsStoreState {
   foldOptions: FoldOptions | null;
   foldOptionsLoaded: boolean;
 
+  /**
+   * PHASE 158. Which agents may fill in the architecture contract, and which
+   * models each one exposes. The same posture as `foldOptions` above: built
+   * in MAIN from the merged agent table, the Phase 23 confirm gate and the
+   * compiled arch recipe table, never assembled here, and reading the list
+   * starts nothing. Null means "not read yet", and stays null for the life
+   * of the window on a build whose preload has no `archOptions` member.
+   */
+  archOptions: ArchOptions | null;
+  archOptionsLoaded: boolean;
+
   /** Idempotent: load settings + catalogs + scan + config + fold options, subscribe. */
   init(): void;
   /** Persist a shallow patch; resolves the post-patch settings (or null
@@ -98,6 +109,9 @@ export interface SettingsStoreState {
 
   /** Re-read which agents and models may write the project line. Reads only. */
   refreshFoldOptions(): Promise<void>;
+
+  /** Re-read which agents and models may fill in the contract. Reads only. */
+  refreshArchOptions(): Promise<void>;
 }
 
 let initialized = false;
@@ -114,6 +128,8 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
   configBusy: null,
   foldOptions: null,
   foldOptionsLoaded: false,
+  archOptions: null,
+  archOptionsLoaded: false,
 
   init() {
     if (initialized) return;
@@ -155,6 +171,9 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
     // compiled table and the agreements it already holds, so nothing is
     // spawned and no file under the person's home is opened.
     void get().refreshFoldOptions();
+
+    // Phase 158. The arch twin of the read above, and the same posture.
+    void get().refreshArchOptions();
 
     // Never unsubscribed — the store lives as long as the window.
     b.onSettingsChanged?.((settings) => set({ settings, settingsLoaded: true }));
@@ -255,6 +274,22 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
     } catch {
       // Leave the last good list up rather than blanking the picker.
       set({ foldOptionsLoaded: true });
+    }
+  },
+
+  async refreshArchOptions() {
+    const b = bridge();
+    // Feature detected on the one method, for the reason foldOptions is: the
+    // overview object shipped without this call on it.
+    if (typeof b?.overview?.archOptions !== 'function') {
+      set({ archOptionsLoaded: true });
+      return;
+    }
+    try {
+      set({ archOptions: await b.overview.archOptions(), archOptionsLoaded: true });
+    } catch {
+      // Leave the last good list up rather than blanking the picker.
+      set({ archOptionsLoaded: true });
     }
   }
 }));

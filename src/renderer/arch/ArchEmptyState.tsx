@@ -1,45 +1,43 @@
 /**
- * THE TEACHING SECTION, demoted from a whole-surface empty state in Phase 160.
+ * THE CONTRACT OFFER, one path in since Phase 158.
  *
- * ## Why this is a section now and not the view
+ * ## Why there is one button where there were two
  *
- * Until this phase a repository with no `docs/arch/` saw nothing but teaching
- * copy, because the view had nothing to draw without a contract. The operator
- * inverted that on 2026-08-27: the MAP is the product and the contract is
- * annotation on it. The map draws for any repository from the code alone, so
- * the pane is never empty again. What remains of the empty state is this: the
- * two ways to get a contract, offered quietly under the things that already
- * work, because a contract is something the map gets better with rather than
- * something the view is useless without.
+ * Until this phase the section offered a fork: a deterministic skeleton as
+ * unsaved buffers, or a prompt to paste at an agent. The operator pressed the
+ * second one and it was bad, and he ruled the fork itself the defect: picking
+ * determinism or no determinism must never be an operator choice. So there is
+ * one way a contract starts. The button asks MAIN to write the deterministic
+ * skeleton under `docs/arch/`, the write lands as an ordinary uncommitted
+ * change a person reviews in Source Control, and where the person has picked
+ * an agent in Settings the same gesture continues into the enriching pass.
+ * The paste-a-prompt module is deleted, and with it the defect it carried:
+ * a prompt that told every repository on this machine to read a file that
+ * only exists in one of them.
  *
- * ## The two routes, and what each of them writes
+ * ## What the model adds, said in one quiet sentence
  *
- *  1. **Draft a contract.** Main composes a deterministic skeleton and writes
- *     nothing. Every file arrives as text and opens as an editor buffer that
- *     is dirty from the moment it appears, so the person reads it, edits it
- *     and presses Save, or closes it and nothing happened. The one write this
- *     gesture makes is creating the folders those buffers would be saved into,
- *     and the control says so before it is pressed.
- *  2. **Ask an agent to draft it.** The prompt is composed here, copied to the
- *     clipboard, and the ORDINARY new session sheet opens. The person picks
- *     the agent, the launch flags and the capture setting exactly as they
- *     would for any other session. Tortie starts nothing, and nothing is typed
- *     into any session.
- *
- * The prompt is shown in full underneath, in a plain text box, for two
- * reasons. A person should be able to read what they are about to hand an
- * agent before they hand it over. And a clipboard that refuses, which happens,
- * must not leave the gesture with nothing to fall back on.
+ * The skeleton is complete on its own. A model's job is the part determinism
+ * cannot do: what a part is FOR, may into must or must-not, and the gaps.
+ * With an agent picked in Settings the section says the pass will follow;
+ * with none it says the pass is off, plainly, so off never reads as broken.
+ * The pointer is to Settings because that is the ONE gate: nothing here can
+ * start an agent the person has not confirmed there.
  *
  * ## The number in the guidance is the corpus's own
  *
  * 5 to 10. Research 49 section 9.6 read thirty architecture documents the
- * operator wrote by hand and none of them opens with more than nine boxes. It
- * is in the guidance AND inside the prompt, because an agent told to "write
- * the contract" with no number writes forty.
+ * operator wrote by hand and none of them opens with more than nine boxes.
+ *
+ * ## The resting face is one line (the copy ruling, 2026-08-28)
+ *
+ * The operator ruled the panel was carrying too many words. The face now
+ * says one line and one labelled button; what a contract is and the 5 to 10
+ * guidance sit behind the collapsed disclosure, and what the button writes
+ * rides its hover title.
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { targetOfProject, localPathOf } from '@shared/workspace-target';
 import { Codicon } from '../icons';
 import { useApp } from '../state/store';
@@ -48,28 +46,56 @@ import {
   ARCH_DRAFT_BODY,
   ARCH_DRAFT_TITLE,
   ARCH_EMPTY_BODY,
-  ARCH_PROMISE_GUIDANCE,
-  ARCH_SEED_BODY,
-  ARCH_SEED_TITLE
+  ARCH_EMPTY_LONG,
+  ARCH_EMPTY_MORE,
+  ARCH_PASS_OFF,
+  ARCH_PASS_QUIET,
+  ARCH_PROMISE_GUIDANCE
 } from './copy';
-import { seedPromptText } from './seed-prompt';
-import { skeletonAvailable } from './bridge';
+import { passAvailable, seedAvailable } from './bridge';
 import { useArch } from './store';
+
+/**
+ * The one sentence about the pass, decided by what this build and this
+ * repository actually have. Exported pure for the unit suite: an agent
+ * picked in Settings earns the quiet promise, anything else says off
+ * plainly, and a build with no pass half says nothing about a pass at all.
+ */
+export function passSentence(
+  passHalf: boolean,
+  chosen: boolean
+): string | null {
+  if (!passHalf) return null;
+  return chosen ? ARCH_PASS_QUIET : ARCH_PASS_OFF;
+}
 
 export function ArchContractOffer(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const drafting = useArch((s) => s.drafting);
+  const enriching = useArch((s) => s.enriching);
   const draft = useArch((s) => s.draft);
-  const seed = useArch((s) => s.seed);
+  const loadPass = useArch((s) => s.loadPass);
 
   const repoPath = useMemo(() => {
     const project = projects.find((p) => p.id === activeProjectId) ?? null;
     return localPathOf(targetOfProject(project));
   }, [projects, activeProjectId]);
 
-  const prompt = repoPath === null ? null : seedPromptText(repoPath);
-  const canDraft = skeletonAvailable();
+  // The pass status says whether an agent is picked, so the sentence under
+  // the button is true rather than hopeful. One read per repository.
+  useEffect(() => {
+    if (repoPath !== null) void loadPass(repoPath);
+  }, [repoPath, loadPass]);
+  const entry = useArch((s) =>
+    repoPath === null ? null : (s.passes[repoPath] ?? null)
+  );
+
+  const canDraft = seedAvailable();
+  const sentence = passSentence(
+    passAvailable(),
+    entry?.status?.chosen ?? false
+  );
 
   return (
     <section className="arch-empty" aria-label={ARCH_CONTRACT_OFFER_TITLE}>
@@ -77,40 +103,33 @@ export function ArchContractOffer(): React.JSX.Element {
         <span className="section-toggle">{ARCH_CONTRACT_OFFER_TITLE}</span>
       </div>
       <p className="arch-empty-body">{ARCH_EMPTY_BODY}</p>
-      <p className="arch-empty-body">{ARCH_PROMISE_GUIDANCE}</p>
 
       <div className="arch-empty-actions">
         <button
           type="button"
           className="arch-empty-action"
-          disabled={!canDraft || drafting || repoPath === null}
+          disabled={!canDraft || drafting || enriching || repoPath === null}
+          title={ARCH_DRAFT_BODY}
           onClick={() => void draft()}
         >
           <Codicon name="new-file" size={14} />
           <span className="arch-empty-action-title">{ARCH_DRAFT_TITLE}</span>
-          <span className="arch-empty-action-body">{ARCH_DRAFT_BODY}</span>
-        </button>
-        <button
-          type="button"
-          className="arch-empty-action"
-          disabled={repoPath === null}
-          onClick={() => seed()}
-        >
-          <Codicon name="comment" size={14} />
-          <span className="arch-empty-action-title">{ARCH_SEED_TITLE}</span>
-          <span className="arch-empty-action-body">{ARCH_SEED_BODY}</span>
         </button>
       </div>
 
-      {prompt !== null ? (
-        <details className="arch-empty-prompt">
-          <summary>What the prompt says</summary>
-          {/* PLAIN TEXT, for the reason the prose panel is plain text: this is
-              the text that will reach an agent, and a person is entitled to
-              read the bytes rather than a rendering of them. */}
-          <pre className="arch-empty-prompt-text">{prompt}</pre>
-        </details>
+      {sentence !== null ? (
+        <p className="arch-empty-body arch-pass-sentence">{sentence}</p>
       ) : null}
+
+      {/* THE ONE DISCLOSURE (the copy ruling, 2026-08-28). The teaching
+          paragraph and the corpus number live here, collapsed, so the
+          resting face carries one line and the person who wants the whole
+          story is one click from it. */}
+      <details className="arch-more">
+        <summary>{ARCH_EMPTY_MORE}</summary>
+        <p className="arch-empty-body">{ARCH_EMPTY_LONG}</p>
+        <p className="arch-empty-body">{ARCH_PROMISE_GUIDANCE}</p>
+      </details>
     </section>
   );
 }

@@ -180,7 +180,8 @@ describe('the seal', () => {
     const out = store.withSealedDangerState(settings, {
       defaults: [],
       acks: [],
-      fold: null
+      fold: null,
+      arch: null
     });
     expect(out.settings.fold).toEqual({ agentId: null, model: null });
     expect(out.rejected).toEqual([`${AGENT} ${MODEL}`]);
@@ -194,7 +195,8 @@ describe('the seal', () => {
     const out = store.withSealedDangerState(settings, {
       defaults: [],
       acks: [],
-      fold: `${AGENT} ${MODEL}`
+      fold: `${AGENT} ${MODEL}`,
+      arch: null
     });
     expect(out.settings.fold).toEqual({ agentId: AGENT, model: MODEL });
     expect(out.rejected).toEqual([]);

@@ -7,6 +7,13 @@
  * because this view's whole job is telling a person something is wrong and the
  * difference between "broke" and "cannot be checked" is the feature.
  *
+ * THE COPY RULING (the operator, 2026-08-28): the panel carries just enough
+ * words to say what is happening. Short labels, one line sentences and
+ * visual state on the resting face; a longer explanation lives behind a
+ * hover title or one collapsed disclosure, never on the face. The unit
+ * suite counts the words on every resting sentence, so a later round that
+ * grows one back into a paragraph fails before it ships.
+ *
  * THE VOCABULARY, fixed here so no component invents a second word for it:
  *
  *  - A promise HOLDS, BROKE, IS MISSING, or CANNOT BE CHECKED. Those four
@@ -45,6 +52,7 @@ export const ARCH_ELSEWHERE =
 /** The control in the pane that opens or focuses the map tab. */
 export const ARCH_MAP_OPEN_TITLE = 'Open the map';
 
+/** What the control does, on the hover title only (the copy ruling). */
 export const ARCH_MAP_OPEN_BODY =
   'Draws this repository as a small map in a full size tab. No contract is needed and nothing is written.';
 
@@ -89,7 +97,7 @@ export const ARCH_COMPUTED_TITLE = 'Computed parts';
  * contract ADDS, because the map already exists without one.
  */
 export const ARCH_CONTRACT_ADDS =
-  'The map is drawn from the code alone. A contract adds your own names for its parts and promises Tortie checks, and the same map then wears them.';
+  'A contract adds your names and checked promises to this map.';
 
 /** The demoted teaching section's heading. */
 export const ARCH_CONTRACT_OFFER_TITLE = 'Add a contract';
@@ -97,7 +105,20 @@ export const ARCH_CONTRACT_OFFER_TITLE = 'Add a contract';
 /** No `docs/arch/` at all, which is every repository until somebody writes one. */
 export const ARCH_EMPTY_TITLE = 'No contract in this repository yet';
 
+/** The offer's one resting line. The paragraph moved behind the disclosure. */
+
 export const ARCH_EMPTY_BODY =
+  'Promises about how the parts of this project may touch, checked against the code.';
+
+/** The collapsed disclosure's label. The teaching lives behind it. */
+export const ARCH_EMPTY_MORE = 'What a contract is';
+
+/**
+ * The teaching, behind the disclosure (the copy ruling, 2026-08-28). This
+ * is the paragraph that used to sit on the resting face; the face now says
+ * the one line above and this opens on a click.
+ */
+export const ARCH_EMPTY_LONG =
   'A contract is a small set of promises about how the parts of this project are allowed to touch. Tortie checks them against the code and says which ones hold, which ones broke and at which line, and which ones it cannot check.';
 
 /**
@@ -109,46 +130,63 @@ export const ARCH_EMPTY_BODY =
 export const ARCH_PROMISE_GUIDANCE =
   'A healthy set is 5 to 10 promises. Fewer says nothing, and more is a second codebase to keep current.';
 
-/** What the Draft control does, said before it is pressed. */
-export const ARCH_DRAFT_TITLE = 'Draft a contract';
+/** What the one control does, said before it is pressed (Phase 158). */
+export const ARCH_DRAFT_TITLE = 'Draft the contract';
 
 /**
- * IT SAYS THE FOLDER OUT LOUD, and that sentence is load bearing.
+ * IT SAYS THE WRITE OUT LOUD, and that sentence is load bearing.
  *
- * The gesture creates `docs/arch` and `docs/arch/components`, because without
- * them the person's first Save fails on a folder that has never existed. That
- * is the only thing it writes, and every byte of the drafts themselves lands in
- * an unsaved editor buffer. The first version of this string said Tortie writes
- * nothing at all, which was not true of the folders, and this phase is the one
- * that lands the Zen line saying checking a promise is Tortie reading files.
+ * Phase 158 replaced the unsaved buffers with a direct write, on the
+ * operator's own amendment: the gesture asks main to write the deterministic
+ * skeleton under `docs/arch/`, so the result lands as an ordinary
+ * uncommitted change a person reviews in Source Control, never as buffers
+ * they must save one by one. The sentence names the write before the button
+ * is pressed, because the earlier version of this surface once promised the
+ * opposite of what it did. Since the copy ruling it rides the button's hover
+ * title rather than its face.
  */
 export const ARCH_DRAFT_BODY =
-  'Opens the files as drafts you have not saved. Tortie creates the two folders they would be saved into, docs/arch and docs/arch/components, and writes nothing else until you press Save on each one.';
+  'Writes a small deterministic skeleton into docs/arch, drawn from the code alone. It lands as an ordinary uncommitted change, so Source Control shows every line and you commit it or throw it away.';
 
-/** What the seeding control does, said before it is pressed. */
-export const ARCH_SEED_TITLE = 'Ask an agent to draft it';
+/**
+ * THE ONE QUIET SENTENCE ABOUT THE PASS, with its Settings pointer.
+ *
+ * There is one way a contract starts. A model improves it afterwards, where
+ * a model is the right tool, and only under the agent the person confirmed
+ * in Settings. These two sentences are the whole story the offer tells; the
+ * run face below tells the rest while it happens.
+ */
+export const ARCH_PASS_QUIET =
+  'The agent you picked in Settings then fills it in.';
 
-export const ARCH_SEED_BODY =
-  'Copies a prompt for you and opens the ordinary new session sheet. You choose the agent and start it, exactly as you would for any other session.';
-
-/** Said once, after the prompt is on the clipboard. */
-export const ARCH_SEED_COPIED =
-  'The prompt is on your clipboard. Start a session and paste it in.';
+/** The pass is off. Said plainly, so off never reads as broken. */
+export const ARCH_PASS_OFF = 'No agent fills this in yet. Pick one in Settings.';
 
 /** The one sentence the prose panel carries under every description. */
 export const ARCH_PROSE_UNVERIFIED =
-  'Tortie never checks this text. It is what the author wrote.';
+  'The author\'s own words. Tortie never checks them.';
 
 /** What a behavioural promise with evidence actually bought. */
 export const ARCH_PARTLY_CHECKED_NOTE =
-  'Tortie proved the quoted code is still where the author said it is. It did not prove what happens when it runs.';
+  'The quoted code is still there. What it does when run is unproven.';
 
 /** The gap strip's own heading, first class because the corpus makes it so. */
 export const ARCH_GAPS_TITLE = 'Known gaps';
 
-/** The accepted-divergence rule, said on the face of the strip. */
+/**
+ * The accepted-divergence rule, said on the face of the strip.
+ *
+ * PHASE 158 CHANGED THE SECOND SENTENCE. Accepting a divergence became a
+ * button on the failing row, on the operator's own amendment, so "Tortie
+ * never writes that file" stopped being true. What stays true, and what the
+ * sentence now says, is the part that matters: the decision and the reason
+ * are the person's, the button is the one way the file is ever written, and
+ * every accepted row still shows here in the person's own words so an agent
+ * cannot quietly accept its own violation. Since the copy ruling the strip
+ * says the count and the rows, and this sentence rides the hover title.
+ */
 export const ARCH_ACCEPTED_NOTE =
-  'Accepted divergences are counted here with the reason the author gave. Tortie reads that file and never writes it.';
+  'Accepted divergences are counted here with the reason the person gave. The accept control on a failing row is the one way Tortie ever writes that file.';
 
 /**
  * THE FOUR VERDICT WORDS, THE THREE COVERAGE WORDS, THE FRESHNESS RIBBON AND
@@ -222,3 +260,82 @@ export const ARCH_SCOPED_NO_PROMISES =
 /** The scoped failure list when everything checkable in the part holds. */
 export const ARCH_SCOPED_NO_FAILURES =
   'Every promise Tortie can check in this part holds.';
+
+/**
+ * PHASE 158, the run face and the accept verb.
+ *
+ * The pass is visible while it runs, the way a session row says written and
+ * the time. Every state below is one sentence a person can act on, and a
+ * refused run says so with the refusal named rather than pretending nothing
+ * happened.
+ */
+
+/** The run face's own heading. */
+export const ARCH_PASS_TITLE = 'Filling in';
+
+/** The control that runs the pass over an existing contract. */
+export const ARCH_ENRICH_TITLE = 'Fill in the contract';
+
+/** What the run control does, on the hover title only (the copy ruling). */
+export const ARCH_ENRICH_BODY =
+  'Runs the agent you confirmed in Settings once over this repository. Its answer is checked whole before anything is written, and what it writes lands as an ordinary uncommitted change.';
+
+/** The pass is running right now. */
+export const ARCH_PASS_RUNNING =
+  'Running. Nothing is written until the whole answer passes the checks.';
+
+/** The last answer was refused whole. The refusal name follows this lead. */
+export const ARCH_PASS_REFUSED =
+  'The last answer was refused whole and nothing was written.';
+
+/** The last run failed for a reason that is not a refusal. */
+export const ARCH_PASS_FAILED = 'The last run failed and nothing was written.';
+
+/** Repeated failures parked the pass, the fold's own discipline. */
+export const ARCH_PASS_SUSPENDED =
+  'Paused after repeated failures. Run it again when you want another try.';
+
+/** The heading over the answer's regroup suggestions, when it made any. */
+export const ARCH_PASS_SUGGESTIONS = 'Suggested regroupings';
+
+/** The rule the suggestions live under, said on their face. */
+export const ARCH_PASS_SUGGESTIONS_NOTE = 'Listed only, never written.';
+
+/**
+ * The sentence for a gesture main refused before any spawn. The tokens are
+ * main's, the fold options convention: main decides, the renderer writes the
+ * words, and an unknown token still gets an honest sentence with the token
+ * named rather than a blank face.
+ */
+export function enrichRefusalSentence(token: string): string {
+  switch (token) {
+    case 'no-choice':
+      return ARCH_PASS_OFF;
+    case 'not-confirmed':
+      return 'The picked agent is not confirmed in Settings right now, so nothing was started.';
+    case 'no-recipe':
+      return 'The picked agent has no measured recipe yet, so nothing was started.';
+    case 'in-flight':
+      return 'A pass is already running for this repository.';
+    case 'suspended':
+      return ARCH_PASS_SUSPENDED;
+    default:
+      return `Nothing was started. The reason is named ${token}.`;
+  }
+}
+
+/** The accept control on a failing row. One word, the decision is the click. */
+export const ARCH_ACCEPT_TITLE = 'Accept';
+
+/** An offence a baseline row already covers. One word; the reason rides hover. */
+export const ARCH_OFFENCE_ACCEPTED = 'accepted';
+
+/** What pressing it does, said before it is pressed. */
+export const ARCH_ACCEPT_BODY =
+  'Writes this divergence into docs/arch/baseline.json with your reason. The decision and the reason are yours, and the typing is not.';
+
+/** The reason field, which the write refuses to go without. */
+export const ARCH_ACCEPT_REASON_LABEL = 'Why this divergence is fine';
+
+/** The confirm control inside the open accept form. */
+export const ARCH_ACCEPT_WRITE = 'Write it down';

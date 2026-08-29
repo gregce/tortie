@@ -93,10 +93,12 @@ const api: InstalledGmuxApi = {
   // through main and write only Tortie's own overview store. The page
   // feature-detects the object, so a build without it says one sentence.
   overview,
-  // Phase 63 optional extra: the arch view's three reads and two pushes. All
-  // three read files; none writes one, spawns anything beyond the git Tortie
-  // already runs, or touches a session. The view feature-detects the object,
-  // so a build without it says one sentence instead of breaking.
+  // Phase 63 optional extra, widened by Phase 158: the arch view's reads plus
+  // the seed, enrich and accept asks. Main owns every write under docs/arch,
+  // and enrich is the one method that can start an agent, refused in main
+  // unless the person confirmed that agent in Settings. The view
+  // feature-detects the object, so a build without it says one sentence
+  // instead of breaking.
   arch,
   // Phase 46 optional extra: the SCM view's Runs section. Read only, and the
   // renderer feature-detects it, so a build without it simply has no section.

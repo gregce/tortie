@@ -100,17 +100,25 @@ const NO_ENV = (): Readonly<Record<string, string>> => ({});
 // claude
 // ---------------------------------------------------------------------------
 
+/**
+ * The models the claude CLI exposes to `--model`, offered by both one shot
+ * surfaces (the fold and, since Phase 158, the arch enrichment). One list,
+ * because a model the fold can name is a model the pass can name, and the
+ * measured one comes first on both.
+ */
+const CLAUDE_MODELS: FoldModelOption[] = [
+  { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5, the one Tortie measured' },
+  { id: 'haiku', label: 'Haiku, whichever is latest' },
+  { id: 'sonnet', label: 'Sonnet, whichever is latest' },
+  { id: 'opus', label: 'Opus, whichever is latest' }
+];
+
 /** The measured claude recipe. Gate one's lean set, plus gate two's caching flag. */
 const CLAUDE_RECIPE: FoldRecipe = {
   agentId: 'claude',
   version: 1,
   measuredOn: '2026-08-23',
-  models: [
-    { id: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5, the one Tortie measured' },
-    { id: 'haiku', label: 'Haiku, whichever is latest' },
-    { id: 'sonnet', label: 'Sonnet, whichever is latest' },
-    { id: 'opus', label: 'Opus, whichever is latest' }
-  ],
+  models: CLAUDE_MODELS,
   suggestedModel: 'claude-haiku-4-5-20251001',
   systemPromptMode: 'flag',
   env: () => ({
@@ -469,6 +477,87 @@ const RECIPES: readonly FoldRecipe[] = [
  *   unknown. Four of the six.
  * - droid. Not installed on this Mac, so nothing could be measured.
  */
+
+// ---------------------------------------------------------------------------
+// The arch enrichment rows (Phase 158)
+// ---------------------------------------------------------------------------
+
+/**
+ * The arch pass reuses the SAME recipe interface and the same one shot spawn,
+ * with its own rows, because the question is a different size. A fold reads
+ * one sentence back under a 30 second deadline and a five cent fuse; an
+ * enrichment reads a whole contract back, so its row carries its own timeout,
+ * its own budget fuse and its own measured date. recipes.ts discipline is
+ * absolute here too: a row exists only when the flags were run by hand, so
+ * ONE agent ships an arch row and the other agents show in Settings as
+ * `not-measured` disabled rows until someone measures them.
+ *
+ * THE CLAUDE ROW WAS MEASURED ON 2026-08-28 over the lift-sys repository
+ * copy, 582 tracked files: a 15,518 byte composed prompt (the drafted
+ * skeleton plus the fact block) answered in one shot in 23.05 s at
+ * $0.023873, with an 8,856 byte JSON contract that passed the enrichment
+ * validator whole and painted 9 of 9 map boxes. The flags are the fold's
+ * measured claude set unchanged, because every one of them is about
+ * containment and preamble cost rather than about the question; only the
+ * deadline and the fuse moved.
+ */
+const ARCH_CLAUDE_RECIPE: FoldRecipe = {
+  agentId: 'claude',
+  version: 1,
+  measuredOn: '2026-08-28',
+  models: CLAUDE_MODELS,
+  suggestedModel: 'claude-haiku-4-5-20251001',
+  systemPromptMode: 'flag',
+  env: () => ({
+    // The fold's measurement carries over: thinking spent 1,867 tokens on a
+    // one sentence answer, and an enrichment is judged mechanically after the
+    // fact, so the thinking budget stays off here too.
+    MAX_THINKING_TOKENS: '0',
+    // One shot process; a cache block written at the write price would never
+    // be read again.
+    DISABLE_PROMPT_CACHING: '1'
+  }),
+  argv: ({ prompt, model, systemPrompt }) => [
+    '-p',
+    prompt,
+    '--model',
+    model,
+    '--system-prompt',
+    systemPrompt,
+    '--tools',
+    '',
+    '--strict-mcp-config',
+    '--disable-slash-commands',
+    // Nothing under the person's home grows a session row per enrichment.
+    '--no-session-persistence',
+    '--setting-sources',
+    '',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    // The cost fuse, twice the fold's, because the answer is a contract
+    // rather than a sentence. The measured run cost well under it.
+    '--max-budget-usd',
+    '0.10'
+  ],
+  read: readClaudeStream,
+  // The measured run answered in 23.05 s wall, so a fold's 30 s deadline
+  // would sit one slow answer away from a spurious timeout. Two and a half
+  // minutes is the deadline, not the expectation.
+  timeoutMs: 150_000
+};
+
+const ARCH_RECIPES: readonly FoldRecipe[] = [ARCH_CLAUDE_RECIPE];
+
+/** The arch enrichment recipe for an agent, or null when none is measured. */
+export function archRecipeFor(agentId: string): FoldRecipe | null {
+  return ARCH_RECIPES.find((recipe) => recipe.agentId === agentId) ?? null;
+}
+
+/** Every agent Tortie has a measured arch enrichment recipe for. */
+export function archRecipeAgentIds(): string[] {
+  return ARCH_RECIPES.map((recipe) => recipe.agentId);
+}
 
 /** The recipe for an agent, or null when Tortie has not measured one. */
 export function foldRecipeFor(agentId: string): FoldRecipe | null {

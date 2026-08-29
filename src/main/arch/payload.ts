@@ -430,9 +430,10 @@ export function composeArchPayload(input: ArchPayloadInput): ArchPayloadResult {
   );
   out.push(
     'Tortie composed this text from docs/arch and from its own checks. Tortie ' +
-      'never writes docs/arch. Every path is relative to the repository root, ' +
-      'no file contents are included, and every line quoted out of docs/arch ' +
-      `is marked "${ARCH_UNVERIFIED_MARK}".`
+      'writes docs/arch only when a person asks it to, and every write lands ' +
+      'as an ordinary uncommitted change. Every path is relative to the ' +
+      'repository root, no file contents are included, and every line quoted ' +
+      `out of docs/arch is marked "${ARCH_UNVERIFIED_MARK}".`
   );
 
   // ---- the parts -----------------------------------------------------------

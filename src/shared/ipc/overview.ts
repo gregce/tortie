@@ -23,7 +23,7 @@
  * MAIN: src/main/overview/ipc.ts, the one `overview:*` registrar.
  */
 
-import type { FoldOptions } from '../fold';
+import type { ArchOptions, FoldOptions } from '../fold';
 import type {
   OverviewProject,
   OverviewProjectInput,
@@ -44,6 +44,14 @@ export interface OverviewInvokeChannelMap {
    * recipe table. It starts nothing and it spawns nothing.
    */
   'fold:options': { req: []; res: FoldOptions };
+  /**
+   * The harnesses and models Settings offers for the arch enrichment
+   * (Phase 158). The same three way join as `fold:options`, run against the
+   * compiled ARCH recipe table instead of the fold's. It starts nothing and
+   * it spawns nothing: choosing an agent in Settings never runs the pass,
+   * which starts only from a person's gesture in the Architecture view.
+   */
+  'arch:options': { req: []; res: ArchOptions };
   /**
    * The story one session told, version by version (Phase 143). Main reads
    * the `summary` table the fold already wrote, keeps the versions it kept,
@@ -72,6 +80,7 @@ export interface GmuxOverviewExtras {
     project(input: OverviewProjectInput): Promise<OverviewProject>;
     sessions(input: OverviewSessionsInput): Promise<OverviewProject>;
     foldOptions(): Promise<FoldOptions>;
+    archOptions(): Promise<ArchOptions>;
     timeline(sessionId: string): Promise<OverviewTimeline>;
     timelineTurns(
       input: OverviewTimelineTurnsInput
