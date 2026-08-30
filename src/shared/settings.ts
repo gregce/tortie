@@ -95,6 +95,11 @@ export interface GmuxSettings {
    */
   workAreaFont: WorkAreaFont;
   /**
+   * The family a 'custom' workAreaFont draws with (Phase 78.1). '' when none
+   * was typed, which reads as Menlo through the same fallback System uses.
+   */
+  workAreaFontCustom: string;
+  /**
    * Who writes the project line (Phase 138). Absent on every install that has
    * never opened Settings and picked one, which is what "None" is.
    *
@@ -245,11 +250,12 @@ export function sanitizeContrastLevel(value: unknown): ContrastLevel {
  * There is no size field anywhere. docs/DESIGN-SPEC.md:601 withdrew the size
  * stepper, and per-region zoom already changes the terminal's size for real.
  */
-export type WorkAreaFont = 'system' | 'jetbrains-mono' | 'source-code-pro';
+export type WorkAreaFont = 'system' | 'jetbrains-mono' | 'source-code-pro' | 'custom';
 export const WORK_AREA_FONTS: readonly WorkAreaFont[] = [
   'system',
   'jetbrains-mono',
-  'source-code-pro'
+  'source-code-pro',
+  'custom'
 ];
 export const DEFAULT_WORK_AREA_FONT: WorkAreaFont = 'system';
 
@@ -259,6 +265,52 @@ export function sanitizeWorkAreaFont(value: unknown): WorkAreaFont {
     (WORK_AREA_FONTS as readonly string[]).includes(value)
     ? (value as WorkAreaFont)
     : DEFAULT_WORK_AREA_FONT;
+}
+
+/**
+ * The family name a 'custom' `workAreaFont` resolves to (Phase 78.1). This is
+ * the one thing the preset table cannot hold: a user-typed family is data, not
+ * a compiled row, so it is persisted beside the id rather than baked into
+ * src/renderer/theme/work-fonts.ts. A custom face ships no bytes, so a capture
+ * taken under it falls back to Menlo exactly the way the System preset's does.
+ */
+export const DEFAULT_WORK_AREA_FONT_CUSTOM = '';
+
+/**
+ * The longest custom family this accepts (Phase 174). A real family name is a
+ * few words, so a cap far above that costs a legitimate user nothing and stops
+ * a pathological paste (the charter's 4,000 character case) from ever reaching
+ * a CSS custom property, xterm's font option or the capture SVG.
+ */
+export const MAX_WORK_AREA_FONT_CUSTOM = 64;
+
+/**
+ * A persisted custom family, cleaned so no value can break out of the
+ * `'<family>', Menlo, monospace` stack it is dropped into (Phase 174). The
+ * family flows into a CSS custom property, xterm's `fontFamily`, Monaco's
+ * option and the capture SVG's inline `font-family`. This is the one boundary
+ * that decides what those sinks ever see, so it refuses every character that
+ * could end the quoted string, start a new declaration, open a function like
+ * `url()`, or break the SVG's style attribute. A real family name carries none
+ * of them, so the cleaning is invisible to a legitimate name and total for a
+ * hostile one. The result is trimmed, its inner whitespace collapsed, and
+ * capped; '' when nothing usable is left, which reads as Menlo through the
+ * same fallback the System preset uses.
+ */
+export function sanitizeWorkAreaFontCustom(value: unknown): string {
+  if (typeof value !== 'string') return DEFAULT_WORK_AREA_FONT_CUSTOM;
+  const cleaned = value
+    // Control characters, which includes newlines, carriage returns and tabs.
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+    // Quotes, backslash, and the structural punctuation a family never holds:
+    // string delimiters, statement and declaration terminators, and the
+    // brackets that open a function or a block. Stripping the parenthesis pair
+    // is what neutralises a `url(...)` fragment.
+    .replace(/["'`\\;{}()[\]<>]/g, '')
+    // Collapse the whitespace the strips may have left ragged.
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned.slice(0, MAX_WORK_AREA_FONT_CUSTOM).trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +390,7 @@ export function defaultGmuxSettings(): GmuxSettings {
     highlightScheme: DEFAULT_HIGHLIGHT_SCHEME,
     contrastLevel: DEFAULT_CONTRAST_LEVEL,
     workAreaFont: DEFAULT_WORK_AREA_FONT,
+    workAreaFontCustom: DEFAULT_WORK_AREA_FONT_CUSTOM,
     fold: noFoldChosen(),
     arch: noArchChosen()
   };

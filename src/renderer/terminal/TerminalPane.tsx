@@ -45,6 +45,7 @@ import { canSplit, showTerminalMenu } from './terminal-menu';
 // reach, and because the face has to be LOADED before anything measures a cell.
 import {
   loadWorkAreaFace,
+  useCustomWorkFontFamily,
   useWorkAreaFont,
   workFont
 } from '../theme/work-fonts';
@@ -187,9 +188,16 @@ export function TerminalPane({
   // been measured against, so the font effect below does its work once per
   // change and once per fresh attach, and never twice for the same face.
   const workAreaFont = useWorkAreaFont((s) => s.preset);
+  // The custom family is a SECOND subscription: editing the text field with
+  // Custom already selected changes no preset id, so `workAreaFont` alone
+  // would never re-fire the font effect. The family is the other half of
+  // "what face is this pane drawing with".
+  const customFontFamily = useCustomWorkFontFamily((s) => s.family);
   const workAreaFontRef = useRef(workAreaFont);
   workAreaFontRef.current = workAreaFont;
-  const appliedFontRef = useRef<typeof workAreaFont | null>(null);
+  // Holds the `${preset} ${family}` key the font effect guards on, so a pane
+  // re-measures once per face and never twice. string, not the preset id.
+  const appliedFontRef = useRef<string | null>(null);
 
   const [overlay, setOverlay] = useState<OverlayState | null>(null);
   // Bumping the epoch tears the terminal down and attaches fresh (retry).
@@ -257,9 +265,13 @@ export function TerminalPane({
     // a preset that ships no face is already drawing the right one and has
     // nothing to await. A bundled preset leaves this null, so the font effect
     // loads the face and re-measures the new terminal once.
+    // Same composite key the font effect guards on: preset + family. A preset
+    // with no family to load (System) is already drawing the right face, so
+    // the effect is marked done; a real face (bundled or a typed Custom
+    // family) leaves this null so the effect loads and re-measures once.
     appliedFontRef.current =
       workFont(workAreaFontRef.current).familyName === null
-        ? workAreaFontRef.current
+        ? `${workAreaFontRef.current} ${customFontFamily}`
         : null;
 
     // Right-click is a gmux gesture, never a byte on the wire (see the mouse
@@ -601,7 +613,12 @@ export function TerminalPane({
     const term = termRef.current;
     const fit = fitRef.current;
     if (term === null || fit === null) return;
-    if (appliedFontRef.current === workAreaFont) return;
+    // The applied key is preset + family: with Custom selected, only the
+    // family changes when the field is edited, and that change must still
+    // re-load and re-measure. A bundled preset carries a constant family, so
+    // the pair degenerates to the preset id for everything but Custom.
+    const appliedKey = `${workAreaFont} ${customFontFamily}`;
+    if (appliedFontRef.current === appliedKey) return;
     let cancelled = false;
     void (async () => {
       await loadWorkAreaFace(
@@ -609,7 +626,7 @@ export function TerminalPane({
         term.options.fontSize ?? terminalBaseFontSize()
       );
       if (cancelled) return;
-      appliedFontRef.current = workAreaFont;
+      appliedFontRef.current = appliedKey;
       // Assigned unconditionally rather than under an equality guard. The
       // `loadingdone` belt in the mount effect may have set the same string
       // already, and the geometry work below still has to run.
@@ -630,7 +647,7 @@ export function TerminalPane({
     return () => {
       cancelled = true;
     };
-  }, [workAreaFont, surface, attachEpoch]);
+  }, [workAreaFont, customFontFamily, surface, attachEpoch]);
 
   // ---- the machine woke up (Phase 19 item 11) -------------------------------
   // A WebGL texture atlas is a GPU resource, and it does not survive the GPU

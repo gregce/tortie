@@ -38,8 +38,10 @@
 import type { WorkAreaFont } from '@shared/settings';
 import { useWorkAreaFont, workFont } from '../../theme/work-fonts';
 
-/** A preset that ships bytes. The System preset ships none. */
-export type BundledWorkAreaFont = Exclude<WorkAreaFont, 'system'>;
+/** A preset that ships bytes. The System preset ships none, and neither does
+ *  the Custom preset — a user-installed face has no bytes Tortie can inline,
+ *  so it falls back to Menlo in a capture exactly the way System does. */
+export type BundledWorkAreaFont = Exclude<WorkAreaFont, 'system' | 'custom'>;
 
 /** The two members of a preset. No italic face ships (see the header). */
 export type FaceWeight = 'regular' | 'bold';
@@ -111,7 +113,7 @@ export async function faceCssFor(
   // Two guards for one fact. The first narrows the id so the loader can be
   // called without a cast. The second is the preset table's own answer, and a
   // row that names no family has no bytes to inline.
-  if (preset === 'system') return '';
+  if (preset === 'system' || preset === 'custom') return '';
   const family = workFont(preset).familyName;
   if (family === null) return '';
   const weights: FaceWeight[] = options.bold

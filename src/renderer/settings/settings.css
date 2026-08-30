@@ -165,9 +165,27 @@
 .set-row > .set-switch,
 .set-row > .set-select,
 .set-row > .set-recorder-wrap,
-.set-row > .set-ref-chord {
+.set-row > .set-ref-chord,
+.set-row > .set-font-custom {
   margin-left: auto;
   flex: 0 0 auto;
+}
+
+/* The custom font field and its one status line, stacked so the "not installed
+   on this Mac" note (Phase 174) sits under the field it is about, right where
+   the person is typing. The note stays out of layout until it has something to
+   say, so a real family leaves the row its resting height. */
+.set-font-custom {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.set-font-missing {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
 }
 
 /* ------------------------------------------------------------- switch */

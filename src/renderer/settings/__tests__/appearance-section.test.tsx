@@ -29,7 +29,8 @@ import {
   WORK_FONT_OPTIONS,
   selectContrastLevel,
   selectHighlightScheme,
-  selectWorkAreaFont
+  selectWorkAreaFont,
+  commitWorkAreaFontCustom
 } from '../AppearanceSection';
 import { useSettingsStore } from '../settings-store';
 
@@ -107,14 +108,15 @@ describe('the markup', () => {
     }
   });
 
-  it('renders the font select with the three presets in order', () => {
+  it('renders the font select with the four presets in order', () => {
     expect(html).toContain('aria-label="Terminal and editor font"');
     const labels = WORK_FONT_OPTIONS.map((o) => o.label);
-    expect(labels).toEqual(['System', 'JetBrains Mono', 'Source Code Pro']);
+    expect(labels).toEqual(['System', 'JetBrains Mono', 'Source Code Pro', 'Custom…']);
     expect(WORK_FONT_OPTIONS.map((o) => o.value)).toEqual([
       'system',
       'jetbrains-mono',
-      'source-code-pro'
+      'source-code-pro',
+      'custom'
     ]);
     let at = -1;
     for (const label of labels) {
@@ -211,5 +213,32 @@ describe('the picks', () => {
     expect(settingsSet).toHaveBeenCalledTimes(2);
     expect(settingsSet.mock.calls[1]?.[0]).toEqual({ workAreaFont: 'system' });
     expect(useSettingsStore.getState().settings.workAreaFont).toBe('system');
+  });
+
+  it('a custom family commit persists a one-field patch', async () => {
+    const settingsSet = installBridge();
+    await commitWorkAreaFontCustom('Berkeley Mono');
+    expect(settingsSet).toHaveBeenCalledTimes(1);
+    const patch = settingsSet.mock.calls[0]?.[0] as GmuxSettingsPatch;
+    expect(patch).toEqual({ workAreaFontCustom: 'Berkeley Mono' });
+    expect(Object.keys(patch)).toEqual(['workAreaFontCustom']);
+    expect(useSettingsStore.getState().settings.workAreaFontCustom).toBe(
+      'Berkeley Mono'
+    );
+  });
+
+  it('renders no custom family field at the default (system) install', () => {
+    // The field is conditional on the persisted id, so a default install's
+    // markup carries no input for it. (The positive half — the field appears
+    // under 'custom' — needs a CLIENT render to prove, because
+    // renderToStaticMarkup caches the store's server snapshot per pass and a
+    // setState between two SSR renders does not re-read it. The interactive
+    // reactivity is covered by driving the real app, not by this file.)
+    useSettingsStore.setState({
+      settings: { ...defaultGmuxSettings(), workAreaFont: 'system' }
+    });
+    expect(renderToStaticMarkup(<AppearanceSection />)).not.toContain(
+      'aria-label="Custom font family"'
+    );
   });
 });

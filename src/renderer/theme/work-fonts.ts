@@ -45,6 +45,7 @@
 import { create } from 'zustand';
 import {
   DEFAULT_WORK_AREA_FONT,
+  sanitizeWorkAreaFontCustom,
   type WorkAreaFont
 } from '@shared/settings';
 
@@ -85,7 +86,11 @@ export const WORK_FONTS: readonly WorkFontPreset[] = [
     label: 'Source Code Pro',
     familyName: 'Source Code Pro',
     stack: "'Source Code Pro', Menlo, monospace"
-  }
+  },
+  // The custom row's strings are null HERE: the family is user data, read at
+  // resolution time from useCustomWorkFontFamily (see workFont), not baked
+  // into a compiled row. Settings still lists it as one more option.
+  { id: 'custom', label: 'Custom…', familyName: null, stack: null }
 ];
 
 const SYSTEM_PRESET: WorkFontPreset = WORK_FONTS[0] as WorkFontPreset;
@@ -95,7 +100,26 @@ export const WORK_FONT_TOKENS = ['--font-terminal', '--font-editor'] as const;
 
 /** The row for an id. An unknown id reads as System rather than throwing. */
 export function workFont(id: WorkAreaFont): WorkFontPreset {
-  return WORK_FONTS.find((f) => f.id === id) ?? SYSTEM_PRESET;
+  const row = WORK_FONTS.find((f) => f.id === id) ?? SYSTEM_PRESET;
+  if (row.id !== 'custom') return row;
+  // The custom family is user data, not a compiled row, so it resolves here
+  // from the live mirror apply.ts feeds. An empty family means the user picked
+  // Custom but typed nothing yet, which reads as Menlo through the stack.
+  //
+  // This is the ONE boundary between the typed string and every place it is
+  // drawn: the CSS custom property, xterm's fontFamily, Monaco's option and
+  // the capture SVG all read the value this function returns. So it is
+  // sanitized here (Phase 174), which strips quotes a person pasted around the
+  // name AND every character that could break out of the `'…'` stack — a
+  // quote, a semicolon, a brace, a backslash, a control character or a `url(`
+  // fragment. sanitizeWorkAreaFontCustom is the single definition, applied at
+  // persistence and again here, so a store fed by any path still emits a clean
+  // family. An empty result is the System preset's own Menlo fallback.
+  const family = sanitizeWorkAreaFontCustom(
+    useCustomWorkFontFamily.getState().family
+  );
+  const stack = `'${family}', Menlo, monospace`;
+  return { id: 'custom', label: row.label, familyName: family, stack };
 }
 
 /**
@@ -160,8 +184,71 @@ export const useWorkAreaFont = create<WorkAreaFontState>()(() => ({
   preset: DEFAULT_WORK_AREA_FONT
 }));
 
+export interface CustomWorkFontFamilyState {
+  family: string;
+}
+
+/**
+ * The family the 'custom' preset draws with, as a live mirror of the persisted
+ * `workAreaFontCustom`. Same posture as useWorkAreaFont: apply.ts is the only
+ * writer, fed by the settings read + broadcast, and nothing here is persisted.
+ * An empty string is "picked Custom but typed nothing yet", which the stack
+ * reads as Menlo (the terminal's guaranteed fallback).
+ */
+export const useCustomWorkFontFamily = create<CustomWorkFontFamilyState>()(() => ({
+  family: ''
+}));
+
+/** apply.ts calls this once per settings change, beside setWorkAreaFont. */
+export function setCustomWorkFontFamily(family: string): void {
+  if (useCustomWorkFontFamily.getState().family === family) return;
+  useCustomWorkFontFamily.setState({ family });
+}
+
 /** apply.ts calls this once per settings change. */
 export function setWorkAreaFont(id: WorkAreaFont): void {
   if (useWorkAreaFont.getState().preset === id) return;
   useWorkAreaFont.setState({ preset: id });
+}
+
+/**
+ * Is a typed family actually drawable on this Mac (Phase 174)? This answers the
+ * "not installed on this Mac" line under the Custom field, and it is measured,
+ * not asked. `document.fonts.check` cannot answer it: it returns true for a
+ * family the machine does not have, because there is no `@font-face` to load,
+ * and false for a face the app bundles but has not rendered yet. Measured in
+ * this Electron, `check('13px "Zznonexistent"')` returned true.
+ *
+ * So this renders a probe string on a canvas in `'<family>', <generic>` and in
+ * `<generic>` alone, for three unrelated generics. If the family is present it
+ * overrides the fallback and at least one width differs; if it is absent every
+ * width matches its generic. A bundled family reads as available because the
+ * load below pulls its bytes first, and a system family loads as a no-op.
+ *
+ * An empty family is "nothing typed", not "missing", so it returns true. Any
+ * environment without a document or a 2D context (the node test env) returns
+ * true, so the line never fires where it cannot measure.
+ */
+export async function isWorkFontAvailable(family: string): Promise<boolean> {
+  const name = sanitizeWorkAreaFontCustom(family);
+  if (name === '') return true;
+  if (typeof document === 'undefined') return true;
+  // Pull the bytes for a face the app bundles under this name, so a bundled
+  // family is not mis-reported as missing before anything has rendered in it.
+  // A system font's load is a no-op, and an unloadable name is swallowed.
+  try {
+    await document.fonts?.load(`13px "${name}"`);
+  } catch {
+    /* an unloadable face is exactly the "missing" case measured below */
+  }
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (ctx === null) return true;
+  const sample = 'mmmmmmmmmmlliWWWWWW0123456789 gjpqyQ@';
+  const generics = ['monospace', 'sans-serif', 'serif'];
+  const widthIn = (f: string): number => {
+    ctx.font = `72px ${f}`;
+    return ctx.measureText(sample).width;
+  };
+  return generics.some((g) => widthIn(`'${name}', ${g}`) !== widthIn(g));
 }

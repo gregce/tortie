@@ -36,13 +36,13 @@
  * their behalf.
  */
 
-import { sanitizeWorkAreaFont } from '@shared/settings';
+import { sanitizeWorkAreaFont, sanitizeWorkAreaFontCustom } from '@shared/settings';
 import type { GmuxSettings, WorkAreaFont } from '@shared/settings';
 import { forEachTerminal } from '../terminal/drop/registry';
 import { resolveTerminalTheme } from '../terminal/theme';
 import { deriveOverrides, type Appearance } from './derive';
 import { ALL_THEME_TOKENS } from './presets';
-import { fontOverrides, setWorkAreaFont } from './work-fonts';
+import { fontOverrides, setCustomWorkFontFamily, setWorkAreaFont } from './work-fonts';
 import { gmuxBridge } from '../bridge';
 
 /**
@@ -54,6 +54,8 @@ import { gmuxBridge } from '../bridge';
  */
 export interface AppliedAppearance extends Appearance {
   workAreaFont: WorkAreaFont;
+  /** The family a 'custom' preset draws with ('' reads as Menlo). */
+  workAreaFontCustom: string;
 }
 
 /**
@@ -78,6 +80,8 @@ export interface AppearanceEnv {
    * resize. Each pane awaits its own face and then re-measures itself.
    */
   setFont(preset: WorkAreaFont): void;
+  /** Publish the 'custom' family to the store workFont resolves from. */
+  setCustomFont(family: string): void;
   /** The pure derivation; the real env passes `deriveOverrides`. */
   derive: typeof deriveOverrides;
 }
@@ -115,6 +119,10 @@ export function createAppearanceApplier(
       }
       base = captured;
     }
+    // Feed the custom family store BEFORE fontOverrides resolves the stack,
+    // or the tokens are written from the previous family on the broadcast that
+    // selected Custom. This ordering is the whole point of the field existing.
+    env.setCustomFont(appearance.workAreaFontCustom);
 
     // Colour first, then the font map on top. They share no key, so the
     // spread is a union rather than a precedence question, and both halves
@@ -160,6 +168,7 @@ function toAppearance(settings: GmuxSettings): AppliedAppearance {
   return {
     highlightScheme: settings.highlightScheme,
     contrastLevel: settings.contrastLevel,
+    workAreaFontCustom: sanitizeWorkAreaFontCustom(settings.workAreaFontCustom),
     workAreaFont: sanitizeWorkAreaFont(settings.workAreaFont)
   };
 }
@@ -171,6 +180,7 @@ function browserEnv(): AppearanceEnv {
     readBaseValue: (token) => styles.getPropertyValue(token).trim(),
     setProperty: (token, value) => root.style.setProperty(token, value),
     removeProperty: (token) => root.style.removeProperty(token),
+    setCustomFont: setCustomWorkFontFamily,
     refreshTerminals: refreshLiveTerminalThemes,
     setFont: setWorkAreaFont,
     derive: deriveOverrides

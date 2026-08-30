@@ -27,6 +27,7 @@ import { WORK_AREA_FONTS, type WorkAreaFont } from '@shared/settings';
 import {
   fontOverrides,
   loadWorkAreaFace,
+  setCustomWorkFontFamily,
   setWorkAreaFont,
   useWorkAreaFont,
   workFont,
@@ -41,7 +42,8 @@ describe('the preset table', () => {
     expect(WORK_FONTS.map((f) => f.id)).toEqual([
       'system',
       'jetbrains-mono',
-      'source-code-pro'
+      'source-code-pro',
+      'custom'
     ]);
     expect([...WORK_FONTS.map((f) => f.id)].sort()).toEqual(
       [...WORK_AREA_FONTS].sort()
@@ -52,7 +54,8 @@ describe('the preset table', () => {
     expect(WORK_FONTS.map((f) => f.label)).toEqual([
       'System',
       'JetBrains Mono',
-      'Source Code Pro'
+      'Source Code Pro',
+      'Custom…'
     ]);
   });
 
@@ -80,6 +83,55 @@ describe('the preset table', () => {
 
   it('reads an unknown id as System rather than throwing', () => {
     expect(workFont('not-a-preset' as WorkAreaFont).id).toBe('system');
+  });
+});
+
+describe('the custom preset', () => {
+  afterEach(() => {
+    // Reset the live family store so one test's family cannot leak into the
+    // next one's resolution.
+    setCustomWorkFontFamily('');
+  });
+
+  it('resolves the typed family into a Menlo-terminated stack', () => {
+    setCustomWorkFontFamily('Berkeley Mono');
+    const preset = workFont('custom');
+    expect(preset.familyName).toBe('Berkeley Mono');
+    expect(preset.stack).toBe("'Berkeley Mono', Menlo, monospace");
+  });
+
+  it('strips quote marks a user pasted around the family name', () => {
+    // A pasted `"Berkeley Mono"` must not nest quotes inside the stack — the
+    // nested quotes made the first family unparseable and read as "spaced
+    // fonts do not work". The resolver strips them to the bare family name.
+    setCustomWorkFontFamily('"Berkeley Mono"');
+    expect(workFont('custom').familyName).toBe('Berkeley Mono');
+    expect(workFont('custom').stack).toBe("'Berkeley Mono', Menlo, monospace");
+    setCustomWorkFontFamily("'Berkeley Mono'");
+    expect(workFont('custom').familyName).toBe('Berkeley Mono');
+  });
+
+  it('writes both work-area tokens for the custom stack', () => {
+    setCustomWorkFontFamily('Berkeley Mono');
+    const out = fontOverrides('custom');
+    expect(out['--font-terminal']).toBe("'Berkeley Mono', Menlo, monospace");
+    expect(out['--font-editor']).toBe("'Berkeley Mono', Menlo, monospace");
+  });
+
+  it('reads an empty family as Menlo through the stack, never a broken stack', () => {
+    setCustomWorkFontFamily('');
+    // The family name is the empty string, so the stack's first entry is ''
+    // and the browser falls straight through to Menlo — the System preset's
+    // own fallback, not an unparseable rule.
+    expect(workFont('custom').stack).toBe("'', Menlo, monospace");
+    expect(fontOverrides('custom')['--font-terminal']).toBe("'', Menlo, monospace");
+  });
+
+  it('awaits the custom face before re-measuring, like a bundled preset', async () => {
+    // No FontFaceSet in the node environment, so this proves the no-throw
+    // contract rather than a real fetch. The DOM load happens in TerminalPane.
+    setCustomWorkFontFamily('Berkeley Mono');
+    await expect(loadWorkAreaFace('custom', 13)).resolves.toBeUndefined();
   });
 });
 
@@ -195,5 +247,53 @@ describe('the work-area font store', () => {
       off();
     }
     expect(seen).toEqual([]);
+  });
+});
+
+describe('the custom preset is hostile-safe at the CSS boundary (Phase 174)', () => {
+  afterEach(() => {
+    setCustomWorkFontFamily('');
+  });
+
+  // workFont('custom') is the one boundary between the typed string and the CSS
+  // custom property, xterm's fontFamily, Monaco's option and the capture SVG.
+  // Whatever a person (or an agent that edited settings.json) typed, the stack
+  // it emits must carry no character that could end the quoted family, start a
+  // new declaration, open url(), or break out of the SVG's style attribute.
+  const HOSTILE: string[] = [
+    "a'; color:red; } body{display:none} foo",
+    'url(https://evil.example/x.woff2)',
+    'a{}<script>alert(1)</script>b',
+    "back\\slash and \"double\" and 'single'",
+    'semi;colon;everywhere',
+    `newline${String.fromCharCode(10)}and${String.fromCharCode(9)}tab`,
+    `esc${String.fromCharCode(27)}[31m`,
+    `nul${String.fromCharCode(0)}byte`,
+    'x'.repeat(4000)
+  ];
+  const BREAKOUT = /["'`\\;{}()[\]<>]|[\u0000-\u001F\u007F-\u009F]/;
+
+  it('emits a stack and a family name free of any breakout character', () => {
+    for (const attack of HOSTILE) {
+      setCustomWorkFontFamily(attack);
+      const preset = workFont('custom');
+      const family = preset.familyName ?? '';
+      const stack = preset.stack ?? '';
+      // The family the loader hands document.fonts is clean.
+      expect(BREAKOUT.test(family), `family of ${JSON.stringify(attack)}: ${family}`).toBe(false);
+      // The stack is exactly one single-quoted family followed by the Menlo
+      // floor. The only quotes in it are the two the resolver added.
+      expect(stack, JSON.stringify(attack)).toBe(`'${family}', Menlo, monospace`);
+      expect((stack.match(/'/g) ?? []).length, `quotes for ${JSON.stringify(attack)}`).toBe(2);
+      // And the tokens the applier writes carry that same clean stack.
+      const tokens = fontOverrides('custom');
+      expect(tokens['--font-terminal']).toBe(stack);
+      expect(tokens['--font-editor']).toBe(stack);
+    }
+  });
+
+  it('caps a pathological family so no token is ever thousands of characters', () => {
+    setCustomWorkFontFamily('x'.repeat(4000));
+    expect((workFont('custom').familyName ?? '').length).toBeLessThanOrEqual(64);
   });
 });

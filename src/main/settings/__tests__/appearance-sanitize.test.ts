@@ -193,3 +193,93 @@ describe('the store round trip', () => {
     expect(settings.contrastLevel).toBe('normal');
   });
 });
+
+describe('the custom family (Phase 174)', () => {
+  // The one character class every downstream sink must never receive: a quote
+  // or backslash that could end the `'…'` stack, a semicolon or brace that
+  // could start a new declaration, a bracket that could open url(), and any
+  // control character. The persisted family is the value the renderer feeds to
+  // the CSS custom property, xterm, Monaco and the capture SVG, so it is the
+  // one place to prove hostile bytes never survive.
+  const DANGEROUS = /["'`\\;{}()[\]<>]|[\u0000-\u001F\u007F-\u009F]/;
+
+  it('a plain family survives sanitize untouched', async () => {
+    const store = await freshStore();
+    for (const family of ['Berkeley Mono', 'Fira Code', 'M+ 1m', 'Noto Sans CJK JP']) {
+      const out = store.sanitizeSettings({ workAreaFontCustom: family });
+      expect(out.workAreaFontCustom, family).toBe(family);
+    }
+  });
+
+  it('strips quotes a person pasted around, and any quote inside', async () => {
+    const store = await freshStore();
+    expect(
+      store.sanitizeSettings({ workAreaFontCustom: '"Berkeley Mono"' }).workAreaFontCustom
+    ).toBe('Berkeley Mono');
+    expect(
+      store.sanitizeSettings({ workAreaFontCustom: "'Fira Code'" }).workAreaFontCustom
+    ).toBe('Fira Code');
+    expect(
+      store.sanitizeSettings({ workAreaFontCustom: 'Fi"ra Co\'de' }).workAreaFontCustom
+    ).toBe('Fira Code');
+  });
+
+  it('no hostile shape survives with a dangerous character intact', async () => {
+    const store = await freshStore();
+    const NL = String.fromCharCode(10);
+    const TAB = String.fromCharCode(9);
+    const CR = String.fromCharCode(13);
+    const ESC = String.fromCharCode(27);
+    const NUL = String.fromCharCode(0);
+    const attacks: string[] = [
+      "a'; color:red; } body{display:none} foo",
+      'url(https://evil.example/x.woff2)',
+      'a{}<script>alert(1)</script>b',
+      'back\\slash',
+      'semi;colon',
+      'brace{here}',
+      `line${NL}break${TAB}tab${CR}cr`,
+      `esc${ESC}[31mred`,
+      `nul${NUL}byte`
+    ];
+    for (const attack of attacks) {
+      const out = store.sanitizeSettings({ workAreaFontCustom: attack }).workAreaFontCustom;
+      expect(DANGEROUS.test(out), `${JSON.stringify(attack)} -> ${JSON.stringify(out)}`).toBe(
+        false
+      );
+    }
+  });
+
+  it('an empty or whitespace-only family reads as none', async () => {
+    const store = await freshStore();
+    expect(store.sanitizeSettings({ workAreaFontCustom: '' }).workAreaFontCustom).toBe('');
+    expect(store.sanitizeSettings({ workAreaFontCustom: '   ' }).workAreaFontCustom).toBe('');
+    expect(store.sanitizeSettings({ workAreaFontCustom: '<>{}' }).workAreaFontCustom).toBe('');
+  });
+
+  it('a non-string family, or none at all, reads as empty', async () => {
+    const store = await freshStore();
+    for (const bad of [42, null, undefined, {}, []]) {
+      expect(store.sanitizeSettings({ workAreaFontCustom: bad }).workAreaFontCustom).toBe('');
+    }
+    expect(store.sanitizeSettings({}).workAreaFontCustom).toBe('');
+  });
+
+  it('a pathological long paste is capped, never passed on whole', async () => {
+    const store = await freshStore();
+    const out = store.sanitizeSettings({ workAreaFontCustom: 'x'.repeat(4000) }).workAreaFontCustom;
+    expect(out.length).toBeLessThanOrEqual(64);
+  });
+
+  it('a clean custom family survives a write and a fresh load', async () => {
+    const first = await freshStore();
+    first.updateSettings({ workAreaFont: 'custom', workAreaFontCustom: 'Berkeley Mono' });
+    const onDisk = JSON.parse(
+      readFileSync(join(userDataDir, 'settings.json'), 'utf8')
+    ) as { settings: Record<string, unknown> };
+    expect(onDisk.settings['workAreaFont']).toBe('custom');
+    expect(onDisk.settings['workAreaFontCustom']).toBe('Berkeley Mono');
+    const second = await freshStore();
+    expect(second.getSettings().workAreaFontCustom).toBe('Berkeley Mono');
+  });
+});

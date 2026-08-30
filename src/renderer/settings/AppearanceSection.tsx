@@ -25,7 +25,7 @@ import type {
   WorkAreaFont
 } from '@shared/settings';
 import { SCHEME_PRESETS } from '../theme/presets';
-import { WORK_FONTS } from '../theme/work-fonts';
+import { WORK_FONTS, isWorkFontAvailable } from '../theme/work-fonts';
 import { useSettingsStore } from './settings-store';
 
 /**
@@ -140,8 +140,45 @@ function ContrastRow(): React.JSX.Element {
   );
 }
 
+/** Persist the custom family as a one-field patch. Exported for the test. */
+export function commitWorkAreaFontCustom(
+  family: string
+): Promise<GmuxSettings | null> {
+  return useSettingsStore.getState().update({ workAreaFontCustom: family });
+}
+
 function WorkAreaFontRow(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
+  // Local draft for the custom field, committed on blur/Enter — the same
+  // pattern ScrollbackSection's Custom… number field uses, so a half-typed
+  // family never reaches the persisted settings.
+  const [draft, setDraft] = React.useState(settings.workAreaFontCustom);
+  // Keep the field showing the persisted (and cleaned) family after a commit,
+  // the same resync ScrollbackSection's Custom… field does. This never fights
+  // typing, because the persisted value only changes on blur/Enter.
+  React.useEffect(() => {
+    setDraft(settings.workAreaFontCustom);
+  }, [settings.workAreaFontCustom]);
+  const commit = (): void => {
+    void commitWorkAreaFontCustom(draft);
+  };
+  // Whether the typed family is actually drawable here. A family this Mac does
+  // not have falls back to Menlo silently, so one short line says so. Measured
+  // off the draft so it answers as the person types; empty draft says nothing.
+  const [missing, setMissing] = React.useState(false);
+  React.useEffect(() => {
+    if (settings.workAreaFont !== 'custom' || draft.trim() === '') {
+      setMissing(false);
+      return;
+    }
+    let cancelled = false;
+    void isWorkFontAvailable(draft).then((available) => {
+      if (!cancelled) setMissing(!available);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [draft, settings.workAreaFont]);
   return (
     <div className="set-row tall">
       <div className="set-row-text">
@@ -166,6 +203,26 @@ function WorkAreaFontRow(): React.JSX.Element {
           </option>
         ))}
       </select>
+      {settings.workAreaFont === 'custom' ? (
+        <div className="set-font-custom">
+          <input
+            className="set-select"
+            type="text"
+            aria-label="Custom font family"
+            placeholder="Font family name"
+            spellCheck={false}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commit();
+            }}
+          />
+          {missing ? (
+            <span className="set-font-missing">not installed on this Mac</span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
