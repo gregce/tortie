@@ -180,6 +180,7 @@ const EXPECT = [
   },
   { p: 'qwen', turns: 4, answers: 4, ratio: 0.063, banned: ['task-notification', '<state_snapshot>', 'functionResponse'] },
   { p: 'pi', turns: 2, answers: 2, ratio: 0.0628, banned: ['Please rewrite the whole module', 'Checking the size now.'] },
+  { p: 'omp', turns: 2, answers: 2, ratio: 0.0613, banned: ['Please rewrite the whole module', 'Checking the size now.'] },
   { p: 'muse', turns: 2, answers: 2, ratio: 0.0281, banned: ['Role: demo-worker', 'Let me list them.'] },
   {
     p: 'gemini',

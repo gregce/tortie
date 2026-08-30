@@ -41,6 +41,7 @@ import {
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
@@ -164,7 +165,7 @@ function referenceReader(): { read: ReadFn; map: any } {
   return { read, map: lib.MAP };
 }
 
-async function productReader(): Promise<{ read: ReadFn; map: any; mod: any }> {
+async function productReader(): Promise<{ read: ReadFn; map: any; mod: any; stores: any }> {
   const entry = join(root, 'src', 'main', 'overview', 'reader', 'index.ts');
   if (!existsSync(entry)) {
     throw new Error(
@@ -173,6 +174,7 @@ async function productReader(): Promise<{ read: ReadFn; map: any; mod: any }> {
     );
   }
   const mod: any = await import(pathToFileURL(entry).href);
+  const stores: any = await import(pathToFileURL(join(root, 'src', 'main', 'manifest', 'harvest', 'stores.ts')).href);
   const read: ReadFn = (job) => {
     let r: any;
     try {
@@ -218,7 +220,7 @@ async function productReader(): Promise<{ read: ReadFn; map: any; mod: any }> {
       paths
     };
   };
-  return { read, map: mod.KEEP_MAP, mod };
+  return { read, map: mod.KEEP_MAP, mod , stores };
 }
 
 function emptyRead(error: string): NormalRead {
@@ -493,6 +495,11 @@ const BASE: BaseCase[] = [
     cwd: '/Users/example/rookery'
   },
   {
+    provider: 'omp',
+    file: 'omp-sessions-rookery/2026-06-12T04-57-36-108Z_019eba31-566c-7911-bf09-14afe53d7c36.jsonl',
+    cwd: '/Users/example/rookery'
+  },
+  {
     provider: 'muse',
     file: 'muse-sessions/2026/08/18/0cd2aa28-b1ee-4cfb-aeba-ac10edf4eb6c/session.jsonl',
     sessionId: '0cd2aa28-b1ee-4cfb-aeba-ac10edf4eb6c',
@@ -534,7 +541,7 @@ interface ResolverCase {
  * expects it, then asks the product resolver to find each one. Nothing under
  * the person's real home is read.
  */
-function runResolverChecks(mod: any, scratch: string, adapters: Record<string, string>): any[] {
+function runResolverChecks(mod: any, stores: any, scratch: string, adapters: Record<string, string>): any[] {
   const home = join(scratch, 'resolver-home');
   const cwd = join(scratch, 'resolver-project');
   mkdirSync(cwd, { recursive: true });
@@ -641,6 +648,26 @@ function runResolverChecks(mod: any, scratch: string, adapters: Record<string, s
       provider: 'cursor',
       agentSessionId: '11111111-2222-4333-8444-555555555555',
       placed: dst,
+      want: 'resolved'
+    });
+  }
+
+  {
+    // omp (Phase 169.2): the product's own encoder places the fixture where the
+    // resolver will look, so this case fails the day the two disagree.
+    cases.push({
+      provider: 'omp',
+      agentSessionId: '019eba31-566c-7911-bf09-14afe53d7c36',
+      placed: place(
+        join(
+          '.omp',
+          'agent',
+          'sessions',
+          stores.sanitizeOmpCwd(cwd, home, tmpdir()),
+          '2026-06-12T04-57-36-108Z_019eba31-566c-7911-bf09-14afe53d7c36.jsonl'
+        ),
+        fx('omp-sessions-rookery/2026-06-12T04-57-36-108Z_019eba31-566c-7911-bf09-14afe53d7c36.jsonl')
+      ),
       want: 'resolved'
     });
   }
@@ -1069,10 +1096,11 @@ async function main(): Promise<void> {
 
     if (mode === 'product') {
       const mod = (source as any).mod;
+      const stores = (source as any).stores;
       out.product = {
         resolver: (() => {
           try {
-            return runResolverChecks(mod, SCRATCH, adapterFiles);
+            return runResolverChecks(mod, stores, SCRATCH, adapterFiles);
           } catch (err) {
             return [{ provider: 'all', state: 'threw', error: String((err as Error).message) }];
           }
