@@ -8,6 +8,15 @@
  * reach it. So each agent's store is reproduced here in a temp home — the
  * real filename shapes and the real records that carry the correlation key —
  * and the watcher is asked to find the right session among rivals.
+ *
+ * Hermetic lane. Nothing here reads this machine: the agy ownership probe is
+ * mocked whole below, and the process table is SCRIPTED through the seam in
+ * ../harvest/process-table.ts. Before Phase 171 the ppid walk was proved by
+ * asking the live `ps` about the test runner's own parent, which was the one
+ * read of the host process table left in the hermetic lane, found by running
+ * the lane with `ps` masked from PATH. The walk is proved here against the
+ * shape MEASURED on the real qwen CLI instead, and the live half lives in
+ * process-table.native.test.ts.
  */
 
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -27,6 +36,11 @@ import {
   watchForSessionId,
   type HarvestContext
 } from '../harvest';
+import {
+  isDescendantIn,
+  parseProcessTable,
+  setProcessTableReader
+} from '../harvest/process-table';
 
 let home = '';
 let cwd = '';
@@ -56,6 +70,28 @@ vi.mock('../harvest/agy-owner', () => ({
 /** Fast polling so a test does not wait on a 1 Hz clock. */
 const FAST = { pollIntervalMs: 25, timeoutMs: 4_000, graceMs: 150 } as const;
 
+/**
+ * The process table every test here sees, as `ps -Axo pid=,ppid=,comm=`
+ * prints it. The qwen rows are the shape MEASURED on the real CLI: the pane's
+ * shell is 1615, the launcher it forks is 1622, and 1644 is the grandchild
+ * whose pid lands in runtime.json. The Chrome rows carry spaces in `comm`,
+ * which is the parse hazard the reader guards against.
+ */
+const PANE_PID = 1615;
+const QWEN_LAUNCHER_PID = 1622;
+const QWEN_PID = 1644;
+const STRANGER_PID = 2001;
+const SCRIPTED_PS = [
+  '    1     0 /sbin/launchd',
+  '  900     1 /opt/homebrew/bin/tmux',
+  ` ${String(PANE_PID)}   900 -zsh`,
+  ` ${String(QWEN_LAUNCHER_PID)}  ${String(PANE_PID)} node`,
+  ` ${String(QWEN_PID)}  ${String(QWEN_LAUNCHER_PID)} qwen`,
+  ' 2000     1 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ` ${String(STRANGER_PID)}  2000 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper`,
+  ''
+].join('\n');
+
 function ctx(extra: Partial<HarvestContext> = {}): HarvestContext {
   return { cwd, sinceTs: Date.now() - 500, ...extra };
 }
@@ -73,11 +109,13 @@ beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'gmux-harvest-home-'));
   cwd = mkdtempSync(join(tmpdir(), 'gmux-harvest-cwd-'));
   resetProcessParentCache();
+  setProcessTableReader(() => Promise.resolve(SCRIPTED_PS));
   agyProbe.ok = false;
   agyProbe.owned.clear();
 });
 
 afterEach(() => {
+  setProcessTableReader(null);
   rmSync(home, { recursive: true, force: true });
   rmSync(cwd, { recursive: true, force: true });
 });
@@ -174,12 +212,13 @@ describe('qwen — the .runtime.json sidecar, keyed on the pane process tree', (
       join(runtimeDir(), `${theirs}.runtime.json`),
       JSON.stringify({ pid: 999_999, session_id: theirs, work_dir: cwd })
     );
+    // Ours records the GRANDCHILD pid, the way the real CLI does.
     write(
       join(runtimeDir(), `${mine}.runtime.json`),
-      JSON.stringify({ pid: process.pid, session_id: mine, work_dir: cwd })
+      JSON.stringify({ pid: QWEN_PID, session_id: mine, work_dir: cwd })
     );
 
-    const watch = watchForSessionId('qwen', ctx({ panePid: process.pid }), {
+    const watch = watchForSessionId('qwen', ctx({ panePid: PANE_PID }), {
       home,
       ...FAST
     });
@@ -188,6 +227,26 @@ describe('qwen — the .runtime.json sidecar, keyed on the pane process tree', (
       key: 'pid',
       viaGraceTimer: false
     });
+  });
+
+  it('never matches on a process table it could not read', async () => {
+    // A `ps` that is missing or refuses: the reader rejects, the table is
+    // empty, and the grandchild pid cannot be tied to the pane. The verdict
+    // is unknown, so the watch keeps waiting and times out rather than
+    // claiming a rival's session.
+    setProcessTableReader(() => Promise.reject(new Error('spawn ps ENOENT')));
+    const mine = '11111111-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    write(
+      join(runtimeDir(), `${mine}.runtime.json`),
+      JSON.stringify({ pid: QWEN_PID, session_id: mine, work_dir: cwd })
+    );
+    const watch = watchForSessionId('qwen', ctx({ panePid: PANE_PID }), {
+      home,
+      ...FAST,
+      timeoutMs: 400
+    });
+    await expect(watch.promise).rejects.toThrow(/could not record its resume id/);
+    expect(await isDescendantOf(QWEN_PID, PANE_PID)).toBe(false);
   });
 
   it('rejects a sidecar recorded for a different working directory', async () => {
@@ -210,11 +269,41 @@ describe('qwen — the .runtime.json sidecar, keyed on the pane process tree', (
    * 1644 is what lands in the file). Matching pid EQUALITY finds nothing.
    */
   it('walks the ppid chain — an equality check would find nothing', async () => {
-    expect(await isDescendantOf(process.pid, process.pid)).toBe(true);
-    const parent = process.ppid;
-    expect(parent).toBeGreaterThan(1);
-    expect(await isDescendantOf(process.pid, parent)).toBe(true);
-    expect(await isDescendantOf(process.pid, 999_999)).toBe(false);
+    expect(await isDescendantOf(PANE_PID, PANE_PID)).toBe(true);
+    expect(await isDescendantOf(QWEN_LAUNCHER_PID, PANE_PID)).toBe(true);
+    expect(await isDescendantOf(QWEN_PID, PANE_PID)).toBe(true);
+    // The walk goes UP from the recorded pid, never down from the pane.
+    expect(await isDescendantOf(PANE_PID, QWEN_PID)).toBe(false);
+    expect(await isDescendantOf(STRANGER_PID, PANE_PID)).toBe(false);
+    expect(await isDescendantOf(999_999, PANE_PID)).toBe(false);
+  });
+
+  it('parses a comm that holds spaces, and keeps the first two fields numeric', () => {
+    const rows = parseProcessTable(SCRIPTED_PS);
+    expect(rows.size).toBe(7);
+    expect(rows.get(STRANGER_PID)).toEqual({
+      pid: STRANGER_PID,
+      ppid: 2000,
+      comm: '/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper'
+    });
+    expect(parseProcessTable('garbage\n  x y z\n').size).toBe(0);
+  });
+
+  it('bounds the walk, so a long chain or a cycle can never spin it', () => {
+    // A straight chain of 40 processes under pid 3000.
+    const chain = new Map<number, { pid: number; ppid: number; comm: string }>();
+    chain.set(3000, { pid: 3000, ppid: 1, comm: 'root' });
+    for (let pid = 3001; pid <= 3040; pid += 1) {
+      chain.set(pid, { pid, ppid: pid - 1, comm: 'link' });
+    }
+    expect(isDescendantIn(chain, 3024, 3000)).toBe(true);
+    expect(isDescendantIn(chain, 3025, 3000)).toBe(false);
+    // A table with a cycle in it: the bound is what ends the walk.
+    const cycle = new Map<number, { pid: number; ppid: number; comm: string }>([
+      [5, { pid: 5, ppid: 6, comm: 'a' }],
+      [6, { pid: 6, ppid: 5, comm: 'b' }]
+    ]);
+    expect(isDescendantIn(cycle, 5, 7)).toBe(false);
   });
 });
 

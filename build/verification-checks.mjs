@@ -168,6 +168,14 @@ export const CHECKS = [
   // Four fixtures it writes itself prove the scanner fails when it should.
   pure('gate:cache-policy'),
   pure('gate:checks'),
+  // PHASE 171. The contract inventory, byte compared against
+  // docs/audits/contract-baseline.txt. It bundles the manifest store with
+  // esbuild and runs the real migrations in a scratch directory under plain
+  // node, so it needs the lockfile install and nothing on the host. It runs
+  // inside npm run build, because a deterministic alarm nobody runs is
+  // documentation: the baseline sat 16 channels, 22 env names and one smoke
+  // mode behind the tree for thirteen phases while the check sat in no gate.
+  pure('gate:contract'),
   pure('gate:menu-glyphs'),
   pure('gate:menu-accelerators'),
   pure('assert:doctypes'),
@@ -310,6 +318,15 @@ export const CHECKS = [
   // every launch and fails if one is removed or changed by anything but
   // Tortie's own durable writers. It spawns no agent and spends no token.
   electron('probe:p166'),
+  // PHASE 171. The Phase 167 scale scenario as a check, on demand. One app run
+  // on a scratch profile drives three of the audit's five profiles in blocks,
+  // being project switches, surface open and close, and split, close and
+  // reattach over four real shell sessions a cycle, and grades the blocks by
+  // the plateau rule Phase 167 adopted: renderer heap, nodes and listeners
+  // must stop growing, and main must hold exactly the pty descriptors it
+  // started with. It spawns no agent and spends no token. Its grader is
+  // proved on eight fixtures by --self-test, which launches nothing.
+  electron('probe:p167'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

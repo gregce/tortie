@@ -36,6 +36,54 @@ let processTableCache: ProcessTable | null = null;
 const PROCESS_TABLE_TTL_MS = 1_000;
 
 /**
+ * The one read of the raw table: `ps -Axo pid=,ppid=,comm=` over PATH. A
+ * missing or refusing `ps` rejects, and processTable() turns that into an
+ * empty table so every caller degrades to 'unknown'.
+ */
+async function readLiveTable(): Promise<string> {
+  const { stdout } = await execFileAsync('ps', ['-Axo', 'pid=,ppid=,comm='], {
+    timeout: 5_000,
+    maxBuffer: 8 * 1024 * 1024
+  });
+  return stdout;
+}
+
+/** What answers for `ps`. Production reads the live table; a test scripts one. */
+export type ProcessTableReader = () => Promise<string>;
+
+let readTable: ProcessTableReader = readLiveTable;
+
+/**
+ * Test seam (Phase 171). The hermetic lane must never read this machine's
+ * process table, and before this seam the only way to prove the ppid walk was
+ * to ask the live `ps` about the test runner's own parent. A test hands in the
+ * text `ps` would have printed, being the measured qwen shape or a chain built
+ * on purpose, and `null` restores the live reader. Setting it also forgets the
+ * cached snapshot, so the next read is the scripted one.
+ */
+export function setProcessTableReader(reader: ProcessTableReader | null): void {
+  readTable = reader ?? readLiveTable;
+  processTableCache = null;
+}
+
+/**
+ * Parse `ps -Axo pid=,ppid=,comm=` output. Pure, and exported so the parse
+ * half is provable without a process table.
+ */
+export function parseProcessTable(stdout: string): Map<number, ProcessRow> {
+  const rows = new Map<number, ProcessRow>();
+  for (const line of stdout.split('\n')) {
+    // comm can hold spaces ("/Applications/Google Chrome.app/…"), so only
+    // the first two fields are numeric and the rest is the command.
+    const m = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
+    if (m === null) continue;
+    const pid = Number(m[1]);
+    rows.set(pid, { pid, ppid: Number(m[2]), comm: m[3] ?? '' });
+  }
+  return rows;
+}
+
+/**
  * pid → {pid, ppid, comm} for every process, refreshed at most once a second.
  *
  * Phase 32 widened the old pid → ppid table to carry `comm` too, so ONE `ps`
@@ -51,20 +99,9 @@ export async function processTable(): Promise<Map<number, ProcessRow>> {
   ) {
     return processTableCache.rows;
   }
-  const rows = new Map<number, ProcessRow>();
+  let rows = new Map<number, ProcessRow>();
   try {
-    const { stdout } = await execFileAsync('ps', ['-Axo', 'pid=,ppid=,comm='], {
-      timeout: 5_000,
-      maxBuffer: 8 * 1024 * 1024
-    });
-    for (const line of stdout.split('\n')) {
-      // comm can hold spaces ("/Applications/Google Chrome.app/…"), so only
-      // the first two fields are numeric and the rest is the command.
-      const m = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
-      if (m === null) continue;
-      const pid = Number(m[1]);
-      rows.set(pid, { pid, ppid: Number(m[2]), comm: m[3] ?? '' });
-    }
+    rows = parseProcessTable(await readTable());
   } catch {
     /* ps unavailable — callers degrade to 'unknown', never to a wrong match */
   }
@@ -77,6 +114,29 @@ export function resetProcessParentCache(): void {
   processTableCache = null;
 }
 
+/** The maximum ppid hops walked. A chain longer than this is not our child tree. */
+const MAX_ANCESTRY_HOPS = 24;
+
+/**
+ * The pure half of isDescendantOf: is `pid` the ancestor itself or below it
+ * in `rows`? Bounded, so a table with a cycle can never spin.
+ */
+export function isDescendantIn(
+  rows: ReadonlyMap<number, ProcessRow>,
+  pid: number,
+  ancestor: number
+): boolean {
+  if (pid === ancestor) return true;
+  let cur = pid;
+  for (let hop = 0; hop < MAX_ANCESTRY_HOPS; hop += 1) {
+    const parent = rows.get(cur)?.ppid;
+    if (parent === undefined || parent <= 1) return false;
+    if (parent === ancestor) return true;
+    cur = parent;
+  }
+  return false;
+}
+
 /**
  * Is `pid` the pane's process or any descendant of it? Agents that fork a
  * launcher (qwen forks twice) record an inner pid, so equality finds nothing.
@@ -86,14 +146,5 @@ export async function isDescendantOf(
   ancestor: number
 ): Promise<boolean> {
   if (pid === ancestor) return true;
-  const rows = await processTable();
-  let cur = pid;
-  // Bounded: a pid whose chain is longer than this is not our child tree.
-  for (let hop = 0; hop < 24; hop += 1) {
-    const parent = rows.get(cur)?.ppid;
-    if (parent === undefined || parent <= 1) return false;
-    if (parent === ancestor) return true;
-    cur = parent;
-  }
-  return false;
+  return isDescendantIn(await processTable(), pid, ancestor);
 }

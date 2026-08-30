@@ -9,6 +9,14 @@
  * visible and once produced output used to be pinned to "working" for the
  * rest of its life. Here the pin has nowhere to live — every tick recomputes
  * from tmux, and a quiet session reaches idle.
+ *
+ * Hermetic lane. The harness injects EVERY process read the monitor can make,
+ * being the fleet table and Phase 141's three one-process reads. Until Phase
+ * 171 it injected only the table, so the witness pass asked the live
+ * `/bin/ps -o stat=,ppid= -p 99276` about a pid that exists only in these
+ * fixtures, once per A1/A2/A3 case. That read named ps by absolute path, so
+ * masking ps from PATH could not catch it; it was found by wrapping
+ * child_process in a setup file and naming the test that asked.
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,7 +25,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionStatus } from '@shared/types';
 import { SessionActivityMonitor, type ActivitySession } from '../monitor';
-import { parseProcTable, type ProcSnapshot } from '../process';
+import { parseProcTable, type ProcSnapshot, type WitnessReading } from '../process';
 
 const fixture = (name: string): string =>
   readFileSync(join(__dirname, 'fixtures', name), 'utf8');
@@ -53,6 +61,17 @@ class Harness {
   readonly monitor: SessionActivityMonitor;
   /** Tier-2 table; hermetic — these tests never shell out to the real `ps`. */
   procTable = '';
+  /**
+   * Phase 141's one-process reads, scripted. The default answer is "gone",
+   * the same answer a live read gives for a pid that does not exist, which is
+   * what every case here saw before the reads were injected. A case that
+   * wants a witness scripts these maps.
+   */
+  readonly witnesses = new Map<number, WitnessReading>();
+  readonly commands = new Map<number, string>();
+  readonly children = new Map<number, number[]>();
+  /** Every one-process read the monitor asked for, so a case can prove none reached the host. */
+  readonly processReads: Array<[string, number]> = [];
   /** Stand-in for ~/.claude/sessions; hermetic — never reads the real home. */
   readonly claudeDir = mkdtempSync(join(tmpdir(), 'gmux-claude-reg-'));
 
@@ -89,6 +108,18 @@ class Harness {
       },
       readProc: async (): Promise<ProcSnapshot | null> =>
         parseProcTable(this.procTable, this.now),
+      readWitness: async (pid) => {
+        this.processReads.push(['witness', pid]);
+        return this.witnesses.get(pid) ?? { found: false, stat: '', ppid: null };
+      },
+      readCommand: async (pid) => {
+        this.processReads.push(['command', pid]);
+        return this.commands.get(pid) ?? null;
+      },
+      readChildren: async (pid) => {
+        this.processReads.push(['children', pid]);
+        return this.children.get(pid) ?? [];
+      },
       claudeSessionsDir: this.claudeDir,
       onStatus: (id, status) => this.statuses.push([id, status]),
       onActivity: () => undefined,
@@ -485,6 +516,9 @@ describe('A1/A2/A3 — claude, through its own session registry', () => {
     h.claudeEntry(99276, '%336', 'idle');
     await h.tick();
     expect(h.last('c1')).toBe('idle');
+    // The witness pass asked about the pane pid, and the harness answered.
+    // Before Phase 171 this read reached the host's /bin/ps for pid 99276.
+    expect(h.processReads).toContainEqual(['witness', 99276]);
   });
 
   it('flips to working the tick a turn starts, and back when it ends', async () => {

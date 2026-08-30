@@ -20,8 +20,12 @@
  *      fetched, with bytes. One cold launch, discarded from the statistics,
  *      then GMUX_P165_RUNS warm launches.
  *
- *   2. Every lazy surface opens the first time, offline. In the LAST warm
- *      launch, after the timing read, the page is put offline through the
+ *   2. Every lazy surface opens the first time, offline. In a DRIVE launch of
+ *      its own after the warm runs (its own because the diagnostics door,
+ *      `window.__gmuxShotDrive`, exists only when the launch asks for the
+ *      probe registry with GMUX_PROBES=1, and a probes launch boots more than
+ *      a person's launch does, so it must not sit in the timing sample), the
+ *      page is put offline through the
  *      protocol's own network emulation, and then the person's own gestures
  *      are sent as real input events: the Catch Me Up chord, the Architecture
  *      chord, a click on the map control, and the diagnostics report through
@@ -78,6 +82,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { cdpEval, wsConnect } from './cdp-client.mjs';
+import { pickRendererTarget, selfTest as targetSelfTest } from './cdp-target.mjs';
 import { withElectron } from './electron-run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -200,10 +205,39 @@ const root = realpathSync(join(harnessDir, 'p165'));
 const home = join(root, 'home');
 const profile = join(root, 'profile');
 
-/** The one read of the operator's server: a count, before and after. */
-function operatorSessionCount() {
-  const out = spawnSync('tmux', ['-L', 'gmux', 'list-sessions'], { encoding: 'utf8' });
-  return out.status !== 0 ? 0 : out.stdout.split('\n').filter((l) => l.trim() !== '').length;
+/**
+ * The one read of the operator's server: every session by its immutable id
+ * with its @gmux-id, before and after. Phase 171 replaced a bare count. The
+ * count moved from 48 to 49 during a run on 2026-08-30 because the operator
+ * opened a session of his own while the probe ran, and the probe called that
+ * a failure. A session this run created would be in THIS RUN'S manifest, so
+ * that is the test for a leak; a session that vanished is always a failure.
+ */
+function operatorSessions() {
+  const out = spawnSync(
+    'tmux',
+    ['-L', 'gmux', 'list-sessions', '-F', '#{session_id}\t#{session_name}\t#{@gmux-id}'],
+    { encoding: 'utf8' }
+  );
+  const rows = new Map();
+  if (out.status !== 0) return rows;
+  for (const line of out.stdout.split('\n')) {
+    if (line.trim() === '') continue;
+    const [id, name, gmuxId] = line.split('\t');
+    rows.set(id, { name: name ?? '', gmuxId: gmuxId ?? '' });
+  }
+  return rows;
+}
+/** Does this run's own scratch manifest know a session id? Then this run made it. */
+function scratchManifestKnows(gmuxId) {
+  const db = join(profile, 'gmux', 'manifest.db');
+  if (gmuxId === '' || !existsSync(db)) return false;
+  const r = spawnSync(
+    'sqlite3',
+    [db, `SELECT COUNT(*) FROM sessions WHERE id = '${gmuxId.replace(/'/g, "''")}';`],
+    { encoding: 'utf8' }
+  );
+  return r.status === 0 && Number(r.stdout.trim()) > 0;
 }
 /** Every Electron shaped process, by pid, the way CLAUDE.md says to count. */
 function electronRows() {
@@ -285,24 +319,34 @@ function mainLog(logFile) {
   }
   return null;
 }
+/**
+ * Attach to the main window. The pick itself is build/cdp-target.mjs, proved
+ * on fixtures before any launch, and when the window is not found in time the
+ * error says what the browser listed instead, so the reader can tell a
+ * window that never loaded from one another client holds.
+ */
 async function cdpForProfile(profileDir, timeoutMs) {
   const started = Date.now();
+  let last = 'DevToolsActivePort has not been written';
   for (;;) {
     try {
       const port = Number(readFileSync(join(profileDir, 'DevToolsActivePort'), 'utf8').split('\n')[0].trim());
       if (port > 0) {
         const list = await (await fetch(`http://127.0.0.1:${String(port)}/json/list`)).json();
-        const page = list.find((t) => t.type === 'page' && /renderer\/index\.html/.test(t.url ?? ''));
-        if (page?.webSocketDebuggerUrl) {
-          return await wsConnect(page.webSocketDebuggerUrl, {
+        const pick = pickRendererTarget(list);
+        if (pick.target !== null) {
+          return await wsConnect(pick.target.webSocketDebuggerUrl, {
             collect: ['Runtime.consoleAPICalled', 'Runtime.exceptionThrown', 'Network.requestWillBeSent', 'Network.loadingFinished']
           });
         }
+        last = pick.why;
       }
-    } catch {
-      /* not up yet */
+    } catch (e) {
+      last = `port file or /json/list not answering yet: ${String(e?.message ?? e)}`;
     }
-    if (Date.now() - started > timeoutMs) throw new Error('no devtools page in time');
+    if (Date.now() - started > timeoutMs) {
+      throw new Error(`observer: no main window target within ${String(timeoutMs)} ms; last seen: ${last}`);
+    }
     await sleep(50);
   }
 }
@@ -465,7 +509,11 @@ async function driveSurfaces(cdp) {
   }
 
   // 4. The diagnostics report, through its one harness door, which is the
-  // door the View menu row and Phase 163's own probe use.
+  // door the View menu row and Phase 163's own probe use. The door exists
+  // only on a GMUX_PROBES=1 launch, which is why the drive is a launch of
+  // its own: with GMUX_PROBES=0 the probe registry never loads, the hook is
+  // never installed, and this leg cannot open no matter what the product
+  // does. That is what its DID NOT OPEN meant from Phase 165 to Phase 171.
   {
     const mark = cdp.events().length;
     const watcher = armWatcher(cdp, '.diag', null, 15000);
@@ -571,10 +619,17 @@ async function launch(label, extraEnv, logFile, opts = {}) {
   return row;
 }
 
-const sessionsBefore = operatorSessionCount();
+// The observer proves itself before it spends an Electron: a pick that
+// drifted fails here, in 1 ms, and never as a budget number.
+{
+  const st = targetSelfTest();
+  if (!st.ok) refuse(`target discovery fixtures failed: ${st.failures.join(' | ')}`);
+  say(`target discovery: ${String(st.count)} fixtures pass`);
+}
+const operatorBefore = operatorSessions();
 const electronsBefore = electronRows();
 say(`app root ${appRoot}`);
-say(`operator sessions before ${String(sessionsBefore)}, electron pids before ${String(electronsBefore.size)}`);
+say(`operator sessions before ${String(operatorBefore.size)}, electron pids before ${String(electronsBefore.size)}`);
 
 let exitCode = 1;
 try {
@@ -606,11 +661,15 @@ try {
   for (let i = 1; i <= runs; i += 1) {
     warm.push(
       await launch(`warm ${String(i)}`, { GMUX_PROBES: '0' }, join(outDir, `warm-${String(i)}.json`), {
-        cdp: true,
-        drive: drive && i === runs
+        cdp: true
       })
     );
   }
+  // The drive spends a launch of its own, OUTSIDE the timing sample, with the
+  // probe registry loaded, because the diagnostics door exists only there.
+  const driveRow = drive
+    ? await launch('drive', { GMUX_PROBES: '1' }, join(outDir, 'drive.json'), { cdp: true, drive: true })
+    : null;
 
   const summary = {};
   const line = (k, xs) => {
@@ -630,13 +689,26 @@ try {
   console.log(
     `  eager scripts at boot (warm 1): ${String(bootScripts.length)}, ${fmt(bootScripts.reduce((a, x) => a + x.decoded, 0))} bytes decoded: ${bootScripts.map((x) => `${x.name} ${fmt(x.decoded)}`).join(' | ')}`
   );
-  const driven = warm.find((r) => r.driven)?.driven ?? null;
-  const result = { appRoot, runs, holdMs, summary, bootScripts, drive: driven, rows: { cold, warm } };
+  const driven = driveRow?.driven ?? null;
+  const result = { appRoot, runs, holdMs, summary, bootScripts, drive: driven, rows: { cold, warm, drive: driveRow } };
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(result, null, 1));
 
   let bad = 0;
+  // Observer failures are named as such and never reach the budget line. A
+  // renderer that could not be read is a defect in this probe or its
+  // environment, not a paint that got slower, and before Phase 171 it was
+  // reported as "p95 is null ms against the 200 ms budget line".
+  const unread = [cold, ...warm, ...(driveRow === null ? [] : [driveRow])].filter(
+    (r) => r.rendererErr !== null
+  );
+  if (unread.length > 0) {
+    bad += 1;
+    say(`FAIL: observer: the renderer could not be read in ${unread.map((r) => `${r.label} (${r.rendererErr})`).join('; ')}. This is observer drift, not a product budget.`);
+  }
   const dclP95 = summary['renderer DOMContentLoaded end']?.p95 ?? null;
-  if (dclP95 === null || dclP95 >= 200) {
+  if (unread.length > 0 && dclP95 === null) {
+    say('warm DOMContentLoaded p95: unmeasured, see the observer failure above.');
+  } else if (dclP95 === null || dclP95 >= 200) {
     bad += 1;
     say(`FAIL: warm DOMContentLoaded p95 is ${String(dclP95)} ms against the 200 ms budget line.`);
   }
@@ -645,7 +717,16 @@ try {
       bad += 1;
       say('FAIL: the drive run produced nothing.');
     } else {
+      // A missing shot hook means the drive launch never got its door, so the
+      // diagnostics verdict below would blame the product for the observer's
+      // own launch shape. Name it, and judge the other surfaces normally.
+      const observerDiag = driven.diagnostics != null && driven.diagnostics.hook !== true;
+      if (observerDiag) {
+        bad += 1;
+        say('FAIL: observer: the drive launch carries no shot hook, so the diagnostics door cannot be driven. This is observer drift, not a product budget.');
+      }
       for (const surface of SURFACES) {
+        if (surface === 'diagnostics' && observerDiag) continue;
         const d = driven[surface];
         if (!d?.opened) {
           bad += 1;
@@ -680,12 +761,27 @@ try {
   exitCode = bad === 0 ? 0 : 1;
 } finally {
   tmux('kill-server');
-  const sessionsAfter = operatorSessionCount();
+  const operatorAfter = operatorSessions();
+  const missing = [...operatorBefore.keys()].filter((id) => !operatorAfter.has(id));
+  const fresh = [...operatorAfter].filter(([id]) => !operatorBefore.has(id));
+  const leakedSessions = fresh.filter(([, s]) => scratchManifestKnows(s.gmuxId));
+  const theirs = fresh.filter(([, s]) => !scratchManifestKnows(s.gmuxId));
   const leaked = leftByThisRun(electronsBefore);
   say(
-    `operator sessions after ${String(sessionsAfter)} (before ${String(sessionsBefore)}); electrons left by this run: ${String(leaked.length)}${leaked.length > 0 ? ` ${leaked.join(' | ')}` : ''}`
+    `operator sessions after ${String(operatorAfter.size)} (before ${String(operatorBefore.size)}); electrons left by this run: ${String(leaked.length)}${leaked.length > 0 ? ` ${leaked.join(' | ')}` : ''}`
   );
-  if (sessionsAfter !== sessionsBefore || leaked.length > 0) exitCode = 1;
+  if (missing.length > 0) {
+    say(`FAIL: ${String(missing.length)} operator session(s) vanished during the run: ${missing.join(' ')}`);
+    exitCode = 1;
+  }
+  if (leakedSessions.length > 0) {
+    say(`FAIL: this run created ${String(leakedSessions.length)} session(s) on the operator's server: ${leakedSessions.map(([id, s]) => `${id} ${s.name}`).join(' ')}`);
+    exitCode = 1;
+  }
+  if (theirs.length > 0) {
+    say(`note: ${String(theirs.length)} session(s) opened on the operator's server during the run, not by this run's app, not counted: ${theirs.map(([id, s]) => `${id} ${s.name}`).join(' ')}`);
+  }
+  if (leaked.length > 0) exitCode = 1;
 }
 say(exitCode === 0 ? 'PASS' : 'FAIL');
 process.exit(exitCode);

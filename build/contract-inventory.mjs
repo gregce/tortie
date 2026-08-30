@@ -9,6 +9,13 @@
  * A stage that changes a line on purpose re-baselines in the same commit and
  * says why in the commit body. A silent diff fails the stage.
  *
+ * PHASE 171 PUT `--check` INSIDE `npm run build`, as its last step, and named
+ * it `npm run gate:contract`. Across the thirteen phases from 158 to 169 the tree gained
+ * 16 invoke channels, 22 GMUX_* env names and one harness smoke mode, and the
+ * committed baseline recorded none of them, because this check ran in no
+ * ordinary gate and nobody ran it by hand. An alarm nobody runs is
+ * documentation. It takes about 0.8 s, so nothing that builds can skip it.
+ *
  * ## What it emits, and how each section is obtained
  *
  * 1. IPC invoke channels. The TypeScript checker resolves the exported
