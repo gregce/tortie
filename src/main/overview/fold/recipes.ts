@@ -427,6 +427,62 @@ const PI_RECIPE: FoldRecipe = {
 };
 
 // ---------------------------------------------------------------------------
+// omp
+// ---------------------------------------------------------------------------
+
+/**
+ * The measured omp recipe, pi's successor and nearly as lean.
+ *
+ * omp drops three of pi's fold flags (`--no-context-files`, `--no-prompt-
+ * templates`, `--offline` are all ABSENT from omp 18.0.10 --help) and adds
+ * `--no-rules`. What remains still turns off tools, the session file,
+ * extensions, skills, rules and thinking. Measured on 2026-08-29 against omp
+ * 18.0.10: one fold ran in 7–16 s and reported input/output token counts and a
+ * `cost.total` on the `turn_end` record — the same NDJSON shape readPiNdjson
+ * already consumes (`{"type":"turn_end","message":{"role":"assistant",…,
+ * "usage":{…,"cost":{"total":…}}}}`). On this machine cost.total reads 0
+ * because the provider is a local Foundry endpoint, but the field is present
+ * and read.
+ *
+ * `--no-session` is the working directory rule, same guarantee as pi: nothing
+ * is written under ~/.omp/agent/sessions for a fold run.
+ *
+ * TORTIE DOES NOT CHOOSE OMP'S MODEL, for pi's reason: omp's providers and
+ * models live in your own ~/.omp/agent, and a compiled list would be a copy of
+ * one person's configuration. The one row runs omp on whatever it is set to.
+ */
+const OMP_MODEL_DEFAULT = 'default';
+
+const OMP_RECIPE: FoldRecipe = {
+  agentId: 'omp',
+  version: 1,
+  measuredOn: '2026-08-29',
+  models: [{ id: OMP_MODEL_DEFAULT, label: 'Whatever omp is set to use' }],
+  suggestedModel: OMP_MODEL_DEFAULT,
+  systemPromptMode: 'flag',
+  env: NO_ENV,
+  argv: ({ prompt, systemPrompt, model }) => [
+    '-p',
+    prompt,
+    '--system-prompt',
+    systemPrompt,
+    // Every one of these was confirmed present in omp 18.0.10 --help.
+    '--no-tools',
+    '--no-session',
+    '--no-extensions',
+    '--no-skills',
+    '--no-rules',
+    '--thinking',
+    'off',
+    '--mode',
+    'json',
+    ...(model === OMP_MODEL_DEFAULT ? [] : ['--model', model])
+  ],
+  read: readPiNdjson,
+  timeoutMs: 45_000
+};
+
+// ---------------------------------------------------------------------------
 // The table, and the rows that are not in it
 // ---------------------------------------------------------------------------
 
@@ -435,7 +491,8 @@ const RECIPES: readonly FoldRecipe[] = [
   CODEX_RECIPE,
   CURSOR_RECIPE,
   GROK_RECIPE,
-  PI_RECIPE
+  PI_RECIPE,
+  OMP_RECIPE
 ];
 
 /**

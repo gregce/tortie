@@ -21,6 +21,17 @@
  *    contrast on --bg-canvas. The dilation is the only version that still
  *    reads as Qwen at 16 px.
  *
+ * `omp` (Phase 169) is Oh My Pi, the pi successor. Its mark is the pi
+ * letterform from the vendor's own favicon.svg at omp.sh, the only vector the
+ * site ships (its pages carry no inline SVG at all). It stays multi-tone
+ * because the pink to purple to cyan gradient IS the brand, and at 16 px the
+ * gradient is the one thing that separates omp from pi's monochrome glyph.
+ * The favicon's dark rounded plate is a browser-tab device, not the mark, so
+ * it is dropped, and the bare glyph is refitted to the 24 grid (18 wide, 20
+ * tall, centred, strokes 3 to 4 units so they hold at 14 px). The gradient id
+ * carries the `omp-` prefix because every inline copy of every mark lands in
+ * one document, and a bare `id="g"` would be asking for a collision.
+ *
  * Monochrome marks are `currentColor` so they tint with the surrounding text
  * (rest: --text-secondary), while inherently multi-tone marks (droid's disc)
  * render as-is. Crisp at 14–16 px: all marks are simple filled geometry on
@@ -46,6 +57,7 @@ import geminiSvg from '../assets/agents/gemini.svg?raw';
 import githubcopilotSvg from '../assets/agents/githubcopilot.svg?raw';
 import grokSvg from '../assets/agents/grok.svg?raw';
 import museSvg from '../assets/agents/muse.svg?raw';
+import ompSvg from '../assets/agents/omp.svg?raw';
 import piSvg from '../assets/agents/pi.svg?raw';
 import qwenSvg from '../assets/agents/qwen.svg?raw';
 
@@ -68,6 +80,7 @@ const LOGOS: Record<string, string> = {
   githubcopilot: githubcopilotSvg,
   grok: grokSvg,
   muse: museSvg,
+  omp: ompSvg,
   pi: piSvg,
   qwen: qwenSvg
 };
@@ -95,6 +108,7 @@ const ALIASES: Record<string, string> = {
   qwencode: 'qwen',
   alibaba: 'qwen',
   picodingagent: 'pi',
+  ohmypi: 'omp',
   xai: 'grok',
   grokcli: 'grok',
   spacex: 'grok',

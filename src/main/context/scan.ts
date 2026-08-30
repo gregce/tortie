@@ -78,6 +78,7 @@ const AGENT_LEAD_ORDER: readonly AgentRegistryId[] = [
   'antigravity',
   'muse',
   'pi',
+  'omp',
   'deepseek',
   'droid'
 ];

@@ -13,6 +13,7 @@ export {
   agentHarvestsId,
   agentRescuesId,
   agentRescuesIdAfterExit,
+  sanitizeOmpCwd,
   sanitizePiCwd,
   sanitizeQwenCwd,
   type HarvestContext,

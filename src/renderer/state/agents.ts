@@ -220,6 +220,7 @@ const SEED_AGENTS: readonly SeedAgent[] = [
   { id: 'muse', label: 'Muse', unverified: false },
   { id: 'qwen', label: 'Qwen', unverified: false },
   { id: 'pi', label: 'Pi', unverified: false },
+  { id: 'omp', label: 'Oh My Pi', unverified: false },
   { id: 'grok', label: 'Grok', unverified: false }
 ];
 

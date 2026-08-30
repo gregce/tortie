@@ -177,7 +177,8 @@ export const REMOTE_HARVEST_AGENTS: readonly LaunchableAgentId[] = [
   'codex',
   'muse',
   'deepseek',
-  'pi'
+  'pi',
+  'omp'
 ];
 
 /** True when a connection can look for this agent's records. */
@@ -500,6 +501,18 @@ export function confirmRemoteCandidate(
       const first = firstJsonLine(head);
       if (first === null || first['type'] !== 'session') return 'unknown';
       const cwd = first['cwd'];
+      if (typeof cwd !== 'string') return 'unknown';
+      return sameRemotePath(cwd, ctx.cwd) ? 'match' : 'mismatch';
+    }
+    // omp's session record is the pi v3 shape, but NOT on line 1: a real
+    // 18.0.11 file opens with {"type":"title",...} and the session record
+    // sits on line 2 (read from a live store, 2026-08-30). So the confirm
+    // scans the head lines for the session record instead of trusting the
+    // first one, which would call every real omp file 'unknown'.
+    case 'omp': {
+      const session = jsonLines(head).find((r) => r['type'] === 'session');
+      if (session === undefined) return 'unknown';
+      const cwd = session['cwd'];
       if (typeof cwd !== 'string') return 'unknown';
       return sameRemotePath(cwd, ctx.cwd) ? 'match' : 'mismatch';
     }

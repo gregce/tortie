@@ -81,11 +81,12 @@ describe('parseMachineFacts', () => {
 });
 
 describe('which agents a connection may ask about', () => {
-  it('names four, and they are the four whose record carries its own owner', () => {
+  it('names five, and they are the five whose record carries its own owner', () => {
     expect([...REMOTE_HARVEST_AGENTS].sort()).toEqual([
       'codex',
       'deepseek',
       'muse',
+      'omp',
       'pi'
     ]);
   });
@@ -302,6 +303,22 @@ describe('confirmRemoteCandidate', () => {
     ).toBe('match');
     expect(
       confirmRemoteCandidate('pi', JSON.stringify({ type: 'turn', cwd: '/w' }), {
+        cwd: '/w'
+      })
+    ).toBe('unknown');
+  });
+
+  it('matches omp through the title line a real file opens with', () => {
+    // The real 18.0.11 shape: line 1 is a title record, the session record
+    // sits on line 2. A confirm that trusts the first line alone answers
+    // 'unknown' for every real omp file.
+    const head =
+      `${JSON.stringify({ type: 'title', v: 1, title: '' })}\n` +
+      `${JSON.stringify({ type: 'session', version: 3, cwd: '/w' })}\n`;
+    expect(confirmRemoteCandidate('omp', head, { cwd: '/w' })).toBe('match');
+    expect(confirmRemoteCandidate('omp', head, { cwd: '/other' })).toBe('mismatch');
+    expect(
+      confirmRemoteCandidate('omp', JSON.stringify({ type: 'turn', cwd: '/w' }), {
         cwd: '/w'
       })
     ).toBe('unknown');

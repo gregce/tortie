@@ -81,6 +81,7 @@ import {
 } from '../agents';
 import type { AgentKind, LaunchableAgentId } from '@shared/types';
 import { TRUST_DIALOG_PATTERNS, firstMatch } from '../conformance/cases';
+import { publishBypassEnv } from '../conformance/bypass-env';
 import { clearTrustGate, readPane, waitForQuiet } from '../conformance/pane';
 import {
   P64_PROBE_LINES,
@@ -157,6 +158,7 @@ export async function runP64PasteMatrix(): Promise<void> {
     );
   }
   const rows: Row[] = [];
+  let undoBypassEnv: () => Promise<void> = async () => undefined;
   const outPath =
     process.env['GMUX_P64_OUT'] ?? join(process.cwd(), 'out', 'p64-paste-matrix.json');
   try {
@@ -173,6 +175,13 @@ export async function runP64PasteMatrix(): Promise<void> {
         ? [...LAUNCHABLE_AGENT_IDS]
         : LAUNCHABLE_AGENT_IDS.filter((id) => only.includes(id))
     ) as LaunchableAgentId[];
+
+    // The same first run environment the resume harness gives its server
+    // (BYPASS_ENV, one row today: omp's setup wizard off). Without it the omp
+    // row read `blocked` on the wizard twice on 2026-08-30, a pane that was
+    // not taking input rather than a paste verdict. Written to this run's own
+    // scratch server only and removed before it ends.
+    undoBypassEnv = await publishBypassEnv(agents, true);
 
     for (const agent of agents) {
       rows.push(await measure(core, agent));
@@ -203,9 +212,11 @@ export async function runP64PasteMatrix(): Promise<void> {
         `${String(whole.length)} of ${String(measured.length)} measured agents took it whole; ` +
         `${String(rows.length - measured.length)} row(s) could not be measured and say why. ${outPath}`
     );
+    await undoBypassEnv();
     await shutdownGmuxCore();
     app.exit(0);
   } catch (err) {
+    await undoBypassEnv().catch(() => undefined);
     // The rows measured before the failure are the evidence, so they are
     // written out before this process ends however it ends.
     await mkdir(dirname(outPath), { recursive: true }).catch(() => undefined);

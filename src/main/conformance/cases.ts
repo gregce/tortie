@@ -62,6 +62,11 @@ export const BYPASS_FLAGS: Readonly<Record<LaunchableAgentId, readonly string[]>
   // pi has no approval system at all — its safety lever is --tools, and it
   // needs no gate answered to reach a prompt (research 22 §1.3).
   pi: [],
+  // omp DOES have an approval system (--approval-mode, --auto-approve),
+  // unlike pi. Empty is still right, because approval gates a tool call and
+  // not the prompt: omp reaches its prompt with no gate answered, and the
+  // conformance turns run no tools.
+  omp: [],
   // grok needs no gate ANSWERED to reach a prompt. The first-run "Help
   // improve Grok" banner is a different problem: the typed prompt stays
   // live under it, but the REPLY never paints while it is on screen (Phase
@@ -107,6 +112,55 @@ export function assertBypassFlagsAreCataloged(
   return problems;
 }
 
+/**
+ * Environment that gets a first-run agent to a prompt without a human, the
+ * env counterpart of {@link BYPASS_FLAGS}. The harness writes it to its OWN
+ * tmux server's global environment for the length of the run, which reaches
+ * every pane created on that server (measured in ../tmux/supervisor.ts, where
+ * PATH is the one exception). It is never put in a registry row's
+ * `launch.env`, so no pane a person creates in the product carries it, and
+ * the run refuses to write it on the real socket at all.
+ *
+ * omp, read from the compiled 18.0.11 binary on 2026-08-30: the first TTY
+ * launch opens a five step setup wizard, "Setup step 1 of 5", and keeps
+ * opening it until a person completes it or its settings say so. The binary
+ * skips the wizard on any of four conditions: no TTY, resuming (--continue,
+ * --resume, --fork), the setupWizard setting off, or OMP_SKIP_SETUP set to
+ * anything but 0, false or no. So Tortie's restore, which passes --resume, is
+ * never gated, and the plant turn, which is a fresh create, is. Driven live:
+ * without the variable the pane is the wizard, with it the same binary is at
+ * its prompt in the same cwd.
+ *
+ * The product deliberately does NOT set this. The wizard is how a person
+ * signs in to a provider, every key in it works from a Tortie pane, and it
+ * runs once. That is the opposite of grok's banner, whose buttons are mouse
+ * only, which is why grok's suppression lives in the registry and this lives
+ * here. Honoured only under GMUX_CONF_BYPASS (the default), like the flags.
+ */
+export const BYPASS_ENV: Readonly<
+  Partial<Record<LaunchableAgentId, Readonly<Record<string, string>>>>
+> = {
+  omp: { OMP_SKIP_SETUP: '1' }
+};
+
+/**
+ * The names in {@link BYPASS_ENV} the harness must never write. GMUX_ names
+ * are the pane's identity stamps (../tmux/env.ts), and the overlay loader
+ * already refuses them for the same reason.
+ */
+export function bypassEnvProblems(): string[] {
+  const problems: string[] = [];
+  for (const [agent, env] of Object.entries(BYPASS_ENV)) {
+    for (const [name, value] of Object.entries(env ?? {})) {
+      if (/^GMUX_/.test(name) || !/^[A-Z][A-Z0-9_]*$/.test(name)) {
+        problems.push(`${agent}: "${name}" is not a name the harness may set`);
+      }
+      if (value === '') problems.push(`${agent}: "${name}" is empty`);
+    }
+  }
+  return problems;
+}
+
 // ---------------------------------------------------------------------------
 // Pane classification
 // ---------------------------------------------------------------------------
@@ -147,7 +201,12 @@ export const INTERACTIVE_GATE_PATTERNS: readonly RegExp[] = [
   // registry suppresses it with GROK_PRIVACY_NOTICE_ROLLOUT=0, so matching
   // here is a tripwire: if that variable ever rots, the case reads BLOCKED
   // with this line named instead of a bare 150 s timeout.
-  /\bhelp improve grok\b/i
+  /\bhelp improve grok\b/i,
+  // omp's first-run setup wizard, "Setup step 1 of 5", read live 2026-08-30.
+  // BYPASS_ENV keeps it off the harness's panes with OMP_SKIP_SETUP, so this
+  // is the same kind of tripwire as the grok line: if that variable ever
+  // stops working, the case reads BLOCKED with the wizard named.
+  /\bsetup step \d+ of \d+\b/i
 ];
 
 /**

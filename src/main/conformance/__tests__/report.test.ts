@@ -9,8 +9,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   ARGV_REJECTED_PATTERNS,
+  BYPASS_ENV,
   BYPASS_FLAGS,
   INTERACTIVE_GATE_PATTERNS,
+  bypassEnvProblems,
   SELECTED_AFFIRMATIVE,
   TRUST_DIALOG_PATTERNS,
   assertBypassFlagsAreCataloged,
@@ -133,6 +135,19 @@ describe('pane classification', () => {
     );
   });
 
+  it("recognises omp's first-run setup wizard as a human gate", () => {
+    // The pane read live on 2026-08-30 from omp 18.0.11 with no OMP_SKIP_SETUP.
+    const pane =
+      '   omp\n  Setup step 1 of 5\nSet up your providers\n' +
+      "Sign in and pick a web search provider. Press Esc when you're done.\n";
+    // The first scene also says "Sign in", which an earlier line already
+    // catches; the wizard line is for the scenes that do not.
+    expect(firstMatch(pane, INTERACTIVE_GATE_PATTERNS)).not.toBeNull();
+    expect(firstMatch('  Setup step 3 of 5\nPick a theme\n', INTERACTIVE_GATE_PATTERNS)).toBe(
+      'Setup step 3 of 5'
+    );
+  });
+
   it('does not classify an ordinary working pane', () => {
     const pane = 'ready-a1b2c3d4\n> \n';
     expect(firstMatch(pane, ARGV_REJECTED_PATTERNS)).toBeNull();
@@ -170,6 +185,29 @@ describe('bypass flags stay tied to the verified flag catalog', () => {
   it('every flag the harness passes is a VERIFIED preset', () => {
     const agents = Object.keys(BYPASS_FLAGS) as (keyof typeof BYPASS_FLAGS)[];
     expect(assertBypassFlagsAreCataloged(agents)).toEqual([]);
+  });
+});
+
+describe('bypass env names only what the harness may set', () => {
+  it('every agent in the table is launchable and every name is writable', () => {
+    const launchable = new Set(Object.keys(BYPASS_FLAGS));
+    for (const agent of Object.keys(BYPASS_ENV)) expect(launchable.has(agent)).toBe(true);
+    expect(bypassEnvProblems()).toEqual([]);
+  });
+
+  it('omp gets the vendor variable that skips its setup wizard, and only that', () => {
+    expect(BYPASS_ENV.omp).toEqual({ OMP_SKIP_SETUP: '1' });
+  });
+
+  it('refuses a GMUX_ name, because that is a pane identity stamp', () => {
+    const forged = { ...BYPASS_ENV, omp: { GMUX_SESSION_ID: 'x' } };
+    const problems: string[] = [];
+    for (const [agent, env] of Object.entries(forged)) {
+      for (const name of Object.keys(env ?? {})) {
+        if (/^GMUX_/.test(name)) problems.push(`${agent}: ${name}`);
+      }
+    }
+    expect(problems).toEqual(['omp: GMUX_SESSION_ID']);
   });
 });
 

@@ -21,6 +21,7 @@ import {
   agentRescuesIdAfterExit,
   isDescendantOf,
   resetProcessParentCache,
+  sanitizeOmpCwd,
   sanitizePiCwd,
   sanitizeQwenCwd,
   watchForSessionId,
@@ -377,6 +378,76 @@ describe('pi — rescue by cwd directory + filename start time', () => {
 
   it('encodes the cwd the way pi does', () => {
     expect(sanitizePiCwd('/Users/gdc/pi')).toBe('--Users-gdc-pi--');
+  });
+});
+
+describe('omp — the pi store moved, re-keyed, and with a title line on top', () => {
+  const ompDir = (): string =>
+    join(home, '.omp', 'agent', 'sessions', sanitizeOmpCwd(cwd, home, tmpdir()));
+  const ompFile = (iso: string, id: string): string =>
+    join(ompDir(), `${iso}_${id}.jsonl`);
+  // The real 18.0.11 file shape, read from a live store on 2026-08-30:
+  // line 1 is {"type":"title",...} and the session record sits on LINE 2.
+  // A confirm that trusts the first JSON line calls every real omp file
+  // 'unknown', which is the defect this fixture pins.
+  const body = (id: string, at: string, where = cwd): string =>
+    jsonl(
+      { type: 'title', v: 1, title: '', updatedAt: at, pad: ' ' },
+      { type: 'session', version: 3, id, timestamp: at, cwd: where }
+    );
+
+  const id = '01a05476-a4cc-7031-850f-a81d717c01ed';
+
+  it('confirms a real-shape file from its line-2 session record', async () => {
+    write(
+      ompFile('2026-08-30T20-57-36-716Z', id),
+      body(id, '2026-08-30T20:57:36.716Z')
+    );
+    const watch = watchForSessionId(
+      'omp',
+      { cwd, sinceTs: Date.parse('2026-08-30T20:57:36.000Z') },
+      { home, ...FAST }
+    );
+    await expect(watch.promise).resolves.toMatchObject({
+      sessionId: id,
+      viaGraceTimer: false
+    });
+  });
+
+  it('refuses a file whose line-2 cwd is another project', async () => {
+    write(
+      ompFile('2026-08-30T20-57-36-716Z', id),
+      body(id, '2026-08-30T20:57:36.716Z', '/somewhere/else')
+    );
+    const watch = watchForSessionId(
+      'omp',
+      { cwd, sinceTs: Date.parse('2026-08-30T20:57:36.000Z') },
+      { home, ...FAST }
+    );
+    await expect(watch.promise).rejects.toThrow(/Timed out/);
+  });
+
+  it('encodes the cwd in all three of omp’s buckets', () => {
+    // Pure arithmetic: the roots do not exist, so realpath falls back to
+    // the spelling given, and the buckets are decided by prefix alone.
+    const H = '/Users/nobody-p169';
+    const T = '/p169-tmp-root';
+    expect(sanitizeOmpCwd(join(H, 'proj', 'x'), H, T)).toBe('-proj-x');
+    expect(sanitizeOmpCwd(H, H, T)).toBe('-');
+    expect(sanitizeOmpCwd(join(T, 'a', 'b'), H, T)).toBe('-tmp-a-b');
+    expect(sanitizeOmpCwd(T, H, T)).toBe('-tmp');
+    // Outside both, pi's legacy wrap survives. The abs bucket was checked
+    // byte for byte against the directory a real 18.0.11 run wrote for a
+    // cwd under /private/tmp on 2026-08-30.
+    expect(sanitizeOmpCwd('/Volumes/work/repo', H, T)).toBe(
+      '--Volumes-work-repo--'
+    );
+  });
+
+  it('harvests at create time, unlike pi, and never rescues after exit', () => {
+    expect(agentHarvestsId('omp')).toBe(true);
+    expect(agentRescuesId('omp')).toBe(true);
+    expect(agentRescuesIdAfterExit('omp')).toBe(false);
   });
 });
 

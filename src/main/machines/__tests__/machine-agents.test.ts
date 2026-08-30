@@ -221,7 +221,7 @@ describe('chunkAgentRecords', () => {
     const launchable = AGENT_REGISTRY.filter(
       (entry) => entry.launchable && entry.launch !== null
     );
-    expect(launchable.length).toBe(11);
+    expect(launchable.length).toBe(12);
     const records = launchable.map((entry) =>
       composeAgentRecord(
         entry.launch?.argv[0] ?? '',

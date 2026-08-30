@@ -56,6 +56,7 @@ const REGISTRY_AGENTS: ReadonlySet<string> = new Set<AgentRegistryId>([
   'muse',
   'qwen',
   'pi',
+  'omp',
   'cursoride',
   'copilotide'
 ]);

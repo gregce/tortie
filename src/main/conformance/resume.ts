@@ -88,10 +88,12 @@ import {
   BYPASS_FLAGS,
   INTERACTIVE_GATE_PATTERNS,
   assertBypassFlagsAreCataloged,
+  bypassEnvProblems,
   firstMatch,
   plantPrompt,
   recallPrompt
 } from './cases';
+import { publishBypassEnv } from './bypass-env';
 import {
   clearTrustGate,
   currentScreen,
@@ -721,6 +723,7 @@ export async function runResumeConformance(): Promise<void> {
     app.exit(1);
   }, cfg.watchdogMs);
   watchdog.unref?.();
+  let undoBypassEnv: () => Promise<void> = async () => undefined;
 
   try {
     const flagProblems = assertBypassFlagsAreCataloged(cfg.agents);
@@ -728,6 +731,10 @@ export async function runResumeConformance(): Promise<void> {
       throw new Error(
         `bypass flags have drifted from AGENT_FLAG_PRESETS:\n  ${flagProblems.join('\n  ')}`
       );
+    }
+    const envProblems = bypassEnvProblems();
+    if (cfg.bypass && envProblems.length > 0) {
+      throw new Error(`bypass env is not writable:\n  ${envProblems.join('\n  ')}`);
     }
 
     console.log(
@@ -744,6 +751,7 @@ export async function runResumeConformance(): Promise<void> {
     const core = await getGmuxCore();
     const swept = await sweepLeftovers(core);
     if (swept > 0) console.log(`[gmux-conf] swept ${swept} leftover(s)`);
+    undoBypassEnv = await publishBypassEnv(cfg.agents, cfg.bypass);
 
     // Phase 21. The report has to be able to say WHICH BUILD it passed
     // against, so the versions are read before any case runs and the same
@@ -808,6 +816,7 @@ export async function runResumeConformance(): Promise<void> {
     console.log(`[gmux-conf] results: ${cfg.jsonPath}`);
 
     await sweepLeftovers(core).catch(() => 0);
+    await undoBypassEnv();
     await shutdownGmuxCore();
     // Phase 36: GmuxCore.dispose() cancels the harvest watches, and every
     // one of those unsubscribes is now TRACKED (src/main/watcher/teardown).
@@ -822,6 +831,7 @@ export async function runResumeConformance(): Promise<void> {
     app.exit(code);
   } catch (err) {
     console.error(`[gmux-conf] FAIL: ${(err as Error).message}`);
+    await undoBypassEnv().catch(() => undefined);
     app.exit(1);
   }
 }

@@ -44,6 +44,7 @@ export type RegistryAgentId =
   | 'muse'
   | 'qwen'
   | 'pi'
+  | 'omp'
   | 'grok';
 
 /** Where knowledge of a flag comes from. */
@@ -506,6 +507,54 @@ export const AGENT_FLAG_PRESETS: Record<RegistryAgentId, AgentFlagCatalog> = {
       '--thinking <off|minimal|low|medium|high|xhigh>',
       '--provider <name> / --model <pattern>',
       '--session-dir <dir> (overrides PI_CODING_AGENT_SESSION_DIR)'
+    ]
+  },
+
+  omp: {
+    binary: 'omp',
+    // Re-verified 2026-08-30 against the operator's own install: every
+    // preset and value flag below is present, unchanged, in 18.0.11 --help.
+    helpVerifiedVersion: 'omp/18.0.11',
+    resumeRepass: 'required-unverified',
+    resumeNote:
+      'omp 18.0.10 resume flags: -c/--continue, -r/--resume <id-prefix|path|picker>, --session-dir <dir>. NO --session-id (pi’s pre-assign is gone). --resume takes a full uuid or an absolute .jsonl path; both verified prompt-free on 2026-08-29. omp HAS an approval system unlike pi (--approval-mode always-ask|write|yolo, --auto-approve), so autonomy presets are real flags, not inferences.',
+    presets: [
+      {
+        flag: '--approval-mode write',
+        label: 'Approval: write',
+        description:
+          'Auto-approve file writes but still ask for the rest. The middle rung of omp’s approval ladder.',
+        danger: false,
+        provenance: 'VERIFIED'
+      },
+      {
+        flag: '--approval-mode yolo',
+        label: 'Approval: yolo',
+        description:
+          'Auto-approve every tool call without prompting. omp’s own name for the run-everything mode.',
+        danger: true,
+        provenance: 'VERIFIED'
+      },
+      {
+        flag: '--auto-approve',
+        label: 'Auto-approve all tools',
+        description:
+          'Skip approval prompts entirely (help text verbatim: "Auto-approve all tool calls").',
+        danger: true,
+        provenance: 'VERIFIED'
+      },
+      {
+        flag: '--no-session',
+        label: 'Ephemeral (no session file)',
+        description: 'Don’t save the session to disk (nothing to resume).',
+        danger: false,
+        provenance: 'VERIFIED'
+      }
+    ],
+    valueFlagNotes: [
+      '--thinking <off|minimal|low|medium|high|xhigh|max|auto>',
+      '--model <pattern> (fuzzy: "opus", "gpt-5.2", "openai/gpt-5.2")',
+      '--session-dir <dir> (overrides the per-cwd store lookup)'
     ]
   },
 

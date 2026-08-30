@@ -21,6 +21,7 @@ import Database from 'better-sqlite3';
 import type { AgentRegistryId } from '@shared/types';
 import {
   DATE_SHARD_WINDOW_MS,
+  sanitizeOmpCwd,
   sanitizePiCwd,
   sanitizeQwenCwd
 } from '../../manifest/harvest/stores';
@@ -56,6 +57,7 @@ const PATH_ARITHMETIC_PROVIDERS = new Set<string>([
   'muse',
   'qwen',
   'pi',
+  'omp',
   'gemini',
   'deepseek',
   'cursor'
@@ -220,6 +222,28 @@ export function resolveSessionLog(input: ResolveInput, env?: Partial<ResolveEnv>
     case 'pi': {
       const dir = join(home, '.pi', 'agent', 'sessions', sanitizePiCwd(realCwd));
       // Match on the FILENAME uuid. It differs from the line 1 id in 6 of 55 files.
+      for (const name of listDir(dir)) {
+        if (name.endsWith(`_${id}.jsonl`)) {
+          const p = join(dir, name);
+          if (isFile(p)) return { state: 'resolved', provider, file: p, sessionId: null };
+        }
+      }
+      return { state: 'no-file', provider };
+    }
+    case 'omp': {
+      // The pi store moved (~/.pi/agent -> ~/.omp/agent) and the per-cwd DIR
+      // KEY moved with it: omp buckets the realpathed cwd by HOME and tmpdir
+      // (sanitizeOmpCwd), and only a cwd outside both keeps pi's flat wrap.
+      // Only the _<uuid>.jsonl filename grammar is unchanged. Using pi's
+      // sanitizePiCwd here read a directory omp never writes for any project
+      // under the home directory, which is nearly every project.
+      const dir = join(
+        home,
+        '.omp',
+        'agent',
+        'sessions',
+        sanitizeOmpCwd(realCwd, home, os.tmpdir())
+      );
       for (const name of listDir(dir)) {
         if (name.endsWith(`_${id}.jsonl`)) {
           const p = join(dir, name);

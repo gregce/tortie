@@ -39,7 +39,7 @@ const BOTH = { claude: true, codex: true };
 describe('buildAgentOptions', () => {
   it('falls back to the static launchable list + Shell when no scan exists', () => {
     const options = buildAgentOptions(null, BOTH);
-    expect(options).toHaveLength(12); // 11 launchable registry agents + shell
+    expect(options).toHaveLength(13); // 12 launchable registry agents + shell
     expect(options[0]?.id).toBe('claude');
     expect(options.at(-1)?.id).toBe('shell');
     expect(options.at(-1)?.installed).toBe(true);
@@ -308,7 +308,7 @@ describe('the machine answer decides (Phase 109)', () => {
   it('draws every tile on when nothing is held, the all-unknown view', () => {
     const options = buildAgentOptions(null, BOTH, view([]));
     for (const one of options) expect(one.installed).toBe(true);
-    expect(options).toHaveLength(12);
+    expect(options).toHaveLength(13);
   });
 
   it('forces install to null on every option', () => {

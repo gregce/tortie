@@ -1210,6 +1210,9 @@ const SKILLS_CLI_NAMES: Record<AgentRegistryId, string | null> = {
   droid: 'droid',
   qwen: 'qwen-code',
   pi: 'pi',
+  // The bundled skills CLI (src/main/skills/commands.ts) knows 'pi' but has
+  // no 'omp' name, so omp cannot be an install target — the honest null.
+  omp: null,
   // The bundled skills CLI already lists 'grok' by that exact name
   // (src/main/skills/commands.ts), verified in the Phase 59 spec stage.
   grok: 'grok',

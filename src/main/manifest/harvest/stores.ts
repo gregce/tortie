@@ -46,8 +46,10 @@
  * Ownership: src/main/manifest/**. Pure Node (no Electron import).
  */
 
+import { realpathSync } from 'node:fs';
 import { open, realpath } from 'node:fs/promises';
-import { basename, dirname, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import type { LaunchableAgentId } from '@shared/types';
 import type { AgentHarvestKey } from '../../agents/registry';
 // The probe stays in its own module so the race test can mock process truth
@@ -269,6 +271,48 @@ export function sanitizeQwenCwd(realCwd: string): string {
  */
 export function sanitizePiCwd(cwd: string): string {
   return `--${cwd.replace(/^\//, '').replace(/[/\\:]/g, '-')}--`;
+}
+
+/**
+ * omp's per-cwd session-store directory name. NOT pi's encoding — omp moved to
+ * a scoped scheme (oh-my-pi `packages/coding-agent/src/session/session-paths.ts`
+ * `getDefaultSessionDirName`, read 2026-08-29 against 18.0.10):
+ *
+ *  - canonicalise: `path.resolve` then `realpath` (falling back to the resolved
+ *    path when it does not exist yet), so a macOS `/tmp/...` launch keys on
+ *    `/private/tmp/...`;
+ *  - under the canonical HOME → `-<relative>` (separators → `-`);
+ *  - under the canonical `os.tmpdir()` → `-tmp-<relative>` — and tmpdir is
+ *    itself realpath'd to `/private/var/folders/...` first, which is why a
+ *    conformance cwd under `$TMPDIR` lands here rather than in the abs bucket;
+ *  - anything else → the legacy pi wrap `--<absolute, /: -> -->--`.
+ *
+ * home/tmp get NO trailing dashes and a single leading one; only the abs
+ * bucket keeps pi's `--…--`. Getting any of the three wrong means the watcher
+ * reads a directory omp never writes to (the exact failure this fixed).
+ */
+export function sanitizeOmpCwd(cwd: string, home: string, tmpdir: string): string {
+  const real = (p: string): string => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return p;
+    }
+  };
+  const canonicalCwd = real(cwd);
+  const canonicalHome = real(home);
+  const canonicalTmp = real(tmpdir);
+  const rel = (root: string): string | null => {
+    if (canonicalCwd === root) return '';
+    const r = relative(root, canonicalCwd);
+    return r.startsWith('..') || isAbsolute(r) ? null : r;
+  };
+  const enc = (s: string): string => s.replace(/[/\\:]/g, '-');
+  const homeRel = rel(canonicalHome);
+  if (homeRel !== null) return homeRel === '' ? '-' : `-${enc(homeRel)}`;
+  const tmpRel = rel(canonicalTmp);
+  if (tmpRel !== null) return tmpRel === '' ? '-tmp' : `-tmp-${enc(tmpRel)}`;
+  return sanitizePiCwd(canonicalCwd);
 }
 
 /**
@@ -642,6 +686,89 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
       const first = await readFirstJsonLine(path);
       if (first === null || first['type'] !== 'session') return 'unknown';
       const cwd = first['cwd'];
+      if (typeof cwd !== 'string') return 'unknown';
+      return (await samePath(cwd, ctx.cwd)) ? 'match' : 'mismatch';
+    },
+    graceMs: 2_000,
+    timeoutMs: HARVEST_WINDOW_MS,
+    pollIntervalMs: 1_000
+  },
+
+  /**
+   * omp — the pi successor, and UNLIKE pi this descriptor is live, not
+   * rescueOnly. omp dropped `--session-id`, so there is no pre-assign and the
+   * id can only be read back out of the store. The store is the pi shape moved
+   * (~/.pi/agent -> ~/.omp/agent): a per-cwd directory, a filename that
+   * carries the session's START time and its uuid, and line 2
+   * `{"type":"session",…,"cwd":…}` to confirm on.
+   *
+   * THE CWD OMP KEYS ON IS NOT THE CWD GMUX SPAWNED INTO. omp realpaths the
+   * launch dir itself before it builds the store dir, so a macOS `/tmp/...`
+   * launch lands under `--private-tmp-...--`, not `--tmp-...--` (measured
+   * 2026-08-29, omp 18.0.10). `ctx.cwd` is documented as already resolved, but
+   * this descriptor resolves it AGAIN because a conformance harness that
+   * handed over a literal `/var/...` spelling produced a store dir keyed on
+   * the realpath while the watcher's arithmetic used the spelling it was
+   * given — the watch ran for 90 s against a directory omp never wrote to.
+   *
+   * THE SAME-FOLDER RESIDUAL is pi's, inherited unchanged: two omp panes in
+   * one folder both confirm the earliest record at or after spawn, because the
+   * record's only ownership field is the folder they share. omp writes no pid
+   * or pane marker into the file, so the key stays 'cwd-newest' and the claim
+   * is held at matched-strength. The registry row carries confidence 'weak'.
+   */
+  omp: {
+    key: 'cwd-newest',
+    confidence: 'exact',
+    roots: (ctx, de) => {
+      // Same precedence as pi for the store ROOT: an explicit session dir is
+      // FLAT (no per-cwd key), otherwise the per-cwd directory under the
+      // config dir's sessions/. The default config dir moved to ~/.omp/agent.
+      // The per-cwd KEY is omp's scoped encoding (sanitizeOmpCwd), NOT pi's —
+      // the wrong one reads a directory omp never writes to.
+      const flat = de.env['PI_CODING_AGENT_SESSION_DIR'];
+      if (flat !== undefined && flat.length > 0) return [flat];
+      const cfg = de.env['PI_CODING_AGENT_DIR'];
+      const base =
+        cfg !== undefined && cfg.length > 0
+          ? join(cfg, 'sessions')
+          : join(de.home, '.omp', 'agent', 'sessions');
+      return [join(base, sanitizeOmpCwd(ctx.cwd, de.home, tmpdir()))];
+    },
+    entry: 'file',
+    maxDepth: 0,
+    nameTsIsAuthoritative: true,
+    identify: (path) => {
+      // Identical filename grammar to pi: <ISO ts, :.→->_<uuid>.jsonl.
+      const m = PI_SESSION_FILE_RE.exec(basename(path));
+      if (m === null) return null;
+      const [, y, mo, d, h, mi, s, ms, id] = m;
+      if (!y || !mo || !d || !h || !mi || !s || !ms || !id) return null;
+      if (!UUID_RE.test(id)) return null;
+      const nameTs = Date.UTC(
+        Number(y),
+        Number(mo) - 1,
+        Number(d),
+        Number(h),
+        Number(mi),
+        Number(s),
+        Number(ms)
+      );
+      return { sessionId: id, nameTs };
+    },
+    confirm: async (path, ctx) => {
+      // NOT pi's confirm. A real 18.0.11 file opens with {"type":"title",...}
+      // and the session record sits on LINE 2 (read from a live store,
+      // 2026-08-30). Trusting the first JSON line calls every real omp file
+      // 'unknown', and the watch then settles on the grace timer instead of
+      // on proof. So the leading lines are scanned for the session record.
+      // Four is the margin, not the shape: the record is on line 2 today, and
+      // a build that puts more than two records before it would make this
+      // answer 'unknown' again, so raise the count when the shape moves.
+      const leading = await readLeadingJsonLines(path, 4);
+      const session = leading.find((r) => r['type'] === 'session');
+      if (session === undefined) return 'unknown';
+      const cwd = session['cwd'];
       if (typeof cwd !== 'string') return 'unknown';
       return (await samePath(cwd, ctx.cwd)) ? 'match' : 'mismatch';
     },
