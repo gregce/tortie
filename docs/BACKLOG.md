@@ -17931,6 +17931,38 @@ Restore All concurrency. The audit calls it the most behaviour sensitive optimiz
 - No change to the two-table split or the redaction rules beyond the machine line's stated exclusion.
 - No count badge, no number on any surface outside the report.
 
+## Phase 169 — Oh My Pi becomes a supported agent, from the community's own pull request (operator asked 2026-08-30)
+
+**Subject:** `feat(agents): omp is a supported agent, verified over the real binary`
+**First body line:** `Phase 169: Oh My Pi, from PR 12`
+**Semver:** minor. A fourteenth registry agent, twelfth launchable.
+**Tier 3**, because it is an agent row: create composes an argv, resume claims universality, and the fold recipe spawns under his credentials. Real data, two independent methods, one an attack.
+**Charter:** this entry, plus PULL REQUEST 12 on github.com/gregce/tortie by jakehildreth at head `11af39d`, whose branch is fetched as `pr-12-omp` and ALREADY MERGED into the phase worktree. The PR body is part of this charter: its claims are the things to verify rather than trust. The operator installed omp 18.0.11 at /opt/homebrew/bin/omp through the PR's canonical brew command on 2026-08-30, so the real binary exists on this Mac.
+
+### The shape of this phase, and it is deliberately unusual
+
+The BUILDER OUTPUT ALREADY EXISTS: PR 12 is treated as the builder's work, credited to its author in the commit body (never as a trailer; the convention forbids trailers). The phase therefore starts at INTEGRATE, adds the ONE thing the PR does not carry, and spends its weight on independent verification, because every claim in that PR is today the author's own word.
+
+### What the phase adds: the mark, everywhere an agent shows its face
+
+The PR touches every compiled table but ships NO LOGO. The registry's icon conventions live in `src/renderer/icons/AgentIcon.tsx`: thirteen inline SVGs under `src/renderer/assets/agents/`, monochrome marks as currentColor, multi-tone as-is, crisp at 14 to 16 px, and NATIVE menus take pixels through `src/renderer/icons/agent-menu-icon.ts`. The omp mark is fetched from omp.sh (favicon.svg is saved in the session scratchpad; judge it and take the best vector the site offers), normalized to those conventions with the reason argued in the file header the way pi's and qwen's are, and wired through EVERY surface an agent face appears: the AgentIcon map, the native menu pixel table, Settings agent rows, the session tiles on the home screen, the Create Session sheet (Cmd+T), the quick create menu, the Catch Me Up picker and the Architecture picker rows (both driven from the compiled tables, so proving they draw omp correctly, disabled with a reason where unmeasured, is part of the proof).
+
+### The verification, and the operator dictated its three items
+
+1. **Independent re-verification of the PR's claims over the real binary**: the verifier re-runs `GMUX_CONF_AGENTS=omp npm run conformance:resume` itself end to end; RE-DERIVES the store encoder (`sanitizeOmpCwd`) against the real omp install by creating sessions in hostile cwds, being a path under $HOME, a path under $TMPDIR, a path outside both, a symlinked path, and a path with spaces and unicode, then checking which directory omp REALLY wrote against what the encoder computed, byte for byte; and drives the fold recipe ONCE for real over an omp one shot, proving the NDJSON parses and nothing lands in the store with --no-session.
+2. **The two fields the PR honestly marks unverified**, `multilineKey` and `imageDrop`, are MEASURED with the Phase 64 paste matrix harness over the real omp pane, and the registry row's verified flags move only on measurement.
+3. **conformance:agents and conformance:installs re-run**, plus the whole battery, on the merged tree.
+
+The second independent method is the ATTACK: feed the encoder the hostile cwd set above plus a cwd that is only dots and one carrying a newline; try to resume a session id that walks out of the store; and prove a forged store dir cannot make harvest adopt a session that is not omp's.
+
+### What is NOT in this phase
+
+- The `pi` entry is untouched, exactly as the PR promises.
+- The skills CLI mapping stays null until upstream ships an omp target.
+- No release, no tag.
+- PR 13 (custom fonts) is a separate decision and is not touched.
+- The PR itself is not closed by the phase; the operator handles the contributor conversation.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -18165,3 +18197,4 @@ cycle rather than only the evening it was written.
 - 2026-08-30, Phase 168 QUEUED, the report leads with the answer: from his words that he wants the total memory, CPU and battery of all of Tortie at a glance at the top, then the granular breakdowns, and Tortie made relative to other processes on the machine; a glance strip with Tortie, Your agents and Together columns above the untouched two tables, an energy impact score from top's power stats spawned on demand inside the existing capture window and labelled as an impact score because the exact counter needs native code this phase does not add, one machine context sentence ranking Tortie by memory with other applications' names ON THE FACE AND EXCLUDED FROM COPY REPORT so a pasted report never describes the rest of his machine, and the GPU row repaired to show footprint per the Phase 167 note; Tier 2, no timer, no history, no packages
 - 2026-08-30, Phase 168 SHIPPED on this commit at 0.86.0, the report leads with the answer: a glance strip above the two untouched tables with Tortie itself, Your agents and a Together column that is the one place the sum appears and says what it sums, CPU over the window and an energy impact score from one top spawn started when the capture window opens, unavailable rather than zero when the column is absent, a machine sentence ranking Tortie by resident memory with the other apps' names on the face and proven absent from the copied text, and the GPU row's hover naming what the private figure leaves out; the capture cost 1,359 to 2,119 ms shipped and 1,838 to 2,286 ms with the top spawn inside it, and the driven run re-derived Together equal to the two table totals on all four captures
 - 2026-08-30, Phase 168 SHIPPED on `c05e99b` at 0.86.0, the report leads with the answer: the line above was written inside the phase commit before its hash existed, and this line names it; the committer re-ran the whole battery on that tree, typecheck, build, 10,843 unit tests, smoke:t1, smoke:t3 and gate:electron, all green, and re-checked the refusals by grep, zero new packages, no timer under the diagnostics paths, the copy exclusion tests present on both the text builder and the rendered face, no dash in any new string and README untouched; the verifier ran a second implementation beside the captures, its own timestamped ps snapshots and hand-run top samples re-deriving Together, the machine ranking and the energy column, plus a hostile scan of the copied text against the 25 largest app groups its own walk found running, and its one suspect hit was its own scratch path rather than a leaked name; NOT TRUE: the energy figure is an impact score, not watts, and on this machine top gave POWER equal to %CPU on 934 of 935 rows, so the column adds little beyond CPU until the accounting differs
+- 2026-08-30, Phase 169 QUEUED, Oh My Pi from the community's PR 12 by jakehildreth at `11af39d`, treated as the builder output and credited in the body, with the phase starting at integrate; it adds the one thing the PR does not carry, the omp mark normalized to the AgentIcon conventions and wired through every surface an agent face appears; the verification is the operator's own three items, being the PR's claims re-verified over the real omp 18.0.11 he installed through the canonical brew command, the store encoder re-derived against real sessions in hostile cwds, the fold recipe driven once for real, and the two honestly unverified fields measured with the Phase 64 paste matrix; pi untouched, the PR not closed by the phase
