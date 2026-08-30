@@ -17900,6 +17900,37 @@ Restore All concurrency. The audit calls it the most behaviour sensitive optimiz
 
 **The ruling, 2026-08-30, from the table above.** Restore All is not a material wait. Twenty five sessions come back in 1.3 s, fifty in 2.5 s, about 51 ms per session in sequence, the first is back in under 40 ms and half are back before the wall clock reads 1.3 s at fifty. The sequential shape keeps name deduplication and focus correct, and there is no wait here worth the attack list the audit wrote for the concurrent one. It is recorded here, and it is never built.
 
+## Phase 168 — the report leads with the answer, and says where Tortie stands on the machine (operator asked 2026-08-30)
+
+**Subject:** `feat(diagnostics): a glance strip totals Tortie and ranks it on the machine`
+**First body line:** `Phase 168: the summary before the detail`
+**Semver:** minor. The report gains a face; nothing existing is removed.
+**Tier 2**: the gates, one app run driving every claim, one named independent method.
+**Charter:** this entry, plus his words of 2026-08-30: he wants to understand, at the top, at a glance, the total amount of memory, CPU and battery that all of Tortie is consuming, then the more granular breakdowns, and making some of it relative to other processes on the machine would be very useful. The copy ruling binds doubly here, being the surface that taught it: summary first, short labels, detail below.
+
+### What it builds
+
+1. **The glance strip at the top of the report**, before any table: three columns, being Tortie itself, Your agents, and Together, each with private memory and CPU over the capture window, plus one energy figure. The two tables below stay exactly as shipped and are never added together anywhere but this strip, whose Together column is the one place the sum is honest because it says what it sums.
+2. **The energy figure**, from the power stats macOS top exposes per process, spawned ON DEMAND inside the existing capture window, never on a timer. It is the Activity Monitor style impact score and it is LABELLED as an impact score, because the exact energy counter needs native code and this phase adds none. If top's power column is unavailable on some hardware the figure says unavailable rather than zero.
+3. **The machine context line**: one machine-wide ps at capture time, grouped to top consumers, drawn as one sentence, being where Tortie ranks by memory and who sits above it. THE DESIGN DECISION IS MADE HERE: other applications' names appear on the face and are EXCLUDED from Copy report, so a pasted report never describes the rest of his machine. The hover says so.
+4. **The GPU row shows footprint**, the number the machine pays, with the hover naming what the old private figure left out. This repairs the recorded Phase 167 note that the row read 62 MB where the machine paid 340 to 440.
+
+### Proof, run rather than read
+
+- One app run: the strip drawn on a zero session and a 25 session scratch profile, photographed; the Together column re-derived by hand from the table rows beneath it; the energy figure present and labelled; the machine line present.
+- THE NAMED INDEPENDENT METHOD: the verifier re-derives the totals and the machine ranking with its own ps and footprint walk at the same instant and diffs against the strip, and re-derives the energy column against a hand-run top on the same pids.
+- Copy report driven: the copied text carries the strip's Tortie figures and NOT the machine context line nor any other application's name, proven by scanning the copy with other apps running.
+- The capture window cost re-measured with the top spawn inside it, against the shipped window, so the strip does not make the report slow; the number in the body.
+- No timer anywhere, by the same grep the Phase 163 test already runs.
+- The battery.
+
+### What is NOT in this phase
+
+- No always on collection, no history, no chart over time. One capture, still.
+- No native code and no new packages; the energy figure is top's or it is unavailable.
+- No change to the two-table split or the redaction rules beyond the machine line's stated exclusion.
+- No count badge, no number on any surface outside the report.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -18131,3 +18162,4 @@ cycle rather than only the evening it was written.
 - 2026-08-30, Phase 167 sent back once by a verifier with its own ruler, then fixed again: the first round's 100 ms age before a SIGHUP kept the pty SLAVE from leaking and never looked at the MASTER, which still leaked one `/dev/ptmx` per attach spawn and one `/dev/ttys` node on the machine with it (3, 153, 303 over 50 split cycles), so the second round vendored upstream node-pty's two line fix as `patches/node-pty+1.1.0.patch` applied by `build/apply-patches.mjs` over the system `patch` binary (the round had reached for `patch-package`, which the committer took out again as a new package), removed the age wait it made pointless, and owned the main process's climb through profile d as V8 sizing its young generation up and plateauing rather than a leak
 - 2026-08-30, Phase 167 SHIPPED on this commit at 0.85.4, the scale attacks: the main process's pty descriptors read one more slave per split collapse and one more master per attach on the parent and read 0 slaves and 1 master, the live client, on every one of 50 cycles now with the machine's tty count flat at 136; stranded PATH probes get SIGKILL to the group and the pid and 0 of 5 planted survive a launch; the Changes list draws a window of 200 rows per group with a Show more line and the 96,000 file churn peaks at 133.5 MB and 2,195 DOM nodes with 0 long tasks where the parent read 1,297 MB and 100,181 nodes; the 25 session p50 and p95 are recorded before and after; Restore All is ruled not a material wait and its concurrent shape is never built; THE RE-VERIFIER REFUTED the record's claim that the main process's climb through profile d plateaus at about 86 MB (its 12 by 8 run read 132.6), and the committer re-derived it rather than commit it, being V8's young generation growing to a cap of exactly 64 MB read from the same main process by a synthetic push, main 76.8 to 143.2 MB over 192 split cycles with old space flat at 8 MB and the whole of it handed back to 79.5 MB once V8's memory reducer ran, so the ruling stands at a height now named and the 86 is withdrawn; the committer also took `patch-package` out again as a new package and applies the vendored node-pty patch with `build/apply-patches.mjs` over the system `patch` binary, proved on its applied, reversed, moved and mixed branches and by the verifier's own eighteen spawn case on the rebuilt binary, 0 masters and 0 slaves
 - 2026-08-30, Phase 167 SHIPPED on `ad3de97` at 0.85.4, the scale attacks: the line above was written inside the phase commit before its hash existed, and this is the one with the hash; the pty master and slave leaks are closed at their source in node-pty's spawn, stranded PATH probes die from SIGKILL, the Changes list draws a window of 200 rows per group, the main process's climb through profile d is V8's young generation growing to its 64 MB cap and coming back once the memory reducer runs, so the withdrawn 86 MB plateau is replaced by a named height of about 143 MB after 192 split cycles; Restore All measured at 1.3 s for 25 sessions and 2.5 s for 50 is not a material wait, so its concurrent shape is never built and no phase is queued for it
+- 2026-08-30, Phase 168 QUEUED, the report leads with the answer: from his words that he wants the total memory, CPU and battery of all of Tortie at a glance at the top, then the granular breakdowns, and Tortie made relative to other processes on the machine; a glance strip with Tortie, Your agents and Together columns above the untouched two tables, an energy impact score from top's power stats spawned on demand inside the existing capture window and labelled as an impact score because the exact counter needs native code this phase does not add, one machine context sentence ranking Tortie by memory with other applications' names ON THE FACE AND EXCLUDED FROM COPY REPORT so a pasted report never describes the rest of his machine, and the GPU row repaired to show footprint per the Phase 167 note; Tier 2, no timer, no history, no packages
