@@ -29,9 +29,7 @@
  * tells it from pi's glyph.
  * The favicon's dark rounded plate is a browser-tab device, not the mark, so
  * it is dropped, and the bare glyph is refitted to the 24 grid (18 wide, 20
- * tall, centred, strokes 3 to 4 units so they hold at 14 px). The gradient id
- * carries the `omp-` prefix because every inline copy of every mark lands in
- * one document, and a bare `id="g"` would be asking for a collision.
+ * tall, centred, strokes 3 to 4 units so they hold at 14 px).
  *
  * Monochrome marks are `currentColor` so they tint with the surrounding text
  * (rest: --text-secondary), while inherently multi-tone marks (droid's disc)
