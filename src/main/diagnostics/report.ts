@@ -49,7 +49,8 @@ import {
 } from '../machines/store';
 import { getGmuxCore } from '../sessions';
 import { pendingWatcherCloseCount } from '../watcher/teardown';
-import { readDiskSizes } from './disk';
+import { policyState, readDiskSizes } from './disk';
+import { cachePolicyFor } from '../cache/policy';
 import { readFootprints } from './footprint';
 import { beginIpcSample, endIpcSample } from './ipc-sample';
 import { readMilestones } from './milestones';
@@ -230,7 +231,10 @@ export async function finishCapture(
     readFootprints([...wantFootprint]),
     readMainMemory(),
     readDiskSizes(profileDir, {
-      httpCache: () => session.defaultSession.getCacheSize()
+      httpCache: () => session.defaultSession.getCacheSize(),
+      // Phase 166: the same pure decision the boot made, read again here
+      // rather than remembered, so the report cannot drift from the switch.
+      policy: () => policyState(cachePolicyFor(process.env, app.isPackaged))
     }),
     readSessionFacts(),
     watcherObservations()

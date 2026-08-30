@@ -36,6 +36,8 @@ import { installProcessGoneLogging } from './diagnostics/process-gone';
 // window shown. Each is one call that records once and then costs nothing.
 import { markMilestone, MILESTONES } from './diagnostics/milestones';
 import { dispatchHarness } from './harness';
+// Phase 166: the one cache policy, applied before whenReady below.
+import { applyCachePolicy } from './cache/policy';
 // Phase 127. What counts as a harness launch, in one place. The three
 // predicates are deliberately different and this file reads two of them. See
 // the module for why merging them would change which launches take the lock.
@@ -181,6 +183,11 @@ const harnessLaunch = isIsolatedLaunch(process.env);
 if (harnessLaunch) {
   app.commandLine.appendSwitch('use-mock-keychain');
 }
+// Phase 166: the Chromium cache ceiling, decided here because the switch is
+// read once, when the first browser context is created, and never again. It
+// appends one switch in the dev shape and nothing in any other, and it writes
+// one log line either way. It deletes nothing. The module header says why.
+applyCachePolicy(app, bootLog);
 if (!harnessLaunch) {
   if (!app.requestSingleInstanceLock()) {
     const profile = app.getPath('userData');

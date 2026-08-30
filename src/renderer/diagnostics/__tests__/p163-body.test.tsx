@@ -87,7 +87,8 @@ function report(over: Partial<DiagnosticsReport> = {}): DiagnosticsReport {
     disk: {
       httpCacheBytes: 30 * 1024 * 1024, codeCacheBytes: 12 * 1024 * 1024,
       durableBytes: 80 * 1024 * 1024, profileBytes: 130 * 1024 * 1024,
-      freeBytes: 200 * 1024 * 1024 * 1024, profilePath: '~/Library/Application Support/Tortie'
+      freeBytes: 200 * 1024 * 1024 * 1024, profilePath: '~/Library/Application Support/Tortie',
+      httpCacheCeilingBytes: null, cachePolicy: { mode: 'chromium-default', reason: 'nothing Tortie serves is stored' }
     },
     milestones: [
       { name: 'app-ready', atMs: 312 },

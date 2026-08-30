@@ -39,7 +39,7 @@ const BODY: Omit<DiagnosticsReport, 'text'> = {
   },
   counts: { sessions: 4, localSessions: 3, remoteSessions: 1, windows: 1, watchers: 2, pendingWatcherCloses: 0, remoteFeeds: 1, mountedSurfaces: 3, listeners: ['hook channel on this Mac', 'event bus'] },
   watchers: [{ repo: 'gmux', drops: 1, rescansScheduled: 1, rescansCompleted: 1 }],
-  disk: { httpCacheBytes: 871 * MB, codeCacheBytes: 270 * MB, durableBytes: 69 * MB, profileBytes: 1200 * MB, freeBytes: 100_000 * MB, profilePath: `${HOME}/Library/Application Support/Tortie` },
+  disk: { httpCacheBytes: 871 * MB, codeCacheBytes: 270 * MB, durableBytes: 69 * MB, profileBytes: 1200 * MB, freeBytes: 100_000 * MB, profilePath: `${HOME}/Library/Application Support/Tortie`, httpCacheCeilingBytes: null, cachePolicy: { mode: 'chromium-default', reason: 'the packaged app serves every resource over file: and gmux-asset:, which Chromium never stores' } },
   milestones: [{ name: 'app-ready', atMs: 312.4 }, { name: 'window-shown', atMs: 700 }],
   ipc: { invokes: 12, events: 30, windowMs: 1000 }
 };
@@ -71,6 +71,25 @@ describe('buildDiagnosticsReportText', () => {
   it('folds the home directory to ~', () => {
     assert.ok(lines.includes('profile ~/Library/Application Support/Tortie, 1200.0 MB total, 100000.0 MB free on the volume'));
     assert.equal(text.includes(HOME), false);
+  });
+
+  // Phase 166. The three cache lines: the ceiling in force, what the http
+  // cache can hold in this shape, and the policy's own sentence.
+  it('names the cache ceiling, what the cache holds and the policy', () => {
+    assert.ok(lines.includes('http cache ceiling Chromium default, up to 1280.0 MB (chromium-default)'));
+    assert.ok(lines.includes('http cache holds nothing Tortie serves; file:, gmux-asset: and gmux-preview: resources bypass it'));
+    assert.ok(lines.includes('cache policy chromium-default: the packaged app serves every resource over file: and gmux-asset:, which Chromium never stores'));
+  });
+
+  it('states a dev ceiling as a number and the dev shape as the one that writes', () => {
+    const dev = buildDiagnosticsReportText(
+      { ...BODY, disk: { ...BODY.disk, httpCacheCeilingBytes: 128 * MB, cachePolicy: { mode: 'dev-ceiling', reason: 'served by vite' } } },
+      HOME
+    ).split('\n');
+    assert.ok(dev.includes('http cache ceiling 128.0 MB (dev-ceiling)'));
+    assert.ok(dev.includes('http cache holds dev server modules and hot updates only'));
+    assert.ok(dev.includes('cache policy dev-ceiling: served by vite'));
+    assert.equal(dev.some((l) => l.includes('Chromium default')), false);
   });
 
   it('carries the milestones, the ipc sample and the electron proof', () => {

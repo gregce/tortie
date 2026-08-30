@@ -162,6 +162,11 @@ export const CHECKS = [
 
   // Build gates and pins.
   pure('gate:electron'),
+  // PHASE 166. The cache policy imports no file system, names no durable
+  // path, and neither it nor any file reading it calls a deletion API; no
+  // production file under src/main calls a session cache deletion at all.
+  // Four fixtures it writes itself prove the scanner fails when it should.
+  pure('gate:cache-policy'),
   pure('gate:checks'),
   pure('gate:menu-glyphs'),
   pure('gate:menu-accelerators'),
@@ -289,6 +294,15 @@ export const CHECKS = [
   // nothing to show, and, given a baseline directory, that first attach did
   // not regress. Phase 163's milestones are its ruler; it adds no second one.
   electron('probe:p164'),
+  // PHASE 166. What owns the bytes in the Chromium caches, on profiles it
+  // makes itself: twenty launches of one build, five simulated version
+  // changes, a 49 MB image document opened five times, the image viewer with
+  // the recovery strip, the editor, then the dev shape through vite's Node
+  // API with hot edits and a 4 MiB ceiling, and the Phase 163 capture in both
+  // shapes. It hashes every file under the profile's gmux directory after
+  // every launch and fails if one is removed or changed by anything but
+  // Tortie's own durable writers. It spawns no agent and spends no token.
+  electron('probe:p166'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

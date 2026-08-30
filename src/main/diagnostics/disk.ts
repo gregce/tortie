@@ -15,6 +15,8 @@
 
 import { statfs } from 'node:fs/promises';
 import { join } from 'node:path';
+import type { DiagnosticsCachePolicy } from '@shared/ipc';
+import { cachePolicyFor } from '../cache/policy';
 import { runGuarded } from '../proc/guarded';
 
 /**
@@ -42,6 +44,37 @@ export interface DiskDeps {
   free?(dir: string): Promise<number | null>;
   /** Chromium's own cache size, in bytes. Default: null. */
   httpCache?(): Promise<number | null>;
+  /**
+   * Phase 166. The cache policy this launch runs under, so the report says
+   * what the ceiling is beside what the cache holds. The caller in report.ts
+   * hands in the real one with `app.isPackaged`; the default reads the same
+   * environment as an unpackaged launch, which gives the same answer in
+   * every shape except a packaged app started with ELECTRON_RENDERER_URL
+   * set, which no packaged app is.
+   */
+  policy?(): CachePolicyState;
+}
+
+/** What the report keeps of the policy: the ceiling and the mode with its reason. */
+export interface CachePolicyState {
+  httpCacheCeilingBytes: number | null;
+  cachePolicy: DiagnosticsCachePolicy;
+}
+
+function defaultPolicy(): CachePolicyState {
+  return policyState(cachePolicyFor(process.env, false));
+}
+
+/** Fold the policy module's answer into the two report fields. Pure. */
+export function policyState(p: {
+  httpCacheCeilingBytes: number | null;
+  mode: DiagnosticsCachePolicy['mode'];
+  reason: string;
+}): CachePolicyState {
+  return {
+    httpCacheCeilingBytes: p.httpCacheCeilingBytes,
+    cachePolicy: { mode: p.mode, reason: p.reason }
+  };
 }
 
 async function defaultDu(dir: string): Promise<number | null> {
@@ -62,7 +95,7 @@ async function defaultFree(dir: string): Promise<number | null> {
   }
 }
 
-export interface DiskSizes {
+export interface DiskSizes extends CachePolicyState {
   httpCacheBytes: number | null;
   codeCacheBytes: number | null;
   durableBytes: number | null;
@@ -82,6 +115,7 @@ export async function readDiskSizes(
   const du = deps.du ?? defaultDu;
   const free = deps.free ?? defaultFree;
   const httpCache = deps.httpCache ?? (async () => null);
+  const policy = deps.policy ?? defaultPolicy;
   const [httpCacheBytes, codeCacheBytes, durableBytes, profileBytes, freeBytes] =
     await Promise.all([
       httpCache().catch(() => null),
@@ -90,5 +124,16 @@ export async function readDiskSizes(
       du(profileDir).catch(() => null),
       free(profileDir).catch(() => null)
     ]);
-  return { httpCacheBytes, codeCacheBytes, durableBytes, profileBytes, freeBytes };
+  // The policy is a pure read of the environment and cannot fail the way a
+  // spawn can, so it is not wrapped: a throw here would be a defect to see.
+  const { httpCacheCeilingBytes, cachePolicy } = policy();
+  return {
+    httpCacheBytes,
+    codeCacheBytes,
+    durableBytes,
+    profileBytes,
+    freeBytes,
+    httpCacheCeilingBytes,
+    cachePolicy
+  };
 }

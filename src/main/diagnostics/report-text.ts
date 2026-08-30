@@ -12,10 +12,13 @@
  */
 
 import type {
+  DiagnosticsCachePolicy,
+  DiagnosticsDisk,
   DiagnosticsMemory,
   DiagnosticsReport,
   DiagnosticsShellProcess
 } from '@shared/ipc';
+import { CHROMIUM_DEFAULT_HTTP_CACHE_CEILING_BYTES } from '../cache/policy';
 import { redactString } from '../log/redact';
 
 function mb(bytes: number | null): string {
@@ -33,6 +36,30 @@ function memText(m: DiagnosticsMemory): string {
 
 function cpuText(percent: number, source: 'sampled' | 'lifetime'): string {
   return `cpu ${percent.toFixed(1)}% ${source}`;
+}
+
+/**
+ * Phase 166. The ceiling line. A number when this launch set one, otherwise
+ * Chromium's own default, which is 1,280 MiB on a volume with room and lower
+ * when the volume has under about 32 GB free, so it is stated as an upper
+ * bound rather than a figure.
+ */
+function cacheCeilingText(d: DiagnosticsDisk): string {
+  if (d.httpCacheCeilingBytes !== null) {
+    return `${mb(d.httpCacheCeilingBytes)} (${d.cachePolicy.mode})`;
+  }
+  return `Chromium default, up to ${mb(CHROMIUM_DEFAULT_HTTP_CACHE_CEILING_BYTES)} (${d.cachePolicy.mode})`;
+}
+
+/**
+ * Phase 166. What the http cache can hold in this shape, measured in the
+ * Phase 166 attribution over thirty launches and five document opens: in the
+ * shipped shape nothing Tortie serves is stored, and only the dev shape writes.
+ */
+function cacheHoldsText(mode: DiagnosticsCachePolicy['mode']): string {
+  return mode === 'dev-ceiling'
+    ? 'dev server modules and hot updates only'
+    : 'nothing Tortie serves; file:, gmux-asset: and gmux-preview: resources bypass it';
 }
 
 /** The report without its own `text`, which this function produces. */
@@ -130,7 +157,13 @@ export function buildDiagnosticsReportText(
     `profile ${d.profilePath}, ${mb(d.profileBytes)} total, ${mb(d.freeBytes)} free on the volume`,
     `http cache ${mb(d.httpCacheBytes)}`,
     `code cache ${mb(d.codeCacheBytes)}`,
-    `durable data ${mb(d.durableBytes)}`
+    `durable data ${mb(d.durableBytes)}`,
+    // Phase 166. Three facts beside the sizes: the ceiling in force, what the
+    // http cache can hold in this shape, and the policy's own sentence. The
+    // sentence is the policy module's, so the log and the report say one thing.
+    `http cache ceiling ${cacheCeilingText(d)}`,
+    `http cache holds ${cacheHoldsText(d.cachePolicy.mode)}`,
+    `cache policy ${d.cachePolicy.mode}: ${d.cachePolicy.reason}`
   );
 
   lines.push('', '[milestones, ms after launch]');

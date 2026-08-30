@@ -172,6 +172,30 @@ export interface DiagnosticsDisk {
   freeBytes: number | null;
   /** The profile path with the home prefix redacted. */
   profilePath: string;
+  /**
+   * Phase 166. The HTTP cache ceiling this launch applied through Chromium's
+   * own switch, or null when Chromium's default stands. The default is
+   * 1,280 MiB on a volume with room, and nothing Tortie serves in the
+   * packaged app is stored under it, so null is the ordinary answer.
+   */
+  httpCacheCeilingBytes: number | null;
+  /** Phase 166. Which cache policy this launch runs under, and why. */
+  cachePolicy: DiagnosticsCachePolicy;
+}
+
+/**
+ * Phase 166. `dev-ceiling` is the one shape that writes to the HTTP cache,
+ * being a renderer served by the vite dev server over http, and it runs
+ * under a ceiling. `chromium-default` is every other shape, where Chromium's
+ * own ceiling stands and is never reached because file:, gmux-asset: and
+ * gmux-preview: resources are never stored. Nothing in either mode deletes.
+ */
+export type DiagnosticsCachePolicyMode = 'dev-ceiling' | 'chromium-default';
+
+export interface DiagnosticsCachePolicy {
+  mode: DiagnosticsCachePolicyMode;
+  /** One sentence from the policy itself, the same one the boot log carries. */
+  reason: string;
 }
 
 /**

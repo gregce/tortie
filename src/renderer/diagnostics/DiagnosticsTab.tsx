@@ -505,12 +505,21 @@ function StartupSection({ report }: { report: DiagnosticsReport }): React.JSX.El
 
 function DiskSection({ report }: { report: DiagnosticsReport }): React.JSX.Element {
   const d = report.disk;
-  const rows: [string, number | null][] = [
-    [words.DISK_HTTP, d.httpCacheBytes],
-    [words.DISK_CODE, d.codeCacheBytes],
-    [words.DISK_DURABLE, d.durableBytes],
-    [words.DISK_PROFILE, d.profileBytes],
-    [words.DISK_FREE, d.freeBytes]
+  const rows: [string, string, string | undefined][] = [
+    [words.DISK_HTTP, bytesLabel(d.httpCacheBytes), undefined],
+    [words.DISK_CODE, bytesLabel(d.codeCacheBytes), undefined],
+    [words.DISK_DURABLE, bytesLabel(d.durableBytes), undefined],
+    [words.DISK_PROFILE, bytesLabel(d.profileBytes), undefined],
+    [words.DISK_FREE, bytesLabel(d.freeBytes), undefined],
+    // Phase 166. One row for the ceiling, the reason behind hover, never on
+    // the face.
+    [
+      words.DISK_CEILING,
+      d.httpCacheCeilingBytes === null
+        ? words.DISK_CEILING_DEFAULT
+        : bytesLabel(d.httpCacheCeilingBytes),
+      d.cachePolicy.reason
+    ]
   ];
   return (
     <section className="diag-section">
@@ -518,10 +527,10 @@ function DiskSection({ report }: { report: DiagnosticsReport }): React.JSX.Eleme
         {words.SECTION_DISK}
       </div>
       <div className="diag-lines">
-        {rows.map(([label, bytes]) => (
-          <div key={label} className="diag-line">
+        {rows.map(([label, value, hover]) => (
+          <div key={label} className="diag-line" title={hover}>
             <span className="diag-line-label">{label}</span>
-            <span className="diag-line-value">{bytesLabel(bytes)}</span>
+            <span className="diag-line-value">{value}</span>
           </div>
         ))}
       </div>

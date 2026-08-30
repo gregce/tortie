@@ -7,8 +7,11 @@
  * is UTF-8-text-and-capped and refuses binary, and base64 data URIs would hold
  * every screenshot in a README twice in renderer memory.
  *
- * A privileged scheme costs one registration and streams from disk through
- * Chromium's own cache instead:
+ * A privileged scheme costs one registration and streams from disk instead.
+ * Nothing it serves is stored: Electron's custom scheme loader bypasses the
+ * HTTP cache, measured in Phase 166 at zero entries after a hundred image
+ * loads and a hundred reloads (docs/research/69-cache-attribution.md), so
+ * every request is a read of the file and the cost is the decode:
  *
  *   gmux-asset://local/Users/me/repo/docs/shot.png
  *   └ scheme ──┘ └host┘ └── absolute POSIX path, percent-encoded ──┘

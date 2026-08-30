@@ -6,7 +6,8 @@
  * GMUX_SHOT_CAPTURE_OUT=<path> additionally writes the image a DRIVEN
  * capture produced — see shot-hook.ts. GMUX_SHOT_JS=<expr> evaluates one
  * expression in the driven window and prints its JSON, so a verifier can
- * MEASURE the running app and not only photograph it.
+ * MEASURE the running app and not only photograph it. GMUX_SHOT_OFFLINE=1 puts
+ * the window offline over CDP before the drive runs (Phase 166).
  */
 
 import { app, BrowserWindow } from 'electron';
@@ -156,6 +157,29 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
       console.error(`[gmux-shot] GMUX_SHOT_SIZE not understood: ${sizeSpec}`);
     }
   }
+  // Phase 166 verification knob. GMUX_SHOT_OFFLINE=1 puts the driven
+  // window offline over CDP before the drive runs, the same emulation the
+  // DevTools Network panel applies, so a probe can prove that project images
+  // over gmux-asset:, the editor's own chunks and the recovery strip need no
+  // network at all. The attach is synchronous and happens before the load
+  // listener below is registered, so a fast file: load cannot slip past it;
+  // the two commands are awaited inside that listener before the drive.
+  // Shot mode only. No product behavior.
+  let offlineReady: Promise<void> = Promise.resolve();
+  if (process.env['GMUX_SHOT_OFFLINE'] === '1') {
+    const dbg = mainWindow.webContents.debugger;
+    dbg.attach('1.3');
+    offlineReady = (async () => {
+      await dbg.sendCommand('Network.enable');
+      await dbg.sendCommand('Network.emulateNetworkConditions', {
+        offline: true,
+        latency: 0,
+        downloadThroughput: -1,
+        uploadThroughput: -1
+      });
+      console.log('[gmux-shot] network offline over CDP');
+    })();
+  }
   // GMUX_SHOT_VERBOSE=1 tees the renderer's console into the harness output —
   // the only way to see WHERE a drive stalled, since the drive runs entirely
   // inside the renderer.
@@ -168,6 +192,7 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
     setTimeout(async () => {
       try {
         const wc = mainWindow.webContents;
+        await offlineReady;
         if (driveJson !== undefined && driveJson.length > 0) {
           // Wait for the hook to EXIST before calling it. `?.()` on a
           // renderer that has not finished evaluating its bundle is a silent

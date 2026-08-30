@@ -91,6 +91,9 @@ export const DISK_CODE = 'Code cache';
 export const DISK_DURABLE = 'Your sessions and settings';
 export const DISK_PROFILE = 'Whole profile';
 export const DISK_FREE = 'Free on this volume';
+/** Phase 166. The ceiling row: a size in the dev shape, else Chromium's own. */
+export const DISK_CEILING = 'HTTP cache ceiling';
+export const DISK_CEILING_DEFAULT = 'Chromium default';
 
 export const WATCHER_DROPS = 'dropped';
 export const WATCHER_SCHEDULED = 'scheduled';
