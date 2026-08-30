@@ -18065,6 +18065,32 @@ Run rows 1 and 5 against HEAD with timestamps for the session status ladder, tra
 - No change to remote execution allowlists, journals or confirm gates.
 - No weakening of a grader to make a row green.
 
+## Phase 174 — a font you already own, from the community's second pull request (operator asked 2026-08-30)
+
+**Subject:** `feat(settings): a custom font family for the terminal and editor, verified hostile`
+**First body line:** `Phase 174: your own font, from PR 13`
+**Semver:** minor. A fourth option under Settings, Appearance, Terminal and editor font.
+**Tier 2**, a rendered surface with one new persisted string; one app run, one named independent method, and the independent method is a HOSTILE FIXTURE because this phase turns a typed string into a CSS font stack, which is the Phase 151 and 154 class of defect.
+**Charter:** this entry plus PULL REQUEST 13 on github.com/gregce/tortie by jakehildreth, +246 and minus 25 over 12 files, which is the builder output and is credited in the commit body, never as a trailer. The PR fits the Phase 78 font architecture: `custom` joins the `WorkAreaFont` union with a persisted `workAreaFontCustom` family, the stack keeps the Menlo floor every preset keeps, and a capture under a custom font falls back to Menlo for byte identity exactly as System already does.
+
+### The scope ruling, stated so it is deliberate
+A custom font is IDE furniture, and the parity cap after Phase 14 says such work needs the operator to ask. He asked. It is additive to a surface Phase 78 already shipped, it is small, and the honest cost is one free text field, so the ruling is to take it.
+
+### What the phase adds beyond the PR
+1. **The string is treated as hostile.** The family is user data flowing into a CSS custom property, xterm's canvas font and Monaco's option. The PR strips surrounding quotes; the phase proves what happens with quotes INSIDE, semicolons, braces, backslashes, newlines, unicode, an empty string, a 4,000 character string and a `url(` fragment, and refuses or escapes so no value can break out of the font-family declaration. The CSP would stop a fetch; the phase does not lean on it.
+2. **A missing font says so.** A person who types a family this Mac does not have gets Menlo silently today. `document.fonts.check` answers whether the family exists; the field shows one short line, being not installed on this Mac, and the terminal still falls back. Just enough words.
+3. **The Settings copy obeys the copy ruling.**
+
+### Proof
+- One app run: Custom chosen, a real installed family typed, the terminal and editor switch without a restart, a spaced family works, an edit with Custom already selected switches live, the not installed line appears for a typo and clears for a real family, capture byte identity under Custom proved by the existing test plus a real export compared to System.
+- THE HOSTILE FIXTURE, the verifier's own, over the shapes above, reading the resulting computed font-family back from the DOM and xterm's option and proving none escaped the declaration.
+- The battery.
+
+### What is NOT in this phase
+- The three bundled presets are unchanged.
+- No font bytes are ever inlined for a custom face, by the PR's own honest limitation.
+- PR 13 is not closed by the phase; the operator handles the contributor conversation.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -18302,3 +18328,4 @@ cycle rather than only the evening it was written.
 - 2026-08-30, Phase 169 QUEUED, Oh My Pi from the community's PR 12 by jakehildreth at `11af39d`, treated as the builder output and credited in the body, with the phase starting at integrate; it adds the one thing the PR does not carry, the omp mark normalized to the AgentIcon conventions and wired through every surface an agent face appears; the verification is the operator's own three items, being the PR's claims re-verified over the real omp 18.0.11 he installed through the canonical brew command, the store encoder re-derived against real sessions in hostile cwds, the fold recipe driven once for real, and the two honestly unverified fields measured with the Phase 64 paste matrix; pi untouched, the PR not closed by the phase
 - 2026-08-30, Phase 170 QUEUED from his two screenshots: the report reads every process (his strip read Your agents 0 B beside 75 sessions because private memory is only read for Electron's own pids, so every other row says not read), every table sorts by column, the bottom half's six label piles are regrouped by the question a person asks without losing one figure, and THE OPERATOR OVERRODE the one capture stance: live sampling WHILE THE TAB IS VISIBLE, completely quiet on hide, proven the Phase 163 way; strip and table split unchanged
 - 2026-08-30, Phases 171 to 173 QUEUED from docs/audits/2026-08-30-electron-typescript-architecture.md, tracked in this commit, which rescored the tree 32 of 36 at `4586837` with four named exceptions and no deduction for line count; 171 takes back Build boundary and Test seam, being the contract inventory rebaselined from 197 to 213 with the check made a required gate and proved by a negative control, the hermetic lane run without the host process table after FINDING which test truly reads ps since the named file's own header says ps is mocked whole, the Phase 165 paint observer repaired, and the Phase 167 scale scenario made a repeatable check; 172 takes back Navigation with the three inner seams the audit names, main coordinators behind the same registrar, action modules behind the same useArch, subject components behind the same view, THREE COMMITS with conformance after each and BYTE IDENTITY of every public surface proved by an AST walk, no line count gate; 173 takes back Failure flow by adjudicating the remote matrix rows 1 and 5, with the honest condition stated first that the matrix needs a remote his Mac Pro cannot be and the phase stops rather than fakes a green; ORDER 171 then 172 then 173, 172 never beside another phase touching src/main/arch or src/renderer/arch, and the rubric is rerun read only after
+- 2026-08-30, Phase 174 QUEUED, the community's PR 13 by jakehildreth as builder output: a custom font family under the Phase 78 font surface with the Menlo floor and capture byte identity kept; the scope ruling is stated, IDE furniture taken because he asked and it is additive and small; the phase adds two things, the family string treated as HOSTILE all the way into the CSS declaration, xterm's option and Monaco's, and one short line saying a typed family is not installed on this Mac instead of a silent Menlo; Tier 2 with the hostile fixture as the independent method; can run beside 171 or 173 since it touches settings and theme only
