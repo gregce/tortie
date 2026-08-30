@@ -53,7 +53,7 @@ export interface CaptureDeps {
  * is what the `buffered` flag on the result records, decided by comparing
  * each entry's start against the moment the observer was made.
  */
-function realLongTaskWatch(): LongTaskWatch | null {
+export function realLongTaskWatch(): LongTaskWatch | null {
   const Observer = (globalThis as { PerformanceObserver?: typeof PerformanceObserver })
     .PerformanceObserver;
   if (Observer === undefined) return null;
@@ -94,6 +94,24 @@ export function defaultCaptureDeps(): CaptureDeps {
     mountedSurfaces: liveTerminalCount,
     watchLongTasks: realLongTaskWatch,
     wait: (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+  };
+}
+
+/**
+ * Phase 170 fix round. A live sample arrives from main with this window's
+ * three facts null, because main never asks a renderer to run code. The
+ * renderer fills them in itself on receipt, the same three reads a manual
+ * capture makes, so the Terminal surfaces figure and this window's row
+ * detail read fresh numbers on every tick instead of "not read". Pure.
+ */
+export function withRendererFacts(
+  report: DiagnosticsReport,
+  facts: DiagnosticsRendererFacts
+): DiagnosticsReport {
+  return {
+    ...report,
+    renderer: facts,
+    counts: { ...report.counts, mountedSurfaces: facts.mountedSurfaces }
   };
 }
 

@@ -974,9 +974,13 @@ export function installShotHook(): void {
       step('opening the diagnostics report');
       openDiagnosticsReport();
       // A capture holds its window open for a moment; the face says Capturing
-      // on its first button until the report lands or fails.
+      // on its capture button until the report lands or fails. Phase 170 put
+      // the live control ahead of it, so the detector reads every button
+      // rather than the first, which this drive did until then.
       const capturing = (): boolean =>
-        (document.querySelector('.diag-btn')?.textContent ?? '') === 'Capturing';
+        Array.from(document.querySelectorAll('.diag-btn')).some(
+          (el) => (el.textContent ?? '') === 'Capturing'
+        );
       for (let i = 0; i < 120; i++) {
         const drawn =
           document.querySelector('.diag-body') !== null ||
@@ -1013,8 +1017,14 @@ export function installShotHook(): void {
         sumOfTotalsMb: sum,
         sumAppearsOnFace:
           sum !== null && figures.some((f) => mb(f) === sum && sum > 0),
-        milestones: text('.diag-milestones .diag-fig-value'),
-        electronProof: text('.diag-disclosure > summary')[0] ?? null,
+        // Phase 170 moved the milestones into the ladder and put the quiet
+        // watcher disclosure ahead of the Electron one, so both readings
+        // name what they want rather than trusting position.
+        milestones: text('.diag-ladder-value'),
+        electronProof:
+          text('.diag-disclosure > summary').find((s) =>
+            s.includes('Electron')
+          ) ?? null,
         unnamed: document.querySelectorAll('.diag-unnamed').length,
         buttons: text('.diag-btn'),
         openTabs: useEditor.getState().tabs.length,

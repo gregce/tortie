@@ -1,6 +1,7 @@
 /**
- * The DIAGNOSTICS REPORT tab (Phase 163): one capture of what Tortie is
- * running, drawn as two tables and a few short sections.
+ * The DIAGNOSTICS REPORT tab (Phase 163, regrouped and made live in Phase
+ * 170): what Tortie is running, drawn as a glance strip, two tables and
+ * four short sections.
  *
  * THE SPLIT IS THE SURFACE. The first table is Tortie: main, its windows,
  * the GPU and utility processes, the session server, the clients and
@@ -9,15 +10,26 @@
  * the work Tortie supervises and would exist in a plain terminal too. Each
  * table carries its own total and the two are never added, because their
  * sum is the number every generic tool already shows and it explains
- * nothing. That attribution is what no generic tool can make, and it is the
- * reason this surface passes the parity guardrail.
+ * nothing. Both tables sort by a clicked column head, stable, with the
+ * default order standing until the first click.
  *
- * NOT A DASHBOARD. The report is taken once, when the tab opens, and again
- * only when a person presses Capture again. There is no interval, no auto
- * refresh, no sparkline and no live number. Opening the tab arms a long
- * task observer and an IPC count in main for the capture window only, and
- * `captureReport` stops both in the same call. Closing the tab leaves
- * nothing behind, which the capture suite proves.
+ * THE BOTTOM HALF IS GROUPED BY THE QUESTION A PERSON ASKS (Phase 170):
+ * what is open right now, how fast did it start (the milestones as one
+ * horizontal ladder), what is on disk (the ceiling beside the cache it
+ * caps), and what the watcher did (active rows on the face, quiet rows
+ * behind a disclosure). The window's and the main process's own memory
+ * figures live as expandable detail on their rows in the Tortie table,
+ * where those pids already are. Nothing the Phase 163 face carried was
+ * dropped; the unit suite pins every figure's new home.
+ *
+ * LIVE WHILE VISIBLE, QUIET THE INSTANT IT IS NOT. The operator overrode
+ * the one capture stance on 2026-08-30: main ticks a sample every two
+ * seconds while this tab holds a live subscription, and the subscription
+ * stands only while the tab is visible, unpaused and mounted (./live.ts).
+ * Hiding or closing the tab tears it down synchronously and main puts its
+ * timer down, so nothing runs in the background. Pause holds the picture
+ * still; Capture again is the manual refresh, and it is also the first
+ * paint, because a tick takes an interval to arrive.
  *
  * JUST ENOUGH WORDS. Short labels, one line per row, and every explanation
  * lives in a hover title or behind one disclosure, never on the resting
@@ -30,14 +42,22 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   DiagnosticsHeapTarget,
-  DiagnosticsReport,
-  DiagnosticsSessionWorkload
+  DiagnosticsIpcSample,
+  DiagnosticsMainMemory,
+  DiagnosticsRendererFacts,
+  DiagnosticsReport
 } from '@shared/ipc';
 import { gmuxBridge } from '../bridge';
 import { showNativeMenu } from '../app/ContextMenu';
 import { Codicon, menuGlyph } from '../icons';
 import { useApp } from '../state/store';
-import { captureReport, DiagnosticsUnavailable } from './capture';
+import {
+  DiagnosticsUnavailable,
+  type LongTaskWatch,
+  captureReport,
+  realLongTaskWatch,
+  withRendererFacts
+} from './capture';
 import * as words from './copy';
 import {
   bytesLabel,
@@ -49,9 +69,17 @@ import {
   milestoneKey,
   milestoneLabel,
   msLabel,
+  nextSort,
   shellRows,
-  type ShellRow
+  sortSessionRows,
+  sortShellRows,
+  type SessionSortCol,
+  type ShellRow,
+  type ShellSortCol,
+  type SortSpec
 } from './format';
+import { LiveSubscription } from './live';
+import { liveTerminalCount } from '../terminal/drop/registry';
 import './diagnostics.css';
 
 type Phase =
@@ -62,23 +90,32 @@ type Phase =
 
 export function DiagnosticsTab(): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>({ kind: 'capturing', previous: null });
+  const [paused, setPaused] = useState(false);
   const alive = useRef(true);
-  const inFlight = useRef(false);
+  const inFlight = useRef<Promise<void> | null>(null);
+  const sub = useRef<LiveSubscription | null>(null);
 
-  const capture = useCallback((): void => {
-    if (inFlight.current) return;
-    inFlight.current = true;
+  /** One capture, shared by the loop and the button. Never two at once. */
+  const captureOnce = useCallback((): Promise<void> => {
+    const running = inFlight.current;
+    if (running !== null) return running;
+    // Live stands down while the manual capture holds main's window.
+    sub.current?.setHeld(true);
     setPhase((p) => ({
       kind: 'capturing',
-      previous: p.kind === 'ready' ? p.report : p.kind === 'failed' ? p.previous : p.kind === 'capturing' ? p.previous : null
+      previous:
+        p.kind === 'ready' ? p.report : p.kind === 'unavailable' ? null : p.previous
     }));
-    void captureReport()
+    const done = captureReport()
       .then((report) => {
         if (alive.current) setPhase({ kind: 'ready', report });
       })
       .catch((err: unknown) => {
         if (!alive.current) return;
         if (err instanceof DiagnosticsUnavailable) {
+          // No bridge means no later sample can arrive either. End the
+          // subscription so nothing waits against a wall.
+          sub.current?.dispose();
           setPhase({ kind: 'unavailable' });
           return;
         }
@@ -88,23 +125,96 @@ export function DiagnosticsTab(): React.JSX.Element {
         }));
       })
       .finally(() => {
-        inFlight.current = false;
+        inFlight.current = null;
+        sub.current?.setHeld(false);
       });
+    inFlight.current = done;
+    return done;
   }, []);
 
-  // ONE capture when the tab opens. Nothing here re-runs on its own.
+  // The subscription stands only while this tab is VISIBLE. Hiding the
+  // window tears it down through visibilitychange; closing the tab
+  // unmounts this component and the cleanup below disposes it and removes
+  // the one listener, so nothing runs in the background. A live sample
+  // replaces the report directly, with no capturing flash, because the
+  // picture on screen is never stale by more than one interval.
   useEffect(() => {
     alive.current = true;
-    capture();
+    const api = gmuxBridge()?.diagnostics;
+    // Phase 170 fix round. Main's live sample carries this window's facts as
+    // null, because main never asks a renderer to run code. This side fills
+    // them on receipt: private memory and heap from the preload, mounted
+    // surfaces from the registry, long tasks from an observer that is armed
+    // exactly while the subscription stands and re-armed each tick so the
+    // figure is per interval. A sample overtaken by a newer one is dropped.
+    let watch: LongTaskWatch | null = null;
+    let latestTick = 0;
+    const s = new LiveSubscription({
+      liveStart: (visible) =>
+        api !== undefined
+          ? api.liveStart(visible)
+          : Promise.resolve({ started: false, intervalMs: 0 }),
+      liveStop: () => (api !== undefined ? api.liveStop() : Promise.resolve()),
+      onLiveSample: (cb) =>
+        api !== undefined ? api.onLiveSample(cb) : () => undefined,
+      onSample: (sample) => {
+        latestTick = sample.tick;
+        const longTasks = watch === null ? null : watch.read();
+        watch?.stop();
+        watch = watch === null ? null : realLongTaskWatch();
+        const mountedSurfaces = liveTerminalCount();
+        const read =
+          api !== undefined ? api.rendererMemory() : Promise.resolve(null);
+        void read
+          .catch(() => null)
+          .then((memory) => {
+            if (!alive.current || sample.tick !== latestTick) return;
+            const report = withRendererFacts(sample.report, {
+              memory,
+              mountedSurfaces,
+              longTasks
+            });
+            setPhase({ kind: 'ready', report });
+          });
+      },
+      arm: () => {
+        watch = realLongTaskWatch();
+        return () => {
+          watch?.stop();
+          watch = null;
+        };
+      }
+    });
+    sub.current = s;
+    const onVisibility = (): void => {
+      s.setVisible(document.visibilityState === 'visible');
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    onVisibility();
+    // The first paint: a tick takes an interval to arrive, a capture is now.
+    void captureOnce();
     return () => {
       alive.current = false;
+      document.removeEventListener('visibilitychange', onVisibility);
+      s.dispose();
+      sub.current = null;
     };
-  }, [capture]);
+  }, [captureOnce]);
+
+  const onTogglePause = useCallback((): void => {
+    setPaused((p) => {
+      const next = !p;
+      sub.current?.setPaused(next);
+      return next;
+    });
+  }, []);
 
   return (
     <DiagnosticsBody
       phase={phase}
-      onCapture={capture}
+      paused={paused}
+      onTogglePause={onTogglePause}
+      onCapture={() => void captureOnce()}
       onCopy={(text) => navigator.clipboard.writeText(text)}
       onHeapSnapshot={saveHeapSnapshot}
     />
@@ -128,18 +238,33 @@ async function saveHeapSnapshot(target: DiagnosticsHeapTarget): Promise<void> {
 /**
  * The face, with the state handed in. Exported for the unit suite: this
  * repository carries no jsdom, so the states a screenshot cannot reach are
- * proved by rendering THIS with a report as a prop.
+ * proved by rendering THIS with a report as a prop. The three harness props
+ * below the callbacks seed sort and row detail state, because static markup
+ * cannot click.
  */
 export function DiagnosticsBody({
   phase,
+  paused,
+  onTogglePause,
   onCapture,
   onCopy,
-  onHeapSnapshot
+  onHeapSnapshot,
+  expandedPids,
+  initialShellSort,
+  initialSessionSort
 }: {
   phase: Phase;
+  paused: boolean;
+  onTogglePause: () => void;
   onCapture: () => void;
   onCopy: (text: string) => Promise<void> | void;
   onHeapSnapshot: (target: DiagnosticsHeapTarget) => Promise<void> | void;
+  /** Harness only: pids whose detail rows start open. */
+  expandedPids?: readonly number[];
+  /** Harness only: the Tortie table's sort at first render. */
+  initialShellSort?: SortSpec<ShellSortCol> | null;
+  /** Harness only: the sessions table's sort at first render. */
+  initialSessionSort?: SortSpec<SessionSortCol> | null;
 }): React.JSX.Element {
   const report =
     phase.kind === 'ready'
@@ -149,8 +274,8 @@ export function DiagnosticsBody({
         : null;
   const capturing = phase.kind === 'capturing';
   const [copied, setCopied] = useState(false);
-  // The one timer this tab makes. Cleared on unmount so closing the tab
-  // within two seconds of Copy leaves nothing behind.
+  // The copied flip's timer. Cleared on unmount so closing the tab within
+  // two seconds of Copy leaves nothing behind.
   const copiedTimer = useRef<number | null>(null);
   useEffect(
     () => () => {
@@ -212,6 +337,26 @@ export function DiagnosticsBody({
                 : words.STATE_CAPTURING}
         </span>
         <span className="diag-head-spacer" />
+        {phase.kind !== 'unavailable' ? (
+          <>
+            <span
+              className={`diag-live${paused ? ' diag-live-paused' : ''}`}
+              title={words.LIVE_HOVER}
+            >
+              <span className="diag-live-dot" aria-hidden="true" />
+              {paused ? words.LIVE_PAUSED : `${words.LIVE}, ${words.LIVE_EVERY}`}
+            </span>
+            <button
+              type="button"
+              className="btn btn-secondary diag-btn"
+              title={words.LIVE_HOVER}
+              onClick={onTogglePause}
+            >
+              <Codicon name={paused ? 'play' : 'debug-pause'} size={14} />
+              {paused ? words.RESUME : words.PAUSE}
+            </button>
+          </>
+        ) : null}
         <button
           type="button"
           className="btn btn-secondary diag-btn"
@@ -253,9 +398,13 @@ export function DiagnosticsBody({
       ) : (
         <div className={`diag-body${capturing ? ' diag-body-stale' : ''}`}>
           <GlanceStrip report={report} />
-          <ShellTable report={report} />
-          <SessionsTable report={report} />
-          <NowSection report={report} />
+          <ShellTable
+            report={report}
+            initialSort={initialShellSort ?? null}
+            expandedPids={expandedPids}
+          />
+          <SessionsTable report={report} initialSort={initialSessionSort ?? null} />
+          <OpenNowSection report={report} />
           <StartupSection report={report} />
           <DiskSection report={report} />
           <WatchersSection report={report} />
@@ -353,35 +502,152 @@ function GroupHead({
   );
 }
 
-function ShellTable({ report }: { report: DiagnosticsReport }): React.JSX.Element {
+/** A sortable column head. The default order stands until the first click. */
+function SortableHead<C extends string>({
+  col,
+  label,
+  sort,
+  onSort,
+  num,
+  hover
+}: {
+  col: C;
+  label: string;
+  sort: SortSpec<C> | null;
+  onSort: (col: C) => void;
+  num?: boolean;
+  hover?: string;
+}): React.JSX.Element {
+  const sorted = sort !== null && sort.col === col;
+  return (
+    <th
+      scope="col"
+      className={num === true ? 'diag-num' : undefined}
+      {...(sorted
+        ? { 'aria-sort': sort.dir === 'asc' ? ('ascending' as const) : ('descending' as const) }
+        : {})}
+    >
+      <button
+        type="button"
+        className="diag-th-btn"
+        title={hover ?? words.COL_SORT_HOVER}
+        onClick={() => onSort(col)}
+      >
+        {label}
+        {sorted ? (
+          <span className="diag-sort-ind" aria-hidden="true">
+            {sort.dir === 'asc' ? '▴' : '▾'}
+          </span>
+        ) : null}
+      </button>
+    </th>
+  );
+}
+
+function ShellTable({
+  report,
+  initialSort,
+  expandedPids
+}: {
+  report: DiagnosticsReport;
+  initialSort: SortSpec<ShellSortCol> | null;
+  expandedPids?: readonly number[];
+}): React.JSX.Element {
+  const [sort, setSort] = useState<SortSpec<ShellSortCol> | null>(initialSort);
+  const [expanded, setExpanded] = useState<ReadonlySet<number>>(
+    () => new Set(expandedPids ?? [])
+  );
   // Strays an earlier launch left running sit behind one disclosure under
   // the table, with their own count, and the total above never includes
   // them: a left over client is not what this app costs, and twenty of
   // them on the resting face would push the sessions below the fold.
   const all = shellRows(report.shell);
-  const rows = all.filter((r) => r.process.kind !== 'orphan');
+  const rows = sortShellRows(all.filter((r) => r.process.kind !== 'orphan'), sort);
   const leftover = all.filter((r) => r.process.kind === 'orphan');
   const t = report.shellTotal;
   const l = report.leftoverTotal;
-  const draw = ({ process: p, depth }: ShellRow): React.JSX.Element => (
-    <tr key={p.pid} className={depth > 0 ? 'diag-child' : undefined}>
-      <td className="diag-name">
-        <span className="diag-kind">{kindLabel(p.kind)}</span>
-        <span className="diag-proc">{p.name}</span>
-        {p.detail !== undefined ? (
-          <span className="diag-detail">{p.detail}</span>
-        ) : null}
-      </td>
-      <td className="diag-num">{p.pid}</td>
-      <td className="diag-num" title={p.cpuSource === 'sampled' ? 'Over the capture window' : 'Lifetime average'}>
-        {cpuLabel(p.cpuPercent)}
-      </td>
-      <td className="diag-num" title={p.memory.privateSource === null ? words.NOT_READ : p.memory.privateSource === 'electron' ? 'Read from the process' : p.kind === 'gpu' ? words.GPU_FOOTPRINT_HOVER : 'OS footprint'}>
-        {bytesLabel(p.memory.privateBytes)}
-      </td>
-      <td className="diag-num diag-dim">{bytesLabel(p.memory.rssBytes)}</td>
-    </tr>
-  );
+
+  // Phase 170: THIS WINDOW and MAIN PROCESS fold into the table as detail
+  // on the rows those pids already have. The window detail lands on the
+  // renderer row that answered for itself, else the first renderer row.
+  const mainPid = report.shell.find((p) => p.kind === 'main')?.pid ?? null;
+  const windowPid =
+    report.shell.find(
+      (p) => p.kind === 'renderer' && p.memory.privateSource === 'electron'
+    )?.pid ??
+    report.shell.find((p) => p.kind === 'renderer')?.pid ??
+    null;
+  const detailOf = (pid: number): 'main' | 'window' | null =>
+    pid === mainPid ? 'main' : pid === windowPid ? 'window' : null;
+  const toggle = (pid: number): void => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(pid)) next.delete(pid);
+      else next.add(pid);
+      return next;
+    });
+  };
+
+  const onSort = (col: ShellSortCol): void => {
+    setSort((s) => nextSort(s, col));
+  };
+
+  const draw = ({ process: p, depth }: ShellRow): React.JSX.Element[] => {
+    const detail = detailOf(p.pid);
+    const isOpen = detail !== null && expanded.has(p.pid);
+    const out: React.JSX.Element[] = [
+      <tr key={p.pid} className={depth > 0 && sort === null ? 'diag-child' : undefined}>
+        <td className="diag-name">
+          {detail !== null ? (
+            <button
+              type="button"
+              className="diag-expand"
+              title={words.DETAIL_HOVER}
+              aria-expanded={isOpen}
+              onClick={() => toggle(p.pid)}
+            >
+              <Codicon name={isOpen ? 'chevron-down' : 'chevron-right'} size={12} />
+            </button>
+          ) : (
+            <span className="diag-expand-pad" />
+          )}
+          <span className="diag-kind">{kindLabel(p.kind)}</span>
+          <span className="diag-proc">{p.name}</span>
+          {p.detail !== undefined ? (
+            <span className="diag-detail">{p.detail}</span>
+          ) : null}
+        </td>
+        <td className="diag-num">{p.pid}</td>
+        <td className="diag-num" title={p.cpuSource === 'sampled' ? 'Over the capture window' : 'Lifetime average'}>
+          {cpuLabel(p.cpuPercent)}
+        </td>
+        <td className="diag-num" title={p.memory.privateSource === null ? words.NOT_READ : p.memory.privateSource === 'electron' ? 'Read from the process' : p.kind === 'gpu' ? words.GPU_FOOTPRINT_HOVER : 'OS footprint'}>
+          {bytesLabel(p.memory.privateBytes)}
+        </td>
+        <td className="diag-num diag-dim">{bytesLabel(p.memory.rssBytes)}</td>
+      </tr>
+    ];
+    if (isOpen && detail === 'main') {
+      out.push(
+        <tr key={`${String(p.pid)}-detail`} className="diag-detail-row">
+          <td colSpan={5}>
+            <MainDetail main={report.main} />
+          </td>
+        </tr>
+      );
+    }
+    if (isOpen && detail === 'window') {
+      out.push(
+        <tr key={`${String(p.pid)}-detail`} className="diag-detail-row">
+          <td colSpan={5}>
+            <WindowDetail renderer={report.renderer} ipc={report.ipc} />
+          </td>
+        </tr>
+      );
+    }
+    return out;
+  };
+
   return (
     <section className="diag-group diag-group-shell">
       <GroupHead
@@ -393,14 +659,14 @@ function ShellTable({ report }: { report: DiagnosticsReport }): React.JSX.Elemen
         <table className="diag-table">
           <thead>
             <tr>
-              <th scope="col">{words.COL_PROCESS}</th>
-              <th scope="col" className="diag-num">{words.COL_PID}</th>
-              <th scope="col" className="diag-num" title={words.COL_CPU_HOVER}>{words.COL_CPU}</th>
-              <th scope="col" className="diag-num" title={words.COL_PRIVATE_HOVER}>{words.COL_PRIVATE}</th>
-              <th scope="col" className="diag-num" title={words.COL_RSS_HOVER}>{words.COL_RSS}</th>
+              <SortableHead col={'process' as ShellSortCol} label={words.COL_PROCESS} sort={sort} onSort={onSort} />
+              <SortableHead col={'pid' as ShellSortCol} label={words.COL_PID} sort={sort} onSort={onSort} num />
+              <SortableHead col={'cpu' as ShellSortCol} label={words.COL_CPU} sort={sort} onSort={onSort} num hover={words.COL_CPU_HOVER} />
+              <SortableHead col={'private' as ShellSortCol} label={words.COL_PRIVATE} sort={sort} onSort={onSort} num hover={words.COL_PRIVATE_HOVER} />
+              <SortableHead col={'resident' as ShellSortCol} label={words.COL_RSS} sort={sort} onSort={onSort} num hover={words.COL_RSS_HOVER} />
             </tr>
           </thead>
-          <tbody>{rows.map(draw)}</tbody>
+          <tbody>{rows.flatMap(draw)}</tbody>
         </table>
       </div>
       {leftover.length > 0 ? (
@@ -410,7 +676,7 @@ function ShellTable({ report }: { report: DiagnosticsReport }): React.JSX.Elemen
           </summary>
           <div className="diag-scroll">
             <table className="diag-table">
-              <tbody>{leftover.map(draw)}</tbody>
+              <tbody>{leftover.flatMap(draw)}</tbody>
             </table>
           </div>
         </details>
@@ -419,11 +685,87 @@ function ShellTable({ report }: { report: DiagnosticsReport }): React.JSX.Elemen
   );
 }
 
-function SessionsTable({ report }: { report: DiagnosticsReport }): React.JSX.Element {
-  const t = report.sessionsTotal;
-  const rows: DiagnosticsSessionWorkload[] = [...report.sessions].sort((a, b) =>
-    a.name.localeCompare(b.name)
+/**
+ * Phase 170: the main process row, opened. The figures the MAIN PROCESS
+ * section used to carry, on the row whose pid they describe.
+ */
+function MainDetail({ main }: { main: DiagnosticsMainMemory }): React.JSX.Element {
+  return (
+    <>
+      <div className="diag-detail-head">{words.SECTION_MAIN}</div>
+      <div className="diag-figs">
+        <Figure label={words.FIG_PRIVATE} value={bytesLabel(main.privateBytes)} />
+        <Figure
+          label={words.FIG_HEAP}
+          value={`${bytesLabel(main.heapUsedBytes)} of ${bytesLabel(main.heapTotalBytes)}`}
+          hover="Used JavaScript heap, of the heap V8 has reserved."
+        />
+      </div>
+    </>
   );
+}
+
+/**
+ * Phase 170: this window's row, opened. The figures the THIS WINDOW section
+ * used to carry, plus the capture window's message counts and long tasks,
+ * which belong to this window's conversation with main.
+ */
+function WindowDetail({
+  renderer,
+  ipc
+}: {
+  renderer: DiagnosticsRendererFacts;
+  ipc: DiagnosticsIpcSample;
+}): React.JSX.Element {
+  const m = renderer.memory;
+  const lt = renderer.longTasks;
+  return (
+    <>
+      <div className="diag-detail-head">{words.SECTION_RENDERER}</div>
+      <div className="diag-figs">
+        <Figure label={words.FIG_PRIVATE} value={bytesLabel(m?.privateBytes ?? null)} />
+        <Figure
+          label={words.FIG_HEAP}
+          value={
+            m === null
+              ? words.NOT_READ
+              : `${bytesLabel(m.heapUsedBytes)} of ${bytesLabel(m.heapTotalBytes)}`
+          }
+          hover="Used JavaScript heap, of the heap V8 has reserved."
+        />
+        <Figure
+          label={words.FIG_BLINK}
+          value={bytesLabel(m?.blinkAllocatedBytes ?? null)}
+          hover="Memory the page engine holds for this window."
+        />
+        <Figure
+          label={words.FIG_LONG_TASKS}
+          value={lt === null ? words.NOT_READ : lt.count === 0 ? words.NONE : `${String(lt.count)}, ${msLabel(lt.totalMs)}`}
+          hover={lt !== null && lt.buffered ? `${words.FIG_LONG_TASKS_HOVER} Some landed before the capture began.` : words.FIG_LONG_TASKS_HOVER}
+        />
+        <Figure
+          label={words.FIG_IPC}
+          value={`${String(ipc.invokes)} up, ${String(ipc.events)} down`}
+          hover={words.FIG_IPC_HOVER}
+        />
+      </div>
+    </>
+  );
+}
+
+function SessionsTable({
+  report,
+  initialSort
+}: {
+  report: DiagnosticsReport;
+  initialSort: SortSpec<SessionSortCol> | null;
+}): React.JSX.Element {
+  const [sort, setSort] = useState<SortSpec<SessionSortCol> | null>(initialSort);
+  const t = report.sessionsTotal;
+  const rows = sortSessionRows(report.sessions, sort);
+  const onSort = (col: SessionSortCol): void => {
+    setSort((s) => nextSort(s, col));
+  };
   return (
     <section className="diag-group diag-group-sessions">
       <GroupHead
@@ -442,11 +784,11 @@ function SessionsTable({ report }: { report: DiagnosticsReport }): React.JSX.Ele
           <table className="diag-table">
             <thead>
               <tr>
-                <th scope="col">{words.COL_SESSION}</th>
-                <th scope="col">{words.COL_AGENT}</th>
-                <th scope="col" className="diag-num">{words.COL_PROCESSES}</th>
-                <th scope="col" className="diag-num" title={words.COL_CPU_HOVER}>{words.COL_CPU}</th>
-                <th scope="col" className="diag-num" title={words.COL_PRIVATE_HOVER}>{words.COL_MEMORY}</th>
+                <SortableHead col={'session' as SessionSortCol} label={words.COL_SESSION} sort={sort} onSort={onSort} />
+                <SortableHead col={'agent' as SessionSortCol} label={words.COL_AGENT} sort={sort} onSort={onSort} />
+                <SortableHead col={'processes' as SessionSortCol} label={words.COL_PROCESSES} sort={sort} onSort={onSort} num />
+                <SortableHead col={'cpu' as SessionSortCol} label={words.COL_CPU} sort={sort} onSort={onSort} num hover={words.COL_CPU_HOVER} />
+                <SortableHead col={'memory' as SessionSortCol} label={words.COL_MEMORY} sort={sort} onSort={onSort} num hover={words.COL_PRIVATE_HOVER} />
               </tr>
             </thead>
             <tbody>
@@ -486,11 +828,14 @@ function Figure({
   );
 }
 
-function NowSection({ report }: { report: DiagnosticsReport }): React.JSX.Element {
+/**
+ * Phase 170: what is open right now. The counts, and the names of what
+ * Tortie holds open. The window's and main's own memory moved into the
+ * Tortie table as row detail; the message and long task figures moved with
+ * this window's row, where their pid is.
+ */
+function OpenNowSection({ report }: { report: DiagnosticsReport }): React.JSX.Element {
   const c = report.counts;
-  const r = report.renderer;
-  const m = report.main;
-  const lt = r.longTasks;
   return (
     <section className="diag-section">
       <div className="diag-section-head" title={words.SECTION_NOW_HOVER}>
@@ -506,16 +851,6 @@ function NowSection({ report }: { report: DiagnosticsReport }): React.JSX.Elemen
         <Figure label={words.FIG_WINDOWS} value={String(c.windows)} />
         <Figure label={words.FIG_WATCHERS} value={c.pendingWatcherCloses > 0 ? `${String(c.watchers)} +${String(c.pendingWatcherCloses)} closing` : String(c.watchers)} />
         <Figure label={words.FIG_REMOTE} value={String(c.remoteFeeds)} />
-        <Figure
-          label={words.FIG_IPC}
-          value={`${String(report.ipc.invokes)} up, ${String(report.ipc.events)} down`}
-          hover={words.FIG_IPC_HOVER}
-        />
-        <Figure
-          label={words.FIG_LONG_TASKS}
-          value={lt === null ? words.NOT_READ : lt.count === 0 ? words.NONE : `${String(lt.count)}, ${msLabel(lt.totalMs)}`}
-          hover={lt !== null && lt.buffered ? `${words.FIG_LONG_TASKS_HOVER} Some landed before the capture began.` : words.FIG_LONG_TASKS_HOVER}
-        />
       </div>
       {c.listeners.length > 0 ? (
         <div className="diag-chips" title="What Tortie keeps open, by name.">
@@ -525,27 +860,15 @@ function NowSection({ report }: { report: DiagnosticsReport }): React.JSX.Elemen
           ))}
         </div>
       ) : null}
-      <div className="diag-two">
-        <div className="diag-sub">
-          <div className="diag-sub-head">{words.SECTION_RENDERER}</div>
-          <div className="diag-figs">
-            <Figure label={words.FIG_PRIVATE} value={bytesLabel(r.memory?.privateBytes ?? null)} />
-            <Figure label={words.FIG_HEAP} value={r.memory === null ? words.NOT_READ : `${bytesLabel(r.memory.heapUsedBytes)} of ${bytesLabel(r.memory.heapTotalBytes)}`} hover="Used JavaScript heap, of the heap V8 has reserved." />
-            <Figure label={words.FIG_BLINK} value={bytesLabel(r.memory?.blinkAllocatedBytes ?? null)} hover="Memory the page engine holds for this window." />
-          </div>
-        </div>
-        <div className="diag-sub">
-          <div className="diag-sub-head">{words.SECTION_MAIN}</div>
-          <div className="diag-figs">
-            <Figure label={words.FIG_PRIVATE} value={bytesLabel(m.privateBytes)} />
-            <Figure label={words.FIG_HEAP} value={`${bytesLabel(m.heapUsedBytes)} of ${bytesLabel(m.heapTotalBytes)}`} hover="Used JavaScript heap, of the heap V8 has reserved." />
-          </div>
-        </div>
-      </div>
     </section>
   );
 }
 
+/**
+ * Phase 170: the milestones as ONE horizontal ladder, left to right in
+ * time, instead of seven floating figures. A mark that never landed keeps
+ * its honest "not yet" and a dimmed dot.
+ */
 function StartupSection({ report }: { report: DiagnosticsReport }): React.JSX.Element {
   const at = new Map(report.milestones.map((m) => [milestoneKey(m.name), m.atMs]));
   const names = [
@@ -559,39 +882,48 @@ function StartupSection({ report }: { report: DiagnosticsReport }): React.JSX.El
       <div className="diag-section-head" title={words.SECTION_STARTUP_HOVER}>
         {words.SECTION_STARTUP}
       </div>
-      <div className="diag-figs diag-milestones">
-        {names.map((name) => {
-          const ms = at.get(name);
-          return (
-            <Figure
-              key={name}
-              label={milestoneLabel(name)}
-              value={ms === undefined ? words.NOT_YET : msLabel(ms)}
-            />
-          );
-        })}
+      <div className="diag-scroll">
+        <div className="diag-ladder">
+          {names.map((name) => {
+            const ms = at.get(name);
+            return (
+              <div
+                key={name}
+                className={`diag-ladder-step${ms === undefined ? ' diag-ladder-not-yet' : ''}`}
+              >
+                <div className="diag-ladder-rail">
+                  <span className="diag-ladder-dot" />
+                </div>
+                <span className="diag-ladder-value">
+                  {ms === undefined ? words.NOT_YET : msLabel(ms)}
+                </span>
+                <span className="diag-ladder-label">{milestoneLabel(name)}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
 }
 
+/** Phase 170: the ceiling sits directly under the cache it caps. */
 function DiskSection({ report }: { report: DiagnosticsReport }): React.JSX.Element {
   const d = report.disk;
-  const rows: [string, string, string | undefined][] = [
-    [words.DISK_HTTP, bytesLabel(d.httpCacheBytes), undefined],
-    [words.DISK_CODE, bytesLabel(d.codeCacheBytes), undefined],
-    [words.DISK_DURABLE, bytesLabel(d.durableBytes), undefined],
-    [words.DISK_PROFILE, bytesLabel(d.profileBytes), undefined],
-    [words.DISK_FREE, bytesLabel(d.freeBytes), undefined],
-    // Phase 166. One row for the ceiling, the reason behind hover, never on
-    // the face.
+  const rows: [string, string, string | undefined, boolean][] = [
+    [words.DISK_HTTP, bytesLabel(d.httpCacheBytes), undefined, false],
     [
       words.DISK_CEILING,
       d.httpCacheCeilingBytes === null
         ? words.DISK_CEILING_DEFAULT
         : bytesLabel(d.httpCacheCeilingBytes),
-      d.cachePolicy.reason
-    ]
+      d.cachePolicy.reason,
+      true
+    ],
+    [words.DISK_CODE, bytesLabel(d.codeCacheBytes), undefined, false],
+    [words.DISK_DURABLE, bytesLabel(d.durableBytes), undefined, false],
+    [words.DISK_PROFILE, bytesLabel(d.profileBytes), undefined, false],
+    [words.DISK_FREE, bytesLabel(d.freeBytes), undefined, false]
   ];
   return (
     <section className="diag-section">
@@ -599,8 +931,8 @@ function DiskSection({ report }: { report: DiagnosticsReport }): React.JSX.Eleme
         {words.SECTION_DISK}
       </div>
       <div className="diag-lines">
-        {rows.map(([label, value, hover]) => (
-          <div key={label} className="diag-line" title={hover}>
+        {rows.map(([label, value, hover, sub]) => (
+          <div key={label} className={`diag-line${sub ? ' diag-line-sub' : ''}`} title={hover}>
             <span className="diag-line-label">{label}</span>
             <span className="diag-line-value">{value}</span>
           </div>
@@ -610,7 +942,23 @@ function DiskSection({ report }: { report: DiagnosticsReport }): React.JSX.Eleme
   );
 }
 
+/**
+ * Phase 170: what the watcher did. Rows with activity on the face; rows
+ * with nothing to report behind one disclosure, counted.
+ */
 function WatchersSection({ report }: { report: DiagnosticsReport }): React.JSX.Element {
+  const activity = (w: { drops: number; rescansScheduled: number; rescansCompleted: number }): number =>
+    w.drops + w.rescansScheduled + w.rescansCompleted;
+  const active = report.watchers.filter((w) => activity(w) > 0);
+  const quiet = report.watchers.filter((w) => activity(w) === 0);
+  const line = (w: (typeof report.watchers)[number]): React.JSX.Element => (
+    <div key={w.repo} className="diag-line">
+      <span className="diag-line-label">{w.repo}</span>
+      <span className="diag-line-value">
+        {`${String(w.drops)} ${words.WATCHER_DROPS}, ${String(w.rescansScheduled)} ${words.WATCHER_SCHEDULED}, ${String(w.rescansCompleted)} ${words.WATCHER_COMPLETED}`}
+      </span>
+    </div>
+  );
   return (
     <section className="diag-section">
       <div className="diag-section-head" title="One row per repository with a live file watcher, and what the system dropped since it opened.">
@@ -619,16 +967,21 @@ function WatchersSection({ report }: { report: DiagnosticsReport }): React.JSX.E
       {report.watchers.length === 0 ? (
         <div className="diag-note">{words.WATCHERS_NONE}</div>
       ) : (
-        <div className="diag-lines">
-          {report.watchers.map((w) => (
-            <div key={w.repo} className="diag-line">
-              <span className="diag-line-label">{w.repo}</span>
-              <span className="diag-line-value">
-                {`${String(w.drops)} ${words.WATCHER_DROPS}, ${String(w.rescansScheduled)} ${words.WATCHER_SCHEDULED}, ${String(w.rescansCompleted)} ${words.WATCHER_COMPLETED}`}
-              </span>
-            </div>
-          ))}
-        </div>
+        <>
+          {active.length === 0 ? (
+            <div className="diag-note">{words.WATCHERS_ALL_QUIET}</div>
+          ) : (
+            <div className="diag-lines">{active.map(line)}</div>
+          )}
+          {quiet.length > 0 ? (
+            <details className="diag-disclosure" title={words.WATCHERS_QUIET_HOVER}>
+              <summary>
+                {`${String(quiet.length)} ${quiet.length === 1 ? words.WATCHERS_QUIET_ONE : words.WATCHERS_QUIET_MANY}`}
+              </summary>
+              <div className="diag-lines">{quiet.map(line)}</div>
+            </details>
+          ) : null}
+        </>
       )}
     </section>
   );

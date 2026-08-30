@@ -2,7 +2,10 @@
  * The diagnostics report contract (Phase 163).
  *
  * One on demand capture that explains the app's own time, memory, processes
- * and disk. Nothing in this contract runs on a timer. A capture is two calls
+ * and disk. Nothing in this contract runs on a timer without a visible
+ * subscriber: the one exception is Phase 170's live mode at the end of this
+ * file, which samples only while a visible diagnostics tab holds an explicit
+ * subscription and is quiet the instant it is hidden. A capture is two calls
  * from the renderer, `diagnostics:begin` and `diagnostics:finish`, because
  * every CPU number Electron and the OS can give is "since the last sample",
  * so a capture needs a window with a start and an end. The renderer opens the
@@ -31,6 +34,8 @@
  * Heap snapshots are OPT IN and live on their own channel. They write a file
  * to a path a person chose in a dialog and never enter a report.
  */
+
+import type { Unsubscribe } from './base';
 
 // ---------------------------------------------------------------------------
 // Memory, stated honestly
@@ -439,4 +444,74 @@ export interface GmuxDiagnosticsExtras {
       target: DiagnosticsHeapTarget
     ): Promise<DiagnosticsHeapSnapshotResult>;
   };
+}
+
+// ---------------------------------------------------------------------------
+// Live mode (Phase 170), sampling only while the tab is visible
+// ---------------------------------------------------------------------------
+
+/**
+ * The operator overrode the one capture stance himself on 2026-08-30, and
+ * the ruling is narrow: the report may sample continuously WHILE THE TAB IS
+ * VISIBLE, and must go completely quiet the instant the tab is hidden or
+ * closed. Nothing ever samples in the background. The renderer subscribes
+ * with `diagnostics:liveStart` carrying its own visibility, and calls
+ * `diagnostics:liveStop` on hide, on pause and on unmount; main also
+ * stops itself when the subscribing window is destroyed, so a closed window
+ * cannot leave a timer behind. Main never runs the timer without a live
+ * subscriber, and the interval is stated in every payload so the face can
+ * say what it shows.
+ */
+export const DIAGNOSTICS_LIVE_INTERVAL_MS = 2_000;
+
+export const EVT_DIAGNOSTICS_LIVE_SAMPLE = 'diagnostics:liveSample' as const;
+
+export interface DiagnosticsLiveSample {
+  /** A full report over the tick's own window, disk read once and reused. */
+  report: DiagnosticsReport;
+  /** The sampling interval, stated here so the face never guesses. */
+  intervalMs: number;
+  /** 1 based count of samples since this subscription started. */
+  tick: number;
+}
+
+export interface DiagnosticsLiveStartResult {
+  /** False when the start was refused because the tab is not visible. */
+  started: boolean;
+  intervalMs: number;
+}
+
+/** Appended to `AllEventPayloadMap` in ./index.ts (Phase 170). */
+export interface DiagnosticsEventPayloadMap {
+  'diagnostics:liveSample': [sample: DiagnosticsLiveSample];
+}
+
+/** Live mode's two ends, appended to the invoke map below (Phase 170). */
+export interface DiagnosticsLiveInvokeChannelMap {
+  /**
+   * Subscribe to live samples. `visible` is the tab's own answer, and a
+   * start with `visible` false is a refusal, not a deferral: nothing is
+   * armed. A second start replaces the first subscription.
+   */
+  'diagnostics:liveStart': {
+    req: [visible: boolean];
+    res: DiagnosticsLiveStartResult;
+  };
+  /** Stop sampling. Idempotent; safe to call with nothing running. */
+  'diagnostics:liveStop': { req: []; res: void };
+}
+
+/** The live half of `window.gmux.diagnostics` (Phase 170). */
+export interface GmuxDiagnosticsLiveExtras {
+  liveStart(visible: boolean): Promise<DiagnosticsLiveStartResult>;
+  liveStop(): Promise<void>;
+  onLiveSample(cb: (sample: DiagnosticsLiveSample) => void): Unsubscribe;
+}
+
+/**
+ * The bridge shaped wrapper, so `InstalledGmuxApi` can intersect the live
+ * half onto the `diagnostics` member the Phase 163 extras already install.
+ */
+export interface GmuxDiagnosticsLiveBridgeExtras {
+  diagnostics: GmuxDiagnosticsLiveExtras;
 }

@@ -8,9 +8,9 @@
  *  - A session row names the agent and the session, never a command line.
  *  - A milestone that never landed says "not yet", never 0 ms.
  *  - A pid Electron listed and the table did not name is drawn as such.
- *  - Nothing on the face refreshes itself: the source of the tab and the
- *    capture carries no setInterval, no requestAnimationFrame loop and no
- *    event subscription.
+ *  - The renderer's live half is the subscription in live.ts and nothing
+ *    else: no setInterval, no requestAnimationFrame, no timer of its own,
+ *    and the tab's one listener is removed in the same effect that adds it.
  *  - Every colour in the stylesheet is a token.
  *  - No tmux vocabulary reaches a person.
  */
@@ -125,6 +125,8 @@ function render(r: DiagnosticsReport | null, kind: 'ready' | 'capturing' | 'unav
   return renderToStaticMarkup(
     createElement(DiagnosticsBody, {
       phase,
+      paused: false,
+      onTogglePause: () => undefined,
       onCapture: () => undefined,
       onCopy: () => undefined,
       onHeapSnapshot: () => undefined
@@ -268,7 +270,9 @@ describe('the sections', () => {
   it('draws the counts, the disk rows and the watcher row', () => {
     const html = render(report());
     expect(html).toContain(words.FIG_SESSIONS);
-    expect(html).toContain('12 up, 40 down');
+    // Phase 170: the message figure moved into this window's row detail,
+    // closed at rest. p170-body proves it complete when opened.
+    expect(html).not.toContain('12 up, 40 down');
     expect(html).toContain(words.DISK_HTTP);
     expect(html).toContain('30 MB');
     expect(html).toContain('1 dropped, 1 scheduled, 1 completed');
@@ -292,17 +296,28 @@ describe('the sections', () => {
 describe('the refusals, read from the source', () => {
   const tab = readFileSync(join(HERE, 'DiagnosticsTab.tsx'), 'utf8');
   const capture = readFileSync(join(HERE, 'capture.ts'), 'utf8');
+  const live = readFileSync(join(HERE, 'live.ts'), 'utf8');
   const css = readFileSync(join(HERE, 'diagnostics.css'), 'utf8');
   const copy = readFileSync(join(HERE, 'copy.ts'), 'utf8');
 
-  it('nothing on the surface refreshes on its own', () => {
-    for (const src of [tab, capture]) {
-      expect(src).not.toMatch(/setInterval|requestAnimationFrame|\.on[A-Z][A-Za-z]*\(\s*\(/);
+  it('the renderer arms no timer of its own for live mode', () => {
+    // Phase 170: the operator sanctioned sampling WHILE THE TAB IS VISIBLE.
+    // The tick's timer lives in MAIN, behind the live subscription. This
+    // side holds a listener and nothing else: no setInterval, no
+    // requestAnimationFrame, no polling timer anywhere on the surface.
+    for (const src of [tab, capture, live]) {
+      expect(src).not.toMatch(/setInterval|requestAnimationFrame/);
     }
-    // The one setTimeout in the tab is the Copied flip. The one in capture is
-    // the sampling window, which the capture itself closes.
+    // The tab's one setTimeout is the Copied flip. The capture's one is the
+    // sampling window itself, closed by the capture.
     expect((tab.match(/setTimeout/g) ?? []).length).toBe(1);
     expect((capture.match(/setTimeout/g) ?? []).length).toBe(1);
+    // The one listener the tab adds is removed in the same effect's cleanup,
+    // and the subscription is disposed there too, so a closed tab runs
+    // nothing and listens to nothing.
+    expect((tab.match(/addEventListener/g) ?? []).length).toBe(1);
+    expect((tab.match(/removeEventListener/g) ?? []).length).toBe(1);
+    expect(tab).toMatch(/s\.dispose\(\)/);
   });
 
   it('the observer is stopped in a finally block', () => {
@@ -321,7 +336,7 @@ describe('the refusals, read from the source', () => {
   });
 
   it('no dash of either long kind anywhere in the surface', () => {
-    for (const src of [tab, capture, css, copy]) {
+    for (const src of [tab, capture, live, css, copy]) {
       expect(src).not.toMatch(/[–—]/);
     }
   });

@@ -14,9 +14,11 @@
 
 import type {
   DiagnosticsRendererMemory,
-  GmuxDiagnosticsExtras
+  GmuxDiagnosticsExtras,
+  GmuxDiagnosticsLiveExtras
 } from '../shared/ipc';
-import { invoke } from './bridge';
+import { EVT_DIAGNOSTICS_LIVE_SAMPLE } from '../shared/ipc';
+import { invoke, on } from './bridge';
 
 const KB = 1024;
 
@@ -40,9 +42,15 @@ async function rendererMemory(): Promise<DiagnosticsRendererMemory | null> {
   }
 }
 
-export const diagnostics: GmuxDiagnosticsExtras['diagnostics'] = {
+export const diagnostics: GmuxDiagnosticsExtras['diagnostics'] &
+  GmuxDiagnosticsLiveExtras = {
   begin: () => invoke('diagnostics:begin'),
   finish: (id, facts) => invoke('diagnostics:finish', id, facts),
   rendererMemory,
-  saveHeapSnapshot: (target) => invoke('diagnostics:saveHeapSnapshot', target)
+  saveHeapSnapshot: (target) => invoke('diagnostics:saveHeapSnapshot', target),
+  // Phase 170: live mode. The renderer subscribes with its visibility and
+  // stops on hide, pause and unmount; main stops itself if the window dies.
+  liveStart: (visible) => invoke('diagnostics:liveStart', visible),
+  liveStop: () => invoke('diagnostics:liveStop'),
+  onLiveSample: (cb) => on(EVT_DIAGNOSTICS_LIVE_SAMPLE, cb)
 };

@@ -56,7 +56,7 @@ export const COL_CPU_HOVER =
   'Percent of one core. Sampled over the capture window for Tortie’s own processes, a lifetime average for the rest.';
 
 /** The section labels below the two tables. */
-export const SECTION_NOW = 'Right now';
+export const SECTION_NOW = 'Open right now';
 export const SECTION_RENDERER = 'This window';
 export const SECTION_MAIN = 'Main process';
 export const SECTION_STARTUP = 'Startup';
@@ -67,7 +67,7 @@ export const SECTION_ELECTRON = 'Every Electron process';
 export const SECTION_STARTUP_HOVER =
   'Time from the moment Tortie started until each milestone landed, fixed once for this launch.';
 export const SECTION_NOW_HOVER =
-  'Counted when this capture was taken. Nothing here updates on its own.';
+  'What Tortie holds open, counted with each capture.';
 
 /** Short figure labels. */
 export const FIG_SESSIONS = 'Sessions';
@@ -136,3 +136,23 @@ export const MACHINE_HOVER =
 /** Phase 168. The GPU row shows the OS footprint; the hover says why. */
 export const GPU_FOOTPRINT_HOVER =
   'OS footprint, the number the machine pays for this process. Its own private figure leaves out the graphics memory it holds with the system.';
+
+/** Phase 170. Live sampling, the operator's own override of the one capture stance. */
+export const LIVE = 'Live';
+export const LIVE_EVERY = 'every 2 s';
+export const LIVE_PAUSED = 'Paused';
+export const LIVE_HOVER =
+  'Samples about every two seconds, only while this tab is visible. Hidden or closed, nothing runs.';
+export const PAUSE = 'Pause';
+export const RESUME = 'Resume';
+
+/** Phase 170. The rows that carry more detail than their line, and the sortable heads. */
+export const DETAIL_HOVER = 'More about this process';
+export const COL_SORT_HOVER = 'Sort by this column';
+
+/** Phase 170. Watcher rows with nothing to report rest behind a disclosure. */
+export const WATCHERS_ALL_QUIET = 'Nothing dropped, nothing rescanned.';
+export const WATCHERS_QUIET_ONE = 'quiet repository';
+export const WATCHERS_QUIET_MANY = 'quiet repositories';
+export const WATCHERS_QUIET_HOVER =
+  'Watched repositories with no drops and no rescans since launch.';

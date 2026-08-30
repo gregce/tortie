@@ -10,12 +10,23 @@
  * arrive with finish because only the renderer can read them and main never
  * asks a renderer to run code (src/main/menu.ts forbids it for state).
  *
- * WHAT A CAPTURE STARTS: `ps` once, `footprint` once, `du` three times, and
- * since Phase 168 `top` once for the energy score and the windowed CPU, all
- * short lived, all through the guarded runner that settles inside a deadline
- * and reaps what it started. The top spawn is started by `beginCapture` so
- * its roughly two seconds overlap the window the renderer is already waiting
- * out. It asks the session server for its pid and its pane list, read only.
+ * WHAT A CAPTURE STARTS: `ps` once, `du` three times, and since Phase 168
+ * `top` once for the energy score, the windowed CPU and (Phase 170) the
+ * physical footprint of every process on the machine, all short lived, all
+ * through the guarded runner that settles inside a deadline and reaps what
+ * it started. The top spawn is started by `beginCapture` so its roughly two
+ * seconds overlap the window the renderer is already waiting out. A LIVE
+ * TICK spawns no top of its own: it takes one sample from the streaming
+ * top in ./top-stream.ts that the subscription holds open, because top's
+ * startup walk is 2.2 s of system time and paying it every two seconds was
+ * a whole core for as long as the tab was visible.
+ * `/usr/bin/footprint` is spawned ONLY when top failed: the batched call
+ * over a capture shaped set of 155 pids measured 7.35 seconds on
+ * 2026-08-30 against the runner's 5 second deadline, so on a machine with
+ * many sessions it was killed with its output still in its own block
+ * buffer and every row it was asked about said "not read". Top's MEM
+ * column is the same kernel ledger (see ./power.ts for the per pid proof)
+ * and covers every pid in the spawn the capture already pays for. It asks the session server for its pid and its pane list, read only.
  * It opens no listener, sets no interval and keeps no timer between the two
  * ends. An abandoned begin leaves one boolean and two integers armed in
  * ./ipc-sample.ts plus one already guarded top child that settles on its
@@ -85,6 +96,14 @@ interface OpenCapture {
 
 let open: OpenCapture | null = null;
 
+/**
+ * The last disk read, reused by a light finish (Phase 170). Live mode
+ * closes a capture window every two seconds, and three `du` walks per tick
+ * would be steady IO nobody asked for; the sizes move on the scale of
+ * minutes. A full capture always reads and refreshes this.
+ */
+let lastDiskSizes: Awaited<ReturnType<typeof readDiskSizes>> | null = null;
+
 /** Electron's metrics in the narrow shape ./tree.ts reads. */
 function readElectronMetrics(): ElectronMetric[] {
   return app.getAppMetrics().map((m) => ({
@@ -97,16 +116,30 @@ function readElectronMetrics(): ElectronMetric[] {
   }));
 }
 
+export interface BeginOptions {
+  /**
+   * Phase 170 fix round: where this window's top sample comes from. A
+   * manual capture leaves it unset and spawns the one shot read in
+   * ./power.ts; a live tick passes the streaming instrument's `take`, so a
+   * tick costs a sample and never a fresh top startup walk.
+   */
+  power?(): Promise<PowerSample | null>;
+}
+
 /**
  * Open a capture window. The first metrics sample primes Electron's per
  * process CPU counters, which report zero until a second call, and the IPC
  * counters are armed. A second begin replaces the first.
  */
-export function beginCapture(now: number = Date.now()): DiagnosticsCaptureHandle {
+export function beginCapture(
+  now: number = Date.now(),
+  options: BeginOptions = {}
+): DiagnosticsCaptureHandle {
   readElectronMetrics();
   process.getCPUUsage();
   beginIpcSample(now);
-  open = { id: randomUUID(), startedAt: now, power: readPowerSample() };
+  const power = options.power !== undefined ? options.power() : readPowerSample();
+  open = { id: randomUUID(), startedAt: now, power };
   return { id: open.id };
 }
 
@@ -190,6 +223,12 @@ export interface FinishOptions {
   /** The renderer pid that asked, so its facts land on its own row. */
   rendererPid?: number;
   now?: number;
+  /**
+   * Phase 170, live mode's ticks: reuse the last disk read instead of
+   * walking the profile again. The first finish on a fresh launch still
+   * reads, so a light report never carries an invented disk section.
+   */
+  light?: boolean;
 }
 
 /**
@@ -251,18 +290,48 @@ export async function finishCapture(
   }
 
   const profileDir = app.getPath('userData');
+
+  // Phase 170: the footprint of every pid comes from the top sample the
+  // window already paid for (see the module note and ./power.ts). The
+  // /usr/bin/footprint spawn is the fallback for a machine where top gave
+  // nothing, and there it keeps its 5 second deadline.
+  const power = await powerPromise;
+  const topMem = power?.memBytesByPid ?? null;
+  let footprintsPromise: Promise<Map<number, number>>;
+  if (topMem !== null) {
+    const filtered = new Map<number, number>();
+    for (const pid of wantFootprint) {
+      const bytes = topMem.get(pid);
+      if (bytes !== undefined) filtered.set(pid, bytes);
+    }
+    footprintsPromise = Promise.resolve(filtered);
+  } else if (options.light === true) {
+    // A live tick without a top sample says "not read" for one interval
+    // and the next tick tries again. Spawning footprint every two seconds
+    // would be the exact drain the deadline kill made pointless at scale.
+    footprintsPromise = Promise.resolve(new Map());
+  } else {
+    footprintsPromise = readFootprints([...wantFootprint]);
+  }
+
+  const diskPromise =
+    options.light === true && lastDiskSizes !== null
+      ? Promise.resolve(lastDiskSizes)
+      : readDiskSizes(profileDir, {
+          httpCache: () => session.defaultSession.getCacheSize(),
+          // Phase 166: the same pure decision the boot made, read again here
+          // rather than remembered, so the report cannot drift from the switch.
+          policy: () => policyState(cachePolicyFor(process.env, app.isPackaged))
+        });
+
   const [footprints, main, disk, sessions, watchers] = await Promise.all([
-    readFootprints([...wantFootprint]),
+    footprintsPromise,
     readMainMemory(),
-    readDiskSizes(profileDir, {
-      httpCache: () => session.defaultSession.getCacheSize(),
-      // Phase 166: the same pure decision the boot made, read again here
-      // rather than remembered, so the report cannot drift from the switch.
-      policy: () => policyState(cachePolicyFor(process.env, app.isPackaged))
-    }),
+    diskPromise,
     readSessionFacts(),
     watcherObservations()
   ]);
+  lastDiskSizes = disk;
 
   const tree = buildTree({
     owned,
@@ -277,9 +346,8 @@ export async function finishCapture(
   });
 
   // Phase 168: the glance strip and the machine context. The top read was
-  // started at begin; by now it is usually settled, and a top that fails
-  // leaves the CPU and energy figures null rather than zero.
-  const power = await powerPromise;
+  // started at begin and awaited above; a top that failed leaves the CPU
+  // and energy figures null rather than zero.
   const shellPids = tree.shell
     .filter((row) => row.kind !== 'orphan')
     .map((row) => row.pid);

@@ -192,14 +192,19 @@ if (reading === null || typeof reading !== 'object') {
   const r = reading;
   check(0, 'the drive answered with a reading', true, JSON.stringify(r));
   check(1, 'the tab opened under its name', Array.isArray(r.tabName) && r.tabName.includes('Diagnostics report'), `tabs ${JSON.stringify(r.tabName)}`);
-  check(2, 'the capture landed with Tortie then Your sessions', Array.isArray(r.groups) && r.groups[0] === 'Tortie' && r.groups[1] === 'Your sessions' && (r.note ?? []).length === 0, `groups ${JSON.stringify(r.groups)}, note ${JSON.stringify(r.note)}`);
+  // Phase 170: a resting face may carry quiet notes ("Nothing dropped,
+  // nothing rescanned.", the empty session and watcher states). Only a note
+  // outside that set marks a failed capture.
+  const restingNote = /^(Nothing dropped, nothing rescanned\.|No sessions are running\.|No repository is being watched\.)$/;
+  const badNotes = (r.note ?? []).filter((n) => !restingNote.test(n));
+  check(2, 'the capture landed with Tortie then Your sessions', Array.isArray(r.groups) && r.groups[0] === 'Tortie' && r.groups[1] === 'Your sessions' && badNotes.length === 0, `groups ${JSON.stringify(r.groups)}, note ${JSON.stringify(r.note)}`);
   check(3, 'each group carries its own total', Array.isArray(r.totals) && r.totals.length === 2 && r.totals.every((t) => /MB|none|not read/.test(t)), `totals ${JSON.stringify(r.totals)}`);
   check(4, 'no figure on the face is the sum of the two totals', r.sumAppearsOnFace === false, `sum ${String(r.sumOfTotalsMb)} MB, on face ${String(r.sumAppearsOnFace)}`);
   check(5, 'the Tortie table has a main row and at least one child row', Array.isArray(r.kinds) && r.kinds.includes('Main') && r.childRows > 0, `kinds ${JSON.stringify(r.kinds)}, children ${String(r.childRows)}`);
   check(6, 'every session on the scratch server is a session row', r.sessionRows >= SESSIONS.length, `rows ${String(r.sessionRows)} for ${String(SESSIONS.length)} sessions`);
   check(7, 'app ready and window shown show a time, never 0 ms', Array.isArray(r.milestones) && /ms|s$/.test(r.milestones[0] ?? '') && /ms|s$/.test(r.milestones[1] ?? '') && !r.milestones.slice(0, 2).includes('0 ms'), `milestones ${JSON.stringify(r.milestones)}`);
   check(8, 'the Electron proof names every listed pid', typeof r.electronProof === 'string' && /(\d+) listed, \1 named/.test(r.electronProof) && r.unnamed === 0, `${String(r.electronProof)}, unnamed ${String(r.unnamed)}`);
-  check(9, 'the three controls are drawn', Array.isArray(r.buttons) && r.buttons.length === 3, `buttons ${JSON.stringify(r.buttons)}`);
+  check(9, 'the four controls are drawn, Pause first since Phase 170', Array.isArray(r.buttons) && r.buttons.length === 4 && r.buttons[0] === 'Pause', `buttons ${JSON.stringify(r.buttons)}`);
   // The independent method the verdict names: the exact bytes Copy report
   // carries, scanned for a secret. A report over a real profile must name no
   // home directory, no command line, no token shape and no environment value.

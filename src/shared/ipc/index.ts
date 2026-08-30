@@ -144,8 +144,11 @@ import type {
 } from './sessions';
 import type { GmuxLogExtras, LogInvokeChannelMap } from './log';
 import type {
+  DiagnosticsEventPayloadMap,
   DiagnosticsInvokeChannelMap,
-  GmuxDiagnosticsExtras
+  DiagnosticsLiveInvokeChannelMap,
+  GmuxDiagnosticsExtras,
+  GmuxDiagnosticsLiveBridgeExtras
 } from './diagnostics';
 import type {
   GmuxMachinesExtras,
@@ -277,7 +280,9 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   // Phase 63. The standing contract's three reads.
   ArchInvokeChannelMap &
   // Phase 163. A capture window's two ends, and the opt in heap snapshot.
-  DiagnosticsInvokeChannelMap;
+  DiagnosticsInvokeChannelMap &
+  // Phase 170. Live mode's subscribe and stop, visible tab only.
+  DiagnosticsLiveInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -310,7 +315,9 @@ export type AllEventPayloadMap = EventPayloadMap &
   // connection test's own bytes and this is not about a test at all.
   MachinesEventPayloadMap &
   // Phase 63. A finished re-check, and how far a running one has got.
-  ArchEventPayloadMap;
+  ArchEventPayloadMap &
+  // Phase 170. Live diagnostics samples, only while the tab is visible.
+  DiagnosticsEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 
@@ -426,4 +433,6 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxMachinesExtras &
   GmuxOverviewExtras &
   GmuxArchExtras &
-  GmuxDiagnosticsExtras;
+  GmuxDiagnosticsExtras &
+  // Phase 170. The live half of the same `diagnostics` member.
+  GmuxDiagnosticsLiveBridgeExtras;

@@ -10,6 +10,7 @@ import {
   DIAGNOSTICS_MILESTONES,
   type DiagnosticsMachineContext,
   type DiagnosticsMilestoneName,
+  type DiagnosticsSessionWorkload,
   type DiagnosticsShellKind,
   type DiagnosticsShellProcess
 } from '@shared/ipc';
@@ -177,4 +178,111 @@ export function machineSentence(m: DiagnosticsMachineContext | null): string | n
       : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
   const others = m.rank - 1 > names.length ? ' and others' : '';
   return `Tortie is ${ordinalLabel(m.rank)} of ${String(m.appCount)} apps on this Mac by memory, behind ${list}${others}.`;
+}
+
+// ---------------------------------------------------------------------------
+// Sorting (Phase 170): every process table sorts by a clicked column
+// ---------------------------------------------------------------------------
+
+export type SortDir = 'asc' | 'desc';
+
+export interface SortSpec<C extends string> {
+  col: C;
+  dir: SortDir;
+}
+
+export type ShellSortCol = 'process' | 'pid' | 'cpu' | 'private' | 'resident';
+export type SessionSortCol = 'session' | 'agent' | 'processes' | 'cpu' | 'memory';
+
+/** The columns that read as words. A first click sorts them ascending. */
+const TEXT_COLS: ReadonlySet<string> = new Set(['process', 'session', 'agent']);
+
+/**
+ * The next sort after a click on a column head. A first click on a text
+ * column reads A to Z; a first click on a number column puts the biggest
+ * first, because that is the question a person clicking Memory is asking.
+ * A second click on the same column turns it around. The default order
+ * stands until the first click, which is the charter's rule.
+ */
+export function nextSort<C extends string>(
+  current: SortSpec<C> | null,
+  col: C
+): SortSpec<C> {
+  if (current !== null && current.col === col) {
+    return { col, dir: current.dir === 'asc' ? 'desc' : 'asc' };
+  }
+  return { col, dir: TEXT_COLS.has(col) ? 'asc' : 'desc' };
+}
+
+/** A stable sort: equal keys keep the order they arrived in. */
+function stableBy<T>(
+  rows: readonly T[],
+  key: (row: T) => number | string,
+  dir: SortDir
+): T[] {
+  const decorated = rows.map((row, i) => ({ row, i, k: key(row) }));
+  decorated.sort((a, b) => {
+    const c =
+      typeof a.k === 'string' && typeof b.k === 'string'
+        ? a.k.localeCompare(b.k)
+        : (a.k as number) - (b.k as number);
+    if (c === 0) return a.i - b.i;
+    return dir === 'asc' ? c : -c;
+  });
+  return decorated.map((d) => d.row);
+}
+
+/**
+ * The Tortie rows under a sort, or the default order untouched when no
+ * column has been clicked. A row whose private figure was not read sorts
+ * below every read one, never as zero.
+ */
+export function sortShellRows(
+  rows: readonly ShellRow[],
+  sort: SortSpec<ShellSortCol> | null
+): ShellRow[] {
+  if (sort === null) return [...rows];
+  const key = (row: ShellRow): number | string => {
+    const p = row.process;
+    switch (sort.col) {
+      case 'process':
+        return `${kindLabel(p.kind)} ${p.name}`.toLowerCase();
+      case 'pid':
+        return p.pid;
+      case 'cpu':
+        return p.cpuPercent;
+      case 'private':
+        return p.memory.privateBytes ?? -1;
+      case 'resident':
+        return p.memory.rssBytes;
+    }
+  };
+  return stableBy(rows, key, sort.dir);
+}
+
+/**
+ * The session rows under a sort. The default order is by name, as the table
+ * has always drawn it, and it stands until a person clicks.
+ */
+export function sortSessionRows(
+  rows: readonly DiagnosticsSessionWorkload[],
+  sort: SortSpec<SessionSortCol> | null
+): DiagnosticsSessionWorkload[] {
+  const base = [...rows].sort((a, b) => a.name.localeCompare(b.name));
+  if (sort === null) return base;
+  const key = (s: DiagnosticsSessionWorkload): number | string => {
+    switch (sort.col) {
+      case 'session':
+        return s.name.toLowerCase();
+      case 'agent':
+        return s.agent.toLowerCase();
+      case 'processes':
+        return s.processCount;
+      case 'cpu':
+        return s.cpuPercent;
+      case 'memory':
+        return s.memory.privateBytes ?? -1;
+    }
+  };
+  return stableBy(base, key, sort.dir);
 }
