@@ -46,8 +46,6 @@ import {
   remoteTreeTruncated,
   remoteTreeUnreachable
 } from '../machines/explorer';
-import { registerTargetShotDrive } from '../app/target-shot-drive';
-import { registerRemoteBootDrive } from '../app/remote-boot-drive';
 import {
   machineAnswering,
   machineLabelFor,
@@ -59,21 +57,15 @@ import { useTreeGitStatus } from './git-status';
 import { useTreeIgnored } from './ignored';
 import { useFileTree } from './store';
 import { useTreeHandle } from './tree-handle';
-import { registerP154Probe } from './p154-probe';
 import { FileTree } from './FileTree';
 import './tree.css';
 
-// The Phase 90.1 harness hook. It assigns one function to `window` and changes
-// nothing else, exactly like the other shot probes. This module is the one the
-// Explorer always loads, so registering here needs no edit to App.tsx.
-registerTargetShotDrive();
-// The Phase 90.3 fix round hook, registered here for the same reason: this
-// module is the one the Explorer always loads, so no edit to App.tsx is needed.
-registerRemoteBootDrive();
-// The Phase 154 hook, registered here for the same reason as the two above:
-// this module is the one the Explorer always loads. It assigns one function to
-// `window` and changes nothing else.
-registerP154Probe();
+// PHASE 165. The Phase 90.1, 90.3 and 154 harness hooks used to be registered
+// here at module scope, because this module was the one the Explorer always
+// loaded. The Explorer is lazy now and it is not the default subject, so a
+// module scope call here would never run on a launch that showed Source
+// Control. They are installed by src/renderer/app/probe-registry.ts, on
+// harness launches only.
 
 // Collapse persistence (spec: "collapse state persists per project").
 const LS_COLLAPSED = 'gmux.filesCollapsed';
@@ -108,15 +100,17 @@ function TreeSkeleton(): React.JSX.Element {
   );
 }
 
-export function FilesSection({
-  statusFiles
-}: {
+export interface FilesSectionProps {
   /**
    * Optional external decoration source (the SCM store's status list).
    * When provided, this section never fetches git:status itself.
    */
   statusFiles?: readonly GitFileStatus[];
-}): React.JSX.Element {
+}
+
+export function FilesSection({
+  statusFiles
+}: FilesSectionProps): React.JSX.Element {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
 

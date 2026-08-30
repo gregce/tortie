@@ -10,7 +10,11 @@
  * the same gesture.
  */
 
-export { BranchHeader } from './BranchHeader';
+// PHASE 165. The header and the section are exported through their lazy door,
+// `./lazy.tsx`, and NOT from their own files. A static re-export here would
+// keep the whole subject in the entry chunk of every launch, because a module
+// in the static graph is kept for its side effects.
+export { BranchHeaderLazy, preloadScmSubject, ScmSectionLazy } from './lazy';
 // Phase 90.3. What has changed in a folder on another machine, read only. The
 // activity rail's badge reads it, which is what makes that number the machine's
 // own count instead of this Mac's.
@@ -20,6 +24,5 @@ export {
   useRemoteChanges
 } from './remote-changes';
 export type { RemoteChangesEntry } from './remote-changes';
-export { ScmSection } from './ScmSection';
 export { OPEN_FILE_EVENT, onOpenFile, requestOpenFile } from './open-file';
 export type { OpenFileRequest, OpenFileSelection } from './open-file';

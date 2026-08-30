@@ -49,7 +49,7 @@ describe('work area structure', () => {
     const area = app.indexOf('<div className="work-area"');
     const row = app.indexOf('<div className="work-row">');
     const region = app.indexOf('<TerminalRegion />');
-    const editor = app.indexOf('<EditorPanel />');
+    const editor = app.indexOf('<EditorPanelLazy />');
     expect(area).toBeGreaterThan(-1);
     expect(row).toBeGreaterThan(area);
     expect(region).toBeGreaterThan(row);
@@ -61,7 +61,7 @@ describe('work area structure', () => {
       '<div className="work-area"',
       '<div className="work-row">',
       '<TerminalRegion />',
-      '<EditorPanel />'
+      '<EditorPanelLazy />'
     ]) {
       const line = lineWith(app, needle);
       expect(line, `${needle} must not be conditional`).not.toMatch(/\?|&&/);

@@ -6,7 +6,10 @@
  * ranking, the index, the recents list — is behind this barrel.
  */
 
-export { QuickOpenPalette } from './QuickOpenPalette';
+// PHASE 165. The palette is exported through its lazy door, `./lazy.tsx`, and
+// NOT from its own file, so the shell can mount the door on every launch and
+// fetch the palette on the first ⌘P.
+export { preloadQuickOpenPalette, QuickOpenPaletteLazy } from './lazy';
 export { useQuickOpen } from './store';
 export { parseQuickOpen } from './parse';
 export type { ParsedQuickOpen, QuickOpenMode } from './parse';

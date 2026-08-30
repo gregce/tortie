@@ -1,0 +1,77 @@
+/**
+ * Phase 165. derive.ts moved from the default `culori` entry, which registers
+ * every colour space at module scope, to `culori/fn` with four spaces
+ * registered by hand. This test proves the outputs did not move.
+ *
+ * THE VECTOR WAS WRITTEN BY THE FULL LIBRARY. `fixtures/p165-derive-golden.json`
+ * was generated on 2026-08-29 by running the derive.ts that imported `culori`
+ * over every scheme and contrast level, twice: once over the shipped
+ * tokens.css values and once over a base whose every token is one of ten hand
+ * written forms (hex3, hex8, legacy rgb, modern rgb with alpha, named
+ * colours, transparent, and the compound focus ring). 540 outputs in all.
+ *
+ * THIS FILE IMPORTS NOTHING FROM `culori`. Vitest isolates each test file's
+ * module graph, and culori's mode registry is module state, so a test that
+ * imported the full entry beside derive.ts would register every space and
+ * could not tell whether derive.ts registered enough on its own. The sibling
+ * derive.test.ts does import the full entry for its own contrast arithmetic,
+ * which is why this proof lives in a file of its own.
+ */
+
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { deriveOverrides } from '../derive';
+import type { Appearance } from '../derive';
+
+interface Golden {
+  cases: Array<{
+    name: string;
+    base: Record<string, string>;
+    results: Record<string, Record<string, string>>;
+  }>;
+}
+
+const golden = JSON.parse(
+  readFileSync(resolve(__dirname, 'fixtures', 'p165-derive-golden.json'), 'utf8')
+) as Golden;
+
+describe('derive.ts on culori/fn matches the full library byte for byte', () => {
+  it('carries the whole vector', () => {
+    const outputs = golden.cases.reduce(
+      (a, c) => a + Object.values(c.results).reduce((b, r) => b + Object.keys(r).length, 0),
+      0
+    );
+    expect(golden.cases.map((c) => c.name)).toEqual(['shipped', 'odd']);
+    expect(outputs).toBe(540);
+  });
+
+  for (const c of golden.cases) {
+    for (const [key, expected] of Object.entries(c.results)) {
+      it(`${c.name} ${key}`, () => {
+        const [highlightScheme, contrastLevel] = key.split('/') as [
+          Appearance['highlightScheme'],
+          Appearance['contrastLevel']
+        ];
+        const actual = deriveOverrides({ highlightScheme, contrastLevel }, c.base);
+        expect(actual).toEqual(expected);
+      });
+    }
+  }
+
+  it('still parses every form the shipped file and the odd base use', () => {
+    // A form the registered spaces cannot parse is SKIPPED by derive.ts, which
+    // would make the two maps agree on absence. This pins presence: every
+    // token the full library wrote an override for, the trimmed one writes too.
+    for (const c of golden.cases) {
+      for (const [key, expected] of Object.entries(c.results)) {
+        const [highlightScheme, contrastLevel] = key.split('/') as [
+          Appearance['highlightScheme'],
+          Appearance['contrastLevel']
+        ];
+        const actual = deriveOverrides({ highlightScheme, contrastLevel }, c.base);
+        expect(Object.keys(actual).sort()).toEqual(Object.keys(expected).sort());
+      }
+    }
+  });
+});

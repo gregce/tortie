@@ -40,7 +40,16 @@
  * `npm run package`, so nothing that builds can skip it.
  */
 
-import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -154,6 +163,142 @@ function describe(hits) {
     .join(', ');
 }
 
+// ---------------------------------------------------------------------------
+// Two stylesheets (Phase 165)
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 165 put the Context subject and the editor panel behind lazy doors,
+ * and `context/surface/` is reached by both, so Rollup emits it as a chunk of
+ * its own with surface.css beside it, while install.css stays with the
+ * subject. The two files are in two stylesheets now, and this gate used to
+ * refuse that outright: "two stylesheets have no cascade order this script
+ * can read". They do, and it is in the artifact.
+ *
+ * Vite's preload helper, emitted into the entry chunk, receives for every
+ * `import()` a list of dependencies built by `__vite__mapDeps`, and it
+ * appends a `<link>` for each one IN LIST ORDER, skipping any already in the
+ * document. Vite builds that list depth first and adds a chunk's own CSS
+ * AFTER the CSS of everything it imports, with the comment "so the style of
+ * current chunk won't be overwritten unexpectedly". So the document order of
+ * two stylesheets is the list order of the first site that loaded them, and
+ * a later site that carries one already present skips it, which keeps it
+ * earlier. Read on 2026-08-29 from out/renderer/assets/index-DkTiI5h6.js, the
+ * subject's site listed `PreviewCard-Dsx6tVaF.css` (surface) eighth and
+ * `subject-ccysqxwK.css` (install) tenth, and the editor's site listed
+ * surface's sheet and never install's.
+ *
+ * The proof this reader makes: every preload list in every chunk that names
+ * install.css's stylesheet names surface.css's stylesheet EARLIER in the same
+ * list, and at least one such list exists. The first clause is the cascade.
+ * The second is the same lesson as check 1: a stylesheet nothing ever loads
+ * would pass an ordering check while drawing nothing.
+ */
+function readPreloadSites(dir) {
+  const sites = [];
+  if (!existsSync(dir)) return sites;
+  for (const name of readdirSync(dir).sort()) {
+    if (!name.endsWith('.js')) continue;
+    const code = readFileSync(join(dir, name), 'utf8');
+    const table = /m\.f=\[([^\]]*)\]/.exec(code);
+    if (table === null) continue;
+    let names;
+    try {
+      names = JSON.parse(`[${table[1]}]`);
+    } catch {
+      continue;
+    }
+    const re = /__vite__mapDeps\(\[([0-9,\s]*)\]\)/g;
+    for (let m = re.exec(code); m !== null; m = re.exec(code)) {
+      const before = code.slice(Math.max(0, m.index - 200), m.index);
+      const target = /import\(\s*["']\.\/([^"']+)["']\s*\)\s*,?\s*$/.exec(before.replace(/\s+/g, ' '));
+      const deps = m[1]
+        .split(',')
+        .map((x) => x.trim())
+        .filter((x) => x.length > 0)
+        .map((x) => names[Number(x)])
+        .filter((x) => typeof x === 'string')
+        .map((x) => x.replace(/^\.\//, ''));
+      sites.push({ chunk: name, target: target?.[1] ?? null, deps });
+    }
+  }
+  return sites;
+}
+
+/**
+ * Whether every load path that brings in `installSheet` brings `surfaceSheet`
+ * in first. Returns null when proven, else the reason.
+ */
+function loadOrderReason(dir, surfaceSheet, installSheet) {
+  const sites = readPreloadSites(dir);
+  const carrying = sites.filter((s) => s.deps.includes(installSheet));
+  if (carrying.length === 0) {
+    return (
+      `no preload list in any chunk under ${dir} names ${installSheet}, so ` +
+      'nothing ever loads it and its rules never draw.'
+    );
+  }
+  for (const site of carrying) {
+    const at = site.deps.indexOf(surfaceSheet);
+    const installAt = site.deps.indexOf(installSheet);
+    if (at === -1) {
+      return (
+        `the preload list for import("./${String(site.target)}") in ` +
+        `${site.chunk} names ${installSheet} but not ${surfaceSheet}, so a ` +
+        'launch that opens that surface first gets install.css with no ' +
+        'surface.css under it.'
+      );
+    }
+    if (at > installAt) {
+      return (
+        `the preload list for import("./${String(site.target)}") in ` +
+        `${site.chunk} names ${installSheet} at position ${String(installAt + 1)} ` +
+        `and ${surfaceSheet} at position ${String(at + 1)}, so the document ` +
+        'gets install.css first and surface.css wins every property the two ' +
+        'declare at the same specificity.'
+      );
+    }
+  }
+  return null;
+}
+
+/**
+ * The reader above, proved on three fixtures it writes itself: a list with
+ * surface before install passes, a list with install before surface fails,
+ * and a list that never names install fails.
+ */
+function proveLoadOrderReader() {
+  const root = mkdtempSync(join(tmpdir(), 'p165-css-order-'));
+  const write = (label, deps, order) => {
+    const dir = join(root, label);
+    mkdirSync(dir, { recursive: true });
+    const table = deps.map((d) => JSON.stringify(`./${d}`)).join(',');
+    const idx = order.map((d) => String(deps.indexOf(d))).join(',');
+    writeFileSync(
+      join(dir, 'index-AAAA.js'),
+      `const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=[${table}])))=>i.map(i=>d[i]);` +
+        `const l=()=>__vitePreload(()=>import("./lazy-BBBB.js"),__vite__mapDeps([${idx}]));`
+    );
+    return dir;
+  };
+  try {
+    const good = write('good', ['lazy-BBBB.js', 'a.css', 'b.css'], ['lazy-BBBB.js', 'a.css', 'b.css']);
+    if (loadOrderReason(good, 'a.css', 'b.css') !== null) {
+      throw new Error('the good fixture was refused');
+    }
+    const reversed = write('reversed', ['lazy-BBBB.js', 'a.css', 'b.css'], ['lazy-BBBB.js', 'b.css', 'a.css']);
+    if (loadOrderReason(reversed, 'a.css', 'b.css') === null) {
+      throw new Error('the reversed fixture passed');
+    }
+    const missing = write('missing', ['lazy-BBBB.js', 'a.css', 'b.css'], ['lazy-BBBB.js', 'a.css']);
+    if (loadOrderReason(missing, 'a.css', 'b.css') === null) {
+      throw new Error('the fixture that never loads install.css passed');
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function main() {
   const sheets = readSheets();
   if (sheets === null || sheets.length === 0) {
@@ -242,18 +387,25 @@ function main() {
       "install.css's first own rule"
     ]
   ];
+  let crossSheet = null;
   for (const [what, hits, target, targetName] of ordering) {
     if (target === undefined) continue;
     for (const hit of hits) {
       if (hit.sheet !== target.sheet) {
-        fail(
-          `${what}, and it does not: they are in different stylesheets`,
-          `surface.css is in ${hit.sheet} at byte ${commas(hit.offset)} and ` +
-            `${targetName} is in ${target.sheet} at byte ` +
-            `${commas(target.offset)}. Two stylesheets have no cascade order ` +
-            'this script can read, so the rules would decide by load order ' +
-            'in the document instead.'
-        );
+        // Phase 165. Two stylesheets decide by load order in the document,
+        // and that order is in the preload lists. Read it rather than refuse.
+        const reason = loadOrderReason(assetsDir, hit.sheet, target.sheet);
+        if (reason !== null) {
+          fail(
+            `${what}, and it does not: they are in different stylesheets ` +
+              'and the load order does not put surface.css first',
+            `surface.css is in ${hit.sheet} at byte ${commas(hit.offset)} and ` +
+              `${targetName} is in ${target.sheet} at byte ` +
+              `${commas(target.offset)}, and ${reason}`
+          );
+        } else {
+          crossSheet = { surface: hit.sheet, install: target.sheet };
+        }
         continue;
       }
       if (hit.offset >= target.offset) {
@@ -305,11 +457,21 @@ function main() {
     process.exit(1);
   }
 
+  if (crossSheet !== null) {
+    console.log(
+      `[css-order] surface.css is emitted once, in ${crossSheet.surface}, and ` +
+        `install.css is in ${crossSheet.install}; every preload list that ` +
+        'loads the second names the first earlier, so the document gets ' +
+        'surface.css first. 3 fixtures behaved.'
+    );
+    return;
+  }
   const gap = (installAt?.offset ?? 0) - (control[0]?.offset ?? 0);
   console.log(
     `[css-order] surface.css is emitted once, ${commas(gap)} bytes before ` +
-      "install.css's first rule."
+      "install.css's first rule. 3 fixtures behaved."
   );
 }
 
+proveLoadOrderReader();
 main();

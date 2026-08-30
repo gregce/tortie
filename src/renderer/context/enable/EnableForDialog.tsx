@@ -20,12 +20,11 @@ import { trapTabKey } from '../../app/focus-trap';
 import { AgentIcon } from '../../icons';
 import { enableBlocker } from './enable-model';
 import { useEnableFlow } from './enable-store';
-import { registerEnableShotProbe } from './shot-probe';
 import './enable.css';
 
-// Harness-only (Phase 26.1): an inert window global the GMUX_SHOT harness can
-// call to open this dialog, because its real entry point is a native menu.
-registerEnableShotProbe();
+// PHASE 165. The harness hook this file registered at module scope is
+// installed by src/renderer/app/probe-registry.ts now, on harness launches
+// only, because this module is inside the Context subject's lazy chunk.
 
 export function EnableForDialog(): React.JSX.Element | null {
   const flow = useEnableFlow();

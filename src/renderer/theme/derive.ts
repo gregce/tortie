@@ -20,8 +20,29 @@
  * over colorjs.io in the Phase 62 spec, section 1).
  */
 
-import { clampChroma, converter, formatHex, formatRgb, parse } from 'culori';
-import type { Oklch } from 'culori';
+// PHASE 165. The tree shakeable entry, with the four colour spaces this file
+// walks registered by hand, plus hsl for a token a later round might write.
+// The default `culori` entry registers every one of its 30 or so spaces at
+// module scope, and because that registration is a side effect nothing can
+// shake it: it was 84,596 bytes of the shared eager chunk for a file that
+// converts hex and rgb into OKLCH and back. `useMode` here is the same call
+// the default entry makes for each space, so every function below runs the
+// same code over the same tables; src/renderer/theme/__tests__/
+// p165-derive-fn.test.ts proves that against a vector the full library wrote.
+import {
+  clampChroma,
+  converter,
+  formatHex,
+  formatRgb,
+  modeHsl,
+  modeLrgb,
+  modeOklab,
+  modeOklch,
+  modeRgb,
+  parse,
+  useMode
+} from 'culori/fn';
+import type { Oklch } from 'culori/fn';
 import type { ContrastLevel, HighlightScheme } from '@shared/settings';
 import {
   CANVAS_TOKEN,
@@ -40,6 +61,15 @@ export interface Appearance {
   highlightScheme: HighlightScheme;
   contrastLevel: ContrastLevel;
 }
+
+// Registration order matters only in that a space must be registered before
+// a converter to it is made. rgb parses hex, rgb(), legacy rgb, named colours
+// and `transparent`; lrgb and oklab are the two steps between rgb and oklch.
+useMode(modeRgb);
+useMode(modeLrgb);
+useMode(modeOklab);
+useMode(modeOklch);
+useMode(modeHsl);
 
 const toOklch = converter('oklch');
 const toRgb = converter('rgb');

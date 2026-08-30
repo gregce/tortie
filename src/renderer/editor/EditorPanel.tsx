@@ -66,7 +66,7 @@ import { MarkdownPreview } from './markdown';
 import { ImageCompare, ImageView } from './image';
 import { HtmlPreview, tabRendersHtml } from './html';
 import { Codicon } from '../icons';
-import { installShotHook } from './shot-hook';
+import { toggleEditorFill } from './fill';
 import {
   loadEditorWidths,
   renderedEditorWidth,
@@ -97,10 +97,11 @@ const DiagnosticsTab = React.lazy(async () => ({
   default: (await import('../diagnostics/DiagnosticsTab')).DiagnosticsTab
 }));
 
-// Screenshot-harness hook: registered at module load so GMUX_SHOT_DRIVE can
-// drive a fresh profile (the panel itself may not be mounted yet). Inert
-// outside the harness.
-installShotHook();
+// PHASE 165. The screenshot harness hook used to be installed here at module
+// load, which was the only reason a person's launch evaluated
+// `./shot-hook.ts` at all. It is installed by src/renderer/app/probe-registry.ts
+// now, on the harness launches that read it and on no other, and this module
+// is loaded when a tab is open and not before (see ./lazy.tsx).
 
 /** Read from THE keymap, never typed here (src/shared/keymap.ts's contract). */
 const FILL_CHORD = keyDisplay('view.fillEditor');
@@ -178,26 +179,10 @@ function workRowWidthNow(): number {
 }
 
 /**
- * The one implementation of "fill / restore", so the button, ⇧⌘B and the
- * View menu cannot drift apart. Exported for src/main/menu.ts's
- * `toggle-editor-fill` action, dispatched in App.tsx.
- *
- * With no file open it is a no-op: there is nothing to fill the window with,
- * and a layout change with no visible subject reads as a bug. Same in overlay
- * mode, where the editor already covers the terminal area.
+ * PHASE 165. The one implementation of "fill / restore" is `./fill.ts` now,
+ * so the menu and the chord can reach it without loading this panel. The
+ * button below still calls that same function.
  */
-export function toggleEditorFill(): void {
-  const app = useApp.getState();
-  if (app.editorFill !== null) {
-    app.exitEditorFill();
-    return;
-  }
-  const ed = useEditor.getState();
-  if (!ed.panelOpen || ed.tabs.length === 0) return;
-  const { windowWidth, workArea } = liveChromeGeometry();
-  if (editorIsOverlay(windowWidth, workArea)) return;
-  app.enterEditorFill();
-}
 
 // ---------------------------------------------------------------------------
 // Mode control — Diff | File for code, Preview | Source | Split for markdown

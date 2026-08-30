@@ -43,7 +43,7 @@ import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
 import { SIDEBAR_VIEW_DEFAULT } from '../state/sidebar-views';
-import { useSearch } from '../search';
+import { useSearch } from '../search/store';
 import {
   remoteChangesCount,
   useRemoteChanges,

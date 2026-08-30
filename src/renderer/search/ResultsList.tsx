@@ -27,7 +27,8 @@ import {
   sameTarget,
   targetOfProject
 } from '@shared/workspace-target';
-import { FileIcon, Codicon } from '../icons';
+import { Codicon } from '../icons';
+import { FileIcon } from '../icons/FileIcon';
 import { SEARCH_FILTERS_ON_THIS_MAC, SEARCH_NO_BRIDGE } from '../machines/search';
 import { useApp } from '../state/store';
 import {

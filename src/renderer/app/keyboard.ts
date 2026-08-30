@@ -21,7 +21,8 @@ import { keyDisplay } from '@shared/keymap';
 import { useApp } from '../state/store';
 import { useLayout } from '../state/layout';
 import type { NavDir } from '../state/layout';
-import { shortcutSearchTookEscape } from './ShortcutsOverlay';
+// PHASE 165. From the leaf, so asking the question loads no sheet.
+import { shortcutSearchTookEscape } from './shortcuts-escape';
 // Phase 90.2. The one state in the create sheet that refuses Escape. The sheet
 // cannot enforce it on its own, because this file's ladder is capture-phase on
 // `window` and stops the event before the sheet's own handler runs.
@@ -54,16 +55,16 @@ import { askRailTookEscape } from '../overview/session-keys';
 // Phase 143. The story panel's share of the same rung, asked FIRST, so
 // Escape steps out of the story before it steps out of the page.
 import { storyTookEscape } from '../overview/story';
-import { useQuickOpen } from '../quickopen';
+import { useQuickOpen } from '../quickopen/store';
 // Phase 64: the aiming verb's picker, reached by ⌃⇧P. It opens a native menu
 // over the session the person is in and opens no view.
 import { openAimPicker } from '../arch/picker';
-import {
-  focusInsideSearch,
-  focusResultsList,
-  useSearch,
-  useSymbols
-} from '../search';
+// PHASE 165. Leaves, not the barrel: the barrel is the Search subject's door
+// and this map runs on every launch, whether or not the subject is shown.
+import { focusInsideSearch } from '../search/focus';
+import { focusResultsList } from '../search/results-focus';
+import { useSearch } from '../search/store';
+import { useSymbols } from '../search/symbols-store';
 import {
   focusedSessionRowId,
   modalLayerOpen,

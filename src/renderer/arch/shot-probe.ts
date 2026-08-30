@@ -461,6 +461,25 @@ function chosenPasses(
   return out;
 }
 
+/**
+ * PHASE 165. Resolve once the Architecture pane is in the DOM, or once the
+ * sidebar is showing some other subject, or after `limitMs`. The pane's
+ * chunk is a file inside the bundle, so a warm load is a few milliseconds
+ * and the limit is a ceiling for a broken build rather than a budget.
+ */
+async function settleArchPane(limitMs: number): Promise<void> {
+  const until = Date.now() + limitMs;
+  for (;;) {
+    if (document.querySelector('.arch') !== null) return;
+    if (document.querySelector('[data-view="arch"]') === null) return;
+    if (Date.now() >= until) {
+      log('settle: the Architecture pane did not arrive in time');
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 25));
+  }
+}
+
 export async function driveArch(spec: ArchProbeSpec): Promise<void> {
   const cwd = spec.cwd ?? '/fixtures';
   if (spec.live !== true) {
@@ -513,6 +532,13 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
 
   if (spec.select !== undefined) useArch.getState().select(spec.select);
 
+  // PHASE 165. The subject is a lazy chunk now, so when the sidebar is
+  // showing it the pane arrives one chunk load after the view flips rather
+  // than in the same commit. Wait for the pane before the settle, so the read
+  // below measures the drawn subject and never an empty branch. On a launch
+  // whose sidebar shows another subject there is no pane to wait for, and
+  // the settle alone is what it always was.
+  await settleArchPane(5000);
   await new Promise((r) => setTimeout(r, 400));
 
   if (spec.live === true) {

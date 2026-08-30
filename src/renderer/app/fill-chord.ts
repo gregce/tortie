@@ -48,7 +48,10 @@
 
 import { editorIsOverlay } from '../state/chrome-geometry';
 import { liveChromeGeometry, useApp } from '../state/store';
-import { toggleEditorFill, useEditor } from '../editor';
+// PHASE 165. Two leaves, not the barrel: this chord runs on every launch and
+// must not load the editor panel to ask whether it is filled.
+import { toggleEditorFill } from '../editor/fill';
+import { useEditor } from '../editor/store';
 import { toggleSessionFocus } from './focus-flight';
 import { showOneTimeTip } from './one-time-tip';
 

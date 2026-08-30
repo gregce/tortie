@@ -21,11 +21,26 @@
  *
  * ORDER. `loadProbes()` awaits this module from src/renderer/main.tsx, after
  * the static import of ./App has evaluated and before `createRoot(...).render`.
- * `installShotHook()` at src/renderer/editor/EditorPanel.tsx runs at module
- * scope of a file App.tsx imports, so it has already run and `prev` below is a
- * function. `armShellPathProbe()` still runs before the first render and before
+ * `armShellPathProbe()` still runs before the first render and before
  * `bootApp()`, which is the moment it has to see. `npm run probe:shellpath`
  * proves that rather than asserting it.
+ *
+ * PHASE 165 MOVED EIGHT MORE DRIVES HERE, and the reason is the split. Until
+ * this phase `installShotHook()` ran at module scope of
+ * src/renderer/editor/EditorPanel.tsx, the three Source Control drives at
+ * module scope of scm/ScmSection.tsx, the three Explorer drives at module
+ * scope of tree/FilesSection.tsx and the enable dialog's at module scope of
+ * context/enable/EnableForDialog.tsx, each "because this module is the one
+ * that view always loads". Those four modules are lazy now. A module scope
+ * call in a lazy module runs only after its chunk arrives and never on a
+ * launch that shows another subject, and src/main/harness/shot.ts polls for
+ * `window.__gmuxShotDrive` from the moment the page loads. So the eight are
+ * installed by `armSurfaceDrives()` below, FIRST, which is the position they
+ * had when they ran during App.tsx's import, and `prev` in the layout wrapper
+ * is a function for the same reason it always was. Every launch that reads any
+ * of the eight sets one of the four `isHarnessLaunch` terms, so every one of
+ * them is armed; that was checked against every reader under build/ and
+ * src/main on 2026-08-29 rather than assumed.
  */
 
 import { acceleratorToDisplay } from '@shared/keymap';
@@ -82,6 +97,16 @@ import type { RemoteHistoryProbeSpec } from '../scm/p107-history-shot';
 // cache `warmMenuIcons()` fills, so the PNG set main ships is the output of
 // the ONE rasterizer this product has rather than a second copy of it.
 import { registerP156MenuIconsDrive } from '../icons/p156-menu-icons-drive';
+// PHASE 165. The eight surface drives that used to install themselves at
+// module scope of a module that is lazy now. See the header.
+import { installShotHook } from '../editor/shot-hook';
+import { registerP97UntrackedDrive } from '../scm/p97-untracked-drive';
+import { registerP103StageDrive } from '../scm/p103-stage-drive';
+import { registerP104CommitDrive } from '../scm/p104-commit-drive';
+import { registerTargetShotDrive } from './target-shot-drive';
+import { registerRemoteBootDrive } from './remote-boot-drive';
+import { registerP154Probe } from '../tree/p154-probe';
+import { registerEnableShotProbe } from '../context/enable/shot-probe';
 import { driveLocalRuns } from '../scm/p120-runs-shot';
 import type { LocalRunsProbeSpec } from '../scm/p120-runs-shot';
 
@@ -272,6 +297,35 @@ interface ShotLayoutExtras {
    * those verbs produced as the second, independent witness.
    */
   shellPath?: ShellPathProbeSpec;
+}
+
+/**
+ * Install the eight drives that used to run at module scope of a surface
+ * module (Phase 165), in the order those modules were evaluated before the
+ * split: the editor panel first, then Source Control, then the Explorer, then
+ * the Context subject's enable dialog.
+ *
+ * `installShotHook` is first because `installShotLayoutExtras` below wraps
+ * the function it installs, and refuses if it is not there.
+ */
+function armSurfaceDrives(): void {
+  // The base screenshot drive, src/renderer/editor/shot-hook.ts. Polled by
+  // src/main/harness/shot.ts and by capture-remote.ts.
+  installShotHook();
+  // The three Source Control drives, read by build/probe-p97-untracked.mjs,
+  // build/probe-p103-shot.mjs and build/probe-p104-shot.mjs through
+  // GMUX_SHOT_JS, which is evaluated once after the base drive finishes.
+  registerP97UntrackedDrive();
+  registerP103StageDrive();
+  registerP104CommitDrive();
+  // The three Explorer drives, read by build/probe-workspace-target.mjs,
+  // build/probe-remote-project.mjs and build/probe-p154-drop.mjs.
+  registerTargetShotDrive();
+  registerRemoteBootDrive();
+  registerP154Probe();
+  // The enable dialog's drive. No script under build/ reads it today; it is
+  // kept armed because the phase removes nothing.
+  registerEnableShotProbe();
 }
 
 /**
@@ -607,6 +661,7 @@ function installShotLayoutExtras(): void {
  * The one export. `./probe-loader.ts` awaits this module and calls it.
  */
 export function installProbes(): void {
+  armSurfaceDrives();
   armModuleLoadDrives();
   installShotLayoutExtras();
 }

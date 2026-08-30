@@ -19,7 +19,8 @@ import type { MenuItemSpec } from '../state/store';
 import { showNativeMenu } from '../app/ContextMenu';
 import { tabTooltipIdentity } from './tab-identity';
 import { canReveal, reveal } from '../tree/fs-bridge';
-import { Codicon, FileIcon, menuGlyph } from '../icons';
+import { Codicon, menuGlyph } from '../icons';
+import { FileIcon } from '../icons/FileIcon';
 import { useEditor } from './store';
 import type { EditorTab } from './store';
 

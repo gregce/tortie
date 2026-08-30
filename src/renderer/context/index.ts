@@ -21,10 +21,19 @@
  *     `src/shared/context.ts`.
  */
 
-export { ContextHeader } from './ContextHeader';
-export { ContextRow } from './ContextRow';
+// PHASE 165. The header, the section and the install host are exported
+// through their lazy door, `./lazy.tsx`, and NOT from their own files. A
+// static re-export of `./ContextView` or `./install/InstallHost` here would
+// keep the whole subject and four stylesheets in the entry chunk of every
+// launch, because a module in the static graph is kept for its side effects.
+// `useContextActions` is called inside the chunk by `./ContextSubject.tsx`.
+export {
+  ContextHeaderLazy,
+  ContextInstallHostLazy,
+  ContextSectionLazy,
+  preloadContextSubject
+} from './lazy';
 export type { ContextRowProps } from './ContextRow';
-export { ContextSection, focusInsideContext } from './ContextView';
 export { contextAvailable } from './bridge';
 export {
   onOpenContext,
@@ -36,9 +45,7 @@ export type { OpenContextRequest } from './open-detail';
 export { useContext } from './store';
 export type { ContextStatus, ContextViewState } from './store';
 export type { ContextRowActions } from './menus';
-export { useContextActions } from './actions';
 export { closeSessionContext, openSessionContext } from './open-session';
-export { ContextInstallHost } from './install/InstallHost';
 export { useInstallFlow } from './install/install-store';
 export {
   CONTEXT_SECTION_IDS,

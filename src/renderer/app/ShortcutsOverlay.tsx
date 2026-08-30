@@ -24,6 +24,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { setShortcutSearchClear } from './shortcuts-escape';
 import {
   agentKeymapEntries,
   filterForReading,
@@ -54,11 +55,10 @@ import './shortcuts-overlay.css';
  * The overlay registers the closure while it is open and drops it on close,
  * so the answer is false whenever no overlay is up.
  */
-let clearSearchField: (() => boolean) | null = null;
-
-export function shortcutSearchTookEscape(): boolean {
-  return clearSearchField?.() ?? false;
-}
+// PHASE 165. The closure and `shortcutSearchTookEscape` live in
+// ./shortcuts-escape.ts, a leaf, so the ladder can ask without loading this
+// sheet. The overlay hands the closure over below, exactly as it did when the
+// variable was in this file.
 
 /** Every entry in a set of sections, flattened in display order. */
 function flatten(
@@ -142,13 +142,13 @@ export function ShortcutsOverlay(): React.JSX.Element | null {
   // closure reading the query that is on screen right now.
   useEffect(() => {
     if (!open) return;
-    clearSearchField = () => {
+    setShortcutSearchClear(() => {
       if (query === '') return false;
       setQuery('');
       return true;
-    };
+    });
     return () => {
-      clearSearchField = null;
+      setShortcutSearchClear(null);
     };
   }, [open, query]);
 

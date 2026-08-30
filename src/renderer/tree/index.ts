@@ -6,8 +6,13 @@
  * The editor stream subscribes with `onOpenFileRequest`.
  */
 
-export { FilesSection } from './FilesSection';
-export { FileTree } from './FileTree';
+// PHASE 165. The section is exported through its lazy door, `./lazy.tsx`, and
+// NOT from its own file. A static re-export of `./FilesSection` or `./FileTree`
+// here would keep the tree and all of @pierre/trees in the entry chunk of
+// every launch, because a module in the static graph is kept for its side
+// effects. The tree itself is reached through the section.
+export { FilesSectionLazy, preloadFilesSection } from './lazy';
+export type { FilesSectionProps } from './FilesSection';
 export {
   OPEN_FILE_EVENT,
   onOpenFileRequest,

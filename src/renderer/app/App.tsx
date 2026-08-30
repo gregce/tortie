@@ -18,6 +18,16 @@
  * because React reads a component's hooks by position.
  *
  * What stays here is `useWindowTitle`, `FocusWash` and `App` itself.
+ *
+ * WHAT LEFT THE ENTRY CHUNK IN PHASE 165, and how. Every surface this file
+ * mounts that returns null until a store bit flips is mounted through a
+ * lazy door now: the Catch Me Up page, the editor panel, the eight sheets,
+ * the two palettes and the install host. A door is always mounted, reads the
+ * same bit its surface reads first, and fetches the surface's chunk on the
+ * first true. The hook order below is unchanged, the JSX order below is
+ * unchanged, and `build/assert-probe-containment.mjs` reads the built output
+ * and fails the build if any of those surfaces is back in the entry chunk or
+ * the eager set is over its budget.
  */
 
 import React, { useEffect } from 'react';
@@ -60,26 +70,29 @@ import './focus-mode.css';
 // Phase 137. The Catch Me Up page. It renders null while the store's
 // overview is null, and while it is open the shell root carries
 // `overview-open`, which hides the same regions session focus hides.
-import { OverviewLayer } from '../overview/OverviewLayer';
-import { CreateSessionModal } from './CreateSessionModal';
-import { NewProjectModal } from './NewProjectModal';
-import { RemoteProjectModal } from './RemoteProjectModal';
-import { CloneRepoModal } from './CloneRepoModal';
-// Phase 29. The Past Sessions panel. The Session menu holds its one entry
-// point, with no accelerator and no renderer keydown fallback, on purpose.
-// Restoring starts a process, so the user reads a name first.
-import { PastSessionsModal } from './PastSessionsModal';
-// Phase 72. The saved output panel. One session menu item opens it, it reads
-// one file on this Mac and it sends nothing anywhere.
-import { SavedOutputModal } from './SavedOutputModal';
-// Phase 100. The last lines of a session on another machine. A button in both
-// bands above the terminal opens it, and one session menu item does too. It
-// reads that machine once and writes nothing on either computer.
-import { RemoteLinesModal } from './RemoteLinesModal';
-import { ShortcutsOverlay } from './ShortcutsOverlay';
+// PHASE 165: mounted through its lazy door, so the page's chunk is fetched
+// on the first open and not at boot.
+import { OverviewLayerLazy } from '../overview/lazy';
+// PHASE 165. The eight sheets no launch needs during boot, each behind its
+// own lazy door in ./lazy-modals.tsx and all in one chunk behind ./modals.ts.
+// Every door reads the same store bit its sheet reads first, so nothing about
+// when a sheet draws has changed, only when its code is fetched. The comments
+// that used to sit on each import are on the doors now.
+import {
+  CloneRepoModalLazy,
+  CreateSessionModalLazy,
+  NewProjectModalLazy,
+  PastSessionsModalLazy,
+  RemoteLinesModalLazy,
+  RemoteProjectModalLazy,
+  SavedOutputModalLazy,
+  ShortcutsOverlayLazy
+} from './lazy-modals';
 import { AttentionOverlay } from './AttentionOverlay';
 import { ConfirmDialog } from './ConfirmDialog';
-import { ContextInstallHost } from '../context';
+// PHASE 165. The install sheet's door, in the Context subject's chunk. It
+// reads two bits from the install store and asks for nothing until one is set.
+import { ContextInstallHostLazy } from '../context/lazy';
 import { Toasts } from './Toasts';
 import {
   FirstRun,
@@ -89,7 +102,10 @@ import {
 } from './EmptyStates';
 // Phase 5 (editor stream): the S5 editor panel — a right split beside the
 // terminal region (overlay under 1400px). It renders null until a file opens.
-import { EditorPanel } from '../editor';
+// PHASE 165: mounted through its lazy door. The door reads one bit, whether
+// any tab exists, and the panel's chunk, the diff surface and the shiki
+// family behind it are fetched on the first open rather than at boot.
+import { EditorPanelLazy } from '../editor/lazy';
 // Phase 12 item 8 (drop stream): THE window-level file-drag router — one set
 // of listeners for "attach to this session" AND the §6.1 "add a project"
 // frame, dispatched by hit-test. It replaces the old useFolderDrop hook,
@@ -106,12 +122,13 @@ import { useSettingsIntegration } from '../settings';
 // branches to it — zoom's focus resolution is its own concern
 // (src/renderer/zoom/focus.ts).
 import { useZoomKeymap, ZoomHud } from '../zoom';
-// Phase 14: the ⌘P palette. It is always mounted (it renders null when
-// closed) because it also owns the recently-opened list, which records
-// every file opened from ANY surface, not just the ones found through it.
-import { QuickOpenPalette } from '../quickopen';
-// Phase 14: the ⌘⇧O palette.
-import { SymbolPalette } from '../search';
+// Phase 14: the ⌘P palette. Its DOOR is always mounted, because the door
+// owns the two things that must run from boot, being the recently-opened
+// list, which records every file opened from ANY surface, and the index
+// prewarm. The palette itself is fetched on the first ⌘P (Phase 165).
+import { QuickOpenPaletteLazy } from '../quickopen/lazy';
+// Phase 14: the ⌘⇧O palette, through its door for the same reason.
+import { SymbolPaletteLazy } from '../search/lazy';
 import { installContextDetailHost } from '../context/detail-host';
 
 // ---------------------------------------------------------------------------
@@ -275,7 +292,7 @@ export function App(): React.JSX.Element {
       <Titlebar />
       {/* Phase 137. The Catch Me Up page, over the work area and under the
           title band. It renders null while the page is closed. */}
-      <OverviewLayer />
+      <OverviewLayerLazy />
       {ready && projects.length === 0 ? (
         // PHASE 71 fix round. A confirmed machine that did not answer is named
         // here too. The board below is the whole window in this state and the
@@ -327,43 +344,43 @@ export function App(): React.JSX.Element {
             {orientation === 'top' ? <SessionStrip /> : null}
             <div className="work-row">
               <TerminalRegion />
-              <EditorPanel />
+              <EditorPanelLazy />
             </div>
           </div>
           {orientation === 'right' ? <SessionDock /> : null}
         </div>
       )}
 
-      <CreateSessionModal />
-      <NewProjectModal />
-      <RemoteProjectModal />
+      <CreateSessionModalLazy />
+      <NewProjectModalLazy />
+      <RemoteProjectModalLazy />
       {/* Phase 18.6. Mounted beside New Project because it is reachable from
           the same three places (the home row, the + menu, File) and, unlike
           the home screen, those two of them work from INSIDE a project. It
           renders null unless the clone store says it is open. */}
-      <CloneRepoModal />
+      <CloneRepoModalLazy />
       {/* Phase 29. Mounted with the other sheets; it renders null unless the
           store says it is open, and only the Session menu opens it. */}
-      <PastSessionsModal />
+      <PastSessionsModalLazy />
       {/* Phase 72. Mounted beside Past Sessions for the same reason: it
           renders null unless the store says a session's saved output is
           open, and only the session menu opens it. */}
-      <SavedOutputModal />
+      <SavedOutputModalLazy />
       {/* Phase 100. Mounted beside the saved output panel, which is its
           nearest sibling. It renders null unless the store says a session's
           last lines are open, and the button in the band above the terminal
           and one session menu item are the only two things that open it. */}
-      <RemoteLinesModal />
-      <ShortcutsOverlay />
+      <RemoteLinesModalLazy />
+      <ShortcutsOverlayLazy />
       <AttentionOverlay />
-      <QuickOpenPalette />
-      <SymbolPalette />
+      <QuickOpenPaletteLazy />
+      <SymbolPaletteLazy />
       <ConfirmDialog />
       {/* Phase 22. The install sheet and its confirm, mounted with the other
           modals rather than inside the Context view: `.sidebar-rest` is an
           overflow scroller, so a scrim drawn inside it would be clipped to a
           220px column. */}
-      <ContextInstallHost />
+      <ContextInstallHostLazy />
       <Toasts />
       <ZoomHud />
       <FileDropOverlay />

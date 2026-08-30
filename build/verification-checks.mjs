@@ -294,6 +294,13 @@ export const CHECKS = [
   // nothing to show, and, given a baseline directory, that first attach did
   // not regress. Phase 163's milestones are its ruler; it adds no second one.
   electron('probe:p164'),
+  // PHASE 165. The bundle diet's window half: the warm paint ruler over five
+  // launches of the real app, and the first open of every lazy surface with
+  // the page offline, driven by real input events. The byte claim is the
+  // probe containment gate's, read off the build; this is the two claims
+  // only a window can answer. Given a baseline directory it prints the
+  // parent's numbers beside the new ones under Phase 164's regression rule.
+  electron('probe:p165'),
   // PHASE 166. What owns the bytes in the Chromium caches, on profiles it
   // makes itself: twenty launches of one build, five simulated version
   // changes, a 49 MB image document opened five times, the image viewer with

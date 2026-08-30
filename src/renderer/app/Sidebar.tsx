@@ -52,20 +52,27 @@ import {
 import { useGit } from '../state/git';
 import { SIDEBAR_VIEW_DEFAULT } from '../state/sidebar-views';
 import { useResizeHandle } from '../controls';
-import { ArchHeader, ArchView } from '../arch';
-import { ContextHeader, ContextSection, useContextActions } from '../context';
-import { BranchHeader, ScmSection } from '../scm';
-import { SearchHeader, SearchSection } from '../search';
+// PHASE 165. The five subjects are mounted through their lazy doors. Each
+// door fetches its subject's chunk on the first show of that subject and
+// renders the empty band, or nothing, for the frame or two it takes; the
+// keyboard map, the menu and the activity rail reach the subjects' stores
+// through leaves, so nothing they do waits for a chunk. The Explorer's band
+// header is drawn here, from four leaf stores, which is why those four are
+// imported from their own files rather than through the tree barrel.
+import { ArchHeaderLazy, ArchViewLazy } from '../arch/lazy';
+import { ContextHeaderLazy, ContextSectionLazy } from '../context/lazy';
+import { BranchHeaderLazy, ScmSectionLazy } from '../scm/lazy';
+import { SearchHeaderLazy, SearchSectionLazy } from '../search/lazy';
+import { FilesSectionLazy } from '../tree/lazy';
 import {
-  canMutate,
   densityHint,
   densityLabel,
-  FilesSection,
   TREE_DENSITIES,
-  useFileTree,
-  useTreeDensity,
-  useTreeHandle
-} from '../tree';
+  useTreeDensity
+} from '../tree/density';
+import { canMutate } from '../tree/fs-ops-bridge';
+import { useFileTree } from '../tree/store';
+import { useTreeHandle } from '../tree/tree-handle';
 import { Codicon } from '../icons';
 // Phase 135. The same component App.tsx mounts as the 48px column. It is
 // drawn here as a 36px row while the projects are on the left, and only
@@ -293,10 +300,10 @@ export function Sidebar(): React.JSX.Element {
   // The activity bar's own action, reused verbatim: drag-to-hide must land in
   // the identical state a click on the active view's icon produces.
   const toggleSidebar = useApp((s) => s.toggleSidebar);
-  // The Context view's write verbs. The hook is called unconditionally, which
-  // is the rule for hooks; the object only reaches a menu when the Context view
-  // is the one showing.
-  const contextActions = useContextActions();
+  // The Context view's write verbs used to be read here by a hook called on
+  // every render of every subject. Since Phase 165 the hook is called inside
+  // the Context subject's own chunk (context/ContextSubject.tsx), so a launch
+  // that never shows that subject never reaches the install and enable stores.
 
   const view =
     (activeProjectId !== null ? viewByProject[activeProjectId] : undefined) ??
@@ -405,10 +412,10 @@ export function Sidebar(): React.JSX.Element {
       {view === 'scm' ? (
         <div className="sidebar-view" data-view="scm" tabIndex={-1}>
           {/* Band: ⎇ branch · ↑↓ ahead/behind · refresh ([h:36], S3A). */}
-          <BranchHeader />
+          <BranchHeaderLazy />
           <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
-            <ScmSection />
+            <ScmSectionLazy />
           </div>
         </div>
       ) : view === 'search' ? (
@@ -416,9 +423,9 @@ export function Sidebar(): React.JSX.Element {
         // scroller, and nesting it inside another one would give the view two
         // scrollbars and break the sticky "Show more" footer.
         <div className="sidebar-view" data-view="search" tabIndex={-1}>
-          <SearchHeader />
+          <SearchHeaderLazy />
           <MachineBand label={machineLabel} />
-          <SearchSection />
+          <SearchSectionLazy />
         </div>
       ) : view === 'context' ? (
         // Phase 22. It keeps `.sidebar-rest`, which is not cosmetic: that
@@ -427,14 +434,15 @@ export function Sidebar(): React.JSX.Element {
         // same one-line rule Explorer and Source Control use rather than with
         // Search's exception.
         <div className="sidebar-view" data-view="context" tabIndex={-1}>
-          <ContextHeader />
+          <ContextHeaderLazy />
           <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
-            {/* SEAM 3, closed. Pass an object and the write verbs appear in
-                the row menus; pass nothing and they do not exist. Phase 22
-                shipped this with nothing, so no user could install, remove or
-                update a skill from the app. */}
-            <ContextSection actions={contextActions} />
+            {/* SEAM 3, closed. The door mounts the section WITH its actions
+                object, built by context/ContextSubject.tsx inside the chunk,
+                so the write verbs are in the row menus. Phase 22 shipped this
+                with nothing, so no user could install, remove or update a
+                skill from the app. */}
+            <ContextSectionLazy />
           </div>
         </div>
       ) : view === 'arch' ? (
@@ -443,10 +451,10 @@ export function Sidebar(): React.JSX.Element {
         // view zooms with the same one line rule Explorer, Source Control and
         // Context use rather than with Search's exception.
         <div className="sidebar-view" data-view="arch" tabIndex={-1}>
-          <ArchHeader />
+          <ArchHeaderLazy />
           <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
-            <ArchView />
+            <ArchViewLazy />
           </div>
         </div>
       ) : (
@@ -455,7 +463,7 @@ export function Sidebar(): React.JSX.Element {
           <MachineBand label={machineLabel} />
           <div className="sidebar-rest">
             {/* Decorations fed from the SCM store's status list. */}
-            <FilesSection
+            <FilesSectionLazy
               {...(scmStatusFiles !== null
                 ? { statusFiles: scmStatusFiles }
                 : {})}

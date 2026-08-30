@@ -14,7 +14,8 @@
 
 import { useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
-import { focusSearchInput, selectionSeed } from '../search';
+// PHASE 165. The leaf, not the barrel, which is the Search subject's door.
+import { focusSearchInput, selectionSeed } from '../search/focus';
 
 /**
  * The session surface the keyboard is "on" right now: any focused element

@@ -8,10 +8,17 @@
  * that broke it. That is the second of the two riders the operator attached to
  * the Zen addition, made real, and it is a READ of this store and never a
  * write.
+ *
+ * PHASE 165. The header and the body are exported through their lazy door,
+ * `./lazy.tsx`, and NOT from their own files. A static re-export of
+ * `./ArchView` here would keep that module, its stylesheets and everything it
+ * reaches in the entry chunk of every launch, whether or not anything used
+ * the name, because a module in the static graph is kept for its side
+ * effects. The barrel is the one place the sidebar imports from, so the barrel
+ * is where the door has to be.
  */
 
-export { ArchHeader } from './ArchHeader';
-export { ArchView } from './ArchView';
+export { ArchHeaderLazy, ArchViewLazy, preloadArchSubject } from './lazy';
 export { useArch } from './store';
 export { archAvailable } from './bridge';
 export { archDivergences } from './divergences';

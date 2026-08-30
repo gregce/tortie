@@ -36,7 +36,7 @@ import {
   sameTarget,
   targetOfProject
 } from '@shared/workspace-target';
-import { FileIcon } from '../icons';
+import { FileIcon } from '../icons/FileIcon';
 import { useApp } from '../state/store';
 import {
   quickOpenFolderMissing,
@@ -51,13 +51,9 @@ import {
 import { useEditor } from '../editor/store';
 import { parseQuickOpen } from './parse';
 import { highlightRuns, splitRelPath } from './highlight';
-import { startRecordingRecents } from './recents';
 import type { QuickOpenElsewhereRead } from './store';
 import { useQuickOpen } from './store';
 import './quickopen.css';
-
-/** Warm the index at first idle, not during boot — see the store's `warm`. */
-const WARM_IDLE_TIMEOUT_MS = 3_000;
 
 function formatCount(n: number): string {
   return n.toLocaleString();
@@ -181,31 +177,10 @@ export function QuickOpenPalette(): React.JSX.Element | null {
 
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  // Recording starts with the app, not with the palette: "recent" means every
-  // file you opened, from any surface, not the ones you found through ⌘P.
-  useEffect(() => startRecordingRecents(), []);
-
-  // Prewarm is mandatory rather than an optimisation (research 19 §3.2):
-  // fuzzysort's per-path cost is lazy and otherwise lands on the FIRST
-  // keystroke. Doing it at first idle keeps it off the cold-start path.
-  useEffect(() => {
-    if (activeProjectId === null) return;
-    const warm = (): void => useQuickOpen.getState().warm();
-    const ric = (
-      window as Window & {
-        requestIdleCallback?: (
-          cb: () => void,
-          opts?: { timeout: number }
-        ) => number;
-      }
-    ).requestIdleCallback;
-    if (typeof ric === 'function') {
-      ric(warm, { timeout: WARM_IDLE_TIMEOUT_MS });
-      return;
-    }
-    const t = window.setTimeout(warm, 200);
-    return () => window.clearTimeout(t);
-  }, [activeProjectId]);
+  // PHASE 165. The recents recorder and the idle prewarm used to be two
+  // effects here, which is why the palette was always mounted. Both run from
+  // ./lazy.tsx now, which IS always mounted, and this module is fetched on
+  // the first ⌘P and not before.
 
   // Keep the keyboard selection on screen without stealing the scrollbar.
   useEffect(() => {

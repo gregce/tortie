@@ -31,7 +31,8 @@ import { useLayout } from '../state/layout';
 import { useEditor } from '../editor/store';
 // Phase 18. The guard (no file open, or overlay mode) lives inside
 // toggleEditorFill, so the button, Shift+Cmd+B and the menu item cannot drift.
-import { toggleEditorFill } from '../editor';
+// PHASE 165: from its own leaf, so the menu reaches it without the panel.
+import { toggleEditorFill } from '../editor/fill';
 import { focusTerminal, jumpToSession } from './session-focus';
 import { runFillChord } from './fill-chord';
 // Phase 137. View > Catch Me Up. The same router the ⇧⌘U chord runs.
@@ -45,8 +46,8 @@ import { openAimPicker } from '../arch/picker';
 import { openArchMapForActiveProject } from '../arch/open-map';
 // Phase 163: the report tab's one opener, shared with the Settings door.
 import { openDiagnosticsReport } from '../diagnostics/open-report';
-import { useQuickOpen } from '../quickopen';
-import { useSymbols } from '../search';
+import { useQuickOpen } from '../quickopen/store';
+import { useSymbols } from '../search/symbols-store';
 import { gmuxBridge } from '../bridge';
 import {
   focusedSessionRowId,

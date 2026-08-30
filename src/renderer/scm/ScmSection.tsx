@@ -87,9 +87,6 @@ import type {
   RemoteIndexVerb
 } from './remote-changes';
 import { groupRemoteFiles, isConflict } from './groups';
-import { registerP103StageDrive } from './p103-stage-drive';
-import { registerP104CommitDrive } from './p104-commit-drive';
-import { registerP97UntrackedDrive } from './p97-untracked-drive';
 import { RemoteBranchSection } from './RemoteBranchSection';
 import { RemoteHistorySection } from './RemoteHistorySection';
 import { RemoteRunsSection } from './RemoteRunsSection';
@@ -119,17 +116,12 @@ import { PromisesSection } from '../arch/PromisesSection';
 import './scm.css';
 import { gmuxBridge } from '../bridge';
 
-// The Phase 97 harness hook, registered here for the reason
-// src/renderer/tree/FilesSection.tsx registers its two: this module is the one
-// the Source Control view always loads, so no edit to App.tsx is needed. It
-// assigns one function to `window` and changes no behaviour.
-registerP97UntrackedDrive();
-// The Phase 103 harness hook, registered beside the Phase 97 one and for the
-// same reason. It assigns one function to `window` and changes no behaviour.
-registerP103StageDrive();
-// The Phase 104 harness hook, registered beside the other two and for the same
-// reason. It assigns one function to `window` and changes no behaviour.
-registerP104CommitDrive();
+// PHASE 165. The Phase 97, 103 and 104 harness hooks used to be registered
+// here at module scope, because this module was the one the Source Control
+// view always loaded. The view is lazy now, so a module scope call here would
+// run only after the subject's chunk arrived, and never on a launch that
+// showed another subject. They are installed by
+// src/renderer/app/probe-registry.ts, on harness launches only.
 
 /**
  * SCM view sections, default order (DESIGN-SPEC S3A round 2).

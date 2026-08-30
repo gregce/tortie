@@ -254,50 +254,7 @@ export function SearchSection(): React.JSX.Element {
 }
 
 /**
- * Put the caret in the search box (⌘⇧F, and the activity-bar item).
- *
- * Pressed again while already inside the box it SELECTS what is there rather
- * than toggling the view away — retyping over the old query is the gesture
- * people actually make, and losing the view instead is the kind of surprise
- * that stops you using a shortcut.
+ * PHASE 165. `focusSearchInput`, `focusInsideSearch` and `selectionSeed` are
+ * in `./focus.ts` now, so the keyboard map and the menu can reach them on a
+ * launch that never loads this view.
  */
-export function focusSearchInput(seed?: string): void {
-  const attempt = (): boolean => {
-    const input = document.querySelector<HTMLInputElement>(
-      '[data-slot="search-input"]'
-    );
-    if (input === null) return false;
-    if (seed !== undefined && seed.length > 0 && seed !== input.value) {
-      useSearch.getState().setQuery(seed);
-    }
-    input.focus();
-    input.select();
-    return true;
-  };
-  // Try NOW — the view is usually already mounted, and a chord that focuses a
-  // frame late is a chord that eats the first character you type. The rAF is
-  // the fallback for the case where showSidebarView only just mounted it.
-  if (attempt()) return;
-  requestAnimationFrame(() => {
-    attempt();
-  });
-}
-
-/** True while the keyboard is inside the Search view (scopes ⌥⌘C/W/R). */
-export function focusInsideSearch(): boolean {
-  const el = document.activeElement;
-  return el instanceof Element && el.closest('[data-view="search"]') !== null;
-}
-
-/**
- * A one-line, non-empty selection makes a good seed for ⌘⇧F — and a multi-line
- * one does not, which is why this refuses it rather than pasting a paragraph
- * into the query box.
- */
-export function selectionSeed(): string | undefined {
-  const text = window.getSelection()?.toString() ?? '';
-  const trimmed = text.trim();
-  if (trimmed.length === 0 || trimmed.length > 200) return undefined;
-  if (trimmed.includes('\n')) return undefined;
-  return trimmed;
-}

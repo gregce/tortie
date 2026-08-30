@@ -59,8 +59,11 @@ const toggleEditorFill = vi.fn(() => {
     app.editorFill === null ? { sidebarVisible: true, dockCollapsed: false } : null;
 });
 
-vi.mock('../../editor', () => ({
-  toggleEditorFill,
+// PHASE 165. The chord imports two leaves rather than the barrel, so the
+// panel's chunk is never loaded to answer a chord, and the two stubs sit on
+// those leaves.
+vi.mock('../../editor/fill', () => ({ toggleEditorFill }));
+vi.mock('../../editor/store', () => ({
   useEditor: { getState: () => editor }
 }));
 

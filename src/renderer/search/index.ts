@@ -12,16 +12,25 @@
  * chords.
  */
 
-import './search.css';
+// PHASE 165. The stylesheet is imported by `./subject.ts`, the lazy door,
+// so it arrives with the view rather than with the shell.
 
-export { SearchHeader, SearchSection } from './SearchView';
+// PHASE 165. The two sidebar parts and the palette are exported through their
+// lazy doors and NOT from their own files: a static re-export here would keep
+// the view, the results list and this barrel's stylesheet in the entry chunk
+// of every launch. The three focus reads moved to a leaf for the same reason.
+export {
+  preloadSearchSubject,
+  SearchHeaderLazy,
+  SearchSectionLazy,
+  SymbolPaletteLazy
+} from './lazy';
 export {
   focusInsideSearch,
   focusSearchInput,
   selectionSeed
-} from './SearchView';
+} from './focus';
 export { focusResultsList } from './results-focus';
-export { SymbolPalette } from './SymbolPalette';
 export { useSearch, searchAvailable } from './store';
 export type { SearchState, SearchStatus } from './store';
 export { useSymbols, symbolsAvailable } from './symbols-store';
