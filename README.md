@@ -198,6 +198,7 @@ The full list with licenses is in [`NOTICE`](NOTICE).
 ## More
 
 - Philosophy: [`docs/ZEN-OF-TORTIE.md`](docs/ZEN-OF-TORTIE.md)
+- Why Tortie is dependable: [`WHY-TORTIE-IS-DEPENDABLE.md`](WHY-TORTIE-IS-DEPENDABLE.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - Building from source and contributing: [`DEVELOPMENT.md`](DEVELOPMENT.md)
 - License: Apache 2.0, see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE)
@@ -205,7 +206,5 @@ The full list with licenses is in [`NOTICE`](NOTICE).
 Tortie is not affiliated with, endorsed by, or sponsored by any of the companies whose products it launches. All product names and logos are the property of their respective owners, and are used here only to identify the supported product.
 
 <p align="center"><a href="https://tortie.sh/docs/">Read the Tortie product documentation →</a></p>
-
-<p align="center"><a href="WHY-TORTIE-IS-DEPENDABLE.md">Why Tortie keeps agent work safe and recoverable →</a></p>
 
 <p align="center">Made by <a href="https://github.com/gregce">gregce</a>.<br /><i>Your sessions are never interrupted.</i></p>
