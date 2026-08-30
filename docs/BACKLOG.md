@@ -17988,6 +17988,83 @@ The second independent method is the ATTACK: feed the encoder the hostile cwd se
 - No background sampling ever, no history, no chart over time, no telemetry.
 - No new packages. Copy report stays redacted as shipped, machine names still excluded.
 
+## Phase 171 — the alarms that drifted ring again: contract inventory and the observer lanes (audit 2026-08-30 P0 and test seam, queued 2026-08-30)
+
+**Subject:** `build(gates): the contract inventory is required and the observer lanes tell the truth`
+**First body line:** `Phase 171: the alarms ring again`
+**Semver:** patch. Behaviour neutral; contracts do not change.
+**Tier 2**, invisible to a person, so the gates ARE the evidence and the verifier re-derives rather than photographs.
+**Charter:** this entry plus `docs/audits/2026-08-30-electron-typescript-architecture.md` sections P0 and Test seam, tracked in this commit. It rescored the tree 32 of 36 at `4586837`; this phase takes back two of the four withheld points. AUDIT NUMBERS ARE BASELINES TO REMEASURE: it read at 0.85.4 and the tree is past 0.87 with two phases landing beside this one.
+
+### What it builds
+
+1. **Contract inventory governance.** `node build/contract-inventory.mjs --check` fails today, the committed baseline reads 197 invoke channels against 213 current, and the check sits in no ordinary gate, which the audit names plainly: a deterministic alarm nobody runs is documentation. Review the sixteen additions, being Architecture and Diagnostics channels, against declaration, preload exposure, main registration, sender trust and quit behaviour; rebaseline deliberately with the channel reasons in the commit; add the check to `npm run typecheck` or `npm run build` so nothing that builds can skip it, classified in `build/verification-checks.mjs`.
+2. **The hermetic lane runs without the host process table.** The audit says `manifest/__tests__/harvest.test.ts` reaches live `ps`; the file's own header says ps is mocked whole, so FIRST FIND WHICH TEST, IF ANY, truly reads the process table under the hermetic lane, prove it with the lane run inside a sandbox that has no `/bin/ps`, and inject or mock the predicate or move the file to the native lane. If the audit's premise is wrong, say so and close the item with the proof.
+3. **The Phase 165 paint observer finds its target again.** `probe:p165` fails at renderer target discovery after launch; repair the CDP target selection and add a focused fixture for target discovery so the probe fails for product budgets rather than observer drift.
+4. **The Phase 167 scale scenario becomes a repeatable check**, classified, runnable on demand, and named in CLAUDE.md beside the other conformance gates.
+
+### Proof
+- The inventory check RED on the parent by construction, GREEN after the rebaseline, and RED again when the verifier adds one channel in a copy and restores it byte identical. That is the negative control that makes the alarm real.
+- The hermetic lane run with `/bin/ps` masked from PATH, green.
+- `probe:p165` green with a real DOMContentLoaded distribution, on this tree.
+- The scale check run once end to end.
+- The battery. THE VERIFIER'S INDEPENDENT STEP: recount the 213 channels by its own AST walk of `src/shared/ipc/`, never by the inventory script.
+
+### What is NOT in this phase
+- No contract changes, no channel added or removed, no behaviour change.
+- No line count gate of any kind.
+
+## Phase 172 — the Arch domain gets its inner seams, facades unchanged (audit 2026-08-30 P1 navigation, queued 2026-08-30)
+
+**Subject:** `refactor(arch): coordinators behind the registrar, modules behind the store, subjects behind the view`
+**First body line:** `Phase 172: the inner seams`
+**Semver:** patch. Nothing a person sees or a caller reaches changes.
+**Tier 2**, invisible, gates are the evidence, verifier re-derives; but the audit calls it medium regression risk, so the byte identity proofs below are mandatory.
+**Charter:** this entry plus the audit's P1 navigation section and its safe implementation order rows 3 to 5. The audit's judgement, in its words: the Architecture domain is a successful boundary whose internal editorial seams are overdue. `ArchView.tsx` 1,669 lines, `store.ts` 1,359, `main/arch/ipc.ts` 1,266, each holding several change reasons; `db.ts` 1,150 is cohesive and is evidence to watch, not a split.
+
+### The rule that outranks everything
+KEEP EVERY PUBLIC CHANNEL, DATABASE SCHEMA, EVENT, RENDERER STATE SHAPE AND LAZY BOUNDARY UNCHANGED. This is navigation work, not behaviour work. If a seam wants a contract change, it stops and the change is a separate phase.
+
+### What it builds, as THREE COMMITS in this one phase with conformance run after each
+1. **Main.** `main/arch/ipc.ts` becomes registration and disposal. The load, check, last valid document and progress workflow moves into a check coordinator; the pass and repair trigger workflow into an enrichment coordinator; their narrow operations injected into the registrar.
+2. **Renderer state.** `useArch` stays the one facade, built from internal document and check, map, drill and canvas, and pass and repair action modules over ONE state type. No competing stores.
+3. **Renderer view.** `ArchView.tsx` keeps selection and layout composition only; the independent faces move to subject components, being contract and verdicts, map and drill, freshness and repair, pass and divergence.
+Plus an Arch facade import rule under `build/assert-import-boundaries.mjs` and focused tests proving outer callers still use the same doors. NO raw line count gate.
+
+### Proof
+- `npm run conformance:arch` and `conformance:arch:modules` green after EACH of the three commits.
+- BYTE IDENTITY: the conformance probe outputs, the IPC closure suite, the contract inventory, and the shot probe's DOM readings compared before and after each commit; a moved byte is a finding.
+- The verifier's independent step: re-derive the public surface, being every exported channel, event, state key and lazy door, by its own AST walk at the parent and at HEAD, and diff; anything added or removed is BLOCKING.
+- One app run over a real repository copy driving the ladder, the pass face and the repair glyph, photographed before and after.
+- The battery.
+
+### What is NOT in this phase
+- No feature, no fix, no copy change, no behaviour change, no schema change. A defect found on the way is recorded, not fixed here.
+- `db.ts` is not split.
+
+## Phase 173 — the remote fault matrix is adjudicated, not inherited (audit 2026-08-30 P1 failure flow, queued 2026-08-30)
+
+**Subject:** `test(machines): the remote fault matrix runs green or the ruling says why`
+**First body line:** `Phase 173: the matrix adjudicated`
+**Semver:** patch unless a product repair earns more.
+**Tier 3**, because it is the failure flow of durable remote work and the audit says do not award the point merely because the failure predates recent work.
+**Charter:** this entry plus the audit's Failure flow section: the last authoritative matrix was red on rows 1 and 5, transport loss and clock skew, and nothing has replaced it. `npm run smoke:matrix` runs `build/remote-matrix.mjs` on a fresh harness socket.
+
+### The condition, stated first
+The matrix needs a remote. His Mac Pro is READ ONLY to every agent and his ssh agent holds no identities, so the phase FIRST establishes what remote the matrix can honestly run against, being a local sshd fixture the machines conformance already uses, a loopback machine row, or nothing. If nothing on this machine can stand in for a remote, the phase STOPS, records exactly what the operator must provide, and the point stays withheld. Never a faked green.
+
+### What it builds
+Run rows 1 and 5 against HEAD with timestamps for the session status ladder, transport loss, resume witness and clock source. Then rule: if status truth drifted, repair the product and keep the grader; if the grader asserts stillness the product no longer promises, change the expectation with a recorded state machine ruling in the entry and the body; then rerun the whole matrix and require green.
+
+### Proof
+- The full matrix green on HEAD, or the honest stop with the operator's required action named.
+- The ruling written where the state machine's rules live, not only in a commit body.
+- The verifier's independent step: re-derive the status ladder for the two rows from the raw transcript rather than the grader's verdict.
+
+### What is NOT in this phase
+- No change to remote execution allowlists, journals or confirm gates.
+- No weakening of a grader to make a row green.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -18224,3 +18301,4 @@ cycle rather than only the evening it was written.
 - 2026-08-30, Phase 168 SHIPPED on `c05e99b` at 0.86.0, the report leads with the answer: the line above was written inside the phase commit before its hash existed, and this line names it; the committer re-ran the whole battery on that tree, typecheck, build, 10,843 unit tests, smoke:t1, smoke:t3 and gate:electron, all green, and re-checked the refusals by grep, zero new packages, no timer under the diagnostics paths, the copy exclusion tests present on both the text builder and the rendered face, no dash in any new string and README untouched; the verifier ran a second implementation beside the captures, its own timestamped ps snapshots and hand-run top samples re-deriving Together, the machine ranking and the energy column, plus a hostile scan of the copied text against the 25 largest app groups its own walk found running, and its one suspect hit was its own scratch path rather than a leaked name; NOT TRUE: the energy figure is an impact score, not watts, and on this machine top gave POWER equal to %CPU on 934 of 935 rows, so the column adds little beyond CPU until the accounting differs
 - 2026-08-30, Phase 169 QUEUED, Oh My Pi from the community's PR 12 by jakehildreth at `11af39d`, treated as the builder output and credited in the body, with the phase starting at integrate; it adds the one thing the PR does not carry, the omp mark normalized to the AgentIcon conventions and wired through every surface an agent face appears; the verification is the operator's own three items, being the PR's claims re-verified over the real omp 18.0.11 he installed through the canonical brew command, the store encoder re-derived against real sessions in hostile cwds, the fold recipe driven once for real, and the two honestly unverified fields measured with the Phase 64 paste matrix; pi untouched, the PR not closed by the phase
 - 2026-08-30, Phase 170 QUEUED from his two screenshots: the report reads every process (his strip read Your agents 0 B beside 75 sessions because private memory is only read for Electron's own pids, so every other row says not read), every table sorts by column, the bottom half's six label piles are regrouped by the question a person asks without losing one figure, and THE OPERATOR OVERRODE the one capture stance: live sampling WHILE THE TAB IS VISIBLE, completely quiet on hide, proven the Phase 163 way; strip and table split unchanged
+- 2026-08-30, Phases 171 to 173 QUEUED from docs/audits/2026-08-30-electron-typescript-architecture.md, tracked in this commit, which rescored the tree 32 of 36 at `4586837` with four named exceptions and no deduction for line count; 171 takes back Build boundary and Test seam, being the contract inventory rebaselined from 197 to 213 with the check made a required gate and proved by a negative control, the hermetic lane run without the host process table after FINDING which test truly reads ps since the named file's own header says ps is mocked whole, the Phase 165 paint observer repaired, and the Phase 167 scale scenario made a repeatable check; 172 takes back Navigation with the three inner seams the audit names, main coordinators behind the same registrar, action modules behind the same useArch, subject components behind the same view, THREE COMMITS with conformance after each and BYTE IDENTITY of every public surface proved by an AST walk, no line count gate; 173 takes back Failure flow by adjudicating the remote matrix rows 1 and 5, with the honest condition stated first that the matrix needs a remote his Mac Pro cannot be and the phase stops rather than fakes a green; ORDER 171 then 172 then 173, 172 never beside another phase touching src/main/arch or src/renderer/arch, and the rubric is rerun read only after
