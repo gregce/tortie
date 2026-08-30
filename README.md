@@ -119,7 +119,7 @@ The conversation stays word for word. An optional model can write only the one-l
 
 ## Supported agents
 
-Tortie includes **11 built-in CLI agent profiles** you can run in durable sessions.
+Tortie includes **12 built-in CLI agent profiles** you can run in durable sessions.
 
 <p>
   <a href="https://code.claude.com/docs/en/setup"><kbd><img src="src/renderer/assets/agents/claude.svg" alt="Claude Code logo" width="16" valign="middle" /> Claude Code</kbd></a> &nbsp;
@@ -129,6 +129,7 @@ Tortie includes **11 built-in CLI agent profiles** you can run in durable sessio
   <a href="https://github.com/QwenLM/qwen-code"><kbd><img src="src/renderer/assets/agents/qwen.svg" alt="Qwen Code logo" width="16" valign="middle" /> Qwen Code</kbd></a> &nbsp;
   <a href="https://tortie.sh/docs/supported-agents/#launchable-agents"><kbd><img src="src/renderer/assets/agents/muse.svg" alt="Muse Code logo" width="16" valign="middle" /> Muse Code</kbd></a> &nbsp;
   <a href="https://pi.dev"><kbd><img src="src/renderer/assets/agents/pi.svg" alt="Pi logo" width="16" valign="middle" /> Pi</kbd></a> &nbsp;
+  <a href="https://omp.sh"><kbd><img src="src/renderer/assets/agents/omp.svg" alt="Oh My Pi logo" width="16" valign="middle" /> Oh My Pi</kbd></a> &nbsp;
   <a href="https://github.com/Hmbown/CodeWhale"><kbd><img src="src/renderer/assets/agents/deepseek.svg" alt="CodeWhale logo" width="16" valign="middle" /> CodeWhale</kbd></a> &nbsp;
   <a href="https://antigravity.google/docs/cli/install"><kbd><img src="src/renderer/assets/agents/antigravity.svg" alt="Antigravity CLI logo" width="16" valign="middle" /> Antigravity</kbd></a> &nbsp;
   <a href="https://docs.factory.ai/cli/getting-started/quickstart"><kbd><img src="src/renderer/assets/agents/droid.svg" alt="Factory Droid CLI logo" width="16" valign="middle" /> Droid</kbd></a> &nbsp;
@@ -204,5 +205,7 @@ The full list with licenses is in [`NOTICE`](NOTICE).
 Tortie is not affiliated with, endorsed by, or sponsored by any of the companies whose products it launches. All product names and logos are the property of their respective owners, and are used here only to identify the supported product.
 
 <p align="center"><a href="https://tortie.sh/docs/">Read the Tortie product documentation →</a></p>
+
+<p align="center"><a href="WHY-TORTIE-IS-DEPENDABLE.md">Why Tortie keeps agent work safe and recoverable →</a></p>
 
 <p align="center">Made by <a href="https://github.com/gregce">gregce</a>.<br /><i>Your sessions are never interrupted.</i></p>
