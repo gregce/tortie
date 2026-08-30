@@ -21,11 +21,12 @@
  *    contrast on --bg-canvas. The dilation is the only version that still
  *    reads as Qwen at 16 px.
  *
- * `omp` (Phase 169) is Oh My Pi, the pi successor. Its mark is the pi
- * letterform from the vendor's own favicon.svg at omp.sh, the only vector the
- * site ships (its pages carry no inline SVG at all). It stays multi-tone
- * because the pink to purple to cyan gradient IS the brand, and at 16 px the
- * gradient is the one thing that separates omp from pi's monochrome glyph.
+ * `omp` (Phase 169, remarked 2026-08-30) is Oh My Pi, the pi successor. Its
+ * mark is the pi letterform from the vendor's own favicon.svg at omp.sh, the
+ * only vector the site ships. The favicon carries a pink to cyan gradient;
+ * the operator ruled the mark must sit in the same greyscale as every other
+ * agent, so it ships as currentColor like the rest and the letterform alone
+ * tells it from pi's glyph.
  * The favicon's dark rounded plate is a browser-tab device, not the mark, so
  * it is dropped, and the bare glyph is refitted to the 24 grid (18 wide, 20
  * tall, centred, strokes 3 to 4 units so they hold at 14 px). The gradient id
