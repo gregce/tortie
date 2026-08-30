@@ -18091,6 +18091,117 @@ A custom font is IDE furniture, and the parity cap after Phase 14 says such work
 - No font bytes are ever inlined for a custom face, by the PR's own honest limitation.
 - PR 13 is not closed by the phase; the operator handles the contributor conversation.
 
+## Phase 176 — the map is clickable again (research 71 Fix 1, operator asked 2026-08-30)
+
+**Subject:** `fix(arch): a click on a map box drills in`
+**First body line:** `Phase 176: the map drill is unblocked`
+**Semver:** patch. A dead interaction starts working.
+**Tier 2**, and the named method is the one that found it: a headless Chromium click-path repro over the real handler shapes, because Electron uses the same Chromium.
+**Charter:** this entry plus docs/research/71-arch-rookery-feedback.md section 4. THE BUG IS ON EVERY REPO, not just rookery: the map is unclickable by mouse everywhere, and only Enter on a focused box drills today.
+
+### The root cause, measured in research 71
+`src/renderer/arch/map/camera/gestures.ts:201` calls `el.setPointerCapture(e.pointerId)` on EVERY primary press, not only on hand or pan presses. Pointer capture retargets the compatibility click event to the capturing svg, so the click's target is the svg not the box, React never dispatches the box's onClick, and the drill never fires. The slop threshold (CAMERA_DRAG_SLOP = 4 px at geometry.ts:344) is NOT the culprit and stays.
+
+### The fix
+Capture only for a hand or pan press: guard the setPointerCapture so a plain press does not capture, and set capture LAZILY the first time a plain press crosses the 4 px slop into a pan, so a real drag still keeps its pointer stream. A plain click then reaches the box and drills. The polish, being a light hover lift in map.css (176 deliberately changes only the stroke) and hoisting "Click to look inside" earlier in the SVG title, lands in the same commit under Just enough words.
+
+### Proof
+- A headless Chromium repro of the exact handler shape: a static click reaches the box and fires onOpenGroup; a real 4 px+ drag still pans and keeps its pointer events; the click that ends a pan is still suppressed. Before and after on the parent, one instrument.
+- One app run driving the real map: click a level 1 box and land in level 2, click a module and land in level 3, breadcrumb up, and the drag still pans and zooms.
+- The battery.
+
+### What is NOT in this phase
+- The 3 level cap does not change; research 71 4.4 says it is fine and deeper is its own feature.
+- No change to the camera math, the slop value, or the drill ladder shape.
+
+## Phase 177 — a file Tortie cannot read is ignored, not shouted about (research 71 Fix 2, operator asked 2026-08-30, ruling: ignore quietly)
+
+**Subject:** `fix(arch): a non-schema file under docs/arch is ignored with one calm line`
+**First body line:** `Phase 177: quiet on a foreign file`
+**Semver:** patch.
+**Tier 2**, gates plus one app run; touches the arch validate substrate so it carries npm run conformance:arch.
+**Charter:** this entry plus research 71 sections 2 and 6, and HIS RULING of 2026-08-30: IGNORE QUIETLY. A file in docs/arch/components/ that is not a Tortie schema version 1 component surfaces as ONE calm line naming the file, not the two red rows it draws today (an unknown-fields note plus a kind enum failure). No convert, no clean-up button; a person deletes a leftover themselves, as he just did on rookery.
+
+### The cause, from research 71
+A foreign component, being one with no valid kind and extra fields like summary and notes, hits two checks in validateComponent (src/main/arch/validate.ts:263): the ignored-fields note at :92 and the kind enum failure at :272, so a person sees two lines per file, 34 for rookery's 17 leftovers. Those leftovers came from the deleted Phase 63 seed-prompt path, whose agent invented that schema; the current enrichment writes valid files.
+
+### The fix and the refusal that survives
+When a components/ file is not recognisably a Tortie v1 component (no valid kind at all), collapse the two lines into one, being that the file is not a Tortie component and was skipped. THE PHASE 23 REFUSAL SURVIVES: an invalid row is still dropped WHOLE with the field named for a file that IS a Tortie component but has one bad field; this fold is only for a file that is not a Tortie component at all. Do not silently accept a malformed real component. The map draws from the valid files alone, as it already does.
+
+### Proof
+- One app run over a copy of a repo carrying both valid and foreign component files: the valid ones paint, each foreign one draws exactly one calm line, and a real component with one bad field still drops whole with the field named.
+- A hostile fixture: a components/ file that is valid JSON but not a component, a component missing kind, a component with an invalid kind, and a component with one extra field, proving the fold hits only the not-a-component case.
+- npm run conformance:arch, and the battery.
+
+### What is NOT in this phase
+- No converter and no clean-up button; his ruling is ignore quietly.
+- No change to what a valid contract draws.
+
+## Phase 178 — the map says it is thin, and stops calling quotes promises (research 71 Fix 3, operator asked 2026-08-30)
+
+**Subject:** `fix(arch): the resting face reads honest and thin on an unresolvable repo`
+**First body line:** `Phase 178: honest and thin`
+**Semver:** patch.
+**Tier 2**, a rendered surface with no new durable state: one app run plus one independent method.
+**Charter:** this entry plus research 71 sections 3 and 5, which found four faces that disagree, being a kept run leading with a happy sentence while a third of the contract cannot be read, and a strip reading "9 checked and holds" that is nine surviving evidence quotes rather than nine promises when there are zero edges.
+
+### What it builds
+- The whole-repo unparsed sentence, which today exists only in the level 2 module view (unparsedSentence at src/renderer/arch/modules.ts:126) and is stranded because drilling is broken, is lifted onto the RESTING face so a person reads why the map is thin, being that most of the repo is in languages Tortie does not resolve yet.
+- The verdict strip does not present evidence quote checks as promises when there are zero edges: separate or suppress "N checked and holds" so it cannot be read as N promises hold.
+- The "Would not load" wall folds to one summary line with the per file detail behind a disclosure, per Just enough words. This composes with Phase 177: after 177 there is usually nothing to list, but the summary line covers the general case.
+- A kept run that produced an unreadable contract does not lead with a plain kept sentence.
+
+### Proof
+- One app run on a copy of rookery: the resting face carries the thin sentence naming the unresolved languages, the strip does not claim promises where there are none, and the four faces agree.
+- THE INDEPENDENT METHOD: re-derive the true promise count and the resolved-language file share by an own scan, and prove the face's numbers match rather than the old evidence-quote count.
+- The battery.
+
+### What is NOT in this phase
+- No resolver change; this makes the absence honest, it does not fill it.
+- No change to a real promise verdict where promises exist.
+
+## Phase 179 — the enrichment sees the crossings the model actually drew (research 71 Fix 4, operator asked 2026-08-30)
+
+**Subject:** `feat(arch): the imports-between-parts facts follow the model's decomposition`
+**First body line:** `Phase 179: crossings over the finer parts`
+**Semver:** minor. The pass can produce promises where it produced none.
+**Tier 3**, because it changes what the pass writes and it spawns under his credentials.
+**Charter:** this entry plus research 71 section 3.2, which measured that rookery's coarse nine-part skeleton has zero crossings but the model's finer decomposition carries 105, so the pass is told in one breath that nothing crosses and that it should write five to ten promises.
+
+### The cause and the fix
+The "imports between parts" facts block is computed ONCE over the coarse skeleton (factsBlock and ownerOf in src/main/arch/enrich/compose.ts lines 117 to 199), so every server import reads from === to and the block says none resolved. When the model splits a coarse part into finer parts, those finer parts have real crossings the block never shows. Recompute the crossings over the decomposition the model produces, so a server-heavy repository draws a real promise graph. SCOPE TIGHTLY: this is the deepest product fix and the one most likely to grow, so it is a single pass that recomputes and re-offers, not a new loop, and it does not change the checkers or the schema.
+
+### Proof
+- Over a copy of rookery with the map drilled: the finer decomposition's 105 crossings reach the model, and a real enrichment run produces a non-zero promise set that the checkers then judge, with the before at zero and the after measured.
+- The map binding from Phase 158 still holds: the pass enriches in place, a run that leaves the map unchanged is still a failed run, painted coverage is still counted.
+- npm run conformance:arch and the battery.
+
+### What is NOT in this phase
+- No resolver change and no schema change.
+- No new spawn path, validator or scheduler; it is Phase 158's pass.
+
+## Phase 180 — the resolver reads Swift, Kotlin and Objective-C (research 71 Fix 5, operator asked 2026-08-30, LARGE)
+
+**Subject:** `feat(arch): imports resolve in Swift, Kotlin and Objective-C`
+**First body line:** `Phase 180: the client languages`
+**Semver:** minor.
+**Tier 3**, a per-row matrix over real repositories, being rookery for Swift and Kotlin.
+**Charter:** this entry plus research 71 section 3.3 and the recorded Swift quiet-face debt, now with rookery behind it: about 1,700 client files invisible, every client-to-server boundary uncrossable by import.
+**THIS IS THE LARGE ONE AND IT IS HONESTLY MARKED SO.** It is a genuine multi-language grammar and import-resolution effort, not a surface fix, and it is the audit's own deferred debt. Phase 178 is what makes its absence honest in the meantime, so this phase is real work the operator may choose to defer even though it is queued here at his request.
+
+### What it contains
+Grammar entries for .swift, .kt, .kts, .m, .h in src/main/symbols/languages.ts (the grammars must be bundled or the phase says which are not and stops on those), an import query per language in src/main/symbols/queries.ts in the house style, and a resolver arm per language in src/main/arch/resolver following the Phase 157 pattern: a manifest reader, path rules, and a stated limit. THE RULE THAT BINDS EVERY ARM: an arm that cannot answer returns unresolved, NEVER external, because a wrong external is a false green on a must-not, which Phase 63 and 157 both proved. Objective-C header versus implementation and Swift module-versus-file resolution get their limits stated on the arm's face.
+
+### Proof
+- A per-row matrix over rookery for Swift and Kotlin: imports found, resolved, unresolved, external, with every external justified by a real manifest dependency.
+- THE ATTACK is the false green: a must-not that IS violated in rookery proved to report violated, and one that is not proved not reported.
+- conformance:arch extended so the matrix is derived from the resolver, and the battery.
+
+### What is NOT in this phase
+- No C++ or Java arm; only the four client languages rookery needs.
+- No item-level resolution; module or file level only, limit stated.
+- No change to the six existing arms beyond the shared external rule.
+
 ## Phase 175 — Architecture is off until you turn it on (operator asked 2026-08-30)
 
 **Subject:** `feat(arch): a setting hides Architecture until a person turns it on`
@@ -18366,3 +18477,4 @@ cycle rather than only the evening it was written.
 - 2026-08-30, Research 70 WRITTEN, spreading the word, docs/research/70-spreading-the-word.md: the 08-26 tweet measured against the GitHub API (31 of 41 stars and 303 downloads of v0.76.1 in 48 hours against a prior best of 49), the channels where the category is being compared this month with Tortie in none of the three roundups and already in the awesome-list because its maintainer added it the day of the tweet, the voice and the contrast sentences, a seven clip shot list led by the quit test, a changelog to Ordinal draft pipeline with a human approving, and seven experiments each with a prediction and the number that decides it; nothing queued, the operator picks.
 - 2026-08-30, Phase 175 QUEUED, Architecture behind a flag: he wants the whole feature and its ribbon icon behind a setting DEFAULT OFF so the code ships in the next release without turning itself on before he has soaked it, since most agents still read Not measured yet and the pass cannot be leaned on; the one rule is that Settings then Architecture stays visible always and carries the toggle at its head so it is the only way back in, and the flag gates the ribbon icon, both View menu rows with the native menu rebuilt, the view.arch chord and the show-arch actions as no-ops when off, and the map tab opener; one new bool arch.enabled default false, a missing field reads as off so no migration; the named method drives the chord and menu actions while off to prove a hidden icon is also a dead entry point; runs after 172 and can go beside 173; it wants to land before the release he is considering
 - 2026-08-30, Research 71 WRITTEN, why the Architecture pass on rookery looks broken, docs/research/71-arch-rookery-feedback.md: four distinct defects under his three symptoms, all read from the checkout or measured on disk read only with no Electron launched. The zero promises is HONEST MATH surfaced dishonestly, an independent import scanner faithful to the resolver found 217 of 217 relative imports resolved and 0 crossing edges over the 9 coarse parts because the `server` box swallows all 98 backend ts files so every import is from===to, while the finer decomposition the model itself invented carries 105 crossings it was never handed; the map's boxes are dead to the mouse because gestures.ts:201 calls setPointerCapture on every primary press so the click retargets to the svg and the box onClick never fires, proved in headless Chromium, one line fix to capture only on hand or pan; the 34 red validation rows are a LOAD TIME COLLISION not a model or prompt defect, 17 hand authored foreign files with summary/notes and no kind sitting beside Tortie's 9 fresh valid ones since the writer never clears the directory, and the enrichment answer validator refuses any unknown key so it provably cannot have written them; and the surface shows four faces that disagree, kept and painted beside zero promises beside a wall of red, with the honest "the map is thin because it is mostly Swift and Kotlin" sentence stranded behind a drill that is broken. Five ranked candidate fixes, order Fix 1 the map drill then Fix 2 the foreign collision then Fix 3 the honest surface, Fix 4 recompute crossings and Fix 5 arm the resolver for Swift deferred; nothing queued, the operator picks.
+- 2026-08-30, Phases 176 to 180 QUEUED from docs/research/71-arch-rookery-feedback.md, the five ranked fixes, BEFORE Phase 175 the flag at his instruction; 176 unblocks the map drill which is dead by mouse on EVERY repo because gestures.ts:201 captures the pointer on every press and retargets the click off the box, the slop threshold cleared as not the cause, headless Chromium the proof; 177 makes a non-schema file under docs/arch ignored with ONE calm line rather than two red rows, his ruling ignore quietly, the Phase 23 drop-whole refusal surviving for a real component with a bad field, and the 17 rookery leftovers already deleted by him being the motivating case, from the deleted Phase 63 seed-prompt path; 178 lifts the whole-repo thin sentence onto the resting face and stops the strip calling nine surviving evidence quotes nine promises when there are zero edges; 179 recomputes the imports-between-parts facts over the model's finer decomposition, rookery measured at 105 crossings the coarse skeleton hid, so a server-heavy repo can draw a promise graph, Tier 3; 180 is the LARGE deferred one, a Swift Kotlin Objective-C resolver arm per Phase 157 with the unresolved-not-external rule and the false-green attack, honestly marked as real work he may defer even queued; ORDER 176 177 178 then 179 180 then 175; 176 177 178 are small and disjoint enough to pair, 179 and 180 touch the enrich and resolver substrate and 172 also touches arch so none of these runs beside 172
