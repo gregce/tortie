@@ -285,10 +285,12 @@ export async function runP163CaptureSmoke(deps: P163CaptureDeps): Promise<void> 
       argv0: r.binary ?? '',
       ...(r.sessionName !== undefined ? { sessionName: r.sessionName } : {})
     }));
+    const reportT0 = Date.now();
     const report = await captureFullReport(win.webContents.getOSProcessId());
+    const reportMs = Date.now() - reportT0;
     const records = core.listSessionRecords();
     smokeLog(
-      `6/7 read ${String(appMetrics.length)} Electron rows, ${String(owned.length)} owned rows, report ${report === null ? 'absent' : 'present'}`
+      `6/7 read ${String(appMetrics.length)} Electron rows, ${String(owned.length)} owned rows, report ${report === null ? 'absent' : 'present'} in ${String(reportMs)} ms`
     );
 
     let heapSnapshot: string | null = null;

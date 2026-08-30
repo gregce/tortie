@@ -108,3 +108,31 @@ export const NOT_YET = 'not yet';
 export const NOT_READ = 'not read';
 export const NONE = 'none';
 export const SESSIONS_NONE = 'No sessions are running.';
+
+/** Phase 168. The glance strip: the summary before the detail. */
+export const GLANCE_TORTIE = 'Tortie itself';
+export const GLANCE_AGENTS = 'Your agents';
+export const GLANCE_TOGETHER = 'Together';
+export const GLANCE_TOGETHER_SUB = 'Tortie plus your agents';
+export const GLANCE_TORTIE_HOVER =
+  'The Tortie table’s own total, repeated here so the answer comes first.';
+export const GLANCE_AGENTS_HOVER =
+  'The sessions table’s own total, repeated here so the answer comes first.';
+export const GLANCE_TOGETHER_HOVER =
+  'The one place the two totals are added. The two tables below keep their own.';
+export const GLANCE_CPU_HOVER =
+  'Percent of one core over the capture window, read from one top sample taken inside it.';
+export const GLANCE_MEMORY_HOVER =
+  'Private memory where a process could answer, the OS footprint elsewhere, summed over the table’s rows.';
+export const FIG_ENERGY = 'Energy impact';
+export const ENERGY_UNAVAILABLE = 'unavailable';
+export const ENERGY_HOVER =
+  'An impact score in the style of Activity Monitor, summed from the power figure top reports for every Tortie and agent process. It is a score rather than watts, because the exact energy counter needs native code Tortie does not ship.';
+
+/** Phase 168. The machine sentence, and the rule its hover states. */
+export const MACHINE_HOVER =
+  'Ranked by resident memory from one machine wide read taken with the capture. The other apps’ names appear here only and are never part of a copied report.';
+
+/** Phase 168. The GPU row shows the OS footprint; the hover says why. */
+export const GPU_FOOTPRINT_HOVER =
+  'OS footprint, the number the machine pays for this process. Its own private figure leaves out the graphics memory it holds with the system.';

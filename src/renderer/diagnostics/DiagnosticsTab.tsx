@@ -44,6 +44,7 @@ import {
   capturedAtLabel,
   cpuLabel,
   kindLabel,
+  machineSentence,
   MILESTONE_ORDER,
   milestoneKey,
   milestoneLabel,
@@ -251,6 +252,7 @@ export function DiagnosticsBody({
         </div>
       ) : (
         <div className={`diag-body${capturing ? ' diag-body-stale' : ''}`}>
+          <GlanceStrip report={report} />
           <ShellTable report={report} />
           <SessionsTable report={report} />
           <NowSection report={report} />
@@ -261,6 +263,76 @@ export function DiagnosticsBody({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Phase 168: the summary before the detail. Three columns above the two
+ * tables, which stay exactly as they are. The Together column is the ONE
+ * place the two totals are added, and it says what it sums. The machine
+ * sentence below ranks Tortie on this Mac; the other apps' names live on
+ * this face alone and never enter the copied report.
+ */
+function GlanceStrip({ report }: { report: DiagnosticsReport }): React.JSX.Element {
+  const g = report.glance;
+  const sentence = machineSentence(report.machine);
+  const cpuValue = (cpu: number | null): string =>
+    cpu === null ? words.NOT_READ : cpuLabel(cpu);
+  const col = (
+    label: string,
+    hover: string,
+    c: typeof g.tortie,
+    sub?: string,
+    extra?: React.ReactNode
+  ): React.JSX.Element => (
+    <div
+      className={`diag-glance-col${sub !== undefined ? ' diag-glance-col-together' : ''}`}
+      title={hover}
+    >
+      <div className="diag-glance-label">{label}</div>
+      {sub !== undefined ? <div className="diag-glance-sub">{sub}</div> : null}
+      <div className="diag-figs">
+        <Figure
+          label={words.COL_MEMORY}
+          value={bytesLabel(c.privateBytes)}
+          hover={words.GLANCE_MEMORY_HOVER}
+        />
+        <Figure
+          label={words.COL_CPU}
+          value={cpuValue(c.cpuPercent)}
+          hover={words.GLANCE_CPU_HOVER}
+        />
+        {extra}
+      </div>
+    </div>
+  );
+  return (
+    <section className="diag-glance">
+      <div className="diag-glance-cols">
+        {col(words.GLANCE_TORTIE, words.GLANCE_TORTIE_HOVER, g.tortie)}
+        {col(words.GLANCE_AGENTS, words.GLANCE_AGENTS_HOVER, g.agents)}
+        {col(
+          words.GLANCE_TOGETHER,
+          words.GLANCE_TOGETHER_HOVER,
+          g.together,
+          words.GLANCE_TOGETHER_SUB,
+          <Figure
+            label={words.FIG_ENERGY}
+            value={
+              g.energyImpact === null
+                ? words.ENERGY_UNAVAILABLE
+                : String(g.energyImpact)
+            }
+            hover={words.ENERGY_HOVER}
+          />
+        )}
+      </div>
+      {sentence !== null ? (
+        <div className="diag-machine" title={words.MACHINE_HOVER}>
+          {sentence}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -304,7 +376,7 @@ function ShellTable({ report }: { report: DiagnosticsReport }): React.JSX.Elemen
       <td className="diag-num" title={p.cpuSource === 'sampled' ? 'Over the capture window' : 'Lifetime average'}>
         {cpuLabel(p.cpuPercent)}
       </td>
-      <td className="diag-num" title={p.memory.privateSource === null ? words.NOT_READ : p.memory.privateSource === 'electron' ? 'Read from the process' : 'OS footprint'}>
+      <td className="diag-num" title={p.memory.privateSource === null ? words.NOT_READ : p.memory.privateSource === 'electron' ? 'Read from the process' : p.kind === 'gpu' ? words.GPU_FOOTPRINT_HOVER : 'OS footprint'}>
         {bytesLabel(p.memory.privateBytes)}
       </td>
       <td className="diag-num diag-dim">{bytesLabel(p.memory.rssBytes)}</td>

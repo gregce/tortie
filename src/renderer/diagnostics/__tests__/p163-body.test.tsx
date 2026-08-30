@@ -58,6 +58,19 @@ function report(over: Partial<DiagnosticsReport> = {}): DiagnosticsReport {
       }
     ],
     sessionsTotal: { privateBytes: 400 * 1024 * 1024, rssBytes: 500 * 1024 * 1024, processCount: 3 },
+    glance: {
+      tortie: { processCount: 3, privateBytes: 247 * 1024 * 1024, rssBytes: 520 * 1024 * 1024, cpuPercent: 2.5 },
+      agents: { processCount: 3, privateBytes: 400 * 1024 * 1024, rssBytes: 500 * 1024 * 1024, cpuPercent: 12 },
+      together: { processCount: 6, privateBytes: 647 * 1024 * 1024, rssBytes: 1020 * 1024 * 1024, cpuPercent: 14.5 },
+      energyImpact: 18.4
+    },
+    machine: {
+      rank: 3, appCount: 40, tortieRssBytes: 520 * 1024 * 1024,
+      above: [
+        { name: 'Google Chrome', rssBytes: 3000 * 1024 * 1024 },
+        { name: 'OrbStack', rssBytes: 900 * 1024 * 1024 }
+      ]
+    },
     electronPids: [
       { pid: 100, type: 'Browser', named: true },
       { pid: 200, type: 'Tab', named: true },
@@ -120,15 +133,77 @@ function render(r: DiagnosticsReport | null, kind: 'ready' | 'capturing' | 'unav
 }
 
 describe('the split', () => {
-  it('draws two groups with two totals and never their sum', () => {
+  it('draws two groups with two totals, and their sum lives in the strip alone', () => {
     const html = render(report());
     expect(html).toContain(words.GROUP_SHELL);
     expect(html).toContain(words.GROUP_SESSIONS);
     expect(html).toContain('3 processes, 247 MB private');
     expect(html).toContain('3 processes, 400 MB');
-    // 247 + 400. The one number a generic tool shows and this face never does.
-    expect(html).not.toContain('647');
-    expect(html).not.toContain('6 processes');
+    // Phase 168: 247 + 400 appears EXACTLY ONCE, in the Together column,
+    // which says what it sums. The two tables never carry it.
+    expect((html.match(/647 MB/g) ?? []).length).toBe(1);
+    const together = html.indexOf(words.GLANCE_TOGETHER_SUB);
+    expect(together).toBeGreaterThan(-1);
+    expect(html.indexOf('647 MB')).toBeGreaterThan(together);
+    expect(html.indexOf('647 MB')).toBeLessThan(html.indexOf(words.GROUP_SHELL_HOVER));
+  });
+
+  it('leads with the glance strip above both tables', () => {
+    const html = render(report());
+    expect(html.indexOf('diag-glance')).toBeLessThan(html.indexOf('diag-group-shell'));
+    expect(html).toContain(words.GLANCE_TORTIE);
+    expect(html).toContain(words.GLANCE_AGENTS);
+    expect(html).toContain(words.GLANCE_TOGETHER);
+    expect(html).toContain('2.5%');
+    expect(html).toContain('12%');
+    // cpuLabel rounds above ten percent, so 14.5 draws as 15%.
+    expect(html).toContain('15%');
+  });
+
+  it('labels the energy figure an impact score and says unavailable, never zero', () => {
+    const html = render(report());
+    expect(html).toContain(words.FIG_ENERGY);
+    expect(html).toContain('18.4');
+    expect(html).toContain(words.ENERGY_HOVER);
+    const r = report();
+    const none = render({ ...r, glance: { ...r.glance, energyImpact: null } });
+    expect(none).toContain(words.ENERGY_UNAVAILABLE);
+    expect(none).not.toContain(`>0<`);
+  });
+
+  it('says not read when top could not answer the window CPU', () => {
+    const r = report();
+    const html = render({
+      ...r,
+      glance: {
+        ...r.glance,
+        tortie: { ...r.glance.tortie, cpuPercent: null },
+        agents: { ...r.glance.agents, cpuPercent: null },
+        together: { ...r.glance.together, cpuPercent: null }
+      }
+    });
+    expect(html).toContain(words.NOT_READ);
+  });
+
+  it('ranks Tortie on this Mac with the other apps named on the face only', () => {
+    const html = render(report());
+    expect(html).toContain('Tortie is 3rd of 40 apps on this Mac by memory, behind Google Chrome and OrbStack.');
+    expect(html).toContain(words.MACHINE_HOVER);
+    // The names are the face's; the copied text is the data-copy attribute,
+    // which is report.text, and the main side test proves it carries none.
+    const r = report();
+    expect(render({ ...r, machine: null })).not.toContain('diag-machine');
+  });
+
+  it('gives the GPU row the hover naming what the private figure left out', () => {
+    const r = report();
+    const gpu = {
+      pid: 300, ppid: 100, kind: 'gpu' as const, name: 'GPU',
+      memory: { privateBytes: 340 * 1024 * 1024, privateSource: 'footprint' as const, rssBytes: 400 * 1024 * 1024 },
+      cpuPercent: 1, cpuSource: 'sampled' as const, electron: true
+    };
+    const html = render({ ...r, shell: [...r.shell, gpu] });
+    expect(html).toContain(words.GPU_FOOTPRINT_HOVER);
   });
 
   it('draws a stray behind one disclosure under the Tortie table, outside the total', () => {
@@ -146,7 +221,7 @@ describe('the split', () => {
     expect(html.indexOf('</details>')).toBeGreaterThan(html.indexOf('left behind (tmux)'));
     // 247 + 12: the stray is never folded into the Tortie total.
     expect(html).not.toContain('259 MB');
-    expect(html).not.toContain('4 processes');
+    expect(html).not.toContain('4 processes,');
     // Without a stray the line is not drawn at all.
     expect(render(r)).not.toContain(words.LEFTOVER);
   });

@@ -8,6 +8,7 @@
 
 import {
   DIAGNOSTICS_MILESTONES,
+  type DiagnosticsMachineContext,
   type DiagnosticsMilestoneName,
   type DiagnosticsShellKind,
   type DiagnosticsShellProcess
@@ -141,4 +142,39 @@ export function capturedAtLabel(iso: string): string {
   if (Number.isNaN(d.getTime())) return iso;
   const pad = (n: number): string => String(n).padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** Phase 168. 1st, 2nd, 3rd, 4th, with the 11 to 13 exception. */
+export function ordinalLabel(n: number): string {
+  const tail = n % 100;
+  if (tail >= 11 && tail <= 13) return `${String(n)}th`;
+  switch (n % 10) {
+    case 1:
+      return `${String(n)}st`;
+    case 2:
+      return `${String(n)}nd`;
+    case 3:
+      return `${String(n)}rd`;
+    default:
+      return `${String(n)}th`;
+  }
+}
+
+/**
+ * Phase 168. The machine context as one sentence for the face. The app
+ * names in it are the face's alone; the copied report carries the rank and
+ * never the names, which src/main/diagnostics/report-text.ts keeps.
+ */
+export function machineSentence(m: DiagnosticsMachineContext | null): string | null {
+  if (m === null) return null;
+  if (m.rank === 1 || m.above.length === 0) {
+    return `Tortie is the largest of the ${String(m.appCount)} apps on this Mac by memory.`;
+  }
+  const names = m.above.map((a) => a.name);
+  const list =
+    names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const others = m.rank - 1 > names.length ? ' and others' : '';
+  return `Tortie is ${ordinalLabel(m.rank)} of ${String(m.appCount)} apps on this Mac by memory, behind ${list}${others}.`;
 }

@@ -17,9 +17,11 @@
  * clients Tortie runs against it, the ssh helpers, the short lived probes.
  * `sessions` is the work Tortie supervises: one row per session, the subtree
  * of the process the session was started with, which would exist in a plain
- * terminal too. The two totals are never added together, in the report or on
- * a surface, because a sum of them is the number every generic tool already
- * shows and it explains nothing.
+ * terminal too. The two totals are never added together in the tables or the
+ * sections, because a sum of them is the number every generic tool already
+ * shows and it explains nothing. Phase 168 made ONE exception: the glance
+ * strip's Together column carries the sum, and it is honest there because
+ * the column says what it sums.
  *
  * WHAT A REPORT NEVER CARRIES: a command line, an environment value, a file's
  * contents, a project path with the home directory in it. Shell rows name a
@@ -284,6 +286,64 @@ export interface DiagnosticsTotals {
   processCount: number;
 }
 
+/**
+ * Phase 168. One column of the glance strip at the top of the report.
+ * Memory repeats the table totals; CPU is a rate over the capture window
+ * read from one `top` sample taken inside it, and null when top could not
+ * answer, never zero for unread.
+ */
+export interface DiagnosticsGlanceColumn {
+  processCount: number;
+  /** Private bytes where a process could answer, OS footprint elsewhere. */
+  privateBytes: number;
+  rssBytes: number;
+  /** Percent of one core over the capture window, or null when unread. */
+  cpuPercent: number | null;
+}
+
+/**
+ * Phase 168. The summary before the detail: what all of Tortie costs, at a
+ * glance, above the two tables that stay exactly as they are.
+ */
+export interface DiagnosticsGlance {
+  /** What Tortie itself costs: the Tortie table's own total. */
+  tortie: DiagnosticsGlanceColumn;
+  /** The work Tortie supervises: the sessions table's own total. */
+  agents: DiagnosticsGlanceColumn;
+  /** The ONE place the two are added, and it says what it sums. */
+  together: DiagnosticsGlanceColumn;
+  /**
+   * Activity Monitor style impact score, top's power figure summed over
+   * every Tortie and agent process. A score rather than watts, because the
+   * exact energy counter needs native code Tortie does not ship. Null when
+   * the column is unavailable on this hardware, never zero for unread.
+   */
+  energyImpact: number | null;
+}
+
+/**
+ * Phase 168. One app sitting above Tortie on this Mac. The name is a bundle
+ * or binary basename, never a path, and it is FOR THE FACE ALONE: the
+ * report's `text` never carries it, so a pasted report never describes the
+ * rest of the machine.
+ */
+export interface DiagnosticsMachineApp {
+  name: string;
+  rssBytes: number;
+}
+
+/** Phase 168. Where Tortie stands on the machine, by resident memory. */
+export interface DiagnosticsMachineContext {
+  /** 1 based rank of Tortie among the machine's grouped apps. */
+  rank: number;
+  /** Grouped apps counted, Tortie included. */
+  appCount: number;
+  /** The resident bytes the rank used: the Tortie table's own total. */
+  tortieRssBytes: number;
+  /** The apps above Tortie, largest first, at most three. Face only. */
+  above: DiagnosticsMachineApp[];
+}
+
 export interface DiagnosticsReport {
   /** ISO time the window closed. */
   generatedAt: string;
@@ -303,6 +363,13 @@ export interface DiagnosticsReport {
   leftoverTotal: DiagnosticsTotals;
   sessions: DiagnosticsSessionWorkload[];
   sessionsTotal: DiagnosticsTotals;
+  /** Phase 168. The glance strip: the summary before the detail. */
+  glance: DiagnosticsGlance;
+  /**
+   * Phase 168. Where Tortie stands on this Mac, or null when ps failed.
+   * The app names inside are for the face alone and never reach `text`.
+   */
+  machine: DiagnosticsMachineContext | null;
   /**
    * The proof for the audit's second item: every pid Electron's own metrics
    * listed, and whether each one appears in `shell`. Nothing is excluded;

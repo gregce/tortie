@@ -10,12 +10,16 @@
  * arrive with finish because only the renderer can read them and main never
  * asks a renderer to run code (src/main/menu.ts forbids it for state).
  *
- * WHAT A CAPTURE STARTS: `ps` once, `footprint` once, `du` three times, all
+ * WHAT A CAPTURE STARTS: `ps` once, `footprint` once, `du` three times, and
+ * since Phase 168 `top` once for the energy score and the windowed CPU, all
  * short lived, all through the guarded runner that settles inside a deadline
- * and reaps what it started. It asks the session server for its pid and its
- * pane list, read only. It opens no listener, sets no interval and keeps no
- * timer between the two ends. An abandoned begin leaves one boolean and two
- * integers armed in ./ipc-sample.ts, replaced by the next begin.
+ * and reaps what it started. The top spawn is started by `beginCapture` so
+ * its roughly two seconds overlap the window the renderer is already waiting
+ * out. It asks the session server for its pid and its pane list, read only.
+ * It opens no listener, sets no interval and keeps no timer between the two
+ * ends. An abandoned begin leaves one boolean and two integers armed in
+ * ./ipc-sample.ts plus one already guarded top child that settles on its
+ * own, all replaced by the next begin.
  *
  * THE SPLIT. `shell` is what Tortie itself costs and `sessions` is the work
  * it supervises. The two totals are computed separately in ./tree.ts and this
@@ -49,12 +53,16 @@ import {
 } from '../machines/store';
 import { getGmuxCore } from '../sessions';
 import { pendingWatcherCloseCount } from '../watcher/teardown';
+import { readPsTable, type ProcRow } from '../proc/ps';
 import { policyState, readDiskSizes } from './disk';
 import { cachePolicyFor } from '../cache/policy';
 import { readFootprints } from './footprint';
+import { buildGlance } from './glance';
 import { beginIpcSample, endIpcSample } from './ipc-sample';
+import { buildMachineContext } from './machine';
 import { readMilestones } from './milestones';
 import { listGmuxProcesses } from './owned-processes';
+import { readPowerSample, type PowerSample } from './power';
 import { buildDiagnosticsReportText } from './report-text';
 import {
   buildTree,
@@ -71,6 +79,8 @@ export const FALLBACK_WINDOW_MS = 250;
 interface OpenCapture {
   id: string;
   startedAt: number;
+  /** Phase 168: the top read, started here so it overlaps the window. */
+  power: Promise<PowerSample | null>;
 }
 
 let open: OpenCapture | null = null;
@@ -96,7 +106,7 @@ export function beginCapture(now: number = Date.now()): DiagnosticsCaptureHandle
   readElectronMetrics();
   process.getCPUUsage();
   beginIpcSample(now);
-  open = { id: randomUUID(), startedAt: now };
+  open = { id: randomUUID(), startedAt: now, power: readPowerSample() };
   return { id: open.id };
 }
 
@@ -201,6 +211,7 @@ export async function finishCapture(
   }
   const now = fellBack || options.now === undefined ? Date.now() : options.now;
   const startedAt = open?.startedAt ?? now;
+  const powerPromise = open?.power ?? Promise.resolve(null);
   open = null;
 
   const metrics = readElectronMetrics();
@@ -213,10 +224,23 @@ export async function finishCapture(
     windows.find((w) => w.pid !== process.pid)?.pid ??
     null;
 
+  // Phase 168: ONE machine wide ps per capture. The ownership walk and the
+  // machine context read the same table, so the strip buys no second spawn.
+  let psRows: Map<number, ProcRow>;
+  try {
+    psRows = await readPsTable();
+  } catch {
+    psRows = new Map();
+  }
   // The walk's own `ps` is in the table it read. It has exited by the time
   // the table is parsed, so it would draw a row with no footprint and no
   // meaning; it is the one child of this capture and it is dropped by name.
-  const owned = (await listGmuxProcesses({ sshLeafLabels: sshLeafLabels() })).filter(
+  const owned = (
+    await listGmuxProcesses({
+      sshLeafLabels: sshLeafLabels(),
+      psTable: () => Promise.resolve(psRows)
+    })
+  ).filter(
     (p) => !(p.role === 'app-helper' && p.binary === 'ps' && p.ppid === process.pid)
   );
   const wantFootprint = new Set<number>();
@@ -252,6 +276,30 @@ export async function finishCapture(
     appPid: process.pid
   });
 
+  // Phase 168: the glance strip and the machine context. The top read was
+  // started at begin; by now it is usually settled, and a top that fails
+  // leaves the CPU and energy figures null rather than zero.
+  const power = await powerPromise;
+  const shellPids = tree.shell
+    .filter((row) => row.kind !== 'orphan')
+    .map((row) => row.pid);
+  const agentPids = owned
+    .filter((p) => p.role === 'session' || p.role === 'session-child')
+    .map((p) => p.pid);
+  const glance = buildGlance({
+    shellTotal: tree.shellTotal,
+    sessionsTotal: tree.sessionsTotal,
+    shellPids,
+    agentPids,
+    cpuByPid: power?.cpuByPid ?? null,
+    powerByPid: power?.powerByPid ?? null
+  });
+  const machine = buildMachineContext({
+    rows: psRows.values(),
+    ownedPids: new Set(owned.map((p) => p.pid)),
+    tortieRssBytes: tree.shellTotal.rssBytes
+  });
+
   const home = homedir();
   const listeners: string[] = [];
   if (hooksEnabled()) listeners.push('hook channel on this Mac');
@@ -267,6 +315,8 @@ export async function finishCapture(
     leftoverTotal: tree.leftoverTotal,
     sessions: tree.sessions,
     sessionsTotal: tree.sessionsTotal,
+    glance,
+    machine,
     electronPids: tree.electronPids,
     main,
     renderer: facts,

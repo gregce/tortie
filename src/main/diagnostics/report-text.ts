@@ -14,6 +14,7 @@
 import type {
   DiagnosticsCachePolicy,
   DiagnosticsDisk,
+  DiagnosticsGlanceColumn,
   DiagnosticsMemory,
   DiagnosticsReport,
   DiagnosticsShellProcess
@@ -69,9 +70,31 @@ export function buildDiagnosticsReportText(
   r: DiagnosticsReportBody,
   homeDir: string
 ): string {
+  // Phase 168: the summary before the detail. The Together line is the one
+  // place the two totals are added, and it says what it sums. The machine
+  // line carries the rank and NEVER an app name: the names are on the face
+  // alone, so a pasted report never describes the rest of the machine.
+  const glanceLine = (label: string, c: DiagnosticsGlanceColumn): string =>
+    `${label}  ${c.processCount} processes, private ${mb(c.privateBytes)}, rss ${mb(c.rssBytes)}, ${
+      c.cpuPercent === null ? 'cpu not read' : `cpu ${c.cpuPercent.toFixed(1)}% sampled`
+    }`;
+  const g = r.glance;
   const lines: string[] = [
     `Tortie ${r.appVersion} diagnostics, generated ${r.generatedAt}`,
     `sampling window ${r.windowMs} ms`,
+    '',
+    '[At a glance]',
+    glanceLine('Tortie itself', g.tortie),
+    glanceLine('Your agents', g.agents),
+    glanceLine('Together, Tortie plus your agents', g.together),
+    g.energyImpact === null
+      ? 'energy impact unavailable'
+      : `energy impact ${g.energyImpact.toFixed(1)}, the power score top reports, not watts`,
+    ...(r.machine === null
+      ? []
+      : [
+          `machine rank ${r.machine.rank} of ${r.machine.appCount} apps by resident memory, app names stay in the app and are not copied`
+        ]),
     '',
     '[Tortie]',
     `${r.shellTotal.processCount} processes, private ${mb(r.shellTotal.privateBytes)}, rss ${mb(r.shellTotal.rssBytes)}`

@@ -334,3 +334,55 @@
 .diag-leftover[open] > summary {
   margin-bottom: var(--space-2);
 }
+
+/* -- the glance strip (Phase 168): the summary before the detail ---------- */
+
+.diag-glance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  padding: var(--space-4);
+}
+
+.diag-glance-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-8);
+}
+
+.diag-glance-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 150px;
+}
+
+/* The one column that sums, set apart by its own divider. */
+.diag-glance-col-together {
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-6);
+}
+
+.diag-glance-label {
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+}
+
+.diag-glance-sub {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* Where Tortie stands on this Mac. Names on this face only, never copied. */
+.diag-machine {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}

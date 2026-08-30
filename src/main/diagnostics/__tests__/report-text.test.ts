@@ -30,6 +30,20 @@ const BODY: Omit<DiagnosticsReport, 'text'> = {
     { sessionId: 'S1', name: 'API refactor', agent: 'claude', processCount: 2, memory: { privateBytes: 351 * MB, privateSource: 'footprint', rssBytes: 401 * MB }, cpuPercent: 3.2 }
   ],
   sessionsTotal: { privateBytes: 351 * MB, rssBytes: 401 * MB, processCount: 2 },
+  glance: {
+    tortie: { processCount: 3, privateBytes: 380 * MB, rssBytes: 514 * MB, cpuPercent: 3.5 },
+    agents: { processCount: 2, privateBytes: 351 * MB, rssBytes: 401 * MB, cpuPercent: 9.1 },
+    together: { processCount: 5, privateBytes: 731 * MB, rssBytes: 915 * MB, cpuPercent: 12.6 },
+    energyImpact: 21.3
+  },
+  machine: {
+    rank: 4, appCount: 38, tortieRssBytes: 514 * MB,
+    above: [
+      { name: 'Google Chrome', rssBytes: 3000 * MB },
+      { name: 'OrbStack', rssBytes: 900 * MB },
+      { name: 'Figma', rssBytes: 800 * MB }
+    ]
+  },
   electronPids: [{ pid: 100, type: 'Browser', named: true }, { pid: 102, type: 'Tab', named: true }],
   main: { privateBytes: 200 * MB, sharedBytes: 50 * MB, heapUsedBytes: 40 * MB, heapTotalBytes: 60 * MB, heapLimitBytes: 4096 * MB, mallocedBytes: 5 * MB },
   renderer: {
@@ -53,13 +67,55 @@ describe('buildDiagnosticsReportText', () => {
     assert.equal(lines[1], 'sampling window 1000 ms');
   });
 
-  it('draws the two groups with their own totals and never a sum', () => {
+  it('draws the two groups with their own totals, and the sum in the strip alone', () => {
     assert.ok(lines.includes('[Tortie]'));
     assert.ok(lines.includes('3 processes, private 380.0 MB, rss 514.0 MB'));
     assert.ok(lines.includes('[Your sessions]'));
     assert.ok(lines.includes('1 sessions, 2 processes, private 351.0 MB, rss 401.0 MB'));
-    // 380 + 351 = 731 appears nowhere.
-    assert.equal(text.includes('731'), false);
+    // Phase 168: 380 + 351 = 731 appears exactly once, on the Together line,
+    // which says what it sums. Neither table's section carries it.
+    const carrying = lines.filter((l) => l.includes('731.0 MB'));
+    assert.deepEqual(carrying, [
+      'Together, Tortie plus your agents  5 processes, private 731.0 MB, rss 915.0 MB, cpu 12.6% sampled'
+    ]);
+  });
+
+  // Phase 168: the summary before the detail.
+  it('leads with the glance strip, before either table', () => {
+    const at = lines.indexOf('[At a glance]');
+    assert.ok(at > -1);
+    assert.ok(at < lines.indexOf('[Tortie]'));
+    assert.ok(lines.includes('Tortie itself  3 processes, private 380.0 MB, rss 514.0 MB, cpu 3.5% sampled'));
+    assert.ok(lines.includes('Your agents  2 processes, private 351.0 MB, rss 401.0 MB, cpu 9.1% sampled'));
+    assert.ok(lines.includes('energy impact 21.3, the power score top reports, not watts'));
+  });
+
+  it('says unavailable for energy and not read for cpu, never zero', () => {
+    const bare = buildDiagnosticsReportText(
+      {
+        ...BODY,
+        glance: {
+          tortie: { ...BODY.glance.tortie, cpuPercent: null },
+          agents: { ...BODY.glance.agents, cpuPercent: null },
+          together: { ...BODY.glance.together, cpuPercent: null },
+          energyImpact: null
+        }
+      },
+      HOME
+    );
+    assert.ok(bare.includes('energy impact unavailable'));
+    assert.ok(bare.includes('cpu not read'));
+    assert.equal(bare.includes('energy impact 0'), false);
+  });
+
+  it('carries the machine rank and NEVER another app name', () => {
+    assert.ok(lines.includes('machine rank 4 of 38 apps by resident memory, app names stay in the app and are not copied'));
+    for (const name of ['Google Chrome', 'OrbStack', 'Figma']) {
+      assert.equal(text.includes(name), false);
+    }
+    // With no machine read there is no machine line at all.
+    const none = buildDiagnosticsReportText({ ...BODY, machine: null }, HOME);
+    assert.equal(none.includes('machine rank'), false);
   });
 
   it('labels every memory number by its source and every cpu number by its kind', () => {
