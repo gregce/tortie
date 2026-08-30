@@ -119,6 +119,10 @@ export function createAppearanceApplier(
       }
       base = captured;
     }
+    // Feed the custom family store BEFORE fontOverrides resolves the stack,
+    // or the tokens are written from the previous family on the broadcast that
+    // selected Custom. This ordering is the whole point of the field existing.
+    env.setCustomFont(appearance.workAreaFontCustom);
 
     // Colour first, then the font map on top. They share no key, so the
     // spread is a union rather than a precedence question, and both halves
@@ -137,7 +141,6 @@ export function createAppearanceApplier(
     lastKey = key;
 
     env.refreshTerminals();
-    env.setCustomFont(appearance.workAreaFontCustom);
     env.setFont(appearance.workAreaFont);
   };
 }

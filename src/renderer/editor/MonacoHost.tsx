@@ -38,7 +38,7 @@ import { useZoom, zoomedFontSize } from '../zoom';
 // Phase 78: the work-area font preset. Monaco owns an imperative `fontFamily`
 // option, so a custom property change alone would move the token and leave the
 // editor measuring the old face.
-import { loadWorkAreaFace, useWorkAreaFont } from '../theme/work-fonts';
+import { loadWorkAreaFace, useCustomWorkFontFamily, useWorkAreaFont } from '../theme/work-fonts';
 
 function cssVar(name: string, fallback: string): string {
   const v = getComputedStyle(document.documentElement)
@@ -202,6 +202,9 @@ export function MonacoHost({
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
   const workAreaFont = useWorkAreaFont((s) => s.preset);
+  // Editing the custom family changes no preset id, so the effect below keys
+  // on the family as well — same reason TerminalPane subscribes to both.
+  const customFontFamily = useCustomWorkFontFamily((s) => s.family);
 
   const [ready, setReady] = useState<boolean>(getLoadedMonaco() !== null);
 
@@ -429,7 +432,7 @@ export function MonacoHost({
     return () => {
       cancelled = true;
     };
-  }, [workAreaFont, ready, contentReady]);
+  }, [workAreaFont, customFontFamily, ready, contentReady]);
 
   // -- teardown on unmount ----------------------------------------------------
   // Mode toggles (File → Diff) unmount this host: keep the cursor/scroll so

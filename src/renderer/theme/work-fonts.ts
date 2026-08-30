@@ -104,7 +104,15 @@ export function workFont(id: WorkAreaFont): WorkFontPreset {
   // The custom family is user data, not a compiled row, so it resolves here
   // from the live mirror apply.ts feeds. An empty family means the user picked
   // Custom but typed nothing yet, which reads as Menlo through the stack.
-  const family = useCustomWorkFontFamily.getState().family;
+  //
+  // A user who pastes a QUOTED name ("Berkeley Mono") would otherwise produce
+  // the stack `'"Berkeley Mono"', Menlo, monospace` — the nested quotes make
+  // the first family unparseable and the browser falls through to Menlo,
+  // which reads as "spaced fonts do not work". Strip surrounding quote marks
+  // so the typed text is always the bare family name.
+  const family = useCustomWorkFontFamily
+    .getState()
+    .family.replace(/^["']+|["']+$/g, '');
   const stack = `'${family}', Menlo, monospace`;
   return { id: 'custom', label: row.label, familyName: family, stack };
 }

@@ -100,6 +100,17 @@ describe('the custom preset', () => {
     expect(preset.stack).toBe("'Berkeley Mono', Menlo, monospace");
   });
 
+  it('strips quote marks a user pasted around the family name', () => {
+    // A pasted `"Berkeley Mono"` must not nest quotes inside the stack — the
+    // nested quotes made the first family unparseable and read as "spaced
+    // fonts do not work". The resolver strips them to the bare family name.
+    setCustomWorkFontFamily('"Berkeley Mono"');
+    expect(workFont('custom').familyName).toBe('Berkeley Mono');
+    expect(workFont('custom').stack).toBe("'Berkeley Mono', Menlo, monospace");
+    setCustomWorkFontFamily("'Berkeley Mono'");
+    expect(workFont('custom').familyName).toBe('Berkeley Mono');
+  });
+
   it('writes both work-area tokens for the custom stack', () => {
     setCustomWorkFontFamily('Berkeley Mono');
     const out = fontOverrides('custom');
