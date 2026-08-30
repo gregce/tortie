@@ -1,0 +1,21 @@
+diff --git a/node_modules/node-pty/src/unix/pty.cc b/node_modules/node-pty/src/unix/pty.cc
+index 7b4b9e1..7ef8880 100644
+--- a/node_modules/node-pty/src/unix/pty.cc
++++ b/node_modules/node-pty/src/unix/pty.cc
+@@ -778,8 +778,14 @@ done:
+   posix_spawn_file_actions_destroy(&acts);
+   posix_spawnattr_destroy(&attrs);
+ 
+-  for (; count > 0; count--) {
+-    close(low_fds[count]);
++  // Tortie, Phase 167. Mirrors node-pty main ("fix: /dev/ptmx leak on macOS",
++  // 1.2.0-beta.10). The parent keeps no copy of the slave once the child holds
++  // it, and every padding master the loop above opened is closed, including
++  // low_fds[count], the one the loop broke on. The 1.1.0 loop closed nothing
++  // in the common case, so one master, and its /dev/ttys node, leaked per spawn.
++  close(slave);
++  for (size_t i = 0; i <= count && i < 3; i++) {
++    close(low_fds[i]);
+   }
+ }
+ #endif

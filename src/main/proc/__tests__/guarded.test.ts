@@ -9,7 +9,7 @@
  * Runner: vitest (`npm test`). Assertions on node:assert/strict.
  */
 
-import { afterEach, beforeEach, describe, it } from 'vitest';
+import { afterEach, beforeEach, describe, it, vi } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   chmodSync,
@@ -19,10 +19,12 @@ import {
   rmSync,
   writeFileSync
 } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   guardedChildPids,
+  killProcessGroup,
   reapGuardedChildren,
   runGuarded
 } from '../guarded';
@@ -140,5 +142,89 @@ describe('reapGuardedChildren — quit while a probe is in flight', () => {
     await new Promise((res) => setTimeout(res, 300));
     assert.equal(isAlive(pid), false, `pid ${pid} survived the reap`);
     assert.equal(guardedChildPids().length, 0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 167: the quit reap's SIGKILL is synchronous.
+//
+// Until 0.85.3 `reapGuardedChildren` called `killProcessGroup(child, 0)`, and
+// the SIGKILL sat on an unref'd 0 ms timer. Nothing waited for that timer, so
+// a quit that exited on its next tick left the child with only the SIGTERM,
+// which an interactive zsh, the shape of every PATH probe, ignores by design.
+// The tests fake `setTimeout` across the reap, so a SIGKILL parked on a timer
+// never fires: on the parent tree the child lives and the caller never
+// settles, on this tree it is dead before the reap returns.
+// ---------------------------------------------------------------------------
+
+describe('reapGuardedChildren, a child that ignores SIGTERM (Phase 167)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('is dead with no timer left to fire', async () => {
+    const pidFile = join(root, 'stubborn.pid');
+    const pending = runGuarded(
+      '/bin/sh',
+      ['-c', `trap "" TERM; echo $$ > ${pidFile}; sleep 30`],
+      { timeoutMs: 60_000 }
+    );
+    const pid = await forkedPid(pidFile);
+    await new Promise((res) => setTimeout(res, 100)); // the trap is installed
+
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    let killed: number;
+    try {
+      killed = reapGuardedChildren();
+    } finally {
+      vi.useRealTimers(); // any timer armed in there is discarded, never run
+    }
+    assert.equal(killed, 1);
+
+    const settled = await Promise.race([
+      pending.then(() => true),
+      new Promise<false>((res) => setTimeout(() => res(false), 1_500))
+    ]);
+    assert.equal(settled, true, 'the caller was never released');
+    assert.equal(isAlive(pid), false, `pid ${pid} survived the quit reap`);
+  });
+
+  it('killProcessGroup with a grace of zero arms no timer', () => {
+    const child = spawn('/bin/sh', ['-c', 'trap "" TERM; sleep 30'], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    try {
+      vi.useFakeTimers({ toFake: ['setTimeout'] });
+      killProcessGroup(child, 0);
+      assert.equal(vi.getTimerCount(), 0, 'a SIGKILL was parked on a timer');
+    } finally {
+      vi.useRealTimers();
+      if (child.pid !== undefined) {
+        try {
+          process.kill(-child.pid, 'SIGKILL');
+        } catch {
+          /* already gone, which is the point */
+        }
+      }
+    }
+  });
+
+  it('killProcessGroup with a grace keeps the SIGTERM first and one escalation timer', () => {
+    const child = spawn('/bin/sh', ['-c', 'sleep 30'], { detached: true, stdio: 'ignore' });
+    try {
+      vi.useFakeTimers({ toFake: ['setTimeout'] });
+      killProcessGroup(child, 500);
+      assert.equal(vi.getTimerCount(), 1);
+    } finally {
+      vi.useRealTimers();
+      if (child.pid !== undefined) {
+        try {
+          process.kill(-child.pid, 'SIGKILL');
+        } catch {
+          /* already gone */
+        }
+      }
+    }
   });
 });

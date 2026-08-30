@@ -63,6 +63,18 @@ const liveChildren = new Set<ChildProcess>();
  * be missed, and a `kill(-pid)` against an empty group is a caught ESRCH.
  *
  * Only ever call this on a child spawned `detached` — see the module note.
+ *
+ * A GRACE OF ZERO MEANS NOW (Phase 167). Until 0.85.3 the quit reap called
+ * this with `graceMs` 0, and the SIGKILL still sat on a timer. The timer was
+ * unref'd on purpose, so nothing waited for it, which is the same as saying a
+ * quit that reached `app.exit` on its next tick left the child with only the
+ * SIGTERM. An interactive zsh, which every login shell PATH probe is, ignores
+ * SIGTERM by design. That is one of the two ways a probe outlived its app and
+ * turned up a day later at ppid 1 in the Phase 163 report. So a grace of zero
+ * now sends SIGKILL synchronously, sends no SIGTERM first because nothing
+ * could act on it in the time between, and arms no timer. The deadline path
+ * keeps its grace, because there a shell that honours SIGTERM gets to run its
+ * exit hooks.
  */
 export function killProcessGroup(
   child: ChildProcess,
@@ -77,16 +89,21 @@ export function killProcessGroup(
       // ESRCH — the group is already gone, which is the outcome we wanted.
     }
   };
-  signalGroup('SIGTERM');
-  const hardKill = setTimeout(() => {
+  const hardKill = (): void => {
     signalGroup('SIGKILL');
     // Drop our ends of the pipes too: a survivor we could not signal must not
     // keep the event loop (or an app quit) waiting on a read.
     child.stdout?.destroy();
     child.stderr?.destroy();
-  }, graceMs);
+  };
+  if (graceMs <= 0) {
+    hardKill();
+    return;
+  }
+  signalGroup('SIGTERM');
+  const escalation = setTimeout(hardKill, graceMs);
   // Never hold a quit open for the escalation timer itself.
-  hardKill.unref?.();
+  escalation.unref?.();
 }
 
 /**

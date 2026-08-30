@@ -39,9 +39,19 @@ its own tmux 3.7b at `Contents/Resources/bin/tmux` and a packaged build resolves
 only that path.
 
 ```sh
-npm install        # postinstall runs electron-rebuild for node-pty + better-sqlite3
+npm install        # postinstall applies patches/ then runs electron-rebuild for node-pty + better-sqlite3
 npm run dev        # electron-vite dev server + Electron with HMR
 ```
+
+`patches/` holds the one vendored patch, applied by `build/apply-patches.mjs`
+with the system `patch` binary before the native rebuild, so it costs no
+package: `node-pty+1.1.0.patch` closes the pty slave and the padding master
+that node-pty 1.1.0's macOS `pty_posix_spawn` leaves open in the parent, one
+`/dev/ptmx` and one `/dev/ttys` node per spawn (Phase 167). Upstream carries
+the same two changes from 1.2.0-beta.10; the patch goes away when Tortie moves
+to a stable release that has them. The script skips a patch that is already in
+place, and if `npm install` fails in it, the dependency moved under the patch
+and the patch is reviewed, not skipped.
 
 ### Scripts
 

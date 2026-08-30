@@ -1947,3 +1947,33 @@ body.scm-section-dragging .section-gripper {
 .scm-remote-commit-check {
   align-self: flex-start;
 }
+
+/* ---------------------------------------------------------------------------
+   The Show more line (Phase 167)
+
+   A group draws a window of rows and then this one line, at the row indent,
+   saying how many rows are left. The count wears the same muted figure the
+   group header wears, and the button is the quiet text button every banner
+   uses, so the line reads as part of the list rather than as a control bar.
+--------------------------------------------------------------------------- */
+
+.scm-more-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0 var(--space-3) 0 var(--space-7);
+  user-select: none;
+}
+
+.scm-more-count {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.scm-more {
+  height: 20px;
+  font-size: var(--text-xs);
+}

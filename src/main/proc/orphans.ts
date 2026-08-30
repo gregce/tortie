@@ -47,6 +47,34 @@
  * were wrong, because killing a tmux client only detaches it. That was not
  * true, and a harness proved it by killing a server. Condition 5 is what makes
  * the claim true, so it must not be removed.
+ *
+ * THE PROBES GET SIGKILL, NOT SIGTERM (Phase 167). From 13.8 to 0.85.3 the
+ * probe reap sent one SIGTERM per pid and logged that it had killed them. It
+ * had not. An interactive zsh ignores SIGTERM by design, and every probe is an
+ * interactive zsh (`-lic`). Phase 163's first diagnostics report found 24 of
+ * them aged up to a day, and each had outlived a launch whose log claimed the
+ * kill. Measured on 2026-08-29 with pairs planted at ppid 1 carrying the real
+ * marker: a pair whose fork keeps the default disposition died, because the
+ * fork dropped and the leader's `wait` returned; a pair whose fork also
+ * ignores SIGTERM survived the launch; and a leader with NO fork at all,
+ * waiting on a foreground `sleep`, survived it too. Three of five planted rows
+ * were alive after a launch that logged `killed 5`. SIGKILL cannot be ignored,
+ * a stranded probe has no work worth an orderly exit (its app is gone, its
+ * stdout's reader is gone), and its marker makes ownership certain, so it is
+ * the right signal here. The group is signalled as well as the pid, exactly
+ * as `killProcessGroup` does at the deadline, because a probe is spawned
+ * detached and so its pid is its group id, and the group is what reaches a
+ * marker-less child the rc file left in the foreground. `kill(-pid)` for a
+ * pid that leads no group is ESRCH, which is caught. The tmux clients keep
+ * SIGTERM: a tmux client does die from it, and that was verified in 13.8.
+ *
+ * THE ONE SHAPE THIS CANNOT REACH, so nobody reopens it as a bug. A probe is
+ * found by the marker on its command line. A shell rc file that `exec`s into
+ * another program replaces that command line, the marker goes with it, and
+ * what is left is a process nobody can prove is ours. The Phase 167 verifier
+ * planted exactly that shape beside three others; the three with the marker
+ * died and the exec'd one survived every launch, by design. It is not ours
+ * to kill without the proof, and the proof is gone.
  */
 
 import { PATH_MARKER } from '../tmux/resolve';
@@ -168,6 +196,43 @@ export function findStrandedPathProbes(rows: Map<number, ProcRow>): number[] {
   return stranded.sort((a, b) => a - b);
 }
 
+/** The one call this module makes to signal a process. Injected by the tests. */
+export type KillFn = (pid: number, signal: NodeJS.Signals) => void;
+
+/**
+ * End stranded PATH probes for good: SIGKILL to each pid's process group, then
+ * to the pid itself. Returns the pids a signal reached. Never throws: a pid
+ * already gone between ps and now is the outcome we wanted, and a pid that
+ * leads no group answers ESRCH on the group call and is then signalled alone.
+ *
+ * Only ever call this with pids `findStrandedPathProbes` returned. The marker
+ * is the ownership proof, and the topmost ancestor at pid 1 is the proof that
+ * no live Tortie is still waiting on the answer.
+ */
+export function endStrandedPathProbes(
+  pids: readonly number[],
+  kill: KillFn = (pid, signal) => process.kill(pid, signal)
+): number[] {
+  const signalled: number[] = [];
+  for (const pid of pids) {
+    let reached = false;
+    try {
+      kill(-pid, 'SIGKILL');
+      reached = true;
+    } catch {
+      /* not a group leader, or the group is already empty */
+    }
+    try {
+      kill(pid, 'SIGKILL');
+      reached = true;
+    } catch {
+      /* already gone between ps and now */
+    }
+    if (reached) signalled.push(pid);
+  }
+  return signalled;
+}
+
 /** Ask the private server for its own pid. Null when it cannot be reached. */
 async function serverPid(): Promise<number | null> {
   try {
@@ -203,7 +268,7 @@ export async function reapOrphanedTmuxClients(): Promise<OrphanReapResult> {
   const found = server === null ? [] : findOrphanedClients(rows.values(), server);
 
   const signalled: number[] = [];
-  for (const pid of [...found, ...probes]) {
+  for (const pid of found) {
     try {
       process.kill(pid, 'SIGTERM');
       signalled.push(pid);
@@ -211,6 +276,9 @@ export async function reapOrphanedTmuxClients(): Promise<OrphanReapResult> {
       /* already gone between ps and now — the outcome we wanted */
     }
   }
+  // Probes: SIGKILL, by group and by pid. See the module note for why SIGTERM
+  // was a log line and not a kill for a hundred phases.
+  signalled.push(...endStrandedPathProbes(probes));
   if (found.length > 0) {
     console.log(
       `[gmux] detached ${found.length} orphaned tmux client(s) from previous runs: ${found.join(', ')}`
@@ -218,7 +286,7 @@ export async function reapOrphanedTmuxClients(): Promise<OrphanReapResult> {
   }
   if (probes.length > 0) {
     console.log(
-      `[gmux] killed ${probes.length} stranded PATH probe(s) from previous runs: ${probes.join(', ')}`
+      `[gmux] killed ${probes.length} stranded PATH probe(s) from previous runs with SIGKILL: ${probes.join(', ')}`
     );
   }
   return {

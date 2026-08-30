@@ -112,6 +112,8 @@ import {
   verbsFor
 } from './selection';
 import type { ScmGroupId, ScmRow, ScmSelection, ScmVerbs } from './selection';
+import { NO_EXTRA_WINDOWS, showMore, windowGroups } from './changes-window';
+import type { ShownWindows } from './changes-window';
 import { PromisesSection } from '../arch/PromisesSection';
 import './scm.css';
 import { gmuxBridge } from '../bridge';
@@ -1534,7 +1536,25 @@ export function ScmSection(): React.JSX.Element | null {
     [status]
   );
 
-  const rows = useMemo<ScmRow[]>(() => flattenRows(groups), [groups]);
+  // PHASE 167. The list draws a WINDOW of each group and one line saying how
+  // many rows are left, because drawing every row main sends (up to 10,000)
+  // cost 100,181 DOM nodes and 1.8 GB of renderer memory through a churn of
+  // 96,000 files. The whole list still feeds every count and every group
+  // header verb; only the rows in the DOM are bounded. ./changes-window.ts
+  // owns the rule. The extra windows a person asked for belong to this
+  // repository and start over when the tab shows another one.
+  const [shown, setShown] = useState<ShownWindows>(NO_EXTRA_WINDOWS);
+  useEffect(() => {
+    setShown(NO_EXTRA_WINDOWS);
+  }, [repoPath]);
+  const drawn = useMemo(() => windowGroups(groups, shown), [groups, shown]);
+
+  // The keyboard, the range logic and ⌘A walk the DRAWN rows: what a person
+  // can see is what a person can select. The header verbs act on the group.
+  const rows = useMemo<ScmRow[]>(
+    () => flattenRows(drawn.groups),
+    [drawn.groups]
+  );
 
   // Hook order: controller must run even when no project is open.
   const commitCtrl = useCommitController(repoPath ?? '', groups);
@@ -1791,7 +1811,7 @@ export function ScmSection(): React.JSX.Element | null {
                     <span className="scm-row-space" />
                     {groupHeaderAction(g)}
                   </div>
-                  {groups[g].map((f) => {
+                  {drawn.groups[g].map((f) => {
                     const row: ScmRow = {
                       group: g,
                       file: f,
@@ -1816,6 +1836,22 @@ export function ScmSection(): React.JSX.Element | null {
                       />
                     );
                   })}
+                  {drawn.hidden[g] > 0 ? (
+                    <div className="scm-more-row" data-scm-more={g}>
+                      <span className="scm-more-count num">
+                        {drawn.hidden[g].toLocaleString()} more
+                      </span>
+                      <span className="scm-row-space" />
+                      <button
+                        type="button"
+                        className="btn-text scm-more"
+                        aria-label={`Show more ${GROUP_LABEL[g].toLowerCase()} files`}
+                        onClick={() => setShown((s) => showMore(s, g))}
+                      >
+                        Show more
+                      </button>
+                    </div>
+                  ) : null}
                 </React.Fragment>
               )
             )}

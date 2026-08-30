@@ -1,7 +1,7 @@
 {
   "name": "tortie",
   "productName": "Tortie",
-  "version": "0.85.3",
+  "version": "0.85.4",
   "description": "Tortie — a calm, durable place for agentic work: named terminal sessions that outlive the window (private tmux server), git sidebar, decorated file tree, diff + edit surfaces.",
   "private": true,
   "main": "./out/main/index.js",
@@ -125,7 +125,7 @@
     "logs:pretty": "node build/logs-pretty.mjs",
     "shot": "npm run build && GMUX_SHOT=\"${GMUX_SHOT:-out/gmux-shot.png}\" electron . --user-data-dir=\"${GMUX_SHOT_USER_DATA:-${TMPDIR:-/tmp/}gmux-shot-$$}\" -ApplePersistenceIgnoreState YES",
     "start": "electron-vite preview",
-    "postinstall": "electron-rebuild -f -w node-pty,better-sqlite3",
+    "postinstall": "node build/apply-patches.mjs && electron-rebuild -f -w node-pty,better-sqlite3",
     "vendor:specstory": "node build/fetch-specstory.cjs",
     "vendor:skills": "node build/fetch-skills.cjs",
     "vendor:tmux": "node build/build-tmux.mjs",

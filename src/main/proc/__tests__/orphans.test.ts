@@ -8,10 +8,35 @@
  * still waiting on.
  */
 
-import { describe, it } from 'vitest';
+import { afterEach, describe, it, vi } from 'vitest';
 import assert from 'node:assert/strict';
-import { childIndex, descendantsOf, parsePsTable } from '../ps';
-import { findOrphanedClients, findStrandedPathProbes } from '../orphans';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { childIndex, descendantsOf, parsePsTable, type ProcRow } from '../ps';
+import {
+  endStrandedPathProbes,
+  findOrphanedClients,
+  findStrandedPathProbes,
+  reapOrphanedTmuxClients
+} from '../orphans';
+
+// Phase 167. The reap is driven END TO END below over a real process, so the
+// two things it reads from the machine are the two things stubbed: the live
+// process table (this lane never reads it) and the private tmux server (a
+// unit test has none, and an unreachable server is the documented skip path
+// that still reaps probes). Everything else is the real module.
+const psTable = vi.hoisted(() => ({ rows: new Map<number, ProcRow>() }));
+vi.mock('../ps', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../ps')>();
+  return { ...actual, readPsTable: async () => psTable.rows };
+});
+vi.mock('../../tmux/supervisor', () => ({
+  activeTmuxSocket: () => 'gmux',
+  execTmux: async () => {
+    throw new Error('no tmux server in a unit test');
+  }
+}));
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 const CONF = '/Users/x/gmux/resources/gmux-tmux.conf';
 
@@ -199,5 +224,92 @@ describe('findStrandedPathProbes', () => {
       ].join('\n')
     );
     assert.deepEqual(findStrandedPathProbes(rows), []);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 167: the reap must END a probe, not log that it did.
+//
+// From 13.8 to 0.85.3 the probe reap sent SIGTERM per pid and wrote `killed N`
+// to the log. An interactive zsh ignores SIGTERM by design, and every probe
+// is one. Measured 2026-08-29 with pairs planted at ppid 1 carrying the real
+// marker: after a launch that logged `killed 5`, three of the five were alive,
+// being a pair whose fork ignored SIGTERM and a leader with no fork at all,
+// waiting on a foreground sleep. The two tests below fail on that tree.
+// ---------------------------------------------------------------------------
+
+describe('endStrandedPathProbes, the signal plan', () => {
+  it('sends SIGKILL to the group and then to the pid, for every pid', () => {
+    const sent: Array<[number, NodeJS.Signals]> = [];
+    const signalled = endStrandedPathProbes([2395, 3067], (pid, signal) => {
+      sent.push([pid, signal]);
+    });
+    assert.deepEqual(sent, [
+      [-2395, 'SIGKILL'],
+      [2395, 'SIGKILL'],
+      [-3067, 'SIGKILL'],
+      [3067, 'SIGKILL']
+    ]);
+    assert.deepEqual(signalled, [2395, 3067]);
+  });
+
+  it('a fork that leads no group is still reached by pid, and a pid already gone is not counted', () => {
+    const signalled = endStrandedPathProbes([2395, 3067, 4000], (pid) => {
+      // 2395 leads its group; 3067 is a fork inside it (ESRCH on -3067);
+      // 4000 exited between ps and now (ESRCH on both).
+      if (pid === -3067 || pid === 4000 || pid === -4000) {
+        throw Object.assign(new Error('kill ESRCH'), { code: 'ESRCH' });
+      }
+    });
+    assert.deepEqual(signalled, [2395, 3067]);
+  });
+
+  it('never sends anything but SIGKILL', () => {
+    const signals = new Set<string>();
+    endStrandedPathProbes([10, 20], (_pid, signal) => {
+      signals.add(signal);
+    });
+    assert.deepEqual([...signals], ['SIGKILL']);
+  });
+});
+
+describe('reapOrphanedTmuxClients, a stranded probe that ignores SIGTERM (Phase 167)', () => {
+  const PROBE = `/bin/zsh -lic printf '__GMUX_PATH__%s__GMUX_PATH__' "$PATH"`;
+  let child: ChildProcess | null = null;
+
+  afterEach(() => {
+    psTable.rows = new Map();
+    if (child !== null && child.exitCode === null && child.signalCode === null && child.pid) {
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        /* already gone */
+      }
+    }
+    child = null;
+  });
+
+  it('is dead after one reap, and the result says it was signalled', async () => {
+    // The shape of every probe: its own process group, and SIGTERM ignored.
+    child = spawn('/bin/sh', ['-c', 'trap "" TERM; sleep 30'], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    const pid = child.pid;
+    assert.ok(pid !== undefined, 'the stand in did not spawn');
+    const exited = new Promise<'dead'>((r) => child?.once('exit', () => r('dead')));
+    await sleep(200); // let the shell install its trap before anything is sent
+
+    // The table the reap reads: our stand in, at ppid 1, wearing the marker.
+    psTable.rows = parsePsTable(psLine(pid, 1, PROBE));
+
+    const result = await reapOrphanedTmuxClients();
+    assert.deepEqual(result.probes, [pid]);
+    assert.deepEqual(result.found, []);
+    assert.ok(result.signalled.includes(pid), 'the probe was not signalled');
+    assert.ok(result.skipped !== undefined, 'no server means clients are skipped, probes are not');
+
+    const outcome = await Promise.race([exited, sleep(1_500).then(() => 'alive' as const)]);
+    assert.equal(outcome, 'dead', `pid ${String(pid)} survived the boot reap`);
   });
 });
