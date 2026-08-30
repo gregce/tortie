@@ -53,7 +53,9 @@ export {
   signatureMatches,
   stripAnsi,
   VERSION_PROBE_TIMEOUT_MS,
-  versionProbeCount
+  versionProbeCount,
+  // Phase 164: the boot warm, kept only for a profile with nothing to show.
+  warmDetectionAtBoot
 } from './detection';
 export {
   AGENT_IDS,
@@ -103,6 +105,9 @@ function gated(scan: AgentsScanResult): AgentsScanResult {
 
 export function registerAgentsIpc(ipc: IpcMain): void {
   handle(ipc, 'agents:availability', () => getAgentAvailability());
+  // Phase 164. This is the demand path. On a boot with sessions to show no
+  // scan starts until a renderer surface that draws one asks here, and the
+  // answer is the same memoised scan whoever asked first.
   handle(ipc, 'agents:list', async () => gated(await listDetectedAgents()));
   handle(ipc, 'agents:rescan', async () => gated(await rescanAgents()));
   handle(ipc, 'agents:multilineKeys', () => multilineKeyTable());

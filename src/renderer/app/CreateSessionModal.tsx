@@ -526,6 +526,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
   // launch defaults), flag catalogs, and the agents:list scan all come from
   // the shared store (src/renderer/settings/settings-store.ts).
   const initSettings = useSettingsStore((s) => s.init);
+  const ensureScan = useSettingsStore((s) => s.ensureScan);
   const settings = useSettingsStore((s) => s.settings);
   const catalogs = useSettingsStore((s) => s.catalogs);
   const scan = useSettingsStore((s) => s.scan);
@@ -536,6 +537,12 @@ export function CreateSessionModal(): React.JSX.Element | null {
   useEffect(() => {
     initSettings();
   }, [initSettings]);
+  // Phase 164. This sheet is mounted for the life of the window and opens on
+  // ⌘T, so the OPEN is the demand for the scan, not the mount. A no-op once
+  // the scan has landed.
+  useEffect(() => {
+    if (open) ensureScan();
+  }, [open, ensureScan]);
   const [agent, setAgent] = useState<LaunchableAgentKind>('claude');
   /**
    * PHASE 70. The machine this session will be created on. `'local'` is this

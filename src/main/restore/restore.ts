@@ -596,8 +596,10 @@ export const LIVE_VERSION_BUDGET_MS = 2_000;
  * The version detected for this agent right now, or null.
  *
  * Reads the detection CACHE (`listDetectedAgents`), which is the same source
- * the create path records from, so no subprocess is started here on the normal
- * path. NOT VERIFIED FRESH, and the limitation is worth naming: an agent
+ * the create path records from. Since Phase 164 a boot with sessions to show
+ * starts no scan of its own, so the first restore on such a boot is often the
+ * caller that starts it, inside the budget below; a later one reads the cache.
+ * NOT VERIFIED FRESH, and the limitation is worth naming: an agent
  * upgraded in a terminal while Tortie stayed open reports its old version
  * until the next scan. That is a missed sentence and never a wrong one,
  * because both sides of the comparison come from the same cache. Refreshing

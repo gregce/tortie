@@ -202,12 +202,17 @@ export function NoSessions(): React.JSX.Element {
   // Same settings truth as the ⌘T modal and the Settings window: the agent
   // detection scan (installed / early-support) and the recorded hotkeys.
   const initSettings = useSettingsStore((s) => s.init);
+  const ensureScan = useSettingsStore((s) => s.ensureScan);
   const scan = useSettingsStore((s) => s.scan);
   const hotkeys = useSettingsStore((s) => s.settings.hotkeys);
   const defaultAgent = useSettingsStore((s) => s.settings.defaultAgent);
+  // Phase 164. The tiles are a surface that draws from the scan, so this
+  // mount is a demand. Measured on the parent commit with one project and no
+  // sessions, the tiles are the first screen and the scan is needed here.
   useEffect(() => {
     initSettings();
-  }, [initSettings]);
+    ensureScan();
+  }, [initSettings, ensureScan]);
 
   // PHASE 109. The tab's own machine. On a machine tab the fleet reads that
   // machine's answer, this Mac's scan stops deciding which tiles are

@@ -282,6 +282,13 @@ export const CHECKS = [
   // read off the DOM, the proof that no figure on the face is the sum of the
   // two totals, and one photograph. The numbers themselves are probe:p163's.
   electron('probe:p163surface'),
+  // PHASE 164. What a launch spawns before a person has touched anything, on
+  // three profile shapes launched cold and warm through the real app with a
+  // spawn recorder in main. It grades zero agent version probes and zero
+  // hidden project statuses on a reopen, the boot warm kept on a profile with
+  // nothing to show, and, given a baseline directory, that first attach did
+  // not regress. Phase 163's milestones are its ruler; it adds no second one.
+  electron('probe:p164'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

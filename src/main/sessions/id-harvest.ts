@@ -92,11 +92,13 @@ export interface IdHarvestDeps {
  *
  * SYNCHRONOUS SINCE PHASE 49, and that is the point. `peekDetectedAgents()`
  * returns the last RESOLVED scan and never starts one, so a create can
- * never start a version probe and can never wait on one. The boot warm
- * above starts the scan early; the one create that races it records
- * agent_version NULL on its row, exactly as the harvest path has always
- * tolerated. The column is nullable and nothing on the restore path reads
- * it for correctness (Phase 21 recorded the contract on the row instead).
+ * never start a version probe and can never wait on one. Since Phase 164
+ * the scan starts when a surface asks for it, and the Create Session surface
+ * is one of them, so by the time a person presses Create the scan has
+ * usually resolved; a create that beats it records agent_version NULL on
+ * its row, exactly as the harvest path has always tolerated. The column is
+ * nullable and nothing on the restore path reads it for correctness (Phase
+ * 21 recorded the contract on the row instead).
  *
  * The manifest records the SpecStory wrapper's version already, explicitly
  * so a restore after a mid-flight upgrade replays the same binary. The agent

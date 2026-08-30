@@ -125,9 +125,17 @@ export const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
 export function SettingsApp(): React.JSX.Element {
   const [section, setSection] = useState<SectionId>('general');
   const init = useSettingsStore((s) => s.init);
+  const ensureScan = useSettingsStore((s) => s.ensureScan);
   const available = useSettingsStore((s) => s.available);
 
-  useEffect(() => init(), [init]);
+  // Phase 164. Settings is a surface that draws from the agent scan, in its
+  // General, Agents, Launch defaults, Keyboard, SpecStory and machine pages,
+  // and this is the one mount they all sit under, so the scan is asked for
+  // here once rather than in each section.
+  useEffect(() => {
+    init();
+    ensureScan();
+  }, [init, ensureScan]);
 
   const idx = SECTIONS.findIndex((s) => s.id === section);
   const onNavKeyDown = (e: React.KeyboardEvent): void => {

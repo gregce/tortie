@@ -64,7 +64,7 @@ import {
   type ActivitySession
 } from '../activity';
 import { AttachHost } from '../attach';
-import { listDetectedAgents } from '../agents';
+import { warmDetectionAtBoot } from '../agents';
 import { markMilestone, MILESTONES } from '../diagnostics/milestones';
 // The durable writer's own failure type and its own out-of-space test
 // (Phase 19 item 2). Do not write a second copy of either.
@@ -995,15 +995,21 @@ export class GmuxCore {
       busy: () => core.createsInFlight.size > 0 || core.restoresInFlight.size > 0,
       dbPath
     });
-    // Phase 21 (A8), rewired in Phase 49. Warm the agent detection scan so
-    // the create path can record the agent's version without waiting for one.
-    // It is the same memoised scan the renderer asks for at startup, so this
-    // adds no probes to a normal launch. Unawaited, and a failure is nothing:
-    // the version is then recorded as unknown, which is what it is. The
-    // create path reads `peekDetectedAgents()` synchronously and never awaits
-    // a scan, so this warm is what makes the answer almost always present
-    // before a human can press Create.
-    void listDetectedAgents().catch(() => undefined);
+    // Phase 21 (A8), rewired in Phase 49, gated in Phase 164. The agent
+    // detection scan is fourteen version probes on this machine, and until
+    // Phase 164 every boot started them about 90 ms after the PATH landed,
+    // before the window was shown, whether or not anything on screen would
+    // read the answer. Now a boot that has session rows to show starts none:
+    // the scan runs when a surface that needs it asks through `agents:list`,
+    // being Create Session, the quick create menu, Settings and the shortcuts
+    // overlay, all behind the one memoised scan in agents/detection.ts. A boot
+    // with NOTHING to show is the one case kept as it was, because measurement
+    // on 2026-08-29 showed the first screen there is the session tiles, which
+    // read the scan the moment they mount. Unawaited, and a failure is
+    // nothing: the create path reads `peekDetectedAgents()` synchronously and
+    // records the version as unknown when no scan has resolved, which the
+    // manifest column has always tolerated.
+    warmDetectionAtBoot(core.manifest.listSessions());
     // Phase 13.7 — one disk check, off the boot path. Boot is the moment
     // "sessions may not be saved when you quit" can still be acted on, and
     // this is deliberately the ONLY unprompted sample: the alternative was an

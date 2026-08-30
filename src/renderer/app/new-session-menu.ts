@@ -62,6 +62,7 @@ export function useQuickCreateMenu(): (anchor: HTMLElement) => void {
   const setMenu = useApp((s) => s.setMenu);
   const avail = useAgentAvailability();
   const initSettings = useSettingsStore((s) => s.init);
+  const ensureScan = useSettingsStore((s) => s.ensureScan);
   const scan = useSettingsStore((s) => s.scan);
   // Phase 12.12 item 2: the header's own verb, in words, under a separator —
   // the icon button beside this ˅ says the same thing, but only to someone who
@@ -69,8 +70,16 @@ export function useQuickCreateMenu(): (anchor: HTMLElement) => void {
   const orientation = useApp((s) => s.sessionOrientation);
   const setSessionOrientation = useApp((s) => s.setSessionOrientation);
 
-  // The agents:list scan lives in the shared settings store; the header may
-  // be the first surface to need it in a session where ⌘T never opened.
+  // The settings truth (hotkeys, launch defaults) lives in the shared store
+  // and the header may be the first surface to need it. PHASE 164: the scan
+  // is NOT asked for here. This hook mounts with the session strip on every
+  // boot that has a project, so asking here made every launch run the full
+  // agent scan before the window was shown. It is asked for when the menu
+  // OPENS, below. Until the answer lands the rows come from the seed list,
+  // which is optimistic by doctrine (src/renderer/state/agents.ts): an agent
+  // is greyed only when a scan POSITIVELY reported it missing, so a first
+  // open before the scan lands greys nothing it should not, and the answer
+  // is in the store by the second open.
   useEffect(() => {
     initSettings();
   }, [initSettings]);
@@ -95,6 +104,8 @@ export function useQuickCreateMenu(): (anchor: HTMLElement) => void {
 
   return useCallback(
     (anchor: HTMLElement): void => {
+      // Phase 164. The open is the demand. A no-op once the scan has landed.
+      ensureScan();
       const r = anchor.getBoundingClientRect();
       setMenu({
         x: r.left,
@@ -105,6 +116,6 @@ export function useQuickCreateMenu(): (anchor: HTMLElement) => void {
         ]
       });
     },
-    [options, quickCreate, setMenu, orientation, setSessionOrientation]
+    [options, quickCreate, setMenu, orientation, setSessionOrientation, ensureScan]
   );
 }

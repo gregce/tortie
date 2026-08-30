@@ -572,10 +572,46 @@ let scanPromise: Promise<AgentsScanResult> | null = null;
 let lastScan: AgentsScanResult | null = null;
 let scanStarts = 0;
 
-/** Cached detection scan (first call probes; later calls reuse). */
+/**
+ * Cached detection scan (first call probes; later calls reuse).
+ *
+ * SINCE PHASE 164 THE FIRST CALL IS MADE BY A SURFACE, NOT BY BOOT. The
+ * callers are the `agents:list` handler, which every renderer surface that
+ * draws a scan asks through (Create Session, the quick create menu, Settings,
+ * the shortcuts overlay), restore's `liveAgentVersion`, and
+ * `warmDetectionAtBoot` below on a profile with nothing to show. Whoever asks
+ * first starts the one scan; everybody else awaits the same promise and reads
+ * the same rows, so moving the first call later changed WHEN the probes run
+ * and nothing about what they find.
+ */
 export function listDetectedAgents(): Promise<AgentsScanResult> {
   scanPromise ??= scanAgents();
   return scanPromise;
+}
+
+/**
+ * The boot warm, kept only for the profile that will need it first (Phase 164).
+ *
+ * Measured on 2026-08-29 at the parent commit: every launch started all
+ * fourteen version probes about 90 ms after the PATH landed and before the
+ * window was shown, including a launch that reopened an existing terminal and
+ * drew no surface that reads a scan. That boot now starts none, and the first
+ * surface to ask pays the same 30 to 60 ms it would have waited anyway.
+ *
+ * A manifest with no session row to show is the one case where the warm
+ * stays, because the first screen there is the session tiles, which read the
+ * scan the moment they mount. The gate counts the rows a person would see, so
+ * a discarded tombstone does not count as something to show. Returns whether a
+ * scan was requested, for the tests; the scan itself is the same memoised one
+ * `listDetectedAgents` hands everybody, so a warm and a later surface never
+ * make two.
+ */
+export function warmDetectionAtBoot(
+  sessionRows: ReadonlyArray<{ status: string }>
+): boolean {
+  if (sessionRows.some((row) => row.status !== 'discarded')) return false;
+  void listDetectedAgents().catch(() => undefined);
+  return true;
 }
 
 /** Drop the cache and re-probe everything (Settings re-scan). */

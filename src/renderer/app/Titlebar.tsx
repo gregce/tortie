@@ -60,7 +60,7 @@ import React, {
   useState
 } from 'react';
 import { keyDisplay } from '@shared/keymap';
-import { localPathOf, targetOfProject } from '@shared/workspace-target';
+import { activeLocalRepoPath } from './active-repo';
 import { effectiveStatusOf, useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { MachineBadge } from './MachineBadge';
@@ -329,13 +329,22 @@ function CollapsedProjectChip({
 
 export function Titlebar(): React.JSX.Element {
   const projects = useApp((s) => s.projects);
+  const activeProjectId = useApp((s) => s.activeProjectId);
   const gitInit = useGit((s) => s.init);
   const ensureStatus = useGit((s) => s.ensureStatus);
 
-  // Warm the git store for every open project (status is ready the moment a
-  // tab is switched to); git:changed (subscribed via init) keeps it live.
+  // PHASE 164. One status request, for the ACTIVE project, and the others
+  // wait until they are selected. This effect used to loop every open project
+  // so a status was ready the moment a tab was switched to, and nothing on
+  // screen read those hidden answers: the rail and the sidebar read the git
+  // store by the active project's path. Each hidden request was three git
+  // processes and a file watcher at boot, and then a re-run on every change in
+  // that folder for the whole run. `activeProjectId` changes through
+  // `setActiveProject`, which every way of switching routes through, so the
+  // switch itself is what asks. `ensureStatus` is idempotent once a status
+  // exists, so switching back costs nothing. See ./active-repo.ts.
   //
-  // PHASE 90.3 FIX ROUND. ONLY A FOLDER ON THIS MAC. A project tab can now be a
+  // PHASE 90.3 FIX ROUND. ONLY A FOLDER ON THIS MAC. A project tab can be a
   // folder on another machine, and `git:status` reads this Mac's own disk. The
   // loop used to pass `p.path`, which is a bare path used as an identity, and
   // that is the thing this phase exists to remove. Two outcomes were measured
@@ -345,16 +354,13 @@ export function Titlebar(): React.JSX.Element {
   // Mac's git status under the other machine's project key. No surface drew the
   // second one, because ActivityBar and Sidebar both read through
   // `localPathOf`, but a wrong number sitting in the store waiting for a reader
-  // is not a state to leave behind.
+  // is not a state to leave behind. `activeLocalRepoPath` keeps that rule.
   useEffect(() => {
     gitInit();
-    for (const p of projects) {
-      const local = localPathOf(targetOfProject(p));
-      if (local !== null) ensureStatus(local);
-    }
-  }, [projects, gitInit, ensureStatus]);
+    const local = activeLocalRepoPath(projects, activeProjectId);
+    if (local !== null) ensureStatus(local);
+  }, [projects, activeProjectId, gitInit, ensureStatus]);
   const sessions = useApp((s) => s.sessions);
-  const activeProjectId = useApp((s) => s.activeProjectId);
   const setAttentionOpen = useApp((s) => s.setAttentionOpen);
   const attentionOpen = useApp((s) => s.attentionOpen);
   // Phase 129. Where the tabs are, and whether their names are on screen.

@@ -35,7 +35,19 @@ export interface SettingsStoreState {
   /** Per-agent launch-flag catalogs (static per build). */
   catalogs: AgentFlagCatalogs;
   catalogsLoaded: boolean;
-  /** Full 12-agent detection scan (agents:list); null until loaded. */
+  /**
+   * Full 12-agent detection scan (agents:list); null until a surface asks.
+   *
+   * PHASE 164. `init()` no longer requests this. The shell mounts the store
+   * on every boot, so the request used to run at boot on every launch, and
+   * with it main's full agent scan, fourteen version subprocesses on the
+   * operator's machine, about ninety milliseconds after PATH was ready and
+   * before the window was shown, whether or not anything on screen would read
+   * the answer. A person reopening an existing terminal never reads it. The
+   * surfaces that draw from the scan call `ensureScan()` when they mount or
+   * open, and the answer is still main's one memoised scan, so Create Session
+   * and Settings still receive one complete cached result.
+   */
   scan: AgentsScanResult | null;
   scanning: boolean;
 
@@ -85,8 +97,17 @@ export interface SettingsStoreState {
   archOptions: ArchOptions | null;
   archOptionsLoaded: boolean;
 
-  /** Idempotent: load settings + catalogs + scan + config + fold options, subscribe. */
+  /** Idempotent: load settings + catalogs + config + fold options, subscribe. Starts no scan. */
   init(): void;
+  /**
+   * PHASE 164. Ask main for the agent scan, once. A no-op while a scan is in
+   * flight or after one has landed, so any number of surfaces may call it on
+   * mount. This is the ONLY place the renderer requests `agents:list` on its
+   * own; `rescan()` is the person's explicit re-probe and stays separate.
+   * Starts nothing in the renderer: the probes, if main has not run them yet
+   * this process, are main's and they run behind main's own cache.
+   */
+  ensureScan(): void;
   /** Persist a shallow patch; resolves the post-patch settings (or null
    *  when the bridge is absent). Optimistically applies locally first. */
   update(patch: GmuxSettingsPatch): Promise<GmuxSettings | null>;
@@ -155,13 +176,8 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
       set({ catalogsLoaded: true });
     }
 
-    if (typeof b.agentsList === 'function') {
-      const list = b.agentsList.bind(b);
-      set({ scanning: true });
-      void list()
-        .then((scan) => set({ scan, scanning: false }))
-        .catch(() => set({ scanning: false }));
-    }
+    // Phase 164. The agent scan is NOT requested here any more. See
+    // `ensureScan` below, and the field comment on `scan` for why.
 
     // Phase 23. One read at init. It reaches memory in main, so it costs no
     // disk access, and a build with no `config` member leaves this null.
@@ -199,6 +215,19 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
       }
       return null;
     }
+  },
+
+  ensureScan() {
+    if (get().scan !== null || get().scanning) return;
+    const b = bridge();
+    if (typeof b?.agentsList !== 'function') return;
+    const list = b.agentsList.bind(b);
+    set({ scanning: true });
+    void list()
+      .then((scan) => set({ scan, scanning: false }))
+      // A failed read leaves `scan` null, so the next surface to mount asks
+      // again rather than drawing the seed list for the life of the window.
+      .catch(() => set({ scanning: false }));
   },
 
   async rescan() {

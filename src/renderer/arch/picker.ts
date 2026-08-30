@@ -323,8 +323,10 @@ export async function openAimPicker(): Promise<void> {
   }
 
   // The scan carries the registry's own launchable answer, and the picker is
-  // where it is asked for. `init` is idempotent.
+  // where it is asked for. Both calls are idempotent; Phase 164 split the
+  // scan request out of `init`, so the picker asks for it by name.
   useSettingsStore.getState().init();
+  useSettingsStore.getState().ensureScan();
   // NO VIEW SWITCH. This reads the contract into the store the Architecture
   // view also reads from; it does not open that view and it does not move the
   // sidebar. A person who never opens Architecture still gets rows here.

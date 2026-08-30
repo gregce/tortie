@@ -72,7 +72,14 @@ export function ShortcutsOverlay(): React.JSX.Element | null {
   const setOpen = useApp((s) => s.setShortcutsOpen);
   const hotkeys = useSettingsStore((s) => s.settings.hotkeys);
   const scan = useSettingsStore((s) => s.scan);
+  const ensureScan = useSettingsStore((s) => s.ensureScan);
   const modalRef = useRef<HTMLDivElement | null>(null);
+  // Phase 164. The agent chord rows draw from the scan, so opening this sheet
+  // is a demand for it. The sheet is mounted for the life of the window, so
+  // the mount is not.
+  useEffect(() => {
+    if (open) ensureScan();
+  }, [open, ensureScan]);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
