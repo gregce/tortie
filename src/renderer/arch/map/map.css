@@ -157,11 +157,19 @@
   overflow: hidden;
 }
 
-/* A box is a button while the drill is wired. The affordance is the cursor
-   and the focus ring; the face of the box does not change, because the
-   picture's ink is information and hover is not information. */
+/* A box is a button while the drill is wired. The affordance is the cursor,
+   the focus ring, and a light hover lift (Phase 176); the RESTING face of
+   the box still changes nothing, because the picture's ink is information.
+   The lift is an instant state, not a transition: the "moves nothing"
+   refusal holds, motion belongs to the camera alone. It never churns mid
+   gesture either, because arch-map-moving drops pointer events on every
+   box while the camera moves, so no hover lands there. */
 .arch-map-click {
   cursor: pointer;
+}
+
+.arch-map-click:hover {
+  transform: translateY(-1px);
 }
 
 .arch-map-click:focus-visible {

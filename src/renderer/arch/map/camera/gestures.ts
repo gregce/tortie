@@ -11,8 +11,9 @@
  * The DOM half, {@link attachCameraGestures}, owns the listeners: wheel is
  * attached BY HAND and non-passively (React registers its root wheel
  * listener passively, where preventDefault is a silent no-op — ImageView
- * documents the same trap), pointer events ride pointer capture on the svg,
- * and the Space claim is a capture phase keydown so the hand tool wins the
+ * documents the same trap), a pan rides pointer capture on the svg taken
+ * ONLY when a press is or becomes a pan (Phase 176, below), and the Space
+ * claim is a capture phase keydown so the hand tool wins the
  * key before a focused box's own Space-activates-the-drill handler sees it.
  * Enter remains the drill's keyboard activation, stated in the phase brief
  * as the accessibility trade.
@@ -28,6 +29,18 @@
  * that crosses the slop becomes a pan, and the following click event is
  * swallowed in the capture phase so a pan that started on a box never opens
  * it.
+ *
+ * ## Capture only what pans (Phase 176, research 71 section 4)
+ *
+ * Pointer capture retargets the compatibility click to the capturing svg,
+ * and React dispatches a box's onClick by walking the fiber path from the
+ * click's TARGET, so capturing every primary press made every box dead to
+ * the mouse on every repository: pointerdown hit the box, click hit the
+ * svg, and the drill never fired. So the svg captures a HAND press at the
+ * press, and a plain press only LAZILY, the first time it crosses the slop
+ * into a pan. A plain click never captures and reaches the box; a real
+ * drag owns its pointer stream from the slop crossing on, and the click
+ * that ends it is suppressed below, so its retargeting no longer matters.
  */
 
 import { CAMERA_DRAG_SLOP } from '../geometry';
@@ -198,14 +211,22 @@ export function attachCameraGestures(
       hand
     );
     pointerId = e.pointerId;
-    el.setPointerCapture(e.pointerId);
-    if (hand) setClass('arch-map-panning', true);
+    // Only a hand press captures here; a plain press captures lazily in
+    // onPointerMove when it crosses the slop. See the header: capturing
+    // every press retargeted the click to the svg and killed the drill.
+    if (hand) {
+      el.setPointerCapture(e.pointerId);
+      setClass('arch-map-panning', true);
+    }
   };
 
   const onPointerMove = (e: PointerEvent): void => {
     if (session === null || e.pointerId !== pointerId) return;
     const step = session.move({ x: e.clientX, y: e.clientY, t: e.timeStamp });
     if (step === null) return;
+    // The lazy half of the capture rule: this press has crossed the slop
+    // and is a pan now, so take the pointer stream from here on.
+    if (!el.hasPointerCapture(e.pointerId)) el.setPointerCapture(e.pointerId);
     setClass('arch-map-panning', true);
     engine.applyLive(cameraPanBy(engine.camera(), step.dx, step.dy));
   };

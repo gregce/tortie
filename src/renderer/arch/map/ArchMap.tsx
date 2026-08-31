@@ -112,11 +112,15 @@ export const ARCH_MAP_UNKNOWN_TITLE =
 /**
  * The hover sentence for one box. Words only, never a count.
  *
- * PHASE 158: the purpose sentence rides first, right after the name. It is
+ * PHASE 158: the purpose sentence rides early, right after the name. It is
  * the contract author's own first sentence about what the part is FOR, and
  * putting it here is what makes the purpose readable from the picture itself
  * rather than only from the cockpit's prose panel. A computed box has no
  * purpose sentence and says its provenance alone, exactly as before.
+ *
+ * PHASE 176: "Click to look inside" rides FIRST, before the purpose. It was
+ * buried at the tail of the sentence while the drill was dead to the mouse,
+ * so the one affordance line was the last thing a person read.
  */
 function boxTitle(box: MapBox, clickable: boolean): string {
   const prov = provenanceTitle(box.group.provenance);
@@ -126,7 +130,7 @@ function boxTitle(box: MapBox, clickable: boolean): string {
       : '';
   const unknown = box.group.unresolved ? ` ${ARCH_MAP_UNKNOWN_TITLE}` : '';
   const open = clickable ? ' Click to look inside.' : '';
-  return `${box.group.label}.${purpose} ${prov}${unknown}${open}`;
+  return `${box.group.label}.${open}${purpose} ${prov}${unknown}`;
 }
 
 /** The class list one box wears. */
