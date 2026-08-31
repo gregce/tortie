@@ -63,6 +63,8 @@ import { groupMenuItems, groupTooltip } from './split/split-menu';
 import { useQuickCreateMenu } from './new-session-menu';
 import { SessionsPositionButton } from './SessionsPositionButton';
 import { useProjectSurfaces } from './surfaces';
+// Phase 181. The compact usage meter, at the control end of this band.
+import { UsageMeter } from './UsageMeter';
 import { useTermFocused } from './term-focus';
 
 // ---------------------------------------------------------------------------
@@ -579,6 +581,10 @@ function SessionTabStrip({
           </button>
         </div>
       ) : null}
+      {/* Phase 181. The meters are present when sessions are organized on
+          top, which the operator asked for by name. The control end is where
+          they go, so a tab never loses room to them. */}
+      <UsageMeter density="compact" />
       <NewSessionSplitButton />
     </div>
   );

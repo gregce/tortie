@@ -171,6 +171,10 @@ import type {
   SpecStoryStatusInvokeChannelMap
 } from './specstory';
 import type {
+  GmuxUsageExtras,
+  UsageInvokeChannelMap
+} from './usage';
+import type {
   DropInvokeChannelMap,
   GmuxCaptureExtras,
   GmuxDropExtras,
@@ -209,6 +213,8 @@ export * from './sessions';
 export * from './shell';
 export * from './specstory';
 export * from './terminal';
+// Phase 181. The subscription usage meter's one channel pair.
+export * from './usage';
 
 /**
  * THE preload bridge map (standing guardrail 1): every channel this build's
@@ -282,7 +288,9 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   // Phase 163. A capture window's two ends, and the opt in heap snapshot.
   DiagnosticsInvokeChannelMap &
   // Phase 170. Live mode's subscribe and stop, visible tab only.
-  DiagnosticsLiveInvokeChannelMap;
+  DiagnosticsLiveInvokeChannelMap &
+  // Phase 181. The usage meter's read and its refresh control.
+  UsageInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -435,4 +443,6 @@ export type InstalledGmuxApi = GmuxApi & {
   GmuxArchExtras &
   GmuxDiagnosticsExtras &
   // Phase 170. The live half of the same `diagnostics` member.
-  GmuxDiagnosticsLiveBridgeExtras;
+  GmuxDiagnosticsLiveBridgeExtras &
+  // Phase 181. The `usage` member, one object with two reads.
+  GmuxUsageExtras;

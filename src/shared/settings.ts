@@ -120,6 +120,49 @@ export interface GmuxSettings {
    * and the Settings page says one sentence about it.
    */
   arch: ArchSettings;
+  /**
+   * Which providers' subscription usage the meter reads (Phase 181). BOTH
+   * DEFAULT OFF, and off means nothing at all happens: main opens no
+   * keychain, opens no credentials file and makes no request.
+   *
+   * This value is NOT sealed, and that is a decision rather than an
+   * oversight. The seal exists for refusal 8, being that nothing may cause a
+   * process to START on a configuration change alone, and turning a meter on
+   * starts nothing. What it can cause is one HTTPS GET to the vendor that
+   * issued the token being sent, and that destination is compiled in and
+   * cannot be named by any configuration, so the worst a hand edited file
+   * can do is ask Anthropic or OpenAI about the person's own plan.
+   */
+  usage: UsageSettings;
+}
+
+/**
+ * The per provider opt in (Phase 181). Absent on every settings file written
+ * before this phase, and absent reads as off for both.
+ */
+export interface UsageSettings {
+  claude: boolean;
+  codex: boolean;
+}
+
+/** Both meters off. The shipped answer, and a valid one forever. */
+export function noUsageChosen(): UsageSettings {
+  return { claude: false, codex: false };
+}
+
+/**
+ * Coerce a parsed `usage` value into a valid pair.
+ *
+ * Anything that is not literally `true` reads false, per field, which is the
+ * shipped default and what every settings file written before this phase
+ * means. A half valid object is not dropped whole here because there is no
+ * pair to keep consistent: each switch stands alone and a bad one simply
+ * reads off, which is the safe direction.
+ */
+export function sanitizeUsageSettings(raw: unknown): UsageSettings {
+  if (raw === null || typeof raw !== 'object') return noUsageChosen();
+  const obj = raw as Record<string, unknown>;
+  return { claude: obj['claude'] === true, codex: obj['codex'] === true };
 }
 
 /**
@@ -410,7 +453,8 @@ export function defaultGmuxSettings(): GmuxSettings {
     workAreaFont: DEFAULT_WORK_AREA_FONT,
     workAreaFontCustom: DEFAULT_WORK_AREA_FONT_CUSTOM,
     fold: noFoldChosen(),
-    arch: noArchChosen()
+    arch: noArchChosen(),
+    usage: noUsageChosen()
   };
 }
 

@@ -35,6 +35,7 @@ import { LaunchDefaultsSection } from './LaunchDefaultsSection';
 import { MachinesSection } from './MachinesSection';
 import { useSettingsStore } from './settings-store';
 import { SpecStorySection } from './SpecStorySection';
+import { UsageSection } from './UsageSection';
 import './settings.css';
 
 type SectionId =
@@ -47,7 +48,8 @@ type SectionId =
   | 'appearance'
   | 'machines'
   | 'project-line'
-  | 'arch';
+  | 'arch'
+  | 'usage';
 
 /**
  * A rail entry wears either a codicon, which is what app chrome uses, or a
@@ -112,6 +114,12 @@ export const SECTIONS: { id: SectionId; label: string; icon: RailIcon }[] = [
   // the activity bar and the View menu, and the one thing this section
   // decides is who fills in that view's contract.
   { id: 'arch', label: 'Architecture', icon: { codicon: 'circuit-board' } },
+  // Phase 181 appended this one, under the same rule as the sections above,
+  // and before Diagnostics, which the test pins last. The `dashboard` glyph,
+  // because the one thing this section decides is whether a gauge is drawn.
+  // It is not `pulse`, which reads as live activity, and the meter is a
+  // fifteen minute reading rather than a live trace.
+  { id: 'usage', label: 'Usage', icon: { codicon: 'dashboard' } },
   // Phase 35 put this here for the reason SpecStory above gives, being that it
   // was the newest section and the least often visited. Phase 87 moved it to
   // the end and it now sits last on purpose. Diagnostics is the one section a
@@ -208,6 +216,7 @@ export function SettingsApp(): React.JSX.Element {
         {section === 'machines' ? <MachinesSection /> : null}
         {section === 'project-line' ? <FoldSection /> : null}
         {section === 'arch' ? <ArchSection /> : null}
+        {section === 'usage' ? <UsageSection /> : null}
       </main>
     </div>
   );

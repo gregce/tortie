@@ -333,3 +333,52 @@ and three that were null: `code_review_rate_limit`, `promo`, `rate_limit_reached
 - **One account, one plan, one moment.** Every shape above is one subscription's answer on one
   morning. A field that was null here may be populated for somebody else, which is the argument for
   a parser that reads the fields it names and drops everything else whole.
+
+## 9. What Phase 181 built on top of section 8, and what it read
+
+Phase 181 shipped the meter. This section records the differences between what
+section 3 inferred from orca's source and what the shipped parser actually
+does, so a later round does not re-derive them, plus the one real reading the
+build was proved against.
+
+### 9.1 Where the build differs from section 3, and why
+
+| Section 3 said | The build does | Because |
+| --- | --- | --- |
+| `utilization` or `used_percentage` | reads `utilization`, tolerates the other, invents neither | section 8.2: `used_percentage` is not in a live response |
+| the Fable window may be a top level key | reads `limits[]` only | section 8.2: none of the three top level names exists |
+| orca refreshes Claude tokens itself | NOTHING refreshes anything | section 8.1: the item is rewritten hourly by the agent, and a rotated refresh token logs the person out |
+| `primary_window` and `secondary_window` | classified by `limit_window_seconds` with a one minute tolerance, never by position | section 8.3: the measured primary window was the WEEKLY one |
+| a base URL is a detail | the two hosts are frozen constants and no configuration can name a third | a bearer token may go to its issuer and nowhere else |
+
+Two more decisions the bytes forced. A number that is not finite draws NOTHING
+rather than a full bar, because 1e309 parses out of JSON as Infinity and a bar
+at full is a claim about the account. And the transport is `node:https` rather
+than a fetch, because Chromium's stack honours the system proxy, which would
+make a third host a routine recipient of the token.
+
+### 9.2 The real reading, 2026-08-31, both endpoints 200
+
+The snapshot the renderer received, which is the whole of what crosses IPC:
+
+- claude: five hour 5 percent, seven day 56 percent, and the per model weekly
+  row `Fable` at 100 percent, which is the `limits[]` row with
+  `kind === "weekly_scoped"` and `is_active` true.
+- codex: NO five hour window at all, and the weekly window at 2 percent. The
+  section 8.3 trap reproduced exactly: `primary_window` was the weekly one.
+
+### 9.3 The leak check, run over the real Codex body
+
+The measured body carried `email`, `user_id` and `account_id`, all three
+present and non empty, and the parsed snapshot carried none of the three
+values and no part of the access token. Response 200, 1503 bytes, matching
+section 8.3. The unit suite pins the same property over sentinel values so it
+is checkable without a network call.
+
+### 9.4 Still not verified, and Phase 182 inherits the list
+
+Everything in section 8.5 stands. No failure path has been exercised on either
+endpoint, nothing has been measured with an expired access token, and nothing
+on API key billing has been measured. The error handling in
+`src/main/usage/service.ts` maps by STATUS ONLY and reads nothing out of an
+error body, precisely because no error body has ever been seen.

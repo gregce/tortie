@@ -31,6 +31,9 @@ import { stopAgentOverlayWatch } from './config/store';
 import { registerContextIpc } from './context/ipc';
 import { registerDiagnosticsIpc } from './diagnostics/ipc';
 import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
+// Phase 181: the subscription usage meter. Two read channels and the held
+// snapshot they answer from, dropped in the ordered disposer below.
+import { disposeUsageService, registerUsageIpc } from './usage/ipc';
 import { foldChosenNow, foldSuspension } from './sessions/fold-wiring';
 import { installLaunchContextResolver } from './context/launch-resolver';
 import { registerDropIpc, startDropStorePruning } from './drop';
@@ -198,6 +201,14 @@ export function installMainCapabilities(
   // call and the re-checks ride the repo-changed fan out that already exists,
   // so a person who never opens the arch view pays three handle calls.
   registerArchIpc(ipcMain);
+  // Phase 181: the ONE `usage:*` registrar. Two channels, and both read. They
+  // are the only outbound requests Tortie makes, they go to the two vendor
+  // hosts compiled into src/main/usage/endpoints.ts and to nowhere else, and
+  // they run only for a provider a person has switched on in Settings, which
+  // both default to off. Registering opens nothing: the service is built on
+  // the first call, and while the switches are off that call opens no
+  // keychain, reads no credentials file and makes no request.
+  registerUsageIpc(ipcMain);
   // Phase 22: turn the launch snapshot on. Without this call every session gets
   // a NULL snapshot and the readout shows its unrecorded sentence, which is
   // correct behaviour and not a stub, so the feature simply does nothing. The
@@ -444,6 +455,10 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       // process ends. The call never throws, and it costs nothing when the view
       // was never opened, because the store opens on the first read.
       disposeArchIpc(),
+      // Phase 181: drop the held usage snapshot. There is no file, no socket
+      // and no timer behind it, so this is one reference released and it
+      // never throws.
+      disposeUsageService(),
       stopAgentOverlayWatch(),
       // Phase 68: the machines.json watcher, closed through the same tracked
       // path the agents.json one uses, for the same Phase 36 reason.

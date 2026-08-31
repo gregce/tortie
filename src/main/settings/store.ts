@@ -56,6 +56,7 @@ import {
   noFoldChosen,
   sanitizeContrastLevel,
   sanitizeHighlightScheme,
+  sanitizeUsageSettings,
   sanitizeWorkAreaFont,
   sanitizeWorkAreaFontCustom
 } from '@shared/settings';
@@ -499,6 +500,14 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
   // fold above: membership against the compiled ARCH recipe table here, and
   // the seal after, in getSettings.
   out.arch = sanitizeArchSettings(obj['arch']);
+
+  // The usage meter's per provider opt in (Phase 181). Membership only, and
+  // no seal: turning a meter on starts no process, and the only thing it can
+  // cause is one request to the vendor that issued the token, whose host is
+  // compiled in and cannot be named by a settings file. Anything that is not
+  // literally `true` reads off, which is what every settings file written
+  // before this phase means.
+  out.usage = sanitizeUsageSettings(obj['usage']);
 
   return out;
 }

@@ -70,6 +70,9 @@ import { useQuickCreateMenu } from './new-session-menu';
 import { DockIndicator } from './DockIndicator';
 import { SessionsPositionButton } from './SessionsPositionButton';
 import { SessionRail } from './SessionRail';
+// Phase 181. The subscription usage meters, at the operator's placement: the
+// foot of the sessions pane in both densities, and the top strip has its own.
+import { UsageMeter } from './UsageMeter';
 import { useProjectSurfaces } from './surfaces';
 
 function DockRow({
@@ -406,6 +409,12 @@ export function SessionDock(): React.JSX.Element | null {
             is here rather than nowhere because "ONE STORE VALUE, three
             controls" (SessionsPositionButton) stops being true the moment
             collapsing the dock is the thing that hides the third control. */}
+        {/* Phase 181. The meters stay present when the dock is collapsed,
+            which the operator asked for by name. At 48px they are bars only
+            and the numbers move to the hover card. Above the footer rather
+            than inside it, because that band is a fixed 36px row holding one
+            24px button and a second control would touch both edges. */}
+        <UsageMeter density="mini" />
         <div className="rail-footer">
           <SessionsPositionButton />
         </div>
@@ -508,6 +517,10 @@ export function SessionDock(): React.JSX.Element | null {
           ) : null}
         </ul>
       )}
+      {/* Phase 181. The foot of the sessions pane, which is the placement the
+          operator's own screenshots show. It draws nothing at all while both
+          providers are off, which is every fresh install. */}
+      <UsageMeter density="full" />
     </aside>
   );
 }

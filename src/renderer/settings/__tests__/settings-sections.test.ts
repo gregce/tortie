@@ -31,7 +31,7 @@ describe('the Settings rail', () => {
     expect(ids.filter((id) => id === 'diagnostics')).toHaveLength(1);
   });
 
-  it('draws the ten sections in this order', () => {
+  it('draws the eleven sections in this order', () => {
     // A new section is appended BEFORE diagnostics. Change this list in the
     // same commit that changes the rail, and keep diagnostics last.
     expect(ids).toEqual([
@@ -46,6 +46,8 @@ describe('the Settings rail', () => {
       'project-line',
       // Phase 158 appended this one before diagnostics.
       'arch',
+      // Phase 181 appended this one before diagnostics.
+      'usage',
       'diagnostics'
     ]);
   });

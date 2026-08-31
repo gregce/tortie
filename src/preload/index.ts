@@ -37,6 +37,8 @@ import { git } from './git';
 import { log } from './log';
 import { machines } from './machines';
 import { overview } from './overview';
+// Phase 181. The subscription usage meter's two reads.
+import { usage } from './usage';
 import { projects, recents } from './projects';
 import { notice, sessions } from './sessions';
 import { quickOpen, search, symbols } from './search';
@@ -94,6 +96,9 @@ const api: InstalledGmuxApi = {
   // through main and write only Tortie's own overview store. The page
   // feature-detects the object, so a build without it says one sentence.
   overview,
+  // Phase 181. Two reads and nothing else. The renderer receives numbers,
+  // timestamps and a state word; no credential and no identifier crosses.
+  usage,
   // Phase 63 optional extra, widened by Phase 158: the arch view's reads plus
   // the seed, enrich and accept asks. Main owns every write under docs/arch,
   // and enrich is the one method that can start an agent, refused in main
