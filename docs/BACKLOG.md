@@ -18142,21 +18142,23 @@ When a components/ file is not recognisably a Tortie v1 component (no valid kind
 **First body line:** `Phase 178: honest and thin`
 **Semver:** patch.
 **Tier 2**, a rendered surface with no new durable state: one app run plus one independent method.
-**Charter:** this entry plus research 71 sections 3 and 5, which found four faces that disagree, being a kept run leading with a happy sentence while a third of the contract cannot be read, and a strip reading "9 checked and holds" that is nine surviving evidence quotes rather than nine promises when there are zero edges.
+**Charter:** this entry plus research 71 sections 3 and 5, which found four faces that disagree, being a kept run leading with a happy sentence while a third of the contract cannot be read, and a strip reading "9 checked and holds" that is nine surviving evidence quotes rather than nine promises when there are zero edges. Plus the fold of 2026-08-30 at the operator's word, from the debts scan: the strip's unresolved-import count is wrong by roughly fifteen times on a monorepo, rookery showing 47 unresolved where the true undeclared count is 3, because the manifest reader (src/main/arch/resolver/manifest.ts) reads only the root package.json and its declared workspaces and never sees a nested manifest like rookery's server/package.json.
 
 ### What it builds
 - The whole-repo unparsed sentence, which today exists only in the level 2 module view (unparsedSentence at src/renderer/arch/modules.ts:126) and is stranded because drilling is broken, is lifted onto the RESTING face so a person reads why the map is thin, being that most of the repo is in languages Tortie does not resolve yet.
 - The verdict strip does not present evidence quote checks as promises when there are zero edges: separate or suppress "N checked and holds" so it cannot be read as N promises hold.
 - The "Would not load" wall folds to one summary line with the per file detail behind a disclosure, per Just enough words. This composes with Phase 177: after 177 there is usually nothing to list, but the summary line covers the general case.
 - A kept run that produced an unreadable contract does not lead with a plain kept sentence.
+- The unresolved count tells the truth on a monorepo: the manifest reader learns every package.json in the tree (bounded, ignoring node_modules), and an import declared by its NEAREST enclosing manifest is external-justified by that manifest. Unresolved-never-external survives untouched: only a declared dependency becomes external, and a module found nowhere stays unresolved.
 
 ### Proof
 - One app run on a copy of rookery: the resting face carries the thin sentence naming the unresolved languages, the strip does not claim promises where there are none, and the four faces agree.
 - THE INDEPENDENT METHOD: re-derive the true promise count and the resolved-language file share by an own scan, and prove the face's numbers match rather than the old evidence-quote count.
+- Re-derive the true unresolved count over the rookery copy by an own scan of every nested manifest: the before measured at 47, the after at the true number with every survivor named, and npm run conformance:arch since the resolver substrate moved.
 - The battery.
 
 ### What is NOT in this phase
-- No resolver change; this makes the absence honest, it does not fill it.
+- No resolver change beyond the manifest reader learning nested manifests (folded at the operator's word, 2026-08-30); no new language arm, no import query change.
 - No change to a real promise verdict where promises exist.
 
 ## Phase 179 — the enrichment sees the crossings the model actually drew (research 71 Fix 4, operator asked 2026-08-30)
@@ -18261,6 +18263,80 @@ own, so the research proposes taking the statusline tap and the read-only gated 
 timer-driven PTY probes, never refreshing any token in v1, and Tier 3 for any phase that builds.
 Three phases proposed, A the served meter for Claude and Codex, B the free statusline tap, C more
 providers after soak. Nothing queued; the operator picks.
+
+## Phase 181 — the usage meter, served (research 72 Phase A, operator asked 2026-08-30)
+
+**Subject:** `feat(usage): subscription usage meters on every sessions surface`
+**First body line:** `Phase 181: the usage meter`
+**Semver:** minor.
+**Tier 3**, because it reads his stored credentials and sends them somewhere, and the somewhere is only ever the vendor that issued them.
+**Charter:** this entry plus docs/research/72-subscription-usage.md sections 3, 4 and 5, and his words and screenshots of 2026-08-30: the meters live at the BOTTOM of the sessions pane, stay present when the dock is collapsed to the right rail, and are present when sessions are organized on top. He asked for this to land BEFORE the release.
+
+### The mechanism
+- A new src/main/usage/ domain owning one service with Claude and Codex fetchers per research 72's map. Claude reads the keychain item `Claude Code-credentials` (config-dir-scoped suffix per research 72) falling back to `~/.claude/.credentials.json`, and calls `GET https://api.anthropic.com/api/oauth/usage` with the CLI's own headers; Codex reads `~/.codex/auth.json` and calls `GET https://chatgpt.com/backend-api/wham/usage`. READ ONLY both: Tortie never refreshes, rewrites or copies a token, and an expired token draws a run-the-agent-to-refresh line the way orca treats kimi.
+- MEASURE FIRST: the first builder step replays both requests on the operator's own logged-in machine, records the true response shapes into research 72, and only then builds the parser, because research 72 section 8 says nothing there was verified over the wire.
+- The snapshot crosses one new channel pair in src/shared/ipc/ and the contract baseline is regenerated in the same commit, which gate:contract enforces.
+- Poll discipline inherited whole from research 72 section 4: 15 minutes, only while the window is visible and focused, Retry-After honoured and clamped, a failed refresh keeping the last snapshot under a small glyph for 30 minutes rather than flapping, and a sign-in line only on confirmed missing credentials.
+- THE THREE SURFACES, his placement: a strip at the foot of the session dock (src/renderer/app/SessionDock.tsx), a compact form on the collapsed rail (src/renderer/app/SessionRail.tsx, 48px wide, so tiny per-provider bars with the detail on the existing hover card), and a compact form at the control end of the top tab strip (src/renderer/app/SessionStrip.tsx). One component, three densities, colors from tokens.css only, icons from the greyscale AgentIcon set, tabular numerals, and Just enough words: icon, bar, `58% 5h · 41% wk`, a refresh control, everything else behind hover.
+- Settings: per-provider opt-in, DEFAULT OFF. While off, nothing is read and nothing is sent, provably.
+
+### Proof
+- Real data: the meter drawn from his real logged-in account, response shapes banked in research 72.
+- THE ATTACK: prove no credential byte reaches a log, the manifest, localStorage, an IPC payload or any argv; a hostile response fixture (wrong types, huge numbers, missing windows, non-JSON) never crashes the strip and never draws an invented number.
+- The negative control: with the toggles off, a network-recording run proves zero requests leave.
+- One app run drives all three surfaces, and the battery plus gate:contract.
+
+### What is NOT in this phase
+- No token refresh, ever, in this phase.
+- No PTY probes; no statusline machinery (that is Phase 182); no provider beyond Claude and Codex.
+- No reset credits, no account switching, no plan management; a read-only meter.
+- Nothing spawns, and nothing runs while the toggles are off.
+
+## Phase 182 — the free tap (research 72 Phase B, operator asked 2026-08-30)
+
+**Subject:** `feat(usage): live Claude usage from the statusLine hook`
+**First body line:** `Phase 182: the statusline tap`
+**Semver:** minor.
+**Tier 3**, because it opens a listening socket in Tortie's main process, which is new attack surface however local. Depends on Phase 181's snapshot store and surfaces.
+**Charter:** this entry plus research 72 sections 3 and 6.
+
+### The condition, measured first
+Whether Claude Code accepts a statusLine configuration PER SESSION through the env and config Tortie already stamps into its tmux panes, without touching `~/.claude/settings.json`. If it cannot, the phase STOPS, records the answer in research 72, and ships nothing, because Tortie does not edit his global agent settings.
+
+### The mechanism
+- A managed script in the shape research 72 documents from orca: substring-guard on rate_limits so nothing spawns on streaming ticks, self-throttled per pane, NO stdout so his visible status line is unchanged, posting form-encoded to a loopback server.
+- The server binds 127.0.0.1 on an ephemeral port with a per-boot token; a post with a bad token, a bad shape or an oversized body is dropped with one log line. Ingest rules inherited from research 72: a post whose config dir does not match the account is dropped, an absent window means no update rather than cleared, identical values dedupe within 30 seconds, and a fresh live snapshot suppresses the endpoint poll for five minutes.
+- Claude only, and only sessions Tortie launched.
+
+### Proof
+- One real Claude turn in a Tortie-launched session moves the meter with no endpoint request, proven by a network-recording run.
+- THE ATTACK: hostile posts (no token, wrong token, wrong shape, an oversized body, a foreign config dir) all refused, and the bind address proves the server unreachable from off the machine.
+- The stdout negative control: his status line bytes identical with and without the script installed.
+- The battery, plus gate:contract if any channel moved.
+
+### What is NOT in this phase
+- No edit to `~/.claude/settings.json` or any global agent configuration, ever.
+- No other provider, no session Tortie did not launch, no non-loopback bind.
+
+## Phase 183 — the flight latch unsticks (Phase 171's recorded defect, operator asked 2026-08-30)
+
+**Subject:** `fix(overview): the Catch Me Up flight latch cannot stick while occluded`
+**First body line:** `Phase 183: the flight latch`
+**Semver:** patch.
+**Tier 2**, and the parent-commit measurement is mandatory because the defect is recorded with its mechanism.
+**Charter:** the Phase 171 commit body (32ec650) NOT TRUE clause. enterOverviewFlight in src/renderer/overview/overview-flight.ts awaits a bare requestAnimationFrame before the finally that clears the flying latch; Chromium throttles frames for occluded windows, so locking the screen mid-flight leaves the latch held and every later Catch Me Up toggle is silently dropped until a frame fires.
+
+### The fix
+Race the frame wait against a short timeout so the finally always runs in bounded time, occluded or not; the animation still uses the frame when one arrives.
+
+### Proof
+- Re-derive on the PARENT: a harness that never delivers the frame proves the latch sticks at the parent and unsticks at HEAD.
+- One app run: Catch Me Up in, out, and in again, unchanged to the eye.
+- The battery.
+
+### What is NOT in this phase
+- No change to the flight's look or timing on the normal path.
+- No other overview work.
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -18510,3 +18586,4 @@ cycle rather than only the evening it was written.
 - 2026-08-30, Phase 174 SHIPPED on `4b350cd` at 0.89.0, your own font from the community's PR 13 by jakehildreth merged whole and credited in the body: a fourth Custom option under Settings, Appearance, Terminal and editor font, the typed family joining the WorkAreaFont union with a persisted workAreaFontCustom string, resolved live into '<family>', Menlo, monospace so the Menlo floor every preset keeps stands, and a capture under a custom font falls back to Menlo for byte identity exactly as System does; the committer re-ran the whole battery on the rebased tree, typecheck, build with gate:electron and 171's contract inventory byte identical, 10,935 unit tests, smoke:t1 and smoke:t3 both restore shapes, all green, zero new packages, the three bundled presets unchanged and no em or en dash in any new user-visible string; the string is treated as hostile at one boundary, sanitizeWorkAreaFontCustom applied at persistence and again at resolution, stripping every control character, quote, backslash and the structural punctuation that could end the quoted family, start a declaration or open url(, capped at 64 characters; the verifier drove its own 26 shape hostile corpus through the real settings path into the computed tokens, the xterm and Monaco sinks and the capture SVG attribute, eleven shapes the builder never tried including a CSS comment breakout, @import, expression(), a var() substitution, a hex escape and bidi override characters, and none escaped the font-family declaration; the not installed on this Mac line is measured on a canvas rather than asked because document.fonts.check returned true for a font this Electron does not have, which is the one charter claim that was wrong and the builder had already corrected; NOT TRUE: a custom face is never inlined so its capture renders in Menlo by the PR's own honest limitation, and this phase does not close PR 13, the operator handles the contributor conversation
 - 2026-08-30, Phase 180 RESCOPED at the operator's word, agreed in conversation: Swift resolves at target grain because file grain does not exist in Swift source, being that files inside a target see each other with zero import statements, so the arm reads the literal target declarations from Package.swift or the pbxproj membership and lands edges target to target, drill into a target showing files with no arrows and one quiet line saying why; the wasm admission for the three new grammars is named as its own deliberate act, pinned and hashed, since 157's zero-new-packages cannot be true here; Kotlin and Objective-C stay the full 157 recipe with their limits stated; no toolchain spawn ever
 - 2026-08-30, Research 72 DELIVERED, logged-in subscription usage in the sessions pane, docs/research/72-subscription-usage.md: orca explored read only at his word; the percentages are served by vendor endpoints against the CLI's own stored token, never computed client side; Claude also pipes rate_limits to the statusLine hook free of budget; the boundary named, being that this is Tortie's first own credential read and endpoint reach, with the proposal to take the statusline tap and a read-only gated fetch, refuse timer PTY probes, refresh no token, Tier 3; phases A, B, C proposed and nothing queued, the operator picks
+\n- 2026-08-30, Phases 181, 182 and 183 QUEUED at his word and Phase 178 AMENDED in place: 181 is research 72's Phase A, the served subscription usage meter for Claude and Codex on all three sessions surfaces he named, being the foot of the dock, the collapsed rail and the top strip, read-only credentials, per-provider opt-in default off, Tier 3; 182 is Phase B, the free Claude statusline tap over a loopback server with a per-boot token, measured first for the per-session override question, stopping honestly if global settings would have to be edited; 183 is the Phase 171 recorded flight latch defect, a timeout raced against the frame wait; 178 folds the monorepo unresolved-count fix, rookery's 47 shown against 3 true, the manifest reader learning nested manifests with unresolved-never-external untouched; ORDER now 173, 176, 177, 178, 183, 179, 180, 175, 181, 182, THEN THE RELEASE, which he asked to follow the usage meter rather than precede it\n
