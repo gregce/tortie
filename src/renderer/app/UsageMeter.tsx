@@ -26,7 +26,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { UsageProviderSnapshot } from '@shared/usage';
-import { usageHasNumbers } from '@shared/usage';
+import { clampUsagePercent, usageHasNumbers } from '@shared/usage';
 import { AgentIcon, Codicon } from '../icons';
 import { useNow } from '../format';
 import { useUsage } from '../state/usage';
@@ -53,25 +53,28 @@ const VIEWPORT_MARGIN = 8;
  * will stop you first, and the card names both. One bar per provider is the
  * shape the operator asked for, and picking the fuller window is the only rule
  * that never buries the number a person needs.
+ *
+ * The value is clamped here, so what leaves this function is always a length
+ * a browser will accept. The fix round of 2026-08-31 found that it was not:
+ * a width of `NaN%` is not a length, so React leaves the element at the width
+ * it already had, and one hostile snapshot kept the bar from the one before
+ * it. Exported for the test that holds that.
  */
-function barPercent(p: UsageProviderSnapshot): number | null {
-  const values = [p.fiveHour?.percent, p.sevenDay?.percent].filter(
-    (v): v is number => typeof v === 'number'
-  );
+export function barPercent(p: UsageProviderSnapshot): number | null {
+  const values = [p.fiveHour?.percent, p.sevenDay?.percent]
+    .map((v) => clampUsagePercent(v))
+    .filter((v): v is number => v !== null);
   if (values.length === 0) return null;
   return Math.max(...values);
 }
 
 /** The `2% 5h · 56% wk` line, with a window omitted when the vendor named none. */
 export function usageLine(p: UsageProviderSnapshot): string {
-  const parts: string[] = [];
-  if (p.fiveHour !== null) {
-    parts.push(usagePercentText(p.fiveHour.percent, USAGE_FIVE_HOUR));
-  }
-  if (p.sevenDay !== null) {
-    parts.push(usagePercentText(p.sevenDay.percent, USAGE_SEVEN_DAY));
-  }
-  return parts.join(' · ');
+  const parts = [
+    p.fiveHour === null ? '' : usagePercentText(p.fiveHour.percent, USAGE_FIVE_HOUR),
+    p.sevenDay === null ? '' : usagePercentText(p.sevenDay.percent, USAGE_SEVEN_DAY)
+  ];
+  return parts.filter((part) => part !== '').join(' · ');
 }
 
 function UsageBar({ percent }: { percent: number }): React.JSX.Element {
@@ -118,11 +121,14 @@ export function cardLines(p: UsageProviderSnapshot, now: number): string[] {
   ];
   for (const [label, win] of windows) {
     if (win === null) continue;
-    const reset = win.resetsAt === null ? '' : `, ${usageResetIn(win.resetsAt, now)}`;
-    out.push(`${usagePercentText(win.percent, label)}${reset}`);
+    const text = usagePercentText(win.percent, label);
+    if (text === '') continue;
+    const reset = win.resetsAt === null ? '' : usageResetIn(win.resetsAt, now);
+    out.push(reset === '' ? text : `${text}, ${reset}`);
   }
-  if (p.scoped !== null) {
-    out.push(`${p.scoped.label} ${Math.round(p.scoped.percent)}% ${USAGE_SEVEN_DAY}`);
+  const scoped = p.scoped === null ? null : clampUsagePercent(p.scoped.percent);
+  if (p.scoped !== null && scoped !== null) {
+    out.push(`${p.scoped.label} ${Math.round(scoped)}% ${USAGE_SEVEN_DAY}`);
   }
   if (p.state === 'stale') out.push(USAGE_STALE_MARK);
   const line = usageStateLine(p.provider, p.state);

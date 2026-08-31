@@ -317,7 +317,7 @@ and three that were null: `code_review_rate_limit`, `promo`, `rate_limit_reached
 
 - **No failure path was exercised.** The charter allowed one call per endpoint and both returned 200,
   so the 401, 403 and 429 bodies are unmeasured, and whether Anthropic sends `Retry-After` on a 429
-  is unmeasured. Error handling therefore stands on orca's code, being
+  is unmeasured. **Two of them have been measured since: see section 9.5, written on the same day.** Error handling therefore stands on orca's code, being
   `claude-oauth-usage-error.ts`, rather than on bytes: 429 message fixed, otherwise `error.message`
   from the body if it is a non-empty string, `Retry-After` read as seconds or as an HTTP date and
   clamped to 24 hours. Treat every one of those as unproven and make the parser survive the shape
@@ -377,8 +377,43 @@ is checkable without a network call.
 
 ### 9.4 Still not verified, and Phase 182 inherits the list
 
-Everything in section 8.5 stands. No failure path has been exercised on either
-endpoint, nothing has been measured with an expired access token, and nothing
-on API key billing has been measured. The error handling in
-`src/main/usage/service.ts` maps by STATUS ONLY and reads nothing out of an
-error body, precisely because no error body has ever been seen.
+Section 8.5 stands except for the two failure paths section 9.5 measures.
+Nothing has been measured with an expired access token, and nothing on API key
+billing has been measured. The error handling in `src/main/usage/service.ts`
+maps by STATUS ONLY and reads nothing out of an error body, precisely because
+almost no error body has ever been seen.
+
+### 9.5 The two failure paths that ARE now measured, 2026-08-31
+
+The phase's verification and its fix round each exercised one, so this is the
+first entry in this document written from a refusal rather than from a 200.
+
+**Codex refuses a bad bearer with 401, and the face is right.** A deliberately
+wrong token to `chatgpt.com/backend-api/wham/usage` answered 401. The service
+maps that to `expired`, and the meter drew `Codex. Run Codex to refresh the
+login.` beside a healthy Claude row. That is the branch working end to end.
+
+**Claude refuses with 429, not 401, at least when there is no credential at
+all.** A GET to `api.anthropic.com/api/oauth/usage` carrying the beta header
+and the user agent but NO `Authorization` header answers **429**, with
+`Retry-After` present and an `error.type` of `rate_limit_error` in a 107 byte
+body. Measured twice: `Retry-After: 3438` during the verification and
+`Retry-After: 3600` when the fix round re-derived it, which reads as a per IP
+anonymous bucket rather than an account one. So Anthropic DOES send
+`Retry-After` on a 429, which section 8.5 listed as unknown, and the shipped
+reader of it is exercised.
+
+What this does NOT tell us, and a later round must not read it as if it did:
+what Claude answers to a request carrying a real but REFUSED token. Tortie
+never sends the no header shape, because a provider with no credential answers
+`signed-out` before any request is made. So the 401 and 403 branch is still
+unexercised for Claude, and it is possible that a refused token also arrives
+as a 429. That would draw the old numbers under the stale glyph for up to
+twenty four hours rather than the line telling the person to run the agent.
+
+The mapping was deliberately NOT changed for it. Mapping 429 to `expired` on
+this evidence would be reading an unauthenticated refusal as if it were an
+authenticated one, and it would break the rate limit policy that this same
+measurement just proved is real, being a genuine `Retry-After` the service
+already honours. The honest next step is one measurement with a token the
+vendor will refuse, which needs an expired login and therefore Phase 182.

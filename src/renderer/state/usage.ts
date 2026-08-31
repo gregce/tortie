@@ -12,10 +12,24 @@
  * nothing at all, and asks once when it comes back if the interval has passed
  * while it was away. Main enforces the same interval, so nothing here can
  * poll a vendor harder than that even if it tried.
+ *
+ * THE SWITCH IS NOT ON THAT CADENCE, and the fix round of 2026-08-31 is why.
+ * The meter shipped with the interval as its only way of asking again, so a
+ * person who turned a meter on saw nothing for fifteen minutes and a person
+ * who turned one off went on looking at the numbers. Measured in the running
+ * app at twelve marks across a minute in both directions. So this store also
+ * subscribes to `settings:changed`, which main already broadcasts to every
+ * window, and reconciles at once: what is DRAWN must agree with the SWITCH.
+ *
+ * It keeps no second copy of Settings to do that. A provider whose switch is
+ * off comes back from main in the `off` state, so the snapshot on screen is
+ * itself the record of which switches were on when it was read, and the
+ * comparison is between that and the settings just broadcast.
  */
 
 import { create } from 'zustand';
-import type { UsageSnapshot } from '@shared/usage';
+import type { GmuxSettings } from '@shared/settings';
+import type { UsageProviderId, UsageSnapshot } from '@shared/usage';
 import { USAGE_PROVIDERS, emptyUsageProvider } from '@shared/usage';
 import { gmuxBridge } from '../bridge';
 
@@ -45,6 +59,14 @@ export interface UsageStoreState {
 
 let started = false;
 let timer: number | undefined;
+let unwatchSettings: (() => void) | undefined;
+
+/** Is this provider drawn right now? Off is the one state that draws nothing. */
+function isDrawn(snapshot: UsageSnapshot, provider: UsageProviderId): boolean {
+  return snapshot.providers.some(
+    (row) => row.provider === provider && row.state !== 'off'
+  );
+}
 
 export const useUsage = create<UsageStoreState>((set, get) => ({
   snapshot: emptySnapshot(),
@@ -81,10 +103,36 @@ export const useUsage = create<UsageStoreState>((set, get) => ({
       if (Date.now() - get().askedAt < USAGE_POLL_MS) return;
       ask();
     };
+    /**
+     * What Settings just said, against what is on screen.
+     *
+     * A switch flipped off takes the numbers off the face HERE, before the
+     * round trip that will say the same thing, because off means off now.
+     * A switch flipped on asks straight away, and main answers that ask with
+     * a real request because a row it holds nothing about is due. That is one
+     * request per flip of a switch a person flips by hand.
+     * A settings change that touched neither switch asks for nothing, which
+     * is every other page of Settings.
+     */
+    const reconcile = (settings: GmuxSettings): void => {
+      const want = settings.usage;
+      const snapshot = get().snapshot;
+      if (USAGE_PROVIDERS.every((p) => want[p] === isDrawn(snapshot, p))) return;
+      set({
+        snapshot: {
+          ...snapshot,
+          providers: snapshot.providers.map((row) =>
+            want[row.provider] ? row : emptyUsageProvider(row.provider)
+          )
+        }
+      });
+      ask();
+    };
     ask();
     timer = window.setInterval(tick, 60_000);
     window.addEventListener('focus', tick);
     document.addEventListener('visibilitychange', tick);
+    unwatchSettings = bridge.onSettingsChanged?.(reconcile);
   },
 
   async refresh(): Promise<void> {
@@ -107,4 +155,6 @@ export function resetUsagePolling(): void {
   started = false;
   if (timer !== undefined) window.clearInterval(timer);
   timer = undefined;
+  unwatchSettings?.();
+  unwatchSettings = undefined;
 }

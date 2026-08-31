@@ -156,6 +156,62 @@ describe('THE NEGATIVE CONTROL: a switch that is off', () => {
   });
 });
 
+describe('the switch is answered at once, and the floor still holds', () => {
+  it('asks as soon as a provider is switched on, not fifteen minutes later', async () => {
+    const h = harness({ on: { claude: false, codex: false } });
+    await h.service.read();
+    expect(h.sent).toEqual([]);
+
+    h.on = { claude: true, codex: false };
+    const snap = await h.service.read();
+
+    expect(h.sent.map((r) => r.host)).toEqual(['api.anthropic.com']);
+    expect(snap.providers[0]?.state).toBe('ok');
+    expect(snap.providers[0]?.fiveHour?.percent).toBe(2);
+  });
+
+  it('asks on every flip, because a flip is a person and not a poll', async () => {
+    const h = harness({ on: { claude: true, codex: false } });
+    await h.service.read();
+    expect(h.sent.length).toBe(1);
+
+    h.on = { claude: false, codex: false };
+    await h.service.read();
+    h.on = { claude: true, codex: false };
+    await h.service.read();
+
+    expect(h.sent.length).toBe(2);
+    // And the poll it did not touch is still fifteen minutes wide.
+    await h.service.read();
+    expect(h.sent.length).toBe(2);
+  });
+
+  it('will not walk past a Retry-After by flipping the switch', async () => {
+    const h = harness({
+      on: { claude: true, codex: false },
+      respond: () => ({
+        status: 429,
+        body: '',
+        retryAfterAt: 1_000_000 + 60 * 60 * 1000
+      })
+    });
+    await h.service.read();
+    expect(h.sent.length).toBe(1);
+
+    for (let i = 0; i < 5; i += 1) {
+      h.on = { claude: false, codex: false };
+      await h.service.read();
+      h.on = { claude: true, codex: false };
+      await h.service.read();
+    }
+    expect(h.sent.length).toBe(1);
+
+    h.now += 60 * 60 * 1000 + 1;
+    await h.service.read();
+    expect(h.sent.length).toBe(2);
+  });
+});
+
 describe('what crosses the wire', () => {
   it('names the two vendor hosts and nothing else', async () => {
     const h = harness();

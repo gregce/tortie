@@ -14,6 +14,7 @@
  */
 
 import type { UsageProviderId, UsageState } from '@shared/usage';
+import { boundUsageReset, clampUsagePercent } from '@shared/usage';
 
 /** The vendor names, as a person knows them. */
 export const USAGE_PROVIDER_LABEL: Record<UsageProviderId, string> = {
@@ -59,10 +60,20 @@ export function usageStateLine(
   }
 }
 
-/** The percent form the operator asked for, being the number then the window. */
+/**
+ * The percent form the operator asked for, being the number then the window.
+ *
+ * It clamps again. Main clamps every served percentage already, proved over
+ * 31 hostile bodies, so nothing that reaches here from the wire needs it. But
+ * this file is the only place a number becomes words, and the fix round of
+ * 2026-08-31 served hostile snapshots through the real channel and watched it
+ * draw `NaN% 5h` and `500% 5h`. A number this file cannot draw honestly draws
+ * NOTHING, and the caller leaves that window out.
+ */
 export function usagePercentText(percent: number, window: string): string {
-  const rounded = Math.round(percent);
-  return `${rounded}% ${window}`;
+  const clamped = clampUsagePercent(percent);
+  if (clamped === null) return '';
+  return `${Math.round(clamped)}% ${window}`;
 }
 
 /**
@@ -70,9 +81,15 @@ export function usagePercentText(percent: number, window: string): string {
  *
  * Research 72 says a countdown reads better than a wall clock time, and the
  * resting face has no room for either, so this is what hover says.
+ *
+ * A reset beyond the horizon says nothing at all rather than counting to a
+ * date nobody will see. Main drops one before it crosses IPC; this is the
+ * second reading, for the same reason the percentage is clamped twice.
  */
 export function usageResetIn(resetsAt: number, now: number): string {
-  const delta = Math.max(0, resetsAt - now);
+  const bounded = boundUsageReset(resetsAt, now);
+  if (bounded === null) return '';
+  const delta = Math.max(0, bounded - now);
   const minutes = Math.floor(delta / 60_000);
   if (minutes < 1) return 'Resets now';
   if (minutes < 60) return `Resets in ${minutes}m`;

@@ -111,3 +111,21 @@ export function clampUsagePercent(raw: unknown): number | null {
   if (!Number.isFinite(n)) return null;
   return Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
 }
+
+/**
+ * The furthest ahead a plan window may reset, being forty days.
+ *
+ * The longest window either vendor names is seven days, so this has five
+ * weeks of slack and still refuses the shapes the fix round of 2026-08-31
+ * found: nothing bounded how far away a reset could be, so a body naming an
+ * absurd one drew `Resets in 11574053377d 9h` on the hover card. A reset
+ * beyond this horizon is not a plan window, so it is dropped rather than
+ * capped, and the card simply says nothing about that window's reset.
+ */
+export const USAGE_MAX_RESET_MS = 40 * 24 * 60 * 60 * 1000;
+
+/** A served reset time, or null when it is not one this app will draw. */
+export function boundUsageReset(at: number | null, now: number): number | null {
+  if (at === null || !Number.isFinite(at)) return null;
+  return at - now > USAGE_MAX_RESET_MS ? null : at;
+}

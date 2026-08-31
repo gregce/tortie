@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CODEX_FIVE_HOUR_SECONDS,
   CODEX_WEEKLY_SECONDS,
+  boundParsedResets,
   classifyCodexWindow,
   claudeScoped,
   claudeWindow,
@@ -356,5 +357,51 @@ describe('the Codex parser, against shapes nobody has seen', () => {
       NOW
     );
     expect(out.fiveHour?.percent).toBe(100);
+  });
+});
+
+describe('the reset horizon', () => {
+  it('drops a reset further away than any plan window, on every slot', () => {
+    const absurd = NOW + 1e15;
+    const out = boundParsedResets(
+      {
+        fiveHour: { percent: 1, resetsAt: absurd },
+        sevenDay: { percent: 2, resetsAt: absurd },
+        scoped: { label: 'Fable', percent: 3, resetsAt: absurd }
+      },
+      NOW
+    );
+    expect(out.fiveHour).toEqual({ percent: 1, resetsAt: null });
+    expect(out.sevenDay).toEqual({ percent: 2, resetsAt: null });
+    expect(out.scoped).toEqual({ label: 'Fable', percent: 3, resetsAt: null });
+  });
+
+  it('keeps the seven day window it exists to allow', () => {
+    const week = NOW + 7 * 86_400_000;
+    const out = boundParsedResets(
+      { fiveHour: null, sevenDay: { percent: 2, resetsAt: week }, scoped: null },
+      NOW
+    );
+    expect(out.sevenDay?.resetsAt).toBe(week);
+  });
+
+  it('leaves a reset in the past alone, because that reads as now', () => {
+    const out = boundParsedResets(
+      { fiveHour: { percent: 2, resetsAt: NOW - 5000 }, sevenDay: null, scoped: null },
+      NOW
+    );
+    expect(out.fiveHour?.resetsAt).toBe(NOW - 5000);
+  });
+
+  it('drops a reset that is not a number at all', () => {
+    const out = boundParsedResets(
+      {
+        fiveHour: { percent: 2, resetsAt: Number.POSITIVE_INFINITY },
+        sevenDay: null,
+        scoped: null
+      },
+      NOW
+    );
+    expect(out.fiveHour?.resetsAt).toBeNull();
   });
 });

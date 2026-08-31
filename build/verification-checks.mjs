@@ -337,6 +337,14 @@ export const CHECKS = [
   // it again on both sides of the flip, twice. It creates no session, spawns
   // no agent and spends no token.
   electron('probe:p175'),
+  // PHASE 181 FIX ROUND. Does the usage meter follow its switch? One launch on
+  // a scratch profile flips the Codex switch through the shipped settings
+  // bridge three times and counts the meter out of the live DOM after each
+  // flip. It reads NO credential and makes NO request: `CODEX_HOME` points at
+  // an empty scratch directory, so the read answers missing and the row draws
+  // in its signed out state, which is all the switch needs to prove. It never
+  // turns the Claude switch on, creates no session and spawns no agent.
+  electron('probe:p181'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

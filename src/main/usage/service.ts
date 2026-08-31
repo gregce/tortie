@@ -21,6 +21,15 @@
  *    `fetchProvider`, so no keychain is opened, no credentials file is read
  *    and no request is made. The unit test proves it by handing in a
  *    credential reader and a transport that throw when called.
+ *  - THE SWITCH ANSWERS AT ONCE. A provider that has just been switched on
+ *    holds nothing, so it is due and it asks, which is what makes the meter
+ *    draw rather than sit empty for a quarter of an hour. The fix round of
+ *    2026-08-31 measured that in the running app: one flip, one ask, and the
+ *    row on screen in a millisecond. A flip is a person's own act in
+ *    Settings, and a settings write is the only thing that broadcasts a
+ *    settings change, so one request per flip is a person's pace rather than
+ *    a poll. What a flip may NOT do is walk past a `Retry-After`, and that is
+ *    the one thing an off row keeps.
  *
  * NO TOKEN REFRESH, EVER, IN THIS PHASE. An expired token draws a plain line
  * saying to run the agent, which is what actually refreshes it.
@@ -44,7 +53,12 @@ import {
 } from './endpoints';
 import type { CredentialDeps, CredentialResult } from './credentials';
 import { readClaudeCredential, readCodexCredential } from './credentials';
-import { EMPTY_PARSE, parseClaudeUsage, parseCodexUsage } from './parse';
+import {
+  EMPTY_PARSE,
+  boundParsedResets,
+  parseClaudeUsage,
+  parseCodexUsage
+} from './parse';
 import type { ParsedUsage } from './parse';
 import type { UsageTransport } from './transport';
 
@@ -193,11 +207,12 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     if (bad !== null) return bad;
     const body = parseBody(res.body);
     if (body === null) return { kind: 'unavailable' };
+    const now = deps.now();
     const parsed =
       provider === 'claude'
         ? parseClaudeUsage(body)
-        : parseCodexUsage(body, deps.now());
-    return { kind: 'ok', parsed };
+        : parseCodexUsage(body, now);
+    return { kind: 'ok', parsed: boundParsedResets(parsed, now) };
   }
 
   function applyOutcome(h: Held, outcome: Outcome, now: number): void {
@@ -253,10 +268,18 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       const h = held.get(provider);
       if (h === undefined) continue;
       if (!on[provider]) {
-        // OFF. The whole row is thrown away, so a switch flipped off takes
-        // the numbers off the screen with it, and nothing below this line
-        // runs: no keychain, no file, no request.
-        held.set(provider, freshHeld());
+        // OFF. The numbers, the state and the credential answer are all
+        // thrown away, so a switch flipped off takes the numbers off the
+        // screen with it, and nothing below this line runs: no keychain, no
+        // file, no request.
+        //
+        // ONE THING SURVIVES, and the fix round of 2026-08-31 is why. A row
+        // that holds nothing is due, which is what makes a switch turned on
+        // ask at once instead of drawing an empty meter for a quarter of an
+        // hour. If a `Retry-After` went with the rest, a flip of the switch
+        // would walk straight past a wait the vendor asked for. It does not,
+        // and `due` refuses until it has passed.
+        held.set(provider, { ...freshHeld(), retryAfter: h.retryAfter });
         continue;
       }
       if (h.state === 'off') h.state = 'unavailable';

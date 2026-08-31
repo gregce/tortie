@@ -16,7 +16,7 @@
  */
 
 import type { UsageWindow } from '@shared/usage';
-import { clampUsagePercent } from '@shared/usage';
+import { boundUsageReset, clampUsagePercent } from '@shared/usage';
 
 /** What one parse yields. Every field may be null; nothing is invented. */
 export interface ParsedUsage {
@@ -30,6 +30,27 @@ export const EMPTY_PARSE: ParsedUsage = {
   sevenDay: null,
   scoped: null
 };
+
+/**
+ * The last thing between a parsed body and the snapshot: a reset time further
+ * away than any plan window is dropped.
+ *
+ * Neither parser could bound this on its own, because Claude's reset is an
+ * absolute instant and the horizon needs the clock. It is applied here, over
+ * both providers and the scoped row at once, so there is one place to read
+ * and one place a later round can change. The fix round of 2026-08-31 added
+ * it: `reset_after_seconds` took any finite number and `resets_at` took any
+ * date `Date.parse` would take, and the hover card drew the result.
+ */
+export function boundParsedResets(parsed: ParsedUsage, now: number): ParsedUsage {
+  const bound = <T extends UsageWindow>(win: T | null): T | null =>
+    win === null ? win : { ...win, resetsAt: boundUsageReset(win.resetsAt, now) };
+  return {
+    fiveHour: bound(parsed.fiveHour),
+    sevenDay: bound(parsed.sevenDay),
+    scoped: bound(parsed.scoped)
+  };
+}
 
 function asRecord(raw: unknown): Record<string, unknown> | null {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null;
