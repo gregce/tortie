@@ -76,6 +76,20 @@ export interface ShotDriveSpec {
   /** Turn the minimap / preview heading ruler on before capture. */
   minimap?: boolean;
   /**
+   * Phase 185. Drive the diff view's own control THROUGH ITS BUTTONS, with the
+   * diff already open, and read what actually got drawn: the `data-diff-span`
+   * count and the highlighted text in each of the four inline modes, and the
+   * computed row colour with the backgrounds on and off. It exists because an
+   * option that is passed and ignored looks exactly like one that works until
+   * somebody counts the spans, and the mode this app runs on is the WORKER
+   * POOL's copy rather than the surface's own.
+   *
+   * `'cycle'` clicks every control. `'read'` touches nothing and reports what
+   * the app came up drawing, which is how a second launch on the same profile
+   * proves the choice survived and reached a diff opened afterwards.
+   */
+  diffDrawing?: 'cycle' | 'read';
+  /**
    * Force the opened tab's view (markdown/svg: 'preview' | 'file' | 'split';
    * a raster image: 'image' for the viewer, 'diff' for before/after).
    */
@@ -293,6 +307,8 @@ declare global {
     __gmuxShotError?: string;
     /** PHASE 163. What the diagnostics report drew, read off the DOM. */
     __gmuxP163Surface?: unknown;
+    /** `window.__gmuxP185Drawing`: the per-mode span reading (Phase 185). */
+    __gmuxP185Drawing?: unknown;
   }
 }
 
@@ -837,6 +853,155 @@ export function installShotHook(): void {
       }
       // Syntax highlight settles async (Shiki streams tokens in diff mode).
       await wait(wantDiff ? 1200 : 600);
+
+      if (spec.diffDrawing !== undefined) {
+        step('reading how the diff is drawn in each inline mode');
+        const shadow = (): ShadowRoot | null =>
+          document.querySelector('diffs-container')?.shadowRoot ?? null;
+        /** Every intra-line highlight Pierre drew, in document order. */
+        const spanTexts = (): string[] =>
+          Array.from(
+            shadow()?.querySelectorAll('[data-diff-span]') ?? []
+          ).map((el) => el.textContent ?? '');
+        const bgOf = (sel: string, pseudo?: string): string => {
+          const el = shadow()?.querySelector(sel);
+          return el === null || el === undefined
+            ? 'none'
+            : getComputedStyle(el, pseudo).backgroundColor;
+        };
+        /**
+         * Hold until the NEW highlight has landed, then until it stops moving.
+         *
+         * The pool clears its caches and re-highlights off the main thread, so
+         * the count straight after a click is still the OLD mode's. Waiting
+         * only for stability is not enough and was measured failing: the old
+         * count is perfectly stable for as long as the worker takes, so a
+         * stability-only wait latches the previous mode and every reading comes
+         * out shifted by one click. So this waits for the count to LEAVE the
+         * value it had before the click first, and only then for it to settle.
+         */
+        const settle = async (from: number): Promise<string[]> => {
+          let moved = false;
+          let last = -1;
+          let steady = 0;
+          for (let i = 0; i < 150; i++) {
+            const now = spanTexts();
+            if (!moved) {
+              if (now.length !== from) moved = true;
+            } else if (now.length === last) {
+              steady += 1;
+              if (steady >= 3) return now;
+            } else {
+              steady = 0;
+              last = now.length;
+            }
+            await wait(200);
+          }
+          return spanTexts();
+        };
+
+        // What the app drew on its own, before this drive touched anything.
+        const restingTexts = spanTexts();
+
+        const buttons = (): HTMLButtonElement[] =>
+          Array.from(
+            document.querySelectorAll<HTMLButtonElement>(
+              '.ed-diff-bar .ed-mode-opt'
+            )
+          );
+        const modes: Record<string, unknown> = {};
+        const cycling = spec.diffDrawing === 'cycle';
+        for (const label of cycling
+          ? ['Off', 'Words', 'Phrases', 'Characters']
+          : []) {
+          const btn = buttons().find((b) => (b.textContent ?? '') === label);
+          const from = spanTexts().length;
+          btn?.click();
+          const texts = await settle(from);
+          modes[label] = {
+            clicked: btn !== undefined,
+            pressed: btn?.getAttribute('aria-pressed') ?? null,
+            spans: texts.length,
+            chars: texts.reduce((n, t) => n + t.length, 0),
+            sample: texts.slice(0, 12),
+            stored: localStorage.getItem('gmux.diffInlineMode')
+          };
+        }
+
+        // The backgrounds answer, read as colour off the running app rather
+        // than asserted: a changed row against a context row, both ways round.
+        const paint = document.querySelector<HTMLButtonElement>(
+          '.ed-diff-bar .ed-icon-btn'
+        );
+        const readPaint = (): unknown => ({
+          pressed: paint?.getAttribute('aria-pressed') ?? null,
+          attr: shadow()?.querySelector('pre')?.hasAttribute('data-background') ?? null,
+          addition: bgOf('[data-line][data-line-type="change-addition"]'),
+          deletion: bgOf('[data-line][data-line-type="change-deletion"]'),
+          // Pierre's own word for an unchanged row. It is NOT an absent
+          // data-line-type, which is what the first cut of this drive looked
+          // for and why it read "none" both ways round.
+          context: bgOf('[data-line][data-line-type="context"]'),
+          // The change bar is a `::before` on the number column, styled in a
+          // block outside `:where([data-background])`. Reading the element
+          // instead of the pseudo reads the gutter wash, which is part of what
+          // the backgrounds answer turns off.
+          bars: bgOf(
+            '[data-column-number][data-line-type="change-addition"]',
+            '::before'
+          ),
+          // The intra-line highlight is styled outside that block too, so it
+          // has to survive the wash going away.
+          spans: (shadow()?.querySelectorAll('[data-diff-span]') ?? []).length,
+          stored: localStorage.getItem('gmux.diffBackgrounds')
+        });
+        const backgroundsOn = readPaint();
+        if (cycling) paint?.click();
+        // Turning the wash off must not re-highlight anything, so unlike a
+        // mode change there is nothing to wait to LAND. One second is a
+        // re-render, and the span count is asserted equal either side.
+        await wait(1000);
+        const backgroundsOff = readPaint();
+
+        const bar = document.querySelector<HTMLElement>('.ed-diff-bar');
+        window.__gmuxP185Drawing = {
+          bar: bar !== null,
+          // The bar must fit the panel at its narrow floor, or the last
+          // control is off the end and unreachable.
+          barFits: bar === null ? null : bar.scrollWidth <= bar.clientWidth,
+          barWidth: bar?.clientWidth ?? null,
+          /** What the row actually needs: its children plus its gaps and padding. */
+          barNeeds:
+            bar === null
+              ? null
+              : Math.round(
+                  Array.from(bar.children).reduce(
+                    (n, c) => n + c.getBoundingClientRect().width,
+                    0
+                  ) +
+                    6 * (bar.children.length - 1) +
+                    16
+                ),
+          panelWidth:
+            document.querySelector<HTMLElement>('.ed-panel')?.clientWidth ?? null,
+          labels: buttons().map((b) => b.textContent ?? ''),
+          titles: buttons().map((b) => b.getAttribute('title') ?? ''),
+          // What the app came up drawing, before any click. This is the whole
+          // reading of a 'read' run.
+          atRest: {
+            pressed:
+              buttons()
+                .filter((b) => b.getAttribute('aria-pressed') === 'true')
+                .map((b) => b.textContent ?? '') ?? [],
+            spans: restingTexts.length,
+            chars: restingTexts.reduce((n, t) => n + t.length, 0)
+          },
+          modes,
+          backgroundsOn,
+          backgroundsOff
+        };
+        step('read how the diff is drawn');
+      }
     }
 
     if (spec.sidebarView !== undefined) {

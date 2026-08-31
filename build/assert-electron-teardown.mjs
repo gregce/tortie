@@ -143,6 +143,7 @@ const HELPER_USERS = [
   'probe-p139-caption.mjs',
   'probe-p143-story.mjs',
   'probe-p166-cache.mjs',
+  'probe-p185-drawing.mjs',
   'probe-p93-attention.mjs',
   'probe-p94-hotkey.mjs',
   'probe-p95-scroll.mjs',

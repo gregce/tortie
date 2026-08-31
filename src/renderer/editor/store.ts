@@ -76,6 +76,13 @@ import { isMarkdownPath } from './markdown/markdown-path';
 import { canPreviewPath } from '@shared/preview-types';
 import { baseName } from './paths';
 import { gmuxBridge } from '../bridge';
+import {
+  readDiffBackgrounds,
+  readInlineDiffMode,
+  writeDiffBackgrounds,
+  writeInlineDiffMode
+} from '../pierre/diff-view-prefs';
+import type { LineDiffTypes } from '@pierre/diffs';
 
 // The tab vocabulary lives in ./tab-types (Phase 42 stage 8) so ./tab-io can
 // name an EditorTab without importing this store. Re-exported here because
@@ -123,6 +130,14 @@ interface EditorState {
    * override of what fits.
    */
   diffSideBySide: boolean;
+  /**
+   * How much of a changed line is picked out inside the row, and whether the
+   * full-width change colour is painted (Phase 185, persisted, app-wide). Both
+   * are read back from ../pierre/diff-view-prefs, which owns the keys
+   * because the highlight pool needs the mode before this store exists.
+   */
+  diffInlineMode: LineDiffTypes;
+  diffBackgrounds: boolean;
 
   init(): void;
   openFromRequest(req: OpenFileRequest): void;
@@ -154,6 +169,8 @@ interface EditorState {
   save(): Promise<void>;
   setMinimapEnabled(on: boolean): void;
   setDiffSideBySide(on: boolean): void;
+  setDiffInlineMode(mode: LineDiffTypes): void;
+  setDiffBackgrounds(on: boolean): void;
   hidePanel(): void;
   /** ⌘E — show if hidden (reopening the last file if none), else hide. */
   togglePanel(): void;
@@ -324,6 +341,8 @@ export const useEditor = create<EditorState>((set, get) => {
     monacoError: null,
     minimapEnabled: readMinimapPref(),
     diffSideBySide: readDiffSideBySidePref(),
+    diffInlineMode: readInlineDiffMode(),
+    diffBackgrounds: readDiffBackgrounds(),
 
     init() {
       if (initialized || !gmux) return;
@@ -753,6 +772,16 @@ export const useEditor = create<EditorState>((set, get) => {
       } catch {
         /* cosmetic preference only */
       }
+    },
+
+    setDiffInlineMode(mode) {
+      set({ diffInlineMode: mode });
+      writeInlineDiffMode(mode);
+    },
+
+    setDiffBackgrounds(on) {
+      set({ diffBackgrounds: on });
+      writeDiffBackgrounds(on);
     },
 
     hidePanel() {

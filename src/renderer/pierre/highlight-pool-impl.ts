@@ -18,6 +18,7 @@
 import { WorkerPoolManager } from '@pierre/diffs/worker';
 import DiffsHighlightWorker from '@pierre/diffs/worker/worker.js?worker&inline';
 import { DIFF_RENDER_OPTIONS } from './diff-render-options';
+import { readInlineDiffMode } from './diff-view-prefs';
 
 /**
  * One diff surface is visible at a time, and a diff is one highlight task, so
@@ -40,7 +41,11 @@ export function getHighlightPool(): WorkerPoolManager {
       workerFactory: () => new DiffsHighlightWorker(),
       poolSize: POOL_SIZE
     },
-    DIFF_RENDER_OPTIONS
+    // SEEDED with the persisted inline mode, not the default (Phase 185).
+    // The pool's copy of these options is the one the renderer reads once a
+    // pool is attached, so constructing it with the default and correcting it
+    // afterwards would paint the session's first diff twice.
+    { ...DIFF_RENDER_OPTIONS, lineDiffType: readInlineDiffMode() }
   );
   return pool;
 }

@@ -487,6 +487,42 @@
   flex-direction: column;
 }
 
+/* How this diff is drawn (Phase 185). A row of controls belonging to the
+   thing they change, at the head of the diff surface rather than in Settings.
+   Same 22px control height as the tab strip's cluster, so the two read as one
+   control language; the hairline under it is what separates chrome from the
+   code below. `flex: none` keeps every pixel of the remaining height on the
+   scroller, which is the element the virtualizer measures. */
+.ed-diff-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-canvas);
+  /* The panel drags down to a 320px floor and nothing in this row shrinks, so
+     the row scrolls inside itself rather than putting its last control off the
+     end where nobody can reach it. Measured in the app at that floor the row
+     needs 294px and gets 319px, so this never shows in practice; it is the
+     floor under a future round that adds a fifth control. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* The noun the segmented control changes. One word, because the options next
+   to it are the explanation and the detail is on hover. */
+.ed-diff-bar-label {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.ed-diff-bar .ed-mode {
+  flex: none;
+}
+
 /* Pierre diff host (Phase 11). The diff renders in shadow DOM — colors come
    from the theme bridge (src/renderer/pierre/theme-bridge.ts); the custom
    properties below inherit across the shadow boundary and keep the diff on

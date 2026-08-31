@@ -19,7 +19,7 @@
  */
 
 import type { WorkerPoolManager } from '@pierre/diffs/worker';
-import type { FileDiffMetadata } from '@pierre/diffs';
+import type { FileDiffMetadata, LineDiffTypes } from '@pierre/diffs';
 
 // The options themselves live in ./diff-render-options (Phase 42 stage 8) so
 // the heavy half can import them without importing this loader back.
@@ -87,4 +87,34 @@ export function loadHighlightPool(): Promise<WorkerPoolManager | null> {
     return null;
   });
   return pending;
+}
+
+/**
+ * Push the chosen inline highlighting mode to the pool (Phase 185).
+ *
+ * THIS IS THE CALL THAT MAKES THE CHOICE REAL, and without it the option is
+ * accepted and ignored. renderers/DiffHunksRenderer.js getRenderOptions
+ * returns `workerManager.getDiffRenderOptions()` WHOLE whenever the pool is
+ * working, so the `lineDiffType` a surface passes on its own options prop is
+ * never read on the path this app actually takes. WorkerPoolManager's
+ * setRenderOptions is the other end: it clears the diff and file caches,
+ * invalidates the in-flight tasks and calls `onThemeChange()` on every
+ * subscribed instance, which is what re-highlights a diff that is already on
+ * screen.
+ *
+ * It never CREATES a pool. `pending` is null until some surface has asked for
+ * one, and a control changing a preference must not be what spins up two Shiki
+ * workers. A pool that comes up later is constructed with the persisted mode
+ * (highlight-pool-impl.ts), so there is nothing to catch up on.
+ *
+ * Idempotent: setRenderOptions returns early when the options already match,
+ * so calling this on every mount costs nothing and heals any drift.
+ */
+export function applyInlineDiffMode(mode: LineDiffTypes): void {
+  if (pending === null) return;
+  void pending
+    .then((pool) => pool?.setRenderOptions({ lineDiffType: mode }))
+    .catch((err: unknown) => {
+      console.error('gmux: diff inline mode change failed', err);
+    });
 }

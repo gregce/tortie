@@ -19,7 +19,19 @@
  * Layout (one column or two) is decided by EditorPanel and arrives as a prop
  * — the panel is the only thing that knows its own width, and the user-facing
  * control lives up there beside the minimap toggle. Hunk context expansion is
- * on (Pierre's line-info separators, default), inline diffs are word-level.
+ * on (Pierre's line-info separators, default).
+ *
+ * HOW A CHANGE IS DRAWN is the reader's choice (Phase 185): the inline
+ * highlighting mode and whether the full-width row wash is painted, both from
+ * the store, both persisted app-wide, both driven from ./DiffControls at the
+ * head of this surface. The backgrounds answer rides the options prop, which
+ * is enough. The inline mode does NOT: renderers/DiffHunksRenderer.js
+ * getRenderOptions returns the WORKER POOL's options whole whenever a working
+ * pool is attached, and this surface always attaches one, so a `lineDiffType`
+ * on the options prop alone would be accepted and silently ignored. It is
+ * passed on the prop for the no-pool path AND pushed to the pool by
+ * `applyInlineDiffMode`, whose setRenderOptions clears the caches and
+ * re-highlights whatever is already on screen.
  *
  * VIRTUALIZATION (research 12 §2.1): @pierre/diffs only virtualizes when a
  * Virtualizer instance is in context; without one it materializes every line.
@@ -51,13 +63,16 @@ import { fileCacheKey, useDiffMetadata } from '../pierre/diff-metadata';
 import {
   DIFF_RENDER_OPTIONS,
   PLAIN_TEXT_LINE_LIMIT,
+  applyInlineDiffMode,
   isPlainTextDiff,
   loadHighlightPool
 } from '../pierre/highlight-pool';
+import { DiffControls } from './DiffControls';
 import { useLiveTabText } from './live-text';
 import { loadMonaco, rememberLoaded } from './monaco-loader';
 import { OpeningSkeleton } from './MonacoHost';
 import { baseName } from './paths';
+import { useEditor } from './store';
 import type { EditorTab } from './store';
 
 type DiffOptions = NonNullable<FileDiffProps<undefined>['options']>;
@@ -155,16 +170,33 @@ export function PierreDiff({
 
   const { meta, exact } = useDiffMetadata(oldFile, newFile);
 
+  // -- how the change is drawn (Phase 185) -----------------------------------
+  const inlineMode = useEditor((s) => s.diffInlineMode);
+  const backgrounds = useEditor((s) => s.diffBackgrounds);
+
+  // The pool's copy of lineDiffType is the one the renderer reads, so the
+  // choice has to reach the pool as well as the instance. Idempotent, and it
+  // runs on mount too, so a pool that somehow drifted is corrected by opening
+  // a diff.
+  useEffect(() => {
+    applyInlineDiffMode(inlineMode);
+  }, [inlineMode]);
+
   const options = useMemo<DiffOptions>(
     () => ({
       ...DIFF_RENDER_OPTIONS,
+      lineDiffType: inlineMode,
+      // Pierre's own gate on the full-width row wash: it removes the
+      // `data-background` attribute from the wrapper, and every rule that
+      // paints a changed row sits inside a `:where([data-background])` block.
+      disableBackground: !backgrounds,
       diffStyle: sideBySide ? 'split' : 'unified',
       tokenizeMaxLength: PLAIN_TEXT_LINE_LIMIT,
       // The tab row already names the file (DESIGN.md editor anatomy) — a
       // second in-diff header would duplicate it and eat split-panel height.
       disableFileHeader: true
     }),
-    [sideBySide]
+    [sideBySide, inlineMode, backgrounds]
   );
 
   // The old side is still in flight (loadHead / loadCommitDiff).
@@ -191,6 +223,10 @@ export function PierreDiff({
 
   return (
     <div className="ed-diff">
+      {/* Only where there is a change to draw. An "identical either side"
+          panel is a full-height empty state and a row of inert controls above
+          it would be furniture. */}
+      {unchanged ? null : <DiffControls />}
       <div
         ref={hostRef}
         className="ed-pierre"
