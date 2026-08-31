@@ -46,6 +46,7 @@ import { warmMenuIcons } from '../icons';
 // Phase 175. The shell subscribes to settings so the rail can read the
 // Architecture switch; see the effect in the shell body.
 import { useSettingsStore } from '../settings/settings-store';
+import { watchArchSurfaceOff } from '../arch/open-map';
 import { useKeyboardMap } from './keyboard';
 import { useMenuActions } from './menu-actions';
 import { useQuitRequests } from './quit';
@@ -259,8 +260,12 @@ export function App(): React.JSX.Element {
   // than waiting for a modal to do it, which is what it used to depend on.
   // `watchSettings` reads one value main already holds and opens no file, and
   // it is idempotent, so the modals' own `init()` still costs nothing extra.
+  // The fix round added the second line. The pane resolves itself away when
+  // the switch goes off, but an already-open Architecture Map TAB is state,
+  // so somebody has to take it away, and this is who.
   useEffect(() => {
     useSettingsStore.getState().watchSettings();
+    return watchArchSurfaceOff();
   }, []);
 
   if (!window.gmux) {

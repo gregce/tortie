@@ -21,8 +21,9 @@
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { requestOpenFile } from '../state/open-file';
 import { useApp } from '../state/store';
+import { useEditor } from '../editor/store';
 // Phase 175. The Architecture switch, read at the one door below.
-import { archSurfacesOn } from '../settings/settings-store';
+import { archSurfacesOn, useSettingsStore } from '../settings/settings-store';
 
 /** Open the map tab for one repository, or focus it when it is already open. */
 export function openArchMap(repoPath: string): void {
@@ -58,4 +59,46 @@ export function openArchMapForActiveProject(): void {
   const project = s.projects.find((p) => p.id === s.activeProjectId) ?? null;
   const repoPath = localPathOf(targetOfProject(project));
   if (repoPath !== null) openArchMap(repoPath);
+}
+
+/**
+ * PHASE 175 FIX ROUND. Close every map tab that is already open.
+ *
+ * The opener refusing is only half the promise. A map tab opened while the
+ * switch was ON is a full size Architecture surface with an Architecture tab
+ * row, and before this it stayed on screen and stayed live after the person
+ * turned Architecture off: the rail mark went, the three menu rows went, the
+ * Architecture PANE went, and the tab did not. This is the tab's version of
+ * what `effectiveSidebarView` does for the pane.
+ *
+ * `forceCloseTab` rather than `closeTab`, and there is no prompt to lose: a
+ * map tab can never be dirty, because `markDirty` refuses it by name.
+ */
+export function closeArchMapTabs(): void {
+  const editor = useEditor.getState();
+  // The snapshot is taken first; every close replaces the array.
+  for (const tab of editor.tabs) {
+    if (tab.archMap !== undefined) editor.forceCloseTab(tab.id);
+  }
+}
+
+/**
+ * PHASE 175 FIX ROUND. Watch the switch and take the map tab away with
+ * everything else the moment it goes off. Returns the unsubscribe.
+ *
+ * The shell installs this once at boot beside `watchSettings`, so the whole
+ * surface appears and vanishes in one session, which is what the phase
+ * claimed and what the tab made untrue. It also sweeps once at install, so a
+ * map tab that ever reaches a window whose switch is already off cannot sit
+ * there either.
+ */
+export function watchArchSurfaceOff(): () => void {
+  let on = archSurfacesOn();
+  if (!on) closeArchMapTabs();
+  return useSettingsStore.subscribe((state) => {
+    const next = state.settings.arch.enabled;
+    if (next === on) return;
+    on = next;
+    if (!next) closeArchMapTabs();
+  });
 }

@@ -134,6 +134,15 @@ export function createArchCheckCoordinator(deps: {
    * than a replayed delta: a delta this build never recorded cannot be told apart
    * from no change at all, and reporting the second when it means the first is
    * exactly the false green this design refuses.
+   *
+   * PHASE 175 RECORDED A SEAM HERE and deliberately did not move it. That
+   * phase's switch decides what Architecture SHOWS, not what it RUNS, by its
+   * own charter refusal. `watchArchRepo` arms for the life of the app, so in a
+   * session where Architecture was on and then switched off, a later file
+   * change still produces a check, and a published check with drift plus a
+   * configured agent still reaches the repair pass. Whoever widens the switch
+   * from what is shown to what runs starts at this line and at the same call
+   * in the map's own reader.
    */
   async function readArch(input: ArchRepoInput): Promise<ArchLoadResult> {
     const repoPath = input.cwd;

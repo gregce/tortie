@@ -24,8 +24,15 @@
  *   ON    the switch flipped through the shipped `settings:set` bridge, the
  *         way the Settings page flips it. Every one of the above comes back
  *         in the SAME SESSION with no relaunch, read from the real rail and
- *         the real `Menu.getApplicationMenu()`.
- *   OFF   flipped back, and all of it goes again.
+ *         the real `Menu.getApplicationMenu()`, and the map TAB is opened
+ *         here through the same injected menu action.
+ *   OFF   flipped back, and all of it goes again, the already-open map tab
+ *         included. The fix round added that last clause and the pass above
+ *         it. The first build of this probe read `.arch-map-tab` only in the
+ *         OFF passes, where no map had ever been opened, so it could not see
+ *         a map tab OUTLIVING the switch, which is what it did: the rail
+ *         mark, the three menu rows and the Architecture pane all went and a
+ *         fully usable Architecture surface stayed on screen.
  *
  * The Phase 63 refusals are checked too: no session status moved, nothing
  * spawned, and the scratch repository's docs/arch bytes are identical before
@@ -240,7 +247,10 @@ const FACE_READ = `(() => {
     railCount: rail.length,
     archOnRail: rail.some((t) => t.startsWith('Architecture')),
     archPane: document.querySelector('[data-view="arch"]') !== null,
-    archMapTab: document.querySelector('.arch-map-tab') !== null
+    archMapTab: document.querySelector('.arch-map-tab') !== null,
+    archMapTabRows: [...document.querySelectorAll('.ed-tab-name')].filter(
+      (el) => (el.textContent ?? '').trim() === 'Architecture map'
+    ).length
   });
 })()`;
 
@@ -364,6 +374,24 @@ await withElectron(
       'the view.arch chord opened the view in the same session'
     );
 
+    // THE FIX ROUND'S OWN STEP. The map tab is opened here, while the switch
+    // is ON, which is the state the first build of this probe never read it
+    // in: it asked about `.arch-map-tab` only in the OFF passes, where no map
+    // had ever been opened, so a map tab that OUTLIVED the switch was
+    // invisible to it. Opened through the same injected menu action, so this
+    // is the shipped `show-arch-map` door and not a test hook.
+    await mainEval(main, injectAction('show-arch-map'));
+    const mapOpened = await (async () => {
+      for (let i = 0; i < 60; i += 1) {
+        if ((await cdpEval(cdp, `document.querySelector('.arch-map-tab') !== null`)) === true) return true;
+        await sleep(100);
+      }
+      return false;
+    })();
+    check(mapOpened, 'show-arch-map opened the map tab while the switch is on');
+    const onMap = JSON.parse(await cdpEval(cdp, FACE_READ, 15_000));
+    check(onMap.archMapTabRows === 1, `the map tab has a tab row (${String(onMap.archMapTabRows)} rows named Architecture map)`);
+
     // ---- PASS 3: off again ----------------------------------------------
     say('\nOFF again, and everything goes');
     check((await cdpEval(cdp, flip(false), 15_000)) === false, 'settings:set answered enabled false');
@@ -372,6 +400,8 @@ await withElectron(
     check(!off2.archOnRail, `the Architecture mark left the rail (${String(off2.railCount)} marks)`);
     check(off2.archRows.length === 0, 'all three menu rows left the native menu');
     check(!off2.archPane, 'the Architecture pane is not drawn any more');
+    check(!off2.archMapTab, 'the open Architecture Map tab closed with the rest of it');
+    check(off2.archMapTabRows === 0, `no tab row named Architecture map is left (${String(off2.archMapTabRows)})`);
     check(
       off2.railCount === off1.railCount && off2.menuLabels === off1.menuLabels,
       `the rail and the menu are back to the shipped shape (${String(off2.railCount)} marks, ${String(off2.menuLabels)} labels)`
@@ -399,5 +429,5 @@ if (failures.length > 0) {
   for (const f of failures) say(`  - ${f}`);
   process.exit(1);
 }
-say('probe-p175-arch-flag: PASS. The switch ships off, the rail and the native menu carry nothing, the chord and an injected menu action open nothing, turning it on reveals all of it in the same session, and turning it off removes all of it.');
+say('probe-p175-arch-flag: PASS. The switch ships off, the rail and the native menu carry nothing, the chord and an injected menu action open nothing, turning it on reveals all of it in the same session including the map tab, and turning it off removes all of it including a map tab that was already open.');
 process.exit(0);

@@ -26,8 +26,8 @@
  * And the mirror of each: with the switch ON, every one of them works.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultGmuxSettings } from '@shared/settings';
 import {
@@ -205,39 +205,99 @@ describe('the aiming verb, the third door', () => {
 /**
  * THE COPIES OF ONE ANSWER, held so the probe's finding cannot come back.
  *
- * The remembered sidebar view is resolved in THREE places, and Phase 63 wrote
- * the warning about exactly this when it made the default a constant. Phase
- * 175 shipped a first build that gated two of them, and probe-p175-arch-flag
- * caught the third: with the Architecture view active, turning the switch off
- * removed the rail mark and all three menu rows and left the pane on screen,
- * because Sidebar.tsx resolved the stored view for itself. So the resolution
- * lives in one function now and every reader is named here.
+ * The remembered sidebar view is resolved in more than one place, and Phase
+ * 63 wrote the warning about exactly this when it made the default a
+ * constant. Phase 175 shipped a first build that gated two readers and
+ * probe-p175-arch-flag caught the third: with the Architecture view active,
+ * turning the switch off removed the rail mark and all three menu rows and
+ * left the pane on screen, because Sidebar.tsx resolved the stored view for
+ * itself. So the resolution lives in one function now.
+ *
+ * THE FIX ROUND CHANGED HOW THIS IS HELD. The first version of this block
+ * was a HAND-WRITTEN list of three paths, which is the same failure mode one
+ * level up: a fourth reader added next year is not scanned at all and the
+ * test stays green. The set is DERIVED FROM THE TREE now. Every renderer
+ * source file that names the remembered map has to resolve it through the
+ * gate, so the list cannot go stale, and a new reader either calls the gate
+ * or turns this file red on the day it is written.
+ *
+ * The rule is deliberately strict: naming `sidebarViewByProject` at all puts
+ * a file under it, whether it reads the map or writes it. A file that only
+ * writes has nothing to resolve and pays one import; a file that reads and
+ * pretended to only write is exactly the defect.
  */
 describe('every reader of a remembered sidebar view goes through the gate', () => {
-  const ROOT = join(__dirname, '..', '..');
-  const READERS = [
-    'app/ActivityBar.tsx',
-    'app/Sidebar.tsx',
-    'state/chrome-slice.ts'
-  ];
+  const RENDERER = join(__dirname, '..', '..');
+  /** The remembered map itself. Naming it is what puts a file under the rule. */
+  const FIELD = 'sidebarViewByProject';
+
+  /** Comments stripped, so this file's own prose is never a reader. */
+  const code = (source: string): string =>
+    source
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+  function* sources(dir: string): Generator<string> {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === '__tests__' || entry.name === 'node_modules') continue;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) yield* sources(full);
+      else if (/\.tsx?$/.test(entry.name)) yield full;
+    }
+  }
+
+  /** Every renderer file that names the remembered map, found in the tree. */
+  const READERS = [...sources(RENDERER)]
+    .filter((file) => code(readFileSync(file, 'utf8')).includes(FIELD))
+    .map((file) => relative(RENDERER, file))
+    .sort();
+
+  /**
+   * The scan is proved before it is trusted. A walk that returned nothing
+   * would pass every assertion below it, so the three readers Phase 175
+   * gated by hand have to be IN the derived set, and the set has to be the
+   * whole of what the tree holds rather than a prefix of it.
+   */
+  it('finds the readers the probe found, and finds them by walking', () => {
+    expect(READERS).toEqual(
+      expect.arrayContaining([
+        'app/ActivityBar.tsx',
+        'app/Sidebar.tsx',
+        'state/chrome-slice.ts'
+      ])
+    );
+    // Not a list of three: whatever the tree holds today, all of it is here.
+    expect(READERS.length).toBeGreaterThanOrEqual(3);
+  });
+
+  /** And the two shape checks are proved to fail, on bytes, not on trust. */
+  it('bites on both of the shapes it forbids', () => {
+    const gated = "const view = effectiveSidebarView(byProject[id], on);";
+    const byHand = "const view = byProject[id] ?? SIDEBAR_VIEW_DEFAULT;";
+    expect(gated).toContain('effectiveSidebarView(');
+    expect(byHand).not.toContain('effectiveSidebarView(');
+    expect(code(byHand)).toMatch(/\?\?[\s\S]{0,60}SIDEBAR_VIEW_DEFAULT/);
+    expect(code(gated)).not.toMatch(/\?\?[\s\S]{0,60}SIDEBAR_VIEW_DEFAULT/);
+    // A mention in a comment is not a reader, which is what lets this very
+    // file's prose name the field without being scanned as one.
+    expect(code(`// ${FIELD}\nconst x = 1;`)).not.toContain(FIELD);
+  });
 
   for (const rel of READERS) {
     it(`${rel} resolves it through effectiveSidebarView`, () => {
-      const source = readFileSync(join(ROOT, rel), 'utf8');
+      const source = readFileSync(join(RENDERER, rel), 'utf8');
       expect(source, `${rel} no longer calls the gate`).toContain(
         'effectiveSidebarView('
       );
     });
 
     it(`${rel} does not fall back to the default by hand`, () => {
-      const code = readFileSync(join(ROOT, rel), 'utf8')
-        .replace(/\/\*[\s\S]*?\*\//g, ' ')
-        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
       // The shape the gate replaced. A reader that writes it again has its
       // own answer, which is how the pane stayed on screen.
-      expect(code, `${rel} resolves the stored view itself`).not.toMatch(
-        /\?\?[\s\S]{0,60}SIDEBAR_VIEW_DEFAULT/
-      );
+      expect(
+        code(readFileSync(join(RENDERER, rel), 'utf8')),
+        `${rel} resolves the stored view itself`
+      ).not.toMatch(/\?\?[\s\S]{0,60}SIDEBAR_VIEW_DEFAULT/);
     });
   }
 });
