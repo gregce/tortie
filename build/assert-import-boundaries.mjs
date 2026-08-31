@@ -4,7 +4,8 @@
  * Phase 124: the platform rule, and the fixtures that prove it.
  * Phase 125: the facade rule, and the seven fixtures that prove it.
  * Phase 127: the directory wall, and the ten fixtures that prove it.
- * Phase 172: the arch facade door, and the seven fixtures that prove it.
+ * Phase 172: the two arch facade doors, and the fourteen fixtures that
+ * prove them.
  *
  * The five TypeScript projects (tsconfig.shared.json, tsconfig.main.json,
  * tsconfig.preload.json, tsconfig.web.json for production, and
@@ -200,6 +201,16 @@ const FACADE_ONLY = [
       'enrichment workflows into coordinator modules behind it, and a second ' +
       'importer of any internal module is how those seams stop being ' +
       'internal.'
+  },
+  {
+    dir: 'renderer/arch/state/',
+    onlyFrom: 'renderer/arch/',
+    door: 'src/renderer/arch/store.ts',
+    why:
+      'the Architecture store has ONE renderer facade, being useArch in ' +
+      'store.ts. Phase 172 built it from the document, map and pass action ' +
+      'modules over the one state type, and a second importer of any of ' +
+      'them is how a competing store starts.'
   }
 ];
 
@@ -355,7 +366,7 @@ function violationsFor(absFile, text) {
 }
 
 // ---------------------------------------------------------------------------
-// The fixtures. Thirty-five synthetic files, each one line of source, run before
+// The fixtures. Forty-two synthetic files, each one line of source, run before
 // any real file is read. Nothing is written to disk and nothing is read from
 // it. A row that does not behave fails the gate with a non-zero exit.
 // ---------------------------------------------------------------------------
@@ -437,6 +448,40 @@ const FIXTURES = [
   [
     'main/__tests__/p172-fixture.ts',
     "import { createArchCheckCoordinator } from '../arch/check-coordinator';",
+    null
+  ],
+  // Phase 172, the renderer store facade. Three rejections, one per shape
+  // that can reach around useArch, and four acceptances that pin the door,
+  // the inside and the test exemption.
+  [
+    'renderer/editor/p172-fixture.ts',
+    "import { createMapActions } from '../arch/state/map-actions';",
+    '../arch/state/map-actions'
+  ],
+  [
+    'renderer/p172-fixture.tsx',
+    "import { errorText } from '@renderer/arch/state/view-state';",
+    '@renderer/arch/state/view-state'
+  ],
+  [
+    'renderer/scm/p172-fixture.ts',
+    "const acts = await import('../arch/state/pass-actions');",
+    '../arch/state/pass-actions'
+  ],
+  ['renderer/p172-fixture.ts', "import { useArch } from './arch/store';", null],
+  [
+    'renderer/arch/p172-fixture.ts',
+    "import { createDocumentActions } from './state/document-actions';",
+    null
+  ],
+  [
+    'renderer/arch/state/p172-fixture.ts',
+    "import { NONE } from './view-state';",
+    null
+  ],
+  [
+    'renderer/editor/__tests__/p172-fixture.ts',
+    "import { drillPatch } from '../../arch/state/view-state';",
     null
   ],
   // Phase 127, the directory wall. Four rejections, one per shape that can
