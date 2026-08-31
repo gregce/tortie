@@ -139,10 +139,197 @@ Tier 3 eyes.
 
 Nothing is queued by this document; the operator picks, as with research 71.
 
-## 8. What was NOT verified here
+## 8. Measured over the wire, 2026-08-31, Phase 181 step one
 
-This research read orca's source and trusted its in-code comments; no endpoint was called, no
-credential was read, and no request shape was replayed. The exact response bytes of
-`api.anthropic.com/api/oauth/usage` and `chatgpt.com/backend-api/wham/usage` on HIS account, the
-statusline behaviour of his installed Claude Code version, and whether a per-session statusLine
-override works under tmux are all measurements the first phase must make before building on them.
+Sections 1 to 7 read orca's source and trusted its in-code comments. Nothing there was called. This
+section replaces that admission with bytes. On 2026-08-31 both endpoints were called exactly ONCE
+each on the operator's own logged-in machine, with his own token and the CLI's own headers, and both
+answered 200. Claude Code 2.1.251, codex-cli 0.150.1, `CLAUDE_CONFIG_DIR` unset.
+
+Nothing was written, refreshed, rotated or copied. No token, account id, user id, email address,
+request id or organization id appears anywhere below; where a value is an identifier the field is
+named and the value is not recorded. The measurement scripts were deleted after the run.
+
+### 8.1 Where the credentials actually are on this machine
+
+**Claude: the keychain, and only the keychain.** `~/.claude/.credentials.json` DOES NOT EXIST here.
+A builder that reads the file first finds nothing and must fall through, not conclude signed out.
+The live source is a login keychain generic password whose service is the plain string
+`Claude Code-credentials`, with **no sha256 config-dir suffix**, because `CLAUDE_CONFIG_DIR` is
+unset. Section 3's scoped-service note is real in orca but does not apply to a default install, so
+the reader tries the scoped name only when a config dir is set and always tries the plain name.
+`security find-generic-password -s "Claude Code-credentials" -w` returned the payload with no GUI
+consent prompt, because `security` is itself the app that created the item.
+
+The payload is JSON with two top-level keys. `mcpOAuth` is a map of unrelated OAuth entries, one per
+configured MCP server, each carrying its own access token; **Tortie reads `claudeAiOauth` and must
+never touch, copy or log `mcpOAuth`.** `claudeAiOauth` carries exactly these fields:
+
+| Field | Type | Note |
+| --- | --- | --- |
+| `accessToken` | string | the bearer, value never recorded |
+| `refreshToken` | string | present, and Tortie never reads it in this phase |
+| `expiresAt` | number | **milliseconds** since epoch |
+| `refreshTokenExpiresAt` | number | milliseconds since epoch |
+| `scopes` | array of string | five entries |
+| `subscriptionType` | string | short plan word |
+| `rateLimitTier` | string | a tier name |
+
+The measured item's `expiresAt` fell 50 minutes after the call, and the keychain item's own
+modification date was that same morning. **Claude Code rewrites this item roughly hourly.** That is
+the whole argument for the no-refresh rule: an access token found stale simply means the agent has
+not run recently, and the honest answer is to say run claude to refresh rather than to take custody
+of a single-use refresh token. Note also that `expiresAt` is advisory; orca's comment that the
+server decides is the right posture, because the item can be rewritten under the reader at any time.
+
+**Codex: a file, no keychain.** `~/.codex/auth.json` exists, mode 0600. Fields: `auth_mode`
+(string, measured `chatgpt`), `OPENAI_API_KEY` (null on a subscription login, so its presence is how
+API-key billing announces itself), `tokens.id_token`, `tokens.access_token`, `tokens.refresh_token`,
+`tokens.account_id` (a uuid, an identifier), and `last_refresh` (ISO 8601 with a `Z`).
+
+### 8.2 Claude, GET https://api.anthropic.com/api/oauth/usage
+
+Headers sent, exactly orca's: `Authorization: Bearer <accessToken>`, `anthropic-beta:
+oauth-2025-04-20`, `User-Agent: claude-code/2.1.0`. Answer: **200**, `application/json`, 2032 bytes.
+
+Response headers carry `request-id` and `anthropic-organization-id`. Both are identifiers and
+neither may reach a log.
+
+**A window object is this shape, and it repeats:**
+
+```
+{ "limit_dollars": null, "locked_reason": null, "remaining_dollars": null,
+  "resets_at": "2026-08-31T20:00:00.282569+00:00", "used_dollars": null, "utilization": 2.0 }
+```
+
+Five findings that change what the parser may assume.
+
+1. **The percentage field is `utilization`, a float on a 0 to 100 scale.** `used_percentage` DOES
+   NOT EXIST in a live response. Section 3's "or `used_percentage`" came from orca's defensive code,
+   not from bytes. Read `utilization`, tolerate the other, invent neither.
+2. **`resets_at` is an ISO 8601 STRING**, with microseconds and an explicit `+00:00` offset. It is
+   not seconds and it is not milliseconds. `Date.parse` reads it.
+3. **The API states no window duration anywhere.** Nothing in the body says five hours or seven
+   days. The key names are the only durations, so the client labels 300 and 10080 minutes itself,
+   exactly as section 3 said.
+4. **A window object can be present with `resets_at: null`.** The measured body carried a populated
+   `nimbus_quill` window at `utilization: 0.0` with a null reset. A parser that assumes a present
+   window has a reset time crashes on it.
+5. **Money is minor units plus an exponent, never a float**, in `spend.cap.credits`,
+   `spend.limit` and `spend.used`. Out of scope for Phase 181 and recorded so nobody parses it as
+   dollars later.
+
+**`five_hour` and `seven_day` were both present and populated**, at `utilization` 2.0 and 56.0.
+
+**`limits[]` is an array of objects**, three on this account, each exactly:
+`{ group, is_active, kind, percent, resets_at, scope, severity }`. `percent` is an INTEGER where the
+window objects give a float, and on the measured account they agreed (2 against 2.0, 56 against
+56.0). Measured `kind` values were `session` (group `session`), `weekly_all` (group `weekly`) and
+`weekly_scoped` (group `weekly`). Measured `severity` values were `normal` and `critical`.
+`is_active` was true on exactly one row, the one at 100 percent.
+
+**The Fable window exists ONLY inside `limits[]`.** It is the row with `kind === "weekly_scoped"`
+and `scope.model.display_name === "Fable"`, **capital F**, so the comparison lowercases or it misses.
+`scope` is `{ model: { display_name, id }, surface }`, and `id` and `surface` were both null. There
+is **no top-level `fable_weekly`, `fable_seven_day` or `seven_day_fable` key**; orca probes three
+such names and this account's response carries none of them. Do not build on them.
+
+**Present-and-null top-level keys, which the parser ignores whole:** `amber_ladder`, `cinder_cove`,
+`iguana_necktie`, `juniper_tide`, `omelette_promotional`, `tangelo`, `seven_day_cowork`,
+`seven_day_oauth_apps`, `seven_day_omelette`, `seven_day_opus`, `seven_day_sonnet`. These are code
+names for buckets this account does not have, and the set will move without notice, which is the
+argument for reading the two named windows plus `limits[]` and nothing else.
+
+**The rest of the top level:** `member_dashboard_available` (boolean), `extra_usage`
+(`credits_ever_enabled`, `currency`, `daily`, `decimal_places`, `disabled_reason`, `is_enabled`,
+`monthly_limit`, `spend_limit_reached`, `used_credits`, `user_disabled`, `utilization`, `weekly`)
+and `spend` (`auto_reload`, `balance`, `can_purchase_credits`, `can_toggle`, `cap`,
+`disabled_reason`, `disclaimer`, `enabled`, `limit`, `percent`, `severity`, `used`). The
+`disclaimer` string contains a markdown link, so it is untrusted text and is never rendered as
+markup. None of this is in Phase 181.
+
+**No identifier appears in the Claude response body.** Unlike Codex, below.
+
+### 8.3 Codex, GET https://chatgpt.com/backend-api/wham/usage
+
+Headers sent, exactly orca's: `Authorization: Bearer <tokens.access_token>`, `User-Agent:
+codex-cli`, `OpenAI-Beta: codex-1`, `originator: Codex Desktop`, `ChatGPT-Account-Id:
+<tokens.account_id>`. Answer: **200**, `application/json`, 1503 bytes, served through Cloudflare.
+
+**THE HANDLING FACT, and it is the most important one in this section. The body carries the
+person's `email`, `user_id` and `account_id` at the top level.** The Codex usage response is itself
+personal data. It may never be logged, never written to the manifest or any store, and never crossed
+whole over IPC. The main process parses it and sends the renderer numbers and timestamps only.
+
+`plan_type` is a top-level string, measured `pro`.
+
+`rate_limit` is `{ allowed: bool, limit_reached: bool, primary_window, secondary_window }`, and a
+window is:
+
+```
+{ "limit_window_seconds": 604800, "reset_after_seconds": 559202,
+  "reset_at": 1788747997, "used_percent": 2 }
+```
+
+**THE TRAP, and it is the finding that decides the parser.** On the measured account
+`rate_limit.primary_window` was the **WEEKLY** window, `limit_window_seconds` 604800, and
+`secondary_window` was **null**. There was no five hour window in `rate_limit` at all. A parser that
+assumes primary is the five hour window draws the weekly number in the five hour slot and is wrong
+by 100 percent of the value with no visible symptom. **Classify by `limit_window_seconds`, being
+18000 for the five hour window and 604800 for the weekly, and never by position.** orca already does
+this in `codex-rate-limit-window-classification.ts` with a one minute tolerance, and this
+measurement is the reason it must.
+
+Two more, both concrete:
+
+1. **`reset_at` is UNIX SECONDS**, not milliseconds. The measured 1788747997 is 2026-09-06.
+   Multiply by 1000 before it meets a `Date`.
+2. **`reset_after_seconds` is also given**, a relative countdown, and it is the sturdier of the two
+   because it needs no agreement about the machine's clock.
+
+**`additional_rate_limits[]` exists and section 3 never mentioned it.** One entry was measured:
+`{ limit_name: "GPT-5.3-Codex-Spark", metered_feature: "codex_bengalfox", rate_limit: { allowed,
+limit_reached, primary_window, secondary_window } }`, and **this is where the 18000 second five hour
+window lived** on the measured account, at 0 percent used. Phase 181 does not draw it. It is
+recorded so that a later phase has the shape and so that nobody mistakes a per model bucket for the
+account's main window.
+
+**The rest of the top level:** `credits` (`approx_cloud_messages` and `approx_local_messages`, each
+an array of two integers, `balance` which is a **STRING** and not a number, `has_credits`,
+`overage_limit_reached`, `unlimited`), `rate_limit_reset_credits`
+(`applicable_available_count`, `available_count`), `spend_control` (`individual_limit`, `reached`),
+and three that were null: `code_review_rate_limit`, `promo`, `rate_limit_reached_type`.
+
+### 8.4 What Phase 181 may now assume, in one place
+
+| Question | Claude | Codex |
+| --- | --- | --- |
+| Credential source | keychain `Claude Code-credentials`, file fallback absent here | `~/.codex/auth.json` |
+| Percentage field | `utilization`, float, 0 to 100 | `used_percent`, int, 0 to 100 |
+| Reset time | ISO 8601 string | UNIX seconds, plus `reset_after_seconds` |
+| Window duration stated | NO, the client labels it | YES, `limit_window_seconds` |
+| Which window is which | by key name, `five_hour` and `seven_day` | by `limit_window_seconds`, NEVER by position |
+| Fable or per model window | `limits[]`, `weekly_scoped`, `scope.model.display_name` lowercased | `additional_rate_limits[]`, not drawn in 181 |
+| Identifiers in the body | none | **`email`, `user_id`, `account_id`** |
+| Identifiers in the headers | `request-id`, `anthropic-organization-id` | Cloudflare ray id |
+
+### 8.5 What is STILL not verified, and the builder may not pretend otherwise
+
+- **No failure path was exercised.** The charter allowed one call per endpoint and both returned 200,
+  so the 401, 403 and 429 bodies are unmeasured, and whether Anthropic sends `Retry-After` on a 429
+  is unmeasured. Error handling therefore stands on orca's code, being
+  `claude-oauth-usage-error.ts`, rather than on bytes: 429 message fixed, otherwise `error.message`
+  from the body if it is a non-empty string, `Retry-After` read as seconds or as an HTTP date and
+  clamped to 24 hours. Treat every one of those as unproven and make the parser survive the shape
+  being different.
+- **Nothing was measured with an expired access token**, so what either endpoint answers to one is
+  unknown. The stale-under-a-glyph policy must not depend on guessing that answer.
+- **Nothing on API key billing was measured.** There is no API-key account on this machine, so the
+  honest `API key billing` face of section 3 is inherited from orca and not confirmed.
+- **The statusline behaviour and the per-session `statusLine` override under tmux were not touched.**
+  They remain Phase 182's first measurement, and Phase 182 still stops if the override needs a global
+  settings edit.
+- **`additional_rate_limits[]` had exactly one entry** and whether it grows, or reorders, is unknown.
+- **One account, one plan, one moment.** Every shape above is one subscription's answer on one
+  morning. A field that was null here may be populated for somebody else, which is the argument for
+  a parser that reads the fields it names and drops everything else whole.
