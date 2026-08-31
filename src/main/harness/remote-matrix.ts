@@ -493,7 +493,7 @@ function statusWatcher(): {
       for (const sample of taken) {
         const status = sample.rows[sessionId];
         if (status === undefined) continue;
-        if (out.length === 0 || out[out.length - 1].status !== status) {
+        if (out.length === 0 || out[out.length - 1]?.status !== status) {
           out.push({ status, at: sample.at });
         }
       }
