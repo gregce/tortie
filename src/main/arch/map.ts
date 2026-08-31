@@ -59,13 +59,11 @@ import {
   aggregateGroupEdges,
   bandOf,
   classify,
-  groupId,
   groupOwners,
   groupTree,
   mergeToTarget,
-  prefixAt,
+  partModules,
   rankGroups,
-  SKELETON_TARGET,
   type Group
 } from './skeleton';
 
@@ -527,37 +525,6 @@ export function composeArchMapPart(
     subjectIds: scoped.subjectIds,
     contractPresent: input.document?.contract != null
   };
-}
-
-/**
- * The part's files grouped one directory level below the part, by the SAME
- * prefix rule the level 1 grouping uses, descending at most two more levels
- * until there are enough boxes to be worth drawing. Fewer than the target
- * minimum is an accepted answer, the Phase 160 rule scoped.
- *
- * A merged in file that does not sit under the part's directory, which
- * `mergeToTarget` produces on purpose, keeps its own prefix at the same
- * depth, so it draws as the directory it actually lives in.
- */
-function partModules(part: Group): Group[] {
-  const base = part.dir.split('/').length;
-  const files = [...part.files].sort();
-  for (let depth = base + 1; depth <= base + 3; depth += 1) {
-    const byDir = new Map<string, string[]>();
-    for (const path of files) {
-      const dir = prefixAt(path, depth);
-      if (dir === null) continue;
-      const list = byDir.get(dir);
-      if (list === undefined) byDir.set(dir, [path]);
-      else list.push(path);
-    }
-    if (byDir.size >= SKELETON_TARGET.min || depth === base + 3) {
-      return [...byDir.entries()]
-        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-        .map(([dir, list]) => ({ id: groupId(dir), dir, files: list }));
-    }
-  }
-  return [];
 }
 
 /**

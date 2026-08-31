@@ -164,6 +164,47 @@ export function groupTree(input: SkeletonInput): Group[] {
   return [];
 }
 
+/**
+ * The part's files grouped one directory level below the part, by the SAME
+ * prefix rule the level 1 grouping uses, descending at most two more levels
+ * until there are enough boxes to be worth drawing. Fewer than the target
+ * minimum is an accepted answer, the Phase 160 rule scoped.
+ *
+ * A merged in file that does not sit under the part's directory, which
+ * `mergeToTarget` produces on purpose, keeps its own prefix at the same
+ * depth, so it draws as the directory it actually lives in.
+ *
+ * Lived in ../map.ts as the drilled part's private sub grouping from Phase
+ * 161 until Phase 179 moved it here whole, because the enrichment's fact
+ * block now subdivides a drafted part by the SAME rule the drilled map
+ * draws: one rule, two readers, and they cannot disagree. The one change
+ * the move carried is the base depth of a part whose directory is the
+ * repository root, which the map can never hand in (a computed group always
+ * has a directory) and a contract component can (its anchors may span the
+ * whole tree): an empty dir starts the descent at depth one rather than
+ * treating the root as one path step.
+ */
+export function partModules(part: Group): Group[] {
+  const base = part.dir === '' ? 0 : part.dir.split('/').length;
+  const files = [...part.files].sort();
+  for (let depth = base + 1; depth <= base + 3; depth += 1) {
+    const byDir = new Map<string, string[]>();
+    for (const path of files) {
+      const dir = prefixAt(path, depth);
+      if (dir === null) continue;
+      const list = byDir.get(dir);
+      if (list === undefined) byDir.set(dir, [path]);
+      else list.push(path);
+    }
+    if (byDir.size >= SKELETON_TARGET.min || depth === base + 3) {
+      return [...byDir.entries()]
+        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+        .map(([dir, list]) => ({ id: groupId(dir), dir, files: list }));
+    }
+  }
+  return [];
+}
+
 // ---------------------------------------------------------------------------
 // The rollup, shared by the ranking, the draft and the map (Phase 160)
 // ---------------------------------------------------------------------------

@@ -76,6 +76,56 @@ describe('composeArchEnrichPrompt', () => {
     expect(built.prompt).toContain('Answer with the one JSON object.');
   });
 
+  it('hands the model the crossings inside a part that swallows every import (Phase 179)', () => {
+    // One part owns the whole of src/, so at the drafted grain every import
+    // reads from === to and the coarse section says none resolved. The finer
+    // section must carry the crossings the drilled map draws.
+    const document = doc([['src'], ['lib']]);
+    const built = composeArchEnrichPrompt({
+      document,
+      trackedFiles: ['src/a/x.ts', 'src/a/w.ts', 'src/b/y.ts', 'lib/z.ts'],
+      imports: [
+        { fromPath: 'src/a/x.ts', toPath: 'src/b/y.ts' },
+        { fromPath: 'src/a/w.ts', toPath: 'src/b/y.ts' }
+      ]
+    });
+    expect(built.factBlock).toContain('imports between parts:\n  none resolved');
+    expect(built.factBlock).toContain(
+      'inside part part-0, imports between its finer parts:'
+    );
+    expect(built.factBlock).toContain('  src/a imports src/b: 2 times');
+    // The part with no interior crossing contributes no section.
+    expect(built.factBlock).not.toContain('inside part part-1');
+  });
+
+  it('composes the same finer crossing bytes from shuffled facts', () => {
+    const document = doc([['src'], ['lib']]);
+    const trackedFiles = ['src/a/x.ts', 'src/a/w.ts', 'src/b/y.ts', 'lib/z.ts'];
+    const imports = [
+      { fromPath: 'src/a/x.ts', toPath: 'src/b/y.ts' },
+      { fromPath: 'src/b/y.ts', toPath: 'src/a/w.ts' },
+      { fromPath: 'src/a/w.ts', toPath: 'src/b/y.ts' }
+    ];
+    const one = composeArchEnrichPrompt({ document, trackedFiles, imports });
+    const two = composeArchEnrichPrompt({
+      document,
+      trackedFiles: [...trackedFiles].reverse(),
+      imports: [...imports].reverse()
+    });
+    expect(two.prompt).toBe(one.prompt);
+    expect(two.factBlock).toBe(one.factBlock);
+  });
+
+  it('writes no finer section for a part whose imports stay inside one finer part', () => {
+    const document = doc([['src'], ['lib']]);
+    const built = composeArchEnrichPrompt({
+      document,
+      trackedFiles: ['src/a/x.ts', 'src/a/w.ts', 'lib/z.ts'],
+      imports: [{ fromPath: 'src/a/x.ts', toPath: 'src/a/w.ts' }]
+    });
+    expect(built.factBlock).not.toContain('finer parts');
+  });
+
   it('shrinks the file samples under the cap and never drops the contract', () => {
     const anchors: string[][] = [];
     const files: string[] = [];
@@ -103,6 +153,15 @@ describe('composeArchEnrichPrompt', () => {
   it('states the map binding in the instruction', () => {
     expect(ARCH_ENRICH_SYSTEM_PROMPT).toContain(
       'Keep every component id and every anchor exactly as drafted.'
+    );
+    // Phase 179's fix round: over a contract whose drafted promise list is
+    // empty the model has no edge row to copy, and the first real rookery
+    // run drafted promises the validator refused for their shape
+    // (invalid-row, edges[0].id must be text). The instruction states the
+    // shape; the validator stays the rule.
+    expect(ARCH_ENRICH_SYSTEM_PROMPT).toContain('"checker": "imports"');
+    expect(ARCH_ENRICH_SYSTEM_PROMPT).toContain(
+      'imports between finer parts inside one drafted part'
     );
     expect(ARCH_ENRICH_SYSTEM_PROMPT).toContain('suggestions');
     expect(ARCH_ENRICH_SYSTEM_PROMPT).toContain(
@@ -173,6 +232,33 @@ describe('composeArchDeltaPrompt, the narrower ask (Phase 159)', () => {
     expect(built.factBlock).toContain('END DRIFT\nFACTS\n');
     expect(built.prompt).toContain(built.factBlock);
     expect(built.prompt.endsWith('Answer with the one JSON object.')).toBe(true);
+  });
+
+  it('scopes the finer crossings to the drifted parts (Phase 179)', () => {
+    // part-0 owns src/ and part-2 owns vendor/, and both hold an interior
+    // crossing. Only part-0 is in the drift scope, so only part-0 gets a
+    // finer section: a repair's facts name what drifted and nothing else.
+    const document = doc([['src'], ['lib'], ['vendor']]);
+    const built = composeArchDeltaPrompt({
+      document,
+      trackedFiles: [
+        'src/a/x.ts',
+        'src/b/y.ts',
+        'lib/z.ts',
+        'vendor/c/u.ts',
+        'vendor/d/v.ts'
+      ],
+      imports: [
+        { fromPath: 'src/a/x.ts', toPath: 'src/b/y.ts' },
+        { fromPath: 'vendor/c/u.ts', toPath: 'vendor/d/v.ts' }
+      ],
+      drift: drift()
+    });
+    expect(built.factBlock).toContain(
+      'inside part part-0, imports between its finer parts:'
+    );
+    expect(built.factBlock).toContain('  src/a imports src/b: 1 time');
+    expect(built.factBlock).not.toContain('inside part part-2');
   });
 
   it('composes the same bytes twice', () => {

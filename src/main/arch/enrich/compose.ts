@@ -27,6 +27,13 @@ import type { ArchDocument, ArchDrift } from '@shared/arch';
 import { ARCH_PROMISE_GUIDANCE } from '@shared/arch';
 import { componentFiles } from '../checkers/glob';
 import { oneLine } from '../payload';
+import {
+  aggregateGroupEdges,
+  mergeToTarget,
+  partModules,
+  rankGroups,
+  type Group
+} from '../skeleton';
 
 /** The whole composed prompt's ceiling, in bytes of UTF-8. */
 export const ARCH_ENRICH_PROMPT_MAX_BYTES = 65_536;
@@ -48,6 +55,9 @@ export const ARCH_ENRICH_SYSTEM_PROMPT = [
   'Edit each component\'s name into a person readable name, and write one or two sentences of description saying what the part is FOR.',
   'Write real gaps where a part owes something, as plain sentences in its gaps list.',
   'Judge the promises in edges. Keep a may that is only an observation, promote one to must where the dependency is the design, and add a must-not between drafted parts where an import must never happen. Edge from and to only ever name drafted component ids.',
+  'A promise you add is one JSON object shaped {"id": "...", "from": "...", "to": "...", "kind": "imports", "rule": "must-not", "checker": "imports", "evidence": []}: id is a new kebab case name such as app-must-not-import-store, kind names the verb, rule is must, may or must-not, and checker is imports for an import promise.',
+  'Where FACTS lists imports between finer parts inside one drafted part, treat them as the real structure the drafted grain hides: let them ground that part\'s description and gaps, the promises you judge, and the regroupings you suggest.',
+  'When no import crosses two drafted parts, that quiet boundary is still a promise to judge: where the design means the import never happens, such as parts that talk only over a network or a directory nothing may reach into, write that must-not. An empty promise list is only right when no boundary is worth keeping.',
   'Return every evidence list exactly as given, or with rows removed. Never add a quote and never quote code.',
   'Write a number only if that exact number appears in the FACTS section.',
   'If the parts should be grouped differently, say so in suggestions as plain sentences. Never reshape the answer itself.',
@@ -135,12 +145,92 @@ function ownerOf(
 }
 
 /**
+ * The deepest directory every path in the list shares, or the empty string
+ * when they share none. Order independent, because a common prefix is.
+ */
+function commonDir(paths: readonly string[]): string {
+  let prefix: string[] | null = null;
+  for (const path of paths) {
+    const dirs = path.split('/').slice(0, -1);
+    if (prefix === null) {
+      prefix = dirs;
+      continue;
+    }
+    let i = 0;
+    while (i < prefix.length && i < dirs.length && prefix[i] === dirs[i]) {
+      i += 1;
+    }
+    prefix.length = i;
+  }
+  return (prefix ?? []).join('/');
+}
+
+/**
+ * The crossings the map actually draws when a part is drilled (Phase 179).
+ *
+ * On a repository whose first party code sits under one top level directory,
+ * every resolved import reads from === to at the drafted grain, the block
+ * below says "none resolved", and the model is asked for five to ten
+ * promises in the same breath. Research 71 section 3.2 measured the gap on
+ * rookery: zero crossings over the nine drafted parts, 105 over the finer
+ * decomposition inside the one `server` part. The drilled map was drawing
+ * that graph all along, so this hands the SAME picture to the pass: the
+ * part's owned files are subdivided by the drill's own rule (`partModules`
+ * in ../skeleton.ts, one rule, two readers), and the imports between those
+ * finer parts are printed as fact lines the model may quote.
+ *
+ * The lines are capped at the file sample and shrink with it under the byte
+ * cap, with the leftover counted, so a large part stays honest at any size.
+ * A part with fewer than two finer parts, or with no import between them,
+ * contributes nothing.
+ */
+function finerPartLines(
+  componentId: string,
+  owned: readonly string[],
+  imports: readonly ArchEnrichImport[],
+  sample: number
+): string[] {
+  if (owned.length < 2) return [];
+  const inside = new Set(owned);
+  const interior = imports.filter(
+    (edge) => inside.has(edge.fromPath) && inside.has(edge.toPath)
+  );
+  if (interior.length === 0) return [];
+  const part: Group = {
+    id: componentId,
+    dir: commonDir(owned),
+    files: [...owned]
+  };
+  const sub = partModules(part);
+  if (sub.length < 2) return [];
+  const modules = mergeToTarget(sub, rankGroups(sub, interior));
+  const dirOf = new Map(modules.map((module) => [module.id, module.dir]));
+  const crossings = aggregateGroupEdges(modules, interior);
+  if (crossings.length === 0) return [];
+  const lines = [`inside part ${componentId}, imports between its finer parts:`];
+  for (const edge of crossings.slice(0, sample)) {
+    lines.push(
+      `  ${dirOf.get(edge.from) ?? edge.from} imports ` +
+        `${dirOf.get(edge.to) ?? edge.to}: ${edge.count} ` +
+        `${edge.count === 1 ? 'time' : 'times'}`
+    );
+  }
+  if (crossings.length > sample) {
+    lines.push(`  and ${crossings.length - sample} more`);
+  }
+  return lines;
+}
+
+/**
  * The FACTS section, deterministic for the same inputs.
  *
  * With a scope, only the parts in it get file lines and only the import
  * pairs with an end in it are counted, and the promise count guidance is
  * left out because a repair is not drafting promises. The tracked file count
- * always travels, so the block is never empty.
+ * always travels, so the block is never empty. Since Phase 179 each listed
+ * part also carries the imports between its own finer parts, subdivided by
+ * the drilled map's rule, so a part that swallows every crossing at the
+ * drafted grain still hands the model its real structure.
  */
 function factsBlock(
   input: ArchEnrichComposeInput,
@@ -191,6 +281,13 @@ function factsBlock(
   if (pairs.length === 0) lines.push('  none resolved');
   for (const [key, count] of pairs) {
     lines.push(`  ${key}: ${count} ${count === 1 ? 'time' : 'times'}`);
+  }
+  // Phase 179: the crossings the map actually draws. The scoped `components`
+  // list is reused whole, so a repair's facts stay scoped to the drifted
+  // parts the way the file lines already are.
+  for (const component of components) {
+    const owned = (files.get(component.id) ?? []).sort();
+    lines.push(...finerPartLines(component.id, owned, input.imports, sample));
   }
   if (scope === null) {
     lines.push(
