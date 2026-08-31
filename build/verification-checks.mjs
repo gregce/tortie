@@ -353,6 +353,20 @@ export const CHECKS = [
   // and makes NO request, on the same terms as the row above, and it never
   // turns the Claude switch on.
   electron('probe:p1811'),
+  // PHASE 181.2 FIX ROUND. Does the bar draw the number a person reads, and
+  // does the hover card sit on top of the project tabs? One launch on a
+  // scratch profile stages INVENTED numbers into the usage store through the
+  // probe chunk's own drive, then at both orientations and at each of the three
+  // window choices it divides the filled width by the track width and compares
+  // that to the number read out of the TEXT beside it. It reads the card's box
+  // against the tab strip's, and in a window too short to place the card clear
+  // it asserts the computed stacking order, which is the case that can fail on
+  // a z-index. It reads NO credential and makes NO request: BOTH usage switches
+  // stay off for the whole run, so no keychain item and no credentials file is
+  // opened and no vendor is asked anything, and the plan word it draws is the
+  // word `probe`. `node build/probe-p1812-bar-and-card.mjs --self-test` proves
+  // the graders on twelve fixtures and launches nothing.
+  electron('probe:p1812'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

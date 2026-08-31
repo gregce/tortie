@@ -96,6 +96,13 @@ import type { RemoteBranchProbeSpec } from '../scm/p106-branch-shot';
 import { driveRemoteHistory } from '../scm/p107-history-shot';
 import type { RemoteHistoryProbeSpec } from '../scm/p107-history-shot';
 // PHASE 120. The LOCAL Runs section's own hook, in the Phase 105 shape.
+// PHASE 181.2. The usage meter's hook, read by
+// build/probe-p1812-bar-and-card.mjs. It stages invented numbers into the
+// usage store and opens the hover card with a real pointer event, so the probe
+// can read the drawn bar against the drawn line and the card's box against the
+// tab strip's. Both switches stay off for the whole run, so no credential is
+// opened and no vendor is asked anything.
+import { registerP1812UsageDrive } from './p1812-usage-drive';
 // PHASE 156. The build time menu icon generator's hook. It reads back the
 // cache `warmMenuIcons()` fills, so the PNG set main ships is the output of
 // the ONE rasterizer this product has rather than a second copy of it.
@@ -356,6 +363,10 @@ function armModuleLoadDrives(): void {
 
   // PHASE 156 hook, same shape again, read by build/generate-menu-icons.mjs.
   registerP156MenuIconsDrive();
+
+  // PHASE 181.2 hook, same shape again, read by
+  // build/probe-p1812-bar-and-card.mjs.
+  registerP1812UsageDrive();
 }
 
 /**

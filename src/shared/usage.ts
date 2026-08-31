@@ -144,11 +144,25 @@ export const USAGE_PLAN_MAX = 20;
  * only letters, digits, spaces, underscores and hyphens, and is at most
  * twenty characters.
  *
- * WHAT IT REFUSES, and this is the point of the function rather than a side
- * effect: an email address holds an `@`, a uuid is thirty six characters, an
- * organization id is longer still, and a bare number is not a word. None of
- * them can pass, so nothing that reaches a face can be an identifier even if
- * a vendor moves a plan word onto one of those fields.
+ * WHICH HALF REFUSES WHAT, stated exactly, because the fix round of
+ * 2026-08-31 found this comment claiming more than the code does and a later
+ * round could have trusted the claim. THE SHAPE refuses an email address,
+ * which holds an `@`, a bare number, which starts with no letter, and
+ * anything carrying a character outside the set, being a colon, a slash, a
+ * dot, a newline or a direction mark. THE LENGTH is what refuses the
+ * identifiers, and it is doing that work alone: measured, `sk-ant-oat01-abcd`
+ * at seventeen characters, `org-01HZY8Q7C3K9` at sixteen and a person's own
+ * name at fifteen all pass the shape, and a uuid beginning with a letter
+ * passes it too. Every one of them is stopped by the cap and by nothing else.
+ * Both halves are the gate and neither is decoration.
+ *
+ * WHAT IT IS NEVER HANDED, which is the third guard and the reason the cap is
+ * enough here. Main reads `subscriptionType` and `plan_type` and no other
+ * field: the organization id arrives in a RESPONSE HEADER and the account id
+ * goes into a REQUEST HEADER, and neither is ever read into a snapshot. So no
+ * identifier this app touches is offered to this function at all. Widening
+ * what is passed in would need a longer refusal than this one, and that is
+ * the sentence to read before doing it.
  */
 export function usagePlanWord(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
