@@ -37,6 +37,24 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * How long the enter waits for the frame that ends it before it stops
+ * waiting (Phase 183). Chromium stops the frame clock entirely for an
+ * occluded window, a locked screen or a fully covered one, and Phase 171's
+ * commit recorded the consequence: the bare frame wait below never settled,
+ * the flying latch stayed held, and every later Catch Me Up toggle was
+ * dropped in silence until a frame fired. Timers keep firing while frames
+ * do not, so racing the frame against this bound opens the latch in bounded
+ * time whatever the window is doing. On the normal path the frame arrives
+ * in one paint, far inside the bound, so the flight's look and timing do
+ * not move.
+ */
+const FRAME_BOUND_MS = 100;
+
+function frameWithin(ms: number): Promise<void> {
+  return Promise.race([nextFrame(), wait(ms)]);
+}
+
 /** True while a leave's chrome fade in is still running on the shell root. */
 export function overviewChromeArriving(shell: HTMLElement): boolean {
   return shell.hasAttribute(ARRIVE_ATTR);
@@ -67,8 +85,10 @@ export async function enterOverviewFlight(commit: () => void): Promise<void> {
     commit();
     // The class comes off one frame later, for the reason focus-flight.ts
     // gives. The store write is flushed by React on its own clock, and the
-    // chrome must not be caught drawn at full opacity in between.
-    await nextFrame();
+    // chrome must not be caught drawn at full opacity in between. The wait
+    // is bounded, because an occluded window gets no frames at all and the
+    // finally below must always run. See FRAME_BOUND_MS.
+    await frameWithin(FRAME_BOUND_MS);
   } finally {
     flying = false;
     shell.classList.remove(FLIGHT_CLASS);
