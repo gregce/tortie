@@ -3,10 +3,13 @@
  *
  * ONE RULE DECIDES EVERY FIELD HERE: what crosses IPC is numbers, timestamps,
  * a state word and, since Phase 181.2, a plain plan word, and nothing else.
- * A plan word is what a person calls the thing they pay for and it names no
- * account: it passes `usagePlanWord` below, which refuses anything shaped
- * like an identifier. The Codex usage response carries the
- * person's email address, user id and account id at its TOP LEVEL, measured
+ * A plan word is what a person calls the thing they pay for. It passes
+ * `usagePlanWord` below, which is a narrow filter and NOT a general
+ * identifier detector; what keeps an identifier off a face is that main hands
+ * that filter two plan fields and nothing else, and the comment on the
+ * function says how far each half of it reaches. The Codex usage response
+ * carries the person's email address, user id and account id at its TOP
+ * LEVEL, measured
  * over the wire on 2026-08-31 and written down in docs/research/72 section
  * 8.3, so that body is itself personal data. Main parses it and none of it
  * reaches this shape, a log line, the manifest, a store or an argv.
@@ -76,11 +79,15 @@ export interface UsageProviderSnapshot {
    * measured in docs/research/72 section 8, passed through
    * `usagePlanWord` before they reach this field.
    *
-   * IT IS A PLAN AND NEVER AN IDENTIFIER. No uuid, no organization id, no
-   * email address and no account id may be carried here: the sanitizer's
-   * shape refuses them, main never reads those fields at all, and a provider
-   * that can only be told apart by one says nothing rather than drawing a
-   * string nobody can read.
+   * WHAT KEEPS AN IDENTIFIER OUT OF HERE IS WHAT MAIN READS, and not the
+   * filter on its own. Main calls `usagePlanWord` on those two plan fields
+   * and on nothing else in the tree: `email`, `user_id` and `account_id` sit
+   * beside `plan_type` in the same Codex body and are never touched, and
+   * Codex's account id goes into a request header and never onto a snapshot.
+   * The filter is the second guard, and it refuses a long value and an
+   * address rather than every short one, which `usagePlanWord` states
+   * exactly. A provider that can only be told apart by an identifier says
+   * nothing rather than drawing a string nobody can read.
    */
   plan: string | null;
   /** Milliseconds since epoch of the read the numbers came from; null if never. */
@@ -130,8 +137,11 @@ export function clampUsagePercent(raw: unknown): number | null {
 }
 
 /**
- * The longest plan word this app will draw. A uuid is 36 characters and an
- * organization id is longer, so the cap is itself part of the refusal.
+ * The longest plan word this app will draw. Every plan word either vendor is
+ * measured to use is far under it, and it is what refuses a uuid at thirty
+ * six characters and the long opaque runs real keys, session ids and account
+ * ids are written as. It refuses nothing shorter, which is the measurement
+ * the note on `usagePlanWord` rests on.
  */
 export const USAGE_PLAN_MAX = 20;
 
@@ -144,25 +154,33 @@ export const USAGE_PLAN_MAX = 20;
  * only letters, digits, spaces, underscores and hyphens, and is at most
  * twenty characters.
  *
- * WHICH HALF REFUSES WHAT, stated exactly, because the fix round of
- * 2026-08-31 found this comment claiming more than the code does and a later
- * round could have trusted the claim. THE SHAPE refuses an email address,
- * which holds an `@`, a bare number, which starts with no letter, and
- * anything carrying a character outside the set, being a colon, a slash, a
- * dot, a newline or a direction mark. THE LENGTH is what refuses the
- * identifiers, and it is doing that work alone: measured, `sk-ant-oat01-abcd`
- * at seventeen characters, `org-01HZY8Q7C3K9` at sixteen and a person's own
- * name at fifteen all pass the shape, and a uuid beginning with a letter
- * passes it too. Every one of them is stopped by the cap and by nothing else.
- * Both halves are the gate and neither is decoration.
+ * WHAT EACH HALF REFUSES, measured rather than claimed, because two earlier
+ * versions of this comment said more than the code does and a later round
+ * could have trusted one of them. THE SHAPE refuses an address, which holds
+ * an `@`, a bare number, which starts with no letter, and anything carrying a
+ * character outside the set, being a colon, a slash, a dot, a newline or a
+ * direction mark. THE LENGTH refuses every value over twenty characters,
+ * which is a uuid at thirty six and the long opaque runs real keys, session
+ * ids and account ids are written as.
  *
- * WHAT IT IS NEVER HANDED, which is the third guard and the reason the cap is
- * enough here. Main reads `subscriptionType` and `plan_type` and no other
- * field: the organization id arrives in a RESPONSE HEADER and the account id
- * goes into a REQUEST HEADER, and neither is ever read into a snapshot. So no
- * identifier this app touches is offered to this function at all. Widening
- * what is passed in would need a longer refusal than this one, and that is
- * the sentence to read before doing it.
+ * WHAT NEITHER HALF REFUSES, and this is the sentence to read before handing
+ * this function a new field. A SHORT identifier shaped value passes the whole
+ * gate and is returned. Measured on 2026-08-31: `org-01HZY8Q7C3K9` at sixteen
+ * characters comes back drawable, a person's first and last name at sixteen
+ * comes back drawable, and a truncated key at seventeen comes back drawable.
+ * No cap could fix that, because `pro` and a short id are the same shape. So
+ * this is a narrow filter on ONE kind of value and it is not, and cannot be,
+ * a general identifier detector.
+ *
+ * SO THE GUARD THAT HOLDS IS WHAT IT IS HANDED. Main calls this on
+ * `subscriptionType` off the Claude keychain item and on `plan_type` off the
+ * Codex usage body, and on nothing else; the renderer calls it a second time
+ * on a plan that already came through here. The address, user id and account
+ * id in that same Codex body are never read, the organization id arrives in a
+ * response header and the account id goes into a request header, and none of
+ * them is offered to this function at all. Handing it a field that can hold
+ * an identifier would defeat it whatever the cap says, and
+ * `src/main/usage/__tests__/p1812-plan.test.ts` fails when a call site does.
  */
 export function usagePlanWord(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;

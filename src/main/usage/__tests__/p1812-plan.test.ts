@@ -15,6 +15,8 @@
  * real plan from anybody's account is in this tree.
  */
 
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { UsageSettings } from '@shared/settings';
 import { parseClaudeUsage, parseCodexUsage } from '../parse';
@@ -201,5 +203,120 @@ describe('what reaches the snapshot', () => {
     expect(text).not.toContain('SENTINEL_USER');
     expect(text).not.toContain('SENTINEL_ACCOUNT');
     expect(text).not.toContain('ACCESS');
+  });
+});
+
+/**
+ * THE GUARD THAT ACTUALLY HOLDS, made executable (added when the fix round's
+ * own correction was re-verified on 2026-08-31).
+ *
+ * `usagePlanWord` refuses a long value and an address. It does NOT refuse a
+ * short identifier shaped one, and `src/shared/__tests__/` pins that it does
+ * not. So the thing that keeps an identifier off the card is not the gate: it
+ * is that the gate is only ever handed a vendor's plan field. That was a
+ * sentence in a comment, which is exactly the kind of claim two rounds of
+ * this phase already got wrong, so it is a check now.
+ *
+ * IT READS SOURCE TEXT, the same way `src/main/actions/__tests__/
+ * p126-boundary.test.ts` does, because the rule a person needs is in the
+ * failure message: the file, the line and the expression that was passed.
+ * Both directions are asserted. A NEW call site on any other expression fails
+ * here, and so does a call site going MISSING, which would mean a vendor's
+ * plan field stopped being filtered at all.
+ */
+describe('what the plan gate is handed', () => {
+  /**
+   * Every production call site, by file, with the exact argument text. The
+   * renderer's is a second pass over a plan that already came through main.
+   */
+  const ALLOWED: ReadonlyMap<string, string> = new Map([
+    ['src/main/usage/credentials.ts', "bag['subscriptionType']"],
+    ['src/main/usage/parse.ts', "obj['plan_type']"],
+    ['src/renderer/app/usage-copy.ts', 'plan']
+  ]);
+
+  /** Where the function is declared. It calls nothing, so it is not a site. */
+  const DECLARED_IN = 'src/shared/usage.ts';
+
+  interface Site {
+    readonly file: string;
+    readonly line: number;
+    readonly argument: string;
+  }
+
+  /** Every production `.ts` and `.tsx` file under src, tests excluded. */
+  function productionSources(dir: string, out: string[] = []): string[] {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    )) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== '__tests__') productionSources(full, out);
+      } else if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
+        out.push(full);
+      }
+    }
+    return out;
+  }
+
+  /** The argument of one call, read by matching parentheses rather than a regex. */
+  function argumentAt(text: string, open: number): string {
+    let depth = 0;
+    for (let i = open; i < text.length; i += 1) {
+      const ch = text[i];
+      if (ch === '(') depth += 1;
+      else if (ch === ')') {
+        depth -= 1;
+        if (depth === 0) return text.slice(open + 1, i).trim();
+      }
+    }
+    return text.slice(open + 1).trim();
+  }
+
+  function callSites(): Site[] {
+    const root = process.cwd();
+    const sites: Site[] = [];
+    for (const full of productionSources(join(root, 'src'))) {
+      const rel = relative(root, full);
+      if (rel === DECLARED_IN) continue;
+      const text = readFileSync(full, 'utf8');
+      let from = 0;
+      for (;;) {
+        const at = text.indexOf('usagePlanWord(', from);
+        if (at === -1) break;
+        from = at + 1;
+        sites.push({
+          file: rel,
+          line: text.slice(0, at).split('\n').length,
+          argument: argumentAt(text, at + 'usagePlanWord'.length)
+        });
+      }
+    }
+    return sites;
+  }
+
+  it('is handed a vendor plan field and nothing else, at every call site', () => {
+    for (const site of callSites()) {
+      const allowed = ALLOWED.get(site.file);
+      expect(
+        allowed,
+        `${site.file}:${site.line} calls the plan gate and is not a recorded call site. ` +
+          'The gate does not refuse a short identifier, so a new field may only be ' +
+          "passed to it once somebody has proved that field cannot hold one."
+      ).toBeDefined();
+      expect(
+        site.argument,
+        `${site.file}:${site.line} passes \`${site.argument}\` to the plan gate`
+      ).toBe(allowed);
+    }
+  });
+
+  it('still filters both vendor plan fields, so no call site went missing', () => {
+    const found = callSites().map((site) => `${site.file} ${site.argument}`);
+    for (const [file, argument] of ALLOWED) {
+      expect(found, `${file} no longer passes \`${argument}\` to the plan gate`).toContain(
+        `${file} ${argument}`
+      );
+    }
   });
 });
