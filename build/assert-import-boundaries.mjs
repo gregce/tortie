@@ -4,6 +4,7 @@
  * Phase 124: the platform rule, and the fixtures that prove it.
  * Phase 125: the facade rule, and the seven fixtures that prove it.
  * Phase 127: the directory wall, and the ten fixtures that prove it.
+ * Phase 172: the arch facade door, and the seven fixtures that prove it.
  *
  * The five TypeScript projects (tsconfig.shared.json, tsconfig.main.json,
  * tsconfig.preload.json, tsconfig.web.json for production, and
@@ -171,6 +172,11 @@ const SOLE_OWNER_PACKAGES = {
  * Phase 125. The directories that have ONE door, and the sentence each failure
  * prints. `dir` is the private directory, `onlyFrom` is the one prefix allowed
  * to name it, and `door` is what the importer should have used instead.
+ *
+ * Phase 172 added `doors`: when the door file lives INSIDE the private
+ * directory, this lists the src-relative specifiers (extensionless, as the
+ * resolver answers them) an outer caller may still name. The machines rule
+ * needs none, because its barrel sits beside the directory rather than in it.
  */
 const FACADE_ONLY = [
   {
@@ -182,6 +188,18 @@ const FACADE_ONLY = [
       'into domain files behind index.ts and Phase 125 split machines.ts the ' +
       'same way. A second door is how the declared surface and the installed ' +
       'one drift apart.'
+  },
+  {
+    dir: 'main/arch/',
+    onlyFrom: 'main/arch/',
+    doors: ['main/arch/ipc'],
+    door: 'src/main/arch/ipc.ts',
+    why:
+      'the arch domain has ONE door for the rest of main, being the ' +
+      'registrar that boot already calls. Phase 172 moved the check and ' +
+      'enrichment workflows into coordinator modules behind it, and a second ' +
+      'importer of any internal module is how those seams stop being ' +
+      'internal.'
   }
 ];
 
@@ -292,7 +310,9 @@ function violationsFor(absFile, text) {
           ? undefined
           : FACADE_ONLY.find(
               (rule) =>
-                named.startsWith(rule.dir) && !relFromSrc.startsWith(rule.onlyFrom)
+                named.startsWith(rule.dir) &&
+                !relFromSrc.startsWith(rule.onlyFrom) &&
+                !(rule.doors ?? []).includes(named)
             );
       if (facade !== undefined) {
         out.push(
@@ -335,7 +355,7 @@ function violationsFor(absFile, text) {
 }
 
 // ---------------------------------------------------------------------------
-// The fixtures. Eighteen synthetic files, each one line of source, run before
+// The fixtures. Thirty-five synthetic files, each one line of source, run before
 // any real file is read. Nothing is written to disk and nothing is read from
 // it. A row that does not behave fails the gate with a non-zero exit.
 // ---------------------------------------------------------------------------
@@ -383,6 +403,40 @@ const FIXTURES = [
   [
     'main/__tests__/p125-fixture.ts',
     "import type { MachineRowView } from '@shared/ipc/machines/rows';",
+    null
+  ],
+  // Phase 172, the arch facade. Three rejections, one per shape that can
+  // reach around the registrar, and four acceptances that pin the one door,
+  // the inside, and the test exemption.
+  [
+    'main/p172-fixture.ts',
+    "import { createArchCheckCoordinator } from './arch/check-coordinator';",
+    './arch/check-coordinator'
+  ],
+  [
+    'main/p172-fixture.ts',
+    "import { createArchEnrichCoordinator } from './arch/enrich-coordinator';",
+    './arch/enrich-coordinator'
+  ],
+  [
+    'main/machines/p172-fixture.ts',
+    "const db = await import('../arch/db');",
+    '../arch/db'
+  ],
+  ['main/p172-fixture.ts', "import { registerArchIpc } from './arch/ipc';", null],
+  [
+    'main/arch/p172-fixture.ts',
+    "import { createArchCheckCoordinator } from './check-coordinator';",
+    null
+  ],
+  [
+    'main/arch/enrich/p172-fixture.ts',
+    "import { firstPartyPairs } from '../repair-trigger';",
+    null
+  ],
+  [
+    'main/__tests__/p172-fixture.ts',
+    "import { createArchCheckCoordinator } from '../arch/check-coordinator';",
     null
   ],
   // Phase 127, the directory wall. Four rejections, one per shape that can
