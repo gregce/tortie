@@ -168,24 +168,46 @@
   outline-offset: 1px;
 }
 
-/* --- mini: the collapsed 48px rail --------------------------------------- */
+/* --- mini: bars only, and no numbers ------------------------------------- */
 
+/* PHASE 181.1 FIX ROUND. THE RAIL'S CLOTHES BELONG TO THE RAIL.
+   Phase 181 only ever mounted mini in the collapsed 48px rail, so the rules
+   that pin it above that rail's footer band were written on the class itself:
+   `margin-top: auto` to take the leftover height, `width: 100%` and a hairline
+   so the two read as one bottom cluster, and a column press because 48px
+   cannot hold two bars side by side. This phase is the first to mount mini in
+   the 36px tab strip, where every one of those is wrong. Measured there before
+   this fix: the meter bottom-aligned at y 45-73 inside a band running 38-74
+   while every other control in the band is centred, and its border-top drew a
+   1px hairline fragment across its own 43px width, floating in the middle of
+   the strip and belonging to nothing. A second provider would have stacked
+   past the band's 36px as well.
+   So the class itself now carries only what mini MEANS everywhere, which is
+   bars and no numbers, and the rail's placement is scoped to the rail. The
+   phase's own charter says the stepped-down forms just get smaller and that no
+   new surface is added; a stray hairline is a new mark. */
 .usage-mini {
-  /* Directly above the footer band, taking the leftover height the way that
-     band does and wearing the same hairline, so the two read as one bottom
-     cluster. It is not INSIDE that band because 36px holding one 24px button
-     has no room for a second control. */
-  margin-top: auto;
   justify-content: center;
+}
+
+.usage-mini .usage-press {
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* The collapsed 48px rail, and only it. Directly above the footer band, taking
+   the leftover height the way that band does and wearing the same hairline. It
+   is not INSIDE that band because 36px holding one 24px button has no room for
+   a second control. */
+.session-dock.collapsed > .usage-mini {
+  margin-top: auto;
   width: 100%;
   padding: var(--space-2) 0;
   border-top: 1px solid var(--border);
 }
 
-.usage-mini .usage-press {
+.session-dock.collapsed > .usage-mini .usage-press {
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
 }
 
 .usage-mini-row {

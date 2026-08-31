@@ -12,8 +12,8 @@
  * reservation move when a second provider is switched on.
  */
 
-import { describe, expect, it } from 'vitest';
-import { chooseStripDensity } from '../usage-fit';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { chooseStripDensity, stripTabFloor } from '../usage-fit';
 
 const base = { headerWidth: 900, controlsWidth: 120, tabFloor: 120 };
 const widths = { compact: 180, mini: 60 };
@@ -89,5 +89,54 @@ describe('the strip meter chooses the widest density that fits', () => {
     expect(
       chooseStripDensity({ ...base, headerWidth: Number.NaN, widths })
     ).toBe('compact');
+  });
+});
+
+/**
+ * The other half of the input, added in the fix round because it had no check
+ * at all. `stripTabFloor` is what stops the meter reserving room a tab needed,
+ * and its most important answer is the one it gives when there is no tab to
+ * read: an empty strip must still leave the value app.css carries, or the
+ * meter would judge itself against a floor of nothing and stay compact in a
+ * band that cannot hold it.
+ *
+ * There is no DOM in this lane, so the two calls it makes, `querySelector` and
+ * `getComputedStyle`, are stood up here. That is the whole surface it touches.
+ */
+describe('one tab\u2019s minimum is read from the tab the strip drew', () => {
+  const real = globalThis.getComputedStyle;
+  beforeAll(() => {
+    globalThis.getComputedStyle = ((el: { minWidth?: string }) => ({
+      minWidth: el.minWidth
+    })) as unknown as typeof globalThis.getComputedStyle;
+  });
+  afterAll(() => {
+    globalThis.getComputedStyle = real;
+  });
+
+  const list = (minWidth: string | undefined): Element =>
+    ({
+      querySelector: () => (minWidth === undefined ? null : { minWidth })
+    }) as unknown as Element;
+
+  it('reads the drawn tab', () => {
+    expect(stripTabFloor(list('140px'))).toBe(140);
+  });
+
+  it('falls back to 120 when the strip has no tab to read', () => {
+    expect(stripTabFloor(list(undefined))).toBe(120);
+  });
+
+  it('falls back to 120 when there is no list at all', () => {
+    expect(stripTabFloor(null)).toBe(120);
+  });
+
+  it('falls back to 120 rather than trusting a floor of nothing', () => {
+    // `min-width: auto` computes to the string "auto", and `0px` is what a
+    // tab reports before it has been laid out. Either taken at face value
+    // would tell the meter that a tab needs no room at all.
+    expect(stripTabFloor(list('auto'))).toBe(120);
+    expect(stripTabFloor(list('0px'))).toBe(120);
+    expect(stripTabFloor(list(''))).toBe(120);
   });
 });

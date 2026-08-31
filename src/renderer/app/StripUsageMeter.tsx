@@ -43,7 +43,6 @@ export function StripUsageMeter({
   // depends on the band's width and nothing else.
   const chevron = useRef(0);
   const [density, setDensity] = useState<StripDensity>('compact');
-  const [reserve, setReserve] = useState(0);
 
   const fit = useCallback((): void => {
     const host = hostRef.current;
@@ -74,11 +73,25 @@ export function StripUsageMeter({
     });
 
     setDensity((prev) => (prev === next ? prev : next));
-    setReserve((prev) => (prev === own ? prev : own));
+    // Written straight onto the node rather than held in state. It is evidence
+    // for build/probe-p1811-strip-fit.mjs and nothing in the app reads it, so
+    // a state for it bought one extra render on every width change and drew
+    // nothing different. It is not in the JSX either, so React never clobbers
+    // it: this effect runs after every render that could have moved it.
+    host.setAttribute('data-usage-reserve', String(own));
   }, [density, headerRef, listRef]);
 
   useLayoutEffect(fit);
 
+  // WHAT THIS OBSERVER IS NOT. Electron throttles rendering in a background
+  // window, and a throttled window delivers a ResizeObserver callback about
+  // once and then stops: measured on 2026-08-31, an unfocused window resized
+  // down a whole ladder kept the density it started with until something else
+  // made it render, and one click on a tab corrected it instantly. So this is
+  // a refresh and not a guarantee, and the surface can be a frame behind on
+  // the moment a background window is brought forward. It is not the operator's
+  // defect, because a person resizing a window is looking at it, and with the
+  // window in front the same ladder is right at every step in both directions.
   useEffect(() => {
     const host = hostRef.current;
     const header = headerRef.current;
@@ -95,7 +108,6 @@ export function StripUsageMeter({
       className="strip-usage"
       data-slot="strip-usage"
       data-usage-density={density}
-      data-usage-reserve={reserve}
     >
       {density === 'none' ? null : <UsageMeter density={density} />}
     </div>
