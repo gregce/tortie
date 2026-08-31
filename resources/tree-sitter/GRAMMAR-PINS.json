@@ -1,0 +1,32 @@
+{
+  "note": "THE PIN for every tree-sitter grammar wasm vendored in this directory (Phase 180). Each file is a prebuilt release asset from the named upstream, committed whole so the build downloads nothing. Bump version + url + sha256 + bytes together, never one of them, and verify with `shasum -a 256`. The seven other grammars are NOT here: they ship inside the @vscode/tree-sitter-wasm npm package (pinned exact in package.json) and electron-builder copies them from node_modules. src/main/symbols/paths.ts is the one module that knows which grammar lives where.",
+  "grammars": {
+    "swift": {
+      "upstream": "alex-pinkus/tree-sitter-swift",
+      "license": "MIT",
+      "version": "0.7.3",
+      "url": "https://github.com/alex-pinkus/tree-sitter-swift/releases/download/0.7.3/tree-sitter-swift.wasm",
+      "sha256": "0258a7ef17303a8079ffe0748b3583d59656b5c3e8653fca7b6451b3e6689eb2",
+      "bytes": 3825025,
+      "abi": 15
+    },
+    "kotlin": {
+      "upstream": "fwcd/tree-sitter-kotlin",
+      "license": "MIT",
+      "version": "0.3.8",
+      "url": "https://github.com/fwcd/tree-sitter-kotlin/releases/download/0.3.8/tree-sitter-kotlin.wasm",
+      "sha256": "c624e7443b371c28adc5d81674e73067564c12555ebe3ed96a6c8db814b7602d",
+      "bytes": 4052625,
+      "abi": 14
+    },
+    "objc": {
+      "upstream": "tree-sitter-grammars/tree-sitter-objc",
+      "license": "MIT",
+      "version": "v3.0.2",
+      "url": "https://github.com/tree-sitter-grammars/tree-sitter-objc/releases/download/v3.0.2/tree-sitter-objc.wasm",
+      "sha256": "155bf61fc94941fa9d07c86cd46895f14dfb2549fb7f646faeb83765af05c970",
+      "bytes": 5317155,
+      "abi": 14
+    }
+  }
+}

@@ -389,7 +389,10 @@ async function main(): Promise<void> {
     go: 'go',
     python: 'py',
     rust: 'rs',
-    ruby: 'rb'
+    ruby: 'rb',
+    swift: 'swift',
+    kotlin: 'kt',
+    objc: 'm'
   };
   const scannerLanguages = [
     ...new Set(

@@ -1,5 +1,5 @@
 /**
- * The six gmux tags queries, inlined as TypeScript string constants.
+ * The nine gmux tags queries, inlined as TypeScript string constants.
  *
  * WHY GMUX AUTHORS THESE INSTEAD OF USING UPSTREAM `tags.scm`
  * (research 19 §3.3 / 19-d3 §2.7, measured — do not re-derive): probed against
@@ -12,7 +12,7 @@
  * a 285-file Go repo.
  *
  * WHY THEY ARE STRINGS AND NOT `.scm` FILES (research 19 §2.8, the synthesis
- * call): six small strings cost no `extraResources` entry, no runtime path
+ * call): nine small strings cost no `extraResources` entry, no runtime path
  * resolution, and have no packaged-app failure mode. A `.scm` file that is not
  * copied into the bundle is a feature that works in `out/` and dies in the
  * .app — exactly the class of bug §2.8 exists to prevent.
@@ -29,7 +29,7 @@
  *     as an alternation.
  *  2. Every `@definition.<kind>` must appear in KIND_BY_CAPTURE below, or the
  *     capture is silently dropped. `src/main/symbols/__tests__` compiles all
- *     six against all seven grammars, so a grammar bump that breaks a pattern
+ *     nine against all ten grammars, so a grammar bump that breaks a pattern
  *     fails the test run rather than the user's palette.
  *
  * PHASE 63 ADDED THE IMPORT LAYER, and both rules above govern it unchanged.
@@ -38,10 +38,10 @@
  * unmapped `@definition.<kind>` is. Rule 1 is why `import_require_clause`, the
  * `import x = require('y')` form, is in TS_QUERY rather than in JS_QUERY: it is
  * a TypeScript-only node and it throws `Bad node name` on the javascript
- * grammar. Every pattern below was compiled against all seven shipped grammars
+ * grammar. Every pattern below was compiled against every shipped grammar
  * before it was written down.
  *
- * The import patterns live INSIDE these same six strings on purpose. One
+ * The import patterns live INSIDE these same nine strings on purpose. One
  * string is one compile and one walk of the tree, which is the decision
  * src/main/symbols/extract.ts states in its own header. Measured on this tree
  * at 1,546 `.ts` and `.tsx` files under `src`, adding them moved the walk by
@@ -58,6 +58,25 @@
  * that resolves against the requiring file's own directory and the specifier
  * text cannot be told apart from a load path `require`. Adding a form means
  * adding a row to IMPORT_BY_CAPTURE, which is rule 2 again.
+ *
+ * PHASE 180 ADDED THE SEVENTH, EIGHTH AND NINTH, being Swift, Kotlin and
+ * Objective-C, and every pattern in them was compiled and run against the
+ * vendored wasm before it was written down, same as the six before them. The
+ * three notes worth having before editing. Swift's grammar spells struct,
+ * class, enum, actor and extension all `class_declaration` and tells them
+ * apart only by body node and keyword, so the enum pattern matches on
+ * `enum_class_body` and everything else reads as class, which is the closest
+ * honest kind the palette has. Kotlin's grammar has almost no field names, so
+ * its patterns are child-shaped, and the class and interface patterns match
+ * the ANONYMOUS keyword token to keep them apart; an `enum class` carries the
+ * `class` token and reads as class, which is what Kotlin calls it, while its
+ * entries still read enum-member. Objective-C's grammar is a C superset whose
+ * `#import` and `#include` are both `preproc_include`; a system import's
+ * specifier arrives WITH its angle brackets on, the way Go's arrives with
+ * quotes, so the resolver can tell `<Foundation/Foundation.h>` from
+ * `"Renderer.h"` by looking at it. A multi-part selector contributes its
+ * FIRST segment as the method name, anchored after `method_type` so the later
+ * segments are not reported as methods of their own.
  *
  * EVERY QUERY'S IMPORTS ARE NOW RESOLVED. Until Phase 157 two of these carried
  * import patterns whose results were never resolved: Python and Rust were
@@ -367,6 +386,142 @@ export const RUBY_QUERY = `
   (#eq? @import.callee "autoload")) @import.require
 `;
 
+export const SWIFT_QUERY = `
+(source_file (function_declaration name: (simple_identifier) @name) @definition.function)
+
+; struct, class, actor and extension are ALL class_declaration in this
+; grammar. The class_body patterns read them as class; the enum_class_body
+; pattern is what tells an enum apart. An extension's name is a user_type
+; rather than a bare type_identifier, which is the second name pattern.
+(class_declaration name: (type_identifier) @name body: (class_body)) @definition.class
+(class_declaration name: (user_type (type_identifier) @name) body: (class_body)) @definition.class
+(class_declaration name: (type_identifier) @name body: (enum_class_body)) @definition.enum
+(protocol_declaration name: (type_identifier) @name) @definition.interface
+(typealias_declaration name: (type_identifier) @name) @definition.type
+
+(class_declaration
+  name: (type_identifier) @container
+  body: (class_body (function_declaration name: (simple_identifier) @name) @definition.method))
+(class_declaration
+  name: (user_type (type_identifier) @container)
+  body: (class_body (function_declaration name: (simple_identifier) @name) @definition.method))
+(class_declaration
+  name: (type_identifier) @container
+  body: (enum_class_body (function_declaration name: (simple_identifier) @name) @definition.method))
+(class_declaration
+  name: (type_identifier) @container
+  body: (enum_class_body (enum_entry name: (simple_identifier) @name) @definition.enum-member))
+(protocol_declaration
+  name: (type_identifier) @container
+  body: (protocol_body (protocol_function_declaration name: (simple_identifier) @name) @definition.method))
+(class_declaration
+  name: (type_identifier) @container
+  body: (class_body
+    (property_declaration
+      name: (pattern bound_identifier: (simple_identifier) @name)) @definition.property))
+(source_file
+  (property_declaration
+    name: (pattern bound_identifier: (simple_identifier) @name)) @definition.constant)
+
+; Imports (Phase 180). The identifier node holds the WHOLE dotted module path,
+; so import UIKit.UIView arrives as one specifier, and the scoped forms
+; (@testable import MyLib, import class ServerKit.Handler) match the same
+; pattern because attribute and kind sit outside the identifier. A Swift import
+; names a MODULE, never a file, and the resolver arm is what knows that.
+(import_declaration (identifier) @import.path) @import.static
+`;
+
+export const KOTLIN_QUERY = `
+; This grammar names almost no fields, so every pattern is child-shaped, and
+; "class" / "interface" are ANONYMOUS TOKENS matched to keep the two kinds
+; apart: an interface body is a class_body too, so without the token the class
+; pattern would swallow every interface. An enum class carries the class token
+; and reads as class, which is what Kotlin calls it; its entries below still
+; read enum-member.
+(source_file (function_declaration (simple_identifier) @name) @definition.function)
+
+(class_declaration "class" (type_identifier) @name) @definition.class
+(class_declaration "interface" (type_identifier) @name) @definition.interface
+(object_declaration (type_identifier) @name) @definition.class
+(type_alias (type_identifier) @name) @definition.type
+
+(class_declaration
+  (type_identifier) @container
+  (class_body (function_declaration (simple_identifier) @name) @definition.method))
+(object_declaration
+  (type_identifier) @container
+  (class_body (function_declaration (simple_identifier) @name) @definition.method))
+(class_declaration
+  (type_identifier) @container
+  (class_body
+    (companion_object
+      (class_body (function_declaration (simple_identifier) @name) @definition.method))))
+(class_declaration
+  (type_identifier) @container
+  (enum_class_body (enum_entry (simple_identifier) @name) @definition.enum-member))
+(class_declaration
+  (type_identifier) @container
+  (class_body
+    (property_declaration
+      (variable_declaration (simple_identifier) @name)) @definition.property))
+(source_file
+  (property_declaration
+    (variable_declaration (simple_identifier) @name)) @definition.constant)
+
+; Imports (Phase 180). The identifier node holds the FULL dotted path as one
+; text, so import kotlin.math.abs arrives whole. A wildcard import captures the
+; package path without its .* and an aliased import captures the path without
+; its alias, both of which are the module the compiler reads.
+(import_header (identifier) @import.path) @import.static
+`;
+
+export const OBJC_QUERY = `
+(function_definition
+  declarator: (function_declarator declarator: (identifier) @name)) @definition.function
+
+; The leading anchor pins @name to the declaration's OWN identifier: superclass
+; and category are identifier children of the same node, and without the anchor
+; every @interface would also report its superclass as a class.
+(class_interface . (identifier) @name) @definition.class
+(class_implementation . (identifier) @name) @definition.class
+(protocol_declaration . (identifier) @name) @definition.interface
+(type_definition declarator: (type_identifier) @name) @definition.type
+(struct_specifier name: (type_identifier) @name body: (field_declaration_list)) @definition.struct
+(enum_specifier name: (type_identifier) @name) @definition.enum
+
+; A multi-part selector like setX:y: keeps LATER segment identifiers as direct
+; children of the method node, so @name is anchored to the identifier right
+; after method_type and the method reads by its first segment.
+(class_interface
+  . (identifier) @container
+  (method_declaration (method_type) . (identifier) @name) @definition.method)
+(class_interface
+  . (identifier) @container
+  (property_declaration
+    (struct_declaration (struct_declarator (identifier) @name))) @definition.property)
+(class_implementation
+  . (identifier) @container
+  (implementation_definition
+    (method_definition (method_type) . (identifier) @name) @definition.method))
+(protocol_declaration
+  . (identifier) @container
+  (method_declaration (method_type) . (identifier) @name) @definition.method)
+
+(translation_unit
+  (declaration declarator: (init_declarator declarator: (identifier) @name)) @definition.constant)
+
+; Imports (Phase 180). #import and #include are BOTH preproc_include in this
+; grammar. A quoted specifier captures the string_content, quotes already off,
+; the way the script grammars capture string_fragment. A system import has no
+; content node, so the system_lib_string arrives WITH its angle brackets on,
+; the way Go's arrives with quotes, and the resolver arm reads the brackets as
+; what they are: a header outside this repository. @import Framework; is
+; module_import.
+(preproc_include path: (string_literal (string_content) @import.path)) @import.static
+(preproc_include path: (system_lib_string) @import.path) @import.static
+(module_import path: (identifier) @import.path) @import.static
+`;
+
 /**
  * `@definition.<x>` capture name → the SymbolKind the palette shows.
  *
@@ -433,7 +588,7 @@ export function kindWins(next: SymbolKind, cur: SymbolKind): boolean {
  * that read one, and this module is the only thing both sides already import.
  * `src/main/symbols/extract.ts` appends it and `src/main/arch/resolver/index.ts`
  * refuses any specifier carrying it, so a truncated specifier is `unresolved`
- * in EVERY language rather than in five of the six. Go is why that matters: its
+ * in EVERY language rather than in most of the nine. Go is why that matters: its
  * arm answers `external` for anything not under the module directive, which is
  * Go's own rule and right for a real path, and would have been a definite answer
  * about a mangled one.

@@ -38,7 +38,13 @@
 
 import { builtinModules } from 'node:module';
 import { IMPORT_TRUNCATION_MARKER, type ImportForm } from '../../symbols/queries';
-import { external, firstParty, unresolved, type ArchResolution } from './answers';
+import {
+  external,
+  firstParty,
+  unresolved,
+  unverifiable,
+  type ArchResolution
+} from './answers';
 import { normalizeRel, type AliasRule, type ArchManifests } from './manifest';
 import { resolvePython } from './python';
 import { resolveRuby } from './ruby';
@@ -60,7 +66,8 @@ export {
 } from './answers';
 
 /**
- * Every language this build resolves. Since Phase 157 there is no second list.
+ * Every language this build resolves, plus the three whose grammars landed in
+ * Phase 180 commit one ahead of their arms in commit two.
  *
  * This union and `src/main/arch/scan.ts`'s `languageOf` have to agree, because
  * `languageOf` is what turns a grammar into one of these names and its default
@@ -76,7 +83,10 @@ export type ArchResolverLanguage =
   | 'go'
   | 'python'
   | 'rust'
-  | 'ruby';
+  | 'ruby'
+  | 'swift'
+  | 'kotlin'
+  | 'objc';
 
 /**
  * The one row per language the matrix prints, with the reason a deferred
@@ -105,7 +115,15 @@ export const RESOLVER_MATRIX: readonly {
   { language: 'go', resolves: true, reason: null },
   { language: 'rust', resolves: true, reason: null },
   { language: 'python', resolves: true, reason: null },
-  { language: 'ruby', resolves: true, reason: null }
+  { language: 'ruby', resolves: true, reason: null },
+  // Phase 180 commit one: the grammars are in the bundle and every import is
+  // captured and COUNTED; the arms land in commit two and these rows flip to
+  // true there. Until then every answer is unverifiable, never external,
+  // which is what keeps a must-not promise across one of these imports grey
+  // rather than green.
+  { language: 'swift', resolves: false, reason: 'Imports are not resolved for Swift' },
+  { language: 'kotlin', resolves: false, reason: 'Imports are not resolved for Kotlin' },
+  { language: 'objc', resolves: false, reason: 'Imports are not resolved for Objective-C' }
 ];
 
 const BUILTINS = new Set(builtinModules);
@@ -220,6 +238,15 @@ export function resolveImport(
       ctx,
       form === 'require-relative' ? 'require-relative' : 'require'
     );
+  }
+  // Phase 180 commit one: captured, counted, and answered by NOBODY yet. The
+  // arms land in commit two. unverifiable and not unresolved, because this
+  // answer says nobody looked, and NEVER the script arm below: a Swift
+  // `import Foundation` routed there would read a package.json for an iOS
+  // repository and could answer external, which is the false green Phase 157
+  // exists to prevent.
+  if (language === 'swift' || language === 'kotlin' || language === 'objc') {
+    return unverifiable();
   }
   return resolveScript(specifier, fromPath, ctx);
 }

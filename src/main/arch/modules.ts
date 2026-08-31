@@ -333,16 +333,26 @@ function drawTop(
  * rather than drawing nothing and reading as a part that imports nothing. Rust
  * and Python are parsed and deliberately not resolved, per research 49 section
  * 4.8 fix 4, so they join the same container: from the reader's seat "captured
- * and not resolved" and "not read at all" are the same answer.
+ * and not resolved" and "not read at all" are the same answer. Phase 180
+ * commit one puts Swift, Kotlin and Objective-C in the same seat, their
+ * grammars in the bundle and their arms landing in commit two, and they leave
+ * this list the day the arms do.
  */
 function unparsedIn(files: readonly string[]): ArchModuleUnparsed[] {
   const counts = new Map<string, number>();
+  const capturedNotResolved = new Set([
+    'rust',
+    'python',
+    'swift',
+    'kotlin',
+    'objc'
+  ]);
   for (const path of files) {
     const grammar = grammarFor(path);
     const label =
       grammar === null
         ? extensionOf(path)
-        : grammar === 'rust' || grammar === 'python'
+        : capturedNotResolved.has(grammar)
           ? grammar
           : null;
     if (label === null) continue;

@@ -1,6 +1,6 @@
 /**
- * The import layer of the six hand-authored tags queries (Phase 63, Ruby added
- * in Phase 157).
+ * The import layer of the nine hand-authored tags queries (Phase 63, Ruby
+ * added in Phase 157, Swift, Kotlin and Objective-C in Phase 180).
  *
  * It is the sibling of extract.test.ts and it exists for the same reason: gmux
  * owns these queries, so a grammar bump inside `@vscode/tree-sitter-wasm` that
@@ -18,18 +18,19 @@
 
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import type { GrammarId } from '../languages';
 import { SymbolExtractor } from '../extract';
+import { grammarPath } from '../paths';
 import { IMPORT_BY_CAPTURE, IMPORT_TRUNCATION_MARKER } from '../queries';
 
 const require_ = createRequire(import.meta.url);
-const grammarDir = dirname(require_.resolve('@vscode/tree-sitter-wasm'));
 const runtimeWasm = require_.resolve('web-tree-sitter/web-tree-sitter.wasm');
 
 const extractorPromise = SymbolExtractor.create({
   runtimeWasm,
-  grammarPath: (id: GrammarId) => join(grammarDir, `tree-sitter-${id}.wasm`)
+  // paths.ts, not a hand-joined directory: since Phase 180 the vendored
+  // grammars live in resources/tree-sitter while the rest ship in
+  // node_modules, and paths.ts is the one module that knows which is which.
+  grammarPath
 });
 
 async function importsOf(relPath: string, source: string): Promise<string[]> {
@@ -265,6 +266,70 @@ extern crate serde;
       'require "real"'
     ].join('\n');
     expect(await importsOf('x.rb', source)).toEqual(['real']);
+  });
+
+  it('captures every Swift import form as the whole dotted module (Phase 180)', async () => {
+    // A Swift import names a MODULE, never a file, and the identifier node
+    // holds the whole dotted path, so a submodule import arrives as one
+    // specifier. The scoped forms sit outside the identifier and match the
+    // same pattern.
+    const source = [
+      'import Foundation',
+      'import UIKit.UIView',
+      '@testable import MyLib',
+      'import class ServerKit.Handler',
+      'import struct Geometry.Point',
+      'struct NotAnImport {}'
+    ].join('\n');
+    expect((await importsOf('a.swift', source)).sort()).toEqual([
+      'Foundation',
+      'Geometry.Point',
+      'MyLib',
+      'ServerKit.Handler',
+      'UIKit.UIView'
+    ]);
+  });
+
+  it('captures a Kotlin import as its full dotted path (Phase 180)', async () => {
+    // The identifier node holds the full dotted path as one text. A wildcard
+    // import arrives without its .* and an aliased one without its alias,
+    // both of which are the module the compiler reads.
+    const source = [
+      'package com.example.app',
+      'import kotlin.math.abs',
+      'import com.example.lib.Widget',
+      'import com.example.lib.util.*',
+      'import com.example.lib.Longname as Short',
+      'fun notAnImport() {}'
+    ].join('\n');
+    expect((await importsOf('a.kt', source)).sort()).toEqual([
+      'com.example.lib.Longname',
+      'com.example.lib.Widget',
+      'com.example.lib.util',
+      'kotlin.math.abs'
+    ]);
+  });
+
+  it('captures the three Objective-C include shapes, told apart by their bytes (Phase 180)', async () => {
+    // #import and #include are both preproc_include in this grammar. A quoted
+    // path arrives with its quotes already off; a system path arrives WITH its
+    // angle brackets on, the way Go's arrives with quotes, so the resolver arm
+    // can tell the two apart by looking; @import arrives as the bare module.
+    const source = [
+      '#import <Foundation/Foundation.h>',
+      '#import "Renderer.h"',
+      '#include "legacy.h"',
+      '#include <stdio.h>',
+      '@import CoreData;',
+      'int notAnImport(void) { return 0; }'
+    ].join('\n');
+    expect((await importsOf('a.m', source)).sort()).toEqual([
+      '<Foundation/Foundation.h>',
+      '<stdio.h>',
+      'CoreData',
+      'Renderer.h',
+      'legacy.h'
+    ]);
   });
 
 });

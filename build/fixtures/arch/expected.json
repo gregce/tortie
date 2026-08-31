@@ -229,6 +229,30 @@
       "external": 2,
       "unresolved": 3,
       "unverifiable": 0
+    },
+    {
+      "language": "swift",
+      "arm": "deferred (Phase 180 commit two)",
+      "firstParty": 0,
+      "external": 0,
+      "unresolved": 0,
+      "unverifiable": 2
+    },
+    {
+      "language": "kotlin",
+      "arm": "deferred (Phase 180 commit two)",
+      "firstParty": 0,
+      "external": 0,
+      "unresolved": 0,
+      "unverifiable": 1
+    },
+    {
+      "language": "objc",
+      "arm": "deferred (Phase 180 commit two)",
+      "firstParty": 0,
+      "external": 0,
+      "unresolved": 0,
+      "unverifiable": 2
     }
   ],
   "freshness": [

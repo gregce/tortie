@@ -1,5 +1,5 @@
 /**
- * The regression suite for the six hand-authored tags queries.
+ * The regression suite for the nine hand-authored tags queries.
  *
  * This is the maintenance contract research 19 §7.2 asks for: gmux owns these
  * queries, so a grammar bump inside `@vscode/tree-sitter-wasm` that renames a
@@ -12,18 +12,20 @@
 
 import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
 import { GRAMMARS } from '../languages';
 import type { GrammarId } from '../languages';
 import { SymbolExtractor } from '../extract';
+import { grammarPath } from '../paths';
 
 const require_ = createRequire(import.meta.url);
-const grammarDir = dirname(require_.resolve('@vscode/tree-sitter-wasm'));
 const runtimeWasm = require_.resolve('web-tree-sitter/web-tree-sitter.wasm');
 
 const extractorPromise = SymbolExtractor.create({
   runtimeWasm,
-  grammarPath: (id: GrammarId) => join(grammarDir, `tree-sitter-${id}.wasm`)
+  // paths.ts, not a hand-joined directory: since Phase 180 the vendored
+  // grammars live in resources/tree-sitter while the rest ship in
+  // node_modules, and paths.ts is the one module that knows which is which.
+  grammarPath
 });
 
 const TS_SOURCE = `
@@ -165,7 +167,7 @@ function kindOf(found: Found[], name: string): string | undefined {
   return found.find((s) => s.name === name)?.kind;
 }
 
-describe('the six gmux tags queries', () => {
+describe('the nine gmux tags queries', () => {
   it('compiles every query against every shipped grammar', async () => {
     const extractor = await extractorPromise;
     // One trivially valid source per grammar; a query that failed to compile
@@ -181,7 +183,10 @@ describe('the six gmux tags queries', () => {
       go: ['a.go', 'package a\nfunc ProbeName() {}', 'ProbeName'],
       python: ['a.py', 'def probe_name():\n    pass', 'probe_name'],
       rust: ['a.rs', 'pub fn probe_name() {}', 'probe_name'],
-      ruby: ['a.rb', 'class ProbeName\nend', 'ProbeName']
+      ruby: ['a.rb', 'class ProbeName\nend', 'ProbeName'],
+      swift: ['a.swift', 'func probeName() -> Int { 1 }', 'probeName'],
+      kotlin: ['a.kt', 'fun probeName(): Int = 1', 'probeName'],
+      objc: ['a.m', 'int probeName(void) { return 1; }', 'probeName']
     };
     for (const id of GRAMMARS) {
       const [relPath, source, expected] = probes[id];
@@ -378,6 +383,160 @@ describe('the six gmux tags queries', () => {
     // The container comes off the class the method sits in, which is what tells
     // a reader which `run` of the fourteen in a Ruby repository this one is.
     expect(found.find((s) => s.name === 'run')?.container).toBe('Cmd');
+  });
+
+  it('reads Swift types, methods and enum cases (Phase 180)', async () => {
+    // struct, class, actor and extension are ALL class_declaration in this
+    // grammar; the enum is told apart by its enum_class_body. The kinds below
+    // are the honest closest the palette has, and the header says why.
+    const found = await symbolsOf(
+      'Sources/App/Renderer.swift',
+      [
+        'struct Point {',
+        '    var x: Double',
+        '    func norm() -> Double { x }',
+        '}',
+        'class Renderer {',
+        '    static let shared = Renderer()',
+        '    func draw(in rect: Point) {}',
+        '}',
+        'enum Direction {',
+        '    case north',
+        '    case south, east',
+        '}',
+        'protocol Drawable {',
+        '    func draw()',
+        '}',
+        'extension Renderer {',
+        '    func clear() {}',
+        '}',
+        'typealias Callback = () -> Void',
+        'let topLevel = 42',
+        'func freeFunction(a: Int) -> Int { a }'
+      ].join('\n')
+    );
+    const got = names(found);
+    for (const name of [
+      'Point',
+      'Renderer',
+      'Direction',
+      'Drawable',
+      'Callback',
+      'topLevel',
+      'freeFunction',
+      'north',
+      'south',
+      'east',
+      'clear'
+    ]) {
+      expect(got, `missing ${name}`).toContain(name);
+    }
+    expect(kindOf(found, 'Point')).toBe('class');
+    expect(kindOf(found, 'Direction')).toBe('enum');
+    expect(kindOf(found, 'Drawable')).toBe('interface');
+    expect(kindOf(found, 'Callback')).toBe('type');
+    expect(kindOf(found, 'topLevel')).toBe('constant');
+    expect(kindOf(found, 'freeFunction')).toBe('function');
+    expect(kindOf(found, 'north')).toBe('enum-member');
+    expect(found.find((s) => s.name === 'draw')?.container).toBe('Renderer');
+    // The extension's method belongs to the extended type by name.
+    expect(found.find((s) => s.name === 'clear')?.container).toBe('Renderer');
+  });
+
+  it('reads Kotlin classes, objects and companion members (Phase 180)', async () => {
+    const found = await symbolsOf(
+      'app/src/main/kotlin/Renderer.kt',
+      [
+        'package com.example.app',
+        'class Renderer(val frame: Int) {',
+        '    val cache = HashMap<String, Int>()',
+        '    fun draw() {}',
+        '    companion object {',
+        '        fun shared(): Renderer = Renderer(0)',
+        '    }',
+        '}',
+        'interface Drawable {',
+        '    fun draw()',
+        '}',
+        'object Registry {',
+        '    fun lookup(id: String): Int = 0',
+        '}',
+        'enum class Direction { NORTH, SOUTH }',
+        'typealias Callback = (Int) -> Unit',
+        'fun topLevel(a: Int): Int = a',
+        'val topConst = 42'
+      ].join('\n')
+    );
+    const got = names(found);
+    for (const name of [
+      'Renderer',
+      'Drawable',
+      'Registry',
+      'Direction',
+      'Callback',
+      'topLevel',
+      'topConst',
+      'NORTH',
+      'shared',
+      'lookup'
+    ]) {
+      expect(got, `missing ${name}`).toContain(name);
+    }
+    // An interface body is a class_body too; the anonymous keyword token in
+    // the query is what keeps the class pattern from swallowing it.
+    expect(kindOf(found, 'Drawable')).toBe('interface');
+    expect(kindOf(found, 'Renderer')).toBe('class');
+    expect(kindOf(found, 'NORTH')).toBe('enum-member');
+    expect(kindOf(found, 'topLevel')).toBe('function');
+    expect(kindOf(found, 'topConst')).toBe('constant');
+    expect(found.find((s) => s.name === 'shared')?.container).toBe('Renderer');
+    expect(found.find((s) => s.name === 'lookup')?.container).toBe('Registry');
+  });
+
+  it('reads Objective-C interfaces, selectors and C functions (Phase 180)', async () => {
+    const found = await symbolsOf(
+      'mac/Renderer.m',
+      [
+        '@protocol Drawable',
+        '- (void)draw;',
+        '@end',
+        '@interface Renderer : NSObject <Drawable>',
+        '@property (nonatomic) NSInteger frame;',
+        '- (instancetype)initWithFrame:(NSInteger)frame;',
+        '@end',
+        '@implementation Renderer',
+        '- (instancetype)initWithFrame:(NSInteger)frame { return self; }',
+        '- (void)setX:(int)x y:(int)y {}',
+        '@end',
+        'static const int kMax = 10;',
+        'int freeFunction(int a) { return a; }'
+      ].join('\n')
+    );
+    const got = names(found);
+    for (const name of [
+      'Drawable',
+      'Renderer',
+      'frame',
+      'initWithFrame',
+      'kMax',
+      'freeFunction'
+    ]) {
+      expect(got, `missing ${name}`).toContain(name);
+    }
+    expect(kindOf(found, 'Drawable')).toBe('interface');
+    expect(kindOf(found, 'Renderer')).toBe('class');
+    expect(kindOf(found, 'kMax')).toBe('constant');
+    expect(kindOf(found, 'freeFunction')).toBe('function');
+    // A multi-part selector reads by its FIRST segment; the anchor after
+    // method_type is what keeps `y` from being reported as a method of its own.
+    expect(got).toContain('setX');
+    expect(got).not.toContain('y');
+    // The superclass is an identifier child of the same node; the leading
+    // anchor is what keeps NSObject from being reported as a class here.
+    expect(got).not.toContain('NSObject');
+    expect(
+      found.find((s) => s.name === 'initWithFrame')?.container
+    ).toBe('Renderer');
   });
 
 });

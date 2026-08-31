@@ -15,7 +15,7 @@
  * the first caller.
  */
 
-import { grammarDir, runtimeWasmPath } from './paths';
+import { grammarPaths, runtimeWasmPath } from './paths';
 import { SymbolPool } from './pool';
 
 let pool: SymbolPool | null = null;
@@ -31,7 +31,7 @@ export function sharedSymbolPool(): SymbolPool {
   if (pool === null) {
     pool = new SymbolPool({
       runtimeWasm: runtimeWasmPath(),
-      grammarDir: grammarDir()
+      grammarPaths: grammarPaths()
     });
   }
   return pool;

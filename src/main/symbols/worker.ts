@@ -15,7 +15,6 @@
  */
 
 import { parentPort, workerData } from 'node:worker_threads';
-import { join } from 'node:path';
 import type { GrammarId } from './languages';
 import { SymbolExtractor } from './extract';
 import type { ExtractedImport, ExtractedSymbol } from './extract';
@@ -23,7 +22,13 @@ import type { ExtractedImport, ExtractedSymbol } from './extract';
 /** What the pool hands each worker at construction. */
 export interface SymbolWorkerData {
   runtimeWasm: string;
-  grammarDir: string;
+  /**
+   * Absolute wasm path per grammar, finished in main by paths.ts. The worker
+   * used to join one directory itself; since Phase 180 the vendored grammars
+   * live in a second directory in development, and paths.ts is the one module
+   * that knows which grammar lives where.
+   */
+  grammarPaths: Record<GrammarId, string>;
 }
 
 /** One batch of work. */
@@ -65,8 +70,7 @@ async function run(port_: NonNullable<typeof parentPort>): Promise<void> {
   try {
     extractor = await SymbolExtractor.create({
       runtimeWasm: data.runtimeWasm,
-      grammarPath: (id: GrammarId) =>
-        join(data.grammarDir, `tree-sitter-${id}.wasm`)
+      grammarPath: (id: GrammarId) => data.grammarPaths[id]
     });
   } catch (err) {
     const message: SymbolWorkerMessage = {

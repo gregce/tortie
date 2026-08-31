@@ -313,6 +313,31 @@
         "fromPath": "lib/imaginary.rb",
         "specifier": "fs",
         "form": "require"
+      },
+      {
+        "language": "swift",
+        "fromPath": "ios/Sources/App/Main.swift",
+        "specifier": "Foundation"
+      },
+      {
+        "language": "swift",
+        "fromPath": "ios/Sources/App/Main.swift",
+        "specifier": "ServerKit"
+      },
+      {
+        "language": "kotlin",
+        "fromPath": "android/app/src/main/kotlin/App.kt",
+        "specifier": "kotlin.math.abs"
+      },
+      {
+        "language": "objc",
+        "fromPath": "mac/Renderer.m",
+        "specifier": "Renderer.h"
+      },
+      {
+        "language": "objc",
+        "fromPath": "mac/Renderer.m",
+        "specifier": "<Foundation/Foundation.h>"
       }
     ],
     "files": {

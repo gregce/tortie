@@ -1,14 +1,14 @@
 /**
  * Source text → symbols. The whole tree-sitter surface gmux uses, in one
  * place, with NO worker and NO electron in scope so the unit tests can drive
- * it directly — which matters, because the six queries in `queries.ts` are
+ * it directly — which matters, because the nine queries in `queries.ts` are
  * hand-authored and their regression test is the reason a grammar bump breaks
  * CI instead of breaking the user's palette (research 19 §7.2).
  *
  * Two decisions worth knowing before editing:
  *
  * **Grammars load lazily, one per language actually seen.** A worker that
- * eagerly loaded all seven would pay 6.8 MB of wasm compile to index a Go repo
+ * eagerly loaded all ten would pay 19 MB of wasm compile to index a Go repo
  * that contains no TypeScript. Boot measured 39-94 ms per worker WITH the
  * grammar load included; per-language laziness keeps that at the low end.
  *
@@ -32,9 +32,12 @@ import {
   IMPORT_TRUNCATION_MARKER,
   KIND_BY_CAPTURE,
   kindWins,
+  KOTLIN_QUERY,
+  OBJC_QUERY,
   PYTHON_QUERY,
   RUBY_QUERY,
   RUST_QUERY,
+  SWIFT_QUERY,
   TS_QUERY,
   type ImportForm
 } from './queries';
@@ -109,7 +112,10 @@ const QUERY_TEXT: Readonly<Record<GrammarId, string>> = {
   go: GO_QUERY,
   python: PYTHON_QUERY,
   rust: RUST_QUERY,
-  ruby: RUBY_QUERY
+  ruby: RUBY_QUERY,
+  swift: SWIFT_QUERY,
+  kotlin: KOTLIN_QUERY,
+  objc: OBJC_QUERY
 };
 
 export interface ExtractorOptions {
@@ -176,7 +182,7 @@ export class SymbolExtractor {
    * matches (Phase 63).
    *
    * There is no second query and no second traversal. The import patterns live
-   * in the same five strings as the definition patterns, so a match carrying
+   * in the same strings as the definition patterns, so a match carrying
    * `@import.path` and a match carrying `@definition.function` come out of the
    * same `matches()` call and are separated by capture name below.
    */

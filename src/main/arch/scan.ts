@@ -95,21 +95,29 @@ export function languageOf(relPath: string): ArchResolverLanguage | null {
   if (grammar === 'python') return 'python';
   if (grammar === 'rust') return 'rust';
   if (grammar === 'ruby') return 'ruby';
+  if (grammar === 'swift') return 'swift';
+  if (grammar === 'kotlin') return 'kotlin';
+  if (grammar === 'objc') return 'objc';
   return 'typescript';
 }
 
 /**
  * Why one language's imports would be captured and never resolved.
  *
- * IT IS EMPTY, and Phase 157 is what emptied it. It held Rust and Python, and
- * both have arms now, as does Ruby. The map is kept rather than deleted because
- * a language whose query lands before its arm does needs a row here for exactly
- * that long, and `reasonFor` below still has to answer an `unverifiable` row an
- * older build wrote into the fact base. `npm run conformance:arch` asserts that
- * nothing this build parses produces one today.
+ * Phase 157 emptied it, and Phase 180 commit one refills it for exactly the
+ * interval this map was kept for: a language whose query lands before its arm
+ * does needs a row here for exactly that long. The Swift, Kotlin and
+ * Objective-C grammars are in the bundle and their imports are captured and
+ * counted; the arms land in commit two and these three rows leave with them.
+ * `reasonFor` below also still has to answer an `unverifiable` row an older
+ * build wrote into the fact base.
  */
 const DEFERRED_REASON: Readonly<Partial<Record<ArchResolverLanguage, string>>> =
-  {};
+  {
+    swift: 'Imports are not resolved for Swift',
+    kotlin: 'Imports are not resolved for Kotlin',
+    objc: 'Imports are not resolved for Objective-C'
+  };
 
 export interface ArchScanInput {
   repoPath: string;

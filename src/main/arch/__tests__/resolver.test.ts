@@ -264,10 +264,11 @@ describe('the manifest aware resolver', () => {
     );
   });
 
-  it('never answers unverifiable for a language this build parses', () => {
+  it('never answers unverifiable for a language whose arm shipped', () => {
     // THE ROW THAT USED TO SAY THE OPPOSITE. Phase 157 emptied this answer, and
     // this test is what stops a later round quietly refilling it. It is not the
-    // same answer as `unresolved`: this one says nobody looked.
+    // same answer as `unresolved`: this one says nobody looked. The Phase 180
+    // three are deferred on purpose and have their own test below.
     const c = ctx();
     for (const [specifier, from, language] of [
       ['crate::foo::bar', 'crates/thing/src/lib.rs', 'rust'],
@@ -283,14 +284,17 @@ describe('the manifest aware resolver', () => {
     }
   });
 
-  it('prints one matrix row per language and every one of them resolves', () => {
+  it('prints one matrix row per language, the Phase 180 three deferred', () => {
     expect(RESOLVER_MATRIX.map((r) => [r.language, r.resolves])).toEqual([
       ['typescript', true],
       ['javascript', true],
       ['go', true],
       ['rust', true],
       ['python', true],
-      ['ruby', true]
+      ['ruby', true],
+      ['swift', false],
+      ['kotlin', false],
+      ['objc', false]
     ]);
     for (const row of RESOLVER_MATRIX) {
       expect(row.resolves ? row.reason === null : row.reason !== null).toBe(true);
@@ -308,6 +312,28 @@ describe('the manifest aware resolver', () => {
     for (const language of RESOLVER_MATRIX.map((r) => r.language)) {
       const answer = resolveImport(long, 'src/main/index.ts', language, ctx);
       expect([language, answer.resolution]).toEqual([language, 'unresolved']);
+    }
+  });
+
+  it('answers unverifiable and NEVER external for the Phase 180 deferred three', () => {
+    // Commit one of Phase 180: the grammars are in the bundle, every Swift,
+    // Kotlin and Objective-C import is captured and counted, and no arm has
+    // shipped. unverifiable is the honest answer, because nobody looked. What
+    // must NOT happen is the script arm answering instead: `import Foundation`
+    // in a repository that also has a package.json could read external there,
+    // and an external leaves a must-not promise across it green. The arms land
+    // in commit two and this test moves with them.
+    const c = ctx();
+    for (const [specifier, from, language] of [
+      ['Foundation', 'ios/Sources/App/Main.swift', 'swift'],
+      ['ServerKit', 'ios/Sources/App/Main.swift', 'swift'],
+      ['kotlin.math.abs', 'android/app/src/main/kotlin/App.kt', 'kotlin'],
+      ['<Foundation/Foundation.h>', 'mac/Renderer.m', 'objc'],
+      ['Renderer.h', 'mac/Renderer.m', 'objc']
+    ] as const) {
+      expect(
+        resolveImport(specifier, from, language, c)
+      ).toEqual({ toPath: null, resolution: 'unverifiable' });
     }
   });
 

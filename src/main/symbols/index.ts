@@ -21,4 +21,10 @@ export { SymbolExtractor } from './extract';
 export type { ExtractedSymbol } from './extract';
 export { grammarFor, GRAMMARS, INDEXABLE_EXTENSIONS } from './languages';
 export type { GrammarId } from './languages';
-export { assetProblem, grammarDir, grammarPath, runtimeWasmPath } from './paths';
+export {
+  assetProblem,
+  grammarDir,
+  grammarPath,
+  grammarPaths,
+  runtimeWasmPath
+} from './paths';

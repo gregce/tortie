@@ -184,9 +184,10 @@ extraResources:
   # file in a folder Tortie tells people to open.
   - from: resources/config
     to: config
-  # Phase 14 (symbols), Ruby added in Phase 157: SEVEN tree-sitter grammars and
-  # the web-tree-sitter runtime, read at runtime by src/main/symbols/paths.ts
-  # from process.resourcesPath/tree-sitter.
+  # Phase 14 (symbols), Ruby added in Phase 157, Swift, Kotlin and Objective-C
+  # in Phase 180: TEN tree-sitter grammars and the web-tree-sitter runtime,
+  # read at runtime by src/main/symbols/paths.ts from
+  # process.resourcesPath/tree-sitter.
   #
   # WHY extraResources AND NOT asarUnpack: a .wasm is not a .node, so the
   # `**/*.node` rule above does not cover it, and `out/` resolves these out of
@@ -194,11 +195,11 @@ extraResources:
   # place a mistake here shows up (research 19 §2.8, §7.2). This is the
   # go/no-go check the symbols work is gated on.
   #
-  # SEVEN, not sixteen: typescript 1,381 KB, tsx 1,412 KB, rust 1,088 KB,
-  # python 447 KB, javascript 402 KB, go 212 KB and ruby 2,057 KB = 6.8 MB.
-  # The package also carries cpp (5.1 MB), c-sharp (4.9 MB), bash, java, php,
-  # powershell, css, ini and regex, about 12 MB for languages nobody in these
-  # repos writes.
+  # SEVEN from the npm package, not sixteen: typescript 1,381 KB, tsx 1,412 KB,
+  # rust 1,088 KB, python 447 KB, javascript 402 KB, go 212 KB and ruby
+  # 2,057 KB = 6.8 MB. The package also carries cpp (5.1 MB), c-sharp (4.9 MB),
+  # bash, java, php, powershell, css, ini and regex, about 12 MB for languages
+  # nobody in these repos writes.
   #
   # Ruby is the seventh and Phase 157 is the deliberate act this comment always
   # asked for: 2.0 MB of bundle bought a Ruby repository's imports resolving
@@ -215,6 +216,21 @@ extraResources:
       - "tree-sitter-python.wasm"
       - "tree-sitter-rust.wasm"
       - "tree-sitter-ruby.wasm"
+  # THREE MORE from the repo itself (Phase 180): Swift 3,736 KB, Kotlin
+  # 3,958 KB and Objective-C 5,193 KB = 12.6 MB, vendored whole in
+  # resources/tree-sitter because no package the bundle carries ships them.
+  # Each is a prebuilt MIT release asset pinned by sha256 in
+  # resources/tree-sitter/GRAMMAR-PINS.json. Both entries land in the SAME
+  # <resources>/tree-sitter directory, so a packaged app has one grammar dir
+  # and src/main/symbols/paths.ts is the only module that remembers there were
+  # ever two. The same move-together rule binds this filter: missingGrammars()
+  # reads GRAMMARS and looks for the file this filter copies.
+  - from: resources/tree-sitter
+    to: tree-sitter
+    filter:
+      - "tree-sitter-swift.wasm"
+      - "tree-sitter-kotlin.wasm"
+      - "tree-sitter-objc.wasm"
   # web-tree-sitter's OWN runtime wasm. Never @vscode/tree-sitter-wasm's older
   # bundled tree-sitter.wasm — letting emscripten find that one yields
   # `ENOENT: web-tree-sitter.wasm` (research 19 §7.3).

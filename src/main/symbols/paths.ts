@@ -1,5 +1,5 @@
 /**
- * Where the seven grammars and the tree-sitter runtime actually live at runtime
+ * Where the ten grammars and the tree-sitter runtime actually live at runtime
  * — the ONE place that answers it, for the same reason `resolve.ts` is the one
  * place that answers it for the ripgrep binary.
  *
@@ -10,15 +10,37 @@
  * phase's go/no-go check is aimed at. Packaged, the grammars are copied to
  * `<resources>/tree-sitter/` by `extraResources` and read from there.
  *
+ * TWO SOURCE DIRECTORIES SINCE PHASE 180, ONE PACKAGED DESTINATION. Seven
+ * grammars ship inside `@vscode/tree-sitter-wasm` and resolve out of
+ * node_modules in development; the Swift, Kotlin and Objective-C wasm are
+ * vendored whole in the repo's `resources/tree-sitter/` (pinned by sha256 in
+ * GRAMMAR-PINS.json there) because no package the bundle carries ships them.
+ * `electron-builder.yml` copies BOTH sets into `<resources>/tree-sitter/`, so
+ * a packaged app has one directory and this module is the only thing that
+ * remembers there were ever two.
+ *
  * `missingGrammars()` turns that into a diagnosis instead of a crash: the
  * palette can say which files are missing rather than reporting "no symbols".
  */
 
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { GrammarId } from './languages';
 import { GRAMMARS } from './languages';
+
+/**
+ * The grammars vendored in `resources/tree-sitter/` rather than shipped by
+ * `@vscode/tree-sitter-wasm`. Phase 180's deliberate act; the pin lives beside
+ * the files. The set lives HERE and not in languages.ts because it is a fact
+ * about where bytes sit on disk, and languages.ts holds no paths.
+ */
+const VENDORED_GRAMMARS: ReadonlySet<GrammarId> = new Set<GrammarId>([
+  'swift',
+  'kotlin',
+  'objc'
+]);
 
 const require_ = createRequire(import.meta.url);
 
@@ -42,9 +64,49 @@ export function grammarDir(): string {
   return dirname(require_.resolve('@vscode/tree-sitter-wasm'));
 }
 
+/**
+ * The repo's `resources/tree-sitter` in development — the vendored grammars'
+ * home. Electron answers with `app.getAppPath()`, which is the repo root in
+ * dev, the same way resolveConfPath finds gmux-tmux.conf. A plain node test
+ * has no electron, so it walks up from this module's own directory, which
+ * works from `src/` under vitest and from `out/` however the bundle nests.
+ */
+function vendoredGrammarDir(): string {
+  try {
+    const { app } = require_('electron') as typeof import('electron');
+    if (app !== undefined) return join(app.getAppPath(), 'resources', 'tree-sitter');
+  } catch {
+    // Plain node: fall through to the walk.
+  }
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i += 1) {
+    const candidate = join(dir, 'resources', 'tree-sitter');
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return join(process.cwd(), 'resources', 'tree-sitter');
+}
+
 /** Absolute path of one grammar's `.wasm`. */
 export function grammarPath(id: GrammarId): string {
+  if (!packaged() && VENDORED_GRAMMARS.has(id)) {
+    return join(vendoredGrammarDir(), `tree-sitter-${id}.wasm`);
+  }
   return join(grammarDir(), `tree-sitter-${id}.wasm`);
+}
+
+/**
+ * Every grammar's absolute wasm path, keyed by id — what the worker pool
+ * boots with. The worker used to join one directory itself; since Phase 180
+ * there are two source directories in development, and handing the worker the
+ * finished map keeps this module the only place that knows that.
+ */
+export function grammarPaths(): Record<GrammarId, string> {
+  const out = {} as Record<GrammarId, string>;
+  for (const id of GRAMMARS) out[id] = grammarPath(id);
+  return out;
 }
 
 /**

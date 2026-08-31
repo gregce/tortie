@@ -29,6 +29,7 @@ import type {
   SymbolWorkerRequest
 } from './worker';
 import { WORKER_NAMES } from '../proc/identity';
+import type { GrammarId } from './languages';
 
 /** Idle time after which the pool gives its threads back. */
 export const IDLE_EVICT_MS = 30 * 60 * 1000;
@@ -42,7 +43,8 @@ export const BATCH_SIZE = 48;
 
 export interface PoolOptions {
   runtimeWasm: string;
-  grammarDir: string;
+  /** Absolute wasm path per grammar, from paths.ts's grammarPaths(). */
+  grammarPaths: Record<GrammarId, string>;
   /** Override for tests; production uses the electron-vite emitted entry. */
   workerPath?: string;
   /** Override the worker count (tests use 1 for determinism). */
@@ -152,7 +154,7 @@ export class SymbolPool {
   private spawn(): Slot {
     const workerData: SymbolWorkerData = {
       runtimeWasm: this.options.runtimeWasm,
-      grammarDir: this.options.grammarDir
+      grammarPaths: this.options.grammarPaths
     };
     const worker = new Worker(this.options.workerPath ?? defaultWorkerPath(), {
       workerData,
