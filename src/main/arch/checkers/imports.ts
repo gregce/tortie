@@ -87,6 +87,35 @@ export function buildImportGraph(facts: ArchFactBase): ArchImportGraph {
   let totalImports = 0;
   let unresolvedImports = 0;
 
+  // A FIRST-PARTY ANSWER MAY BE A DIRECTORY, and `owners` keys only tracked
+  // files. Go has answered with the imported package's directory since Phase
+  // 63, and Swift's target grain (Phase 180) makes a directory the ONLY shape
+  // a Swift answer ever takes. Looking such an answer up in `owners` directly
+  // made it vanish from both sides of the ledger, neither a crossing nor a
+  // miss, so a must-not crossed by 33 real resolved imports printed convergent
+  // with 0 offending: the exact false green the header above calls the most
+  // damaging thing this feature could print. A directory answer lands on every
+  // component that owns a tracked file under that directory, by path segment,
+  // once per component rather than once per file, because one import is one
+  // import however many files the far target holds. A directory nobody owns
+  // stays uncounted, which is the same unmapped-code rule a file nobody owns
+  // has always had. The cache holds one entry per distinct target directory,
+  // which is the number of targets, not the number of imports.
+  const dirOwnerCache = new Map<string, string[]>();
+  const ownersOfDirectory = (dir: string): string[] => {
+    const hit = dirOwnerCache.get(dir);
+    if (hit !== undefined) return hit;
+    const prefix = dir.endsWith('/') ? dir : `${dir}/`;
+    const ids = new Set<string>();
+    for (const [path, list] of owners) {
+      if (!path.startsWith(prefix)) continue;
+      for (const id of list) ids.add(id);
+    }
+    const out = [...ids];
+    dirOwnerCache.set(dir, out);
+    return out;
+  };
+
   for (const fact of facts.imports) {
     const fromIds = owners.get(fact.fromPath) ?? [];
     if (fromIds.length === 0) continue;
@@ -103,7 +132,8 @@ export function buildImportGraph(facts: ArchFactBase): ArchImportGraph {
       }
       continue;
     }
-    const toIds = owners.get(fact.toPath) ?? [];
+    const exact = owners.get(fact.toPath);
+    const toIds = exact ?? ownersOfDirectory(fact.toPath);
     for (const from of fromIds) {
       for (const to of toIds) {
         if (from === to) continue;

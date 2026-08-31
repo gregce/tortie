@@ -132,6 +132,7 @@ const parts = Object.keys(fixture.expect).map((id) => {
     unresolved: answer.unresolved,
     totalImports: answer.totalImports,
     unparsed: answer.unparsed,
+    swiftFiles: answer.swiftFiles,
     brokeFiles: answer.boxes.filter((b) => b.broke.length > 0).map((b) => b.path),
     brokeCells: (answer.matrix?.cells ?? []).filter((c) => c.broke).length,
     brokeRanked: (answer.top?.importers ?? []).filter((r) => r.broke).length,

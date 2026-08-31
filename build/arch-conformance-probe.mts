@@ -104,6 +104,26 @@ interface Facts {
       sources: string[];
     };
     ruby: { gems: string[]; requirePaths: string[]; present: boolean };
+    kotlin: {
+      groups: string[];
+      artifacts: string[];
+      android: boolean;
+      present: boolean;
+    };
+    objc: { pods: string[]; present: boolean };
+    /** The Swift targets as DATA. This gate parses no manifest and loads no wasm. */
+    swift: {
+      targets: {
+        name: string;
+        manifest: string;
+        dir: string | null;
+        files: string[] | null;
+        syncDirs: string[];
+      }[];
+      packages: string[];
+      stopped: { path: string; reason: string }[];
+      present: boolean;
+    };
     specifiers: {
       language: ArchResolverLanguage;
       fromPath: string;
@@ -330,6 +350,27 @@ async function main(): Promise<void> {
       gems: new Set(facts.resolverProbe.ruby.gems),
       requirePaths: facts.resolverProbe.ruby.requirePaths,
       present: facts.resolverProbe.ruby.present
+    },
+    kotlin: {
+      groups: new Set(facts.resolverProbe.kotlin.groups),
+      artifacts: new Set(facts.resolverProbe.kotlin.artifacts),
+      android: facts.resolverProbe.kotlin.android,
+      present: facts.resolverProbe.kotlin.present
+    },
+    objc: {
+      pods: new Set(facts.resolverProbe.objc.pods),
+      present: facts.resolverProbe.objc.present
+    },
+    // Phase 180: the Swift targets arrive as data, the same way the Cargo
+    // manifest does, because this gate opens no repository, spawns nothing
+    // and loads no wasm. The Package.swift and pbxproj READERS are proven in
+    // src/main/arch/__tests__/resolver-swift.test.ts through the real
+    // grammar; what this gate proves is the ARM over what any reader hands it.
+    swift: {
+      targets: facts.resolverProbe.swift.targets,
+      packages: new Set(facts.resolverProbe.swift.packages),
+      stopped: facts.resolverProbe.swift.stopped,
+      present: facts.resolverProbe.swift.present
     }
   };
   const baseCtx = archResolveContext(manifestsForProbe, facts.trackedFiles);
@@ -1028,7 +1069,9 @@ async function main(): Promise<void> {
     for (const component of modelRepair.components) {
       if (!scopedParts.has(component.id)) continue;
       component.name = `The ${component.id} part`;
-      component.description = `Holds what the ${component.id} part is for, over the 12 tracked files.`;
+      // The digit is the fixture's own tracked-file count, which the scoped
+      // facts state, so the honest repair stays honest when the fixture grows.
+      component.description = `Holds what the ${component.id} part is for, over the ${String(facts.trackedFiles.length)} tracked files.`;
       component.gaps = [...component.gaps, 'Somebody should say what this part owes.'];
       component.evidence = [];
     }

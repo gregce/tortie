@@ -169,6 +169,14 @@ export interface ArchModulesResult {
   totalImports: number;
   /** Languages with files here whose imports this build does not read. */
   unparsed: ArchModuleUnparsed[];
+  /**
+   * How many of this part's files are Swift (Phase 180). Swift resolves at
+   * TARGET grain because files inside one target see each other with zero
+   * import statements, so a Swift part draws no interior arrow BY THE
+   * LANGUAGE'S OWN NATURE, and the view says so in one quiet line rather
+   * than reading as a part that imports nothing.
+   */
+  swiftFiles: number;
 }
 
 /** A language with files in this part whose imports this build does not read. */

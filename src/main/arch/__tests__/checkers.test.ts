@@ -280,6 +280,130 @@ describe('the conservative rule', () => {
   });
 });
 
+describe('a directory-shaped first-party answer is not invisible', () => {
+  // THE PHASE 180 FIX-ROUND FINDING. Swift resolves at target grain, so EVERY
+  // Swift first-party answer is a directory, and Go's package answers are the
+  // same shape. `fileOwners` keys only tracked files, so a directory answer
+  // used to vanish from both sides of the ledger: not a crossing, not
+  // unresolved. Over the rookery copy, a must-not crossed by 33 real resolved
+  // imports reported convergent with 0 offending, indistinguishable from the
+  // honored reverse promise. These pin the fall-back: a directory answer lands
+  // on the component(s) owning tracked files under that prefix.
+
+  const swiftFacts = (toPath: string): ArchFactBase =>
+    facts({
+      trackedFiles: ['src/app/Main.swift', 'src/store/Db.swift', 'src/store/Io.swift'],
+      imports: [
+        imported({
+          fromPath: 'src/app/Main.swift',
+          specifier: 'Store',
+          line: 1,
+          toPath,
+          resolution: 'first-party'
+        })
+      ]
+    });
+
+  it('calls a must-not crossed by a Swift target-directory answer divergent', () => {
+    const result = checkImports(swiftFacts('src/store'));
+    const verdict = result.verdicts.find((v) => v.subjectId === 'edge:app-must-not-store');
+    expect(verdict?.status).toBe('divergent');
+    expect(verdict?.offending).toHaveLength(1);
+    expect(verdict?.offending?.[0]?.toPath).toBe('src/store');
+  });
+
+  it('counts one crossing per import fact, not one per file the directory owns', () => {
+    // src/store owns two tracked files. The import is still ONE import.
+    const result = checkImports(swiftFacts('src/store'));
+    const verdict = result.verdicts.find((v) => v.subjectId === 'edge:app-must-not-store');
+    expect(verdict?.offending).toHaveLength(1);
+  });
+
+  it('matches by path segment, never by string prefix', () => {
+    // 'src/store' must not claim 'src/storefront/x.ts'.
+    const base = facts({
+      components: [component(), component({ id: 'store', anchors: ['src/storefront'] })],
+      trackedFiles: ['src/app/main.go', 'src/storefront/x.go'],
+      imports: [
+        imported({
+          fromPath: 'src/app/main.go',
+          specifier: 'example.com/mod/src/store',
+          toPath: 'src/store',
+          resolution: 'first-party'
+        })
+      ]
+    });
+    const verdict = checkImports(base).verdicts.find(
+      (v) => v.subjectId === 'edge:app-must-not-store'
+    );
+    expect(verdict?.status).toBe('convergent');
+  });
+
+  it('sees a Go package-directory answer the same way (the pre-existing shape)', () => {
+    const base = facts({
+      trackedFiles: ['src/app/main.go', 'src/store/db.go'],
+      imports: [
+        imported({
+          fromPath: 'src/app/main.go',
+          specifier: 'example.com/mod/src/store',
+          line: 2,
+          toPath: 'src/store',
+          resolution: 'first-party'
+        })
+      ]
+    });
+    const verdict = checkImports(base).verdicts.find(
+      (v) => v.subjectId === 'edge:app-must-not-store'
+    );
+    expect(verdict?.status).toBe('divergent');
+    expect(verdict?.offending).toHaveLength(1);
+  });
+
+  it('still drops a directory nobody owns, the unmapped-code rule unchanged', () => {
+    const base = facts({
+      trackedFiles: ['src/app/Main.swift', 'src/other/Loose.swift'],
+      imports: [
+        imported({
+          fromPath: 'src/app/Main.swift',
+          specifier: 'Other',
+          toPath: 'src/other',
+          resolution: 'first-party'
+        })
+      ]
+    });
+    const counts = countByCoverage(checkImports(base).verdicts, base);
+    // Unmapped code is counted rather than failed, and it is not a miss.
+    expect(counts.unresolvedImports).toBe(0);
+    const verdict = checkImports(base).verdicts.find(
+      (v) => v.subjectId === 'edge:app-must-not-store'
+    );
+    expect(verdict?.status).toBe('convergent');
+  });
+
+  it('feeds the closed boundary the same crossings', () => {
+    const base = facts({
+      components: [
+        component(),
+        component({ id: 'store', anchors: ['src/store'], boundary: 'closed' })
+      ],
+      edges: [],
+      trackedFiles: ['src/app/Main.swift', 'src/store/Db.swift'],
+      imports: [
+        imported({
+          fromPath: 'src/app/Main.swift',
+          specifier: 'Store',
+          toPath: 'src/store',
+          resolution: 'first-party'
+        })
+      ]
+    });
+    const verdict = checkImports(base).verdicts.find(
+      (v) => v.subjectId === 'component:store#boundary'
+    );
+    expect(verdict?.status).toBe('divergent');
+  });
+});
+
 describe('an accepted divergence stays a divergence', () => {
   it('keeps the status and carries the person own words', () => {
     const result = checkImports(

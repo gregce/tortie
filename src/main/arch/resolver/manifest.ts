@@ -72,6 +72,9 @@ import { expandDirGlob, normalizeRel } from './paths';
 // more readers.
 import { readCargoManifest, type CargoManifest } from './cargo';
 import { readRubyManifest, type RubyManifest } from './gemfile';
+import { readKotlinManifest, type KotlinManifest } from './gradle';
+import { readObjcManifest, type ObjcManifest } from './podfile';
+import { emptySwiftManifest, type SwiftManifest } from './swiftpm';
 import { readPythonProject, type PythonProject } from './pyproject';
 
 /** One `paths` rule from a tsconfig, already split at its single star. */
@@ -177,6 +180,26 @@ export interface ArchManifests {
    * require it cannot find a file for answers `unresolved`.
    */
   ruby: RubyManifest;
+  /**
+   * What the Gradle files literally declare (Phase 180): Maven groups,
+   * artifact names, and whether an Android plugin is on. They are what lets
+   * the Kotlin arm answer `external` for a name the platform does not ship.
+   */
+  kotlin: KotlinManifest;
+  /**
+   * What the Podfile and Cartfile literally declare (Phase 180): pod names,
+   * the Objective-C arm's only non platform justification for `external`.
+   */
+  objc: ObjcManifest;
+  /**
+   * The Swift targets and declared packages (Phase 180). EMPTY OUT OF THIS
+   * READER: Package.swift is parsed as Swift source by the wasm grammar,
+   * which is asynchronous, so the caller that scans imports hydrates this
+   * with `readSwiftManifest` from ./swiftpm.ts after this returns. A caller
+   * that does not hydrate resolves no Swift target, and every Swift import
+   * then answers `unresolved`, which is grey and safe rather than wrong.
+   */
+  swift: SwiftManifest;
 }
 
 /** How many workspace directories a glob is allowed to expand to. */
@@ -215,7 +238,10 @@ export function readArchManifests(repoPath: string): ArchManifests {
       exists(join(repoPath, 'setup.py')),
     cargo: readCargoManifest(repoPath),
     python: readPythonProject(repoPath),
-    ruby: readRubyManifest(repoPath)
+    ruby: readRubyManifest(repoPath),
+    kotlin: readKotlinManifest(repoPath),
+    objc: readObjcManifest(repoPath),
+    swift: emptySwiftManifest()
   };
   return manifests;
 }

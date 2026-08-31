@@ -3,6 +3,7 @@
   "headCommit": "0123456789abcdef0123456789abcdef01234567",
   "trackedFiles": [
     "package.json",
+    "src/app/Feature.swift",
     "src/app/main.ts",
     "src/app/view.ts",
     "src/core/engine.ts",
@@ -133,6 +134,22 @@
       "toPath": null,
       "resolution": "unverifiable",
       "reason": "Imports are not checked for Python."
+    },
+    {
+      "fromPath": "src/app/Feature.swift",
+      "specifier": "VendoredLib",
+      "line": 1,
+      "toPath": "vendor/lib",
+      "resolution": "first-party",
+      "reason": null
+    },
+    {
+      "fromPath": "src/core/main.go",
+      "specifier": "example.com/imaginary/src/app",
+      "line": 5,
+      "toPath": "src/app",
+      "resolution": "first-party",
+      "reason": null
     }
   ],
   "unparsed": [
@@ -338,6 +355,41 @@
         "language": "objc",
         "fromPath": "mac/Renderer.m",
         "specifier": "<Foundation/Foundation.h>"
+      },
+      {
+        "language": "swift",
+        "fromPath": "ios/Sources/App/Main.swift",
+        "specifier": "MysteryKit"
+      },
+      {
+        "language": "swift",
+        "fromPath": "ios/Sources/App/Main.swift",
+        "specifier": "MarkdownView"
+      },
+      {
+        "language": "kotlin",
+        "fromPath": "android/app/src/main/kotlin/com/probe/app/App.kt",
+        "specifier": "com.probe.app.net.Client"
+      },
+      {
+        "language": "kotlin",
+        "fromPath": "android/app/src/main/kotlin/com/probe/app/App.kt",
+        "specifier": "okhttp3.OkHttpClient"
+      },
+      {
+        "language": "kotlin",
+        "fromPath": "android/app/src/main/kotlin/com/probe/app/App.kt",
+        "specifier": "dev.nowhere.Thing"
+      },
+      {
+        "language": "objc",
+        "fromPath": "mac/Renderer.m",
+        "specifier": "Missing.h"
+      },
+      {
+        "language": "objc",
+        "fromPath": "mac/Renderer.m",
+        "specifier": "AFNetworking"
       }
     ],
     "files": {
@@ -358,6 +410,19 @@
         "lib/imaginary.rb",
         "lib/imaginary/version.rb",
         "spec/thing_spec.rb"
+      ],
+      "swift": [
+        "ios/Package.swift",
+        "ios/Sources/App/Main.swift",
+        "ios/Sources/ServerKit/Server.swift"
+      ],
+      "kotlin": [
+        "android/app/src/main/kotlin/com/probe/app/App.kt",
+        "android/app/src/main/kotlin/com/probe/app/net/Client.kt"
+      ],
+      "objc": [
+        "mac/Renderer.m",
+        "mac/Renderer.h"
       ]
     },
     "cargo": {
@@ -394,6 +459,46 @@
       "requirePaths": [
         "lib"
       ],
+      "present": true
+    },
+    "kotlin": {
+      "groups": [
+        "androidx.core",
+        "com.squareup.okhttp3"
+      ],
+      "artifacts": [
+        "kotlinx-coroutines-android"
+      ],
+      "android": true,
+      "present": true
+    },
+    "objc": {
+      "pods": [
+        "AFNetworking"
+      ],
+      "present": true
+    },
+    "swift": {
+      "targets": [
+        {
+          "name": "App",
+          "manifest": "ios/Package.swift",
+          "dir": "ios/Sources/App",
+          "files": null,
+          "syncDirs": []
+        },
+        {
+          "name": "ServerKit",
+          "manifest": "ios/Package.swift",
+          "dir": "ios/Sources/ServerKit",
+          "files": null,
+          "syncDirs": []
+        }
+      ],
+      "packages": [
+        "MarkdownView"
+      ],
+      "stopped": [],
       "present": true
     }
   },

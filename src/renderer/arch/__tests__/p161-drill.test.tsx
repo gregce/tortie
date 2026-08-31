@@ -97,6 +97,7 @@ function modulesPayload(
     unresolved: 0,
     totalImports: 3,
     unparsed: [],
+    swiftFiles: 0,
     ...over
   };
 }

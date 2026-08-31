@@ -55,10 +55,12 @@ function rookeryLoad(over: Partial<ArchLoadResult>): ArchLoadResult {
       // holds 168 md, 87 swift and 43 kt. The 1276 swift and 166 c an earlier
       // build of this fixture carried were research 71's level 2 quote over
       // gitignored .var/ checkouts the scan never sees.
+      // Since the Phase 180 fix round an extension label wears its dot, so a
+      // Package.resolved reads as a file kind rather than a status word.
       unparsed: [
-        { language: 'md', files: 168 },
-        { language: 'swift', files: 87 },
-        { language: 'kt', files: 43 }
+        { language: '.md', files: 168 },
+        { language: '.swift', files: 87 },
+        { language: '.kt', files: 43 }
       ]
     },
     checkedAtCommit: 'b'.repeat(40),
@@ -91,7 +93,7 @@ describe('the strip over a contract with zero promises', () => {
     // The sentence that was stranded at level 2 behind a broken drill, now on
     // the face a person actually reads, with the unresolved count beside it.
     expect(html).toContain('Tortie does not read imports for every file here');
-    expect(html).toContain('168 md, 87 swift, 43 kt');
+    expect(html).toContain('168 .md, 87 .swift, 43 .kt');
     expect(html).toContain('47 of 382 imports could not be resolved');
   });
 

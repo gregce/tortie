@@ -97,6 +97,26 @@
       "checker": "imports",
       "note": "Ignored, because the first promise with this id is the one that counts.",
       "evidence": []
+    },
+    {
+      "id": "app-must-not-vendored",
+      "from": "app",
+      "to": "vendored-lib",
+      "kind": "imports",
+      "rule": "must-not",
+      "checker": "imports",
+      "note": "The Phase 180 fix-round pin. The ONLY import across this line is a Swift target-grain answer whose toPath is the DIRECTORY vendor/lib, never a tracked file. Before the fix, fileOwners saw no such key, the crossing vanished from both sides of the ledger, and this must-not printed the false green.",
+      "evidence": []
+    },
+    {
+      "id": "core-must-not-app",
+      "from": "core",
+      "to": "app",
+      "kind": "imports",
+      "rule": "must-not",
+      "checker": "imports",
+      "note": "The Go twin of the pin above. Go has answered with the imported package's DIRECTORY since Phase 63, and the same hole swallowed it. The only import across this line is main.go resolving to the directory src/app.",
+      "evidence": []
     }
   ]
 }

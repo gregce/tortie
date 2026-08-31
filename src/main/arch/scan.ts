@@ -64,6 +64,7 @@ import {
   type ArchResolverLanguage
 } from './resolver';
 import { normalizeRel, readArchManifests } from './resolver/manifest';
+import { readSwiftManifest } from './resolver/swiftpm';
 
 /** What one scan produced. */
 export interface ArchScanResult {
@@ -104,20 +105,14 @@ export function languageOf(relPath: string): ArchResolverLanguage | null {
 /**
  * Why one language's imports would be captured and never resolved.
  *
- * Phase 157 emptied it, and Phase 180 commit one refills it for exactly the
- * interval this map was kept for: a language whose query lands before its arm
- * does needs a row here for exactly that long. The Swift, Kotlin and
- * Objective-C grammars are in the bundle and their imports are captured and
- * counted; the arms land in commit two and these three rows leave with them.
- * `reasonFor` below also still has to answer an `unverifiable` row an older
- * build wrote into the fact base.
+ * Phase 157 emptied it, Phase 180 commit one refilled it for the interval
+ * between the three new grammars landing and their arms landing, and commit
+ * two emptied it again. It is kept because that interval recurs for every
+ * language ever added, and because `reasonFor` below still has to answer an
+ * `unverifiable` row an older build wrote into the fact base.
  */
 const DEFERRED_REASON: Readonly<Partial<Record<ArchResolverLanguage, string>>> =
-  {
-    swift: 'Imports are not resolved for Swift',
-    kotlin: 'Imports are not resolved for Kotlin',
-    objc: 'Imports are not resolved for Objective-C'
-  };
+  {};
 
 export interface ArchScanInput {
   repoPath: string;
@@ -164,6 +159,11 @@ export async function scanArchImports(
   }
 
   const manifests = readArchManifests(repoPath);
+  // Package.swift is parsed as Swift source by the wasm grammar, which is
+  // asynchronous, so the Swift targets are hydrated here rather than inside
+  // the synchronous manifest read. Without this line every Swift import
+  // answers unresolved, which is grey and safe, and never wrong.
+  manifests.swift = await readSwiftManifest(repoPath, trackedFiles);
   const ctx = archResolveContext(manifests, trackedFiles as string[]);
 
   const stamps = store.importStamps(repoKey);
@@ -291,8 +291,12 @@ export async function scanArchImports(
     });
   }
 
+  // THE DOT IS THE LABEL'S HONESTY (Phase 180 fix round). These rows are file
+  // extensions, not language names, and the sentence that renders them says
+  // "1 resolved" for a Package.resolved without it, which a person reads as a
+  // status word. ".resolved" reads as the file extension it is.
   const unparsed: ArchUnparsedLanguage[] = [...unparsedCounts.entries()]
-    .map(([language, files]) => ({ language, files }))
+    .map(([extension, files]) => ({ language: `.${extension}`, files }))
     .sort((a, b) => b.files - a.files || a.language.localeCompare(b.language));
   // NOTHING IS ADDED HERE ANY MORE. Until Phase 157 the two grammars this build
   // parsed and did not resolve were pushed into this container, because from the

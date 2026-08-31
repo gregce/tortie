@@ -86,6 +86,7 @@ import {
   moduleLabel,
   moduleFilesAvailable,
   rankSentence,
+  swiftSentence,
   unparsedSentence
 } from './modules';
 import './arch-modules.css';
@@ -267,12 +268,14 @@ function Sentences({ result }: { result: ArchModulesResult }): React.JSX.Element
     result.matrix === null ? null : isolatedSentence(result.matrix.isolated);
   const unresolved = unresolvedSentence(result.unresolved, result.totalImports);
   const unparsed = unparsedSentence(result.unparsed);
+  const swift = swiftSentence(result.swiftFiles);
   return (
     <div className="arch-modules-sentences">
       <p>{gradeSentence(result)}</p>
       {isolated === null ? null : <p>{isolated}</p>}
       {unresolved === null ? null : <p>{unresolved}</p>}
       {unparsed === null ? null : <p>{unparsed}</p>}
+      {swift === null ? null : <p>{swift}</p>}
     </div>
   );
 }

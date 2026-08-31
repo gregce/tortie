@@ -134,6 +134,19 @@ export function unparsedSentence(
   return `Tortie does not read imports for every file here: ${named}. Nothing above claims anything about those.`;
 }
 
+/**
+ * The Swift target grain, said once and quietly (Phase 180).
+ *
+ * Files inside one Swift target see each other with ZERO import statements,
+ * so a Swift target's drill legitimately draws files with no arrows between
+ * them. Without this line that drawing reads as "these files import nothing",
+ * which is the false reading the rest of this view is built against.
+ */
+export function swiftSentence(swiftFiles: number): string | null {
+  if (swiftFiles <= 0) return null;
+  return 'Swift files in the same target reach each other without import statements, so imports draw no arrows between Swift files here.';
+}
+
 /** The grade, as one word, for a test and for a probe to read off the DOM. */
 export function gradeWord(grade: ArchModuleGrade): string {
   switch (grade) {

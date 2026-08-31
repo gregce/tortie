@@ -42,13 +42,15 @@ import {
   external,
   firstParty,
   unresolved,
-  unverifiable,
   type ArchResolution
 } from './answers';
+import { resolveKotlin } from './kotlin';
 import { normalizeRel, type AliasRule, type ArchManifests } from './manifest';
+import { resolveObjc } from './objc';
 import { resolvePython } from './python';
 import { resolveRuby } from './ruby';
 import { resolveRust } from './rust';
+import { resolveSwift } from './swift';
 
 /**
  * What one specifier resolved to, and the four constructors that build one.
@@ -66,8 +68,9 @@ export {
 } from './answers';
 
 /**
- * Every language this build resolves, plus the three whose grammars landed in
- * Phase 180 commit one ahead of their arms in commit two.
+ * Every language this build resolves. Phase 180 commit two closed the gap
+ * commit one opened: the Swift, Kotlin and Objective-C grammars and their
+ * arms are both in the build now.
  *
  * This union and `src/main/arch/scan.ts`'s `languageOf` have to agree, because
  * `languageOf` is what turns a grammar into one of these names and its default
@@ -116,14 +119,12 @@ export const RESOLVER_MATRIX: readonly {
   { language: 'rust', resolves: true, reason: null },
   { language: 'python', resolves: true, reason: null },
   { language: 'ruby', resolves: true, reason: null },
-  // Phase 180 commit one: the grammars are in the bundle and every import is
-  // captured and COUNTED; the arms land in commit two and these rows flip to
-  // true there. Until then every answer is unverifiable, never external,
-  // which is what keeps a must-not promise across one of these imports grey
-  // rather than green.
-  { language: 'swift', resolves: false, reason: 'Imports are not resolved for Swift' },
-  { language: 'kotlin', resolves: false, reason: 'Imports are not resolved for Kotlin' },
-  { language: 'objc', resolves: false, reason: 'Imports are not resolved for Objective-C' }
+  // Phase 180 commit two: the arms landed. Swift resolves at TARGET grain,
+  // the only grain the language has; Kotlin by the package to directory
+  // convention; Objective-C file to file. Each limit is stated on its arm.
+  { language: 'swift', resolves: true, reason: null },
+  { language: 'kotlin', resolves: true, reason: null },
+  { language: 'objc', resolves: true, reason: null }
 ];
 
 const BUILTINS = new Set(builtinModules);
@@ -239,15 +240,9 @@ export function resolveImport(
       form === 'require-relative' ? 'require-relative' : 'require'
     );
   }
-  // Phase 180 commit one: captured, counted, and answered by NOBODY yet. The
-  // arms land in commit two. unverifiable and not unresolved, because this
-  // answer says nobody looked, and NEVER the script arm below: a Swift
-  // `import Foundation` routed there would read a package.json for an iOS
-  // repository and could answer external, which is the false green Phase 157
-  // exists to prevent.
-  if (language === 'swift' || language === 'kotlin' || language === 'objc') {
-    return unverifiable();
-  }
+  if (language === 'swift') return resolveSwift(specifier, fromPath, ctx);
+  if (language === 'kotlin') return resolveKotlin(specifier, ctx);
+  if (language === 'objc') return resolveObjc(specifier, fromPath, ctx);
   return resolveScript(specifier, fromPath, ctx);
 }
 

@@ -58,6 +58,7 @@ import {
   type ArchResolution
 } from './answers';
 import type { ArchResolveContext } from './index';
+import { joinWithin, parentOf } from './paths';
 /**
  * WHAT THE SPINE HAS TO WIRE FOR THIS ARM, written here because none of it is
  * in this file and all of it is required for a `.rb` file to reach this arm at
@@ -260,27 +261,6 @@ function rubyFile(base: string, ctx: ArchResolveContext): string | null {
   return ctx.files.has(withExtension) ? withExtension : null;
 }
 
-/**
- * Join a relative specifier onto a directory, or null when it walks out of the
- * repository. `normalizeRel` is deliberately not used here: it drops a `..`
- * that has nothing left to pop, which turns an escape into a path inside the
- * repository.
- */
-function joinWithin(dir: string, spec: string): string | null {
-  const parts = dir === '' ? [] : dir.split('/');
-  for (const segment of spec.split('/')) {
-    if (segment === '' || segment === '.') continue;
-    if (segment === '..') {
-      if (parts.length === 0) return null;
-      parts.pop();
-      continue;
-    }
-    parts.push(segment);
-  }
-  return parts.join('/');
-}
-
-function parentOf(path: string): string {
-  const cut = path.lastIndexOf('/');
-  return cut === -1 ? '' : path.slice(0, cut);
-}
+// joinWithin and parentOf moved to ./paths.ts when the Objective-C arm
+// (Phase 180) needed the same escape-refusing join; the semantics are
+// unchanged and the reason it is not normalizeRel is stated there.

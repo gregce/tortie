@@ -267,8 +267,9 @@ describe('the manifest aware resolver', () => {
   it('never answers unverifiable for a language whose arm shipped', () => {
     // THE ROW THAT USED TO SAY THE OPPOSITE. Phase 157 emptied this answer, and
     // this test is what stops a later round quietly refilling it. It is not the
-    // same answer as `unresolved`: this one says nobody looked. The Phase 180
-    // three are deferred on purpose and have their own test below.
+    // same answer as `unresolved`: this one says nobody looked. Phase 180
+    // commit two emptied it AGAIN, and the three client languages are held to
+    // the same rule below.
     const c = ctx();
     for (const [specifier, from, language] of [
       ['crate::foo::bar', 'crates/thing/src/lib.rs', 'rust'],
@@ -284,7 +285,7 @@ describe('the manifest aware resolver', () => {
     }
   });
 
-  it('prints one matrix row per language, the Phase 180 three deferred', () => {
+  it('prints one matrix row per language and every one of them resolves', () => {
     expect(RESOLVER_MATRIX.map((r) => [r.language, r.resolves])).toEqual([
       ['typescript', true],
       ['javascript', true],
@@ -292,9 +293,9 @@ describe('the manifest aware resolver', () => {
       ['rust', true],
       ['python', true],
       ['ruby', true],
-      ['swift', false],
-      ['kotlin', false],
-      ['objc', false]
+      ['swift', true],
+      ['kotlin', true],
+      ['objc', true]
     ]);
     for (const row of RESOLVER_MATRIX) {
       expect(row.resolves ? row.reason === null : row.reason !== null).toBe(true);
@@ -315,25 +316,39 @@ describe('the manifest aware resolver', () => {
     }
   });
 
-  it('answers unverifiable and NEVER external for the Phase 180 deferred three', () => {
-    // Commit one of Phase 180: the grammars are in the bundle, every Swift,
-    // Kotlin and Objective-C import is captured and counted, and no arm has
-    // shipped. unverifiable is the honest answer, because nobody looked. What
-    // must NOT happen is the script arm answering instead: `import Foundation`
-    // in a repository that also has a package.json could read external there,
-    // and an external leaves a must-not promise across it green. The arms land
-    // in commit two and this test moves with them.
+  it('routes the Phase 180 three to their own arms, never the script arm', () => {
+    // Commit two of Phase 180. The full behaviour of each arm lives in its
+    // own suite; what THIS test pins is the dispatch: `import Foundation` in
+    // a repository that also has a package.json must never reach the script
+    // arm, where a name Node happens to ship or the manifest happens to
+    // declare could read external and leave a must-not promise green. The
+    // platform answers below are each language's own, and the unknown name
+    // stays unresolved in all three.
     const c = ctx();
+    expect(resolveImport('Foundation', 'ios/Main.swift', 'swift', c)).toEqual({
+      toPath: null,
+      resolution: 'external'
+    });
+    expect(
+      resolveImport('kotlin.math.abs', 'android/App.kt', 'kotlin', c)
+    ).toEqual({ toPath: null, resolution: 'external' });
+    expect(
+      resolveImport('<Foundation/Foundation.h>', 'mac/Renderer.m', 'objc', c)
+    ).toEqual({ toPath: null, resolution: 'external' });
     for (const [specifier, from, language] of [
-      ['Foundation', 'ios/Sources/App/Main.swift', 'swift'],
-      ['ServerKit', 'ios/Sources/App/Main.swift', 'swift'],
-      ['kotlin.math.abs', 'android/app/src/main/kotlin/App.kt', 'kotlin'],
-      ['<Foundation/Foundation.h>', 'mac/Renderer.m', 'objc'],
-      ['Renderer.h', 'mac/Renderer.m', 'objc']
+      ['NoSuchKit', 'ios/Main.swift', 'swift'],
+      ['dev.nowhere.Thing', 'android/App.kt', 'kotlin'],
+      ['Missing.h', 'mac/Renderer.m', 'objc'],
+      // zustand IS declared in the fixture package.json: the script arm
+      // would answer external for all three of these, and none may.
+      ['zustand', 'ios/Main.swift', 'swift'],
+      ['zustand', 'android/App.kt', 'kotlin'],
+      ['zustand.h', 'mac/Renderer.m', 'objc']
     ] as const) {
-      expect(
-        resolveImport(specifier, from, language, c)
-      ).toEqual({ toPath: null, resolution: 'unverifiable' });
+      expect(resolveImport(specifier, from, language, c)).toEqual({
+        toPath: null,
+        resolution: 'unresolved'
+      });
     }
   });
 

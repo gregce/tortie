@@ -179,6 +179,40 @@ if (d.goneKnown !== false || d.goneDir !== 'no/such/dir') {
 }
 
 // ---------------------------------------------------------------------------
+// 4.5 The Swift target grain travels with the answer (Phase 180)
+// ---------------------------------------------------------------------------
+// Swift resolves at TARGET grain, so a Swift part draws files with no arrows
+// BY THE LANGUAGE'S OWN NATURE and the view owes one quiet line saying why.
+// The line draws from `swiftFiles`; a part of four Swift files that reports
+// zero has lost the count and the drawing reads as "these files import
+// nothing", the false reading the whole view is built against. And the part
+// must have LEFT `unparsed`, because its imports are read now.
+
+const swiftPart = data.parts.find((p) => p.id === 'swift');
+if (swiftPart === undefined) {
+  fail('the fixture lost its swift part, and the target grain has no witness');
+} else {
+  if (swiftPart.swiftFiles !== swiftPart.files) {
+    fail(
+      `the swift part holds ${String(swiftPart.files)} files and reports ` +
+        `${String(swiftPart.swiftFiles)} of them as Swift; the quiet line ` +
+        `draws from that count and it must survive the trip`
+    );
+  }
+  if (swiftPart.unparsed.length !== 0) {
+    fail(
+      `the swift part still sits in unparsed (${JSON.stringify(swiftPart.unparsed)}) ` +
+        `after Phase 180 shipped its arm; captured-and-resolved must not ` +
+        `read as not-read-at-all`
+    );
+  }
+}
+const tsPart = data.parts.find((p) => p.id === 'small');
+if (tsPart !== undefined && tsPart.swiftFiles !== 0) {
+  fail('a part with no Swift in it reports Swift files, and the quiet line would lie');
+}
+
+// ---------------------------------------------------------------------------
 // 5. No count on a node
 // ---------------------------------------------------------------------------
 

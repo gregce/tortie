@@ -70,6 +70,28 @@ export function joinRel(dir: string, name: string): string {
 }
 
 /**
+ * Join a relative SPECIFIER onto a directory, or null when it walks out of
+ * the repository (Phase 157's Ruby arm, shared with Phase 180's Objective-C
+ * arm). `normalizeRel` above is deliberately not this function: it drops a
+ * `..` that has nothing left to pop, which turns an escape into a path inside
+ * the repository, and a resolver that answered with a file it invented that
+ * way would be reporting an edge that does not exist.
+ */
+export function joinWithin(dir: string, spec: string): string | null {
+  const parts = dir === '' ? [] : dir.split('/');
+  for (const segment of spec.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') {
+      if (parts.length === 0) return null;
+      parts.pop();
+      continue;
+    }
+    parts.push(segment);
+  }
+  return parts.join('/');
+}
+
+/**
  * One file's text, or null when it is absent, unreadable or absurdly large.
  *
  * Every manifest reader in this directory goes through here, so "the file was

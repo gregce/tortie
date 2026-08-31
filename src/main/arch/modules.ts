@@ -137,12 +137,19 @@ export function computeArchModules(facts: ArchModulesFacts): ArchModulesResult {
       top: null,
       unresolved: 0,
       totalImports: 0,
-      unparsed: []
+      unparsed: [],
+      swiftFiles: 0
     };
   }
 
   const files = componentFiles(component, facts.trackedFiles);
   const own = new Set(files);
+  // Swift resolves at TARGET grain (Phase 180): files inside one target see
+  // each other with zero import statements, so a Swift part legitimately
+  // draws no interior arrow. The count travels with the answer so the view
+  // can say WHY in one quiet line instead of reading as a part that imports
+  // nothing.
+  const swiftFiles = files.filter((path) => path.endsWith('.swift')).length;
 
   // Every import WRITTEN IN this part, whatever it resolved to. This is the
   // denominator the conservative rule needs, so a part whose imports nobody
@@ -201,7 +208,8 @@ export function computeArchModules(facts: ArchModulesFacts): ArchModulesResult {
         : null,
     unresolved,
     totalImports,
-    unparsed: unparsedIn(files)
+    unparsed: unparsedIn(files),
+    swiftFiles
   };
 }
 
@@ -334,24 +342,25 @@ function drawTop(
  * and Python are parsed and deliberately not resolved, per research 49 section
  * 4.8 fix 4, so they join the same container: from the reader's seat "captured
  * and not resolved" and "not read at all" are the same answer. Phase 180
- * commit one puts Swift, Kotlin and Objective-C in the same seat, their
- * grammars in the bundle and their arms landing in commit two, and they leave
- * this list the day the arms do.
+ * commit one held Swift, Kotlin and Objective-C in the same seat while their
+ * grammars waited for their arms; commit two landed the arms and the three
+ * left this list, as that comment promised they would.
  */
 function unparsedIn(files: readonly string[]): ArchModuleUnparsed[] {
   const counts = new Map<string, number>();
-  const capturedNotResolved = new Set([
-    'rust',
-    'python',
-    'swift',
-    'kotlin',
-    'objc'
-  ]);
+  const capturedNotResolved = new Set(['rust', 'python']);
   for (const path of files) {
     const grammar = grammarFor(path);
+    // An extension wears its dot (Phase 180 fix round): the first Swift
+    // repository put a Package.resolved in a drill and the sentence read
+    // "1 resolved", a status word. A grammar name is a language and stays
+    // bare; ".resolved" reads as the file extension it is.
+    const ext = grammar === null ? extensionOf(path) : null;
     const label =
       grammar === null
-        ? extensionOf(path)
+        ? ext === null
+          ? null
+          : `.${ext}`
         : capturedNotResolved.has(grammar)
           ? grammar
           : null;

@@ -41,6 +41,7 @@ import {
   moduleDir,
   moduleLabel,
   rankSentence,
+  swiftSentence,
   unparsedSentence
 } from '../modules';
 
@@ -62,7 +63,8 @@ function base(): ArchModulesResult {
     top: null,
     unresolved: 0,
     totalImports: 0,
-    unparsed: []
+    unparsed: [],
+    swiftFiles: 0
   };
 }
 
@@ -285,6 +287,26 @@ describe('the sentences', () => {
   it('says nothing at all when there is nothing to say', () => {
     expect(isolatedSentence(0)).toBeNull();
     expect(unparsedSentence([])).toBeNull();
+    expect(swiftSentence(0)).toBeNull();
+  });
+
+  it('says the Swift target grain in one quiet line (Phase 180)', () => {
+    // A Swift target's drill draws files with no arrows, because files in one
+    // target see each other with zero import statements. Without the line
+    // that drawing reads as "these files import nothing".
+    const drawn = draw({
+      ...base(),
+      fileCount: 2,
+      swiftFiles: 2,
+      boxes: [
+        { path: 'Sources/Kit/A.swift', language: 'swift', broke: [] },
+        { path: 'Sources/Kit/B.swift', language: 'swift', broke: [] }
+      ]
+    });
+    expect(drawn).toContain('without import statements');
+    expect(swiftSentence(2)).toContain('no arrows');
+    // And the line never appears for a part with no Swift in it.
+    expect(draw(base())).not.toContain('without import statements');
   });
 
   it('splits a path into the folders and the name', () => {

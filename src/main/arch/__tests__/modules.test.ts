@@ -208,10 +208,32 @@ describe('what it refuses to claim', () => {
     expect(answer.unparsed).toEqual([{ language: 'rust', files: 3 }]);
   });
 
-  it('says a language it reads no imports for rather than drawing nothing', () => {
+  it('labels an unread extension with its dot, never as a bare word (Phase 180 fix round)', () => {
+    // The first Swift repository put a Package.resolved in a drill and the
+    // sentence read "1 resolved", which a person reads as a status word. An
+    // extension wears its dot; a grammar name like rust above stays bare.
+    const s = synthetic(2, 2);
+    const answer = computeArchModules({
+      cwd: '/imaginary',
+      componentId: 'p',
+      component: s.component,
+      trackedFiles: [...s.trackedFiles, 'src/p/Package.resolved'],
+      imports: s.imports,
+      verdicts: []
+    });
+    expect(answer.unparsed).toEqual([{ language: '.resolved', files: 1 }]);
+  });
+
+  it('says the Swift target grain in its own count, not as unread (Phase 180)', () => {
+    // Until commit two of Phase 180 a Swift part sat in `unparsed`, because
+    // captured-and-not-resolved and not-read-at-all were the same answer from
+    // the reader's seat. The arm shipped: Swift imports ARE resolved now, at
+    // target grain, and a Swift part's zero interior arrows are the language,
+    // said by `swiftFiles` and the view's one quiet line.
     const answer = overLarge('swift');
     expect(answer.grade).toBe('boxes');
-    expect(answer.unparsed).toEqual([{ language: 'swift', files: 4 }]);
+    expect(answer.unparsed).toEqual([]);
+    expect(answer.swiftFiles).toBe(4);
   });
 
   it('answers an anchor that names nothing without pretending it is empty code', () => {
