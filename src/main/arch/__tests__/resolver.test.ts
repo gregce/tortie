@@ -68,6 +68,14 @@ beforeAll(() => {
 }`
   );
   writeFileSync(join(root, 'go.mod'), 'module github.com/fixture/thing\n\ngo 1.22\n');
+  // PHASE 178. A nested manifest the root neither lists as a workspace nor
+  // depends on, which is rookery's exact shape: the root package.json declares
+  // nothing and `server/package.json` holds the real dependency list.
+  mkdirSync(join(root, 'server', 'src'), { recursive: true });
+  writeFileSync(
+    join(root, 'server', 'package.json'),
+    JSON.stringify({ name: 'fixture-server', dependencies: { fastify: '^5.0.0' } })
+  );
 });
 
 afterAll(() => {
@@ -160,6 +168,35 @@ describe('the manifest aware resolver', () => {
         resolution: 'unresolved'
       });
     }
+  });
+
+  it('justifies a bare specifier by the NEAREST enclosing manifest (Phase 178)', () => {
+    // Rookery's shape: the root manifest declares nothing and the nested
+    // `server/package.json` declares fastify. The old reader never saw the
+    // nested file, so every one of that package's imports drew unresolved,
+    // 47 rows on a strip whose true count is a handful.
+    expect(
+      resolveImport('fastify', 'server/src/app.ts', 'typescript', ctx())
+    ).toEqual({ toPath: null, resolution: 'external' });
+  });
+
+  it('lets a sibling subtree justify NOTHING outside itself (Phase 178)', () => {
+    // The same name imported from the root's own code: no manifest enclosing
+    // `src/main/index.ts` declares fastify, and the nested server manifest is
+    // a sibling, not an ancestor. Unresolved-never-external survives: grey,
+    // never a blessed dependency by association.
+    expect(
+      resolveImport('fastify', 'src/main/index.ts', 'typescript', ctx())
+    ).toEqual({ toPath: null, resolution: 'unresolved' });
+  });
+
+  it('walks past a nested manifest to one higher up that declares the name', () => {
+    // A monorepo keeps shared devDependencies at the root. The nested manifest
+    // does not declare zustand, the root does, and the walk climbs in the same
+    // direction Node resolves in, so the nested file's import is external.
+    expect(
+      resolveImport('zustand', 'server/src/app.ts', 'typescript', ctx())
+    ).toEqual({ toPath: null, resolution: 'external' });
   });
 
   it('calls a real alias with no file behind it UNRESOLVED, never external', () => {

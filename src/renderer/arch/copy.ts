@@ -208,6 +208,49 @@ export {
 /** A run that has not finished yet. Never a stale verdict wearing a fresh face. */
 export const ARCH_FIRST_CHECK = 'Not checked yet';
 
+/**
+ * PHASE 178, the strip on a contract with zero promises between parts.
+ *
+ * Research 71 section 5 measured the dishonesty: rookery's strip read "9
+ * checked and holds" where the nine were surviving evidence quotes and the
+ * contract's `edges.json` was `{"edges": []}`. With zero edges there are no
+ * promise verdicts at all, so the strip says so first and the held lane stops
+ * wearing the word a person reads as a promise.
+ */
+export const ARCH_NO_PROMISES_NOTE =
+  'No promises between parts are written yet.';
+
+/** The held lane's word when there are zero promises: quotes, not promises. */
+export const ARCH_CHECKS_HOLD_WORD = 'evidence checks hold, none a promise';
+
+/**
+ * PHASE 178, the folded "Would not load" wall.
+ *
+ * Rookery drew 34 near identical red rows out of 17 files. The resting face
+ * now carries one line and the per file rows sit behind a disclosure, per
+ * Just enough words. Phase 177 already made the usual case empty, so this
+ * line is the general case for the contracts that still refuse rows.
+ */
+export function archProblemsSummary(files: number): string {
+  return files === 1
+    ? '1 file would not load.'
+    : `${String(files)} files would not load.`;
+}
+
+/** The disclosure's label under the folded wall. */
+export const ARCH_PROBLEMS_MORE = 'Each file and the reason';
+
+/**
+ * PHASE 178, the clause a kept lead carries when the contract on disk did
+ * not read back whole. A pass that wrote a contract a third of which cannot
+ * be loaded must not lead with a plain kept sentence.
+ */
+export function archUnreadableClause(files: number): string {
+  return files === 1
+    ? '1 file of it would not load.'
+    : `${String(files)} files of it would not load.`;
+}
+
 /** The failure list's own heading, and the empty case reads as an answer. */
 export const ARCH_NO_FAILURES = 'Every promise Tortie can check holds.';
 

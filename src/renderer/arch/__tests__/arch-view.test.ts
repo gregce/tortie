@@ -33,10 +33,13 @@ import {
 import { passSentence } from '../ArchEmptyState';
 import type { ArchPassRunFace, ArchPassStatusResult } from '../bridge';
 import {
+  ARCH_CHECKS_HOLD_WORD,
   ARCH_PASS_OFF,
   ARCH_PASS_QUIET,
   ARCH_PASS_REFUSED,
   ARCH_PASS_RUNNING,
+  archProblemsSummary,
+  archUnreadableClause,
   freshnessSentence,
   unresolvedSentence,
   verdictWord
@@ -77,6 +80,35 @@ describe('the verdict strip', () => {
     // uncheckable figure to the held one. 12 must never render as 33.
     expect(lanes.some((l) => l.n === 33)).toBe(false);
     expect(lanes.map((l) => l.key)).toEqual(['hold', 'broke', 'cannot']);
+  });
+
+  it('stops calling quotes promises when there are zero edges (Phase 178)', () => {
+    // Research 71 section 5: "9 checked and holds" over an empty edges.json,
+    // where the nine were surviving evidence quotes. With zero promises the
+    // held lane wears its own word, and the numbers themselves do not move.
+    const counts = {
+      checkedHold: 9,
+      broke: 0,
+      cannotCheck: 0,
+      accepted: 0,
+      unresolvedImports: 47,
+      totalImports: 382
+    };
+    const plain = stripLanes(counts);
+    const honest = stripLanes(counts, true);
+    expect(plain[0]?.word).toContain('checked and');
+    expect(honest[0]?.word).toBe(ARCH_CHECKS_HOLD_WORD);
+    expect(honest[0]?.word).not.toContain('promise hold');
+    // Only the held lane's word moves; broke and cannot keep their words.
+    expect(honest.slice(1)).toEqual(plain.slice(1));
+    expect(honest.map((l) => l.n)).toEqual(plain.map((l) => l.n));
+  });
+
+  it('folds the would-not-load wall to one line and one clause (Phase 178)', () => {
+    expect(archProblemsSummary(1)).toBe('1 file would not load.');
+    expect(archProblemsSummary(17)).toBe('17 files would not load.');
+    expect(archUnreadableClause(1)).toBe('1 file of it would not load.');
+    expect(archUnreadableClause(17)).toBe('17 files of it would not load.');
   });
 
   it('gives every status its own glyph, so colour is never the only channel', () => {
@@ -332,6 +364,20 @@ describe('the run face (Phase 158)', () => {
   it('says when the contract was last written after a kept run', () => {
     expect(
       passLead(status({ lastRun: run({ wallMs: 60_000 }) }), null)
+    ).toBe('The contract was last written at 14:03.');
+  });
+
+  it('does not lead plain and kept over an unreadable contract (Phase 178)', () => {
+    // A kept run whose contract cannot be read back whole says so in the same
+    // breath as the written time, never a happy sentence standing alone.
+    expect(
+      passLead(status({ lastRun: run({ wallMs: 60_000 }) }), null, 17)
+    ).toBe(
+      'The contract was last written at 14:03. 17 files of it would not load.'
+    );
+    // Zero unreadable files changes nothing, so every earlier caller stands.
+    expect(
+      passLead(status({ lastRun: run({ wallMs: 60_000 }) }), null, 0)
     ).toBe('The contract was last written at 14:03.');
   });
 

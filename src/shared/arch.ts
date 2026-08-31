@@ -408,6 +408,12 @@ export interface ArchFreshness {
   uncommittedFiles: number;
 }
 
+/** A language with tracked files whose imports this build does not read. */
+export interface ArchUnparsedCount {
+  language: string;
+  files: number;
+}
+
 /**
  * The strip's own counts, reported by coverage so the total cannot flatter.
  *
@@ -421,6 +427,14 @@ export interface ArchCoverageCounts {
   accepted: number;
   unresolvedImports: number;
   totalImports: number;
+  /**
+   * The languages the scan had no grammar for, largest first (Phase 178).
+   * The resting face says the map is thin out of these rows, whole repo,
+   * because until now the sentence lived only behind a drill. OPTIONAL
+   * because counts stored by an older build lack it: a missing field reads
+   * as the empty list and never as a claim the whole tree was read.
+   */
+  unparsed?: ArchUnparsedCount[];
 }
 
 // ---------------------------------------------------------------------------

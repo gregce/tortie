@@ -44,11 +44,22 @@
  * writing a sentinel file from the top of a fixture `setup.py` and asserting
  * the sentinel is not there afterwards.
  *
- * WHAT IT STILL DELIBERATELY DOES NOT READ. A NESTED manifest of any kind. A
- * `go.mod`, a `Cargo.toml`, a `pyproject.toml` or a `Gemfile` in a
- * subdirectory that is not a declared workspace member is not read, so an
- * import that only a nested manifest could explain answers `unresolved` rather
- * than `external`. That is the grey side of the trade and it is the safe one.
+ * WHAT PHASE 178 ADDED. Every `package.json` in the tree, bounded and skipping
+ * `node_modules`, not only the root one and its declared workspaces. The
+ * monorepo that forced it is measured: rookery keeps its real dependency list
+ * in `server/package.json`, the root manifest declares neither workspaces nor
+ * dependencies, and the strip showed 47 unresolved imports where the tree's
+ * own manifests leave 6. A bare specifier is external-justified by the NEAREST
+ * enclosing manifest that declares it, walking from the importing file's own
+ * directory up to the root, which is the direction Node itself resolves in.
+ * Unresolved-never-external survives whole: only a declared dependency becomes
+ * external, and a module no enclosing manifest declares stays unresolved.
+ *
+ * WHAT IT STILL DELIBERATELY DOES NOT READ. A NESTED manifest of any OTHER
+ * kind. A `go.mod`, a `Cargo.toml`, a `pyproject.toml` or a `Gemfile` in a
+ * subdirectory is not read, so an import that only one of those could explain
+ * answers `unresolved` rather than `external`. That is the grey side of the
+ * trade and it is the safe one.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -112,6 +123,17 @@ export interface ArchManifests {
    * answer is a FALSE GREEN on a `must-not` promise.
    */
   dependencies: Set<string>;
+  /**
+   * The declared dependency names of EVERY `package.json` in the tree, keyed
+   * by the repository relative directory that holds it, `''` for the root
+   * (Phase 178). The script arm answers `external` for a bare specifier only
+   * when an ENCLOSING manifest declares it, nearest first, so a nested
+   * package's imports are justified by that package's own manifest and a
+   * sibling package's declarations justify nothing outside their subtree.
+   * Bounded by {@link MAX_NESTED_MANIFESTS} and the walk skips `node_modules`
+   * and `.git`; a manifest past the bound is simply not read, which errs grey.
+   */
+  manifestDirs: Map<string, Set<string>>;
   /** Every `paths` rule found, longest prefix first so the match is deterministic. */
   aliases: AliasRule[];
   /** Workspace packages by the name they publish under. */
@@ -160,6 +182,12 @@ export interface ArchManifests {
 /** How many workspace directories a glob is allowed to expand to. */
 const MAX_WORKSPACES = 256;
 
+/** How many nested `package.json` files the tree walk will read (Phase 178). */
+const MAX_NESTED_MANIFESTS = 256;
+
+/** How many directories the nested-manifest walk will enter before it stops. */
+const MAX_MANIFEST_SCAN_DIRS = 4096;
+
 /**
  * Read one repository's manifests. Cheap enough to do on every full scan, and
  * every failure is absorbed: a repository with no tsconfig and no go.mod
@@ -176,6 +204,7 @@ export function readArchManifests(repoPath: string): ArchManifests {
   const manifests: ArchManifests = {
     packageName: typeof pkg?.name === 'string' ? pkg.name : null,
     dependencies,
+    manifestDirs: readManifestDirs(repoPath, pkg),
     aliases: readAliases(repoPath),
     workspaces,
     goModule: readGoModule(repoPath),
@@ -189,6 +218,52 @@ export function readArchManifests(repoPath: string): ArchManifests {
     ruby: readRubyManifest(repoPath)
   };
   return manifests;
+}
+
+/**
+ * Every `package.json` in the tree, keyed by directory (Phase 178).
+ *
+ * A breadth first walk from the root, skipping `node_modules` and `.git`, so
+ * the manifests nearest the root are found before either bound can cut the
+ * walk short. Symlinked directories are not followed, because `withFileTypes`
+ * reports a symlink as a symlink and the walk only enters real directories,
+ * which is what keeps a link pointing above the repository from turning the
+ * bound into a tour of the disk.
+ */
+function readManifestDirs(
+  repoPath: string,
+  rootPkg: Record<string, unknown> | null
+): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  out.set('', declaredDependencies(rootPkg));
+  const queue: string[] = [''];
+  let visited = 0;
+  while (queue.length > 0) {
+    const dir = queue.shift();
+    if (dir === undefined) break;
+    visited += 1;
+    if (visited > MAX_MANIFEST_SCAN_DIRS) break;
+    let entries;
+    try {
+      entries = readdirSync(join(repoPath, dir), { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const name = entry.name;
+      if (entry.isDirectory()) {
+        if (name === 'node_modules' || name === '.git') continue;
+        queue.push(dir === '' ? name : `${dir}/${name}`);
+        continue;
+      }
+      if (dir === '' || name !== 'package.json' || !entry.isFile()) continue;
+      if (out.size > MAX_NESTED_MANIFESTS) continue;
+      const child = readJsonFile(join(repoPath, dir, name));
+      if (child === null) continue;
+      out.set(dir, declaredDependencies(child));
+    }
+  }
+  return out;
 }
 
 /**

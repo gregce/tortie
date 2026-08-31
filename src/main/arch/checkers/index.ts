@@ -102,7 +102,10 @@ export function countByCoverage(
     cannotCheck,
     accepted,
     unresolvedImports: graph.unresolvedImports,
-    totalImports: graph.totalImports
+    totalImports: graph.totalImports,
+    // Phase 178: the whole-repo unparsed rows ride the counts record, so the
+    // resting face can say why the map is thin without a second scan.
+    unparsed: facts.unparsed
   };
 }
 

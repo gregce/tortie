@@ -186,8 +186,9 @@ export function archResolveContext(
 /**
  * Resolve one specifier written in one file.
  *
- * `fromPath` is repository relative and is only ever used to walk a relative
- * specifier. It is never handed to anything that runs.
+ * `fromPath` is repository relative and is used only to walk a relative
+ * specifier and to find the enclosing manifests (Phase 178). It is never
+ * handed to anything that runs.
  *
  * `form` is HOW the import was written, and exactly one arm needs it. Ruby's
  * `require "utils"` and `require_relative "utils"` are the same six letters and
@@ -264,9 +265,10 @@ function resolveScript(
   const workspace = resolveWorkspace(specifier, ctx);
   if (workspace !== null) return workspace;
 
-  // THE REPOSITORY HAS TO HAVE SAID SO. A bare specifier the manifests declare
-  // a dependency on is `external`, which is a definite answer. One they do not
-  // is `unresolved`, which is not.
+  // THE REPOSITORY HAS TO HAVE SAID SO. A bare specifier an ENCLOSING manifest
+  // declares a dependency on, nearest first (Phase 178), is `external`, which
+  // is a definite answer. One no enclosing manifest declares is `unresolved`,
+  // which is not.
   //
   // The first build answered `external` here whatever the specifier was, and
   // that is the rule this module's own header forbids: it answered definitely
@@ -289,12 +291,23 @@ function resolveScript(
   // than a verdict it gets wrong today. Closing it means asking the alias table
   // first and the platform names second, and that is a later round's change
   // because it moves the answer for every builtin too.
-  if (isDeclared(packageHead(specifier), ctx)) return external();
+  if (isDeclared(packageHead(specifier), fromPath, ctx)) return external();
   return unresolved();
 }
 
 /**
- * Did the repository declare this package, directly or as its types?
+ * Did an ENCLOSING manifest declare this package, directly or as its types?
+ *
+ * PHASE 178 MADE THE QUESTION PATH AWARE. The old form asked one merged set,
+ * being the root manifest and its declared workspaces, so a monorepo whose
+ * real dependency list lives in a nested `package.json` the root never named
+ * showed every one of that package's imports as unresolved: rookery drew 47
+ * where its own manifests leave 6. The walk now starts at the importing
+ * file's own directory and climbs to the root, and the NEAREST enclosing
+ * manifest that declares the name justifies `external`, which is the
+ * direction Node itself resolves in. A sibling subtree's declarations justify
+ * nothing here, and a name no enclosing manifest declares stays `unresolved`,
+ * so unresolved-never-external survives exactly as written.
  *
  * The types form is DefinitelyTyped's own mapping and not a guess: a
  * `@types/hast` in the manifest is what makes `import type { Root } from 'hast'`
@@ -302,8 +315,24 @@ function resolveScript(
  * underscores. Without this rule a types only import reads as unresolved and
  * greys out a promise for no reason, which was measured on this tree.
  */
-function isDeclared(name: string, ctx: ArchResolveContext): boolean {
-  const declared = ctx.manifests.dependencies;
+function isDeclared(
+  name: string,
+  fromPath: string,
+  ctx: ArchResolveContext
+): boolean {
+  const dirs = ctx.manifests.manifestDirs;
+  let dir = parentOf(fromPath);
+  for (;;) {
+    const declared = dirs.get(dir);
+    if (declared !== undefined && declaresPackage(declared, name)) return true;
+    if (dir === '') return false;
+    const cut = dir.lastIndexOf('/');
+    dir = cut === -1 ? '' : dir.slice(0, cut);
+  }
+}
+
+/** One manifest's own answer, the `@types` mapping included. */
+function declaresPackage(declared: ReadonlySet<string>, name: string): boolean {
   if (declared.has(name)) return true;
   if (name.startsWith('@')) {
     const [scope, rest] = [name.slice(1, name.indexOf('/')), name.slice(name.indexOf('/') + 1)];

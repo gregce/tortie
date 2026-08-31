@@ -26,11 +26,15 @@ import { acceptAvailable } from './bridge';
 import type { ArchMapPartResult } from './bridge';
 import {
   ARCH_ACCEPTED_NOTE,
+  ARCH_CHECKS_HOLD_WORD,
   ARCH_FIRST_CHECK,
   ARCH_GAPS_TITLE,
   ARCH_NO_FAILURES,
+  ARCH_NO_PROMISES_NOTE,
   ARCH_OFFENCE_ACCEPTED,
   ARCH_PARTLY_CHECKED_NOTE,
+  ARCH_PROBLEMS_MORE,
+  archProblemsSummary,
   ARCH_PROSE_UNVERIFIED,
   ARCH_SCOPED_LOADING,
   ARCH_SCOPED_NO_PROMISES,
@@ -38,6 +42,7 @@ import {
   unresolvedSentence,
   verdictWord
 } from './copy';
+import { unparsedSentence } from './modules';
 import {
   provenanceIcon,
   provenanceTitle,
@@ -134,12 +139,21 @@ export function scopedStripFace(
  * accepted count is shown beside them rather than folded into the held one.
  */
 export function stripLanes(
-  counts: ArchCoverageCounts
+  counts: ArchCoverageCounts,
+  /**
+   * PHASE 178. True when the contract writes zero promises between parts.
+   * The held lane then stops saying the word a person reads as a promise:
+   * research 71 section 5 found "9 checked and holds" over a contract whose
+   * `edges.json` was empty, where the nine were surviving evidence quotes.
+   */
+  noPromises = false
 ): { key: string; word: string; n: number; cls: string; icon: string }[] {
   return [
     {
       key: 'hold',
-      word: `checked and ${verdictWord('convergent')}`,
+      word: noPromises
+        ? ARCH_CHECKS_HOLD_WORD
+        : `checked and ${verdictWord('convergent')}`,
       n: counts.checkedHold,
       cls: verdictClass('convergent'),
       icon: verdictIcon('convergent')
@@ -162,11 +176,17 @@ export function stripLanes(
 }
 
 /** The three lanes themselves, one markup for the whole and for a part. */
-function Lanes({ counts }: { counts: ArchCoverageCounts }): React.JSX.Element {
+function Lanes({
+  counts,
+  noPromises = false
+}: {
+  counts: ArchCoverageCounts;
+  noPromises?: boolean;
+}): React.JSX.Element {
   return (
     <div className="arch-lane">
       <span className="arch-lane-counts">
-        {stripLanes(counts).map((lane) => (
+        {stripLanes(counts, noPromises).map((lane) => (
           <span className={lane.cls} key={lane.key}>
             <Codicon name={lane.icon} size={12} />
             {`${String(lane.n)} ${lane.word}`}
@@ -228,6 +248,7 @@ export function VerdictStrip({
 }): React.JSX.Element | null {
   const counts = useArch((s) => s.counts());
   const verdicts = useArch((s) => s.verdicts());
+  const edges = useArch((s) => s.edges());
   const load = useArch((s) => s.load);
   if (scoped !== null) return <ScopedStrip scoped={scoped} />;
   if (counts === null) return null;
@@ -236,13 +257,28 @@ export function VerdictStrip({
     counts.unresolvedImports,
     counts.totalImports
   );
+  // PHASE 178. With zero promises between parts there are no promise verdicts
+  // at all, so the strip says so first and the held lane stops wearing the
+  // word a person reads as a promise: research 71 section 5 found "9 checked
+  // and holds" standing over an empty edges.json, where the nine were
+  // surviving evidence quotes. Read through the store's own accessor, the
+  // sibling of counts(), so the strip and the contract cannot disagree.
+  const noPromises = edges.length === 0;
+  // PHASE 178. The whole-repo unparsed sentence, lifted onto the resting face
+  // from the level 2 module view where it sat stranded behind a drill. It is
+  // why the map is thin on a repository Tortie mostly cannot read, and the
+  // rows ride the counts record so nothing is derived here.
+  const thin = unparsedSentence(counts.unparsed ?? []);
   // A run that has not finished has nothing to say about whether anything
   // moved, so its claims read as a question rather than as a stale verdict.
   const firstCheck = verdicts.some((v) => v.firstCheck);
 
   return (
     <section className="arch-strip" aria-label="Promises by coverage">
-      <Lanes counts={counts} />
+      {noPromises ? (
+        <p className="arch-strip-note">{ARCH_NO_PROMISES_NOTE}</p>
+      ) : null}
+      <Lanes counts={counts} noPromises={noPromises} />
       {firstCheck ? (
         <div className="arch-lane">
           <span className="arch-lane-name">{ARCH_FIRST_CHECK}</span>
@@ -251,6 +287,7 @@ export function VerdictStrip({
       {unresolved !== null ? (
         <p className="arch-strip-note">{unresolved}</p>
       ) : null}
+      {thin !== null ? <p className="arch-strip-note">{thin}</p> : null}
       {/* ACCEPTED DIVERGENCES ARE ALWAYS COUNTED AND ALWAYS CARRY THEIR REASON.
           They are never folded into the held figure and they are never hidden.
           That is the whole mechanism behind the operator's second rider: an
@@ -285,31 +322,41 @@ export function VerdictStrip({
 }
 
 /**
- * Rows that would not load at all.
+ * Rows that would not load at all, FOLDED (Phase 178).
  *
  * A row is dropped WHOLE and named, never partially merged and never silently
  * dropped. That is the overlay rule from CLAUDE.md's Phase 23 section, and
- * this is what it looks like on screen: the file, the field and the reason,
- * beside every row that did load.
+ * this is what it looks like on screen: one summary line saying how many
+ * files refused, with the file, the field and the reason for every one of
+ * them behind a disclosure. Rookery drew 34 near identical red rows on the
+ * resting face out of 17 files (research 71 section 5), and a wall of red is
+ * not Just enough words. Phase 177 already folds the usual case to nothing,
+ * so this line is the general case for contracts that still refuse rows.
+ * Nothing is hidden: every row is one click away, still whole, still named.
  */
 export function Problems(): React.JSX.Element | null {
   const problems = useArch((s) => s.problems());
   if (problems.length === 0) return null;
+  const files = new Set(problems.map((e) => e.file)).size;
   return (
     <section className="arch-schema" aria-label="Rows that would not load">
       <div className="section-header">
         <span className="section-toggle">Would not load</span>
       </div>
-      <ul>
-        {problems.map((e, i) => (
-          <li key={`${e.file}:${e.field}:${String(i)}`}>
-            <Codicon name="error" size={12} />
-            <span className="arch-schema-file">{e.file}</span>
-            <span className="arch-schema-field">{e.field}</span>
-            <span className="arch-schema-reason">{e.message}</span>
-          </li>
-        ))}
-      </ul>
+      <p className="arch-note arch-note-inline">{archProblemsSummary(files)}</p>
+      <details className="arch-more">
+        <summary>{ARCH_PROBLEMS_MORE}</summary>
+        <ul>
+          {problems.map((e, i) => (
+            <li key={`${e.file}:${e.field}:${String(i)}`}>
+              <Codicon name="error" size={12} />
+              <span className="arch-schema-file">{e.file}</span>
+              <span className="arch-schema-field">{e.field}</span>
+              <span className="arch-schema-reason">{e.message}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
     </section>
   );
 }

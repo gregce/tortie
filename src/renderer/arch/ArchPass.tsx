@@ -18,6 +18,7 @@ import { passSentence } from './ArchEmptyState';
 import { passAvailable } from './bridge';
 import type { ArchPassRunFace, ArchPassStatusResult } from './bridge';
 import {
+  archUnreadableClause,
   ARCH_ACCEPT_BODY,
   ARCH_ACCEPT_REASON_LABEL,
   ARCH_ACCEPT_TITLE,
@@ -91,7 +92,14 @@ export function paintedSentence(run: ArchPassRunFace): string | null {
  */
 export function passLead(
   status: ArchPassStatusResult,
-  askRefusal: string | null
+  askRefusal: string | null,
+  /**
+   * PHASE 178. How many contract files on disk refused to load. A kept run
+   * whose contract cannot be read back whole must not lead with a plain kept
+   * sentence, so the clause rides the lead. Zero, the usual case, changes
+   * nothing, and the parameter defaults so every earlier caller stands.
+   */
+  unreadableFiles = 0
 ): string | null {
   if (status.running) return ARCH_PASS_RUNNING;
   if (askRefusal !== null) return enrichRefusalSentence(askRefusal);
@@ -100,7 +108,7 @@ export function passLead(
     // A suspension after a kept run still owes the written time: the
     // contract on disk is that run's, whatever the window is doing now.
     return run !== null && run.verdict === 'kept'
-      ? `${status.suspended} ${writtenSentence(run)}`
+      ? `${status.suspended} ${writtenSentence(run, unreadableFiles)}`
       : status.suspended;
   }
   if (run === null) return null;
@@ -116,18 +124,23 @@ export function passLead(
   }
   // Kept: the contract on disk is the run's own write, said with the time,
   // the way a session row says written and when.
-  return writtenSentence(run);
+  return writtenSentence(run, unreadableFiles);
 }
 
 /**
  * The kept run's own line: written, and when. A repair (Phase 159) says so,
  * because a pass scoped to what drifted wrote the drifted parts and left
- * the rest of the contract exactly as it was.
+ * the rest of the contract exactly as it was. When files of the contract on
+ * disk refuse to load, the same line says so in its next breath (Phase 178):
+ * "written at 14:02" standing alone over a contract a third of which cannot
+ * be read is the happy face research 71 section 5 caught.
  */
-function writtenSentence(run: ArchPassRunFace): string {
+function writtenSentence(run: ArchPassRunFace, unreadableFiles = 0): string {
   const head =
     run.scope === 'drift' ? ARCH_REPAIR_WRITTEN : 'The contract was last written at';
-  return `${head} ${timeWord(run.startedAt + run.wallMs)}.`;
+  const written = `${head} ${timeWord(run.startedAt + run.wallMs)}.`;
+  if (unreadableFiles <= 0) return written;
+  return `${written} ${archUnreadableClause(unreadableFiles)}`;
 }
 
 /**
@@ -166,17 +179,24 @@ export function PassFace({
   const entry = useArch((s) =>
     repoPath === null ? null : (s.passes[repoPath] ?? null)
   );
+  // PHASE 178. The dropped-row record, counted by FILE, so a kept lead over a
+  // contract that cannot be read back whole carries the fact instead of
+  // reading plain and happy. Main's own problems list is the one source.
+  const problems = useArch((s) => s.problems());
   useEffect(() => {
     if (repoPath !== null) void loadPass(repoPath);
   }, [repoPath, loadPass]);
 
   if (repoPath === null || !passAvailable()) return null;
 
+  const unreadableFiles = new Set(problems.map((e) => e.file)).size;
   const status = entry?.status ?? null;
   const chosen = status?.chosen ?? false;
   const running = enriching || status?.running === true;
   const lead =
-    status === null ? null : passLead(status, entry?.refusal ?? null);
+    status === null
+      ? null
+      : passLead(status, entry?.refusal ?? null, unreadableFiles);
   const detail = status === null ? null : passDetail(status);
   const run = status?.lastRun ?? null;
   const painted = run === null ? null : paintedSentence(run);

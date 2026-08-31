@@ -300,6 +300,11 @@ async function main(): Promise<void> {
   const manifestsForProbe = {
     packageName: facts.resolverProbe.packageName,
     dependencies: new Set(facts.resolverProbe.dependencies),
+    // Phase 178: the script arm asks the ENCLOSING manifests, nearest first,
+    // so the fixture's declared names sit on the root manifest, which encloses
+    // every probe path. The false-green control below still proves an
+    // undeclared name answers unresolved, never external.
+    manifestDirs: new Map([['', new Set(facts.resolverProbe.dependencies)]]),
     aliases: [],
     workspaces: new Map(),
     goModule: facts.resolverProbe.goModule,

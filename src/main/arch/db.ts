@@ -335,6 +335,22 @@ const MIGRATIONS: readonly SqliteMigration[] = [
         );
       `);
     }
+  },
+  {
+    // PHASE 178. The manifest reader learned every nested `package.json` in
+    // the tree and the script arm's external answer became path aware, but the
+    // freshness key for an import row is the FILE's mtime and size, so no
+    // stamp moved and a re-scan would have reused every stored answer forever.
+    // Same shape as 002: the fact base is derived, dropping it costs one
+    // re-parse at about 1.25 ms per file, and the verdicts are left alone
+    // because a run publishes over them anyway.
+    name: '007-arch-rescan-for-nested-manifests',
+    up: (db) => {
+      db.exec(`
+        DELETE FROM arch_import;
+        DELETE FROM arch_import_file;
+      `);
+    }
   }
 ];
 
