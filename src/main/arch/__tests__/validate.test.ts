@@ -115,6 +115,15 @@ describe('validateComponent', () => {
     );
     expect(result.value?.id).toBe('left-pad');
   });
+
+  it('tells the truth about a kind only row, whose anchors are missing rather than empty', () => {
+    const result = validateComponent({ kind: 'store' }, 'components/bare.json');
+    expect(result.value).toBeNull();
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]?.field).toBe('component.anchors');
+    expect(result.problems[0]?.message).toContain('names no place');
+    expect(result.problems[0]?.message).not.toContain('is empty');
+  });
 });
 
 describe('the recognisably a component rule (Phase 177, ignore quietly)', () => {
@@ -253,6 +262,18 @@ describe('parseArchJson', () => {
     expect(result.value).toBeNull();
     expect(result.problems[0]?.message).toContain('conflict markers');
   });
+
+  it('reads a file a BOM emitting editor wrote', () => {
+    const result = parseArchJson('\uFEFF{ "a": 1 }', 'contract.json');
+    expect(result.value).toEqual({ a: 1 });
+    expect(result.problems).toEqual([]);
+  });
+
+  it('parses the text null cleanly, so the loader can judge it rather than lose it', () => {
+    const result = parseArchJson('null', 'components/nul.json');
+    expect(result.value).toBeNull();
+    expect(result.problems).toEqual([]);
+  });
 });
 
 describe('loadArchDocument', () => {
@@ -299,5 +320,41 @@ describe('loadArchDocument', () => {
     const doc = await loadArchDocument(memoryFs({}));
     expect(doc.contract).toBeNull();
     expect(doc.problems).toEqual([]);
+  });
+
+  it('folds a components file of literal null to the one calm line, never to silence', async () => {
+    const doc = await loadArchDocument(
+      memoryFs({
+        'docs/arch/contract.json': JSON.stringify(contract),
+        'docs/arch/components/app.json': JSON.stringify(component()),
+        'docs/arch/components/nul.json': 'null'
+      })
+    );
+    expect(doc.components.map((c) => c.id)).toEqual(['app']);
+    const lines = doc.problems.filter((p) => p.file === 'docs/arch/components/nul.json');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.field).toBe('component.kind');
+    expect(lines[0]?.message).toContain('Not a Tortie component');
+  });
+
+  it('loads a component written with a byte order mark', async () => {
+    const doc = await loadArchDocument(
+      memoryFs({
+        'docs/arch/contract.json': JSON.stringify(contract),
+        'docs/arch/components/app.json': '\uFEFF' + JSON.stringify(component())
+      })
+    );
+    expect(doc.components.map((c) => c.id)).toEqual(['app']);
+    expect(doc.problems).toEqual([]);
+  });
+
+  it('refuses a contract of literal null with one line, not an empty page', async () => {
+    const doc = await loadArchDocument(
+      memoryFs({ 'docs/arch/contract.json': 'null' })
+    );
+    expect(doc.contract).toBeNull();
+    expect(doc.problems).toHaveLength(1);
+    expect(doc.problems[0]?.field).toBe('contract');
+    expect(doc.problems[0]?.message).toContain('must be an object');
   });
 });

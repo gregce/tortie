@@ -98,9 +98,12 @@ export async function loadArchDocument(fs: ArchFileSystem): Promise<ArchDocument
   if (contractText === null) {
     return doc;
   }
+  // A parse is judged by its problems, never by the null sentinel: the text
+  // "null" parses to a clean null, and a guard on the value would drop that
+  // file with no line at all, against the rule this module states.
   const parsedContract = parseArchJson(contractText, contractPath);
   problems.push(...parsedContract.problems);
-  if (parsedContract.value === null) {
+  if (parsedContract.problems.length > 0) {
     doc.problems = problems;
     return doc;
   }
@@ -125,7 +128,9 @@ export async function loadArchDocument(fs: ArchFileSystem): Promise<ArchDocument
     if (text === null) continue;
     const parsed = parseArchJson(text, path);
     problems.push(...parsed.problems);
-    if (parsed.value === null) continue;
+    if (parsed.problems.length > 0) continue;
+    // A parsed literal null flows on: it fails the component predicate and
+    // folds to the one calm line, so no file ever vanishes without a word.
     const result = validateComponent(parsed.value, path);
     problems.push(...result.problems);
     const row = result.value;
@@ -171,7 +176,7 @@ export async function loadArchDocument(fs: ArchFileSystem): Promise<ArchDocument
   if (edgesText !== null) {
     const parsed = parseArchJson(edgesText, edgesPath);
     problems.push(...parsed.problems);
-    if (parsed.value !== null) {
+    if (parsed.problems.length === 0) {
       const result = validateEdges(parsed.value, edgesPath);
       problems.push(...result.problems);
       doc.edges = keepConnectedEdges(result.rows, seenIds, edgesPath, problems);
@@ -183,7 +188,7 @@ export async function loadArchDocument(fs: ArchFileSystem): Promise<ArchDocument
   if (baselineText !== null) {
     const parsed = parseArchJson(baselineText, baselinePath);
     problems.push(...parsed.problems);
-    if (parsed.value !== null) {
+    if (parsed.problems.length === 0) {
       const result = validateBaseline(parsed.value, baselinePath);
       problems.push(...result.problems);
       if (result.value !== null) doc.baseline = result.value;

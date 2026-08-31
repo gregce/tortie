@@ -318,10 +318,10 @@ export function validateComponent(
     if (anchors.length === 0 && !ARCH_ANCHORLESS_KINDS.includes(kind)) {
       fail(
         'component.anchors',
-        `component.anchors is empty, and a ${kind} lives in the tree. Only ` +
-          `${ARCH_ANCHORLESS_KINDS.join(' and ')} may name no place, because ` +
-          `they sit outside it. A component with no anchors is checked ` +
-          `against nothing.`
+        `component.anchors names no place, and a ${kind} lives in the tree. ` +
+          `Only ${ARCH_ANCHORLESS_KINDS.join(' and ')} may leave anchors ` +
+          `out, because they sit outside it. A component with no anchors is ` +
+          `checked against nothing.`
       );
     }
     const rawGaps = arrayField(obj['gaps'] ?? [], 'component.gaps', ARCH_LIMITS.maxGaps);
@@ -488,8 +488,12 @@ export function validateBaseline(
  * matters: a conflict is scoped to the parts both sides touched.
  */
 export function parseArchJson(text: string, file: string): ArchFileResult<unknown> {
+  // A BOM emitting editor puts U+FEFF ahead of the first byte JSON.parse
+  // accepts, and Node's utf8 read keeps it. It is presentation, not content,
+  // so it is stripped before the file is judged.
+  const clean = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   try {
-    return { value: JSON.parse(text) as unknown, problems: [] };
+    return { value: JSON.parse(clean) as unknown, problems: [] };
   } catch (err) {
     return {
       value: null,
