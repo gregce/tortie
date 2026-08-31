@@ -20,19 +20,24 @@
  * The vitest environment is node, so there is no FontFaceSet and no document.
  * The face loader is exercised against a stubbed `document.fonts`, which is
  * the same technique the Phase 62 terminal refresh test uses.
+ *
+ * Phase 174.1's fix round added the availability rule at the bottom. Its two
+ * halves are injected, so the rule is pinned in a lane with no canvas in it.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WORK_AREA_FONTS, type WorkAreaFont } from '@shared/settings';
 import {
   fontOverrides,
+  isWorkFontAvailable,
   loadWorkAreaFace,
   setCustomWorkFontFamily,
   setWorkAreaFont,
   useWorkAreaFont,
   workFont,
   WORK_FONTS,
-  WORK_FONT_TOKENS
+  WORK_FONT_TOKENS,
+  type WorkFontAvailabilityDeps
 } from '../work-fonts';
 
 const BUNDLED: WorkAreaFont[] = ['jetbrains-mono', 'source-code-pro'];
@@ -295,5 +300,60 @@ describe('the custom preset is hostile-safe at the CSS boundary (Phase 174)', ()
   it('caps a pathological family so no token is ever thousands of characters', () => {
     setCustomWorkFontFamily('x'.repeat(4000));
     expect((workFont('custom').familyName ?? '').length).toBeLessThanOrEqual(64);
+  });
+});
+
+describe('the availability line (Phase 174.1 fix round)', () => {
+  // The rule, in one line: the platform's own list of installed families is
+  // asked first and its YES ends it; everything else falls through to the
+  // canvas measurement. That is what stops the product offering a family in
+  // its own dropdown and then saying it is not installed.
+  const deps = (
+    offered: boolean | null,
+    measured: boolean
+  ): WorkFontAvailabilityDeps => ({
+    offered: () => Promise.resolve(offered),
+    measured: () => Promise.resolve(measured)
+  });
+
+  it('an icon font the platform names is installed, whatever the canvas says', async () => {
+    // 'Symbols Nerd Font' on the operator's own Mac: in ~/Library/Fonts,
+    // enabled, offered by the field's own suggestion list, and measured as
+    // absent because it carries no Latin glyph for the probe sample to draw.
+    expect(await isWorkFontAvailable('Symbols Nerd Font', deps(true, false)))
+      .toBe(true);
+  });
+
+  it('a list that could not answer sends the decision to the measurement', async () => {
+    expect(await isWorkFontAvailable('Zznonexistent', deps(null, false))).toBe(
+      false
+    );
+    expect(await isWorkFontAvailable('Menlo', deps(null, true))).toBe(true);
+  });
+
+  it('a family the list does not carry is measured, never called missing', async () => {
+    // The list holds no face the app bundles, so a false from it is "unknown".
+    expect(await isWorkFontAvailable('JetBrains Mono', deps(false, true))).toBe(
+      true
+    );
+    expect(await isWorkFontAvailable('Zznonexistent', deps(false, false))).toBe(
+      false
+    );
+  });
+
+  it('an empty family says nothing and asks neither half', async () => {
+    const offered = vi.fn(() => Promise.resolve(null));
+    const measured = vi.fn(() => Promise.resolve(false));
+    expect(await isWorkFontAvailable('   ', { offered, measured })).toBe(true);
+    expect(offered).not.toHaveBeenCalled();
+    expect(measured).not.toHaveBeenCalled();
+  });
+
+  it('both halves are asked with the CLEANED name, never the raw one', async () => {
+    const offered = vi.fn(() => Promise.resolve(null));
+    const measured = vi.fn(() => Promise.resolve(true));
+    await isWorkFontAvailable("  'Menlo';  ", { offered, measured });
+    expect(offered).toHaveBeenCalledWith('Menlo');
+    expect(measured).toHaveBeenCalledWith('Menlo');
   });
 });

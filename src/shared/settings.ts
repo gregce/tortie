@@ -352,7 +352,8 @@ export const MAX_WORK_AREA_FONT_CUSTOM = 64;
  * option and the capture SVG's inline `font-family`. This is the one boundary
  * that decides what those sinks ever see, so it refuses every character that
  * could end the quoted string, start a new declaration, open a function like
- * `url()`, or break the SVG's style attribute. A real family name carries none
+ * `url()`, break the SVG's style attribute, or hide itself while changing what
+ * the name looks like. A real family name carries none
  * of them, so the cleaning is invisible to a legitimate name and total for a
  * hostile one. The result is trimmed, its inner whitespace collapsed, and
  * capped; '' when nothing usable is left, which reads as Menlo through the
@@ -363,6 +364,17 @@ export function sanitizeWorkAreaFontCustom(value: unknown): string {
   const cleaned = value
     // Control characters, which includes newlines, carriage returns and tabs.
     .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+    // The INVISIBLE controls, added in Phase 174.1's fix round now that names
+    // arrive from font files rather than only from a keyboard. A family name
+    // carrying U+202E would draw its own row in the suggestion dropdown
+    // backwards, and a zero width character would make two different rows look
+    // identical. Neither can be seen, so neither can be judged. This is the
+    // bidi set, the zero width set, the line and paragraph separators and the
+    // byte order mark.
+    .replace(
+      /[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/g,
+      ''
+    )
     // Quotes, backslash, and the structural punctuation a family never holds:
     // string delimiters, statement and declaration terminators, and the
     // brackets that open a function or a block. Stripping the parenthesis pair

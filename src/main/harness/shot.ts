@@ -117,6 +117,18 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
           win.show();
           win.moveTop();
           win.focus();
+          // AND KEEP IT UP FOR THE WHOLE DRIVE (Phase 174.1's fix round).
+          // Raising it once is not enough. Measured here on 2026-08-31: a
+          // Settings window raised exactly as above went `hidden` 13.5 s into
+          // its driver because something else came forward, `queryLocalFonts`
+          // then rejected with "Page needs to be visible.", the driver read an
+          // empty suggestion list, and every setTimeout in it was throttled to
+          // about one a second and then to one a MINUTE, which turned a 40 s
+          // sweep into an eight minute stall at 0 percent CPU. A driver that
+          // takes longer than a moment cannot rely on staying frontmost by
+          // luck, so it is pinned there for as long as it runs and released
+          // once the photograph is taken.
+          win.setAlwaysOnTop(true);
           await win.webContents
             .executeJavaScript(
               'new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))',
@@ -150,10 +162,12 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
             )
             .catch(() => undefined);
           const image = await win.webContents.capturePage();
+          win.setAlwaysOnTop(false);
           await writeFile(outPath, image.toPNG());
           console.log(`[gmux-shot] wrote ${outPath}`);
           await exitShot(0);
         } catch (err) {
+          win.setAlwaysOnTop(false);
           console.error(`[gmux-shot] FAIL: ${(err as Error).message}`);
           await exitShot(1);
         }

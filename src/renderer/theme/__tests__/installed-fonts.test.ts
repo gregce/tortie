@@ -11,7 +11,12 @@
  * - MONOSPACE LEADS, and the rest are not hidden;
  * - a rejection is "no suggestions yet", not an error, and it is NOT cached, so
  *   a page that was hidden gets a real answer when it comes to the front;
- * - a success IS cached, so the field asks the platform once.
+ * - a success IS cached, so the field asks the platform once;
+ * - one family is offered once however it is SPELLED, because CSS family
+ *   matching ignores case (Phase 174.1 fix round);
+ * - the availability line under the field reads this same cached list, so the
+ *   product cannot offer a family and then say it is not installed, and a list
+ *   that could not answer says so rather than saying no.
  *
  * The two effects — the platform call and the fixed-pitch measurement — are
  * injected, so this file exercises the real code in the node lane with no
@@ -21,6 +26,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   NO_FONT_SUGGESTIONS,
+  isFamilyOfferedByPlatform,
   loadFontSuggestions,
   readFontSuggestions,
   resetFontSuggestions,
@@ -102,6 +108,16 @@ describe('the list itself', () => {
     expect(found?.proportional).toEqual(['Menlo']);
   });
 
+  it('two spellings of one family are offered once (Phase 174.1 fix round)', async () => {
+    // CSS family matching ignores case, so 'Menlo' and 'menlo' name one face
+    // and offering both would put two dropdown rows on the same font. The
+    // first spelling the platform gave is the one that survives.
+    const found = await readFontSuggestions(
+      deps(['Menlo', 'menlo', 'MENLO', 'MenLo', 'Arial'])
+    );
+    expect(found?.proportional).toEqual(['Arial', 'Menlo']);
+  });
+
   it('monospace leads and the rest are not hidden', async () => {
     const found = await readFontSuggestions(
       deps(
@@ -147,6 +163,46 @@ describe('the page has to be visible, so a failure is never final', () => {
     expect((await loadFontSuggestions(once)).monospace).toEqual(['Menlo']);
     expect((await loadFontSuggestions(once)).monospace).toEqual(['Menlo']);
     expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('the availability answer shares the one cached read', async () => {
+    // The field's "not installed on this Mac" line asks this, once per
+    // keystroke. It must never cost a second platform call.
+    const query = vi.fn(() =>
+      Promise.resolve([{ family: 'Symbols Nerd Font' }, { family: 'Menlo' }])
+    );
+    const once = { query, monospaced: (): boolean => false };
+    expect(await isFamilyOfferedByPlatform('Symbols Nerd Font', once)).toBe(
+      true
+    );
+    expect(await isFamilyOfferedByPlatform('symbols nerd font', once)).toBe(
+      true
+    );
+    expect(await isFamilyOfferedByPlatform('Zznonexistent', once)).toBe(false);
+    expect(query).toHaveBeenCalledTimes(1);
+  });
+
+  it('a list that could not answer says null, never false', async () => {
+    // False would read as "not installed" and put the note on a family the
+    // platform simply was not able to talk about.
+    expect(
+      await isFamilyOfferedByPlatform('Menlo', {
+        query: null,
+        monospaced: () => false
+      })
+    ).toBeNull();
+    resetFontSuggestions();
+    expect(
+      await isFamilyOfferedByPlatform('Menlo', {
+        query: () => Promise.reject(new Error('Page needs to be visible.')),
+        monospaced: () => false
+      })
+    ).toBeNull();
+    // An empty name is nothing typed, which is not a question.
+    resetFontSuggestions();
+    expect(
+      await isFamilyOfferedByPlatform('  ', deps(['Menlo']))
+    ).toBeNull();
   });
 
   it('two asks in flight at once share one platform call', async () => {

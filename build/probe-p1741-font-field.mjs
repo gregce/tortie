@@ -24,7 +24,13 @@
  *  5. Cross checks that list against `system_profiler SPFontsDataType`, which
  *     is Apple's own font registry and a DIFFERENT route from the Chromium API
  *     the product uses. A list that agrees only with itself proves nothing.
- *  6. Photographs the field with the note speaking.
+ *  6. TYPES EVERY OFFERED FAMILY into the real field and reads the real note.
+ *     That is the fix round's own claim: the product must never offer a family
+ *     in its own dropdown and then say that family is not installed. On the
+ *     commit this round fixes, two of the operator's own fonts did exactly
+ *     that, being 'Symbols Nerd Font' and 'Symbols Nerd Font Mono', which are
+ *     icon faces with no Latin glyph for the availability sample to draw.
+ *  7. Photographs the field with the note speaking.
  *
  * THE PARENT COMMIT. `--app <dir>` points the launch at another built worktree,
  * so the same instrument reads the same rectangles before and after the fix:
@@ -195,6 +201,68 @@ const driver = `(async () => {
   await wait(2000);
   const options = list ? Array.from(list.options).map((o) => o.value) : null;
 
+  // THE FIX ROUND'S OWN CLAIM, driven through the real field rather than
+  // computed: type each offered family in and read the real note. A family the
+  // product offers and then calls "not installed" is the contradiction this
+  // round exists to end. The named list goes first so a short run still says
+  // something, then the whole offered list.
+  //
+  // NOT A TIMER, and that is the whole reason this sweep finishes. Chromium
+  // throttles setTimeout in a page it considers hidden to about one per
+  // second, and to one per MINUTE after five minutes of it. A Settings window
+  // that something else covered turns a 150 ms wait into a 60 s one, and a 263
+  // family sweep never ends: measured here on 2026-08-31, a first attempt sat
+  // at 0 percent CPU for eight minutes and produced nothing. A MessageChannel
+  // turn is a real task that the throttler does not touch, and React's own
+  // scheduler runs on the same kind of task, so draining a few dozen of them
+  // gets the input event, the effect, the resolved promise and the re-render
+  // through whether the window is on top or not.
+  const turn = () =>
+    new Promise((r) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => r();
+      channel.port2.postMessage(0);
+    });
+  const settle = async (turns) => {
+    for (let i = 0; i < turns; i += 1) await turn();
+  };
+  const noteFor = async (name) => {
+    setValue(input, name);
+    await settle(60);
+    const state = noteState();
+    return state.present && state.visibility === 'visible';
+  };
+
+  const named = [];
+  for (const name of ${JSON.stringify([
+    'Menlo',
+    'Zapfino',
+    'Apple Braille',
+    'Symbols Nerd Font',
+    'Symbols Nerd Font Mono',
+    'Zznonexistent Family'
+  ])}) {
+    named.push([name, await noteFor(name)]);
+  }
+
+  // The sweep, with a wall clock budget so the driver always answers. Date.now
+  // is not throttled, unlike the timers above.
+  const sweepFrom = Date.now();
+  const sweepVis = [document.visibilityState];
+  const contradictions = [];
+  const offeredNames = options ?? [];
+  let swept = 0;
+  for (const name of offeredNames) {
+    if (Date.now() - sweepFrom > 120_000) break;
+    swept += 1;
+    if (await noteFor(name)) contradictions.push(name);
+  }
+  sweepVis.push(document.visibilityState);
+  const sweepMs = Date.now() - sweepFrom;
+
+  setValue(input, ${JSON.stringify(FAKE)});
+  await wait(400);
+
   // What the platform itself answered, for the record.
   let api = { available: typeof window.queryLocalFonts === 'function' };
   try {
@@ -217,6 +285,12 @@ const driver = `(async () => {
   }
 
   return JSON.stringify({
+    named,
+    contradictions,
+    swept,
+    offeredTotal: offeredNames.length,
+    sweepMs,
+    sweepVis,
     frames,
     vis0,
     early,
@@ -251,7 +325,7 @@ const run = await withElectron(
     userDataDir: profile,
     cwd: appDir,
     tmuxSocket: socket,
-    ceilingMs: 180_000,
+    ceilingMs: 300_000,
     env: {
       ...process.env,
       GMUX_SHOT: shotPath,
@@ -376,6 +450,36 @@ if (read.optionCount > 0) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// The note, read off the real field for every family the product offers
+// ---------------------------------------------------------------------------
+
+console.log(`\n[p1741] ${tag}: what the note says, typed into the real field`);
+for (const [name, speaks] of read.named ?? []) {
+  console.log(`  ${name.padEnd(26)} ${speaks ? 'NOT INSTALLED' : 'quiet'}`);
+}
+const contradictions = read.contradictions ?? [];
+console.log(
+  `  swept ${String(read.swept ?? 0)} of ${String(read.offeredTotal ?? 0)} ` +
+    `offered families in ${String(read.sweepMs ?? 0)} ms, page ` +
+    `${(read.sweepVis ?? []).join(' then ')}: ` +
+    (contradictions.length === 0
+      ? 'CONTRADICTIONS: none. every family the product offers reads as installed.'
+      : `CONTRADICTIONS: ${String(contradictions.length)} offered and called ` +
+        `not installed: ${contradictions.join(', ')}`)
+);
+
 console.log(`\n[p1741] photograph: ${shotPath}`);
 console.log(`[p1741] exit ${String(run.code)}`);
-process.exit(moved.length === 0 ? 0 : 2);
+const sweptAll =
+  (read.offeredTotal ?? 0) > 0 &&
+  (read.swept ?? 0) === (read.offeredTotal ?? -1);
+if (!sweptAll) {
+  console.log(
+    '  the sweep did not cover the whole list, so this run proves nothing. ' +
+      'A page the platform called hidden offers no families at all.'
+  );
+}
+process.exit(
+  moved.length === 0 && contradictions.length === 0 && sweptAll ? 0 : 2
+);

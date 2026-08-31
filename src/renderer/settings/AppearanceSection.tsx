@@ -18,6 +18,12 @@
  * has. The line is now reserved whether or not it speaks, and the field offers
  * the installed families (src/renderer/theme/installed-fonts.ts).
  *
+ * That phase's fix round joined the two. The line's answer now READS THE SAME
+ * LIST the field suggests from, so the product can no longer offer a family and
+ * then say that family is not installed. It did, for two of the operator's own
+ * fonts, because the line was measured by drawing a Latin sample and an icon
+ * font has no Latin glyph to draw.
+ *
  * The section uses the existing settings vocabulary only. The option labels
  * are the spec's exact strings; the values are the persisted union members
  * from @shared/settings.
@@ -164,6 +170,64 @@ export function commitWorkAreaFontCustom(
  */
 const FONT_SUGGESTION_LIST_ID = 'set-font-installed';
 
+/**
+ * The installed families, as suggestions. Monospace leads, because a
+ * proportional face in a terminal is a footgun. The rest follow rather than
+ * being hidden: he asked to see what he has. A datalist renders no box, so this
+ * element sits inside the stack without touching its layout.
+ *
+ * Exported so the node lane can pin it. It takes its list as a prop and reads
+ * no store, which is what makes it renderable there at all: zustand serves the
+ * INITIAL state to a server render, so a store the test sets is invisible to
+ * `renderToStaticMarkup`.
+ */
+export function FontSuggestionList({
+  suggestions
+}: {
+  suggestions: FontSuggestions;
+}): React.JSX.Element {
+  return (
+    <datalist id={FONT_SUGGESTION_LIST_ID}>
+      {suggestions.monospace.map((family) => (
+        <option key={`m:${family}`} value={family} />
+      ))}
+      {suggestions.proportional.map((family) => (
+        <option key={`p:${family}`} value={family} />
+      ))}
+    </datalist>
+  );
+}
+
+/**
+ * The one status line under the field.
+ *
+ * IT IS ALWAYS IN LAYOUT (Phase 174.1). It used to be rendered only when it had
+ * something to say, which grew the bottom anchored column the moment it
+ * appeared and shoved the field UP while the person was typing in it. That is
+ * the defect the operator reported with a screenshot. It now holds its line
+ * whatever it has to say and is hidden by `visibility` in
+ * src/renderer/settings/settings.css, never by `display`, so the field's box is
+ * identical before and during typing. A later round that tidies the rule back
+ * to `display: none` brings his defect back with every gate green, which is why
+ * both halves of this are pinned in the suite.
+ *
+ * Exported for the test, same reason as the list above.
+ */
+export function FontMissingNote({
+  missing
+}: {
+  missing: boolean;
+}): React.JSX.Element {
+  return (
+    <span
+      className={missing ? 'set-font-missing' : 'set-font-missing blank'}
+      aria-hidden={missing ? undefined : true}
+    >
+      not installed on this Mac
+    </span>
+  );
+}
+
 function WorkAreaFontRow(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   const isCustom = settings.workAreaFont === 'custom';
@@ -180,6 +244,25 @@ function WorkAreaFontRow(): React.JSX.Element {
   const commit = (): void => {
     void commitWorkAreaFontCustom(draft);
   };
+  // MEASURED in this Electron: the platform refuses to name the installed
+  // families on a hidden or occluded page, rejecting with "SecurityError: Page
+  // needs to be visible.", and a Settings window that opened behind the
+  // terminal stayed hidden for 25 s. Both reads below depend on that answer, so
+  // one listener bumps this and both of them ask again when the window comes to
+  // the front. A refusal is "not yet", never an error on the face.
+  const [visibleTick, setVisibleTick] = React.useState(0);
+  React.useEffect(() => {
+    if (!isCustom) return;
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'visible') {
+        setVisibleTick((n) => n + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [isCustom]);
   // Whether the typed family is actually drawable here. A family this Mac does
   // not have falls back to Menlo silently, so one short line says so. Measured
   // off the draft so it answers as the person types; empty draft says nothing.
@@ -196,7 +279,9 @@ function WorkAreaFontRow(): React.JSX.Element {
     return () => {
       cancelled = true;
     };
-  }, [draft, settings.workAreaFont]);
+    // visibleTick is a dependency because the answer's best source is the
+    // platform's own list, and on a hidden page there is no list to read.
+  }, [draft, settings.workAreaFont, visibleTick]);
   // The families this Mac actually has, offered as suggestions (Phase 174.1).
   // Never a cage: the control stays a text field, so a family the list does not
   // carry can still be typed and the note below still tells the truth about it.
@@ -205,26 +290,13 @@ function WorkAreaFontRow(): React.JSX.Element {
   React.useEffect(() => {
     if (!isCustom) return;
     let cancelled = false;
-    const pull = (): void => {
-      void loadFontSuggestions().then((found) => {
-        if (!cancelled) setSuggestions(found);
-      });
-    };
-    pull();
-    // MEASURED in this Electron: queryLocalFonts rejects with "SecurityError:
-    // Page needs to be visible." on a hidden or occluded page, and a Settings
-    // window that opened behind the terminal stayed hidden for 25 s. So a
-    // rejection is "no suggestions yet" rather than an error line, and the read
-    // is simply tried again when the window comes to the front.
-    const onVisibility = (): void => {
-      if (document.visibilityState === 'visible') pull();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
+    void loadFontSuggestions().then((found) => {
+      if (!cancelled) setSuggestions(found);
+    });
     return () => {
       cancelled = true;
-      document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [isCustom]);
+  }, [isCustom, visibleTick]);
   return (
     <div className="set-row tall">
       <div className="set-row-text">
@@ -266,27 +338,8 @@ function WorkAreaFontRow(): React.JSX.Element {
               if (e.key === 'Enter') commit();
             }}
           />
-          {/* Monospace leads, because a proportional face in a terminal is a
-              footgun. The rest follow rather than being hidden: he asked to
-              see what he has. A datalist renders no box, so this element sits
-              inside the stack without touching its layout. */}
-          <datalist id={FONT_SUGGESTION_LIST_ID}>
-            {suggestions.monospace.map((family) => (
-              <option key={`m:${family}`} value={family} />
-            ))}
-            {suggestions.proportional.map((family) => (
-              <option key={`p:${family}`} value={family} />
-            ))}
-          </datalist>
-          {/* The note is ALWAYS in layout (Phase 174.1) and hidden by
-              visibility when it has nothing to say, so the field's box does not
-              move the moment it speaks. */}
-          <span
-            className={missing ? 'set-font-missing' : 'set-font-missing blank'}
-            aria-hidden={missing ? undefined : true}
-          >
-            not installed on this Mac
-          </span>
+          <FontSuggestionList suggestions={suggestions} />
+          <FontMissingNote missing={missing} />
         </div>
       ) : null}
     </div>

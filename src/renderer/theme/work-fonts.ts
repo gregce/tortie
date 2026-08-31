@@ -48,6 +48,7 @@ import {
   sanitizeWorkAreaFontCustom,
   type WorkAreaFont
 } from '@shared/settings';
+import { isFamilyOfferedByPlatform } from './installed-fonts';
 
 /** One row of the preset table. `null` twice is the System preset. */
 export interface WorkFontPreset {
@@ -219,19 +220,50 @@ export function setWorkAreaFont(id: WorkAreaFont): void {
  * and false for a face the app bundles but has not rendered yet. Measured in
  * this Electron, `check('13px "Zznonexistent"')` returned true.
  *
- * So this renders a probe string on a canvas in `'<family>', <generic>` and in
- * `<generic>` alone, for three unrelated generics. If the family is present it
- * overrides the fallback and at least one width differs; if it is absent every
- * width matches its generic. A bundled family reads as available because the
- * load below pulls its bytes first, and a system family loads as a no-op.
+ * THE PLATFORM'S OWN LIST IS ASKED FIRST (Phase 174.1 fix round), because the
+ * canvas measurement below is blind to a font with no Latin glyphs. It draws a
+ * Latin sample; an ICON font falls back for every character of it, all three
+ * widths match their generic, and a family that is genuinely installed is
+ * called missing. That is not theoretical: the operator has 'Symbols Nerd Font'
+ * and 'Symbols Nerd Font Mono' in ~/Library/Fonts, both enabled, and Phase
+ * 174.1 put both in the field's OWN suggestion list while the line underneath
+ * said they were not installed. So the suggestions and the note now read the
+ * one source, and the product cannot contradict itself.
+ *
+ * A `false` from that list is NOT an answer. It carries no face the app bundles
+ * and none of the dot prefixed system internal ones, so only a `true` is taken
+ * and everything else falls through to the measurement.
+ *
+ * THE MEASUREMENT, unchanged, is the fallback for every case the list cannot
+ * answer: no API, a page that was hidden when it was asked, a bundled family,
+ * or a name the list simply does not carry. It renders a probe string on a
+ * canvas in `'<family>', <generic>` and in `<generic>` alone, for three
+ * unrelated generics. If the family is present it overrides the fallback and at
+ * least one width differs; if it is absent every width matches its generic. A
+ * bundled family reads as available because the load below pulls its bytes
+ * first, and a system family loads as a no-op.
  *
  * An empty family is "nothing typed", not "missing", so it returns true. Any
  * environment without a document or a 2D context (the node test env) returns
  * true, so the line never fires where it cannot measure.
  */
-export async function isWorkFontAvailable(family: string): Promise<boolean> {
-  const name = sanitizeWorkAreaFontCustom(family);
-  if (name === '') return true;
+
+/** The two answers the availability line is built from, injected for the test. */
+export interface WorkFontAvailabilityDeps {
+  /**
+   * Does the platform's own installed list name this family? `null` when the
+   * list could not answer, which is what sends the decision to the measurement.
+   */
+  readonly offered: (family: string) => Promise<boolean | null>;
+  /** The canvas measurement, the fallback when the list cannot answer. */
+  readonly measured: (family: string) => Promise<boolean>;
+}
+
+/**
+ * The canvas half. Separated from the decision so the rule above is pinnable in
+ * the node lane, where there is no canvas at all.
+ */
+async function measureDrawable(name: string): Promise<boolean> {
   if (typeof document === 'undefined') return true;
   // Pull the bytes for a face the app bundles under this name, so a bundled
   // family is not mis-reported as missing before anything has rendered in it.
@@ -251,4 +283,20 @@ export async function isWorkFontAvailable(family: string): Promise<boolean> {
     return ctx.measureText(sample).width;
   };
   return generics.some((g) => widthIn(`'${name}', ${g}`) !== widthIn(g));
+}
+
+/** The real pair. */
+export function platformAvailabilityDeps(): WorkFontAvailabilityDeps {
+  return { offered: isFamilyOfferedByPlatform, measured: measureDrawable };
+}
+
+export async function isWorkFontAvailable(
+  family: string,
+  deps: WorkFontAvailabilityDeps = platformAvailabilityDeps()
+): Promise<boolean> {
+  const name = sanitizeWorkAreaFontCustom(family);
+  if (name === '') return true;
+  // The list's yes is the end of it. Its no is not an answer, so it measures.
+  if ((await deps.offered(name)) === true) return true;
+  return deps.measured(name);
 }

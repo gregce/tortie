@@ -123,6 +123,15 @@ export function platformFontDeps(): FontSuggestionDeps {
 }
 
 /**
+ * The comparison form of a family name. CSS family matching ignores case, so
+ * the list's own deduplication and the availability answer below both compare
+ * folded names rather than bytes.
+ */
+function foldFamily(family: unknown): string {
+  return sanitizeWorkAreaFontCustom(family).toLowerCase();
+}
+
+/**
  * One read. `null` means "could not answer" — no API, or the page was hidden —
  * which is what keeps a rejection out of the cache. An empty pair means the
  * machine really has nothing to offer.
@@ -145,8 +154,13 @@ export async function readFontSuggestions(
     const family = sanitizeWorkAreaFontCustom(
       (row as LocalFontRow | null)?.family
     );
-    if (family === '' || seen.has(family)) continue;
-    seen.add(family);
+    // Deduplicated on the FOLDED name, because CSS family matching is case
+    // insensitive: 'Menlo' and 'menlo' name one face, and offering both would
+    // put two rows in the dropdown that pick the same font. The first spelling
+    // seen is the one offered, so the platform's own casing survives.
+    const key = foldFamily(family);
+    if (key === '' || seen.has(key)) continue;
+    seen.add(key);
     families.push(family);
   }
   families.sort((a, b) => a.localeCompare(b, 'en'));
@@ -160,6 +174,7 @@ export async function readFontSuggestions(
 }
 
 let cached: FontSuggestions | null = null;
+let cachedIndex: ReadonlySet<string> | null = null;
 let inFlight: Promise<FontSuggestions> | null = null;
 
 /**
@@ -177,6 +192,9 @@ export function loadFontSuggestions(
       inFlight = null;
       if (found === null) return NO_FONT_SUGGESTIONS;
       cached = found;
+      cachedIndex = new Set(
+        [...found.monospace, ...found.proportional].map(foldFamily)
+      );
       return found;
     },
     () => {
@@ -188,8 +206,40 @@ export function loadFontSuggestions(
   return run;
 }
 
+/**
+ * Does the platform's OWN list of installed families name this one?
+ *
+ * `true` is authoritative and `null` means the list could not answer at all,
+ * being no API, or a page that was hidden when it was asked. `false` is only
+ * "the platform did not name it", never "it is not drawable": the list carries
+ * no face the app bundles itself and none of the dot prefixed system internal
+ * ones Chromium hides, so a caller treats a false as unknown and measures.
+ *
+ * WHY THIS EXISTS (Phase 174.1 fix round). The availability line under the
+ * field measured a Latin sample on a canvas, which is the only thing Phase 174
+ * had. An ICON font has no Latin glyphs at all, so every character of that
+ * sample falls back, every width matches its generic, and a family that is
+ * genuinely installed is called missing. Measured on the operator's own Mac:
+ * 'Symbols Nerd Font' and 'Symbols Nerd Font Mono' are in ~/Library/Fonts,
+ * `system_profiler` reports both enabled, this list offers both, and the field
+ * said "not installed on this Mac" about both. Asking the list first is what
+ * stops the product contradicting its own suggestions.
+ *
+ * It shares the one cache above, so this costs no extra platform call.
+ */
+export async function isFamilyOfferedByPlatform(
+  family: string,
+  deps: FontSuggestionDeps = platformFontDeps()
+): Promise<boolean | null> {
+  const name = foldFamily(family);
+  if (name === '') return null;
+  await loadFontSuggestions(deps);
+  return cachedIndex === null ? null : cachedIndex.has(name);
+}
+
 /** Drop the cache. The tests are the only caller; nothing in the product is. */
 export function resetFontSuggestions(): void {
   cached = null;
+  cachedIndex = null;
   inFlight = null;
 }

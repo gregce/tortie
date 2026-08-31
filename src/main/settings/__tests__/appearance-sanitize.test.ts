@@ -271,6 +271,53 @@ describe('the custom family (Phase 174)', () => {
     expect(out.length).toBeLessThanOrEqual(64);
   });
 
+  // Phase 174.1's fix round. A family name now arrives from a FONT FILE as well
+  // as from a keyboard, and a file can carry characters a keyboard will not. A
+  // name holding U+202E draws its own row in the suggestion dropdown backwards,
+  // and a zero width character makes two different rows look identical. Neither
+  // can be seen, so neither can be judged, and both are stripped.
+  it('an invisible direction or zero width control never survives', async () => {
+    const store = await freshStore();
+    const RLO = String.fromCharCode(0x202e);
+    const LRO = String.fromCharCode(0x202d);
+    const PDF = String.fromCharCode(0x202c);
+    const RLI = String.fromCharCode(0x2067);
+    const ZWSP = String.fromCharCode(0x200b);
+    const ZWJ = String.fromCharCode(0x200d);
+    const LRM = String.fromCharCode(0x200e);
+    const BOM = String.fromCharCode(0xfeff);
+    const WJ = String.fromCharCode(0x2060);
+    const LS = String.fromCharCode(0x2028);
+    const INVISIBLE =
+      /[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/;
+    const attacks: string[] = [
+      `Men${RLO}lo`,
+      `${RLO}Menlo${PDF}`,
+      `${LRO}Berkeley Mono`,
+      `${RLI}Fira Code`,
+      `Men${ZWSP}lo`,
+      `Men${ZWJ}lo`,
+      `${LRM}Menlo`,
+      `${BOM}Menlo`,
+      `Men${WJ}lo`,
+      `Men${LS}lo`
+    ];
+    for (const attack of attacks) {
+      const out = store.sanitizeSettings({ workAreaFontCustom: attack })
+        .workAreaFontCustom;
+      expect(
+        INVISIBLE.test(out),
+        `${JSON.stringify(attack)} -> ${JSON.stringify(out)}`
+      ).toBe(false);
+      expect(DANGEROUS.test(out)).toBe(false);
+    }
+    // And the visible name that was hiding behind them is what is left.
+    expect(
+      store.sanitizeSettings({ workAreaFontCustom: `Men${RLO}lo` })
+        .workAreaFontCustom
+    ).toBe('Menlo');
+  });
+
   it('a clean custom family survives a write and a fresh load', async () => {
     const first = await freshStore();
     first.updateSettings({ workAreaFont: 'custom', workAreaFontCustom: 'Berkeley Mono' });
