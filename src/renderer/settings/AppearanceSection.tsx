@@ -11,6 +11,13 @@
  * The size stepper stays withdrawn (docs/DESIGN-SPEC.md:601) because
  * per-region zoom already changes the terminal's size for real.
  *
+ * Phase 174 added the Custom face, a typed family with one status line under
+ * it. Phase 174.1 answered the two things the operator reported about that
+ * field: it jumped upward the moment the status line appeared while he was
+ * typing in it, and it suggested nothing, so he could not tell what his Mac
+ * has. The line is now reserved whether or not it speaks, and the field offers
+ * the installed families (src/renderer/theme/installed-fonts.ts).
+ *
  * The section uses the existing settings vocabulary only. The option labels
  * are the spec's exact strings; the values are the persisted union members
  * from @shared/settings.
@@ -25,6 +32,11 @@ import type {
   WorkAreaFont
 } from '@shared/settings';
 import { SCHEME_PRESETS } from '../theme/presets';
+import {
+  NO_FONT_SUGGESTIONS,
+  loadFontSuggestions,
+  type FontSuggestions
+} from '../theme/installed-fonts';
 import { WORK_FONTS, isWorkFontAvailable } from '../theme/work-fonts';
 import { useSettingsStore } from './settings-store';
 
@@ -147,8 +159,14 @@ export function commitWorkAreaFontCustom(
   return useSettingsStore.getState().update({ workAreaFontCustom: family });
 }
 
+/**
+ * The datalist the custom field reads. One id, because there is one field.
+ */
+const FONT_SUGGESTION_LIST_ID = 'set-font-installed';
+
 function WorkAreaFontRow(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
+  const isCustom = settings.workAreaFont === 'custom';
   // Local draft for the custom field, committed on blur/Enter — the same
   // pattern ScrollbackSection's Custom… number field uses, so a half-typed
   // family never reaches the persisted settings.
@@ -179,6 +197,34 @@ function WorkAreaFontRow(): React.JSX.Element {
       cancelled = true;
     };
   }, [draft, settings.workAreaFont]);
+  // The families this Mac actually has, offered as suggestions (Phase 174.1).
+  // Never a cage: the control stays a text field, so a family the list does not
+  // carry can still be typed and the note below still tells the truth about it.
+  const [suggestions, setSuggestions] =
+    React.useState<FontSuggestions>(NO_FONT_SUGGESTIONS);
+  React.useEffect(() => {
+    if (!isCustom) return;
+    let cancelled = false;
+    const pull = (): void => {
+      void loadFontSuggestions().then((found) => {
+        if (!cancelled) setSuggestions(found);
+      });
+    };
+    pull();
+    // MEASURED in this Electron: queryLocalFonts rejects with "SecurityError:
+    // Page needs to be visible." on a hidden or occluded page, and a Settings
+    // window that opened behind the terminal stayed hidden for 25 s. So a
+    // rejection is "no suggestions yet" rather than an error line, and the read
+    // is simply tried again when the window comes to the front.
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'visible') pull();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [isCustom]);
   return (
     <div className="set-row tall">
       <div className="set-row-text">
@@ -203,7 +249,7 @@ function WorkAreaFontRow(): React.JSX.Element {
           </option>
         ))}
       </select>
-      {settings.workAreaFont === 'custom' ? (
+      {isCustom ? (
         <div className="set-font-custom">
           <input
             className="set-select"
@@ -211,6 +257,8 @@ function WorkAreaFontRow(): React.JSX.Element {
             aria-label="Custom font family"
             placeholder="Font family name"
             spellCheck={false}
+            autoComplete="off"
+            list={FONT_SUGGESTION_LIST_ID}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
@@ -218,9 +266,27 @@ function WorkAreaFontRow(): React.JSX.Element {
               if (e.key === 'Enter') commit();
             }}
           />
-          {missing ? (
-            <span className="set-font-missing">not installed on this Mac</span>
-          ) : null}
+          {/* Monospace leads, because a proportional face in a terminal is a
+              footgun. The rest follow rather than being hidden: he asked to
+              see what he has. A datalist renders no box, so this element sits
+              inside the stack without touching its layout. */}
+          <datalist id={FONT_SUGGESTION_LIST_ID}>
+            {suggestions.monospace.map((family) => (
+              <option key={`m:${family}`} value={family} />
+            ))}
+            {suggestions.proportional.map((family) => (
+              <option key={`p:${family}`} value={family} />
+            ))}
+          </datalist>
+          {/* The note is ALWAYS in layout (Phase 174.1) and hidden by
+              visibility when it has nothing to say, so the field's box does not
+              move the moment it speaks. */}
+          <span
+            className={missing ? 'set-font-missing' : 'set-font-missing blank'}
+            aria-hidden={missing ? undefined : true}
+          >
+            not installed on this Mac
+          </span>
         </div>
       ) : null}
     </div>

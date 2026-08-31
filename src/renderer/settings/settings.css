@@ -173,8 +173,15 @@
 
 /* The custom font field and its one status line, stacked so the "not installed
    on this Mac" note (Phase 174) sits under the field it is about, right where
-   the person is typing. The note stays out of layout until it has something to
-   say, so a real family leaves the row its resting height. */
+   the person is typing.
+
+   Phase 174.1 reserved that line ALWAYS. It used to be kept out of layout until
+   it had something to say, which left a real family the row's resting height
+   and, the moment the note appeared, grew the column from its bottom anchor and
+   shoved the field UP while the person was typing in it. The resting height was
+   the wrong thing to optimise. The note now occupies space it already owns, and
+   it is hidden by visibility rather than by display, so the field's box AND the
+   column's width are identical before and during typing. */
 .set-font-custom {
   display: flex;
   flex-direction: column;
@@ -186,6 +193,11 @@
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   color: var(--text-muted);
+}
+
+/* Holding its line, saying nothing. */
+.set-font-missing.blank {
+  visibility: hidden;
 }
 
 /* ------------------------------------------------------------- switch */

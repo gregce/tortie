@@ -104,6 +104,25 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
     win.webContents.once('did-finish-load', () => {
       setTimeout(async () => {
         try {
+          // RAISE IT BEFORE THE DRIVER RUNS, not only before the capture
+          // (Phase 174.1). A window that is merely shown can still be
+          // OCCLUDED by whatever else is on the screen, and Chromium reports
+          // an occluded page as `document.visibilityState === 'hidden'`. Some
+          // platform calls refuse a hidden page outright: measured here,
+          // `queryLocalFonts()` rejects with "Page needs to be visible." and
+          // the driver then reads an empty list, which looks exactly like a
+          // product that offers nothing. The same three calls already ran
+          // after the driver for the capture's sake, and the reason recorded
+          // there applies just as well before it.
+          win.show();
+          win.moveTop();
+          win.focus();
+          await win.webContents
+            .executeJavaScript(
+              'new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))',
+              true
+            )
+            .catch(() => undefined);
           const js = process.env['GMUX_SHOT_SETTINGS_JS'];
           if (js !== undefined && js.length > 0) {
             // The driver's own return value is printed (Phase 15): a driver

@@ -368,6 +368,18 @@ export const CHECKS = [
   // over it through the real `arch:modules` channel, then presses the real
   // picker chord with the native menu bridge wrapped so the rows it would have
   // drawn are readable. It creates no session and spawns no agent.
+  // PHASE 174.1. The Custom font field in Settings then Appearance. One launch
+  // on a scratch profile whose settings.json already picks the Custom face,
+  // then the operator's own scenario keystroke by keystroke: the field's box is
+  // read after every character, and the note's state crosses from quiet to
+  // speaking and back, so the jump is a computed verdict rather than an
+  // assertion. It also reads the suggestion list off the DOM and cross checks
+  // it against `system_profiler SPFontsDataType`, which is Apple's own font
+  // registry and a different route from the Chromium API the product uses. It
+  // installs, moves and removes no font, creates no session and spawns no
+  // agent. `--app <dir>` points it at another built worktree, which is how the
+  // parent commit was measured with the same instrument.
+  electron('probe:p1741'),
   electron('probe:p64arch'),
   electron('probe:shellpath'),
   electron('probe:p101shot'),
