@@ -44,7 +44,11 @@ function install(): {
   reads: number;
   emit(): void;
 } {
-  const state = { on: { claude: false, codex: false }, reads: 0, emit: () => {} };
+  const state = {
+    on: { claude: false, codex: false, bar: 'five-hour' } as UsageSettings,
+    reads: 0,
+    emit: () => {}
+  };
   let listener: ((s: GmuxSettings) => void) | null = null;
   const answer = (): UsageSnapshot => ({
     at: 1,
@@ -100,7 +104,8 @@ describe('the meter follows its switch', () => {
       snapshot: { at: 0, providers: USAGE_PROVIDERS.map((p) => emptyUsageProvider(p)) },
       askedAt: 0,
       refreshing: false,
-      available: true
+      available: true,
+      barWindow: 'five-hour'
     });
   });
 
@@ -133,6 +138,33 @@ describe('the meter follows its switch', () => {
     expect(drawn()).toEqual(['claude']);
     await settle();
     expect(drawn()).toEqual(['claude']);
+  });
+
+  /**
+   * PHASE 181.2. The bar's window is a setting rather than a number from main,
+   * so the store holds it and the same broadcast keeps it true. That is what
+   * makes the bar move while a person is looking at the meter, rather than at
+   * the next poll or the next mount.
+   */
+  it('takes the bar window off the broadcast, and asks for nothing to do it', async () => {
+    const main = install();
+    main.on.claude = true;
+    useUsage.getState().ensurePolling();
+    await settle();
+    const before = main.reads;
+    expect(useUsage.getState().barWindow).toBe('five-hour');
+
+    main.on.bar = 'most-used';
+    main.emit();
+
+    // Synchronously, and with no round trip: the choice costs no request.
+    expect(useUsage.getState().barWindow).toBe('most-used');
+    await settle();
+    expect(main.reads).toBe(before);
+
+    main.on.bar = 'seven-day';
+    main.emit();
+    expect(useUsage.getState().barWindow).toBe('seven-day');
   });
 
   it('asks for nothing when a settings change did not touch the switches', async () => {

@@ -25,10 +25,17 @@
  * off comes back from main in the `off` state, so the snapshot on screen is
  * itself the record of which switches were on when it was read, and the
  * comparison is between that and the settings just broadcast.
+ *
+ * PHASE 181.2 ADDS THE ONE SETTING THAT IS NOT IN THE SNAPSHOT, being which
+ * window the bar fills to. Main has no opinion about it and sends no field
+ * for it, so this store holds it, seeded by one read at start and kept true
+ * by the same broadcast. That is what makes the bar follow the choice while a
+ * person is looking at the meter rather than at the next poll.
  */
 
 import { create } from 'zustand';
-import type { GmuxSettings } from '@shared/settings';
+import type { GmuxSettings, UsageBarWindow } from '@shared/settings';
+import { DEFAULT_USAGE_BAR_WINDOW } from '@shared/settings';
 import type { UsageProviderId, UsageSnapshot } from '@shared/usage';
 import { USAGE_PROVIDERS, emptyUsageProvider } from '@shared/usage';
 import { gmuxBridge } from '../bridge';
@@ -45,6 +52,13 @@ function emptySnapshot(): UsageSnapshot {
 
 export interface UsageStoreState {
   snapshot: UsageSnapshot;
+  /**
+   * Which window every bar fills to (Phase 181.2). It is a setting rather
+   * than a number from main, so it is read once at start and then follows the
+   * same `settings:changed` broadcast the switches already follow, which is
+   * what makes a bar move while a person is looking at it.
+   */
+  barWindow: UsageBarWindow;
   /** A refresh the person asked for is in flight. */
   refreshing: boolean;
   /** False on a build whose preload has no `usage` member. */
@@ -70,6 +84,7 @@ function isDrawn(snapshot: UsageSnapshot, provider: UsageProviderId): boolean {
 
 export const useUsage = create<UsageStoreState>((set, get) => ({
   snapshot: emptySnapshot(),
+  barWindow: DEFAULT_USAGE_BAR_WINDOW,
   refreshing: false,
   available: true,
   askedAt: 0,
@@ -116,6 +131,9 @@ export const useUsage = create<UsageStoreState>((set, get) => ({
      */
     const reconcile = (settings: GmuxSettings): void => {
       const want = settings.usage;
+      // The bar's window costs no request and can never be stale, so it is
+      // taken on every broadcast before the switches are compared.
+      if (want.bar !== get().barWindow) set({ barWindow: want.bar });
       const snapshot = get().snapshot;
       if (USAGE_PROVIDERS.every((p) => want[p] === isDrawn(snapshot, p))) return;
       set({
@@ -129,6 +147,12 @@ export const useUsage = create<UsageStoreState>((set, get) => ({
       ask();
     };
     ask();
+    // The first read of the bar's window. Until it answers, every bar draws
+    // the shipped choice, which is the five hour window.
+    void bridge
+      .settingsGet?.()
+      .then((settings) => set({ barWindow: settings.usage.bar }))
+      .catch(() => undefined);
     timer = window.setInterval(tick, 60_000);
     window.addEventListener('focus', tick);
     document.addEventListener('visibilitychange', tick);

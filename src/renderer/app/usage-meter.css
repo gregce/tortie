@@ -222,9 +222,23 @@
 
 /* --- the hover card ------------------------------------------------------ */
 
+/* PHASE 181.2. THE CARD IS A TOOLTIP AND IT SITS WHERE TOOLTIPS SIT.
+   It shipped at a bare 60, which is above nothing in this app's ladder: the
+   titlebar that carries the project tabs is a flex item with
+   `z-index: var(--z-titlebar)`, being 100, so it makes its own stacking
+   context and paints over a 60. With sessions organized on top the meter sits
+   in the 36px band directly under those tabs, the card is centred on the
+   meter and its top edge reaches into the titlebar, and the operator
+   photographed the result: the card behind the tabs.
+   So it takes the token every other hover surface in this app takes, being
+   --z-tooltip. It is the right layer as well as a high enough one: this card
+   is aria-hidden, pointer-events none, and cannot be reached while a modal is
+   open, because the modal's own overlay is over the meter. The other half of
+   the fix is in ./UsageMeter.tsx, where the card now hangs under the band
+   rather than sliding up across the tabs. */
 .usage-card {
   position: fixed;
-  z-index: 60;
+  z-index: var(--z-tooltip);
   display: flex;
   flex-direction: column;
   gap: var(--space-4);

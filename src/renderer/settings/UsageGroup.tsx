@@ -7,8 +7,11 @@
  * decision. It is a MOVE and not a redesign: the same two switches, the same
  * default off, the same guarantees, and no new control.
  *
- * TWO SWITCHES AND NOTHING ELSE, the shape Catch Me Up and Architecture
- * settled. BOTH DEFAULT OFF, and off is load bearing rather than polite:
+ * TWO SWITCHES AND ONE CHOICE, the shape Catch Me Up and Architecture
+ * settled. Phase 181.2 added the choice, being which window the bar fills to,
+ * because the bar filled to whichever window was further along and said so
+ * nowhere. BOTH SWITCHES DEFAULT OFF, and off is load bearing rather than
+ * polite:
  * while a provider is off main opens no keychain, reads no credentials file
  * and makes no request at all. Turning one on is the whole of the consent,
  * because the only thing it can cause is one HTTPS GET to the vendor that
@@ -25,7 +28,8 @@
  */
 
 import React from 'react';
-import type { GmuxSettings } from '@shared/settings';
+import type { GmuxSettings, UsageBarWindow } from '@shared/settings';
+import { sanitizeUsageBarWindow } from '@shared/settings';
 import type { UsageProviderId } from '@shared/usage';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
@@ -35,6 +39,11 @@ import {
   USAGE_ABOUT_READONLY,
   USAGE_ABOUT_WHEN,
   USAGE_ABOUT_WHERE,
+  USAGE_BAR_CAPTION,
+  USAGE_BAR_FIVE_HOUR,
+  USAGE_BAR_LABEL,
+  USAGE_BAR_MOST_USED,
+  USAGE_BAR_SEVEN_DAY,
   USAGE_CLAUDE_CAPTION,
   USAGE_CLAUDE_LABEL,
   USAGE_CODEX_CAPTION,
@@ -42,6 +51,13 @@ import {
   USAGE_OFF_NOTE,
   USAGE_TITLE
 } from './usage-copy';
+
+/** The three choices, in the order they are offered. */
+const BAR_OPTIONS: { value: UsageBarWindow; label: string }[] = [
+  { value: 'five-hour', label: USAGE_BAR_FIVE_HOUR },
+  { value: 'seven-day', label: USAGE_BAR_SEVEN_DAY },
+  { value: 'most-used', label: USAGE_BAR_MOST_USED }
+];
 
 /**
  * Persist one switch as a one field patch. Exported for the unit test, which
@@ -54,6 +70,22 @@ export function setUsageProvider(
 ): Promise<GmuxSettings | null> {
   const store = useSettingsStore.getState();
   return store.update({ usage: { ...store.settings.usage, [provider]: on } });
+}
+
+/**
+ * Persist the bar's window as a one field patch (Phase 181.2). Exported for
+ * the unit test, for the reason the switch above states.
+ *
+ * The value comes off a select this file drew, so it is one of the three, and
+ * it is sanitized anyway: the settings file is the same file every other
+ * choice is written to, and a value that is not a choice reads as the shipped
+ * one rather than reaching a face.
+ */
+export function setUsageBarWindow(raw: string): Promise<GmuxSettings | null> {
+  const store = useSettingsStore.getState();
+  return store.update({
+    usage: { ...store.settings.usage, bar: sanitizeUsageBarWindow(raw) }
+  });
 }
 
 function UsageRow({
@@ -83,6 +115,42 @@ function UsageRow({
   );
 }
 
+/**
+ * Which window the one bar per provider fills to (Phase 181.2).
+ *
+ * ONE ROW FOR BOTH PROVIDERS AND FOR ALL THREE METERS. There is deliberately
+ * no per provider variant: the confusion being fixed is that a bar and the
+ * number beside a bar named different windows, and a per provider answer
+ * makes that worse rather than better. The hover card goes on naming every
+ * window in full whatever this says.
+ */
+function BarWindowRow(): React.JSX.Element {
+  const settings = useSettingsStore((s) => s.settings);
+  return (
+    <div className="set-row tall">
+      <div className="set-row-text">
+        <span className="set-row-label">{USAGE_BAR_LABEL}</span>
+        <span className="set-row-caption">{USAGE_BAR_CAPTION}</span>
+      </div>
+      <select
+        className="set-select"
+        aria-label={USAGE_BAR_LABEL}
+        data-usage-bar="1"
+        value={settings.usage.bar}
+        onChange={(e) => {
+          void setUsageBarWindow(e.target.value);
+        }}
+      >
+        {BAR_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function UsageGroup(): React.JSX.Element {
   return (
     <div data-usage-group="1">
@@ -98,6 +166,7 @@ export function UsageGroup(): React.JSX.Element {
           label={USAGE_CODEX_LABEL}
           caption={USAGE_CODEX_CAPTION}
         />
+        <BarWindowRow />
         <div className="set-row">
           <div className="set-row-text">
             <span className="set-row-caption">{USAGE_OFF_NOTE}</span>

@@ -63,7 +63,8 @@ describe('the Claude credential reader', () => {
     expect(await readClaudeCredential(bag.deps)).toEqual({
       kind: 'ok',
       token: 'ACCESS',
-      accountId: null
+      accountId: null,
+      plan: 'plan'
     });
   });
 
@@ -83,7 +84,12 @@ describe('the Claude credential reader', () => {
       return CLAUDE_PAYLOAD;
     };
     const out = await readClaudeCredential(bag.deps);
-    expect(out).toEqual({ kind: 'ok', token: 'ACCESS', accountId: null });
+    expect(out).toEqual({
+      kind: 'ok',
+      token: 'ACCESS',
+      accountId: null,
+      plan: 'plan'
+    });
     expect(bag.read).toEqual(['/Users/example/.claude/.credentials.json']);
   });
 
@@ -130,7 +136,8 @@ describe('the Codex credential reader', () => {
     expect(await readCodexCredential(bag.deps)).toEqual({
       kind: 'ok',
       token: 'ACCESS',
-      accountId: 'ACCOUNT'
+      accountId: 'ACCOUNT',
+      plan: null
     });
     expect(bag.read).toEqual(['/Users/example/.codex/auth.json']);
   });

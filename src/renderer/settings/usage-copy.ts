@@ -29,6 +29,23 @@ export const USAGE_CODEX_CAPTION =
 export const USAGE_OFF_NOTE =
   'While a meter is off nothing is read and nothing is sent.';
 
+/**
+ * The bar's window (Phase 181.2).
+ *
+ * The caption carries the whole reason this control exists. Phase 181 filled
+ * the bar to whichever window was further along and said so nowhere, so a
+ * person read the bar against the first number beside it and the two
+ * disagreed. Most used is kept, because the fullest window is the one that
+ * will stop you first, and now the page says what most used means.
+ */
+export const USAGE_BAR_LABEL = 'Bar shows';
+export const USAGE_BAR_CAPTION =
+  'Which window each bar fills to. Most used follows whichever window is further along.';
+
+export const USAGE_BAR_FIVE_HOUR = 'Last 5 hours';
+export const USAGE_BAR_SEVEN_DAY = 'This week';
+export const USAGE_BAR_MOST_USED = 'Most used';
+
 export const USAGE_ABOUT_OPEN = 'How this works';
 export const USAGE_ABOUT_WHERE =
   'Only the vendor that issued your login is asked. Both addresses are built in and no setting changes them.';

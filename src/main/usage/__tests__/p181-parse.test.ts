@@ -367,7 +367,8 @@ describe('the reset horizon', () => {
       {
         fiveHour: { percent: 1, resetsAt: absurd },
         sevenDay: { percent: 2, resetsAt: absurd },
-        scoped: { label: 'Fable', percent: 3, resetsAt: absurd }
+        scoped: { label: 'Fable', percent: 3, resetsAt: absurd },
+        plan: null
       },
       NOW
     );
@@ -379,7 +380,12 @@ describe('the reset horizon', () => {
   it('keeps the seven day window it exists to allow', () => {
     const week = NOW + 7 * 86_400_000;
     const out = boundParsedResets(
-      { fiveHour: null, sevenDay: { percent: 2, resetsAt: week }, scoped: null },
+      {
+        fiveHour: null,
+        sevenDay: { percent: 2, resetsAt: week },
+        scoped: null,
+        plan: null
+      },
       NOW
     );
     expect(out.sevenDay?.resetsAt).toBe(week);
@@ -387,7 +393,12 @@ describe('the reset horizon', () => {
 
   it('leaves a reset in the past alone, because that reads as now', () => {
     const out = boundParsedResets(
-      { fiveHour: { percent: 2, resetsAt: NOW - 5000 }, sevenDay: null, scoped: null },
+      {
+        fiveHour: { percent: 2, resetsAt: NOW - 5000 },
+        sevenDay: null,
+        scoped: null,
+        plan: null
+      },
       NOW
     );
     expect(out.fiveHour?.resetsAt).toBe(NOW - 5000);
@@ -398,7 +409,8 @@ describe('the reset horizon', () => {
       {
         fiveHour: { percent: 2, resetsAt: Number.POSITIVE_INFINITY },
         sevenDay: null,
-        scoped: null
+        scoped: null,
+        plan: null
       },
       NOW
     );

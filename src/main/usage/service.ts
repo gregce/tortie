@@ -131,6 +131,7 @@ function viewOf(provider: UsageProviderId, held: Held): UsageProviderSnapshot {
     fiveHour: held.parsed.fiveHour,
     sevenDay: held.parsed.sevenDay,
     scoped: held.parsed.scoped,
+    plan: held.parsed.plan,
     readAt: held.readAt,
     retryAfter: held.retryAfter
   };
@@ -210,7 +211,10 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     const now = deps.now();
     const parsed =
       provider === 'claude'
-        ? parseClaudeUsage(body)
+        ? // The Claude body names no plan, so the word comes off the login
+          // that was just read. It is a plan and never an identifier: the
+          // credential reader put it through `usagePlanWord` already.
+          { ...parseClaudeUsage(body), plan: cred.plan }
         : parseCodexUsage(body, now);
     return { kind: 'ok', parsed: boundParsedResets(parsed, now) };
   }

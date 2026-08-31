@@ -21,12 +21,20 @@
  * WHAT IT DRAWS WHEN NOTHING IS ON: nothing at all. Both providers default to
  * off, and an off provider is absent from the snapshot's numbers, so a default
  * install has no meter and no empty frame where one would be.
+ *
+ * PHASE 181.2 ANSWERED TWO THINGS THE OPERATOR REPORTED. The bar now fills to
+ * the window a person chose in Settings, shipping as the five hour one so the
+ * bar agrees with the number the line beside it leads with, and the hover
+ * card names the plan each login is on so a person can tell whose quota is on
+ * screen. The card names a PLAN and never an identifier, and a provider that
+ * named no plan gets no line rather than a guess.
  */
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { UsageProviderSnapshot } from '@shared/usage';
 import { clampUsagePercent, usageHasNumbers } from '@shared/usage';
+import type { UsageBarWindow } from '@shared/settings';
 import { AgentIcon, Codicon } from '../icons';
 import { useNow } from '../format';
 import { useUsage } from '../state/usage';
@@ -37,6 +45,7 @@ import {
   USAGE_SEVEN_DAY,
   USAGE_STALE_MARK,
   usagePercentText,
+  usagePlanLine,
   usageResetIn,
   usageSeverity,
   usageStateLine
@@ -49,10 +58,21 @@ export type UsageDensity = 'full' | 'compact' | 'mini';
 const VIEWPORT_MARGIN = 8;
 
 /**
- * The bar draws the window that is FURTHEST ALONG, being whichever of the two
- * will stop you first, and the card names both. One bar per provider is the
- * shape the operator asked for, and picking the fuller window is the only rule
- * that never buries the number a person needs.
+ * How full the one bar per provider is drawn, and the window it means.
+ *
+ * PHASE 181 FILLED IT TO THE MAXIMUM OF THE TWO WINDOWS and put no label on
+ * the bar, so a person read the bar against the first number in the line
+ * beside it and the two disagreed. The operator's screenshot of 2026-08-31
+ * reads 32 percent 5h next to a bar filled to 62. So the window is now the
+ * person's choice, the shipped answer is the five hour one, and the maximum
+ * is still available and now says what it is on the page that offers it.
+ *
+ * A CHOSEN WINDOW THE VENDOR DID NOT NAME FALLS BACK TO THE ONE IT DID, which
+ * keeps the promise the setting is for rather than breaking it: on the
+ * operator's own machine Codex names the weekly window and no five hour one,
+ * so the line reads one number and the bar is filled to that same number.
+ * Drawing nothing there would take a bar off the face, and drawing zero would
+ * be a number no vendor served.
  *
  * The value is clamped here, so what leaves this function is always a length
  * a browser will accept. The fix round of 2026-08-31 found that it was not:
@@ -60,12 +80,16 @@ const VIEWPORT_MARGIN = 8;
  * it already had, and one hostile snapshot kept the bar from the one before
  * it. Exported for the test that holds that.
  */
-export function barPercent(p: UsageProviderSnapshot): number | null {
-  const values = [p.fiveHour?.percent, p.sevenDay?.percent]
-    .map((v) => clampUsagePercent(v))
-    .filter((v): v is number => v !== null);
-  if (values.length === 0) return null;
-  return Math.max(...values);
+export function barPercent(
+  p: UsageProviderSnapshot,
+  bar: UsageBarWindow
+): number | null {
+  const five = clampUsagePercent(p.fiveHour?.percent);
+  const week = clampUsagePercent(p.sevenDay?.percent);
+  if (bar === 'five-hour') return five ?? week;
+  if (bar === 'seven-day') return week ?? five;
+  const values = [five, week].filter((v): v is number => v !== null);
+  return values.length === 0 ? null : Math.max(...values);
 }
 
 /** The `2% 5h · 56% wk` line, with a window omitted when the vendor named none. */
@@ -88,12 +112,14 @@ function UsageBar({ percent }: { percent: number }): React.JSX.Element {
 /** One provider's row at the two wider densities. */
 function UsageRow({
   p,
-  now
+  now,
+  bar
 }: {
   p: UsageProviderSnapshot;
   now: number;
+  bar: UsageBarWindow;
 }): React.JSX.Element {
-  const percent = barPercent(p);
+  const percent = barPercent(p, bar);
   const line = usageLine(p);
   return (
     <span className="usage-row">
@@ -115,6 +141,11 @@ function UsageRow({
 /** The lines the hover card shows, and the accessible text the row carries. */
 export function cardLines(p: UsageProviderSnapshot, now: number): string[] {
   const out: string[] = [USAGE_PROVIDER_LABEL[p.provider]];
+  // WHOSE NUMBERS THESE ARE, in one short line under the vendor's name
+  // (Phase 181.2). It is the plan word the vendor itself names and nothing
+  // else, and a provider that named no plan gets no line rather than a guess.
+  const plan = usagePlanLine(p.plan);
+  if (plan !== '') out.push(plan);
   const windows: [string, typeof p.fiveHour][] = [
     [USAGE_FIVE_HOUR, p.fiveHour],
     [USAGE_SEVEN_DAY, p.sevenDay]
@@ -136,18 +167,61 @@ export function cardLines(p: UsageProviderSnapshot, now: number): string[] {
   return out;
 }
 
+/** The gap the card keeps from the meter when it sits beside it. */
+const ANCHOR_GAP = 6;
+
+/** The meter's own box, in raw viewport pixels. */
+export interface UsageAnchor {
+  /** Distance from the right edge of the window to the meter's left edge. */
+  x: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Where the card's top edge goes (Phase 181.2), and it is a pure function so
+ * the test can drive both orientations without a window.
+ *
+ * CENTRED ON THE METER when there is room, which is what Phase 181 did and
+ * what the dock's foot gets. When there is not, the card goes to the side of
+ * the meter that has room instead of sliding along the window edge across the
+ * band the meter sits in. That is the second half of the operator's defect:
+ * raising the card above the tab strip stops the strip covering the card, and
+ * this stops the card covering the tabs. With sessions organized on top the
+ * meter sits in a 36px band under the project tabs, centring would put the
+ * card's top at a negative number, and the old clamp parked it over the
+ * project tabs and the traffic lights. Now it hangs under the band.
+ *
+ * The clamp is still the last answer, for a window too short to hold the card
+ * anywhere, and it is what keeps the card inside both window edges.
+ */
+export function usageCardTop(
+  anchor: { top: number; bottom: number },
+  height: number,
+  viewportHeight: number
+): number {
+  const maxTop = viewportHeight - height - VIEWPORT_MARGIN;
+  const centred = anchor.top + (anchor.bottom - anchor.top) / 2 - height / 2;
+  if (centred >= VIEWPORT_MARGIN && centred <= maxTop) return Math.round(centred);
+  const below = anchor.bottom + ANCHOR_GAP;
+  if (below >= VIEWPORT_MARGIN && below <= maxTop) return Math.round(below);
+  const above = anchor.top - ANCHOR_GAP - height;
+  if (above >= VIEWPORT_MARGIN && above <= maxTop) return Math.round(above);
+  return Math.round(
+    Math.min(Math.max(centred, VIEWPORT_MARGIN), Math.max(VIEWPORT_MARGIN, maxTop))
+  );
+}
+
 /**
  * The hover card, portalled to the body and positioned in raw viewport pixels
  * for the reason ./SessionRail.tsx states: the dock is a CSS zoomable region
  * and a fixed position card inside a zoomed ancestor resolves in zoomed space.
  */
 function UsageCard({
-  anchorY,
-  anchorX,
+  anchor,
   groups
 }: {
-  anchorY: number;
-  anchorX: number;
+  anchor: UsageAnchor;
   groups: string[][];
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -157,13 +231,8 @@ function UsageCard({
     const el = ref.current;
     if (el === null) return;
     const h = el.getBoundingClientRect().height;
-    const max = window.innerHeight - h - VIEWPORT_MARGIN;
-    setTop(
-      Math.round(
-        Math.min(Math.max(anchorY - h / 2, VIEWPORT_MARGIN), Math.max(VIEWPORT_MARGIN, max))
-      )
-    );
-  }, [anchorY, groups]);
+    setTop(usageCardTop(anchor, h, window.innerHeight));
+  }, [anchor, groups]);
 
   return createPortal(
     <div
@@ -172,8 +241,8 @@ function UsageCard({
       aria-hidden="true"
       style={
         top === null
-          ? { top: 0, right: anchorX, visibility: 'hidden' }
-          : { top, right: anchorX }
+          ? { top: 0, right: anchor.x, visibility: 'hidden' }
+          : { top, right: anchor.x }
       }
     >
       {groups.map((lines, i) => (
@@ -202,9 +271,14 @@ export function UsageMeter({
   const refreshing = useUsage((s) => s.refreshing);
   const refresh = useUsage((s) => s.refresh);
   const ensurePolling = useUsage((s) => s.ensurePolling);
+  // The window the bar means (Phase 181.2). It is one setting for every meter
+  // and every provider, and it arrives on the settings broadcast, so a change
+  // made in Settings moves the bar in the meter that is already on screen and
+  // in a card that is already open, rather than at the next poll or mount.
+  const bar = useUsage((s) => s.barWindow);
   const now = useNow(60_000);
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const [card, setCard] = useState<{ x: number; y: number } | null>(null);
+  const [card, setCard] = useState<UsageAnchor | null>(null);
 
   useEffect(() => {
     ensurePolling();
@@ -220,8 +294,9 @@ export function UsageMeter({
     if (el === null) return;
     const r = el.getBoundingClientRect();
     setCard({
-      x: Math.max(VIEWPORT_MARGIN, window.innerWidth - r.left + 6),
-      y: r.top + r.height / 2
+      x: Math.max(VIEWPORT_MARGIN, window.innerWidth - r.left + ANCHOR_GAP),
+      top: r.top,
+      bottom: r.bottom
     });
   };
 
@@ -243,7 +318,7 @@ export function UsageMeter({
       >
         <div className="usage-rows">
           {shown.map((p) => (
-            <UsageRow key={p.provider} p={p} now={now} />
+            <UsageRow key={p.provider} p={p} now={now} bar={bar} />
           ))}
         </div>
         <button
@@ -256,9 +331,7 @@ export function UsageMeter({
         >
           <Codicon name="refresh" size={12} />
         </button>
-        {card !== null ? (
-          <UsageCard anchorX={card.x} anchorY={card.y} groups={groups} />
-        ) : null}
+        {card !== null ? <UsageCard anchor={card} groups={groups} /> : null}
       </div>
     );
   }
@@ -280,12 +353,10 @@ export function UsageMeter({
           onClick={() => void refresh()}
         >
           {shown.map((p) => (
-            <UsageRow key={p.provider} p={p} now={now} />
+            <UsageRow key={p.provider} p={p} now={now} bar={bar} />
           ))}
         </button>
-        {card !== null ? (
-          <UsageCard anchorX={card.x} anchorY={card.y} groups={groups} />
-        ) : null}
+        {card !== null ? <UsageCard anchor={card} groups={groups} /> : null}
       </div>
     );
   }
@@ -306,7 +377,7 @@ export function UsageMeter({
         onClick={() => void refresh()}
       >
         {shown.map((p) => {
-          const percent = barPercent(p);
+          const percent = barPercent(p, bar);
           return (
             <span className="usage-mini-row" key={p.provider}>
               <AgentIcon agent={p.provider} size={11} className="usage-icon" />
@@ -324,9 +395,7 @@ export function UsageMeter({
           );
         })}
       </button>
-      {card !== null ? (
-        <UsageCard anchorX={card.x} anchorY={card.y} groups={groups} />
-      ) : null}
+      {card !== null ? <UsageCard anchor={card} groups={groups} /> : null}
     </div>
   );
 }

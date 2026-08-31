@@ -137,32 +137,76 @@ export interface GmuxSettings {
 }
 
 /**
- * The per provider opt in (Phase 181). Absent on every settings file written
- * before this phase, and absent reads as off for both.
+ * Which window the ONE bar per provider fills to (Phase 181.2).
+ *
+ * Phase 181 filled the bar to whichever of the two windows was further along
+ * and put no label on the bar at all, so a person read the bar against the
+ * first number in the line beside it and the two disagreed: the operator's
+ * screenshot of 2026-08-31 reads 32 percent 5h with the bar filled to 62.
+ * The maximum is defensible, being the window that will stop you first, but
+ * an unlabelled maximum is the confusion, so it became a choice a person
+ * makes and the five hour window is the shipped answer.
+ *
+ * ONE SETTING FOR BOTH PROVIDERS. There is no per provider variant, and the
+ * hover card goes on naming every window in full whatever this says.
+ */
+export type UsageBarWindow = 'five-hour' | 'seven-day' | 'most-used';
+
+/** In the order the choice is offered. */
+export const USAGE_BAR_WINDOWS: readonly UsageBarWindow[] = [
+  'five-hour',
+  'seven-day',
+  'most-used'
+];
+
+/**
+ * The shipped answer, and the reason this setting exists: the bar agrees with
+ * the number a person reads first.
+ */
+export const DEFAULT_USAGE_BAR_WINDOW: UsageBarWindow = 'five-hour';
+
+/**
+ * The per provider opt in (Phase 181) and the bar's window (Phase 181.2).
+ * Absent on every settings file written before its phase: absent reads as off
+ * for both switches, and as the five hour window for the bar.
  */
 export interface UsageSettings {
   claude: boolean;
   codex: boolean;
+  bar: UsageBarWindow;
 }
 
-/** Both meters off. The shipped answer, and a valid one forever. */
+/** Both meters off, bar on the five hour window. The shipped answer. */
 export function noUsageChosen(): UsageSettings {
-  return { claude: false, codex: false };
+  return { claude: false, codex: false, bar: DEFAULT_USAGE_BAR_WINDOW };
+}
+
+/** A stored bar choice, or the shipped one when the value is not a choice. */
+export function sanitizeUsageBarWindow(raw: unknown): UsageBarWindow {
+  return USAGE_BAR_WINDOWS.includes(raw as UsageBarWindow)
+    ? (raw as UsageBarWindow)
+    : DEFAULT_USAGE_BAR_WINDOW;
 }
 
 /**
- * Coerce a parsed `usage` value into a valid pair.
+ * Coerce a parsed `usage` value into a valid object.
  *
- * Anything that is not literally `true` reads false, per field, which is the
- * shipped default and what every settings file written before this phase
- * means. A half valid object is not dropped whole here because there is no
- * pair to keep consistent: each switch stands alone and a bad one simply
- * reads off, which is the safe direction.
+ * Anything that is not literally `true` reads false, per switch, which is the
+ * shipped default and what every settings file written before Phase 181
+ * means. A bar value that is not one of the three choices reads as the five
+ * hour window, which is what a file written before Phase 181.2 says by having
+ * no bar value at all. A half valid object is not dropped whole here because
+ * there is nothing to keep consistent: each field stands alone and a bad one
+ * reads as the shipped answer, which is the safe direction.
  */
 export function sanitizeUsageSettings(raw: unknown): UsageSettings {
   if (raw === null || typeof raw !== 'object') return noUsageChosen();
   const obj = raw as Record<string, unknown>;
-  return { claude: obj['claude'] === true, codex: obj['codex'] === true };
+  return {
+    claude: obj['claude'] === true,
+    codex: obj['codex'] === true,
+    bar: sanitizeUsageBarWindow(obj['bar'])
+  };
 }
 
 /**

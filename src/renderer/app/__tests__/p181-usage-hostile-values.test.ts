@@ -60,12 +60,21 @@ describe('a percentage the meter cannot draw', () => {
 
 describe('the bar width', () => {
   it('is always a length between zero and a hundred', () => {
-    expect(barPercent(snap({ fiveHour: { percent: 500, resetsAt: null } }))).toBe(100);
-    expect(barPercent(snap({ fiveHour: { percent: -40, resetsAt: null } }))).toBe(0);
+    expect(
+      barPercent(snap({ fiveHour: { percent: 500, resetsAt: null } }), 'five-hour')
+    ).toBe(100);
+    expect(
+      barPercent(snap({ fiveHour: { percent: -40, resetsAt: null } }), 'most-used')
+    ).toBe(0);
   });
 
   it('is absent when no window carried a number it could draw', () => {
-    expect(barPercent(snap({ fiveHour: { percent: Number.NaN, resetsAt: null } }))).toBeNull();
+    expect(
+      barPercent(
+        snap({ fiveHour: { percent: Number.NaN, resetsAt: null } }),
+        'five-hour'
+      )
+    ).toBeNull();
   });
 });
 

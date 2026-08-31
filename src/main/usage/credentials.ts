@@ -22,6 +22,7 @@
  * `claudeAiOauth` and never names the other key except to say that.
  */
 
+import { usagePlanWord } from '@shared/usage';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -30,8 +31,14 @@ import { join } from 'node:path';
 
 /** What a credential read answers. Never a vendor sentence, never a token in a log. */
 export type CredentialResult =
-  /** A bearer token was found. `accountId` is set for Codex only. */
-  | { kind: 'ok'; token: string; accountId: string | null }
+  /**
+   * A bearer token was found. `accountId` is set for Codex only, and it is an
+   * identifier that goes in one request header and NOWHERE ELSE. `plan` is
+   * the plain plan word the Claude item names in `subscriptionType`, already
+   * through `usagePlanWord`, and null for Codex, whose file names no plan;
+   * Codex's own plan word comes off the usage response instead.
+   */
+  | { kind: 'ok'; token: string; accountId: string | null; plan: string | null }
   /** No credential exists at all. The one answer that earns a sign in line. */
   | { kind: 'missing' }
   /** API key billing rather than a subscription, so there is no window. */
@@ -107,16 +114,29 @@ function parseJson(text: string): Record<string, unknown> | null {
   }
 }
 
-/** `claudeAiOauth.accessToken` out of a keychain or file payload. */
-function claudeTokenFrom(text: string): string | null {
+/**
+ * `claudeAiOauth.accessToken` out of a keychain or file payload, and the plan
+ * word beside it.
+ *
+ * `subscriptionType` is a short plan word, measured in docs/research/72
+ * section 8.1, and Phase 181.2 draws it on the hover card so a person can see
+ * whose quota is on screen. The two other strings in that object are the
+ * refresh token and its expiry, and neither is read here. `rateLimitTier` is
+ * a tier name rather than a plan and is not read either.
+ */
+function claudeLoginFrom(
+  text: string
+): { token: string; plan: string | null } | null {
   const obj = parseJson(text);
   if (obj === null) return null;
   const oauth = obj['claudeAiOauth'];
   if (oauth === null || typeof oauth !== 'object' || Array.isArray(oauth)) {
     return null;
   }
-  const token = (oauth as Record<string, unknown>)['accessToken'];
-  return typeof token === 'string' && token !== '' ? token : null;
+  const bag = oauth as Record<string, unknown>;
+  const token = bag['accessToken'];
+  if (typeof token !== 'string' || token === '') return null;
+  return { token, plan: usagePlanWord(bag['subscriptionType']) };
 }
 
 /**
@@ -138,8 +158,10 @@ export async function readClaudeCredential(
   for (const service of services) {
     const payload = await deps.keychain(service);
     if (payload === null) continue;
-    const token = claudeTokenFrom(payload);
-    if (token !== null) return { kind: 'ok', token, accountId: null };
+    const login = claudeLoginFrom(payload);
+    if (login !== null) {
+      return { kind: 'ok', token: login.token, accountId: null, plan: login.plan };
+    }
   }
   const dir =
     configDir !== undefined && configDir !== ''
@@ -147,8 +169,10 @@ export async function readClaudeCredential(
       : join(deps.home, '.claude');
   const text = await deps.readText(join(dir, '.credentials.json'));
   if (text !== null) {
-    const token = claudeTokenFrom(text);
-    if (token !== null) return { kind: 'ok', token, accountId: null };
+    const login = claudeLoginFrom(text);
+    if (login !== null) {
+      return { kind: 'ok', token: login.token, accountId: null, plan: login.plan };
+    }
   }
   return { kind: 'missing' };
 }
@@ -183,5 +207,8 @@ export async function readCodexCredential(
   if (typeof accountId !== 'string' || accountId === '') {
     return { kind: 'missing' };
   }
-  return { kind: 'ok', token, accountId };
+  // `auth_mode` is measured `chatgpt`, which is a login method rather than a
+  // plan, so nothing here is drawn as one. Codex's plan word is `plan_type`
+  // on the usage response and ./parse.ts reads it there.
+  return { kind: 'ok', token, accountId, plan: null };
 }

@@ -11,24 +11,32 @@
  *
  * WHAT THE CODEX PARSER DELIBERATELY NEVER TOUCHES: `email`, `user_id` and
  * `account_id`, which the Codex body carries at its top level. It reads
- * `rate_limit` and nothing else, so no identifier can reach the snapshot by
- * accident.
+ * `rate_limit` and, since Phase 181.2, `plan_type`, which is a plain plan
+ * word and passes `usagePlanWord` before anything else sees it, so no
+ * identifier can reach the snapshot by accident.
  */
 
 import type { UsageWindow } from '@shared/usage';
-import { boundUsageReset, clampUsagePercent } from '@shared/usage';
+import { boundUsageReset, clampUsagePercent, usagePlanWord } from '@shared/usage';
 
 /** What one parse yields. Every field may be null; nothing is invented. */
 export interface ParsedUsage {
   fiveHour: UsageWindow | null;
   sevenDay: UsageWindow | null;
   scoped: (UsageWindow & { label: string }) | null;
+  /**
+   * The plain plan word the body names, or null (Phase 181.2). Codex states
+   * `plan_type`; the Claude body states no plan at all, so its word comes off
+   * the keychain item instead and this stays null for that provider.
+   */
+  plan: string | null;
 }
 
 export const EMPTY_PARSE: ParsedUsage = {
   fiveHour: null,
   sevenDay: null,
-  scoped: null
+  scoped: null,
+  plan: null
 };
 
 /**
@@ -48,7 +56,8 @@ export function boundParsedResets(parsed: ParsedUsage, now: number): ParsedUsage
   return {
     fiveHour: bound(parsed.fiveHour),
     sevenDay: bound(parsed.sevenDay),
-    scoped: bound(parsed.scoped)
+    scoped: bound(parsed.scoped),
+    plan: parsed.plan
   };
 }
 
@@ -144,7 +153,10 @@ export function parseClaudeUsage(raw: unknown): ParsedUsage {
   return {
     fiveHour: claudeWindow(obj['five_hour']),
     sevenDay: claudeWindow(obj['seven_day']),
-    scoped: claudeScoped(obj['limits'])
+    scoped: claudeScoped(obj['limits']),
+    // No plan word exists in this body, measured. Claude's comes off the
+    // keychain item, which ./credentials.ts reads.
+    plan: null
   };
 }
 
@@ -220,9 +232,19 @@ export function codexWindow(raw: unknown, now: number): UsageWindow | null {
 export function parseCodexUsage(raw: unknown, now: number): ParsedUsage {
   const obj = asRecord(raw);
   if (obj === null) return EMPTY_PARSE;
+  // `plan_type` is a top level string, measured `pro`, and it is the ONE
+  // field this parser reads outside `rate_limit`. The three fields beside it
+  // are `email`, `user_id` and `account_id`, and this file names them only to
+  // say that it never reads them.
+  const plan = usagePlanWord(obj['plan_type']);
   const rateLimit = asRecord(obj['rate_limit']);
-  if (rateLimit === null) return EMPTY_PARSE;
-  const out: ParsedUsage = { fiveHour: null, sevenDay: null, scoped: null };
+  if (rateLimit === null) return { ...EMPTY_PARSE, plan };
+  const out: ParsedUsage = {
+    fiveHour: null,
+    sevenDay: null,
+    scoped: null,
+    plan
+  };
   for (const key of ['primary_window', 'secondary_window'] as const) {
     const kind = classifyCodexWindow(rateLimit[key]);
     if (kind === null) continue;

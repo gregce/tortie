@@ -14,7 +14,7 @@
  */
 
 import type { UsageProviderId, UsageState } from '@shared/usage';
-import { boundUsageReset, clampUsagePercent } from '@shared/usage';
+import { boundUsageReset, clampUsagePercent, usagePlanWord } from '@shared/usage';
 
 /** The vendor names, as a person knows them. */
 export const USAGE_PROVIDER_LABEL: Record<UsageProviderId, string> = {
@@ -58,6 +58,32 @@ export function usageStateLine(
     default:
       return '';
   }
+}
+
+/**
+ * The plan line the hover card draws, or nothing (Phase 181.2).
+ *
+ * WHAT IT IS FOR: a person with more than one login, or one who has switched,
+ * could not tell whose quota was on screen. So the card names the thing the
+ * person pays for, in the vendor's own word, and names nothing else. No
+ * account, no address, no identifier.
+ *
+ * The word is read twice, here and in main, for the same reason a percentage
+ * is: this file is the only place a served value becomes words, and a value
+ * this file cannot draw honestly draws nothing at all. Underscores and
+ * hyphens become spaces because a plan word is a word on a face, not a key.
+ */
+export function usagePlanLine(plan: string | null): string {
+  const word = usagePlanWord(plan);
+  if (word === null) return '';
+  const title = word
+    .replace(/[_-]+/g, ' ')
+    .split(' ')
+    .filter((part) => part !== '')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+  if (title === '') return '';
+  return /plan$/i.test(title) ? title : `${title} plan`;
 }
 
 /**
