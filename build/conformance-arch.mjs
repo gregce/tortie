@@ -320,6 +320,27 @@ for (const want of expected.problems) {
   ]);
 }
 
+// Phase 177, his ruling: IGNORE QUIETLY. A file that is not recognisably a
+// Tortie component folds to ONE calm line for the whole file, never the two
+// red rows it drew before (the ignored fields note plus the kind enum
+// failure). The file+field loop above cannot catch that regression, because
+// the second row would land under a different field, so the total is pinned
+// here per file.
+const foreignTotal = data.document.problems.filter(
+  (p) => p.file === 'docs/arch/components/foreign.json'
+);
+if (foreignTotal.length !== 1) {
+  fail(
+    `ignore quietly: docs/arch/components/foreign.json drew ` +
+      `${foreignTotal.length} lines and a foreign file folds to exactly one.`
+  );
+}
+problemRows.push([
+  'components/foreign.json',
+  'whole file',
+  foreignTotal.length === 1 ? 'one calm line' : `${foreignTotal.length} LINES`
+]);
+
 const keptComponents = JSON.stringify(data.document.componentIds);
 if (keptComponents !== JSON.stringify(expected.keptComponentIds)) {
   fail(

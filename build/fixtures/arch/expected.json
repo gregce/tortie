@@ -32,6 +32,11 @@
       "contains": "this build ignores"
     },
     {
+      "file": "docs/arch/components/foreign.json",
+      "field": "component.kind",
+      "contains": "Not a Tortie component"
+    },
+    {
       "file": "docs/arch/edges.json",
       "field": "edges.dangling.to",
       "contains": "no component file declares"

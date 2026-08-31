@@ -7,8 +7,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { ARCH_COMPONENT_KINDS } from '@shared/arch';
 import { loadArchDocument, type ArchFileSystem } from '../load';
 import {
+  isTortieComponent,
   parseArchJson,
   validateBaseline,
   validateComponent,
@@ -112,6 +114,81 @@ describe('validateComponent', () => {
       'components/left-pad.json'
     );
     expect(result.value?.id).toBe('left-pad');
+  });
+});
+
+describe('the recognisably a component rule (Phase 177, ignore quietly)', () => {
+  /** Rookery's Set A shape: the operator's hand authored foreign schema. */
+  const foreign = {
+    id: 'acp-facade',
+    name: 'ACP Facade',
+    layer: 'server-edge',
+    provenance: 'written-here',
+    anchors: ['server/src/acp'],
+    summary: 'A facade over the agent client protocol.',
+    notes: 'Hand authored before the run.'
+  };
+
+  it('recognises every kind this build draws, and nothing else', () => {
+    for (const kind of ARCH_COMPONENT_KINDS) {
+      expect(isTortieComponent({ kind })).toBe(true);
+    }
+    expect(isTortieComponent(foreign)).toBe(false);
+    expect(isTortieComponent({ kind: 'servce' })).toBe(false);
+    expect(isTortieComponent({ kind: 7 })).toBe(false);
+    expect(isTortieComponent([])).toBe(false);
+    expect(isTortieComponent('component')).toBe(false);
+    expect(isTortieComponent(null)).toBe(false);
+  });
+
+  it('folds a foreign file to ONE calm line, not the two red rows', () => {
+    const result = validateComponent(foreign, 'components/acp-facade.json');
+    expect(result.value).toBeNull();
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]?.file).toBe('components/acp-facade.json');
+    expect(result.problems[0]?.message).toContain('Not a Tortie component');
+    expect(result.problems[0]?.message).toContain('skipped');
+  });
+
+  it('folds valid JSON that is no component at all to the same one line', () => {
+    for (const raw of [{ hello: true }, {}, [], 'text', 42, null]) {
+      const result = validateComponent(raw, 'components/stray.json');
+      expect(result.value).toBeNull();
+      expect(result.problems).toHaveLength(1);
+      expect(result.problems[0]?.message).toContain('Not a Tortie component');
+    }
+  });
+
+  it('folds a kind this build does not draw, because no valid kind at all is the rule', () => {
+    const result = validateComponent(
+      component({ kind: 'servce' }),
+      'components/app.json'
+    );
+    expect(result.value).toBeNull();
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]?.message).toContain('Not a Tortie component');
+  });
+
+  it('THE PHASE 23 REFUSAL SURVIVES: a real component with one bad field still drops whole, named', () => {
+    const result = validateComponent(
+      component({ anchors: ['-hostile'] }),
+      'components/app.json'
+    );
+    expect(result.value).toBeNull();
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]?.field).toBe('component.anchors[0]');
+    expect(result.problems[0]?.message).not.toContain('Not a Tortie component');
+  });
+
+  it('a real component with one extra field is still kept and the field still reported', () => {
+    const result = validateComponent(
+      component({ summary: 'extra' }),
+      'components/app.json'
+    );
+    expect(result.value?.id).toBe('app');
+    expect(result.problems).toHaveLength(1);
+    expect(result.problems[0]?.field).toBe('component.summary');
+    expect(result.problems[0]?.message).toContain('this build ignores');
   });
 });
 

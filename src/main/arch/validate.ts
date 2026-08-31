@@ -253,6 +253,32 @@ export function validateContract(
 // ---------------------------------------------------------------------------
 
 /**
+ * The recognisably a component rule (Phase 177, research 71 section 2).
+ *
+ * A `components/` file is a Tortie schema version 1 component exactly when it
+ * is a JSON object whose `kind` is one of the kinds this build draws. The
+ * kind is the discriminator on purpose: it is the one field a foreign schema
+ * has never carried, and the one field every file Tortie itself writes must
+ * carry. A file that fails this predicate is not a malformed component, it is
+ * some other document that happens to live in the directory, and the operator's
+ * ruling of 2026-08-30 is IGNORE QUIETLY: one calm line naming the file, never
+ * the two red rows it drew before (the ignored fields note plus the kind enum
+ * failure, 34 rows for rookery's 17 hand authored leftovers).
+ *
+ * A file that PASSES this predicate is a Tortie component, and the Phase 23
+ * refusal survives untouched below: one bad field still drops it whole with
+ * the field and the reason named.
+ */
+export function isTortieComponent(raw: unknown): boolean {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return false;
+  const kind = (raw as Record<string, unknown>)['kind'];
+  return (
+    typeof kind === 'string' &&
+    (ARCH_COMPONENT_KINDS as readonly string[]).includes(kind)
+  );
+}
+
+/**
  * One component, from one file, so two people editing two parts do not conflict.
  *
  * `anchors` may be empty only for the two kinds that live outside the tree. A
@@ -265,6 +291,17 @@ export function validateComponent(
   file: string
 ): ArchFileResult<ArchComponent> {
   const problems: ArchProblem[] = [];
+  if (!isTortieComponent(raw)) {
+    problems.push(
+      problem(
+        file,
+        'component.kind',
+        'Not a Tortie component, so this file was skipped. It names no kind ' +
+          'this build knows.'
+      )
+    );
+    return { value: null, problems };
+  }
   try {
     const obj = objectField(raw, 'component');
     noteUnknown(obj, ARCH_ROW_KEYS.component, file, 'component', problems);

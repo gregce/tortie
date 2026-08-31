@@ -1,0 +1,9 @@
+{
+  "id": "acp-facade",
+  "name": "ACP Facade",
+  "layer": "server-edge",
+  "provenance": "written-here",
+  "anchors": ["server/src/acp"],
+  "summary": "A hand authored file in a foreign schema, no kind at all.",
+  "notes": "The rookery Set A shape from research 71 section 2. It must fold to ONE calm line."
+}
