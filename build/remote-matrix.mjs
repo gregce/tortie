@@ -714,6 +714,19 @@ const GRADERS = {
     if ((f.rowsWatchedOnCut ?? 0) < 1) bad.push('no row on the cut machine was watched');
     if ((f.rowsWatchedOnOther ?? 0) < 1) bad.push('no row on the other machine was watched');
     if ((f.rowsWatchedHere ?? 0) < 1) bad.push('no row on this Mac was watched');
+    // PHASE 173 RULING, written beside remoteRowStatus in
+    // src/main/machines/remote-sessions.ts. Since Phase 85 a row moves between
+    // idle and running whenever the far side prints and stops, so stillness is
+    // promised only from a settled baseline. The two stillness checks below
+    // stay whole, and this guard is what makes them honest rather than vacuous:
+    // a watch armed over rows still settling out of their own create grades the
+    // harness's setup, not the fault.
+    if (f.settledBeforeCut !== true) {
+      bad.push(
+        'the rows never settled before the cut, so the stillness below was ' +
+          'graded over the harness’s own setup noise'
+      );
+    }
     const onCut = f.statusesOnCut ?? [];
     if (onCut.includes('restorable') || onCut.includes('exited')) {
       bad.push(`a row on the cut machine read ${onCut.join(', ')}`);
@@ -836,10 +849,26 @@ const GRADERS = {
     if ((f.machineSnapshotAheadMs ?? 0) > 60_000) {
       bad.push('what Tortie holds about the machine is stamped from the other clock');
     }
-    if ((f.statusesTakenOver30s ?? []).length > 1) {
+    // PHASE 173 RULING, written beside remoteRowStatus in
+    // src/main/machines/remote-sessions.ts. The old check here failed on any
+    // motion, and what it caught was the harness's own typed noise settling
+    // back to idle on the Phase 85 activity ladder, five seconds after this
+    // row typed it. The watch now arms only after the row has settled, and the
+    // check is STRONGER, not weaker: a settled quiet row must hold exactly
+    // idle for the whole watch. Motion still fails, and so does a row stuck on
+    // running with nothing printing, which is what mixing the remote clock
+    // into the hold window would look like and which the old check let pass.
+    if (f.settledBeforeWatch !== true) {
       bad.push(
-        `the row moved while only the clock was wrong: ` +
-          `${f.statusesTakenOver30s.join(', ')}`
+        'the row never settled to idle before the watch, so stillness would ' +
+          'have been graded over the harness’s own typed noise'
+      );
+    }
+    const watched = f.statusesTakenOver30s ?? [];
+    if (watched.length !== 1 || watched[0] !== 'idle') {
+      bad.push(
+        `the settled row did not hold idle while only the clock was wrong: ` +
+          `${watched.join(', ') || 'nothing sampled'}`
       );
     }
     return bad;
@@ -971,10 +1000,16 @@ const GRADERS = {
       );
     }
     if (f.cadenceArmed !== true) bad.push('the cadence is not armed at all');
-    if ((f.passesInFlightRightNow ?? 1) !== 0) {
+    // PHASE 173. The line above requires the cadence to still be ARMED, so a
+    // pass may legally be in flight at the one instant the facts are read,
+    // and the old check here failed on that race once per few runs, recorded
+    // by the audit of 2026-08-22. A live pass ends; a wedged one does not.
+    // The harness now waits out an in-flight pass's own timeout budget, and
+    // what fails the row is a pass that never drained.
+    if (f.passesDrained !== true) {
       bad.push(
-        `${String(f.passesInFlightRightNow)} pass(es) are still in flight after ` +
-          `the row finished`
+        `${String(f.passesInFlightAtTheSample ?? '?')} pass(es) in flight ` +
+          `when the row finished never drained, so a capture pass is wedged`
       );
     }
     return bad;

@@ -886,6 +886,34 @@ export interface RemoteRowVerdict {
  * research 51 section 4.4's clock rule, and it is why the hold is measured in
  * local time rather than in the machine's own activity stamps.
  *
+ * ## THE PHASE 173 RULING (2026-08-30), and it binds every stillness grader
+ *
+ * The fault matrix went red on rows 1 and 5 on 2026-08-24 with "a row moved
+ * between idle and running" under transport loss and clock skew, and Phase
+ * 173 adjudicated which side was wrong. The answer is neither the faults nor
+ * this ladder: the ladder moved the rows, and it was telling the truth. Since
+ * Phase 85 this function IS the promise that a row moves between idle and
+ * running whenever the far side prints and stops printing. A freshly created
+ * shell prints its prompt and settles to idle within seconds, and a session
+ * the harness typed noise into settles the same way. Both red rows armed
+ * their status watchers inside that settling window, timestamped in the
+ * Phase 173 run at under seven seconds after the create and five seconds
+ * after the noise, and then graded the settle as if the fault had moved the
+ * row. Status truth had not drifted: the same run showed transport loss
+ * writing unknown on the cut machine's rows in 175 ms and nothing anywhere
+ * else, and a 48 hour skew moving no status, no capsule stamp and no
+ * snapshot stamp, because both sides of every subtraction in this file are
+ * this Mac's clock.
+ *
+ * So the ruling: a grader may assert stillness over this ladder only from a
+ * SETTLED baseline, being idle for a quiet session and running for one that
+ * keeps printing, and it must record that the baseline settled or fail. What
+ * a fault may never write is unchanged and stays graded hard: a lost link
+ * writes unknown on the machine it lost and touches nothing else, and a
+ * skewed clock moves nothing at all. The measurement lives in
+ * `../harness/remote-matrix.ts` and the graders in `build/remote-matrix.mjs`,
+ * and both carry this ruling by name.
+ *
  * A row seen for the first time is `idle`, because there is no previous list for
  * anything to have moved since. `needs_input` is never produced here. The status
  * oracles read local disk and cannot run on another machine, and pretending

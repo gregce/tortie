@@ -283,6 +283,39 @@ async function askSupervisor(
 }
 
 /** Wait for a condition, asking it every 100 ms. Returns whether it held. */
+/**
+ * True once `what` has held CONTINUOUSLY for `holdMs`, sampled at 250 ms.
+ *
+ * PHASE 173. A single true sample is not a settled baseline. A row's first
+ * sight reads idle by the ladder's own first sight rule, BEFORE its create
+ * time prompt has ever been observed, so a wait for one idle sample returns
+ * on a newborn row and the prompt's settle then lands inside the fault
+ * window. Twelve seconds is one 5,000 ms list cadence plus the 4,000 ms
+ * working hold plus margin, so a row that held through it has been listed,
+ * had its prompt output observed, and had the hold expire.
+ */
+async function holdsFor(
+  what: () => boolean,
+  holdMs: number,
+  budgetMs: number
+): Promise<boolean> {
+  const deadline = Date.now() + budgetMs;
+  let since: number | null = null;
+  while (Date.now() < deadline) {
+    if (what()) {
+      since = since ?? Date.now();
+      if (Date.now() - since >= holdMs) return true;
+    } else {
+      since = null;
+    }
+    await sleep(250);
+  }
+  return false;
+}
+
+const SETTLE_HOLD_MS = 12_000;
+const SETTLE_BUDGET_MS = 120_000;
+
 async function waitFor(what: () => boolean, timeoutMs: number): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -431,6 +464,7 @@ function captureWatcher(ids: readonly string[]): {
 function statusWatcher(): {
   stop(): void;
   took(sessionId: string): SessionStatus[];
+  ladder(sessionId: string): { status: SessionStatus; at: number }[];
   everyId(): string[];
   firstAllUnknownAt(ids: readonly string[]): number | null;
 } {
@@ -451,6 +485,20 @@ function statusWatcher(): {
           .filter((one): one is SessionStatus => one !== undefined)
       )
     ],
+    // PHASE 173. The same samples with the instant each status was first
+    // seen, so an adjudication reads WHEN a row moved rather than only that
+    // it did.
+    ladder: (sessionId) => {
+      const out: { status: SessionStatus; at: number }[] = [];
+      for (const sample of taken) {
+        const status = sample.rows[sessionId];
+        if (status === undefined) continue;
+        if (out.length === 0 || out[out.length - 1].status !== status) {
+          out.push({ status, at: sample.at });
+        }
+      }
+      return out;
+    },
     everyId: () => [...new Set(taken.flatMap((sample) => Object.keys(sample.rows)))],
     firstAllUnknownAt: (ids) =>
       taken.find(
@@ -827,6 +875,27 @@ async function rowTransportLoss(
   onSteady: Session,
   local: Session
 ): Promise<void> {
+  // PHASE 173. THE BASELINE SETTLES BEFORE THE WATCHERS ARM, and the ruling
+  // lives beside remoteRowStatus in ../machines/remote-sessions.ts. Since
+  // Phase 85 a remote row moves between idle and running whenever the far
+  // side prints and stops, so a freshly created shell is still settling out
+  // of its own prompt when this row used to arm its watchers, and the
+  // stillness graded below was failed by the ladder telling the truth about
+  // the harness's own setup. Stillness under a fault is promised only from a
+  // settled baseline: the steady machine's quiet shell reads idle, and the
+  // local date loop reads running for as long as it prints. The baseline must
+  // HOLD, not merely be observed once, because a newborn row's first sight
+  // reads idle before its prompt has ever been listed. See holdsFor.
+  const settledBeforeCut = await holdsFor(
+    () =>
+      rowsOn(STEADY).find((row) => row.id === onSteady.id)?.status ===
+        'idle' &&
+      rowsOn(CUT).find((row) => row.id === onCut.id)?.status === 'idle' &&
+      core.listSessions().find((row) => row.id === local.id)?.status ===
+        'running',
+    SETTLE_HOLD_MS,
+    SETTLE_BUDGET_MS
+  );
   const statuses = statusWatcher();
   // TWO WATCHERS, and the split is the fix round's. One counts copies of the
   // session on the machine whose link is cut, which must be zero, and the other
@@ -872,10 +941,17 @@ async function rowTransportLoss(
       rowsWatchedOnCut: 1,
       rowsWatchedOnOther: 1,
       rowsWatchedHere: 1,
+      settledBeforeCut,
+      linkCutAt: killedAt,
       toUnknownMs: sawUnknown && firstUnknown !== null ? firstUnknown - killedAt : null,
       statusesOnCut: statuses.took(onCut.id),
       statusesOnOther: statuses.took(onSteady.id),
       statusesHere: statuses.took(local.id),
+      // PHASE 173. The same three rows with the instant each status was
+      // first seen, so the adjudication reads when a row moved.
+      statusLadderOnCut: statuses.ladder(onCut.id),
+      statusLadderOnOther: statuses.ladder(onSteady.id),
+      statusLadderHere: statuses.ladder(local.id),
       localStatusNow:
         core.listSessions().find((one) => one.id === local.id)?.status ?? '(gone)',
       restoreOfferedWhileDown: restoreOffered,
@@ -988,7 +1064,6 @@ async function rowClockSkew(
   await askSupervisor('noise', 'matrix.clock-skew', [skewFeed.tmuxId]);
   await sleep(5_000);
 
-  const statuses = statusWatcher();
   const startedAt = Date.now();
   // PHASE 72 FIX ROUND. THE ROW MAKES A COPY BEFORE IT GRADES ONE.
   //
@@ -1012,6 +1087,21 @@ async function rowClockSkew(
     () => captureTimes(skewed.id).length > 0,
     30_000
   );
+  // PHASE 173. THE ROW SETTLES BEFORE THE WATCH, and the ruling lives beside
+  // remoteRowStatus in ../machines/remote-sessions.ts. The noise this row
+  // typed five seconds ago moves the row to running, and since Phase 85 the
+  // ladder truthfully reads it settling back to idle, so a watch armed inside
+  // that settle graded the harness's own noise as the clock's work. Settling
+  // first makes the stillness below honest AND stronger: a settled quiet row
+  // that reads anything but idle for the whole watch is a defect, and a row
+  // stuck on running with nothing printing is exactly what mixing the two
+  // clocks in the hold window would look like.
+  const settledBeforeWatch = await holdsFor(
+    () => rowsOn(SKEW).find((row) => row.id === skewed.id)?.status === 'idle',
+    SETTLE_HOLD_MS,
+    SETTLE_BUDGET_MS
+  );
+  const statuses = statusWatcher();
   await sleep(30_000);
   statuses.stop();
 
@@ -1041,7 +1131,10 @@ async function rowClockSkew(
       sawCapsule,
       copiesWrittenByTheDrivenPass: written,
       linkToTheSkewedMachine: machineLinkFacts(SKEW).link,
+      settledBeforeWatch,
       statusesTakenOver30s: took,
+      // PHASE 173. The instant each status was first seen over the watch.
+      statusLadderOver30s: statuses.ladder(skewed.id),
       // Every fact Tortie holds ABOUT the machine is stamped locally.
       machineSnapshotAheadMs: remoteMachineFacts(SKEW).snapshotAt - Date.now()
     },
@@ -1391,6 +1484,18 @@ async function rowCaptureCadence(): Promise<void> {
   const whileQuiet = await captureMachineOnce(CUT);
 
   const facts = remoteCapsuleFacts();
+  // PHASE 173. The cadence must still be ARMED when this row ends, and the
+  // grader asserts exactly that two facts down, so a pass may legally be in
+  // flight at this precise instant: sampling a live duty cycle once and
+  // demanding its idle phase is a race, and the 2026-08-22 audit recorded
+  // this row flapping on it. What a wedged pass cannot do is END, so the
+  // sample is kept for the report and the grade is the drain: a pass in
+  // flight now must be gone within its own timeout budget.
+  const passesInFlightAtTheSample = facts.inFlight.length;
+  const passesDrained =
+    passesInFlightAtTheSample === 0
+      ? true
+      : await waitFor(() => remoteCapsuleFacts().inFlight.length === 0, 30_000);
   record({
     id: 'matrix.capture-cadence',
     research: 'Capture cadence at scale',
@@ -1416,7 +1521,8 @@ async function rowCaptureCadence(): Promise<void> {
       busiestFiveSecondBucket: busiest,
       readsSentSinceTheAppStarted: facts.commandsSent,
       sessionsWithACopyRemembered: facts.remembered,
-      passesInFlightRightNow: facts.inFlight.length,
+      passesInFlightAtTheSample,
+      passesDrained,
       cadenceArmed: facts.running,
       rowsUnderTest: busy.length
     },
