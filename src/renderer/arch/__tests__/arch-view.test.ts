@@ -618,19 +618,30 @@ describe('the copy ruling (2026-08-28), kept executable', () => {
 
   it('renders the long bodies only on hover titles or behind the disclosure', () => {
     const DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
-    const view = readFileSync(join(DIR, 'ArchView.tsx'), 'utf8');
+    // Phase 172 moved the faces into subject files, so each body is scanned
+    // in the file that draws its button now.
     const offer = readFileSync(join(DIR, 'ArchEmptyState.tsx'), 'utf8');
+    const pass = readFileSync(join(DIR, 'ArchPass.tsx'), 'utf8');
+    const drill = readFileSync(join(DIR, 'ArchDrill.tsx'), 'utf8');
+    const verdicts = readFileSync(join(DIR, 'ArchVerdicts.tsx'), 'utf8');
     // A rendered text node looks like `>{NAME}<` or `{NAME}</`; a hover
     // title looks like `title={NAME}`. The three button bodies and the
     // accepted rule must only ever be the second shape.
-    for (const name of ['ARCH_DRAFT_BODY', 'ARCH_ENRICH_BODY', 'ARCH_MAP_OPEN_BODY', 'ARCH_ACCEPT_BODY', 'ARCH_ACCEPTED_NOTE']) {
-      const source = name === 'ARCH_DRAFT_BODY' ? offer : view;
+    const bodies: [string, string][] = [
+      ['ARCH_DRAFT_BODY', offer],
+      ['ARCH_ENRICH_BODY', pass],
+      ['ARCH_MAP_OPEN_BODY', drill],
+      ['ARCH_ACCEPT_BODY', pass],
+      ['ARCH_ACCEPTED_NOTE', verdicts]
+    ];
+    for (const [name, source] of bodies) {
       expect(source, name).not.toContain(`>{${name}}<`);
       expect(source, name).toContain(name);
     }
     // The action buttons carry no visible body span at all any more.
-    expect(view).not.toContain('arch-empty-action-body');
-    expect(offer).not.toContain('arch-empty-action-body');
+    for (const source of [pass, drill, verdicts, offer]) {
+      expect(source).not.toContain('arch-empty-action-body');
+    }
     // The teaching paragraph sits inside the one collapsed disclosure.
     const details = offer.slice(offer.indexOf('<details'), offer.indexOf('</details>'));
     expect(details).toContain('{ARCH_EMPTY_LONG}');
@@ -640,7 +651,7 @@ describe('the copy ruling (2026-08-28), kept executable', () => {
 
   it('shows running as a spinner beside the heading, state over sentences', () => {
     const DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
-    const view = readFileSync(join(DIR, 'ArchView.tsx'), 'utf8');
-    expect(view).toContain('codicon-modifier-spin');
+    const pass = readFileSync(join(DIR, 'ArchPass.tsx'), 'utf8');
+    expect(pass).toContain('codicon-modifier-spin');
   });
 });

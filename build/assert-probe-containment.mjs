@@ -129,7 +129,7 @@ const PROBE_MARKERS = [
  */
 const BOUNDARY_MARKERS = [
   { surface: 'the Catch Me Up page (overview/OverviewLayer.tsx)', marker: '"overview-layer"' },
-  { surface: 'the Architecture subject (arch/ArchView.tsx)', marker: '"arch-accept-open"' },
+  { surface: 'the Architecture subject (arch/ArchPass.tsx)', marker: '"arch-accept-open"' },
   { surface: 'the architecture map tab (arch/ArchMapTab.tsx)', marker: '"arch-map-crumb-sep"' },
   { surface: 'the diagnostics tab (diagnostics/DiagnosticsTab.tsx)', marker: '"diag-chips-label"' },
   { surface: 'the Source Control subject (scm/ScmSection.tsx)', marker: '"scm-commit-caption"' },

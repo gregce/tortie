@@ -534,17 +534,17 @@ describe('the writing rules, held mechanically', () => {
     expect(words(copy.ARCH_CHANGE_NEW)).toBe(1);
     expect(words(copy.ARCH_CHANGE_GONE)).toBe(1);
     expect(words(copy.ARCH_REPAIR_LABEL)).toBeLessThanOrEqual(4);
-    const view = readFileSync(join(DIR, 'ArchView.tsx'), 'utf8');
+    // Phase 172 moved the freshness and repair face into its own file, and
+    // ChangedSection is the last declaration in it on purpose, so the slice
+    // below runs from its declaration to the end of the file.
+    const view = readFileSync(join(DIR, 'ArchFreshness.tsx'), 'utf8');
     for (const name of ['ARCH_CHANGES_BODY', 'ARCH_REPAIR_BODY']) {
       expect(view, name).not.toContain(`>{${name}}<`);
       expect(view, name).toContain(`title={${name}}`);
     }
     // No paragraph in the section: the only <p> the diff could carry is
     // none, and the reason rides a title attribute.
-    const section = view.slice(
-      view.indexOf('export function ChangedSection'),
-      view.indexOf('/** The three lanes themselves')
-    );
+    const section = view.slice(view.indexOf('export function ChangedSection'));
     expect(section).not.toContain('<p ');
     expect(section).toContain('title={reasonOf(');
   });
