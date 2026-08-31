@@ -4,8 +4,8 @@
  *
  * Rookery's cockpit showed four faces that disagreed: a kept lead over a
  * contract a third of which would not load, a strip reading "9 checked and
- * holds" where the nine were surviving evidence quotes and `edges.json` was
- * empty, a wall of 34 near identical red rows, and the one honest sentence
+ * holds" where the nine were anchor checks and `edges.json` was empty, a
+ * wall of 34 near identical red rows, and the one honest sentence
  * about the unread languages stranded behind a broken drill. These tests
  * render the strip and the wall over that exact shape and hold the face the
  * fix promises: the thin sentence on the resting face, no promise wording
@@ -17,15 +17,15 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ArchLoadResult } from '@shared/ipc';
 import {
-  ARCH_CHECKS_HOLD_WORD,
   ARCH_NO_PROMISES_NOTE,
   ARCH_PROBLEMS_MORE,
+  archChecksHoldWord,
   archProblemsSummary
 } from '../copy';
 import { Problems, VerdictStrip } from '../ArchVerdicts';
 import { useArch } from '../store';
 
-/** Rookery's own shape: a present contract, zero edges, nine quotes holding. */
+/** Rookery's own shape: a present contract, zero edges, nine anchors holding. */
 function rookeryLoad(over: Partial<ArchLoadResult>): ArchLoadResult {
   return {
     cwd: '/repo',
@@ -51,9 +51,13 @@ function rookeryLoad(over: Partial<ArchLoadResult>): ArchLoadResult {
       accepted: 0,
       unresolvedImports: 47,
       totalImports: 382,
+      // Measured over rookery's tracked files on 2026-08-31: git ls-files
+      // holds 168 md, 87 swift and 43 kt. The 1276 swift and 166 c an earlier
+      // build of this fixture carried were research 71's level 2 quote over
+      // gitignored .var/ checkouts the scan never sees.
       unparsed: [
-        { language: 'swift', files: 1276 },
-        { language: 'c', files: 166 },
+        { language: 'md', files: 168 },
+        { language: 'swift', files: 87 },
         { language: 'kt', files: 43 }
       ]
     },
@@ -74,7 +78,10 @@ describe('the strip over a contract with zero promises', () => {
     useArch.setState({ load: rookeryLoad({}) });
     const html = renderToStaticMarkup(createElement(VerdictStrip, { scoped: null }));
     expect(html).toContain(ARCH_NO_PROMISES_NOTE);
-    expect(html).toContain(`9 ${ARCH_CHECKS_HOLD_WORD}`);
+    expect(html).toContain(`9 ${archChecksHoldWord(9)}`);
+    expect(html).toContain('9 checks hold, none a promise');
+    // Rookery's nine are anchor checks; the lane names no narrower kind.
+    expect(html).not.toContain('evidence checks');
     expect(html).not.toContain('9 checked and holds');
   });
 
@@ -84,7 +91,7 @@ describe('the strip over a contract with zero promises', () => {
     // The sentence that was stranded at level 2 behind a broken drill, now on
     // the face a person actually reads, with the unresolved count beside it.
     expect(html).toContain('Tortie does not read imports for every file here');
-    expect(html).toContain('1276 swift');
+    expect(html).toContain('168 md, 87 swift, 43 kt');
     expect(html).toContain('47 of 382 imports could not be resolved');
   });
 

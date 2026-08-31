@@ -33,11 +33,11 @@ import {
 import { passSentence } from '../ArchEmptyState';
 import type { ArchPassRunFace, ArchPassStatusResult } from '../bridge';
 import {
-  ARCH_CHECKS_HOLD_WORD,
   ARCH_PASS_OFF,
   ARCH_PASS_QUIET,
   ARCH_PASS_REFUSED,
   ARCH_PASS_RUNNING,
+  archChecksHoldWord,
   archProblemsSummary,
   archUnreadableClause,
   freshnessSentence,
@@ -83,9 +83,10 @@ describe('the verdict strip', () => {
   });
 
   it('stops calling quotes promises when there are zero edges (Phase 178)', () => {
-    // Research 71 section 5: "9 checked and holds" over an empty edges.json,
-    // where the nine were surviving evidence quotes. With zero promises the
-    // held lane wears its own word, and the numbers themselves do not move.
+    // Research 71 section 5: "9 checked and holds" over an empty edges.json.
+    // On rookery all nine held checks are anchor checks, so the lane's word
+    // names checks and no narrower kind. With zero promises the held lane
+    // wears its own word, and the numbers themselves do not move.
     const counts = {
       checkedHold: 9,
       broke: 0,
@@ -97,8 +98,15 @@ describe('the verdict strip', () => {
     const plain = stripLanes(counts);
     const honest = stripLanes(counts, true);
     expect(plain[0]?.word).toContain('checked and');
-    expect(honest[0]?.word).toBe(ARCH_CHECKS_HOLD_WORD);
+    expect(honest[0]?.word).toBe(archChecksHoldWord(9));
+    expect(honest[0]?.word).toBe('checks hold, none a promise');
+    // Never a narrower kind: rookery's nine are anchor checks, not quotes.
+    expect(honest[0]?.word).not.toContain('evidence');
     expect(honest[0]?.word).not.toContain('promise hold');
+    // The word reads at one as it reads at nine.
+    expect(stripLanes({ ...counts, checkedHold: 1 }, true)[0]?.word).toBe(
+      'check holds, not a promise'
+    );
     // Only the held lane's word moves; broke and cannot keep their words.
     expect(honest.slice(1)).toEqual(plain.slice(1));
     expect(honest.map((l) => l.n)).toEqual(plain.map((l) => l.n));

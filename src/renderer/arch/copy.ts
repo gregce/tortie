@@ -212,16 +212,25 @@ export const ARCH_FIRST_CHECK = 'Not checked yet';
  * PHASE 178, the strip on a contract with zero promises between parts.
  *
  * Research 71 section 5 measured the dishonesty: rookery's strip read "9
- * checked and holds" where the nine were surviving evidence quotes and the
- * contract's `edges.json` was `{"edges": []}`. With zero edges there are no
- * promise verdicts at all, so the strip says so first and the held lane stops
- * wearing the word a person reads as a promise.
+ * checked and holds" over a contract whose `edges.json` was `{"edges": []}`.
+ * With zero edges there are no promise verdicts at all, so the strip says so
+ * first and the held lane stops wearing the word a person reads as a promise.
  */
 export const ARCH_NO_PROMISES_NOTE =
   'No promises between parts are written yet.';
 
-/** The held lane's word when there are zero promises: quotes, not promises. */
-export const ARCH_CHECKS_HOLD_WORD = 'evidence checks hold, none a promise';
+/**
+ * The held lane's word when there are zero promises. "Checks", never a
+ * narrower name: research 71 called rookery's nine "evidence quotes", but on
+ * that repository every component's evidence array is empty and all nine are
+ * anchor checks. The lane counts whatever held, anchors and quotes alike, so
+ * the word claims no more than the data says. The fix round of 2026-08-31
+ * measured this live: planting one real quote read "10 evidence checks hold"
+ * off a strip whose other nine were anchors.
+ */
+export function archChecksHoldWord(n: number): string {
+  return n === 1 ? 'check holds, not a promise' : 'checks hold, none a promise';
+}
 
 /**
  * PHASE 178, the folded "Would not load" wall.

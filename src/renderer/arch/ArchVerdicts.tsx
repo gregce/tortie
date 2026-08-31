@@ -26,7 +26,7 @@ import { acceptAvailable } from './bridge';
 import type { ArchMapPartResult } from './bridge';
 import {
   ARCH_ACCEPTED_NOTE,
-  ARCH_CHECKS_HOLD_WORD,
+  archChecksHoldWord,
   ARCH_FIRST_CHECK,
   ARCH_GAPS_TITLE,
   ARCH_NO_FAILURES,
@@ -144,7 +144,8 @@ export function stripLanes(
    * PHASE 178. True when the contract writes zero promises between parts.
    * The held lane then stops saying the word a person reads as a promise:
    * research 71 section 5 found "9 checked and holds" over a contract whose
-   * `edges.json` was empty, where the nine were surviving evidence quotes.
+   * `edges.json` was empty. On rookery all nine are anchor checks, so the
+   * lane's word names checks, never a narrower kind.
    */
   noPromises = false
 ): { key: string; word: string; n: number; cls: string; icon: string }[] {
@@ -152,7 +153,7 @@ export function stripLanes(
     {
       key: 'hold',
       word: noPromises
-        ? ARCH_CHECKS_HOLD_WORD
+        ? archChecksHoldWord(counts.checkedHold)
         : `checked and ${verdictWord('convergent')}`,
       n: counts.checkedHold,
       cls: verdictClass('convergent'),
@@ -260,9 +261,9 @@ export function VerdictStrip({
   // PHASE 178. With zero promises between parts there are no promise verdicts
   // at all, so the strip says so first and the held lane stops wearing the
   // word a person reads as a promise: research 71 section 5 found "9 checked
-  // and holds" standing over an empty edges.json, where the nine were
-  // surviving evidence quotes. Read through the store's own accessor, the
-  // sibling of counts(), so the strip and the contract cannot disagree.
+  // and holds" standing over an empty edges.json, where the nine were anchor
+  // checks. Read through the store's own accessor, the sibling of counts(),
+  // so the strip and the contract cannot disagree.
   const noPromises = edges.length === 0;
   // PHASE 178. The whole-repo unparsed sentence, lifted onto the resting face
   // from the level 2 module view where it sat stranded behind a drill. It is
