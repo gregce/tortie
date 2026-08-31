@@ -117,8 +117,29 @@
 
 /* --- compact: the control end of the top tab strip ----------------------- */
 
+/* PHASE 181.1. THE METER WINS AND THE TABS YIELD.
+   The cell the strip pins the meter into never shrinks, so the tab list, which
+   is the flexible cell beside it, is the side that gives room up and reaches
+   its overflow chevron sooner. Before this the meter was shrinkable and its
+   rows carried min-width:0, so two providers' rows were squeezed until one
+   provider's mark sat inside the other's numbers, which is the overlap the
+   operator photographed. */
+.strip-usage {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
 .usage-compact {
+  flex: 0 0 auto;
+  min-width: auto;
   padding: 0 var(--space-3);
+}
+
+.usage-compact .usage-press,
+.usage-compact .usage-row {
+  flex: 0 0 auto;
+  min-width: auto;
 }
 
 .usage-press {

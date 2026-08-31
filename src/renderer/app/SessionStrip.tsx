@@ -64,7 +64,7 @@ import { useQuickCreateMenu } from './new-session-menu';
 import { SessionsPositionButton } from './SessionsPositionButton';
 import { useProjectSurfaces } from './surfaces';
 // Phase 181. The compact usage meter, at the control end of this band.
-import { UsageMeter } from './UsageMeter';
+import { StripUsageMeter } from './StripUsageMeter';
 import { useTermFocused } from './term-focus';
 
 // ---------------------------------------------------------------------------
@@ -373,6 +373,7 @@ function SessionTabStrip({
             : (activeSurface.leafIds[0] ?? '')
         );
 
+  const headerRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [overflow, setOverflow] = useState<{
     has: boolean;
@@ -479,6 +480,7 @@ function SessionTabStrip({
 
   return (
     <div
+      ref={headerRef}
       className={`term-header strip-tabs${termFocused ? ' term-focused' : ''}`}
       data-slot="session-strip"
     >
@@ -582,9 +584,13 @@ function SessionTabStrip({
         </div>
       ) : null}
       {/* Phase 181. The meters are present when sessions are organized on
-          top, which the operator asked for by name. The control end is where
-          they go, so a tab never loses room to them. */}
-      <UsageMeter density="compact" />
+          top, which the operator asked for by name.
+
+          PHASE 181.1. They no longer give room back. The meter reserves the
+          width its compact form needs and this list yields, so tabs reach the
+          chevron above one sooner rather than two providers' numbers running
+          into each other. ./StripUsageMeter.tsx measures the reservation. */}
+      <StripUsageMeter headerRef={headerRef} listRef={listRef} />
       <NewSessionSplitButton />
     </div>
   );

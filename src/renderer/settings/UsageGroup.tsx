@@ -1,6 +1,11 @@
 /**
- * Settings then Usage (Phase 181): the per provider opt in for the
- * subscription meter.
+ * The usage meters, a group inside Settings then Agents (Phase 181.1).
+ *
+ * PHASE 181 gave this its own page on the rail. The operator moved it here the
+ * next day, because Agents is where a person already goes to decide what an
+ * agent is and does, and whether a meter is drawn for one is that same
+ * decision. It is a MOVE and not a redesign: the same two switches, the same
+ * default off, the same guarantees, and no new control.
  *
  * TWO SWITCHES AND NOTHING ELSE, the shape Catch Me Up and Architecture
  * settled. BOTH DEFAULT OFF, and off is load bearing rather than polite:
@@ -14,6 +19,9 @@
  * meter is read only: no reset credits, no account switching, no plan
  * management. Everything a person may want to know once sits behind the one
  * shut disclosure at the bottom.
+ *
+ * It draws on this Mac's page only, because what it reads is the login stored
+ * on this Mac.
  */
 
 import React from 'react';
@@ -31,7 +39,6 @@ import {
   USAGE_CLAUDE_LABEL,
   USAGE_CODEX_CAPTION,
   USAGE_CODEX_LABEL,
-  USAGE_GROUP,
   USAGE_OFF_NOTE,
   USAGE_TITLE
 } from './usage-copy';
@@ -76,12 +83,10 @@ function UsageRow({
   );
 }
 
-export function UsageSection(): React.JSX.Element {
+export function UsageGroup(): React.JSX.Element {
   return (
-    <section aria-label={USAGE_TITLE}>
-      <h1 className="set-title">{USAGE_TITLE}</h1>
-
-      <div className="set-group-label">{USAGE_GROUP}</div>
+    <div data-usage-group="1">
+      <div className="set-group-label">{USAGE_TITLE}</div>
       <div className="set-card">
         <UsageRow
           provider="claude"
@@ -103,8 +108,9 @@ export function UsageSection(): React.JSX.Element {
       {/* One shut disclosure, the shape the Architecture page settled under
           the just enough words rule. The resting face of this block is the
           summary line and nothing else, because a person flipping a switch
-          does not need four paragraphs and a person deciding whether to trust
-          the read does. */}
+          does not need paragraphs and a person deciding whether to trust the
+          read does. Phase 181.1 cut those paragraphs down at his word, and
+          every promise they made is still in them. */}
       <details className="set-disclosure" data-usage-about="1">
         <summary>{USAGE_ABOUT_OPEN}</summary>
         <p className="set-section-caption">{USAGE_ABOUT_WHERE}</p>
@@ -112,6 +118,6 @@ export function UsageSection(): React.JSX.Element {
         <p className="set-section-caption">{USAGE_ABOUT_KEPT}</p>
         <p className="set-section-caption">{USAGE_ABOUT_WHEN}</p>
       </details>
-    </section>
+    </div>
   );
 }

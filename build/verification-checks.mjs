@@ -345,6 +345,14 @@ export const CHECKS = [
   // in its signed out state, which is all the switch needs to prove. It never
   // turns the Claude switch on, creates no session and spawns no agent.
   electron('probe:p181'),
+  // PHASE 181.1. WHICH SIDE YIELDS in the top strip. One launch on a scratch
+  // profile puts six tabs on the strip, walks a ladder of window widths and
+  // reads the drawn rectangles back out of the live DOM at each one: the
+  // density, the reservation in pixels, whether the meter overlaps the tab
+  // list or itself, and how many tabs are still drawn. It reads NO credential
+  // and makes NO request, on the same terms as the row above, and it never
+  // turns the Claude switch on.
+  electron('probe:p1811'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

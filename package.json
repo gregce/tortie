@@ -40,6 +40,7 @@
     "probe:p98": "node build/probe-p98-search.mjs",
     "probe:p99": "node build/probe-p99-quickopen.mjs",
     "probe:p181": "npm run build && node build/harness-socket.mjs gmux-p181-usage 'node build/probe-p181-usage-switch.mjs'",
+    "probe:p1811": "npm run build && node build/harness-socket.mjs gmux-p1811-fit 'node build/probe-p1811-strip-fit.mjs'",
     "probe:p100": "node build/probe-p100-lines.mjs",
     "probe:p105": "node build/probe-p105-runs.mjs",
     "probe:p106": "node build/probe-p106-branch.mjs",

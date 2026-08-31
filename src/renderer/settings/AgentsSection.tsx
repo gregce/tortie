@@ -36,6 +36,12 @@
  * it, and the call site here passes neither, so this card reads exactly what it
  * read before.
  *
+ * PHASE 181.1. The usage meters join this tab as a group at the foot of this
+ * Mac's page. They had a page of their own on the rail for one day. The
+ * operator moved them here, because a person deciding what an agent is and
+ * does is already on this tab. The switches, their default off and their
+ * guarantees are untouched; only where they are drawn changed.
+ *
  * PHASE 123. `AgentRow` and the three notes it renders moved to AgentRow.tsx.
  * This file and MachineAgents.tsx both draw the row, so the row is owned by
  * neither of them. That import cycle is gone and nothing on the page changed.
@@ -55,6 +61,7 @@ import { MachineAgentsSection } from './MachineAgents';
 import { AGENTS_PAGE_THIS_MAC } from './machines-copy';
 import { useMachinesStore } from './machines-store';
 import { useSettingsStore } from './settings-store';
+import { UsageGroup } from './UsageGroup';
 
 /** The page for the Mac Tortie is running on. Never a machine id. */
 const THIS_MAC = 'local';
@@ -163,6 +170,13 @@ export function AgentsSection(): React.JSX.Element {
           a machine with no configuration file, which is almost every machine,
           so the section above is unchanged for the ordinary user. */}
       <ConfiguredAgents />
+
+      {/* PHASE 181.1. The usage meters, which Phase 181 gave a page of their
+          own on the rail. They live here now, because deciding whether a
+          meter is drawn for an agent is the same decision this tab is for.
+          This Mac's page only: what a meter reads is the login stored on this
+          Mac. */}
+      <UsageGroup />
     </>
   );
 

@@ -31,7 +31,13 @@ describe('the Settings rail', () => {
     expect(ids.filter((id) => id === 'diagnostics')).toHaveLength(1);
   });
 
-  it('draws the eleven sections in this order', () => {
+  // Phase 181.1. The Usage page is gone and the meters moved into Agents. A
+  // rail row that came back would be a second door to one group.
+  it('has no Usage page', () => {
+    expect(ids).not.toContain('usage');
+  });
+
+  it('draws the ten sections in this order', () => {
     // A new section is appended BEFORE diagnostics. Change this list in the
     // same commit that changes the rail, and keep diagnostics last.
     expect(ids).toEqual([
@@ -46,8 +52,9 @@ describe('the Settings rail', () => {
       'project-line',
       // Phase 158 appended this one before diagnostics.
       'arch',
-      // Phase 181 appended this one before diagnostics.
-      'usage',
+      // Phase 181 appended a `usage` section here. Phase 181.1 removed it the
+      // next day: the meters are a group inside Agents now, and no rail row,
+      // menu row or chord names a Usage page any more.
       'diagnostics'
     ]);
   });
