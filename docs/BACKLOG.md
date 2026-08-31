@@ -9897,7 +9897,6 @@ install map. Prove the button is drawn off for a machine whose `ready` is not tr
 it in that state sends nothing. Count the operator's sessions with `tmux -L gmux list-sessions`
 before and after and report both numbers. `activeTmuxSocket` honours `GMUX_TMUX_SOCKET` only under
 `GMUX_SMOKE`, `GMUX_SHOT` or `GMUX_UPDATE_REHEARSAL`.
-```
 
 ## Research 58 — which agents exist on which machine, and when Tortie looks (operator requested 2026-08-19) ✅ DELIVERED 2026-08-19 (this commit), docs/research/58-agents-per-machine.md, checked against the tree of `a497521`
 
