@@ -43,7 +43,7 @@ import type { ArchComposePayloadResult } from '@shared/ipc';
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import type { MenuItemSpec, MenuSpec } from '../menus/spec';
 import { useApp } from '../state/store';
-import { useSettingsStore } from '../settings/settings-store';
+import { archSurfacesOn, useSettingsStore } from '../settings/settings-store';
 import {
   AIM_BROKEN_TARGET_BODY,
   AIM_BROKEN_TARGET_CANCEL,
@@ -301,6 +301,14 @@ export function anchorFor(sessionId: string): { x: number; y: number } {
  * would all fail or as nothing happening at all.
  */
 export async function openAimPicker(): Promise<void> {
+  // PHASE 175. Architecture is off until a person turns it on in Settings,
+  // and aiming is a DOOR on to it: it reads the contract and writes a
+  // promise into the prompt. So the verb does nothing at all while the
+  // switch is off, no menu and no note, the same silence the view chord
+  // keeps. The Session menu row is hidden by the same flag in main, and
+  // this refusal is what makes the ⌃⇧P chord and a queued `arch-aim` dead
+  // as well as unlisted.
+  if (!archSurfacesOn()) return;
   const app = useApp.getState();
   const target = canDeliverTo(app.activeSession()?.id ?? null);
   const at = anchorFor(app.activeSession()?.id ?? '');

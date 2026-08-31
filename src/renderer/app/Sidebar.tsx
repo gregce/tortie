@@ -50,7 +50,10 @@ import {
   useWindowWidth
 } from '../state/chrome-geometry';
 import { useGit } from '../state/git';
-import { SIDEBAR_VIEW_DEFAULT } from '../state/sidebar-views';
+import { effectiveSidebarView } from '../state/sidebar-views';
+// Phase 175. The Architecture switch, subscribed so the pane goes away in the
+// same session the person turns the surface off.
+import { useSettingsStore } from '../settings/settings-store';
 import { useResizeHandle } from '../controls';
 // PHASE 165. The five subjects are mounted through their lazy doors. Each
 // door fetches its subject's chunk on the first show of that subject and
@@ -305,11 +308,18 @@ export function Sidebar(): React.JSX.Element {
   // the Context subject's own chunk (context/ContextSubject.tsx), so a launch
   // that never shows that subject never reaches the install and enable stores.
 
-  const view =
-    (activeProjectId !== null ? viewByProject[activeProjectId] : undefined) ??
-    // PHASE 63. The constant rather than the literal, for the reason written
-    // at ActivityBar.tsx's copy of this line.
-    SIDEBAR_VIEW_DEFAULT;
+  // PHASE 63 read the constant rather than the literal here, for the reason
+  // written at ActivityBar.tsx's copy of this line. PHASE 175 reads it through
+  // `effectiveSidebarView`, because turning the Architecture switch off while
+  // the Architecture view is the ACTIVE one has to put the pane away in the
+  // same session, and the probe caught this copy still drawing it after the
+  // rail mark and all three menu rows had gone. `archOn` is SUBSCRIBED, so
+  // the flip re-renders the sidebar.
+  const archOn = useSettingsStore((s) => s.settings.arch.enabled);
+  const view = effectiveSidebarView(
+    activeProjectId !== null ? viewByProject[activeProjectId] : undefined,
+    archOn
+  );
 
   const project = useMemo(
     () => projects.find((p) => p.id === activeProjectId) ?? null,

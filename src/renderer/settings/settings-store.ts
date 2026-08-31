@@ -97,6 +97,25 @@ export interface SettingsStoreState {
   archOptions: ArchOptions | null;
   archOptionsLoaded: boolean;
 
+  /**
+   * PHASE 175. Read the settings once and subscribe to main's broadcast, and
+   * NOTHING else. Idempotent, and `init()` calls it so the two cannot drift.
+   *
+   * The main window needed this. Before Phase 175 the only callers of
+   * `init()` in that window were the empty-state tiles, the Create Session
+   * modal and the aim picker, so a launch that restored sessions and never
+   * opened any of them left this store on its compiled defaults for the life
+   * of the window and never heard a change. That was invisible while the
+   * only readers were modals that call `init()` on mount. It stops being
+   * invisible the moment the shell itself reads a setting, which is what the
+   * Architecture switch made it do: the rail, the view chord and the map
+   * door all read `arch.enabled` now, and flipping it in the Settings window
+   * has to reach this window in the same session.
+   *
+   * It asks main for one value it already holds in memory and opens no file,
+   * so the boot cost is one IPC round trip and no disk.
+   */
+  watchSettings(): void;
   /** Idempotent: load settings + catalogs + config + fold options, subscribe. Starts no scan. */
   init(): void;
   /**
@@ -136,6 +155,8 @@ export interface SettingsStoreState {
 }
 
 let initialized = false;
+/** Phase 175: the `watchSettings` latch, separate so `init` may call it. */
+let watching = false;
 
 export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
   settings: defaultGmuxSettings(),
@@ -152,6 +173,22 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
   archOptions: null,
   archOptionsLoaded: false,
 
+  watchSettings() {
+    if (watching) return;
+    watching = true;
+    const b = bridge();
+    if (typeof b?.settingsGet !== 'function') {
+      set({ available: false, settingsLoaded: true });
+      return;
+    }
+    void b
+      .settingsGet()
+      .then((settings) => set({ settings, settingsLoaded: true }))
+      .catch(() => set({ settingsLoaded: true }));
+    // Never unsubscribed — the store lives as long as the window.
+    b.onSettingsChanged?.((settings) => set({ settings, settingsLoaded: true }));
+  },
+
   init() {
     if (initialized) return;
     initialized = true;
@@ -162,10 +199,10 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
       return;
     }
 
-    void b
-      .settingsGet()
-      .then((settings) => set({ settings, settingsLoaded: true }))
-      .catch(() => set({ settingsLoaded: true }));
+    // Phase 175. The read and the subscription are `watchSettings`' now, so
+    // the shell's cheap call and this full one cannot drift apart. It is
+    // idempotent, so a window that already watches pays nothing here.
+    get().watchSettings();
 
     if (typeof b.agentFlagPresets === 'function') {
       void b
@@ -190,9 +227,6 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
 
     // Phase 158. The arch twin of the read above, and the same posture.
     void get().refreshArchOptions();
-
-    // Never unsubscribed — the store lives as long as the window.
-    b.onSettingsChanged?.((settings) => set({ settings, settingsLoaded: true }));
   },
 
   async update(patch) {
@@ -322,3 +356,17 @@ export const useSettingsStore = create<SettingsStoreState>()((set, get) => ({
     }
   }
 }));
+
+/**
+ * Is the Architecture surface on (Phase 175)? The one imperative read every
+ * entry-point gate shares: the view chord, the aiming verb, the three menu
+ * actions, the map tab opener and the store's own view setters all ask this
+ * before they act, so a remembered `arch` view or a queued `show-arch`
+ * cannot resurrect a surface the person has not turned on. Components
+ * SUBSCRIBE to the same field through `useSettingsStore` instead, so a flip
+ * re-renders them in the same session. Settings then Architecture is never
+ * gated on it: that page is the only way back in.
+ */
+export function archSurfacesOn(): boolean {
+  return useSettingsStore.getState().settings.arch.enabled;
+}

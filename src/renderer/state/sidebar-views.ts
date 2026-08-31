@@ -73,3 +73,22 @@ export function isSidebarViewId(value: unknown): value is SidebarViewId {
     (SIDEBAR_VIEW_IDS as readonly string[]).includes(value)
   );
 }
+
+/**
+ * The view a stored choice actually resolves to (Phase 175).
+ *
+ * Architecture is off until a person turns it on in Settings, and a
+ * remembered `'arch'` from before the flip must not draw the view: while
+ * the flag is off the remembered choice reads as the default instead. The
+ * memory itself is kept, so turning the surface back on restores the
+ * remembered view without anyone re-choosing it. The flag arrives as an
+ * ARGUMENT because this file is a leaf and must stay one; callers read it
+ * from the settings store.
+ */
+export function effectiveSidebarView(
+  stored: SidebarViewId | undefined,
+  archEnabled: boolean
+): SidebarViewId {
+  const view = stored ?? SIDEBAR_VIEW_DEFAULT;
+  return view === 'arch' && !archEnabled ? SIDEBAR_VIEW_DEFAULT : view;
+}

@@ -43,6 +43,9 @@ import { useLayout } from '../state/layout';
 import { activityBarIsRow } from '../state/chrome-geometry';
 // Phase 127. The three controllers this file used to hold inline.
 import { warmMenuIcons } from '../icons';
+// Phase 175. The shell subscribes to settings so the rail can read the
+// Architecture switch; see the effect in the shell body.
+import { useSettingsStore } from '../settings/settings-store';
 import { useKeyboardMap } from './keyboard';
 import { useMenuActions } from './menu-actions';
 import { useQuitRequests } from './quit';
@@ -248,6 +251,16 @@ export function App(): React.JSX.Element {
   // icons rather than a menu that waits. See icons/codicon-menu-icon.ts.
   useEffect(() => {
     void warmMenuIcons();
+  }, []);
+
+  // PHASE 175. The shell itself reads a setting now: the activity rail draws
+  // the Architecture mark only while the switch in Settings then
+  // Architecture is on. So this window subscribes to settings at boot rather
+  // than waiting for a modal to do it, which is what it used to depend on.
+  // `watchSettings` reads one value main already holds and opens no file, and
+  // it is idempotent, so the modals' own `init()` still costs nothing extra.
+  useEffect(() => {
+    useSettingsStore.getState().watchSettings();
   }, []);
 
   if (!window.gmux) {

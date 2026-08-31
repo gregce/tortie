@@ -23,6 +23,21 @@
 /** The rail entry and the page heading. It matches the View menu row. */
 export const ARCH_TITLE = 'Architecture';
 
+/**
+ * PHASE 175, the switch at the head of the page and the only way back in.
+ *
+ * The page itself is visible ALWAYS, however the switch is set, because a
+ * flag that hid its own page would strand whoever turned Architecture off.
+ * The label is the verb, and the caption says in one line what appears when
+ * you turn the switch on, so a person deciding can decide without opening
+ * the disclosure.
+ */
+export const ARCH_SHOW_LABEL = 'Show Architecture';
+
+/** One line, and it names the two places the surface appears. */
+export const ARCH_SHOW_CAPTION =
+  'Puts Architecture on the sidebar and in the View menu.';
+
 /** The one group of controls on the page. */
 export const ARCH_GROUP = 'Who fills in the contract';
 

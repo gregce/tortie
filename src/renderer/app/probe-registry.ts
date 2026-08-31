@@ -71,6 +71,9 @@ import type { ContextProbeSpec } from '../context/shot-probe';
 // estimate at the 220px floor rather than printing it. An earlier version of
 // this comment named a runner file that did not exist, and the version after
 // that claimed a measurement nobody had taken.
+// Phase 175. The Architecture switch ships off, so the arch knob below
+// turns it on through main before it drives the surface.
+import { useSettingsStore } from '../settings/settings-store';
 import { driveArch } from '../arch/shot-probe';
 import type { ArchProbeSpec } from '../arch/shot-probe';
 import { driveSessionFocus } from './focus-shot-drive';
@@ -564,6 +567,14 @@ function installShotLayoutExtras(): void {
     // being measured is the one a person would produce.
     if (ext.arch !== undefined) {
       window.__gmuxShotReady = false;
+      // PHASE 175. Architecture ships OFF, so a probe that drives it turns it
+      // on the way a person does, through main's own settings write. That
+      // sanitizes, persists on the scratch profile, rebuilds the native menu
+      // and broadcasts back, so what the probe drives afterwards is the real
+      // switched-on surface rather than a store poked past its own gate.
+      await useSettingsStore.getState().update({
+        arch: { ...useSettingsStore.getState().settings.arch, enabled: true }
+      });
       useApp.getState().showSidebarView('arch');
       if (ext.arch.width !== undefined) {
         useApp.getState().setSidebarWidth(ext.arch.width);

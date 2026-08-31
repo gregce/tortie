@@ -59,6 +59,8 @@ import {
   ARCH_MODEL_LABEL,
   ARCH_NONE_OPTION,
   ARCH_NO_HARNESSES,
+  ARCH_SHOW_CAPTION,
+  ARCH_SHOW_LABEL,
   ARCH_SUGGESTED_MARK,
   ARCH_TITLE,
   archChosenUnavailable,
@@ -75,6 +77,7 @@ import {
   foldHarnessById,
   foldRefusedNames
 } from './FoldSection';
+import { Switch } from './Switch';
 import { useSettingsStore } from './settings-store';
 
 /** The select's value for "no agent fills in the contract". Never an agent id. */
@@ -93,15 +96,20 @@ const NONE = '';
  */
 export async function selectArchAgent(agentId: string): Promise<boolean> {
   const store = useSettingsStore.getState();
+  // PHASE 175. Every write from this page carries the visibility switch
+  // through unchanged. Main patches `arch` WHOLESALE, so a patch naming only
+  // the pair would sanitize to `enabled: false` and turn the surface off the
+  // moment a person changed the agent.
+  const enabled = store.settings.arch.enabled;
   if (agentId === NONE) {
-    await store.update({ arch: noArchChosen() });
+    await store.update({ arch: { ...noArchChosen(), enabled } });
     return true;
   }
   const harness = foldHarnessById(store.archOptions, agentId);
   if (harness === undefined || !harness.available) return false;
   const model = firstFoldModel(harness);
   if (model === null) return false;
-  const next = await store.update({ arch: { agentId, model } });
+  const next = await store.update({ arch: { enabled, agentId, model } });
   return next?.arch.agentId === agentId && next.arch.model === model;
 }
 
@@ -121,8 +129,27 @@ export async function selectArchModel(model: string): Promise<boolean> {
   if (harness === undefined || !harness.models.some((m) => m.id === model)) {
     return false;
   }
-  const next = await store.update({ arch: { agentId, model } });
+  const next = await store.update({
+    arch: { enabled: store.settings.arch.enabled, agentId, model }
+  });
   return next?.arch.model === model;
+}
+
+/**
+ * Turn the whole Architecture surface on or off (Phase 175).
+ *
+ * The harness PAIR is carried through untouched, so a person who chose an
+ * agent once and turns the surface off and on again finds that choice
+ * waiting. Nothing spawns from this write: it decides what is DRAWN and
+ * nothing else, which is why it is no part of the sealed key. Exported for
+ * the test, which runs under the node environment and cannot click a button
+ * on server rendered markup.
+ */
+export async function setArchEnabled(enabled: boolean): Promise<boolean> {
+  const store = useSettingsStore.getState();
+  const { agentId, model } = store.settings.arch;
+  const next = await store.update({ arch: { enabled, agentId, model } });
+  return next?.arch.enabled === enabled;
 }
 
 export interface ArchSectionViewProps {
@@ -136,6 +163,8 @@ export interface ArchSectionViewProps {
   dropped: boolean;
   onAgent(agentId: string): void;
   onModel(model: string): void;
+  /** Phase 175: turn the whole surface on or off. */
+  onEnabled(enabled: boolean): void;
 }
 
 /**
@@ -149,7 +178,8 @@ export interface ArchSectionViewProps {
 export function ArchSectionView(
   props: ArchSectionViewProps
 ): React.JSX.Element {
-  const { options, loaded, arch, dropped, onAgent, onModel } = props;
+  const { options, loaded, arch, dropped, onAgent, onModel, onEnabled } =
+    props;
   const harness = foldHarnessById(options, arch.agentId);
   // The two groups of refused rows, each named together on one line rather
   // than one paragraph per agent.
@@ -162,56 +192,87 @@ export function ArchSectionView(
     <section aria-label={ARCH_TITLE}>
       <h1 className="set-title">{ARCH_TITLE}</h1>
 
-      <div className="set-group-label">{ARCH_GROUP}</div>
+      {/* PHASE 175, THE SWITCH, AT THE HEAD BECAUSE THIS PAGE IS THE ONLY WAY
+          BACK IN. Everything Architecture shows is gated on it and it ships
+          OFF, so this page is reachable whatever the switch says: a flag that
+          hid its own page would strand whoever turned the surface off and
+          hide it from whoever never saw it. */}
       <div className="set-card">
-        {options === null ? (
-          <CaptionRow text={loaded ? ARCH_BRIDGE_MISSING : ARCH_LOADING} />
-        ) : (
-          <>
-            <HarnessAgentRow
-              options={options}
-              chosen={arch.agentId}
-              label={ARCH_AGENT_LABEL}
-              caption={ARCH_AGENT_CAPTION}
-              noneLabel={ARCH_NONE_OPTION}
-              suggestedMark={ARCH_SUGGESTED_MARK}
-              onAgent={onAgent}
-            />
-            {harness !== undefined && harness.models.length > 0 ? (
-              <HarnessModelRow
-                harness={harness}
-                chosen={arch.model}
-                label={ARCH_MODEL_LABEL}
-                caption={ARCH_MODEL_CAPTION}
-                onModel={onModel}
-              />
-            ) : null}
-
-            {dropped ? <ErrorRow text={ARCH_CHOICE_DROPPED} /> : null}
-
-            {harness !== undefined && !harness.available ? (
-              <ErrorRow text={archChosenUnavailable(harness.agentLabel)} />
-            ) : null}
-
-            {options.suspended !== null ? (
-              <ErrorRow text={options.suspended} />
-            ) : null}
-
-            {options.harnesses.length === 0 ? (
-              <CaptionRow text={ARCH_NO_HARNESSES} />
-            ) : null}
-
-            {/* The agents Tortie cannot offer are named rather than hidden,
-                on one line per reason. */}
-            {notMeasured !== '' ? (
-              <CaptionRow text={archNotMeasured(notMeasured)} />
-            ) : null}
-            {notConfirmed !== '' ? (
-              <CaptionRow text={archNotConfirmed(notConfirmed)} />
-            ) : null}
-          </>
-        )}
+        <div className="set-row tall">
+          <div className="set-row-text">
+            <span className="set-row-label">{ARCH_SHOW_LABEL}</span>
+            <span className="set-row-caption">{ARCH_SHOW_CAPTION}</span>
+          </div>
+          <Switch
+            checked={arch.enabled}
+            label={ARCH_SHOW_LABEL}
+            onChange={onEnabled}
+          />
+        </div>
       </div>
+
+      {/* The harness pair is HIDDEN while the surface is off, not dimmed.
+          Just enough words, the ruling of 2026-08-28: a person who has not
+          turned Architecture on has nothing to decide about who fills in a
+          contract they cannot see, and a card of dimmed pickers is words to
+          read past. The stored choice is kept, so turning the surface back on
+          restores it. The disclosure below STAYS in both states, because what
+          the agent does is what a person deciding about the switch wants to
+          read. */}
+      {!arch.enabled ? null : (
+        <>
+          <div className="set-group-label">{ARCH_GROUP}</div>
+          <div className="set-card">
+            {options === null ? (
+              <CaptionRow text={loaded ? ARCH_BRIDGE_MISSING : ARCH_LOADING} />
+            ) : (
+              <>
+                <HarnessAgentRow
+                  options={options}
+                  chosen={arch.agentId}
+                  label={ARCH_AGENT_LABEL}
+                  caption={ARCH_AGENT_CAPTION}
+                  noneLabel={ARCH_NONE_OPTION}
+                  suggestedMark={ARCH_SUGGESTED_MARK}
+                  onAgent={onAgent}
+                />
+                {harness !== undefined && harness.models.length > 0 ? (
+                  <HarnessModelRow
+                    harness={harness}
+                    chosen={arch.model}
+                    label={ARCH_MODEL_LABEL}
+                    caption={ARCH_MODEL_CAPTION}
+                    onModel={onModel}
+                  />
+                ) : null}
+
+                {dropped ? <ErrorRow text={ARCH_CHOICE_DROPPED} /> : null}
+
+                {harness !== undefined && !harness.available ? (
+                  <ErrorRow text={archChosenUnavailable(harness.agentLabel)} />
+                ) : null}
+
+                {options.suspended !== null ? (
+                  <ErrorRow text={options.suspended} />
+                ) : null}
+
+                {options.harnesses.length === 0 ? (
+                  <CaptionRow text={ARCH_NO_HARNESSES} />
+                ) : null}
+
+                {/* The agents Tortie cannot offer are named rather than hidden,
+                    on one line per reason. */}
+                {notMeasured !== '' ? (
+                  <CaptionRow text={archNotMeasured(notMeasured)} />
+                ) : null}
+                {notConfirmed !== '' ? (
+                  <CaptionRow text={archNotConfirmed(notConfirmed)} />
+                ) : null}
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       {/* The words a person needs once and not on every visit, behind one
           disclosure that ships SHUT (the just enough words rule, set on this
@@ -255,6 +316,9 @@ export function ArchSection(): React.JSX.Element {
       }}
       onModel={(model) => {
         void selectArchModel(model).then(onWrote);
+      }}
+      onEnabled={(enabled) => {
+        void setArchEnabled(enabled).then(onWrote);
       }}
     />
   );

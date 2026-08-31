@@ -21,9 +21,16 @@
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { requestOpenFile } from '../state/open-file';
 import { useApp } from '../state/store';
+// Phase 175. The Architecture switch, read at the one door below.
+import { archSurfacesOn } from '../settings/settings-store';
 
 /** Open the map tab for one repository, or focus it when it is already open. */
 export function openArchMap(repoPath: string): void {
+  // Phase 175. The map refuses while Architecture is off in Settings. This
+  // is the single door every gesture goes through, so the View menu row, a
+  // queued `show-arch-map` and the pane's own control are all refused here
+  // in one line.
+  if (!archSurfacesOn()) return;
   requestOpenFile({
     repoPath,
     // The tab is a reading of the whole repository, not of a file in it. The

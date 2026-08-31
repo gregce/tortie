@@ -70,6 +70,7 @@
     "probe:p165": "npm run build && node build/harness-socket.mjs --fresh gmux-p165-paint 'node build/probe-p165-paint.mjs'",
     "probe:p166": "npm run build && node build/harness-socket.mjs --fresh gmux-p166-cache 'node build/probe-p166-cache.mjs'",
     "probe:p167": "npm run build && node build/harness-socket.mjs --fresh gmux-p167-scale 'node build/probe-p167-scale.mjs'",
+    "probe:p175": "npm run build && node build/harness-socket.mjs --fresh gmux-p175-arch 'node build/probe-p175-arch-flag.mjs'",
     "probe:p64": "npm run build && node build/harness-socket.mjs --fresh gmux-p64-paste 'GMUX_P64_OUT=out/p64-paste-matrix.json GMUX_SMOKE=p64-paste-matrix electron . --user-data-dir=\"$GMUX_HARNESS_DIR/profile\" -ApplePersistenceIgnoreState YES'",
     "probe:p156": "npm run build && node build/harness-socket.mjs gmux-p156-menus 'GMUX_P156_OUT=out/p156-menus.json GMUX_SMOKE=p156-menus electron . --user-data-dir=\"$GMUX_HARNESS_DIR/profile\" -ApplePersistenceIgnoreState YES'",
     "probe:shellpath": "npm run build && node build/harness-socket.mjs gmux-p81-path 'node build/probe-shell-path.mjs'",

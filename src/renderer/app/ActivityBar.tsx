@@ -42,8 +42,11 @@ import {
 import { dirtyCount, useGit } from '../state/git';
 import { loginItemExtras, useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
-import { SIDEBAR_VIEW_DEFAULT } from '../state/sidebar-views';
+import { effectiveSidebarView } from '../state/sidebar-views';
 import { useSearch } from '../search/store';
+// Phase 175. The Architecture switch. Subscribed, not read imperatively, so
+// flipping it in Settings re-renders the rail in the same session.
+import { useSettingsStore } from '../settings/settings-store';
 import {
   remoteChangesCount,
   useRemoteChanges,
@@ -120,14 +123,15 @@ function ViewItem({
   const toggleSidebar = useApp((s) => s.toggleSidebar);
   const showSidebarView = useApp((s) => s.showSidebarView);
 
-  const currentView: SidebarViewId =
-    (activeProjectId !== null ? viewByProject[activeProjectId] : undefined) ??
-    // PHASE 63. `SIDEBAR_VIEW_DEFAULT`, not the literal 'scm' that was here.
-    // The literal was one of four copies of the same answer and research 49
-    // warned about exactly this: a view added later has to be able to become
-    // the default by changing one constant, and four hand written copies mean
-    // three of them will be missed.
-    SIDEBAR_VIEW_DEFAULT;
+  // Phase 175. Through `effectiveSidebarView`, so a remembered 'arch' reads
+  // as the default while the Architecture switch is off and no item on the
+  // rail lights up for a view that is not drawn. The subscription is what
+  // re-renders every item when the switch flips.
+  const archOn = useSettingsStore((s) => s.settings.arch.enabled);
+  const currentView: SidebarViewId = effectiveSidebarView(
+    activeProjectId !== null ? viewByProject[activeProjectId] : undefined,
+    archOn
+  );
   const active = sidebarVisible && currentView === view;
 
   return (
@@ -298,6 +302,9 @@ export function ActivityBar({
     remoteKey === null ? undefined : s.byTarget[remoteKey]
   );
   const dirty = scmBadgeCount(projectTarget, localStatus, remoteEntry);
+  // Phase 175. The Architecture switch, subscribed so the rail redraws the
+  // moment it flips in the Settings window.
+  const archOn = useSettingsStore((s) => s.settings.arch.enabled);
 
   return (
     <nav
@@ -382,12 +389,21 @@ export function ActivityBar({
           refuses by name and which research 49 section 9.5 rejected in its own
           table. The counts live in the verdict strip, where a person went to
           look for them. */}
-      <ViewItem
-        view="arch"
-        icon="circuit-board"
-        label="Architecture"
-        shortcut={keyDisplay('view.arch')}
-      />
+      {/* PHASE 175. The mark is on the rail only while the switch in Settings
+          then Architecture is on, and the switch ships OFF. Hidden rather
+          than dimmed, because a dimmed rail item is a promise a person
+          cannot act on and the rail carries no explanation. The way back in
+          is the Settings page, which is visible always. `archOn` is
+          SUBSCRIBED above, so the mark appears and vanishes in the same
+          session with no relaunch. */}
+      {archOn ? (
+        <ViewItem
+          view="arch"
+          icon="circuit-board"
+          label="Architecture"
+          shortcut={keyDisplay('view.arch')}
+        />
+      ) : null}
       <div className="ab-spacer" />
       {/* Phase 58. The update ring sits directly above the gear and carries
           the manual update journey. It is hidden almost all of the time, and

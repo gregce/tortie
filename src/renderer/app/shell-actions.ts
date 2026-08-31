@@ -14,6 +14,8 @@
 
 import { useApp } from '../state/store';
 import type { SidebarViewId } from '../state/store';
+// Phase 175. The Architecture switch, read at the one gate below.
+import { archSurfacesOn } from '../settings/settings-store';
 // PHASE 165. The leaf, not the barrel, which is the Search subject's door.
 import { focusSearchInput, selectionSeed } from '../search/focus';
 
@@ -35,6 +37,12 @@ export function focusedSessionRowId(): string | null {
  * focused → focus returns to the terminal.
  */
 export function showViewAction(view: SidebarViewId): void {
+  // Phase 175. The Architecture view is off until a person turns it on in
+  // Settings. The chord and the View menu row both land here, and a dead
+  // entry point does NOTHING: no focus dance, no store call, no side
+  // effect. The store's own setters refuse too, so a caller that bypasses
+  // this body still cannot show the view.
+  if (view === 'arch' && !archSurfacesOn()) return;
   const s = useApp.getState();
   const viewEl = document.querySelector<HTMLElement>('.sidebar-view');
   const focusInside =

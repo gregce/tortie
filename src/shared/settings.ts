@@ -159,15 +159,33 @@ export function foldKey(agentId: string, model: string): string {
  * entries, so agreeing to one never agrees to the other.
  */
 export interface ArchSettings {
+  /**
+   * Is the Architecture surface on at all (Phase 175)? DEFAULT FALSE. While
+   * false the activity bar has no Architecture icon, the View menu has
+   * neither Architecture row, the view chord and the two menu actions do
+   * nothing, and the map tab refuses to open. Settings then Architecture
+   * stays visible ALWAYS and carries the switch at its head, because the
+   * setting is the only way back in: a flag that hid its own page would
+   * strand whoever flipped it. Visibility only. This field decides what is
+   * SHOWN and never causes anything to run, so it is not part of the sealed
+   * key below and a missing field simply reads false, which is what every
+   * settings file written before this phase should mean.
+   */
+  enabled: boolean;
   /** The registry id of the agent that fills in the contract. Null means None. */
   agentId: string | null;
   /** A model id from that agent's compiled arch recipe. Null means None. */
   model: string | null;
 }
 
-/** No arch harness chosen. The shipped answer, and a valid one forever. */
+/**
+ * No arch harness chosen and the surface off. The shipped answer, and a
+ * valid one forever. Callers that mean only "drop the harness pair" spread
+ * the existing settings instead, so a dropped choice never flips the
+ * person's visibility switch behind their back.
+ */
 export function noArchChosen(): ArchSettings {
-  return { agentId: null, model: null };
+  return { enabled: false, agentId: null, model: null };
 }
 
 /** Has a person picked a harness and a model? Both are needed to spawn. */

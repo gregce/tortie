@@ -327,6 +327,16 @@ export const CHECKS = [
   // started with. It spawns no agent and spends no token. Its grader is
   // proved on eight fixtures by --self-test, which launches nothing.
   electron('probe:p167'),
+  // PHASE 175. Architecture behind a flag, driven in the real app. One launch
+  // on a scratch profile reads the shipped default off, walks the real
+  // `Menu.getApplicationMenu()` from the main process over the node
+  // inspector, presses the view chord, and INJECTS the three Architecture
+  // menu actions on `ui:menuAction` from main, which is how a stale queued
+  // row would arrive and is the one thing a hidden icon does not prove. Then
+  // it flips the switch through the shipped settings bridge and reads all of
+  // it again on both sides of the flip, twice. It creates no session, spawns
+  // no agent and spends no token.
+  electron('probe:p175'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

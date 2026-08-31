@@ -159,7 +159,12 @@ describe('just enough words, the ruling of 2026-08-28, held mechanically', () =>
   const stops = (text: string): number => (text.match(/\./g) ?? []).length;
 
   it('keeps every resting caption to ONE short sentence', () => {
-    for (const caption of [copy.ARCH_AGENT_CAPTION, copy.ARCH_MODEL_CAPTION]) {
+    for (const caption of [
+      copy.ARCH_AGENT_CAPTION,
+      copy.ARCH_MODEL_CAPTION,
+      // Phase 175's switch caption is held to the same bar as the two above.
+      copy.ARCH_SHOW_CAPTION
+    ]) {
       expect(stops(caption), `"${caption}" is more than one sentence`).toBe(1);
       expect(words(caption), `"${caption}" runs long`).toBeLessThanOrEqual(12);
     }
@@ -170,6 +175,16 @@ describe('just enough words, the ruling of 2026-08-28, held mechanically', () =>
     expect(
       words(copy.archNotConfirmed('Cursor CLI'))
     ).toBeLessThanOrEqual(10);
+  });
+
+  it('keeps the switch label a verb and not a sentence (Phase 175)', () => {
+    expect(stops(copy.ARCH_SHOW_LABEL)).toBe(0);
+    expect(words(copy.ARCH_SHOW_LABEL)).toBeLessThanOrEqual(4);
+  });
+
+  it('says where Architecture appears when you turn it on (Phase 175)', () => {
+    expect(copy.ARCH_SHOW_CAPTION).toContain('sidebar');
+    expect(copy.ARCH_SHOW_CAPTION).toContain('View menu');
   });
 
   it('keeps the disclosure summary a label, not a sentence', () => {

@@ -65,8 +65,14 @@ export async function seedArch(): Promise<void> {
   if (refusal !== null) throw new Error(refusal);
 
   const spec = JSON.parse(await readFile(file, 'utf8')) as ArchSeedSpec;
-  // The shipped write, which is what makes the seal real.
-  updateSettings({ arch: { agentId: spec.agentId, model: spec.model } });
+  // The shipped write, which is what makes the seal real. `enabled: true`
+  // since Phase 175: a probe that seeds an arch harness is about to drive
+  // the Architecture surface, and on a scratch profile the switch ships
+  // off. The seed runs only inside a harness profile (the refusal above),
+  // so no person's setting is ever flipped by this line.
+  updateSettings({
+    arch: { enabled: true, agentId: spec.agentId, model: spec.model }
+  });
   const readBack = getSettings().arch;
   const wanted = spec.agentId !== null && spec.model !== null;
   const got = readBack.agentId !== null && readBack.model !== null;

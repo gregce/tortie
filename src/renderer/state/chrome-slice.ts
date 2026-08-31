@@ -22,9 +22,16 @@ import {
 } from './chrome-geometry';
 import { loadLocal, saveLocal } from './local';
 import type { SidebarViewId } from './sidebar-views';
-import { SIDEBAR_VIEW_DEFAULT } from './sidebar-views';
+import {
+  effectiveSidebarView,
+  SIDEBAR_VIEW_DEFAULT
+} from './sidebar-views';
 import type { AppState } from './app-state';
 import { gmuxBridge } from '../bridge';
+// Phase 175. The Architecture switch, read imperatively at the two write
+// gates and the one read below. The settings store is a sibling store, not a
+// slice of this one, and state/specstory.ts already reads it the same way.
+import { archSurfacesOn } from '../settings/settings-store';
 
 /**
  * Where the session surface lives (round 1, DESIGN.md §2.2): a tab strip
@@ -472,6 +479,10 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
   },
 
   setSidebarView(view) {
+    // Phase 175. The Architecture view cannot become the active view while
+    // the switch in Settings is off. Every setter path lands here, so a
+    // queued action or a replayed gesture is refused in one place.
+    if (view === 'arch' && !archSurfacesOn()) return;
     const { activeProjectId } = get();
     if (activeProjectId === null) return;
     const sidebarViewByProject = {
@@ -483,6 +494,10 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
   },
 
   showSidebarView(view) {
+    // Phase 175. Refused BEFORE the layout side effects: a dead entry point
+    // must not drop fill mode, leave focus, or un-hide the sidebar on its
+    // way to doing nothing.
+    if (view === 'arch' && !archSurfacesOn()) return;
     // Reaching for a view is a layout gesture too — it overrules fill mode
     // rather than exiting it (Phase 18 item 2).
     get().forgetEditorFill();
@@ -499,7 +514,12 @@ export const createChromeSlice: StateCreator<AppState, [], [], ChromeSlice> = (
     // in the same commit. Research 49 warned that a view added later cannot
     // become the default while the answer is written out four times.
     if (activeProjectId === null) return SIDEBAR_VIEW_DEFAULT;
-    return sidebarViewByProject[activeProjectId] ?? SIDEBAR_VIEW_DEFAULT;
+    // Phase 175. A remembered 'arch' reads as the default while the switch
+    // is off; the memory is kept for the day the switch comes back on.
+    return effectiveSidebarView(
+      sidebarViewByProject[activeProjectId],
+      archSurfacesOn()
+    );
   }
 });
 

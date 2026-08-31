@@ -3,9 +3,11 @@
  * settings:openWindow / agents:flagPresets.
  *
  * settings:set persists the patch, rebuilds the native menu when hotkeys
- * changed (accelerators live on Session-menu items — src/main/menu.ts), and
- * broadcasts EVT_SETTINGS_CHANGED to EVERY window so the main window's
- * ⌘T-modal defaults and the Settings window stay in lockstep.
+ * changed (accelerators live on Session-menu items — src/main/menu.ts) OR
+ * when the Architecture switch flipped (Phase 175: three menu rows are drawn
+ * only while it is on), and broadcasts EVT_SETTINGS_CHANGED to EVERY window
+ * so the main window's ⌘T-modal defaults, its activity rail and the Settings
+ * window stay in lockstep.
  */
 
 import type { IpcMain } from 'electron';
@@ -67,15 +69,30 @@ function hotkeysChanged(before: GmuxSettings, after: GmuxSettings): boolean {
   return JSON.stringify(before.hotkeys) !== JSON.stringify(after.hotkeys);
 }
 
+/**
+ * Did the patch flip the Architecture switch (Phase 175)? Second menu
+ * rebuild trigger: the two View menu rows are present only while the switch
+ * is on, so a flip must rebuild the native menu in the same breath or the
+ * menu would show the state from before the change until the next hotkey
+ * edit.
+ */
+function archVisibilityChanged(
+  before: GmuxSettings,
+  after: GmuxSettings
+): boolean {
+  return before.arch.enabled !== after.arch.enabled;
+}
+
 export function registerSettingsIpc(ipc: IpcMain): void {
   handle(ipc, 'settings:get', () => getSettings());
 
   handle(ipc, 'settings:set', (_e, patch) => {
     const before = getSettings();
     const next = updateSettings(patch);
-    if (hotkeysChanged(before, next)) {
+    if (hotkeysChanged(before, next) || archVisibilityChanged(before, next)) {
       // Accelerators are Session-menu items — the menu is the source of
-      // nativeness (S13 Hotkeys). Rebuild picks up the new chord map.
+      // nativeness (S13 Hotkeys). Rebuild picks up the new chord map, and
+      // since Phase 175 the Architecture rows' presence too.
       rebuildAppMenu();
     }
     broadcastSettings(next);

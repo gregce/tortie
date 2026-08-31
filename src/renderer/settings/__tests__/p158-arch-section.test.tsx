@@ -32,7 +32,8 @@ import { defaultGmuxSettings } from '@shared/settings';
 import {
   ArchSectionView,
   selectArchAgent,
-  selectArchModel
+  selectArchModel,
+  setArchEnabled
 } from '../ArchSection';
 import { ARCH_SUGGESTED_MARK } from '../arch-copy';
 import { useSettingsStore } from '../settings-store';
@@ -98,6 +99,7 @@ function draw(
       dropped={dropped}
       onAgent={() => undefined}
       onModel={() => undefined}
+      onEnabled={() => undefined}
     />
   );
 }
@@ -115,7 +117,9 @@ function stand(arch: GmuxSettings['arch'], keep: boolean): string[] {
       const next: GmuxSettings = {
         ...useSettingsStore.getState().settings,
         ...patch,
-        ...(keep ? {} : { arch: { agentId: null, model: null } })
+        ...(keep
+          ? {}
+          : { arch: { enabled: true, agentId: null, model: null } })
       };
       useSettingsStore.setState({ settings: next });
       return next;
@@ -134,25 +138,25 @@ afterEach(() => {
 
 describe('the picker on a fresh install', () => {
   it('shows None and applies nothing on its own', () => {
-    const markup = draw({ agentId: null, model: null });
+    const markup = draw({ enabled: true, agentId: null, model: null });
     expect(markup).toMatch(/<option value="" selected=""/);
   });
 
   it('marks the suggested row without choosing the row', () => {
-    stand({ agentId: null, model: null }, true);
-    const markup = draw({ agentId: null, model: null });
+    stand({ enabled: true, agentId: null, model: null }, true);
+    const markup = draw({ enabled: true, agentId: null, model: null });
     expect(markup).toContain(`Claude Code${ARCH_SUGGESTED_MARK}`);
     expect(useSettingsStore.getState().settings.arch.agentId).toBeNull();
   });
 
   it('draws no model picker while nothing is chosen', () => {
-    const markup = draw({ agentId: null, model: null });
+    const markup = draw({ enabled: true, agentId: null, model: null });
     expect(markup).not.toContain('Large');
   });
 });
 
 describe('an agent Tortie cannot offer', () => {
-  const markup = draw({ agentId: null, model: null });
+  const markup = draw({ enabled: true, agentId: null, model: null });
 
   it('is drawn rather than hidden, disabled', () => {
     expect(markup).toContain('Codex');
@@ -170,7 +174,7 @@ describe('an agent Tortie cannot offer', () => {
   });
 
   it('cannot be written even by calling the writer directly', async () => {
-    const wrote = stand({ agentId: null, model: null }, true);
+    const wrote = stand({ enabled: true, agentId: null, model: null }, true);
     expect(await selectArchAgent('codex')).toBe(false);
     // The unconfirmed row is refused the same way. This is the Settings half
     // of the charter's attack: an agent whose confirm gate does not pass can
@@ -184,17 +188,18 @@ describe('an agent Tortie cannot offer', () => {
 
 describe('picking an agent', () => {
   it('writes the pair and starts on the suggested model', async () => {
-    const wrote = stand({ agentId: null, model: null }, true);
+    const wrote = stand({ enabled: true, agentId: null, model: null }, true);
     expect(await selectArchAgent('claude')).toBe(true);
     expect(wrote).toHaveLength(1);
     expect(useSettingsStore.getState().settings.arch).toEqual({
+      enabled: true,
       agentId: 'claude',
       model: 'small-model'
     });
   });
 
   it('writes the arch key and never the fold key', async () => {
-    const wrote = stand({ agentId: null, model: null }, true);
+    const wrote = stand({ enabled: true, agentId: null, model: null }, true);
     await selectArchAgent('claude');
     await selectArchModel('large-model');
     for (const patch of wrote) {
@@ -208,25 +213,25 @@ describe('picking an agent', () => {
   });
 
   it('draws the model picker once an agent is chosen', () => {
-    const markup = draw({ agentId: 'claude', model: 'small-model' });
+    const markup = draw({ enabled: true, agentId: 'claude', model: 'small-model' });
     expect(markup).toContain('Small');
     expect(markup).toContain('Large');
   });
 
   it('changes the model against the agent already chosen', async () => {
-    stand({ agentId: 'claude', model: 'small-model' }, true);
+    stand({ enabled: true, agentId: 'claude', model: 'small-model' }, true);
     expect(await selectArchModel('large-model')).toBe(true);
     expect(useSettingsStore.getState().settings.arch.model).toBe('large-model');
   });
 
   it('refuses a model pick while nothing is chosen', async () => {
-    const wrote = stand({ agentId: null, model: null }, true);
+    const wrote = stand({ enabled: true, agentId: null, model: null }, true);
     expect(await selectArchModel('small-model')).toBe(false);
     expect(wrote).toHaveLength(0);
   });
 
   it('refuses a model that agent does not expose', async () => {
-    const wrote = stand({ agentId: 'claude', model: 'small-model' }, true);
+    const wrote = stand({ enabled: true, agentId: 'claude', model: 'small-model' }, true);
     expect(await selectArchModel('a-model-nobody-measured')).toBe(false);
     expect(wrote).toHaveLength(0);
     expect(useSettingsStore.getState().settings.arch.model).toBe('small-model');
@@ -235,10 +240,11 @@ describe('picking an agent', () => {
 
 describe('None stays valid forever', () => {
   it('is written back without asking main for a list', async () => {
-    const wrote = stand({ agentId: 'claude', model: 'small-model' }, true);
+    const wrote = stand({ enabled: true, agentId: 'claude', model: 'small-model' }, true);
     expect(await selectArchAgent('')).toBe(true);
     expect(wrote[0]).toContain('"agentId":null');
     expect(useSettingsStore.getState().settings.arch).toEqual({
+      enabled: true,
       agentId: null,
       model: null
     });
@@ -247,13 +253,13 @@ describe('None stays valid forever', () => {
 
 describe('a choice main did not keep', () => {
   it('does not stick, and the writer says so', async () => {
-    stand({ agentId: null, model: null }, false);
+    stand({ enabled: true, agentId: null, model: null }, false);
     expect(await selectArchAgent('claude')).toBe(false);
     expect(useSettingsStore.getState().settings.arch.agentId).toBeNull();
   });
 
   it('is reported on the section rather than shown as in force', () => {
-    const markup = draw({ agentId: null, model: null }, {}, true);
+    const markup = draw({ enabled: true, agentId: null, model: null }, {}, true);
     expect(markup).toContain('Tortie did not keep that choice');
   });
 });
@@ -262,7 +268,7 @@ describe('the pass suspended', () => {
   it("draws main's own sentence and nothing of its own", () => {
     const sentence = 'The pass is paused after repeated failures.';
     expect(
-      draw({ agentId: 'claude', model: 'small-model' }, { suspended: sentence })
+      draw({ enabled: true, agentId: 'claude', model: 'small-model' }, { suspended: sentence })
     ).toContain(sentence);
   });
 });
@@ -273,14 +279,123 @@ describe('a build with no arch bridge', () => {
       <ArchSectionView
         options={null}
         loaded={true}
-        arch={{ agentId: null, model: null }}
+        arch={{ enabled: true, agentId: null, model: null }}
         dropped={false}
         onAgent={() => undefined}
         onModel={() => undefined}
+        onEnabled={() => undefined}
       />
     );
     expect(markup).toContain('This build cannot fill in the contract');
     expect(markup).not.toContain('<select');
+  });
+});
+
+/**
+ * PHASE 175. The page is the ONLY WAY BACK IN, so it is drawn whatever the
+ * switch says, and everything else Architecture shows is gated on it.
+ */
+describe('the switch at the head (Phase 175)', () => {
+  it('is drawn on a page whose surface is OFF, so the way back exists', () => {
+    const markup = draw({ enabled: false, agentId: null, model: null });
+    expect(markup).toContain('Show Architecture');
+    expect(markup).toContain('role="switch"');
+    expect(markup).toContain('aria-checked="false"');
+  });
+
+  it('reads on once the surface is on', () => {
+    const markup = draw({ enabled: true, agentId: null, model: null });
+    expect(markup).toContain('aria-checked="true"');
+  });
+
+  it('HIDES the harness pair while the surface is off', () => {
+    const markup = draw({ enabled: false, agentId: 'claude', model: 'small-model' });
+    expect(markup).not.toContain('<select');
+    expect(markup).not.toContain('Who fills in the contract');
+    expect(markup).not.toContain('Not measured yet');
+  });
+
+  it('keeps the disclosure in BOTH states, because it is what a person deciding reads', () => {
+    const off = draw({ enabled: false, agentId: null, model: null });
+    expect(off).toContain('What the agent does');
+    expect(off).toContain('Source Control');
+  });
+
+  it('brings the harness pair straight back when the switch goes on', () => {
+    const markup = draw({ enabled: true, agentId: 'claude', model: 'small-model' });
+    expect(markup).toContain('Who fills in the contract');
+    expect(markup).toContain('Large');
+  });
+
+  it('stays under the just enough words bar with the surface off', () => {
+    const markup = draw({ enabled: false, agentId: null, model: null });
+    const resting = markup
+      .replace(/<details[\s\S]*?<\/details>/g, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    // A title, a label and one sentence. Nothing to read past.
+    expect((resting.match(/\./g) ?? []).length).toBe(1);
+    expect(resting.split(/\s+/).length, resting).toBeLessThanOrEqual(20);
+  });
+});
+
+describe('writing the switch (Phase 175)', () => {
+  it('turns the surface on and keeps the harness pair untouched', async () => {
+    const wrote = stand({ enabled: false, agentId: 'claude', model: 'small-model' }, true);
+    expect(await setArchEnabled(true)).toBe(true);
+    expect(useSettingsStore.getState().settings.arch).toEqual({
+      enabled: true,
+      agentId: 'claude',
+      model: 'small-model'
+    });
+    expect(wrote[0]).toContain('"enabled":true');
+    expect(wrote[0]).toContain('"agentId":"claude"');
+  });
+
+  it('turns it off again without forgetting the choice', async () => {
+    stand({ enabled: true, agentId: 'claude', model: 'small-model' }, true);
+    expect(await setArchEnabled(false)).toBe(true);
+    expect(useSettingsStore.getState().settings.arch).toEqual({
+      enabled: false,
+      agentId: 'claude',
+      model: 'small-model'
+    });
+  });
+
+  it('writes the arch key and never the fold key', async () => {
+    const wrote = stand({ enabled: false, agentId: null, model: null }, true);
+    await setArchEnabled(true);
+    for (const patch of wrote) {
+      expect(patch).toContain('"arch"');
+      expect(patch).not.toContain('"fold"');
+    }
+  });
+
+  it('never turns the surface OFF as a side effect of an agent pick', async () => {
+    // Main patches `arch` wholesale, so a patch naming only the pair would
+    // sanitize to `enabled: false`. This is that regression, held.
+    const wrote = stand({ enabled: true, agentId: null, model: null }, true);
+    expect(await selectArchAgent('claude')).toBe(true);
+    expect(useSettingsStore.getState().settings.arch.enabled).toBe(true);
+    expect(wrote[0]).toContain('"enabled":true');
+  });
+
+  it('never turns it off as a side effect of a model pick either', async () => {
+    const wrote = stand({ enabled: true, agentId: 'claude', model: 'small-model' }, true);
+    expect(await selectArchModel('large-model')).toBe(true);
+    expect(useSettingsStore.getState().settings.arch.enabled).toBe(true);
+    expect(wrote[0]).toContain('"enabled":true');
+  });
+
+  it('never turns it off when a person picks None', async () => {
+    stand({ enabled: true, agentId: 'claude', model: 'small-model' }, true);
+    expect(await selectArchAgent('')).toBe(true);
+    expect(useSettingsStore.getState().settings.arch).toEqual({
+      enabled: true,
+      agentId: null,
+      model: null
+    });
   });
 });
 
@@ -335,34 +450,36 @@ describe('just enough words, the ruling of 2026-08-28, run on the markup', () =>
   }
 
   it('says three sentences with an agent chosen and the rest unmeasured', () => {
-    const markup = draw({ agentId: 'claude', model: 'small-model' }, {
+    const markup = draw({ enabled: true, agentId: 'claude', model: 'small-model' }, {
       harnesses: options().harnesses.filter((h) => h.reason !== 'not-confirmed')
     });
     // The agent caption is one, the model caption is one, and the unmeasured
     // agents are one line rather than one each. The measured date is behind
     // the disclosure now.
-    expect(fullStops(restingText(markup))).toBe(3);
+    // Phase 175 added one: the switch at the head carries a one line caption.
+    expect(fullStops(restingText(markup))).toBe(4);
   });
 
   it('adds one line, not one per agent, when a row is unconfirmed', () => {
-    const markup = draw({ agentId: 'claude', model: 'small-model' });
-    expect(fullStops(restingText(markup))).toBe(5);
+    const markup = draw({ enabled: true, agentId: 'claude', model: 'small-model' });
+    // Phase 175's switch caption is the sixth.
+    expect(fullStops(restingText(markup))).toBe(6);
   });
 
   it('holds the whole resting face under eighty words, options and all', () => {
-    const markup = draw({ agentId: 'claude', model: 'small-model' });
+    const markup = draw({ enabled: true, agentId: 'claude', model: 'small-model' });
     const text = restingText(markup);
     expect(text.split(/\s+/).length, text).toBeLessThanOrEqual(80);
   });
 
   it('renders no paragraph on the resting face', () => {
-    const markup = draw({ agentId: 'claude', model: 'small-model' });
+    const markup = draw({ enabled: true, agentId: 'claude', model: 'small-model' });
     const resting = markup.replace(/<details[\s\S]*?<\/details>/g, ' ');
     expect(resting).not.toContain('<p');
   });
 
   it('ships the disclosure SHUT, with the three sentences behind it', () => {
-    const markup = draw({ agentId: 'claude', model: 'small-model' });
+    const markup = draw({ enabled: true, agentId: 'claude', model: 'small-model' });
     const at = markup.indexOf('<details');
     expect(at).toBeGreaterThan(-1);
     expect(markup).not.toMatch(/<details[^>]*\bopen\b/);
@@ -372,7 +489,7 @@ describe('just enough words, the ruling of 2026-08-28, run on the markup', () =>
   });
 
   it('keeps the measured date behind the disclosure too', () => {
-    const markup = draw({ agentId: 'claude', model: 'small-model' });
+    const markup = draw({ enabled: true, agentId: 'claude', model: 'small-model' });
     const at = markup.indexOf('<details');
     const date = markup.indexOf('Tortie measured these flags');
     expect(date).toBeGreaterThan(at);
@@ -381,7 +498,7 @@ describe('just enough words, the ruling of 2026-08-28, run on the markup', () =>
   it('still speaks in full when something has gone wrong', () => {
     // The ruling trims the resting face, never an error. A dropped write
     // says a whole sentence right on the card.
-    const markup = draw({ agentId: null, model: null }, {}, true);
+    const markup = draw({ enabled: true, agentId: null, model: null }, {}, true);
     const resting = markup.replace(/<details[\s\S]*?<\/details>/g, ' ');
     expect(resting).toContain('Tortie did not keep that choice');
   });

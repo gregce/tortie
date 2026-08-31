@@ -127,13 +127,21 @@ afterEach(() => {
 describe('None is the shipped answer, and it must stay valid', () => {
   it('is what a fresh install reads', async () => {
     const store = await freshStore();
-    expect(store.getSettings().arch).toEqual({ agentId: null, model: null });
+    expect(store.getSettings().arch).toEqual({
+      enabled: false,
+      agentId: null,
+      model: null
+    });
   });
 
   it('is what a settings file written before this phase reads', async () => {
     writeByHand({ defaultAgent: 'claude', scrollbackLines: 25_000 });
     const store = await freshStore();
-    expect(store.getSettings().arch).toEqual({ agentId: null, model: null });
+    expect(store.getSettings().arch).toEqual({
+      enabled: false,
+      agentId: null,
+      model: null
+    });
   });
 });
 
@@ -151,6 +159,7 @@ describe('sanitizeArchSettings drops an invalid value WHOLE', () => {
   ])('drops %s', async (_what, raw) => {
     const store = await freshStore();
     expect(store.sanitizeArchSettings(raw)).toEqual({
+      enabled: false,
       agentId: null,
       model: null
     });
@@ -159,7 +168,7 @@ describe('sanitizeArchSettings drops an invalid value WHOLE', () => {
   it('keeps a pair the compiled arch recipe table has', async () => {
     const store = await freshStore();
     expect(store.sanitizeArchSettings({ agentId: AGENT, model: MODEL })).toEqual(
-      { agentId: AGENT, model: MODEL }
+      { enabled: false, agentId: AGENT, model: MODEL }
     );
   });
 });
@@ -168,32 +177,48 @@ describe('the seal', () => {
   it('drops an arch choice an agent wrote by hand', async () => {
     writeByHand({ arch: { agentId: AGENT, model: MODEL } });
     const store = await freshStore();
-    expect(store.getSettings().arch).toEqual({ agentId: null, model: null });
+    expect(store.getSettings().arch).toEqual({
+      enabled: false,
+      agentId: null,
+      model: null
+    });
   });
 
   it('keeps an arch choice Tortie wrote, across a restart', async () => {
     const first = await freshStore();
-    first.updateSettings({ arch: { agentId: AGENT, model: MODEL } });
+    first.updateSettings({
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
+    });
     expect(readRaw()['dangerSeal']).toBeTypeOf('string');
     const second = await freshStore();
-    expect(second.getSettings().arch).toEqual({ agentId: AGENT, model: MODEL });
+    expect(second.getSettings().arch).toEqual({
+      enabled: false,
+      agentId: AGENT,
+      model: MODEL
+    });
   });
 
   it('drops the choice when the seal names a different pair', async () => {
     const first = await freshStore();
-    first.updateSettings({ arch: { agentId: AGENT, model: MODEL } });
+    first.updateSettings({
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
+    });
     const raw = readRaw();
     const settings = raw['settings'] as Record<string, unknown>;
     settings['arch'] = { agentId: AGENT, model: 'arch-model-two' };
     writeFileSync(settingsPath(), JSON.stringify(raw, null, 2), 'utf8');
     const second = await freshStore();
-    expect(second.getSettings().arch).toEqual({ agentId: null, model: null });
+    expect(second.getSettings().arch).toEqual({
+      enabled: false,
+      agentId: null,
+      model: null
+    });
   });
 
   it('reports a dropped arch choice, so Settings can say one sentence', async () => {
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
     });
     const out = store.withSealedDangerState(settings, {
       defaults: [],
@@ -201,14 +226,18 @@ describe('the seal', () => {
       fold: null,
       arch: null
     });
-    expect(out.settings.arch).toEqual({ agentId: null, model: null });
+    expect(out.settings.arch).toEqual({
+      enabled: false,
+      agentId: null,
+      model: null
+    });
     expect(out.rejected).toEqual([`${AGENT} ${MODEL}`]);
   });
 
   it('does not touch an arch choice the seal covers', async () => {
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
     });
     const out = store.withSealedDangerState(settings, {
       defaults: [],
@@ -216,16 +245,22 @@ describe('the seal', () => {
       fold: null,
       arch: `${AGENT} ${MODEL}`
     });
-    expect(out.settings.arch).toEqual({ agentId: AGENT, model: MODEL });
+    expect(out.settings.arch).toEqual({ enabled: false, agentId: AGENT, model: MODEL });
     expect(out.rejected).toEqual([]);
   });
 
   it('drops the choice when the keystore cannot be read', async () => {
     const first = await freshStore();
-    first.updateSettings({ arch: { agentId: AGENT, model: MODEL } });
+    first.updateSettings({
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
+    });
     keystore.available = false;
     const second = await freshStore();
-    expect(second.getSettings().arch).toEqual({ agentId: null, model: null });
+    expect(second.getSettings().arch).toEqual({
+      enabled: false,
+      agentId: null,
+      model: null
+    });
   });
 
   it('answers None for arch from a seal written before this phase', async () => {
@@ -242,7 +277,7 @@ describe('the seal', () => {
           version: 1,
           settings: {
             fold: { agentId: 'claude', model: 'fold-model' },
-            arch: { agentId: AGENT, model: MODEL }
+            arch: { enabled: false, agentId: AGENT, model: MODEL }
           },
           dangerSeal: blob
         },
@@ -254,7 +289,7 @@ describe('the seal', () => {
     const store = await freshStore();
     const out = store.getSettings();
     expect(out.fold).toEqual({ agentId: 'claude', model: 'fold-model' });
-    expect(out.arch).toEqual({ agentId: null, model: null });
+    expect(out.arch).toEqual({ enabled: false, agentId: null, model: null });
   });
 });
 
@@ -266,7 +301,7 @@ describe('a fold agreement is not an arch agreement', () => {
     // still answer None, because the `arch` field of the seal is null.
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
     });
     const out = store.withSealedDangerState(settings, {
       defaults: [],
@@ -274,7 +309,11 @@ describe('a fold agreement is not an arch agreement', () => {
       fold: `${AGENT} ${MODEL}`,
       arch: null
     });
-    expect(out.settings.arch).toEqual({ agentId: null, model: null });
+    expect(out.settings.arch).toEqual({
+      enabled: false,
+      agentId: null,
+      model: null
+    });
     expect(out.rejected).toEqual([`${AGENT} ${MODEL}`]);
   });
 
@@ -296,12 +335,102 @@ describe('a fold agreement is not an arch agreement', () => {
     const first = await freshStore();
     first.updateSettings({
       fold: { agentId: AGENT, model: 'fold-model' },
-      arch: { agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
     });
     const second = await freshStore();
     const out = second.getSettings();
     expect(out.fold).toEqual({ agentId: AGENT, model: 'fold-model' });
-    expect(out.arch).toEqual({ agentId: AGENT, model: MODEL });
+    expect(out.arch).toEqual({ enabled: false, agentId: AGENT, model: MODEL });
+  });
+});
+
+/**
+ * PHASE 175. The visibility switch is a SECOND field on the same key, and
+ * everything below is about keeping the two apart: `enabled` decides what is
+ * drawn and starts nothing, the pair decides that a program runs. So the
+ * switch is not sealed, an invalid pair never turns the surface off behind
+ * the person's back, and a file written before this phase reads off, which
+ * is why no migration was needed.
+ */
+describe('the visibility switch (Phase 175)', () => {
+  it('is OFF on a fresh install', async () => {
+    const store = await freshStore();
+    expect(store.getSettings().arch.enabled).toBe(false);
+  });
+
+  it('is OFF in a settings file written before the field existed', async () => {
+    writeByHand({ arch: { agentId: AGENT, model: MODEL } });
+    const store = await freshStore();
+    expect(store.getSettings().arch.enabled).toBe(false);
+  });
+
+  it('reads ON only from a literal true', async () => {
+    const store = await freshStore();
+    for (const raw of ['true', 1, {}, [], null, undefined]) {
+      expect(
+        store.sanitizeArchSettings({ enabled: raw, agentId: AGENT, model: MODEL })
+          .enabled,
+        `${JSON.stringify(raw)} read as on`
+      ).toBe(false);
+    }
+    expect(
+      store.sanitizeArchSettings({ enabled: true, agentId: AGENT, model: MODEL })
+        .enabled
+    ).toBe(true);
+  });
+
+  it('survives a pair the recipe table refuses, dropped whole', async () => {
+    const store = await freshStore();
+    expect(
+      store.sanitizeArchSettings({
+        enabled: true,
+        agentId: 'nonesuch',
+        model: MODEL
+      })
+    ).toEqual({ enabled: true, agentId: null, model: null });
+  });
+
+  it('survives the SEAL dropping the pair, because it starts nothing', async () => {
+    const store = await freshStore();
+    const settings = store.sanitizeSettings({
+      arch: { enabled: true, agentId: AGENT, model: MODEL }
+    });
+    const out = store.withSealedDangerState(settings, {
+      defaults: [],
+      acks: [],
+      fold: null,
+      arch: null
+    });
+    expect(out.settings.arch).toEqual({
+      enabled: true,
+      agentId: null,
+      model: null
+    });
+    expect(out.rejected).toEqual([`${AGENT} ${MODEL}`]);
+  });
+
+  it('is no part of the sealed key, so flipping it seals nothing new', async () => {
+    const store = await freshStore();
+    const off = store.sanitizeSettings({
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
+    });
+    const on = store.sanitizeSettings({
+      arch: { enabled: true, agentId: AGENT, model: MODEL }
+    });
+    expect(store.dangerStateOf(on).arch).toBe(store.dangerStateOf(off).arch);
+  });
+
+  it('persists across a restart, on its own, with the pair at None', async () => {
+    const first = await freshStore();
+    first.updateSettings({
+      arch: { enabled: true, agentId: null, model: null }
+    });
+    const second = await freshStore();
+    expect(second.getSettings().arch).toEqual({
+      enabled: true,
+      agentId: null,
+      model: null
+    });
   });
 });
 
@@ -309,7 +438,7 @@ describe('dangerStateOf', () => {
   it('carries the arch pair when one is chosen', async () => {
     const store = await freshStore();
     const settings = store.sanitizeSettings({
-      arch: { agentId: AGENT, model: MODEL }
+      arch: { enabled: false, agentId: AGENT, model: MODEL }
     });
     expect(store.dangerStateOf(settings).arch).toBe(`${AGENT} ${MODEL}`);
     expect(store.isDangerStateEmpty(store.dangerStateOf(settings))).toBe(false);

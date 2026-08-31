@@ -286,7 +286,13 @@ export function withSealedDangerState(
       launchDefaults,
       dangerAcknowledged: acks,
       fold: foldRejected ? noFoldChosen() : settings.fold,
-      arch: archRejected ? noArchChosen() : settings.arch
+      // Phase 175. The seal drops the harness PAIR and only the pair. The
+      // visibility switch is not sealed, because a false value hides
+      // surfaces and starts nothing, so a rejected choice keeps whatever
+      // the person set it to.
+      arch: archRejected
+        ? { ...noArchChosen(), enabled: settings.arch.enabled }
+        : settings.arch
     },
     rejected
   };
@@ -536,14 +542,22 @@ export function sanitizeFoldSettings(raw: unknown): FoldSettings {
 export function sanitizeArchSettings(raw: unknown): ArchSettings {
   if (raw === null || typeof raw !== 'object') return noArchChosen();
   const obj = raw as Record<string, unknown>;
+  // Phase 175. The visibility switch reads independently of the harness
+  // pair: a bad pair drops to None but must not turn the surface off behind
+  // the person's back, and anything that is not literally `true` reads
+  // false, which is the shipped default and what every settings file written
+  // before this phase means.
+  const enabled = obj['enabled'] === true;
   const agentId = obj['agentId'];
   const model = obj['model'];
   if (typeof agentId !== 'string' || typeof model !== 'string') {
-    return noArchChosen();
+    return { ...noArchChosen(), enabled };
   }
   const recipe = archRecipeFor(agentId);
-  if (recipe === null || !recipeHasModel(recipe, model)) return noArchChosen();
-  return { agentId, model };
+  if (recipe === null || !recipeHasModel(recipe, model)) {
+    return { ...noArchChosen(), enabled };
+  }
+  return { enabled, agentId, model };
 }
 
 /** Apply a shallow patch (present keys replace wholesale), re-sanitized. */

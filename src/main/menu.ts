@@ -245,6 +245,25 @@ function item(
 }
 
 /**
+ * Is the Architecture surface on (Phase 175)? THREE menu rows read this:
+ * Session then Aim at a Promise…, and View then Architecture and
+ * Architecture Map. Each is PRESENT only while the switch in Settings then
+ * Architecture is on, and the switch ships OFF. Hidden rather than
+ * disabled, because a disabled row is a promise with no explanation beside
+ * it and the way back in is the Settings page, which is visible always.
+ * `rebuildAppMenu()` runs when settings:set flips the switch
+ * (src/main/settings/ipc.ts), so the rows appear and vanish in the same
+ * session with no relaunch.
+ */
+function archRowsOn(): boolean {
+  try {
+    return getSettings().arch.enabled;
+  } catch {
+    return false; // settings store unreadable — ship the default, which is off
+  }
+}
+
+/**
  * User-recorded per-agent hotkey items (S13 Hotkeys): one Session-menu item
  * per ASSIGNED chord — "the menu stays the source of nativeness". Pressing
  * one forwards `launch-agent:<id>` to the main window, which creates
@@ -692,7 +711,23 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // list of promises. The name is already in `MENU_CODICONS`, so the
         // generated set is unchanged and build/assert-menu-glyphs.mjs has
         // nothing new to weigh.
-        item('Aim at a Promise…', 'arch-aim', accel('session.aim'), 'circuit-board'),
+        //
+        // PHASE 175 PUT THIS ROW BEHIND THE SAME SWITCH as the two View menu
+        // rows below. It is a DOOR on to Architecture rather than a mention
+        // of it: it reads the contract and writes a promise into the prompt.
+        // A door on to a surface a person has not turned on does not belong
+        // on a menu, and the renderer refuses the action as well, so a
+        // queued `arch-aim` cannot get through either.
+        ...(archRowsOn()
+          ? [
+              item(
+                'Aim at a Promise…',
+                'arch-aim',
+                accel('session.aim'),
+                'circuit-board'
+              )
+            ]
+          : []),
         // User-recorded per-agent shortcuts (S13 Hotkeys) — present only
         // when assigned; rebuilt on every hotkey change.
         ...agentHotkeyItems(),
@@ -763,20 +798,40 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // generated set was regenerated, because `build/assert-menu-glyphs.mjs`
         // fails the build for a name with no bitmap and for two names with the
         // same bitmap.
-        item('Architecture', 'show-arch', accel('view.arch'), 'circuit-board'),
-        // PHASE 160. The architecture MAP, directly under the view that opens
-        // it, and above Catch Me Up so the five sidebar views stay contiguous
-        // in rail order and the two rows that open a page rather than a view
-        // sit together at the end. It opens the active project's map as a full
-        // size editor tab, or focuses the one that is already open, through
-        // the same door the Architecture pane's own control uses.
         //
-        // `circuit-board` again, the Architecture surface's own mark. The
-        // closed set has no map glyph, and a row may wear a name the set
-        // already holds, the way `search` sits on Find in Project… and on the
-        // Search view row. build/assert-menu-glyphs.mjs forbids two NAMES with
-        // one bitmap, not one name on two rows.
-        item('Architecture Map', 'show-arch-map', undefined, 'circuit-board'),
+        // PHASE 175 PUT BOTH ARCHITECTURE ROWS BEHIND THE SWITCH in Settings
+        // then Architecture, present while on and absent while off, and the
+        // spread below is that gate. The rail order rule above still holds
+        // when they are present.
+        ...(archRowsOn()
+          ? [
+              item(
+                'Architecture',
+                'show-arch',
+                accel('view.arch'),
+                'circuit-board'
+              ),
+              // PHASE 160. The architecture MAP, directly under the view that
+              // opens it, and above Catch Me Up so the five sidebar views stay
+              // contiguous in rail order and the two rows that open a page
+              // rather than a view sit together at the end. It opens the
+              // active project's map as a full size editor tab, or focuses the
+              // one that is already open, through the same door the
+              // Architecture pane's own control uses.
+              //
+              // `circuit-board` again, the Architecture surface's own mark.
+              // The closed set has no map glyph, and a row may wear a name the
+              // set already holds, the way `search` sits on Find in Project…
+              // and on the Search view row. build/assert-menu-glyphs.mjs
+              // forbids two NAMES with one bitmap, not one name on two rows.
+              item(
+                'Architecture Map',
+                'show-arch-map',
+                undefined,
+                'circuit-board'
+              )
+            ]
+          : []),
         // Phase 137: Catch Me Up sits LAST, under the sidebar views, because
         // it answers a question about the whole project rather than opening a
         // sidebar view. It sat directly under Context until Phase 63 added
