@@ -59,6 +59,10 @@
  *   21  the person's own clipboard is put back exactly, its       pbpaste and
  *       flavour names included and not one added                  clipboard info
  *   22  the operator's session count did not move                 tmux, read only
+ *   23  A CHANGE TO THE LAST WORD OF A LINE draws its deletion     rectangles + the
+ *       and its insertion on ONE line, the line break after them,  DOM
+ *       over six such shapes, and no pair anywhere shares
+ *       whitespace at either end
  *
  * ## SAFETY, ABSOLUTE
  *
@@ -293,6 +297,50 @@ const FIXTURES = {
       ''
     ].join('\n')
   ],
+  // THE LAST WORD OF A LINE. The verifier of Phase 194 found the deletion
+  // carrying the line break so the insertion landed on the next line, in
+  // exactly these shapes: a sentence, a list item, the last line of the
+  // file, a word before a blank line, and a rewording that ends a line.
+  'lastword.txt': [
+    [
+      'We ship on Monday',
+      'Next line stays.',
+      '',
+      '- item one',
+      '- item two',
+      '',
+      'A paragraph that ends here',
+      '',
+      'first',
+      'second word',
+      'third',
+      '',
+      'The report opened with a careful note',
+      'and said very little else.',
+      '',
+      'The last line says goodbye',
+      ''
+    ].join('\n'),
+    [
+      'We ship on Friday',
+      'Next line stays.',
+      '',
+      '- item one',
+      '- item three',
+      '',
+      'A paragraph that ends there',
+      '',
+      'first',
+      'second term',
+      'third',
+      '',
+      'The report opened with a careful memo',
+      'and said very little else.',
+      '',
+      'The last line says farewell',
+      ''
+    ].join('\n')
+  ],
   'same.txt': [
     'Nothing here changes.\n\nNot one word of it.\n',
     'Nothing here changes.\n\nNot one word of it.\n'
@@ -314,7 +362,7 @@ const FIXTURES = {
   ]
 };
 
-const PROSE = ['test.txt', 'replacement.txt', 'deletion.txt', 'insertion.txt', 'multiline.txt', 'twoinone.txt', 'capped.txt', 'unicode.txt'];
+const PROSE = ['test.txt', 'replacement.txt', 'deletion.txt', 'insertion.txt', 'multiline.txt', 'twoinone.txt', 'capped.txt', 'unicode.txt', 'lastword.txt'];
 
 for (const [name, [oldText]] of Object.entries(FIXTURES)) {
   writeFileSync(join(project, name), oldText);
@@ -747,6 +795,42 @@ if (reading === null || typeof reading !== 'object') {
       'git diff --word-diff agrees on which words went and which arrived',
       out.status === 0 && mismatches.length === 0 && removed.length > 0,
       mismatches.length === 0 ? `git removed ${String(removed.length)} and added ${String(added.length)} words; every drawn run is in them` : mismatches.join(' | ')
+    );
+  }
+
+  // -- 23. THE LAST WORD OF A LINE, by rectangles ----------------------------
+  {
+    const pairs = fixtures['lastword.txt']?.doc?.pairs;
+    const want = [
+      ['Monday', 'Friday'],
+      ['two', 'three'],
+      ['here', 'there'],
+      ['word', 'term'],
+      ['note', 'memo'],
+      ['goodbye', 'farewell']
+    ];
+    const got = Array.isArray(pairs) ? pairs.map((x) => [x.first?.text, x.second?.text]) : null;
+    const offLine = Array.isArray(pairs) ? pairs.filter((x) => x.sameLine !== true) : [];
+    // The line break belongs to the plain run AFTER each pair, read off the runs.
+    const runs = fixtures['lastword.txt']?.doc?.runs ?? [];
+    let breaksAfter = 0;
+    for (let i = 2; i < runs.length; i++) {
+      if (runs[i - 2]?.kind === 'del' && runs[i - 1]?.kind === 'ins' && runs[i]?.kind === 'same' && runs[i].text.startsWith('\n')) breaksAfter += 1;
+    }
+    // And nowhere in any fixture does a pair still share whitespace at an end.
+    const sharing = [];
+    for (const rel of PROSE) {
+      for (const x of fixtures[rel]?.doc?.pairs ?? []) {
+        const a = String(x.first?.text ?? '');
+        const b = String(x.second?.text ?? '');
+        if ((/\s$/.test(a) && a.slice(-1) === b.slice(-1)) || (/^\s/.test(a) && a.charAt(0) === b.charAt(0))) sharing.push(`${rel}: ${JSON.stringify(a)} then ${JSON.stringify(b)}`);
+      }
+    }
+    check(
+      23,
+      'a change to the last word of a line draws its deletion and its insertion on ONE line with the line break after them, and no pair anywhere shares whitespace at an end',
+      JSON.stringify(got) === JSON.stringify(want) && offLine.length === 0 && breaksAfter === 6 && sharing.length === 0,
+      `pairs ${JSON.stringify(got)}; off their line ${String(offLine.length)}; line breaks in the plain run after ${String(breaksAfter)} of 6; pairs sharing edge whitespace across ${String(PROSE.length)} fixtures: ${sharing.length === 0 ? 'none' : sharing.join(' | ')}`
     );
   }
 

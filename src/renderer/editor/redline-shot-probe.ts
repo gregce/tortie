@@ -165,6 +165,38 @@ export async function driveRedlineView(
       };
     });
 
+  /**
+   * Every adjacent deletion and insertion, in either order, with whether the
+   * first one's LAST line box and the second one's FIRST line box sit on the
+   * same line. A change to the last word of a line used to carry the line
+   * break in the deletion, so the insertion dropped to the next line.
+   */
+  const pairsOf = (el: HTMLElement): Record<string, unknown>[] => {
+    const nodes = Array.from(el.childNodes);
+    const out: Record<string, unknown>[] = [];
+    for (let i = 1; i < nodes.length; i++) {
+      const a = nodes[i - 1];
+      const b = nodes[i];
+      if (!(a instanceof HTMLElement) || !(b instanceof HTMLElement)) continue;
+      const ta = a.tagName.toLowerCase();
+      const tb = b.tagName.toLowerCase();
+      if (!((ta === 'del' && tb === 'ins') || (ta === 'ins' && tb === 'del'))) continue;
+      const ra = Array.from(a.getClientRects());
+      const rb = Array.from(b.getClientRects());
+      const lastA = ra[ra.length - 1];
+      const firstB = rb[0];
+      out.push({
+        first: { kind: ta, text: a.textContent ?? '' },
+        second: { kind: tb, text: b.textContent ?? '' },
+        sameLine:
+          lastA !== undefined && firstB !== undefined
+            ? Math.abs(lastA.top - firstB.top) < 1
+            : null
+      });
+    }
+    return out;
+  };
+
   /** Distinct line boxes a set of elements occupies, bucketed by top. */
   const lineTops = (els: Element[]): number =>
     new Set(
@@ -186,6 +218,7 @@ export async function driveRedlineView(
     return {
       present: true,
       runs: runsOf(el),
+      pairs: pairsOf(el),
       note: document.querySelector('.ed-redline-view .ed-note .banner-text')?.textContent ?? null,
       // What must NOT be in the tree of this view.
       pierre: document.querySelectorAll('diffs-container').length,
