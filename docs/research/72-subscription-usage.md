@@ -417,3 +417,196 @@ authenticated one, and it would break the rate limit policy that this same
 measurement just proved is real, being a genuine `Retry-After` the service
 already honours. The honest next step is one measurement with a token the
 vendor will refuse, which needs an expired login and therefore Phase 182.
+
+## 10. The Phase 182 condition, measured 2026-08-31: yes, per session, without touching his settings.json
+
+Section 6 left one open mechanism question and Phase 182 was told to stop if the answer was no.
+The answer is **yes**, and the lever is not the environment and not the config directory. It is a
+command line flag Claude Code already ships.
+
+Everything below was measured against **Claude Code 2.1.252** on the operator's own machine, in tmux
+panes stamped exactly the way `paneEnvFor` in `src/main/sessions/launch-plan.ts` stamps them.
+`~/.claude/settings.json` was read once and never written. Five claude processes were started and
+**exactly one real turn was spent**, a three word prompt answered with one word. Every tmux server
+was a scratch socket of this measurement's own and every one was killed.
+
+### 10.1 The mechanism, in one line
+
+```
+claude --settings <absolute path to a JSON file> …
+```
+
+`--settings <file-or-json>` is a documented Claude Code option, printed by `claude --help` as "Path
+to a settings JSON file or a JSON string to load additional settings from". A settings file supplied
+this way becomes a settings SOURCE that Claude Code calls `flagSettings`. It is per process, so it
+is per session, and it touches nothing on disk that the person owns.
+
+### 10.2 Precedence, and it is the fact that decides the design
+
+Claude Code's own source order, read out of the 2.1.252 binary, is
+
+```
+["userSettings", "projectSettings", "localSettings", "flagSettings", "policySettings"]
+```
+
+and the vendor's own option copy inside the same binary states the direction plainly, for a
+different setting: "Honored from managed settings, a `--settings`/SDK-supplied settings file, and
+user settings, in that precedence order". So **managed beats flag beats user**.
+
+Measured directly rather than inferred: one session was launched with a `--settings` file naming
+statusLine script A while its working directory carried a `.claude/settings.json` naming statusLine
+script B. **A ran. B never ran at all**, its log file was never created.
+
+**The consequence the phase must answer.** A statusLine is a whole block and the highest precedence
+source that defines one wins outright, with no merging across sources. The operator has NO
+`statusLine` in `~/.claude/settings.json` today, so nothing is displaced now. But if he ever adds
+one, Tortie's flag settings would REPLACE it inside Tortie launched sessions and his own status line
+would vanish there. Phase 182 either composes his command inside Tortie's own and passes its stdout
+through, or refuses to install when a user statusLine exists and says so. It may not silently win.
+
+### 10.3 The proof that it carries the numbers
+
+A statusLine script that emits nothing on stdout and appends its stdin to a scratch file, given
+only through `--settings`, in a tmux pane carrying `GMUX_MANAGED=1` and `GMUX_SESSION_ID`:
+
+- **It ran, and it ran twice**, once at startup and once for the turn.
+- **Both invocations saw the pane env.** `GMUX_SESSION_ID` and `GMUX_MANAGED` were readable from the
+  script's own environment, with the values Tortie stamped. So a Tortie session's identity reaches
+  the managed script without anything being parsed out of the payload.
+- **The startup invocation carried NO `rate_limits`.** The key was simply absent.
+- **The turn invocation carried it.** `rate_limits` was present with `five_hour` and `seven_day`,
+  each `{ used_percentage, resets_at }`.
+
+That is the whole condition met: numbers, per session, no edit to his settings.
+
+### 10.4 The tap's wire shape is NOT the endpoint's wire shape, and this is the trap
+
+Section 8.2 measured the served endpoint and ruled that the percentage field is `utilization`, a
+float, and that `used_percentage` does not exist. **The statusLine payload is the other way round.**
+
+| | Endpoint, section 8.2 | statusLine tap, measured here |
+| --- | --- | --- |
+| Percentage field | `utilization`, float, 0 to 100 | **`used_percentage`, INTEGER**, 0 to 100 |
+| Reset time | ISO 8601 string with microseconds | **UNIX SECONDS**, integer, 10 digits |
+| Windows delivered | `five_hour`, `seven_day`, plus `limits[]` | `five_hour`, `seven_day` only |
+| Per model weekly row | present in `limits[]`, Fable at 100 percent | **ABSENT on this account** |
+
+The reset time being seconds is corroborated by the binary, which multiplies the statusLine
+`resets_at` by 1000 before it meets a `Date`. A parser shared between the two sources that assumes
+one field name or one time unit is wrong for the other source by construction. **Two parsers, or one
+parser told which source it is reading.**
+
+The absent per model row matters for the surfaces Phase 181 shipped: the Fable row can come only
+from the endpoint. A live tap that suppresses the poll therefore also suppresses that row unless the
+phase keeps the last endpoint answer for it.
+
+### 10.5 The full statusLine payload, keys and types only
+
+Measured on the turn invocation. No value is recorded. Several of these are personal, being `cwd`,
+`transcript_path`, `session_name`, `prompt_id`, `session_id` and the whole `cost` block, so the
+managed script posts the `rate_limits` block and the session id stamp and NOTHING else.
+
+```
+context_window { context_window_size, current_usage { cache_creation_input_tokens,
+  cache_read_input_tokens, input_tokens, output_tokens }, remaining_percentage,
+  total_input_tokens, total_output_tokens, used_percentage }   all int
+cost { total_api_duration_ms, total_cost_usd, total_duration_ms,
+  total_lines_added, total_lines_removed }
+cwd, prompt_id, session_id, session_name, transcript_path, version   string
+effort { level }, model { display_name, id }, output_style { name },
+thinking { enabled }, workspace { added_dirs[], current_dir, project_dir }
+exceeds_200k_tokens, fast_mode   bool
+prompt_cache { cache_write_tokens, caching_observed, expected_rebuilds, expires_at,
+  hit_ratio, last_miss_at, miss_recache_tokens, misses, recache_tokens_if_cold,
+  requests, ttl, warm }
+rate_limits { five_hour { used_percentage, resets_at }, seven_day { … } }
+```
+
+Four things the schema in the binary declares that this account did NOT receive, so the reader names
+what it wants and drops the rest whole: `rate_limits_available` (declared as false when plan limits
+do not apply, meaning API key, Bedrock, Vertex or a missing profile scope), `rate_limits.model_scoped`
+(the per model weekly rows, "present only when the server emits them"), `rate_limits.extra_usage`,
+and `rate_limits.spend_limit`. The binary gates the whole block on
+`five_hour || seven_day || spend_limit`, which is why the key is simply absent rather than null.
+
+`rate_limits` appears in the payload only when it is really there, so a plain substring guard on the
+text before any JSON work is sound, which is the orca discipline section 3 records.
+
+### 10.6 Cadence, measured and not measured
+
+Two invocations for one startup and one short turn, which is the honest number and no more. The
+binary re-runs the status line whenever any of `tokenUsage`, `permissionMode`, `vimMode`,
+`mainLoopModel`, `fastMode`, `effortValue`, `thinkingEnabled` or `prStatus` changes, when the last
+assistant message id changes, and on the optional `refreshInterval` seconds. Token usage changes
+during streaming, so a long turn spawns the script many more times than this measurement saw.
+**The self throttle is not optional**, and the substring guard is what keeps the common tick cheap.
+
+Measured free, by editing only the script file and pressing shift+tab, which changes
+`permissionMode` and re-runs it: a script that PRINTS puts its line in the pane above the mode hint,
+and a script that prints NOTHING leaves the pane with no extra row at all. That is the stdout
+negative control at the shape level, and it holds.
+
+### 10.7 Three failure modes the builder inherits, all measured
+
+1. **A missing settings file KILLS the session at launch.** `claude --settings <path that does not
+   exist>` prints `Error: Settings file not found: <path>` and exits 1 immediately. The pane is dead
+   before the TUI draws. Tortie persists argv in the manifest and replays it at restore, so a
+   settings file written under a temporary directory, or deleted by a later cleanup, turns every
+   restore of that session into an instant death. **The file lives in durable userData and is
+   written before the launch and before every restore.**
+2. **A malformed settings file BLOCKS the session on a modal.** A file holding invalid JSON draws a
+   "Settings Error" dialog naming the file, with three choices and "Enter to confirm", before the
+   session is usable. Its own copy is "Files with errors are skipped entirely, not just the invalid
+   settings." So the write is atomic, and a byte that is not valid JSON stops every Claude session
+   Tortie launches until a person presses a key.
+3. **Workspace trust gates it.** In a directory Claude Code has not been trusted in, the trust
+   question comes first and the binary logs "Status line command skipped: workspace trust not
+   accepted" until it is answered. This is not new, every Claude session in a new project already
+   meets it, but it means the tap is silent for a session's whole first run in a new folder.
+
+A fourth, read from the binary rather than measured: `disableAllHooks: true` in a higher precedence
+source disables the status line, and `--bare` skips hooks entirely. Both are honest silences and the
+meter should treat a tap that never posts as no answer rather than as zero.
+
+### 10.8 Why CLAUDE_CONFIG_DIR is the WRONG lever, recorded so nobody tries it
+
+The charter pointed at the config directory because section 8.1 recorded that Claude Code 2.1 plus
+scopes its keychain item per config dir. That is real, and it is exactly the reason not to use it
+here. Pointing a session at a scratch `CLAUDE_CONFIG_DIR` moves the whole world with it:
+
+- **The login.** A different config dir means a different keychain item, so the session is signed
+  out and there are no rate limits to report at all.
+- **The conversation store.** The registry's `sessionStore` for claude is
+  `~/.claude/projects/<dashEncode(realpath(cwd))>/<sessionId>.jsonl`, and `storeDirs` names
+  `~/.claude/projects`. Move the config dir and resume, harvest and SpecStory capture all look at an
+  empty tree.
+- **His history, his skills, his plugins and his agents**, none of which the person asked to lose
+  for one meter.
+
+`--settings` moves one key and nothing else. It is the correct lever and the config dir is not.
+
+### 10.9 File or inline JSON, and where the token may not go
+
+Both shapes work. `--settings '{"statusLine":{"type":"command","command":"…"}}'` was measured and
+its script ran at startup with the pane env intact, so inline JSON avoids failure mode 1 entirely,
+there being no file to lose. The cost is that everything in it lands in the process argv, which is
+world readable through `ps` on this machine, and in the manifest row.
+
+So the ruling for Phase 182: **the loopback server's per boot token never goes in the argv, and it
+never goes in the settings JSON if the settings JSON is inline.** The pane environment Tortie
+already stamps is the right carrier, or a file under userData at mode 0600 whose path the pane env
+names. Both keep the secret out of every other user's `ps`.
+
+### 10.10 What this section does NOT settle
+
+- **Nothing was measured with a long turn**, so the real invocation rate under streaming is unknown
+  and the throttle must be designed for the worst case rather than for the two ticks seen here.
+- **The flag against USER settings was not measured directly**, because measuring it would mean
+  writing a statusLine into his `~/.claude/settings.json`, which the phase forbids. The direction is
+  taken from Claude Code's own source order and its own option copy, corroborated by the flag
+  against project settings measurement, which is as far as an honest measurement can go here.
+- **One account, one plan, one machine, one version.** `rate_limits_available`, `model_scoped`,
+  `extra_usage` and `spend_limit` were all absent here and none of their populated shapes has been
+  seen.
+- **Nothing was measured on API key billing**, where the binary says `rate_limits` is null and
+  `rate_limits_available` is false. That face is still inherited rather than confirmed.
