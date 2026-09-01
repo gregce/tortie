@@ -18716,7 +18716,111 @@ leaves 5 of 5 rows listed reading `exited` because a tab staying on screen after
 behaviour, and the project arm's one sighting is the same sub 250 ms render lag at 9 ms with main
 never holding the row. Report: `head-ghost.json` beside the reproduce round's own cohort files.
 
-#### What is still open, unchanged from the reproduce round
+### FIXED AGAIN, 2026-09-01, at the candidate the first round left open (the second fix round)
+
+The first round fixed the shape that returns EVERY time and did not fix the shape
+a person actually meets. Candidate 1 was still open, and it is the defect.
+
+**The honest product timeline.** A status list goes out at T. The person presses
+the x at T+5 ms and Remove at T+10 ms, and `forgetRemoteRow` clears both maps, so
+main's truth no longer holds the row. The machine answers at T+60 ms with the
+membership it had BEFORE the close, and `onePass` writes `state.rows = seen` with
+nothing comparing that answer's age against the moment of the Remove. The row is
+back, the next pass moves it to `gone` reading `restorable`, ten passes later it
+is still drawn, and a second Remove is what shifts it.
+
+**Measured before a line was changed, over 200 lives with one Remove each**, the
+real feed driven with the exec plane replaced by a function: 200 of 200 came back,
+200 of 200 were still drawn ten passes later, and the second Remove found it 200
+of 200 times. **The same 200 at the first round's parent**, so the two lines that
+round shipped neither caused this nor cured it, and it was never a regression.
+
+It is user visible rather than main only. `SessionCore.listSessions` skips a
+discarded manifest row BEFORE `covered.add(rec.id)` at `src/main/sessions/core.ts`,
+so the Remove tombstones the record and the reinstated feed row is then pushed
+uncovered and draws a tab.
+
+**The fix is one rule.** A pass whose `snapshotAt` predates a Remove may not
+reinstate the id that Remove cleared. `forgetRemoteRow` stamps the instant of the
+Remove per session id and `onePass` drops those ids from `seen` before anything
+reads it. `snapshotAt` is stamped before the command is issued, so a list issued
+AFTER the Remove is a fresh answer and is trusted in full: a Remove is not a kill
+and nothing here makes a session on that machine permanently invisible. A tie goes
+to the person, because `Date.now()` has millisecond granularity and a list issued
+in the same millisecond cannot have seen the close; with a strict comparison 194 of
+the 200 lives still came back. The instants are pruned at twice the list timeout,
+which is a bound rather than a taste, and `state.names` is deliberately untouched
+because the session may still be running on that machine under that name.
+
+#### The guard grew five arms, and each part of the fix has one that fails for it
+
+| Arm | What it drives | Ablated |
+| --- | --- | --- |
+| G | the timeline above, 25 times | drop the removal instant: **25 of 25 came back** |
+| H | a list issued AFTER the Remove is still believed | the rule would make a live session invisible |
+| I | the removal instants are forgotten, so nothing grows | the map would grow for the whole run |
+| J | two rows closed in one tick under one list in flight | drop the removal instant: fails |
+| K | the belt, an id in both maps by a route that is not a pass | restore the `||`: **25 of 25 came back** |
+
+**Arm K is why `overlapRemoteRowForTests` exists, and it answers a real weakness in
+the first round.** Once the pass keeps the two maps disjoint there is no route
+through the feed that puts an id in both, so the belt in `forgetRemoteRow` could
+have been deleted with every gate still green. That was ablated and confirmed: with
+the `||` restored, arms A to J all passed. The seam puts an id in both by the same
+route the ghost arm of `probe:p187` used on the real app.
+
+#### THE REAL DATA PROOF, and the parent measured on the real app
+
+`npm run probe:p187` grew an arm called RACE. A session settles live on the loopback
+machine, a second session appears there out of band so main issues a list that holds
+the first, the x is fired and NOT awaited because `remoteKill` announces the row as
+ended before it awaits its own poll, the probe waits for main's own list to read the
+row as ended, and Remove is pressed while the list from before the close is still on
+the wire. `--slow-list` makes the LIST alone slow on the machine, which is a far side
+slow to answer one question; `--slow` cannot do this, because it slows the End and
+the poll behind it too and the close never lands inside the window.
+
+**The first version of that wrapper slept and then listed, and the arm passed at the
+parent because of it.** A late list describes the machine at the moment it finally
+ran, so it holds no session the close had already ended. The defect is an answer that
+is STALE rather than late, so the list runs at once, its output is held, and the
+DELIVERY waits. The arm also proves its own window rather than assuming it: the
+second session is stamped like a Tortie session, so the instant main first lists it
+IS the instant the held list answered, and every trial records that number and fails
+itself if the held list had already answered.
+
+| | at the parent | at HEAD |
+| --- | --- | --- |
+| came back when the held list landed | **3 of 3** | 0 of 5 |
+| still there after the passes | **3 of 3, reading `restorable`** | 0 of 5 |
+| the second Remove is what shifted it | yes, every trial | never needed |
+| the held list answered, after the Remove | 3,997 to 4,008 ms | 3,967 to 4,125 ms |
+
+Everything else in the run is unchanged: GHOST 0 of 5, END 0 of 5, REMOVE 0 of 5, the
+far machine held the session after none of the closes, a tail over every closed id
+recorded 0 sightings, calibration 239 ms so the machine is still on the live
+connection, the LOCAL control still leaves 5 of 5 rows listed reading `exited`, and
+the project arm's one sighting is the same sub 250 ms render lag with main never
+holding the row. His own server read 54 sessions before and 54 after every run.
+
+#### A stray from the first round's own probe, and the rule it broke
+
+A scratch ssh agent from `probe:p187` was found still running hours later, pid 59110,
+`/usr/bin/ssh-agent -s`, started inside that probe's window and holding that run's
+throwaway key. The probe was not careless: it records the agent pid, its teardown
+kills every recorded pid, and that teardown is in a `finally`. The gap is structural,
+because `scratchYard` is called at MODULE LEVEL above the `try` that `finally`
+belongs to, so anything that ends the process before the `try` is entered leaves the
+agent behind. Every caller of that module has the same shape. Measured: a harness that
+stands up a yard and then throws left the agent and its socket directory behind at the
+parent and leaves nothing at HEAD, over both the `-s` and the `-a` shapes. The agent
+now ends on `exit`, with SIGTERM so ssh-agent can remove its own socket, and the
+socket is removed only after `lstatSync` proves it IS a socket. The three probes that
+start an agent outside the yard call the same function rather than growing a fourth
+copy. Pid 59110 was NOT killed: it is not this session's, and it is reported rather
+than acted on.
+
+#### What is still open, unchanged from both fix rounds
 
 `remoteRecordStatus` reads `rows` before `gone`, so a row in both maps READ live and the x offered
 End rather than Remove. Which gesture put a person on Remove in that state is still unanswered. One
@@ -19370,3 +19474,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, Phase 174.2 LANDED on `7917485` at version 0.97.0 with no bump, since this project bumps in its own build(version) commit at release and this is a fix phase: on Settings then Appearance the Custom font field now sits level with the Custom dropdown beside it, the signed offset of the input's centre minus the select's centre measuring minus 9px at the parent bd79dba and 0px at HEAD, with the top edges matching at 421 and the bottom edges at 445 so they are level rather than merely equal at the centre, and the select itself did not move at x 417.5 y 421 w 130.5 h 24; the fix takes the reserved not installed note out of the column's FLOW rather than out of the layout, so Phase 174.1's RESERVATION IS KEPT WHOLE with the note still rendered unconditionally and only its visibility flipping, and the input's rectangle is IDENTICAL WHETHER THE NOTE IS SPEAKING OR SILENT, proved over 32 frames being eight speaking and quiet cycles, a 228 character family, a CJK family, an emoji family, a whitespace only value, the field cleared and five round trips out to System and back which destroy and rebuild the field, every frame reading x 560 y 421 w 153 h 24 at offset 0 with a single hit test midpoint of 432.75; the verifier's INDEPENDENT METHODS were re deriving the offset three ways the builder did not, being box model arithmetic that never touches a resolved rectangle, an elementFromPoint hit test tree at quarter pixel steps, and the painted pixels of the photograph read by its own PNG decoder, all three agreeing at minus 9px parent and 0px HEAD with the parent taken by building the parent stylesheet and running the app on it rather than by a runtime override, plus an ATTACK nobody else ran that replaced the note's sentence with one four times longer as a copy change or a translation would, which threw the field 497px right and 254px down at the parent and did not move it by a pixel at HEAD; the whole photograph diffed pixel for pixel over 1,617,280 pixels shows 5,161 differing and their bounding box is the union of the field's old and new boxes and nothing else, no other row on Appearance moved, Phase 174.1's own runtime guard probe:p1741 passes at HEAD reading JUMP: none over 263 offered families, and the battery ran green from a clean TypeScript cache with smoke:t1 at 6 of 6 and 11,309 tests over 709 files
 - 2026-08-31, Phase 187 REPRODUCED at the parent commit and the candidate NAMED, `npm run probe:p187`, being build/probe-p187-returning-tab.mjs, one loopback sshd with its own keys and its own agent per Phase 173 and his Mac Pro never contacted, his own server reading 52 sessions before and 52 after every run: the ORDINARY close does not come back, 25 x on a live remote session and 25 of those plus the second click at loopback speed and 40 more with every far side tmux command behind a 300 ms wait and 25 remote project tabs, being NINETY closes with ZERO returns and therefore no distribution to report, and a 420 second tail over all forty ids closed in one run recorded zero sightings which is longer than the 300,000 ms store sync and settles candidate 3; the far machine was asked DIRECTLY read only after every one of the ninety closes and held the session after NONE of them, which kills candidate 2, so a returning row is stale rather than a correct report and the fix is not in the close; the shape that DOES reproduce it is the same id in BOTH of main's maps for a machine, 5 of 5, where one Remove leaves the row in main's own list three seconds later reading idle and a SECOND Remove clears it, which is his sentence about at least once as a number; the line is forgetRemoteRow in remote-sessions.ts where `state.gone.delete(id) || state.rows.delete(id)` SHORT CIRCUITS so rows keeps the row whenever both maps hold it, and the ordinary Remove arm with one map only cleared 25 of 25, so CANDIDATE 5 is the answer and the entry's wording was right that main's truth never loses the row; nothing removes an id from gone, and Tortie's own remote restore stamps the SAME @gmux-id at remote-restore.ts:476, so a session ended or lost and then restored sits in both maps for the rest of the run; STILL OPEN for the fix round is which gesture puts a person on Remove while the row reads live, since remoteRecordStatus reads rows before gone, and it does not block the fix because a Remove must clear both maps whatever put the row in them; also measured, the machine is on the LIVE CONNECTION and not the 5,000 ms list since an out of band far side kill was noticed in 242 ms on loopback and 451 ms slowed, and a LOCAL control of five closes left the row listed five times reading exited, so a tab staying on screen after End is shipped behaviour and a fix round must not "fix" it
 - 2026-09-01, Phase 187 FIXED at the cause and the guard goes red at the parent, `ef16963`, a PATCH with the version bump left to its own release commit as every phase does: the two maps `remote-sessions.ts` keeps per machine, `rows` for what the last completed list reported and `gone` for what a completed list stopped reporting, were allowed to hold the SAME id, because nothing ever took an id out of `gone` while a pass replaces `rows` wholesale, and Tortie's own remote restore stamps the same `@gmux-id` on the session it recreates; a completed list holding the session is proof it is NOT gone, so the pass now drops every id it reported from `gone`, which is the line that keeps the two maps disjoint and also ends the DOUBLE PUSH where `remoteSessions` drew one session as two rows, and beside it `forgetRemoteRow` clears BOTH maps unconditionally instead of `state.gone.delete(id) || state.rows.delete(id)`, whose `||` short circuited so `state.rows.delete` never ran and the row stayed in main's own truth; nothing is sent to any machine by either line, no cadence moved and no durable state was touched, so it is a patch; the guard is `npm run conformance:remoteclose`, 25 closes per arm with the exec plane replaced by a function and NOTHING spawned in about 0.6 s, measured at the parent as 25 of 25 returned on the Remove after a restore under the same id, 25 of 25 found by the SECOND Remove, and 25 of 25 cycles with the row in both maps and drawn twice, against zero on every arm at HEAD while arms B, C and F pass at the parent too, which is what says the gate is not trivially red; it is named in package.json, classified in build/verification-checks.mjs and written into CLAUDE.md beside `npm run probe:p187`; STILL OPEN and named rather than guessed, `remoteRecordStatus` reads `rows` before `gone` so a row in both READ live and the x offered End, and which gesture put a person on Remove in that state is unanswered, though the double push that was one of the two candidates for it is gone with this commit; and the reproduction itself was RE-RUN AT HEAD, `npm run probe:p187 --trials 5`, where the GHOST arm is 0 of 5 against 5 of 5 at the parent with no second Remove needed on any trial, while END, REMOVE, the far side answers, the 240 ms calibration, the 0 sighting tail and the LOCAL control leaving 5 of 5 rows reading exited are all unchanged, his own server reading 54 sessions before and 54 after
+- 2026-09-01, Phase 187 FIXED AGAIN at the candidate the FIRST fix round left open, `af521c9` the product and `893c14c` the harness and `3c1d72f` the probe arm, still a PATCH with the version bump left to its own release commit: the first round ended the shape that returns every time and left CANDIDATE 1, which is the shape a person actually meets, so a closed remote tab still came back exactly once and his sentence was still true at `ef16963`; the timeline is a status list out at T, the x at T+5 ms, Remove at T+10 ms and the list answering at T+60 ms with the membership the machine had BEFORE the close, and `onePass` wrote `state.rows = seen` with NOTHING comparing that answer's age against the moment of the Remove, so the row came back, the next pass moved it to `gone` reading `restorable`, ten passes later it was still drawn and a second Remove was what shifted it; MEASURED over 200 lives with one Remove each before a line was changed, 200 of 200 came back, 200 of 200 were still drawn ten passes later and the second Remove found it 200 of 200 times, AND THE SAME 200 AT THE FIRST ROUND'S PARENT, so those two lines neither caused it nor cured it and it was never a regression; it is user visible rather than main only because `SessionCore.listSessions` skips a discarded manifest row BEFORE `covered.add(rec.id)`, so the Remove tombstones the record and the reinstated feed row is pushed uncovered and draws a tab; the fix is ONE RULE, that a pass whose `snapshotAt` predates a Remove may not reinstate the id that Remove cleared, with `forgetRemoteRow` stamping the instant per session id and the pass dropping those ids from `seen` before anything reads it, a list issued AFTER the Remove still believed in full so nothing is made permanently invisible, the TIE GOING TO THE PERSON because `Date.now()` is millisecond granular and a strict comparison let 194 of the 200 lives back in, the instants pruned at twice the list timeout which is a bound rather than a taste since the ledger queues nothing before the spawn, and `state.names` deliberately untouched; the guard grew FIVE arms and each part of the fix now has one that fails for it, being 25 of 25 back with the removal instant dropped, 25 of 25 back with the `||` restored and 25 drawn twice with the pass's `gone` delete dropped, and arm K exists because ABLATION SHOWED THE FIRST ROUND'S BELT WAS UNGUARDED, since with the pass keeping the maps disjoint arms A to J all passed with the `||` put back, so `overlapRemoteRowForTests` is the one seam that puts an id in both by a route that is not a pass; THE REAL DATA PROOF is a new RACE arm in `npm run probe:p187` driving that timeline through the product's own channels on the loopback machine with `--slow-list` making the LIST alone slow, 3 of 3 came back at the parent reading `restorable` with the second Remove shifting it and 0 of 5 at HEAD, the held list answering 3,997 to 4,008 ms after the Remove at the parent and 3,967 to 4,125 ms at HEAD so the window was real in every trial, and the arm PROVES ITS OWN WINDOW by stamping the trigger session so the instant main first lists it is the instant the held list answered; the first version of that wrapper slept and then listed and the arm PASSED AT THE PARENT because of it, since a late list describes the machine at the moment it finally ran while the defect is an answer that is STALE, which is a probe passing because it was not driving the thing it named; everything else in the run is unchanged, GHOST 0 of 5, END 0 of 5, REMOVE 0 of 5, the far machine holding the session after none of the closes, a 0 sighting tail, calibration 239 ms, and the LOCAL control still leaving 5 of 5 rows reading `exited` because that is shipped behaviour; ALSO FIXED, a scratch ssh agent from the first round's own probe was still running hours later, pid 59110, and the probe was not careless since it records the pid and kills it in a `finally`, the gap being that `scratchYard` is called at MODULE LEVEL above the `try` so anything ending the process before it leaves the agent behind, which every caller of that module does, measured as an agent and its socket directory surviving a throw at the parent and nothing surviving at HEAD over both the `-s` and the `-a` shapes, now ended on `exit` with SIGTERM so ssh-agent removes its own socket and the socket removed only after `lstatSync` proves it IS one, with the three probes that start an agent outside the yard calling the same function rather than growing a fourth copy; pid 59110 was NOT killed because it is not this session's and his own login agent has a similar shape, so IT IS STILL RUNNING AND HE MAY END IT, `kill -TERM 59110`, and it holds a throwaway key rather than any of his; his Mac Pro was never contacted, the only host in the whole round is 127.0.0.1, his server read 54 sessions before and 54 after, every file in `~/.ssh` is unchanged to the byte and the second and his agent still holds no identities; STILL OPEN and unchanged from both rounds, `remoteRecordStatus` reads `rows` before `gone`, so which gesture puts a person on Remove while a row reads live is still unanswered
