@@ -427,7 +427,7 @@ export const CHECKS = [
   // no session, spawns no agent and spends no token, and it touches `-L gmux`
   // in one place only, a read only session count taken before and after.
   electron('probe:p185'),
-  electron('probe:p191'),
+  electron('probe:p194'),
   // PHASE 182. The status line tap, with the REAL claude in the loop. It
   // writes Tortie's own generated managed script and settings file into a
   // scratch directory, binds a loopback server on an ephemeral port, launches

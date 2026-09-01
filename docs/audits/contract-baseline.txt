@@ -326,7 +326,7 @@ CREATE TABLE sessions (
           last_seen        INTEGER NOT NULL
         , exit_code INTEGER, exit_signal TEXT, pane_pid INTEGER, resume_capture TEXT, specstory TEXT, restore TEXT, agent_version TEXT, agent_contract TEXT, resume_provenance TEXT, context_snapshot TEXT, removed_at INTEGER, env_passthrough TEXT, exit_detail TEXT, machine_id TEXT, machine_tombstone TEXT, project_tombstone TEXT)
 
-[localStorage.keys] count=40
+[localStorage.keys] count=39
 gmux.
 gmux.activeProject
 gmux.context.agent.
@@ -334,7 +334,6 @@ gmux.context.bundled.
 gmux.context.collapsed.
 gmux.diffBackgrounds
 gmux.diffInlineMode
-gmux.diffRedline
 gmux.diffSideBySide
 gmux.dockCollapsed
 gmux.editorWidth
