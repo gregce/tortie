@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Option B, the printed page</title>
+<style>
+/* =========================================================================
+   OPTION B, THE PRINTED PAGE
+   A mock of Tortie's own chrome at its real proportions. Nothing moves.
+   Region sizes are read from src/renderer/styles/app.css: titlebar 38,
+   activity bar 48, sidebar 280, header band 36, project tab 28, session tab
+   min 120 / max 200, section header 28, list row 24.
+   No bottom status bar is drawn, because Tortie has none (DESIGN-SPEC S1)
+   and inventing one would be a move.
+   ========================================================================= */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0c0d0f;
+  color: #9ba1ad;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding: 22px;
+}
+
+.caption {
+  width: 1400px;
+  margin: 0 auto 14px;
+  color: #cfd3da;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 450;
+  letter-spacing: 0;
+}
+.caption b { font-weight: 560; color: #e8eaed; }
+
+.switch {
+  width: 1400px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 450;
+  letter-spacing: 0;
+  color: #838996;
+  user-select: none;
+}
+.switch label { cursor: pointer; }
+#shipped { accent-color: #4d9de8; }
+
+/* -------------------------------------------------------------------------
+   THE TOKEN DIFF, EXPRESSED AS TOKENS. `:root` is Option B. The `.shipped`
+   block below restates today's values, so the checkbox above the frame is a
+   true before-and-after of exactly the diff and of nothing else.
+   ------------------------------------------------------------------------- */
+:root {
+  /* untouched */
+  --bg-canvas: #131417;
+  --bg-sidebar: #17181c;
+  --bg-surface: #1b1d22;
+  --bg-raised: #22252b;
+  --bg-active: #2a2e36;
+  --border: #2a2d34;
+  --border-strong: #3a3e48;
+  --accent: #4d9de8;
+  --accent-text: #82bfff;
+  --status-working: #4d9de8;
+  --status-attention: #f5b84a;
+  --status-idle: #6e7583;
+  --status-failed: #e5655e;
+  --git-modified: #e2b340;
+  --git-added: #6bc46d;
+  --git-deleted: #e5655e;
+  --terminal-fg: #d8dbe2;
+
+  /* CHANGED, the three text tokens, all of them already in CONTRAST_TEXT */
+  --text-primary: #cfd3da;
+  --text-secondary: #9ba1ad;
+  --text-muted: #838996;
+
+  /* untouched sizes */
+  --text-xs: 11px;   --lh-xs: 16px;
+  --text-sm: 12px;   --lh-sm: 18px;
+  --text-base: 13px; --lh-base: 20px;
+
+  /* NEW, the sixth size the chrome already draws eleven times, now named */
+  --text-2xs: 10px;  --lh-2xs: 16px;
+
+  /* weights: two new steps between the three that exist */
+  --weight-regular: 400;
+  --weight-book: 450;
+  --weight-medium: 500;
+  --weight-strong: 560;
+  --weight-semibold: 600;
+
+  /* The weight of the uppercase micro label. It is a variable here ONLY so
+     the toggle above the frame can show both values; in the real diff this
+     is simply --weight-semibold becoming --weight-medium at 19 call sites. */
+  --caps-weight: var(--weight-medium);
+
+  /* NEW, tracking, which the chrome spends eight different ways today */
+  --track-caps: 0.07em;
+  --track-tight: -0.006em;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+
+  --r-sm: 4px;
+}
+
+html:has(#shipped:checked) .stage,
+#shipped:checked ~ .stage {
+  --text-primary: #e8eaed;
+  --text-secondary: #a8adb8;
+  --text-muted: #838996;
+  --weight-book: 400;
+  --weight-strong: 600;
+  --caps-weight: 600;
+  --track-caps: 0.04em;
+  --track-tight: 0;
+}
+
+/* -------------------------------------------------------------------------
+   The frame
+   ------------------------------------------------------------------------- */
+.stage { width: 1400px; margin: 0 auto; }
+
+.frame {
+  width: 1400px;
+  height: 880px;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  /* THE ONE LINE THAT CARRIES HALF THE DIFF. Every label that never states a
+     weight is set a half step heavier, which is what pays for the ramp
+     stepping down. Anything that states 500 or 600 is untouched. */
+  font-weight: var(--weight-book);
+  /* Fallback faces have no 450 face. Never let the rasteriser fake one. */
+  font-synthesis-weight: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+  border-radius: 10px;
+}
+
+/* ---- titlebar, 38px --------------------------------------------------- */
+.titlebar {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  flex: 0 0 38px;
+  padding-left: 76px;
+  padding-right: 12px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  /* chrome containers hold labels and figures, never prose */
+  font-variant-numeric: tabular-nums;
+}
+.lights { position: absolute; left: 13px; top: 14px; display: flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+
+.titlebar-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ptab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  max-width: 200px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+.ptab.selected { background: var(--bg-active); color: var(--text-primary); }
+.ptab-add {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; margin-left: 4px; border-radius: var(--r-sm);
+  color: var(--text-secondary);
+}
+.titlebar-spacer { flex: 1; }
+.bell {
+  position: relative; display: inline-flex; align-items: center;
+  justify-content: center; width: 28px; height: 28px;
+  border-radius: var(--r-sm); background: var(--bg-raised);
+  color: var(--text-primary);
+}
+.badge-attention {
+  position: absolute; top: -3px; right: -5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 16px; min-width: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--status-attention); color: #131417;
+  font-size: var(--text-xs); line-height: var(--lh-xs);
+  font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums;
+}
+
+/* ---- the row below the titlebar --------------------------------------- */
+.body { display: flex; flex: 1; min-height: 0; }
+
+/* ---- activity bar, 48px ----------------------------------------------- */
+.activitybar {
+  display: flex; flex-direction: column; align-items: center;
+  width: 48px; flex: 0 0 48px;
+  background: var(--bg-sidebar); border-right: 1px solid var(--border);
+}
+.ab-item {
+  position: relative; display: inline-flex; align-items: center;
+  justify-content: center; width: 48px; height: 48px;
+  color: var(--text-muted);
+}
+.ab-item.active { color: var(--text-primary); }
+.ab-item.active::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--accent);
+}
+.ab-badge {
+  position: absolute; right: 7px; bottom: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 14px; min-width: 14px; padding: 0 4px; border-radius: 7px;
+  background: var(--accent); color: #0d1117;
+  font-size: var(--text-2xs); line-height: var(--lh-2xs);
+  font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums;
+}
+.ab-spacer { flex: 1; }
+
+/* ---- sidebar, 280px ---------------------------------------------------- */
+.sidebar {
+  display: flex; flex-direction: column;
+  width: 280px; flex: 0 0 280px; min-height: 0;
+  background: var(--bg-sidebar); border-right: 1px solid var(--border);
+}
+
+/* the SCM view's slice of the 36px band */
+.branch-header {
+  display: flex; align-items: center; gap: 6px;
+  height: 36px; flex: 0 0 36px; padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.branch-name {
+  font-family: var(--font-mono); font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+.branch-folder { font-size: var(--text-sm); color: var(--text-muted); }
+.branch-sync {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 3px;
+  font-size: var(--text-xs); color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the commit box */
+.commit-box {
+  margin: 8px 12px 4px; height: 28px; padding: 0 8px;
+  display: flex; align-items: center;
+  background: var(--bg-surface); border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text-muted); font-size: var(--text-sm);
+}
+
+/* THE UPPERCASE MICRO LABEL, and this is where the option reads.
+   11px unchanged, weight 600 -> 500, tracking 0.04em -> 0.07em, and a
+   negative end margin equal to the tracking so the trailing side bearing
+   the tracking adds does not push the count off its column. */
+.section-header {
+  display: flex; align-items: center; gap: 4px;
+  height: 28px; flex: 0 0 28px; padding: 0 8px;
+  color: var(--text-muted);
+  font-size: var(--text-xs); line-height: var(--lh-xs);
+  font-weight: var(--caps-weight);
+  text-transform: uppercase;
+  letter-spacing: var(--track-caps);
+  font-variant-numeric: tabular-nums;
+}
+.section-header .label { margin-inline-end: calc(-1 * var(--track-caps)); }
+.section-count {
+  font-weight: var(--weight-book);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.section-spacer { flex: 1; }
+
+/* a 24px file row */
+.scm-row {
+  display: flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 8px 0 20px;
+  font-size: var(--text-sm); line-height: var(--lh-sm);
+  color: var(--text-primary);
+  white-space: nowrap; min-width: 0;
+}
+.scm-row.selected { background: var(--bg-active); }
+/* State carried by weight rather than by a second colour. This is the move
+   that also lets the Explorer's near-amber tint on a modified filename go
+   neutral, which is rule R6 in the plan. */
+.scm-row.selected .scm-name { font-weight: var(--weight-medium); }
+.scm-row.modified .scm-name { font-weight: var(--weight-medium); }
+.scm-name { overflow: hidden; text-overflow: ellipsis; }
+.scm-dir {
+  color: var(--text-muted); font-size: var(--text-xs);
+  overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.scm-badge {
+  margin-left: auto; font-family: var(--font-mono);
+  font-size: var(--text-xs); font-weight: var(--weight-medium);
+}
+
+/* a 24px history row */
+.scm-hrow {
+  display: flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 8px 0 8px;
+  font-size: var(--text-sm); line-height: var(--lh-sm);
+  color: var(--text-secondary);
+  white-space: nowrap; min-width: 0;
+}
+.scm-rail { width: 12px; display: flex; justify-content: center; flex: 0 0 12px; }
+.scm-rail i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); display: block;
+}
+.scm-rail.plain i { background: var(--text-muted); opacity: .55; }
+.scm-hsubject {
+  color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto;
+}
+.scm-hauthor { color: var(--text-muted); font-size: var(--text-xs); }
+.scm-hage {
+  margin-left: auto; color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.scm-ref {
+  display: inline-flex; align-items: center; height: 16px; padding: 0 5px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: var(--text-2xs); line-height: var(--lh-2xs);
+  font-weight: var(--weight-medium);
+}
+.scm-ref.head { border-color: var(--accent); color: var(--accent-text); }
+
+/* ---- the work column --------------------------------------------------- */
+.work { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+
+/* the session strip: the terminal region's slice of the same 36px band */
+.strip {
+  display: flex; align-items: stretch;
+  height: 36px; flex: 0 0 36px;
+  background: var(--bg-sidebar);
+  font-variant-numeric: tabular-nums;
+}
+.stab {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-width: 120px; max-width: 200px; padding: 0 10px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  white-space: nowrap;
+}
+.stab .stab-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.stab.active {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  border-bottom-color: transparent;
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.stab.attention .stab-name {
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+.stab.ended .stab-name { color: var(--text-muted); }
+.stab-close { color: var(--text-muted); display: inline-flex; }
+.strip-filler { flex: 1; border-bottom: 1px solid var(--border); }
+.strip-cell {
+  display: inline-flex; align-items: center; gap: 4px; padding: 0 10px;
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary); font-size: var(--text-sm);
+}
+
+/* the dot */
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; display: block; }
+.dot.working { background: var(--status-working); }
+.dot.attention { background: var(--status-attention); animation: pulse 1.6s infinite; }
+.dot.idle { background: var(--status-idle); }
+.dot.ended { background: transparent; box-shadow: inset 0 0 0 1.5px var(--status-idle); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+
+/* ---- the terminal: the brightest thing on screen ----------------------- */
+.term {
+  flex: 1; min-height: 0; overflow: hidden;
+  background: var(--bg-canvas);
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 16.25px;
+  font-weight: 400;
+  color: var(--terminal-fg);
+  white-space: pre;
+}
+.term .p { color: #6bc46d; }
+.term .a { color: #82bfff; }
+.term .d { color: #6e7583; }
+.term .w { color: #e2b340; }
+.term .r { color: #e5655e; }
+.term .c { color: #56c2c0; }
+.term .cursor {
+  display: inline-block; width: 8px; height: 15px;
+  background: #e8eaed; vertical-align: -3px;
+}
+
+/* icons: uniform, thin, and one rest colour, which is the ramp the text
+   already carries. Codicons are an icon font in the real app, so this is
+   drawn rather than configured. */
+svg { display: block; }
+.ico { stroke: currentColor; stroke-width: 1.25; fill: none;
+       stroke-linecap: round; stroke-linejoin: round; }
+.ico-f { fill: currentColor; stroke: none; }
+</style>
+</head>
+<body>
+
+<div class="caption">
+  <b>Option B, the printed page.</b>
+  Not one pixel of layout moves and not one font size changes: the chrome
+  steps below the transcript in luminance and buys the legibility back in
+  weight, tracking and figures, so the premium comes from type rather than
+  from any new surface.
+</div>
+
+<div class="switch">
+  <input type="checkbox" id="shipped">
+  <label for="shipped">Tick to see today's chrome. Untick for Option B. Nothing but the type tokens moves.</label>
+</div>
+
+<div class="stage">
+<div class="frame">
+
+  <!-- ================= TITLEBAR, 38px ================= -->
+  <div class="titlebar">
+    <div class="lights">
+      <i style="background:#3a3e48"></i><i style="background:#3a3e48"></i><i style="background:#3a3e48"></i>
+    </div>
+    <div class="titlebar-tabs">
+      <span class="ptab selected">
+        <span class="dot attention"></span>
+        <span>gmux</span>
+      </span>
+      <span class="ptab">
+        <span class="dot working"></span>
+        <span>tortiedotsh</span>
+      </span>
+      <span class="ptab">
+        <span class="dot idle"></span>
+        <span>printing-press</span>
+      </span>
+      <span class="ptab-add">
+        <svg width="14" height="14" viewBox="0 0 14 14" class="ico"><path d="M7 2.5v9M2.5 7h9"/></svg>
+      </span>
+    </div>
+    <div class="titlebar-spacer"></div>
+    <span class="bell">
+      <svg width="16" height="16" viewBox="0 0 16 16" class="ico"><path d="M8 2.2a3.6 3.6 0 0 0-3.6 3.6c0 3.2-1.1 4.1-1.1 4.1h9.4s-1.1-.9-1.1-4.1A3.6 3.6 0 0 0 8 2.2Z"/><path d="M6.9 12.2a1.3 1.3 0 0 0 2.2 0"/></svg>
+      <span class="badge-attention">1</span>
+    </span>
+  </div>
+
+  <div class="body">
+
+    <!-- ================= ACTIVITY BAR, 48px ================= -->
+    <div class="activitybar">
+      <span class="ab-item">
+        <svg width="24" height="24" viewBox="0 0 24 24" class="ico"><path d="M4.5 5.5h5l1.5 2h8.5v11h-15z"/></svg>
+      </span>
+      <span class="ab-item active">
+        <svg width="24" height="24" viewBox="0 0 24 24" class="ico"><circle cx="7" cy="6.5" r="2.2"/><circle cx="7" cy="17.5" r="2.2"/><circle cx="17" cy="10" r="2.2"/><path d="M7 8.7v6.6M17 12.2c0 2.6-2 3.6-4.4 3.9"/></svg>
+        <span class="ab-badge">3</span>
+      </span>
+      <span class="ab-item">
+        <svg width="24" height="24" viewBox="0 0 24 24" class="ico"><circle cx="10.8" cy="10.8" r="5.3"/><path d="M14.8 14.8 19 19"/></svg>
+      </span>
+      <span class="ab-item">
+        <svg width="24" height="24" viewBox="0 0 24 24" class="ico"><rect x="4.5" y="5.5" width="15" height="13" rx="1.5"/><path d="M4.5 9.5h15M9 9.5v9"/></svg>
+      </span>
+      <span class="ab-item">
+        <svg width="24" height="24" viewBox="0 0 24 24" class="ico"><rect x="4.5" y="4.5" width="6" height="6" rx="1"/><rect x="13.5" y="13.5" width="6" height="6" rx="1"/><path d="M10.5 7.5h4a2 2 0 0 1 2 2v4"/></svg>
+      </span>
+      <span class="ab-spacer"></span>
+      <span class="ab-item">
+        <svg width="24" height="24" viewBox="0 0 24 24" class="ico"><circle cx="12" cy="12" r="2.6"/><path d="M12 4.2v2.1M12 17.7v2.1M4.2 12h2.1M17.7 12h2.1M6.5 6.5l1.5 1.5M16 16l1.5 1.5M17.5 6.5 16 8M8 16l-1.5 1.5"/></svg>
+      </span>
+    </div>
+
+    <!-- ================= SIDEBAR, 280px ================= -->
+    <div class="sidebar">
+
+      <!-- band slice, 36px -->
+      <div class="branch-header">
+        <svg width="14" height="14" viewBox="0 0 14 14" class="ico"><circle cx="4" cy="3.4" r="1.7"/><circle cx="4" cy="10.6" r="1.7"/><circle cx="10.4" cy="5.6" r="1.7"/><path d="M4 5.1v3.8M10.4 7.3c0 1.7-1.6 2.4-3.4 2.6"/></svg>
+        <span class="branch-name">main</span>
+        <span class="branch-folder">gmux</span>
+        <span class="branch-sync">
+          <svg width="11" height="11" viewBox="0 0 12 12" class="ico"><path d="M6 2.5v7M3.6 7.1 6 9.5l2.4-2.4"/></svg>
+          0
+          <svg width="11" height="11" viewBox="0 0 12 12" class="ico" style="margin-left:3px"><path d="M6 9.5v-7M3.6 4.9 6 2.5l2.4 2.4"/></svg>
+          2
+        </span>
+      </div>
+
+      <div class="commit-box">Commit message (⌘↩ to commit)</div>
+
+      <div class="section-header">
+        <svg width="12" height="12" viewBox="0 0 12 12" class="ico"><path d="m3.2 4.6 2.8 3 2.8-3"/></svg>
+        <span class="label">Changes</span>
+        <span class="section-count">3</span>
+      </div>
+
+      <div class="scm-row selected">
+        <svg width="14" height="14" viewBox="0 0 14 14" class="ico" style="color:var(--text-muted)"><path d="M3.4 1.8h4.4l2.8 2.8v7.6H3.4z"/><path d="M7.8 1.8v2.8h2.8"/></svg>
+        <span class="scm-name">tokens.css</span>
+        <span class="scm-dir">src/renderer/styles</span>
+        <span class="scm-badge" style="color:var(--git-modified)">M</span>
+      </div>
+      <div class="scm-row modified">
+        <svg width="14" height="14" viewBox="0 0 14 14" class="ico" style="color:var(--text-muted)"><path d="M3.4 1.8h4.4l2.8 2.8v7.6H3.4z"/><path d="M7.8 1.8v2.8h2.8"/></svg>
+        <span class="scm-name">BACKLOG.md</span>
+        <span class="scm-dir">docs</span>
+        <span class="scm-badge" style="color:var(--git-modified)">M</span>
+      </div>
+      <div class="scm-row">
+        <svg width="14" height="14" viewBox="0 0 14 14" class="ico" style="color:var(--text-muted)"><path d="M3.4 1.8h4.4l2.8 2.8v7.6H3.4z"/><path d="M7.8 1.8v2.8h2.8"/></svg>
+        <span class="scm-name">75-chrome.md</span>
+        <span class="scm-dir">docs/research</span>
+        <span class="scm-badge" style="color:var(--git-added)">U</span>
+      </div>
+
+      <div class="section-header" style="margin-top:8px">
+        <svg width="12" height="12" viewBox="0 0 12 12" class="ico"><path d="m3.2 4.6 2.8 3 2.8-3"/></svg>
+        <span class="label">History</span>
+        <span class="section-count">412</span>
+      </div>
+
+      <div class="scm-hrow">
+        <span class="scm-rail"><i></i></span>
+        <span class="scm-hsubject">a visual language for the chrome</span>
+        <span class="scm-ref head">main</span>
+        <span class="scm-hage">4m</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the redline and the control</span>
+        <span class="scm-hage">2h</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the font field sits level</span>
+        <span class="scm-hage">3h</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the website learns what shipped</span>
+        <span class="scm-hage">6h</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the redline in the diff view</span>
+        <span class="scm-hage">9h</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">0.97.0</span>
+        <span class="scm-ref">v0.97.0</span>
+        <span class="scm-hage">11h</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">a project tab you cannot read</span>
+        <span class="scm-hage">14h</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the sessions table says whose</span>
+        <span class="scm-hage">18h</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the cache policy is one switch</span>
+        <span class="scm-hage">1d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">every probe ends its Electron</span>
+        <span class="scm-hage">1d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">hovering an uninstalled agent</span>
+        <span class="scm-hage">2d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the page and the fold</span>
+        <span class="scm-hage">2d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">what to read in every agent log</span>
+        <span class="scm-hage">2d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the overview reader keeps ratio</span>
+        <span class="scm-hage">3d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the ribbon answers the pointer</span>
+        <span class="scm-hage">3d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">one type scale for four views</span>
+        <span class="scm-hage">4d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the ask glow, where the eyes go</span>
+        <span class="scm-hage">4d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">machines, and the host key file</span>
+        <span class="scm-hage">5d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the install map cannot run</span>
+        <span class="scm-hage">5d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">catch me up, on a still copy</span>
+        <span class="scm-hage">6d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the arch view draws promises</span>
+        <span class="scm-hage">6d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the watcher keeps eight paths</span>
+        <span class="scm-hage">7d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">resume argv from the manifest</span>
+        <span class="scm-hage">8d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">self update, and the rehearsal</span>
+        <span class="scm-hage">9d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">the contract baseline is a gate</span>
+        <span class="scm-hage">10d</span>
+      </div>
+      <div class="scm-hrow">
+        <span class="scm-rail plain"><i></i></span>
+        <span class="scm-hsubject">one helper owns every Electron</span>
+        <span class="scm-hage">11d</span>
+      </div>
+    </div>
+
+    <!-- ================= WORK COLUMN ================= -->
+    <div class="work">
+
+      <!-- band slice, 36px: the session strip -->
+      <div class="strip">
+        <span class="stab active">
+          <svg width="16" height="16" viewBox="0 0 16 16" class="ico-f"><path d="M8 1.6 14 8l-6 6.4L2 8Zm0 2.6L4.6 8 8 11.8 11.4 8Z"/></svg>
+          <span class="stab-name">chrome-repaint</span>
+          <span class="dot working"></span>
+          <span class="stab-close"><svg width="16" height="16" viewBox="0 0 16 16" class="ico"><path d="m4.6 4.6 6.8 6.8M11.4 4.6l-6.8 6.8"/></svg></span>
+        </span>
+        <span class="stab attention">
+          <svg width="16" height="16" viewBox="0 0 16 16" class="ico"><circle cx="8" cy="8" r="6.1"/><path d="M8 4.6v3.6l2.4 1.5"/></svg>
+          <span class="stab-name">verify-b</span>
+          <span class="dot attention"></span>
+        </span>
+        <span class="stab">
+          <svg width="16" height="16" viewBox="0 0 16 16" class="ico"><rect x="1.9" y="2.9" width="12.2" height="10.2" rx="1.6"/><path d="m4.8 6.4 2.1 1.7-2.1 1.7M8.6 10.4h2.7"/></svg>
+          <span class="stab-name">shell</span>
+          <span class="dot idle"></span>
+        </span>
+        <span class="stab ended">
+          <svg width="16" height="16" viewBox="0 0 16 16" class="ico"><path d="M8 1.9 13.4 8 8 14.1 2.6 8Z"/></svg>
+          <span class="stab-name">arch-map</span>
+          <span class="dot ended"></span>
+        </span>
+        <span class="strip-filler"></span>
+        <span class="strip-cell">
+          <svg width="14" height="14" viewBox="0 0 14 14" class="ico"><path d="M7 2.5v9M2.5 7h9"/></svg>
+          <svg width="10" height="10" viewBox="0 0 12 12" class="ico"><path d="m3 4.8 3 3 3-3"/></svg>
+        </span>
+      </div>
+
+      <!-- the work: the brightest thing on screen -->
+<div class="term"><span class="p">➜</span>  <span class="a">~/gmux</span> <span class="d">git:(</span><span class="w">main</span><span class="d">)</span> claude --resume chrome-repaint
+
+<span class="c">✻ Tortie chrome, option B</span>
+
+<span class="d">›</span> Read docs/ZEN-OF-TORTIE.md, DESIGN.md, src/renderer/styles/tokens.css
+  <span class="d">Read 184 lines, 473 lines, 374 lines</span>
+
+  The measurement that decides this round. Chrome primary sits at
+  <span class="c">#e8eaed</span>, relative luminance <span class="c">0.8212</span>, contrast <span class="c">15.28:1</span> on the canvas.
+  The terminal's own foreground is <span class="c">#d8dbe2</span>, luminance <span class="c">0.7075</span>,
+  contrast <span class="c">13.29:1</span>. So every session name, filename and commit
+  subject in the chrome is <span class="w">brighter than the agent's output</span> it
+  labels, and DESIGN.md line 9 says the terminal IS the page.
+
+<span class="d">›</span> Re-derive the contrast lift over all twelve palettes
+  <span class="d">theme/derive.ts:178   L' = L + (1 - L) * t   t = 0, 0.08, 0.16</span>
+
+  <span class="d">token           normal    raised    high      vs terminal fg</span>
+  <span class="d">--------------  --------  --------  --------  --------------</span>
+  #e8eaed         0.8212    0.8346    0.8482    <span class="r">brighter, all 3</span>
+  #d3d7de         0.6772    0.7000    <span class="r">0.7234</span>    <span class="r">fails at high</span>
+  <span class="c">#cfd3da</span>         0.6492    0.6736    0.6987    <span class="p">below, all 3</span>
+  #cbcfd7         0.6223    0.6482    0.6749    below, all 3
+
+  <span class="c">#cfd3da</span> is the ceiling. It is the brightest value that stays under
+  the transcript at every contrast level, and it still measures
+  <span class="c">12.26:1</span>, which is the ≥12:1 the token's own comment promises.
+
+<span class="d">›</span> Measure whether the system face renders intermediate weights
+  <span class="d">canvas.measureText, -apple-system at 13px</span>
+
+  <span class="d">400 → 237.904px   450 → 240.706px   500 → 243.501px   560 → 246.316px</span>
+
+  Every step is distinct, so the weight range is real rather than
+  three faces with gaps between them. That is what pays for the
+  ramp stepping down: <span class="c">hierarchy moves from luminance onto weight</span>.
+
+<span class="d">›</span> Count what the chrome already draws
+  517 font-size declarations, 5 named steps and <span class="w">33 literals</span>
+  eleven of the literals are <span class="c">10px</span>, all of them chips at h:16
+  <span class="w">8 tracking values</span> across 32 declarations, 19 of them 0.04em
+  207 codicons at 5 sizes; the icons are a <span class="c">font</span>, so they follow
+
+  Nothing above needs a pixel to move.
+
+<span class="p">➜</span>  <span class="a">~/gmux</span> <span class="d">git:(</span><span class="w">main</span><span class="d">)</span> <span class="cursor"></span></div>
+
+    </div>
+  </div>
+</div>
+</div>
+
+</body>
+</html>

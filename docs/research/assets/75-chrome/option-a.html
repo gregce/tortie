@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Option A, the quiet frame</title>
+<style>
+  /* ---------------------------------------------------------------
+     OPTION A, THE QUIET FRAME. Research 75, chrome repaint.
+     Every colour below is a Tortie token. The ones marked CHANGED are
+     the whole proposal; everything else is the shipped value, byte for
+     byte, so the difference is the only thing this page shows.
+     Nothing moves. Every rectangle sits where Tortie puts it.
+     --------------------------------------------------------------- */
+  :root {
+    /* 1.1 Neutrals */
+    --bg-canvas: #131417;        /* FROZEN, three mirrors depend on it   */
+    --bg-sidebar: #0e0f13;       /* CHANGED from #17181c, now BELOW canvas */
+    --bg-surface: #191b20;       /* CHANGED from #1b1d22                 */
+    --bg-raised: #1d2026;        /* CHANGED from #22252b                 */
+    --bg-active: #252931;        /* CHANGED from #2a2e36                 */
+
+    --border: #25282e;           /* CHANGED from #2a2d34                 */
+    --border-strong: #353943;    /* CHANGED from #3a3e48                 */
+
+    --text-primary: #c9cacd;     /* CHANGED from #e8eaed, 15.28:1 to 11.24:1 */
+    --text-secondary: #9ca1ab;   /* CHANGED from #a8adb8, 8.19:1 to 7.10:1   */
+    --text-muted: #838996;       /* FROZEN, it holds the 4.5:1 floor     */
+    --text-disabled: #565b66;    /* FROZEN                               */
+
+    /* 1.2 Accent, untouched */
+    --accent: #4d9de8;
+    --accent-text: #82bfff;
+    --on-accent: #0d1117;
+
+    /* 1.3 Status, untouched. Amber is the one thing that never steps down. */
+    --status-working: #4d9de8;
+    --status-attention: #f5b84a;
+    --status-idle: #6e7583;
+    --status-exited: #6e7583;
+    --status-attention-badge-bg: #f5b84a;
+    --status-attention-badge-fg: #131417;
+
+    /* 1.4 Git decoration */
+    --git-modified: #af9c74;     /* CHANGED from #e2b340, dE2000 to amber 4.45 to 17.36 */
+    --git-added: #6bc46d;
+    --git-deleted: #e5655e;
+
+    /* New. One opacity, outside the colour machinery, beside --graph-dim. */
+    --file-icon-dim: 0.55;
+
+    --r-sm: 4px;
+    --r-md: 6px;
+
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    --font-mono: ui-monospace, Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0b0d;
+    color: var(--text-secondary);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    padding: 22px;
+  }
+
+  /* Caption, outside the frame. */
+  .caption { width: 1400px; margin: 0 auto 14px; }
+  .caption h1 {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
+    color: #c9cacd; margin-bottom: 4px;
+  }
+  .caption p { font-size: 12px; line-height: 17px; color: #838996; max-width: 1100px; }
+
+  .frame {
+    width: 1400px; height: 880px; margin: 0 auto;
+    background: var(--bg-canvas);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    border-radius: 10px; /* macOS draws this, not Tortie. Shown for realism only. */
+  }
+
+  /* ---------------- S2 titlebar, 38px ---------------- */
+  .titlebar {
+    display: flex; align-items: center;
+    height: 38px; flex: 0 0 38px;
+    padding-left: 76px; padding-right: 12px;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .lights { position: absolute; left: 12px; top: 13px; display: flex; gap: 8px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .lights i:nth-child(1) { background: #3f4148; }
+  .lights i:nth-child(2) { background: #3f4148; }
+  .lights i:nth-child(3) { background: #3f4148; }
+
+  .ptabs { display: flex; align-items: center; gap: 4px; }
+  .ptab {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 12px 0 10px;
+    border-radius: var(--r-sm);
+    color: var(--text-secondary);
+    font-size: 13px; font-weight: 500;
+    white-space: nowrap;
+  }
+  /* The ONE lifted element in this band. Nothing else here has a fill. */
+  .ptab.selected { background: var(--bg-active); color: var(--text-primary); }
+  .ptab-add {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; margin-left: 4px; border-radius: var(--r-sm);
+    color: var(--text-muted);
+  }
+  .spacer { flex: 1; }
+  .bell {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: var(--r-sm); color: var(--text-secondary);
+  }
+
+  /* Dots. Status is shape plus colour plus a label elsewhere, never colour alone. */
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; display: inline-block; }
+  .dot.working { background: var(--status-working); }
+  .dot.attention { background: var(--status-attention); animation: pulse 1.6s infinite; }
+  .dot.idle { background: var(--status-idle); }
+  .dot.exited { background: transparent; box-shadow: inset 0 0 0 1.5px var(--status-exited); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+  .badge-amber {
+    height: 16px; min-width: 16px; padding: 0 4px; border-radius: 8px;
+    background: var(--status-attention-badge-bg); color: var(--status-attention-badge-fg);
+    font-size: 11px; line-height: 16px; font-weight: 600; text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .bell .badge-amber { position: absolute; top: -3px; right: -5px; }
+
+  /* ---------------- shell body ---------------- */
+  .shell-body { display: flex; flex: 1; min-height: 0; }
+
+  /* S3 activity bar, 48px */
+  .activitybar {
+    display: flex; flex-direction: column; align-items: center;
+    width: 48px; flex: 0 0 48px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+  }
+  .ab-item {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 48px; height: 48px;
+    color: var(--text-muted);            /* R1, one icon rest value */
+  }
+  .ab-item.active { color: var(--text-primary); }
+  .ab-item.active::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+    background: var(--accent);
+  }
+  .ab-badge {
+    position: absolute; right: 4px; bottom: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 16px; min-width: 16px; padding: 0 4px; border-radius: 8px;
+    background: var(--accent); color: var(--on-accent);
+    font-size: 11px; line-height: 16px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .ab-spacer { flex: 1; }
+
+  /* S3 sidebar */
+  .sidebar {
+    display: flex; flex-direction: column;
+    width: 280px; flex: 0 0 280px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    min-height: 0;
+  }
+  .view-header {
+    display: flex; align-items: center; gap: 4px;
+    height: 36px; flex: 0 0 36px; padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 11px; line-height: 16px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .view-header-action {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: var(--r-sm);
+    color: var(--text-muted);            /* R1 */
+  }
+
+  .files-tree { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 8px 4px 4px; }
+  .filter {
+    height: 28px; margin: 0 4px 4px; padding: 0 8px;
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-sm);
+    color: var(--text-muted); font-size: 12px;
+  }
+  .rows { flex: 1; min-height: 0; overflow: hidden; }
+  .row {
+    display: flex; align-items: center; gap: 6px;
+    height: 24px; padding-right: 8px;
+    font-size: 12px; color: var(--text-primary);
+    border-radius: var(--r-md);
+    white-space: nowrap;
+  }
+  .row.selected { background: var(--bg-active); }
+  .row .chev { width: 12px; height: 12px; flex: 0 0 12px; color: var(--text-muted); display: inline-flex; }
+  .row .chev.leaf { visibility: hidden; }
+  .row .ficon { width: 16px; height: 16px; flex: 0 0 16px; display: inline-flex; opacity: var(--file-icon-dim); }
+  .row.selected .ficon { opacity: 1; }   /* R6, hue comes back where you are */
+  .row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .row.dir .nm { color: var(--text-primary); }
+  .row .st { font-family: var(--font-mono); font-size: 11px; flex: 0 0 auto; }
+  .row .st.m { color: var(--git-modified); }
+  .row .st.u { color: var(--git-added); }
+  /* R3. The dirty descendant mark is a summary, not a state, so it has no hue. */
+  .row .prop { width: 4px; height: 4px; border-radius: 50%; background: var(--text-muted); flex: 0 0 4px; }
+
+  /* ---------------- work area ---------------- */
+  .work-area { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+
+  /* S4 session strip, 36px */
+  .term-header {
+    display: flex; align-items: stretch;
+    height: 36px; flex: 0 0 36px;
+    background: var(--bg-sidebar);
+    min-width: 0;
+  }
+  .stab {
+    position: relative; display: inline-flex; align-items: center; gap: 6px;
+    min-width: 120px; max-width: 200px; padding: 0 10px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary); font-size: 13px; white-space: nowrap;
+  }
+  /* THE ONE LIFTED ELEMENT in this band. It is the canvas, so it is the same
+     material as the session under it, and after the ground inverts it is the
+     only cell in the band that sits ABOVE its own ground. */
+  .stab.active {
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    border-bottom-color: transparent;
+    box-shadow: inset 0 2px 0 var(--accent);
+  }
+  .stab .agent { width: 16px; height: 16px; flex: 0 0 16px; display: inline-flex; color: var(--text-muted); }
+  .stab.active .agent { color: var(--text-secondary); }
+  .stab .nm { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .stab.attention .nm { font-weight: 500; color: var(--text-primary); }
+  .stab.ended .nm { color: var(--text-muted); }
+  .stab .saved { color: var(--text-secondary); display: inline-flex; }
+  .stab .x { width: 16px; height: 16px; flex: 0 0 16px; display: inline-flex; color: var(--text-muted); }
+  .stab:not(.active) .x { visibility: hidden; }
+  .stab-filler { flex: 1 1 auto; min-width: 0; border-bottom: 1px solid var(--border); }
+  .strip-cell {
+    display: inline-flex; align-items: center; gap: 2px; padding: 0 4px;
+    border-bottom: 1px solid var(--border); color: var(--text-muted);
+  }
+  .strip-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: var(--r-sm); }
+  .strip-btn.narrow { width: 18px; }
+
+  /* Terminal */
+  .terminal {
+    flex: 1; min-height: 0; position: relative;
+    background: var(--bg-canvas);
+    padding: 3px 0 6px 12px;
+    font-family: var(--font-mono);
+    font-size: 13px; line-height: 16.25px;
+    color: #d8dbe2;                       /* TERMINAL_FOREGROUND, untouched */
+    overflow: hidden;
+    white-space: pre;
+    display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .terminal .out { white-space: pre; }
+  .terminal .dim { color: #4a505c; }      /* xterm brightBlack */
+  .terminal .grn { color: #6bc46d; }
+  .terminal .cyn { color: #56c2c0; }
+  .terminal .mag { color: #c583d8; }
+  .terminal .blu { color: #6cb6ff; }
+  .terminal .ylw { color: #e2b340; }
+  .terminal .wht { color: #e8eaed; }      /* brightWhite, still the app's brightest pixel */
+  .terminal .b { font-weight: 700; }
+  .cursor { display: inline-block; width: 8px; height: 15px; background: #e8eaed; vertical-align: -3px; }
+
+  /* The session scrollbar Tortie draws over live output. Ramp unchanged. */
+  .scrolllane { position: absolute; top: 0; right: 0; bottom: 0; width: 14px; }
+  .scrollthumb {
+    position: absolute; right: 3px; top: 62%; height: 26%; width: 3px; border-radius: 2px;
+    background: rgba(168, 173, 184, 0.52);
+  }
+</style>
+</head>
+<body>
+
+<div class="caption">
+  <h1>Option A, the quiet frame</h1>
+  <p>The frame steps below the work in both ground and text, so the transcript becomes the brightest thing on the screen and the active tab becomes the only lifted object, with nothing moved and nothing added.</p>
+</div>
+
+<div class="frame">
+
+  <!-- S2 titlebar -->
+  <div class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="ptabs">
+      <span class="ptab selected"><span class="dot working"></span>gmux</span>
+      <span class="ptab"><span class="dot attention"></span>tortiedotsh<span class="badge-amber" style="margin-left:2px">1</span></span>
+      <span class="ptab"><span class="dot idle"></span>specstory-sync</span>
+      <span class="ptab-add">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>
+      </span>
+    </div>
+    <div class="spacer"></div>
+    <span class="bell">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><path d="M4 6.5a4 4 0 0 1 8 0c0 3 1 4 1 4H3s1-1 1-4z"/><path d="M6.6 13a1.6 1.6 0 0 0 2.8 0"/></svg>
+      <span class="badge-amber">1</span>
+    </span>
+  </div>
+
+  <div class="shell-body">
+
+    <!-- S3 activity bar -->
+    <div class="activitybar">
+      <span class="ab-item active" title="Explorer">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><path d="M14 3.5H7.5A1.5 1.5 0 0 0 6 5v14a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 19V7.5L14 3.5z"/><path d="M14 3.5V7.5H18"/></svg>
+      </span>
+      <span class="ab-item" title="Source Control">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><circle cx="7" cy="6" r="2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="9" r="2"/><path d="M7 8v8M17 11v1a4 4 0 0 1-4 4H9"/></svg>
+        <span class="ab-badge">7</span>
+      </span>
+      <span class="ab-item" title="Search">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><circle cx="11" cy="11" r="5.5"/><path d="M15 15l4 4"/></svg>
+      </span>
+      <span class="ab-item" title="Context">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><path d="M5 5.5h5a2 2 0 0 1 2 2v11a2 2 0 0 0-2-2H5z"/><path d="M19 5.5h-5a2 2 0 0 0-2 2v11a2 2 0 0 1 2-2h5z"/></svg>
+      </span>
+      <span class="ab-item" title="Architecture">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><rect x="9.5" y="3.5" width="5" height="4" rx="0.5"/><rect x="4" y="16.5" width="5" height="4" rx="0.5"/><rect x="15" y="16.5" width="5" height="4" rx="0.5"/><path d="M12 7.5v4.5M6.5 16.5V12h11v4.5"/></svg>
+      </span>
+      <span class="ab-spacer"></span>
+      <span class="ab-item" title="Settings">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><circle cx="12" cy="12" r="2.75"/><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6"/></svg>
+      </span>
+    </div>
+
+    <!-- S3 sidebar, Explorer -->
+    <div class="sidebar">
+      <div class="view-header">
+        <span>Explorer</span>
+        <span class="spacer"></span>
+        <span class="view-header-action"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg></span>
+        <span class="view-header-action"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><path d="M3 4.5h10l-4 4.5v4l-2-1.2V9z"/></svg></span>
+        <span class="view-header-action"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M12.5 6.5A4.6 4.6 0 0 0 4 5.6M3.5 9.5A4.6 4.6 0 0 0 12 10.4"/><path d="M12.5 3.4v3.1H9.4M3.5 12.6V9.5h3.1"/></svg></span>
+        <span class="view-header-action"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M4 6.5 6.5 9 4 11.5M12 6.5 9.5 9 12 11.5"/></svg></span>
+        <span class="view-header-action"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M3 4.5h10M4.5 8h7M6 11.5h4"/></svg></span>
+      </div>
+
+      <div class="files-tree">
+        <div class="filter">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><circle cx="7" cy="7" r="4"/><path d="M10 10l3 3"/></svg>
+          <span>Filter</span>
+        </div>
+        <div class="rows">
+
+          <div class="row dir" style="padding-left:6px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">build</span>
+          </div>
+
+          <div class="row dir" style="padding-left:6px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">docs</span>
+            <span class="prop"></span>
+          </div>
+
+          <div class="row dir" style="padding-left:18px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">arch</span>
+          </div>
+
+          <div class="row dir" style="padding-left:18px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">audits</span>
+          </div>
+
+          <div class="row dir" style="padding-left:18px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">research</span>
+            <span class="prop"></span>
+          </div>
+
+          <div class="row" style="padding-left:36px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">60-tortie-orca-comparison.md</span>
+            <span class="st u">U</span>
+          </div>
+
+          <div class="row" style="padding-left:36px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">75-chrome.md</span>
+            <span class="st u">U</span>
+          </div>
+
+          <div class="row" style="padding-left:18px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">BACKLOG.md</span>
+            <span class="st m">M</span>
+          </div>
+
+          <div class="row" style="padding-left:18px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">DESIGN-SPEC.md</span>
+          </div>
+
+          <div class="row" style="padding-left:18px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">ZEN-OF-TORTIE.md</span>
+          </div>
+
+          <div class="row dir" style="padding-left:6px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">resources</span>
+          </div>
+
+          <div class="row dir" style="padding-left:6px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">src</span>
+            <span class="prop"></span>
+          </div>
+
+          <div class="row dir" style="padding-left:18px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">main</span>
+          </div>
+
+          <div class="row dir" style="padding-left:18px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">renderer</span>
+            <span class="prop"></span>
+          </div>
+
+          <div class="row dir" style="padding-left:30px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">app</span>
+          </div>
+
+          <div class="row dir" style="padding-left:30px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">scm</span>
+          </div>
+
+          <div class="row dir" style="padding-left:30px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">styles</span>
+            <span class="prop"></span>
+          </div>
+
+          <div class="row" style="padding-left:48px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#0288d1" stroke-width="1.25" stroke-linejoin="round"><path d="M12.5 3 12 12.2 8 13.5 4 12.2 3.5 3z"/><path d="M10 5.6H6.4l.2 2.1h3.2l-.3 2.6-1.5.5-1.5-.5-.1-1"/></svg></span>
+            <span class="nm">app.css</span>
+          </div>
+
+          <div class="row" style="padding-left:48px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#0288d1" stroke-width="1.25" stroke-linejoin="round"><path d="M12.5 3 12 12.2 8 13.5 4 12.2 3.5 3z"/><path d="M10 5.6H6.4l.2 2.1h3.2l-.3 2.6-1.5.5-1.5-.5-.1-1"/></svg></span>
+            <span class="nm">globals.css</span>
+          </div>
+
+          <div class="row selected" style="padding-left:48px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#0288d1" stroke-width="1.25" stroke-linejoin="round"><path d="M12.5 3 12 12.2 8 13.5 4 12.2 3.5 3z"/><path d="M10 5.6H6.4l.2 2.1h3.2l-.3 2.6-1.5.5-1.5-.5-.1-1"/></svg></span>
+            <span class="nm">tokens.css</span>
+            <span class="st m">M</span>
+          </div>
+
+          <div class="row dir" style="padding-left:30px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">terminal</span>
+          </div>
+
+          <div class="row dir" style="padding-left:30px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">theme</span>
+            <span class="prop"></span>
+          </div>
+
+          <div class="row dir" style="padding-left:18px">
+            <span class="chev"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 2.5 8 6l-3.5 3.5"/></svg></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#90a4ae" stroke-width="1.25" stroke-linejoin="round"><path d="M2 4.2h4l1.2 1.4H14v6.2H2z"/></svg></span>
+            <span class="nm">shared</span>
+          </div>
+
+          <div class="row" style="padding-left:6px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">CHANGELOG.md</span>
+          </div>
+
+          <div class="row" style="padding-left:6px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">CLAUDE.md</span>
+          </div>
+
+          <div class="row" style="padding-left:6px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">DESIGN.md</span>
+            <span class="st m">M</span>
+          </div>
+
+          <div class="row" style="padding-left:6px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fbc02d" stroke-width="1.25" stroke-linejoin="round"><path d="M6.4 3.5C4.9 3.5 5 4.9 5 6.2c0 1-1 1.8-1.6 1.8.6 0 1.6.8 1.6 1.8 0 1.3-.1 2.7 1.4 2.7M9.6 3.5c1.5 0 1.4 1.4 1.4 2.7 0 1 1 1.8 1.6 1.8-.6 0-1.6.8-1.6 1.8 0 1.3.1 2.7-1.4 2.7"/></svg></span>
+            <span class="nm">package.json</span>
+          </div>
+
+          <div class="row" style="padding-left:6px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#42a5f5" stroke-width="1.25" stroke-linejoin="round"><path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 10V6.4l1.7 2 1.7-2V10M10 6.4V10h1.9"/></svg></span>
+            <span class="nm">README.md</span>
+          </div>
+
+          <div class="row" style="padding-left:6px">
+            <span class="chev leaf"></span>
+            <span class="ficon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fbc02d" stroke-width="1.25" stroke-linejoin="round"><path d="M6.4 3.5C4.9 3.5 5 4.9 5 6.2c0 1-1 1.8-1.6 1.8.6 0 1.6.8 1.6 1.8 0 1.3-.1 2.7 1.4 2.7M9.6 3.5c1.5 0 1.4 1.4 1.4 2.7 0 1 1 1.8 1.6 1.8-.6 0-1.6.8-1.6 1.8 0 1.3.1 2.7-1.4 2.7"/></svg></span>
+            <span class="nm">tsconfig.json</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- work area -->
+    <div class="work-area">
+
+      <!-- S4 session tab strip -->
+      <div class="term-header">
+        <span class="stab active">
+          <span class="agent"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M8 2.2 9.4 6.6 13.8 8 9.4 9.4 8 13.8 6.6 9.4 2.2 8 6.6 6.6z"/></svg></span>
+          <span class="nm">claude-1</span>
+          <span class="dot working"></span>
+          <span class="x"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M3.2 3.2l5.6 5.6M8.8 3.2l-5.6 5.6"/></svg></span>
+        </span>
+
+        <span class="stab attention">
+          <span class="agent"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M8 2.2 9.4 6.6 13.8 8 9.4 9.4 8 13.8 6.6 9.4 2.2 8 6.6 6.6z"/></svg></span>
+          <span class="nm">phase-176</span>
+          <span class="dot attention"></span>
+          <span class="x"></span>
+        </span>
+
+        <span class="stab">
+          <span class="agent"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"><circle cx="8" cy="8" r="5.4"/><ellipse cx="8" cy="8" rx="2.3" ry="5.4"/><path d="M2.9 6.2h10.2M2.9 9.8h10.2"/></svg></span>
+          <span class="nm">verify</span>
+          <span class="dot idle"></span>
+          <span class="x"></span>
+        </span>
+
+        <span class="stab ended">
+          <span class="agent"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="11" height="10" rx="1"/><path d="M5 6.5 7 8.5 5 10.5M8.6 10.5h2.6"/></svg></span>
+          <span class="nm">shell</span>
+          <span class="saved"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M2.2 6a3.8 3.8 0 1 0 1.2-2.7"/><path d="M2 2.4v2.2h2.2"/></svg></span>
+          <span class="dot exited"></span>
+          <span class="x"></span>
+        </span>
+
+        <span class="stab-filler"></span>
+
+        <span class="strip-cell">
+          <span class="strip-btn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg></span>
+          <span class="strip-btn narrow"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></span>
+        </span>
+      </div>
+
+      <!-- the work. It is the brightest thing on this page, and that is the proposal. -->
+      <div class="terminal"><div class="out"><span class="grn">➜</span>  <span class="cyn">gmux</span> <span class="mag">git:(</span><span class="blu">main</span><span class="mag">)</span> claude --resume
+
+  <span class="wht b">Tortie</span> <span class="dim">·</span> resumed session <span class="cyn">claude-1</span> <span class="dim">·</span> 41 messages restored
+
+<span class="wht">&gt;</span> read the token file and tell me which chrome text is brighter than the terminal
+
+<span class="mag">⏺</span> I read <span class="cyn">src/renderer/styles/tokens.css</span> and <span class="cyn">src/renderer/terminal/theme.ts</span>.
+
+  Two values decide it.
+
+    <span class="dim">--text-primary</span>       <span class="wht">#e8eaed</span>   relative luminance <span class="wht">0.8212</span>   <span class="wht">15.28:1</span> on canvas
+    <span class="dim">TERMINAL_FOREGROUND</span>  <span class="wht">#d8dbe2</span>   relative luminance <span class="wht">0.7075</span>   <span class="wht">13.29:1</span> on canvas
+
+  The chrome sits <span class="ylw">16 percent higher in luminance</span> than the agent's own output,
+  so every session name, filename and commit message in the window is brighter
+  than the transcript it labels. DESIGN.md section 0 says the terminal IS the
+  page. Today the page is the second brightest thing in the window.
+
+  It is the same inversion twice. The GROUND does it too:
+
+    <span class="dim">--bg-sidebar</span>   <span class="wht">#17181c</span>   luminance <span class="wht">0.00919</span>
+    <span class="dim">--bg-canvas</span>    <span class="wht">#131417</span>   luminance <span class="wht">0.00700</span>
+
+  The chrome's ground is <span class="ylw">31 percent brighter</span> than the work's ground, which is
+  why the active session tab currently reads as a well rather than as a tab.
+
+<span class="mag">⏺</span> <span class="grn">Bash</span>(node build/contrast.mjs --ramp)
+  <span class="dim">⎿</span>  ramp today   15.28 / 8.19 / 5.25   ceiling 15.28   transcript 13.29  <span class="dim">INVERTED</span>
+     ramp option A 11.24 / 7.10 / 5.25   ceiling 13.29   transcript 13.29  <span class="grn">OK</span>
+     holds at contrast normal, raised and high; schemes touch none of these
+
+<span class="mag">⏺</span> The fix is a token diff. Eleven values, nothing moves, and the two that carry
+  the whole idea are <span class="cyn">--text-primary</span> and <span class="cyn">--bg-sidebar</span>. Step the chrome text one
+  rung under the transcript and drop the chrome ground below the canvas, and the
+  frame becomes a dark ring around a bright middle without painting a gradient
+  over one pixel of live output.
+
+<span class="wht">&gt;</span> what happens to the amber rule in the explorer
+
+<span class="mag">⏺</span> Worse than the note in tokens.css says. <span class="cyn">--git-modified</span> is dE2000 <span class="wht">4.45</span> from
+  <span class="cyn">--status-attention</span>, which the file already records. It is not the closest.
+
+    material-icon-theme, 79 hues embedded in <span class="cyn">src/renderer/icons/file-icons.generated.ts</span>
+      <span class="ylw">#fbc02d</span>  dE <span class="wht">4.49</span>     <span class="ylw">#ffb300</span>  dE <span class="wht">4.64</span>     <span class="ylw">#f9a825</span>  dE <span class="wht">5.45</span>
+
+  Those are the json, yaml and js icons, drawn at 16px on every row of the tree.
+  Five sit inside dE 7.4 of the one colour that means an agent needs a human.
+
+<span class="grn">➜</span>  <span class="cyn">gmux</span> <span class="mag">git:(</span><span class="blu">main</span><span class="mag">)</span> <span class="cursor"></span></div>
+        <div class="scrolllane"><div class="scrollthumb"></div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

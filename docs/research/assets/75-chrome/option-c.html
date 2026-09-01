@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Option C, the lit edge</title>
+<style>
+/* =========================================================================
+   OPTION C, THE LIT EDGE. A mock, not a product. Dark only, no network,
+   no font file, no image file, every icon drawn inline.
+
+   The token values below are the PROPOSED values. Where a value differs
+   from what Tortie ships today the shipped value is in the comment beside
+   it, so the diff is readable from the file.
+   ========================================================================= */
+:root{
+  /* --- the plane order. THE CANVAS IS FROZEN AND IS NOW THE TOP PLANE --- */
+  --bg-canvas:#131417;        /* unchanged, three mirrors depend on it      */
+  --bg-sidebar:#0f1014;       /* was #17181c, now BELOW the canvas          */
+  --bg-surface:#1b1d22;       /* unchanged. what floats stays above the canvas */
+  --bg-raised:#181b21;        /* was #22252b                                */
+  --bg-active:#1f222a;        /* was #2a2e36                                */
+
+  --border:#2b2f36;           /* was #2a2d34, a hair stronger and cooler    */
+  --border-strong:#3a404a;    /* was #3a3e48                                */
+
+  --text-primary:#d0d2d5;     /* was #e8eaed, now below the transcript      */
+  --text-secondary:#9ca1ac;   /* was #a8adb8                                */
+  --text-muted:#808692;       /* was #838996                                */
+  --text-disabled:#565b66;    /* unchanged                                  */
+
+  --accent:#4d9de8;
+  --accent-hover:#63acf0;
+  --accent-text:#82bfff;
+  --on-accent:#0d1117;
+
+  --status-working:#4d9de8;
+  --status-attention:#f5b84a; /* the one loud colour, and it stays put      */
+  --status-idle:#6e7583;
+  --status-exited:#6e7583;
+
+  --git-modified:#a5abb7;     /* was #e2b340. dE2000 to amber 4.45 -> 33.11 */
+  --git-added:#6bc46d;
+  --git-deleted:#e5655e;
+
+  /* --- the two new tokens. THIS IS THE WHOLE ADDITION --- */
+  /* light from above, on objects that genuinely sit above their own plane */
+  --edge-lit:color-mix(in srgb, var(--text-primary) 8%, transparent);
+  /* how far content fades where it continues past a boundary */
+  --edge-fade:20px;
+
+  /* --- the nested radius family. 4 -> 8 -> 14, outer = inner + padding --- */
+  --r-sm:4px;                 /* a control                                  */
+  --r-md:8px;                 /* was 6px. a container of controls           */
+  --r-lg:14px;                /* was 10px. a sheet                          */
+
+  --shadow-1:0 1px 3px rgba(0,0,0,.5);
+  --shadow-2:0 6px 20px rgba(0,0,0,.55);
+
+  --font-ui:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  --font-mono:ui-monospace,Menlo,monospace;
+  --font-terminal:ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0b0d;color:#9ca1ac;font-family:var(--font-ui);
+     -webkit-font-smoothing:antialiased;padding:28px}
+.cap{max-width:1400px;margin:0 auto 16px}
+.cap h1{font-size:15px;font-weight:600;color:#d0d2d5;letter-spacing:.01em}
+.cap p{font-size:13px;line-height:19px;color:#8d929d;margin-top:5px}
+.cap .foot{font-size:11px;line-height:16px;color:#6b707b;margin-top:5px}
+
+/* the mock frame ---------------------------------------------------------- */
+.mock{width:1400px;height:880px;margin:0 auto;display:flex;flex-direction:column;
+      background:var(--bg-canvas);overflow:hidden;border-radius:10px;
+      box-shadow:0 24px 70px rgba(0,0,0,.7)}
+svg{display:block;flex:0 0 auto}
+
+/* ===================== TITLEBAR, 38px ==================================== */
+.titlebar{display:flex;align-items:center;height:38px;flex:0 0 38px;
+  padding-left:76px;padding-right:12px;background:var(--bg-sidebar);
+  border-bottom:1px solid var(--border);position:relative}
+.lights{position:absolute;left:13px;top:50%;transform:translateY(-50%);
+  display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.titlebar-tabs{display:flex;align-items:center;gap:4px;min-width:0}
+.ptab{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px 0 10px;
+  border-radius:var(--r-sm);color:var(--text-secondary);font-size:13px;font-weight:500;
+  white-space:nowrap;position:relative}
+/* THE LIT EDGE. The selected tab is the one object in this row that is above
+   the band, so it is the only one that catches the light. */
+.ptab.selected{background:var(--bg-active);color:var(--text-primary);
+  box-shadow:inset 0 1px 0 var(--edge-lit)}
+.ptab .dot{opacity:.8}
+.ptab.selected .dot{opacity:1}
+.ptab-add{display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;margin-left:4px;border-radius:var(--r-sm);color:var(--text-muted)}
+.titlebar-spacer{flex:1}
+.bell{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
+  border-radius:var(--r-sm);color:var(--text-muted);position:relative}
+.bell .badge{position:absolute;top:-1px;right:0px;width:8px;height:8px;border-radius:50%;
+  background:var(--status-attention);box-shadow:0 0 0 2px var(--bg-sidebar);
+  animation:pulse 1.6s cubic-bezier(.2,0,0,1) infinite}
+
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.dot-working{background:var(--status-working)}
+.dot-attention{background:var(--status-attention);animation:pulse 1.6s cubic-bezier(.2,0,0,1) infinite}
+.dot-idle{background:var(--status-idle)}
+.dot-ended{background:transparent;box-shadow:inset 0 0 0 1.5px var(--status-exited)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ===================== BODY ============================================== */
+.shell-body{display:flex;flex:1;min-height:0}
+
+/* activity rail, 48px ----------------------------------------------------- */
+.activitybar{display:flex;flex-direction:column;align-items:center;width:48px;flex:0 0 48px;
+  background:var(--bg-sidebar);border-right:1px solid var(--border)}
+.ab-item{position:relative;display:flex;align-items:center;justify-content:center;
+  width:48px;height:48px;color:var(--text-muted);flex:0 0 auto}
+.ab-item.active{color:var(--text-primary)}
+.ab-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:var(--accent)}
+.ab-badge{position:absolute;right:5px;bottom:7px;display:flex;align-items:center;
+  justify-content:center;height:16px;min-width:16px;padding:0 4px;border-radius:8px;
+  background:var(--accent);color:var(--on-accent);font-size:11px;line-height:16px;font-weight:600}
+.ab-spacer{flex:1}
+
+/* sidebar, Source Control ------------------------------------------------- */
+.sidebar{display:flex;flex-direction:column;width:280px;flex:0 0 280px;
+  background:var(--bg-sidebar);border-right:1px solid var(--border);min-height:0}
+.branch-header{display:flex;align-items:center;gap:6px;height:36px;flex:0 0 36px;
+  padding:0 12px;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+.branch-btn{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 6px;
+  border-radius:var(--r-sm);color:var(--text-secondary);min-width:0}
+.branch-name{font-family:var(--font-mono);font-size:12px;color:var(--text-primary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aheadbehind{font-family:var(--font-mono);font-size:11px;color:var(--text-muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.hspacer{flex:1}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:var(--r-sm);color:var(--text-secondary);flex:0 0 auto}
+
+.section-header{display:flex;align-items:center;gap:4px;height:24px;flex:0 0 24px;
+  padding:0 8px;background:var(--bg-sidebar);color:var(--text-muted);font-size:11px;
+  line-height:16px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.section-count{font-weight:400;font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0}
+.commit-box{margin:4px 12px 0;min-height:28px;padding:4px 8px;background:var(--bg-surface);
+  border:1px solid var(--border-strong);border-radius:var(--r-sm);font-size:12px;
+  line-height:20px;color:var(--text-muted)}
+/* THE PRESSABLE PRIMARY. It floats, so it takes the lit edge too, over the
+   sheen the app already ships. */
+.commit-btn{display:flex;align-items:center;justify-content:center;height:28px;
+  margin:6px 12px 8px;border-radius:var(--r-sm);background:var(--accent);color:var(--on-accent);
+  font-size:13px;font-weight:600;position:relative;overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28), 0 0 12px rgba(77,157,232,.22)}
+.commit-btn::before{content:'';position:absolute;inset:0;
+  background:linear-gradient(to bottom,rgba(99,172,240,.7),transparent)}
+.commit-btn span{position:relative}
+
+.group-row{display:flex;align-items:center;gap:6px;height:24px;padding:0 12px}
+.group-row b{font-size:11px;font-weight:600;color:var(--text-secondary)}
+.group-row i{font-size:11px;font-style:normal;color:var(--text-muted);font-variant-numeric:tabular-nums}
+
+.scm-row{display:flex;align-items:center;gap:8px;height:24px;padding:0 12px 0 20px;
+  border-radius:var(--r-md);margin:0 4px;position:relative}
+/* the selected row is above the sidebar plane, so it catches the light and
+   the accent inset carries the meaning */
+.scm-row.selected{background:var(--bg-active);box-shadow:inset 0 1px 0 var(--edge-lit)}
+.scm-row.selected::before{content:'';position:absolute;left:0;top:3px;bottom:3px;width:2px;
+  border-radius:1px;background:var(--accent)}
+.scm-letter{font-family:var(--font-mono);font-size:11px;font-weight:600;width:9px;
+  flex:0 0 auto;text-align:center}
+.scm-name{font-size:12px;color:var(--text-primary);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;flex:0 0 auto}
+.scm-dir{font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;min-width:0}
+
+/* THE EDGE FADE. The list continues under the sticky header, and it says so
+   by fading rather than by being cut. Chrome only, never over the canvas. */
+.scm-scroll{position:relative;flex:1;min-height:0;overflow:hidden}
+.scm-scroll .fade-bottom{position:absolute;left:0;right:0;bottom:0;height:var(--edge-fade);
+  background:linear-gradient(to bottom,rgba(15,16,20,0),var(--bg-sidebar));pointer-events:none}
+.history-head{position:relative;z-index:1}
+
+.commit-row{display:flex;align-items:center;gap:8px;height:24px;padding:0 12px 0 8px}
+.lane{width:14px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  position:relative;height:24px}
+.lane::before{content:'';position:absolute;top:0;bottom:0;width:2px;background:var(--accent);
+  opacity:.45}
+.lane b{width:7px;height:7px;border-radius:50%;background:var(--accent);position:relative;z-index:1;
+  box-shadow:0 0 0 2px var(--bg-sidebar)}
+.lane.merge b{background:var(--bg-sidebar);box-shadow:0 0 0 1.5px var(--accent),0 0 0 3px var(--bg-sidebar)}
+.commit-msg{font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;min-width:0;flex:1}
+.ref-pill{font-family:var(--font-mono);font-size:10px;line-height:15px;padding:0 5px;
+  border-radius:var(--r-sm);border:1px solid var(--border);color:var(--text-muted);flex:0 0 auto}
+
+/* work area --------------------------------------------------------------- */
+.work-area{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0}
+
+/* the band, 36px. --bandline is accent because the terminal owns the keyboard */
+.term-header{--bandline:var(--accent);display:flex;align-items:stretch;height:36px;
+  flex:0 0 36px;background:var(--bg-sidebar);min-width:0}
+.stab-list{display:flex;align-items:stretch;flex:1 1 auto;min-width:0;overflow:hidden;
+  -webkit-mask-image:linear-gradient(to right,#000 calc(100% - var(--edge-fade)),transparent);
+  mask-image:linear-gradient(to right,#000 calc(100% - var(--edge-fade)),transparent)}
+.stab{position:relative;display:inline-flex;align-items:center;gap:6px;min-width:120px;
+  max-width:200px;flex:0 0 auto;padding:0 10px;border-right:1px solid var(--border);
+  border-bottom:1px solid var(--bandline);color:var(--text-secondary);font-size:13px;
+  white-space:nowrap}
+/* Ghostty's flat inactive, taken exactly. No fill, no radius, no chrome at all. */
+.stab.active{background:var(--bg-canvas);color:var(--text-primary);
+  border-bottom-color:transparent;box-shadow:inset 0 2px 0 var(--accent)}
+.stab.attention .stab-name{font-weight:500;color:var(--text-primary)}
+.stab.ended .stab-name{color:var(--text-muted)}
+.stab-name{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.stab-wt{color:var(--text-muted);display:inline-flex}
+.strip-cell{display:inline-flex;align-items:center;gap:6px;padding:0 8px;flex:0 0 auto;
+  border-bottom:1px solid var(--bandline)}
+.usage-text{font-size:11px;line-height:16px;color:var(--text-muted);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.usage-bar{width:52px;height:4px;border-radius:2px;background:var(--bg-active);overflow:hidden}
+.usage-bar i{display:block;height:100%;width:41%;background:var(--accent);border-radius:2px}
+.strip-new{display:inline-flex;align-items:center;gap:2px;padding:0 6px;flex:0 0 auto;
+  border-bottom:1px solid var(--bandline);color:var(--text-secondary)}
+
+/* the terminal. The work is the lit plane and nothing in the chrome reaches it. */
+.work-row{display:flex;flex:1;min-height:0;background:var(--bg-canvas);position:relative}
+.term{flex:1;min-width:0;padding:6px 0 0 8px;font-family:var(--font-terminal);
+  font-size:12.5px;line-height:18px;color:#d8dbe2;overflow:hidden;white-space:pre}
+.term .w{color:#e8eaed}      /* brightWhite, the brightest ink in the window  */
+.term .g{color:#6bc46d}
+.term .bg{color:#85d488}
+.term .b{color:#6cb6ff}
+.term .bb{color:#8fc7ff}
+.term .c{color:#56c2c0}
+.term .y{color:#e2b340}
+.term .m{color:#d19fe8}
+.term .r{color:#e5655e}
+.term .d{color:#6e7583}
+.term .cur{background:#e8eaed;color:#131417}
+.scrolllane{position:absolute;top:0;right:0;bottom:0;width:14px}
+.scrolllane i{position:absolute;right:3px;top:120px;width:3px;height:220px;border-radius:2px;
+  background:rgba(168,173,184,.52)}
+</style>
+</head>
+<body>
+
+<div class="cap">
+  <h1>Option C, the lit edge</h1>
+  <p>The chrome drops behind the canvas so the transcript becomes the lit plane, and the only thing that catches a highlight is an object genuinely lifted off its own surface.</p>
+  <p class="foot">Nothing moves. Every rectangle is at Tortie's own size. Tortie ships no bottom status bar (DESIGN-SPEC S1), so this mock draws none.</p>
+</div>
+
+<div class="mock">
+
+  <!-- ===================== TITLEBAR ===================== -->
+  <div class="titlebar">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="titlebar-tabs">
+      <div class="ptab selected"><span class="dot dot-working"></span><span>tortie</span></div>
+      <div class="ptab"><span class="dot dot-attention"></span><span>tortiedotsh</span></div>
+      <div class="ptab"><span class="dot dot-idle"></span><span>specstory</span></div>
+      <div class="ptab-add">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>
+      </div>
+    </div>
+    <div class="titlebar-spacer"></div>
+    <div class="bell">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.6a4 4 0 0 1 8 0c0 2.7.7 3.7 1.2 4.2H2.8C3.3 10.3 4 9.3 4 6.6Z"/><path d="M6.6 13.1a1.6 1.6 0 0 0 2.8 0"/></svg>
+      <span class="badge"></span>
+    </div>
+  </div>
+
+  <!-- ===================== BODY ===================== -->
+  <div class="shell-body">
+
+    <!-- activity rail -->
+    <div class="activitybar">
+      <div class="ab-item" title="Explorer">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5H4.6A1.1 1.1 0 0 0 3.5 3.6v10.8a1.1 1.1 0 0 0 1.1 1.1h8.8a1.1 1.1 0 0 0 1.1-1.1V7Z"/><path d="M10 2.5V7h4.5"/></svg>
+      </div>
+      <div class="ab-item" title="Search">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><circle cx="8" cy="8" r="4.6"/><path d="M11.4 11.4 15 15"/></svg>
+      </div>
+      <div class="ab-item active" title="Source control">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.4" cy="4.2" r="1.9"/><circle cx="5.4" cy="13.8" r="1.9"/><circle cx="12.6" cy="6.6" r="1.9"/><path d="M5.4 6.1v5.8"/><path d="M12.6 8.5c0 2.3-1.9 3-3.6 3.3"/></svg>
+        <span class="ab-badge">3</span>
+      </div>
+      <div class="ab-item" title="Context">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.6 15.2 6 9 9.4 2.8 6Z"/><path d="M2.8 9.4 9 12.8l6.2-3.4"/><path d="M2.8 12.6 9 16l6.2-3.4"/></svg>
+      </div>
+      <div class="ab-item" title="Architecture">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="2.6" y="2.6" width="5" height="4.2" rx="1"/><rect x="10.4" y="2.6" width="5" height="4.2" rx="1"/><rect x="6.5" y="11.2" width="5" height="4.2" rx="1"/><path d="M5.1 6.8v2.2h7.8V6.8"/><path d="M9 9v2.2"/></svg>
+      </div>
+      <div class="ab-spacer"></div>
+      <div class="ab-item" title="Settings">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="2.2"/><path d="M14.4 11a1.2 1.2 0 0 0 .24 1.32l.04.05a1.45 1.45 0 1 1-2.05 2.05l-.05-.04a1.2 1.2 0 0 0-1.32-.24 1.2 1.2 0 0 0-.73 1.1v.13a1.45 1.45 0 1 1-2.9 0v-.07a1.2 1.2 0 0 0-.79-1.1 1.2 1.2 0 0 0-1.32.24l-.05.04a1.45 1.45 0 1 1-2.05-2.05l.04-.05a1.2 1.2 0 0 0 .24-1.32 1.2 1.2 0 0 0-1.1-.73H2.5a1.45 1.45 0 1 1 0-2.9h.07a1.2 1.2 0 0 0 1.1-.79 1.2 1.2 0 0 0-.24-1.32l-.04-.05a1.45 1.45 0 1 1 2.05-2.05l.05.04a1.2 1.2 0 0 0 1.32.24H7a1.2 1.2 0 0 0 .73-1.1V2.5a1.45 1.45 0 1 1 2.9 0v.07a1.2 1.2 0 0 0 .73 1.1 1.2 1.2 0 0 0 1.32-.24l.05-.04a1.45 1.45 0 1 1 2.05 2.05l-.04.05a1.2 1.2 0 0 0-.24 1.32V7a1.2 1.2 0 0 0 1.1.73h.13a1.45 1.45 0 1 1 0 2.9h-.07a1.2 1.2 0 0 0-1.1.73Z"/></svg>
+      </div>
+    </div>
+
+    <!-- sidebar, Source Control -->
+    <div class="sidebar">
+      <div class="branch-header">
+        <div class="branch-btn">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.6" cy="3.6" r="1.7"/><circle cx="4.6" cy="12.4" r="1.7"/><circle cx="11.4" cy="5.8" r="1.7"/><path d="M4.6 5.3v5.4"/><path d="M11.4 7.5c0 2.1-1.8 2.8-3.4 3"/></svg>
+          <span class="branch-name">feat/lit-edge</span>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5 8 10.5 12 6.5"/></svg>
+        </div>
+        <span class="aheadbehind">&#8593;2 &#8595;1</span>
+        <span class="hspacer"></span>
+        <span class="icon-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 7a5.2 5.2 0 1 0-.5 3.2"/><path d="M13.4 3.4v3.4H10"/></svg>
+        </span>
+      </div>
+
+      <div class="section-header">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5 8 10 11.5 6.5"/></svg>
+        <span>Changes</span><span class="section-count">3</span>
+      </div>
+
+      <div class="commit-box">Commit message (&#8984;&#8617; to commit)</div>
+      <div class="commit-btn"><span>Commit</span></div>
+
+      <div class="scm-scroll">
+        <div class="group-row"><b>Staged</b><i>1</i></div>
+        <div class="scm-row selected">
+          <span class="scm-letter" style="color:var(--git-modified)">M</span>
+          <span class="scm-name">tokens.css</span>
+          <span class="scm-dir">src/renderer/styles</span>
+        </div>
+        <div class="group-row"><b>Changes</b><i>2</i></div>
+        <div class="scm-row">
+          <span class="scm-letter" style="color:var(--git-modified)">M</span>
+          <span class="scm-name">app.css</span>
+          <span class="scm-dir">src/renderer/styles</span>
+        </div>
+        <div class="scm-row">
+          <span class="scm-letter" style="color:var(--git-added)">U</span>
+          <span class="scm-name">option-c.html</span>
+          <span class="scm-dir">docs/research/assets/75-chrome</span>
+        </div>
+
+        <div class="section-header history-head" style="margin-top:4px">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5 8 10 11.5 6.5"/></svg>
+          <span>History</span>
+        </div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">a visual language for the chrome, with options</span><span class="ref-pill">main</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the redline and the control that cannot tell itself apart</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the font field sits level with its own dropdown</span></div>
+        <div class="commit-row"><span class="lane merge"><b></b></span><span class="commit-msg">the website learns what shipped</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the redline in the diff view, measured in the app</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">0.97.0</span><span class="ref-pill">v0.97.0</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">a project tab you cannot read is not a tab</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the sessions table says whose work each row is</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">what to read and what to skip in every agent log</span></div>
+        <div class="commit-row"><span class="lane merge"><b></b></span><span class="commit-msg">Merge branch 'phase-140-electron-run'</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">one helper owns every Electron launch</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the hold on Catch Me Up is answered</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">hovering an uninstalled agent moves the screen</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the page and the fold are two phases</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">a cheap alarm nobody runs is documentation</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the overview reader keeps its ratio</span></div>
+        <div class="commit-row"><span class="lane merge"><b></b></span><span class="commit-msg">Merge branch 'phase-171-contract'</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">count what is left after a probe run, once</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the watcher never spends its ninth exclusion</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">one type scale for the four side views</span><span class="ref-pill">v0.94.0</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the commit box rests at the scale it reads</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the ribbon answers the pointer</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the arch panel stops explaining itself</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the redline the operator reported, measured</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">a second cycle detector disagreed by three edges</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the install map cannot run anything</span></div>
+        <div class="commit-row"><span class="lane"><b></b></span><span class="commit-msg">the machine band names the host it reached</span></div>
+        <div class="fade-bottom"></div>
+      </div>
+    </div>
+
+    <!-- work area -->
+    <div class="work-area">
+
+      <div class="term-header">
+        <div class="stab-list">
+          <div class="stab active">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.2 9.5 6.5 13.8 8 9.5 9.5 8 13.8 6.5 9.5 2.2 8 6.5 6.5Z"/></svg>
+            <span class="stab-name">claude-main</span>
+            <span class="stab-wt"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.6" cy="3.6" r="1.7"/><circle cx="4.6" cy="12.4" r="1.7"/><circle cx="11.4" cy="5.8" r="1.7"/><path d="M4.6 5.3v5.4"/><path d="M11.4 7.5c0 2.1-1.8 2.8-3.4 3"/></svg></span>
+            <span class="dot dot-working"></span>
+            <span style="color:var(--text-muted);display:inline-flex"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M4.6 4.6 11.4 11.4M11.4 4.6 4.6 11.4"/></svg></span>
+          </div>
+          <div class="stab attention">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.4 13.4 5.2v5.6L8 13.6 2.6 10.8V5.2Z"/></svg>
+            <span class="stab-name">codex-review</span>
+            <span class="dot dot-attention"></span>
+          </div>
+          <div class="stab">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="2.4" y="3" width="11.2" height="10" rx="1.4"/><path d="M5.2 6.6 7.4 8.5 5.2 10.4"/><path d="M8.8 10.6h2.6"/></svg>
+            <span class="stab-name">shell</span>
+            <span class="dot dot-idle"></span>
+          </div>
+          <div class="stab ended">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.3 10 8l5.7 0-4.6 3.3 1.8 5.4"/><path d="M8 2.3 6 8 .3 8l4.6 3.3L3.1 16.7"/></svg>
+            <span class="stab-name">gemini-docs</span>
+            <span class="dot dot-ended"></span>
+            <span style="color:var(--text-secondary);display:inline-flex"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M2.6 8a5.4 5.4 0 1 0 1.6-3.8"/><path d="M2.4 2.6v3.2h3.2"/></svg></span>
+          </div>
+          <div class="stab">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="2.4" y="3" width="11.2" height="10" rx="1.4"/><path d="M5.2 6.6 7.4 8.5 5.2 10.4"/></svg>
+            <span class="stab-name">build-watch</span>
+            <span class="dot dot-idle"></span>
+          </div>
+        </div>
+        <div class="strip-cell">
+          <span style="color:var(--text-secondary);display:inline-flex"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="5.6"/><path d="M8 4.6V8l2.3 1.4"/></svg></span>
+          <span class="usage-bar"><i></i></span>
+          <span class="usage-text">41% &#183; resets Fri</span>
+        </div>
+        <div class="strip-new">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5 8 10.5 12 6.5"/></svg>
+        </div>
+      </div>
+
+      <div class="work-row">
+        <div class="term"><span class="w">Tortie</span> <span class="d">·</span> claude-main <span class="d">·</span> ~/gmux <span class="d">·</span> <span class="c">feat/lit-edge</span> <span class="d">·</span> <span class="d">sonnet 4.5</span>
+<span class="d">────────────────────────────────────────────────────────────────────────</span>
+
+<span class="bg">❯</span> <span class="w">read the plane order out of tokens.css and tell me which surfaces</span>
+  <span class="w">sit above the canvas today</span>
+
+<span class="m">●</span> Reading <span class="c">src/renderer/styles/tokens.css</span>
+  <span class="d">└</span> 374 lines
+  Four backgrounds are declared above <span class="y">--bg-canvas</span>, and none below it:
+
+    <span class="b">--bg-canvas</span>    <span class="w">#131417</span>   L 0.1915   the terminal, and the window base
+    <span class="b">--bg-sidebar</span>   <span class="w">#17181C</span>   L 0.2097   <span class="y">+0.018</span>  sidebar, band, gutter
+    <span class="b">--bg-surface</span>   <span class="w">#1B1D22</span>   L 0.2308   <span class="y">+0.039</span>  modals, inputs, toasts
+    <span class="b">--bg-raised</span>    <span class="w">#22252B</span>   L 0.2640   <span class="y">+0.073</span>  hover fills, chips
+    <span class="b">--bg-active</span>    <span class="w">#2A2E36</span>   L 0.3006   <span class="y">+0.109</span>  selected rows, active tab
+
+  So every plane the chrome draws is <span class="w">lighter</span> than the page it frames.
+  <span class="c">DESIGN.md</span> <span class="d">§0</span> says the two are one material; the tokens ship a step.
+
+<span class="bg">❯</span> <span class="w">and the text ramp?</span>
+
+<span class="m">●</span> Measuring against <span class="c">terminal/theme.ts</span>
+    terminal brightWhite   <span class="w">#E8EAED</span>   relative luminance <span class="w">0.8212</span>
+    terminal foreground    <span class="w">#D8DBE2</span>   relative luminance <span class="w">0.7075</span>
+    chrome  --text-primary <span class="w">#E8EAED</span>   relative luminance <span class="w">0.8212</span>   <span class="r">tied</span>
+
+  <span class="r">✗</span> A session name in the tab strip is drawn in the <span class="w">exact colour</span> of the
+    brightest glyph the agent can print. 184 rules across 44 files read it.
+
+<span class="bg">❯</span> <span class="w">turn the light around. the work is the top plane.</span>
+
+<span class="m">●</span> Proposed <span class="c">tokens.css</span> <span class="d">·</span> 11 values changed, 2 added, 0 boxes moved
+    <span class="b">--bg-sidebar</span>    #17181C <span class="d">→</span> <span class="w">#0F1014</span>    <span class="g">-0.018</span> below the canvas
+    <span class="b">--bg-active</span>     #2A2E36 <span class="d">→</span> <span class="w">#1F222A</span>    softer fill, the inset carries it
+    <span class="b">--text-primary</span>  #E8EAED <span class="d">→</span> <span class="w">#D0D2D5</span>    <span class="g">12.16:1</span> on canvas, still ≥12
+    <span class="b">--git-modified</span>  #E2B340 <span class="d">→</span> <span class="w">#A5ABB7</span>    ΔE2000 to amber <span class="g">4.45 → 33.11</span>
+    <span class="b">--edge-lit</span>      <span class="d">new</span>     color-mix(--text-primary 8%)
+
+  <span class="g">✓</span> the transcript now outranks every pixel of chrome text
+  <span class="g">✓</span> holds in all twelve palettes, at contrast <span class="w">high</span> and scheme <span class="w">slate</span>
+  <span class="g">✓</span> nothing in the resting field is within ΔE2000 <span class="w">28</span> of the amber dot
+
+<span class="bg">❯</span> <span class="cur"> </span>
+</div>
+        <div class="scrolllane"><i></i></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
