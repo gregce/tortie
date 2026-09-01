@@ -22,11 +22,13 @@
  *     not it is on screen. Rule 5 drives the worst case the caps allow and
  *     fails if it costs more than the ceiling, which is what makes
  *     `REDLINE_MAX_EDIT_LENGTH` a measurement rather than a guess.
- *   - NO REDLINE IN SPLIT, NO COLOUR LITERAL, NO WRITE PATH. Three refusals
- *     research 74 §8 and the backlog entry name, each of which is a scan over
- *     the real source (rules 7, 8 and 9), and each scanner is proved on
- *     fixtures this file writes itself so a scan that cannot fail is not
- *     mistaken for a scan that passed.
+ *   - NO REDLINE IN THE DIFF, NO COLOUR LITERAL, NO WRITE PATH. Three
+ *     refusals, each of which is a scan over the real source (rules 7, 8 and
+ *     9), and each scanner is proved on fixtures this file writes itself so a
+ *     scan that cannot fail is not mistaken for a scan that passed. The first
+ *     was "no redline in two columns" while Phase 191's toggle lived in the
+ *     diff bar; Phase 194 took the toggle out at the operator's word, so the
+ *     rule now pins the removal rather than the guard the removal made moot.
  *
  * ## The rules
  *
@@ -50,8 +52,10 @@
  *   5. The caps fire, all three, and the worst case they allow is under the
  *      ceiling.
  *   6. Nothing skipped means NO note, so a clean file grows no banner.
- *   7. The redline is never drawn in two columns: the surface gates it on
- *      `!sideBySide`.
+ *   7. The redline is never drawn in the diff. The diff surface and its
+ *      control row name none of the redline modules, mount no annotation and
+ *      read no redline preference, so the diff draws only what Pierre draws
+ *      and the redline has exactly one home, which is its own view.
  *   8. No colour literal in the row's own component or stylesheet.
  *   9. No write path anywhere in the redline files. Accepting a change means
  *      writing a file and this phase refuses it by name.
@@ -184,9 +188,25 @@ function findColourLiterals(source) {
   return found;
 }
 
-/** The one gate that keeps the redline out of the two column layout. */
-function guardsSplit(source) {
-  return /const\s+redlineOn\s*=[^;]*!sideBySide/.test(source);
+/**
+ * Anything that would put the redline back in the diff: an import of one of
+ * its modules, Pierre's annotation slot, or the preference Phase 191 kept.
+ * Comment lines are skipped, because the surface is allowed to SAY where the
+ * redline went.
+ */
+const MOUNT_WORDS =
+  /from\s+['"]\.\/(?:redline|RedlineRow|redline-copy)['"]|\b(?:lineAnnotations|renderAnnotation|diffRedline|setDiffRedline)\b/;
+
+function findRedlineMounts(source) {
+  const found = [];
+  for (const [index, line] of source.split('\n').entries()) {
+    const bare = line.replace(/\/\*[\s\S]*?\*\//g, '');
+    if (bare.trimStart().startsWith('*') || bare.trimStart().startsWith('//')) {
+      continue;
+    }
+    if (MOUNT_WORDS.test(bare)) found.push(`${String(index + 1)}: ${line.trim()}`);
+  }
+  return found;
 }
 
 /** Anything that could write a file, which this phase refuses outright. */
@@ -431,15 +451,18 @@ const sources = new Map();
 for (const file of REDLINE_FILES) {
   sources.set(file, readFileSync(file, 'utf8'));
 }
-const surface = readFileSync('src/renderer/editor/PierreDiff.tsx', 'utf8');
-
-if (!guardsSplit(surface)) {
-  fail(
-    '7. src/renderer/editor/PierreDiff.tsx no longer gates the redline on !sideBySide, ' +
-      'so it can be drawn in two columns where an annotation belongs to one side only.'
-  );
+for (const file of [
+  'src/renderer/editor/PierreDiff.tsx',
+  'src/renderer/editor/DiffControls.tsx'
+]) {
+  const hits = findRedlineMounts(readFileSync(file, 'utf8'));
+  if (hits.length > 0) {
+    fail(
+      `7. ${file} puts the redline back in the diff, which the operator asked out on 2026-09-01: ${hits.join(' | ')}`
+    );
+  }
 }
-say('7. the surface gates the redline on !sideBySide, so two columns cannot draw one');
+say('7. the diff surface and its control row name no redline module, slot or preference, so the diff draws only what Pierre draws');
 
 for (const file of ['src/renderer/editor/RedlineRow.tsx', 'src/renderer/editor/redline.css']) {
   const hits = findColourLiterals(sources.get(file) ?? '');
@@ -756,17 +779,31 @@ say('9. no redline file names a bridge, a write or an accept, so nothing here ca
         want: false
       },
       {
-        what: 'a surface with the split guard removed',
-        file: 'bad.tsx',
-        body: '  const redlineOn = redlinePref && redlineApplies;',
-        run: (s) => !guardsSplit(s),
+        what: 'a diff surface mounting the redline in the annotation slot',
+        file: 'bad-slot.tsx',
+        body: '<FileDiff fileDiff={meta} lineAnnotations={annotations} renderAnnotation={draw} />',
+        run: (s) => findRedlineMounts(s).length > 0,
         want: true
       },
       {
-        what: 'a surface with the split guard present',
-        file: 'good.tsx',
-        body: '  const redlineOn = redlinePref && redlineApplies && !sideBySide;',
-        run: (s) => !guardsSplit(s),
+        what: 'a diff surface importing the row',
+        file: 'bad-import.tsx',
+        body: "import { RedlineRow } from './RedlineRow';",
+        run: (s) => findRedlineMounts(s).length > 0,
+        want: true
+      },
+      {
+        what: 'a control row reading the preference Phase 191 kept',
+        file: 'bad-pref.tsx',
+        body: '  const redline = useEditor((s) => s.diffRedline);',
+        run: (s) => findRedlineMounts(s).length > 0,
+        want: true
+      },
+      {
+        what: 'a diff surface that only says where the redline went',
+        file: 'good-surface.tsx',
+        body: "// Phase 191 used lineAnnotations and renderAnnotation; see ./redline\n<FileDiff fileDiff={meta} options={options} />",
+        run: (s) => findRedlineMounts(s).length > 0,
         want: false
       },
       {

@@ -509,19 +509,18 @@
   padding: 0 8px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-canvas);
-  /* THE MEASUREMENT, RE-TAKEN 2026-09-01 BECAUSE PHASE 191 FALSIFIED THE OLD
-     ONE. The panel drags down to a 320px floor and nothing in this row
-     shrinks. Phase 185's four controls needed 294px there and got 319px, and
-     the comment that stood here called the scroll unreachable for that
-     reason. Redline is 57px and its gap is 6px, so the row needs 356px and
-     still gets 319px: measured in the app at the floor, clientWidth 319
-     against scrollWidth 356, with 29px of the 57px control past the right
-     edge of a row that scrolls with no scrollbar drawn. Wrapping is what puts
-     every control on screen at every width. The scroll below is now the last
-     resort under a SINGLE control wider than the panel, which no control in
-     this row is, rather than the thing the floor rests on. A round that adds
-     a sixth control re-measures rather than trusting these numbers, and
-     `npm run probe:p191` is where that measurement is checked. */
+  /* THE MEASUREMENT. The panel drags down to a 320px floor and nothing in
+     this row shrinks. Phase 185's four controls need 294px there and get
+     319px, so at one line nothing in this row ever wraps today. The wrap is
+     kept from Phase 191 all the same, because that phase added a fifth
+     control 57px wide and measured the row at the floor at clientWidth 319
+     against scrollWidth 356, with 29px of the control past the right edge of
+     a row that scrolls with no scrollbar drawn, four lines under a comment
+     saying that could not happen. The control has since left this row
+     (Phase 194), and the wrap is what stops the next one from repeating the
+     measurement. The scroll below is the last resort under a SINGLE control
+     wider than the panel, which no control in this row is. A round that adds
+     a fifth control re-measures rather than trusting these numbers. */
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -536,24 +535,6 @@
 
 .ed-diff-bar .ed-mode {
   flex: none;
-}
-
-/* The redline toggle (Phase 191). It is a segment of the same control
-   language as the Inline group next to it, so it borrows `.ed-mode-opt` for
-   its type, its states and its focus ring, and adds only the box the group
-   would otherwise have given it. One word on the resting face and the
-   explanation on hover, per "just enough words".
-
-   It is a DRAWING CONTROL in the row that already asks how this change is
-   drawn, which is why the native menus do not change for it: src/main/menu.ts
-   carries no row for the Inline control, none for the paint can, none for
-   Side by side and none for Minimap, and the View menu carries surfaces
-   rather than per-surface drawing options. */
-.ed-diff-bar .ed-redline-opt {
-  flex: none;
-  height: 22px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
 }
 
 /* Pierre diff host (Phase 11). The diff renders in shadow DOM — colors come

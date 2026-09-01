@@ -53,24 +53,17 @@
  *   3. word-level decorations past the point of affordability → the library's
  *      `tokenizeMaxLength`, degrading to unhighlighted text with a note.
  *
- * THE REDLINE (Phase 191) is the one thing on this surface that Pierre does
- * not draw. It hangs in Pierre's own `lineAnnotations` slot, which hands back
- * a LIGHT DOM row under a changed line, and Tortie fills it with its own
- * `del` and `ins` over jsdiff `diffWords` (./redline, ./RedlineRow). It exists
- * because Pierre structurally cannot draw one: every diff line is a grid item
- * of a subgrid and its display is blockified by the CSS specification, proved
- * in the running app rather than argued (docs/research/74-redline-in-the-diff-
- * view.md §3). Three conditions gate it and all three are decided here, so the
- * control and the drawing can never disagree: the reader turned it on, the
- * file is prose, and the layout is ONE COLUMN. In two columns the two sides
- * live in different `code` elements and an annotation belongs to one of them,
- * so a redline there would sit under one column and read as noise.
+ * THE REDLINE DOES NOT LIVE HERE. Phase 191 hung one in Pierre's
+ * `lineAnnotations` slot as a third row under every changed block, and the
+ * operator asked for it to go the same day, because a redline is a reading of
+ * the document rather than a way of drawing the diff. It belongs in a view of
+ * its own beside Diff and File (Phase 194), built on ./redline, ./RedlineRow
+ * and ./redline-copy, and this surface draws exactly what Pierre draws.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Virtualizer } from '@pierre/diffs';
 import { FileDiff, VirtualizerContext, WorkerPoolContext } from '@pierre/diffs/react';
-import type { DiffLineAnnotation } from '@pierre/diffs';
 import type { FileContents, FileDiffProps } from '@pierre/diffs/react';
 import type { WorkerPoolManager } from '@pierre/diffs/worker';
 import { fileCacheKey, useDiffMetadata } from '../pierre/diff-metadata';
@@ -83,15 +76,6 @@ import {
 } from '../pierre/highlight-pool';
 import { DiffControls } from './DiffControls';
 import { useLiveTabText } from './live-text';
-import { handleRedlineCopy } from './redline-copy';
-import { RedlineRow } from './RedlineRow';
-import {
-  isRedlinePath,
-  redlineBlocks,
-  redlineKey,
-  redlineSkipNote
-} from './redline';
-import type { RedlineBlock } from './redline';
 import { loadMonaco, rememberLoaded } from './monaco-loader';
 import { OpeningSkeleton } from './MonacoHost';
 import { baseName } from './paths';
@@ -193,10 +177,9 @@ export function PierreDiff({
 
   const { meta, exact } = useDiffMetadata(oldFile, newFile);
 
-  // -- how the change is drawn (Phase 185, extended in Phase 191) ------------
+  // -- how the change is drawn (Phase 185) -----------------------------------
   const inlineMode = useEditor((s) => s.diffInlineMode);
   const backgrounds = useEditor((s) => s.diffBackgrounds);
-  const redlinePref = useEditor((s) => s.diffRedline);
 
   // The pool's copy of lineDiffType is the one the renderer reads, so the
   // choice has to reach the pool as well as the instance. Idempotent, and it
@@ -205,75 +188,6 @@ export function PierreDiff({
   useEffect(() => {
     applyInlineDiffMode(inlineMode);
   }, [inlineMode]);
-
-  // -- the redline (Phase 191) -----------------------------------------------
-  // Prose only, and decided from the NEW side's name, which is the file the
-  // person opened. A rename shows the old side under its old name and that is
-  // still the same document.
-  const redlineApplies = useMemo(() => isRedlinePath(tab.name), [tab.name]);
-  // One column only: in two columns the two sides are two different `code`
-  // elements and an annotation belongs to one side, so a redline there would
-  // sit under one column and read as noise.
-  const redlineOn = redlinePref && redlineApplies && !sideBySide;
-  const redline = useMemo(
-    () => (redlineOn && meta !== null ? redlineBlocks(meta) : null),
-    [redlineOn, meta]
-  );
-  /**
-   * The array Pierre reads, memoized because `components/FileDiff.js` decides
-   * whether the annotations changed by IDENTITY, and an array rebuilt every
-   * render would re-render the whole diff on every keystroke in the buffer
-   * underneath it. Empty rather than undefined when the redline is off, so
-   * turning it off CLEARS what is there: `render()` only calls
-   * `setLineAnnotations` when the prop is non-null.
-   */
-  const annotations = useMemo<DiffLineAnnotation[]>(
-    () =>
-      redline === null
-        ? []
-        : redline.blocks.map((block) => ({
-            side: block.side,
-            lineNumber: block.lineNumber
-          })),
-    [redline]
-  );
-  const byLine = useMemo(() => {
-    const map = new Map<string, RedlineBlock>();
-    for (const block of redline?.blocks ?? []) {
-      map.set(redlineKey(block.side, block.lineNumber), block);
-    }
-    return map;
-  }, [redline]);
-  const renderAnnotation = useCallback(
-    (annotation: DiffLineAnnotation): React.ReactNode => {
-      const block = byLine.get(
-        redlineKey(annotation.side, annotation.lineNumber)
-      );
-      return block === undefined ? null : <RedlineRow block={block} />;
-    },
-    [byLine]
-  );
-
-  /**
-   * The copy handler, and it is REQUIRED rather than optional: a redline row
-   * holds both sides in one element, so the browser's own serializer returns
-   * them interleaved, measured verbatim in ./redline-copy's header. It hangs
-   * on this surface's own host, which is a light-DOM ancestor of every
-   * annotation row, and it runs ONLY when the whole selection lies inside one
-   * redline row. Every other selection is left to the browser untouched, so a
-   * copy of the diff is byte for byte what it was before this phase. The
-   * reason that rule is narrower than the phase first wrote is measured and
-   * is in ./redline-copy's header.
-   */
-  useEffect(() => {
-    const host = hostRef.current;
-    if (host === null || !redlineOn) return;
-    const onCopy = (event: ClipboardEvent): void => {
-      handleRedlineCopy(host, event);
-    };
-    host.addEventListener('copy', onCopy);
-    return () => host.removeEventListener('copy', onCopy);
-  }, [redlineOn]);
 
   const options = useMemo<DiffOptions>(
     () => ({
@@ -313,17 +227,6 @@ export function PierreDiff({
         : isPlainTextDiff(meta)
           ? `This diff is too large to highlight — showing ${meta.additionLines.length.toLocaleString()} lines as plain text.`
           : null;
-  /**
-   * What the redline could not draw, said rather than silently missing, in the
-   * same strip the plain-text degradation already uses. Both can be true at
-   * once and both are facts about this file, so they are joined rather than
-   * one hiding the other.
-   */
-  const redlineNote =
-    redline === null || contentsLoading || waiting
-      ? null
-      : redlineSkipNote(redline);
-  const notes = [note, redlineNote].filter((line) => line !== null).join(' ');
 
   return (
     <div className="ed-diff">
@@ -336,12 +239,7 @@ export function PierreDiff({
           arrived: on an identical file the row appeared during the load and
           vanished when "No changes" resolved. Sharing the skeleton's own
           condition makes that unreachable rather than merely unlikely. */}
-      {contentsLoading || waiting || unchanged ? null : (
-        <DiffControls
-          redlineApplies={redlineApplies}
-          sideBySide={sideBySide}
-        />
-      )}
+      {contentsLoading || waiting || unchanged ? null : <DiffControls />}
       <div
         ref={hostRef}
         className="ed-pierre"
@@ -370,20 +268,15 @@ export function PierreDiff({
           ) : meta !== null ? (
             <WorkerPoolContext.Provider value={pool ?? undefined}>
               <VirtualizerContext.Provider value={virtualizer}>
-                <FileDiff
-                  fileDiff={meta}
-                  options={options}
-                  lineAnnotations={annotations}
-                  renderAnnotation={renderAnnotation}
-                />
+                <FileDiff fileDiff={meta} options={options} />
               </VirtualizerContext.Provider>
             </WorkerPoolContext.Provider>
           ) : null}
         </div>
       </div>
-      {notes !== '' ? (
+      {note !== null ? (
         <div className="banner ed-note" role="status">
-          <span className="banner-text">{notes}</span>
+          <span className="banner-text">{note}</span>
         </div>
       ) : null}
     </div>
