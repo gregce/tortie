@@ -58,6 +58,11 @@ export interface ShotDeps {
  * test may call it.
  */
 export async function exitShot(code: number): Promise<void> {
+  // A window the drive pinned frontmost is released first, whatever the
+  // exit code, so no path out of the harness leaves one pinned.
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && win.isAlwaysOnTop()) win.setAlwaysOnTop(false);
+  }
   await new Promise<void>((resolve) => setImmediate(resolve));
   const pending = pendingWatcherCloseCount();
   if (pending > 0) {
@@ -313,6 +318,22 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
         const wc = mainWindow.webContents;
         await offlineReady;
         if (driveJson !== undefined && driveJson.length > 0) {
+          // PINNED FRONTMOST FOR THE WHOLE DRIVE (Phase 194), the way the
+          // Settings branch above has been since Phase 174.1's fix round and
+          // for the reason measured there: a window something else has come
+          // in front of is `hidden` to Chromium, which then aligns every
+          // timer in the renderer to one second. Measured again here on
+          // 2026-09-01 driving the redline view: the same drive reached its
+          // squeeze at 18 s with the window visible and at 52 s occluded,
+          // every wait in it rounded up to a whole second, and the 60 s
+          // ceiling below then ended a drive that had done nothing wrong.
+          // The operator's own windows can come forward at any moment on the
+          // Mac a probe runs on, so a drive cannot rely on staying frontmost
+          // by luck. Released in exitShot, on every path out.
+          mainWindow.show();
+          mainWindow.moveTop();
+          mainWindow.focus();
+          mainWindow.setAlwaysOnTop(true);
           // Wait for the hook to EXIST before calling it. `?.()` on a
           // renderer that has not finished evaluating its bundle is a silent
           // no-op, and the harness would then capture a correct-looking but
