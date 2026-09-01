@@ -172,6 +172,7 @@ import type {
 } from './specstory';
 import type {
   GmuxUsageExtras,
+  UsageEventPayloadMap,
   UsageInvokeChannelMap
 } from './usage';
 import type {
@@ -325,7 +326,9 @@ export type AllEventPayloadMap = EventPayloadMap &
   // Phase 63. A finished re-check, and how far a running one has got.
   ArchEventPayloadMap &
   // Phase 170. Live diagnostics samples, only while the tab is visible.
-  DiagnosticsEventPayloadMap;
+  DiagnosticsEventPayloadMap &
+  // Phase 182. The usage snapshot, pushed when a live tap moves it.
+  UsageEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 

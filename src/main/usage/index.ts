@@ -7,5 +7,14 @@
  * no token, spawns no process and stores nothing on disk.
  */
 
-export { disposeUsageService, registerUsageIpc, usageService } from './ipc';
-export { createUsageService, type UsageService } from './service';
+export {
+  applyUsageTap,
+  disposeUsageService,
+  registerUsageIpc,
+  usageService
+} from './ipc';
+export {
+  createUsageService,
+  type TapOutcome,
+  type UsageService
+} from './service';

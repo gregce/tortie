@@ -407,6 +407,22 @@ export const CHECKS = [
   // no session, spawns no agent and spends no token, and it touches `-L gmux`
   // in one place only, a read only session count taken before and after.
   electron('probe:p185'),
+  // PHASE 182. The status line tap, with the REAL claude in the loop. It
+  // writes Tortie's own generated managed script and settings file into a
+  // scratch directory, binds a loopback server on an ephemeral port, launches
+  // claude in a tmux pane on a scratch socket stamped the way paneEnvFor
+  // stamps one, spends ONE short turn, and reads the post that arrives. Then
+  // it feeds that body through the real usage service, whose transport and
+  // credential reader both THROW, so a number on the meter can only be the
+  // tap's. It reads no credential, prints no usage value, touches nothing
+  // under ~/.claude and launches no Electron. NOT in the commit battery,
+  // because it spends a real turn.
+  {
+    name: 'probe:p182',
+    type: 'tmux harness',
+    needs: 'the real claude binary on PATH and a logged in Claude subscription, plus a scratch tmux socket and a scratch directory of its own; it spends ONE real turn and reads no credential',
+    skip: 'never skips; the scratch tmux server and the scratch directory are ended in a finally block'
+  },
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

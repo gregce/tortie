@@ -39,7 +39,8 @@ import type {
   UsageProviderId,
   UsageProviderSnapshot,
   UsageSnapshot,
-  UsageState
+  UsageState,
+  UsageWindow
 } from '@shared/usage';
 import { USAGE_PROVIDERS, emptyUsageProvider } from '@shared/usage';
 import type { UsageSettings } from '@shared/settings';
@@ -60,6 +61,8 @@ import {
   parseCodexUsage
 } from './parse';
 import type { ParsedUsage } from './parse';
+import type { TapSample } from './statusline';
+import { decodeConfigKey, normalizeConfigDir, parseTapBody } from './statusline';
 import type { UsageTransport } from './transport';
 
 /** The poll interval, and main holds it as well as the renderer. */
@@ -70,6 +73,14 @@ export const USAGE_REFRESH_FLOOR_MS = 60 * 1000;
 export const USAGE_STALE_MS = 30 * 60 * 1000;
 /** The same, after a rate limit, where a longer memory is the kinder answer. */
 export const USAGE_STALE_RATE_LIMITED_MS = 24 * 60 * 60 * 1000;
+/**
+ * How long a live post from the status line tap keeps the endpoint poll away
+ * (Phase 182, research 72 section 3). The tap costs nothing and the endpoint
+ * has a tight budget, so while the tap is talking the poll has nothing to add.
+ */
+export const USAGE_TAP_SUPPRESS_MS = 5 * 60 * 1000;
+/** Identical numbers inside this window are the same post, not a new one. */
+export const USAGE_TAP_DEDUPE_MS = 30 * 1000;
 
 export interface UsageServiceDeps {
   credentials: CredentialDeps;
@@ -79,6 +90,12 @@ export interface UsageServiceDeps {
   now(): number;
   /** A provider name and a fixed sentence. NEVER a token, a body or a header. */
   log(event: string, fields: Record<string, unknown>): void;
+  /**
+   * The held snapshot changed without anybody asking for it (Phase 182).
+   * Only a live tap does that; every other change is the answer to a call the
+   * renderer already made. Absent in tests and in any wiring with no window.
+   */
+  onChanged?(snapshot: UsageSnapshot): void;
 }
 
 export interface UsageService {
@@ -86,7 +103,33 @@ export interface UsageService {
   read(): Promise<UsageSnapshot>;
   /** The refresh control: skips the interval, honours the floor and Retry-After. */
   refresh(): Promise<UsageSnapshot>;
+  /** What is held right now. Reads nothing, sends nothing, starts nothing. */
+  current(): UsageSnapshot;
+  /**
+   * One form encoded post from a Tortie launched claude session's managed
+   * status line (Phase 182). `sessionId` is the one the TOKEN belongs to and
+   * not the one the body claims; the two are compared here.
+   */
+  applyTap(sessionId: string, body: string): TapOutcome;
 }
+
+/**
+ * What happened to one tap post. Every value except `applied` is a DROP, and
+ * a drop never changes a number on screen.
+ */
+export type TapOutcome =
+  /** The numbers moved and the snapshot was broadcast. */
+  | 'applied'
+  /** The Claude switch is off, so this meter holds nothing and reads nothing. */
+  | 'off'
+  /** The body did not parse, named no window, or was not version 1. */
+  | 'shape'
+  /** The body claimed a session the token does not belong to. */
+  | 'session'
+  /** The poster's config directory is not the account this meter draws. */
+  | 'account'
+  /** The same numbers, again, inside the dedupe window. */
+  | 'duplicate';
 
 type Outcome =
   | { kind: 'ok'; parsed: ParsedUsage }
@@ -103,6 +146,8 @@ interface Held {
   lastAttemptAt: number;
   retryAfter: number | null;
   inFlight: Promise<void> | null;
+  /** When a live tap post was last APPLIED, or null. Phase 182. */
+  tapAt: number | null;
 }
 
 function freshHeld(): Held {
@@ -112,8 +157,15 @@ function freshHeld(): Held {
     readAt: null,
     lastAttemptAt: 0,
     retryAfter: null,
-    inFlight: null
+    inFlight: null,
+    tapAt: null
   };
+}
+
+/** Do two windows say exactly the same thing? Used only for the tap dedupe. */
+function sameWindow(a: UsageWindow | null, b: UsageWindow | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.percent === b.percent && a.resetsAt === b.resetsAt;
 }
 
 function hasAnything(parsed: ParsedUsage): boolean {
@@ -260,8 +312,103 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
 
   function due(h: Held, now: number, force: boolean): boolean {
     if (h.retryAfter !== null && now < h.retryAfter) return false;
+    // Phase 182: a live post inside the last five minutes says the numbers on
+    // screen are the vendor's own current answer, so the poll has nothing to
+    // add and spends budget for it. The REFRESH CONTROL is not suppressed,
+    // because it is a person asking, and because the endpoint is the only
+    // source of the per model weekly row the tap never carries.
+    if (
+      !force &&
+      h.tapAt !== null &&
+      now - h.tapAt < USAGE_TAP_SUPPRESS_MS
+    ) {
+      return false;
+    }
     const since = now - h.lastAttemptAt;
     return since >= (force ? USAGE_REFRESH_FLOOR_MS : USAGE_POLL_MS);
+  }
+
+  function compose(): UsageSnapshot {
+    return {
+      at: deps.now(),
+      providers: USAGE_PROVIDERS.map((p) => viewOf(p, held.get(p) ?? freshHeld()))
+    };
+  }
+
+  /**
+   * The account this meter draws, as the tap encodes it: the config directory
+   * main itself would read a credential from, trailing separators trimmed.
+   *
+   * WHY IT IS COMPARED AT ALL, and it is the research 72 section 4 rule that
+   * matters most here. A person can run several Claude logins on one machine
+   * by pointing sessions at different `CLAUDE_CONFIG_DIR`s. The meter draws
+   * ONE account's quota, being the one main reads the credential for, and a
+   * post from a session logged in as somebody else would put another
+   * account's numbers under this account's plan word. That is not a stale
+   * number, it is a false one, so it is dropped.
+   */
+  function selectedAccountDir(): string {
+    return normalizeConfigDir(deps.credentials.env['CLAUDE_CONFIG_DIR']);
+  }
+
+  /**
+   * One live post, and the five ingest rules from research 72 section 3, in
+   * the order a post meets them.
+   */
+  function applyTap(sessionId: string, body: string): TapOutcome {
+    const h = held.get('claude');
+    if (h === undefined) return 'off';
+    // 1. NOTHING WHILE OFF. The switch is the whole permission this feature
+    //    has, and a meter that is off holds nothing and shows nothing. The
+    //    script is not even installed while it is off; this is the second
+    //    guard, for a session that was launched while it was on.
+    if (!deps.settings().claude) return 'off';
+    const sample: TapSample | null = parseTapBody(body, deps.now());
+    // 2. A SHAPE NOBODY RECOGNISES IS NOT A NUMBER. An absent window is the
+    //    tap saying nothing about that window, and a body naming neither is
+    //    nothing to apply rather than a meter to clear.
+    if (sample === null) return 'shape';
+    // 3. THE BODY MAY NOT NAME A SESSION THE TOKEN DOES NOT OWN. The token is
+    //    already proof this is one of Tortie's own claude sessions; this
+    //    catches a session posting under another one's name.
+    if (sample.sessionId !== sessionId) return 'session';
+    // 4. NEVER LIE ACROSS ACCOUNTS.
+    if (decodeConfigKey(sample.configKey) !== selectedAccountDir()) {
+      return 'account';
+    }
+    const now = deps.now();
+    // 5. THE SAME NUMBERS AGAIN ARE NOT NEWS. A long turn re-runs the status
+    //    line many times and the throttle in the script is per pane, so two
+    //    panes of the same login post the same numbers seconds apart.
+    if (
+      h.tapAt !== null &&
+      now - h.tapAt < USAGE_TAP_DEDUPE_MS &&
+      sameWindow(sample.fiveHour, h.parsed.fiveHour) &&
+      sameWindow(sample.sevenDay, h.parsed.sevenDay)
+    ) {
+      return 'duplicate';
+    }
+    // THE PER MODEL WEEKLY ROW AND THE PLAN WORD ARE KEPT, and research 72
+    // section 10.4 is why: the tap carries `five_hour` and `seven_day` and
+    // nothing else, so the Fable row can only ever come from the endpoint. A
+    // tap that overwrote the whole parse would take that row off the card
+    // for as long as it kept suppressing the poll.
+    h.parsed = {
+      fiveHour: sample.fiveHour ?? h.parsed.fiveHour,
+      sevenDay: sample.sevenDay ?? h.parsed.sevenDay,
+      scoped: h.parsed.scoped,
+      plan: h.parsed.plan
+    };
+    h.readAt = now;
+    h.tapAt = now;
+    h.state = 'ok';
+    // `lastAttemptAt` is deliberately NOT moved. It records when the endpoint
+    // was last asked, and the suppression above is what keeps the poll away;
+    // moving it too would push the first poll after a quiet tap out by a
+    // second interval. `retryAfter` is not cleared either: a wait the vendor
+    // asked for is not answered by a number that arrived another way.
+    deps.onChanged?.(compose());
+    return 'applied';
   }
 
   async function run(force: boolean): Promise<UsageSnapshot> {
@@ -316,16 +463,13 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       waits.push(job);
     }
     await Promise.all(waits);
-    return {
-      at: deps.now(),
-      providers: USAGE_PROVIDERS.map((p) =>
-        viewOf(p, held.get(p) ?? freshHeld())
-      )
-    };
+    return compose();
   }
 
   return {
     read: () => run(false),
-    refresh: () => run(true)
+    refresh: () => run(true),
+    current: () => compose(),
+    applyTap
   };
 }

@@ -9,11 +9,29 @@
  * silently to the pid-file oracle and the universal floor.
  *
  * Only claude ships. It supports `type:"http"` hooks natively, so an event
- * costs zero subprocesses, and `--settings` MERGES with the user's and the
- * project's settings rather than replacing them. Codex hooks are deliberately
- * NOT implemented: they need `--dangerously-bypass-hook-trust`, which paints
- * a permanent yellow banner in the TUI, and codex's pane title is already a
- * perfect three-state oracle, so the banner would buy nothing.
+ * costs zero subprocesses, and `--settings` is a SETTINGS SOURCE alongside the
+ * user's and the project's rather than a replacement for them. Codex hooks are
+ * deliberately NOT implemented: they need `--dangerously-bypass-hook-trust`,
+ * which paints a permanent yellow banner in the TUI, and codex's pane title is
+ * already a perfect three-state oracle, so the banner would buy nothing.
+ *
+ * PHASE 182 CORRECTED ONE WORD OF THAT PARAGRAPH, and the correction is the
+ * whole reason the tap below can refuse to install. `--settings` merges ACROSS
+ * KEYS and not within one: Claude Code resolves its five sources in the order
+ * user, project, local, flag, policy, and for a given key the highest source
+ * that names it wins outright. `hooks` blocks from several sources do run
+ * together, which is why Phase 13's paragraph read true for three years of
+ * this file's life. A `statusLine` is one command and one winner, measured in
+ * docs/research/72 section 10.2: a flag file naming script A beside a project
+ * file naming script B ran A twice and never created B's log at all.
+ *
+ * PHASE 182: THE USAGE TAP RIDES THIS FILE and adds nothing of its own. The
+ * settings file is written here already, the loopback server is bound here
+ * already, and the session's 128 bit token is in that file already, so the
+ * tap is one more key in the JSON, one more route on the server, and a small
+ * shell script under the same directory. The script and the wire shape are
+ * src/main/usage/statusline.ts; what a post DOES is src/main/usage/service.ts;
+ * what is here is the writing, the switch and the refusal.
  *
  * NOTHING outside gmux's own userData is ever written — not `~/.claude`, not
  * `~/.codex/config.toml`, not `~/.zshrc`.
@@ -33,10 +51,32 @@
 
 import { randomBytes } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync
+} from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { app } from 'electron';
+import { getLog } from '../log';
+import { getSettings } from '../settings/store';
+import {
+  claudeStatusLineScript,
+  statusLineBlock,
+  textNamesStatusLine,
+  TAP_BODY_CAP_BYTES
+} from '../usage/statusline';
 import type { ActivityState } from './types';
+
+/**
+ * Scope "usage", the same one src/main/usage writes under, because every line
+ * this file adds is about the tap. A dropped post is a provider word and a
+ * fixed reason and NEVER a body, a token or a number.
+ */
+const log = getLog('usage');
 
 /** Set GMUX_DISABLE_AGENT_HOOKS=1 to launch agents with no injection at all. */
 export function hooksEnabled(): boolean {
@@ -94,6 +134,14 @@ export interface HookServerEvents {
   onEvent(sessionId: string, state: ActivityState, event: string): void;
   /** SessionEnd — drop any tier-0 state held for this session. */
   onSessionEnd(sessionId: string): void;
+  /**
+   * Phase 182: a form encoded usage post from this session's managed status
+   * line. The body is handed over RAW and unparsed, because what a sample
+   * means is an ingest question and it is answered in src/main/usage/service.
+   * Absent on a wiring that wants no tap, and then `/u/` is a 404 like any
+   * other unknown route.
+   */
+  onTap?(sessionId: string, body: string): void;
 }
 
 /**
@@ -179,18 +227,33 @@ export class GmuxHookServer {
     const host = req.headers.host ?? '';
     if (!/^127\.0\.0\.1(:\d+)?$/.test(host)) return deny();
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
-    const m = /^\/h\/([0-9a-f]{32})$/.exec(url.pathname);
-    const token = m?.[1];
-    if (req.method !== 'POST' || token === undefined) return deny();
+    // Two routes, one token registry: `/h/` is Phase 13's activity hook and
+    // `/u/` is Phase 182's usage tap. A tap post is refused for exactly the
+    // reasons a hook post is, and it says so in one line, because a token
+    // nobody registered arriving on the usage route is the shape an attack
+    // has and the shape a stale session has, and both are worth seeing once.
+    const isTap = url.pathname.startsWith('/u/');
+    const drop = (reason: string): void => {
+      if (isTap) log.warn('usage.tap.dropped', { reason });
+      deny();
+    };
+    const m = /^\/([hu])\/([0-9a-f]{32})$/.exec(url.pathname);
+    const token = m?.[2];
+    if (req.method !== 'POST') return drop('method');
+    if (token === undefined) return drop('route');
     const sessionId = this.tokens.get(token);
-    if (sessionId === undefined) return deny();
+    if (sessionId === undefined) return drop('token');
     const event = url.searchParams.get('e') ?? '';
+    // The tap's body is four numbers and a uuid, so it gets its own much
+    // smaller cap. An oversized one is dropped whole rather than truncated
+    // and parsed, which is what `over` means below.
+    const cap = isTap ? TAP_BODY_CAP_BYTES : MAX_BODY_BYTES;
 
     let body = '';
     let over = false;
     req.on('data', (chunk: Buffer) => {
       if (over) return;
-      if (body.length + chunk.length > MAX_BODY_BYTES) {
+      if (body.length + chunk.length > cap) {
         over = true;
         return;
       }
@@ -204,6 +267,14 @@ export class GmuxHookServer {
     res.statusCode = 200;
     res.end();
 
+    if (isTap) {
+      if (over) {
+        log.warn('usage.tap.dropped', { reason: 'oversized' });
+        return;
+      }
+      this.events.onTap?.(sessionId, body);
+      return;
+    }
     if (event === 'SessionEnd') {
       this.events.onSessionEnd(sessionId);
       return;
@@ -226,6 +297,26 @@ export function claudeHookDir(): string {
 
 export function claudeHookSettingsPath(sessionId: string): string {
   return join(claudeHookDir(), `${sessionId}.json`);
+}
+
+/**
+ * The managed status line script (Phase 182), one per install rather than one
+ * per session: it reads the session out of its own environment, so there is
+ * nothing in it that differs between sessions.
+ *
+ * It lives beside the settings files and NOT in a temporary directory, for
+ * the same reason they do not: research 72 section 10.7 measured that a
+ * `--settings` file that has gone missing kills the session at launch, and a
+ * status line whose script has gone missing is the smaller version of the
+ * same fault. `<userData>/gmux` is durable state.
+ */
+export function claudeTapScriptPath(): string {
+  return join(claudeHookDir(), 'tortie-statusline.sh');
+}
+
+/** One throttle stamp per session. `.json` sweeps never reach this directory. */
+export function claudeTapStampDir(): string {
+  return join(claudeHookDir(), 'stamps');
 }
 
 /** Persisted preferred port, so hooks survive a gmux restart. */
@@ -264,7 +355,16 @@ export function writePreferredHookPort(port: number): void {
  * never passed — it would suppress the user's own model, plugins and
  * permissions, and merging is the entire reason to use `--settings`.
  */
-export function claudeHookSettings(port: number, token: string): string {
+export function claudeHookSettings(
+  port: number,
+  token: string,
+  /**
+   * Phase 182: the managed status line script's path, or null for no status
+   * line at all. Null is the shipped answer, because the usage switch is off
+   * by default and a person who already has a status line keeps it.
+   */
+  statusLinePath: string | null = null
+): string {
   const base = `http://127.0.0.1:${port}`;
   const hook = (event: string): unknown => ({
     hooks: [{ type: 'http', url: `${base}/h/${token}?e=${event}` }]
@@ -278,7 +378,8 @@ export function claudeHookSettings(port: number, token: string): string {
         PostToolUse: [hook('PostToolUse')],
         Stop: [hook('Stop')],
         SessionEnd: [hook('SessionEnd')]
-      }
+      },
+      ...(statusLinePath === null ? {} : statusLineBlock(statusLinePath))
     },
     null,
     2
@@ -295,6 +396,158 @@ export function tokenFromSettingsFile(path: string): string | null {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Phase 182 — the status line, and when Tortie may not install one
+// ---------------------------------------------------------------------------
+
+/**
+ * Every place the PERSON could have named a status line that Tortie's flag
+ * file would outrank, in Claude Code's own source order.
+ *
+ * The user file is read and NEVER written, and that is a rule that outranks
+ * this whole feature. The project and local files are read only when a
+ * working directory is known, which is every launch and every restore; the
+ * boot pass has no cwd for a live session and checks the user file alone,
+ * which is the conservative half.
+ */
+export function personStatusLineFiles(
+  env: Record<string, string | undefined>,
+  home: string,
+  cwd: string | undefined
+): string[] {
+  const configDir = env['CLAUDE_CONFIG_DIR'];
+  const userDir =
+    configDir !== undefined && configDir !== ''
+      ? configDir
+      : join(home, '.claude');
+  const files = [join(userDir, 'settings.json')];
+  if (cwd !== undefined && cwd !== '') {
+    files.push(
+      join(cwd, '.claude', 'settings.json'),
+      join(cwd, '.claude', 'settings.local.json')
+    );
+  }
+  return files;
+}
+
+/** A file's text, or null. This is the ONLY thing this file does to ~/.claude. */
+function readTextOrNull(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** Does the person already own the status line for a session in this directory? */
+export function personOwnsStatusLine(
+  files: readonly string[],
+  read: (path: string) => string | null = readTextOrNull
+): boolean {
+  return files.some((f) => textNamesStatusLine(read(f)));
+}
+
+/** Why there is no status line in this session's settings file, or that there is. */
+export type TapDecision =
+  | { install: true; script: string }
+  | { install: false; reason: 'off' | 'person-owns-it' | 'unwritable' };
+
+/** One line per reason per process. A launch loop must not write a log a minute. */
+const loggedTapReasons = new Set<string>();
+
+function logTapReasonOnce(reason: string): void {
+  if (loggedTapReasons.has(reason)) return;
+  loggedTapReasons.add(reason);
+  log.info('usage.tap.not-installed', { reason });
+}
+
+/** Test seam: forget which reasons have been logged. */
+export function resetTapReasonLog(): void {
+  loggedTapReasons.clear();
+}
+
+/**
+ * Write the managed script, and make it executable. Returns its path or null.
+ *
+ * Rewritten on every launch on purpose. It is generated whole from one
+ * function, so an older install's script is replaced rather than migrated,
+ * and a person who edited it gets Tortie's version back.
+ */
+export function ensureClaudeTapScript(): string | null {
+  const path = claudeTapScriptPath();
+  try {
+    mkdirSync(claudeTapStampDir(), { recursive: true });
+    writeFileAtomic(
+      path,
+      claudeStatusLineScript({
+        settingsDir: claudeHookDir(),
+        stampDir: claudeTapStampDir()
+      })
+    );
+    chmodSync(path, 0o755);
+  } catch {
+    return null;
+  }
+  return path;
+}
+
+/**
+ * Should this session's settings file name Tortie's status line?
+ *
+ * THREE ANSWERS AND EACH IS A REFUSAL WORTH NAMING.
+ *
+ *  - `off` is the shipped one. The Claude usage switch is off until a person
+ *    turns it on in Settings, and while it is off no script is written, no
+ *    status line is configured and nothing runs in the person's session. The
+ *    switch reaches a session at its NEXT launch or restore, because a
+ *    settings file is read by claude once at process start.
+ *  - `person-owns-it` is the honest one. A status line is one command and the
+ *    highest source wins outright, so installing Tortie's would silently
+ *    delete the person's inside Tortie launched sessions. Tortie does not
+ *    compose his command inside its own either: that would be Tortie reading
+ *    a command out of a configuration file and running it, which the project
+ *    refuses. The meter keeps the endpoint poll it already had.
+ *  - `unwritable` is the ordinary one, and it degrades the same way every
+ *    other part of this file does: no status line, and the session launches.
+ */
+export function claudeTapDecision(cwd: string | undefined): TapDecision {
+  let on = false;
+  try {
+    on = getSettings().usage.claude;
+  } catch {
+    on = false;
+  }
+  if (!on) return { install: false, reason: 'off' };
+  const files = personStatusLineFiles(process.env, homedir(), cwd);
+  if (personOwnsStatusLine(files)) {
+    logTapReasonOnce('person-owns-it');
+    return { install: false, reason: 'person-owns-it' };
+  }
+  const script = ensureClaudeTapScript();
+  if (script === null) {
+    logTapReasonOnce('unwritable');
+    return { install: false, reason: 'unwritable' };
+  }
+  return { install: true, script };
+}
+
+/**
+ * Write text where a half written file would be worse than no file.
+ *
+ * Research 72 section 10.7 measured what a malformed settings file does: a
+ * "Settings Error" modal naming the file, with three choices and Enter to
+ * confirm, BEFORE the session is usable, because claude's own rule is that
+ * files with errors are skipped entirely. A crash between two writes of this
+ * file would therefore block every claude session Tortie launches until a
+ * person pressed a key. So the bytes land under a temporary name and are
+ * renamed into place, and a rename on one file system is atomic.
+ */
+function writeFileAtomic(path: string, text: string): void {
+  const tmp = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmp, text, 'utf8');
+  renameSync(tmp, path);
+}
+
 /**
  * Guarantee the settings file for one claude session exists and points at the
  * CURRENT port, reusing the session's existing token when one can be
@@ -302,17 +555,30 @@ export function tokenFromSettingsFile(path: string): string | null {
  *
  * Returns the path, or null when the channel is unavailable or the write
  * failed — callers must then launch WITHOUT `--settings`.
+ *
+ * `cwd` is the session's working directory when the caller knows it, and it
+ * is used for ONE thing: reading whether the person's own project settings
+ * already name a status line. Nothing is written anywhere near it.
  */
 export function ensureClaudeHookSettings(
   server: GmuxHookServer,
-  sessionId: string
+  sessionId: string,
+  cwd?: string
 ): string | null {
   if (!hooksEnabled() || !server.listening) return null;
   const path = claudeHookSettingsPath(sessionId);
   const token = tokenFromSettingsFile(path) ?? randomBytes(16).toString('hex');
+  const tap = claudeTapDecision(cwd);
   try {
     mkdirSync(claudeHookDir(), { recursive: true });
-    writeFileSync(path, claudeHookSettings(server.boundPort, token), 'utf8');
+    writeFileAtomic(
+      path,
+      claudeHookSettings(
+        server.boundPort,
+        token,
+        tap.install ? tap.script : null
+      )
+    );
   } catch {
     return null;
   }

@@ -16,10 +16,31 @@
  * body carries the person's email address, user id and account id; none of
  * that is in `UsageSnapshot` and none of it crosses this pair.
  *
+ * PHASE 182 ADDED ONE EVENT and no invoke. The live tap arrives when a
+ * person's own turn ends rather than when a window asks, so there is nothing
+ * for a renderer to poll: main broadcasts the snapshot it already holds. The
+ * event carries the SAME payload the two reads answer with, so a window that
+ * ignores it is fifteen minutes behind and never wrong.
+ *
  * MAIN: src/main/usage/ipc.ts, the one `usage:*` registrar.
  */
 
 import type { UsageSnapshot } from '../usage';
+
+/** Main → renderers (ALL windows): the held usage snapshot changed. */
+export const EVT_USAGE_CHANGED = 'usage:changed' as const;
+
+/**
+ * Payload of EVT_USAGE_CHANGED (broadcast to EVERY window).
+ *
+ * Broadcast ONLY when something changed that nobody asked for, which today is
+ * exactly one thing: a live post from a Tortie launched claude session's
+ * managed status line. The answer to a read is not broadcast, because the
+ * window that asked already has it.
+ */
+export interface UsageEventPayloadMap {
+  'usage:changed': [snapshot: UsageSnapshot];
+}
 
 export interface UsageInvokeChannelMap {
   /** The held snapshot; fetches only when a switched on provider is due. */
@@ -32,5 +53,7 @@ export interface GmuxUsageExtras {
   usage: {
     read(): Promise<UsageSnapshot>;
     refresh(): Promise<UsageSnapshot>;
+    /** Subscribe to the live snapshot. Returns its own unsubscribe. */
+    onChanged(cb: (snapshot: UsageSnapshot) => void): () => void;
   };
 }

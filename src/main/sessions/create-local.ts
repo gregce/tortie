@@ -423,7 +423,10 @@ export async function createLocalSession(
   // just means no flag — never a failed create (and never a `claude
   // --settings <missing>` that would refuse to start).
   if (input.agent === 'claude') {
-    const settingsPath = ensureClaudeHookSettings(deps.hookServer, id);
+    // Phase 182 passes the working directory too, and for ONE read: whether
+    // the person's own `.claude/settings.json` in this project already names
+    // a status line, in which case Tortie installs none of its own.
+    const settingsPath = ensureClaudeHookSettings(deps.hookServer, id, cwd);
     if (settingsPath !== null) {
       spec.argv = withClaudeSettingsFlag(spec.argv, settingsPath);
       if (spec.resumeArgv !== undefined) {

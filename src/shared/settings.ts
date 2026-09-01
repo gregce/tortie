@@ -127,11 +127,28 @@ export interface GmuxSettings {
    *
    * This value is NOT sealed, and that is a decision rather than an
    * oversight. The seal exists for refusal 8, being that nothing may cause a
-   * process to START on a configuration change alone, and turning a meter on
-   * starts nothing. What it can cause is one HTTPS GET to the vendor that
-   * issued the token being sent, and that destination is compiled in and
-   * cannot be named by any configuration, so the worst a hand edited file
-   * can do is ask Anthropic or OpenAI about the person's own plan.
+   * process to START on a configuration change alone. What it can cause is
+   * one HTTPS GET to the vendor that issued the token being sent, and that
+   * destination is compiled in and cannot be named by any configuration, so
+   * the worst a hand edited file can do is ask Anthropic or OpenAI about the
+   * person's own plan.
+   *
+   * PHASE 182 RE EXAMINED THAT AND IT STILL HOLDS, and the reasoning is here
+   * rather than in a commit message because the claim moved. With `claude`
+   * on, a claude session Tortie launches from then on carries a managed
+   * status line, and claude runs it on the person's own turns. So the switch
+   * does now decide that something runs. What it CANNOT do is decide WHAT
+   * runs: the script is generated whole by Tortie from
+   * src/main/usage/statusline.ts, it lives under Tortie's own userData, and
+   * no field of any settings file reaches its bytes or its argv. That is the
+   * boundary refusal 8 draws, being that configuration selects from choices
+   * the compiled world already contains. It is also why Tortie refuses to
+   * compose a status line command the person's own settings file names.
+   *
+   * IT REACHES A SESSION AT ITS NEXT LAUNCH OR RESTORE, because claude reads
+   * its settings once at process start. Turning the switch off stops the
+   * numbers at once, and a session launched while it was on goes on running
+   * the script until it ends; every post it makes is dropped.
    */
   usage: UsageSettings;
 }

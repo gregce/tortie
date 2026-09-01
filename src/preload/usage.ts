@@ -8,9 +8,13 @@
  */
 
 import type { GmuxUsageExtras } from '../shared/ipc';
-import { invoke } from './bridge';
+import { EVT_USAGE_CHANGED } from '../shared/ipc';
+import { invoke, on } from './bridge';
 
 export const usage: GmuxUsageExtras['usage'] = {
   read: () => invoke('usage:read'),
-  refresh: () => invoke('usage:refresh')
+  refresh: () => invoke('usage:refresh'),
+  // Phase 182. The live tap arrives on the person's own turn, so the snapshot
+  // is pushed rather than waited for. Same payload as the two reads.
+  onChanged: (cb) => on(EVT_USAGE_CHANGED, cb)
 };

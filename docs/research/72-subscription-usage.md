@@ -610,3 +610,85 @@ names. Both keep the secret out of every other user's `ps`.
   seen.
 - **Nothing was measured on API key billing**, where the binary says `rate_limits` is null and
   `rate_limits_available` is false. That face is still inherited rather than confirmed.
+
+## 11. What Phase 182 built on section 10, and the two things it changed
+
+Section 10 answered the condition and named a trap. This section records what the build did with
+both, so a later round reads the decisions beside the measurement rather than out of a commit body.
+
+### 11.1 It opened NO second socket and minted NO second token
+
+The phase brief asked for a loopback server bound to 127.0.0.1 on an ephemeral port with a per boot
+token. Tortie has had one since Phase 13: `GmuxHookServer` in `src/main/activity/hooks.ts`, bound to
+127.0.0.1, `Host` checked, bodies capped, with a **per session** 128 bit token in the path, and it is
+already reachable from a claude session because the settings file naming it is already on the argv.
+So the tap is one more route on that server, `POST /u/<token>`, one more key in the settings file
+that server already writes, and a small shell script in the same directory.
+
+A per session token is stronger than the per boot one the brief described, and it is what lets the
+route hand the ingest layer a SESSION rather than a claim. It also survives a Tortie restart,
+because the token is recovered out of the file rather than re-minted, which is what makes a claude
+that outlived the app post to the current port instead of a dead one.
+
+### 11.2 The refusal, and why it is not a composition
+
+Section 10.2 measured that a `statusLine` is one command and the highest precedence source wins
+outright, and named the two answers: compose the person's command inside Tortie's own, or refuse to
+install when the person already has one. **Phase 182 refuses.** Composing would mean Tortie's own
+script reading a command out of a configuration file and running it, which is the boundary the
+project already draws: configuration selects from choices the compiled world already contains, or
+names an executable the person has personally confirmed, and `~/.claude/settings.json` is neither of
+those to Tortie.
+
+The check reads three files and writes none: the user file at `<CLAUDE_CONFIG_DIR or ~/.claude>/
+settings.json`, and, when the session's working directory is known, `<cwd>/.claude/settings.json`
+and `<cwd>/.claude/settings.local.json`. Every one of those is a source Tortie's flag file outranks,
+so every one of them is a status line Tortie would silently replace. A file that does not parse
+names nothing, which is claude's own rule for it.
+
+**The limit a person will meet:** the refusal is a log line and nothing on a surface. A person who
+has their own status line and turns the meter on gets the fifteen minute endpoint poll and no live
+numbers, and nothing tells them why.
+
+### 11.3 What a post has to survive
+
+Five rules in order, in `src/main/usage/service.ts`, and any one of them drops the post whole.
+
+| Rule | Drops | Because |
+| --- | --- | --- |
+| The Claude switch is off | `off` | Nothing while off is the whole permission this feature has |
+| The body did not parse, or named no window | `shape` | An absent window is silence, never a cleared meter |
+| The body claims a session the token does not own | `session` | The token is the identity; the claim is not |
+| The config directory is not the account main reads | `account` | Another account's quota under this account's plan word is a lie |
+| The same numbers again inside thirty seconds | `duplicate` | A long turn re-runs the status line and two panes post the same thing |
+
+A post that survives all five sets the two windows, moves the read time, and **keeps the per model
+weekly row and the plan word**, which is section 10.4's consequence answered directly: the tap
+carries `five_hour` and `seven_day` and nothing else, so a tap that overwrote the whole parse would
+take the Fable row off the hover card for as long as it kept suppressing the poll. It does not clear
+a `Retry-After` either, because a wait the vendor asked for is not answered by a number that arrived
+another way.
+
+A fresh post suppresses the endpoint POLL for five minutes. It never suppresses the refresh control,
+because that is a person asking, and because the endpoint is the only source of the row above.
+
+### 11.4 The switch now decides that something runs, and the boundary still holds
+
+Phase 181 recorded that turning a meter on starts nothing. That is no longer true: with the Claude
+switch on, a claude session Tortie launches from then on carries a managed status line, and claude
+runs it on the person's own turns. What the switch cannot do is decide WHAT runs. The script is
+generated whole by Tortie from `src/main/usage/statusline.ts`, it lives under Tortie's own userData,
+and no field of any settings file reaches its bytes or its argv. That is the line refusal 8 draws.
+
+It reaches a session at its NEXT launch or restore, because claude reads its settings once at
+process start. Turning the switch off stops the numbers at once and every later post is dropped, but
+a session launched while it was on goes on running the script until it ends.
+
+### 11.5 What is still not verified
+
+- **No long turn has been measured**, so the real invocation rate under streaming is still unknown
+  and the throttle is still designed for the worst case rather than for a measurement.
+- **Nothing was measured on API key billing**, where the binary says `rate_limits` is null.
+- **The workspace trust gate is inherited rather than driven**: a folder claude has not been trusted
+  in logs "Status line command skipped: workspace trust not accepted", so the tap is silent for a
+  session's whole first run in a new project and the endpoint poll is what draws the meter there.

@@ -73,6 +73,8 @@ import { DurableWriteError, isOutOfSpace } from '../durable';
 // not a harness launch — see fault/inject.ts.
 import { faultPoint } from '../fault/inject';
 import { unwatchGitRepo } from '../git';
+// Phase 182. One call, and it is what a usage tap post does.
+import { applyUsageTap } from '../usage';
 import {
   claimConversationId,
   conversationClaimant,
@@ -706,6 +708,14 @@ export class GmuxCore {
       onEvent: (sessionId, state) => {
         this.activity.noteHookEvent(sessionId, state);
       },
+      // PHASE 182. The usage tap: one form encoded post from this session's
+      // managed status line, carrying the `rate_limits` block claude already
+      // handed it and nothing else. What it MEANS is decided in the usage
+      // domain, which owns the ingest rules and the snapshot; this line only
+      // says which of Tortie's own sessions the token belonged to.
+      onTap: (sessionId, body) => {
+        applyUsageTap(sessionId, body);
+      },
       onSessionEnd: (sessionId) => {
         // PHASE 141. THE FREE ACCELERATOR, and it runs BEFORE the state that
         // holds the witness is dropped. Claude's own hook reaches this line the
@@ -1115,7 +1125,10 @@ export class GmuxCore {
       ) {
         continue;
       }
-      ensureClaudeHookSettings(this.hookServer, rec.id);
+      // The cwd is the session's own, so a status line the person named in
+      // THAT project's `.claude/settings.json` is seen and Tortie installs
+      // none of its own over it.
+      ensureClaudeHookSettings(this.hookServer, rec.id, rec.cwd);
     }
     // Sweep settings files whose session row is gone (killed and removed in a
     // previous run). Nothing reads them and nothing can resume them.
@@ -1326,7 +1339,7 @@ export class GmuxCore {
       // refuses to start when that file is gone. Re-write it (recovering the
       // session's existing token) before the command is typed into the pane.
       if (rec.agent === 'claude') {
-        ensureClaudeHookSettings(this.hookServer, sessionId);
+        ensureClaudeHookSettings(this.hookServer, sessionId, rec.cwd);
       }
       // Phase 29: re-acquire the conversation claim a Remove released. For a
       // row that never lost its claim this is a no-op (the holder asking

@@ -74,6 +74,7 @@ export interface UsageStoreState {
 let started = false;
 let timer: number | undefined;
 let unwatchSettings: (() => void) | undefined;
+let unwatchUsage: (() => void) | undefined;
 
 /** Is this provider drawn right now? Off is the one state that draws nothing. */
 function isDrawn(snapshot: UsageSnapshot, provider: UsageProviderId): boolean {
@@ -157,6 +158,17 @@ export const useUsage = create<UsageStoreState>((set, get) => ({
     window.addEventListener('focus', tick);
     document.addEventListener('visibilitychange', tick);
     unwatchSettings = bridge.onSettingsChanged?.(reconcile);
+    /**
+     * PHASE 182. The live tap: numbers that arrive when the person's own turn
+     * ends rather than when this window asks.
+     *
+     * It is a PUSH and not an ask, so `askedAt` does not move: the cadence
+     * above is about how often this window may ask main for something, and
+     * nothing was asked. It costs no request either way, because main holds
+     * the numbers already and a live post is what suppresses its poll.
+     * A window that never gets one is fifteen minutes behind and never wrong.
+     */
+    unwatchUsage = bridge.usage.onChanged?.((snapshot) => set({ snapshot }));
   },
 
   async refresh(): Promise<void> {
@@ -181,4 +193,6 @@ export function resetUsagePolling(): void {
   timer = undefined;
   unwatchSettings?.();
   unwatchSettings = undefined;
+  unwatchUsage?.();
+  unwatchUsage = undefined;
 }
