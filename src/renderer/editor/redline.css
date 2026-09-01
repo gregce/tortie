@@ -73,3 +73,51 @@
   color: var(--text-muted);
   white-space: nowrap;
 }
+
+/* ---------------------------------------------------------------------------
+   The Redline VIEW (Phase 194): the whole document, no Pierre under it.
+--------------------------------------------------------------------------- */
+
+/* The view fills the body the way .ed-diff does, and stacks the scroller over
+   an optional note the same way. */
+.ed-redline-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ed-redline-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-canvas);
+}
+
+.ed-redline-scroll:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* The document itself. It reuses `.ed-redline` for the marks and overrides
+   the row's own metrics: a document is body text on the markdown preview's
+   measure, centred the same way and for the same reason (a 68ch column that
+   hugs the left edge of a wide pane leaves half the pane blank).
+
+   `pre-wrap` rather than the row's `normal`, and this is the one rule the
+   projections depend on: ./redline-document keeps every newline and every
+   run of spacing the author wrote, because the drawn runs with the insertions
+   removed ARE the old file, byte for byte. Collapsing the whitespace would
+   make the picture lie about spacing changes, which are drawn here as a
+   struck-through run and an inserted one like any other change. */
+.ed-redline-doc {
+  max-width: 68ch;
+  margin-inline: auto;
+  padding: var(--space-7) var(--space-8) var(--space-10);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+}

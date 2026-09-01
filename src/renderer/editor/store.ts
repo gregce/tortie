@@ -681,8 +681,12 @@ export const useEditor = create<EditorState>((set, get) => {
       // the tab's whole life. A worktree tab outside the repository can never
       // enter diff mode, whoever asks — such a tab never has `canDiff`, so no
       // control offers this, but the state machine refuses it anyway.
+      // Phase 194: the redline reads the same two sides the diff does, so it
+      // is refused where the diff is refused and loads HEAD where the diff
+      // loads HEAD.
+      const wantsHead = mode === 'diff' || mode === 'redline';
       if (
-        mode === 'diff' &&
+        wantsHead &&
         tab.commit === null &&
         tab.remote === undefined &&
         !fileInRepo(tab.repoPath, tab.path)
@@ -695,14 +699,17 @@ export const useEditor = create<EditorState>((set, get) => {
       // comes from the machine, for the stronger version of the same reason.
       // `git.showHead` runs on THIS Mac, so asking it for a path on another
       // computer answers about a different file or refuses.
-      if (mode === 'diff' && tab.commit === null && tab.remote === undefined) {
+      if (wantsHead && tab.commit === null && tab.remote === undefined) {
         if (tab.image && !tab.svg) {
           if (tab.imageHead === null) void io.loadImageHead(id);
         } else if (tab.headContents === null) {
           void io.loadHead(id);
         }
       }
-      if (tab.markdown && mode !== 'diff') {
+      // Only a mode every .md tab can open in is remembered as the default
+      // for the next one: `diff` and `redline` need a HEAD version, and
+      // `readMarkdownMode` refuses anything outside MARKDOWN_MODES anyway.
+      if (tab.markdown && MARKDOWN_MODES.includes(mode)) {
         try {
           localStorage.setItem(LS_MARKDOWN_MODE, mode);
         } catch {

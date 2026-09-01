@@ -27,8 +27,12 @@ import type {
  *  - `split`   Source and Preview side by side (.md / .svg only)
  *  - `image`   the image viewer (Phase 12.10) — the only mode a raster image
  *              has, because there is no text under it to edit
+ *  - `redline` the whole document as flowing prose with every change marked
+ *              in place, read-only (Phase 194). Offered beside `diff` for a
+ *              prose file (./redline isRedlinePath) that has a HEAD version,
+ *              and never the default: a modified file still opens as `diff`.
  */
-export type EditorMode = 'diff' | 'file' | 'preview' | 'split' | 'image';
+export type EditorMode = 'diff' | 'file' | 'preview' | 'split' | 'image' | 'redline';
 
 
 export interface EditorTab {

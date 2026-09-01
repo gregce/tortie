@@ -3,11 +3,13 @@
  * center region (45% default, draggable) or an overlay under 1400px window
  * width (automatic, never a setting — DESIGN.md §2.2).
  *
- * The body renders one of four surfaces, chosen by `tab.mode`:
+ * The body renders one of these surfaces, chosen by `tab.mode`:
  *   diff     @pierre/diffs, read-only (Phase 11)
  *   file     Monaco — the edit surface, and "Source" for a .md tab
  *   preview  rendered markdown, no Monaco (Phase 12 item 6)
  *   split    Source and Preview side by side
+ *   redline  the whole document as prose with every change marked in place,
+ *            read-only, no Pierre (Phase 194)
  *
  * Tabs ACCUMULATE (Phase 12 item 5): a single click opens a preview tab
  * (italic, recycled by the next single click), a double-click or the first
@@ -62,6 +64,8 @@ import { ContextDetailTab } from '../context/ContextDetailTab';
 import type { ContextEntry } from '../context/model';
 import { MonacoHost } from './MonacoHost';
 import { PierreDiff } from './PierreDiff';
+import { RedlineDocument } from './RedlineDocument';
+import { isRedlinePath } from './redline';
 import { MarkdownPreview } from './markdown';
 import { ImageCompare, ImageView } from './image';
 import { HtmlPreview, tabRendersHtml } from './html';
@@ -185,7 +189,8 @@ function workRowWidthNow(): number {
  */
 
 // ---------------------------------------------------------------------------
-// Mode control — Diff | File for code, Preview | Source | Split for markdown
+// Mode control — Diff | File for code, Preview | Source | Split for markdown,
+// and Redline beside Diff for prose with a HEAD version (Phase 194)
 // ---------------------------------------------------------------------------
 
 interface ModeOption {
@@ -223,6 +228,22 @@ function modeOptions(tab: EditorTab, splitFits: boolean): ModeOption[] {
             ? 'This image before and after (read-only)'
             : 'Changes vs HEAD (read-only)'
     });
+    // Phase 194. The same two sides the diff holds, read as one document
+    // with the changes marked in place. Prose only, by ./redline's own
+    // allowlist: reflowing a line of source destroys the only structure it
+    // has. It sits beside Diff because it is the other reading of the same
+    // change, and it is never the default.
+    if (isRedlinePath(tab.path)) {
+      options.push({
+        mode: 'redline',
+        label: 'Redline',
+        icon: 'strikethrough',
+        title:
+          tab.commit !== null
+            ? `The document with what commit ${tab.commit.shortSha} changed marked in place (read-only)`
+            : 'The document with its changes marked in place (read-only)'
+      });
+    }
   }
   // An SVG takes markdown's control unchanged — it is the same question
   // ("the picture or the markup?") with a different renderer behind Preview.
@@ -659,8 +680,11 @@ export function EditorPanel(): React.JSX.Element | null {
       ? null
       : machineWriteRootFor(machineStates, activeTab.remote.machineId);
 
+  // A view that needs a HEAD version falls back when there is none. The
+  // redline is one of those (Phase 194): it reads the diff's two sides.
   const mode: EditorMode =
-    activeTab.mode === 'diff' && !activeTab.canDiff
+    (activeTab.mode === 'diff' || activeTab.mode === 'redline') &&
+    !activeTab.canDiff
       ? activeTab.image && !activeTab.svg
         ? 'image'
         : 'file'
@@ -680,6 +704,8 @@ export function EditorPanel(): React.JSX.Element | null {
   const minimapApplies =
     effectiveMode !== 'diff' &&
     effectiveMode !== 'image' &&
+    // Phase 194: the redline document has no Monaco under it either.
+    effectiveMode !== 'redline' &&
     (effectiveMode !== 'preview' || activeTab.markdown) &&
     activeTab.error === null &&
     // Phase 160: the map tab has no text to summarize, so the toggle stays
@@ -741,6 +767,11 @@ activeTab.error !== null ? (
             ) : (
               <PierreDiff tab={activeTab} sideBySide={showDiffSplit} />
             )
+          ) : effectiveMode === 'redline' ? (
+            // Phase 194. The document with its changes marked in place. No
+            // Pierre and no Monaco: it composes the two sides the diff holds
+            // and draws them as prose.
+            <RedlineDocument tab={activeTab} />
           ) : effectiveMode === 'image' ? (
             <ImageView tab={activeTab} />
           ) : effectiveMode === 'preview' ? (

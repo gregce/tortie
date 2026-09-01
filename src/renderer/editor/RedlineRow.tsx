@@ -42,11 +42,40 @@
  */
 
 import React from 'react';
-import type { RedlineBlock } from './redline';
+import type { RedlineBlock, RedlineRun } from './redline';
 import './redline.css';
 
 export interface RedlineRowProps {
   block: RedlineBlock;
+}
+
+/**
+ * The runs themselves, as real `<del>`, `<ins>` and plain spans. Shared by
+ * the row and by ./RedlineDocument (Phase 194), so the document and the row
+ * draw one change the same way from one piece of code.
+ */
+export function RedlineRuns({
+  runs
+}: {
+  runs: readonly RedlineRun[];
+}): React.JSX.Element {
+  return (
+    <>
+      {runs.map((run, index) =>
+        run.kind === 'del' ? (
+          <del key={index} data-redline-del="">
+            {run.text}
+          </del>
+        ) : run.kind === 'ins' ? (
+          <ins key={index} data-redline-ins="">
+            {run.text}
+          </ins>
+        ) : (
+          <span key={index}>{run.text}</span>
+        )
+      )}
+    </>
+  );
 }
 
 export function RedlineRow({ block }: RedlineRowProps): React.JSX.Element {
@@ -61,19 +90,7 @@ export function RedlineRow({ block }: RedlineRowProps): React.JSX.Element {
           Spacing only
         </span>
       ) : null}
-      {block.runs.map((run, index) =>
-        run.kind === 'del' ? (
-          <del key={index} data-redline-del="">
-            {run.text}
-          </del>
-        ) : run.kind === 'ins' ? (
-          <ins key={index} data-redline-ins="">
-            {run.text}
-          </ins>
-        ) : (
-          <span key={index}>{run.text}</span>
-        )
-      )}
+      <RedlineRuns runs={block.runs} />
     </div>
   );
 }
