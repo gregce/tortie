@@ -4,6 +4,27 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## 0.98.0 (2026-09-01)
+
+This release is about reading a change the way you would read a document, and about the small things that make the window easier to live in. A changed text file can be read as a redline on its own, the usage meter follows your own turns, and a row of project tabs stays readable however many you open. A remote tab you close now stays closed.
+
+### Added
+
+- A changed text or markdown file can now be read as a redline. Choose Redline beside Diff and File and the whole document reads as prose, with the words that were removed struck through and the words that replaced them right after, and copying gives you the new text. It is for prose files, so a source file gets no Redline option ([`fe76ecd`](https://github.com/gregce/tortie/commit/fe76ecd)), ([`e238ff1`](https://github.com/gregce/tortie/commit/e238ff1))
+- The usage meter now moves on every one of your Claude Code turns, at no cost to your plan, rather than only on its fifteen minute check. If you already have a status line of your own anywhere, Tortie leaves it alone and keeps the check ([`650b5b3`](https://github.com/gregce/tortie/commit/650b5b3)), ([`d878070`](https://github.com/gregce/tortie/commit/d878070))
+- The sessions table in Diagnostics now names the project each session belongs to and how long ago it started and was last seen, so two sessions with the same name can be told apart ([`06fbe2c`](https://github.com/gregce/tortie/commit/06fbe2c))
+
+### Changed
+
+- Open more projects than fit along the top and the tabs scroll at a width you can still read, with a menu at the end that lists every project and its shortcut, rather than squeezing each name down to a letter ([`f7d131f`](https://github.com/gregce/tortie/commit/f7d131f))
+- The Install a skill sheet is narrower, and its preview of the skill grows with a tall window instead of stopping at six lines ([`2742c9e`](https://github.com/gregce/tortie/commit/2742c9e))
+
+### Fixed
+
+- Closing a remote machine tab now closes it for good. It used to come back at least once ([`2e9650c`](https://github.com/gregce/tortie/commit/2e9650c)), ([`87e5533`](https://github.com/gregce/tortie/commit/87e5533))
+- The custom font field in Settings sits level with the dropdown beside it ([`7917485`](https://github.com/gregce/tortie/commit/7917485))
+- A session with an impossible timestamp in its record can no longer stop the live diagnostics report ([`18a516b`](https://github.com/gregce/tortie/commit/18a516b))
+
 ## 0.97.0 (2026-09-01)
 
 This release is about knowing what your agents are doing and what they are costing you. Oh My Pi joins the supported agents, the diagnostics report answers at a glance instead of making you read it, and a meter on the sessions pane shows how much of your Claude and Codex plans you have used. Tortie also starts fewer things at launch, holds less memory under load, and lets you choose the font it writes your code in.
