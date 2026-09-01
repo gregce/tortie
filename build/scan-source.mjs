@@ -24,6 +24,9 @@
  *   - {@link lineAt} turns an offset into a 1-indexed line number.
  *   - {@link callArguments} splits the arguments of one call into source text.
  *   - {@link blockAt} returns the text between matching braces.
+ *   - {@link closeOf} returns the index of the bracket matching an open one.
+ *   - {@link namedFunctions} returns every function a file gives a name to,
+ *     with its body, so a caller can ask what a local wrapper does.
  *
  * It spawns nothing, opens no socket and reads no file. Callers hand it text.
  */
@@ -201,3 +204,130 @@ export function blockAt(code, open) {
   return null;
 }
 
+/**
+ * The index of the bracket that closes the one at `open`, or -1.
+ *
+ * Quotes are tracked, because {@link stripComments} deliberately leaves strings
+ * alone, so a bracket inside one must not be counted.
+ */
+export function closeOf(code, open) {
+  const opener = code[open];
+  const closer = { '(': ')', '[': ']', '{': '}' }[opener];
+  if (closer === undefined) return -1;
+  let depth = 0;
+  let quote = '';
+  for (let i = open; i < code.length; i += 1) {
+    const c = code[i];
+    if (quote !== '') {
+      if (c === '\\') {
+        i += 1;
+        continue;
+      }
+      if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      quote = c;
+      continue;
+    }
+    if (c === opener) depth += 1;
+    else if (c === closer) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/** The text from `from` to the `;` that ends its statement, brackets matched. */
+function statementFrom(code, from) {
+  let depth = 0;
+  let quote = '';
+  for (let i = from; i < code.length; i += 1) {
+    const c = code[i];
+    if (quote !== '') {
+      if (c === '\\') {
+        i += 1;
+        continue;
+      }
+      if (c === quote) quote = '';
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      quote = c;
+      continue;
+    }
+    if ('(['.includes(c) || c === '{') depth += 1;
+    else if (')]'.includes(c) || c === '}') {
+      depth -= 1;
+      if (depth < 0) return code.slice(from, i);
+    } else if (c === ';' && depth === 0) return code.slice(from, i);
+  }
+  return code.slice(from);
+}
+
+/** The body of the function whose parameter list closes at `afterParams`, or null. */
+function bodyAfter(code, afterParams) {
+  let i = afterParams + 1;
+  while (i < code.length && /\s/.test(code[i])) i += 1;
+  if (code.startsWith('=>', i)) {
+    i += 2;
+    while (i < code.length && /\s/.test(code[i])) i += 1;
+  } else if (code[i] !== '{') {
+    // Neither an arrow nor a block, so the parentheses were an expression.
+    return null;
+  }
+  if (code[i] === '{') return blockAt(code, i);
+  return statementFrom(code, i);
+}
+
+/**
+ * Every function this file gives a name to, by name, with its body as text.
+ *
+ * THE POINT OF IT, because the name alone does not say. A gate that asks "which
+ * calls in this file start a program" cannot answer from a hard coded list of
+ * call names: almost every probe under build/ declares its own
+ * `function sh(file, args, options = {})` around its line 100 and spawns
+ * through that, and a probe that called the same wrapper `connect` would be
+ * invisible to a list. With this, a caller discovers the wrappers instead of
+ * being told them.
+ *
+ * Four shapes are read, being every one this tree writes: a `function`
+ * declaration, a `const` bound to an arrow with a block body, a `const` bound to
+ * an arrow with an expression body, and a `const` bound to a `function`
+ * expression. A method inside an object or a class is not read, and neither is a
+ * function with no name.
+ */
+export function namedFunctions(code) {
+  const bodies = new Map();
+
+  const declared = /\b(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/g;
+  let m;
+  while ((m = declared.exec(code)) !== null) {
+    const params = closeOf(code, m.index + m[0].length - 1);
+    if (params === -1) continue;
+    const open = code.indexOf('{', params);
+    if (open === -1) continue;
+    const body = blockAt(code, open);
+    if (body !== null) bodies.set(m[1], body);
+  }
+
+  const bound =
+    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:function\s*\*?\s*[A-Za-z_$\w$]*\s*)?\(/g;
+  while ((m = bound.exec(code)) !== null) {
+    const params = closeOf(code, m.index + m[0].length - 1);
+    if (params === -1) continue;
+    const body = bodyAfter(code, params);
+    if (body !== null) bodies.set(m[1], body);
+  }
+
+  const oneArg = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?[A-Za-z_$][\w$]*\s*=>/g;
+  while ((m = oneArg.exec(code)) !== null) {
+    let i = m.index + m[0].length;
+    while (i < code.length && /\s/.test(code[i])) i += 1;
+    const body = code[i] === '{' ? blockAt(code, i) : statementFrom(code, i);
+    if (body !== null) bodies.set(m[1], body);
+  }
+
+  return bodies;
+}

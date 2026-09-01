@@ -6,11 +6,12 @@
  * IT SPAWNS NOTHING. IT STARTS NO ssh AND NO sshd. IT OPENS NO SOCKET. IT READS
  * NOTHING UNDER THE PERSON'S HOME. It reads the files under build/, imports
  * build/ssh-run.mjs and calls four of its functions with made up paths, writes
- * six fixtures into a scratch directory it removes in a `finally` block, and
- * exits. Measured on 2026-09-01 over three runs: 0.50, 0.55 and 0.54 seconds
+ * its fixtures into a scratch directory it removes in a `finally` block, and
+ * exits. Measured on 2026-09-01 over three runs: 0.45, 0.40 and 0.42 seconds
  * wall, against 0.17 for build/assert-electron-teardown.mjs and a 0.02 second
  * floor for starting node at all. It is slower than that sibling because it
- * runs four scanners over the 181 files rather than one.
+ * reads 182 files rather than one, and it reads each of them ONCE: everything
+ * the four rules need is computed in a single pass by {@link contextOf}.
  *
  * ## Why this file exists
  *
@@ -32,25 +33,46 @@
  * ## What it asserts
  *
  *   1. FORWARD. No file under build/ except ssh-run.mjs hands ssh, scp, sftp or
- *      ssh-keyscan to a spawn. Programs are recognised three ways, because all
- *      three are how this tree is written: a literal path, an identifier whose
- *      declaration in the same file is such a literal, and a property that was
- *      assigned one. Before Phase 193, four of the five real client scripts said
- *      `const sshBin = '/usr/bin/ssh';` at their line 160 or so and `sh(sshBin,
- *      ...)` three hundred lines later. A scanner reading only quoted literals in
- *      spawn position finds none of them. The first draft of this one did not,
- *      which is how the rule came to be written this way.
+ *      ssh-keyscan to a spawn.
+ *
+ *      WHICH CALLS ARE SPAWNS IS DISCOVERED, NOT LISTED. The node calls are
+ *      known, being spawn, spawnSync, exec, execSync, execFile and
+ *      execFileSync, and then every function this file gives a name to whose
+ *      body reaches one of those joins them, and so does anything that reaches
+ *      THAT. Almost every probe here declares its own
+ *      `function sh(file, args, options = {})` around its line 100 and spawns
+ *      through it, and a probe that called the same wrapper `connect` would be
+ *      invisible to a hard coded list. The first version of this gate held such
+ *      a list, and `connect(sshBin, argv)` walked past it.
+ *
+ *      WHICH NAMES HOLD A PROGRAM IS READ FOUR WAYS, because all four are
+ *      ordinary: a constant string bound to a name anywhere, including by a
+ *      plain assignment and by a default parameter; a name imported from the
+ *      helper, being SSH_BIN and KEYSCAN_BIN, which have no declaration in the
+ *      importing file at all; a choice between values, being `||`, `??` and
+ *      `?:`, where a name that CAN hold the client is read as holding it; and a
+ *      constant expression folded flat, so `join('/usr/bin', 'ss' + 'h')` is
+ *      read the same as the path written out.
  *
  *      1b. No spawn hands `ssh-keygen` its `-R` or `-F` flag. Those two read and
  *      WRITE a known_hosts file and default to the person's own, so they are the
  *      one way a program outside the four could reach it. They are refused
- *      outright rather than routed, because nothing in this tree needs them.
+ *      outright rather than routed, because nothing in this tree needs them. The
+ *      flag is resolved through the names the file holds, so a flag kept in a
+ *      variable is the same as one written in the argv.
  *
- *      1c. No file hands a shell a command line that names one of the four. That
- *      is not hypothetical: `build/capture-machine-goldens.mjs` read its client
- *      version with `/bin/sh -c "${sshBin} -V 2>&1"`, which puts an ssh where no
- *      scanner reading spawn positions would ever look. `sshVersion` in the
- *      helper is where that lives now.
+ *      1c. No file hands a shell a command line that names one of the four.
+ *      THERE ARE THREE WAYS A COMMAND LINE REACHES A SHELL and the first version
+ *      of this gate read one spelling of one of them, being a quoted literal
+ *      directly after a `'-c'`. That was the spelling that happened to be in the
+ *      tree: `build/capture-machine-goldens.mjs` read its client version with
+ *      `/bin/sh -c "${sshBin} -V 2>&1"`. Its four nearest neighbours all sailed
+ *      through, which is a fixture written to the bug rather than to the shape.
+ *      The three ways are a shell option ending in `c`, being `-c`, `-lc`, `-ic`
+ *      and `-lic`, whose next element is the command line whether it is written
+ *      there or held in a name; `exec` and `execSync`, whose first argument IS
+ *      one; and any spawn carrying `shell: true`, which makes its first argument
+ *      one. `sshVersion` in the helper is where the tree's own case lives now.
  *
  *   2. REVERSE. Every file on the recorded list below still reaches the helper.
  *      Without this direction the gate goes on passing after somebody deletes
@@ -78,10 +100,30 @@
  *   5. THE REFUSAL IS WHOLE AND NAMED. Every failure prints the file, the line,
  *      the program and which rule broke. Never a bare exit code.
  *
- *   6. THE FIXTURES. The scanner is run over six files this script writes
- *      itself, five of which MUST make it fail. If any of those five passes, the
- *      gate exits non-zero saying its own scanner is broken, because a gate that
- *      cannot fail is not a gate.
+ *   6. THE FIXTURES. The scanner is run over the files in
+ *      build/known-hosts-fixtures.mjs, which this script writes into a scratch
+ *      directory and removes in a `finally` block. Most of them MUST make it
+ *      fail. If any of those passes, the gate exits non-zero saying its own
+ *      scanner is broken, because a gate that cannot fail is not a gate. Two
+ *      controls must NOT be flagged, because a scanner that cries wolf makes
+ *      every pass it prints worthless.
+ *
+ * ## WHERE IT STOPS, said plainly so a pass is not read for more than it says
+ *
+ * This gate reads source TEXT. It folds constants, so a name spelled
+ * `'ss' + 'h'` or `join('/usr/bin', 'ssh')` is read, and it resolves names
+ * through assignments, imports and choices. It does NOT execute anything, so a
+ * program name that only exists at RUN time is not read: one taken from an
+ * environment variable with no constant fallback, one read out of a JSON file,
+ * one built with `String.fromCharCode`, or one arriving through a function
+ * imported from another file. It also does not follow a wrapper across files,
+ * because discovery reads one file at a time; `sh` and `run` are kept as seeds
+ * for exactly that gap.
+ *
+ * NONE OF THAT IS THE THREAT THIS EXISTS FOR. The defect it exists for is the
+ * twentieth script, written honestly by somebody who did not know the rule. A
+ * deliberately hidden ssh is a code review question, and no scanner that reads
+ * text can answer it.
  *
  * ## What it does not assert
  *
@@ -101,39 +143,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { callArguments, lineAt, stripComments } from './scan-source.mjs';
+import { callArguments, lineAt, namedFunctions, stripComments } from './scan-source.mjs';
 import { productKnownHosts, sshArgv, sshOptions, sshRun } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const buildDir = join(repoRoot, 'build');
 const HELPER = 'ssh-run.mjs';
-
-/**
- * The four programs that can add a line to a known_hosts file, by basename.
- *
- * `ssh-keyscan` cannot, and it takes no `-o` at all. It is on the list anyway so
- * that this gate has ONE rule rather than one rule plus an exception list a
- * later round has to keep correct.
- */
-const SSH_PROGRAMS = ['ssh', 'scp', 'sftp', 'ssh-keyscan'];
-
-/**
- * The two ssh-keygen flags that read and WRITE a known_hosts file, and default
- * to the person's own when no file is named. Nothing in this tree uses either.
- */
-const KEYGEN_KNOWN_HOSTS_FLAGS = ['-R', '-F'];
-
-/**
- * The call names that start a program in this tree. `sh` and `run` are on it
- * because that is what almost every probe calls its own spawnSync wrapper, and a
- * set holding only the node built-ins would read past `sh(sshBin, argv)` in five
- * files. The cost is a false alarm if some unrelated `sh()` is ever handed an
- * ssh path as its first argument, and that has never happened here.
- */
-const SPAWN_CALLS = ['spawn', 'spawnSync', 'execFile', 'execFileSync', 'exec', 'sh', 'run'];
-
-/** The shells a command line can be handed to. */
-const SHELLS = ['sh', 'bash', 'zsh', 'dash'];
 
 /**
  * Every file that reached build/ssh-run.mjs when Phase 193 landed.
@@ -166,52 +181,245 @@ const HELPER_USERS = [
 /** The one file allowed to hand an ssh family program to a spawn. */
 const EXEMPT = new Set([HELPER]);
 
+/**
+ * The four programs that can add a line to a known_hosts file, by basename.
+ *
+ * `ssh-keyscan` cannot, and it takes no `-o` at all. It is on the list anyway so
+ * that this gate has ONE rule rather than one rule plus an exception list a
+ * later round has to keep correct.
+ */
+const SSH_PROGRAMS = ['ssh', 'scp', 'sftp', 'ssh-keyscan'];
+
+/**
+ * The two ssh-keygen flags that read and WRITE a known_hosts file, and default
+ * to the person's own when no file is named. Nothing in this tree uses either.
+ */
+const KEYGEN_KNOWN_HOSTS_FLAGS = ['-R', '-F'];
+
+/**
+ * The `node:child_process` calls that can start an arbitrary program.
+ *
+ * `execSync` is on this list and its absence was a hole. It takes a whole
+ * command line, it is one ordinary line to write, and the first version of this
+ * gate read past it while reading its sibling `exec`. `fork` is deliberately
+ * NOT on it: it starts node and cannot start an ssh.
+ */
+const NODE_SPAWNS = ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync'];
+
+/**
+ * Two wrapper names kept as seeds, for a wrapper IMPORTED rather than declared.
+ *
+ * Almost every probe under build/ declares its own
+ * `function sh(file, args, options = {})` around its line 100 and spawns
+ * through that. {@link spawnCallNames} DISCOVERS those by reading the file
+ * rather than by being told, so the list is not what gives rule 1 its reach.
+ * These two remain only for the day a probe imports a wrapper instead of
+ * declaring one, which reading a single file cannot see.
+ */
+const SEED_WRAPPERS = ['sh', 'run'];
+
+/** The calls whose FIRST argument is a command line rather than a program. */
+const COMMAND_LINE_CALLS = /^(?:exec|execSync)$/;
+
+/**
+ * The names `build/ssh-run.mjs` exports that HOLD a program path.
+ *
+ * Three files under build/ already import `SSH_BIN`. An imported name has no
+ * declaration in the importing file, so a scanner reading declarations sees
+ * nothing at all where `spawnSync(SSH_BIN, argv)` would be an ordinary line and
+ * a real unrouted ssh.
+ */
+const HELPER_PROGRAMS = new Map([
+  ['SSH_BIN', '/usr/bin/ssh'],
+  ['KEYSCAN_BIN', '/usr/bin/ssh-keyscan']
+]);
+
 // ---------------------------------------------------------------------------
-// Rule 1. Which calls start an ssh
+// Reading a program out of source text
 // ---------------------------------------------------------------------------
 
 /** The basename of a path, or the whole string when it holds no slash. */
 const baseOf = (value) => value.split('/').pop() ?? '';
 
-/** The program a string literal names, or null when it is not one of ours. */
+/**
+ * A piece of source with its CONSTANT string expressions folded flat.
+ *
+ * This is what makes three otherwise unreadable spellings ordinary:
+ * `join('/usr/bin', 'ss' + 'h')`, `'-' + 'R'`, and a template that spells the
+ * client `ss${''}h`. Every one of them is a constant the compiler folds, and a
+ * scanner that reads only whole literals is blind to all three.
+ *
+ * IT FOLDS CONSTANTS AND NOTHING ELSE. A program name read out of a file at run
+ * time, taken from an environment variable alone, or built with
+ * `String.fromCharCode`, is not folded and is not caught. That boundary is
+ * stated in this file's header on purpose rather than left implied.
+ */
+function foldLiterals(text) {
+  let out = text ?? '';
+  for (let pass = 0; pass < 4; pass += 1) {
+    const before = out;
+    out = out.replace(/\$\{\s*(['"])([^'"`\n]*)\1\s*\}/g, '$2');
+    out = out.replace(
+      /(['"])([^'"`\n]*)\1\s*\+\s*(['"])([^'"`\n]*)\3/g,
+      (_all, quote, left, _other, right) => `${quote}${left}${right}${quote}`
+    );
+    out = out.replace(
+      /\b(?:join|resolve)\s*\(\s*(['"])([^'"`\n]*)\1\s*,\s*(['"])([^'"`\n]*)\3\s*\)/g,
+      (_all, quote, left, _other, right) => `${quote}${left}/${right}${quote}`
+    );
+    if (out === before) break;
+  }
+  return out;
+}
+
+/** The program a string expression names, or null when it is not one of ours. */
 function literalProgram(text) {
-  const m = /^\s*(['"])([^'"`\n]*)\1\s*$/.exec(text ?? '');
+  const m = /^\s*(['"])([^'"`\n]*)\1\s*$/.exec(foldLiterals(text ?? ''));
   if (m === null) return null;
   return SSH_PROGRAMS.includes(baseOf(m[2])) ? m[2] : null;
 }
 
-/** The program a string literal names when it is ssh-keygen, or null. */
+/** The program a string expression names when it is ssh-keygen, or null. */
 function keygenLiteral(text) {
-  const m = /^\s*(['"])([^'"`\n]*)\1\s*$/.exec(text ?? '');
+  const m = /^\s*(['"])([^'"`\n]*)\1\s*$/.exec(foldLiterals(text ?? ''));
   if (m === null) return null;
   return baseOf(m[2]) === 'ssh-keygen' ? m[2] : null;
 }
 
 /**
- * The identifiers and the property names in one file that were given an ssh
- * family path, and what path each was given.
+ * The constant string a right hand side holds, or null.
  *
- * Both halves are needed. `const sshBin = '/usr/bin/ssh';` then `sh(sshBin, ...)`
- * is four of the five real client scripts, and `machine.sshBin` assigned in an
- * object literal then `sh(machine.sshBin, ...)` was build/real-machine.mjs.
+ * The right hand side is read to the end of the line and then folded, so what
+ * arrives here can carry the punctuation that closed something around it:
+ * `function go(bin = '/usr/bin/ssh')` gives `'/usr/bin/ssh') {`. A DEFAULT
+ * PARAMETER is an ordinary way to name a program and it must not be lost to
+ * that trailing bracket, so a value is accepted when the folded text begins
+ * with one bare literal and everything after it is closing punctuation. A
+ * remainder holding any name or operator is refused, which is what keeps
+ * `x === '/usr/bin/ssh'` and `'a', y = 'b'` out.
  */
-function sshNames(code) {
-  const names = new Map();
-  const keygens = new Map();
+function constantAtFront(text) {
+  const folded = foldLiterals((text ?? '').trim());
+  const head = /^(['"])[^'"`\n]*\1/.exec(folded);
+  if (head === null) return null;
+  const rest = folded.slice(head[0].length);
+  return /^[)\]},;\s{]*$/.test(rest) ? head[0] : null;
+}
+
+/**
+ * Every name in one file that holds a constant string, with the text it holds.
+ *
+ * A DECLARATION IS NOT THE ONLY WAY A NAME GETS A VALUE, and reading only
+ * `const` was a hole. `sshBin = '/usr/bin/ssh';` on its own line is a plain
+ * assignment, `function go(bin = '/usr/bin/ssh')` is a default parameter, and
+ * `{ sshBin: '/usr/bin/ssh' }` is a property. All three are ordinary and all
+ * three are read here.
+ *
+ * The right hand side is taken WHOLE and then folded, rather than being
+ * required to begin with a quote. That is what reaches
+ * `join('/usr/bin', 'ss' + 'h')`, which is a constant with no quote at its
+ * front. A right hand side that does not fold to one bare literal is dropped,
+ * so `x === '/usr/bin/ssh'` and `join(root, 'known_hosts')` both leave nothing
+ * behind: the first is a comparison rather than an assignment and the second
+ * holds a name this file cannot resolve.
+ */
+function stringValues(code) {
+  const values = new Map();
+  const assigned = /\b([A-Za-z_$][\w$]*)\s*=\s*([^;\n]*)/g;
+  let m;
+  while ((m = assigned.exec(code)) !== null) {
+    if (values.has(m[1])) continue;
+    const held = constantAtFront(m[2]);
+    if (held !== null) values.set(m[1], held);
+  }
+  const prop = /([A-Za-z_$][\w$]*)\s*:\s*([^,\n}]*)/g;
+  while ((m = prop.exec(code)) !== null) {
+    if (values.has(m[1])) continue;
+    const held = constantAtFront(m[2]);
+    if (held !== null) values.set(m[1], held);
+  }
+  return values;
+}
+
+/**
+ * Every name declared as a CHOICE between values, with the pieces it chooses
+ * from.
+ *
+ * `const sshBin = process.env.TORTIE_SSH || '/usr/bin/ssh'` is one honest line,
+ * and the first version of this gate read past it because its declaration
+ * reader wanted the whole right hand side to be a single literal.
+ * `const file = remote ? SSH_BIN : program` is the same shape written as a
+ * question, and it is in this tree.
+ *
+ * A name that CAN hold the client is read as holding it. A scanner cannot know
+ * which way the question goes at run time, and the safe reading is the one that
+ * fails closed.
+ */
+function choicePieces(code) {
+  const out = new Map();
   const decl = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]*)[;\n]/g;
   let m;
   while ((m = decl.exec(code)) !== null) {
-    const program = literalProgram(m[2].trim());
-    if (program !== null) names.set(m[1], program);
-    const keygen = keygenLiteral(m[2].trim());
-    if (keygen !== null) keygens.set(m[1], keygen);
+    const rhs = m[2].trim();
+    if (!/\|\||\?\?|\?/.test(rhs)) continue;
+    const pieces = rhs
+      .split(/\|\||\?\?|\?|:/)
+      .map((one) => one.trim())
+      .filter((one) => one !== '');
+    if (pieces.length > 1) out.set(m[1], pieces);
   }
-  const prop = /([A-Za-z_$][\w$]*)\s*:\s*(['"][^'"`\n]*['"])/g;
-  while ((m = prop.exec(code)) !== null) {
-    const program = literalProgram(m[2]);
-    if (program !== null) names.set(m[1], program);
-    const keygen = keygenLiteral(m[2]);
-    if (keygen !== null) keygens.set(m[1], keygen);
+  return out;
+}
+
+/** The names this file imported from the helper that hold a program path. */
+function helperProgramImports(code) {
+  const found = [];
+  const re = /import\s*\{([^}]*)\}\s*from\s*['"]\.\/ssh-run\.mjs['"]/g;
+  let m;
+  while ((m = re.exec(code)) !== null) {
+    for (const piece of m[1].split(',')) {
+      const parts = piece.trim().split(/\s+as\s+/);
+      const exported = (parts[0] ?? '').trim();
+      const local = (parts[parts.length - 1] ?? '').trim();
+      if (HELPER_PROGRAMS.has(exported)) found.push([local, HELPER_PROGRAMS.get(exported)]);
+    }
+  }
+  return found;
+}
+
+/**
+ * The identifiers and the property names in one file that hold an ssh family
+ * program, and what path each holds.
+ *
+ * Four sources, because all four are how this tree is written: a constant
+ * string bound to a name, a name imported from the helper, a choice between
+ * values where one of them is the client, and the same again one level deeper
+ * so a chain of two resolves.
+ */
+function sshNames(code, values = stringValues(code)) {
+  const names = new Map();
+  const keygens = new Map();
+  for (const [name, value] of values) {
+    const program = literalProgram(value);
+    if (program !== null) names.set(name, program);
+    const keygen = keygenLiteral(value);
+    if (keygen !== null) keygens.set(name, keygen);
+  }
+  for (const [name, path] of helperProgramImports(code)) names.set(name, path);
+  const choices = choicePieces(code);
+  for (let pass = 0; pass < 3; pass += 1) {
+    let grew = false;
+    for (const [name, pieces] of choices) {
+      if (names.has(name)) continue;
+      for (const piece of pieces) {
+        const program = literalProgram(piece) ?? names.get(piece) ?? null;
+        if (program === null) continue;
+        names.set(name, program);
+        grew = true;
+        break;
+      }
+    }
+    if (!grew) break;
   }
   return { names, keygens };
 }
@@ -227,88 +435,160 @@ function programOf(text, names) {
   return null;
 }
 
-/** Every spawn in one file whose program is an ssh family program (rule 1). */
-export function sshSpawns(name, source) {
-  const code = stripComments(source);
-  const { names } = sshNames(code);
-  const hits = [];
-  const call = new RegExp(
-    `(?:\\b[A-Za-z_$][\\w$]*\\s*\\.\\s*)?\\b(${SPAWN_CALLS.join('|')})\\s*\\(`,
+/** One argument's text with its constant names replaced by what they hold. */
+function makeSubstituter(values) {
+  if (values.size === 0) return (text) => foldLiterals(text ?? '');
+  const re = new RegExp(`\\b(${[...values.keys()].join('|')})\\b`, 'g');
+  return (text) =>
+    foldLiterals(foldLiterals(text ?? '').replace(re, (all, name) => values.get(name) ?? all));
+}
+
+/**
+ * The names that start a program in ONE file: the node calls, the two seeds,
+ * and every local function whose body reaches one of them.
+ *
+ * DISCOVERY RATHER THAN A LIST, and that difference is the whole of rule 1's
+ * reach. The first version of this gate held a hard coded list of call names,
+ * so a probe that called its own wrapper `connect` rather than `sh` handed ssh
+ * to a spawn in plain sight and the gate said nothing. Over the files here the
+ * discovery finds `sh` in 35 of them and `run` in 11, which is exactly the two
+ * the list held, plus the functions that call those.
+ */
+function spawnCallNames(code) {
+  const names = new Set([...NODE_SPAWNS, ...SEED_WRAPPERS]);
+  const bodies = namedFunctions(code);
+  for (let pass = 0; pass < 6; pass += 1) {
+    const reaches = new RegExp(
+      `(?:\\b[A-Za-z_$][\\w$]*\\s*\\.\\s*)?\\b(?:${[...names].join('|')})\\s*\\(`
+    );
+    let grew = false;
+    for (const [name, body] of bodies) {
+      if (names.has(name)) continue;
+      if (reaches.test(body)) {
+        names.add(name);
+        grew = true;
+      }
+    }
+    if (!grew) break;
+  }
+  return names;
+}
+
+/** Every call of one of `names` in the file, with its arguments as text. */
+function* calls(code, names) {
+  const re = new RegExp(
+    `(?:\\b[A-Za-z_$][\\w$]*\\s*\\.\\s*)?\\b(${[...names].join('|')})\\s*\\(`,
     'g'
   );
   let m;
-  while ((m = call.exec(code)) !== null) {
+  while ((m = re.exec(code)) !== null) {
     const open = m.index + m[0].length - 1;
-    const args = callArguments(code, open);
-    const program = programOf(args[0], names);
+    yield { callee: m[1], index: m.index, args: callArguments(code, open) };
+  }
+}
+
+/** Everything one file's source is read for, computed once. */
+function contextOf(source) {
+  const code = stripComments(source);
+  const values = stringValues(code);
+  const { names, keygens } = sshNames(code, values);
+  return { code, values, names, keygens, spawns: spawnCallNames(code), sub: makeSubstituter(values) };
+}
+
+/** Every spawn in one file whose program is an ssh family program (rule 1). */
+export function sshSpawns(name, source, ctx = contextOf(source)) {
+  const hits = [];
+  for (const { callee, index, args } of calls(ctx.code, ctx.spawns)) {
+    const program = programOf(args[0], ctx.names);
     if (program === null) continue;
     hits.push({
       file: name,
-      line: lineAt(code, m.index),
+      line: lineAt(ctx.code, index),
       program,
       rule: 1,
-      why: `${m[1]}(${(args[0] ?? '').split('\n')[0].trim()}, ...) starts ${program} itself`
+      why: `${callee}(${(args[0] ?? '').split('\n')[0].trim()}, ...) starts ${program} itself`
     });
   }
   return hits;
 }
 
 /** Every spawn in one file that hands ssh-keygen a known_hosts flag (rule 1b). */
-export function keygenKnownHostsSpawns(name, source) {
-  const code = stripComments(source);
-  const { keygens } = sshNames(code);
+export function keygenKnownHostsSpawns(name, source, ctx = contextOf(source)) {
   const hits = [];
-  const call = new RegExp(
-    `(?:\\b[A-Za-z_$][\\w$]*\\s*\\.\\s*)?\\b(${SPAWN_CALLS.join('|')})\\s*\\(`,
-    'g'
-  );
-  let m;
-  while ((m = call.exec(code)) !== null) {
-    const open = m.index + m[0].length - 1;
-    const args = callArguments(code, open);
+  for (const { index, args } of calls(ctx.code, ctx.spawns)) {
     const first = (args[0] ?? '').trim();
-    const isKeygen = keygenLiteral(first) !== null || keygens.has(first);
-    if (!isKeygen) continue;
+    if (keygenLiteral(first) === null && !ctx.keygens.has(first)) continue;
+    const argv = ctx.sub(args[1] ?? '');
     const flag = KEYGEN_KNOWN_HOSTS_FLAGS.find((one) =>
-      new RegExp(`(['"])${one}\\1`).test(args[1] ?? '')
+      new RegExp(`(['"])${one}\\1`).test(argv)
     );
     if (flag === undefined) continue;
     hits.push({
       file: name,
-      line: lineAt(code, m.index),
+      line: lineAt(ctx.code, index),
       program: 'ssh-keygen',
       rule: '1b',
       why:
-        `${m[1]}(ssh-keygen, [... ${flag} ...]) reads and WRITES a known_hosts ` +
+        `${'spawn'}(ssh-keygen, [... ${flag} ...]) reads and WRITES a known_hosts ` +
         "file, and with no file named it is the person's own"
     });
   }
   return hits;
 }
 
-/** Every shell command line in one file that names an ssh family program (rule 1c). */
-export function shellSshLines(name, source) {
-  const code = stripComments(source);
-  const { names } = sshNames(code);
+/**
+ * Every command line in one file that a shell will be given and that names an
+ * ssh family program (rule 1c).
+ *
+ * THREE WAYS A COMMAND LINE REACHES A SHELL, and the first version of this gate
+ * read only a quoted literal directly after a `'-c'`. That is one spelling of
+ * one of the three, and it was the one that happened to be in the tree:
+ * `build/capture-machine-goldens.mjs` read its client version with
+ * `/bin/sh -c "${sshBin} -V 2>&1"`. Its four nearest neighbours all sailed
+ * through, which is a fixture written to the bug rather than to the shape.
+ *
+ *   a. A shell option ending in `c`, being `-c`, `-lc`, `-ic`, `-lic`. The next
+ *      element is the command line, whether it is written there or held in a
+ *      name.
+ *   b. `exec` and `execSync`, whose first argument IS a command line.
+ *   c. Any spawn carrying `shell: true`, which makes its first argument one.
+ */
+export function shellSshLines(name, source, ctx = contextOf(source)) {
   const hits = [];
-  // The argument right after a '-c' in an argv, which is the command line.
-  const dashC = /(['"])-c\1\s*,\s*(`[^`]*`|'[^'\n]*'|"[^"\n]*")/g;
-  const words = new RegExp(
-    `\\b(${SSH_PROGRAMS.join('|')})\\b|\\$\\{\\s*(${[...names.keys()].join('|') || '\\u0000'})\\s*\\}`
+  const interpolated = [...ctx.names.keys()].join('|') || '\\u0000';
+  const word = new RegExp(
+    `\\b(${SSH_PROGRAMS.join('|')})\\b|\\$\\{\\s*(${interpolated})\\s*\\}`
   );
-  let m;
-  while ((m = dashC.exec(code)) !== null) {
-    const line = m[2];
-    if (!words.test(line)) continue;
+  const add = (index, line, how) =>
     hits.push({
       file: name,
-      line: lineAt(code, m.index),
+      line: lineAt(ctx.code, index),
       program: 'a shell',
       rule: '1c',
-      why:
-        `a command line handed to a shell names an ssh family program: ` +
-        `${line.split('\n')[0].slice(0, 70)}`
+      why: `${how} names an ssh family program: ${line.split('\n')[0].trim().slice(0, 70)}`
     });
+
+  const dashC = /(['"])(-[a-z]*c)\1\s*,\s*(`[^`]*`|'[^'\n]*'|"[^"\n]*"|[A-Za-z_$][\w$]*)/g;
+  let m;
+  while ((m = dashC.exec(ctx.code)) !== null) {
+    const line = ctx.sub(m[3]);
+    if (!word.test(line)) continue;
+    add(m.index, line, `a command line handed to a shell after ${m[2]}`);
+  }
+
+  for (const { callee, index, args } of calls(ctx.code, ctx.spawns)) {
+    const commandLineCall = COMMAND_LINE_CALLS.test(callee);
+    const shelled = args.some((one) => /\bshell\s*:\s*(?!false\b)[A-Za-z_$'"`0-9]/.test(one ?? ''));
+    if (!commandLineCall && !shelled) continue;
+    const line = ctx.sub(args[0] ?? '');
+    if (!word.test(line)) continue;
+    add(
+      index,
+      line,
+      commandLineCall
+        ? `${callee}(), whose first argument is a whole command line,`
+        : `${callee}(..., { shell: ... }), which makes its first argument a command line,`
+    );
   }
   return hits;
 }
@@ -709,21 +989,48 @@ function runFixtures(failures) {
 // The run
 // ---------------------------------------------------------------------------
 
+/**
+ * Every source file under build/ this gate reads, by path and by the name it is
+ * reported under, which is relative to build/.
+ *
+ * IT WALKS, and the first version of this gate did not. `readdirSync(buildDir)`
+ * reads one level, so a future `build/probes/foo.mjs` would have been invisible
+ * to every rule in this file, and so would any `.js` or `.ts` placed beside the
+ * scripts. Nothing is under build/ today except `fixtures`, which holds JSON,
+ * and `vendor`, which is third party and is not ours to police. Costing nothing
+ * today is exactly when a boundary is cheap to close.
+ */
+function sourceFiles(dir) {
+  const found = [];
+  const walk = (at, prefix) => {
+    for (const entry of readdirSync(at, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    )) {
+      if (entry.name === 'vendor' || entry.name === 'node_modules') continue;
+      const path = join(at, entry.name);
+      const name = prefix === '' ? entry.name : `${prefix}/${entry.name}`;
+      if (entry.isDirectory()) walk(path, name);
+      else if (/\.(mjs|cjs|js|mts|cts|ts|tsx|jsx)$/.test(entry.name)) found.push({ path, name });
+    }
+  };
+  walk(dir, '');
+  return found;
+}
+
 function main() {
   const failures = [];
-  const files = readdirSync(buildDir).filter(
-    (n) => n.endsWith('.mjs') || n.endsWith('.cjs') || n.endsWith('.mts')
-  );
+  const files = sourceFiles(buildDir);
 
   // Rules 1, 1b, 1c and 4, forward over the real tree.
   let scanned = 0;
-  for (const name of files) {
-    const source = readFileSync(join(buildDir, name), 'utf8');
+  for (const { path, name } of files) {
+    const source = readFileSync(path, 'utf8');
     scanned += 1;
+    const ctx = contextOf(source);
     const hits = [
-      ...(EXEMPT.has(name) ? [] : sshSpawns(name, source)),
-      ...keygenKnownHostsSpawns(name, source),
-      ...(EXEMPT.has(name) ? [] : shellSshLines(name, source)),
+      ...(EXEMPT.has(name) ? [] : sshSpawns(name, source, ctx)),
+      ...keygenKnownHostsSpawns(name, source, ctx),
+      ...(EXEMPT.has(name) ? [] : shellSshLines(name, source, ctx)),
       ...personFirstFindings(name, source)
     ];
     for (const hit of hits) {
@@ -792,16 +1099,20 @@ function main() {
     process.exit(1);
   }
 
+  const mustFail = fixtures.filter((f) => f.mustFail !== null).length;
   console.log(
-    `[known-hosts] ${String(scanned)} files under build/ were read and none ` +
-      `starts ssh, scp, sftp or ssh-keyscan itself, hands ssh-keygen a ` +
-      `known_hosts flag, or names one on a shell line. ` +
-      `${String(HELPER_USERS.length)} reach build/${HELPER}, which emits ` +
-      `-o UserKnownHostsFile= from one place, refuses an empty value, gives ` +
-      `knownHosts no default, prepends it so nothing later can win, and puts ` +
-      `Tortie's own file first. Fixtures: ` +
-      fixtures.map((f) => `${f.name} ${String(f.count)}`).join(', ') +
-      '.'
+    `[known-hosts] ${String(scanned)} files under build/ were read, walked ` +
+      `rather than listed and with vendor left out. None outside ` +
+      `build/${HELPER} hands ssh, scp, sftp or ssh-keyscan to a spawn or to a ` +
+      `local wrapper of one, hands ssh-keygen its -R or -F, or puts one on a ` +
+      `command line a shell is given, whether after a -c option, through exec ` +
+      `or execSync, or under shell: true. A name assembled at RUN time is not ` +
+      `read; see this file's header. ${String(HELPER_USERS.length)} scripts ` +
+      `reach build/${HELPER}, which emits -o UserKnownHostsFile= from one ` +
+      `place, refuses an empty value, gives knownHosts no default, prepends it ` +
+      `so nothing later can win, and puts Tortie's own file first. ` +
+      `${String(fixtures.length)} fixtures, ${String(mustFail)} of which must ` +
+      `fail, and every one of them did.`
   );
 }
 

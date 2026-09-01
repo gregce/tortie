@@ -373,7 +373,12 @@ function openControlChild(where, program, socket, extraTmuxFlags = []) {
     CONTROL_SESSION_NAME
   ];
   const remote = where !== 'local';
-  const file = remote ? SSH_BIN : program;
+  // What ran, for the report only. It is never handed to a spawn: the remote
+  // leg's client is build/ssh-run.mjs's own and the local leg starts `program`,
+  // which is a tmux. A name that CAN hold the client and IS handed to a spawn is
+  // a rule 1 finding in `npm run gate:knownhosts`, and rightly, because nothing
+  // reading this file could tell which way the question goes.
+  const ranProgram = remote ? SSH_BIN : program;
   const argv = remote
     ? [...planeOptions(), '127.0.0.1', quoteArgv(tmuxArgv)]
     : tmuxArgv.slice(1);
@@ -387,7 +392,7 @@ function openControlChild(where, program, socket, extraTmuxFlags = []) {
         caller: CALLER,
         stdio: ['pipe', 'pipe', 'pipe']
       })
-    : spawn(file, argv, { stdio: ['pipe', 'pipe', 'pipe'] });
+    : spawn(program, argv, { stdio: ['pipe', 'pipe', 'pipe'] });
   recordedPids.push(child.pid);
   const state = {
     child,
@@ -397,7 +402,7 @@ function openControlChild(where, program, socket, extraTmuxFlags = []) {
     stderr: '',
     exited: false,
     exitAt: null,
-    file,
+    file: ranProgram,
     argv
   };
   let pending = '';
