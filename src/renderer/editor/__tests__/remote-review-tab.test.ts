@@ -229,6 +229,13 @@ describe('the tab a person hovers', () => {
     expect(
       tabTooltipIdentity({
         ...base,
+        mode: 'redline',
+        canDiff: true
+      } as unknown as Tab)
+    ).toBe('auth.ts, redline vs HEAD');
+    expect(
+      tabTooltipIdentity({
+        ...base,
         commit: { sha: 'abc', shortSha: 'abc1234', subject: 'a change' }
       } as unknown as Tab)
     ).toBe('src/auth.ts — abc1234 · a change');

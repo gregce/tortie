@@ -182,5 +182,6 @@ export function tabTooltipIdentity(tab: EditorTab): string {
   }
   if (tab.deleted) return 'Deleted on disk';
   if (tab.mode === 'diff' && tab.canDiff) return `${tab.name} — changes vs HEAD`;
+  if (tab.mode === 'redline' && tab.canDiff) return `${tab.name}, redline vs HEAD`;
   return tab.path;
 }

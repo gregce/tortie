@@ -79,7 +79,7 @@ export function RedlineDocument({
         className="ed-redline-scroll"
         tabIndex={0}
         role="region"
-        aria-label={`Redline vs ${against} — ${tab.name}`}
+        aria-label={`Redline vs ${against}, ${tab.name}`}
         onCopy={(event) => {
           const host = hostRef.current;
           if (host !== null) handleRedlineCopy(host, event.nativeEvent);
