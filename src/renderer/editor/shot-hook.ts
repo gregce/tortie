@@ -883,18 +883,26 @@ export function installShotHook(): void {
          * IT GIVES UP, and says so. Under the very defect the probe exists to
          * catch, being a mode that reaches the options prop but never the
          * worker pool, the count never leaves `from` and a wait with no
-         * ceiling never returns. Four of those in a row overran the 60s drive
-         * deadline in src/main/harness/shot.ts, and the run failed with `drive
-         * never finished`, which is the same thing a tree with no control at
-         * all prints. So the wait is capped and the reading is returned
-         * regardless, with `settled` false when the count never moved: the
-         * caller then reports four identical counts, which names the defect.
-         * The cap is 50 turns of 200ms, so 10s a mode and at most 40s for the
-         * four. Under that defect the diff itself still mounts, so the waits
-         * before this point are short and the four capped waits land inside
-         * the deadline with room to spare. The honest path never approaches
-         * the cap: a click was measured landing in about 760ms, so the cap is
-         * over ten times the observed cost.
+         * ceiling never returns. At the 150 turns this used to run, that is
+         * 30s a mode and 120s for the four, twice the 60s drive deadline in
+         * src/main/harness/shot.ts, so the run died on the deadline and said
+         * `drive never finished` and then row 0, no reading at all, which is
+         * the same pair a tree with NO control row prints. The defect and its
+         * absence looked identical. So the wait is capped at 30 turns of
+         * 200ms, being 6s a mode, and the reading comes back regardless with
+         * `settled` false when the count never moved. The caller then reports
+         * the identical counts and rows 3 to 6 name the defect.
+         *
+         * Both ends measured on 2026-08-31 by deleting the pool push and the
+         * pool seed, running `npm run probe:p185`, then putting them back and
+         * running it again. First launch, being boot, drive, read and capture
+         * together: 12.2s honest with every row passing and settled true, and
+         * 32.4s under the defect, failing on rows 3 to 6 at 188/188/188 with
+         * settled false. The 20.2s between the two runs is four capped waits
+         * standing where four honest ones were, so an honest click lands in
+         * about 0.9s and the cap is over six times it. The same defect run at
+         * 50 turns took 48.6s, which still finished and stood 16s nearer the
+         * deadline for nothing.
          */
         const settle = async (
           from: number
@@ -902,7 +910,7 @@ export function installShotHook(): void {
           let moved = false;
           let last = -1;
           let steady = 0;
-          for (let i = 0; i < 50; i++) {
+          for (let i = 0; i < 30; i++) {
             const now = spanTexts();
             if (!moved) {
               if (now.length !== from) moved = true;
