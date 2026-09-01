@@ -5,10 +5,16 @@
  * can read the persisted choice at construction without dragging @pierre/diffs
  * and @pierre/trees into the boot chunk. The first cut of this phase put these
  * functions in ./diff-render-options, which imports ./theme-bridge for the
- * registered theme, and the store's one import grew the eager set by 161,871
- * bytes and failed the probe-containment budget. The values are needed in two
- * places that are otherwise far apart, being the worker pool before any React
- * state exists and the store, so a leaf with no imports is the shape.
+ * registered theme, and the store's one import grew the eager set past the
+ * probe-containment budget. RE-MEASURED at the phase's tip rather than carried
+ * forward: the counterfactual was built twice, once by moving these functions
+ * bodily into ./diff-render-options and once by re-exporting them from it, and
+ * the two routes agree at 2,140,596 and 2,140,589 raw bytes against this
+ * tree's 1,980,400, being a growth of 160,196 and 160,189 against a budget of
+ * 2,000,000. The figure recorded first, 161,871, reproduces by neither route.
+ * The values are needed in two places that are otherwise far apart, being the
+ * worker pool before any React state exists and the store, so a leaf with no
+ * imports is the shape.
  *
  * ONE SETTING FOR THE WHOLE APP, never per file and never per project: a diff
  * you re-open drawn differently from the one you just closed is an annoyance
@@ -53,8 +59,10 @@ import type { LineDiffTypes } from '@pierre/diffs';
  * utils/parseDiffDecorations.js `pushOrJoinSpan` merges neighbouring runs, and
  * swallows a one-character unchanged gap, when `enableJoin` is on — which is
  * `lineDiffType === 'word-alt'` and nothing else. That is why word-alt draws a
- * third of the spans over MORE text: it paints the whole changed phrase in one
- * patch where `word` paints each changed word separately. `char` runs
+ * fraction of the spans over MORE text: it paints the whole changed phrase in
+ * one patch where `word` paints each changed word separately. The fraction is
+ * a third through the server renderer (71 against 220) and a quarter through
+ * the app (45 against 188), so name the route when you quote it. `char` runs
  * `diffChars` instead and can land inside a word, which is why it covers the
  * least text of the three.
  *
