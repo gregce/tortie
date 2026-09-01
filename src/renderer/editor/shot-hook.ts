@@ -90,6 +90,18 @@ export interface ShotDriveSpec {
    */
   diffDrawing?: 'cycle' | 'read';
   /**
+   * Phase 185 fix round. A repo-relative file that is IDENTICAL to HEAD,
+   * opened as a diff after the readings above are taken, to prove the control
+   * row is not drawn over a diff that is not there. The row's condition has to
+   * be the skeleton's own: `unchanged` alone cannot be true until the old side
+   * has arrived, so testing it alone drew the row through the load and took it
+   * away when "No changes" resolved, which a person sees as a flash. The
+   * reading is anchored on the SKELETON being up, so the row it looks at
+   * belongs to the file being opened and never to the diff still leaving the
+   * screen. The pair is re-opened afterwards, so the capture is unchanged.
+   */
+  identicalRel?: string;
+  /**
    * Force the opened tab's view (markdown/svg: 'preview' | 'file' | 'split';
    * a raster image: 'image' for the viewer, 'diff' for before/after).
    */
@@ -993,7 +1005,9 @@ export function installShotHook(): void {
         const backgroundsOff = readPaint();
 
         const bar = document.querySelector<HTMLElement>('.ed-diff-bar');
-        window.__gmuxP185Drawing = {
+        // Held by reference as well as on the window, so the excursion below
+        // can add its answer to the same object the capture reads.
+        const drawing: Record<string, unknown> = {
           bar: bar !== null,
           // The bar must fit the panel at its narrow floor, or the last
           // control is off the end and unreachable.
@@ -1029,7 +1043,93 @@ export function installShotHook(): void {
           backgroundsOn,
           backgroundsOff
         };
+        window.__gmuxP185Drawing = drawing;
         step('read how the diff is drawn');
+
+        if (spec.identicalRel !== undefined) {
+          step('opening a file identical to HEAD, watching for a flash');
+          const barUp = (): boolean =>
+            document.querySelector('.ed-diff-bar') !== null;
+          const skeletonUp = (): boolean =>
+            document.querySelector('.ed-skeleton') !== null;
+          const stateTitle = (): string =>
+            document.querySelector('.ed-state-title')?.textContent ?? '';
+          requestOpenFile({
+            repoPath: spec.projectPath,
+            relPath: spec.identicalRel,
+            path: `${spec.projectPath}/${spec.identicalRel}`,
+            mode: 'diff',
+            source: 'tree',
+            preview: false
+          });
+          /**
+           * Anchored on the SKELETON, which is the moment the panel belongs to
+           * the file being opened rather than to the diff leaving the screen.
+           *
+           * A poll alone would be luck: the head side arrives fast enough
+           * that a run of this probe measured the skeleton up for ONE 25ms
+           * sample, so the next run could step straight over the window this
+           * exists to look at. So the same reading is taken from a
+           * MutationObserver as well, which cannot step over it: the
+           * skeleton's own insertion is a mutation, and the callback reads the
+           * document the commit just produced. The poll stays as the second
+           * pair of eyes. `skeletonSamples` is the evidence itself, so a run
+           * that never saw the skeleton reports 0 and the row FAILS rather
+           * than passing on having looked at nothing.
+           */
+          let skeletonSamples = 0;
+          let barWithSkeleton = false;
+          let resolved = false;
+          const look = (): void => {
+            if (!skeletonUp()) return;
+            skeletonSamples += 1;
+            if (barUp()) barWithSkeleton = true;
+          };
+          const watcher = new MutationObserver(look);
+          watcher.observe(document.body, { childList: true, subtree: true });
+          try {
+            for (let i = 0; i < 400; i++) {
+              look();
+              if (stateTitle() === 'No changes') {
+                resolved = true;
+                break;
+              }
+              await wait(25);
+            }
+          } finally {
+            watcher.disconnect();
+          }
+          // And it must not come back after the empty state resolves.
+          let barAfter = barUp();
+          for (let i = 0; i < 20; i++) {
+            if (barUp()) barAfter = true;
+            await wait(50);
+          }
+          drawing['identical'] = {
+            rel: spec.identicalRel,
+            skeletonSamples,
+            barWithSkeleton,
+            resolved,
+            state: stateTitle(),
+            barAfter
+          };
+
+          // Back to the pair, so what gets photographed is the diff this run
+          // is about rather than an empty state.
+          requestOpenFile({
+            repoPath: spec.projectPath,
+            relPath: spec.openRel ?? '',
+            path: `${spec.projectPath}/${spec.openRel ?? ''}`,
+            mode: 'diff',
+            source: 'tree',
+            preview: false
+          });
+          for (let i = 0; i < 60; i++) {
+            if (shadow()?.querySelector('[data-diff-span]') != null) break;
+            await wait(250);
+          }
+          step('the identical file was read and the pair is back');
+        }
       }
     }
 

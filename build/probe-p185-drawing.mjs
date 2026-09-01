@@ -37,6 +37,11 @@
  *       highlight, so the diff still says which side is which
  *   12  each choice was written to its own localStorage key      localStorage
  *   13  the operator's session count did not move                tmux, read only
+ *   18  no control row while a diff is still LOADING, sampled    the document
+ *       every 25ms with the skeleton up, over a second file
+ *       that is identical to HEAD
+ *   19  and none over the "identical either side" panel it       the document
+ *       resolves into
  *
  * Then a SECOND launch on the SAME profile, touching nothing:
  *
@@ -137,6 +142,14 @@ const profile = join(root, 'profile');
  * That shape is the only one the four modes can disagree about.
  */
 const FIXTURE = 'PierreDiff.tsx';
+/**
+ * A second file, committed and then never touched, so opening it as a diff is
+ * the "identical either side" state. It is what rows 18 and 19 read: the
+ * control row must not be drawn over a diff that is not there, and the state
+ * it must not be drawn over includes the LOAD, not just the resolved empty
+ * panel.
+ */
+const SAME = 'Same.tsx';
 function gitShow(rev) {
   const out = spawnSync('git', ['show', `${rev}:src/renderer/editor/PierreDiff.tsx`], {
     cwd: repoRoot,
@@ -150,6 +163,7 @@ const before = gitShow('d3ee86352450c4f874f06ccdfba34190ebfb89f5^');
 const after = gitShow('d3ee86352450c4f874f06ccdfba34190ebfb89f5');
 
 writeFileSync(join(project, FIXTURE), before);
+writeFileSync(join(project, SAME), before);
 for (const argv of [
   ['init', '-q', '-b', 'main'],
   ['add', '-A'],
@@ -177,7 +191,8 @@ await withElectron(
         openRel: FIXTURE,
         mode: 'diff',
         editorWidth: 1200,
-        diffDrawing: 'cycle'
+        diffDrawing: 'cycle',
+        identicalRel: SAME
       }),
       GMUX_SHOT_JS: 'window.__gmuxP185Drawing'
     }
@@ -392,6 +407,26 @@ if (restRead === null || typeof restRead !== 'object') {
     restRead.barFits === true,
     `the row needs ${String(restRead.barNeeds)}px and has ${String(restRead.barWidth)}px in a ${String(restRead.panelWidth)}px panel, fits ${String(restRead.barFits)}`
   );
+}
+
+{
+  const id = (reading ?? {}).identical ?? null;
+  if (id === null) {
+    failures.push('18. the drive never opened the file that matches HEAD.');
+  } else {
+    check(
+      18,
+      'no control row over a diff that is still loading',
+      id.skeletonSamples > 0 && id.barWithSkeleton === false,
+      `the skeleton was up for ${String(id.skeletonSamples)} sample(s) of 25ms and the row was ${id.barWithSkeleton === true ? 'THERE' : 'absent'}`
+    );
+    check(
+      19,
+      'no control row over the "identical either side" panel',
+      id.resolved === true && id.state === 'No changes' && id.barAfter === false,
+      `state ${JSON.stringify(id.state)}, row after ${String(id.barAfter)}`
+    );
+  }
 }
 
 const operatorAfter = operatorSessionCount();
