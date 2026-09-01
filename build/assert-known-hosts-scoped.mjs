@@ -144,7 +144,14 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CASES } from './known-hosts-fixtures.mjs';
-import { callArguments, lineAt, namedFunctions, stripComments } from './scan-source.mjs';
+import {
+  callArguments,
+  lineAt,
+  namedFunctions,
+  parameterScopes,
+  shadowedAt,
+  stripComments
+} from './scan-source.mjs';
 import { productKnownHosts, sshArgv, sshOptions, sshRun } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -343,31 +350,46 @@ function stringValues(code) {
 }
 
 /**
- * Every name declared as a CHOICE between values, with the pieces it chooses
- * from.
+ * Every value a name can hold in one file, as the text of each.
  *
- * `const sshBin = process.env.TORTIE_SSH || '/usr/bin/ssh'` is one honest line,
- * and the first version of this gate read past it because its declaration
- * reader wanted the whole right hand side to be a single literal.
- * `const file = remote ? SSH_BIN : program` is the same shape written as a
- * question, and it is in this tree.
+ * A NAME IS NOT ONLY WHAT ITS DECLARATION SAYS, and reading only declarations
+ * was a hole a verifier walked through. This tree held the proof at
+ * `probe-control-dialect.mjs:375` before Phase 193: `let file;` declares
+ * nothing, two plain assignments on later lines give it `program` on one branch
+ * and `sshBin` on the other, and `sshBin` is the client. A reader that wants a
+ * declaration with a literal on its right sees none of that and calls the file
+ * clean.
+ *
+ * So every assignment to a name is collected, wherever it is and however many
+ * there are, and a right hand side that is a CHOICE contributes its pieces as
+ * well as itself. `const bin = process.env.TORTIE_SSH || '/usr/bin/ssh'` and
+ * `const file = remote ? SSH_BIN : program` are both read here, and so is
+ * `file = sshBin;` standing on its own line.
  *
  * A name that CAN hold the client is read as holding it. A scanner cannot know
- * which way the question goes at run time, and the safe reading is the one that
+ * which way a question goes at run time, and the safe reading is the one that
  * fails closed.
+ *
+ * The `=` is required not to be part of `==`, `===`, `=>`, `+=` or any other
+ * compound, which is what keeps a comparison from being read as an assignment.
  */
-function choicePieces(code) {
+function candidateValues(code) {
   const out = new Map();
-  const decl = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]*)[;\n]/g;
+  const add = (name, text) => {
+    const piece = (text ?? '').trim();
+    if (piece === '') return;
+    const held = out.get(name);
+    if (held === undefined) out.set(name, [piece]);
+    else if (!held.includes(piece)) held.push(piece);
+  };
+  const assigned = /(?:^|[^=!<>+\-*/%&|^~\w$])([A-Za-z_$][\w$]*)\s*=(?![=>])\s*([^;\n]*)/g;
   let m;
-  while ((m = decl.exec(code)) !== null) {
+  while ((m = assigned.exec(code)) !== null) {
     const rhs = m[2].trim();
-    if (!/\|\||\?\?|\?/.test(rhs)) continue;
-    const pieces = rhs
-      .split(/\|\||\?\?|\?|:/)
-      .map((one) => one.trim())
-      .filter((one) => one !== '');
-    if (pieces.length > 1) out.set(m[1], pieces);
+    add(m[1], rhs);
+    if (/\|\||\?\?|\?/.test(rhs)) {
+      for (const piece of rhs.split(/\|\||\?\?|\?|:/)) add(m[1], piece);
+    }
   }
   return out;
 }
@@ -393,9 +415,9 @@ function helperProgramImports(code) {
  * program, and what path each holds.
  *
  * Four sources, because all four are how this tree is written: a constant
- * string bound to a name, a name imported from the helper, a choice between
- * values where one of them is the client, and the same again one level deeper
- * so a chain of two resolves.
+ * string bound to a name, a name imported from the helper, any value a name is
+ * ever assigned including another NAME that holds the client, and the same
+ * again three levels deeper so a chain resolves.
  */
 function sshNames(code, values = stringValues(code)) {
   const names = new Map();
@@ -407,10 +429,10 @@ function sshNames(code, values = stringValues(code)) {
     if (keygen !== null) keygens.set(name, keygen);
   }
   for (const [name, path] of helperProgramImports(code)) names.set(name, path);
-  const choices = choicePieces(code);
-  for (let pass = 0; pass < 3; pass += 1) {
+  const candidates = candidateValues(code);
+  for (let pass = 0; pass < 4; pass += 1) {
     let grew = false;
-    for (const [name, pieces] of choices) {
+    for (const [name, pieces] of candidates) {
       if (names.has(name)) continue;
       for (const piece of pieces) {
         const program = literalProgram(piece) ?? names.get(piece) ?? null;
@@ -425,11 +447,19 @@ function sshNames(code, values = stringValues(code)) {
   return { names, keygens };
 }
 
-/** The program one argument in spawn position names, or null. */
-function programOf(text, names) {
+/**
+ * The program one argument in spawn position names, or null.
+ *
+ * A literal is read wherever it stands. A NAME is read from the file's table
+ * unless the call sits inside a function that declares that name as a
+ * parameter, because there the name is the caller's argument rather than the
+ * value some other line assigned. See {@link parameterScopes}.
+ */
+function programOf(text, names, scopes = [], at = -1) {
   const direct = literalProgram(text);
   if (direct !== null) return direct;
   const trimmed = (text ?? '').trim();
+  if (shadowedAt(scopes, trimmed, at)) return null;
   if (names.has(trimmed)) return names.get(trimmed);
   const member = /^[A-Za-z_$][\w$]*\.([A-Za-z_$][\w$]*)$/.exec(trimmed);
   if (member !== null && names.has(member[1])) return names.get(member[1]);
@@ -483,6 +513,10 @@ function* calls(code, names) {
   );
   let m;
   while ((m = re.exec(code)) !== null) {
+    // `function sh(file, args)` is where a wrapper is DEFINED, not a call to
+    // it. Reading the header as a call reports every wrapper's own parameter
+    // list, which is noise on the one shape every script in this tree has.
+    if (/\bfunction\s*\*?\s*$/.test(code.slice(Math.max(0, m.index - 24), m.index))) continue;
     const open = m.index + m[0].length - 1;
     yield { callee: m[1], index: m.index, args: callArguments(code, open) };
   }
@@ -493,14 +527,22 @@ function contextOf(source) {
   const code = stripComments(source);
   const values = stringValues(code);
   const { names, keygens } = sshNames(code, values);
-  return { code, values, names, keygens, spawns: spawnCallNames(code), sub: makeSubstituter(values) };
+  return {
+    code,
+    values,
+    names,
+    keygens,
+    scopes: parameterScopes(code),
+    spawns: spawnCallNames(code),
+    sub: makeSubstituter(values)
+  };
 }
 
 /** Every spawn in one file whose program is an ssh family program (rule 1). */
 export function sshSpawns(name, source, ctx = contextOf(source)) {
   const hits = [];
   for (const { callee, index, args } of calls(ctx.code, ctx.spawns)) {
-    const program = programOf(args[0], ctx.names);
+    const program = programOf(args[0], ctx.names, ctx.scopes, index);
     if (program === null) continue;
     hits.push({
       file: name,
@@ -881,7 +923,7 @@ function runFixtures(failures) {
           });
         }
         const use = usesHelper(text);
-        if (one.id !== 'N1' && (!use.imported || !use.called)) {
+        if (one.usesHelper !== false && (!use.imported || !use.called)) {
           failures.push({
             what: `the control fixture ${one.id} was not seen to use the helper`,
             detail: `imported=${String(use.imported)} called=${String(use.called)}.`

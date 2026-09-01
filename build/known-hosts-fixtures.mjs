@@ -10,11 +10,20 @@
  * `/Users/gdc/.ssh/known_hosts`. So the gate's own fixtures were the measure of
  * its reach, and its reach was smaller than the sentence it printed.
  *
- * Run against the gate as it shipped, THIRTEEN of the cases here pass, being
- * the verifier's nine and four more found while closing them. Each of those
- * carries `passed: true`, which was measured by driving the shipped gate over
- * this same list rather than assumed: the first draft of this file marked
- * twelve, and the thirteenth was a plain reassignment.
+ * Run against the gate as it shipped, SIXTEEN of the cases here pass, being the
+ * verifier's nine, four found while closing them, and three more found by the
+ * committer after the fix round. Each of those carries `passed: true`, which
+ * was measured by driving the shipped gate over this same list rather than
+ * assumed: the first draft of this file marked twelve, and the thirteenth was a
+ * plain reassignment.
+ *
+ * The committer's three are one family, being the client reached through a name
+ * rather than named where it is spawned. The fix round read a name from its
+ * DECLARATION, so `let file;` with `file = sshBin;` on a later line read as
+ * nothing, which is what `probe-control-dialect.mjs:375` did at the parent
+ * commit. AL5 is the control that came with the widening, and the gate as
+ * shipped FAILED it: reading one flat table of names makes a wrapper's own
+ * parameter the client, and every script here has such a wrapper.
  *
  * Every shape that has ever been thrown at this gate lives here now, so the
  * coverage cannot quietly decay the way the reach did. When a later round finds
@@ -70,7 +79,8 @@ const A = assemble;
  * The first six are the gate's own from the day it shipped. The fifteen marked
  * `verifier` are the ones a Phase 193 verifier attacked it with, nine of which
  * it passed. The four marked `fix round` are shapes tried while closing those
- * nine.
+ * nine. The five marked `committer` are the alias family and its control, three
+ * of which the shipped gate passed and one of which it wrongly flagged.
  */
 export const CASES = [
   {
@@ -404,6 +414,7 @@ process.exit(out.status ?? 1);
     from: 'verifier',
     name: 'a COMMENTED OUT spawn, which must not be flagged',
     mustFail: null,
+    usesHelper: false,
     why: 'the control: a gate that flags a comment is a gate nobody keeps',
     text: A(`
 import { LAUNCH } from 'node:child_process';
@@ -487,6 +498,93 @@ const program = '/opt/homebrew/bin/tmux';
 const chosen = remote ? SSH_BIN : program;
 const child = LAUNCHASYNC(chosen, ['-V'], { stdio: 'inherit' });
 child.on('exit', (code) => process.exit(code ?? 1));
+`)
+  },
+  {
+    id: 'AL1',
+    from: 'committer',
+    passed: true,
+    name: 'the client reached through a name given by a plain assignment',
+    mustFail: 1,
+    why: 'the exact shape this tree held at probe-control-dialect.mjs:375',
+    text: A(`
+import { LAUNCHASYNC } from 'node:child_process';
+const sshBin = 'CLIENT';
+const program = '/opt/homebrew/bin/tmux';
+let file;
+if (process.argv.includes('--remote')) {
+  file = sshBin;
+} else {
+  file = program;
+}
+const child = LAUNCHASYNC(file, ['-V'], { stdio: 'inherit' });
+child.on('exit', (code) => process.exit(code ?? 1));
+`)
+  },
+  {
+    id: 'AL2',
+    from: 'committer',
+    passed: true,
+    name: 'the client at the end of a chain of three names',
+    mustFail: 1,
+    text: A(`
+import { LAUNCH } from 'node:child_process';
+const first = 'CLIENT';
+const second = first;
+const third = second;
+const out = LAUNCH(third, ['127.0.0.1', 'true'], { encoding: 'utf8' });
+process.exit(out.status ?? 1);
+`)
+  },
+  {
+    id: 'AL3',
+    from: 'committer',
+    name: 'the client as a PROPERTY of a record, spawned through the member',
+    mustFail: 1,
+    why: 'how build/real-machine.mjs names it at three call sites',
+    text: A(`
+import { LAUNCH } from 'node:child_process';
+const machine = { host: '127.0.0.1', sshBin: 'CLIENT' };
+const out = LAUNCH(machine.sshBin, [machine.host, 'true'], { encoding: 'utf8' });
+process.exit(out.status ?? 1);
+`)
+  },
+  {
+    id: 'AL4',
+    from: 'committer',
+    passed: true,
+    name: "the helper's own export reassigned to another name and then spawned",
+    mustFail: 1,
+    text: A(`
+import { LAUNCHASYNC } from 'node:child_process';
+import { SSH_BIN } from './ssh-run.mjs';
+let client;
+client = SSH_BIN;
+const child = LAUNCHASYNC(client, ['-V'], { stdio: 'inherit' });
+child.on('exit', (code) => process.exit(code ?? 1));
+`)
+  },
+  {
+    id: 'AL5',
+    from: 'committer',
+    usesHelper: false,
+    name: "a wrapper's own parameter that SHARES A NAME with the client elsewhere",
+    mustFail: null,
+    why:
+      'the control on the scope rule, and the gate as shipped FAILED it. `file` ' +
+      'holds the client at module scope and is never spawned; the only spawn is ' +
+      "the wrapper forwarding its own parameter, which is the caller's tmux. A " +
+      'scanner with one flat table of names calls that a client spawn, which is ' +
+      'a false alarm on the one shape every script in this tree has.',
+    text: A(`
+import { LAUNCH } from 'node:child_process';
+const file = 'CLIENT';
+process.stdout.write(\`this run would not use \${file}\\n\`);
+function sh(file, args) {
+  return LAUNCH(file, args, { encoding: 'utf8' });
+}
+const out = sh('/opt/homebrew/bin/tmux', ['-V']);
+process.exit(out.status ?? 1);
 `)
   }
 ];

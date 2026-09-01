@@ -177,8 +177,9 @@ export const CHECKS = [
   // scripts that runs one still reaches the helper, which emits
   // -o UserKnownHostsFile= from a single place, refuses an empty value, gives
   // knownHosts no default so forgetting it throws, prepends it so nothing
-  // later in an argv can win, and puts Tortie's own record file first. Six
-  // fixtures it writes itself prove the scanner fails when it should. It runs
+  // later in an argv can win, and puts Tortie's own record file first. The 36
+  // shapes in build/known-hosts-fixtures.mjs prove the scanner fails when it
+  // should: 32 must be caught and 4 are controls that must not be. It runs
   // inside npm run build, so nothing that builds can skip it.
   pure('gate:knownhosts'),
   // PHASE 189. A project tab is never again drawn as one letter and an

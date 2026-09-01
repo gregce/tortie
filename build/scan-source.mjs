@@ -239,6 +239,104 @@ export function closeOf(code, open) {
   return -1;
 }
 
+/**
+ * The simple identifier names in one parameter list that have NO default.
+ *
+ * A PARAMETER CARRYING A DEFAULT IS NOT THE CALLER'S VALUE ALONE.
+ * `function connect(host, bin = '/usr/bin/ssh')` names the client in the
+ * file's own text, and that is an ordinary way to write a wrapper, so `bin`
+ * must keep resolving. Only a bare parameter stands for whatever the caller
+ * passed, and only a bare parameter is collected here.
+ *
+ * A DESTRUCTURED PARAMETER IS DELIBERATELY NOT READ either. These names are
+ * only ever used to SUPPRESS a finding, and over-suppression hides a defect
+ * while under-suppression only prints one a person can dismiss. This gate fails
+ * closed, so both ambiguous shapes keep the finding.
+ */
+function parameterNames(text) {
+  const names = new Set();
+  let depth = 0;
+  let quote = '';
+  let current = '';
+  const take = (piece) => {
+    const one = /^\s*(?:\.\.\.)?\s*([A-Za-z_$][\w$]*)\s*$/.exec(piece);
+    if (one !== null) names.add(one[1]);
+  };
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    if (quote !== '') {
+      if (c === '\\') {
+        i += 1;
+        continue;
+      }
+      if (c === quote) quote = '';
+      current += c;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === '`') {
+      quote = c;
+      current += c;
+      continue;
+    }
+    if ('([{'.includes(c)) depth += 1;
+    else if (')]}'.includes(c)) depth -= 1;
+    if (c === ',' && depth === 0) {
+      take(current);
+      current = '';
+      continue;
+    }
+    current += c;
+  }
+  take(current);
+  return names;
+}
+
+/**
+ * Every function's parameter names paired with the span of its body.
+ *
+ * WHY A FLAT TABLE OF NAMES IS NOT ENOUGH. A scanner that resolves a name to a
+ * value anywhere in a file will resolve a WRAPPER'S OWN PARAMETER to whatever
+ * some unrelated line assigned to that name. `probe-control-dialect.mjs` holds
+ * both halves: `function sh(file, args)` forwards its own `file` to a spawn,
+ * and three hundred lines away `file = sshBin` names the client. Reading the
+ * two as one name reports the wrapper's definition as a client spawn, which is
+ * noise on exactly the generic helper every script in this tree has.
+ *
+ * So a name is refused resolution inside a function that declares it as a
+ * parameter, and nowhere else. Only block bodies are recorded, since an
+ * expression bodied arrow cannot contain the multi statement wrapper this
+ * exists for.
+ */
+export function parameterScopes(code) {
+  const scopes = [];
+  const header =
+    /\b(?:async\s+)?function\s*\*?\s*[A-Za-z_$][\w$]*\s*\(|\b(?:async\s+)?function\s*\*?\s*\(|\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*(?:async\s+)?\(/g;
+  let m;
+  while ((m = header.exec(code)) !== null) {
+    const open = m.index + m[0].length - 1;
+    const close = closeOf(code, open);
+    if (close === -1) continue;
+    const names = parameterNames(code.slice(open + 1, close));
+    if (names.size === 0) continue;
+    let i = close + 1;
+    while (i < code.length && /\s/.test(code[i])) i += 1;
+    if (code[i] === '=' && code[i + 1] === '>') {
+      i += 2;
+      while (i < code.length && /\s/.test(code[i])) i += 1;
+    }
+    if (code[i] !== '{') continue;
+    const end = closeOf(code, i);
+    if (end === -1) continue;
+    scopes.push({ names, start: i, end });
+  }
+  return scopes;
+}
+
+/** Whether `name` is a parameter of some function whose body contains `at`. */
+export function shadowedAt(scopes, name, at) {
+  return scopes.some((one) => at > one.start && at < one.end && one.names.has(name));
+}
+
 /** The text from `from` to the `;` that ends its statement, brackets matched. */
 function statementFrom(code, from) {
   let depth = 0;
