@@ -61,11 +61,11 @@ export function DiffControls(): React.JSX.Element {
         type="button"
         className={`ed-icon-btn${backgrounds ? ' on' : ''}`}
         aria-pressed={backgrounds}
-        aria-label="Changed row colour"
+        aria-label="Changed row color"
         title={
           backgrounds
-            ? 'Stop colouring the whole changed row'
-            : 'Colour the whole changed row'
+            ? 'Stop coloring the whole changed row'
+            : 'Color the whole changed row'
         }
         onClick={() => setBackgrounds(!backgrounds)}
       >
