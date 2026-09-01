@@ -78,8 +78,10 @@ import { baseName } from './paths';
 import { gmuxBridge } from '../bridge';
 import {
   readDiffBackgrounds,
+  readDiffRedline,
   readInlineDiffMode,
   writeDiffBackgrounds,
+  writeDiffRedline,
   writeInlineDiffMode
 } from '../pierre/diff-view-prefs';
 import type { LineDiffTypes } from '@pierre/diffs';
@@ -138,6 +140,14 @@ interface EditorState {
    */
   diffInlineMode: LineDiffTypes;
   diffBackgrounds: boolean;
+  /**
+   * The redline (Phase 191, persisted, app-wide, off by default). A THIRD
+   * reading of a change, drawn as one flowing marked-up line underneath the
+   * two rows Pierre already draws, in the stacked layout and over prose only.
+   * It is a mode a person chooses rather than a replacement for what the diff
+   * view does today, so it lives here beside the other two drawing answers.
+   */
+  diffRedline: boolean;
 
   init(): void;
   openFromRequest(req: OpenFileRequest): void;
@@ -171,6 +181,7 @@ interface EditorState {
   setDiffSideBySide(on: boolean): void;
   setDiffInlineMode(mode: LineDiffTypes): void;
   setDiffBackgrounds(on: boolean): void;
+  setDiffRedline(on: boolean): void;
   hidePanel(): void;
   /** ⌘E — show if hidden (reopening the last file if none), else hide. */
   togglePanel(): void;
@@ -343,6 +354,7 @@ export const useEditor = create<EditorState>((set, get) => {
     diffSideBySide: readDiffSideBySidePref(),
     diffInlineMode: readInlineDiffMode(),
     diffBackgrounds: readDiffBackgrounds(),
+    diffRedline: readDiffRedline(),
 
     init() {
       if (initialized || !gmux) return;
@@ -782,6 +794,11 @@ export const useEditor = create<EditorState>((set, get) => {
     setDiffBackgrounds(on) {
       set({ diffBackgrounds: on });
       writeDiffBackgrounds(on);
+    },
+
+    setDiffRedline(on) {
+      set({ diffRedline: on });
+      writeDiffRedline(on);
     },
 
     hidePanel() {

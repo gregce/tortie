@@ -15,6 +15,18 @@
  *               the surface's own options prop while a worker pool is attached
  *               (the pool's copy wins), so PierreDiff also pushes it to the
  *               pool through `applyInlineDiffMode`.
+ *   Redline     Tortie's OWN drawing, not Pierre's (Phase 191). Pierre cannot
+ *               draw a redline: every one of its diff lines is a grid item of
+ *               a subgrid, so its display is blockified by the specification.
+ *               This toggle turns on an extra light-DOM annotation row under
+ *               each changed block holding `del` and `ins` in ONE element.
+ *               It is offered for PROSE ONLY and in the ONE-COLUMN layout
+ *               only, and both of those are decided upstream in ./PierreDiff:
+ *               a file that cannot have one never draws the button at all, and
+ *               a two-column diff draws it DISABLED and says why. Absent would
+ *               be worse than disabled, because `gmux.diffSideBySide` defaults
+ *               on, so most people are in two columns most of the time and an
+ *               absent control makes the feature invisible.
  *   Backgrounds — @pierre/diffs' `disableBackground`, which is the ONLY gate
  *               on the full-width row wash. Pierre's stylesheet computes that
  *               wash inside a `:where([data-background])` block, and the
@@ -34,11 +46,27 @@ import { Codicon } from '../icons';
 import { INLINE_DIFF_MODES } from '../pierre/diff-view-prefs';
 import { useEditor } from './store';
 
-export function DiffControls(): React.JSX.Element {
+export interface DiffControlsProps {
+  /**
+   * Whether this file can have a redline at all. False for anything that is
+   * not prose, and then the control is not rendered, which is the established
+   * shape of `minimapApplies` and `diffSplitApplies` in ./EditorPanel.
+   */
+  redlineApplies: boolean;
+  /** Two columns. The redline needs one, so it disables itself and says so. */
+  sideBySide: boolean;
+}
+
+export function DiffControls({
+  redlineApplies,
+  sideBySide
+}: DiffControlsProps): React.JSX.Element {
   const inlineMode = useEditor((s) => s.diffInlineMode);
   const backgrounds = useEditor((s) => s.diffBackgrounds);
+  const redline = useEditor((s) => s.diffRedline);
   const setInlineMode = useEditor((s) => s.setDiffInlineMode);
   const setBackgrounds = useEditor((s) => s.setDiffBackgrounds);
+  const setRedline = useEditor((s) => s.setDiffRedline);
 
   return (
     <div className="ed-diff-bar">
@@ -71,6 +99,26 @@ export function DiffControls(): React.JSX.Element {
       >
         <Codicon name="paintcan" size={14} />
       </button>
+      {redlineApplies ? (
+        <button
+          type="button"
+          className={`ed-mode-opt ed-redline-opt${
+            redline && !sideBySide ? ' on' : ''
+          }`}
+          aria-pressed={redline && !sideBySide}
+          disabled={sideBySide}
+          title={
+            sideBySide
+              ? 'Redline. Show the diff in one column to use it'
+              : redline
+                ? 'Stop marking the change up as a redline'
+                : 'Mark the change up as a redline'
+          }
+          onClick={() => setRedline(!redline)}
+        >
+          Redline
+        </button>
+      ) : null}
     </div>
   );
 }

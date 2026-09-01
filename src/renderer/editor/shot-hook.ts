@@ -102,6 +102,25 @@ export interface ShotDriveSpec {
    */
   identicalRel?: string;
   /**
+   * Phase 191. Drive the REDLINE through its own button with a diff already
+   * open, and read what Tortie drew in the annotation slot @pierre/diffs hands
+   * back: the `del` and `ins` runs, their rectangles, their computed colours,
+   * the gutter cell the extra row got, the reflow when the panel is squeezed
+   * to its floor, the control's disabled state in two columns, its absence on
+   * a file that is not prose, and what a copy actually puts on the clipboard.
+   *
+   * It exists because none of that can be read from the source. Pierre's
+   * annotation seam was the one claim in research 74 that came from reading
+   * `dist/` rather than from a running app, and the copy behaviour is a
+   * property of the browser's own serializer.
+   */
+  redline?: {
+    /** A file that is NOT prose, to prove the control is not drawn for it. */
+    codeRel?: string;
+    /** A second prose file, opened last, to prove the mode carried over. */
+    secondRel?: string;
+  };
+  /**
    * Force the opened tab's view (markdown/svg: 'preview' | 'file' | 'split';
    * a raster image: 'image' for the viewer, 'diff' for before/after).
    */
@@ -321,6 +340,14 @@ declare global {
     __gmuxP163Surface?: unknown;
     /** `window.__gmuxP185Drawing`: the per-mode span reading (Phase 185). */
     __gmuxP185Drawing?: unknown;
+    /** `window.__gmuxP191Redline`: what the redline drew and what copy took. */
+    __gmuxP191Redline?: unknown;
+    /**
+     * Phase 191. Set up ONE selection and answer what it is, so main can then
+     * run the window's own Copy command over it and read the system
+     * clipboard. GMUX_SHOT_CLIPBOARD carries the list of calls.
+     */
+    __gmuxRedlineSelect?: (which: string) => Promise<unknown>;
   }
 }
 
@@ -1130,6 +1157,466 @@ export function installShotHook(): void {
           }
           step('the identical file was read and the pair is back');
         }
+      }
+
+      /**
+       * PHASE 191. The redline, driven through its own button.
+       *
+       * Everything here is read off the RUNNING app rather than asserted, and
+       * the order is a JOURNEY rather than a resting state: two columns first
+       * (where the control must be present and disabled), then one column,
+       * then the click, then the drawn rows, then a scroll, then a squeeze to
+       * the panel's floor and back, then two columns on and off with the mode
+       * still on, then a file that is not prose, then a second prose file,
+       * then back here for the copies. Five earlier phases were caught by a
+       * resting state that agreed with a journey that did not.
+       *
+       * THE COPIES ARE LAST and they leave one redline row selected, because
+       * main takes it from there: GMUX_SHOT_CLIPBOARD=1 runs the window's own
+       * Copy command and reads what the SYSTEM clipboard received. That is the
+       * only honest proof of a copy handler, and `document.execCommand('copy')`
+       * from a script cannot be relied on for it, so its answer is recorded as
+       * a second reading rather than as the proof.
+       */
+      if (spec.redline !== undefined) {
+        step('driving the redline');
+        const out: Record<string, unknown> = {};
+        const journey: string[] = [];
+        const shadowOf = (): ShadowRoot | null =>
+          document.querySelector('diffs-container')?.shadowRoot ?? null;
+        const redlineBtn = (): HTMLButtonElement | null =>
+          document.querySelector<HTMLButtonElement>(
+            '.ed-diff-bar .ed-redline-opt'
+          );
+        const splitBtn = (): HTMLButtonElement | null =>
+          document.querySelector<HTMLButtonElement>(
+            '.ed-tabs-actions [aria-label="Side by side"]'
+          );
+        const rows = (): HTMLElement[] =>
+          Array.from(document.querySelectorAll<HTMLElement>('.ed-redline'));
+        const panelWidth = (): number =>
+          Math.round(
+            document.querySelector<HTMLElement>('.ed-panel')?.clientWidth ?? 0
+          );
+        const btnState = (): Record<string, unknown> => {
+          const btn = redlineBtn();
+          return {
+            present: btn !== null,
+            label: btn?.textContent ?? null,
+            pressed: btn?.getAttribute('aria-pressed') ?? null,
+            disabled: btn?.disabled ?? null,
+            title: btn?.getAttribute('title') ?? null
+          };
+        };
+        /**
+         * The control row itself, read as rectangles. Phase 191 added a fifth
+         * control to a row that had no room for one at the panel's floor: it
+         * needed 294px there and got 319px before, and 356px after, so 29px of
+         * the 57px Redline control sat past the right edge of a row that
+         * scrolls with `scrollbar-width: none`. The row wraps now, and this is
+         * what proves it rather than the stylesheet asserting it.
+         */
+        const barState = (): Record<string, unknown> => {
+          const bar = document.querySelector<HTMLElement>('.ed-diff-bar');
+          if (bar === null) return { present: false };
+          const box = bar.getBoundingClientRect();
+          const kids = Array.from(bar.children).map((el) => {
+            const r = el.getBoundingClientRect();
+            return {
+              cls: el.className,
+              width: Math.round(r.width),
+              left: Math.round(r.left),
+              right: Math.round(r.right),
+              top: Math.round(r.top),
+              // Every control has to be inside the row's own box, whichever
+              // line it wrapped onto.
+              inside:
+                r.right <= box.right + 0.5 &&
+                r.left >= box.left - 0.5 &&
+                r.bottom <= box.bottom + 0.5 &&
+                r.top >= box.top - 0.5,
+              cutOffPx: Math.round(Math.max(0, r.right - box.right))
+            };
+          });
+          return {
+            present: true,
+            panel: panelWidth(),
+            clientWidth: Math.round(bar.clientWidth),
+            scrollWidth: Math.round(bar.scrollWidth),
+            height: Math.round(box.height),
+            fits: bar.scrollWidth <= bar.clientWidth,
+            // Bucketed, because a span and a button on the SAME line differ by
+            // a pixel at their box tops: measured 115 against 114 on this row,
+            // which counted one line as two.
+            lines: new Set(kids.map((k) => Math.round(k.top / 8))).size,
+            children: kids,
+            allInside: kids.every((k) => k.inside)
+          };
+        };
+        /** Client rects the row's runs occupy. It rises when the row wraps. */
+        const lineBoxes = (el: Element): number => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          return range.getClientRects().length;
+        };
+        const waitForRows = async (want: boolean): Promise<void> => {
+          for (let i = 0; i < 80; i++) {
+            if (rows().length > 0 === want) return;
+            await wait(100);
+          }
+        };
+        const readRows = (): unknown[] =>
+          rows().map((row) => {
+            const dels = Array.from(row.querySelectorAll<HTMLElement>('del'));
+            const inses = Array.from(row.querySelectorAll<HTMLElement>('ins'));
+            const d0 = dels[0];
+            const i0 = inses[0];
+            const dr = d0?.getBoundingClientRect();
+            const ir = i0?.getBoundingClientRect();
+            const rect = row.getBoundingClientRect();
+            return {
+              // The whole point of the annotation seam: this is TORTIE'S OWN
+              // subtree in the light DOM, which is why tokens.css reaches it.
+              lightDom: row.getRootNode() === document,
+              // And it really is inside Pierre's own container, which is what
+              // puts it under the changed block rather than beside the diff.
+              insideContainer:
+                document.querySelector('diffs-container')?.contains(row) === true,
+              slot: row.parentElement?.getAttribute('slot') ?? null,
+              text: row.textContent ?? '',
+              dels: dels.map((el) => el.textContent ?? ''),
+              inses: inses.map((el) => el.textContent ?? ''),
+              // Tortie's own commentary on the row rather than any part of
+              // the change, so it is read separately and left out of the runs
+              // below and out of what a copy is expected to yield.
+              tag:
+                row.querySelector('[data-redline-tag]')?.textContent ?? null,
+              // The order the runs are drawn in, which is what makes this a
+              // redline rather than two lists.
+              order: Array.from(row.children)
+                .filter((el) => !el.hasAttribute('data-redline-tag'))
+                .map((el) => el.tagName.toLowerCase()),
+              delColor: d0 === undefined ? null : getComputedStyle(d0).color,
+              delDecoration:
+                d0 === undefined
+                  ? null
+                  : getComputedStyle(d0).textDecorationLine,
+              insColor: i0 === undefined ? null : getComputedStyle(i0).color,
+              insDecoration:
+                i0 === undefined
+                  ? null
+                  : getComputedStyle(i0).textDecorationLine,
+              display: getComputedStyle(row).display,
+              whiteSpace: getComputedStyle(row).whiteSpace,
+              // The FIRST del and the FIRST ins of this row, as two
+              // rectangles. On an in-place replacement they are the operator's
+              // sentence expressed as numbers, and the demonstration row is
+              // four of those. It is NOT a general invariant and the probe
+              // only asserts it there: a shortest edit script can put an
+              // insertion before a deletion it is not paired with (./redline
+              // ruling 6), and in a right to left run the insertion is drawn
+              // to the LEFT of its deletion, so this reads false for two
+              // completely different reasons.
+              firstPairSameTop:
+                dr !== undefined && ir !== undefined
+                  ? Math.abs(dr.top - ir.top) < 1
+                  : null,
+              firstPairInsAfterDel:
+                dr !== undefined && ir !== undefined
+                  ? ir.left >= dr.right - 1
+                  : null,
+              delRect:
+                dr === undefined
+                  ? null
+                  : {
+                      x: Math.round(dr.x),
+                      y: Math.round(dr.y),
+                      w: Math.round(dr.width)
+                    },
+              insRect:
+                ir === undefined
+                  ? null
+                  : {
+                      x: Math.round(ir.x),
+                      y: Math.round(ir.y),
+                      w: Math.round(ir.width)
+                    },
+              height: Math.round(rect.height),
+              width: Math.round(rect.width),
+              runRects: row.firstElementChild === null ? 0 : lineBoxes(row)
+            };
+          });
+        /** Every run of every row, for the independent re-derivation. */
+        const flatRuns = (): unknown[] =>
+          rows().map((row) =>
+            Array.from(row.children)
+              .filter((el) => !el.hasAttribute('data-redline-tag'))
+              .map((el) => ({
+                kind: el.tagName.toLowerCase(),
+                text: el.textContent ?? ''
+              }))
+          );
+        /** What a copy of one row should yield: the runs, minus the deletions. */
+        const cleanOf = (row: Element): string =>
+          Array.from(row.children)
+            .filter(
+              (el) =>
+                el.tagName.toLowerCase() !== 'del' &&
+                !el.hasAttribute('data-redline-tag')
+            )
+            .map((el) => el.textContent ?? '')
+            .join('');
+
+        // 1. TWO COLUMNS FIRST. gmux.diffSideBySide defaults on, so this is
+        //    what a person opening a prose diff actually sees, and the control
+        //    must be there and DISABLED rather than absent.
+        // The tokens the row must be drawn from, read live off the document
+        // so the probe compares colours against the SAME source tokens.css
+        // gives the rest of the app rather than against a literal.
+        const root = getComputedStyle(document.documentElement);
+        out['tokens'] = {
+          error: root.getPropertyValue('--error').trim(),
+          success: root.getPropertyValue('--success').trim(),
+          errorWash: root.getPropertyValue('--error-wash').trim(),
+          successWash: root.getPropertyValue('--success-wash').trim()
+        };
+        out['inSplit'] = { ...btnState(), rows: rows().length };
+        journey.push('read the control in two columns');
+
+        // 2. One column, through the real button.
+        const split = splitBtn();
+        if (split !== null && split.getAttribute('aria-pressed') === 'true') {
+          split.click();
+          await wait(1200);
+        }
+        out['inOneColumn'] = { ...btnState(), rows: rows().length };
+        journey.push('switched to one column with the diff open');
+
+        // 3. THE CLICK.
+        redlineBtn()?.click();
+        await waitForRows(true);
+        await wait(400);
+        out['afterClick'] = btnState();
+        out['stored'] = localStorage.getItem('gmux.diffRedline');
+        out['rows'] = readRows();
+        out['runs'] = flatRuns();
+        out['note'] =
+          document.querySelector('.ed-note .banner-text')?.textContent ?? null;
+        journey.push(`clicked Redline and ${String(rows().length)} row(s) drew`);
+
+        // 4. THE GUTTER. Nothing is merged, so nothing loses a number: the
+        //    redline is an EXTRA row and Pierre already gives it a blank
+        //    gutter cell carrying no number and no change mark.
+        const shadow = shadowOf();
+        const gutterCells = Array.from(
+          shadow?.querySelectorAll('[data-gutter-buffer="annotation"]') ?? []
+        );
+        out['gutter'] = {
+          annotationCells: gutterCells.length,
+          annotationCellText: gutterCells.map((c) => c.textContent ?? ''),
+          annotationCellLineType: gutterCells.map((c) =>
+            c.getAttribute('data-line-type')
+          ),
+          numbers: Array.from(
+            shadow?.querySelectorAll('[data-column-number]') ?? []
+          )
+            .map((c) => (c.textContent ?? '').trim())
+            .filter((t) => t !== '')
+        };
+
+        // 5. SCROLL. The surface is virtualized, so a scrolled diff is a
+        //    different render from the one just read.
+        const host = document.querySelector<HTMLElement>('.ed-pierre');
+        if (host !== null) {
+          host.scrollTop = host.scrollHeight;
+          await wait(800);
+          out['afterScroll'] = {
+            scrollTop: Math.round(host.scrollTop),
+            rows: rows().length,
+            texts: rows().map((r) => r.textContent ?? '')
+          };
+          host.scrollTop = 0;
+          await wait(800);
+          journey.push('scrolled to the end and back');
+        }
+
+        // 6. RESIZE, through the divider's own keyboard, which is a real
+        //    gesture rather than a store poke. Home takes the panel to its
+        //    floor, which is below the 640px two-column threshold, and End
+        //    takes it back.
+        const wideWidth = panelWidth();
+        const wide = readRows();
+        const wideBar = barState();
+        const divider = document.querySelector<HTMLElement>('.ed-divider');
+        divider?.focus();
+        divider?.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Home', bubbles: true })
+        );
+        await wait(1000);
+        const narrowWidth = panelWidth();
+        const narrow = readRows();
+        const narrowBar = barState();
+        divider?.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'End', bubbles: true })
+        );
+        await wait(1000);
+        out['reflow'] = {
+          wideWidth,
+          narrowWidth,
+          backWidth: panelWidth(),
+          wide,
+          narrow,
+          wideBar,
+          narrowBar,
+          backBar: barState()
+        };
+        journey.push('squeezed the panel to its floor and back');
+
+        // 7. TWO COLUMNS AGAIN with the redline switched ON. The control must
+        //    disable itself and every row must go, because in two columns the
+        //    two sides are separate `code` elements and an annotation belongs
+        //    to one of them.
+        splitBtn()?.click();
+        await wait(1600);
+        out['splitWithRedlineOn'] = {
+          ...btnState(),
+          rows: rows().length,
+          stored: localStorage.getItem('gmux.diffRedline')
+        };
+        splitBtn()?.click();
+        await wait(1600);
+        await waitForRows(true);
+        out['backInOneColumn'] = { ...btnState(), rows: rows().length };
+        journey.push('turned two columns on and off with the redline on');
+
+        // 8. A FILE THAT IS NOT PROSE. The control must not be drawn at all.
+        if (spec.redline.codeRel !== undefined) {
+          requestOpenFile({
+            repoPath: spec.projectPath,
+            relPath: spec.redline.codeRel,
+            path: `${spec.projectPath}/${spec.redline.codeRel}`,
+            mode: 'diff',
+            source: 'tree',
+            preview: false
+          });
+          for (let i = 0; i < 80; i++) {
+            if (shadowOf()?.querySelector('[data-line]') != null) break;
+            await wait(150);
+          }
+          await wait(1000);
+          out['onCode'] = {
+            rel: spec.redline.codeRel,
+            bar: document.querySelector('.ed-diff-bar') !== null,
+            ...btnState(),
+            rows: rows().length,
+            stored: localStorage.getItem('gmux.diffRedline')
+          };
+          journey.push('opened a file that is not prose');
+        }
+
+        // 9. A SECOND PROSE FILE, opened with the mode already on, which is
+        //    what a persisted preference is for.
+        if (spec.redline.secondRel !== undefined) {
+          requestOpenFile({
+            repoPath: spec.projectPath,
+            relPath: spec.redline.secondRel,
+            path: `${spec.projectPath}/${spec.redline.secondRel}`,
+            mode: 'diff',
+            source: 'tree',
+            preview: false
+          });
+          await waitForRows(true);
+          await wait(800);
+          out['onSecond'] = {
+            rel: spec.redline.secondRel,
+            ...btnState(),
+            rows: rows().length,
+            drawn: readRows()
+          };
+          journey.push('opened a second prose file with the mode already on');
+        }
+
+        // 10. Back to the file this run is about.
+        requestOpenFile({
+          repoPath: spec.projectPath,
+          relPath: spec.openRel ?? '',
+          path: `${spec.projectPath}/${spec.openRel ?? ''}`,
+          mode: 'diff',
+          source: 'tree',
+          preview: false
+        });
+        await waitForRows(true);
+        await wait(800);
+
+        // 11. THE COPIES, and they are not run from here.
+        //
+        // `document.execCommand('copy')` needs user activation that an async
+        // drive no longer has: measured on 2026-09-01, it returned false and
+        // no `copy` event fired at all. So this installs ONE selector, main
+        // calls it once per entry in GMUX_SHOT_CLIPBOARD, runs the window's
+        // own Copy command after each call, and reads what the SYSTEM
+        // clipboard received.
+        //
+        // A second measurement worth writing down, because it changed what
+        // shipped: `Selection.toString()` over the whole diff surface returns
+        // the EMPTY STRING, while the system clipboard receives every line of
+        // the diff. Pierre's rows are in a shadow root, a Range cannot see
+        // them and the clipboard serializer can. The handler's first cut
+        // edited the first string and wrote it as the second, which dropped
+        // every one of Pierre's rows, and this probe is what caught it.
+        const pierreHost = document.querySelector<HTMLElement>('.ed-pierre');
+        const setups: unknown[] = [];
+        out['copySetups'] = setups;
+        window.__gmuxRedlineSelect = async (which: string): Promise<unknown> => {
+          const selection = window.getSelection();
+          const wantOn = which !== 'off';
+          const btn = redlineBtn();
+          if (btn !== null && (btn.getAttribute('aria-pressed') === 'true') !== wantOn) {
+            btn.click();
+            await waitForRows(wantOn);
+            await wait(600);
+          }
+          const perRow = rows().map((row) => ({
+            // What the BROWSER would serialize from this row, which is the
+            // runs without the tag: the tag is `user-select: none`.
+            interleaved: Array.from(row.children)
+              .filter((el) => !el.hasAttribute('data-redline-tag'))
+              .map((el) => el.textContent ?? '')
+              .join(''),
+            withTag: row.textContent ?? '',
+            clean: cleanOf(row)
+          }));
+          const target = which === 'row' ? rows()[0] : pierreHost;
+          if (target === undefined || target === null || selection === null) {
+            const missing = { which, ok: false };
+            setups.push(missing);
+            return missing;
+          }
+          selection.removeAllRanges();
+          selection.selectAllChildren(target);
+          const answer = {
+            which,
+            ok: true,
+            rows: rows().length,
+            drawn: selection.toString(),
+            perRow,
+            expected: which === 'row' ? cleanOf(target) : null,
+            deleted:
+              which === 'row'
+                ? Array.from(
+                    target.querySelectorAll<HTMLElement>('del')
+                  ).map((el) => el.textContent ?? '')
+                : []
+          };
+          setups.push(answer);
+          return answer;
+        };
+        journey.push('installed the selector main copies from');
+
+        out['atRest'] = { rows: rows().length, ...btnState() };
+        out['journey'] = journey;
+        window.__gmuxP191Redline = out;
+        step('read the redline');
       }
     }
 

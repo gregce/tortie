@@ -109,6 +109,7 @@ export function isInlineDiffMode(value: unknown): value is LineDiffTypes {
 
 const LS_INLINE_MODE = 'gmux.diffInlineMode';
 const LS_BACKGROUNDS = 'gmux.diffBackgrounds';
+const LS_REDLINE = 'gmux.diffRedline';
 
 export function readInlineDiffMode(): LineDiffTypes {
   try {
@@ -122,6 +123,33 @@ export function readInlineDiffMode(): LineDiffTypes {
 export function writeInlineDiffMode(mode: LineDiffTypes): void {
   try {
     localStorage.setItem(LS_INLINE_MODE, mode);
+  } catch {
+    /* cosmetic preference only */
+  }
+}
+
+/**
+ * The redline (Phase 191). OFF is what shipped before it, because the redline
+ * is a THIRD reading of a change offered underneath the two rows that are
+ * already there rather than a replacement for them, and a person who never
+ * opens the control sees the diff they already knew.
+ *
+ * It keeps its key beside the other two because they are one question asked
+ * three ways, being how this change is drawn, and this file is the leaf that
+ * owns those keys. It imports nothing, which is why the store can read all
+ * three at construction without dragging @pierre/diffs into the boot chunk.
+ */
+export function readDiffRedline(): boolean {
+  try {
+    return localStorage.getItem(LS_REDLINE) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function writeDiffRedline(on: boolean): void {
+  try {
+    localStorage.setItem(LS_REDLINE, on ? '1' : '0');
   } catch {
     /* cosmetic preference only */
   }

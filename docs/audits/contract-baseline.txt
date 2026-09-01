@@ -326,7 +326,7 @@ CREATE TABLE sessions (
           last_seen        INTEGER NOT NULL
         , exit_code INTEGER, exit_signal TEXT, pane_pid INTEGER, resume_capture TEXT, specstory TEXT, restore TEXT, agent_version TEXT, agent_contract TEXT, resume_provenance TEXT, context_snapshot TEXT, removed_at INTEGER, env_passthrough TEXT, exit_detail TEXT, machine_id TEXT, machine_tombstone TEXT, project_tombstone TEXT)
 
-[localStorage.keys] count=39
+[localStorage.keys] count=40
 gmux.
 gmux.activeProject
 gmux.context.agent.
@@ -334,6 +334,7 @@ gmux.context.bundled.
 gmux.context.collapsed.
 gmux.diffBackgrounds
 gmux.diffInlineMode
+gmux.diffRedline
 gmux.diffSideBySide
 gmux.dockCollapsed
 gmux.editorWidth
@@ -367,7 +368,7 @@ gmux.treeDensity
 gmux.treeOpen.
 gmux.zoomLevels
 
-[env.names] count=94
+[env.names] count=95
 GMUX_ALLOW_SECOND_INSTANCE
 GMUX_ARCH_SEED
 GMUX_CONFIG_ROOT
@@ -436,6 +437,7 @@ GMUX_REMOTE_TREE_ROOT
 GMUX_SESSION_ID
 GMUX_SHOT
 GMUX_SHOT_CAPTURE_OUT
+GMUX_SHOT_CLIPBOARD
 GMUX_SHOT_DELAY_MS
 GMUX_SHOT_DRIVE
 GMUX_SHOT_JS

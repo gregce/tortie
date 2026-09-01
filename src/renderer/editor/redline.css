@@ -1,0 +1,75 @@
+/* The redline row (Phase 191).
+
+   Every colour here is a token. `--error` and `--success` and their washes are
+   the same four the rest of the app says "gone" and "added" with, and research
+   74 §5 measured that they are enough: no new token was needed to draw this.
+
+   PROPORTIONAL AND REFLOWING, which is the whole point. Pierre's own rows are
+   monospace and `white-space: pre` and they are still directly above; this row
+   is the marked-up sentence, so it wraps like a sentence. It measured 24px
+   tall at a wide panel and 64px at a squeezed one, which is three line boxes,
+   and that reflow is exactly why the redline is offered for prose and not for
+   source: reflowing a line of code destroys its indentation, which is the only
+   structure it has.
+
+   `[data-line-annotation]` already sets `--diffs-annotation-bg` to Pierre's
+   own context background, so this row draws on the unchanged colour with no
+   red or green wash behind the whole line. That is what keeps the two
+   readings, colour by token above and colour by change here, visually
+   separate. */
+.ed-redline {
+  padding: 3px 8px;
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The deleted words. `user-select: none` ON THESE IS REFUSED, and the refusal
+   is written down so a later round does not "simplify" to it: it is one
+   declaration and it looks like it solves the copy problem, but it makes the
+   deleted words unselectable, so a phrase that spans a deletion cannot be
+   selected at all, the caret behaves strangely inside the row, and it silently
+   changes what a select-all yields in a way nobody sees until they paste. The
+   answer is the copy handler in ./redline-copy.ts instead. */
+.ed-redline del {
+  color: var(--error);
+  background: var(--error-wash);
+  text-decoration: line-through;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.ed-redline ins {
+  color: var(--success);
+  background: var(--success-wash);
+  text-decoration: none;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* The whitespace-only tag (./RedlineRow). Chrome rather than content: it is
+   Tortie saying what this row cannot show, so it is drawn in the muted chrome
+   colour and the same hairline box the control row's segments use, never in
+   `--error` or `--success`, which mean gone and added and mean nothing else in
+   this row. ./redline-copy strips it from a copy for the same reason. */
+.ed-redline-tag {
+  /* NOT SELECTABLE, and this is the one place in this row where that is
+     right. The refusal recorded above is about the DELETED WORDS, which are
+     content: making those unselectable breaks selecting a phrase that spans
+     them. This is Tortie's own commentary, so a drag across the row should
+     skip it, and without this a copy of several rows, which the handler
+     deliberately leaves to the browser, puts the word "Spacing only" into the
+     person's clipboard in the middle of their sentence. The handler strips it
+     as well, because a Range that encloses the tag still clones it. */
+  user-select: none;
+  margin-right: 6px;
+  padding: 0 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}

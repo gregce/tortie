@@ -8,9 +8,14 @@
  * expression in the driven window and prints its JSON, so a verifier can
  * MEASURE the running app and not only photograph it. GMUX_SHOT_OFFLINE=1 puts
  * the window offline over CDP before the drive runs (Phase 166).
+ * GMUX_SHOT_CLIPBOARD runs the window's own Copy command and prints what the
+ * system clipboard then holds, having saved what it held before and put that
+ * back (Phase 191). Its value is either `1`, for one copy of whatever the
+ * drive left selected, or a JSON array of expressions, each evaluated in the
+ * driven window to set up ONE selection before its own copy.
  */
 
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, clipboard } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { saveLastCaptureTo } from '../capture';
 import { openSettingsWindow } from '../settings';
@@ -221,6 +226,87 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
       console.log(`[gmux-shot][renderer] ${details.message}`);
     });
   }
+  /**
+   * The copies to take, or null for none. `1` means one copy of whatever the
+   * drive left selected; a JSON array means one copy per entry, each preceded
+   * by evaluating that entry as an expression in the driven window.
+   */
+  const clipboardSteps = ((): (string | null)[] | null => {
+    const raw = process.env['GMUX_SHOT_CLIPBOARD'];
+    if (raw === undefined || raw === '') return null;
+    if (raw === '1') return [null];
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((one) => (typeof one === 'string' ? one : null));
+      }
+    } catch {
+      /* not JSON, fall through to the single form */
+    }
+    return [null];
+  })();
+  /**
+   * WHAT THE PERSON'S PASTEBOARD HELD BEFORE THIS RUN, in every flavour
+   * Electron can read, because putting back only the text is not putting it
+   * back. Two things were wrong with the first version of this and both are
+   * fixed here.
+   *
+   * The first is that `clipboard.clear()` was the answer for "there was no
+   * text". Clear empties EVERY flavour, so somebody holding an image or a
+   * file reference with no text alongside it lost it to a harness run.
+   * Restoring "no text" is not the same as clearing the pasteboard.
+   *
+   * The second is honest rather than fixed, and it belongs written down: it is
+   * `wc.copy()` that replaces the pasteboard, not the restore, so a flavour
+   * Electron cannot read is already gone by the time anything here runs. That
+   * is a property of the pasteboard itself and it was measured on 2026-09-01
+   * rather than assumed: an image put on it read back as eight flavours, being
+   * PNGf, 8BPS, GIF, jp2, JPEG, TIFF, BMP and TPIC, and one write of twelve
+   * characters of text left exactly four text flavours and none of the eight.
+   * So the rule is to put back everything readable and, when nothing readable
+   * was there, to clear ONLY if the pasteboard was empty of every flavour. A
+   * pasteboard that held something unreadable is left alone rather than
+   * emptied, because emptying it is a second loss on top of the first.
+   *
+   * Shot mode only. Nothing outside GMUX_SHOT_CLIPBOARD reaches any of it.
+   */
+  const priorClipboard =
+    clipboardSteps === null
+      ? null
+      : {
+          formats: clipboard.availableFormats(),
+          text: clipboard.readText(),
+          html: clipboard.readHTML(),
+          rtf: clipboard.readRTF(),
+          image: clipboard.readImage()
+        };
+  const restoreClipboard = (): void => {
+    if (priorClipboard === null) return;
+    // EVERY FLAVOUR IS GATED ON `availableFormats`, not on whether the read
+    // came back non-empty, because a read can INVENT one. Measured on
+    // 2026-09-01 against a pasteboard holding 44 bytes of plain text and
+    // nothing else: `readHTML()` returned 66 bytes, being `<meta
+    // charset='utf-8'>` and those same 44 bytes, which Chromium synthesises
+    // from the text. Writing that back left the pasteboard carrying an HTML
+    // flavour it never had, which is a change rather than a restore. The
+    // format names are matched loosely on purpose: a name this does not
+    // recognise means that flavour is not put back, which is exactly the
+    // behaviour before any of this existed.
+    const has = (needle: string): boolean =>
+      priorClipboard.formats.some((one) => one.toLowerCase().includes(needle));
+    const data: Parameters<typeof clipboard.write>[0] = {};
+    if (priorClipboard.text !== '') data.text = priorClipboard.text;
+    if (has('html') && priorClipboard.html !== '') data.html = priorClipboard.html;
+    if (has('rtf') && priorClipboard.rtf !== '') data.rtf = priorClipboard.rtf;
+    if (has('image/') && !priorClipboard.image.isEmpty()) {
+      data.image = priorClipboard.image;
+    }
+    if (Object.keys(data).length > 0) {
+      clipboard.write(data);
+      return;
+    }
+    if (priorClipboard.formats.length === 0) clipboard.clear();
+  };
   mainWindow.webContents.once('did-finish-load', () => {
     setTimeout(async () => {
       try {
@@ -282,6 +368,63 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
               return;
             }
             await new Promise((r) => setTimeout(r, 250));
+          }
+        }
+        // GMUX_SHOT_CLIPBOARD=1 (Phase 191). A copy handler can only be
+        // proved by reading what the clipboard ACTUALLY received, which no
+        // renderer expression can do: `navigator.clipboard.readText()` is
+        // gated on a permission and a gesture, and reading back the value the
+        // handler computed proves the handler, not the clipboard. So main
+        // reads it, which is the one place that can.
+        //
+        // THIS RUNS ON A PERSON'S MACHINE AND THE CLIPBOARD IS THEIRS. Every
+        // flavour Electron can read is saved before the drive and put back in
+        // a `finally`, whatever happened. Shot mode only. No product
+        // behavior.
+        if (clipboardSteps !== null) {
+          // THE RESTORE IS IN A `finally`, and that is the whole shape of this
+          // block. Everything from here to the end of the drive used to sit in
+          // one `try` whose `catch` only logs and exits, so a throw in the
+          // GMUX_SHOT_JS expression, in `capturePage` or in the PNG write left
+          // the copied diff text sitting on the person's own pasteboard. It
+          // worked every time it was run, because nothing threw. That is the
+          // shape CLAUDE.md legislates against for an Electron teardown and it
+          // is the same argument here: this is his machine state.
+          //
+          // Restoring at the END of this block rather than at the end of the
+          // drive is deliberate and it covers both cases: a throw inside the
+          // loop unwinds through the `finally`, and a throw anywhere after it
+          // happens with the pasteboard already put back.
+          try {
+            // The window's own Copy command, which is the SAME editing command
+            // the menu bar and the keyboard run: it dispatches a real `copy`
+            // event at the current selection, honours `preventDefault`, and
+            // writes what the handler set. A renderer's own
+            // `document.execCommand('copy')` is gated on user activation that
+            // an async drive no longer has: measured on 2026-09-01, it
+            // returned false and fired no event at all, so this is the only
+            // door.
+            const taken: unknown[] = [];
+            for (const setup of clipboardSteps) {
+              let answer: unknown = null;
+              if (setup !== null) {
+                answer = await wc.executeJavaScript(
+                  `Promise.resolve(${setup})`,
+                  true
+                );
+              }
+              wc.copy();
+              await new Promise((r) => setTimeout(r, 600));
+              taken.push({ setup: answer, text: clipboard.readText() });
+            }
+            console.log(`[gmux-shot] clipboard ${JSON.stringify(taken)}`);
+            // The flavour NAMES only, never their contents, so a probe can
+            // check that the pasteboard came back with what it had.
+            console.log(
+              `[gmux-shot] clipboard-formats ${JSON.stringify(priorClipboard?.formats ?? [])}`
+            );
+          } finally {
+            restoreClipboard();
           }
         }
         // GMUX_SHOT_JS: one expression, evaluated in the DRIVEN window, its
