@@ -18666,6 +18666,48 @@ It lists 184 processes across dozens of rows and the names REPEAT: five separate
 - No filtering, grouping or searching of the sessions table; columns only.
 - No change to how sessions are named.
 
+## Phase 189 — a project tab you cannot read is not a tab (operator reported 2026-08-31)
+
+**Subject:** `fix(titlebar): project tabs stay readable when there are too many`
+**First body line:** `Phase 189: the tabs you cannot read`
+**Semver:** minor if a scrolling or overflow affordance is added, patch if it is only a fitting rule.
+**Tier 2**, one app run across widths and project counts, one named independent method. He reported it, so the PARENT MEASUREMENT IS MANDATORY.
+**Charter:** his words and screenshot of 2026-08-31, wanting more tab information, or scrolling, when there are more horizontal project tabs than there is room for.
+
+### What his screenshot actually shows, and it is worse than crowding
+Twelve projects on one row. The names have been squeezed past the point of meaning: `g...`, `d..`, `h...`, `roo...`, `runs...`, `tortied...`. Only the active tab is readable at all. A tab whose label is one letter and an ellipsis identifies nothing, so the row costs its whole height and returns almost no information. One tab also shows an orange `Greg's Ma` badge, so a machine mark competes for the same squeezed space and must be part of whatever rule is chosen.
+
+### The tree, read before this was queued
+`src/renderer/app/Titlebar.tsx` draws the row of tabs in the top orientations, about 482 lines, and its own header records the three layouts: projects on top expanded is the row of tabs, projects on the left is no tabs at all because `ProjectRail.tsx` draws them instead. What each tab holds is derived in `./project-tabs-data.ts`. The left rail already solves the same problem a different way, with `overflow-y: auto` in `project-rail.css`, so THE APP ALREADY SCROLLS PROJECTS in one orientation and this phase makes the other honest. Confirm all of this against the tree first.
+
+### The decision the phase must make, and it is a decision rather than a detail
+Three answers are possible and the phase picks ONE with a reason, rather than doing several:
+1. **Scroll the row**, which is what he named first and what the left rail already does. Then a tab keeps a readable minimum width and the row scrolls horizontally past it, with some affordance saying there is more.
+2. **Overflow into a menu**, the way the session tab strip already handles its own crowding with a chevron, which keeps one row and no scrolling and reuses a pattern the app already has.
+3. **A floor with honest truncation**, where a tab never shrinks below a width at which its name is still recognisable, and what does not fit goes to whichever of 1 or 2 is chosen.
+The floor in 3 is needed by BOTH 1 and 2, so measure it first: the width at which a real project name stops being identifiable, taken from his own project names rather than invented. **Whatever is chosen, a tab must never again be drawn as one letter and an ellipsis.**
+
+### What it must get right
+- **The machine badge.** A tab carrying a machine mark needs room for it or a different way to show it; the badge must not be what squeezes the name.
+- **The active tab keeps its advantage.** It is the one a person needs to read most and it is readable today; do not regress it to win uniformity.
+- **The digit chords still reach.** The Titlebar header records that holding command reveals the digit that reaches each tab, command 1 to 8 by position and command 9 the last, in `project-shortcuts.ts`. If a tab can now be scrolled out of view or hidden in a menu, say what the chord does then, and prove it still works.
+- **Reordering by pointer drag still works**, since the header records tabs reorder by a shared drag engine, and a scrolling container is exactly where drag-to-reorder breaks.
+- The left rail orientation is NOT changed; it already works.
+
+### Proof, run rather than read
+- THE PARENT MEASUREMENT: at the parent, with his own twelve projects open at his own window width, record the drawn label of every tab and show how many are unidentifiable; at HEAD, the same drive showing every tab either readable or honestly reachable. Numbers, not adjectives.
+- One app run across at least three window widths and at least three project counts, including two and twelve, reading the drawn labels and widths at each.
+- THE NAMED INDEPENDENT METHOD: measure the readability floor yourself off the DOM, being the width each real project name needs before it truncates to nothing, rather than taking the component's belief for it.
+- Drive the whole journey: open and close projects while narrow, and resize live, proving the row keeps up rather than being right only at mount, which is the lesson that caught 175, 181, 174.1, 181.1 and 181.2.
+- The digit chord and pointer reorder both proved still working under the new rule.
+- The battery.
+
+### What is NOT in this phase
+- No change to the left rail orientation.
+- No change to what a tab holds beyond what the fitting rule needs; project tab CONTENT is `project-tabs-data.ts` and is not redesigned here.
+- No new setting for tab width or layout.
+- No change to the session tab strip, which Phase 181.1 just settled.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -18955,3 +18997,4 @@ cycle rather than only the evening it was written.
 - 2026-08-31, Phase 186 QUEUED at his word for AFTER the release: the website learns what shipped, being a changelog entry in /Users/gdc/tortiedotsh matching the shape of src/data/changelog.json whose newest release is 0.76.1, carrying the repository CHANGELOG entry VERBATIM per the release rule rather than rewritten, plus product documentation pages in src/data/docs.ts for the usage meters, the custom terminal font, the diff view controls, Oh My Pi and Architecture behind its flag, each placed in the group the existing tree already has rather than a new one and each stating the limit a person hits in the first hour; ONE COMMIT that is NOT PUSHED because he reviews it in the morning, and his uncommitted work in that checkout including an edited Hero.astro is never committed stashed or discarded, so files are added by explicit path and never with git add -A
 - 2026-08-31, Phase 187 QUEUED at his report: closing a remote machine tab tends to bring it back at least once, which is INTERMITTENT and therefore needs a reproduction WITH A COUNT before any code is touched, N closes and how many returned, because a fix validated by one clean close is not validated; five candidates are named so no round re-derives them, being a list already in flight when the close happened and returning with the stale session, a close that never reached the far side so the row is correctly reported alive, the 300 second store sync rewriting from an older snapshot, the reconcile judgement racing the close, and main's truth never losing the row so any redraw restores it; the measurement that chooses between them is WHEN the row returns in seconds after the close, since seconds points at the 5 second list and minutes at the store sync; Tier 3 because it is remote session lifecycle and he reported it, parent measurement mandatory, harness brings its own loopback sshd and his Mac Pro is never contacted
 - 2026-08-31, Phase 188 QUEUED at his word: the diagnostics sessions table should say which project each session is in and when it started and was last active, because his screenshot shows 184 processes across rows whose names REPEAT, five reading claude-1 and four reading claude-2, so a row holding 3,226 MB cannot be traced to the work it belongs to; the facts already exist and were measured before queueing, since the manifest schema already stores project_path, cwd, agent, created_at and last_seen with an index on project_path, so this is plumbing rather than new measurement and NOTHING new is spawned sampled or polled; the project shows by NAME with the path on hover, the times show as an AGE with the exact time on hover, both new columns SORT because Phase 170 made every table here sortable at his instruction, a row with no manifest match draws with empty columns rather than vanishing, and the phase must say plainly what last_seen actually means since it is the manifest's liveness stamp rather than a record of his last keystroke
+- 2026-08-31, Phase 189 QUEUED at his report: with twelve projects on the top row the tabs are squeezed past meaning, his screenshot reading g dot dot dot, d dot dot, h dot dot dot, roo dot dot dot, so only the active tab is identifiable and the row costs its whole height for almost no information, with an orange machine badge competing for the same space; the tree says Titlebar.tsx draws this row while ProjectRail.tsx draws the left orientation which ALREADY SCROLLS with overflow-y auto, so the app solves this in one orientation and not the other; the phase must PICK ONE answer with a reason, being scroll the row as he named first, or overflow into a menu the way the session strip already does with its chevron, or a readability floor, and the floor is needed by both of the others so it is measured FIRST from his own project names rather than invented; a tab must never again draw as one letter and an ellipsis; the command digit chords and pointer reorder must both still work, which is exactly what a scrolling container breaks
