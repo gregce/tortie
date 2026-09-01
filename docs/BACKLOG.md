@@ -19254,6 +19254,93 @@ than doing it. Nothing anywhere under `~/.ssh` is written, moved or deleted.
 - **Not the `known_hosts` of any remote machine**, and his Mac Pro is never contacted.
 - **No change to `StrictHostKeyChecking` anywhere in the product**, which is `yes` and stays `yes`.
 
+## Phase 188.1: a corrupt timestamp must not stop the diagnostics pane
+
+**Subject.** `fix(diagnostics): an impossible timestamp cannot stop the live report`
+
+**First body line.** `Phase 188.1: the stamp that throws`
+
+**Semver.** PATCH. One clause, no user facing change unless the bad value exists, in which case a row
+reads unknown instead of the pane going dead.
+
+**Tier 2.** It is invisible to a person until it fires, so the gates and a written test ARE the
+evidence and the verifier re-derives rather than photographs. The independent method is **write a
+hostile fixture**, because this is entirely about bytes somebody else wrote into the manifest.
+
+**Charter.** Phase 188's verifier found it with its own hostile fixture and RECOMMENDED shipping the
+guard inside that phase. Phase 188's committer deliberately did not, on the correct principle that
+changing code after the verification ships bytes nobody verified, and recorded it under KNOWN LIMITS
+in the commit body of `06fbe2c` so the next round inherits it rather than re-deriving it. This is
+that next round. It is queued exactly because the override was deliberate and reasoned rather than an
+oversight.
+
+### The defect, read from the tree
+
+`src/main/diagnostics/report-text.ts:60` is:
+
+```
+function stampText(label: string, epochMs: number | null): string {
+  return `${label} ${epochMs === null ? 'unknown' : new Date(epochMs).toISOString()}`;
+}
+```
+
+`Date.prototype.toISOString` throws a `RangeError` for any epoch outside plus or minus 8.64e15 ms.
+`stampText` is called twice per session at `report-text.ts:148`, once for `started` and once for
+`last seen`. The row reader range checks neither `created_at` nor `last_seen`, so an out of range
+number reaches it unchanged.
+
+The blast radius is what makes it worth a phase rather than a nit. The text build runs inside
+`finishCapture` in `src/main/diagnostics/report.ts:292`, which is unguarded, and `finishCapture` is
+what the IPC handlers at `src/main/diagnostics/ipc.ts:68` and `:93` call. Phase 170 made this pane
+sample live while it is visible, so ONE corrupt row does not spoil one cell, it fails the whole
+capture and the live loop stops after three ticks. The pane goes dead and nothing says why.
+
+**The renderer is already safe on the same value.** Only the text build throws, which is why nobody
+has seen it.
+
+### Reachability, stated honestly rather than talked up
+
+LOW. Tortie writes both fields itself with `Date.now()`, so the value can only be out of range if the
+manifest was edited by hand, restored from something else, or corrupted. The phase does not pretend
+otherwise. It is queued because the cost is one clause and the failure is the whole pane rather than
+one cell.
+
+### What it builds
+
+1. **`stampText` answers `unknown` for any epoch it cannot render**, the same word it already uses for
+   null, rather than throwing. Not a clamp and not a guess: a value that cannot be a time is not
+   drawn as one.
+2. **Decide, and say which and why:** whether the range check belongs in `stampText` alone, or in the
+   row reader so every consumer inherits it. Prefer the reader if and only if the read of the tree
+   shows other consumers with the same exposure. Naming the choice is part of the phase.
+3. **A test with the real hostile values**, being 8.64e15 plus one, negative 8.64e15 minus one,
+   `NaN`, `Infinity`, and a `last_seen` three days in the future which is legal and must still render
+   normally. The test goes red without the fix.
+
+### Proof, run rather than read
+
+- **The parent proved to throw.** A unit test at the parent commit handed the out of range value,
+  showing the `RangeError` by name and showing that `finishCapture` propagates it. Not reasoned, run.
+- **The whole capture proved to survive at HEAD** with the same value present, and the row reading
+  `unknown` rather than the pane going empty.
+- **The live loop proved to keep ticking** past the bad row, since the defect is that it stops after
+  three ticks. Drive it rather than assert it.
+- The `last_seen` in the future still renders as an ordinary age, so the guard did not become a clamp.
+- The battery.
+
+### What is NOT in this phase
+
+- **No repair of the manifest.** A bad value is read and rendered honestly; it is never rewritten,
+  clamped or deleted. His manifest is read only.
+- **No change to what the table draws** in the ordinary case, and no change to the columns Phase 188
+  just shipped.
+- **Not the other two Phase 188 known limits.** A newline in a project name splitting a pasted report
+  line is cosmetic and rare, and the table drawing 613px inside a 461px scroller is contained by
+  `.diag-scroll` so the page itself never scrolls sideways. Both stay recorded rather than fixed here.
+- **No audit of every `toISOString` in the tree.** `off-device.ts` has four and `report.ts:430` has
+  one; if the read shows any of them exposed to a manifest value, say so in the report and queue it
+  rather than widening this phase.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -19559,3 +19646,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, Phase 187 SHIPPED at version 0.97.1 on `7d15e68`, a PATCH because the cause was in memory rather than in durable state, no cadence moved and nothing is sent to any machine by either fix: a closed remote machine tab STAYS CLOSED, where before it came back a few seconds later and a second Remove was needed, which is his own sentence that closing one tends to bring it back at least once; THE COUNT AT THE PARENT AND AT HEAD, the honest product timeline driven 200 times with one Remove each over the real feed with the exec plane replaced by a function, 200 of 200 came back at the parent and 0 of 200 at HEAD, and the same 200 at the FIRST fix round's parent so those two lines neither caused this nor cured it, plus the real app arm RACE on its own loopback sshd returning 3 of 3 at the parent and 0 of 5 at HEAD with the held list still landing 3,967 to 4,125 ms after the Remove, and GHOST 5 of 5 at the parent and 0 of 5 at HEAD with no second Remove ever needed; WHEN IT CAME BACK is seconds and not minutes, being as soon as the list in flight over the close answered, and that number alone chose CANDIDATE 1 over candidate 3 before any code was read closely; THE OTHER CANDIDATES, 2 dead by asking the far machine directly READ ONLY after ninety closes and it held the session after none of them, 3 dead by a 420 second tail over forty closed ids recording zero sightings which is longer than the 300,000 ms store sync cadence, 4 not seen since every one of the ninety closes landed on the far machine, 5 confirmed as main's own truth keeping the row with the surface only drawing what it was handed; THE FIX is three rules in `src/main/machines/remote-sessions.ts`, a pass whose `snapshotAt` predates a Remove may not reinstate the id that Remove cleared with the tie going to the person since a strict comparison still let 194 of 200 back in and the instants pruned at 20,000 ms which is twice the list timeout, a completed list holding a session takes its id OUT of `gone` which is also what ended one session drawing as two rows, and a Remove clears BOTH maps rather than the `||` that short circuited so `state.rows.delete` never ran; THE GUARD `npm run conformance:remoteclose`, eleven arms A to K over 25 closes each in about 0.4 s spawning nothing and launching no Electron, RED AT THE PARENT on A 25 of 25, D 25 of 25 in both maps and drawn twice, E 25 of 25 still there on the second Remove, G 25 of 25 and K 25 of 25 with the `||` restored, while B, C, F, H, I and J pass at the parent too so it is not trivially red, and all eleven green at HEAD, named in package.json and classified in build/verification-checks.mjs and written into CLAUDE.md's gate list beside the new counter `remoteRowsInBothMaps` which must always be empty; A STRAY FOUND IN THE HARNESS ITSELF, a scratch ssh agent pid 59110 still up hours after the first probe run because `scratchYard` is called at MODULE LEVEL above the `try` its `finally` belongs to so anything ending the process early skipped the teardown, now ended on `exit` with SIGTERM and the socket unlinked only after `lstatSync` proves it is a socket, measured leaking at the parent and leaking nothing at HEAD over both the `-s` and `-a` shapes, and pid 59110 was REPORTED AND NOT KILLED because it is not this session's; THE BATTERY green from a clean typecheck cache, 1103 production files 0 boundary violations and 1101 0 runtime cycles, build with gate:electron and gate:contract inside and the contract inventory byte identical to the baseline, 710 test files and 11,320 tests, smoke:t1 6 of 6, smoke:t3 3 of 3 over a claude and a pi restore, conformance:machines PASS, gate:electron 172 files read with 56 reaching the helper; WHAT IS NOT TRUE, a Remove is NOT a kill and only a list ISSUED BEFORE it is refused and only for the ids it cleared and only for 20,000 ms with `state.names` deliberately untouched so the next create there cannot take the name, a tab staying on screen after End is SHIPPED BEHAVIOUR with the local control leaving 5 of 5 rows reading `exited` at the parent and at HEAD alike and a later round must not fix it as part of this, and STILL OPEN is which gesture puts a person on Remove while `remoteRecordStatus` reads a row in both maps as live so the x offers End, one of whose two candidates is gone with this work; his Mac Pro was NEVER contacted, every run stood up its own loopback sshd with its own keys and its own agent, and his own server read 54 sessions before and 54 after.
 - 2026-09-01, Phase 193 QUEUED from Phase 187's own report, which named it rather than acting on it and was right to: his ~/.ssh/known_hosts measures 2,120 bytes holding 3 entries for 127.0.0.1, confirmed twice the same night at the same numbers, and CLAUDE.md already records that same file at 932 bytes before a probe run and 1,229 after during the machines work, so a harness run leaving loopback lines in HIS file is a known shape rather than a guess; THE PRODUCT SIDE IS ALREADY CORRECT AND ALREADY GATED, since src/main/machines/ssh.ts:277 and :316 carry StrictHostKeyChecking=yes with UserKnownHostsFile set and npm run conformance:machines asserts the connection test argv names Tortie's own host key file FIRST and the person's second, and that gate exists precisely because the PRODUCT once added three lines to his known_hosts measured at 932 bytes before and 1,229 after, so this is the same defect arriving through the back door; the harness has no such gate and while build/capture-machine-goldens.mjs:232, build/p118-remote-children.mjs:297, build/probe-control-dialect.mjs:250 and build/probe-control-deadline.mjs:171 do scope it, whether EVERY script that can reach ssh does is unknown and unknown is the finding; the phase finds it BY REPRODUCTION rather than by reading, running the machine touching probes with HOME pointed at a scratch directory and comparing that scratch known_hosts byte for byte before and after so the offending script is named by evidence, fixes it at the source with ONE shared helper the way build/electron-run.mjs owns every Electron launch rather than four call sites a later script can forget, and adds npm run gate:knownhosts which scans every file under build/ for a spawn of ssh scp sftp or ssh-keyscan whose argv does not scope UserKnownHostsFile to a path the script owns, named in package.json AND in build/verification-checks.mjs, running inside npm run build so nothing that builds can skip it, and PROVING ITS OWN SCANNER ON FIXTURES at least one of which makes it fail because a gate that cannot fail is not a gate; ABSOLUTE REFUSAL, his ~/.ssh/known_hosts is not edited truncated rewritten or backed up and the three loopback lines already in it stay exactly where they are, since this phase stops new ones being written and nothing else and if those lines should go that is his to do, and the proof includes a byte count of his real file before and after the whole phase showing it unchanged at 2,120 read only both times; PATCH, Tier 3 because it touches ssh and writes under his home, with re-derive and attack as the named independent methods; NOT in it are any edit under ~/.ssh, any change to src/main/machines which is already correct and already gated, any new probe or new coverage, any remote machine's known_hosts, and any change to StrictHostKeyChecking which is yes and stays yes.
 - 2026-09-01, Phase 188 LANDED on `06fbe2c` at version 0.97.1 with no bump, since this project bumps in its own build(version) commit at release, and the DECLARED SEMVER FOR THIS PHASE IS MINOR so the release that carries it knows: the usage report's sessions table now draws Project, Started and Last seen beside Session, Agent, Processes, CPU and Memory, so he can open the pane with dozens of sessions running and tell, for every single row, which project the work belongs to and how long it has been there, which is exactly what the 3,226 MB row in his screenshot could not tell him, with the full path and both exact instants on hover, both new columns sorting in both directions, and the report he pastes into an issue carrying the same facts; THE PARENT EVIDENCE is the parent's own DiagnosticsBody extracted from abfba99 and rendered beside HEAD's over ONE report that already carried the fields, where two rows named `claude-1` came out BYTE IDENTICAL at five cells each with zero title attributes, so no hover carried the missing fact either even though the data was in the object, and at HEAD the same two rows are distinct at eight cells each, one reading herdr with the hover `~/herdr` and the other rookery with `~/rookery`; A ROW WITH NO MANIFEST MATCH STILL DRAWS, proved on three different shapes being a tmux session Tortie never created, a LIVE session whose manifest row was deleted underneath it, and a session whose projects row was deleted while `project_path` stayed, the first two taking four empty cells with no title and no dash and no placeholder and the third falling back to the last path segment so closing a project tab cannot blank the column on the rows a person is tracing, with 11 manifest rows plus 2 orphans equalling the 13 rows drawn and 30 created plus 1 stray equalling the 31 drawn in the other run; this is PLUMBING rather than new measurement, being two SQLite SELECTs against a file `listSessions()` already opens and reads every capture, measured at 0.210 ms and 0.004 ms on a 208 row fixture against live mode's 2000 ms tick, so nothing is spawned sampled or polled and the columns ride the live tick for free, proved by renaming a project underneath the running app with no control touched and reading the new name seven seconds later; the verifier's NAMED INDEPENDENT METHODS were rendering the parent's own component beside HEAD's over one report and comparing bytes, a HOSTILE FIXTURE of seven shapes the builder never built including a `created_at` of 0 drawing 20697d and a future `last_seen` drawing now, and MEASURING PIXELS off the drawn cell, on top of a RE-DERIVATION of every drawn project, hover path and age from its own `SELECT name, project_path, created_at, last_seen FROM sessions` and its own formatter written from the rule rather than imported, agreeing on 11 of 11 rows with zero disagreements, and a descending Started drawing `2h 3h 4h 5h 6h 8h 9h 10h 11h 13h 20697d` which a lexicographic sort of those same strings could not produce and which is what settles that the sort runs on the epoch; `Last seen` is NOT last active and the head hover says so in his terms, since it moves on a reconcile, a status transition and a death and never on a keystroke; five rows still read `shell-1` because nothing here changes how sessions are named, and every one of them is now traceable; the battery ran green from a clean TypeScript cache before the rebase and again after it, with smoke:t1 at 6 of 6 and 11,335 tests over 710 files.
+- 2026-09-01, Phase 188.1 QUEUED from Phase 188's own commit body, where it is recorded under KNOWN LIMITS on 06fbe2c: the verifier found it with a hostile fixture and RECOMMENDED shipping the guard inside 188, and 188's committer deliberately declined on the correct principle that changing code after the verification ships bytes nobody verified, so this is the next round the override was written for rather than an oversight; THE DEFECT is that stampText at src/main/diagnostics/report-text.ts:60 calls new Date(epochMs).toISOString() which throws a RangeError for any epoch outside plus or minus 8.64e15 ms, it is called twice per session at report-text.ts:148 for started and for last seen, and the row reader range checks NEITHER created_at NOR last_seen so an out of range number reaches it unchanged; THE BLAST RADIUS is what makes it a phase rather than a nit, since the text build runs inside finishCapture at src/main/diagnostics/report.ts:292 which is unguarded and is what the IPC handlers at ipc.ts:68 and :93 call, and Phase 170 made this pane sample LIVE while it is visible, so one corrupt row does not spoil one cell, it fails the whole capture and the live loop stops after three ticks with the pane going dead and nothing saying why; the renderer is already safe on the same value which is why nobody has seen it; REACHABILITY IS LOW and the entry says so rather than talking it up, since Tortie writes both fields itself with Date.now() so the value can only be out of range if the manifest was hand edited, restored from something else or corrupted, and it is queued because the cost is one clause and the failure is the whole pane; the fix is that stampText answers unknown for any epoch it cannot render, the same word it already uses for null, being neither a clamp nor a guess since a value that cannot be a time is not drawn as one, plus a decision stated in the phase about whether the range check belongs in stampText alone or in the row reader so every consumer inherits it; PROOF IS RUN RATHER THAN READ, being a unit test at the PARENT that shows the RangeError by name and shows finishCapture propagating it, the whole capture surviving at HEAD with the same value present, and the LIVE LOOP proved to keep ticking past the bad row since the defect is that it stops after three ticks; PATCH, Tier 2, and the named independent method is WRITE A HOSTILE FIXTURE because this is entirely about bytes somebody else wrote into the manifest; NOT in it are any repair clamp or deletion of a manifest value since his manifest is read only, any change to what the table draws in the ordinary case, the other two Phase 188 known limits being a newline in a project name splitting a pasted report line and the table drawing 613px inside a 461px scroller which is contained by .diag-scroll, and any audit of the other toISOString call sites which are named for a later round rather than widened into this one.
