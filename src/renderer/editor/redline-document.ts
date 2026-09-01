@@ -306,8 +306,13 @@ function linePartition(
   const shortest = Math.min(oldText.length, newText.length);
   let prefix = 0;
   while (prefix < shortest && oldText.charAt(prefix) === newText.charAt(prefix)) prefix++;
-  // Back to the start of the line the prefix ends inside.
-  prefix = oldText.lastIndexOf('\n', prefix - 1) + 1;
+  // Back to the start of the line the prefix ends inside. A prefix of zero
+  // stays zero: `lastIndexOf` clamps a negative position to 0, so asking it
+  // about position -1 reads the first character, and an old side that BEGINS
+  // with a newline then claimed a shared head of "\n" the new side did not
+  // have. The verifier of Phase 194 caught it as one byte off on the new
+  // projection over a 1,300 line rewrite.
+  prefix = prefix === 0 ? 0 : oldText.lastIndexOf('\n', prefix - 1) + 1;
   let suffix = 0;
   while (
     suffix < shortest - prefix &&

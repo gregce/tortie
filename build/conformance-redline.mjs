@@ -764,7 +764,7 @@ say('9. no redline file names a bridge, a write or an accept, so nothing here ca
     while (i < a.length && i < b.length && a[i] === b[i]) i++;
     return `offset ${String(i)}: ${JSON.stringify(a.slice(i, i + 20))} against ${JSON.stringify(b.slice(i, i + 20))}`;
   };
-  if (docs.length < 17) fail(`15. only ${String(docs.length)} document fixture(s) were composed.`);
+  if (docs.length < 20) fail(`15. only ${String(docs.length)} document fixture(s) were composed.`);
   let wholeSeen = 0;
   for (const d of docs) {
     if (!Array.isArray(d.runs)) {
@@ -802,8 +802,21 @@ say('9. no redline file names a bridge, a write or an accept, so nothing here ca
   if (rewritten !== undefined && !(rewritten.whole.tooDifferent === 1 && rewritten.runs.map((r) => r.kind).join(',') === 'same,del,ins,same')) {
     fail(`15. the rewritten paragraph did not draw whole between its context: ${JSON.stringify(rewritten.runs.map((r) => r.kind))}.`);
   }
-  const lines = docs.find((d) => d.name === 'rewritten past the line guard');
-  if (lines !== undefined && lines.approximate !== true) fail('15. the line guard did not fire on a file rewritten past it.');
+  const coarse = docs.filter((d) => d.name.startsWith('rewritten past the line guard'));
+  if (coarse.length < 4) fail(`15. only ${String(coarse.length)} fixture(s) reach the coarse fallback, wanting 4.`);
+  for (const d of coarse) {
+    if (d.approximate !== true) fail(`15. the line guard did not fire on "${d.name}".`);
+  }
+  // The coarse fallback's shared head is a LINE of the old side, so it must
+  // be empty or end on a newline, and the new side must begin with it. A
+  // head of "\n" over a new side that begins with "n" is the one byte defect
+  // the verifier of Phase 194 caught.
+  for (const d of coarse) {
+    const head = d.runs[0]?.kind === 'same' ? d.runs[0].text : '';
+    if (!(head === '' || head.endsWith('\n')) || !d.new.startsWith(head)) {
+      fail(`15. "${d.name}" claims a shared head ${JSON.stringify(head.slice(0, 20))} that is not a line both sides begin with.`);
+    }
+  }
   if (wholeSeen < 7) fail(`15. only ${String(wholeSeen)} block(s) drew whole across the fixtures, so the caps were not all seen.`);
   const f = data.fuzz ?? {};
   if (!(f.pairs >= 3000 && f.oldWrong === 0 && f.newWrong === 0 && f.unaligned === 0)) {

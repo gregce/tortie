@@ -318,6 +318,26 @@ const DOCUMENTS: { name: string; old: string; new: string }[] = [
     name: 'rewritten past the line guard',
     old: `same head\n${Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 200 }, (_, i) => `old ${String(i)}`).join('\n')}\nsame tail\n`,
     new: `same head\n${Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 200 }, (_, i) => `new ${String(i)}`).join('\n')}\nsame tail\n`
+  },
+  {
+    // The verifier's coarse.txt: the OLD side begins with a newline and the
+    // new side does not, so there is no shared head at all, and the snap
+    // back to a line start must not invent one. One byte off at HEAD 4d271c4.
+    name: 'rewritten past the line guard, old side starting on a newline',
+    old: `\n${Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 300 }, (_, i) => `old ${String(i)}`).join('\n')}\n`,
+    new: `${Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 300 }, (_, i) => `new ${String(i)}`).join('\n')}\n`
+  },
+  {
+    // The mirror: the NEW side begins with a newline, with a shared tail.
+    name: 'rewritten past the line guard, new side starting on a newline',
+    old: `${Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 300 }, (_, i) => `old ${String(i)}`).join('\n')}\nsame tail\n`,
+    new: `\n${Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 300 }, (_, i) => `new ${String(i)}`).join('\n')}\nsame tail\n`
+  },
+  {
+    // Nothing shared at either end, and no newline at the end of either side.
+    name: 'rewritten past the line guard, nothing shared',
+    old: Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 300 }, (_, i) => `old ${String(i)}`).join('\n'),
+    new: Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 300 }, (_, i) => `new ${String(i)}`).join('\n')
   }
 ];
 
