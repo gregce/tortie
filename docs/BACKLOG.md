@@ -18839,6 +18839,125 @@ Each option gets a self contained HTML file under docs/research/assets/75-chrome
 - No queued phase. He reads the options and picks, and only then does a phase get written.
 - No change to any product file. The research writes its document and its mocks and nothing else.
 
+## Phase 192: the skills sheet is too wide and the preview too short
+
+**Subject.** `fix(install): the skills sheet stops taking the whole window`
+
+**First body line.** `Phase 192: the skills sheet is narrower and its preview taller`
+
+**Semver.** PATCH. Nothing is added, removed or renamed. Two numbers move on one
+existing modal and a third stops being flat. No setting, no new surface, no menu change.
+
+**Tier 2, and the parent measurement is MANDATORY** because he reported it personally. It is a
+rendered surface with no new state, so one app run drives every claim. The independent method,
+named before the work starts, is **attack rather than confirm**: the phase will conclude the sheet
+is narrower and the preview taller, and the verifier's job is to try to break that at the viewport
+where Phase 132's regression lives, being 586 px with six acknowledgement rows in the control band,
+re-deriving the Install button's hit test itself rather than re-running the builder's probe
+invocation and reading its verdict.
+
+**Charter.** His words on 2026-09-01 with two screenshots, the search step and the preview step:
+reduce the size of the skills search and results slightly, give the preview more height or allow for
+total scroll, "we've changed this before but now its just too wide and isn't aesthetically
+pleasing".
+
+### THIS REVERSES HIS OWN EARLIER RULING, AND THE COMMENT MUST SAY SO
+
+`src/renderer/context/install/install.css:202` carries the reason the sheet is 1600 px wide, and the
+reason is him: *"Widened in Phase 132 from 880px to 1120px, and again on 2026-08-23 when the
+operator asked for the sheet to take up more of the screen."* That comment is now wrong about what
+he wants, and a later round reading it will widen the sheet back. The comment is rewritten in this
+phase, dated 2026-09-01, saying plainly that he asked for it wide and then asked for it narrower
+after living with it, and that the second word is the current one. Deleting the history is not
+allowed; the record of both rulings is what stops the third round.
+
+### THE TRAP, AND IT IS THE WHOLE PHASE
+
+`.ctx-install-sheet` at `install.css:211` reads `width: min(1600px, 92vw)`. **At his window the
+1600 px cap never binds.** His screenshots are 2970 and 2948 device pixels wide at 2x, so his window
+is about 1485 logical px, and 92vw of that is about 1366 px. A phase that lowers 1600 to 1280 and
+stops changes NOTHING on his machine and he reports it again. The number he is actually looking at
+is the `92vw`.
+
+So the first thing this phase does is measure, in the running app at his own window size, which of
+the two terms is binding, and the fix moves the term that is. My arithmetic above is from a
+screenshot and is not evidence; the app run replaces it.
+
+### WHAT MOVES
+
+1. **The sheet's width**, `install.css:211`. The binding term comes down. There is a hard floor and
+   it is not taste: `install.css:384` is `@container ctxd-preview (min-width: 680px)`, and below
+   that the preview collapses from two columns to one, which makes the sheet TALLER and makes his
+   second complaint worse. The chosen width is stated with the measured margin it leaves above that
+   680 px container, at his window and at a 1280 px one.
+
+2. **Band 3, the skill's own text**, `install.css:536`, `max-height: calc(var(--space-10) * 3)`,
+   being 144 px, which after 16 px of padding on each side is the 6 visible lines in his second
+   screenshot. This is the box he wants taller. A flat 144 px is the defect: it refuses the room a
+   tall window already has. It becomes a bound that grows with the sheet and keeps 144 px as its
+   floor, so a small window is exactly what it is today and a tall one is not.
+
+3. **Nothing else in the band stack**, and specifically NOT `install.css:495`, the 144 px floor on
+   band 1. Its own comment says *"DO NOT RAISE THIS without driving the six row stress in the
+   probe"*, and 192 px was already specified, driven and rejected once at Phase 132.1. This phase
+   does not touch it.
+
+### WHAT "TOTAL SCROLL" MEANS HERE, AND WHY THE LITERAL READING IS REFUSED
+
+He offered making the whole thing scroll as an alternative. One scroller for the whole sheet is
+exactly what Phase 132 removed, and the numbers are in the comment at `install.css:214`: the sheet
+was one scroller 2097 px tall with the Install button 776 px down inside it, so at a 700 px window
+the button sat 128 px past the bottom edge and at 586 px it sat 242 px past. The button is the
+thing the sheet exists for. His intent, being that he can reach all of the preview text, is met by
+band 3 growing and continuing to scroll inside itself. The entry records the refusal with those
+numbers so it is a decision rather than an omission, and the phase says it back to him in the
+report.
+
+### WHAT ELSE THE COMMIT MUST CARRY
+
+`src/renderer/context/install/__tests__/install-layout.test.ts:191` asserts the width string contains
+`1600px` and `92vw`, and lines 217 and 220 pin both `calc(var(--space-10) * 3)` rules. Those
+assertions are updated in the SAME commit to the new numbers, still as text read out of the
+stylesheet, or the phase lands red. A test that pins the old number is not a test that was left
+behind, it is the gate that catches this drifting back.
+
+### PROOF, RUN RATHER THAN READ
+
+One app run, launched through `build/electron-run.mjs` on its own userData, driving the whole
+journey rather than a resting state: open Context, type a query, get results, open a result, reach
+the preview.
+
+- The sheet's measured width in CSS px at the parent commit and at HEAD, at his own window size and
+  at 1280 px and at 700 px, with which term of the `min()` was binding at each.
+- The preview container's measured width at HEAD against the 680 px container query, proving the two
+  column layout survives.
+- Band 3's visible content height and its scrollHeight at parent and at HEAD on a tall window, and
+  the same on a short one showing the floor held.
+- **The Phase 132 stress, at parent and at HEAD**: a 586 px viewport with six acknowledgement rows,
+  the Install button's bottom edge against the sheet's bottom edge as two numbers, and
+  `document.elementFromPoint` at the button's own centre returning the button. `npm run probe:p132`
+  drives this; the verifier re-derives it independently rather than reading the probe's verdict.
+- Gates: `npm run typecheck && npm run build && npm run smoke:t1` plus `npm test`, and
+  `build/assert-css-order.mjs` runs inside the build.
+
+### What is NOT in this phase
+
+- **The install confirm is not touched.** `.ctxd-install-modal` at `install.css:36` is 1120 px and is
+  a DIFFERENT surface, drawn by `InstallDialog.tsx:109`, and it appears in neither screenshot. Its
+  width exists so the command line being approved is one line rather than three, which is a
+  correctness reason rather than a taste one. It stays.
+- **Nothing is rearranged.** The two column preview from Phase 26 keeps its columns, its 5fr to 7fr
+  split and its order. No band changes places.
+- **Nothing changes about what the sheet SHOWS.** No field added, no field removed, no copy
+  rewritten, no facts section reworded. The 300 character description slice in `install-store.ts`
+  stays as it is.
+- **No sheet-wide scroller**, for the reason above.
+- **Not the Context panel behind it**, being its filter field, its SKILLS group or its counts.
+- **Nothing about what runs.** `install-gate.ts`, the confirm hash and the command composition are
+  untouched, and no phase that moves a width may reach them.
+- **`app.css` is not edited**, which is the same rule Phase 132 kept.
+- **No native menu change**, because no surface is added, renamed or removed.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -19136,3 +19255,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, Phases 190 and 191 QUEUED at his word from research 74: 190 is the finding that the Phase 185 four way Inline control has only TWO outcomes on his own file, Words Phrases and Characters drawing byte identical markup because his edit is a pure word DELETION with nothing inserted so all three jsdiff functions return the same parts, which is upstream of Pierre and of Tortie and means NOTHING IS BROKEN, the defect being that four names are offered for what is sometimes one answer with nothing said about it, so the phase picks ONE of saying nothing, saying it on the face when true, or disabling what cannot differ, and MEASURES the cost of the comparison before choosing the second; 191 is the redline itself, where research 74 settled that Pierre cannot draw one because its diff lines are grid items whose display is blockified by the specification, proved by forcing display inline important into its own shadow root where the colour and strikethrough took and the display did not, but that Pierre CAN HOLD one since lineAnnotations and renderAnnotation are exported and stacked mode merges both sides into one annotation row, and that Tortie drawing it itself WORKS and was rendered with four deletions and four insertions in one element from existing tokens, over a jsdiff already present at zero new packages; the phase's FIRST step is proving the annotation slot in one app run because it is the only claim read from source rather than run, and it picks its home from that measurement rather than from either document; a copy handler is REQUIRED because selection interleaves both sides verbatim, the demonstration fixture must REPLACE words since on a pure deletion a redline and a strikethrough are the same picture in any implementation, and accept and reject are REFUSED because accepting means writing a file
 - 2026-09-01, Research 75 QUEUED and RUNNING at his word: a visual language update for the FULL APP CHROME, being lines, typography, icon weights, slight fades, colouring and the edges he wants kept, explicitly NOT a rearrangement since nothing moves; he named VS Code's recent repaint and a Ghostty terminal and said he particularly likes the Ghostty one, and he asked for a lot of research, the best interfaces studied rather than guessed at, and A FEW OPTIONS WITH MOCKS he can look at; the rule that decides a good proposal is that it must speak to the soul of ZEN-OF-TORTIE.md, since a language that could belong to any editor is decoration, and Tortie already has beliefs a look can carry, being that the glance answers who needs me so attention must be the loudest thing, that just enough words means the chrome says little and quietly, and that sessions are durable while the app is disposable so the chrome is a calm frame around work that outlives it; the research MEASURES the current chrome including every place it contradicts itself, studies the references MECHANICALLY for contrast distance and hairline technique and radius nesting and icon stroke consistency and how elevation is expressed without shadows, NAMES WHAT A REPAINT COSTS since many probes photograph the app and the gmux-* classes are load bearing and the Pierre bridge and xterm palette inherit tokens, and delivers THREE coherent options each as a token diff naming its Zen belief with a self contained HTML mock of Tortie's own chrome plus a control mock of the chrome as it is today, all carrying the same content so they can be set side by side; nothing is queued from it, he picks
 - 2026-09-01, Research 75 DELIVERED, a visual language for the chrome, docs/research/75-chrome-visual-language.md with four self contained mocks at docs/research/assets/75-chrome/ being control option-a option-b and option-c, each exactly 1400 by 880 with identical content and zero external references so they can be set side by side, and the control drawn from the REAL token values read out of src/renderer/styles/tokens.css rather than from memory: THE RECOMMENDATION IS OPTION A, the quiet frame, and the reason is one measurement rather than a preference, since what makes the Ghostty window he named read as expensive is that the monospace content is the brightest thing on screen and every piece of frame sits below it, while Tortie has that relationship INVERTED TWICE, at the text where --text-primary #e8eaed measures 15.28 to 1 against the transcript's 13.29 to 1 and is byte identical to xterm's own brightWhite, and at the ground where --bg-sidebar is 31.2 percent brighter in luminance than --bg-canvas which is why the active tab reads as a well rather than a tab, and A is the only one of the three that turns both the right way up while B fixes the text and leaves the ground and C fixes both and breaks the plane ramp doing it; THE SYNTHESIZER RE-DERIVED RATHER THAN SUMMARISED and that caught four things the option agents did not, being option C's ramp putting --bg-raised BELOW --bg-surface so .agent-tile at agent-grid.css:44 and :56 gets DARKER on hover which is a shipped inversion, option C's --git-modified #a5abb7 sitting delta E 0.81 from --text-secondary which is below the just noticeable difference so it deletes the M badge's signal rather than moving it, option A's undeclared cost being the hover step on --bg-surface shrinking from 1.098 to 1 down to 1.056 to 1, and --border on --bg-active measuring 1.013 to 1 today which is a hairline that does not exist on a selected row and only C fixes it so that retune is extracted into A; it also caught the study's own F1 numbers being wrong, 0.9326 being an OKLCH lightness rather than a luminance; ELEVEN SELF CONTRADICTIONS were found in the chrome as it is and SEVEN of them are pure consistency defects with no design decision in them, being two icon rest values that DESIGN.md itself states both of at lines 237 and 264, seven codicon sizes for one glyph set, 26 stray radii beside a three step family, 33 unnamed font sizes one of which is a real sixth step, 32 unnamed tracking declarations across nine values, a chrome token colouring the terminal's cursor, and a full strength amber dot in the Explorer at use-tree-model.ts:243 sitting delta E 4.45 from the one colour reserved for an agent needs you, and the recommendation is to FIX THOSE FIRST IN THEIR OWN COMMIT WHATEVER HE PICKS because fixing them alone with no token value changed at all is most of the distance to premium; NOTHING IS QUEUED FROM THIS, he picks, and the mocks are published as an artifact he can flip between.
+- 2026-09-01, Phase 192 QUEUED at his report with two screenshots: the Install a skill sheet is too wide and its preview too short, and he named the history himself with "we've changed this before but now its just too wide", so this REVERSES his own 2026-08-23 ruling that widened it and the CSS comment at install.css:202 which records that ruling in his name is rewritten dated rather than deleted, because a later round reading it would widen it back; THE TRAP IS THAT THE 1600px CAP NEVER BINDS ON HIS MACHINE, since his screenshots are 2970 and 2948 device pixels at 2x so his window is about 1485 logical px and 92vw of that is about 1366 px, which means a phase that lowers 1600 to 1280 and stops changes NOTHING for him and he reports it again, so the phase MEASURES which term of the min() is binding in the running app before it moves either; the preview box he wants taller is band 3 at install.css:536, being max-height calc(var(--space-10) * 3) or 144 px which after its padding is exactly the 6 mono lines his screenshot shows, and it becomes a bound that GROWS with the sheet while keeping 144 px as its floor; band 1's 144 px floor at install.css:495 is NOT touched because its own comment records that 192 px was specified, driven and rejected at Phase 132.1; the literal reading of his "total scroll" is REFUSED with the numbers from install.css:214, being a sheet that was one scroller 2097 px tall with the Install button 776 px down so at a 700 px window it sat 128 px past the bottom edge and at 586 px it sat 242 px past, and his intent is met instead by band 3 growing and still scrolling inside itself; there is a hard floor on narrowing at install.css:384, the container query at 680 px below which the preview collapses to one column and the sheet gets TALLER which would make his second complaint worse; install-layout.test.ts:191 217 and 220 pin 1600px 92vw and both calc rules as text so they move in the SAME commit; PATCH, Tier 2 with the parent measurement mandatory because he reported it, and the named independent method is ATTACK rather than confirm at the 586 px six row stress where Phase 132's regression lives, the verifier re-deriving the Install button hit test itself rather than reading probe:p132's verdict; NOT in it are the install confirm at install.css:36 which is a different modal drawn by InstallDialog.tsx:109 and appears in neither screenshot, any rearrangement of the Phase 26 two column preview, any change to what the sheet shows, a sheet wide scroller, the Context panel behind it, anything under install-gate.ts or the confirm hash, and app.css.
