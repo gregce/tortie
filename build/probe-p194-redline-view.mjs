@@ -41,7 +41,8 @@
  *       document), Redline again with the same runs
  *   12  the document scrolls on its own scroller                  the document
  *   13  it reflows when the panel is squeezed to its floor        rectangles
- *   14  a second file opens as DIFF, Redline offered, unchosen    the document
+ *   14  a second file, one no earlier step opened, opens as       the document
+ *       DIFF, Redline offered, unchosen
  *   15  an edit made in Source shows in the redline as an          the DOM + the
  *       insertion, its new projection is the model's text, and    Monaco model
  *       taking the edit back restores the document
@@ -296,6 +297,13 @@ const FIXTURES = {
     'Nothing here changes.\n\nNot one word of it.\n',
     'Nothing here changes.\n\nNot one word of it.\n'
   ],
+  // The journey's second file. It is in no other list on purpose: an already
+  // open tab keeps the mode it was left in, so only a file no earlier step
+  // opened can show how a file OPENS.
+  'second.txt': [
+    'A second file, opened during the journey.\n\nIts one sentence changes here.\n',
+    'A second file, opened during the journey.\n\nIts one sentence changed there.\n'
+  ],
   'guide.md': [
     '# Guide\n\nThe old sentence names the wrong person entirely.\n\n- a list item\n',
     '# Guide\n\nThe new sentence names the right person entirely.\n\n- a list item\n'
@@ -355,7 +363,7 @@ await withElectron(
           codeRel: 'sample.ts',
           markdownRel: 'guide.md',
           sameRel: 'same.txt',
-          secondRel: 'deletion.txt'
+          secondRel: 'second.txt'
         }
       }),
       GMUX_SHOT_JS: 'window.__gmuxP194Redline'
@@ -388,6 +396,16 @@ await withElectron(
     reading = readOne('[gmux-shot] probe ');
     clipboard = readOne('[gmux-shot] clipboard ');
     priorFormats = readOne('[gmux-shot] clipboard-formats ');
+    // The evidence is kept whatever the verdict: the reading beside the
+    // photograph, the app's own output beside it, and the drive's timing
+    // marks printed here, because a row that fails once and passes on the
+    // next run cannot be examined after the fact without them.
+    writeFileSync(join(scratch, 'p194-redline-reading.json'), JSON.stringify({ reading, clipboard, priorFormats }, null, 2));
+    writeFileSync(join(scratch, 'p194-redline-app.log'), text);
+    for (const line of text.split('\n')) {
+      if (line.includes('[shot-drive] redline ')) say(line.slice(line.indexOf('[shot-drive]')));
+    }
+    say(`the reading and the app output are under ${scratch}`);
   }
 );
 

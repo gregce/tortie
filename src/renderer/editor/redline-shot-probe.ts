@@ -29,7 +29,12 @@ export interface RedlineViewProbeSpec {
   markdownRel?: string;
   /** A prose file with NO changes against HEAD: the plain document. */
   sameRel?: string;
-  /** A second prose file opened during the journey, which must open as Diff. */
+  /**
+   * A second prose file opened during the journey, which must open as Diff.
+   * It must be a file NO earlier step opened: an already open tab is only
+   * raised and keeps whatever mode it was left in, so a file the fixture
+   * loop left on Redline would say nothing about how a file opens.
+   */
   secondRel?: string;
 }
 
@@ -62,6 +67,17 @@ export async function driveRedlineView(
 ): Promise<void> {
   const out: Record<string, unknown> = {};
   const journey: string[] = [];
+  // Main gives the whole drive one ceiling and prints nothing inside it, so
+  // a drive that dies there names the phase it reached and the time it took
+  // to get there. Every renderer console line reaches the harness log.
+  const t0 = performance.now();
+  const mark = (what: string): void => {
+    // The visibility matters: a hidden window has its timers aligned to one
+    // second by Chromium, which turns every short wait below into a second.
+    console.log(
+      `[shot-drive] redline ${what} at ${String(Math.round(performance.now() - t0))} ms, ${document.visibilityState}`
+    );
+  };
 
   const shadowOf = (): ShadowRoot | null =>
     document.querySelector('diffs-container')?.shadowRoot ?? null;
@@ -106,6 +122,17 @@ export async function driveRedlineView(
       source: 'tree',
       preview: false
     });
+    // An already open tab is only raised and keeps the mode a person left it
+    // in (store.ts, the `existing` path), so a tab an earlier step left on
+    // Redline is put back on Diff the way a person would, through the
+    // control. A fresh tab opens on Diff and the click never happens.
+    const path = `${projectPath}/${rel}`;
+    for (let i = 0; i < 40; i++) {
+      const state = useEditor.getState();
+      if (state.tabs.find((t) => t.id === state.activeId)?.path === path) break;
+      await wait(50);
+    }
+    if (modeState().checked !== 'Diff') modeButton('Diff')?.click();
     for (let i = 0; i < 120; i++) {
       const drawn = shadowOf()?.querySelector('[data-line]') != null;
       const same = document.querySelector('.ed-state-title')?.textContent === 'No changes';
@@ -216,6 +243,7 @@ export async function driveRedlineView(
       doc: readDoc()
     };
     journey.push(`opened ${rel} as a diff and switched to Redline`);
+    mark(`read ${rel}`);
   }
   out['fixtures'] = fixtures;
 
@@ -224,6 +252,7 @@ export async function driveRedlineView(
     await openAsDiff(spec.codeRel);
     out['onCode'] = { rel: spec.codeRel, ...modeState(), doc: doc() !== null };
     journey.push('opened a file that is not prose');
+    mark('read the file that is not prose');
   }
 
   // 3. MARKDOWN: Redline beside Preview, Source and Split, drawing the SOURCE.
@@ -235,6 +264,7 @@ export async function driveRedlineView(
     await wait(400);
     out['onMarkdown'] = { rel: spec.markdownRel, opened, afterClick: modeState(), doc: readDoc() };
     journey.push('opened a markdown file and switched to Redline');
+    mark('read the markdown file');
   }
 
   // 4. NO CHANGES: the plain document, not an error.
@@ -254,6 +284,7 @@ export async function driveRedlineView(
       errorState: document.querySelector('.ed-redline-view .ed-state') !== null
     };
     journey.push('opened a file with no changes and switched to Redline');
+    mark('read the file with no changes');
   }
 
   // 5. THE JOURNEY on the file this run is about.
@@ -278,6 +309,7 @@ export async function driveRedlineView(
   await wait(400);
   journeyOut['redlineAgain'] = readDoc();
   journey.push('went Diff, Redline, File, Redline with the file open');
+  mark('went Diff, Redline, File, Redline');
 
   // Scroll, on the view's own scroller.
   const scroller = document.querySelector<HTMLElement>('.ed-redline-scroll');
@@ -293,6 +325,7 @@ export async function driveRedlineView(
     scroller.scrollTop = 0;
     await wait(300);
     journey.push('scrolled to the end and back');
+    mark('scrolled');
   }
 
   // Resize, through the divider's own keyboard: Home to the floor, End back.
@@ -315,12 +348,14 @@ export async function driveRedlineView(
     back: readDoc()
   };
   journey.push('squeezed the panel to its floor and back');
+  mark('squeezed the panel');
 
   // A second file: it must open as DIFF, with Redline offered and unchosen.
   if (spec.secondRel !== undefined) {
     await openAsDiff(spec.secondRel);
     journeyOut['second'] = { rel: spec.secondRel, ...modeState(), doc: doc() !== null };
     journey.push('opened a second file, which opened as a diff');
+    mark('opened the second file');
   }
 
   // Back, edit in Source, and come back to the redline.
@@ -354,16 +389,34 @@ export async function driveRedlineView(
       }
     ]);
   }
-  await wait(700);
+  // The document follows the model through a debounce and a render, so it
+  // is read once it has caught up rather than after a guess at how long that
+  // takes, and the time it took is recorded rather than assumed.
+  const revertedAt = performance.now();
+  let caughtUp = false;
+  for (let i = 0; i < 40; i++) {
+    const runs = (readDoc() as { runs?: DrawnRun[] }).runs ?? [];
+    if (runs.every((r) => r.kind !== 'ins' || !r.text.startsWith(EDIT))) {
+      caughtUp = true;
+      break;
+    }
+    await wait(100);
+  }
+  const revertMs = Math.round(performance.now() - revertedAt);
+  mark(`the document caught up with the revert in ${String(revertMs)} ms, caught up ${String(caughtUp)}`);
   journeyOut['edited'] = {
     edit: EDIT,
     modelPresent: model !== null,
     modelText,
     doc: edited,
+    revertMs,
+    caughtUp,
+    modelAfterRevert: model?.getValue() ?? null,
     reverted: readDoc(),
     dirtyAfterRevert: useEditor.getState().tabs.find((t) => t.id === tabId)?.dirty ?? null
   };
   journey.push('edited the file in Source and came back to the redline');
+  mark('edited in Source and came back');
   out['journey'] = journeyOut;
 
   // 6. THE COPIES, set up here and run by main.
@@ -429,4 +482,5 @@ export async function driveRedlineView(
   out['atRest'] = { ...modeState(), doc: readDoc() };
   out['journeyLog'] = journey;
   window.__gmuxP194Redline = out;
+  mark('finished');
 }
