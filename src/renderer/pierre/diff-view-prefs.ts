@@ -22,14 +22,31 @@ import type { LineDiffTypes } from '@pierre/diffs';
  *
  * These are @pierre/diffs' own four `LineDiffTypes`, and the label is what a
  * person reads. The names are not self-explaining, so what each one DRAWS was
- * measured through Pierre's own server renderer over a real 53-insertion,
- * 62-deletion commit to this repository's PierreDiff.tsx, counting the
- * `data-diff-span` elements it emitted:
+ * measured over a real 53-insertion, 62-deletion commit to this repository's
+ * PierreDiff.tsx, counting the `data-diff-span` elements. TWO ROUTES, and they
+ * do not give the same numbers, so each is labelled with where it came from.
+ *
+ * Through Pierre's own server renderer, which renders the WHOLE file:
  *
  *   none      0 spans      — nothing inside the row is picked out
  *   word      220 spans, 1,555 highlighted characters
  *   word-alt  71 spans, 1,723 highlighted characters
  *   char      359 spans, 1,177 highlighted characters
+ *
+ * Out of the RUNNING APP, read off the shadow DOM by `npm run probe:p185` over
+ * that same pair. Every count is lower because the surface is virtualized: the
+ * diff scrolls inside `.ed-pierre` and Pierre materializes a window of rows,
+ * not the file. These are the numbers a person is looking at, and the probe is
+ * what re-derives them:
+ *
+ *   none      0 spans
+ *   word      188 spans, 1,262 highlighted characters
+ *   word-alt  45 spans, 1,420 highlighted characters
+ *   char      311 spans, 950 highlighted characters
+ *
+ * The two routes agree on everything the words below claim, being the ORDER
+ * and the RATIOS: word-alt draws the fewest spans over the most text and char
+ * the most spans over the least, on both.
  *
  * `word` and `word-alt` run the SAME diff (jsdiff `diffWordsWithSpace`) and
  * differ only in how the result is packed into spans:

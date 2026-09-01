@@ -59,8 +59,15 @@
  *
  * Usage, from the repository root:
  *
- *   npm run build
- *   node build/probe-p185-drawing.mjs
+ *   npm run probe:p185
+ *
+ * That script is the way in. It builds, then runs this file through
+ * build/harness-socket.mjs so the tmux socket is one that script composed.
+ * Running the file directly works and does the same thing, and the script is
+ * what makes the probe reachable by name and classifiable: it is the entry in
+ * package.json that build/verification-checks.mjs classifies and
+ * build/assert-hermetic-checks.mjs then checks in both directions. Without it
+ * this probe is a file nothing names, which is how a guard decays.
  *
  * Exit code 0 when every row passes, 1 otherwise with every failing row
  * named, 2 when the probe refuses to run.
@@ -287,7 +294,11 @@ if (reading === null || typeof reading !== 'object') {
     4,
     'Words, Phrases and Characters draw three different span counts',
     three.every((n) => typeof n === 'number' && n > 0) && new Set(three).size === 3,
-    `Words ${String(words.spans)}, Phrases ${String(phrases.spans)}, Characters ${String(chars.spans)}`
+    // `settled` false means the count never left the previous mode's, which is
+    // exactly the shape of the defect this row exists for: the option reached
+    // the surface and never the worker pool, so every mode drew the same thing.
+    `Words ${String(words.spans)}, Phrases ${String(phrases.spans)}, Characters ${String(chars.spans)}` +
+      ` (settled ${[words, phrases, chars].map((x) => String(x.settled)).join('/')})`
   );
   check(
     5,

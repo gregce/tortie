@@ -367,6 +367,19 @@ export const CHECKS = [
   // word `probe`. `node build/probe-p1812-bar-and-card.mjs --self-test` proves
   // the graders on twelve fixtures and launches nothing.
   electron('probe:p1812'),
+  // PHASE 185. Does the diff view's own control change WHAT IS DRAWN? One
+  // launch on a scratch profile opens a real diff, being this repository's own
+  // PierreDiff.tsx either side of one commit, clicks each of the four inline
+  // segments with the diff open and counts the highlights the app really drew
+  // each time, then reads the backgrounds answer as colour off the running
+  // app. A second launch on the same profile proves the choice came back with
+  // no click. It exists because an option that is passed but not honoured
+  // looks exactly like one that works: @pierre/diffs takes `lineDiffType` on
+  // the surface's options and the worker pool's copy wins, so nothing in the
+  // unit tests fails if a later round deletes the push to the pool. It creates
+  // no session, spawns no agent and spends no token, and it touches `-L gmux`
+  // in one place only, a read only session count taken before and after.
+  electron('probe:p185'),
   // PHASE 64. The multi line paste matrix. It is an Electron harness like the
   // rows around it, and two things about it are unlike them and are stated
   // here rather than discovered. It SPAWNS THE REAL AGENT BINARIES on this

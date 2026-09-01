@@ -223,10 +223,16 @@ export function PierreDiff({
 
   return (
     <div className="ed-diff">
-      {/* Only where there is a change to draw. An "identical either side"
-          panel is a full-height empty state and a row of inert controls above
-          it would be furniture. */}
-      {unchanged ? null : <DiffControls />}
+      {/* Exactly when there is a diff underneath, which is the complement of
+          the three states below: an "identical either side" panel is a
+          full-height empty state and a row of inert controls above it would be
+          furniture, and the same is true over the opening skeleton. Testing
+          `unchanged` on its own is not enough and drew the row and then took
+          it away, because `unchanged` cannot be true until the old side has
+          arrived: on an identical file the row appeared during the load and
+          vanished when "No changes" resolved. Sharing the skeleton's own
+          condition makes that unreachable rather than merely unlikely. */}
+      {contentsLoading || waiting || unchanged ? null : <DiffControls />}
       <div
         ref={hostRef}
         className="ed-pierre"

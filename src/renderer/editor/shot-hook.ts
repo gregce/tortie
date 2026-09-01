@@ -879,25 +879,43 @@ export function installShotHook(): void {
          * stability-only wait latches the previous mode and every reading comes
          * out shifted by one click. So this waits for the count to LEAVE the
          * value it had before the click first, and only then for it to settle.
+         *
+         * IT GIVES UP, and says so. Under the very defect the probe exists to
+         * catch, being a mode that reaches the options prop but never the
+         * worker pool, the count never leaves `from` and a wait with no
+         * ceiling never returns. Four of those in a row overran the 60s drive
+         * deadline in src/main/harness/shot.ts, and the run failed with `drive
+         * never finished`, which is the same thing a tree with no control at
+         * all prints. So the wait is capped and the reading is returned
+         * regardless, with `settled` false when the count never moved: the
+         * caller then reports four identical counts, which names the defect.
+         * The cap is 50 turns of 200ms, so 10s a mode and at most 40s for the
+         * four. Under that defect the diff itself still mounts, so the waits
+         * before this point are short and the four capped waits land inside
+         * the deadline with room to spare. The honest path never approaches
+         * the cap: a click was measured landing in about 760ms, so the cap is
+         * over ten times the observed cost.
          */
-        const settle = async (from: number): Promise<string[]> => {
+        const settle = async (
+          from: number
+        ): Promise<{ texts: string[]; settled: boolean }> => {
           let moved = false;
           let last = -1;
           let steady = 0;
-          for (let i = 0; i < 150; i++) {
+          for (let i = 0; i < 50; i++) {
             const now = spanTexts();
             if (!moved) {
               if (now.length !== from) moved = true;
             } else if (now.length === last) {
               steady += 1;
-              if (steady >= 3) return now;
+              if (steady >= 3) return { texts: now, settled: true };
             } else {
               steady = 0;
               last = now.length;
             }
             await wait(200);
           }
-          return spanTexts();
+          return { texts: spanTexts(), settled: false };
         };
 
         // What the app drew on its own, before this drive touched anything.
@@ -917,10 +935,13 @@ export function installShotHook(): void {
           const btn = buttons().find((b) => (b.textContent ?? '') === label);
           const from = spanTexts().length;
           btn?.click();
-          const texts = await settle(from);
+          const { texts, settled } = await settle(from);
           modes[label] = {
             clicked: btn !== undefined,
             pressed: btn?.getAttribute('aria-pressed') ?? null,
+            // False means the count never left the previous mode's, so this
+            // reading is the OLD mode's drawing rather than this one's.
+            settled,
             spans: texts.length,
             chars: texts.reduce((n, t) => n + t.length, 0),
             sample: texts.slice(0, 12),
