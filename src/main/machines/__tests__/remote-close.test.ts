@@ -34,10 +34,28 @@
  * home is read. It is the cheap gate beside `npm run probe:p187`, which is the
  * same drive over a real loopback machine and takes minutes.
  *
- * IT MUST BE ABLE TO FAIL. Revert either half of the Phase 187 fix and every
- * arm below goes red: restore the `||` in `forgetRemoteRow` and arm A reports 25
- * returns out of 25, and drop the `gone` delete from the pass and arm D reports
- * 25 rows drawn twice.
+ * ## What the SECOND fix round added, and why the first one was not the whole
+ *
+ * The first round fixed the shape that returns every time and left the shape the
+ * entry named as candidate 1 open. A list is issued at T, the person presses the
+ * x at T+5 ms and Remove at T+10 ms, and the list answers at T+60 ms holding the
+ * membership the machine had BEFORE the close. The pass wrote that answer over
+ * `rows` wholesale with nothing comparing its age against the moment of the
+ * Remove, so the row came back and a second Remove was needed. Measured over 200
+ * lives it came back 200 times at the first round's HEAD and 200 times at its
+ * parent, so that round neither caused it nor cured it. Arms G to J drive it.
+ *
+ * IT MUST BE ABLE TO FAIL. Revert any part of the Phase 187 fix and an arm below
+ * goes red: restore the `||` in `forgetRemoteRow` and arms A and K report 25
+ * returns out of 25, drop the `gone` delete from the pass and arm D reports 25
+ * rows drawn twice, and drop the removal instant from the pass and arm G reports
+ * 25 returns out of 25.
+ *
+ * Arm K is why `overlapRemoteRowForTests` exists. With the pass keeping the two
+ * maps disjoint there is no route left through the feed that puts an id in both,
+ * so the belt in `forgetRemoteRow` could be deleted with every other arm still
+ * green. That seam puts an id in both by the same route the ghost arm of
+ * `probe:p187` used on the real app, so the belt can go red too.
  */
 
 import { EventEmitter } from 'node:events';
@@ -71,8 +89,22 @@ vi.mock('../context', async (importOriginal) => ({
   machineGeneration: () => ({ generation: 1, remotePath: '/usr/bin:/bin' })
 }));
 
+/**
+ * One list deliberately HELD OPEN, so a Remove can happen while it is in flight.
+ * That is the honest product timeline arms G to J drive, and it is the only way
+ * a list issued before a close can answer after it.
+ */
+let held: { resolve: (text: string) => void } | null = null;
+
 vi.mock('../exec-plane', () => ({
   execOn: (_ctx: unknown, args: readonly string[]) => {
+    if (args[0] === 'list-sessions' && held !== null) {
+      const gate = held;
+      held = null;
+      return new Promise<string>((resolve) => {
+        gate.resolve = resolve;
+      });
+    }
     const answer = answers[args[0] ?? ''];
     if (typeof answer === 'function') return Promise.resolve(answer());
     return Promise.resolve(answer ?? '');
@@ -97,6 +129,7 @@ vi.mock('../../tmux/control-client', async (importOriginal) => ({
 
 const {
   forgetRemoteRow,
+  overlapRemoteRowForTests,
   pollRemoteMachine,
   remoteKill,
   remoteMachineFacts,
@@ -139,6 +172,7 @@ function drawnRows(sessionId: string): number {
 
 beforeEach(() => {
   answers = {};
+  held = null;
   resetRemoteSessionsForTests();
   resetControlPlanesForTests();
   resetRescueForTests();
@@ -162,6 +196,24 @@ async function restoredUnderTheSameId(sessionId: string): Promise<void> {
   await pollRemoteMachine(MACHINE);
   machineHolds(sessionId);
   await pollRemoteMachine(MACHINE);
+}
+
+/**
+ * Issue a list and hold its answer open, so the caller can act on the row while
+ * the machine's answer is still on the wire.
+ */
+async function listInFlight(): Promise<{
+  readonly landed: Promise<void>;
+  readonly answer: (text: string) => void;
+}> {
+  const gate: { resolve: (text: string) => void } = {
+    resolve: () => undefined
+  };
+  held = gate;
+  const landed = pollRemoteMachine(MACHINE);
+  // One turn, so the pass has stamped its `snapshotAt` and issued the list.
+  await new Promise((resolve) => setImmediate(resolve));
+  return { landed, answer: (text: string) => { gate.resolve(text); } };
 }
 
 describe(`a closed remote tab stays closed, over ${N} closes`, () => {
@@ -246,6 +298,99 @@ describe(`a closed remote tab stays closed, over ${N} closes`, () => {
       if (forgetRemoteRow(id)) secondFound.push(id);
     }
     expect(secondFound).toEqual([]);
+  });
+
+  it('G. a list in flight over the close does not put the row back', async () => {
+    const cameBack: string[] = [];
+    const stillThere: string[] = [];
+    const secondRemoveFound: string[] = [];
+    for (let trial = 0; trial < N; trial += 1) {
+      const id = `ours-g-${trial}`;
+      resetRemoteSessionsForTests();
+      machineHolds(id);
+      await pollRemoteMachine(MACHINE);
+      // The status list goes out at T, holding the session.
+      const flight = await listInFlight();
+      // The x at T+5 ms and the person's Remove at T+10 ms.
+      machineHolds(null);
+      expect(forgetRemoteRow(id)).toBe(true);
+      expect(drawnRows(id)).toBe(0);
+      // The machine answers at T+60 ms with what it saw BEFORE the close.
+      flight.answer(line(id));
+      await flight.landed;
+      if (drawnRows(id) > 0 || remoteSessionRow(id) !== null) cameBack.push(id);
+      for (let pass = 0; pass < 10; pass += 1) await pollRemoteMachine(MACHINE);
+      if (drawnRows(id) > 0 || remoteSessionRow(id) !== null) stillThere.push(id);
+      if (forgetRemoteRow(id)) secondRemoveFound.push(id);
+    }
+    expect(cameBack).toEqual([]);
+    expect(stillThere).toEqual([]);
+    expect(secondRemoveFound).toEqual([]);
+  });
+
+  it('H. a list issued AFTER the Remove is a fresh answer and is trusted', async () => {
+    // Nothing here makes a session on that machine permanently invisible. A
+    // Remove is not a kill, and the far side may still be holding the session.
+    const id = 'ours-h';
+    machineHolds(id);
+    await pollRemoteMachine(MACHINE);
+    forgetRemoteRow(id);
+    expect(drawnRows(id)).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 3));
+    await pollRemoteMachine(MACHINE);
+    expect(drawnRows(id)).toBe(1);
+  });
+
+  it('I. the removal instant is forgotten, so nothing grows without bound', async () => {
+    const id = 'ours-i';
+    machineHolds(id);
+    await pollRemoteMachine(MACHINE);
+    const realNow = Date.now;
+    let offset = 0;
+    Date.now = (): number => realNow() + offset;
+    try {
+      forgetRemoteRow(id);
+      expect(drawnRows(id)).toBe(0);
+      // Well past REMOVAL_MEMORY_MS, so the instant answers nothing any more and
+      // a list holding the session is believed again.
+      offset = 60_000;
+      await pollRemoteMachine(MACHINE);
+      expect(drawnRows(id)).toBe(1);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  it('J. two rows removed in the same tick both stay removed', async () => {
+    answers['list-sessions'] = () => `${line('ours-j1')}\n${line('ours-j2')}`;
+    await pollRemoteMachine(MACHINE);
+    expect(drawnRows('ours-j1') + drawnRows('ours-j2')).toBe(2);
+    const flight = await listInFlight();
+    forgetRemoteRow('ours-j1');
+    forgetRemoteRow('ours-j2');
+    flight.answer(`${line('ours-j1')}\n${line('ours-j2')}`);
+    await flight.landed;
+    expect([drawnRows('ours-j1'), drawnRows('ours-j2')]).toEqual([0, 0]);
+    expect(remoteMachineFacts(MACHINE).rows).toBe(0);
+    expect(remoteMachineFacts(MACHINE).gone).toBe(0);
+  });
+
+  it('K. a Remove clears an id held in BOTH maps, whatever put it there', async () => {
+    // THE BELT, driven by the one route that is not a pass. Restore the `||` in
+    // `forgetRemoteRow` and this arm reports 25 returns out of 25.
+    const returned: string[] = [];
+    for (let trial = 0; trial < N; trial += 1) {
+      const id = `ours-k-${trial}`;
+      resetRemoteSessionsForTests();
+      machineHolds(id);
+      await pollRemoteMachine(MACHINE);
+      expect(overlapRemoteRowForTests(MACHINE, id)).toBe(true);
+      expect(remoteRowsInBothMaps()).toEqual([`${MACHINE}/${id}`]);
+      expect(forgetRemoteRow(id)).toBe(true);
+      if (remoteSessionRow(id) !== null || drawnRows(id) > 0) returned.push(id);
+      if (remoteRowsInBothMaps().length > 0) returned.push(`${id}/both`);
+    }
+    expect(returned).toEqual([]);
   });
 
   it('F. a Remove that names no row still answers false', () => {

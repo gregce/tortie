@@ -403,6 +403,21 @@ export const REMOTE_POLL_IDLE_MS = 30_000;
 export const REMOTE_POLL_TIMEOUT_MS = 10_000;
 
 /**
+ * How long the instant of a person's Remove is worth remembering (Phase 187,
+ * second fix round). See {@link removedAt}.
+ *
+ * 20,000 ms, which is twice {@link REMOTE_POLL_TIMEOUT_MS} and is a bound rather
+ * than a taste. A list is spawned immediately after its `snapshotAt` is stamped,
+ * `./exec-plane.ts` hands `execFile` that timeout with `killSignal: 'SIGKILL'`,
+ * and `./execution-ledger.ts` queues nothing before the spawn. So a list issued
+ * before a Remove has either landed or been killed within one timeout of that
+ * Remove, and the second timeout is margin for the timer's own slack and for the
+ * killed child's streams closing. After that no list from before the Remove can
+ * still be outstanding and the instant answers nothing.
+ */
+const REMOVAL_MEMORY_MS = REMOTE_POLL_TIMEOUT_MS * 2;
+
+/**
  * How long a row that moved keeps reading `running` with no further move.
  *
  * 4,000 ms. CHOSEN, NOT MEASURED, and it is a guard put in before the case it
@@ -597,6 +612,48 @@ interface MachineSessions {
 }
 
 const machines = new Map<string, MachineSessions>();
+
+/**
+ * This Mac's clock at the person's last Remove of each session id (Phase 187,
+ * second fix round).
+ *
+ * THE DEFECT IT ENDS, and it is the one the first fix round left open as
+ * candidate 1. A list is issued at T. The person presses the x at T+5 ms and
+ * Remove at T+10 ms, and {@link forgetRemoteRow} clears both maps, so the row is
+ * gone from main's truth. The list answers at T+60 ms holding what the machine
+ * had BEFORE the close, and {@link onePass} used to write `state.rows = seen`
+ * with nothing comparing that answer's age against the moment of the Remove. The
+ * row came back, drew a tab, and a second Remove was needed to shift it, which
+ * is his sentence: a closed remote tab comes back at least once. Measured over
+ * 200 lives it came back 200 times, at this commit's parent and at the parent of
+ * the first fix round alike, so the two lines that phase shipped neither caused
+ * it nor cured it.
+ *
+ * THE RULE IS ONE SENTENCE. A pass whose `snapshotAt` predates a Remove may not
+ * reinstate the id that Remove cleared. `snapshotAt` is stamped before the
+ * command is issued, per research 51 section 4.4's clock rule, so a pass issued
+ * AFTER the Remove is a fresh answer and is trusted in full: nothing here makes
+ * a session on that machine permanently invisible.
+ *
+ * It is keyed by session id rather than held per machine because a Remove is a
+ * gesture about a session and the caller in `../sessions/core.ts` names only the
+ * session. It is pruned by {@link REMOVAL_MEMORY_MS} rather than left to grow.
+ */
+const removedAt = new Map<string, number>();
+
+/**
+ * Drop the removal instants no outstanding list can still be judged against.
+ *
+ * Run on the person's Remove and at the top of every completed pass, so the map
+ * holds only the seconds around a close rather than every row a long run ever
+ * removed.
+ */
+function pruneRemovals(now: number): void {
+  if (removedAt.size === 0) return;
+  for (const [id, at] of [...removedAt]) {
+    if (now - at > REMOVAL_MEMORY_MS) removedAt.delete(id);
+  }
+}
 
 /** True while a window has focus. Decides which of the two cadences is used. */
 let pollFocused = true;
@@ -1845,6 +1902,20 @@ export function forgetRemoteRow(sessionId: string): boolean {
     const wasListed = state.rows.delete(sessionId);
     if (wasGone || wasListed) held = true;
   }
+  // PHASE 187, SECOND FIX ROUND. THE MOMENT, NOT JUST THE DELETE.
+  //
+  // Clearing both maps is not enough on its own, because a list that was ALREADY
+  // IN FLIGHT when this ran answers with the membership the machine had before
+  // the close and {@link onePass} writes that answer over `state.rows` wholesale.
+  // Stamping the instant here is what lets the pass tell a stale answer from a
+  // fresh one. See {@link removedAt}.
+  //
+  // It is stamped for an id this run never held as well, and deliberately: a row
+  // drawn from a manifest record alone is removable, `held` is false for it, and
+  // a list still in flight can hold it just the same.
+  const now = Date.now();
+  pruneRemovals(now);
+  removedAt.set(sessionId, now);
   if (held) announce();
   return held;
 }
@@ -2290,6 +2361,32 @@ async function onePass(
       status: verdict.status,
       movedAt: verdict.movedAt
     });
+  }
+
+  // PHASE 187, SECOND FIX ROUND. A LIST OLDER THAN THE REMOVE DOES NOT SPEAK FOR
+  // THE ROW IT REMOVED.
+  //
+  // This is the one entry point a row can come back through after a Remove, and
+  // it is the defect he reported. `seen` was parsed from an answer to a list
+  // ISSUED at `snapshotAt`, and until this line nothing compared that instant
+  // against the moment the person removed the row, so a list in flight over a
+  // close put the row back into `state.rows` below and every redraw drew the tab
+  // again. See {@link removedAt} for the measurement and the rule.
+  //
+  // It runs after the parse loop and before everything that reads `seen`, so the
+  // absence loop, the manifest write back and the create bookkeeping all agree
+  // with the person. `names` is deliberately left alone: the session may still be
+  // running on that machine under that name, and dropping the name would let the
+  // next create there take it.
+  pruneRemovals(snapshotAt);
+  for (const [id, at] of removedAt) {
+    // THE TIE GOES TO THE PERSON, and it is not a detail. `Date.now()` has
+    // millisecond granularity, and a list issued in the same millisecond as the
+    // Remove is a list that cannot have seen it. Measured: with `>` this arm let
+    // 194 of 200 lives back in, because the two instants were equal. The cost of
+    // `>=` is one pass for a session genuinely listed in that same millisecond,
+    // and the next pass reinstates it.
+    if (at >= snapshotAt) seen.delete(id);
   }
 
   // A row a COMPLETED pass did not report. The case table calls that `absent`
@@ -2889,6 +2986,7 @@ export function resetRemoteSessionsForTests(): void {
   setControlPlaneSink(null);
   sinkInstalled = false;
   machines.clear();
+  removedAt.clear();
   listeners = [];
   pollFocused = true;
   lastFocusPollAt = 0;
@@ -2972,6 +3070,34 @@ export function remoteRowsInBothMaps(): string[] {
     }
   }
   return both.sort();
+}
+
+/**
+ * Put a row a completed list reported into `gone` as well, WITHOUT taking it out
+ * of `rows`. FOR THE GUARD ONLY, and nothing in the product may call it.
+ *
+ * It exists because of a rule in CLAUDE.md rather than because of a feature: a
+ * guard must be able to fail. The Phase 187 fix has two halves. The pass keeps
+ * the two maps disjoint, and {@link forgetRemoteRow} clears BOTH of them so a
+ * Remove ends a row whatever holds it. Once the first half is in place the
+ * second half cannot be reached by any route the feed can produce, so every arm
+ * of `remote-close.test.ts` stayed green with it reverted and a later round could
+ * have deleted it with the whole battery agreeing. This is the one seam that
+ * puts an id in both maps by a route other than a pass, which is what the ghost
+ * arm of `probe:p187` did to the real app, so the belt can be driven and can go
+ * red.
+ *
+ * Returns false when no completed list on that machine reported the id.
+ */
+export function overlapRemoteRowForTests(
+  machineId: string,
+  sessionId: string
+): boolean {
+  const state = stateOf(machineId);
+  const row = state.rows.get(sessionId);
+  if (row === undefined) return false;
+  state.gone.set(sessionId, { ...row, status: 'restorable' });
+  return true;
 }
 
 /**
