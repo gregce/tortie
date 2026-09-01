@@ -96,6 +96,16 @@
  *      repair's own refusal count at zero, because the module's fallback
  *      would still satisfy the projections and only the count says whether
  *      the repair actually ran.
+ *  16. A CHANGE TO THE LAST WORD OF A LINE STAYS ON ITS LINE. jsdiff attaches
+ *      a word's trailing whitespace to its token, so "Monday" becoming
+ *      "Friday" at the end of a line arrived as del "Monday\n" then ins
+ *      "Friday\n", the deletion carried the line break, and the insertion
+ *      landed on the NEXT line under it, which is the opposite of the charter
+ *      sentence and which both projections were blind to. Over every document
+ *      fixture and the fuzz, no adjacent deletion and insertion, in either
+ *      order, shares a whitespace character at its start or its end, and the
+ *      six last word fixtures pin the exact runs: the word struck, the word
+ *      inserted, and the line break in the plain run after them.
  *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
@@ -826,6 +836,56 @@ say('9. no redline file names a bridge, a write or an accept, so nothing here ca
     `15. ${String(docs.length)} whole file fixtures re-derived by plain joins: with the insertions dropped they are the old file and with the deletions dropped the new file, byte for byte; ` +
       `${String(wholeSeen)} refused blocks drew whole and were named in the note; the fuzz held over ${String(f.pairs)} pairs in ${String(f.ms)} ms with ${String(f.unaligned)} repairs refused and ${String(f.whole)} blocks drawn whole`
   );
+}
+
+// -- rule 16: a change to the last word of a line stays on its line -----------
+{
+  const docs = Array.isArray(data.document) ? data.document : [];
+  const isSpace = (ch) => /\s/.test(ch);
+  let pairs = 0;
+  for (const d of docs) {
+    if (!Array.isArray(d.runs)) continue;
+    for (let i = 1; i < d.runs.length; i++) {
+      const p = d.runs[i - 1];
+      const q = d.runs[i];
+      if (p.kind === 'same' || q.kind === 'same') continue;
+      pairs += 1;
+      const end = p.text.slice(-1);
+      const start = p.text.charAt(0);
+      if (isSpace(end) && end === q.text.slice(-1)) {
+        fail(`16. "${d.name}" has a ${p.kind} and an ${q.kind} that share the trailing ${JSON.stringify(end)}: ${JSON.stringify(p.text.slice(-24))} then ${JSON.stringify(q.text.slice(-24))}.`);
+      }
+      if (isSpace(start) && start === q.text.charAt(0)) {
+        fail(`16. "${d.name}" has a ${p.kind} and an ${q.kind} that share the leading ${JSON.stringify(start)}: ${JSON.stringify(p.text.slice(0, 24))} then ${JSON.stringify(q.text.slice(0, 24))}.`);
+      }
+    }
+  }
+  if (pairs < 20) fail(`16. only ${String(pairs)} adjacent pair(s) were seen across the fixtures, too few to mean anything.`);
+  // The exact runs, so the rule is seen to say what the words are, not only
+  // what they are not.
+  const want = {
+    'last word of a line': ['same:We ship on ', 'del:Monday', 'ins:Friday', 'same:\nNext line.\n'],
+    'last word of the file': ['same:- item one\n- item ', 'del:two', 'ins:three', 'same:\n'],
+    'last word before a blank line': ['same:Ends ', 'del:here', 'ins:there', 'same:\n\nNext.\n'],
+    'last word with crlf': ['same:one\r\n', 'del:two', 'ins:2', 'same:\r\nthree\r\n'],
+    'first word after shared indentation': ['same:list:\n    ', 'del:old', 'ins:new', 'same: item\n'],
+    'a whole line, drawn as a pair': ['same:a\n\tkept tab ', 'del:old', 'ins:new', 'same:\nz\n']
+  };
+  let pinned = 0;
+  for (const [name, runs] of Object.entries(want)) {
+    const d = docs.find((one) => one.name === name);
+    if (d === undefined) {
+      fail(`16. the fixture "${name}" was not composed.`);
+      continue;
+    }
+    const got = d.runs.map((r) => `${r.kind}:${r.text}`);
+    if (JSON.stringify(got) !== JSON.stringify(runs)) {
+      fail(`16. "${name}" drew ${JSON.stringify(got)}, wanting ${JSON.stringify(runs)}.`);
+    } else pinned += 1;
+  }
+  const f = data.fuzz ?? {};
+  if (f.edgeShared !== 0) fail(`16. the fuzz found ${String(f.edgeShared)} adjacent pair(s) sharing whitespace at an end.`);
+  say(`16. ${String(pairs)} adjacent deletion and insertion pairs across the fixtures share no whitespace at either end, ${String(pinned)} last word fixtures drew exactly the runs pinned, and the fuzz found ${String(f.edgeShared)} such pairs over ${String(f.pairs)}`);
 }
 
 // ---------------------------------------------------------------------------

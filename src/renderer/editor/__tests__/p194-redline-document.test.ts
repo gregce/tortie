@@ -12,6 +12,7 @@ import {
   exactRuns,
   newTextOf,
   oldTextOf,
+  peelSharedSpace,
   redlineDocumentNote,
   REDLINE_DOC_MAX_LINE_EDITS
 } from '../redline-document';
@@ -85,8 +86,25 @@ describe('composeRedlineDocument', () => {
     const newText = 'Spaced out words here.\n';
     const doc = composeRedlineDocument(oldText, newText);
     projections(oldText, newText);
-    expect(doc.runs.some((r) => r.kind === 'del' && r.text === '   ')).toBe(true);
-    expect(doc.runs.some((r) => r.kind === 'ins' && r.text === ' ')).toBe(true);
+    // Three spaces became one: the one they share stays plain and the two
+    // that went are struck, so nothing is drawn as inserted. Before the peel
+    // this drew del "   " then ins " ", a space struck and a space inserted.
+    expect(doc.runs).toEqual([
+      { kind: 'same', text: 'Spaced ' },
+      { kind: 'del', text: '  ' },
+      { kind: 'same', text: 'out ' },
+      { kind: 'del', text: '    ' },
+      { kind: 'same', text: 'words ' },
+      { kind: 'del', text: '  ' },
+      { kind: 'same', text: 'here.\n' }
+    ]);
+    // Four spaces becoming a tab share nothing, so both are drawn.
+    const tab = composeRedlineDocument('    indented\n', '\tindented\n');
+    expect(tab.runs).toEqual([
+      { kind: 'del', text: '    ' },
+      { kind: 'ins', text: '\t' },
+      { kind: 'same', text: 'indented\n' }
+    ]);
   });
 
   it('a block the word guard refuses draws whole and is counted', () => {
@@ -178,6 +196,103 @@ describe('composeRedlineDocument', () => {
   });
 });
 
+describe('a change to the last word of a line', () => {
+  // The verifier of Phase 194 found del "Monday\n" then ins "Friday\n": the
+  // deletion carried the line break and the insertion landed on the next
+  // line. The shared whitespace now moves into the plain run after the pair.
+  it('keeps the insertion on the line, with the line break in the plain run after', () => {
+    const oldText = 'We ship on Monday\nNext line.\n';
+    const newText = 'We ship on Friday\nNext line.\n';
+    projections(oldText, newText);
+    expect(composeRedlineDocument(oldText, newText).runs).toEqual([
+      { kind: 'same', text: 'We ship on ' },
+      { kind: 'del', text: 'Monday' },
+      { kind: 'ins', text: 'Friday' },
+      { kind: 'same', text: '\nNext line.\n' }
+    ]);
+  });
+
+  it('holds at the end of the file, a list item, and before a blank line', () => {
+    const cases: [string, string, string, string][] = [
+      ['- item one\n- item two\n', '- item one\n- item three\n', 'two', 'three'],
+      ['first\nsecond word\nthird\n', 'first\nsecond term\nthird\n', 'word', 'term'],
+      ['A paragraph ends here\n\nNext paragraph.\n', 'A paragraph ends there\n\nNext paragraph.\n', 'here', 'there'],
+      ['one\r\ntwo\r\nthree\r\n', 'one\r\n2\r\nthree\r\n', 'two', '2']
+    ];
+    for (const [oldText, newText, del, ins] of cases) {
+      projections(oldText, newText);
+      const runs = composeRedlineDocument(oldText, newText).runs;
+      const at = runs.findIndex((r) => r.kind === 'del');
+      expect(runs[at]).toEqual({ kind: 'del', text: del });
+      expect(runs[at + 1]).toEqual({ kind: 'ins', text: ins });
+      expect(runs[at + 2]?.kind).toBe('same');
+      expect(runs[at + 2]?.text.startsWith('\n') || runs[at + 2]?.text.startsWith('\r\n')).toBe(true);
+    }
+  });
+
+  it('indentation the two sides share stays plain before the pair', () => {
+    const oldText = 'list:\n    old item\n';
+    const newText = 'list:\n    new item\n';
+    projections(oldText, newText);
+    const runs = composeRedlineDocument(oldText, newText).runs;
+    expect(runs[0]).toEqual({ kind: 'same', text: 'list:\n    ' });
+    expect(runs[1]).toEqual({ kind: 'del', text: 'old' });
+    expect(runs[2]).toEqual({ kind: 'ins', text: 'new' });
+  });
+
+  it('a block drawn whole is peeled the same way', () => {
+    const words = (seed: number, count: number): string => {
+      const out: string[] = [];
+      let x = seed;
+      for (let i = 0; i < count; i++) {
+        x = (x * 1103515245 + 12345) % 2147483648;
+        out.push(`w${String(x % 500)}`);
+      }
+      return out.join(' ');
+    };
+    const oldText = `head\n${words(77, 300)}\ntail\n`;
+    const newText = `head\n${words(78, 300)}\ntail\n`;
+    projections(oldText, newText);
+    const runs = composeRedlineDocument(oldText, newText).runs;
+    expect(runs.map((r) => r.kind)).toEqual(['same', 'del', 'ins', 'same']);
+    expect(runs[1]?.text.endsWith('\n')).toBe(false);
+    expect(runs[2]?.text.endsWith('\n')).toBe(false);
+    expect(runs[3]?.text).toBe('\ntail\n');
+  });
+
+  it('a lone deletion or insertion keeps its own line break, which is the change', () => {
+    expect(composeRedlineDocument('a\nb\nc\n', 'a\nc\n').runs).toEqual([
+      { kind: 'same', text: 'a\n' },
+      { kind: 'del', text: 'b\n' },
+      { kind: 'same', text: 'c\n' }
+    ]);
+  });
+
+  it('never moves a word, only whitespace, in either order of the pair', () => {
+    expect(peelSharedSpace([{ kind: 'del', text: 'Monday' }, { kind: 'ins', text: 'Friday' }])).toEqual([
+      { kind: 'del', text: 'Monday' },
+      { kind: 'ins', text: 'Friday' }
+    ]);
+    expect(peelSharedSpace([{ kind: 'ins', text: '  new\n' }, { kind: 'del', text: '  old\n' }, { kind: 'same', text: 'x' }])).toEqual([
+      { kind: 'same', text: '  ' },
+      { kind: 'ins', text: 'new' },
+      { kind: 'del', text: 'old' },
+      { kind: 'same', text: '\nx' }
+    ]);
+    // One side becomes empty: what is left is the honest whitespace change.
+    expect(peelSharedSpace([{ kind: 'del', text: '  \n' }, { kind: 'ins', text: '\n' }])).toEqual([
+      { kind: 'del', text: '  ' },
+      { kind: 'same', text: '\n' }
+    ]);
+    // Not a pair: nothing moves.
+    expect(peelSharedSpace([{ kind: 'del', text: 'a\n' }, { kind: 'same', text: 'b\n' }, { kind: 'ins', text: 'c\n' }])).toEqual([
+      { kind: 'del', text: 'a\n' },
+      { kind: 'same', text: 'b\n' },
+      { kind: 'ins', text: 'c\n' }
+    ]);
+  });
+});
+
 describe('exactRuns', () => {
   it('puts the old side spacing back where jsdiff took the new side', () => {
     const oldText = 'private so it';
@@ -238,6 +353,14 @@ describe('the seeded fuzz', () => {
       expect(oldTextOf(doc.runs)).toBe(a);
       expect(newTextOf(doc.runs)).toBe(b);
       unaligned += doc.whole.unaligned;
+      for (let k = 1; k < doc.runs.length; k++) {
+        const p = doc.runs[k - 1];
+        const q = doc.runs[k];
+        if (p === undefined || q === undefined || p.kind === 'same' || q.kind === 'same') continue;
+        const sharesEnd = /\s$/.test(p.text) && /\s$/.test(q.text) && p.text.slice(-1) === q.text.slice(-1);
+        const sharesStart = /^\s/.test(p.text) && /^\s/.test(q.text) && p.text.charAt(0) === q.text.charAt(0);
+        expect(sharesEnd || sharesStart).toBe(false);
+      }
     }
     expect(unaligned).toBe(0);
   });

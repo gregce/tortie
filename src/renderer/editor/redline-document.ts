@@ -85,6 +85,24 @@
  * carry a newline, and a strikethrough over one is invisible, which is
  * harmless here: the line break it sits on is drawn either way.
  *
+ * ## A CHANGE TO THE LAST WORD OF A LINE STAYS ON ITS LINE
+ *
+ * `diffWords` attaches a word's trailing whitespace to its token, and the
+ * repair keeps it, so "We ship on Monday" becoming "We ship on Friday" arrived
+ * as del "Monday\n" then ins "Friday\n". The deletion carried the line break,
+ * the insertion landed on the NEXT line under it, and the picture read as a
+ * line inserted rather than a word replaced, which is the opposite of the
+ * charter sentence: the deleted words struck through IMMEDIATELY FOLLOWED by
+ * the inserted words. The verifier of Phase 194 counted the shape in 11 of the
+ * 99 pairs in its fixtures, and both projections held over every one, so no
+ * byte level check could see it. `peelSharedSpace` is the answer: whitespace
+ * the two sides of an adjacent pair share at their ends is common to both
+ * files at that position, so it is moved into the plain run beside the pair,
+ * trailing whitespace after it and leading whitespace before it. Only
+ * whitespace moves, so the words jsdiff chose are drawn exactly as it chose
+ * them, and the projections cannot change because the same bytes leave both
+ * sides and land once in a run both sides own.
+ *
  * WHAT THIS FILE MAY NEVER GROW. No accept and no reject: accepting a change
  * means writing a file, which the backlog entry refuses by name. Nothing here
  * reaches an IPC bridge, opens a file or writes anything.
@@ -111,7 +129,10 @@ export { newTextOf };
 export const REDLINE_DOC_MAX_LINE_EDITS = 1_000;
 
 export interface RedlineDocument {
-  /** The whole document, in order. Adjacent runs never share a kind. */
+  /**
+   * The whole document, in order. Adjacent runs never share a kind, and an
+   * adjacent deletion and insertion never share whitespace at either end.
+   */
   runs: RedlineRun[];
   /** How many change blocks the line partition found. */
   blocks: number;
@@ -247,6 +268,61 @@ export function oldTextOf(runs: readonly RedlineRun[]): string {
   let s = '';
   for (const run of runs) if (run.kind !== 'ins') s += run.text;
   return s;
+}
+
+/** The whitespace the two strings share at their start, character for character. */
+function sharedLeadingSpace(a: string, b: string): string {
+  let k = 0;
+  while (k < a.length && k < b.length && a.charAt(k) === b.charAt(k) && isSpace(a.charAt(k))) k++;
+  return a.slice(0, k);
+}
+
+/** The whitespace the two strings share at their end, character for character. */
+function sharedTrailingSpace(a: string, b: string): string {
+  let k = 0;
+  while (
+    k < a.length &&
+    k < b.length &&
+    a.charAt(a.length - 1 - k) === b.charAt(b.length - 1 - k) &&
+    isSpace(a.charAt(a.length - 1 - k))
+  ) {
+    k++;
+  }
+  return a.slice(a.length - k);
+}
+
+/**
+ * Whitespace an adjacent deletion and insertion share at their ends moves out
+ * of the pair and into the plain run beside it, so a change to the last word
+ * of a line keeps its insertion on that line. See the file header. The pair
+ * may arrive in either order, because jsdiff sometimes puts the insertion
+ * first (ruling 6 of ./redline), and the order is kept. Only whitespace moves:
+ * the words themselves are drawn exactly as jsdiff chose them. Adjacent runs
+ * of one kind are merged and no empty run survives.
+ */
+export function peelSharedSpace(runs: readonly RedlineRun[]): RedlineRun[] {
+  const out: RedlineRun[] = [];
+  for (let i = 0; i < runs.length; i++) {
+    const a = runs[i];
+    const b = runs[i + 1];
+    if (a === undefined) break;
+    const pair =
+      b !== undefined && a.kind !== 'same' && b.kind !== 'same' && a.kind !== b.kind;
+    if (!pair || b === undefined) {
+      push(out, a.kind, a.text);
+      continue;
+    }
+    const lead = sharedLeadingSpace(a.text, b.text);
+    const aRest = a.text.slice(lead.length);
+    const bRest = b.text.slice(lead.length);
+    const trail = sharedTrailingSpace(aRest, bRest);
+    push(out, 'same', lead);
+    push(out, a.kind, aRest.slice(0, aRest.length - trail.length));
+    push(out, b.kind, bRest.slice(0, bRest.length - trail.length));
+    push(out, 'same', trail);
+    i += 1;
+  }
+  return out;
 }
 
 /** One change block of the line partition. */
@@ -405,7 +481,10 @@ export function composeRedlineDocument(
     for (const run of exact) push(runs, run.kind, run.text);
   }
 
-  return { runs, blocks: count, whole, approximate };
+  // Once, over the whole document, so a block drawn whole is covered as well
+  // as a word level pair. The peel moves the same bytes out of both sides of a
+  // pair and into one run both sides own, so neither projection can change.
+  return { runs: peelSharedSpace(runs), blocks: count, whole, approximate };
 }
 
 /**

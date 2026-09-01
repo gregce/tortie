@@ -338,7 +338,17 @@ const DOCUMENTS: { name: string; old: string; new: string }[] = [
     name: 'rewritten past the line guard, nothing shared',
     old: Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 300 }, (_, i) => `old ${String(i)}`).join('\n'),
     new: Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 300 }, (_, i) => `new ${String(i)}`).join('\n')
-  }
+  },
+  // THE LAST WORD OF A LINE (rule 16). The verifier of Phase 194 found the
+  // deletion carrying the line break, del "Monday\n" then ins "Friday\n", so
+  // the insertion landed on the next line. The shared whitespace at either
+  // end of an adjacent pair now moves into the plain run beside it.
+  { name: 'last word of a line', old: 'We ship on Monday\nNext line.\n', new: 'We ship on Friday\nNext line.\n' },
+  { name: 'last word of the file', old: '- item one\n- item two\n', new: '- item one\n- item three\n' },
+  { name: 'last word before a blank line', old: 'Ends here\n\nNext.\n', new: 'Ends there\n\nNext.\n' },
+  { name: 'last word with crlf', old: 'one\r\ntwo\r\nthree\r\n', new: 'one\r\n2\r\nthree\r\n' },
+  { name: 'first word after shared indentation', old: 'list:\n    old item\n', new: 'list:\n    new item\n' },
+  { name: 'a whole line, drawn as a pair', old: 'a\n\tkept tab old\nz\n', new: 'a\n\tkept tab new\nz\n' }
 ];
 
 /**
@@ -347,7 +357,7 @@ const DOCUMENTS: { name: string; old: string; new: string }[] = [
  * and the gate reads the counts. A refusal by the repair (`unaligned`) is
  * counted separately because it should never happen and the gate says so.
  */
-function fuzz(): { pairs: number; oldWrong: number; newWrong: number; unaligned: number; whole: number; ms: number } {
+function fuzz(): { pairs: number; oldWrong: number; newWrong: number; unaligned: number; whole: number; edgeShared: number; ms: number } {
   const alphabet = ['a', 'b', 'word', ' ', '  ', '\t', '\n', '\n\n', ',', '.', 'é', 'naïve', '👨‍👩‍👧', 'مرحبا', '天気', '\r\n'];
   let x = 20260901;
   const rnd = (): number => {
@@ -363,6 +373,9 @@ function fuzz(): { pairs: number; oldWrong: number; newWrong: number; unaligned:
   let newWrong = 0;
   let unaligned = 0;
   let whole = 0;
+  // Adjacent del and ins pairs that still share a whitespace character at
+  // their start or their end, which rule 16 wants at zero.
+  let edgeShared = 0;
   const started = Date.now();
   const pairs = 3000;
   for (let i = 0; i < pairs; i++) {
@@ -380,10 +393,18 @@ function fuzz(): { pairs: number; oldWrong: number; newWrong: number; unaligned:
     }
     if (o !== a) oldWrong += 1;
     if (n !== b) newWrong += 1;
+    for (let k = 1; k < doc.runs.length; k++) {
+      const p = doc.runs[k - 1];
+      const q = doc.runs[k];
+      if (p === undefined || q === undefined || p.kind === 'same' || q.kind === 'same') continue;
+      const end = p.text.slice(-1);
+      const start = p.text.charAt(0);
+      if ((/\s/.test(end) && end === q.text.slice(-1)) || (/\s/.test(start) && start === q.text.charAt(0))) edgeShared += 1;
+    }
     unaligned += doc.whole.unaligned;
     whole += doc.whole.tooBig + doc.whole.tooDifferent + doc.whole.overCap;
   }
-  return { pairs, oldWrong, newWrong, unaligned, whole, ms: Date.now() - started };
+  return { pairs, oldWrong, newWrong, unaligned, whole, edgeShared, ms: Date.now() - started };
 }
 
 console.log(
