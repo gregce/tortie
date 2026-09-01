@@ -60,6 +60,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { withElectron } from './electron-run.mjs';
+import { keyscan } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p95]';
@@ -179,11 +180,11 @@ say(
 // comes from the one visible connection test, where a person is watching.
 const hostKeys = join(profile, 'gmux', 'machines', 'known-machines');
 mkdirSync(dirname(hostKeys), { recursive: true });
-const scanned = spawnSync(
-  '/usr/bin/ssh-keyscan',
-  ['-p', String(carriage.port), carriage.host],
-  { encoding: 'utf8', timeout: 30_000 }
-);
+const scanned = keyscan({
+  host: carriage.host,
+  port: carriage.port,
+  caller: 'build/probe-p95-scroll.mjs'
+});
 writeFileSync(hostKeys, scanned.stdout ?? '', 'utf8');
 say(
   `recorded the machine's identity in ${hostKeys}, ` +

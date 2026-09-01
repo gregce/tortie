@@ -81,6 +81,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { refuseRealSockets, scratchYard } from './scratch-machine.mjs';
+import { sshRun } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -734,24 +735,34 @@ startSshd(
 const leg3Known = join(root, 'p791-leg3-known');
 writeFileSync(leg3Known, `[${TARGET}]:${String(PORT_ACCEPTING)} ${hostKeyLine}\n`, 'utf8');
 
-const leg3 = sh('/usr/bin/ssh', [
-  '-i',
-  key.path,
-  '-o',
-  'BatchMode=yes',
-  '-o',
-  'IdentitiesOnly=yes',
-  '-o',
-  'StrictHostKeyChecking=yes',
-  '-o',
-  `UserKnownHostsFile="${leg3Known}"`,
-  '-p',
-  String(PORT_ACCEPTING),
-  '-l',
-  yard.user,
-  TARGET,
-  'printf p791-leg3-ok'
-]);
+const leg3Out = sshRun({
+  knownHosts: `"${leg3Known}"`,
+  caller: 'build/probe-key-install.mjs',
+  argv: [
+    '-i',
+    key.path,
+    '-o',
+    'BatchMode=yes',
+    '-o',
+    'IdentitiesOnly=yes',
+    '-o',
+    'StrictHostKeyChecking=yes',
+    '-p',
+    String(PORT_ACCEPTING),
+    '-l',
+    yard.user,
+    TARGET,
+    'printf p791-leg3-ok'
+  ],
+  // This probe's own sh() carried this, and the helper's default is narrower.
+  timeout: 90_000
+});
+const leg3 = {
+  code: leg3Out.status ?? -1,
+  stdout: leg3Out.stdout ?? '',
+  stderr: leg3Out.stderr ?? '',
+  both: `${leg3Out.stdout ?? ''}${leg3Out.stderr ?? ''}`
+};
 
 step(
   14,

@@ -92,6 +92,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// The lexer both this gate and build/assert-known-hosts-scoped.mjs read source
+// with. It was extracted from this file in Phase 193 rather than copied.
+import { blockAt, callArguments, lineAt, stripComments } from './scan-source.mjs';
+
+export { stripComments };
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const buildDir = join(repoRoot, 'build');
 const HELPER = 'electron-run.mjs';
@@ -174,176 +180,11 @@ const EXEMPT = new Set([HELPER, 'assert-skills-cli.cjs']);
 // Reading source
 // ---------------------------------------------------------------------------
 
-/**
- * The source with comments and regular expression literals blanked out,
- * character for character, so every reported offset still points at the right
- * line. Strings are left alone, because a program path is a string.
- *
- * REGULAR EXPRESSIONS ARE BLANKED FOR A MEASURED REASON. A regex such as
- * /^(['"])electron\1$/ carries a quote inside a character class. Reading it as
- * the start of a string desynchronises everything after it in the file, and on
- * 2026-08-23 that made this very file report three launches inside its own
- * comments. A regex is never a program argument, so blanking its body costs
- * nothing. Whether a slash opens a regex or divides is decided the ordinary
- * way, by the last character that was not a space.
- */
-/**
- * Whether the slash at `at` opens a regular expression rather than dividing.
- * The rule is the ordinary one: look back past spaces, and a slash that follows
- * an operator, an opening bracket, a comma, or one of a few keywords opens a
- * regex.
- */
-function opensRegex(source, at) {
-  let i = at - 1;
-  while (i >= 0 && /\s/.test(source[i])) i -= 1;
-  if (i < 0) return true;
-  const c = source[i];
-  if ('(,=:[!&|?{};+-*%~^<>'.includes(c)) return true;
-  const word = /([A-Za-z_$][\w$]*)$/.exec(source.slice(Math.max(0, i - 12), i + 1));
-  return word !== null && ['return', 'typeof', 'case', 'in', 'of', 'new'].includes(word[1]);
-}
-
-export function stripComments(source) {
-  const out = source.split('');
-  let i = 0;
-  const n = source.length;
-  let state = 'code';
-  let quote = '';
-  while (i < n) {
-    const c = source[i];
-    const d = source[i + 1];
-    if (state === 'code') {
-      if (c === '/' && d === '/') {
-        state = 'line';
-        out[i] = ' ';
-        out[i + 1] = ' ';
-        i += 2;
-        continue;
-      }
-      if (c === '/' && d === '*') {
-        state = 'block';
-        out[i] = ' ';
-        out[i + 1] = ' ';
-        i += 2;
-        continue;
-      }
-      if (c === "'" || c === '"' || c === '`') {
-        state = 'string';
-        quote = c;
-        i += 1;
-        continue;
-      }
-      if (c === '/' && opensRegex(source, i)) {
-        let j = i + 1;
-        let inClass = false;
-        while (j < source.length) {
-          const r = source[j];
-          if (r === '\\') {
-            j += 2;
-            continue;
-          }
-          if (r === '[') inClass = true;
-          else if (r === ']') inClass = false;
-          else if (r === '/' && !inClass) break;
-          else if (r === '\n') break;
-          j += 1;
-        }
-        for (let k = i + 1; k < j && k < source.length; k += 1) out[k] = ' ';
-        i = j + 1;
-        continue;
-      }
-      i += 1;
-      continue;
-    }
-    if (state === 'line') {
-      if (c === '\n') state = 'code';
-      else out[i] = ' ';
-      i += 1;
-      continue;
-    }
-    if (state === 'block') {
-      if (c === '*' && d === '/') {
-        out[i] = ' ';
-        out[i + 1] = ' ';
-        i += 2;
-        state = 'code';
-        continue;
-      }
-      if (c !== '\n') out[i] = ' ';
-      i += 1;
-      continue;
-    }
-    // state === 'string'
-    if (c === '\\') {
-      i += 2;
-      continue;
-    }
-    if (c === quote) {
-      state = 'code';
-      quote = '';
-    }
-    i += 1;
-  }
-  return out.join('');
-}
-
-/** The 1-indexed line number of an offset. */
-function lineAt(source, offset) {
-  return source.slice(0, offset).split('\n').length;
-}
-
-/**
- * The arguments of the call that opens at `open`, as source text, split at the
- * commas that sit at depth zero. Quotes and brackets are tracked so a comma
- * inside an array or a string never splits an argument.
- */
-function callArguments(source, open) {
-  const args = [];
-  let depth = 0;
-  let current = '';
-  let quote = '';
-  for (let i = open; i < source.length; i += 1) {
-    const c = source[i];
-    if (quote !== '') {
-      current += c;
-      if (c === '\\') {
-        current += source[i + 1] ?? '';
-        i += 1;
-        continue;
-      }
-      if (c === quote) quote = '';
-      continue;
-    }
-    if (c === "'" || c === '"' || c === '`') {
-      quote = c;
-      current += c;
-      continue;
-    }
-    if (c === '(' || c === '[' || c === '{') {
-      depth += 1;
-      if (depth === 1 && i === open) continue;
-      current += c;
-      continue;
-    }
-    if (c === ')' || c === ']' || c === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        args.push(current.trim());
-        return args;
-      }
-      current += c;
-      continue;
-    }
-    if (c === ',' && depth === 1) {
-      args.push(current.trim());
-      current = '';
-      continue;
-    }
-    current += c;
-  }
-  args.push(current.trim());
-  return args;
-}
+// stripComments, lineAt, callArguments and blockAt were this file's own until
+// Phase 193, which needed the same four to ask the same question about ssh.
+// They are in build/scan-source.mjs now, unchanged, and the reason each one is
+// written the way it is stays in that file's header. This file still exports
+// stripComments, because that name was part of its surface.
 
 /**
  * The four program paths that start Tortie, plus the bare name the shell
@@ -438,20 +279,6 @@ export function usesHelper(source) {
 // ---------------------------------------------------------------------------
 // The helper's own shape
 // ---------------------------------------------------------------------------
-
-/** The text between the braces that open at `open`, braces matched. */
-function blockAt(code, open) {
-  let depth = 0;
-  for (let i = open; i < code.length; i += 1) {
-    if (code[i] === '{') depth += 1;
-    else if (code[i] === '}') {
-      depth -= 1;
-      if (depth === 0) return code.slice(open + 1, i);
-    }
-  }
-  return null;
-}
-
 /**
  * Whether withElectron ends its launch inside a `finally` block. The braces are
  * matched rather than the word searched, because the word appears in this

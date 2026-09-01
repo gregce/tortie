@@ -71,6 +71,10 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { productKnownHosts, sshOptions, sshRun, sshVersion } from './ssh-run.mjs';
+
+/** Every ssh this script starts goes through build/ssh-run.mjs (Phase 193). */
+const CALLER = 'build/capture-machine-goldens.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const checkedInDir = join(
@@ -157,7 +161,6 @@ mkdirSync(goldenDir, { recursive: true });
 // The carriage: one sshd, one key, one agent, all this script's own
 // ---------------------------------------------------------------------------
 
-const sshBin = '/usr/bin/ssh';
 const keygen = '/usr/bin/ssh-keygen';
 const sshdBin = '/usr/sbin/sshd';
 
@@ -218,33 +221,56 @@ if (!carriageUp) {
 const me = execFileSync('/usr/bin/id', ['-un'], { encoding: 'utf8' }).trim();
 const tmuxPath = sh('/usr/bin/which', ['tmux']).out.trim() || '/usr/bin/tmux';
 
+/**
+ * The record file these captures name, being Tortie's own FIRST and the
+ * person's own second, exactly as src/main/machines/ssh.ts names them.
+ * build/ssh-run.mjs is the only thing in build/ that can put those two paths in
+ * that order, so the ordering this whole script depends on is not something a
+ * later edit can quietly reverse.
+ */
+const STEADY_RECORD = productKnownHosts({ tortie: tortieRecord, user: userRecord });
+
 /** The steady state options, mirrored from src/main/machines/ssh.ts. */
 function steadyOptions(overrides = {}) {
-  const known = overrides.knownHosts ?? `"${tortieRecord}" "${userRecord}"`;
-  return [
-    '-o',
-    'BatchMode=yes',
-    '-o',
-    `ConnectTimeout=${String(overrides.connectTimeout ?? 10)}`,
-    '-o',
-    `StrictHostKeyChecking=${overrides.strict ?? 'no'}`,
-    '-o',
-    `UserKnownHostsFile=${known}`,
-    '-o',
-    'ControlMaster=no',
-    '-o',
-    'ServerAliveInterval=5',
-    '-o',
-    'ServerAliveCountMax=3',
-    '-o',
-    `IdentityFile=${userKey}`,
-    '-o',
-    'IdentitiesOnly=yes'
-  ];
+  return sshOptions({
+    knownHosts: overrides.knownHosts ?? STEADY_RECORD,
+    caller: CALLER,
+    connectTimeout: overrides.connectTimeout ?? 10,
+    strict: overrides.strict ?? 'no',
+    controlMaster: 'no',
+    serverAliveInterval: 5,
+    serverAliveCountMax: 3,
+    identityFile: userKey,
+    identitiesOnly: 'yes'
+  });
 }
 
-function runSsh(args) {
-  return sh(sshBin, args, { timeout: 30_000 });
+/**
+ * One ssh, with the record file guaranteed by the helper even when the caller's
+ * own argv carries none. `knownHosts` is the value the argv already holds, so
+ * the two agree and nothing is prepended twice.
+ *
+ * STDOUT ONLY ON SUCCESS, AND BOTH STREAMS ON FAILURE. That asymmetry is not a
+ * quirk to tidy away: these files ARE the golden bytes, and `execFileSync`,
+ * which this used to call, returns stdout alone when the program exits 0 and
+ * raises with both streams when it does not. Returning both streams either way
+ * put `Warning: Permanently added '[127.0.0.1]:35531' (ED25519) to the list of
+ * known hosts.` into the `ok` golden and took it from 53 bytes to 139. Measured
+ * against this script's own output at f10d616 on 2026-09-01.
+ */
+function runSsh(args, knownHosts = STEADY_RECORD) {
+  const out = sshRun({
+    knownHosts,
+    argv: args,
+    caller: CALLER,
+    timeout: 30_000,
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  const code = out.status ?? -1;
+  return {
+    code,
+    out: code === 0 ? out.stdout ?? '' : `${out.stdout ?? ''}${out.stderr ?? ''}`
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -352,33 +378,36 @@ capture(
     me,
     '127.0.0.1',
     'true'
-  ])
+  ], `"${wrongRecord}"`)
 );
 
 // auth-refused. Connect with no usable key at all.
 capture(
   'auth-refused',
   'Connect with no key the machine will accept.',
-  runSsh([
-    '-o',
-    'BatchMode=yes',
-    '-o',
-    'ConnectTimeout=10',
-    '-o',
-    'StrictHostKeyChecking=no',
-    '-o',
-    `UserKnownHostsFile=${tortieRecord}`,
-    '-o',
-    `IdentityFile=${wrongKey}`,
-    '-o',
-    'IdentitiesOnly=yes',
-    '-p',
-    String(port),
-    '-l',
-    me,
-    '127.0.0.1',
-    'true'
-  ])
+  runSsh(
+    [
+      '-o',
+      'BatchMode=yes',
+      '-o',
+      'ConnectTimeout=10',
+      '-o',
+      'StrictHostKeyChecking=no',
+      '-o',
+      `UserKnownHostsFile=${tortieRecord}`,
+      '-o',
+      `IdentityFile=${wrongKey}`,
+      '-o',
+      'IdentitiesOnly=yes',
+      '-p',
+      String(port),
+      '-l',
+      me,
+      '127.0.0.1',
+      'true'
+    ],
+    tortieRecord
+  )
 );
 
 // refused. A high port with nothing listening.
@@ -434,7 +463,11 @@ capture(
  * client string is what the conformance gate fails on, and it failed on exactly
  * this the first time.
  */
-const sshVersion = sh('/bin/sh', ['-c', `${sshBin} -V 2>&1`]).out.trim();
+// `ssh -V` used to be read by handing `ssh -V 2>&1` to /bin/sh -c, which put
+// an ssh on a command line no scanner reading spawn positions would ever see.
+// build/ssh-run.mjs owns it now, and npm run gate:knownhosts refuses that shape
+// if it comes back.
+const sshVersionText = sshVersion({ knownHosts: STEADY_RECORD, caller: CALLER });
 const remoteTmuxVersion = sh('/bin/sh', ['-c', `${tmuxPath} -V 2>&1`]).out.trim();
 
 const noGolden = [
@@ -521,7 +554,7 @@ const manifest = {
     'src/main/machines/__tests__/golden.test.ts reads these files and runs ' +
     'nothing at all.',
   capturedAt: new Date().toISOString().slice(0, 10),
-  sshClient: sshVersion,
+  sshClient: sshVersionText,
   remoteTmux: remoteTmuxVersion,
   carriageStarted: carriageUp,
   captures: [...captures, ...carriedCaptures],

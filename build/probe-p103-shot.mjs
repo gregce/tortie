@@ -89,6 +89,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { withElectron } from './electron-run.mjs';
+import { keyscanText } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p103shot]';
@@ -295,11 +296,11 @@ writeFileSync(
 mkdirSync(join(profile, 'gmux', 'machines'), { recursive: true });
 writeFileSync(
   join(profile, 'gmux', 'machines', 'known-machines'),
-  spawnSync(
-    '/usr/bin/ssh-keyscan',
-    ['-p', String(carriage.port), carriage.host],
-    { encoding: 'utf8', timeout: 30_000 }
-  ).stdout ?? '',
+  keyscanText({
+    host: carriage.host,
+    port: carriage.port,
+    caller: 'build/probe-p103-shot.mjs'
+  }),
   'utf8'
 );
 

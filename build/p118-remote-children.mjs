@@ -95,6 +95,7 @@ import {
 } from './scratch-machine.mjs';
 
 import { withElectron } from './electron-run.mjs';
+import { sshRun } from './ssh-run.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -284,9 +285,10 @@ if (!machine.isolated()) {
 
 /** One command against the machine, over a real connection. */
 function onMachineOverSsh(command) {
-  return sh(
-    '/usr/bin/ssh',
-    [
+  const out = sshRun({
+    knownHosts: '/dev/null',
+    caller: 'build/p118-remote-children.mjs',
+    argv: [
       '-p',
       String(machine.port),
       '-o',
@@ -294,14 +296,21 @@ function onMachineOverSsh(command) {
       '-o',
       'StrictHostKeyChecking=no',
       '-o',
-      'UserKnownHostsFile=/dev/null',
-      '-o',
       'LogLevel=ERROR',
       `${yard.user}@127.0.0.1`,
       command
     ],
-    { env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
-  );
+    // This script's own sh() carried these, and the helper's defaults are
+    // narrower, so they are named here rather than inherited.
+    timeout: 120_000,
+    env: { ...process.env, SSH_AUTH_SOCK: yard.authSock }
+  });
+  return {
+    code: out.status ?? -1,
+    stdout: out.stdout ?? '',
+    stderr: out.stderr ?? '',
+    both: `${out.stdout ?? ''}${out.stderr ?? ''}`
+  };
 }
 
 // The wrapper is PROVEN to be what that machine's git resolves to, over a real

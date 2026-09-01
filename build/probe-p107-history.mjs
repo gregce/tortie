@@ -117,6 +117,7 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+import { sshRun } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -1425,11 +1426,22 @@ if (existsSync('/tmp/p107-pwned')) {
   } else {
     const timed = (spec) => {
       const started = Date.now();
-      const out = sh('/usr/bin/ssh', [
-        ...sshArgs,
-        `cd ${work} && git show ${spec}`
-      ], { env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } });
-      return { ms: Date.now() - started, bytes: out.stdout.length, code: out.code };
+      const out = sshRun({
+        knownHosts,
+        caller: 'build/probe-p107-history.mjs',
+        argv: [...sshArgs, `cd ${work} && git show ${spec}`],
+        // This probe's own sh() carried these, and the helper's defaults are
+        // narrower. A git show over ssh can be far larger than node's 1 MB
+        // default buffer, so inheriting it would truncate the measurement.
+        timeout: 300_000,
+        maxBuffer: 256 * 1024 * 1024,
+        env: { ...process.env, SSH_AUTH_SOCK: yard.authSock }
+      });
+      return {
+        ms: Date.now() - started,
+        bytes: (out.stdout ?? '').length,
+        code: out.status ?? -1
+      };
     };
     const after = timed(`'${sha}:${path}'`);
     const before = timed(`'${sha}^:${path}'`);

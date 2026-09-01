@@ -69,6 +69,7 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+import { keyscanText } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOCKET = process.env['GMUX_TMUX_SOCKET'] ?? `gmux-p73-${String(process.pid)}`;
@@ -174,7 +175,11 @@ say(`machine on 127.0.0.1:${String(machine.port)} as ${machine.user}`);
 const hostKeys = join(root, 'p73-known-hosts');
 writeFileSync(
   hostKeys,
-  sh('/usr/bin/ssh-keyscan', ['-p', String(machine.port), machine.host]).stdout,
+  keyscanText({
+    host: machine.host,
+    port: machine.port,
+    caller: 'build/probe-remote-harvest.mjs'
+  }),
   'utf8'
 );
 

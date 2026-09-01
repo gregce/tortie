@@ -62,6 +62,10 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { endAgentWithThisProcess } from './scratch-machine.mjs';
+import { SSH_BIN, keyscanText, productKnownHosts, sshOptions, sshRun } from './ssh-run.mjs';
+
+/** Every ssh this probe starts goes through build/ssh-run.mjs (Phase 193). */
+const CALLER = 'build/probe-execplane.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -158,7 +162,6 @@ const userRecordBefore = sizeOf(userRecord);
 
 mkdirSync(root, { recursive: true, mode: 0o700 });
 
-const sshBin = '/usr/bin/ssh';
 const keygen = '/usr/bin/ssh-keygen';
 const sshdBin = '/usr/sbin/sshd';
 const hostKey = join(root, 'p69-hostkey');
@@ -299,7 +302,7 @@ const carriageUp = waitForPort(port);
 // the property under test in step 16, so the probe does the first contact the way
 // the one visible connection test does it and then measures that nothing else
 // changes.
-const scanned = sh('/usr/bin/ssh-keyscan', ['-p', String(port), '127.0.0.1']).stdout;
+const scanned = keyscanText({ host: '127.0.0.1', port, caller: CALLER });
 writeFileSync(tortieRecord, scanned, 'utf8');
 const tortieRecordAfterFirstContact = sizeOf(tortieRecord);
 
@@ -328,35 +331,40 @@ const controlPath = join(CONTROL_DIR, `m-p69${String(process.pid).slice(-8)}`);
 
 const KEEPALIVE = { interval: 5, countMax: 3 };
 
+/**
+ * The record file this plane names, being Tortie's own FIRST and the person's
+ * own second, exactly as src/main/machines/ssh.ts names them. It is composed by
+ * build/ssh-run.mjs, which is the only thing in build/ that can put those two
+ * paths in that order, and it cannot be written the other way round.
+ */
+const PLANE_RECORD = productKnownHosts({ tortie: tortieRecord, user: userRecord });
+
 function planeOptions(keepalive = KEEPALIVE) {
-  return [
-    '-o',
-    'BatchMode=yes',
-    '-o',
-    'ConnectTimeout=10',
-    '-o',
-    'StrictHostKeyChecking=yes',
-    '-o',
-    `UserKnownHostsFile="${tortieRecord}" "${userRecord}"`,
-    '-o',
-    'ControlMaster=auto',
-    '-o',
-    `ControlPath=${controlPath}`,
-    '-o',
-    'ControlPersist=60s',
-    '-o',
-    `ServerAliveInterval=${String(keepalive.interval)}`,
-    '-o',
-    `ServerAliveCountMax=${String(keepalive.countMax)}`,
-    '-o',
-    `IdentityFile=${userKey}`,
-    '-o',
-    'IdentitiesOnly=yes',
-    '-p',
-    String(port),
-    '-l',
-    me
-  ];
+  return sshOptions({
+    knownHosts: PLANE_RECORD,
+    caller: CALLER,
+    connectTimeout: 10,
+    strict: 'yes',
+    controlMaster: 'auto',
+    controlPath,
+    controlPersist: '60s',
+    serverAliveInterval: keepalive.interval,
+    serverAliveCountMax: keepalive.countMax,
+    identityFile: userKey,
+    identitiesOnly: 'yes',
+    extra: ['-p', String(port), '-l', me]
+  });
+}
+
+/** One ssh on this plane, shaped like every other result in this probe. */
+function ssh(argv, options = {}) {
+  const out = sshRun({ knownHosts: PLANE_RECORD, argv, caller: CALLER, ...options });
+  return {
+    code: out.status ?? -1,
+    stdout: out.stdout ?? '',
+    stderr: out.stderr ?? '',
+    both: `${out.stdout ?? ''}${out.stderr ?? ''}`
+  };
 }
 
 /** Every argv this probe sent, in order, for the ordering assertions. */
@@ -396,7 +404,7 @@ function remoteTmux(args, keepalive = KEEPALIVE, program = tmuxPath) {
   const argv = [...planeOptions(keepalive), '127.0.0.1', remoteCommand];
   sentArgv.push(args.join(' '));
   const started = nowMs();
-  const out = sh(sshBin, argv);
+  const out = ssh(argv);
   return { ...out, ms: nowMs() - started, argv };
 }
 
@@ -404,7 +412,7 @@ function remoteShell(command, keepalive = KEEPALIVE) {
   const argv = [...planeOptions(keepalive), '127.0.0.1', command];
   sentArgv.push(`SHELL ${command}`);
   const started = nowMs();
-  const out = sh(sshBin, argv);
+  const out = ssh(argv);
   return { ...out, ms: nowMs() - started, argv };
 }
 
@@ -438,7 +446,7 @@ step(
   )} of ${String(REQUIRED.length)} required options present` +
     (missing.length > 0 ? `, MISSING ${missing.join(', ')}` : '')
 );
-say(`   ${sshBin} ${sampleText}`);
+say(`   ${SSH_BIN} ${sampleText}`);
 if (missing.length > 0) fail(`the argv is missing ${missing.join(', ')}`);
 if (sample.includes(REAL_SOCKET)) {
   fail('the argv carries the literal socket gmux');
@@ -716,7 +724,7 @@ if (existsSync(bundledTmux)) {
       '/dev/null',
       ...args
     ]);
-    return sh(sshBin, [...planeOptions(), '127.0.0.1', command]);
+    return ssh([...planeOptions(), '127.0.0.1', command]);
   };
   const direct = remoteShell(`${bundledTmux} -V`);
   const noServer = bundledRemote(['list-sessions', '-F', '#{session_id}']);
@@ -807,7 +815,7 @@ for (const pair of CANDIDATES) {
   const options = planeOptions(pair).map((a) =>
     a.startsWith('ControlPath=') ? `ControlPath=${perPairControl}` : a
   );
-  const warm = sh(sshBin, [...options, '127.0.0.1', 'true']);
+  const warm = ssh([...options, '127.0.0.1', 'true']);
   if (warm.code !== 0) {
     keepaliveRows.push({
       pair: `${String(pair.interval)},${String(pair.countMax)}`,
@@ -834,7 +842,7 @@ for (const pair of CANDIDATES) {
     }
   }
   const started = nowMs();
-  const frozen = sh(sshBin, [...options, '127.0.0.1', 'true'], { timeout: 120_000 });
+  const frozen = ssh([...options, '127.0.0.1', 'true'], { timeout: 120_000 });
   const seconds = ((nowMs() - started) / 1000).toFixed(1);
   for (const pid of frozenPids) {
     try {
@@ -844,14 +852,14 @@ for (const pair of CANDIDATES) {
     }
   }
   sh('/bin/sleep', ['0.3']);
-  const after = sh(sshBin, [...options, '127.0.0.1', 'true']);
+  const after = ssh([...options, '127.0.0.1', 'true']);
   keepaliveRows.push({
     pair: `${String(pair.interval)},${String(pair.countMax)}`,
     seconds,
     message: firstLine(frozen.both) || `exit ${String(frozen.code)}`,
     recovered: after.code === 0 ? 'yes' : `no (exit ${String(after.code)})`
   });
-  sh(sshBin, [...options, '-O', 'exit', '127.0.0.1']);
+  ssh([...options, '-O', 'exit', '127.0.0.1']);
 }
 
 step(11, 'the keepalives', `${String(keepaliveRows.length)} pair(s) measured`);
@@ -1340,7 +1348,7 @@ if (configRoot === '') {
       /* already gone is the state we wanted */
     }
   }
-  sh(sshBin, [...planeOptions(), '-O', 'exit', '127.0.0.1']);
+  ssh([...planeOptions(), '-O', 'exit', '127.0.0.1']);
   if (existsSync(root)) rmSync(root, { recursive: true, force: true });
 }
 

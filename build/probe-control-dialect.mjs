@@ -53,6 +53,17 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  SSH_BIN,
+  keyscanText,
+  productKnownHosts,
+  sshOptions,
+  sshRun,
+  sshSpawn
+} from './ssh-run.mjs';
+
+/** Every ssh this probe starts goes through build/ssh-run.mjs (Phase 193). */
+const CALLER = 'build/probe-control-dialect.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -142,7 +153,6 @@ step(
 
 mkdirSync(root, { recursive: true, mode: 0o700 });
 
-const sshBin = '/usr/bin/ssh';
 const keygen = '/usr/bin/ssh-keygen';
 const sshdBin = '/usr/sbin/sshd';
 const hostKey = join(root, 'p71-hostkey');
@@ -227,46 +237,46 @@ if (!carriageUp) fail('the scratch sshd did not start');
 
 // The machine's own key goes into Tortie's record file by hand, once, because
 // StrictHostKeyChecking=yes means the plane itself can never add a line.
-writeFileSync(
-  tortieRecord,
-  sh('/usr/bin/ssh-keyscan', ['-p', String(port), '127.0.0.1']).stdout,
-  'utf8'
-);
+writeFileSync(tortieRecord, keyscanText({ host: '127.0.0.1', port, caller: CALLER }), 'utf8');
 
 const CONTROL_DIR = join(tmpdir(), 'tortie-mux');
 mkdirSync(CONTROL_DIR, { recursive: true, mode: 0o700 });
 const controlPath = join(CONTROL_DIR, `m-p71${String(process.pid).slice(-8)}`);
 
+/**
+ * The record file this plane names, being Tortie's own FIRST and the person's
+ * own second, exactly as src/main/machines/ssh.ts names them. build/ssh-run.mjs
+ * is the only thing in build/ that can put those two paths in that order.
+ */
+const PLANE_RECORD = productKnownHosts({ tortie: tortieRecord, user: userRecord });
+
 /** The carriage, in the order `src/main/machines/ssh.ts` composes it. */
 function planeOptions() {
-  return [
-    '-o',
-    'BatchMode=yes',
-    '-o',
-    'ConnectTimeout=10',
-    '-o',
-    'StrictHostKeyChecking=yes',
-    '-o',
-    `UserKnownHostsFile="${tortieRecord}" "${userRecord}"`,
-    '-o',
-    'ControlMaster=auto',
-    '-o',
-    `ControlPath=${controlPath}`,
-    '-o',
-    'ControlPersist=60s',
-    '-o',
-    'ServerAliveInterval=5',
-    '-o',
-    'ServerAliveCountMax=3',
-    '-o',
-    `IdentityFile=${userKey}`,
-    '-o',
-    'IdentitiesOnly=yes',
-    '-p',
-    String(port),
-    '-l',
-    me
-  ];
+  return sshOptions({
+    knownHosts: PLANE_RECORD,
+    caller: CALLER,
+    connectTimeout: 10,
+    strict: 'yes',
+    controlMaster: 'auto',
+    controlPath,
+    controlPersist: '60s',
+    serverAliveInterval: 5,
+    serverAliveCountMax: 3,
+    identityFile: userKey,
+    identitiesOnly: 'yes',
+    extra: ['-p', String(port), '-l', me]
+  });
+}
+
+/** One ssh on this plane, shaped like every other result in this probe. */
+function ssh(argv, options = {}) {
+  const out = sshRun({ knownHosts: PLANE_RECORD, argv, caller: CALLER, ...options });
+  return {
+    code: out.status ?? -1,
+    stdout: out.stdout ?? '',
+    stderr: out.stderr ?? '',
+    both: `${out.stdout ?? ''}${out.stderr ?? ''}`
+  };
 }
 
 /** The one quoting helper's shape, mirrored from src/main/restore/command.ts. */
@@ -362,17 +372,22 @@ function openControlChild(where, program, socket, extraTmuxFlags = []) {
     '-s',
     CONTROL_SESSION_NAME
   ];
-  let file;
-  let argv;
-  if (where === 'local') {
-    file = program;
-    argv = tmuxArgv.slice(1);
-  } else {
-    file = sshBin;
-    argv = [...planeOptions(), '127.0.0.1', quoteArgv(tmuxArgv)];
-  }
+  const remote = where !== 'local';
+  const file = remote ? SSH_BIN : program;
+  const argv = remote
+    ? [...planeOptions(), '127.0.0.1', quoteArgv(tmuxArgv)]
+    : tmuxArgv.slice(1);
   assertScratchSocket(`${where} ${program}`, [...argv]);
-  const child = spawn(file, argv, { stdio: ['pipe', 'pipe', 'pipe'] });
+  // The remote leg goes through build/ssh-run.mjs, which is the only place in
+  // build/ that hands ssh to a spawn. The local leg is a tmux, so it does not.
+  const child = remote
+    ? sshSpawn({
+        knownHosts: PLANE_RECORD,
+        argv,
+        caller: CALLER,
+        stdio: ['pipe', 'pipe', 'pipe']
+      })
+    : spawn(file, argv, { stdio: ['pipe', 'pipe', 'pipe'] });
   recordedPids.push(child.pid);
   const state = {
     child,
@@ -472,7 +487,7 @@ function verb(where, program, socket, args, timeoutMs = 20_000) {
     .join(' ');
   const argv = [...planeOptions(), '127.0.0.1', quoted];
   assertScratchSocket(`${where} verb ${args[0] ?? ''}`, argv);
-  const out = sh(sshBin, argv, { timeout: timeoutMs });
+  const out = ssh(argv, { timeout: timeoutMs });
   if (out.code !== 0 && args[0] !== 'kill-server') {
     fail(`remote ${args.join(' ')} exited ${String(out.code)}: ${out.both.trim()}`);
   }
@@ -792,7 +807,7 @@ if (carriageUp && programs.length > 0) {
       step10 = 'the control child never greeted, so nothing was measured';
     } else {
       // End the shared master first, then the listener, then every descendant.
-      sh(sshBin, [...planeOptions(), '-O', 'exit', '127.0.0.1']);
+      ssh([...planeOptions(), '-O', 'exit', '127.0.0.1']);
       const kids = descendantsOf(sshd.pid);
       const killedAt = nowMs();
       for (const pid of [...kids, sshd.pid]) {
@@ -962,7 +977,7 @@ for (const entry of scratchSockets) {
   if (socket === REAL_SOCKET) continue;
   if (where === 'local') sh(program, ['-L', socket, 'kill-server']);
 }
-sh(sshBin, [...planeOptions(), '-O', 'exit', '127.0.0.1']);
+ssh([...planeOptions(), '-O', 'exit', '127.0.0.1']);
 for (const pid of recordedPids) {
   if (typeof pid !== 'number') continue;
   try {

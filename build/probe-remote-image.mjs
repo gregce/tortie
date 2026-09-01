@@ -78,6 +78,7 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+import { sshRun } from './ssh-run.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -812,9 +813,10 @@ function farSideParts() {
 
 /** Send one composed command over a real connection to the scratch machine. */
 function sendComposed(command) {
-  return sh(
-    '/usr/bin/ssh',
-    [
+  const out = sshRun({
+    knownHosts: ctxInput.hostKeys,
+    caller: 'build/probe-remote-image.mjs',
+    argv: [
       '-p',
       String(PORT),
       '-o',
@@ -822,14 +824,22 @@ function sendComposed(command) {
       '-o',
       'StrictHostKeyChecking=yes',
       '-o',
-      `UserKnownHostsFile=${ctxInput.hostKeys}`,
-      '-o',
       'LogLevel=ERROR',
       `${yard.user}@${TARGET}`,
       command
     ],
-    { env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
-  );
+    // This probe's own sh() carried these, and the helper's defaults are
+    // narrower. This probe moves images, so the 1 MB default would truncate.
+    timeout: 120_000,
+    maxBuffer: 64 * 1024 * 1024,
+    env: { ...process.env, SSH_AUTH_SOCK: yard.authSock }
+  });
+  return {
+    code: out.status ?? -1,
+    stdout: out.stdout ?? '',
+    stderr: out.stderr ?? '',
+    both: `${out.stdout ?? ''}${out.stderr ?? ''}`
+  };
 }
 
 /** One upload of one image that stops before the move, run over ssh. */

@@ -77,6 +77,10 @@ import {
   scratchMachine,
   scratchYard
 } from './scratch-machine.mjs';
+import { keyscanText, sshRun } from './ssh-run.mjs';
+
+/** Every ssh this probe starts goes through build/ssh-run.mjs (Phase 193). */
+const CALLER = 'build/probe-p187-returning-tab.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[p187]';
@@ -223,20 +227,33 @@ function farTmuxProgram(slowMs) {
  */
 const SLOW_LIST_MARKER = join(root, 'slow-list-on');
 
-/** Ask the far machine directly, read only, which sessions its server holds. */
-function farSessions() {
-  const out = spawnSync(
-    '/usr/bin/ssh',
-    [
+/**
+ * One command on the scratch machine, out of band of the product. The record
+ * file is /dev/null because this loopback machine is thrown away with the run,
+ * and build/ssh-run.mjs is what guarantees the option is there at all.
+ */
+function farSsh(command, timeoutMs) {
+  return sshRun({
+    knownHosts: '/dev/null',
+    caller: CALLER,
+    argv: [
       '-p', String(machine.port),
       '-o', 'BatchMode=yes',
       '-o', 'StrictHostKeyChecking=no',
-      '-o', 'UserKnownHostsFile=/dev/null',
       '-o', 'LogLevel=ERROR',
       `${yard.user}@127.0.0.1`,
-      `${yard.tmuxPath} -L ${SOCKET} -f /dev/null list-sessions -F '#{session_id} #{session_name}' 2>/dev/null || true`
+      command
     ],
-    { encoding: 'utf8', timeout: 20_000, env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
+    timeout: timeoutMs,
+    env: { ...process.env, SSH_AUTH_SOCK: yard.authSock }
+  });
+}
+
+/** Ask the far machine directly, read only, which sessions its server holds. */
+function farSessions() {
+  const out = farSsh(
+    `${yard.tmuxPath} -L ${SOCKET} -f /dev/null list-sessions -F '#{session_id} #{session_name}' 2>/dev/null || true`,
+    20_000
   );
   return (out.stdout ?? '')
     .split('\n')
@@ -246,19 +263,7 @@ function farSessions() {
 
 /** Kill one session ON THE MACHINE, out of band of the product. Calibration only. */
 function farKill(tmuxId) {
-  spawnSync(
-    '/usr/bin/ssh',
-    [
-      '-p', String(machine.port),
-      '-o', 'BatchMode=yes',
-      '-o', 'StrictHostKeyChecking=no',
-      '-o', 'UserKnownHostsFile=/dev/null',
-      '-o', 'LogLevel=ERROR',
-      `${yard.user}@127.0.0.1`,
-      `${yard.tmuxPath} -L ${SOCKET} -f /dev/null kill-session -t '${tmuxId}'`
-    ],
-    { encoding: 'utf8', timeout: 20_000, env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
-  );
+  farSsh(`${yard.tmuxPath} -L ${SOCKET} -f /dev/null kill-session -t '${tmuxId}'`, 20_000);
 }
 
 /**
@@ -271,19 +276,7 @@ function farKill(tmuxId) {
  * refused the two real ones.
  */
 function farTmux(argvLine) {
-  const out = spawnSync(
-    '/usr/bin/ssh',
-    [
-      '-p', String(machine.port),
-      '-o', 'BatchMode=yes',
-      '-o', 'StrictHostKeyChecking=no',
-      '-o', 'UserKnownHostsFile=/dev/null',
-      '-o', 'LogLevel=ERROR',
-      `${yard.user}@127.0.0.1`,
-      `${yard.tmuxPath} -L ${SOCKET} -f /dev/null ${argvLine}`
-    ],
-    { encoding: 'utf8', timeout: 30_000, env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
-  );
+  const out = farSsh(`${yard.tmuxPath} -L ${SOCKET} -f /dev/null ${argvLine}`, 30_000);
   return { code: out.status ?? -1, stdout: (out.stdout ?? '').trim(), stderr: (out.stderr ?? '').trim() };
 }
 
@@ -409,10 +402,7 @@ async function main() {
   mkdirSync(dirname(knownMachines), { recursive: true });
   writeFileSync(
     knownMachines,
-    execFileSync('/usr/bin/ssh-keyscan', ['-p', String(machine.port), '127.0.0.1'], {
-      encoding: 'utf8',
-      timeout: 30_000
-    }),
+    keyscanText({ host: '127.0.0.1', port: machine.port, caller: CALLER }),
     'utf8'
   );
 

@@ -51,6 +51,10 @@ import {
   writeFileSync
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+import { sshRun } from './ssh-run.mjs';
+
+/** Every ssh this module starts goes through build/ssh-run.mjs (Phase 193). */
+const CALLER = 'build/scratch-machine.mjs';
 
 /** The operator's live server. Nothing here may ever reach it. */
 export const REAL_SOCKET = 'gmux';
@@ -359,9 +363,10 @@ export function scratchMachine(yard, { id, port }) {
      * file on this Mac is allowed to change the environment.
      */
     isolated() {
-      const asked = sh(
-        '/usr/bin/ssh',
-        [
+      const asked = sshRun({
+        knownHosts: '/dev/null',
+        caller: CALLER,
+        argv: [
           '-p',
           String(port),
           '-o',
@@ -369,15 +374,13 @@ export function scratchMachine(yard, { id, port }) {
           '-o',
           'StrictHostKeyChecking=no',
           '-o',
-          'UserKnownHostsFile=/dev/null',
-          '-o',
           'LogLevel=ERROR',
           `${yard.user}@127.0.0.1`,
           'printenv TMUX_TMPDIR'
         ],
-        { env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
-      );
-      return asked.stdout.trim() === tmuxTmp;
+        env: { ...process.env, SSH_AUTH_SOCK: yard.authSock }
+      });
+      return (asked.stdout ?? '').trim() === tmuxTmp;
     },
 
     /** The tmux server this machine is running, by the pid it reports. */

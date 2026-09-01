@@ -57,6 +57,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { refuseRealSockets, scratchMachine, scratchYard } from './scratch-machine.mjs';
+import { sshRun } from './ssh-run.mjs';
 
 const WHO = 'probe-control-deadline';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -160,15 +161,14 @@ writeFileSync(userHostKeys, '', 'utf8');
 
 /** One command on the scratch machine, over the person's own ssh client. */
 function onMachine(command) {
-  return spawnSync(
-    '/usr/bin/ssh',
-    [
+  return sshRun({
+    knownHosts: tortieHostKeys,
+    caller: 'build/probe-control-deadline.mjs',
+    argv: [
       '-o',
       'BatchMode=yes',
       '-o',
       'StrictHostKeyChecking=yes',
-      '-o',
-      `UserKnownHostsFile=${tortieHostKeys}`,
       '-p',
       String(machine.port),
       '-l',
@@ -176,8 +176,9 @@ function onMachine(command) {
       machine.host,
       command
     ],
-    { encoding: 'utf8', timeout: 30_000, env: { ...process.env, SSH_AUTH_SOCK: yard.authSock } }
-  );
+    timeout: 30_000,
+    env: { ...process.env, SSH_AUTH_SOCK: yard.authSock }
+  });
 }
 
 // Leg 3 needs a real server on the far side, because the read that stands in

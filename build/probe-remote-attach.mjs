@@ -54,6 +54,17 @@ import {
 import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {
+  SSH_BIN,
+  keyscanText,
+  productKnownHosts,
+  sshOptions,
+  sshRun,
+  sshSpawn
+} from './ssh-run.mjs';
+
+/** Every ssh this probe starts goes through build/ssh-run.mjs (Phase 193). */
+const CALLER = 'build/probe-remote-attach.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -162,7 +173,6 @@ const userRecordBefore = sizeOf(userRecord);
 
 mkdirSync(root, { recursive: true, mode: 0o700 });
 
-const sshBin = '/usr/bin/ssh';
 const keygen = '/usr/bin/ssh-keygen';
 const sshdBin = '/usr/sbin/sshd';
 const hostKey = join(root, 'p70-hostkey');
@@ -248,11 +258,7 @@ const carriageUp = waitForPort(port);
 // StrictHostKeyChecking=yes means nothing Tortie runs can ever add a line. That
 // first contact belongs to the one visible connection test in the real product,
 // and here it is this line.
-writeFileSync(
-  tortieRecord,
-  sh('/usr/bin/ssh-keyscan', ['-p', String(port), '127.0.0.1']).stdout,
-  'utf8'
-);
+writeFileSync(tortieRecord, keyscanText({ host: '127.0.0.1', port, caller: CALLER }), 'utf8');
 const tortieRecordAfterFirstContact = sizeOf(tortieRecord);
 
 const remoteTmuxPath = sh('/usr/bin/which', ['tmux']).stdout.trim() || '/usr/bin/tmux';
@@ -277,37 +283,41 @@ mkdirSync(CONTROL_DIR, { recursive: true, mode: 0o700 });
 const controlPath = join(CONTROL_DIR, `m-p70${String(process.pid).slice(-8)}`);
 
 /** Mirrors `sshOptions` in src/main/machines/ssh.ts, in the same order. */
+/**
+ * The record file this plane names, being Tortie's own FIRST and the person's
+ * own second, exactly as src/main/machines/ssh.ts names them. build/ssh-run.mjs
+ * is the only thing in build/ that can put those two paths in that order.
+ */
+const PLANE_RECORD = productKnownHosts({ tortie: tortieRecord, user: userRecord });
+
 function planeOptions() {
-  return [
-    '-o',
-    'BatchMode=yes',
-    '-o',
-    'ConnectTimeout=10',
-    '-o',
-    'StrictHostKeyChecking=yes',
-    '-o',
-    `UserKnownHostsFile="${tortieRecord}" "${userRecord}"`,
-    '-o',
-    'ControlMaster=auto',
-    '-o',
-    `ControlPath=${controlPath}`,
-    '-o',
-    'ControlPersist=60s',
-    '-o',
-    'ServerAliveInterval=5',
-    '-o',
-    'ServerAliveCountMax=3',
+  return sshOptions({
+    knownHosts: PLANE_RECORD,
+    caller: CALLER,
+    connectTimeout: 10,
+    strict: 'yes',
+    controlMaster: 'auto',
+    controlPath,
+    controlPersist: '60s',
+    serverAliveInterval: 5,
+    serverAliveCountMax: 3,
     // This probe's own identity, because the plane names no key on purpose and
     // this Mac may hold none of its own.
-    '-o',
-    `IdentityFile=${userKey}`,
-    '-o',
-    'IdentitiesOnly=yes',
-    '-p',
-    String(port),
-    '-l',
-    me
-  ];
+    identityFile: userKey,
+    identitiesOnly: 'yes',
+    extra: ['-p', String(port), '-l', me]
+  });
+}
+
+/** One ssh on this plane, shaped like every other result in this probe. */
+function ssh(argv, options = {}) {
+  const out = sshRun({ knownHosts: PLANE_RECORD, argv, caller: CALLER, ...options });
+  return {
+    code: out.status ?? -1,
+    stdout: out.stdout ?? '',
+    stderr: out.stderr ?? '',
+    both: `${out.stdout ?? ''}${out.stderr ?? ''}`
+  };
 }
 
 /** Mirrors `shellQuoteArg` in src/main/restore/command.ts. */
@@ -367,7 +377,7 @@ function remoteTmux(args) {
   const command = remoteTmuxArgv(args)
     .map((arg) => (arg.startsWith('=') ? quoteTarget(arg) : quoteArg(arg)))
     .join(' ');
-  return sh(sshBin, [...planeOptions(), '127.0.0.1', command]);
+  return ssh([...planeOptions(), '127.0.0.1', command]);
 }
 
 // ---------------------------------------------------------------------------
@@ -397,7 +407,7 @@ step(
   )} of ${String(REQUIRED.length)} carriage options present` +
     (missing.length > 0 ? `, MISSING ${missing.join(', ')}` : '')
 );
-say(`   ${sshBin} ${sampleText}`);
+say(`   ${SSH_BIN} ${sampleText}`);
 if (missing.length > 0) fail(`the attach argv is missing ${missing.join(', ')}`);
 if (sample[0] !== '-t') fail('the attach argv does not force a terminal first');
 if (sample.includes(REAL_SOCKET)) {
@@ -430,7 +440,14 @@ const nodePty = require('node-pty');
 
 /** One attach client, with everything it printed kept as one string. */
 function openAttach(tmuxName, cols = 80, rowsHigh = 24) {
-  const pty = nodePty.spawn(sshBin, attachArgv(tmuxName), {
+  // node-pty's spawn is INJECTED into build/ssh-run.mjs rather than called
+  // here, so the helper still owns the program and the record file while the
+  // far side still sees a terminal.
+  const pty = sshSpawn({
+    knownHosts: PLANE_RECORD,
+    argv: attachArgv(tmuxName),
+    caller: CALLER,
+    spawn: nodePty.spawn,
     name: 'xterm-256color',
     cols,
     rows: rowsHigh,
@@ -712,7 +729,7 @@ async function main() {
     }
   }
   await sleep(500);
-  sh(sshBin, [...planeOptions(), '-O', 'exit', '127.0.0.1']);
+  ssh([...planeOptions(), '-O', 'exit', '127.0.0.1']);
   const alive = remoteTmux(['list-sessions', '-F', '#{session_name}']);
   const third = openAttach(SESSION_NAME);
   const thirdBack = await waitFor(() => third.text.includes(MARKER), 15_000);
@@ -745,7 +762,7 @@ async function main() {
   // socket, which was refused at the top of this file if it were the real one.
   remoteTmux(['kill-session', '-t', `=${SESSION_NAME}`]);
   remoteTmux(['kill-server']);
-  sh(sshBin, [...planeOptions(), '-O', 'exit', '127.0.0.1']);
+  ssh([...planeOptions(), '-O', 'exit', '127.0.0.1']);
 
   for (const pid of recordedPids) {
     if (typeof pid !== 'number') continue;

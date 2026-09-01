@@ -171,6 +171,16 @@ export const CHECKS = [
   // production file under src/main calls a session cache deletion at all.
   // Four fixtures it writes itself prove the scanner fails when it should.
   pure('gate:cache-policy'),
+  // PHASE 193. No file under build/ except build/ssh-run.mjs hands ssh, scp,
+  // sftp or ssh-keyscan to a spawn, none hands ssh-keygen a known_hosts flag,
+  // and none names one on a shell command line. Every one of the nineteen
+  // scripts that runs one still reaches the helper, which emits
+  // -o UserKnownHostsFile= from a single place, refuses an empty value, gives
+  // knownHosts no default so forgetting it throws, prepends it so nothing
+  // later in an argv can win, and puts Tortie's own record file first. Six
+  // fixtures it writes itself prove the scanner fails when it should. It runs
+  // inside npm run build, so nothing that builds can skip it.
+  pure('gate:knownhosts'),
   // PHASE 189. A project tab is never again drawn as one letter and an
   // ellipsis. The fix is three declarations and one deletion, and every one of
   // them is a single line a later round can undo without noticing: the name's
@@ -233,6 +243,14 @@ export const CHECKS = [
   remote('smoke:remote'),
   remote('probe:p95'),
   remote('probe:p131'),
+  // PHASE 193. The reproduction behind npm run gate:knownhosts, run rather
+  // than read: the mechanism is proved live against this run's own sshd, a
+  // caller that forgets the record file is proved to throw before anything is
+  // spawned, a scoped run is proved to write only where it was told, and the
+  // two file form is proved to write only its FIRST file. The person's own
+  // ~/.ssh/known_hosts is read for its size and its sha256 at both ends and
+  // nothing else. It is not in any battery: the gate is what runs every time.
+  remote('probe:p193'),
   remote('probe:execplane'),
   remote('probe:remoteattach'),
   remote('probe:controldialect'),

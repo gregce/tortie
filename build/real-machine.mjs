@@ -100,6 +100,14 @@ import { homedir, tmpdir, userInfo } from 'node:os';
 import { isIP } from 'node:net';
 import { join } from 'node:path';
 import { refuseRealSockets } from './scratch-machine.mjs';
+import {
+  sshOptions as composeSshOptions,
+  sshRun,
+  sshSpawn
+} from './ssh-run.mjs';
+
+/** Every ssh this module starts goes through build/ssh-run.mjs (Phase 193). */
+const CALLER = 'build/real-machine.mjs';
 
 // ---------------------------------------------------------------------------
 // Names and numbers, copied from the product with the file they came from
@@ -352,7 +360,6 @@ export async function gate(who) {
     port: Number(process.env['GMUX_REAL_MACHINE_PORT'] ?? '22'),
     remoteTmuxPath: process.env['GMUX_REAL_MACHINE_TMUX'] ?? '/usr/local/bin/tmux',
     localJsonPath: process.env['GMUX_P83_LOCAL'] ?? '',
-    sshBin: '/usr/bin/ssh',
     runDir,
     knownHosts,
     controlPath,
@@ -399,37 +406,52 @@ function composeControlPath(runDir, who) {
  * originals are never named on a command this harness runs.
  */
 export function sshOptions(machine) {
-  const argv = [
-    '-o',
-    'BatchMode=yes',
-    '-o',
-    `ConnectTimeout=${String(SSH_CONNECT_TIMEOUT_SECONDS)}`,
-    '-o',
-    'StrictHostKeyChecking=yes',
-    '-o',
-    `UserKnownHostsFile="${machine.knownHosts}"`,
-    '-o',
-    'ControlMaster=auto',
-    '-o',
-    `ControlPath=${machine.controlPath}`,
-    '-o',
-    `ControlPersist=${String(SSH_CONTROL_PERSIST_SECONDS)}s`,
-    '-o',
-    `ServerAliveInterval=${String(SSH_SERVER_ALIVE_INTERVAL_SECONDS)}`,
-    '-o',
-    `ServerAliveCountMax=${String(SSH_SERVER_ALIVE_COUNT_MAX)}`
-  ];
+  const extra = [];
   if (Number.isFinite(machine.port) && machine.port !== 22) {
-    argv.push('-p', String(machine.port));
+    extra.push('-p', String(machine.port));
   }
-  if (machine.user !== '') argv.push('-l', machine.user);
-  return argv;
+  if (machine.user !== '') extra.push('-l', machine.user);
+  return composeSshOptions({
+    knownHosts: recordOf(machine),
+    caller: CALLER,
+    connectTimeout: SSH_CONNECT_TIMEOUT_SECONDS,
+    strict: 'yes',
+    controlMaster: 'auto',
+    controlPath: machine.controlPath,
+    controlPersist: `${String(SSH_CONTROL_PERSIST_SECONDS)}s`,
+    serverAliveInterval: SSH_SERVER_ALIVE_INTERVAL_SECONDS,
+    serverAliveCountMax: SSH_SERVER_ALIVE_COUNT_MAX,
+    extra
+  });
+}
+
+/**
+ * This run's own copy of the host keys, quoted the way ssh reads a value.
+ *
+ * It is the ONE record file every connection in this file names. The two
+ * originals it was assembled from are never named on a command this harness
+ * runs, which is the property that keeps a run against a real machine out of
+ * the person's own ~/.ssh/known_hosts.
+ */
+function recordOf(machine) {
+  return `"${machine.knownHosts}"`;
 }
 
 /** Run one command on the far machine's login shell. */
 export function runOnMachine(machine, command, options = {}) {
   const argv = [...sshOptions(machine), machine.host, command];
-  const out = sh(machine.sshBin, argv, { timeout: options.timeoutMs ?? 60_000 });
+  const raw = sshRun({
+    knownHosts: recordOf(machine),
+    caller: CALLER,
+    argv,
+    timeout: options.timeoutMs ?? 60_000
+  });
+  const out = {
+    code: raw.status ?? -1,
+    stdout: raw.stdout ?? '',
+    stderr: raw.stderr ?? '',
+    both: `${raw.stdout ?? ''}${raw.stderr ?? ''}`
+  };
   return { ...out, argv, command };
 }
 
@@ -526,7 +548,12 @@ export function farTmux(machine, socket, args, options = {}) {
  */
 export function spawnOnMachine(machine, command, extraSshFlags = []) {
   const argv = [...extraSshFlags, ...sshOptions(machine), machine.host, command];
-  const child = spawn(machine.sshBin, argv, { stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = sshSpawn({
+    knownHosts: recordOf(machine),
+    caller: CALLER,
+    argv,
+    stdio: ['pipe', 'pipe', 'pipe']
+  });
   machine.pids.push(child.pid);
   const state = {
     child,
@@ -608,13 +635,17 @@ export function endRecordedPids(machine) {
 
 /** Close the shared connection. It ends this run's own master and nothing else. */
 export function closeMaster(machine) {
-  return sh(machine.sshBin, [
-    '-O',
-    'exit',
-    '-o',
-    `ControlPath=${machine.controlPath}`,
-    machine.host
-  ]);
+  const raw = sshRun({
+    knownHosts: recordOf(machine),
+    caller: CALLER,
+    argv: ['-O', 'exit', '-o', `ControlPath=${machine.controlPath}`, machine.host]
+  });
+  return {
+    code: raw.status ?? -1,
+    stdout: raw.stdout ?? '',
+    stderr: raw.stderr ?? '',
+    both: `${raw.stdout ?? ''}${raw.stderr ?? ''}`
+  };
 }
 
 // ---------------------------------------------------------------------------
