@@ -20,6 +20,11 @@ import {
   REDLINE_MAX_BLOCK_CHARS,
   REDLINE_MAX_EDIT_LENGTH
 } from '../src/renderer/editor/redline';
+import {
+  composeRedlineDocument,
+  redlineDocumentNote,
+  REDLINE_DOC_MAX_LINE_EDITS
+} from '../src/renderer/editor/redline-document';
 
 /** Deterministic filler, so the worst case is the same on every machine. */
 function words(count: number, seed: number): string {
@@ -282,8 +287,101 @@ const bigOld = words(REDLINE_MAX_BLOCK_CHARS, 91);
 const bigNew = `${bigOld} and one more word`;
 const big = redlineBlocks(meta(bigOld, bigNew));
 
+/**
+ * THE DOCUMENT (Phase 194). Whole files, both sides, composed by the shipping
+ * module and printed as runs so the gate can re-derive the two projections
+ * without trusting anything here: the runs with the insertions dropped are
+ * the old file, and with the deletions dropped the new file, byte for byte.
+ */
+const DOCUMENTS: { name: string; old: string; new: string }[] = [
+  { name: 'unchanged', old: OLD_FILE, new: OLD_FILE },
+  { name: 'both empty', old: '', new: '' },
+  { name: 'whole file', old: OLD_FILE, new: NEW_FILE },
+  { name: 'spacing', old: OLD_SPACING, new: NEW_SPACING },
+  { name: 'pure deletion', old: 'First.\n\nGone entirely.\n\nLast.\n', new: 'First.\n\nLast.\n' },
+  { name: 'pure insertion', old: 'First.\n\nLast.\n', new: 'First.\n\nArrives here.\n\nLast.\n' },
+  { name: 'no final newline', old: 'first\nmiddle\nlast', new: 'FIRST\nmiddle\nLAST' },
+  { name: 'final newline gained', old: 'a\nb', new: 'a\nb\n' },
+  { name: 'final newline lost', old: 'a\nb\n', new: 'a\nb' },
+  { name: 'from nothing', old: '', new: 'brand new\n' },
+  { name: 'to nothing', old: 'gone\n', new: '' },
+  {
+    name: 'unicode',
+    old: 'The team shipped 👩‍💻 café naïve résumé today.\nThe sign read مرحبا بالعالم before.\n今日は良い天気ですね。\n',
+    new: 'The team shipped 👨‍🚀 café naive résumé tomorrow.\nThe sign read مرحبا بالجميع after.\n明日は良い天気ですね。\n'
+  },
+  { name: 'crlf', old: 'one\r\ntwo\r\nthree\r\n', new: 'one\r\n2\r\nthree\r\n' },
+  { name: 'past the block cap', old: manyOld.join('\n'), new: manyNew.join('\n') },
+  { name: 'past the character budget', old: `head\n${bigOld}\ntail\n`, new: `head\n${bigNew}\ntail\n` },
+  { name: 'rewritten past the guard', old: `head\n\n${words(300, 77)}\n\ntail\n`, new: `head\n\n${words(300, 78)}\n\ntail\n` },
+  {
+    name: 'rewritten past the line guard',
+    old: `same head\n${Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 200 }, (_, i) => `old ${String(i)}`).join('\n')}\nsame tail\n`,
+    new: `same head\n${Array.from({ length: REDLINE_DOC_MAX_LINE_EDITS + 200 }, (_, i) => `new ${String(i)}`).join('\n')}\nsame tail\n`
+  }
+];
+
+/**
+ * THE FUZZ, seeded so it is the same on every machine. The projections are
+ * checked HERE by plain joins rather than through the module's own helpers,
+ * and the gate reads the counts. A refusal by the repair (`unaligned`) is
+ * counted separately because it should never happen and the gate says so.
+ */
+function fuzz(): { pairs: number; oldWrong: number; newWrong: number; unaligned: number; whole: number; ms: number } {
+  const alphabet = ['a', 'b', 'word', ' ', '  ', '\t', '\n', '\n\n', ',', '.', 'é', 'naïve', '👨‍👩‍👧', 'مرحبا', '天気', '\r\n'];
+  let x = 20260901;
+  const rnd = (): number => {
+    x = (x * 1103515245 + 12345) % 2147483648;
+    return x;
+  };
+  const text = (len: number): string => {
+    let out = '';
+    for (let i = 0; i < len; i++) out += alphabet[rnd() % alphabet.length] ?? '';
+    return out;
+  };
+  let oldWrong = 0;
+  let newWrong = 0;
+  let unaligned = 0;
+  let whole = 0;
+  const started = Date.now();
+  const pairs = 3000;
+  for (let i = 0; i < pairs; i++) {
+    const a = text(rnd() % 40);
+    const b =
+      rnd() % 2 === 0
+        ? text(rnd() % 40)
+        : a.slice(0, rnd() % (a.length + 1)) + text(rnd() % 8) + a.slice(rnd() % (a.length + 1));
+    const doc = composeRedlineDocument(a, b);
+    let o = '';
+    let n = '';
+    for (const run of doc.runs) {
+      if (run.kind !== 'ins') o += run.text;
+      if (run.kind !== 'del') n += run.text;
+    }
+    if (o !== a) oldWrong += 1;
+    if (n !== b) newWrong += 1;
+    unaligned += doc.whole.unaligned;
+    whole += doc.whole.tooBig + doc.whole.tooDifferent + doc.whole.overCap;
+  }
+  return { pairs, oldWrong, newWrong, unaligned, whole, ms: Date.now() - started };
+}
+
 console.log(
   JSON.stringify({
+    document: DOCUMENTS.map((d) => {
+      const doc = composeRedlineDocument(d.old, d.new);
+      return {
+        name: d.name,
+        old: d.old,
+        new: d.new,
+        runs: doc.runs,
+        blocks: doc.blocks,
+        whole: doc.whole,
+        approximate: doc.approximate,
+        note: redlineDocumentNote(doc)
+      };
+    }),
+    fuzz: fuzz(),
     caps: {
       maxEditLength: REDLINE_MAX_EDIT_LENGTH,
       maxBlockChars: REDLINE_MAX_BLOCK_CHARS,

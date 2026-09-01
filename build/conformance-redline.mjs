@@ -84,6 +84,18 @@
  *      leaves them non-adjacent, which is honest output. A later round that
  *      "tidies" the runs into deletion-then-insertion would be drawing a diff
  *      nobody computed, so the order of that pair is pinned here.
+ *  15. THE DOCUMENT (Phase 194). The redline view composes the WHOLE file
+ *      from the two versions, and its one correctness claim is re-derived
+ *      here by plain joins over the runs the shipping module printed: with
+ *      every insertion dropped they are the old file byte for byte, with
+ *      every deletion dropped the new file, over seventeen whole file
+ *      fixtures including an unchanged file, two empty files, a final
+ *      newline gained and lost, CRLF, unicode, and every cap firing, and the
+ *      block a cap refuses draws WHOLE rather than leaving a hole. A seeded
+ *      fuzz of 3,000 pairs reports the same two counts at zero, and the
+ *      repair's own refusal count at zero, because the module's fallback
+ *      would still satisfy the projections and only the count says whether
+ *      the repair actually ran.
  *
  * Exit 0 when every rule passes, 1 otherwise with each failure named.
  */
@@ -106,7 +118,10 @@ const REDLINE_FILES = [
   'src/renderer/editor/redline.ts',
   'src/renderer/editor/redline-copy.ts',
   'src/renderer/editor/RedlineRow.tsx',
-  'src/renderer/editor/redline.css'
+  'src/renderer/editor/redline.css',
+  // Phase 194: the view and the document it draws. Same refusals.
+  'src/renderer/editor/redline-document.ts',
+  'src/renderer/editor/RedlineDocument.tsx'
 ];
 
 // ---------------------------------------------------------------------------
@@ -464,13 +479,17 @@ for (const file of [
 }
 say('7. the diff surface and its control row name no redline module, slot or preference, so the diff draws only what Pierre draws');
 
-for (const file of ['src/renderer/editor/RedlineRow.tsx', 'src/renderer/editor/redline.css']) {
+for (const file of [
+  'src/renderer/editor/RedlineRow.tsx',
+  'src/renderer/editor/RedlineDocument.tsx',
+  'src/renderer/editor/redline.css'
+]) {
   const hits = findColourLiterals(sources.get(file) ?? '');
   if (hits.length > 0) {
     fail(`8. ${file} carries a colour literal: ${hits.join(' | ')}`);
   }
 }
-say('8. the row draws from tokens only, with no colour literal in its component or its stylesheet');
+say('8. the row and the view draw from tokens only, with no colour literal in a component or the stylesheet');
 
 for (const file of REDLINE_FILES) {
   const hits = findWritePaths(sources.get(file) ?? '');
@@ -732,6 +751,68 @@ say('9. no redline file names a bridge, a write or an accept, so nothing here ca
       );
     }
   }
+}
+
+
+// -- rule 15: the document, both projections re-derived by plain joins ------
+{
+  const docs = Array.isArray(data.document) ? data.document : [];
+  const oldOf = (runs) => runs.filter((r) => r.kind !== 'ins').map((r) => r.text).join('');
+  const newOf = (runs) => runs.filter((r) => r.kind !== 'del').map((r) => r.text).join('');
+  const at = (a, b) => {
+    let i = 0;
+    while (i < a.length && i < b.length && a[i] === b[i]) i++;
+    return `offset ${String(i)}: ${JSON.stringify(a.slice(i, i + 20))} against ${JSON.stringify(b.slice(i, i + 20))}`;
+  };
+  if (docs.length < 17) fail(`15. only ${String(docs.length)} document fixture(s) were composed.`);
+  let wholeSeen = 0;
+  for (const d of docs) {
+    if (!Array.isArray(d.runs)) {
+      fail(`15. "${d.name}" printed no runs.`);
+      continue;
+    }
+    const o = oldOf(d.runs);
+    const n = newOf(d.runs);
+    if (o !== d.old) fail(`15. "${d.name}" with the insertions dropped is not the old file, ${at(o, d.old)}.`);
+    if (n !== d.new) fail(`15. "${d.name}" with the deletions dropped is not the new file, ${at(n, d.new)}.`);
+    for (let i = 1; i < d.runs.length; i++) {
+      if (d.runs[i].kind === d.runs[i - 1].kind) fail(`15. "${d.name}" has two adjacent ${d.runs[i].kind} runs.`);
+    }
+    if (d.runs.some((r) => r.text === '')) fail(`15. "${d.name}" holds an empty run.`);
+    if (d.whole.unaligned !== 0) fail(`15. "${d.name}" had ${String(d.whole.unaligned)} block(s) the repair refused.`);
+    const whole = d.whole.tooBig + d.whole.tooDifferent + d.whole.overCap;
+    wholeSeen += whole;
+    // A refused block draws WHOLE and the note says so; a clean document has none.
+    if (whole > 0 && (typeof d.note !== 'string' || !d.note.includes('drawn whole'))) {
+      fail(`15. "${d.name}" drew ${String(whole)} block(s) whole and its note does not say so: ${JSON.stringify(d.note)}.`);
+    }
+    if (whole === 0 && d.approximate !== true && d.note !== null) {
+      fail(`15. "${d.name}" drew every block as words and still carries a note: ${JSON.stringify(d.note)}.`);
+    }
+  }
+  const unchanged = docs.find((d) => d.name === 'unchanged');
+  if (unchanged !== undefined && !(unchanged.runs.length === 1 && unchanged.runs[0].kind === 'same' && unchanged.blocks === 0)) {
+    fail(`15. the unchanged file is not one plain run: ${JSON.stringify(unchanged.runs.map((r) => r.kind))}.`);
+  }
+  const cap = docs.find((d) => d.name === 'past the block cap');
+  if (cap !== undefined && cap.whole.overCap !== 5) fail(`15. the block cap fired ${String(cap.whole.overCap)} times, wanting 5.`);
+  const big = docs.find((d) => d.name === 'past the character budget');
+  if (big !== undefined && big.whole.tooBig !== 1) fail(`15. the character budget fired ${String(big.whole.tooBig)} times, wanting 1.`);
+  const rewritten = docs.find((d) => d.name === 'rewritten past the guard');
+  if (rewritten !== undefined && !(rewritten.whole.tooDifferent === 1 && rewritten.runs.map((r) => r.kind).join(',') === 'same,del,ins,same')) {
+    fail(`15. the rewritten paragraph did not draw whole between its context: ${JSON.stringify(rewritten.runs.map((r) => r.kind))}.`);
+  }
+  const lines = docs.find((d) => d.name === 'rewritten past the line guard');
+  if (lines !== undefined && lines.approximate !== true) fail('15. the line guard did not fire on a file rewritten past it.');
+  if (wholeSeen < 7) fail(`15. only ${String(wholeSeen)} block(s) drew whole across the fixtures, so the caps were not all seen.`);
+  const f = data.fuzz ?? {};
+  if (!(f.pairs >= 3000 && f.oldWrong === 0 && f.newWrong === 0 && f.unaligned === 0)) {
+    fail(`15. the fuzz disagreed: ${JSON.stringify(f)}.`);
+  }
+  say(
+    `15. ${String(docs.length)} whole file fixtures re-derived by plain joins: with the insertions dropped they are the old file and with the deletions dropped the new file, byte for byte; ` +
+      `${String(wholeSeen)} refused blocks drew whole and were named in the note; the fuzz held over ${String(f.pairs)} pairs in ${String(f.ms)} ms with ${String(f.unaligned)} repairs refused and ${String(f.whole)} blocks drawn whole`
+  );
 }
 
 // ---------------------------------------------------------------------------
