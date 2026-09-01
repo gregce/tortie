@@ -50,6 +50,14 @@ export interface SessionFact {
   agent: string;
   /** True for a session on another machine, which has no local pane. */
   remote: boolean;
+  /** Phase 188. The project's name, null when the manifest row is gone. */
+  projectName: string | null;
+  /** Phase 188. The project's path, home already folded to `~` by main. */
+  projectPath: string | null;
+  /** Phase 188. Epoch ms the session was created. */
+  createdAt: number | null;
+  /** Phase 188. Epoch ms Tortie last confirmed the session alive. */
+  lastSeen: number | null;
 }
 
 export interface TreeInput {
@@ -278,7 +286,16 @@ export function buildTree(input: TreeInput): TreeOutput {
           agent: fact?.agent ?? 'unknown',
           processCount: 0,
           memory: { privateBytes: null, privateSource: null, rssBytes: 0 },
-          cpuPercent: 0
+          cpuPercent: 0,
+          // PHASE 188. This is the whole join, and it is deliberately the
+          // branch that already tolerates a miss. A pane with no `@gmux-id`
+          // and a pane whose manifest row is gone both land here with `fact`
+          // undefined, so both take the four nulls and the row still draws.
+          // Losing a row would be worse than a missing column.
+          projectName: fact?.projectName ?? null,
+          projectPath: fact?.projectPath ?? null,
+          createdAt: fact?.createdAt ?? null,
+          lastSeen: fact?.lastSeen ?? null
         },
         members: []
       };

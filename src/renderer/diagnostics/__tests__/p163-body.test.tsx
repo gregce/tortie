@@ -54,7 +54,9 @@ function report(over: Partial<DiagnosticsReport> = {}): DiagnosticsReport {
       {
         sessionId: 'abc', name: 'claude-1', agent: 'claude', processCount: 3,
         memory: { privateBytes: 400 * 1024 * 1024, privateSource: 'footprint', rssBytes: 500 * 1024 * 1024 },
-        cpuPercent: 12
+        cpuPercent: 12,
+        projectName: 'webapp', projectPath: '~/src/webapp',
+        createdAt: 1_780_000_000_000, lastSeen: 1_780_000_900_000
       }
     ],
     sessionsTotal: { privateBytes: 400 * 1024 * 1024, rssBytes: 500 * 1024 * 1024, processCount: 3 },

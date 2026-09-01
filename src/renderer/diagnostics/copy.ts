@@ -44,9 +44,27 @@ export const COL_CPU = 'CPU';
 export const COL_PRIVATE = 'Private';
 export const COL_RSS = 'Resident';
 export const COL_SESSION = 'Session';
+export const COL_PROJECT = 'Project';
 export const COL_AGENT = 'Agent';
 export const COL_PROCESSES = 'Processes';
 export const COL_MEMORY = 'Memory';
+export const COL_STARTED = 'Started';
+/**
+ * PHASE 188. NOT "Last active", and the difference is not pedantry. The
+ * manifest field behind this column is `last_seen`, which its own schema and
+ * repository comments define as "last confirmed alive". It moves on a
+ * reconcile, on a status change and on a death, and never on a keystroke, so a
+ * session running an agent flat out for four hours carries a four hour old
+ * value. "Last active" would read as "quiet for four hours" about a session
+ * that is working right now, which is wrong in the most misleading direction.
+ */
+export const COL_LAST_SEEN = 'Last seen';
+
+export const COL_PROJECT_HOVER =
+  'The project this session belongs to. Sessions are numbered per project, so two projects each have their own claude-1.';
+export const COL_STARTED_HOVER = 'When this session was created.';
+export const COL_LAST_SEEN_HOVER =
+  'The last time Tortie confirmed this session, not the last time you typed in it.';
 
 export const COL_PRIVATE_HOVER =
   'Memory this process alone holds. Read from the process itself where it runs JavaScript and from the OS footprint elsewhere.';

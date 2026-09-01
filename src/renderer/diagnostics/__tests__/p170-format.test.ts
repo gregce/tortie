@@ -36,6 +36,10 @@ function session(over: Partial<DiagnosticsSessionWorkload>): DiagnosticsSessionW
     processCount: 1,
     memory: { privateBytes: 1, privateSource: 'footprint', rssBytes: 1 },
     cpuPercent: 0,
+    projectName: null,
+    projectPath: null,
+    createdAt: null,
+    lastSeen: null,
     ...over
   };
 }
@@ -106,5 +110,50 @@ describe('sortSessionRows', () => {
     expect(sortSessionRows(rows, { col: 'memory', dir: 'asc' }).map((s) => s.name)).toEqual(['beta', 'alpha']);
     expect(sortSessionRows(rows, { col: 'agent', dir: 'asc' }).map((s) => s.name)).toEqual(['alpha', 'beta']);
     expect(sortSessionRows(rows, { col: 'processes', dir: 'desc' }).map((s) => s.name)).toEqual(['alpha', 'beta']);
+  });
+
+  // PHASE 188. The three new columns, in both directions. The point of the
+  // phase is a table of rows whose NAMES repeat, so these rows share one.
+  const dated = [
+    session({ sessionId: '1', name: 'claude-1', projectName: 'zebra', createdAt: 300, lastSeen: 900 }),
+    session({ sessionId: '2', name: 'claude-1', projectName: 'apex', createdAt: 100, lastSeen: 700 }),
+    session({ sessionId: '3', name: 'claude-1', projectName: 'mid', createdAt: 200, lastSeen: 800 })
+  ];
+
+  it('sorts by project in both directions', () => {
+    expect(sortSessionRows(dated, { col: 'project', dir: 'asc' }).map((s) => s.projectName)).toEqual(['apex', 'mid', 'zebra']);
+    expect(sortSessionRows(dated, { col: 'project', dir: 'desc' }).map((s) => s.projectName)).toEqual(['zebra', 'mid', 'apex']);
+  });
+
+  it('sorts by started and last seen in both directions', () => {
+    expect(sortSessionRows(dated, { col: 'started', dir: 'desc' }).map((s) => s.createdAt)).toEqual([300, 200, 100]);
+    expect(sortSessionRows(dated, { col: 'started', dir: 'asc' }).map((s) => s.createdAt)).toEqual([100, 200, 300]);
+    expect(sortSessionRows(dated, { col: 'lastSeen', dir: 'desc' }).map((s) => s.lastSeen)).toEqual([900, 800, 700]);
+    expect(sortSessionRows(dated, { col: 'lastSeen', dir: 'asc' }).map((s) => s.lastSeen)).toEqual([700, 800, 900]);
+  });
+
+  // Sorted on the epoch, never on the drawn age. '2h' sorts before '10m' as a
+  // string, and this row set is the one that would prove it wrong.
+  it('sorts time on the number and not on the drawn age', () => {
+    const now = 10_000_000;
+    const twoHours = session({ sessionId: 'h', name: 'h', createdAt: now - 2 * 3_600_000 });
+    const tenMinutes = session({ sessionId: 'm', name: 'm', createdAt: now - 10 * 60_000 });
+    expect(sortSessionRows([twoHours, tenMinutes], { col: 'started', dir: 'desc' }).map((s) => s.name)).toEqual(['m', 'h']);
+  });
+
+  // A row with no manifest match must not be treated as the oldest thing in
+  // the table, nor as the newest. It sorts below every row that has a value,
+  // which is the `?? -1` convention this file already uses for Memory.
+  it('puts a row with no manifest match below every row that has one', () => {
+    const mixed = [session({ sessionId: 'x', name: 'x', createdAt: null }), ...dated];
+    expect(sortSessionRows(mixed, { col: 'started', dir: 'desc' }).map((s) => s.name)).toEqual(['claude-1', 'claude-1', 'claude-1', 'x']);
+    expect(sortSessionRows(mixed, { col: 'project', dir: 'asc' }).map((s) => s.projectName)).toEqual([null, 'apex', 'mid', 'zebra']);
+  });
+
+  it('starts project ascending and the two time columns descending', () => {
+    expect(nextSort(null, 'project')).toEqual({ col: 'project', dir: 'asc' });
+    expect(nextSort(null, 'started')).toEqual({ col: 'started', dir: 'desc' });
+    expect(nextSort(null, 'lastSeen')).toEqual({ col: 'lastSeen', dir: 'desc' });
+    expect(nextSort({ col: 'lastSeen', dir: 'desc' }, 'lastSeen')).toEqual({ col: 'lastSeen', dir: 'asc' });
   });
 });

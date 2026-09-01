@@ -80,8 +80,15 @@ const INPUT = {
   mainWindowPid: 102,
   windows: [{ pid: 102, title: 'Tortie' }],
   sessions: [
-    { id: 'S1', name: 'API refactor', agent: 'claude', remote: false },
-    { id: 'S2', name: 'far away', agent: 'codex', remote: true }
+    {
+      id: 'S1', name: 'API refactor', agent: 'claude', remote: false,
+      projectName: 'webapp', projectPath: '~/src/webapp',
+      createdAt: 1_780_000_000_000, lastSeen: 1_780_000_900_000
+    },
+    {
+      id: 'S2', name: 'far away', agent: 'codex', remote: true,
+      projectName: null, projectPath: null, createdAt: null, lastSeen: null
+    }
   ],
   appPid: 100
 };
@@ -149,6 +156,41 @@ describe('buildTree', () => {
     assert.equal(scratch?.agent, 'unknown');
     // A remote session has no pane here and draws no workload row.
     assert.equal(out.sessions.some((s) => s.sessionId === 'S2'), false);
+  });
+
+  // PHASE 188. The row has to say whose work it is. The join is one place,
+  // and it is the branch that already tolerates a miss, so the row a person
+  // could not trace keeps drawing rather than vanishing or guessing.
+  it('carries the project and both epochs onto the row that has a manifest match', () => {
+    const api = out.sessions.find((s) => s.sessionId === 'S1');
+    assert.equal(api?.projectName, 'webapp');
+    assert.equal(api?.projectPath, '~/src/webapp');
+    assert.equal(api?.createdAt, 1_780_000_000_000);
+    assert.equal(api?.lastSeen, 1_780_000_900_000);
+  });
+
+  it('draws the row with no manifest match, with all four fields null', () => {
+    const scratch = out.sessions.find((s) => s.sessionId === null);
+    assert.equal(scratch?.name, 'scratch');
+    assert.equal(scratch?.projectName, null);
+    assert.equal(scratch?.projectPath, null);
+    assert.equal(scratch?.createdAt, null);
+    assert.equal(scratch?.lastSeen, null);
+  });
+
+  it('draws a row whose manifest row is gone, rather than dropping it', () => {
+    // Same panes, but this run's session list has lost S1's record. The row
+    // must still be there, named from the server, with the four cells empty.
+    const gone = buildTree({ ...INPUT, sessions: [] });
+    assert.equal(gone.sessions.length, 2);
+    const api = gone.sessions.find((s) => s.sessionId === 'S1');
+    assert.equal(api?.name, 'api');
+    assert.equal(api?.agent, 'unknown');
+    assert.equal(api?.processCount, 2);
+    assert.equal(api?.projectName, null);
+    assert.equal(api?.projectPath, null);
+    assert.equal(api?.createdAt, null);
+    assert.equal(api?.lastSeen, null);
   });
 
   it('keeps the two totals apart and never adds them', () => {

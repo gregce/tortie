@@ -79,6 +79,8 @@ import {
   type SortSpec
 } from './format';
 import { LiveSubscription } from './live';
+import { formatAge } from '../format';
+import { formatAbsolute } from '../scm/format';
 import { liveTerminalCount } from '../terminal/drop/registry';
 import './diagnostics.css';
 
@@ -763,6 +765,14 @@ function SessionsTable({
   const [sort, setSort] = useState<SortSpec<SessionSortCol> | null>(initialSort);
   const t = report.sessionsTotal;
   const rows = sortSessionRows(report.sessions, sort);
+  // PHASE 188. The ages are measured against THIS REPORT'S instant, not
+  // against the wall clock. One report is one moment, so every cell on a row
+  // agrees about when it was true; a paused live view freezes the ages with
+  // the memory numbers beside them instead of letting them creep on their own;
+  // and the pane needs no age timer of its own, since live mode already
+  // re-renders it every couple of seconds with a fresh instant. Parsed once
+  // for the whole table rather than once per row.
+  const now = Date.parse(report.generatedAt);
   const onSort = (col: SessionSortCol): void => {
     setSort((s) => nextSort(s, col));
   };
@@ -785,10 +795,13 @@ function SessionsTable({
             <thead>
               <tr>
                 <SortableHead col={'session' as SessionSortCol} label={words.COL_SESSION} sort={sort} onSort={onSort} />
+                <SortableHead col={'project' as SessionSortCol} label={words.COL_PROJECT} sort={sort} onSort={onSort} hover={words.COL_PROJECT_HOVER} />
                 <SortableHead col={'agent' as SessionSortCol} label={words.COL_AGENT} sort={sort} onSort={onSort} />
                 <SortableHead col={'processes' as SessionSortCol} label={words.COL_PROCESSES} sort={sort} onSort={onSort} num />
                 <SortableHead col={'cpu' as SessionSortCol} label={words.COL_CPU} sort={sort} onSort={onSort} num hover={words.COL_CPU_HOVER} />
                 <SortableHead col={'memory' as SessionSortCol} label={words.COL_MEMORY} sort={sort} onSort={onSort} num hover={words.COL_PRIVATE_HOVER} />
+                <SortableHead col={'started' as SessionSortCol} label={words.COL_STARTED} sort={sort} onSort={onSort} num hover={words.COL_STARTED_HOVER} />
+                <SortableHead col={'lastSeen' as SessionSortCol} label={words.COL_LAST_SEEN} sort={sort} onSort={onSort} num hover={words.COL_LAST_SEEN_HOVER} />
               </tr>
             </thead>
             <tbody>
@@ -797,10 +810,15 @@ function SessionsTable({
                   <td className="diag-name">
                     <span className="diag-proc">{s.name}</span>
                   </td>
+                  <td className="diag-project" title={s.projectPath ?? undefined}>
+                    {s.projectName ?? ''}
+                  </td>
                   <td>{s.agent}</td>
                   <td className="diag-num">{s.processCount}</td>
                   <td className="diag-num">{cpuLabel(s.cpuPercent)}</td>
                   <td className="diag-num">{bytesLabel(s.memory.privateBytes)}</td>
+                  <AgeCell epochMs={s.createdAt} now={now} />
+                  <AgeCell epochMs={s.lastSeen} now={now} />
                 </tr>
               ))}
             </tbody>
@@ -808,6 +826,29 @@ function SessionsTable({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * PHASE 188. An age on the face, the exact instant on hover, which is the pair
+ * the rest of the app already uses: `formatAge` is what the session rail, the
+ * attention overlay and three Settings sections draw, and `formatAbsolute` is
+ * what the SCM hover card draws for this same job. A value that was never read
+ * draws an empty cell with no title and no placeholder, because a dash or a
+ * word would be a claim about a row this table does not know.
+ */
+function AgeCell({
+  epochMs,
+  now
+}: {
+  epochMs: number | null;
+  now: number;
+}): React.JSX.Element {
+  if (epochMs === null) return <td className="diag-num" />;
+  return (
+    <td className="diag-num" title={formatAbsolute(epochMs)}>
+      {formatAge(epochMs, now)}
+    </td>
   );
 }
 

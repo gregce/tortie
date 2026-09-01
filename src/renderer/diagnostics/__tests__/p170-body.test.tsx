@@ -25,12 +25,21 @@ import type { DiagnosticsReport } from '@shared/ipc';
 import { DiagnosticsBody } from '../DiagnosticsTab';
 import * as words from '../copy';
 import type { SessionSortCol, ShellSortCol, SortSpec } from '../format';
+import { formatAbsolute } from '../../scm/format';
 
 const MB = 1024 * 1024;
 
+/**
+ * PHASE 188. The report's own instant, and the two session ages are measured
+ * from it rather than from the wall clock, because that is what the face does.
+ */
+const GENERATED = new Date(2026, 7, 30, 9, 0, 0);
+const AT = GENERATED.getTime();
+const HOUR = 3_600_000;
+
 function report(over: Partial<DiagnosticsReport> = {}): DiagnosticsReport {
   return {
-    generatedAt: new Date(2026, 7, 30, 9, 0, 0).toISOString(),
+    generatedAt: GENERATED.toISOString(),
     appVersion: '0.86.0',
     windowMs: 1500,
     shell: [
@@ -56,12 +65,16 @@ function report(over: Partial<DiagnosticsReport> = {}): DiagnosticsReport {
       {
         sessionId: 'b', name: 'beta', agent: 'codex', processCount: 2,
         memory: { privateBytes: 100 * MB, privateSource: 'footprint', rssBytes: 120 * MB },
-        cpuPercent: 3
+        cpuPercent: 3,
+        projectName: 'zebra', projectPath: '~/src/zebra',
+        createdAt: AT - 3 * HOUR, lastSeen: AT - 2 * HOUR
       },
       {
         sessionId: 'a', name: 'alpha', agent: 'claude', processCount: 5,
         memory: { privateBytes: 400 * MB, privateSource: 'footprint', rssBytes: 500 * MB },
-        cpuPercent: 12
+        cpuPercent: 12,
+        projectName: 'apex', projectPath: '~/src/apex',
+        createdAt: AT - 49 * HOUR, lastSeen: AT - 10 * 60_000
       }
     ],
     sessionsTotal: { privateBytes: 500 * MB, rssBytes: 620 * MB, processCount: 7 },
@@ -288,6 +301,73 @@ describe('sorting on the face', () => {
     const byMemory = render(report(), { sessionSort: { col: 'memory', dir: 'asc' } });
     expect(byMemory.indexOf('beta')).toBeLessThan(byMemory.indexOf('alpha'));
     expect(byMemory).toContain('aria-sort="ascending"');
+  });
+
+  // PHASE 188. The three new columns sort too, which is the Phase 170 rule.
+  it('sorts the sessions table by project, started and last seen', () => {
+    const byProject = render(report(), { sessionSort: { col: 'project', dir: 'desc' } });
+    expect(byProject.indexOf('zebra')).toBeLessThan(byProject.indexOf('apex'));
+    const oldestFirst = render(report(), { sessionSort: { col: 'started', dir: 'asc' } });
+    expect(oldestFirst.indexOf('alpha')).toBeLessThan(oldestFirst.indexOf('beta'));
+    const staleFirst = render(report(), { sessionSort: { col: 'lastSeen', dir: 'asc' } });
+    expect(staleFirst.indexOf('beta')).toBeLessThan(staleFirst.indexOf('alpha'));
+  });
+});
+
+/**
+ * PHASE 188. Whose work each row is. His screenshot had five rows reading
+ * `claude-1`, so the table has to carry the project and the two ages.
+ */
+describe('the project and the age on a session row', () => {
+  it('draws the three new heads, and Last seen rather than Last active', () => {
+    const html = render(report());
+    expect(html).toContain(words.COL_PROJECT);
+    expect(html).toContain(words.COL_STARTED);
+    expect(html).toContain(words.COL_LAST_SEEN);
+    expect(words.COL_LAST_SEEN).toBe('Last seen');
+    expect(html).not.toContain('Last active');
+  });
+
+  it('names the project on the face and puts the full path on the hover', () => {
+    const html = render(report());
+    expect(html).toContain('<td class="diag-project" title="~/src/apex">apex</td>');
+    expect(html).toContain('<td class="diag-project" title="~/src/zebra">zebra</td>');
+  });
+
+  it('draws the two times as an age against the report\'s own instant', () => {
+    const html = render(report());
+    // beta: created 3h before this report, last confirmed 2h before it.
+    expect(html).toContain('>3h</td>');
+    expect(html).toContain('>2h</td>');
+    // alpha: created 49h before, so two days; confirmed 10 minutes before.
+    expect(html).toContain('>2d</td>');
+    expect(html).toContain('>10m</td>');
+  });
+
+  it('carries the exact instant on the hover of each age cell', () => {
+    const html = render(report());
+    expect(html).toContain(`title="${formatAbsolute(AT - 3 * HOUR)}"`);
+    expect(html).toContain(`title="${formatAbsolute(AT - 10 * 60_000)}"`);
+  });
+
+  // The row that must never vanish: a session Tortie did not launch, or one
+  // whose manifest row is gone. Empty cells, no dash, no guess, no hover.
+  it('still draws a row with no manifest match, with the four cells empty', () => {
+    const stray = report({
+      sessions: [
+        {
+          sessionId: null, name: 'stray-one', agent: 'unknown', processCount: 2,
+          memory: { privateBytes: null, privateSource: null, rssBytes: 3 * MB },
+          cpuPercent: 0,
+          projectName: null, projectPath: null, createdAt: null, lastSeen: null
+        }
+      ]
+    });
+    const html = render(stray);
+    expect(html).toContain('stray-one');
+    expect(html).toContain('<td class="diag-project"></td>');
+    // Two empty age cells, carrying no title at all.
+    expect(html.match(/<td class="diag-num"><\/td>/g)?.length).toBe(2);
   });
 });
 

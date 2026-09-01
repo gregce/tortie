@@ -27,7 +27,7 @@ const BODY: Omit<DiagnosticsReport, 'text'> = {
   shellTotal: { privateBytes: 380 * MB, rssBytes: 514 * MB, processCount: 3 },
   leftoverTotal: { privateBytes: 0, rssBytes: 0, processCount: 0 },
   sessions: [
-    { sessionId: 'S1', name: 'API refactor', agent: 'claude', processCount: 2, memory: { privateBytes: 351 * MB, privateSource: 'footprint', rssBytes: 401 * MB }, cpuPercent: 3.2 }
+    { sessionId: 'S1', name: 'API refactor', agent: 'claude', processCount: 2, memory: { privateBytes: 351 * MB, privateSource: 'footprint', rssBytes: 401 * MB }, cpuPercent: 3.2, projectName: 'webapp', projectPath: '~/src/webapp', createdAt: Date.UTC(2026, 7, 30, 9, 15, 0), lastSeen: Date.UTC(2026, 7, 31, 11, 45, 0) }
   ],
   sessionsTotal: { privateBytes: 351 * MB, rssBytes: 401 * MB, processCount: 2 },
   glance: {
@@ -121,7 +121,43 @@ describe('buildDiagnosticsReportText', () => {
   it('labels every memory number by its source and every cpu number by its kind', () => {
     assert.ok(lines.includes('main  pid 100  private 200.0 MB (electron), rss 240.0 MB  cpu 2.5% sampled'));
     assert.ok(lines.includes('session server  pid 200  private unknown, rss 14.0 MB  cpu 0.1% lifetime'));
-    assert.ok(lines.includes('API refactor  claude  2 processes  private 351.0 MB (footprint), rss 401.0 MB  cpu 3.2% lifetime'));
+    assert.ok(
+      lines.includes(
+        'API refactor  webapp (~/src/webapp)  claude  2 processes  private 351.0 MB (footprint), rss 401.0 MB  cpu 3.2% lifetime  started 2026-08-30T09:15:00.000Z  last seen 2026-08-31T11:45:00.000Z'
+      )
+    );
+  });
+
+  // PHASE 188. The complaint that started the phase was that a pasted row
+  // cannot be traced to the work it belongs to. A row with no manifest match
+  // still has to appear, so it says so in words rather than dropping fields
+  // and leaving a line a person cannot align with the others.
+  it('says so in words when a session has no manifest row', () => {
+    const stray = buildDiagnosticsReportText(
+      {
+        ...BODY,
+        sessions: [
+          {
+            sessionId: null,
+            name: 'stray',
+            agent: 'unknown',
+            processCount: 1,
+            memory: { privateBytes: null, privateSource: null, rssBytes: MB },
+            cpuPercent: 0,
+            projectName: null,
+            projectPath: null,
+            createdAt: null,
+            lastSeen: null
+          }
+        ]
+      },
+      HOME
+    ).split('\n');
+    assert.ok(
+      stray.includes(
+        'stray  project unknown  unknown  1 processes  private unknown, rss 1.0 MB  cpu 0.0% lifetime  started unknown  last seen unknown'
+      )
+    );
   });
 
   it('folds the home directory to ~', () => {

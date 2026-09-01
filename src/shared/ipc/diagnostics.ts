@@ -130,6 +130,28 @@ export interface DiagnosticsSessionWorkload {
   memory: DiagnosticsMemory;
   /** Lifetime average, summed over the subtree. */
   cpuPercent: number;
+  /**
+   * PHASE 188. Whose work this row is, and since when. Sessions carry a per
+   * project counter in their names, so `claude-1` appears once per project and
+   * the name alone identifies nothing across a table of dozens of rows.
+   *
+   * All four are null together, on a row whose pane carries no `@gmux-id` or
+   * whose manifest row is gone. That row still draws; the cells are empty.
+   */
+  /** The projects-table name, else the last segment of the project path. */
+  projectName: string | null;
+  /** The project's full path, home folded to `~`. For the hover only. */
+  projectPath: string | null;
+  /** Epoch ms the session was created. */
+  createdAt: number | null;
+  /**
+   * Epoch ms Tortie last CONFIRMED this session alive, which is what the
+   * manifest's `last_seen` means and all it means. It moves on a reconcile
+   * (startup, %exit, %sessions-changed), on a status transition, and on the
+   * session's death. Nothing about it records a keystroke or any output, so a
+   * session running flat out for four hours carries a four hour old value.
+   */
+  lastSeen: number | null;
 }
 
 // ---------------------------------------------------------------------------

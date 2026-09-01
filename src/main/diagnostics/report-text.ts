@@ -17,6 +17,7 @@ import type {
   DiagnosticsGlanceColumn,
   DiagnosticsMemory,
   DiagnosticsReport,
+  DiagnosticsSessionWorkload,
   DiagnosticsShellProcess
 } from '@shared/ipc';
 import { CHROMIUM_DEFAULT_HTTP_CACHE_CEILING_BYTES } from '../cache/policy';
@@ -37,6 +38,27 @@ function memText(m: DiagnosticsMemory): string {
 
 function cpuText(percent: number, source: 'sampled' | 'lifetime'): string {
   return `cpu ${percent.toFixed(1)}% ${source}`;
+}
+
+/**
+ * PHASE 188. Whose work a session row is, on the line a person pastes into an
+ * issue. The face shows the project name and the path on hover; the text has
+ * no hover, so it carries both, and the path arrived already folded to `~`.
+ */
+function projectText(s: DiagnosticsSessionWorkload): string {
+  if (s.projectName === null) return 'project unknown';
+  if (s.projectPath === null) return s.projectName;
+  return `${s.projectName} (${s.projectPath})`;
+}
+
+/**
+ * PHASE 188. The face draws these two as an age, because an age is what a
+ * person reads at a glance while the numbers are moving. The pasted text is
+ * read later and somewhere else, so it carries the instant itself, in the same
+ * ISO form as the report's own `generatedAt` line above.
+ */
+function stampText(label: string, epochMs: number | null): string {
+  return `${label} ${epochMs === null ? 'unknown' : new Date(epochMs).toISOString()}`;
 }
 
 /**
@@ -123,7 +145,7 @@ export function buildDiagnosticsReportText(
   );
   for (const s of r.sessions) {
     lines.push(
-      `${s.name}  ${s.agent}  ${s.processCount} processes  ${memText(s.memory)}  ${cpuText(s.cpuPercent, 'lifetime')}`
+      `${s.name}  ${projectText(s)}  ${s.agent}  ${s.processCount} processes  ${memText(s.memory)}  ${cpuText(s.cpuPercent, 'lifetime')}  ${stampText('started', s.createdAt)}  ${stampText('last seen', s.lastSeen)}`
     );
   }
 

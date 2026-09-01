@@ -167,6 +167,19 @@
   color: var(--text-muted);
 }
 
+/*
+ * Phase 188. The project a session belongs to. Capped so one long name cannot
+ * push Started and Last seen out of the card; the full path is on the hover,
+ * so nothing is lost when it truncates. An unknown project draws an empty
+ * cell rather than a dash, so the eye reads down the column to the rows that
+ * do carry one.
+ */
+.diag-project {
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .diag-name {
   display: flex;
   align-items: baseline;

@@ -192,10 +192,23 @@ export interface SortSpec<C extends string> {
 }
 
 export type ShellSortCol = 'process' | 'pid' | 'cpu' | 'private' | 'resident';
-export type SessionSortCol = 'session' | 'agent' | 'processes' | 'cpu' | 'memory';
+export type SessionSortCol =
+  | 'session'
+  | 'project'
+  | 'agent'
+  | 'processes'
+  | 'cpu'
+  | 'memory'
+  | 'started'
+  | 'lastSeen';
 
 /** The columns that read as words. A first click sorts them ascending. */
-const TEXT_COLS: ReadonlySet<string> = new Set(['process', 'session', 'agent']);
+const TEXT_COLS: ReadonlySet<string> = new Set([
+  'process',
+  'session',
+  'agent',
+  'project'
+]);
 
 /**
  * The next sort after a click on a column head. A first click on a text
@@ -274,6 +287,8 @@ export function sortSessionRows(
     switch (sort.col) {
       case 'session':
         return s.name.toLowerCase();
+      case 'project':
+        return (s.projectName ?? '').toLowerCase();
       case 'agent':
         return s.agent.toLowerCase();
       case 'processes':
@@ -282,6 +297,16 @@ export function sortSessionRows(
         return s.cpuPercent;
       case 'memory':
         return s.memory.privateBytes ?? -1;
+      // PHASE 188. Sorted on the NUMBER the cell was drawn from, never on the
+      // drawn string, or '2h' would sort before '10m'. `?? -1` is this file's
+      // own convention for a value that was not read, and it puts a row with
+      // no manifest match below every row that has one. The two time columns
+      // need no exception in `nextSort`: they are number columns, so a first
+      // click reads descending, which on an epoch is most recent first.
+      case 'started':
+        return s.createdAt ?? -1;
+      case 'lastSeen':
+        return s.lastSeen ?? -1;
     }
   };
   return stableBy(base, key, sort.dir);
