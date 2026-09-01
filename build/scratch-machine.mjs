@@ -34,19 +34,23 @@
  *  4. Every pid is handed to the caller's `record` function as it is created, so
  *     a caller kills only what it started. There is no `pkill` and no
  *     `kill-server` in this file.
+ *  5. The ssh agent this module starts ends with the process that started it,
+ *     through {@link endAgentWithThisProcess}, whether or not the caller ever
+ *     reached its own teardown. See that function for the leak it closes.
  */
 
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
   writeFileSync
 } from 'node:fs';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 /** The operator's live server. Nothing here may ever reach it. */
 export const REAL_SOCKET = 'gmux';
@@ -145,6 +149,70 @@ export function machineTmuxTmp(prefix, id) {
 }
 
 /**
+ * End one scratch ssh agent when THIS process ends, whatever ended it.
+ *
+ * ## The leak it closes, measured rather than supposed
+ *
+ * A scratch agent from `npm run probe:p187` was found still running hours after
+ * the run, pid 59110, `/usr/bin/ssh-agent -s`, started inside that probe's own
+ * window. The probe was not careless: it records the agent pid, its `teardown`
+ * kills every recorded pid, and that teardown is called in a `finally`. The gap
+ * is that {@link scratchYard} is called at MODULE LEVEL, above the `try` the
+ * `finally` belongs to. An agent is running from the moment that call returns,
+ * and anything that ends the process before the `try` is entered, being a throw
+ * while the machine is built, one of the harness's own `process.exit` refusals,
+ * or a bad argument, leaves the agent behind holding a key. Every caller of this
+ * module has that shape.
+ *
+ * So the agent is ended HERE, beside where it is started, rather than by asking
+ * eight harnesses to be careful. `exit` runs on a normal return, on
+ * `process.exit`, and after an uncaught throw, which is every shape above.
+ *
+ * SIGTERM, not SIGKILL, because ssh-agent removes its own socket on SIGTERM and
+ * cannot on SIGKILL. The socket and the private directory ssh-agent made for it
+ * are removed afterwards anyway, and only when they carry the names ssh-agent
+ * itself gives them, so a malformed path removes nothing.
+ *
+ * WHAT IT CANNOT COVER, said plainly: a SIGKILL to this process runs no handler
+ * at all. The caller's own recorded pid list is still the belt for everything
+ * else, and this is the one process that is started before that list can be
+ * acted on.
+ */
+export function endAgentWithThisProcess(pid, sock) {
+  process.on('exit', () => {
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      /* already gone, which is the state we wanted */
+    }
+    if (typeof sock !== 'string' || sock === '') return;
+    // A SOCKET, PROVED RATHER THAN NAMED. `lstatSync` is what makes this safe to
+    // point at a path a caller composed: a regular file, a directory or a
+    // symlink is left alone, so the only thing this line can ever remove is an
+    // agent's own endpoint.
+    try {
+      if (lstatSync(sock).isSocket()) rmSync(sock, { force: true });
+    } catch {
+      /* the agent removed it on the way out, which is the state we wanted */
+    }
+    // `ssh-agent -s` makes a private directory of its own at
+    // <tmp>/ssh-XXXXXX/agent.<pid>, and that directory holds nothing else. An
+    // agent started with `-a` was given a path inside a scratch the caller
+    // already removes, so it does not match and nothing more is done.
+    if (
+      basename(sock).startsWith('agent.') &&
+      basename(dirname(sock)).startsWith('ssh-')
+    ) {
+      try {
+        rmSync(dirname(sock), { recursive: true, force: true });
+      } catch {
+        /* already gone, which is the state we wanted */
+      }
+    }
+  });
+}
+
+/**
  * Build the shared parts one or more scratch machines need: the keys, the
  * `authorized_keys`, and an ssh agent holding this run's key.
  *
@@ -180,6 +248,9 @@ export function scratchYard({ root, prefix, record }) {
   if (started.code === 0 && sockMatch !== null && pidMatch !== null) {
     authSock = sockMatch[1];
     record(Number(pidMatch[1]));
+    // BEFORE the key goes in, so an agent is never holding one with nothing
+    // arranged to end it.
+    endAgentWithThisProcess(Number(pidMatch[1]), authSock);
     const added = spawnSync('/usr/bin/ssh-add', [userKey], {
       encoding: 'utf8',
       env: { ...process.env, SSH_AUTH_SOCK: authSock }

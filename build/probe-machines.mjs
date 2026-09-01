@@ -69,6 +69,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { withElectron } from './electron-run.mjs';
+import { endAgentWithThisProcess } from './scratch-machine.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = join(tmpdir(), 'p68-machines-probe');
@@ -271,6 +272,9 @@ function startPrivateKeyHolder(userKey) {
     const out = run('/usr/bin/ssh-agent', ['-a', sock]);
     const pid = Number(/SSH_AGENT_PID=(\d+)/.exec(out)?.[1] ?? '0');
     if (pid > 0) recordedPids.push(pid);
+    // Ends with THIS process whatever ended it. See that function for the stray
+    // a Phase 187 probe left behind.
+    if (pid > 0) endAgentWithThisProcess(pid, sock);
     run('/usr/bin/ssh-add', [userKey], { env: { ...process.env, SSH_AUTH_SOCK: sock } });
     const listed = run('/usr/bin/ssh-add', ['-l'], {
       env: { ...process.env, SSH_AUTH_SOCK: sock }

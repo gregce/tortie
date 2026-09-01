@@ -61,6 +61,7 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { endAgentWithThisProcess } from './scratch-machine.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -246,6 +247,10 @@ let authSock = '';
   if (started.code === 0 && sockMatch !== null && pidMatch !== null) {
     authSock = sockMatch[1];
     recordedPids.push(Number(pidMatch[1]));
+    // The agent ends with THIS process whatever ended it, because it is running
+    // before the run's own teardown can be reached. See that function for the
+    // stray a Phase 187 probe left behind.
+    endAgentWithThisProcess(Number(pidMatch[1]), authSock);
     const added = spawnSync('/usr/bin/ssh-add', [userKey], {
       encoding: 'utf8',
       env: { ...process.env, SSH_AUTH_SOCK: authSock }
