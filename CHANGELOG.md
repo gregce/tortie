@@ -4,6 +4,38 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## 0.97.0 (2026-09-01)
+
+This release is about knowing what your agents are doing and what they are costing you. Oh My Pi joins the supported agents, the diagnostics report answers at a glance instead of making you read it, and a meter on the sessions pane shows how much of your Claude and Codex plans you have used. Tortie also starts fewer things at launch, holds less memory under load, and lets you choose the font it writes your code in.
+
+### Added
+
+- Oh My Pi is now a supported agent. It launches, restores and resumes like every other agent, wears its own mark everywhere agents appear, and Catch Me Up reads its sessions. Contributed by [jakehildreth](https://github.com/jakehildreth) in [#12](https://github.com/gregce/tortie/pull/12) ([`d0e80a2`](https://github.com/gregce/tortie/commit/d0e80a2))
+- A meter at the foot of the sessions pane now shows how much of your Claude and Codex subscription you have used, in both the five hour and the weekly window, with the detail on hover and a control to ask again. Each provider is off until you turn it on in Settings then Agents, and while a meter is off nothing is read and nothing is sent ([`16281b3`](https://github.com/gregce/tortie/commit/16281b3))
+- The bar can track whichever window you care about, and it follows the number you read first unless you say otherwise. The card names the plan each login is on, and it no longer hides behind the tabs when your sessions sit along the top ([`1ea852c`](https://github.com/gregce/tortie/commit/1ea852c))
+- You can now choose the font Tortie writes your code in, for the terminal and the editor together, either from three bundled faces or by naming any family installed on your Mac. Typing suggests the families you actually have, and a captured session still renders in Menlo. Contributed by [jakehildreth](https://github.com/jakehildreth) in [#13](https://github.com/gregce/tortie/pull/13) ([`4b350cd`](https://github.com/gregce/tortie/commit/4b350cd)), suggestions ([`9a19ddd`](https://github.com/gregce/tortie/commit/9a19ddd))
+- The diagnostics report tells you what Tortie is costing in processes, memory, CPU and disk, and opens with a strip that totals it and ranks it against everything else running on your Mac ([`30222a1`](https://github.com/gregce/tortie/commit/30222a1)), ([`c05e99b`](https://github.com/gregce/tortie/commit/c05e99b))
+- Every row in that report is now read rather than left blank, every table sorts by any column, and the numbers keep moving while you are looking at them ([`c01c013`](https://github.com/gregce/tortie/commit/c01c013))
+- A diff now draws changes the way you want to read them. Choose whether a change is marked by word, by phrase, by character or not at all, and turn the full width colour on or off, from a row of controls in the diff itself. The choice is remembered ([`0a31afb`](https://github.com/gregce/tortie/commit/0a31afb))
+- Architecture draws a map of a codebase, keeps a contract of what may depend on what, and can hand a part of it to a session as context. It ships turned off, and Settings then Architecture is where you turn it on, because most agents cannot fill in a contract yet ([`0586263`](https://github.com/gregce/tortie/commit/0586263)), ([`9b8a667`](https://github.com/gregce/tortie/commit/9b8a667)), ([`31f0afd`](https://github.com/gregce/tortie/commit/31f0afd))
+- Architecture reads imports in Rust, Python, Ruby, Swift, Kotlin and Objective-C as well as the languages it already knew. Swift resolves between targets rather than between files, because a Swift target's files see each other with no import to read ([`b0f8c6e`](https://github.com/gregce/tortie/commit/b0f8c6e)), ([`5a75b54`](https://github.com/gregce/tortie/commit/5a75b54))
+
+### Changed
+
+- Tortie starts less at launch. A project you are not looking at no longer reads its git status until you look, and agent discovery waits for a surface that needs it ([`c32b9ef`](https://github.com/gregce/tortie/commit/c32b9ef))
+- Screens you have not opened no longer load with the app, so the first window paints sooner ([`60a7093`](https://github.com/gregce/tortie/commit/60a7093))
+
+### Fixed
+
+- Catch Me Up no longer wedges if your screen locks while it is opening, which used to leave the chord dead until the window came back ([`e26ecaf`](https://github.com/gregce/tortie/commit/e26ecaf))
+- A large uncommitted change no longer floods the Source Control view or the memory it holds ([`ad3de97`](https://github.com/gregce/tortie/commit/ad3de97))
+- Sessions no longer leak a file handle each time one closes, which used to eat the machine's supply over a long day ([`ad3de97`](https://github.com/gregce/tortie/commit/ad3de97))
+- Tortie no longer lets its own browser cache grow without a limit during development ([`ee02531`](https://github.com/gregce/tortie/commit/ee02531))
+- Boxes in the Architecture map are clickable again, and clicking one drills into it ([`7efd14f`](https://github.com/gregce/tortie/commit/7efd14f))
+- A file under a project's contract directory that Tortie cannot read is now skipped with one calm line instead of a wall of errors ([`6032c94`](https://github.com/gregce/tortie/commit/6032c94))
+- The Architecture panel says plainly when it can read only part of a repository, and it no longer counts checks as promises when there are none ([`cde6566`](https://github.com/gregce/tortie/commit/cde6566))
+- Remote machines are covered by their fault tests again, after those tests had been red long enough to stop meaning anything ([`4b8427b`](https://github.com/gregce/tortie/commit/4b8427b))
+
 ## 0.76.1 (2026-08-26)
 
 This release is about the file tree and the menus. You can now bring files into a project from Finder and take them back out again, every menu row carries an icon and says which key runs it, and a session will tell you which conversation it is and where that conversation lives on disk. Several things you reported along the way no longer go wrong.
