@@ -1827,13 +1827,26 @@ export async function remoteRename(
  * Returns false when the id names no remote row in memory.
  */
 export function forgetRemoteRow(sessionId: string): boolean {
+  let held = false;
   for (const state of machines.values()) {
-    if (state.gone.delete(sessionId) || state.rows.delete(sessionId)) {
-      announce();
-      return true;
-    }
+    // PHASE 187. BOTH MAPS, ALWAYS, AND NEVER `||`.
+    //
+    // The old line read `state.gone.delete(id) || state.rows.delete(id)`, and
+    // `||` short circuits: for an id in both maps the first delete answered true
+    // and the second never ran, so the row stayed in main's own truth and every
+    // redraw brought the tab back. A second Remove worked because `gone` was
+    // empty by then, which is why it was reported as coming back AT LEAST ONCE.
+    //
+    // The pass in {@link pollRemoteMachine} is what stops the two maps
+    // overlapping in the first place, and this is the belt beside it: a Remove
+    // is the person saying the row is finished, so it clears whatever holds it
+    // rather than the first thing that does.
+    const wasGone = state.gone.delete(sessionId);
+    const wasListed = state.rows.delete(sessionId);
+    if (wasGone || wasListed) held = true;
   }
-  return false;
+  if (held) announce();
+  return held;
 }
 
 // ---------------------------------------------------------------------------
@@ -2292,6 +2305,22 @@ async function onePass(
     // and nothing on that machine does either.
     state.gone.set(id, { ...row, status: absentStatus });
   }
+  // PHASE 187. THE OTHER DIRECTION, AND ITS ABSENCE IS THE DEFECT HE REPORTED.
+  //
+  // A completed list holding the session is proof it is NOT gone, and until this
+  // line nothing ever took an id out of `gone`. The map above only ever added,
+  // and `state.rows` is replaced wholesale below, so a session that went away and
+  // came back UNDER THE SAME `@gmux-id` sat in both maps for the rest of the run.
+  // Tortie's own remote restore recreates a session with exactly that id, in
+  // `./remote-restore.ts`, so this was not a rare shape.
+  //
+  // Two things went wrong while a row was in both. {@link remoteSessions} pushed
+  // it twice, once live and once proven absent, so one session drew as two rows.
+  // And a Remove cleared only one of the two maps, so the tab came back on the
+  // next redraw and a second Remove was needed, which is the sentence this was
+  // reported in.
+  // {@link remoteRowsInBothMaps} is the counter that keeps this line honest.
+  for (const id of seen.keys()) state.gone.delete(id);
   // PHASE 117. A pass that found a session waiting to be re-bound must not write
   // "not running" over its row first. See {@link writeBackCompletedPass}.
   const rescuePending = unclaimed.length > 0;
@@ -2919,6 +2948,30 @@ export function remoteMachineFacts(machineId: string): {
     unconfirmedCreates: issuedRemoteIdsFor(machineId).length,
     evidence: state.truth.evidence
   };
+}
+
+/**
+ * Every row this run holds in BOTH of a machine's maps, as `machine/id`.
+ *
+ * IT MUST ALWAYS BE EMPTY, and it is a counter rather than a comment for the
+ * same reason {@link machinesWithBothFeeds} is: the disjointness of `rows` and
+ * `gone` is a property this rung has to keep, and a test that counts is evidence
+ * while a comment is not.
+ *
+ * The property in one sentence. `rows` is what the last completed list reported
+ * and `gone` is what a completed list stopped reporting, so no session can
+ * honestly be in both, and a row that is in both draws twice and survives a
+ * Remove. That was the Phase 187 defect, reported as a closed remote tab coming
+ * back at least once.
+ */
+export function remoteRowsInBothMaps(): string[] {
+  const both: string[] = [];
+  for (const [machineId, state] of machines) {
+    for (const id of state.rows.keys()) {
+      if (state.gone.has(id)) both.push(`${machineId}/${id}`);
+    }
+  }
+  return both.sort();
 }
 
 /**

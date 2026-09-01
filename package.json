@@ -111,6 +111,7 @@
     "goldens:machines": "node build/capture-machine-goldens.mjs",
     "conformance:agents": "node build/conformance-agents.mjs",
     "conformance:machines": "node build/conformance-machines.mjs",
+    "conformance:remoteclose": "vitest run src/main/machines/__tests__/remote-close.test.ts",
     "conformance:installs": "node build/conformance-installs.mjs",
     "conformance:context": "node build/conformance-context.mjs",
     "conformance:overview": "node build/conformance-overview.mjs",

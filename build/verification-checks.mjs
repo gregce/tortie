@@ -120,6 +120,10 @@ export const CHECKS = [
   // install alone, through the pinned tsx runner in build/ts-runner.mjs.
   pure('conformance:agents'),
   pure('conformance:machines'),
+  // Phase 187's guard. It is a vitest file rather than a tsx probe because the
+  // exec plane is replaced by a function, which is the seam vitest owns, and it
+  // drives the real feed's own state machine over 25 closes per arm.
+  pure('conformance:remoteclose', NEEDS.vitest),
   pure('conformance:installs'),
   pure('conformance:context'),
   pure('conformance:overview'),
