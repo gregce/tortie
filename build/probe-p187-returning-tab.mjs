@@ -41,6 +41,14 @@
  *                which is what the tab's x does to a running session
  *   arm REMOVE   N closes followed by the second click, `sessions:discard`,
  *                which is what the x does to a session that has ended
+ *   arm RACE     the close happening while a list issued BEFORE it is still on
+ *                the wire, which is the candidate the entry named first. The
+ *                list alone is made slow on the machine and it is put in flight
+ *                by a second session appearing there out of band, so the window
+ *                is a machine at the end of a slow link rather than a lucky
+ *                millisecond. Added by the second fix round, which found the
+ *                first one had left this shape open: 200 of 200 lives came back
+ *                at that round's HEAD and at its parent alike
  *   tail         one long watch over every id closed in the run, so a return
  *                that arrives MINUTES later is seen as well as one that
  *                arrives seconds later
@@ -53,6 +61,7 @@
  * Usage:
  *   node build/probe-p187-returning-tab.mjs [--trials N] [--watch MS]
  *                                           [--tail MS] [--json PATH] [--keep]
+ *                                           [--slow MS] [--slow-list MS]
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -82,7 +91,15 @@ const SOCKET = process.env['GMUX_TMUX_SOCKET'] ?? `gmux-p187-${String(process.pi
 refuseRealSockets(SOCKET, 'p187');
 
 function parseArgs(argv) {
-  const out = { trials: 20, watchMs: 20_000, tailMs: 400_000, json: null, keep: false, slowMs: 0 };
+  const out = {
+    trials: 20,
+    watchMs: 20_000,
+    tailMs: 400_000,
+    json: null,
+    keep: false,
+    slowMs: 0,
+    slowListMs: 4_000
+  };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--trials') out.trials = Number(argv[(i += 1)]);
     else if (argv[i] === '--watch') out.watchMs = Number(argv[(i += 1)]);
@@ -90,6 +107,7 @@ function parseArgs(argv) {
     else if (argv[i] === '--json') out.json = argv[(i += 1)];
     else if (argv[i] === '--keep') out.keep = true;
     else if (argv[i] === '--slow') out.slowMs = Number(argv[(i += 1)]);
+    else if (argv[i] === '--slow-list') out.slowListMs = Number(argv[(i += 1)]);
   }
   return out;
 }
@@ -146,16 +164,64 @@ const machine = scratchMachine(yard, { id: 'one', port: 39_000 + (process.pid % 
  * the far machine, which is what `remoteTmuxPath` names.
  */
 function farTmuxProgram(slowMs) {
-  if (slowMs <= 0) return yard.tmuxPath;
+  if (slowMs <= 0 && args.slowListMs <= 0) return yard.tmuxPath;
   const path = join(root, 'slow-tmux');
   writeFileSync(
     path,
-    `#!/bin/sh\n/bin/sleep ${String(slowMs / 1000)}\nexec ${yard.tmuxPath} "$@"\n`,
+    [
+      '#!/bin/sh',
+      // Every command, when --slow is on. This is the round trip stand in.
+      ...(slowMs > 0 ? [`/bin/sleep ${String(slowMs / 1000)}`] : []),
+      // THE LIST ALONE, and only while the marker file is there. See
+      // {@link SLOW_LIST_MARKER}.
+      //
+      // THE SLEEP IS AFTER THE LIST RUNS, and that is the whole point rather
+      // than a detail. Sleeping first and listing afterwards makes a list that
+      // is merely LATE, and its answer describes the machine at the moment it
+      // finally ran, so it holds no session the close had already ended. The
+      // defect is an answer that is STALE: taken before the close and delivered
+      // after it. So the list runs at once, its output is held, and the delivery
+      // is what waits. The first version of this wrapper slept first, and the
+      // arm reported zero returns at the parent commit, which is a probe passing
+      // because it was not driving the thing it named.
+      ...(args.slowListMs > 0
+        ? [
+            `if [ -f ${SLOW_LIST_MARKER} ]; then`,
+            '  case " $* " in',
+            '    *" list-sessions "*)',
+            `      out=$(${yard.tmuxPath} "$@"); rc=$?`,
+            `      /bin/sleep ${String(args.slowListMs / 1000)}`,
+            `      printf '%s\\n' "$out"`,
+            '      exit $rc',
+            '      ;;',
+            '  esac',
+            'fi'
+          ]
+        : []),
+      `exec ${yard.tmuxPath} "$@"`,
+      ''
+    ].join('\n'),
     'utf8'
   );
   chmodSync(path, 0o755);
   return path;
 }
+
+/**
+ * While this file exists, and only while it exists, a `list-sessions` on the
+ * machine takes `--slow-list` milliseconds and every other command is unchanged.
+ *
+ * IT IS WHAT MAKES THE RACE ARM DETERMINISTIC RATHER THAN LUCKY. The defect is a
+ * list ISSUED BEFORE a close answering AFTER it, and on the loopback address a
+ * list answers in about a hundredth of the time it takes over a tailnet, so the
+ * window a person meets on a real machine is one this Mac cannot reproduce by
+ * waiting. Slowing every command instead, which is what `--slow` does, does not
+ * help: the End and the poll it runs afterwards get slower with it, so the close
+ * never lands inside the window. Slowing the LIST alone is the far side being
+ * slow to answer a question, which is exactly the shape of a machine at the end
+ * of a slow link, and nothing in Tortie is changed to produce it.
+ */
+const SLOW_LIST_MARKER = join(root, 'slow-list-on');
 
 /** Ask the far machine directly, read only, which sessions its server holds. */
 function farSessions() {
@@ -308,6 +374,7 @@ const report = {
   socket: SOCKET,
   machinePort: machine.port,
   slowMs: args.slowMs,
+  slowListMs: args.slowListMs,
   watchMs: args.watchMs,
   domReadable: null,
   operatorBefore: operatorSessionCount(),
@@ -318,6 +385,7 @@ const report = {
   project: [],
   local: [],
   ghost: [],
+  race: [],
   tail: [],
   failures: []
 };
@@ -620,6 +688,132 @@ async function drive(cdp) {
     }
   }
 
+  // --- arm RACE: a list issued before the close, answering after it ---------
+  //
+  // THE HONEST PRODUCT TIMELINE, and it is the candidate the entry named first.
+  // A list goes out at T holding the session. The person presses the x at T+5 ms
+  // and Remove at T+10 ms. The list answers at T+60 ms with the membership the
+  // machine had BEFORE the close, and the pass writes it over main's own rows.
+  //
+  // Nothing in Tortie is changed to produce it. The list is made SLOW on the
+  // machine, which is a machine at the end of a slow link, and the list is put in
+  // flight by an event that has nothing to do with this session, being a second
+  // session appearing on the machine out of band. See {@link SLOW_LIST_MARKER}.
+  //
+  // The End is fired WITHOUT being awaited, because that is what the person does:
+  // `remoteKill` announces the row as ended before it awaits its own poll, so the
+  // screen offers Remove while the End is still finishing.
+  if (args.slowListMs > 0) {
+    for (let i = 1; i <= Math.min(5, args.trials); i += 1) {
+      const name = `p187-race-${String(i)}`;
+      const made = await create(name);
+      if (!(await settle(list, made.id, 20_000))) {
+        fail(`${name}: never appeared in main's own list`);
+        continue;
+      }
+      const decoy = `p187-decoy-${String(i)}`;
+      // THE DECOY IS THE INSTRUMENT AS WELL AS THE TRIGGER. It is stamped like a
+      // Tortie session, so main lists it, and the instant main first lists it IS
+      // the instant the held list answered. That is what turns "a list was
+      // probably still on the wire" into a number this arm records.
+      const decoyId = `p187-decoy-${String(process.pid)}-${String(i)}`;
+      writeFileSync(SLOW_LIST_MARKER, '', 'utf8');
+      // The event. Main issues a list, and that list will hold this session.
+      const bornDecoy = farTmux(`new-session -d -s ${decoy} -P -F '#{session_id}'`);
+      if (bornDecoy.code !== 0) {
+        fail(`${name}: the machine would not start the decoy: ${bornDecoy.stderr}`);
+        rmSync(SLOW_LIST_MARKER, { force: true });
+        continue;
+      }
+      for (const [option, value] of [
+        ['@gmux-id', decoyId],
+        ['@gmux-agent', 'shell'],
+        ['@gmux-name', decoy],
+        ['@gmux-project', farProject]
+      ]) {
+        farTmux(`set-option -t '${bornDecoy.stdout}' ${option} '${value}'`);
+      }
+      // The list is on the wire now, and it will not answer for slowListMs.
+      await sleep(500);
+      // The x, fired and not awaited.
+      await ev(
+        cdp,
+        `window.gmux.sessions.kill(${JSON.stringify(made.id)}).catch(() => undefined); return true;`
+      );
+      // The screen reads ended, which is when Remove is what the x offers.
+      let readsEnded = false;
+      const tEnded = Date.now();
+      while (!readsEnded && Date.now() - tEnded < 30_000) {
+        const r = ((await list()) ?? []).find((x) => x.id === made.id);
+        readsEnded =
+          r === undefined || r.status === 'exited' || r.status === 'restorable';
+        if (!readsEnded) await sleep(100);
+      }
+      // The Remove, while the list from before the close is still on the wire.
+      const tRemove = Date.now();
+      await ev(cdp, `return await window.gmux.sessions.discard(${JSON.stringify(made.id)});`);
+      const now0 = await list();
+      const goneAtOnce = (now0 ?? []).find((x) => x.id === made.id) === undefined;
+      // THE ARM IS ONLY MEANINGFUL IF THE HELD LIST HAD NOT LANDED YET, and the
+      // decoy is how that is known rather than assumed.
+      const decoySeenAtRemove = (now0 ?? []).some((x) => x.id === decoyId);
+      // Let the stale list land, and the poll the End ran behind it.
+      let decoyLandedMs = null;
+      const tWait = Date.now();
+      while (decoyLandedMs === null && Date.now() - tWait < args.slowListMs + 15_000) {
+        if (((await list()) ?? []).some((x) => x.id === decoyId)) {
+          decoyLandedMs = Date.now() - tRemove;
+        } else await sleep(150);
+      }
+      await sleep(args.slowListMs + 4_000);
+      const afterStale = ((await list()) ?? []).find((x) => x.id === made.id);
+      // Back to a fast machine, then several ordinary passes.
+      rmSync(SLOW_LIST_MARKER, { force: true });
+      await sleep(8_000);
+      const afterPasses = ((await list()) ?? []).find((x) => x.id === made.id);
+      let secondTime = null;
+      if (afterPasses !== undefined) {
+        await ev(cdp, `return await window.gmux.sessions.discard(${JSON.stringify(made.id)});`);
+        await sleep(2_000);
+        secondTime = ((await list()) ?? []).find((x) => x.id === made.id) !== undefined;
+      }
+      const stillFar = farSessions().some((l) => l.endsWith(` ${made.tmuxName}`));
+      report.race.push({
+        arm: 'race',
+        n: i,
+        id: made.id,
+        name,
+        readsEndedInMs: Date.now() - tEnded,
+        goneAtOnce,
+        heldListStillOutAtRemove: !decoySeenAtRemove,
+        heldListLandedAfterRemoveMs: decoyLandedMs,
+        cameBackWithStaleList: afterStale !== undefined,
+        statusWithStaleList: afterStale?.status ?? null,
+        stillListedAfterPasses: afterPasses !== undefined,
+        statusAfterPasses: afterPasses?.status ?? null,
+        stillListedAfterSecondRemove: secondTime,
+        farMachineStillHoldsIt: stillFar,
+        atMs: Date.now() - tRemove
+      });
+      if (decoySeenAtRemove) {
+        fail(
+          `${name}: the held list had already answered when the Remove was pressed, ` +
+            `so this trial did not drive the race`
+        );
+      }
+      say(
+        `race ${String(i)}/${String(Math.min(5, args.trials))}: gone at once ${String(goneAtOnce)}, ` +
+          `held list answered ${String(decoyLandedMs)} ms after the Remove, ` +
+          `with the stale list ${afterStale === undefined ? 'still gone' : `BACK reading ${String(afterStale.status)}`}, ` +
+          `after the passes ${afterPasses === undefined ? 'still gone' : `STILL THERE reading ${String(afterPasses.status)}`}` +
+          `${secondTime === null ? '' : `, and after a second Remove it is ${secondTime ? 'STILL THERE' : 'gone'}`}`
+      );
+      const decoyRow = farSessions().find((l) => l.endsWith(` ${decoy}`));
+      if (decoyRow !== undefined) farKill(decoyRow.split(' ')[0]);
+      await ev(cdp, `return await window.gmux.sessions.discard(${JSON.stringify(decoyId)});`);
+    }
+  }
+
   // --- arm GHOST: the defect on demand -------------------------------------
   //
   // The two arms above close a session whose row is in exactly one of main's two
@@ -872,6 +1066,14 @@ try {
   const jsonPath = args.json ?? join(SCRATCH, `p187-report-${String(process.pid)}.json`);
   writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   say(`report ${jsonPath}`);
+  const raceBack = report.race.filter((t) => t.cameBackWithStaleList).length;
+  const raceStill = report.race.filter((t) => t.stillListedAfterPasses).length;
+  if (report.race.length > 0) {
+    say(
+      `RACE: ${String(raceBack)} of ${String(report.race.length)} came back when the list from ` +
+        `before the close landed, and ${String(raceStill)} were still there after the passes.`
+    );
+  }
   const back = (arm) => report[arm].filter((t) => t.returnedAtMs !== null);
   for (const arm of ['end', 'remove', 'project']) {
     const ret = back(arm);
