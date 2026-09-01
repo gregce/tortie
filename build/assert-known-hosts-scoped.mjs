@@ -143,6 +143,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { CASES } from './known-hosts-fixtures.mjs';
 import { callArguments, lineAt, namedFunctions, stripComments } from './scan-source.mjs';
 import { productKnownHosts, sshArgv, sshOptions, sshRun } from './ssh-run.mjs';
 
@@ -831,136 +832,58 @@ function helperBehaviour(failures) {
 // The fixtures
 // ---------------------------------------------------------------------------
 
-/**
- * The words that would make this file fail its own rule 1 are assembled at
- * write time, so the bytes on disk are what a real script looks like while this
- * file's own source names no ssh program in a spawn position.
- */
-function fixture(text) {
-  return text
-    .replace(/LAUNCH/g, 'spawn' + 'Sync')
-    .replace(/CLIENT/g, '/usr/bin/' + 'ssh')
-    .replace(/OPTIONNAME/g, 'UserKnownHosts' + 'File')
-    .replace(/HOMECALL/g, 'homedir' + '()')
-    .replace(/DOTSSH/g, '.s' + 'sh/known_hosts');
-}
-
-/** A. A direct spawn of the client. MUST FAIL rule 1. */
-const FIXTURE_A = fixture(`
-import { LAUNCH } from 'node:child_process';
-const out = LAUNCH('CLIENT', ['127.0.0.1', 'true'], { encoding: 'utf8' });
-process.exit(out.status ?? 1);
-`);
-
-/**
- * B. The same launch behind a variable declared three hundred lines earlier,
- * which is how four of the five real client scripts were written before Phase
- * 193. Without this fixture the gate would read past every one of them.
- * MUST FAIL rule 1.
- */
-const FIXTURE_B = fixture(`
-import { LAUNCH } from 'node:child_process';
-const sshBin = 'CLIENT';
-function sh(file, args) {
-  return LAUNCH(file, args, { encoding: 'utf8' });
-}
-${'// a long way down the file\n'.repeat(40)}
-const out = sh(sshBin, ['-o', 'BatchMode=yes', '127.0.0.1', 'true']);
-process.exit(out.status ?? 1);
-`);
-
-/** C. A helper copy whose composed argv omits the option. MUST FAIL rule 3. */
-const FIXTURE_C = `
-const OPTION = 'OPTIONNAME';
-export function sshOptions({ strict = 'yes' }) {
-  return ['-o', 'BatchMode=yes', '-o', \`StrictHostKeyChecking=\${strict}\`];
-}
-`.replace(/OPTIONNAME/g, 'UserKnownHosts' + 'File');
-
-/**
- * D. A helper copy naming the person's file FIRST in the two file form. This is
- * the original defect written down as a test. MUST FAIL rule 4.
- */
-const FIXTURE_D = fixture(`
-import { homedir } from 'node:os';
-const OPTION = 'OPTIONNAME';
-export function sshOptions({ tortieRecord }) {
-  return ['-o', \`\${OPTION}="\${HOMECALL}/DOTSSH" "\${tortieRecord}"\`];
-}
-`);
-
-/** E. A compliant script. MUST PASS every rule. */
-const FIXTURE_E = `
-import { scratchKnownHosts, sshRun } from './ssh-run.mjs';
-const record = scratchKnownHosts('/tmp/fixture-e');
-const out = sshRun({
-  knownHosts: record,
-  caller: 'fixture-e.mjs',
-  argv: ['-o', 'BatchMode=yes', '127.0.0.1', 'true']
-});
-process.exit(out.status ?? 1);
-`;
-
-/**
- * F. The client on a command line handed to a shell, which is the shape
- * build/capture-machine-goldens.mjs used to read its version with. MUST FAIL
- * rule 1c.
- */
-const FIXTURE_F = fixture(`
-import { LAUNCH } from 'node:child_process';
-const out = LAUNCH('/bin/sh', ['-c', \`ssh -V 2>&1\`], { encoding: 'utf8' });
-process.exit(out.status ?? 1);
-`);
-
 /** Every finding the scanner produces for one fixture, over all four rules. */
 function scanAll(name, source) {
+  const ctx = contextOf(source);
   return [
-    ...sshSpawns(name, source),
-    ...keygenKnownHostsSpawns(name, source),
-    ...shellSshLines(name, source),
+    ...sshSpawns(name, source, ctx),
+    ...keygenKnownHostsSpawns(name, source, ctx),
+    ...shellSshLines(name, source, ctx),
     ...personFirstFindings(name, source)
   ];
 }
 
 /**
- * Run the scanner over six files this script writes, so a pass says the scanner
- * still separates the shapes. The directory is removed in a `finally` block.
- * Nothing is launched.
+ * Run the scanner over every case in build/known-hosts-fixtures.mjs, so a pass
+ * says the scanner still separates the shapes. The directory is removed in a
+ * `finally` block. Nothing is launched.
+ *
+ * The cases live in their own file because THIRTEEN of them walked past this
+ * gate on the day it shipped, and the six it carried then were the whole
+ * measure of its reach. A shape that is found to walk past it is added there in
+ * the same commit as the fix, so the coverage cannot decay the way the reach
+ * did.
  */
 function runFixtures(failures) {
   const dir = mkdtempSync(join(tmpdir(), 'p193-gate-'));
   try {
-    const cases = [
-      { name: 'fixture-a.mjs', text: FIXTURE_A, mustFail: 1, why: 'a direct spawn of the client' },
-      { name: 'fixture-b.mjs', text: FIXTURE_B, mustFail: 1, why: 'the client behind a variable' },
-      { name: 'fixture-c.mjs', text: FIXTURE_C, mustFail: 3, why: 'a helper that omits the option' },
-      { name: 'fixture-d.mjs', text: FIXTURE_D, mustFail: 4, why: "the person's file named first" },
-      { name: 'fixture-e.mjs', text: FIXTURE_E, mustFail: null, why: 'a compliant script' },
-      { name: 'fixture-f.mjs', text: FIXTURE_F, mustFail: '1c', why: 'the client on a shell line' }
-    ];
     const report = [];
-    for (const one of cases) {
-      const path = join(dir, one.name);
+    for (const one of CASES) {
+      const name = `fixture-${one.id.toLowerCase()}.mjs`;
+      const path = join(dir, name);
       writeFileSync(path, one.text);
       const text = readFileSync(path, 'utf8');
       const findings =
-        one.mustFail === 3 ? helperShape(text).map((p) => ({ rule: 3, why: p })) : scanAll(one.name, text);
-      const use = usesHelper(text);
-      report.push({ name: one.name, count: findings.length, rules: findings.map((f) => f.rule) });
+        one.mustFail === 3
+          ? helperShape(text).map((problem) => ({ rule: 3, why: problem }))
+          : scanAll(name, text);
+      report.push({ id: one.id, mustFail: one.mustFail, count: findings.length });
 
       if (one.mustFail === null) {
         if (findings.length !== 0) {
           failures.push({
-            what: `the compliant fixture ${one.name} was reported as a finding`,
+            what: `the control fixture ${one.id} was reported as a finding`,
             detail:
-              `It is ${one.why} and the scanner found ${String(findings.length)} ` +
-              `finding(s): ${findings.map((f) => f.why).join('; ')}. A scanner ` +
-              'that reports a false alarm makes every pass it prints worthless.'
+              `It is ${one.name} and the scanner found ` +
+              `${String(findings.length)} finding(s): ` +
+              `${findings.map((f) => f.why).join('; ')}. A scanner that reports ` +
+              'a false alarm makes every pass it prints worthless.'
           });
         }
-        if (!use.imported || !use.called) {
+        const use = usesHelper(text);
+        if (one.id !== 'N1' && (!use.imported || !use.called)) {
           failures.push({
-            what: `the compliant fixture ${one.name} was not seen to use the helper`,
+            what: `the control fixture ${one.id} was not seen to use the helper`,
             detail: `imported=${String(use.imported)} called=${String(use.called)}.`
           });
         }
@@ -970,9 +893,9 @@ function runFixtures(failures) {
       const matched = findings.filter((f) => String(f.rule) === String(one.mustFail));
       if (matched.length === 0) {
         failures.push({
-          what: `the fixture ${one.name} was NOT caught`,
+          what: `the fixture ${one.id} was NOT caught`,
           detail:
-            `It is ${one.why} and must break rule ${String(one.mustFail)}. The ` +
+            `It is ${one.name} and must break rule ${String(one.mustFail)}. The ` +
             `scanner found ${String(findings.length)} finding(s) and none of ` +
             'them on that rule. This gate cannot catch a real one either, so ' +
             'its own scanner is broken.'
@@ -1099,7 +1022,7 @@ function main() {
     process.exit(1);
   }
 
-  const mustFail = fixtures.filter((f) => f.mustFail !== null).length;
+  const mustFail = fixtures.filter((one) => one.mustFail !== null).length;
   console.log(
     `[known-hosts] ${String(scanned)} files under build/ were read, walked ` +
       `rather than listed and with vendor left out. None outside ` +
