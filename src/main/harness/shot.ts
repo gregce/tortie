@@ -301,7 +301,17 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
       priorClipboard.formats.some((one) => one.toLowerCase().includes(needle));
     const data: Parameters<typeof clipboard.write>[0] = {};
     if (priorClipboard.text !== '') data.text = priorClipboard.text;
-    if (has('html') && priorClipboard.html !== '') data.html = priorClipboard.html;
+    // `clipboard.write({ html })` PREPENDS `<meta charset='utf-8'>` to whatever
+    // it is given, so putting back the bytes `readHTML()` returned grows the
+    // flavour by 22 bytes on every run. Measured on 2026-09-01 against a
+    // pasteboard whose HTML a browser had written: 619 bytes before the run,
+    // 641 after, and the flavour then began with the tag twice. Stripping
+    // the one leading tag the write is about to add again gives back the
+    // bytes that were there. A flavour that never began with the tag still
+    // gains one, which is the write's own doing and cannot be helped here.
+    if (has('html') && priorClipboard.html !== '') {
+      data.html = priorClipboard.html.replace(/^<meta charset='utf-8'>/, '');
+    }
     if (has('rtf') && priorClipboard.rtf !== '') data.rtf = priorClipboard.rtf;
     if (has('image/') && !priorClipboard.image.isEmpty()) {
       data.image = priorClipboard.image;
