@@ -231,6 +231,7 @@ export const CHECKS = [
   remote('probe:controldeadline'),
   remote('probe:remoteclone'),
   remote('probe:remotearm'),
+  remote('probe:p187'),
 
   // The three that need a machine the operator names and a loaded key.
   realRemote('probe:realmachine'),
