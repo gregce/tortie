@@ -199,15 +199,60 @@
    --------------------------------------------------------------------------- */
 
 .ctx-install-sheet {
-  /* Widened in Phase 132 from 880px to 1120px, and again on 2026-08-23 when
-     the operator asked for the sheet to take up more of the screen. tokens.css
-     carries spacing, type, radii, colors, durations and z-layers and no width
-     scale at all, so a modal states its own width as a number, the way
-     `.modal` (480px) in app.css and `.ctxd-install-modal` (560px) above
-     already do. 92vw keeps a margin at every window size and the 1600px cap
-     stops the two column preview stretching past readable on a wide display.
-     On a 1440px window the sheet is 1325px against 1120px before. */
-  width: min(1600px, 92vw);
+  /* THE OPERATOR HAS RULED ON THIS WIDTH TWICE AND BOTH RULINGS ARE KEPT HERE.
+     Phase 132 widened the sheet from 880px to 1120px. On 2026-08-23 he asked
+     for it to take up more of the screen and the cap went to 1600px. On
+     2026-09-01, with two screenshots, he asked for it back: "we have changed
+     this before but now its just too wide and isnt aesthetically pleasing".
+     THE SECOND WORD IS THE CURRENT ONE. The first is written down beside it on
+     purpose, because a later round that reads only the 2026-08-23 sentence
+     will widen this for a third time.
+
+     THE CAP IS NOW THE TERM THAT BINDS, AND BEFORE THIS PHASE IT BOUND
+     NOWHERE. `min()` takes the smaller term, so a 1600px cap only decides
+     above a 1739px window. Measured in the running app on the parent commit,
+     92vw was the binding term at 1100px, 1280px, 1485px and 1728px viewports,
+     so between 2026-08-23 and 2026-09-01 the number he was looking at was the
+     92vw and the cap decided nothing at all. That is why this phase moved the
+     cap and not the fraction: at 1120px the cap binds from a 1218px window
+     upward, so the sheet stops following the window on any ordinary display,
+     and 92vw goes back to being only the small window guard its own name
+     claims. At his own 1485px window the sheet is 1120px against 1366.2px
+     before. Lowering the fraction instead was refused, because a fraction
+     keeps the sheet proportional to the window, which is the thing he is
+     complaining about, and it still grows without limit on a large display.
+
+     1120px IS NOT A FRESH NUMBER. It is the Phase 132 width, and it is also
+     `.ctxd-install-modal` above, so the sheet and the confirm it leads to are
+     the same width. Before this phase the confirm was 246.2px NARROWER than
+     the sheet at his window, so the surface shrank under a person who clicked
+     Install.
+
+     THE FLOOR UNDER THE WIDTH IS MEASURED, NOT TASTE. The container query at
+     the end of this file, being the one named ctxd-preview with a 680px
+     threshold, collapses the preview from two columns to one below a 680px
+     container, and a one column preview is TALLER, which is the other half of
+     what he reported. (That at-rule is not quoted here in full on purpose:
+     `build/assert-css-order.mjs` counts how many times it is emitted in the
+     built stylesheet, and a comment carrying the literal text reads as a second
+     emission and fails the build. It did, once, while this comment was being
+     written.) The container's content box is the sheet minus 42px of border
+     and padding here and 40px of padding on the card, so two columns need
+     762px of sheet. That boundary was found by sweeping the viewport rather
+     than by the arithmetic: at 829px the sheet is 762.68px and the grid has two
+     tracks, at 828px it is 761.76px and `grid-template-columns` computes to
+     `none`, and at that step the sheet grows from 834.5px to its clamped 852px
+     and band 1 starts scrolling. 1120px leaves 358px above that floor, measured
+     at HEAD as a 1038px preview container against the 680px threshold. At a
+     1280px window the cap still binds, so the sheet is 1120px and the margin is
+     the same 358px; the guard takes over below a 1218px window, and it only
+     reaches the floor at an 829px one.
+
+     tokens.css carries spacing, type, radii, colors, durations and z-layers
+     and no width scale at all, so a modal states its own width as a number,
+     the way `.modal` (480px) in app.css and `.ctxd-install-modal` (1120px)
+     above already do. */
+  width: min(1120px, 92vw);
   max-height: calc(100vh - var(--space-8) * 2);
   display: flex;
   flex-direction: column;
@@ -532,8 +577,38 @@
      is the only band in the sheet that can give 96 px away without something
      being lost. After its 16 px of padding above and below, 112 px of content
      is 6 lines at the 11 px mono size and 18 px line height that `.ctxd-mono`
-     in surface.css draws at. */
-  max-height: calc(var(--space-10) * 3);
+     in surface.css draws at.
+
+     A FLAT 144 px WAS THE DEFECT HE REPORTED ON 2026-09-01, being the second
+     half of "give more height or allow for total scroll". Measured on the
+     parent commit at his own window, this band drew the same 144 px box and
+     the same 112 px of content, 6.22 lines, at a 1080 px viewport as at a
+     700 px one, while the skill's own text was 1184 px long. It refused room a
+     tall window already had. So 144 px stays as the FLOOR on the cap and the
+     window supplies the rest. `max()` takes the LARGER term, so the floor is
+     the first term and the window is the second.
+
+     WHY THE CONSTANT IS 720. It makes the formula return exactly 144 px at
+     every viewport height at or below 864 px, so the 586 px and 700 px rows of
+     the Phase 132 stress are unchanged BY CONSTRUCTION rather than by luck.
+     Above that it yields 180 px at 900, 280 px at 1000 and 360 px at 1080,
+     being 8, 13 and 18 lines. The sheet had 89.5 px of vertical slack at a
+     1485 by 900 window, so 720 spends 36 of it and the constant cannot go below
+     666.5 without band 1 starting to give room away there.
+
+     THIS IS A FLOOR ON THE CAP AND NOT ON THE DRAWN BOX, and a reading that
+     confuses the two will look like a defect and is not one. `flex: 0 1 auto`
+     above lets the box shrink under pressure and it must: at a 586 px viewport
+     it already draws 95.5 px, and at 586 px with six acknowledgement rows in
+     the control band it draws 32 px. That is this band paying for the control,
+     which never shrinks, and it is why growing the cap cannot push the Install
+     button out of the sheet.
+
+     THE WHOLE SHEET STILL DOES NOT SCROLL. He offered that as the alternative
+     and it is refused; the numbers are in the comment on `.ctx-install-sheet`
+     near the top of this file. He reaches the end of the text by this band
+     growing with the window and by it continuing to scroll inside itself. */
+  max-height: max(calc(var(--space-10) * 3), calc(100vh - 720px));
   margin-top: var(--space-6);
   overflow-y: auto;
 }

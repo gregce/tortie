@@ -188,20 +188,26 @@ describe('every scroll region this phase added is scoped to the sheet', () => {
 });
 
 describe('the width keeps its small-window guard', () => {
-  it('states the 1600px cap and the viewport guard inside one min()', () => {
-    // Widened on 2026-08-23 at the operator's ask. The cap stops the two
-    // column preview stretching past readable on a wide display, and the vw
-    // term keeps a margin at every window size.
+  it('states the 1120px cap and the viewport guard inside one min()', () => {
+    // Phase 192, and the number moved because the operator ruled on it twice.
+    // The 2026-08-23 cap of 1600px BOUND NOWHERE: `min()` takes the smaller
+    // term, so a 1600px cap only decides above a 1739px window, and the parent
+    // commit was measured in the running app drawing 92vw at 1100px, 1280px,
+    // 1485px and 1728px viewports. The number he was looking at when he called
+    // it "too wide" on 2026-09-01 was the 92vw. Lowering the cap to 1120px is
+    // what makes the cap the binding term from a 1218px window upward. Both
+    // terms are still pinned here: the guard is what keeps a margin on a small
+    // window, and the cap is what stops the sheet following a large one.
     const sheet = oneRule('.ctx-install-sheet');
     const width = /width:\s*min\(([^)]*\([^)]*\)[^)]*|[^;]*)\);/.exec(sheet);
     expect(width).not.toBeNull();
-    expect(width?.[1]).toContain('1600px');
+    expect(width?.[1]).toContain('1120px');
     expect(width?.[1]).toContain('92vw');
   });
 });
 
 describe('the facts and the plan lead the raw skill text', () => {
-  it('floors the facts band at 144 px and caps the raw text band at 144 px', () => {
+  it('floors the facts band at 144 px and floors the raw text band cap at 144 px', () => {
     // Phase 132.1. Phase 132 set the floor at 96 px and the cap at 240 px, so
     // at a 586 px viewport with two agents ticked the facts band drew 95 px and
     // was cut in the middle of an agent grid row, while the skill's own text
@@ -216,8 +222,18 @@ describe('the facts and the plan lead the raw skill text', () => {
     expect(oneRule('.ctx-install-sheet .ctxd-preview-body')).toMatch(
       /min-height:\s*calc\(var\(--space-10\) \* 3\)/
     );
+    // Phase 192. The raw text band's 144 px stopped being a flat cap and became
+    // the FLOOR on a cap that grows with the window. A flat number drew the
+    // same 112 px of content at a 1080 px viewport as at a 700 px one while the
+    // skill's own text was 1184 px long, which is the second half of what the
+    // operator reported on 2026-09-01. `max()` takes the larger term, and the
+    // 720 px constant is what makes the formula return exactly 144 px at every
+    // viewport height at or below 864 px, so the 586 px and 700 px rows of the
+    // Phase 132 stress are unchanged by construction. BOTH terms are pinned,
+    // because pinning only the floor would let a later round delete the growth
+    // and pinning only the growth would let it delete the floor.
     expect(oneRule('.ctx-install-sheet .ctxd-remote-body')).toMatch(
-      /max-height:\s*calc\(var\(--space-10\) \* 3\)/
+      /max-height:\s*max\(\s*calc\(var\(--space-10\) \* 3\)\s*,\s*calc\(100vh - 720px\)\s*\)/
     );
   });
 });

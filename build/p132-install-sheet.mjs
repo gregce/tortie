@@ -118,8 +118,32 @@ const outDir = join(repoRoot, 'out');
 const HEIGHTS = [900, 700, 586];
 /** The wide viewport. The sheet reaches its full width here. */
 const WIDE = 1440;
-/** The narrow viewport. 928 minus the two 24 px gutters gives an 880 px sheet. */
+/**
+ * The narrow viewport, where the guard rather than the cap decides the width.
+ *
+ * PHASE 192 CORRECTED THIS NUMBER AND THE CORRECTION IS THE POINT. At Phase 132
+ * the guard was `calc(100vw - var(--space-8) * 2)`, so 928 minus the two 24 px
+ * gutters gave an 880 px sheet and that is what this probe asserted. Commit
+ * 75991fd, on 2026-08-23, replaced that guard with `92vw` and left this file
+ * alone, so BOTH width checks below have been failing since that day and nobody
+ * ran them. 92vw of 928 is 853.76.
+ */
 const NARROW = 928;
+/** The guard's fraction, read from `.ctx-install-sheet` in install.css. */
+const GUARD_FRACTION = 0.92;
+/**
+ * Band 3's cap at a given viewport height, being Phase 192's
+ * `max(calc(var(--space-10) * 3), calc(100vh - 720px))` in install.css.
+ *
+ * It was a flat 144 px until Phase 192, and this probe asserted the flat number.
+ * The operator reported on 2026-09-01 that the box drew the same six lines on a
+ * tall window as on a short one, so the 144 px became the FLOOR on a cap that
+ * grows with the window. The 720 px constant returns exactly 144 px at every
+ * height at or below 864 px, which is why the three heights this probe drives,
+ * being 900, 700 and 586, are unchanged at 700 and 586 and grow to 180 px at
+ * 900.
+ */
+const bandThreeCap = (viewportHeight) => Math.max(144, viewportHeight - 720);
 
 const t0 = Date.now();
 function log(msg) {
@@ -1364,8 +1388,12 @@ async function main() {
       );
       check(
         `${state}, ${height} px: the raw SKILL.md is a bounded box that scrolls`,
-        m.remoteHeight !== null && m.remoteHeight <= 144 && m.remoteScrollHeight > m.remoteClientHeight,
-        `remote box ${m.remoteHeight} px tall, scrollHeight ${m.remoteScrollHeight} against clientHeight ${m.remoteClientHeight}`
+        m.remoteHeight !== null &&
+          m.remoteHeight <= bandThreeCap(height) + 0.02 &&
+          m.remoteScrollHeight > m.remoteClientHeight,
+        `remote box ${m.remoteHeight} px tall against a ${bandThreeCap(height)} px ` +
+          `cap at a ${height} px viewport, scrollHeight ${m.remoteScrollHeight} ` +
+          `against clientHeight ${m.remoteClientHeight}`
       );
       check(
         `${state}, ${height} px: the head stays put when the preview is scrolled`,
@@ -1379,6 +1407,10 @@ async function main() {
       );
     }
     }
+    // Phase 192 made this true again. It was true at Phase 132, false from
+    // 75991fd on 2026-08-23 when the cap went to 1600 px and 92vw drew 1324.8 px
+    // here, and true again now the cap is 1120 px and is the binding term from a
+    // 1218 px window upward.
     check(
       'the sheet is 1120 px wide at a 1440 px viewport',
       readings.width.wideSheet === 1120,
@@ -1386,8 +1418,10 @@ async function main() {
     );
     check(
       'the guard still shrinks the sheet in a narrow window',
-      readings.width.narrowSheet === NARROW - 48,
-      `${readings.width.narrowSheet} px at a ${NARROW} px viewport`
+      readings.width.narrowSheet === Math.round(NARROW * GUARD_FRACTION * 100) / 100,
+      `${readings.width.narrowSheet} px at a ${NARROW} px viewport, against the ` +
+        `guard's ${Math.round(NARROW * GUARD_FRACTION * 100) / 100} px and the ` +
+        `cap's 1120 px`
     );
     check(
       'the columns survive at the narrow width',
