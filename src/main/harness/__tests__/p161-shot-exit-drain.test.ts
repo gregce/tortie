@@ -24,9 +24,21 @@ import {
 
 const exitSpy = vi.fn();
 
+/** The windows the harness sees (Phase 194): exitShot releases a pinned one. */
+interface FakeWindow {
+  isDestroyed: () => boolean;
+  isAlwaysOnTop: () => boolean;
+  setAlwaysOnTop: (flag: boolean) => void;
+}
+const windows: FakeWindow[] = [];
+
 vi.mock('electron', () => ({
   app: { exit: (code: number) => exitSpy(code) },
-  BrowserWindow: class {}
+  BrowserWindow: class {
+    static getAllWindows(): FakeWindow[] {
+      return windows;
+    }
+  }
 }));
 vi.mock('../../capture', () => ({ saveLastCaptureTo: vi.fn() }));
 vi.mock('../../settings', () => ({ openSettingsWindow: vi.fn() }));
@@ -34,9 +46,37 @@ vi.mock('../../typed-events', () => ({ broadcastEvent: vi.fn() }));
 
 afterEach(() => {
   exitSpy.mockClear();
+  windows.length = 0;
 });
 
 describe('exitShot', () => {
+  it('releases a window the drive pinned on top before it exits, and leaves a destroyed one alone (Phase 194)', async () => {
+    const { exitShot } = await import('../shot');
+    const released: boolean[] = [];
+    windows.push({
+      isDestroyed: () => false,
+      isAlwaysOnTop: () => true,
+      setAlwaysOnTop: (flag) => released.push(flag)
+    });
+    windows.push({
+      isDestroyed: () => true,
+      isAlwaysOnTop: () => {
+        throw new Error('a destroyed window must not be asked');
+      },
+      setAlwaysOnTop: () => {
+        throw new Error('a destroyed window must not be touched');
+      }
+    });
+    windows.push({
+      isDestroyed: () => false,
+      isAlwaysOnTop: () => false,
+      setAlwaysOnTop: () => released.push(true)
+    });
+    await exitShot(0);
+    expect(released).toEqual([false]);
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
   it('with nothing pending, exits at once with the given code', async () => {
     const { exitShot } = await import('../shot');
     expect(pendingWatcherCloseCount()).toBe(0);
