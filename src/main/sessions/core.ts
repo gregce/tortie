@@ -53,12 +53,15 @@ import type {
 import {
   claudeHookDir,
   claudeHookSettingsPath,
+  claudeTapStampDir,
   ensureClaudeHookSettings,
   GmuxHookServer,
   hooksEnabled,
   readPreferredHookPort,
   readProcSnapshot,
   SessionActivityMonitor,
+  sweepableHookName,
+  sweepableStampName,
   writePreferredHookPort,
   type ActivityMonitorDeps,
   type ActivitySession
@@ -1132,12 +1135,29 @@ export class GmuxCore {
     }
     // Sweep settings files whose session row is gone (killed and removed in a
     // previous run). Nothing reads them and nothing can resume them.
+    //
+    // PHASE 182'S FIX ROUND widened this to the two names the old filter could
+    // never reach, and both are bytes rather than faults: a
+    // `<id>.json.<pid>.tmp` left by a crash between the atomic write and its
+    // rename, which does not end in `.json` and so survived every sweep, and
+    // the throttle stamps in `stamps/`, which the `.json` filter correctly left
+    // alone and nothing else ever removed. Which names may go is decided in
+    // src/main/activity/hooks.ts beside the code that writes them.
     void readdir(claudeHookDir())
       .then((names) =>
         Promise.all(
           names
-            .filter((n) => n.endsWith('.json') && !known.has(n.slice(0, -5)))
+            .filter((n) => sweepableHookName(n, known))
             .map((n) => rm(join(claudeHookDir(), n), { force: true }))
+        )
+      )
+      .catch(() => undefined);
+    void readdir(claudeTapStampDir())
+      .then((names) =>
+        Promise.all(
+          names
+            .filter((n) => sweepableStampName(n, known))
+            .map((n) => rm(join(claudeTapStampDir(), n), { force: true }))
         )
       )
       .catch(() => undefined);

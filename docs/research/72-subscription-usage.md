@@ -692,3 +692,120 @@ a session launched while it was on goes on running the script until it ends.
 - **The workspace trust gate is inherited rather than driven**: a folder claude has not been trusted
   in logs "Status line command skipped: workspace trust not accepted", so the tap is silent for a
   session's whole first run in a new project and the endpoint poll is what draws the meter there.
+
+## 12. What the independent verification measured, 2026-09-01, and what its fix round changed
+
+Phase 182's verification came back needs_work with two blocking findings and three notes. Every one
+of them was reproduced before anything was changed, and one of the notes was settled by measurement
+rather than left as a risk. This section is the measurements, so a later round inherits them.
+
+### 12.1 argv really is readable by every account on this machine
+
+Section 10.9 rules that a token never rides in an argv "because argv is world readable through `ps`
+on this machine". That premise was checked rather than assumed, since a ruling built on a false
+premise is worth less than no ruling. As uid 501, `ps -Ao user=,args=` prints the complete **24
+argument** command line of a root owned process, `/usr/local/vanta/osqueryd --verbose=false
+--config_tls_refresh=1200 …`, and of every other account's processes too. So the premise holds and
+the exposure is every account on the machine rather than only this one.
+
+### 12.2 The first build honoured that rule for two argvs and broke it in a third
+
+The `statusLine` command in the settings file carries no token and no URL, and the `sh -c` argv the
+binary composes carries none either. Both were dumped and both are clean. The script then composed
+this, recorded by a PATH of shims that write down every command they are given before becoming it:
+
+```
+curl -s -m 3 --noproxy * -o /dev/null -H content-type: application/x-www-form-urlencoded \
+  --data-binary @- http://127.0.0.1:59132/u/deadbeefdeadbeefdeadbeefdeadbeef
+```
+
+One post per pane per fifteen seconds, readable for as long as the three second timeout runs. The
+impact is bounded, that token authorises posting usage numbers and activity hook events for one
+session to Tortie's own loopback server and it is not a vendor credential, but the source said
+plainly that it never happens.
+
+**The fix keeps the rule rather than correcting the sentence.** The destination goes into a file
+beside the throttle stamp, created under `umask 077` after an unlink so an older mode cannot survive
+a truncating redirect, and curl is given `-K <file>`. The body already rode stdin through
+`--data-binary @-`, so nothing else moved. Re-measured through the same shims: **zero** of the
+commands the script runs carries the token, the post still lands on `/u/<token>` with a byte
+identical body, and the file is unlinked the moment curl returns. The reason this needed a run at
+all is that the offending argv is composed at run time, so reading the script could not see it.
+
+### 12.3 An unauthenticated caller could erase the log through the new route
+
+Every check on `/u/` happens BEFORE the token is looked up, so the caller driving a refusal is
+unauthenticated by construction: any process on the machine, and a web page too, since a form
+encoded POST is CORS simple and the `Host` a browser sends to `127.0.0.1:PORT` passes the loopback
+check. The first build wrote one `warn` per refused post with no bound.
+
+Measured over the real bound server: **500 anonymous posts produced 500 log lines in 47 ms**, which
+is 10,638 a second, and the same 500 posts to `/h/` produced **none**, so the asymmetry arrived with
+this route. `src/main/log/transport.ts` caps `app.log` at 2 MiB with one archive, so this was never
+disk fill, it was diagnostic **erasure**: the real line through the real envelope builder is **138
+bytes**, so **30,394 posts evict `app.log` and `app.log.1` both**, which is **2.9 seconds** at the
+measured rate, and the log is what a later incident is read out of.
+
+The fix is the bound that was already in the same file for the not-installed reasons: one line per
+reason per process. The reasons are a closed set of four, being `method`, `route`, `token` and
+`oversized`, so the route's whole lifetime cost is four lines and the diagnostic value of seeing
+each reason once survives.
+
+### 12.4 Claude Code reads the CHECKOUT ROOT's `settings.local.json`, not the working directory alone
+
+This was left as an unsettled risk by the verification and it is settled here, against the real
+2.1.252 binary, with `--debug --debug-file`, which names every settings path it tries. No turn was
+spent: `ANTHROPIC_BASE_URL` pointed at a closed loopback port and the runs stop at "Not logged in"
+with a scratch `HOME` and `CLAUDE_CONFIG_DIR`, so nothing under the person's own home was read or
+written.
+
+From a working directory three levels below a git root, the paths it tried were:
+
+| Path | |
+| --- | --- |
+| `<configDir>/settings.json` | the user file |
+| `/Library/Application Support/ClaudeCode/managed-settings.json` | the managed file |
+| `<cwd>/.claude/settings.json` | the project file |
+| `<cwd>/.claude/settings.local.json` | the local file |
+| `<gitRoot>/.claude/settings.local.json` | **the one Tortie was missing** |
+
+and its own watch line named `<gitRoot>/.claude/settings.local.json` as well. Three controls make it
+decisive. Moving the working directory deeper moved four of those paths and left the fifth on the
+root exactly, so it is the checkout root and not the parent directory. Removing the `.git` made the
+fifth disappear entirely, so it is discovered through git. And `<gitRoot>/.claude/settings.json` is
+absent from the tried list in **every** run including the one where no settings file existed
+anywhere, so that one is genuinely not read.
+
+Without this, a session whose working directory is a subdirectory of a repository whose root carries
+a `statusLine` would have had Tortie's installed over the person's, silently, which is the exact
+outcome the refusal exists to prevent. `personStatusLineFiles` now walks up to the checkout root by
+looking for `.git` (a directory in a clone, a file in a worktree or a submodule) and adds both of the
+root's files. The `settings.json` at the root is checked even though claude does not read it, because
+the two costs are not the same size: refusing when claude would not have been overridden costs the
+live meter and keeps the fifteen minute poll, which is this feature's documented fallback, while not
+refusing when it would have costs the person the status line they wrote, with nothing on screen to
+say why.
+
+### 12.5 Two smaller things, both measured
+
+**The token carrier was 0644 where 10.9 asks for 0600.** `writeFileAtomic` used `writeFileSync` with
+no mode, which under the ordinary umask 022 is 0644, measured here and measured again on the
+operator's own install where all 26 settings files read `-rw-r--r--`. In practice the secret was
+protected by an ancestor, `~/Library` being `drwx------`, but an ancestor is somebody else's
+decision. It is 0600 now, and because the file is rewritten before every launch, every restore and
+at boot, existing installs reach it with no migration. The chmod is separate from the write because
+the `mode` option only applies to a file the write CREATES.
+
+**The boot sweep reached one of the three name shapes in that directory.** `<id>.json.<pid>.tmp`,
+left by a crash between the atomic write and its rename, does not end in `.json` and would have
+survived every sweep forever; the throttle stamps under `stamps/` were correctly untouched by the
+`.json` filter and were never removed by anything else. Both are bytes rather than faults, and both
+are swept now.
+
+### 12.6 What the verification could not fault
+
+The five ingest rules, the clamp, the dedupe, the five minute poll suppression that does not suppress
+the refresh control and does not clear a vendor `Retry-After`, the decision to keep the per model
+weekly row and the plan word, the separate reader for the tap's seconds against the endpoint's ISO
+8601, the base64url config key surviving a path with a space, the atomic settings write, and the
+whole refusal. Each of those was driven under attack and held.

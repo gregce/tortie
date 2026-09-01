@@ -18,10 +18,13 @@ export {
 export {
   claudeHookDir,
   claudeHookSettingsPath,
+  claudeTapStampDir,
   ensureClaudeHookSettings,
   GmuxHookServer,
   hooksEnabled,
   readPreferredHookPort,
+  sweepableHookName,
+  sweepableStampName,
   withClaudeSettingsFlag,
   writePreferredHookPort,
   type HookServerEvents

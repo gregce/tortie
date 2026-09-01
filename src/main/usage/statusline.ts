@@ -37,13 +37,24 @@
  *     kept in a stamp file named for the session. The stamp is written BEFORE
  *     the post, so a slow or failed post still costs the throttle rather than
  *     opening the gate for the next tick.
- *  4. THE TOKEN IS NEVER IN AN ARGV. It is read out of the settings file
- *     Tortie already wrote for this session, at the moment of the post, which
- *     is also what makes a session that outlived a Tortie restart post to the
- *     CURRENT port instead of a dead one. Research 72 section 10.9 is the
- *     rule: argv is world readable through `ps` on this machine, so a URL
- *     carrying a token may not ride in one, not in claude's and not in the
- *     status line command's own.
+ *  4. THE TOKEN IS NEVER IN AN ARGV, AND CURL'S OWN IS AN ARGV. It is read
+ *     out of the settings file Tortie already wrote for this session, at the
+ *     moment of the post, which is also what makes a session that outlived a
+ *     Tortie restart post to the CURRENT port instead of a dead one. Research
+ *     72 section 10.9 is the rule: argv is world readable through `ps` on this
+ *     machine, so a URL carrying a token may not ride in one, not in claude's,
+ *     not in the status line command's own, and NOT IN CURL'S. The last of
+ *     those is the fix round of 2026-09-01, and it is here because the first
+ *     build of this file honoured the rule for the two long lived argvs and
+ *     then handed the whole URL to `curl` on a command line, once per pane per
+ *     fifteen seconds, readable for as long as the three second timeout runs.
+ *     Two measurements decided it. An unprivileged account on this machine
+ *     reads the entire 24 argument command line of a root process out of `ps`,
+ *     so an argv really is readable by every account rather than only by this
+ *     one; and a PATH shim recording every command the script runs found the
+ *     token in exactly one of them. So the destination now goes into a `curl
+ *     -K` file created under `umask 077` and unlinked the moment curl is done,
+ *     and the only thing on curl's command line is that file's path.
  *
  * WHAT THE SCRIPT SENDS, and it is the shortest list that answers the ingest
  * rules: a version, the session id stamped into the pane, the config directory
@@ -253,8 +264,8 @@ export interface TapScriptPlaces {
 /**
  * The managed script, generated whole so there is nothing to keep in step.
  *
- * It is `/bin/sh` and uses `cat`, `date`, `grep`, `sed`, `tr`, `base64` and
- * `curl`, all of which ship with macOS. It reads two things out of its own
+ * It is `/bin/sh` and uses `cat`, `date`, `grep`, `sed`, `tr`, `base64`, `rm`
+ * and `curl`, all of which ship with macOS. It reads two things out of its own
  * environment, `GMUX_SESSION_ID` and `GMUX_MANAGED`, both measured present in
  * a status line invocation with the values Tortie stamped, so a session's
  * identity needs nothing parsed out of the payload.
@@ -299,7 +310,8 @@ esac
 [ $((now - last)) -ge ${TAP_THROTTLE_SECONDS} ] || exit 0
 
 # 4. The destination, read from this session's own settings file at post time.
-#    Never from an argv: argv is world readable through ps.
+#    Never from an argv: argv is world readable through ps. Step 6 is what
+#    keeps it out of curl's argv as well.
 base=$(grep -o 'http://127\\.0\\.0\\.1:[0-9]\\{1,5\\}/h/[0-9a-f]\\{32\\}' \\
   ${settings}/"$sid".json 2>/dev/null | head -1)
 [ -n "$base" ] || exit 0
@@ -343,9 +355,23 @@ body="v=1&s=$sid&cfg=$cfg"
 [ -n "$sr" ] && body="$body&seven_reset=$sr"
 
 printf '%s' "$now" > "$stamp" 2>/dev/null
+
+# 6. The destination goes to curl in a PRIVATE FILE and not on its command
+#    line, because the URL carries this session's token and rule 4 above is
+#    that a token never rides in an argv. The unlink first is deliberate: a
+#    file left by an older install keeps its own mode through a truncating
+#    redirect, and umask only decides the mode of a file that is created.
+#    Failing to write it means no post, which also closes a sharp edge the
+#    stamp alone had: a stamps directory that has gone missing makes the
+#    throttle read zero on every tick, and now the post stops there instead.
+conf=${stamps}/"$sid".curl
+rm -f "$conf" 2>/dev/null
+(umask 077; printf 'url = "%s"\\n' "$url" > "$conf") 2>/dev/null || exit 0
+
 printf '%s' "$body" | curl -s -m 3 --noproxy '*' -o /dev/null \\
   -H 'content-type: application/x-www-form-urlencoded' \\
-  --data-binary @- "$url" >/dev/null 2>&1
+  --data-binary @- -K "$conf" >/dev/null 2>&1
+rm -f "$conf" 2>/dev/null
 
 exit 0
 `;

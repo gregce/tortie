@@ -72,15 +72,54 @@ export function applyUsageTap(sessionId: string, body: string): void {
   try {
     const outcome = usageService().applyTap(sessionId, body);
     if (outcome === 'applied') return;
-    // `off` is the expected drop and not an incident: a session launched
-    // while the switch was on goes on running the script after it is turned
-    // off, and every post it makes is dropped. Logging that at warn would
-    // write a line every fifteen seconds per pane for a working refusal.
-    if (outcome === 'off') log.debug('usage.tap.dropped', { reason: outcome });
-    else log.warn('usage.tap.dropped', { reason: outcome });
+    // `off` and `duplicate` are EXPECTED drops rather than incidents, and a
+    // by design outcome is logged at debug.
+    //
+    // `off` is a session that was launched while the switch was on and goes
+    // on running the script after it is turned off, so every post it makes is
+    // dropped by a refusal that is working.
+    //
+    // `duplicate` is the one rule 5 describes in its own comment, being a long
+    // turn and two panes on one login. It is ROUTINE rather than rare, because
+    // the script throttles to one post per pane per fifteen seconds while the
+    // dedupe window is thirty, so an idle pane whose numbers have not moved
+    // duplicates every second post for as long as it is open. Measured at the
+    // shipped cadence on 2026-09-01: 120 lines an hour from ONE pane.
+    if (outcome === 'off' || outcome === 'duplicate') {
+      log.debug('usage.tap.dropped', { reason: outcome });
+      return;
+    }
+    // The rest are worth seeing, and worth seeing ONCE.
+    if (loggedTapOutcomes.has(outcome)) return;
+    loggedTapOutcomes.add(outcome);
+    log.warn('usage.tap.dropped', { reason: outcome });
   } catch {
     /* a tap is a convenience and may never be the thing that breaks a turn */
   }
+}
+
+/**
+ * One line per reason per process, for the drops that reach this far.
+ *
+ * The bound `hooks.ts` put on the PRE token path does not cover this one. A
+ * post carrying a real token is not refused by the route at all: it is
+ * answered, and it is the SERVICE that drops it, here. Two of those outcomes
+ * repeat for the life of the session rather than happening once, and neither
+ * needs an attacker.
+ *
+ * Measured on 2026-09-01 at the shipped cadence of one post per pane per
+ * fifteen seconds: a session logged in under a second `CLAUDE_CONFIG_DIR`
+ * wrote 240 `account` lines an hour and never stopped. The real line through
+ * the real envelope builder is 142 bytes, so 29,538 of them evict `app.log`
+ * and `app.log.1` both, which is about five days for that one pane. A claude
+ * release that changed the payload's shape would do the same through `shape`.
+ * Bounded, this path's whole lifetime cost is three lines.
+ */
+const loggedTapOutcomes = new Set<string>();
+
+/** Test seam: forget which outcomes have been logged. */
+export function resetUsageTapLog(): void {
+  loggedTapOutcomes.clear();
 }
 
 export function registerUsageIpc(ipc: IpcMain): void {

@@ -21,15 +21,31 @@
  *     `context_window` has one and it is a different number. A script that
  *     grepped the payload rather than the braces would post the wrong one and
  *     nothing downstream could tell.
+ *  4. NO ARGV IT COMPOSES CARRIES THE TOKEN. Added by the fix round of
+ *     2026-09-01, and it is the only way to see this: the script's own argv is
+ *     clean and the settings file's `statusLine` command is clean, and the
+ *     first build still handed the whole URL to `curl` on a command line.
+ *     Reading the script proved nothing, because the offending argv is
+ *     composed at run time. So the last case below runs it with PATH pointed
+ *     at recording shims and asserts over every command it actually ran.
  *
  * It spawns `/bin/sh` and binds one loopback server, both of its own, in a
  * directory of its own that it removes. It reads nothing under anybody's home
  * and starts no agent.
  */
 
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -290,5 +306,114 @@ describe('the run', () => {
       percent: 58,
       resetsAt: (NOW_SECONDS + 3600) * 1000
     });
+  });
+});
+
+describe('the argv, dumped rather than asserted', () => {
+  /**
+   * THE RULE THIS CASE OWNS, research 72 section 10.9: the loopback server's
+   * token never rides in an argv, because argv is world readable through `ps`.
+   * That is not a claim about this machine's manners, it was measured on it: an
+   * unprivileged account reads the whole 24 argument command line of a root
+   * process out of `ps`.
+   *
+   * The method is a PATH of recording shims, so what is asserted is what the
+   * script REALLY ran rather than what its text looks like it will run. The
+   * first build passed every other case in this file and failed this one, with
+   * the token in curl's own command line once per pane per fifteen seconds.
+   */
+  const shims = [
+    'cat',
+    'date',
+    'grep',
+    'sed',
+    'tr',
+    'base64',
+    'head',
+    'curl',
+    'rm'
+  ];
+
+  function withRecordingPath(): { path: string; trace: string; conf: string } {
+    const shimDir = join(dir, 'shims');
+    mkdirSync(shimDir, { recursive: true });
+    const trace = join(dir, 'trace.txt');
+    const confSeen = join(dir, 'conf-mode.txt');
+    writeFileSync(trace, '', 'utf8');
+    writeFileSync(confSeen, '', 'utf8');
+    for (const cmd of shims) {
+      const real = execFileSync('/usr/bin/which', [cmd], {
+        encoding: 'utf8'
+      }).trim();
+      // Every shim writes its whole argv, tab separated, then becomes the real
+      // command. The curl shim also records the mode of the file it is handed
+      // with -K, because that file exists only while curl is running.
+      const extra =
+        cmd === 'curl'
+          ? `k=0\nfor a in "$@"; do\n  if [ "$k" = "1" ]; then /bin/ls -l "$a" >> ${JSON.stringify(confSeen)}; k=0; fi\n  [ "$a" = "-K" ] && k=1\ndone\n`
+          : '';
+      writeFileSync(
+        join(shimDir, cmd),
+        `#!/bin/sh\n{ printf '%s' ${JSON.stringify(cmd)}; for a in "$@"; do printf '\\t%s' "$a"; done; printf '\\n'; } >> ${JSON.stringify(trace)}\n${extra}exec ${JSON.stringify(real)} "$@"\n`,
+        'utf8'
+      );
+      chmodSync(join(shimDir, cmd), 0o755);
+    }
+    return { path: `${shimDir}:/usr/bin:/bin`, trace, conf: confSeen };
+  }
+
+  it('puts the token in NO command line the script runs', async () => {
+    unthrottle();
+    posts = [];
+    const rec = withRecordingPath();
+    const { stdout, stderr } = await invoke(payload(), { PATH: rec.path });
+    expect(stdout).toBe('');
+    expect(stderr).toBe('');
+    // The post still lands, so this is not a clean argv bought with a dead tap.
+    expect(posts.length).toBe(1);
+    expect(posts[0]?.path).toBe(`/u/${TOKEN}`);
+
+    const lines = readFileSync(rec.trace, 'utf8').split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThan(5);
+    expect(lines.some((l) => l.startsWith('curl'))).toBe(true);
+    for (const line of lines) expect(line).not.toContain(TOKEN);
+    // And the destination as a whole, since the port with the token is what
+    // authorises a post. `sed 's|/h/|/u/|'` legitimately carries the two path
+    // shapes and no host, no port and no token, which is the point.
+    for (const line of lines) {
+      expect(line).not.toContain(`127.0.0.1:${port}`);
+      expect(line).not.toContain(`/u/${TOKEN}`);
+    }
+  });
+
+  it('hands curl a private file and removes it again', async () => {
+    unthrottle();
+    posts = [];
+    const rec = withRecordingPath();
+    await invoke(payload(), { PATH: rec.path });
+    // Measured while curl was running: the ruling asks for 0600 and this is
+    // the file that carries the URL.
+    const seen = readFileSync(rec.conf, 'utf8');
+    expect(seen).toMatch(/^-rw-------/m);
+    expect(seen).toContain(`${SESSION}.curl`);
+    // And it does not outlive the post.
+    expect(existsSync(join(dir, 'claude', 'stamps', `${SESSION}.curl`))).toBe(
+      false
+    );
+  });
+
+  it('creates that file at 0600 even where a 0644 one was left behind', async () => {
+    unthrottle();
+    posts = [];
+    const stale = join(dir, 'claude', 'stamps', `${SESSION}.curl`);
+    writeFileSync(stale, 'url = "http://127.0.0.1:1/u/old"\n', 'utf8');
+    chmodSync(stale, 0o644);
+    expect(statSync(stale).mode & 0o777).toBe(0o644);
+    const rec = withRecordingPath();
+    await invoke(payload(), { PATH: rec.path });
+    expect(readFileSync(rec.conf, 'utf8')).toMatch(/^-rw-------/m);
+    // The stale destination was replaced, not appended to or reused.
+    expect(posts.length).toBe(1);
+    expect(posts[0]?.path).toBe(`/u/${TOKEN}`);
   });
 });

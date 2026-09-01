@@ -9,18 +9,44 @@
  * cap, the wrong method and a `Host` that is not loopback. Each one must reach
  * `onTap` never, and the hook route must go on behaving exactly as it did.
  *
+ * THE FIX ROUND OF 2026-09-01 added the bound on what those refusals may
+ * WRITE, which is the second attack this route has to survive and the one the
+ * first build lost. It is at the bottom of this file, and the log is mocked
+ * here for it.
+ *
  * It binds one server on an ephemeral loopback port, makes requests to it,
  * and closes it. It writes no file, starts no agent and reads nothing under
  * anybody's home.
  */
 
 import { request } from 'node:http';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/** Every line the route writes, so the bound below can be counted rather than
+ *  argued. Nothing else in this file needs the real log. */
+const logged: { level: string; msg: string; fields?: unknown }[] = [];
+vi.mock('../../log', () => ({
+  getLog: () => ({
+    error: (msg: string, fields?: unknown) =>
+      logged.push({ level: 'error', msg, fields }),
+    warn: (msg: string, fields?: unknown) =>
+      logged.push({ level: 'warn', msg, fields }),
+    info: (msg: string, fields?: unknown) =>
+      logged.push({ level: 'info', msg, fields }),
+    debug: (msg: string, fields?: unknown) =>
+      logged.push({ level: 'debug', msg, fields })
+  })
+}));
+
 import {
   GmuxHookServer,
   claudeHookSettings,
   personOwnsStatusLine,
-  personStatusLineFiles
+  personStatusLineFiles,
+  repoRootOf,
+  resetTapReasonLog,
+  sweepableHookName,
+  sweepableStampName
 } from '../hooks';
 import { TAP_BODY_CAP_BYTES } from '../../usage/statusline';
 
@@ -38,6 +64,8 @@ let seen: Seen;
 let port: number;
 
 beforeEach(async () => {
+  logged.length = 0;
+  resetTapReasonLog();
   seen = { taps: [], events: [], ends: [] };
   server = new GmuxHookServer({
     onEvent: (id, _state, event) => seen.events.push([id, event]),
@@ -213,5 +241,156 @@ describe('a status line the PERSON owns', () => {
     const files = personStatusLineFiles({}, '/Users/x', '/repo');
     expect(personOwnsStatusLine(files, () => null)).toBe(false);
     expect(personOwnsStatusLine(files, () => '{"model":"opus"}')).toBe(false);
+  });
+});
+
+describe('what a REFUSED post may write to the log', () => {
+  /**
+   * THE SECOND ATTACK ON THIS ROUTE, and the first build lost it.
+   *
+   * Every check above happens BEFORE the token is looked up, so the caller
+   * driving these lines is unauthenticated by construction: any process on the
+   * machine, and a browser page too, since a form encoded POST needs no
+   * preflight and the `Host` a browser sends to 127.0.0.1 passes the loopback
+   * check. The first build wrote one `warn` per refused post with no bound,
+   * measured at 500 lines in 47 ms. `src/main/log/transport.ts` caps app.log at
+   * 2 MiB with one archive and the real line is 138 bytes, so 30,394 posts
+   * evict app.log and app.log.1 both: about three seconds to erase everything a
+   * later incident would be read out of.
+   *
+   * The bound is one line per reason per process, and the reasons are a closed
+   * set of four. So this asserts a NUMBER rather than a shape.
+   */
+  it('writes ONE line however many refused posts arrive', async () => {
+    for (let i = 0; i < 200; i++) await post(`/u/${OTHER}`, GOOD);
+    expect(seen.taps).toEqual([]);
+    expect(logged.length).toBe(1);
+    expect(logged[0]).toEqual({
+      level: 'warn',
+      msg: 'usage.tap.dropped',
+      fields: { reason: 'token' }
+    });
+  });
+
+  it('still says each distinct reason once, so the diagnostic survives', async () => {
+    await post(`/u/${OTHER}`, GOOD); // token
+    await post(`/u/${OTHER}`, GOOD);
+    await post('/u/short', GOOD); // route
+    await post('/u/short', GOOD);
+    await post(`/u/${TOKEN}`, '', { method: 'GET' }); // method
+    await post(`/u/${TOKEN}`, '', { method: 'GET' });
+    await post(`/u/${TOKEN}`, `${GOOD}&pad=${'x'.repeat(TAP_BODY_CAP_BYTES)}`);
+    await post(`/u/${TOKEN}`, `${GOOD}&pad=${'x'.repeat(TAP_BODY_CAP_BYTES)}`);
+    expect(logged.map((l) => l.fields)).toEqual([
+      { reason: 'token' },
+      { reason: 'route' },
+      { reason: 'method' },
+      { reason: 'oversized' }
+    ]);
+    // Four reasons exist and there is no fifth, so this route's whole lifetime
+    // cost is four lines.
+    expect(logged.length).toBe(4);
+  });
+
+  it('leaves the hook route writing nothing at all, as it always did', async () => {
+    for (let i = 0; i < 200; i++) await post(`/h/${OTHER}?e=Stop`, '{}');
+    expect(logged).toEqual([]);
+  });
+
+  it('never puts the token, the body or the path in a line', async () => {
+    await post(`/u/${OTHER}`, 'v=1&s=sess-1&cfg=&five_pct=58&secret=SENTINEL');
+    const text = JSON.stringify(logged);
+    expect(text).not.toContain(OTHER);
+    expect(text).not.toContain('SENTINEL');
+    expect(text).not.toContain('five_pct');
+    for (const line of logged) expect(Object.keys(line.fields as object)).toEqual(['reason']);
+  });
+});
+
+describe('the checkout root, which claude reads and the first build missed', () => {
+  /**
+   * Measured against the real 2.1.252 binary with `--debug`, which names every
+   * settings path it tries. From a working directory three levels below a git
+   * root it tried `<gitRoot>/.claude/settings.local.json` as well as the two
+   * under the cwd, and its watch line named that file too. With the `.git`
+   * removed the extra path disappeared, so it is the checkout root rather than
+   * the parent directory.
+   */
+  it('adds the checkout root files when the cwd is below the root', () => {
+    const isRoot = (d: string): boolean => d === '/repo';
+    expect(personStatusLineFiles({}, '/Users/x', '/repo/a/b', isRoot)).toEqual([
+      '/Users/x/.claude/settings.json',
+      '/repo/a/b/.claude/settings.json',
+      '/repo/a/b/.claude/settings.local.json',
+      '/repo/.claude/settings.json',
+      '/repo/.claude/settings.local.json'
+    ]);
+  });
+
+  it('adds nothing when the cwd IS the root, and nothing when there is none', () => {
+    const isRoot = (d: string): boolean => d === '/repo';
+    expect(personStatusLineFiles({}, '/Users/x', '/repo', isRoot)).toEqual([
+      '/Users/x/.claude/settings.json',
+      '/repo/.claude/settings.json',
+      '/repo/.claude/settings.local.json'
+    ]);
+    expect(personStatusLineFiles({}, '/Users/x', '/nowhere/a', () => false)).toEqual([
+      '/Users/x/.claude/settings.json',
+      '/nowhere/a/.claude/settings.json',
+      '/nowhere/a/.claude/settings.local.json'
+    ]);
+  });
+
+  it('REFUSES for a status line the person put at the checkout root', () => {
+    const isRoot = (d: string): boolean => d === '/repo';
+    const files = personStatusLineFiles({}, '/Users/x', '/repo/a/b', isRoot);
+    const named = '{"statusLine":{"type":"command","command":"mine.sh"}}';
+    for (const owner of [
+      '/repo/.claude/settings.local.json',
+      '/repo/.claude/settings.json'
+    ]) {
+      expect(
+        personOwnsStatusLine(files, (p) => (p === owner ? named : null))
+      ).toBe(true);
+    }
+  });
+
+  it('walks up to the root and stops at the file system root', () => {
+    expect(repoRootOf('/a/b/c', (d) => d === '/a')).toBe('/a');
+    expect(repoRootOf('/a/b/c', () => false)).toBe(null);
+    let asked = 0;
+    repoRootOf('/a/b/c', () => {
+      asked++;
+      return false;
+    });
+    // /a/b/c, /a/b, /a, / and then it is out of parents.
+    expect(asked).toBe(4);
+  });
+});
+
+describe('what a boot sweep may remove from the hook directory', () => {
+  const live = new Set(['keep-1', 'keep-2']);
+
+  it('removes a dead session file and keeps a live one', () => {
+    expect(sweepableHookName('gone-1.json', live)).toBe(true);
+    expect(sweepableHookName('keep-1.json', live)).toBe(false);
+  });
+
+  it('removes a temporary file a crash left, which nothing reached before', () => {
+    expect(sweepableHookName('keep-1.json.4242.tmp', live)).toBe(true);
+    expect(sweepableHookName('gone-1.json.4242.tmp', live)).toBe(true);
+  });
+
+  it('never removes the managed script or the stamps directory', () => {
+    expect(sweepableHookName('tortie-statusline.sh', live)).toBe(false);
+    expect(sweepableHookName('stamps', live)).toBe(false);
+    expect(sweepableHookName('port', live)).toBe(false);
+  });
+
+  it('removes a dead session stamp and its curl file, and keeps a live one', () => {
+    expect(sweepableStampName('gone-1', live)).toBe(true);
+    expect(sweepableStampName('gone-1.curl', live)).toBe(true);
+    expect(sweepableStampName('keep-1', live)).toBe(false);
+    expect(sweepableStampName('keep-1.curl', live)).toBe(false);
   });
 });

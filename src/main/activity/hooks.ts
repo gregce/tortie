@@ -53,13 +53,14 @@ import { randomBytes } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
   writeFileSync
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { app } from 'electron';
 import { getLog } from '../log';
 import { getSettings } from '../settings/store';
@@ -229,12 +230,27 @@ export class GmuxHookServer {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     // Two routes, one token registry: `/h/` is Phase 13's activity hook and
     // `/u/` is Phase 182's usage tap. A tap post is refused for exactly the
-    // reasons a hook post is, and it says so in one line, because a token
-    // nobody registered arriving on the usage route is the shape an attack
-    // has and the shape a stale session has, and both are worth seeing once.
+    // reasons a hook post is, and it says so ONCE PER REASON PER PROCESS,
+    // because a token nobody registered arriving on the usage route is the
+    // shape an attack has and the shape a stale session has, and both are
+    // worth seeing once and only once.
+    //
+    // THE ONCE IS NOT TIDINESS, and the fix round of 2026-09-01 measured why.
+    // The first build wrote one `warn` per refused post with no bound at all,
+    // and every check on this route happens BEFORE the token is looked up, so
+    // any process on the machine could reach that line. Measured over the real
+    // bound server: 500 anonymous posts produced 500 log lines in 47 ms, which
+    // is 10,638 a second, and the same 500 posts to `/h/` produced none, so the
+    // asymmetry arrived with this route. `src/main/log/transport.ts` caps
+    // app.log at 2 MiB with one archive, so this was never disk fill; it was
+    // diagnostic ERASURE. The real line is 138 bytes through the real envelope
+    // builder, so 30,394 posts evict app.log and app.log.1 both, and at the
+    // measured rate that is 2.9 seconds to empty the log a later incident would
+    // be read out of. Bounded, the whole route can write at most one line per
+    // reason, and there are four reasons.
     const isTap = url.pathname.startsWith('/u/');
     const drop = (reason: string): void => {
-      if (isTap) log.warn('usage.tap.dropped', { reason });
+      if (isTap) logTapDropOnce(reason);
       deny();
     };
     const m = /^\/([hu])\/([0-9a-f]{32})$/.exec(url.pathname);
@@ -269,7 +285,7 @@ export class GmuxHookServer {
 
     if (isTap) {
       if (over) {
-        log.warn('usage.tap.dropped', { reason: 'oversized' });
+        logTapDropOnce('oversized');
         return;
       }
       this.events.onTap?.(sessionId, body);
@@ -401,6 +417,34 @@ export function tokenFromSettingsFile(path: string): string | null {
 // ---------------------------------------------------------------------------
 
 /**
+ * Does this directory look like the root of a checkout?
+ *
+ * `.git` is a DIRECTORY in an ordinary clone and a FILE in a worktree or a
+ * submodule, so existence is the whole test and the type is not asked. No git
+ * process is started: this file spawns nothing and it is not going to start.
+ */
+function looksLikeRepoRoot(dir: string): boolean {
+  return existsSync(join(dir, '.git'));
+}
+
+/** The checkout root at or above `cwd`, or null when there is not one. */
+export function repoRootOf(
+  cwd: string,
+  isRepoRoot: (dir: string) => boolean = looksLikeRepoRoot
+): string | null {
+  let dir = cwd;
+  // A hard stop rather than a while, because this walks a path a person's own
+  // configuration named and a loop that cannot end has no place in a launch.
+  for (let i = 0; i < 64; i++) {
+    if (isRepoRoot(dir)) return dir;
+    const up = dirname(dir);
+    if (up === dir) return null;
+    dir = up;
+  }
+  return null;
+}
+
+/**
  * Every place the PERSON could have named a status line that Tortie's flag
  * file would outrank, in Claude Code's own source order.
  *
@@ -409,11 +453,34 @@ export function tokenFromSettingsFile(path: string): string | null {
  * working directory is known, which is every launch and every restore; the
  * boot pass has no cwd for a live session and checks the user file alone,
  * which is the conservative half.
+ *
+ * THE CHECKOUT ROOT IS IN THIS LIST BECAUSE IT WAS MEASURED THERE, and the
+ * first build of this function missed it. Run against the real 2.1.252 binary
+ * on 2026-09-01 with `--debug`, which names every settings path it tries, from
+ * a working directory three levels below a git root: claude looked at the user
+ * file, the managed file, `<cwd>/.claude/settings.json`,
+ * `<cwd>/.claude/settings.local.json` AND `<gitRoot>/.claude/settings.local.json`,
+ * and its own watch line named that last one too. Moving the working directory
+ * deeper moved four of those and left the fifth on the root exactly, and
+ * removing the `.git` made the fifth disappear, so it is the checkout root and
+ * not the parent directory. Without this, a session opened in a subdirectory of
+ * a repository whose root carries a status line would have had Tortie's
+ * installed over it in silence, which is the one outcome this refusal exists to
+ * prevent.
+ *
+ * `<gitRoot>/.claude/settings.json` is in the list and claude did NOT read it:
+ * it is absent from the tried paths in every run, including the one where
+ * nothing existed anywhere. It is checked anyway because the two costs are not
+ * the same size. Refusing when claude would not have been overridden costs the
+ * live meter and keeps the fifteen minute poll, which is this feature's own
+ * documented fallback. Not refusing when it would have costs the person the
+ * status line they wrote, silently, and they would have no way to see why.
  */
 export function personStatusLineFiles(
   env: Record<string, string | undefined>,
   home: string,
-  cwd: string | undefined
+  cwd: string | undefined,
+  isRepoRoot: (dir: string) => boolean = looksLikeRepoRoot
 ): string[] {
   const configDir = env['CLAUDE_CONFIG_DIR'];
   const userDir =
@@ -426,6 +493,13 @@ export function personStatusLineFiles(
       join(cwd, '.claude', 'settings.json'),
       join(cwd, '.claude', 'settings.local.json')
     );
+    const root = repoRootOf(cwd, isRepoRoot);
+    if (root !== null && root !== cwd) {
+      files.push(
+        join(root, '.claude', 'settings.json'),
+        join(root, '.claude', 'settings.local.json')
+      );
+    }
   }
   return files;
 }
@@ -461,9 +535,28 @@ function logTapReasonOnce(reason: string): void {
   log.info('usage.tap.not-installed', { reason });
 }
 
-/** Test seam: forget which reasons have been logged. */
+/**
+ * The same bound for a REFUSED POST, and this one is the load bearing half.
+ *
+ * A post reaches `drop` before its token has been looked up, so the caller is
+ * unauthenticated by construction and anything on the machine can drive this
+ * line as fast as it can open sockets. The reasons are a closed set of four,
+ * being `method`, `route`, `token` and `oversized`, so the whole route's
+ * lifetime cost is four lines. The measurement that made this necessary is in
+ * the comment beside `drop` above.
+ */
+const loggedTapDrops = new Set<string>();
+
+function logTapDropOnce(reason: string): void {
+  if (loggedTapDrops.has(reason)) return;
+  loggedTapDrops.add(reason);
+  log.warn('usage.tap.dropped', { reason });
+}
+
+/** Test seam: forget which reasons have been logged, on both sets. */
 export function resetTapReasonLog(): void {
   loggedTapReasons.clear();
+  loggedTapDrops.clear();
 }
 
 /**
@@ -482,9 +575,11 @@ export function ensureClaudeTapScript(): string | null {
       claudeStatusLineScript({
         settingsDir: claudeHookDir(),
         stampDir: claudeTapStampDir()
-      })
+      }),
+      // The script is executable and holds no secret. Everything else this
+      // file writes is 0600.
+      0o755
     );
-    chmodSync(path, 0o755);
   } catch {
     return null;
   }
@@ -541,11 +636,62 @@ export function claudeTapDecision(cwd: string | undefined): TapDecision {
  * file would therefore block every claude session Tortie launches until a
  * person pressed a key. So the bytes land under a temporary name and are
  * renamed into place, and a rename on one file system is atomic.
+ *
+ * THE MODE IS THE FIX ROUND OF 2026-09-01. This file holds the session's 128
+ * bit token, and research 72 section 10.9 names the right carrier as "a file
+ * under userData at mode 0600". Phase 13 wrote it with no mode at all, and
+ * under the ordinary umask 022 that is 0644, measured here and measured again
+ * on the operator's own install where all 26 settings files read `-rw-r--r--`.
+ * In practice the secret was protected by an ancestor, `~/Library` being
+ * `drwx------`, but a mode is the thing the ruling asked for and an ancestor is
+ * somebody else's decision. The chmod is separate from the write because the
+ * `mode` option only applies to a file the write CREATES, and a temporary name
+ * left behind by an earlier crash would otherwise keep its old mode.
  */
-function writeFileAtomic(path: string, text: string): void {
+function writeFileAtomic(path: string, text: string, mode = 0o600): void {
   const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, text, 'utf8');
+  writeFileSync(tmp, text, { encoding: 'utf8', mode });
+  chmodSync(tmp, mode);
   renameSync(tmp, path);
+}
+
+/**
+ * Which names in `claudeHookDir()` a boot sweep may remove.
+ *
+ * FOUR SHAPES LIVE IN THAT DIRECTORY and the first build's sweep reached one.
+ * `<id>.json` is a session's settings file, and one whose row is gone is dead
+ * bytes. `<id>.json.<pid>.tmp` is what a crash between `writeFileAtomic`'s
+ * write and its rename leaves behind, and it does not end in `.json`, so it
+ * would have survived every sweep forever. `tortie-statusline.sh` is the
+ * managed script and `stamps` is a directory, and neither may ever be removed
+ * here, which is why this answers on the name rather than on what is left over.
+ */
+export function sweepableHookName(
+  name: string,
+  live: ReadonlySet<string>
+): boolean {
+  if (name.endsWith('.tmp')) return true;
+  if (!name.endsWith('.json')) return false;
+  return !live.has(name.slice(0, -'.json'.length));
+}
+
+/**
+ * Which names in `claudeTapStampDir()` a boot sweep may remove.
+ *
+ * Two shapes, both named for the session that owns them: `<id>` is the throttle
+ * stamp, ten bytes of epoch seconds, and `<id>.curl` is the private
+ * destination file the script writes just before a post and unlinks just after,
+ * so one is only ever seen after a kill in that window. A session with no
+ * manifest row can produce neither again.
+ */
+export function sweepableStampName(
+  name: string,
+  live: ReadonlySet<string>
+): boolean {
+  const id = name.endsWith('.curl')
+    ? name.slice(0, -'.curl'.length)
+    : name;
+  return !live.has(id);
 }
 
 /**
