@@ -9,7 +9,10 @@
 
 import { describe, it } from 'vitest';
 import assert from 'node:assert/strict';
-import type { DiagnosticsReport } from '@shared/ipc';
+import type {
+  DiagnosticsReport,
+  DiagnosticsSessionWorkload
+} from '@shared/ipc';
 import { buildDiagnosticsReportText } from '../report-text';
 
 const HOME = '/Users/someone';
@@ -221,5 +224,122 @@ describe('buildDiagnosticsReportText', () => {
 
   it('holds nothing that looks like a key, a token or an environment value', () => {
     assert.doesNotMatch(text, /sk-ant|ghp_|AKIA|BEGIN [A-Z ]*PRIVATE KEY|Bearer |[A-Z_]{4,}=\S/);
+  });
+});
+
+/**
+ * PHASE 188.1. The hostile fixture: bytes somebody else wrote into the
+ * manifest, read back and rendered.
+ *
+ * `stampText` used to hand every value straight to `new Date(...)
+ * .toISOString()`, which throws a `RangeError` outside plus or minus
+ * 8.64e15 ms. The throw is not one spoilt cell. The text build runs inside
+ * `finishCapture` (../report.ts), nothing on that path catches, and Phase
+ * 170's live loop stops after three failed ticks (../live.ts), so one corrupt
+ * row took the whole pane down with nothing saying why.
+ *
+ * Tortie writes both fields with `Date.now()`, so a value gets here only by a
+ * hand edit, a restore from something else, or corruption. The cost of the
+ * guard is one clause and the cost of the defect is the pane, which is why it
+ * is guarded rather than assumed away.
+ *
+ * Every value below is run through the REAL builder over the REAL body shape.
+ * At the parent commit each of the five impossible ones throws
+ * `RangeError: Invalid time value`.
+ */
+describe('an impossible instant is unknown, and a legal one still renders', () => {
+  /** The report's own `generatedAt`, so "the future" has something to be after. */
+  const AT = Date.parse(BODY.generatedAt);
+  const DAY = 24 * 60 * 60 * 1000;
+
+  /** The ordinary row from BODY with ONLY the two stamps moved. */
+  function withStamps(
+    createdAt: number | null,
+    lastSeen: number | null
+  ): DiagnosticsSessionWorkload {
+    const [base] = BODY.sessions;
+    if (base === undefined) throw new Error('BODY carries no session row');
+    return { ...base, createdAt, lastSeen };
+  }
+
+  /** One session line built over the hostile values and nothing else changed. */
+  function sessionLine(createdAt: number | null, lastSeen: number | null): string {
+    const out = buildDiagnosticsReportText(
+      { ...BODY, sessions: [withStamps(createdAt, lastSeen)] },
+      HOME
+    )
+      .split('\n')
+      .filter((l) => l.startsWith('API refactor  '));
+    assert.equal(out.length, 1, 'the session row must still be drawn exactly once');
+    return out[0] ?? '';
+  }
+
+  /**
+   * The five the entry names, plus a non-numeric string. The column is
+   * declared `INTEGER NOT NULL` in ../manifest/schema.ts and SQLite still
+   * hands back the text a hand edit put there, so the declared `number` is a
+   * promise the file cannot keep; the cast is how that reaches the builder.
+   */
+  const IMPOSSIBLE: [string, number][] = [
+    ['one past the largest instant', 8.64e15 + 1],
+    ['one before the smallest instant', -8.64e15 - 1],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['-Infinity', Number.NEGATIVE_INFINITY],
+    ['text in an INTEGER column', 'not a time' as unknown as number]
+  ];
+
+  for (const [what, value] of IMPOSSIBLE) {
+    it(`answers unknown for ${what}, and does not throw`, () => {
+      assert.equal(
+        sessionLine(value, value),
+        'API refactor  webapp (~/src/webapp)  claude  2 processes  private 351.0 MB (footprint), rss 401.0 MB  cpu 3.2% lifetime  started unknown  last seen unknown'
+      );
+    });
+  }
+
+  it('spoils only the two stamps, never the rest of the report', () => {
+    const good = buildDiagnosticsReportText(BODY, HOME).split('\n');
+    const bad = buildDiagnosticsReportText(
+      { ...BODY, sessions: [withStamps(8.64e15 + 1, Number.NaN)] },
+      HOME
+    ).split('\n');
+    // The whole capture survives rather than failing: the report is the same
+    // length and EXACTLY ONE line differs, which is the session row. That is
+    // the difference between one cell reading unknown and the pane going dead.
+    assert.equal(bad.length, good.length);
+    const moved = bad.filter((line, i) => line !== good[i]);
+    assert.equal(moved.length, 1);
+    assert.ok(moved[0]?.startsWith('API refactor  '));
+    // The two stamps moved to the word null already uses, and to nothing else.
+    // A clamp would have written the boundary instant into the line instead.
+    assert.ok(moved[0]?.endsWith('started unknown  last seen unknown'));
+    assert.equal(bad.join('\n').includes('+275760'), false);
+    assert.equal(bad.join('\n').includes('-271821'), false);
+  });
+
+  // The guard is a range check, not a clamp. Both ends are legal instants and
+  // both must still render as themselves, which is what catches an off by one.
+  it('renders the largest and the smallest instant a Date can hold', () => {
+    assert.ok(sessionLine(8.64e15, -8.64e15).endsWith(
+      'started +275760-09-13T00:00:00.000Z  last seen -271821-04-20T00:00:00.000Z'
+    ));
+  });
+
+  // The entry's own clamp trap. A session last seen after the report was
+  // generated is a legal instant, and the pasted text carries the instant
+  // itself rather than an age, so it must read as that exact time.
+  it('renders a last seen three days after the report as that instant', () => {
+    assert.ok(
+      sessionLine(AT, AT + 3 * DAY).endsWith(
+        'started 2026-08-29T17:00:00.000Z  last seen 2026-09-01T17:00:00.000Z'
+      )
+    );
+  });
+
+  // A null was already `unknown` before this phase and still is, so the two
+  // kinds of missing read the same on a pasted line.
+  it('leaves null reading unknown, which is the word the guard reuses', () => {
+    assert.ok(sessionLine(null, null).endsWith('started unknown  last seen unknown'));
   });
 });

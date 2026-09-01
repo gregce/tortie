@@ -52,13 +52,48 @@ function projectText(s: DiagnosticsSessionWorkload): string {
 }
 
 /**
+ * PHASE 188.1. The largest instant a `Date` can hold, and its negative is the
+ * smallest. Past either end `toISOString` throws a `RangeError` instead of
+ * answering. The number is ECMA-262's own, not a guess.
+ */
+const MAX_TIME_MS = 8.64e15;
+
+/**
  * PHASE 188. The face draws these two as an age, because an age is what a
  * person reads at a glance while the numbers are moving. The pasted text is
  * read later and somewhere else, so it carries the instant itself, in the same
  * ISO form as the report's own `generatedAt` line above.
+ *
+ * PHASE 188.1. A value that cannot be a time is not drawn as one. It answers
+ * `unknown`, which is the same word null already takes, so a row a person
+ * cannot align with the others never appears.
+ *
+ * WHY THE GUARD IS HERE AND NOT IN THE ROW READER. `readSessionFacts` in
+ * ./report.ts has no other consumer that builds a `Date`, and the one place
+ * elsewhere in the tree that does (src/main/overview/git-mark.ts, reached from
+ * ../overview/service.ts) does not read through it, so guarding the reader
+ * would protect neither. The only reader that would cover both is
+ * `rowToRecord` in ../manifest/codecs.ts, and a check there makes `createdAt`
+ * and `lastSeen` nullable across the shared Session projection, restore,
+ * reconstruct and every renderer that sorts on them. That is a breaking change
+ * to carry a one clause fix.
+ *
+ * IT IS NOT A CLAMP AND IT IS NOT A REPAIR. Nothing is guessed, and nothing is
+ * written back: the manifest is read and rendered honestly. A `lastSeen` in the
+ * future is a legal instant and still renders as itself.
+ *
+ * `Number.isFinite` is the type check as well as the range check, because it
+ * answers false for anything that is not a number. The column is declared
+ * `INTEGER NOT NULL` (../manifest/schema.ts) and SQLite still hands back the
+ * text a hand edit put there, so the declared `number` is a promise the file
+ * cannot keep.
  */
 function stampText(label: string, epochMs: number | null): string {
-  return `${label} ${epochMs === null ? 'unknown' : new Date(epochMs).toISOString()}`;
+  const renderable =
+    epochMs !== null &&
+    Number.isFinite(epochMs) &&
+    Math.abs(epochMs) <= MAX_TIME_MS;
+  return `${label} ${renderable ? new Date(epochMs).toISOString() : 'unknown'}`;
 }
 
 /**
