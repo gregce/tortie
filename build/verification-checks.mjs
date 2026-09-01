@@ -171,6 +171,15 @@ export const CHECKS = [
   // production file under src/main calls a session cache deletion at all.
   // Four fixtures it writes itself prove the scanner fails when it should.
   pure('gate:cache-policy'),
+  // PHASE 189. A project tab is never again drawn as one letter and an
+  // ellipsis. The fix is three declarations and one deletion, and every one of
+  // them is a single line a later round can undo without noticing: the name's
+  // measured 46px floor, the absence of `min-width: 0` on the tab and its
+  // wrapper, the scrolling `.ptab-list`, the machine badge's own floor, and no
+  // JavaScript pre-truncation of a tab name. Seven fixtures it writes itself
+  // prove the scanner fails when it should. It runs inside npm run build, so
+  // nothing that builds can skip it.
+  pure('gate:tab-floor'),
   pure('gate:checks'),
   // PHASE 171. The contract inventory, byte compared against
   // docs/audits/contract-baseline.txt. It bundles the manifest store with
@@ -357,6 +366,19 @@ export const CHECKS = [
   // list or itself, and how many tabs are still drawn. It reads NO credential
   // and makes NO request, on the same terms as the row above, and it never
   // turns the Claude switch on.
+  // PHASE 189. Does the row of project tabs stay readable when there are too
+  // many? ONE launch on a scratch profile opens the operator's own twelve
+  // project names as tabs and drives the whole journey in that one session:
+  // three window widths and three project counts, a live resize sweep, a
+  // project opened and closed while narrow, the ⌘ digit chord onto a tab the
+  // row has scrolled away from, a pointer reorder that has to auto-scroll to
+  // reach its landing gap, a wheel over the row, and the machine badge in a
+  // real tab. At every reading it re-derives the readability floor off the DOM
+  // with canvas measureText using the label's own computed font, so the drawn
+  // label is checked against measured text rather than against the component's
+  // belief. It spawns no agent, spends no token, opens no repository of the
+  // operator's and makes no request.
+  electron('probe:p189'),
   electron('probe:p1811'),
   // PHASE 181.2 FIX ROUND. Does the bar draw the number a person reads, and
   // does the hover card sit on top of the project tabs? One launch on a

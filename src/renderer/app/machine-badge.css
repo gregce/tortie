@@ -84,8 +84,21 @@
 /* PHASE 90.3. The project tab, when the tab's FILES are on another machine.
    It is narrower than the four session surfaces, because the tab strip is the
    one row that must stay scannable and the label is beside a project name that
-   already has to fit. */
+   already has to fit.
+
+   PHASE 189 GAVE IT A FLOOR AS WELL AS A CEILING, and that is how it stops
+   being what squeezes the name. It inherited `min-width: 0` from
+   `.machine-badge` above, so it shrank along with everything else: measured at
+   57.2px in a 1512px window and at 21.65px in a 960px one, and 21.65px names
+   no machine. With a floor of its own the tab GROWS to hold both the badge and
+   the name's own 46px floor, which makes a badged tab about 1.5 tabs wide and
+   brings the row to the overflow chevron sooner. That is the trade, stated:
+   room for the mark costs room in the row, and it never costs letters.
+
+   40px leaves 32px inside the padding, which at this 10px type is four
+   characters and the ellipsis. The 64px ceiling is unchanged. */
 .ptab-machine {
   margin-left: var(--space-2);
+  min-width: 40px;
   max-width: 64px;
 }

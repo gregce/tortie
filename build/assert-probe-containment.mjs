@@ -116,7 +116,11 @@ const PROBE_MARKERS = [
   '__gmuxP95',
   '__gmuxP96RemoteSurfaces',
   '__gmuxShellPathProbe',
-  '[shot-drive] projectDigit'
+  '[shot-drive] projectDigit',
+  // PHASE 189. The one function build/probe-p189-tabs.mjs needs that a probe
+  // cannot press: opening a project, whose shipped route begins at a native
+  // folder picker.
+  '__gmuxP189Open'
 ];
 
 /**

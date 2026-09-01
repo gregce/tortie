@@ -270,3 +270,38 @@ export function insertionIndex(
   }
   return items.length;
 }
+
+/**
+ * Carrying a dragged item near either end of a horizontally scrolling list
+ * scrolls that list. DESIGN-SPEC.md §S2's tab drag clause reads "Dragging past
+ * either end auto-scrolls the strip".
+ *
+ * PHASE 189 PUT IT HERE BECAUSE THERE ARE TWO CALLERS NOW. The session strip
+ * has done this since S4, inside `./surface-dnd.ts`'s `trackHome`, under a
+ * comment crediting "(S2 drag spec)", which is the TITLEBAR's spec, not the
+ * strip's. The project row became the second scrolling tab list in this window
+ * in Phase 189, and without this a tab could not be carried to a landing gap
+ * that was off screen when the press started. This module owns the drag
+ * contract, so the clause lives here rather than being written a second time.
+ *
+ * `surface-dnd.ts` is deliberately NOT repointed at this function in Phase
+ * 189: Phase 181.1 settled that strip, and touching it to save four lines is a
+ * bad trade. A later consolidation round can, and this is the function it
+ * would call.
+ *
+ * Does nothing when the list is not scrollable, so a caller may pass any list
+ * on every pointer move without checking first.
+ */
+export function edgeAutoScroll(
+  list: HTMLElement,
+  clientX: number,
+  /** How near an end counts as "past" it. The strip's own number. */
+  edge = 24,
+  /** Pixels per move. The strip's own number. */
+  step = 12
+): void {
+  if (list.scrollWidth <= list.clientWidth) return;
+  const band = list.getBoundingClientRect();
+  if (clientX < band.left + edge) list.scrollLeft -= step;
+  else if (clientX > band.right - edge) list.scrollLeft += step;
+}

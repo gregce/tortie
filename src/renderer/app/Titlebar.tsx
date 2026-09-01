@@ -50,9 +50,35 @@
  * did not move: it stays at the END of the tabs in both top branches, and
  * the vertical orientations are untouched because ProjectRail.tsx draws
  * those and this file draws none of them.
+ *
+ * PHASE 189. THE ROW OF TABS IS ITS OWN SCROLLING LIST, `.ptab-list`, and the
+ * three pinned controls stay outside it. That is the shape ./SessionStrip.tsx
+ * has had since S4: `.stab-list` scrolls, the pinned cells do not, and a
+ * chevron appears at the list's end only while it overflows. This row was the
+ * same tab with the floor, the scroll and the chevron missing, so twelve
+ * projects at his own window width drew `g…`, `roo…`, `runs…` and, for the one
+ * remote tab, a bare ellipsis with no letter at all.
+ *
+ * THREE THINGS CHANGED AND EACH ONE HAS A REASON:
+ *
+ *  - the NAME carries a measured floor (styles/app.css `.ptab-name`), so the
+ *    tab grows to hold its badge instead of the badge eating the name;
+ *  - the row SCROLLS past that floor rather than clipping, which is what makes
+ *    a floor safe to state at all at a 960px window;
+ *  - the JS pre-truncation is gone. `truncateMiddle(name, 24)` cut at a
+ *    character count that knows nothing about the tab's width, and the CSS
+ *    ellipsis then clipped that result a second time, which is why the ACTIVE
+ *    tab drew `extract-agen…en…` with two ellipses. One truncation, and it is
+ *    the one that can see the box.
+ *
+ * NO TAB IS EVER REMOVED FROM THE ROW. The chevron lists every open project,
+ * including the ones on screen, exactly as the session strip's does; ⌘1…⌘9 and
+ * ⌃Tab reach a scrolled-out tab and the selection effect below scrolls it into
+ * view.
  */
 
 import React, {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -70,6 +96,7 @@ import { Codicon, menuGlyph } from '../icons';
 import {
   armPointerDrag,
   createGhost,
+  edgeAutoScroll,
   insertionIndex,
   isSecondaryPress
 } from './split/pointer-drag';
@@ -129,7 +156,10 @@ function ProjectTab({
         if (isSecondaryPress(e)) return;
         if ((e.target as HTMLElement).closest('.ptab-close') !== null) return;
         const wrap = e.currentTarget;
-        const nav = wrap.closest<HTMLElement>('.titlebar-tabs');
+        // PHASE 189. The drag host is the scrolling list, not the whole band.
+        // The three pinned controls live outside it now, and hit-testing the
+        // band would have offered their gaps as landing places.
+        const list = wrap.closest<HTMLElement>('.ptab-list');
         let ghost: ReturnType<typeof createGhost> | null = null;
         let lastIndex: number | null = null;
         armPointerDrag(e.nativeEvent, {
@@ -139,9 +169,14 @@ function ProjectTab({
           },
           onMove(ev) {
             ghost?.move(ev.clientX, ev.clientY);
-            if (!nav) return;
+            if (!list) return;
+            // DESIGN-SPEC §S2: "Dragging past either end auto-scrolls the
+            // strip". The session strip has done it since S4; this is the same
+            // helper, so a tab can be carried to a landing gap that was off
+            // screen when the press started.
+            edgeAutoScroll(list, ev.clientX);
             const items = Array.from(
-              nav.querySelectorAll<HTMLElement>('[data-project-id]')
+              list.querySelectorAll<HTMLElement>('[data-project-id]')
             ).map((el) => ({ rect: el.getBoundingClientRect() }));
             lastIndex = insertionIndex(
               items,
@@ -199,7 +234,12 @@ function ProjectTab({
         {/* Tab anatomy stays dot · name · badge (DESIGN.md §2.3): branch and
             dirty count live in the sidebar header, never on the tab. */}
         <span className={`dot dot-${dot === 'none' ? 'none' : dot}`} />
-        <span className="ptab-name">{truncateMiddle(project.name, 24)}</span>
+        {/* PHASE 189. No JS pre-truncation. A cut at 24 characters knows
+            nothing about this tab's width, and the CSS ellipsis then clipped
+            its result again, measured at the parent as `extract-agen…en…`,
+            two ellipses in one label. `.ptab-name` carries the measured floor
+            and does the one truncation that can see the box. */}
+        <span className="ptab-name">{project.name}</span>
         {machine !== null ? (
           <MachineBadge machine={machine} className="ptab-machine" />
         ) : null}
@@ -228,24 +268,32 @@ function ProjectTab({
   );
 }
 
-/** 2px accent insertion indicator in the tab gap (S2 drag spec). */
+/**
+ * 2px accent insertion indicator in the tab gap (S2 drag spec).
+ *
+ * PHASE 189. It renders INSIDE `.ptab-list` and its `left` is read from
+ * `offsetLeft`, which resolves against the nearest positioned ancestor. That
+ * ancestor is now the scrolling list, so the indicator sits in the list's
+ * content coordinates and scrolls with the tabs it points between. Left in the
+ * band it would have pointed at a gap the row had scrolled away from.
+ */
 function TabIndicator({
   index,
-  navRef
+  listRef
 }: {
   index: number;
-  navRef: React.RefObject<HTMLElement | null>;
+  listRef: React.RefObject<HTMLElement | null>;
 }): React.JSX.Element | null {
   const [left, setLeft] = useState<number | null>(null);
 
   useLayoutEffect(() => {
-    const nav = navRef.current;
-    if (!nav) {
+    const list = listRef.current;
+    if (!list) {
       setLeft(null);
       return;
     }
     const items = Array.from(
-      nav.querySelectorAll<HTMLElement>('[data-project-id]')
+      list.querySelectorAll<HTMLElement>('[data-project-id]')
     );
     if (items.length === 0) {
       setLeft(null);
@@ -258,7 +306,7 @@ function TabIndicator({
         ? at.offsetLeft - 3
         : (last?.offsetLeft ?? 0) + (last?.offsetWidth ?? 0) + 1
     );
-  }, [index, navRef]);
+  }, [index, listRef]);
 
   if (left === null) return null;
   return <div className="drop-indicator-v tab-indicator" style={{ left }} />;
@@ -266,6 +314,34 @@ function TabIndicator({
 
 // The Settings gear moved to the activity bar's bottom slot (round 1, S3) —
 // see src/renderer/app/ActivityBar.tsx.
+
+/**
+ * Every open project as native menu rows, each carrying its own ⌘ digit.
+ *
+ * PHASE 189 lifted this out of `CollapsedProjectChip` below so the overflow
+ * chevron composes the SAME list rather than a second one that agrees today.
+ * The digits come from ./project-shortcuts.ts, which is the one place the
+ * keystroke and the claim are written, so a row can never offer a chord the
+ * keystroke would not honour.
+ *
+ * There is no ✓ on the active row, and that is deliberate rather than an
+ * omission: the row's own selected tab says which project is active, and the
+ * selection effect in `Titlebar` keeps that tab on screen, so a second answer
+ * in the menu would be one answer too many.
+ */
+function projectMenuItems(
+  tabs: TabData[],
+  setActiveProject: (id: string) => void
+): MenuItemSpec[] {
+  return tabs.map((t, i) => {
+    const digit = tabDigit(i, tabs.length);
+    return {
+      label: t.project.name,
+      ...(digit !== null ? { hint: tabShortcutLabel(digit) } : {}),
+      run: () => setActiveProject(t.project.id)
+    };
+  });
+}
 
 /**
  * PHASE 129. The chip that stands in for the whole row when the tabs are
@@ -297,15 +373,11 @@ function CollapsedProjectChip({
       aria-haspopup="menu"
       onClick={(e) => {
         const r = e.currentTarget.getBoundingClientRect();
-        const items: MenuItemSpec[] = tabs.map((t, i) => {
-          const digit = tabDigit(i, tabs.length);
-          return {
-            label: t.project.name,
-            ...(digit !== null ? { hint: tabShortcutLabel(digit) } : {}),
-            run: () => setActiveProject(t.project.id)
-          };
+        setMenu({
+          x: r.left,
+          y: r.bottom,
+          items: projectMenuItems(tabs, setActiveProject)
         });
-        setMenu({ x: r.left, y: r.bottom, items });
       }}
     >
       <span
@@ -368,8 +440,16 @@ export function Titlebar(): React.JSX.Element {
   const projectsCollapsed = useApp((s) => s.projectsCollapsed);
   const setProjectsCollapsed = useApp((s) => s.setProjectsCollapsed);
 
-  const navRef = useRef<HTMLElement | null>(null);
+  const setMenu = useApp((s) => s.setMenu);
+  const setActiveProject = useApp((s) => s.setActiveProject);
+
+  // PHASE 189. The scrolling list of tabs, and whether it has more than it can
+  // show. `listRef` replaces the old `navRef`: the drag hit-test, the insertion
+  // indicator and the reveal below all read the list, because the band around
+  // it also holds three pinned controls that are not tabs.
+  const listRef = useRef<HTMLDivElement | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [overflowing, setOverflowing] = useState(false);
   // Phase 12.12 item 4: hold ⌘ and every tab says which digit reaches it.
   // Suppressed mid-drag — a number appearing under a tab the pointer is
   // carrying is noise, and the ghost is what the eye should be following.
@@ -379,6 +459,53 @@ export function Titlebar(): React.JSX.Element {
   const hinting = useCommandHeld({ suppressed: draggingTab });
 
   const tabs = useProjectTabs();
+
+  // PHASE 189. Does the row hold more than it can show? Measured, in the shape
+  // ./SessionStrip.tsx already uses: a layout effect after every render, a
+  // ResizeObserver on the list, and a passive scroll listener. It is one
+  // boolean, and it decides one thing, being whether the chevron is drawn.
+  //
+  // The list is absent in the two branches that draw no tabs (collapsed on
+  // top, and the left rail), which is why the null case answers `false` rather
+  // than returning: a chevron left standing after the row collapsed would open
+  // a menu beside a chip that already opens the same one.
+  const measureOverflow = useCallback((): void => {
+    const list = listRef.current;
+    const has = list !== null && list.scrollWidth > list.clientWidth + 1;
+    setOverflowing((prev) => (prev === has ? prev : has));
+  }, []);
+
+  useLayoutEffect(() => {
+    measureOverflow();
+  });
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (list === null) return;
+    const observer = new ResizeObserver(() => measureOverflow());
+    observer.observe(list);
+    list.addEventListener('scroll', measureOverflow, { passive: true });
+    return () => {
+      observer.disconnect();
+      list.removeEventListener('scroll', measureOverflow);
+    };
+  }, [measureOverflow, tabs.length]);
+
+  // PHASE 189. The selected tab is the one a person needs to read, so it is
+  // the one tab guaranteed to be on screen. This is what makes ⌘1…⌘9 and ⌃Tab
+  // still reach a tab the row has scrolled away from: the chord selects it and
+  // this brings it back into view. `tabs.length` is in the dependencies because
+  // opening or closing a project moves the selection without changing its id in
+  // the case where the closed tab was not the active one.
+  const activeTabId = activeProjectId;
+  useEffect(() => {
+    if (activeTabId === null) return;
+    listRef.current
+      ?.querySelector<HTMLElement>(
+        `[data-project-id="${CSS.escape(activeTabId)}"]`
+      )
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeTabId, tabs.length]);
 
   const attentionTotal = useMemo(
     () =>
@@ -417,6 +544,37 @@ export function Titlebar(): React.JSX.Element {
   // does not move when the row collapses.
   const addControl = <NewProjectButton className="ptab-add" />;
 
+  // PHASE 189. The chevron, and it is option one's own affordance saying there
+  // is more rather than option two's place to hide things. It appears only
+  // while the list overflows, it sits at the end of the row before the +, and
+  // it lists EVERY open project including the ones on screen, which is the rule
+  // the session strip's chevron follows. No tab is ever taken out of the row to
+  // put it here.
+  //
+  // It carries no attention badge, unlike the strip's. The bell at the other
+  // end of this same band already counts every project's needs-input sessions,
+  // and a second count of the same thing in one row is two answers to one
+  // question.
+  const overflowControl = overflowing ? (
+    <button
+      type="button"
+      className="icon-btn ptab-overflow"
+      aria-label={SWITCH_PROJECT}
+      title={SWITCH_PROJECT}
+      aria-haspopup="menu"
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        setMenu({
+          x: r.left,
+          y: r.bottom,
+          items: projectMenuItems(tabs, setActiveProject)
+        });
+      }}
+    >
+      <Codicon name="chevron-right" size={14} />
+    </button>
+  ) : null;
+
   return (
     <header className="titlebar" data-slot="project-tabs">
       {/* PHASE 129. With the tabs on the left the band draws none of them: the
@@ -437,26 +595,34 @@ export function Titlebar(): React.JSX.Element {
           {addControl}
         </nav>
       ) : (
-        <nav className="titlebar-tabs" aria-label="Projects" ref={navRef}>
+        <nav className="titlebar-tabs" aria-label="Projects">
           <ProjectsPositionButton />
           {collapseControl}
-          {tabs.map((t, i) => (
-            <ProjectTab
-              key={t.project.id}
-              data={t}
-              selected={t.project.id === activeProjectId}
-              hintDigit={tabDigit(i, tabs.length)}
-              hinting={hinting}
-              onDragIndicate={setDropIndex}
-              onDragState={setDraggingTab}
-            />
-          ))}
-          {dropIndex !== null ? (
-            <TabIndicator index={dropIndex} navRef={navRef} />
-          ) : null}
+          {/* PHASE 189. The tabs are their own scrolling list and the three
+              pinned controls stay outside it, which is how SessionStrip.tsx
+              separates `.stab-list` from its own pinned cells. */}
+          <div className="ptab-list" ref={listRef}>
+            {tabs.map((t, i) => (
+              <ProjectTab
+                key={t.project.id}
+                data={t}
+                selected={t.project.id === activeProjectId}
+                hintDigit={tabDigit(i, tabs.length)}
+                hinting={hinting}
+                onDragIndicate={setDropIndex}
+                onDragState={setDraggingTab}
+              />
+            ))}
+            {dropIndex !== null ? (
+              <TabIndicator index={dropIndex} listRef={listRef} />
+            ) : null}
+          </div>
+          {overflowControl}
           {/* The + sits after the tabs, which is where it has always been.
               Phase 148 moved the chevron and the position control to the
-              band's head and left the + alone. */}
+              band's head and left the + alone. Phase 189 put the overflow
+              chevron between the list and the +, so the + is still the last
+              thing in the row. */}
           {addControl}
         </nav>
       )}

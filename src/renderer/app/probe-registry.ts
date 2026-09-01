@@ -116,6 +116,8 @@ import { registerP104CommitDrive } from '../scm/p104-commit-drive';
 import { registerTargetShotDrive } from './target-shot-drive';
 import { registerRemoteBootDrive } from './remote-boot-drive';
 import { registerP154Probe } from '../tree/p154-probe';
+// PHASE 189. One function, so a probe can open a project mid-run.
+import { registerP189Probe } from './p189-probe';
 import { registerEnableShotProbe } from '../context/enable/shot-probe';
 import { driveLocalRuns } from '../scm/p120-runs-shot';
 import type { LocalRunsProbeSpec } from '../scm/p120-runs-shot';
@@ -333,6 +335,7 @@ function armSurfaceDrives(): void {
   registerTargetShotDrive();
   registerRemoteBootDrive();
   registerP154Probe();
+  registerP189Probe();
   // The enable dialog's drive. No script under build/ reads it today; it is
   // kept armed because the phase removes nothing.
   registerEnableShotProbe();

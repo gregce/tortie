@@ -43,7 +43,35 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  overflow: hidden;
+  /* PHASE 189. The clip moved INTO `.ptab-list` below, which is the element
+     that scrolls. A second clip out here would have hidden the overflow
+     chevron and the + at exactly the width that needs them most. Nothing can
+     overflow this box any more: the list shrinks to its own floor and then
+     scrolls, so the band's three pinned controls always have their room. */
+}
+
+/* PHASE 189. THE ROW OF TABS, AND IT SCROLLS.
+   ---------------------------------------------------------------------------
+   `flex: 0 1 auto`, never `1 1 auto`: with two projects open the list is two
+   tabs wide and the + stays beside them, rather than being pushed to the far
+   side of the window.
+
+   `-webkit-app-region: no-drag` is what lets a two-finger scroll reach the
+   list. The whole band is a drag region, and a drag region eats the wheel. */
+.ptab-list {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-app-region: no-drag;
+}
+
+.ptab-list::-webkit-scrollbar {
+  display: none;
 }
 
 /* Wrapper exists so the close × can be a REAL sibling button (a button
@@ -51,7 +79,8 @@
 .ptab-wrap {
   position: relative;
   display: inline-flex;
-  min-width: 0;
+  /* PHASE 189. The floor, and the reason it is a LENGTH is below. */
+  min-width: 96px;
   flex: 0 1 auto;
   -webkit-app-region: no-drag;
 }
@@ -62,7 +91,7 @@
   gap: var(--space-3);
   height: 28px;
   max-width: 200px;
-  min-width: 0;
+  min-width: 96px;
   /* Right padding reserves the close button's overlay slot. */
   padding: 0 26px 0 10px;
   border-radius: var(--r-sm);
@@ -72,6 +101,57 @@
   white-space: nowrap;
   -webkit-app-region: no-drag;
   transition: background var(--dur-fast) var(--ease-out);
+}
+
+/* PHASE 189. THE TAB'S FLOOR, AND WHY IT IS A LENGTH RATHER THAN `auto`.
+   ---------------------------------------------------------------------------
+   96px = 10px left padding + 8px dot + 6px gap + 46px of name + 26px right
+   padding. The 50px that is not the name was MEASURED as the chrome that
+   cannot shrink, identically for all twelve of his tabs at 1512px and at
+   960px, and 46 is the name's own measured floor (see `.ptab-name` below).
+
+   AT THE PARENT both of these carried `min-width: 0`, and that is the reported
+   defect: proportional flex-shrink takes the same PERCENTAGE from every tab,
+   13.2 percent at his own window width, and because the 50px of chrome cannot
+   shrink the whole percentage landed on the name. The tabs with the SHORTEST
+   names lost the largest share of their letters, so his `gmux` tab was left
+   23px of name and drew `g…` while `extract-agentic-engineering` kept 124px.
+
+   IT IS A LENGTH BECAUSE `min-width: auto` IS NOT THE SAME RULE. A flex item
+   whose min-width is `auto` takes its minimum from its own content, and a
+   label's min-content size is its longest WORD. That was measured here on
+   2026-09-01: with the floor stated only on the name, `deadreckon`'s tab
+   refused to go below 122.92px, every other tab refused to shrink at all, and
+   the row reached the overflow chevron at his own 1512px window with 267px of
+   shrink still unused and two tabs off screen that did not need to be. A
+   length makes the minimum exactly the floor, and the name's own `min-width`
+   below is what keeps the content inside it.
+
+   A TAB CARRYING A MARK HAS A BIGGER FLOOR, because the mark has a floor of
+   its own and the NAME is not the thing that gives way. That is the phase's
+   binding requirement about the machine badge, and it is stated as arithmetic
+   rather than as a second guess:
+
+     the amber count   6px gap + a 20px two digit pill        = 26  → 122
+     the machine mark  6px gap + 4px margin + a 40px badge    = 50  → 146
+     both                                                       76  → 172
+
+   A single digit count is a 16px pill, so that tab has 4px of slack at its
+   floor. Slack is the safe direction: the alternative is a mark drawn on top
+   of the close ×. */
+.ptab-wrap:has(.badge-attention),
+.ptab:has(.badge-attention) {
+  min-width: 122px;
+}
+
+.ptab-wrap:has(.ptab-machine),
+.ptab:has(.ptab-machine) {
+  min-width: 146px;
+}
+
+.ptab-wrap:has(.ptab-machine):has(.badge-attention),
+.ptab:has(.ptab-machine):has(.badge-attention) {
+  min-width: 172px;
 }
 
 .ptab .dot {
@@ -91,10 +171,33 @@
   opacity: 1;
 }
 
+/* PHASE 189. THE READABILITY FLOOR, AND IT WAS MEASURED RATHER THAN CHOSEN.
+   ---------------------------------------------------------------------------
+   46px. Taken with canvas measureText inside the running renderer, using this
+   label's own computed font read off the live element:
+   `normal normal 500 13px/normal -apple-system, "system-ui", "Helvetica Neue",
+   sans-serif`, where the ellipsis glyph measures 11.03px.
+
+   WHAT SET IT: the first four characters of every one of the operator's own
+   twelve project names need a 41.90px name box, and deadreckon is the name
+   that needs the most. 46 is that number with 4.1px of headroom for a font or
+   a weight that moves. The shortest prefix that tells each open name from all
+   the others needs 38.18px, set by getspecstory needing "gets", so four
+   characters clears the identification requirement as well as reading as a
+   word.
+
+   At the parent this line read `min-width: 0`. Two of his twelve tabs then
+   drew nothing that identified them: `dev` was a bare ellipsis with no letter
+   at all, and `gmux` drew `g…` beside getspecstory, get-stats and
+   golden-storm-31-aug.
+
+   A LATER ROUND MUST RE-MEASURE RATHER THAN NUDGE THIS. `npm run
+   gate:tab-floor` holds the per-name table this came from and fails if the
+   declaration moves below it. */
 .ptab-name {
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 0;
+  min-width: 46px;
 }
 
 .ptab-close {
@@ -199,6 +302,16 @@
 .ptab-add:hover {
   background: var(--bg-raised);
   color: var(--text-primary);
+}
+
+/* PHASE 189. The overflow chevron, drawn only while the row has more than it
+   can show. Sized and taken out of the drag region like the + beside it; the
+   fill and the hover come from the shared `.icon-btn`. */
+.ptab-overflow {
+  width: 24px;
+  height: 24px;
+  margin-left: var(--space-2);
+  -webkit-app-region: no-drag;
 }
 
 .titlebar-spacer {
@@ -2150,9 +2263,14 @@ body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].draggin
   z-index: 3;
 }
 
-/* Hosts that position an indicator. */
+/* Hosts that position an indicator. `.ptab-list` is the project row's host
+   since Phase 189: the indicator's `left` comes from `offsetLeft`, so it has
+   to be positioned by the box that SCROLLS or it points at a gap the row has
+   moved away from. (`.ptab-list` sets `position: relative` in its own rule
+   above; it is named here so this list still says where every indicator in the
+   app is hosted.) */
 .stab-list,
-.titlebar-tabs,
+.ptab-list,
 .dock-list {
   position: relative;
 }
