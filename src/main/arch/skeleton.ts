@@ -463,7 +463,9 @@ export function bandOf(
  *     that fold would leave fewer than {@link SKELETON_TARGET}.min boxes of
  *     source, no box of source folds, because a nine file repository must
  *     still draw its folders (the Phase 160 second fix round). It never fires
- *     on gmux, rookery or ripgrep.
+ *     on gmux, rookery or ripgrep. It fires on psf/black, where the fold
+ *     would leave four boxes of source, and keeps docs and action as boxes
+ *     of one parsed file each (the Phase 201 verifier).
  *  P4 cap. Twelve boxes. Over it, fold boxes with no source, smallest first,
  *     and never fold a box of source for the count, so ripgrep lists thirteen.
  *  P5 label. The deepest directory all of a box's files share, so a seeded
