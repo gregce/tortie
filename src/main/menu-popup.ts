@@ -80,12 +80,50 @@ export function toMenuTemplate(
   });
 }
 
+/**
+ * PHASE 198 harness knob, shot mode only. `Menu.popup` opens an OS owned
+ * window that no drive can click and `capturePage` cannot photograph, so a
+ * probe that must run a context menu row on the shipped path had no way to
+ * choose one. Under GMUX_SHOT with GMUX_SHOT_POPUP_PICK=<label>, a popup is
+ * answered with the id of the row wearing that label instead of being
+ * raised, and every label the menu carried is printed on one line, so the
+ * script that set the knob can read that the row it picked was OFFERED and
+ * not only run. A normal launch has no GMUX_SHOT and reads none of this;
+ * `undefined` means the popup is raised as it always was.
+ */
+function harnessPick(items: readonly PopupMenuItem[]): string | null | undefined {
+  const pick = process.env['GMUX_SHOT_POPUP_PICK'];
+  if (pick === undefined || pick === '') return undefined;
+  if (process.env['GMUX_SHOT'] === undefined) return undefined;
+  const labels: string[] = [];
+  let id: string | null = null;
+  const walk = (list: readonly PopupMenuItem[]): void => {
+    for (const item of list) {
+      if (item.type === 'separator') continue;
+      labels.push(item.label);
+      if (item.submenu !== undefined) {
+        walk(item.submenu);
+        continue;
+      }
+      if (id === null && item.label === pick) id = item.id;
+    }
+  };
+  walk(items);
+  console.log(`[gmux-shot] popup-pick ${JSON.stringify({ pick, id, labels })}`);
+  return id;
+}
+
 export function registerPopupMenuHandler(): void {
   handle(
     ipcMain,
     'ui:popupMenu',
     (event, input): Promise<string | null> =>
       new Promise((resolve) => {
+        const picked = harnessPick(input.items);
+        if (picked !== undefined) {
+          resolve(picked);
+          return;
+        }
         const win = BrowserWindow.fromWebContents(event.sender);
         if (!win || win.isDestroyed()) {
           resolve(null);

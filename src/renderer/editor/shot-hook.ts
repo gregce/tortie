@@ -30,6 +30,8 @@ import { setStoredEditorWidth } from './panel-width';
 import { useEditor } from './store';
 import { driveRedlineView } from './redline-shot-probe';
 import type { RedlineViewProbeSpec } from './redline-shot-probe';
+import { driveFileHistory } from './file-history-shot-probe';
+import type { FileHistoryProbeSpec } from './file-history-shot-probe';
 import { driveInlineAgreement } from './agreement-shot-probe';
 import type { InlineAgreementProbeSpec } from './agreement-shot-probe';
 // PHASE 163. The report tab's one door, driven the way the menu row drives it.
@@ -113,6 +115,13 @@ export interface ShotDriveSpec {
    * ./redline-shot-probe for the journey.
    */
   redline?: RedlineViewProbeSpec;
+  /**
+   * Phase 198. Drive the FILE HISTORY section, from the Explorer row's own
+   * menu to the last tab closed, and read every step off the DOM and the
+   * editor store. See ./file-history-shot-probe for the journey. Needs no
+   * `openRel`: the section follows the tab the menu row opens.
+   */
+  fileHistory?: FileHistoryProbeSpec;
   /**
    * Phase 190. Open each named file as a diff, click all four inline modes
    * through the real buttons and read what was drawn and what the row said
@@ -1164,6 +1173,12 @@ export function installShotHook(): void {
         await driveRedlineView(spec.projectPath, spec.openRel ?? '', spec.redline);
         step('read the redline view');
       }
+    }
+
+    if (spec.fileHistory !== undefined) {
+      step('driving the file history section');
+      await driveFileHistory(spec.projectPath, spec.fileHistory);
+      step('read the file history section');
     }
 
     if (spec.inlineAgreement !== undefined) {

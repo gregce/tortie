@@ -429,6 +429,16 @@ export const CHECKS = [
   // in one place only, a read only session count taken before and after.
   electron('probe:p185'),
   electron('probe:p194'),
+  // PHASE 198. The File history section over a REAL repository, a copy of a
+  // Tortie checkout named with --project, never the one the probe runs from.
+  // One launch on a scratch profile right clicks the fixture's row in the
+  // Explorer, has main answer the row's own menu with History, reads the 31
+  // rows and the rename boundary off the DOM against git's own --follow walk,
+  // clicks the boundary and reads back a two sided diff from the editor store,
+  // then walks the journey to the last tab closed. It creates no session,
+  // spawns no agent and spends no token, and touches `-L gmux` in one place
+  // only, a read only session count taken before and after.
+  electron('probe:p198'),
   // PHASE 190. Does the inline control say what it can tell apart? One launch
   // on a scratch profile opens five diffs it wrote itself, being the
   // operator's own pure deletion, a replacement in the shape of his prose
