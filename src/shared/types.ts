@@ -349,6 +349,28 @@ export interface Session {
    * src/main/sessions/record-path.ts.
    */
   recordAbsence?: SessionRecordAbsence;
+  /**
+   * APPENDED (Phase 202, migration 018): which vendor login this session was
+   * launched under, by NAME.
+   *
+   * ABSENT MEANS THE DEFAULT, being the vendor's own location, which is what
+   * every session before this phase ran under and what every session of every
+   * agent other than claude and codex still runs under. A value names a login
+   * a person added in Tortie, and the DIRECTORY it means is derived from that
+   * name at launch and at restore rather than stored beside the row.
+   *
+   * A NAME AND NEVER A PATH, for the reason `envPassthrough` carries names and
+   * never values: a path replayed verbatim out of a database is how a
+   * credential location outlives the decision that chose it. Re-resolution at
+   * restore is also the better answer, because a login a person removed falls
+   * back to the default with a sentence instead of pointing a new pane at a
+   * directory that is no longer there.
+   *
+   * WRITTEN ONCE, WITH THE ROW. A running session keeps the login it started
+   * with for its whole life; choosing another login changes what the NEXT
+   * session gets and sends nothing to any live process.
+   */
+  login?: string;
 }
 
 /**

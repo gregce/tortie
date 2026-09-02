@@ -223,10 +223,10 @@ usage:refresh
 
 [sqlite.identity]
 application_id=1414681669
-user_version=17
+user_version=18
 min_compatible_version=13
 
-[sqlite.migrations] count=17
+[sqlite.migrations] count=18
 001-initial
 002-exit-code
 003-death-forensics
@@ -244,6 +244,7 @@ min_compatible_version=13
 015-remote-projects
 016-project-tombstone
 017-remote-executions
+018-login
 
 [sqlite.schema] objects=11
 -- index idx_remote_executions_open
@@ -324,7 +325,7 @@ CREATE TABLE sessions (
           status           TEXT NOT NULL DEFAULT 'running',
           created_at       INTEGER NOT NULL,
           last_seen        INTEGER NOT NULL
-        , exit_code INTEGER, exit_signal TEXT, pane_pid INTEGER, resume_capture TEXT, specstory TEXT, restore TEXT, agent_version TEXT, agent_contract TEXT, resume_provenance TEXT, context_snapshot TEXT, removed_at INTEGER, env_passthrough TEXT, exit_detail TEXT, machine_id TEXT, machine_tombstone TEXT, project_tombstone TEXT)
+        , exit_code INTEGER, exit_signal TEXT, pane_pid INTEGER, resume_capture TEXT, specstory TEXT, restore TEXT, agent_version TEXT, agent_contract TEXT, resume_provenance TEXT, context_snapshot TEXT, removed_at INTEGER, env_passthrough TEXT, exit_detail TEXT, machine_id TEXT, machine_tombstone TEXT, project_tombstone TEXT, login TEXT)
 
 [localStorage.keys] count=40
 gmux.

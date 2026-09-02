@@ -264,21 +264,22 @@ function userVersion(): number {
 // ---------------------------------------------------------------------------
 
 describe('the three compatibility numbers', () => {
-  it('the schema version is the migration count, and both are 17', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(17);
-    expect(MIGRATIONS.length).toBe(17);
+  it('the schema version is the migration count, and both are 18', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(18);
+    expect(MIGRATIONS.length).toBe(18);
   });
 
   // Phase 90.3 appended 015-remote-projects, Phase 93 appended
-  // 016-project-tombstone and Phase 118 appended 017-remote-executions. The two
-  // this file is about keep their positions, which is what these lines exist to
-  // pin.
+  // 016-project-tombstone, Phase 118 appended 017-remote-executions and
+  // Phase 202 appended 018-login. The two this file is about keep their
+  // positions, which is what these lines exist to pin.
   it('keeps 013-machine-id and 014-machine-tombstone in their places', () => {
-    expect(MIGRATIONS.at(-1)?.name).toBe('017-remote-executions');
-    expect(MIGRATIONS.at(-2)?.name).toBe('016-project-tombstone');
-    expect(MIGRATIONS.at(-3)?.name).toBe('015-remote-projects');
-    expect(MIGRATIONS.at(-4)?.name).toBe('014-machine-tombstone');
-    expect(MIGRATIONS.at(-5)?.name).toBe('013-machine-id');
+    expect(MIGRATIONS.at(-1)?.name).toBe('018-login');
+    expect(MIGRATIONS.at(-2)?.name).toBe('017-remote-executions');
+    expect(MIGRATIONS.at(-3)?.name).toBe('016-project-tombstone');
+    expect(MIGRATIONS.at(-4)?.name).toBe('015-remote-projects');
+    expect(MIGRATIONS.at(-5)?.name).toBe('014-machine-tombstone');
+    expect(MIGRATIONS.at(-6)?.name).toBe('013-machine-id');
   });
 
   /**
@@ -327,7 +328,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const store = new ManifestStore(dbPath);
     try {
       // 1. The version moved.
-      expect(userVersion()).toBe(17);
+      expect(userVersion()).toBe(18);
 
       // 2. Every pre-existing row reads local.
       const records = store.listSessions();
@@ -380,7 +381,7 @@ describe('a manifest built at schema 12, migrated', () => {
     const second = new ManifestStore(dbPath);
     second.close();
     expect(rawRows()).toEqual(afterOnce);
-    expect(userVersion()).toBe(17);
+    expect(userVersion()).toBe(18);
   });
 
   it('a row inserted after the migration carries local', () => {

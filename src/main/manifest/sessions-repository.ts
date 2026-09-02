@@ -206,7 +206,7 @@ export class SessionsRepository {
               exit_signal, pane_pid, resume_capture, specstory, restore,
               agent_version, agent_contract, resume_provenance,
               context_snapshot, env_passthrough, exit_detail, machine_id,
-              machine_tombstone, project_tombstone)
+              machine_tombstone, project_tombstone, login)
            VALUES
              (@id, @name, @tmuxName, @projectPath, @cwd, @agent,
               @agentSessionId, @argv, @resumeArgv, @env, @status,
@@ -214,7 +214,7 @@ export class SessionsRepository {
               @resumeCapture, @specstory, @restore,
               @agentVersion, @agentContract, @resumeProvenance,
               @contextSnapshot, @envPassthrough, @exitDetail, @machineId,
-              @machineTombstone, @projectTombstone)`
+              @machineTombstone, @projectTombstone, @login)`
         )
         .run({
           id: record.id,
@@ -272,7 +272,14 @@ export class SessionsRepository {
           // whose project tab has been closed cannot be a session being
           // created, because the create needs the tab to start from.
           // `markProjectTabClosed` is the only writer.
-          projectTombstone: serializeClosedProjectTab(record.projectTombstone)
+          projectTombstone: serializeClosedProjectTab(record.projectTombstone),
+          // Phase 202. The NAME of the vendor login this session launches
+          // under, or NULL for the vendor's own default location, which is
+          // every session before this phase and every agent other than claude
+          // and codex. This is the only statement that writes the column: the
+          // UPDATE below does not name it, so which credential a live pane
+          // opened cannot be rewritten under it.
+          login: record.login ?? null
         });
     } catch (err) {
       throw manifestError(

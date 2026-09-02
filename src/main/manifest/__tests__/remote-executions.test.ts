@@ -67,10 +67,10 @@ function begin(
 }
 
 describe('the numbers', () => {
-  it('is at schema 17 and still lets a build at 13 write', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(17);
+  it('is at schema 18 and still lets a build at 13 write', () => {
+    expect(MANIFEST_SCHEMA_VERSION).toBe(18);
     expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
-    expect(MIGRATIONS).toHaveLength(17);
+    expect(MIGRATIONS).toHaveLength(18);
     expect(MIGRATIONS[16]?.name).toBe('017-remote-executions');
   });
 

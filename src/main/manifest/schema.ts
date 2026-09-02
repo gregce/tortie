@@ -559,6 +559,52 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
       `);
     }
   }
+,
+  {
+    // Phase 202: `login`, the NAME of the vendor sign in this session was
+    // launched under.
+    //
+    // WHAT IT FIXES. A person with two Claude subscriptions, or one personal
+    // and one for work, had no way to say which one a session runs under, and
+    // no way to see which one the meter was reading. This column is the half
+    // of that which has to survive a quit: the choice itself is app wide and
+    // lives in `<userData>/gmux/logins/logins.json`, but which login a
+    // PARTICULAR session was launched under is a fact about that session and
+    // belongs on its row.
+    //
+    // A NAME AND NEVER A PATH, AND NEVER A TOKEN. The directory is derived
+    // from the name at launch and at restore. That is the `env_passthrough`
+    // rule applied to a credential location rather than to a variable value,
+    // and it is why restore can fall back to the default with one sentence
+    // when a person has removed the login since.
+    //
+    // NULL MEANS THE DEFAULT, being the vendor's own location. That is true of
+    // every row written before this migration, of every session of every agent
+    // other than claude and codex, and of every session a person starts
+    // without having added a second login. So NULL is the honest reading and
+    // not a missing value.
+    //
+    // WRITTEN ONCE, WITH THE ROW. The UPDATE statement in
+    // ./sessions-repository.ts does not name the column and
+    // `ManifestSessionPatch` excludes it, for the reason `env_passthrough` and
+    // `machine_id` are excluded: which credential a pane opened is decided at
+    // the launch, and a patch route would let a later caller rewrite it under
+    // a session that is already running.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3, and the
+    // minimum stays at 13. The test is whether an old build writing NULL here
+    // produces a row the new build reads WRONGLY. It cannot: NULL is the
+    // default login, which is exactly what an old build launches under, since
+    // an old build has no logins directory and sets no variable. Nothing an
+    // old build can do produces a row this build misreads.
+    //
+    // So MANIFEST_SCHEMA_VERSION moves to 18 and
+    // MANIFEST_MIN_COMPATIBLE_VERSION STAYS AT 13.
+    name: '018-login',
+    up: (db) => {
+      addColumnIfMissing(db, 'sessions', 'login', 'TEXT');
+    }
+  }
 ];
 
 /**
@@ -579,7 +625,7 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 17;
+export const MANIFEST_SCHEMA_VERSION = 18;
 
 /**
  * The oldest schema version whose code may still write this manifest.
@@ -673,6 +719,18 @@ export const MANIFEST_SCHEMA_VERSION = 17;
  * migration too. Nothing on the restore path reads the table and no launch
  * depends on it, so the migration is additive by the same rule as 015 and 016
  * and the number does not move.
+ *
+ * PHASE 202 LEFT IT AT 13 TOO, and this paragraph is the record of that
+ * decision. Migration 018 adds the `login` column. A build at schema 13 to 17
+ * has never heard of it, so it writes NULL and never reads it. NULL means the
+ * vendor's own default location, which is exactly what such a build launches
+ * every session under, because it has no logins directory and sets no
+ * variable. There is no row it can write that this build reads wrongly, and
+ * no row this build writes that it reads wrongly: an old build reading a row
+ * whose login is 'Work' simply ignores the column and restores that session
+ * under the default, which is the same fallback this build uses when the
+ * login has been removed. So the migration is additive by the same rule as
+ * the ones above and the number does not move.
  */
 export const MANIFEST_MIN_COMPATIBLE_VERSION = 13;
 

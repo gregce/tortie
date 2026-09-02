@@ -68,7 +68,7 @@ describe('migration 012', () => {
     // appended 016-project-tombstone and Phase 118 appended
     // 017-remote-executions, so the version reads 17 and this migration's own
     // position is what stays pinned.
-    expect(MANIFEST_SCHEMA_VERSION).toBe(17);
+    expect(MANIFEST_SCHEMA_VERSION).toBe(18);
     expect(MANIFEST_MIGRATION_NAMES[11]).toBe('012-exit-detail');
   });
 
@@ -187,7 +187,7 @@ describe('the exit_detail column', () => {
     raw.close();
 
     const migrated = new ManifestStore(elevenPath);
-    expect(migrated.schemaState().userVersion).toBe(17);
+    expect(migrated.schemaState().userVersion).toBe(18);
     expect(migrated.schemaState().minCompatible).toBe(13);
     const old = migrated.getSession('old-row');
     expect(old?.exitCode).toBe(1);

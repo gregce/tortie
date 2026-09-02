@@ -271,6 +271,13 @@ export interface ClosedProjectTab {
  * runs is decided once, at create, and a patch route would let another caller
  * move a row to a machine nobody chose. The UPDATE statement does not name the
  * column either, so a patch could not write it even if the type allowed one.
+ *
+ * `login` is EXCLUDED for the same reason a third time (Phase 202). Which
+ * vendor login a pane opened is decided at the launch, and a running session
+ * keeps it for its whole life. A patch route would let a later caller rewrite
+ * the credential a live session is claimed to be on, which is the one thing
+ * this phase must never let happen, and the UPDATE statement does not name the
+ * column either.
  */
 export type ManifestSessionPatch = Partial<
   Omit<
@@ -281,6 +288,7 @@ export type ManifestSessionPatch = Partial<
     | 'envPassthrough'
     | 'exitDetail'
     | 'machineId'
+    | 'login'
   >
 > & {
   /**
@@ -417,6 +425,19 @@ export interface SessionRow {
    * before the migration. NULL is the true answer for both.
    */
   project_tombstone: string | null;
+  /**
+   * The NAME of the vendor login this session was launched under (migration
+   * 018, Phase 202).
+   *
+   * NULL on every row written before the migration, on every session of every
+   * agent other than claude and codex, and on every session launched under the
+   * vendor's own default location. NULL is the true answer for all three.
+   *
+   * A NAME AND NEVER A PATH, so the directory is derived at launch and at
+   * restore rather than replayed out of the database, and a login a person has
+   * removed since falls back to the default with a sentence.
+   */
+  login: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -819,6 +840,18 @@ export function rowToRecord(row: SessionRow): ManifestSessionRecord {
   // NULL means, and absent on a value that would not parse whole.
   const closedTab = parseClosedProjectTab(row.project_tombstone ?? null);
   if (closedTab !== undefined) record.projectTombstone = closedTab;
+  // Phase 202. Absent means the vendor's own default location, which is what
+  // NULL means and what every row written before migration 018 is. An empty
+  // string is treated the same way, because a hand edited file is the only
+  // thing that can produce one. Nothing is resolved here: the directory is
+  // looked up from this name at the launch and at the restore.
+  if (
+    row.login !== null &&
+    row.login !== undefined &&
+    row.login.length > 0
+  ) {
+    record.login = row.login;
+  }
   return record;
 }
 
@@ -893,6 +926,11 @@ export function toSession(record: ManifestSessionRecord): Session {
   // them because the machine is no longer in it. `machineId` is deliberately not
   // projected: a renderer that had it could look the machine up and find
   // nothing, and the label here is the answer to that question already.
+  // Phase 202: which login this session was launched under, by name, so the
+  // meter's card can say that a running session is on a different login from
+  // the one new sessions would get. Absent means the default, and the card
+  // draws nothing extra for it.
+  if (record.login !== undefined) session.login = record.login;
   if (record.machineTombstone !== undefined) {
     session.machineGone = {
       label: record.machineTombstone.machineLabel,
