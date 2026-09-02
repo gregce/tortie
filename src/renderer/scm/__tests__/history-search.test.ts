@@ -4,6 +4,7 @@ import {
   SEARCH_DEBOUNCE_MS,
   bareCommitAsMessage,
   isEmptyQuery,
+  keystrokeSettled,
   parseHistoryQuery,
   sameQuery,
   toSearch,
@@ -130,5 +131,34 @@ describe('the wire shape', () => {
 
   it('waits a round figure chosen from a measured keystroke', () => {
     expect(SEARCH_DEBOUNCE_MS).toBe(150);
+  });
+});
+
+describe('keystrokeSettled (fix round: the debounce against the button)', () => {
+  const p = parseHistoryQuery;
+  it('is settled when nothing is typed and nothing is applied', () => {
+    expect(keystrokeSettled(p(''), null)).toBe(true);
+    expect(keystrokeSettled(p('author:'), null)).toBe(true);
+  });
+  it('is not settled when the fast halves differ', () => {
+    expect(keystrokeSettled(p('docs'), null)).toBe(false);
+    expect(keystrokeSettled(p('doc'), p('docs'))).toBe(false);
+    expect(keystrokeSettled(p('change:x'), p('docs'))).toBe(false);
+    expect(keystrokeSettled(p('doc change:x'), p('docs change:x'))).toBe(false);
+  });
+  it('is settled when the fast halves agree, whatever the change term', () => {
+    expect(keystrokeSettled(p('docs'), p('docs'))).toBe(true);
+    expect(keystrokeSettled(p('docs change:x'), p('docs'))).toBe(true);
+    expect(keystrokeSettled(p('docs change:xy'), p('docs change:x'))).toBe(true);
+  });
+  it('keeps the rows a change search drew while a change term is still typed', () => {
+    // The button applied the whole query inside the debounce window: the
+    // timer that fires next must start no plain walk over it.
+    expect(keystrokeSettled(p('change:strbuf_addstr'), p('change:strbuf_addstr'))).toBe(true);
+    expect(keystrokeSettled(p('change:strbuf_addst'), p('change:strbuf_addstr'))).toBe(true);
+  });
+  it('lets the rows go when the change term itself is gone', () => {
+    expect(keystrokeSettled(p(''), p('change:x'))).toBe(false);
+    expect(keystrokeSettled(p('docs'), p('docs change:x'))).toBe(false);
   });
 });

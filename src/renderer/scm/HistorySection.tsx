@@ -90,6 +90,7 @@ import { scopeTag, usePersistedScope } from './history-scope';
 import {
   SEARCH_DEBOUNCE_MS,
   isEmptyQuery,
+  keystrokeSettled,
   parseHistoryQuery,
   sameQuery,
   withoutChange
@@ -206,16 +207,17 @@ export function HistorySection({
 
   useEffect(() => {
     if (collapsed) return;
-    const fast = withoutChange(typed);
-    const target = isEmptyQuery(fast) ? null : fast;
-    const current = appliedRef.current;
     // Already applied, or the applied query is this one plus a change the
     // button ran: a keystroke inside the change term does not throw those
     // rows away, the button does when it is pressed again.
-    if (target === null ? current === null : current !== null && sameQuery(withoutChange(current), target)) {
-      return;
-    }
+    if (keystrokeSettled(typed, appliedRef.current)) return;
+    const fast = withoutChange(typed);
+    const target = isEmptyQuery(fast) ? null : fast;
     const timer = setTimeout(() => {
+      // Asked again at the instant it fires: the button may have applied
+      // the whole query inside the window, and the walk this would start
+      // would end that change search on the main side.
+      if (keystrokeSettled(typed, appliedRef.current)) return;
       void depth.setQuery(repoPath, target);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);

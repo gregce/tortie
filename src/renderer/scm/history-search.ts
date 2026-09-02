@@ -175,6 +175,28 @@ export function withoutChange(q: HistoryQuery): HistoryQuery {
   return q.change === '' ? q : { ...q, change: '' };
 }
 
+/**
+ * True when what is applied already answers what is typed, so a keystroke
+ * starts no walk: the fast halves agree, and a change the button ran stays
+ * on screen for as long as a change term is still being typed. The field
+ * asks this when a keystroke lands AND again when its debounce fires,
+ * because the button can apply the whole query, change included, inside
+ * that window, and the plain walk the timer would otherwise start ends the
+ * change search it was pressed for. Measured on git's own repository: the
+ * `-S` child superseded 150 ms after the click, the field back on the
+ * plain walk with no time printed.
+ */
+export function keystrokeSettled(
+  typed: HistoryQuery,
+  applied: HistoryQuery | null
+): boolean {
+  if (applied !== null && applied.change !== '' && typed.change === '') {
+    return false;
+  }
+  const current = applied === null ? EMPTY_QUERY : withoutChange(applied);
+  return sameQuery(current, withoutChange(typed));
+}
+
 /** The bare sha nothing answered to, searched as a word instead. */
 export function bareCommitAsMessage(q: HistoryQuery): HistoryQuery {
   return { ...q, commit: '', commitIsBare: false, message: q.commit };
