@@ -128,6 +128,7 @@ export const CHECKS = [
   pure('conformance:context'),
   pure('conformance:overview'),
   pure('conformance:redline'),
+  pure('conformance:filehistory'),
   pure('conformance:arch'),
   pure('conformance:arch:modules'),
   pure('conformance:watcher'),

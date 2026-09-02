@@ -121,6 +121,7 @@
     "conformance:context": "node build/conformance-context.mjs",
     "conformance:overview": "node build/conformance-overview.mjs",
     "conformance:redline": "node build/conformance-redline.mjs",
+    "conformance:filehistory": "node build/conformance-filehistory.mjs",
     "conformance:watcher": "node build/conformance-watcher.mjs",
     "conformance:arch": "node build/conformance-arch.mjs",
     "conformance:arch:modules": "node build/conformance-arch-modules.mjs",
