@@ -146,6 +146,21 @@ export function watchedArchRepos(): string[] {
   return [...watches.keys()];
 }
 
+/**
+ * Disarm every repository and keep listening (Phase 197 item 7).
+ *
+ * Phase 175's switch decided what Architecture SHOWS and recorded that it did
+ * not decide what it RUNS: a repository armed while the switch was on kept
+ * producing a check on every file change after it went off. The settings
+ * registrar calls this when `arch.enabled` flips to false, so the switch now
+ * ends the checks too. The bus subscription and the runner stay, because the
+ * next `arch:load` after the switch comes back on re-arms through
+ * `watchArchRepo` exactly as a first load does.
+ */
+export function disarmArchWatch(): void {
+  for (const repoPath of watchedArchRepos()) unwatchArchRepo(repoPath);
+}
+
 /** Drop every subscription and every timer. Quit time, and safe to call twice. */
 export function stopArchWatch(): void {
   unsubscribe?.();

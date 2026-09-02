@@ -19,6 +19,7 @@ import type {
 } from '@shared/settings';
 import type { LaunchableAgentId } from '@shared/types';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
+import { disarmArchWatch } from '../arch/ipc';
 import { rebuildAppMenu } from '../menu';
 import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
@@ -94,6 +95,12 @@ export function registerSettingsIpc(ipc: IpcMain): void {
       // nativeness (S13 Hotkeys). Rebuild picks up the new chord map, and
       // since Phase 175 the Architecture rows' presence too.
       rebuildAppMenu();
+    }
+    if (archVisibilityChanged(before, next) && !next.arch.enabled) {
+      // Phase 197 item 7. Off means off: a repository armed while the switch
+      // was on stops being re-checked on file changes, rather than running
+      // for the life of the app behind a hidden surface.
+      disarmArchWatch();
     }
     broadcastSettings(next);
     return next;

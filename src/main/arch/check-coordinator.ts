@@ -137,12 +137,11 @@ export function createArchCheckCoordinator(deps: {
    *
    * PHASE 175 RECORDED A SEAM HERE and deliberately did not move it. That
    * phase's switch decides what Architecture SHOWS, not what it RUNS, by its
-   * own charter refusal. `watchArchRepo` arms for the life of the app, so in a
-   * session where Architecture was on and then switched off, a later file
-   * change still produces a check, and a published check with drift plus a
-   * configured agent still reaches the repair pass. Whoever widens the switch
-   * from what is shown to what runs starts at this line and at the same call
-   * in the map's own reader.
+   * own charter refusal. PHASE 197 ITEM 7 CLOSED THE RUNNING HALF: the
+   * settings registrar calls `disarmArchWatch` when `arch.enabled` flips off,
+   * so a repository armed here stops being re-checked on file changes, and
+   * the next load after the switch comes back on re-arms through this same
+   * call exactly as a first load does.
    */
   async function readArch(input: ArchRepoInput): Promise<ArchLoadResult> {
     const repoPath = input.cwd;

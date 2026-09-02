@@ -69,7 +69,16 @@ import { getLog } from '../log';
 import { shutdownSharedSymbolPool } from '../symbols/shared-pool';
 import { ArchStore, archRepoKey } from './db';
 import { readArchModuleFiles, readArchModules } from './modules';
-import { startArchWatch, stopArchWatch } from './watch';
+import { disarmArchWatch, startArchWatch, stopArchWatch } from './watch';
+
+/**
+ * The one thing the settings registrar needs from this domain (Phase 197
+ * item 7): when `arch.enabled` flips off, every armed repository stops being
+ * re-checked. Re-exported through this door rather than imported from
+ * `./watch` directly, because build/assert-import-boundaries.mjs lets only
+ * src/main/arch/ read that module.
+ */
+export { disarmArchWatch };
 import { createArchCheckCoordinator } from './check-coordinator';
 import { createArchEnrichCoordinator } from './enrich-coordinator';
 
