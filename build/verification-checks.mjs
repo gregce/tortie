@@ -373,6 +373,16 @@ export const CHECKS = [
   // it again on both sides of the flip, twice. It creates no session, spawns
   // no agent and spends no token.
   electron('probe:p175'),
+  // PHASE 201. Does the sidebar read? One launch on a scratch profile opens
+  // the repository named in P201_PROJECT, a COPY and never the checkout it
+  // runs from, flips the Architecture switch in that profile, waits for the
+  // cold scan and the tree read, and reads the header icons, the repository
+  // line, the model slot, every row's sentence and hover facts, the contract
+  // section's place and the map's boxes off the DOM, against the approved
+  // mock when the repository is the gmux copy. It spawns no agent, spends no
+  // token, and proves the repository was only read by comparing git status
+  // before and after.
+  electron('probe:p201'),
   // PHASE 181 FIX ROUND. Does the usage meter follow its switch? One launch on
   // a scratch profile flips the Codex switch through the shipped settings
   // bridge three times and counts the meter out of the live DOM after each
