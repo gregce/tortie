@@ -109,7 +109,7 @@
 
 .overview-turn {
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--r-md);
   margin-bottom: 8px;
 }
 
@@ -136,7 +136,7 @@
    below this block is untouched. */
 .overview-you {
   background: var(--accent-wash);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   padding: 4px 10px 8px;
   margin: 4px 0 2px;
   box-shadow: 0 0 12px color-mix(in srgb, var(--accent-soft) 25%, transparent);

@@ -42,7 +42,7 @@
   align-items: baseline;
   gap: 8px;
   padding: 4px 12px 4px 16px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   margin: 0 4px;
 }
 
@@ -70,7 +70,7 @@
   top: 5px;
   bottom: 5px;
   width: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-bar);
   background: var(--accent);
 }
 

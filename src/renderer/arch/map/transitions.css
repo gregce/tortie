@@ -34,6 +34,10 @@
   box-sizing: border-box;
   background: var(--bg-raised);
   border: 1px solid var(--border);
+  /* A literal on purpose (Phase 195). This mirrors MAP_BOX_R = 8 in
+     geometry.ts, an SVG rx that CSS cannot read, and the stage box must
+     match the SVG box byte for byte during the transition. It is not
+     --r-pill; the two are unrelated shapes. */
   border-radius: 8px;
   transform-origin: 0 0;
   pointer-events: none;

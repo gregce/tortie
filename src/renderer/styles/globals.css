@@ -59,7 +59,7 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border: 3px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--r-scroll-thumb);
   background-clip: padding-box;
 }
 
@@ -333,7 +333,7 @@ textarea {
   height: 16px;
   min-width: 16px;
   padding: 0 var(--space-2);
-  border-radius: 8px;
+  border-radius: var(--r-pill);
   background: var(--status-attention-badge-bg);
   color: var(--status-attention-badge-fg);
   font-size: var(--text-xs);

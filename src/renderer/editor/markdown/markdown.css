@@ -341,7 +341,7 @@
   position: absolute;
   right: 1px;
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-bar);
   background: var(--text-secondary);
   pointer-events: none;
 }

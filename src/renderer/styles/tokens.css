@@ -243,6 +243,21 @@
   --r-sm: 4px;
   --r-md: 6px;
   --r-lg: 10px;
+  /* The four below the family (Phase 195, research 75 C6), each a value the
+     chrome already drew as a literal, named after the shape it rounds so a
+     later reader does not "join" it to --r-sm and move a box:
+     bar    a 2px accent bar or tick, rounded to half its width
+     xs     an inline mark on text, and a 4px bar
+     pill   a 16px tall badge or switch track, half its height
+     scroll the scrollbar thumb, 3px of it transparent through background-clip,
+            so the visible 2px thumb ends round
+     The one radius literal left in the renderer is the Architecture map's
+     stage box, which mirrors MAP_BOX_R in geometry.ts, an SVG rx that CSS
+     cannot read; transitions.css says so beside it. */
+  --r-bar: 1px;
+  --r-xs: 2px;
+  --r-pill: 8px;
+  --r-scroll-thumb: 5px;
 
   /* §1.9b Icon sizes (Phase 195, research 75 C9). The three sizes a codicon
      is drawn at in the chrome, named so a glyph reads a step rather than a

@@ -38,7 +38,7 @@
   color: var(--error);
   background: var(--error-wash);
   text-decoration: line-through;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   padding: 0 1px;
 }
 
@@ -46,7 +46,7 @@
   color: var(--success);
   background: var(--success-wash);
   text-decoration: none;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   padding: 0 1px;
 }
 
@@ -68,7 +68,7 @@
   margin-right: 6px;
   padding: 0 4px;
   border: 1px solid var(--border-strong);
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;

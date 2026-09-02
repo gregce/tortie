@@ -475,7 +475,7 @@
 .search-hit {
   background: var(--accent-wash);
   color: var(--accent-text);
-  border-radius: 2px;
+  border-radius: var(--r-xs);
 }
 
 .search-truncated {

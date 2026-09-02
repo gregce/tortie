@@ -760,7 +760,7 @@
   gap: 6px;
   padding: 4px 10px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--bg-raised);
   color: var(--text-primary);
   font-size: var(--text-xs);

@@ -439,7 +439,7 @@
   height: 16px;
   min-width: 16px;
   padding: 0 var(--space-2);
-  border-radius: 8px;
+  border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--on-accent);
   font-size: var(--text-xs);
@@ -1132,7 +1132,7 @@
   top: 3px;
   bottom: 3px;
   width: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-bar);
   background: var(--accent);
 }
 
@@ -1610,7 +1610,7 @@
 .preset-check:focus-visible {
   box-shadow: var(--focus-ring);
   outline: none;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
 }
 
 .preset-row.danger .preset-check {
@@ -2246,7 +2246,7 @@ body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].draggin
   transform: translateY(-50%);
   width: 2px;
   height: 20px;
-  border-radius: 1px;
+  border-radius: var(--r-bar);
   background: var(--accent);
   pointer-events: none;
   z-index: 3;
@@ -2257,7 +2257,7 @@ body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].draggin
   left: var(--space-2);
   right: var(--space-2);
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-bar);
   background: var(--accent);
   pointer-events: none;
   z-index: 3;

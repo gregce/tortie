@@ -172,6 +172,10 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 --r-sm: 4px;   /* buttons, inputs, badges, chips */
 --r-md: 6px;   /* rows' selection fill, toasts, menus */
 --r-lg: 10px;  /* modals, overlays */
+--r-bar: 1px;  /* a 2px accent bar or tick, half its width (Phase 195)     */
+--r-xs: 2px;   /* an inline mark on text, a 4px bar                        */
+--r-pill: 8px; /* a 16px badge or switch track, half its height            */
+--r-scroll-thumb: 5px; /* the scrollbar thumb, 3px of it transparent       */
 
 --icon-sm: 12px;  /* codicon in a row's accessories, chips, chevrons          */
 --icon-md: 14px;  /* codicon in row leaders, buttons, section headers        */

@@ -453,7 +453,7 @@
 
 .ed-flash {
   background-color: var(--accent-wash);
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   animation: ed-flash-fade 600ms ease-out forwards;
 }
 

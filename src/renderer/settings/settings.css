@@ -55,7 +55,7 @@
   top: 6px;
   bottom: 6px;
   width: 2px;
-  border-radius: 1px;
+  border-radius: var(--r-bar);
   background: var(--accent);
 }
 
@@ -227,7 +227,7 @@
   position: relative;
   width: 26px;
   height: 16px;
-  border-radius: 8px;
+  border-radius: var(--r-pill);
   background: var(--bg-raised);
   border: 1px solid var(--border-strong);
   transition: background var(--dur-fast) var(--ease-out);
@@ -369,7 +369,7 @@
   right: var(--space-2);
   bottom: -1px;
   height: 2px;
-  border-radius: 1px 1px 0 0;
+  border-radius: var(--r-bar) var(--r-bar) 0 0;
   background: var(--accent);
 }
 

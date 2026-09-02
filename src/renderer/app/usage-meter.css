@@ -62,7 +62,7 @@
   flex: 0 0 auto;
   width: 34px;
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   background: var(--bg-raised);
   overflow: hidden;
 }
@@ -70,7 +70,7 @@
 .usage-bar-fill {
   display: block;
   height: 100%;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   background: var(--accent);
   transition: width 160ms ease-out;
 }
@@ -148,7 +148,7 @@
   gap: var(--space-4);
   padding: var(--space-1) var(--space-2);
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -245,7 +245,7 @@
   max-width: 240px;
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r-md);
   background: var(--bg-surface);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   pointer-events: none;
