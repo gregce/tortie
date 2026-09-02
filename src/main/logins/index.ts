@@ -14,6 +14,7 @@ export {
   loginProviderRootIn,
   loginsFileIn
 } from './dirs';
+export { registerLoginsIpc } from './ipc';
 export { ensureLoginsRoot, loginsRoot } from './paths';
 export { loginEnvForSession } from './session';
 export {

@@ -34,6 +34,7 @@ import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
 // Phase 181: the subscription usage meter. Two read channels and the held
 // snapshot they answer from, dropped in the ordered disposer below.
 import { disposeUsageService, registerUsageIpc } from './usage/ipc';
+import { registerLoginsIpc } from './logins/ipc';
 import { foldChosenNow, foldSuspension } from './sessions/fold-wiring';
 import { installLaunchContextResolver } from './context/launch-resolver';
 import { registerDropIpc, startDropStorePruning } from './drop';
@@ -209,6 +210,15 @@ export function installMainCapabilities(
   // the first call, and while the switches are off that call opens no
   // keychain, reads no credentials file and makes no request.
   registerUsageIpc(ipcMain);
+  // Phase 202: the ONE `logins:*` registrar. Four channels, and none of them
+  // signs anybody in. The list reads one JSON file, the add creates one empty
+  // directory, the choose writes one name and the remove deletes one directory
+  // Tortie made. Nothing here opens a keychain, spawns a process, reaches a
+  // network, touches tmux or writes the manifest. Refusal 8 holds through the
+  // add: creating a directory starts nothing, and the sign in that fills it is
+  // one ordinary session the person starts through the create path every other
+  // session uses.
+  registerLoginsIpc(ipcMain);
   // Phase 22: turn the launch snapshot on. Without this call every session gets
   // a NULL snapshot and the readout shows its unrecorded sentence, which is
   // correct behaviour and not a stub, so the feature simply does nothing. The

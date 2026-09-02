@@ -175,6 +175,7 @@ import type {
   UsageEventPayloadMap,
   UsageInvokeChannelMap
 } from './usage';
+import type { GmuxLoginsExtras, LoginsInvokeChannelMap } from './logins';
 import type {
   DropInvokeChannelMap,
   GmuxCaptureExtras,
@@ -198,6 +199,7 @@ export * from './arch';
 // consumer writes. A file under src/shared/ipc/ still names it directly,
 // which is what `./arch` does to fold the channel into its own map.
 export * from './arch-modules';
+export * from './logins';
 export * from './actions';
 export * from './agents';
 export * from './context';
@@ -291,7 +293,9 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   // Phase 170. Live mode's subscribe and stop, visible tab only.
   DiagnosticsLiveInvokeChannelMap &
   // Phase 181. The usage meter's read and its refresh control.
-  UsageInvokeChannelMap;
+  UsageInvokeChannelMap &
+  // Phase 202. The set of vendor logins, and which one is chosen.
+  LoginsInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;
 
@@ -448,4 +452,6 @@ export type InstalledGmuxApi = GmuxApi & {
   // Phase 170. The live half of the same `diagnostics` member.
   GmuxDiagnosticsLiveBridgeExtras &
   // Phase 181. The `usage` member, one object with two reads.
-  GmuxUsageExtras;
+  GmuxUsageExtras &
+  // Phase 202. The `logins` member: list, add, choose, remove.
+  GmuxLoginsExtras;
