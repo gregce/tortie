@@ -38,8 +38,8 @@ function row(over: Partial<UsageProviderSnapshot> = {}): UsageProviderSnapshot {
 describe('the native menu', () => {
   const rows: LoginRow[] = [
     defaultLoginRow('claude', true, true),
-    { provider: 'claude', name: 'Work', isDefault: false, chosen: false, present: true },
-    { provider: 'claude', name: 'Spare', isDefault: false, chosen: false, present: false }
+    { provider: 'claude', name: 'Work', isDefault: false, chosen: false, present: true, email: null },
+    { provider: 'claude', name: 'Spare', isDefault: false, chosen: false, present: false, email: null }
   ];
 
   it('lists every login, marks the chosen one and offers Add login', () => {

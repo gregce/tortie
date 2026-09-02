@@ -23,11 +23,13 @@ export {
   chosenLoginFor,
   effectiveLogin,
   listLogins,
+  listLoginsAsking,
   readLoginsFile,
   removeLogin,
   resolveLoginDir,
   writeLoginsFile,
   type LoginChange,
+  type LoginFactsAsk,
   type LoginsFile,
   type ResolvedLogin,
   type StoredLogin

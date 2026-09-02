@@ -30,7 +30,12 @@ function stringLiterals(text: string): string[] {
 
 const FILES: [string, string][] = [
   ['settings', join(__dirname, '..', 'usage-copy.ts')],
-  ['meter', join(__dirname, '..', '..', 'app', 'usage-copy.ts')]
+  ['meter', join(__dirname, '..', '..', 'app', 'usage-copy.ts')],
+  // PHASE 203. The words a login is drawn with. They are in src/shared
+  // because three surfaces draw a login and the directory wall stops the
+  // three from all naming each other, so this test reaches across for them
+  // rather than letting one set of words escape the rules the other two keep.
+  ['login', join(__dirname, '..', '..', '..', 'shared', 'login-copy.ts')]
 ];
 
 for (const [name, path] of FILES) {

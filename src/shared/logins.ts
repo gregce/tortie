@@ -143,8 +143,28 @@ export interface LoginRow {
    * the scoped keychain item or the file exists. On macOS a second claude
    * login lives in a keychain item named for its directory rather than in a
    * file, so this answer is "the item or the file", not "the file".
+   *
+   * PHASE 203 MADE THIS THE WHOLE QUESTION. Until then it was the FILE half
+   * alone, and on macOS the file half is always false, so every added claude
+   * login read as never signed in for ever. `src/main/usage/login-accounts.ts`
+   * answers the keychain half, asking for the item's attributes and never for
+   * its payload.
    */
   present: boolean;
+  /**
+   * The address the vendor's own file names for this login, or null when it
+   * names none (Phase 203).
+   *
+   * NULL IS AN ORDINARY ANSWER. A login added a moment ago has no
+   * `oauthAccount` in its `.claude.json` yet, because the address appears once
+   * the account has taken a turn, so a freshly signed in login honestly has no
+   * address and the row says the account is not known yet.
+   *
+   * IT IS THE PERSON'S OWN DATA. It is drawn and it is never sent: it reaches
+   * no request, no log line, no manifest row and no argv. It is on this shape
+   * rather than a path for the same reason nothing else here is a path.
+   */
+  email: string | null;
 }
 
 /** Every login Tortie knows, in the order the surfaces draw them. */
@@ -162,13 +182,29 @@ export interface LoginsSnapshot {
   at: number;
 }
 
-/** The default login of a provider, as a row. */
+/**
+ * The default login of a provider, as a row.
+ *
+ * `email` defaults to null, which is what a seed answers before main has read
+ * anything, and `DEFAULT_LOGIN_NAME` is still the row's NAME because the name
+ * is the reserved manifest key. What changed in Phase 203 is that the name is
+ * no longer what a person is shown: `loginAccountLabel` in ./login-copy.ts
+ * draws the address, or the phrase that says whose sign in this is.
+ */
 export function defaultLoginRow(
   provider: LoginProviderId,
   chosen: boolean,
-  present: boolean
+  present: boolean,
+  email: string | null = null
 ): LoginRow {
-  return { provider, name: DEFAULT_LOGIN_NAME, isDefault: true, chosen, present };
+  return {
+    provider,
+    name: DEFAULT_LOGIN_NAME,
+    isDefault: true,
+    chosen,
+    present,
+    email
+  };
 }
 
 /** Which login a provider's new sessions run under, out of a snapshot. */

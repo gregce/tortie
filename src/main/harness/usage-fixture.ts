@@ -43,6 +43,10 @@
 import { app } from 'electron';
 import { readFileSync } from 'node:fs';
 import { setUsageHarnessOverride } from '../usage/ipc';
+import {
+  defaultLoginAccountDeps,
+  setLoginAccountDeps
+} from '../usage/login-accounts';
 import type { UsageRequest, UsageResponse } from '../usage/transport';
 import { isInside } from './fold-stub';
 import { isIsolatedLaunch } from './launch-gate';
@@ -91,6 +95,13 @@ export function installUsageFixture(): void {
   // So the probe reads this line off the child's output and refuses to arm a
   // meter until it has. It names no token: the fixture holds none.
   console.log('[gmux] usage fixture installed, the vendor is a file');
+  // PHASE 203. The login list asks the keychain too, so the same refusal is
+  // installed there. Under this knob a probe's app opens NO keychain at all,
+  // for the meter or for the list, and the only credentials that exist are the
+  // synthetic files the probe wrote into directories the probe made. Every
+  // other seam stays the shipped one, so what the list reads is real files
+  // through the real reader.
+  setLoginAccountDeps({ ...defaultLoginAccountDeps(), keychainHas: async () => false });
   setUsageHarnessOverride({
     // NO KEYCHAIN, EVER, under this knob. A miss is what the reader is
     // designed for: it falls through to the credentials file, which is the

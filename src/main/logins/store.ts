@@ -265,9 +265,15 @@ function credentialFilePresent(
 /**
  * Every login, default first per provider, in the order the surfaces draw.
  *
- * It opens no keychain and spawns nothing. `present` here is the file answer;
- * the claude keychain half is filled in by the caller that has a credential
- * reader, which is the usage domain.
+ * IT IS THE CHEAP HALF and it stays. It opens no keychain, spawns nothing and
+ * reads no vendor file, so it is what any path that must start no process
+ * calls. `present` here is the FILE answer, which on macOS is always false for
+ * a claude login, and `email` is always null.
+ *
+ * NO SURFACE MAY DRAW THIS DIRECTLY, which is the Phase 203 rule.
+ * {@link listLoginsAsking} is what `logins:list` answers with, and the whole
+ * of the first defect was that the menu drew the half answer and said
+ * `Not signed in yet` about a login that had been signed into.
  */
 export function listLogins(root: string): LoginsSnapshot {
   const { file, problems } = readLoginsFile(root);
@@ -283,7 +289,80 @@ export function listLogins(root: string): LoginsSnapshot {
         name: row.name,
         isDefault: false,
         chosen: sameLoginName(chosen, row.name),
-        present: credentialFilePresent(root, provider, dir)
+        present: credentialFilePresent(root, provider, dir),
+        email: null
+      });
+    }
+  }
+  return { logins, problems, at: Date.now() };
+}
+
+/**
+ * What a caller with a credential reader answers about one login (Phase 203).
+ *
+ * `dir` is null for the person's own default sign in, which is the vendor's
+ * own location and the one directory this module can never compose. That is
+ * why the question is asked of the CALLER: the answer needs the two vendor
+ * directory names and a home directory, and `npm run conformance:logins`
+ * refuses any file in this domain that can name one of them.
+ */
+export type LoginFactsAsk = (
+  provider: LoginProviderId,
+  dir: string | null
+) => Promise<{ present: boolean; email: string | null }>;
+
+/**
+ * The same list, with the WHOLE question asked (Phase 203).
+ *
+ * This is what `logins:list` answers with, so `present` is the keychain half
+ * as well as the file half and every row carries the address the vendor's own
+ * file names for it. The first defect the operator reported was exactly the
+ * absence of this function: the list asked for a file macOS never writes, so
+ * a login he had really signed into said `Not signed in yet` for ever.
+ *
+ * A FOLDER THAT IS GONE IS NEVER ASKED ABOUT. Removing a login deletes the
+ * folder and leaves the scoped keychain item behind, so asking would answer
+ * `present` for a directory that is not there. A gone folder answers absent
+ * and not known, and the resolver falls back to the default as it always did.
+ *
+ * ONE FAILED ANSWER IS ONE HONEST ROW. An ask that rejects leaves that row
+ * absent and not known rather than failing the whole list, because a surface
+ * with no list at all is worse than a surface with one modest row.
+ */
+export async function listLoginsAsking(
+  root: string,
+  ask: LoginFactsAsk
+): Promise<LoginsSnapshot> {
+  const { file, problems } = readLoginsFile(root);
+  const asked = async (
+    provider: LoginProviderId,
+    dir: string | null
+  ): Promise<{ present: boolean; email: string | null }> => {
+    try {
+      return await ask(provider, dir);
+    } catch {
+      return { present: false, email: null };
+    }
+  };
+  const logins: LoginRow[] = [];
+  for (const provider of LOGIN_PROVIDERS) {
+    const chosen = file.chosen[provider] ?? null;
+    const own = await asked(provider, null);
+    logins.push(defaultLoginRow(provider, chosen === null, own.present, own.email));
+    for (const row of file.logins) {
+      if (row.provider !== provider) continue;
+      const dir = loginDirIn(root, provider, row.id);
+      const facts =
+        loginDirOnDisk(root, provider, dir) === 'ok'
+          ? await asked(provider, dir)
+          : { present: false, email: null };
+      logins.push({
+        provider,
+        name: row.name,
+        isDefault: false,
+        chosen: sameLoginName(chosen, row.name),
+        present: facts.present,
+        email: facts.email
       });
     }
   }
