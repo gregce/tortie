@@ -237,11 +237,21 @@ const TREE_UNSAFE_CSS = `
   text-decoration: line-through;
 }
 
-/* The dirty-descendant dot is a signal, not a hint. @pierre/trees ships it at
-   opacity .5, which composites --git-modified down to ~3.2:1 on the sidebar —
-   a dull olive next to the 9.1:1 M/U badge letters on the rows it summarizes.
-   DESIGN.md §3 asks for the amber itself. */
+/* The dirty-descendant dot has no hue (Phase 195, research 75 C3). Amber is
+   reserved for needs input (DESIGN.md 1.3, tokens.css lines 78 to 80), and
+   @pierre/trees paints this dot in --git-modified, which is dE2000 4.45 from
+   --status-attention: a full strength amber dot at rest in the sidebar, four
+   dE from the one colour that means "an agent needs you". The dot means
+   "something under here changed" and carries no urgency, so it takes
+   --text-muted, the count and hint colour the sidebar already uses for
+   "there is more here", at full strength: 5.05:1 on --bg-sidebar and dE2000
+   37 from amber. Pierre's own opacity .5 is not restored, because
+   --git-modified at half strength composites to #7d662e, 3.22:1, below the
+   comfort of the 3:1 non text floor, and it still reads olive. The names of
+   modified files keep their tint; that is the M badge's colour and a
+   different rule. */
 [data-item-contains-git-change="true"] > [data-item-section="git"] {
+  color: var(--text-muted);
   opacity: 1;
 }
 
@@ -253,7 +263,7 @@ const TREE_UNSAFE_CSS = `
    boundary, so --accent is the app's own token, not a copy of it. */
 [data-item-drag-target="true"] {
   box-shadow: inset 0 0 0 1px var(--accent);
-  border-radius: var(--r-sm, 3px);
+  border-radius: var(--r-sm, 4px);
 }
 
 /* NAME FILTER, not search (Phase 12.9 item 4). The library's placeholder says

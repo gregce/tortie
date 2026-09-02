@@ -164,7 +164,7 @@ export function pathsToAsk(
  * The library counts every status it is given against each ancestor
  * directory, ignored included (model/gitStatus.js, `setGitStatusPath` calls
  * `incrementAncestorChangeCounts` whatever the status is). Feeding it ignored
- * entries therefore puts the amber dirty-descendant dot on `docs/` because
+ * entries therefore puts the dirty-descendant dot on `docs/` because
  * `docs/.DS_Store` is ignored, which is a false report of a change. The tree
  * hides the dot on exactly these directories; a directory that also holds a
  * real change is not in the list and keeps its dot.

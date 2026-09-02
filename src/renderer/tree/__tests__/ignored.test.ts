@@ -111,7 +111,7 @@ describe('coveredByIgnored', () => {
 describe('ignoredOnlyAncestors', () => {
   it('names the directories that would get a dot for ignored content alone', () => {
     // @pierre/trees counts EVERY status against each ancestor directory,
-    // ignored included, so docs/ would show the amber dirty-descendant dot
+    // ignored included, so docs/ would show the dirty-descendant dot
     // because docs/.DS_Store is ignored. It has no real change under it.
     expect(
       ignoredOnlyAncestors(['docs/.DS_Store', 'build/vendor/'], [])
