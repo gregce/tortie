@@ -36,6 +36,9 @@ import { installProcessGoneLogging } from './diagnostics/process-gone';
 // window shown. Each is one call that records once and then costs nothing.
 import { markMilestone, MILESTONES } from './diagnostics/milestones';
 import { dispatchHarness } from './harness';
+// Phase 202. The harness only usage transport, installed before the first read
+// and inert in every launch that is not a harness on a harness profile.
+import { installUsageFixture } from './harness/usage-fixture';
 // Phase 166: the one cache policy, applied before whenReady below.
 import { applyCachePolicy } from './cache/policy';
 // Phase 127. What counts as a harness launch, in one place. The three
@@ -443,6 +446,17 @@ app.whenReady().then(async () => {
   // stops a harness that ends in app.exit() from leaving a sentinel behind
   // and faking a crash at the next smoke boot.
   runLogBootSequence({ postNotice: postDurabilityNotice, collectBootEnv });
+
+  // PHASE 202. The usage meter answered from a FILE, for a harness launch on a
+  // harness profile and for nothing else. It is installed here, before the
+  // harness dispatch and before any window, because the service is built on
+  // the first read and a probe that armed a meter first would have asked the
+  // person's own keychain. It refuses unless the launch is one of the two
+  // isolated modes or an armed probe run AND the profile sits inside the
+  // directory the runner handed us, so a variable left in a shell profile can
+  // never reach a person's real app. In every ordinary launch it does nothing
+  // at all and the meter reads the vendor exactly as it always has.
+  installUsageFixture();
 
   // A harness launch (GMUX_SMOKE / GMUX_SHOT) owns the process from here:
   // every harness ends in app.exit, or, for the quit smoke, the real

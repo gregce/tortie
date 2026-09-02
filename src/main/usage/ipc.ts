@@ -28,7 +28,7 @@ import { getSettings } from '../settings/store';
 import { effectiveLogin, loginsRoot } from '../logins';
 import { defaultCredentialDeps } from './credentials';
 import { createUsageService, type UsageService } from './service';
-import { httpsTransport } from './transport';
+import { httpsTransport, type UsageTransport } from './transport';
 
 /**
  * Scope "usage" (Phase 35 logging). Every line this domain writes is a
@@ -39,12 +39,35 @@ const log = getLog('usage');
 
 let service: UsageService | null = null;
 
+/**
+ * The harness override (Phase 202), or null in every ordinary launch.
+ *
+ * It replaces the two things a probe cannot have, being the vendor and the
+ * person's keychain, and it replaces nothing else: the poll interval, the
+ * stale policy, the ingest rules, the login resolution and every word on the
+ * face are the shipped ones. `src/main/harness/usage-fixture.ts` is the only
+ * caller, it refuses unless the launch is an isolated harness launch on a
+ * harness profile, and it is installed before the first read.
+ */
+let harness: { transport: UsageTransport; keychain: () => Promise<null> } | null =
+  null;
+
+/** Harness only. Called before the service is built; never in a real launch. */
+export function setUsageHarnessOverride(
+  over: { transport: UsageTransport; keychain: () => Promise<null> } | null
+): void {
+  harness = over;
+  service = null;
+}
+
 /** The one service, built on first use. Building it starts nothing. */
 export function usageService(): UsageService {
   if (service === null) {
+    const credentials = defaultCredentialDeps();
     service = createUsageService({
-      credentials: defaultCredentialDeps(),
-      transport: httpsTransport,
+      credentials:
+        harness === null ? credentials : { ...credentials, keychain: harness.keychain },
+      transport: harness === null ? httpsTransport : harness.transport,
       settings: () => getSettings().usage,
       // PHASE 202. Which login each meter reads, resolved on every call so a
       // choice made in the hover card is followed within one poll. A build
