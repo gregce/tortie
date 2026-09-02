@@ -288,9 +288,26 @@ export class GitService {
             allRefs
           });
 
+    // Phase 198. A path narrows the walk to one file, and `follow` traces it
+    // through its renames. Following needs exactly one path, which is git's
+    // own rule (`--follow requires exactly one pathspec`) stated before any
+    // spawn rather than read back from stderr.
+    const path =
+      typeof input.path === 'string' && input.path.length > 0
+        ? input.path
+        : null;
+    if (input.follow === true && path === null) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        'Following a file through its renames needs exactly one file path.'
+      );
+    }
+    const file =
+      path === null ? null : { path, follow: input.follow === true };
+
     // Round B — the walk and the divergence detail, in parallel.
     const [page, sides] = await Promise.all([
-      this.walk(refs, maxCount, remoteNames),
+      this.walk(refs, maxCount, remoteNames, file),
       this.divergenceSides(headSha, currentRow)
     ]);
     const divergence = toDivergenceInfo(
@@ -354,31 +371,51 @@ export class GitService {
    * `maxCount + 1` is the has-more probe: one extra commit is fetched, never
    * shown, and its existence is the only honest way to know whether the
    * "Load more" affordance should exist at all.
+   *
+   * Phase 198. `file` narrows the walk to one path: `--name-status -M` and a
+   * LITERAL pathspec, so `*` and `[` in a name never glob, and `--follow` when
+   * asked. Two things about the followed shape were measured rather than
+   * assumed, on git 2.50.1 over git's own `builtin/log.c`. `--topo-order`
+   * changes what `--follow` returns: 607 rows with it and 609 without, the
+   * two lost being ordinary M rows on a side branch merged after the rename,
+   * missed by git's order dependent pathspec rewrite, and the walk is 1.7x
+   * slower with it. The file history draws no lanes and needs no parent
+   * before child order, so a followed walk drops the flag. And git does NOT
+   * refuse a folder under `--follow`; it walks the folder and exits 0. So the
+   * refusal is ours, read off the first row: a followed file's newest row
+   * names the path that was asked for, and a folder's names a file inside it.
    */
   private async walk(
     refs: string[],
     maxCount: number,
-    remoteNames: string[]
+    remoteNames: string[],
+    file: { path: string; follow: boolean } | null = null
   ): Promise<{ entries: GitGraphLogEntry[]; hasMore: boolean }> {
     // Guard, not an optimisation: `git log --stdin` with NO revisions on stdin
     // silently falls back to walking HEAD, which would quietly hand back the
     // wrong scope for an empty ref set.
     if (refs.length === 0) return { entries: [], hasMore: false };
 
-    const r = await runGit(
-      this.repoPath,
-      [
-        'log',
-        '-z',
-        '--topo-order',
-        '--decorate=full',
-        '--ignore-missing',
-        '--stdin',
-        `--max-count=${maxCount + 1}`,
-        `--format=${GRAPH_LOG_FORMAT}`
-      ],
-      { stdin: `${refs.join('\n')}\n` }
-    );
+    const relPath = file === null ? null : this.assertRelPath(file.path);
+    const follow = file !== null && file.follow;
+    const args = [
+      'log',
+      '-z',
+      ...(follow ? [] : ['--topo-order']),
+      '--decorate=full',
+      '--ignore-missing',
+      '--stdin',
+      `--max-count=${maxCount + 1}`,
+      `--format=${GRAPH_LOG_FORMAT}`
+    ];
+    if (relPath !== null) {
+      args.push('--name-status', '-M');
+      if (follow) args.push('--follow');
+      args.push('--', literalSpec(relPath));
+    }
+    const r = await runGit(this.repoPath, args, {
+      stdin: `${refs.join('\n')}\n`
+    });
 
     if (r.code !== 0) {
       // Empty repo (unborn HEAD) and not-a-repo both render as "no history".
@@ -392,7 +429,23 @@ export class GitService {
       );
     }
 
-    const parsed = parseGraphLog(r.stdout.toString('utf8'), { remoteNames });
+    const parsed = parseGraphLog(r.stdout.toString('utf8'), {
+      remoteNames,
+      files: relPath !== null
+    });
+    const newest = parsed[0];
+    if (
+      follow &&
+      relPath !== null &&
+      newest !== undefined &&
+      newest.file?.path !== relPath
+    ) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        'Only a file can be followed through its history. That path is a folder.',
+        relPath
+      );
+    }
     const hasMore = parsed.length > maxCount;
     return {
       entries: hasMore ? parsed.slice(0, maxCount) : parsed,

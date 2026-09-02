@@ -411,6 +411,53 @@ export function parseNameStatusZ(output: string): NameStatusEntry[] {
   return entries;
 }
 
+/**
+ * Phase 198. Read the `--name-status -M` chunk that follows ONE record of a
+ * `git log -z --format=<fields> --name-status` walk, and say where the next
+ * record starts.
+ *
+ * The byte shape, read from real output rather than from the manual: after
+ * the record's own NUL, git emits a status token that BEGINS WITH A NEWLINE
+ * ("\nM", "\nR100"), then NUL, the path, NUL, and for R and C a second path
+ * and NUL; the next record starts immediately with no separator of its own.
+ * A merge commit on the plain path walk has no chunk at all. So
+ * `parseNameStatusZ` cannot be handed the chunk raw: the leading newline
+ * would make the kind '\n' and the answer 'X'. This reads tokens from
+ * `start` for as long as they begin with a newline, strips it, and reads the
+ * one or two path tokens each status consumes. `next` is the index of the
+ * first token that is not part of the chunk.
+ */
+export function readNameStatusChunk(
+  tokens: readonly string[],
+  start: number
+): { entries: NameStatusEntry[]; next: number } {
+  const entries: NameStatusEntry[] = [];
+  let i = start;
+  while (i < tokens.length) {
+    const token = tokens[i];
+    if (token === undefined || !token.startsWith('\n')) break;
+    const status = token.slice(1);
+    const kind = status.charAt(0);
+    if (kind === 'R' || kind === 'C') {
+      const orig = tokens[i + 1];
+      const path = tokens[i + 2];
+      i += 3;
+      if (path === undefined || path.length === 0) continue;
+      entries.push({
+        path,
+        ...(orig !== undefined && orig.length > 0 ? { origPath: orig } : {}),
+        status: kind as GitCommitFileState
+      });
+    } else {
+      const path = tokens[i + 1];
+      i += 2;
+      if (path === undefined || path.length === 0) continue;
+      entries.push({ path, status: toCommitState(kind) });
+    }
+  }
+  return { entries, next: i };
+}
+
 export interface NumstatEntry {
   path: string;
   origPath?: string;

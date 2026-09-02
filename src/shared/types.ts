@@ -1491,6 +1491,27 @@ export interface GitGraphLogEntry extends GitLogEntryDetailed {
   unpushed?: true;
   /** Reachable from the upstream, not from HEAD — fetched work not yet merged. */
   unpulled?: true;
+  /**
+   * Phase 198. What this commit did to the ONE path the walk was given,
+   * read from the `--name-status -M` chunk that follows the record. Present
+   * only on a walk with `GitGraphLogInput.path`; absent on the plain walk,
+   * and absent on a row whose chunk git left empty, which is a merge commit
+   * on the plain path walk.
+   */
+  file?: GitGraphLogFile;
+}
+
+/**
+ * One file's change in one commit, as the file walk reports it. `path` is
+ * the path AS OF THAT COMMIT: above a rename it is the new name, and on the
+ * rename row `origPath` is the old one, so the row below the boundary carries
+ * the old path and `git:commitFileDiff` can read both sides.
+ */
+export interface GitGraphLogFile {
+  path: string;
+  /** The old path on an `R` or `C` row. */
+  origPath?: string;
+  status: GitCommitFileState;
 }
 
 /**
@@ -1547,6 +1568,20 @@ export interface GitGraphLogInput {
    * agent's `git fetch` lands mid-scroll.
    */
   refs?: string[];
+  /**
+   * Phase 198. Narrow the walk to ONE repo-relative path. It is passed as a
+   * literal pathspec, so `*` and `[` never glob, and every row then carries
+   * `GitGraphLogEntry.file`. A path that never existed answers zero rows.
+   */
+  path?: string;
+  /**
+   * Phase 198. Follow the path back through its renames and copies with
+   * `--follow`. Needs exactly one `path`; the service refuses it otherwise.
+   * Merge commits are absent from a followed walk, because `--follow` drops
+   * them, and the walk is not topo ordered, because topo order makes git's
+   * pathspec rewrite miss rows that were merged after the rename.
+   */
+  follow?: boolean;
 }
 
 /** git:graphLog — everything one history render needs, in one round trip. */

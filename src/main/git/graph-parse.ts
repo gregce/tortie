@@ -27,7 +27,11 @@ import type {
   GitGraphLogEntry,
   GitRefKind
 } from '@shared/types';
-import { parseUpstreamTrack, remoteOfUpstream } from './parse';
+import {
+  parseUpstreamTrack,
+  readNameStatusChunk,
+  remoteOfUpstream
+} from './parse';
 
 /**
  * `%D` is deliberately the SECOND-TO-LAST field: the subject is the tail and
@@ -53,6 +57,14 @@ export interface ParseGraphLogOptions {
    * back to the first path segment (VS Code's behaviour).
    */
   remoteNames?: string[];
+  /**
+   * Phase 198. The walk carried `--name-status -M` and a path, so each record
+   * is followed by a chunk saying what the commit did to that path. Read it
+   * into `entry.file` (see `readNameStatusChunk` for the byte shape). Off by
+   * default: the plain walk has no chunks and this loop would skip them
+   * anyway, but a reader that is asked for is a reader that can be tested.
+   */
+  files?: boolean;
 }
 
 /**
@@ -66,7 +78,9 @@ export function parseGraphLog(
   options: ParseGraphLogOptions = {}
 ): GitGraphLogEntry[] {
   const entries: GitGraphLogEntry[] = [];
-  for (const record of output.split('\0')) {
+  const tokens = output.split('\0');
+  for (let i = 0; i < tokens.length; i++) {
+    const record = tokens[i] ?? '';
     if (record.length === 0) continue;
     const f = record.split('\x1f');
     if (f.length < GRAPH_FIELDS) continue;
@@ -82,7 +96,7 @@ export function parseGraphLog(
     // A subject containing \x1f would have been split — rejoin the tail.
     const subject = f.slice(GRAPH_FIELDS).join('\x1f');
 
-    entries.push({
+    const entry: GitGraphLogEntry = {
       hash,
       parents,
       authorName,
@@ -94,7 +108,14 @@ export function parseGraphLog(
       author: authorName,
       dateISO: new Date(authorDate).toISOString(),
       refs
-    });
+    };
+    if (options.files === true) {
+      const chunk = readNameStatusChunk(tokens, i + 1);
+      const first = chunk.entries[0];
+      if (first !== undefined) entry.file = first;
+      i = chunk.next - 1;
+    }
+    entries.push(entry);
   }
   return entries;
 }
