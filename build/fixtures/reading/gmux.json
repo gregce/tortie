@@ -1,0 +1,816 @@
+{
+  "note": "A gmux shaped tree: five top level directories, src holding most of the source and splitting under P2, six small directories and a root file set folding into everything else. Nothing here is a real repository; every path, import, line count and definition is data.",
+  "subject": "tortie",
+  "workspaces": [],
+  "crates": [],
+  "trackedFiles": [
+    "package.json",
+    "README.md",
+    "CHANGELOG.md",
+    "tsconfig.json",
+    ".gitignore",
+    ".github/workflows/ci.yml",
+    ".claude/settings.json",
+    "patches/left-pad.patch",
+    "resources/icon.png",
+    "resources/tmux.conf",
+    "build/probe-a.mjs",
+    "build/probe-b.mjs",
+    "build/probe-c.mjs",
+    "build/assert-x.mjs",
+    "build/assert-y.mjs",
+    "build/assert-z.mjs",
+    "build/conformance-one.mjs",
+    "build/verify.mjs",
+    "build/fixtures/arch/facts.json",
+    "docs/DESIGN.md",
+    "docs/ZEN.md",
+    "docs/readme/x.md",
+    "docs/research/r01.md",
+    "docs/research/r02.md",
+    "docs/research/r03.md",
+    "docs/research/r04.md",
+    "docs/research/r05.md",
+    "docs/research/r06.md",
+    "docs/research/r07.md",
+    "docs/research/r08.md",
+    "docs/research/r09.md",
+    "docs/research/r10.md",
+    "docs/research/r11.md",
+    "docs/research/r12.md",
+    "docs/research/r13.md",
+    "docs/research/r14.md",
+    "docs/research/r15.md",
+    "docs/research/r16.md",
+    "docs/research/r17.md",
+    "docs/research/r18.md",
+    "docs/research/r19.md",
+    "docs/research/r20.md",
+    "docs/audits/a1.md",
+    "docs/audits/a2.md",
+    "docs/audits/a3.md",
+    "docs/audits/a4.md",
+    "docs/audits/a5.md",
+    "docs/shots/take.mjs",
+    "docs/method/count.mjs",
+    "docs/method/check.mjs",
+    "src/main/index.ts",
+    "src/main/arch/skeleton.ts",
+    "src/main/arch/map.ts",
+    "src/main/tmux/client.ts",
+    "src/main/tmux/server.ts",
+    "src/main/manifest/store.ts",
+    "src/main/sessions/core.ts",
+    "src/main/git/service.ts",
+    "src/renderer/index.html",
+    "src/renderer/main.tsx",
+    "src/renderer/app/App.tsx",
+    "src/renderer/app/Sidebar.tsx",
+    "src/renderer/arch/ArchView.tsx",
+    "src/renderer/editor/Editor.tsx",
+    "src/renderer/styles/tokens.css",
+    "src/shared/ipc/index.ts",
+    "src/shared/ipc/arch.ts",
+    "src/shared/arch.ts",
+    "src/shared/keymap.ts",
+    "src/preload/index.ts",
+    "src/preload/bridge.ts",
+    "src/preload/terminal.ts",
+    "src/test/electron-stub.cjs"
+  ],
+  "imports": [
+    {
+      "fromPath": "src/renderer/main.tsx",
+      "toPath": "src/shared/ipc/index.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/renderer/app/App.tsx",
+      "toPath": "src/shared/ipc/index.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/renderer/app/Sidebar.tsx",
+      "toPath": "src/shared/keymap.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/renderer/arch/ArchView.tsx",
+      "toPath": "src/shared/arch.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/renderer/editor/Editor.tsx",
+      "toPath": "src/shared/ipc/arch.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/renderer/app/App.tsx",
+      "toPath": "src/renderer/app/Sidebar.tsx",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/main/index.ts",
+      "toPath": "src/shared/ipc/index.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/main/arch/map.ts",
+      "toPath": "src/shared/ipc/arch.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/main/arch/skeleton.ts",
+      "toPath": "src/shared/arch.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/main/arch/map.ts",
+      "toPath": "src/main/arch/skeleton.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/main/sessions/core.ts",
+      "toPath": "src/main/tmux/client.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/main/tmux/client.ts",
+      "toPath": "src/main/tmux/server.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/main/index.ts",
+      "toPath": "src/main/manifest/store.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/preload/index.ts",
+      "toPath": "src/shared/ipc/index.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/preload/bridge.ts",
+      "toPath": "src/shared/ipc/arch.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/preload/terminal.ts",
+      "toPath": "src/preload/bridge.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "build/probe-a.mjs",
+      "toPath": "src/main/arch/map.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "build/probe-b.mjs",
+      "toPath": "src/main/arch/skeleton.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "build/verify.mjs",
+      "toPath": "src/shared/arch.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "build/conformance-one.mjs",
+      "toPath": "src/main/git/service.ts",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "build/assert-x.mjs",
+      "toPath": "build/assert-y.mjs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "build/probe-c.mjs",
+      "toPath": null,
+      "resolution": "external"
+    },
+    {
+      "fromPath": "src/main/index.ts",
+      "toPath": null,
+      "resolution": "external"
+    },
+    {
+      "fromPath": "src/main/git/service.ts",
+      "toPath": null,
+      "resolution": "external"
+    },
+    {
+      "fromPath": "src/renderer/main.tsx",
+      "toPath": null,
+      "resolution": "external"
+    },
+    {
+      "fromPath": "docs/shots/take.mjs",
+      "toPath": null,
+      "resolution": "external"
+    },
+    {
+      "fromPath": "docs/method/count.mjs",
+      "toPath": "docs/method/check.mjs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "src/test/electron-stub.cjs",
+      "toPath": null,
+      "resolution": "unresolved"
+    }
+  ],
+  "treeFacts": [
+    {
+      "path": "package.json",
+      "lines": 12,
+      "declares": "tortie"
+    },
+    {
+      "path": "README.md",
+      "lines": 57,
+      "declares": null
+    },
+    {
+      "path": "CHANGELOG.md",
+      "lines": 94,
+      "declares": null
+    },
+    {
+      "path": "tsconfig.json",
+      "lines": 131,
+      "declares": null
+    },
+    {
+      "path": ".gitignore",
+      "lines": 168,
+      "declares": null
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "lines": 205,
+      "declares": null
+    },
+    {
+      "path": ".claude/settings.json",
+      "lines": 242,
+      "declares": null
+    },
+    {
+      "path": "patches/left-pad.patch",
+      "lines": 279,
+      "declares": null
+    },
+    {
+      "path": "resources/icon.png",
+      "lines": 0,
+      "declares": null
+    },
+    {
+      "path": "resources/tmux.conf",
+      "lines": 53,
+      "declares": null
+    },
+    {
+      "path": "build/probe-a.mjs",
+      "lines": 90,
+      "declares": null
+    },
+    {
+      "path": "build/probe-b.mjs",
+      "lines": 127,
+      "declares": null
+    },
+    {
+      "path": "build/probe-c.mjs",
+      "lines": 164,
+      "declares": null
+    },
+    {
+      "path": "build/assert-x.mjs",
+      "lines": 201,
+      "declares": null
+    },
+    {
+      "path": "build/assert-y.mjs",
+      "lines": 238,
+      "declares": null
+    },
+    {
+      "path": "build/assert-z.mjs",
+      "lines": 275,
+      "declares": null
+    },
+    {
+      "path": "build/conformance-one.mjs",
+      "lines": 312,
+      "declares": null
+    },
+    {
+      "path": "build/verify.mjs",
+      "lines": 49,
+      "declares": null
+    },
+    {
+      "path": "build/fixtures/arch/facts.json",
+      "lines": 86,
+      "declares": null
+    },
+    {
+      "path": "docs/DESIGN.md",
+      "lines": 123,
+      "declares": null
+    },
+    {
+      "path": "docs/ZEN.md",
+      "lines": 160,
+      "declares": null
+    },
+    {
+      "path": "docs/readme/x.md",
+      "lines": 197,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r01.md",
+      "lines": 234,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r02.md",
+      "lines": 271,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r03.md",
+      "lines": 308,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r04.md",
+      "lines": 45,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r05.md",
+      "lines": 82,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r06.md",
+      "lines": 119,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r07.md",
+      "lines": 156,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r08.md",
+      "lines": 193,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r09.md",
+      "lines": 230,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r10.md",
+      "lines": 267,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r11.md",
+      "lines": 304,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r12.md",
+      "lines": 41,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r13.md",
+      "lines": 78,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r14.md",
+      "lines": 115,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r15.md",
+      "lines": 152,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r16.md",
+      "lines": 189,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r17.md",
+      "lines": 226,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r18.md",
+      "lines": 263,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r19.md",
+      "lines": 300,
+      "declares": null
+    },
+    {
+      "path": "docs/research/r20.md",
+      "lines": 37,
+      "declares": null
+    },
+    {
+      "path": "docs/audits/a1.md",
+      "lines": 74,
+      "declares": null
+    },
+    {
+      "path": "docs/audits/a2.md",
+      "lines": 111,
+      "declares": null
+    },
+    {
+      "path": "docs/audits/a3.md",
+      "lines": 148,
+      "declares": null
+    },
+    {
+      "path": "docs/audits/a4.md",
+      "lines": 185,
+      "declares": null
+    },
+    {
+      "path": "docs/audits/a5.md",
+      "lines": 222,
+      "declares": null
+    },
+    {
+      "path": "docs/shots/take.mjs",
+      "lines": 259,
+      "declares": null
+    },
+    {
+      "path": "docs/method/count.mjs",
+      "lines": 296,
+      "declares": null
+    },
+    {
+      "path": "docs/method/check.mjs",
+      "lines": 33,
+      "declares": null
+    },
+    {
+      "path": "src/main/index.ts",
+      "lines": 70,
+      "declares": null
+    },
+    {
+      "path": "src/main/arch/skeleton.ts",
+      "lines": 107,
+      "declares": null
+    },
+    {
+      "path": "src/main/arch/map.ts",
+      "lines": 144,
+      "declares": null
+    },
+    {
+      "path": "src/main/tmux/client.ts",
+      "lines": 181,
+      "declares": null
+    },
+    {
+      "path": "src/main/tmux/server.ts",
+      "lines": 218,
+      "declares": null
+    },
+    {
+      "path": "src/main/manifest/store.ts",
+      "lines": 255,
+      "declares": null
+    },
+    {
+      "path": "src/main/sessions/core.ts",
+      "lines": 292,
+      "declares": null
+    },
+    {
+      "path": "src/main/git/service.ts",
+      "lines": 29,
+      "declares": null
+    },
+    {
+      "path": "src/renderer/index.html",
+      "lines": 66,
+      "declares": null
+    },
+    {
+      "path": "src/renderer/main.tsx",
+      "lines": 103,
+      "declares": null
+    },
+    {
+      "path": "src/renderer/app/App.tsx",
+      "lines": 140,
+      "declares": null
+    },
+    {
+      "path": "src/renderer/app/Sidebar.tsx",
+      "lines": 177,
+      "declares": null
+    },
+    {
+      "path": "src/renderer/arch/ArchView.tsx",
+      "lines": 214,
+      "declares": null
+    },
+    {
+      "path": "src/renderer/editor/Editor.tsx",
+      "lines": 251,
+      "declares": null
+    },
+    {
+      "path": "src/renderer/styles/tokens.css",
+      "lines": 288,
+      "declares": null
+    },
+    {
+      "path": "src/shared/ipc/index.ts",
+      "lines": 25,
+      "declares": null
+    },
+    {
+      "path": "src/shared/ipc/arch.ts",
+      "lines": 62,
+      "declares": null
+    },
+    {
+      "path": "src/shared/arch.ts",
+      "lines": 99,
+      "declares": null
+    },
+    {
+      "path": "src/shared/keymap.ts",
+      "lines": 136,
+      "declares": null
+    },
+    {
+      "path": "src/preload/index.ts",
+      "lines": 173,
+      "declares": null
+    },
+    {
+      "path": "src/preload/bridge.ts",
+      "lines": 210,
+      "declares": null
+    },
+    {
+      "path": "src/preload/terminal.ts",
+      "lines": 247,
+      "declares": null
+    },
+    {
+      "path": "src/test/electron-stub.cjs",
+      "lines": 284,
+      "declares": null
+    }
+  ],
+  "definitions": [
+    {
+      "path": "build/probe-a.mjs",
+      "kinds": {
+        "function": 2,
+        "constant": 3
+      }
+    },
+    {
+      "path": "build/probe-b.mjs",
+      "kinds": {
+        "function": 3,
+        "constant": 3
+      }
+    },
+    {
+      "path": "build/probe-c.mjs",
+      "kinds": {
+        "function": 4,
+        "constant": 3
+      }
+    },
+    {
+      "path": "build/assert-x.mjs",
+      "kinds": {
+        "function": 5,
+        "constant": 3
+      }
+    },
+    {
+      "path": "build/assert-y.mjs",
+      "kinds": {
+        "function": 2,
+        "constant": 3
+      }
+    },
+    {
+      "path": "build/assert-z.mjs",
+      "kinds": {
+        "function": 3,
+        "constant": 3
+      }
+    },
+    {
+      "path": "build/conformance-one.mjs",
+      "kinds": {
+        "function": 4,
+        "constant": 3
+      }
+    },
+    {
+      "path": "build/verify.mjs",
+      "kinds": {
+        "function": 5,
+        "constant": 3
+      }
+    },
+    {
+      "path": "docs/shots/take.mjs",
+      "kinds": {
+        "function": 2,
+        "constant": 3
+      }
+    },
+    {
+      "path": "docs/method/count.mjs",
+      "kinds": {
+        "function": 3,
+        "constant": 3
+      }
+    },
+    {
+      "path": "docs/method/check.mjs",
+      "kinds": {
+        "function": 4,
+        "constant": 3
+      }
+    },
+    {
+      "path": "src/main/index.ts",
+      "kinds": {
+        "function": 5,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/main/arch/skeleton.ts",
+      "kinds": {
+        "function": 2,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/main/arch/map.ts",
+      "kinds": {
+        "function": 3,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/main/tmux/client.ts",
+      "kinds": {
+        "function": 4,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/main/tmux/server.ts",
+      "kinds": {
+        "function": 5,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/main/manifest/store.ts",
+      "kinds": {
+        "function": 2,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/main/sessions/core.ts",
+      "kinds": {
+        "function": 3,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/main/git/service.ts",
+      "kinds": {
+        "function": 4,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/renderer/main.tsx",
+      "kinds": {
+        "function": 5,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/renderer/app/App.tsx",
+      "kinds": {
+        "function": 2,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/renderer/app/Sidebar.tsx",
+      "kinds": {
+        "function": 3,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/renderer/arch/ArchView.tsx",
+      "kinds": {
+        "function": 4,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/renderer/editor/Editor.tsx",
+      "kinds": {
+        "function": 5,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/shared/ipc/index.ts",
+      "kinds": {
+        "function": 2,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/shared/ipc/arch.ts",
+      "kinds": {
+        "function": 3,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/shared/arch.ts",
+      "kinds": {
+        "function": 4,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/shared/keymap.ts",
+      "kinds": {
+        "function": 5,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/preload/index.ts",
+      "kinds": {
+        "function": 2,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/preload/bridge.ts",
+      "kinds": {
+        "function": 3,
+        "interface": 2
+      }
+    },
+    {
+      "path": "src/preload/terminal.ts",
+      "kinds": {
+        "function": 4,
+        "interface": 1
+      }
+    },
+    {
+      "path": "src/test/electron-stub.cjs",
+      "kinds": {
+        "function": 5,
+        "constant": 3
+      }
+    }
+  ]
+}

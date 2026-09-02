@@ -22,7 +22,10 @@ import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ArchStore } from './db';
 import { bareName, MANIFEST_NAMES } from './reading';
-import { normalizeRel } from './resolver/manifest';
+// From ./resolver/paths rather than the manifest reader's facade, so this
+// module pulls in no language arm and no parser: the conformance gate imports
+// it from a bare copy of this directory.
+import { normalizeRel } from './resolver/paths';
 
 export type { ArchTreeFileFact } from './db';
 

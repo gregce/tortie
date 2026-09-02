@@ -127,6 +127,7 @@
     "conformance:filehistory": "node build/conformance-filehistory.mjs",
     "conformance:watcher": "node build/conformance-watcher.mjs",
     "conformance:arch": "node build/conformance-arch.mjs",
+    "conformance:reading": "node build/conformance-reading.mjs",
     "conformance:arch:modules": "node build/conformance-arch-modules.mjs",
     "conformance:watcher:cap": "node build/fsevents-cap.mjs",
     "conformance:handback": "node build/conformance-handback.mjs",

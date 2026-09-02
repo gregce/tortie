@@ -1,0 +1,1218 @@
+{
+  "note": "What npm run conformance:reading pins, byte for byte, over the three committed fixtures beside it and the two trees the probe builds itself. Regenerate on purpose only, with node build/reading-conformance-probe.mts over the shipping tree, and say in the commit body which sentence moved and why.",
+  "gmux": {
+    "sentence": "tortie: 73 files, TypeScript and Markdown; 7 parts, the biggest docs (42%); 5 connections between parts; 22 of 28 imports lead inside the repository.",
+    "words": 24,
+    "edges": [
+      "src-renderer>src-shared:5",
+      "build>src-main:3",
+      "src-main>src-shared:3",
+      "src-preload>src-shared:2",
+      "build>src-shared:1"
+    ],
+    "boxes": [
+      {
+        "id": "build",
+        "label": "build",
+        "fileCount": 9,
+        "band": "surface",
+        "words": 21,
+        "sentence": "9 files, mostly JavaScript; made of assert*, probe* and 3 more; uses src/main and src/shared; no other part uses it.",
+        "facts": [
+          "Size: 9 files, 1,542 lines",
+          "Languages: JavaScript 8, JSON 1",
+          "Defines: 28 functions, 24 constants",
+          "Imports: 6 written, 5 to this repository, 1 to dependencies, 0 not followed",
+          "Uses: src/main 3, src/shared 1",
+          "Folders: fixtures 1"
+        ],
+        "languages": [
+          {
+            "name": "JavaScript",
+            "files": 8
+          },
+          {
+            "name": "JSON",
+            "files": 1
+          }
+        ],
+        "lines": 1542,
+        "entries": []
+      },
+      {
+        "id": "docs",
+        "label": "docs",
+        "fileCount": 31,
+        "band": "surface",
+        "words": 18,
+        "sentence": "31 files, mostly Markdown; made of research, audits, method, readme, shots; not code apart from 3 files.",
+        "facts": [
+          "Size: 31 files, 5,418 lines",
+          "Languages: Markdown 28, JavaScript 3",
+          "Defines: 9 constants, 9 functions",
+          "Imports: 2 written, 1 to this repository, 1 to dependencies, 0 not followed",
+          "Folders: research 20, audits 5, method 2, readme 1, shots 1"
+        ],
+        "languages": [
+          {
+            "name": "Markdown",
+            "files": 28
+          },
+          {
+            "name": "JavaScript",
+            "files": 3
+          }
+        ],
+        "lines": 5418,
+        "entries": []
+      },
+      {
+        "id": "other",
+        "label": "everything else",
+        "fileCount": 11,
+        "band": "surface",
+        "words": 26,
+        "sentence": "11 files, JSON and other files; 5 small folders (resources, .claude, .github, patches, src/test) and 5 root files; not code apart from 1 file.",
+        "facts": [
+          "Size: 11 files, 1,525 lines",
+          "Languages: JSON 3, Markdown 2, config files 1, files with no extension 1, images 1",
+          "Defines: 5 functions, 3 constants",
+          "Declares: package.json tortie",
+          "Imports: 1 written, 0 to this repository, 0 to dependencies, 1 not followed",
+          "Folders: resources 2, .claude 1, .github 1, patches 1, test 1",
+          "Also holds: src/test"
+        ],
+        "languages": [
+          {
+            "name": "JSON",
+            "files": 3
+          },
+          {
+            "name": "Markdown",
+            "files": 2
+          },
+          {
+            "name": "config files",
+            "files": 1
+          },
+          {
+            "name": "files with no extension",
+            "files": 1
+          },
+          {
+            "name": "images",
+            "files": 1
+          },
+          {
+            "name": "JavaScript",
+            "files": 1
+          },
+          {
+            "name": "patches",
+            "files": 1
+          },
+          {
+            "name": "YAML",
+            "files": 1
+          }
+        ],
+        "lines": 1525,
+        "entries": []
+      },
+      {
+        "id": "src-main",
+        "label": "src/main",
+        "fileCount": 8,
+        "band": "engine",
+        "words": 21,
+        "sentence": "8 files, TypeScript; made of arch, tmux, git, manifest, sessions and 1 more; used by build; uses src/shared; entry src/main/index.ts.",
+        "facts": [
+          "Size: 8 files, 1,296 lines",
+          "Languages: TypeScript 8",
+          "Defines: 28 functions, 12 interfaces",
+          "Entries: src/main/index.ts, src/main/tmux/server.ts",
+          "Imports: 9 written, 7 to this repository, 2 to dependencies, 0 not followed",
+          "Used by: build 3",
+          "Uses: src/shared 3",
+          "Folders: arch 2, tmux 2, git 1, manifest 1, sessions 1"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 8
+          }
+        ],
+        "lines": 1296,
+        "entries": [
+          "src/main/index.ts",
+          "src/main/tmux/server.ts"
+        ]
+      },
+      {
+        "id": "src-preload",
+        "label": "src/preload",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 20,
+        "sentence": "3 files, TypeScript; made of terminal, bridge and 1 more; uses src/shared; no other part uses it; entry src/preload/index.ts.",
+        "facts": [
+          "Size: 3 files, 630 lines",
+          "Languages: TypeScript 3",
+          "Defines: 9 functions, 4 interfaces",
+          "Entries: src/preload/index.ts",
+          "Imports: 3 written, 3 to this repository, 0 to dependencies, 0 not followed",
+          "Uses: src/shared 2"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 3
+          }
+        ],
+        "lines": 630,
+        "entries": [
+          "src/preload/index.ts"
+        ]
+      },
+      {
+        "id": "src-renderer",
+        "label": "src/renderer",
+        "fileCount": 7,
+        "band": "surface",
+        "words": 23,
+        "sentence": "7 files, mostly TypeScript; made of app, arch, editor, styles and 1 more; uses src/shared; no other part uses it; entry src/renderer/index.html.",
+        "facts": [
+          "Size: 7 files, 1,239 lines",
+          "Languages: TypeScript 5, CSS 1, HTML 1",
+          "Defines: 19 functions, 8 interfaces",
+          "Entries: src/renderer/index.html, src/renderer/main.tsx",
+          "Imports: 7 written, 6 to this repository, 1 to dependencies, 0 not followed",
+          "Uses: src/shared 5",
+          "Folders: app 2, arch 1, editor 1, styles 1"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 5
+          },
+          {
+            "name": "CSS",
+            "files": 1
+          },
+          {
+            "name": "HTML",
+            "files": 1
+          }
+        ],
+        "lines": 1239,
+        "entries": [
+          "src/renderer/index.html",
+          "src/renderer/main.tsx"
+        ]
+      },
+      {
+        "id": "src-shared",
+        "label": "src/shared",
+        "fileCount": 4,
+        "band": "foundation",
+        "words": 25,
+        "sentence": "4 files, TypeScript; made of keymap, arch and 1 more; used by src/renderer and src/main and 2 more; uses no other part; entry src/shared/ipc/index.ts.",
+        "facts": [
+          "Size: 4 files, 322 lines",
+          "Languages: TypeScript 4",
+          "Defines: 14 functions, 6 interfaces",
+          "Entries: src/shared/ipc/index.ts",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed",
+          "Used by: src/renderer 5, src/main 3, src/preload 2, build 1",
+          "Folders: ipc 2"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 4
+          }
+        ],
+        "lines": 322,
+        "entries": [
+          "src/shared/ipc/index.ts"
+        ]
+      }
+    ],
+    "drill": {
+      "part": "src/main",
+      "modules": [
+        "src-main:1:1 file, TypeScript; made of index; uses src/main/manifest; no other part uses it; entry src/main/index.ts.",
+        "src-main-arch:2:2 files, TypeScript; made of map, skeleton; self contained (1 import inside, none across).",
+        "src-main-git:1:1 file, TypeScript; made of service; no imports either way.",
+        "src-main-manifest:1:1 file, TypeScript; made of store; used by src/main; uses no other part.",
+        "src-main-sessions:1:1 file, TypeScript; made of core; uses src/main/tmux; no other part uses it.",
+        "src-main-tmux:2:2 files, TypeScript; made of server, client; used by src/main/sessions; uses no other part; entry src/main/tmux/server.ts."
+      ],
+      "crossings": [
+        "src-main-arch>build:in:2:build",
+        "src-main-arch>src-shared:out:2:src/shared",
+        "src-main>src-shared:out:1:src/shared",
+        "src-main-git>build:in:1:build"
+      ]
+    }
+  },
+  "cargo": {
+    "sentence": "ripgrep: 33 files, mostly Rust; 6 parts, the biggest crates/c (21%); 7 connections between parts; 17 of 22 imports lead inside the repository.",
+    "words": 23,
+    "edges": [
+      "crates-c>crates-b:2",
+      "crates-core>crates-c:2",
+      "crates-b>crates-a:1",
+      "crates-c>crates-a:1",
+      "crates-core>crates-a:1",
+      "crates-core>crates-b:1",
+      "other>crates-b:1"
+    ],
+    "boxes": [
+      {
+        "id": "crates-a",
+        "label": "crates/a (globset)",
+        "fileCount": 5,
+        "band": "foundation",
+        "words": 27,
+        "sentence": "5 files, mostly Rust; made of path, glob and 1 more; used by crates/b and crates/c and 1 more; uses no other part; entry crates/a/src/lib.rs.",
+        "facts": [
+          "Size: 5 files, 750 lines",
+          "Languages: Rust 3, Markdown 1, TOML 1",
+          "Defines: 9 functions, 6 structs",
+          "Declares: Cargo.toml globset",
+          "Entries: crates/a/src/lib.rs",
+          "Imports: 3 written, 2 to this repository, 1 to dependencies, 0 not followed",
+          "Used by: crates/b 1, crates/c 1, crates/core 1",
+          "Folders: src 3"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          },
+          {
+            "name": "Markdown",
+            "files": 1
+          },
+          {
+            "name": "TOML",
+            "files": 1
+          }
+        ],
+        "lines": 750,
+        "entries": [
+          "crates/a/src/lib.rs"
+        ]
+      },
+      {
+        "id": "crates-b",
+        "label": "crates/b (grep-matcher)",
+        "fileCount": 3,
+        "band": "engine",
+        "words": 24,
+        "sentence": "3 files, mostly Rust; made of matcher and 1 more; used by crates/c and crates/core and 1 more; uses crates/a; entry crates/b/src/lib.rs.",
+        "facts": [
+          "Size: 3 files, 377 lines",
+          "Languages: Rust 2, TOML 1",
+          "Defines: 7 functions, 3 structs",
+          "Declares: Cargo.toml grep-matcher",
+          "Entries: crates/b/src/lib.rs",
+          "Imports: 1 written, 1 to this repository, 0 to dependencies, 0 not followed",
+          "Used by: crates/c 2, crates/core 1, everything else 1",
+          "Uses: crates/a 1",
+          "Folders: src 2"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 2
+          },
+          {
+            "name": "TOML",
+            "files": 1
+          }
+        ],
+        "lines": 377,
+        "entries": [
+          "crates/b/src/lib.rs"
+        ]
+      },
+      {
+        "id": "crates-c",
+        "label": "crates/c (grep-printer)",
+        "fileCount": 7,
+        "band": "engine",
+        "words": 25,
+        "sentence": "7 files, mostly Rust; made of standard, hyperlink, util, color, json and 1 more; used by crates/core; uses crates/b and crates/a; entry crates/c/src/lib.rs.",
+        "facts": [
+          "Size: 7 files, 1,017 lines",
+          "Languages: Rust 6, TOML 1",
+          "Defines: 21 functions, 12 structs",
+          "Declares: Cargo.toml grep-printer",
+          "Entries: crates/c/src/lib.rs",
+          "Imports: 5 written, 4 to this repository, 1 to dependencies, 0 not followed",
+          "Used by: crates/core 2",
+          "Uses: crates/b 2, crates/a 1",
+          "Folders: src 6"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 6
+          },
+          {
+            "name": "TOML",
+            "files": 1
+          }
+        ],
+        "lines": 1017,
+        "entries": [
+          "crates/c/src/lib.rs"
+        ]
+      },
+      {
+        "id": "crates-core",
+        "label": "crates/core",
+        "fileCount": 5,
+        "band": "surface",
+        "words": 25,
+        "sentence": "5 files, Rust; made of logger, search and 2 more; uses crates/c and crates/a and 1 more; no other part uses it; entry crates/core/main.rs.",
+        "facts": [
+          "Size: 5 files, 1,055 lines",
+          "Languages: Rust 5",
+          "Defines: 19 functions, 10 structs",
+          "Entries: crates/core/main.rs",
+          "Imports: 9 written, 7 to this repository, 0 to dependencies, 2 not followed",
+          "Uses: crates/c 2, crates/a 1, crates/b 1",
+          "Folders: flags 2"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 5
+          }
+        ],
+        "lines": 1055,
+        "entries": [
+          "crates/core/main.rs"
+        ]
+      },
+      {
+        "id": "other",
+        "label": "everything else",
+        "fileCount": 9,
+        "band": "surface",
+        "words": 25,
+        "sentence": "9 files, TOML and other files; 3 small folders (fuzz, .github, benchsuite) and 5 root files; uses crates/b; no other part uses it.",
+        "facts": [
+          "Size: 9 files, 1,250 lines",
+          "Languages: files with no extension 2, TOML 2, lock files 1, Markdown 1, Python 1",
+          "Defines: 7 functions, 2 structs",
+          "Declares: Cargo.toml ripgrep, Cargo.toml ripgrep-fuzz",
+          "Imports: 2 written, 1 to this repository, 1 to dependencies, 0 not followed",
+          "Uses: crates/b 1",
+          "Folders: fuzz 2, .github 1, benchsuite 1"
+        ],
+        "languages": [
+          {
+            "name": "files with no extension",
+            "files": 2
+          },
+          {
+            "name": "TOML",
+            "files": 2
+          },
+          {
+            "name": "lock files",
+            "files": 1
+          },
+          {
+            "name": "Markdown",
+            "files": 1
+          },
+          {
+            "name": "Python",
+            "files": 1
+          },
+          {
+            "name": "Rust",
+            "files": 1
+          },
+          {
+            "name": "YAML",
+            "files": 1
+          }
+        ],
+        "lines": 1250,
+        "entries": []
+      },
+      {
+        "id": "tests",
+        "label": "tests",
+        "fileCount": 4,
+        "band": "surface",
+        "words": 20,
+        "sentence": "4 files, mostly Rust; made of util, regression, misc and 1 more; self contained (2 imports inside, none across).",
+        "facts": [
+          "Size: 4 files, 550 lines",
+          "Languages: Rust 3, text files 1",
+          "Defines: 9 functions, 6 structs",
+          "Imports: 2 written, 2 to this repository, 0 to dependencies, 0 not followed",
+          "Folders: data 1"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          },
+          {
+            "name": "text files",
+            "files": 1
+          }
+        ],
+        "lines": 550,
+        "entries": []
+      }
+    ],
+    "drill": {
+      "part": "crates/core",
+      "modules": [
+        "crates-core:3:3 files, Rust; made of logger, search and 1 more; self contained (2 imports inside, none across); entry crates/core/main.rs.",
+        "crates-core-flags:2:2 files, Rust; made of defs, parse; self contained (1 import inside, none across)."
+      ],
+      "crossings": [
+        "crates-core>crates-c:out:2:crates/c (grep-printer)",
+        "crates-core>crates-b:out:1:crates/b (grep-matcher)",
+        "crates-core-flags>crates-a:out:1:crates/a (globset)"
+      ]
+    }
+  },
+  "clients": {
+    "sentence": "rook: 54 files, Swift and Markdown; 8 parts, the biggest CHANGES (37%); 2 connections between parts; 15 of 19 imports lead inside the repository.",
+    "words": 24,
+    "edges": [
+      "clients-mac>clients-rookkit:2",
+      "clients-iphone>clients-rookkit:1"
+    ],
+    "boxes": [
+      {
+        "id": "changes",
+        "label": "CHANGES",
+        "fileCount": 20,
+        "band": "surface",
+        "words": 16,
+        "sentence": "20 files, Markdown; made of 2026-08-01-a, 2026-08-02-b, 2026-08-03-c, 2026-08-04-d, 2026-08-05-e and 2 more; not code.",
+        "facts": [
+          "Size: 20 files, 3,930 lines",
+          "Languages: Markdown 20",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed",
+          "Folders: 2026-08-01-a 3, 2026-08-02-b 3, 2026-08-03-c 3, 2026-08-04-d 3, 2026-08-05-e 3, 2026-08-06-f 3, 2026-08-07-g 2"
+        ],
+        "languages": [
+          {
+            "name": "Markdown",
+            "files": 20
+          }
+        ],
+        "lines": 3930,
+        "entries": []
+      },
+      {
+        "id": "clients-android",
+        "label": "clients/android",
+        "fileCount": 5,
+        "band": "surface",
+        "words": 18,
+        "sentence": "5 files, mostly Kotlin; made of app, gradle; self contained (2 imports inside, none across); entry clients/android/app/src/main/java/com/x/MainActivity.kt.",
+        "facts": [
+          "Size: 5 files, 595 lines",
+          "Languages: Kotlin 4, .properties files 1",
+          "Defines: 14 functions, 3 classes",
+          "Entries: clients/android/app/src/main/java/com/x/MainActivity.kt",
+          "Imports: 3 written, 2 to this repository, 1 to dependencies, 0 not followed",
+          "Folders: app 4, gradle 1"
+        ],
+        "languages": [
+          {
+            "name": "Kotlin",
+            "files": 4
+          },
+          {
+            "name": ".properties files",
+            "files": 1
+          }
+        ],
+        "lines": 595,
+        "entries": [
+          "clients/android/app/src/main/java/com/x/MainActivity.kt"
+        ]
+      },
+      {
+        "id": "clients-cli",
+        "label": "clients/cli (@rookery/cli)",
+        "fileCount": 4,
+        "band": "surface",
+        "words": 21,
+        "sentence": "4 files, mostly JavaScript; made of client and 2 more; self contained (2 imports inside, none across); entry clients/cli/src/index.mjs.",
+        "facts": [
+          "Size: 4 files, 789 lines",
+          "Languages: JavaScript 3, JSON 1",
+          "Defines: 9 constants, 9 functions",
+          "Declares: package.json @rookery/cli",
+          "Entries: clients/cli/src/index.mjs",
+          "Imports: 3 written, 2 to this repository, 1 to dependencies, 0 not followed",
+          "Folders: src 2, test 1"
+        ],
+        "languages": [
+          {
+            "name": "JavaScript",
+            "files": 3
+          },
+          {
+            "name": "JSON",
+            "files": 1
+          }
+        ],
+        "lines": 789,
+        "entries": [
+          "clients/cli/src/index.mjs"
+        ]
+      },
+      {
+        "id": "clients-iphone",
+        "label": "clients/iphone",
+        "fileCount": 5,
+        "band": "surface",
+        "words": 20,
+        "sentence": "5 files, mostly Swift; made of App and 4 more; uses clients/RookKit; no other part uses it; entry clients/iphone/Sources/App.swift.",
+        "facts": [
+          "Size: 5 files, 879 lines",
+          "Languages: Swift 3, .pbxproj files 1, images 1",
+          "Defines: 9 functions, 3 classes",
+          "Entries: clients/iphone/Sources/App.swift",
+          "Imports: 2 written, 2 to this repository, 0 to dependencies, 0 not followed",
+          "Uses: clients/RookKit 1",
+          "Folders: Sources 3, Assets.xcassets 1, Rook.xcodeproj 1"
+        ],
+        "languages": [
+          {
+            "name": "Swift",
+            "files": 3
+          },
+          {
+            "name": ".pbxproj files",
+            "files": 1
+          },
+          {
+            "name": "images",
+            "files": 1
+          }
+        ],
+        "lines": 879,
+        "entries": [
+          "clients/iphone/Sources/App.swift"
+        ]
+      },
+      {
+        "id": "clients-mac",
+        "label": "clients/mac",
+        "fileCount": 6,
+        "band": "surface",
+        "words": 20,
+        "sentence": "6 files, mostly Swift; made of App and 5 more; uses clients/RookKit; no other part uses it; entry clients/mac/Sources/App.swift.",
+        "facts": [
+          "Size: 6 files, 945 lines",
+          "Languages: Swift 5, images 1",
+          "Defines: 19 functions, 5 classes",
+          "Entries: clients/mac/Sources/App.swift",
+          "Imports: 4 written, 4 to this repository, 0 to dependencies, 0 not followed",
+          "Uses: clients/RookKit 2",
+          "Folders: Sources 4, Assets.xcassets 1, Tests 1"
+        ],
+        "languages": [
+          {
+            "name": "Swift",
+            "files": 5
+          },
+          {
+            "name": "images",
+            "files": 1
+          }
+        ],
+        "lines": 945,
+        "entries": [
+          "clients/mac/Sources/App.swift"
+        ]
+      },
+      {
+        "id": "clients-rookkit",
+        "label": "clients/RookKit",
+        "fileCount": 4,
+        "band": "foundation",
+        "words": 17,
+        "sentence": "4 files, Swift; made of RookKit, Tests; used by clients/mac and clients/iphone; uses no other part.",
+        "facts": [
+          "Size: 4 files, 345 lines",
+          "Languages: Swift 4",
+          "Defines: 14 functions, 4 classes",
+          "Declares: Package.swift RookKit",
+          "Imports: 2 written, 2 to this repository, 0 to dependencies, 0 not followed",
+          "Used by: clients/mac 2, clients/iphone 1",
+          "Folders: Sources 2, Tests 1"
+        ],
+        "languages": [
+          {
+            "name": "Swift",
+            "files": 4
+          }
+        ],
+        "lines": 345,
+        "entries": []
+      },
+      {
+        "id": "other",
+        "label": "everything else",
+        "fileCount": 5,
+        "band": "surface",
+        "words": 18,
+        "sentence": "5 files, JSON and Markdown; 2 small folders (.claude, scripts) and 3 root files; not code.",
+        "facts": [
+          "Size: 5 files, 462 lines",
+          "Languages: JSON 2, files with no extension 1, Markdown 1, shell scripts 1",
+          "Defines: nothing this build reads",
+          "Declares: package.json rook",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed",
+          "Folders: .claude 1, scripts 1"
+        ],
+        "languages": [
+          {
+            "name": "JSON",
+            "files": 2
+          },
+          {
+            "name": "files with no extension",
+            "files": 1
+          },
+          {
+            "name": "Markdown",
+            "files": 1
+          },
+          {
+            "name": "shell scripts",
+            "files": 1
+          }
+        ],
+        "lines": 462,
+        "entries": []
+      },
+      {
+        "id": "server",
+        "label": "server (rookery-server)",
+        "fileCount": 5,
+        "band": "surface",
+        "words": 21,
+        "sentence": "5 files, mostly TypeScript; made of index and 3 more; self contained (3 imports inside, none across); entry server/src/index.ts.",
+        "facts": [
+          "Size: 5 files, 514 lines",
+          "Languages: TypeScript 4, JSON 1",
+          "Defines: 14 functions, 6 interfaces",
+          "Declares: package.json rookery-server",
+          "Entries: server/src/index.ts",
+          "Imports: 5 written, 3 to this repository, 2 to dependencies, 0 not followed",
+          "Folders: src 4"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 4
+          },
+          {
+            "name": "JSON",
+            "files": 1
+          }
+        ],
+        "lines": 514,
+        "entries": [
+          "server/src/index.ts"
+        ]
+      }
+    ],
+    "drill": {
+      "part": "clients/mac",
+      "modules": [
+        "clients-mac-assets-xcassets:1:1 file, images; 1 loose file; not code.",
+        "clients-mac-sources:1:1 file, Swift; made of App; self contained (no import crosses to another part); entry clients/mac/Sources/App.swift.",
+        "clients-mac-sources-models:1:1 file, Swift; made of Session; used by clients/mac/Sources/Views; uses no other part.",
+        "clients-mac-sources-services:1:1 file, Swift; made of Sync; used by clients/mac/Tests; uses no other part.",
+        "clients-mac-sources-views:1:1 file, Swift; made of Main; uses clients/mac/Sources/Models; no other part uses it.",
+        "clients-mac-tests:1:1 file, Swift; made of SyncTests; uses clients/mac/Sources/Services; no other part uses it."
+      ],
+      "crossings": [
+        "clients-mac-sources>clients-rookkit:out:1:clients/RookKit",
+        "clients-mac-sources-services>clients-rookkit:out:1:clients/RookKit"
+      ]
+    }
+  },
+  "tiny": {
+    "sentence": "tiny: 9 files, mostly TypeScript; 7 parts, the biggest src/app (22%); 2 connections between parts; 2 of 2 imports lead inside the repository.",
+    "words": 23,
+    "edges": [
+      "src-app>src-core:1",
+      "src-core>src-store:1"
+    ],
+    "boxes": [
+      {
+        "id": "other",
+        "label": "everything else",
+        "fileCount": 1,
+        "band": "surface",
+        "words": 10,
+        "sentence": "1 file, JSON; 1 root file; not code.",
+        "facts": [
+          "Size: 1 file, 5 lines",
+          "Languages: JSON 1",
+          "Defines: nothing this build reads",
+          "Declares: package.json tiny",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "JSON",
+            "files": 1
+          }
+        ],
+        "lines": 5,
+        "entries": []
+      },
+      {
+        "id": "src-app",
+        "label": "src/app",
+        "fileCount": 2,
+        "band": "surface",
+        "words": 19,
+        "sentence": "2 files, TypeScript; made of view and 1 more; uses src/core; no other part uses it; entry src/app/main.ts.",
+        "facts": [
+          "Size: 2 files, 0 lines",
+          "Languages: TypeScript 2",
+          "Defines: nothing this build reads",
+          "Entries: src/app/main.ts",
+          "Imports: 1 written, 1 to this repository, 0 to dependencies, 0 not followed",
+          "Uses: src/core 1"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 2
+          }
+        ],
+        "lines": 0,
+        "entries": [
+          "src/app/main.ts"
+        ]
+      },
+      {
+        "id": "src-core",
+        "label": "src/core",
+        "fileCount": 2,
+        "band": "engine",
+        "words": 13,
+        "sentence": "2 files, TypeScript; made of engine, util; used by src/app; uses src/store.",
+        "facts": [
+          "Size: 2 files, 0 lines",
+          "Languages: TypeScript 2",
+          "Defines: nothing this build reads",
+          "Imports: 1 written, 1 to this repository, 0 to dependencies, 0 not followed",
+          "Used by: src/app 1",
+          "Uses: src/store 1"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 2
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "src-log",
+        "label": "src/log",
+        "fileCount": 1,
+        "band": "surface",
+        "words": 11,
+        "sentence": "1 file, TypeScript; made of log; no imports either way.",
+        "facts": [
+          "Size: 1 file, 0 lines",
+          "Languages: TypeScript 1",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 1
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "src-net",
+        "label": "src/net",
+        "fileCount": 1,
+        "band": "surface",
+        "words": 11,
+        "sentence": "1 file, TypeScript; made of http; no imports either way.",
+        "facts": [
+          "Size: 1 file, 0 lines",
+          "Languages: TypeScript 1",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 1
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "src-store",
+        "label": "src/store",
+        "fileCount": 1,
+        "band": "foundation",
+        "words": 14,
+        "sentence": "1 file, TypeScript; made of db; used by src/core; uses no other part.",
+        "facts": [
+          "Size: 1 file, 0 lines",
+          "Languages: TypeScript 1",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed",
+          "Used by: src/core 1"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 1
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "vendor-lib",
+        "label": "vendor/lib",
+        "fileCount": 1,
+        "band": "surface",
+        "words": 11,
+        "sentence": "1 file, TypeScript; made of thing; no imports either way.",
+        "facts": [
+          "Size: 1 file, 0 lines",
+          "Languages: TypeScript 1",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "TypeScript",
+            "files": 1
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      }
+    ],
+    "drill": null
+  },
+  "cap": {
+    "sentence": "cap: 104 files, Rust and Markdown; 12 parts, the biggest notesc (25%); 0 connections between parts; 0 of 0 imports lead inside the repository.",
+    "words": 24,
+    "edges": [],
+    "boxes": [
+      {
+        "id": "crates-c0-src",
+        "label": "crates/c0/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c1-src",
+        "label": "crates/c1/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c2-src",
+        "label": "crates/c2/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c3-src",
+        "label": "crates/c3/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c4-src",
+        "label": "crates/c4/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c5-src",
+        "label": "crates/c5/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c6-src",
+        "label": "crates/c6/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c7-src",
+        "label": "crates/c7/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c8-src",
+        "label": "crates/c8/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "crates-c9-src",
+        "label": "crates/c9/src",
+        "fileCount": 3,
+        "band": "surface",
+        "words": 13,
+        "sentence": "3 files, Rust; made of f0, f1, f2; no imports either way.",
+        "facts": [
+          "Size: 3 files, 0 lines",
+          "Languages: Rust 3",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "notesc",
+        "label": "notesc",
+        "fileCount": 26,
+        "band": "surface",
+        "words": 9,
+        "sentence": "26 files, Markdown; 26 loose files; not code.",
+        "facts": [
+          "Size: 26 files, 0 lines",
+          "Languages: Markdown 26",
+          "Defines: nothing this build reads",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed"
+        ],
+        "languages": [
+          {
+            "name": "Markdown",
+            "files": 26
+          }
+        ],
+        "lines": 0,
+        "entries": []
+      },
+      {
+        "id": "other",
+        "label": "everything else",
+        "fileCount": 48,
+        "band": "surface",
+        "words": 16,
+        "sentence": "48 files, Markdown; 2 small folders (notesb, notesa) and 2 root files; not code.",
+        "facts": [
+          "Size: 48 files, 4 lines",
+          "Languages: Markdown 47, TOML 1",
+          "Defines: nothing this build reads",
+          "Declares: Cargo.toml cap",
+          "Imports: 0 written, 0 to this repository, 0 to dependencies, 0 not followed",
+          "Folders: notesb 24, notesa 22"
+        ],
+        "languages": [
+          {
+            "name": "Markdown",
+            "files": 47
+          },
+          {
+            "name": "TOML",
+            "files": 1
+          }
+        ],
+        "lines": 4,
+        "entries": []
+      }
+    ],
+    "drill": null
+  },
+  "declared": [
+    "package.json: @rookery/cli",
+    "Cargo.toml: grep-printer",
+    "pyproject.toml: lift-sys",
+    "go.mod: github.com/foo/bar",
+    "Package.swift: RookKit",
+    "package.json: (null)",
+    "Cargo.toml: (null)"
+  ]
+}

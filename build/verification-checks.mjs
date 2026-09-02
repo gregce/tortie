@@ -131,6 +131,7 @@ export const CHECKS = [
   pure('conformance:filehistory'),
   pure('conformance:arch'),
   pure('conformance:arch:modules'),
+  pure('conformance:reading'),
   pure('conformance:watcher'),
   pure('conformance:handback'),
   adapter(

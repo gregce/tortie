@@ -1,0 +1,472 @@
+{
+  "note": "A Cargo workspace: three member crates seeded under P1, a root crate whose sources sit under crates/core, an integration test directory, and a fuzz crate and a bench script that fold. Nothing here is a real repository.",
+  "subject": "ripgrep",
+  "workspaces": [],
+  "crates": [
+    "crates/a",
+    "crates/b",
+    "crates/c"
+  ],
+  "trackedFiles": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "LICENSE-MIT",
+    "COPYING",
+    ".github/workflows/ci.yml",
+    "crates/a/Cargo.toml",
+    "crates/a/README.md",
+    "crates/a/src/lib.rs",
+    "crates/a/src/glob.rs",
+    "crates/a/src/path.rs",
+    "crates/b/Cargo.toml",
+    "crates/b/src/lib.rs",
+    "crates/b/src/matcher.rs",
+    "crates/c/Cargo.toml",
+    "crates/c/src/lib.rs",
+    "crates/c/src/standard.rs",
+    "crates/c/src/json.rs",
+    "crates/c/src/color.rs",
+    "crates/c/src/util.rs",
+    "crates/c/src/hyperlink.rs",
+    "crates/core/main.rs",
+    "crates/core/search.rs",
+    "crates/core/logger.rs",
+    "crates/core/flags/defs.rs",
+    "crates/core/flags/parse.rs",
+    "tests/misc.rs",
+    "tests/regression.rs",
+    "tests/util.rs",
+    "tests/data/a.txt",
+    "fuzz/Cargo.toml",
+    "fuzz/fuzz_targets/one.rs",
+    "benchsuite/run.py"
+  ],
+  "imports": [
+    {
+      "fromPath": "crates/b/src/matcher.rs",
+      "toPath": "crates/a/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/c/src/standard.rs",
+      "toPath": "crates/b/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/c/src/json.rs",
+      "toPath": "crates/b/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/c/src/color.rs",
+      "toPath": "crates/a/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/core/main.rs",
+      "toPath": "crates/c/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/core/search.rs",
+      "toPath": "crates/b/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/core/search.rs",
+      "toPath": "crates/c/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/core/flags/defs.rs",
+      "toPath": "crates/a/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/core/main.rs",
+      "toPath": "crates/core/search.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/core/main.rs",
+      "toPath": "crates/core/logger.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/core/flags/parse.rs",
+      "toPath": "crates/core/flags/defs.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/a/src/lib.rs",
+      "toPath": "crates/a/src/glob.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/a/src/glob.rs",
+      "toPath": "crates/a/src/path.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/c/src/lib.rs",
+      "toPath": "crates/c/src/util.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "tests/misc.rs",
+      "toPath": "tests/util.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "tests/regression.rs",
+      "toPath": "tests/util.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "fuzz/fuzz_targets/one.rs",
+      "toPath": "crates/b/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/core/search.rs",
+      "toPath": null,
+      "resolution": "unresolved"
+    },
+    {
+      "fromPath": "crates/core/logger.rs",
+      "toPath": null,
+      "resolution": "unresolved"
+    },
+    {
+      "fromPath": "crates/a/src/lib.rs",
+      "toPath": null,
+      "resolution": "external"
+    },
+    {
+      "fromPath": "crates/c/src/hyperlink.rs",
+      "toPath": null,
+      "resolution": "external"
+    },
+    {
+      "fromPath": "benchsuite/run.py",
+      "toPath": null,
+      "resolution": "external"
+    }
+  ],
+  "treeFacts": [
+    {
+      "path": "Cargo.toml",
+      "lines": 12,
+      "declares": "ripgrep"
+    },
+    {
+      "path": "Cargo.lock",
+      "lines": 57,
+      "declares": null
+    },
+    {
+      "path": "README.md",
+      "lines": 94,
+      "declares": null
+    },
+    {
+      "path": "LICENSE-MIT",
+      "lines": 131,
+      "declares": null
+    },
+    {
+      "path": "COPYING",
+      "lines": 168,
+      "declares": null
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "lines": 205,
+      "declares": null
+    },
+    {
+      "path": "crates/a/Cargo.toml",
+      "lines": 12,
+      "declares": "globset"
+    },
+    {
+      "path": "crates/a/README.md",
+      "lines": 279,
+      "declares": null
+    },
+    {
+      "path": "crates/a/src/lib.rs",
+      "lines": 316,
+      "declares": null
+    },
+    {
+      "path": "crates/a/src/glob.rs",
+      "lines": 53,
+      "declares": null
+    },
+    {
+      "path": "crates/a/src/path.rs",
+      "lines": 90,
+      "declares": null
+    },
+    {
+      "path": "crates/b/Cargo.toml",
+      "lines": 12,
+      "declares": "grep-matcher"
+    },
+    {
+      "path": "crates/b/src/lib.rs",
+      "lines": 164,
+      "declares": null
+    },
+    {
+      "path": "crates/b/src/matcher.rs",
+      "lines": 201,
+      "declares": null
+    },
+    {
+      "path": "crates/c/Cargo.toml",
+      "lines": 12,
+      "declares": "grep-printer"
+    },
+    {
+      "path": "crates/c/src/lib.rs",
+      "lines": 275,
+      "declares": null
+    },
+    {
+      "path": "crates/c/src/standard.rs",
+      "lines": 312,
+      "declares": null
+    },
+    {
+      "path": "crates/c/src/json.rs",
+      "lines": 49,
+      "declares": null
+    },
+    {
+      "path": "crates/c/src/color.rs",
+      "lines": 86,
+      "declares": null
+    },
+    {
+      "path": "crates/c/src/util.rs",
+      "lines": 123,
+      "declares": null
+    },
+    {
+      "path": "crates/c/src/hyperlink.rs",
+      "lines": 160,
+      "declares": null
+    },
+    {
+      "path": "crates/core/main.rs",
+      "lines": 197,
+      "declares": null
+    },
+    {
+      "path": "crates/core/search.rs",
+      "lines": 234,
+      "declares": null
+    },
+    {
+      "path": "crates/core/logger.rs",
+      "lines": 271,
+      "declares": null
+    },
+    {
+      "path": "crates/core/flags/defs.rs",
+      "lines": 308,
+      "declares": null
+    },
+    {
+      "path": "crates/core/flags/parse.rs",
+      "lines": 45,
+      "declares": null
+    },
+    {
+      "path": "tests/misc.rs",
+      "lines": 82,
+      "declares": null
+    },
+    {
+      "path": "tests/regression.rs",
+      "lines": 119,
+      "declares": null
+    },
+    {
+      "path": "tests/util.rs",
+      "lines": 156,
+      "declares": null
+    },
+    {
+      "path": "tests/data/a.txt",
+      "lines": 193,
+      "declares": null
+    },
+    {
+      "path": "fuzz/Cargo.toml",
+      "lines": 12,
+      "declares": "ripgrep-fuzz"
+    },
+    {
+      "path": "fuzz/fuzz_targets/one.rs",
+      "lines": 267,
+      "declares": null
+    },
+    {
+      "path": "benchsuite/run.py",
+      "lines": 304,
+      "declares": null
+    }
+  ],
+  "definitions": [
+    {
+      "path": "crates/a/src/lib.rs",
+      "kinds": {
+        "function": 2,
+        "struct": 1
+      }
+    },
+    {
+      "path": "crates/a/src/glob.rs",
+      "kinds": {
+        "function": 3,
+        "struct": 2
+      }
+    },
+    {
+      "path": "crates/a/src/path.rs",
+      "kinds": {
+        "function": 4,
+        "struct": 3
+      }
+    },
+    {
+      "path": "crates/b/src/lib.rs",
+      "kinds": {
+        "function": 5,
+        "struct": 1
+      }
+    },
+    {
+      "path": "crates/b/src/matcher.rs",
+      "kinds": {
+        "function": 2,
+        "struct": 2
+      }
+    },
+    {
+      "path": "crates/c/src/lib.rs",
+      "kinds": {
+        "function": 3,
+        "struct": 3
+      }
+    },
+    {
+      "path": "crates/c/src/standard.rs",
+      "kinds": {
+        "function": 4,
+        "struct": 1
+      }
+    },
+    {
+      "path": "crates/c/src/json.rs",
+      "kinds": {
+        "function": 5,
+        "struct": 2
+      }
+    },
+    {
+      "path": "crates/c/src/color.rs",
+      "kinds": {
+        "function": 2,
+        "struct": 3
+      }
+    },
+    {
+      "path": "crates/c/src/util.rs",
+      "kinds": {
+        "function": 3,
+        "struct": 1
+      }
+    },
+    {
+      "path": "crates/c/src/hyperlink.rs",
+      "kinds": {
+        "function": 4,
+        "struct": 2
+      }
+    },
+    {
+      "path": "crates/core/main.rs",
+      "kinds": {
+        "function": 5,
+        "struct": 3
+      }
+    },
+    {
+      "path": "crates/core/search.rs",
+      "kinds": {
+        "function": 2,
+        "struct": 1
+      }
+    },
+    {
+      "path": "crates/core/logger.rs",
+      "kinds": {
+        "function": 3,
+        "struct": 2
+      }
+    },
+    {
+      "path": "crates/core/flags/defs.rs",
+      "kinds": {
+        "function": 4,
+        "struct": 3
+      }
+    },
+    {
+      "path": "crates/core/flags/parse.rs",
+      "kinds": {
+        "function": 5,
+        "struct": 1
+      }
+    },
+    {
+      "path": "tests/misc.rs",
+      "kinds": {
+        "function": 2,
+        "struct": 2
+      }
+    },
+    {
+      "path": "tests/regression.rs",
+      "kinds": {
+        "function": 3,
+        "struct": 3
+      }
+    },
+    {
+      "path": "tests/util.rs",
+      "kinds": {
+        "function": 4,
+        "struct": 1
+      }
+    },
+    {
+      "path": "fuzz/fuzz_targets/one.rs",
+      "kinds": {
+        "function": 5,
+        "struct": 2
+      }
+    },
+    {
+      "path": "benchsuite/run.py",
+      "kinds": {
+        "function": 2
+      }
+    }
+  ]
+}
