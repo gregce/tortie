@@ -537,6 +537,22 @@
   flex: none;
 }
 
+/* The one line the row may end with (Phase 190): the modes that draw this
+   diff the same, present only when true. It fills whatever width the controls
+   leave and truncates, so it never wraps the row and never moves a control;
+   the whole line is on hover. Same size and colour as the label, because it
+   is a hint and not a control. */
+.ed-diff-bar-note {
+  flex: 1 1 0;
+  min-width: 0;
+  margin-left: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
 /* Pierre diff host (Phase 11). The diff renders in shadow DOM — colors come
    from the theme bridge (src/renderer/pierre/theme-bridge.ts); the custom
    properties below inherit across the shadow boundary and keep the diff on

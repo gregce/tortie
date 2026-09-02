@@ -28,6 +28,26 @@
  * Under "just enough words": one word per choice on the resting face, the
  * detail on hover. There is no paragraph here explaining what Phrases means.
  *
+ * ONE LINE MAY FOLLOW THE CONTROLS, and it is the whole of Phase 190. The
+ * operator changed Inline between Words, Phrases and Characters on his own
+ * file and nothing happened, which read as broken. Research 74 measured why:
+ * his edit was a pure word deletion, and on that shape jsdiff returns the
+ * same parts to all three, so the three modes draw byte identical markup.
+ * Nothing was broken, and the control said nothing about it. Of the three
+ * options the backlog weighed, this is option 2: when the mode the person
+ * chose draws exactly what another mode would draw over this diff, one short
+ * muted line names the modes that coincide, and when the modes differ the
+ * resting face carries nothing. Not option 1, say nothing, because the cost
+ * that made it the fallback was measured away, being under a millisecond on
+ * a real diff and a few milliseconds in the worst case the cap allows, once
+ * per diff open. Not option 3, greying the buttons that cannot differ, because
+ * the answer is per diff rather than per visible window, so nothing here
+ * flickers on scroll, and greying would compute the same thing anyway. The
+ * comparison, its bounds and its measured cost live in
+ * ../pierre/inline-diff-agreement; this file only draws the line it hands
+ * back. The four modes, their names and what they draw when they do differ
+ * are untouched.
+ *
  * There is NO redline control here, and that is a decision rather than an
  * omission. Phase 191 put one in this row and the operator asked for it to go
  * the same day: the redline is a reading of the DOCUMENT, not a way of drawing
@@ -38,13 +58,25 @@
 import React from 'react';
 import { Codicon } from '../icons';
 import { INLINE_DIFF_MODES } from '../pierre/diff-view-prefs';
+import { inlineDiffAgreementLine } from '../pierre/inline-diff-agreement';
+import type { InlineDiffAgreement } from '../pierre/inline-diff-agreement';
 import { useEditor } from './store';
 
-export function DiffControls(): React.JSX.Element {
+export interface DiffControlsProps {
+  /**
+   * Whether the modes draw the diff underneath the same, computed once per
+   * diff by PierreDiff. Null while there is no exact diff to say anything
+   * about, which draws nothing.
+   */
+  agreement: InlineDiffAgreement | null;
+}
+
+export function DiffControls({ agreement }: DiffControlsProps): React.JSX.Element {
   const inlineMode = useEditor((s) => s.diffInlineMode);
   const backgrounds = useEditor((s) => s.diffBackgrounds);
   const setInlineMode = useEditor((s) => s.setDiffInlineMode);
   const setBackgrounds = useEditor((s) => s.setDiffBackgrounds);
+  const sameLine = inlineDiffAgreementLine(agreement, inlineMode);
 
   return (
     <div className="ed-diff-bar">
@@ -77,6 +109,14 @@ export function DiffControls(): React.JSX.Element {
       >
         <Codicon name="paintcan" size={14} />
       </button>
+      {/* Last in the row, so nothing a person already knows the place of
+          moves when it comes and goes. It takes what width is left and
+          truncates rather than wrapping, with the whole line on hover. */}
+      {sameLine !== null ? (
+        <span className="ed-diff-bar-note" title={sameLine}>
+          {sameLine}
+        </span>
+      ) : null}
     </div>
   );
 }

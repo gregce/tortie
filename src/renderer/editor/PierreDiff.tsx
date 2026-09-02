@@ -67,6 +67,7 @@ import { FileDiff, VirtualizerContext, WorkerPoolContext } from '@pierre/diffs/r
 import type { FileContents, FileDiffProps } from '@pierre/diffs/react';
 import type { WorkerPoolManager } from '@pierre/diffs/worker';
 import { fileCacheKey, useDiffMetadata } from '../pierre/diff-metadata';
+import { inlineDiffAgreement } from '../pierre/inline-diff-agreement';
 import {
   DIFF_RENDER_OPTIONS,
   PLAIN_TEXT_LINE_LIMIT,
@@ -189,6 +190,15 @@ export function PierreDiff({
     applyInlineDiffMode(inlineMode);
   }, [inlineMode]);
 
+  // Do the modes draw this diff the same (Phase 190)? Once per parsed diff,
+  // keyed on the object useDiffMetadata produced, and only the EXACT one:
+  // the approximation is one replaced block that says nothing about what the
+  // real pairs look like. The cost and the bounds are in the module header.
+  const agreement = useMemo(
+    () => (meta !== null && exact ? inlineDiffAgreement(meta) : null),
+    [meta, exact]
+  );
+
   const options = useMemo<DiffOptions>(
     () => ({
       ...DIFF_RENDER_OPTIONS,
@@ -239,7 +249,9 @@ export function PierreDiff({
           arrived: on an identical file the row appeared during the load and
           vanished when "No changes" resolved. Sharing the skeleton's own
           condition makes that unreachable rather than merely unlikely. */}
-      {contentsLoading || waiting || unchanged ? null : <DiffControls />}
+      {contentsLoading || waiting || unchanged ? null : (
+        <DiffControls agreement={agreement} />
+      )}
       <div
         ref={hostRef}
         className="ed-pierre"
