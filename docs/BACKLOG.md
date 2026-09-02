@@ -19942,6 +19942,106 @@ already draws, expands, opens, pages and scopes commits.
 - No search of a file's own history; the field narrows the History section only.
 - No line history, no blame, no timeline.
 
+## Phase 200: the three points the 0.98.0 audit says are still short of 36 (operator asked 2026-09-01)
+
+**Subject.** `fix(arch): the durable create classifier, the joined shutdown and the seams that lie`
+
+**First body line.** `Phase 200: three points short of 36`
+
+**Semver.** PATCH. Nothing user facing changes in the ordinary path. Every item is a protection.
+
+**Tier 3.** Item 1 decides whether a durable session row is removed, and item 2 changes shutdown
+order, so both can lose or strand work if wrong. The evidence is the audit's own proof lists, run
+rather than read, plus TWO independent methods, one an attack.
+
+**Charter.** `docs/audits/2026-09-01-electron-typescript-architecture-0.98.0.md`, his file, which
+scores the architecture 33 of 36 with three categories at 2, being lifecycle, failure flow and test
+seam, and names the safe order to 36. This phase is that order, items 1 to 4, with item 5 (rerun the
+rubric on one pinned commit) as the phase's closing proof. **The audit itself is his untracked file
+and is never committed by this phase.**
+
+### The four items, in the audit's order, ONE COMMIT EACH
+
+**1. P0, the durable create classifier reads structure rather than identity.**
+`npm run conformance:machines` fails one row today: *"tmux holds no server at all" was classified
+unreachable and the table says provenAbsent*. The fixture builds a `TMUX_UNREACHABLE` error carrying
+`no server running on /tmp/x`, which is exactly the completed answer `serverProbeVerdict()` exists to
+recognise, but under the `.mts` probe runtime the value and the classifier see different `GmuxError`
+constructor identities, so `err instanceof GmuxError` fails before the code or detail is read. The
+safety default is correct, the row is kept when uncertain; what is missing is the positive path. Use
+a structural discriminator for the validated error payload at that loader boundary and keep
+malformed values fail closed. Proof: the mixed loader fixture recognises the completed no server
+answer; `conformance:machines` passes every row; the ten row remote matrix stays green so unreachable
+and ambiguous answers still retain durable state.
+
+**2. P1, hook server, usage and live Diagnostics shut down as one joined operation.** Three
+exceptions today. `disposeUsageService()` only nulls its singleton and neither cancels nor awaits
+`Held.inFlight`; the credential adapter runs `execFile('/usr/bin/security')` outside the guarded
+child registry; the HTTPS transport exposes no `ClientRequest` to cancel. `GmuxHookServer.stop()`
+calls `server.close()` without awaiting its callback then clears tokens, so a request past token
+lookup can still finish its body and call `onTap`, and `applyUsageTap()` can lazily recreate a
+disposed usage service during shutdown. Live Diagnostics relies on renderer `liveStop` and
+`disposeMainCapabilities()` never calls the idempotent `stopLiveSampling()`. The smallest coherent
+repair: a shutdown admission flag on the hook server with an asynchronous close or active request
+join; usage refuses reads and taps after admission; the HTTPS request is tracked and cancelled and
+the keychain child goes through an owned registry; the usage disposer becomes asynchronous and
+bounded; Diagnostics stop joins the ordered main disposer. Proof: a request paused after token
+admission cannot call usage after hook shutdown completes; a held endpoint request and keychain
+child are cancelled or joined before usage disposal resolves; a read or tap after shutdown gets a
+typed refusal and recreates nothing; a visible live Diagnostics tab loses its timer, destroyed
+listener and instrument child during quit with no renderer help; and the no work quit path stays
+effectively immediate, measured.
+
+**3. P1, the seams that lie about coverage.** `wrap.integration.test.ts` executes the installed
+SpecStory binary in the hermetic lane and requires it to advertise `muse`; move the real binary
+assertion to the adapter lane and keep the compatibility rule behind a captured fixture.
+`probe:keyinstall` fails with `ReferenceError: tsxCli is not defined` and `probe:controldeadline` has
+the same defect: both import `tsxCli` inside a generated driver string and call it from the outer
+runner; move the import to the outer module. The Electron probes inherit `ELECTRON_RENDERER_URL`,
+`NODE_ENV_ELECTRON_VITE` and `NODE_ENV` from his dev server, so P165 and P167 need a sanitised launch
+to measure the built renderer; strip them inside the probes so their ordinary commands have one
+meaning. Proof: the hermetic lane green from a clean checkout with the SpecStory row moved; both
+probes run from a clean checkout with their scratch SSH and tmux resources proved gone on success and
+on failure; P165 and P167 agree across a dev shell and a clean shell.
+
+**4. P1, the renderer surface that retains DOM state.** The sanitised P167 profile measured DOM
+nodes rising 1,512 from the penultimate block to the last against a 400 node budget, and listeners
+rising 126, with the heap flat, which reproduces the previous audit. All 18 Architecture opens also
+missed because the isolated profile never enables the Phase 175 switch, which is stale harness
+setup. Seed Architecture on in the probe's profile, add selectors for Catch Me Up, Architecture,
+Monaco, Diff and markdown preview, run each through the same three block ruler, and repair ONLY the
+owner or cache that reproduces the slope, keeping warm caches that demonstrably plateau. This is the
+one item with product risk: an operator check of reopen speed, selection and scroll state is part of
+its proof.
+
+### The closing proof
+
+Rerun the audit's rubric on the final commit: `conformance:machines`, the hermetic lane, both
+specialist probes, P165, P167 with every surface, and the battery, all green together on one pinned
+hash. The phase report states the score it believes the rerun earns, category by category, and does
+not claim 36 unless every one of the twelve holds.
+
+### The two independent methods, named
+
+- **Measure the parent commit** for every item: the red conformance row, the dead probes by
+  their exact error, the P167 slope with its numbers, and the shutdown races reproduced with a held
+  request, all shown red at the parent before green at HEAD.
+- **Attack the shutdown.** The verifier writes its own late request shapes the builder did not:
+  a request that passed token lookup and stalls on its body until after `stop()` resolves; a tap
+  arriving one tick after disposal; a keychain child that never exits; a quit with a live
+  Diagnostics tab and a usage read in flight at once. Any recreation of a disposed service or any
+  quit that hangs is needs_work.
+
+### What is NOT in this phase
+
+- **No split of `remote-sessions.ts` or `activity/hooks.ts`.** The audit names them as navigation
+  watches and says do not split them by line count.
+- **No change to the eager renderer budget.** The margin is 16,988 bytes; nothing here adds to the
+  eager set, and the build's ceiling proves it.
+- **No change to what a person sees or does** in the ordinary path. Item 4 may change a cache, and
+  its operator check is the guard.
+- **The audit file is not committed.** It is his.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -20265,3 +20365,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, Research 77 QUEUED at his word: the Architecture map should answer three questions at a glance, being WHAT the repository and each component is from deterministic facts the code supports, what it MEANS from the enrichment model already chosen in Settings and labelled as the model's reading, and WHAT IS MOVING from git over a window he picks, because as people build with agents the core problem is keeping the mental model of the software alive; it builds on the eleven Architecture phases from 157 to 179 and research 49 68 and 71, designs layer 1 as a specification proved on three real repositories, runs layer 2 once on a scratch copy and shows the sentences beside the facts, times layer 3's walks, redesigns the sidebar as a reading with the contract moved below the components and mocks it at real width beside today's, answers with a measurement whether the map should be ON by default now that layer 1 needs no contract, makes the scope guardrail case for each layer, and ends with one recommendation and a first phase; nothing is queued from it.
 - 2026-09-01, Research 76 DELIVERED at docs/research/76-file-history-and-search.md, commit edb79de. File history goes in the SCM pane as a section that follows the active editor tab and follows renames with --follow, entered from an Explorer menu item, because the list and the diff must stay on screen together. Search goes in a field at the head of the History section that narrows the existing walk with --grep, --author, a rev-parse and a pathspec, GitLens operators borrowed as vocabulary. Keystroke verdict: message, author, SHA and path run on a keystroke under -n 51 at 15 to 50 ms on 82,130 commits with one whole history read at worst; changes by content is a button only, 1.8 s on gmux and 8.7 to 21 s on git/git. Nothing is queued from it.
 - 2026-09-01, Phases 198 and 199 QUEUED from research 76 at his standing word to form a recommendation and queue it: 198 is FILE HISTORY as a section in the SCM pane following the active editor tab, entered from a new Explorer row menu item, walking git log --follow with a literal pathspec and --name-status -M so each row carries its status and old path, choosing a row calling the existing openCommitFile so the rename boundary opens a two sided diff through origPath which commitFileDiff already takes, chosen over a mode on the file's tab because reading a history is a loop of clicking rows while the diff changes and only the section keeps both on screen with zero new diff code; 199 is SEARCH as a field at the head of the History section narrowing the same walk per keystroke with GitLens's operators borrowed as vocabulary, author: message: commit: and file:, the graph gutter hidden while a query is active, and change: behind a Search button because -S measured 1.8 seconds on gmux and up to 21 seconds on git's own repository while the keystroke walks measured 15 to 50 ms; both MINOR, Tier 2, with the independent methods named in each entry; 199 runs after 198 because it reuses the widened walk input and the cancel token.
+- 2026-09-01, Phase 200 QUEUED at his word from docs/audits/2026-09-01-electron-typescript-architecture-0.98.0.md, his untracked file which the phase never commits: the architecture scores 33 of 36 with lifecycle, failure flow and test seam each at 2, and the phase is the audit's own safe order to 36 as four items ONE COMMIT EACH, being the P0 durable create classifier reading a structural discriminator instead of instanceof across the mts loader boundary so conformance:machines stops failing its one no server row while the fail closed default stays, the P1 joined shutdown where the hook server gains an admission flag and an awaited close, usage refuses reads and taps after admission and cancels its HTTPS request and routes its keychain child through an owned registry, and Diagnostics stop joins the ordered main disposer, the P1 verification seams being the SpecStory binary assertion moved out of the hermetic lane, the two dead probes whose tsxCli import sits inside a generated driver string, and the Electron probes stripped of his dev server environment, and the P1 renderer surface retention where P167 measured DOM nodes rising 1,512 against a 400 budget with the heap flat and 18 Architecture opens missing because the isolated profile never enables the Phase 175 switch; the closing proof reruns the rubric on one pinned hash and states the score category by category without claiming 36 unless all twelve hold; PATCH, Tier 3 because item 1 decides whether a durable row is removed and item 2 changes shutdown order, with the parent measured for every item and an ATTACK on the shutdown as the two named methods; NOT in it are any split of the two watched files, any change to the eager budget, or any ordinary path change.
