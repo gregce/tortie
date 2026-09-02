@@ -20312,6 +20312,122 @@ Both defects are already reproduced, and the sign in he thought failed had SUCCE
   never signs anybody in. Phase 202's refusals all stand.
 - No new provider, no per project login, no switching of a running session.
 
+## Phase 204: an account you signed into is an account you can go back to (operator asked 2026-09-02)
+
+**Subject.** `feat(logins): Tortie keeps the accounts you sign into, and puts one back when you choose it`
+
+**First body line.** `Phase 204: the accounts Tortie keeps`
+
+**Semver.** MINOR.
+
+**Tier 3**, and it is the highest risk phase in the login work. It reads, copies and writes the
+person's own credentials. A wrong write signs him out of the account he works in every day. Two
+independent methods and an attack are the floor, and the byte identity proof that every other login
+phase used is REPLACED here by something stronger, described below, because this phase writes on
+purpose and so "nothing changed" is no longer the property to prove.
+
+**Charter.** His words of 2026-09-02, after reading how Phase 202 and 203 behave: *"what I expect is
+the ability to ADD logins but also if I just switch logged in accounts via going into the agent and
+typing /login that tortie should just remember that"*, and then, when told the limit, *"I think we
+should probably actually follow the Orca pattern for this because that sounds like this might be a
+weird user experience"*.
+
+**This phase deliberately lifts one of Phase 202's refusals**, and the reversal is recorded here so
+no later round has to guess whether it was an accident. Phase 202 said Tortie never writes a
+credential byte, and the cost of that rule is the experience he just named: `/login` inside a
+session overwrites the credential in that store, the previous account is gone, and Tortie cannot
+offer it back. He weighed that and chose the orca behaviour. **Every other Phase 202 refusal
+stands**, in particular that no agent ever signs anybody in and that the vendor's own command is the
+only thing that ever authenticates.
+
+### What orca actually does, read from his own checkout
+
+Read at `/Users/gdc/orca`, copied to the scratchpad, in
+`src/main/rate-limits/claude-managed-account-credentials.ts`,
+`src/main/claude-accounts/claude-auth-capture.ts` and `src/main/claude-accounts/keychain.ts`.
+
+1. **A managed store per account.** `resolveClaudeManagedCredentialsLocation` answers `keychain` on
+   darwin and `file` elsewhere, so on this machine each account's credential is a keychain item
+   scoped to the account id, beside a managed auth path it owns.
+2. **Capture after a login.** `captureClaudeAuthFromConfigDir` runs `claude auth status --json`,
+   reads the credential the vendor just wrote, and refuses with a sentence when nothing was
+   captured. It also reads `oauthAccount` for the identity. It compares against the PREVIOUS active
+   keychain value and its sha256, so it can tell a fresh credential from the one that was already
+   there.
+3. **Activate by writing, and put it back.** `withClaudeManagedPreviewKeychainCredentials` writes the
+   account's credential into the ACTIVE slot, runs the operation, and deletes it again in a
+   `finally`. That is the mechanism that lets a non active account be read at all.
+
+### What it builds
+
+- **A credential store Tortie owns, one entry per login**, keychain scoped on macOS and a file with
+  0600 elsewhere, holding exactly what the vendor wrote and nothing composed by Tortie.
+- **Capture, and it is the whole feature he asked for.** After any sign in, and after a session's
+  store changes under it, Tortie captures the credential and the identity into the login that owns
+  that store. `/login` inside a session on a store Tortie owns is therefore REMEMBERED: the account
+  it replaced is already in Tortie's store, so it is still in the menu and still selectable.
+- **`/login` on the DEFAULT store is remembered too, and this is the subtle one.** The default store
+  is his own and Tortie does not own it. When its account changes, Tortie captures the OUTGOING
+  account into a login of its own, named from its email, so the account he just left is offered back
+  rather than lost. The default row keeps meaning the vendor's own location and keeps drawing
+  whichever account is in it now.
+- **Choosing a login writes it in.** Selecting an account writes its stored credential into the
+  store that account will run under, so a chosen account is live for the next session, and for the
+  meter, without the person signing in again. Every write is preceded by a capture of what is being
+  replaced, so the switch is reversible in both directions.
+- **The card and the menu say what a switch will do** before it happens, in one short line.
+
+### What it must get right, and these are the properties, not wishes
+
+- **No switch loses an account.** Before any write to a store, what is there is captured. The proof
+  is a round trip matrix: for every ordered pair of accounts, switch, switch back, and both are
+  still selectable and both still authenticate.
+- **A failed write leaves the store as it was.** Write to a temporary entry, verify it reads back
+  equal, then swap. A crash at any point leaves either the old credential or the new one, never
+  neither. The verifier kills the process at each step and proves the store still authenticates.
+- **No token byte leaves Tortie's own store.** Not in a log, a manifest row, an argv, an error
+  message, a report, a snapshot sent to the renderer or a screenshot. The renderer NEVER receives a
+  credential; it receives a name, an email and a plan.
+- **The credential is never composed, edited or re-encoded.** Tortie moves the vendor's own bytes and
+  compares by hash on both sides of every move.
+- **Nothing writes during a turn.** A capture or an activation happens on an explicit choice or when
+  a store's account is observed to have changed, never inside an agent's turn, and never on a poll
+  that could race a session that is running.
+- **Codex the same way**, over `~/.codex/auth.json`, with the identity from the id token's `email`
+  claim as Phase 203 establishes, and no token byte kept from the decode.
+
+### Proof, run rather than read
+
+- **The round trip matrix over real accounts**, being his two claude accounts and his codex account:
+  every ordered pair switched and switched back, each hop asserting the store authenticates by
+  `claude auth status` and `codex login status` run by the verifier itself, and asserting the
+  credential bytes match by hash what Tortie captured.
+- **The interrupted write**: the process killed after the temporary write, after the verify and
+  between the swap and the delete, each arm proving the store still authenticates afterwards.
+- **The recovery arm**, and it is the one that decides whether this ships: with Tortie's whole store
+  deleted, every account is still reachable by signing in again, and the product says so rather
+  than presenting an account it can no longer produce.
+- **Attack**: a store whose credential is truncated, one holding valid JSON that is not a
+  credential, a keychain that refuses, a store that becomes unreadable between the capture and the
+  write, two switches at once, a switch while a session is launching, and a login whose stored
+  credential has expired.
+- `npm run conformance:credentials`, a gate that runs the shipping store over fixtures with an
+  injected keychain and proves the capture, the swap, the rollback and the no-token-byte rule, red
+  one clause at a time under ablation.
+- One app run driving add, switch, switch back, and a `/login` inside a session, reading every row
+  off the DOM.
+- The battery, with the baseline regenerated.
+
+### What is NOT in this phase
+
+- **No agent ever signs anybody in.** The vendor's own command is still the only thing that
+  authenticates, and it still runs in his own terminal.
+- **No refresh and no rotation.** Tortie moves a credential and never renews one.
+- **No switching of a running session.** It keeps the store it started with.
+- **No provider beyond claude and codex**, no per project login, no rename.
+- **No credential in the renderer, ever**, and no credential in the manifest, which still carries a
+  name.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -20658,3 +20774,4 @@ cycle rather than only the evening it was written.
 - 2026-09-02, Phase 203 QUEUED, a login is an account: he reported that Add login opens claude, opens a website and the session dies without logging in, and that `Default` is not mapped to the account he is actually signed in as. Both were measured before queueing: the sign in HAD succeeded, the keychain item `Claude Code-credentials-695bee03` matches `claudeScopedService` over his login directory exactly, and `claude auth status` there answers logged in on max, while the menu says Not signed in yet because the list asks for a credential FILE that macOS never writes. The default account is knowable too, `greg@itavero.software` from `claude auth status` and from `oauthAccount` in `~/.claude.json`. The phase makes the list ask the whole question, has a finished sign in say so, draws every login as its account with `Default` kept as the reserved manifest key and dropped as a label, and refuses a rename because the name is the manifest key.
 - 2026-09-02, Phase 203 STARTED in a detached worktree at `6f25f93`, a login is an account: the list answers presence from the keychain the meter already reads so an added claude login stops saying Not signed in yet on macOS, a finished sign in says it finished rather than the pane just closing, every login is drawn as its account with the email first and `Default` kept only as the reserved manifest key, the default row marked as the one Tortie does not own, no rename because the name is the manifest key, one gate arm for the presence and the scoped keychain name, one app run over fixture logins, his credential files proved byte identical by hash.
 - 2026-09-02, Phase 203 CORRECTED before it built anything and RESTARTED: the entry had said codex reports no address and that the phase would state that as a limit. He said `/status` inside codex shows the email, and he was right. Measured: `~/.codex/auth.json` holds `tokens.id_token` whose claims carry `email`, reading `gregce@gmail.com`, and orca reads exactly that claim in `codex-auth-identity.ts`. So codex has full parity, the false limit is gone, and the phase gains the rule that the identity reader decodes the claim and keeps no token byte anywhere plus four id token attack shapes. The lesson is the one already in this file, being that if a sentence sounds like a measurement it must be measured; `codex login status` was measured and the auth file was not.
+- 2026-09-02, Phase 204 QUEUED, the accounts Tortie keeps: he asked that a `/login` typed inside a session be REMEMBERED, and when told that Phase 202 refuses to copy a credential and so cannot offer the replaced account back, he chose the orca behaviour in his own words, being that the alternative is a weird user experience. So this phase DELIBERATELY LIFTS Phase 202's refusal that Tortie never writes a credential, and says so where a later round will read it. Orca's mechanism was read from his own checkout: a managed store per account, keychain scoped on darwin; a capture after a login that runs `claude auth status --json`, reads what the vendor wrote and refuses with a sentence when nothing was captured; and an activation that writes the credential into the active slot and deletes it again in a `finally`. Tortie does the same, plus a capture of the OUTGOING account before every write so a switch is reversible in both directions and a `/login` on his own default store offers back the account he just left. Every other Phase 202 refusal stands, in particular that no agent ever signs anybody in. It runs AFTER Phase 203, whose keychain presence read and account identity it needs.
