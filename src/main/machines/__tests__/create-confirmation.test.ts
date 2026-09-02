@@ -257,3 +257,77 @@ describe('what the caller does with each kind', () => {
     ).toEqual(['bind', 'dropRow', 'keepUnknown']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 200. A completed answer stays completed across a loader boundary
+// ---------------------------------------------------------------------------
+//
+// `classifyConfirmationFailure` used to ask `err instanceof GmuxError` before it
+// read the code or the detail. That question is about constructor identity, and
+// a value built by a second copy of `../../errors` answers no to it while
+// carrying exactly the payload this product wrote. The 0.98.0 audit met that
+// under the `.mts` probe runtime: the one sentence that may delete a durable row
+// read as an answer nobody could read. The rows below carry the payload without
+// the class, and the malformed ones prove the reader fails closed.
+describe('Phase 200: the payload is read by shape', () => {
+  const withPayload = (payload: unknown): unknown =>
+    Object.assign(new Error('a message that names nothing'), { payload });
+
+  it('reads a completed no server answer that carries no class', () => {
+    expect(
+      classifyConfirmationFailure(
+        withPayload({
+          code: 'TMUX_UNREACHABLE',
+          message: 'no answer',
+          detail: 'no server running on /tmp/x'
+        })
+      )
+    ).toBe('provenAbsent');
+  });
+
+  it('reads a session named as missing that carries no class', () => {
+    expect(
+      classifyConfirmationFailure(
+        withPayload({ code: 'SESSION_NOT_FOUND', message: 'gone' })
+      )
+    ).toBe('provenAbsent');
+  });
+
+  it('keeps the row for an unreachable machine that carries no class', () => {
+    expect(
+      classifyConfirmationFailure(
+        withPayload({
+          code: 'TMUX_UNREACHABLE',
+          message: 'no answer',
+          detail: 'connection refused'
+        })
+      )
+    ).toBe('unreachable');
+  });
+
+  // The safety default, which is the whole point of the file. A payload that is
+  // not exactly the shape this release writes is refused whole, and the row is
+  // kept, even when the sentence inside it would otherwise have proved a death.
+  it('keeps the row for every malformed payload', () => {
+    const malformed: unknown[] = [
+      'no server running on /tmp/x',
+      ['TMUX_UNREACHABLE', 'no server running on /tmp/x'],
+      null,
+      { code: 7, message: 'x', detail: 'no server running on /tmp/x' },
+      {
+        code: 'TMUX_HOLDS_NOTHING',
+        message: 'x',
+        detail: 'no server running on /tmp/x'
+      },
+      { code: 'TMUX_UNREACHABLE', detail: 'no server running on /tmp/x' },
+      {
+        code: 'TMUX_UNREACHABLE',
+        message: 'x',
+        detail: { text: 'no server running on /tmp/x' }
+      }
+    ];
+    for (const payload of malformed) {
+      expect(classifyConfirmationFailure(withPayload(payload))).toBe('unreachable');
+    }
+  });
+});

@@ -207,3 +207,102 @@ describe('serverProbeVerdict: only a completed probe confirms death', () => {
     assert.equal(serverProbeVerdict(null), 'not-confirmed');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 200. The verdict reads the payload's shape, never the constructor
+// ---------------------------------------------------------------------------
+//
+// The 0.98.0 audit read the machine conformance gate refusing the one completed
+// answer, being tmux's own "no server running", because the value and this
+// module were loaded by two different loaders and `err instanceof GmuxError`
+// answered no before the code or the detail could be read. The rows below carry
+// the payload WITHOUT carrying the class, which is what a loader boundary, a
+// structured clone and a serialised error all look like from here.
+describe('Phase 200: serverProbeVerdict reads the payload by shape', () => {
+  const withPayload = (payload: unknown): unknown =>
+    Object.assign(new Error('a message that names nothing'), { payload });
+
+  it('reads the completed no server answer off a plain object', () => {
+    assert.equal(
+      serverProbeVerdict(
+        withPayload({
+          code: 'TMUX_UNREACHABLE',
+          message: 'no answer',
+          detail: 'no server running on /tmp/x'
+        })
+      ),
+      'no-server'
+    );
+  });
+
+  it('keeps a reachable failure not confirmed', () => {
+    assert.equal(
+      serverProbeVerdict(
+        withPayload({
+          code: 'TMUX_UNREACHABLE',
+          message: 'no answer',
+          detail: 'connection refused'
+        })
+      ),
+      'not-confirmed'
+    );
+  });
+
+  // Every malformed shape is refused WHOLE. Not one of them may reach
+  // 'no-server' on the strength of the sentence inside it, because a payload
+  // that is not exactly the shape this release writes was not written by it.
+  it('refuses every malformed payload whole', () => {
+    const malformed: Array<readonly [string, unknown]> = [
+      ['the payload is a string', 'no server running on /tmp/x'],
+      [
+        'the payload is an array',
+        ['TMUX_UNREACHABLE', 'no server running on /tmp/x']
+      ],
+      ['the payload is null', null],
+      [
+        'the code is a number',
+        { code: 7, message: 'x', detail: 'no server running on /tmp/x' }
+      ],
+      [
+        'the code is a word this release never named',
+        {
+          code: 'TMUX_HOLDS_NOTHING',
+          message: 'x',
+          detail: 'no server running on /tmp/x'
+        }
+      ],
+      [
+        'the message is missing',
+        { code: 'TMUX_UNREACHABLE', detail: 'no server running on /tmp/x' }
+      ],
+      [
+        'the detail is not text',
+        {
+          code: 'TMUX_UNREACHABLE',
+          message: 'x',
+          detail: { text: 'no server running on /tmp/x' }
+        }
+      ]
+    ];
+    for (const [name, payload] of malformed) {
+      assert.equal(
+        serverProbeVerdict(withPayload(payload)),
+        'not-confirmed',
+        `${name} must be refused whole and keep the durable row`
+      );
+    }
+  });
+
+  it('answers not confirmed for a value carrying no payload at all', () => {
+    assert.equal(
+      serverProbeVerdict(new Error('no server running on /tmp/x')),
+      'not-confirmed'
+    );
+    assert.equal(
+      serverProbeVerdict('no server running on /tmp/x'),
+      'not-confirmed'
+    );
+    assert.equal(serverProbeVerdict(null), 'not-confirmed');
+    assert.equal(serverProbeVerdict(undefined), 'not-confirmed');
+  });
+});

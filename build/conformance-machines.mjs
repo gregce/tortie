@@ -6173,6 +6173,91 @@ process.stdout.write(
     }
   }
 
+  // --- 71a. The classifier reads structure, not constructor identity ------
+  //
+  // PHASE 200. The 0.98.0 audit read this gate's condition 71 failing on the
+  // one completed answer, being "tmux holds no server at all" classified
+  // unreachable while the table says provenAbsent. The rows above cannot show
+  // that, because the probe builds them with the same copy of
+  // `src/main/errors` the classifier imported, so `instanceof` answers yes and
+  // the nominal read works by luck. Under a second loader it answers no, the
+  // code and the detail are never read, and the one sentence that may delete a
+  // durable row reads as an answer nobody could read.
+  //
+  // So this arm drives the same classifier over values built by a SECOND COPY
+  // of that module, plus the malformed shapes a structural reader has to
+  // refuse. Its first assertion is that the two copies really are different
+  // classes: if a future runtime dedupes them, this arm proves nothing and
+  // says so rather than passing.
+  const mixed = p117.mixedLoader ?? {};
+  const mixedRows = mixed.rows ?? [];
+  // name -> [verdict, answer]. Written here rather than read from the probe,
+  // so the probe cannot grade itself.
+  const MIXED_TABLE = new Map([
+    ['a completed no server answer built by a second loader', ['no-server', 'provenAbsent']],
+    ['a session named as missing by a second loader', ['not-confirmed', 'provenAbsent']],
+    ['a machine that could not be reached, from a second loader', ['not-confirmed', 'unreachable']],
+    ['a plain object carrying nothing but the payload shape', ['no-server', 'provenAbsent']],
+    ['malformed: the payload is a string', ['not-confirmed', 'unreachable']],
+    ['malformed: the payload is an array', ['not-confirmed', 'unreachable']],
+    ['malformed: the code is a number', ['not-confirmed', 'unreachable']],
+    ['malformed: a code this release never named', ['not-confirmed', 'unreachable']],
+    ['malformed: the message is missing', ['not-confirmed', 'unreachable']],
+    ['malformed: the detail is not text', ['not-confirmed', 'unreachable']],
+    ['malformed: the payload is null', ['not-confirmed', 'unreachable']]
+  ]);
+  if (mixed.sameClass !== false) {
+    fail(
+      `the second copy of src/main/errors is the SAME class as the first, so ` +
+        `the mixed loader arm proves nothing. It exists to drive the ` +
+        `classifier over a value whose constructor identity differs, which is ` +
+        `the shape the 0.98.0 audit met. An arm that cannot fail is not an arm.`
+    );
+  }
+  if (mixedRows.length !== MIXED_TABLE.size) {
+    fail(
+      `the mixed loader arm drove ${String(mixedRows.length)} shape(s) and the ` +
+        `table names ${String(MIXED_TABLE.size)}. A shape nobody drove is a ` +
+        `shape nobody compared against the table.`
+    );
+  }
+  for (const row of mixedRows) {
+    const wanted = MIXED_TABLE.get(String(row.name));
+    if (wanted === undefined) {
+      fail(
+        `the mixed loader arm drove "${String(row.name)}", which the table in ` +
+          `this gate does not name. Add the row and its two answers here.`
+      );
+      continue;
+    }
+    if (row.instanceofHere !== false) {
+      fail(
+        `"${String(row.name)}" IS an instanceof this process's own GmuxError, ` +
+          `so it never crossed the loader boundary this arm exists to cross.`
+      );
+    }
+    if (String(row.verdict) !== wanted[0]) {
+      fail(
+        `serverProbeVerdict answered ${String(row.verdict)} for ` +
+          `"${String(row.name)}" and the table says ${wanted[0]}. The verdict ` +
+          `must read the payload's SHAPE, because constructor identity is not ` +
+          `stable across loaders and this is the sentence that deletes a ` +
+          `durable row.`
+      );
+    }
+    if (String(row.answer) !== wanted[1]) {
+      fail(
+        `"${String(row.name)}" was classified ${String(row.answer)} and the ` +
+          `table says ${wanted[1]}. ` +
+          (wanted[1] === 'provenAbsent'
+            ? `A completed answer from tmux stays completed when it arrives ` +
+              `from a second loader.`
+            : `A payload that is not exactly the shape this release writes is ` +
+              `refused whole and the durable row is kept.`)
+      );
+    }
+  }
+
   // --- 72. The variable is not on the read line ----------------------------
   const argv = (p117.argv ?? []).map(String);
   if (argv.some((one) => one.includes('GMUX_SESSION_ID'))) {
@@ -7432,6 +7517,15 @@ process.stdout.write(
       `and keeps the id in the issued set, so the next run seeds that set from ` +
       `the manifest and binds the same immutable id instead of making a second ` +
       `create. Restore is refused for such a row by the gate's third arm.\n`
+  );
+  const mixedCount = (p117.mixedLoader ?? {}).rows?.length ?? 0;
+  process.stdout.write(
+    `  the answer is read from the payload's SHAPE and never from which class ` +
+      `built it. ${String(mixedCount)} shapes were driven from a SECOND COPY ` +
+      `of src/main/errors, none of them an instanceof this process's own ` +
+      `GmuxError: the completed "no server running" answer still reads ` +
+      `provenAbsent, and every malformed payload is refused whole and keeps ` +
+      `the row.\n`
   );
 }
 

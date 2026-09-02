@@ -7,7 +7,7 @@
  * tmux's: raw CLI failure text → a structured error.
  */
 
-import { GmuxError, gmuxError } from '../errors';
+import { GmuxError, gmuxError, gmuxErrorPayloadOf } from '../errors';
 
 /**
  * Classify raw tmux CLI failure text into a structured error.
@@ -106,9 +106,14 @@ export type ServerProbeVerdict = 'no-server' | 'not-confirmed';
  * confirms.
  */
 export function serverProbeVerdict(err: unknown): ServerProbeVerdict {
-  if (!(err instanceof GmuxError)) return 'not-confirmed';
-  if (err.payload.code !== 'TMUX_UNREACHABLE') return 'not-confirmed';
-  return /no server running/i.test(err.payload.detail ?? '')
+  // Phase 200: the payload is read by SHAPE and never by constructor identity.
+  // Under a second loader the same error is not an `instanceof` this module's
+  // class, and asking that first turned the one completed answer into an
+  // unreadable one. A malformed payload is null and stays 'not-confirmed'.
+  const payload = gmuxErrorPayloadOf(err);
+  if (payload === null) return 'not-confirmed';
+  if (payload.code !== 'TMUX_UNREACHABLE') return 'not-confirmed';
+  return /no server running/i.test(payload.detail ?? '')
     ? 'no-server'
     : 'not-confirmed';
 }

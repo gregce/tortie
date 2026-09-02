@@ -53,7 +53,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   MACHINE_EXECUTION_FIELDS,
@@ -208,7 +208,8 @@ import {
   resetRescueForTests,
   seedIssuedRemoteIds
 } from '../src/main/machines/pane-env-rescue';
-import { gmuxError } from '../src/main/errors';
+import { GmuxError as GmuxErrorHere, gmuxError } from '../src/main/errors';
+import { serverProbeVerdict } from '../src/main/tmux/errors';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const machinesDir = join(repoRoot, 'src', 'main', 'machines');
@@ -1242,6 +1243,27 @@ const { REMOTE_ENV_ALLOWED, REMOTE_ENV_MEASURED_AND_REFUSED } = await import(
 const { machineKeyDir: keyDirFor, machineKeyPath: keyPathFor } = await import(
   '../src/main/machines/key-material'
 );
+
+/**
+ * PHASE 200, THE MIXED LOADER ARM. A SECOND COPY of `src/main/errors`, loaded
+ * under a URL of its own so its `GmuxError` is a DIFFERENT CONSTRUCTOR from the
+ * one this file imported at the top. That is exactly the shape the 0.98.0 audit
+ * met: the value and the classifier came from two loaders, `err instanceof
+ * GmuxError` answered no before the code or the detail could be read, and the
+ * one completed answer that is allowed to delete a durable row read instead as
+ * "nobody could read an answer". The safety default held and the positive path
+ * was gone.
+ *
+ * It is the only place in this gate where the two sides are provably not the
+ * same class, so condition 71a below REFUSES TO PASS if they turn out to be.
+ * An arm that cannot fail proves nothing.
+ *
+ * It loads a module and does nothing else. No command runs, nothing is spawned,
+ * no machine is asked anything and no file is opened for writing.
+ */
+const secondLoaderErrors = (await import(
+  `${pathToFileURL(join(repoRoot, 'src', 'main', 'errors.ts')).href}?phase200-second-loader=1`
+)) as typeof import('../src/main/errors');
 
 /** A value nothing in this product would ever pass, for the hostile check. */
 const HOSTILE_VALUE = "'; rm -rf ~; touch /tmp/pwned; echo '";
@@ -2983,6 +3005,102 @@ process.stdout.write(
         }
       ];
 
+      // Condition 71a, PHASE 200. The same table, driven with values built by
+      // the SECOND COPY of `src/main/errors` loaded above, plus the malformed
+      // shapes a structural reader has to refuse. Every row here crossed a
+      // loader boundary on its way in, which is what the 0.98.0 audit's failing
+      // row actually was, and none of them is an `instanceof` this process's
+      // own `GmuxError`. The gate checks that first and refuses to grade the
+      // rest if it is not true.
+      const secondCopy = secondLoaderErrors;
+      const mixedRow = (name: string, err: unknown) => ({
+        name,
+        // Proof the arm is real: a value from the second loader must NOT be an
+        // instance of the class this file imported, or the arm proves nothing.
+        instanceofHere: err instanceof GmuxErrorHere,
+        verdict: serverProbeVerdict(err),
+        answer: classifyConfirmationFailure(err)
+      });
+      const mixedLoader = {
+        sameClass: secondCopy.GmuxError === GmuxErrorHere,
+        rows: [
+          mixedRow(
+            'a completed no server answer built by a second loader',
+            secondCopy.gmuxError(
+              'TMUX_UNREACHABLE',
+              'no answer',
+              'no server running on /tmp/x'
+            )
+          ),
+          mixedRow(
+            'a session named as missing by a second loader',
+            secondCopy.gmuxError('SESSION_NOT_FOUND', 'gone', 'session not found')
+          ),
+          mixedRow(
+            'a machine that could not be reached, from a second loader',
+            secondCopy.gmuxError('TMUX_UNREACHABLE', 'no answer', 'connection refused')
+          ),
+          mixedRow(
+            'a plain object carrying nothing but the payload shape',
+            Object.assign(new Error('serialised across a boundary'), {
+              payload: {
+                code: 'TMUX_UNREACHABLE',
+                message: 'no answer',
+                detail: 'no server running on /tmp/x'
+              }
+            })
+          ),
+          mixedRow(
+            'malformed: the payload is a string',
+            Object.assign(new Error('no answer'), {
+              payload: 'no server running on /tmp/x'
+            })
+          ),
+          mixedRow(
+            'malformed: the payload is an array',
+            Object.assign(new Error('no answer'), {
+              payload: ['TMUX_UNREACHABLE', 'no server running on /tmp/x']
+            })
+          ),
+          mixedRow(
+            'malformed: the code is a number',
+            Object.assign(new Error('no answer'), {
+              payload: { code: 7, message: 'x', detail: 'no server running on /tmp/x' }
+            })
+          ),
+          mixedRow(
+            'malformed: a code this release never named',
+            Object.assign(new Error('no answer'), {
+              payload: {
+                code: 'TMUX_HOLDS_NOTHING',
+                message: 'x',
+                detail: 'no server running on /tmp/x'
+              }
+            })
+          ),
+          mixedRow(
+            'malformed: the message is missing',
+            Object.assign(new Error('no answer'), {
+              payload: { code: 'TMUX_UNREACHABLE', detail: 'no server running on /tmp/x' }
+            })
+          ),
+          mixedRow(
+            'malformed: the detail is not text',
+            Object.assign(new Error('no answer'), {
+              payload: {
+                code: 'TMUX_UNREACHABLE',
+                message: 'x',
+                detail: { text: 'no server running on /tmp/x' }
+              }
+            })
+          ),
+          mixedRow(
+            'malformed: the payload is null',
+            Object.assign(new Error('no answer'), { payload: null })
+          )
+        ]
+      };
+
       // Condition 73. The seed, driven against this process's own map. The map
       // is emptied before and after, so this leaves nothing behind.
       const seed = (() => {
@@ -3059,6 +3177,7 @@ process.stdout.write(
           }
         ],
         failures,
+        mixedLoader,
         // Condition 69. Who may delete a durable row on the create path.
         dropCallers: codeHits(sessionsPath, 'dropRemoteRow(').filter(
           (row) => !row.text.startsWith('function ')

@@ -46,7 +46,7 @@
  * learns it here.
  */
 
-import { GmuxError } from '../errors';
+import { gmuxErrorPayloadOf } from '../errors';
 import { serverProbeVerdict } from '../tmux/errors';
 
 /** The answer one confirmation read produced. */
@@ -132,9 +132,14 @@ export function classifyConfirmationFailure(
   // reads the same stderr sentence the local reconcile boundary reads, so the
   // two paths cannot drift apart on what counts as a completed death.
   if (serverProbeVerdict(err) === 'no-server') return 'provenAbsent';
-  if (err instanceof GmuxError) {
-    if (err.payload.code === 'SESSION_NOT_FOUND') return 'provenAbsent';
-    return sessionNamedAsMissing(err.payload.detail ?? '')
+  // Phase 200: the payload is read by SHAPE, through the same reader the
+  // verdict above uses, so a value from a second loader is the same value
+  // here. A malformed payload is null and falls to the message read below,
+  // where an unread answer keeps the row.
+  const payload = gmuxErrorPayloadOf(err);
+  if (payload !== null) {
+    if (payload.code === 'SESSION_NOT_FOUND') return 'provenAbsent';
+    return sessionNamedAsMissing(payload.detail ?? '')
       ? 'provenAbsent'
       : 'unreachable';
   }
