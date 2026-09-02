@@ -19811,6 +19811,137 @@ research is about the reading, not the drawing.
 - No change to the contract format, the checkers or `docs/arch/`. The contract stays; it moves down
   the sidebar.
 
+## Phase 198: a file's history, followed through its renames (research 76, operator asked 2026-09-01)
+
+**Subject.** `feat(scm): a file's history, followed through its renames`
+
+**First body line.** `Phase 198: file history`
+
+**Semver.** MINOR. A new section in the SCM pane and a new Explorer menu item.
+
+**Tier 2.** It spawns git, which the SCM pane already spawns, reads nothing new under the person's
+home, holds no credentials, sends nothing anywhere, and writes nothing, so it cannot lose work. One
+rendered surface with one new piece of state, the per path window. The independent methods are
+named in research 76 section 8 and repeated below.
+
+**Charter.** His GitLens screenshot of 2026-09-01 and `docs/research/76-file-history-and-search.md`
+sections 7.1 and 8. The research chose the SCM pane section over a mode on the file's tab because a
+file history is read by clicking row after row while the diff changes, and only the section keeps
+both on screen with zero new diff code.
+
+### What it builds
+
+- **A File history section under History in the SCM pane**, headed with the file's name, drawing
+  rows in the History section's own row shape, following the editor's active tab rather than the
+  Explorer selection. Choosing a row calls the existing `openCommitFile` with the row's status and
+  old path, so one click previews the diff and a double click pins it, exactly as a file row in a
+  commit does today. Empty and collapsed when no file is open.
+- **An Explorer row menu item, History**, which opens the file and switches the sidebar to SCM, plus
+  the matching native menu line in the same commit.
+- **The walk gains a path.** `GitGraphLogInput` gains `path` and `follow`, `GitGraphLogEntry` gains an
+  optional `file` with path, old path and status, and `walk` at `service.ts:363` appends
+  `--name-status -M` and a literal pathspec, and `--follow` when asked, refusing follow without exactly
+  one path. `assertRelPath` and `literalSpec` are reused so `*` and `[` never glob.
+- **One reader for the name status chunk** after each record, about thirty lines beside
+  `parseNameStatusZ`, because `parseGraphLog` discards those chunks today.
+- **A per path window** in `depth.ts` in the shape of the per repository one, so Load 50 more works.
+- **At a rename**, the row's directory span shows the old path and a title says the file was renamed
+  from it, in the words `HistorySection.tsx:861` already uses.
+
+### What it must get right
+
+- **Renames follow and the boundary row opens a two sided diff**, through `origPath`, which
+  `commitFileDiff` already takes.
+- **Merges are absent**, as `--follow` drops them; the research counted 205 out and 178 in on git's
+  own `builtin/log.c`. The section does not pretend otherwise.
+- **A copy is followed, a directory refuses with a sentence, a deleted file draws its last row**,
+  each without a crash.
+- **The contract baseline regenerates in the same commit** with the lines that moved named.
+- **Just enough words.** The file name, the rows, and nothing on the resting face.
+
+### Proof, run rather than read
+
+- **Real data:** the gmux copy, with `src/renderer/machines/presentation.ts` as the fixture, which
+  must show 31 rows and a boundary row reading renamed from `src/renderer/app/machine-copy.ts`, every
+  row above the boundary opening a diff with two sides.
+- **Re-derive:** a verifier's own reader for the name status chunks, written without reading the
+  phase's, agreeing on every row over `builtin/log.c` in a git/git copy, 609 rows with the one
+  `R100`, and the 205 merges absent by set difference against the plain walk.
+- **Attack:** a path with `*` and `[` in it, a directory, a file copied rather than moved, a deleted
+  file.
+- A conformance script that runs the shipping walk over a scratch repository holding a copy, a
+  rename and a wholesale rewrite and pins every row's path, old path and status, named in
+  `package.json` and `build/verification-checks.mjs`, proved red at the parent.
+- One app run over the gmux copy that clicks the boundary row and reads a two sided diff, plus the
+  whole journey: open a file, open its history, click rows, open a second file, close the file.
+- The battery, with `gate:contract` green on the regenerated baseline.
+
+### What is NOT in this phase
+
+- No search of any kind; that is Phase 199. No changes button, no `-S` on a path.
+- No line history, no blame, no dots on a time axis.
+- No change to the graph fold, no commit graph written into a person's repository, no new package.
+
+## Phase 199: find a commit by what you remember of it (research 76, operator asked 2026-09-01)
+
+**Subject.** `feat(scm): the history narrows as you type`
+
+**First body line.** `Phase 199: search across the history`
+
+**Semver.** MINOR. A field on an existing surface and one new walk shape.
+
+**Tier 2.** Same reasoning as Phase 198. It runs after 198 because it reuses the widened walk input
+and the cancel token 198 introduces.
+
+**Charter.** His words of 2026-09-01, *"in the SCM pane, search for files through the commit
+history"*, and research 76 sections 7.2 and 4. The research chose a field at the head of the History
+section over a separate results list because a search result is a commit and the History section
+already draws, expands, opens, pages and scopes commits.
+
+### What it builds
+
+- **A text field at the head of the History section** beside the scope control. What is typed goes
+  to the same walk with the same ref set and the same page size. Bare text searches messages.
+  GitLens's operators are borrowed as vocabulary, not as a parser: `author:` becomes `--author=`,
+  `message:` becomes `--grep=`, `commit:` or a bare string `rev-parse --verify` accepts becomes one
+  row, `file:` becomes a literal pathspec. Each keystroke, after a short debounce, cancels the walk in
+  flight and starts one.
+- **`change:` does not run on a keystroke.** It shows a Search button that runs `-S` with the scope's
+  ref set, cancelable, with a spinner and the time printed when it finishes. Research 76 measured
+  `-S` at 1.8 seconds on gmux and 8.7 to 21 seconds on git's own repository.
+- **While a query is active the graph gutter is hidden**, because a filtered walk has parents that
+  are not in the list and the fold would draw lanes to nowhere. The scope control and Load 50 more
+  are unchanged. Escape clears the field and the pane returns to the plain walk.
+
+### What it must get right
+
+- **Keystroke honesty.** Research 76 measured 15 to 50 ms per keystroke under `-n 51` on 82,130
+  commits, and one whole history read of about 500 to 600 ms at worst. The phase re-measures in the
+  running app and states the debounce it chose from the number.
+- **A cancelled walk never draws.** A slow answer to an old query must not land over a new one.
+- **Operators never reach a shell.** Every value is one argv element; a query containing a quote, a
+  dash prefix or a newline is proved not to change the argv shape.
+- **The contract baseline regenerates in the same commit.**
+
+### Proof, run rather than read
+
+- **Real data:** the gmux copy and a git/git copy, timing each operator per keystroke and the
+  `change:` button, with the numbers in the commit body.
+- **Re-derive:** the verifier runs each query as a raw git command with its own argv and compares
+  the row set to what the pane drew.
+- **Attack:** a query that is only an operator, a `commit:` that is not a commit, a `file:` that
+  globs, a query typed faster than the debounce with the walks racing, and an author with a regex
+  metacharacter.
+- The whole journey in one app run: type, narrow, expand a row, open a file from it, Load 50 more,
+  press the changes button, Escape.
+- The battery.
+
+### What is NOT in this phase
+
+- No separate results view, no new channel, no new package.
+- No search of a file's own history; the field narrows the History section only.
+- No line history, no blame, no timeline.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -20133,3 +20264,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, QUEUED AT HIS WORD after the 0.98.0 release, in this order: Phase 190 which was already written at ae8e9a1 and now runs; Phase 195 the seven contradictions from research 75 section 2, being C3 C5 C6 C7 C8 C9 and C10, no token value changes and nothing moves, PATCH, Tier 2 with every photograph probe compared at parent and HEAD as a pixel count; Phase 196 the quiet frame being research 75 Option A which he picked after reviewing the four mocks, eleven token values changed and one added with only lightness moving on the neutrals, plus the border retune taken from Option C and the hover step cost the synthesizer found fixed inside the option, MINOR, Tier 2 with the verifier re-deriving every contrast ratio from rendered pixels; Phase 197 the third nits round, 23 items one commit each including the two Phase 185 reverify blockers the verification audit found still on main; and RESEARCH 76 on the history of one file from the Explorer the way GitLens shows it and searching the SCM history by message author SHA or file, from his screenshot, which reads what the tree already has in graph-parse.ts and the history pane, studies GitLens VS Code Timeline Sublime Merge Fork and tig mechanically, times the walks on a real repository, makes the scope guardrail case explicitly for each ask, and ends with one recommendation and no queued phase. The capture-in-Menlo overclaim is fixed directly rather than queued.
 - 2026-09-01, Research 77 QUEUED at his word: the Architecture map should answer three questions at a glance, being WHAT the repository and each component is from deterministic facts the code supports, what it MEANS from the enrichment model already chosen in Settings and labelled as the model's reading, and WHAT IS MOVING from git over a window he picks, because as people build with agents the core problem is keeping the mental model of the software alive; it builds on the eleven Architecture phases from 157 to 179 and research 49 68 and 71, designs layer 1 as a specification proved on three real repositories, runs layer 2 once on a scratch copy and shows the sentences beside the facts, times layer 3's walks, redesigns the sidebar as a reading with the contract moved below the components and mocks it at real width beside today's, answers with a measurement whether the map should be ON by default now that layer 1 needs no contract, makes the scope guardrail case for each layer, and ends with one recommendation and a first phase; nothing is queued from it.
 - 2026-09-01, Research 76 DELIVERED at docs/research/76-file-history-and-search.md, commit edb79de. File history goes in the SCM pane as a section that follows the active editor tab and follows renames with --follow, entered from an Explorer menu item, because the list and the diff must stay on screen together. Search goes in a field at the head of the History section that narrows the existing walk with --grep, --author, a rev-parse and a pathspec, GitLens operators borrowed as vocabulary. Keystroke verdict: message, author, SHA and path run on a keystroke under -n 51 at 15 to 50 ms on 82,130 commits with one whole history read at worst; changes by content is a button only, 1.8 s on gmux and 8.7 to 21 s on git/git. Nothing is queued from it.
+- 2026-09-01, Phases 198 and 199 QUEUED from research 76 at his standing word to form a recommendation and queue it: 198 is FILE HISTORY as a section in the SCM pane following the active editor tab, entered from a new Explorer row menu item, walking git log --follow with a literal pathspec and --name-status -M so each row carries its status and old path, choosing a row calling the existing openCommitFile so the rename boundary opens a two sided diff through origPath which commitFileDiff already takes, chosen over a mode on the file's tab because reading a history is a loop of clicking rows while the diff changes and only the section keeps both on screen with zero new diff code; 199 is SEARCH as a field at the head of the History section narrowing the same walk per keystroke with GitLens's operators borrowed as vocabulary, author: message: commit: and file:, the graph gutter hidden while a query is active, and change: behind a Search button because -S measured 1.8 seconds on gmux and up to 21 seconds on git's own repository while the keystroke walks measured 15 to 50 ms; both MINOR, Tier 2, with the independent methods named in each entry; 199 runs after 198 because it reuses the widened walk input and the cancel token.
