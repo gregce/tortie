@@ -443,6 +443,24 @@ export const CHECKS = [
   // unit tests fails if a later round deletes the push to the pool. It creates
   // no session, spawns no agent and spends no token, and it touches `-L gmux`
   // in one place only, a read only session count taken before and after.
+  // PHASE 202. Does a session run under the login a person chose? Two launches
+  // on one scratch profile and the p202 socket drive the whole matrix over a
+  // FIXTURE second login per provider: the pane environment read from inside
+  // the pane, the login name on the row, the plan the meter reached, the card
+  // read off the DOM, restore by name after the server holding the sessions is
+  // gone, the fallback with its sentence when the login is removed, and the
+  // attacks, being a switch mid launch, a deleted directory, a hand edited
+  // store file naming a directory Tortie does not own, and posts from the
+  // wrong login. NO VENDOR BINARY RUNS: claude and codex are two stub scripts
+  // the probe writes, which record the environment their pane really got. NO
+  // CREDENTIAL OF THE PERSON IS OPENED: the transport is a file and the
+  // keychain is refused, and the run points CLAUDE_CONFIG_DIR and CODEX_HOME
+  // at scratch directories, so the default login of the run is a folder the
+  // probe made. It spends no token, runs no sign in, and hashes the person's
+  // three credential files before and after. `node
+  // build/probe-p202-logins.mjs --self-test` proves the graders on thirteen
+  // fixtures and launches nothing.
+  electron('probe:p202'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a

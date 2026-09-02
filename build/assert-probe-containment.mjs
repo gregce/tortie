@@ -120,7 +120,12 @@ const PROBE_MARKERS = [
   // PHASE 189. The one function build/probe-p189-tabs.mjs needs that a probe
   // cannot press: opening a project, whose shipped route begins at a native
   // folder picker.
-  '__gmuxP189Open'
+  '__gmuxP189Open',
+  // PHASE 202. The login matrix drive, read by build/probe-p202-logins.mjs. It
+  // is here for the reason the five above are: a person's launch must not
+  // parse it, and a marker is the only thing that can prove that of a built
+  // chunk.
+  '__gmuxP202'
 ];
 
 /**

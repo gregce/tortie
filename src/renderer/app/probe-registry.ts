@@ -103,6 +103,13 @@ import type { RemoteHistoryProbeSpec } from '../scm/p107-history-shot';
 // tab strip's. Both switches stay off for the whole run, so no credential is
 // opened and no vendor is asked anything.
 import { registerP1812UsageDrive } from './p1812-usage-drive';
+// PHASE 202. The login matrix's own hook, read by
+// build/probe-p202-logins.mjs. It opens the meter's card with a real pointer
+// event, calls the same four login channels every surface calls, and reports
+// what the card drew and what main answered. Unlike the drive above it stages
+// nothing: main answers it from the probe's own fixture file, so the numbers
+// on screen are the ones the shipped service read.
+import { registerP202LoginsDrive } from './p202-logins-drive';
 // PHASE 156. The build time menu icon generator's hook. It reads back the
 // cache `warmMenuIcons()` fills, so the PNG set main ships is the output of
 // the ONE rasterizer this product has rather than a second copy of it.
@@ -370,6 +377,9 @@ function armModuleLoadDrives(): void {
   // PHASE 181.2 hook, same shape again, read by
   // build/probe-p1812-bar-and-card.mjs.
   registerP1812UsageDrive();
+
+  // PHASE 202 hook, same shape again, read by build/probe-p202-logins.mjs.
+  registerP202LoginsDrive();
 }
 
 /**
