@@ -20042,6 +20042,97 @@ not claim 36 unless every one of the twelve holds.
   its operator check is the guard.
 - **The audit file is not committed.** It is his.
 
+## Phase 202: switch the subscription from the usage meter (operator asked 2026-09-01)
+
+**Subject.** `feat(usage): choose which login your next session runs under, from the meter`
+
+**First body line.** `Phase 202: the account under the meter`
+
+**Semver.** MINOR. A new action on an existing surface and a new kind of durable state, being the
+set of logins Tortie knows and which one is chosen.
+
+**Tier 3.** It launches sessions under a chosen credential, it sits beside his credentials, and a
+wrong switch would send a turn to the wrong plan. The independent methods are **run over real
+data** (two real logins, the matrix below) and **attack** (a switch mid launch, a config dir that
+vanishes, a dir Tortie does not own).
+
+**Charter.** His words of 2026-09-01: *"similar to orca, we can easily change what subscription
+we're logged into directly from the usage indicator (for either codex or claude), ideally it would
+be in the hover over similar to how we can take actions in SCM in the hover over."* Research 72
+section 5 said *"no account switching in v1"*; this is v2 and it inherits every hard rule there.
+
+### The mechanism, read from orca and chosen because it never rewrites his credentials
+
+orca keeps one directory per account (`ClaudeManagedAccount.managedAuthPath` in
+`src/shared/managed-account-types.ts`) and a switch sets `CLAUDE_CONFIG_DIR` or `CODEX_HOME` in the
+environment of processes it launches (`claude-managed-usage-panel.ts:39`, `envPatch`). It never
+edits `~/.claude/.credentials.json`, the keychain item or `~/.codex/auth.json`. Tortie does the same:
+
+- **A login is a directory Tortie owns**, under `<userData>/gmux/logins/<provider>/<id>/`, written
+  only by the vendor CLI itself when a person signs in there. Tortie reads it the way Phase 181 reads
+  the default location and never writes a credential byte.
+- **The default login is his existing one**, at the default location, and it stays exactly as it is.
+  It is listed first and is what everything does today.
+- **Adding a login** launches one ordinary session with `CLAUDE_CONFIG_DIR` or `CODEX_HOME` pointed
+  at a fresh Tortie owned directory and `claude` or `codex login` as the command, so the vendor's own
+  sign in runs in the person's own terminal. Tortie reads nothing until the file exists. Refusal 8
+  holds: the person starts it.
+- **Choosing a login** changes which directory NEW sessions of that agent are launched with, and
+  which directory the meter reads. It is written into the session's manifest row the way
+  `envPassthrough` names are, by NAME of the login rather than by path, so restore re-resolves it.
+- **Running sessions keep the login they started with.** Nothing is sent to a live process. The
+  meter says which login each running session is on when it differs from the chosen one, which
+  research 72's own rule already requires: *never lie across accounts*.
+
+### Where it lives
+
+- **The hover card on the meter**, which Phase 181.2 already draws with the plan name per login,
+  gains one row per provider: the chosen login's name and plan, and a control that lists the others
+  and an Add login item. Same shape as the SCM hover card's actions. Just enough words.
+- **Settings then Agents, the usage group**, lists the logins per provider with remove, so the card
+  stays short. Removing a login deletes only Tortie's own directory and never the default one.
+- **The statusline tap** (Phase 182) already carries the posting session's config dir; the ingest
+  drops a post whose dir is not the chosen login's, which it does today.
+
+### What it must get right
+
+- **His existing credentials are never written, moved, copied or deleted.** The default login is
+  read only forever. A test proves the three files are byte identical before and after every action
+  in the matrix.
+- **No token byte in any file, log, manifest row or argv.** The manifest carries the login's name;
+  the path is derived at launch.
+- **A session records its login and restores under it.** If the directory is gone at restore, the
+  session restores under the default and says so, rather than failing.
+- **The meter follows the chosen login within one poll**, and a stale snapshot from the previous
+  login is marked as such rather than shown as current.
+- **Codex parity.** `CODEX_HOME` does for codex what `CLAUDE_CONFIG_DIR` does for claude; the
+  matrix covers both.
+- **The confirm hash does not move for a login choice.** Choosing a login is presentation of which
+  credential, not what runs; the argv is unchanged. State this and prove it with
+  `conformance:agents`.
+
+### Proof, run rather than read
+
+- **The matrix, over two real logins per provider on his machine if he has them and over a
+  Tortie owned second login he creates in the run otherwise:** launch under default, switch, launch
+  under the second, confirm each session's process environment carries the right dir and each
+  reaches the right plan in the meter, restore both after a quit, remove the second and restore
+  again.
+- **Attack:** switch while a launch is in flight; delete the chosen directory under a running
+  session and under a stopped one; point a login at a directory Tortie does not own and prove it is
+  refused; a statusline post from the wrong dir; two sessions on two logins posting at once.
+- **The byte identity proof** of his three credential files across the whole run.
+- `conformance:agents`, `conformance:resume:capture`, `gate:contract` with the regenerated baseline,
+  and the battery.
+
+### What is NOT in this phase
+
+- **No credential is ever written by Tortie.** The vendor CLI signs in; Tortie points at a directory.
+- **No refresh, no rotation, no sign out.** Removing a login deletes a Tortie owned directory only.
+- **No switching a running session.** It keeps what it started with.
+- **No providers beyond claude and codex**, which are the two the meter reads.
+- **No per project login.** One chosen login per provider, app wide, like the meter itself.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -20366,3 +20457,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, Research 76 DELIVERED at docs/research/76-file-history-and-search.md, commit edb79de. File history goes in the SCM pane as a section that follows the active editor tab and follows renames with --follow, entered from an Explorer menu item, because the list and the diff must stay on screen together. Search goes in a field at the head of the History section that narrows the existing walk with --grep, --author, a rev-parse and a pathspec, GitLens operators borrowed as vocabulary. Keystroke verdict: message, author, SHA and path run on a keystroke under -n 51 at 15 to 50 ms on 82,130 commits with one whole history read at worst; changes by content is a button only, 1.8 s on gmux and 8.7 to 21 s on git/git. Nothing is queued from it.
 - 2026-09-01, Phases 198 and 199 QUEUED from research 76 at his standing word to form a recommendation and queue it: 198 is FILE HISTORY as a section in the SCM pane following the active editor tab, entered from a new Explorer row menu item, walking git log --follow with a literal pathspec and --name-status -M so each row carries its status and old path, choosing a row calling the existing openCommitFile so the rename boundary opens a two sided diff through origPath which commitFileDiff already takes, chosen over a mode on the file's tab because reading a history is a loop of clicking rows while the diff changes and only the section keeps both on screen with zero new diff code; 199 is SEARCH as a field at the head of the History section narrowing the same walk per keystroke with GitLens's operators borrowed as vocabulary, author: message: commit: and file:, the graph gutter hidden while a query is active, and change: behind a Search button because -S measured 1.8 seconds on gmux and up to 21 seconds on git's own repository while the keystroke walks measured 15 to 50 ms; both MINOR, Tier 2, with the independent methods named in each entry; 199 runs after 198 because it reuses the widened walk input and the cancel token.
 - 2026-09-01, Phase 200 QUEUED at his word from docs/audits/2026-09-01-electron-typescript-architecture-0.98.0.md, his untracked file which the phase never commits: the architecture scores 33 of 36 with lifecycle, failure flow and test seam each at 2, and the phase is the audit's own safe order to 36 as four items ONE COMMIT EACH, being the P0 durable create classifier reading a structural discriminator instead of instanceof across the mts loader boundary so conformance:machines stops failing its one no server row while the fail closed default stays, the P1 joined shutdown where the hook server gains an admission flag and an awaited close, usage refuses reads and taps after admission and cancels its HTTPS request and routes its keychain child through an owned registry, and Diagnostics stop joins the ordered main disposer, the P1 verification seams being the SpecStory binary assertion moved out of the hermetic lane, the two dead probes whose tsxCli import sits inside a generated driver string, and the Electron probes stripped of his dev server environment, and the P1 renderer surface retention where P167 measured DOM nodes rising 1,512 against a 400 budget with the heap flat and 18 Architecture opens missing because the isolated profile never enables the Phase 175 switch; the closing proof reruns the rubric on one pinned hash and states the score category by category without claiming 36 unless all twelve hold; PATCH, Tier 3 because item 1 decides whether a durable row is removed and item 2 changes shutdown order, with the parent measured for every item and an ATTACK on the shutdown as the two named methods; NOT in it are any split of the two watched files, any change to the eager budget, or any ordinary path change.
+- 2026-09-01, Phase 202 QUEUED at his word: switch which subscription a new session runs under from the usage meter's hover card, for claude and for codex, the way orca does it; THE MECHANISM was read from orca's source and chosen because it never rewrites his credentials, being one Tortie owned directory per login written only by the vendor CLI when he signs in there, a switch setting CLAUDE_CONFIG_DIR or CODEX_HOME on NEW sessions and on the meter's read, the default login being his existing one at the default location left read only forever, adding a login launching one ordinary session running the vendor's own login command so refusal 8 holds, running sessions keeping the login they started with, the manifest carrying the login's NAME and never a path or a token byte, and the meter saying which login a running session is on when it differs which research 72's never lie across accounts rule already requires; the card gains one row per provider and Settings then Agents lists and removes logins; MINOR, Tier 3, real data over two logins per provider plus an attack on a switch mid launch and a vanished directory, with his three credential files proved byte identical across the whole run; NOT in it are any credential write refresh rotation or sign out, switching a running session, providers beyond the two, or a per project login.
