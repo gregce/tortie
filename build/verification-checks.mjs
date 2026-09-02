@@ -130,6 +130,10 @@ export const CHECKS = [
   pure('conformance:redline'),
   pure('conformance:filehistory'),
   pure('conformance:historysearch'),
+  // Phase 202. The logins domain: it runs build/conformance-logins.mjs, which
+  // scans the shipping source for the refusals and runs the shipping store
+  // over a scratch root and over four ablated copies of itself.
+  pure('conformance:logins'),
   pure('conformance:arch'),
   pure('conformance:arch:modules'),
   pure('conformance:reading'),
