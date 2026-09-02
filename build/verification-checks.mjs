@@ -453,6 +453,15 @@ export const CHECKS = [
   electron('probe:p198'),
   // Phase 197: the third nits round's one app run over its rendered items.
   electron('probe:p197'),
+  // PHASE 199. One launch on a scratch profile over a COPY of a Tortie
+  // checkout named in P199_PROJECT, which types into the History section's
+  // search field one character at a time, reads each keystroke's walk time
+  // off the store, holds every row set against git's own answer composed
+  // with the probe's own argv, expands a row, opens a file, loads more,
+  // runs the changes button, types a burst and a race, and presses Escape.
+  // Spawns no agent and spends no token, and touches `-L gmux` in one place
+  // only, a read only session count taken before and after.
+  electron('probe:p199'),
   // PHASE 190. Does the inline control say what it can tell apart? One launch
   // on a scratch profile opens five diffs it wrote itself, being the
   // operator's own pure deletion, a replacement in the shape of his prose
