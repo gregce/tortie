@@ -7,9 +7,15 @@
  * server, spawns no agent, makes no request, and reads nothing under the
  * person's home: every path it touches is under the scratch root it is handed.
  *
- * `P202_LOGINS_DIR` points the two store modules somewhere else, which is how
- * the gate runs the same probe over an ABLATED copy and watches it go red. A
- * gate whose checks cannot fail proves nothing.
+ * `P202_LOGINS_DIR` points the two store modules somewhere else, and
+ * `P203_ACCOUNTS_DIR` does the same for the account reader, which is how the
+ * gate runs the same probe over an ABLATED copy and watches it go red. A gate
+ * whose checks cannot fail proves nothing.
+ *
+ * PHASE 203 ADDED THE PRESENCE AND ACCOUNT READINGS. Everything below section
+ * 8 runs the SHIPPING `src/main/usage/login-accounts.ts` with injected seams,
+ * so it opens no keychain, spawns nothing and reads no vendor file: the
+ * keychain is a set of names and the file system is a bag of strings.
  */
 
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -22,6 +28,7 @@ import { loginPaneEnv, newSessionRecord, paneEnvFor } from '../src/main/sessions
 import type { AgentLaunchSpec } from '../src/main/manifest';
 
 const MODULES = process.env['P202_LOGINS_DIR'] ?? 'src/main/logins';
+const ACCOUNTS = process.env['P203_ACCOUNTS_DIR'] ?? 'src/main/usage';
 
 const dirs = (await import(
   pathToFileURL(resolve(MODULES, 'dirs.ts')).href
@@ -29,6 +36,12 @@ const dirs = (await import(
 const store = (await import(
   pathToFileURL(resolve(MODULES, 'store.ts')).href
 )) as typeof import('../src/main/logins/store');
+const accounts = (await import(
+  pathToFileURL(resolve(ACCOUNTS, 'login-accounts.ts')).href
+)) as typeof import('../src/main/usage/login-accounts');
+const credentials = (await import(
+  pathToFileURL(resolve(ACCOUNTS, 'credentials.ts')).href
+)) as typeof import('../src/main/usage/credentials');
 
 /** A value only this probe ever writes. If it appears anywhere, say where. */
 const TOKEN = 'P202-SENTINEL-TOKEN-8f3c1a';
@@ -301,6 +314,175 @@ try {
   rmSync(dir, { recursive: true, force: true });
   const gone = store.effectiveLogin(root, 'claude');
   out['gone'] = { name: gone.name, dir: gone.dir, fellBack: gone.fellBack, asked: gone.asked };
+
+  // -------------------------------------------------------------------------
+  // 8. PRESENCE IS THE WHOLE QUESTION (Phase 203), which is the first defect
+  //    the operator reported. Every seam is injected: the keychain is a set of
+  //    service names and the file system is a bag of strings, so nothing here
+  //    opens a keychain, spawns a process or reads a vendor file.
+  // -------------------------------------------------------------------------
+  const seams = (
+    items: string[],
+    files: Record<string, string>,
+    env: Record<string, string | undefined> = {},
+    home = '/nowhere'
+  ): Parameters<typeof accounts.readLoginPresence>[0] => {
+    const set = new Set(items);
+    return {
+      keychainHas: async (service: string) => set.has(service),
+      exists: async (path: string) => Object.hasOwn(files, path),
+      readText: async (path: string) => files[path] ?? null,
+      env,
+      home,
+      now: () => 0
+    };
+  };
+
+  // A REAL added login, made here, because section 6 above deleted the
+  // folder of the one it was testing the fallback with.
+  const listAdd = store.addLogin(root, 'claude', 'Keychain');
+  if (!listAdd.ok) throw new Error(`add refused: ${listAdd.reason}`);
+  const liveDir = listAdd.dir ?? '';
+  const scoped = credentials.claudeScopedService(liveDir);
+  const askedForLogin: string[] = [];
+  const scopedProbe = {
+    ...seams([], {}),
+    keychainHas: async (service: string) => {
+      askedForLogin.push(service);
+      return false;
+    }
+  };
+  await accounts.readLoginPresence(scopedProbe, 'claude', liveDir);
+  const askedForDefault: string[] = [];
+  await accounts.readLoginPresence(
+    {
+      ...seams([], {}),
+      keychainHas: async (service: string) => {
+        askedForDefault.push(service);
+        return false;
+      }
+    },
+    'claude',
+    null
+  );
+  out['presence'] = {
+    // THE DEFECT AND THE FIX SIDE BY SIDE. macOS writes no credentials file
+    // for a claude login, so the keychain half is the only half there is.
+    keychainOnly: await accounts.readLoginPresence(seams([scoped], {}), 'claude', liveDir),
+    fileOnly: await accounts.readLoginPresence(
+      seams([], { [`${liveDir}/.credentials.json`]: '{}' }),
+      'claude',
+      liveDir
+    ),
+    neither: await accounts.readLoginPresence(seams([], {}), 'claude', liveDir),
+    codexFile: await accounts.readLoginPresence(
+      seams([], { [`${liveDir}/auth.json`]: '{}' }),
+      'codex',
+      liveDir
+    ),
+    codexNone: await accounts.readLoginPresence(seams([], {}), 'codex', liveDir),
+    // THE SCOPED NAME IS DERIVED FROM THE DIRECTORY, and this is the name the
+    // operator's own keychain really holds for his added login.
+    scoped,
+    // A LOGIN GETS THE SCOPED NAME AND NOTHING ELSE. Falling through to the
+    // plain item would read the PERSON'S OWN default credential and call it
+    // the second login's, which is the lie research 72 forbids.
+    askedForLogin: [...askedForLogin],
+    askedForDefault: [...askedForDefault],
+    // The whole list, over a REAL added login whose only credential is the
+    // keychain item, against the cheap list that says the opposite. That
+    // opposite IS the defect: `Not signed in yet`, for ever, about a login the
+    // person really signed into.
+    wholeListPresent: (
+      await store.listLoginsAsking(root, async (provider, dir) =>
+        dir === null
+          ? { present: false, email: null }
+          : {
+              present: await accounts.readLoginPresence(
+                seams([credentials.claudeScopedService(dir)], {}),
+                provider,
+                dir
+              ),
+              email: null
+            }
+      )
+    ).logins.some((l) => l.name === 'Keychain' && l.present),
+    cheapListPresent: store
+      .listLogins(root)
+      .logins.some((l) => l.name === 'Keychain' && l.present),
+    // A FOLDER THAT IS GONE IS NEVER ASKED ABOUT. `Work` above had its folder
+    // deleted in section 6 and its row is still in the file. Removing a login
+    // leaves the scoped keychain item behind for ever, so an ask here would
+    // answer present for a directory that is not there.
+    goneListPresent: (
+      await store.listLoginsAsking(root, async () => ({ present: true, email: null }))
+    ).logins.some((l) => l.name === 'Work' && l.present),
+    // The directory the scoped name above was derived from, so the gate can
+    // re-derive that name by its own method rather than trusting this one.
+    dir: liveDir
+  };
+
+  // -------------------------------------------------------------------------
+  // 8b. THE ACCOUNT, and the decoy the default path must not fall into.
+  // -------------------------------------------------------------------------
+  const claimText = (claims: unknown): string =>
+    Buffer.from(JSON.stringify(claims), 'utf8')
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  const idToken = `header.${claimText({ email: 'somebody@example.com', secret: TOKEN })}.sig`;
+  const claudeJson = JSON.stringify({
+    oauthAccount: { emailAddress: 'somebody@example.com' }
+  });
+  const markupJson = JSON.stringify({
+    oauthAccount: { emailAddress: '<img src=x onerror=alert(1)>@example.com' }
+  });
+  const codexJson = JSON.stringify({ tokens: { id_token: idToken, access_token: TOKEN } });
+  const known = await accounts.readLoginAccount(
+    seams([], { [`${liveDir}/.claude.json`]: claudeJson }),
+    'claude',
+    liveDir
+  );
+  const codexKnown = await accounts.readLoginAccount(
+    seams([], { [`${liveDir}/auth.json`]: codexJson }),
+    'codex',
+    liveDir
+  );
+  out['account'] = {
+    claude: known,
+    // CODEX HAS FULL PARITY, read from the id token's own email claim.
+    codex: codexKnown,
+    // A LOGIN THAT HAS NOT TAKEN A TURN NAMES NO ADDRESS, which is honest
+    // rather than broken.
+    fresh: await accounts.readLoginAccount(
+      seams([], { [`${liveDir}/.claude.json`]: JSON.stringify({ numStartups: 1 }) }),
+      'claude',
+      liveDir
+    ),
+    missing: await accounts.readLoginAccount(seams([], {}), 'claude', liveDir),
+    // MARKUP IN THE FIELD IS NOT AN ADDRESS.
+    markup: await accounts.readLoginAccount(
+      seams([], { [`${liveDir}/.claude.json`]: markupJson }),
+      'claude',
+      liveDir
+    ),
+    notJson: await accounts.readLoginAccount(
+      seams([], { [`${liveDir}/auth.json`]: 'not json' }),
+      'codex',
+      liveDir
+    ),
+    // NO TOKEN BYTE. The codex token carried a sentinel and the answer holds
+    // an address and nothing else.
+    tokenInAnswer: JSON.stringify(codexKnown).includes(TOKEN),
+    // THE DECOY. `~/.claude/.claude.json` exists on the operator's machine and
+    // holds no oauthAccount, so the default account file must be spelled apart
+    // from the default credential file or defect two comes back inside its own
+    // fix.
+    decoyAccountFile: accounts.claudeAccountFileFor({ env: {}, home: '/h' }, null),
+    decoyCredentialFile: accounts.claudeCredentialFileFor({ env: {}, home: '/h' }, null),
+    scopedAccountFile: accounts.claudeAccountFileFor({ env: {}, home: '/h' }, '/d/x')
+  };
 
   // -------------------------------------------------------------------------
   // 7. The store file itself holds no path and no token.

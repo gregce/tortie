@@ -64,9 +64,35 @@
  *      points a pane at a directory that is not there.
  *   7. The gate is named in package.json and in build/verification-checks.mjs,
  *      because a gate nothing names is how a gate decays.
+ *
+ * ## Phase 203 added three more, and they are the ones the operator reported
+ *
+ *   8. PRESENCE IS THE WHOLE QUESTION. A login whose credential exists only in
+ *      the keychain reads as PRESENT, one with neither reads as absent, and a
+ *      login is asked for the SCOPED service name and nothing else, so a
+ *      second login can never read the person's own default credential. The
+ *      scoped name is derived from the directory by the shipping function and
+ *      re-derived here by a hash this file computes itself. The cheap file
+ *      only list is shown to answer the opposite, because that opposite IS the
+ *      defect: on macOS no `.credentials.json` is ever written, so every added
+ *      claude login said `Not signed in yet` for ever. A folder that is GONE
+ *      is never asked about, because a Remove leaves the scoped keychain item
+ *      behind.
+ *   9. THE ACCOUNT IS READ AND NO TOKEN BYTE IS KEPT. Claude and codex both
+ *      answer an address, codex out of the id token's own email claim; a login
+ *      that has taken no turn, a file that is not JSON and a field holding
+ *      markup are all "not known" rather than a crash or a drawn string; a
+ *      sentinel inside the codex token reaches nothing; and the DEFAULT claude
+ *      account file is spelled apart from the default credential file, because
+ *      `~/.claude/.claude.json` exists and holds no account.
+ *  10. THE READER NEVER ASKS FOR A PAYLOAD AND NEVER LOGS. Scanned over the
+ *      real source: `-w` is what makes `security` print the secret, and it
+ *      appears nowhere; and the module writes no log line of any kind, so
+ *      there is no line for an address or a token to reach.
  */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   cpSync,
   mkdirSync,
@@ -84,6 +110,9 @@ import { tsxCli } from './ts-runner.mjs';
 const TAG = '[logins]';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DOMAIN = join(repoRoot, 'src/main/logins');
+/** Phase 203. The account reader, which is in the usage domain on purpose. */
+const USAGE = join(repoRoot, 'src/main/usage');
+const ACCOUNTS_FILE = join(USAGE, 'login-accounts.ts');
 
 const failures = [];
 const notes = [];
@@ -165,6 +194,29 @@ function guardsThisCall(body, at) {
   return body.slice(open, at).includes('isOwnedLoginDir');
 }
 
+/**
+ * Rule 10's scanners, over the account reader's real source.
+ *
+ * `-w` IS THE WHOLE POINT. `security find-generic-password -s <service>`
+ * prints the item's attributes; the same call with `-w` prints the secret.
+ * The reader answers presence and must therefore never carry that flag, and
+ * this is the line somebody could add in one character.
+ *
+ * The second scan is the reason there is no line for an address to reach: the
+ * module writes none at all.
+ */
+function asksForAPayload(text) {
+  const body = stripComments(text);
+  return /['"`]-w['"`]/.test(body) || /\bfind-generic-password\b[^;]*['"`]-w['"`]/.test(body);
+}
+
+function writesALog(text) {
+  const body = stripComments(text);
+  return /\bconsole\s*\.|\bgetLog\s*\(|\blog\s*\.(info|warn|error|debug)\s*\(/.test(
+    body
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Rule 1 and rule 2, over the real source.
 // ---------------------------------------------------------------------------
@@ -196,6 +248,24 @@ check(
 );
 notes.push(
   `${String(domainFiles.length)} files scanned, ${String(deletionCount)} deletion call, none names a default location`
+);
+
+// Rule 10, over the account reader.
+const accountsText = readFileSync(ACCOUNTS_FILE, 'utf8');
+check(
+  !asksForAPayload(accountsText),
+  `${TAG} src/main/usage/login-accounts.ts hands security a -w, which prints the secret rather than the item`
+);
+check(
+  !writesALog(accountsText),
+  `${TAG} src/main/usage/login-accounts.ts writes a log line, so an address or a token has somewhere to land`
+);
+// AND THE DOMAIN STILL CANNOT NAME A DEFAULT LOCATION, which is why the
+// reader is over here at all. Rule 1 above already asserts it file by file;
+// this names the reason in the failure sentence.
+check(
+  namesADefaultLocation(accountsText).length > 0,
+  `${TAG} src/main/usage/login-accounts.ts names no vendor location at all, so it is not the file rule 1 sent out of the logins domain and this gate is checking the wrong thing`
 );
 
 // ---------------------------------------------------------------------------
@@ -264,7 +334,30 @@ try {
       );
     }
   }
-  notes.push(`${String(behaved)} of ${String(FIXTURES.length)} scanner fixtures behaved`);
+  // Phase 203's two scanners, proved the same way, three that must pass and
+  // four that must fail.
+  const READER_FIXTURES = [
+    { name: 'attributes only', text: "execFile('/usr/bin/security', ['find-generic-password', '-s', service], {}, cb);\n", payload: false, logs: false },
+    { name: 'a comment mentioning -w', text: "// never pass -w here, it prints the secret\nconst a = 1;\n", payload: false, logs: false },
+    { name: 'the payload flag', text: "execFile('/usr/bin/security', ['find-generic-password', '-s', service, '-w'], {}, cb);\n", payload: true, logs: false },
+    { name: 'the payload flag first', text: "const args = ['-w', 'find-generic-password'];\n", payload: true, logs: false },
+    { name: 'a console line', text: "console.log('found', service);\n", payload: false, logs: true },
+    { name: 'a scoped logger', text: "const log = getLog('accounts');\nlog.info('x', {});\n", payload: false, logs: true },
+    { name: 'a plain function called log in a name', text: "const catalog = 1;\nexport const dialog = catalog;\n", payload: false, logs: false }
+  ];
+  for (const f of READER_FIXTURES) {
+    const payload = asksForAPayload(f.text);
+    const logs = writesALog(f.text);
+    if (payload === f.payload && logs === f.logs) behaved += 1;
+    else {
+      failures.push(
+        `${TAG} the reader scanner misread the fixture "${f.name}": payload ${String(payload)} (want ${String(f.payload)}), logs ${String(logs)} (want ${String(f.logs)})`
+      );
+    }
+  }
+  notes.push(
+    `${String(behaved)} of ${String(FIXTURES.length + READER_FIXTURES.length)} scanner fixtures behaved`
+  );
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
 }
@@ -273,7 +366,7 @@ try {
 // The probe, over the tree and over three ablated copies of it.
 // ---------------------------------------------------------------------------
 
-function runProbe(loginsDir) {
+function runProbe(loginsDir, accountsDir = null) {
   const probe = spawnSync(
     process.execPath,
     [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/logins-conformance-probe.mts'],
@@ -283,7 +376,8 @@ function runProbe(loginsDir) {
       maxBuffer: 32 * 1024 * 1024,
       env: {
         ...process.env,
-        ...(loginsDir === null ? {} : { P202_LOGINS_DIR: loginsDir })
+        ...(loginsDir === null ? {} : { P202_LOGINS_DIR: loginsDir }),
+        ...(accountsDir === null ? {} : { P203_ACCOUNTS_DIR: accountsDir })
       }
     }
   );
@@ -312,7 +406,11 @@ function verdict(d) {
     JSON.stringify(d.chosen),
     JSON.stringify(d.leak),
     JSON.stringify(d.gone),
-    JSON.stringify(d.file)
+    JSON.stringify(d.file),
+    // Phase 203. The directory is a fresh temporary path on every run, so it
+    // is left out of the verdict and only its DERIVED name is compared.
+    JSON.stringify({ ...d.presence, scoped: '', dir: '', askedForLogin: d.presence?.askedForLogin?.length ?? 0 }),
+    JSON.stringify(d.account)
   ];
 }
 
@@ -410,8 +508,90 @@ if ('error' in live) {
   check(!live.file.hasSeparator, `${TAG} the logins file holds a path`);
   check(!live.file.hasHome, `${TAG} the logins file names a default location`);
 
+  // Rule 8, THE FIRST DEFECT THE OPERATOR REPORTED.
+  check(
+    live.presence.keychainOnly,
+    `${TAG} A LOGIN WHOSE CREDENTIAL IS ONLY IN THE KEYCHAIN READ AS NOT SIGNED IN, which is the defect of 2026-09-02 back again`
+  );
+  check(live.presence.fileOnly, `${TAG} a login with a credentials file read as absent`);
+  check(!live.presence.neither, `${TAG} a login with no credential at all read as present`);
+  check(live.presence.codexFile, `${TAG} a codex login with an auth file read as absent`);
+  check(!live.presence.codexNone, `${TAG} a codex login with no file read as present`);
+  check(
+    live.presence.askedForLogin.length === 1,
+    `${TAG} A SECOND LOGIN ASKED FOR ${String(live.presence.askedForLogin.length)} KEYCHAIN ITEMS, so it can read the person's own default credential and call the numbers its own`
+  );
+  check(
+    live.presence.askedForDefault.includes('Claude Code-credentials'),
+    `${TAG} the default login did not ask for the plain keychain item, which is what a default install actually has`
+  );
+  // RE-DERIVED HERE, by this file's own hash, rather than trusted.
+  const wantScoped = `Claude Code-credentials-${createHash('sha256')
+    .update(live.presence.dir)
+    .digest('hex')
+    .slice(0, 8)}`;
+  check(
+    live.presence.scoped === wantScoped,
+    `${TAG} the scoped service name is ${live.presence.scoped} and this file derives ${wantScoped} from the same directory`
+  );
+  check(
+    live.presence.askedForLogin[0] === wantScoped,
+    `${TAG} the item asked for is not the one the directory derives`
+  );
+  check(
+    live.presence.wholeListPresent,
+    `${TAG} THE LIST STILL ANSWERS THE FILE HALF, so a signed in login reads as never signed in`
+  );
+  check(
+    !live.presence.cheapListPresent,
+    `${TAG} the cheap file only list answered present, so this gate is no longer showing the defect the whole list fixes`
+  );
+  check(
+    !live.presence.goneListPresent,
+    `${TAG} a login whose folder is gone was asked about, and a Remove leaves the scoped keychain item behind for ever`
+  );
+
+  // Rule 9, THE SECOND DEFECT.
+  check(
+    live.account.claude.kind === 'known',
+    `${TAG} a claude login with an address in its own file was not known`
+  );
+  check(
+    live.account.codex.kind === 'known',
+    `${TAG} CODEX PARITY IS GONE: the address in the id token email claim was not read`
+  );
+  check(
+    live.account.fresh.kind === 'unknown',
+    `${TAG} a login that has taken no turn was given an account it does not have`
+  );
+  check(live.account.missing.kind === 'unknown', `${TAG} a missing file named an account`);
+  check(
+    live.account.markup.kind === 'unknown',
+    `${TAG} AN ADDRESS FIELD HOLDING MARKUP REACHED A FACE`
+  );
+  check(
+    live.account.notJson.kind === 'unknown',
+    `${TAG} a file that is not JSON was a crash or an account rather than not known`
+  );
+  check(!live.account.tokenInAnswer, `${TAG} A TOKEN BYTE REACHED THE ACCOUNT ANSWER`);
+  check(
+    live.account.decoyAccountFile !== live.account.decoyCredentialFile,
+    `${TAG} the default account file and the default credential file are the same path`
+  );
+  check(
+    live.account.decoyAccountFile === '/h/.claude.json',
+    `${TAG} THE DEFAULT ACCOUNT FILE IS ${live.account.decoyAccountFile}, and the decoy at /h/.claude/.claude.json holds no account, so the default login would read as not known`
+  );
+  check(
+    live.account.scopedAccountFile === '/d/x/.claude.json',
+    `${TAG} a login's own account file is not inside the login's own directory`
+  );
+
   notes.push(
     `${String(live.owned.length)} ownership shapes, ${String(live.hostile.problems)} rows dropped whole, hash ${live.hash.before.slice(0, 12)} before and after`
+  );
+  notes.push(
+    `presence keychain ${String(live.presence.keychainOnly)} against file ${String(live.presence.cheapListPresent)}, one item asked per login, both providers name an account`
   );
 }
 
@@ -443,7 +623,101 @@ const READER_GUARDS = [
   }
 ];
 
+/**
+ * Phase 203's ablations, over the ACCOUNT READER rather than the store.
+ *
+ * Each is one clause, and each must change at least one reading above. They
+ * are written as the mistake a later round would actually make rather than as
+ * a deletion nobody would write: the payload flag added back, the plain
+ * keychain item allowed for a second login, the default account file composed
+ * the way the credential file is, the address filter dropped, and the id token
+ * claim stopped being read.
+ */
 const ABLATIONS = [
+  {
+    name: 'the keychain half taken out of presence, which is the reported defect',
+    dir: 'usage',
+    edits: [
+      {
+        file: 'login-accounts.ts',
+        from:
+          '    for (const service of claudeServicesFor(d, loginDir)) {\n' +
+          '      if (await d.keychainHas(service)) return true;\n' +
+          '    }',
+        to: ''
+      }
+    ]
+  },
+  {
+    name: 'a second login allowed to fall through to the plain keychain item',
+    dir: 'usage',
+    edits: [
+      {
+        file: 'login-accounts.ts',
+        from:
+          "  if (loginDir !== null && loginDir !== '') return [claudeScopedService(loginDir)];",
+        to:
+          "  if (loginDir !== null && loginDir !== '') return [claudeScopedService(loginDir), CLAUDE_KEYCHAIN_SERVICE];"
+      }
+    ]
+  },
+  {
+    name: 'the default account file composed the way the credential file is, which is the decoy',
+    dir: 'usage',
+    edits: [
+      {
+        file: 'login-accounts.ts',
+        from:
+          "  const own = d.env['CLAUDE_CONFIG_DIR'];\n" +
+          "  return own !== undefined && own !== ''\n" +
+          "    ? join(own, '.claude.json')\n" +
+          "    : join(d.home, '.claude.json');",
+        to:
+          "  const own = d.env['CLAUDE_CONFIG_DIR'];\n" +
+          "  const dir = own !== undefined && own !== '' ? own : join(d.home, '.claude');\n" +
+          "  return join(dir, '.claude.json');"
+      }
+    ]
+  },
+  {
+    name: 'the address filter dropped, so a field holding markup is drawn',
+    dir: 'usage',
+    edits: [
+      {
+        file: 'login-accounts.ts',
+        from: '  return ACCOUNT_EMAIL_RE.test(email) ? email : null;',
+        to: '  return email;'
+      }
+    ]
+  },
+  {
+    name: 'the id token email claim stopped being read, so codex parity goes',
+    dir: 'usage',
+    edits: [
+      {
+        file: 'login-accounts.ts',
+        from:
+          "  const plain = sanitizeAccountEmail(claims['email']);\n" +
+          '  if (plain !== null) return plain;',
+        to: ''
+      }
+    ]
+  },
+  {
+    name: 'a login whose folder is gone asked about anyway',
+    dir: 'logins',
+    edits: [
+      {
+        file: 'store.ts',
+        from:
+          '      const facts =\n' +
+          "        loginDirOnDisk(root, provider, dir) === 'ok'\n" +
+          '          ? await asked(provider, dir)\n' +
+          '          : { present: false, email: null };',
+        to: '      const facts = await asked(provider, dir);'
+      }
+    ]
+  },
   {
     name: 'the containment test taken out of the ownership rule',
     edits: [
@@ -527,14 +801,26 @@ try {
   const liveVerdict = verdict(live);
   let red = 0;
   for (const [i, ablation] of ABLATIONS.entries()) {
-    const dir = join(ablationRoot, `a${String(i)}`);
-    mkdirSync(dir, { recursive: true });
+    const base = join(ablationRoot, `a${String(i)}`);
+    // BOTH DOMAINS ARE COPIED EVERY TIME, so an ablation of either is run
+    // against the shipping other one and the reading that moves is the one the
+    // clause owns.
+    const loginsDir = join(base, 'logins');
+    const usageDir = join(base, 'usage');
+    mkdirSync(loginsDir, { recursive: true });
+    mkdirSync(usageDir, { recursive: true });
     for (const f of ['dirs.ts', 'store.ts', 'paths.ts', 'session.ts', 'index.ts', 'ipc.ts']) {
-      cpSync(join(DOMAIN, f), join(dir, f));
+      cpSync(join(DOMAIN, f), join(loginsDir, f));
+    }
+    for (const f of ['login-accounts.ts', 'credentials.ts']) {
+      cpSync(join(USAGE, f), join(usageDir, f));
     }
     let applied = true;
     for (const edit of ablation.edits) {
-      const target = join(dir, edit.file);
+      const target = join(
+        (ablation.dir ?? 'logins') === 'usage' ? usageDir : loginsDir,
+        edit.file
+      );
       const before = readFileSync(target, 'utf8');
       if (!before.includes(edit.from)) {
         failures.push(
@@ -546,7 +832,7 @@ try {
       writeFileSync(target, before.replace(edit.from, edit.to));
     }
     if (!applied) continue;
-    const ablated = runProbe(dir);
+    const ablated = runProbe(loginsDir, usageDir);
     const changed =
       JSON.stringify(verdict(ablated)) !== JSON.stringify(liveVerdict);
     if (changed) red += 1;
