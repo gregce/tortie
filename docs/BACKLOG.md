@@ -19720,6 +19720,97 @@ for quick open. `graph/` draws swimlanes. Research 24 section 5.2 decided the wa
 - No visual timeline. The dots on a time axis are named as an option and costed, not designed.
 - No change to any product file.
 
+## Research 77: the map that keeps the mental model alive (operator asked 2026-09-01)
+
+**Subject.** `docs(research): what the repo is, what it means, and what is moving`
+
+**First body line.** `Research 77: the map you can read at a glance`
+
+**Charter.** His words of 2026-09-01: *"how to make it so you can look at the map and 1) understand
+WHAT the repo is about, like what each component means and does, at a glance, step 1 deterministic
+and 2 with the local LLM, meaning, and 3 what is being modified, growing or changing... build on the
+foundation we have and also MAKE the sidebar, which is currently off by default, very streamlined and
+clear about what this does. As people are building with agents the core problem is keeping the
+mental model of the software alive in their heads."*
+
+### The problem, stated so the research cannot drift from it
+
+A person running several agents against one codebase loses the shape of it. The agents rewrite
+files faster than the person reads them. The Architecture map exists to give the shape back, and
+today it does not: it draws boxes and crossings and a contract pane, it ships turned off, and a person
+opening it cannot tell what the repository is about, what a box is for, or what changed since they
+last looked. Research 71 measured a real run on rookery and found the pane read as broken. This
+research is about the reading, not the drawing.
+
+### Three layers, each with its own source of truth
+
+1. **What it is, deterministically.** A name and one sentence per component that the code itself
+   supports: the directory, the exported surface, the languages, the entry points, the size, what it
+   imports and what imports it. No model. This layer must be right on every repository the moment it
+   opens, the way Phase 160 draws the map the moment you open it.
+2. **What it means, from the model.** One sentence of purpose per component, and one paragraph for
+   the repository, from the model the person has already chosen for enrichment in Settings then
+   Architecture. `src/main/arch/enrich/` already composes a map for the model and writes what comes
+   back; research 71 Fix 4 (Phase 179) made it see the real crossings. This layer is optional,
+   labelled as the model's reading, and never blocks layer 1.
+3. **What is moving.** Which components changed, grew or shrank, over a window the person picks,
+   from git. `src/main/arch/git-facts.ts` is already the one place the checkers talk to git, with
+   every argv proved by `argv-guard.ts`. This layer answers "what did the agents do while I was
+   away" and is the one that serves the agentic workflow most directly.
+
+### What the research must actually do, rather than assert
+
+1. **Read the foundation first**, and say what each layer can reuse: `src/main/arch/` in full, being
+   `scan.ts`, `map.ts`, `modules.ts`, `skeleton.ts`, `enrich/`, `git-facts.ts` and `watch.ts`;
+   `src/renderer/arch/` in full; research 49, 68 and 71; and the eleven Architecture phases from 157
+   to 179. Name what already exists for each layer and what is new.
+2. **Study how others answer the three questions**, mechanically: Sourcegraph's repository overview,
+   CodeSee, Codebase maps in Cursor and Windsurf, GitHub's repository insights and code frequency,
+   Swimm, Understand by SciTools, `tokei` and `scc`, and any tool that draws change frequency on a
+   structure (hotspot maps, CodeScene). For each: what the first screen says about a repository, how
+   a component is described, whether a model writes the description and how that is labelled, and
+   how change over time is shown. Mechanics rather than adjectives, with a source for each claim.
+3. **Design layer 1 as a specification** that a phase could build: for each component, exactly which
+   facts are shown at a glance, in what order, in how many words, and which are behind hover. Prove
+   on three real repositories in scratch copies, being gmux, rookery and one public repository in a
+   language Tortie does not write, that the deterministic sentence is true and useful for at least
+   nine of every ten components. Show the sentences.
+4. **Design layer 2 honestly.** What the model is asked, what it is given (the layer 1 facts plus the
+   skeleton, not the source), how long it takes and what it costs on gmux, how the answer is
+   validated before it is drawn (`enrich/validate.ts` exists), how it is labelled so a person never
+   mistakes it for a fact, and what happens when no model is chosen. Run it once on a scratch copy
+   with the model he has configured and show the sentences it wrote beside layer 1's.
+5. **Design layer 3 from what git already gives.** For a window of the last hour, day, week and
+   since a chosen commit: which components had files touched, how many lines, by which author, with
+   agent commits told apart from his own where the author or trailer allows. Say how it is drawn on
+   the existing map without moving anything, for example weight or a mark on a box, and say what the
+   sidebar shows. Time the walks on the gmux copy.
+6. **Redesign the sidebar as a reading.** It is off by default since Phase 175 and it reads as a
+   contract pane. Propose what it says when a person opens it cold, in the order they need it: the
+   repository in one paragraph, the components as a list each with its sentence, what moved in the
+   chosen window, and only then the contract and its checks. Under Just enough words: short labels,
+   one liners, explanation behind hover. Draw it as a self contained HTML mock at
+   `docs/research/assets/77-arch-reading/` at the sidebar's real width using gmux's own components,
+   beside a mock of the sidebar as it is today, so he can set them side by side.
+7. **Answer the default question with evidence.** Phase 175 turned Architecture off because most
+   agents cannot fill in a contract. If layer 1 needs no contract and no model, should the map be ON
+   by default with layers 2 and 3 opt in? Say what turning it on costs at launch, measured, since
+   Phase 160 already draws the map on open.
+8. **The scope guardrail.** CLAUDE.md caps parity work and asks whether a feature serves the agentic
+   workflow or exists because an IDE has it. Make the case for each layer explicitly. Layer 3 is the
+   strong case. If layer 2 fails the test, say so.
+9. **One recommendation and a first phase.** Which layer ships first and why, as a charter a phase
+   entry can be written from, with its tier and its named independent method.
+
+### What is NOT in this document
+
+- No queued phase. He reads it and picks.
+- No change to any product file. The research writes its document and its mocks and nothing else.
+- No new model, no new provider, no network call the app does not already make. Layer 2 uses the
+  enrichment model already chosen in Settings.
+- No change to the contract format, the checkers or `docs/arch/`. The contract stays; it moves down
+  the sidebar.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -20040,3 +20131,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, Phase 194 LANDED on `53feab7` at version 0.97.1 with NO bump, the declared semver being MINOR and the version moving in its own build(version) commit at the release the way Phases 174.2, 182, 188, 188.1, 189, 191, 192 and 193 all recorded, so the next release goes to 0.98.0; what he can now do that he could not before is open a changed text or markdown file and choose Redline beside Diff and File in the same segmented control, and the WHOLE document draws as flowing prose with every change marked in place, the deleted words struck through in red and the inserted words right after them in green on one line, with no line numbers, no gutter and no Pierre in the tree, which is the picture his screenshot asked for; the Phase 191 toggle inside the stacked diff was REMOVED at his word, "no i don't want the toggle for redline inside the diff review", in its own commit `1c1e4e4` before the view was built so a bisect can tell the two apart, and the diff bar is back to the Inline control and the paint can, read off the DOM of the running app as zero Redline controls, zero redline rows and `gmux.diffRedline` never written; the ENGINE 191 proved is kept whole, being `redline.ts` with its runs, its allowlist and its three caps, `RedlineRow.tsx`, `redline-copy.ts`, `redline.css` and `npm run conformance:redline`, which now judges the composed document too at 16 rules and goes red under ablation; the unchanged context between blocks comes from THE TWO FILE VERSIONS, being the HEAD contents and the live text partitioned line by line, never from Pierre's hunks, because a hunk elides everything between changes and would leave a hole exactly where the view must be honest; a block the caps refuse draws WHOLE, the old text as one deletion and the new as one insertion, with a note under the document saying how many drew that way and why, because a standalone document cannot draw nothing without a hole; the parent measurement he reported is the reason for the phase and it moved, ONE changed line drawing THREE rows at `2cbab50` with the toggle on in one column against ONE row at HEAD, and a diff bar of six controls at the parent against five at HEAD, both read off the DOM; markdown shows its redlined SOURCE and never a rendered preview with marks in it, the view is READ ONLY with no accept and no reject because accepting writes a file, and COPY was proved from the real system pasteboard rather than the code, a drag across the whole document, across two changed blocks, across a block the caps refused and inside a deletion each yielding the NEW text byte for byte, with the one limit recorded in the commit body being that Cmd-A from the Edit menu selects the whole app and yields the interleaved text; the verifier's named method is THE EXACT ONE THE ENTRY DEMANDED, being both projections re-derived by its own reader walking the running DOM into plain, deleted and inserted runs over 23 fixture pairs it wrote itself, and 46 of 46 came back EQUAL, the drawn document with every insertion removed equal to the OLD file and with every deletion removed equal to the NEW file, over the character cap, the block cap, the word guard, a trailing newline added and removed, a joiner emoji, combining marks, a right to left run, CRLF, a whitespace only change, a 400 line file whose middle Pierre elides, markdown source, his own shape and an unchanged file; the fix round the verifier earned put a word changed at the end of a line back on that line, since jsdiff carried the line break inside the deleted token so "Monday" struck drew "Friday" on the line beneath, and the shared whitespace now moves out to the plain runs with a rule pinning that no adjacent deletion and insertion shares an edge whitespace character, red 87 times with the peel removed; three harness defects older than the phase were fixed on the way, being the drive's timers aligning to whole seconds when the window was occluded so the window is pinned frontmost while it drives, the pasteboard restore growing his HTML flavour by one meta tag per run, and a first byte lost when the old side began with a newline; Tier 2 as the entry set with one app run driving the whole journey, and nothing of his was written, the operator server on `-L gmux` read only, his checkout untouched, his pasteboard back byte for byte with its flavours.
 - 2026-09-01, v0.98.0 RELEASED from origin/main at his word, tag on `440fe37` build(release): 0.98.0, the run `33567207091` built signed notarized and published the draft with all six assets in 13 minutes, the draft was promoted to Latest at 22:50 and the stable download link answers 200; the tag was the whole trigger and no release was created by hand, which is the lesson of 0.97.0; the release page carries the CHANGELOG entry verbatim, and the 0.97.0 page which had been left carrying the workflow's placeholder text since last night now carries its entry too; the site changelog gained the 0.98.0 entry at tortiedotsh `41e6621`, committed and NOT pushed for his review; what shipped is Phases 174.2, 182, 187, 188, 188.1, 189, 191, 192, 193 and 194, MINOR because 182, 188, 189 and 194 each add something new, and Phase 193 is harness only and is in no entry because nobody using the app hits it.
 - 2026-09-01, QUEUED AT HIS WORD after the 0.98.0 release, in this order: Phase 190 which was already written at ae8e9a1 and now runs; Phase 195 the seven contradictions from research 75 section 2, being C3 C5 C6 C7 C8 C9 and C10, no token value changes and nothing moves, PATCH, Tier 2 with every photograph probe compared at parent and HEAD as a pixel count; Phase 196 the quiet frame being research 75 Option A which he picked after reviewing the four mocks, eleven token values changed and one added with only lightness moving on the neutrals, plus the border retune taken from Option C and the hover step cost the synthesizer found fixed inside the option, MINOR, Tier 2 with the verifier re-deriving every contrast ratio from rendered pixels; Phase 197 the third nits round, 23 items one commit each including the two Phase 185 reverify blockers the verification audit found still on main; and RESEARCH 76 on the history of one file from the Explorer the way GitLens shows it and searching the SCM history by message author SHA or file, from his screenshot, which reads what the tree already has in graph-parse.ts and the history pane, studies GitLens VS Code Timeline Sublime Merge Fork and tig mechanically, times the walks on a real repository, makes the scope guardrail case explicitly for each ask, and ends with one recommendation and no queued phase. The capture-in-Menlo overclaim is fixed directly rather than queued.
+- 2026-09-01, Research 77 QUEUED at his word: the Architecture map should answer three questions at a glance, being WHAT the repository and each component is from deterministic facts the code supports, what it MEANS from the enrichment model already chosen in Settings and labelled as the model's reading, and WHAT IS MOVING from git over a window he picks, because as people build with agents the core problem is keeping the mental model of the software alive; it builds on the eleven Architecture phases from 157 to 179 and research 49 68 and 71, designs layer 1 as a specification proved on three real repositories, runs layer 2 once on a scratch copy and shows the sentences beside the facts, times layer 3's walks, redesigns the sidebar as a reading with the contract moved below the components and mocks it at real width beside today's, answers with a measurement whether the map should be ON by default now that layer 1 needs no contract, makes the scope guardrail case for each layer, and ends with one recommendation and a first phase; nothing is queued from it.
