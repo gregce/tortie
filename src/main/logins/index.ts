@@ -15,6 +15,7 @@ export {
   loginsFileIn
 } from './dirs';
 export { ensureLoginsRoot, loginsRoot } from './paths';
+export { loginEnvForSession } from './session';
 export {
   addLogin,
   chooseLogin,

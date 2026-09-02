@@ -25,6 +25,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, statSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import { EVT_CAPTURE_NOTICE } from '@shared/ipc';
+import { LOGIN_SIGN_IN_ARGV, loginProviderForAgent } from '@shared/logins';
 import type {
   CreateSessionInput,
   LaunchableAgentKind,
@@ -48,6 +49,10 @@ import {
 // src/main/manifest/agents.ts and is asked on the same create path.
 import { agentEntry, launchableAgentEntry } from '../config/store';
 import { gmuxError } from '../errors';
+// PHASE 202. Which vendor sign in a NEW session runs under. The two reads are
+// pure file reads under `<userData>/gmux/logins`; nothing here opens a
+// keychain, spawns anything or touches the person's own `~/.claude`.
+import { effectiveLogin, loginsRoot, resolveLoginDir } from '../logins';
 // Named crash points for the fault harness. A no-op on every launch that is
 // not a harness launch — see fault/inject.ts.
 import { faultPoint } from '../fault/inject';
@@ -90,6 +95,7 @@ import {
   binaryCandidatesOf,
   createMachineIdFor,
   interpreterMissingMessage,
+  loginPaneEnv,
   newSessionRecord,
   paneEnvFor,
   remoteCreateFolders,
@@ -411,6 +417,29 @@ export async function createLocalSession(
   }
 
   const id = randomUUID();
+
+  // PHASE 202. WHICH VENDOR SIGN IN THIS SESSION RUNS UNDER, decided here,
+  // once, before the row is composed.
+  //
+  // `loginProvider` is null for every agent except claude and codex, and for
+  // those two a DEFAULT login answers a null directory, so a session on the
+  // default is byte for byte the session that shipped before this phase: no
+  // variable is added to its pane and no column is written on its row.
+  //
+  // Add login is the only caller that names a login, because it has just
+  // created a directory nobody has chosen yet. Every other create takes the
+  // chosen one. A name that cannot be honoured, because the login was removed
+  // or its folder is gone, falls back to the DEFAULT rather than failing the
+  // create, and one sentence says so beside the session it is about.
+  const loginProvider = loginProviderForAgent(input.agent);
+  const login =
+    loginProvider === null
+      ? null
+      : input.login !== undefined
+        ? resolveLoginDir(loginsRoot(), loginProvider, input.login)
+        : effectiveLogin(loginsRoot(), loginProvider);
+  const loginEnv = loginPaneEnv(loginProvider, login?.dir ?? null);
+
   // resolveLaunchSpec (not buildLaunchSpec): cursor's id comes from a side
   // command that has to run BEFORE the pane exists.
   const spec = await resolveLaunchSpec(
@@ -418,11 +447,37 @@ export async function createLocalSession(
     input.extraArgs ?? [],
     binPath
   );
+
+  // PHASE 202, ADD LOGIN. The vendor's own sign in, as one ordinary session.
+  //
+  // The argv is the binary Tortie already resolved plus the words compiled
+  // into `LOGIN_SIGN_IN_ARGV`, and nothing else: no pre-assigned conversation
+  // id, no resume to arm, no harvest to start and, below, no status line. A
+  // sign in is not a conversation, so a row that armed one would promise a
+  // restore that opens an empty session.
+  //
+  // NOTHING IS READ AND NOTHING IS SIGNED IN BY TORTIE. The person completes
+  // the vendor's own flow, in their own terminal, in their own browser, and
+  // Tortie learns it happened only because a credential appears in the
+  // directory afterwards.
+  const signIn = input.signIn === true && loginProvider !== null;
+  if (signIn) {
+    const argv0 = spec.argv[0] ?? binPath ?? input.agent;
+    spec.argv = [argv0, ...LOGIN_SIGN_IN_ARGV[loginProvider]];
+    delete spec.resumeArgv;
+    delete spec.agentSessionId;
+    spec.idCapture = 'none';
+  }
+
   // Phase 13: claude's deterministic hook channel. Purely a latency
   // upgrade over its pid file, so a failure to write the settings file
   // just means no flag — never a failed create (and never a `claude
   // --settings <missing>` that would refuse to start).
-  if (input.agent === 'claude') {
+  //
+  // PHASE 202 SKIPS IT FOR A SIGN IN. That session runs one vendor command
+  // and exits; there is no turn to watch, and the status line tap would post
+  // an account this meter is not on, which the ingest drops anyway.
+  if (input.agent === 'claude' && !signIn) {
     // Phase 182 passes the working directory too, and for ONE read: whether
     // the person's own `.claude/settings.json` in this project already names
     // a status line, in which case Tortie installs none of its own.
@@ -506,7 +561,11 @@ export async function createLocalSession(
       binPath,
       cwdReal,
       projectReal,
-      now
+      now,
+      // PHASE 202. The NAME, or null for the vendor's own default location.
+      // `login.name` is already the RESOLVED answer, so a row never records a
+      // login the launch did not actually get.
+      login: login?.name ?? null
     }),
     // PHASE 71, migration 013. Where a session runs is decided once, at
     // create, and stated on the row rather than assumed by every later
@@ -553,7 +612,11 @@ export async function createLocalSession(
       displayName: input.name,
       cwd,
       argv: launchArgv,
-      env: paneEnvFor(spec.env, resolvedEnv, id)
+      // PHASE 202. The login layer goes in as its own argument rather than
+      // through `spec.env`, because `spec.env` is written into the manifest
+      // row verbatim and replayed at restore. The row carries the NAME and
+      // this directory is composed again at every launch.
+      env: paneEnvFor(spec.env, resolvedEnv, id, process.env, loginEnv)
     });
   } catch (err) {
     // Spawn never happened — a lingering row would resurrect a session
@@ -587,6 +650,19 @@ export async function createLocalSession(
   // started without a variable its row promises. Nothing else on the machine
   // would ever say so, and the agent inside it fails much later with a
   // message about its provider rather than about the shell.
+  // PHASE 202. The pane exists and it is running under the DEFAULT login,
+  // because the login it asked for is gone. Said here, beside the session it
+  // is about, for the reason the sentence below is said here: nothing else on
+  // the machine would say it, and the alternative is a person wondering why
+  // their agent is signed in as somebody else.
+  if (login !== null && login.fellBack && login.asked !== null) {
+    postDurabilityNotice({
+      kind: 'login-fell-back',
+      sessionId: id,
+      sessionName: input.name,
+      login: login.asked
+    });
+  }
   if (envProbe !== null && (envProbe.missing.length > 0 || envProbe.probeFailed)) {
     postDurabilityNotice({
       kind: 'env-unresolved',

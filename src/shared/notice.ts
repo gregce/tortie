@@ -330,6 +330,30 @@ export interface RemoteWorkCutOffNotice {
   count: number;
 }
 
+/**
+ * A session was launched under the default login because the one its row names
+ * is gone. Phase 202.
+ *
+ * The manifest row carries a login's NAME and never its directory, and restore
+ * resolves that name again. A person who removed the login, or whose directory
+ * is no longer there, gets the session back rather than an error: it comes back
+ * on the vendor's own default login and this is the sentence that says so.
+ * Nothing else would ever say it, and the alternative is a person wondering why
+ * an agent is signed in as somebody else.
+ *
+ * `sessionId` is here for the same reason `env-unresolved` carries one: the
+ * latch for this kind is per session per app run, because two sessions that
+ * lost their login are two facts and the second must not be silenced by the
+ * first.
+ */
+export interface LoginFellBackNotice {
+  kind: 'login-fell-back';
+  sessionId: string;
+  sessionName: string;
+  /** The login name the row asked for and Tortie could not honour. */
+  login: string;
+}
+
 /** Every degraded state Tortie can report. One kind per state, no free text. */
 export type DurabilityNotice =
   | BackupFailingNotice
@@ -345,7 +369,8 @@ export type DurabilityNotice =
   | EnvUnresolvedNotice
   | ShellPathFallbackNotice
   | RemoteResumeNotice
-  | RemoteWorkCutOffNotice;
+  | RemoteWorkCutOffNotice
+  | LoginFellBackNotice;
 
 /**
  * Everything that travels on `scrollback:notice`: the three scrollback events
@@ -368,7 +393,8 @@ export const DURABILITY_NOTICE_KINDS = [
   'env-unresolved',
   'shell-path-fallback',
   'remote-resume',
-  'remote-work-cut-off'
+  'remote-work-cut-off',
+  'login-fell-back'
 ] as const;
 
 /** Narrow a notice off the shared channel to a degraded state. */

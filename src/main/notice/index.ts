@@ -53,7 +53,8 @@ const said = new Set<string>();
  * the header paragraph above. Everything else is keyed by kind alone.
  */
 function latchKeyOf(kind: DurabilityNotice['kind'], sessionId?: string): string {
-  return kind === 'env-unresolved' && sessionId !== undefined
+  return (kind === 'env-unresolved' || kind === 'login-fell-back') &&
+    sessionId !== undefined
     ? `${kind}:${sessionId}`
     : kind;
 }
@@ -77,7 +78,9 @@ let rendererListening = false;
 export function postDurabilityNotice(notice: DurabilityNotice): boolean {
   const key = latchKeyOf(
     notice.kind,
-    notice.kind === 'env-unresolved' ? notice.sessionId : undefined
+    notice.kind === 'env-unresolved' || notice.kind === 'login-fell-back'
+      ? notice.sessionId
+      : undefined
   );
   if (said.has(key)) return false;
   said.add(key);

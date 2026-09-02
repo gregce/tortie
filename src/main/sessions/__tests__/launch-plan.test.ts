@@ -297,7 +297,10 @@ describe('newSessionRecord', () => {
     binPath: undefined,
     cwdReal: '/real/proj/sub',
     projectReal: '/real/proj',
-    now: AT
+    now: AT,
+    // Phase 202: the default login, which composes no variable and writes no
+    // column. Every row above this phase is this row.
+    login: null
   };
 
   it('composes the durable row exactly as the create path always has', () => {

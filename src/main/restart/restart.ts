@@ -161,7 +161,12 @@ export async function restartSession(
     cwd: rec.cwd,
     agent: rec.agent,
     ...(extras.length > 0 ? { extraArgs: [...extras] } : {}),
-    ...(capture ? { capture: true } : {})
+    ...(capture ? { capture: true } : {}),
+    // PHASE 202. Restart means start THIS session again, so the replacement
+    // runs under the login the original ran under rather than under whichever
+    // one happens to be chosen now. A login the person has removed since falls
+    // back to the default with one sentence, exactly as a restore does.
+    ...(rec.login !== undefined ? { login: rec.login } : {})
   };
 
   // STEP 2. Everything the user could lose is still on disk while this runs.

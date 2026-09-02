@@ -49,6 +49,7 @@
 
 import { existsSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
+import { loginProviderForAgent } from '@shared/logins';
 import type { LaunchableAgentId, SessionRestore } from '@shared/types';
 import { listDetectedAgents } from '../agents/detection';
 import { getLaunchableEntry } from '../agents/registry';
@@ -80,7 +81,11 @@ import { resolveSnapshot } from './snapshots';
 import { postDurabilityNotice } from '../notice';
 // The pane env merge rule, owned by the create path's pure module so that the
 // two spawn sites cannot drift (Phase 33). One import of one pure function.
-import { paneEnvFor } from '../sessions/launch-plan';
+import { loginPaneEnv, paneEnvFor } from '../sessions/launch-plan';
+// PHASE 202. Which vendor sign in this row was launched under, resolved AGAIN
+// from the name the row carries. One pure file read under
+// `<userData>/gmux/logins`; nothing here opens a keychain or spawns anything.
+import { loginsRoot, resolveLoginDir } from '../logins';
 
 import { getLog } from '../log';
 
@@ -959,6 +964,23 @@ export async function restoreSessionInTmux(
     resolvedEnv = envProbe.values;
   }
 
+  // PHASE 202. RE-RESOLVE, NEVER REPLAY, which is the `envPassthrough` rule
+  // applied to a credential directory. The row carries the login's NAME and no
+  // path, so the only way to fill it is to look the name up again, and that is
+  // also the better answer: a login the person removed since falls back to the
+  // vendor's own default location with one sentence, instead of pointing a new
+  // pane at a directory that is no longer there or, worse, at a path some
+  // other person's home now holds.
+  //
+  // A row written before this phase names no login, resolves to nothing, and
+  // comes back byte for byte as it did.
+  const loginProvider = loginProviderForAgent(rec.agent);
+  const login =
+    loginProvider === null || rec.login === undefined
+      ? null
+      : resolveLoginDir(loginsRoot(), loginProvider, rec.login);
+  const loginEnv = loginPaneEnv(loginProvider, login?.dir ?? null);
+
   faultPoint('restore.before-spawn');
   let info: tmux.TmuxSessionInfo;
   try {
@@ -970,7 +992,9 @@ export async function restoreSessionInTmux(
       // is just as managed, and identity must survive the round trip. The
       // stamps stay last, over both the row's own env and the resolved
       // passthrough. See paneEnvFor.
-      env: paneEnvFor(rec.env, resolvedEnv, rec.id)
+      // Phase 202: the login layer, composed again rather than replayed. It
+      // is empty for the default and for every agent that has no login.
+      env: paneEnvFor(rec.env, resolvedEnv, rec.id, process.env, loginEnv)
     });
   } catch (err) {
     return {
@@ -993,6 +1017,18 @@ export async function restoreSessionInTmux(
   }
 
   faultPoint('restore.after-spawn');
+
+  // PHASE 202. The session came back and its login did not. It is running on
+  // the vendor's own default login, which is the fallback that keeps a restore
+  // working rather than failing it, and this is the sentence that says so.
+  if (login !== null && login.fellBack && login.asked !== null) {
+    postDurabilityNotice({
+      kind: 'login-fell-back',
+      sessionId: rec.id,
+      sessionName: rec.name,
+      login: login.asked
+    });
+  }
 
   // PHASE 33. The same sentence a fresh create says, for the same reason. The
   // pane exists, and it is running without a variable its row promises.

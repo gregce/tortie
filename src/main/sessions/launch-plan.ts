@@ -14,6 +14,8 @@
  * function: create time is the one moment the live registry is the truth.
  */
 
+import type { LoginProviderId } from '@shared/logins';
+import { LOGIN_ENV_NAME } from '@shared/logins';
 import type { CreateSessionInput, ResumeCapture } from '@shared/types';
 import {
   buildRecoveryContract,
@@ -297,28 +299,68 @@ export function spawnArgvFor(
  *  2. `resolved` is what the login shell answered for this row's
  *     `launch.envPassthrough` names, a moment ago. It is never persisted
  *     anywhere and it never travels through `spec.env`.
- *  3. The GMUX stamps go LAST and therefore win. GMUX_MANAGED and
+ *  3. `login` is the ONE variable that says which vendor sign in this session
+ *     runs under, being `CLAUDE_CONFIG_DIR` or `CODEX_HOME` (Phase 202). It is
+ *     empty for the default login, for every other agent and for every session
+ *     before that phase.
+ *
+ *     IT SITS HERE, ABOVE `base`, AND NOT IN `spec.env`, and the position is
+ *     the whole rule. `spec.env` is written into the manifest row verbatim and
+ *     replayed at restore, which would put a credential directory in the
+ *     database and outlive the choice that made it; the row carries the NAME
+ *     instead and this layer is composed again at every launch. It also
+ *     outranks `base`, so a configured agent row that sets the same variable
+ *     cannot decide which login a person's session opens.
+ *
+ *     IT IS ALSO WHY THE CONFIRM HASH DOES NOT MOVE for a login choice.
+ *     `executionFieldsOf` reads the agent entry, and nothing on an entry can
+ *     see a login; `launch.env` is a field the hash must move for, and the
+ *     login deliberately never travels through it.
+ *
+ *  4. The GMUX stamps go LAST and therefore win. GMUX_MANAGED and
  *     GMUX_SESSION_ID are the second source of session identity, read back by
  *     `getSessionEnv`, and a pane carrying another session's stamp is a
  *     session claiming an identity that is not its own. The overlay loader
  *     already refuses a `GMUX_` name in either list, so this order is the
  *     second answer to the same question rather than the only one.
  *
- * Both spawn sites call it, being the create in ./core.ts and the restore in
- * ../restore/restore.ts, so the merge rule exists once and is tested once.
+ * Both spawn sites call it, being the create in ./create-local.ts and the
+ * restore in ../restore/restore.ts, so the merge rule exists once and is
+ * tested once.
  */
 export function paneEnvFor(
   base: Record<string, string> | undefined,
   resolved: Record<string, string>,
   sessionId: string,
-  processEnv: NodeJS.ProcessEnv = process.env
+  processEnv: NodeJS.ProcessEnv = process.env,
+  login: Record<string, string> = {}
 ): Record<string, string> {
   return {
     ...loginSessionEnv(processEnv),
     ...base,
     ...resolved,
+    ...login,
     ...managedPaneEnv(sessionId)
   };
+}
+
+/**
+ * The one variable a chosen login puts on a pane, or nothing at all
+ * (Phase 202).
+ *
+ * `dir` null means the DEFAULT login, being the vendor's own location, and the
+ * answer is an EMPTY OBJECT rather than a variable set to a default path. That
+ * is the difference between "Tortie is not involved" and "Tortie decided where
+ * your credential is", and it is what keeps every session of every agent other
+ * than claude and codex, and every session on the default login, byte for byte
+ * the same as it was before this phase.
+ */
+export function loginPaneEnv(
+  provider: LoginProviderId | null,
+  dir: string | null
+): Record<string, string> {
+  if (provider === null || dir === null || dir.length === 0) return {};
+  return { [LOGIN_ENV_NAME[provider]]: dir };
 }
 
 /** Everything already resolved that the new manifest row is composed from. */
@@ -343,6 +385,12 @@ export interface LaunchRecordFacts {
   projectReal: string;
   /** Epoch ms of the create. */
   now: number;
+  /**
+   * The vendor login this session launches under, by NAME, or null for the
+   * default location (Phase 202). Already resolved: a name that could not be
+   * honoured arrives here as null, and the create says one sentence about it.
+   */
+  login: string | null;
 }
 
 /**
@@ -359,7 +407,8 @@ export interface LaunchRecordFacts {
  * evidence it actually had (see startIdCapture in id-harvest.ts).
  */
 export function newSessionRecord(facts: LaunchRecordFacts): ManifestSessionRecord {
-  const { id, input, cwd, spec, capture, agentVersion, binPath, cwdReal, projectReal, now } = facts;
+  const { id, input, cwd, spec, capture, agentVersion, binPath, cwdReal, projectReal, now } =
+    facts;
   return {
     id,
     name: input.name,
@@ -379,6 +428,12 @@ export function newSessionRecord(facts: LaunchRecordFacts): ManifestSessionRecor
     // conversation. Written with the row, before the process exists.
     resumeCapture: resumeCaptureFor(spec),
     ...(spec.env !== undefined ? { env: spec.env } : {}),
+    // Phase 202. The NAME of the vendor login this session launches under, or
+    // absent for the default. The directory is NOT here and never will be:
+    // restore reads this name and resolves it again, so a login a person has
+    // removed since falls back to the default with one sentence instead of
+    // pointing a new pane at a directory that is gone.
+    ...(facts.login !== null ? { login: facts.login } : {}),
     // Phase 33. The NAMES this session's row asked for, so a restore knows
     // which variables to read again. The spec carries no values, so there is
     // no path by which one could land in this record.

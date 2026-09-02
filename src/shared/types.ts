@@ -577,6 +577,34 @@ export interface CreateSessionInput {
    * path as the folder of a session that runs somewhere else.
    */
   projectMachineId?: string;
+  /**
+   * APPENDED (Phase 202): which vendor login this session runs under, by NAME.
+   *
+   * Omitted means the login CHOSEN for that provider right now, which is what
+   * every create sends. A name is sent by exactly one caller, being Add login,
+   * which has just created a directory nobody has chosen yet and has to launch
+   * the sign in inside it.
+   *
+   * It names a login and never a directory, so nothing a renderer sends can
+   * decide where Tortie reads a credential. A name Tortie does not know falls
+   * back to the default with a sentence rather than failing the create.
+   */
+  login?: string;
+  /**
+   * APPENDED (Phase 202): this create is the vendor's own sign in.
+   *
+   * The argv becomes the binary Tortie already resolved for that agent plus
+   * the sign in words compiled into `LOGIN_SIGN_IN_ARGV`, and nothing else:
+   * no pre-assigned conversation id, no resume, no capture and no status line.
+   * It is ONE ORDINARY SESSION in the person's own terminal, running the
+   * vendor's own flow, and Tortie reads nothing until that flow has written a
+   * credential of its own.
+   *
+   * IT IS THE HALF OF ADD LOGIN A PERSON DOES. Creating the directory is a
+   * configuration change and starts nothing; this is the person pressing the
+   * button that starts something, which is the shape refusal 8 asks for.
+   */
+  signIn?: boolean;
 }
 
 export interface RenameSessionInput {

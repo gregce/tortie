@@ -48,6 +48,10 @@ import {
   type ResumeProvenance,
   type SessionIdWatch
 } from '../manifest';
+// PHASE 202. Where this row's own agent writes its store, which moves with the
+// login the session was launched under (codex keeps its rollouts under
+// CODEX_HOME). One pure file read; it opens no keychain and spawns nothing.
+import { loginEnvForSession } from '../logins';
 import { wrapWithRecord } from '../specstory';
 import * as tmux from '../tmux';
 import type { LaunchableAgentKind, ResumeCapture } from '@shared/types';
@@ -124,6 +128,17 @@ export interface IdCaptureOptions {
   timeoutMs?: number;
   markUnavailableOnFailure?: boolean;
   /**
+   * The environment the harvest reads its store ROOTS from (Phase 202).
+   *
+   * Undefined means Tortie's own, which is what every harvest did before this
+   * phase and what every session on the default login still does. It is set
+   * for a session launched under a second login, because codex's store lives
+   * under `CODEX_HOME` and a harvester looking in the default location would
+   * scan an empty tree for the whole window and then say the conversation
+   * cannot be resumed.
+   */
+  env?: NodeJS.ProcessEnv;
+  /**
    * TRUE when the watch was started with the pane (Phase 21, G6). FALSE
    * means a later launch started it against a REMEMBERED spawn time, with
    * no live process to correlate against, and the provenance records that
@@ -141,6 +156,21 @@ export interface IdCaptureOptions {
  * Was codex-only until Phase 13.5; the per-agent store paths, filename
  * patterns and correlation keys are now data in src/main/manifest/harvest.
  */
+/**
+ * The environment option for one row's harvest, or nothing (Phase 202).
+ *
+ * Nothing is the answer for every row before this phase and every row on the
+ * default login, so the spread adds no key and the watch behaves exactly as it
+ * did.
+ */
+function loginEnvOption(rec: {
+  agent: string;
+  login?: string;
+}): { env?: NodeJS.ProcessEnv } {
+  const env = loginEnvForSession(rec.agent, rec.login);
+  return env === undefined ? {} : { env };
+}
+
 export function startIdCapture(
   deps: IdHarvestDeps,
   id: string,
@@ -152,6 +182,9 @@ export function startIdCapture(
   if (agent === 'shell' || !agentRescuesId(agent)) return;
   if (deps.idCaptureWatches.has(id)) return;
   const watch = watchForSessionId(agent, ctx, {
+    // PHASE 202. Where this session's own agent writes its store, which is
+    // under its login's directory when it was launched on one.
+    ...(options.env !== undefined ? { env: options.env } : {}),
     // PHASE 21 fix round. The session this watch is FOR. Two panes started
     // seconds apart in one folder can both see the first record, and the
     // freshness window is two seconds wide on purpose, so without this the
@@ -364,7 +397,10 @@ export function resumeIdHarvests(deps: IdHarvestDeps): void {
             timeoutMs: DEAD_ROW_RESCUE_TIMEOUT_MS,
             markUnavailableOnFailure: true,
             // No live pane to correlate against — this is time alone.
-            atCreate: false
+            atCreate: false,
+            // Phase 202: the login this row was launched under, so a rescue
+            // looks where that session's own agent wrote.
+            ...loginEnvOption(rec)
           }
         );
         continue;
@@ -389,7 +425,7 @@ export function resumeIdHarvests(deps: IdHarvestDeps): void {
       // the watch was started by a LATER launch against a remembered spawn
       // time. That is weaker than a watch started with the pane, and the
       // record says so.
-      { atCreate: false }
+      { atCreate: false, ...loginEnvOption(rec) }
     );
   }
 }

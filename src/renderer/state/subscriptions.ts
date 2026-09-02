@@ -510,6 +510,21 @@ function showDegraded(store: AppStore, notice: DurabilityNotice): void {
     );
     return;
   }
+  if (notice.kind === 'login-fell-back') {
+    // Phase 202. The session came back. What did not come back is the login
+    // its row named, because the person removed it or its folder is gone, so
+    // it is running under the default login instead. There is no action
+    // button: the fix is to add that login again and start a new session, and
+    // Tortie will not sign anybody in. Two lines of about 29 characters,
+    // matching the pattern above.
+    const short = shortName(notice.sessionName);
+    getState().toast(
+      'info',
+      `"${short}" came back on the default login.`,
+      { sticky: true }
+    );
+    return;
+  }
   if (notice.kind === 'shell-path-fallback') {
     // Phase 81. The login shell did not print its PATH, so every pane this
     // run gets the fallback, which carries no version managed node directory.
