@@ -439,6 +439,8 @@ export const CHECKS = [
   // spawns no agent and spends no token, and touches `-L gmux` in one place
   // only, a read only session count taken before and after.
   electron('probe:p198'),
+  // Phase 197: the third nits round's one app run over its rendered items.
+  electron('probe:p197'),
   // PHASE 190. Does the inline control say what it can tell apart? One launch
   // on a scratch profile opens five diffs it wrote itself, being the
   // operator's own pure deletion, a replacement in the shape of his prose
