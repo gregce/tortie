@@ -98,6 +98,25 @@ export interface ArchReadingBox {
   entries: string[];
 }
 
+/**
+ * Whether a manifest sits at a box root (research 77 rule N). A box has one
+ * root, being its directory or the deeper one every file shares; the fold
+ * has the repository root and the root of every directory it folded. A
+ * fixture manifest deep inside a tests directory declares nothing about the
+ * tests box, and the Phase 201 verifier read four such on black's hover.
+ */
+function atBoxRoot(
+  path: string,
+  dir: string,
+  commonDir: string,
+  isFold: boolean,
+  folded: readonly string[]
+): boolean {
+  const at = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+  if (isFold) return at === '' || folded.includes(at);
+  return at === dir || at === commonDir;
+}
+
 /** The manifests a box root may hold, by file name. */
 export const MANIFEST_NAMES: readonly string[] = [
   'package.json',
@@ -233,6 +252,7 @@ function boxFacts(
   const kinds = new Map<string, number>();
   let defined = 0;
   const declared: ArchReadingDeclared[] = [];
+  const commonDir = commonDirOf(own);
   for (const p of own) {
     const parsed = input.parseable(p);
     if (parsed) parseable += 1;
@@ -250,7 +270,7 @@ function boxFacts(
       }
     }
     const name = bareName(p);
-    if (MANIFEST_NAMES.includes(name)) {
+    if (MANIFEST_NAMES.includes(name) && atBoxRoot(p, box.dir, commonDir, isFold, input.folded)) {
       declared.push({ path: p, name: input.declares.get(p) ?? null, kind: name });
     }
   }
@@ -320,7 +340,7 @@ function boxFacts(
   return {
     id: box.id,
     dir: box.dir,
-    commonDir: commonDirOf(own),
+    commonDir,
     files: own.length,
     parseable,
     lines,

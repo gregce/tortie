@@ -257,7 +257,7 @@
     }
   },
   "cargo": {
-    "sentence": "37 files, mostly Rust; 7 parts, the biggest crates/c (19%); 8 connections between parts; 20 of 26 imports lead inside the repository.",
+    "sentence": "38 files, mostly Rust; 7 parts, the biggest crates/c (18%); 8 connections between parts; 20 of 26 imports lead inside the repository.",
     "words": 22,
     "edges": [
       "crates-c>crates-b:2",
@@ -484,16 +484,16 @@
       {
         "id": "tests",
         "label": "tests",
-        "fileCount": 4,
+        "fileCount": 5,
         "band": "surface",
         "words": 20,
-        "sentence": "4 files, mostly Rust; made of util, regression, misc and 1 more; self contained (2 imports inside, none across).",
+        "sentence": "5 files, mostly Rust; made of util, regression, misc and 1 more; self contained (2 imports inside, none across).",
         "facts": [
-          "Size: 4 files, 550 lines",
-          "Languages: Rust 3, text files 1",
+          "Size: 5 files, 553 lines",
+          "Languages: Rust 3, text files 1, TOML 1",
           "Defines: 9 functions, 6 structs",
           "Imports: 2 written, 2 to this repository, 0 to dependencies, 0 not followed",
-          "Folders: data 1"
+          "Folders: data 2"
         ],
         "languages": [
           {
@@ -503,9 +503,13 @@
           {
             "name": "text files",
             "files": 1
+          },
+          {
+            "name": "TOML",
+            "files": 1
           }
         ],
-        "lines": 550,
+        "lines": 553,
         "entries": []
       }
     ],

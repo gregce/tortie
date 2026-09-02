@@ -1,5 +1,5 @@
 {
-  "note": "A Cargo workspace: four member crates seeded under P1, one of them declared inside another (crates/a/macros under crates/a, which the Phase 201 fix round added so a nested member is placed once), a root crate whose sources sit under crates/core, an integration test directory, and a fuzz crate and a bench script that fold. Nothing here is a real repository.",
+  "note": "A Cargo workspace: four member crates seeded under P1, one of them declared inside another (crates/a/macros under crates/a, which the Phase 201 fix round added so a nested member is placed once), a root crate whose sources sit under crates/core, an integration test directory holding a fixture Cargo.toml below its root (which declares nothing about the tests box), and a fuzz crate and a bench script that fold. Nothing here is a real repository.",
   "subject": "ripgrep",
   "workspaces": [],
   "crates": [
@@ -43,6 +43,7 @@
     "tests/regression.rs",
     "tests/util.rs",
     "tests/data/a.txt",
+    "tests/data/fixture/Cargo.toml",
     "fuzz/Cargo.toml",
     "fuzz/fuzz_targets/one.rs",
     "benchsuite/run.py"
@@ -349,6 +350,11 @@
       "path": "tests/data/a.txt",
       "lines": 193,
       "declares": null
+    },
+    {
+      "path": "tests/data/fixture/Cargo.toml",
+      "lines": 3,
+      "declares": "fixture-crate"
     },
     {
       "path": "fuzz/Cargo.toml",

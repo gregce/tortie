@@ -126,6 +126,22 @@ describe('rule N, the name', () => {
     const f = facts([...six, 'README.md']);
     expect(nameOf(box(f, 'other'))).toBe('everything else');
   });
+
+  it('declares only from a manifest at the box root, and the fold from the repository root and each folded directory', () => {
+    // The Phase 201 verifier read four unnamed pyproject.toml fixtures on the
+    // hover of black's tests box; they sit deep inside it and declare nothing.
+    const f = facts(
+      [...six, ...source('tests', 6, 'py'), 'tests/data/x/pyproject.toml', 'pyproject.toml', 'fuzz/Cargo.toml', 'fuzz/one.rs'],
+      [],
+      { declares: [['tests/data/x/pyproject.toml', null], ['pyproject.toml', 'black'], ['fuzz/Cargo.toml', 'black-fuzz']] }
+    );
+    expect(box(f, 'tests').declared).toEqual([]);
+    expect(box(f, 'other').declared.map((d) => `${d.kind} ${d.name ?? '(unnamed)'}`)).toEqual([
+      'pyproject.toml black',
+      'Cargo.toml black-fuzz'
+    ]);
+    expect(hoverFacts(box(f, 'tests'), f.labels).some((line) => line.startsWith('Declares'))).toBe(false);
+  });
 });
 
 describe('rule M, made of', () => {

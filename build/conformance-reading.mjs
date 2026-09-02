@@ -83,6 +83,7 @@ const ABLATIONS = [
   { name: 'rule R, the repository line', file: 'sentence.ts', from: "`${plural(boxes.length, 'part')}${biggest}; `", to: "`${plural(boxes.length + 1, 'part')}${biggest}; `" },
   { name: 'the hover, its size line', file: 'sentence.ts', from: "`Size: ${plural(box.files, 'file')}, ${plural(box.lines, 'line')}`,", to: "`Size: ${plural(box.files, 'file')}`," },
   { name: 'the definitions on the hover', file: 'reading.ts', from: 'kinds.set(kind, (kinds.get(kind) ?? 0) + c);', to: 'kinds.set(kind, 0);' },
+  { name: 'the manifests at the box root', file: 'reading.ts', from: 'return at === dir || at === commonDir;', to: 'return true;' },
   { name: 'the declared name reader', file: 'tree-facts.ts', from: "name = typeof parsed.name === 'string' ? parsed.name : null;", to: 'name = null;' }
 ];
 
