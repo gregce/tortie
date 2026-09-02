@@ -77,8 +77,9 @@ beforeAll(async () => {
   await server.start(0);
 });
 
-afterAll(() => {
-  server.stop();
+afterAll(async () => {
+  // PHASE 200: `stop()` is a joined operation now, so it is awaited.
+  await server.stop();
   rmSync(userData, { recursive: true, force: true });
 });
 

@@ -35,6 +35,7 @@ import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
 // snapshot they answer from, dropped in the ordered disposer below.
 import { disposeUsageService, registerUsageIpc } from './usage/ipc';
 import { registerLoginsIpc } from './logins/ipc';
+import { stopLiveSampling } from './diagnostics/live';
 import { foldChosenNow, foldSuspension } from './sessions/fold-wiring';
 import { installLaunchContextResolver } from './context/launch-resolver';
 import { registerDropIpc, startDropStorePruning } from './drop';
@@ -465,10 +466,30 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       // process ends. The call never throws, and it costs nothing when the view
       // was never opened, because the store opens on the first read.
       disposeArchIpc(),
-      // Phase 181: drop the held usage snapshot. There is no file, no socket
-      // and no timer behind it, so this is one reference released and it
-      // never throws.
+      // Phase 181, rewritten by PHASE 200. Close the usage domain as one
+      // joined operation: refuse every read and tap from its first line,
+      // cancel the https request and the keychain child a held read is waiting
+      // on, and await what was cancelled, bounded at one second. The sentence
+      // that used to be here, being "there is no file, no socket and no timer
+      // behind it", was not true after Phase 181 shipped the endpoint and
+      // Phase 182 shipped the tap. It never throws, and a quit with nothing in
+      // flight resolves it in the same tick.
+      //
+      // It is AFTER `await shutdownGmuxCore()` above, which is what joins the
+      // hook server's own shutdown, so no accepted status line post is still
+      // running when the service it would call is closed.
       disposeUsageService(),
+      // PHASE 200. Live Diagnostics joins the ordered disposer. Its timer, its
+      // destroyed window watcher and its streaming `top` child used to be
+      // ended only by the renderer's own `diagnostics:liveStop`, by the
+      // subscribing window being destroyed, or by a replacement start. On a
+      // quit with a VISIBLE live tab, none of those three is guaranteed to
+      // happen before main tears down, so main ends it itself. The call is
+      // idempotent and costs nothing when no tab was ever live, which is why
+      // it can sit unconditionally beside the others.
+      Promise.resolve().then(() => {
+        stopLiveSampling();
+      }),
       stopAgentOverlayWatch(),
       // Phase 68: the machines.json watcher, closed through the same tracked
       // path the agents.json one uses, for the same Phase 36 reason.

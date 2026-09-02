@@ -64,7 +64,11 @@ vi.mock('../transport', () => ({
   httpsTransport: async () => ({ status: 200, body: '{}', retryAfterAt: null })
 }));
 
-import { applyUsageTap, disposeUsageService, resetUsageTapLog } from '../ipc';
+import {
+  applyUsageTap,
+  resetUsageServiceForTests,
+  resetUsageTapLog
+} from '../ipc';
 import { TAP_THROTTLE_SECONDS, tapConfigKey } from '../statusline';
 
 const START = 1_790_000_000_000;
@@ -100,7 +104,11 @@ const debugs = () => logged.filter((l) => l.level === 'debug');
 
 beforeEach(() => {
   logged.length = 0;
-  disposeUsageService();
+  // PHASE 200. `disposeUsageService()` arms the domain's shutdown admission
+  // and nothing turns it back off, which is the property this file's subject
+  // now has. A suite that needs a process where the refusal is not yet armed
+  // uses the test seam instead.
+  resetUsageServiceForTests();
   resetUsageTapLog();
   vi.useFakeTimers();
   vi.setSystemTime(START);

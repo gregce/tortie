@@ -146,6 +146,43 @@ export interface HookServerEvents {
 }
 
 /**
+ * PHASE 200. How long `stop()` waits for the requests it had already accepted
+ * before it cuts their sockets, and how long it then waits for the listener's
+ * own close callback. Both are wedge guards rather than expected waits: an
+ * ordinary quit has nothing in flight and pays neither.
+ */
+export const HOOK_STOP_JOIN_MS = 500;
+export const HOOK_STOP_CLOSE_MS = 500;
+
+/** What one `stop()` did, for the log and for the tests. */
+export interface HookStopReport {
+  /** Requests this server had accepted and not finished when stop began. */
+  accepted: number;
+  /** True when they all settled inside the bound rather than being cut. */
+  joined: boolean;
+  waitedMs: number;
+}
+
+/**
+ * Await `work`, but never longer than `ms`. Answers true when the work won.
+ * The timer is unref'd, so it is never the reason a quit stays alive.
+ */
+async function settleWithin(work: Promise<unknown>, ms: number): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<false>((resolve) => {
+    timer = setTimeout(() => resolve(false), ms);
+    timer.unref?.();
+  });
+  try {
+    return await Promise.race([work.then(() => true), expired]);
+  } catch {
+    return true;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
  * 127.0.0.1 only, 128-bit per-session token in the PATH, `Host` checked,
  * bodies capped, and never a line of payload in the log — hook payloads
  * contain the user's prompt text.
@@ -154,14 +191,36 @@ export class GmuxHookServer {
   private server: Server | null = null;
   private readonly tokens = new Map<string, string>(); // token → sessionId
   private port = 0;
+  /**
+   * PHASE 200. Shutdown admission. It is set on the FIRST LINE of `stop()`,
+   * before any await, and it is what makes this a resource owner rather than
+   * a socket somebody closed. From that instant no request is admitted and no
+   * accepted request may deliver an event, so nothing downstream, being the
+   * activity store and the usage service, can be reached by work this server
+   * had already taken in. Once true it never goes back: a stopped hook server
+   * is not restarted, a new one is constructed.
+   */
+  private shuttingDown = false;
+  /**
+   * The requests this server has ACCEPTED and not yet finished. `stop()` joins
+   * them, bounded, so a shutdown that returns has no handler still running.
+   */
+  private readonly inFlight = new Set<Promise<void>>();
 
   constructor(private readonly events: HookServerEvents) {}
 
   /** Bind and start listening. Resolves 0 when the channel is unavailable. */
   async start(preferredPort: number): Promise<number> {
+    if (this.shuttingDown) return 0;
     if (this.server !== null) return this.port;
     const server = createServer((req, res) => {
-      void this.handle(req, res);
+      // PHASE 200. The handler is TRACKED from the moment the request is
+      // accepted, so `stop()` has something to join. It never rejects.
+      const job = this.handle(req, res).catch(() => undefined);
+      this.inFlight.add(job);
+      void job.finally(() => {
+        this.inFlight.delete(job);
+      });
     });
     server.on('error', () => undefined);
     server.maxConnections = 32;
@@ -192,11 +251,77 @@ export class GmuxHookServer {
     return bound;
   }
 
-  stop(): void {
-    this.server?.close();
+  /**
+   * PHASE 200. Shut down as ONE JOINED OPERATION, and the order is the point.
+   *
+   * It used to be `server.close()` with the callback thrown away, then the
+   * tokens cleared, and it returned in the same tick. `close()` only stops
+   * new connections: a request that had ALREADY passed the token lookup went
+   * on reading its body and called `onTap` afterwards, which reached the usage
+   * service, which is disposed later in the same quit. The audit of 0.98.0
+   * named that as the reason a resource owner whose `stop()` returns before
+   * accepted work stops does not meet the bar, even when the late callback
+   * only moves an in-memory meter.
+   *
+   * The order now:
+   *
+   *  1. ADMISSION CLOSES, synchronously, before any await. From this line no
+   *     request is admitted and no accepted request may deliver an event.
+   *  2. The listener stops accepting, and idle keep-alive connections are cut,
+   *     so `close()` can actually reach its callback.
+   *  3. The accepted handlers are JOINED, bounded by HOOK_STOP_JOIN_MS.
+   *  4. Anything still holding a socket after that bound is destroyed, so a
+   *     client that never sends its body cannot hold a quit open.
+   *  5. The tokens are cleared LAST, because clearing them first would turn a
+   *     request that is still being joined into an anonymous one.
+   *
+   * It never throws and it always resolves. The report is for the log and the
+   * tests; nothing branches on it.
+   */
+  async stop(): Promise<HookStopReport> {
+    const startedAt = Date.now();
+    this.shuttingDown = true;
+    const server = this.server;
     this.server = null;
-    this.tokens.clear();
     this.port = 0;
+    const accepted = this.inFlight.size;
+    if (server !== null) {
+      // Node keeps `close()` pending until every connection is gone, so the
+      // idle ones are cut here and the rest at the bound below.
+      server.closeIdleConnections?.();
+      const closed = new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+      const joined = await settleWithin(
+        Promise.all([...this.inFlight]).then(() => undefined),
+        HOOK_STOP_JOIN_MS
+      );
+      // Whatever is left is a client that stopped talking mid request. It gets
+      // no event, because admission closed on line one; this is only about not
+      // holding the process open for it.
+      if (!joined) server.closeAllConnections?.();
+      await settleWithin(closed, HOOK_STOP_CLOSE_MS);
+      this.inFlight.clear();
+      this.tokens.clear();
+      return {
+        accepted,
+        joined,
+        waitedMs: Date.now() - startedAt
+      };
+    }
+    this.inFlight.clear();
+    this.tokens.clear();
+    return { accepted, joined: true, waitedMs: Date.now() - startedAt };
+  }
+
+  /** True from the first line of `stop()`. Nothing turns it back off. */
+  get shutdownStarted(): boolean {
+    return this.shuttingDown;
+  }
+
+  /** How many accepted requests are still running. Tests and the log. */
+  get inFlightCount(): number {
+    return this.inFlight.size;
   }
 
   get listening(): boolean {
@@ -225,6 +350,10 @@ export class GmuxHookServer {
       res.statusCode = 404;
       res.end();
     };
+    // PHASE 200. Admission. A request that arrives after `stop()` began is
+    // refused before anything is read off it, so a token is never looked up
+    // and no event can be composed for it.
+    if (this.shuttingDown) return deny();
     const host = req.headers.host ?? '';
     if (!/^127\.0\.0\.1(:\d+)?$/.test(host)) return deny();
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
@@ -282,6 +411,16 @@ export class GmuxHookServer {
     // Reply first: a hook that waits on us is latency in the user's agent.
     res.statusCode = 200;
     res.end();
+
+    // PHASE 200. Admission, again, and THIS is the check the audit's race
+    // needed. The body read above is an await: a request that passed the token
+    // lookup before `stop()` was called reaches this line afterwards, and
+    // delivering its event here would call the usage service during, or after,
+    // its own disposal. It is dropped instead. The client already has its 200,
+    // because a hook that waits on Tortie is latency in the person's agent,
+    // and a status line post is a convenience that may never be the thing that
+    // breaks a turn.
+    if (this.shuttingDown) return;
 
     if (isTap) {
       if (over) {

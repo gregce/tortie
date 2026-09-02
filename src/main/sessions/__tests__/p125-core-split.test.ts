@@ -110,7 +110,11 @@ describe('every public method of GmuxCore kept its name', () => {
     'removeProject',
     'beginShutdown',
     'joinAdmitted',
-    'dispose'
+    'dispose',
+    // Phase 200. The hook server's shutdown is a joined operation now.
+    // `dispose()` starts it and `shutdownGmuxCore()` awaits it here, before
+    // the ordered main disposer closes the usage service it would call.
+    'joinHookShutdown'
   ];
 
   const core = read('core.ts');

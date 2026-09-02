@@ -23,11 +23,11 @@
  */
 
 import { usagePlanWord } from '@shared/usage';
-import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { runGuarded } from '../proc/guarded';
 
 /** What a credential read answers. Never a vendor sentence, never a token in a log. */
 export type CredentialResult =
@@ -52,6 +52,14 @@ export interface CredentialDeps {
   readText(path: string): Promise<string | null>;
   env: Record<string, string | undefined>;
   home: string;
+  /**
+   * PHASE 200. End everything this reader has in flight, and answer how many
+   * were ended. Called by the usage service's own shutdown, so the disposer
+   * cannot resolve while a keychain child of its own is still running.
+   *
+   * Optional, because a test seam that reads a map has nothing to cancel.
+   */
+  cancel?(): number;
 }
 
 const KEYCHAIN_TIMEOUT_MS = 5_000;
@@ -74,22 +82,70 @@ export function claudeScopedService(configDir: string): string {
   return `${CLAUDE_KEYCHAIN_SERVICE}-${digest.slice(0, 8)}`;
 }
 
-export function defaultCredentialDeps(): CredentialDeps {
+/** The one program this domain runs, and the only one it ever will. */
+export const KEYCHAIN_BIN = '/usr/bin/security';
+
+/**
+ * PHASE 200. The keychain child goes through the OWNED registry now, and the
+ * reader and its cancel are one pair.
+ *
+ * It used to be a bare `execFile('/usr/bin/security', ...)`, which is the one
+ * child in this domain that nothing could reach: not `reapGuardedChildren()`
+ * at quit, and not the usage disposer, which returned while it was still
+ * running. `runGuarded` puts it in the registry every other guarded child of
+ * Tortie's is in, always settles inside its deadline, and takes an abort
+ * signal so this domain's own shutdown can end it at once.
+ *
+ * NOTHING ABOUT WHAT IS READ CHANGES. The same argv, the same 5 s deadline, a
+ * miss and a failure are still the same answer, and neither the failure nor
+ * the output is logged or inspected any further than it was.
+ *
+ * `bin` exists so a test can drive the SHIPPING code over a child of its own
+ * that never exits, which is the only way to prove the cancel actually kills
+ * something. It defaults to `KEYCHAIN_BIN` and no shipping caller passes it;
+ * nothing a person or an agent can write reaches this argument.
+ */
+export function keychainReader(bin: string = KEYCHAIN_BIN): {
+  keychain(service: string): Promise<string | null>;
+  cancel(): number;
+} {
+  const live = new Set<AbortController>();
   return {
-    keychain: (service) =>
-      new Promise<string | null>((resolve) => {
-        execFile(
-          '/usr/bin/security',
+    keychain: async (service) => {
+      const ending = new AbortController();
+      live.add(ending);
+      try {
+        const run = await runGuarded(
+          bin,
           ['find-generic-password', '-s', service, '-w'],
-          { timeout: KEYCHAIN_TIMEOUT_MS, maxBuffer: 1024 * 1024 },
-          (err, stdout) => {
-            // A miss and a failure are the same answer here, and neither the
-            // error nor the output is ever logged or inspected further.
-            if (err) resolve(null);
-            else resolve(stdout.trim() === '' ? null : stdout);
+          {
+            timeoutMs: KEYCHAIN_TIMEOUT_MS,
+            maxOutputBytes: 1024 * 1024,
+            cancel: ending.signal
           }
         );
-      }),
+        // A miss, a failure, a deadline and a cancel are all the same answer
+        // here, and none of them is logged or inspected any further.
+        if (run.spawnError !== null || run.timedOut || run.cancelled) return null;
+        if (run.code !== 0) return null;
+        return run.stdout.trim() === '' ? null : run.stdout;
+      } finally {
+        live.delete(ending);
+      }
+    },
+    cancel: () => {
+      const ending = live.size;
+      for (const one of live) one.abort();
+      live.clear();
+      return ending;
+    }
+  };
+}
+
+export function defaultCredentialDeps(): CredentialDeps {
+  const reader = keychainReader();
+  return {
+    keychain: reader.keychain,
     readText: async (path) => {
       try {
         return await readFile(path, 'utf8');
@@ -98,7 +154,8 @@ export function defaultCredentialDeps(): CredentialDeps {
       }
     },
     env: process.env,
-    home: homedir()
+    home: homedir(),
+    cancel: reader.cancel
   };
 }
 

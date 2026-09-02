@@ -159,6 +159,17 @@ export interface GuardedRunOptions {
   maxOutputBytes?: number;
   /** SIGTERM→SIGKILL grace on the timeout path. Default 500 ms. */
   killGraceMs?: number;
+  /**
+   * PHASE 200. Cancel this run from outside. When the signal aborts, the
+   * child's whole group is killed at once and the promise settles with
+   * `cancelled` true, the same way the deadline settles it with `timedOut`.
+   *
+   * It exists because a domain that owns a child needs to end it at ITS OWN
+   * shutdown rather than at the app's. `reapGuardedChildren()` runs late in
+   * the quit path, which is fine for an orphan and too late for a disposer
+   * that must not resolve while its own child is still running.
+   */
+  cancel?: AbortSignal;
 }
 
 export interface GuardedRunResult {
@@ -170,6 +181,8 @@ export interface GuardedRunResult {
   signal: NodeJS.Signals | null;
   /** True when the deadline fired and the group was killed. */
   timedOut: boolean;
+  /** PHASE 200. True when `options.cancel` aborted and the group was killed. */
+  cancelled: boolean;
   /** Set when the child could not be spawned at all (ENOENT, EACCES…). */
   spawnError: string | null;
 }
@@ -200,10 +213,18 @@ export function runGuarded(
         code: null,
         signal: null,
         timedOut: false,
+        cancelled: false,
         spawnError: null,
         ...partial
       });
     };
+
+    // PHASE 200. An abort that arrives before the spawn means there is nothing
+    // to run at all, so nothing is started.
+    if (options.cancel?.aborted === true) {
+      finish({ cancelled: true });
+      return;
+    }
 
     let child: ChildProcess;
     try {
@@ -252,5 +273,23 @@ export function runGuarded(
     }, options.timeoutMs);
     // The deadline must not be the reason `vitest`/a CLI stays alive.
     deadline.unref?.();
+
+    // PHASE 200. The owner's own cancel, the same shape as the deadline above,
+    // and deliberately NOT untracked for the same reason: the group kill is in
+    // flight and the registry is what reaps it if the app quits first. The
+    // aborted check after the registration is not belt and braces: a listener
+    // added to an already aborted signal is never called.
+    if (options.cancel !== undefined) {
+      const onCancel = (): void => {
+        clearTimeout(deadline);
+        killProcessGroup(child, 0);
+        finish({ cancelled: true });
+      };
+      options.cancel.addEventListener('abort', onCancel, { once: true });
+      child.once('close', () => {
+        options.cancel?.removeEventListener('abort', onCancel);
+      });
+      if (options.cancel.aborted) onCancel();
+    }
   });
 }

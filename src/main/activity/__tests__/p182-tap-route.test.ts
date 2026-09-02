@@ -76,8 +76,9 @@ beforeEach(async () => {
   server.register(TOKEN, 'sess-1');
 });
 
-afterEach(() => {
-  server.stop();
+afterEach(async () => {
+  // PHASE 200: `stop()` is a joined operation now, so it is awaited.
+  await server.stop();
 });
 
 function post(

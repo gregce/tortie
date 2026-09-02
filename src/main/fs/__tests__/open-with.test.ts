@@ -96,7 +96,15 @@ let service: OpenWithService;
 
 /** A GuardedRunResult with the fields a caller branches on. */
 function ok(stdout: string): GuardedRunResult {
-  return { stdout, stderr: '', code: 0, signal: null, timedOut: false, spawnError: null };
+  return {
+    stdout,
+    stderr: '',
+    code: 0,
+    signal: null,
+    timedOut: false,
+    cancelled: false,
+    spawnError: null
+  };
 }
 
 function failed(partial: Partial<GuardedRunResult>): GuardedRunResult {
@@ -106,6 +114,7 @@ function failed(partial: Partial<GuardedRunResult>): GuardedRunResult {
     code: 1,
     signal: null,
     timedOut: false,
+    cancelled: false,
     spawnError: null,
     ...partial
   };

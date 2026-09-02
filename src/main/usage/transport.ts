@@ -44,6 +44,18 @@ export interface UsageRequest {
   /** A path from ./endpoints.ts. Never a value from configuration. */
   path: string;
   headers: Record<string, string>;
+  /**
+   * PHASE 200. The caller's cancel. The audit's sentence was that this module
+   * "does not expose its `ClientRequest` for cancellation", so the usage
+   * service could neither end nor honestly join a request it had started when
+   * it was disposed. Exposing the request object would have handed a socket to
+   * every caller; a signal hands over exactly the one power that is needed.
+   *
+   * On abort the request is DESTROYED, so the promise rejects and the service
+   * reads the failure the way it reads any other, being one 'unavailable'
+   * outcome with no body, no header and no line in a log.
+   */
+  signal?: AbortSignal;
 }
 
 export interface UsageResponse {
@@ -91,6 +103,12 @@ export function retryAfterDeadline(
 /** The real transport: one GET, no proxy, no redirect, capped and deadlined. */
 export const httpsTransport: UsageTransport = (req) =>
   new Promise<UsageResponse>((resolve, reject) => {
+    // PHASE 200. An abort that arrives before the socket is opened means
+    // nothing is ever sent, and the person's token never reaches a wire.
+    if (req.signal?.aborted === true) {
+      reject(new Error('usage request cancelled'));
+      return;
+    }
     const client = request(
       {
         method: 'GET',
@@ -99,7 +117,8 @@ export const httpsTransport: UsageTransport = (req) =>
         port: 443,
         path: req.path,
         headers: req.headers,
-        timeout: USAGE_TIMEOUT_MS
+        timeout: USAGE_TIMEOUT_MS,
+        ...(req.signal !== undefined ? { signal: req.signal } : {})
       },
       (res) => {
         let body = '';
@@ -132,5 +151,20 @@ export const httpsTransport: UsageTransport = (req) =>
     );
     client.on('timeout', () => client.destroy(new Error('usage request timed out')));
     client.on('error', (err) => reject(err));
+    // PHASE 200. The tracked request, ended by its owner. `signal` above
+    // already asks Node to abort, and this line is what makes the socket go
+    // away on a runtime where that is the only handle the caller has. The
+    // listener is removed when the request settles, so a signal that outlives
+    // one request holds no reference to it.
+    if (req.signal !== undefined) {
+      const signal = req.signal;
+      const onAbort = (): void => {
+        client.destroy(new Error('usage request cancelled'));
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+      client.once('close', () => {
+        signal.removeEventListener('abort', onAbort);
+      });
+    }
     client.end();
   });

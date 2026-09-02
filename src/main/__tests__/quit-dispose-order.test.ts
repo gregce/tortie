@@ -87,6 +87,38 @@ describe('disposeMainCapabilities (the quit-time teardown)', () => {
     expect(workers).toBeLessThan(reap);
   });
 
+  // -------------------------------------------------------------------------
+  // Phase 200. The three capabilities the 0.98.0 audit found outside the order
+  // -------------------------------------------------------------------------
+
+  it('joins the usage disposal and live Diagnostics in the same allSettled', () => {
+    // The usage disposer is asynchronous now, so being INSIDE the allSettled
+    // is what makes the quit wait for the request and the keychain child it
+    // cancels. Live Diagnostics used to be ended only by the renderer's own
+    // liveStop, by the subscribing window being destroyed, or by a replacement
+    // start; on a quit with a visible live tab none of those is guaranteed.
+    const flatBody = flat(body);
+    expect(flatBody).toContain('disposeUsageService(),');
+    expect(flatBody).toContain('stopLiveSampling();');
+    const settle = body.indexOf('Promise.allSettled([');
+    const usage = body.indexOf('disposeUsageService()');
+    const live = body.indexOf('stopLiveSampling()');
+    const drain = body.indexOf('drainWatcherCloses(');
+    expect(settle).toBeGreaterThan(-1);
+    expect(usage).toBeGreaterThan(settle);
+    expect(live).toBeGreaterThan(settle);
+    // Both inside the FIRST allSettled, which is the one the watcher drain
+    // chains off, so the bound and the wedge guard already cover them.
+    expect(usage).toBeLessThan(drain);
+    expect(live).toBeLessThan(drain);
+  });
+
+  it('never fires the usage disposal with void', () => {
+    // It used to be one synchronous line. A `void` in front of the
+    // asynchronous one would put the quit back where the audit found it.
+    expect(body).not.toContain('void disposeUsageService()');
+  });
+
   it('bounds the wait at 2,000 ms, clears that timer, and swallows a rejection', () => {
     expect(flat(body)).toContain(
       'const workerGuard = afterMs(2_000); ' +

@@ -505,6 +505,11 @@ export class GmuxCore {
   readonly fold: FoldScheduler;
   /** Loopback channel for injected agent hooks (claude only, §3). */
   readonly hookServer: GmuxHookServer;
+  /**
+   * PHASE 200. The hook server's shutdown, started by `dispose()` and awaited
+   * by `shutdownGmuxCore()`. Null until a dispose has run.
+   */
+  private hookShutdown: Promise<unknown> | null = null;
 
   /** Depth last pushed to the server — see the settings subscription. */
   private appliedScrollbackLines = getSettings().scrollbackLines;
@@ -3047,6 +3052,14 @@ export class GmuxCore {
     return this.resumeInPlace.resumeInPlace(sessionId);
   }
 
+  /**
+   * PHASE 200. Wait for the shutdown `dispose()` started on the hook server.
+   * Resolves at once when no dispose has run. Never throws.
+   */
+  async joinHookShutdown(): Promise<void> {
+    await this.hookShutdown;
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -3085,7 +3098,13 @@ export class GmuxCore {
     this.resumeInPlace.dispose();
     this.fold.dispose();
     setLiveFoldScheduler(null);
-    this.hookServer.stop();
+    // PHASE 200. The hook server's shutdown is a JOINED operation now, so
+    // `dispose()` starts it and `shutdownGmuxCore()` awaits it below, before
+    // the usage service is disposed by the ordered main disposer. Admission
+    // closes on the first line of `stop()`, synchronously, so from THIS line
+    // no accepted hook or status line post can deliver an event, whatever the
+    // join costs.
+    this.hookShutdown = this.hookServer.stop().catch(() => null);
     this.attachHost.disposeAll();
     this.control.stop();
     try {
@@ -3251,6 +3270,12 @@ export async function shutdownGmuxCore(): Promise<void> {
       // nothing at all when the manifest has not changed.
       await core.takeManifestGenerationOnQuit().catch(() => null);
       core.dispose();
+      // PHASE 200. The hook server's join, bounded inside `stop()` itself, so
+      // this cannot wedge. It is HERE rather than inside `dispose()` because
+      // the ordered main disposer runs `disposeUsageService()` after this
+      // function returns, and the whole point is that no accepted hook request
+      // is still running when the service it calls is disposed.
+      await core.joinHookShutdown();
     } catch {
       /* boot never finished, so there is nothing to tear down */
     } finally {

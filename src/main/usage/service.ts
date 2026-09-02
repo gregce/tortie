@@ -81,6 +81,13 @@ export const USAGE_STALE_RATE_LIMITED_MS = 24 * 60 * 60 * 1000;
 export const USAGE_TAP_SUPPRESS_MS = 5 * 60 * 1000;
 /** Identical numbers inside this window are the same post, not a new one. */
 export const USAGE_TAP_DEDUPE_MS = 30 * 1000;
+/**
+ * PHASE 200. How long `shutdown()` waits for the reads it cancelled to settle
+ * before it gives up on them. It is a wedge guard rather than an expected
+ * wait: a cancelled request rejects on the next tick, and an ordinary quit has
+ * nothing in flight and pays nothing at all.
+ */
+export const USAGE_SHUTDOWN_JOIN_MS = 1_000;
 
 export interface UsageServiceDeps {
   credentials: CredentialDeps;
@@ -109,6 +116,17 @@ export interface UsageServiceDeps {
   onChanged?(snapshot: UsageSnapshot): void;
 }
 
+/** What one `shutdown()` did, for the log and for the tests. */
+export interface UsageShutdownReport {
+  /** In flight reads cancelled, being one per provider at most. */
+  cancelled: number;
+  /** Children the credential reader had running and ended. */
+  children: number;
+  /** True when every cancelled read settled inside the bound. */
+  joined: boolean;
+  waitedMs: number;
+}
+
 export interface UsageService {
   /** The held snapshot, fetching only what the interval says is due. */
   read(): Promise<UsageSnapshot>;
@@ -122,6 +140,15 @@ export interface UsageService {
    * not the one the body claims; the two are compared here.
    */
   applyTap(sessionId: string, body: string): TapOutcome;
+  /**
+   * PHASE 200. Close the service as one joined operation: refuse everything
+   * from the first line, cancel the request and the keychain child each held
+   * read is waiting on, then await what was cancelled, bounded.
+   *
+   * After it resolves this service reads nothing, sends nothing and answers
+   * every call with a refusal. It is idempotent and it never throws.
+   */
+  shutdown(deadlineMs?: number): Promise<UsageShutdownReport>;
 }
 
 /**
@@ -140,7 +167,14 @@ export type TapOutcome =
   /** The poster's config directory is not the account this meter draws. */
   | 'account'
   /** The same numbers, again, inside the dedupe window. */
-  | 'duplicate';
+  | 'duplicate'
+  /**
+   * PHASE 200. The service has been shut down. It holds nothing, it will not
+   * read anything again, and it is not rebuilt to answer a post. A status line
+   * belongs to a durable session that outlives the app, so a post arriving
+   * during quit is ORDINARY rather than an incident.
+   */
+  | 'shutdown';
 
 type Outcome =
   | { kind: 'ok'; parsed: ParsedUsage }
@@ -164,6 +198,12 @@ interface Held {
    * an account this row is no longer on and is dropped rather than drawn.
    */
   inFlightLogin: string | null;
+  /**
+   * PHASE 200. The cancel for the read `inFlight` is waiting on, so shutdown
+   * can end the request rather than wait out its ten second deadline. Null
+   * whenever `inFlight` is null.
+   */
+  cancel: AbortController | null;
   /** When a live tap post was last APPLIED, or null. Phase 182. */
   tapAt: number | null;
   /**
@@ -191,6 +231,7 @@ function freshHeld(): Held {
     retryAfter: null,
     inFlight: null,
     inFlightLogin: null,
+    cancel: null,
     tapAt: null,
     loginName: null,
     loginChanged: false
@@ -278,6 +319,13 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
   const held = new Map<UsageProviderId, Held>(
     USAGE_PROVIDERS.map((p) => [p, freshHeld()])
   );
+  /**
+   * PHASE 200. Shutdown admission, set on the first line of `shutdown()` and
+   * never unset. A service that has been shut down is not restarted; the
+   * caller builds a new one, and the whole point of the flag is that nothing
+   * arriving late causes that to happen by itself.
+   */
+  let stopped = false;
 
   async function credentialFor(
     provider: UsageProviderId,
@@ -290,7 +338,8 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
 
   async function fetchProvider(
     provider: UsageProviderId,
-    loginDir: string | null
+    loginDir: string | null,
+    signal: AbortSignal
   ): Promise<Outcome> {
     let cred: CredentialResult;
     try {
@@ -305,12 +354,14 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         ? {
             host: CLAUDE_USAGE_HOST,
             path: CLAUDE_USAGE_PATH,
-            headers: claudeUsageHeaders(cred.token)
+            headers: claudeUsageHeaders(cred.token),
+            signal
           }
         : {
             host: CODEX_USAGE_HOST,
             path: CODEX_USAGE_PATH,
-            headers: codexUsageHeaders(cred.token, cred.accountId ?? '')
+            headers: codexUsageHeaders(cred.token, cred.accountId ?? ''),
+            signal
           };
     let res;
     try {
@@ -442,6 +493,12 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
    * the order a post meets them.
    */
   function applyTap(sessionId: string, body: string): TapOutcome {
+    // 0. PHASE 200. NOTHING AFTER SHUTDOWN. A status line belongs to a durable
+    //    claude session that outlives the app, so posts during and after quit
+    //    are expected rather than exceptional. The refusal is here as well as
+    //    at the registrar, because this object can be held by a caller that
+    //    took its reference before the disposal.
+    if (stopped) return 'shutdown';
     const h = held.get('claude');
     if (h === undefined) return 'off';
     // 1. NOTHING WHILE OFF. The switch is the whole permission this feature
@@ -503,6 +560,12 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
   }
 
   async function run(force: boolean): Promise<UsageSnapshot> {
+    // PHASE 200. A read after shutdown asks nothing and starts nothing. The
+    // registrar refuses it with a typed error before it reaches here; this is
+    // the same refusal for a caller holding the object directly, and it
+    // answers with what is held rather than throwing, because `current()` has
+    // always been the honest answer to "what do you have".
+    if (stopped) return compose();
     const on = deps.settings();
     const now = deps.now();
     const waits: Promise<void>[] = [];
@@ -568,7 +631,12 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       // the person chooses another one while it is in the air, what comes back
       // is not about the account the meter is now on.
       const issuedFor = login.name;
-      const job = fetchProvider(provider, login.dir)
+      // PHASE 200. One cancel per read, held beside the promise it belongs to,
+      // so shutdown can end the request and the keychain child rather than
+      // wait out a ten second network deadline.
+      const cancel = new AbortController();
+      h.cancel = cancel;
+      const job = fetchProvider(provider, login.dir, cancel.signal)
         .then((outcome) => {
           if (!sameLogin(h.loginName, issuedFor)) {
             // DROPPED WHOLE, and `lastAttemptAt` is deliberately not moved, so
@@ -595,6 +663,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         .finally(() => {
           h.inFlight = null;
           h.inFlightLogin = null;
+          h.cancel = null;
         });
       h.inFlight = job;
       h.inFlightLogin = issuedFor;
@@ -604,10 +673,57 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     return compose();
   }
 
+  /**
+   * PHASE 200. The joined close, in the order that makes it one operation.
+   *
+   *  1. ADMISSION CLOSES, synchronously, before any await. From this line a
+   *     read starts nothing and a tap changes nothing.
+   *  2. Every held read is CANCELLED, which destroys its https request, and
+   *     the credential reader ends the keychain children it has running.
+   *  3. What was cancelled is JOINED, bounded, so this does not resolve while
+   *     a request or a child of its own is still alive.
+   *
+   * A quit with nothing in flight pays one map walk and resolves in the same
+   * tick, which is what keeps the no work quit path immediate.
+   */
+  async function shutdown(
+    deadlineMs: number = USAGE_SHUTDOWN_JOIN_MS
+  ): Promise<UsageShutdownReport> {
+    const startedAt = Date.now();
+    if (stopped) {
+      return { cancelled: 0, children: 0, joined: true, waitedMs: 0 };
+    }
+    stopped = true;
+    const waits: Promise<void>[] = [];
+    let cancelled = 0;
+    for (const h of held.values()) {
+      if (h.inFlight === null) continue;
+      waits.push(h.inFlight);
+      h.cancel?.abort();
+      cancelled += 1;
+    }
+    const children = deps.credentials.cancel?.() ?? 0;
+    if (waits.length === 0) {
+      return { cancelled, children, joined: true, waitedMs: Date.now() - startedAt };
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<false>((resolve) => {
+      timer = setTimeout(() => resolve(false), deadlineMs);
+      timer.unref?.();
+    });
+    const joined = await Promise.race([
+      Promise.allSettled(waits).then(() => true),
+      expired
+    ]);
+    if (timer !== undefined) clearTimeout(timer);
+    return { cancelled, children, joined, waitedMs: Date.now() - startedAt };
+  }
+
   return {
     read: () => run(false),
     refresh: () => run(true),
     current: () => compose(),
-    applyTap
+    applyTap,
+    shutdown
   };
 }
