@@ -461,7 +461,9 @@ export type AnyMenuActionWithProjects =
   // Phase 129. The View menu's projects radio pair, the same one-line fold.
   | ProjectsPositionMenuActionId
   // Phase 163. Help > Diagnostics Report, the same one-line fold.
-  | DiagnosticsMenuActionId;
+  | DiagnosticsMenuActionId
+  // Phase 198. View > File History, the same one-line fold.
+  | FileHistoryMenuActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 12.12 item 2 (the inline sessions-position toggle) — one
@@ -799,3 +801,12 @@ export interface GmuxDiagnosticsDoorExtras {
   /** Open, or focus, the diagnostics report tab in the app window. */
   showDiagnostics(): Promise<void>;
 }
+
+/**
+ * View > File History (Phase 198). Rides EVT_MENU_ACTION like 'show-overview',
+ * the same one member shape, and an older renderer ignores an id it does not
+ * know. It shows the Source Control view and asks its File history section to
+ * open; the section follows the editor's active tab, so the row needs no
+ * payload and carries none.
+ */
+export type FileHistoryMenuActionId = 'show-file-history';

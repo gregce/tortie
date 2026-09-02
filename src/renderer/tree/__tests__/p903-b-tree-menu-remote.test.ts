@@ -205,6 +205,8 @@ describe('what a remote row offers', () => {
     expect(labels(local())).toEqual([
       'Open',
       'Open in New Tab',
+      // Phase 198. History is a local row's item, and only a local row's.
+      'History',
       'New File…',
       'New Folder…',
       'Rename…',

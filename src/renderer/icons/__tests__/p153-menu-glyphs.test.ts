@@ -51,6 +51,7 @@ describe('with no document and no canvas', () => {
       { mutate: true, duplicate: true, reveal: true },
       {
         open: () => {},
+        history: () => {},
         newEntry: () => {},
         rename: () => {},
         duplicate: () => {},
