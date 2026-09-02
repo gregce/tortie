@@ -451,8 +451,9 @@ export function bandOf(
  * the primitives already in this file.
  *
  *  P1 seeds. Two or more npm workspaces or Cargo member crates make each
- *     declared directory a box. Otherwise every top level directory is one.
- *     Root files go to the fold.
+ *     declared directory a box, deepest first, so a member inside a member
+ *     holds its own files and the parent the rest. Otherwise every top level
+ *     directory is one. Root files go to the fold.
  *  P2 split. While a box holds more than half the parsed files and has two or
  *     more child directories, replace it with its children. Depth stops at 3.
  *  P3 fold. A box with no parsed file and fewer than the larger of 20 files
@@ -545,8 +546,16 @@ export function readingPartition(input: ReadingInput): ReadingPartition {
   const seedSet = new Set<string>();
   if (seeds.length >= 2) {
     seeded = npm.length >= 2 ? 'npm workspaces' : 'cargo crates';
-    for (const dir of seeds) {
-      const own = files.filter((p) => p === dir || p.startsWith(`${dir}/`));
+    // Deepest first, so a member declared inside another member takes its
+    // own files and the parent keeps the rest. Read shallowest first, the
+    // parent took the child's files too, and a Cargo tree of `crates/a` and
+    // `crates/a/macros` drew the macros twice under one id (the Phase 201
+    // fix round, found by the verifier's nested seeds attack).
+    const deepestFirst = [...seeds].sort(
+      (a, b) => b.split('/').length - a.split('/').length || (a < b ? -1 : 1)
+    );
+    for (const dir of deepestFirst) {
+      const own = files.filter((p) => !placed.has(p) && (p === dir || p.startsWith(`${dir}/`)));
       if (own.length === 0) continue;
       for (const p of own) placed.add(p);
       seedSet.add(dir);

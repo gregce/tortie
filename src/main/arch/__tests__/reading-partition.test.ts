@@ -71,6 +71,36 @@ describe('P1, the seeds', () => {
     expect(cutting.folded).toEqual([]);
   });
 
+  it('places a file once when a member is declared inside another member', () => {
+    // The verifier of Phase 201 built this tree: read shallowest first, the
+    // parent took the macros too and the map carried two boxes under one id.
+    const files = [
+      'Cargo.toml',
+      'crates/a/Cargo.toml',
+      ...source('crates/a/src', 3, 'rs'),
+      'crates/a/macros/Cargo.toml',
+      ...source('crates/a/macros/src', 3, 'rs'),
+      'crates/b/Cargo.toml',
+      ...source('crates/b/src', 3, 'rs')
+    ];
+    const cutting = cut(files, { crates: ['crates/a', 'crates/a/macros', 'crates/b'] });
+    expect(ids(cutting.boxes)).toEqual(['crates-a', 'crates-a-macros', 'crates-b', 'other']);
+    const placed = cutting.boxes.flatMap((b) => b.files);
+    expect(placed.length).toBe(files.length);
+    expect(new Set(placed).size).toBe(files.length);
+    expect(cutting.boxes.find((b) => b.id === 'crates-a')?.files).toEqual([
+      'crates/a/Cargo.toml',
+      ...source('crates/a/src', 3, 'rs')
+    ]);
+    // The same shape under npm workspaces, and the order the seeds arrive in does not matter.
+    const ws = files.map((p) => p.replace(/^crates/, 'packages').replace('Cargo.toml', 'package.json'));
+    const forward = cut(ws, { workspaces: ['packages/a', 'packages/a/macros', 'packages/b'] });
+    const backward = cut(ws, { workspaces: ['packages/b', 'packages/a/macros', 'packages/a'] });
+    expect(ids(forward.boxes)).toEqual(['other', 'packages-a', 'packages-a-macros', 'packages-b']);
+    expect(forward.boxes.flatMap((b) => b.files).length).toBe(ws.length);
+    expect(JSON.stringify(backward)).toBe(JSON.stringify(forward));
+  });
+
   it('takes one seed alone as no seed at all', () => {
     const files = [...source('packages/a', 4), ...source('src', 4), ...source('lib', 4), ...source('app', 4), ...source('tool', 4)];
     const cutting = cut(files, { workspaces: ['packages/a'] });

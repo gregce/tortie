@@ -9,7 +9,8 @@
  * fraction decays the day a clause moves, and a clause moves silently: a
  * threshold nudged, a plural dropped, a partner order flipped. So this gate
  * runs the SHIPPING partition, facts and composer under node over three
- * committed fixtures, a gmux shaped tree, a Cargo workspace and a multi
+ * committed fixtures, a gmux shaped tree, a Cargo workspace with a member
+ * declared inside a member, and a multi
  * client tree with Swift and Kotlin targets, plus two trees the probe builds
  * itself to reach P3's floor and P4's cap, and pins the box set and every
  * sentence byte for byte against build/fixtures/reading/expected.json.
@@ -66,6 +67,7 @@ const TREES = ['gmux', 'cargo', 'clients', 'tiny', 'cap'];
 
 const ABLATIONS = [
   { name: 'P1, the seeds', file: 'skeleton.ts', from: 'if (seeds.length >= 2) {', to: 'if (seeds.length >= 999) {' },
+  { name: 'P1, a nested seed placed once', file: 'skeleton.ts', from: '(p) => !placed.has(p) && ', to: '(p) => ' },
   { name: 'P2, the split', file: 'skeleton.ts', from: 'if (parsed * 2 <= totalParsed) continue;', to: 'if (parsed * 2 <= totalParsed * 1000) continue;' },
   { name: 'P3, the fold of a box with no source', file: 'skeleton.ts', from: 'if (parsed === 0) return box.files.length < smallLimit;', to: 'if (parsed === 0) return false;' },
   { name: 'P3, the fold of a box with fewer than three parsed files', file: 'skeleton.ts', from: 'return keepSource ? false : parsed < 3;', to: 'return false;' },

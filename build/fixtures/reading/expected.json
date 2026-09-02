@@ -257,11 +257,12 @@
     }
   },
   "cargo": {
-    "sentence": "33 files, mostly Rust; 6 parts, the biggest crates/c (21%); 7 connections between parts; 17 of 22 imports lead inside the repository.",
+    "sentence": "37 files, mostly Rust; 7 parts, the biggest crates/c (19%); 8 connections between parts; 20 of 26 imports lead inside the repository.",
     "words": 22,
     "edges": [
       "crates-c>crates-b:2",
       "crates-core>crates-c:2",
+      "crates-a>crates-a-macros:1",
       "crates-b>crates-a:1",
       "crates-c>crates-a:1",
       "crates-core>crates-a:1",
@@ -273,17 +274,18 @@
         "id": "crates-a",
         "label": "crates/a (globset)",
         "fileCount": 5,
-        "band": "foundation",
-        "words": 27,
-        "sentence": "5 files, mostly Rust; made of path, glob and 1 more; used by crates/b and crates/c and 1 more; uses no other part; entry crates/a/src/lib.rs.",
+        "band": "engine",
+        "words": 25,
+        "sentence": "5 files, mostly Rust; made of path, glob and 1 more; used by crates/b and crates/c and 1 more; uses crates/a/macros; entry crates/a/src/lib.rs.",
         "facts": [
           "Size: 5 files, 750 lines",
           "Languages: Rust 3, Markdown 1, TOML 1",
           "Defines: 9 functions, 6 structs",
           "Declares: Cargo.toml globset",
           "Entries: crates/a/src/lib.rs",
-          "Imports: 3 written, 2 to this repository, 1 to dependencies, 0 not followed",
+          "Imports: 4 written, 3 to this repository, 1 to dependencies, 0 not followed",
           "Used by: crates/b 1, crates/c 1, crates/core 1",
+          "Uses: crates/a/macros 1",
           "Folders: src 3"
         ],
         "languages": [
@@ -303,6 +305,38 @@
         "lines": 750,
         "entries": [
           "crates/a/src/lib.rs"
+        ]
+      },
+      {
+        "id": "crates-a-macros",
+        "label": "crates/a/macros (globset-macros)",
+        "fileCount": 4,
+        "band": "foundation",
+        "words": 22,
+        "sentence": "4 files, mostly Rust; made of derive, expand and 1 more; used by crates/a; uses no other part; entry crates/a/macros/src/lib.rs.",
+        "facts": [
+          "Size: 4 files, 320 lines",
+          "Languages: Rust 3, TOML 1",
+          "Defines: 9 functions, 3 structs",
+          "Declares: Cargo.toml globset-macros",
+          "Entries: crates/a/macros/src/lib.rs",
+          "Imports: 3 written, 2 to this repository, 1 to dependencies, 0 not followed",
+          "Used by: crates/a 1",
+          "Folders: src 3"
+        ],
+        "languages": [
+          {
+            "name": "Rust",
+            "files": 3
+          },
+          {
+            "name": "TOML",
+            "files": 1
+          }
+        ],
+        "lines": 320,
+        "entries": [
+          "crates/a/macros/src/lib.rs"
         ]
       },
       {

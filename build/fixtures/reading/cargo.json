@@ -1,9 +1,10 @@
 {
-  "note": "A Cargo workspace: three member crates seeded under P1, a root crate whose sources sit under crates/core, an integration test directory, and a fuzz crate and a bench script that fold. Nothing here is a real repository.",
+  "note": "A Cargo workspace: four member crates seeded under P1, one of them declared inside another (crates/a/macros under crates/a, which the Phase 201 fix round added so a nested member is placed once), a root crate whose sources sit under crates/core, an integration test directory, and a fuzz crate and a bench script that fold. Nothing here is a real repository.",
   "subject": "ripgrep",
   "workspaces": [],
   "crates": [
     "crates/a",
+    "crates/a/macros",
     "crates/b",
     "crates/c"
   ],
@@ -19,6 +20,10 @@
     "crates/a/src/lib.rs",
     "crates/a/src/glob.rs",
     "crates/a/src/path.rs",
+    "crates/a/macros/Cargo.toml",
+    "crates/a/macros/src/lib.rs",
+    "crates/a/macros/src/derive.rs",
+    "crates/a/macros/src/expand.rs",
     "crates/b/Cargo.toml",
     "crates/b/src/lib.rs",
     "crates/b/src/matcher.rs",
@@ -107,6 +112,26 @@
       "fromPath": "crates/a/src/glob.rs",
       "toPath": "crates/a/src/path.rs",
       "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/a/src/lib.rs",
+      "toPath": "crates/a/macros/src/lib.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/a/macros/src/lib.rs",
+      "toPath": "crates/a/macros/src/derive.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/a/macros/src/derive.rs",
+      "toPath": "crates/a/macros/src/expand.rs",
+      "resolution": "first-party"
+    },
+    {
+      "fromPath": "crates/a/macros/src/expand.rs",
+      "toPath": null,
+      "resolution": "external"
     },
     {
       "fromPath": "crates/c/src/lib.rs",
@@ -208,6 +233,26 @@
     {
       "path": "crates/a/src/path.rs",
       "lines": 90,
+      "declares": null
+    },
+    {
+      "path": "crates/a/macros/Cargo.toml",
+      "lines": 11,
+      "declares": "globset-macros"
+    },
+    {
+      "path": "crates/a/macros/src/lib.rs",
+      "lines": 64,
+      "declares": null
+    },
+    {
+      "path": "crates/a/macros/src/derive.rs",
+      "lines": 148,
+      "declares": null
+    },
+    {
+      "path": "crates/a/macros/src/expand.rs",
+      "lines": 97,
       "declares": null
     },
     {
@@ -341,6 +386,26 @@
       "kinds": {
         "function": 4,
         "struct": 3
+      }
+    },
+    {
+      "path": "crates/a/macros/src/lib.rs",
+      "kinds": {
+        "function": 2
+      }
+    },
+    {
+      "path": "crates/a/macros/src/derive.rs",
+      "kinds": {
+        "function": 3,
+        "struct": 1
+      }
+    },
+    {
+      "path": "crates/a/macros/src/expand.rs",
+      "kinds": {
+        "function": 4,
+        "struct": 2
       }
     },
     {
