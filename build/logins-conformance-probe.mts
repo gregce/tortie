@@ -12,7 +12,7 @@
  * gate whose checks cannot fail proves nothing.
  */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -108,6 +108,85 @@ try {
     escapeReason: removeEscape.ok ? '' : removeEscape.reason,
     default: removeDefault.ok,
     victimSurvives: existsSync(join(victim, 'keep.txt'))
+  };
+
+  // -------------------------------------------------------------------------
+  // 2b. A LOGIN DIRECTORY THAT IS A LINK, planted before anything reads the
+  //     store, which is the whole threat model. Every shape here is a real
+  //     symlink on a real disk, because the thirteen shapes above are all
+  //     SPELLED paths and a spelled path cannot express this attack at all.
+  // -------------------------------------------------------------------------
+  const linkRoot = join(root, 'linked');
+  const outside = join(root, 'not-tortie-own');
+  mkdirSync(outside, { recursive: true });
+  // A synthetic credential in a directory Tortie does not own. If any reading
+  // below says `present`, Tortie followed the link to find this file.
+  writeFileSync(
+    join(outside, '.credentials.json'),
+    JSON.stringify({ claudeAiOauth: { accessToken: TOKEN, subscriptionType: 'team' } }),
+    'utf8'
+  );
+  const linkedId = 'd'.repeat(16);
+  mkdirSync(dirs.loginProviderRootIn(linkRoot, 'claude'), { recursive: true });
+  symlinkSync(outside, dirs.loginDirIn(linkRoot, 'claude', linkedId));
+  writeFileSync(
+    dirs.loginsFileIn(linkRoot),
+    JSON.stringify({
+      v: 1,
+      chosen: { claude: 'Planted' },
+      logins: [{ provider: 'claude', id: linkedId, name: 'Planted', createdAt: 1 }]
+    }),
+    'utf8'
+  );
+  const linkedDir = dirs.loginDirIn(linkRoot, 'claude', linkedId);
+  const linkedRead = store.readLoginsFile(linkRoot);
+  const linkedList = store.listLogins(linkRoot);
+  // The provider root as a link, and the logins root as a link, which are the
+  // two components a check on the entry alone would walk straight past.
+  const linkedBaseRoot = join(root, 'linked-base');
+  const baseElsewhere = join(root, 'base-elsewhere');
+  const baseId = 'e'.repeat(16);
+  mkdirSync(join(baseElsewhere, baseId), { recursive: true });
+  mkdirSync(linkedBaseRoot, { recursive: true });
+  symlinkSync(baseElsewhere, dirs.loginProviderRootIn(linkedBaseRoot, 'claude'));
+  const realRoot = join(root, 'real-root');
+  const rootId = 'f'.repeat(16);
+  mkdirSync(join(realRoot, 'claude', rootId), { recursive: true });
+  const linkedRootLink = join(root, 'root-link');
+  symlinkSync(realRoot, linkedRootLink);
+  // A file where a folder should be, and a folder that is simply GONE, which
+  // must NOT read as an escape or the fallback below stops being honest.
+  const fileRoot = join(root, 'file-root');
+  const fileId = 'a'.repeat(16);
+  mkdirSync(dirs.loginProviderRootIn(fileRoot, 'claude'), { recursive: true });
+  writeFileSync(dirs.loginDirIn(fileRoot, 'claude', fileId), 'not a folder', 'utf8');
+  out['linked'] = {
+    // The spelling rule says the link is inside the root, which is exactly
+    // why the disk rule exists. If this ever reads false the attack changed.
+    spelledInside: dirs.isOwnedLoginDir(linkRoot, 'claude', linkedDir),
+    entry: dirs.loginDirOnDisk(linkRoot, 'claude', linkedDir),
+    providerRoot: dirs.loginDirOnDisk(
+      linkedBaseRoot,
+      'claude',
+      dirs.loginDirIn(linkedBaseRoot, 'claude', baseId)
+    ),
+    loginsRoot: dirs.loginDirOnDisk(
+      linkedRootLink,
+      'claude',
+      dirs.loginDirIn(linkedRootLink, 'claude', rootId)
+    ),
+    notAFolder: dirs.loginDirOnDisk(fileRoot, 'claude', dirs.loginDirIn(fileRoot, 'claude', fileId)),
+    absent: dirs.loginDirOnDisk(fileRoot, 'claude', dirs.loginDirIn(fileRoot, 'claude', 'b'.repeat(16))),
+    kept: linkedRead.file.logins.length,
+    problems: linkedRead.problems.map((text) => text.slice(0, 64)),
+    listed: linkedList.logins.filter((l) => !l.isDefault).length,
+    presentAnywhere: linkedList.logins.some((l) => l.present && !l.isDefault),
+    chosen: linkedRead.file.chosen['claude'] ?? null,
+    resolvedDir: store.resolveLoginDir(linkRoot, 'claude', 'Planted').dir,
+    effectiveDir: store.effectiveLogin(linkRoot, 'claude').dir,
+    chooseOk: store.chooseLogin(linkRoot, 'claude', 'Planted').ok,
+    // AND THE DIRECTORY IT POINTED AT IS UNTOUCHED by every refusal above.
+    victimSurvives: existsSync(join(outside, '.credentials.json'))
   };
 
   // -------------------------------------------------------------------------

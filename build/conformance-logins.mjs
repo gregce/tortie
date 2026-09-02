@@ -40,6 +40,15 @@
  *      parent traversal, an absolute path into somebody's home and the empty
  *      string. A hostile store file's rows are dropped WHOLE, its chosen name
  *      goes with them, and a directory it named survives untouched.
+ *   3b. AND OVER A REAL LINK ON A REAL DISK, which is the shape none of the
+ *      thirteen above can express, because every one of them is a SPELLED
+ *      path and `resolve` does not follow a link. The Phase 202 verifier
+ *      planted one in the running app and drove the shipped surfaces with it,
+ *      so the probe now plants four, being the entry, the provider root, the
+ *      logins root and a file where a folder should be, and reads back what
+ *      the list, the choice, the resolver and the meter's own directory
+ *      answer. A folder that is merely GONE must still read as absent rather
+ *      than as an escape, or the fallback stops being honest.
  *   4. NO TOKEN BYTE reaches the manifest row or either argv, over a fixture
  *      credential holding a sentinel. The DIRECTORY does not reach them
  *      either: it is on the pane environment exactly once and nowhere else,
@@ -298,6 +307,7 @@ function verdict(d) {
   return [
     JSON.stringify(d.owned),
     JSON.stringify(d.hostile),
+    JSON.stringify(d.linked),
     JSON.stringify(d.refusals),
     JSON.stringify(d.chosen),
     JSON.stringify(d.leak),
@@ -330,6 +340,41 @@ if ('error' in live) {
     live.refusals.victimSurvives,
     `${TAG} a directory outside the owned root was deleted by a remove`
   );
+  // Rule 3b, the link.
+  check(
+    live.linked.spelledInside,
+    `${TAG} the planted link is no longer spelled inside the root, so this probe stopped testing the attack`
+  );
+  check(live.linked.entry === 'escapes', `${TAG} A LOGIN DIRECTORY THAT IS A LINK WAS ACCEPTED`);
+  check(
+    live.linked.providerRoot === 'escapes',
+    `${TAG} a provider root that is a link was accepted`
+  );
+  check(
+    live.linked.loginsRoot === 'escapes',
+    `${TAG} a logins root that is a link was accepted`
+  );
+  check(live.linked.notAFolder === 'escapes', `${TAG} a file where a folder should be was accepted`);
+  check(
+    live.linked.absent === 'absent',
+    `${TAG} a folder that is simply gone read as an escape, so the fallback cannot be honest`
+  );
+  check(live.linked.kept === 0, `${TAG} a linked login row was kept`);
+  check(live.linked.problems.length >= 1, `${TAG} a linked login row was dropped with no sentence`);
+  check(live.linked.listed === 0, `${TAG} a linked login was listed`);
+  check(
+    !live.linked.presentAnywhere,
+    `${TAG} A LINKED LOGIN READ AS PRESENT, so a credential outside Tortie's data was looked for`
+  );
+  check(live.linked.chosen === null, `${TAG} a linked login row was still chosen`);
+  check(live.linked.resolvedDir === null, `${TAG} A LINKED LOGIN RESOLVED TO A DIRECTORY`);
+  check(live.linked.effectiveDir === null, `${TAG} the meter would read a linked login's directory`);
+  check(!live.linked.chooseOk, `${TAG} a linked login could be chosen`);
+  check(
+    live.linked.victimSurvives,
+    `${TAG} the directory a link pointed at was deleted by a refusal`
+  );
+
   check(live.chosen.owned, `${TAG} a chosen login resolved to a directory Tortie does not own`);
   check(live.defaultLogin.dir === null, `${TAG} the default login composed a directory`);
   check(live.defaultLogin.name === null, `${TAG} the default login was named on the wire`);
@@ -392,7 +437,8 @@ const READER_GUARDS = [
   },
   {
     file: 'store.ts',
-    from: "      if (!isOwnedLoginDir(root, provider, loginDirIn(root, provider, id))) {",
+    from:
+      "      if (loginDirOnDisk(root, provider, loginDirIn(root, provider, id)) === 'escapes') {",
     to: '      if (false) {'
   }
 ];
@@ -429,12 +475,48 @@ const ABLATIONS = [
     ]
   },
   {
+    name: 'the link tests taken out of the disk rule, so an entry that is a link is a folder',
+    edits: [
+      {
+        file: 'dirs.ts',
+        from: '    present = lstatSync(dir).isDirectory();',
+        to: '    present = lstatSync(dir).isDirectory() || lstatSync(dir).isSymbolicLink();'
+      },
+      {
+        file: 'dirs.ts',
+        from:
+          '    const realBase = realpathSync(base);\n' +
+          '    const realDir = realpathSync(dir);\n' +
+          '    const prefix = realBase.endsWith(sep) ? realBase : realBase + sep;\n' +
+          "    if (!realDir.startsWith(prefix)) return 'escapes';\n" +
+          '    const rest = realDir.slice(prefix.length);\n' +
+          "    if (rest.length === 0 || rest.includes(sep)) return 'escapes';",
+        to: '    realpathSync(base);'
+      }
+    ]
+  },
+  {
+    name: 'the link drop taken out of the reader AND the disk rule out of the resolver',
+    edits: [
+      // THE DOMAIN GUARDS EVERY PATH TWICE, so this ablation removes the
+      // first guard as well and then asks whether the second still holds.
+      // Removing the resolver's rule alone changes nothing a person could
+      // see, which is the design working rather than a rule that cannot fail.
+      READER_GUARDS[1],
+      {
+        file: 'store.ts',
+        from: "  if (loginDirOnDisk(root, provider, dir) !== 'ok') {",
+        to: '  if (!isOwnedLoginDir(root, provider, dir) || !existsSync(dir)) {'
+      }
+    ]
+  },
+  {
     name: 'the existence test taken out of the resolver, so a gone folder still resolves',
     edits: [
       {
         file: 'store.ts',
-        from: "if (!isOwnedLoginDir(root, provider, dir) || !existsSync(dir)) {",
-        to: 'if (!isOwnedLoginDir(root, provider, dir)) {'
+        from: "  if (loginDirOnDisk(root, provider, dir) !== 'ok') {",
+        to: '  if (!isOwnedLoginDir(root, provider, dir)) {'
       }
     ]
   }
