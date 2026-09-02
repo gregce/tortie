@@ -197,6 +197,19 @@ function viewOf(provider: UsageProviderId, held: Held): UsageProviderSnapshot {
  * so every branch below except 200 stands on orca's code rather than on bytes.
  * That is why the mapping is by STATUS ONLY and reads nothing out of an error
  * body: a shape nobody has seen cannot be parsed safely.
+ *
+ * WHAT HAS BEEN MEASURED SINCE, and what has not (research 72 section 9,
+ * Phase 197 item 9). Claude answers a request with NO Authorization header
+ * with 429 and a real Retry-After, measured twice at 3438 s and 3600 s, so
+ * the rate limit branch is exercised and the header parser is real. What
+ * Claude answers to a REFUSED token is still unmeasured, because Tortie never
+ * sends the no header shape and a refused login was not to hand, so it is
+ * possible a refused token also arrives as 429 and draws the old numbers
+ * under the stale glyph for a day rather than the run the agent line. The
+ * mapping is deliberately NOT changed on that possibility: reading 429 as
+ * expired would treat an unauthenticated refusal as an authenticated one and
+ * break the rate limit policy the same measurement proved real. The honest
+ * next step is one measurement with a token the vendor refuses.
  */
 function outcomeForStatus(
   status: number,
