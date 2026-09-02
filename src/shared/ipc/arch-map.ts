@@ -154,10 +154,12 @@ export interface ArchMapModel {
   /** The one line above the drawing, the repository's own name. */
   subject: string;
   /**
-   * Rule R, the repository line (Phase 201): the subject, its size and
-   * language, how many parts, the biggest and its share, the connections
+   * Rule R, the repository line (Phase 201): the size and language of the
+   * whole tree, how many parts, the biggest and its share, the connections
    * between parts, and how many imports lead inside the repository. About
-   * 23 words, from the code alone.
+   * 22 words, from the code alone. The subject is not repeated in it: it is
+   * the name row above the line, and `${subject}: ${sentence}` is the whole
+   * sentence research 77 pinned.
    */
   sentence: string;
   /**

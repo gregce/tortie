@@ -212,11 +212,12 @@ try {
     }
   }
   // The research's own numbers, kept as a floor on the three real shaped
-  // trees: the repository line 20 to 26 words, and no box's sentence past 31.
+  // trees: the repository line 19 to 25 words without its subject, and no
+  // box's sentence past 31.
   for (const tree of ['gmux', 'cargo', 'clients']) {
     const c = shipping[tree];
     if (c === undefined) continue;
-    if (c.words < 20 || c.words > 26) fail(`${tree}: rule R carries ${String(c.words)} words, outside 20 to 26`);
+    if (c.words < 19 || c.words > 25) fail(`${tree}: rule R carries ${String(c.words)} words, outside 19 to 25`);
     for (const b of c.boxes) {
       if (b.words > 31) fail(`${tree}/${b.id}: the sentence carries ${String(b.words)} words, past the cap of 31`);
     }

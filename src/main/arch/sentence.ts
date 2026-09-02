@@ -349,7 +349,6 @@ export function hoverFacts(
 
 /** What rule R is given. */
 export interface ArchRepositoryFacts {
-  subject: string;
   files: number;
   totalImports: number;
   resolvedImports: number;
@@ -358,9 +357,11 @@ export interface ArchRepositoryFacts {
 }
 
 /**
- * Rule R, the repository line: name, size and language over the whole tree,
- * how many parts, the biggest and its share, the connections between parts,
- * and how many imports lead inside the repository.
+ * Rule R, the repository line: size and language over the whole tree, how
+ * many parts, the biggest and its share, the connections between parts, and
+ * how many imports lead inside the repository. The subject is NOT in it: it
+ * is the name row above the line on every face, as the mock draws it, and
+ * `${subject}: ${line}` is the whole sentence research 77 pinned.
  */
 export function repositoryLine(
   facts: ArchRepositoryFacts,
@@ -385,7 +386,7 @@ export function repositoryLine(
       ? ''
       : `, the biggest ${plainNameOf(big)} (${String(Math.round((100 * big.files) / facts.files))}%)`;
   return (
-    `${facts.subject}: ${plural(facts.files, 'file')}, ${languagePhrase(facts.files, [...ext.values()])}; ` +
+    `${plural(facts.files, 'file')}, ${languagePhrase(facts.files, [...ext.values()])}; ` +
     `${plural(boxes.length, 'part')}${biggest}; ` +
     `${plural(facts.connections, 'connection')} between parts; ` +
     `${n(facts.resolvedImports)} of ${n(facts.totalImports)} imports lead inside the repository.`

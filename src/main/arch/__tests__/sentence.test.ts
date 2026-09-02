@@ -294,22 +294,22 @@ describe('the hover', () => {
 });
 
 describe('rule R, the repository line', () => {
-  it('names the repository, its size and language, the parts, the biggest, the connections and the imports', () => {
+  it('names the size and language, the parts, the biggest, the connections and the imports, and not the subject', () => {
     const f = facts([...six, ...source('build', 4, 'mjs'), 'README.md'], [fp('build/f00.mjs', 'one/f00.ts'), fp('one/f00.ts', 'two/f00.ts'), { fromPath: 'two/f00.ts', toPath: null, resolution: 'external' }]);
     const line = repositoryLine(
-      { subject: 'tortie', files: f.files.length, totalImports: 3, resolvedImports: 2, connections: 2 },
+      { files: f.files.length, totalImports: 3, resolvedImports: 2, connections: 2 },
       f.boxes
     );
     expect(line).toBe(
-      'tortie: 35 files, mostly TypeScript; 8 parts, the biggest five (14%); 2 connections between parts; 2 of 3 imports lead inside the repository.'
+      '35 files, mostly TypeScript; 8 parts, the biggest five (14%); 2 connections between parts; 2 of 3 imports lead inside the repository.'
     );
-    expect(wordCount(line)).toBeGreaterThanOrEqual(20);
+    expect(wordCount(line)).toBeGreaterThanOrEqual(19);
     expect(wordCount(line)).toBeLessThanOrEqual(26);
   });
 
   it('never picks the fold as the biggest part', () => {
     const f = facts([...six, ...prose('.github', 19), ...prose('.claude', 19), 'README.md']);
-    const line = repositoryLine({ subject: 's', files: f.files.length, totalImports: 0, resolvedImports: 0, connections: 0 }, f.boxes);
+    const line = repositoryLine({ files: f.files.length, totalImports: 0, resolvedImports: 0, connections: 0 }, f.boxes);
     expect(line).toContain('the biggest five (7%)');
     expect(line).toContain('0 connections between parts');
   });

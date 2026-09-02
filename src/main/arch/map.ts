@@ -76,6 +76,7 @@ import {
   partModules,
   rankGroups,
   readingPartition,
+  READING_FOLD_ID,
   type Group
 } from './skeleton';
 
@@ -316,7 +317,6 @@ export function composeArchMap(input: ArchMapComposeInput): ArchMapModel {
     subject: input.subject,
     sentence: repositoryLine(
       {
-        subject: input.subject,
         files: input.trackedFiles.length,
         totalImports,
         resolvedImports,
@@ -389,6 +389,16 @@ function overlayComponents(
     }
     for (const [groupId, count] of byGroup) {
       if (count * 2 <= files.length) continue;
+      // THE FOLD IS NEVER PAINTED (Phase 201). Rule P folds the small
+      // directories into one box named everything else, and a drafted
+      // contract holds one component per small directory, each landing
+      // whole in that box: measured on the gmux copy, .claude, .github,
+      // patches, .playwright-mcp and resources all held a majority of their
+      // own one to sixteen files inside the fold, and the smallest id
+      // painted it ".claude". A component that names one folder of the
+      // leftovers does not name the leftovers, so the fold keeps its one
+      // name and the component stays visible in the cockpit's outline.
+      if (groupId === READING_FOLD_ID) break;
       const share = count / files.length;
       const held = painted.get(groupId);
       // The larger share wins the box; a tie falls to the smaller component

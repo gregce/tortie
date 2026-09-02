@@ -673,7 +673,7 @@ describe('the reading on the map', () => {
   it('carries the repository line, rule R', () => {
     const model = reading();
     expect(model.sentence).toBe(
-      'tortie: 40 files, mostly TypeScript; 6 parts, the biggest src/main (30%); 3 connections between parts; 4 of 5 imports lead inside the repository.'
+      '40 files, mostly TypeScript; 6 parts, the biggest src/main (30%); 3 connections between parts; 4 of 5 imports lead inside the repository.'
     );
   });
 
@@ -707,5 +707,63 @@ describe('the reading on the map', () => {
       'server:in:1'
     ]);
     expect(model.crossings.find((c) => c.outsideId === 'server')?.outsideLabel).toBe('server');
+  });
+});
+
+describe('the fold and the contract', () => {
+  it('never paints the fold, whatever component lands whole inside it', () => {
+    // The gmux copy carries a drafted contract with one component per small
+    // directory, and every one of them holds a majority of its own files
+    // inside everything else. The smallest id painted the fold ".claude".
+    const document: ArchDocument = {
+      ...contract(),
+      components: [
+        {
+          id: 'claude',
+          name: '.claude',
+          kind: 'component',
+          layer: 'surface',
+          provenance: 'first-party',
+          anchors: ['.claude'],
+          boundary: 'open',
+          description: '',
+          evidence: [],
+          deprecated: false,
+          gaps: []
+        },
+        {
+          id: 'build',
+          name: 'the build',
+          kind: 'component',
+          layer: 'surface',
+          provenance: 'first-party',
+          anchors: ['build'],
+          boundary: 'open',
+          description: '',
+          evidence: [],
+          deprecated: false,
+          gaps: []
+        }
+      ],
+      edges: []
+    };
+    const files = [
+      ...Array.from({ length: 6 }, (_, i) => `src/main/m${String(i)}.ts`),
+      ...Array.from({ length: 6 }, (_, i) => `src/shared/s${String(i)}.ts`),
+      ...Array.from({ length: 5 }, (_, i) => `build/b${String(i)}.mjs`),
+      ...Array.from({ length: 5 }, (_, i) => `tools/t${String(i)}.mjs`),
+      ...Array.from({ length: 5 }, (_, i) => `docs/d${String(i)}.mjs`),
+      ...Array.from({ length: 5 }, (_, i) => `lib/l${String(i)}.mjs`),
+      '.claude/settings.json',
+      'README.md'
+    ];
+    const model = composeArchMap(input({ trackedFiles: files, imports: [], document }));
+    const other = model.groups.find((g) => g.id === 'other');
+    expect(other?.label).toBe('everything else');
+    expect(other?.componentId).toBeNull();
+    // A component that holds a majority in a real box still paints it.
+    const build = model.groups.find((g) => g.id === 'build');
+    expect(build?.label).toBe('the build');
+    expect(build?.componentId).toBe('build');
   });
 });

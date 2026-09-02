@@ -40,7 +40,7 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
     building: false,
     scannedAtCommit: '0'.repeat(40),
     subject: 'project',
-    sentence: 'project: 9 files, TypeScript; 2 parts.',
+    sentence: '9 files, TypeScript; 2 parts.',
     groups: [
       {
         id: 'src',

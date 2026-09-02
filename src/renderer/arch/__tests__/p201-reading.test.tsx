@@ -53,7 +53,7 @@ function model(): ArchMapResult {
     scannedAtCommit: '0'.repeat(40),
     subject: 'tortie',
     sentence:
-      'tortie: 100 files, TypeScript; 4 parts, the biggest src/main (50%); 2 connections between parts; 9 of 10 imports lead inside the repository.',
+      '100 files, TypeScript; 4 parts, the biggest src/main (50%); 2 connections between parts; 9 of 10 imports lead inside the repository.',
     groups: [
       group({ id: 'build', fileCount: 20, band: 'surface', facts: ['Size: 20 files, 200 lines', 'Languages: JavaScript 20', 'Uses: src/main 3'] }),
       group({ id: 'other', dir: '', label: 'everything else', fileCount: 5, band: 'surface' }),

@@ -1,8 +1,8 @@
 {
   "note": "What npm run conformance:reading pins, byte for byte, over the three committed fixtures beside it and the two trees the probe builds itself. Regenerate on purpose only, with node build/reading-conformance-probe.mts over the shipping tree, and say in the commit body which sentence moved and why.",
   "gmux": {
-    "sentence": "tortie: 73 files, TypeScript and Markdown; 7 parts, the biggest docs (42%); 5 connections between parts; 22 of 28 imports lead inside the repository.",
-    "words": 24,
+    "sentence": "73 files, TypeScript and Markdown; 7 parts, the biggest docs (42%); 5 connections between parts; 22 of 28 imports lead inside the repository.",
+    "words": 23,
     "edges": [
       "src-renderer>src-shared:5",
       "build>src-main:3",
@@ -257,8 +257,8 @@
     }
   },
   "cargo": {
-    "sentence": "ripgrep: 33 files, mostly Rust; 6 parts, the biggest crates/c (21%); 7 connections between parts; 17 of 22 imports lead inside the repository.",
-    "words": 23,
+    "sentence": "33 files, mostly Rust; 6 parts, the biggest crates/c (21%); 7 connections between parts; 17 of 22 imports lead inside the repository.",
+    "words": 22,
     "edges": [
       "crates-c>crates-b:2",
       "crates-core>crates-c:2",
@@ -489,8 +489,8 @@
     }
   },
   "clients": {
-    "sentence": "rook: 54 files, Swift and Markdown; 8 parts, the biggest CHANGES (37%); 2 connections between parts; 15 of 19 imports lead inside the repository.",
-    "words": 24,
+    "sentence": "54 files, Swift and Markdown; 8 parts, the biggest CHANGES (37%); 2 connections between parts; 15 of 19 imports lead inside the repository.",
+    "words": 23,
     "edges": [
       "clients-mac>clients-rookkit:2",
       "clients-iphone>clients-rookkit:1"
@@ -756,8 +756,8 @@
     }
   },
   "tiny": {
-    "sentence": "tiny: 9 files, mostly TypeScript; 7 parts, the biggest src/app (22%); 2 connections between parts; 2 of 2 imports lead inside the repository.",
-    "words": 23,
+    "sentence": "9 files, mostly TypeScript; 7 parts, the biggest src/app (22%); 2 connections between parts; 2 of 2 imports lead inside the repository.",
+    "words": 22,
     "edges": [
       "src-app>src-core:1",
       "src-core>src-store:1"
@@ -929,8 +929,8 @@
     "drill": null
   },
   "cap": {
-    "sentence": "cap: 104 files, Rust and Markdown; 12 parts, the biggest notesc (25%); 0 connections between parts; 0 of 0 imports lead inside the repository.",
-    "words": 24,
+    "sentence": "104 files, Rust and Markdown; 12 parts, the biggest notesc (25%); 0 connections between parts; 0 of 0 imports lead inside the repository.",
+    "words": 23,
     "edges": [],
     "boxes": [
       {
