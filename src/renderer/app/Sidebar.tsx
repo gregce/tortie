@@ -232,7 +232,7 @@ function ExplorerHeader(): React.JSX.Element {
         disabled={!canCreateFile}
         onClick={() => create('file')}
       >
-        <Codicon name="new-file" size={16} />
+        <Codicon name="new-file" size="lg" />
       </button>
       <button
         type="button"
@@ -246,7 +246,7 @@ function ExplorerHeader(): React.JSX.Element {
         disabled={!canCreateFolder}
         onClick={() => create('dir')}
       >
-        <Codicon name="new-folder" size={16} />
+        <Codicon name="new-folder" size="lg" />
       </button>
       <button
         type="button"
@@ -257,7 +257,7 @@ function ExplorerHeader(): React.JSX.Element {
         disabled={treeHandle === null}
         onClick={() => treeHandle?.toggleFilter()}
       >
-        <Codicon name="filter" size={16} />
+        <Codicon name="filter" size="lg" />
       </button>
       <button
         type="button"
@@ -267,7 +267,7 @@ function ExplorerHeader(): React.JSX.Element {
         title={`Row spacing: ${densityLabel(density)}`}
         onClick={openDensityMenu}
       >
-        <Codicon name="three-bars" size={16} />
+        <Codicon name="three-bars" size="lg" />
       </button>
       <button
         type="button"
@@ -276,7 +276,7 @@ function ExplorerHeader(): React.JSX.Element {
         title="Refresh files"
         onClick={() => void refreshLoaded()}
       >
-        <Codicon name="refresh" size={16} />
+        <Codicon name="refresh" size="lg" />
       </button>
       <button
         type="button"
@@ -288,7 +288,7 @@ function ExplorerHeader(): React.JSX.Element {
         disabled={treeHandle === null || expandedCount === 0}
         onClick={() => treeHandle?.collapseAll()}
       >
-        <Codicon name="collapse-all" size={16} />
+        <Codicon name="collapse-all" size="lg" />
       </button>
     </div>
   );

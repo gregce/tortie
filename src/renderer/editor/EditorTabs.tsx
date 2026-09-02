@@ -164,11 +164,11 @@ function TabButton({
       {/* Phase 160. The map tab is not a file, so it wears the map codicon
           rather than a file-type icon guessed from a repository root. */}
       {tab.archMap !== undefined ? (
-        <Codicon name="map" size={14} className="ed-tab-icon" />
+        <Codicon name="map" size="md" className="ed-tab-icon" />
       ) : tab.diagnostics !== undefined ? (
         // Phase 163. The report tab wears the mark the Diagnostics section
         // of Settings already wears, rather than a file icon for a folder.
-        <Codicon name="output" size={14} className="ed-tab-icon" />
+        <Codicon name="output" size="md" className="ed-tab-icon" />
       ) : (
         <FileIcon path={tab.path} size={14} className="ed-tab-icon" />
       )}
@@ -197,7 +197,7 @@ function TabButton({
         {/* Dirty tabs wear the dot until hovered, then the × takes its place
             (VS Code) — one slot, so the strip never reflows on hover. */}
         <span className="ed-tab-dot" aria-hidden="true" />
-        <Codicon name="close" size={12} className="ed-tab-x" />
+        <Codicon name="close" size="sm" className="ed-tab-x" />
       </button>
     </div>
   );

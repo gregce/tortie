@@ -56,7 +56,7 @@ export function NewProjectButton({
         showProjectMenu(r.left, r.bottom);
       }}
     >
-      <Codicon name="add" size={16} />
+      <Codicon name="add" size="lg" />
     </button>
   );
 }

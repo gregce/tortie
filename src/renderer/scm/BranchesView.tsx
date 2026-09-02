@@ -343,7 +343,7 @@ export function BranchesView({
           {isBusy ? (
             <span className="scm-branch-spinner" />
           ) : (
-            <Codicon name={b.current ? 'check' : 'git-branch'} size={12} />
+            <Codicon name={b.current ? 'check' : 'git-branch'} size="sm" />
           )}
         </span>
         <span className="scm-bname">{b.name}</span>
@@ -392,7 +392,7 @@ export function BranchesView({
           {isBusy ? (
             <span className="scm-branch-spinner" />
           ) : (
-            <Codicon name="cloud" size={12} />
+            <Codicon name="cloud" size="sm" />
           )}
         </span>
         <span className="scm-bname remote">{b.name}</span>
@@ -422,13 +422,13 @@ export function BranchesView({
           onClick={() => setCollapsed(!collapsed)}
         >
           <span className="section-chevron">
-            <Codicon name="chevron-down" size={12} />
+            <Codicon name="chevron-down" size="sm" />
           </span>
           Branches
         </button>
         <span className="section-spacer" />
         <span className="section-gripper" aria-hidden="true">
-          <Codicon name="gripper" size={14} />
+          <Codicon name="gripper" size="md" />
         </span>
         {manageable && hasRemotes && repo.lastFetchedAt !== null ? (
           <span
@@ -450,7 +450,7 @@ export function BranchesView({
             {repo.fetching ? (
               <span className="scm-branch-spinner" aria-hidden="true" />
             ) : (
-              <Codicon name="cloud-download" size={14} />
+              <Codicon name="cloud-download" size="md" />
             )}
           </button>
         ) : null}
@@ -461,14 +461,14 @@ export function BranchesView({
           title="Refresh branches"
           onClick={() => void depth.refresh(repoPath)}
         >
-          <Codicon name="refresh" size={14} />
+          <Codicon name="refresh" size="md" />
         </button>
       </div>
       {!collapsed ? (
         <div className="section-body scm-branches-body">
           {loaded && (locals.length + remotes.length > 3 || filter !== '') ? (
             <div className="scm-branch-filter">
-              <Codicon name="filter" size={12} className="scm-branch-filter-icon" />
+              <Codicon name="filter" size="sm" className="scm-branch-filter-icon" />
               <input
                 type="text"
                 className="scm-branch-filter-input"

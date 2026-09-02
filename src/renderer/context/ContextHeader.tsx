@@ -126,12 +126,12 @@ export function ContextHeader(): React.JSX.Element {
         onClick={(e) => openAgentMenu(e.currentTarget)}
       >
         {agentId === null ? (
-          <Codicon name="layers" size={14} />
+          <Codicon name="layers" size="md" />
         ) : (
           <AgentIcon agent={agentId} size={14} />
         )}
         <span className="ctx-agent-label">{label}</span>
-        <Codicon name="chevron-down" size={12} />
+        <Codicon name="chevron-down" size="sm" />
       </button>
       {/* The way out of session mode. It is a control rather than a second
           click on the pill, because the pill still opens the agent selector in
@@ -145,7 +145,7 @@ export function ContextHeader(): React.JSX.Element {
           title="Stop showing one session and go back to the whole list."
           onClick={() => exitSessionMode()}
         >
-          <Codicon name="close" size={16} />
+          <Codicon name="close" size="lg" />
         </button>
       ) : null}
       {/* Disabled for `elsewhere` as well as for `unavailable`, and Phase 108
@@ -166,7 +166,7 @@ export function ContextHeader(): React.JSX.Element {
         disabled={status === 'unavailable' || status === 'elsewhere'}
         onClick={() => refresh()}
       >
-        <Codicon name="refresh" size={16} />
+        <Codicon name="refresh" size="lg" />
       </button>
     </div>
   );

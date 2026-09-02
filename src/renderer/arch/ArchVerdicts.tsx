@@ -189,7 +189,7 @@ function Lanes({
       <span className="arch-lane-counts">
         {stripLanes(counts, noPromises).map((lane) => (
           <span className={lane.cls} key={lane.key}>
-            <Codicon name={lane.icon} size={12} />
+            <Codicon name={lane.icon} size="sm" />
             {`${String(lane.n)} ${lane.word}`}
           </span>
         ))}
@@ -350,7 +350,7 @@ export function Problems(): React.JSX.Element | null {
         <ul>
           {problems.map((e, i) => (
             <li key={`${e.file}:${e.field}:${String(i)}`}>
-              <Codicon name="error" size={12} />
+              <Codicon name="error" size="sm" />
               <span className="arch-schema-file">{e.file}</span>
               <span className="arch-schema-field">{e.field}</span>
               <span className="arch-schema-reason">{e.message}</span>
@@ -406,7 +406,7 @@ export function FailureList({
                 className="arch-failure-head"
                 onClick={() => onSelect(v.subjectId)}
               >
-                <Codicon name={verdictIcon(v.status)} size={12} />
+                <Codicon name={verdictIcon(v.status)} size="sm" />
                 <span className="arch-failure-subject">{v.subjectId}</span>
                 <span className="arch-failure-word">
                   {verdictWord(v.status)}
@@ -538,7 +538,7 @@ export function Outline({
               >
                 <Codicon
                   name={provenanceIcon(c.provenance)}
-                  size={14}
+                  size="md"
                 />
                 <span className="arch-row-name">{c.name}</span>
                 <span
@@ -549,7 +549,7 @@ export function Outline({
                 </span>
                 {v !== undefined ? (
                   <span className={`arch-row-v ${verdictClass(v.status)}`}>
-                    <Codicon name={verdictIcon(v.status)} size={12} />
+                    <Codicon name={verdictIcon(v.status)} size="sm" />
                   </span>
                 ) : null}
               </button>
@@ -670,7 +670,7 @@ export function ProsePanel({
       <h3 className="arch-prose-title">{title}</h3>
       {verdict !== undefined ? (
         <p className={`arch-prose-verdict ${verdictClass(verdict.status)}`}>
-          <Codicon name={verdictIcon(verdict.status)} size={12} />
+          <Codicon name={verdictIcon(verdict.status)} size="sm" />
           {`${verdictWord(verdict.status)} · ${coverageWord(verdict.coverage)}`}
         </p>
       ) : null}

@@ -19,13 +19,27 @@ import type { CSSProperties, FC } from 'react';
 export interface CodiconProps {
   /** Codicon id without the "codicon-" prefix (e.g. "source-control"). */
   name: string;
-  /** Font size in px — glyphs are designed on a 16px grid (default 16). */
-  size?: number;
+  /**
+   * A step of the icon scale, `sm` 12, `md` 14 or `lg` 16 (tokens.css §1.9b),
+   * or a font size in px for the few glyphs that are not a step (24 in the
+   * activity bar, 18 on the home screen, 11 and 10 inside two badges).
+   * Glyphs are designed on a 16px grid; the default is `lg`, which emits no
+   * inline style at all, exactly as 16 does.
+   */
+  size?: CodiconSize;
   className?: string;
 }
 
-export const Codicon: FC<CodiconProps> = ({ name, size = 16, className }) => {
-  const style: CSSProperties | undefined = size === 16 ? undefined : { fontSize: size };
+export type CodiconSize = number | 'sm' | 'md' | 'lg';
+
+function sizeStyle(size: CodiconSize): CSSProperties | undefined {
+  if (size === 16 || size === 'lg') return undefined;
+  if (typeof size === 'number') return { fontSize: size };
+  return { fontSize: `var(--icon-${size})` };
+}
+
+export const Codicon: FC<CodiconProps> = ({ name, size = 'lg', className }) => {
+  const style = sizeStyle(size);
   const cls = `codicon codicon-${name}${className ? ` ${className}` : ''}`;
   return <span className={cls} {...(style !== undefined ? { style } : {})} aria-hidden="true" />;
 };

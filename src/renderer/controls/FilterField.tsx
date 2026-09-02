@@ -46,7 +46,7 @@ export function FilterField({
     <div
       className={`filter-field${className !== undefined ? ` ${className}` : ''}`}
     >
-      <Codicon name={icon} size={14} className="filter-field-icon" />
+      <Codicon name={icon} size="md" className="filter-field-icon" />
       <input
         className="input"
         type="text"
@@ -74,7 +74,7 @@ export function FilterField({
           title="Clear filter"
           onClick={() => onChange('')}
         >
-          <Codicon name="close" size={12} />
+          <Codicon name="close" size="sm" />
         </button>
       ) : null}
     </div>

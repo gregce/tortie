@@ -34,7 +34,7 @@ export function ProjectsPositionButton(): React.JSX.Element {
       title={label}
       onClick={() => setProjectsPosition(otherPosition(position))}
     >
-      <Codicon name={destinationIcon(position)} size={16} />
+      <Codicon name={destinationIcon(position)} size="lg" />
     </button>
   );
 }

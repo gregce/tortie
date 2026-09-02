@@ -372,7 +372,7 @@ export function HomeRecentRowBody({
           alone. A row on another machine is never marked, so this slot is
           always empty there. */}
       <span className="home-recent-warn">
-        {row.missing ? <Codicon name="warning" size={12} /> : null}
+        {row.missing ? <Codicon name="warning" size="sm" /> : null}
       </span>
     </>
   );

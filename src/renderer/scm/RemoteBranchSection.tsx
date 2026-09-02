@@ -257,7 +257,7 @@ export function RemoteBranchPanel({
             onClick={onToggle}
           >
             <span className="section-chevron">
-              <Codicon name="chevron-down" size={12} />
+              <Codicon name="chevron-down" size="sm" />
             </span>
             Branch
           </button>
@@ -270,7 +270,7 @@ export function RemoteBranchPanel({
             disabled={!available || busy}
             onClick={onRefresh}
           >
-            <Codicon name="refresh" size={14} />
+            <Codicon name="refresh" size="md" />
           </button>
         </div>
         {!collapsed ? (

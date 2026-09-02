@@ -129,7 +129,7 @@ export function RunsSection({
           onClick={() => setCollapsed(!collapsed)}
         >
           <span className="section-chevron">
-            <Codicon name="chevron-down" size={12} />
+            <Codicon name="chevron-down" size="sm" />
           </span>
           Runs
           <span className="section-count num">
@@ -151,10 +151,10 @@ export function RunsSection({
           disabled={record.loading}
           onClick={doRefresh}
         >
-          <Codicon name="refresh" size={14} />
+          <Codicon name="refresh" size="md" />
         </button>
         <span className="section-gripper" aria-hidden="true">
-          <Codicon name="gripper" size={14} />
+          <Codicon name="gripper" size="md" />
         </span>
       </div>
       {!collapsed ? (

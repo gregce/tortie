@@ -369,7 +369,7 @@ export function SessionRail({
                   ),
                   note: ''
                 }}
-                glyph={<Codicon name="split-horizontal" size={16} />}
+                glyph={<Codicon name="split-horizontal" size="lg" />}
                 dot={dot === 'none' ? 'idle' : dot}
                 onActivate={() => {
                   // A group's row selects its focused leaf, and the click

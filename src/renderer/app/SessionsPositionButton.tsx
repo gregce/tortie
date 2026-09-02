@@ -41,7 +41,7 @@ export function SessionsPositionButton(): React.JSX.Element {
       title={label}
       onClick={() => setSessionOrientation(otherPosition(orientation))}
     >
-      <Codicon name={destinationIcon(orientation)} size={16} />
+      <Codicon name={destinationIcon(orientation)} size="lg" />
     </button>
   );
 }

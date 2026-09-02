@@ -235,7 +235,7 @@ export function ResumeMark({
   if (resumeMark(session) === null) return null;
   return (
     <span className="resume-mark">
-      <Codicon name="folder" size={12} />
+      <Codicon name="folder" size="sm" />
     </span>
   );
 }
@@ -368,7 +368,7 @@ export function ReadLastLinesButton({
       title={READ_LAST_LINES_HERE_TITLE}
       onClick={() => useApp.getState().openRemoteLines(session.id)}
     >
-      <Codicon name="history" size={12} />
+      <Codicon name="history" size="sm" />
       {READ_LAST_LINES_HERE}
     </button>
   );
@@ -410,7 +410,7 @@ export function EndSessionButton({
         closeSession(session);
       }}
     >
-      <Codicon name="close" size={14} />
+      <Codicon name="close" size="md" />
     </button>
   );
 }
@@ -422,7 +422,7 @@ export function EndSessionButton({
 export function SavedMark({ className }: { className: string }): React.JSX.Element {
   return (
     <span className={className} title="Saved — ready to restore">
-      <Codicon name="history" size={12} />
+      <Codicon name="history" size="sm" />
     </span>
   );
 }

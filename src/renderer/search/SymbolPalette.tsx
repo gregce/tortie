@@ -126,7 +126,7 @@ export function SymbolPalette(): React.JSX.Element | null {
         aria-label="Go to symbol"
       >
         <div className="symbol-input-row">
-          <Codicon name="symbol-method" size={16} />
+          <Codicon name="symbol-method" size="lg" />
           <input
             ref={inputRef}
             className="symbol-input"
@@ -197,7 +197,7 @@ export function SymbolPalette(): React.JSX.Element | null {
                 onMouseEnter={() => setSelected(i)}
                 onClick={() => accept(i)}
               >
-                <Codicon name={symbolIcon(hit.kind)} size={16} />
+                <Codicon name={symbolIcon(hit.kind)} size="lg" />
                 <span className="symbol-name">
                   <Highlighted text={hit.name} positions={hit.positions} />
                 </span>

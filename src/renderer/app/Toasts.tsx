@@ -43,7 +43,7 @@ export function Toasts(): React.JSX.Element | null {
         return (
           <div key={toast.id} className={`toast${sticky ? ' toast-sticky' : ''}`}>
             <span className={`toast-icon ${toast.kind}`}>
-              <Codicon name={ICONS[toast.kind]} size={16} />
+              <Codicon name={ICONS[toast.kind]} size="lg" />
             </span>
             <span className="toast-text">{toast.text}</span>
             {toast.action ? (
@@ -65,7 +65,7 @@ export function Toasts(): React.JSX.Element | null {
                 aria-label="Dismiss"
                 onClick={() => dismissToast(toast.id)}
               >
-                <Codicon name="close" size={14} />
+                <Codicon name="close" size="md" />
               </button>
             ) : null}
           </div>

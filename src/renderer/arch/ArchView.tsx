@@ -367,7 +367,7 @@ function AimBar(): React.JSX.Element | null {
         title={target.ok ? undefined : target.reason}
         onClick={() => void aimSelection()}
       >
-        <Codicon name="checklist" size={12} />
+        <Codicon name="checklist" size="sm" />
         {AIM_MENU_LABEL}
       </button>
       {target.ok ? null : (

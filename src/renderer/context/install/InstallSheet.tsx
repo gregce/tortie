@@ -113,7 +113,7 @@ export function InstallSheet(): React.JSX.Element | null {
                 void flow.search();
               }}
             >
-              <Codicon name="search" size={14} />
+              <Codicon name="search" size="md" />
               <input
                 ref={inputRef}
                 type="text"

@@ -243,7 +243,7 @@ function GroupDockRow({
           });
         }}
       >
-        <Codicon name="split-horizontal" size={16} className="srow-agent" />
+        <Codicon name="split-horizontal" size="lg" className="srow-agent" />
         <span className="srow-name">{focused?.name ?? ''}</span>
         <span className="srow-plus num">+{members.length - 1}</span>
         <span className="srow-space" />
@@ -377,7 +377,7 @@ export function SessionDock(): React.JSX.Element | null {
       title={collapsed ? 'Show session names' : 'Collapse session list'}
       onClick={() => setDockCollapsed(!collapsed)}
     >
-      <Codicon name={collapsed ? 'chevron-left' : 'chevron-right'} size={16} />
+      <Codicon name={collapsed ? 'chevron-left' : 'chevron-right'} size="lg" />
     </button>
   );
 
@@ -452,7 +452,7 @@ export function SessionDock(): React.JSX.Element | null {
           title={`New session (${keyDisplay('session.new')})`}
           onClick={() => setCreateOpen(true)}
         >
-          <Codicon name="add" size={16} />
+          <Codicon name="add" size="lg" />
         </button>
         <button
           type="button"
@@ -461,7 +461,7 @@ export function SessionDock(): React.JSX.Element | null {
           title="New session options"
           onClick={(e) => openQuickCreateMenu(e.currentTarget)}
         >
-          <Codicon name="chevron-down" size={14} />
+          <Codicon name="chevron-down" size="md" />
         </button>
       </div>
       {projectSessions.length === 0 ? (

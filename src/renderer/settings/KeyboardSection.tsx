@@ -264,7 +264,7 @@ export function KeyboardSection(): React.JSX.Element {
                     <p className="kb-explain">{entry.explain}</p>
                     {note !== null ? (
                       <p className="kb-conflict">
-                        <Codicon name="warning" size={12} />
+                        <Codicon name="warning" size="sm" />
                         <span>{note}</span>
                       </p>
                     ) : null}

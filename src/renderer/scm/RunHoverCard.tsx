@@ -124,7 +124,7 @@ export function RunHoverCard({
           aria-label="Copy run URL"
           onClick={() => copyUrl(model.url, 'Run URL copied.')}
         >
-          <Codicon name="copy" size={14} />
+          <Codicon name="copy" size="md" />
           <span className="num">{model.copyLabel}</span>
         </button>
         <span className="scm-row-space" />
@@ -134,7 +134,7 @@ export function RunHoverCard({
           target="_blank"
           rel="noreferrer"
         >
-          <Codicon name="globe" size={14} />
+          <Codicon name="globe" size="md" />
           Open on GitHub
         </a>
       </div>

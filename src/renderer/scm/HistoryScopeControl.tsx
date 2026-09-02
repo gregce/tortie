@@ -65,7 +65,7 @@ export function HistoryScopeControl({
       disabled={disabled}
       onClick={openMenu}
     >
-      <Codicon name="filter" size={14} />
+      <Codicon name="filter" size="md" />
     </button>
   );
 }

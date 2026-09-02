@@ -124,7 +124,7 @@ export function MapSection({
         title={canDraw ? ARCH_MAP_OPEN_BODY : 'This build cannot draw the map.'}
         onClick={() => openArchMap(repoPath)}
       >
-        <Codicon name="map" size={14} />
+        <Codicon name="map" size="md" />
         <span className="arch-empty-action-title">{ARCH_MAP_OPEN_TITLE}</span>
       </button>
     </section>
@@ -175,7 +175,7 @@ export function ComputedOutline({
             drill !== null && drill.level !== 1 && drill.groupId === g.id;
           const row = (
             <>
-              <Codicon name={provenanceIcon(g.provenance)} size={14} />
+              <Codicon name={provenanceIcon(g.provenance)} size="md" />
               <span className="arch-row-name">{g.label}</span>
               <span
                 className="arch-row-prov"

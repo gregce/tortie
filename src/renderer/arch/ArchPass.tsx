@@ -210,7 +210,7 @@ export function PassFace({
         {running ? (
           // VISUAL STATE OVER WORDS (the copy ruling): the header spins
           // while the agent runs, the same modifier the SCM run row uses.
-          <Codicon name="sync" size={12} className="codicon-modifier-spin" />
+          <Codicon name="sync" size="sm" className="codicon-modifier-spin" />
         ) : null}
       </div>
       {!chosen ? (
@@ -236,7 +236,7 @@ export function PassFace({
             title={ARCH_ENRICH_BODY}
             onClick={() => void enrich()}
           >
-            <Codicon name="sparkle" size={14} />
+            <Codicon name="sparkle" size="md" />
             <span className="arch-empty-action-title">{ARCH_ENRICH_TITLE}</span>
           </button>
           {suggestions.length > 0 ? (

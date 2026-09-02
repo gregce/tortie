@@ -197,7 +197,7 @@ export function SettingsApp(): React.JSX.Element {
             {'svg' in s.icon ? (
               <InlineSvg svg={s.icon.svg} size={16} />
             ) : (
-              <Codicon name={s.icon.codicon} size={16} />
+              <Codicon name={s.icon.codicon} size="lg" />
             )}
             {s.label}
           </button>

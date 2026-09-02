@@ -720,7 +720,7 @@ export function FileTree({
           }}
           onClick={clearFilter}
         >
-          <Codicon name="close" size={12} />
+          <Codicon name="close" size="sm" />
         </button>
       ) : null}
       {filterMissed ? (

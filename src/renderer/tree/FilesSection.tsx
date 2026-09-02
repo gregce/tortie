@@ -465,7 +465,7 @@ export function FilesSection({
           onClick={toggleCollapsed}
         >
           <span className="section-chevron">
-            <Codicon name="chevron-down" size={12} />
+            <Codicon name="chevron-down" size="sm" />
           </span>
           Files
         </button>
@@ -478,7 +478,7 @@ export function FilesSection({
           disabled={(localPath === null && remote === null) || bridgeMissing}
           onClick={refresh}
         >
-          <Codicon name="refresh" size={14} />
+          <Codicon name="refresh" size="md" />
         </button>
       </div>
       {readLine}

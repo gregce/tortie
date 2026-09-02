@@ -111,7 +111,7 @@ export function IdentityStrip({
       data-session-id={session.id}
     >
       {grouped ? (
-        <Codicon name="split-horizontal" size={16} className="identity-agent" />
+        <Codicon name="split-horizontal" size="lg" className="identity-agent" />
       ) : (
         <AgentIcon agent={session.agent} size={16} className="identity-agent" />
       )}
@@ -145,7 +145,7 @@ export function IdentityStrip({
           className="strip-resume"
           title={resumeNote(session, handback) ?? undefined}
         >
-          <Codicon name="folder" size={12} />
+          <Codicon name="folder" size="sm" />
           {mark}
         </span>
       ) : null}
@@ -169,7 +169,7 @@ export function IdentityStrip({
           });
         }}
       >
-        <Codicon name="ellipsis" size={16} />
+        <Codicon name="ellipsis" size="lg" />
       </button>
     </div>
   );
@@ -222,7 +222,7 @@ function RestoreAllBar({
         {...(shellPathReady ? {} : { title: SHELL_PATH_PENDING_TITLE })}
         onClick={() => void restoreAllSessions()}
       >
-        <Codicon name="history" size={12} />
+        <Codicon name="history" size="sm" />
         &nbsp;{busy ? 'Restoring…' : 'Restore all'}
       </button>
     </div>

@@ -30,7 +30,7 @@ export function CopyButton({ text, label }: { text: string; label: string }): Re
         });
       }}
     >
-      <Codicon name={copied ? 'check' : 'copy'} size={12} />
+      <Codicon name={copied ? 'check' : 'copy'} size="sm" />
     </button>
   );
 }

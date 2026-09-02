@@ -353,7 +353,7 @@ export const ArchMap: FC<ArchMapProps> = ({
                 className="arch-map-prov"
                 title={provenanceTitle(box.group.provenance)}
               >
-                <Codicon name={provenanceIcon(box.group.provenance)} size={12} />
+                <Codicon name={provenanceIcon(box.group.provenance)} size="sm" />
                 <span>{provenanceWord(box.group.provenance)}</span>
               </span>
               {box.group.unresolved ? (

@@ -321,7 +321,7 @@ function Boxes({
             }}
           >
             {box.broke.length > 0 ? (
-              <Codicon name="error" size={12} />
+              <Codicon name="error" size="sm" />
             ) : null}
             <span className="arch-module-dir">{moduleDir(box.path)}</span>
             <span className="arch-module-name">{moduleLabel(box.path)}</span>
@@ -484,7 +484,7 @@ function Rank({
                 open(cwd, row.path);
               }}
             >
-              {row.broke ? <Codicon name="error" size={12} /> : null}
+              {row.broke ? <Codicon name="error" size="sm" /> : null}
               <span className="arch-module-name">{moduleLabel(row.path)}</span>
               <span className="arch-rank-count">
                 {rankSentence(row.count, importers)}

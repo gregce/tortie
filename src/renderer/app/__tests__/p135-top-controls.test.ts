@@ -158,7 +158,7 @@ describe('the + does not change identity when the row collapses', () => {
     expect(ADD).toContain('aria-label={NEW_PROJECT_LABEL}');
     expect(ADD).toContain('aria-haspopup="menu"');
     expect(ADD).toContain('showProjectMenu(r.left, r.bottom)');
-    expect(ADD).toContain('<Codicon name="add" size={16} />');
+    expect(ADD).toContain('<Codicon name="add" size="lg" />');
   });
 });
 

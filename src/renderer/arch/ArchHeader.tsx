@@ -61,7 +61,7 @@ export function ArchHeader(): React.JSX.Element {
         }
         onClick={() => void check()}
       >
-        <Codicon name="refresh" size={16} />
+        <Codicon name="refresh" size="lg" />
       </button>
     </div>
   );

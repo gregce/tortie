@@ -55,7 +55,7 @@ function Toggle({
       title={title}
       onClick={onClick}
     >
-      <Codicon name={icon} size={16} />
+      <Codicon name={icon} size="lg" />
     </button>
   );
 }
@@ -180,7 +180,7 @@ export function QueryBlock(): React.JSX.Element {
         disabled={hasFilters}
         onClick={() => setDetailsOpen(!detailsOpen)}
       >
-        <Codicon name="ellipsis" size={16} />
+        <Codicon name="ellipsis" size="lg" />
       </button>
 
       {showDetails ? (
@@ -227,7 +227,7 @@ export function QueryBlock(): React.JSX.Element {
             }
             onClick={toggleUseIgnoreFiles}
           >
-            <Codicon name={useIgnoreFiles ? 'exclude' : 'eye'} size={16} />
+            <Codicon name={useIgnoreFiles ? 'exclude' : 'eye'} size="lg" />
             <span>
               {useIgnoreFiles ? 'Skipping ignored files' : 'Searching ignored files'}
             </span>

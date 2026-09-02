@@ -67,7 +67,7 @@ function PresetRow({
         <span className="set-preset-head">
           {preset.danger ? (
             <span className="set-preset-warn" aria-label="Danger" title={`Skips protections — ${binary} sessions will run with fewer safeguards`}>
-              <Codicon name="warning" size={14} />
+              <Codicon name="warning" size="md" />
             </span>
           ) : null}
           <span className="set-preset-label">{preset.label}</span>

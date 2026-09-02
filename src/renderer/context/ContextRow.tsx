@@ -178,7 +178,7 @@ export const ContextRow = React.memo(function ContextRow({
     >
       <Codicon
         name={CONTEXT_CATEGORY_ICON[entry.category]}
-        size={16}
+        size="lg"
         className="ctx-row-icon"
       />
       {filtering ? (
@@ -189,7 +189,7 @@ export const ContextRow = React.memo(function ContextRow({
           <span className="ctx-chip-word">{SCOPE_CHIP_WORD[entry.scope]}</span>
           <Codicon
             name={SCOPE_CHIP_ICON[entry.scope]}
-            size={12}
+            size="sm"
             className="ctx-chip-glyph"
           />
         </span>
@@ -229,7 +229,7 @@ export const ContextRow = React.memo(function ContextRow({
             aria-label={m.title}
             title={m.title}
           >
-            <Codicon name={m.icon} size={12} className={m.cls} />
+            <Codicon name={m.icon} size="sm" className={m.cls} />
           </span>
         ))}
       </span>

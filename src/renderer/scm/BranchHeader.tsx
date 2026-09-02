@@ -317,7 +317,7 @@ export function BranchHeader(): React.JSX.Element {
   if (!project) {
     return (
       <div className="branch-header" data-slot="branch-header">
-        <Codicon name="git-branch" size={14} />
+        <Codicon name="git-branch" size="md" />
         <span className="branch-folder">No project open</span>
       </div>
     );
@@ -347,7 +347,7 @@ export function BranchHeader(): React.JSX.Element {
     const busy = remoteEntry.loading || remoteEntry.refreshing;
     return (
       <div className="branch-header" data-slot="branch-header">
-        <Codicon name="git-branch" size={14} />
+        <Codicon name="git-branch" size="md" />
         <span className="branch-folder" title={`${project.path} on ${label}`}>
           {project.name}
         </span>
@@ -369,7 +369,7 @@ export function BranchHeader(): React.JSX.Element {
           disabled={busy}
           onClick={() => void refreshRemote(target)}
         >
-          <Codicon name="refresh" size={14} />
+          <Codicon name="refresh" size="md" />
         </button>
       </div>
     );
@@ -380,7 +380,7 @@ export function BranchHeader(): React.JSX.Element {
   if (!status || !status.isRepo) {
     return (
       <div className="branch-header" data-slot="branch-header">
-        <Codicon name="git-branch" size={14} />
+        <Codicon name="git-branch" size="md" />
         <span className="branch-folder" title={project.path}>
           {displayPath(project.path)}
         </span>
@@ -431,7 +431,7 @@ export function BranchHeader(): React.JSX.Element {
           {busy ? (
             <span className="scm-branch-spinner" aria-hidden="true" />
           ) : (
-            <Codicon name="cloud-upload" size={12} />
+            <Codicon name="cloud-upload" size="sm" />
           )}
           <span className="scm-sync-label">Publish</span>
         </button>
@@ -471,7 +471,7 @@ export function BranchHeader(): React.JSX.Element {
         {busy ? (
           <span className="scm-branch-spinner" aria-hidden="true" />
         ) : (
-          <Codicon name="sync" size={12} />
+          <Codicon name="sync" size="sm" />
         )}
         {counts ? (
           <span className="branch-arrows num">
@@ -518,9 +518,9 @@ export function BranchHeader(): React.JSX.Element {
           });
         }}
       >
-        <Codicon name={detached ? 'git-commit' : 'git-branch'} size={14} />
+        <Codicon name={detached ? 'git-commit' : 'git-branch'} size="md" />
         <span className="branch-name">{branchLabel}</span>
-        <Codicon name="chevron-down" size={12} className="branch-caret" />
+        <Codicon name="chevron-down" size="sm" className="branch-caret" />
       </button>
       {status.merging ? (
         <span className="chip chip-sm scm-chip-merge">merging</span>
@@ -536,7 +536,7 @@ export function BranchHeader(): React.JSX.Element {
           title="Pull, push, fetch, remotes"
           onClick={(e) => openActionsMenu(e, project.path)}
         >
-          <Codicon name="ellipsis" size={14} />
+          <Codicon name="ellipsis" size="md" />
         </button>
       ) : null}
       <button
@@ -549,7 +549,7 @@ export function BranchHeader(): React.JSX.Element {
           void refreshDepth(project.path);
         }}
       >
-        <Codicon name="refresh" size={14} />
+        <Codicon name="refresh" size="md" />
       </button>
       {modal !== null ? (
         <MiniModal spec={modal} onClose={() => setModal(null)} />

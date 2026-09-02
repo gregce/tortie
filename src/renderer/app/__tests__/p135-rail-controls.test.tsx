@@ -277,7 +277,7 @@ describe('nothing about the glyphs or the labels moved', () => {
   });
 
   it('keeps the ＋ glyph and asks the native menu for its verbs', () => {
-    expect(ADD_SOURCE).toContain('<Codicon name="add" size={16} />');
+    expect(ADD_SOURCE).toContain('<Codicon name="add" size="lg" />');
     expect(ADD_SOURCE).toContain('showProjectMenu(r.left, r.bottom)');
     // The rail states the class and nothing else, so it cannot drift from the
     // title band's copy of the same button.

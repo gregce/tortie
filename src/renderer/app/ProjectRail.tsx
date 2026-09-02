@@ -257,7 +257,7 @@ function RailRow({
         <span className={`dot dot-${dot === 'none' ? 'none' : dot}`} />
         {collapsed ? (
           <span className="prail-glyph">
-            <Codicon name="folder" size={16} />
+            <Codicon name="folder" size="lg" />
           </span>
         ) : (
           <>
@@ -281,7 +281,7 @@ function RailRow({
           title="Close project"
           onClick={() => closeProject(project.id)}
         >
-          <Codicon name="close" size={12} />
+          <Codicon name="close" size="sm" />
         </button>
       )}
       {/* Overlaid in the slot the close × already reserves, so revealing it
@@ -332,7 +332,7 @@ export function ProjectRail(): React.JSX.Element | null {
       disabled={forced}
       onClick={() => setProjectsCollapsed(!collapsed)}
     >
-      <Codicon name={collapseIcon(position, collapsed)} size={14} />
+      <Codicon name={collapseIcon(position, collapsed)} size="md" />
     </button>
   );
 

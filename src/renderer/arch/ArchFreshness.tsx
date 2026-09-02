@@ -125,7 +125,7 @@ export function RibbonRow({
           disabled={repair === 'busy'}
           onClick={onRepair}
         >
-          <Codicon name="sparkle" size={14} />
+          <Codicon name="sparkle" size="md" />
         </button>
       ) : null}
     </div>
@@ -186,13 +186,13 @@ export function ChangedSection({
                 title={reasonOf(c.subjectId)}
                 onClick={() => onSelect(changeSelectId(c))}
               >
-                <Codicon name={verdictIcon(shown)} size={12} />
+                <Codicon name={verdictIcon(shown)} size="sm" />
                 <span className="arch-change-name">
                   {changeLabel(c.subjectId, nameOf)}
                 </span>
                 <span className="arch-change-verdicts">
                   <span>{changeWord(c.from, 'from')}</span>
-                  <Codicon name="arrow-small-right" size={12} />
+                  <Codicon name="arrow-small-right" size="sm" />
                   <span>{changeWord(c.to, 'to')}</span>
                 </span>
               </button>
@@ -207,7 +207,7 @@ export function ChangedSection({
               title={partChangeTitle(p.commitsBehindDelta, p.uncommittedFiles)}
               onClick={() => onSelect(partSelectId(p))}
             >
-              <Codicon name="git-commit" size={12} />
+              <Codicon name="git-commit" size="sm" />
               <span className="arch-change-name">{nameOf(p.componentId)}</span>
               <span className="arch-change-delta">{partDelta(p)}</span>
             </button>

@@ -329,7 +329,7 @@ export function UsageMeter({
           disabled={refreshing}
           onClick={() => void refresh()}
         >
-          <Codicon name="refresh" size={12} />
+          <Codicon name="refresh" size="sm" />
         </button>
         {card !== null ? <UsageCard anchor={card} groups={groups} /> : null}
       </div>

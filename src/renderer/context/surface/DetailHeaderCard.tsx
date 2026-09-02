@@ -140,7 +140,7 @@ export function DetailHeaderCard({
       {entry.problem !== null ? (
         <>
           <p className="ctxd-error">
-            <Codicon name="error" size={14} />
+            <Codicon name="error" size="md" />
             {entry.problem.message}
           </p>
           {/* Phase 26.2 — a user-owned naming problem carries its way out:
@@ -183,7 +183,7 @@ export function DetailHeaderCard({
           skills the direction is the surprising half. */}
       {entry.shadows.map((shadow) => (
         <p key={shadow.sourcePath} className="ctxd-card-row ctxd-shadow">
-          <Codicon name="layers" size={14} />
+          <Codicon name="layers" size="md" />
           <span className="ctxd-card-value">
             <span className="ctxd-mono ctxd-path">{shadow.sourcePath}</span>
             <span className="ctxd-shadow-reason">{shadow.reason}</span>

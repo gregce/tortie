@@ -302,7 +302,7 @@ function Section({
           onClick={() => setCollapsed(!collapsed)}
         >
           <span className="section-chevron">
-            <Codicon name="chevron-down" size={12} />
+            <Codicon name="chevron-down" size="sm" />
           </span>
           {CONTEXT_SECTION_LABELS[id]}
           <span className="section-count num">
@@ -311,7 +311,7 @@ function Section({
         </button>
         <span className="section-spacer" />
         <span className="section-gripper" aria-hidden="true">
-          <Codicon name="gripper" size={14} />
+          <Codicon name="gripper" size="md" />
         </span>
       </div>
       {collapsed ? null : (
@@ -334,7 +334,7 @@ function Section({
               title={problem.path}
               onClick={() => onOpenProblem(problem)}
             >
-              <Codicon name="error" size={16} className="ctx-mark-broken" />
+              <Codicon name="error" size="lg" className="ctx-mark-broken" />
               <span className="ctx-problem-body">
                 <span className="ctx-problem-text">{problem.message}</span>
                 {/* Phase 26.2 — a user-owned naming problem is actionable:
@@ -402,7 +402,7 @@ function Section({
                       <span
                         className={`ctx-group-chevron${bundleOpen ? ' open' : ''}`}
                       >
-                        <Codicon name="chevron-right" size={12} />
+                        <Codicon name="chevron-right" size="sm" />
                       </span>
                     ) : null}
                     <span className="ctx-group-label">{group.label}</span>

@@ -170,7 +170,7 @@ export function ConfiguredAgents(): React.JSX.Element | null {
       {config.errors.length > 0 ? (
         <div className="set-card set-config-errors">
           <div className="set-config-errors-head">
-            <Codicon name="warning" size={12} />
+            <Codicon name="warning" size="sm" />
             <span>
               Tortie dropped {config.errors.length}{' '}
               {config.errors.length === 1 ? 'row' : 'rows'} whole. Nothing from{' '}

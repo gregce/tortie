@@ -258,7 +258,7 @@ function TailscalePanel({
           {tailscaleBusy ? (
             <span className="set-spinner" aria-hidden="true" />
           ) : (
-            <Codicon name="search" size={12} />
+            <Codicon name="search" size="sm" />
           )}
           {tailscaleBusy
             ? TAILSCALE_LOOKING

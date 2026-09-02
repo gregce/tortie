@@ -347,7 +347,7 @@ export function BlockedWays({
               title="Copy install command"
               onClick={() => onCopy(install.command)}
             >
-              <Codicon name="copy" size={12} />
+              <Codicon name="copy" size="sm" />
             </button>
           </div>
           <InstallSourceLines
@@ -1217,7 +1217,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
                         );
                       }}
                     >
-                      <Codicon name="copy" size={12} />
+                      <Codicon name="copy" size="sm" />
                     </button>
                   </>
                 ) : null}
@@ -1454,7 +1454,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
             >
               <Codicon
                 name={optionsOpen ? 'chevron-down' : 'chevron-right'}
-                size={12}
+                size="sm"
                 className="options-chevron"
               />
               <span className="options-summary-text">
@@ -1463,7 +1463,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
               {anyDanger ? (
                 <Codicon
                   name="warning"
-                  size={14}
+                  size="md"
                   className="preset-warning"
                 />
               ) : null}
@@ -1491,7 +1491,7 @@ export function CreateSessionModal(): React.JSX.Element | null {
                     {preset.danger ? (
                       <Codicon
                         name="warning"
-                        size={14}
+                        size="md"
                         className="preset-warning"
                       />
                     ) : null}

@@ -284,7 +284,7 @@ export function CategoryRows({
           ) : null}
           {payload.scriptMissing ? (
             <p className="ctxd-error">
-              <Codicon name="error" size={14} />
+              <Codicon name="error" size="md" />
               The script this hook runs is not on disk. The agent will log an
               error and keep going.
             </p>

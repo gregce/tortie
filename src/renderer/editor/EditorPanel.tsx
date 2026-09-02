@@ -330,7 +330,7 @@ function ModeToggle({
           title={opt.title}
           onClick={() => setMode(tab.id, opt.mode)}
         >
-          {compact ? <Codicon name={opt.icon} size={14} /> : opt.label}
+          {compact ? <Codicon name={opt.icon} size="md" /> : opt.label}
         </button>
       ))}
     </div>
@@ -843,7 +843,7 @@ activeTab.error !== null ? (
                 }
                 onClick={() => setDiffSideBySide(!diffSideBySide)}
               >
-                <Codicon name="split-horizontal" size={14} />
+                <Codicon name="split-horizontal" size="md" />
               </button>
             ) : null}
             {minimapApplies ? (
@@ -862,7 +862,7 @@ activeTab.error !== null ? (
                 }
                 onClick={() => setMinimapEnabled(!minimapEnabled)}
               >
-                <Codicon name="map" size={14} />
+                <Codicon name="map" size="md" />
               </button>
             ) : null}
             {/* Fill the window. The fourth answer to the question this
@@ -885,7 +885,7 @@ activeTab.error !== null ? (
               >
                 <Codicon
                   name={filling ? 'screen-normal' : 'screen-full'}
-                  size={14}
+                  size="md"
                 />
               </button>
             ) : null}
@@ -953,7 +953,7 @@ activeTab.error !== null ? (
           // beside it, and two behaviours on one surface are harder to learn
           // than one.
           <div className="banner ed-banner-readonly">
-            <Codicon name="lock" size={14} />
+            <Codicon name="lock" size="md" />
             <span className="banner-text">
               {remoteFileChip(activeTab.remote.machineLabel)}
             </span>
@@ -966,7 +966,7 @@ activeTab.error !== null ? (
           // — nothing is wrong — so it keeps the panel's own ground and says
           // WHY, the way VS Code marks a read-only editor.
           <div className="banner ed-banner-readonly">
-            <Codicon name="lock" size={14} />
+            <Codicon name="lock" size="md" />
             <span className="banner-text">
               Viewing this file as of {activeTab.commit.shortSha} — read-only.
             </span>

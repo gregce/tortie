@@ -307,7 +307,7 @@ function FileRow({
         onToggle();
       }}
     >
-      <Codicon name={collapsed ? 'chevron-right' : 'chevron-down'} size={16} />
+      <Codicon name={collapsed ? 'chevron-right' : 'chevron-down'} size="lg" />
       <FileIcon path={row.relPath} size={16} />
       <span className="search-file-name">{name}</span>
       {dir.length > 0 ? <span className="search-file-dir">{dir}</span> : null}
@@ -374,7 +374,7 @@ function MatchRow({
                   ? 'chevron-down'
                   : 'chevron-right'
             }
-            size={12}
+            size="sm"
           />
         </button>
       )}

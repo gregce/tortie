@@ -132,7 +132,7 @@ function SplitHeader({
       )}
       {isOutsideProject(session) ? (
         <span className="split-wt" title={session.cwd}>
-          <Codicon name="git-branch" size={12} />
+          <Codicon name="git-branch" size="sm" />
         </span>
       ) : null}
       <ResumeMark session={session} />

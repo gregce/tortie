@@ -75,7 +75,7 @@ export function GraphGutterControl({
         onPick(compact ? 'wide' : 'compact');
       }}
     >
-      <Codicon name="arrow-both" size={14} />
+      <Codicon name="arrow-both" size="md" />
     </button>
   );
 }

@@ -354,7 +354,7 @@ export function DiagnosticsBody({
               title={words.LIVE_HOVER}
               onClick={onTogglePause}
             >
-              <Codicon name={paused ? 'play' : 'debug-pause'} size={14} />
+              <Codicon name={paused ? 'play' : 'debug-pause'} size="md" />
               {paused ? words.RESUME : words.PAUSE}
             </button>
           </>
@@ -365,7 +365,7 @@ export function DiagnosticsBody({
           disabled={capturing || phase.kind === 'unavailable'}
           onClick={onCapture}
         >
-          <Codicon name="refresh" size={14} />
+          <Codicon name="refresh" size="md" />
           {capturing ? words.CAPTURING : words.CAPTURE_AGAIN}
         </button>
         <button
@@ -374,7 +374,7 @@ export function DiagnosticsBody({
           disabled={report === null}
           onClick={copy}
         >
-          <Codicon name={copied ? 'check' : 'copy'} size={14} />
+          <Codicon name={copied ? 'check' : 'copy'} size="md" />
           {copied ? words.COPIED : words.COPY_REPORT}
         </button>
         <button
@@ -384,7 +384,7 @@ export function DiagnosticsBody({
           disabled={phase.kind === 'unavailable'}
           onClick={heapMenu}
         >
-          <Codicon name="save" size={14} />
+          <Codicon name="save" size="md" />
           {words.HEAP_SNAPSHOT}
         </button>
       </header>
@@ -608,7 +608,7 @@ function ShellTable({
               aria-expanded={isOpen}
               onClick={() => toggle(p.pid)}
             >
-              <Codicon name={isOpen ? 'chevron-down' : 'chevron-right'} size={12} />
+              <Codicon name={isOpen ? 'chevron-down' : 'chevron-right'} size="sm" />
             </button>
           ) : (
             <span className="diag-expand-pad" />

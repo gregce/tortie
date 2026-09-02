@@ -816,7 +816,7 @@ export function HistorySection({
           <span className="scm-hchevron" aria-hidden="true">
             <Codicon
               name={isExpanded ? 'chevron-down' : 'chevron-right'}
-              size={12}
+              size="sm"
             />
           </span>
           <span className="scm-hsubject">{entry.subject}</span>
@@ -910,7 +910,7 @@ export function HistorySection({
           onClick={() => setCollapsed(!collapsed)}
         >
           <span className="section-chevron">
-            <Codicon name="chevron-down" size={12} />
+            <Codicon name="chevron-down" size="sm" />
           </span>
           History
           <span className="section-count num">
@@ -935,7 +935,7 @@ export function HistorySection({
           </>
         ) : null}
         <span className="section-gripper" aria-hidden="true">
-          <Codicon name="gripper" size={14} />
+          <Codicon name="gripper" size="md" />
         </span>
       </div>
       {!collapsed ? (

@@ -89,7 +89,7 @@ export function PromisesSection({
           onClick={() => setCollapsed(!collapsed)}
         >
           <span className="section-chevron">
-            <Codicon name="chevron-down" size={12} />
+            <Codicon name="chevron-down" size="sm" />
           </span>
           Promises
           {/* The count is on the SECTION HEADER, where Changes already puts
@@ -101,7 +101,7 @@ export function PromisesSection({
         </button>
         <span className="section-spacer" />
         <span className="section-gripper" aria-hidden="true">
-          <Codicon name="gripper" size={14} />
+          <Codicon name="gripper" size="md" />
         </span>
       </div>
       {!collapsed ? (
@@ -130,7 +130,7 @@ export function PromisesSection({
                 >
                   <Codicon
                     name={r.status === 'absent' ? 'circle-slash' : 'error'}
-                    size={12}
+                    size="sm"
                   />
                   <span className="arch-scm-path">{r.path}</span>
                   <span className="arch-scm-line">{`:${String(r.line)}`}</span>

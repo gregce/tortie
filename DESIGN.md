@@ -170,6 +170,10 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 --r-md: 6px;   /* rows' selection fill, toasts, menus */
 --r-lg: 10px;  /* modals, overlays */
 
+--icon-sm: 12px;  /* codicon in a row's accessories, chips, chevrons          */
+--icon-md: 14px;  /* codicon in row leaders, buttons, section headers        */
+--icon-lg: 16px;  /* codicon in view headers, and the default (Phase 195)    */
+
 --shadow-1: 0 1px 3px rgba(0,0,0,0.40);                    /* chips, tooltips  */
 --shadow-2: 0 4px 16px rgba(0,0,0,0.45);                   /* menus, toasts    */
 --shadow-3: 0 12px 40px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35); /* modals, overlays */

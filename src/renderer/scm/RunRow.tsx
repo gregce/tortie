@@ -57,7 +57,7 @@ export function RunStatusIcon({
     <span className={`runs-icon tone-${glyph.tone}`} {...named}>
       <Codicon
         name={glyph.name}
-        size={14}
+        size="md"
         {...(glyph.spin ? { className: 'codicon-modifier-spin' } : {})}
       />
     </span>
@@ -175,7 +175,7 @@ export function RunRow({
     >
       {opens ? null : (
         <span className="runs-chevron" aria-hidden="true">
-          <Codicon name="chevron-down" size={12} />
+          <Codicon name="chevron-down" size="sm" />
         </span>
       )}
       <RunStatusIcon glyph={glyph} />

@@ -254,7 +254,7 @@ function ProjectTab({
         title="Close project"
         onClick={() => closeProject(project.id)}
       >
-        <Codicon name="close" size={12} />
+        <Codicon name="close" size="sm" />
       </button>
       {/* Overlaid in the slot the close × already reserves, so revealing it
           cannot reflow the strip. Decorative: the same fact reaches assistive
@@ -394,7 +394,7 @@ function CollapsedProjectChip({
       ) : null}
       {/* Its own caret, so the chip says it opens a menu without leaning on
           the control beside it to say it. */}
-      <Codicon name="chevron-down" size={12} className="ptab-chip-caret" />
+      <Codicon name="chevron-down" size="sm" className="ptab-chip-caret" />
     </button>
   );
 }
@@ -524,7 +524,7 @@ export function Titlebar(): React.JSX.Element {
       title={collapseLabel('top', projectsCollapsed)}
       onClick={() => setProjectsCollapsed(!projectsCollapsed)}
     >
-      <Codicon name={collapseIcon('top', projectsCollapsed)} size={14} />
+      <Codicon name={collapseIcon('top', projectsCollapsed)} size="md" />
     </button>
   );
 
@@ -571,7 +571,7 @@ export function Titlebar(): React.JSX.Element {
         });
       }}
     >
-      <Codicon name="chevron-right" size={14} />
+      <Codicon name="chevron-right" size="md" />
     </button>
   ) : null;
 
@@ -638,7 +638,7 @@ export function Titlebar(): React.JSX.Element {
         }
         onClick={() => setAttentionOpen(!attentionOpen)}
       >
-        <Codicon name="bell" size={16} />
+        <Codicon name="bell" size="lg" />
         {attentionTotal > 0 ? (
           <span className="badge-attention num">{attentionTotal}</span>
         ) : null}

@@ -112,7 +112,7 @@ export function ArchContractOffer(): React.JSX.Element {
           title={ARCH_DRAFT_BODY}
           onClick={() => void draft()}
         >
-          <Codicon name="new-file" size={14} />
+          <Codicon name="new-file" size="md" />
           <span className="arch-empty-action-title">{ARCH_DRAFT_TITLE}</span>
         </button>
       </div>

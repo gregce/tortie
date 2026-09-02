@@ -183,7 +183,7 @@ export function HintedInstallCaption({
           data-p130-copy-install="1"
           onClick={() => onCopy(install.command)}
         >
-          <Codicon name="copy" size={14} />
+          <Codicon name="copy" size="md" />
         </button>
       </span>
       <span className="agent-missing-text">{INSTALL_NOTE_LINE}</span>
@@ -411,7 +411,7 @@ function CommandRow({
             );
           }}
         >
-          <Codicon name="copy" size={14} />
+          <Codicon name="copy" size="md" />
         </button>
       </span>
     </div>

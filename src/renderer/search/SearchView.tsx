@@ -75,7 +75,7 @@ export function SearchHeader(): React.JSX.Element {
           title={onMachine ? SEARCH_STOP_WAITING : 'Stop this search'}
           onClick={cancel}
         >
-          <Codicon name="search-stop" size={16} />
+          <Codicon name="search-stop" size="lg" />
         </button>
       ) : (
         <button
@@ -86,7 +86,7 @@ export function SearchHeader(): React.JSX.Element {
           disabled={query.length === 0}
           onClick={() => run()}
         >
-          <Codicon name="refresh" size={16} />
+          <Codicon name="refresh" size="lg" />
         </button>
       )}
       <button
@@ -97,7 +97,7 @@ export function SearchHeader(): React.JSX.Element {
         disabled={query.length === 0 && !hasResults}
         onClick={clear}
       >
-        <Codicon name="clear-all" size={16} />
+        <Codicon name="clear-all" size="lg" />
       </button>
       <button
         type="button"
@@ -107,7 +107,7 @@ export function SearchHeader(): React.JSX.Element {
         disabled={!hasResults}
         onClick={allCollapsed ? expandAll : collapseAll}
       >
-        <Codicon name="collapse-all" size={16} />
+        <Codicon name="collapse-all" size="lg" />
       </button>
     </div>
   );
@@ -150,7 +150,7 @@ function Summary(): React.JSX.Element | null {
           title="Files in this project changed after this search ran. Results are not refreshed automatically — agents write files constantly, and rows moving under your cursor is worse than a slightly old list."
           onClick={() => run()}
         >
-          <Codicon name="warning" size={14} />
+          <Codicon name="warning" size="md" />
           <span>changed since this search</span>
           <span className="search-stale-action">Refresh</span>
         </button>

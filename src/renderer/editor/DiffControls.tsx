@@ -107,7 +107,7 @@ export function DiffControls({ agreement }: DiffControlsProps): React.JSX.Elemen
         }
         onClick={() => setBackgrounds(!backgrounds)}
       >
-        <Codicon name="paintcan" size={14} />
+        <Codicon name="paintcan" size="md" />
       </button>
       {/* Last in the row, so nothing a person already knows the place of
           moves when it comes and goes. It takes what width is left and

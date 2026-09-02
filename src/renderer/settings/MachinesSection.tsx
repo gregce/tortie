@@ -102,7 +102,7 @@ export function MachinesView({
       {errors.length > 0 ? (
         <div className="set-card set-config-errors">
           <div className="set-config-errors-head">
-            <Codicon name="warning" size={12} />
+            <Codicon name="warning" size="sm" />
             <span>{droppedRowsLine(errors.length)}</span>
           </div>
           {errors.map((e) => (

@@ -235,7 +235,7 @@ export function RemoteRunsPanel({
             onClick={onToggle}
           >
             <span className="section-chevron">
-              <Codicon name="chevron-down" size={12} />
+              <Codicon name="chevron-down" size="sm" />
             </span>
             Runs
             <span className="section-count num">
@@ -251,7 +251,7 @@ export function RemoteRunsPanel({
             disabled={!available || busy}
             onClick={onRefresh}
           >
-            <Codicon name="refresh" size={14} />
+            <Codicon name="refresh" size="md" />
           </button>
         </div>
         {!collapsed ? (

@@ -89,7 +89,7 @@ function NewSessionSplitButton(): React.JSX.Element {
         title={`New session (${keyDisplay('session.new')})`}
         onClick={() => setCreateOpen(true)}
       >
-        <Codicon name="add" size={16} />
+        <Codicon name="add" size="lg" />
       </button>
       <button
         type="button"
@@ -98,7 +98,7 @@ function NewSessionSplitButton(): React.JSX.Element {
         title="New session options"
         onClick={(e) => openQuickCreateMenu(e.currentTarget)}
       >
-        <Codicon name="chevron-down" size={14} />
+        <Codicon name="chevron-down" size="md" />
       </button>
     </div>
   );
@@ -197,7 +197,7 @@ function SessionTab({
       <MachineBadge machine={session.machine} className="stab-machine" />
       {isOutsideProject(session) ? (
         <span className="stab-wt" title={session.cwd}>
-          <Codicon name="git-branch" size={12} />
+          <Codicon name="git-branch" size="sm" />
         </span>
       ) : null}
       {/* Phase 141: same word, same slot, one component. */}
@@ -293,7 +293,7 @@ function GroupTab({
         }
       }}
     >
-      <Codicon name="split-horizontal" size={16} className="stab-agent" />
+      <Codicon name="split-horizontal" size="lg" className="stab-agent" />
       <span className="stab-name">{focused?.name ?? ''}</span>
       <span className="stab-plus num">+{members.length - 1}</span>
       <span className={`dot dot-${dot === 'none' ? 'idle' : dot}`} />
@@ -574,7 +574,7 @@ function SessionTabStrip({
               openOverflowMenu(r.left, r.bottom + 4);
             }}
           >
-            <Codicon name="chevron-right" size={14} />
+            <Codicon name="chevron-right" size="md" />
             {overflow.hiddenAttention > 0 ? (
               <span className="badge-attention num">
                 {overflow.hiddenAttention}

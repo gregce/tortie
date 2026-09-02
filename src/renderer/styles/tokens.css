@@ -224,6 +224,16 @@
   --r-md: 6px;
   --r-lg: 10px;
 
+  /* §1.9b Icon sizes (Phase 195, research 75 C9). The three sizes a codicon
+     is drawn at in the chrome, named so a glyph reads a step rather than a
+     number: sm in a 24px row's accessories and chips, md in row leaders and
+     buttons, lg in view headers and the default. 24 in the activity bar, 18
+     on the home screen and the 11 and 10 inside two badges are not steps and
+     stay numeric where they are, because joining them would move a box. */
+  --icon-sm: 12px;
+  --icon-md: 14px;
+  --icon-lg: 16px;
+
   --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.45);
   --shadow-3:

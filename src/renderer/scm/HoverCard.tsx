@@ -184,7 +184,7 @@ export function HoverCard({
           aria-label={`Copy commit ID ${short}`}
           onClick={copyFullSha}
         >
-          <Codicon name="copy" size={14} />
+          <Codicon name="copy" size="md" />
           <span className="num">{short}</span>
         </button>
         <span className="scm-row-space" />
@@ -195,7 +195,7 @@ export function HoverCard({
             target="_blank"
             rel="noreferrer"
           >
-            <Codicon name="globe" size={14} />
+            <Codicon name="globe" size="md" />
             Open on GitHub
           </a>
         ) : null}

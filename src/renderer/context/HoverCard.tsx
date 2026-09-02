@@ -81,7 +81,7 @@ export function ContextHoverCard({
       style={{ left: pos.left, top: pos.top, width: CARD_WIDTH }}
     >
       <div className="ctx-card-head">
-        <Codicon name={CONTEXT_CATEGORY_ICON[entry.category]} size={16} />
+        <Codicon name={CONTEXT_CATEGORY_ICON[entry.category]} size="lg" />
         <span className="ctx-card-name">{entry.name}</span>
       </div>
 
@@ -141,7 +141,7 @@ export function ContextHoverCard({
         onClick={() => onCopyPath(entry.sourcePath)}
       >
         <span className="ctx-card-path-text">{entry.sourcePath}</span>
-        <Codicon name="copy" size={12} />
+        <Codicon name="copy" size="sm" />
       </button>
     </div>,
     document.body

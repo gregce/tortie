@@ -680,7 +680,7 @@ export function SpecStorySection(): React.JSX.Element {
           standing reassurance under an account you already have is noise. */}
       {reading !== null && !reading.status.auth.signedIn ? (
         <p className="ss-note">
-          <Codicon name="info" size={12} className="ss-note-icon" />
+          <Codicon name="info" size="sm" className="ss-note-icon" />
           Signing in opens SpecStory Cloud in your browser and asks for the code
           it shows you. Tortie never sees your password.
         </p>

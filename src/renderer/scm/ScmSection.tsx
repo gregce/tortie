@@ -441,7 +441,7 @@ function ScmFileRow({
               doUnstage();
             }}
           >
-            <Codicon name="remove" size={14} />
+            <Codicon name="remove" size="md" />
           </button>
         ) : (
           <>
@@ -462,7 +462,7 @@ function ScmFileRow({
                   doDiscard();
                 }}
               >
-                <Codicon name="discard" size={14} />
+                <Codicon name="discard" size="md" />
               </button>
             ) : null}
             <button
@@ -485,7 +485,7 @@ function ScmFileRow({
                 doStage();
               }}
             >
-              <Codicon name="add" size={14} />
+              <Codicon name="add" size="md" />
             </button>
           </>
         )}
@@ -1231,7 +1231,7 @@ function RemoteScmSection({
               disabled={busy}
               onClick={() => runVerb(verb, reach)}
             >
-              <Codicon name={verb === 'stage' ? 'add' : 'remove'} size={14} />
+              <Codicon name={verb === 'stage' ? 'add' : 'remove'} size="md" />
             </button>
           ) : null}
         </div>
@@ -1325,7 +1325,7 @@ function RemoteScmSection({
               >
                 <Codicon
                   name={verb === 'stage' ? 'add' : 'remove'}
-                  size={14}
+                  size="md"
                 />
               </button>
             </span>
@@ -1405,7 +1405,7 @@ function RemoteScmSection({
             onClick={() => setCollapsed(!collapsed)}
           >
             <span className="section-chevron">
-              <Codicon name="chevron-down" size={12} />
+              <Codicon name="chevron-down" size="sm" />
             </span>
             Changes
             {/* PHASE 97. Both groups, because the header counts what is in
@@ -1433,7 +1433,7 @@ function RemoteScmSection({
             disabled={!remoteChangesAvailable() || entry.loading || entry.refreshing}
             onClick={() => void refresh(target)}
           >
-            <Codicon name="refresh" size={14} />
+            <Codicon name="refresh" size="md" />
           </button>
         </div>
         {!collapsed ? (
@@ -1710,7 +1710,7 @@ export function ScmSection(): React.JSX.Element | null {
             void unstage(repoPath, groups.staged.map((f) => f.path))
           }
         >
-          <Codicon name="remove" size={14} />
+          <Codicon name="remove" size="md" />
         </button>
       );
     }
@@ -1724,7 +1724,7 @@ export function ScmSection(): React.JSX.Element | null {
           title="Stage all"
           onClick={() => void stage(repoPath, files)}
         >
-          <Codicon name="add" size={14} />
+          <Codicon name="add" size="md" />
         </button>
       );
     }
@@ -1745,7 +1745,7 @@ export function ScmSection(): React.JSX.Element | null {
             });
           }}
         >
-          <Codicon name="add" size={14} />
+          <Codicon name="add" size="md" />
         </button>
       );
     }
@@ -1886,14 +1886,14 @@ export function ScmSection(): React.JSX.Element | null {
           onClick={() => setCollapsed(!collapsed)}
         >
           <span className="section-chevron">
-            <Codicon name="chevron-down" size={12} />
+            <Codicon name="chevron-down" size="sm" />
           </span>
           Changes
           <span className="section-count num">{total > 0 ? total : ''}</span>
         </button>
         <span className="section-spacer" />
         <span className="section-gripper" aria-hidden="true">
-          <Codicon name="gripper" size={14} />
+          <Codicon name="gripper" size="md" />
         </span>
       </div>
       {!collapsed ? <div className="section-body scm-body">{body()}</div> : null}
