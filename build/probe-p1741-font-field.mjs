@@ -38,7 +38,11 @@
  *     node build/probe-p1741-font-field.mjs --app /private/tmp/wt-p1741-parent
  *
  * The verdict for the jump is computed, not asserted: every rectangle in the
- * typing sequence must be identical to the one at rest, to the pixel.
+ * typing sequence must be identical to the one at rest, to the pixel. Since
+ * Phase 197 item 16 the LEVEL is computed the same way: in every frame the
+ * field's centre and top edge must be the dropdown's, which is the promise
+ * Phase 174.2 made and shipped without a guard, measured there at minus 9px
+ * on its parent and 0px after.
  *
  * SAFETY. One Electron, through build/electron-run.mjs, on a scratch profile
  * under the system temporary directory, ended in that helper's `finally` block.
@@ -164,11 +168,16 @@ const driver = `(async () => {
 
   const input = document.querySelector('input[aria-label="Custom font family"]');
   if (!input) return JSON.stringify({ error: 'no custom font field' });
+  // Phase 197 item 16. The dropdown the field sits beside, read in every
+  // frame with the field, so the LEVEL half of Phase 174.2 is a promise this
+  // probe pins rather than a mechanism a byte level guard would have to name.
+  const select = document.querySelector('select[aria-label="Terminal and editor font"]');
+  if (!select) return JSON.stringify({ error: 'no font dropdown' });
   input.focus();
   await wait(400);
 
   const frames = [];
-  frames.push({ typed: '', field: box(input), note: noteState() });
+  frames.push({ typed: '', field: box(input), select: box(select), note: noteState() });
 
   // The operator's own scenario, keystroke by keystroke. Four prefixes this
   // Mac cannot draw, then the whole family, which it can.
@@ -179,6 +188,7 @@ const driver = `(async () => {
     frames.push({
       typed: target.slice(0, i),
       field: box(input),
+      select: box(select),
       note: noteState()
     });
   }
@@ -186,7 +196,7 @@ const driver = `(async () => {
   // And a family nothing has, held long enough to photograph.
   setValue(input, ${JSON.stringify(FAKE)});
   await wait(500);
-  frames.push({ typed: ${JSON.stringify(FAKE)}, field: box(input), note: noteState() });
+  frames.push({ typed: ${JSON.stringify(FAKE)}, field: box(input), select: box(select), note: noteState() });
 
   // The suggestions, read off the DOM the person's own dropdown reads. Read
   // twice, a second apart, because the platform call is asynchronous and a
@@ -386,6 +396,38 @@ console.log(
 );
 
 // ---------------------------------------------------------------------------
+// The level, computed rather than asserted (Phase 197 item 16)
+// ---------------------------------------------------------------------------
+
+// Phase 174.2 fixed the field sitting 9px above the dropdown beside it and
+// shipped no guard, because the only byte level guard would pin the mechanism
+// (position: absolute on the note) rather than the promise. This is the
+// promise: in every frame, the field's centre is the select's centre and its
+// top edge is the select's top edge, so any route to level passes and any
+// route away from it fails. The signed offset is the field's centre minus the
+// select's, the same number 174.2 measured at minus 9px on its parent.
+const centre = (r) => r[1] + r[3] / 2;
+const levels = read.frames.map((f) => ({
+  typed: f.typed,
+  offset: Math.round((centre(f.field) - centre(f.select)) * 100) / 100,
+  topGap: Math.round((f.field[1] - f.select[1]) * 100) / 100
+}));
+const offLevel = levels.filter((l) => l.offset !== 0 || l.topGap !== 0);
+console.log(`\n[p1741] ${tag}: the field against its dropdown, keystroke by keystroke`);
+for (const l of levels) {
+  console.log(
+    `  ${JSON.stringify(l.typed).padEnd(24)} centre offset ${String(l.offset).padStart(6)}px` +
+      `  top gap ${String(l.topGap).padStart(6)}px`
+  );
+}
+console.log(
+  offLevel.length === 0
+    ? `  LEVEL: yes. ${levels.length} frames, the field's centre and top edge are the select's in every one.`
+    : `  LEVEL: NO. ${offLevel.length} of ${levels.length} frames off level, ` +
+        `worst centre offset ${offLevel.map((l) => l.offset).sort((a, b) => Math.abs(b) - Math.abs(a))[0]}px`
+);
+
+// ---------------------------------------------------------------------------
 // The suggestions, and an independent enumeration to compare them against
 // ---------------------------------------------------------------------------
 
@@ -481,5 +523,7 @@ if (!sweptAll) {
   );
 }
 process.exit(
-  moved.length === 0 && contradictions.length === 0 && sweptAll ? 0 : 2
+  moved.length === 0 && offLevel.length === 0 && contradictions.length === 0 && sweptAll
+    ? 0
+    : 2
 );
