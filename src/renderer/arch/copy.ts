@@ -89,18 +89,47 @@ export const ARCH_MAP_NO_BRIDGE =
 export const ARCH_MAP_STALE =
   'The newest reading failed, so this picture is the one before it.';
 
-/** The cockpit's heading over the computed parts, when there is no contract. */
-export const ARCH_COMPUTED_TITLE = 'Computed parts';
-
 /**
- * The quiet line under the cockpit when there is no contract. It says what a
- * contract ADDS, because the map already exists without one.
+ * PHASE 201, THE READING (research 77 section 7). The sidebar reads, top to
+ * bottom: the repository line, the model slot, the components each with its
+ * sentence and the ten hover facts, and the contract last. Every sentence
+ * on a face is the code's own, and every explanation rides a hover.
  */
-export const ARCH_CONTRACT_ADDS =
-  'A contract adds your names and checked promises to this map.';
 
-/** The demoted teaching section's heading. */
-export const ARCH_CONTRACT_OFFER_TITLE = 'Add a contract';
+/** The hover on the repository's name row. */
+export const ARCH_SUBJECT_TITLE = 'The name package.json or Cargo.toml declares.';
+
+/** The hover on rule R, saying how each number is counted. */
+export const ARCH_REPO_LINE_TITLE =
+  'From the code alone. Files are what git tracks, the language is the most common file type, a part is a box on the map, a connection is one part importing another, and an import leads inside the repository when it resolves to a tracked file.';
+
+/** The model slot, drawn absent: one line, and no control until layer 2 lands. */
+export const ARCH_MODEL_NONE = 'No model reading yet.';
+export const ARCH_MODEL_NONE_TITLE =
+  'The line above comes from the code alone. A model can add what the repository is for, drawn under its own label and never as a fact.';
+
+/** The heading over the parts. */
+export const ARCH_COMPONENTS_TITLE = 'Components';
+
+/** The band glyph's hover: which row of the map the part sits in, and why. */
+export function archBandTitle(band: string): string {
+  if (band === 'surface') return 'Surface. No other part imports it.';
+  if (band === 'foundation') return 'Foundation. Other parts import it and it imports none.';
+  return 'Engine. Other parts import it and it imports others.';
+}
+
+/** The weight bar's hover: the share of the repository's files, as a percent. */
+export function archWeightTitle(percent: number): string {
+  return `${String(percent)}% of the files in the repository`;
+}
+
+/** The header's refresh control, since Phase 201 a re-read rather than only a re-check. */
+export const ARCH_CHECK_LABEL = 'Read the code again';
+export const ARCH_CHECK_BODY =
+  'Reads the code again and checks any promises against it. The file watcher cannot see a folder that did not exist when this view opened.';
+
+/** The contract section's heading, last on the face since Phase 201. */
+export const ARCH_CONTRACT_OFFER_TITLE = 'Contract';
 
 /** No `docs/arch/` at all, which is every repository until somebody writes one. */
 export const ARCH_EMPTY_TITLE = 'No contract in this repository yet';
@@ -108,7 +137,7 @@ export const ARCH_EMPTY_TITLE = 'No contract in this repository yet';
 /** The offer's one resting line. The paragraph moved behind the disclosure. */
 
 export const ARCH_EMPTY_BODY =
-  'Promises about how the parts of this project may touch, checked against the code.';
+  'None yet. Promises about how parts may touch, checked against the code.';
 
 /** The collapsed disclosure's label. The teaching lives behind it. */
 export const ARCH_EMPTY_MORE = 'What a contract is';

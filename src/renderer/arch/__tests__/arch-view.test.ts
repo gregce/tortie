@@ -641,7 +641,7 @@ describe('the copy ruling (2026-08-28), kept executable', () => {
     const copy = await import('../copy');
     const resting: Array<[string, string]> = [
       ['ARCH_EMPTY_BODY', copy.ARCH_EMPTY_BODY],
-      ['ARCH_CONTRACT_ADDS', copy.ARCH_CONTRACT_ADDS],
+      ['ARCH_MODEL_NONE', copy.ARCH_MODEL_NONE],
       ['ARCH_PASS_QUIET', copy.ARCH_PASS_QUIET],
       ['ARCH_PASS_OFF', copy.ARCH_PASS_OFF],
       ['ARCH_PASS_RUNNING', copy.ARCH_PASS_RUNNING],
@@ -676,7 +676,8 @@ describe('the copy ruling (2026-08-28), kept executable', () => {
     // in the file that draws its button now.
     const offer = readFileSync(join(DIR, 'ArchEmptyState.tsx'), 'utf8');
     const pass = readFileSync(join(DIR, 'ArchPass.tsx'), 'utf8');
-    const drill = readFileSync(join(DIR, 'ArchDrill.tsx'), 'utf8');
+    // Phase 201 moved the map door into the header band as an icon.
+    const drill = readFileSync(join(DIR, 'ArchHeader.tsx'), 'utf8');
     const verdicts = readFileSync(join(DIR, 'ArchVerdicts.tsx'), 'utf8');
     // A rendered text node looks like `>{NAME}<` or `{NAME}</`; a hover
     // title looks like `title={NAME}`. The three button bodies and the

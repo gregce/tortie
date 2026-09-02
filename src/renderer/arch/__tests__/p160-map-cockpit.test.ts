@@ -17,9 +17,10 @@ import type { ArchMapResult } from '../bridge';
 import { ArchMapTabBody } from '../ArchMapTab';
 import { importsUnknown, toMapModel } from '../map-model';
 import {
-  ARCH_COMPUTED_TITLE,
-  ARCH_CONTRACT_ADDS,
+  ARCH_COMPONENTS_TITLE,
   ARCH_CONTRACT_OFFER_TITLE,
+  ARCH_MODEL_NONE,
+  ARCH_REPO_LINE_TITLE,
   ARCH_MAP_EMPTY_REPO,
   ARCH_MAP_ERROR,
   ARCH_MAP_FLAT_REPO,
@@ -268,9 +269,10 @@ describe('the empty faces (Phase 160 fix round)', () => {
 describe('the writing rules', () => {
   it('uses no em dash and no en dash in any new sentence', () => {
     const sentences = [
-      ARCH_COMPUTED_TITLE,
-      ARCH_CONTRACT_ADDS,
+      ARCH_COMPONENTS_TITLE,
       ARCH_CONTRACT_OFFER_TITLE,
+      ARCH_MODEL_NONE,
+      ARCH_REPO_LINE_TITLE,
       ARCH_MAP_EMPTY_REPO,
       ARCH_MAP_ERROR,
       ARCH_MAP_FLAT_REPO,

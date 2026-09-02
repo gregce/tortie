@@ -1,0 +1,142 @@
+/*
+ * The reading (Phase 201, research 77 section 7): the repository line, the
+ * model slot, and one row per part with its band glyph, its weight bar and
+ * its sentence. Every value is a token; the mock at
+ * docs/research/assets/77-arch-reading/reading.html carries the same rules
+ * with the tokens copied in, and this file is those rules over the live
+ * tokens. Nothing here is a new token.
+ */
+
+.rd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* -- the repository: the subject and the rule R line ---------------------- */
+
+.rd-repo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 0 var(--space-5);
+  min-width: 0;
+}
+
+.rd-repo > .arch-subject {
+  padding: 0;
+}
+
+.rd-line {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  overflow-wrap: anywhere;
+}
+
+/* -- the model slot, drawn absent: one row at 11px ------------------------ */
+
+.rd-model {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* -- the components: one row per part -------------------------------------- */
+
+.rd-parts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rd-part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-5);
+  min-width: 0;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+button.rd-part {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rd-part:hover {
+  background: var(--bg-raised);
+}
+
+.rd-part.selected {
+  background: var(--bg-active);
+}
+
+.rd-part-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* The band glyph: three bars, the lit one says which row of the map the
+   part sits in. Drawn, not said. */
+.rd-band {
+  width: 8px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
+.rd-band rect {
+  fill: var(--border-strong);
+}
+
+.rd-band rect.on {
+  fill: var(--text-secondary);
+}
+
+.rd-part-name {
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* The weight bar: the share of files, no number on it. */
+.rd-bar {
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-active);
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.rd-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--text-muted);
+}
+
+.rd-part-sentence {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  overflow-wrap: anywhere;
+}

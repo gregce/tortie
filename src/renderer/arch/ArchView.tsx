@@ -68,7 +68,7 @@ import { useApp } from '../state/store';
 import { ArchContractOffer } from './ArchEmptyState';
 import { ArchModules } from './ArchModules';
 import { ChangedSection, FreshnessRibbon } from './ArchFreshness';
-import { ComputedOutline, DrillCrumb, MapSection } from './ArchDrill';
+import { DrillCrumb, Reading } from './ArchDrill';
 import { PassFace } from './ArchPass';
 import {
   FailureList,
@@ -81,7 +81,6 @@ import {
 } from './ArchVerdicts';
 import type { ScopedView } from './ArchVerdicts';
 import {
-  ARCH_CONTRACT_ADDS,
   ARCH_ELSEWHERE,
   ARCH_LAST_VALID,
   ARCH_NO_BRIDGE,
@@ -96,6 +95,7 @@ import { canDeliverTo } from './deliver';
 import { aimSelection } from './picker';
 import './arch.css';
 import './arch-drill.css';
+import './arch-reading.css';
 
 // ---------------------------------------------------------------------------
 // The faces moved to their subject files in Phase 172 and this file
@@ -177,7 +177,6 @@ export function ArchView(): React.JSX.Element {
     () => lastCheck?.verdicts ?? load?.verdicts ?? [],
     [lastCheck, load]
   );
-  const contract = load?.contract ?? null;
   const components = useMemo(() => load?.components ?? [], [load]);
   const edges = useMemo(() => load?.edges ?? [], [load]);
   const repoPath = target === null ? null : localPathOf(target);
@@ -210,9 +209,9 @@ export function ArchView(): React.JSX.Element {
   }
   // PHASE 160. A repository with no `docs/arch/` is NOT an empty surface any
   // more. The map draws from the code alone, so the cockpit below renders for
-  // every repository: the open map control always, the strip, failures and
-  // outline when a contract exists, the computed parts and the quiet line
-  // about what a contract adds when none does. `present` is still main's own
+  // every repository: the reading always (Phase 201), the strip, failures and
+  // outline when a contract exists, and the offer of one when none does.
+  // `present` is still main's own
   // answer: a directory that exists but whose every row was dropped keeps the
   // full cockpit, because the person then needs to read the problems.
   const noContract = status === 'ready' && load !== null && !load.present;
@@ -239,24 +238,19 @@ export function ArchView(): React.JSX.Element {
 
   return (
     <div className="arch" data-slot="arch">
-      {contract !== null ? (
-        <div className="arch-subject" title={contract.subject}>
-          {contract.subject}
-        </div>
-      ) : null}
-      <MapSection repoPath={repoPath} />
+      {/* PHASE 201, THE ORDER OF RESEARCH 77 SECTION 7. The reading first,
+          for every repository: the repository line, the model slot, the
+          components each with its sentence. The contract comes LAST, as the
+          offer when none exists and as the cockpit when one does, because a
+          contract is a promise pane and the first screen is a reading. */}
       <DrillCrumb repoPath={repoPath} />
+      <Reading repoPath={repoPath} />
       {noContract ? (
-        // No contract: the computed parts the map draws, the quiet line about
-        // what a contract adds, and the two ways to get one. The verdict
-        // machinery below has nothing to say about a repository with no
-        // promises, and zero-filled lanes would be a reassuring number about
-        // nothing, so it does not mount.
-        <>
-          <ComputedOutline repoPath={repoPath} />
-          <p className="arch-note arch-contract-adds">{ARCH_CONTRACT_ADDS}</p>
-          <ArchContractOffer />
-        </>
+        // No contract: the one way to get one. The verdict machinery below
+        // has nothing to say about a repository with no promises, and
+        // zero-filled lanes would be a reassuring number about nothing, so
+        // it does not mount.
+        <ArchContractOffer />
       ) : (
         <>
           {/* A read that failed over bytes on disk, showing the LAST GOOD rows
