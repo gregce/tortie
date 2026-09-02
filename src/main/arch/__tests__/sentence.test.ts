@@ -205,7 +205,7 @@ describe('rule W, the wiring', () => {
     expect(wiring(box(f, 'five'), f.labels, f.resolvedOf)).toBe('self contained (1 import inside, none across)');
     expect(wiring(box(f, 'six'), f.labels, f.resolvedOf)).toBe('imports not followed (2 of 2 unresolved)');
     expect(wiring(box(f, 'four'), f.labels, f.resolvedOf)).toBe('self contained (no import crosses to another part)');
-    expect(wiring(box(f, 'one'), f.labels, f.resolvedOf)).toBe('no imports either way');
+    expect(wiring(box(f, 'one'), f.labels, f.resolvedOf)).toBe('imports no other part and none imports it');
     const g = facts([...six, ...prose('notes', 30)]);
     expect(wiring(box(g, 'notes'), g.labels, g.resolvedOf)).toBe('not code');
   });

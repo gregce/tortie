@@ -233,7 +233,7 @@ function qualify(
 /**
  * Rule W, the wiring. Partners each way in count order, at most two named,
  * and with no partner: not code, not code apart from N files, self contained,
- * imports not followed, or no imports either way.
+ * imports not followed, or imports no other part and none imports it.
  */
 export function wiring(
   box: ArchReadingBox,
@@ -267,7 +267,10 @@ export function wiring(
     return `imports not followed (${n(box.imports.unresolved)} of ${n(box.imports.total)} unresolved)`;
   }
   if (box.imports.resolved > 0) return 'self contained (no import crosses to another part)';
-  return 'no imports either way';
+  // Research 77 wrote "no imports either way" here, and on a box whose every
+  // import leads to a dependency that read as false beside a hover saying
+  // "8 written". The clause is about partners, so it says so.
+  return 'imports no other part and none imports it';
 }
 
 /** Rule E, the entry: the shallowest file whose name is an entry by convention. */
