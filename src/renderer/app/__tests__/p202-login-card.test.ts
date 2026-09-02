@@ -23,6 +23,7 @@ import {
   loginMenuPick
 } from '../login-menu';
 import { cardLines, sessionsElsewhere } from '../UsageMeter';
+import { USAGE_LOGIN_SWITCHING, USAGE_STALE_MARK } from '../usage-copy';
 
 const NOW = 1_790_000_000_000;
 
@@ -79,6 +80,19 @@ describe('the card lines', () => {
 
   it('names the login the numbers came from', () => {
     expect(cardLines(row({ login: 'Work' }), NOW)).toContain('Login: Work');
+  });
+
+  it('says which stale it is, so a switch never reads as a failed read', () => {
+    // A READ THAT FAILED. The mark is the true one for this row.
+    expect(cardLines(row({ state: 'stale' }), NOW)).toContain(USAGE_STALE_MARK);
+    // A PERSON WHO JUST CHOSE ANOTHER ACCOUNT. Nothing failed: the numbers on
+    // screen are the previous login's until the next read lands, and saying
+    // the last read failed would be a false sentence about it.
+    const switching = cardLines(row({ state: 'stale', login: 'Work', loginChanged: true }), NOW);
+    expect(switching).toContain(USAGE_LOGIN_SWITCHING);
+    expect(switching).not.toContain(USAGE_STALE_MARK);
+    // And it is only ever said beside stale.
+    expect(cardLines(row({ loginChanged: true }), NOW)).not.toContain(USAGE_LOGIN_SWITCHING);
   });
 
   it('says how many running sessions are somewhere else, and on which login', () => {

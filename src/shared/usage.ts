@@ -105,6 +105,18 @@ export interface UsageProviderSnapshot {
    * value a renderer never sees cannot reach a screenshot or a report.
    */
   login: string | null;
+  /**
+   * TRUE when the numbers above were read for a DIFFERENT login than the one
+   * this meter is now on (Phase 202 fix round). It is only ever true beside
+   * the `stale` state, and it is what lets the card say the new login is
+   * being read rather than that the last read failed, which would be false.
+   *
+   * The whole reason it exists is that "stale" has two causes now: a read
+   * that failed, and a person who chose another account a moment ago. They
+   * want different words, and research 72's rule that the meter never lies
+   * across accounts is what makes the difference worth a field.
+   */
+  loginChanged: boolean;
   /** Milliseconds since epoch of the read the numbers came from; null if never. */
   readAt: number | null;
   /** Milliseconds since epoch before which a refresh is refused, or null. */
@@ -131,6 +143,7 @@ export function emptyUsageProvider(
     scoped: null,
     plan: null,
     login: null,
+    loginChanged: false,
     readAt: null,
     retryAfter: null
   };

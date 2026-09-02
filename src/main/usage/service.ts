@@ -157,6 +157,13 @@ interface Held {
   lastAttemptAt: number;
   retryAfter: number | null;
   inFlight: Promise<void> | null;
+  /**
+   * The login the outstanding request was ISSUED for, by name (Phase 202 fix
+   * round). A request answers the account whose credential it carried, so
+   * when this no longer matches {@link Held.loginName} its outcome belongs to
+   * an account this row is no longer on and is dropped rather than drawn.
+   */
+  inFlightLogin: string | null;
   /** When a live tap post was last APPLIED, or null. Phase 182. */
   tapAt: number | null;
   /**
@@ -166,6 +173,13 @@ interface Held {
    * marked stale rather than drawn as current.
    */
   loginName: string | null;
+  /**
+   * The held numbers belong to a login this meter is no longer on (Phase 202
+   * fix round). Set when the login moves under numbers worth keeping, cleared
+   * the moment the numbers are replaced or cleared by an answer about the
+   * login the meter is on now.
+   */
+  loginChanged: boolean;
 }
 
 function freshHeld(): Held {
@@ -176,9 +190,19 @@ function freshHeld(): Held {
     lastAttemptAt: 0,
     retryAfter: null,
     inFlight: null,
+    inFlightLogin: null,
     tapAt: null,
-    loginName: null
+    loginName: null,
+    loginChanged: false
   };
+}
+
+/**
+ * Are these two login names the same one? Null is the default login, which is
+ * a login like any other here (Phase 202 fix round).
+ */
+function sameLogin(a: string | null, b: string | null): boolean {
+  return a === b;
 }
 
 /** Do two windows say exactly the same thing? Used only for the tap dedupe. */
@@ -204,6 +228,7 @@ function viewOf(provider: UsageProviderId, held: Held): UsageProviderSnapshot {
     scoped: held.parsed.scoped,
     plan: held.parsed.plan,
     login: held.loginName,
+    loginChanged: held.state === 'stale' && held.loginChanged,
     readAt: held.readAt,
     retryAfter: held.retryAfter
   };
@@ -311,6 +336,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
   function applyOutcome(h: Held, outcome: Outcome, now: number): void {
     h.lastAttemptAt = now;
     if (outcome.kind === 'ok') {
+      h.loginChanged = false;
       h.parsed = outcome.parsed;
       h.readAt = now;
       h.retryAfter = null;
@@ -318,6 +344,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       return;
     }
     if (outcome.kind === 'signed-out' || outcome.kind === 'api-key') {
+      h.loginChanged = false;
       h.parsed = EMPTY_PARSE;
       h.readAt = null;
       h.retryAfter = null;
@@ -327,6 +354,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     if (outcome.kind === 'expired') {
       // A confirmed refusal of this token, and the fix is one sentence a
       // person can act on. Old numbers under a glyph would hide that.
+      h.loginChanged = false;
       h.parsed = EMPTY_PARSE;
       h.readAt = null;
       h.retryAfter = null;
@@ -339,9 +367,12 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     const fresh =
       h.readAt !== null && now - h.readAt <= keepFor && hasAnything(h.parsed);
     if (fresh) {
+      // THE FLAG IS NOT CLEARED HERE, on purpose. This branch KEEPS the old
+      // numbers, so numbers that belonged to the previous login still do.
       h.state = 'stale';
       return;
     }
+    h.loginChanged = false;
     h.parsed = EMPTY_PARSE;
     h.readAt = null;
     h.state = 'unavailable';
@@ -461,6 +492,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     // these numbers belong to the login this meter is on, and the snapshot
     // says which one that is.
     h.loginName = deps.logins('claude').name;
+    h.loginChanged = false;
     // `lastAttemptAt` is deliberately NOT moved. It records when the endpoint
     // was last asked, and the suppression above is what keeps the poll away;
     // moving it too would push the first poll after a quiet tap out by a
@@ -503,12 +535,27 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       // is not answered by a person choosing a different account, and the same
       // vendor is being asked either way.
       const login = deps.logins(provider);
-      if (h.loginName !== login.name) {
-        if (h.readAt !== null && hasAnything(h.parsed)) h.state = 'stale';
+      if (!sameLogin(h.loginName, login.name)) {
+        if (h.readAt !== null && hasAnything(h.parsed)) {
+          h.state = 'stale';
+          // WHICH STALE THIS IS. Nothing failed: the numbers are simply the
+          // previous account's until the next read lands, and the card says
+          // that instead of saying the last read failed.
+          h.loginChanged = true;
+        }
         h.loginName = login.name;
         h.lastAttemptAt = 0;
       }
       if (h.inFlight !== null) {
+        // A REQUEST ISSUED FOR THE LOGIN A PERSON HAS JUST LEFT CANNOT ANSWER
+        // FOR THE ONE THEY CHOSE, and its outcome is dropped when it lands.
+        // Waiting on it would hold this call for somebody else's request and
+        // then answer with what is held, so the row is left marked stale and
+        // due, and the next read asks. A second request is deliberately NOT
+        // issued alongside the first: poll gently is the rule the vendor's
+        // budget earns, and one outstanding request per provider is the whole
+        // of what this map allows.
+        if (!sameLogin(h.inFlightLogin, h.loginName)) continue;
         waits.push(h.inFlight);
         continue;
       }
@@ -516,8 +563,22 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       // Claim the slot before awaiting, so two calls in the same tick make
       // one request rather than two.
       h.lastAttemptAt = now;
+      // THE LOGIN THIS REQUEST IS FOR, carried into the answer. The credential
+      // was read for this account and the numbers are that account's, so if
+      // the person chooses another one while it is in the air, what comes back
+      // is not about the account the meter is now on.
+      const issuedFor = login.name;
       const job = fetchProvider(provider, login.dir)
         .then((outcome) => {
+          if (!sameLogin(h.loginName, issuedFor)) {
+            // DROPPED WHOLE, and `lastAttemptAt` is deliberately not moved, so
+            // the row stays due and the next read asks under the new login.
+            // Writing it would draw one account's numbers under another
+            // account's name and mark them current, which is the research 72
+            // rule this phase inherits: never lie across accounts.
+            deps.log('usage.read.dropped', { provider, reason: 'login-changed' });
+            return;
+          }
           applyOutcome(h, outcome, deps.now());
           if (outcome.kind !== 'ok') {
             deps.log('usage.read.failed', {
@@ -528,12 +589,15 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
           }
         })
         .catch(() => {
+          if (!sameLogin(h.loginName, issuedFor)) return;
           applyOutcome(h, { kind: 'unavailable' }, deps.now());
         })
         .finally(() => {
           h.inFlight = null;
+          h.inFlightLogin = null;
         });
       h.inFlight = job;
+      h.inFlightLogin = issuedFor;
       waits.push(job);
     }
     await Promise.all(waits);

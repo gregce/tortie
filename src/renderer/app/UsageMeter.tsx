@@ -48,6 +48,7 @@ import {
   USAGE_PROVIDER_LABEL,
   USAGE_REFRESH,
   USAGE_SEVEN_DAY,
+  USAGE_LOGIN_SWITCHING,
   USAGE_STALE_MARK,
   USAGE_LOGIN_CONTROL,
   USAGE_TITLE,
@@ -185,7 +186,12 @@ export function cardLines(
   if (p.scoped !== null && scoped !== null) {
     out.push(`${p.scoped.label} ${Math.round(scoped)}% ${USAGE_SEVEN_DAY}`);
   }
-  if (p.state === 'stale') out.push(USAGE_STALE_MARK);
+  if (p.state === 'stale') {
+    // PHASE 202 FIX ROUND. Stale has two causes and they want different
+    // words: a read that failed, and a person who chose another account a
+    // moment ago, whose numbers on screen are still the previous account's.
+    out.push(p.loginChanged ? USAGE_LOGIN_SWITCHING : USAGE_STALE_MARK);
+  }
   const line = usageStateLine(p.provider, p.state);
   if (line !== '') out.push(line);
   // PHASE 202. A running session keeps the login it started with, so a person

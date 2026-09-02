@@ -224,6 +224,152 @@ describe('a login that moved', () => {
 });
 
 /**
+ * A READ THAT WAS ALREADY IN THE AIR WHEN THE LOGIN CHANGED.
+ *
+ * THE FIX ROUND'S FINDING 2, reproduced against the shipping module before it
+ * was fixed. `run` marked the row stale and made it due, and then the very
+ * next branch saw an outstanding request and waited on it. That request had
+ * been issued for the login the person had just LEFT, so its answer arrived
+ * carrying the previous account's numbers, and `applyOutcome` wrote them as
+ * `ok` under the new login's name and moved `lastAttemptAt`, which undid
+ * "due at once" and left the wrong account's numbers on screen, marked
+ * current, for a full fifteen minute poll. Measured at the parent commit: 11
+ * where the new login's number is 77, one request served and no second one
+ * issued, and the next read served nothing and answered 11 again.
+ */
+describe('a read issued for the login you left', () => {
+  interface Rig {
+    service: ReturnType<typeof createUsageService>;
+    release: () => void;
+    sent: () => UsageRequest[];
+    choose: (v: { name: string | null; dir: string | null }) => void;
+    /** The poll interval is real here, so a second read needs time to pass. */
+    tick: (ms: number) => void;
+  }
+
+  /** Every request after the first waits until the test releases it. */
+  function rig(percentFor: (token: string) => number): Rig {
+    let chosen: { name: string | null; dir: string | null } = { name: null, dir: null };
+    let clock = NOW;
+    let release = (): void => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const sent: UsageRequest[] = [];
+    const service = createUsageService({
+      credentials: {
+        keychain: async () =>
+          JSON.stringify({
+            claudeAiOauth: {
+              accessToken: chosen.dir === null ? 'DEFAULT' : 'SECOND'
+            }
+          }),
+        readText: async () => null,
+        env: {},
+        home: '/Users/example'
+      },
+      transport: async (req): Promise<UsageResponse> => {
+        sent.push(req);
+        const token = (req.headers['authorization'] ?? '').includes('SECOND')
+          ? 'SECOND'
+          : 'DEFAULT';
+        const body = JSON.stringify({
+          five_hour: {
+            utilization: percentFor(token),
+            resets_at: new Date(clock + 3_600_000).toISOString()
+          }
+        });
+        if (sent.length === 1) return { status: 200, body, retryAfterAt: null };
+        await gate;
+        return { status: 200, body, retryAfterAt: null };
+      },
+      settings: () => ON,
+      logins: () => chosen,
+      now: () => clock,
+      log: () => undefined
+    });
+    return {
+      service,
+      release,
+      sent: () => sent,
+      choose: (v) => {
+        chosen = v;
+      },
+      tick: (ms) => {
+        clock += ms;
+      }
+    };
+  }
+
+  const claude = (
+    s: Awaited<ReturnType<ReturnType<typeof createUsageService>['read']>>
+  ): ReturnType<typeof createUsageService> extends never ? never : (typeof s)['providers'][number] => {
+    const row = s.providers.find((p) => p.provider === 'claude');
+    if (row === undefined) throw new Error('no claude row');
+    return row;
+  };
+
+  it('drops its answer rather than drawing it under the new login name', async () => {
+    const r = rig((token) => (token === 'SECOND' ? 77 : 11));
+    // A first read completes and holds the default login's numbers.
+    await r.service.read();
+    // A second read is issued for the default login and is left in the air.
+    r.tick(20 * 60 * 1000);
+    const inFlight = r.service.read();
+    await Promise.resolve();
+    await Promise.resolve();
+    // The person chooses another login while it is still outstanding.
+    r.choose({ name: 'Second', dir: SECOND_DIR });
+    const afterSwitch = claude(await r.service.read());
+    // THE NUMBERS ON SCREEN ARE NOT DRAWN AS CURRENT. They are the previous
+    // login's, marked stale, and the card says which stale this is.
+    expect(afterSwitch.state).toBe('stale');
+    expect(afterSwitch.loginChanged).toBe(true);
+    expect(afterSwitch.login).toBe('Second');
+    expect(afterSwitch.fiveHour?.percent).toBe(11);
+    // And no second request was issued alongside the one in the air.
+    expect(r.sent()).toHaveLength(2);
+
+    // The old request lands. Its answer is dropped whole.
+    r.release();
+    await inFlight;
+    const landed = claude(r.service.current());
+    expect(landed.state).toBe('stale');
+    expect(landed.fiveHour?.percent).toBe(11);
+
+    // THE ROW IS STILL DUE, which is what "within one poll" means: the next
+    // read asks under the new login and replaces both the numbers and the
+    // mark. At the parent commit this read served nothing at all.
+    const next = claude(await r.service.read());
+    expect(r.sent()).toHaveLength(3);
+    expect(next.state).toBe('ok');
+    expect(next.loginChanged).toBe(false);
+    expect(next.login).toBe('Second');
+    expect(next.fiveHour?.percent).toBe(77);
+  });
+
+  it('applies the answer when the person chose the same login again', async () => {
+    const r = rig(() => 11);
+    const inFlight = r.service.read();
+    await Promise.resolve();
+    await Promise.resolve();
+    r.choose({ name: 'Second', dir: SECOND_DIR });
+    void r.service.read();
+    // Back to the login the outstanding request was issued for, before it
+    // lands. It IS that account's answer, so it is kept.
+    r.choose({ name: null, dir: null });
+    const back = r.service.read();
+    r.release();
+    await inFlight;
+    const row = claude(await back);
+    expect(row.state).toBe('ok');
+    expect(row.login).toBeNull();
+    expect(row.fiveHour?.percent).toBe(11);
+    expect(r.sent()).toHaveLength(1);
+  });
+});
+
+/**
  * THE HALF THIS PHASE ALMOST TOOK AWAY.
  *
  * The tap's account rule compares the posting session's config directory with

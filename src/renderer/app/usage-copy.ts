@@ -47,6 +47,12 @@ export const USAGE_NO_BRIDGE = 'This build cannot read usage.';
  * it is not about. Everything else about logins lives in Settings.
  */
 export const USAGE_LOGIN_CONTROL = 'Choose login';
+/**
+ * WHICH STALE THIS IS. A person who has just chosen another account has
+ * numbers on screen that are the previous one's, and `Last read failed` would
+ * be a false sentence about it: nothing failed. This is the true one, and it
+ * is drawn in that mark's place while the meter is between logins.
+ */
 export const USAGE_LOGIN_SWITCHING = 'Reading the new login';
 
 /** `Login: Work`, or nothing at all for the person's own default sign in. */

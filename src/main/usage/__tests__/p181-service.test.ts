@@ -156,6 +156,8 @@ describe('THE NEGATIVE CONTROL: a switch that is off', () => {
       plan: null,
       // Phase 202: the default login, which is what this harness reads.
       login: null,
+      // Phase 202 fix round: an off row is not between logins either.
+      loginChanged: false,
       readAt: null,
       retryAfter: null
     });
