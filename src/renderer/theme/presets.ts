@@ -92,7 +92,11 @@ export const CONTRAST_BG: readonly string[] = [
 ];
 
 /** Borders spread the same way, so hairlines separate with their panels. */
-export const CONTRAST_BORDER: readonly string[] = ['--border', '--border-strong'];
+export const CONTRAST_BORDER: readonly string[] = [
+  '--border',
+  '--border-active',
+  '--border-strong'
+];
 
 /**
  * Text lightness lifts toward white. `--text-disabled` and `--git-ignored`

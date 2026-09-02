@@ -19,6 +19,14 @@
   --bg-scrim: rgba(9, 10, 12, 0.55); /* behind modals/overlays             */
 
   --border: #25282e; /* hairlines between regions, 1px always              */
+  --border-active: #2d3038; /* the hairline where it sits on --bg-active.
+     Research 75 C4 and Phase 197 item 24: --border reads 1.013:1 on the
+     selected fill, which is no hairline at all, and Phase 196's verifier
+     proved no single --border value can keep the sidebar hairline near
+     1.287:1 and lift the active one, so the active plane has its own. Reads
+     1.105:1 on --bg-active (1.297:1 stays for --border on the sidebar).
+     Only for a border drawn ON a selected, pressed or hovered fill; a
+     hairline between regions keeps --border.                            */
   --border-strong: #353943; /* input borders, resize handles on hover      */
 
   --text-primary: #c9cacd; /* names, values, body        (11.24:1 on canvas, one

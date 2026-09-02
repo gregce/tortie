@@ -21,6 +21,7 @@ All tokens are CSS custom properties declared on `:root` in `src/renderer/styles
 --bg-scrim:    rgba(9, 10, 12, 0.55);   /* behind modals/overlays           */
 
 --border:        #25282E;  /* hairlines between regions, 1px always         */
+--border-active: #2D3038;  /* the hairline where it sits ON --bg-active (1.105:1 there; research 75 C4) */
 --border-strong: #353943;  /* input borders, resize handles on hover        */
 
 --text-primary:   #C9CACD;  /* names, values, body        (11.24:1 on canvas, under the transcript) */
@@ -189,7 +190,7 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 --z-attention: 600; --z-toast: 700;           --z-tooltip: 800;
 ```
 
-Shadows always carry offset + blur (no zero-offset halos). Hairline borders are 1px `--border`; regions are separated by hairlines, not shadows.
+Shadows always carry offset + blur (no zero-offset halos). Hairline borders are 1px `--border`; regions are separated by hairlines, not shadows. A border drawn ON a selected, pressed or hovered `--bg-active` fill is `--border-active`, because `--border` reads 1.013:1 there and does not exist (research 75 C4, Phase 197).
 
 ### 1.10 Focus & motion tokens
 

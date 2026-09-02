@@ -769,6 +769,7 @@
 
 .arch-aim-go:hover:not(:disabled) {
   background: var(--bg-active);
+  border-color: var(--border-active);
 }
 
 .arch-aim-go:disabled {

@@ -59,6 +59,10 @@
 
 .agent-tile:active {
   background: var(--bg-active);
+  /* One of the two shipped sites where a --border hairline sits ON the active
+     fill (Phase 197 item 24, the other is the Aim button under the pointer in
+     arch.css): the pressed tile keeps its edge readable. */
+  border-color: var(--border-active);
 }
 
 .agent-tile:focus-visible {
