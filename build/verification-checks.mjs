@@ -501,6 +501,10 @@ export const CHECKS = [
   // agent. `--app <dir>` points it at another built worktree, which is how the
   // parent commit was measured with the same instrument.
   electron('probe:p1741'),
+  // PHASE 197. The Architecture view's own drive, Phase 63's proof item, in a
+  // script at last: it had been in no npm script and red at every commit
+  // since Phase 158 replaced the seeding prompt its one check was written for.
+  electron('probe:p63'),
   electron('probe:p64arch'),
   electron('probe:shellpath'),
   electron('probe:p101shot'),

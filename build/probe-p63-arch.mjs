@@ -43,7 +43,12 @@
  *  - The provenance WORD is present at 340 px and gone at 220 px, which is the
  *    one responsive rule this view has, written as a container query at
  *    src/renderer/arch/arch.css:336.
- *  - The seeding prompt composes the same bytes twice and sends nothing.
+ *  - The seed step finds the seed bridge on the preload and presses nothing,
+ *    and the drive leaves docs/arch untouched, read back from git afterwards.
+ *    Phase 63 wrote this as "the seeding prompt composes the same bytes
+ *    twice"; Phase 158 replaced that prompt with a write main owns, and the
+ *    same bytes twice claim is main's skeleton test now. Phase 197 retargeted
+ *    the check, which had been red at every commit since.
  *  - Nothing on the surface rendered HTML somebody else wrote.
  *
  * Everything else is printed as a number for a reader to judge.
@@ -364,9 +369,15 @@ if (emptyAtFloor !== null) {
 }
 
 check(
-  seedLines.some((l) => l.includes('deterministic=true')),
-  'the seeding prompt did not compose the same bytes twice'
+  seedLines.some((l) => l.includes('bridge=true') && l.includes('pressed=false')),
+  'the seed step did not find the seed bridge on the preload'
 );
+const archWritten = spawnSync(
+  'git',
+  ['-C', repoRoot, 'status', '--porcelain', '--', 'docs/arch'],
+  { encoding: 'utf8' }
+).stdout.trim();
+check(archWritten === '', `the drive wrote under docs/arch: ${archWritten}`);
 
 check(
   chords.length === CHORDS.length,

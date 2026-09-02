@@ -91,6 +91,16 @@ export interface ArchProbeSpec {
    */
   press?: boolean;
   /**
+   * PHASE 197. Say whether this build can seed at all, and press nothing.
+   * Phase 63 wrote this field to compose the seeding PROMPT twice and print
+   * its bytes; Phase 158 replaced that prompt with a write main owns, so the
+   * same bytes twice claim lives in main's own skeleton test now, and what
+   * the drive can still show is that asking is all the renderer does. The
+   * runner reads docs/arch back from git after the run and wants it
+   * untouched, which is the half of the old claim that still means something.
+   */
+  seed?: boolean;
+  /**
    * PHASE 158, the one-path surfaces, READ and never pressed: the offer's
    * single action, the absence of the pasted prompt, the run face's words,
    * and the accept controls on the failing rows.
@@ -607,6 +617,10 @@ export async function driveArch(spec: ArchProbeSpec): Promise<void> {
         offendingRows: document.querySelectorAll('.arch-offending').length
       })}`
     );
+  }
+
+  if (spec.seed === true) {
+    log(`seed: bridge=${String(seedAvailable())} pressed=false`);
   }
 
   if (spec.press === true) {
