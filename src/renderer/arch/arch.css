@@ -750,7 +750,7 @@
 
 .arch-aim-count {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
@@ -763,7 +763,7 @@
   border-radius: 4px;
   background: var(--bg-raised);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -779,7 +779,7 @@
 .arch-aim-why {
   flex-basis: 100%;
   margin: 0;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 

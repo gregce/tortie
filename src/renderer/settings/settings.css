@@ -297,8 +297,8 @@
   background: var(--bg-raised);
   color: var(--text-secondary); /* never muted on raised (§1.1 rule) */
   font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 16px;
+  font-size: var(--text-2xs);
+  line-height: var(--lh-2xs);
   white-space: nowrap;
 }
 
@@ -493,7 +493,7 @@
 }
 
 .set-agent-inuse {
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--success);
 }
 
@@ -635,7 +635,7 @@
   justify-content: center;
   border-radius: var(--r-sm);
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--icon-md);
   line-height: 1;
 }
 
@@ -1032,7 +1032,7 @@
 
 .set-config-hash {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--text-disabled);
 }
 

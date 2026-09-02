@@ -321,7 +321,7 @@ textarea {
 
 .chip-sm {
   height: 16px;
-  font-size: 10px;
+  font-size: var(--text-2xs);
   padding: 0 var(--space-2);
 }
 

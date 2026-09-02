@@ -264,7 +264,7 @@
 .ed-tab-sha {
   flex: none;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.02em;
   color: var(--text-muted);
 }
@@ -572,7 +572,7 @@
      shadow DOM and a custom property inherits through the host, so the diff
      follows the preset with no code. */
   --diffs-font-family: var(--font-editor);
-  --diffs-font-size: 12px;
+  --diffs-font-size: var(--text-sm);
 
   /* Gutter numbers annotate; they never compete with the code. Pierre would
      derive them from its foreground (~#95979A) — this pins them to the same

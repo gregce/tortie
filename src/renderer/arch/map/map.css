@@ -33,7 +33,7 @@
 .arch-map-band {
   fill: var(--text-muted);
   font-family: var(--font-ui);
-  font-size: 13px;
+  font-size: var(--text-base);
   font-weight: var(--weight-medium);
   dominant-baseline: middle;
 }
@@ -116,7 +116,7 @@
 
 .arch-map-name {
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   white-space: nowrap;
   overflow: hidden;
@@ -128,14 +128,14 @@
   align-items: center;
   gap: 4px;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: nowrap;
   overflow: hidden;
 }
 
 .arch-map-unknown {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-style: italic;
   white-space: nowrap;
   overflow: hidden;
@@ -207,7 +207,7 @@
 
 .arch-map-stub-name {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

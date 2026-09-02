@@ -97,7 +97,7 @@
    `--diffs-font-size` is the library's own lever and leaves the scroll root
    in one coordinate space. */
 .ed-pierre {
-  --diffs-font-size: calc(12px * var(--zoom-editor, 1));
+  --diffs-font-size: calc(var(--text-sm) * var(--zoom-editor, 1));
 }
 
 /* ---------------------------------------------------------------------------

@@ -148,6 +148,7 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 --font-mono: ui-monospace, Menlo, monospace;
 --font-terminal: ui-monospace, Menlo, monospace;  /* xterm ONLY — verified native stack (Bug C); never conflated with --font-mono */
 
+--text-2xs:  10px/16px;   /* chips and pills only: SHA chip, machine badge, .chip-sm (Phase 195) */
 --text-xs:   11px/16px;   /* section labels (uppercase +0.04em), badges, ages   */
 --text-sm:   12px/18px;   /* dense rows (tree, SCM), branch names (mono)        */
 --text-base: 13px/20px;   /* default: session names, controls, body, filenames  */

@@ -826,7 +826,7 @@
   display: inline-flex;
   align-items: baseline;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   line-height: 14px;
   min-width: 0;
   overflow: hidden;
@@ -912,7 +912,7 @@
 
 .scm-ref-more {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   line-height: 14px;
   flex: 0 0 auto;
 }
@@ -1134,6 +1134,7 @@
   background: var(--bg-raised);
   border: 1px solid var(--border-strong);
   color: var(--text-secondary);
+  /* Two letter initials inside a 20px avatar disc, the one place a glyph must fit a 20px circle (Phase 195). */
   font-size: 9px;
   font-weight: var(--weight-semibold);
   display: inline-flex;

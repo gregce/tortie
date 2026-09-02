@@ -1633,8 +1633,8 @@
 
 .preset-flag {
   font-family: var(--font-mono);
-  font-size: 10px;
-  line-height: 16px;
+  font-size: var(--text-2xs);
+  line-height: var(--lh-2xs);
   height: 16px;
   padding: 0 var(--space-2);
   border-radius: var(--r-sm);
@@ -2286,7 +2286,7 @@ body.gmux-dragging:has([role='separator'][aria-orientation='horizontal'].draggin
   background: var(--bg-raised);
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   flex: 0 0 auto;
 }
 

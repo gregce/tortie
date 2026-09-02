@@ -163,6 +163,15 @@
      is chrome and stays on --font-mono. */
   --font-editor: ui-monospace, Menlo, monospace;
 
+  /* The chip step (Phase 195, research 75 C7). 10px was drawn ten times
+     before it had a name, always on a chip or a pill: the SHA chip in the
+     editor tab, the machine badge, .chip-sm, the settings window's mono
+     chips and the agent "in use" mark. 16px is the line height those chips
+     already drew beside it, being the same --lh-xs the machine badge read.
+     Below --text-xs and outside the 1.18 ratio on purpose: a chip is a
+     mark, not a level of the text hierarchy. Never body text. */
+  --text-2xs: 10px;
+  --lh-2xs: 16px;
   --text-xs: 11px; /* section labels (uppercase +0.04em), badges, ages */
   --lh-xs: 16px;
   --text-sm: 12px; /* dense rows (tree, SCM), branch names (mono) */

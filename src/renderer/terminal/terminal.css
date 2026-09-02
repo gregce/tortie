@@ -72,15 +72,15 @@
   justify-content: center;
   gap: 6px;
   color: var(--text-muted);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
   user-select: none;
 }
 
 .gmux-terminal-empty-title {
   color: var(--text-secondary);
-  font-size: 15px;
-  line-height: 22px;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
   font-weight: 600;
 }
 
@@ -97,15 +97,15 @@
   padding: 24px;
   background: var(--bg-scrim);
   color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 20px;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
   z-index: 2;
 }
 
 .gmux-terminal-overlay .gmux-terminal-overlay-title {
   color: var(--text-primary);
-  font-size: 15px;
-  line-height: 22px;
+  font-size: var(--text-md);
+  line-height: var(--lh-md);
   font-weight: 600;
 }
 
@@ -113,8 +113,8 @@
   max-width: 420px;
   overflow-wrap: anywhere;
   color: var(--text-muted);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 
 .gmux-terminal-overlay button {
@@ -124,7 +124,7 @@
   border-radius: var(--r-sm, 4px);
   background: var(--bg-raised);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-base);
   font-family: inherit;
   cursor: pointer;
 }
