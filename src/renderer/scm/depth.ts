@@ -29,7 +29,7 @@ import type {
 import type { InstalledGitApi } from '@shared/ipc';
 import { gmuxBridge } from '../bridge';
 import { gitErrorLine, useGit } from '../state/git';
-import { useApp } from '../state/store';
+import { errorText, useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
 import { shortSha } from './format';
 import { bareCommitAsMessage, toSearch } from './history-search';
@@ -126,6 +126,13 @@ export interface RepoDepthState {
    * the number the phase's probe reads per keystroke.
    */
   walkMs: number | null;
+  /**
+   * Phase 199. The one sentence a walk under a query was refused with, or
+   * null. A path outside the repository and a change search its timeout
+   * stopped both land here, drawn where the rows would be, because the flat
+   * walk carries no filter and must never stand in for a filtered one.
+   */
+  searchError: string | null;
   /**
    * Where the current branch stands against its upstream, measured in the
    * same round trip as the commits (so a row's shading and the header's count
@@ -305,6 +312,7 @@ const emptyRepo: RepoDepthState = {
   logRefs: null,
   query: null,
   walkMs: null,
+  searchError: null,
   divergence: null,
   remoteUrl: null,
   remoteChecked: false,
@@ -542,12 +550,29 @@ export const useGitDepth = create<DepthState>((set, get) => {
           divergence: result.divergence,
           lastFetchedAt: result.divergence.lastFetchedAt,
           walkMs: Math.round(performance.now() - started),
+          searchError: null,
           logLoading: false
         });
         return;
-      } catch {
+      } catch (err) {
         // A superseded walk is done here: the walk that replaced it draws.
+        // Supersession is always the not-owning case, because the only
+        // thing that ends a walk on the main side is the newer walk this
+        // store started for the same repo.
         if (!owns()) return;
+        // Under a query the refusal IS the answer, drawn where the rows
+        // would be. The flat walk below carries no filter, so drawing it
+        // here showed the plain walk's first page as if it matched, gutter
+        // hidden and no sentence, for a `file:` outside the repository.
+        if (repo.query !== null) {
+          patchRepo(repoPath, {
+            log: [],
+            hasMore: false,
+            logLoading: false,
+            searchError: errorText(err)
+          });
+          return;
+        }
         // Fall through to the flat walk rather than blanking the pane: a
         // history without lanes still beats no history.
       }
@@ -676,9 +701,17 @@ export const useGitDepth = create<DepthState>((set, get) => {
     },
 
     async refresh(repoPath) {
-      if (get().repos[repoPath] === undefined) return;
+      const repo = get().repos[repoPath];
+      if (repo === undefined) return;
+      // Phase 199. A change search runs from its button and from nothing
+      // else. With one on screen, a repository change re-reads the branches
+      // and leaves the rows and the printed time as the button drew them.
+      // Every file an agent writes in the repository is such a change, and
+      // each reread was a pickaxe over the whole history, seconds of CPU on
+      // a large one, aborting the one before it, that nobody pressed for.
+      const keepRows = repo.query !== null && repo.query.change !== '';
       await Promise.all([
-        fetchLog(repoPath),
+        keepRows ? Promise.resolve() : fetchLog(repoPath),
         fetchBranches(repoPath),
         fetchRemoteBranches(repoPath),
         fetchRemotes(repoPath)

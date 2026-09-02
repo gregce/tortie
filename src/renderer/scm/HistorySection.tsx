@@ -195,8 +195,13 @@ export function HistorySection({
   const searching = applied !== null;
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const changeRunning = repo.logLoading && applied !== null && applied.change !== '';
+  // A change search its refusal or its timeout ended is not applied: the
+  // sentence is drawn where the rows would be and the button comes back.
   const changeApplied =
-    applied !== null && applied.change !== '' && sameQuery(applied, typed);
+    applied !== null &&
+    applied.change !== '' &&
+    sameQuery(applied, typed) &&
+    repo.searchError === null;
   const changeOffered = typed.change !== '' && !changeApplied && !changeRunning;
 
   useEffect(() => {
@@ -1061,7 +1066,7 @@ export function HistorySection({
           ) : entries === null || entries.length === 0 ? (
             <div className="section-stub">
               {searching
-                ? 'No commit matches.'
+                ? (repo.searchError ?? 'No commit matches.')
                 : 'No commits yet — your first commit starts the history.'}
             </div>
           ) : (
