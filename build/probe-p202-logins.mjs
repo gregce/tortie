@@ -86,6 +86,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs';
 import { request as httpRequest } from 'node:http';
@@ -352,7 +353,11 @@ const SENTINEL = {
   claudeDefault: `P202SENTINELCLAUDEDEFAULT${stamp}`,
   claudeWork: `P202SENTINELCLAUDEWORK${stamp}`,
   codexDefault: `P202SENTINELCODEXDEFAULT${stamp}`,
-  codexWork: `P202SENTINELCODEXWORK${stamp}`
+  codexWork: `P202SENTINELCODEXWORK${stamp}`,
+  // The credential inside a directory Tortie does not own, reached only by
+  // following a link. If this word ever appears in the profile, in a meter row
+  // or on a pane, Tortie read a login it does not own.
+  claudeLinked: `P202SENTINELCLAUDELINKED${stamp}`
 };
 
 function writeClaudeCredential(dir, token, plan) {
@@ -1228,6 +1233,53 @@ await withElectron(
     writeFileSync(storePath, before, 'utf8');
     await call(cdp, 'loadLogins()');
 
+    // 10b. ATTACK: a login directory that is a LINK out of the owned root.
+    //
+    //      THE ONE THE SPELLED SHAPES ABOVE CANNOT EXPRESS, and the one the
+    //      Phase 202 verifier found in this same app. `resolve` does not
+    //      follow a link, so an entry named by sixteen hex characters that is
+    //      really a symlink to any directory on the machine is spelled inside
+    //      the root and passed every test there was. It was listed as
+    //      present, chosen, put on a pane as `CLAUDE_CONFIG_DIR` and read by
+    //      the meter. It is planted here the way it was planted then, being
+    //      on disk before Tortie next reads the store, with a credential
+    //      inside it carrying a sentinel of its own.
+    const linkedTarget = join(notOurs, 'linked-claude');
+    writeClaudeCredential(linkedTarget, SENTINEL.claudeLinked, 'probelinked');
+    const linkedId = 'dead1234beef5678';
+    const linkedPath = join(loginsRoot(), 'claude', linkedId);
+    rmSync(linkedPath, { recursive: true, force: true });
+    symlinkSync(linkedTarget, linkedPath);
+    const linkedStore = JSON.parse(readFileSync(storePath, 'utf8'));
+    linkedStore.logins.push({ provider: 'claude', id: linkedId, name: 'Planted', createdAt: 3 });
+    linkedStore.chosen = { ...(linkedStore.chosen ?? {}), claude: 'Planted' };
+    writeFileSync(storePath, JSON.stringify(linkedStore, null, 2), 'utf8');
+    await call(cdp, 'loadLogins()');
+    const linked = await call(cdp, 'read()');
+    record(report.attacks, 'a login directory that is a link is dropped whole', gradeDropped({ logins: linked.logins, problems: linked.problems }, ['claude:Planted']), { problems: linked.problems });
+    const linkedRow = (linked.logins ?? []).find((l) => l.name === 'Planted') ?? null;
+    record(report.attacks, 'a linked login is never reported as signed in', {
+      ok: linkedRow === null,
+      why: linkedRow === null ? 'it is not on the list at all' : `it is listed with present ${String(linkedRow.present)}`
+    });
+    const linkedChoice = await call(cdp, "chooseLogin('claude', 'Planted')");
+    record(report.attacks, 'a linked login cannot be chosen', {
+      ok: linkedChoice?.ok !== true,
+      why: linkedChoice?.ok === true ? 'the choice was accepted' : `refused: ${String(linkedChoice?.reason ?? 'no such login')}`
+    });
+    await call(cdp, 'refreshUsage()');
+    reading = await call(cdp, 'read()');
+    record(report.attacks, 'the meter never reads a credential behind a link', gradeMeter(meterRow(reading, 'claude'), { login: null, plan: 'probedefault' }));
+    // AND NOTHING OUTSIDE THE ROOT WAS DELETED by any of those refusals.
+    record(report.attacks, 'the directory the link pointed at is untouched', {
+      ok: existsSync(join(linkedTarget, '.credentials.json')),
+      why: existsSync(join(linkedTarget, '.credentials.json')) ? 'its credential file is still there' : 'A REFUSAL DELETED SOMETHING OUTSIDE THE ROOT'
+    });
+    rmSync(linkedPath, { force: true });
+    writeFileSync(storePath, before, 'utf8');
+    await call(cdp, 'loadLogins()');
+    await call(cdp, "chooseLogin('claude', 'Work')");
+
     // 11. NOTHING ON A COMMAND LINE. Every pane the server holds, and the one
     //     variable a login sets, read out of tmux itself as a second source.
     try {
@@ -1360,7 +1412,10 @@ hits.push(...storeHits);
 report.sentinels = hits.map((h) => ({ file: h.file.replace(profile, '<profile>'), word: h.word.slice(0, 12) }));
 record(report.attacks, 'no synthetic token reached the profile, the manifest or a log', {
   ok: hits.length === 0,
-  why: hits.length === 0 ? 'the whole profile was scanned and holds none of the four' : `found in ${hits.map((h) => h.file).join(', ')}`
+  why:
+    hits.length === 0
+      ? `the whole profile was scanned and holds none of the ${String(Object.keys(SENTINEL).length)}`
+      : `found in ${hits.map((h) => h.file).join(', ')}`
 });
 
 const hashesAfter = credentialHashes();
