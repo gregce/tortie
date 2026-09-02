@@ -90,6 +90,21 @@ export interface UsageProviderSnapshot {
    * nothing rather than drawing a string nobody can read.
    */
   plan: string | null;
+  /**
+   * WHICH LOGIN THESE NUMBERS BELONG TO, by name, or null for the person's own
+   * default sign in (Phase 202).
+   *
+   * It is the login the read was actually made against, not the one that is
+   * chosen: those differ for exactly as long as it takes the next read to
+   * land, and during that gap the state is `stale`, so the card can say the
+   * numbers are the previous login's rather than draw them as current. That is
+   * the research 72 rule this phase inherits whole, being never lie across
+   * accounts.
+   *
+   * A NAME AND NEVER A DIRECTORY. A renderer has no use for the path and a
+   * value a renderer never sees cannot reach a screenshot or a report.
+   */
+  login: string | null;
   /** Milliseconds since epoch of the read the numbers came from; null if never. */
   readAt: number | null;
   /** Milliseconds since epoch before which a refresh is refused, or null. */
@@ -115,6 +130,7 @@ export function emptyUsageProvider(
     sevenDay: null,
     scoped: null,
     plan: null,
+    login: null,
     readAt: null,
     retryAfter: null
   };

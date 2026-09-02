@@ -188,6 +188,13 @@ interface Harness {
   now: number;
   on: UsageSettings;
   env: Record<string, string | undefined>;
+  /**
+   * PHASE 202. Which login this meter is on. `null`/`null` is the person's own
+   * default sign in, which is what every case here except the account rule
+   * uses and what every install has before a second login is added.
+   */
+  login: string | null;
+  loginDir: string | null;
 }
 
 function harness(over: Partial<Harness> = {}): Harness {
@@ -197,6 +204,8 @@ function harness(over: Partial<Harness> = {}): Harness {
     now: NOW,
     on: { claude: true, codex: false, bar: 'five-hour' } as UsageSettings,
     env: {} as Record<string, string | undefined>,
+    login: null as string | null,
+    loginDir: null as string | null,
     ...over
   } as Harness;
   const credentials: CredentialDeps = {
@@ -213,6 +222,10 @@ function harness(over: Partial<Harness> = {}): Harness {
       return { status: 200, body: CLAUDE_BODY, retryAfterAt: null };
     },
     settings: () => h.on,
+    // Phase 202: which login this meter is on. The default login's directory
+    // is the empty string on the wire, which is what a pane on the default
+    // login encodes for itself.
+    logins: () => ({ name: h.login, dir: h.loginDir }),
     now: () => h.now,
     log: () => undefined,
     onChanged: () => {
@@ -259,10 +272,23 @@ describe('rule 4 — never lie across accounts', () => {
     expect(claudeRow(h.service.current()).fiveHour).toBeNull();
   });
 
-  it('takes a post whose config dir is the one main reads its credential from', () => {
-    const h = harness({ env: { CLAUDE_CONFIG_DIR: '/Users/x/.claude-work/' } });
-    const same = goodBody({ cfg: tapConfigKey('/Users/x/.claude-work') });
+  // PHASE 202 CHANGED WHAT "THIS ACCOUNT" MEANS, and this pair is the change.
+  // The comparison used to be against Tortie's OWN process environment, which
+  // was right while there was exactly one account and became the wrong answer
+  // the moment a person can choose. It is now the CHOSEN LOGIN's directory.
+  it('takes a post from the chosen login own directory', () => {
+    const h = harness({ login: 'Work', loginDir: '/u/gmux/logins/claude/aa/' });
+    const same = goodBody({ cfg: tapConfigKey('/u/gmux/logins/claude/aa') });
     expect(h.service.applyTap('sess-1', same)).toBe('applied');
+    expect(claudeRow(h.service.current()).login).toBe('Work');
+  });
+
+  it('drops a post from the DEFAULT login while a second one is chosen', () => {
+    const h = harness({ login: 'Work', loginDir: '/u/gmux/logins/claude/aa' });
+    // A session started before the switch goes on posting, and its config dir
+    // is the default one, which the tap encodes as the empty string.
+    expect(h.service.applyTap('sess-1', goodBody())).toBe('account');
+    expect(claudeRow(h.service.current()).fiveHour).toBeNull();
   });
 });
 

@@ -106,6 +106,9 @@ function harness(over: Partial<Harness> = {}): Harness {
       return h.respond(req);
     },
     settings: () => h.on,
+    // Phase 202: the DEFAULT login, which is what every install has before a
+    // second one is added, so these cases read exactly what Phase 181 read.
+    logins: () => ({ name: null, dir: null }),
     now: () => h.now,
     log: (event) => h.logs.push(event)
   });
@@ -151,6 +154,8 @@ describe('THE NEGATIVE CONTROL: a switch that is off', () => {
       sevenDay: null,
       scoped: null,
       plan: null,
+      // Phase 202: the default login, which is what this harness reads.
+      login: null,
       readAt: null,
       retryAfter: null
     });

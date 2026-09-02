@@ -184,6 +184,8 @@ describe('what reaches the snapshot', () => {
         retryAfterAt: null
       }),
       settings: () => on,
+      // Phase 202: the default login.
+      logins: () => ({ name: null, dir: null }),
       now: () => NOW,
       log: () => undefined
     });

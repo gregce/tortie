@@ -51,6 +51,15 @@ vi.mock('../credentials', () => ({
     home: '/Users/example'
   })
 }));
+// PHASE 202. The meter reads the CHOSEN login, and this file drives the ipc
+// wiring rather than the service directly, so the store is stubbed at the
+// default login. That is what every install has before a second one is added,
+// and it is what makes the account rule below compare against the empty
+// string, which is how a pane on the default login encodes its own directory.
+vi.mock('../../logins', () => ({
+  loginsRoot: () => '/nowhere/gmux/logins',
+  effectiveLogin: () => ({ name: null, dir: null, fellBack: false, asked: null })
+}));
 vi.mock('../transport', () => ({
   httpsTransport: async () => ({ status: 200, body: '{}', retryAfterAt: null })
 }));

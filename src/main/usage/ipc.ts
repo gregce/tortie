@@ -23,6 +23,9 @@ import { handle } from '../typed-ipc';
 import { broadcastEvent } from '../typed-events';
 import { getLog } from '../log';
 import { getSettings } from '../settings/store';
+// PHASE 202. The chosen login per provider. Two pure file reads under
+// `<userData>/gmux/logins`; it opens no keychain and spawns nothing.
+import { effectiveLogin, loginsRoot } from '../logins';
 import { defaultCredentialDeps } from './credentials';
 import { createUsageService, type UsageService } from './service';
 import { httpsTransport } from './transport';
@@ -43,6 +46,22 @@ export function usageService(): UsageService {
       credentials: defaultCredentialDeps(),
       transport: httpsTransport,
       settings: () => getSettings().usage,
+      // PHASE 202. Which login each meter reads, resolved on every call so a
+      // choice made in the hover card is followed within one poll. A build
+      // with no logins file answers the default for both providers, which is
+      // exactly what Phase 181 read.
+      logins: (provider) => {
+        try {
+          const login = effectiveLogin(loginsRoot(), provider);
+          return { name: login.name, dir: login.dir };
+        } catch {
+          // A userData directory Tortie cannot read is a problem for the whole
+          // application rather than one the meter should fail on, and the
+          // honest answer here is the person's own default sign in, which is
+          // what every install has.
+          return { name: null, dir: null };
+        }
+      },
       now: () => Date.now(),
       log: (event, fields) => log.warn(event, fields),
       // Phase 182. A live tap moved the numbers and nobody asked, so every

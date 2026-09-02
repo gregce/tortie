@@ -146,15 +146,40 @@ function claudeLoginFrom(
  * measured. The file path is still read, because it is where a person who
  * turned the keychain off keeps it, but a reader that tries the file FIRST
  * and stops on a miss is the bug this order exists to prevent.
+ *
+ * PHASE 202 ADDED THE LOGIN AND TOOK AWAY A FALLBACK, and the second half is
+ * the one that matters. `loginDir` names the directory of a login a person
+ * added in Tortie, or null for their own default sign in.
+ *
+ *  - NULL, the default login: the plain service name, which is what a default
+ *    install actually has, plus the scoped one when Tortie's OWN process has a
+ *    `CLAUDE_CONFIG_DIR` set. This is exactly what Phase 181 did.
+ *  - A DIRECTORY, a second login: the SCOPED service name for that directory
+ *    and NOTHING ELSE, then that directory's own credentials file.
+ *
+ * The removal is the point. Falling through to the plain item for a second
+ * login would read the PERSON'S OWN default credential and draw its numbers
+ * under the second login's name, which is precisely the lie research 72
+ * section 4 forbids: never lie across accounts. So a second login that has not
+ * been signed into yet answers `missing`, which is the honest answer and the
+ * one that earns the sign in line.
+ *
+ * `missing` is also what a login answers between being added and being signed
+ * into. On macOS that sign in writes a KEYCHAIN ITEM rather than a file, so
+ * "Tortie reads nothing until the file exists" is more exactly "until the
+ * scoped item or the file exists", and both are asked here.
  */
 export async function readClaudeCredential(
-  deps: CredentialDeps
+  deps: CredentialDeps,
+  loginDir: string | null = null
 ): Promise<CredentialResult> {
-  const configDir = deps.env['CLAUDE_CONFIG_DIR'];
+  const own = deps.env['CLAUDE_CONFIG_DIR'];
   const services =
-    configDir !== undefined && configDir !== ''
-      ? [claudeScopedService(configDir), CLAUDE_KEYCHAIN_SERVICE]
-      : [CLAUDE_KEYCHAIN_SERVICE];
+    loginDir !== null && loginDir !== ''
+      ? [claudeScopedService(loginDir)]
+      : own !== undefined && own !== ''
+        ? [claudeScopedService(own), CLAUDE_KEYCHAIN_SERVICE]
+        : [CLAUDE_KEYCHAIN_SERVICE];
   for (const service of services) {
     const payload = await deps.keychain(service);
     if (payload === null) continue;
@@ -164,9 +189,11 @@ export async function readClaudeCredential(
     }
   }
   const dir =
-    configDir !== undefined && configDir !== ''
-      ? configDir
-      : join(deps.home, '.claude');
+    loginDir !== null && loginDir !== ''
+      ? loginDir
+      : own !== undefined && own !== ''
+        ? own
+        : join(deps.home, '.claude');
   const text = await deps.readText(join(dir, '.credentials.json'));
   if (text !== null) {
     const login = claudeLoginFrom(text);
@@ -186,10 +213,21 @@ export async function readClaudeCredential(
  * in, the other says there is no subscription window to show.
  */
 export async function readCodexCredential(
-  deps: CredentialDeps
+  deps: CredentialDeps,
+  loginDir: string | null = null
 ): Promise<CredentialResult> {
+  // PHASE 202. A login's own directory outranks Tortie's process environment,
+  // which outranks the vendor's default location. There is no fallback from a
+  // second login to the default one, for the reason the claude reader states:
+  // another account's numbers under this account's name is a lie rather than a
+  // stale value.
   const home = deps.env['CODEX_HOME'];
-  const dir = home !== undefined && home !== '' ? home : join(deps.home, '.codex');
+  const dir =
+    loginDir !== null && loginDir !== ''
+      ? loginDir
+      : home !== undefined && home !== ''
+        ? home
+        : join(deps.home, '.codex');
   const text = await deps.readText(join(dir, 'auth.json'));
   if (text === null) return { kind: 'missing' };
   const obj = parseJson(text);

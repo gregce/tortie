@@ -87,6 +87,17 @@ export interface UsageServiceDeps {
   transport: UsageTransport;
   /** What Settings says right now. Read on every call; never cached. */
   settings(): UsageSettings;
+  /**
+   * Which login each provider's meter reads right now (Phase 202). Read on
+   * every call and never cached, for the same reason Settings is: a person
+   * chooses a login between two polls and the meter has to follow it within
+   * one.
+   *
+   * `dir` null means the vendor's own default location, which is what every
+   * install has before a second login is added, so a build with no logins file
+   * answers exactly what Phase 181 answered.
+   */
+  logins(provider: UsageProviderId): { name: string | null; dir: string | null };
   now(): number;
   /** A provider name and a fixed sentence. NEVER a token, a body or a header. */
   log(event: string, fields: Record<string, unknown>): void;
@@ -148,6 +159,13 @@ interface Held {
   inFlight: Promise<void> | null;
   /** When a live tap post was last APPLIED, or null. Phase 182. */
   tapAt: number | null;
+  /**
+   * The login these numbers were read against, by name, or null for the
+   * default (Phase 202). It is compared with the CHOSEN login on every run:
+   * when they differ, what is held belongs to somebody else's plan and is
+   * marked stale rather than drawn as current.
+   */
+  loginName: string | null;
 }
 
 function freshHeld(): Held {
@@ -158,7 +176,8 @@ function freshHeld(): Held {
     lastAttemptAt: 0,
     retryAfter: null,
     inFlight: null,
-    tapAt: null
+    tapAt: null,
+    loginName: null
   };
 }
 
@@ -184,6 +203,7 @@ function viewOf(provider: UsageProviderId, held: Held): UsageProviderSnapshot {
     sevenDay: held.parsed.sevenDay,
     scoped: held.parsed.scoped,
     plan: held.parsed.plan,
+    login: held.loginName,
     readAt: held.readAt,
     retryAfter: held.retryAfter
   };
@@ -235,17 +255,21 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
   );
 
   async function credentialFor(
-    provider: UsageProviderId
+    provider: UsageProviderId,
+    loginDir: string | null
   ): Promise<CredentialResult> {
     return provider === 'claude'
-      ? readClaudeCredential(deps.credentials)
-      : readCodexCredential(deps.credentials);
+      ? readClaudeCredential(deps.credentials, loginDir)
+      : readCodexCredential(deps.credentials, loginDir);
   }
 
-  async function fetchProvider(provider: UsageProviderId): Promise<Outcome> {
+  async function fetchProvider(
+    provider: UsageProviderId,
+    loginDir: string | null
+  ): Promise<Outcome> {
     let cred: CredentialResult;
     try {
-      cred = await credentialFor(provider);
+      cred = await credentialFor(provider, loginDir);
     } catch {
       return { kind: 'unavailable' };
     }
@@ -361,7 +385,16 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
    * number, it is a false one, so it is dropped.
    */
   function selectedAccountDir(): string {
-    return normalizeConfigDir(deps.credentials.env['CLAUDE_CONFIG_DIR']);
+    // PHASE 202. The account this meter draws is the CHOSEN LOGIN's directory,
+    // and the empty string is the default one, which is how a pane on the
+    // default login encodes it too. Before this phase it was Tortie's own
+    // process environment, which was right while there was exactly one
+    // account and is the wrong answer the moment a person can choose. A post
+    // from a session on another login now fails this comparison and is
+    // dropped, which is the same refusal doing the same job against a case
+    // that can finally happen.
+    const chosen = deps.logins('claude').dir;
+    return normalizeConfigDir(chosen ?? '');
   }
 
   /**
@@ -415,6 +448,10 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     h.readAt = now;
     h.tapAt = now;
     h.state = 'ok';
+    // Phase 202. The post passed the account comparison a few lines above, so
+    // these numbers belong to the login this meter is on, and the snapshot
+    // says which one that is.
+    h.loginName = deps.logins('claude').name;
     // `lastAttemptAt` is deliberately NOT moved. It records when the endpoint
     // was last asked, and the suppression above is what keeps the poll away;
     // moving it too would push the first poll after a quiet tap out by a
@@ -447,6 +484,21 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         continue;
       }
       if (h.state === 'off') h.state = 'unavailable';
+      // PHASE 202. THE LOGIN MOVED, so what is held is another account's
+      // answer. It is marked STALE and made due at once rather than left on
+      // screen as current: the numbers stay visible under the warning glyph
+      // because a blank meter helps nobody, and the state is what stops them
+      // being read as this login's. The next successful read replaces both.
+      //
+      // `retryAfter` is deliberately not cleared. A wait the vendor asked for
+      // is not answered by a person choosing a different account, and the same
+      // vendor is being asked either way.
+      const login = deps.logins(provider);
+      if (h.loginName !== login.name) {
+        if (h.readAt !== null && hasAnything(h.parsed)) h.state = 'stale';
+        h.loginName = login.name;
+        h.lastAttemptAt = 0;
+      }
       if (h.inFlight !== null) {
         waits.push(h.inFlight);
         continue;
@@ -455,7 +507,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       // Claim the slot before awaiting, so two calls in the same tick make
       // one request rather than two.
       h.lastAttemptAt = now;
-      const job = fetchProvider(provider)
+      const job = fetchProvider(provider, login.dir)
         .then((outcome) => {
           applyOutcome(h, outcome, deps.now());
           if (outcome.kind !== 'ok') {
