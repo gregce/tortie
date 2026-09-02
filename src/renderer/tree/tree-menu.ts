@@ -95,6 +95,11 @@ export interface TreeMenuCapabilities {
 
 export interface TreeMenuActions {
   open(canonical: string, keep: boolean): void;
+  /**
+   * Phase 198. Open the file for keeps and show its history in the Source
+   * Control view's File history section, which follows the active tab.
+   */
+  history(canonical: string): void;
   newEntry(destDir: string, kind: 'file' | 'dir'): void;
   rename(canonical: string): void;
   duplicate(canonical: string): void;
@@ -175,6 +180,21 @@ export function buildTreeMenu(
         // A parent item never fires on macOS; the id that comes back is
         // always a leaf's.
         run: () => undefined
+      });
+    }
+    // PHASE 198. History sits with the openings because it IS one: the file
+    // opens for keeps and the sidebar switches to Source Control, where the
+    // File history section follows the tab that just opened. Under Open's
+    // own gate, one file and not a folder, because git follows one file. It
+    // is absent for a folder on another machine, because the walk runs git on
+    // this Mac against a repository that is not here.
+    if (!remote) {
+      items.push({
+        label: 'History',
+        // The mark the View menu's File History row wears, and the one the
+        // codicon set binds to a history.
+        ...menuGlyph('history'),
+        run: () => actions.history(canonical)
       });
     }
     items.push('sep');

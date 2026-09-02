@@ -13,6 +13,7 @@
 import { useCallback } from 'react';
 import type { OpenWithApps, OpenWithHandler } from '@shared/ipc';
 import { useApp } from '../state/store';
+import { useGitDepth } from '../scm/depth';
 import type { MenuItemSpec } from '../state/store';
 import { REMOTE_COPIED_WITH_MACHINE } from '../machines/explorer';
 import { showOneTimeTip } from '../app/one-time-tip';
@@ -224,6 +225,14 @@ export function useTreeMenu({
           open: (path, keep) => {
             openRel(path, keep);
             if (keep) showOneTimeTip('open-in-new-tab');
+          },
+          // PHASE 198. The tree's own open gesture, pinned, then the Source
+          // Control view, whose File history section follows the active tab
+          // and is asked to open if the person had collapsed it.
+          history: (path) => {
+            openRel(path, true);
+            useApp.getState().showSidebarView('scm');
+            useGitDepth.getState().revealFileHistory();
           },
           newEntry: (dir, kind) => ops?.newEntry(dir, kind),
           rename: (path) => ops?.startRename(path),

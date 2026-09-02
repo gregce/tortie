@@ -40,6 +40,7 @@ const OFF_ONLY = ['New Folder…', 'Rename…'];
 
 const actions: TreeMenuActions = {
   open: () => undefined,
+  history: () => undefined,
   newEntry: () => undefined,
   rename: () => undefined,
   duplicate: () => undefined,

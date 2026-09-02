@@ -46,6 +46,9 @@ import { openAimPicker } from '../arch/picker';
 import { openArchMapForActiveProject } from '../arch/open-map';
 // Phase 163: the report tab's one opener, shared with the Settings door.
 import { openDiagnosticsReport } from '../diagnostics/open-report';
+// Phase 198: the File history section's one reveal, shared with the Explorer
+// row's History item so the two gestures cannot drift.
+import { useGitDepth } from '../scm/depth';
 import { useQuickOpen } from '../quickopen/store';
 import { useSymbols } from '../search/symbols-store';
 import { gmuxBridge } from '../bridge';
@@ -256,6 +259,14 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'show-diagnostics':
       if (layerOpen) return;
       openDiagnosticsReport();
+      return;
+    // Phase 198. View > File History. The Source Control view, through the
+    // same door the ⌃⇧G chord takes, and then the File history section is
+    // asked to open. It follows the editor's active tab on its own.
+    case 'show-file-history':
+      if (layerOpen) return;
+      showViewAction('scm');
+      useGitDepth.getState().revealFileHistory();
       return;
     // Phase 64. Session > Aim at a Promise…. Same body as the ⌃⇧P keydown
     // branch, so the menu row and the chord cannot drift, which is the thing

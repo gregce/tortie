@@ -842,6 +842,13 @@ function buildTemplate(): MenuItemConstructorOptions[] {
         // SettingsApp.tsx:106 and the session row menu wears at
         // session-actions.tsx:508 for this same feature.
         item('Catch Me Up', 'show-overview', accel('view.overview'), 'comment'),
+        // PHASE 198. File History, under Catch Me Up and above the layout
+        // radios, because like Catch Me Up it is a row that is not a sidebar
+        // view of its own: it shows Source Control and opens the File history
+        // section there, which follows the file in front of the person. No
+        // accelerator, for the reason Clone Repository has none. `history`,
+        // the mark the Explorer row's History item wears for the same act.
+        item('File History', 'show-file-history', undefined, 'history'),
         { type: 'separator' },
         // NO MARK ON ANY OF THE FOUR RADIOS BELOW, argued twice over. A macOS
         // radio item already draws a state mark, so an icon would sit beside a

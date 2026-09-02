@@ -381,6 +381,8 @@ describe('Phase 156: every menu bar row wears the mark its own surface draws', (
   it('marks the rest of the View menu', () => {
     const view = submenuOf('View');
     expect(markOf(view, 'Catch Me Up')).toBe('comment');
+    // Phase 198. The row under it wears the Explorer row's own History mark.
+    expect(markOf(view, 'File History')).toBe('history');
     expect(markOf(view, 'Fill the Window')).toBe('screen-full');
     expect(markOf(view, 'Toggle Editor')).toBe('code');
     expect(markOf(view, 'Sessions That Need Input')).toBe('bell');

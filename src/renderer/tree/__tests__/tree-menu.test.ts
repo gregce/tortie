@@ -29,6 +29,7 @@ const ALL: TreeMenuCapabilities = {
 function actions(): TreeMenuActions {
   return {
     open: vi.fn(),
+    history: vi.fn(),
     newEntry: vi.fn(),
     rename: vi.fn(),
     duplicate: vi.fn(),
@@ -57,6 +58,7 @@ describe('a file row', () => {
     expect(labels(items)).toEqual([
       'Open',
       'Open in New Tab',
+      'History',
       'New File…',
       'New Folder…',
       'Rename…',
@@ -120,10 +122,11 @@ describe('Open With (Phase 39)', () => {
       actions(),
       submenu
     );
-    expect(labels(items).slice(0, 3)).toEqual([
+    expect(labels(items).slice(0, 4)).toEqual([
       'Open',
       'Open in New Tab',
-      'Open With'
+      'Open With',
+      'History'
     ]);
     const parent = items.find(
       (i): i is MenuItemSpec => i !== 'sep' && i.label === 'Open With'
@@ -272,6 +275,7 @@ describe('capability gating', () => {
     expect(items).toEqual([
       'Open',
       'Open in New Tab',
+      'History',
       'Reveal in Finder',
       'Copy Path',
       'Copy Relative Path'
@@ -344,5 +348,42 @@ describe('what the confirmations say', () => {
     expect(many).toContain('"a.ts", "b.ts", "c.ts"');
     expect(many).toContain('and 2 more');
     expect(many).toContain('Trash');
+  });
+});
+
+describe('History (Phase 198)', () => {
+  it('runs the history action for the one file the row names', () => {
+    const acts = actions();
+    const items = buildTreeMenu(
+      { canonical: 'src/app.tsx', selection: ['src/app.tsx'], destDir: 'src/', openable: true },
+      ALL,
+      acts
+    );
+    const row = items.find(
+      (i): i is MenuItemSpec => i !== 'sep' && i.label === 'History'
+    );
+    row?.run();
+    expect(acts.history).toHaveBeenCalledWith('src/app.tsx');
+  });
+
+  it('is absent for a folder, a multi-row selection and a row that cannot open', () => {
+    const folder = buildTreeMenu(
+      { canonical: 'src/', selection: ['src/'], destDir: 'src/', openable: true },
+      ALL,
+      actions()
+    );
+    const many = buildTreeMenu(
+      { canonical: 'a.ts', selection: ['a.ts', 'b.ts'], destDir: '', openable: true },
+      ALL,
+      actions()
+    );
+    const socket = buildTreeMenu(
+      { canonical: 'a.sock', selection: ['a.sock'], destDir: '', openable: false },
+      ALL,
+      actions()
+    );
+    expect(labels(folder)).not.toContain('History');
+    expect(labels(many)).not.toContain('History');
+    expect(labels(socket)).not.toContain('History');
   });
 });
