@@ -20203,6 +20203,105 @@ measured the shipping cut at 62 percent useful sentences and the reading partiti
 - **No layer 3 and no default flip.** That is the next phase, Tier 3, with its own named methods.
 - **No menu change, no new package.**
 
+## Phase 203: a login is an account, and the menu tells the truth (operator reported 2026-09-02)
+
+**Subject.** `fix(logins): a login says whose it is, and a signed in one says so`
+
+**First body line.** `Phase 203: a login is an account`
+
+**Semver.** PATCH for the first defect, MINOR for the identity the surfaces gain. Declared MINOR.
+
+**Tier 3.** It reads the person's own credential store to decide what a surface says, and a wrong
+answer sends a turn to the wrong plan, which is the same reason Phase 202 was Tier 3. The evidence
+is the per row matrix over real logins plus an attack, and the byte identity proof of his three
+credential files stands unchanged.
+
+**Charter.** He reported it on 2026-09-02, in his words: *"it open up a claude, then opens up a
+website and then the session dies and it doesn't login"*, and then *"we should, ideally be able to
+detect or rename what default is or maybe just remove it, cause like right now i'm logged into
+greg@itavero.software but default isn't actually mapped to that in tortie"*.
+
+### What was measured on his machine, before anything was written
+
+Both defects are already reproduced, and the sign in he thought failed had SUCCEEDED.
+
+- His added login sits at `<userData>/gmux/logins/claude/3215d54b2ba60318/` and holds a
+  `.claude.json` the vendor wrote. It holds no `.credentials.json`, because on macOS the credential
+  is a keychain item.
+- The keychain holds `Claude Code-credentials-695bee03`. `claudeScopedService` over that exact
+  directory returns `Claude Code-credentials-695bee03`. The scoped naming rule in
+  `src/main/usage/credentials.ts` is CORRECT and is now measured rather than assumed, which the
+  comment there says it was not.
+- `CLAUDE_CONFIG_DIR=<that dir> claude auth status` answers `loggedIn: true`, `subscriptionType:
+  max`. The login works.
+- The menu says `Not signed in yet` anyway, because `credentialFilePresent` in
+  `src/main/logins/store.ts` asks for a FILE and nothing fills the keychain half in for the list.
+  The comment above it already admits the file answer is half, and names the usage domain as the
+  caller that completes it; the menu is not that caller, so on macOS every added claude login reads
+  as never signed in, for ever.
+- `claude auth status` with no override prints `email: greg@itavero.software`, the org name and
+  `max`, and `~/.claude.json` carries the same address under `oauthAccount.emailAddress`. So the
+  default login's identity is knowable, cheaply, with no token spent and no secret read.
+- The freshly added directory has NO email yet: its `.claude.json` holds eight keys and no
+  `oauthAccount`. The address appears after the account has been used, not at sign in.
+- `codex login status` prints `Logged in using ChatGPT` and no address at all.
+
+### What it builds
+
+- **The list asks the whole question.** `logins:list` answers `present` for claude from the
+  credential reader the meter already uses, so the keychain half is filled in before any surface
+  draws. The cheap file only function stays for the paths that must spawn nothing, and the one
+  surface that may not lie is the menu.
+- **A finished sign in says it finished.** The sign in session runs one command that exits, so the
+  pane closing is correct and only looks like a crash. The session ends with a line naming the
+  login and whether a credential now exists, and the menu behind it is refreshed, so the answer is
+  on screen rather than inferred.
+- **A login is drawn as its account.** Each row draws the email when one is known, with the name as
+  the secondary word, and the default row draws its email too. `Default` stays as the reserved
+  MANIFEST key and stops being a label. A row with no email yet draws the name it was given and says
+  the account is not known yet, which is the honest answer for a login that has never run a turn.
+- **The default row is marked as the one Tortie does not own**, in one short phrase, because that is
+  the whole ownership rule and it is what stops a person expecting Remove on it.
+- **No rename.** The name is the manifest key, and a rename would strand the rows of every session
+  that carries it. The entry records this refusal so a later round does not add one for convenience.
+
+### What it must get right
+
+- **The identity read spawns at most one short lived vendor command per login per refresh**, it
+  never runs on a keystroke, and its failure is a row that says the account is not known rather than
+  a row that disappears or a surface that hangs.
+- **No token byte** in any file, log, manifest row, argv or report, and the address is treated as
+  the person's own data: it is drawn and never sent anywhere.
+- **His three credential files stay byte identical** across the whole run, proved by hash before and
+  after, exactly as Phase 202 proved them.
+- **Codex keeps parity where it can.** It reports no address, so its rows draw the name and say the
+  account is not known, and the phase states that limit rather than inventing an identity.
+- **The confirm hash does not move.** Nothing here changes what runs.
+
+### Proof, run rather than read
+
+- **`npm run conformance:logins` gains the presence rule**: a login whose credential exists only in
+  the keychain reads as present, one with neither reads as absent, and the scoped service name is
+  derived from the directory by the shipping function over a fixture. Red one clause at a time under
+  ablation.
+- **Real data, the per row matrix**: his default login and the Itavero login that already exists,
+  each read for presence and identity, with the answers compared against `claude auth status` run by
+  the verifier itself with its own argv.
+- **Attack**: a login directory whose keychain item is missing, one whose vendor command times out,
+  one whose status output is not JSON, an email field holding markup, a name that collides with an
+  email, and the sign in session killed halfway.
+- One app run driving the menu, the card and the Settings list, reading every row off the DOM.
+- The battery, with `gate:contract` green on the regenerated baseline if the snapshot shape moves.
+
+### What is NOT in this phase
+
+- **No rename of a login**, for the manifest reason above.
+- **No removal of the default login concept.** It is the vendor's own location and it is what a
+  fresh install has.
+- **Tortie still never writes a credential**, never moves one between the keychain and a file, and
+  never signs anybody in. Phase 202's refusals all stand.
+- No new provider, no per project login, no switching of a running session.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -20546,3 +20645,4 @@ cycle rather than only the evening it was written.
 - 2026-09-02, Phase 202 STARTED in a detached worktree at `9b2aec5`, the account under the meter: a login is a directory Tortie owns and only the vendor CLI writes, the default login read only forever, choosing a login from the meter hover card sets CLAUDE_CONFIG_DIR or CODEX_HOME on new sessions and the meter read, the manifest carries the login name and never a path or token, running sessions keep their login, one gate conformance:logins, the matrix run over a fixture second login with his credential files proved byte identical by hash, no agent ever signs in for him.
 - 2026-09-02, Phase 202 FIX ROUND at `ffac235` on the worktree, the verifier's needs_work at `cb50406` answered in four commits, each finding reproduced against the shipping modules before a line changed: FINDING 1, BLOCKING, a login directory that is a SYMLINK out of the owned root was accepted everywhere, because `isOwnedLoginDir` compares resolved strings and `resolve` does not follow a link, so a planted entry named by sixteen hex characters answered owned, was kept, was LISTED with `present: true`, which is Tortie following the link out of its own data to find a credential, and `effectiveLogin` handed the link back as the directory a launch puts on the pane as `CLAUDE_CONFIG_DIR`, which carries claude's settings, hooks, skills, plugins and agents with it and is refusal 8 exactly; FIXED by a second question asked of the disk, `loginDirOnDisk` answering ok, absent or escapes, `lstat` on the entry, the provider root and the logins root so a link in any component Tortie composes is refused rather than followed, then the real paths compared, asked at the read where the row is dropped WHOLE with the field and the reason named, at the resolver in place of the `existsSync` that followed the link, and in front of the credential file test, with `absent` deliberately still meaning the ordinary fallback that names the login it could not honour, and the string rule left standing in front of the mkdir and the rmSync because the verifier measured that half safe; FINDING 2, BLOCKING, a vendor read left in flight across a login switch drew one account's numbers under the other account's name marked current and then sat there for a full poll, measured at the parent at 11 where the new login's number is 77, one request served, no second issued, and the next read serving nothing; FIXED by carrying the login a fetch was issued for into its answer, dropping an outcome whose login no longer matches before `applyOutcome` so `lastAttemptAt` is not moved either and the row stays due, and by never waiting on a request issued for a login the meter has left; FINDING 3, MINOR, `USAGE_LOGIN_SWITCHING` was exported and drawn nowhere, now drawn in the stale mark's place through a `loginChanged` field, because `Last read failed` is a false sentence about a person who has just chosen another account; the proofs are the ones the phase names, being conformance:logins extended with four planted links and two new ablations, 6 of 6 red under ablation, two service tests that go red with the guard removed, and the app run `npm run probe:p202` with a link planted before Tortie next reads its store, 44 readings all green at HEAD and three of the new five red at the parent's own logins modules, being the row reaching the list, `present: true` and the meter drawing the planted login; his three credential files byte identical across both app runs, the keychain payload hash unchanged, `~/.codex/auth.json` unchanged and `~/.claude/.credentials.json` absent before and after, and no sentinel in the profile, the manifest, a log or any pane command line; battery from a clean cache: typecheck 0, build 0 with gate:contract byte identical and no baseline line moved, npm test 11644 passed 2 skipped, smoke:t1 0, smoke:t3 0, conformance:logins 0, conformance:agents 0, conformance:resume:capture PASS, no menu change and the surfaces are the same ones; no Electron and no tmux server of the round left running, two orphaned crashpad handlers from the harness reaped by pid.
 - 2026-09-02, Phase 202 LANDED on `8773a3a` at version 0.98.0 with NO bump, the declared semver being MINOR and the version moving in its own build(version) commit at the next release, the account under the meter, fifteen commits from `d751a0f` rebased onto `84ace7b` and pushed as `8773a3a`: A PERSON CAN NOW hover the usage meter and read, per provider, the plan and the LOGIN it is reading, press Choose login and pick another account of his own or Add login, which makes an EMPTY folder Tortie owns under `<userData>/gmux/logins/<provider>/<id>/` and opens ONE ORDINARY SESSION running the vendor's own sign in command so that HE signs himself in, in his own terminal, with Tortie reading nothing until the vendor has written something and Tortie never writing a credential itself, refusal 8 intact; a NEW session of that agent then launches with CLAUDE_CONFIG_DIR or CODEX_HOME pointed at that folder, the meter follows it, the manifest row carries the login by NAME and never a path and never a token, restore resolves the name again and falls back to the default with the sentence "came back on the default login." when the folder is gone, anything already running stays on the login it started with and the card says so, and Settings then Agents removes a login by deleting ONLY Tortie's own folder while his default sign in at the default location is READ ONLY forever; THE MATRIX, the verifier's own drive, 51 of 51: a default login session gets NO login layer from Tortie at all, tmux holding only `GMUX_SESSION_ID`, the pane inheriting the launch's own directory and `login` NULL on the row, while a second login session carries the owned directory in tmux's own session environment, in the pane read back from the pane env, and by name on the manifest row, for claude and for codex alike; the meter followed a choice within ONE ORDINARY POLL for both, 11 to 77 for claude and 12 to 78 for codex, an ordinary read being refused by the fifteen minute interval so it answered because the login moved; the card read off the DOM said "Claude / V202work plan / Login: Verifier / 77% 5h / 87% wk / 1 session on Default / Choose login" with the same shape for Codex; a switch to a login the vendor will not answer left the previous numbers marked STALE and never current and the card said "Reading the new login" rather than "Last read failed"; restore after the tmux server that held them was gone brought both second login sessions back under their own login, read two ways from tmux and by asking the restored pane itself, and the default one back with no layer; remove deleted only Tortie's folder, refused the default, and a new session then ran on the default; THE ATTACKS: a login directory that is a SYMLINK out of the owned root is dropped whole at the read with the field and the reason named, which is the fix round's blocking finding measured against the parent, at `cb50406` it listed `present: true`, could be chosen and reached a pane as CLAUDE_CONFIG_DIR while at HEAD it lists empty with two named problems and no effective login, and since that variable carries claude's settings, hooks, skills, plugins and agents a writer of that directory would otherwise have decided what runs with no human confirming the bytes; a climbing id and an absolute id dropped the same way, eight hostile names refused with no directory made for any of them, a switch mid launch left the row, tmux and the pane all agreeing on one login, the chosen directory deleted under a RUNNING session did not kill it and the meter fell back to the default and never to another account, a status line post from the chosen login moved the meter to 71 while a post from a session on ANOTHER login, a post naming a directory Tortie does not own, and the losing half of two logins posting at once were each dropped, and a manifest row naming a login that never existed restored on the default with its sentence; THE RE-DERIVATION: the confirm hash re-derived from the REAL manifest rather than from a gate, `env` empty on every row including both second login rows, `login` a bare name, and `argv` and `resume_argv` differing from the default login rows only in the per session uuid, so a login choice cannot move the hash structurally, with six ablations of the verifier's own all red, two of which the gate does not carry; HIS CREDENTIALS BYTE IDENTICAL, hashed before the first action and after the last, `~/.codex/auth.json` sha256 `3d738ba414d2a884f71feedf1f21c3d6afb9be4f5bff64ee782783e901c3b73a` before and after, the `Claude Code-credentials` keychain payload sha256 `c3cac18347726e7b2c87b59db289ea807dfc7ba9da1907524e402018e462cbaf` before and after, `~/.claude/.credentials.json` absent before and after, nobody signed in, no login flow started, no token spent, and NO TOKEN BYTE anywhere, proved by 3,232 distinct 16 byte needles from 6 high entropy secret values scanned over 4,498 files and 279,141,993 bytes of both scratch profiles, both manifests, `out/` and the worktree's `src`, `build` and `docs`, ZERO HITS; THE BASELINE moved by 11 lines added and 5 removed in the same commits that changed the contract, being the four `logins:*` channels taking the invoke count from 217 to 221 in `663b47b`, `user_version` 17 to 18 with migration `018-login` and the sessions table gaining its `login` column in `b3f6e8b`, and env names 96 to 97 for `GMUX_USAGE_FIXTURE`; THE GATE is `npm run conformance:logins`, about 1 s, launching no Electron, starting no tmux server, spawning nothing and reading nothing under his home, which scans 6 files and finds 1 deletion call naming no default location, proves its own scanner on 7 of 7 fixtures, drives 13 ownership shapes through the SHIPPING store with 6 rows dropped whole, pins the confirm hash `72a77146867c` before and after a login choice, and goes red under 6 of 6 ablations; THE MENUS: `src/main/menu.ts` is untouched and that is argued in the commit body rather than omitted, because the one surface added is a step inside the meter's own control, a login belongs to a provider and the menus carry no provider context, and Settings, which lists them, is already one row under the app menu, while the login control itself is NATIVE through the `ui:popupMenu` bridge and `login-menu.ts` draws no DOM menu on any path; THE BATTERY from a clean cache after the rebase: typecheck 0, build 0 with `gate:contract` byte for byte against the baseline, `npm test` 11,644 passed 2 skipped 0 failed, `smoke:t1` 6 of 6, `smoke:t3` 3 of 3 over a claude and a non claude restore, `conformance:agents` PASS, `conformance:resume:capture` 7 PASS 0 FAIL 0 BLOCKED, `conformance:logins` OK, `git status` clean and NO TAG; WHAT IS STILL NOT TRUE, stated rather than left to be found: choosing a login triggers no read of its own, so the numbers under that line are the previous login's until the next poll or a press of Refresh, and the claude conversation store moves with CLAUDE_CONFIG_DIR, so Catch Me Up, the Context view and SpecStory capture still read the DEFAULT location for a session on a second claude login, which a later phase can take through the context environment the way this phase takes it through the harvest.
+- 2026-09-02, Phase 203 QUEUED, a login is an account: he reported that Add login opens claude, opens a website and the session dies without logging in, and that `Default` is not mapped to the account he is actually signed in as. Both were measured before queueing: the sign in HAD succeeded, the keychain item `Claude Code-credentials-695bee03` matches `claudeScopedService` over his login directory exactly, and `claude auth status` there answers logged in on max, while the menu says Not signed in yet because the list asks for a credential FILE that macOS never writes. The default account is knowable too, `greg@itavero.software` from `claude auth status` and from `oauthAccount` in `~/.claude.json`. The phase makes the list ask the whole question, has a finished sign in say so, draws every login as its account with `Default` kept as the reserved manifest key and dropped as a label, and refuses a rename because the name is the manifest key.
