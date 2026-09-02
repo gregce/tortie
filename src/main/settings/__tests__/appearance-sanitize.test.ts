@@ -288,9 +288,13 @@ describe('the custom family (Phase 174)', () => {
     const BOM = String.fromCharCode(0xfeff);
     const WJ = String.fromCharCode(0x2060);
     const LS = String.fromCharCode(0x2028);
+    // Phase 197 item 10: U+061C is the one Bidi_Control character outside the
+    // two ranges, and at the parent commit it survived the sanitizer whole.
+    const ALM = String.fromCharCode(0x061c);
     const INVISIBLE =
-      /[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/;
+      /[\u061C\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/;
     const attacks: string[] = [
+      `Men${ALM}lo`,
       `Men${RLO}lo`,
       `${RLO}Menlo${PDF}`,
       `${LRO}Berkeley Mono`,

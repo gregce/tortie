@@ -431,9 +431,12 @@ export function sanitizeWorkAreaFontCustom(value: unknown): string {
     // backwards, and a zero width character would make two different rows look
     // identical. Neither can be seen, so neither can be judged. This is the
     // bidi set, the zero width set, the line and paragraph separators and the
-    // byte order mark.
+    // byte order mark. Phase 197 item 10 closed the one gap in the bidi set:
+    // U+061C, the Arabic letter mark, is the only character with Unicode's
+    // Bidi_Control property outside the two ranges below, and it walked
+    // through the first version whole.
     .replace(
-      /[\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/g,
+      /[\u061C\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/g,
       ''
     )
     // Quotes, backslash, and the structural punctuation a family never holds:
