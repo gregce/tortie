@@ -1,8 +1,8 @@
 /**
  * Terminal theme — DESIGN.md §1.6 palette as the shipped constant, with the
- * canvas/foreground/cursor colors re-resolved from CSS custom properties at
- * mount so the terminal and the app chrome stay one material (§0: identical
- * background). Tokens land in src/renderer/styles/tokens.css (design
+ * canvas colour re-resolved from CSS custom properties at mount so the
+ * terminal and the app chrome stay one material (§0: identical background).
+ * The foreground and the cursor are constants and read no token (Phase 195). Tokens land in src/renderer/styles/tokens.css (design
  * stream); until then the constants below ARE the sane dark defaults.
  */
 
@@ -158,6 +158,10 @@ function cssVar(styles: CSSStyleDeclaration, name: string): string | undefined {
  * one terminal color that belongs to the highlight family. The ANSI palette,
  * foreground, cursor and background stay put; the constant keeps its bytes,
  * so the capture path and the workers are unchanged.
+ *
+ * Phase 195 (research 75, C10): the cursor is the constant above and reads
+ * no token. It belongs to the work and never follows the chrome ramp, so a
+ * chrome that steps down leaves the cursor where the transcript is.
  */
 export function resolveTerminalTheme(): ITheme {
   const styles = getComputedStyle(document.documentElement);
@@ -165,7 +169,7 @@ export function resolveTerminalTheme(): ITheme {
     ...terminalTheme,
     background: cssVar(styles, '--bg-canvas') ?? terminalTheme.background,
     cursorAccent: cssVar(styles, '--bg-canvas') ?? terminalTheme.cursorAccent,
-    cursor: cssVar(styles, '--text-primary') ?? terminalTheme.cursor,
+    cursor: terminalTheme.cursor,
     selectionBackground:
       cssVar(styles, '--terminal-selection') ?? terminalTheme.selectionBackground
   };
