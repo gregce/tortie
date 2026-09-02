@@ -14,6 +14,7 @@ import {
   languagePhrase,
   madeOf,
   nameOf,
+  plainNameOf,
   repositoryLine,
   sentenceOf,
   wiring,
@@ -120,6 +121,15 @@ describe('rule N, the name', () => {
     expect(nameOf(box(f, 'server'))).toBe('server (rookery-server)');
     const same = facts([...six, ...source('cli/src', 6), 'cli/package.json'], [], { declares: [['cli/package.json', 'cli']] });
     expect(nameOf(box(same, 'cli'))).toBe('cli');
+  });
+
+  it('keeps a bracket that belongs to the directory when a partner names it', () => {
+    const f = facts([...six, ...source('app (old)', 5)], [fp('one/f00.ts', 'app (old)/f00.ts')]);
+    expect(nameOf(box(f, 'app-old'))).toBe('app (old)');
+    expect(plainNameOf(box(f, 'app-old'))).toBe('app (old)');
+    const named = facts([...six, ...source('server/src', 6), 'server/package.json', 'README.md'], [], { declares: [['server/package.json', 'rookery-server']] });
+    expect(plainNameOf(box(named, 'server'))).toBe('server');
+    expect(plainNameOf(box(named, 'other'))).toBe('everything else');
   });
 
   it('calls the fold everything else', () => {

@@ -124,13 +124,17 @@ export function languagePhrase(
   return `${lead.name} and other files`;
 }
 
+/** The directory a box is named for: its own, or the deeper one every file shares. */
+function labelDirOf(box: ArchReadingBox): string {
+  return box.commonDir !== '' && box.commonDir !== box.dir && box.commonDir.startsWith(box.dir)
+    ? box.commonDir
+    : box.dir;
+}
+
 /** Rule N, the name: the directory, plus the declared name in brackets when it differs. */
 export function nameOf(box: ArchReadingBox): string {
   if (box.id === READING_FOLD_ID) return READING_FOLD_LABEL;
-  const dir =
-    box.commonDir !== '' && box.commonDir !== box.dir && box.commonDir.startsWith(box.dir)
-      ? box.commonDir
-      : box.dir;
+  const dir = labelDirOf(box);
   const root = box.declared.find(
     (d) => d.name !== null && d.path.split('/').length === dir.split('/').length + 1
   );
@@ -140,9 +144,13 @@ export function nameOf(box: ArchReadingBox): string {
   return dir;
 }
 
-/** The name with any bracket dropped, which is what a partner is called. */
+/**
+ * The name without the declared name, which is what a partner is called.
+ * Built from the directory rather than by stripping a bracket off the label,
+ * so a directory called `app (old)` keeps its own bracket.
+ */
 export function plainNameOf(box: ArchReadingBox): string {
-  return nameOf(box).replace(/ \(.*\)$/, '');
+  return box.id === READING_FOLD_ID ? READING_FOLD_LABEL : labelDirOf(box);
 }
 
 const n = (value: number): string => value.toLocaleString('en-US');
