@@ -91,6 +91,7 @@ import { RemoteBranchSection } from './RemoteBranchSection';
 import { RemoteHistorySection } from './RemoteHistorySection';
 import { RemoteRunsSection } from './RemoteRunsSection';
 import { HistorySection } from './HistorySection';
+import { FileHistorySection } from './FileHistorySection';
 import { BranchesView } from './BranchesView';
 import { RunsSection } from './RunsSection';
 import { usePersistedBool, useSectionDrag, useSectionOrder } from './sections';
@@ -135,6 +136,10 @@ import { gmuxBridge } from '../bridge';
 const SCM_SECTION_IDS = [
   'changes',
   'history',
+  // PHASE 198. One file's history, directly under History. A stored order
+  // that predates it gets it HERE rather than last, because sanitizeOrder
+  // now places a missing id after its default predecessor.
+  'fileHistory',
   'branches',
   'runs',
   // PHASE 63. A person whose stored order predates this keeps that order and
@@ -148,6 +153,7 @@ type ScmSectionId = (typeof SCM_SECTION_IDS)[number];
 const SCM_SECTION_LABELS: Record<ScmSectionId, string> = {
   changes: 'Changes',
   history: 'History',
+  fileHistory: 'File history',
   branches: 'Branches',
   runs: 'Runs',
   // Phase 63. Promises the code broke, each naming the file and the line, so
@@ -1903,6 +1909,11 @@ export function ScmSection(): React.JSX.Element | null {
   const sections: Record<ScmSectionId, React.ReactNode> = {
     changes: changesSection,
     history: isRepo ? <HistorySection key={repoPath} repoPath={repoPath} /> : null,
+    // Phase 198. Follows the editor's active tab; empty and collapsed while
+    // no file of this repository is open.
+    fileHistory: isRepo ? (
+      <FileHistorySection key={`fh-${repoPath}`} repoPath={repoPath} />
+    ) : null,
     branches: isRepo ? (
       <BranchesView key={`branches-${repoPath}`} repoPath={repoPath} />
     ) : null,

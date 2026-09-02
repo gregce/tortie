@@ -69,8 +69,15 @@ import { GRAPH_SCOPE_ATTR, rowColumns } from './graph/geometry';
 import { GraphGutterControl, useGraphGutter } from './GraphGutterControl';
 import { capRow, gutterColumns, layoutGraph, makeRoleResolver } from './graph';
 import type { CappedRow, GraphLayout, GraphRow } from './graph';
-import { formatRelative, fullMessage, shortSha, splitPath } from './format';
-import { requestOpenFile } from './open-file';
+import {
+  formatRelative,
+  fullMessage,
+  renamedFromTitle,
+  shortSha,
+  splitPath
+} from './format';
+import { fileBadge } from './file-badge';
+import { requestCommitFileOpen } from './open-commit-file';
 import { usePersistedBool } from './sections';
 import {
   badgesFromRefs,
@@ -113,30 +120,6 @@ function syncNoteFor(
 // ---------------------------------------------------------------------------
 // Commit-file rows (inline expansion)
 // ---------------------------------------------------------------------------
-
-function fileBadge(status: GitCommitFileChange['status']): {
-  letter: string;
-  cls: string;
-  word: string;
-} {
-  switch (status) {
-    case 'A':
-      return { letter: 'A', cls: 'scm-badge-added', word: 'added' };
-    case 'D':
-      return { letter: 'D', cls: 'scm-badge-deleted', word: 'deleted' };
-    case 'R':
-      return { letter: 'R', cls: 'scm-badge-renamed', word: 'renamed' };
-    case 'C':
-      return { letter: 'C', cls: 'scm-badge-renamed', word: 'copied' };
-    case 'U':
-      return { letter: '!', cls: 'scm-badge-conflict', word: 'conflicted' };
-    case 'M':
-    case 'T':
-    case 'X':
-    default:
-      return { letter: 'M', cls: 'scm-badge-modified', word: 'modified' };
-  }
-}
 
 // ---------------------------------------------------------------------------
 // The section
@@ -439,21 +422,7 @@ export function HistorySection({
    */
   const openCommitFile = useCallback(
     (file: GitCommitFileChange, entry: GitLogEntry, preview = true): void => {
-      requestOpenFile({
-        repoPath,
-        relPath: file.path,
-        path: `${repoPath}/${file.path}`,
-        mode: 'diff',
-        source: 'history',
-        preview,
-        commit: {
-          sha: entry.hash,
-          shortSha: shortSha(entry.hash),
-          status: file.status,
-          ...(file.origPath !== undefined ? { origPath: file.origPath } : {}),
-          subject: entry.subject
-        }
-      });
+      requestCommitFileOpen(repoPath, file, entry, preview);
     },
     [repoPath]
   );
@@ -858,7 +827,7 @@ export function HistorySection({
                       className={`scm-hfile${cursor === fid ? ' selected' : ''}`}
                       title={
                         file.origPath !== undefined
-                          ? `${file.path} — renamed from ${file.origPath}`
+                          ? renamedFromTitle(file.path, file.origPath, file.status)
                           : file.path
                       }
                       onClick={(e) => {

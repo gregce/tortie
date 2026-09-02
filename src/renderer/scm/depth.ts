@@ -141,10 +141,45 @@ export interface RepoDepthState {
   syncOp: 'push' | 'pull' | 'sync' | 'publish' | null;
 }
 
+/**
+ * Phase 198. One file's history window, the shape of the per repository one
+ * above with the parts a single file has no use for left out: no ref pinning,
+ * because the followed walk draws no lanes, and no divergence, because the
+ * header above it already says where the branch stands.
+ */
+export interface FileHistoryState {
+  /** Followed rows, newest first (null = never loaded). */
+  rows: GitGraphLogEntry[] | null;
+  loading: boolean;
+  /** Current page window (grows by HISTORY_PAGE via loadMoreFile). */
+  limit: number;
+  hasMore: boolean;
+  /**
+   * The one sentence the walk refused with, or null. A folder under follow
+   * and a path outside the repository both land here rather than in a toast,
+   * because the section is where the person is looking.
+   */
+  error: string | null;
+}
+
+/** How many file windows are kept before the oldest is dropped. */
+const FILE_WINDOWS_KEPT = 8;
+
+/** Key of one file's window. NUL separates, the byte a path cannot hold. */
+export const fileHistoryKey = (repoPath: string, relPath: string): string =>
+  `${repoPath}\0${relPath}`;
+
 interface DepthState {
   repos: Record<string, RepoDepthState>;
   /** Commit details keyed `${repoPath}\0${sha}` (hover card cache). */
   details: Record<string, GitCommitDetail>;
+  /** Phase 198. File history windows keyed by `fileHistoryKey`. */
+  files: Record<string, FileHistoryState>;
+  /**
+   * Phase 198. Bumped by View then File History so the section un-collapses
+   * itself; the number carries no meaning beyond having changed.
+   */
+  fileHistoryReveal: number;
 
   /**
    * First load for a repo (log + branches + remote) — idempotent.
@@ -168,6 +203,15 @@ interface DepthState {
   setLogScope(repoPath: string, scope: GitLogScope): Promise<void>;
   /** Cached commit detail; resolves null on failure (toast already shown). */
   detail(repoPath: string, sha: string): Promise<GitCommitDetail | null>;
+
+  // -- Phase 198: one file's history --------------------------------------
+
+  /** First load of one file's followed walk; idempotent while it holds rows. */
+  ensureFile(repoPath: string, relPath: string): void;
+  /** Grow that file's window by HISTORY_PAGE and refetch. */
+  loadMoreFile(repoPath: string, relPath: string): Promise<void>;
+  /** Ask the File history section to open, wherever it is. */
+  revealFileHistory(): void;
 
   /** `git checkout <branch>` with toast feedback + status refresh. */
   checkoutBranch(repoPath: string, branch: string): Promise<void>;
@@ -333,10 +377,77 @@ export const useGitDepth = create<DepthState>((set, get) => {
     // One debounce for every surface (state/repo-changed.ts) — this store's
     // own 250 ms window was why History reloaded 50 ms after Changes cleared.
     onRepoChanged((repoPath) => {
+      // Phase 198. A file window is re-read on the same beat as the log, so
+      // the section under History cannot say something the section above
+      // stopped saying. Unknown repos are free here too.
+      for (const key of Object.keys(get().files)) {
+        if (key.startsWith(`${repoPath}\0`)) {
+          void fetchFile(repoPath, key.slice(repoPath.length + 1));
+        }
+      }
       // Only repos the history UI has ensured — unknown paths are free.
       if (get().repos[repoPath] === undefined) return;
       void get().refresh(repoPath);
     });
+  };
+
+  const emptyFile: FileHistoryState = {
+    rows: null,
+    loading: false,
+    limit: HISTORY_PAGE,
+    hasMore: false,
+    error: null
+  };
+
+  const patchFile = (key: string, patch: Partial<FileHistoryState>): void => {
+    set((s) => {
+      const files = { ...s.files, [key]: { ...(s.files[key] ?? emptyFile), ...patch } };
+      // Bounded: the oldest window goes when one too many are held. Record
+      // keys keep insertion order, so the first key is the oldest.
+      const keys = Object.keys(files);
+      if (keys.length > FILE_WINDOWS_KEPT) {
+        const oldest = keys.find((k) => k !== key);
+        if (oldest !== undefined) delete files[oldest];
+      }
+      return { files };
+    });
+  };
+
+  /**
+   * One page of one file's followed walk. Always `follow: true`: the section
+   * only ever follows a file, and a folder is refused by the service with the
+   * sentence the section then draws. The scope is the repository's own, so
+   * the list under History cannot cover refs the list above does not.
+   */
+  const fetchFile = async (repoPath: string, relPath: string): Promise<void> => {
+    const bridge = depthBridge();
+    if (typeof bridge?.graphLog !== 'function') return;
+    const key = fileHistoryKey(repoPath, relPath);
+    const win = get().files[key] ?? emptyFile;
+    const scope = (get().repos[repoPath] ?? emptyRepo).scope;
+    patchFile(key, { loading: true });
+    try {
+      const result = await bridge.graphLog({
+        repoPath,
+        maxCount: win.limit,
+        scope,
+        path: relPath,
+        follow: true
+      });
+      patchFile(key, {
+        rows: result.entries,
+        hasMore: result.hasMore,
+        loading: false,
+        error: null
+      });
+    } catch (err) {
+      patchFile(key, {
+        rows: [],
+        hasMore: false,
+        loading: false,
+        error: gitErrorLine(err)
+      });
+    }
   };
 
   /**
@@ -487,6 +598,8 @@ export const useGitDepth = create<DepthState>((set, get) => {
   return {
     repos: {},
     details: {},
+    files: {},
+    fileHistoryReveal: 0,
 
     ensure(repoPath, scope) {
       subscribeOnce();
@@ -531,6 +644,26 @@ export const useGitDepth = create<DepthState>((set, get) => {
         logRefs: null
       });
       await fetchLog(repoPath);
+    },
+
+    ensureFile(repoPath, relPath) {
+      subscribeOnce();
+      const key = fileHistoryKey(repoPath, relPath);
+      const win = get().files[key];
+      if (win !== undefined && (win.rows !== null || win.loading)) return;
+      void fetchFile(repoPath, relPath);
+    },
+
+    async loadMoreFile(repoPath, relPath) {
+      const key = fileHistoryKey(repoPath, relPath);
+      const win = get().files[key];
+      if (win === undefined || win.loading) return;
+      patchFile(key, { limit: win.limit + HISTORY_PAGE });
+      await fetchFile(repoPath, relPath);
+    },
+
+    revealFileHistory() {
+      set((s) => ({ fileHistoryReveal: s.fileHistoryReveal + 1 }));
     },
 
     async detail(repoPath, sha) {

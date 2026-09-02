@@ -34,9 +34,20 @@ const DRAG_THRESHOLD_PX = 4;
 const orderKey = (viewId: string): string =>
   `gmux.sidebar.sectionOrder.${viewId}`;
 
-/** Stored order sanitized against the known ids: unknown ids drop out,
- *  missing ids append in default order (safe across version drift). */
-function sanitizeOrder(
+/**
+ * Stored order sanitized against the known ids: unknown ids drop out, and a
+ * missing id lands directly AFTER the nearest default that precedes it and is
+ * present, or first when none is (safe across version drift).
+ *
+ * Until Phase 198 a missing id was appended LAST, which is how Runs (Phase 46)
+ * and Promises (Phase 63) arrived for anyone with a stored order. File history
+ * is written into the defaults directly under History, and appending it last
+ * would have put it under Branches, Runs and Promises on every profile that
+ * predates it, which is every profile the section was built for. The rule is
+ * now positional for every id, so the two sections that arrived last stay
+ * where a stored order already holds them.
+ */
+export function sanitizeOrder(
   stored: readonly string[] | null,
   defaults: readonly string[]
 ): string[] {
@@ -49,9 +60,19 @@ function sanitizeOrder(
       seen.add(id);
     }
   }
-  for (const id of defaults) {
-    if (!seen.has(id)) out.push(id);
-  }
+  defaults.forEach((id, d) => {
+    if (seen.has(id)) return;
+    let at = 0;
+    for (let p = d - 1; p >= 0; p--) {
+      const i = out.indexOf(defaults[p] ?? '');
+      if (i !== -1) {
+        at = i + 1;
+        break;
+      }
+    }
+    out.splice(at, 0, id);
+    seen.add(id);
+  });
   return out;
 }
 

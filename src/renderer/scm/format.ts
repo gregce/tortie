@@ -1,5 +1,7 @@
 /** SCM-local formatting helpers (kept here so the stream is self-contained). */
 
+import type { GitCommitFileState } from '@shared/types';
+
 /**
  * Compact relative time for history rows: "now", "4m", "2h", "3d", "2w",
  * "5mo", "1y" — wider range than session ages (commits get old).
@@ -109,4 +111,19 @@ export function shortenRemoteUrl(url: string): string {
   } catch {
     return trimmed;
   }
+}
+
+/**
+ * The title a renamed or copied file row carries, in the words
+ * HistorySection.tsx has always used. ONE home for the string (Phase 198), so
+ * the File history section's boundary row and the expanded commit's file row
+ * cannot say it two ways.
+ */
+export function renamedFromTitle(
+  path: string,
+  origPath: string,
+  status: GitCommitFileState = 'R'
+): string {
+  const verb = status === 'C' ? 'copied' : 'renamed';
+  return `${path} — ${verb} from ${origPath}`;
 }

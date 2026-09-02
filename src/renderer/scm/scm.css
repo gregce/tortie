@@ -1978,3 +1978,47 @@ body.scm-section-dragging .section-gripper {
   height: 20px;
   font-size: var(--text-xs);
 }
+
+/* ---------------------------------------------------------------------------
+   FILE HISTORY (Phase 198). The History row shape with the status letter in
+   the gutter's place, under History and above Branches. It takes weight 1 of
+   the post-Changes remainder against History's 2, and its body scrolls on the
+   same rules as History's.
+   --------------------------------------------------------------------------- */
+
+.section-scm-filehistory {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.section-scm-filehistory.collapsed {
+  max-height: none;
+  flex: 0 0 auto;
+}
+
+.section-scm-filehistory:not(.collapsed) {
+  max-height: none;
+  flex: 1 1 0;
+  min-height: 96px;
+}
+
+/* A section with nothing to open reads as collapsed and cannot be toggled. */
+.section-scm-filehistory .section-toggle:disabled {
+  cursor: default;
+}
+
+.scm-fhrow {
+  padding-left: var(--space-3);
+}
+
+/* The path the file had then, on the rename row and below it. Truncates from
+   the left like every directory span, so the leaf stays readable. */
+.scm-fhpath {
+  flex: 1 4 auto;
+}
+
+.scm-fhmore {
+  padding-left: var(--space-3);
+}
