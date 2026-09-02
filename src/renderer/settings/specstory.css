@@ -87,12 +87,14 @@
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: var(--text-base);
+  /* A code entry field: wide tracking so the typed characters read one at a time (Phase 195). */
   letter-spacing: 0.08em;
   text-align: center;
 }
 
 .ss-code-field::placeholder {
   color: var(--text-disabled);
+  /* The same tracking as the field, so the placeholder sits where the typed code will (Phase 195). */
   letter-spacing: 0.08em;
 }
 

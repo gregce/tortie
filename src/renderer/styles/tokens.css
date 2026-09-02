@@ -228,6 +228,17 @@
   --weight-medium: 500;
   --weight-semibold: 600;
 
+  /* Tracking (Phase 195, research 75 C8). Two values the chrome already
+     drew, named: caps is every uppercase micro label, being section
+     headers, view headings and the kin of "EXPLORER", nineteen sites at
+     0.04em before they had a name; tight is the markdown preview's h1.
+     Six declarations keep a value of their own with the reason beside
+     them, being the wordmark and its suffix, the SHA chip, the code entry
+     field and its placeholder, and a masked secret drawn as dots. Zero,
+     normal and inherit are opt outs, not values. */
+  --track-caps: 0.04em;
+  --track-tight: -0.01em;
+
   /* §1.9 Radii, shadows, z-layers */
   --r-sm: 4px;
   --r-md: 6px;

@@ -170,7 +170,7 @@
   padding: var(--space-3) var(--space-6) var(--space-2);
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-muted);
 }

@@ -1743,7 +1743,7 @@ body.scm-section-dragging .section-gripper {
   line-height: var(--lh-xs);
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
   pointer-events: none;
   user-select: none;
 }

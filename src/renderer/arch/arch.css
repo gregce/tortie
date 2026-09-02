@@ -94,7 +94,7 @@
   color: var(--text-muted);
   font-size: var(--view-label-text);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
   white-space: nowrap;
 }
 
@@ -368,7 +368,7 @@
   color: var(--text-muted);
   font-size: var(--view-label-text);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
 }
 
 .arch-gap-text {

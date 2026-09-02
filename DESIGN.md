@@ -156,6 +156,8 @@ Rhythm rules: tight inside a group (2–8px), generous between groups (16–24px
 --text-lg:   20px/28px;   /* modal titles, empty-state titles                   */
 
 --weight-regular: 400;  --weight-medium: 500;  --weight-semibold: 600;
+--track-caps: 0.04em;   /* every uppercase micro label (Phase 195)             */
+--track-tight: -0.01em; /* the markdown preview h1, and nothing in the chrome  */
 ```
 
 - `--font-ui` has no `"SF Pro Text"` entry. Phase 78 deleted it from `tokens.css` because nothing on macOS is registered under that name, so `-apple-system` always matched first. Phase 73.1 deleted the same dead name from this block, which had kept it two rounds longer than the code.

@@ -80,7 +80,7 @@
   font-weight: var(--weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
   margin: 0;
   padding: var(--space-2) 0 var(--space-3);
 }

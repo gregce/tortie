@@ -265,6 +265,7 @@
   flex: none;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
+  /* Its own tracking: a mono SHA at the chip step, looser than --track-tight and not a caps label (Phase 195). */
   letter-spacing: 0.02em;
   color: var(--text-muted);
 }

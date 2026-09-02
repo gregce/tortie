@@ -231,7 +231,7 @@
   line-height: var(--lh-xs);
   font-weight: var(--weight-medium);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
 }
 
 .diag-figs {
@@ -486,7 +486,7 @@
   line-height: var(--lh-xs);
   font-weight: var(--weight-medium);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
   margin-bottom: var(--space-2);
 }
 

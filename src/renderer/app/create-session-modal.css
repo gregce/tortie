@@ -38,7 +38,7 @@
   line-height: var(--lh-xs);
   font-weight: var(--weight-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
   cursor: pointer;
   transition: color var(--dur-fast) var(--ease-out);
 }

@@ -83,7 +83,7 @@
   font-weight: var(--weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
 }
 
 .ctxd-card-value {
@@ -251,6 +251,7 @@
 .ctxd-mask {
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  /* A masked secret drawn as dots; the tracking spaces the dots, not letters (Phase 195). */
   letter-spacing: 0.12em;
   color: var(--text-disabled);
   user-select: none;
@@ -314,7 +315,7 @@
   font-weight: var(--weight-semibold);
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
 }
 
 .ctxd-preview-line {

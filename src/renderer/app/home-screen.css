@@ -241,7 +241,7 @@
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   font-weight: var(--weight-semibold);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--track-caps);
   text-transform: uppercase;
   color: var(--text-muted);
 }
