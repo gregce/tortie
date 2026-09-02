@@ -251,7 +251,16 @@
      tokens.css carries spacing, type, radii, colors, durations and z-layers
      and no width scale at all, so a modal states its own width as a number,
      the way `.modal` (480px) in app.css and `.ctxd-install-modal` (1120px)
-     above already do. */
+     above already do.
+
+     THERE IS A THIRD WIDTH TERM AND IT IS NOT THE LEVER (Phase 197 item 22).
+     The sheet also wears the `modal` class, and `.modal` in app.css carries
+     `max-width: calc(100vw - 48px)`. That term binds only where it is smaller
+     than 92vw, which is 8vw < 48px, a window under 600px wide, narrower than
+     anything this app is drawn in. So the two terms below are the whole
+     answer on every real window and the app.css term is the S6 small-window
+     floor every modal shares; do not reach for it when this sheet's width is
+     ruled on again. */
   width: min(1120px, 92vw);
   max-height: calc(100vh - var(--space-8) * 2);
   display: flex;
