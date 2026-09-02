@@ -32,12 +32,16 @@ import type { LineDiffTypes } from '@pierre/diffs';
  * PierreDiff.tsx, counting the `data-diff-span` elements. TWO ROUTES, and they
  * do not give the same numbers, so each is labelled with where it came from.
  *
- * Through Pierre's own server renderer, which renders the WHOLE file:
+ * Through Pierre's own server renderer, which renders the WHOLE file. The
+ * character counts are of the DECODED text inside the spans, which Phase
+ * 185's reverifier re-derived: an earlier draft here counted the markup
+ * length instead, and the two differ by one `&#x3C;` entity per mode, so it
+ * read 1,555, 1,723 and 1,177 (Phase 197 item 20):
  *
  *   none      0 spans      — nothing inside the row is picked out
- *   word      220 spans, 1,555 highlighted characters
- *   word-alt  71 spans, 1,723 highlighted characters
- *   char      359 spans, 1,177 highlighted characters
+ *   word      220 spans, 1,550 highlighted characters
+ *   word-alt  71 spans, 1,718 highlighted characters
+ *   char      359 spans, 1,172 highlighted characters
  *
  * Out of the RUNNING APP, read off the shadow DOM by `npm run probe:p185` over
  * that same pair. Every count is lower because the surface is virtualized: the

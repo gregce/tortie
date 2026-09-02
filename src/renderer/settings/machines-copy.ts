@@ -589,7 +589,8 @@ export const PEER_CANNOT_HOST = 'Cannot run a session';
 
 export const FIELD_HOST = 'Machine address';
 export const FIELD_LABEL = 'Name in Tortie';
-export const FIELD_COLOUR = 'Colour';
+/** Spelled the way the app spells it everywhere a person reads it (Phase 197 item 20). */
+export const FIELD_COLOR = 'Color';
 export const FIELD_USER = 'Sign in as';
 export const FIELD_USER_HINT =
   'Leave this empty to use the same name you use on this Mac.';

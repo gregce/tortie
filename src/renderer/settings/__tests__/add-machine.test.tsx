@@ -276,7 +276,8 @@ describe('the confirm button waits for the machine to answer', () => {
     // The name and the colour are presentation. They are not in the hash, so
     // they are never in the lines a person agrees to.
     expect(html).not.toContain('Machine: Scratch box');
-    expect(html).not.toContain('Colour: ');
+    expect(html).not.toContain('Color: ');
+    expect(html).not.toContain('Colour');
   });
 
   it('carries both sentences main sent on the result, in one paragraph', () => {

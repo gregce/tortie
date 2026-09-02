@@ -70,7 +70,7 @@ import {
   BTN_TEST,
   COLOUR_LABEL,
   COPY_INSTALL_COMMAND_LABEL,
-  FIELD_COLOUR,
+  FIELD_COLOR,
   FIELD_HOST,
   FIELD_LABEL,
   FIELD_PORT,
@@ -437,7 +437,7 @@ export function AddMachineView({
           </label>
 
           <label className="mach-field-row">
-            <span className="mach-field-label">{FIELD_COLOUR}</span>
+            <span className="mach-field-label">{FIELD_COLOR}</span>
             <select
               className="set-select"
               data-machines-field="color"
