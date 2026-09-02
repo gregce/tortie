@@ -30,6 +30,8 @@ import { setStoredEditorWidth } from './panel-width';
 import { useEditor } from './store';
 import { driveRedlineView } from './redline-shot-probe';
 import type { RedlineViewProbeSpec } from './redline-shot-probe';
+import { driveInlineAgreement } from './agreement-shot-probe';
+import type { InlineAgreementProbeSpec } from './agreement-shot-probe';
 // PHASE 163. The report tab's one door, driven the way the menu row drives it.
 import { openDiagnosticsReport } from '../diagnostics/open-report';
 
@@ -111,6 +113,14 @@ export interface ShotDriveSpec {
    * ./redline-shot-probe for the journey.
    */
   redline?: RedlineViewProbeSpec;
+  /**
+   * Phase 190. Open each named file as a diff, click all four inline modes
+   * through the real buttons and read what was drawn and what the row said
+   * beside the control, then open the cost fixtures only to read what the
+   * comparison cost. See ./agreement-shot-probe. Runs after `openRel`, and
+   * needs no `openRel` of its own.
+   */
+  inlineAgreement?: InlineAgreementProbeSpec;
   /**
    * Force the opened tab's view (markdown/svg: 'preview' | 'file' | 'split';
    * a raster image: 'image' for the viewer, 'diff' for before/after).
@@ -1154,6 +1164,12 @@ export function installShotHook(): void {
         await driveRedlineView(spec.projectPath, spec.openRel ?? '', spec.redline);
         step('read the redline view');
       }
+    }
+
+    if (spec.inlineAgreement !== undefined) {
+      step('driving the inline control over the agreement fixtures');
+      await driveInlineAgreement(spec.projectPath, spec.inlineAgreement);
+      step('read the inline control');
     }
 
     if (spec.sidebarView !== undefined) {

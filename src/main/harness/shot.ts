@@ -223,6 +223,14 @@ export async function runShot(outPath: string, deps: ShotDeps): Promise<void> {
       console.log('[gmux-shot] network offline over CDP');
     })();
   }
+  // A drive runs on the renderer's own timers, and Chromium clamps every
+  // timer in an occluded window to one second. A probe window on a busy
+  // display is occluded by whatever is on top of it, so a drive that took
+  // 25 s with the window clear took over 60 s and missed the deadline below
+  // with a terminal in front of it, measured on 2026-09-01 (Phase 190): each
+  // 200 ms wait was read at 1000 ms from the second fixture on. The harness
+  // window is nobody's foreground window, so its timers are not throttled.
+  mainWindow.webContents.setBackgroundThrottling(false);
   // GMUX_SHOT_VERBOSE=1 tees the renderer's console into the harness output —
   // the only way to see WHERE a drive stalled, since the drive runs entirely
   // inside the renderer.

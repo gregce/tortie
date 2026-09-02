@@ -428,6 +428,17 @@ export const CHECKS = [
   // in one place only, a read only session count taken before and after.
   electron('probe:p185'),
   electron('probe:p194'),
+  // PHASE 190. Does the inline control say what it can tell apart? One launch
+  // on a scratch profile opens five diffs it wrote itself, being the
+  // operator's own pure deletion, a replacement in the shape of his prose
+  // commit, both in one file, a pure addition, and a hostile hundred pair
+  // diff, clicks all four modes on each and reads the spans, a hash of the
+  // rendered markup, and the line beside the control, so sameness is a byte
+  // claim and the line is read off the DOM rather than the code. It reads the
+  // comparison's cost in the running app over the large diff. It creates no
+  // session, spawns no agent and spends no token, and touches `-L gmux` in
+  // one place only, a read only session count taken before and after.
+  electron('probe:p190'),
   // PHASE 182. The status line tap, with the REAL claude in the loop. It
   // writes Tortie's own generated managed script and settings file into a
   // scratch directory, binds a loopback server on an ephemeral port, launches
