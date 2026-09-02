@@ -537,7 +537,14 @@ export function installShotHook(): void {
     step('waiting for boot');
     for (let i = 0; i < 60 && !useApp.getState().ready; i++) await wait(100);
     const app = useApp.getState();
-    drivenProjectPath = spec.projectPath;
+    // PHASE 197 (nit 2). A drive that names no project opens none. The type
+    // says the field is required and a JavaScript caller can still leave it
+    // out: the Phase 105 record in docs/BACKLOG.md is a runs only spec that
+    // reached projects:add with undefined and raised three toasts over the
+    // picture. One step line says so instead.
+    const hasProject =
+      typeof spec.projectPath === 'string' && spec.projectPath !== '';
+    drivenProjectPath = hasProject ? spec.projectPath : null;
     // BEFORE the project opens: per-repo preferences (section scope, collapse
     // state…) are read by their components on mount, so writing them after
     // would photograph the default rather than the state under test.
@@ -549,11 +556,15 @@ export function installShotHook(): void {
       }
     }
     if (spec.sidebarWidth !== undefined) app.setSidebarWidth(spec.sidebarWidth);
-    if (spec.editorWidth !== undefined) {
+    if (spec.editorWidth !== undefined && hasProject) {
       setStoredEditorWidth(spec.projectPath, spec.editorWidth);
     }
-    step(`opening project ${spec.projectPath}`);
-    await app.addProjectPath(spec.projectPath);
+    if (hasProject) {
+      step(`opening project ${spec.projectPath}`);
+      await app.addProjectPath(spec.projectPath);
+    } else {
+      step('no projectPath in the drive spec, so no project is opened');
+    }
     // Let the sidebar pull git status / tree so the shot shows real chrome.
     await wait(700);
 
