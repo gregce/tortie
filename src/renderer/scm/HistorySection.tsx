@@ -87,6 +87,14 @@ import {
 } from './ref-badges';
 import type { RefBadge } from './ref-badges';
 import { scopeTag, usePersistedScope } from './history-scope';
+import {
+  SEARCH_DEBOUNCE_MS,
+  isEmptyQuery,
+  parseHistoryQuery,
+  sameQuery,
+  withoutChange
+} from './history-search';
+import type { HistoryQuery } from './history-search';
 import { HistoryScopeControl } from './HistoryScopeControl';
 import { HoverCard } from './HoverCard';
 import { MiniModal } from './MiniModal';
@@ -96,6 +104,11 @@ import type { MiniModalSpec } from './MiniModal';
 const HOVER_DELAY_MS = 600;
 /** Leave grace before the card closes (pointer may travel into it). */
 const HOVER_CLOSE_GRACE_MS = 100;
+
+/** The change search's cost, printed beside its button: "1.6 s" or "340 ms". */
+function formatWalkMs(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${String(ms)} ms`;
+}
 
 /**
  * Which side of the divergence a commit is on, in words.
@@ -167,6 +180,60 @@ export function HistorySection({
   const [cursor, setCursor] = useState<string | null>(null);
   const [modal, setModal] = useState<MiniModalSpec | null>(null);
 
+  // -- the search field (Phase 199) ------------------------------------------
+  //
+  // The text is this component's; what the walk is narrowed by is the store's
+  // `query`, applied after a short debounce. The two differ on purpose while
+  // a `change:` is typed, because that half runs from the button and never
+  // from a keystroke. This component is keyed by repo, so the text resets
+  // with the repo.
+  const [text, setText] = useState('');
+  const typed = useMemo(() => parseHistoryQuery(text), [text]);
+  const applied = repo.query;
+  const appliedRef = useRef<HistoryQuery | null>(applied);
+  appliedRef.current = applied;
+  const searching = applied !== null;
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const changeRunning = repo.logLoading && applied !== null && applied.change !== '';
+  const changeApplied =
+    applied !== null && applied.change !== '' && sameQuery(applied, typed);
+  const changeOffered = typed.change !== '' && !changeApplied && !changeRunning;
+
+  useEffect(() => {
+    if (collapsed) return;
+    const fast = withoutChange(typed);
+    const target = isEmptyQuery(fast) ? null : fast;
+    const current = appliedRef.current;
+    // Already applied, or the applied query is this one plus a change the
+    // button ran: a keystroke inside the change term does not throw those
+    // rows away, the button does when it is pressed again.
+    if (target === null ? current === null : current !== null && sameQuery(withoutChange(current), target)) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      void depth.setQuery(repoPath, target);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typed, collapsed, repoPath]);
+
+  const clearSearch = useCallback((): void => {
+    setText('');
+    if (appliedRef.current !== null) void depth.setQuery(repoPath, null);
+  }, [depth, repoPath]);
+
+  /** The button: run the whole typed query, change included, or stop it. */
+  const runChange = useCallback((): void => {
+    if (changeRunning) {
+      // Stopping is a cheaper walk in the same queue: the fast half of the
+      // query, which ends the change walk on the main side and draws.
+      const fast = withoutChange(typed);
+      void depth.setQuery(repoPath, isEmptyQuery(fast) ? null : fast);
+      return;
+    }
+    if (typed.change !== '') void depth.setQuery(repoPath, typed);
+  }, [changeRunning, depth, repoPath, typed]);
+
   /**
    * The list body, held BOTH ways on purpose: as a ref for the imperative
    * reads (keyboard navigation's `scrollIntoView`) and as state, because the
@@ -231,9 +298,16 @@ export function HistorySection({
   /** Fixes the three divergence colours; undefined when there is no upstream. */
   const roleOf = useMemo(() => makeRoleResolver(divergence), [divergence]);
 
+  // Phase 199. A filtered walk has parents that are not in the list, so the
+  // fold would draw lanes to nowhere. It is given nothing and draws nothing:
+  // no gutter on the rows, no spacer under an expanded one, no tail.
   const layout: GraphLayout = useMemo(
-    () => layoutGraph(entries ?? [], roleOf === undefined ? {} : { roleOf }),
-    [entries, roleOf]
+    () =>
+      layoutGraph(
+        searching ? [] : (entries ?? []),
+        roleOf === undefined ? {} : { roleOf }
+      ),
+    [entries, roleOf, searching]
   );
 
   /**
@@ -757,6 +831,8 @@ export function HistorySection({
           {...(sync !== undefined ? { 'data-sync': sync } : {})}
           className={[
             'scm-hrow',
+            // The file section's own no gutter shape, for the same reason.
+            searching ? 'scm-fhrow' : '',
             cursor === id ? 'selected' : '',
             isExpanded ? 'expanded' : ''
           ]
@@ -921,6 +997,61 @@ export function HistorySection({
           onKeyDown={onListKeyDown}
           onScroll={closeCard}
         >
+          {graphAvailable ? (
+            <div
+              className="scm-branch-filter scm-history-search"
+              data-searching={searching}
+            >
+              <Codicon name="search" size="sm" className="scm-branch-filter-icon" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="scm-branch-filter-input"
+                placeholder="Search history"
+                aria-label="Search history"
+                title="author:  message:  commit:  file:  change:"
+                value={text}
+                spellCheck={false}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape' && text !== '') {
+                    e.stopPropagation();
+                    clearSearch();
+                  } else if (e.key === 'Enter' && typed.change !== '') {
+                    e.preventDefault();
+                    runChange();
+                  }
+                  // The list's own arrows must not steal the caret.
+                  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') e.stopPropagation();
+                }}
+              />
+              {changeRunning ? (
+                <button
+                  type="button"
+                  className="scm-history-search-run"
+                  onClick={runChange}
+                  aria-label="Stop the change search"
+                >
+                  <span className="scm-branch-spinner" aria-hidden="true" />
+                  Stop
+                </button>
+              ) : changeOffered ? (
+                <button
+                  type="button"
+                  className="scm-history-search-run"
+                  onClick={runChange}
+                  disabled={repo.logLoading}
+                  aria-label="Search changes"
+                >
+                  Search
+                </button>
+              ) : changeApplied && repo.walkMs !== null ? (
+                <span className="scm-history-search-ms num" title="How long the change search took">
+                  {formatWalkMs(repo.walkMs)}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           {repo.logLoading && entries === null ? (
             <div className="scm-skeleton" aria-hidden="true">
               <div className="scm-skeleton-row" style={{ width: '72%' }} />
@@ -929,7 +1060,9 @@ export function HistorySection({
             </div>
           ) : entries === null || entries.length === 0 ? (
             <div className="section-stub">
-              No commits yet — your first commit starts the history.
+              {searching
+                ? 'No commit matches.'
+                : 'No commits yet — your first commit starts the history.'}
             </div>
           ) : (
             <>
@@ -938,7 +1071,7 @@ export function HistorySection({
                 <button
                   type="button"
                   data-hist="more"
-                  className={`scm-load-more${cursor === 'more' ? ' selected' : ''}`}
+                  className={`scm-load-more${searching ? ' scm-fhmore' : ''}${cursor === 'more' ? ' selected' : ''}`}
                   disabled={repo.logLoading || gitUiBusy}
                   onClick={() => {
                     setCursor('more');

@@ -2022,3 +2022,48 @@ body.scm-section-dragging .section-gripper {
 .scm-fhmore {
   padding-left: var(--space-3);
 }
+
+/* ---------------------------------------------------------------------------
+   The History section's search field (Phase 199). The branch filter's own
+   row shape, at the head of the list rather than indented under a group.
+   While a query is applied the rows wear the file section's no gutter
+   shape, because a filtered walk has parents that are not in the list.
+--------------------------------------------------------------------------- */
+
+.scm-history-search {
+  margin-left: var(--space-3);
+}
+
+/* The change search's button: quiet, inside the field's own box. */
+.scm-history-search-run {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 18px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  flex: 0 0 auto;
+  cursor: default;
+}
+
+.scm-history-search-run:hover:not(:disabled) {
+  color: var(--text-primary);
+  background: var(--bg-active);
+}
+
+.scm-history-search-run:disabled {
+  opacity: 0.5;
+}
+
+.scm-history-search-ms {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  flex: 0 0 auto;
+}

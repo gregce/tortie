@@ -32,6 +32,8 @@ import { gitErrorLine, useGit } from '../state/git';
 import { useApp } from '../state/store';
 import { onRepoChanged } from '../state/repo-changed';
 import { shortSha } from './format';
+import { bareCommitAsMessage, toSearch } from './history-search';
+import type { HistoryQuery } from './history-search';
 
 // ---------------------------------------------------------------------------
 // Bridge access (feature-detected)
@@ -111,6 +113,19 @@ export interface RepoDepthState {
    * page; cleared whenever the scope changes, which IS a relayout.
    */
   logRefs: string[] | null;
+  /**
+   * Phase 199. What the History section's field narrows the walk by, or
+   * null for the plain walk. Every page and every refresh carries it, so
+   * "Load 50 more" and a `git:changed` reread stay inside the query.
+   */
+  query: HistoryQuery | null;
+  /**
+   * Phase 199. How long the last walk that drew took, in milliseconds, read
+   * around the bridge call; null until one has. It is the number the field
+   * prints beside the change search's button when that search finishes, and
+   * the number the phase's probe reads per keystroke.
+   */
+  walkMs: number | null;
   /**
    * Where the current branch stands against its upstream, measured in the
    * same round trip as the commits (so a row's shading and the header's count
@@ -201,6 +216,13 @@ interface DepthState {
    * set is (research 24 §4.5). No-ops when the scope is already current.
    */
   setLogScope(repoPath: string, scope: GitLogScope): Promise<void>;
+  /**
+   * Phase 199. Narrow the walk to a query, or null for the plain walk. The
+   * window resets to one page and the ref set stays pinned when it is, so
+   * the rows are the same walk, narrowed. A walk still running for this
+   * repo is superseded: it ends on the main side and draws nothing here.
+   */
+  setQuery(repoPath: string, query: HistoryQuery | null): Promise<void>;
   /** Cached commit detail; resolves null on failure (toast already shown). */
   detail(repoPath: string, sha: string): Promise<GitCommitDetail | null>;
 
@@ -281,6 +303,8 @@ const emptyRepo: RepoDepthState = {
   hasMore: false,
   scope: 'branch',
   logRefs: null,
+  query: null,
+  walkMs: null,
   divergence: null,
   remoteUrl: null,
   remoteChecked: false,
@@ -461,12 +485,24 @@ export const useGitDepth = create<DepthState>((set, get) => {
    * and the graph is allowed to redraw — that is the new branch appearing,
    * not a reshuffle.
    */
+  /**
+   * Phase 199. The walk that owns a repo's pane is the LAST one started for
+   * it. An earlier one that answers later, or that rejects because the queue
+   * on the main side ended it, changes nothing: not the rows, not the
+   * loading flag, and never the flat fallback below, which would otherwise
+   * draw an unfiltered walk over a filtered one.
+   */
+  const logGen = new Map<string, number>();
+
   const fetchLog = async (repoPath: string, pinRefs = false): Promise<void> => {
     const gmux = gmuxBridge();
     if (!gmux) return;
     const repo = get().repos[repoPath] ?? emptyRepo;
     const limit = repo.limit;
     const bridge = depthBridge();
+    const gen = (logGen.get(repoPath) ?? 0) + 1;
+    logGen.set(repoPath, gen);
+    const owns = (): boolean => logGen.get(repoPath) === gen;
     patchRepo(repoPath, { logLoading: true });
 
     // Phase 14.5 — one ref-scoped read carries the commits, the ref set that
@@ -474,22 +510,44 @@ export const useGitDepth = create<DepthState>((set, get) => {
     // the service's own limit+1 probe, so no slicing here.
     if (typeof bridge?.graphLog === 'function') {
       try {
-        const result = await bridge.graphLog({
-          repoPath,
-          maxCount: limit,
-          scope: repo.scope,
-          ...(pinRefs && repo.logRefs !== null ? { refs: repo.logRefs } : {})
-        });
+        const started = performance.now();
+        const walk = (query: HistoryQuery | null) => {
+          const search = query === null ? undefined : toSearch(query);
+          return bridge.graphLog({
+            repoPath,
+            maxCount: limit,
+            scope: repo.scope,
+            ...(pinRefs && repo.logRefs !== null ? { refs: repo.logRefs } : {}),
+            ...(search === undefined ? {} : { search }),
+            // Every History walk shares one queue per repo, so this call
+            // ends the one before it on the main side.
+            queue: 'history'
+          });
+        };
+        let result = await walk(repo.query);
+        // A bare sha nothing answered to is searched as a word instead.
+        if (
+          repo.query !== null &&
+          repo.query.commitIsBare &&
+          result.entries.length === 0 &&
+          owns()
+        ) {
+          result = await walk(bareCommitAsMessage(repo.query));
+        }
+        if (!owns()) return;
         patchRepo(repoPath, {
           log: result.entries,
           hasMore: result.hasMore,
           logRefs: result.refs,
           divergence: result.divergence,
           lastFetchedAt: result.divergence.lastFetchedAt,
+          walkMs: Math.round(performance.now() - started),
           logLoading: false
         });
         return;
       } catch {
+        // A superseded walk is done here: the walk that replaced it draws.
+        if (!owns()) return;
         // Fall through to the flat walk rather than blanking the pane: a
         // history without lanes still beats no history.
       }
@@ -498,6 +556,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
     try {
       // One row past the window answers "is there more?" without a count.
       const rows = await gmux.git.log({ repoPath, maxCount: limit + 1 });
+      if (!owns()) return;
       patchRepo(repoPath, {
         // `git:log`'s frozen row type has no `refs`. Normalise rather than
         // cast: every consumer may then read `entry.refs` unconditionally,
@@ -507,6 +566,7 @@ export const useGitDepth = create<DepthState>((set, get) => {
         logLoading: false
       });
     } catch {
+      if (!owns()) return;
       // Empty/non-git repos: an empty history is a state, not an error.
       patchRepo(repoPath, { log: [], hasMore: false, logLoading: false });
     }
@@ -644,6 +704,13 @@ export const useGitDepth = create<DepthState>((set, get) => {
         logRefs: null
       });
       await fetchLog(repoPath);
+    },
+
+    async setQuery(repoPath, query) {
+      const repo = get().repos[repoPath] ?? emptyRepo;
+      // One page again, the pinned ref set kept: the same walk, narrowed.
+      patchRepo(repoPath, { query, limit: HISTORY_PAGE, walkMs: null });
+      await fetchLog(repoPath, repo.logRefs !== null);
     },
 
     ensureFile(repoPath, relPath) {
