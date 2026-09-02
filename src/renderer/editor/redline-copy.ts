@@ -78,6 +78,13 @@
  * dropped every one of Pierre's rows the first time. Fixing it properly needs
  * the two sides to stop being two trees, which is a different phase.
  *
+ * THE ONE WIDENING (Phase 197 item 21). Where the host holds exactly ONE
+ * redline element, which is the redline view's whole document, there is
+ * nothing of Pierre's to protect, so a range that reaches past it is clipped
+ * to it and rebuilt rather than left to the browser. That is the Cmd-A shape
+ * Phase 194 recorded as its known limit. A host holding several rows, the
+ * diff view, keeps the rule above exactly as written.
+ *
  * `user-select: none` on the deleted runs is REFUSED and the refusal is
  * recorded in ./redline.css, so a later round does not simplify to it.
  */
@@ -94,6 +101,27 @@ function redlineOf(node: Node): HTMLElement | null {
 }
 
 /**
+ * The range cut down to the host's one redline document, or null when the
+ * host is not that shape or the range does not reach the document at all.
+ */
+function clipToOnlyDocument(host: HTMLElement, range: Range): Range | null {
+  const documents = host.querySelectorAll('[data-redline]');
+  if (documents.length !== 1) return null;
+  const only = documents[0] as HTMLElement;
+  if (!range.intersectsNode(only)) return null;
+  const bounds = only.ownerDocument.createRange();
+  bounds.selectNodeContents(only);
+  const clipped = range.cloneRange();
+  if (clipped.compareBoundaryPoints(Range.START_TO_START, bounds) < 0) {
+    clipped.setStart(only, 0);
+  }
+  if (clipped.compareBoundaryPoints(Range.END_TO_END, bounds) > 0) {
+    clipped.setEnd(only, only.childNodes.length);
+  }
+  return clipped.collapsed ? null : clipped;
+}
+
+/**
  * The text to put on the clipboard, or null to leave the browser alone.
  *
  * Exported for the app run, which drives the real Copy command over the same
@@ -107,12 +135,22 @@ export function rebuildCopyText(
   if (selection.rangeCount === 0) return null;
   const parts: string[] = [];
   for (let index = 0; index < selection.rangeCount; index++) {
-    const range = selection.getRangeAt(index);
+    let range = selection.getRangeAt(index);
     if (range.collapsed) continue;
     const row = redlineOf(range.commonAncestorContainer);
-    // One boundary outside a redline row means the selection covers content
-    // this code cannot see. Stand aside.
-    if (row === null || !host.contains(row)) return null;
+    if (row === null || !host.contains(row)) {
+      // One boundary outside a redline row means the selection covers
+      // content this code cannot see. In the diff view that is Pierre's own
+      // rows and the rule stands aside. In the redline VIEW (Phase 194) the
+      // host holds ONE redline element for the whole document and nothing
+      // else worth protecting, so a range reaching past it, being Cmd-A from
+      // the Edit menu, is clipped to the document and rebuilt (Phase 197
+      // item 21). At the parent that copy interleaved the deleted and the
+      // inserted words plus the rest of the app's selectable text.
+      const clipped = clipToOnlyDocument(host, range);
+      if (clipped === null) return null;
+      range = clipped;
+    }
     const fragment = range.cloneContents();
     // The deleted words, and the tag on a whitespace-only row. The tag is
     // Tortie talking ABOUT the change rather than any part of it, so pasting

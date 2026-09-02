@@ -469,6 +469,12 @@ export async function driveRedlineView(
     if (which === 'doc') {
       selection.selectAllChildren(el);
       covers = [0, runs.length - 1];
+    } else if (which === 'all') {
+      // The Cmd-A shape (Phase 197 item 21): the Edit menu's selectAll role
+      // selects the whole body, so the selection reaches past the document
+      // on both sides and the rest of the app's selectable text rides along.
+      selection.selectAllChildren(document.body);
+      covers = [0, runs.length - 1];
     } else if (which === 'pair') {
       // From the first deletion to the first insertion after it, whatever
       // sits between them.

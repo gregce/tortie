@@ -58,6 +58,8 @@
  *       deleted words, which is what selecting them means         clipboard
  *   21  the person's own clipboard is put back exactly, its       pbpaste and
  *       flavour names included and not one added                  clipboard info
+ *   24  Cmd-A, the whole body selected, copies the NEW file       clipboard
+ *       byte for byte (Phase 197 item 21; Phase 194's known limit)
  *   22  the operator's session count did not move                 tmux, read only
  *   23  A CHANGE TO THE LAST WORD OF A LINE draws its deletion     rectangles + the
  *       and its insertion on ONE line, the line break after them,  DOM
@@ -399,7 +401,8 @@ await withElectron(
       GMUX_SHOT_CLIPBOARD: JSON.stringify([
         "window.__gmuxRedlineSelect('doc')",
         "window.__gmuxRedlineSelect('pair')",
-        "window.__gmuxRedlineSelect('del')"
+        "window.__gmuxRedlineSelect('del')",
+        "window.__gmuxRedlineSelect('all')"
       ]),
       GMUX_SHOT_DRIVE: JSON.stringify({
         projectPath: project,
@@ -874,6 +877,20 @@ if (reading === null || typeof reading !== 'object') {
       'a selection wholly inside a deletion copies the deleted words, which is what selecting them means',
       typeof got === 'string' && expected !== null && got === expected,
       `clipboard ${JSON.stringify(got)}, the deletion ${JSON.stringify(expected)}`
+    );
+  }
+  {
+    // Phase 197 item 21. Phase 194's KNOWN LIMIT was this exact shape: Cmd-A
+    // selects the whole body, the containment rule stood aside, and the copy
+    // interleaved the deleted and the inserted words plus the rest of the
+    // app's selectable text. Red at the parent for that reason.
+    const s = stepOf('all');
+    const got = (s ?? {}).text;
+    check(
+      24,
+      'Cmd-A, the whole body selected, still copies the NEW file byte for byte',
+      typeof got === 'string' && got === NEW_TEST && (s?.setup?.ok === true),
+      typeof got === 'string' ? (got === NEW_TEST ? `${String(Buffer.byteLength(got))} bytes, equal` : firstDiff(got, NEW_TEST)) : 'no text'
     );
   }
 }

@@ -60,6 +60,27 @@ export function RedlineDocument({
     hostRef.current?.focus({ preventScroll: true });
   }, [tab.id]);
 
+  // Phase 197 item 21, the Cmd-A shape Phase 194 recorded as its limit.
+  // Chromium dispatches `copy` to the element holding the START of the
+  // selection, so a whole body selection from the Edit menu never reaches the
+  // scroller's own onCopy below; measured in the app run, the handler was not
+  // standing aside, it was never called. This listener on the document sees
+  // every copy while the view is mounted, and handleRedlineCopy answers only a
+  // selection that reaches this one document, clipped to it, and leaves
+  // anything else untouched. An event the scroller already answered is
+  // skipped, so a selection inside the document is handled exactly once.
+  useEffect(() => {
+    const onCopy = (event: ClipboardEvent): void => {
+      const host = hostRef.current;
+      if (host === null || event.defaultPrevented) return;
+      handleRedlineCopy(host, event);
+    };
+    document.addEventListener('copy', onCopy);
+    return () => {
+      document.removeEventListener('copy', onCopy);
+    };
+  }, []);
+
   const contentsLoading = tab.loading || tab.headContents === null;
   const doc = useMemo(
     () =>
