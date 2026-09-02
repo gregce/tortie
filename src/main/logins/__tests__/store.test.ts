@@ -13,12 +13,20 @@
  * that Tortie composed NO PATH at all for it.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_LOGIN_NAME, sanitizeLoginName } from '@shared/logins';
-import { isOwnedLoginDir, loginDirIn, loginsFileIn } from '../dirs';
+import { isOwnedLoginDir, loginDirIn, loginDirOnDisk, loginsFileIn } from '../dirs';
 import {
   addLogin,
   chooseLogin,
@@ -74,6 +82,133 @@ describe('the ownership rule', () => {
     expect(isOwnedLoginDir(root, 'claude', '/Users/somebody/.claude')).toBe(false);
     expect(isOwnedLoginDir(root, 'claude', 'relative/path')).toBe(false);
     expect(isOwnedLoginDir(root, 'claude', '')).toBe(false);
+  });
+});
+
+describe('a login directory that is a link', () => {
+  /**
+   * THE ONE ESCAPE THE STRING RULE CANNOT SEE, and the Phase 202 verifier
+   * found it in the running app rather than in the source. `resolve` does not
+   * follow a link, so an entry named by sixteen hex characters that is really
+   * a symlink to another directory on the machine is spelled inside the root
+   * and passes every spelling test there is. It was listed as present,
+   * chosen, put on a pane as `CLAUDE_CONFIG_DIR` and read by the meter, and
+   * that variable carries claude's settings, hooks, skills, plugins and
+   * agents with it.
+   *
+   * Every test here plants a REAL link before anything reads the store, which
+   * is the threat model: whoever can write the logins directory writes it
+   * while Tortie is not looking.
+   */
+  function outsideWithCredential(): string {
+    const outside = join(root, '..', `p202-outside-${process.pid.toString(36)}`);
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(
+      join(outside, '.credentials.json'),
+      '{"claudeAiOauth":{"accessToken":"not-tortie-own"}}',
+      'utf8'
+    );
+    return outside;
+  }
+
+  it('refuses an entry that is a link out of the owned root, and reads nothing in it', () => {
+    const outside = outsideWithCredential();
+    try {
+      const id = 'd'.repeat(16);
+      mkdirSync(join(root, 'claude'), { recursive: true });
+      symlinkSync(outside, loginDirIn(root, 'claude', id));
+      writeRaw(
+        JSON.stringify({
+          v: 1,
+          chosen: { claude: 'Planted' },
+          logins: [{ provider: 'claude', id, name: 'Planted', createdAt: 1 }]
+        })
+      );
+      // The spelling rule says yes, which is exactly why the disk rule exists.
+      expect(isOwnedLoginDir(root, 'claude', loginDirIn(root, 'claude', id))).toBe(true);
+      expect(loginDirOnDisk(root, 'claude', loginDirIn(root, 'claude', id))).toBe('escapes');
+      const read = readLoginsFile(root);
+      expect(read.file.logins).toHaveLength(0);
+      expect(read.problems.join(' ')).toContain('not one Tortie owns');
+      // The chosen name goes with the dropped row.
+      expect(read.file.chosen['claude']).toBeUndefined();
+      // Nothing lists it, nothing resolves it, and nothing may choose it.
+      expect(listLogins(root).logins.filter((l) => !l.isDefault)).toHaveLength(0);
+      expect(resolveLoginDir(root, 'claude', 'Planted').dir).toBeNull();
+      expect(effectiveLogin(root, 'claude').dir).toBeNull();
+      expect(chooseLogin(root, 'claude', 'Planted').ok).toBe(false);
+      // AND THE DIRECTORY IT POINTED AT IS UNTOUCHED. A refusal never deletes.
+      expect(existsSync(join(outside, '.credentials.json'))).toBe(true);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('never reports a credential it had to follow a link to find', () => {
+    const outside = outsideWithCredential();
+    try {
+      const id = 'e'.repeat(16);
+      mkdirSync(join(root, 'claude'), { recursive: true });
+      symlinkSync(outside, loginDirIn(root, 'claude', id));
+      writeRaw(
+        JSON.stringify({
+          v: 1,
+          chosen: {},
+          logins: [{ provider: 'claude', id, name: 'Planted', createdAt: 1 }]
+        })
+      );
+      expect(
+        listLogins(root).logins.some((l) => l.name === 'Planted' && l.present)
+      ).toBe(false);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses a provider root and a logins root that are links', () => {
+    const elsewhere = join(root, '..', `p202-elsewhere-${process.pid.toString(36)}`);
+    try {
+      const id = 'f'.repeat(16);
+      mkdirSync(join(elsewhere, id), { recursive: true });
+      mkdirSync(root, { recursive: true });
+      symlinkSync(elsewhere, join(root, 'claude'));
+      expect(loginDirOnDisk(root, 'claude', loginDirIn(root, 'claude', id))).toBe('escapes');
+      // The logins root itself, one level up.
+      const linkedRoot = join(root, '..', `p202-linked-root-${process.pid.toString(36)}`);
+      symlinkSync(root, linkedRoot);
+      try {
+        expect(loginDirOnDisk(linkedRoot, 'claude', loginDirIn(linkedRoot, 'claude', id))).toBe(
+          'escapes'
+        );
+      } finally {
+        rmSync(linkedRoot, { recursive: true, force: true });
+      }
+    } finally {
+      rmSync(elsewhere, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses a file where a folder should be, and separates gone from escaped', () => {
+    const id = 'a'.repeat(16);
+    mkdirSync(join(root, 'claude'), { recursive: true });
+    writeFileSync(loginDirIn(root, 'claude', id), 'not a folder', 'utf8');
+    expect(loginDirOnDisk(root, 'claude', loginDirIn(root, 'claude', id))).toBe('escapes');
+    // ABSENT IS NOT AN ESCAPE. A login whose folder the person deleted has to
+    // fall back to the default and name itself, which is a different answer.
+    expect(loginDirOnDisk(root, 'claude', loginDirIn(root, 'claude', 'b'.repeat(16)))).toBe(
+      'absent'
+    );
+    const added = addLogin(root, 'codex', 'Work');
+    if (!added.ok) throw new Error('add failed');
+    expect(loginDirOnDisk(root, 'codex', added.dir ?? '')).toBe('ok');
+  });
+
+  it('refuses a link that points at another login inside the root', () => {
+    const added = addLogin(root, 'claude', 'One');
+    if (!added.ok) throw new Error('add failed');
+    const id = 'c'.repeat(16);
+    symlinkSync(added.dir ?? '', loginDirIn(root, 'claude', id));
+    expect(loginDirOnDisk(root, 'claude', loginDirIn(root, 'claude', id))).toBe('escapes');
   });
 });
 

@@ -38,6 +38,7 @@ import {
   LOGIN_ID_RE,
   isOwnedLoginDir,
   loginDirIn,
+  loginDirOnDisk,
   loginProviderRootIn,
   loginsFileIn
 } from './dirs';
@@ -153,13 +154,24 @@ export function readLoginsFile(root: string): LoginsFileRead {
         continue;
       }
       // SECOND GUARD, and it is the one that stands in front of a path. The
-      // id already passed its shape test, so this can only fail if a later
-      // round changes that shape; it is here because the cost of the check is
-      // nothing and the cost of missing it is a directory outside the root.
-      if (!isOwnedLoginDir(root, provider, loginDirIn(root, provider, id))) {
+      // id already passed its shape test, so the spelling half can only fail
+      // if a later round changes that shape; it is here because the cost of
+      // the check is nothing and the cost of missing it is a directory
+      // outside the root.
+      //
+      // THE DISK HALF IS THE ONE THAT CATCHES A LINK, added by the Phase 202
+      // fix round after the verifier planted one. A spelled path cannot say
+      // whether the thing at the end of it is a directory Tortie owns or a
+      // symlink to somebody else's, and every surface below this line trusts
+      // the row: the list, the choice, the launch and the meter. So the row
+      // is dropped HERE, once, and none of them ever sees it. A folder that
+      // is merely GONE is not dropped, because a chosen login whose folder
+      // the person deleted has to fall back to the default and name itself.
+      if (loginDirOnDisk(root, provider, loginDirIn(root, provider, id)) === 'escapes') {
         problems.push(
-          `A ${provider} login row names a directory Tortie does not own. ` +
-            'It was dropped.'
+          `The ${provider} login ${JSON.stringify(name)} names a folder that ` +
+            'is not one Tortie owns, being a link or not a folder at all. It ' +
+            'was dropped and nothing in it was read.'
         );
         continue;
       }
@@ -230,7 +242,17 @@ export function writeLoginsFile(root: string, file: LoginsFile): void {
  * keychain. This function is the cheap half and it never opens the keychain,
  * so listing logins spawns nothing.
  */
-function credentialFilePresent(provider: LoginProviderId, dir: string): boolean {
+function credentialFilePresent(
+  root: string,
+  provider: LoginProviderId,
+  dir: string
+): boolean {
+  // THE OWNERSHIP QUESTION IS ASKED BEFORE THE FILE ONE. A row that escapes
+  // is already dropped by the reader, so this is the second guard rather than
+  // the first, and it is here because `existsSync` follows a link: without
+  // it, the cheapest surface in the domain would be the one that reaches out
+  // of Tortie's data to look for somebody else's credential.
+  if (loginDirOnDisk(root, provider, dir) !== 'ok') return false;
   const file =
     provider === 'claude' ? join(dir, '.credentials.json') : join(dir, 'auth.json');
   try {
@@ -261,7 +283,7 @@ export function listLogins(root: string): LoginsSnapshot {
         name: row.name,
         isDefault: false,
         chosen: sameLoginName(chosen, row.name),
-        present: credentialFilePresent(provider, dir)
+        present: credentialFilePresent(root, provider, dir)
       });
     }
   }
@@ -316,7 +338,12 @@ export function resolveLoginDir(
     return { name: null, dir: null, fellBack: true, asked: name };
   }
   const dir = loginDirIn(root, provider, row.id);
-  if (!isOwnedLoginDir(root, provider, dir) || !existsSync(dir)) {
+  // NOT `existsSync`, and the Phase 202 fix round is why: `existsSync`
+  // FOLLOWS a link, so it answered true for a directory outside Tortie's own
+  // data and handed it to a launch. `loginDirOnDisk` refuses a link and every
+  // other shape that is not a real owned directory, and answers `absent` for
+  // the ordinary case this fallback was written for.
+  if (loginDirOnDisk(root, provider, dir) !== 'ok') {
     return { name: null, dir: null, fellBack: true, asked: name };
   }
   return { name: row.name, dir, fellBack: false, asked: name };

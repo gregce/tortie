@@ -27,6 +27,7 @@
  * userData is.
  */
 
+import { lstatSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import type { LoginProviderId } from '@shared/logins';
 
@@ -99,4 +100,84 @@ export function isOwnedLoginDir(
   // login and must never be created or removed as one.
   const rest = full.slice(prefix.length);
   return rest.length > 0 && !rest.includes(sep);
+}
+
+/** What is actually on disk where a login's directory should be. */
+export type LoginDirDiskState =
+  /** A real directory, reached without following a single link. */
+  | 'ok'
+  /** Nothing is there. A login whose folder was deleted answers this. */
+  | 'absent'
+  /** Something is there and it is not a directory Tortie owns. */
+  | 'escapes';
+
+/**
+ * The same question asked of the DISK, and it is the one the string rule
+ * above cannot answer.
+ *
+ * THE ATTACK THIS ANSWERS, found by the Phase 202 verifier in the running
+ * app. `resolve` does no input and output at all, so it does not follow a
+ * link: an entry at `<root>/<provider>/<sixteen hex>` that is a SYMLINK to
+ * any directory on the machine is spelled inside the root, passes the id
+ * shape and passes {@link isOwnedLoginDir}. The verifier planted one before
+ * the app started, which is the whole threat model, and it was listed as
+ * present, chosen, put on a pane as `CLAUDE_CONFIG_DIR` and read by the
+ * meter. That variable moves claude's whole world with it, being its
+ * settings, hooks, skills, plugins and agents, so a writer of that directory
+ * would decide what runs inside every future session with no human
+ * confirmation, which is refusal 8.
+ *
+ * SO EVERY COMPONENT TORTIE COMPOSES IS ASKED, being the logins root, the
+ * provider root and the entry itself, and a link anywhere in those three is
+ * refused. `lstat` is what makes that a real answer: it reports on the link
+ * and never on what it points at. The real paths are then compared as well,
+ * so a shape none of the three tests foresaw still has to land as a direct
+ * child of the real provider root.
+ *
+ * ANCESTORS ABOVE THE LOGINS ROOT ARE DELIBERATELY NOT ASKED. They are the
+ * person's own userData path, they are routinely reached through a link on
+ * macOS, and both sides of the comparison below resolve them identically. A
+ * check there would refuse ordinary installs and would prove nothing.
+ *
+ * ABSENT IS NOT AN ESCAPE, and the difference matters: a login whose folder
+ * the person deleted must still fall back to the default and say which name
+ * it could not honour, which is what the phase promised and what an escape
+ * must never be confused with.
+ */
+export function loginDirOnDisk(
+  root: string,
+  provider: LoginProviderId,
+  dir: string
+): LoginDirDiskState {
+  if (!isOwnedLoginDir(root, provider, dir)) return 'escapes';
+  let present: boolean;
+  try {
+    present = lstatSync(dir).isDirectory();
+  } catch (err) {
+    // ENOENT is the deleted folder and every other error is a directory
+    // Tortie cannot read, which is not one it may hand to a launch.
+    return (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'absent' : 'escapes';
+  }
+  // A link to a directory is a directory to `stat` and is NOT one here, which
+  // is why `lstat` is asked: `isDirectory` on the link itself is false.
+  if (!present) return 'escapes';
+  const base = loginProviderRootIn(root, provider);
+  for (const step of [root, base]) {
+    try {
+      if (lstatSync(step).isSymbolicLink()) return 'escapes';
+    } catch {
+      return 'escapes';
+    }
+  }
+  try {
+    const realBase = realpathSync(base);
+    const realDir = realpathSync(dir);
+    const prefix = realBase.endsWith(sep) ? realBase : realBase + sep;
+    if (!realDir.startsWith(prefix)) return 'escapes';
+    const rest = realDir.slice(prefix.length);
+    if (rest.length === 0 || rest.includes(sep)) return 'escapes';
+  } catch {
+    return 'escapes';
+  }
+  return 'ok';
 }
