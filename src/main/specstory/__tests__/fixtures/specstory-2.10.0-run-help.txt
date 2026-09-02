@@ -1,0 +1,62 @@
+
+  Launch terminal coding agents in interactive mode with auto-save markdown file generation.                            
+                                                                                                                        
+  By default, launches Antigravity CLI. Specify a specific agent ID to use a different agent.                           
+                                                                                                                        
+  Available provider IDs: antigravity (Antigravity CLI), claude (Claude Code), codex (Codex CLI), copilotide (VS Code   
+  Copilot IDE), cursor (Cursor CLI), cursoride (Cursor IDE), deepseek (DeepSeek TUI), droid (Factory Droid CLI), gemini 
+  (Gemini CLI), muse (Muse Code).                                                                                       
+         
+  USAGE  
+         
+    specstory run [provider-id] [--flags]                        
+            
+  EXAMPLES  
+            
+    # Run default agent with auto-saving                         
+    specstory run                                                
+                                                                 
+    # Run specific agent                                         
+    specstory run antigravity                                    
+    specstory run claude                                         
+    specstory run codex                                          
+    specstory run copilotide                                     
+    specstory run cursor                                         
+    specstory run cursoride                                      
+    specstory run deepseek                                       
+    specstory run droid                                          
+    specstory run gemini                                         
+    specstory run muse                                           
+                                                                 
+    # Run with custom command                                    
+    specstory run antigravity -c "/custom/path/to/agent"         
+                                                                 
+    # Resume a specific session                                  
+    specstory run --resume 5c5c2876-febd-4c87-b80c-d0655f1cd3fd  
+                                                                 
+    # Run with custom output directory                           
+    specstory run --output-dir ~/my-sessions                     
+         
+  FLAGS  
+         
+    -c --command              Custom agent execution command for the provider
+    --config-dir              Custom directory for the project-level config.toml (default: ./.specstory/cli)
+    --console                 Enable error/warn/info output to stdout
+    --debug                   Enable debug-level output (requires --console or --log)
+    --debug-dir               Custom output directory for debug data (default: ./.specstory/debug)
+    -h --help                 Help for run
+    --local-time-zone         Use local timezone for file name and content timestamps (when not present: UTC)
+    --log                     Write error/warn/info output to ./.specstory/debug/debug.log
+    --no-cloud-sync           Disable cloud sync functionality
+    --no-redact-secrets       Disable redaction of API keys and tokens from saved markdown history and cloud-synced session data
+    --no-stats                Skip statistics entirely, do not read or write statistics.json
+    --no-telemetry-prompts    Exclude prompt text from telemetry spans, if telemetry is enabled
+    --no-usage-analytics      Disable usage analytics
+    --no-version-check        Skip checking for newer versions (true)
+    --only-cloud-sync         Skip local markdown file saves, only upload to cloud (requires authentication)
+    --output-dir              Custom output directory for markdown files (default: ./.specstory/history)
+    --resume                  Resume a specific session by ID
+    --silent                  Suppress all non-error output
+    --telemetry-endpoint      Open Telemetry Protocol (OTLP) gRPC collector endpoint (default is off, e.g., localhost:4317)
+    --telemetry-service-name  Override the default service name for telemetry, if telemetry is enabled
+

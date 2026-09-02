@@ -98,7 +98,11 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { cdpEval, wsConnect } from './cdp-client.mjs';
-import { withElectron } from './electron-run.mjs';
+import {
+  inheritedDevRendererVars,
+  withElectron,
+  withoutDevRenderer
+} from './electron-run.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -532,13 +536,30 @@ let mainPidSeen = 0;
 
 rmSync(join(profile, 'DevToolsActivePort'), { force: true });
 
+// PHASE 200: say what this shell brought and what was taken out, so a run in
+// the operator's dev terminal and a run in a clean one are visibly the same.
+{
+  const inherited = inheritedDevRendererVars();
+  say(
+    inherited.length === 0
+      ? 'p167: no development renderer variable in this shell; the built renderer is what is measured'
+      : `p167: stripped ${inherited.join(', ')} from the app's environment; the built renderer is what is measured`
+  );
+}
+
 await withElectron(
   {
     label: 'p167',
     userDataDir: profile,
     tmuxSocket: null,
     args: ['--remote-debugging-port=0', '--use-mock-keychain'],
-    env: { HOME: home, GMUX_TMUX_SOCKET: socket, GMUX_PROBES: '1' },
+    // PHASE 200: the development renderer variables are stripped HERE, so
+    // this command measures the built renderer whatever shell it is typed in.
+    env: withoutDevRenderer({
+      HOME: home,
+      GMUX_TMUX_SOCKET: socket,
+      GMUX_PROBES: '1'
+    }),
     ceilingMs: 60 * 60 * 1000
   },
   async (handle) => {

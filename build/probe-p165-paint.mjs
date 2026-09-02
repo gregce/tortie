@@ -83,7 +83,12 @@ import { fileURLToPath } from 'node:url';
 
 import { cdpEval, wsConnect } from './cdp-client.mjs';
 import { pickRendererTarget, selfTest as targetSelfTest } from './cdp-target.mjs';
-import { withElectron } from './electron-run.mjs';
+import {
+  inheritedDevRendererVars,
+  withElectron,
+  withoutDevRenderer
+} from './electron-run.mjs';
+import { seedArchSwitchOn } from './probe-arch-switch.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..');
@@ -543,11 +548,26 @@ async function launch(label, extraEnv, logFile, opts = {}) {
     if (n.startsWith(basename(logFile))) rmSync(join(dirname(logFile), n));
   }
   rmSync(join(profile, 'DevToolsActivePort'), { force: true });
+  // PHASE 200: the Architecture switch ships off and this profile is a fresh
+  // directory, so the drive leg's `.arch-map-open` click had nothing to click
+  // and the whole drive run reported nothing. Seeded here, before every
+  // launch, because the profile is remade between them.
+  seedArchSwitchOn(profile);
   const started = Date.now();
   let text = '';
   let renderer = null;
   let driven = null;
   let rendererErr = null;
+  // PHASE 200: say what this shell brought and what was taken out, so a run in
+  // the operator's dev terminal and a run in a clean one are visibly the same.
+  {
+    const inherited = inheritedDevRendererVars();
+    say(
+      inherited.length === 0
+        ? 'no development renderer variable in this shell; the built renderer is what is measured'
+        : `stripped ${inherited.join(', ')} from the app's environment; the built renderer is what is measured`
+    );
+  }
   await withElectron(
     {
       label,
@@ -556,14 +576,16 @@ async function launch(label, extraEnv, logFile, opts = {}) {
       tmuxSocket: null,
       program: 'app',
       args: opts.cdp ? ['--remote-debugging-port=0', '--use-mock-keychain'] : ['--use-mock-keychain'],
-      env: {
+      // PHASE 200: the development renderer variables are stripped HERE, so
+      // this command measures the built renderer whatever shell it is typed in.
+      env: withoutDevRenderer({
         HOME: home,
         GMUX_TMUX_SOCKET: socket,
         NODE_OPTIONS: `--require ${HOOK}`,
         GMUX_P164_SPAWN_LOG: logFile,
         GMUX_P164_HOLD_MS: String(holdMs),
         ...extraEnv
-      }
+      })
     },
     async (handle) => {
       const deadline = Date.now() + holdMs + 30_000;

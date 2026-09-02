@@ -23,6 +23,31 @@
  *
  * Skips itself (rather than failing) when no specstory binary is present —
  * `npm run vendor:specstory` fetches the pinned copy this suite prefers.
+ *
+ * ---------------------------------------------------------------------------
+ * PHASE 200 MOVED THIS FILE INTO THE ADAPTER LANE, and the reason is the whole
+ * point of having lanes.
+ * ---------------------------------------------------------------------------
+ *
+ * It was `wrap.integration.test.ts`, which the hermetic lane included, and
+ * every describe in it EXECUTES a binary found on the host. The 0.98.0 audit
+ * met the consequence: the hermetic lane failed on the audit machine because
+ * the installed specstory it found there does not advertise `muse`. A lane
+ * whose answer depends on an installed binary is not hermetic, whatever the
+ * result is. So the real binary work is `*.native.test.ts` now, beside the
+ * FSEvents and live process table adapters, and it runs under
+ * `npm run test:native`.
+ *
+ * THE COMPATIBILITY RULE DID NOT MOVE WITH IT. `./wrap-providers.test.ts` runs
+ * the same `parseProviderIds` over a CAPTURED `run --help`, so the hermetic
+ * lane still fails when the parse stops finding the providers Tortie has rows
+ * for. What it no longer does is ask the host what it happens to have
+ * installed.
+ *
+ * The provider set assertion below is bound to the VENDORED pin as well, for
+ * the same reason: a host binary can still prove the argv passthrough and the
+ * exit code rows, which are properties of the wrapper, and it cannot be asked
+ * to prove which providers a release Tortie pinned ships.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -47,9 +72,17 @@ import type { SpecstoryProviderId } from '../../agents/registry';
 // Harness
 // ---------------------------------------------------------------------------
 
+const VENDORED = join(
+  process.cwd(),
+  'build',
+  'vendor',
+  'specstory',
+  'bin',
+  'specstory'
+);
+
 function findSpecstory(): string | null {
-  const vendored = join(process.cwd(), 'build', 'vendor', 'specstory', 'bin', 'specstory');
-  if (existsSync(vendored)) return vendored;
+  if (existsSync(VENDORED)) return VENDORED;
   for (const dir of ['/opt/homebrew/bin', '/usr/local/bin']) {
     const p = join(dir, 'specstory');
     if (existsSync(p)) return p;
@@ -58,6 +91,12 @@ function findSpecstory(): string | null {
 }
 
 const SPECSTORY = findSpecstory();
+/**
+ * PHASE 200. True only when the binary under test is the copy this build
+ * vendored, which is the only one whose provider set is a property of Tortie
+ * rather than of whoever's machine this is.
+ */
+const IS_VENDORED = SPECSTORY === VENDORED;
 const root = mkdtempSync(join(tmpdir(), 'gmux-sswrap-'));
 const HOME = join(root, 'home');
 const CWD = join(root, 'proj');
@@ -197,7 +236,10 @@ describeIf('exit codes through the wrapper — the registry matrix, executable',
   });
 });
 
-describeIf('the provider probe reads the CLI this build actually ships', () => {
+const describeVendored =
+  SPECSTORY === null || !IS_VENDORED ? describe.skip : describe;
+
+describeVendored('the provider probe reads the CLI this build actually ships', () => {
   it('finds the providers gmux has rows for, muse included since 2.10.0', () => {
     const help = execFileSync(SPECSTORY as string, ['run', '--help', '--no-version-check'], {
       encoding: 'utf8',
@@ -218,7 +260,11 @@ describeIf('the provider probe reads the CLI this build actually ships', () => {
     // providers that exist.
     expect(found.has('muse')).toBe(true);
   });
+});
 
+// The list probe is a property of ANY real specstory rather than of the pin,
+// so it runs against whatever binary was found.
+describeIf('the list probe against a real CLI', () => {
   /**
    * The rung the ladder prefers (Phase 18.5), against the shipped CLI.
    *

@@ -82,6 +82,13 @@ import { fileURLToPath } from 'node:url';
 
 import { refuseRealSockets, scratchYard } from './scratch-machine.mjs';
 import { sshRun } from './ssh-run.mjs';
+// PHASE 200. `tsxCli` is imported HERE, in the module that CALLS it. It used
+// to be a line inside the generated driver's own text, where it resolved a
+// relative path that does not exist in the scratch run directory and where
+// nothing ever called it, while the call site below had no binding at all. The
+// probe died with `ReferenceError: tsxCli is not defined` before it reached
+// its subject, and the 0.98.0 audit found it dead.
+import { tsxCli } from './ts-runner.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -200,7 +207,6 @@ writeFileSync(
   driverPath,
   String.raw`
 import { readFileSync, writeFileSync } from 'node:fs';
-import { tsxCli } from './ts-runner.mjs';
 
 const REPO = '__REPO__';
 const input = JSON.parse(readFileSync(process.argv[2] ?? '', 'utf8'));
@@ -386,6 +392,41 @@ function stopEverything() {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// PHASE 200. The teardown runs on EVERY exit, not only the happy one
+// ---------------------------------------------------------------------------
+//
+// This probe was dead at the 0.98.0 audit, and it died with a ReferenceError
+// on its first driver call: the whole run below the crash never happened, and
+// nothing that had already been started was ended, because both the kill loop
+// and the directory removal live at the BOTTOM of this file. That is the same
+// shape `build/electron-run.mjs` exists to stop for Electron, and the rule from
+// CLAUDE.md is the same one: a probe that kills only on the happy path is a
+// defect.
+//
+// `process.on('exit')` fires on a normal exit, on `process.exit()` and after an
+// uncaught exception, so this covers the crash the audit found as well as a
+// failed assertion. It is idempotent, so the ordinary path below still reads
+// the way it did and simply finds nothing left to do.
+let tornDown = false;
+
+function teardown() {
+  if (tornDown) return;
+  tornDown = true;
+  try {
+    stopEverything();
+  } catch {
+    /* a pid that will not die is reported below, never thrown from here */
+  }
+  try {
+    rmSync(root, { recursive: true, force: true });
+  } catch {
+    /* a scratch directory that will not go is not a result */
+  }
+}
+
+process.on('exit', teardown);
 
 // ---------------------------------------------------------------------------
 // Step 1. Tortie makes the key
@@ -998,11 +1039,10 @@ say(
     'that verifies one has to run as root and this phase never asks for root.'
 );
 
-try {
-  rmSync(root, { recursive: true, force: true });
-} catch {
-  /* a scratch directory that will not go is not a result */
-}
+// PHASE 200: the same teardown the exit handler runs, called here so the
+// report below already describes a machine with nothing of this probe's left
+// on it. It is idempotent.
+teardown();
 
 if (failures.length > 0) {
   process.stdout.write(`\nFAIL, ${failures.length}:\n`);

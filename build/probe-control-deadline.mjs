@@ -58,6 +58,11 @@ import { fileURLToPath } from 'node:url';
 
 import { refuseRealSockets, scratchMachine, scratchYard } from './scratch-machine.mjs';
 import { sshRun } from './ssh-run.mjs';
+// PHASE 200. `tsxCli` is imported HERE, in the module that CALLS it. See the
+// same repair in build/probe-key-install.mjs: it used to sit inside the
+// generated driver's text, so the outer call site had no binding and this
+// probe could never reach its subject.
+import { tsxCli } from './ts-runner.mjs';
 
 const WHO = 'probe-control-deadline';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,6 +78,85 @@ const record = (pid) => {
 const failures = [];
 const fail = (message) => failures.push(message);
 const say = (line) => process.stdout.write(`${line}\n`);
+
+// ---------------------------------------------------------------------------
+// PHASE 200. The teardown runs on EVERY exit, not only the happy one
+// ---------------------------------------------------------------------------
+//
+// This probe was dead at the 0.98.0 audit and it died AFTER it had started an
+// sshd and a tmux server on its scratch machine, with a ReferenceError on its
+// first driver call. Both were left running, because the kill loop and the
+// directory removal live near the BOTTOM of this file. That is the same shape
+// `build/electron-run.mjs` exists to stop for Electron, and CLAUDE.md's rule is
+// the same: a probe that kills only on the happy path is a defect.
+//
+// `process.on('exit')` fires on a normal exit, on `process.exit()` and after an
+// uncaught exception, so this covers the crash the audit found as well as a
+// failed assertion. It is idempotent, kills ONLY pids this file recorded, and
+// removes only directories this file made.
+let tornDown = false;
+/** Set once the run directory and the control directory exist. */
+const scratchDirs = [];
+
+/**
+ * The pids descended from `pid`, deepest first, read off `ps` rather than
+ * guessed. PHASE 200 added it because an sshd that has accepted a connection
+ * has FORKED, and killing only the listener leaves the accepted session
+ * running, reparented to launchd, where nothing this file recorded can find
+ * it. Measured on 2026-09-02: one run left two `sshd-session: gdc` processes
+ * behind exactly that way. The walk is done BEFORE anything is signalled,
+ * because a child reparents the moment its parent dies.
+ */
+function descendantsOf(pid) {
+  const table = spawnSync('/bin/ps', ['-Ao', 'pid,ppid'], { encoding: 'utf8' });
+  const byParent = new Map();
+  for (const line of (table.stdout ?? '').split('\n').slice(1)) {
+    const m = /^\s*(\d+)\s+(\d+)/.exec(line);
+    if (m === null) continue;
+    const child = Number(m[1]);
+    const parent = Number(m[2]);
+    const kids = byParent.get(parent) ?? [];
+    kids.push(child);
+    byParent.set(parent, kids);
+  }
+  const out = [];
+  const walk = (one) => {
+    for (const kid of byParent.get(one) ?? []) {
+      walk(kid);
+      out.push(kid);
+    }
+  };
+  walk(pid);
+  return out;
+}
+
+function teardown() {
+  if (tornDown) return;
+  tornDown = true;
+  // Deepest first, and the whole tree is read before the first signal.
+  const tree = [];
+  for (const pid of pids) {
+    for (const one of descendantsOf(pid)) if (!tree.includes(one)) tree.push(one);
+    if (!tree.includes(pid)) tree.push(pid);
+  }
+  for (const pid of tree) {
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      // Already gone. Nothing to do, and nothing else is signalled.
+    }
+  }
+  for (const dir of scratchDirs) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // Under the temporary folder. Leaving it costs nothing.
+    }
+  }
+}
+
+process.on('exit', teardown);
+scratchDirs.push(runDir);
 
 /** The operator's own sessions. A read, and the only thing this file asks it. */
 function operatorSessions() {
@@ -139,6 +223,9 @@ chmodSync(exitingTmux, 0o755);
 const yard = scratchYard({ root: runDir, prefix: 'p83', record });
 const machine = scratchMachine(yard, { id: 'a', port: 47_831 });
 machine.start();
+// PHASE 200: the machine's own tmux temporary directory, named for the
+// teardown as soon as it exists.
+scratchDirs.push(machine.tmuxTmp);
 say(`[${WHO}] a scratch machine is listening on 127.0.0.1:${String(machine.port)}`);
 
 // Give sshd a moment to bind. A short wait is honest here: the alternative is a
@@ -231,7 +318,6 @@ import {
   TmuxControlClient
 } from '${repoRoot}/src/main/tmux/control-client';
 import { execFileSync } from 'node:child_process';
-import { tsxCli } from './ts-runner.mjs';
 
 const cfg = JSON.parse(readFileSync(process.env['P83_CONFIG'] as string, 'utf8'));
 const out: Record<string, unknown> = { deadlineMs: CONTROL_GREETING_DEADLINE_MS };
@@ -474,6 +560,9 @@ const config = {
   userHostKeys
 };
 mkdirSync(config.controlDir, { recursive: true, mode: 0o700 });
+// PHASE 200: named for the teardown as soon as it exists, so a throw between
+// here and the report below still removes it.
+scratchDirs.push(config.controlDir);
 writeFileSync(join(runDir, 'p83-config.json'), JSON.stringify(config, null, 2), 'utf8');
 
 const run = spawnSync(
@@ -515,21 +604,14 @@ if (data === null) {
 if (data !== null && typeof data.localServerPid === 'number' && data.localServerPid > 0) {
   record(data.localServerPid);
 }
-for (const pid of pids) {
-  try {
-    process.kill(pid, 'SIGTERM');
-  } catch {
-    // Already gone. Nothing to do, and nothing else is signalled.
-  }
-}
-say(`[${WHO}] killed ${String(pids.length)} recorded pid(s): ${pids.join(', ')}`);
-try {
-  rmSync(machine.tmuxTmp, { recursive: true, force: true });
-  rmSync(config.controlDir, { recursive: true, force: true });
-  rmSync(runDir, { recursive: true, force: true });
-} catch {
-  // The run directory is under the temporary folder. Leaving it costs nothing.
-}
+// PHASE 200: the same teardown the exit handler runs, called here so the report
+// below already describes a machine with nothing of this probe's left on it. It
+// is idempotent.
+teardown();
+say(
+  `[${WHO}] killed ${String(pids.length)} recorded pid(s) and their children: ` +
+    `${pids.join(', ')}`
+);
 
 // ---------------------------------------------------------------------------
 // The report

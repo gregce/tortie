@@ -440,6 +440,51 @@ function installNet() {
 // ---------------------------------------------------------------------------
 
 /**
+ * PHASE 200. The variables a development server leaves in a shell, and the one
+ * helper that takes them out of a probe's Electron.
+ *
+ * `electron-vite dev` exports these, and `withElectron` merges `process.env`
+ * into the child, so a probe run from the shell the operator's dev server is
+ * running in measures the DEV renderer while a probe run from a clean shell
+ * measures the BUILT one. The 0.98.0 audit hit exactly that: P167 needed an
+ * explicitly sanitised launch before its numbers meant anything, so the same
+ * command had two meanings depending on whose terminal it was typed in.
+ *
+ * A probe that measures the shipped renderer strips them, so its command has
+ * one meaning. Node omits an environment key whose value is `undefined`, which
+ * is what removes them from the child rather than blanking them.
+ */
+export const DEV_RENDERER_VARS = Object.freeze([
+  'ELECTRON_RENDERER_URL',
+  'NODE_ENV_ELECTRON_VITE',
+  'NODE_ENV'
+]);
+
+/**
+ * `env` with every development renderer variable removed from the child.
+ *
+ * @param {Record<string, string|undefined>} [env={}] the probe's own overrides
+ * @returns {Record<string, string|undefined>} the same, plus the removals
+ */
+export function withoutDevRenderer(env = {}) {
+  const out = { ...env };
+  for (const name of DEV_RENDERER_VARS) out[name] = undefined;
+  return out;
+}
+
+/**
+ * The development renderer variables THIS process inherited, for a probe to
+ * print. An empty list means the shell was already clean.
+ *
+ * @returns {string[]} the names that were set, in the order above
+ */
+export function inheritedDevRendererVars() {
+  return DEV_RENDERER_VARS.filter(
+    (name) => process.env[name] !== undefined && process.env[name] !== ''
+  );
+}
+
+/**
  * @typedef {object} ElectronRunOptions
  * @property {string}   label          A short name for this launch. Every line
  *                                     the helper prints carries it.
