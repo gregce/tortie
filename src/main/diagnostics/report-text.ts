@@ -47,8 +47,18 @@ function cpuText(percent: number, source: 'sampled' | 'lifetime'): string {
  */
 function projectText(s: DiagnosticsSessionWorkload): string {
   if (s.projectName === null) return 'project unknown';
-  if (s.projectPath === null) return s.projectName;
-  return `${s.projectName} (${s.projectPath})`;
+  if (s.projectPath === null) return oneLine(s.projectName);
+  return `${oneLine(s.projectName)} (${oneLine(s.projectPath)})`;
+}
+
+/**
+ * PHASE 197 ITEM 18, a Phase 188 known limit. A session name and a project
+ * name are the person's own strings, and a newline in either split the row a
+ * person pastes into an issue across two lines, so the second half read as a
+ * row with no name. Every line break folds to one space; nothing else moves.
+ */
+function oneLine(text: string): string {
+  return text.replace(/[\r\n]+/g, ' ');
 }
 
 /**
@@ -180,7 +190,7 @@ export function buildDiagnosticsReportText(
   );
   for (const s of r.sessions) {
     lines.push(
-      `${s.name}  ${projectText(s)}  ${s.agent}  ${s.processCount} processes  ${memText(s.memory)}  ${cpuText(s.cpuPercent, 'lifetime')}  ${stampText('started', s.createdAt)}  ${stampText('last seen', s.lastSeen)}`
+      `${oneLine(s.name)}  ${projectText(s)}  ${s.agent}  ${s.processCount} processes  ${memText(s.memory)}  ${cpuText(s.cpuPercent, 'lifetime')}  ${stampText('started', s.createdAt)}  ${stampText('last seen', s.lastSeen)}`
     );
   }
 

@@ -247,6 +247,28 @@ describe('buildDiagnosticsReportText', () => {
  * At the parent commit each of the five impossible ones throws
  * `RangeError: Invalid time value`.
  */
+describe('a line break in a name stays on one row (Phase 197 item 18)', () => {
+  it('folds a newline in the session name and in the project name to a space', () => {
+    const body: Omit<DiagnosticsReport, 'text'> = {
+      ...BODY,
+      sessions: [
+        {
+          ...(BODY.sessions[0] as DiagnosticsSessionWorkload),
+          name: 'API\nrefactor',
+          projectName: 'web\r\napp',
+          projectPath: '~/src/web\napp'
+        }
+      ]
+    };
+    const lines = buildDiagnosticsReportText(body, HOME).split('\n');
+    const at = lines.indexOf('[Your sessions]');
+    // The heading, the total, exactly ONE row, then the blank line before [main].
+    assert.equal(lines[at + 3], '');
+    const row = lines[at + 2] ?? '';
+    assert.ok(row.startsWith('API refactor  web app (~/src/web app)  claude  '), row);
+  });
+});
+
 describe('an impossible instant is unknown, and a legal one still renders', () => {
   /** The report's own `generatedAt`, so "the future" has something to be after. */
   const AT = Date.parse(BODY.generatedAt);
