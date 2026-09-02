@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Architecture sidebar, gmux, the reading</title>
+<style>
+/* Research 77 mock. Every value below is copied from src/renderer/styles/tokens.css,
+   globals.css, app.css and src/renderer/arch/arch.css at origin/main on 2026-09-01.
+   Nothing here is a new token. The frame is 280px wide, which is SIDEBAR_DEFAULT
+   in src/renderer/state/chrome-geometry.ts. Every number on the face and behind
+   hover was measured on the gmux copy on 2026-09-01: the layer 1 facts from
+   facts-gmux.json and the layer 3 facts from git log over the last day. */
+:root {
+  --bg-canvas: #131417;
+  --bg-sidebar: #17181c;
+  --bg-surface: #1b1d22;
+  --bg-raised: #22252b;
+  --bg-active: #2a2e36;
+  --border: #2a2d34;
+  --border-strong: #3a3e48;
+  --text-primary: #e8eaed;
+  --text-secondary: #a8adb8;
+  --text-muted: #838996;
+  --text-disabled: #565b66;
+  --accent: #4d9de8;
+  --accent-text: #82bfff;
+  --success: #6bc46d;
+  --error: #e5655e;
+  --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px; --space-5: 12px;
+  --space-6: 16px; --space-7: 20px; --space-8: 24px;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+  --text-xs: 11px; --lh-xs: 16px;
+  --text-sm: 12px; --lh-sm: 18px;
+  --text-base: 13px; --lh-base: 20px;
+  --text-md: 15px; --lh-md: 22px;
+  --view-heading-text: var(--text-xs);
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600;
+  --r-sm: 4px; --r-md: 6px;
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; background: var(--bg-canvas); }
+body {
+  margin: 0; padding: 24px;
+  background: var(--bg-canvas); color: var(--text-primary);
+  font-family: var(--font-ui); font-size: var(--text-base); line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+}
+button { appearance: none; border: 0; background: none; font: inherit; color: inherit; padding: 0; margin: 0; cursor: pointer; text-align: left; }
+ul { list-style: none; margin: 0; padding: 0; }
+p { margin: 0; }
+.codicon { display: inline-block; width: 1em; height: 1em; fill: currentColor; vertical-align: -0.125em; flex: 0 0 auto; }
+
+.caption { width: 280px; margin: 0 0 8px; color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+
+/* S3 sidebar (app.css .sidebar) */
+.sidebar {
+  width: 280px; height: 1240px;
+  display: flex; flex-direction: column;
+  background: var(--bg-sidebar); border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+/* the 36px header band (app.css .view-header), unchanged */
+.view-header {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: 36px; flex: 0 0 36px; padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--border); color: var(--text-muted);
+  font-size: var(--view-heading-text); line-height: var(--lh-xs); font-weight: var(--weight-semibold);
+  text-transform: uppercase; letter-spacing: 0.04em; user-select: none;
+}
+.view-header-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-header-spacer { flex: 1; min-width: 0; }
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: var(--r-sm); color: var(--text-secondary); flex: 0 0 auto;
+}
+.icon-btn:hover { background: var(--bg-raised); color: var(--text-primary); }
+.icon-btn .codicon { width: 16px; height: 16px; }
+
+/* the view body (arch.css .arch), unchanged */
+.arch {
+  display: flex; flex-direction: column; gap: var(--space-3); min-width: 0;
+  padding: var(--space-3) 0 var(--space-6);
+  color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--lh-sm);
+  overflow-y: auto;
+}
+/* the section heading (app.css .section-header), unchanged */
+.section-header {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: 28px; flex: 0 0 28px; padding: 0 var(--space-4);
+  background: var(--bg-sidebar); color: var(--text-muted);
+  font-size: var(--view-heading-text); line-height: var(--lh-xs); font-weight: var(--weight-semibold);
+  text-transform: uppercase; letter-spacing: 0.04em; user-select: none; width: 100%;
+}
+.section-spacer { flex: 1; }
+
+/* ---- 1. the repository: the subject (arch.css .arch-subject) and the rule R line ---- */
+.rd-repo { display: flex; flex-direction: column; gap: var(--space-1); padding: 0 var(--space-5); }
+.arch-subject {
+  color: var(--text-primary); font-size: var(--text-md); line-height: var(--lh-md); font-weight: var(--weight-semibold);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rd-line { color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--lh-sm); }
+
+/* ---- 2. the model slot, drawn ABSENT: one row, 11px, and the ask control ---- */
+.rd-model {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-1) var(--space-5); color: var(--text-muted);
+  font-size: var(--text-xs); line-height: var(--lh-xs);
+}
+.rd-model-ask { color: var(--accent-text); white-space: nowrap; }
+.rd-model-ask:hover { text-decoration: underline; }
+
+/* ---- 3. the components: one row per part, name and weight and band, then the sentence ---- */
+.rd-part {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  width: 100%; padding: var(--space-2) var(--space-5); min-width: 0;
+}
+.rd-part:hover { background: var(--bg-raised); }
+.rd-part-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.rd-band { width: 8px; height: 12px; flex: 0 0 auto; }
+.rd-band rect { fill: var(--border-strong); }
+.rd-band rect.on { fill: var(--text-secondary); }
+.rd-part-name {
+  color: var(--text-primary); font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--weight-medium);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto;
+}
+.rd-bar { width: 48px; height: 3px; border-radius: 2px; background: var(--bg-active); flex: 0 0 auto; overflow: hidden; }
+.rd-bar > i { display: block; height: 100%; background: var(--text-muted); }
+.rd-part-sentence { color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); overflow-wrap: anywhere; }
+
+/* ---- 4. what moved: the window chips, the total line, one row per part that moved ---- */
+.rd-chips { display: inline-flex; gap: var(--space-1); }
+.rd-chip {
+  height: 18px; padding: 0 var(--space-3); border-radius: var(--r-sm);
+  color: var(--text-muted); font-size: var(--text-xs); line-height: 18px;
+  font-weight: var(--weight-regular); text-transform: none; letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.rd-chip:hover { background: var(--bg-raised); color: var(--text-secondary); }
+.rd-chip.on { background: var(--bg-active); color: var(--text-primary); }
+.rd-total { padding: 0 var(--space-5) var(--space-1); color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); font-variant-numeric: tabular-nums; }
+.rd-move {
+  display: flex; align-items: center; gap: var(--space-3);
+  width: 100%; height: 22px; padding: 0 var(--space-5); min-width: 0; color: var(--text-secondary);
+}
+.rd-move:hover { background: var(--bg-raised); }
+.rd-dot { width: 6px; height: 6px; border-radius: 3px; flex: 0 0 auto; }
+.rd-dot.on { background: var(--accent); }
+.rd-move-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; font-size: var(--text-sm); }
+.rd-move .rd-bar > i { background: var(--text-secondary); }
+.rd-net { width: 44px; text-align: right; color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; white-space: nowrap; flex: 0 0 auto; }
+
+/* ---- 5. the contract, last (arch.css .arch-empty, .arch-empty-action, .arch-more), unchanged ---- */
+.arch-empty { display: flex; flex-direction: column; gap: var(--space-4); padding-bottom: var(--space-4); }
+.arch-empty > .arch-empty-body, .arch-empty > .arch-empty-actions { margin: 0 var(--space-5); }
+.arch-empty-body { color: var(--text-muted); overflow-wrap: anywhere; }
+.arch-empty-actions { display: flex; flex-direction: column; gap: var(--space-3); }
+.arch-empty-action {
+  display: grid; grid-template-columns: 16px 1fr; column-gap: var(--space-3); align-items: center;
+  width: 100%; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+.arch-empty-action:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.arch-empty-action .codicon { width: 14px; height: 14px; }
+.arch-empty-action-title { font-weight: var(--weight-medium); }
+.arch-more { margin: 0 var(--space-5); }
+.arch-more > summary { color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); cursor: pointer; user-select: none; }
+.arch-more > summary:hover { color: var(--text-secondary); }
+.arch-more > .arch-empty-body { margin: var(--space-2) 0 0; font-size: var(--text-xs); line-height: var(--lh-xs); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- codicons, CC BY 4.0, Microsoft, inlined so the mock loads nothing -->
+  <symbol id="c-refresh" viewBox="0 0 16 16"><path d="M3 8C3 5.23858 5.23858 3 8 3C9.63527 3 11.0878 3.78495 12.0005 5H10C9.72386 5 9.5 5.22386 9.5 5.5C9.5 5.77614 9.72386 6 10 6H12.8904C12.8973 6.00014 12.9041 6.00014 12.911 6H13C13.2761 6 13.5 5.77614 13.5 5.5V2.5C13.5 2.22386 13.2761 2 13 2C12.7239 2 12.5 2.22386 12.5 2.5V4.03138C11.4009 2.78613 9.79253 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14C11.1301 14 13.6999 11.6035 13.9756 8.54488C14.0003 8.26985 13.7975 8.0268 13.5225 8.00202C13.2474 7.97723 13.0044 8.1801 12.9796 8.45512C12.75 11.003 10.6079 13 8 13C5.23858 13 3 10.7614 3 8Z"/></symbol>
+  <symbol id="c-map" viewBox="0 0 16 16"><path d="M5.235 2.076C5.38271 1.98368 5.56781 1.97489 5.72361 2.05279L10.4728 4.42738L14.235 2.076C14.3891 1.97967 14.5834 1.97457 14.7424 2.06268C14.9014 2.15079 15 2.31824 15 2.5V11C15 11.1724 14.9112 11.3326 14.765 11.424L10.765 13.924C10.6173 14.0163 10.4322 14.0251 10.2764 13.9472L5.52721 11.5726L1.765 13.924C1.61087 14.0203 1.41659 14.0254 1.25762 13.9373C1.09864 13.8492 1 13.6818 1 13.5V5C1 4.82761 1.08881 4.66737 1.235 4.576L5.235 2.076ZM6 10.691L10 12.691V5.30902L6 3.30902V10.691ZM5 3.40212L2 5.27712V12.5979L5 10.7229V3.40212ZM11 5.27712V12.5979L14 10.7229V3.40212L11 5.27712Z"/></symbol>
+  <symbol id="c-new-file" viewBox="0 0 16 16"><path d="M5 14C4.448 14 4 13.552 4 13V3C4 2.448 4.448 2 5 2H8V4.5C8 5.328 8.672 6 9.5 6H12V6.025C12.344 6.056 12.677 6.121 13 6.213V5.414C13 5.016 12.842 4.635 12.561 4.353L9.647 1.439C9.366 1.158 8.984 1 8.586 1H5C3.895 1 3 1.895 3 3V13C3 14.105 3.895 15 5 15H7.261C7.008 14.693 6.791 14.357 6.607 14H5ZM9 2.207L11.793 5H9.5C9.224 5 9 4.776 9 4.5V2.207ZM11.5 7C9.015 7 7 9.015 7 11.5C7 13.985 9.015 16 11.5 16C13.985 16 16 13.985 16 11.5C16 9.015 13.985 7 11.5 7ZM14 12H12V14C12 14.276 11.776 14.5 11.5 14.5C11.224 14.5 11 14.276 11 14V12H9C8.724 12 8.5 11.776 8.5 11.5C8.5 11.224 8.724 11 9 11H11V9C11 8.724 11.224 8.5 11.5 8.5C11.776 8.5 12 8.724 12 9V11H14C14.276 11 14.5 11.224 14.5 11.5C14.5 11.776 14.276 12 14 12Z"/></symbol>
+  <!-- the band glyph: three bars, the lit one says which row of the map the part sits in -->
+  <symbol id="b-surface" viewBox="0 0 8 12"><rect class="on" x="0" y="0" width="8" height="2" rx="1"/><rect x="0" y="5" width="8" height="2" rx="1"/><rect x="0" y="10" width="8" height="2" rx="1"/></symbol>
+  <symbol id="b-engine" viewBox="0 0 8 12"><rect x="0" y="0" width="8" height="2" rx="1"/><rect class="on" x="0" y="5" width="8" height="2" rx="1"/><rect x="0" y="10" width="8" height="2" rx="1"/></symbol>
+  <symbol id="b-foundation" viewBox="0 0 8 12"><rect x="0" y="0" width="8" height="2" rx="1"/><rect x="0" y="5" width="8" height="2" rx="1"/><rect class="on" x="0" y="10" width="8" height="2" rx="1"/></symbol>
+</svg>
+
+<p class="caption">The reading. The same sidebar on gmux, cold, no contract, no model reading yet, window set to 1d, at the 280px default width. Hover a row.</p>
+
+<div class="sidebar">
+  <div class="view-header">
+    <span class="view-header-title">Architecture</span>
+    <span class="view-header-spacer"></span>
+    <button type="button" class="icon-btn" aria-label="Open the map" title="Draws this repository as a small map in a full size tab. No contract is needed and nothing is written."><svg class="codicon"><use href="#c-map"/></svg></button>
+    <button type="button" class="icon-btn" aria-label="Read the code again" title="Reads the code again and checks any promises against it. The file watcher cannot see a folder that did not exist when this view opened."><svg class="codicon"><use href="#c-refresh"/></svg></button>
+  </div>
+  <div class="arch">
+
+    <div class="rd-repo">
+      <div class="arch-subject" title="The name package.json declares.">tortie</div>
+      <p class="rd-line" title="From the code alone. Files are what git tracks, the language is the most common file type, a part is a box on the map, a connection is one part importing another, and an import leads inside the repository when it resolves to a tracked file.">2,490 files, mostly TypeScript; 7 parts, the biggest src/main (38%); 9 connections between parts; 7,313 of 10,857 imports lead inside the repository.</p>
+    </div>
+
+    <div class="rd-model" title="The line above comes from the code alone. A model can add what the repository is for, drawn under its own label and never as a fact.">
+      <span>No model reading yet.</span>
+      <button type="button" class="rd-model-ask" title="Asks the model you picked in Settings then Architecture for one paragraph about this repository and one sentence for each part. The answer is drawn under the label Model reading, never as a fact, and nothing is written into the repository.">Ask the model</button>
+    </div>
+
+    <section aria-label="Components">
+      <div class="section-header"><span>Components</span></div>
+      <ul>
+        <li><button type="button" class="rd-part" title="Size: 943 files, 288,056 lines&#10;Languages: TypeScript 921, text files 17, JSON 4, JavaScript 1&#10;Defines: 4,282 functions, 2,016 constants, 871 interfaces, 832 methods&#10;Entries: src/main/index.ts, src/main/actions/index.ts, src/main/activity/index.ts, src/main/agents/index.ts&#10;Imports: 5,247 written, 3,425 to this repository, 1,822 to dependencies, 0 not followed&#10;Used by: build 64, src/renderer 9&#10;Uses: src/shared 473, src/renderer 1&#10;Folders: machines 134, arch 77, overview 68, manifest 60, harness 44, sessions 37, context 36, diagnostics 34, tmux 29, activity 27, updates 22, actions 21, git 20, config 18, log 18, restore 18, specstory 18, symbols 17, usage 16, fs 15, search 13, skills 13, agents 12, __tests__ 11, db 11, watcher 11, projects 10, quickopen 10, settings 10, shell 10, conformance 9, preview 9, durable 8, proc 7, migrate 6, recents 6, restart 6, attach 5, drop 5, fault 4, notice 4, scrollback 4, tray 4, capture 3, power 3, security 3, assets 2, cache 2">
+          <span class="rd-part-head"><svg class="rd-band"><title>Engine. Other parts import it and it imports others.</title><use href="#b-engine"/></svg><span class="rd-part-name">src/main</span><span class="rd-bar" title="38% of the files in the repository"><i style="width:18px"></i></span></span>
+          <span class="rd-part-sentence">943 files, TypeScript; made of machines, arch, overview, manifest, harness and 56 more; used by build; uses src/shared; entry src/main/index.ts.</span>
+        </button></li>
+        <li><button type="button" class="rd-part" title="Size: 906 files, 218,288 lines&#10;Languages: TypeScript 816, CSS 65, images 17, .woff2 files 4, HTML 2&#10;Defines: 3,489 functions, 1,805 constants, 731 methods, 559 interfaces&#10;Entries: src/renderer/index.html, src/renderer/main.tsx, src/renderer/arch/index.ts, src/renderer/context/index.ts&#10;Imports: 4,241 written, 3,388 to this repository, 853 to dependencies, 0 not followed&#10;Used by: build 3, src/main 1, src/shared 1&#10;Uses: src/shared 644, src/main 9&#10;Folders: app 178, scm 84, editor 75, arch 73, settings 71, context 64, state 59, tree 57, terminal 45, overview 40, search 22, assets 21, machines 20, diagnostics 14, quickopen 14, icons 12, zoom 12, theme 11, pierre 9, controls 5, errors 5, styles 4, keys 2, lazy 2, __tests__ 1, menus 1">
+          <span class="rd-part-head"><svg class="rd-band"><title>Engine. Other parts import it and it imports others.</title><use href="#b-engine"/></svg><span class="rd-part-name">src/renderer</span><span class="rd-bar" title="36% of the files in the repository"><i style="width:17px"></i></span></span>
+          <span class="rd-part-sentence">906 files, mostly TypeScript; made of app, scm, editor, arch, settings and 25 more; used by build; uses src/shared; entry src/renderer/index.html.</span>
+        </button></li>
+        <li><button type="button" class="rd-part" title="Size: 273 files, 102,516 lines&#10;Languages: Markdown 140, images 68, JavaScript 15, log files 11, JSON 9&#10;Defines: 100 functions, 83 constants, 5 methods, 1 class&#10;Imports: 41 written, 11 to this repository, 30 to dependencies, 0 not followed&#10;Folders: research 182, shots 35, brand 26, audits 12, readme 6, designs 4, method 3">
+          <span class="rd-part-head"><svg class="rd-band"><title>Surface. No other part imports it.</title><use href="#b-surface"/></svg><span class="rd-part-name">docs</span><span class="rd-bar" title="11% of the files in the repository"><i style="width:5px"></i></span></span>
+          <span class="rd-part-sentence">273 files, mostly Markdown; made of research, shots, brand, audits, readme and 2 more; not code apart from 15 files.</span>
+        </button></li>
+        <li><button type="button" class="rd-part" title="Size: 215 files, 126,099 lines&#10;Languages: JavaScript 174, JSON 24, TypeScript 12, plists 3, C 1&#10;Defines: 3,729 constants, 1,981 functions, 15 interfaces, 13 methods&#10;Imports: 1,041 written, 255 to this repository, 783 to dependencies, 3 not followed&#10;Uses: src/main 64, src/shared 11, src/renderer 3&#10;Folders: fixtures 20">
+          <span class="rd-part-head"><svg class="rd-band"><title>Surface. No other part imports it.</title><use href="#b-surface"/></svg><span class="rd-part-name">build</span><span class="rd-bar" title="9% of the files in the repository"><i style="width:4px"></i></span></span>
+          <span class="rd-part-sentence">215 files, mostly JavaScript; made of probe*, assert*, conformance*, p138* and 59 more; uses src/main and src/shared; no other part uses it.</span>
+        </button></li>
+        <li><button type="button" class="rd-part" title="Size: 85 files, 25,771 lines&#10;Languages: TypeScript 85&#10;Defines: 573 interfaces, 251 methods, 229 constants, 202 types&#10;Entries: src/shared/ipc/index.ts, src/shared/ipc/app.ts&#10;Imports: 216 written, 173 to this repository, 43 to dependencies, 0 not followed&#10;Used by: src/renderer 644, src/main 473, src/preload 30, build 11&#10;Uses: src/renderer 1&#10;Folders: ipc 31, __tests__ 20">
+          <span class="rd-part-head"><svg class="rd-band"><title>Engine. Other parts import it and it imports others.</title><use href="#b-engine"/></svg><span class="rd-part-name">src/shared</span><span class="rd-bar" title="3% of the files in the repository"><i style="width:2px"></i></span></span>
+          <span class="rd-part-sentence">85 files, TypeScript; made of keymap, agent-overlay, settings, context, arch and 31 more; used by src/renderer and src/main; uses no other part; entry src/shared/ipc/index.ts.</span>
+        </button></li>
+        <li><button type="button" class="rd-part" title="Size: 51 files, 15,664 lines&#10;Languages: JSON 18, Markdown 9, YAML 9, files with no extension 3, images 3&#10;Defines: 2 constants, 2 functions&#10;Declares: package.json tortie&#10;Imports: 6 written, 0 to this repository, 6 to dependencies, 0 not followed&#10;Folders: resources 16, .github 5, .playwright-mcp 3, .claude 1, patches 1, test 1&#10;Also holds: src/test">
+          <span class="rd-part-head"><svg class="rd-band"><title>Surface. No other part imports it.</title><use href="#b-surface"/></svg><span class="rd-part-name">everything else</span><span class="rd-bar" title="2% of the files in the repository"><i style="width:2px"></i></span></span>
+          <span class="rd-part-sentence">51 files, JSON and other files; 6 small folders (resources, .github, .playwright-mcp, .claude, patches, src/test) and 24 root files; not code apart from 3 files.</span>
+        </button></li>
+        <li><button type="button" class="rd-part" title="Size: 17 files, 1,258 lines&#10;Languages: TypeScript 17&#10;Defines: 28 constants, 9 functions&#10;Entries: src/preload/index.ts&#10;Imports: 65 written, 61 to this repository, 4 to dependencies, 0 not followed&#10;Uses: src/shared 30">
+          <span class="rd-part-head"><svg class="rd-band"><title>Surface. No other part imports it.</title><use href="#b-surface"/></svg><span class="rd-part-name">src/preload</span><span class="rd-bar" title="1% of the files in the repository"><i style="width:2px"></i></span></span>
+          <span class="rd-part-sentence">17 files, TypeScript; made of machines, terminal, arch, bridge, context and 12 more; uses src/shared; no other part uses it; entry src/preload/index.ts.</span>
+        </button></li>
+      </ul>
+    </section>
+
+    <section aria-label="What moved">
+      <div class="section-header">
+        <span>What moved</span>
+        <span class="section-spacer"></span>
+        <span class="rd-chips" role="group" aria-label="Window" title="How far back to look. Since opens the commit list so you pick the commit to look back to.">
+          <button type="button" class="rd-chip">1h</button>
+          <button type="button" class="rd-chip on" aria-pressed="true">1d</button>
+          <button type="button" class="rd-chip">1w</button>
+          <button type="button" class="rd-chip">since</button>
+        </span>
+      </div>
+      <p class="rd-total" title="In the last day: 115 of 2,490 files changed in 69 commits, net +20,947 lines, by one author. 39 files changed and not committed.">115 files, 69 commits, +20.9k lines, one author.</p>
+      <ul>
+        <li><button type="button" class="rd-move" title="In the last day: 37 of 215 files changed in 19 commits, net +8,280 lines, by one author."><span class="rd-dot"></span><span class="rd-move-name">build</span><span class="rd-bar" title="32% of the files that moved"><i style="width:15px"></i></span><span class="rd-net">+8.3k</span></button></li>
+        <li><button type="button" class="rd-move" title="In the last day: 35 of 906 files changed in 15 commits, net +3,103 lines, by one author."><span class="rd-dot"></span><span class="rd-move-name">src/renderer</span><span class="rd-bar" title="30% of the files that moved"><i style="width:15px"></i></span><span class="rd-net">+3.1k</span></button></li>
+        <li><button type="button" class="rd-move" title="In the last day: 22 of 943 files changed in 10 commits, net +3,660 lines, by one author."><span class="rd-dot"></span><span class="rd-move-name">src/main</span><span class="rd-bar" title="19% of the files that moved"><i style="width:9px"></i></span><span class="rd-net">+3.7k</span></button></li>
+        <li><button type="button" class="rd-move" title="In the last day: 11 of 273 files changed in 41 commits, net +5,721 lines, by one author. 6 files changed and not committed."><span class="rd-dot on" title="6 files changed and not committed."></span><span class="rd-move-name">docs</span><span class="rd-bar" title="10% of the files that moved"><i style="width:5px"></i></span><span class="rd-net">+5.7k</span></button></li>
+        <li><button type="button" class="rd-move" title="In the last day: 5 of 51 files changed in 14 commits, net +114 lines, by one author. 33 files changed and not committed."><span class="rd-dot on" title="33 files changed and not committed."></span><span class="rd-move-name">everything else</span><span class="rd-bar" title="4% of the files that moved"><i style="width:2px"></i></span><span class="rd-net">+114</span></button></li>
+        <li><button type="button" class="rd-move" title="In the last day: 4 of 85 files changed in 2 commits, net +65 lines, by one author."><span class="rd-dot"></span><span class="rd-move-name">src/shared</span><span class="rd-bar" title="3% of the files that moved"><i style="width:2px"></i></span><span class="rd-net">+65</span></button></li>
+        <li><button type="button" class="rd-move" title="In the last day: 1 of 17 files changed in 1 commit, net +4 lines, by one author."><span class="rd-dot"></span><span class="rd-move-name">src/preload</span><span class="rd-bar" title="1% of the files that moved"><i style="width:2px"></i></span><span class="rd-net">+4</span></button></li>
+      </ul>
+    </section>
+
+    <section class="arch-empty" aria-label="Contract">
+      <div class="section-header"><span>Contract</span></div>
+      <p class="arch-empty-body" title="A contract is a small set of promises about how the parts of this project are allowed to touch. Tortie checks them against the code and says which ones hold, which ones broke and at which line, and which ones it cannot check.">None yet. Promises about how parts may touch, checked against the code.</p>
+      <div class="arch-empty-actions">
+        <button type="button" class="arch-empty-action" title="Writes a small deterministic skeleton into docs/arch, drawn from the code alone. It lands as an ordinary uncommitted change, so Source Control shows every line and you commit it or throw it away.">
+          <svg class="codicon"><use href="#c-new-file"/></svg>
+          <span class="arch-empty-action-title">Draft the contract</span>
+        </button>
+      </div>
+      <p class="arch-empty-body arch-pass-sentence">The agent you picked in Settings then fills it in.</p>
+      <details class="arch-more">
+        <summary>What a contract is</summary>
+        <p class="arch-empty-body">A contract is a small set of promises about how the parts of this project are allowed to touch. Tortie checks them against the code and says which ones hold, which ones broke and at which line, and which ones it cannot check.</p>
+        <p class="arch-empty-body">A healthy set is 5 to 10 promises. Fewer says nothing, and more is a second codebase to keep current.</p>
+      </details>
+    </section>
+
+  </div>
+</div>
+</body>
+</html>

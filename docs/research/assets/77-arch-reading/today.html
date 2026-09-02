@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Architecture sidebar, gmux, today</title>
+<style>
+/* Research 77 mock. Every value below is copied from src/renderer/styles/tokens.css,
+   globals.css, app.css and src/renderer/arch/arch.css at origin/main on 2026-09-01.
+   Nothing here is a new token. The frame is 280px wide, which is SIDEBAR_DEFAULT
+   in src/renderer/state/chrome-geometry.ts. */
+:root {
+  --bg-canvas: #131417;
+  --bg-sidebar: #17181c;
+  --bg-surface: #1b1d22;
+  --bg-raised: #22252b;
+  --bg-active: #2a2e36;
+  --border: #2a2d34;
+  --border-strong: #3a3e48;
+  --text-primary: #e8eaed;
+  --text-secondary: #a8adb8;
+  --text-muted: #838996;
+  --text-disabled: #565b66;
+  --accent: #4d9de8;
+  --accent-text: #82bfff;
+  --success: #6bc46d;
+  --error: #e5655e;
+  --space-1: 2px; --space-2: 4px; --space-3: 6px; --space-4: 8px; --space-5: 12px;
+  --space-6: 16px; --space-7: 20px; --space-8: 24px;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+  --text-xs: 11px; --lh-xs: 16px;
+  --text-sm: 12px; --lh-sm: 18px;
+  --text-base: 13px; --lh-base: 20px;
+  --text-md: 15px; --lh-md: 22px;
+  --view-heading-text: var(--text-xs);
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600;
+  --r-sm: 4px; --r-md: 6px;
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; background: var(--bg-canvas); }
+body {
+  margin: 0; padding: 24px;
+  background: var(--bg-canvas); color: var(--text-primary);
+  font-family: var(--font-ui); font-size: var(--text-base); line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+}
+button { appearance: none; border: 0; background: none; font: inherit; color: inherit; padding: 0; margin: 0; cursor: pointer; text-align: left; }
+ul { list-style: none; margin: 0; padding: 0; }
+p { margin: 0; }
+.codicon { display: inline-block; width: 1em; height: 1em; fill: currentColor; vertical-align: -0.125em; flex: 0 0 auto; }
+
+/* the caption sits OUTSIDE the frame, so the frame is the sidebar and nothing else */
+.caption { width: 280px; margin: 0 0 8px; color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+
+/* S3 sidebar (app.css .sidebar) */
+.sidebar {
+  width: 280px; height: 1240px;
+  display: flex; flex-direction: column;
+  background: var(--bg-sidebar); border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+/* the 36px header band (app.css .view-header) */
+.view-header {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: 36px; flex: 0 0 36px; padding: 0 var(--space-5);
+  border-bottom: 1px solid var(--border); color: var(--text-muted);
+  font-size: var(--view-heading-text); line-height: var(--lh-xs); font-weight: var(--weight-semibold);
+  text-transform: uppercase; letter-spacing: 0.04em; user-select: none;
+}
+.view-header-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-header-spacer { flex: 1; min-width: 0; }
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: var(--r-sm); color: var(--text-secondary); flex: 0 0 auto;
+}
+.icon-btn:hover { background: var(--bg-raised); color: var(--text-primary); }
+.icon-btn .codicon { width: 16px; height: 16px; }
+
+/* the view body (arch.css .arch) */
+.arch {
+  display: flex; flex-direction: column; gap: var(--space-3); min-width: 0;
+  padding: var(--space-3) 0 var(--space-6);
+  color: var(--text-secondary); font-size: var(--text-sm); line-height: var(--lh-sm);
+  overflow-y: auto;
+}
+/* the section heading (app.css .section-header) */
+.section-header {
+  display: flex; align-items: center; gap: var(--space-2);
+  height: 28px; flex: 0 0 28px; padding: 0 var(--space-4);
+  background: var(--bg-sidebar); color: var(--text-muted);
+  font-size: var(--view-heading-text); line-height: var(--lh-xs); font-weight: var(--weight-semibold);
+  text-transform: uppercase; letter-spacing: 0.04em; user-select: none; width: 100%;
+}
+/* the map door and the draft control (arch.css .arch-empty-action) */
+.arch-map-section { padding: 0 var(--space-5); }
+.arch-empty-action {
+  display: grid; grid-template-columns: 16px 1fr; column-gap: var(--space-3); align-items: center;
+  width: 100%; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-raised);
+  color: var(--text-secondary);
+}
+.arch-empty-action:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.arch-empty-action .codicon { width: 14px; height: 14px; }
+.arch-empty-action-title { font-weight: var(--weight-medium); }
+/* the computed rows (arch.css .arch-row) */
+.arch-row {
+  display: flex; align-items: center; gap: var(--space-2);
+  width: 100%; height: 24px; padding: 0 var(--space-5); color: var(--text-secondary); min-width: 0;
+}
+.arch-row:hover { background: var(--bg-raised); }
+.arch-row .codicon { width: 14px; height: 14px; }
+.arch-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+.arch-row-prov { color: var(--text-muted); font-size: var(--text-xs); white-space: nowrap; }
+.arch-note { padding: var(--space-4) var(--space-5); color: var(--text-muted); }
+.arch-contract-adds { padding-top: 0; }
+/* the offer (arch.css .arch-empty) */
+.arch-empty { display: flex; flex-direction: column; gap: var(--space-4); padding-bottom: var(--space-4); }
+.arch-empty > .arch-empty-body, .arch-empty > .arch-empty-actions { margin: 0 var(--space-5); }
+.arch-empty-body { color: var(--text-muted); overflow-wrap: anywhere; }
+.arch-empty-actions { display: flex; flex-direction: column; gap: var(--space-3); }
+.arch-more { margin: 0 var(--space-5); }
+.arch-more > summary { color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-xs); cursor: pointer; user-select: none; }
+.arch-more > summary:hover { color: var(--text-secondary); }
+.arch-more > .arch-empty-body { margin: var(--space-2) 0 0; font-size: var(--text-xs); line-height: var(--lh-xs); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- codicons, CC BY 4.0, Microsoft, inlined so the mock loads nothing -->
+  <symbol id="c-refresh" viewBox="0 0 16 16"><path d="M3 8C3 5.23858 5.23858 3 8 3C9.63527 3 11.0878 3.78495 12.0005 5H10C9.72386 5 9.5 5.22386 9.5 5.5C9.5 5.77614 9.72386 6 10 6H12.8904C12.8973 6.00014 12.9041 6.00014 12.911 6H13C13.2761 6 13.5 5.77614 13.5 5.5V2.5C13.5 2.22386 13.2761 2 13 2C12.7239 2 12.5 2.22386 12.5 2.5V4.03138C11.4009 2.78613 9.79253 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14C11.1301 14 13.6999 11.6035 13.9756 8.54488C14.0003 8.26985 13.7975 8.0268 13.5225 8.00202C13.2474 7.97723 13.0044 8.1801 12.9796 8.45512C12.75 11.003 10.6079 13 8 13C5.23858 13 3 10.7614 3 8Z"/></symbol>
+  <symbol id="c-map" viewBox="0 0 16 16"><path d="M5.235 2.076C5.38271 1.98368 5.56781 1.97489 5.72361 2.05279L10.4728 4.42738L14.235 2.076C14.3891 1.97967 14.5834 1.97457 14.7424 2.06268C14.9014 2.15079 15 2.31824 15 2.5V11C15 11.1724 14.9112 11.3326 14.765 11.424L10.765 13.924C10.6173 14.0163 10.4322 14.0251 10.2764 13.9472L5.52721 11.5726L1.765 13.924C1.61087 14.0203 1.41659 14.0254 1.25762 13.9373C1.09864 13.8492 1 13.6818 1 13.5V5C1 4.82761 1.08881 4.66737 1.235 4.576L5.235 2.076ZM6 10.691L10 12.691V5.30902L6 3.30902V10.691ZM5 3.40212L2 5.27712V12.5979L5 10.7229V3.40212ZM11 5.27712V12.5979L14 10.7229V3.40212L11 5.27712Z"/></symbol>
+  <symbol id="c-repo" viewBox="0 0 16 16"><path d="M12.5 12C12.776 12 13 11.776 13 11.5V3C13 1.895 12.105 1 11 1H5C3.895 1 3 1.895 3 3V13C3 14.105 3.895 15 5 15V15.5C5 15.702 5.122 15.885 5.309 15.962C5.495 16.039 5.711 15.997 5.854 15.854L6.5 15.208L7.146 15.854C7.242 15.95 7.37 16 7.5 16C7.564 16 7.63 15.987 7.691 15.962C7.878 15.885 8 15.702 8 15.5V15H12.5C12.776 15 13 14.776 13 14.5C13 14.224 12.776 14 12.5 14H8V13.5C8 13.224 7.776 13 7.5 13H5.5C5.224 13 5 13.224 5 13.5V14C4.448 14 4 13.552 4 13V12H12.5ZM4 3C4 2.448 4.448 2 5 2H11C11.552 2 12 2.448 12 3V11H4V3Z"/></symbol>
+  <symbol id="c-new-file" viewBox="0 0 16 16"><path d="M5 14C4.448 14 4 13.552 4 13V3C4 2.448 4.448 2 5 2H8V4.5C8 5.328 8.672 6 9.5 6H12V6.025C12.344 6.056 12.677 6.121 13 6.213V5.414C13 5.016 12.842 4.635 12.561 4.353L9.647 1.439C9.366 1.158 8.984 1 8.586 1H5C3.895 1 3 1.895 3 3V13C3 14.105 3.895 15 5 15H7.261C7.008 14.693 6.791 14.357 6.607 14H5ZM9 2.207L11.793 5H9.5C9.224 5 9 4.776 9 4.5V2.207ZM11.5 7C9.015 7 7 9.015 7 11.5C7 13.985 9.015 16 11.5 16C13.985 16 16 13.985 16 11.5C16 9.015 13.985 7 11.5 7ZM14 12H12V14C12 14.276 11.776 14.5 11.5 14.5C11.224 14.5 11 14.276 11 14V12H9C8.724 12 8.5 11.776 8.5 11.5C8.5 11.224 8.724 11 9 11H11V9C11 8.724 11.224 8.5 11.5 8.5C11.776 8.5 12 8.724 12 9V11H14C14.276 11 14.5 11.224 14.5 11.5C14.5 11.776 14.276 12 14 12Z"/></symbol>
+</svg>
+
+<p class="caption">Today. The Architecture sidebar on gmux as it draws cold, no contract, at the 280px default width. Hover a row.</p>
+
+<div class="sidebar">
+  <div class="view-header">
+    <span class="view-header-title">Architecture</span>
+    <span class="view-header-spacer"></span>
+    <button type="button" class="icon-btn" aria-label="Check the promises again" title="Check the promises against the code again. The file watcher cannot see a folder that did not exist when this view opened."><svg class="codicon"><use href="#c-refresh"/></svg></button>
+  </div>
+  <div class="arch">
+    <section class="arch-map-section" aria-label="Open the map">
+      <button type="button" class="arch-empty-action" title="Draws this repository as a small map in a full size tab. No contract is needed and nothing is written.">
+        <svg class="codicon"><use href="#c-map"/></svg>
+        <span class="arch-empty-action-title">Open the map</span>
+      </button>
+    </section>
+
+    <section aria-label="Computed parts">
+      <div class="section-header"><span>Computed parts</span></div>
+      <ul>
+        <li><button type="button" class="arch-row" title="Open build in the map"><svg class="codicon"><use href="#c-repo"/></svg><span class="arch-row-name">build</span><span class="arch-row-prov" title="Written in this repository.">Ours</span></button></li>
+        <li><button type="button" class="arch-row" title="Open .claude in the map"><svg class="codicon"><use href="#c-repo"/></svg><span class="arch-row-name">.claude</span><span class="arch-row-prov" title="Written in this repository.">Ours</span></button></li>
+        <li><button type="button" class="arch-row" title="Open docs in the map"><svg class="codicon"><use href="#c-repo"/></svg><span class="arch-row-name">docs</span><span class="arch-row-prov" title="Written in this repository.">Ours</span></button></li>
+        <li><button type="button" class="arch-row" title="Open .github in the map"><svg class="codicon"><use href="#c-repo"/></svg><span class="arch-row-name">.github</span><span class="arch-row-prov" title="Written in this repository.">Ours</span></button></li>
+        <li><button type="button" class="arch-row" title="Open patches in the map"><svg class="codicon"><use href="#c-repo"/></svg><span class="arch-row-name">patches</span><span class="arch-row-prov" title="Written in this repository.">Ours</span></button></li>
+        <li><button type="button" class="arch-row" title="Open .playwright-mcp in the map"><svg class="codicon"><use href="#c-repo"/></svg><span class="arch-row-name">.playwright-mcp</span><span class="arch-row-prov" title="Written in this repository.">Ours</span></button></li>
+        <li><button type="button" class="arch-row" title="Open resources in the map"><svg class="codicon"><use href="#c-repo"/></svg><span class="arch-row-name">resources</span><span class="arch-row-prov" title="Written in this repository.">Ours</span></button></li>
+        <li><button type="button" class="arch-row" title="Open src in the map"><svg class="codicon"><use href="#c-repo"/></svg><span class="arch-row-name">src</span><span class="arch-row-prov" title="Written in this repository.">Ours</span></button></li>
+      </ul>
+    </section>
+
+    <p class="arch-note arch-contract-adds">A contract adds your names and checked promises to this map.</p>
+
+    <section class="arch-empty" aria-label="Add a contract">
+      <div class="section-header"><span>Add a contract</span></div>
+      <p class="arch-empty-body">Promises about how the parts of this project may touch, checked against the code.</p>
+      <div class="arch-empty-actions">
+        <button type="button" class="arch-empty-action" title="Writes a small deterministic skeleton into docs/arch, drawn from the code alone. It lands as an ordinary uncommitted change, so Source Control shows every line and you commit it or throw it away.">
+          <svg class="codicon"><use href="#c-new-file"/></svg>
+          <span class="arch-empty-action-title">Draft the contract</span>
+        </button>
+      </div>
+      <p class="arch-empty-body arch-pass-sentence">The agent you picked in Settings then fills it in.</p>
+      <details class="arch-more">
+        <summary>What a contract is</summary>
+        <p class="arch-empty-body">A contract is a small set of promises about how the parts of this project are allowed to touch. Tortie checks them against the code and says which ones hold, which ones broke and at which line, and which ones it cannot check.</p>
+        <p class="arch-empty-body">A healthy set is 5 to 10 promises. Fewer says nothing, and more is a second codebase to keep current.</p>
+      </details>
+    </section>
+  </div>
+</div>
+</body>
+</html>
