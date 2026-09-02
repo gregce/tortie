@@ -20133,6 +20133,76 @@ edits `~/.claude/.credentials.json`, the keychain item or `~/.codex/auth.json`. 
 - **No providers beyond claude and codex**, which are the two the meter reads.
 - **No per project login.** One chosen login per provider, app wide, like the meter itself.
 
+## Phase 201: the map you can read (research 77, operator asked 2026-09-01)
+
+**Subject.** `feat(arch): every part of the map says what it is`
+
+**First body line.** `Phase 201: the map you can read`
+
+**Semver.** MINOR. New fields on the map contract and a reordered sidebar.
+
+**Tier 3**, because it claims to be true on any repository, and the evidence is a per row matrix over
+real data. The independent methods are named below and were set by research 77 section 10.
+
+**Charter.** `docs/research/77-arch-reading.md` sections 4, 7 and 10, and his words of 2026-09-01:
+the core problem is keeping the mental model of the software alive as agents rewrite it. Layer 1
+ships first because the sidebar cannot read without the cut and the sentence, and because layer 3
+buckets by box, so the boxes must be honest before a mark on one means anything. Research 77
+measured the shipping cut at 62 percent useful sentences and the reading partition at 89 percent,
+100 counting the three flat parts, over gmux, rookery and ripgrep.
+
+### What it builds
+
+- **Rule P, the reading partition**, as `readingPartition` beside `groupTree` in
+  `src/main/arch/skeleton.ts`, over the existing primitives, with P6 as the owner fallback that
+  `groupOwners` consumers use. The map and the drill draw rule P's boxes: one rule, two readers.
+- **Per box facts from what is already scanned**: definition counts from the one scan, lines and
+  extensions from one read of the tree, entries by name, declared names from the manifests at the
+  box root. New fields on `ArchMapGroup` in `src/shared/ipc/arch-map.ts`: languages, lines, entries,
+  sentence, facts. The contract baseline regenerates in the same commit.
+- **Rule S, one pure sentence composer** beside `src/main/arch/map.ts`, producing the 16 to 31 word
+  sentence per box that research 77 section 4 specifies, and **rule R** for the repository line,
+  with the root crate name from `Cargo.toml` when there is no `package.json`.
+- **The sidebar in the order of research 77 section 7**: the repository line, the model slot absent
+  with its one row, the components by weight each with its sentence and the ten hover facts in the
+  fixed order, then the contract last. The header icons as the mock draws them. The native View menu
+  unchanged. `docs/research/assets/77-arch-reading/reading.html` is the picture he approved and the
+  phase says where it departs from it, if anywhere.
+- **The switch stays off in this phase.** Research 77 section 8 says flip it when layer 3 lands.
+
+### What it must get right
+
+- **Every box has a sentence that is true**, and nine in ten are useful, judged by a verifier who
+  was not present when they were written.
+- **Nothing moves in the map** beyond the boxes rule P draws. No layout, no new surface.
+- **No model call, no git walk beyond `ls-files`**, no change to `docs/arch/`, the checkers or the
+  contract format.
+- **Just enough words.** The sentence and the facts on hover; no paragraph on the resting face.
+
+### Proof, run rather than read
+
+- **`npm run conformance:reading`**, a gate that runs the shipping partition and composer under node
+  over three committed fixtures, being a gmux shaped tree, a Cargo workspace and a multi client tree
+  with Swift and Kotlin targets, pins the box set and every sentence byte for byte, and fails one
+  clause at a time under ablation. Named in `package.json` and `build/verification-checks.mjs`.
+- **Re-derive:** the verifier writes its own partition by a different method, a plain walk over
+  `git ls-files` with its own thresholds, and compares box sets and file counts on all three copies;
+  where they differ the verifier says whose bug it was.
+- **Attack:** the verifier picks a fourth repository in a language none of the three used, judges
+  every sentence true or useful without the builder present, and refuses if fewer than nine in ten
+  are useful.
+- One app run on the gmux copy reading the sidebar rows and the box hovers off the DOM against the
+  mock, with the parent's sidebar read the same way so the reorder is shown.
+- The battery, with `gate:contract` green on the regenerated baseline.
+
+### What is NOT in this phase
+
+- **No layer 2.** The one model run on gmux cost 18.7 seconds and landed zero sentences, refused
+  whole because the Phase 179 finer parts contradict the edge endpoints; that is a defect to name
+  for a later round, not a feature to build here.
+- **No layer 3 and no default flip.** That is the next phase, Tier 3, with its own named methods.
+- **No menu change, no new package.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -20460,3 +20530,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, Phase 202 QUEUED at his word: switch which subscription a new session runs under from the usage meter's hover card, for claude and for codex, the way orca does it; THE MECHANISM was read from orca's source and chosen because it never rewrites his credentials, being one Tortie owned directory per login written only by the vendor CLI when he signs in there, a switch setting CLAUDE_CONFIG_DIR or CODEX_HOME on NEW sessions and on the meter's read, the default login being his existing one at the default location left read only forever, adding a login launching one ordinary session running the vendor's own login command so refusal 8 holds, running sessions keeping the login they started with, the manifest carrying the login's NAME and never a path or a token byte, and the meter saying which login a running session is on when it differs which research 72's never lie across accounts rule already requires; the card gains one row per provider and Settings then Agents lists and removes logins; MINOR, Tier 3, real data over two logins per provider plus an attack on a switch mid launch and a vanished directory, with his three credential files proved byte identical across the whole run; NOT in it are any credential write refresh rotation or sign out, switching a running session, providers beyond the two, or a per project login.
 - 2026-09-01, Phase 190 LANDED on `8cab959` at version 0.98.0 with NO bump, the declared semver being PATCH and the version moving in its own build(version) commit at the next release; OPTION 2 was chosen, one short muted line at the end of the diff bar beside the Inline control saying which modes draw this change the same, and nothing at all when they differ; the entry required the cost measured before choosing and it came in at 0.4 ms on a real code diff and 4.2 ms on the hostile hundred pair worst case, once per diff open, the verifier re-measuring 4.8 to 5.4 ms for that worst case in the running app and under 1 ms for the real diff, which is the number that put option 1 out, and option 3 was refused because the answer is per diff so nothing flickers on scroll; the comparison replays Pierre's own fold with its exported pushOrJoinSpan and cleanLastNewline and the same two jsdiff functions it already calls, early exit once every pair has disagreed, a cap of 100 pairs, and Pierre's own 1000 character line limit, so no new package and no change to which functions are called; on his own file, a pure word deletion, Words, Phrases and Characters each draw ONE span "brown " with identical bytes and the row ends with "Words, Phrases and Characters draw this change the same." under each of the three and nothing under Off, and on a replacement they draw 17, 13 and 25 spans under three different hashes and the row says nothing; what he now sees is why nothing changed when he clicked, and when the modes do differ the control is exactly as it was, the four modes, their names and their drawing proved byte identical per mode at the parent and at HEAD; the limits are that the line is per diff and not per hunk so a diff carrying both a deletion and a replacement says nothing, and a diff past the pair cap says nothing while the modes agree; a harness finding on the way that every later probe inherits, Chromium clamps an occluded window's timers to one second, so harness runs now switch background throttling off; the verifier's named method, the installed jsdiff called directly in node over both charter shapes and fourteen more with the parts folded two independent ways, and the drawn spans read off the running app's shadow DOM by a reader of its own rather than the builder's drive, with the parent commit built in its own tree and driven by the same reader; Tier 2 as the entry set, one app run over a fixture carrying both shapes, and nothing of his written, the operator server on `-L gmux` read only at 67 sessions throughout.
 - 2026-09-01, Research 77 DELIVERED at `7d53d90`, `docs/research/77-arch-reading.md` with the two sidebar mocks under `docs/research/assets/77-arch-reading/`: the recommendation is to ship layer 1, the deterministic reading partition and sentence per part, with the sidebar reordered as a reading and the contract last, then layer 3 from git, with layer 2 opt in as a caption under a Model chip; the default answer is ON once layer 1 lands, because the switch gates visibility only and the launch cost measured is zero with the open cost the 306 ms and 2.9 s Phase 160 measured; the layer 1 fraction is 28 of 28 true and 25 of 28 useful without reservation over gmux, rookery and ripgrep, 89 percent, against 16 of 26 over the shipping cut.
+- 2026-09-01, Phase 201 QUEUED from research 77 at his standing word to form the recommendation and queue it: layer 1 first, being rule P the reading partition beside groupTree over the existing skeleton primitives with the map and the drill drawing the same boxes, rule S one pure sentence composer producing the 16 to 31 word sentence per box that measured 89 percent useful against the shipping cut's 62, rule R for the repository line, new fields on ArchMapGroup with the baseline regenerated, and the sidebar reordered as the reading he can see in docs/research/assets/77-arch-reading/reading.html with the contract last and the model slot honestly absent; the switch stays OFF until layer 3 lands as the next phase and flips it; MINOR, Tier 3 because it claims to be true on any repository, with conformance:reading pinning every sentence over three fixtures under ablation, a verifier written partition by a plain ls-files walk, and an attack on a fourth repository refusing below nine useful sentences in ten; layer 2 is NOT built because its one run cost 18.7 seconds and landed zero sentences, refused whole on the Phase 179 finer parts contradicting the edge endpoints, which is named as a defect for a later round.
