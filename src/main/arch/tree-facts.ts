@@ -18,7 +18,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { statSync } from 'node:fs';
+import { lstatSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ArchStore } from './db';
 import { bareName, MANIFEST_NAMES } from './reading';
@@ -105,7 +105,10 @@ export async function readArchTreeFacts(input: ArchTreeFactsInput): Promise<Arch
     let mtimeMs: number;
     let size: number;
     try {
-      const st = statSync(absPath);
+      // lstat rather than stat: a tracked symlink is not read. Following it
+      // would read wherever it points, outside the repository included, for
+      // a line count nobody needs (the Phase 201 fix round).
+      const st = lstatSync(absPath);
       if (!st.isFile()) {
         seen.delete(relPath);
         continue;

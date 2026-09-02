@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ArchStore } from '../db';
@@ -95,6 +95,16 @@ describe('the read of the tree', () => {
     const facts = new Map(store.treeFacts(KEY).map((f) => [f.path, f.lines]));
     expect(facts.get('src/b.ts')).toBe(5);
     expect(facts.has('icon.png')).toBe(false);
+  });
+
+  it('does not follow a tracked symlink, wherever it points', async () => {
+    // Read through stat, a link to a file outside the repository was read
+    // for its line count (the Phase 201 fix round, from the verifier's note).
+    writeFileSync(join(root, 'outside.txt'), 'one\ntwo\nthree\nfour\nfive\nsix\nseven\n');
+    symlinkSync(join(root, 'outside.txt'), join(repo, 'src', 'link.txt'));
+    const out = await readArchTreeFacts({ repoPath: repo, repoKey: KEY, store, trackedFiles: ['src/a.ts', 'src/link.txt'] });
+    expect(out.read).toBe(1);
+    expect(store.treeFacts(KEY).map((f) => f.path)).toEqual(['src/a.ts']);
   });
 
   it('stops between chunks when cancelled and keeps what it wrote', async () => {
