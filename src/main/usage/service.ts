@@ -393,8 +393,17 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     // from a session on another login now fails this comparison and is
     // dropped, which is the same refusal doing the same job against a case
     // that can finally happen.
+    //
+    // THE DEFAULT LOGIN STILL MEANS TORTIE'S OWN ENVIRONMENT, and that half is
+    // not a leftover. `dir` is null for the default login, and the directory
+    // main would read a credential from in that case is `CLAUDE_CONFIG_DIR` in
+    // Tortie's own process, which is exactly what the credential reader falls
+    // back to. Comparing against the empty string instead would drop every
+    // post from every session of a person who runs Tortie with that variable
+    // set, which is what Phase 181 and Phase 182 already handled correctly.
     const chosen = deps.logins('claude').dir;
-    return normalizeConfigDir(chosen ?? '');
+    const dir = chosen ?? deps.credentials.env['CLAUDE_CONFIG_DIR'] ?? '';
+    return normalizeConfigDir(dir);
   }
 
   /**

@@ -222,3 +222,75 @@ describe('a login that moved', () => {
     expect(after?.login).toBe('Work');
   });
 });
+
+/**
+ * THE HALF THIS PHASE ALMOST TOOK AWAY.
+ *
+ * The tap's account rule compares the posting session's config directory with
+ * the one main reads its credential from. Phase 202 made that the CHOSEN
+ * LOGIN's directory, which is right, and the first build read the chosen
+ * login's directory ALONE. For the default login that directory is null, so
+ * the comparison became the empty string, and a person who runs Tortie with
+ * `CLAUDE_CONFIG_DIR` set in their own environment would have had every post
+ * from every one of their sessions dropped, silently, for as long as they
+ * stayed on their default login. That is a regression against Phase 182 rather
+ * than a new rule, so the default login still means Tortie's own environment.
+ */
+describe('the default login still means Tortie own environment', () => {
+  const OWN = '/Users/example/.claude-work';
+
+  function tapService(
+    login: () => { name: string | null; dir: string | null },
+    env: Record<string, string | undefined>
+  ): ReturnType<typeof createUsageService> {
+    return createUsageService({
+      credentials: {
+        keychain: async () =>
+          JSON.stringify({ claudeAiOauth: { accessToken: 'A' } }),
+        readText: async () => null,
+        env,
+        home: '/Users/example'
+      },
+      transport: async (): Promise<UsageResponse> => ({
+        status: 200,
+        body: CLAUDE_BODY,
+        retryAfterAt: null
+      }),
+      settings: () => ON,
+      logins: () => login(),
+      now: () => NOW,
+      log: () => undefined
+    });
+  }
+
+  const post = (cfg: string): string =>
+    [
+      'v=1',
+      's=sess-1',
+      `cfg=${Buffer.from(cfg, 'utf8').toString('base64url')}`,
+      'five_pct=58',
+      `five_reset=${String(Math.floor((NOW + 3_600_000) / 1000))}`
+    ].join('&');
+
+  it('takes a post from the directory Tortie own environment names', () => {
+    const service = tapService(() => ({ name: null, dir: null }), {
+      CLAUDE_CONFIG_DIR: OWN
+    });
+    expect(service.applyTap('sess-1', post(OWN))).toBe('applied');
+  });
+
+  it('drops a post from somewhere else while the default login is chosen', () => {
+    const service = tapService(() => ({ name: null, dir: null }), {
+      CLAUDE_CONFIG_DIR: OWN
+    });
+    expect(service.applyTap('sess-1', post(SECOND_DIR))).toBe('account');
+  });
+
+  it('still prefers the chosen login directory over that environment', () => {
+    const service = tapService(() => ({ name: 'Work', dir: SECOND_DIR }), {
+      CLAUDE_CONFIG_DIR: OWN
+    });
+    expect(service.applyTap('sess-1', post(OWN))).toBe('account');
+    expect(service.applyTap('sess-1', post(SECOND_DIR))).toBe('applied');
+  });
+});
