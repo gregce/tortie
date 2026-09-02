@@ -42,6 +42,7 @@
     "probe:p181": "npm run build && node build/harness-socket.mjs gmux-p181-usage 'node build/probe-p181-usage-switch.mjs'",
     "probe:p1811": "npm run build && node build/harness-socket.mjs gmux-p1811-fit 'node build/probe-p1811-strip-fit.mjs'",
     "probe:p1812": "npm run build && node build/harness-socket.mjs gmux-p1812-usage 'node build/probe-p1812-bar-and-card.mjs'",
+    "probe:p203": "npm run build && node build/probe-p203-account.mjs",
     "probe:p202": "npm run build && node build/harness-socket.mjs --fresh gmux-p202-logins 'node build/probe-p202-logins.mjs'",
     "probe:p185": "npm run build && node build/harness-socket.mjs gmux-p185-drawing 'node build/probe-p185-drawing.mjs'",
     "probe:p194": "npm run build && node build/harness-socket.mjs --fresh gmux-p194-redline 'node build/probe-p194-redline-view.mjs'",

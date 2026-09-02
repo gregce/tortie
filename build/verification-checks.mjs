@@ -461,6 +461,20 @@ export const CHECKS = [
   // build/probe-p202-logins.mjs --self-test` proves the graders on thirteen
   // fixtures and launches nothing.
   electron('probe:p202'),
+  // PHASE 203. Two launches on ONE scratch profile over SIX fixture logins,
+  // one per shape a login row can take, being the default and an added login
+  // each signed in with an address, signed in without one, and not signed in
+  // at all. The first launch turns both meters on the way a person does, opens
+  // the meter's card with a real pointer event and reads the list, the native
+  // menu the shipped composer would be handed, and every card line. The second
+  // drives the real Settings window and reads every login row off its DOM. It
+  // creates no session, spawns no agent, makes no request, spends no token,
+  // and opens NO KEYCHAIN: the usage fixture refuses it for the meter and for
+  // the list alike, so every presence answer comes from a file the probe
+  // wrote. It hashes the person's three credential files before and after.
+  // `node build/probe-p203-account.mjs --self-test` proves the graders on
+  // thirteen fixtures and launches nothing.
+  electron('probe:p203'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a

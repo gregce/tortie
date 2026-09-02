@@ -125,7 +125,10 @@ const PROBE_MARKERS = [
   // is here for the reason the five above are: a person's launch must not
   // parse it, and a marker is the only thing that can prove that of a built
   // chunk.
-  '__gmuxP202'
+  '__gmuxP202',
+  // PHASE 203. The account drive, read by build/probe-p203-account.mjs, here
+  // for the same reason: a person's launch must not parse it.
+  '__gmuxP203'
 ];
 
 /**

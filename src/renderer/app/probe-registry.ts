@@ -110,6 +110,10 @@ import { registerP1812UsageDrive } from './p1812-usage-drive';
 // nothing: main answers it from the probe's own fixture file, so the numbers
 // on screen are the ones the shipped service read.
 import { registerP202LoginsDrive } from './p202-logins-drive';
+// build/probe-p203-account.mjs. It turns both meters on the way a person does,
+// opens the card with a real pointer event and reads every login row main
+// answered, so the probe can judge what a person is actually shown.
+import { registerP203AccountDrive } from './p203-account-drive';
 // PHASE 156. The build time menu icon generator's hook. It reads back the
 // cache `warmMenuIcons()` fills, so the PNG set main ships is the output of
 // the ONE rasterizer this product has rather than a second copy of it.
@@ -380,6 +384,8 @@ function armModuleLoadDrives(): void {
 
   // PHASE 202 hook, same shape again, read by build/probe-p202-logins.mjs.
   registerP202LoginsDrive();
+  // PHASE 203 hook, read by build/probe-p203-account.mjs.
+  registerP203AccountDrive();
 }
 
 /**
