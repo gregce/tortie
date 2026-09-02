@@ -97,6 +97,12 @@ const MAX_TIME_MS = 8.64e15;
  * `INTEGER NOT NULL` (../manifest/schema.ts) and SQLite still hands back the
  * text a hand edit put there, so the declared `number` is a promise the file
  * cannot keep.
+ *
+ * THE TWO TERMS CANNOT BE REORDERED (Phase 188.1's verifier, written down by
+ * Phase 197 item 23). `Math.abs` of a BigInt throws a TypeError, and the
+ * driver can hand one back for an INTEGER column too wide for a double, so
+ * `Number.isFinite` must stay first: it answers false for a BigInt and the
+ * `&&` never reaches the call that would throw.
  */
 function stampText(label: string, epochMs: number | null): string {
   const renderable =
