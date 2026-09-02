@@ -14,17 +14,17 @@ All tokens are CSS custom properties declared on `:root` in `src/renderer/styles
 
 ```css
 --bg-canvas:   #131417;  /* window base AND xterm background — one material */
---bg-sidebar:  #17181C;  /* sidebar, tab bar, editor gutter zone            */
---bg-surface:  #1B1D22;  /* modals, overlays, toasts, inputs                */
---bg-raised:   #22252B;  /* hover fills, chips, badges                      */
---bg-active:   #2A2E36;  /* selected rows, active tab fill                  */
+--bg-sidebar:  #0E0F13;  /* sidebar, tab bar, editor gutter zone (below the canvas) */
+--bg-surface:  #191B20;  /* modals, overlays, toasts, inputs                */
+--bg-raised:   #202329;  /* hover fills, chips, badges                      */
+--bg-active:   #252931;  /* selected rows, active tab fill                  */
 --bg-scrim:    rgba(9, 10, 12, 0.55);   /* behind modals/overlays           */
 
---border:        #2A2D34;  /* hairlines between regions, 1px always         */
---border-strong: #3A3E48;  /* input borders, resize handles on hover        */
+--border:        #25282E;  /* hairlines between regions, 1px always         */
+--border-strong: #353943;  /* input borders, resize handles on hover        */
 
---text-primary:   #E8EAED;  /* names, values, body        (≥12:1 on canvas) */
---text-secondary: #A8ADB8;  /* labels, metadata            (≥7:1 on canvas) */
+--text-primary:   #C9CACD;  /* names, values, body        (11.24:1 on canvas, under the transcript) */
+--text-secondary: #9CA1AB;  /* labels, metadata            (7.10:1 on canvas) */
 --text-muted:     #838996;  /* ages, counts, hints         (≥4.5:1 on canvas/sidebar/surface) */
 --text-disabled:  #565B66;  /* disabled controls only — exempt from contrast */
 ```
@@ -63,7 +63,7 @@ SAVED is the restorable state (post-reboot / background-server-gone): the proces
 ### 1.4 Git decoration colors (VS Code/Primer-familiar — earned familiarity)
 
 ```css
---git-modified:  #E2B340;   /* M  */
+--git-modified:  #AF9C74;   /* M, a colour rather than a yellow since Phase 196 */
 --git-added:     #6BC46D;   /* A and untracked U */
 --git-deleted:   #E5655E;   /* D  */
 --git-renamed:   #6CB6FF;   /* R  */

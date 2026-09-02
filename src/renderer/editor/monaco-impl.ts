@@ -92,30 +92,30 @@ monaco.editor.defineTheme(GMUX_MONACO_THEME, {
     'editor.background': '#131417', // --bg-canvas: one material with the app
     'editor.foreground': '#D8DBE2',
     'editorCursor.foreground': '#E8EAED',
-    'editor.lineHighlightBackground': '#1B1D22', // --bg-surface
+    'editor.lineHighlightBackground': '#191B20', // --bg-surface
     'editor.lineHighlightBorder': '#00000000',
     'editor.selectionBackground': '#4D9DE84D', // --accent @ .30, as terminal
     'editor.inactiveSelectionBackground': '#4D9DE824',
     'editorLineNumber.foreground': '#565B66', // --text-disabled
-    'editorLineNumber.activeForeground': '#A8ADB8', // --text-secondary
-    'editorIndentGuide.background1': '#22252B',
-    'editorIndentGuide.activeBackground1': '#3A3E48',
-    'editorWhitespace.foreground': '#2A2D34',
+    'editorLineNumber.activeForeground': '#9CA1AB', // --text-secondary
+    'editorIndentGuide.background1': '#202329', // --bg-raised
+    'editorIndentGuide.activeBackground1': '#353943', // --border-strong
+    'editorWhitespace.foreground': '#25282E', // --border
     'editorGutter.background': '#131417',
-    'editorWidget.background': '#1B1D22', // --bg-surface (find widget etc.)
-    'editorWidget.border': '#2A2D34', // --border
-    'editorSuggestWidget.background': '#1B1D22',
-    'editorSuggestWidget.border': '#2A2D34',
-    'editorSuggestWidget.selectedBackground': '#2A2E36',
-    'editorHoverWidget.background': '#1B1D22',
-    'editorHoverWidget.border': '#2A2D34',
-    'input.background': '#1B1D22',
-    'input.border': '#3A3E48',
+    'editorWidget.background': '#191B20', // --bg-surface (find widget etc.)
+    'editorWidget.border': '#25282E', // --border
+    'editorSuggestWidget.background': '#191B20',
+    'editorSuggestWidget.border': '#25282E',
+    'editorSuggestWidget.selectedBackground': '#252931',
+    'editorHoverWidget.background': '#191B20',
+    'editorHoverWidget.border': '#25282E',
+    'input.background': '#191B20',
+    'input.border': '#353943',
     'inputOption.activeBorder': '#4D9DE8',
     'focusBorder': '#4D9DE8',
-    'scrollbarSlider.background': '#22252B99',
-    'scrollbarSlider.hoverBackground': '#2A2E36CC',
-    'scrollbarSlider.activeBackground': '#3A3E48CC',
+    'scrollbarSlider.background': '#20232999',
+    'scrollbarSlider.hoverBackground': '#252931CC',
+    'scrollbarSlider.activeBackground': '#353943CC',
     'scrollbar.shadow': '#00000000',
     'editorOverviewRuler.border': '#00000000',
     // Bracket pairs. Colorization is turned off at the model (monaco-loader)
@@ -133,7 +133,7 @@ monaco.editor.defineTheme(GMUX_MONACO_THEME, {
     'editorBracketHighlight.unexpectedBracket.foreground': '#E5655E', // --error
     // The MATCHING-bracket box, which vs-dark would otherwise draw in grey.
     'editorBracketMatch.background': '#00000000',
-    'editorBracketMatch.border': '#3A3E48', // --border-strong
+    'editorBracketMatch.border': '#353943', // --border-strong
     // Minimap (Phase 12 item 6). Monaco derives the slider at roughly α.30,
     // which is invisible on this ground — these pin it to the token ramp.
     'minimap.background': '#131417', // --bg-canvas, one material
@@ -143,9 +143,9 @@ monaco.editor.defineTheme(GMUX_MONACO_THEME, {
     'minimap.warningHighlight': '#F5B84A99', // --warning
     // One step up the neutral ramp from the real scrollbar's slider: over a
     // dense picture of text, the scrollbar's own value derives to invisible.
-    'minimapSlider.background': '#2A2E36CC',
-    'minimapSlider.hoverBackground': '#3A3E48CC',
-    'minimapSlider.activeBackground': '#3A3E48EE',
+    'minimapSlider.background': '#252931CC',
+    'minimapSlider.hoverBackground': '#353943CC',
+    'minimapSlider.activeBackground': '#353943EE',
     // Alpha only: how solid the miniature text renders.
     'minimap.foregroundOpacity': '#000000CC'
     // (Diff colors left with the Monaco diff editor in Phase 11 — diff

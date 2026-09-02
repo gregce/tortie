@@ -10,19 +10,31 @@
      BrowserWindow pre-paint fill, which main cannot read from this file.
      Retune this and you must retune that. */
   --bg-canvas: #131417; /* window base AND xterm background — one material */
-  --bg-sidebar: #17181c; /* sidebar, tab bar, editor gutter zone            */
-  --bg-surface: #1b1d22; /* modals, overlays, toasts, inputs                */
-  --bg-raised: #22252b; /* hover fills, chips, badges                      */
-  --bg-active: #2a2e36; /* selected rows, active tab fill                  */
+  --bg-sidebar: #0e0f13; /* sidebar, tab bar, editor gutter zone. Below the
+     canvas since Phase 196: the frame steps under the work (research 75) */
+  --bg-surface: #191b20; /* modals, overlays, toasts, inputs                */
+  --bg-raised: #202329; /* hover fills, chips, badges. Three values above
+     Option A wrote so the hover step on --bg-surface stays 1.094:1  */
+  --bg-active: #252931; /* selected rows, active tab fill                  */
   --bg-scrim: rgba(9, 10, 12, 0.55); /* behind modals/overlays             */
 
-  --border: #2a2d34; /* hairlines between regions, 1px always              */
-  --border-strong: #3a3e48; /* input borders, resize handles on hover      */
+  --border: #25282e; /* hairlines between regions, 1px always              */
+  --border-strong: #353943; /* input borders, resize handles on hover      */
 
-  --text-primary: #e8eaed; /* names, values, body        (≥12:1 on canvas) */
-  --text-secondary: #a8adb8; /* labels, metadata           (≥7:1 on canvas) */
-  --text-muted: #838996; /* ages, counts, hints — passes 4.5:1 only up to --bg-surface */
+  --text-primary: #c9cacd; /* names, values, body        (11.24:1 on canvas, one
+     rung under the transcript at 13.29:1, which is the brightest text on
+     screen since Phase 196 and stays that way)                          */
+  --text-secondary: #9ca1ab; /* labels, metadata           (7.10:1 on canvas) */
+  --text-muted: #838996; /* ages, counts, hints — passes 4.5:1 only up to --bg-surface
+     (5.25 canvas, 5.46 sidebar, 4.91 surface, 4.15 active). Frozen in
+     Phase 196: 303 users and the floor holds.                          */
   --text-disabled: #565b66; /* disabled controls only — exempt from contrast */
+
+  /* Phase 196. The Explorer file type icons are full colour art from
+     material-icon-theme, and at full strength they are the most saturated
+     thing in the frame. This is an opacity, outside the colour machinery,
+     read inside the tree shadow root; a selected row draws its icon at 1. */
+  --file-icon-dim: 0.55;
 
   /* §1.2 Accent (one accent — Restrained strategy) */
   --accent: #4d9de8;
@@ -55,7 +67,8 @@
   --status-attention-badge-fg: #131417;
 
   /* §1.4 Git decoration colors */
-  --git-modified: #e2b340;
+  --git-modified: #af9c74; /* Phase 196: a colour, not a yellow. dE2000 17.36
+     from --status-attention and 21.04 from --text-secondary        */
   --git-added: #6bc46d;
   --git-deleted: #e5655e;
   --git-renamed: #6cb6ff;
@@ -75,8 +88,9 @@
      two blues colliding). Past six the ramp CYCLES — two columns sharing a hue
      are then 6 columns / 72px apart and can never be visually adjacent.
 
-     No yellow. --git-modified is ΔE2000 4.5 from --status-attention and xterm
-     brYellow is 6.0; a yellow lane in the sidebar would read as "needs you",
+     No yellow. xterm brYellow is ΔE2000 6.0 from --status-attention, and
+     --git-modified left that family in Phase 196 for the same reason (it was
+     4.5 away, it is now 17.36); a yellow lane in the sidebar would read as "needs you",
      which is the one meaning colour is reserved for (DESIGN.md §1.3).
 
      Lane colour is IDENTITY, never state, and never the only signal: column
@@ -344,7 +358,7 @@
      --focus-wash-working repeats --accent-wash's value for that reason. */
   --focus-wash-attention: rgba(245, 184, 74, 0.14); /* --status-attention */
   --focus-wash-working: rgba(77, 157, 232, 0.14); /* --accent-wash's value */
-  --focus-wash-idle: rgba(34, 37, 43, 0.5); /* --bg-raised, low */
+  --focus-wash-idle: rgba(32, 35, 41, 0.5); /* --bg-raised, low */
 
   /* Phase 149. The in-window Tortie mark on the state a project with no
      sessions draws. It is the same cat the dock icon draws, sitting behind and

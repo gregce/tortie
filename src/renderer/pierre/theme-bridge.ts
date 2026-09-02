@@ -33,19 +33,19 @@ import type { TreeThemeStyles } from '@pierre/trees';
 /** Mirror of tokens.css (dark ramp). Token name → value, verbatim. */
 const P = {
   bgCanvas: '#131417', //     --bg-canvas
-  bgSidebar: '#17181c', //    --bg-sidebar
-  bgSurface: '#1b1d22', //    --bg-surface
-  bgRaised: '#22252b', //     --bg-raised
-  bgActive: '#2a2e36', //     --bg-active
-  border: '#2a2d34', //       --border
-  borderStrong: '#3a3e48', // --border-strong
-  textPrimary: '#e8eaed', //  --text-primary
-  textSecondary: '#a8adb8', //--text-secondary
+  bgSidebar: '#0e0f13', //    --bg-sidebar
+  bgSurface: '#191b20', //    --bg-surface
+  bgRaised: '#202329', //     --bg-raised
+  bgActive: '#252931', //     --bg-active
+  border: '#25282e', //       --border
+  borderStrong: '#353943', // --border-strong
+  textPrimary: '#c9cacd', //  --text-primary
+  textSecondary: '#9ca1ab', //--text-secondary
   textMuted: '#838996', //    --text-muted
   accentText: '#82bfff', //   --accent-text
   accentWash: '#4d9de824', // --accent-wash  rgba(77,157,232,.14)
   focusRing: '#4d9de899', //  --focus-ring ring color rgba(77,157,232,.6)
-  gitModified: '#e2b340', //  --git-modified
+  gitModified: '#af9c74', //  --git-modified
   gitAdded: '#6bc46d', //     --git-added
   gitDeleted: '#e5655e', //   --git-deleted
   gitRenamed: '#6cb6ff', //   --git-renamed

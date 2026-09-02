@@ -386,8 +386,9 @@
    --text-secondary. The fill is `--bg-raised`, which is the value `.ptab:hover`
    above already states, rather than a second grey invented for this bar. Both
    greys were then read from the running window under a real pointer: the
-   project tab draws `rgb(34, 37, 43)` on hover and so does every one of the
-   five icons here, in the column and in the row.
+   project tab drew `rgb(34, 37, 43)` on hover and so did every one of the
+   five icons here, in the column and in the row. Phase 196 moved --bg-raised
+   and both now read `rgb(32, 35, 41)`, still from this one rule.
 
    It reaches BOTH orientations from this one rule, because the row variant in
    app/activity-bar.css overturns only size and marker position and never

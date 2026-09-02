@@ -215,7 +215,7 @@ describe('the palette in tokens.css §1.4b, re-measured', () => {
   const LANES = LANE_COLOR_VARS.map(resolve);
   // gmux is dark-only; the SELECTED row is the worst ground and the one that
   // gets forgotten in screenshots.
-  const BACKGROUNDS = ['#17181c', '#22252b', '#2a2e36'] as const;
+  const BACKGROUNDS = ['#0e0f13', '#202329', '#252931'] as const;
 
   it('declares exactly the six hues the rotation expects', () => {
     expect(LANES).toHaveLength(CYCLE_LENGTH);
@@ -232,9 +232,9 @@ describe('the palette in tokens.css §1.4b, re-measured', () => {
         ).toBeGreaterThanOrEqual(3);
       }
     }
-    // Measured floor: the red on a selected row, 4.12.
+    // Measured floor: the red on a selected row, 4.41 (4.12 before Phase 196).
     const floor = Math.min(
-      ...LANES.map((hex) => contrastRatio(hexToRgb(hex), hexToRgb('#2a2e36')))
+      ...LANES.map((hex) => contrastRatio(hexToRgb(hex), hexToRgb('#252931')))
     );
     expect(floor).toBeGreaterThan(4);
   });

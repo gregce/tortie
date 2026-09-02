@@ -411,8 +411,8 @@ function probeJs(mode) {
         'text-transform:uppercase;color:#838996;padding:4px 6px';
       const holder = document.createElement('div');
       holder.style.cssText =
-        'flex:1 1 auto;min-height:0;overflow:hidden;border:1px solid #2a2d34;' +
-        'border-radius:6px;background:#17181c';
+        'flex:1 1 auto;min-height:0;overflow:hidden;border:1px solid #25282e;' +
+        'border-radius:6px;background:#0e0f13';
       const clone = side.cloneNode(true);
       clone.style.width = '100%';
       clone.style.flexBasis = 'auto';

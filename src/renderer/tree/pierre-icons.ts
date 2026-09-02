@@ -85,6 +85,19 @@ export const FOLDER_ICON_CSS = `
 [data-item-type="folder"][aria-expanded="true"] > [data-item-section="icon"]::after {
   background-image: ${toCssUrl(FOLDER_ICON_SVGS.open)};
 }
+
+/* Phase 196. The file type art sits under the text at --file-icon-dim, which
+   inherits across the shadow boundary from tokens.css; the chevron is not art
+   and keeps its strength, and the selected row draws its icon at 1. */
+[data-item-section="icon"] > [data-icon-name]:not([data-icon-name="file-tree-icon-chevron"]),
+[data-item-type="folder"] > [data-item-section="icon"]::after {
+  opacity: var(--file-icon-dim, 1);
+}
+
+[aria-selected="true"] > [data-item-section="icon"] > [data-icon-name],
+[aria-selected="true"] > [data-item-section="icon"]::after {
+  opacity: 1;
+}
 `;
 
 let cached: FileTreeIconConfig | null = null;
