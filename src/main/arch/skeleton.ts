@@ -224,6 +224,40 @@ export function groupOwners(groups: readonly Group[]): Map<string, string> {
   return owner;
 }
 
+/** The plain owner lookup as a function, the default every rollup takes. */
+function lookup(
+  owner: ReadonlyMap<string, string>
+): (path: string) => string | undefined {
+  return (path) => owner.get(path);
+}
+
+/**
+ * P6, the owner fallback (Phase 201, research 77 section 4.2).
+ *
+ * An import target that is not a tracked file belongs to the box whose
+ * directory is its longest prefix. Every Swift import has resolved at TARGET
+ * grain since Phase 180, so its `toPath` is a target directory rather than a
+ * file, and the plain owner map above has no entry for it: on rookery 153 of
+ * 414 resolved imports, 37 percent, pointed at a Swift or Kotlin target and
+ * drew nothing. This is a FALLBACK the map hands to the rollup and the band,
+ * never a change to `groupOwners` itself, so the draft, the payload and the
+ * ranking keep the file keyed answer they always had.
+ */
+export function groupOwnerWithDirs(
+  groups: readonly Group[]
+): (path: string) => string | undefined {
+  const owner = groupOwners(groups);
+  const dirs = groups
+    .filter((g) => g.dir !== '')
+    .sort((a, b) => b.dir.length - a.dir.length || (a.id < b.id ? -1 : 1));
+  return (path) => {
+    const direct = owner.get(path);
+    if (direct !== undefined) return direct;
+    const hit = dirs.find((g) => path === g.dir || path.startsWith(`${g.dir}/`));
+    return hit?.id;
+  };
+}
+
 /** One aggregated edge: files in `from` import files in `to`, `count` times. */
 export interface ArchGroupEdge {
   from: string;
@@ -242,13 +276,13 @@ export interface ArchGroupEdge {
  */
 export function aggregateGroupEdges(
   groups: readonly Group[],
-  imports: readonly { fromPath: string; toPath: string }[]
+  imports: readonly { fromPath: string; toPath: string }[],
+  ownerOf: (path: string) => string | undefined = lookup(groupOwners(groups))
 ): ArchGroupEdge[] {
-  const owner = groupOwners(groups);
   const counted = new Map<string, number>();
   for (const edge of imports) {
-    const from = owner.get(edge.fromPath);
-    const to = owner.get(edge.toPath);
+    const from = ownerOf(edge.fromPath);
+    const to = ownerOf(edge.toPath);
     if (from === undefined || to === undefined || from === to) continue;
     const key = `${from}\u0000${to}`;
     counted.set(key, (counted.get(key) ?? 0) + 1);
@@ -384,14 +418,14 @@ export function classify(group: Group): ArchProvenance {
 export function bandOf(
   group: Group,
   groups: readonly Group[],
-  imports: readonly { fromPath: string; toPath: string }[]
+  imports: readonly { fromPath: string; toPath: string }[],
+  ownerOf: (path: string) => string | undefined = lookup(groupOwners(groups))
 ): string {
-  const owner = groupOwners(groups);
   let incoming = 0;
   let outgoing = 0;
   for (const edge of imports) {
-    const from = owner.get(edge.fromPath);
-    const to = owner.get(edge.toPath);
+    const from = ownerOf(edge.fromPath);
+    const to = ownerOf(edge.toPath);
     if (from === undefined || to === undefined || from === to) continue;
     if (to === group.id) incoming += 1;
     if (from === group.id) outgoing += 1;
@@ -399,6 +433,221 @@ export function bandOf(
   if (incoming === 0) return 'surface';
   if (outgoing === 0) return 'foundation';
   return 'engine';
+}
+
+// ---------------------------------------------------------------------------
+// Rule P, the reading partition (Phase 201, research 77 section 4.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * The cut the map, the drill and the sidebar all draw since Phase 201.
+ *
+ * `groupTree` above stops at depth one as soon as five top level directories
+ * exist, and junk directories satisfy that test while the code sits in one
+ * box: on gmux it drew `src` holding 78 percent of the files beside `.claude`
+ * holding one. Research 77 measured a sentence over those boxes as useful 62
+ * percent of the time and over these 89 percent, 100 counting three flat
+ * parts, on gmux, rookery and ripgrep. Every step below is a fact test over
+ * the primitives already in this file.
+ *
+ *  P1 seeds. Two or more npm workspaces or Cargo member crates make each
+ *     declared directory a box. Otherwise every top level directory is one.
+ *     Root files go to the fold.
+ *  P2 split. While a box holds more than half the parsed files and has two or
+ *     more child directories, replace it with its children. Depth stops at 3.
+ *  P3 fold. A box with no parsed file and fewer than the larger of 20 files
+ *     or 5 percent of the tree folds; a box with fewer than three parsed
+ *     files folds; a seed never folds. The fold is one box, `other`, named
+ *     everything else on its face. ONE FLOOR the research did not write: when
+ *     that fold would leave fewer than {@link SKELETON_TARGET}.min boxes of
+ *     source, no box of source folds, because a nine file repository must
+ *     still draw its folders (the Phase 160 second fix round). It never fires
+ *     on gmux, rookery or ripgrep.
+ *  P4 cap. Twelve boxes. Over it, fold boxes with no source, smallest first,
+ *     and never fold a box of source for the count, so ripgrep lists thirteen.
+ *  P5 label. The deepest directory all of a box's files share, so a seeded
+ *     workspace's leftover with one child is named for the child.
+ *  P6 owner. {@link groupOwnerWithDirs}, which the map hands to the rollup.
+ *
+ * The draft in this file keeps `groupTree`: a contract is written over the
+ * skeleton's own five to nine parts and `npm run conformance:arch` pins that.
+ */
+export interface ReadingInput extends SkeletonInput {
+  /** Directories the Cargo workspace's member crates live in, if any. */
+  crates?: readonly string[];
+  /** Whether this build parses a path, which is what "source" means here. */
+  parseable: (path: string) => boolean;
+}
+
+/** What rule P answers. */
+export interface ReadingPartition {
+  /** Every box, sorted by id. The fold, when present, is `READING_FOLD_ID`. */
+  boxes: Group[];
+  /** The directories folded into everything else, sorted. */
+  folded: string[];
+  /** How many tracked files sit at the repository root. They fold too. */
+  rootFiles: number;
+  /** Where P1 took its seeds from. */
+  seeded: 'directories' | 'npm workspaces' | 'cargo crates';
+}
+
+/** The fold's group id, and its label on every face. */
+export const READING_FOLD_ID = 'other';
+export const READING_FOLD_LABEL = 'everything else';
+
+/** P4. */
+export const READING_MAX = 12;
+/** P3, the larger of these two decides whether a box with no source stays. */
+export const READING_SMALL_FILES = 20;
+export const READING_SMALL_SHARE = 0.05;
+
+/** The files of a box one directory below `depth`, keyed by that directory. */
+function childrenAt(box: Group, depth: number): Map<string, string[]> {
+  const byDir = new Map<string, string[]>();
+  for (const path of box.files) {
+    const dir = prefixAt(path, depth);
+    if (dir === null || dir === box.dir) continue;
+    const list = byDir.get(dir);
+    if (list === undefined) byDir.set(dir, [path]);
+    else list.push(path);
+  }
+  return byDir;
+}
+
+/** The deepest directory every file in the list shares, '' when none. */
+export function commonDirOf(files: readonly string[]): string {
+  let common: string[] | null = null;
+  for (const path of files) {
+    const dirs = path.split('/').slice(0, -1);
+    if (common === null) {
+      common = dirs;
+      continue;
+    }
+    let i = 0;
+    while (i < common.length && i < dirs.length && common[i] === dirs[i]) i += 1;
+    common.length = i;
+  }
+  return (common ?? []).join('/');
+}
+
+export function readingPartition(input: ReadingInput): ReadingPartition {
+  const files = [...input.trackedFiles].sort();
+  const isSource = input.parseable;
+  const totalParsed = files.filter(isSource).length;
+  const npm = [...(input.workspaces ?? [])];
+  const cargo = [...(input.crates ?? [])].filter((d) => d !== '');
+  const seeds = [...new Set([...npm, ...cargo])].sort();
+
+  // P1.
+  let boxes: Group[] = [];
+  let seeded: ReadingPartition['seeded'] = 'directories';
+  const placed = new Set<string>();
+  const seedSet = new Set<string>();
+  if (seeds.length >= 2) {
+    seeded = npm.length >= 2 ? 'npm workspaces' : 'cargo crates';
+    for (const dir of seeds) {
+      const own = files.filter((p) => p === dir || p.startsWith(`${dir}/`));
+      if (own.length === 0) continue;
+      for (const p of own) placed.add(p);
+      seedSet.add(dir);
+      boxes.push({ id: groupId(dir), dir, files: own });
+    }
+  }
+  const byTop = new Map<string, string[]>();
+  const rootList: string[] = [];
+  for (const p of files) {
+    if (placed.has(p)) continue;
+    const dir = prefixAt(p, 1);
+    if (dir === null) {
+      rootList.push(p);
+      continue;
+    }
+    const list = byTop.get(dir);
+    if (list === undefined) byTop.set(dir, [p]);
+    else list.push(p);
+  }
+  for (const [dir, list] of byTop) boxes.push({ id: groupId(dir), dir, files: list });
+
+  // P2.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const box of [...boxes].sort((a, b) => (a.dir < b.dir ? -1 : 1))) {
+      const depth = box.dir.split('/').length;
+      if (depth >= 3) continue;
+      const parsed = box.files.filter(isSource).length;
+      if (parsed * 2 <= totalParsed) continue;
+      const kids = childrenAt(box, depth + 1);
+      if (kids.size < 2) continue;
+      const loose = box.files.filter((p) => prefixAt(p, depth + 1) === box.dir);
+      boxes = boxes.filter((b) => b !== box);
+      for (const [dir, list] of kids) boxes.push({ id: groupId(dir), dir, files: list });
+      if (loose.length > 0) {
+        boxes.push({ id: `${groupId(box.dir)}-loose`, dir: box.dir, files: loose });
+      }
+      changed = true;
+      break;
+    }
+  }
+
+  // P3.
+  const smallLimit = Math.max(
+    READING_SMALL_FILES,
+    Math.floor(files.length * READING_SMALL_SHARE)
+  );
+  const folded: string[] = [];
+  const otherFiles: string[] = [...rootList];
+  const hasSource = (b: Group): boolean => b.files.some(isSource);
+  const foldable = (box: Group, keepSource: boolean): boolean => {
+    if (seedSet.has(box.dir)) return false;
+    const parsed = box.files.filter(isSource).length;
+    if (parsed === 0) return box.files.length < smallLimit;
+    return keepSource ? false : parsed < 3;
+  };
+  const ordered = [...boxes].sort((a, b) => (a.dir < b.dir ? -1 : 1));
+  const survivors = ordered.filter((b) => !foldable(b, false) && hasSource(b)).length;
+  const keepSource = survivors < SKELETON_TARGET.min;
+  const kept: Group[] = [];
+  for (const box of ordered) {
+    if (foldable(box, keepSource)) {
+      folded.push(box.dir);
+      otherFiles.push(...box.files);
+    } else kept.push(box);
+  }
+  boxes = kept;
+
+  // P4.
+  const overCap = (): boolean =>
+    boxes.length + (otherFiles.length > 0 ? 1 : 0) > READING_MAX;
+  for (;;) {
+    if (!overCap()) break;
+    const victims = boxes
+      .filter((b) => !seedSet.has(b.dir) && !hasSource(b))
+      .sort((a, b) => a.files.length - b.files.length || (a.dir < b.dir ? -1 : 1));
+    const victim = victims[0];
+    if (victim === undefined) break;
+    boxes = boxes.filter((b) => b !== victim);
+    folded.push(victim.dir);
+    otherFiles.push(...victim.files);
+  }
+
+  // P5.
+  for (const box of boxes) {
+    const common = commonDirOf(box.files);
+    if (common !== '' && common !== box.dir && common.startsWith(box.dir)) {
+      box.dir = common;
+      box.id = groupId(common);
+    }
+  }
+  if (otherFiles.length > 0) {
+    boxes.push({ id: READING_FOLD_ID, dir: '', files: otherFiles.sort() });
+  }
+  return {
+    boxes: boxes.sort((a, b) => (a.id < b.id ? -1 : 1)),
+    folded: folded.sort(),
+    rootFiles: rootList.length,
+    seeded
+  };
 }
 
 // ---------------------------------------------------------------------------
