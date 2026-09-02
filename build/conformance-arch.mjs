@@ -455,7 +455,10 @@ for (const [groupId, componentId, name] of overlays) {
   }
 }
 for (const box of data.map.noContract.groups) {
-  if (box.componentId !== null || box.label !== box.dir) {
+  // Phase 201: the fold rule P draws for the root files and the folded
+  // small directories has no directory of its own and wears its one name.
+  const owed = box.dir === '' ? 'everything else' : box.dir;
+  if (box.componentId !== null || box.label !== owed) {
     fail(
       `map: the computed-only picture painted ${box.id} as "${box.label}", ` +
         'and with no contract every box wears its directory.'
@@ -547,9 +550,17 @@ if (part.model.componentId !== 'app' || part.model.groupLabel !== 'app') {
 const crossingsSeen = part.model.crossings.map(
   (c) => `${c.moduleId}>${c.outsideId}:${c.direction}:${c.count}:${c.outsideLabel}`
 );
+// Phase 201, P6: the fixture carries two imports resolved at TARGET grain,
+// `src/app/Feature.swift` to the directory `vendor/lib` and
+// `src/core/main.go` to the directory `src/app`. The file keyed owner map
+// dropped both, so the frame used to read two crossings; the owner fallback
+// puts a target that is not a tracked file in the box whose directory is its
+// longest prefix, and the frame reads four.
 const crossingsOwed = [
   'src-app>src-store:out:2:store',
-  'src-app>src-core:out:1:core'
+  'src-app>src-core:in:1:core',
+  'src-app>src-core:out:1:core',
+  'src-app>vendor-lib:out:1:vendored lib'
 ];
 if (JSON.stringify(crossingsSeen) !== JSON.stringify(crossingsOwed)) {
   fail(
@@ -593,7 +604,15 @@ for (const module of part.model.modules) {
         'totalImports',
         'resolvedImports',
         'externalImports',
-        'unresolvedImports'
+        'unresolvedImports',
+        // Phase 201, the reading: five facts a box says about itself, prose
+        // on the face and behind the hover. `lines` is a size the drawing
+        // never pins to a node, the same standing as fileCount above.
+        'languages',
+        'lines',
+        'entries',
+        'sentence',
+        'facts'
       ].includes(key)
   );
   if (badge.length > 0) {

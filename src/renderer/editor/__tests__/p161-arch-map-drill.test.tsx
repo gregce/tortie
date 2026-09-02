@@ -48,6 +48,7 @@ function levelOne(): ArchMapResult {
     building: false,
     scannedAtCommit: '0'.repeat(40),
     subject: 'project',
+    sentence: 'project: 9 files, TypeScript; 2 parts.',
     groups: [
       {
         id: 'src-main',
@@ -61,7 +62,12 @@ function levelOne(): ArchMapResult {
         totalImports: 60,
         resolvedImports: 50,
         externalImports: 5,
-        unresolvedImports: 5
+        unresolvedImports: 5,
+        languages: [],
+        lines: 0,
+        entries: [],
+        sentence: '',
+        facts: []
       },
       {
         id: 'src-renderer',
@@ -75,7 +81,12 @@ function levelOne(): ArchMapResult {
         totalImports: 30,
         resolvedImports: 28,
         externalImports: 2,
-        unresolvedImports: 0
+        unresolvedImports: 0,
+        languages: [],
+        lines: 0,
+        entries: [],
+        sentence: '',
+        facts: []
       }
     ],
     edges: [
@@ -118,7 +129,12 @@ function partModel(): NonNullable<ArchPartMapEntry['model']> {
         totalImports: 12,
         resolvedImports: 12,
         externalImports: 0,
-        unresolvedImports: 0
+        unresolvedImports: 0,
+        languages: [],
+        lines: 0,
+        entries: [],
+        sentence: '',
+        facts: []
       },
       {
         id: 'core',
@@ -132,7 +148,12 @@ function partModel(): NonNullable<ArchPartMapEntry['model']> {
         totalImports: 30,
         resolvedImports: 30,
         externalImports: 0,
-        unresolvedImports: 0
+        unresolvedImports: 0,
+        languages: [],
+        lines: 0,
+        entries: [],
+        sentence: '',
+        facts: []
       }
     ],
     edges: [{ from: 'ipc', to: 'core', count: 7, status: null, edgeId: null }],

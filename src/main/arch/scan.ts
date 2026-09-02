@@ -234,10 +234,16 @@ export async function scanArchImports(
       mtimeMs: number;
       size: number;
       imports: ArchImportEdge[];
+      kinds: Record<string, number>;
     }[] = [];
     for (const file of results) {
       const language = languageOf(file.relPath);
       if (language === null) continue;
+      // THE DEFINITIONS RIDE THE SAME MESSAGE (Phase 201). The worker found
+      // them on the walk that found the imports, so the count by kind is kept
+      // here rather than paid for by a second parse when the reading asks.
+      const kinds: Record<string, number> = {};
+      for (const symbol of file.symbols) kinds[symbol.kind] = (kinds[symbol.kind] ?? 0) + 1;
       const edges: ArchImportEdge[] = [];
       for (const found of file.imports ?? []) {
         const answer = resolveImport(
@@ -264,7 +270,8 @@ export async function scanArchImports(
         relPath: file.relPath,
         mtimeMs: file.mtimeMs,
         size: file.size,
-        imports: collapseSameAnswer(edges)
+        imports: collapseSameAnswer(edges),
+        kinds
       });
     }
     store.saveImports(repoKey, rows);

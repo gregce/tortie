@@ -62,6 +62,7 @@ import { composeArchMap, composeArchMapPart } from './map';
 import type { ArchMapComposeInput, ArchMapPartVerdictFact } from './map';
 import { gatherFacts } from './run';
 import { scanArchImports } from './scan';
+import { readArchTreeFacts } from './tree-facts';
 import { diffArchVerdicts, readArchDrift } from './enrich/drift';
 import { driftFace } from './repair-trigger';
 import { composeArchPayload } from './payload';
@@ -294,6 +295,17 @@ export function createArchCheckCoordinator(deps: {
         });
         if (scan.overBudget !== null) overBudget = scan.overBudget;
         scannedFiles = scan.parsed;
+        // The reading's one read of the tree (Phase 201), stamped like the
+        // import rows, so a warm run reads only what drifted.
+        if (signal?.aborted !== true) {
+          await readArchTreeFacts({
+            repoPath,
+            repoKey,
+            store: db,
+            trackedFiles,
+            ...(signal === null ? {} : { signal })
+          });
+        }
         return { imports: scan.imports, unparsed: scan.unparsed };
       }
     });
@@ -442,6 +454,16 @@ export function createArchCheckCoordinator(deps: {
       onProgress: (done, total) => publishProgress(repoPath, done, total)
     });
     if (signal?.aborted === true) return;
+    // The reading's one read of the tree (Phase 201), after the scan and
+    // before the stamp, so the sentence behind a box never waits on a second
+    // pass the map read would have to know about.
+    await readArchTreeFacts({
+      repoPath,
+      repoKey,
+      store: db,
+      trackedFiles,
+      ...(signal === null ? {} : { signal })
+    });
     if (scan.overBudget === null) {
       const head = await git.run(revParseHeadCall());
       const headCommit =
@@ -529,11 +551,22 @@ export function createArchCheckCoordinator(deps: {
         scannedAtCommit: wireScannedAt(state.scannedAtCommit)
       },
       compose: {
+        // Rule R (Phase 201): the package name, then the root crate's own
+        // name, then the checkout directory.
         subject:
-          manifests.packageName ?? repoPath.split('/').pop() ?? 'this project',
+          manifests.packageName ??
+          manifests.crateName ??
+          repoPath.split('/').pop() ??
+          'this project',
         trackedFiles,
         imports: db.imports(repoKey),
         workspaces: [...manifests.workspaces.values()].map((w) => w.dir),
+        crates:
+          manifests.cargo === null
+            ? []
+            : [...manifests.cargo.crates.values()].map((c) => c.dir).filter((d) => d !== ''),
+        definitions: db.definitions(repoKey),
+        treeFacts: db.treeFacts(repoKey),
         document: document.contract === null ? null : document,
         verdicts: db.verdicts(repoKey)
       }

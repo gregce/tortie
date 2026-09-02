@@ -39,6 +39,7 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
     building: false,
     scannedAtCommit: '0'.repeat(40),
     subject: 'project',
+    sentence: 'project: 9 files, TypeScript; 2 parts.',
     groups: [
       {
         id: 'src',
@@ -52,7 +53,12 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
         totalImports: 50,
         resolvedImports: 40,
         externalImports: 5,
-        unresolvedImports: 5
+        unresolvedImports: 5,
+        languages: [],
+        lines: 0,
+        entries: [],
+        sentence: '',
+        facts: []
       },
       {
         id: 'vendor',
@@ -66,7 +72,12 @@ function payload(over: Partial<ArchMapResult> = {}): ArchMapResult {
         totalImports: 8,
         resolvedImports: 0,
         externalImports: 0,
-        unresolvedImports: 8
+        unresolvedImports: 8,
+        languages: [],
+        lines: 0,
+        entries: [],
+        sentence: '',
+        facts: []
       }
     ],
     edges: [

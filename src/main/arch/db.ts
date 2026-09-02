@@ -116,6 +116,21 @@ export interface ArchFileStamp {
   size: number;
 }
 
+/** One parsed file's definition counts by kind, kept by the same scan (Phase 201). */
+export interface ArchFileDefinitions {
+  path: string;
+  kinds: Record<string, number>;
+}
+
+/** One tracked file as one read of the tree saw it (Phase 201). */
+export interface ArchTreeFileFact {
+  path: string;
+  /** Newlines in the file; zero for a binary or an absent file. */
+  lines: number;
+  /** The name a manifest declares, null for any other file or an unnamed one. */
+  declares: string | null;
+}
+
 /**
  * The scanned stamp for a repository that has no commits yet.
  *
@@ -351,6 +366,34 @@ const MIGRATIONS: readonly SqliteMigration[] = [
         DELETE FROM arch_import_file;
       `);
     }
+  },
+  {
+    // PHASE 201, the reading. The scan keeps the definition counts by kind
+    // beside each file's imports, because the symbols come back on the SAME
+    // worker message and the store used to drop them: the sentence behind a
+    // box's hover says what a part defines from the one parse rather than a
+    // second. Same shape as 002 and 007 for the existing rows, being a
+    // derived fact base dropped whole so no row lacks its kinds. Beside it,
+    // one row per tracked file from one read of the tree, being its line
+    // count and, for a manifest, the name it declares, stamped by mtime and
+    // size like the import rows so a warm pass reads only what drifted.
+    name: '008-arch-reading',
+    up: (db) => {
+      addColumnIfMissing(db, 'arch_import_file', 'kinds', 'TEXT');
+      db.exec(`
+        DELETE FROM arch_import;
+        DELETE FROM arch_import_file;
+        CREATE TABLE IF NOT EXISTS arch_tree_file (
+          repo_key TEXT NOT NULL,
+          rel_path TEXT NOT NULL,
+          mtime_ms REAL NOT NULL,
+          size     INTEGER NOT NULL,
+          lines    INTEGER NOT NULL,
+          declares TEXT,
+          PRIMARY KEY (repo_key, rel_path)
+        );
+      `);
+    }
   }
 ];
 
@@ -570,6 +613,8 @@ export class ArchStore {
       mtimeMs: number;
       size: number;
       imports: ArchImportEdge[];
+      /** Definition counts by kind, from the same parse (Phase 201). */
+      kinds?: Readonly<Record<string, number>>;
     }[]
   ): void {
     if (files.length === 0) return;
@@ -577,14 +622,15 @@ export class ArchStore {
       'DELETE FROM arch_import WHERE repo_key = ? AND from_path = ?'
     );
     const upsertFile = this.db.prepare<
-      [string, string, number, number, number]
+      [string, string, number, number, number, string]
     >(
-      `INSERT INTO arch_import_file (repo_key, rel_path, mtime_ms, size, scanned_at)
-         VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO arch_import_file (repo_key, rel_path, mtime_ms, size, scanned_at, kinds)
+         VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(repo_key, rel_path) DO UPDATE SET
          mtime_ms = excluded.mtime_ms,
          size = excluded.size,
-         scanned_at = excluded.scanned_at`
+         scanned_at = excluded.scanned_at,
+         kinds = excluded.kinds`
     );
     const insertImport = this.db.prepare(
       `INSERT INTO arch_import
@@ -595,7 +641,14 @@ export class ArchStore {
     immediateTransaction(this.db, () => {
       for (const file of files) {
         dropImports.run(repoKey, file.relPath);
-        upsertFile.run(repoKey, file.relPath, file.mtimeMs, file.size, now);
+        upsertFile.run(
+          repoKey,
+          file.relPath,
+          file.mtimeMs,
+          file.size,
+          now,
+          JSON.stringify(file.kinds ?? {})
+        );
         for (const edge of file.imports) {
           insertImport.run(
             repoKey,
@@ -644,6 +697,95 @@ export class ArchStore {
       resolution: row.resolution as ArchImportResolution,
       language: row.language
     }));
+  }
+
+  /**
+   * Every parsed file's definition counts by kind, kept by the scan beside its
+   * imports (Phase 201). A row an older build wrote carries none, and reads
+   * as no definitions rather than as an error.
+   */
+  definitions(repoKey: string): ArchFileDefinitions[] {
+    const rows = this.db
+      .prepare<[string], { rel_path: string; kinds: string | null }>(
+        'SELECT rel_path, kinds FROM arch_import_file WHERE repo_key = ?'
+      )
+      .all(repoKey);
+    const out: ArchFileDefinitions[] = [];
+    for (const row of rows) {
+      if (row.kinds === null) continue;
+      let kinds: unknown;
+      try {
+        kinds = JSON.parse(row.kinds);
+      } catch {
+        continue;
+      }
+      if (kinds === null || typeof kinds !== 'object' || Array.isArray(kinds)) continue;
+      const clean: Record<string, number> = {};
+      for (const [kind, count] of Object.entries(kinds as Record<string, unknown>)) {
+        if (typeof count === 'number' && Number.isFinite(count) && count > 0) clean[kind] = count;
+      }
+      out.push({ path: row.rel_path, kinds: clean });
+    }
+    return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // One read of the tree (Phase 201)
+  // -------------------------------------------------------------------------
+
+  /** The freshness key for every tracked file the tree read has seen. */
+  treeStamps(repoKey: string): Map<string, ArchFileStamp> {
+    const rows = this.db
+      .prepare<[string], StampRow>(
+        'SELECT rel_path, mtime_ms, size FROM arch_tree_file WHERE repo_key = ?'
+      )
+      .all(repoKey);
+    const out = new Map<string, ArchFileStamp>();
+    for (const row of rows) out.set(row.rel_path, { mtimeMs: row.mtime_ms, size: row.size });
+    return out;
+  }
+
+  /** Replace one batch of tree rows, in ONE transaction. */
+  saveTreeFacts(
+    repoKey: string,
+    files: { relPath: string; mtimeMs: number; size: number; lines: number; declares: string | null }[]
+  ): void {
+    if (files.length === 0) return;
+    const upsert = this.db.prepare<[string, string, number, number, number, string | null]>(
+      `INSERT INTO arch_tree_file (repo_key, rel_path, mtime_ms, size, lines, declares)
+         VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(repo_key, rel_path) DO UPDATE SET
+         mtime_ms = excluded.mtime_ms,
+         size = excluded.size,
+         lines = excluded.lines,
+         declares = excluded.declares`
+    );
+    immediateTransaction(this.db, () => {
+      for (const file of files) {
+        upsert.run(repoKey, file.relPath, file.mtimeMs, file.size, file.lines, file.declares);
+      }
+    });
+  }
+
+  /** Forget tree rows for files the tree no longer tracks. */
+  forgetTreeFiles(repoKey: string, relPaths: string[]): void {
+    if (relPaths.length === 0) return;
+    const drop = this.db.prepare<[string, string]>(
+      'DELETE FROM arch_tree_file WHERE repo_key = ? AND rel_path = ?'
+    );
+    immediateTransaction(this.db, () => {
+      for (const relPath of relPaths) drop.run(repoKey, relPath);
+    });
+  }
+
+  /** Every tracked file's line count and declared name, as the last tree read left them. */
+  treeFacts(repoKey: string): ArchTreeFileFact[] {
+    const rows = this.db
+      .prepare<[string], { rel_path: string; lines: number; declares: string | null }>(
+        'SELECT rel_path, lines, declares FROM arch_tree_file WHERE repo_key = ?'
+      )
+      .all(repoKey);
+    return rows.map((row) => ({ path: row.rel_path, lines: row.lines, declares: row.declares }));
   }
 
   /** Record the commit the fact base was scanned at, once the scan finished. */

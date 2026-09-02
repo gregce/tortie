@@ -54,16 +54,28 @@ import type {
   ArchMapModel,
   ArchMapPartModel
 } from '@shared/ipc';
+import { grammarFor } from '../symbols/languages';
 import { componentFiles } from './checkers/glob';
+import type { ArchFileDefinitions, ArchTreeFileFact } from './db';
+import { readingFacts, type ArchReadingBox } from './reading';
+import {
+  hoverFacts,
+  languageBuckets,
+  nameOf,
+  plainNameOf,
+  repositoryLine,
+  sentenceOf
+} from './sentence';
 import {
   aggregateGroupEdges,
   bandOf,
   classify,
   groupOwners,
-  groupTree,
+  groupOwnerWithDirs,
   mergeToTarget,
   partModules,
   rankGroups,
+  readingPartition,
   type Group
 } from './skeleton';
 
@@ -93,6 +105,12 @@ export interface ArchMapComposeInput {
   imports: readonly ArchMapImportFact[];
   /** Directories a workspace declaration named, if any. */
   workspaces?: readonly string[];
+  /** Directories the Cargo workspace's member crates live in, if any (Phase 201). */
+  crates?: readonly string[];
+  /** Every parsed file's definition counts by kind, kept by the scan (Phase 201). */
+  definitions?: readonly ArchFileDefinitions[];
+  /** Every tracked file's line count and declared name, from one read of the tree (Phase 201). */
+  treeFacts?: readonly ArchTreeFileFact[];
   /** The loaded contract, or null. Null draws the computed-only picture. */
   document: ArchDocument | null;
   /** Whatever the last completed check concluded. Empty is fine. */
@@ -111,9 +129,17 @@ const STATUS_SEVERITY: Readonly<Record<ArchVerdictStatus, number>> = {
   convergent: 3
 };
 
+/** Whether this build parses a path, which is what "source" means to rule P. */
+const parseable = (path: string): boolean => grammarFor(path) !== null;
+
 /**
  * The resolved slice and the level 1 partition, shared by BOTH composes
  * (extracted by the integrator, Phase 161, from two copies of the block).
+ *
+ * SINCE PHASE 201 THE PARTITION IS RULE P, `readingPartition`, and the owner
+ * lookup carries P6, so a Swift import resolved at target grain draws. The
+ * draft in ./skeleton.ts keeps `groupTree`; the map, the drill and the
+ * sidebar draw these boxes, one rule and three readers.
  *
  * Only a resolved import is an edge of the drawing. An unresolved one names
  * something this build could not find, and drawing it would put a guess on
@@ -124,6 +150,8 @@ const STATUS_SEVERITY: Readonly<Record<ArchVerdictStatus, number>> = {
 function level1Partition(input: ArchMapComposeInput): {
   resolved: { fromPath: string; toPath: string }[];
   groups: Group[];
+  folded: string[];
+  ownerOf: (path: string) => string | undefined;
 } {
   const resolved: { fromPath: string; toPath: string }[] = [];
   for (const fact of input.imports) {
@@ -131,15 +159,70 @@ function level1Partition(input: ArchMapComposeInput): {
       resolved.push({ fromPath: fact.fromPath, toPath: fact.toPath });
     }
   }
-  const grouped = groupTree({
+  const cut = readingPartition({
     subject: input.subject,
     trackedFiles: input.trackedFiles,
     imports: resolved,
-    ...(input.workspaces === undefined ? {} : { workspaces: input.workspaces })
+    parseable,
+    ...(input.workspaces === undefined ? {} : { workspaces: input.workspaces }),
+    ...(input.crates === undefined ? {} : { crates: input.crates })
   });
   return {
     resolved,
-    groups: mergeToTarget(grouped, rankGroups(grouped, resolved))
+    groups: cut.boxes,
+    folded: cut.folded,
+    ownerOf: groupOwnerWithDirs(cut.boxes)
+  };
+}
+
+/**
+ * The reading of a set of boxes (Phase 201): the facts, then the five fields
+ * every box carries. The labels partners are called by are the plain names,
+ * being the directory without any declared name in brackets.
+ */
+function readingOf(
+  boxes: readonly Group[],
+  input: ArchMapComposeInput,
+  folded: readonly string[],
+  ownerOf: (path: string) => string | undefined
+): {
+  facts: ArchReadingBox[];
+  labels: Map<string, string>;
+  fieldsOf: (fact: ArchReadingBox) => Pick<
+    ArchMapGroup,
+    'languages' | 'lines' | 'entries' | 'sentence' | 'facts'
+  >;
+} {
+  const lines = new Map<string, number>();
+  const declares = new Map<string, string | null>();
+  for (const row of input.treeFacts ?? []) {
+    lines.set(row.path, row.lines);
+    if (row.declares !== null) declares.set(row.path, row.declares);
+  }
+  const kinds = new Map<string, Readonly<Record<string, number>>>();
+  for (const row of input.definitions ?? []) kinds.set(row.path, row.kinds);
+  const facts = readingFacts(boxes, {
+    trackedFiles: input.trackedFiles,
+    imports: input.imports,
+    parseable,
+    lines,
+    declares,
+    kinds,
+    folded,
+    ownerOf
+  });
+  const labels = new Map(facts.map((f) => [f.id, plainNameOf(f)]));
+  const resolvedOf = new Map(facts.map((f) => [f.id, f.imports.resolved]));
+  return {
+    facts,
+    labels,
+    fieldsOf: (fact) => ({
+      languages: languageBuckets(fact.extensions).map((b) => ({ name: b.name, files: b.files })),
+      lines: fact.lines,
+      entries: fact.entries.slice(0, 4),
+      sentence: sentenceOf(fact, labels, resolvedOf),
+      facts: hoverFacts(fact, labels)
+    })
   };
 }
 
@@ -152,9 +235,10 @@ function judgedEdges(
   boxes: readonly Group[],
   resolved: readonly { fromPath: string; toPath: string }[],
   overlay: ReadonlyMap<string, OverlayName>,
-  input: ArchMapComposeInput
+  input: ArchMapComposeInput,
+  ownerOf: (path: string) => string | undefined
 ): ArchMapEdge[] {
-  return aggregateGroupEdges(boxes, resolved).map((edge) => {
+  return aggregateGroupEdges(boxes, resolved, ownerOf).map((edge) => {
     const judged = judgeEdge(
       overlay.get(edge.from)?.id ?? null,
       overlay.get(edge.to)?.id ?? null,
@@ -172,7 +256,7 @@ function judgedEdges(
 
 /** Compose the level 1 map. Pure over the fact base. */
 export function composeArchMap(input: ArchMapComposeInput): ArchMapModel {
-  const { resolved, groups } = level1Partition(input);
+  const { resolved, groups, folded, ownerOf } = level1Partition(input);
   const owner = groupOwners(groups);
 
   // Per group import counts, from the whole fact base rather than only the
@@ -198,8 +282,9 @@ export function composeArchMap(input: ArchMapComposeInput): ArchMapModel {
   }
 
   const overlay = overlayComponents(owner, input);
+  const reading = readingOf(groups, input, folded, ownerOf);
 
-  const mapGroups: ArchMapGroup[] = groups.map((group) => {
+  const mapGroups: ArchMapGroup[] = groups.map((group, at) => {
     const counts = perGroup.get(group.id) ?? {
       total: 0,
       resolved: 0,
@@ -207,26 +292,38 @@ export function composeArchMap(input: ArchMapComposeInput): ArchMapModel {
       unresolved: 0
     };
     const painted = overlay.get(group.id) ?? null;
+    const fact = reading.facts[at] as ArchReadingBox;
     return {
       id: group.id,
       dir: group.dir,
-      label: painted?.name ?? group.dir,
+      label: painted?.name ?? nameOf(fact),
       componentId: painted?.id ?? null,
       description: painted?.description ?? null,
-      band: bandOf(group, groups, resolved) as ArchMapBand,
+      band: bandOf(group, groups, resolved, ownerOf) as ArchMapBand,
       provenance: classify(group),
       fileCount: group.files.length,
       totalImports: counts.total,
       resolvedImports: counts.resolved,
       externalImports: counts.external,
-      unresolvedImports: counts.unresolved
+      unresolvedImports: counts.unresolved,
+      ...reading.fieldsOf(fact)
     };
   });
 
-  const edges: ArchMapEdge[] = judgedEdges(groups, resolved, overlay, input);
+  const edges: ArchMapEdge[] = judgedEdges(groups, resolved, overlay, input, ownerOf);
 
   return {
     subject: input.subject,
+    sentence: repositoryLine(
+      {
+        subject: input.subject,
+        files: input.trackedFiles.length,
+        totalImports,
+        resolvedImports,
+        connections: edges.length
+      },
+      reading.facts
+    ),
     groups: mapGroups,
     edges,
     fileCount: input.trackedFiles.length,
@@ -383,7 +480,7 @@ export interface ArchMapPartComposeInput extends ArchMapComposeInput {
 export function composeArchMapPart(
   input: ArchMapPartComposeInput
 ): ArchMapPartModel {
-  const { resolved, groups: level1 } = level1Partition(input);
+  const { resolved, groups: level1, folded, ownerOf: level1OwnerOf } = level1Partition(input);
   const level1Owner = groupOwners(level1);
   const level1Overlay = overlayComponents(level1Owner, input);
   const part = level1.find((group) => group.id === input.groupId);
@@ -429,6 +526,12 @@ export function composeArchMapPart(
   const subGrouped = partModules(part);
   const modules = mergeToTarget(subGrouped, rankGroups(subGrouped, resolved));
   const moduleOwner = groupOwners(modules);
+  const moduleOwnerOf = groupOwnerWithDirs(modules);
+  const reading = readingOf(modules, input, [], moduleOwnerOf);
+  const level1Reading = readingOf(level1, input, folded, level1OwnerOf);
+  const level1Name = (group: Group): string =>
+    level1Overlay.get(group.id)?.name ??
+    nameOf(level1Reading.facts[level1.indexOf(group)] as ArchReadingBox);
   // The level 1 overlay rule reused whole: a component paints a module when a
   // strict majority of its files sit inside that one module. A component that
   // painted the WHOLE part rarely paints any single module, and that is
@@ -458,7 +561,7 @@ export function composeArchMapPart(
     }
   }
 
-  const moduleBoxes: ArchMapGroup[] = modules.map((module) => {
+  const moduleBoxes: ArchMapGroup[] = modules.map((module, at) => {
     const counts = perModule.get(module.id) ?? {
       total: 0,
       resolved: 0,
@@ -475,13 +578,14 @@ export function composeArchMapPart(
       // The band is computed over the interior graph: `aggregateGroupEdges`
       // and `bandOf` both drop any edge with an end outside the owner map,
       // so passing the whole resolved slice scopes itself.
-      band: bandOf(module, modules, resolved) as ArchMapBand,
+      band: bandOf(module, modules, resolved, moduleOwnerOf) as ArchMapBand,
       provenance: classify(module),
       fileCount: module.files.length,
       totalImports: counts.total,
       resolvedImports: counts.resolved,
       externalImports: counts.external,
-      unresolvedImports: counts.unresolved
+      unresolvedImports: counts.unresolved,
+      ...reading.fieldsOf(reading.facts[at] as ArchReadingBox)
     };
   });
 
@@ -489,15 +593,16 @@ export function composeArchMapPart(
     modules,
     resolved,
     moduleOverlay,
-    input
+    input,
+    moduleOwnerOf
   );
 
   const crossings = partCrossings(
     part,
     level1,
-    level1Owner,
-    level1Overlay,
-    moduleOwner,
+    level1OwnerOf,
+    level1Name,
+    moduleOwnerOf,
     resolved
   );
 
@@ -507,7 +612,7 @@ export function composeArchMapPart(
   return {
     groupId: part.id,
     groupDir: part.dir,
-    groupLabel: painted?.name ?? part.dir,
+    groupLabel: painted?.name ?? level1Name(part),
     componentId: painted?.id ?? null,
     known: true,
     modules: moduleBoxes,
@@ -536,22 +641,22 @@ export function composeArchMapPart(
 function partCrossings(
   part: Group,
   level1: readonly Group[],
-  level1Owner: ReadonlyMap<string, string>,
-  level1Overlay: ReadonlyMap<string, OverlayName>,
-  moduleOwner: ReadonlyMap<string, string>,
+  level1OwnerOf: (path: string) => string | undefined,
+  level1Name: (group: Group) => string,
+  moduleOwnerOf: (path: string) => string | undefined,
   resolved: readonly { fromPath: string; toPath: string }[]
 ): ArchMapCrossing[] {
   const counted = new Map<string, number>();
   for (const edge of resolved) {
-    const fromModule = moduleOwner.get(edge.fromPath);
-    const toModule = moduleOwner.get(edge.toPath);
+    const fromModule = moduleOwnerOf(edge.fromPath);
+    const toModule = moduleOwnerOf(edge.toPath);
     // Both ends inside the part is an interior edge, and both ends outside is
     // the rest of the repository talking to itself. Neither is the frame's.
     if ((fromModule !== undefined) === (toModule !== undefined)) continue;
     const inside = fromModule ?? toModule;
     if (inside === undefined) continue;
     const outsidePath = fromModule !== undefined ? edge.toPath : edge.fromPath;
-    const outside = level1Owner.get(outsidePath);
+    const outside = level1OwnerOf(outsidePath);
     // An outside end no level 1 group owns is not an edge at level 1 either,
     // and an end owned by the drilled part itself is a part file the sub
     // grouping could not place, which cannot happen for a file with a
@@ -567,8 +672,8 @@ function partCrossings(
     level1.map((group) => [
       group.id,
       {
-        label: level1Overlay.get(group.id)?.name ?? group.dir,
-        band: bandOf(group, level1, resolved) as ArchMapBand
+        label: level1Name(group),
+        band: bandOf(group, level1, resolved, level1OwnerOf) as ArchMapBand
       }
     ])
   );

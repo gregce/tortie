@@ -70,7 +70,7 @@ import { expandDirGlob, normalizeRel } from './paths';
 // this file joins them onto the one shape the resolver context carries. That is
 // why the three imports below point outward rather than this file growing three
 // more readers.
-import { readCargoManifest, type CargoManifest } from './cargo';
+import { readCargoManifest, readRootCrateName, type CargoManifest } from './cargo';
 import { readRubyManifest, type RubyManifest } from './gemfile';
 import { readKotlinManifest, type KotlinManifest } from './gradle';
 import { readObjcManifest, type ObjcManifest } from './podfile';
@@ -113,6 +113,12 @@ export interface WorkspacePackage {
 export interface ArchManifests {
   /** The `name` field of the root package.json, or null. */
   packageName: string | null;
+  /**
+   * The root `Cargo.toml`'s `[package] name` as written, or null (Phase 201).
+   * Rule R names the repository by it when there is no `package.json`, so a
+   * Rust repository reads as `ripgrep` rather than as its checkout directory.
+   */
+  crateName: string | null;
   /**
    * Every package name the repository DECLARES a dependency on, from the root
    * manifest and from each workspace manifest, scope included.
@@ -226,6 +232,7 @@ export function readArchManifests(repoPath: string): ArchManifests {
   }
   const manifests: ArchManifests = {
     packageName: typeof pkg?.name === 'string' ? pkg.name : null,
+    crateName: readRootCrateName(repoPath),
     dependencies,
     manifestDirs: readManifestDirs(repoPath, pkg),
     aliases: readAliases(repoPath),

@@ -124,6 +124,20 @@ export function readCargoManifest(repoPath: string): CargoManifest | null {
   return out;
 }
 
+/**
+ * The root crate's own name AS WRITTEN, hyphens and all, or null when the
+ * root `Cargo.toml` is absent or is a virtual workspace manifest with no
+ * `[package]` (Phase 201). Rule R names a Rust repository by it when there is
+ * no `package.json`; every other reader of this file wants the underscored
+ * form a `use` line writes, which is what `crates` above holds.
+ */
+export function readRootCrateName(repoPath: string): string | null {
+  const text = readTextOrNull(join(repoPath, 'Cargo.toml'));
+  if (text === null) return null;
+  const name = parseCargoText(text).packageName;
+  return name === null || name.trim().length === 0 ? null : name.trim();
+}
+
 /** Fold one parsed manifest, living at `dir`, into the answer. */
 function absorb(out: CargoManifest, parsed: ParsedCargo, dir: string): void {
   if (parsed.packageName !== null) {

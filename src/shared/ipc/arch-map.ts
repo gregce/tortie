@@ -99,6 +99,35 @@ export interface ArchMapGroup {
    * could follow must never look the same.
    */
   unresolvedImports: number;
+  /**
+   * THE READING (Phase 201, research 77 section 4). Five fields, every one a
+   * fact the scan or one read of the tree produced, so a box can say what it
+   * is without a model and without a contract.
+   */
+  /** Language buckets by file count, most first. Drawn behind the hover. */
+  languages: ArchMapLanguage[];
+  /** Lines across every file in the box, from one read of the tree. */
+  lines: number;
+  /** Files that are an entry by name, shallowest first, at most four. */
+  entries: string[];
+  /**
+   * Rule S without its name: `SIZE, LANGUAGE; MADE OF; WIRING; ENTRY.` One
+   * sentence of 16 to 31 words, drawn on the face under the label. It is
+   * true of imports only and says nothing a person has to take on trust.
+   */
+  sentence: string;
+  /**
+   * The ten hover lines in their fixed order, each left out when it has
+   * nothing to say: size, languages, definitions, declared names, entries,
+   * imports, used by, uses, folders, also holds. Prose, never a badge.
+   */
+  facts: string[];
+}
+
+/** One language bucket of a box: the bucket's name and how many files wear it. */
+export interface ArchMapLanguage {
+  name: string;
+  files: number;
 }
 
 /** One aggregated edge: files in `from` import files in `to`, `count` times. */
@@ -124,7 +153,20 @@ export interface ArchMapEdge {
 export interface ArchMapModel {
   /** The one line above the drawing, the repository's own name. */
   subject: string;
-  /** The 5 to 9 boxes, sorted by id. */
+  /**
+   * Rule R, the repository line (Phase 201): the subject, its size and
+   * language, how many parts, the biggest and its share, the connections
+   * between parts, and how many imports lead inside the repository. About
+   * 23 words, from the code alone.
+   */
+  sentence: string;
+  /**
+   * The boxes rule P draws, sorted by id: seeds or top level directories,
+   * split while one holds more than half the parsed files, small ones folded
+   * into `other`, capped at twelve boxes of no source. Five to nine before
+   * Phase 201; up to thirteen since, because a box of source never folds for
+   * the count.
+   */
   groups: ArchMapGroup[];
   /** Every cross-group edge, unsliced, heaviest first. */
   edges: ArchMapEdge[];

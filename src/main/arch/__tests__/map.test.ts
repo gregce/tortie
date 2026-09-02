@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { ArchDocument } from '@shared/arch';
+import type { ArchFileDefinitions, ArchTreeFileFact } from '../db';
 import {
   composeArchMap,
   composeArchMapPart,
@@ -565,5 +566,146 @@ describe('the drilled part', () => {
       unresolvedImports: 1,
       totalImports: 6
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The reading (Phase 201)
+// ---------------------------------------------------------------------------
+
+describe('the reading on the map', () => {
+  const readingTree = [
+    ...Array.from({ length: 6 }, (_, i) => `src/main/machines/m${String(i)}.ts`),
+    ...Array.from({ length: 5 }, (_, i) => `src/main/arch/a${String(i)}.ts`),
+    'src/main/index.ts',
+    ...Array.from({ length: 6 }, (_, i) => `src/shared/s${String(i)}.ts`),
+    ...Array.from({ length: 5 }, (_, i) => `build/probe-${String(i)}.mjs`),
+    ...Array.from({ length: 5 }, (_, i) => `docs/research/${String(i)}.md`),
+    ...Array.from({ length: 5 }, (_, i) => `tools/t${String(i)}.mjs`),
+    ...Array.from({ length: 4 }, (_, i) => `server/src/r${String(i)}.ts`),
+    'server/package.json',
+    'package.json',
+    'README.md'
+  ];
+  const readingImports = [
+    { fromPath: 'build/probe-0.mjs', toPath: 'src/main/index.ts', resolution: 'first-party' },
+    { fromPath: 'src/main/arch/a0.ts', toPath: 'src/shared/s0.ts', resolution: 'first-party' },
+    { fromPath: 'src/main/arch/a1.ts', toPath: 'src/shared/s1.ts', resolution: 'first-party' },
+    { fromPath: 'src/main/machines/m0.ts', toPath: null, resolution: 'external' },
+    // Target grain: the target is a directory, which P6 places.
+    { fromPath: 'server/src/r0.ts', toPath: 'src/shared', resolution: 'first-party' }
+  ];
+  const readingTreeFacts: ArchTreeFileFact[] = [
+    { path: 'src/main/index.ts', lines: 40, declares: null },
+    { path: 'src/main/arch/a0.ts', lines: 200, declares: null },
+    { path: 'server/package.json', lines: 3, declares: 'rookery-server' },
+    { path: 'package.json', lines: 9, declares: 'tortie' }
+  ];
+  const readingDefinitions: ArchFileDefinitions[] = [
+    { path: 'src/main/index.ts', kinds: { function: 2 } },
+    { path: 'src/main/arch/a0.ts', kinds: { function: 5, interface: 1 } }
+  ];
+  const reading = () =>
+    composeArchMap(
+      input({
+        subject: 'tortie',
+        trackedFiles: readingTree,
+        imports: readingImports,
+        treeFacts: readingTreeFacts,
+        definitions: readingDefinitions
+      })
+    );
+
+  it('draws rule P boxes with a sentence, the languages, the lines, the entries and the facts', () => {
+    const model = reading();
+    expect(model.groups.map((g) => g.id)).toEqual([
+      'build',
+      'other',
+      'server',
+      'src-main',
+      'src-shared',
+      'tools'
+    ]);
+    const main = model.groups.find((g) => g.id === 'src-main');
+    expect(main?.label).toBe('src/main');
+    expect(main?.sentence).toBe(
+      '12 files, TypeScript; made of machines, arch and 1 more; used by build; uses src/shared; entry src/main/index.ts.'
+    );
+    expect(main?.languages).toEqual([{ name: 'TypeScript', files: 12 }]);
+    expect(main?.lines).toBe(240);
+    expect(main?.entries).toEqual(['src/main/index.ts']);
+    expect(main?.facts).toEqual([
+      'Size: 12 files, 240 lines',
+      'Languages: TypeScript 12',
+      'Defines: 7 functions, 1 interface',
+      'Entries: src/main/index.ts',
+      'Imports: 3 written, 2 to this repository, 1 to dependencies, 0 not followed',
+      'Used by: build 1',
+      'Uses: src/shared 2',
+      'Folders: machines 6, arch 5'
+    ]);
+  });
+
+  it('names a box for the manifest at its root, and the fold everything else', () => {
+    const model = reading();
+    expect(model.groups.find((g) => g.id === 'server')?.label).toBe('server (rookery-server)');
+    const other = model.groups.find((g) => g.id === 'other');
+    expect(other?.label).toBe('everything else');
+    expect(other?.dir).toBe('');
+    expect(other?.sentence).toBe('7 files, mostly Markdown; 1 small folder (docs) and 2 root files; not code.');
+    expect(other?.facts).toContain('Declares: package.json tortie');
+  });
+
+  it('draws the edge a target grain import makes, through P6', () => {
+    const model = reading();
+    expect(model.edges).toContainEqual({
+      from: 'server',
+      to: 'src-shared',
+      count: 1,
+      status: null,
+      edgeId: null
+    });
+    const server = model.groups.find((g) => g.id === 'server');
+    expect(server?.band).toBe('surface');
+    expect(server?.sentence).toContain('uses src/shared');
+  });
+
+  it('carries the repository line, rule R', () => {
+    const model = reading();
+    expect(model.sentence).toBe(
+      'tortie: 40 files, mostly TypeScript; 6 parts, the biggest src/main (30%); 3 connections between parts; 4 of 5 imports lead inside the repository.'
+    );
+  });
+
+  it('composes the same bytes whatever order the facts arrive in', () => {
+    const one = reading();
+    const two = composeArchMap(
+      input({
+        subject: 'tortie',
+        trackedFiles: [...readingTree].reverse(),
+        imports: [...readingImports].reverse(),
+        treeFacts: [...readingTreeFacts].reverse(),
+        definitions: [...readingDefinitions].reverse()
+      })
+    );
+    expect(JSON.stringify(two)).toBe(JSON.stringify(one));
+  });
+
+  it('gives the drilled modules the same five fields, and the frame the P6 crossing', () => {
+    const model = composeArchMapPart({
+      ...input({ subject: 'tortie', trackedFiles: readingTree, imports: readingImports }),
+      groupId: 'src-shared',
+      verdicts: []
+    });
+    expect(model.known).toBe(true);
+    for (const module of model.modules) {
+      expect(typeof module.sentence).toBe('string');
+      expect(Array.isArray(module.facts)).toBe(true);
+    }
+    expect(model.crossings.map((c) => `${c.outsideId}:${c.direction}:${String(c.count)}`)).toEqual([
+      'src-main:in:2',
+      'server:in:1'
+    ]);
+    expect(model.crossings.find((c) => c.outsideId === 'server')?.outsideLabel).toBe('server');
   });
 });
