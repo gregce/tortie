@@ -38,6 +38,13 @@ export interface RunGitOptions {
    * caller can hang waiting on a pipe nobody writes to.
    */
   stdin?: string;
+  /**
+   * End the child early (Phase 199). Aborting kills it and rejects the call
+   * with GIT_FAILED, the same way the timeout does, so a caller that waits
+   * on a superseded history walk gets an answer instead of a late result.
+   * A signal already aborted when the call is made spawns nothing.
+   */
+  signal?: AbortSignal;
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -58,6 +65,16 @@ export function runGit(
   const maxOutput = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT;
 
   return new Promise<GitResult>((resolve, reject) => {
+    if (options.signal?.aborted === true) {
+      reject(
+        gmuxError(
+          'GIT_FAILED',
+          'A git command was stopped because a newer one replaced it.',
+          `git ${args.join(' ')} was superseded before it started`
+        )
+      );
+      return;
+    }
     const spawnOptions = {
       cwd: repoPath,
       env: {
@@ -108,10 +125,22 @@ export function runGit(
       );
     }, timeoutMs);
 
+    const onAbort = (): void => {
+      fail(
+        gmuxError(
+          'GIT_FAILED',
+          'A git command was stopped because a newer one replaced it.',
+          `git ${args.join(' ')} was superseded`
+        )
+      );
+    };
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+
     function fail(err: Error): void {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onAbort);
       child.kill('SIGKILL');
       reject(err);
     }
@@ -158,6 +187,7 @@ export function runGit(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onAbort);
       resolve({
         code: code ?? -1,
         stdout: Buffer.concat(stdoutChunks),

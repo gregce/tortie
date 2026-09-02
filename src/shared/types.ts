@@ -1582,6 +1582,57 @@ export interface GitGraphLogInput {
    * pathspec rewrite miss rows that were merged after the rename.
    */
   follow?: boolean;
+  /**
+   * Phase 199. Narrow the walk to what a person typed in the History
+   * section's field. Every value reaches git as ONE argv element in its
+   * attached form, `--grep=<v>`, `--author=<v>`, `-S<v>`, or after `--` or
+   * `--end-of-options`, so a value beginning with a dash can never become a
+   * flag. Patterns are fixed strings matched without regard to case. A
+   * filtered walk is not topo ordered: it draws no lanes, and the flag reads
+   * the whole history when the repository has no commit graph, which
+   * measured 395 to 432 ms a keystroke on 82,130 commits against 22 to 41
+   * without it.
+   */
+  search?: GitHistorySearch;
+  /**
+   * Phase 199. Walks that name the same queue supersede one another: starting
+   * one ends the one before it still running, which then rejects. The History
+   * section's walks share one per repository, so a keystroke's walk ends the
+   * walk of the keystroke before it, and a slow answer never lands over a
+   * newer one. Absent, the walk runs to its end whatever else is asked.
+   */
+  queue?: string;
+}
+
+/**
+ * What the History section's field narrows the walk by (Phase 199). Every
+ * field is optional and an empty one contributes nothing, so a query that is
+ * only an operator is the plain walk. Line breaks in a value fold to a space
+ * before git sees it, because a newline inside `--grep=` is a second pattern
+ * and a trailing one matches every commit.
+ */
+export interface GitHistorySearch {
+  /** `--grep=`: commits whose message holds this text. */
+  message?: string;
+  /** `--author=`: commits whose author name or email holds this text. */
+  author?: string;
+  /**
+   * One commit, named however `rev-parse --verify` accepts it. The walk is
+   * that one row and `hasMore` is false, or no row when nothing resolves.
+   */
+  commit?: string;
+  /**
+   * A repository relative path, passed as a literal pathspec after `--`. It
+   * matches whole path components: `src/main` narrows to that folder, and
+   * `src/ma` narrows to nothing.
+   */
+  path?: string;
+  /**
+   * `-S`: commits that changed how often this text occurs. It reads every
+   * touched blob in the walk, so it is seconds rather than milliseconds and
+   * runs from the field's own button rather than from a keystroke.
+   */
+  change?: string;
 }
 
 /** git:graphLog — everything one history render needs, in one round trip. */

@@ -175,7 +175,10 @@ function runProbe(fixture, gitDir) {
 function ablatedCopy(root, edit) {
   const dir = join(root, 'main');
   mkdirSync(join(dir, 'git'), { recursive: true });
-  for (const f of ['service.ts', 'exec.ts', 'graph-parse.ts', 'parse.ts']) {
+  // Phase 199 added search-args.ts, the module the walk composes its
+  // filter argv from; the copy must carry it or the import fails before
+  // any ablation is judged.
+  for (const f of ['service.ts', 'exec.ts', 'graph-parse.ts', 'parse.ts', 'search-args.ts']) {
     cpSync(join(repoRoot, 'src/main/git', f), join(dir, 'git', f));
   }
   cpSync(join(repoRoot, 'src/main/errors.ts'), join(dir, 'errors.ts'));
@@ -204,7 +207,7 @@ const ABLATIONS = [
   {
     name: '--topo-order put back under follow',
     file: 'service.ts',
-    from: "...(follow ? [] : ['--topo-order']),",
+    from: "...(topo ? ['--topo-order'] : []),",
     to: "'--topo-order',"
   }
 ];

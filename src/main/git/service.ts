@@ -36,6 +36,14 @@ import type {
 import { gmuxError } from '../errors';
 import { runGit, runGitOrThrow } from './exec';
 import {
+  CHANGE_SEARCH_TIMEOUT_MS,
+  normalizeSearch,
+  pathspecArgs,
+  revParseArgs,
+  searchFilterArgs
+} from './search-args';
+import type { NormalizedSearch } from './search-args';
+import {
   GRAPH_LOG_FORMAT,
   LOCAL_REF_FORMAT,
   SCOPE_REF_FORMAT,
@@ -140,6 +148,13 @@ export class GitService {
 
   /** Cached `git rev-parse --absolute-git-dir` (worktree/submodule-safe). */
   private gitDirCache: string | null = null;
+
+  /**
+   * Phase 199. One controller per `GitGraphLogInput.queue`: the walk that
+   * holds a queue's slot is ended the moment a newer walk names the same
+   * queue, so a keystroke's walk never outlives the keystroke after it.
+   */
+  private readonly walkQueues = new Map<string, AbortController>();
 
   constructor(repoPath: string) {
     this.repoPath = repoPath;
@@ -305,11 +320,54 @@ export class GitService {
     const file =
       path === null ? null : { path, follow: input.follow === true };
 
+    // Phase 199. The field's query, folded and emptied, or null for the
+    // plain walk. A `commit` resolves first, through `rev-parse` with
+    // `--end-of-options` in front of it, and the walk is then that one row
+    // or none; the other filters still apply to it, which is what a person
+    // asking for a commit AND an author has asked for.
+    const search = normalizeSearch(input.search);
+    let walkRefs = refs;
+    let walkCount = maxCount;
+    let oneRow = false;
+    if (search !== null && search.commit !== null) {
+      const sha = await this.revParse(search.commit);
+      if (sha === null) {
+        walkRefs = [];
+      } else {
+        walkRefs = [sha];
+        walkCount = 1;
+        oneRow = true;
+      }
+    }
+
+    // Phase 199. A walk that names a queue ends the queue's previous walk
+    // before it starts its own, and holds the slot until it settles.
+    const queue = typeof input.queue === 'string' ? input.queue : null;
+    let controller: AbortController | null = null;
+    if (queue !== null) {
+      this.walkQueues.get(queue)?.abort();
+      controller = new AbortController();
+      this.walkQueues.set(queue, controller);
+    }
+
     // Round B — the walk and the divergence detail, in parallel.
-    const [page, sides] = await Promise.all([
-      this.walk(refs, maxCount, remoteNames, file),
-      this.divergenceSides(headSha, currentRow)
-    ]);
+    let page: { entries: GitGraphLogEntry[]; hasMore: boolean };
+    let sides: DivergenceSides;
+    try {
+      [page, sides] = await Promise.all([
+        this.walk(walkRefs, walkCount, remoteNames, {
+          file,
+          search,
+          ...(controller === null ? {} : { signal: controller.signal })
+        }),
+        this.divergenceSides(headSha, currentRow)
+      ]);
+    } finally {
+      if (queue !== null && this.walkQueues.get(queue) === controller) {
+        this.walkQueues.delete(queue);
+      }
+    }
+    if (oneRow) page = { entries: page.entries.slice(0, 1), hasMore: false };
     const divergence = toDivergenceInfo(
       headRef,
       currentRow,
@@ -389,32 +447,52 @@ export class GitService {
     refs: string[],
     maxCount: number,
     remoteNames: string[],
-    file: { path: string; follow: boolean } | null = null
+    narrow: {
+      file?: { path: string; follow: boolean } | null;
+      /** Phase 199. The field's query; the walk is then not topo ordered. */
+      search?: NormalizedSearch | null;
+      /** Phase 199. Ends the child when a newer walk supersedes this one. */
+      signal?: AbortSignal;
+    } = {}
   ): Promise<{ entries: GitGraphLogEntry[]; hasMore: boolean }> {
     // Guard, not an optimisation: `git log --stdin` with NO revisions on stdin
     // silently falls back to walking HEAD, which would quietly hand back the
     // wrong scope for an empty ref set.
     if (refs.length === 0) return { entries: [], hasMore: false };
 
+    const file = narrow.file ?? null;
+    const search = narrow.search ?? null;
     const relPath = file === null ? null : this.assertRelPath(file.path);
     const follow = file !== null && file.follow;
+    // Phase 199. A filtered walk draws no lanes, so it needs no parent
+    // before child order, and `--topo-order` reads the whole history when
+    // the repository has no commit graph: 395 to 432 ms a keystroke on
+    // 82,130 commits with it, 22 to 41 without, measured on git 2.50.1.
+    const topo = !follow && search === null;
     const args = [
       'log',
       '-z',
-      ...(follow ? [] : ['--topo-order']),
+      ...(topo ? ['--topo-order'] : []),
       '--decorate=full',
       '--ignore-missing',
       '--stdin',
       `--max-count=${maxCount + 1}`,
       `--format=${GRAPH_LOG_FORMAT}`
     ];
+    if (search !== null) args.push(...searchFilterArgs(search));
     if (relPath !== null) {
       args.push('--name-status', '-M');
       if (follow) args.push('--follow');
-      args.push('--', literalSpec(relPath));
+      args.push(...pathspecArgs(literalSpec(relPath)));
+    } else if (search !== null && search.path !== null) {
+      args.push(...pathspecArgs(literalSpec(this.assertRelPath(search.path))));
     }
     const r = await runGit(this.repoPath, args, {
-      stdin: `${refs.join('\n')}\n`
+      stdin: `${refs.join('\n')}\n`,
+      ...(narrow.signal === undefined ? {} : { signal: narrow.signal }),
+      ...(search !== null && search.change !== null
+        ? { timeoutMs: CHANGE_SEARCH_TIMEOUT_MS }
+        : {})
     });
 
     if (r.code !== 0) {
@@ -544,12 +622,7 @@ export class GitService {
 
   /** `git rev-parse --verify --quiet <rev>^{commit}`; null when unresolvable. */
   private async revParse(rev: string): Promise<string | null> {
-    const r = await runGit(this.repoPath, [
-      'rev-parse',
-      '--verify',
-      '--quiet',
-      `${rev}^{commit}`
-    ]);
+    const r = await runGit(this.repoPath, revParseArgs(rev));
     const sha = r.stdout.toString('utf8').trim();
     return r.code === 0 && sha.length > 0 ? sha : null;
   }
