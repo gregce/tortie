@@ -61,9 +61,18 @@
  * after, which must match. The Electron goes through build/electron-run.mjs,
  * whose kill is in a finally block.
  *
- * Usage, from the repository root, with a COPY of a Tortie checkout:
+ * Usage, from the repository root, with a COPY of a Tortie checkout. The
+ * copy is named in the environment, because `npm run probe:p198` hands the
+ * command line to build/harness-socket.mjs, which reads its socket name and
+ * its one command and nothing after them, so a `-- --project` on the npm
+ * line never reaches this script:
  *
- *   npm run probe:p198 -- --project /path/to/a/copy/of/gmux
+ *   P198_PROJECT=/path/to/a/copy/of/gmux npm run probe:p198
+ *
+ * Run directly, the flag works too, and the script wraps itself in the
+ * harness with the flag inside the one command:
+ *
+ *   node build/probe-p198-file-history.mjs --project /path/to/a/copy/of/gmux
  *
  * Exit 0 when every row passes, 1 otherwise with every failing row named,
  * 2 when the probe refuses to run.
