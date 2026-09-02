@@ -22,8 +22,9 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  DRILL_STAGE_BOUND_MS,
   DRILL_STAGE_MS,
   GESTURE_CLASS,
   STAGE_BOX_CLASS,
@@ -179,6 +180,10 @@ describe('stageTransform', () => {
 // ---------------------------------------------------------------------------
 
 describe('runDrillStage', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('reduced motion resolves synchronously with zero DOM writes', async () => {
     const container = makeContainer();
     await runDrillStage({
@@ -249,6 +254,36 @@ describe('runDrillStage', () => {
     await promise;
     expect(container.children.length).toBe(0);
     expect(container.classes.size).toBe(0);
+  });
+
+  // Phase 197 item 3, the sibling of Phase 183's frame bound. Chromium stops
+  // the frame clock for an occluded window, and a Web Animation on a stopped
+  // clock fires neither onfinish nor oncancel. At the parent commit this
+  // test fails: nothing ever settles, the overlay and the dimming class stay
+  // on the map, and the swap the promise gates never runs.
+  it('an animation that never finishes still settles within the bound', async () => {
+    vi.useFakeTimers();
+    const container = makeContainer();
+    const hide = makeHideTarget();
+    let settled = false;
+    void runDrillStage({
+      container: asContainer(container),
+      groupId: 'app',
+      from: FROM,
+      to: TO,
+      hide: hide as unknown as Element,
+      reduced: () => false
+    }).then(() => {
+      settled = true;
+    });
+    // Nothing fires onfinish or oncancel, ever. Only the timers move.
+    await vi.advanceTimersByTimeAsync(DRILL_STAGE_MS + DRILL_STAGE_BOUND_MS - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(settled).toBe(true);
+    expect(container.children.length).toBe(0);
+    expect(container.classes.has(STAGE_OUT_CLASS)).toBe(false);
+    expect(hide.classes.has(STAGE_HIDE_CLASS)).toBe(false);
   });
 
   it('a platform without Element.animate gets the end state at once', async () => {

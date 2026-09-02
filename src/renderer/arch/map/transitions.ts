@@ -74,6 +74,19 @@ export const STAGE_BOX_CLASS = 'arch-map-stage-box';
 /** The stage duration in ms, inside research 68's 200 to 300 window. */
 export const DRILL_STAGE_MS = 260;
 
+/**
+ * How long past its own duration a stage may wait for the animation to say
+ * it finished before the driver settles anyway (Phase 197 item 3, the sibling
+ * of Phase 183's frame bound). Chromium stops the frame clock for an occluded
+ * window, and a Web Animation on a stopped clock fires neither `onfinish`
+ * nor `oncancel`, so a drill started just before the screen locked left the
+ * overlay and the dimming class on the map and the swap it gated never ran.
+ * Timers keep firing while frames do not, so a timer of the duration plus this
+ * bound is the honest upper limit, and on the normal path the animation's own
+ * finish lands first and the bound never fires.
+ */
+export const DRILL_STAGE_BOUND_MS = 100;
+
 /** The token curve the chrome uses, as a fallback where no computed style
  *  exists, which is unit tests. */
 const EASE_FALLBACK = 'cubic-bezier(0.2, 0, 0, 1)';
@@ -170,7 +183,9 @@ export interface DrillStageOptions {
  * first then stage for the drill up.
  *
  * Cleanup is unconditional: finish and cancel both land in the same
- * `settle`, so an interrupted stage never strands an overlay or a class.
+ * `settle`, so an interrupted stage never strands an overlay or a class,
+ * and a timer of the duration plus {@link DRILL_STAGE_BOUND_MS} lands there
+ * too, so a stopped frame clock cannot strand them either.
  * A platform without `Element.animate` gets the end state immediately.
  */
 export function runDrillStage(opts: DrillStageOptions): Promise<void> {
@@ -222,6 +237,9 @@ export function runDrillStage(opts: DrillStageOptions): Promise<void> {
     );
     animation.onfinish = settle;
     animation.oncancel = settle;
+    // The bound. `settle` is idempotent, so whichever arrives first wins and
+    // the other is a no-op; a cancelled animation past this point is fine.
+    setTimeout(settle, (opts.durationMs ?? DRILL_STAGE_MS) + DRILL_STAGE_BOUND_MS);
   });
 }
 
