@@ -32,6 +32,8 @@ import { driveRedlineView } from './redline-shot-probe';
 import type { RedlineViewProbeSpec } from './redline-shot-probe';
 import { driveFileHistory } from './file-history-shot-probe';
 import type { FileHistoryProbeSpec } from './file-history-shot-probe';
+import { driveHistorySearch } from './history-search-shot-probe';
+import type { HistorySearchProbeSpec } from './history-search-shot-probe';
 import { driveInlineAgreement } from './agreement-shot-probe';
 import type { InlineAgreementProbeSpec } from './agreement-shot-probe';
 // PHASE 163. The report tab's one door, driven the way the menu row drives it.
@@ -122,6 +124,13 @@ export interface ShotDriveSpec {
    * `openRel`: the section follows the tab the menu row opens.
    */
   fileHistory?: FileHistoryProbeSpec;
+  /**
+   * Phase 199. Drive the HISTORY section's search field through the whole
+   * journey, type, narrow, expand, open, Load 50 more, the changes button
+   * and Escape, reading each keystroke's walk time off the store. See
+   * ./history-search-shot-probe for the journey. Needs no `openRel`.
+   */
+  historySearch?: HistorySearchProbeSpec;
   /**
    * Phase 190. Open each named file as a diff, click all four inline modes
    * through the real buttons and read what was drawn and what the row said
@@ -1190,6 +1199,12 @@ export function installShotHook(): void {
       step('driving the file history section');
       await driveFileHistory(spec.projectPath, spec.fileHistory);
       step('read the file history section');
+    }
+
+    if (spec.historySearch !== undefined) {
+      step('driving the history search field');
+      await driveHistorySearch(spec.projectPath, spec.historySearch);
+      step('read the history search field');
     }
 
     if (spec.inlineAgreement !== undefined) {
