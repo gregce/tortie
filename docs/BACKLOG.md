@@ -19447,6 +19447,279 @@ not rewritten: the reversal is recorded as a new line at the bottom, which is th
 - **No change to the four inline modes**, which are Phase 190.
 - **No new package.**
 
+## Phase 195: the chrome stops contradicting itself (research 75, operator asked 2026-09-01)
+
+**Subject.** `style(chrome): one value where the chrome held several`
+
+**First body line.** `Phase 195: the seven contradictions`
+
+**Semver.** PATCH. No token value changes. Nothing moves. What a person sees is the same chrome
+with fewer stray sizes, and the amber dot in the Explorer gone from a colour reserved for attention.
+
+**Tier 2.** A rendered surface with no new state. One app run, and the independent method is
+**measure the parent commit**: every photograph probe's reference at parent and at HEAD, with the
+diff of each stated as a pixel count, because the whole claim of this phase is that nothing a person
+notices moved.
+
+**Charter.** `docs/research/75-chrome-visual-language.md` section 2, and its recommendation in
+section 7: *"fix the self contradictions first, in their own commit, whatever look he picks."* He
+picked Option A on 2026-09-01 and this phase goes first.
+
+### The seven, each with the number research 75 measured
+
+| | Contradiction | Measured | Fix |
+| --- | --- | --- | --- |
+| C3 | Amber is not alone at the top: the Explorer's dirty descendant dot is `--git-modified` at full strength, ΔE 4.45 from `--status-attention` | `use-tree-model.ts:243` | the dot loses its hue, the shadow root override is deleted |
+| C5 | Two icon rest values, and DESIGN.md states both, at lines 237 and 264 | codicons at `--text-secondary` and activity items at `--text-muted` | one rest value, DESIGN.md corrected to say it |
+| C6 | 26 stray radius literals beside a three step family | 1px x9, 2px x5, 8px x4, 4px x4, 6px x3, 5px x1 | each named or joined to the family, with the reason where a literal is right |
+| C7 | 33 font size literals beside the scale, one a real sixth step | 10px x10, 12px x6, 11px x5, 13px x4, 15px x3, plus 9 14 16 19 24 | `--text-2xs` and `--lh-2xs` named for the 10px chip step, the rest joined to the scale |
+| C8 | 32 tracking declarations across nine values, none named | 0.04em x19 and eight others | `--track-caps` and `--track-tight` named, the rest joined |
+| C9 | Seven icon sizes for one glyph set | size 14 x68, 12 x59, 16 x52, 24 x3, 11 x2, 18 x1, 10 x1 | `--icon-sm` `--icon-md` `--icon-lg` named for the three that match; the four outliers are LEFT ALONE and listed, because each would move a box |
+| C10 | A chrome token colours the terminal cursor | `resolveTerminalTheme()` overrides the cursor with `--text-primary` | the cursor keeps `theme.ts`'s own constant, because the cursor belongs to the work |
+
+### What it must get right
+
+- **Nothing moves.** No layout, no rearrangement, no changed information architecture. The four icon
+  size outliers stay because joining them moves a box. That is the rule that decides every doubtful
+  case.
+- **No token VALUE changes.** New names may be introduced for values already drawn; no existing value
+  moves. Option A moves values and it is Phase 196.
+- **The `gmux-*` CSS classes are load bearing** per CLAUDE.md and are never renamed.
+- **Both themes.** Every new name resolves in light and dark.
+- **DESIGN.md says one thing.** Where it stated both rest values, it now states the one shipped.
+
+### Proof, run rather than read
+
+- Every reference photograph in the probe corpus compared at parent and HEAD, each with a pixel
+  diff count. Zero is the expectation for every surface except the Explorer dot and the cursor.
+  A non zero diff anywhere else is a finding, named with its surface.
+- The counts above re-derived at HEAD: 0 radius literals outside the named exceptions, 0 unnamed
+  font sizes outside the named exceptions, 0 unnamed tracking values, one icon rest value.
+- The Explorer dot's ΔE2000 from `--status-attention` at HEAD, as a number.
+- `smoke:t1`, `smoke:t3` and the battery.
+
+### What is NOT in this phase
+
+- **No token value changes.** Not the text ramp, not the ground, not `--border`. Those are Option A.
+- **Not C1, C2, C4 or C11.** Those are design decisions and they are Phase 196.
+- **No icon set replacement.**
+- **No change to what any surface says.**
+
+## Phase 196: the quiet frame (research 75 Option A, operator picked 2026-09-01)
+
+**Subject.** `style(chrome): the frame steps below the work`
+
+**First body line.** `Phase 196: the quiet frame`
+
+**Semver.** MINOR. Every visible surface changes colour, and the sidebar goes darker than the
+canvas for the first time. Nothing moves.
+
+**Tier 2.** One app run reading the contrast ratios research 75 predicted off the rendered pixels,
+and the independent method is **re-derive**: the verifier computes every ratio in the table below
+from screenshots of the running app with its own colour arithmetic, not from the token file, and
+compares to research 75's predictions. Where they disagree, find out which is wrong.
+
+**Charter.** `docs/research/75-chrome-visual-language.md` sections 4 and 7. He picked Option A on
+2026-09-01 after reviewing the four mocks side by side. Phase 195 lands first, so this is a small
+clean diff on a consistent base.
+
+### The one measurement the whole option rests on
+
+The Ghostty window he named reads as expensive because its monospace content is the brightest thing
+on screen and every piece of frame sits below it. Tortie has that inverted twice. `--text-primary`
+measures 15.28:1 against a transcript at 13.29:1 and is byte identical to xterm's brightWhite. And
+`--bg-sidebar` is 31.2 percent brighter in luminance than `--bg-canvas`, which is why the active tab
+reads as a well rather than a tab. Option A turns both the right way up.
+
+### The diff, eleven values changed and one added, from research 75 section 4
+
+| token | before | after |
+| --- | --- | --- |
+| `--bg-sidebar` | `#17181c` | `#0e0f13` |
+| `--bg-surface` | `#1b1d22` | `#191b20` |
+| `--bg-raised` | `#22252b` | `#1d2026` |
+| `--bg-active` | `#2a2e36` | `#252931` |
+| `--border` | `#2a2d34` | `#25282e` |
+| `--border-strong` | `#3a3e48` | `#353943` |
+| `--text-primary` | `#e8eaed` | `#c9cacd` |
+| `--text-secondary` | `#a8adb8` | `#9ca1ab` |
+| `--text-muted` | frozen | frozen |
+| `--git-modified` | `#e2b340` | `#af9c74` |
+| `--focus-wash-idle` | `rgba(34,37,43,.5)` | `rgba(29,32,38,.5)` |
+| `--file-icon-dim` | new | `0.55` |
+
+Only lightness moves on the neutrals, so hue and chroma are untouched and the ramp stays one family.
+
+**Plus two things taken from the other options**, as section 7 directs. From C: the `--border`
+retune so a hairline on a selected row exists, since today `--border` on `--bg-active` measures
+1.013:1, a border that is not there, and he specifically likes the edges. From B: nothing further,
+because Phase 195 already took B's naming work.
+
+**Plus one cost Option A's own plan did not name**, found by the synthesizer: the hover step on
+`--bg-surface` shrinks from 1.098:1 to 1.056:1, so an agent tile answering the pointer gets about a
+third quieter. The phase fixes it inside the option by taking `--bg-raised` up two or three values,
+and states the ratio it lands on.
+
+### What it must get right
+
+- **The plane ramp stays monotone above the canvas**: sidebar, canvas, surface, raised, active, each
+  lighter than the last. Option C broke this and an agent tile got darker on hover. The verifier
+  reads the five values off the rendered app and checks the order.
+- **The hairline holds.** `--border` on the new sidebar within 0.01 of today's 1.287:1.
+- **`--git-modified` stays a colour.** ΔE2000 from `--text-secondary` above 15, so the M badge is
+  still visibly not grey. Option C landed at 0.81 and deleted the signal.
+- **`--text-muted` does not move.** It holds the 4.5:1 floor and has 303 users.
+- **Every reference photograph regenerates in the same commit**, and the commit body lists them.
+  `smoke:t1` and `smoke:t3` are unaffected structurally because no geometry moves.
+- **Both themes.** The light theme is checked to have no equivalent inversion; if it does, it is
+  named for a later round rather than repainted here.
+- **The xterm palette and the Pierre theme bridge** inherit from tokens. The phase states what each
+  received and confirms the transcript is now the brightest text on screen.
+
+### Proof, run rather than read
+
+- The contrast table re-derived from rendered pixels at HEAD: text primary on canvas, sidebar to
+  canvas luminance ratio, the five plane values in order, `--border` on sidebar and on active,
+  `--git-modified` ΔE to amber and to secondary, the hover step on surface.
+- Parent measurement of the same table, so the inversion is shown to exist and then not.
+- One photograph of the shipping app beside the Option A mock at the same size, with the diff
+  stated, so the mock he approved is shown to be what he got.
+- The battery, with every regenerated reference named.
+
+### What is NOT in this phase
+
+- **Nothing moves.** No layout, no radii, no shadows. Option C's radius family is not taken.
+- **No new visual mechanic.** No lit edge, no edge fade.
+- **No light theme repaint.** Named for later if needed.
+- **No icon set replacement.**
+- **No change to what any surface says.**
+
+## Phase 197: the nits round (recorded rot, 2026-08-30 to 2026-09-01)
+
+**Subject.** `fix(nits): the third recorded round of small things phases left behind`
+
+**First body line.** `Phase 197: the third nits round`
+
+**Semver.** PATCH.
+
+**Tier 1 per item, Tier 2 where an item touches a rendered surface.** One commit per nit, so a
+bisect can name the one that broke something. The independent method is **re-run the gate the nit
+claims to fix and show it red at the parent**, for every nit that is a gate or a test.
+
+**Charter.** The rot each phase recorded rather than fixed, gathered from the running log and from
+`docs/audits/2026-09-01-verification-findings-aug30-sep1.md`. A nit is a defect that is real, small,
+and was correctly left out of the phase that found it.
+
+### The list, each with where it was found
+
+1. `probe-p63-arch` is red.
+2. `projects:add` toasts.
+3. `runDrillStage` has no timeout.
+4. Kind only wording in the arch panel.
+5. `Package.resolved` treated as a language word.
+6. The Phase 175 hand written reader list.
+7. The arch watch does not disarm.
+8. The usage hover countdown is unbounded.
+9. Claude's 429 is read as a 401 in the usage poll.
+10. The bidi gap in the font sanitizer (Phase 174.1).
+11. `NOTICE` is missing its BSD section while jsdiff ships (since 0.97.0).
+12. `stripTabFloor` is untested (Phase 189).
+13. The Phase 185 control row flashes above the skeleton on an identical file.
+14. The backgrounds aria label reads as a command (Phase 185).
+15. The docs sidebar font sentence names the wrong token.
+16. The Phase 174.2 level half is unguarded by design; decide whether a guard that pins the promise
+    rather than the mechanism is possible, and ship it or record why not.
+17. The Phase 187 belt line in `forgetRemoteRow` that no arm can see fail; add the arm.
+18. Phase 188: a newline in a project name splits a pasted report line.
+19. Phase 188: the sessions table draws 613px inside a 461px scroller.
+20. Phase 185's two reverify blockers left on main: `diff-view-prefs.ts:38` says 1,555 characters
+    where it measured markup length, and `machines-copy.ts:592` exports `Colour`.
+21. Phase 194: Cmd-A then copy in the redline view yields interleaved text, because the containment
+    rule stands aside for a whole body selection; widen it to every range intersecting the document.
+22. Phase 192: the third width term in `app.css`, `max-width: calc(100vw - 48px)`, is recorded so a
+    later round does not mistake it for the lever; decide whether it should be named.
+23. The 188.1 verifier note: the two terms of the timestamp guard cannot be reordered because
+    `Math.abs` of a BigInt throws; add the comment clause.
+
+### What it must get right
+
+- **One commit per nit**, conventional subject, Phase 197 first body line.
+- **A nit that is a gate is proved red at the parent** before it is green at HEAD.
+- **A nit that turns out not to be a nit** is refuted with the measurement and left, and the refusal
+  is recorded in the commit body of the round.
+- **Nothing here widens.** If a nit needs more than about fifty lines, it is not a nit; record it as
+  a phase candidate and move on.
+
+### What is NOT in this phase
+
+- No feature. No token value change. No new surface. Nothing from the queue above.
+
+## Research 76: the history of one file, and finding a file in the history (operator asked 2026-09-01)
+
+**Subject.** `docs(research): a file's history, and search across it`
+
+**First body line.** `Research 76: where a file has been`
+
+**Charter.** His words and screenshot of 2026-09-01, a GitLens view in VS Code: *"if you're looking
+at a particular file, in the file explorer, you can trace back through all of the changes to that
+file"*, and *"in the SCM pane, search for files through the commit history"*, leveraging open source
+and the libraries already incorporated. The screenshot shows a file's commits newest first with author
+and age, a visual timeline of those commits, a commit's diff of that file in the editor, and a
+search box that takes message, author, SHA, file or changes.
+
+### The two asks, and they are different sizes
+
+1. **File history.** From a file in the Explorer or the editor, every commit that touched it, newest
+   first, with author and age, and choosing one opens that commit's diff of that file. `git log
+   --follow -- <path>` is the whole data source and Tortie already has `git:commitFileDiff` and
+   `git:commitDetail`. The question is where it lives and what it reuses.
+2. **Search across history.** From the SCM pane, find commits by message, author, SHA or the path of
+   a file they touched. `git log --grep`, `--author`, and `git log -- <path>` answer three of the
+   four; "changes" means `git log -S` or `-G` and is expensive on a large repository.
+
+### What Tortie already has, to be confirmed against the tree first
+
+`src/main/git/graph-parse.ts` walks one `git log --topo-order` for the history pane, NUL separated
+with US separated fields so any subject parses. `HistorySection.tsx`, `HistoryScopeControl.tsx` and
+`history-scope.ts` already scope the history pane to a ref. `git:commitDetail` and
+`git:commitFileDiff` already open a commit's diff of one file in Pierre. `fuzzysort` is in the tree
+for quick open. `graph/` draws swimlanes. Research 24 section 5.2 decided the walk.
+
+### What the research must actually do, rather than assert
+
+1. **Read what is there.** Say which of the two asks is plumbing over existing channels and which
+   needs a new walk. Name every channel and component by path.
+2. **Study the references mechanically.** GitLens file history and search, VS Code's own Timeline
+   view, Sublime Merge's file history, Fork, and `tig`. For each: where file history is entered from,
+   what a row shows, what choosing a row does, whether renames are followed, and how search is scoped
+   and what it costs. Report mechanics rather than adjectives.
+3. **Measure the walk.** On a copy of a real repository with a long history, being his own gmux at
+   about 700 commits and one larger one, time `git log --follow` on a renamed file, `--grep` and
+   `--author` over the whole history, and `-S` on a common token. Say which are fast enough to run on
+   a keystroke and which need a Search button.
+4. **Renames.** `--follow` works on one path and is a heuristic. Say what the row shows when the file
+   was renamed, and what happens at the rename boundary.
+5. **The scope guardrail.** CLAUDE.md caps parity work after Phase 14 and says every feature must
+   serve the agentic coding workflow rather than exist because an IDE has it. Make the case
+   explicitly for each ask. The strongest case: agents rewrite files, and a person needs to see what
+   an agent did to THIS file over the last hour, and find the commit where a thing changed. If either
+   ask fails the test, say so.
+6. **Assemble, never reimplement.** Name what is reused: git itself for every walk, the existing
+   parsers, Pierre for the diff, fuzzysort if a local filter is wanted, the existing history pane for
+   the search results. Name what would be new code and keep it to glue.
+7. **Two designs, one recommendation.** For file history: a section in the SCM pane scoped to the
+   selected file, or a mode on the file's own tab beside Diff and File. For search: a field at the
+   top of the history pane that narrows the existing walk, or a separate results list. Pick, with the
+   reason, and say what the first phase would be.
+
+### What is NOT in this document
+
+- No queued phase. He reads it and picks.
+- No blame or line history. The screenshot shows a Line History section; that is a different feature
+  with a different data source and is named for later rather than researched here.
+- No visual timeline. The dots on a time axis are named as an option and costed, not designed.
+- No change to any product file.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -19766,3 +20039,4 @@ cycle rather than only the evening it was written.
 - 2026-09-01, Phase 194 AMENDED at his word before it ran: he does NOT want 191's Redline toggle inside the diff review at all, so 194 now REMOVES it, being the control in DiffControls.tsx, the gmux.diffRedline store key, the lineAnnotations mount in PierreDiff.tsx and the split mode disabled state, in its own commit before the view is built so a bisect can tell them apart; the diff bar goes back to the Inline control and the paint can; the engine 191 proved is KEPT, being redline.ts, RedlineRow.tsx, redline-copy.ts, redline.css, the caps, the allowlist and conformance:redline which judges the module not the mount; probe:p191 is rewritten to drive the view or retired and replaced; 191's own log line is not rewritten and this line is the record of the reversal; the other three decisions stand, being markdown as redlined source, read only with copy yielding the new text, and no accept or reject.
 - 2026-09-01, Phase 194 LANDED on `53feab7` at version 0.97.1 with NO bump, the declared semver being MINOR and the version moving in its own build(version) commit at the release the way Phases 174.2, 182, 188, 188.1, 189, 191, 192 and 193 all recorded, so the next release goes to 0.98.0; what he can now do that he could not before is open a changed text or markdown file and choose Redline beside Diff and File in the same segmented control, and the WHOLE document draws as flowing prose with every change marked in place, the deleted words struck through in red and the inserted words right after them in green on one line, with no line numbers, no gutter and no Pierre in the tree, which is the picture his screenshot asked for; the Phase 191 toggle inside the stacked diff was REMOVED at his word, "no i don't want the toggle for redline inside the diff review", in its own commit `1c1e4e4` before the view was built so a bisect can tell the two apart, and the diff bar is back to the Inline control and the paint can, read off the DOM of the running app as zero Redline controls, zero redline rows and `gmux.diffRedline` never written; the ENGINE 191 proved is kept whole, being `redline.ts` with its runs, its allowlist and its three caps, `RedlineRow.tsx`, `redline-copy.ts`, `redline.css` and `npm run conformance:redline`, which now judges the composed document too at 16 rules and goes red under ablation; the unchanged context between blocks comes from THE TWO FILE VERSIONS, being the HEAD contents and the live text partitioned line by line, never from Pierre's hunks, because a hunk elides everything between changes and would leave a hole exactly where the view must be honest; a block the caps refuse draws WHOLE, the old text as one deletion and the new as one insertion, with a note under the document saying how many drew that way and why, because a standalone document cannot draw nothing without a hole; the parent measurement he reported is the reason for the phase and it moved, ONE changed line drawing THREE rows at `2cbab50` with the toggle on in one column against ONE row at HEAD, and a diff bar of six controls at the parent against five at HEAD, both read off the DOM; markdown shows its redlined SOURCE and never a rendered preview with marks in it, the view is READ ONLY with no accept and no reject because accepting writes a file, and COPY was proved from the real system pasteboard rather than the code, a drag across the whole document, across two changed blocks, across a block the caps refused and inside a deletion each yielding the NEW text byte for byte, with the one limit recorded in the commit body being that Cmd-A from the Edit menu selects the whole app and yields the interleaved text; the verifier's named method is THE EXACT ONE THE ENTRY DEMANDED, being both projections re-derived by its own reader walking the running DOM into plain, deleted and inserted runs over 23 fixture pairs it wrote itself, and 46 of 46 came back EQUAL, the drawn document with every insertion removed equal to the OLD file and with every deletion removed equal to the NEW file, over the character cap, the block cap, the word guard, a trailing newline added and removed, a joiner emoji, combining marks, a right to left run, CRLF, a whitespace only change, a 400 line file whose middle Pierre elides, markdown source, his own shape and an unchanged file; the fix round the verifier earned put a word changed at the end of a line back on that line, since jsdiff carried the line break inside the deleted token so "Monday" struck drew "Friday" on the line beneath, and the shared whitespace now moves out to the plain runs with a rule pinning that no adjacent deletion and insertion shares an edge whitespace character, red 87 times with the peel removed; three harness defects older than the phase were fixed on the way, being the drive's timers aligning to whole seconds when the window was occluded so the window is pinned frontmost while it drives, the pasteboard restore growing his HTML flavour by one meta tag per run, and a first byte lost when the old side began with a newline; Tier 2 as the entry set with one app run driving the whole journey, and nothing of his was written, the operator server on `-L gmux` read only, his checkout untouched, his pasteboard back byte for byte with its flavours.
 - 2026-09-01, v0.98.0 RELEASED from origin/main at his word, tag on `440fe37` build(release): 0.98.0, the run `33567207091` built signed notarized and published the draft with all six assets in 13 minutes, the draft was promoted to Latest at 22:50 and the stable download link answers 200; the tag was the whole trigger and no release was created by hand, which is the lesson of 0.97.0; the release page carries the CHANGELOG entry verbatim, and the 0.97.0 page which had been left carrying the workflow's placeholder text since last night now carries its entry too; the site changelog gained the 0.98.0 entry at tortiedotsh `41e6621`, committed and NOT pushed for his review; what shipped is Phases 174.2, 182, 187, 188, 188.1, 189, 191, 192, 193 and 194, MINOR because 182, 188, 189 and 194 each add something new, and Phase 193 is harness only and is in no entry because nobody using the app hits it.
+- 2026-09-01, QUEUED AT HIS WORD after the 0.98.0 release, in this order: Phase 190 which was already written at ae8e9a1 and now runs; Phase 195 the seven contradictions from research 75 section 2, being C3 C5 C6 C7 C8 C9 and C10, no token value changes and nothing moves, PATCH, Tier 2 with every photograph probe compared at parent and HEAD as a pixel count; Phase 196 the quiet frame being research 75 Option A which he picked after reviewing the four mocks, eleven token values changed and one added with only lightness moving on the neutrals, plus the border retune taken from Option C and the hover step cost the synthesizer found fixed inside the option, MINOR, Tier 2 with the verifier re-deriving every contrast ratio from rendered pixels; Phase 197 the third nits round, 23 items one commit each including the two Phase 185 reverify blockers the verification audit found still on main; and RESEARCH 76 on the history of one file from the Explorer the way GitLens shows it and searching the SCM history by message author SHA or file, from his screenshot, which reads what the tree already has in graph-parse.ts and the history pane, studies GitLens VS Code Timeline Sublime Merge Fork and tig mechanically, times the walks on a real repository, makes the scope guardrail case explicitly for each ask, and ends with one recommendation and no queued phase. The capture-in-Menlo overclaim is fixed directly rather than queued.
