@@ -129,6 +129,7 @@ export const CHECKS = [
   pure('conformance:overview'),
   pure('conformance:redline'),
   pure('conformance:filehistory'),
+  pure('conformance:historysearch'),
   pure('conformance:arch'),
   pure('conformance:arch:modules'),
   pure('conformance:reading'),

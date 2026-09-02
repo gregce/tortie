@@ -327,17 +327,10 @@ export class GitService {
     // asking for a commit AND an author has asked for.
     const search = normalizeSearch(input.search);
     let walkRefs = refs;
-    let walkCount = maxCount;
-    let oneRow = false;
+    let single: string | null = null;
     if (search !== null && search.commit !== null) {
-      const sha = await this.revParse(search.commit);
-      if (sha === null) {
-        walkRefs = [];
-      } else {
-        walkRefs = [sha];
-        walkCount = 1;
-        oneRow = true;
-      }
+      single = await this.revParse(search.commit);
+      walkRefs = single === null ? [] : [single];
     }
 
     // Phase 199. A walk that names a queue ends the queue's previous walk
@@ -355,9 +348,10 @@ export class GitService {
     let sides: DivergenceSides;
     try {
       [page, sides] = await Promise.all([
-        this.walk(walkRefs, walkCount, remoteNames, {
+        this.walk(walkRefs, maxCount, remoteNames, {
           file,
           search,
+          single,
           ...(controller === null ? {} : { signal: controller.signal })
         }),
         this.divergenceSides(headSha, currentRow)
@@ -367,7 +361,6 @@ export class GitService {
         this.walkQueues.delete(queue);
       }
     }
-    if (oneRow) page = { entries: page.entries.slice(0, 1), hasMore: false };
     const divergence = toDivergenceInfo(
       headRef,
       currentRow,
@@ -451,6 +444,14 @@ export class GitService {
       file?: { path: string; follow: boolean } | null;
       /** Phase 199. The field's query; the walk is then not topo ordered. */
       search?: NormalizedSearch | null;
+      /**
+       * Phase 199. ONE commit, already resolved: `--no-walk`, so its
+       * ancestors are never read, no `--max-count`, because `-n` turns the
+       * walk back on under `--no-walk` (measured on git 2.50.1: `--no-walk
+       * --max-count=2` over one sha printed the sha and its parent), and
+       * the filters still apply to it. `hasMore` is then false.
+       */
+      single?: string | null;
       /** Phase 199. Ends the child when a newer walk supersedes this one. */
       signal?: AbortSignal;
     } = {}
@@ -462,6 +463,7 @@ export class GitService {
 
     const file = narrow.file ?? null;
     const search = narrow.search ?? null;
+    const single = narrow.single ?? null;
     const relPath = file === null ? null : this.assertRelPath(file.path);
     const follow = file !== null && file.follow;
     // Phase 199. A filtered walk draws no lanes, so it needs no parent
@@ -476,7 +478,7 @@ export class GitService {
       '--decorate=full',
       '--ignore-missing',
       '--stdin',
-      `--max-count=${maxCount + 1}`,
+      ...(single === null ? [`--max-count=${maxCount + 1}`] : ['--no-walk']),
       `--format=${GRAPH_LOG_FORMAT}`
     ];
     if (search !== null) args.push(...searchFilterArgs(search));
@@ -523,6 +525,12 @@ export class GitService {
         'Only a file can be followed through its history. That path is a folder.',
         relPath
       );
+    }
+    if (single !== null) {
+      return {
+        entries: parsed.filter((e) => e.hash === single).slice(0, 1),
+        hasMore: false
+      };
     }
     const hasMore = parsed.length > maxCount;
     return {
