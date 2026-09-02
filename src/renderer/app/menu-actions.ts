@@ -46,9 +46,6 @@ import { openAimPicker } from '../arch/picker';
 import { openArchMapForActiveProject } from '../arch/open-map';
 // Phase 163: the report tab's one opener, shared with the Settings door.
 import { openDiagnosticsReport } from '../diagnostics/open-report';
-// Phase 198: the File history section's one reveal, shared with the Explorer
-// row's History item so the two gestures cannot drift.
-import { useGitDepth } from '../scm/depth';
 import { useQuickOpen } from '../quickopen/store';
 import { useSymbols } from '../search/symbols-store';
 import { gmuxBridge } from '../bridge';
@@ -266,7 +263,14 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'show-file-history':
       if (layerOpen) return;
       showViewAction('scm');
-      useGitDepth.getState().revealFileHistory();
+      // Through a lazy door, because the section's store lives in the Source
+      // Control chunk the view above just asked for, and a static import here
+      // would put src/renderer/scm/depth.ts in the eager set that
+      // build/assert-probe-containment.mjs holds under budget. The Explorer
+      // row's History item asks the same store the same way.
+      void import('../scm/depth').then((m) => {
+        m.useGitDepth.getState().revealFileHistory();
+      });
       return;
     // Phase 64. Session > Aim at a Promise…. Same body as the ⌃⇧P keydown
     // branch, so the menu row and the chord cannot drift, which is the thing
