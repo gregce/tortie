@@ -23,3 +23,6 @@ export { PastSessionsModal } from './PastSessionsModal';
 export { SavedOutputModal } from './SavedOutputModal';
 export { RemoteLinesModal } from './RemoteLinesModal';
 export { ShortcutsOverlay } from './ShortcutsOverlay';
+// Phase 202. Add login opens from the meter's own card, which is a gesture a
+// person makes long after the window is up, so it belongs in this chunk.
+export { AddLoginModal } from './AddLoginModal';

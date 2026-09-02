@@ -55,3 +55,37 @@ export const USAGE_ABOUT_KEPT =
   'Nothing is stored. Numbers stay in memory until you quit, and no part of your login reaches a log or a file.';
 export const USAGE_ABOUT_WHEN =
   'A meter asks every fifteen minutes, and only while this window is in front. The refresh control asks now.';
+
+/**
+ * The logins block (Phase 202).
+ *
+ * JUST ENOUGH WORDS. One line saying what a login is, one row per login, and a
+ * Remove on the ones Tortie owns. The default login gets no control at all,
+ * which is the surface saying what the code says: it is the person's own and
+ * Tortie never touches it.
+ */
+export const USAGE_LOGINS_LABEL = 'Logins';
+export const USAGE_LOGINS_CAPTION =
+  'Which sign in a new session runs under. Choose one from the usage meter. Running sessions keep the one they started with.';
+
+/** The row for the vendor's own location, which every install has. */
+export const USAGE_LOGIN_DEFAULT_NOTE =
+  'Your own sign in, which Tortie only ever reads.';
+
+/** A login added in Tortie that nobody has completed the sign in for yet. */
+export const USAGE_LOGIN_EMPTY_NOTE = 'Not signed in yet.';
+
+/** A login added in Tortie that the vendor has written a credential into. */
+export const USAGE_LOGIN_READY_NOTE = 'Signed in.';
+
+export const USAGE_LOGIN_CHOSEN = 'Chosen';
+export const USAGE_LOGIN_REMOVE = 'Remove';
+export const USAGE_LOGIN_ADD = 'Add login…';
+
+/**
+ * What Remove does, said where a person presses it rather than in a
+ * disclosure, because it is the one control on this page that deletes
+ * something.
+ */
+export const USAGE_LOGIN_REMOVE_NOTE =
+  'Removing deletes only the folder Tortie made. Sessions on that login come back on your own sign in.';

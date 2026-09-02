@@ -38,6 +38,40 @@ export const USAGE_STALE_MARK = 'Last read failed';
 export const USAGE_NOTHING_ON = 'No usage meter is switched on.';
 export const USAGE_NO_BRIDGE = 'This build cannot read usage.';
 
+/**
+ * The login lines the hover card draws (Phase 202).
+ *
+ * JUST ENOUGH WORDS. One line naming the login these numbers belong to, and a
+ * second only when a running session is somewhere else, because that is the
+ * one case where the meter would otherwise be read as speaking for a session
+ * it is not about. Everything else about logins lives in Settings.
+ */
+export const USAGE_LOGIN_CONTROL = 'Choose login';
+export const USAGE_LOGIN_SWITCHING = 'Reading the new login';
+
+/** `Login: Work`, or nothing at all for the person's own default sign in. */
+export function usageLoginLine(login: string | null): string {
+  return login === null || login.length === 0 ? '' : `Login: ${login}`;
+}
+
+/**
+ * `1 session on Default`, or nothing when every running session of this agent
+ * is on the login the meter is reading.
+ *
+ * A RUNNING SESSION KEEPS THE LOGIN IT STARTED WITH, for its whole life, so
+ * this is a real and ordinary state rather than an error: a person switches,
+ * and what is already running does not move. Research 72's rule is that the
+ * meter may never lie across accounts, and this is the line that keeps it
+ * honest about the sessions in front of the person.
+ */
+export function usageOtherLoginsLine(counts: Map<string, number>): string {
+  const parts: string[] = [];
+  for (const [name, count] of counts) {
+    parts.push(`${String(count)} session${count === 1 ? '' : 's'} on ${name}`);
+  }
+  return parts.join(', ');
+}
+
 /** The one line hover says when a provider has no numbers to draw. */
 export function usageStateLine(
   provider: UsageProviderId,

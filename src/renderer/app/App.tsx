@@ -85,6 +85,7 @@ import { OverviewLayerLazy } from '../overview/lazy';
 import {
   CloneRepoModalLazy,
   CreateSessionModalLazy,
+  AddLoginModalLazy,
   NewProjectModalLazy,
   PastSessionsModalLazy,
   RemoteLinesModalLazy,
@@ -371,6 +372,7 @@ export function App(): React.JSX.Element {
 
       <CreateSessionModalLazy />
       <NewProjectModalLazy />
+      <AddLoginModalLazy />
       <RemoteProjectModalLazy />
       {/* Phase 18.6. Mounted beside New Project because it is reachable from
           the same three places (the home row, the + menu, File) and, unlike

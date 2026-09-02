@@ -231,11 +231,17 @@
    meter and its top edge reaches into the titlebar, and the operator
    photographed the result: the card behind the tabs.
    So it takes the token every other hover surface in this app takes, being
-   --z-tooltip. It is the right layer as well as a high enough one: this card
-   is aria-hidden, pointer-events none, and cannot be reached while a modal is
-   open, because the modal's own overlay is over the meter. The other half of
-   the fix is in ./UsageMeter.tsx, where the card now hangs under the band
-   rather than sliding up across the tabs. */
+   --z-tooltip. It is the right layer as well as a high enough one: it cannot
+   be reached while a modal is open, because the modal's own overlay is over
+   the meter. The other half of the fix is in ./UsageMeter.tsx, where the card
+   now hangs under the band rather than sliding up across the tabs.
+
+   PHASE 202 TOOK THE POINTER BLOCK OFF, and the reason is the control. The
+   card carries one button per provider now, so the pointer has to be able to
+   land on it, which `pointer-events: none` made impossible. The card keeps
+   itself open under the pointer instead, with the same hundred millisecond
+   leave grace the SCM hover cards use, which is what pays for the six pixel
+   gap between the meter and the card. */
 .usage-card {
   position: fixed;
   z-index: var(--z-tooltip);
@@ -248,7 +254,6 @@
   border-radius: var(--r-md);
   background: var(--bg-surface);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
 }
 
 .usage-card-name {
@@ -262,4 +267,28 @@
   font-size: var(--text-xs);
   line-height: var(--lh-xs);
   font-variant-numeric: tabular-nums;
+}
+
+/* PHASE 202. The login control, one per provider group. It is the SCM hover
+   card's action shape: a quiet text button at the foot of the group, which
+   opens a NATIVE menu. Nothing about it is a menu itself. */
+.usage-card-action {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  cursor: pointer;
+}
+
+.usage-card-action:hover {
+  text-decoration: underline;
+}
+
+.usage-card-action:focus-visible {
+  border-radius: var(--r-sm);
+  box-shadow: var(--focus-ring);
 }

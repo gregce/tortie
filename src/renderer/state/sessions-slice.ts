@@ -195,6 +195,22 @@ export interface SessionsSlice {
      * this Mac while the sheet said it was creating it somewhere else.
      */
     machineId?: string;
+    /**
+     * PHASE 202: which vendor login this session runs under, by NAME, and
+     * whether this create is the vendor's own sign in.
+     *
+     * `login` omitted means the login CHOSEN for that provider, which is what
+     * every ordinary create sends. Add login is the one caller that names one,
+     * because it has just created a directory nobody has chosen yet.
+     *
+     * Named fields for the reason `capture` and `startAnyway` are named ones:
+     * an object spread bypasses TypeScript's excess property check, so a field
+     * the store did not declare would be accepted at the call site and dropped
+     * in silence here. Dropping these two would open a sign in under the wrong
+     * credential directory, which is the one mistake this phase must not make.
+     */
+    login?: string;
+    signIn?: boolean;
   }): Promise<boolean>;
   /** §6.2 one-click create. Widened with createSession (Phase 12): the
    *  no-sessions fleet launches ANY launchable registry agent, not the trio. */
@@ -803,7 +819,9 @@ export const createSessionsSlice: StateCreator<
       extraArgs,
       capture,
       startAnyway,
-      machineId
+      machineId,
+      login,
+      signIn
     }) {
       const project = get().activeProject();
       if (!gmux || !project) return false;
@@ -910,7 +928,13 @@ export const createSessionsSlice: StateCreator<
         // the caller's when it named one and the tab's machine when it did not.
         ...(effectiveMachineId !== undefined
           ? { machineId: effectiveMachineId }
-          : {})
+          : {}),
+        // Phase 202. Same rule again: absent is the chosen login, which is
+        // every ordinary create, and main reads exactly `=== true` for the
+        // sign in. The value here is a NAME and never a directory, so nothing
+        // a renderer sends can decide where Tortie reads a credential.
+        ...(login !== undefined && login.length > 0 ? { login } : {}),
+        ...(signIn === true ? { signIn: true } : {})
       });
       // PHASE 90.3. A session started on a machine FROM A TAB ON THIS MAC has
       // its own tab over there, because main opened one for the folder the

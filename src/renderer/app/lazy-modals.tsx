@@ -51,6 +51,13 @@ export function NewProjectModalLazy(): React.JSX.Element | null {
   return <mod.NewProjectModal />;
 }
 
+/** Phase 202. Add login. Reads `addLoginProvider`, which is null until asked. */
+export function AddLoginModalLazy(): React.JSX.Element | null {
+  const mod = door.use(useApp((s) => s.addLoginProvider !== null));
+  if (mod === null) return null;
+  return <mod.AddLoginModal />;
+}
+
 /** The remote project sheet. Reads `remoteProjectOpen`. */
 export function RemoteProjectModalLazy(): React.JSX.Element | null {
   const mod = door.use(useApp((s) => s.remoteProjectOpen));

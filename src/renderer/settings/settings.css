@@ -1104,3 +1104,36 @@
 .set-disclosure > .set-section-caption + .set-section-caption {
   margin-top: var(--space-4);
 }
+
+/* PHASE 202. The logins block: one line per login, with a quiet Remove on the
+   ones Tortie owns. The default login has no control at all, which is the
+   surface saying what the code says. */
+.set-inline-btn {
+  margin-left: var(--space-4);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.set-inline-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.set-inline-btn:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.set-inline-btn:focus-visible {
+  border-radius: var(--r-sm);
+  box-shadow: var(--focus-ring);
+}
+
+/* A row of the logins file that was dropped whole, named with its reason. */
+.set-row-warn {
+  color: var(--status-attention);
+}

@@ -32,18 +32,27 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { UsageProviderSnapshot } from '@shared/usage';
+import type { UsageProviderId, UsageProviderSnapshot } from '@shared/usage';
 import { clampUsagePercent, usageHasNumbers } from '@shared/usage';
 import type { UsageBarWindow } from '@shared/settings';
 import { AgentIcon, Codicon } from '../icons';
 import { useNow } from '../format';
 import { useUsage } from '../state/usage';
+import { DEFAULT_LOGIN_NAME } from '@shared/logins';
+import { loginsOf, useLogins } from '../state/logins';
+import { useApp } from '../state/store';
+import { gmuxBridge } from '../bridge';
+import { loginMenuItems, loginMenuPick } from './login-menu';
 import {
   USAGE_FIVE_HOUR,
   USAGE_PROVIDER_LABEL,
   USAGE_REFRESH,
   USAGE_SEVEN_DAY,
   USAGE_STALE_MARK,
+  USAGE_LOGIN_CONTROL,
+  USAGE_TITLE,
+  usageLoginLine,
+  usageOtherLoginsLine,
   usagePercentText,
   usagePlanLine,
   usageResetIn,
@@ -139,13 +148,28 @@ function UsageRow({
 }
 
 /** The lines the hover card shows, and the accessible text the row carries. */
-export function cardLines(p: UsageProviderSnapshot, now: number): string[] {
+export function cardLines(
+  p: UsageProviderSnapshot,
+  now: number,
+  /**
+   * PHASE 202. How many RUNNING sessions of this agent are on a login other
+   * than the one these numbers came from, keyed by that login's name. Empty
+   * for every install with one login, which is every install before a person
+   * adds a second.
+   */
+  elsewhere: Map<string, number> = new Map()
+): string[] {
   const out: string[] = [USAGE_PROVIDER_LABEL[p.provider]];
   // WHOSE NUMBERS THESE ARE, in one short line under the vendor's name
   // (Phase 181.2). It is the plan word the vendor itself names and nothing
   // else, and a provider that named no plan gets no line rather than a guess.
   const plan = usagePlanLine(p.plan);
   if (plan !== '') out.push(plan);
+  // PHASE 202. WHICH LOGIN these numbers belong to. The person's own default
+  // sign in gets no line, because naming it would put a word on the card of
+  // every install that has only ever had one login.
+  const login = usageLoginLine(p.login);
+  if (login !== '') out.push(login);
   const windows: [string, typeof p.fiveHour][] = [
     [USAGE_FIVE_HOUR, p.fiveHour],
     [USAGE_SEVEN_DAY, p.sevenDay]
@@ -164,11 +188,55 @@ export function cardLines(p: UsageProviderSnapshot, now: number): string[] {
   if (p.state === 'stale') out.push(USAGE_STALE_MARK);
   const line = usageStateLine(p.provider, p.state);
   if (line !== '') out.push(line);
+  // PHASE 202. A running session keeps the login it started with, so a person
+  // who has just switched has sessions in front of them that these numbers are
+  // not about. Research 72's rule is that the meter never lies across
+  // accounts, and this is the line that keeps it honest about them.
+  const others = usageOtherLoginsLine(elsewhere);
+  if (others !== '') out.push(others);
   return out;
 }
 
 /** The gap the card keeps from the meter when it sits beside it. */
 const ANCHOR_GAP = 6;
+
+/**
+ * Leave grace before the card closes (Phase 202). The pointer has to be able
+ * to cross the six pixel gap above and land on the login control, so the card
+ * cannot close the instant the meter is left. It is the same number the SCM
+ * hover cards use, in `../scm/hover-timing.ts`.
+ */
+const HOVER_CLOSE_GRACE_MS = 100;
+
+/**
+ * How many RUNNING sessions of this provider's agent are on a login other than
+ * the one the meter just read, keyed by that login's name (Phase 202).
+ *
+ * EMPTY IS THE ORDINARY ANSWER, and it is the answer on every install that has
+ * one login. It is not empty for exactly as long as a person keeps a session
+ * that predates their switch, which is a real and ordinary state: a running
+ * session keeps the login it started with for its whole life.
+ *
+ * A row with no login is on the default, which is why the comparison is made
+ * against the snapshot's own null rather than against a word.
+ */
+export function sessionsElsewhere(
+  sessions: readonly { agent: string; status: string; login?: string }[],
+  p: UsageProviderSnapshot
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const s of sessions) {
+    if (s.agent !== p.provider) continue;
+    if (s.status === 'exited' || s.status === 'discarded' || s.status === 'restorable') {
+      continue;
+    }
+    const login = s.login ?? null;
+    if (login === (p.login ?? null)) continue;
+    const name = login ?? DEFAULT_LOGIN_NAME;
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return counts;
+}
 
 /** The meter's own box, in raw viewport pixels. */
 export interface UsageAnchor {
@@ -213,16 +281,37 @@ export function usageCardTop(
 }
 
 /**
+ * One provider's block on the card: its name, its lines, and its login control.
+ *
+ * PHASE 202 GAVE THE CARD ITS FIRST CONTROL, which is why the card stopped
+ * being `aria-hidden` and started keeping itself open under the pointer. The
+ * control is the same shape the SCM hover card's actions are: a button in the
+ * card's own footer row, and the menu it opens is NATIVE, through the
+ * ui:popupMenu bridge, because Tortie draws no DOM menus.
+ */
+export interface UsageCardGroup {
+  provider: UsageProviderId;
+  lines: string[];
+}
+
+/**
  * The hover card, portalled to the body and positioned in raw viewport pixels
  * for the reason ./SessionRail.tsx states: the dock is a CSS zoomable region
  * and a fixed position card inside a zoomed ancestor resolves in zoomed space.
  */
 function UsageCard({
   anchor,
-  groups
+  groups,
+  onEnter,
+  onLeave,
+  onChooseLogin
 }: {
   anchor: UsageAnchor;
-  groups: string[][];
+  groups: UsageCardGroup[];
+  onEnter: () => void;
+  onLeave: () => void;
+  /** Null on a build whose preload has no logins member or no popup menu. */
+  onChooseLogin: ((provider: UsageProviderId, at: DOMRect) => void) | null;
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement | null>(null);
   const [top, setTop] = useState<number | null>(null);
@@ -238,16 +327,19 @@ function UsageCard({
     <div
       ref={ref}
       className="usage-card"
-      aria-hidden="true"
+      role="dialog"
+      aria-label={USAGE_TITLE}
+      onPointerEnter={onEnter}
+      onPointerLeave={onLeave}
       style={
         top === null
           ? { top: 0, right: anchor.x, visibility: 'hidden' }
           : { top, right: anchor.x }
       }
     >
-      {groups.map((lines, i) => (
-        <div className="usage-card-group" key={lines[0] ?? String(i)}>
-          {lines.map((text, j) => (
+      {groups.map((group, i) => (
+        <div className="usage-card-group" key={group.lines[0] ?? String(i)}>
+          {group.lines.map((text, j) => (
             <div
               className={j === 0 ? 'usage-card-name' : 'usage-card-line'}
               key={text}
@@ -255,6 +347,21 @@ function UsageCard({
               {text}
             </div>
           ))}
+          {onChooseLogin === null ? null : (
+            <button
+              type="button"
+              className="usage-card-action"
+              data-login-control={group.provider}
+              onClick={(e) =>
+                onChooseLogin(
+                  group.provider,
+                  (e.currentTarget as HTMLElement).getBoundingClientRect()
+                )
+              }
+            >
+              {USAGE_LOGIN_CONTROL}
+            </button>
+          )}
         </div>
       ))}
     </div>,
@@ -279,19 +386,47 @@ export function UsageMeter({
   const now = useNow(60_000);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [card, setCard] = useState<UsageAnchor | null>(null);
+  // PHASE 202. The card now carries a control, so the pointer has to be able
+  // to travel into it. The gap between the meter and the card is six pixels,
+  // and this is the grace that crossing it costs.
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loginsSnapshot = useLogins((s) => s.snapshot);
+  const loadLogins = useLogins((s) => s.load);
+  const loginsAvailable = useLogins((s) => s.available);
+  const chooseLogin = useLogins((s) => s.choose);
+  const sessions = useApp((s) => s.sessions);
+  const openAddLogin = useApp((s) => s.setAddLoginProvider);
 
   useEffect(() => {
     ensurePolling();
   }, [ensurePolling]);
 
+  useEffect(() => () => {
+    if (closeTimer.current !== null) clearTimeout(closeTimer.current);
+  }, []);
+
   const shown = snapshot.providers.filter((p) => p.state !== 'off');
   if (shown.length === 0) return null;
 
-  const groups = shown.map((p) => cardLines(p, now));
+  const groups: UsageCardGroup[] = shown.map((p) => ({
+    provider: p.provider,
+    lines: cardLines(p, now, sessionsElsewhere(sessions, p))
+  }));
+
+  const cancelClose = (): void => {
+    if (closeTimer.current !== null) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+  const scheduleClose = (): void => {
+    cancelClose();
+    closeTimer.current = setTimeout(() => setCard(null), HOVER_CLOSE_GRACE_MS);
+  };
 
   const showCard = (): void => {
     const el = hostRef.current;
     if (el === null) return;
+    cancelClose();
+    void loadLogins();
     const r = el.getBoundingClientRect();
     setCard({
       x: Math.max(VIEWPORT_MARGIN, window.innerWidth - r.left + ANCHOR_GAP),
@@ -305,8 +440,43 @@ export function UsageMeter({
       if (e.pointerType !== 'mouse') return;
       showCard();
     },
-    onPointerLeave: () => setCard(null)
+    onPointerLeave: () => scheduleClose()
   };
+
+  /**
+   * The login control. NATIVE, through the ui:popupMenu bridge, and absent
+   * altogether on a build whose preload has no popup menu or no logins member,
+   * because Tortie draws no DOM menu as a fallback.
+   *
+   * Picking a login writes one name. It sends nothing to any running process:
+   * a session keeps the login it started with, and the card's own line says so
+   * when they differ. Add login opens the one dialog that asks for a name.
+   */
+  const popup = gmuxBridge()?.popupMenu;
+  const onChooseLogin =
+    popup === undefined || !loginsAvailable
+      ? null
+      : (provider: UsageProviderId, at: DOMRect): void => {
+          const rows = loginsOf(loginsSnapshot, provider);
+          void popup
+            .call(gmuxBridge(), {
+              x: Math.round(at.left),
+              y: Math.round(at.bottom),
+              items: loginMenuItems(rows)
+            })
+            .then((picked) => {
+              const action = loginMenuPick(picked);
+              if (action === null) return;
+              if (action.kind === 'add') {
+                setCard(null);
+                openAddLogin(provider);
+                return;
+              }
+              const row = rows.find((r) => r.name === action.name);
+              void chooseLogin(provider, row?.isDefault === true ? null : action.name);
+            })
+            .catch(() => undefined);
+        };
 
   if (density === 'full') {
     return (
@@ -331,7 +501,15 @@ export function UsageMeter({
         >
           <Codicon name="refresh" size="sm" />
         </button>
-        {card !== null ? <UsageCard anchor={card} groups={groups} /> : null}
+        {card !== null ? (
+          <UsageCard
+            anchor={card}
+            groups={groups}
+            onEnter={cancelClose}
+            onLeave={scheduleClose}
+            onChooseLogin={onChooseLogin}
+          />
+        ) : null}
       </div>
     );
   }
@@ -356,7 +534,15 @@ export function UsageMeter({
             <UsageRow key={p.provider} p={p} now={now} bar={bar} />
           ))}
         </button>
-        {card !== null ? <UsageCard anchor={card} groups={groups} /> : null}
+        {card !== null ? (
+          <UsageCard
+            anchor={card}
+            groups={groups}
+            onEnter={cancelClose}
+            onLeave={scheduleClose}
+            onChooseLogin={onChooseLogin}
+          />
+        ) : null}
       </div>
     );
   }
@@ -395,7 +581,15 @@ export function UsageMeter({
           );
         })}
       </button>
-      {card !== null ? <UsageCard anchor={card} groups={groups} /> : null}
+      {card !== null ? (
+        <UsageCard
+          anchor={card}
+          groups={groups}
+          onEnter={cancelClose}
+          onLeave={scheduleClose}
+          onChooseLogin={onChooseLogin}
+        />
+      ) : null}
     </div>
   );
 }

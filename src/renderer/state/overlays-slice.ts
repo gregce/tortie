@@ -5,6 +5,7 @@
  */
 
 import type { StateCreator } from 'zustand';
+import type { LoginProviderId } from '@shared/logins';
 import type { MenuSpec } from '../menus/spec';
 import type { AppState } from './app-state';
 import { shellOps } from './shell-ops';
@@ -41,6 +42,14 @@ export interface OverlaysSlice {
   confirm: ConfirmSpec | null;
   /** Session id being renamed inline (sidebar row or strip). */
   renamingSessionId: string | null;
+  /**
+   * Which provider the Add login dialog is open for, or null (Phase 202).
+   *
+   * It asks for one thing, being a name, and its Add button creates an empty
+   * directory and then starts ONE ORDINARY SESSION running the vendor's own
+   * sign in command inside it. Tortie signs nobody in.
+   */
+  addLoginProvider: LoginProviderId | null;
 
   setCreateOpen(open: boolean): void;
   setNewProjectOpen(open: boolean): void;
@@ -50,6 +59,7 @@ export interface OverlaysSlice {
   /** Show a native context menu (null is accepted and ignored — native menus dismiss themselves). */
   setMenu(menu: MenuSpec | null): void;
   setRenaming(sessionId: string | null): void;
+  setAddLoginProvider(provider: LoginProviderId | null): void;
 }
 
 export const createOverlaysSlice: StateCreator<
@@ -64,6 +74,7 @@ export const createOverlaysSlice: StateCreator<
   attentionOpen: false,
   confirm: null,
   renamingSessionId: null,
+  addLoginProvider: null,
 
   setNewProjectOpen(open) {
     set({ newProjectOpen: open });
@@ -71,6 +82,10 @@ export const createOverlaysSlice: StateCreator<
 
   setCreateOpen(open) {
     set({ createOpen: open });
+  },
+
+  setAddLoginProvider(provider) {
+    set({ addLoginProvider: provider });
   },
 
   setShortcutsOpen(open) {

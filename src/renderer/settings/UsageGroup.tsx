@@ -31,6 +31,8 @@ import React from 'react';
 import type { GmuxSettings, UsageBarWindow } from '@shared/settings';
 import { sanitizeUsageBarWindow } from '@shared/settings';
 import type { UsageProviderId } from '@shared/usage';
+import type { LoginProviderId } from '@shared/logins';
+import { loginsOf, useLogins } from '../state/logins';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
 import {
@@ -48,6 +50,14 @@ import {
   USAGE_CLAUDE_LABEL,
   USAGE_CODEX_CAPTION,
   USAGE_CODEX_LABEL,
+  USAGE_LOGIN_CHOSEN,
+  USAGE_LOGIN_DEFAULT_NOTE,
+  USAGE_LOGIN_EMPTY_NOTE,
+  USAGE_LOGIN_READY_NOTE,
+  USAGE_LOGIN_REMOVE,
+  USAGE_LOGIN_REMOVE_NOTE,
+  USAGE_LOGINS_CAPTION,
+  USAGE_LOGINS_LABEL,
   USAGE_OFF_NOTE,
   USAGE_TITLE
 } from './usage-copy';
@@ -151,6 +161,95 @@ function BarWindowRow(): React.JSX.Element {
   );
 }
 
+/**
+ * One provider's logins, listed, with Remove on the ones Tortie owns
+ * (Phase 202).
+ *
+ * THE DEFAULT LOGIN HAS NO CONTROL AT ALL, and the absence is the surface
+ * saying what the code says: it is the person's own sign in, at the vendor's
+ * own location, and Tortie never writes it, never moves it and never removes
+ * it. There is no rename either, for any login: a name is what the manifest
+ * carries, and renaming one would strand every session that named it.
+ *
+ * CHOOSING IS NOT DONE HERE. It is done from the meter's own hover card, where
+ * the numbers a person is looking at are, so this page stays a list and a
+ * remove rather than a second place to make the same decision.
+ */
+function LoginsBlock({
+  provider,
+  label
+}: {
+  provider: LoginProviderId;
+  label: string;
+}): React.JSX.Element | null {
+  const snapshot = useLogins((s) => s.snapshot);
+  const busy = useLogins((s) => s.busy);
+  const available = useLogins((s) => s.available);
+  const remove = useLogins((s) => s.remove);
+  const load = useLogins((s) => s.load);
+
+  React.useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (!available) return null;
+  const rows = loginsOf(snapshot, provider);
+  return (
+    <div className="set-row tall" data-logins={provider}>
+      <div className="set-row-text">
+        <span className="set-row-label">{label}</span>
+        {rows.map((row) => (
+          <span className="set-row-caption" key={row.name} data-login={row.name}>
+            {row.name}
+            {row.chosen ? ` · ${USAGE_LOGIN_CHOSEN}` : ''} ·{' '}
+            {row.isDefault
+              ? USAGE_LOGIN_DEFAULT_NOTE
+              : row.present
+                ? USAGE_LOGIN_READY_NOTE
+                : USAGE_LOGIN_EMPTY_NOTE}
+            {row.isDefault ? null : (
+              <button
+                type="button"
+                className="set-inline-btn"
+                disabled={busy}
+                data-login-remove={row.name}
+                onClick={() => void remove(provider, row.name)}
+              >
+                {USAGE_LOGIN_REMOVE}
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Everything the logins block says, once, under the two per provider lists. */
+function LoginsCaptions(): React.JSX.Element {
+  const problems = useLogins((s) => s.snapshot.problems);
+  const problem = useLogins((s) => s.problem);
+  return (
+    <div className="set-row">
+      <div className="set-row-text">
+        <span className="set-row-caption">{USAGE_LOGINS_CAPTION}</span>
+        <span className="set-row-caption">{USAGE_LOGIN_REMOVE_NOTE}</span>
+        {/* An invalid row in the logins file is dropped WHOLE and named here,
+            with the field and the reason, which is the standing rule for every
+            file a person or an agent can write. */}
+        {problems.map((text) => (
+          <span className="set-row-caption set-row-warn" key={text}>
+            {text}
+          </span>
+        ))}
+        {problem === null ? null : (
+          <span className="set-row-caption set-row-warn">{problem}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function UsageGroup(): React.JSX.Element {
   return (
     <div data-usage-group="1">
@@ -172,6 +271,16 @@ export function UsageGroup(): React.JSX.Element {
             <span className="set-row-caption">{USAGE_OFF_NOTE}</span>
           </div>
         </div>
+      </div>
+
+      {/* PHASE 202. The logins, listed here so the meter's own card stays
+          short. This block is a list and a remove; choosing is done from the
+          card, beside the numbers the choice is about. */}
+      <div className="set-group-label">{USAGE_LOGINS_LABEL}</div>
+      <div className="set-card">
+        <LoginsBlock provider="claude" label={USAGE_CLAUDE_LABEL} />
+        <LoginsBlock provider="codex" label={USAGE_CODEX_LABEL} />
+        <LoginsCaptions />
       </div>
 
       {/* One shut disclosure, the shape the Architecture page settled under
