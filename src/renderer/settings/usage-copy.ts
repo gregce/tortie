@@ -68,15 +68,15 @@ export const USAGE_LOGINS_LABEL = 'Logins';
 export const USAGE_LOGINS_CAPTION =
   'Which sign in a new session runs under. Choose one from the usage meter. Running sessions keep the one they started with.';
 
-/** The row for the vendor's own location, which every install has. */
-export const USAGE_LOGIN_DEFAULT_NOTE =
-  'Your own sign in, which Tortie only ever reads.';
-
-/** A login added in Tortie that nobody has completed the sign in for yet. */
-export const USAGE_LOGIN_EMPTY_NOTE = 'Not signed in yet.';
-
-/** A login added in Tortie that the vendor has written a credential into. */
-export const USAGE_LOGIN_READY_NOTE = 'Signed in.';
+/**
+ * PHASE 203 MOVED THE THREE PER ROW NOTES OUT OF THIS FILE.
+ *
+ * A row now says whose account it is rather than which of three states it is
+ * in, and the meter's own menu says the same thing in the same words, so those
+ * words live in src/shared/login-copy.ts where all three login surfaces reach
+ * them. `Your own sign in`, `Not signed in yet` and `Account not known yet`
+ * are there, and this page composes nothing of its own about a row.
+ */
 
 export const USAGE_LOGIN_CHOSEN = 'Chosen';
 export const USAGE_LOGIN_REMOVE = 'Remove';

@@ -32,6 +32,7 @@ import type { GmuxSettings, UsageBarWindow } from '@shared/settings';
 import { sanitizeUsageBarWindow } from '@shared/settings';
 import type { UsageProviderId } from '@shared/usage';
 import type { LoginProviderId } from '@shared/logins';
+import { loginAccountDetail, loginAccountLabel } from '@shared/login-copy';
 import { loginsOf, useLogins } from '../state/logins';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
@@ -51,9 +52,6 @@ import {
   USAGE_CODEX_CAPTION,
   USAGE_CODEX_LABEL,
   USAGE_LOGIN_CHOSEN,
-  USAGE_LOGIN_DEFAULT_NOTE,
-  USAGE_LOGIN_EMPTY_NOTE,
-  USAGE_LOGIN_READY_NOTE,
   USAGE_LOGIN_REMOVE,
   USAGE_LOGIN_REMOVE_NOTE,
   USAGE_LOGINS_CAPTION,
@@ -174,6 +172,12 @@ function BarWindowRow(): React.JSX.Element {
  * CHOOSING IS NOT DONE HERE. It is done from the meter's own hover card, where
  * the numbers a person is looking at are, so this page stays a list and a
  * remove rather than a second place to make the same decision.
+ *
+ * PHASE 203. EACH ROW IS DRAWN AS ITS ACCOUNT, the address leading and the
+ * name Tortie holds beside it, and the default row is marked in one short
+ * phrase as the one Tortie does not own. `Default` is still the row's name
+ * underneath, because that name is the reserved manifest key, and it is still
+ * what Remove and the chosen mark work on.
  */
 function LoginsBlock({
   provider,
@@ -198,28 +202,32 @@ function LoginsBlock({
     <div className="set-row tall" data-logins={provider}>
       <div className="set-row-text">
         <span className="set-row-label">{label}</span>
-        {rows.map((row) => (
-          <span className="set-row-caption" key={row.name} data-login={row.name}>
-            {row.name}
-            {row.chosen ? ` · ${USAGE_LOGIN_CHOSEN}` : ''} ·{' '}
-            {row.isDefault
-              ? USAGE_LOGIN_DEFAULT_NOTE
-              : row.present
-                ? USAGE_LOGIN_READY_NOTE
-                : USAGE_LOGIN_EMPTY_NOTE}
-            {row.isDefault ? null : (
-              <button
-                type="button"
-                className="set-inline-btn"
-                disabled={busy}
-                data-login-remove={row.name}
-                onClick={() => void remove(provider, row.name)}
-              >
-                {USAGE_LOGIN_REMOVE}
-              </button>
-            )}
-          </span>
-        ))}
+        {rows.map((row) => {
+          const detail = loginAccountDetail(row);
+          return (
+            <span
+              className="set-row-caption"
+              key={row.name}
+              data-login={row.name}
+              data-login-account={row.email ?? ''}
+            >
+              {loginAccountLabel(row)}
+              {detail === '' ? '' : ` · ${detail}`}
+              {row.chosen ? ` · ${USAGE_LOGIN_CHOSEN}` : ''}
+              {row.isDefault ? null : (
+                <button
+                  type="button"
+                  className="set-inline-btn"
+                  disabled={busy}
+                  data-login-remove={row.name}
+                  onClick={() => void remove(provider, row.name)}
+                >
+                  {USAGE_LOGIN_REMOVE}
+                </button>
+              )}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

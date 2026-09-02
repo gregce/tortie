@@ -55,8 +55,23 @@ export const USAGE_LOGIN_CONTROL = 'Choose login';
  */
 export const USAGE_LOGIN_SWITCHING = 'Reading the new login';
 
-/** `Login: Work`, or nothing at all for the person's own default sign in. */
-export function usageLoginLine(login: string | null): string {
+/**
+ * `Login: greg@example.com`, or `Login: Work` when no address is known, or
+ * nothing at all for a default sign in whose account Tortie cannot name.
+ *
+ * PHASE 203 PUT THE ADDRESS HERE, because the card is where the operator was
+ * looking when he said `Default` was not the account he is signed in as. When
+ * the address is known the card names it, for the default login as well as for
+ * an added one. When it is not, the card names the login Tortie holds, and for
+ * the default that is no line at all, which is the Phase 202 rule: naming the
+ * default would put a word on the card of every install that has only ever had
+ * one login.
+ */
+export function usageLoginLine(
+  login: string | null,
+  email: string | null = null
+): string {
+  if (email !== null && email.length > 0) return `Login: ${email}`;
   return login === null || login.length === 0 ? '' : `Login: ${login}`;
 }
 

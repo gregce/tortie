@@ -38,6 +38,7 @@ import type { UsageBarWindow } from '@shared/settings';
 import { AgentIcon, Codicon } from '../icons';
 import { useNow } from '../format';
 import { useUsage } from '../state/usage';
+import type { LoginsSnapshot } from '@shared/logins';
 import { DEFAULT_LOGIN_NAME } from '@shared/logins';
 import { loginsOf, useLogins } from '../state/logins';
 import { useApp } from '../state/store';
@@ -158,7 +159,13 @@ export function cardLines(
    * for every install with one login, which is every install before a person
    * adds a second.
    */
-  elsewhere: Map<string, number> = new Map()
+  elsewhere: Map<string, number> = new Map(),
+  /**
+   * PHASE 203. The address of the login these numbers came from, when the
+   * vendor's own file names one. Null is ordinary and means the card names the
+   * login the way it did before.
+   */
+  email: string | null = null
 ): string[] {
   const out: string[] = [USAGE_PROVIDER_LABEL[p.provider]];
   // WHOSE NUMBERS THESE ARE, in one short line under the vendor's name
@@ -169,7 +176,7 @@ export function cardLines(
   // PHASE 202. WHICH LOGIN these numbers belong to. The person's own default
   // sign in gets no line, because naming it would put a word on the card of
   // every install that has only ever had one login.
-  const login = usageLoginLine(p.login);
+  const login = usageLoginLine(p.login, email);
   if (login !== '') out.push(login);
   const windows: [string, typeof p.fiveHour][] = [
     [USAGE_FIVE_HOUR, p.fiveHour],
@@ -242,6 +249,29 @@ export function sessionsElsewhere(
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
   return counts;
+}
+
+/**
+ * The address of the login one provider's numbers came from (Phase 203).
+ *
+ * The snapshot carries the login's NAME, because a name is what a manifest row
+ * holds and what a launch resolves. The address is on the login LIST, which the
+ * card already reads for its own control, so the two are joined here rather
+ * than by widening what the meter sends.
+ *
+ * A NULL NAME IS THE DEFAULT LOGIN, which is why the match is against
+ * `isDefault` rather than against a word.
+ */
+export function loginEmailOf(
+  snapshot: LoginsSnapshot,
+  p: UsageProviderSnapshot
+): string | null {
+  const rows = loginsOf(snapshot, p.provider);
+  const row =
+    p.login === null || p.login.length === 0
+      ? rows.find((r) => r.isDefault)
+      : rows.find((r) => r.name === p.login);
+  return row?.email ?? null;
 }
 
 /** The meter's own box, in raw viewport pixels. */
@@ -416,7 +446,12 @@ export function UsageMeter({
 
   const groups: UsageCardGroup[] = shown.map((p) => ({
     provider: p.provider,
-    lines: cardLines(p, now, sessionsElsewhere(sessions, p))
+    lines: cardLines(
+      p,
+      now,
+      sessionsElsewhere(sessions, p),
+      loginEmailOf(loginsSnapshot, p)
+    )
   }));
 
   const cancelClose = (): void => {

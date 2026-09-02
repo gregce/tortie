@@ -36,29 +36,64 @@ function row(over: Partial<UsageProviderSnapshot> = {}): UsageProviderSnapshot {
 }
 
 describe('the native menu', () => {
+  // PHASE 203 REWROTE WHAT THESE ROWS DRAW. A login is drawn as its account:
+  // the address leads, the name Tortie holds is the second line, and `Default`
+  // is no longer a label on any face. It is still the row's NAME, which is the
+  // reserved manifest key and what a pick comes back as.
   const rows: LoginRow[] = [
-    defaultLoginRow('claude', true, true),
-    { provider: 'claude', name: 'Work', isDefault: false, chosen: false, present: true, email: null },
-    { provider: 'claude', name: 'Spare', isDefault: false, chosen: false, present: false, email: null }
+    defaultLoginRow('claude', true, true, 'greg@itavero.software'),
+    {
+      provider: 'claude',
+      name: 'Work',
+      isDefault: false,
+      chosen: false,
+      present: true,
+      email: 'work@example.com'
+    },
+    {
+      provider: 'claude',
+      name: 'Spare',
+      isDefault: false,
+      chosen: false,
+      present: false,
+      email: null
+    },
+    {
+      provider: 'claude',
+      name: 'Fresh',
+      isDefault: false,
+      chosen: false,
+      present: true,
+      email: null
+    }
   ];
 
-  it('lists every login, marks the chosen one and offers Add login', () => {
+  it('draws every login as its account, and Default is not a label', () => {
     const items = loginMenuItems(rows);
     expect(items.map((i) => i.label)).toEqual([
-      `✓ ${DEFAULT_LOGIN_NAME}`,
-      '  Work',
+      '✓ greg@itavero.software',
+      '  work@example.com',
       '  Spare',
+      '  Fresh',
       '',
       LOGIN_ADD_LABEL
     ]);
-    expect(items[3]?.type).toBe('separator');
+    expect(items[4]?.type).toBe('separator');
+    // The word is gone from every face and is still the id underneath.
+    expect(items.map((i) => i.label).join(' ')).not.toContain(DEFAULT_LOGIN_NAME);
+    expect(items[0]?.id).toBe(`login:pick:${DEFAULT_LOGIN_NAME}`);
   });
 
-  it('says which login has not been signed into yet, and only that one', () => {
+  it('says whose each login is, and what is missing when nothing is', () => {
     const items = loginMenuItems(rows);
-    expect(items[0]?.sublabel).toBeUndefined();
-    expect(items[1]?.sublabel).toBeUndefined();
+    // The default is marked as the one Tortie does not own.
+    expect(items[0]?.sublabel).toBe('Your own sign in');
+    // A named login keeps the name Tortie holds as its second word.
+    expect(items[1]?.sublabel).toBe('Work');
     expect(items[2]?.sublabel).toBe(LOGIN_NOT_SIGNED_IN);
+    // Signed in, and the vendor's own file names no address yet, which is
+    // every login until the account has taken a turn.
+    expect(items[3]?.sublabel).toBe('Account not known yet');
   });
 
   it('reads a pick, and reads a dismissal as nothing', () => {

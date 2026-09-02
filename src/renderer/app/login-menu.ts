@@ -11,13 +11,19 @@
  * be pinned by a test that opens no window.
  *
  * JUST ENOUGH WORDS. One line per login, a check mark on the chosen one, and
- * Add login at the foot. Whether a login has been signed into yet is the one
- * fact worth a second line, because a login that has not is the one case where
- * choosing it draws a sign in line instead of numbers.
+ * Add login at the foot.
+ *
+ * PHASE 203. A LOGIN IS DRAWN AS ITS ACCOUNT. The address leads, the name
+ * Tortie holds is the second line, and `Default` has stopped being a label:
+ * the default row reads as the account it really is, or as the phrase that
+ * says whose sign in it is. The name is still the manifest key underneath, and
+ * `loginMenuPick` still answers with it, which is why there is no rename
+ * anywhere in this phase.
  */
 
 import type { PopupMenuItem } from '@shared/ipc';
 import type { LoginRow } from '@shared/logins';
+import { loginAccountDetail, loginAccountLabel } from '@shared/login-copy';
 
 /** The id the Add login item comes back as. */
 export const LOGIN_MENU_ADD = 'login:add';
@@ -25,8 +31,13 @@ export const LOGIN_MENU_ADD = 'login:add';
 /** The id prefix a login item comes back as, followed by its name. */
 export const LOGIN_MENU_PICK = 'login:pick:';
 
-/** Said under a login nobody has completed the vendor's own sign in for. */
-export const LOGIN_NOT_SIGNED_IN = 'Not signed in yet';
+/**
+ * Said under a login nobody has completed the vendor's own sign in for.
+ *
+ * Re-exported from the one place the three login surfaces share their words,
+ * so the meter's menu and the Settings list cannot drift apart.
+ */
+export { LOGIN_NOT_SIGNED_IN } from '@shared/login-copy';
 
 /** The item that starts the vendor's own sign in, in one ordinary session. */
 export const LOGIN_ADD_LABEL = 'Add login…';
@@ -37,13 +48,21 @@ export const LOGIN_ADD_LABEL = 'Add login…';
  * `ui:popupMenu` has no native check state, so the chosen row wears the same
  * two space prefixed check the Sidebar's own menus use, which is the house
  * answer to that gap.
+ *
+ * THE LABEL IS THE ACCOUNT AND THE ID IS THE NAME. The id a pick comes back as
+ * is still the login's NAME, because that name is the reserved manifest key
+ * and the only thing a launch can resolve. Nothing a person reads here is what
+ * the pick carries.
  */
 export function loginMenuItems(rows: readonly LoginRow[]): PopupMenuItem[] {
-  const items: PopupMenuItem[] = rows.map((row) => ({
-    id: `${LOGIN_MENU_PICK}${row.name}`,
-    label: `${row.chosen ? '✓ ' : '  '}${row.name}`,
-    ...(row.present ? {} : { sublabel: LOGIN_NOT_SIGNED_IN })
-  }));
+  const items: PopupMenuItem[] = rows.map((row) => {
+    const detail = loginAccountDetail(row);
+    return {
+      id: `${LOGIN_MENU_PICK}${row.name}`,
+      label: `${row.chosen ? '✓ ' : '  '}${loginAccountLabel(row)}`,
+      ...(detail === '' ? {} : { sublabel: detail })
+    };
+  });
   if (items.length > 0) items.push({ type: 'separator', id: '', label: '' });
   items.push({ id: LOGIN_MENU_ADD, label: LOGIN_ADD_LABEL });
   return items;
