@@ -594,7 +594,7 @@ Every screen's primary action is the visually loudest element and carries its sh
 2. Every interactive element: hover, `:focus-visible` ring, disabled state; every list keyboard-navigable (↑↓ ↩); full DESIGN.md §4 map wired and mirrored in the native menu.
 3. All §6 states reachable and pixel-per-spec (mock the triggering conditions).
 4. Text contrast ≥4.5:1 (spot-check `--text-muted` placements — never on `--bg-raised`/`--bg-active`).
-5. `prefers-reduced-motion`: pulse disabled, transitions ≤ 1ms, badges intact.
+5. `prefers-reduced-motion`: pulse disabled, NO transition at all (`transition-property: none`, not the usual 1ms duration, which leaves `transition-property: all` and gives every element a live transition object per property change; Phase 200 measured one still running when its element was removed retaining ~184 DOM nodes an open on the diff surface), badges intact.
 6. No tmux vocabulary in any rendered string except the §6.4 screen.
 7. Terminal region: no CSS transitions/opacity on the xterm container; WebGL only when visible.
 8. Sentence case everywhere; button labels are verbs.

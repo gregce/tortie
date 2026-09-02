@@ -431,11 +431,40 @@
     --dur-panel: 1ms;
   }
 
+  /* WHY `transition-property: none` AND NOT THE USUAL `transition-duration: 1ms`
+     (Phase 200 fix round). The 1 ms recipe leaves `transition-property` at its
+     default of `all`, so under this query EVERY element transitions EVERY
+     property, and an element whose computed colours change after it is
+     inserted gets a real `CSSTransition` object for each of them. Chromium
+     keeps such a transition on the document timeline when the element is
+     removed from the document before it ends, and the transition holds its
+     target, which holds the whole detached tree through its parents.
+
+     That is not a theory. The diff surface is where colours land after the
+     insert, because @pierre/diffs adopts its theme stylesheet a moment after
+     the container mounts. Open and close it while the machine is busy enough
+     that the removal beats the transition's first frame and the window keeps
+     ~184 DOM nodes and ~14 listeners per open, for ever. Measured on
+     2026-09-02 over three blocks of six opens under a 4x CPU throttle: 1,104
+     nodes a block with this recipe, 52 with reduced motion off, and the heap
+     snapshot names the retainer, being a `CSSTransition` on the document
+     timeline holding `<div class="ed-pierre">`. `npm run probe:p167` drives
+     exactly that, and it is red on the 1 ms recipe and green on this one.
+
+     A person who asks for reduced motion is asking for no motion, and 1 ms of
+     motion is not motion, so nothing is lost by refusing the transition rather
+     than shortening it. Nothing in this app listens for `transitionend` or
+     `animationend` (checked over src/ on 2026-09-02), no rule here uses
+     `transition-delay`, and the file's own local reduced motion rules already
+     say `transition: none` (app.css .ptab-hint) and `animation: none`
+     (globals.css .dot-attention), so this is the shape the house already uses.
+     Animations keep the 1 ms duration, because an animation is declared to run
+     and its end state has to be reached. */
   *,
   *::before,
   *::after {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 1ms !important;
+    transition-property: none !important;
   }
 }

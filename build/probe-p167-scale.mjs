@@ -39,9 +39,12 @@
  * After every block the renderer is collected twice over the devtools
  * protocol and its JS heap used, DOM node count, event listener count and
  * document count are read from Performance.getMetrics. Those four are
- * ASSERTED: the growth from the second to last block to the last block must
- * stay under the budgets below, and a heap that climbs by more than half the
- * budget on every block is a slope and fails whatever the last delta says.
+ * ASSERTED: the growth from EVERY block to the block after it must stay under
+ * the budgets below, in all three dimensions, and the worst pair is the
+ * verdict. A heap that climbs by more than half the budget on every block is
+ * additionally a slope. The rule is written over every pair rather than over
+ * the last one because a leak that is collected late is still a leak, and the
+ * last pair of a run that retained and then released reads NEGATIVE.
  * Profile d asserts heap only and reports nodes and listeners, because its
  * cycles kill and discard twelve real sessions a block and the Past Sessions
  * data that leaves behind grows the DOM by design.
@@ -82,14 +85,56 @@
  *
  * Usage:
  *   npm run probe:p167
- *   node build/probe-p167-scale.mjs --self-test    grades eight fixtures and
+ *   node build/probe-p167-scale.mjs --self-test    grades twelve fixtures and
  *                                                  launches nothing
+ *
+ * ## WHY THE SURFACE PROFILE RUNS THROTTLED (Phase 200 fix round)
+ *
+ * Until this round the same command on the same commit reported different
+ * verdicts. Three consecutive profile c runs read 967 / 967 / 967 nodes and
+ * passed, 967 / 967 / 1,272 and passed, and 2,606 / 4,268 / 5,930 and failed.
+ * A ruler that reports a plateau on a tree that retains is worse than no ruler,
+ * and it is the seam the 0.98.0 audit's Test seam category is about.
+ *
+ * The cause is a RACE, not the highlight pool the first attempt suspected.
+ * Opening the diff changes the container's computed colours a moment after it
+ * is inserted, because @pierre/diffs adopts its theme stylesheet then. Under
+ * reduced motion, which this check emulates and a person can switch on, the
+ * app's own rule used to leave `transition-property` at `all`, so those colour
+ * changes started real transitions; a transition still running when the
+ * element is removed is kept alive by the document timeline and holds the whole
+ * detached tree. Whether the removal beats the transition's first frame is
+ * decided by how busy the machine is, which is why the same command answered
+ * both ways.
+ *
+ * So the surface profile drives under `Emulation.setCPUThrottlingRate`, which
+ * WIDENS that window. It does not close it. Measured on 2026-09-02 over three
+ * blocks of six diff opens on a machine another workflow had at a load average
+ * over 40: unthrottled, 0 nodes a block on a quiet machine and 1,104 on a
+ * loaded one; at 4x, 1,104 a block three times out of three at the parent and
+ * 42 at HEAD. The fix round's verifier then reran the parent on a QUIET machine
+ * and read the node count exactly flat at 4x and again at 20x, 457/457/457 diff
+ * only and 967/967/967 over all five surfaces, the same figures this tree
+ * reads. So the node count is the sensitive ruler and never the deterministic
+ * one: it catches this defect when the machine is busy and says nothing about
+ * it when the machine is idle, at any throttle.
+ *
+ * The DETERMINISTIC half of the check is the motion reading below, which is a
+ * state and not a race: at the parent it read `transition-property: all` in 18
+ * of 18 diff opens on a quiet machine and in 6 of 6 on a loaded one, and here
+ * it reads `none` every time. That is the reading a person should believe when
+ * the two disagree. The throttle is applied for profile c only and reset after
+ * it, because profiles b and d create and kill real sessions and their waits
+ * are not written for a machine running at a quarter speed. The run FAILS if
+ * the throttle cannot be applied, so a Chromium that stopped supporting it
+ * cannot quietly turn the ruler off.
  *
  * Knobs, none prefixed GMUX_ so the contract inventory's env sweep does not
  * carry them: P167_BLOCKS (default 3), P167_CYCLES per block (default 6),
  * P167_PROFILES (default b,c,d), P167_OUT_DIR (default out/p167),
  * P167_HEAP_MB (default 8), P167_NODES (default 400), P167_LISTENERS
- * (default 200).
+ * (default 200), P167_CPU, the throttle for profile c (default 4; 1 turns it
+ * off and the run says so).
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -103,8 +148,27 @@ import {
   withElectron,
   withoutDevRenderer
 } from './electron-run.mjs';
+import { seedArchSwitchOn } from './probe-arch-switch.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/**
+ * PHASE 200. Which of profile c's five surfaces this run drives.
+ *
+ * The 0.98.0 audit read the combined profile retaining 1,512 DOM nodes and 126
+ * listeners a block and could say nothing about WHICH surface did it, because
+ * one cycle opens and closes all five. One at a time is what turns a slope into
+ * a name, and it is how Phase 200 found that the whole of it is Diff.
+ *
+ * The default is all five, so the ordinary command is the combined profile the
+ * audit measured.
+ */
+const SURFACES = (
+  process.env['P167_SURFACES'] ?? 'overview,arch,file,diff,preview'
+)
+  .split(',')
+  .map((one) => one.trim())
+  .filter((one) => one !== '');
+const wantSurface = (name) => SURFACES.includes(name);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const say = (line) => process.stdout.write(`${line}\n`);
 
@@ -131,18 +195,52 @@ export function judge(profile, before, blocks, budgets = DEFAULT_BUDGETS, rules 
     return failures;
   }
   const last = blocks[blocks.length - 1];
-  const prev = blocks[blocks.length - 2];
-  const delta = (k) => last[k] - prev[k];
-  if (delta('heapMb') > budgets.heapMb) {
+  /**
+   * The WORST growth from one block to the next, and which pair it was.
+   *
+   * PHASE 200 fix round, and this is the rule that decides whether the check
+   * can be trusted. It used to read the last pair only. On 2026-09-02 a run
+   * over a tree that retains read 2,650, then 4,312, then 967 nodes: the
+   * retained trees were released during the last block, the last pair was
+   * NEGATIVE, and the check printed "every driven profile plateaued" over a
+   * defect it had just measured 1,662 of. A leak that is collected late is
+   * still a leak, and a ruler that a late collection can talk out of its
+   * finding is the seam the audit's Test seam category is about. So every
+   * pair is judged and the worst one is the verdict.
+   *
+   * The fix round's own verifier then found the rule half applied: nodes and
+   * listeners were judged over every pair and the HEAP was still judged over
+   * the last pair alone, which is the one dimension the split profile fails
+   * on. Written as a fixture, "retained then released in the last block" came
+   * back red on nodes, red on listeners and GREEN on heap. All three
+   * dimensions now use this function, so the rule the commit body, CLAUDE.md
+   * and DESIGN-SPEC state is the rule the code applies.
+   */
+  const worst = (k) => {
+    let value = 0;
+    let at = 0;
+    for (let i = 1; i < blocks.length; i += 1) {
+      const step = blocks[i][k] - blocks[i - 1][k];
+      if (step > value) {
+        value = step;
+        at = i;
+      }
+    }
+    return { value, at };
+  };
+  const heapGrowth = worst('heapMb');
+  if (heapGrowth.value > budgets.heapMb) {
     failures.push(
-      `${profile}: renderer JS heap grew ${delta('heapMb').toFixed(1)} MB from the second to last block to the last, over the ${String(budgets.heapMb)} MB budget`
+      `${profile}: renderer JS heap grew ${heapGrowth.value.toFixed(1)} MB from block ${String(heapGrowth.at)} to block ${String(heapGrowth.at + 1)}, over the ${String(budgets.heapMb)} MB budget`
     );
   }
-  if (assertNodes && delta('nodes') > budgets.nodes) {
-    failures.push(`${profile}: DOM nodes grew ${String(delta('nodes'))} from the second to last block to the last, over the ${String(budgets.nodes)} budget`);
+  const nodeGrowth = worst('nodes');
+  if (assertNodes && nodeGrowth.value > budgets.nodes) {
+    failures.push(`${profile}: DOM nodes grew ${String(nodeGrowth.value)} from block ${String(nodeGrowth.at)} to block ${String(nodeGrowth.at + 1)}, over the ${String(budgets.nodes)} budget`);
   }
-  if (assertListeners && delta('listeners') > budgets.listeners) {
-    failures.push(`${profile}: event listeners grew ${String(delta('listeners'))} from the second to last block to the last, over the ${String(budgets.listeners)} budget`);
+  const listenerGrowth = worst('listeners');
+  if (assertListeners && listenerGrowth.value > budgets.listeners) {
+    failures.push(`${profile}: event listeners grew ${String(listenerGrowth.value)} from block ${String(listenerGrowth.at)} to block ${String(listenerGrowth.at + 1)}, over the ${String(budgets.listeners)} budget`);
   }
   // A slope: every block-to-block heap delta over half the budget, across
   // three or more blocks. A one time allocation lands in one delta and then
@@ -175,6 +273,22 @@ function selfTest() {
     { name: 'steady climb', before: b(30, 2000, 300), blocks: [b(36, 2000, 300), b(42, 2000, 300), b(48, 2000, 300)], red: true },
     { name: 'descriptor leak', before: b(30, 2000, 300, 0, 0), blocks: [b(30, 2000, 300, 6, 6), b(30, 2000, 300, 12, 12), b(30, 2000, 300, 18, 18)], red: true },
     { name: 'listener leak', before: b(30, 2000, 300), blocks: [b(30, 2000, 300), b(30, 2000, 300), b(30, 2000, 600)], red: true },
+    // PHASE 200 fix round. The shape that walked past the old rule: it
+    // retained 1,662 nodes a block and then released them during the last
+    // block, so the last pair read minus 3,345. These are the real numbers
+    // from a run on 2026-09-02.
+    { name: 'retained, then released in the last block', before: b(26, 439, 227), blocks: [b(25.3, 2650, 464), b(26.7, 4312, 626), b(26.5, 967, 303)], red: true },
+    // And its opposite, so the new rule is not simply stricter: a surface that
+    // warms up between the first two blocks and then holds still is green.
+    { name: 'warm up then hold', before: b(7, 439, 227), blocks: [b(20, 974, 303), b(20.2, 1010, 303), b(20.1, 1004, 303)], red: false },
+    // PHASE 200 fix round, second pass. The same shape written in the HEAP
+    // dimension, which is the one the split profile fails on and the one the
+    // first pass left reading the last pair alone. It was green here and it
+    // must be red.
+    { name: 'heap retained, then released in the last block', before: b(26, 439, 227), blocks: [b(26, 439, 227), b(45, 439, 227), b(26.5, 439, 227)], red: true },
+    // And its opposite in the same dimension: a heap that steps up once, under
+    // the budget, and then holds is a warm up and stays green.
+    { name: 'heap warms up under the budget then holds', before: b(20, 439, 227), blocks: [b(20, 439, 227), b(25, 439, 227), b(25.2, 439, 227)], red: false },
     { name: 'one block', before: b(30, 2000, 300), blocks: [b(30, 2000, 300)], red: true },
     { name: 'node growth under the d rules', before: b(30, 2000, 300), blocks: [b(30, 2600, 300), b(30, 3300, 300), b(30, 4100, 300)], red: false, rules: { nodes: false, listeners: false } },
     { name: 'descriptor leak under the d rules', before: b(30, 2000, 300, 1, 0), blocks: [b(30, 2000, 300, 31, 1), b(30, 2000, 300, 61, 1), b(30, 2000, 300, 91, 1)], red: true, rules: { nodes: false, listeners: false } }
@@ -222,6 +336,14 @@ const budgets = {
   nodes: Number(process.env['P167_NODES'] ?? String(DEFAULT_BUDGETS.nodes)),
   listeners: Number(process.env['P167_LISTENERS'] ?? String(DEFAULT_BUDGETS.listeners))
 };
+/**
+ * The CPU throttle the surface profile drives under. See the header: it is
+ * what makes the diff retention reproduce every run instead of one run in
+ * three. 1 turns it off, and a run that turns it off says so in its output and
+ * in its report, so a green verdict from an unthrottled run can never be read
+ * as the same evidence as a green verdict from a throttled one.
+ */
+const cpuThrottle = Math.max(1, Number(process.env['P167_CPU'] ?? '4'));
 const outDir = resolve((process.env['P167_OUT_DIR'] ?? '').trim() || join(REPO, 'out', 'p167'));
 mkdirSync(outDir, { recursive: true });
 mkdirSync(join(harnessDir, 'p167'), { recursive: true });
@@ -404,13 +526,68 @@ async function readRenderer(cdp) {
     listeners: get('JSEventListeners'),
     documents: get('Documents'),
     frames: get('Frames'),
-    xterm: await cdpEval(cdp, `document.querySelectorAll('.xterm').length`)
+    xterm: await cdpEval(cdp, `document.querySelectorAll('.xterm').length`),
+    // PHASE 200 fix round. How many elements are still REACHABLE from the
+    // document, walking into every shadow root. `Nodes` above counts detached
+    // ones too, so a profile whose Nodes climb while this stays flat is holding
+    // trees nobody can see, while one where both climb is drawing more, which
+    // profile d does by design because it lists every past session. Without the
+    // pair a reader cannot tell those two apart and they want opposite answers.
+    // Printed, never asserted.
+    live: await cdpEval(
+      cdp,
+      `(() => { let n = 0; const walk = (root) => { for (const el of root.querySelectorAll('*')) { n += 1; if (el.shadowRoot !== null) walk(el.shadowRoot); } }; walk(document); return n; })()`
+    )
   };
 }
 
 // ---------------------------------------------------------------------------
 // The cycles
 // ---------------------------------------------------------------------------
+
+/**
+ * THE TRIPWIRE UNDER THE NODE COUNT (Phase 200 fix round), read while the diff
+ * is on screen.
+ *
+ * The node ruler below is a race: it catches the retention only when the close
+ * beats the transition's first frame, which is decided by how busy the machine
+ * is. Measured on 2026-09-02 over one commit that retains: 1,662 nodes a block
+ * on a loaded machine and 0 on a quiet one, from the same command. So the check
+ * also reads the CAUSE, which is not a race and is the same on every machine.
+ *
+ * Under `prefers-reduced-motion: reduce`, which this whole drive emulates and
+ * which a person can switch on in System Settings, an app that writes the usual
+ * `transition-duration: 1ms !important` on `*` leaves `transition-property` at
+ * `all`. Every element then transitions every property, the diff container's
+ * colours land a moment after it is inserted because @pierre/diffs adopts its
+ * theme stylesheet then, and a transition still running when the element is
+ * removed is held by the document timeline along with the whole detached tree.
+ *
+ * So two readings, taken with the diff up:
+ *
+ *   property   the container's computed `transition-property`. Under reduced
+ *              motion this must be `none`. `all` is the defect, whatever the
+ *              node count says.
+ *   running    how many CSSTransitions the document is running at that moment.
+ *              Under reduced motion nothing may be transitioning at all.
+ *
+ * A run that drove the diff and read NEITHER fails too. A ruler that reports
+ * green over a reading it never took is the thing this round is repairing.
+ */
+async function readMotion(cdp) {
+  return await cdpEval(
+    cdp,
+    `(() => {
+       const el = document.querySelector('diffs-container');
+       if (el === null) return null;
+       const running = document
+         .getAnimations()
+         .filter((a) => a.constructor.name === 'CSSTransition')
+         .map((a) => String(a.transitionProperty));
+       return { property: getComputedStyle(el).transitionProperty, running };
+     })()`
+  );
+}
 
 /** What the page looked like when a gesture missed, for the report. */
 async function missDebug(cdp, name) {
@@ -471,40 +648,54 @@ async function cycleSurfaces(cdp, log) {
       log.closeMisses.push(name);
     }
   };
+  // PHASE 200: each surface is skippable, so one run can be one surface. The
+  // default drives all five, which is the combined profile the audit measured.
+
   // Catch Me Up, and Escape.
-  await press(cdp, CHORD.overview);
-  if (!(await until(cdp, `document.querySelector('.overview-layer') !== null`, 8000))) {
-    log.openMisses.push('overview');
-    log.debug.push(await missDebug(cdp, 'overview'));
+  if (wantSurface('overview')) {
+    await press(cdp, CHORD.overview);
+    if (!(await until(cdp, `document.querySelector('.overview-layer') !== null`, 8000))) {
+      log.openMisses.push('overview');
+      log.debug.push(await missDebug(cdp, 'overview'));
+    }
+    await sleep(150);
+    await press(cdp, CHORD.escape);
+    await closeOrCount('overview', `document.querySelector('.overview-layer') === null`);
   }
-  await sleep(150);
-  await press(cdp, CHORD.escape);
-  await closeOrCount('overview', `document.querySelector('.overview-layer') === null`);
 
   // Architecture, then the Explorer chord puts it away.
-  await press(cdp, CHORD.arch);
-  if (!(await until(cdp, `document.querySelector('[data-view="arch"]') !== null`, 8000))) log.openMisses.push('arch');
-  await sleep(150);
-  await press(cdp, CHORD.explorer);
-  await closeOrCount('arch', `document.querySelector('[data-view="arch"]') === null`);
+  if (wantSurface('arch')) {
+    await press(cdp, CHORD.arch);
+    if (!(await until(cdp, `document.querySelector('[data-view="arch"]') !== null`, 8000))) log.openMisses.push('arch');
+    await sleep(150);
+    await press(cdp, CHORD.explorer);
+    await closeOrCount('arch', `document.querySelector('[data-view="arch"]') === null`);
+  }
 
   // A file in Monaco.
-  await drive(cdp, { projectPath: repoA, openRel: 'src/app.js', mode: 'file' });
-  if (!(await until(cdp, `document.querySelector('.monaco-editor') !== null`, 15000))) log.openMisses.push('file');
-  await press(cdp, CHORD.closeEditorTab);
-  await closeOrCount('file', `document.querySelector('.monaco-editor') === null`);
+  if (wantSurface('file')) {
+    await drive(cdp, { projectPath: repoA, openRel: 'src/app.js', mode: 'file' });
+    if (!(await until(cdp, `document.querySelector('.monaco-editor') !== null`, 15000))) log.openMisses.push('file');
+    await press(cdp, CHORD.closeEditorTab);
+    await closeOrCount('file', `document.querySelector('.monaco-editor') === null`);
+  }
 
   // A diff.
-  await drive(cdp, { projectPath: repoA, openRel: 'README.md', mode: 'diff' });
-  if (!(await until(cdp, `document.querySelector('diffs-container') !== null`, 15000))) log.openMisses.push('diff');
-  await press(cdp, CHORD.closeEditorTab);
-  await closeOrCount('diff', `document.querySelector('diffs-container') === null`);
+  if (wantSurface('diff')) {
+    await drive(cdp, { projectPath: repoA, openRel: 'README.md', mode: 'diff' });
+    if (!(await until(cdp, `document.querySelector('diffs-container') !== null`, 15000))) log.openMisses.push('diff');
+    log.motion.push(await readMotion(cdp));
+    await press(cdp, CHORD.closeEditorTab);
+    await closeOrCount('diff', `document.querySelector('diffs-container') === null`);
+  }
 
   // A rendered markdown page.
-  await drive(cdp, { projectPath: repoA, openRel: 'notes.md', mode: 'file' });
-  if (!(await until(cdp, `document.querySelector('.md-content') !== null`, 15000))) log.openMisses.push('preview');
-  await press(cdp, CHORD.closeEditorTab);
-  await closeOrCount('preview', `document.querySelector('.md-content') === null`);
+  if (wantSurface('preview')) {
+    await drive(cdp, { projectPath: repoA, openRel: 'notes.md', mode: 'file' });
+    if (!(await until(cdp, `document.querySelector('.md-content') !== null`, 15000))) log.openMisses.push('preview');
+    await press(cdp, CHORD.closeEditorTab);
+    await closeOrCount('preview', `document.querySelector('.md-content') === null`);
+  }
 }
 
 /** One profile d cycle: four real sessions in a grid, then all four killed. */
@@ -530,11 +721,17 @@ const NAMES = { b: 'b, project switches', c: 'c, surface open and close', d: 'd,
 // The run
 // ---------------------------------------------------------------------------
 
-const report = { startedAt: new Date().toISOString(), blocks: blocksWanted, cycles: cyclesWanted, budgets, profiles: {} };
+const report = { startedAt: new Date().toISOString(), blocks: blocksWanted, cycles: cyclesWanted, budgets, cpuThrottle, profiles: {} };
 const failures = [];
 let mainPidSeen = 0;
 
 rmSync(join(profile, 'DevToolsActivePort'), { force: true });
+// PHASE 200. The Architecture switch ships OFF and this profile is a fresh
+// directory, so every Architecture gesture landed on a view that was not
+// there. The audit read all 18 opens missing and had to work out that it was
+// stale harness setup rather than a broken surface.
+seedArchSwitchOn(profile);
+say('p167: seeded the Architecture switch on in the scratch profile');
 
 // PHASE 200: say what this shell brought and what was taken out, so a run in
 // the operator's dev terminal and a run in a clean one are visibly the same.
@@ -601,7 +798,7 @@ await withElectron(
       return row;
     };
     const fmt = (row) =>
-      `heap ${row.heapMb.toFixed(1)} MB, nodes ${String(row.nodes)}, listeners ${String(row.listeners)}, documents ${String(row.documents)}, xterm ${String(row.xterm)}` +
+      `heap ${row.heapMb.toFixed(1)} MB, nodes ${String(row.nodes)} (${String(row.live)} on screen), listeners ${String(row.listeners)}, documents ${String(row.documents)}, xterm ${String(row.xterm)}` +
       (typeof row.ptmx === 'number' ? `, ptmx ${String(row.ptmx)}, ttys ${String(row.ttys)}` : '') +
       `, main ${row.mainFootprintMb === null ? '-' : row.mainFootprintMb.toFixed(1)} MB, renderer ${row.rendererFootprintMb === null ? '-' : row.rendererFootprintMb.toFixed(1)} MB`;
 
@@ -612,10 +809,28 @@ await withElectron(
         continue;
       }
       const descriptors = key === 'd';
-      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [] };
+      // PHASE 200 fix round. The surface profile, and only it, drives at a
+      // quarter speed so the removal-versus-first-frame race the header
+      // describes falls the same way every run.
+      const throttled = key === 'c' && cpuThrottle > 1;
+      if (throttled) {
+        const answer = await cdp.call('Emulation.setCPUThrottlingRate', { rate: cpuThrottle });
+        if (answer.error !== undefined) {
+          failures.push(`${key}: the CPU throttle could not be applied (${JSON.stringify(answer.error)}), so this profile measured the fast path only`);
+          continue;
+        }
+      }
+      const log = { openMisses: [], closeMisses: [], switchMisses: 0, debug: [], motion: [] };
       const exceptionsBefore = cdp.events().filter((e) => e.method === 'Runtime.exceptionThrown').length;
       const before = await readAll(descriptors);
       say(`\n${NAMES[key]}`);
+      say(
+        throttled
+          ? `  driving at 1/${String(cpuThrottle)} CPU speed, which widens the window the retention race falls in; the motion reading below is the half that does not depend on how busy this machine is`
+          : key === 'c'
+            ? '  NOT throttled (P167_CPU=1): this profile can report a plateau on a tree that retains'
+            : '  full speed'
+      );
       say(`  before      ${fmt(before)}`);
       const blocks = [];
       for (let b = 1; b <= blocksWanted; b += 1) {
@@ -641,13 +856,41 @@ await withElectron(
       const verdicts = judge(key, before, blocks, budgets, rules);
       if (log.openMisses.length > 0) verdicts.push(`${key}: ${String(log.openMisses.length)} surface open(s) did not land: ${[...new Set(log.openMisses)].join(', ')}`);
       if (log.closeMisses.length > 0) verdicts.push(`${key}: ${String(log.closeMisses.length)} surface close(s) did not land: ${[...new Set(log.closeMisses)].join(', ')}`);
+      // PHASE 200 fix round. The tripwire readMotion took, judged here.
+      if (key === 'c' && wantSurface('diff')) {
+        const read = log.motion.filter((m) => m !== null && m !== undefined);
+        if (read.length === 0) {
+          verdicts.push(`${key}: the diff was driven ${String(log.motion.length)} time(s) and its motion reading came back empty every time, so this profile cannot say whether the surface can retain`);
+        } else {
+          const property = read.filter((m) => m.property !== 'none');
+          if (property.length > 0) {
+            verdicts.push(`${key}: the diff container's transition-property read "${String(property[0].property)}" under reduced motion in ${String(property.length)} of ${String(read.length)} opens; every property change on a surface that is about to close then leaves a transition holding the detached tree`);
+          }
+          const running = read.filter((m) => m.running.length > 0);
+          if (running.length > 0) {
+            verdicts.push(`${key}: ${String(running.length)} of ${String(read.length)} diff opens had a CSS transition running under reduced motion (${running[0].running.slice(0, 3).join(', ')}), which nothing may under this media query`);
+          }
+          say(`  motion      ${String(read.length)} diff open(s) read: transition-property ${read[0].property}, transitions running ${String(Math.max(...read.map((m) => m.running.length)))} at most`);
+        }
+      }
       if (log.switchMisses > 0) say(`  note: ${String(log.switchMisses)} project switch(es) read the same active tab before and after the chord`);
       if (exceptions.length > 0) verdicts.push(`${key}: ${String(exceptions.length)} page exception(s): ${exceptions.slice(0, 3).join(' | ')}`);
       for (const v of verdicts) say(`  FAIL ${v}`);
-      if (verdicts.length === 0) say(`  ok, the last block moved heap ${(blocks[blocks.length - 1].heapMb - blocks[blocks.length - 2].heapMb).toFixed(1)} MB, nodes ${String(blocks[blocks.length - 1].nodes - blocks[blocks.length - 2].nodes)}, listeners ${String(blocks[blocks.length - 1].listeners - blocks[blocks.length - 2].listeners)}`);
+      if (verdicts.length === 0) {
+        // The WORST pair, not the last one. See judge(): a run that retained
+        // and then released reads a negative last pair, and saying so would
+        // be reporting the number that hid the defect.
+        const step = (k) => {
+          let value = 0;
+          for (let i = 1; i < blocks.length; i += 1) value = Math.max(value, blocks[i][k] - blocks[i - 1][k]);
+          return value;
+        };
+        say(`  ok, the worst block to block growth was heap ${step('heapMb').toFixed(1)} MB, nodes ${String(step('nodes'))}, listeners ${String(step('listeners'))}`);
+      }
       failures.push(...verdicts);
       log.debug = log.debug.slice(0, 6);
-      report.profiles[key] = { before, blocks, log, exceptions, verdicts };
+      report.profiles[key] = { before, blocks, log, exceptions, verdicts, cpuThrottle: throttled ? cpuThrottle : 1 };
+      if (throttled) await cdp.call('Emulation.setCPUThrottlingRate', { rate: 1 });
     }
     cdp.close();
   }
