@@ -16,9 +16,11 @@
  * back to back on purpose, prove that only the last query draws.
  */
 
+import { gmuxBridge } from '../bridge';
+import { useGit } from '../state/git';
 import { useApp } from '../state/store';
 import { depthRepoState, useGitDepth } from '../scm/depth';
-import { parseHistoryQuery } from '../scm/history-search';
+import { SEARCH_DEBOUNCE_MS, parseHistoryQuery } from '../scm/history-search';
 import { useEditor } from './store';
 
 export interface HistorySearchProbeSpec {
@@ -32,6 +34,12 @@ export interface HistorySearchProbeSpec {
   change: string;
   /** A phrase typed faster than the debounce. */
   burst: string;
+  /**
+   * A tracked file, repo relative, written through the bridge while the
+   * change search's rows are on screen and then put back. Fix round: a
+   * repository change must not run the change search again.
+   */
+  touch: string;
 }
 
 const wait = (ms: number): Promise<void> =>
@@ -99,6 +107,12 @@ function repoState(repoPath: string) {
   return depthRepoState(useGitDepth.getState().repos, repoPath);
 }
 
+/** The Changes section's own answer: the file is in the repo's status. */
+function fileInStatus(repoPath: string, relPath: string): boolean {
+  const files = useGit.getState().repos[repoPath]?.status?.files ?? [];
+  return files.some((f) => f.path === relPath);
+}
+
 function skeletonGone(): boolean {
   return section()?.querySelector('.scm-skeleton') === null;
 }
@@ -118,11 +132,14 @@ function pressEscape(): void {
   );
 }
 
-/** The applied query equals what this text parses to, and the walk drew. */
+/**
+ * The applied query equals what this text parses to, and the walk drew, or
+ * was refused with a sentence, which is an answer too.
+ */
 function applied(repoPath: string, text: string): boolean {
   const r = repoState(repoPath);
   const q = parseHistoryQuery(text);
-  if (r.logLoading || r.walkMs === null) return false;
+  if (r.logLoading || (r.walkMs === null && r.searchError === null)) return false;
   if (r.query === null) return text.trim() === '' || (q.author === '' && q.message === '' && q.commit === '' && q.file === '' && q.change === '');
   return (
     r.query.message === q.message &&
@@ -182,6 +199,7 @@ export async function driveHistorySearch(
       walkMs: r.walkMs,
       query: r.query,
       hasMore: r.hasMore,
+      searchError: r.searchError,
       ...readList()
     };
   };
@@ -252,16 +270,31 @@ export async function driveHistorySearch(
   };
   mark('loaded more');
 
-  // 5. The changes button.
-  setText(`change:${spec.change}`);
-  await wait(400);
+  // 5. The changes button. Typing the term first returns the pane to the
+  //    plain walk, and the button is disabled until that walk draws, which
+  //    on git's own repository is the 400 ms topo ordered read, so the
+  //    click waits for an enabled button rather than a fixed instant.
+  //    The keystroke's own debounce is let fire first, so what this step
+  //    measures is the button and not the race the field settles itself.
+  const changeText = `change:${spec.change}`;
+  setText(changeText);
+  await wait(SEARCH_DEBOUNCE_MS + 50);
+  const runButton = (): HTMLButtonElement | null =>
+    section()?.querySelector<HTMLButtonElement>('.scm-history-search-run') ?? null;
+  await until(() => {
+    const b = runButton();
+    return b !== null && !b.disabled && applied(repoPath, changeText);
+  }, 100, 50);
   const offered = readList();
-  const runBtn = section()?.querySelector<HTMLButtonElement>('.scm-history-search-run') ?? null;
+  const runBtn = runButton();
   const t0 = performance.now();
   runBtn?.click();
   const running = await until(() => repoState(repoPath).logLoading && repoState(repoPath).query?.change === spec.change, 40, 25);
   const whileRunning = readList();
-  const finished = await until(() => !repoState(repoPath).logLoading && repoState(repoPath).query?.change === spec.change && repoState(repoPath).walkMs !== null, 600, 100);
+  const finished = await until(() => {
+    const r = repoState(repoPath);
+    return !r.logLoading && r.query?.change === spec.change && (r.walkMs !== null || r.searchError !== null);
+  }, 300, 100);
   const done = repoState(repoPath);
   out['change'] = {
     offered,
@@ -274,6 +307,60 @@ export async function driveHistorySearch(
     ...readList()
   };
   mark('change searched');
+
+  // 5b. A repository change while those rows are on screen: nothing may
+  //     run. The file is written through the bridge, so the watcher sees a
+  //     real change, and the Changes section's own status proves the
+  //     renderer heard it. Read every 15 ms for the button, the spinner,
+  //     the loading flag and the printed time, then the file is put back.
+  const gmux = gmuxBridge();
+  const touchedPath = `${projectPath}/${spec.touch}`;
+  const original = gmux === undefined ? null : (await gmux.fs.readFile(touchedPath)).contents;
+  const heardBefore = fileInStatus(repoPath, spec.touch);
+  const walksBeforeTouch = walks;
+  const beforeTouch = readList();
+  let sawStop = false;
+  let sawLoading = false;
+  let heard = false;
+  const seen: string[] = [];
+  const watchFor = async (ms: number): Promise<void> => {
+    const t = performance.now();
+    while (performance.now() - t < ms) {
+      const list = readList();
+      const r = repoState(repoPath);
+      if (list.button === 'Stop') sawStop = true;
+      if (r.logLoading) sawLoading = true;
+      if (fileInStatus(repoPath, spec.touch)) heard = true;
+      const key = `${String(list.button)}|${String(list.msText)}|${String(list.rows.length)}|${String(r.logLoading)}`;
+      if (seen[seen.length - 1] !== key) seen.push(key);
+      await wait(15);
+    }
+  };
+  if (gmux !== undefined && original !== null) {
+    await gmux.fs.writeFile(touchedPath, `${original}
+probe touch
+`);
+    await watchFor(3500);
+    await gmux.fs.writeFile(touchedPath, original);
+    await watchFor(2000);
+  }
+  const afterTouch = readList();
+  out['reread'] = {
+    written: original !== null,
+    heardBefore,
+    heard,
+    sawStop,
+    sawLoading,
+    walks: walks - walksBeforeTouch,
+    seen,
+    msBefore: beforeTouch.msText,
+    msAfter: afterTouch.msText,
+    rowsBefore: beforeTouch.rows,
+    rowsAfter: afterTouch.rows,
+    buttonAfter: afterTouch.button,
+    query: repoState(repoPath).query
+  };
+  mark(`touched ${spec.touch}, ${String(walks - walksBeforeTouch)} walk(s) drew`);
 
   // 6. A burst typed faster than the debounce: one walk, the last query.
   const walksBefore = walks;
@@ -327,6 +414,15 @@ export async function driveHistorySearch(
     glob: await typeAndRead(`file:${spec.path}/*`)
   };
   mark('attacks typed');
+
+  // 8b. A path that leaves the repository: the service refuses it, and the
+  //     section must draw that refusal and nothing else. Fix round: at the
+  //     parent the flat walk drew the plain first page here.
+  out['escapes'] = {
+    parent: await typeAndRead('file:../src'),
+    absolute: await typeAndRead('file:/etc/passwd')
+  };
+  mark('escapes typed');
 
   // 9. Escape: the field clears and the plain walk returns with its gutter.
   setText(spec.word);

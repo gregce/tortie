@@ -35,25 +35,42 @@
  *   11  the attacks drew what they should and raised no toast     the DOM
  *   12  Escape returned the plain walk with its gutter            the DOM
  *   13  the keystroke cost was measured, and the debounce holds   the store
- *   14  the operator's session count did not move                 tmux, read only
+ *   14  a path outside the repository drew only its refusal       the DOM
+ *   15  a repository change did not run the change search again   the store
+ *   16  the operator's session count did not move                 tmux, read only
+ *
+ * ## THE FIX ROUND'S TWO ROWS, 14 and 15
+ *
+ * The verifier typed `file:../gmux-copy/src` and `file:/etc/passwd` into
+ * the real field and each drew 50 rows, the plain walk's first page, with
+ * the gutter hidden and no sentence: the service refused, and the store
+ * fell through to the flat walk. And a line appended to README.md while a
+ * change search's rows were on screen started a second `-S` child and
+ * flipped the button to Stop. Row 14 types both paths; row 15 writes the
+ * spec's `touch` file through the bridge, which is the ONE write this probe
+ * makes into the project, and puts the bytes back, so the copy is left as
+ * it was found.
  *
  * ## SAFETY, ABSOLUTE
  *
  * Without GMUX_TMUX_SOCKET this script re-runs itself through
  * build/harness-socket.mjs, so the socket is always one that script composed
  * and ends afterwards, never `gmux` or `default`. The app gets its own user
- * data directory under the harness directory. The project it opens is READ:
- * the section spawns git log and git show, nothing else, and the script
- * refuses the repository it is itself running from. It spawns no agent and
+ * data directory under the harness directory. The project it opens is read,
+ * apart from row 15's one tracked file, written and put back: the section
+ * spawns git log and git show, nothing else, and the script refuses the
+ * repository it is itself running from. It spawns no agent and
  * spends no token. `-L gmux` appears in exactly one place, a read only
  * session count taken before and after. The Electron goes through
  * build/electron-run.mjs, whose kill is in a finally block.
  *
- * Usage, from the repository root, with a COPY of a Tortie checkout named
- * in the environment (the harness script reads one command and nothing
- * after it, so a `-- --project` on the npm line never arrives):
+ * Usage, from the repository root, with a COPY of a Tortie checkout, or a
+ * copy of git's own repository, named in the environment (the harness
+ * script reads one command and nothing after it, so a `-- --project` on
+ * the npm line never arrives):
  *
  *   P199_PROJECT=/path/to/a/copy/of/gmux npm run probe:p199
+ *   P199_PROJECT=/path/to/a/copy/of/git npm run probe:p199
  *
  * Exit 0 when every row passes, 1 otherwise with every failing row named,
  * 2 when the probe refuses to run.
@@ -78,13 +95,17 @@ function refuse(why) {
   process.exit(2);
 }
 
-const SPEC = {
-  word: 'docs',
-  author: 'Greg',
-  path: 'src/main/git',
-  change: 'runGit',
-  burst: 'the redline'
-};
+/**
+ * What is typed, chosen by what the project IS. A copy of a Tortie checkout
+ * is the first row; git's own repository, 82,130 commits with no commit
+ * graph, is the second, and it is the one the entry names for the keystroke
+ * cost. `touch` is a tracked file written through the bridge while the
+ * change search's rows are on screen, and put back.
+ */
+const SPECS = [
+  { marker: 'src/main/git', word: 'docs', author: 'Greg', path: 'src/main/git', change: 'runGit', burst: 'the redline', touch: 'README.md' },
+  { marker: 'builtin/log.c', word: 'fix', author: 'Junio', path: 'builtin/log.c', change: 'strbuf_addstr', burst: 'the strbuf', touch: 'README.md' }
+];
 const PAGE = 50;
 
 const argv = process.argv.slice(2);
@@ -120,7 +141,9 @@ const project = realpathSync(projectArg);
 if (project === realpathSync(repoRoot)) {
   refuse('the project must be a COPY, not the repository this probe runs from');
 }
-if (!existsSync(join(project, SPEC.path))) refuse(`${project} has no ${SPEC.path}, so it is not a Tortie checkout`);
+const SPEC = SPECS.find((s) => existsSync(join(project, s.marker))) ?? null;
+if (SPEC === null) refuse(`${project} is neither a Tortie checkout nor git's own repository (no ${SPECS.map((s) => s.marker).join(', no ')})`);
+if (!existsSync(join(project, SPEC.touch))) refuse(`${project} has no ${SPEC.touch} to write while the change search is on screen`);
 if (!existsSync(join(project, '.git'))) refuse(`${project} is not a git repository`);
 
 /** The operator's live server, listed and never written. The ONLY place this file names it. */
@@ -363,6 +386,33 @@ if (reading === null || typeof reading !== 'object') {
     `escaped ${String(esc.escaped)}, field ${JSON.stringify(esc.fieldText)}, ${agree('escape', esc.rows ?? [], plainTruth)}, gutter ${String(esc.gutter)}`
   );
 
+  // Fix round, finding 1. A path that leaves the repository draws the
+  // service's refusal and nothing else: zero rows, the sentence where the
+  // rows would be, the query still applied, the gutter hidden, no toast.
+  // At the parent commit both drew the plain walk's first page.
+  const esc2 = reading.escapes ?? {};
+  const REFUSAL = 'Paths must be relative to the repository root.';
+  const refused = (k) => k?.drew === true && Array.isArray(k.rows) && k.rows.length === 0 && k.stub === REFUSAL && k.searchError === REFUSAL && k.query !== null && k.gutter === false && noToast(k);
+  check(
+    14,
+    'a path outside the repository drew nothing but its refusal',
+    refused(esc2.parent) && refused(esc2.absolute),
+    `parent ${String(esc2.parent?.rows?.length)} row(s) stub ${JSON.stringify(esc2.parent?.stub)}; absolute ${String(esc2.absolute?.rows?.length)} row(s) stub ${JSON.stringify(esc2.absolute?.stub)}; toasts ${String((esc2.parent?.toasts ?? []).length + (esc2.absolute?.toasts ?? []).length)}`
+  );
+
+  // Fix round, finding 2. A tracked file written while the change search's
+  // rows are on screen is a repository change the renderer heard, and it
+  // ran nothing: no walk drew, no Stop, no spinner, the rows and the
+  // printed time as the button left them. At the parent commit the same
+  // write started a second -S child and flipped the button to Stop.
+  const rr = reading.reread ?? {};
+  check(
+    15,
+    'a repository change did not run the change search again',
+    rr.written === true && rr.heard === true && rr.heardBefore === false && rr.walks === 0 && rr.sawStop === false && rr.sawLoading === false && rr.msBefore !== null && rr.msAfter === rr.msBefore && same(rr.rowsBefore ?? [], rr.rowsAfter ?? []) && same(rr.rowsAfter ?? [], changeTruth) && rr.buttonAfter === null && rr.query?.change === SPEC.change,
+    `written ${String(rr.written)}, heard ${String(rr.heard)} (before ${String(rr.heardBefore)}), ${String(rr.walks)} walk(s) drew, Stop ${String(rr.sawStop)}, loading ${String(rr.sawLoading)}, time ${JSON.stringify(rr.msBefore)} then ${JSON.stringify(rr.msAfter)}, rows ${String((rr.rowsBefore ?? []).length)} then ${String((rr.rowsAfter ?? []).length)}, states seen ${String((rr.seen ?? []).length)}`
+  );
+
   const keyWalks = timings.filter((t) => !t.label.startsWith('change')).map((t) => t.walkMs).filter((n) => typeof n === 'number');
   const maxWalk = Math.max(...keyWalks);
   const medWalk = [...keyWalks].sort((x, y) => x - y)[Math.floor(keyWalks.length / 2)];
@@ -378,7 +428,7 @@ if (reading === null || typeof reading !== 'object') {
 }
 
 const operatorAfter = operatorSessionCount();
-check(14, 'the operator session count did not move', operatorAfter === operatorBefore, `${String(operatorBefore)} before, ${String(operatorAfter)} after`);
+check(16, 'the operator session count did not move', operatorAfter === operatorBefore, `${String(operatorBefore)} before, ${String(operatorAfter)} after`);
 
 say('');
 say('keystroke timings, walk = the bridge round trip read off the store, wall = keystroke to rows on screen (debounce included):');
