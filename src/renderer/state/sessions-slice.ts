@@ -30,6 +30,10 @@ import type {
 // PHASE 100. The depth the panel opens on. It is a value rather than a type, so
 // the panel and the store cannot disagree about what "the default" is.
 import { REMOTE_SESSION_LINES_DEFAULT } from '@shared/ipc';
+// PHASE 203. A finished sign in says it finished. Nothing about how a session
+// lives or dies changes; one sentence is posted when the sign in session ends.
+import { loginProviderForAgent } from '@shared/logins';
+import { settleSignIns, watchSignIn } from './sign-in-watch';
 // Pure over Session fields; resume.ts imports only types and state/agents,
 // and agents.ts does not import this store, so no cycle closes here.
 import {
@@ -761,6 +765,13 @@ export const createSessionsSlice: StateCreator<
         attentionSince: withAttention(s.attentionSince, sessions),
         endedSeenAt: withEndedAt(s.endedSeenAt, s.sessions, sessions)
       }));
+      // PHASE 203. THE ROUTE A FINISHED SIGN IN ACTUALLY TAKES. A sign in
+      // session runs one command that exits cleanly, `remain-on-exit failed`
+      // closes the pane and the session together, and the activity monitor
+      // only reaps sessions that still have a pane, so reconcile is what
+      // settles it and it lands on `restorable`. Both routes are watched, and
+      // this is the one that fires.
+      settleSignIns(sessions, (kind, text) => get().toast(kind, text));
       // PHASE 90.3. A session on a machine whose folder has no tab yet.
       //
       // Main opens that tab, in `remote-rehome.ts`, when a machine's list comes
@@ -810,6 +821,9 @@ export const createSessionsSlice: StateCreator<
           endedSeenAt: withEndedAt(s.endedSeenAt, s.sessions, sessions)
         };
       });
+      // The second route, for a sign in whose session is reported ended
+      // directly rather than through a whole list.
+      settleSignIns(get().sessions, (kind, text) => get().toast(kind, text));
     },
 
     async createSession({
@@ -972,6 +986,14 @@ export const createSessionsSlice: StateCreator<
           // by `reconcileRemoteTabs` on the next broadcast, so the tab still
           // appears; what is lost is landing on it and the one sentence.
         }
+      }
+      // PHASE 203. WATCH THE SIGN IN, so that the moment it ends a sentence
+      // says whether a credential now exists and the login list behind it is
+      // re read. It watches nothing else: an ordinary create registers no
+      // watch at all.
+      const signInProvider = signIn === true ? loginProviderForAgent(agent) : null;
+      if (signInProvider !== null && login !== undefined && login.length > 0) {
+        watchSignIn(session.id, signInProvider, login);
       }
       get().setActiveSession(session.id);
       return true;
