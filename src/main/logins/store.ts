@@ -685,23 +685,8 @@ export function removeLogin(
  * person's credentials.
  */
 export function strayLoginIds(root: string, provider: LoginProviderId): string[] {
-  let rows: unknown;
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(loginsFileIn(root), 'utf8'));
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return [];
-    }
-    rows = (parsed as Record<string, unknown>)['logins'];
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(rows)) return [];
-  const known = new Set<string>();
-  for (const raw of rows) {
-    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) continue;
-    const id = (raw as Record<string, unknown>)['id'];
-    if (typeof id === 'string') known.add(id);
-  }
+  const known = namedLoginIds(root);
+  if (known === null) return [];
   let entries: string[];
   try {
     entries = readdirSync(loginProviderRootIn(root, provider));
@@ -709,6 +694,43 @@ export function strayLoginIds(root: string, provider: LoginProviderId): string[]
     return [];
   }
   return entries.filter((name) => LOGIN_ID_RE.test(name) && !known.has(name));
+}
+
+/**
+ * Every id the record file names, read RAW, or null when it cannot be read.
+ *
+ * IT IS THE HALF OF {@link strayLoginIds} THAT DECIDES WHAT IS OWNED, split
+ * out in Phase 206's fix round so a second sweeper cannot answer the question
+ * differently. A directory is one thing a removed login leaves behind and it
+ * is not the only one: Tortie's own vault slot and its record row outlive a
+ * directory that has already gone, and the sweep that clears those needs this
+ * same list and this same refusal.
+ *
+ * NULL IS NOT AN EMPTY SET. An absent file, a file that is not JSON and a file
+ * whose `logins` is not an array all answer null, and every caller must read
+ * that as "authorises nothing" rather than as "nothing is owned". Tortie
+ * cannot tell a removal from a lost file, and the two answers differ by the
+ * person's credentials.
+ */
+export function namedLoginIds(root: string): ReadonlySet<string> | null {
+  let rows: unknown;
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(loginsFileIn(root), 'utf8'));
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    rows = (parsed as Record<string, unknown>)['logins'];
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(rows)) return null;
+  const known = new Set<string>();
+  for (const raw of rows) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const id = (raw as Record<string, unknown>)['id'];
+    if (typeof id === 'string') known.add(id);
+  }
+  return known;
 }
 
 /**

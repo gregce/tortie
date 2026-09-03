@@ -676,6 +676,10 @@ if ('error' in live) {
     `${TAG} the default slot's staged place was left holding a credential`
   );
   check(
+    live.residue.vaultNoDirSweptIt,
+    `${TAG} A WHOLE CREDENTIAL STAGED BESIDE A SLOT WHOSE FOLDER HAS GONE IS STILL THERE after a run that observed it: the sweep read the directories on disk and that login has none`
+  );
+  check(
     live.residue.vaultSlotsKept,
     `${TAG} the vault sweep left a staged place behind, or removed a slot that was not one`
   );
@@ -690,12 +694,20 @@ if ('error' in live) {
     `${TAG} A LOGIN THE PERSON REMOVED STILL HAS A CREDENTIAL NOBODY CAN REACH: its keychain item, its slot, its record row or its folder outlived the removal`
   );
   check(
+    live.removal.noDirHeldACredential,
+    `${TAG} the no folder arm planted no credential, so the rest of it is a check over an empty world`
+  );
+  check(
+    live.removal.noDirCleared,
+    `${TAG} A STRAY WHOSE FOLDER HAS ALREADY GONE STILL HAS A CREDENTIAL NOBODY CAN REACH: its keychain item, its slot or its record row outlived the sweep`
+  );
+  check(
     live.removal.bareStrayCleared,
     `${TAG} a stray folder that was never signed into was left behind`
   );
   check(
-    live.removal.finishedCount === 3,
-    `${TAG} the sweep finished ${String(live.removal.finishedCount)} strays rather than the 3 it was given`
+    live.removal.finishedCount === 4,
+    `${TAG} the sweep finished ${String(live.removal.finishedCount)} strays rather than the 4 it was given, being three with a folder and one with none`
   );
   check(
     live.removal.droppedBySanitizer,
@@ -933,8 +945,37 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '    await vaultDiscardStaged(d.vault, slotOf(provider, store.id));',
+        from: '    await vaultDiscardStaged(d.vault, slot);',
         to: '    await Promise.resolve();'
+      }
+    ]
+  },
+  {
+    // PHASE 206 FIX ROUND. The sweep put back on `storesOf` alone, which drops
+    // a login whose folder is not on disk, so a staged place beside a slot
+    // whose directory has already gone is kept for ever. The record file half
+    // is left in place on purpose, because the residue this arm plants is a
+    // crash between the STAGE and the record row's own write, so there is no
+    // row to find it by and the rows index is the only thing that reaches it.
+    name: 'the sweep reading directories alone, so a slot with no folder keeps its residue',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '  for (const row of readLoginsFile(root).file.logins) {',
+        to: "  for (const row of storesOf(root, provider).map((s) => ({ provider, id: s.id ?? 'default' }))) {"
+      }
+    ]
+  },
+  {
+    // PHASE 206 FIX ROUND. The stray finisher put back on the `readdir` alone,
+    // so a stray whose folder has gone while its slot, its row and its scoped
+    // vendor item are all still there is never finished.
+    name: 'the stray finisher reading directories alone, so a stray with no folder is never finished',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    if (id === DEFAULT_SLOT_ID || known.has(id)) continue;',
+        to: '    if (true) continue;'
       }
     ]
   },

@@ -51,6 +51,7 @@ import {
 import { loginDirIn, loginDirOnDisk } from '../logins/dirs';
 import {
   addLogin,
+  namedLoginIds,
   readLoginsFile,
   removeStrayLoginDir,
   strayLoginIds,
@@ -66,6 +67,8 @@ import {
 } from './stores';
 import { safeSwap, type SwapStep } from './swap';
 import {
+  DEFAULT_SLOT_ID,
+  isSlotName,
   slotFor,
   vaultDel,
   vaultDiscardStaged,
@@ -264,17 +267,27 @@ export function observeProvider(
 const swept = new Set<string>();
 
 async function sweepStaged(d: KeepDeps, provider: LoginProviderId): Promise<void> {
+  // PHASE 206. TORTIE'S OWN VAULT IS SWEPT TOO, and it is swept FIRST.
+  // Until this line the sweep reached the vendor's stores and never the
+  // store Tortie owns, so a crash between a slot's stage and its discard
+  // left the whole credential at `<slot>.pending` and only a later
+  // SUCCESSFUL write to that same slot ever removed it. A slot nobody writes
+  // again kept it, which on macOS is a second keychain item holding a
+  // credential. The DEFAULT slot is swept as well, because it is Tortie's
+  // own rolling copy and it has a staged place like every other slot; the
+  // vendor half below still refuses the person's own location by name.
+  //
+  // THE SLOTS ARE READ FROM THE RECORD FILE AS WELL AS FROM THE DIRECTORIES,
+  // which the fix round added. `storesOf` drops a login whose folder is not on
+  // disk, so a staged place beside a slot whose directory has already gone was
+  // kept for ever by a sweep that only walked `storesOf`. The record file is
+  // the durable index of every slot Tortie's own vault has written, so it is
+  // the list that answers this question. A slot named by neither is one no
+  // writer in this domain has ever made.
+  for (const slot of sweepableSlots(d.root, provider)) {
+    await vaultDiscardStaged(d.vault, slot);
+  }
   for (const store of storesOf(d.root, provider)) {
-    // PHASE 206. TORTIE'S OWN VAULT IS SWEPT TOO, and it is swept FIRST.
-    // Until this line the sweep reached the vendor's stores and never the
-    // store Tortie owns, so a crash between a slot's stage and its discard
-    // left the whole credential at `<slot>.pending` and only a later
-    // SUCCESSFUL write to that same slot ever removed it. A slot nobody writes
-    // again kept it, which on macOS is a second keychain item holding a
-    // credential. The DEFAULT slot is swept as well, because it is Tortie's
-    // own rolling copy and it has a staged place like every other slot; the
-    // vendor half below still refuses the person's own location by name.
-    await vaultDiscardStaged(d.vault, slotOf(provider, store.id));
     if (store.dir === null) continue;
     try {
       const target = await storeTarget(d.stores, provider, store.dir);
@@ -285,6 +298,42 @@ async function sweepStaged(d: KeepDeps, provider: LoginProviderId): Promise<void
       // holds, and failing an observe for it would be worse.
     }
   }
+}
+
+/**
+ * Every slot of one provider whose staged place is worth asking about.
+ *
+ * THREE INDEXES AND NOT ONE, because a slot outlives its folder. The default
+ * slot, which every provider has and no folder holds; every ROW in the logins
+ * file, whether or not its folder is on disk, which is the half `storesOf`
+ * drops; and every slot the RECORD FILE names, which is the durable index of
+ * what Tortie's own vault has written and the only one that survives a row
+ * being taken out. Deduplicated, and every one is checked against
+ * {@link isSlotName} before it is used, because half of a slot name is half of
+ * a keychain service name and both files are ones an agent with write access
+ * to the home directory could edit.
+ */
+function sweepableSlots(root: string, provider: LoginProviderId): string[] {
+  const out = new Set<string>([slotOf(provider, null)]);
+  for (const row of readLoginsFile(root).file.logins) {
+    if (row.provider !== provider) continue;
+    const slot = slotOf(provider, row.id);
+    if (isSlotName(slot)) out.add(slot);
+  }
+  for (const slot of recordedSlots(root, provider)) out.add(slot);
+  return [...out];
+}
+
+/** The slots one provider's record file names, refused unless well formed. */
+function recordedSlots(root: string, provider: LoginProviderId): string[] {
+  const { file } = readKeptFile(root);
+  const out: string[] = [];
+  for (const slot of Object.keys(file.slots)) {
+    if (!isSlotName(slot)) continue;
+    if (slot.slice(0, slot.indexOf('.')) !== provider) continue;
+    out.push(slot);
+  }
+  return out;
 }
 
 async function observeOnce(
@@ -855,7 +904,7 @@ async function finishStraysOnce(
   provider: LoginProviderId
 ): Promise<string[]> {
   const done: string[] = [];
-  for (const id of strayLoginIds(d.root, provider)) {
+  for (const id of strayIds(d.root, provider)) {
     try {
       await forgetStores(d, provider, id);
     } catch {
@@ -864,6 +913,44 @@ async function finishStraysOnce(
     if (removeStrayLoginDir(d.root, provider, id)) done.push(id);
   }
   return done;
+}
+
+/**
+ * Every id of one provider that no row names, from BOTH places one can show.
+ *
+ * ## A DIRECTORY IS NOT THE ONLY THING A REMOVED LOGIN LEAVES
+ *
+ * The fix round added the second half. `strayLoginIds` is a `readdir` of the
+ * provider root, so a stray whose FOLDER has gone while its vault slot, its
+ * record row and its scoped vendor item are all still there answered nothing
+ * at all, and the sweep walked past a credential nobody can reach, which is
+ * the exact thing this phase exists to stop. The record file names every slot
+ * Tortie's own vault has written, so it is the second place to look, and an id
+ * it names that no row names is a stray whatever is on disk.
+ *
+ * ## THE REFUSAL IS THE SAME REFUSAL, and it is asked once
+ *
+ * {@link namedLoginIds} answers null when the record of what the person owns
+ * cannot be read, and null authorises NOTHING here rather than authorising
+ * everything. Both halves ask that one function, so the two lists can never
+ * disagree about what is owned. The ids are read raw for the reason
+ * `../logins/store.ts` gives: a row dropped by the sanitizer is still a row
+ * the person added.
+ *
+ * `removeStrayLoginDir` answers false for an id whose directory was never
+ * there, so a stray found only in the record file clears its stores and its
+ * row and is not counted as a directory removed.
+ */
+function strayIds(root: string, provider: LoginProviderId): string[] {
+  const out = new Set<string>(strayLoginIds(root, provider));
+  const known = namedLoginIds(root);
+  if (known === null) return [...out];
+  for (const slot of recordedSlots(root, provider)) {
+    const id = slot.slice(slot.indexOf('.') + 1);
+    if (id === DEFAULT_SLOT_ID || known.has(id)) continue;
+    out.add(id);
+  }
+  return [...out];
 }
 
 /** {@link finishStraysOnce}, under the lock, for a caller that holds none. */

@@ -203,14 +203,28 @@ export async function vaultGet(
  * blocking, because it sits inside a 0600 directory beside credentials Tortie
  * already holds; it should still not survive a crash, which is what
  * `../credentials/keep.ts`'s once per run sweep now uses this for.
+ *
+ * ## IT READS BEFORE IT DELETES, and that is not an optimisation
+ *
+ * The sweep runs in EVERY profile, being the person's own and every scratch
+ * profile a probe or a harness run makes, and on macOS this backend's store is
+ * the person's login keychain rather than anything inside the profile. So a
+ * delete asked for here is a delete asked of a store the profile does not own.
+ * Asking for one with no evidence there is anything to remove is a reach into
+ * the person's keychain namespace on every launch of every probe in this tree,
+ * which is what the Phase 206 verifier measured. A `get` that answers null
+ * ends the call, and the delete is only ever asked for a staged place this
+ * backend has just said is there.
  */
 export async function vaultDiscardStaged(
   backend: VaultBackend,
   slot: string
 ): Promise<void> {
   if (!isSlotName(slot)) return;
+  const staged = stagedSlotFor(slot);
   try {
-    await backend.del(stagedSlotFor(slot));
+    if ((await backend.get(staged)) === null) return;
+    await backend.del(staged);
   } catch {
     // A leftover that will not go changes nothing about what the slot holds.
   }

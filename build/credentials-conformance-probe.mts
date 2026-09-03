@@ -938,6 +938,15 @@ try {
     // own location and has a staged place like every other slot.
     const defaultStaged = vault.stagedSlotFor(vault.slotFor('codex', null));
     d.vault.slots.set(defaultStaged, codexCredential('frank', '6'));
+    // AND A SLOT WHOSE DIRECTORY HAS GONE (Phase 206 fix round). `storesOf`
+    // drops a login whose folder is not on disk, so a sweep that walks only
+    // that list keeps this staged credential for ever. The row is still in
+    // logins.json, so this is not a stray: it is a live login with no folder.
+    addLogin(root, 'codex', 'Gone');
+    const gone = readLoginsFile(root).file.logins.find((l) => l.name === 'Gone');
+    const goneStaged = vault.stagedSlotFor(vault.slotFor('codex', gone?.id ?? 'x'));
+    d.vault.slots.set(goneStaged, codexCredential('grace', '7'));
+    rmSync(loginDirIn(root, 'codex', gone?.id ?? 'x'), { recursive: true, force: true });
 
     // AND THE NEXT RUN SWEEPS A STORE NOBODY WRITES AGAIN. A fresh module is
     // a fresh process as far as the once per run set is concerned.
@@ -951,6 +960,8 @@ try {
       vaultCrashLeftACredential: vaultLeftBehind === codexCredential('erin', '5'),
       vaultSweptIt: !d.vault.slots.has(idleStaged),
       vaultDefaultSweptIt: !d.vault.slots.has(defaultStaged),
+      // AND THE ONE WHOSE FOLDER HAS GONE, which is the fix round's addition.
+      vaultNoDirSweptIt: !d.vault.slots.has(goneStaged),
       // AND THE SWEEP TOOK THE STAGED PLACE AND NEVER THE SLOT. The idle slot
       // never held anything, so the one to watch is a slot that did.
       vaultSlotsKept: [...d.vault.slots.keys()].every(
@@ -1290,6 +1301,15 @@ try {
     const linkId = '3333333333333333';
     symlinkSync(victim, loginDirIn(root, 'claude', linkId));
 
+    // SHAPE 6. A STRAY WHOSE DIRECTORY IS NOT THERE (Phase 206 fix round).
+    // Its keychain item, its vault slot and its record row are all still
+    // holding a credential and no row names it, so it is a stray by every
+    // measure except the one the sweep used to take, which was a `readdir` of
+    // the provider root. It never gets a directory here at all.
+    const noDirId = '5555555555555555';
+    const noDirService = furnish(noDirId, 'nodir');
+    const noDirBefore = holds(noDirId);
+
     const finished = await keep.finishStrayLogins(d, 'claude');
 
     // SHAPE 5. A REMOVE INTERRUPTED BETWEEN ITS TWO HALVES, in the order the
@@ -1327,6 +1347,15 @@ try {
       interruptedLeftNoCredential:
         !afterFirstHalf.item && !afterFirstHalf.slot && !afterFirstHalf.row,
       interruptedLeftTheFolder: afterFirstHalf.dir,
+      // SHAPE 6. THE STRAY WITH NO DIRECTORY. It held a credential in all
+      // three of the places that outlive a folder, and all three are cleared.
+      noDirHeldACredential:
+        noDirBefore.item && noDirBefore.slot && noDirBefore.row && !noDirBefore.dir,
+      noDirCleared:
+        !security.items.has(noDirService) &&
+        !d.vault.slots.has(vault.slotFor('claude', noDirId)) &&
+        kept.readKeptFile(root).file.slots[vault.slotFor('claude', noDirId)] ===
+          undefined,
       // THE PERSON'S OWN ITEM, through all of it.
       ownItemUntouched:
         security.items.get('Claude Code-credentials')?.payload === OWN,
