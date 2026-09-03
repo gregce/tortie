@@ -36,6 +36,15 @@
  * refuses to let a group in that set claim a name. It is one set of values
  * this reader keeps rather than discards, and nothing about the fence moves.
  *
+ * AND THE OTHER BUILD TOOL DECLARES THE SAME THING, WHICH IS THE SECOND FIX
+ * ROUND. This reader's `ownGroups` used to hold the poms' identity alone, so a
+ * Gradle repository had no identity at all: moshi writes
+ * `group = "com.squareup.moshi"` at the root of its `build.gradle.kts` and also
+ * names `com.squareup.moshi:moshi` as its own japicmp baseline, so the
+ * coordinate read as somebody else's and 137 of its own imports came back
+ * `external`. ./gradle.ts reads that half now and it is JOINED here, so one
+ * set answers for both build tools and the Java arm asks one question.
+ *
  * A pom is XML rather than a program, so nothing here is guessing at a value
  * some code would have computed; what it does refuse is a coordinate written
  * as a property reference such as `${project.groupId}`, because that names a
@@ -61,8 +70,9 @@ export interface JavaManifest {
   /** Declared Maven group ids, exactly as written. */
   groups: Set<string>;
   /**
-   * The group ids the repository's own poms declare for THEMSELVES, being a
-   * top level `<groupId>` and a `<parent>`'s, exactly as written.
+   * The group ids the repository declares for ITSELF, being a pom's top level
+   * `<groupId>`, a `<parent>`'s, a Gradle `group` assignment written as a
+   * literal and a `gradle.properties` `GROUP` row, exactly as written.
    *
    * A group here can never admit `external` on its own, whichever dependency
    * also carries it. See the identity paragraph on this face.
@@ -133,7 +143,9 @@ export function readJavaManifest(
 ): JavaManifest {
   const out: JavaManifest = {
     groups: new Set(gradle.groups),
-    ownGroups: new Set(),
+    // The Gradle half of the identity, read by ./gradle.ts from a `group`
+    // assignment or a `gradle.properties` row. See the identity paragraph.
+    ownGroups: new Set(gradle.ownGroups),
     artifacts: new Set(gradle.artifacts),
     android: gradle.android,
     present: gradle.present

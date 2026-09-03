@@ -249,3 +249,117 @@ describe('a group the repository declares for itself', () => {
     expect([...java.groups]).toEqual(['org.apache.commons']);
   });
 });
+
+/**
+ * THE OTHER BUILD TOOL'S DECLARATION OF IDENTITY, WHICH IS PHASE 184'S SECOND
+ * FIX ROUND.
+ *
+ * square/moshi writes `group = "com.squareup.moshi"` at the root of its
+ * `build.gradle.kts` and names `com.squareup.moshi:moshi` as its own japicmp
+ * baseline, while its build files also carry the shorter `com.squareup`. So a
+ * coordinate claimed the repository's own namespace and 137 real
+ * `com.squareup.moshi.*` imports answered `external`, which is a false green
+ * on every must-not they cross. Both spellings of the declaration are pinned
+ * here, and retrofit's `group = JavaBasePlugin.DOCUMENTATION_GROUP` is pinned
+ * as the one that must NOT be read, because it is a value Gradle would compute.
+ */
+describe('a group a Gradle build declares for itself', () => {
+  let gradleRoot: string;
+  const GRADLE_FILES = [
+    'build.gradle.kts',
+    'gradle.properties',
+    'legacy/build.gradle',
+    'moshi/src/main/java/com/squareup/moshi/Types.java',
+    'examples/src/main/java/com/squareup/moshi/recipes/Recipe.java'
+  ];
+
+  beforeAll(() => {
+    gradleRoot = mkdtempSync(join(tmpdir(), 'gmux-arch-java-gradle-'));
+    const put = (relPath: string, text: string): void => {
+      const at = join(gradleRoot, relPath);
+      mkdirSync(at.slice(0, at.lastIndexOf('/')), { recursive: true });
+      writeFileSync(at, text);
+    };
+    put(
+      'build.gradle.kts',
+      [
+        'subprojects {',
+        '  group = "com.squareup.moshi"',
+        '}',
+        'dependencies {',
+        '  implementation("com.squareup:javapoet:1.13.0")',
+        '  baseline("com.squareup.moshi:moshi:1.15.2")',
+        '}'
+      ].join('\n')
+    );
+    put('gradle.properties', 'VERSION_NAME=2.0.0-SNAPSHOT\nGROUP=com.squareup.okio\n');
+    put(
+      'legacy/build.gradle',
+      ["group 'com.example.legacy'", 'group = JavaBasePlugin.DOCUMENTATION_GROUP'].join('\n')
+    );
+    put(
+      'moshi/src/main/java/com/squareup/moshi/Types.java',
+      'package com.squareup.moshi;\npublic class Types {}\n'
+    );
+    put(
+      'examples/src/main/java/com/squareup/moshi/recipes/Recipe.java',
+      'package com.squareup.moshi.recipes;\nclass Recipe {}\n'
+    );
+  });
+
+  afterAll(() => {
+    rmSync(gradleRoot, { recursive: true, force: true });
+  });
+
+  const gradleAnswer = (
+    specifier: string
+  ): { toPath: string | null; resolution: string } =>
+    resolveImport(
+      specifier,
+      'examples/src/main/java/com/squareup/moshi/recipes/Recipe.java',
+      'java',
+      archResolveContext(readArchManifests(gradleRoot), GRADLE_FILES)
+    );
+
+  it('reads both spellings, and never a value the build would compute', () => {
+    const manifests = readArchManifests(gradleRoot);
+    expect([...manifests.java.ownGroups].sort()).toEqual([
+      'com.example.legacy',
+      'com.squareup.moshi',
+      'com.squareup.okio'
+    ]);
+    expect([...manifests.java.groups].sort()).toEqual([
+      'com.squareup',
+      'com.squareup.moshi'
+    ]);
+  });
+
+  it('resolves the repository own type a shorter coordinate also claims', () => {
+    expect(gradleAnswer('com.squareup.moshi.Types').toPath).toBe(
+      'moshi/src/main/java/com/squareup/moshi/Types.java'
+    );
+  });
+
+  it('greys a name under its own group rather than calling it external', () => {
+    expect(gradleAnswer('com.squareup.moshi.JsonAdapter').resolution).toBe(
+      'unresolved'
+    );
+  });
+
+  it('still calls a name under somebody else coordinate external', () => {
+    expect(gradleAnswer('com.squareup.javapoet.TypeSpec').resolution).toBe(
+      'external'
+    );
+  });
+
+  it('leaves the Kotlin arm exactly where Phase 180 left it', () => {
+    expect(
+      resolveImport(
+        'com.squareup.moshi.JsonAdapter',
+        'examples/src/main/kotlin/Recipe.kt',
+        'kotlin',
+        archResolveContext(readArchManifests(gradleRoot), GRADLE_FILES)
+      ).resolution
+    ).toBe('external');
+  });
+});

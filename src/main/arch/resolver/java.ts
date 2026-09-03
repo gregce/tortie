@@ -60,13 +60,36 @@
  * 3. `org.apache.commons.text.*` then answers `unresolved` rather than
  * `external`, which is the grey side and the safe one.
  *
- * WHAT THAT FIX DOES NOT REACH, AND IT IS ON THIS FACE BECAUSE IT IS REAL. It
- * reads Maven's declaration of identity and NOT Gradle's, which lives in a
- * `group` assignment or a `GROUP` property this resolver does not read. And it
- * cannot help a JVM repository whose own types are written in another
- * language: square/okio's 87 grey `okio.*` imports are grey because this index
- * holds `.java` files and `okio.Buffer` is declared in `Buffer.kt`, which is
- * the cross language limit and not this one.
+ * BOTH BUILD TOOLS DECLARE THAT IDENTITY AND BOTH ARE READ, WHICH IS THE
+ * SECOND FIX ROUND. Maven's `<groupId>` was read from the first round;
+ * ./gradle.ts now reads a literal `group` assignment and a `gradle.properties`
+ * `GROUP` row beside it. moshi is the case that forced it: it writes
+ * `group = "com.squareup.moshi"` and its own japicmp baseline names
+ * `com.squareup.moshi:moshi`, so 137 of its own imports answered `external`,
+ * and an `external` is dropped from BOTH sides of the checker's ledger, which
+ * is a false green on every must-not those imports cross. Skipping the
+ * matching coordinate was not enough on its own either, because moshi's build
+ * files also name the bare group `com.squareup`: a specifier UNDER a group the
+ * repository publishes is refused whatever else claims it.
+ *
+ * WHAT THAT STILL DOES NOT REACH, AND IT IS ON THIS FACE BECAUSE IT IS REAL.
+ * A JVM repository whose own types are written in another language. This index
+ * holds `.java` files, so square/okio's 87 `okio.*` imports find nothing:
+ * `okio.Buffer` is declared in `Buffer.kt`. They answer `unresolved` because
+ * okio's `gradle.properties` publishes `com.squareup.okio` and nothing else
+ * claims the head `okio`, and a repository whose own coordinate this reader
+ * CANNOT see would have them answer `external` instead, which is the grey side
+ * lost. That is the cross language limit and it is not this arm's to fix: the
+ * answer is a Kotlin file and this arm indexes Java.
+ *
+ * AND THE SAME LIMIT HAS A SECOND SHAPE, MEASURED AT ZERO. A type whose file
+ * sits outside every source root, being generated source under a directory the
+ * package does not spell, is not found by the convention, and a coordinate that
+ * claims the name then answers `external` about the repository's own code. It
+ * fires on none of gson, retrofit, commons-lang, commons-collections, jsoup,
+ * junit4, okio or moshi, checked against an index built from every `.java`
+ * file's own `package` declaration, so it is a stated limit rather than a
+ * defect anybody is paying for.
  *
  * NOTHING HERE SPAWNS ANYTHING. Set membership against the caller's file list
  * plus the names ./gradle.ts and ./maven.ts read. No specifier reaches an argv.
@@ -172,6 +195,16 @@ function claimedExternally(
     if (head === platform || two === platform) return true;
   }
   const java = ctx.manifests.java;
+  // A NAME THIS REPOSITORY PUBLISHES UNDER IS ITS OWN, WHATEVER ELSE CLAIMS
+  // IT, and skipping the matching coordinate alone was not enough. moshi
+  // publishes `com.squareup.moshi` and its build files ALSO name the bare
+  // group `com.squareup`, so rule 1 claimed `com.squareup.moshi.JsonAdapter`
+  // through the shorter coordinate and 137 of the repository's own imports
+  // answered `external`. A specifier under a group the repository declares for
+  // itself is refused here, before any coordinate is asked.
+  for (const own of java.ownGroups) {
+    if (spec === own || spec.startsWith(`${own}.`)) return false;
+  }
   if (head === 'android' && java.android) return true;
   for (const group of java.groups) {
     // A GROUP THE REPOSITORY DECLARES FOR ITSELF CLAIMS NOTHING, however many
