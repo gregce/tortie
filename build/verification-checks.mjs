@@ -564,6 +564,12 @@ export const CHECKS = [
   // every colour read off the DOM. `--self-test` proves the grader on
   // fixtures and launches nothing.
   electron('probe:p207'),
+  // Phase 210. build/probe-p210-ramp.mjs: TWO Electrons one after the other
+  // on one scratch profile and the gmux-p210 socket, one shell session and
+  // one file in the editor, six frames read off six surfaces, then the
+  // SETTINGS window read for the resting face. Spawns no agent, spends no
+  // token, opens no keychain.
+  electron('probe:p210'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a

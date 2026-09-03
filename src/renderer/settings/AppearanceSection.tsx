@@ -71,12 +71,13 @@ import {
   sanitizeChromeShade
 } from '@shared/settings';
 import { shippedBaseNow } from '../theme/apply';
+import type { FloorFailure } from '../theme/floors';
 import { deriveOverrides } from '../theme/derive';
 import {
   DEPTH_STOPS,
   SHADE_STOPS,
   depthRange,
-  frameGrid,
+  frameFailure,
   refusalSentence,
   shadeRange
 } from '../theme/frame-stops';
@@ -425,37 +426,32 @@ function FrameShapeRows(): React.JSX.Element {
     selectChromeDepth
   );
   const base = shippedBaseNow();
-  // The 49 pair grid depends on the hue and on nothing else, because a stop
-  // is offered only when it holds at all three contrast levels and all four
-  // highlight schemes. So a drag on either slider recomputes nothing, and
-  // changing the contrast does not move the sliders under the pointer. The
-  // control and `npm run conformance:hue` ask the SAME predicate, so the edge
-  // a person meets is the edge the gate walks.
-  const grid = React.useMemo(
-    () => (base === null ? null : frameGrid(base, hue)),
-    [base, hue]
-  );
-  const ranges =
-    grid === null
+  // The stops on offer come from the pinned region, so they cost nothing and
+  // do not move when a person changes their colour or their contrast. The
+  // REASON a slider stopped is measured live, at the composition in front of
+  // them, through the shipping derivation and the shipping floor predicate.
+  const ranges = { shade: shadeRange(depth), depth: depthRange(shade) };
+  const context = {
+    highlightScheme: settings.highlightScheme,
+    contrastLevel: settings.contrastLevel
+  };
+  const why = (chromeShade: number, chromeDepth: number): FloorFailure | null =>
+    base === null
       ? null
-      : { shade: shadeRange(grid, depth), depth: depthRange(grid, shade) };
+      : frameFailure(context, base, { chromeHue: hue, chromeShade, chromeDepth });
   const swatches = hueSwatches(settings, hue, shade, depth);
   const atDefault =
     hue === DEFAULT_CHROME_HUE &&
     shade === DEFAULT_CHROME_SHADE &&
     depth === DEFAULT_CHROME_DEPTH;
   const shadeNote =
-    ranges === null
-      ? ''
-      : shade <= ranges.shade.min
-        ? refusalSentence('darker', ranges.shade.below, ranges.shade.belowElsewhere)
-        : refusalSentence('lighter', ranges.shade.above, ranges.shade.aboveElsewhere);
+    shade <= ranges.shade.min
+      ? refusalSentence('darker', why(ranges.shade.min - 1, depth), ranges.shade.belowElsewhere, 'step')
+      : refusalSentence('lighter', why(ranges.shade.max + 1, depth), ranges.shade.aboveElsewhere, 'chromatic');
   const depthNote =
-    ranges === null
-      ? ''
-      : depth <= ranges.depth.min
-        ? refusalSentence('less depth', ranges.depth.below, ranges.depth.belowElsewhere)
-        : refusalSentence('more depth', ranges.depth.above, ranges.depth.aboveElsewhere);
+    depth <= ranges.depth.min
+      ? refusalSentence('less depth', why(shade, ranges.depth.min - 1), ranges.depth.belowElsewhere, 'step')
+      : refusalSentence('more depth', why(shade, ranges.depth.max + 1), ranges.depth.aboveElsewhere, 'chromatic');
   return (
     <>
       <StopSliderRow
@@ -463,8 +459,8 @@ function FrameShapeRows(): React.JSX.Element {
         caption="How dark the frame is. The shipped frame is a point on this line, and it is where it starts."
         min={SHADE_STOPS[0] ?? 0}
         max={SHADE_STOPS[SHADE_STOPS.length - 1] ?? 0}
-        edgeMin={ranges?.shade.min ?? (SHADE_STOPS[0] ?? 0)}
-        edgeMax={ranges?.shade.max ?? (SHADE_STOPS[SHADE_STOPS.length - 1] ?? 0)}
+        edgeMin={ranges.shade.min}
+        edgeMax={ranges.shade.max}
         draft={shade}
         onPick={pickShade}
         note={shadeNote}
@@ -474,8 +470,8 @@ function FrameShapeRows(): React.JSX.Element {
         caption="How far the panels and the hairlines stand apart from the background."
         min={DEPTH_STOPS[0] ?? 0}
         max={DEPTH_STOPS[DEPTH_STOPS.length - 1] ?? 0}
-        edgeMin={ranges?.depth.min ?? (DEPTH_STOPS[0] ?? 0)}
-        edgeMax={ranges?.depth.max ?? (DEPTH_STOPS[DEPTH_STOPS.length - 1] ?? 0)}
+        edgeMin={ranges.depth.min}
+        edgeMax={ranges.depth.max}
         draft={depth}
         onPick={pickDepth}
         note={depthNote}

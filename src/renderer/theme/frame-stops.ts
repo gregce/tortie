@@ -8,22 +8,23 @@
  * stopping there and a few words saying why, rather than being accepted and
  * quietly clamped into something else.
  *
- * The refusal is measured, not tabled. Every stop is put through the SHIPPING
- * derivation and the SHIPPING floor predicate, which is the same pair
- * `npm run conformance:hue` walks, so the control and the gate can never
- * disagree about where the edge is. The gate has a rule for exactly that,
- * and it went red 6,937 times while this file and the walk read a slack of
- * zero differently.
+ * WHERE THE EDGE COMES FROM. The region is the worst case over EVERY WHOLE
+ * DEGREE of the circle, all three contrast levels and all four highlight
+ * schemes, because the phase's promise is that the five appearance settings
+ * compose in any order: a frame chosen at Normal that broke a floor the
+ * moment Contrast went to High would not keep it, and neither would one that
+ * held at Graphite and broke at Ocean. That is 61,446 derivations, which no
+ * control can walk while a person drags a slider, so the region is the table
+ * `FRAME_REGION` in ./presets.ts and `npm run conformance:hue` rule 15
+ * asserts on every run that the table is exactly what the exhaustive walk
+ * measures. The sliders therefore do not change length when a person changes
+ * their colour or their contrast, which is also the better face.
  *
- * THE REGION IS JUDGED AT EVERY CONTRAST LEVEL AND EVERY HIGHLIGHT SCHEME,
- * not at the two the person happens to have set. The phase's promise is that
- * the five appearance settings compose in any order, and a frame chosen at
- * Normal that broke a floor the moment Contrast went to High would not keep
- * it. So a stop is offered only when it holds at all twelve, which also
- * means the sliders do not change length when a person changes contrast.
- * Forty nine pairs by twelve is 588 derivations at about a tenth of a
- * millisecond, and the whole grid depends on nothing but the hue, so the
- * caller memoises it there.
+ * The REASON a slider stopped is measured live, through the SHIPPING
+ * derivation and the SHIPPING floor predicate, at the composition in front
+ * of the person. That predicate is the same one the walk compares itself
+ * against, and the gate has a rule for their agreement; it went red 6,937
+ * times while the two read a slack of zero differently.
  *
  * THE FEASIBLE SET IS CONTIGUOUS ON EACH AXIS, measured over every whole
  * degree of the circle and all three contrast levels, so a first and a last
@@ -38,10 +39,15 @@ import {
   CHROME_SHADE_MAX,
   CHROME_SHADE_MIN,
   CONTRAST_LEVELS,
-  HIGHLIGHT_SCHEMES
+  DEFAULT_CHROME_DEPTH,
+  DEFAULT_CHROME_SHADE,
+  HIGHLIGHT_SCHEMES,
+  sanitizeChromeDepth,
+  sanitizeChromeShade
 } from '@shared/settings';
 import { deriveOverrides } from './derive';
 import { firstFloorFailure, type FloorFailure } from './floors';
+import { FRAME_REGION, type FrameRegionRow } from './presets';
 
 /** The frame settings one reading is about. */
 export interface FrameChoice {
@@ -115,90 +121,49 @@ export interface StopRange {
   /** The lowest and highest stop that keeps every floor. */
   min: number;
   max: number;
-  /** Why the axis stops there, from the first stop past each end. */
-  below: FloorFailure | null;
-  above: FloorFailure | null;
   /** Does the stop past that end hold at some stop of the OTHER axis? */
   belowElsewhere: boolean;
   aboveElsewhere: boolean;
 }
 
-/**
- * The whole 49 pair grid at one hue: which pairs hold everywhere, and the
- * floor the first refused one breaks. One object, because both axes read it
- * and computing it twice would be 1,176 derivations for 588 answers.
- */
-export interface FrameGrid {
-  holds: (shade: number, depth: number) => boolean;
-  failure: (shade: number, depth: number) => FloorFailure | null;
+function rowFor(shade: number): FrameRegionRow {
+  return (
+    FRAME_REGION.find((row) => row.shade === shade) ??
+    FRAME_REGION[FRAME_REGION.length - 1] ?? { shade: 0, minDepth: 0, maxDepth: 0 }
+  );
 }
 
-export function frameGrid(
-  base: Readonly<Record<string, string>>,
-  chromeHue: number
-): FrameGrid {
-  const failures = new Map<string, FloorFailure | null>();
-  for (const chromeShade of SHADE_STOPS) {
-    for (const chromeDepth of DEPTH_STOPS) {
-      failures.set(
-        `${String(chromeShade)},${String(chromeDepth)}`,
-        frameFailureAnywhere(base, { chromeHue, chromeShade, chromeDepth })
-      );
-    }
-  }
-  const at = (shade: number, depth: number): FloorFailure | null =>
-    failures.get(`${String(shade)},${String(depth)}`) ?? null;
-  return {
-    holds: (shade, depth) => at(shade, depth) === null,
-    failure: at
-  };
+/** Does this pair sit inside the region? */
+export function frameIsOffered(shade: number, depth: number): boolean {
+  const row = rowFor(sanitizeChromeShade(shade));
+  const stop = sanitizeChromeDepth(depth);
+  return stop >= row.minDepth && stop <= row.maxDepth;
 }
 
-function rangeOver(
-  stops: readonly number[],
-  otherStops: readonly number[],
-  holdsAt: (stop: number, other: number) => boolean,
-  failureAt: (stop: number, other: number) => FloorFailure | null,
-  other: number
-): StopRange {
-  const ok = stops.filter((stop) => holdsAt(stop, other));
-  const min = ok[0] ?? stops[0] ?? 0;
-  const max = ok[ok.length - 1] ?? stops[stops.length - 1] ?? 0;
-  const under = min - 1;
-  const over = max + 1;
-  const hasUnder = stops.includes(under);
-  const hasOver = stops.includes(over);
+/** The shade stops on offer at this depth. */
+export function shadeRange(depth: number): StopRange {
+  const ok = SHADE_STOPS.filter((shade) => frameIsOffered(shade, depth));
+  const min = ok[0] ?? DEFAULT_CHROME_SHADE;
+  const max = ok[ok.length - 1] ?? DEFAULT_CHROME_SHADE;
   return {
     min,
     max,
-    below: hasUnder ? failureAt(under, other) : null,
-    above: hasOver ? failureAt(over, other) : null,
-    belowElsewhere:
-      hasUnder && otherStops.some((alt) => holdsAt(under, alt)),
-    aboveElsewhere: hasOver && otherStops.some((alt) => holdsAt(over, alt))
+    belowElsewhere: DEPTH_STOPS.some((alt) => frameIsOffered(min - 1, alt)),
+    aboveElsewhere: DEPTH_STOPS.some((alt) => frameIsOffered(max + 1, alt))
   };
 }
 
-/** The shade stops on offer at this hue and depth. */
-export function shadeRange(grid: FrameGrid, depth: number): StopRange {
-  return rangeOver(
-    SHADE_STOPS,
-    DEPTH_STOPS,
-    (shade, alt) => grid.holds(shade, alt),
-    (shade, alt) => grid.failure(shade, alt),
-    depth
-  );
-}
-
-/** The depth stops on offer at this hue and shade. */
-export function depthRange(grid: FrameGrid, shade: number): StopRange {
-  return rangeOver(
-    DEPTH_STOPS,
-    SHADE_STOPS,
-    (depth, alt) => grid.holds(alt, depth),
-    (depth, alt) => grid.failure(alt, depth),
-    shade
-  );
+/** The depth stops on offer at this shade. */
+export function depthRange(shade: number): StopRange {
+  const ok = DEPTH_STOPS.filter((depth) => frameIsOffered(shade, depth));
+  const min = ok[0] ?? DEFAULT_CHROME_DEPTH;
+  const max = ok[ok.length - 1] ?? DEFAULT_CHROME_DEPTH;
+  return {
+    min,
+    max,
+    belowElsewhere: SHADE_STOPS.some((alt) => frameIsOffered(alt, min - 1)),
+    aboveElsewhere: SHADE_STOPS.some((alt) => frameIsOffered(alt, max + 1))
+  };
 }
 
 /**
@@ -213,9 +178,13 @@ export function depthRange(grid: FrameGrid, shade: number): StopRange {
 export function refusalSentence(
   direction: 'darker' | 'lighter' | 'less depth' | 'more depth',
   failure: FloorFailure | null,
-  rescuedByTheOther: boolean
+  rescuedByTheOther: boolean,
+  // The family the REGION says binds at this end. It is what the sentence
+  // falls back to when the live composition happens to be kinder than the
+  // worst hue and contrast the region was measured over, because the region
+  // is the promise and the live reading is only the explanation.
+  fallback: FloorFailure['family']
 ): string {
-  if (failure === null) return '';
   const lead = direction === 'darker' || direction === 'lighter'
     ? direction.charAt(0).toUpperCase() + direction.slice(1)
     : direction === 'less depth'
@@ -232,7 +201,7 @@ export function refusalSentence(
             : 'a darker shade';
     return `${lead} needs ${other}.`;
   }
-  switch (failure.family) {
+  switch (failure?.family ?? fallback) {
     case 'order':
     case 'step':
       return `${lead} renders two panels the same color.`;

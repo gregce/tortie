@@ -5,6 +5,11 @@
  * and reads nothing until the probe calls a method on it. Nothing here runs
  * in a normal launch.
  *
+ * PHASE 210 added the two ramp stops to the same drive rather than writing a
+ * second one, because the surfaces to read and the way to read them did not
+ * change: only the settings that move them did. The shade and the depth go
+ * through the same bridge and the same broadcast.
+ *
  * THE PROBE STAYS ON THE SHIPPED PATH. A hue is set through the same
  * settings bridge the Appearance slider uses, the applier reacts to the same
  * broadcast, and every colour is read back off the DOM as the compositor
@@ -33,6 +38,9 @@ export interface P207Paint {
 export interface P207Reading {
   /** The persisted hue, as the settings bridge answers it. */
   chromeHue: number;
+  /** The persisted ramp stops (Phase 210), from the same answer. */
+  chromeShade: number;
+  chromeDepth: number;
   /** The synthetic ground in effect, 0 in every real launch. */
   groundLift: number;
   /** What the applier last published. */
@@ -102,6 +110,8 @@ async function readNow(): Promise<P207Reading> {
   const state = useChromeTheme.getState();
   return {
     chromeHue: settings?.chromeHue ?? Number.NaN,
+    chromeShade: settings?.chromeShade ?? Number.NaN,
+    chromeDepth: settings?.chromeDepth ?? Number.NaN,
     groundLift: probeGroundLiftNow(),
     canvas: state.canvas,
     textDark: state.textDark,
@@ -128,6 +138,8 @@ export interface P207Drive {
     highlightScheme?: 'blue' | 'teal' | 'purple' | 'slate';
     contrastLevel?: 'normal' | 'raised' | 'high';
     chromeHue?: number;
+    chromeShade?: number;
+    chromeDepth?: number;
   }): Promise<P207Reading>;
   /** Set the synthetic ground and wait for the applier to land it. */
   ground(lift: number): Promise<P207Reading>;

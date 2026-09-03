@@ -212,6 +212,41 @@ export const TEXT_PINS: readonly TextPin[] = [
 ];
 
 /**
+ * THE OFFERED REGION (Phase 210): which shade and depth pairs a person may
+ * choose, as the first and last depth stop for each shade stop.
+ *
+ * IT IS A CONSTANT ON PURPOSE, and the gate is what keeps it true. The
+ * region is the worst case over EVERY WHOLE DEGREE of the circle, all three
+ * contrast levels and all four highlight schemes, which is 61,446
+ * derivations: the control cannot walk that while a person drags a slider,
+ * and walking a smaller set would make the sliders offer a stop that another
+ * hue breaks. So the table is pinned here and `npm run conformance:hue`
+ * rule 15 asserts, on every run, that it is exactly what the exhaustive walk
+ * measures. A change to either axis moves this table or turns the gate red.
+ *
+ * The two edges are different floors. The DARK end is the RENDERED STEP:
+ * near black, eight bits run out before the ramp does, so the darkest shades
+ * need the depth widened to keep their rungs apart at all. The LIGHT end is
+ * the git decorations on `--bg-active`, which this phase refuses to move, so
+ * the lighter shades need the depth narrowed.
+ */
+export interface FrameRegionRow {
+  shade: number;
+  minDepth: number;
+  maxDepth: number;
+}
+
+export const FRAME_REGION: readonly FrameRegionRow[] = [
+  { shade: -4, minDepth: 1, maxDepth: 3 },
+  { shade: -3, minDepth: -2, maxDepth: 3 },
+  { shade: -2, minDepth: -3, maxDepth: 3 },
+  { shade: -1, minDepth: -3, maxDepth: 2 },
+  { shade: 0, minDepth: -3, maxDepth: 1 },
+  { shade: 1, minDepth: -3, maxDepth: 0 },
+  { shade: 2, minDepth: -3, maxDepth: 0 }
+];
+
+/**
  * Chromatic tokens whose chroma lifts so muted hues separate on a dim
  * display. `--status-idle` and `--status-exited` are near-neutral grays and
  * stay out. The scheme applies before this lift, so the lift acts on the

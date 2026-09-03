@@ -295,6 +295,11 @@ const ABLATIONS = [
     edits: [["  for (const [a, b] of RENDERED_STEP_PAIRS) {", "  for (const [a, b] of []) {"]]
   },
   {
+    name: 'the region table offering one stop the walk refuses',
+    file: 'renderer/theme/presets.ts',
+    edits: [["  { shade: 0, minDepth: -3, maxDepth: 1 },", "  { shade: 0, minDepth: -3, maxDepth: 2 },"]]
+  },
+  {
     name: 'the depth factor read one stop along the table',
     file: 'shared/chrome-ramp.ts',
     edits: [
@@ -640,6 +645,20 @@ function pin(a) {
     }
     if (!cell.feasible) seen.ok = false;
     region.set(key, seen);
+  }
+  // The SHIPPING table the control offers from must be this region too. The
+  // walk proves the region; this proves the sliders offer it. Without this the
+  // two could drift and rule 15 would still be green.
+  for (const shade of a.rampStops.shades) {
+    const want = REGION[String(shade)];
+    const row = a.regionTable.find((r) => r.shade === shade);
+    if (row === undefined) problem(`r15t-${String(shade)}`, `rule 15: the shipping region table has no row for shade ${String(shade)}`);
+    else if (row.minDepth !== want[0] || row.maxDepth !== want[1]) {
+      problem(`r15t-${String(shade)}`, `rule 15: the shipping region table offers depth ${String(row.minDepth)}..${String(row.maxDepth)} at shade ${String(shade)}, and the walk measures ${String(want[0])}..${String(want[1])}`);
+    }
+  }
+  if (a.regionTable.length !== a.rampStops.shades.length) {
+    problem('r15tn', `rule 15: the shipping region table has ${String(a.regionTable.length)} row(s) for ${String(a.rampStops.shades.length)} shade stop(s)`);
   }
   for (const shade of a.rampStops.shades) {
     const want = REGION[String(shade)];

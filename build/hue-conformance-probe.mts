@@ -214,6 +214,8 @@ interface Answer {
   ramp: RampCell[];
   rampPoints: RampPoint[];
   rampStops: { shades: number[]; depths: number[]; stepMin: number };
+  /** The region table the SHIPPING control offers from, read from presets. */
+  regionTable: { shade: number; minDepth: number; maxDepth: number }[];
 }
 
 async function readRoot(
@@ -646,7 +648,10 @@ async function readRoot(
     threshold,
     ramp,
     rampPoints,
-    rampStops: { shades: SHADES, depths: DEPTHS, stepMin: STEP_MIN ?? 0 }
+    rampStops: { shades: SHADES, depths: DEPTHS, stepMin: STEP_MIN ?? 0 },
+    regionTable: (presets['FRAME_REGION'] as
+      | { shade: number; minDepth: number; maxDepth: number }[]
+      | undefined) ?? []
   };
 }
 
