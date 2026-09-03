@@ -304,6 +304,29 @@ export function TerminalPane({
     setSurface(scroll);
     term.attachCustomWheelEventHandler((event) => scroll.handleWheel(event));
 
+    // Phase 205 item 3. A drag held at the pane's edge scrolls the session's
+    // history and keeps extending, and a wheel during a drag extends rather
+    // than leaving the selection behind on the rows it was drawn over. An
+    // ordinary drag inside the pane never reaches it and stays xterm's.
+    //
+    // BEHIND A LAZY DOOR, and the door is not decoration. `npm run build`
+    // measured the module at 5,673 bytes in the eager set, which is more than
+    // the 2,232 bytes that set had left under its budget. Nothing here is
+    // needed to paint the first screen, or indeed until somebody presses a
+    // mouse button inside a session, so the module is fetched beside the
+    // attach rather than parsed at launch. The attach is an IPC round trip
+    // and a tmux client spawn, and this is a read of a chunk already on disk,
+    // so the listener is installed long before the pane a person could press
+    // in exists.
+    let dragDoorClosed = false;
+    let detachDragSelect: (() => void) | null = null;
+    void import('./scroll/drag-select').then(({ DragSelect }) => {
+      if (dragDoorClosed || disposed) return;
+      detachDragSelect = new DragSelect(sessionId, term, scroll).attach(
+        container
+      );
+    });
+
     // ⌘C / ⌘A / ⌘K, ⇧PageUp/⇧PageDown and ⇧Enter. ⌘C with a selection copies;
     // with NO selection it sends SIGINT — the renderer sees the key before the
     // app menu (see ./keys), so this handler, not `role:'copy'`, decides which.
@@ -520,6 +543,8 @@ export function TerminalPane({
 
     return () => {
       disposed = true;
+      dragDoorClosed = true;
+      detachDragSelect?.();
       scroll.dispose();
       setSurface(null);
       unregister();

@@ -511,6 +511,20 @@ export const CHECKS = [
   // reads them again. It opens no keychain, spawns no agent and spends no
   // token, and it hashes his own three credentials at both ends.
   electron('probe:p204'),
+  // PHASE 205. The three defects the operator reported on 2026-09-02, driven
+  // in ONE app run over one real session on a scratch profile and the scratch
+  // socket gmux-p205: the scroll position across a blur and a focus with every
+  // byte the pane sent, the glyph on every row of the COMPOSED session menu
+  // matched by rasterising the closed set and comparing pixels, and a
+  // selection extended by a drag held at the top edge and by a wheel during a
+  // live drag. It carries every must-not-change arm too, being a pane already
+  // at the live bottom, Enter returning a scrolled pane, a plain scroll with
+  // no drag, and a click. It spawns no agent, spends no token and touches the
+  // system pasteboard never: the native menu is answered with a label no row
+  // carries, so no item ever runs. `node build/probe-p205-terminal.mjs
+  // --self-test` proves the three graders on twelve fixtures and launches
+  // nothing.
+  electron('probe:p205'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a
