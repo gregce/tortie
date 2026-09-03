@@ -41,6 +41,8 @@ import { dispatchHarness } from './harness';
 import { installUsageFixture } from './harness/usage-fixture';
 // Phase 208: the scratch keychain seam, for a harness launch and nothing else.
 import { installHarnessKeychain } from './harness/keychain-harness';
+// Phase 208: the one observe at boot, after the manifest is open.
+import { observeLoginsAtBoot } from './logins/ipc';
 // Phase 166: the one cache policy, applied before whenReady below.
 import { applyCachePolicy } from './cache/policy';
 // Phase 127. What counts as a harness launch, in one place. The three
@@ -427,6 +429,9 @@ function showAppWindow(): void {
 let disposeCapabilities: () => Promise<MainDisposeOutcome> =
   disposeMainCapabilities;
 
+/** How long after the core is up the Phase 208 boot observe waits. */
+const BOOT_OBSERVE_DELAY_MS = 1_000;
+
 app.whenReady().then(async () => {
   // Every app-ready capability — the native menu, the two protocol handlers,
   // and every domain IPC registrar — installs here, in every mode. Handlers
@@ -548,6 +553,23 @@ app.whenReady().then(async () => {
     }
     bootLog.error(`core boot failed: ${(err as Error).message}`);
   });
+
+  // PHASE 208. ONE OBSERVE OF THE LOGIN STORES AT BOOT, after the manifest is
+  // open and off the critical path. Until this phase observeProvider had one
+  // production caller, being the logins list, so Phase 206's stray sweep and
+  // staged sweep ran the first time a surface asked for the list and a person
+  // who never opened one never got either, and both exist to clear a
+  // credential nobody can reach. It waits for the core, which is the manifest
+  // being open, then one second more so the first paint and the restore burst
+  // are not competing with a run of `security` spawns, and it never delays a
+  // window: nothing awaits it. It writes nothing a vendor owns. A harness
+  // launch that returned at dispatchHarness above never reaches this line, and
+  // a probe launch that does reach it has the harness seams installed, so no
+  // keychain of the person's is opened by it.
+  void getGmuxCore()
+    .then(() => new Promise<void>((r) => setTimeout(r, BOOT_OBSERVE_DELAY_MS)))
+    .then(() => observeLoginsAtBoot())
+    .catch(() => undefined);
 
   // Phase 31: the refusal surface. If the last run promised an install and
   // this launch still runs the old version, one dialog names the reason.

@@ -76,6 +76,8 @@ import {
   forgetLogin,
   observeProvider,
   readyKeepDeps,
+  securityCallCount,
+  vaultMigrationResult,
   NO_KEPT_FACTS,
   type KeptFacts
 } from '../credentials';
@@ -191,6 +193,40 @@ function observeAll(): Promise<Map<string, KeptFacts>> {
   observeInFlight = run;
   return run.finally(() => {
     if (observeInFlight === run) observeInFlight = null;
+  });
+}
+
+/**
+ * The one observe at boot (Phase 208).
+ *
+ * Called once from the boot after the manifest is open, and never awaited by
+ * anything that draws. It is the same `observeAll` the list runs, so the stray
+ * sweep and the staged sweep of Phase 206 now happen on every launch rather
+ * than on the first list a surface happens to ask for, and the Phase 208
+ * migration runs in front of it through `readyKeepDeps`. It is held for the
+ * same five seconds, so a list issued right after it draws from the same
+ * reading rather than reading every store twice.
+ *
+ * THE COST IS SAID OUT LOUD in one line, being the wall time and the number of
+ * `security` runs this process made between its start and its end, so a probe
+ * and a person reading a log can both see what a cold start paid. The line
+ * carries the migration's four counts and nothing that names an item.
+ */
+export async function observeLoginsAtBoot(): Promise<void> {
+  const started = Date.now();
+  const callsBefore = securityCallCount();
+  let observed = 0;
+  try {
+    observed = (await observeAll()).size;
+  } catch {
+    // A refusal below leaves the last facts in place; the list still draws.
+  }
+  const migration = (await vaultMigrationResult()) ?? null;
+  log.info('logins.boot', {
+    ms: Date.now() - started,
+    securityCalls: securityCallCount() - callsBefore,
+    rows: observed,
+    migration
   });
 }
 
