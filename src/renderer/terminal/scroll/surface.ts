@@ -278,6 +278,24 @@ export class ScrollSurface {
   }
 
   /**
+   * Send bytes the PANE composed about itself, leaving the reader's place
+   * alone — Phase 205 item 1.
+   *
+   * `sendInput` above returns a scrolled pane to live output first, because a
+   * keystroke would otherwise be eaten by tmux copy-mode's own key table.
+   * That is right for a keystroke and wrong for a report: the DECSET 1004
+   * focus reports arrive on the same `onData` event, nobody typed them, and
+   * cancelling copy-mode for one threw away where the reader was every time
+   * the window lost or regained focus. See ../keys/focus-report.ts for the
+   * measurement and for the control that isolated the cause.
+   *
+   * The bytes still go, because tmux asked for them.
+   */
+  sendReport(data: string): void {
+    window.gmux?.term.sendInput(this.sessionId, data);
+  }
+
+  /**
    * The pane's geometry changed (Phase 12.11 zoom): put the reader back.
    *
    * MEASURED A/B, this build, 2026-08-11 (three ⌘+ presses on a pane parked

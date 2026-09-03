@@ -36,6 +36,7 @@ import { zoomedFontSize, useZoom } from '../zoom';
 import { snapshotSelection } from './capture';
 import { registerTerminal } from './drop/registry';
 import { terminalKeyHandler } from './keys';
+import { isFocusReport } from './keys/focus-report';
 import { multilineSequenceFor, primeMultilineKeys } from './keys/multiline';
 import { ScrollSurface } from './scroll/surface';
 import { TerminalScrollbar } from './scroll/TerminalScrollbar';
@@ -355,8 +356,18 @@ export function TerminalPane({
     // would be eaten by it instead of reaching the agent.
     // Phase 67: while the session reads `unknown`, everything is dropped at
     // the source, including noteTerminalInput (see paneRefusesInput).
+    // Phase 205 item 1: the two DECSET 1004 focus reports arrive here too,
+    // and they are the pane talking about itself rather than anybody typing.
+    // They are forwarded, because tmux asked for them, but they must not
+    // answer a session that was waiting for input and they must not cancel
+    // copy-mode — which is what threw the reader's place away every time the
+    // window lost focus. ./keys/focus-report.ts carries the measurement.
     const dataSub = term.onData((d) => {
       if (paneRefusesInput(statusRef.current)) return;
+      if (isFocusReport(d)) {
+        scroll.sendReport(d);
+        return;
+      }
       useApp.getState().noteTerminalInput(sessionId);
       scroll.sendInput(d);
     });
