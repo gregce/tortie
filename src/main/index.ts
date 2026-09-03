@@ -39,6 +39,8 @@ import { dispatchHarness } from './harness';
 // Phase 202. The harness only usage transport, installed before the first read
 // and inert in every launch that is not a harness on a harness profile.
 import { installUsageFixture } from './harness/usage-fixture';
+// Phase 208: the scratch keychain seam, for a harness launch and nothing else.
+import { installHarnessKeychain } from './harness/keychain-harness';
 // Phase 166: the one cache policy, applied before whenReady below.
 import { applyCachePolicy } from './cache/policy';
 // Phase 127. What counts as a harness launch, in one place. The three
@@ -457,6 +459,10 @@ app.whenReady().then(async () => {
   // never reach a person's real app. In every ordinary launch it does nothing
   // at all and the meter reads the vendor exactly as it always has.
   installUsageFixture();
+  // PHASE 208. And the scratch KEYCHAIN seam, under the same three refusals
+  // plus one: the keychain file must sit inside the harness directory too. In
+  // every ordinary launch it does nothing at all.
+  installHarnessKeychain();
 
   // A harness launch (GMUX_SMOKE / GMUX_SHOT) owns the process from here:
   // every harness ends in app.exit, or, for the quit smoke, the real

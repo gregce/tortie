@@ -42,9 +42,7 @@
 
 import { app } from 'electron';
 import { readFileSync } from 'node:fs';
-import { readFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileVault, renameNoFollowSync, setKeepDeps, writeNoFollowSync } from '../credentials';
+import { harnessFileKeepDeps, setKeepDeps } from '../credentials';
 import { loginsRoot } from '../logins';
 import { setUsageHarnessOverride } from '../usage/ipc';
 import {
@@ -113,49 +111,14 @@ export function installUsageFixture(): void {
   // puts an account back exercises every line of the shipping domain while
   // opening no keychain at all, and the `security` seam below refuses every
   // call so a line that tried would answer nothing rather than reach his items.
-  const root = loginsRoot();
-  setKeepDeps({
-    root,
-    vault: fileVault(join(root, 'kept')),
-    stores: {
-      runner: {
-        run: async () => ({ code: 1, stdout: '' })
-      },
-      readText: async (path) => {
-        try {
-          return await readFile(path, 'utf8');
-        } catch {
-          return null;
-        }
-      },
-      // THE SAME TWO SHIPPING HELPERS the real seam uses, so the app run
-      // exercises the refusal to follow a link rather than a copy of the seam
-      // that predates it.
-      writeText: async (path, text) => {
-        writeNoFollowSync(path, text);
-      },
-      renamePath: async (from, to) => {
-        renameNoFollowSync(from, to);
-      },
-      removePath: async (path) => {
-        try {
-          await rm(path, { force: true });
-        } catch {
-          // A staged copy that will not go changes nothing about the store.
-        }
-      },
-      env: process.env,
-      home: app.getPath('home'),
-      keychainForClaude: false,
-      userName: 'harness',
-      wait: (ms) => new Promise<void>((r) => setTimeout(r, Math.min(ms, 30)))
-    },
-    // NO SESSION IS EVER RUNNING in a probe that creates none, and a probe that
-    // does create one gets the honest empty answer rather than a refusal it
-    // cannot explain.
-    liveSessions: async () => [],
-    now: () => Date.now()
-  });
+  //
+  // PHASE 208. The shape is built by the credentials domain itself, in ONE
+  // place, because a harness launch that carries no fixture at all now gets
+  // the same file shape by default and two copies of it would drift. This
+  // installer keeps the person's home for its default locations, which is
+  // what the Phase 202 to 206 probes were measured over; they all point both
+  // vendor variables at directories of their own.
+  setKeepDeps(harnessFileKeepDeps(loginsRoot(), app.getPath('home')));
   setUsageHarnessOverride({
     // NO KEYCHAIN, EVER, under this knob. A miss is what the reader is
     // designed for: it falls through to the credentials file, which is the

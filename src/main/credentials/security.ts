@@ -59,13 +59,75 @@ export interface SecurityRunner {
   ): Promise<{ code: number; stdout: string }>;
 }
 
-export function defaultSecurityRunner(): SecurityRunner {
+let calls = 0;
+
+/**
+ * How many times the real `security` has been run by this process. A number
+ * for a boot line and nothing else; nothing about any call is kept.
+ */
+export function securityCallCount(): number {
+  return calls;
+}
+
+/**
+ * A keychain file path this file will append to a `security` command line.
+ *
+ * It goes inside double quotes in the `-i` form, so the same three characters
+ * {@link isPlainSecurityName} refuses are refused here, and a relative path is
+ * refused because `security` would resolve it against a directory this process
+ * did not choose.
+ */
+export function isPlainKeychainPath(path: string): boolean {
+  if (typeof path !== 'string' || path === '') return false;
+  if (!path.startsWith('/')) return false;
+  if (path.length > 1024) return false;
+  return !/["\\\n\r]/.test(path);
+}
+
+/**
+ * The real `security`, over the login keychain, or over ONE keychain file.
+ *
+ * `keychainFile` is the Phase 208 harness seam. MEASURED on 2026-09-03 on a
+ * scratch keychain made with `security create-keychain` under a scratch
+ * directory and never added to the search list: every verb this file uses,
+ * being `find-generic-password`, `delete-generic-password` and the
+ * `add-generic-password` line sent over `-i`, takes a trailing keychain path
+ * and acts on that keychain alone. With the path given, an item written was
+ * found by name in the scratch keychain and NOT found in the login keychain,
+ * `-U` still updated in place leaving one item, `-w` printed the payload back
+ * exactly, and `delete-keychain` removed the file. So a launch that carries the
+ * seam never reads, writes or deletes an item in the person's own keychain,
+ * whatever names it composes. The shipped app passes nothing here.
+ */
+export function defaultSecurityRunner(keychainFile?: string): SecurityRunner {
+  const file =
+    keychainFile !== undefined && isPlainKeychainPath(keychainFile)
+      ? keychainFile
+      : null;
+  if (keychainFile !== undefined && file === null) {
+    throw new Error('the keychain file for security is not a path this domain will name');
+  }
   return {
     run: (argv, stdin) =>
       new Promise((resolve) => {
+        calls += 1;
+        const line = [...argv];
+        let input = stdin;
+        if (file !== null) {
+          if (argv[0] === '-i') {
+            // THE COMMAND IS ON STDIN, so the keychain goes on the end of it,
+            // inside the same quotes the service and the account already use.
+            input =
+              stdin === undefined
+                ? undefined
+                : `${stdin.replace(/\n$/, '')} "${file}"\n`;
+          } else {
+            line.push(file);
+          }
+        }
         const child = execFile(
           SECURITY_BIN,
-          [...argv],
+          line,
           { timeout: SECURITY_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024 },
           (err, stdout) => {
             resolve({
@@ -74,8 +136,8 @@ export function defaultSecurityRunner(): SecurityRunner {
             });
           }
         );
-        if (stdin !== undefined) {
-          child.stdin?.end(stdin);
+        if (input !== undefined) {
+          child.stdin?.end(input);
         }
       })
   };

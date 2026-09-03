@@ -19,9 +19,10 @@ import { readFile, rm } from 'node:fs/promises';
 import { homedir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { LOGIN_PROVIDERS } from '@shared/logins';
+import { isHarnessLaunch } from '../harness/launch-gate';
 import { loginsRoot } from '../logins/paths';
 import { renameNoFollowSync, writeNoFollowSync } from './nofollow';
-import { defaultSecurityRunner } from './security';
+import { defaultSecurityRunner, type SecurityRunner } from './security';
 import type { StoreDeps } from './stores';
 import { sweepableSlots, type KeepDeps, type LiveSession } from './keep';
 import { isOwnProfile, migrateUnscopedVault, type MigrateResult } from './migrate';
@@ -48,6 +49,7 @@ export {
   renameNoFollowSync,
   writeNoFollowSync
 } from './nofollow';
+export { keychainHasItem, securityCallCount, type SecurityRunner } from './security';
 export { credentialDigest, isCredentialPayload } from './payload';
 export {
   forgetStore,
@@ -76,10 +78,20 @@ function keychainIsTheStore(): boolean {
   return process.platform === 'darwin';
 }
 
-/** The file system seams, written once. */
-function defaultStoreDeps(): StoreDeps {
+/**
+ * The file system seams, written once.
+ *
+ * `runner` and `keychainForClaude` are arguments since Phase 208, so the two
+ * harness shapes below are this same object with two fields moved rather than
+ * a copy of it that could drift.
+ */
+function defaultStoreDeps(
+  runner: SecurityRunner = defaultSecurityRunner(),
+  keychainForClaude: boolean = keychainIsTheStore(),
+  home: string = homedir()
+): StoreDeps {
   return {
-    runner: defaultSecurityRunner(),
+    runner,
     readText: async (path) => {
       try {
         return await readFile(path, 'utf8');
@@ -105,10 +117,88 @@ function defaultStoreDeps(): StoreDeps {
       }
     },
     env: process.env,
-    home: homedir(),
-    keychainForClaude: keychainIsTheStore(),
+    home,
+    keychainForClaude,
     userName: userInfo().username,
     wait: (ms) => new Promise<void>((r) => setTimeout(r, ms))
+  };
+}
+
+/**
+ * The seams a HARNESS launch gets when it carries no knob (Phase 208).
+ *
+ * THIS IS THE THIRD HALF OF THE PHASE 208 FIX, and it is what the scoping
+ * alone left open. Scoping the name stops a scratch profile OVERWRITING the
+ * person's item, but a scratch profile launched with `GMUX_PROBES=1` and no
+ * fixture still got the real keychain vault and the real stores, so its first
+ * observe read the person's own unscoped vendor item through the fallback in
+ * `../usage/login-accounts.ts` and CREATED a scoped copy of his credential in
+ * his login keychain, one per scratch profile, that nothing ever removed; the
+ * boot observe this phase adds would have done it on every launch. That is the
+ * one env var difference the measure agent found between the Phase 204 probe,
+ * which set `GMUX_USAGE_FIXTURE` and got the file vault, and the Phase 206
+ * probe, which did not and hit his keychain.
+ *
+ * So a harness launch that installed nothing gets this: Tortie's own store is
+ * a FILE under the profile, the `security` seam refuses every call, the
+ * vendor's claude store is read as a file, and `home` is the logins root so a
+ * default location composed with no `CLAUDE_CONFIG_DIR` or `CODEX_HOME` set
+ * lands inside the profile rather than under the person's home. Nothing here
+ * can reach a credential of theirs, and everything a probe plants in a
+ * directory it made is read through the real reader. `../harness/
+ * usage-fixture.ts` installs this same shape with the person's home, which is
+ * what its own probes were measured over.
+ */
+export function harnessFileKeepDeps(root: string, home: string): KeepDeps {
+  return {
+    root,
+    vault: fileVault(join(root, 'kept')),
+    stores: {
+      ...defaultStoreDeps(
+        { run: async () => ({ code: 1, stdout: '' }) },
+        false,
+        home
+      ),
+      userName: 'harness',
+      wait: (ms) => new Promise<void>((r) => setTimeout(r, Math.min(ms, 30)))
+    },
+    // NO SESSION IS EVER RUNNING in a probe that creates none, and a probe that
+    // does create one gets the honest empty answer rather than a refusal it
+    // cannot explain.
+    liveSessions: async () => [],
+    now: () => Date.now()
+  };
+}
+
+/**
+ * The seams a harness launch gets over ONE scratch keychain file (Phase 208).
+ *
+ * The REAL keychain vault and the REAL keychain stores, so the whole macOS
+ * path runs, over a `security` that acts on the named file and nothing else.
+ * The file is the probe's own, made with `security create-keychain` under the
+ * harness directory and deleted by the probe in a `finally`, and it is never in
+ * the search list, so no name this launch composes can reach an item of the
+ * person's. The same `home` rule as the file shape, for the same reason.
+ */
+export function harnessKeychainKeepDeps(
+  root: string,
+  home: string,
+  keychainFile: string
+): { deps: KeepDeps; runner: SecurityRunner } {
+  const runner = defaultSecurityRunner(keychainFile);
+  return {
+    runner,
+    deps: {
+      root,
+      vault: keychainVault(runner, root),
+      stores: {
+        ...defaultStoreDeps(runner, true, home),
+        userName: 'harness',
+        wait: (ms) => new Promise<void>((r) => setTimeout(r, Math.min(ms, 30)))
+      },
+      liveSessions: async () => [],
+      now: () => Date.now()
+    }
   };
 }
 
@@ -154,10 +244,21 @@ export function setKeepDeps(next: KeepDeps | null): void {
   installed = next;
 }
 
-/** The real seams, built once. */
+/**
+ * The real seams, built once.
+ *
+ * A HARNESS LAUNCH THAT INSTALLED NOTHING GETS THE FILE SHAPE (Phase 208), by
+ * the widest predicate the harness has, so `GMUX_PROBES` at any value is
+ * enough. The reasoning is on {@link harnessFileKeepDeps}. A person's own
+ * launch sets none of those four names and gets the real seams.
+ */
 export function keepDeps(): KeepDeps {
   if (installed !== null) return installed;
   const root = loginsRoot();
+  if (isHarnessLaunch(process.env)) {
+    installed = harnessFileKeepDeps(root, root);
+    return installed;
+  }
   installed = {
     root,
     vault: defaultVault(root),
@@ -193,7 +294,9 @@ export function readyKeepDeps(): Promise<KeepDeps> {
     migration =
       keychainIsTheStore() && deps.vault.kind === 'keychain'
         ? migrateUnscopedVault({
-            runner: defaultSecurityRunner(),
+            // THE SAME `security` THE STORES USE, so a harness seam that points
+            // the stores at a scratch keychain points the migration there too.
+            runner: deps.stores.runner,
             vault: deps.vault,
             root: deps.root,
             slots: LOGIN_PROVIDERS.flatMap((provider) =>
