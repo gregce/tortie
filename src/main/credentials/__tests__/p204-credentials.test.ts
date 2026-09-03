@@ -275,9 +275,9 @@ describe('the record file', () => {
     writeKeptFile(root, {
       v: 1,
       slots: {
-        'claude.default': { email: 'a@b.com', digest: 'f'.repeat(64), account: null, at: 1 },
-        'claude.nonsense': { email: null, digest: 'f'.repeat(64), account: null, at: 1 },
-        'codex.default': { email: null, digest: 'not a digest', account: null, at: 1 }
+        'claude.default': { email: 'a@b.com', subject: null, digest: 'f'.repeat(64), account: null, from: null, at: 1 },
+        'claude.nonsense': { email: null, subject: null, digest: 'f'.repeat(64), account: null, from: null, at: 1 },
+        'codex.default': { email: null, subject: null, digest: 'not a digest', account: null, from: null, at: 1 }
       }
     });
     const read = readKeptFile(root);
@@ -290,7 +290,7 @@ describe('the record file', () => {
     writeKeptFile(root, {
       v: 1,
       slots: {
-        'claude.default': { email: 'a@b.com', digest: 'f'.repeat(64), account: 'gdc', at: 1 }
+        'claude.default': { email: 'a@b.com', subject: null, digest: 'f'.repeat(64), account: 'gdc', from: null, at: 1 }
       }
     });
     const text = readFileSync(join(root, 'kept.json'), 'utf8');

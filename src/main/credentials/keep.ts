@@ -52,12 +52,7 @@ import { loginDirIn, loginDirOnDisk } from '../logins/dirs';
 import { addLogin, readLoginsFile, type StoredLogin } from '../logins/store';
 import { credentialDigest } from './payload';
 import { readKeptFile, updateKeptFile, type KeptRecord } from './kept';
-import {
-  readSettledStore,
-  storeTarget,
-  type StoreDeps,
-  type StoreReading
-} from './stores';
+import { readSettledStore, storeTarget, type StoreDeps } from './stores';
 import { safeSwap, type SwapStep } from './swap';
 import { slotFor, vaultDel, vaultGet, vaultPut, type VaultBackend } from './vault';
 
@@ -511,6 +506,8 @@ async function reusableChainLogin(
   kept: { slots: Record<string, KeptRecord> }
 ): Promise<{ slot: string; name: string } | null> {
   const { file } = readLoginsFile(d.root);
+  // THE CHOSEN LOGIN IS A NAME ON THE FILE, not a field on a row.
+  const chosen = file.chosen[provider] ?? null;
   for (const [other, row] of Object.entries(kept.slots)) {
     if (other === slot) continue;
     if (row.from !== slot) continue;
@@ -522,7 +519,7 @@ async function reusableChainLogin(
     );
     if (login === undefined) continue;
     // THE TWO TESTS FOR "NOBODY HAS SHOWN ANY INTEREST IN THIS ONE".
-    if (login.chosen) continue;
+    if (sameLoginName(chosen, login.name)) continue;
     const dir = loginDirIn(d.root, provider, login.id);
     const holds = await readSettledStore(d.stores, provider, dir);
     if (holds !== null && holds.payload !== null) continue;
@@ -583,7 +580,7 @@ async function promoteOutgoing(
   if (!write.ok) {
     return { kind: 'refused', provider, login: reuse.name, says: write.reason };
   }
-  kept.slots[reuse.slot] = {
+  const record: KeptRecord = {
     email: before.email,
     subject: before.subject,
     digest: before.digest,
@@ -591,7 +588,8 @@ async function promoteOutgoing(
     from: slot,
     at: d.now()
   };
-  changed[reuse.slot] = kept.slots[reuse.slot];
+  kept.slots[reuse.slot] = record;
+  changed[reuse.slot] = record;
   return promotedEvent(provider, reuse.name, before.email);
 }
 
