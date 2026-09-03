@@ -35,10 +35,26 @@ import { isSlotName } from './vault';
 export interface KeptRecord {
   /** Whose account it is, from the vendor's own file. Null when not known. */
   email: string | null;
+  /**
+   * The vendor's own stable identifier for the account, when it named one.
+   *
+   * It is what tells a token refresh from a sign in to a different account in
+   * the window before an address exists. It is compared and never drawn.
+   */
+  subject: string | null;
   /** The sha256 of the credential in this slot, in hex. */
   digest: string;
   /** The keychain item's account attribute, so a write back preserves it. */
   account: string | null;
+  /**
+   * The slot this account was PROMOTED OUT OF, when it was promoted.
+   *
+   * Null for a slot Tortie captured in place. It exists so that a second
+   * change at a store that names no account at all can find the login the
+   * FIRST such change made, rather than minting one per token refresh for
+   * ever. See `./keep.ts`'s promotion.
+   */
+  from: string | null;
   /** Epoch ms this record was taken. */
   at: number;
 }
@@ -112,12 +128,25 @@ export function readKeptFile(root: string): KeptFileRead {
       continue;
     }
     const email = row['email'];
+    const subject = row['subject'];
     const account = row['account'];
+    const from = row['from'];
     const at = row['at'];
     out.slots[slot] = {
       email: typeof email === 'string' && email.length > 0 ? email : null,
+      // A ROW WRITTEN BEFORE THIS FIELD EXISTED reads as "no subject", which
+      // is exactly right: the account it names is not known to be the same as
+      // any other, so the first change under it is treated as one that may
+      // have lost an account and the account that was there is kept.
+      subject:
+        typeof subject === 'string' && subject.length > 0 && subject.length <= 200
+          ? subject
+          : null,
       digest,
       account: typeof account === 'string' && account.length > 0 ? account : null,
+      // A SLOT NAME OR NOTHING. It is half of a keychain service name in every
+      // other field that holds one, so it is asked the same question here.
+      from: isSlotName(from) ? from : null,
       at: typeof at === 'number' && Number.isFinite(at) ? at : 0
     };
   }

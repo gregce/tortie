@@ -779,6 +779,105 @@ try {
   }
 
   // -------------------------------------------------------------------------
+  // 11c. TWO OVERLAPPING OBSERVES, which is what an ordinary mount produces.
+  //
+  //      THE DEFECT THIS ARM EXISTS FOR. The Agents page draws a block per
+  //      provider and each loads on mount, and StrictMode doubles that again,
+  //      so four lists can be in flight at once. Each observe read the record
+  //      file at its start and wrote the WHOLE file back at its end, so the
+  //      second one's write was composed from a copy taken before the first
+  //      one's promotion and destroyed its row. The credential survived in
+  //      Tortie's own store and the row said "Not signed in yet" for ever, so
+  //      the rescued account was offered back to nobody. Thirteen ablations
+  //      passed while that was live, which is why this arm is here.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const d = makeDeps(root, w);
+    w.files.set(CODEX_DEFAULT, codexCredential('alice', '1'));
+    await keep.observeProvider(d, 'codex');
+    w.files.set(CODEX_DEFAULT, codexCredential('bob', '2'));
+    const [a, b] = await Promise.all([
+      keep.observeProvider(d, 'codex'),
+      keep.observeProvider(d, 'codex')
+    ]);
+    const row = readLoginsFile(root).file.logins[0];
+    const slot = vault.slotFor('codex', row?.id ?? 'x');
+    const factsOf = (o: typeof a): unknown =>
+      [...o.facts.entries()].find(([id]) => id === (row?.id ?? '')) ?? null;
+    out['overlap'] = {
+      // ONE LOGIN, not two, and not none.
+      logins: readLoginsFile(root).file.logins.map((l) => l.name),
+      // THE ROW SURVIVED IN THE RECORD FILE, which is the whole finding.
+      recordKeeps: kept.readKeptFile(root).file.slots[slot] !== undefined,
+      // AND THE BYTES ARE STILL THE ONES THAT WERE IN THE STORE.
+      bytesExact: (await vault.vaultGet(d.vault, slot)) === codexCredential('alice', '1'),
+      // BOTH ANSWERS AGREE. Two blocks drawing from one moment must not
+      // disagree about whether an account can be put back.
+      agree: JSON.stringify(factsOf(a)) === JSON.stringify(factsOf(b)),
+      // AND A LIST ISSUED LATER STILL SAYS SO, which is what a person sees.
+      laterKept: (await keep.keptFactsFor(d, 'codex', row?.id ?? 'x', null)).kept
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 11d. A STORE THAT NAMES NO ACCOUNT ON EITHER SIDE still keeps what it
+  //      replaced, and does not mint a login per token refresh.
+  //
+  //      THE DEFECT THIS ARM EXISTS FOR. The promotion asked whether the two
+  //      ADDRESSES differed, which is only ever true when both are known, so a
+  //      store naming neither was read as unchanged and the previous account
+  //      was overwritten. That is not a rare shape: a login signed into a
+  //      moment ago has no `oauthAccount` until the account takes a turn, so a
+  //      person who signs in, sees the wrong account and types `/login`
+  //      straight away lost the first one silently. The rule is now that the
+  //      account is kept unless it is PROVED to be the same one.
+  //
+  //      The second half is the cost of that rule and it is bounded here: ten
+  //      ordinary token refreshes of such a store minted NINE logins before
+  //      the chain was bounded, and `nextKeptLoginName` stops at 99, past
+  //      which the account really is lost again.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const d = makeDeps(root, w);
+    const anonymous = (nonce: string): string =>
+      JSON.stringify({ tokens: { access_token: `${TOKEN}-anon-${nonce}` } });
+    w.files.set(CODEX_DEFAULT, anonymous('1'));
+    await keep.observeProvider(d, 'codex');
+    w.files.set(CODEX_DEFAULT, anonymous('2'));
+    const seen = await keep.observeProvider(d, 'codex');
+    const first = readLoginsFile(root).file.logins[0];
+    const promotedSlot = vault.slotFor('codex', first?.id ?? 'x');
+    const heldAfterOne = await vault.vaultGet(d.vault, promotedSlot);
+    // EIGHT MORE REFRESHES of the same anonymous store.
+    for (let n = 3; n <= 10; n++) {
+      w.files.set(CODEX_DEFAULT, anonymous(String(n)));
+      await keep.observeProvider(d, 'codex');
+    }
+    // AND A STORE THAT DOES NAME ITSELF is never dragged into the chain: ten
+    // refreshes of one account mint nothing at all.
+    const namedRoot = freshRoot();
+    const namedWorld = makeWorld();
+    const namedDeps = makeDeps(namedRoot, namedWorld);
+    for (let n = 0; n < 10; n++) {
+      namedWorld.files.set(CODEX_DEFAULT, codexCredential('alice', String(n)));
+      await keep.observeProvider(namedDeps, 'codex');
+    }
+    out['unnamed'] = {
+      promoted: seen.events.some((e) => e.kind === 'promoted'),
+      // THE ACCOUNT THAT WAS THERE IS HELD, byte for byte.
+      bytesExact: heldAfterOne === anonymous('1'),
+      // ONE LOGIN AFTER TEN REFRESHES, rather than nine.
+      loginsAfterTen: readLoginsFile(root).file.logins.length,
+      // AND A NAMED ACCOUNT'S REFRESHES MINT NOTHING.
+      namedLogins: readLoginsFile(namedRoot).file.logins.length
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // 12. THE KEYCHAIN PATH, END TO END, over a `security` that behaves the way
   //     the real one was measured to. This is the arm that makes the argv
   //     assertion mean something: a payload on a command line would show up.

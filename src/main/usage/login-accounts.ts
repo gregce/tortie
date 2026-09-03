@@ -230,6 +230,64 @@ function bagAt(
   return value as Record<string, unknown>;
 }
 
+/**
+ * The vendor's own STABLE identifier for an account, when it names one.
+ *
+ * ## WHAT IT IS FOR, and it is one question only
+ *
+ * "Is the credential that is in this store now the same ACCOUNT as the one
+ * that was in it before, or a different one?" An address answers that when the
+ * vendor has written one, and Phase 204's verification found the shapes where
+ * it has not: a login signed into a moment ago has no `oauthAccount` yet,
+ * because the address appears once the account has taken a turn. A subject is
+ * written at sign in, so it answers in that window too.
+ *
+ * ## IT IS NEVER DRAWN AND NEVER LEAVES MAIN
+ *
+ * It is compared and nothing else. It is not an address, it is not a token, it
+ * is not shown on any surface, it is not logged, and no channel carries it.
+ * Both vendors write it in plain sight beside the address.
+ *
+ * ## WHAT IT REFUSES
+ *
+ * Anything that is not a string, anything empty, and anything past 200
+ * characters, which is far past either vendor's identifier and is what stops a
+ * hand edited file making Tortie hold a paragraph in its record. It is not
+ * parsed beyond that, because nothing is ever done with it except an equality
+ * test against another one.
+ */
+export function sanitizeAccountSubject(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const subject = raw.trim();
+  if (subject.length === 0 || subject.length > 200) return null;
+  return subject;
+}
+
+/** `oauthAccount.accountUuid` out of a `.claude.json`, or null. */
+export function subjectFromClaudeJson(text: string): string | null {
+  const obj = parseObject(text);
+  if (obj === null) return null;
+  const account = bagAt(obj, 'oauthAccount');
+  if (account === null) return null;
+  return sanitizeAccountSubject(account['accountUuid']);
+}
+
+/**
+ * `tokens.account_id` out of a codex `auth.json`, or null.
+ *
+ * It is read from the file's OWN field rather than out of the id token, which
+ * is the point: a store whose `id_token` is missing still names its account
+ * here, and that is one of the three shapes the verification found losing an
+ * account. Nothing of any token is read by this function.
+ */
+export function subjectFromCodexAuth(text: string): string | null {
+  const obj = parseObject(text);
+  if (obj === null) return null;
+  const tokens = bagAt(obj, 'tokens');
+  if (tokens === null) return null;
+  return sanitizeAccountSubject(tokens['account_id']);
+}
+
 /** `oauthAccount.emailAddress` out of a `.claude.json`, or null. */
 export function emailFromClaudeJson(text: string): string | null {
   const obj = parseObject(text);

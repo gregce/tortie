@@ -41,7 +41,9 @@ import {
   claudeServicesFor,
   codexAuthFileFor,
   emailFromClaudeJson,
-  emailFromCodexAuth
+  emailFromCodexAuth,
+  subjectFromClaudeJson,
+  subjectFromCodexAuth
 } from '../usage/login-accounts';
 import { claudeScopedService } from '../usage/credentials';
 import { isCredentialPayload } from './payload';
@@ -86,6 +88,15 @@ export interface StoreReading {
   payload: string | null;
   /** Whose sign in it is, out of the vendor's own file. Never from the token. */
   email: string | null;
+  /**
+   * The vendor's own stable identifier for the account, when it names one.
+   *
+   * IT EXISTS TO TELL A REFRESH FROM A SWITCH and for nothing else. An address
+   * appears only once an account has taken a turn, so in the window between a
+   * sign in and a first turn this is the only thing that can answer whether
+   * the account in a store changed. It is never drawn and never leaves main.
+   */
+  subject: string | null;
   where: StoreWhere;
   /** The keychain item's account attribute, so a write back can preserve it. */
   account: string | null;
@@ -94,6 +105,7 @@ export interface StoreReading {
 const NOTHING: StoreReading = {
   payload: null,
   email: null,
+  subject: null,
   where: 'none',
   account: null
 };
@@ -151,12 +163,14 @@ export async function readStore(
     return {
       payload,
       email: emailFromCodexAuth(text),
+      subject: subjectFromCodexAuth(text),
       where: payload === null ? 'none' : 'file',
       account: null
     };
   }
   const accountText = await safeText(d, claudeAccountFileFor(d, dir));
   const email = accountText === null ? null : emailFromClaudeJson(accountText);
+  const subject = accountText === null ? null : subjectFromClaudeJson(accountText);
   if (d.keychainForClaude) {
     for (const service of claudeServicesFor(d, dir)) {
       const found = await safeKeychain(d, service);
@@ -165,6 +179,7 @@ export async function readStore(
       return {
         payload: found,
         email,
+        subject,
         where: 'keychain',
         account: await keychainAccount(d.runner, service)
       };
@@ -172,9 +187,9 @@ export async function readStore(
   }
   const text = await safeText(d, claudeCredentialFileFor(d, dir));
   if (text !== null && isCredentialPayload('claude', text)) {
-    return { payload: text, email, where: 'file', account: null };
+    return { payload: text, email, subject, where: 'file', account: null };
   }
-  return { ...NOTHING, email };
+  return { ...NOTHING, email, subject };
 }
 
 /**
@@ -195,6 +210,10 @@ export async function readSettledStore(
   const second = await readStore(d, provider, dir);
   if (second.payload !== first.payload) return null;
   if (second.email !== first.email) return null;
+  // THE SUBJECT MUST SETTLE TOO, because it is what decides whether the
+  // account changed, and a store caught between two accounts must be read
+  // again rather than half believed.
+  if (second.subject !== first.subject) return null;
   return second;
 }
 

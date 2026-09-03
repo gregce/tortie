@@ -59,6 +59,17 @@
  *      went over STDIN, `-A` was never passed, and no staged item is left.
  *  11. The gate is named in package.json, in build/verification-checks.mjs and
  *      in CLAUDE.md, because a gate nothing names is how a gate decays.
+ *  12. TWO OVERLAPPING OBSERVES leave one login, one surviving record row, the
+ *      store's bytes, two answers that agree, and a later list that still says
+ *      the account can be put back. An ordinary visit to the Agents page
+ *      issues more than one list at once, so this is the common case rather
+ *      than a hostile one, and thirteen ablations passed while it was broken.
+ *  13. A STORE THAT NAMES NO ACCOUNT ON EITHER SIDE still keeps what it
+ *      replaced, because a login signed into a moment ago has no address until
+ *      it takes a turn and that is exactly when a person types `/login` again.
+ *      The cost of keeping on doubt is bounded in the same arm: ten refreshes
+ *      of such a store leave ONE login rather than nine, and ten refreshes of
+ *      a store that does name itself leave none.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -345,6 +356,8 @@ const VERDICT_PARTS = [
   'attack',
   'leak',
   'noDuplicates',
+  'overlap',
+  'unnamed',
   'keychain',
   'shapes'
 ];
@@ -368,6 +381,8 @@ function verdict(d) {
     JSON.stringify(d.attack),
     JSON.stringify(d.leak),
     JSON.stringify(d.noDuplicates),
+    JSON.stringify(d.overlap),
+    JSON.stringify(d.unnamed),
     JSON.stringify(keychain),
     JSON.stringify(d.shapes)
   ];
@@ -526,6 +541,46 @@ if ('error' in live) {
     `${TAG} an account was promoted more than once: ${JSON.stringify(live.noDuplicates.names)}`
   );
 
+  // Rule 12. TWO OVERLAPPING OBSERVES, which is what an ordinary mount makes.
+  check(
+    live.overlap.logins.length === 1,
+    `${TAG} two overlapping observes made ${String(live.overlap.logins.length)} logins rather than one`
+  );
+  check(
+    live.overlap.recordKeeps,
+    `${TAG} TWO OVERLAPPING LISTS DESTROYED THE PROMOTED LOGIN'S ROW, so the account it holds is offered back to nobody, for ever`
+  );
+  check(
+    live.overlap.bytesExact,
+    `${TAG} the account kept through two overlapping observes is not the bytes that were in the store`
+  );
+  check(
+    live.overlap.agree,
+    `${TAG} two overlapping observes answered differently about the same login`
+  );
+  check(
+    live.overlap.laterKept,
+    `${TAG} a list issued after two overlapping ones draws the promoted login as never signed into`
+  );
+
+  // Rule 13. A STORE THAT NAMES NO ACCOUNT still keeps what it replaced.
+  check(
+    live.unnamed.promoted,
+    `${TAG} A STORE NAMING NO ADDRESS ON EITHER SIDE LOST THE ACCOUNT IT REPLACED: this is the shape a person hits by signing in and typing /login before taking a turn`
+  );
+  check(
+    live.unnamed.bytesExact,
+    `${TAG} the account kept from an unnamed store is not the bytes that were in it`
+  );
+  check(
+    live.unnamed.loginsAfterTen === 1,
+    `${TAG} ten refreshes of an unnamed store made ${String(live.unnamed.loginsAfterTen)} logins rather than one, and the name minter stops at 99`
+  );
+  check(
+    live.unnamed.namedLogins === 0,
+    `${TAG} ten refreshes of ONE named account made ${String(live.unnamed.namedLogins)} logins rather than none`
+  );
+
   // Rule 9 and rule 10.
   check(!live.leak.tokenInAnswers, `${TAG} A TOKEN BYTE REACHED AN ANSWER THIS DOMAIN GIVES`);
   check(live.leak.recordHasDigest, `${TAG} the record file holds no digest, so the leak scan is over an empty file`);
@@ -586,8 +641,62 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '    if (accountChanged && before !== undefined) {',
+        from: '    if (before !== undefined && !sameAccountProven(before, reading)) {',
         to: '    if (false && before !== undefined) {'
+      }
+    ]
+  },
+  {
+    // THE FIX ROUND'S OWN ABLATION. The rule is that an account is kept unless
+    // it is PROVED to be the same one, so the ablation is the rule inverted:
+    // keep only when the change is proved to be a DIFFERENT account, which is
+    // what the phase shipped with and what lost an account on three real
+    // shapes, being a login signed into but not yet used, the person's own
+    // claude store in that same shape, and a codex file with no id token.
+    name: 'the promotion made to need proof, so an unnamed store loses its account',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    if (before !== undefined && !sameAccountProven(before, reading)) {',
+        to: '    if (before !== undefined && before.email !== null && reading.email !== null && before.email !== reading.email) {'
+      }
+    ]
+  },
+  {
+    // The bound on the unnamed chain. Without it ten refreshes of a store that
+    // names no account mint nine logins, and `nextKeptLoginName` stops at 99,
+    // past which a promotion answers null and the account is lost outright.
+    name: 'the unnamed chain left unbounded, so a token refresh mints a login',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '      ? await reusableChainLogin(d, provider, slot, kept)',
+        to: '      ? null'
+      }
+    ]
+  },
+  {
+    // The lock that makes two overlapping observes safe. Without it the second
+    // one's write is composed from a copy taken before the first one's
+    // promotion, and the promoted login's row is destroyed permanently.
+    name: 'the observe lock removed, so two overlapping lists race the record file',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '  return underRootLock(d.root, () => observeOnce(d, provider));',
+        to: '  return observeOnce(d, provider);'
+      }
+    ]
+  },
+  {
+    // The merging write. A caller that writes back a whole file it read
+    // earlier discards every row another writer added in between.
+    name: 'the record write made to drop the rows it did not write itself',
+    edits: [
+      {
+        file: 'kept.ts',
+        from: '  const { file } = readKeptFile(root);\n  let moved = false;',
+        to: '  const file = emptyKeptFile();\n  let moved = false;'
       }
     ]
   },
@@ -606,9 +715,8 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from:
-          "    if (row.email !== null && before.email !== null && row.email === before.email) {\n      return null;\n    }",
-        to: '    if (false) {\n      return null;\n    }'
+        from: '    if (sameAccountProven(row, before)) return null;',
+        to: '    if (false) return null;'
       }
     ]
   },

@@ -52,7 +52,12 @@ import { loginDirIn, loginDirOnDisk } from '../logins/dirs';
 import { addLogin, readLoginsFile, type StoredLogin } from '../logins/store';
 import { credentialDigest } from './payload';
 import { readKeptFile, updateKeptFile, type KeptRecord } from './kept';
-import { readSettledStore, storeTarget, type StoreDeps } from './stores';
+import {
+  readSettledStore,
+  storeTarget,
+  type StoreDeps,
+  type StoreReading
+} from './stores';
 import { safeSwap, type SwapStep } from './swap';
 import { slotFor, vaultDel, vaultGet, vaultPut, type VaultBackend } from './vault';
 
@@ -253,12 +258,12 @@ async function observeOnce(
       facts.set(key, await factsFromSlot(d, provider, store.id, digest));
       continue;
     }
-    const accountChanged =
-      before !== undefined &&
-      before.email !== null &&
-      reading.email !== null &&
-      before.email !== reading.email;
-    if (accountChanged && before !== undefined) {
+    // THE STORE HOLDS DIFFERENT BYTES THAN TORTIE LAST SAW. Either the vendor
+    // refreshed the token of the account that was already there, or a person
+    // typed `/login` and a DIFFERENT account is in it now. Only the second
+    // loses an account, and the account that was there is kept unless Tortie
+    // can PROVE it is looking at the first. See {@link sameAccountProven}.
+    if (before !== undefined && !sameAccountProven(before, reading)) {
       const promoted = await promoteOutgoing(d, provider, slot, before, kept, changed);
       if (promoted !== null) events.push(promoted);
     }
@@ -275,8 +280,11 @@ async function observeOnce(
     }
     kept.slots[slot] = {
       email: reading.email,
+      subject: reading.subject,
       digest,
       account: reading.account,
+      // CAPTURED IN PLACE, so it came out of no other slot.
+      from: null,
       at: d.now()
     };
     changed[slot] = kept.slots[slot];
@@ -353,6 +361,133 @@ async function factsFromSlot(
 }
 
 /**
+ * Is the account in this store PROVABLY the one Tortie last recorded for it?
+ *
+ * ## THE RULE, AND WHICH WAY IT FAILS
+ *
+ * It answers true only when the vendor named the same account on both sides.
+ * Anything else is false, INCLUDING not knowing, and that asymmetry is the
+ * whole of the ruling: a false negative mints one extra login holding an
+ * account the person still has, which they can remove in one click; a false
+ * positive overwrites the only copy of an account that exists anywhere on the
+ * machine, and it is gone. The backlog states the property with no qualifier,
+ * being that no switch loses an account, so the doubt is spent on keeping.
+ *
+ * ## WHY THIS IS NOT WHERE IT STARTED
+ *
+ * As first built it asked whether the two ADDRESSES differed, which is true
+ * only when both are known, so a store that named no address on either side
+ * was read as unchanged and the previous account was overwritten. The
+ * verification drove three real shapes through it and all three lost the
+ * account: a login signed into but not yet used, whose `.claude.json` has no
+ * `oauthAccount` until the account takes a turn; the person's own claude store
+ * in that same shape; and a codex `auth.json` with no `id_token`. The first of
+ * those is exactly the sentence this phase exists to answer, because a person
+ * signs in, sees it is the wrong account, and types `/login` before ever
+ * taking a turn.
+ *
+ * ## THE SUBJECT IS WHAT MAKES THE RULE CHEAP
+ *
+ * Without a second identifier, "promote unless proven same" would mint a login
+ * on every hourly token refresh of any store with no address. Both vendors
+ * write a stable account identifier the moment they sign in, being
+ * `oauthAccount.accountUuid` and `tokens.account_id`, so a refresh is proved
+ * to be a refresh in every case where the vendor has written one and the rule
+ * costs nothing there. What remains is the narrow window where the vendor has
+ * named neither, and in that window Tortie keeps rather than guesses.
+ *
+ * ## NEITHER IDENTIFIER OUTRANKS THE OTHER, and a disagreement always wins
+ *
+ * The answer is true only when at least one identifier agrees AND no known
+ * identifier disagrees. An earlier draft let the subject decide alone whenever
+ * it was known on both sides, and this domain's own tests refused it: their
+ * codex fixture gives every account the same `account_id`, so two plainly
+ * different addresses were read as one account and the promotion stopped
+ * happening. A field that DISAGREES is positive evidence of a different
+ * account and there is no reading under which the other field overturns it, so
+ * a disagreement anywhere is enough on its own.
+ */
+/** The two things either side of the question names itself by. */
+interface AccountNames {
+  subject: string | null;
+  email: string | null;
+}
+
+/**
+ * The one comparison, used by the promotion gate and by the dedupe below, so
+ * the two can never drift into disagreeing about what one account is.
+ */
+function sameAccountProven(before: AccountNames, now: AccountNames): boolean {
+  let agreed = false;
+  for (const [was, is] of [
+    [before.subject, now.subject],
+    [before.email, now.email]
+  ] as const) {
+    if (was === null || is === null) continue;
+    if (was !== is) return false;
+    agreed = true;
+  }
+  return agreed;
+}
+
+/**
+ * The login an EARLIER identifier-less change at this same store was promoted
+ * into, when reusing it would lose nothing.
+ *
+ * ## WHY THIS EXISTS, and the number that forced it
+ *
+ * A store that names no account at all promotes on every change, because
+ * {@link sameAccountProven} cannot tell a refresh from a switch there. Driven
+ * over ten ordinary token refreshes of such a store, that minted NINE logins
+ * called `Kept 1` to `Kept 9`. Worse than the noise, `nextKeptLoginName` stops
+ * at 99, and past that a promotion answers null and the account really is
+ * lost, so an unbounded chain brings back the very defect the rule prevents.
+ *
+ * ## WHAT IS REUSED, AND WHAT IS NEVER TOUCHED
+ *
+ * Only a login this same store's earlier promotion created, which is what
+ * `from` records, and only while the person has shown no interest in it: it is
+ * not the chosen login, and its own directory holds no credential, meaning
+ * nobody has ever run a session under it or put an account into it. A login
+ * that fails either test is left exactly as it is and a new one is minted, so
+ * nothing a person has engaged with is ever written over.
+ *
+ * ## THE RESIDUE, STATED PLAINLY
+ *
+ * Two consecutive sign ins to DIFFERENT accounts at one store, with neither
+ * account ever naming itself and no session run in between, keep only the
+ * second. That is the one shape this bound gives up, and it is bought with the
+ * 99 login chain that ends in real loss. The account a person just left is
+ * still offered back, which is the sentence the phase exists to answer.
+ */
+async function reusableChainLogin(
+  d: KeepDeps,
+  provider: LoginProviderId,
+  slot: string,
+  kept: { slots: Record<string, KeptRecord> }
+): Promise<{ slot: string; name: string } | null> {
+  const { file } = readLoginsFile(d.root);
+  for (const [other, row] of Object.entries(kept.slots)) {
+    if (other === slot) continue;
+    if (row.from !== slot) continue;
+    // ONLY A CHAIN OF UNNAMED ACCOUNTS. A promotion that named itself is an
+    // account Tortie can tell apart, and it keeps its own login for ever.
+    if (row.subject !== null || row.email !== null) continue;
+    const login = file.logins.find(
+      (l) => l.provider === provider && slotOf(provider, l.id) === other
+    );
+    if (login === undefined) continue;
+    // THE TWO TESTS FOR "NOBODY HAS SHOWN ANY INTEREST IN THIS ONE".
+    if (login.chosen) continue;
+    const dir = loginDirIn(d.root, provider, login.id);
+    const holds = await readSettledStore(d.stores, provider, dir);
+    if (holds !== null && holds.payload !== null) continue;
+    return { slot: other, name: login.name };
+  }
+  return null;
+}
+
+/**
  * The account that was in a store, given a login of its own.
  *
  * THIS IS THE SUBTLE HALF OF THE PHASE. The bytes of the outgoing account
@@ -380,12 +515,52 @@ async function promoteOutgoing(
   if (credentialDigest(payload) !== before.digest) return null;
   // ALREADY OFFERED BACK? An account that already has a login of its own gets
   // no second one, however many times the store changes away from it.
+  //
+  // THREE WAYS OF BEING THE SAME, and the third is what bounds the rule above.
+  // Now that a store with no identifier at all promotes rather than guesses,
+  // the same bytes could otherwise be handed a fresh login every time a person
+  // switched back and forth, so a slot already holding this exact credential
+  // ends the matter whatever anybody is called.
   for (const [other, row] of Object.entries(kept.slots)) {
     if (other === slot) continue;
-    if (row.email !== null && before.email !== null && row.email === before.email) {
-      return null;
-    }
+    if (row.digest === before.digest) return null;
+    if (sameAccountProven(row, before)) return null;
   }
+  // AN UNNAMED CHAIN REUSES ITS OWN EARLIER LOGIN rather than minting one per
+  // token refresh. See {@link reusableChainLogin} for what it refuses to reuse.
+  const reuse =
+    before.subject === null && before.email === null
+      ? await reusableChainLogin(d, provider, slot, kept)
+      : null;
+  if (reuse === null) {
+    return mintPromotion(d, provider, slot, before, kept, changed, payload);
+  }
+  const write = await vaultPut(d.vault, reuse.slot, payload);
+  if (!write.ok) {
+    return { kind: 'refused', provider, login: reuse.name, says: write.reason };
+  }
+  kept.slots[reuse.slot] = {
+    email: before.email,
+    subject: before.subject,
+    digest: before.digest,
+    account: before.account,
+    from: slot,
+    at: d.now()
+  };
+  changed[reuse.slot] = kept.slots[reuse.slot];
+  return promotedEvent(provider, reuse.name, before.email);
+}
+
+/** One promotion into a login of its own, minted the ordinary way. */
+async function mintPromotion(
+  d: KeepDeps,
+  provider: LoginProviderId,
+  slot: string,
+  before: KeptRecord,
+  kept: { slots: Record<string, KeptRecord> },
+  changed: Record<string, KeptRecord>,
+  payload: string
+): Promise<KeepEvent | null> {
   const { file } = readLoginsFile(d.root);
   const taken = takenNames(file.logins, provider);
   const name =
@@ -404,19 +579,31 @@ async function promoteOutgoing(
   }
   kept.slots[newSlot] = {
     email: before.email,
+    subject: before.subject,
     digest: before.digest,
     account: before.account,
+    // WHERE IT CAME FROM, which is what lets a later unnamed change at the
+    // same store find this login instead of minting another beside it.
+    from: slot,
     at: d.now()
   };
   changed[newSlot] = kept.slots[newSlot];
+  return promotedEvent(provider, added.name, before.email);
+}
+
+function promotedEvent(
+  provider: LoginProviderId,
+  login: string,
+  email: string | null
+): KeepEvent {
   return {
     kind: 'promoted',
     provider,
-    login: added.name,
+    login,
     says:
-      before.email === null
+      email === null
         ? 'The sign in that was there is kept, and you can go back to it.'
-        : `${before.email} is kept, and you can go back to it.`
+        : `${email} is kept, and you can go back to it.`
   };
 }
 
