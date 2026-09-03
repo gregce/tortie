@@ -14,14 +14,17 @@
  * installs it beside the other registrars.
  */
 
+import { app } from 'electron';
 import { readFile, rm } from 'node:fs/promises';
 import { homedir, userInfo } from 'node:os';
 import { join } from 'node:path';
+import { LOGIN_PROVIDERS } from '@shared/logins';
 import { loginsRoot } from '../logins/paths';
 import { renameNoFollowSync, writeNoFollowSync } from './nofollow';
 import { defaultSecurityRunner } from './security';
 import type { StoreDeps } from './stores';
-import type { KeepDeps, LiveSession } from './keep';
+import { sweepableSlots, type KeepDeps, type LiveSession } from './keep';
+import { isOwnProfile, migrateUnscopedVault, type MigrateResult } from './migrate';
 import { fileVault, keychainVault, type VaultBackend } from './vault';
 
 export {
@@ -39,6 +42,7 @@ export {
   type LiveSession
 } from './keep';
 export { readKeptFile, writeKeptFile, type KeptFile, type KeptRecord } from './kept';
+export { isOwnProfile, type MigrateResult, type ProfileShape } from './migrate';
 export {
   CREDENTIAL_FILE_MODE,
   renameNoFollowSync,
@@ -163,4 +167,53 @@ export function keepDeps(): KeepDeps {
     now: () => Date.now()
   };
   return installed;
+}
+
+let migration: Promise<MigrateResult> | null = null;
+
+/**
+ * The seams, after the one move Phase 208 makes has been made (Phase 208).
+ *
+ * EVERY PRODUCTION CALLER GOES THROUGH HERE rather than {@link keepDeps}, so
+ * no observe, activation or removal can read a scoped slot before the item a
+ * tree before this phase wrote under the unscoped name has been moved under
+ * it. The migration runs ONCE per process, every later caller shares the same
+ * promise, and it is asked at all only on macOS, only when no harness seam is
+ * installed, and only when {@link isOwnProfile} says this is the person's own
+ * profile. Every scratch profile, every probe and every harness run gets the
+ * seams back at once with the migration refused before it composed a name.
+ *
+ * THE PROOF OF THE PROFILE IS COMPOSED HERE and nowhere else, out of the three
+ * paths Electron answers and the process environment. The migration itself
+ * takes the answer as a boolean and refuses on anything but true.
+ */
+export function readyKeepDeps(): Promise<KeepDeps> {
+  const deps = keepDeps();
+  if (migration === null) {
+    migration =
+      keychainIsTheStore() && deps.vault.kind === 'keychain'
+        ? migrateUnscopedVault({
+            runner: defaultSecurityRunner(),
+            vault: deps.vault,
+            root: deps.root,
+            slots: LOGIN_PROVIDERS.flatMap((provider) =>
+              sweepableSlots(deps.root, provider)
+            ),
+            ownProfile: isOwnProfile({
+              userData: app.getPath('userData'),
+              appData: app.getPath('appData'),
+              appName: app.getName(),
+              env: process.env
+            })
+          }).catch(
+            (): MigrateResult => ({ refused: false, moved: 0, deleted: 0, kept: 0 })
+          )
+        : Promise.resolve({ refused: true, moved: 0, deleted: 0, kept: 0 });
+  }
+  return migration.then(() => deps);
+}
+
+/** What the migration did, once it has run. For a log line, never a name. */
+export function vaultMigrationResult(): Promise<MigrateResult> | null {
+  return migration;
 }

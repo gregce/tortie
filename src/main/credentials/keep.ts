@@ -312,8 +312,12 @@ async function sweepStaged(d: KeepDeps, provider: LoginProviderId): Promise<void
  * {@link isSlotName} before it is used, because half of a slot name is half of
  * a keychain service name and both files are ones an agent with write access
  * to the home directory could edit.
+ *
+ * EXPORTED FOR THE PHASE 208 MIGRATION, which needs the same answer to the
+ * same question, being every slot this profile could name, so the two can
+ * never disagree about what is worth asking the keychain for.
  */
-function sweepableSlots(root: string, provider: LoginProviderId): string[] {
+export function sweepableSlots(root: string, provider: LoginProviderId): string[] {
   const out = new Set<string>([slotOf(provider, null)]);
   for (const row of readLoginsFile(root).file.logins) {
     if (row.provider !== provider) continue;

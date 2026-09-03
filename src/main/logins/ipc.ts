@@ -74,8 +74,8 @@ import {
   activateLogin,
   finishStrayLogins,
   forgetLogin,
-  keepDeps,
   observeProvider,
+  readyKeepDeps,
   NO_KEPT_FACTS,
   type KeptFacts
 } from '../credentials';
@@ -169,7 +169,11 @@ function observeAll(): Promise<Map<string, KeptFacts>> {
     const facts = new Map<string, KeptFacts>();
     for (const provider of LOGIN_PROVIDERS) {
       try {
-        const seen = await observeProvider(keepDeps(), provider);
+        // PHASE 208. `readyKeepDeps` rather than `keepDeps`: the seams come
+        // back only after the item a tree before that phase wrote under the
+        // unscoped keychain name has been moved under this profile's own, once
+        // per process, and only in the person's own profile.
+        const seen = await observeProvider(await readyKeepDeps(), provider);
         for (const [id, row] of seen.facts) facts.set(`${provider} ${id}`, row);
         for (const event of seen.events) {
           log.info('logins.observe', { provider, kind: event.kind });
@@ -247,7 +251,7 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     // signed out, so nothing is chosen at all and the person reads why.
     let activation: string | null = null;
     try {
-      const put = await activateLogin(keepDeps(), id, name);
+      const put = await activateLogin(await readyKeepDeps(), id, name);
       if (!put.ok) {
         forgetObservation();
         log.info('logins.activate', { provider: id, ok: false });
@@ -287,7 +291,7 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     // remove again, and the sweep below finishes it anyway.
     if (row !== undefined) {
       try {
-        await forgetLogin(keepDeps(), id, row.id);
+        await forgetLogin(await readyKeepDeps(), id, row.id);
       } catch {
         // A store that will not answer is not a reason to refuse a remove.
       }
@@ -297,7 +301,7 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     // PHASE 206. AND ANY EARLIER REMOVE THAT DID NOT FINISH IS FINISHED HERE,
     // so a stray can never outlive the next Remove the person presses.
     try {
-      const finished = await finishStrayLogins(keepDeps(), id);
+      const finished = await finishStrayLogins(await readyKeepDeps(), id);
       if (finished.length > 0) {
         log.info('logins.strays', { provider: id, finished: finished.length });
       }
