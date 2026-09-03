@@ -125,7 +125,18 @@ export function buildImportGraph(facts: ArchFactBase): ArchImportGraph {
     // dependency the resolver identified, so it is neither a crossing nor a
     // reason to withhold a verdict.
     if (fact.resolution === 'external') continue;
-    if (fact.resolution !== 'first-party' || fact.toPath === null) {
+    // AN EMPTY PATH IS THE REPOSITORY ROOT, AND IT IS A MISS RATHER THAN AN
+    // ANSWER (Phase 184 fix round). A directory grain arm whose target is the
+    // whole tree, being a C sharp `.csproj` at the root, used to answer
+    // `first-party` with `''`: `owners.get('')` misses because no tracked path
+    // is empty, and `ownersOfDirectory('')` built the prefix `/`, which no
+    // repository relative path starts with, so the fact vanished from BOTH
+    // sides of the ledger exactly as the Phase 180 defect did and a must-not a
+    // real import crossed printed convergent. Counting it as a crossing into
+    // every component would be the other lie, because an edge to everywhere
+    // says nothing about any one part. So it withholds the verdict, which is
+    // what this checker does with every answer that is not definite.
+    if (fact.resolution !== 'first-party' || fact.toPath === null || fact.toPath === '') {
       unresolvedImports += 1;
       for (const id of fromIds) {
         unresolvedFrom.set(id, (unresolvedFrom.get(id) ?? 0) + 1);

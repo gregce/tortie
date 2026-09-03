@@ -359,6 +359,33 @@ describe('a directory-shaped first-party answer is not invisible', () => {
     expect(verdict?.offending).toHaveLength(1);
   });
 
+  it('treats an EMPTY directory answer as a miss, never as a green', () => {
+    // THE PHASE 184 FIX ROUND, AND IT IS THE SAME DEFECT AT ITS BOUNDARY. A
+    // C sharp `.csproj` at the repository ROOT has the empty string for its
+    // directory, so the arm used to answer first-party with `''`. `owners`
+    // holds no empty key and the directory fall-back built the prefix `/`,
+    // which no repository relative path starts with, so the fact vanished
+    // and a must-not a real `using` crosses printed convergent with 0
+    // offending. An edge to the whole tree is not a definite answer, so it
+    // withholds the verdict instead.
+    const base = facts({
+      trackedFiles: ['src/app/Api.cs', 'src/store/Rows.cs'],
+      imports: [
+        imported({
+          fromPath: 'src/app/Api.cs',
+          specifier: 'Store.Rows',
+          toPath: '',
+          resolution: 'first-party'
+        })
+      ]
+    });
+    const verdict = checkImports(base).verdicts.find(
+      (v) => v.subjectId === 'edge:app-must-not-store'
+    );
+    expect(verdict?.status).toBe('unverifiable');
+    expect(countByCoverage(checkImports(base).verdicts, base).unresolvedImports).toBe(1);
+  });
+
   it('still drops a directory nobody owns, the unmapped-code rule unchanged', () => {
     const base = facts({
       trackedFiles: ['src/app/Main.swift', 'src/other/Loose.swift'],
