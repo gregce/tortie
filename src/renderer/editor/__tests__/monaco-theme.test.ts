@@ -11,11 +11,14 @@
  *   the canvas.
  * - An override that is not a six digit hex is ignored, because the alpha
  *   suffixes need six digits in front of them.
+ * - The foreground is the terminal's foreground on every ground, because
+ *   the two are one constant on one material and take one floor.
  */
 
 import { describe, expect, it } from 'vitest';
 import { converter, parse } from 'culori';
 import { gmuxMonacoTheme } from '../monaco-theme';
+import { terminalTextFor } from '../../terminal/theme';
 
 const toOklch = converter('oklch');
 const L = (hex: string): number => toOklch(parse(hex))?.l ?? -1;
@@ -96,5 +99,28 @@ describe('gmuxMonacoTheme', () => {
       textDark: false
     });
     expect(t.colors['scrollbarSlider.background']).toBe('#20232999');
+  });
+
+  it('agrees with the terminal foreground on every ground, the floor included', () => {
+    // #787571 is a ground the shipped foreground reads about 3.3:1 on, over
+    // the palette floor and under the text floor; the terminal lifts its
+    // foreground there and the editor must lift to the same byte.
+    const grounds: [string, boolean][] = [
+      ['#131417', false],
+      ['#161411', false],
+      ['#434447', false],
+      ['#787571', false],
+      ['#787672', true],
+      ['#bebbb7', true],
+      ['#d9dbdf', true]
+    ];
+    for (const [canvas, textDark] of grounds) {
+      const t = gmuxMonacoTheme({ overrides: { '--bg-canvas': canvas }, canvas, textDark });
+      const term = terminalTextFor(canvas, textDark);
+      expect(t.colors['editor.foreground']?.toLowerCase(), canvas).toBe(term.foreground.toLowerCase());
+      expect(t.colors['editorCursor.foreground']?.toLowerCase(), canvas).toBe(term.cursor.toLowerCase());
+    }
+    const lifted = gmuxMonacoTheme({ overrides: { '--bg-canvas': '#787571' }, canvas: '#787571', textDark: false });
+    expect(lifted.colors['editor.foreground']).not.toBe('#D8DBE2');
   });
 });

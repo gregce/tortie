@@ -130,24 +130,44 @@ export const HUE_TOKENS: readonly string[] = [
 ];
 
 /**
- * The text tokens and the ground each one is pinned against, which is where
- * src/renderer/theme/hue.ts reads its ratio from. `--text-muted` is pinned on
- * `--bg-surface` because DESIGN.md says it passes 4.5:1 only up to there.
+ * The text tokens, the ground each one is pinned against, which is where
+ * src/renderer/theme/hue.ts reads its ratio from, and every ground each one
+ * is allowed on, which is where its floor must hold. `--text-muted` is pinned
+ * on `--bg-surface` because DESIGN.md says it passes 4.5:1 only up to there,
+ * and never sits on the raised or active fills.
  * `--text-disabled` has no floor: it is exempt from contrast by design and
  * only follows the family when the text flips dark, keeping the ratio it
  * ships with so it stays de-emphasized.
  */
 export interface TextPin {
   token: string;
+  /** The ground the shipped ratio is read against. */
   ground: string;
+  /** Every ground the token is allowed on, the pinned one first. */
+  grounds: readonly string[];
   floor: number | null;
 }
 
 export const TEXT_PINS: readonly TextPin[] = [
-  { token: '--text-primary', ground: CANVAS_TOKEN, floor: 4.5 },
-  { token: '--text-secondary', ground: CANVAS_TOKEN, floor: 4.5 },
-  { token: '--text-muted', ground: '--bg-surface', floor: 4.5 },
-  { token: '--text-disabled', ground: CANVAS_TOKEN, floor: null }
+  {
+    token: '--text-primary',
+    ground: CANVAS_TOKEN,
+    grounds: [CANVAS_TOKEN, '--bg-sidebar', '--bg-surface', '--bg-raised', '--bg-active'],
+    floor: 4.5
+  },
+  {
+    token: '--text-secondary',
+    ground: CANVAS_TOKEN,
+    grounds: [CANVAS_TOKEN, '--bg-sidebar', '--bg-surface', '--bg-raised', '--bg-active'],
+    floor: 4.5
+  },
+  {
+    token: '--text-muted',
+    ground: '--bg-surface',
+    grounds: ['--bg-surface', CANVAS_TOKEN, '--bg-sidebar'],
+    floor: 4.5
+  },
+  { token: '--text-disabled', ground: CANVAS_TOKEN, grounds: [CANVAS_TOKEN], floor: null }
 ];
 
 /**

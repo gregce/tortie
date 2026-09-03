@@ -155,24 +155,41 @@ describe('solveForRatio', () => {
     expect(solveForRatio('#c9cacd', '#808080', 20, true)).toBe('#000000');
     expect(solveForRatio('#c9cacd', '#808080', 20, false)).toBe('#ffffff');
   });
+
+  it('never answers from the wrong side of the ground, however small the ratio', () => {
+    // A ratio any colour far from the ground clears. The search is bounded
+    // to the side asked for, so the dark answer is darker than the ground.
+    const dark = solveForRatio('#1b1d22', '#75767a', 1.07, true);
+    expect(oklch(dark).l).toBeLessThan(oklch('#75767a').l);
+    const light = solveForRatio('#1b1d22', '#75767a', 1.07, false);
+    expect(oklch(light).l).toBeGreaterThan(oklch('#75767a').l);
+  });
 });
 
 describe('followGround', () => {
   it('leaves the shipped colour alone while it clears its floor', () => {
-    expect(followGround('#c9cacd', '#131417', '#131417', 4.5, false)).toBe('#c9cacd');
-    expect(followGround('#c9cacd', '#131417', '#2a2c2f', 4.5, false)).toBe('#c9cacd');
+    expect(followGround('#c9cacd', '#131417', ['#131417'], 4.5, false)).toBe('#c9cacd');
+    expect(followGround('#c9cacd', '#131417', ['#2a2c2f', '#131417'], 4.5, false)).toBe('#c9cacd');
   });
 
   it('lifts toward white once the ground puts it under the floor', () => {
-    const lifted = followGround('#838996', '#191b20', '#5f6164', 4.5, false);
+    const lifted = followGround('#838996', '#191b20', ['#5f6164'], 4.5, false);
     expect(lifted).not.toBe('#838996');
     expect(wcagContrast(lifted, '#5f6164')).toBeGreaterThanOrEqual(4.5);
     expect(oklch(lifted).l).toBeGreaterThan(oklch('#838996').l);
   });
 
+  it('pushes darker still when a darker ground it also sits on is under the floor', () => {
+    // Solved to the shipped 4.91:1 against the surface alone, muted would
+    // read under 4.5:1 on the sidebar beside it; the answer clears both.
+    const value = followGround('#838996', '#191b20', ['#e0e2e6', '#c8cacd'], 4.5, true);
+    expect(wcagContrast(value, '#e0e2e6')).toBeGreaterThanOrEqual(4.5);
+    expect(wcagContrast(value, '#c8cacd')).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('keeps the shipped ratio on the dark side', () => {
     const shippedRatio = contrastOf('#9ca1ab', '#131417');
-    const dark = followGround('#9ca1ab', '#131417', '#d9dbdf', 4.5, true);
+    const dark = followGround('#9ca1ab', '#131417', ['#d9dbdf'], 4.5, true);
     expect(Math.abs(wcagContrast(dark, '#d9dbdf') - shippedRatio)).toBeLessThan(0.15);
     expect(oklch(dark).l).toBeLessThan(oklch('#d9dbdf').l);
   });

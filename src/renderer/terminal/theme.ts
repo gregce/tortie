@@ -11,7 +11,7 @@
 
 import type { ITheme } from '@xterm/xterm';
 import { useChromeTheme } from '../theme/chrome-theme';
-import { followPalette } from '../theme/hue';
+import { TERMINAL_FLOOR, TEXT_FLOOR, followPalette } from '../theme/hue';
 
 /**
  * The two colours the capture path needs as a NON-optional `string`.
@@ -207,7 +207,8 @@ export function terminalTextFor(
     TERMINAL_BACKGROUND,
     canvas,
     textDark,
-    TERMINAL_TEXT_EXEMPT
+    TERMINAL_TEXT_EXEMPT,
+    (key) => (key === 'foreground' ? TEXT_FLOOR : TERMINAL_FLOOR)
   );
 }
 

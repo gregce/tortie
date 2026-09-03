@@ -24,7 +24,7 @@
 
 import type * as monacoNs from 'monaco-editor';
 import { useChromeTheme, type ChromeThemeState } from '../theme/chrome-theme';
-import { followPalette } from '../theme/hue';
+import { TERMINAL_FLOOR, TEXT_FLOOR, followPalette } from '../theme/hue';
 import { GMUX_MONACO_THEME } from './monaco-theme-name';
 
 /** The shipped neutrals and text, token to value, DESIGN.md section 1.1. */
@@ -83,7 +83,14 @@ export function gmuxMonacoTheme(
     return value !== undefined && SIX_HEX.test(value) ? value : SHIPPED[token];
   };
   const canvas = n('--bg-canvas');
-  const s = followPalette(SYNTAX, SHIPPED['--bg-canvas'], canvas, state.textDark);
+  // The foreground is TEXT and takes the text floor, exactly as the
+  // terminal's foreground does in src/renderer/terminal/theme.ts, so the two
+  // foregrounds, the same constant on the same canvas, agree on every ground
+  // rather than parting between 3:1 and 4.5:1. The ramp takes the palette
+  // floor, as the ANSI colours do.
+  const s = followPalette(SYNTAX, SHIPPED['--bg-canvas'], canvas, state.textDark, [], (key) =>
+    key === 'fg' ? TEXT_FLOOR : TERMINAL_FLOOR
+  );
   const bare = (hex: string): string => hex.replace(/^#/, '');
   return {
     base: 'vs-dark',

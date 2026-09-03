@@ -255,14 +255,16 @@ describe('the frame hue (Phase 207)', () => {
       const text = toOklch(parse(value));
       const groundL = toOklch(parse(ground))?.l ?? 0;
       expect((text?.l ?? 1) < groundL, `${pin.token} is darker than its ground`).toBe(true);
-      // The ratio it ships with, or black when that is out of reach.
-      expect(Math.abs(got - shippedRatio) < 0.15 || value === '#000000', `${pin.token} ${String(got)} vs ${String(shippedRatio)}`).toBe(true);
+      // The ratio it ships with, more when a darker ground it also sits on
+      // needs it (muted on the sidebar), or black when it is out of reach.
+      expect(got + 0.15 >= shippedRatio || value === '#000000', `${pin.token} ${String(got)} vs ${String(shippedRatio)}`).toBe(true);
     }
   });
 
   it('lifts a text token toward white before the flip when its floor gives', () => {
-    // A quarter of the way up the flip has not happened, and text-muted has
-    // fallen under 4.5:1 on its surface, so it alone moves, toward white.
+    // A fifth of the way up the flip has not happened, and text-muted has
+    // fallen under 4.5:1 on its surface, so it moves, toward white, to its
+    // floor; the disabled token has no floor and never moves before a flip.
     const overrides = deriveOverrides(
       { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222 },
       base,
@@ -271,9 +273,17 @@ describe('the frame hue (Phase 207)', () => {
     const muted = must(overrides['--text-muted'], 'muted');
     const surface = must(overrides['--bg-surface'], 'surface');
     expect(wcagContrast(muted, surface)).toBeGreaterThanOrEqual(4.5);
+    expect(wcagContrast(muted, surface)).toBeLessThan(4.7);
     expect(toOklch(parse(muted))?.l ?? 0).toBeGreaterThan(toOklch(parse(must(base['--text-muted'], 'm')))?.l ?? 1);
-    expect(overrides['--text-primary']).toBeUndefined();
     expect(overrides['--text-disabled']).toBeUndefined();
+    // Every text token still clears its floor on every ground it sits on.
+    const value = (token: string): string => must(overrides[token] ?? base[token], token);
+    for (const pin of TEXT_PINS) {
+      if (pin.floor === null) continue;
+      for (const ground of pin.grounds) {
+        expect(wcagContrast(value(pin.token), value(ground)), `${pin.token} on ${ground}`).toBeGreaterThanOrEqual(pin.floor);
+      }
+    }
   });
 });
 

@@ -56,6 +56,8 @@ import { registerP93AttentionDrive } from './p93-attention-drive';
 import { registerP96RemoteSurfacesDrive } from './p96-remote-surfaces-drive';
 // PHASE 95. The harness drive for build/probe-p95-scroll.mjs, same shape again.
 import { registerP95ScrollDrive } from '../terminal/p95-scroll-drive';
+// PHASE 207. The harness drive for build/probe-p207-hue.mjs, same shape.
+import { registerP207HueDrive } from '../theme/p207-hue-drive';
 import { driveZoom } from '../zoom/shot-probe';
 import type { ZoomProbeSpec } from '../zoom/shot-probe';
 import { driveQuickOpen } from '../quickopen/shot-probe';
@@ -386,6 +388,8 @@ function armModuleLoadDrives(): void {
   registerP202LoginsDrive();
   // PHASE 203 hook, read by build/probe-p203-account.mjs.
   registerP203AccountDrive();
+  // PHASE 207 hook, same shape again, read by build/probe-p207-hue.mjs.
+  registerP207HueDrive();
 }
 
 /**

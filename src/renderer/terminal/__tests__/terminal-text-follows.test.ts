@@ -43,4 +43,25 @@ describe('terminalTextFor', () => {
       expect(got + 0.15 >= want || value === '#000000', `${key} ${String(got)} vs ${String(want)}`).toBe(true);
     }
   });
+
+  it('lifts the foreground to the text floor before the flip, the palette to its own', () => {
+    // A ground under the flip where the shipped foreground reads about
+    // 3.3:1: over the palette floor, under the text floor. The foreground
+    // lifts to 4.5:1 and no more; an ANSI colour that still clears 3:1
+    // stays the constant, and one that does not lifts to 3:1 and no more.
+    const canvas = '#787571';
+    const text = terminalTextFor(canvas, false);
+    expect(text.foreground).not.toBe(terminalTheme.foreground);
+    expect(wcagContrast(text.foreground, canvas)).toBeGreaterThanOrEqual(4.5);
+    expect(wcagContrast(text.foreground, canvas)).toBeLessThan(4.7);
+    expect(L(text.foreground)).toBeGreaterThan(L(canvas));
+    for (const key of ['brightWhite'] as const) {
+      expect(wcagContrast(String(terminalTheme[key]), canvas), key).toBeGreaterThanOrEqual(3);
+      expect(text[key], key).toBe(terminalTheme[key]);
+    }
+    expect(wcagContrast(String(terminalTheme.green), canvas)).toBeLessThan(3);
+    expect(text.green).not.toBe(terminalTheme.green);
+    expect(wcagContrast(text.green, canvas)).toBeGreaterThanOrEqual(3);
+    expect(wcagContrast(text.green, canvas)).toBeLessThan(3.2);
+  });
 });

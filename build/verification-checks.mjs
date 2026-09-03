@@ -542,6 +542,12 @@ export const CHECKS = [
   // --self-test` proves the three graders on twelve fixtures and launches
   // nothing.
   electron('probe:p205'),
+  // Phase 207. build/probe-p207-hue.mjs: one Electron on a scratch profile
+  // and the gmux-p207 socket, one shell session, one file in the editor,
+  // and five readings of the frame at four hues plus the synthetic ground,
+  // every colour read off the DOM. `--self-test` proves the grader on
+  // fixtures and launches nothing.
+  electron('probe:p207'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a

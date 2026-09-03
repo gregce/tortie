@@ -228,18 +228,20 @@ export function deriveOverrides(
   for (const pin of TEXT_PINS) {
     const shipped = base[pin.token];
     const shippedGround = base[pin.ground];
-    const ground = current(pin.ground);
-    if (shipped === undefined || shippedGround === undefined || ground === undefined) {
+    const grounds = pin.grounds
+      .map((g) => current(g))
+      .filter((g): g is string => g !== undefined);
+    if (shipped === undefined || shippedGround === undefined || grounds.length === 0) {
       continue;
     }
     if (parseOklch(shipped) === null) continue;
     let value: string;
     if (pin.floor === null) {
       value = dark
-        ? solveForRatio(shipped, ground, contrastOf(shipped, shippedGround), true)
+        ? solveForRatio(shipped, grounds[0] ?? shippedGround, contrastOf(shipped, shippedGround), true)
         : shipped;
     } else {
-      value = followGround(shipped, shippedGround, ground, pin.floor, dark);
+      value = followGround(shipped, shippedGround, grounds, pin.floor, dark);
     }
     if (liftOn && TEXT_SET.has(pin.token)) {
       const color = parseOklch(value);

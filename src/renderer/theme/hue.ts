@@ -120,11 +120,17 @@ export function solveForRatio(
   if (parsed === undefined) return css;
   const ok = toOklch(parsed);
   if (ok === undefined) return css;
-  // Contrast against the ground is monotone in lightness on each side of it.
-  // On the dark side the ratio rises as L falls, so `lo` holds the best L
-  // that still clears the ratio; on the light side the roles swap.
-  let lo = 0;
-  let hi = 1;
+  const groundL = toOklch(parse(ground.trim()) ?? { mode: 'rgb', r: 0, g: 0, b: 0 })?.l ?? 0;
+  // The search is BOUNDED TO THE SIDE ASKED FOR, from the ground's own
+  // lightness to black or to white. Contrast is monotone in lightness on
+  // each side of the ground, so within the bound the bisection is sound; a
+  // search over the whole range would be answered by a colour on the wrong
+  // side whenever the asked ratio is small, because a colour far from the
+  // ground on either side clears it. On the dark side the ratio rises as L
+  // falls, so `lo` holds the best L that still clears the ratio; on the
+  // light side the roles swap.
+  let lo = dark ? 0 : groundL;
+  let hi = dark ? groundL : 1;
   for (let i = 0; i < 40; i += 1) {
     const mid = (lo + hi) / 2;
     const clears = contrastOf(hexOf({ ...ok, l: mid }), ground) >= ratio;
@@ -140,43 +146,75 @@ export function solveForRatio(
   return hexOf({ ...ok, l: dark ? lo : hi });
 }
 
+/** The ground in `grounds` this colour reads worst against. */
+function worstGround(css: string, grounds: readonly string[]): string {
+  let worst = grounds[0] ?? '';
+  let ratio = Number.POSITIVE_INFINITY;
+  for (const ground of grounds) {
+    const r = contrastOf(css, ground);
+    if (r < ratio) {
+      ratio = r;
+      worst = ground;
+    }
+  }
+  return worst;
+}
+
 /**
- * One text colour, following the ground it sits on.
+ * One text colour, following the grounds it sits on.
  *
  * `shipped` and `shippedGround` are the values tokens.css ships, which is
- * where the pinned ratio is read from. `ground` is the ground in effect. On
- * the light side the shipped colour is kept unless it fails `floor` on the
- * ground, and is then lifted to the floor. On the dark side it is solved to
- * the shipped ratio, or black.
+ * where the pinned ratio is read from. `grounds` are the grounds in effect
+ * that this colour is allowed on, the pinned one first. On the light side
+ * the shipped colour is kept unless it fails `floor` on any of them, and is
+ * then lifted to the floor against the one it reads worst on, which lifts
+ * it past the floor on every other. On the dark side it is solved to the
+ * shipped ratio against the pinned ground, and pushed darker still when
+ * that leaves it under the floor on a darker ground it also sits on.
  */
 export function followGround(
   shipped: string,
   shippedGround: string,
-  ground: string,
+  grounds: readonly string[],
   floor: number,
   dark: boolean
 ): string {
+  const pinned = grounds[0] ?? shippedGround;
   if (dark) {
-    return solveForRatio(shipped, ground, contrastOf(shipped, shippedGround), true);
+    const kept = solveForRatio(shipped, pinned, contrastOf(shipped, shippedGround), true);
+    const worst = worstGround(kept, grounds);
+    if (contrastOf(kept, worst) >= floor) return kept;
+    const floored = solveForRatio(shipped, worst, floor, true);
+    return lightnessOf(floored) < lightnessOf(kept) ? floored : kept;
   }
-  if (contrastOf(shipped, ground) >= floor) return shipped;
-  return solveForRatio(shipped, ground, floor, false);
+  const worst = worstGround(shipped, grounds);
+  if (contrastOf(shipped, worst) >= floor) return shipped;
+  return solveForRatio(shipped, worst, floor, false);
+}
+
+function lightnessOf(css: string): number {
+  const parsed = parse(css.trim());
+  if (parsed === undefined) return 0;
+  return toOklch(parsed)?.l ?? 0;
 }
 
 /**
  * A whole palette following one ground: the terminal's foreground, cursor
  * and sixteen ANSI colours, or Monaco's syntax ramp. Every entry keeps the
  * ratio it ships with against the shipped canvas once the text is dark, and
- * is otherwise kept unless it falls under the terminal floor. `black` and
- * `brightBlack` are exempt from the floor, because they are near the ground
- * by design and lifting them to 3:1 would invent a colour.
+ * is otherwise kept unless it falls under its floor, the terminal floor
+ * unless `floorOf` says otherwise for a key (the foreground is text and
+ * takes the text floor). `black` and `brightBlack` are exempt from the
+ * floor, because they are near the ground by design and lifting them to
+ * 3:1 would invent a colour.
  */
 export function followPalette<K extends string>(
   palette: Readonly<Record<K, string>>,
   shippedCanvas: string,
   canvas: string,
   dark: boolean,
-  exempt: readonly string[] = []
+  exempt: readonly string[] = [],
+  floorOf: (key: K) => number = () => TERMINAL_FLOOR
 ): Record<K, string> {
   const out = {} as Record<K, string>;
   for (const key of Object.keys(palette) as K[]) {
@@ -185,7 +223,7 @@ export function followPalette<K extends string>(
       out[key] = shipped;
       continue;
     }
-    out[key] = followGround(shipped, shippedCanvas, canvas, TERMINAL_FLOOR, dark);
+    out[key] = followGround(shipped, shippedCanvas, [canvas], floorOf(key), dark);
   }
   return out;
 }
