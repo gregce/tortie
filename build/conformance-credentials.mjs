@@ -620,6 +620,8 @@ const VERDICT_PARTS = [
   'running',
   'locks',
   'claudeLock',
+  'lockRefusal',
+  'defaultLift',
   'watcher',
   'midChange',
   'attack',
@@ -652,6 +654,8 @@ function verdict(d) {
     JSON.stringify(d.running),
     JSON.stringify(d.locks),
     JSON.stringify(d.claudeLock),
+    JSON.stringify(d.lockRefusal),
+    JSON.stringify(d.defaultLift),
     JSON.stringify(d.watcher),
     JSON.stringify(d.midChange),
     JSON.stringify(d.attack),
@@ -790,12 +794,42 @@ if ('error' in live) {
   check(live.locks.neverTheJsonLock, `${TAG} a claude write took the .claude.json lock, which activate never needs`);
   check(live.locks.codexRan && live.locks.codexMadeNoLock, `${TAG} the codex write held a lock; codex holds none`);
 
+  check(live.locks.unwritableImmediate, `${TAG} A LOCK DIRECTORY THAT CANNOT BE MADE WAS WAITED ON, at one core, rather than refused at once`);
+  check(live.locks.unwritableSaysWhy, `${TAG} an unmakeable lock refused without naming the lock and saying the folder is not writable`);
+  check(live.locks.unwritableNoToken, `${TAG} an unmakeable lock refusal named a token`);
+  check(live.locks.nullBranchSleeps, `${TAG} THE LOCK LOOP SPINS: a seam answering not made and not there together ran the whole wait with no sleep`);
+
+  // Rule 6f (Phase 211 fix round). A HELD LOCK IS A REFUSAL, NOT A THROW.
+  check(!live.lockRefusal.threw, `${TAG} A LOCK HELD PAST THE WAIT WAS THROWN OUT OF ACTIVATE rather than answered, so the registrar records the choice and the face says switched`);
+  check(live.lockRefusal.refused, `${TAG} a lock held past the wait did not refuse the switch`);
+  check(live.lockRefusal.reasonNamesLock, `${TAG} the held lock refusal does not name the lock`);
+  check(live.lockRefusal.reasonHasNoToken, `${TAG} THE HELD LOCK REFUSAL NAMED A TOKEN`);
+  check(live.lockRefusal.holderKept, `${TAG} the live holder's lock was stolen by the refused switch`);
+  check(live.lockRefusal.storeUntouched, `${TAG} a refused switch wrote the store anyway`);
+
   // Rule 6c (Phase 211). A CLAUDE WRITE HOLDS BOTH LOCKS, seen through activate.
   check(live.claudeLock.wrote, `${TAG} the claude lock arm did not write, so the lock check proves nothing`);
   check(
     live.claudeLock.heldBoth,
     `${TAG} A CLAUDE SWITCH DID NOT HOLD THE CREDENTIAL LOCKS: took ${String(live.claudeLock.lockCount)} rather than 2`
   );
+
+  // Rule 6e (Phase 211 fix round). THE DEFAULT LIFT KEEPS WHAT IT WRITES OVER.
+  check(live.defaultLift.wrote, `${TAG} the default lift arm did not write, so the rest of it is a check over an empty world`);
+  check(live.defaultLift.itemHoldsChosen, `${TAG} the default lift did not put the chosen account into the vendor's own keychain item`);
+  check(
+    live.defaultLift.outgoingHeldAfterObserve,
+    `${TAG} THE DEFAULT LIFT LOST THE PERSON'S OWN ACCOUNT: the account that was in the default store exists in no slot after the observe that follows a choose, because the lift wrote over it while the vendor's identity file still named it`
+  );
+  check(
+    JSON.stringify(live.defaultLift.logins) === JSON.stringify(['alice.example', 'work']),
+    `${TAG} the default lift left the logins as ${JSON.stringify(live.defaultLift.logins)} rather than the chosen one and one promoted from the address`
+  );
+  check(
+    live.defaultLift.recordDigestIsChosen && live.defaultLift.recordEmailIsChosen,
+    `${TAG} the default record was not moved on to the chosen account after the lift, so the next observe judges a change instead of reading unchanged bytes`
+  );
+  check(live.defaultLift.observeChangedNothing, `${TAG} the observe after a lift kept or promoted something, so the lift left the record behind the store`);
 
   // Rule 6d (Phase 211). THE WATCHER: one observe per burst, only its file.
   check(live.watcher.watchesADirectory, `${TAG} the watcher opened no directory watcher, so the burst check proves nothing`);
@@ -1179,8 +1213,8 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '    if (sameAccountProven(row, before)) return null;',
-        to: '    if (false) return null;'
+        from: '    if (sameAccountProven(row, before)) return { held: true, event: null };',
+        to: '    if (false) return { held: true, event: null };'
       }
     ]
   },
@@ -1343,6 +1377,69 @@ const ABLATIONS = [
     ]
   },
   {
+    // PHASE 211 FIX ROUND. The promotion in front of the default lift trusted
+    // again, which is the shape that shipped: alice is written over while the
+    // vendor's identity file still names her, and the next observe keeps bob
+    // under her name.
+    name: 'the default lift no longer keeps the account it writes over',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '      const promoted = await promoteOutgoing(d, provider, defSlot, before, kept, changed);\n      updateKeptFile(d.root, changed);\n      if (!promoted.held) {',
+        to: '      const promoted = { held: true };\n      updateKeptFile(d.root, changed);\n      if (!promoted.held) {'
+      }
+    ]
+  },
+  {
+    // PHASE 211 FIX ROUND. The default record left behind the store after the
+    // lift, so the observe that follows judges a change under a stale identity.
+    name: 'the default record not moved on after the lift',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    const copy = await vaultPut(d.vault, defSlot, payload);\n    if (copy.ok) {',
+        to: '    const copy = { ok: false };\n    if (copy.ok) {'
+      }
+    ]
+  },
+  {
+    // PHASE 211 FIX ROUND. The catch that turns a held lock into a refusal
+    // removed, which is the shape that shipped: `LockHeld` leaves activate.
+    name: 'a held lock thrown out of activate rather than refused',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    if (err instanceof LockHeld) return { ok: false, reason: err.message };',
+        to: '    if (err instanceof LockHeld) throw err;'
+      }
+    ]
+  },
+  {
+    // PHASE 211 FIX ROUND. An unmakeable lock waited on rather than refused,
+    // which with the sleep below removed as well is the shape that spun a
+    // core for the whole wait.
+    name: 'an unmakeable lock waited on for the whole timeout',
+    edits: [
+      {
+        file: 'locks.ts',
+        from: "      throw new LockHeld(opts.lockName, 'unwritable');",
+        to: '      made = false;'
+      }
+    ]
+  },
+  {
+    // PHASE 211 FIX ROUND. The sleep on the null branch removed, so a seam
+    // answering not made and not there together spins the loop.
+    name: 'the lock loop null branch spinning with no sleep',
+    edits: [
+      {
+        file: 'locks.ts',
+        from: '      await deps.sleep(50);\n      continue;\n    }\n    if (deps.now() - heldAt > staleness) {',
+        to: '      continue;\n    }\n    if (deps.now() - heldAt > staleness) {'
+      }
+    ]
+  },
+  {
     // PHASE 211. A live lock stolen, which is the one thing the protocol must
     // never do: a stolen lock is a write inside a token refresh.
     name: 'a live lock stolen, so a switch can land inside a token refresh',
@@ -1373,8 +1470,8 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '  if (provider === \'claude\') {\n    return withClaudeCredentialLocks(',
-        to: '  if (false && provider === \'claude\') {\n    return withClaudeCredentialLocks('
+        from: '    if (provider === \'claude\') {\n      return await withClaudeCredentialLocks(',
+        to: '    if (false && provider === \'claude\') {\n      return await withClaudeCredentialLocks('
       }
     ]
   },

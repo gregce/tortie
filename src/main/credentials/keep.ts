@@ -73,6 +73,7 @@ import {
 } from './stores';
 import { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
 import {
+  LockHeld,
   withClaudeCredentialLocks,
   withCodexNoLock,
   type LockDeps
@@ -409,7 +410,7 @@ async function observeOnce(
     // can PROVE it is looking at the first. See {@link sameAccountProven}.
     if (before !== undefined && !sameAccountProven(before, reading)) {
       const promoted = await promoteOutgoing(d, provider, slot, before, kept, changed);
-      if (promoted !== null) events.push(promoted);
+      if (promoted.event !== null) events.push(promoted.event);
     }
     const write = await vaultPut(d.vault, slot, reading.payload);
     if (!write.ok) {
@@ -634,6 +635,21 @@ async function reusableChainLogin(
 }
 
 /**
+ * What a promotion answered (Phase 211 fix round).
+ *
+ * `held` is the question the DEFAULT LIFT asks before it writes a byte: is
+ * the account this slot holds now kept in some OTHER slot, either because it
+ * already was or because this call just put it there? The observe path reads
+ * only the event. Phase 204 answered null for "already kept" and for "could
+ * not keep" alike, and the lift needs the two apart, because the first is
+ * safe to write over and the second is the loss of an account.
+ */
+interface Promotion {
+  held: boolean;
+  event: KeepEvent | null;
+}
+
+/**
  * The account that was in a store, given a login of its own.
  *
  * THIS IS THE SUBTLE HALF OF THE PHASE. The bytes of the outgoing account
@@ -655,10 +671,10 @@ async function promoteOutgoing(
   before: KeptRecord,
   kept: { slots: Record<string, KeptRecord> },
   changed: Record<string, KeptRecord>
-): Promise<KeepEvent | null> {
+): Promise<Promotion> {
   const payload = await vaultGet(d.vault, slot);
-  if (payload === null) return null;
-  if (credentialDigest(payload) !== before.digest) return null;
+  if (payload === null) return { held: false, event: null };
+  if (credentialDigest(payload) !== before.digest) return { held: false, event: null };
   // ALREADY OFFERED BACK? An account that already has a login of its own gets
   // no second one, however many times the store changes away from it.
   //
@@ -669,8 +685,8 @@ async function promoteOutgoing(
   // ends the matter whatever anybody is called.
   for (const [other, row] of Object.entries(kept.slots)) {
     if (other === slot) continue;
-    if (row.digest === before.digest) return null;
-    if (sameAccountProven(row, before)) return null;
+    if (row.digest === before.digest) return { held: true, event: null };
+    if (sameAccountProven(row, before)) return { held: true, event: null };
   }
   // AN UNNAMED CHAIN REUSES ITS OWN EARLIER LOGIN rather than minting one per
   // token refresh. See {@link reusableChainLogin} for what it refuses to reuse.
@@ -683,7 +699,10 @@ async function promoteOutgoing(
   }
   const write = await vaultPut(d.vault, reuse.slot, payload);
   if (!write.ok) {
-    return { kind: 'refused', provider, login: reuse.name, says: write.reason };
+    return {
+      held: false,
+      event: { kind: 'refused', provider, login: reuse.name, says: write.reason }
+    };
   }
   const record: KeptRecord = {
     email: before.email,
@@ -695,7 +714,7 @@ async function promoteOutgoing(
   };
   kept.slots[reuse.slot] = record;
   changed[reuse.slot] = record;
-  return promotedEvent(provider, reuse.name, before.email);
+  return { held: true, event: promotedEvent(provider, reuse.name, before.email) };
 }
 
 /** One promotion into a login of its own, minted the ordinary way. */
@@ -707,22 +726,25 @@ async function mintPromotion(
   kept: { slots: Record<string, KeptRecord> },
   changed: Record<string, KeptRecord>,
   payload: string
-): Promise<KeepEvent | null> {
+): Promise<Promotion> {
   const { file } = readLoginsFile(d.root);
   const taken = takenNames(file.logins, provider);
   const name =
     loginNameFromEmail(before.email, taken) ?? nextKeptLoginName(taken);
-  if (name === null) return null;
+  if (name === null) return { held: false, event: null };
   const added = addLogin(d.root, provider, name);
-  if (!added.ok) return null;
+  if (!added.ok) return { held: false, event: null };
   const fresh = readLoginsFile(d.root).file.logins.find(
     (l) => l.provider === provider && sameLoginName(l.name, added.name)
   );
-  if (fresh === undefined) return null;
+  if (fresh === undefined) return { held: false, event: null };
   const newSlot = slotOf(provider, fresh.id);
   const write = await vaultPut(d.vault, newSlot, payload);
   if (!write.ok) {
-    return { kind: 'refused', provider, login: added.name, says: write.reason };
+    return {
+      held: false,
+      event: { kind: 'refused', provider, login: added.name, says: write.reason }
+    };
   }
   kept.slots[newSlot] = {
     email: before.email,
@@ -735,7 +757,7 @@ async function mintPromotion(
     at: d.now()
   };
   changed[newSlot] = kept.slots[newSlot];
-  return promotedEvent(provider, added.name, before.email);
+  return { held: true, event: promotedEvent(provider, added.name, before.email) };
 }
 
 function promotedEvent(
@@ -796,7 +818,7 @@ function isDefaultLogin(login: string | null): boolean {
  * vendor's default config home for the default store. The lock is released in
  * the helper's own `finally` whatever the write did.
  */
-function writeUnderLock(
+async function writeUnderLock(
   provider: LoginProviderId,
   configHome: string,
   target: SwapTarget,
@@ -804,14 +826,28 @@ function writeUnderLock(
   stopAfter: SwapStep | undefined,
   lockDeps: LockDeps | undefined
 ): Promise<SwapResult> {
-  if (provider === 'claude') {
-    return withClaudeCredentialLocks(
-      configHome,
-      () => safeSwap(target, payload, stopAfter),
-      lockDeps
-    );
+  try {
+    if (provider === 'claude') {
+      return await withClaudeCredentialLocks(
+        configHome,
+        () => safeSwap(target, payload, stopAfter),
+        lockDeps
+      );
+    }
+    return await withCodexNoLock(() => safeSwap(target, payload, stopAfter));
+  } catch (err) {
+    // A LOCK THAT STAYED HELD IS A REFUSAL, NOT A THROW (Phase 211 fix round).
+    // The verifier held the lock past the wait and watched `LockHeld` leave
+    // this function uncaught: the registrar caught it, recorded the choice
+    // anyway, and the face said the login was switched while nothing had been
+    // written. The sentence names the lock and never a payload, and it is the
+    // one a person reads.
+    if (err instanceof LockHeld) return { ok: false, reason: err.message };
+    return {
+      ok: false,
+      reason: 'The sign in could not be written while its lock was being taken, so nothing changed.'
+    };
   }
-  return withCodexNoLock(() => safeSwap(target, payload, stopAfter));
 }
 
 /**
@@ -919,29 +955,17 @@ export async function activateLogin(
 
   // 2. THE DEFAULT LIFT (Phase 211). A session of this provider running under
   //    the default login reads the vendor's own location, so the chosen account
-  //    is put THERE too and that running session follows. The observe above
-  //    already kept and promoted whatever account was in the default store.
+  //    is put THERE too and that running session follows. The account that is
+  //    in the default store is given a login of its own BEFORE a byte moves,
+  //    inside {@link liftDefaultStore}, and the reason it cannot be left to the
+  //    observe above is the fix round's own finding.
   const running = await d.liveSessions().catch((): LiveSession[] => []);
   if (running.some((s) => s.provider === provider && isDefaultLogin(s.login))) {
-    const defLive = await readSettledStore(d.stores, provider, null);
-    const defHolds =
-      defLive !== null &&
-      defLive.payload !== null &&
-      credentialDigest(defLive.payload) === digest;
-    if (!defHolds) {
-      const defTarget = await defaultStoreTarget(d.stores, provider);
-      if (defTarget !== null) {
-        const done = await writeUnderLock(
-          provider,
-          claudeConfigDirFor(d.stores, null),
-          defTarget,
-          payload,
-          stopAfter,
-          d.lockDeps
-        );
-        if (done.ok) wrote = true;
-        else if (firstProblem === null) firstProblem = done.reason;
-      }
+    const lifted = await liftDefaultStore(d, provider, slot, payload, digest, stopAfter);
+    if (lifted.ok) {
+      if (lifted.wrote) wrote = true;
+    } else if (firstProblem === null) {
+      firstProblem = lifted.reason;
     }
   }
 
@@ -950,7 +974,126 @@ export async function activateLogin(
       ? { ok: true, wrote: false, says: 'That account is already in place.' }
       : { ok: false, reason: firstProblem };
   }
+  if (firstProblem !== null) {
+    // THE LOGIN'S OWN STORE WAS WRITTEN AND THE DEFAULT ONE WAS NOT. The
+    // choice stands, because every new session under this login gets the
+    // account, and the sentence says which half did not happen and why.
+    return {
+      ok: true,
+      wrote: true,
+      says: `${row.name} is signed in again, but the running session was not reached. ${firstProblem}`
+    };
+  }
   return { ok: true, wrote: true, says: `${row.name} is signed in again.` };
+}
+
+/**
+ * Write the chosen account into the vendor's own default location, keeping
+ * the account that is there first (Phase 211, rewritten by the fix round).
+ *
+ * ## THE FINDING, re-derived rather than described
+ *
+ * As first built the lift trusted the observe that runs at the top of
+ * `activateLogin` to have "already kept and promoted" the outgoing account.
+ * An observe promotes only on a CHANGE, and at that moment nothing has
+ * changed: the default store holds alice, the default slot holds alice, and
+ * the record says alice. The lift then wrote bob into the keychain item and
+ * NOT into `~/.claude.json`, which is the vendor's file and stays alice until
+ * bob takes a turn. The very next observe read bob's bytes under alice's
+ * identity, {@link sameAccountProven} answered true on both fields, no
+ * promotion happened, and the default slot, the ONLY copy of alice anywhere,
+ * was overwritten with bob. Driven by the verifier over the shipping module
+ * with an in-memory keychain: alice gone from every store and every slot.
+ * The codex arm of the gate never saw it because `auth.json` carries identity
+ * and credential in one file, so the identity moved with the bytes.
+ *
+ * ## THE TWO HALVES, and the first is the load bearing one
+ *
+ *  1. BEFORE THE WRITE, the account in the default slot is promoted into a
+ *     login of its own through the same {@link promoteOutgoing} the observe
+ *     uses, which answers whether it is now HELD somewhere other than the
+ *     slot about to be written over. Not held is a refusal: nothing is
+ *     written over an account that exists nowhere else.
+ *  2. AFTER THE WRITE, the default slot's rolling copy and its record are
+ *     moved on to the CHOSEN account, its digest and its identity, so the
+ *     next observe reads unchanged bytes and does nothing, whatever the
+ *     vendor's identity file says for the turn it lags behind.
+ *
+ * Both run under the root lock, because both mutate the record file.
+ */
+async function liftDefaultStore(
+  d: KeepDeps,
+  provider: LoginProviderId,
+  chosenSlot: string,
+  payload: string,
+  digest: string,
+  stopAfter: SwapStep | undefined
+): Promise<{ ok: true; wrote: boolean } | { ok: false; reason: string }> {
+  return underRootLock(d.root, async () => {
+    const defLive = await readSettledStore(d.stores, provider, null);
+    if (defLive === null) {
+      // MID CHANGE. The vendor is writing it right now, and the bytes that are
+      // there have not been kept. Writing over them would lose an account.
+      return {
+        ok: false,
+        reason: 'Your own sign in location is changing right now, so the running session was left as it is. Try again in a moment.'
+      };
+    }
+    if (defLive.payload !== null && credentialDigest(defLive.payload) === digest) {
+      return { ok: true, wrote: false };
+    }
+    const defSlot = slotOf(provider, null);
+    const { file: kept } = readKeptFile(d.root);
+    const before: KeptRecord | undefined = kept.slots[defSlot];
+    const changed: Record<string, KeptRecord> = {};
+    if (defLive.payload !== null) {
+      // THE STORE HOLDS AN ACCOUNT. It must be the one the observe just kept,
+      // and that one must be held somewhere else before it is written over.
+      if (before === undefined || before.digest !== credentialDigest(defLive.payload)) {
+        return {
+          ok: false,
+          reason: 'Tortie has not yet kept the sign in that is there, so the running session was left as it is. Try again in a moment.'
+        };
+      }
+      const promoted = await promoteOutgoing(d, provider, defSlot, before, kept, changed);
+      updateKeptFile(d.root, changed);
+      if (!promoted.held) {
+        return {
+          ok: false,
+          reason: 'Tortie could not keep the sign in that is there, so nothing was written over it.'
+        };
+      }
+    }
+    const defTarget = await defaultStoreTarget(d.stores, provider);
+    if (defTarget === null) return { ok: true, wrote: false };
+    const done = await writeUnderLock(
+      provider,
+      claudeConfigDirFor(d.stores, null),
+      defTarget,
+      payload,
+      stopAfter,
+      d.lockDeps
+    );
+    if (!done.ok) return { ok: false, reason: done.reason };
+    // THE ROLLING COPY MOVES ON TO THE CHOSEN ACCOUNT, bytes and record
+    // together, so the next observe finds the store unchanged.
+    const chosen: KeptRecord | undefined = kept.slots[chosenSlot];
+    const copy = await vaultPut(d.vault, defSlot, payload);
+    if (copy.ok) {
+      const moved: Record<string, KeptRecord> = {
+        [defSlot]: {
+          email: chosen?.email ?? null,
+          subject: chosen?.subject ?? null,
+          digest,
+          account: defLive.account ?? before?.account ?? null,
+          from: null,
+          at: d.now()
+        }
+      };
+      updateKeptFile(d.root, moved);
+    }
+    return { ok: true, wrote: true };
+  });
 }
 
 /**

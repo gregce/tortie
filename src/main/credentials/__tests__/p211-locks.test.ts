@@ -9,7 +9,7 @@
  * never a credential.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, rmSync, rmdirSync, statSync, utimesSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, rmdirSync, statSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -43,8 +43,9 @@ function drivenDeps(over: Partial<LockDeps> = {}): LockDeps {
       try {
         mkdirSync(path);
         return true;
-      } catch {
-        return false;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
+        throw err;
       }
     },
     mtimeMs: (path) => {
@@ -79,6 +80,34 @@ function drivenDeps(over: Partial<LockDeps> = {}): LockDeps {
 }
 
 describe('acquireLock', () => {
+  it('refuses at once, saying why, when the lock directory cannot be made (fix round)', async () => {
+    // A config home that is not writable: mkdir fails with EACCES on every
+    // turn, and as shipped the loop ran the whole wait at one core.
+    const home = join(root, 'home');
+    mkdirSync(home);
+    chmodSync(home, 0o555);
+    let sleeps = 0;
+    const deps = drivenDeps({
+      sleep: async () => {
+        sleeps += 1;
+      }
+    });
+    const started = Date.now();
+    let thrown: unknown = null;
+    try {
+      await acquireLock(join(home, '.oauth_refresh.lock'), { lockName: '.oauth_refresh.lock', deps });
+    } catch (err) {
+      thrown = err;
+    } finally {
+      chmodSync(home, 0o755);
+    }
+    expect(thrown).toBeInstanceOf(LockHeld);
+    expect((thrown as LockHeld).why).toBe('unwritable');
+    expect((thrown as LockHeld).message).toContain('not writable');
+    expect(sleeps).toBe(0);
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
   it('makes the directory and removes it on release', async () => {
     const dir = join(root, 'a.lock');
     const handle = await acquireLock(dir, { lockName: 'a', deps: drivenDeps() });

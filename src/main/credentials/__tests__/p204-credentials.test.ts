@@ -28,6 +28,7 @@ import {
   type LiveSession
 } from '../keep';
 import type { StoreDeps } from '../stores';
+import type { LockDeps } from '../locks';
 import { isSlotName, slotFor, vaultGet, vaultPut, type VaultBackend } from '../vault';
 
 /** A vault that lives in a map, and can be made to fail one step on purpose. */
@@ -300,13 +301,33 @@ describe('the record file', () => {
 });
 
 describe('the three verbs', () => {
+  /** In-memory lock seams, so a claude write here makes no real directory. */
+  function memLocks(): LockDeps {
+    const dirs = new Set<string>();
+    let clock = 1_000;
+    return {
+      mkdir: (path) => (dirs.has(path) ? false : (dirs.add(path), true)),
+      mtimeMs: (path) => (dirs.has(path) ? clock : null),
+      rmdir: (path) => {
+        dirs.delete(path);
+      },
+      touch: () => undefined,
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      setInterval: () => ({ clear: () => undefined })
+    };
+  }
+
   function deps(files: Map<string, string>, live: LiveSession[] = []): KeepDeps {
     return {
       root,
       vault: fakeVault(),
       stores: fakeStores(files),
       liveSessions: async () => live,
-      now: () => 1_000
+      now: () => 1_000,
+      lockDeps: memLocks()
     };
   }
 
@@ -424,6 +445,42 @@ describe('the three verbs', () => {
     );
     // And the login's own directory holds it too, for new sessions.
     expect(files.get(join(dir, 'auth.json'))).toBe(codexCredential('a', 'one@example.com'));
+  });
+
+  it('keeps the account the default lift writes over, while the identity file still names it (Phase 211 fix round)', async () => {
+    // THE VERIFIER'S FINDING, on the file platform: the claude credential and
+    // the claude identity are two files, so the lift moves one and the vendor
+    // moves the other on the account's first turn. Between the two the store
+    // reads as "bob's bytes, alice's name".
+    const files = new Map<string, string>();
+    files.set('/home/.claude/.credentials.json', claudeCredential('ALICE-1'));
+    files.set('/home/.claude.json', JSON.stringify({ oauthAccount: { emailAddress: 'alice@example.com' } }));
+    const d = deps(files, [{ provider: 'claude', login: null }]);
+    await observeProvider(d, 'claude');
+    // A login he made, signed into as bob inside a session under it.
+    addLogin(root, 'claude', 'work');
+    const work = readLoginsFile(root).file.logins.find((l) => l.name === 'work');
+    const dir = loginDirIn(root, 'claude', work?.id ?? '');
+    files.set(join(dir, '.credentials.json'), claudeCredential('BOB-1'));
+    files.set(join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'bob@example.com' } }));
+    await observeProvider(d, 'claude');
+
+    const put = await activateLogin(d, 'claude', 'work');
+    expect(put.ok).toBe(true);
+    expect(files.get('/home/.claude/.credentials.json')).toBe(claudeCredential('BOB-1'));
+    // `~/.claude.json` still says alice. The observe the list runs next must
+    // not read that as "alice refreshed her token".
+    const after = await observeProvider(d, 'claude');
+    expect(after.events).toEqual([]);
+    const vault = d.vault as ReturnType<typeof fakeVault>;
+    const aliceHeld = [...vault.slots.entries()].some(
+      ([slot, bytes]) => slot !== 'claude.default' && bytes === claudeCredential('ALICE-1')
+    );
+    expect(aliceHeld).toBe(true);
+    expect(readLoginsFile(root).file.logins.map((l) => l.name).sort()).toEqual(['alice.example', 'work']);
+    const record = readKeptFile(root).file.slots['claude.default'];
+    expect(record?.email).toBe('bob@example.com');
+    expect(record?.digest).toBe(credentialDigest(claudeCredential('BOB-1')));
   });
 
   it('forgets nothing when a store is caught mid change', async () => {

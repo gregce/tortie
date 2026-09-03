@@ -101,12 +101,28 @@ export function legacyClaudeLockDir(configHome: string): string {
   return `${configHome}.lock`;
 }
 
-/** Raised when a lock stayed held past its wait, naming the lock and never a payload. */
+/**
+ * Raised when a lock could not be taken, naming the lock and never a payload.
+ *
+ * TWO REASONS, and they read differently because a person acts on them
+ * differently. `held` is a live holder that outlasted the wait, which is the
+ * vendor refreshing and is answered by trying again. `unwritable` is a lock
+ * directory that cannot be made at all, being a config home that is missing
+ * or not writable, which no retry answers. The fix round added the second:
+ * as shipped, a config home with mode 555 made `mkdir` fail with EACCES on
+ * every turn of the loop, the stat answered null, and the null branch
+ * continued with no sleep, so the whole nine second wait ran at one core.
+ */
 export class LockHeld extends Error {
-  constructor(public readonly lockName: string) {
+  constructor(
+    public readonly lockName: string,
+    public readonly why: 'held' | 'unwritable' = 'held'
+  ) {
     super(
-      `Could not take ${lockName}: Claude Code appears to be refreshing ` +
-        'its credentials. Try again in a few seconds.'
+      why === 'held'
+        ? `Could not take ${lockName}: Claude Code appears to be refreshing ` +
+            'its credentials. Try again in a few seconds.'
+        : `Could not make ${lockName}: the sign in folder is missing or not writable.`
     );
     this.name = 'LockHeld';
   }
@@ -114,7 +130,13 @@ export class LockHeld extends Error {
 
 /** The seams. The tests hand in their own over a scratch directory. */
 export interface LockDeps {
-  /** Make the directory, answering whether THIS call created it. */
+  /**
+   * Make the directory, answering whether THIS call created it. False means
+   * it is already there, which is the mutex being held. Any other failure,
+   * being a parent that is missing or a directory that cannot be written,
+   * THROWS, so the loop can refuse at once rather than wait on a mkdir that
+   * will never land.
+   */
   mkdir(path: string): boolean;
   /** The directory's mtime in ms, or null when it is not there. */
   mtimeMs(path: string): number | null;
@@ -135,8 +157,11 @@ export function defaultLockDeps(): LockDeps {
       try {
         mkdirSync(path);
         return true;
-      } catch {
-        return false;
+      } catch (err) {
+        // EEXIST IS THE MUTEX. Everything else is a directory that cannot be
+        // made, and the caller refuses rather than spinning on it.
+        if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
+        throw err;
       }
     },
     mtimeMs: (path) => {
@@ -204,11 +229,23 @@ export async function acquireLock(
   ensureParent(dir, deps);
   const start = deps.now();
   for (;;) {
-    if (deps.mkdir(dir)) break;
+    let made: boolean;
+    try {
+      made = deps.mkdir(dir);
+    } catch {
+      // NOT A HELD LOCK. The directory cannot be made at all, and no amount of
+      // waiting changes that, so the refusal is immediate and says so.
+      throw new LockHeld(opts.lockName, 'unwritable');
+    }
+    if (made) break;
     if (deps.now() - start > timeout) throw new LockHeld(opts.lockName);
     const heldAt = deps.mtimeMs(dir);
     if (heldAt === null) {
-      // The holder released between our mkdir and our stat; retake at once.
+      // The holder released between our mkdir and our stat. Retake after a
+      // moment rather than at once: a seam that answers false and null
+      // together for ever would otherwise spin this loop at one core for the
+      // whole wait, which the fix round measured at 99 percent of a core.
+      await deps.sleep(50);
       continue;
     }
     if (deps.now() - heldAt > staleness) {
@@ -288,6 +325,10 @@ function ensureParent(dir: string, deps: LockDeps): void {
   const parent = dirname(dir);
   // `mkdir` here is the same seam; a parent that already exists answers false
   // and that is fine. It is best effort: a parent that cannot be made makes the
-  // lock mkdir fail below, which the timeout turns into an honest refusal.
-  deps.mkdir(parent);
+  // lock mkdir throw below, which becomes an immediate refusal.
+  try {
+    deps.mkdir(parent);
+  } catch {
+    // Decided by the lock mkdir itself.
+  }
 }

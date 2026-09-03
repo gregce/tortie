@@ -31,6 +31,7 @@ import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { addLogin, readLoginsFile } from '../src/main/logins/store';
 import { loginDirIn, loginsFileIn } from '../src/main/logins/dirs';
+import { claudeScopedService } from '../src/main/usage/credentials';
 import type { LoginProviderId } from '../src/shared/logins';
 
 const MODULES = process.env['P204_MODULES'] ?? 'src/main/credentials';
@@ -736,11 +737,65 @@ try {
       codexRan = true;
     });
 
+    // UNWRITABLE (fix round): the lock directory cannot be made at all, so the
+    // refusal is immediate, names the lock, says why, and costs no wait.
+    const unw = inMemoryLockDeps();
+    let unwSleeps = 0;
+    const unwDeps = {
+      ...unw.deps,
+      mkdir: (): boolean => {
+        throw new Error('EACCES');
+      },
+      sleep: async (ms: number): Promise<void> => {
+        unwSleeps += 1;
+        await unw.deps.sleep(ms);
+      }
+    };
+    const unwStart = unw.deps.now();
+    let unwRefused = false;
+    let unwMessage = '';
+    try {
+      await locks.acquireLock('/scratch/.oauth_refresh.lock', {
+        lockName: '.oauth_refresh.lock',
+        deps: unwDeps
+      });
+    } catch (err) {
+      unwRefused = err instanceof locks.LockHeld && err.why === 'unwritable';
+      unwMessage = (err as Error).message;
+    }
+    const unwWaited = unw.deps.now() - unwStart;
+
+    // THE NULL BRANCH SLEEPS (fix round): a seam answering "not made" and "not
+    // there" together for ever must not spin the loop. The clock here ticks
+    // one ms per read, so a loop with no sleep runs to the timeout on reads
+    // alone and is counted by its silence.
+    let tick = 0;
+    let nullSleeps = 0;
+    const spin = {
+      ...unw.deps,
+      mkdir: (): boolean => false,
+      mtimeMs: (): number | null => null,
+      now: (): number => (tick += 1),
+      sleep: async (ms: number): Promise<void> => {
+        nullSleeps += 1;
+        tick += ms;
+      }
+    };
+    try {
+      await locks.acquireLock('/scratch/x.lock', { lockName: 'x', timeoutMs: 2_000, deps: spin });
+    } catch {
+      // The refusal is the point; what is read is how it waited.
+    }
+
     out['locks'] = {
       reclaimed,
       neverStole,
       refusalNamesLock,
       refusalHasNoToken,
+      unwritableImmediate: unwRefused && unwWaited === 0 && unwSleeps === 0,
+      unwritableSaysWhy: unwMessage.includes('.oauth_refresh.lock') && /not writable/.test(unwMessage),
+      unwritableNoToken: !/accessToken|access_token|Bearer|eyJ/.test(unwMessage),
+      nullBranchSleeps: nullSleeps > 0,
       twoLocksInOrder:
         lockDirs.length === 2 &&
         lockDirs[0] === '/home/.claude/.oauth_refresh.lock' &&
@@ -797,6 +852,133 @@ try {
       // BOTH LOCKS were taken during the claude write.
       lockCount: lockNames.length,
       heldBoth: lockNames.length >= 2
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 7g. A HELD LOCK IS A REFUSAL, NOT A THROW (Phase 211 fix round). The
+  //     verifier held a lock past the wait and watched `LockHeld` leave
+  //     activate uncaught; the registrar then recorded the choice and the face
+  //     said the login was switched with nothing written. So a lock held for
+  //     the whole wait must come back as `{ ok: false }` naming the lock.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const security = fakeSecurity(w);
+    const lockMem = inMemoryLockDeps();
+    const base = makeDeps(root, w);
+    const d = {
+      ...base,
+      stores: { ...base.stores, runner: security.runner, keychainForClaude: true },
+      // A LIVE HOLDER on every lock: whatever directory is asked about reads as
+      // touched just now, and the primary is already there.
+      lockDeps: { ...lockMem.deps, mtimeMs: () => lockMem.deps.now() }
+    };
+    security.items.set('Claude Code-credentials', {
+      account: 'gdc',
+      payload: claudeCredential('alice', '1')
+    });
+    w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('alice'));
+    await keep.observeProvider(d, 'claude');
+    security.items.set('Claude Code-credentials', {
+      account: 'gdc',
+      payload: claudeCredential('bob', '2')
+    });
+    w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('bob'));
+    await keep.observeProvider(d, 'claude');
+    const row = readLoginsFile(root).file.logins.find((l) => l.name === 'alice.example');
+    const dir = row === undefined ? '' : loginDirIn(root, 'claude', row.id);
+    // The holder: the primary lock of the login's own config home, made before
+    // activate asks for it.
+    lockMem.deps.mkdir(join(dir, '.oauth_refresh.lock'));
+    let threw = false;
+    let put: Awaited<ReturnType<typeof keep.activateLogin>> = { ok: false, reason: '' };
+    try {
+      put = row === undefined ? put : await keep.activateLogin(d, 'claude', row.name);
+    } catch {
+      threw = true;
+    }
+    out['lockRefusal'] = {
+      threw,
+      refused: put.ok === false,
+      reasonNamesLock: put.ok === false && put.reason.includes('.oauth_refresh.lock'),
+      reasonHasNoToken: put.ok === false && !/accessToken|access_token|Bearer|eyJ/.test(put.reason),
+      // The holder's directory is still there: it was waited on, never stolen.
+      holderKept: lockMem.dirs.has(join(dir, '.oauth_refresh.lock')),
+      storeUntouched:
+        security.items.get(claudeScopedService(dir)) === undefined
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 7f. THE DEFAULT LIFT KEEPS THE ACCOUNT IT WRITES OVER (Phase 211 fix
+  //     round). The verifier's finding, driven here over the shipping module:
+  //     the default claude store holds alice in the keychain item AND in
+  //     `~/.claude.json`, a login Tortie made holds bob, a session runs on the
+  //     default login, and bob's login is chosen. The lift writes bob into the
+  //     keychain item and never into `~/.claude.json`, which is the vendor's
+  //     own file and says alice until bob takes a turn. The observe that
+  //     `logins:list` runs right after the choose then reads bob's bytes under
+  //     alice's identity. As shipped that proved "same account", promoted
+  //     nothing, and overwrote the only copy of alice. The lift must promote
+  //     alice BEFORE it writes, and move the default record on to bob after.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const security = fakeSecurity(w);
+    const base = makeDeps(root, w, [{ provider: 'claude' as LoginProviderId, login: null }]);
+    const d = {
+      ...base,
+      stores: { ...base.stores, runner: security.runner, keychainForClaude: true }
+    };
+    security.items.set('Claude Code-credentials', {
+      account: 'gdc',
+      payload: claudeCredential('alice', '1')
+    });
+    w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('alice'));
+    await keep.observeProvider(d, 'claude');
+    // A second login, signed into as bob inside a session under it.
+    addLogin(root, 'claude', 'work');
+    const work = readLoginsFile(root).file.logins.find((l) => l.name === 'work');
+    const workDir = work === undefined ? '' : loginDirIn(root, 'claude', work.id);
+    security.items.set(claudeScopedService(workDir), {
+      account: 'gdc',
+      payload: claudeCredential('bob', '1')
+    });
+    w.files.set(join(workDir, '.claude.json'), claudeAccountFile('bob'));
+    await keep.observeProvider(d, 'claude');
+    const aliceDigest = payload.credentialDigest(claudeCredential('alice', '1'));
+    const bobDigest = payload.credentialDigest(claudeCredential('bob', '1'));
+    // CHOOSE work while the default session runs. `~/.claude.json` is NOT
+    // rewritten, which is the ordinary case: the vendor rewrites it on bob's
+    // first turn, and the list's observe runs long before that.
+    const put = await keep.activateLogin(d, 'claude', 'work');
+    const itemAfterLift = security.items.get('Claude Code-credentials')?.payload ?? '';
+    const obs = await keep.observeProvider(d, 'claude');
+    const slotsAfter = [...d.vault.slots.entries()];
+    const heldOutsideDefault = slotsAfter.some(
+      ([slot, bytes]) => slot !== 'claude.default' && payload.credentialDigest(bytes) === aliceDigest
+    );
+    const logins = readLoginsFile(root).file.logins
+      .filter((l) => l.provider === 'claude')
+      .map((l) => l.name)
+      .sort();
+    const record = kept.readKeptFile(root).file.slots['claude.default'];
+    out['defaultLift'] = {
+      wrote: put.ok === true && put.ok && put.wrote === true,
+      itemHoldsChosen: payload.credentialDigest(itemAfterLift) === bobDigest,
+      // THE READING THE PHASE IS JUDGED ON: alice exists somewhere other than
+      // the slot that was written over, after the observe that used to lose her.
+      outgoingHeldAfterObserve: heldOutsideDefault,
+      // Exactly one login for her, named from her address, and nothing minted twice.
+      logins,
+      // The default record moved on to the chosen account, so the next observe
+      // reads unchanged bytes rather than a change it must judge.
+      recordDigestIsChosen: record?.digest === bobDigest,
+      recordEmailIsChosen: record?.email === 'bob@example.com',
+      observeChangedNothing: obs.events.length === 0
     };
   }
 
