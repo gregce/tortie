@@ -18,19 +18,23 @@
  *
  *  - NOTHING SIGNS ANYBODY IN. The vendor's own command is still the only
  *    thing that authenticates, in one ordinary session the person starts.
- *  - THE PERSON'S OWN DEFAULT STORE IS NEVER WRITTEN. `../credentials/
- *    stores.ts` refuses it by name, so choosing the default login moves no
- *    bytes at all and the default row goes on meaning the vendor's own
- *    location holding whichever account is in it now.
  *  - NOTHING IS COMPOSED, EDITED OR RE-ENCODED. A credential is moved whole
  *    and compared by digest on both sides of every move.
- *  - NOTHING WRITES A VENDOR STORE DURING A TURN. Observe writes only Tortie's
- *    own store, so it can never log a running session out; activate writes a
- *    vendor store and REFUSES while a session is running under it, and it runs
- *    on an explicit choice and on nothing else. There is no timer in this file.
  *  - NO TOKEN BYTE LEAVES TORTIE'S OWN STORE. Nothing here returns a payload,
  *    logs one, puts one in an error message or hands one to a renderer. The
  *    answers are names, addresses and booleans.
+ *
+ * ## WHAT PHASE 211 CHANGED, at the operator's word of 2026-09-03
+ *
+ * Phase 204 refused to write a store a session was running under, and never
+ * wrote the person's own default location at all, so a switch never reached a
+ * running session. He asked for the opposite. So activate now WRITES while a
+ * session runs, held under Claude Code's own credential locks (`./locks.ts`) so
+ * it never lands inside a token refresh, and it writes the vendor's own default
+ * location when a session of the provider is running under the default login,
+ * because that session reads it. The observe still runs first, so the account a
+ * switch writes over is kept and promoted before a byte moves. Observe itself
+ * still writes only Tortie's own store.
  *
  * ## THE ORDER INSIDE A SWITCH, and it is what makes a switch reversible
  *
@@ -68,7 +72,11 @@ import {
   type StoreDeps
 } from './stores';
 import { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
-import { withClaudeCredentialLocks, withCodexNoLock } from './locks';
+import {
+  withClaudeCredentialLocks,
+  withCodexNoLock,
+  type LockDeps
+} from './locks';
 import {
   DEFAULT_SLOT_ID,
   isSlotName,
@@ -107,6 +115,12 @@ export interface KeepDeps {
    */
   liveSessions(): Promise<LiveSession[]>;
   now(): number;
+  /**
+   * The lock seams for a claude write (Phase 211). Undefined means the real
+   * file-system locks; the gate and the tests hand in an in-memory set so no
+   * real lock directory is ever made. See `./locks.ts`.
+   */
+  lockDeps?: LockDeps;
 }
 
 /** What one login's row needs from this domain. Booleans and an address. */
@@ -787,11 +801,14 @@ function writeUnderLock(
   configHome: string,
   target: SwapTarget,
   payload: string,
-  stopAfter?: SwapStep
+  stopAfter: SwapStep | undefined,
+  lockDeps: LockDeps | undefined
 ): Promise<SwapResult> {
   if (provider === 'claude') {
-    return withClaudeCredentialLocks(configHome, () =>
-      safeSwap(target, payload, stopAfter)
+    return withClaudeCredentialLocks(
+      configHome,
+      () => safeSwap(target, payload, stopAfter),
+      lockDeps
     );
   }
   return withCodexNoLock(() => safeSwap(target, payload, stopAfter));
@@ -893,7 +910,8 @@ export async function activateLogin(
       claudeConfigDirFor(d.stores, dir),
       target,
       payload,
-      stopAfter
+      stopAfter,
+      d.lockDeps
     );
     if (!done.ok) return { ok: false, reason: done.reason };
     wrote = true;
@@ -918,7 +936,8 @@ export async function activateLogin(
           claudeConfigDirFor(d.stores, null),
           defTarget,
           payload,
-          stopAfter
+          stopAfter,
+          d.lockDeps
         );
         if (done.ok) wrote = true;
         else if (firstProblem === null) firstProblem = done.reason;

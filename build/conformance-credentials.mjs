@@ -266,6 +266,21 @@ function migrationCarriesTheProof(text) {
   return { calls, proved: /ownProfile:\s*isOwnProfile\s*\(/.test(call) };
 }
 
+/**
+ * Which files define or use `defaultStoreTarget` (Phase 211).
+ *
+ * The default store is the one Phase 211 makes writable, and only through this
+ * one function, so it must be DEFINED in stores.ts and CALLED from exactly one
+ * place, being `keep.ts`'s activate. A call anywhere else is a second way to
+ * write the person's own location.
+ */
+function defaultTargetUses(text) {
+  const body = stripComments(text);
+  const defines = /export async function defaultStoreTarget\s*\(/.test(body);
+  const mentions = (body.match(/\bdefaultStoreTarget\s*\(/g) ?? []).length;
+  return { defines, calls: defines ? mentions - 1 : mentions };
+}
+
 /** Is the person's own location refused by name, as the first thing? */
 function refusesTheDefaultStore(text) {
   const body = stripComments(text);
@@ -332,8 +347,32 @@ for (const file of domainFiles) {
     `${TAG} ${name} calls the migration, which only index.ts may`
   );
 }
+// PHASE 211. The default store is writable through exactly one function, from
+// exactly one caller. storeTarget still refuses dir === null for everyone else.
+const defaultDefiners = [];
+const defaultCallers = new Set();
+let defaultCallSites = 0;
+for (const file of domainFiles) {
+  const name = file.slice(repoRoot.length + 1);
+  const found = defaultTargetUses(readFileSync(file, 'utf8'));
+  if (found.defines) defaultDefiners.push(name);
+  if (found.calls > 0) {
+    defaultCallers.add(name);
+    defaultCallSites += found.calls;
+  }
+}
+check(
+  defaultDefiners.length === 1 && defaultDefiners[0].endsWith('stores.ts'),
+  `${TAG} defaultStoreTarget is defined in ${defaultDefiners.join(', ') || 'no file'} rather than in stores.ts alone`
+);
+check(
+  defaultCallers.size === 1 &&
+    [...defaultCallers][0].endsWith('keep.ts') &&
+    defaultCallSites === 1,
+  `${TAG} the default store is reached from ${[...defaultCallers].join(', ') || 'nobody'} (${String(defaultCallSites)} call sites) rather than keep.ts's activate alone`
+);
 notes.push(
-  `${String(domainFiles.length)} files scanned, 1 write, no -A, no log line, no payload on a command line, 1 unscoped composer, 1 proved migration call`
+  `${String(domainFiles.length)} files scanned, 1 write, no -A, no log line, no payload on a command line, 1 unscoped composer, 1 proved migration call, 1 default-store writer reached from 1 caller`
 );
 
 // ---------------------------------------------------------------------------
@@ -497,8 +536,40 @@ for (const f of PROOF_FIXTURES) {
   if (got.calls === f.calls && got.proved === f.proved) behaved += 1;
   else failures.push(`${TAG} the proof scanner misread the fixture "${f.name}"`);
 }
+// PHASE 211. The default-store reachability scanner, proved on fixtures.
+const DEFAULT_FIXTURES = [
+  {
+    name: 'the shipping definition',
+    text: 'export async function defaultStoreTarget(d, p) {\n  return null;\n}\n',
+    defines: true,
+    calls: 0
+  },
+  {
+    name: 'the one caller',
+    text: 'const defTarget = await defaultStoreTarget(d.stores, provider);\n',
+    defines: false,
+    calls: 1
+  },
+  {
+    name: 'a second caller sneaking in',
+    text: 'await defaultStoreTarget(a, b);\nawait defaultStoreTarget(c, d);\n',
+    defines: false,
+    calls: 2
+  },
+  {
+    name: 'a comment naming it',
+    text: '// defaultStoreTarget(d, p) is the only writer of the default store.\nconst x = 1;\n',
+    defines: false,
+    calls: 0
+  }
+];
+for (const f of DEFAULT_FIXTURES) {
+  const got = defaultTargetUses(f.text);
+  if (got.defines === f.defines && got.calls === f.calls) behaved += 1;
+  else failures.push(`${TAG} the default-store scanner misread the fixture "${f.name}"`);
+}
 notes.push(
-  `${String(behaved)} of ${String(FIXTURES.length + REFUSAL_FIXTURES.length + SCOPE_FIXTURES.length + PROOF_FIXTURES.length)} scanner fixtures behaved`
+  `${String(behaved)} of ${String(FIXTURES.length + REFUSAL_FIXTURES.length + SCOPE_FIXTURES.length + PROOF_FIXTURES.length + DEFAULT_FIXTURES.length)} scanner fixtures behaved`
 );
 
 // ---------------------------------------------------------------------------
@@ -547,6 +618,9 @@ const VERDICT_PARTS = [
   'rollbackOwn',
   'defaultStore',
   'running',
+  'locks',
+  'claudeLock',
+  'watcher',
   'midChange',
   'attack',
   'leak',
@@ -576,6 +650,9 @@ function verdict(d) {
     JSON.stringify(d.rollbackOwn),
     JSON.stringify(d.defaultStore),
     JSON.stringify(d.running),
+    JSON.stringify(d.locks),
+    JSON.stringify(d.claudeLock),
+    JSON.stringify(d.watcher),
     JSON.stringify(d.midChange),
     JSON.stringify(d.attack),
     JSON.stringify(d.leak),
@@ -689,9 +766,42 @@ if ('error' in live) {
     `${TAG} choosing the default login wrote ${String(live.defaultStore.pathsWritten)} other paths`
   );
 
-  // Rule 6.
-  check(live.running.refused, `${TAG} A STORE WITH A SESSION RUNNING UNDER IT WAS WRITTEN`);
-  check(live.running.says, `${TAG} the refusal does not say a session is running`);
+  // Rule 6 (Phase 211). A STORE UNDER A RUNNING SESSION IS WRITTEN, NOT REFUSED.
+  check(live.running.wrote, `${TAG} A SWITCH UNDER A RUNNING SESSION WAS REFUSED rather than reaching it`);
+  check(live.running.ownStoreWritten, `${TAG} the login's own store was not written under a running session`);
+  check(
+    live.running.defaultUntouchedForNonDefault,
+    `${TAG} a session on a NON-default login wrote the person's own default location`
+  );
+  // THE DEFAULT LIFT: a session on the default login writes the vendor location.
+  check(live.running.defaultLoginExists, `${TAG} the default-lift arm made no login, so it proves nothing`);
+  check(live.running.defaultLiftWrote, `${TAG} THE DEFAULT LIFT DID NOT WRITE the vendor's own location under a running default session`);
+  check(
+    live.running.defaultStoreNowHolds,
+    `${TAG} the default store does not hold the chosen account after the default lift, so the running session cannot follow`
+  );
+
+  // Rule 6b (Phase 211). THE LOCKS. Claude Code's own credential locks.
+  check(live.locks.reclaimed, `${TAG} a lock older than the staleness bound was NOT reclaimed, so a dead holder blocks a switch for ever`);
+  check(live.locks.neverStole, `${TAG} A LIVE LOCK WAS STOLEN, so a switch can land inside a token refresh`);
+  check(live.locks.refusalNamesLock, `${TAG} a lock that could not be taken refused without naming the lock`);
+  check(live.locks.refusalHasNoToken, `${TAG} A LOCK REFUSAL NAMED A TOKEN`);
+  check(live.locks.twoLocksInOrder, `${TAG} a claude write did not take the two credential locks in the vendor's order`);
+  check(live.locks.neverTheJsonLock, `${TAG} a claude write took the .claude.json lock, which activate never needs`);
+  check(live.locks.codexRan && live.locks.codexMadeNoLock, `${TAG} the codex write held a lock; codex holds none`);
+
+  // Rule 6c (Phase 211). A CLAUDE WRITE HOLDS BOTH LOCKS, seen through activate.
+  check(live.claudeLock.wrote, `${TAG} the claude lock arm did not write, so the lock check proves nothing`);
+  check(
+    live.claudeLock.heldBoth,
+    `${TAG} A CLAUDE SWITCH DID NOT HOLD THE CREDENTIAL LOCKS: took ${String(live.claudeLock.lockCount)} rather than 2`
+  );
+
+  // Rule 6d (Phase 211). THE WATCHER: one observe per burst, only its file.
+  check(live.watcher.watchesADirectory, `${TAG} the watcher opened no directory watcher, so the burst check proves nothing`);
+  check(live.watcher.quietBeforeDebounce, `${TAG} the watcher observed before the debounce settled`);
+  check(live.watcher.oneObservePerBurst, `${TAG} A BURST OF FILE EVENTS DID NOT COLLAPSE INTO ONE OBSERVE`);
+  check(live.watcher.ignoresOtherFiles, `${TAG} the watcher observed for a file it does not watch`);
 
   // Rule 7.
   check(
@@ -1221,15 +1331,84 @@ const ABLATIONS = [
     ]
   },
   {
-    name: 'the running session refusal removed',
+    // PHASE 211. The default lift removed, so a session on the default login
+    // never has the vendor's own location written and cannot follow a switch.
+    name: 'the default lift removed, so a running default session never follows',
     edits: [
       {
         file: 'keep.ts',
-        from:
-          '    running.some(\n' +
-          "      (s) => s.provider === provider && sameLoginName(s.login ?? null, row.name)\n" +
-          '    )',
-        to: '    false'
+        from: '  if (running.some((s) => s.provider === provider && isDefaultLogin(s.login))) {',
+        to: '  if (false && running.some((s) => s.provider === provider && isDefaultLogin(s.login))) {'
+      }
+    ]
+  },
+  {
+    // PHASE 211. A live lock stolen, which is the one thing the protocol must
+    // never do: a stolen lock is a write inside a token refresh.
+    name: 'a live lock stolen, so a switch can land inside a token refresh',
+    edits: [
+      {
+        file: 'locks.ts',
+        from: '    if (deps.now() - heldAt > staleness) {',
+        to: '    if (true) {'
+      }
+    ]
+  },
+  {
+    // PHASE 211. A stale lock never reclaimed, so a dead holder blocks a switch
+    // for ever.
+    name: 'a stale lock never reclaimed, so a dead holder blocks a switch',
+    edits: [
+      {
+        file: 'locks.ts',
+        from: '    if (deps.now() - heldAt > staleness) {',
+        to: '    if (false) {'
+      }
+    ]
+  },
+  {
+    // PHASE 211. The claude write no longer held under the locks, so it can
+    // race the vendor's own token refresh.
+    name: 'the claude write no longer held under the locks',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '  if (provider === \'claude\') {\n    return withClaudeCredentialLocks(',
+        to: '  if (false && provider === \'claude\') {\n    return withClaudeCredentialLocks('
+      }
+    ]
+  },
+  {
+    // PHASE 211. The legacy lock named wrong, so the two locks are not the
+    // vendor's pair.
+    name: 'the legacy claude lock named wrong, so the pair is not the vendor\'s',
+    edits: [
+      {
+        file: 'locks.ts',
+        from: '  return `${configHome}.lock`;',
+        to: '  return `${configHome}X.lock`;'
+      }
+    ]
+  },
+  {
+    // PHASE 211. The watcher runs on every event, so a burst is not collapsed.
+    name: 'the watcher debounce guard removed, so a burst is not collapsed',
+    edits: [
+      {
+        file: 'watch.ts',
+        from: '    if (timer !== null || running) return;',
+        to: '    if (running) return;'
+      }
+    ]
+  },
+  {
+    // PHASE 211. The watcher's file filter removed, so any change triggers it.
+    name: 'the watcher file filter removed, so it observes for any file',
+    edits: [
+      {
+        file: 'watch.ts',
+        from: '          if (file === null || file === target.file) schedule();',
+        to: '          schedule();'
       }
     ]
   },

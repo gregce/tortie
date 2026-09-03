@@ -27,7 +27,7 @@ import {
 import { readFile, rm } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { addLogin, readLoginsFile } from '../src/main/logins/store';
 import { loginDirIn, loginsFileIn } from '../src/main/logins/dirs';
@@ -262,6 +262,46 @@ function makeVault(): import('../src/main/credentials/vault').VaultBackend & {
   };
 }
 
+/**
+ * An in-memory set of the lock seams (Phase 211), so a claude write in this
+ * gate takes NO real file-system lock. It records every directory it made, so
+ * a claude write can be seen to hold the locks, and its clock is driven by the
+ * lock's own sleep so a wait is deterministic.
+ */
+function inMemoryLockDeps() {
+  const dirs = new Set<string>();
+  const mtime = new Map<string, number>();
+  const made: string[] = [];
+  let clock = 1_000;
+  const deps: import('../src/main/credentials/locks').LockDeps = {
+    mkdir: (p) => {
+      if (dirs.has(p)) return false;
+      dirs.add(p);
+      mtime.set(p, clock);
+      made.push(p);
+      return true;
+    },
+    mtimeMs: (p) => (dirs.has(p) ? (mtime.get(p) ?? clock) : null),
+    rmdir: (p) => {
+      dirs.delete(p);
+      mtime.delete(p);
+    },
+    touch: (p) => mtime.set(p, clock),
+    now: () => clock,
+    sleep: async (ms) => {
+      clock += ms;
+    },
+    setInterval: () => ({ clear: () => undefined })
+  };
+  return {
+    deps,
+    made,
+    dirs,
+    setClock: (v: number) => (clock = v),
+    ageOf: (p: string) => clock - (mtime.get(p) ?? clock)
+  };
+}
+
 function makeWorld(): World {
   return {
     files: new Map(),
@@ -285,7 +325,9 @@ function makeDeps(
     vault: makeVault(),
     stores: makeStores(w),
     liveSessions: async () => live,
-    now: () => 1_700_000_000_000
+    now: () => 1_700_000_000_000,
+    // PHASE 211. In-memory locks, so a claude write takes no real lock.
+    lockDeps: inMemoryLockDeps().deps
   };
 }
 
@@ -576,9 +618,16 @@ try {
   }
 
   // -------------------------------------------------------------------------
-  // 7. A STORE UNDER A RUNNING SESSION IS NOT WRITTEN.
+  // 7. A STORE UNDER A RUNNING SESSION IS WRITTEN, NOT REFUSED (Phase 211).
+  //
+  //    The operator asked for this: a switch should reach the running session.
+  //    A session on a NON-default login writes only that login's own store; a
+  //    session on the DEFAULT login also writes the vendor's own location, so
+  //    the running default session follows.
   // -------------------------------------------------------------------------
   {
+    // 7a. A session on the login itself: the write happens, the default store
+    //     is left alone.
     const root = freshRoot();
     const w = makeWorld();
     w.files.set(CODEX_DEFAULT, codexCredential('alice', '1'));
@@ -586,6 +635,8 @@ try {
     await keep.observeProvider(idle, 'codex');
     w.files.set(CODEX_DEFAULT, codexCredential('bob', '2'));
     await keep.observeProvider(idle, 'codex');
+    const row = readLoginsFile(root).file.logins.find((l) => l.name === 'alice.example');
+    const dir = row === undefined ? '' : loginDirIn(root, 'codex', row.id);
     const busy = {
       ...idle,
       liveSessions: async () => [
@@ -593,10 +644,224 @@ try {
       ]
     };
     const done = await keep.activateLogin(busy, 'codex', 'alice.example');
+
+    // 7b. A session on the DEFAULT login: the vendor's own location is written.
+    const droot = freshRoot();
+    const dw = makeWorld();
+    dw.files.set(CODEX_DEFAULT, codexCredential('alice', '1'));
+    const dd = makeDeps(droot, dw, [{ provider: 'codex' as LoginProviderId, login: null }]);
+    await keep.observeProvider(dd, 'codex');
+    dw.files.set(CODEX_DEFAULT, codexCredential('bob', '2'));
+    await keep.observeProvider(dd, 'codex');
+    const drow = readLoginsFile(droot).file.logins.find((l) => l.name === 'alice.example');
+    const defLift = await keep.activateLogin(dd, 'codex', 'alice.example');
+
     out['running'] = {
-      refused: !done.ok,
-      reason: done.ok ? '' : done.reason,
-      says: done.ok ? '' : done.reason.includes('session is running')
+      // THE WRITE HAPPENS rather than being refused.
+      wrote: done.ok === true && done.ok && done.wrote === true,
+      // The login's own store now holds the account.
+      ownStoreWritten:
+        w.files.get(join(dir, 'auth.json')) === codexCredential('alice', '1'),
+      // A NON-default session leaves the person's own location untouched.
+      defaultUntouchedForNonDefault:
+        w.files.get(CODEX_DEFAULT) === codexCredential('bob', '2'),
+      // THE DEFAULT LIFT: a session on the default login writes the vendor's own
+      // location with the chosen account, so it follows.
+      defaultLiftWrote: defLift.ok === true && defLift.ok && defLift.wrote === true,
+      defaultStoreNowHolds:
+        dw.files.get(CODEX_DEFAULT) === codexCredential('alice', '1'),
+      defaultLoginExists: drow !== undefined
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 7c. THE LOCKS (Phase 211). Claude Code's own credential locks, cooperated
+  //     with, driven over the SHIPPING lock module and in-memory seams.
+  // -------------------------------------------------------------------------
+  {
+    const locks = (await import(
+      pathToFileURL(resolve(MODULES, 'locks.ts')).href
+    )) as typeof import('../src/main/credentials/locks');
+
+    // RECLAIM a stale holder: a directory older than the staleness bound is
+    // retaken and acquire succeeds.
+    const reclaim = inMemoryLockDeps();
+    reclaim.deps.mkdir('/scratch/.oauth_refresh.lock');
+    reclaim.setClock(1_000 + locks.CREDENTIALS_STALENESS_MS + 10_000);
+    let reclaimed = false;
+    try {
+      const h = await locks.acquireLock('/scratch/.oauth_refresh.lock', {
+        lockName: 'x',
+        deps: reclaim.deps
+      });
+      reclaimed = true;
+      h.release();
+    } catch {
+      reclaimed = false;
+    }
+
+    // NEVER STEAL a live holder: a directory whose mtime always reads as now is
+    // never taken, and acquire refuses when the wait runs out.
+    const live = inMemoryLockDeps();
+    live.deps.mkdir('/scratch/.oauth_refresh.lock');
+    let neverStole = false;
+    let refusalNamesLock = false;
+    let refusalHasNoToken = true;
+    try {
+      await locks.acquireLock('/scratch/.oauth_refresh.lock', {
+        lockName: '.oauth_refresh.lock',
+        timeoutMs: 5_000,
+        deps: { ...live.deps, mtimeMs: () => live.deps.now() }
+      });
+    } catch (err) {
+      neverStole = live.dirs.has('/scratch/.oauth_refresh.lock');
+      const message = (err as Error).message;
+      refusalNamesLock = message.includes('.oauth_refresh.lock');
+      refusalHasNoToken = !/accessToken|access_token|Bearer|eyJ/.test(message);
+    }
+
+    // THE TWO LOCKS, in the vendor's order, and never the .claude.json lock.
+    const both = inMemoryLockDeps();
+    await locks.withClaudeCredentialLocks(
+      '/home/.claude',
+      async () => undefined,
+      both.deps
+    );
+    const lockDirs = both.made.filter((p) => p.endsWith('.lock'));
+
+    // CODEX HOLDS NOTHING: withCodexNoLock makes no directory at all.
+    const codex = inMemoryLockDeps();
+    let codexRan = false;
+    await locks.withCodexNoLock(async () => {
+      codexRan = true;
+    });
+
+    out['locks'] = {
+      reclaimed,
+      neverStole,
+      refusalNamesLock,
+      refusalHasNoToken,
+      twoLocksInOrder:
+        lockDirs.length === 2 &&
+        lockDirs[0] === '/home/.claude/.oauth_refresh.lock' &&
+        lockDirs[1] === '/home/.claude.lock',
+      neverTheJsonLock: !both.made.some((p) => p.includes('.claude.json.lock')),
+      codexRan,
+      codexMadeNoLock: codex.made.length === 0
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 7d. A CLAUDE WRITE HOLDS THE LOCKS (Phase 211). Driven over the shipping
+  //     activate with an in-memory lock set, so the lock directories it made
+  //     are visible: a claude switch under a running session takes both.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const security = fakeSecurity(w);
+    const lockMem = inMemoryLockDeps();
+    const base = makeDeps(root, w);
+    const d = {
+      ...base,
+      stores: { ...base.stores, runner: security.runner, keychainForClaude: true },
+      lockDeps: lockMem.deps
+    };
+    security.items.set('Claude Code-credentials', {
+      account: 'gdc',
+      payload: claudeCredential('alice', '1')
+    });
+    w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('alice'));
+    await keep.observeProvider(d, 'claude');
+    security.items.set('Claude Code-credentials', {
+      account: 'gdc',
+      payload: claudeCredential('bob', '2')
+    });
+    w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('bob'));
+    await keep.observeProvider(d, 'claude');
+    const row = readLoginsFile(root).file.logins.find((l) => l.name === 'alice.example');
+    lockMem.made.length = 0; // count only the activate's locks
+    const put =
+      row === undefined
+        ? { ok: false as const }
+        : await keep.activateLogin(d, 'claude', row.name);
+    // A STABLE SHAPE, so this reading moves only when the locks change. The
+    // paths carry a fresh temp directory every run, so they are reduced to a
+    // count and to the two vendor BASENAMES, both of which are deterministic.
+    const lockNames = lockMem.made
+      .filter((p) => p.endsWith('.lock'))
+      .map((p) => (p.endsWith('.oauth_refresh.lock') ? 'oauth' : basename(p)))
+      .sort();
+    out['claudeLock'] = {
+      wrote: put.ok === true,
+      // BOTH LOCKS were taken during the claude write.
+      lockCount: lockNames.length,
+      heldBoth: lockNames.length >= 2
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 7e. THE WATCHER (Phase 211): one observe per burst, only the file it
+  //     watches, driven over the SHIPPING watch module and injected seams.
+  // -------------------------------------------------------------------------
+  {
+    const watchMod = (await import(
+      pathToFileURL(resolve(MODULES, 'watch.ts')).href
+    )) as typeof import('../src/main/credentials/watch');
+    const root = freshRoot();
+    const w = makeWorld();
+    const keepDeps = makeDeps(root, w);
+    let clock = 0;
+    const timers: { at: number; fn: () => void; live: boolean }[] = [];
+    const fires: ((file: string | null) => void)[] = [];
+    let emits = 0;
+    const watcher = watchMod.startCredentialWatch({
+      keep: keepDeps,
+      emitChanged: () => {
+        emits += 1;
+      },
+      watchDir: (_dir, onEvent) => {
+        fires.push(onEvent);
+        return { close: () => undefined };
+      },
+      setTimeout: (fn, ms) => {
+        const t = { at: clock + ms, fn, live: true };
+        timers.push(t);
+        return { clear: () => (t.live = false) };
+      },
+      setInterval: () => ({ clear: () => undefined }),
+      now: () => clock
+    });
+    const advance = async (ms: number): Promise<void> => {
+      const target = clock + ms;
+      for (;;) {
+        const due = timers.filter((t) => t.live && t.at <= target).sort((a, b) => a.at - b.at)[0];
+        if (due === undefined) break;
+        clock = due.at;
+        due.live = false;
+        due.fn();
+        for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r));
+      }
+      clock = target;
+      for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r));
+    };
+    // A storm of events for the file that matters.
+    const claudeFire = fires[0];
+    for (let i = 0; i < 50; i++) claudeFire?.('.claude.json');
+    const emitsBefore = emits;
+    await advance(watchMod.WATCH_DEBOUNCE_MS + 20);
+    const afterBurst = emits;
+    // A file that is not watched triggers nothing.
+    for (let i = 0; i < 10; i++) claudeFire?.('settings.json');
+    await advance(watchMod.OBSERVE_MIN_INTERVAL_MS * 2);
+    const afterIgnored = emits;
+    watcher.stop();
+    out['watcher'] = {
+      // NOTHING before the debounce, ONE after a whole burst.
+      quietBeforeDebounce: emitsBefore === 0,
+      oneObservePerBurst: afterBurst === 1,
+      ignoresOtherFiles: afterIgnored === afterBurst,
+      watchesADirectory: fires.length > 0
     };
   }
 
