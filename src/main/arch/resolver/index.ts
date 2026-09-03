@@ -44,6 +44,7 @@ import {
   unresolved,
   type ArchResolution
 } from './answers';
+import { resolveCFamily } from './cfamily';
 import { resolveJava } from './java';
 import { resolveKotlin } from './kotlin';
 import { normalizeRel, type AliasRule, type ArchManifests } from './manifest';
@@ -93,7 +94,9 @@ export type ArchResolverLanguage =
   | 'kotlin'
   | 'objc'
   | 'java'
-  | 'php';
+  | 'php'
+  | 'c'
+  | 'cpp';
 
 /**
  * The one row per language the matrix prints, with the reason a deferred
@@ -134,7 +137,12 @@ export const RESOLVER_MATRIX: readonly {
   { language: 'java', resolves: true, reason: null },
   // Phase 184: PHP at FILE grain, through Composer's own autoload map. See
   // ./php.ts, and note it is the one arm with no platform list at all.
-  { language: 'php', resolves: true, reason: null }
+  { language: 'php', resolves: true, reason: null },
+  // Phase 184: C and C++ at FILE grain, one arm and two rows, because
+  // `#include` is one mechanism and each language is its own claim over its
+  // own corpus. Neither admitted a grammar. See ./cfamily.ts.
+  { language: 'c', resolves: true, reason: null },
+  { language: 'cpp', resolves: true, reason: null }
 ];
 
 const BUILTINS = new Set(builtinModules);
@@ -253,6 +261,9 @@ export function resolveImport(
   if (language === 'swift') return resolveSwift(specifier, fromPath, ctx);
   if (language === 'kotlin') return resolveKotlin(specifier, ctx);
   if (language === 'java') return resolveJava(specifier, ctx);
+  if (language === 'c' || language === 'cpp') {
+    return resolveCFamily(specifier, fromPath, ctx);
+  }
   if (language === 'php') {
     // THE FORM TRAVELS WITH THE SPECIFIER, the second arm to need it after
     // Ruby's. A `use` names a class through the autoload map and a `require`

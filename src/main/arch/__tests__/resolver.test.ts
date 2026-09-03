@@ -14,9 +14,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { archResolveContext, resolveImport, RESOLVER_MATRIX } from '../resolver';
 import { readArchManifests } from '../resolver/manifest';
-import { GRAMMARS } from '../../symbols/languages';
+import { INDEXABLE_EXTENSIONS } from '../../symbols/languages';
 import { IMPORT_TRUNCATION_MARKER } from '../../symbols/queries';
-import { collapseSameAnswer } from '../scan';
+import { collapseSameAnswer, languageOf } from '../scan';
 
 let root: string;
 
@@ -297,7 +297,9 @@ describe('the manifest aware resolver', () => {
       ['kotlin', true],
       ['objc', true],
       ['java', true],
-      ['php', true]
+      ['php', true],
+      ['c', true],
+      ['cpp', true]
     ]);
     for (const row of RESOLVER_MATRIX) {
       expect(row.resolves ? row.reason === null : row.reason !== null).toBe(true);
@@ -376,14 +378,21 @@ describe('the manifest aware resolver', () => {
 
   it('names every language the scanner can produce, so none falls to the script arm', () => {
     // `languageOf` in ../scan.ts ends in a default branch that answers
-    // `'typescript'`. A grammar added to ../../symbols/languages.ts and left out
-    // of `ArchResolverLanguage` is therefore read by the SCRIPT arm, which is
-    // worse than not reading it at all. This is the unit test half of the same
-    // assertion `npm run conformance:arch` makes.
-    const fromGrammars = new Set(
-      GRAMMARS.map((g) => (g === 'tsx' ? 'typescript' : g))
+    // `'typescript'`. An extension added to ../../symbols/languages.ts and left
+    // out of `ArchResolverLanguage` is therefore read by the SCRIPT arm, which
+    // is worse than not reading it at all. This is the unit test half of the
+    // same assertion `npm run conformance:arch` makes.
+    //
+    // IT ASKS THE EXTENSIONS AND NOT THE GRAMMARS SINCE PHASE 184. Until then
+    // every grammar named exactly one arm; `.c` and `.cpp` now parse with the
+    // Objective-C grammar and resolve through a different one, so a per
+    // grammar derivation could not see either new arm.
+    const fromScanner = new Set(
+      INDEXABLE_EXTENSIONS.map((ext) => languageOf(`probe/file.${ext}`)).filter(
+        (language) => language !== null
+      )
     );
     const fromMatrix = new Set(RESOLVER_MATRIX.map((r) => r.language));
-    expect([...fromGrammars].sort()).toEqual([...fromMatrix].sort());
+    expect([...fromScanner].sort()).toEqual([...fromMatrix].sort());
   });
 });

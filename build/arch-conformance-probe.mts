@@ -44,7 +44,7 @@ import {
   type ArchResolverLanguage
 } from '../src/main/arch/resolver';
 import { languageOf } from '../src/main/arch/scan';
-import { GRAMMARS } from '../src/main/symbols/languages';
+import { INDEXABLE_EXTENSIONS } from '../src/main/symbols/languages';
 import type { ImportForm } from '../src/main/symbols/queries';
 import { ARCH_ROW_KEYS } from '../src/shared/arch';
 import {
@@ -369,6 +369,13 @@ async function main(): Promise<void> {
     // proved against real manifest text in
     // src/main/arch/__tests__/resolver-php.test.ts; what this gate proves is
     // the ARM over whatever a reader hands it.
+    // Phase 184: the include directories arrive as data. ./include-dirs.ts is
+    // proved against real CMake, make and Bazel text in
+    // src/main/arch/__tests__/resolver-cfamily.test.ts.
+    includeDirs: {
+      dirs: facts.resolverProbe.includeDirs.dirs,
+      present: facts.resolverProbe.includeDirs.present
+    },
     php: {
       rules: facts.resolverProbe.php.rules,
       heads: new Set(facts.resolverProbe.php.heads),
@@ -440,27 +447,21 @@ async function main(): Promise<void> {
   }
 
   // WHAT THE SCANNER CAN PRODUCE, derived by running `languageOf` itself over
-  // one filename per shipped grammar. It is not a list written here: the
+  // one filename per INDEXABLE EXTENSION. It is not a list written here: the
   // extension map lives in src/main/symbols/languages.ts and the fall through
   // lives in src/main/arch/scan.ts, and this asks both of them.
-  const EXTENSION_FOR: Readonly<Record<string, string>> = {
-    typescript: 'ts',
-    tsx: 'tsx',
-    javascript: 'js',
-    go: 'go',
-    python: 'py',
-    rust: 'rs',
-    ruby: 'rb',
-    swift: 'swift',
-    kotlin: 'kt',
-    objc: 'm',
-    java: 'java',
-    php: 'php'
-  };
+  //
+  // PHASE 184 MOVED IT FROM THE GRAMMAR LIST TO THE EXTENSION LIST, and that
+  // is strictly stronger rather than a rename. Until this phase every grammar
+  // named exactly one arm, so one filename per grammar reached every arm.
+  // `.c` and `.cpp` now parse with the Objective-C grammar and resolve through
+  // a DIFFERENT arm, so a per grammar derivation would have missed both of
+  // them and the cross check below would have compared two lists that agreed
+  // because neither one could see the new arms.
   const scannerLanguages = [
     ...new Set(
-      GRAMMARS.map(
-        (grammar) => languageOf(`probe/file.${EXTENSION_FOR[grammar] ?? grammar}`)
+      INDEXABLE_EXTENSIONS.map(
+        (extension) => languageOf(`probe/file.${extension}`)
       ).filter((language): language is ArchResolverLanguage => language !== null)
     )
   ].sort();

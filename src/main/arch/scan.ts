@@ -86,10 +86,40 @@ export interface ArchScanResult {
 /** How many files this build will parse before it says so and stops. */
 export const ARCH_SCAN_FILE_CEILING = 50_000;
 
-/** The grammar a path is read with, in the resolver's own vocabulary. */
+/**
+ * Which ARM reads a path, in the resolver's own vocabulary.
+ *
+ * IT IS NOT THE SAME QUESTION AS WHICH GRAMMAR READS IT, and Phase 184 is
+ * where the two stopped being the same answer. `.c` and the C++ extensions
+ * parse with the OBJECTIVE-C grammar, because that grammar is a C superset and
+ * reads every `#include` there is, and admitting a second C or C++ grammar was
+ * measured and refused. They resolve through the C family arm, which knows
+ * about declared include directories. `.h` is the extension all three
+ * languages share, Phase 180 ruled it reads with the Objective-C arm, and that
+ * ruling stands: an `#include` written in a `.h` therefore does not consult a
+ * declared include directory, and that limit is on ./resolver/cfamily.ts's
+ * face.
+ *
+ * THE EXTENSION IS ASKED FIRST FOR EXACTLY THAT REASON. Everything the
+ * extension map does not name falls through to the grammar, and the default
+ * branch below still answers `'typescript'`, which is why the two lists have
+ * to agree; see the paragraph in this module's header.
+ */
+const ARM_BY_EXTENSION: Readonly<Record<string, ArchResolverLanguage>> = {
+  c: 'c',
+  cc: 'cpp',
+  cpp: 'cpp',
+  cxx: 'cpp',
+  hpp: 'cpp',
+  hh: 'cpp',
+  hxx: 'cpp'
+};
+
 export function languageOf(relPath: string): ArchResolverLanguage | null {
   const grammar = grammarFor(relPath);
   if (grammar === null) return null;
+  const byExtension = ARM_BY_EXTENSION[extensionOf(relPath) ?? ''];
+  if (byExtension !== undefined) return byExtension;
   if (grammar === 'tsx') return 'typescript';
   if (grammar === 'javascript') return 'javascript';
   if (grammar === 'go') return 'go';

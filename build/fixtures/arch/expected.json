@@ -285,6 +285,22 @@
       "external": 2,
       "unresolved": 2,
       "unverifiable": 0
+    },
+    {
+      "language": "c",
+      "arm": "shipped (file grain, no new grammar)",
+      "firstParty": 2,
+      "external": 1,
+      "unresolved": 2,
+      "unverifiable": 0
+    },
+    {
+      "language": "cpp",
+      "arm": "shipped (file grain, no new grammar)",
+      "firstParty": 2,
+      "external": 1,
+      "unresolved": 1,
+      "unverifiable": 0
     }
   ],
   "freshness": [

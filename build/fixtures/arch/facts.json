@@ -452,6 +452,51 @@
         "fromPath": "web/src/Client.php",
         "specifier": "ABSPATH . 'Psr7/Request.php'",
         "form": "require"
+      },
+      {
+        "language": "c",
+        "fromPath": "native/src/main.c",
+        "specifier": "util.h"
+      },
+      {
+        "language": "c",
+        "fromPath": "native/src/main.c",
+        "specifier": "pub/api.h"
+      },
+      {
+        "language": "c",
+        "fromPath": "native/src/main.c",
+        "specifier": "<stdio.h>"
+      },
+      {
+        "language": "c",
+        "fromPath": "native/src/main.c",
+        "specifier": "common.h"
+      },
+      {
+        "language": "c",
+        "fromPath": "native/src/main.c",
+        "specifier": "nowhere.h"
+      },
+      {
+        "language": "cpp",
+        "fromPath": "native/src/app.cc",
+        "specifier": "engine.hpp"
+      },
+      {
+        "language": "cpp",
+        "fromPath": "native/src/app.cc",
+        "specifier": "<pub/api.h>"
+      },
+      {
+        "language": "cpp",
+        "fromPath": "native/src/app.cc",
+        "specifier": "<vector>"
+      },
+      {
+        "language": "cpp",
+        "fromPath": "native/src/app.cc",
+        "specifier": "missing.hpp"
       }
     ],
     "files": {
@@ -496,6 +541,20 @@
         "web/composer.json",
         "web/src/Client.php",
         "web/src/Psr7/Request.php"
+      ],
+      "c": [
+        "native/CMakeLists.txt",
+        "native/src/main.c",
+        "native/src/util.h",
+        "native/include/pub/api.h",
+        "native/src/a/common.h",
+        "native/src/b/common.h"
+      ],
+      "cpp": [
+        "native/CMakeLists.txt",
+        "native/src/app.cc",
+        "native/src/engine.hpp",
+        "native/include/pub/api.h"
       ]
     },
     "cargo": {
@@ -600,6 +659,12 @@
       ],
       "packages": [
         "psr/http-message"
+      ],
+      "present": true
+    },
+    "includeDirs": {
+      "dirs": [
+        "native/include"
       ],
       "present": true
     }

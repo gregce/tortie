@@ -83,6 +83,19 @@ export const GRAMMARS: readonly GrammarId[] = [
  * rather than crashing the file, and that limit is deliberate: the alternative
  * was leaving every Objective-C header unread. `.kts` is a Kotlin script and
  * the same grammar reads it.
+ *
+ * PHASE 184 PUT `.c` AND THE C++ EXTENSIONS ON THAT SAME GRAMMAR AND ADMITTED
+ * NEITHER OF THE TWO THE PACKAGE OFFERS, and both refusals are measured rather
+ * than assumed. tree-sitter-c v0.24.2 is 645,157 bytes and beats objc by ONE
+ * clean file on libgit2 while losing by TWO on redis, extracting exactly the
+ * same includes. The bundled cpp grammar is 5,394,393 bytes and buys NO import
+ * resolution at all: over 400 abseil files objc extracted 3,637 `#include`
+ * directives against a ground truth of 3,636, because a tree-sitter parse
+ * recovers a preprocessor directive whatever the macro soup around it does.
+ * Every grammar this build has ever spent bytes on bought imports RESOLVING,
+ * and cpp would buy symbols only, from 5.5 percent of abseil's files clean to
+ * 20 percent. The limit that follows is stated where a person meets it: a
+ * template heavy C++ file gives PARTIAL SYMBOLS, and whole imports.
  */
 const BY_EXTENSION: Readonly<Record<string, GrammarId>> = {
   ts: 'typescript',
@@ -103,6 +116,16 @@ const BY_EXTENSION: Readonly<Record<string, GrammarId>> = {
   kts: 'kotlin',
   m: 'objc',
   h: 'objc',
+  // Phase 184: the C family on the grammar this build already vendors. Which
+  // ARM reads each of these is src/main/arch/scan.ts's knowledge, not this
+  // module's: `.h` stays on the Objective-C arm and the rest do not.
+  c: 'objc',
+  cc: 'objc',
+  cpp: 'objc',
+  cxx: 'objc',
+  hpp: 'objc',
+  hh: 'objc',
+  hxx: 'objc',
   java: 'java',
   php: 'php'
 };

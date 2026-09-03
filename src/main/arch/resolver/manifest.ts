@@ -65,6 +65,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { readPhpManifest, type PhpManifest } from './composer';
+import { readIncludeDirs, type IncludeDirs } from './include-dirs';
 import { readJsonFile } from './jsonc';
 import { expandDirGlob, normalizeRel } from './paths';
 // Phase 157. Each language arm's own manifest reader lives beside the arm, and
@@ -211,6 +212,14 @@ export interface ArchManifests {
    */
   php: PhpManifest;
   /**
+   * The include directories a C or C++ project literally declares (Phase 184),
+   * from CMakeLists, a Makefile or a Bazel BUILD file. They are the one thing
+   * an `#include` can be resolved against that the source itself does not say,
+   * and every one of them is a literal: a path assembled by build code is not
+   * seen and an include only it could explain answers `unresolved`.
+   */
+  includeDirs: IncludeDirs;
+  /**
    * What the Podfile and Cartfile literally declare (Phase 180): pod names,
    * the Objective-C arm's only non platform justification for `external`.
    */
@@ -271,6 +280,7 @@ export function readArchManifests(repoPath: string): ArchManifests {
     kotlin: gradle,
     java: readJavaManifest(repoPath, gradle),
     php: readPhpManifest(repoPath),
+    includeDirs: readIncludeDirs(repoPath),
     objc: readObjcManifest(repoPath),
     swift: emptySwiftManifest()
   };
