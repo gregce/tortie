@@ -103,8 +103,14 @@ export interface GmuxLoginsExtras {
     remove(provider: LoginProviderId, name: string): Promise<LoginActionResult>;
     /**
      * Subscribe to the unasked-for change push (Phase 211). Returns its own
-     * unsubscribe. Absent on a build whose preload predates this phase.
+     * unsubscribe.
+     *
+     * REQUIRED, like every installed bridge member: the one preload provides
+     * the whole `logins` object or none of it, so feature detection is on the
+     * object and not on this member. The renderer still reads it through
+     * optional chaining, which is what protects a preload with no `logins` at
+     * all rather than a `logins` missing one member.
      */
-    onChanged?(cb: () => void): () => void;
+    onChanged(cb: () => void): () => void;
   };
 }
