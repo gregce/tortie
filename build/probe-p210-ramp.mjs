@@ -32,8 +32,10 @@
  *
  * THE FLIP IS OUT OF REACH AND THE PROBE SAYS SO. Phase 210's entry expected
  * the two new controls to make the text flip reachable. They do not: the git
- * decorations on --bg-active stop the ramp at canvas Y 0.0138 against a flip
- * at Y 0.1791. So this probe reads the polarity at every frame and requires
+ * decorations on --bg-active stop the ramp at canvas Y 0.0147, measured over
+ * every whole degree at hue 186, shade 2, depth -3, against a flip at Y
+ * 0.1791; at the shipped hue that lightest canvas reads 0.0138, which is the
+ * number this header quoted before the Phase 210 fix round. So this probe reads the polarity at every frame and requires
  * it to stay light, and drives the flip itself through the Phase 207 harness
  * ground, which is still the only thing that reaches it.
  *
