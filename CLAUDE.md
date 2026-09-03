@@ -277,19 +277,34 @@ It is the machine discipline rule above made checkable for everything that is no
 asks the question of the FAMILY THAT LEAKED and of nothing else, because asking it of every spawn
 under `build/` goes red on 17 files and stops being a nit: a long lived child is an ASYNCHRONOUS
 spawn, never a `*Sync` form, that is either `detached: true` or a runner that does not stop by
-itself, being a command line carrying `while`, `until`, `sleep <n>` or `for(;;)`. Every file holding
-one must have a `finally` block that reaches a kill, read by matching braces rather than by
+itself, being a command line carrying `while`, `until`, `for(;;)`, `sleep <n>` or the `sleep` program
+itself. The question is asked PER START and not per file: THAT child, held under the name it is held
+under, must be killed inside a `finally` block that names it, read by matching braces rather than by
 searching for the word, and the kill may be in a helper the same file defines. The call names are
 DISCOVERED per file rather than listed, because almost every probe under `build/` declares its own
 wrapper and one called `background` would be invisible to a list; one level and not the transitive
 closure, which was tried and read 36 of `update-rehearsal.mjs`'s own functions as spawners because
-`fail()` reaches a cleanup that reaches a spawn. Twelve fixtures live in
-`build/background-fixtures.mjs`, five of which must make the gate fail, including the exact shape
+`fail()` reaches a cleanup that reaches a spawn. Nineteen fixtures live in
+`build/background-fixtures.mjs`, twelve of which must make the gate fail, including the exact shape
 that leaked, a `finally` that tidies but never kills, and a `finally` whose only kill is in a
 comment. **A new shape that walks past it goes in that file in the same commit as the fix.** Run
 against the tree before Phase 206 it finds one real leak, being the `/bin/sh` sampler at
 `build/probe-remote-env.mjs:350` that was ended on the happy path alone, so a `drive` that threw
 left a loop running `ps` with nothing to stop it.
+
+**And this gate's own fix round, for the same reason the known-hosts one has a paragraph.** As first
+shipped it asked the question of the FILE: any `finally` anywhere that reached any `kill(` cleared
+every start in it, and it read the argument text as it stood. A verifier walked past it five times.
+A `finally` belonging to an unrelated inner block, being a helper ending its own short lived
+`git status` child properly, cleared a top level sampler ended nowhere. A file that ends ONE loop
+correctly and starts a second below it ended nowhere read as green, and that is the likeliest real
+regression there is, because a probe that already does the right thing adds a child and leaks it in
+silence. The six loop burner with `while :; do :; done` held in a `const`, and `detached: true` held
+in a `const OPTS`, were both invisible, which is the value half of the known-hosts lesson this gate
+had not taken. And a bare `spawn('/bin/sleep', ['100000'])` was invisible because `sleep <n>` wanted
+a space, while the fixture claiming to cover a sleeper spelled it inside a `-c` line. All five are
+fixtures now, `assignedValues` is shared by both gates rather than copied, and the twelve original
+fixtures read exactly as they did before.
 
 **Touching a script under `build/` that runs ssh?** Add `npm run gate:knownhosts` (about 0.4 s, spawns nothing, starts no ssh and no sshd, opens no socket, reads nothing under the person's home) for any commit under `build/`. It runs inside `npm run build` too, so nothing that builds can skip it. It asserts that no file under `build/` except `build/ssh-run.mjs` hands ssh, scp, sftp or ssh-keyscan to a spawn, that no spawn hands `ssh-keygen` its `-R` or `-F` flag, that no file puts one of the four on a command line a shell is given, that all 19 scripts that run one still reach the helper, and that inside the helper the `-o UserKnownHostsFile=` pair is emitted from exactly one place, refuses an empty value, has no default so forgetting it throws, is prepended so nothing later in an argv can win, and puts Tortie's own record file first. It proves the last four by RUNNING the helper as well as reading it. Run against the tree before Phase 193, it finds 39 unrouted spawns across 18 files and one `ssh -V` on a `/bin/sh -c` line.
 

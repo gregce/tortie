@@ -429,3 +429,54 @@ export function namedFunctions(code) {
 
   return bodies;
 }
+
+/**
+ * Every value a name is ever assigned in one file, as the text of each.
+ *
+ * A NAME IS NOT ONLY WHAT ITS DECLARATION SAYS, and reading only declarations
+ * was a hole a verifier walked through twice. This tree held the proof at
+ * `probe-control-dialect.mjs:375` before Phase 193: `let file;` declares
+ * nothing, two plain assignments on later lines give it `program` on one branch
+ * and `sshBin` on the other, and `sshBin` is the ssh client. A reader that
+ * wants a declaration with a literal on its right sees none of that and calls
+ * the file clean. Phase 206's fix round found the same hole in a second gate,
+ * where `const BURN = 'while :; do :; done'` and `const OPTS = { detached:
+ * true }` made a load generator invisible.
+ *
+ * So every assignment to a name is collected, wherever it is and however many
+ * there are, and a right hand side that is a CHOICE contributes its pieces as
+ * well as itself. `const bin = process.env.TORTIE_SSH || '/usr/bin/ssh'` and
+ * `const file = remote ? SSH_BIN : program` are both read here, and so is
+ * `file = sshBin;` standing on its own line.
+ *
+ * A name that CAN hold the thing asked about is read as holding it. A scanner
+ * cannot know which way a question goes at run time, and the safe reading is
+ * the one that fails closed.
+ *
+ * The `=` is required not to be part of `==`, `===`, `=>`, `+=` or any other
+ * compound, which is what keeps a comparison from being read as an assignment.
+ *
+ * IT IS TEXT AND NOT A SCOPE CHAIN. A caller that must not read a name the
+ * function it is looking at declares as a parameter asks {@link parameterScopes}
+ * and {@link shadowedAt} as well; see build/assert-known-hosts-scoped.mjs.
+ */
+export function assignedValues(code) {
+  const out = new Map();
+  const add = (name, text) => {
+    const piece = (text ?? '').trim();
+    if (piece === '') return;
+    const held = out.get(name);
+    if (held === undefined) out.set(name, [piece]);
+    else if (!held.includes(piece)) held.push(piece);
+  };
+  const assigned = /(?:^|[^=!<>+\-*/%&|^~\w$])([A-Za-z_$][\w$]*)\s*=(?![=>])\s*([^;\n]*)/g;
+  let m;
+  while ((m = assigned.exec(code)) !== null) {
+    const rhs = m[2].trim();
+    add(m[1], rhs);
+    if (/\|\||\?\?|\?/.test(rhs)) {
+      for (const piece of rhs.split(/\|\||\?\?|\?|:/)) add(m[1], piece);
+    }
+  }
+  return out;
+}

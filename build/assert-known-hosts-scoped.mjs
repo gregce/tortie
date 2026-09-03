@@ -145,6 +145,7 @@ import { fileURLToPath } from 'node:url';
 
 import { CASES } from './known-hosts-fixtures.mjs';
 import {
+  assignedValues,
   callArguments,
   lineAt,
   namedFunctions,
@@ -349,51 +350,6 @@ function stringValues(code) {
   return values;
 }
 
-/**
- * Every value a name can hold in one file, as the text of each.
- *
- * A NAME IS NOT ONLY WHAT ITS DECLARATION SAYS, and reading only declarations
- * was a hole a verifier walked through. This tree held the proof at
- * `probe-control-dialect.mjs:375` before Phase 193: `let file;` declares
- * nothing, two plain assignments on later lines give it `program` on one branch
- * and `sshBin` on the other, and `sshBin` is the client. A reader that wants a
- * declaration with a literal on its right sees none of that and calls the file
- * clean.
- *
- * So every assignment to a name is collected, wherever it is and however many
- * there are, and a right hand side that is a CHOICE contributes its pieces as
- * well as itself. `const bin = process.env.TORTIE_SSH || '/usr/bin/ssh'` and
- * `const file = remote ? SSH_BIN : program` are both read here, and so is
- * `file = sshBin;` standing on its own line.
- *
- * A name that CAN hold the client is read as holding it. A scanner cannot know
- * which way a question goes at run time, and the safe reading is the one that
- * fails closed.
- *
- * The `=` is required not to be part of `==`, `===`, `=>`, `+=` or any other
- * compound, which is what keeps a comparison from being read as an assignment.
- */
-function candidateValues(code) {
-  const out = new Map();
-  const add = (name, text) => {
-    const piece = (text ?? '').trim();
-    if (piece === '') return;
-    const held = out.get(name);
-    if (held === undefined) out.set(name, [piece]);
-    else if (!held.includes(piece)) held.push(piece);
-  };
-  const assigned = /(?:^|[^=!<>+\-*/%&|^~\w$])([A-Za-z_$][\w$]*)\s*=(?![=>])\s*([^;\n]*)/g;
-  let m;
-  while ((m = assigned.exec(code)) !== null) {
-    const rhs = m[2].trim();
-    add(m[1], rhs);
-    if (/\|\||\?\?|\?/.test(rhs)) {
-      for (const piece of rhs.split(/\|\||\?\?|\?|:/)) add(m[1], piece);
-    }
-  }
-  return out;
-}
-
 /** The names this file imported from the helper that hold a program path. */
 function helperProgramImports(code) {
   const found = [];
@@ -429,7 +385,7 @@ function sshNames(code, values = stringValues(code)) {
     if (keygen !== null) keygens.set(name, keygen);
   }
   for (const [name, path] of helperProgramImports(code)) names.set(name, path);
-  const candidates = candidateValues(code);
+  const candidates = assignedValues(code);
   for (let pass = 0; pass < 4; pass += 1) {
     let grew = false;
     for (const [name, pieces] of candidates) {

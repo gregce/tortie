@@ -24,8 +24,11 @@ export function fixture(text) {
 /**
  * Every fixture, with the number of findings the scanner must produce.
  *
- * `bad` counts the call sites the scanner must report. A file with a kill in a
- * `finally` produces none however many children it starts.
+ * `bad` counts the call sites the scanner must report. It is asked PER START
+ * and not per file: a file that ends one child in a `finally` and starts a
+ * second that nothing ends produces exactly one finding, which is the shape a
+ * verifier walked past on 2026-09-03 and the likeliest real regression there
+ * is.
  */
 export const FIXTURES = [
   {
@@ -197,6 +200,121 @@ function background(file, args) {
 const loader = background('/bin/sh', ['-c', 'LOOP']);
 await measure();
 loader.kill('SIGKILL');
+`)
+  },
+
+  // ------------------------------------------------------------------------
+  // THE SIX SHAPES THE FIX ROUND ADDED, five of which walked past the gate as
+  // it first shipped. Four are the file level reading of a `finally` and the
+  // unread value of a name; the fifth is a sleeper spelled as a program rather
+  // than as a shell word.
+  // ------------------------------------------------------------------------
+  {
+    name: 'a kill in a finally belonging to an unrelated inner block',
+    // WENT GREEN AS FIRST SHIPPED. `killsInFinally` was file level, so a
+    // helper ending its own short lived `git status` child properly cleared
+    // the top level sampler that is ended nowhere.
+    bad: 1,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+const sampler = LAUNCH('/bin/sh', ['-c', 'LOOP'], { detached: true });
+await drive();
+sampler.kill('SIGKILL');
+
+function readStatus() {
+  const child = LAUNCH('git', ['status']);
+  try {
+    return collect(child);
+  } finally {
+    child.kill('SIGTERM');
+  }
+}
+`)
+  },
+  {
+    name: 'one loop ended correctly and a second below it ended nowhere',
+    // WENT GREEN AS FIRST SHIPPED, and it is the likeliest real regression:
+    // a probe that already does the right thing adds a child and leaks it in
+    // silence, because the file still holds a `finally` that kills.
+    bad: 1,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+const one = LAUNCH('/bin/sh', ['-c', 'LOOP']);
+try {
+  await drive();
+} finally {
+  one.kill('SIGKILL');
+}
+const two = LAUNCH('/bin/sh', ['-c', 'LOOP'], { detached: true });
+await more();
+`)
+  },
+  {
+    name: 'the burner with its command line held in a name',
+    // WENT GREEN AS FIRST SHIPPED. The argument text read `BURN` and the
+    // gate never asked what `BURN` holds.
+    bad: 1,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+const BURN = 'LOOP';
+const kids = [];
+for (let i = 0; i < 6; i += 1) kids.push(LAUNCH('/bin/sh', ['-c', BURN], { stdio: 'ignore' }));
+await drive();
+for (const kid of kids) kid.kill('SIGKILL');
+`)
+  },
+  {
+    name: 'the same burner with its command line in a name, ended in a finally',
+    bad: 0,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+const BURN = 'LOOP';
+const kids = [];
+try {
+  for (let i = 0; i < 6; i += 1) kids.push(LAUNCH('/bin/sh', ['-c', BURN], { stdio: 'ignore' }));
+  await drive();
+} finally {
+  for (const kid of kids) kid.kill('SIGKILL');
+}
+`)
+  },
+  {
+    name: 'detached true held in a named options object',
+    // WENT GREEN AS FIRST SHIPPED, for the same reason as the one above.
+    bad: 1,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+const OPTS = { detached: true, stdio: 'ignore' };
+const server = LAUNCH('/bin/sh', ['-c', 'node server.mjs'], OPTS);
+await drive();
+server.kill();
+`)
+  },
+  {
+    name: 'a sleeper spelled as a program rather than as a shell word',
+    // WENT GREEN AS FIRST SHIPPED. `sleep <n>` needed a space, and this holds
+    // the number in its own argument, so nothing matched. The gate's other
+    // sleeper fixture spells it inside a `-c` line, which is why the gap
+    // survived a fixture that claimed to cover a sleeper.
+    bad: 1,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+const held = LAUNCH('/bin/sleep', ['100000']);
+await drive();
+held.kill();
+`)
+  },
+  {
+    name: 'a child nobody holds at all, which nothing can ever end',
+    bad: 1,
+    text: fixture(`
+import { LAUNCH } from 'node:child_process';
+try {
+  LAUNCH('/bin/sh', ['-c', 'LOOP'], { detached: true });
+  await drive();
+} finally {
+  say('nothing to end, because nothing was kept');
+}
 `)
   }
 ];
