@@ -285,6 +285,44 @@ export async function storeTarget(
   return keychainTarget(d, service, own);
 }
 
+/**
+ * Where a credential for the PERSON'S OWN default location would be written
+ * (Phase 211), or null when there is nothing to write into.
+ *
+ * ## THE ONE REFUSAL THIS PHASE LIFTS
+ *
+ * Phase 204's {@link storeTarget} refuses the default store for every write, so
+ * a session running under the default login could never follow a switch. The
+ * operator asked for the opposite on 2026-09-03. This is the ONE path that may
+ * write it, and it is a SEPARATE function rather than a branch of
+ * {@link storeTarget} so that the refusal in {@link storeTarget} stays absolute
+ * for every other caller: `npm run conformance:credentials` proves this
+ * function is reached from exactly one call site, in `./keep.ts`'s activate,
+ * and that {@link storeTarget} still refuses `dir === null` as its first act.
+ *
+ * The account written is the CHOSEN login's, and the store is the vendor's own
+ * location, being the keychain item the vendor itself reads for the default
+ * login, `Claude Code-credentials` or its config-dir-scoped name, and codex's
+ * own `auth.json`. The observe that runs before any activate has already kept
+ * and promoted whatever account was there, so nothing is lost by writing it.
+ */
+export async function defaultStoreTarget(
+  d: StoreDeps,
+  provider: LoginProviderId
+): Promise<SwapTarget | null> {
+  if (provider === 'codex') return fileTarget(d, codexAuthFileFor(d, null));
+  if (!d.keychainForClaude) return fileTarget(d, claudeCredentialFileFor(d, null));
+  // THE ITEM THE VENDOR READS FOR THE DEFAULT LOGIN, most specific first, which
+  // is the scoped name when a `CLAUDE_CONFIG_DIR` is set and the plain
+  // `Claude Code-credentials` otherwise. Writing any other name would leave a
+  // running session reading a credential Tortie did not update.
+  const service = claudeServicesFor(d, null)[0];
+  if (service === undefined) return null;
+  const existing = await keychainAccount(d.runner, service);
+  const own = existing ?? (await ownAccountName(d));
+  return keychainTarget(d, service, own);
+}
+
 /** The account attribute the person's own claude item carries, or the user name. */
 async function ownAccountName(d: StoreDeps): Promise<string> {
   for (const service of claudeServicesFor(d, null)) {

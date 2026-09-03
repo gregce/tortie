@@ -57,15 +57,18 @@ import {
   strayLoginIds,
   type StoredLogin
 } from '../logins/store';
+import { claudeConfigDirFor } from '../usage/login-accounts';
 import { credentialDigest } from './payload';
 import { readKeptFile, updateKeptFile, type KeptRecord } from './kept';
 import {
+  defaultStoreTarget,
   forgetStore,
   readSettledStore,
   storeTarget,
   type StoreDeps
 } from './stores';
-import { safeSwap, type SwapStep } from './swap';
+import { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
+import { withClaudeCredentialLocks, withCodexNoLock } from './locks';
 import {
   DEFAULT_SLOT_ID,
   isSlotName,
@@ -93,11 +96,14 @@ export interface KeepDeps {
   /**
    * Which logins have a session running under them right now.
    *
-   * It is asked ONLY by {@link activateLogin}, because a write into a store a
-   * session is using is the one write that could sign a running agent out. An
-   * answer that throws is read as "no sessions", which is the shape every
-   * other seam in this tree takes, and the refusal that matters is still made
-   * by the person's own choice rather than by this list.
+   * PHASE 211 changed what it is FOR. Phase 204 asked it so activate could
+   * REFUSE a store a session was using. The operator asked for the opposite on
+   * 2026-09-03: a switch should reach the running session. So activate no
+   * longer refuses; it asks this list one thing only, being whether a session
+   * of the provider is running under the DEFAULT login, because that session
+   * reads the vendor's own location and the chosen account is put there too so
+   * it follows. An answer that throws is read as "no sessions", the shape every
+   * other seam in this tree takes.
    */
   liveSessions(): Promise<LiveSession[]>;
   now(): number;
@@ -760,11 +766,58 @@ export type ActivateResult =
   | { ok: false; reason: string };
 
 /**
- * Put a login's kept account back into the store it runs under.
+ * Is this the DEFAULT login, being the vendor's own location? (Phase 211)
+ */
+function isDefaultLogin(login: string | null): boolean {
+  return login === null || login === '' || sameLoginName(login, DEFAULT_LOGIN_NAME);
+}
+
+/**
+ * The one write in activate, held under Claude Code's own locks (Phase 211).
  *
- * THE ORDER IS THE POINT. An observe runs first, so whatever is in the target
- * store has already been captured and, if it is a different account, already
- * has a login of its own. Only then is anything written.
+ * A CLAUDE WRITE HOLDS THE LOCKS AND A CODEX WRITE HOLDS NONE, and the split is
+ * a decision in the code rather than an omission: `./locks.ts` carries the
+ * whole reason. `configHome` is the directory Claude Code's lock directories
+ * live under, being the login's own directory for a login Tortie made and the
+ * vendor's default config home for the default store. The lock is released in
+ * the helper's own `finally` whatever the write did.
+ */
+function writeUnderLock(
+  provider: LoginProviderId,
+  configHome: string,
+  target: SwapTarget,
+  payload: string,
+  stopAfter?: SwapStep
+): Promise<SwapResult> {
+  if (provider === 'claude') {
+    return withClaudeCredentialLocks(configHome, () =>
+      safeSwap(target, payload, stopAfter)
+    );
+  }
+  return withCodexNoLock(() => safeSwap(target, payload, stopAfter));
+}
+
+/**
+ * Put a login's kept account back into the store it runs under, and into the
+ * vendor's own location when a session is running under the default login
+ * (Phase 211).
+ *
+ * ## WHAT CHANGED FROM PHASE 204, and it is the operator's own request
+ *
+ * Phase 204 REFUSED this write while any session ran under the login, and never
+ * wrote the default store at all, so choosing an account never reached a
+ * running session. He asked for the opposite on 2026-09-03. So:
+ *
+ *  - THE RUNNING SESSION REFUSAL IS GONE. The write now happens, held under
+ *    Claude Code's own credential locks so it never lands inside a token
+ *    refresh, and the running session picks the swapped credential up on its
+ *    own once the vendor's keychain cache expires, measured at about half a
+ *    minute. `Restart now` on the card is the instant path.
+ *  - THE DEFAULT STORE IS WRITTEN when a session of the provider is running
+ *    under the default login, because that session reads the vendor's own
+ *    location. The observe below runs FIRST, so whatever account was in that
+ *    store is already kept and promoted before a byte moves, which is what
+ *    keeps the switch reversible.
  *
  * `stopAfter` exists for the gate alone and the product never passes it.
  */
@@ -781,12 +834,17 @@ export async function activateLogin(
   name: string | null,
   stopAfter?: SwapStep
 ): Promise<ActivateResult> {
-  if (name === null || name === '' || sameLoginName(name, DEFAULT_LOGIN_NAME)) {
-    // THE PERSON'S OWN LOCATION IS NEVER WRITTEN. Choosing it moves no bytes.
-    await observeProvider(d, provider);
+  // THE OBSERVE IS FIRST, WHATEVER IS CHOSEN. It keeps and promotes the account
+  // currently in every store this provider has, so the account a switch is
+  // about to write over already has a login of its own.
+  await observeProvider(d, provider);
+
+  if (isDefaultLogin(name)) {
+    // Choosing the person's own default location: it is the store a default
+    // session already reads, and the rolling copy Tortie keeps IS that store,
+    // so choosing it moves no bytes.
     return { ok: true, wrote: false, says: 'Your own sign in is used as it is.' };
   }
-  await observeProvider(d, provider);
   const { file } = readLoginsFile(d.root);
   const row = file.logins.find(
     (l) => l.provider === provider && sameLoginName(l.name, name)
@@ -805,7 +863,7 @@ export async function activateLogin(
   const payload = await vaultGet(d.vault, slot);
   if (payload === null) {
     // NOT A FAILURE. A login Tortie has no copy of is one the person signs
-    // into themselves, which is every login before this phase.
+    // into themselves, which is every login before Phase 204.
     return {
       ok: true,
       wrote: false,
@@ -813,32 +871,66 @@ export async function activateLogin(
     };
   }
   const digest = credentialDigest(payload);
-  const live = await readSettledStore(d.stores, provider, dir);
-  if (live !== null && live.payload !== null && credentialDigest(live.payload) === digest) {
-    return { ok: true, wrote: false, says: 'That account is already in place.' };
+
+  let wrote = false;
+  let firstProblem: string | null = null;
+
+  // 1. THE LOGIN'S OWN STORE, so a session already running under this login and
+  //    every new session launched under it get the account. Skipped when the
+  //    store already holds it, which is the ordinary re-choose.
+  const ownLive = await readSettledStore(d.stores, provider, dir);
+  const ownHolds =
+    ownLive !== null &&
+    ownLive.payload !== null &&
+    credentialDigest(ownLive.payload) === digest;
+  if (!ownHolds) {
+    const target = await storeTarget(d.stores, provider, dir);
+    if (target === null) {
+      return { ok: false, reason: 'Tortie refused to write that sign in location.' };
+    }
+    const done = await writeUnderLock(
+      provider,
+      claudeConfigDirFor(d.stores, dir),
+      target,
+      payload,
+      stopAfter
+    );
+    if (!done.ok) return { ok: false, reason: done.reason };
+    wrote = true;
   }
-  // THE ONE REFUSAL ON A WRITE. A session running under this login keeps the
-  // sign in it started with, and writing a different account underneath it is
-  // the one write that could sign a running agent out mid turn.
-  const running = await d
-    .liveSessions()
-    .catch((): LiveSession[] => []);
-  if (
-    running.some(
-      (s) => s.provider === provider && sameLoginName(s.login ?? null, row.name)
-    )
-  ) {
-    return {
-      ok: false,
-      reason: `A session is running on ${row.name}. Close it first, then choose it again.`
-    };
+
+  // 2. THE DEFAULT LIFT (Phase 211). A session of this provider running under
+  //    the default login reads the vendor's own location, so the chosen account
+  //    is put THERE too and that running session follows. The observe above
+  //    already kept and promoted whatever account was in the default store.
+  const running = await d.liveSessions().catch((): LiveSession[] => []);
+  if (running.some((s) => s.provider === provider && isDefaultLogin(s.login))) {
+    const defLive = await readSettledStore(d.stores, provider, null);
+    const defHolds =
+      defLive !== null &&
+      defLive.payload !== null &&
+      credentialDigest(defLive.payload) === digest;
+    if (!defHolds) {
+      const defTarget = await defaultStoreTarget(d.stores, provider);
+      if (defTarget !== null) {
+        const done = await writeUnderLock(
+          provider,
+          claudeConfigDirFor(d.stores, null),
+          defTarget,
+          payload,
+          stopAfter
+        );
+        if (done.ok) wrote = true;
+        else if (firstProblem === null) firstProblem = done.reason;
+      }
+    }
   }
-  const target = await storeTarget(d.stores, provider, dir);
-  if (target === null) {
-    return { ok: false, reason: 'Tortie refused to write that sign in location.' };
+
+  if (!wrote) {
+    return firstProblem === null
+      ? { ok: true, wrote: false, says: 'That account is already in place.' }
+      : { ok: false, reason: firstProblem };
   }
-  const wrote = await safeSwap(target, payload, stopAfter);
-  if (!wrote.ok) return { ok: false, reason: wrote.reason };
   return { ok: true, wrote: true, says: `${row.name} is signed in again.` };
 }
 

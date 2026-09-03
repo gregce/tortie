@@ -172,6 +172,24 @@ export function claudeAccountFileFor(
     : join(d.home, '.claude.json');
 }
 
+/**
+ * The DIRECTORY claude treats as its config home for a login (Phase 211).
+ *
+ * It is the same directory the two files above sit in, so it is composed the
+ * same way and the decoy of Phase 203 cannot come back: a login's own
+ * directory for a login Tortie made, the process `CLAUDE_CONFIG_DIR` when one
+ * is set, and `~/.claude` otherwise. It exists so `../credentials/locks.ts` can
+ * name Claude Code's own lock directories, which live under this home.
+ */
+export function claudeConfigDirFor(
+  d: Pick<LoginAccountDeps, 'env' | 'home'>,
+  loginDir: string | null
+): string {
+  if (loginDir !== null && loginDir !== '') return loginDir;
+  const own = d.env['CLAUDE_CONFIG_DIR'];
+  return own !== undefined && own !== '' ? own : join(d.home, '.claude');
+}
+
 /** Codex keeps its credential and its identity in one file. */
 export function codexAuthFileFor(
   d: Pick<LoginAccountDeps, 'env' | 'home'>,

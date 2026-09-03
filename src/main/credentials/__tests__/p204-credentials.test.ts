@@ -383,16 +383,47 @@ describe('the three verbs', () => {
     expect(files.get('/home/.codex/auth.json')).toBe(before.get('/home/.codex/auth.json'));
   });
 
-  it('refuses to write a store a session is running under', async () => {
+  it('writes a store a session is running under rather than refusing (Phase 211)', async () => {
     const files = new Map<string, string>();
     files.set('/home/.codex/auth.json', codexCredential('a', 'one@example.com'));
     const d = deps(files, [{ provider: 'codex', login: 'one.example' }]);
     await observeProvider(d, 'codex');
     files.set('/home/.codex/auth.json', codexCredential('b', 'two@example.com'));
     await observeProvider(d, 'codex');
+    const row = readLoginsFile(root).file.logins.find((l) => l.name === 'one.example');
+    const dir = loginDirIn(root, 'codex', row?.id ?? '');
     const put = await activateLogin(d, 'codex', 'one.example');
-    expect(put.ok).toBe(false);
-    expect(put.ok ? '' : put.reason).toContain('A session is running');
+    // PHASE 211. The write now happens; the session picks it up on its own.
+    expect(put.ok).toBe(true);
+    expect(put.ok && put.wrote).toBe(true);
+    expect(files.get(join(dir, 'auth.json'))).toBe(codexCredential('a', 'one@example.com'));
+    // A session on this NON-default login does not write the default store.
+    expect(files.get('/home/.codex/auth.json')).toBe(codexCredential('b', 'two@example.com'));
+  });
+
+  it('writes the default store when a session runs under the default login (Phase 211)', async () => {
+    const files = new Map<string, string>();
+    files.set('/home/.codex/auth.json', codexCredential('a', 'one@example.com'));
+    // A session of this provider is running under the DEFAULT login.
+    const d = deps(files, [{ provider: 'codex', login: null }]);
+    await observeProvider(d, 'codex');
+    // The person types /login: a different account is now in the default store,
+    // and the one they left is promoted to a login of its own.
+    files.set('/home/.codex/auth.json', codexCredential('b', 'two@example.com'));
+    await observeProvider(d, 'codex');
+    const row = readLoginsFile(root).file.logins.find((l) => l.name === 'one.example');
+    const dir = loginDirIn(root, 'codex', row?.id ?? '');
+
+    const put = await activateLogin(d, 'codex', 'one.example');
+    expect(put.ok).toBe(true);
+    expect(put.ok && put.wrote).toBe(true);
+    // THE DEFAULT STORE NOW HOLDS THE CHOSEN ACCOUNT, so the running default
+    // session follows it.
+    expect(files.get('/home/.codex/auth.json')).toBe(
+      codexCredential('a', 'one@example.com')
+    );
+    // And the login's own directory holds it too, for new sessions.
+    expect(files.get(join(dir, 'auth.json'))).toBe(codexCredential('a', 'one@example.com'));
   });
 
   it('forgets nothing when a store is caught mid change', async () => {
