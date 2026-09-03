@@ -44,6 +44,15 @@ import { loginsOf, useLogins } from '../state/logins';
 import { useApp } from '../state/store';
 import { gmuxBridge } from '../bridge';
 import { loginMenuItems, loginMenuPick } from './login-menu';
+import { LOGIN_RESTART_NOW, loginSwitchTiming } from '@shared/login-copy';
+
+/**
+ * Is this a macOS build? (Phase 211). The switch timing differs by platform,
+ * and on macOS the vendor caches its keychain read for about half a minute
+ * while everywhere else it re-reads the credential file at once.
+ */
+const IS_MAC =
+  typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
 import {
   USAGE_FIVE_HOUR,
   USAGE_PROVIDER_LABEL,
@@ -432,6 +441,8 @@ export function UsageMeter({
   const chooseLogin = useLogins((s) => s.choose);
   const sessions = useApp((s) => s.sessions);
   const openAddLogin = useApp((s) => s.setAddLoginProvider);
+  const restartSession = useApp((s) => s.restartSession);
+  const toast = useApp((s) => s.toast);
 
   useEffect(() => {
     ensurePolling();
@@ -503,7 +514,7 @@ export function UsageMeter({
             .call(gmuxBridge(), {
               x: Math.round(at.left),
               y: Math.round(at.bottom),
-              items: loginMenuItems(rows)
+              items: loginMenuItems(rows, IS_MAC)
             })
             .then((picked) => {
               const action = loginMenuPick(picked);
@@ -514,7 +525,31 @@ export function UsageMeter({
                 return;
               }
               const row = rows.find((r) => r.name === action.name);
-              void chooseLogin(provider, row?.isDefault === true ? null : action.name);
+              const chosen = row?.isDefault === true ? null : action.name;
+              void chooseLogin(provider, chosen).then((ok) => {
+                // PHASE 211. The switch reached the store; the running session
+                // picks it up on its own within about half a minute, and this
+                // is the instant path. It is offered only when a credential
+                // actually moved and a session of this provider is running.
+                if (!ok || row === undefined || !row.restores) return;
+                const running = sessions.filter(
+                  (s) => s.agent === provider && s.status === 'running'
+                );
+                if (running.length === 0) return;
+                toast(
+                  'success',
+                  `${action.name} is switched. ${loginSwitchTiming(IS_MAC)}`,
+                  {
+                    sticky: true,
+                    action: {
+                      label: LOGIN_RESTART_NOW,
+                      run: () => {
+                        for (const s of running) void restartSession(s.id);
+                      }
+                    }
+                  }
+                );
+              });
             })
             .catch(() => undefined);
         };

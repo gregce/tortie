@@ -54,12 +54,16 @@ export const LOGIN_ADD_LABEL = 'Add login…';
  * and the only thing a launch can resolve. Nothing a person reads here is what
  * the pick carries.
  */
-export function loginMenuItems(rows: readonly LoginRow[]): PopupMenuItem[] {
+export function loginMenuItems(
+  rows: readonly LoginRow[],
+  isMac = true
+): PopupMenuItem[] {
   const items: PopupMenuItem[] = rows.map((row) => {
     // PHASE 204. The second line says what the login IS and, when a switch
-    // would put an account back, what the switch will do. Every row that moves
-    // no credential reads exactly as it read in Phase 203.
-    const detail = loginRowDetail(row);
+    // would put an account back, what the switch will do. PHASE 211 adds WHEN,
+    // with the measured number for the platform. Every row that moves no
+    // credential reads exactly as it read in Phase 203.
+    const detail = loginRowDetail(row, isMac);
     return {
       id: `${LOGIN_MENU_PICK}${row.name}`,
       label: `${row.chosen ? '✓ ' : '  '}${loginAccountLabel(row)}`,

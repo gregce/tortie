@@ -49,8 +49,15 @@ describe('a login whose account Tortie is holding', () => {
 });
 
 describe('what a switch will do, before it happens', () => {
-  it('says it on the row where an account will be put back', () => {
-    expect(loginSwitchLine(row({ restores: true }))).toBe(LOGIN_SWITCH_RESTORE);
+  it('says it, and WHEN, on the row where an account will be put back', () => {
+    // PHASE 211. The switch reaches the running session, so the line says the
+    // timing too, with the measured number for the platform.
+    const mac = loginSwitchLine(row({ restores: true }), true);
+    expect(mac).toContain(LOGIN_SWITCH_RESTORE);
+    expect(mac).toContain('about half a minute');
+    const other = loginSwitchLine(row({ restores: true }), false);
+    expect(other).toContain(LOGIN_SWITCH_RESTORE);
+    expect(other).toContain('next message');
   });
 
   it('says nothing where no credential moves', () => {

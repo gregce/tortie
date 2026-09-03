@@ -33,6 +33,10 @@ import { sanitizeUsageBarWindow } from '@shared/settings';
 import type { UsageProviderId } from '@shared/usage';
 import type { LoginProviderId } from '@shared/logins';
 import { loginAccountLabel, loginRowDetail } from '@shared/login-copy';
+
+/** Is this a macOS build? (Phase 211). The switch timing differs by platform. */
+const IS_MAC =
+  typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent);
 import { loginsOf, useLogins } from '../state/logins';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
@@ -206,7 +210,7 @@ function LoginsBlock({
           // PHASE 204. The second half of the line says what choosing this
           // login would do, and it appears only on a row where a switch would
           // put an account back. Every other row reads as it did before.
-          const detail = loginRowDetail(row);
+          const detail = loginRowDetail(row, IS_MAC);
           return (
             <span
               className="set-row-caption"

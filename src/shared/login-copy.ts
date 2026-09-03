@@ -64,7 +64,29 @@ export const LOGIN_KEPT = 'Kept by Tortie';
  * reason they exist: a switch moves a credential, and a person is entitled to
  * know that before they pick.
  */
-export const LOGIN_SWITCH_RESTORE = 'Puts this account back for new sessions.';
+export const LOGIN_SWITCH_RESTORE = 'Puts this account back.';
+
+/**
+ * When a switch takes effect, said with the MEASURED number (Phase 211).
+ *
+ * On macOS a running Claude Code caches its keychain read for about thirty
+ * seconds, measured against the installed 2.1.259 build and matching the
+ * vendor's own 30,000 ms cache exactly, so a session picks a switch up on its
+ * own within about half a minute. `Restart now` on the card is the instant
+ * path. On every other platform the vendor re-reads its credential FILE the
+ * moment it changes, so the switch lands on the next message.
+ */
+export const LOGIN_SWITCH_TAKES_MAC =
+  'Takes effect within about half a minute, or restart the session now.';
+export const LOGIN_SWITCH_TAKES_OTHER = 'Takes effect on the next message.';
+
+/** The timing half of the switch line, for the platform a person is on. */
+export function loginSwitchTiming(isMac: boolean): string {
+  return isMac ? LOGIN_SWITCH_TAKES_MAC : LOGIN_SWITCH_TAKES_OTHER;
+}
+
+/** The label of the instant path on the card and in the toast after a switch. */
+export const LOGIN_RESTART_NOW = 'Restart now';
 
 /** The separator between the secondary parts, which is never a dash. */
 const JOIN = ' · ';
@@ -113,21 +135,25 @@ export function loginAccountDetail(row: LoginRow): string {
  * refused on 2026-08-28. So the one line appears exactly on the rows where a
  * switch will put an account back.
  */
-export function loginSwitchLine(row: LoginRow): string {
+export function loginSwitchLine(row: LoginRow, isMac = true): string {
   if (row.chosen || row.isDefault) return '';
-  return row.restores ? LOGIN_SWITCH_RESTORE : '';
+  if (!row.restores) return '';
+  // PHASE 211. What the switch does AND WHEN, because the switch now reaches the
+  // running session and a person is entitled to know the timing before they
+  // pick. The measured number is on `loginSwitchTiming`.
+  return `${LOGIN_SWITCH_RESTORE} ${loginSwitchTiming(isMac)}`;
 }
 
 /**
  * The second line a menu item or a list row carries, being what the login is
- * and then what choosing it would do (Phase 204).
+ * and then what choosing it would do (Phase 204, timing added Phase 211).
  *
  * The two are joined by the same separator every other pair of parts uses, and
  * the switch half is usually empty, so a row that has nothing new to say reads
  * exactly as it read in Phase 203.
  */
-export function loginRowDetail(row: LoginRow): string {
-  const parts = [loginAccountDetail(row), loginSwitchLine(row)].filter(
+export function loginRowDetail(row: LoginRow, isMac = true): string {
+  const parts = [loginAccountDetail(row), loginSwitchLine(row, isMac)].filter(
     (part) => part !== ''
   );
   return parts.join(JOIN);
