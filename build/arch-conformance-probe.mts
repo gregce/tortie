@@ -365,6 +365,16 @@ async function main(): Promise<void> {
     // Gradle ones do. ./maven.ts is proved against real pom text in
     // src/main/arch/__tests__/resolver-java.test.ts; what this gate proves is
     // the ARM over whatever a reader hands it.
+    // Phase 184: the Composer autoload map arrives as data. ./composer.ts is
+    // proved against real manifest text in
+    // src/main/arch/__tests__/resolver-php.test.ts; what this gate proves is
+    // the ARM over whatever a reader hands it.
+    php: {
+      rules: facts.resolverProbe.php.rules,
+      heads: new Set(facts.resolverProbe.php.heads),
+      packages: new Set(facts.resolverProbe.php.packages),
+      present: facts.resolverProbe.php.present
+    },
     java: {
       groups: new Set(facts.resolverProbe.java.groups),
       artifacts: new Set(facts.resolverProbe.java.artifacts),
@@ -444,7 +454,8 @@ async function main(): Promise<void> {
     swift: 'swift',
     kotlin: 'kt',
     objc: 'm',
-    java: 'java'
+    java: 'java',
+    php: 'php'
   };
   const scannerLanguages = [
     ...new Set(

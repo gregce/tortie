@@ -420,6 +420,38 @@
         "language": "java",
         "fromPath": "jvm/src/main/java/com/probe/app/App.java",
         "specifier": "dev.nowhere.Thing"
+      },
+      {
+        "language": "php",
+        "fromPath": "web/src/Client.php",
+        "specifier": "App\\Psr7\\Request"
+      },
+      {
+        "language": "php",
+        "fromPath": "web/src/Client.php",
+        "specifier": "Psr\\Http\\Message\\RequestInterface"
+      },
+      {
+        "language": "php",
+        "fromPath": "web/src/Client.php",
+        "specifier": "Closure"
+      },
+      {
+        "language": "php",
+        "fromPath": "web/src/Client.php",
+        "specifier": "Nobody\\Declared\\This"
+      },
+      {
+        "language": "php",
+        "fromPath": "web/src/Client.php",
+        "specifier": "__DIR__ . '/Psr7/Request.php'",
+        "form": "require"
+      },
+      {
+        "language": "php",
+        "fromPath": "web/src/Client.php",
+        "specifier": "ABSPATH . 'Psr7/Request.php'",
+        "form": "require"
       }
     ],
     "files": {
@@ -459,6 +491,11 @@
         "jvm/src/main/java/com/probe/app/App.java",
         "jvm/src/main/java/com/probe/app/net/Client.java",
         "jvm/src/test/java/com/probe/app/net/Client.java"
+      ],
+      "php": [
+        "web/composer.json",
+        "web/src/Client.php",
+        "web/src/Psr7/Request.php"
       ]
     },
     "cargo": {
@@ -545,6 +582,25 @@
         "kotlinx-coroutines-android"
       ],
       "android": false,
+      "present": true
+    },
+    "php": {
+      "rules": [
+        {
+          "prefix": "App\\",
+          "dirs": [
+            "web/src"
+          ],
+          "standard": "psr-4"
+        }
+      ],
+      "heads": [
+        "psr",
+        "http-message"
+      ],
+      "packages": [
+        "psr/http-message"
+      ],
       "present": true
     }
   },

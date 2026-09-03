@@ -1,11 +1,11 @@
 /**
- * The eleven grammars gmux ships, and the extension → grammar map.
+ * The twelve grammars gmux ships, and the extension → grammar map.
  *
- * EIGHT come from `@vscode/tree-sitter-wasm` (research 19 §2.8, measured on
+ * NINE come from `@vscode/tree-sitter-wasm` (research 19 §2.8, measured on
  * disk): typescript 1,381 KB, tsx 1,412 KB, rust 1,088 KB, python 447 KB,
- * javascript 402 KB, go 212 KB, ruby 2,057 KB since Phase 157 and java 405 KB
- * since Phase 184 = 7.2 MB. That package also carries cpp (5.1 MB), c-sharp
- * (4.9 MB), bash, php, powershell, css, ini and regex.
+ * javascript 402 KB, go 212 KB, ruby 2,057 KB since Phase 157, and java 405 KB
+ * and php 1,033 KB since Phase 184 = 8.2 MB. That package also carries cpp
+ * (5.1 MB), c-sharp (4.9 MB), bash, powershell, css, ini and regex.
  *
  * THE PACKAGE IS NOT THE BUNDLE, and Phase 184 is where that stopped being a
  * detail. `electron-builder.yml` copies these out of the package BY EXACT
@@ -13,7 +13,10 @@
  * does not name costs nothing and a grammar this list names costs its whole
  * size in signed app. Java's 414,641 bytes are a deliberate act with a size
  * cost like every one before it, and what they buy is a Java repository's
- * imports RESOLVING rather than its files being counted as unread.
+ * imports RESOLVING rather than its files being counted as unread. PHP's
+ * 1,058,041 bytes buy the same thing, and Composer's `autoload.psr-4` map
+ * makes PHP the one language in this resolver whose first party answers lean
+ * on no convention at all.
  *
  * THREE MORE ARE VENDORED IN `resources/tree-sitter/`, admitted by Phase 180
  * as its own deliberate act because no package the bundle carries ships them:
@@ -50,7 +53,8 @@ export type GrammarId =
   | 'swift'
   | 'kotlin'
   | 'objc'
-  | 'java';
+  | 'java'
+  | 'php';
 
 export const GRAMMARS: readonly GrammarId[] = [
   'typescript',
@@ -63,7 +67,8 @@ export const GRAMMARS: readonly GrammarId[] = [
   'swift',
   'kotlin',
   'objc',
-  'java'
+  'java',
+  'php'
 ];
 
 /**
@@ -98,7 +103,8 @@ const BY_EXTENSION: Readonly<Record<string, GrammarId>> = {
   kts: 'kotlin',
   m: 'objc',
   h: 'objc',
-  java: 'java'
+  java: 'java',
+  php: 'php'
 };
 
 /** The grammar for a path, or null when gmux does not index that language. */

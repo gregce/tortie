@@ -1,5 +1,5 @@
 /**
- * The ten gmux tags queries, inlined as TypeScript string constants.
+ * The eleven gmux tags queries, inlined as TypeScript string constants.
  *
  * WHY GMUX AUTHORS THESE INSTEAD OF USING UPSTREAM `tags.scm`
  * (research 19 §3.3 / 19-d3 §2.7, measured — do not re-derive): probed against
@@ -562,6 +562,62 @@ export const JAVA_QUERY = `
 ; which is the limit stated on the arm's own face.
 (import_declaration (scoped_identifier) @import.path) @import.static
 (import_declaration (identifier) @import.path) @import.static
+`;
+
+export const PHP_QUERY = `
+; Phase 184. A trait reads as a class and an enum case as an enum member,
+; which is what the language calls each of them.
+(class_declaration name: (name) @name) @definition.class
+(trait_declaration name: (name) @name) @definition.class
+(interface_declaration name: (name) @name) @definition.interface
+(enum_declaration name: (name) @name) @definition.enum
+(function_definition name: (name) @name) @definition.function
+
+(class_declaration
+  name: (name) @container
+  body: (declaration_list (method_declaration name: (name) @name) @definition.method))
+(interface_declaration
+  name: (name) @container
+  body: (declaration_list (method_declaration name: (name) @name) @definition.method))
+(trait_declaration
+  name: (name) @container
+  body: (declaration_list (method_declaration name: (name) @name) @definition.method))
+(class_declaration
+  name: (name) @container
+  body: (declaration_list
+    (property_declaration
+      (property_element name: (variable_name (name) @name))) @definition.property))
+(class_declaration
+  name: (name) @container
+  body: (declaration_list
+    (const_declaration (const_element (name) @name)) @definition.constant))
+(enum_declaration
+  name: (name) @container
+  body: (enum_declaration_list (enum_case name: (name) @name) @definition.enum-member))
+
+; Imports (Phase 184). THE LEADING ANCHOR IS LOAD BEARING: a
+; namespace_use_clause holds its alias as a second child, so without the anchor
+; \`use App\\Legacy\\Thing as Old;\` reports \`Old\` as a second import of its own.
+; The third pattern is the group form \`use A\\B\\{C, D};\`, whose head arrives
+; without its clauses, so it names a NAMESPACE and the arm answers unresolved
+; for it; that limit is on the arm's face and the form appears 0 times in the
+; 15,793 use statements across guzzle, laravel and WordPress.
+;
+; A require or include captures the ARGUMENT NODE'S OWN TEXT rather than a
+; string fragment, the way an Objective-C system include arrives with its angle
+; brackets on, because the SHAPE of the expression is what the arm has to read:
+; \`__DIR__ . '/x.php'\` names the including file's own directory and is
+; decidable, and \`ABSPATH . 'x.php'\` names a constant defined at run time and
+; is refused.
+(namespace_use_declaration
+  (namespace_use_clause . (qualified_name) @import.path)) @import.static
+(namespace_use_declaration
+  (namespace_use_clause . (name) @import.path)) @import.static
+(namespace_use_declaration (namespace_name) @import.path) @import.static
+(require_expression (_) @import.path) @import.require
+(require_once_expression (_) @import.path) @import.require
+(include_expression (_) @import.path) @import.require
+(include_once_expression (_) @import.path) @import.require
 `;
 
 /**

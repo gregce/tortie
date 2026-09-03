@@ -100,6 +100,7 @@ export function languageOf(relPath: string): ArchResolverLanguage | null {
   if (grammar === 'kotlin') return 'kotlin';
   if (grammar === 'objc') return 'objc';
   if (grammar === 'java') return 'java';
+  if (grammar === 'php') return 'php';
   return 'typescript';
 }
 

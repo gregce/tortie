@@ -48,6 +48,7 @@ import { resolveJava } from './java';
 import { resolveKotlin } from './kotlin';
 import { normalizeRel, type AliasRule, type ArchManifests } from './manifest';
 import { resolveObjc } from './objc';
+import { resolvePhp } from './php';
 import { resolvePython } from './python';
 import { resolveRuby } from './ruby';
 import { resolveRust } from './rust';
@@ -91,7 +92,8 @@ export type ArchResolverLanguage =
   | 'swift'
   | 'kotlin'
   | 'objc'
-  | 'java';
+  | 'java'
+  | 'php';
 
 /**
  * The one row per language the matrix prints, with the reason a deferred
@@ -129,7 +131,10 @@ export const RESOLVER_MATRIX: readonly {
   { language: 'objc', resolves: true, reason: null },
   // Phase 184: Java at FILE grain, the package to directory convention with
   // the Kotlin arm's directory fallback deliberately removed. See ./java.ts.
-  { language: 'java', resolves: true, reason: null }
+  { language: 'java', resolves: true, reason: null },
+  // Phase 184: PHP at FILE grain, through Composer's own autoload map. See
+  // ./php.ts, and note it is the one arm with no platform list at all.
+  { language: 'php', resolves: true, reason: null }
 ];
 
 const BUILTINS = new Set(builtinModules);
@@ -248,6 +253,18 @@ export function resolveImport(
   if (language === 'swift') return resolveSwift(specifier, fromPath, ctx);
   if (language === 'kotlin') return resolveKotlin(specifier, ctx);
   if (language === 'java') return resolveJava(specifier, ctx);
+  if (language === 'php') {
+    // THE FORM TRAVELS WITH THE SPECIFIER, the second arm to need it after
+    // Ruby's. A `use` names a class through the autoload map and a `require`
+    // names a path relative to the including file, and no amount of looking at
+    // the text tells the two apart.
+    return resolvePhp(
+      specifier,
+      fromPath,
+      ctx,
+      form === 'require' ? 'require' : 'use'
+    );
+  }
   if (language === 'objc') return resolveObjc(specifier, fromPath, ctx);
   return resolveScript(specifier, fromPath, ctx);
 }

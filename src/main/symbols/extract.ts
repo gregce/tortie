@@ -35,6 +35,7 @@ import {
   kindWins,
   KOTLIN_QUERY,
   OBJC_QUERY,
+  PHP_QUERY,
   PYTHON_QUERY,
   RUBY_QUERY,
   RUST_QUERY,
@@ -117,7 +118,8 @@ const QUERY_TEXT: Readonly<Record<GrammarId, string>> = {
   swift: SWIFT_QUERY,
   kotlin: KOTLIN_QUERY,
   objc: OBJC_QUERY,
-  java: JAVA_QUERY
+  java: JAVA_QUERY,
+  php: PHP_QUERY
 };
 
 export interface ExtractorOptions {

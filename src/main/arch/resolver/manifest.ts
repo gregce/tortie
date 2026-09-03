@@ -64,6 +64,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { readPhpManifest, type PhpManifest } from './composer';
 import { readJsonFile } from './jsonc';
 import { expandDirGlob, normalizeRel } from './paths';
 // Phase 157. Each language arm's own manifest reader lives beside the arm, and
@@ -202,6 +203,14 @@ export interface ArchManifests {
    */
   java: JavaManifest;
   /**
+   * What the Composer manifests literally declare (Phase 184): the PSR-4 and
+   * PSR-0 autoload map and the declared package names. It is the most explicit
+   * declaration any language in this resolver has, and a repository with no
+   * `composer.json` carries the empty answer and resolves nothing first party,
+   * which is the honest answer and is stated on the PHP arm's face.
+   */
+  php: PhpManifest;
+  /**
    * What the Podfile and Cartfile literally declare (Phase 180): pod names,
    * the Objective-C arm's only non platform justification for `external`.
    */
@@ -261,6 +270,7 @@ export function readArchManifests(repoPath: string): ArchManifests {
     ruby: readRubyManifest(repoPath),
     kotlin: gradle,
     java: readJavaManifest(repoPath, gradle),
+    php: readPhpManifest(repoPath),
     objc: readObjcManifest(repoPath),
     swift: emptySwiftManifest()
   };

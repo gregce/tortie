@@ -296,7 +296,8 @@ describe('the manifest aware resolver', () => {
       ['swift', true],
       ['kotlin', true],
       ['objc', true],
-      ['java', true]
+      ['java', true],
+      ['php', true]
     ]);
     for (const row of RESOLVER_MATRIX) {
       expect(row.resolves ? row.reason === null : row.reason !== null).toBe(true);

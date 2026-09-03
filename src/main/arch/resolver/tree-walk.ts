@@ -27,7 +27,18 @@ const SKIPPED_DIRS: ReadonlySet<string> = new Set([
 /** How many directories the walk will enter before it stops. */
 const MAX_WALK_DIRS = 4096;
 
-/** How many matching files the walk will return. */
+/**
+ * How many matching files the walk will return when the caller names no
+ * other bound.
+ *
+ * PHASE 184 MADE IT A PARAMETER RATHER THAN RAISING IT. A Gradle or Podfile
+ * walk that stops at 64 is fine, because those files repeat the same handful
+ * of coordinates. A Composer or csproj walk is not: laravel keeps 40
+ * `composer.json` and Nancy keeps 58 `.csproj`, and each of those is a
+ * DIFFERENT autoload map or a different assembly, so a bound that cut the
+ * walk short would silently lose whole packages rather than a few duplicate
+ * names. The default is unchanged, so no existing reader moves.
+ */
 const MAX_WALK_FILES = 64;
 
 /**
@@ -36,7 +47,8 @@ const MAX_WALK_FILES = 64;
  */
 export function walkForFiles(
   repoPath: string,
-  wanted: (name: string, relPath: string) => boolean
+  wanted: (name: string, relPath: string) => boolean,
+  maxFiles: number = MAX_WALK_FILES
 ): string[] {
   const out: string[] = [];
   const queue: string[] = [''];
@@ -60,7 +72,7 @@ export function walkForFiles(
         continue;
       }
       if (!entry.isFile()) continue;
-      if (out.length >= MAX_WALK_FILES) continue;
+      if (out.length >= maxFiles) continue;
       if (wanted(name, relPath)) out.push(relPath);
     }
   }
