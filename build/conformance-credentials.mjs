@@ -334,6 +334,22 @@ check(
   composerDefiners.length === 1 && composerDefiners[0].endsWith('migrate.ts'),
   `${TAG} the unscoped composer is defined in ${composerDefiners.join(', ') || 'no file'} rather than in migrate.ts alone`
 );
+// PHASE 211 FIX ROUND. The real readText seam refuses a link, by name, and
+// the scan is proved on two fixtures before it is believed.
+function readSeamRefusesALink(text) {
+  return /readText:\s*async\s*\(path\)\s*=>\s*readTextNoFollowSync\(path\)/.test(
+    stripComments(text)
+  );
+}
+check(
+  readSeamRefusesALink("const d = {\n  readText: async (path) => readTextNoFollowSync(path),\n};") &&
+    !readSeamRefusesALink("const d = {\n  // readText: async (path) => readTextNoFollowSync(path),\n  readText: async (path) => readFile(path, 'utf8'),\n};"),
+  `${TAG} the readText seam scanner does not behave on its two fixtures`
+);
+check(
+  readSeamRefusesALink(readFileSync(join(DOMAIN, 'index.ts'), 'utf8')),
+  `${TAG} index.ts's readText seam does not go through readTextNoFollowSync, so a store that is a link is read through`
+);
 const proof = migrationCarriesTheProof(readFileSync(join(DOMAIN, 'index.ts'), 'utf8'));
 check(
   proof.calls === 1 && proof.proved,
@@ -623,6 +639,8 @@ const VERDICT_PARTS = [
   'lockRefusal',
   'defaultLift',
   'watcher',
+  'watchRefresh',
+  'fingerprint',
   'midChange',
   'attack',
   'leak',
@@ -657,6 +675,8 @@ function verdict(d) {
     JSON.stringify(d.lockRefusal),
     JSON.stringify(d.defaultLift),
     JSON.stringify(d.watcher),
+    JSON.stringify(d.watchRefresh),
+    JSON.stringify(d.fingerprint),
     JSON.stringify(d.midChange),
     JSON.stringify(d.attack),
     JSON.stringify(d.leak),
@@ -838,6 +858,18 @@ if ('error' in live) {
   check(live.watcher.quietBeforeDebounce, `${TAG} the watcher observed before the debounce settled`);
   check(live.watcher.oneObservePerBurst, `${TAG} A BURST OF FILE EVENTS DID NOT COLLAPSE INTO ONE OBSERVE`);
   check(live.watcher.ignoresOtherFiles, `${TAG} the watcher observed for a file it does not watch`);
+
+  // Rule 6g (Phase 211 fix round). A LOGIN MADE AFTER THE START IS WATCHED.
+  check(live.watchRefresh.atStart >= 2, `${TAG} the refresh arm started with ${String(live.watchRefresh.atStart)} targets rather than the two defaults at least`);
+  check(live.watchRefresh.newDirWatched && live.watchRefresh.grewByOne, `${TAG} A LOGIN ADDED AFTER THE WATCH STARTED IS NOT WATCHED, so a sign in inside a session under it is not seen until the next launch`);
+  check(live.watchRefresh.reopened === 0, `${TAG} a refresh with nothing new opened ${String(live.watchRefresh.reopened)} watchers again`);
+  check(live.watchRefresh.goneDirClosed, `${TAG} a login removed after the watch started keeps its watcher open`);
+  check(live.watchRefresh.stopClosedAll, `${TAG} stop left a watcher open`);
+
+  // Rule 6h (Phase 211 fix round). THE KEYCHAIN BACKSTOP SEES A REWRITE.
+  check(live.fingerprint.readSomething && live.fingerprint.askedSomething, `${TAG} the fingerprint arm read nothing, so what it proves next is nothing`);
+  check(live.fingerprint.movesOnRewrite, `${TAG} THE KEYCHAIN BACKSTOP CANNOT SEE A SIGN IN: the fingerprint did not move when the item was rewritten under the same account, which is what every sign in does`);
+  check(live.fingerprint.neverAsksForThePayload, `${TAG} THE FINGERPRINT ASKED FOR THE PAYLOAD with -w or -g`);
 
   // Rule 7.
   check(
@@ -1060,6 +1092,9 @@ if ('error' in live) {
     live.nofollow.renameRefusedALink && live.nofollow.lateVictimUntouched,
     `${TAG} a link planted between the write and the commit was renamed onto the store`
   );
+  // Rule 15b (Phase 211 fix round). THE READ SIDE OF THE SAME GUARD.
+  check(live.nofollow.readRefusesALink, `${TAG} A LINK AT A STORE'S NAME IS READ THROUGH, so a planted entry reads somebody else's store into a login's slot on any event the watcher sees`);
+  check(live.nofollow.readReadsAFile && live.nofollow.readMissingIsNull, `${TAG} the nofollow read does not read a plain file, or throws for a missing one`);
 
   // Rule 9 and rule 10.
   check(!live.leak.tokenInAnswers, `${TAG} A TOKEN BYTE REACHED AN ANSWER THIS DOMAIN GIVES`);
@@ -1438,6 +1473,41 @@ const ABLATIONS = [
         file: 'locks.ts',
         from: '      await deps.sleep(50);\n      continue;\n    }\n    if (deps.now() - heldAt > staleness) {',
         to: '      continue;\n    }\n    if (deps.now() - heldAt > staleness) {'
+      }
+    ]
+  },
+  {
+    // PHASE 211 FIX ROUND. The watcher's refresh made a no-op once anything is
+    // watched, which is the shape that shipped: targets derived once at start.
+    name: 'the watcher targets derived once, so a login made later is never watched',
+    edits: [
+      {
+        file: 'watch.ts',
+        from: '  function refresh(): void {\n    if (stopped) return;',
+        to: '  function refresh(): void {\n    if (stopped || watchers.size > 0) return;'
+      }
+    ]
+  },
+  {
+    // PHASE 211 FIX ROUND. The fingerprint reading the account alone, which
+    // the vendor never changes on a sign in.
+    name: 'the keychain fingerprint reading the account attribute alone',
+    edits: [
+      {
+        file: 'watch.ts',
+        from: "    parts.push(`${service}=${account ?? ''}@${modified ?? ''}`);",
+        to: "    parts.push(`${service}=${account ?? ''}`);"
+      }
+    ]
+  },
+  {
+    // PHASE 211 FIX ROUND. The read made to follow a link again.
+    name: 'the store read made to follow a link',
+    edits: [
+      {
+        file: 'nofollow.ts',
+        from: '    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));',
+        to: '    fd = openSync(path, constants.O_RDONLY);'
       }
     ]
   },

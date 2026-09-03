@@ -193,6 +193,8 @@ function observeAll(): Promise<Map<string, KeptFacts>> {
     // it at the start would hide a pass that has not finished behind a hold.
     observedAt = Date.now();
     observedFacts = facts;
+    // AN OBSERVE CAN PROMOTE A LOGIN, which is a new directory to watch.
+    refreshLoginsWatch();
     return facts;
   })();
   observeInFlight = run;
@@ -266,6 +268,18 @@ export async function startLoginsWatch(): Promise<void> {
   });
 }
 
+/**
+ * Tell the watcher the login set may have changed (Phase 211 fix round).
+ *
+ * A login added in Settings, one promoted by an observe, and one removed all
+ * change the directories a sign in can land in, and the first build derived
+ * the targets once at start. Cheap and synchronous, so it is called after
+ * every change and after every observe rather than guessed at.
+ */
+export function refreshLoginsWatch(): void {
+  watch?.refresh();
+}
+
 /** Stop the watcher. Called from the one ordered quit disposer. */
 export function stopLoginsWatch(): void {
   if (watch === null) return;
@@ -300,6 +314,8 @@ async function answer(change: LoginChange): Promise<LoginActionResult> {
   // outliving a change is how a removed login goes on saying it is signed in.
   forgetLoginAccounts();
   forgetObservation();
+  // AND THE WATCHER LEARNS THE NEW SET, before the list that follows.
+  refreshLoginsWatch();
   const snapshot = await wholeList();
   return change.ok
     ? { ok: true, snapshot }

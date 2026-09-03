@@ -54,7 +54,7 @@ import {
   claudeServicesFor,
   codexAuthFileFor
 } from '../usage/login-accounts';
-import { keychainAccount } from './security';
+import { keychainAccount, keychainModified } from './security';
 import { loginDirIn, loginDirOnDisk } from '../logins/dirs';
 import { readLoginsFile } from '../logins/store';
 import { observeProvider, type KeepDeps } from './keep';
@@ -143,6 +143,18 @@ export interface CredentialWatch {
   stop(): void;
   /** For the gate: run the debounced observe as if an event had fired. */
   poke(): void;
+  /**
+   * Re-derive the targets and open a watcher for every one that is new,
+   * closing every one that is gone (Phase 211 fix round). A login made in
+   * Settings after the boot, or promoted by an observe, has a directory that
+   * did not exist when the watch started, and the first build never looked
+   * again, so a sign in inside a session under it was not seen until the
+   * next launch. Called after every change to the login set and after every
+   * observe, and it is cheap: one file read and one stat per login.
+   */
+  refresh(): void;
+  /** For the gate: the directories being watched right now. */
+  watching(): string[];
 }
 
 /**
@@ -171,19 +183,46 @@ export function startCredentialWatch(deps: WatchDeps): CredentialWatch {
       return { clear: () => clearInterval(id) };
     });
 
-  const watchers: { close(): void }[] = [];
-  for (const target of watchTargetsFor(deps.keep)) {
+  // ONE WATCHER PER TARGET, keyed by directory and basename, so a refresh can
+  // tell a target that is new from one that is already watched.
+  const watchers = new Map<string, { close(): void }>();
+  const keyOf = (t: WatchTarget): string => `${t.dir}\u0000${t.file}`;
+  let stopped = false;
+
+  function refresh(): void {
+    if (stopped) return;
+    let targets: WatchTarget[];
     try {
-      watchers.push(
-        openWatch(target.dir, (file) => {
-          // ONLY THE ONE BASENAME, so a directory watch is as narrow as a file
-          // watch. A null filename is the platform not telling us which file
-          // moved, and it is treated as "maybe ours".
-          if (file === null || file === target.file) schedule();
-        })
-      );
+      targets = watchTargetsFor(deps.keep);
     } catch {
-      // A directory that cannot be watched is skipped, not fatal.
+      return;
+    }
+    const wanted = new Set(targets.map(keyOf));
+    for (const [key, w] of watchers) {
+      if (wanted.has(key)) continue;
+      watchers.delete(key);
+      try {
+        w.close();
+      } catch {
+        // Already gone.
+      }
+    }
+    for (const target of targets) {
+      const key = keyOf(target);
+      if (watchers.has(key)) continue;
+      try {
+        watchers.set(
+          key,
+          openWatch(target.dir, (file) => {
+            // ONLY THE ONE BASENAME, so a directory watch is as narrow as a
+            // file watch. A null filename is the platform not telling us which
+            // file moved, and it is treated as "maybe ours".
+            if (file === null || file === target.file) schedule();
+          })
+        );
+      } catch {
+        // A directory that cannot be watched is skipped, not fatal.
+      }
     }
   }
 
@@ -194,7 +233,6 @@ export function startCredentialWatch(deps: WatchDeps): CredentialWatch {
   // to delay the first sign in Tortie sees.
   let lastRunAt = now() - OBSERVE_MIN_INTERVAL_MS;
   let timer: { clear(): void } | null = null;
-  let stopped = false;
 
   function schedule(): void {
     if (stopped) return;
@@ -221,6 +259,10 @@ export function startCredentialWatch(deps: WatchDeps): CredentialWatch {
           // One provider's observe failing is not a reason to skip the redraw.
         }
       }
+      // AN OBSERVE CAN MAKE A LOGIN, by promotion, so the targets are read
+      // again before anybody is told, and the new directory is watched from
+      // this moment rather than from the next launch.
+      refresh();
       deps.emitChanged();
     } finally {
       running = false;
@@ -252,20 +294,25 @@ export function startCredentialWatch(deps: WatchDeps): CredentialWatch {
     }, KEYCHAIN_POLL_MS);
   }
 
+  refresh();
+
   return {
     stop: () => {
       stopped = true;
       if (timer !== null) timer.clear();
       if (interval !== null) interval.clear();
-      for (const w of watchers) {
+      for (const w of watchers.values()) {
         try {
           w.close();
         } catch {
           // Already gone.
         }
       }
+      watchers.clear();
     },
-    poke: () => schedule()
+    poke: () => schedule(),
+    refresh,
+    watching: () => [...watchers.keys()].map((k) => k.slice(0, k.indexOf('\u0000')))
   };
 }
 
@@ -286,9 +333,13 @@ function defaultWatchDir(
  * The default keychain attribute fingerprint for the claude default store, or
  * null when there is nothing to read. ATTRIBUTES ONLY, never `-w` (Phase 211).
  *
- * It reads the account attribute of the item the vendor reads for the default
- * login, which moves when the item is rewritten. It is the backstop for a
- * credential that changed with no file moving, being a macOS keychain sign in.
+ * IT READS THE MODIFICATION DATE (fix round), because that is the attribute
+ * that moves when the item is rewritten. The first build read the account
+ * attribute alone, which the vendor sets to the user name and never changes on
+ * a sign in, so the backstop could not see the one thing it exists for, being
+ * a credential rewritten with no file moving. The account is kept in the
+ * fingerprint as well, so an item replaced under another account still moves
+ * it.
  */
 export async function defaultKeychainFingerprint(keep: KeepDeps): Promise<string | null> {
   const stores = keep.stores;
@@ -296,7 +347,8 @@ export async function defaultKeychainFingerprint(keep: KeepDeps): Promise<string
   const parts: string[] = [];
   for (const service of claudeServicesFor(stores, null)) {
     const account = await keychainAccount(stores.runner, service);
-    parts.push(`${service}=${account ?? ''}`);
+    const modified = await keychainModified(stores.runner, service);
+    parts.push(`${service}=${account ?? ''}@${modified ?? ''}`);
   }
   return parts.join(' ');
 }

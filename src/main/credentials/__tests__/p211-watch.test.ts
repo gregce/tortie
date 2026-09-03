@@ -14,6 +14,8 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { harnessFileKeepDeps } from '../index';
+import { addLogin, readLoginsFile } from '../../logins/store';
+import { loginDirIn } from '../../logins/dirs';
 import {
   OBSERVE_MIN_INTERVAL_MS,
   WATCH_DEBOUNCE_MS,
@@ -73,11 +75,14 @@ function harness() {
       if (due.kind === 'interval') due.at = clock + due.ms;
       else due.live = false;
       due.fn();
-      // Let the observe's whole async chain settle before the next timer.
-      for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r));
+      // Let the observe's whole async chain settle before the next timer. The
+      // observe reads real files under the scratch root, so a few real ticks
+      // rather than immediates, because under a parallel test run six
+      // immediates were measured to land before the first read came back.
+      for (let i = 0; i < 25; i++) await new Promise((r) => setTimeout(r, 2));
     }
     clock = target;
-    for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r));
+    for (let i = 0; i < 25; i++) await new Promise((r) => setTimeout(r, 2));
   }
 
   return {
@@ -138,6 +143,20 @@ describe('startCredentialWatch', () => {
     await h.advance(OBSERVE_MIN_INTERVAL_MS + WATCH_DEBOUNCE_MS + 10);
     expect(h.emits()).toBe(2);
     watch.stop();
+  });
+
+  it('watches a login made after it started, once told (fix round)', () => {
+    const h = harness();
+    const watch = startCredentialWatch(h.deps);
+    const before = watch.watching().length;
+    addLogin(root, 'codex', 'later');
+    const later = readLoginsFile(root).file.logins.find((l) => l.name === 'later');
+    const dir = loginDirIn(root, 'codex', later?.id ?? '');
+    watch.refresh();
+    expect(watch.watching()).toContain(dir);
+    expect(watch.watching().length).toBe(before + 1);
+    watch.stop();
+    expect(h.watchedDirs().length).toBe(0);
   });
 
   it('stops watching and firing after stop()', async () => {

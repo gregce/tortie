@@ -15,13 +15,13 @@
  */
 
 import { app } from 'electron';
-import { readFile, rm } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
 import { homedir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { LOGIN_PROVIDERS } from '@shared/logins';
 import { isHarnessLaunch } from '../harness/launch-gate';
 import { loginsRoot } from '../logins/paths';
-import { renameNoFollowSync, writeNoFollowSync } from './nofollow';
+import { readTextNoFollowSync, renameNoFollowSync, writeNoFollowSync } from './nofollow';
 import { defaultSecurityRunner, type SecurityRunner } from './security';
 import type { StoreDeps } from './stores';
 import { sweepableSlots, type KeepDeps, type LiveSession } from './keep';
@@ -54,6 +54,7 @@ export {
 export { isOwnProfile, type MigrateResult, type ProfileShape } from './migrate';
 export {
   CREDENTIAL_FILE_MODE,
+  readTextNoFollowSync,
   renameNoFollowSync,
   writeNoFollowSync
 } from './nofollow';
@@ -100,13 +101,10 @@ function defaultStoreDeps(
 ): StoreDeps {
   return {
     runner,
-    readText: async (path) => {
-      try {
-        return await readFile(path, 'utf8');
-      } catch {
-        return null;
-      }
-    },
+    // A LINK IS NOT READ (Phase 211 fix round). `./nofollow.ts` carries the
+    // reason: an entry planted at a store's name would otherwise be read
+    // through, into that store's slot, on any event the watcher sees.
+    readText: async (path) => readTextNoFollowSync(path),
     // THE STAGED PLACE IS NEVER FOLLOWED. `./nofollow.ts` carries the whole
     // reason, being a link planted at a staged name that sends the write into
     // the person's own store and reads back through itself so the check
@@ -170,10 +168,16 @@ export function harnessFileKeepDeps(root: string, home: string): KeepDeps {
       userName: 'harness',
       wait: (ms) => new Promise<void>((r) => setTimeout(r, Math.min(ms, 30)))
     },
-    // NO SESSION IS EVER RUNNING in a probe that creates none, and a probe that
-    // does create one gets the honest empty answer rather than a refusal it
-    // cannot explain.
-    liveSessions: async () => [],
+    // THE SAME SESSIONS SEAM THE PERSON'S OWN LAUNCH GETS (Phase 211 fix
+    // round). Phase 208 wrote an empty answer here, when the seam only ever
+    // REFUSED a write, so a probe could not be refused for a session it made.
+    // Phase 211 made the answer decide the default lift, and an empty answer
+    // meant no harness launch could ever lift: the phase's own app run chose
+    // a login with a default session live and the default store kept the
+    // outgoing account. The seam is installed from the boot in every launch
+    // and reads the manifest of THIS profile, so a probe sees its own
+    // sessions and nobody else's.
+    liveSessions: liveSessionsSeam,
     now: () => Date.now()
   };
 }
@@ -204,7 +208,7 @@ export function harnessKeychainKeepDeps(
         userName: 'harness',
         wait: (ms) => new Promise<void>((r) => setTimeout(r, Math.min(ms, 30)))
       },
-      liveSessions: async () => [],
+      liveSessions: liveSessionsSeam,
       now: () => Date.now()
     }
   };
@@ -227,6 +231,10 @@ function defaultVault(root: string): VaultBackend {
 }
 
 let liveSessionsProbe: (() => Promise<LiveSession[]>) | null = null;
+
+/** The one answer to "which logins have a session", for every shape of seams. */
+const liveSessionsSeam = async (): Promise<LiveSession[]> =>
+  liveSessionsProbe === null ? [] : liveSessionsProbe();
 
 /**
  * Tell this domain which logins have a session running under them.
@@ -271,8 +279,7 @@ export function keepDeps(): KeepDeps {
     root,
     vault: defaultVault(root),
     stores: defaultStoreDeps(),
-    liveSessions: async () =>
-      liveSessionsProbe === null ? [] : liveSessionsProbe(),
+    liveSessions: liveSessionsSeam,
     now: () => Date.now()
   };
   return installed;

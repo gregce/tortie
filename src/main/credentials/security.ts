@@ -227,6 +227,34 @@ export async function keychainAccount(
     : found[1];
 }
 
+/**
+ * The item's `mdat` attribute, being when it was last written, or null.
+ * Asks for ATTRIBUTES and never `-w` (Phase 211 fix round).
+ *
+ * IT EXISTS FOR THE KEYCHAIN BACKSTOP. The first build fingerprinted the
+ * `acct` attribute, which the vendor sets to `process.env.USER` (`Hv` at
+ * bundle offset 158840579) and never changes on a sign in, so a credential
+ * rewritten with no file moving never moved the fingerprint and the backstop
+ * could not see the one thing it exists for. The modification date moves on
+ * every write and is an attribute like any other.
+ */
+export async function keychainModified(
+  runner: SecurityRunner,
+  service: string
+): Promise<string | null> {
+  if (!isPlainSecurityName(service)) return null;
+  const { code, stdout } = await runner.run([
+    'find-generic-password',
+    '-s',
+    service
+  ]);
+  if (code !== 0) return null;
+  const found = /"mdat"<timedate>=0x[0-9A-Fa-f]+\s+"([^"\n]*)"/.exec(stdout);
+  return found === null || found[1] === undefined || found[1] === ''
+    ? null
+    : found[1];
+}
+
 /** Does an item with this service name exist? Attributes only, no payload. */
 export async function keychainHasItem(
   runner: SecurityRunner,

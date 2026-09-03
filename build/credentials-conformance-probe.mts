@@ -143,10 +143,11 @@ interface World {
  * that reached a command line would be visible in `w.argvs`.
  */
 function fakeSecurity(w: World): {
-  items: Map<string, { account: string; payload: string }>;
+  items: Map<string, { account: string; payload: string; modified?: string }>;
   runner: import('../src/main/credentials/security').SecurityRunner;
 } {
-  const items = new Map<string, { account: string; payload: string }>();
+  const items = new Map<string, { account: string; payload: string; modified?: string }>();
+  let writes = 0;
   return {
     items,
     runner: {
@@ -163,9 +164,12 @@ function fakeSecurity(w: World): {
               (stdin ?? '').trim()
             );
           if (found === null) return { code: 1, stdout: '' };
+          writes += 1;
           items.set(found[2] ?? '', {
             account: found[1] ?? '',
-            payload: Buffer.from(found[3] ?? '', 'hex').toString('utf8')
+            payload: Buffer.from(found[3] ?? '', 'hex').toString('utf8'),
+            // A modification date that moves on every write, as the real one does.
+            modified: `2026090300${String(writes).padStart(4, '0')}Z`
           });
           return { code: 0, stdout: '' };
         }
@@ -184,7 +188,7 @@ function fakeSecurity(w: World): {
           }
           return {
             code: 0,
-            stdout: `keychain: "login"\nattributes:\n    "acct"<blob>="${item.account}"\n    "svce"<blob>="${at('-s')}"\n`
+            stdout: `keychain: "login"\nattributes:\n    "acct"<blob>="${item.account}"\n    "mdat"<timedate>=0x3230  "${item.modified ?? '20260903000000Z'}"\n    "svce"<blob>="${at('-s')}"\n`
           };
         }
         if (argv[0] === 'delete-generic-password') {
@@ -1072,6 +1076,102 @@ try {
   }
 
   // -------------------------------------------------------------------------
+  // 7h. A LOGIN MADE AFTER THE WATCH STARTED IS WATCHED (Phase 211 fix round).
+  //     The first build derived the targets once, so a login added in
+  //     Settings and then signed into inside a session was not seen until the
+  //     next launch, which is the operator's second complaint in a new shape.
+  // -------------------------------------------------------------------------
+  {
+    const watchMod = (await import(
+      pathToFileURL(resolve(MODULES, 'watch.ts')).href
+    )) as typeof import('../src/main/credentials/watch');
+    const root = freshRoot();
+    const w = makeWorld();
+    const keepDeps = makeDeps(root, w);
+    const opened: string[] = [];
+    const closed: string[] = [];
+    const watcher = watchMod.startCredentialWatch({
+      keep: keepDeps,
+      emitChanged: () => undefined,
+      watchDir: (dir) => {
+        opened.push(dir);
+        return {
+          close: () => {
+            closed.push(dir);
+          }
+        };
+      },
+      setTimeout: () => ({ clear: () => undefined }),
+      setInterval: () => ({ clear: () => undefined }),
+      now: () => 0
+    });
+    const atStart = watcher.watching().length;
+    addLogin(root, 'codex', 'later');
+    const later = readLoginsFile(root).file.logins.find((l) => l.name === 'later');
+    const laterDir = later === undefined ? '' : loginDirIn(root, 'codex', later.id);
+    watcher.refresh();
+    const afterAdd = watcher.watching();
+    // A refresh with nothing new opens nothing twice.
+    const openedBefore = opened.length;
+    watcher.refresh();
+    const reopened = opened.length - openedBefore;
+    // The login removed: its watcher is closed.
+    rmSync(laterDir, { recursive: true, force: true });
+    watcher.refresh();
+    const afterRemove = watcher.watching();
+    watcher.stop();
+    out['watchRefresh'] = {
+      atStart,
+      newDirWatched: laterDir !== '' && afterAdd.includes(laterDir),
+      grewByOne: afterAdd.length === atStart + 1,
+      reopened,
+      goneDirClosed: laterDir !== '' && !afterRemove.includes(laterDir) && closed.includes(laterDir),
+      stopClosedAll: closed.length === opened.length
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 7i. THE KEYCHAIN BACKSTOP SEES A REWRITE (Phase 211 fix round). The
+  //     vendor's `acct` attribute is the user name and never moves on a sign
+  //     in; the modification date does. The fingerprint must move when the
+  //     item is rewritten under the same account, and it asks for no `-w`.
+  // -------------------------------------------------------------------------
+  {
+    const watchMod = (await import(
+      pathToFileURL(resolve(MODULES, 'watch.ts')).href
+    )) as typeof import('../src/main/credentials/watch');
+    const root = freshRoot();
+    const w = makeWorld();
+    const security = fakeSecurity(w);
+    const base = makeDeps(root, w);
+    const d = {
+      ...base,
+      stores: { ...base.stores, runner: security.runner, keychainForClaude: true }
+    };
+    const argvsBefore = w.argvs.length;
+    security.items.set('Claude Code-credentials', {
+      account: 'gdc',
+      payload: claudeCredential('alice', '1'),
+      modified: '20260903100000Z'
+    });
+    const first = await watchMod.defaultKeychainFingerprint(d);
+    // REWRITTEN UNDER THE SAME ACCOUNT, as a sign in does.
+    security.items.set('Claude Code-credentials', {
+      account: 'gdc',
+      payload: claudeCredential('bob', '2'),
+      modified: '20260903100100Z'
+    });
+    const second = await watchMod.defaultKeychainFingerprint(d);
+    const asked = w.argvs.slice(argvsBefore);
+    out['fingerprint'] = {
+      readSomething: first !== null && first !== '',
+      movesOnRewrite: first !== null && second !== null && first !== second,
+      neverAsksForThePayload: asked.every((argv) => !argv.includes('-w') && !argv.includes('-g')),
+      askedSomething: asked.length > 0
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // 8. A STORE CAUGHT MID CHANGE IS NOT CAPTURED, and nothing already kept is
   //    forgotten.
   // -------------------------------------------------------------------------
@@ -1573,7 +1673,21 @@ try {
         return false;
       }
     };
+    // THE READ SIDE (fix round): a link at a store's name is not read through.
+    const readRoot = freshRoot();
+    const readVictim = join(readRoot, 'victim.json');
+    writeFileSync(readVictim, '{"claudeAiOauth":{"accessToken":"VICTIM"}}');
+    const readLink = join(readRoot, '.credentials.json');
+    symlinkSync(readVictim, readLink);
+    const readPlain = join(readRoot, 'plain.json');
+    writeFileSync(readPlain, 'plain bytes');
+    const linkRead = nofollow.readTextNoFollowSync(readLink);
+    const plainRead = nofollow.readTextNoFollowSync(readPlain);
+    const missingRead = nofollow.readTextNoFollowSync(join(readRoot, 'missing'));
     out['nofollow'] = {
+      readRefusesALink: linkRead === null,
+      readReadsAFile: plainRead === 'plain bytes',
+      readMissingIsNull: missingRead === null,
       // THE ARM REALLY PLANTED A LINK, so everything under it is a check over
       // something that exists rather than over an empty world.
       linkPlanted,

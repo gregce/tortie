@@ -51,6 +51,7 @@ import {
   fchmodSync,
   lstatSync,
   openSync,
+  readFileSync,
   renameSync,
   unlinkSync,
   writeSync
@@ -103,4 +104,34 @@ export function renameNoFollowSync(from: string, to: string): void {
     throw new Error('the staged place is not a file Tortie wrote');
   }
   renameSync(from, to);
+}
+
+/**
+ * Read `path` as text, refusing to follow a link that is there, and
+ * answering null for anything that cannot be read (Phase 211 fix round).
+ *
+ * THE READ SIDE OF THE SAME GUARD. The verifier swapped a store's identity
+ * file for a link to a stand in and watched the observe read an address
+ * through it, and on a file platform the credential file follows the same
+ * way: a link planted at `<login dir>/.credentials.json` would read a
+ * credential that is not that login's into that login's slot, unasked, on
+ * any file event the watcher sees. `O_NOFOLLOW` refuses the final component
+ * when it is a link, so a link is a file that is not there. The cost is
+ * named: a person whose own store is a symbolic link reads as absent to this
+ * domain, and the card still draws it through the usage reader.
+ */
+export function readTextNoFollowSync(path: string): string | null {
+  let fd: number;
+  try {
+    fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  } catch {
+    return null;
+  }
+  try {
+    return readFileSync(fd, 'utf8');
+  } catch {
+    return null;
+  } finally {
+    closeSync(fd);
+  }
 }
