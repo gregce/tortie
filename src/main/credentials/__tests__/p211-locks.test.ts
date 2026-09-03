@@ -9,7 +9,7 @@
  * never a credential.
  */
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, rmdirSync, statSync, utimesSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, rmdirSync, statSync, symlinkSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -19,6 +19,7 @@ import {
   acquireLock,
   legacyClaudeLockDir,
   oauthRefreshLockDir,
+  storageWriteLockDir,
   withClaudeCredentialLocks,
   withCodexNoLock,
   type LockDeps
@@ -175,23 +176,25 @@ describe('the config home lock names', () => {
 });
 
 describe('withClaudeCredentialLocks', () => {
-  it('holds both locks around the write and releases both after it', async () => {
+  it('holds all three locks around the write and releases all three after it', async () => {
     const configHome = join(root, '.claude');
     mkdirSync(configHome);
     let heldDuringRun: boolean[] = [];
     await withClaudeCredentialLocks(configHome, async () => {
       heldDuringRun = [
         existsSync(oauthRefreshLockDir(configHome)),
-        existsSync(legacyClaudeLockDir(configHome))
+        existsSync(legacyClaudeLockDir(configHome)),
+        existsSync(storageWriteLockDir(configHome))
       ];
     });
-    expect(heldDuringRun).toEqual([true, true]);
-    // Both are gone once the write is done.
+    expect(heldDuringRun).toEqual([true, true, true]);
+    // All are gone once the write is done.
     expect(existsSync(oauthRefreshLockDir(configHome))).toBe(false);
     expect(existsSync(legacyClaudeLockDir(configHome))).toBe(false);
+    expect(existsSync(storageWriteLockDir(configHome))).toBe(false);
   });
 
-  it('releases both locks even when the write throws', async () => {
+  it('releases every lock even when the write throws', async () => {
     const configHome = join(root, '.claude');
     mkdirSync(configHome);
     await expect(
@@ -201,9 +204,10 @@ describe('withClaudeCredentialLocks', () => {
     ).rejects.toThrow('the write failed');
     expect(existsSync(oauthRefreshLockDir(configHome))).toBe(false);
     expect(existsSync(legacyClaudeLockDir(configHome))).toBe(false);
+    expect(existsSync(storageWriteLockDir(configHome))).toBe(false);
   });
 
-  it('takes exactly the two credential locks and never the .claude.json lock', async () => {
+  it('takes the vendor three in the vendor order and never the .claude.json lock', async () => {
     const configHome = join(root, '.claude');
     mkdirSync(configHome);
     const made: string[] = [];
@@ -213,19 +217,31 @@ describe('withClaudeCredentialLocks', () => {
           mkdirSync(path);
           made.push(path);
           return true;
-        } catch {
-          return false;
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
+          throw err;
         }
       }
     });
     await withClaudeCredentialLocks(configHome, async () => undefined, deps);
-    const lockDirs = made.filter((p) => p.endsWith('.lock'));
+    const lockDirs = made.filter((p) => p.endsWith('.lock') || p.endsWith('.storage-write'));
     expect(lockDirs).toEqual([
       oauthRefreshLockDir(configHome),
-      legacyClaudeLockDir(configHome)
+      legacyClaudeLockDir(configHome),
+      storageWriteLockDir(configHome)
     ]);
     // Nothing named .claude.json.lock was ever taken.
     expect(made.some((p) => p.includes('.claude.json.lock'))).toBe(false);
+  });
+
+  it('names the legacy lock from the real path of a linked config home (fix round)', () => {
+    const real = join(root, 'real');
+    const link = join(root, 'link');
+    mkdirSync(real);
+    symlinkSync(real, link);
+    expect(legacyClaudeLockDir(link)).toBe(`${realpathSync(real)}.lock`);
+    // A home that is not there keeps its given name, as the vendor's fallback does.
+    expect(legacyClaudeLockDir('/x/.claude')).toBe('/x/.claude.lock');
   });
 });
 

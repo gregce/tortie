@@ -20,6 +20,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync
@@ -728,7 +729,19 @@ try {
       async () => undefined,
       both.deps
     );
-    const lockDirs = both.made.filter((p) => p.endsWith('.lock'));
+    const lockDirs = both.made.filter(
+      (p) => p.endsWith('.lock') || p.endsWith('.storage-write')
+    );
+
+    // THE LEGACY LOCK IS NAMED FROM THE REAL PATH (fix round): a config home
+    // that is a symbolic link locks beside its target, as the vendor does.
+    const linkRoot = freshRoot();
+    const realHome = join(linkRoot, 'real-home');
+    const linkHome = join(linkRoot, 'link-home');
+    mkdirSync(realHome, { recursive: true });
+    symlinkSync(realHome, linkHome);
+    const legacyOfLink = locks.legacyClaudeLockDir(linkHome);
+    const legacyOfReal = locks.legacyClaudeLockDir(realHome);
 
     // CODEX HOLDS NOTHING: withCodexNoLock makes no directory at all.
     const codex = inMemoryLockDeps();
@@ -796,10 +809,15 @@ try {
       unwritableSaysWhy: unwMessage.includes('.oauth_refresh.lock') && /not writable/.test(unwMessage),
       unwritableNoToken: !/accessToken|access_token|Bearer|eyJ/.test(unwMessage),
       nullBranchSleeps: nullSleeps > 0,
-      twoLocksInOrder:
-        lockDirs.length === 2 &&
+      locksInOrder:
+        lockDirs.length === 3 &&
         lockDirs[0] === '/home/.claude/.oauth_refresh.lock' &&
-        lockDirs[1] === '/home/.claude.lock',
+        lockDirs[1] === '/home/.claude.lock' &&
+        lockDirs[2] === '/home/.claude/.storage-write',
+      // Every lock released, in the reverse order, whatever the run did.
+      allReleased: !lockDirs.some((p) => both.dirs.has(p)),
+      legacyNamedFromRealPath:
+        legacyOfLink === `${realpathSync(realHome)}.lock` && legacyOfLink === legacyOfReal,
       neverTheJsonLock: !both.made.some((p) => p.includes('.claude.json.lock')),
       codexRan,
       codexMadeNoLock: codex.made.length === 0
@@ -844,14 +862,20 @@ try {
     // paths carry a fresh temp directory every run, so they are reduced to a
     // count and to the two vendor BASENAMES, both of which are deterministic.
     const lockNames = lockMem.made
-      .filter((p) => p.endsWith('.lock'))
-      .map((p) => (p.endsWith('.oauth_refresh.lock') ? 'oauth' : basename(p)))
+      .filter((p) => p.endsWith('.lock') || p.endsWith('.storage-write'))
+      .map((p) =>
+        p.endsWith('.oauth_refresh.lock')
+          ? 'oauth'
+          : p.endsWith('.storage-write')
+            ? 'storage'
+            : basename(p)
+      )
       .sort();
     out['claudeLock'] = {
       wrote: put.ok === true,
-      // BOTH LOCKS were taken during the claude write.
+      // ALL THREE LOCKS were taken during the claude write.
       lockCount: lockNames.length,
-      heldBoth: lockNames.length >= 2
+      heldAll: lockNames.length >= 3 && lockNames.includes('oauth') && lockNames.includes('storage')
     };
   }
 

@@ -790,7 +790,9 @@ if ('error' in live) {
   check(live.locks.neverStole, `${TAG} A LIVE LOCK WAS STOLEN, so a switch can land inside a token refresh`);
   check(live.locks.refusalNamesLock, `${TAG} a lock that could not be taken refused without naming the lock`);
   check(live.locks.refusalHasNoToken, `${TAG} A LOCK REFUSAL NAMED A TOKEN`);
-  check(live.locks.twoLocksInOrder, `${TAG} a claude write did not take the two credential locks in the vendor's order`);
+  check(live.locks.locksInOrder, `${TAG} a claude write did not take the vendor's three locks in the vendor's order, being .oauth_refresh.lock, the legacy <config-home>.lock and .storage-write`);
+  check(live.locks.allReleased, `${TAG} a claude write left a lock directory behind`);
+  check(live.locks.legacyNamedFromRealPath, `${TAG} the legacy lock of a config home that is a link is not named from the real path, so it is not the directory the vendor locks`);
   check(live.locks.neverTheJsonLock, `${TAG} a claude write took the .claude.json lock, which activate never needs`);
   check(live.locks.codexRan && live.locks.codexMadeNoLock, `${TAG} the codex write held a lock; codex holds none`);
 
@@ -810,8 +812,8 @@ if ('error' in live) {
   // Rule 6c (Phase 211). A CLAUDE WRITE HOLDS BOTH LOCKS, seen through activate.
   check(live.claudeLock.wrote, `${TAG} the claude lock arm did not write, so the lock check proves nothing`);
   check(
-    live.claudeLock.heldBoth,
-    `${TAG} A CLAUDE SWITCH DID NOT HOLD THE CREDENTIAL LOCKS: took ${String(live.claudeLock.lockCount)} rather than 2`
+    live.claudeLock.heldAll,
+    `${TAG} A CLAUDE SWITCH DID NOT HOLD THE VENDOR'S LOCKS: took ${String(live.claudeLock.lockCount)} rather than 3`
   );
 
   // Rule 6e (Phase 211 fix round). THE DEFAULT LIFT KEEPS WHAT IT WRITES OVER.
@@ -1476,14 +1478,38 @@ const ABLATIONS = [
     ]
   },
   {
+    // PHASE 211 FIX ROUND. The storage write lock dropped, so a commit can land
+    // inside the vendor's own read modify write of the credential.
+    name: 'the storage write lock not taken',
+    edits: [
+      {
+        file: 'locks.ts',
+        from: "  return join(configHome, '.storage-write');",
+        to: "  return join(configHome, '.storage-writeX');"
+      }
+    ]
+  },
+  {
+    // PHASE 211 FIX ROUND. The legacy lock named from the link rather than
+    // the real path, which for a linked config home is not the vendor's lock.
+    name: 'the legacy lock named from the link rather than the real path',
+    edits: [
+      {
+        file: 'locks.ts',
+        from: '    real = realpathSync(configHome);',
+        to: '    real = configHome;'
+      }
+    ]
+  },
+  {
     // PHASE 211. The legacy lock named wrong, so the two locks are not the
     // vendor's pair.
     name: 'the legacy claude lock named wrong, so the pair is not the vendor\'s',
     edits: [
       {
         file: 'locks.ts',
-        from: '  return `${configHome}.lock`;',
-        to: '  return `${configHome}X.lock`;'
+        from: '  return `${real}.lock`;',
+        to: '  return `${real}X.lock`;'
       }
     ]
   },

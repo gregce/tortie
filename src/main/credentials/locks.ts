@@ -33,17 +33,33 @@
  *    second jittered sleeps, so holding it briefly is cooperative rather than
  *    a denial. Tortie's write is sub second, so the vendor never gives up.
  *
- * ## TWO LOCKS FOR A CLAUDE WRITE, NOT THREE
+ * ## THREE LOCKS FOR A CLAUDE WRITE, and which lock is NOT taken
  *
- * The measure agent confirmed the two CREDENTIAL locks against 2.1.259, being
+ * The two CREDENTIAL locks were confirmed against 2.1.259, being
  * `<config-home>/.oauth_refresh.lock` first and then the legacy
- * `<config-home>.lock`, both stale at 60 s. The third lock claude-swap names,
- * `~/.claude.json.lock`, guards the vendor's own `.claude.json`, and Tortie's
- * activate writes ONLY the keychain credential and never `.claude.json`, so
- * there is nothing for that lock to guard here and it is not taken. The cost of
+ * `<realpath of config-home>.lock`, both stale at 60 s (`ukn` at bundle offset
+ * 159814708, `epe` being `realpath` at 159082821). The fix round added the
+ * THIRD, which the first build did not see: every secure storage write in
+ * 2.1.259 runs under `<config-dir>/.storage-write`, stale at 15 s, with ten
+ * retries between 100 and 1000 ms (offset 158843688), and the credential
+ * save at the end of a token refresh is such a write, as is the MCP OAuth
+ * refresh. A Tortie commit landing inside that read modify write is
+ * overwritten with the old credential, which is the same defect the two
+ * credential locks exist to stop, so it is taken as the third, inside the
+ * other two, in the vendor's own order.
+ *
+ * The lock that is NOT taken is `~/.claude.json.lock`, which guards the
+ * vendor's own `.claude.json` under proper-lockfile's defaults (stale 10 s,
+ * offset 158835862). Tortie's activate writes ONLY the credential and never
+ * `.claude.json`, so there is nothing for that lock to guard here. The cost of
  * not writing `.claude.json` is named where it is paid, in `./keep.ts`: the
  * card can show the outgoing address for up to one turn after a switch. That
  * lag is accepted; the person's own `.claude.json` is never written.
+ *
+ * The vendor also honours `CLAUDE_SECURESTORAGE_CONFIG_DIR` for the storage
+ * lock's directory (`z_` at offset 158839953). Tortie does not read that
+ * variable anywhere, so a person who sets it has a storage lock Tortie does
+ * not take. That is a stated limit rather than an oversight.
  *
  * ## CODEX HOLDS NOTHING, AND SAYS SO
  *
@@ -62,6 +78,7 @@
 
 import {
   mkdirSync,
+  realpathSync,
   rmdirSync,
   statSync,
   utimesSync
@@ -74,6 +91,13 @@ import { dirname, join } from 'node:path';
  * ten seconds while it still legitimately owns the lock.
  */
 export const CREDENTIALS_STALENESS_MS = 60_000;
+
+/**
+ * The secure storage write lock is stale past FIFTEEN seconds (2.1.259, offset
+ * 158843688, `stale:15000`), because a storage write is a local read modify
+ * write and never a network round trip.
+ */
+export const STORAGE_WRITE_STALENESS_MS = 15_000;
 
 /** A held lock's directory is touched a little faster than the vendor's 5 s. */
 export const TOUCH_INTERVAL_MS = 3_000;
@@ -96,9 +120,29 @@ export function oauthRefreshLockDir(configHome: string): string {
  * The legacy credential lock, being `<config-home>.lock`, which for the default
  * config home `~/.claude` is `~/.claude.lock`. Claude Code still takes it for
  * compatibility, so exclusion holds even after it drops the primary.
+ *
+ * THE VENDOR NAMES IT FROM THE REAL PATH (fix round): `${await epe(e)}.lock`
+ * with `epe` being `realpath`, so a config home that is a symbolic link locks
+ * beside its target and not beside the link. A home that cannot be resolved
+ * keeps its given name, which is the vendor's own `.catch(()=>e)` fallback.
  */
 export function legacyClaudeLockDir(configHome: string): string {
-  return `${configHome}.lock`;
+  let real = configHome;
+  try {
+    real = realpathSync(configHome);
+  } catch {
+    // Not there, or not resolvable: the vendor falls back to the name as given.
+  }
+  return `${real}.lock`;
+}
+
+/**
+ * The secure storage write lock, `<config-dir>/.storage-write` (fix round).
+ * Taken THIRD, inside the two credential locks, because the vendor takes it
+ * inside its refresh lock when it saves the refreshed credential.
+ */
+export function storageWriteLockDir(configHome: string): string {
+  return join(configHome, '.storage-write');
 }
 
 /**
@@ -271,31 +315,41 @@ export async function acquireLock(
 }
 
 /**
- * Hold Claude Code's two credential locks around a write, in the vendor's own
- * order, and release both whatever happened.
+ * Hold Claude Code's three locks around a write, in the vendor's own order,
+ * and release every one whatever happened.
  *
  * THE ORDER IS THE VENDOR'S: the primary `.oauth_refresh.lock` first, then the
- * legacy `<config-home>.lock`. Mirroring both the pair and the order is what
- * stops a waiting Tortie and a waiting Claude Code deadlocking against each
- * other. A failure to take the SECOND lock releases the first, which the
- * `finally` chain below does.
+ * legacy `<config-home>.lock`, then `.storage-write` for the write itself.
+ * Mirroring both the set and the order is what stops a waiting Tortie and a
+ * waiting Claude Code deadlocking against each other. A failure to take a
+ * later lock releases every earlier one, which the `finally` chain below does.
  */
 export async function withClaudeCredentialLocks<T>(
   configHome: string,
   run: () => Promise<T>,
   deps?: LockDeps
 ): Promise<T> {
+  const seam = deps === undefined ? {} : { deps };
   const primary = await acquireLock(oauthRefreshLockDir(configHome), {
     lockName: '.oauth_refresh.lock',
-    ...(deps === undefined ? {} : { deps })
+    ...seam
   });
   try {
     const legacy = await acquireLock(legacyClaudeLockDir(configHome), {
       lockName: 'the legacy claude lock',
-      ...(deps === undefined ? {} : { deps })
+      ...seam
     });
     try {
-      return await run();
+      const storage = await acquireLock(storageWriteLockDir(configHome), {
+        lockName: '.storage-write',
+        stalenessMs: STORAGE_WRITE_STALENESS_MS,
+        ...seam
+      });
+      try {
+        return await run();
+      } finally {
+        storage.release();
+      }
     } finally {
       legacy.release();
     }
