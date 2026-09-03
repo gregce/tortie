@@ -12,8 +12,11 @@
  *
  * Why tmux and not the xterm buffer: a tmux attach redraws the current screen
  * only, and hidden panes are unmounted, so the renderer's 10k-line scrollback
- * usually holds nothing. The real history is the private server's
- * `history-limit 50000` (research 17 §2).
+ * usually holds nothing. The real history is the private server's, and its
+ * depth is the Scrollback depth setting: `history-limit 25000` in
+ * resources/gmux-tmux.conf by default, up to 100,000 (research 17 §2). The
+ * 50,000 this comment used to name is the operator's own server, not a
+ * constant of the product.
  */
 
 import { basename, dirname, join } from 'node:path';

@@ -18,11 +18,15 @@
  * `display-message` answers where the screen sits in them: `#{history_size}`
  * is how many lines lie above the LIVE screen and `#{scroll_position}` is how
  * far above the live bottom the view is parked. So screen row `r` shows
- * history line `history - position + r`, and that number does not move when
- * new lines arrive at the bottom, because `history` and `position` grow by the
- * same amount together (measured on 2026-09-03: a view parked at 30 read
- * LINE-65 at its top row, ten lines arrived, `history` went 96 to 106, and
- * the same row read LINE-75 while `history - 40` still read LINE-65). A
+ * history line `history - position + r`, and it is that NUMBER a selection
+ * end is kept as rather than the row, which is what makes it survive a
+ * stream. The stable thing is the absolute line and not the screen, and not
+ * `position` either: measured on 2026-09-03 against a pane printing in
+ * bursts, `scroll_position` stayed at 11 while `history_size` went 21 to 51,
+ * so the same screen row went from LINE-22 to LINE-52 while absolute line 10
+ * still read LINE-11 at both ends. tmux does not hold a parked view still by
+ * moving `position`; what re-anchors the drawn view is this app's own poll,
+ * which `ScrollSurface` suspends for as long as a drag is in progress. A
  * `HistoryPos` is where a selection end really is, and it is never clamped;
  * only the DRAWING of it is, in `visibleSpan`.
  */
