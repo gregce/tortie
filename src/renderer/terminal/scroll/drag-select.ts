@@ -27,6 +27,19 @@
  * drag: `setSelection` drops the document listeners and the drag scroll timer
  * it installed. That is why the listeners here are ours from the same moment.
  *
+ * AND IT LEAVES A PANE WHOSE MOUSE IS NOT OURS ENTIRELY ALONE, which is a fix
+ * round's doing and the one thing that was wrong here. `ScrollSurface` has
+ * kept the WHEEL out of two kinds of pane since Phase 12.3, being the three
+ * routes in ../scroll/surface.ts's header: a program that asked for mouse
+ * reporting, and an app on its own alternate screen, each of which owns the
+ * gesture because tmux has no history to show for it. The drag is under the
+ * same rule and was not. MEASURED at 44941af with `cat` behind SGR mouse
+ * reporting in the pane, a drag held above the top edge scrolled the history
+ * from 0 to 104, put the pane into copy mode and painted 43 lines the program
+ * never asked for; at 57d9358 the same gesture moved nothing. So `view.owned`
+ * is read where the gesture begins and again on every tick, because a picker
+ * can open while the button is already down.
+ *
  * THE LIMIT, and it is stated because a person will reach it. The selection
  * is what the SCREEN holds, so a drag that pushes the anchor past the far
  * edge keeps extending from that edge rather than off it, and what you copy
@@ -143,6 +156,8 @@ export class DragSelect {
     if (event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
       return;
     }
+    // The pane's mouse belongs to the program inside it. See the header.
+    if (!this.surface.view.owned) return;
     const box = this.geometry();
     if (box === null) return;
     this.stop();
@@ -165,6 +180,9 @@ export class DragSelect {
 
   /** One edge tick: scroll the private server's history, nothing else. */
   private tick(): void {
+    // Read again, not once: a program can turn mouse reporting on, or open on
+    // its own alternate screen, while the button is already down.
+    if (!this.surface.view.owned) return;
     const pointer = this.pointer;
     if (pointer === null) return;
     const box = this.geometry() ?? this.box;

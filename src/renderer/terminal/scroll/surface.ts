@@ -24,6 +24,11 @@
  *               alt screen never enters tmux history
  *   otherwise   normal buffer: shells, claude, codex → gmux scrolls tmux
  *               history and the wheel finally means "show me what scrolled by"
+ *
+ * The first two routes are `view.owned === false`, and the rule is the WHEEL's
+ * only by accident of which gesture came first. ./drag-select.ts reads the
+ * same flag for the same reason, so a drag held at the edge of a pane whose
+ * program asked for the mouse scrolls nothing either.
  */
 
 import type { Terminal } from '@xterm/xterm';
