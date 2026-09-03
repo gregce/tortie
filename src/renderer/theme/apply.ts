@@ -46,7 +46,9 @@
  */
 
 import {
+  sanitizeChromeDepth,
   sanitizeChromeHue,
+  sanitizeChromeShade,
   sanitizeWorkAreaFont,
   sanitizeWorkAreaFontCustom
 } from '@shared/settings';
@@ -232,7 +234,7 @@ export function refreshLiveTerminalThemes(): void {
 }
 
 /**
- * The three appearance fields out of the full settings shape.
+ * The five appearance fields out of the full settings shape.
  *
  * The font field is sanitized again here even though main sanitizes it before
  * it is written. This renderer also reads a settings object over the bridge,
@@ -244,6 +246,8 @@ function toAppearance(settings: GmuxSettings): AppliedAppearance {
     highlightScheme: settings.highlightScheme,
     contrastLevel: settings.contrastLevel,
     chromeHue: sanitizeChromeHue(settings.chromeHue),
+    chromeShade: sanitizeChromeShade(settings.chromeShade),
+    chromeDepth: sanitizeChromeDepth(settings.chromeDepth),
     workAreaFontCustom: sanitizeWorkAreaFontCustom(settings.workAreaFontCustom),
     workAreaFont: sanitizeWorkAreaFont(settings.workAreaFont)
   };

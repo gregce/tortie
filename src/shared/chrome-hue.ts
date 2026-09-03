@@ -47,6 +47,7 @@ import {
   parse,
   useMode
 } from 'culori/fn';
+import { anchorLightnessFor, depthFactorFor, rampNeutral } from './chrome-ramp';
 import { DEFAULT_CHROME_HUE, sanitizeChromeHue } from './settings';
 import { WINDOW_BACKGROUND } from './window-chrome';
 
@@ -95,11 +96,23 @@ export function rotateChromeNeutral(css: string, hue: number): string {
 
 /**
  * The colour the compositor paints a window before any renderer exists, at
- * this hue. `WINDOW_BACKGROUND` exactly at the default, so an untouched
- * install keeps the constant the canvas single source test pins; the rotated
- * canvas otherwise, which is the same value the renderer writes into
- * `--bg-canvas` once the settings read lands.
+ * this hue, shade and depth. `WINDOW_BACKGROUND` exactly at the defaults, so
+ * an untouched install keeps the constant the canvas single source test pins;
+ * the turned and moved canvas otherwise, which is the same value the renderer
+ * writes into `--bg-canvas` once the settings read lands.
+ *
+ * The canvas is the ANCHOR of the ramp, so its distance term is zero and the
+ * depth cannot move it: the shade alone decides where it lands. That is why
+ * main can compose this from one token without knowing the other seven.
  */
-export function windowBackgroundFor(hue: number): string {
-  return rotateChromeNeutral(WINDOW_BACKGROUND, hue);
+export function windowBackgroundFor(
+  hue: number,
+  shade = 0,
+  depth = 0
+): string {
+  const turned = rotateChromeNeutral(WINDOW_BACKGROUND, hue);
+  const parsed = parse(turned.trim());
+  const ok = parsed === undefined ? undefined : toOklch(parsed);
+  if (ok === undefined) return turned;
+  return rampNeutral(turned, ok.l, anchorLightnessFor(ok.l, shade), depthFactorFor(depth));
 }

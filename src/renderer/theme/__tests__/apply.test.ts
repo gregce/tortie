@@ -43,6 +43,8 @@ const BLUE_NORMAL: AppliedAppearance = {
   highlightScheme: 'blue',
   contrastLevel: 'normal',
   chromeHue: 222,
+  chromeShade: 0,
+  chromeDepth: 0,
   workAreaFont: 'system',
   workAreaFontCustom: ''
 };
@@ -50,6 +52,8 @@ const TEAL_HIGH: AppliedAppearance = {
   highlightScheme: 'teal',
   contrastLevel: 'high',
   chromeHue: 222,
+  chromeShade: 0,
+  chromeDepth: 0,
   workAreaFont: 'system',
   workAreaFontCustom: ''
 };

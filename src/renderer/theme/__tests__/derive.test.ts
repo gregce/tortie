@@ -104,7 +104,7 @@ const NON_DEFAULT: Appearance[] = [];
 for (const highlightScheme of ALL_SCHEMES) {
   for (const contrastLevel of ALL_LEVELS) {
     if (highlightScheme === 'blue' && contrastLevel === 'normal') continue;
-    NON_DEFAULT.push({ highlightScheme, contrastLevel, chromeHue: 222 });
+    NON_DEFAULT.push({ highlightScheme, contrastLevel, chromeHue: 222, chromeShade: 0, chromeDepth: 0 });
   }
 }
 
@@ -160,14 +160,17 @@ describe('drift against tokens.css', () => {
 describe('the zero-override guarantee', () => {
   it('blue plus normal plus hue 222 returns an empty object', () => {
     expect(
-      deriveOverrides({ highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222 }, base)
+      deriveOverrides({ highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222, chromeShade: 0, chromeDepth: 0 }, base)
     ).toEqual({});
   });
 
   it('a hue that sanitizes to 222 is the default too', () => {
     for (const chromeHue of [222.4, 582, -138, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(
-        deriveOverrides({ highlightScheme: 'blue', contrastLevel: 'normal', chromeHue }, base)
+        deriveOverrides(
+          { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue, chromeShade: 0, chromeDepth: 0 },
+          base
+        )
       ).toEqual({});
     }
   });
@@ -175,7 +178,10 @@ describe('the zero-override guarantee', () => {
 
 describe('the frame hue (Phase 207)', () => {
   const at = (chromeHue: number, contrastLevel: ContrastLevel = 'normal'): Record<string, string> =>
-    deriveOverrides({ highlightScheme: 'blue', contrastLevel, chromeHue }, base);
+    deriveOverrides(
+      { highlightScheme: 'blue', contrastLevel, chromeHue, chromeShade: 0, chromeDepth: 0 },
+      base
+    );
 
   it('writes exactly the eight neutrals, the canvas among them, and no text', () => {
     const overrides = at(0);
@@ -242,7 +248,7 @@ describe('the frame hue (Phase 207)', () => {
     // The synthetic ground: the whole ramp lifted 0.6 in OKLCH lightness,
     // which puts the canvas near Y 0.5. No setting reaches this parameter.
     const overrides = deriveOverrides(
-      { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222 },
+      { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222, chromeShade: 0, chromeDepth: 0 },
       base,
       0.6
     );
@@ -266,7 +272,7 @@ describe('the frame hue (Phase 207)', () => {
     // fallen under 4.5:1 on its surface, so it moves, toward white, to its
     // floor; the disabled token has no floor and never moves before a flip.
     const overrides = deriveOverrides(
-      { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222 },
+      { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222, chromeShade: 0, chromeDepth: 0 },
       base,
       0.2
     );
@@ -315,7 +321,7 @@ describe('key containment', () => {
 describe('the scheme transform', () => {
   it('teal rotates the accent to hue 185 keeping lightness', () => {
     const overrides = deriveOverrides(
-      { highlightScheme: 'teal', contrastLevel: 'normal', chromeHue: 222 },
+      { highlightScheme: 'teal', contrastLevel: 'normal', chromeHue: 222, chromeShade: 0, chromeDepth: 0 },
       base
     );
     const derived = toOklch(parse(must(overrides['--accent'], 'teal accent')));
@@ -328,7 +334,7 @@ describe('the scheme transform', () => {
 
   it('purple rotates the accent to hue 300', () => {
     const overrides = deriveOverrides(
-      { highlightScheme: 'purple', contrastLevel: 'normal', chromeHue: 222 },
+      { highlightScheme: 'purple', contrastLevel: 'normal', chromeHue: 222, chromeShade: 0, chromeDepth: 0 },
       base
     );
     const derived = toOklch(parse(must(overrides['--accent'], 'purple accent')));
@@ -337,7 +343,7 @@ describe('the scheme transform', () => {
 
   it('slate scales chroma to 0.30 of shipped, hue unchanged', () => {
     const overrides = deriveOverrides(
-      { highlightScheme: 'slate', contrastLevel: 'normal', chromeHue: 222 },
+      { highlightScheme: 'slate', contrastLevel: 'normal', chromeHue: 222, chromeShade: 0, chromeDepth: 0 },
       base
     );
     const derived = toOklch(parse(must(overrides['--accent'], 'slate accent')));
@@ -359,7 +365,7 @@ describe('the lift direction, measured', () => {
     fg: string,
     bg: string
   ): number {
-    const o = deriveOverrides({ highlightScheme: 'blue', contrastLevel, chromeHue: 222 }, base);
+    const o = deriveOverrides({ highlightScheme: 'blue', contrastLevel, chromeHue: 222, chromeShade: 0, chromeDepth: 0 }, base);
     return wcagContrast(value(fg, o), value(bg, o));
   }
 
@@ -403,7 +409,7 @@ describe('gamut and alpha', () => {
     for (const highlightScheme of ALL_SCHEMES) {
       if (highlightScheme === 'blue') continue;
       for (const contrastLevel of ALL_LEVELS) {
-        const overrides = deriveOverrides({ highlightScheme, contrastLevel, chromeHue: 222 }, base);
+        const overrides = deriveOverrides({ highlightScheme, contrastLevel, chromeHue: 222, chromeShade: 0, chromeDepth: 0 }, base);
         expect(
           alphaOf(overrides['--accent-wash'], 'accent-wash'),
           `${highlightScheme} + ${contrastLevel}`
@@ -423,7 +429,7 @@ describe('gamut and alpha', () => {
 
   it('scheme rotation preserves the wash alphas of drop-wash and accent-soft', () => {
     const overrides = deriveOverrides(
-      { highlightScheme: 'teal', contrastLevel: 'normal', chromeHue: 222 },
+      { highlightScheme: 'teal', contrastLevel: 'normal', chromeHue: 222, chromeShade: 0, chromeDepth: 0 },
       base
     );
     expect(alphaOf(overrides['--drop-wash'], 'drop-wash')).toBeCloseTo(0.25, 5);

@@ -12,27 +12,38 @@
  * first window, and keeps a live window's fill in step on every settings
  * change.
  *
- * WHAT STILL SHOWS GRAPHITE, stated so nobody looks for a bug. The two
- * index.html files carry an inline `background: #131417` that paints before
- * any stylesheet arrives, and tokens.css paints the same value until the
- * renderer's settings read lands and the override is written. At a hue other
- * than 222 those first frames are the shipped canvas, which is at most
- * 0.014 from the turned one in OKLab, under half a rung of the ramp. That
- * is the limit Phase 62 recorded for every override and it is unchanged.
- * At the default hue nothing here differs from the constant by a byte.
+ * WHAT STILL SHOWS GRAPHITE, stated so nobody looks for a bug, and PHASE 210
+ * MADE IT BIGGER. The two index.html files carry an inline
+ * `background: #131417` that paints before any stylesheet arrives, and
+ * tokens.css paints the same value until the renderer's settings read lands
+ * and the override is written. Phase 207 recorded that gap as at most 0.014
+ * in OKLab, under half a rung of the ramp, because a hue moves perceived
+ * lightness by at most 0.002. A SHADE MOVES IT ON PURPOSE: the span of the
+ * seven shade stops is 0.15 in OKLCH lightness, from canvas #020204 at the
+ * darkest to #1e1f23 at the lightest, so at an end stop those first frames
+ * are up to 0.052 in OKLCH L away from the canvas that follows. The window
+ * fill this module composes is right from the first compositor paint, so
+ * what remains is the inline literal in the two documents and the diff
+ * view's shipped ground. At the shipped frame nothing here differs from the
+ * constant by a byte.
  */
 
 import type { BrowserWindow } from 'electron';
 import { windowBackgroundFor } from '@shared/chrome-hue';
 import { getSettings, onSettingsUpdated } from './store';
 
-/** The fill for a window constructed now, from the persisted hue. */
+/** The fill for a window constructed now, from the persisted frame. */
 export function windowBackgroundNow(): string {
-  return windowBackgroundFor(getSettings().chromeHue);
+  const settings = getSettings();
+  return windowBackgroundFor(
+    settings.chromeHue,
+    settings.chromeShade,
+    settings.chromeDepth
+  );
 }
 
 /**
- * Keep this window's fill in step with the persisted hue for its lifetime.
+ * Keep this window's fill in step with the persisted frame for its lifetime.
  * One listener per window, removed when the window closes; a fill that has
  * not changed is not written again.
  */
@@ -40,7 +51,11 @@ export function followChromeHue(win: BrowserWindow): void {
   let last = windowBackgroundNow();
   const stop = onSettingsUpdated((settings) => {
     if (win.isDestroyed()) return;
-    const next = windowBackgroundFor(settings.chromeHue);
+    const next = windowBackgroundFor(
+      settings.chromeHue,
+      settings.chromeShade,
+      settings.chromeDepth
+    );
     if (next === last) return;
     last = next;
     win.setBackgroundColor(next);

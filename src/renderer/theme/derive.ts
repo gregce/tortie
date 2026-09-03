@@ -3,19 +3,21 @@
  * choice into CSS custom property overrides for the document root.
  *
  * The contract, and the tests assert every line of it:
- * - The default appearance (blue scheme, normal contrast, hue 222) returns
- *   an EMPTY object over the shipped base. Zero overrides is the
- *   byte-identity guarantee for an untouched install. It is a property of
- *   the stages rather than an early return, so the text stage still answers
- *   over a base whose ground is light.
+ * - The default appearance (blue scheme, normal contrast, hue 222, the
+ *   shipped shade and depth) returns an EMPTY object over the shipped base.
+ *   Zero overrides is the byte-identity guarantee for an untouched install.
+ *   It is a property of the stages rather than an early return, so the text
+ *   stage still answers over a base whose ground is light.
  * - Every other combination returns only keys from the token lists declared
- *   in presets.ts. `--bg-canvas` is a key only when the hue is not 222.
+ *   in presets.ts. `--bg-canvas` is a key only when the hue is not 222 or the
+ *   ramp has been moved off its shipped shade and depth (Phase 210).
  * - The stages run in one order whatever the settings were set in, so the
- *   three settings compose the same way in any order: the hue turns the
- *   ramp first, the contrast lift spreads the turned ramp about its canvas,
- *   the text then follows the ground it lands on, and the scheme and the
- *   chroma lift act last on the accent family. The chroma lift therefore
- *   still acts on the scheme-rotated accent, as in Phase 62.
+ *   five settings compose the same way in any order: the hue turns the ramp
+ *   first, the shade and the depth then move that turned ramp, the contrast
+ *   lift spreads it about its canvas, the text follows the ground it lands
+ *   on, and the scheme and the chroma lift act last on the accent family.
+ *   The chroma lift therefore still acts on the scheme-rotated accent, as in
+ *   Phase 62.
  * - Values that carry alpha keep their alpha exactly.
  * - Every derived value fits sRGB. An out-of-gamut result is clamped by
  *   reducing chroma while keeping lightness and hue (culori's clampChroma
@@ -50,7 +52,13 @@ import {
 } from 'culori/fn';
 import type { Oklch } from 'culori/fn';
 import { rotateChromeNeutral } from '@shared/chrome-hue';
-import { DEFAULT_CHROME_HUE, sanitizeChromeHue } from '@shared/settings';
+import { rampOverrides } from '@shared/chrome-ramp';
+import {
+  DEFAULT_CHROME_HUE,
+  sanitizeChromeDepth,
+  sanitizeChromeHue,
+  sanitizeChromeShade
+} from '@shared/settings';
 import type { ContrastLevel, HighlightScheme } from '@shared/settings';
 import { followGround, solveForRatio, contrastOf, textIsDarkOn } from './hue';
 import {
@@ -73,6 +81,10 @@ export interface Appearance {
   contrastLevel: ContrastLevel;
   /** The frame's hue, a whole degree (Phase 207). 222 is the shipped ramp. */
   chromeHue: number;
+  /** Where the ramp sits, a whole stop (Phase 210). 0 is the shipped ramp. */
+  chromeShade: number;
+  /** How far the ramp spreads, a whole stop (Phase 210). 0 is shipped. */
+  chromeDepth: number;
 }
 
 // Registration order matters only in that a space must be registered before
@@ -188,6 +200,22 @@ export function deriveOverrides(
       out[token] = rotateChromeNeutral(raw, hue);
     }
   }
+  // STAGE ONE B, THE RAMP'S OWN LIGHTNESS (Phase 210). The hue turned the
+  // ramp; this moves it. One affine map on OKLCH lightness, anchored on the
+  // canvas in effect so it composes with the rotation in either order:
+  // L' = anchor + (L - canvasL) * factor, with the anchor set by the shade
+  // stop and the factor by the depth stop. The slope is positive at every
+  // offered stop, so the ramp's ORDER survives; the ends where eight bit
+  // rounding brings two rungs together are refused at the control rather
+  // than clamped here. At the shipped pair this writes nothing.
+  const shade = sanitizeChromeShade(appearance.chromeShade);
+  const depth = sanitizeChromeDepth(appearance.chromeDepth);
+  for (const [token, value] of Object.entries(
+    rampOverrides(HUE_TOKENS, current, current(CANVAS_TOKEN), shade, depth)
+  )) {
+    out[token] = value;
+  }
+
   if (groundLift !== 0) {
     for (const token of HUE_TOKENS) {
       const raw = current(token);

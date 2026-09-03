@@ -62,7 +62,7 @@ describe('derive.ts on culori/fn matches the full library byte for byte', () => 
           Appearance['highlightScheme'],
           Appearance['contrastLevel']
         ];
-        const actual = deriveOverrides({ highlightScheme, contrastLevel, chromeHue: 222 }, c.base);
+        const actual = deriveOverrides({ highlightScheme, contrastLevel, chromeHue: 222, chromeShade: 0, chromeDepth: 0 }, c.base);
         expect(actual).toEqual(expected);
       });
     }
@@ -78,7 +78,7 @@ describe('derive.ts on culori/fn matches the full library byte for byte', () => 
           Appearance['highlightScheme'],
           Appearance['contrastLevel']
         ];
-        const actual = deriveOverrides({ highlightScheme, contrastLevel, chromeHue: 222 }, c.base);
+        const actual = deriveOverrides({ highlightScheme, contrastLevel, chromeHue: 222, chromeShade: 0, chromeDepth: 0 }, c.base);
         expect(Object.keys(actual).sort()).toEqual(Object.keys(expected).sort());
       }
     }

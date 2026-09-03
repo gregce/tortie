@@ -137,7 +137,9 @@ export const HUE_SWATCH_TOKENS: readonly string[] = [
  */
 export function hueSwatches(
   settings: Pick<GmuxSettings, 'highlightScheme' | 'contrastLevel'>,
-  chromeHue: number
+  chromeHue: number,
+  chromeShade = 0,
+  chromeDepth = 0
 ): Record<string, string> | null {
   const base = shippedBaseNow();
   if (base === null) return null;
@@ -145,7 +147,9 @@ export function hueSwatches(
     {
       highlightScheme: settings.highlightScheme,
       contrastLevel: settings.contrastLevel,
-      chromeHue
+      chromeHue,
+      chromeShade,
+      chromeDepth
     },
     base
   );
