@@ -181,6 +181,14 @@ export const CHECKS = [
 
   // Build gates and pins.
   pure('gate:electron'),
+  // PHASE 206 ITEM 5. The same rule for anything else a script starts, being a
+  // shell, a server, a sleeper or a load generator. It scans build/ for an
+  // asynchronous spawn that is detached or is a runner that does not stop by
+  // itself, and refuses one whose kill is not inside a `finally` read by
+  // matching braces. Twelve fixtures, including the exact shape that leaked on
+  // 2026-09-02, and it runs inside npm run build so nothing that builds can
+  // skip it.
+  pure('gate:background'),
   // PHASE 166. The cache policy imports no file system, names no durable
   // path, and neither it nor any file reading it calls a deletion API; no
   // production file under src/main calls a session cache deletion at all.

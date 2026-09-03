@@ -103,6 +103,15 @@ written here. Measure before writing a number into this file.
 - **Every probe that launches Electron kills it in a `finally` block**, and ends its own scratch tmux
   server there too, whatever happened. A probe that kills only on the happy path is a defect and the
   verifier names it. This is the rule that actually prevents the crash.
+- **Every process a script starts, it ends in a `finally` block**, being a shell, a server, a
+  sleeper or a load generator, whatever happened. A script that kills only on the happy path is a
+  defect and the verifier names it. Phase 206 extended the Electron rule above to this in the same
+  words, because on 2026-09-02 the Phase 200 verifier started six shell loops to load the machine
+  for an attack, ran its probe, then tried to kill them; the kill did not reach them, the parent
+  exited, they reparented to launchd and ran for two hours and three minutes at about 550 percent of
+  his CPU until he noticed his fans. The conventions did not forbid it because they named Electron
+  alone. `npm run gate:background` is what keeps it there, and it is described in the gates section
+  below.
 - **Count what is left after a probe run, once, at the end.** The command everybody reaches for,
   `ps aux | grep -c "[E]lectron"`, misses the largest process in the leak. Electron's main process
   renames itself to `Tortie`, and its command line is the single word `Tortie` with no arguments at
@@ -260,6 +269,27 @@ reviewable before the work starts rather than after.
 **PHASE 203 ADDED THREE RULES TO THAT SAME GATE AND ONE PROBE BESIDE IT.** Run `npm run conformance:logins` for any commit under `src/main/usage/login-accounts.ts` and `src/shared/login-copy.ts` as well. Rule 8 is PRESENCE: a login whose credential exists only in the KEYCHAIN reads as present, which on macOS is the only half there is, because the vendor writes no `.credentials.json` for a second claude login and the old list asked for one, so every added claude login said `Not signed in yet` for ever; a login asks for the SCOPED service name and nothing else, so it can never read the person's own default credential; the scoped name is re-derived by a sha256 the gate computes itself; and a folder that is GONE is never asked about, because a Remove deletes the folder and leaves the scoped keychain item behind. Rule 9 is the ACCOUNT: both providers name an address, codex out of the `email` claim inside `tokens.id_token`, and a login that has taken no turn, a file that is not JSON and a field holding markup are all "not known" rather than a crash or a drawn string. Rule 10 is scanned over the real source: `-w` is the flag that makes `security` print the SECRET instead of the item, so it appears nowhere in the reader, and the reader writes no log line of any kind. All twelve ablations go red one clause at a time and 14 of 14 scanner fixtures behave. **The identity read spawns nothing at all**, which is stronger than the phase promised: a login that has been USED carries its own address in its own `.claude.json`, and `claude auth status` scoped to a login with no `oauthAccount` answers `email: null`, so the vendor command tells us nothing the file does not, at 140 ms and one process against 0.05 ms and none. **The reader is in the USAGE domain and not the logins one** because rule 1 above forbids the logins domain from naming a vendor location, and that refusal is what keeps the person's own sign in out of reach of the one deletion; `src/main/logins/ipc.ts` reaches it as an injected function. `npm run probe:p203` (about 16 s of driving after the build, TWO Electrons one after the other and never at once, on one scratch profile and the p203 tmux socket, creates no session, spawns no agent, makes no request, spends no token, and opens NO KEYCHAIN because the usage fixture refuses it for the list as well as for the meter) is the app run and is not in the commit battery. It writes SIX fixture logins, one per shape a row can take, being the default and an added login each signed in with an address, signed in without one, and not signed in at all, and reads every row back off the list, off the native menu the shipped composer would be handed, off the hover card opened with a real pointer event, and off the real Settings window's own DOM. It plants the decoy `~/.claude/.claude.json` on purpose, because a reader that composed the default ACCOUNT file the way the default CREDENTIAL file is composed would find that one and answer "account not known" for the default login. `node build/probe-p203-account.mjs --self-test` proves its graders on thirteen fixtures and launches nothing.
 
 **Touching the cache policy?** Add `npm run gate:cache-policy` (about 0.1 s, spawns nothing, opens no profile, launches no Electron) for any commit under `src/main/cache/` or any file that imports from it, being the boot, the diagnostics disk reader and the report text. It proves the policy module imports no file system module and names no durable path in code, that no file reading it calls a deletion API, and that no production file under `src/main` calls a session cache deletion at all, over four fixtures it writes itself so the scanner is seen to fail. The policy is one Chromium switch in the dev shape and nothing anywhere else, because research 69 measured the shipped shape at zero cache bytes over thirty launches; `<userData>/gmux` is durable state and is never a target, and this gate is what keeps a later "cache cleanup" from reaching it in one line. `npm run probe:p166` (about 5 min, 40 Electrons on scratch profiles, spawns no agent) is the full proof and is not in the commit battery.
+
+**Touching a script under `build/` that starts a process it does not wait for?** Add
+`npm run gate:background` (about 0.1 s, spawns nothing, opens no socket, launches no Electron) for
+any commit under `build/`. It runs inside `npm run build` too, so nothing that builds can skip it.
+It is the machine discipline rule above made checkable for everything that is not an Electron. It
+asks the question of the FAMILY THAT LEAKED and of nothing else, because asking it of every spawn
+under `build/` goes red on 17 files and stops being a nit: a long lived child is an ASYNCHRONOUS
+spawn, never a `*Sync` form, that is either `detached: true` or a runner that does not stop by
+itself, being a command line carrying `while`, `until`, `sleep <n>` or `for(;;)`. Every file holding
+one must have a `finally` block that reaches a kill, read by matching braces rather than by
+searching for the word, and the kill may be in a helper the same file defines. The call names are
+DISCOVERED per file rather than listed, because almost every probe under `build/` declares its own
+wrapper and one called `background` would be invisible to a list; one level and not the transitive
+closure, which was tried and read 36 of `update-rehearsal.mjs`'s own functions as spawners because
+`fail()` reaches a cleanup that reaches a spawn. Twelve fixtures live in
+`build/background-fixtures.mjs`, five of which must make the gate fail, including the exact shape
+that leaked, a `finally` that tidies but never kills, and a `finally` whose only kill is in a
+comment. **A new shape that walks past it goes in that file in the same commit as the fix.** Run
+against the tree before Phase 206 it finds one real leak, being the `/bin/sh` sampler at
+`build/probe-remote-env.mjs:350` that was ended on the happy path alone, so a `drive` that threw
+left a loop running `ps` with nothing to stop it.
 
 **Touching a script under `build/` that runs ssh?** Add `npm run gate:knownhosts` (about 0.4 s, spawns nothing, starts no ssh and no sshd, opens no socket, reads nothing under the person's home) for any commit under `build/`. It runs inside `npm run build` too, so nothing that builds can skip it. It asserts that no file under `build/` except `build/ssh-run.mjs` hands ssh, scp, sftp or ssh-keyscan to a spawn, that no spawn hands `ssh-keygen` its `-R` or `-F` flag, that no file puts one of the four on a command line a shell is given, that all 19 scripts that run one still reach the helper, and that inside the helper the `-o UserKnownHostsFile=` pair is emitted from exactly one place, refuses an empty value, has no default so forgetting it throws, is prepended so nothing later in an argv can win, and puts Tortie's own record file first. It proves the last four by RUNNING the helper as well as reading it. Run against the tree before Phase 193, it finds 39 unrouted spawns across 18 files and one `ssh -V` on a `/bin/sh -c` line.
 

@@ -362,20 +362,29 @@ const sampler = spawn(
 );
 if (typeof sampler.pid === 'number') recordedPids.push(sampler.pid);
 
-const created = drive({
-  ...ctxInput,
-  op: 'create',
-  name: 'p73-env-probe',
-  cwd: root,
-  sessionId: SENTINEL
-});
-
-// Give the sampler a few more passes, then stop it by its own pid.
-sh('/bin/sleep', ['0.3']);
+// PHASE 206 ITEM 5. THE SAMPLER IS ENDED IN A `finally`, whatever happened.
+// It was ended on the happy path alone, so a `drive` that threw left a
+// `/bin/sh` loop running `ps` in a tight loop with nothing to stop it. That is
+// the exact shape that ran for two hours at about 550 percent of the
+// operator's CPU on 2026-09-02, and `npm run gate:background` is now what
+// refuses it.
+let created = null;
 try {
-  process.kill(sampler.pid, 'SIGKILL');
-} catch {
-  /* already gone */
+  created = drive({
+    ...ctxInput,
+    op: 'create',
+    name: 'p73-env-probe',
+    cwd: root,
+    sessionId: SENTINEL
+  });
+  // Give the sampler a few more passes before it is stopped.
+  sh('/bin/sleep', ['0.3']);
+} finally {
+  try {
+    process.kill(sampler.pid, 'SIGKILL');
+  } catch {
+    /* already gone */
+  }
 }
 
 if (created === null) {
