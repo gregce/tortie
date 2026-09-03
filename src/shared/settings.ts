@@ -429,16 +429,29 @@ export function sanitizeWorkAreaFontCustom(value: unknown): string {
     // arrive from font files rather than only from a keyboard. A family name
     // carrying U+202E would draw its own row in the suggestion dropdown
     // backwards, and a zero width character would make two different rows look
-    // identical. Neither can be seen, so neither can be judged. This is the
-    // bidi set, the zero width set, the line and paragraph separators and the
-    // byte order mark. Phase 197 item 10 closed the one gap in the bidi set:
-    // U+061C, the Arabic letter mark, is the only character with Unicode's
-    // Bidi_Control property outside the two ranges below, and it walked
-    // through the first version whole.
-    .replace(
-      /[\u061C\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/g,
-      ''
-    )
+    // identical. Neither can be seen, so neither can be judged.
+    //
+    // PHASE 206 REPLACED THE HAND WRITTEN LIST WITH THE PROPERTY ITSELF. Phase
+    // 174.1 spelled out the bidi set, the zero width set, the separators and
+    // the byte order mark; Phase 197 item 10 added U+061C, the one Bidi_Control
+    // character outside those ranges. The Phase 197 verifier then attacked the
+    // widened class with characters the builder never tried and 19 of 21 rode
+    // through, because a list closes the gap it was written for and not the
+    // category the gap came from. Measured over the whole of Unicode on
+    // 2026-09-02: the old class refused 27 code points and 4,179 more with the
+    // same property walked past it, 410 of them assigned.
+    //
+    // THE RULE IS THE UNION OF TWO PROPERTIES, and it needs both. Unicode's
+    // Default_Ignorable_Code_Point is the category the whole family belongs to,
+    // being the variation selectors, the tag block, the Hangul fillers, the
+    // Mongolian selectors and the soft hyphen; it leaves 32 assigned format
+    // characters out, being the Arabic number signs, the interlinear
+    // annotation marks and the Egyptian hieroglyph format controls, and
+    // `\p{Cf}` is what takes those. U+2028 and U+2029 are in neither, so they
+    // stay spelled. A character Unicode adds to either property later is
+    // refused by this line without another round, which is the whole point of
+    // naming the property rather than its members.
+    .replace(/[\p{Default_Ignorable_Code_Point}\p{Cf}\u2028\u2029]/gu, '')
     // Quotes, backslash, and the structural punctuation a family never holds:
     // string delimiters, statement and declaration terminators, and the
     // brackets that open a function or a block. Stripping the parenthesis pair

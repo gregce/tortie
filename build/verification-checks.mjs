@@ -468,6 +468,21 @@ export const CHECKS = [
   // build/probe-p202-logins.mjs --self-test` proves the graders on thirteen
   // fixtures and launches nothing.
   electron('probe:p202'),
+  // PHASE 206. ONE launch on one scratch profile, reading two of the fourth
+  // nits round's five items off the real DOM. Item 1: a login added through
+  // the shipped store, the exact stray the Phase 203 verifier found on the
+  // operator's disk planted beside it, being a directory whose id no row names
+  // with a credential inside, then Remove pressed through the shipped path,
+  // and the login list, `logins.json` and the provider root's own listing read
+  // back. Item 3: the real Settings window's Custom font family field, one
+  // planted invisible character per family of the two Unicode properties,
+  // committed by blur the way a person commits it, and the value read back off
+  // the input. It creates no session, spawns no agent, makes no request and
+  // spends no token; it asks the keychain for ATTRIBUTES only, never `-g` and
+  // never `-w`, and hashes the person's credentials before and after. `node
+  // build/probe-p206-nits.mjs --self-test` proves the graders on eight
+  // fixtures and launches nothing.
+  electron('probe:p206'),
   // PHASE 203. Two launches on ONE scratch profile over SIX fixture logins,
   // one per shape a login row can take, being the default and an added login
   // each signed in with an address, signed in without one, and not signed in
