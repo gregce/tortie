@@ -61,6 +61,9 @@ export {
   vaultDiscardStaged,
   vaultGet,
   vaultPut,
+  vaultScopeDigest,
+  vaultServiceFor,
+  VAULT_SERVICE_PREFIX,
   type VaultBackend
 } from './vault';
 
@@ -108,9 +111,17 @@ function defaultStoreDeps(): StoreDeps {
 /**
  * Tortie's own store, being a keychain item per entry on macOS and a file with
  * mode 0600 in a directory with mode 0700 everywhere else.
+ *
+ * THE ROOT IS HANDED THROUGH ON BOTH BRANCHES (Phase 208). Until this phase the
+ * keychain branch dropped it, so every profile on the machine shared one set of
+ * items; the file branch was always scoped by where it sits. The keychain names
+ * now carry a digest of this same root, so the two backends are scoped by the
+ * same thing.
  */
 function defaultVault(root: string): VaultBackend {
-  return keychainIsTheStore() ? keychainVault() : fileVault(join(root, 'kept'));
+  return keychainIsTheStore()
+    ? keychainVault(defaultSecurityRunner(), root)
+    : fileVault(join(root, 'kept'));
 }
 
 let liveSessionsProbe: (() => Promise<LiveSession[]>) | null = null;

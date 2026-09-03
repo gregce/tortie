@@ -21,10 +21,30 @@
  *
  * ## THE BACKENDS ARE ONE SEAM
  *
- * A keychain item on macOS, named `Tortie-credentials-<slot>`, and a file with
- * mode 0600 everywhere else. Both are reached through {@link VaultBackend},
- * so `npm run conformance:credentials` runs the SHIPPING write over an
- * injected backend and can make every step fail on purpose.
+ * A keychain item on macOS, named `Tortie-credentials-<slot>-<scope>`, and a
+ * file with mode 0600 everywhere else. Both are reached through
+ * {@link VaultBackend}, so `npm run conformance:credentials` runs the SHIPPING
+ * write over an injected backend and can make every step fail on purpose.
+ *
+ * ## THE NAME CARRIES ITS PROFILE (Phase 208)
+ *
+ * Until Phase 208 the keychain name was `Tortie-credentials-<slot>` and nothing
+ * in it said WHICH profile wrote it, while the vendor half has carried a digest
+ * of its directory since Phase 203. So every Tortie process on one machine,
+ * being the person's own app, every scratch profile probe under `build/` and
+ * every harness run, addressed the SAME items, and the default slot is one
+ * every profile has. Measured by the Phase 206 fix round: a probe on a scratch
+ * profile with `CLAUDE_CONFIG_DIR` pointed at a directory it made fell back to
+ * the person's own unscoped vendor item, and its observe wrote what it read
+ * into `Tortie-credentials-claude.default`, the item his real app reads, twice
+ * inside probe runs. A probe that planted a credential in a scratch DEFAULT
+ * store would have put that planted credential in front of him as a kept
+ * account. {@link vaultServiceFor} now takes the vault's scope, being the
+ * logins root of the profile it is running in, and appends the first eight hex
+ * of its sha256 exactly the way `../usage/credentials.ts` scopes the vendor
+ * half. No admitted slot holds a hyphen after its provider dot, and no scope
+ * digest is empty, so no scoped name can equal an unscoped one. Nothing in
+ * this file can compose the unscoped name at all.
  *
  * ## THE WRITE IS NOT HERE
  *
@@ -32,6 +52,7 @@
  * there is one guarantee in this domain rather than two.
  */
 
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { LoginProviderId } from '@shared/logins';
@@ -39,7 +60,6 @@ import { LOGIN_PROVIDERS } from '@shared/logins';
 import { LOGIN_ID_RE } from '../logins/dirs';
 import { renameNoFollowSync, writeNoFollowSync } from './nofollow';
 import {
-  defaultSecurityRunner,
   keychainDelete,
   keychainRead,
   keychainWrite,
@@ -86,37 +106,63 @@ export interface VaultBackend {
   del(slot: string): Promise<void>;
 }
 
-/** The keychain service name for one slot. Tortie's own, never a vendor's. */
-export function vaultServiceFor(slot: string): string {
-  return `Tortie-credentials-${slot}`;
+/** What every keychain name Tortie's own store composes begins with. */
+export const VAULT_SERVICE_PREFIX = 'Tortie-credentials-';
+
+/**
+ * The eight hex characters that name one profile, out of its vault scope.
+ *
+ * The same shape `../usage/credentials.ts`'s `claudeScopedService` has used
+ * for the vendor half since Phase 203, over the same function, so a reader who
+ * knows one knows the other. The scope is the logins root, which is
+ * `<userData>/gmux/logins`, so two profiles on one machine never share a
+ * digest and one profile keeps the same digest across every launch.
+ */
+export function vaultScopeDigest(scope: string): string {
+  return createHash('sha256').update(scope).digest('hex').slice(0, 8);
+}
+
+/**
+ * The keychain service name for one slot IN ONE PROFILE. Tortie's own, never a
+ * vendor's, and never the unscoped name a tree before Phase 208 wrote.
+ *
+ * The scope is REQUIRED and an empty one is refused, because a name with no
+ * digest is exactly the unscoped name, and the whole point of this function is
+ * that no caller can compose that by leaving something out.
+ */
+export function vaultServiceFor(slot: string, scope: string): string {
+  if (typeof scope !== 'string' || scope === '') {
+    throw new Error('a vault service name needs the profile it belongs to');
+  }
+  return `${VAULT_SERVICE_PREFIX}${slot}-${vaultScopeDigest(scope)}`;
 }
 
 /** The account attribute Tortie's own items carry. */
 export const VAULT_ACCOUNT = 'tortie';
 
 /**
- * The macOS backend: one keychain item per slot, in the login keychain.
+ * The macOS backend: one keychain item per slot, in the login keychain, named
+ * for the profile that owns it.
  *
  * It never passes `-A`, so the item's access control list is the ordinary one
  * and the payload never reaches an argv. Both measurements are in
  * ./security.ts.
+ *
+ * BOTH ARGUMENTS ARE REQUIRED (Phase 208). The runner used to default to the
+ * real `security` and the scope did not exist, which is how `index.ts` came to
+ * hold the profile root and throw it away. A caller that has no scope has no
+ * business in the keychain.
  */
-export function keychainVault(
-  runner: SecurityRunner = defaultSecurityRunner()
-): VaultBackend {
+export function keychainVault(runner: SecurityRunner, scope: string): VaultBackend {
+  const serviceFor = (slot: string): string => vaultServiceFor(slot, scope);
   return {
     kind: 'keychain',
-    get: (slot) => keychainRead(runner, vaultServiceFor(slot)),
+    get: (slot) => keychainRead(runner, serviceFor(slot)),
     put: async (slot, payload) => {
-      const ok = await keychainWrite(
-        runner,
-        vaultServiceFor(slot),
-        VAULT_ACCOUNT,
-        payload
-      );
+      const ok = await keychainWrite(runner, serviceFor(slot), VAULT_ACCOUNT, payload);
       if (!ok) throw new Error('the keychain refused an entry');
     },
-    del: (slot) => keychainDelete(runner, vaultServiceFor(slot))
+    del: (slot) => keychainDelete(runner, serviceFor(slot))
   };
 }
 
