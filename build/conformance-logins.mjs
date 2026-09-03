@@ -31,10 +31,12 @@
  *      directory, or `node:os`, so there is no expression anywhere in it that
  *      could compose a path to the person's own sign in. What it cannot name
  *      it cannot write to and cannot delete.
- *   2. ONE DELETION, GUARDED. `rmSync` appears in the domain exactly once, and
- *      the function that holds it asks `isOwnedLoginDir` first, read by
- *      matching braces rather than by searching for the word anywhere in the
- *      file.
+ *   2. TWO DELETIONS, BOTH GUARDED. `rmSync` appears in the domain exactly
+ *      twice, and each function that holds one asks `isOwnedLoginDir` first,
+ *      read by matching braces rather than by searching for the word anywhere
+ *      in the file. Phase 206 added the second, being the one that finishes a
+ *      removal an earlier run left half done; the count is pinned so a THIRD
+ *      has to be argued for rather than added quietly.
  *   3. A DIRECTORY OUTSIDE THE OWNED ROOT IS REFUSED, over thirteen shapes an
  *      escape would be spelled as, including the other provider's tree, a
  *      parent traversal, an absolute path into somebody's home and the empty
@@ -242,12 +244,19 @@ for (const file of domainFiles) {
     );
   }
 }
+// PHASE 206 MOVED THIS NUMBER FROM ONE TO TWO, on purpose and in the same
+// commit as the second call. `removeLogin` deletes the folder of a login the
+// person removed; `removeStrayLoginDir` deletes the folder of one whose row is
+// already gone, which is the whole of finishing a removal an earlier run left
+// half done. Both are guarded by the rule above, which is the property that
+// matters; the count is here so a THIRD one has to be argued for rather than
+// added quietly.
 check(
-  deletionCount === 1,
-  `${TAG} the logins domain holds ${String(deletionCount)} deletion calls; it must hold exactly one`
+  deletionCount === 2,
+  `${TAG} the logins domain holds ${String(deletionCount)} deletion calls; it must hold exactly two, being removeLogin and removeStrayLoginDir`
 );
 notes.push(
-  `${String(domainFiles.length)} files scanned, ${String(deletionCount)} deletion call, none names a default location`
+  `${String(domainFiles.length)} files scanned, ${String(deletionCount)} guarded deletion calls, none names a default location`
 );
 
 // Rule 10, over the account reader.

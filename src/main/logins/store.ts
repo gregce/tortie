@@ -24,7 +24,15 @@
  */
 
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs';
 import { join } from 'node:path';
 import type { LoginProviderId, LoginRow, LoginsSnapshot } from '@shared/logins';
 import {
@@ -644,4 +652,89 @@ export function removeLogin(
   }
   writeLoginsFile(root, file);
   return { ok: true, snapshot: listLogins(root), name: row.name, dir: null };
+}
+
+/**
+ * Every directory under a provider's root that no row in the file names
+ * (Phase 206).
+ *
+ * ## WHY THIS EXISTS
+ *
+ * The Phase 203 verifier found the operator's own disk holding two claude
+ * login directories while `logins.json` held one row. The second was a login
+ * he had added and removed the same day, and its scoped keychain item was
+ * still there holding a whole credential of his. Remove deleted the row and
+ * not the rest. Phase 206 chose to FINISH THE REMOVAL rather than adopt the
+ * stray back onto the menu, because a row the person deleted should not come
+ * back by itself and a credential nobody can reach is worse than one they can.
+ *
+ * ## THE IDS ARE READ RAW, AND THAT IS THE POINT
+ *
+ * {@link readLoginsFile} DROPS a row whose name collides with an earlier one,
+ * whose name is unusable or whose folder is a link. Every one of those rows is
+ * still a row the person added, so sweeping on the sanitized list would delete
+ * a live login's folder and its credential because some other row shares its
+ * name. So this reads the ids out of the file itself, and a directory is a
+ * stray only when NO row anywhere in the file names it.
+ *
+ * ## A FILE THIS CANNOT READ AUTHORISES NOTHING
+ *
+ * An absent file, a file that is not JSON, and a file whose `logins` is not an
+ * array all answer NO strays rather than "every directory is a stray". Tortie
+ * cannot tell a removal from a lost file, and the two answers differ by the
+ * person's credentials.
+ */
+export function strayLoginIds(root: string, provider: LoginProviderId): string[] {
+  let rows: unknown;
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(loginsFileIn(root), 'utf8'));
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return [];
+    }
+    rows = (parsed as Record<string, unknown>)['logins'];
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(rows)) return [];
+  const known = new Set<string>();
+  for (const raw of rows) {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const id = (raw as Record<string, unknown>)['id'];
+    if (typeof id === 'string') known.add(id);
+  }
+  let entries: string[];
+  try {
+    entries = readdirSync(loginProviderRootIn(root, provider));
+  } catch {
+    return [];
+  }
+  return entries.filter((name) => LOGIN_ID_RE.test(name) && !known.has(name));
+}
+
+/**
+ * Delete one stray's directory, whatever shape it is (Phase 206).
+ *
+ * THE OWNERSHIP RULE IS ASKED FIRST, in this function, which is the standing
+ * rule for every delete in this domain and what `npm run conformance:logins`
+ * reads by matching braces.
+ *
+ * `rmSync` acts on the LINK and never on what it points at, which is what
+ * makes a stray that is a symbolic link safe to finish: the entry inside
+ * Tortie's own data goes and the directory somebody aimed it at is untouched.
+ * That was measured rather than assumed.
+ */
+export function removeStrayLoginDir(
+  root: string,
+  provider: LoginProviderId,
+  id: string
+): boolean {
+  if (!LOGIN_ID_RE.test(id)) return false;
+  const dir = loginDirIn(root, provider, id);
+  if (!isOwnedLoginDir(root, provider, dir)) return false;
+  try {
+    rmSync(dir, { recursive: true, force: true });
+    return true;
+  } catch {
+    return false;
+  }
 }

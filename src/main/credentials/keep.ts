@@ -49,10 +49,21 @@ import {
   sameLoginName
 } from '@shared/logins';
 import { loginDirIn, loginDirOnDisk } from '../logins/dirs';
-import { addLogin, readLoginsFile, type StoredLogin } from '../logins/store';
+import {
+  addLogin,
+  readLoginsFile,
+  removeStrayLoginDir,
+  strayLoginIds,
+  type StoredLogin
+} from '../logins/store';
 import { credentialDigest } from './payload';
 import { readKeptFile, updateKeptFile, type KeptRecord } from './kept';
-import { readSettledStore, storeTarget, type StoreDeps } from './stores';
+import {
+  forgetStore,
+  readSettledStore,
+  storeTarget,
+  type StoreDeps
+} from './stores';
 import { safeSwap, type SwapStep } from './swap';
 import { slotFor, vaultDel, vaultGet, vaultPut, type VaultBackend } from './vault';
 
@@ -266,6 +277,10 @@ async function observeOnce(
   if (!swept.has(`${d.root}\u0000${provider}`)) {
     swept.add(`${d.root}\u0000${provider}`);
     await sweepStaged(d, provider);
+    // PHASE 206. AND THE SAME MOMENT FINISHES A REMOVAL AN EARLIER RUN LEFT
+    // HALF DONE, for the same reason: it can only have happened while this
+    // process was not running, so once per run is when to look for it.
+    await finishStraysOnce(d, provider);
   }
   const events: KeepEvent[] = [];
   const facts = new Map<string, KeptFacts>();
@@ -757,6 +772,37 @@ export async function activateLogin(
   return { ok: true, wrote: true, says: `${row.name} is signed in again.` };
 }
 
+/**
+ * EVERY STORE ONE LOGIN HAD, CLEARED (Phase 206).
+ *
+ * It is written once and called from both places a removal can happen, being
+ * the person pressing Remove and {@link finishStrayLogins} finishing a removal
+ * an earlier run did not, so the two can never clear different sets. The four
+ * are the whole of what a login owns:
+ *
+ *  1. the VENDOR'S OWN STORE, which on macOS for claude is a keychain item
+ *     whose name is derived from the directory and which survived every remove
+ *     before this phase, being the credential the Phase 203 verifier found on
+ *     the operator's disk;
+ *  2. TORTIE'S OWN SLOT, and the staged place beside it;
+ *  3. the RECORD ROW in `kept.json`;
+ *  4. and the DIRECTORY, which the caller removes, because it is the one of
+ *     the four that lives in the logins domain rather than this one.
+ *
+ * IT HOLDS NO LOCK. Both callers are already inside one, and taking it twice
+ * would wait on itself for ever.
+ */
+async function forgetStores(
+  d: KeepDeps,
+  provider: LoginProviderId,
+  id: string
+): Promise<void> {
+  await forgetStore(d.stores, provider, loginDirIn(d.root, provider, id));
+  const slot = slotOf(provider, id);
+  await vaultDel(d.vault, slot);
+  updateKeptFile(d.root, {}, [slot]);
+}
+
 /** Drop a login's kept account. Called when the login is removed. */
 export async function forgetLogin(
   d: KeepDeps,
@@ -765,9 +811,48 @@ export async function forgetLogin(
 ): Promise<void> {
   // UNDER THE SAME LOCK AS AN OBSERVE, because it mutates the same record file
   // and a drop that raced an observe would come back on the observe's write.
-  await underRootLock(d.root, async () => {
-    const slot = slotOf(provider, id);
-    await vaultDel(d.vault, slot);
-    updateKeptFile(d.root, {}, [slot]);
-  });
+  await underRootLock(d.root, () => forgetStores(d, provider, id));
+}
+
+/**
+ * Finish every removal that did not finish (Phase 206).
+ *
+ * ## THE SHAPES IT ANSWERS, and all five were reproduced at the parent
+ *
+ *  - a login removed before Phase 206, whose directory and whose scoped
+ *    keychain item were both left behind;
+ *  - the same with no credential ever written into it;
+ *  - a stray whose id no row names while another row shares its NAME, which
+ *    the raw id read in `../logins/store.ts` is what keeps safe;
+ *  - a stray that is a symbolic link, which is unlinked without a single read
+ *    or write through it;
+ *  - and a remove interrupted between its two halves, which is now the ONLY
+ *    shape that can strand anything for a moment, because the credential is
+ *    cleared before the row is.
+ *
+ * IT ANSWERS THE IDS IT FINISHED, so a caller can say so and a probe can read
+ * it. It never throws: a stray that will not go is finished on the next run.
+ */
+async function finishStraysOnce(
+  d: KeepDeps,
+  provider: LoginProviderId
+): Promise<string[]> {
+  const done: string[] = [];
+  for (const id of strayLoginIds(d.root, provider)) {
+    try {
+      await forgetStores(d, provider, id);
+    } catch {
+      // A store that will not answer is not a reason to leave the directory.
+    }
+    if (removeStrayLoginDir(d.root, provider, id)) done.push(id);
+  }
+  return done;
+}
+
+/** {@link finishStraysOnce}, under the lock, for a caller that holds none. */
+export function finishStrayLogins(
+  d: KeepDeps,
+  provider: LoginProviderId
+): Promise<string[]> {
+  return underRootLock(d.root, () => finishStraysOnce(d, provider));
 }

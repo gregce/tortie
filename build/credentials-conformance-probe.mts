@@ -15,6 +15,7 @@
  */
 
 import {
+  existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -1142,6 +1143,174 @@ try {
       everPassedA: w.argvs.some((argv) => argv.includes('-A')),
       // NO STAGED ITEM IS LEFT IN THE KEYCHAIN.
       stagedLeft: [...security.items.keys()].some((k) => k.endsWith('tortie-pending'))
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 10b. A LOGIN THE PERSON REMOVES LEAVES NOTHING BEHIND (Phase 206).
+  //
+  //      THE DEFECT, found by the Phase 203 verifier on the operator's own
+  //      disk: `<userData>/gmux/logins/claude/` held two directories while
+  //      `logins.json` held one row, and the second one's scoped keychain item
+  //      was still there holding a whole credential of his. Remove deleted the
+  //      row and not the rest.
+  //
+  //      Phase 206 chose to FINISH THE REMOVAL rather than adopt the stray
+  //      back onto the menu. Five shapes are driven here, and every one of
+  //      them was reproduced against the parent commit.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const security = fakeSecurity(w);
+    const d = {
+      ...makeDeps(root, w),
+      stores: {
+        ...makeStores(w),
+        runner: security.runner,
+        keychainForClaude: true
+      }
+    };
+    // The person's own item, which nothing in this arm may ever touch.
+    const OWN = claudeCredential('gdc', 'own');
+    security.items.set('Claude Code-credentials', { account: 'gdc', payload: OWN });
+
+    /** Give one login everything a signed in login has. */
+    const furnish = (id: string, who: string): string => {
+      const dir = loginDirIn(root, 'claude', id);
+      const service = stores.claudeWriteService(dir);
+      security.items.set(service, {
+        account: 'gdc',
+        payload: claudeCredential(who, '1')
+      });
+      d.vault.slots.set(vault.slotFor('claude', id), claudeCredential(who, '1'));
+      kept.updateKeptFile(
+        root,
+        {
+          [vault.slotFor('claude', id)]: {
+            email: `${who}@example.com`,
+            subject: null,
+            digest: payload.credentialDigest(claudeCredential(who, '1')),
+            account: 'gdc',
+            from: null,
+            at: 1
+          }
+        },
+        []
+      );
+      return service;
+    };
+    const holds = (id: string): { item: boolean; slot: boolean; row: boolean; dir: boolean } => {
+      const dir = loginDirIn(root, 'claude', id);
+      return {
+        item: security.items.has(stores.claudeWriteService(dir)),
+        slot: d.vault.slots.has(vault.slotFor('claude', id)),
+        row: kept.readKeptFile(root).file.slots[vault.slotFor('claude', id)] !== undefined,
+        dir: existsSync(dir)
+      };
+    };
+
+    // SHAPE 1. A stray with a keychain item, being the operator's own case.
+    // The row is taken out of the file the way the old remove took it out,
+    // leaving the directory, the item, the slot and the record row behind.
+    addLogin(root, 'claude', 'Itavero');
+    const one = readLoginsFile(root).file.logins[0];
+    const oneId = one?.id ?? '';
+    furnish(oneId, 'itavero');
+    writeFileSync(
+      loginsFileIn(root),
+      JSON.stringify({ v: 1, chosen: {}, logins: [] }),
+      'utf8'
+    );
+    const strayBefore = holds(oneId);
+
+    // SHAPE 2. A stray that was never signed into, beside it.
+    const bareId = '00000000deadbeef';
+    mkdirSync(loginDirIn(root, 'claude', bareId), { recursive: true });
+
+    // SHAPE 3. A NAME COLLISION. Two rows share a name, so the reader drops
+    // the second one WHOLE; both are still rows the person added, and neither
+    // directory may be swept. The raw id read is the whole of that protection.
+    const liveId = '1111111111111111';
+    const shadowId = '2222222222222222';
+    for (const id of [liveId, shadowId]) {
+      mkdirSync(loginDirIn(root, 'claude', id), { recursive: true });
+    }
+    furnish(liveId, 'live');
+    furnish(shadowId, 'shadow');
+    writeFileSync(
+      loginsFileIn(root),
+      JSON.stringify({
+        v: 1,
+        chosen: {},
+        logins: [
+          { provider: 'claude', id: liveId, name: 'Work', createdAt: 1 },
+          { provider: 'claude', id: shadowId, name: 'Work', createdAt: 2 }
+        ]
+      }),
+      'utf8'
+    );
+    const droppedBySanitizer =
+      readLoginsFile(root).file.logins.filter((l) => l.name === 'Work').length === 1;
+
+    // SHAPE 4. A stray that is a SYMBOLIC LINK to a directory Tortie does not
+    // own. Nothing may be read or written through it, and the entry itself
+    // must still go.
+    const victim = join(root, 'not-tortie-own');
+    mkdirSync(victim, { recursive: true });
+    writeFileSync(join(victim, 'auth.json'), 'THE-PERSON-OWN-BYTES', 'utf8');
+    const linkId = '3333333333333333';
+    symlinkSync(victim, loginDirIn(root, 'claude', linkId));
+
+    const finished = await keep.finishStrayLogins(d, 'claude');
+
+    // SHAPE 5. A REMOVE INTERRUPTED BETWEEN ITS TWO HALVES, in the order the
+    // registrar now uses: the credentials first, then the row. The crash is
+    // the second half never running.
+    const halfId = '4444444444444444';
+    mkdirSync(loginDirIn(root, 'claude', halfId), { recursive: true });
+    furnish(halfId, 'half');
+    await keep.forgetLogin(d, 'claude', halfId);
+    const afterFirstHalf = holds(halfId);
+
+    out['removal'] = {
+      // The stray really did hold a credential before the sweep, so every
+      // reading under it is a check over something that existed.
+      strayHeldACredential:
+        strayBefore.item && strayBefore.slot && strayBefore.row && strayBefore.dir,
+      finishedCount: finished.length,
+      strayCleared:
+        !holds(oneId).item &&
+        !holds(oneId).slot &&
+        !holds(oneId).row &&
+        !holds(oneId).dir,
+      bareStrayCleared: !existsSync(loginDirIn(root, 'claude', bareId)),
+      // THE COLLISION. Both rows name their id in the file, so neither is a
+      // stray, even though the reader can only ever use one of them.
+      droppedBySanitizer,
+      liveKept: holds(liveId).dir && holds(liveId).item,
+      shadowKept: holds(shadowId).dir && holds(shadowId).item,
+      // THE LINK. The entry goes, and what it pointed at is untouched.
+      linkGone: !existsSync(loginDirIn(root, 'claude', linkId)),
+      victimUntouched:
+        readFileSync(join(victim, 'auth.json'), 'utf8') === 'THE-PERSON-OWN-BYTES',
+      // THE INTERRUPTED REMOVE strands no credential: what is left is a login
+      // the person can still see and remove again.
+      interruptedLeftNoCredential:
+        !afterFirstHalf.item && !afterFirstHalf.slot && !afterFirstHalf.row,
+      interruptedLeftTheFolder: afterFirstHalf.dir,
+      // THE PERSON'S OWN ITEM, through all of it.
+      ownItemUntouched:
+        security.items.get('Claude Code-credentials')?.payload === OWN,
+      // AND NO NAME THIS ARM COMPOSED IS THE PERSON'S OWN. Every service a
+      // delete was asked for carries the directory digest.
+      deleteNamedOwnItem: w.argvs.some(
+        (argv) =>
+          argv[0] === 'delete-generic-password' &&
+          argv.includes('Claude Code-credentials')
+      ),
+      deletesAsked: w.argvs.filter((argv) => argv[0] === 'delete-generic-password')
+        .length
     };
   }
 

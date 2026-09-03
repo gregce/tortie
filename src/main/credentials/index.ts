@@ -27,6 +27,7 @@ import { fileVault, keychainVault, type VaultBackend } from './vault';
 export {
   activateLogin,
   type Observation,
+  finishStrayLogins,
   forgetLogin,
   keptFactsFor,
   observeProvider,
@@ -44,7 +45,13 @@ export {
   writeNoFollowSync
 } from './nofollow';
 export { credentialDigest, isCredentialPayload } from './payload';
-export { readSettledStore, readStore, storeTarget, type StoreDeps } from './stores';
+export {
+  forgetStore,
+  readSettledStore,
+  readStore,
+  storeTarget,
+  type StoreDeps
+} from './stores';
 export { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
 export {
   fileVault,

@@ -75,6 +75,15 @@
  *      through itself so the check passed. It is the one arm over real files
  *      and real links, because a bag of strings has none and that is how the
  *      defect survived thirteen ablations.
+ *  16. A LOGIN THE PERSON REMOVES LEAVES NOTHING BEHIND (Phase 206). The
+ *      Phase 203 verifier found the operator's own disk holding two claude
+ *      login directories while `logins.json` held one row, and the removed
+ *      one's scoped keychain item still held a whole credential of his. Five
+ *      shapes are driven: a stray with an item, a stray with none, a stray
+ *      whose NAME collides with a live row, a stray that is a symbolic link,
+ *      and a remove interrupted between its two halves. All four stores a
+ *      login owns must be clear, a row the file still names must survive, and
+ *      the person's own item must be neither named by a delete nor changed.
  *  13. A STORE THAT NAMES NO ACCOUNT ON EITHER SIDE still keeps what it
  *      replaced, because a login signed into a moment ago has no address until
  *      it takes a turn and that is exactly when a person types `/login` again.
@@ -400,6 +409,7 @@ const VERDICT_PARTS = [
   'overlap',
   'unnamed',
   'residue',
+  'removal',
   'nofollow',
   'keychain',
   'shapes'
@@ -427,6 +437,7 @@ function verdict(d) {
     JSON.stringify(d.overlap),
     JSON.stringify(d.unnamed),
     JSON.stringify(d.residue),
+    JSON.stringify(d.removal),
     JSON.stringify(d.nofollow),
     JSON.stringify(keychain),
     JSON.stringify(d.shapes)
@@ -648,6 +659,56 @@ if ('error' in live) {
     `${TAG} the sweep removed something that was not the staged copy`
   );
 
+  // Rule 16. A LOGIN THE PERSON REMOVES LEAVES NOTHING BEHIND (Phase 206).
+  check(
+    live.removal.strayHeldACredential,
+    `${TAG} the removal arm made no stray holding a credential, so the rest of it is a check over an empty world`
+  );
+  check(
+    live.removal.strayCleared,
+    `${TAG} A LOGIN THE PERSON REMOVED STILL HAS A CREDENTIAL NOBODY CAN REACH: its keychain item, its slot, its record row or its folder outlived the removal`
+  );
+  check(
+    live.removal.bareStrayCleared,
+    `${TAG} a stray folder that was never signed into was left behind`
+  );
+  check(
+    live.removal.finishedCount === 3,
+    `${TAG} the sweep finished ${String(live.removal.finishedCount)} strays rather than the 3 it was given`
+  );
+  check(
+    live.removal.droppedBySanitizer,
+    `${TAG} the collision arm did not produce a dropped row, so what it proves next is nothing`
+  );
+  check(
+    live.removal.liveKept && live.removal.shadowKept,
+    `${TAG} THE SWEEP DELETED A LOGIN THE FILE STILL NAMES, because another row shares its name and the reader drops one of them`
+  );
+  check(
+    live.removal.linkGone,
+    `${TAG} a stray that is a symbolic link was left in Tortie's own data`
+  );
+  check(
+    live.removal.victimUntouched,
+    `${TAG} FINISHING A STRAY THAT IS A LINK REACHED THROUGH IT and changed a file Tortie does not own`
+  );
+  check(
+    live.removal.interruptedLeftNoCredential,
+    `${TAG} a remove interrupted after its first half left a credential no row names`
+  );
+  check(
+    live.removal.interruptedLeftTheFolder,
+    `${TAG} the interrupted arm removed the folder too, so it is not the half it claims to measure`
+  );
+  check(
+    live.removal.ownItemUntouched && !live.removal.deleteNamedOwnItem,
+    `${TAG} THE PERSON'S OWN KEYCHAIN ITEM was named by a delete or changed by one`
+  );
+  check(
+    live.removal.deletesAsked > 0,
+    `${TAG} the removal arm asked the keychain for no delete at all, so the two checks above pass over nothing`
+  );
+
   // Rule 15. A PLANTED LINK AT A STAGED NAME SENDS THE WRITE NOWHERE.
   check(
     live.nofollow.linkPlanted,
@@ -814,6 +875,32 @@ const ABLATIONS = [
         file: 'keep.ts',
         from: '    if (sameAccountProven(row, before)) return null;',
         to: '    if (false) return null;'
+      }
+    ]
+  },
+  {
+    // PHASE 206. The vendor's own store taken out of the removal, which is the
+    // defect exactly: the folder and the row went and the scoped keychain item
+    // stayed, holding a whole credential nobody could reach.
+    name: 'the vendor store left out of a removal, so its keychain item survives',
+    edits: [
+      {
+        file: 'keep.ts',
+        from:
+          '  await forgetStore(d.stores, provider, loginDirIn(d.root, provider, id));',
+        to: '  await Promise.resolve();'
+      }
+    ]
+  },
+  {
+    // PHASE 206. The stray finisher taken out, which is the tree before this
+    // phase: a removal an earlier run did not finish is never finished.
+    name: 'the stray finisher removed, so a half done removal stays half done',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    if (removeStrayLoginDir(d.root, provider, id)) done.push(id);',
+        to: '    if (false) done.push(id);'
       }
     ]
   },

@@ -72,6 +72,7 @@ import { getLog } from '../log';
 import { forgetLoginAccounts, loginFacts } from '../usage/login-accounts';
 import {
   activateLogin,
+  finishStrayLogins,
   forgetLogin,
   keepDeps,
   observeProvider,
@@ -277,16 +278,32 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     const row = readLoginsFile(loginsRoot()).file.logins.find(
       (l) => l.provider === id && l.name.toLowerCase() === String(name).toLowerCase()
     );
-    const change = removeLogin(loginsRoot(), id, name);
-    if (change.ok && row !== undefined) {
+    // PHASE 206. THE CREDENTIALS GO FIRST, AND THE ORDER IS THE WHOLE FIX.
+    // Before this the row was forgotten first, so a crash between the two
+    // halves stranded the vendor's keychain item, Tortie's own slot and the
+    // record row together, with the one id that names all three already gone
+    // from the file. Clearing them first cannot strand a credential: the worst
+    // an interrupted remove now leaves is a login the person can see and
+    // remove again, and the sweep below finishes it anyway.
+    if (row !== undefined) {
       try {
         await forgetLogin(keepDeps(), id, row.id);
       } catch {
-        // A copy that will not go leaves a credential in Tortie's own store
-        // and nothing else, which is not worth failing a remove for.
+        // A store that will not answer is not a reason to refuse a remove.
       }
     }
+    const change = removeLogin(loginsRoot(), id, name);
     log.info('logins.remove', { provider: id, ok: change.ok });
+    // PHASE 206. AND ANY EARLIER REMOVE THAT DID NOT FINISH IS FINISHED HERE,
+    // so a stray can never outlive the next Remove the person presses.
+    try {
+      const finished = await finishStrayLogins(keepDeps(), id);
+      if (finished.length > 0) {
+        log.info('logins.strays', { provider: id, finished: finished.length });
+      }
+    } catch {
+      // A stray that will not go is finished by the next run's first observe.
+    }
     return answer(change);
   });
 }

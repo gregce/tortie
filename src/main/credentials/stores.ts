@@ -293,3 +293,40 @@ async function ownAccountName(d: StoreDeps): Promise<string> {
   }
   return d.userName;
 }
+
+/**
+ * Forget the vendor's own store for ONE login Tortie made (Phase 206).
+ *
+ * ## WHAT A REMOVE LEFT BEHIND, AND WHY ONLY THIS ONE THING
+ *
+ * Removing a login deletes its directory, so a store that is a FILE goes with
+ * it, and so does the staged place beside it. On macOS a claude credential is
+ * not in that directory at all: it is a keychain item whose service name is
+ * derived from the directory, and it survived every remove. That is the item
+ * the Phase 203 verifier found on the operator's disk, holding a whole
+ * credential for a login he had deleted the same day.
+ *
+ * ## IT CANNOT REACH THE PERSON'S OWN ITEM, STRUCTURALLY
+ *
+ * {@link claudeWriteService} always appends a digest of the directory, so
+ * every name this function can compose ends in `-<eight hex>` and the person's
+ * own `Claude Code-credentials` is not a name it can produce. There is no
+ * branch here that takes the default store, for the same reason
+ * {@link storeTarget} has none.
+ *
+ * IT DELETES NO FILE AT ALL. A stray whose entry is a symbolic link would
+ * otherwise send a file delete through the link and into somebody else's
+ * store, and the caller unlinks the entry itself.
+ */
+export async function forgetStore(
+  d: StoreDeps,
+  provider: LoginProviderId,
+  dir: string
+): Promise<void> {
+  if (provider !== 'claude' || !d.keychainForClaude) return;
+  if (dir === '') return;
+  const service = claudeWriteService(dir);
+  await keychainDelete(d.runner, service);
+  // The staged place a crash between a stage and its discard would leave.
+  await keychainDelete(d.runner, `${service}.tortie-pending`);
+}
