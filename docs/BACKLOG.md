@@ -21192,6 +21192,93 @@ than the README's sentence.
   vendor process to make it re-read sooner. The only instant path is Restart now, which is a
   restore.
 
+## Phase 212: what the verifiers found across fifty phases, and how each one was fixed (operator asked 2026-09-03)
+
+**Subject.** `docs(audits): what the verifiers found across fifty phases, and how each was fixed`
+
+**First body line.** `Phase 212: fifty phases of verifier findings`
+
+**Semver.** None. A document.
+
+**Tier 1.** It is a document, so the budget is the gates and no probe. The one independent method
+the verifier owes is a RE-DERIVATION: it picks phases at random, reads the journals and the commits
+itself, and checks that what the document says was found and fixed is what the record says.
+
+**Charter.** His words of 2026-09-03: *"Can we investigate and enumerate, from our last 50 phases
+by looking in all the places where this is stored, all of the verifier fixes that we've 1)
+identified and then 2) subsequently fixed and committed? I want it organized by phase and made VERY
+easily explainable what was found and 3) written into docs/audits/ please as a new file. Focus on
+explaining, what the phase was, what went wrong that the verifier found and how it found it and
+then explain why / how it was fixed."* And, the same day, that it is written in plain language,
+short sentences and no jargon, because he asked for that explicitly and swore about it.
+
+### The fifty phases
+
+The fifty most recent phases that have landed, in the order they landed, read from the first body
+line of every commit on `main`: 168, 169, 169.1, 169.3, 170, 171, 174, 172, 176, 177, 173, 183,
+178, 179, 180, 184, 175, 175.1, 181, 174.1, 181.1, 181.2, 185, 186, 187, 188, 189, 182, 174.2, 192,
+193, 188.1, 191, 194, 200, 202, 190, 201, 195, 196, 198, 197, 199, 203, 204, 206, 205, 208, 207 and
+209. Phases 210 and 211 are in flight while this is written; if either lands before the writer
+finishes, it is added at the end and the title still says fifty.
+
+### Where the record is, and every place is read
+
+- **The running log** at the end of `docs/BACKLOG.md`. Every LANDED line names the verifier's
+  methods and what the fix round changed. Every phase's own section above it names the proof it
+  owed.
+- **The commits.** `git log` on `main` with the phase label as the first body line. A fix round's
+  commits carry the finding in their body, and the committer's body carries the verifier's report.
+- **The workflow journals.** Every phase ran as one workflow, and its run directory holds
+  `journal.jsonl` with each agent's structured result, being the verifier's verdict, its named
+  methods and its findings, and the fix round's reproduced, refuted and changed fields. The run
+  directories sit under `~/.claude/projects/-Users-gdc-gmux/<session>/subagents/workflows/wf_*`
+  across two sessions, and `<session>/workflows/scripts/tortie-phase-<N>-<run>.js` maps a phase to
+  its run. The agent transcripts beside the journal hold the verifier's own words when the
+  structured result is too short.
+- **The earlier audit**, `docs/audits/2026-09-01-verification-findings-aug30-sep1.md`, covers
+  36 runs from 30 August to 1 September by method rather than by phase. It is a source, and this
+  document does not repeat its counts; it re-tells each of those phases in the per phase shape.
+- **The conventions**, `CLAUDE.md`, whose gate paragraphs record several fix rounds in full, being
+  the known-hosts gate, the background gate, the credential gate and the remote close gate.
+
+### What it writes
+
+One file, `docs/audits/2026-09-03-verifier-findings-fifty-phases.md`, in this shape:
+
+- **A short opening** saying what the document is, the fifty phases, and how many of them had a
+  verifier finding that led to a fix, as a count.
+- **One table** of every phase with a finding: the phase, what it was in five words, what was
+  found in one line, the method that found it, and the fix commit hash.
+- **One section per phase that had a finding**, in landing order, each with exactly four parts
+  under bold labels: **What the phase was**, one or two sentences a person who has never read the
+  backlog can follow. **What went wrong**, what the verifier found, stated as the thing a person
+  would have hit. **How the verifier found it**, the method named, being an attack, a re-derivation
+  by another route, a hostile fixture, a run over real data, a parent commit measurement or the one
+  app run, and what it actually did. **How it was fixed and why**, what changed, why that change
+  and not another, the commit hash, and whether a gate now guards it.
+- **One short list** of the phases with no verifier finding, each with a clause saying what the
+  verifier did instead, so a reader can tell "nothing found" from "nothing looked for".
+- **Plain language throughout.** Short sentences. No jargon without a plain gloss. A hash is
+  cited, never a file path in prose unless the reader has to open it. No em dashes.
+
+### Proof
+
+- The verifier picks ten of the fifty at random with a seed it states, re-derives each of those
+  ten from the journals and the commits WITHOUT reading the document first, then compares. Every
+  disagreement is a finding and the fix round corrects the document.
+- Every hash cited exists on `origin/main`, checked by `git cat-file -e` over all of them.
+- Every phase in the fifty appears exactly once, in the table or the no-finding list.
+- The committer proves the diff touches nothing outside `docs/audits/` and `docs/BACKLOG.md`, so
+  no battery is owed, and says so.
+
+### What is NOT in this phase
+
+- **No code changes**, no gate changes, no new rules. If the reading turns up a finding that was
+  never fixed, the document says so in its own section and a later phase is queued for it; this
+  phase does not fix it.
+- **No re-scoring** of the earlier audit's method counts.
+- **No phase before 168.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -21579,3 +21666,4 @@ cycle rather than only the evening it was written.
 - 2026-09-03, Phase 209 LANDED on `5e36ccb` at version 0.99.0 with NO bump, the declared semver being PATCH, the selection is the history and not the screen, ten commits from `e126a3d` rebased onto Phase 207's tip. WHAT HE CAN NOW DO, and it closes the report he made this morning: select some text, hold the pointer above the top edge until the pane has scrolled back as far as he wants, and command C copies EVERY line he dragged over rather than the one screen at the far end, and scrolling back to where he started still shows the anchor highlighted, because the two ends of a selection are now line numbers in the session's own history rather than cells on a screen that repaints under them. THE COUNTS, his own eight second hold driven at both commits over the same text by the verifier's own instrument: 692 lines travelled and 43 COPIED at the parent `a87a826`, one screen at the far end, against 695 travelled and 717 COPIED at HEAD, being the anchor row plus the whole travel, and those 717 lines are byte identical to what tmux's own `capture-pane -e -J -S -E` answers over the same range once the two column trims the drag really named are applied, 717 of 717. THE TERMINAL.APP COMPARISON PHASE 205 COULD NOT RUN, RAN: the screen was unlocked and accessibility trusted, both stated from a reading rather than assumed, and Apple's Terminal driven by real CGEvents over the same text and the same gesture put 541 lines on the pasteboard, of which the 534 whole lines both copies hold are BYTE IDENTICAL to Tortie's at HEAD, 2,669 bytes each and both equal to the text itself, where at the parent Tortie's 41 whole lines had ZERO overlap with Terminal's 539; the one shape difference left is xterm's own rule for a press past the end of a short line, and it predates this phase. The gesture had to be posted from ONE process sharing one CGEventSource and one click state, because a press and drags posted from separate processes are not read as a drag once the pointer leaves the window, and three attempts selected nothing before that was found. THE PROMISE NOT TO TOUCH THE ORDINARY CASE IS KEPT AND PROVED TWICE BY PATHS THAT SHARE NO CODE: a drag that never scrolled copied the same 31 BYTES at the parent and at HEAD under the verifier's drive, and the builder's own arm E read 418 bytes identical over the same cells copied both ways. THE CLAUSE THE ENTRY ASKED BE PROVED RATHER THAN ASSUMED, a streaming pane under a live drag: at the parent the copy ended at `3500` while the press had landed on the line reading `3997`, so the anchor had slid about 495 lines and was lost, and at HEAD 48 lines arrived under the drag and the copy still ends on the pressed line. THE ATTACKS ALL HELD: a reverse past the anchor took 432 contiguous lines, a drag to the top of the history stopped at the oldest line the server still holds and did not run on, a wheel to the bottom and back with the button down took 47 lines byte identical to tmux's own capture, and a pane on its own alternate screen is IDENTICAL at both commits, `alternate_on` 1 and `scroll_position` 0 before and after an eight second hold with nothing scrolled. The first and last line wider than the pane arm found the composer RIGHT and the verifier's own naive trim wrong, a selection ending on the third wrapped row of a 305 character line giving 144 plus 144 plus 10 where a trim of the joined logical line gave 10, which is exactly the round trip `-J` puts at risk and it is exact. CAPTURE SELECTION FOLLOWS COPY, with the cap the entry asked be recorded if it did not follow exactly: it composes from the same two history lines, and it rasterizes the LAST 1,000 of the selected lines, being `MAX_CAPTURE_ROWS`, which is the same cap the on screen path has always applied, and it says so in its toast. THE VERIFIER'S METHODS, every one independent of the builder: its own drive and its own reader run at both commits; the Terminal.app comparison above; a re-derivation of `historyLineOf`, `screenRowOf`, `toHistory`, `historyRange` and `visibleSpan` over 100,000 random screens, scroll positions and cells with ZERO mismatches, 20,000 more over `selectionSpan`, and eleven hand written edge shapes; the in screen byte comparison; and three tmux measurements of its own, that `capture-pane -S` is relative to the top of the LIVE screen in copy mode too, that a range above the oldest line answers ONE row rather than nothing which is what main's clamp is for, and that an absolute history line keeps its content while 55 lines arrive at the bottom. THE COMMITTER'S ROUND closed three of the six findings, all of them comments, with every changed line a comment line and nothing executable moved: the header sentence in `drag-math.ts` saying the absolute line holds still because `history` and `position` grow by the same amount together is FALSE, re-derived on a scratch server of the committer's own with a pane printing in bursts so a reading falls in a quiet window, `scroll_position` fixed at 11 while `history_size` went 21 to 51, the same screen row going LINE-22 to LINE-52 and absolute line 10 reading LINE-11 at both ends, so the stable thing is the ABSOLUTE line and what re-anchors a parked view is this app's own poll, which `ScrollSurface` already suspends for the length of a drag; a stale `history-limit 50000` left in `src/main/capture/service.ts` after the same number was corrected in four other files, the shipped default being 25,000 in `resources/gmux-tmux.conf` and the ceiling 100,000, with 50,000 being his own server; and the LIMIT paragraph now admits that one copy is TWO calls rather than one instant, main reading `#{history_size}` and then running `capture-pane` with offsets computed from it, which moved the answer by one line or none under a pane printing ten lines a second and by as much as 137 when the same pair was issued by hand under a pane printing flat out, and which tmux offers no absolute line addressing to close. THE SIXTH FINDING WAS ANSWERED BY THE REBASE: the phase carried a `build(renderer): comments and whitespace do not ship` commit of its own and Phase 207 had already landed the identical change as `c6250c9`, so with equal patch ids the rebase dropped ours and exactly one of them is on main. NOT BLOCKING AND RECORDED: if Clear drops the history while a range is held, main's clamp puts `end` below `start`, the composer gets zero rows and command C does nothing at all, which is parity with the existing empty selection path that also returns false in silence. Committed from a clean cache with typecheck, build with every assert including gate:electron, gate:background, gate:knownhosts and gate:contract, smoke:t1 6 of 6 and 12,013 tests green in 761 files, `git status` at zero lines, the eager renderer budget standing at 472,040 raw and 114,289 gzip of headroom, and the scratch servers p209 and v209 ended with their sockets removed.
 - 2026-09-03, Phase 211 QUEUED, the login reaches the session: he reported that after the login phases a chosen account does not change in the running terminal session and that a `/login` typed in the CLI is not seen until something asks, and asked for `/Users/gdc/claude-swap` to be read and ported. Both halves are Phase 204's own refusals rather than bugs: `activate` refuses while a session runs and never writes the default store, and an observe runs at boot and in front of the list and nowhere else. The port is claude-swap's write to the ACTIVE store under Claude Code's own `proper-lockfile` locks so a swap never lands inside a token refresh, the running session picking the switch up on its own, with a Restart now beside it that restores under the chosen login for the instant case, and a watcher on the exact files a sign in changes so a `/login` is remembered the moment it finishes and every surface redraws unasked. TWO PHASE 204 REFUSALS ARE LIFTED AT HIS WORD, the refusal while a session runs and the default store never written, and the entry says so. The README's thirty second keychain cache is measured on scratch and read from the bundle before the face says a number, and the live pickup on his own account is HIS acceptance step rather than a claim. Tier 3, every write proof on a scratch keychain, no agent touches his credential. Launches when Phase 210 frees a slot.
 - 2026-09-03, Phase 211 STARTED in a detached worktree at `4f28d16`, the login reaches the session, beside Phase 210 which is still building; sockets p211 and v211; every write proof on a scratch keychain and no agent reads his credential.
+- 2026-09-03, Phase 212 QUEUED AND STARTED in a detached worktree at the queue commit, fifty phases of verifier findings: at his word, one document under docs/audits, organised by phase, saying in plain language what each of the fifty most recent landed phases was, what the verifier found, how it found it, and how and why it was fixed, read from the running log, the commits, every workflow journal across both sessions, the 1 September audit and CLAUDE.md. Tier 1, a document; the verifier re-derives ten phases at random from the record before reading the document. Runs beside 210 and 211 because it launches no app at all, so the two photographing workflows rule is not touched; it will land before the release so the release can cite it.
