@@ -51,7 +51,7 @@ import {
 import { loginDirIn, loginDirOnDisk } from '../logins/dirs';
 import { addLogin, readLoginsFile, type StoredLogin } from '../logins/store';
 import { credentialDigest } from './payload';
-import { readKeptFile, writeKeptFile, type KeptRecord } from './kept';
+import { readKeptFile, updateKeptFile, type KeptRecord } from './kept';
 import { readSettledStore, storeTarget, type StoreDeps } from './stores';
 import { safeSwap, type SwapStep } from './swap';
 import { slotFor, vaultDel, vaultGet, vaultPut, type VaultBackend } from './vault';
@@ -150,20 +150,85 @@ export interface Observation {
 }
 
 /**
+ * ONE OBSERVE AT A TIME PER LOGINS ROOT, and this is not a performance knob.
+ *
+ * ## THE DEFECT IT ANSWERS
+ *
+ * The Phase 204 verification drove two overlapping `logins:list` calls, which
+ * is what an ordinary mount produces: `../../renderer/settings/UsageGroup.tsx`
+ * draws a block per provider and each one loads on mount, and StrictMode
+ * doubles that again. Both observes ran in full, each read the record file at
+ * its start, and the second one's write was composed from a copy taken before
+ * the first one's promotion. The promoted login's row was destroyed and the
+ * rescued account drew as never signed into for ever after, on every list.
+ *
+ * ## WHY A LOCK RATHER THAN A HELD ANSWER
+ *
+ * The five second hold in `../logins/ipc.ts` is a cost saver and it was never
+ * a guard: it stamps its clock AFTER its awaits, so two calls that overlap
+ * both miss it. A hold cannot make a read modify write atomic. This can, and
+ * it holds for the observe `activateLogin` runs too, which no hold in the
+ * registrar could ever cover.
+ *
+ * ## THE KEY IS THE ROOT AND NOT THE PROVIDER
+ *
+ * Both providers write the SAME `kept.json`, so serialising per provider would
+ * leave the claude observe and the codex observe racing over one file. One
+ * queue per root is the whole of the exclusion.
+ *
+ * A throw does not wedge the queue: every waiter chains on a promise that has
+ * already been made to settle.
+ */
+const observing = new Map<string, Promise<unknown>>();
+
+async function underRootLock<T>(root: string, run: () => Promise<T>): Promise<T> {
+  const before = observing.get(root) ?? Promise.resolve();
+  const mine = before.then(run, run);
+  // The tail a later caller waits on never rejects, so one refusal cannot stop
+  // every observe after it. The caller of THIS call still sees the throw.
+  const tail = mine.then(
+    () => undefined,
+    () => undefined
+  );
+  observing.set(root, tail);
+  try {
+    return await mine;
+  } finally {
+    // The LAST one out drops the entry, which is why the tail is compared by
+    // identity: a caller that has already been queued behind is still holding
+    // the map and its entry must stay. Without this the map grows one entry
+    // per root and never shrinks, which is a leak rather than a defect, and
+    // with a wrong test it would drop a queue somebody is waiting on.
+    if (observing.get(root) === tail) observing.delete(root);
+  }
+}
+
+/**
  * Read every store of one provider and keep what has changed.
  *
  * IT WRITES NOTHING A VENDOR OWNS. Everything below writes Tortie's own store
  * and Tortie's own record file, and creates an empty directory for a promoted
  * login. A session running anywhere cannot be affected by any of it.
+ *
+ * IT RUNS ONE AT A TIME PER ROOT. See {@link underRootLock}.
  */
-export async function observeProvider(
+export function observeProvider(
+  d: KeepDeps,
+  provider: LoginProviderId
+): Promise<Observation> {
+  return underRootLock(d.root, () => observeOnce(d, provider));
+}
+
+async function observeOnce(
   d: KeepDeps,
   provider: LoginProviderId
 ): Promise<Observation> {
   const events: KeepEvent[] = [];
   const facts = new Map<string, KeptFacts>();
   const { file: kept } = readKeptFile(d.root);
-  let moved = false;
+  // ONLY THE ROWS THIS OBSERVE CHANGED are written back, so a row another
+  // writer added while this one ran is carried through rather than dropped.
+  const changed: Record<string, KeptRecord> = {};
   for (const store of storesOf(d.root, provider)) {
     const slot = slotOf(provider, store.id);
     const key = store.id ?? '';
@@ -194,11 +259,8 @@ export async function observeProvider(
       reading.email !== null &&
       before.email !== reading.email;
     if (accountChanged && before !== undefined) {
-      const promoted = await promoteOutgoing(d, provider, slot, before, kept);
-      if (promoted !== null) {
-        moved = true;
-        events.push(promoted);
-      }
+      const promoted = await promoteOutgoing(d, provider, slot, before, kept, changed);
+      if (promoted !== null) events.push(promoted);
     }
     const write = await vaultPut(d.vault, slot, reading.payload);
     if (!write.ok) {
@@ -217,7 +279,7 @@ export async function observeProvider(
       account: reading.account,
       at: d.now()
     };
-    moved = true;
+    changed[slot] = kept.slots[slot];
     events.push({
       kind: 'kept',
       provider,
@@ -240,7 +302,7 @@ export async function observeProvider(
   // moment ago would answer "no record" while its record sat only in the map
   // above, and would draw as never signed into. That is the Phase 203 defect
   // in a new shape and the gate has an ablation for it.
-  if (moved) writeKeptFile(d.root, kept);
+  updateKeptFile(d.root, changed);
   // EVERY LOGIN OF THIS PROVIDER HAS A ROW, whatever happened above. The store
   // list at the top was read before any promotion, and a login can also be
   // added by a person or dropped from the list by its folder being gone, so a
@@ -310,7 +372,8 @@ async function promoteOutgoing(
   provider: LoginProviderId,
   slot: string,
   before: KeptRecord,
-  kept: { slots: Record<string, KeptRecord> }
+  kept: { slots: Record<string, KeptRecord> },
+  changed: Record<string, KeptRecord>
 ): Promise<KeepEvent | null> {
   const payload = await vaultGet(d.vault, slot);
   if (payload === null) return null;
@@ -345,6 +408,7 @@ async function promoteOutgoing(
     account: before.account,
     at: d.now()
   };
+  changed[newSlot] = kept.slots[newSlot];
   return {
     kind: 'promoted',
     provider,
@@ -470,10 +534,11 @@ export async function forgetLogin(
   provider: LoginProviderId,
   id: string
 ): Promise<void> {
-  const slot = slotOf(provider, id);
-  await vaultDel(d.vault, slot);
-  const { file } = readKeptFile(d.root);
-  if (file.slots[slot] === undefined) return;
-  delete file.slots[slot];
-  writeKeptFile(d.root, file);
+  // UNDER THE SAME LOCK AS AN OBSERVE, because it mutates the same record file
+  // and a drop that raced an observe would come back on the observe's write.
+  await underRootLock(d.root, async () => {
+    const slot = slotOf(provider, id);
+    await vaultDel(d.vault, slot);
+    updateKeptFile(d.root, {}, [slot]);
+  });
 }

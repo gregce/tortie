@@ -40,7 +40,10 @@ export interface LoginsStoreState {
   busy: boolean;
   /** The last refusal main answered, or null. One sentence, already written. */
   problem: string | null;
-  /** Read the list. Safe to call from every surface, as often as it likes. */
+  /**
+   * Read the list. Safe to call from every surface, as often as it likes:
+   * callers that overlap share ONE read rather than issuing one each.
+   */
   load(): Promise<void>;
   /** Choose which login this provider's NEXT sessions run under. */
   choose(provider: LoginProviderId, name: string | null): Promise<boolean>;
@@ -50,24 +53,40 @@ export interface LoginsStoreState {
   remove(provider: LoginProviderId, name: string): Promise<boolean>;
 }
 
+/** The read in flight, shared by every caller that arrives while it runs. */
+let loading: Promise<void> | null = null;
+
 export const useLogins = create<LoginsStoreState>((set) => ({
   snapshot: seedLoginsSnapshot(),
   available: true,
   busy: false,
   problem: null,
 
-  async load(): Promise<void> {
+  load(): Promise<void> {
     const api = gmuxBridge()?.logins;
     if (api === undefined) {
       set({ available: false });
-      return;
+      return Promise.resolve();
     }
-    try {
-      set({ snapshot: await api.list() });
-    } catch {
-      // A read that failed leaves the last list on screen. There is nothing a
-      // person can do about it here and flapping the card would be noise.
-    }
+    // ONE READ FOR EVERY CALLER THAT OVERLAPS. The Agents page draws a block
+    // per provider and each loads on mount, and StrictMode mounts twice, so a
+    // single visit issued four reads of the same thing. They are not free:
+    // main reads every store behind each one.
+    if (loading !== null) return loading;
+    const run = api
+      .list()
+      .then((snapshot) => {
+        set({ snapshot });
+      })
+      .catch(() => {
+        // A read that failed leaves the last list on screen. There is nothing
+        // a person can do about it here and flapping the card would be noise.
+      })
+      .finally(() => {
+        if (loading === run) loading = null;
+      });
+    loading = run;
+    return run;
   },
 
   async choose(provider, name): Promise<boolean> {
@@ -103,6 +122,10 @@ function act(
     return Promise.resolve(false);
   }
   if (useLogins.getState().busy) return Promise.resolve(false);
+  // A CHANGE DROPS THE READ IN FLIGHT. Main answers a change with the whole
+  // list, and a read issued before the change landing after it would put the
+  // world as it was back on the screen.
+  loading = null;
   useLogins.setState({ busy: true, problem: null });
   return run(api)
     .then((result) => {

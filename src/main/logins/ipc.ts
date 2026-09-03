@@ -123,10 +123,29 @@ const OBSERVE_TTL_MS = 5_000;
 let observedAt = 0;
 let observedFacts = new Map<string, KeptFacts>();
 
+/**
+ * The observe that is running right now, so two overlapping lists do ONE.
+ *
+ * A MOUNT ISSUES MORE THAN ONE LIST. `../../renderer/settings/UsageGroup.tsx`
+ * draws a block per provider and each loads on mount, and StrictMode doubles
+ * that again, so four `logins:list` calls can be in flight at once with the
+ * hold below covering none of them: it stamps its clock AFTER its awaits.
+ *
+ * The correctness of that overlap is settled in `../credentials/keep.ts`,
+ * which serialises every observe on one root. THIS is the cost half: without
+ * it the four calls do four full passes over every store, which on macOS is
+ * four rounds of `security` per claude login, one after another, in front of
+ * a card that is about to draw.
+ */
+let observeInFlight: Promise<Map<string, KeptFacts>> | null = null;
+
 /** Drop the held observation. Called after any change a person made. */
 function forgetObservation(): void {
   observedAt = 0;
   observedFacts = new Map();
+  // A CHANGE ALSO DROPS THE PASS IN FLIGHT, so a list issued after the change
+  // starts a new one rather than joining a pass that read the old world.
+  observeInFlight = null;
 }
 
 /**
@@ -137,24 +156,37 @@ function forgetObservation(): void {
  * anywhere below leaves the last facts in place and the list is composed
  * exactly as Phase 203 composed it.
  */
-async function observeAll(): Promise<Map<string, KeptFacts>> {
-  const now = Date.now();
-  if (now - observedAt < OBSERVE_TTL_MS) return observedFacts;
-  const facts = new Map<string, KeptFacts>();
-  for (const provider of LOGIN_PROVIDERS) {
-    try {
-      const seen = await observeProvider(keepDeps(), provider);
-      for (const [id, row] of seen.facts) facts.set(`${provider} ${id}`, row);
-      for (const event of seen.events) {
-        log.info('logins.observe', { provider, kind: event.kind });
-      }
-    } catch {
-      // Nothing a person can do, and the list is still worth drawing.
-    }
+function observeAll(): Promise<Map<string, KeptFacts>> {
+  if (Date.now() - observedAt < OBSERVE_TTL_MS) {
+    return Promise.resolve(observedFacts);
   }
-  observedAt = now;
-  observedFacts = facts;
-  return facts;
+  // A SECOND CALLER JOINS THE ONE ALREADY RUNNING rather than starting a
+  // second pass. Both get the same answer, which is also what stops the two
+  // provider blocks drawing from two different readings of the same moment.
+  if (observeInFlight !== null) return observeInFlight;
+  const run = (async (): Promise<Map<string, KeptFacts>> => {
+    const facts = new Map<string, KeptFacts>();
+    for (const provider of LOGIN_PROVIDERS) {
+      try {
+        const seen = await observeProvider(keepDeps(), provider);
+        for (const [id, row] of seen.facts) facts.set(`${provider} ${id}`, row);
+        for (const event of seen.events) {
+          log.info('logins.observe', { provider, kind: event.kind });
+        }
+      } catch {
+        // Nothing a person can do, and the list is still worth drawing.
+      }
+    }
+    // THE CLOCK IS STAMPED HERE, at the end, where the answer exists. Stamping
+    // it at the start would hide a pass that has not finished behind a hold.
+    observedAt = Date.now();
+    observedFacts = facts;
+    return facts;
+  })();
+  observeInFlight = run;
+  return run.finally(() => {
+    if (observeInFlight === run) observeInFlight = null;
+  });
 }
 
 function wholeList(): Promise<LoginsSnapshot> {

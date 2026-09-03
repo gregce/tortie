@@ -125,10 +125,58 @@ export function readKeptFile(root: string): KeptFileRead {
 }
 
 /**
+ * Apply a change to the record file, re-reading it FIRST.
+ *
+ * ## WHY A WHOLE FILE WRITE WAS WRONG, and it cost an account
+ *
+ * The Phase 204 verification found a defect that no ablation caught: an
+ * observe read this file at its start and wrote the WHOLE of it back at its
+ * end, so two observes that overlapped both composed their write from a copy
+ * taken before the other one's promotion, and the second write dropped the
+ * first one's row. The row was the only thing that made a promoted login draw
+ * as kept, so the account Tortie had just rescued was offered back to nobody,
+ * for ever, on every list from then on.
+ *
+ * So a caller now names ONLY the rows it changed and the rows it dropped, and
+ * this function re-reads the file immediately before writing it. A row another
+ * writer added in the meantime is carried through rather than overwritten.
+ * `../credentials/keep.ts` also serialises every observe on one root, which is
+ * what makes the in process case impossible rather than merely narrow; this
+ * merge is what holds when the second writer is a second Tortie.
+ *
+ * It writes nothing when nothing moved, which is what keeps an ordinary list
+ * from touching the disk at all.
+ */
+export function updateKeptFile(
+  root: string,
+  changed: Readonly<Record<string, KeptRecord>>,
+  dropped: readonly string[] = []
+): void {
+  const { file } = readKeptFile(root);
+  let moved = false;
+  for (const [slot, row] of Object.entries(changed)) {
+    if (!isSlotName(slot)) continue;
+    file.slots[slot] = row;
+    moved = true;
+  }
+  for (const slot of dropped) {
+    if (file.slots[slot] === undefined) continue;
+    delete file.slots[slot];
+    moved = true;
+  }
+  if (!moved) return;
+  writeKeptFile(root, file);
+}
+
+/**
  * Write the record file, atomically.
  *
  * Same shape as `../logins/store.ts`'s own write, and for the same reason: a
  * reader that arrives mid write sees the old file or the new one.
+ *
+ * PREFER {@link updateKeptFile}. A caller that writes a whole file it read
+ * earlier discards anything another writer did in between, which is the defect
+ * described above.
  */
 export function writeKeptFile(root: string, file: KeptFile): void {
   mkdirSync(root, { recursive: true });
