@@ -588,6 +588,66 @@ async function main(): Promise<void> {
   };
 
   // -------------------------------------------------------------------------
+  // 5.6 THE ROOT PROJECT, THE DIRECTORY GRAIN AT ITS BOUNDARY (Phase 184 fix)
+  // -------------------------------------------------------------------------
+  // A `.csproj` AT THE REPOSITORY ROOT is what a one project C sharp
+  // repository looks like, and its project directory is the EMPTY STRING. The
+  // arm answered `first-party` with `''`, and in ../checkers/imports.ts
+  // `owners.get('')` misses because no tracked path is empty while the
+  // directory fall-back built the prefix `/`, which no repository relative
+  // path begins with. So the answer was neither a crossing nor a miss, it
+  // vanished, and a must-not a real `using` crosses printed convergent,
+  // checked, zero offending. That is the Phase 180 defect reinstated at the
+  // one boundary the fixture's `dotnet/src/App` shaped rows cannot reach, so
+  // it is driven here exactly, at BOTH ends: the arm must refuse the empty
+  // answer, and the checker must refuse it a second time, because a fix in one
+  // arm is a fix that one arm has.
+  const rootProjectCtx = archResolveContext(
+    {
+      ...manifestsForProbe,
+      csharp: {
+        namespaceDirs: new Map([['Root.Only', ['']]]),
+        namespacePrefixDirs: new Map<string, string[]>(),
+        namespaceOf: new Map<string, string>(),
+        packages: new Set<string>(),
+        present: true
+      }
+    },
+    ['probe/src/app.rb', 'probe/target/thing.rb']
+  );
+  const rootArm = resolveImport('Root.Only', 'probe/src/Api.cs', 'csharp', rootProjectCtx);
+  // The same must-not, judged over a first party answer that is a directory.
+  // `''` is the whole tree and must withhold the verdict; `probe/target` is a
+  // real directory and must break the promise, which is the control that keeps
+  // the first assertion from passing because the judge cannot go red at all.
+  const judgeDirectory = (toPath: string): string => {
+    const facts_ = {
+      ...falseGreenBase,
+      imports: [
+        {
+          fromPath: 'probe/src/app.rb',
+          specifier: 'Probe.Target',
+          line: 1,
+          toPath,
+          resolution: 'first-party' as ArchImportResolution,
+          reason: null
+        }
+      ],
+      manifest: falseGreenBase.manifest
+    } as unknown as ArchFactBase;
+    const verdict = checkImports(facts_).verdicts.find(
+      (v) => v.subjectId === `edge:${falseGreenEdgeId}`
+    );
+    return verdict === undefined ? 'MISSING' : verdict.status;
+  };
+  const rootProject = {
+    armAnswer: rootArm.resolution,
+    armPath: rootArm.toPath,
+    emptyVerdict: judgeDirectory(''),
+    directoryVerdict: judgeDirectory('probe/target')
+  };
+
+  // -------------------------------------------------------------------------
   // 5.5 The payload composer (Phase 64)
   // -------------------------------------------------------------------------
   // The composer is PURE, so it is driven here as data in and bytes out. It
@@ -1259,6 +1319,7 @@ async function main(): Promise<void> {
         // rather than only that a count did.
         answers,
         falseGreen,
+        rootProject,
         payload: {
           text: payloadOne.text,
           bytes: payloadOne.bytes,

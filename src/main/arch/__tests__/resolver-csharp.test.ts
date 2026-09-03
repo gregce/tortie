@@ -32,6 +32,13 @@ const FILES = [
   'src/Spanning.A/One.cs',
   'src/Spanning.B/Spanning.B.csproj',
   'src/Spanning.B/Two.cs',
+  'src/Linker.A/Linker.A.csproj',
+  'src/Linker.B/Linker.B.csproj',
+  'src/Common/Linked.cs',
+  'src/Deep/Deep.csproj',
+  'src/Deep/Own.cs',
+  'src/Real/Real.csproj',
+  'src/Real/Real.cs',
   'src/Nancy/bin/Debug/Generated.cs'
 ];
 
@@ -78,6 +85,39 @@ beforeAll(() => {
   write('src/Spanning.A/One.cs', 'namespace Shared { class One {} }\n');
   write('src/Spanning.B/Two.cs', 'namespace Shared { class Two {} }\n');
   write('src/Nancy/bin/Debug/Generated.cs', 'namespace Generated { class G {} }\n');
+  // THE LINKED FILE, WHICH IS SIGNALR'S OWN SHAPE. `src/Common/*.cs` is
+  // compiled into TWO assemblies by two `<Compile Include="..\Common\..."
+  // Link="..." />` entries, so the namespace it declares really does span both.
+  for (const name of ['Linker.A', 'Linker.B']) {
+    write(
+      `src/${name}/${name}.csproj`,
+      [
+        '<Project ToolsVersion="4.0">',
+        '  <ItemGroup>',
+        '    <Compile Include="..\\Common\\Linked.cs" Link="Linked.cs" />',
+        '  </ItemGroup>',
+        '</Project>'
+      ].join('\n')
+    );
+  }
+  write('src/Common/Linked.cs', 'namespace Linked.Ns { class L {} }\n');
+  // THE CLAIM THAT WALKS OUT OF THE REPOSITORY. Five `..` from `src/Deep/`
+  // leaves the tree, and the entry is dropped rather than clamped back to
+  // `src/Real/Real.cs`, which would have stolen that file from its own project.
+  write(
+    'src/Deep/Deep.csproj',
+    [
+      '<Project ToolsVersion="4.0">',
+      '  <ItemGroup>',
+      '    <Compile Include="Own.cs" />',
+      '    <Compile Include="..\\..\\..\\..\\..\\src\\Real\\Real.cs" />',
+      '  </ItemGroup>',
+      '</Project>'
+    ].join('\n')
+  );
+  write('src/Deep/Own.cs', 'namespace Deep.Ns { class D {} }\n');
+  write('src/Real/Real.csproj', '<Project Sdk="Microsoft.NET.Sdk" />');
+  write('src/Real/Real.cs', 'namespace Real.Ns { class R {} }\n');
 });
 
 afterAll(() => {
@@ -180,5 +220,75 @@ describe('ambiguity and dependency', () => {
     expect(resolveImport('Nancy.Hosting', 'src/Nancy/Bootstrapper.cs', 'csharp', bare).resolution).toBe(
       'unresolved'
     );
+  });
+});
+
+describe('a file two projects claim, and a claim that leaves the tree', () => {
+  // THE PHASE 184 FIX ROUND. `ownerOf` used to return the FIRST project whose
+  // explicit table held a file, so a linked file landed on one assembly and
+  // the one that really holds it never saw the namespace. Over SignalR that
+  // was 29 real `using System.Reflection;` statements resolving first party to
+  // `src/Microsoft.AspNet.SignalR.Client`, because `src/Common/
+  // AssemblyMetadataAttribute.cs` declares `namespace System.Reflection` and
+  // two projects link it. They are grey now, and no answer moved anywhere else
+  // in Nancy, serilog, AutoMapper or Newtonsoft.Json.
+  it('lets a linked file span both assemblies, so the namespace goes grey', () => {
+    expect(using('Linked.Ns').resolution).toBe('unresolved');
+  });
+
+  it('drops a Compile claim that walks above the repository root', () => {
+    // Clamping it turned `..\..\..\..\..\src\Real\Real.cs` into
+    // `src/Real/Real.cs` and handed that file to the wrong project outright.
+    expect(using('Real.Ns').toPath).toBe('src/Real');
+  });
+
+  it('keeps the same project\'s own listed file', () => {
+    expect(using('Deep.Ns').toPath).toBe('src/Deep');
+  });
+});
+
+/**
+ * THE PROJECT AT THE REPOSITORY ROOT, WHICH IS A SECOND TREE BECAUSE IT IS THE
+ * BOUNDARY OF THE GRAIN. A one project repository puts its `.csproj` beside
+ * its `.gitignore`, the project's directory is then the empty string, and
+ * `firstParty('')` named the whole tree: it matched no owner and no directory
+ * prefix in ../checkers/imports.ts, so it vanished and a must-not a real
+ * `using` crosses printed convergent, checked, zero offending.
+ */
+describe('a csproj at the repository root', () => {
+  let rootProject: string;
+  const ROOT_FILES = ['Root.csproj', 'lib/Lib.cs', 'app/App.cs'];
+
+  beforeAll(() => {
+    rootProject = mkdtempSync(join(tmpdir(), 'gmux-arch-csharp-root-'));
+    const put = (relPath: string, text: string): void => {
+      const at = join(rootProject, relPath);
+      mkdirSync(at.slice(0, at.lastIndexOf('/')), { recursive: true });
+      writeFileSync(at, text);
+    };
+    put('Root.csproj', '<Project Sdk="Microsoft.NET.Sdk"></Project>');
+    put('lib/Lib.cs', 'namespace Lib.Ns;\npublic class L {}\n');
+    put('app/App.cs', 'namespace App.Ns;\nclass A {}\n');
+  });
+
+  afterAll(() => {
+    rmSync(rootProject, { recursive: true, force: true });
+  });
+
+  it('answers unresolved rather than naming the whole tree', () => {
+    const manifests = readArchManifests(rootProject);
+    manifests.csharp = readCsharpManifest(rootProject, ROOT_FILES);
+    const answer = resolveImport(
+      'Lib.Ns',
+      'app/App.cs',
+      'csharp',
+      archResolveContext(manifests, ROOT_FILES)
+    );
+    expect(answer.resolution).toBe('unresolved');
+    expect(answer.toPath).toBeNull();
+  });
+
+  it('still reads the namespace, so the limit is the grain and not the reader', () => {
+    expect(readCsharpManifest(rootProject, ROOT_FILES).namespaceDirs.get('Lib.Ns')).toEqual(['']);
   });
 });

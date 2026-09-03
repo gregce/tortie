@@ -1046,6 +1046,44 @@ if (data.falseGreen.sloppyVerdict !== 'convergent') {
 }
 
 // ---------------------------------------------------------------------------
+// 10.3 The root project, the directory grain at its boundary (Phase 184 fix)
+// ---------------------------------------------------------------------------
+// EVERY C SHARP ANSWER IS A PROJECT DIRECTORY, and a `.csproj` at the
+// repository ROOT makes that directory the EMPTY STRING. The empty string
+// matched no owner and no directory prefix in the checker, so the answer
+// vanished from both sides of the ledger and a must-not a real `using` crosses
+// printed convergent with zero offending: the Phase 180 defect, reinstated at
+// the one boundary the fixture's `dotnet/src/App` shaped rows cannot reach.
+// Both ends are asserted, because a fix in one arm is a fix that one arm has.
+
+if (data.rootProject.armAnswer !== 'unresolved' || data.rootProject.armPath !== null) {
+  fail(
+    `root project: the C sharp arm answered ` +
+      `${data.rootProject.armAnswer} with ${JSON.stringify(data.rootProject.armPath)} ` +
+      `for a namespace whose only project is at the repository root. An edge ` +
+      `to the whole tree is not an edge and it is not a definite answer, so ` +
+      `it has to be unresolved with no path.`
+  );
+}
+if (data.rootProject.emptyVerdict !== 'unverifiable') {
+  fail(
+    `root project: a must-not whose only crossing import answers first party ` +
+      `with the EMPTY path came back ${data.rootProject.emptyVerdict}. It has ` +
+      `to be unverifiable. Convergent there is the false green itself, and ` +
+      `divergent would be the other lie, because an edge to everywhere says ` +
+      `nothing about any one part.`
+  );
+}
+if (data.rootProject.directoryVerdict !== 'divergent') {
+  fail(
+    `root project: the CONTROL did not fire. The same promise judged over a ` +
+      `REAL directory answer came back ${data.rootProject.directoryVerdict} ` +
+      `rather than divergent, so the assertion above passes because the judge ` +
+      `cannot go red at all rather than because the empty path is refused.`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 11. What the source itself must be true about
 // ---------------------------------------------------------------------------
 
@@ -1443,6 +1481,24 @@ process.stdout.write(
 process.stdout.write(
   pad('the Phase 63 defect, answers external', 40) +
     `${data.falseGreen.sloppyVerdict}, and it is a lie\n`
+);
+
+process.stdout.write(
+  '\nthe root project, a C sharp answer whose project directory is the ' +
+    'repository itself\n'
+);
+process.stdout.write(pad('what', 40) + 'verdict\n');
+process.stdout.write(line(120) + '\n');
+process.stdout.write(
+  pad('the arm, asked for a root namespace', 40) +
+    `${data.rootProject.armAnswer}, path ${JSON.stringify(data.rootProject.armPath)}\n`
+);
+process.stdout.write(
+  pad('the checker, given the empty path', 40) + `${data.rootProject.emptyVerdict}\n`
+);
+process.stdout.write(
+  pad('the same, given a real directory', 40) +
+    `${data.rootProject.directoryVerdict}, so the judge can go red\n`
 );
 
 process.stdout.write('\nevery git call this run composed\n');

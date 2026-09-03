@@ -53,11 +53,19 @@
  *     under `System` and the implicit parent spans several projects, and
  *     unresolved rose from 227 to 678 on that repository alone.
  *  7. Everything else is `unresolved`, NEVER `external`.
+ *  8. A project whose directory is the REPOSITORY ROOT answers `unresolved`,
+ *     whatever rule found it. See `atProjectDirectory` below: the answer would
+ *     name the whole tree, an edge to everywhere is not an edge, and before
+ *     this was refused it vanished from the checker and printed a false green.
  *
- * THE LIMIT ON ITS FACE. An edge lands on a project DIRECTORY, so a promise
- * written about one file inside a project cannot be told from a promise about
- * its neighbour, and a repository with no `.csproj` at all resolves nothing
- * first party and says so.
+ * THE LIMIT ON ITS FACE, AND IT IS THREE THINGS. An edge lands on a project
+ * DIRECTORY, so a promise written about one file inside a project cannot be
+ * told from a promise about its neighbour. A repository with no `.csproj` at
+ * all resolves nothing first party. And a repository whose ONLY `.csproj` sits
+ * at its root resolves nothing first party either, by rule 8, which is a real
+ * cost on a common single project shape and is the honest answer at this
+ * grain: every one of its namespaces lives in the one assembly that holds
+ * every file.
  *
  * NOTHING HERE SPAWNS ANYTHING. Set membership against the caller's file list
  * plus what ./csproj.ts read. No specifier reaches an argv.
@@ -107,7 +115,8 @@ export function resolveCsharp(
       if (dirs === undefined || dirs.length === 0) continue;
       // Rule 3: several assemblies declare it, so no one directory is the
       // answer and a coin flip would be a real edge to the wrong one.
-      return dirs.length > 1 ? unresolved() : firstParty(dirs[0] ?? '');
+      if (dirs.length > 1) return unresolved();
+      return atProjectDirectory(dirs[0]);
     }
     return null;
   };
@@ -124,6 +133,25 @@ export function resolveCsharp(
   const implicit = found(csharp.namespacePrefixDirs);
   if (implicit !== null) return implicit;
   return unresolved();
+}
+
+/**
+ * One project directory as an answer, and the repository ROOT is not one.
+ *
+ * THE PHASE 184 FIX ROUND, AND IT IS THE PHASE 180 HAZARD AT ITS BOUNDARY. A
+ * `.csproj` AT THE REPOSITORY ROOT, which is what a one project repository
+ * looks like, has the empty string for its directory. `firstParty('')` then
+ * named the whole tree: `owners.get('')` in ../checkers/imports.ts misses
+ * because no tracked path is the empty string, and `ownersOfDirectory('')`
+ * searched for paths beginning with `/`, of which a repository has none. So
+ * the answer was neither a crossing nor a miss and simply vanished, and a
+ * must-not a real `using` crosses printed convergent, checked, zero offending.
+ * An edge to EVERYWHERE is not an edge and it is not a definite answer either,
+ * so it is grey. The checker refuses the empty path a second time, because a
+ * fix in one arm is a fix one arm has. See rule 8 on this face.
+ */
+function atProjectDirectory(dir: string | undefined): ArchResolution {
+  return dir === undefined || dir === '' ? unresolved() : firstParty(dir);
 }
 
 /**

@@ -152,8 +152,8 @@ export function readCsharpManifest(
   const byDepth = [...projects].sort((a, b) => b.dir.length - a.dir.length);
 
   for (const path of sources) {
-    const owner = ownerOf(path, projects, byDepth);
-    if (owner === null) continue;
+    const owners = ownersOf(path, projects, byDepth);
+    if (owners.length === 0) continue;
     const raw = readTextOrNull(`${repoPath}/${path}`);
     if (raw === null) continue;
     const text = raw.startsWith(BOM) ? raw.slice(BOM.length) : raw;
@@ -165,10 +165,12 @@ export function readCsharpManifest(
         out.namespaceOf.set(path, name);
         first = false;
       }
-      add(out.namespaceDirs, name, owner.dir);
-      const parts = name.split('.');
-      for (let take = parts.length - 1; take > 0; take -= 1) {
-        add(out.namespacePrefixDirs, parts.slice(0, take).join('.'), owner.dir);
+      for (const owner of owners) {
+        add(out.namespaceDirs, name, owner.dir);
+        const parts = name.split('.');
+        for (let take = parts.length - 1; take > 0; take -= 1) {
+          add(out.namespacePrefixDirs, parts.slice(0, take).join('.'), owner.dir);
+        }
       }
     }
   }
@@ -182,20 +184,37 @@ function add(map: Map<string, string[]>, name: string, dir: string): void {
   else if (!held.includes(dir)) held.push(dir);
 }
 
-/** Which project owns one source file: the explicit table first, then the glob. */
-function ownerOf(
+/**
+ * WHICH PROJECTS OWN ONE SOURCE FILE, and it is a list rather than one answer.
+ *
+ * THE PHASE 184 FIX ROUND, AND THE FIRST BUILD RETURNED THE FIRST MATCH. A
+ * project may list a file that lives outside its own directory, which is the
+ * ordinary MSBuild linked file pattern
+ * `<Compile Include="..\Shared\Foo.cs" Link="Foo.cs" />`, and that file is
+ * then compiled into THAT assembly as well as into whichever project globs the
+ * directory it really sits in. Answering with the first claimant handed the
+ * namespace to one assembly and hid the other, so a promise about the real
+ * owner read as though nothing pointed at it. Every claimant is returned
+ * instead, the explicit tables and the deepest glob alike, so a namespace that
+ * spans two assemblies really does span two directories and the arm's rule 3
+ * answers `unresolved` rather than picking one.
+ */
+function ownersOf(
   path: string,
   projects: readonly Project[],
   byDepth: readonly Project[]
-): Project | null {
+): Project[] {
+  const out: Project[] = [];
   for (const project of projects) {
-    if (project.explicit.has(path)) return project;
+    if (project.explicit.has(path)) out.push(project);
   }
   for (const project of byDepth) {
     if (!project.glob) continue;
-    if (project.dir === '' || path.startsWith(`${project.dir}/`)) return project;
+    if (project.dir !== '' && !path.startsWith(`${project.dir}/`)) continue;
+    if (!out.includes(project)) out.push(project);
+    break;
   }
-  return null;
+  return out;
 }
 
 /** One `.csproj` as text. */
@@ -216,14 +235,27 @@ function readProject(
     if (listed.includes('*') || listed.length === 0) continue;
     const joined = dir === '' ? listed : `${dir}/${listed}`;
     const parts: string[] = [];
+    // A `..` WITH NOTHING LEFT TO POP WALKS OUT OF THE REPOSITORY, AND THE
+    // ENTRY IS DROPPED WHOLE RATHER THAN CLAMPED. The first build popped an
+    // empty array without a guard, so a project at `a/b/c/deep/` listing
+    // `..\..\..\..\..\..\..\src\Real.cs` came back as `src/Real.cs` and
+    // took a file it has no claim on from the project that really holds it.
+    // A path outside the tree is a claim this reader cannot check, and an
+    // unchecked claim is refused rather than guessed at.
+    let escaped = false;
     for (const segment of joined.split('/')) {
       if (segment === '' || segment === '.') continue;
       if (segment === '..') {
+        if (parts.length === 0) {
+          escaped = true;
+          break;
+        }
         parts.pop();
         continue;
       }
       parts.push(segment);
     }
+    if (escaped || parts.length === 0) continue;
     explicit.add(parts.join('/'));
   }
   for (const match of text.matchAll(REFERENCE)) {
