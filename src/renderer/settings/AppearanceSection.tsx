@@ -5,6 +5,14 @@
  * applies them in every window at once (src/renderer/theme/apply.ts), so the
  * live window is the preview and there is no Save.
  *
+ * Phase 207 added the frame's hue between the two, a slider over the whole
+ * circle with the shipped 222 as its default and a swatch strip under it
+ * that draws the frame at the draft hue. It writes the same kind of
+ * one-field patch, throttled while a drag is in flight, and the same
+ * applier reads it. The strip derives from the captured base with the
+ * scheme and the contrast level as they stand, so it previews the
+ * composition and never the hue alone.
+ *
  * Phase 78 added a third control in the same shape. It picks the face the
  * terminal and the editor draw with, from three presets. It writes the same
  * kind of one-field patch and the same applier reads it. It sets no size.
@@ -37,7 +45,14 @@ import type {
   HighlightScheme,
   WorkAreaFont
 } from '@shared/settings';
-import { SCHEME_PRESETS } from '../theme/presets';
+import {
+  CHROME_HUE_MAX,
+  DEFAULT_CHROME_HUE,
+  sanitizeChromeHue
+} from '@shared/settings';
+import { shippedBaseNow } from '../theme/apply';
+import { deriveOverrides } from '../theme/derive';
+import { CONTRAST_BG, CANVAS_TOKEN, SCHEME_PRESETS } from '../theme/presets';
 import {
   NO_FONT_SUGGESTIONS,
   loadFontSuggestions,
@@ -89,6 +104,145 @@ export function selectContrastLevel(
   return useSettingsStore
     .getState()
     .update({ contrastLevel: value as ContrastLevel });
+}
+
+/**
+ * Persist a hue as a one-field patch (Phase 207). Exported for the test.
+ * The value is sanitized here as well as in main, so the optimistic local
+ * state the store applies before the round trip is already a whole degree.
+ */
+export function selectChromeHue(value: number): Promise<GmuxSettings | null> {
+  return useSettingsStore
+    .getState()
+    .update({ chromeHue: sanitizeChromeHue(value) });
+}
+
+/**
+ * The five grounds the swatch strip draws, in ramp order: the sidebar first
+ * because it is below the canvas since Phase 196, then the canvas and the
+ * three fills above it.
+ */
+export const HUE_SWATCH_TOKENS: readonly string[] = [
+  '--bg-sidebar',
+  CANVAS_TOKEN,
+  ...CONTRAST_BG.filter((t) => t !== '--bg-sidebar')
+];
+
+/**
+ * The swatch colours for one hue: the frame exactly as the applier would
+ * write it, derived from the captured base with the OTHER two settings as
+ * they stand, so the strip previews the composition and not the hue alone.
+ * Null before the first apply has captured a base, when the strip draws the
+ * live tokens instead.
+ */
+export function hueSwatches(
+  settings: Pick<GmuxSettings, 'highlightScheme' | 'contrastLevel'>,
+  chromeHue: number
+): Record<string, string> | null {
+  const base = shippedBaseNow();
+  if (base === null) return null;
+  const overrides = deriveOverrides(
+    {
+      highlightScheme: settings.highlightScheme,
+      contrastLevel: settings.contrastLevel,
+      chromeHue
+    },
+    base
+  );
+  const out: Record<string, string> = {};
+  for (const token of HUE_SWATCH_TOKENS) {
+    const value = overrides[token] ?? base[token];
+    if (value !== undefined) out[token] = value;
+  }
+  return out;
+}
+
+/** How long a drag waits between persisted patches. */
+const HUE_COMMIT_MS = 80;
+
+function HueRow(): React.JSX.Element {
+  const settings = useSettingsStore((s) => s.settings);
+  const persisted = sanitizeChromeHue(settings.chromeHue);
+  // The slider draws the draft while a drag is in flight and the persisted
+  // value otherwise, the same resync the custom font field does.
+  const [draft, setDraft] = React.useState(persisted);
+  React.useEffect(() => {
+    setDraft(persisted);
+  }, [persisted]);
+  // A drag fires a change per pixel. Each one moves the draft at once, and
+  // the persisted patch, which is a disk write and a broadcast to every
+  // window, is sent at most once per HUE_COMMIT_MS with the last value.
+  const pending = React.useRef<number | null>(null);
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const commit = React.useCallback((value: number): void => {
+    pending.current = value;
+    if (timer.current !== null) return;
+    timer.current = setTimeout(() => {
+      timer.current = null;
+      if (pending.current !== null) void selectChromeHue(pending.current);
+      pending.current = null;
+    }, HUE_COMMIT_MS);
+  }, []);
+  React.useEffect(
+    () => () => {
+      if (timer.current !== null) clearTimeout(timer.current);
+    },
+    []
+  );
+  const pick = (value: number): void => {
+    const hue = sanitizeChromeHue(value);
+    setDraft(hue);
+    commit(hue);
+  };
+  const swatches = hueSwatches(settings, draft);
+  const atDefault = draft === DEFAULT_CHROME_HUE;
+  return (
+    <div className="set-row tall">
+      <div className="set-row-text">
+        <span className="set-row-label">Hue</span>
+        <span className="set-row-caption">
+          The color of the sidebar, the tabs and the panels around your work.
+          Changes apply at once.
+        </span>
+      </div>
+      <div className="set-hue">
+        <input
+          className="set-hue-slider"
+          type="range"
+          aria-label="Hue"
+          min={0}
+          max={CHROME_HUE_MAX}
+          step={1}
+          value={draft}
+          onChange={(e) => pick(Number(e.target.value))}
+        />
+        <div className="set-hue-foot">
+          <div className="set-hue-swatches" aria-hidden="true">
+            {HUE_SWATCH_TOKENS.map((token) => (
+              <span
+                key={token}
+                className="set-hue-swatch"
+                data-token={token}
+                style={{
+                  background: swatches?.[token] ?? `var(${token})`
+                }}
+              />
+            ))}
+          </div>
+          <span className="set-hue-value">{`${String(draft)}°`}</span>
+          <button
+            type="button"
+            className={atDefault ? 'set-hue-reset blank' : 'set-hue-reset'}
+            aria-hidden={atDefault ? true : undefined}
+            tabIndex={atDefault ? -1 : undefined}
+            onClick={() => pick(DEFAULT_CHROME_HUE)}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** Persist a font pick as a one-field patch. Exported for the test. */
@@ -356,16 +510,25 @@ export function AppearanceSection(): React.JSX.Element {
         <HighlightSchemeRow />
       </div>
 
+      {/* Phase 207. One slider, the frame's hue. The swatches under it are
+          the frame at the draft hue, derived the way the applier derives. */}
+      <div className="set-group-label">Frame</div>
+      <div className="set-card">
+        <HueRow />
+      </div>
+
       <div className="set-group-label">Contrast</div>
       <div className="set-card">
         <ContrastRow />
-        {/* The recorded limits, on the card where the user is looking. */}
+        {/* The recorded limits, on the card where the user is looking. Phase
+            207 took the file tree out of this sentence: it follows the frame
+            now, through the tokens, as the sidebar around it does. */}
         <div className="set-row">
           <div className="set-row-text">
             <span className="set-row-caption">
               Text inside the terminal keeps its shipped colors. So do diff
-              views and the file tree. The terminal selection highlight
-              follows the highlight scheme.
+              views. The terminal selection highlight follows the highlight
+              scheme.
             </span>
           </div>
         </div>

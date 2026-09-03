@@ -27,6 +27,8 @@ import {
   CONTRAST_OPTIONS,
   SCHEME_OPTIONS,
   WORK_FONT_OPTIONS,
+  hueSwatches,
+  selectChromeHue,
   selectContrastLevel,
   selectHighlightScheme,
   selectWorkAreaFont,
@@ -56,21 +58,40 @@ afterEach(() => {
 describe('the markup', () => {
   const html = renderToStaticMarkup(<AppearanceSection />);
 
-  it('renders the section title and all three group labels', () => {
+  it('renders the section title and all four group labels', () => {
     expect(html).toContain('Appearance');
     expect(html).toContain('Highlight');
+    expect(html).toContain('Frame');
     expect(html).toContain('Contrast');
     expect(html).toContain('Font');
   });
 
-  it('puts the Font group directly after the Contrast group', () => {
+  it('puts the Frame group between Highlight and Contrast, and Font last', () => {
     const at = (label: string): number =>
       html.indexOf(`<div class="set-group-label">${label}</div>`);
     expect(at('Highlight')).toBeGreaterThan(-1);
-    expect(at('Contrast')).toBeGreaterThan(at('Highlight'));
+    expect(at('Frame')).toBeGreaterThan(at('Highlight'));
+    expect(at('Contrast')).toBeGreaterThan(at('Frame'));
     expect(at('Font')).toBeGreaterThan(at('Contrast'));
     // Nothing else is a group, so "after Contrast" is also "last".
-    expect(html.split('class="set-group-label"')).toHaveLength(4);
+    expect(html.split('class="set-group-label"')).toHaveLength(5);
+  });
+
+  it('renders the hue slider over the whole circle at the shipped 222 (Phase 207)', () => {
+    expect(html).toContain('aria-label="Hue"');
+    expect(html).toMatch(/type="range"[^>]*min="0"[^>]*max="359"[^>]*step="1"[^>]*value="222"/);
+    expect(html).toContain('222°');
+    // Five swatches in ramp order, the sidebar first, drawn from the live
+    // tokens before any base is captured.
+    const swatches = [...html.matchAll(/data-token="(--[a-z-]+)"/g)].map((m) => m[1]);
+    expect(swatches).toEqual(['--bg-sidebar', '--bg-canvas', '--bg-surface', '--bg-raised', '--bg-active']);
+    expect(html).toContain('background:var(--bg-sidebar)');
+    // The reset holds its place and says nothing at the default.
+    expect(html).toContain('class="set-hue-reset blank"');
+    // Just enough words: one label, one caption, and no explanation of
+    // colour spaces or thresholds on the resting face.
+    expect(html).not.toContain('OKLCH');
+    expect(html).not.toContain('threshold');
   });
 
   it('renders the highlight select with the four schemes in order', () => {
@@ -142,9 +163,12 @@ describe('the markup', () => {
         'which helps on a dim display. Normal keeps the shipped colors.'
     );
     expect(html).toContain(
-      'Text inside the terminal keeps its shipped colors. So do diff views ' +
-        'and the file tree. The terminal selection highlight follows the ' +
-        'highlight scheme.'
+      'Text inside the terminal keeps its shipped colors. So do diff views. ' +
+        'The terminal selection highlight follows the highlight scheme.'
+    );
+    expect(html).toContain(
+      'The color of the sidebar, the tabs and the panels around your work. ' +
+        'Changes apply at once.'
     );
   });
 
@@ -192,6 +216,25 @@ describe('the picks', () => {
     expect(patch).toEqual({ contrastLevel: 'high' });
     expect(Object.keys(patch)).toEqual(['contrastLevel']);
     expect(useSettingsStore.getState().settings.contrastLevel).toBe('high');
+  });
+
+  it('a hue pick persists a one-field whole degree patch (Phase 207)', async () => {
+    const settingsSet = installBridge();
+    await selectChromeHue(40);
+    expect(settingsSet).toHaveBeenCalledTimes(1);
+    const patch = settingsSet.mock.calls[0]?.[0] as GmuxSettingsPatch;
+    expect(patch).toEqual({ chromeHue: 40 });
+    expect(Object.keys(patch)).toEqual(['chromeHue']);
+    expect(useSettingsStore.getState().settings.chromeHue).toBe(40);
+    // The wrap and the rounding happen before the patch leaves.
+    await selectChromeHue(360.4);
+    expect(settingsSet.mock.calls[1]?.[0]).toEqual({ chromeHue: 0 });
+    await selectChromeHue(-1);
+    expect(settingsSet.mock.calls[2]?.[0]).toEqual({ chromeHue: 359 });
+  });
+
+  it('the swatch strip draws nothing until a base is captured, then the composed frame', () => {
+    expect(hueSwatches({ highlightScheme: 'blue', contrastLevel: 'normal' }, 40)).toBeNull();
   });
 
   it('a font pick persists a one-field patch and the stored value follows', async () => {

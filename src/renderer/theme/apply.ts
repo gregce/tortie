@@ -143,6 +143,7 @@ export function createAppearanceApplier(
         captured[token] = env.readBaseValue(token);
       }
       base = captured;
+      capturedBase = captured;
     }
     // Feed the custom family store BEFORE fontOverrides resolves the stack,
     // or the tokens are written from the previous family on the broadcast that
@@ -177,6 +178,22 @@ export function createAppearanceApplier(
     env.refreshTerminals();
     env.setFont(appearance.workAreaFont);
   };
+}
+
+// ---------------------------------------------------------------------------
+// The captured base, for a surface that previews (Phase 207)
+// ---------------------------------------------------------------------------
+
+let capturedBase: Readonly<Record<string, string>> | null = null;
+
+/**
+ * The shipped value of every covered token, as the first apply captured it
+ * from the stylesheet before any write. Null until that first apply. The
+ * Appearance section's swatch strip derives from it, so a preview starts
+ * from the same base the applier does and never from an override.
+ */
+export function shippedBaseNow(): Readonly<Record<string, string>> | null {
+  return capturedBase;
 }
 
 // ---------------------------------------------------------------------------
