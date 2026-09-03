@@ -17,8 +17,9 @@
  * means well: a rotation moved to HSL "because it is simpler", a threshold
  * tuned by eye, a token dropped from the list, a solve that stops keeping
  * the shipped ratio. None of that is visible in a screenshot, so the gate
- * walks all 360 degrees and the whole ramp from graphite to white, and then
- * runs itself over twelve copies of the code with one clause changed each,
+ * walks all 360 degrees, the whole ramp from graphite to white and every one
+ * of the 49 shade and depth pairs at every whole degree, and then
+ * runs itself over nineteen copies of the code with one clause changed each,
  * and fails unless every copy turns a pin red. A pin that cannot fail is
  * documentation.
  *
@@ -56,9 +57,15 @@
  *      canvas; the git decorations and the two literal graph lanes 3:1 on the
  *      active fill.
  *   8. THE HAIRLINES KEEP THEIR PINNED RATIOS within a band, at the normal
- *      level: --border on --bg-sidebar 1.297 plus or minus 0.03, and
- *      --border-active on --bg-active 1.105 and the hover step --bg-raised on
- *      --bg-surface 1.094 plus or minus 0.02. tokens.css pins all three.
+ *      level AND AT THE SHIPPED SHADE AND DEPTH: --border on --bg-sidebar
+ *      1.297 plus or minus 0.03, and --border-active on --bg-active 1.105 and
+ *      the hover step --bg-raised on --bg-surface 1.094 plus or minus 0.02.
+ *      tokens.css pins all three. Phase 210 narrowed this rule to the shipped
+ *      frame on purpose, because those three ratios are EXACTLY what its
+ *      depth control moves: the first reads 1.130 at the narrowest stop and
+ *      1.673 at the widest. Here it still checks the rotation, which must not
+ *      move them. Across the two new axes rule 16's rendered step floor takes
+ *      its place, and presets.ts says why that number is 2.
  *   9. THE THRESHOLD IS THE ONE DERIVED NUMBER. The module's constant equals
  *      sqrt(0.05 x 1.05) - 0.05 to a millionth, which this file computes for
  *      itself, and over the synthetic walk the polarity is light, then dark,
@@ -86,6 +93,47 @@
  *      clause changed each, including one that rotates in HSL, must turn at
  *      least one pin red per copy, and the gate names the pin.
  *  14. The gate is named in package.json and in build/verification-checks.mjs.
+ *
+ * ## The Phase 210 rules, and how coarsely they sample
+ *
+ *  15. THE OFFERED REGION. Every one of the 49 shade and depth pairs is
+ *      feasible exactly where the table in this file says, judged over all
+ *      three contrast levels AND all four highlight schemes, because the five
+ *      appearance settings compose in any order and a frame chosen at Normal
+ *      that broke a floor at High would not compose. Each row and each column
+ *      is contiguous, because a hole would make a slider that skips a stop.
+ *      THE SAMPLING IS EXHAUSTIVE ON THE TWO NEW AXES, all 49 pairs, and
+ *      EVERY WHOLE DEGREE on the hue, and that last is not caution: the
+ *      failures sit in clusters a few degrees wide, so a fifteen degree step
+ *      walks over all of them. The ablated copies walk every forty fifth
+ *      degree plus the WITNESSES, being the hue at which each refused cell
+ *      actually fails, because an ablation removes a clause and so fails at
+ *      every hue rather than in a cluster, and without the witnesses a coarse
+ *      walk would turn this rule red for a reason that is not the ablation.
+ *  16. EVERY FLOOR HOLDS AT EVERY OFFERED FRAME: the text pins, the terminal
+ *      palette, the chromatic family, the ramp strictly in order, and the
+ *      RENDERED STEP, being at least two eight bit levels between adjacent
+ *      rungs. Two is what the shipped ramp itself holds at its tightest, so
+ *      the floor reads no worse than shipped rather than picking a bar.
+ *  17. THE ORDER NEVER INVERTS, at every cell and not only the offered ones.
+ *      The transform is affine in OKLCH lightness with a positive slope, so
+ *      this is arithmetic; what a refused stop loses is the eight bit
+ *      distance between two rungs, never their order.
+ *  18. THE CONTROL REFUSES WHAT THIS GATE REFUSES. The shipping floor
+ *      predicate, which is what the sliders stop on, agrees with this walk at
+ *      every point. It went red 6,937 times while the two read a slack of
+ *      zero differently.
+ *  19. THE FRAME MOVES NO CHROMATIC TOKEN. It moves the ground under the
+ *      accent, the git decorations and the graph lanes and never them.
+ *  20. THE FLIP IS OUT OF REACH, and this is the phase's correction to its
+ *      own charter. Phase 210's entry said the text flip would become
+ *      reachable and that this was the point; it does not, because the git
+ *      decorations on --bg-active stop the ramp at canvas Y 0.0138 against a
+ *      flip at Y 0.1791. So the rule is the honest one: no frame a person can
+ *      choose reads dark, and rules 9 to 11 are where the flip stays proved.
+ *  21. THE SHIPPED FRAME IS STILL THE DEFAULT and every other stop moves. The
+ *      shipped pair writes nothing at all; every named point that is not it
+ *      writes the ramp, at the shipped hue as much as at any other.
  *
  * Contrast is re-derived HERE with culori's full entry rather than read from
  * the modules, so a module that lied about a ratio would still be caught;
@@ -195,6 +243,66 @@ const ABLATIONS = [
     name: 'the spread anchored on the shipped canvas rather than the turned one',
     file: 'renderer/theme/derive.ts',
     edits: [["  const canvasCss = current(CANVAS_TOKEN);", "  const canvasCss = base[CANVAS_TOKEN];"]]
+  },
+  {
+    name: 'the ramp folded about the canvas, so the order inverts',
+    file: 'shared/chrome-ramp.ts',
+    edits: [
+      [
+        "{ ...ok, l: clamp01(anchorLightness + (ok.l - canvasLightness) * factor) },",
+        "{ ...ok, l: clamp01(anchorLightness + Math.abs(ok.l - canvasLightness) * factor) },"
+      ]
+    ]
+  },
+  {
+    name: 'the ramp scaled about zero rather than about its canvas anchor',
+    file: 'shared/chrome-ramp.ts',
+    edits: [
+      [
+        "{ ...ok, l: clamp01(anchorLightness + (ok.l - canvasLightness) * factor) },",
+        "{ ...ok, l: clamp01(ok.l * factor) },"
+      ]
+    ]
+  },
+  {
+    name: 'the ramp stage skipped at the shipped hue',
+    file: 'renderer/theme/derive.ts',
+    edits: [
+      [
+        "    rampOverrides(HUE_TOKENS, current, current(CANVAS_TOKEN), shade, depth)\n  )) {",
+        "    hueOn ? rampOverrides(HUE_TOKENS, current, current(CANVAS_TOKEN), shade, depth) : {}\n  )) {"
+      ]
+    ]
+  },
+  {
+    name: 'the canvas left out of the ramp the shade moves',
+    file: 'renderer/theme/derive.ts',
+    edits: [
+      [
+        "    rampOverrides(HUE_TOKENS, current, current(CANVAS_TOKEN), shade, depth)",
+        "    rampOverrides(HUE_TOKENS.filter((t) => t !== CANVAS_TOKEN), current, current(CANVAS_TOKEN), shade, depth)"
+      ]
+    ]
+  },
+  {
+    name: 'the rendered step floor lowered to one eight bit level',
+    file: 'renderer/theme/presets.ts',
+    edits: [["export const RENDERED_STEP_MIN = 2;", "export const RENDERED_STEP_MIN = 1;"]]
+  },
+  {
+    name: 'the rendered step dropped from the shipping floor predicate',
+    file: 'renderer/theme/floors.ts',
+    edits: [["  for (const [a, b] of RENDERED_STEP_PAIRS) {", "  for (const [a, b] of []) {"]]
+  },
+  {
+    name: 'the depth factor read one stop along the table',
+    file: 'shared/chrome-ramp.ts',
+    edits: [
+      [
+        "return CHROME_DEPTH_FACTORS[stop - CHROME_DEPTH_MIN] ?? 1;",
+        "return CHROME_DEPTH_FACTORS[stop - CHROME_DEPTH_MIN + 1] ?? 1;"
+      ]
+    ]
   }
 ];
 
@@ -223,11 +331,22 @@ function ablatedCopy(root, ablation) {
       .replace("from './settings'", `from '${join(sharedSrc, 'settings')}'`)
       .replace("from './window-chrome'", `from '${join(sharedSrc, 'window-chrome')}'`)
   );
+  // Phase 210. The ramp transform is copied for the same reason the rotation
+  // is: an ablation of it has to reach the COPY rather than the tree.
+  writeFileSync(
+    join(root, 'shared', 'chrome-ramp.ts'),
+    readFileSync(join(sharedSrc, 'chrome-ramp.ts'), 'utf8').replace(
+      "from './settings'",
+      `from '${join(sharedSrc, 'settings')}'`
+    )
+  );
   for (const file of ['derive.ts']) {
     const path = join(root, 'renderer', 'theme', file);
     writeFileSync(
       path,
-      readFileSync(path, 'utf8').replace("from '@shared/chrome-hue'", "from '../../shared/chrome-hue'")
+      readFileSync(path, 'utf8')
+        .replace("from '@shared/chrome-hue'", "from '../../shared/chrome-hue'")
+        .replace("from '@shared/chrome-ramp'", "from '../../shared/chrome-ramp'")
     );
   }
   const target = join(root, ablation.file);
@@ -302,6 +421,38 @@ const HAIRLINES = [
   ['--border-active', '--bg-active', 1.105, 0.02],
   ['--bg-raised', '--bg-surface', 1.094, 0.02]
 ];
+/**
+ * THE OFFERED REGION (Phase 210), one line per shade stop, the first and last
+ * depth stop that keeps every floor at all three contrast levels and all four
+ * highlight schemes. Measured rather than chosen, and pinned here so a change
+ * to either axis is a diff in this file rather than a person meeting a floor.
+ *
+ * The dark end is bound by the RENDERED STEP: near black, eight bits run out
+ * before the ramp does, and shade -4 needs the depth widened to keep its rungs
+ * apart at all. The light end is bound by the GIT DECORATIONS on --bg-active,
+ * which this phase refuses to move.
+ */
+/**
+ * THE WITNESSES. The hue at which each of the fourteen refused cells actually
+ * fails, measured on the shipping tree at every whole degree. The walk carries
+ * them whatever its step, because the failures sit in clusters a few degrees
+ * wide: the dark end fails around 0 and 3 and again at 198, and the light end
+ * around 121 and 211. Without them a coarse walk over an ablated copy would
+ * step past every one and turn the region rule red for a reason that has
+ * nothing to do with the ablation, which is a gate proving nothing.
+ */
+const WITNESS_HUES = [0, 3, 121, 198, 211];
+
+const REGION = {
+  '-4': [1, 3],
+  '-3': [-2, 3],
+  '-2': [-3, 3],
+  '-1': [-3, 2],
+  '0': [-3, 1],
+  '1': [-3, 0],
+  '2': [-3, 0]
+};
+
 const THRESHOLD = Math.sqrt(0.05 * 1.05) - 0.05;
 const LIGHTNESS_BAND = 0.005;
 const OFFSET_BAND = 12;
@@ -471,6 +622,133 @@ function pin(a) {
     }
   }
 
+
+  // Rule 15, THE OFFERED REGION. Every (shade, depth) pair, judged over all
+  // three contrast levels and all four highlight schemes, is feasible exactly
+  // where the table below says. The table is what the two sliders offer, so a
+  // change to either axis that moved the region shows up here as a diff
+  // rather than as a person meeting a floor.
+  const region = new Map();
+  for (const cell of a.ramp) {
+    const key = `${String(cell.shade)},${String(cell.depth)}`;
+    const seen = region.get(key) ?? { ok: true, binding: '', hue: -1, arm: '' };
+    if (!cell.feasible && seen.ok) {
+      seen.ok = false;
+      seen.binding = cell.binding;
+      seen.hue = cell.bindingHue;
+      seen.arm = `${cell.contrast} ${cell.scheme}`;
+    }
+    if (!cell.feasible) seen.ok = false;
+    region.set(key, seen);
+  }
+  for (const shade of a.rampStops.shades) {
+    const want = REGION[String(shade)];
+    for (const depth of a.rampStops.depths) {
+      const seen = region.get(`${String(shade)},${String(depth)}`);
+      if (seen === undefined) {
+        problem('r15m', `rule 15: no cell walked at shade ${String(shade)} depth ${String(depth)}`);
+        continue;
+      }
+      const expected = depth >= want[0] && depth <= want[1];
+      if (seen.ok !== expected) {
+        problem(
+          `r15-${String(shade)}-${String(depth)}`,
+          `rule 15: shade ${String(shade)} depth ${String(depth)} is ${seen.ok ? 'feasible' : 'refused'} and the region says ${expected ? 'feasible' : 'refused'}${seen.ok ? '' : ` (${seen.binding} at hue ${String(seen.hue)}, ${seen.arm})`}`
+        );
+      }
+    }
+    // Contiguity. A hole would make a slider that skips a stop.
+    const run = a.rampStops.depths.filter((d) => region.get(`${String(shade)},${String(d)}`)?.ok === true);
+    for (let i = 1; i < run.length; i += 1) {
+      if (run[i] !== run[i - 1] + 1) problem('r15c', `rule 15: the depth stops at shade ${String(shade)} are not contiguous: ${run.join(' ')}`);
+    }
+  }
+  for (const depth of a.rampStops.depths) {
+    const run = a.rampStops.shades.filter((sh) => region.get(`${String(sh)},${String(depth)}`)?.ok === true);
+    for (let i = 1; i < run.length; i += 1) {
+      if (run[i] !== run[i - 1] + 1) problem('r15c2', `rule 15: the shade stops at depth ${String(depth)} are not contiguous: ${run.join(' ')}`);
+    }
+  }
+
+  // Rule 16, EVERY FLOOR HOLDS AT EVERY OFFERED FRAME. The families the walk
+  // measured, at every cell the region offers, over every hue it walked.
+  for (const cell of a.ramp) {
+    if (!cell.feasible) continue;
+    const where = `shade ${String(cell.shade)} depth ${String(cell.depth)} ${cell.contrast} ${cell.scheme}`;
+    if (cell.worstText < 0) problem('r16t', `rule 16: text under its floor by ${cell.worstText.toFixed(3)} at ${where}`);
+    if (cell.worstTerm < 0) problem('r16m', `rule 16: a terminal colour under its floor by ${cell.worstTerm.toFixed(3)} at ${where}`);
+    if (cell.worstChroma < 0) problem('r16c', `rule 16: a chromatic token under its floor by ${cell.worstChroma.toFixed(3)} at ${where}`);
+    if (cell.minStep < a.rampStops.stepMin) problem('r16s', `rule 16: two rungs ${String(cell.minStep)}/255 apart at ${where}`);
+    if (cell.worstOrder <= 0) problem('r16o', `rule 16: the ramp is not strictly in order at ${where}`);
+  }
+
+  // Rule 17, THE ORDER NEVER INVERTS, at EVERY cell and not only the offered
+  // ones. The transform is affine in OKLCH lightness with a positive slope,
+  // so this is arithmetic rather than luck, and it must hold where the region
+  // refuses too: what a refused stop loses is the eight bit distance between
+  // two rungs, never their order.
+  for (const cell of a.ramp) {
+    const where = `shade ${String(cell.shade)} depth ${String(cell.depth)} ${cell.contrast} ${cell.scheme}`;
+    if (!(cell.worstOklch > 0)) problem('r17a', `rule 17: the ramp inverts in OKLCH lightness at ${where} (gap ${cell.worstOklch.toFixed(6)})`);
+    if (cell.worstOrder < 0) problem('r17b', `rule 17: the ramp inverts in WCAG luminance at ${where}`);
+  }
+
+  // Rule 18, THE CONTROL AND THE GATE REFUSE THE SAME THINGS. The shipping
+  // floor predicate is what the sliders stop on; the walk above is what
+  // proves the floors. Any disagreement is those two drifting apart, which
+  // would let a person choose a frame this gate has ruled out.
+  let disagreements = 0;
+  for (const cell of a.ramp) disagreements += cell.disagree;
+  if (disagreements !== 0) problem('r18', `rule 18: the shipping floor predicate disagreed with the walk at ${String(disagreements)} points`);
+
+  // Rule 19, THE FRAME MOVES NO CHROMATIC TOKEN. The accent, the git
+  // decorations and the graph lanes are meaning, and this phase moves the
+  // ground under them and never them. Read against the SAME scheme and
+  // contrast at the shipped frame, so the scheme's own work does not count.
+  let moved = 0;
+  for (const cell of a.ramp) moved += cell.chromaticMoved;
+  if (moved !== 0) problem('r19', `rule 19: the frame moved a chromatic token at ${String(moved)} points`);
+
+  // Rule 20, THE FLIP IS OUT OF REACH, and the phase says so rather than
+  // claiming otherwise. Phase 210's own entry said the text flip would become
+  // reachable; it does not, because the git decorations on --bg-active stop
+  // the ramp four tenths of the way there. So the rule is the honest one: no
+  // frame a person can choose reads dark, and the flip stays proved on the
+  // synthetic ground by rules 9 to 11.
+  let dark = 0;
+  for (const cell of a.ramp) dark += cell.darkHues;
+  if (dark !== 0) problem('r20', `rule 20: the text family read dark at ${String(dark)} points, which no offered frame should reach`);
+
+  // Rule 21, THE SHIPPED FRAME IS STILL THE DEFAULT. Shade 0 and depth 0
+  // write nothing at all, which is the zero override guarantee this phase
+  // inherits and must not spend.
+  const shippedPoint = a.rampPoints.find((p) => p.name === 'shipped');
+  if (shippedPoint === undefined) problem('r21a', 'rule 21: the shipped point was not walked');
+  else if (shippedPoint.keys.length !== 0) problem('r21', `rule 21: the shipped frame derives ${String(shippedPoint.keys.length)} override(s)`);
+  // And the named points re-derive from their own bytes, which is the gate
+  // checking the probe's aggregate arithmetic rather than trusting it. They
+  // are all at the shipped hue 222, which is also what makes them the pin on
+  // the other half of rule 21: every stop that is NOT the shipped one has to
+  // move the ramp, at the default hue as much as at any other.
+  if (shippedPoint !== undefined) {
+    for (const point of a.rampPoints) {
+      if (point.shade === 0 && point.depth === 0) continue;
+      if (point.keys.length === 0) problem(`r21e-${point.name}`, `rule 21: the ${point.name} frame derives nothing at all`);
+      if (point.shade !== 0 && point.values['--bg-canvas'] === shippedPoint.values['--bg-canvas']) {
+        problem(`r21c-${point.name}`, `rule 21: the ${point.name} frame leaves the canvas at ${point.values['--bg-canvas']}, where the shipped frame has it`);
+      }
+      if (point.depth !== 0 && point.values['--bg-sidebar'] === shippedPoint.values['--bg-sidebar']) {
+        problem(`r21d-${point.name}`, `rule 21: the ${point.name} frame leaves the sidebar at ${point.values['--bg-sidebar']}, where the shipped frame has it`);
+      }
+    }
+  }
+  for (const point of a.rampPoints) {
+    for (const [fg, bg, floor] of [...TEXT_FLOORS, ...CHROMATIC_FLOORS]) {
+      const r = wcagContrast(point.values[fg], point.values[bg]);
+      if (r < floor) problem('r21r', `rule 21: at the ${point.name} frame ${fg} on ${bg} is ${r.toFixed(3)}:1, under ${String(floor)}`);
+    }
+  }
+
   return problems;
 }
 
@@ -484,9 +762,15 @@ try {
   // from the importing file, so the repository's node_modules is linked
   // beside them. Nothing is installed and nothing is written into it.
   symlinkSync(join(repoRoot, 'node_modules'), join(scratch, 'node_modules'), 'dir');
-  const roots = [{ name: 'shipping', root: join(repoRoot, 'src') }];
+  // THE SAMPLING, and rule 15 says why it is what it is. The shipping tree
+  // walks EVERY WHOLE DEGREE against all 49 stop pairs; the ablated copies
+  // walk every forty fifth, because an ablation removes a clause and so fails
+  // at every hue, while the real thing fails in clusters a coarse step steps
+  // over. That is 67,032 derivations for the shipping tree and 1,764 each for
+  // the copies.
+  const roots = [{ name: 'shipping', root: join(repoRoot, 'src'), hueStep: 1, extraHues: WITNESS_HUES }];
   for (const [i, ablation] of ABLATIONS.entries()) {
-    roots.push({ name: `ablation-${String(i)}`, root: ablatedCopy(join(scratch, `ablation-${String(i)}`), ablation) });
+    roots.push({ name: `ablation-${String(i)}`, root: ablatedCopy(join(scratch, `ablation-${String(i)}`), ablation), hueStep: 45, extraHues: WITNESS_HUES });
   }
   const started = Date.now();
   const answers = runProbe(roots);
@@ -567,6 +851,58 @@ try {
       say(`${TAG} rule 10: the first text token to move before the flip is --text-muted at lift ${lifted.lift.toFixed(3)} (surface ${lifted.values['--bg-surface']}), lifted to ${lifted.values['--text-muted']}`);
       const kept = shipping.lifts.find((s) => s.textDark && s.canvasY >= 0.55);
       say(`${TAG} rule 11: at canvas ${kept.canvas} --text-primary is ${kept.values['--text-primary']}, ${wcagContrast(kept.values['--text-primary'], kept.values['--bg-canvas']).toFixed(2)}:1, and the terminal foreground is ${kept.terminal.foreground}`);
+
+      // The Phase 210 matrix: the region, drawn, and what binds each edge.
+      const blue = shipping.ramp.filter((c) => c.scheme === 'blue');
+      const walked = Math.max(...shipping.ramp.map((c) => c.hues));
+      say(`${TAG} rule 15: the ramp walk is ${String(shipping.ramp.length)} cells, ${String(walked)} hues each on the exhaustive arms, ${String(shipping.ramp.reduce((n, c) => n + c.hues, 0))} derivations`);
+      const cellOk = new Map();
+      for (const c of shipping.ramp) {
+        const key = `${String(c.shade)},${String(c.depth)}`;
+        if (!c.feasible || cellOk.get(key) === false) cellOk.set(key, false);
+        else if (!cellOk.has(key)) cellOk.set(key, true);
+      }
+      say(`${TAG} rule 15: the offered region, shade down the side and depth across, over 3 contrast levels and 4 schemes`);
+      say(`${TAG} rule 15:          ${shipping.rampStops.depths.map((d) => String(d).padStart(5)).join('')}`);
+      for (const shadeStop of shipping.rampStops.shades) {
+        const row = shipping.rampStops.depths
+          .map((d) => (cellOk.get(`${String(shadeStop)},${String(d)}`) === true ? '   on' : '    .'))
+          .join('');
+        const point = shipping.rampPoints.find((p) => p.shade === shadeStop && p.depth === 0);
+        say(`${TAG} rule 15: shade ${String(shadeStop).padStart(2)}${row}   ${point === undefined ? '' : `canvas ${point.values['--bg-canvas']}`}`);
+      }
+      const edges = new Map();
+      for (const c of blue) {
+        if (c.feasible) continue;
+        const key = c.binding.split(' ').slice(0, 3).join(' ');
+        edges.set(key, (edges.get(key) ?? 0) + 1);
+      }
+      for (const [what, n] of [...edges.entries()].sort((x, y) => y[1] - x[1])) {
+        say(`${TAG} rule 15: ${String(n).padStart(3)} refused cell(s) bind on ${what}`);
+      }
+      let worstT = Infinity;
+      let worstC = Infinity;
+      let worstS = Infinity;
+      let worstO = Infinity;
+      let worstL = Infinity;
+      for (const c of shipping.ramp) {
+        if (c.feasible) {
+          worstT = Math.min(worstT, c.worstText);
+          worstC = Math.min(worstC, c.worstChroma);
+          worstS = Math.min(worstS, c.minStep);
+          worstO = Math.min(worstO, c.worstOrder);
+        }
+        worstL = Math.min(worstL, c.worstOklch);
+      }
+      say(`${TAG} rule 16: over every offered frame, text clears its floor by ${worstT.toFixed(3)}, the chromatic family by ${worstC.toFixed(3)}, the tightest rendered step is ${String(worstS)}/255 against a floor of ${String(shipping.rampStops.stepMin)}, and the tightest order gap is ${worstO.toFixed(6)} in luminance`);
+      say(`${TAG} rule 17: over EVERY cell, offered or refused, the tightest OKLCH lightness gap is ${worstL.toFixed(6)}, so the ramp never inverts`);
+      say(`${TAG} rule 18: the shipping floor predicate agreed with the walk at every one of ${String(shipping.ramp.reduce((n, c) => n + c.hues, 0))} points, so the control refuses what this gate refuses`);
+      say(`${TAG} rule 19: no chromatic token moved with the frame at any point`);
+      const lightest = shipping.rampPoints.find((p) => p.name === 'lightest');
+      say(`${TAG} rule 20: the text family read light at every point. The lightest frame a person can choose is canvas ${lightest.values['--bg-canvas']}, Y ${yOf(lightest.values['--bg-canvas']).toFixed(4)}, against the flip at Y ${THRESHOLD.toFixed(4)}, so THE FLIP IS OUT OF REACH and rules 9 to 11 are where it stays proved`);
+      for (const point of shipping.rampPoints) {
+        say(`${TAG} rule 21: the ${point.name.padEnd(16)} frame (shade ${String(point.shade).padStart(2)}, depth ${String(point.depth).padStart(2)}) writes ${String(point.keys.length).padStart(2)} token(s): canvas ${point.values['--bg-canvas']} sidebar ${point.values['--bg-sidebar']} active ${point.values['--bg-active']} border ${point.values['--border']}`);
+      }
     }
   }
 
@@ -599,4 +935,4 @@ if (failed > 0) {
   console.error(`${TAG} ${String(failed)} failure(s)`);
   process.exit(1);
 }
-say(`${TAG} OK: every pinned ratio at all 360 hues and three contrast levels, lightness held, the offset kept, the ramp in order, one threshold with one crossing over the synthetic ground, ${String(ABLATIONS.length)} ablations each red, the gate named`);
+say(`${TAG} OK: every pinned ratio at all 360 hues and three contrast levels, lightness held, the offset kept, the ramp in order, one threshold with one crossing over the synthetic ground, the offered region exact over 49 shade and depth pairs at every whole degree, the ramp never inverting at any of them, the control refusing what this gate refuses, ${String(ABLATIONS.length)} ablations each red, the gate named`);

@@ -287,13 +287,21 @@ export const RENDERED_STEP_PAIRS: readonly (readonly [string, string])[] = [
   ['--bg-surface', '--bg-raised'],
   ['--bg-raised', '--bg-active'],
   ['--border', '--border-active'],
-  ['--border-active', '--border-strong'],
-  // The three grounds a hairline is actually drawn against. A border that
-  // matches the panel it edges is not a hairline whatever its neighbours do.
-  ['--border', '--bg-sidebar'],
-  ['--border', CANVAS_TOKEN],
-  ['--border-active', '--bg-active']
+  ['--border-active', '--border-strong']
 ];
+
+/**
+ * WHAT IS DELIBERATELY NOT IN THAT LIST, and it is a measurement rather than
+ * an oversight. A border against the panel it edges is the other pair a
+ * person can see, and `--border` on `--bg-sidebar`, `--border` on
+ * `--bg-canvas` and `--border-active` on `--bg-active` render 27, 23 and 8
+ * eight bit levels apart at the shipped ramp, against 5 for the tightest
+ * adjacent rung. Every stop of both axes scales all of them together, so
+ * those three can never be the pair that binds, and the gate proved it: with
+ * all three listed and then removed, the offered region did not move by one
+ * cell. A rule that cannot fail is documentation, so they are named here in
+ * prose instead of asserted in code.
+ */
 
 /**
  * The chromatic floors the frame must not break. Nothing here MOVES with the

@@ -76,9 +76,9 @@ import {
   DEPTH_STOPS,
   SHADE_STOPS,
   depthRange,
+  frameGrid,
   refusalSentence,
-  shadeRange,
-  type FrameChoice
+  shadeRange
 } from '../theme/frame-stops';
 import {
   CONTRAST_BG,
@@ -425,28 +425,20 @@ function FrameShapeRows(): React.JSX.Element {
     selectChromeDepth
   );
   const base = shippedBaseNow();
-  const context = {
-    highlightScheme: settings.highlightScheme,
-    contrastLevel: settings.contrastLevel
-  };
-  const choice: FrameChoice = {
-    chromeHue: hue,
-    chromeShade: shade,
-    chromeDepth: depth
-  };
-  // Fourteen derivations, about a millisecond each, and only when one of the
-  // five settings actually moved. The control and `npm run conformance:hue`
-  // ask the SAME predicate, so the edge a person meets is the edge the gate
-  // walks (src/renderer/theme/frame-stops.ts says why that matters).
-  const key = JSON.stringify([context, choice]);
-  const ranges = React.useMemo(() => {
-    if (base === null) return null;
-    return {
-      shade: shadeRange(context, base, choice),
-      depth: depthRange(context, base, choice)
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, base]);
+  // The 49 pair grid depends on the hue and on nothing else, because a stop
+  // is offered only when it holds at all three contrast levels and all four
+  // highlight schemes. So a drag on either slider recomputes nothing, and
+  // changing the contrast does not move the sliders under the pointer. The
+  // control and `npm run conformance:hue` ask the SAME predicate, so the edge
+  // a person meets is the edge the gate walks.
+  const grid = React.useMemo(
+    () => (base === null ? null : frameGrid(base, hue)),
+    [base, hue]
+  );
+  const ranges =
+    grid === null
+      ? null
+      : { shade: shadeRange(grid, depth), depth: depthRange(grid, shade) };
   const swatches = hueSwatches(settings, hue, shade, depth);
   const atDefault =
     hue === DEFAULT_CHROME_HUE &&
