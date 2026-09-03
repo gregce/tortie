@@ -67,6 +67,7 @@ function rig(owned: boolean): Rig {
   const scrollBy = vi.fn();
   const subscribe = vi.fn(() => () => undefined);
   const select = vi.fn();
+  const clearSelection = vi.fn();
   const surface = {
     get view() {
       return view;
@@ -74,7 +75,19 @@ function rig(owned: boolean): Rig {
     scrollBy,
     subscribe
   } as unknown as ScrollSurface;
-  const term = { cols: 80, rows: 40, select } as unknown as Terminal;
+  // Phase 209 added two reads of the terminal: the change event, watched so
+  // a click or a select all drops a held history range, and the pressed
+  // cell's width, so a press on the second half of a wide character starts
+  // where xterm's own selection would. Neither exists under this lane, and
+  // a stub that answers nothing is exactly a pane with no wide characters.
+  const term = {
+    cols: 80,
+    rows: 40,
+    select,
+    clearSelection,
+    onSelectionChange: () => ({ dispose: () => undefined }),
+    buffer: { active: { getLine: () => undefined } }
+  } as unknown as Terminal;
 
   let down: ((event: MouseEvent) => void) | null = null;
   const container = {
@@ -123,7 +136,6 @@ describe('a drag held outside the pane', () => {
     r.moveTo(RECT.left + 40, RECT.top - 40);
     vi.advanceTimersByTime(200);
     r.detach();
-    expect(r.subscribe).toHaveBeenCalledTimes(1);
     expect(r.scrollBy).toHaveBeenCalled();
     expect(r.scrollBy.mock.calls.every(([n]) => (n as number) > 0)).toBe(true);
   });
@@ -135,7 +147,11 @@ describe('a drag held outside the pane', () => {
     r.moveTo(RECT.left + 40, RECT.top - 40);
     vi.advanceTimersByTime(200);
     r.detach();
-    expect(r.subscribe).not.toHaveBeenCalled();
+    // The view is watched from the attach, since Phase 209 re-projects a
+    // held range when the view moves, so the subscription is not the
+    // gesture's and is the same one in both panes. The gesture is the scroll
+    // and the select, and neither happened.
+    expect(r.subscribe).toHaveBeenCalledTimes(1);
     expect(r.scrollBy).not.toHaveBeenCalled();
     expect(r.select).not.toHaveBeenCalled();
   });

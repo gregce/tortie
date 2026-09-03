@@ -40,28 +40,61 @@
  * is read where the gesture begins and again on every tick, because a picker
  * can open while the button is already down.
  *
- * THE LIMIT, and it is stated because a person will reach it, with the number
- * he will reach it at. The selection is what the SCREEN holds, so a drag that
- * pushes the anchor past the far edge keeps extending from that edge rather
- * than off it, and what you copy is what you can see highlighted. Highlight
- * and copy therefore never disagree. MEASURED with an eight second hold above
- * the top edge: the history travelled 668 lines and the copy was 43, being
- * one screen at the far end of the travel rather than everything from the
- * anchor. Apple's own Terminal accumulates across the whole travel, so the
- * panes match it for the first screen and diverge after it. Closing that
- * means composing the text from tmux rather than from the pane, which is a
- * bigger change than this one.
+ * THE SELECTION IS THE HISTORY, NOT THE SCREEN, which is Phase 209 and the
+ * one limit Phase 205 shipped with. As first shipped the anchor was a SCREEN
+ * cell moved by the difference of two `#{scroll_position}` readings and
+ * clamped at the edge it left by, so a drag that pushed it past the far edge
+ * kept extending from that edge rather than off it: an eight second hold
+ * above the top edge travelled 668 lines of history and the copy was 43, one
+ * screen at the far end, where Apple's own Terminal accumulates across the
+ * whole travel. Reproduced at a87a826 on 2026-09-03 at 324 travelled and 43
+ * copied, the same law at a smaller overshoot. Now each end is a HISTORY
+ * position, being `history - position + row` and a column, read from the
+ * same display-message the surface already makes, and it is never clamped.
+ * The highlight is that range projected through the current view and
+ * clamped only for drawing, by ./drag-math.ts's `visibleSpan`, and it is
+ * re-projected on every view change for as long as xterm keeps it, so
+ * scrolling back to the anchor shows it drawn again. Copy composes the text
+ * from tmux between the two positions, in ../capture/history-copy.ts, and a
+ * selection that never left the screen keeps xterm's own path byte for byte.
+ *
+ * A STREAMING PANE cannot move the anchor, and that is arithmetic rather than
+ * care: the poll re-anchors a parked view by exactly the lines that arrived,
+ * so `history` and `position` grow together and the line under a row is the
+ * line that was there. MEASURED at the parent with a pane printing ten lines
+ * a second under a live drag: the screen cell anchor slid 38 rows in four
+ * seconds and the line the person anchored on fell out of the copy, while
+ * the history position of that line was the same number before and after.
+ *
+ * THE LIMIT NOW, with the number a person will meet it at. The history is
+ * tmux's and it is finite: the Scrollback depth setting, 25,000 lines by
+ * default and up to 100,000, and once it is full each new line pushes the
+ * oldest out. A selection cannot reach above the oldest line the server
+ * still holds, the drag stops there rather than running on, and a selection
+ * left open across a full history for long enough has its far end walk
+ * forward with the lines that fall off. The copy says nothing about either
+ * and simply stops where the history does.
  */
 
 import type { Terminal } from '@xterm/xterm';
 import { measureCells, screenElement } from '../capture/metrics';
-import type { Cell, PaneBox } from './drag-math';
+import { holdHistorySelection } from '../capture/history-selection';
+import type {
+  Cell,
+  HistoryFrame,
+  HistoryPos,
+  HistoryRange,
+  PaneBox
+} from './drag-math';
 import {
-  anchorAfterScroll,
   cellAtPoint,
   edgeScrollLines,
-  selectionSpan
+  historyRange,
+  spansHistory,
+  toHistory,
+  visibleSpan
 } from './drag-math';
+import { scrollBridge } from './surface';
 import type { ScrollSurface, ScrollView } from './surface';
 
 /**
@@ -96,17 +129,28 @@ const LISTEN: AddEventListenerOptions = { capture: true };
 
 export class DragSelect {
   private box: PaneBox | null = null;
-  /** Where the drag began, in screen cells, before anything scrolled. */
-  private anchor: Cell | null = null;
-  /** `#{scroll_position}` when the drag began. */
-  private basePosition = 0;
-  /** The latest reading, so the anchor can be tracked without a round trip. */
+  /**
+   * Where the drag began, as a history position. Set from the pressed cell
+   * and the surface's last reading, then refined by a fresh reading of the
+   * same display-message, because at the live bottom of a streaming pane the
+   * last poll can be a second old.
+   */
+  private anchor: HistoryPos | null = null;
+  /** The latest view, so the anchor can be projected without a round trip. */
+  private history = 0;
   private position = 0;
   private pointer: { x: number; y: number } | null = null;
   /** True once the buffer has moved under this drag and we own the range. */
   private taken = false;
+  /** The range this drag last drew, kept after the button comes up. */
+  private held: HistoryRange | null = null;
+  /** True while a `select` here is the cause of xterm's own change event. */
+  private reissuing = false;
+  /** Counts gestures, so a fresh reading cannot land on the wrong one. */
+  private gesture = 0;
   private ticker: ReturnType<typeof setInterval> | null = null;
   private unsubscribe: (() => void) | null = null;
+  private unwatch: (() => void) | null = null;
   /**
    * The document the moves and the release are listened for on, held so the
    * teardown removes them from the same one it added them to. A drag leaves
@@ -123,12 +167,34 @@ export class DragSelect {
     this.stop();
   };
   private readonly onView = (view: ScrollView): void => {
-    if (this.anchor === null || view.position === this.position) return;
+    const moved = view.position !== this.position;
+    const grew = view.history !== this.history;
+    if (!moved && !grew) return;
     this.position = view.position;
-    // The buffer moved while a button is down. That is the takeover moment,
-    // and it is the same one for the edge tick and for a wheel.
-    this.taken = true;
-    this.render();
+    this.history = view.history;
+    if (this.anchor !== null) {
+      // The buffer moved while a button is down. That is the takeover moment,
+      // and it is the same one for the edge tick and for a wheel. History
+      // growing at the live bottom is not a move: an in-screen drag stays
+      // xterm's while lines arrive, exactly as it did before.
+      if (moved) this.taken = true;
+      if (this.taken) this.render();
+      return;
+    }
+    // No drag, but a range is held: the view moved under it, so draw the
+    // part of it that is on screen now. This is what makes scrolling back to
+    // the anchor show it highlighted.
+    if (this.held !== null) this.project(this.held);
+  };
+  /**
+   * xterm changed the selection and it was not us: a click, a new drag, a
+   * select all, a clear. The held range describes nothing now, so drop it.
+   * Nothing here fires on a repaint; xterm reports its own gestures and its
+   * public calls, never the bytes tmux writes.
+   */
+  private readonly onSelectionChange = (): void => {
+    if (this.reissuing) return;
+    this.release();
   };
 
   constructor(
@@ -141,9 +207,17 @@ export class DragSelect {
   attach(container: HTMLElement): () => void {
     const down = (event: MouseEvent): void => this.begin(event);
     container.addEventListener('mousedown', down);
+    this.unsubscribe = this.surface.subscribe(this.onView);
+    const watch = this.term.onSelectionChange(this.onSelectionChange);
+    this.unwatch = () => watch.dispose();
     return () => {
       container.removeEventListener('mousedown', down);
       this.stop();
+      this.release();
+      this.unsubscribe?.();
+      this.unsubscribe = null;
+      this.unwatch?.();
+      this.unwatch = null;
     };
   }
 
@@ -165,12 +239,35 @@ export class DragSelect {
     const box = this.geometry();
     if (box === null) return;
     this.stop();
+    this.release();
     this.box = box;
-    this.anchor = cellAtPoint(event.clientX, event.clientY, box);
+    const cell = this.pressedCell(event.clientX, event.clientY, box);
+    const view = this.surface.view;
+    this.history = view.history;
+    this.position = view.position;
+    this.anchor = toHistory(cell, this.frame(box));
     this.pointer = { x: event.clientX, y: event.clientY };
-    this.basePosition = this.surface.view.position;
-    this.position = this.basePosition;
     this.taken = false;
+    this.gesture += 1;
+    const gesture = this.gesture;
+    // The reading the anchor was set from is the last poll, up to a second
+    // old at the live bottom. Ask once more, now, and move the anchor to the
+    // line that was really under the pointer; the answer is a millisecond
+    // over the control client, and it lands on this gesture alone.
+    void scrollBridge()
+      ?.state({ sessionId: this.sessionId })
+      .then((state) => {
+        if (gesture !== this.gesture || this.anchor === null) return;
+        if (!state.hasPane) return;
+        this.anchor = toHistory(cell, {
+          history: state.history,
+          position: state.position,
+          rows: box.rows,
+          cols: box.cols
+        });
+        if (this.taken) this.render();
+      })
+      .catch(() => undefined);
     const target = event.target;
     this.doc =
       target instanceof Node && target.ownerDocument !== null
@@ -178,8 +275,22 @@ export class DragSelect {
         : ((globalThis.document as Document | undefined) ?? null);
     this.doc?.addEventListener('mousemove', this.onMove, LISTEN);
     this.doc?.addEventListener('mouseup', this.onUp, LISTEN);
-    this.unsubscribe = this.surface.subscribe(this.onView);
     this.ticker = setInterval(() => this.tick(), EDGE_TICK_MS);
+  }
+
+  /**
+   * The cell the press landed on, adjusted the way xterm adjusts its own
+   * start: a press on the second half of a wide character selects from the
+   * cell after it (SelectionService, `_handleMouseDown`), so the range here
+   * begins where xterm's did and the two agree on the first character.
+   */
+  private pressedCell(clientX: number, clientY: number, box: PaneBox): Cell {
+    const cell = cellAtPoint(clientX, clientY, box);
+    const width = this.term.buffer?.active
+      .getLine(cell.row)
+      ?.getCell(cell.col)
+      ?.getWidth();
+    return width === 0 ? { col: cell.col + 1, row: cell.row } : cell;
   }
 
   /** One edge tick: scroll the private server's history, nothing else. */
@@ -196,23 +307,66 @@ export class DragSelect {
     if (lines !== 0) this.surface.scrollBy(lines);
   }
 
-  /** Re-issue the range from the tracked anchor to the pointer. */
+  private frame(box: PaneBox): HistoryFrame {
+    return {
+      history: this.history,
+      position: this.position,
+      rows: box.rows,
+      cols: box.cols
+    };
+  }
+
+  /** The range from the anchor to the pointer, drawn and held. */
   private render(): void {
     const box = this.box;
     const anchor = this.anchor;
     const pointer = this.pointer;
     if (box === null || anchor === null || pointer === null) return;
-    const tracked = anchorAfterScroll(
-      anchor,
-      this.position - this.basePosition,
-      box
-    );
-    const span = selectionSpan(
-      tracked,
+    const head = toHistory(
       cellAtPoint(pointer.x, pointer.y, box),
-      box.cols
+      this.frame(box)
     );
-    this.term.select(span.column, span.row, span.length);
+    this.hold(historyRange(anchor, head));
+  }
+
+  /** Hold a range for the copy verbs and draw its visible part. */
+  private hold(range: HistoryRange): void {
+    this.held = range;
+    const cols = this.box?.cols ?? this.term.cols;
+    holdHistorySelection(this.sessionId, {
+      start: range.start,
+      end: range.end,
+      cols,
+      spansScreen: () => {
+        const box = this.box;
+        return box === null ? true : spansHistory(range, this.frame(box));
+      },
+      redraw: () => {
+        if (this.held === null) this.hold(range);
+      }
+    });
+    this.project(range);
+  }
+
+  /** Draw the part of a range that is on screen, through xterm's public API. */
+  private project(range: HistoryRange): void {
+    const box = this.box;
+    if (box === null) return;
+    const span = visibleSpan(range, this.frame(box));
+    this.reissuing = true;
+    try {
+      if (span === null) this.term.clearSelection();
+      else this.term.select(span.column, span.row, span.length);
+    } finally {
+      this.reissuing = false;
+    }
+  }
+
+  /** Forget the held range. The highlight, if any, is xterm's to keep. */
+  private release(): void {
+    if (this.held === null) return;
+    this.held = null;
+    holdHistorySelection(this.sessionId, null);
   }
 
   /** End the gesture, leaving whatever is selected selected. */
@@ -221,13 +375,14 @@ export class DragSelect {
       clearInterval(this.ticker);
       this.ticker = null;
     }
-    this.unsubscribe?.();
-    this.unsubscribe = null;
     this.doc?.removeEventListener('mousemove', this.onMove, LISTEN);
     this.doc?.removeEventListener('mouseup', this.onUp, LISTEN);
     this.doc = null;
     this.anchor = null;
     this.pointer = null;
+    // A drag that never took over drew nothing here, so there is nothing to
+    // hold: the selection on screen is xterm's own.
+    if (!this.taken) this.release();
     this.taken = false;
   }
 
@@ -247,4 +402,3 @@ export class DragSelect {
     };
   }
 }
-

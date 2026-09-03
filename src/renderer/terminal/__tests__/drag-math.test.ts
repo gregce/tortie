@@ -1,22 +1,30 @@
 /**
- * Phase 205 item 3 — the geometry of a selection drag that scrolls.
+ * Phase 205 item 3 and Phase 209 — the geometry of a selection drag that
+ * scrolls, and the history positions a selection is kept in.
  *
  * The controller needs an app to prove; these rules do not. Every number
  * below comes from the shape the pane actually has, being a text surface at a
- * known origin with a measured cell box, and the two that matter most are the
- * anchor tracking and the clamp, because they are the difference between a
- * selection that GROWS as rows come into view and one that slides along at a
- * fixed height, which is what the pane did before.
+ * known origin with a measured cell box, and the ones that matter most are
+ * the conversions between a screen row and a history line, because they are
+ * the difference between a selection that keeps the text it was placed on and
+ * one that keeps a row of the screen while the text moves under it, which is
+ * what Phase 205 shipped and stated as its limit.
  */
 
 import { describe, expect, it } from 'vitest';
 import type { PaneBox } from '../scroll/drag-math';
 import {
-  anchorAfterScroll,
   cellAtPoint,
   edgeScrollLines,
-  selectionSpan
+  historyLineOf,
+  historyRange,
+  screenRowOf,
+  selectionSpan,
+  spansHistory,
+  toHistory,
+  visibleSpan
 } from '../scroll/drag-math';
+import type { HistoryFrame } from '../scroll/drag-math';
 
 /** A pane at (100, 200), 80 by 40 cells, 7.5 by 18.5 px each (measured). */
 const BOX: PaneBox = {
@@ -72,33 +80,133 @@ describe('cellAtPoint', () => {
   });
 });
 
-describe('anchorAfterScroll', () => {
-  const anchor = { col: 12, row: 30 };
+describe('history positions', () => {
+  // The measurement of 2026-09-03 on a scratch server: a 40 by 10 pane with
+  // 96 lines of history parked 30 above the live bottom.
+  const frame: HistoryFrame = { history: 96, position: 30, rows: 10, cols: 40 };
 
-  it('leaves the anchor alone while nothing has scrolled', () => {
-    expect(anchorAfterScroll(anchor, 0, BOX)).toEqual(anchor);
+  it('converts a screen row to the history line it shows, and back', () => {
+    // Row 0 at position 30 is 30 lines above the live screen's top row.
+    expect(historyLineOf(0, frame)).toBe(66);
+    expect(screenRowOf(66, frame)).toBe(0);
+    for (let row = 0; row < frame.rows; row += 1) {
+      expect(screenRowOf(historyLineOf(row, frame), frame)).toBe(row);
+    }
+    for (let line = 0; line < 200; line += 1) {
+      expect(historyLineOf(screenRowOf(line, frame), frame)).toBe(line);
+    }
   });
 
-  it('moves the anchor DOWN as the buffer scrolls back in time', () => {
-    // Scrolling back moves the content down the screen, so the anchor rides
-    // with the text it was placed on. This is the whole of "keep extending".
-    expect(anchorAfterScroll(anchor, 1, BOX)).toEqual({ col: 12, row: 31 });
-    expect(anchorAfterScroll(anchor, 9, BOX)).toEqual({ col: 12, row: 39 });
+  it('keeps the column with the line', () => {
+    expect(toHistory({ col: 12, row: 3 }, frame)).toEqual({ line: 69, col: 12 });
   });
 
-  it('moves it UP when the buffer scrolls back toward live output', () => {
-    expect(anchorAfterScroll(anchor, -5, BOX)).toEqual({ col: 12, row: 25 });
-    expect(anchorAfterScroll(anchor, -30, BOX)).toEqual({ col: 12, row: 0 });
+  it('at the live bottom the top row is the first row past the history', () => {
+    const live: HistoryFrame = { ...frame, position: 0 };
+    expect(historyLineOf(0, live)).toBe(96);
+    expect(historyLineOf(9, live)).toBe(105);
   });
 
-  it('clamps past the bottom to the LAST cell, because it is the end', () => {
-    expect(anchorAfterScroll(anchor, 10, BOX)).toEqual({ col: 80, row: 39 });
-    expect(anchorAfterScroll(anchor, 5000, BOX)).toEqual({ col: 80, row: 39 });
+  it('does not move when lines arrive at the bottom of a parked view', () => {
+    // Ten lines arrived while the view was parked. The poll re-anchors the
+    // view by the growth, so `history` and `position` grow together, and the
+    // line under every row is the one that was there. That is the streaming
+    // claim of the phase, and it is arithmetic rather than luck.
+    const grown: HistoryFrame = { ...frame, history: 106, position: 40 };
+    for (let row = 0; row < frame.rows; row += 1) {
+      expect(historyLineOf(row, grown)).toBe(historyLineOf(row, frame));
+    }
   });
 
-  it('clamps above the top to the FIRST cell, because it is the start', () => {
-    expect(anchorAfterScroll(anchor, -31, BOX)).toEqual({ col: 0, row: 0 });
-    expect(anchorAfterScroll(anchor, -5000, BOX)).toEqual({ col: 0, row: 0 });
+  it('moves the ROW, never the line, when the view is live and lines arrive', () => {
+    // A live view has nothing to re-anchor, so the text scrolls up the
+    // screen. The position of a line is unchanged; the row it is drawn on is
+    // what moved, by exactly the lines that arrived.
+    const live: HistoryFrame = { ...frame, position: 0 };
+    const anchored = toHistory({ col: 4, row: 7 }, live);
+    const later: HistoryFrame = { ...live, history: live.history + 3 };
+    expect(screenRowOf(anchored.line, later)).toBe(4);
+    expect(toHistory({ col: 4, row: 4 }, later)).toEqual(anchored);
+  });
+
+  it('orders a range by line first and column second, either way round', () => {
+    const a = { line: 70, col: 30 };
+    const b = { line: 72, col: 2 };
+    expect(historyRange(a, b)).toEqual({ start: a, end: b });
+    expect(historyRange(b, a)).toEqual({ start: a, end: b });
+    const c = { line: 70, col: 5 };
+    expect(historyRange(a, c)).toEqual({ start: c, end: a });
+    expect(historyRange(a, a)).toEqual({ start: a, end: a });
+  });
+});
+
+describe('visibleSpan and spansHistory', () => {
+  const frame: HistoryFrame = { history: 96, position: 30, rows: 10, cols: 40 };
+  // Rows 0..9 show lines 66..75 under this frame.
+
+  it('draws a range that is wholly on screen exactly, and says it fits', () => {
+    const range = historyRange({ line: 68, col: 4 }, { line: 70, col: 9 });
+    expect(spansHistory(range, frame)).toBe(false);
+    expect(visibleSpan(range, frame)).toEqual(
+      selectionSpan({ col: 4, row: 2 }, { col: 9, row: 4 }, 40)
+    );
+  });
+
+  it('clamps a start above the top to the first cell, for drawing only', () => {
+    const range = historyRange({ line: 20, col: 33 }, { line: 70, col: 9 });
+    expect(spansHistory(range, frame)).toBe(true);
+    expect(visibleSpan(range, frame)).toEqual(
+      selectionSpan({ col: 0, row: 0 }, { col: 9, row: 4 }, 40)
+    );
+    // The range itself still knows where it starts.
+    expect(range.start).toEqual({ line: 20, col: 33 });
+  });
+
+  it('clamps an end below the bottom to the last cell of the last row', () => {
+    const range = historyRange({ line: 68, col: 4 }, { line: 200, col: 1 });
+    expect(spansHistory(range, frame)).toBe(true);
+    expect(visibleSpan(range, frame)).toEqual({
+      column: 4,
+      row: 2,
+      length: 7 * 40 + (40 - 4)
+    });
+  });
+
+  it('draws the whole screen for a range that covers it from both sides', () => {
+    const range = historyRange({ line: 0, col: 0 }, { line: 500, col: 0 });
+    expect(visibleSpan(range, frame)).toEqual({
+      column: 0,
+      row: 0,
+      length: 10 * 40
+    });
+  });
+
+  it('draws nothing for a range that is entirely off the screen', () => {
+    expect(
+      visibleSpan(historyRange({ line: 1, col: 0 }, { line: 65, col: 39 }), frame)
+    ).toBeNull();
+    expect(
+      visibleSpan(historyRange({ line: 76, col: 0 }, { line: 90, col: 0 }), frame)
+    ).toBeNull();
+    expect(visibleSpan(historyRange({ line: 1, col: 0 }, { line: 2, col: 0 }), {
+      ...frame,
+      rows: 0
+    })).toBeNull();
+  });
+
+  it('follows the view: scrolling back to the anchor shows it drawn again', () => {
+    // The Phase 205 limit, inverted. Anchor at line 40, head at line 70 after
+    // the hold. Parked where the anchor is off screen it is clamped away;
+    // parked back at the anchor it is drawn at its own column.
+    const range = historyRange({ line: 40, col: 7 }, { line: 70, col: 9 });
+    const atAnchor: HistoryFrame = { ...frame, position: 56 };
+    expect(screenRowOf(40, atAnchor)).toBe(0);
+    expect(visibleSpan(range, atAnchor)).toEqual({
+      column: 7,
+      row: 0,
+      length: 9 * 40 + (40 - 7)
+    });
+    expect(spansHistory(range, atAnchor)).toBe(true);
   });
 });
 
