@@ -275,7 +275,7 @@ reviewable before the work starts rather than after.
 any commit under `build/`. It runs inside `npm run build` too, so nothing that builds can skip it.
 It is the machine discipline rule above made checkable for everything that is not an Electron. It
 asks the question of the FAMILY THAT LEAKED and of nothing else, because asking it of every spawn
-under `build/` goes red on 17 files and stops being a nit: a long lived child is an ASYNCHRONOUS
+under `build/` goes red across most of the directory and stops being a nit, measured on 2026-09-03 at 25 files and 32 call sites by the plain call names alone before any wrapper is counted: a long lived child is an ASYNCHRONOUS
 spawn, never a `*Sync` form, that is either `detached: true` or a runner that does not stop by
 itself, being a command line carrying `while`, `until`, `for(;;)`, `sleep <n>` or the `sleep` program
 itself. The question is asked PER START and not per file: THAT child, held under the name it is held
@@ -285,7 +285,7 @@ DISCOVERED per file rather than listed, because almost every probe under `build/
 wrapper and one called `background` would be invisible to a list; one level and not the transitive
 closure, which was tried and read 36 of `update-rehearsal.mjs`'s own functions as spawners because
 `fail()` reaches a cleanup that reaches a spawn. Nineteen fixtures live in
-`build/background-fixtures.mjs`, twelve of which must make the gate fail, including the exact shape
+`build/background-fixtures.mjs`, thirteen of which must make the gate fail, including the exact shape
 that leaked, a `finally` that tidies but never kills, and a `finally` whose only kill is in a
 comment. **A new shape that walks past it goes in that file in the same commit as the fix.** Run
 against the tree before Phase 206 it finds one real leak, being the `/bin/sh` sampler at

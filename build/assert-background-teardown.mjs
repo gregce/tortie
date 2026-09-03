@@ -18,8 +18,11 @@
  *
  * ## WHAT A LONG LIVED CHILD IS, and the narrowing is deliberate
  *
- * A gate that asked this of EVERY spawn under build/ would go red on 17 files
- * at HEAD and stop being a nit. So it asks it of the family that leaked, and
+ * A gate that asked this of EVERY asynchronous spawn under build/ would go red
+ * across most of the directory and stop being a nit. Measured on 2026-09-03 by
+ * the plain call names alone, with no wrapper discovery at all: 25 files and 32
+ * call sites, and the number only grows once the wrapper each file declares
+ * for itself is counted. So it asks it of the family that leaked, and
  * of nothing else. A long lived child is an ASYNCHRONOUS spawn, being `spawn`,
  * `execFile`, `exec` or `fork` and never the `*Sync` forms, which return when
  * the child has already ended, that is one of:
@@ -74,7 +77,8 @@
  *      somebody deletes every such probe, which is the lesson
  *      build/assert-probe-containment.mjs records about itself.
  *   5. THE FIXTURES. The scanner is run over nineteen files this gate writes
- *      itself, in build/background-fixtures.mjs, including the exact shape
+ *      itself, in build/background-fixtures.mjs, thirteen of which must make it
+ *      fail, including the exact shape
  *      that leaked and the five shapes that walked past this gate as it first
  *      shipped. A checker nobody has seen fail is a checker nobody has seen
  *      work, and a NEW shape that walks past this gate goes into that file in

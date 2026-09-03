@@ -185,9 +185,9 @@ export const CHECKS = [
   // shell, a server, a sleeper or a load generator. It scans build/ for an
   // asynchronous spawn that is detached or is a runner that does not stop by
   // itself, and refuses one whose kill is not inside a `finally` read by
-  // matching braces. Twelve fixtures, including the exact shape that leaked on
-  // 2026-09-02, and it runs inside npm run build so nothing that builds can
-  // skip it.
+  // matching braces. Nineteen fixtures, thirteen of which must make it fail,
+  // including the exact shape that leaked on 2026-09-02, and it runs inside
+  // npm run build so nothing that builds can skip it.
   pure('gate:background'),
   // PHASE 166. The cache policy imports no file system, names no durable
   // path, and neither it nor any file reading it calls a deletion API; no
