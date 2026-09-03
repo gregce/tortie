@@ -166,7 +166,16 @@ export async function restartSession(
     // runs under the login the original ran under rather than under whichever
     // one happens to be chosen now. A login the person has removed since falls
     // back to the default with one sentence, exactly as a restore does.
-    ...(rec.login !== undefined ? { login: rec.login } : {})
+    //
+    // PHASE 211, FIX ROUND. Except when the person asked for the CHOSEN login,
+    // which is the `Restart now` beside a switch. Then no login is named and
+    // the create resolves the chosen one, exactly as a create from the toolbar
+    // does, and the new row carries that name. The original login is not
+    // written anywhere on this path, because the whole point of the control is
+    // that the session leaves it.
+    ...(rec.login !== undefined && options.underChosenLogin !== true
+      ? { login: rec.login }
+      : {})
   };
 
   // STEP 2. Everything the user could lose is still on disk while this runs.

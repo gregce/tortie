@@ -44,7 +44,6 @@ import { loginsOf, useLogins } from '../state/logins';
 import { useApp } from '../state/store';
 import { gmuxBridge } from '../bridge';
 import { loginMenuItems, loginMenuPick } from './login-menu';
-import { LOGIN_RESTART_NOW, loginSwitchTiming } from '@shared/login-copy';
 
 /**
  * Is this a macOS build? (Phase 211). The switch timing differs by platform,
@@ -441,8 +440,6 @@ export function UsageMeter({
   const chooseLogin = useLogins((s) => s.choose);
   const sessions = useApp((s) => s.sessions);
   const openAddLogin = useApp((s) => s.setAddLoginProvider);
-  const restartSession = useApp((s) => s.restartSession);
-  const toast = useApp((s) => s.toast);
 
   useEffect(() => {
     ensurePolling();
@@ -525,31 +522,10 @@ export function UsageMeter({
                 return;
               }
               const row = rows.find((r) => r.name === action.name);
-              const chosen = row?.isDefault === true ? null : action.name;
-              void chooseLogin(provider, chosen).then((ok) => {
-                // PHASE 211. The switch reached the store; the running session
-                // picks it up on its own within about half a minute, and this
-                // is the instant path. It is offered only when a credential
-                // actually moved and a session of this provider is running.
-                if (!ok || row === undefined || !row.restores) return;
-                const running = sessions.filter(
-                  (s) => s.agent === provider && s.status === 'running'
-                );
-                if (running.length === 0) return;
-                toast(
-                  'success',
-                  `${action.name} is switched. ${loginSwitchTiming(IS_MAC)}`,
-                  {
-                    sticky: true,
-                    action: {
-                      label: LOGIN_RESTART_NOW,
-                      run: () => {
-                        for (const s of running) void restartSession(s.id);
-                      }
-                    }
-                  }
-                );
-              });
+              // PHASE 211. The sentence after a switch and its `Restart now`
+              // are the store's, in `../state/logins`, so the Settings list
+              // and this card say the same thing.
+              void chooseLogin(provider, row?.isDefault === true ? null : action.name);
             })
             .catch(() => undefined);
         };

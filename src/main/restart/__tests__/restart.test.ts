@@ -305,6 +305,27 @@ function captured(): ManifestSessionRecord {
   });
 }
 
+describe('a restart under the chosen login (Phase 211, fix round)', () => {
+  it('names no login, so the create resolves the chosen one and the row carries it', async () => {
+    const f = fake(record({ login: 'work' }));
+    await restartSession(f.host, SESSION_ID, { underChosenLogin: true });
+    expect(f.created[0]).not.toHaveProperty('login');
+    expect(f.calls).toEqual(['create', 'discard', 'broadcast']);
+  });
+
+  it('keeps the original login when the option is absent, as Phase 202 built it', async () => {
+    const f = fake(record({ login: 'work' }));
+    await restartSession(f.host, SESSION_ID);
+    expect(f.created[0]?.login).toBe('work');
+  });
+
+  it('names no login for a row that ran under the default, either way', async () => {
+    const f = fake(record({}));
+    await restartSession(f.host, SESSION_ID, { underChosenLogin: true });
+    expect(f.created[0]).not.toHaveProperty('login');
+  });
+});
+
 describe('a restart that declines capture', () => {
   it('sends no capture key at all, whatever the old row said', async () => {
     const f = captured();

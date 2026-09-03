@@ -40,6 +40,9 @@ export interface P202LoginRow {
   isDefault: boolean;
   chosen: boolean;
   present: boolean;
+  /** Phase 211: Tortie holds a copy, and choosing it would put one back. */
+  kept: boolean;
+  restores: boolean;
 }
 
 /** One provider's meter row, as main answered it. */
@@ -149,7 +152,9 @@ function readNow(): P202Reading {
       name: l.name,
       isDefault: l.isDefault,
       chosen: l.chosen,
-      present: l.present
+      present: l.present,
+      kept: l.kept,
+      restores: l.restores
     })),
     problems: [...useLogins.getState().snapshot.problems],
     meter: useUsage.getState().snapshot.providers.map((p) => ({

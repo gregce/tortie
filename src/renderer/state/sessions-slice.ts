@@ -34,6 +34,8 @@ import { REMOTE_SESSION_LINES_DEFAULT } from '@shared/ipc';
 // lives or dies changes; one sentence is posted when the sign in session ends.
 import { loginProviderForAgent } from '@shared/logins';
 import { settleSignIns, watchSignIn } from './sign-in-watch';
+import { setLoginSwitchedListener } from './logins';
+import { offerRestartNow } from './login-switch';
 // Pure over Session fields; resume.ts imports only types and state/agents,
 // and agents.ts does not import this store, so no cycle closes here.
 import {
@@ -508,6 +510,12 @@ export const createSessionsSlice: StateCreator<
 > = (set, get) => {
   const gmux = gmuxBridge();
 
+  // PHASE 211, FIX ROUND. A login switch made from any surface ends with the
+  // sentence and the `Restart now` in ./login-switch, which needs this store's
+  // sessions, toast and restart. Installed here rather than imported from the
+  // logins store, which cannot import this one back.
+  setLoginSwitchedListener((provider, chosen) => offerRestartNow(get(), provider, chosen));
+
   const activityExtras = gmux ?? null;
 
   const sessionExtras = gmux ? gmux.sessions : null;
@@ -666,15 +674,21 @@ export const createSessionsSlice: StateCreator<
    */
   const runRestart = async (
     session: Session,
-    withoutCapture: boolean
+    options: CaptureChoice | undefined
   ): Promise<void> => {
     const api = gmux;
     if (!api) return;
+    const withoutCapture = options?.withoutCapture === true;
     try {
       if (typeof sessionExtras?.restart === 'function') {
+        // PHASE 211, FIX ROUND. The whole option rides through, so a
+        // `Restart now` beside a switch reaches main with `underChosenLogin`
+        // and the replacement comes back under the chosen login.
         const created = await sessionExtras.restart(
           session.id,
-          withoutCapture ? { withoutCapture: true } : undefined
+          options !== undefined && (withoutCapture || options.underChosenLogin === true)
+            ? options
+            : undefined
         );
         get().setActiveSession(created.id);
         if (withoutCapture) {
@@ -1130,12 +1144,12 @@ export const createSessionsSlice: StateCreator<
           body: ask.body,
           confirmLabel: ask.confirmLabel,
           onConfirm: () => {
-            void runRestart(session, true);
+            void runRestart(session, options);
           }
         });
         return;
       }
-      await runRestart(session, false);
+      await runRestart(session, options);
     },
 
     async removeSession(sessionId) {

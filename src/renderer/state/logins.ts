@@ -20,8 +20,26 @@
 
 import { create } from 'zustand';
 import type { LoginProviderId, LoginsSnapshot } from '@shared/logins';
-import { DEFAULT_LOGIN_NAME, LOGIN_PROVIDERS, defaultLoginRow } from '@shared/logins';
+import { DEFAULT_LOGIN_NAME, LOGIN_PROVIDERS, defaultLoginRow, sameLoginName } from '@shared/logins';
 import { gmuxBridge } from '../bridge';
+
+/**
+ * Who is told that a switch put a credential back (Phase 211, fix round).
+ *
+ * The sessions slice installs `./login-switch`'s `offerRestartNow` here at its
+ * creation, so a choose made from ANY surface ends with the same sentence and
+ * the same `Restart now`. It is a listener rather than an import because the
+ * app store reaches this module through `./sign-in-watch`, and an import back
+ * would close a runtime cycle. Nothing is said while none is installed, which
+ * is the shape of a test that opens no window.
+ */
+let onSwitched: ((provider: LoginProviderId, chosen: string) => void) | null = null;
+
+export function setLoginSwitchedListener(
+  listener: ((provider: LoginProviderId, chosen: string) => void) | null
+): void {
+  onSwitched = listener;
+}
 
 /** Every install starts here: one default login per provider, chosen. */
 export function seedLoginsSnapshot(): LoginsSnapshot {
@@ -90,7 +108,20 @@ export const useLogins = create<LoginsStoreState>((set) => ({
   },
 
   async choose(provider, name): Promise<boolean> {
-    return act((api) => api.choose(provider, name));
+    const row =
+      name === null
+        ? undefined
+        : useLogins
+            .getState()
+            .snapshot.logins.find((l) => l.provider === provider && sameLoginName(l.name, name));
+    const ok = await act((api) => api.choose(provider, name));
+    // A CREDENTIAL MOVED, so the sessions it reached are offered a restart.
+    // Choosing the default moves nothing, and so does a row that restores
+    // nothing, and a line about nothing is what the operator refused.
+    if (ok && name !== null && row !== undefined && row.restores && onSwitched !== null) {
+      onSwitched(provider, name);
+    }
+    return ok;
   },
 
   async add(provider, name): Promise<boolean> {
@@ -175,3 +206,4 @@ export function loginsOf(
 ): LoginsSnapshot['logins'] {
   return snapshot.logins.filter((l) => l.provider === provider);
 }
+

@@ -57,6 +57,17 @@ export interface CaptureChoice {
    * nothing, and the renderer does not offer the verb for such a row.
    */
   withoutCapture?: boolean;
+  /**
+   * True to bring the session back under the login CHOSEN for its provider
+   * right now rather than the one it was started under (Phase 211, fix
+   * round). This is the `Restart now` beside a switch: the replacement's row
+   * carries the chosen login's NAME, as any create does when it names none,
+   * so a person who switched accounts and pressed the control has the
+   * session under the account they chose. Omitted, a restart keeps the login
+   * the original ran under, exactly as Phase 202 built it. It names no login
+   * itself: the choice is main's, read at the create.
+   */
+  underChosenLogin?: boolean;
 }
 
 /** New invoke channels appended by the restore stream. */
