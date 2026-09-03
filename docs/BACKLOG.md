@@ -20792,6 +20792,97 @@ the commit body what it costs on a cold start.
   scratch keychain the phase makes and removes.
 - **No new package, no new capture.**
 
+## Phase 209: a selection you scrolled through copies all of it (operator reported 2026-09-03)
+
+**Subject.** `fix(terminal): what you selected across a scroll is what you copy`
+
+**First body line.** `Phase 209: the selection is the history, not the screen`
+
+**Semver.** PATCH. It finishes a behaviour Phase 205 shipped half of and said so.
+
+**Tier 2.** It reads history the app already reads over the same IPC, writes nothing durable, spawns
+nothing new, and is a rendered surface with existing state. One app run, and the independent method
+is the one Phase 205's verifier could not run because the screen was locked: the same gesture driven
+in Apple's Terminal and in Tortie over the same text, with the pasteboard compared.
+
+**Charter.** His words of 2026-09-03: *"There was a phase last night that improved scrolling but
+when i have all of that text selected and copy it, it doesn't actually copy my full selection"*.
+The original charter was Phase 205 item 3, that the panes should behave like Apple's Terminal, and
+the phase stated the one place they do not.
+
+### What is true today, stated by the module itself
+
+`src/renderer/terminal/scroll/drag-select.ts`'s header, under THE LIMIT: *"The selection is what the
+SCREEN holds, so a drag that pushes the anchor past the far edge keeps extending from that edge
+rather than off it, and what you copy is what you can see highlighted."* Measured by that phase with
+an eight second hold above the top edge: the history travelled 668 lines and the copy was 43, one
+screen at the far end. Apple's Terminal accumulates across the whole travel. The header names the
+fix and refuses it as too big for a nits round: *"Closing that means composing the text from tmux
+rather than from the pane."* This entry is that change.
+
+The three pieces, read on 2026-09-03:
+
+- **The anchor is a screen cell.** `src/renderer/terminal/scroll/drag-math.ts`'s `anchorAfterScroll`
+  moves the anchor by the difference of two `#{scroll_position}` readings and CLAMPS it to the
+  screen when it leaves. The clamp is where the selection stops growing.
+- **The copy reads the screen.** `src/renderer/terminal/capture/index.ts` composes Copy and Copy as
+  HTML from `term.getSelection()` and `term.getSelectionPosition()`, which are xterm's, and a gmux
+  pane's xterm holds one screen of a tmux client in the alternate buffer.
+- **The history is one call away.** `src/main/tmux/sessions.ts` already runs `capture-pane` with
+  `-S` for the Capture Last N Lines rows, and `src/main/tmux/scroll.ts` states the history lives in
+  the private server's 50,000 lines. Nothing in the drag reaches it.
+
+### What it builds
+
+- **The anchor and the head become history positions**, being a line number in the pane's history
+  plus a column, derived from the screen cell and `#{scroll_position}` at the moment each is set.
+  Neither is clamped. The screen highlight is the INTERSECTION of that range with the rows on screen,
+  re-issued through `Terminal.select` the way the module already does, so what you see is still what
+  is selected, just not all of it.
+- **Copy composes from tmux.** When a selection spans history, Copy and Copy as HTML ask main for the
+  lines between the two positions through the existing `capture-pane` path with `-S` and `-E`, trim
+  the first and last lines to their columns, and put that on the clipboard. A selection that never
+  left the screen keeps its current path byte for byte, so nothing changes for the ordinary case.
+- **The header's LIMIT paragraph is rewritten to say what is true now**, and the number a person
+  will meet is the history cap, not one screen.
+
+### What it must get right
+
+- **Highlight and copy never disagree about the text, only about how much is visible.** A person
+  who scrolls back to the anchor sees it still highlighted. That is the property, and it is what
+  Apple's Terminal does.
+- **The alternate screen and a mouse owning program stay untouched**, exactly as the module already
+  guards, because tmux has no history to offer for them.
+- **A streaming session under a live drag** does not shift the anchor, because history positions do
+  not move when new lines arrive at the bottom; this is a place where the new design is simpler
+  than the old, and the phase proves it rather than assumes it.
+- **The cap is stated with its number.** The history is 50,000 lines and a selection cannot exceed
+  it; the copy says nothing and simply stops there.
+- **Capture Selection follows Copy**, since it reads the same selection, or the phase says why it
+  keeps the screen and records it.
+
+### Proof, run rather than read
+
+- **Measure the parent:** the eight second hold from Phase 205's own measurement, 668 lines
+  travelled and 43 copied at `4943560`, then all 668 at HEAD, by the same instrument.
+- **The Terminal.app comparison Phase 205 could not run:** the same text in both, the same drag
+  past the top edge, the same command C, pasteboards compared byte for byte. If the screen is
+  locked again the verifier says so and the claim stays unmeasured, as before.
+- **Attack:** a drag that reverses direction back past the anchor, a drag that reaches the top of
+  the history, a wheel scroll to the bottom and back during a drag, a selection whose first or last
+  line is wider than the pane, a streaming session under a drag, and a pane on the alternate screen
+  where nothing must change.
+- One app run covering the journey: select, hold above the edge for eight seconds, copy, paste into
+  a file, count the lines.
+- The battery.
+
+### What is NOT in this phase
+
+- No change to an ordinary in-screen selection, which stays xterm's.
+- No block selection, no search driven selection, nothing Apple's Terminal itself lacks.
+- No change to what any capture row produces beyond Capture Selection following Copy, if it does.
+- No new package.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -21168,3 +21259,4 @@ cycle rather than only the evening it was written.
 - 2026-09-03, THE EAGER BUDGET BLOCKER IS CLEARED, at his word, as the first commit of Phase 207 in its worktree at `a08f1de` build(renderer): comments and whitespace do not ship. The cause was measured rather than guessed and two wrong guesses were refuted by an identical output hash before the right one: electron-vite defaults `build.minify` off, Vite's per file esbuild transform does drop comments, but esbuild 0.25 keeps a line comment that sits inside an object literal or an array, which is where `src/renderer/state` carries its long ones, so 901 comment lines rode into the startup chunk; the React plugin's Babel comments option changed nothing because Babel is not in the path, and an esbuild `minifyWhitespace` option at transform level changed nothing because Vite runs esbuild's minify pass only in its renderChunk step and only when `build.minify` is set. The change is `build.minify: 'esbuild'` for the renderer with `minifyIdentifiers` and `minifySyntax` OFF so no name and no shape moves, `legalComments: 'none'`, and `cssMinify: false` because `assert-css-order` reads a marker from the shipped stylesheet and went red with it on. The eager set moved from 1,999,488 raw and 449,873 gzip to 1,517,092 raw and 383,305 gzip, headroom from 512 to 482,908 raw, comment lines from 901 to 0; every build gate green, smoke:t1 6 of 6, 11,901 tests. THE BUDGET IS UNCHANGED at 2,000,000 because the audit set it on purpose and the cause was prose.
 - 2026-09-03, Phase 207 STARTED in a detached worktree at `5c9100c` plus the budget commit `a08f1de`, the chrome takes the hue you choose: a hue slider in Appearance rotating the neutral ramp the tokens file declares at about 222 degrees, as a third input to the Phase 62 theme layer, working in a perceptually uniform space, the text tokens flipping at one stated threshold rather than the ground being clamped, `--bg-canvas` carried to the window background or left out and said so, the terminal and Monaco following because they are the same material, and a gate walking all 360 degrees over backgrounds AND text with a plain HSL ablation. Its verifier also measures the budget commit against the parent.
 - 2026-09-03, Phase 208 STARTED in a detached worktree at `5c9100c`, the vault is scoped to its profile: Tortie's own keychain items take the profile's digest the way the vendor half has since Phase 203, so a probe on a scratch profile can never address the item his real app reads; the migration of the unscoped item is the hard half and rewriting then deleting is the answer unless the phase argues otherwise, only his own profile may ever read or delete the unscoped name, and `observeAll()` runs once from the boot so the Phase 206 sweeps reach a person who never opens a logins surface. Tier 3, over a scratch keychain never in the search list, with his credentials hashed by attributes before and after.
+- 2026-09-03, Phase 209 QUEUED, the selection is the history and not the screen: he reported that a selection extended by scrolling does not copy in full, and that is the ONE LIMIT Phase 205 shipped with and stated on the face of `drag-select.ts`, being that the selection is what the screen holds so an eight second hold above the edge travelled 668 lines and copied 43, and that closing it means composing the text from tmux rather than from the pane. The anchor and the head become history positions rather than clamped screen cells, the highlight is the intersection with the screen, Copy composes from `capture-pane` between the two positions through the path `src/main/tmux/sessions.ts` already has, and an in-screen selection keeps its current path byte for byte. Tier 2, with the Terminal.app comparison Phase 205's verifier could not run because the screen was locked. NOT LAUNCHED: two workflows are running and this waits for a slot.
