@@ -101,6 +101,13 @@ export default defineConfig({
   },
   renderer: {
     plugins: [react()],
+    // Comments and whitespace do not ship. electron-vite defaults `minify` to
+    // off, and esbuild 0.25 keeps a line comment that sits inside an object
+    // literal, so every long comment in src/renderer/state rode into the eager
+    // chunk and counted against the startup budget: measured at 901 comment
+    // lines and 512 bytes of headroom on 2026-09-03. Identifiers and syntax are
+    // left alone on purpose, so nothing that reads a name or a shape changes.
+    esbuild: { minifyIdentifiers: false, minifySyntax: false, minifyWhitespace: true, legalComments: 'none' },
     // Inline workers (the only kind that can start from a file:// renderer —
     // see src/renderer/editor/monaco-impl.ts) are emitted as one IIFE chunk,
     // so a worker containing a dynamic import fails the build. @pierre/diffs'
@@ -117,6 +124,10 @@ export default defineConfig({
       }
     },
     build: {
+      minify: 'esbuild',
+      // JS only. The stylesheet keeps its comments, because assert-css-order
+      // reads a marker out of the shipped CSS to prove surface.css lands first.
+      cssMinify: false,
       // monaco-editor is heavy; raise the warning ceiling rather than split
       // hairs in the scaffold. Editor stream owns real chunking later.
       chunkSizeWarningLimit: 6000,
