@@ -1,5 +1,5 @@
 /**
- * The nine gmux tags queries, inlined as TypeScript string constants.
+ * The ten gmux tags queries, inlined as TypeScript string constants.
  *
  * WHY GMUX AUTHORS THESE INSTEAD OF USING UPSTREAM `tags.scm`
  * (research 19 §3.3 / 19-d3 §2.7, measured — do not re-derive): probed against
@@ -520,6 +520,48 @@ export const OBJC_QUERY = `
 (preproc_include path: (string_literal (string_content) @import.path)) @import.static
 (preproc_include path: (system_lib_string) @import.path) @import.static
 (module_import path: (identifier) @import.path) @import.static
+`;
+
+export const JAVA_QUERY = `
+; Phase 184. Java's grammar names its fields, so every pattern here is field
+; shaped. A record reads as a class, which is what a person looking for it in
+; the palette will call it, and an annotation type reads as an interface,
+; which is what the language calls it.
+(class_declaration name: (identifier) @name) @definition.class
+(record_declaration name: (identifier) @name) @definition.class
+(interface_declaration name: (identifier) @name) @definition.interface
+(annotation_type_declaration name: (identifier) @name) @definition.interface
+(enum_declaration name: (identifier) @name) @definition.enum
+
+(class_declaration
+  name: (identifier) @container
+  body: (class_body (method_declaration name: (identifier) @name) @definition.method))
+(class_declaration
+  name: (identifier) @container
+  body: (class_body (constructor_declaration name: (identifier) @name) @definition.method))
+(record_declaration
+  name: (identifier) @container
+  body: (class_body (method_declaration name: (identifier) @name) @definition.method))
+(interface_declaration
+  name: (identifier) @container
+  body: (interface_body (method_declaration name: (identifier) @name) @definition.method))
+(enum_declaration
+  name: (identifier) @container
+  body: (enum_body (enum_constant name: (identifier) @name) @definition.enum-member))
+(class_declaration
+  name: (identifier) @container
+  body: (class_body
+    (field_declaration
+      declarator: (variable_declarator name: (identifier) @name)) @definition.field))
+
+; Imports (Phase 184). The scoped_identifier holds the WHOLE dotted path as one
+; text, so import com.app.net.Client arrives whole. A static import carries a
+; static token OUTSIDE the identifier and matches the same pattern, and a
+; wildcard import carries an asterisk SIBLING, so a.b.* arrives as a.b with no
+; star; the arm indexes files only and therefore answers unresolved for it,
+; which is the limit stated on the arm's own face.
+(import_declaration (scoped_identifier) @import.path) @import.static
+(import_declaration (identifier) @import.path) @import.static
 `;
 
 /**

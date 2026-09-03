@@ -361,6 +361,16 @@ async function main(): Promise<void> {
       pods: new Set(facts.resolverProbe.objc.pods),
       present: facts.resolverProbe.objc.present
     },
+    // Phase 184: the Java arm's coordinates arrive as data, the same way the
+    // Gradle ones do. ./maven.ts is proved against real pom text in
+    // src/main/arch/__tests__/resolver-java.test.ts; what this gate proves is
+    // the ARM over whatever a reader hands it.
+    java: {
+      groups: new Set(facts.resolverProbe.java.groups),
+      artifacts: new Set(facts.resolverProbe.java.artifacts),
+      android: facts.resolverProbe.java.android,
+      present: facts.resolverProbe.java.present
+    },
     // Phase 180: the Swift targets arrive as data, the same way the Cargo
     // manifest does, because this gate opens no repository, spawns nothing
     // and loads no wasm. The Package.swift and pbxproj READERS are proven in
@@ -433,7 +443,8 @@ async function main(): Promise<void> {
     ruby: 'rb',
     swift: 'swift',
     kotlin: 'kt',
-    objc: 'm'
+    objc: 'm',
+    java: 'java'
   };
   const scannerLanguages = [
     ...new Set(

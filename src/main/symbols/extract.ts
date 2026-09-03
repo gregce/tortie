@@ -28,6 +28,7 @@ import { grammarFor, MAX_INDEXED_FILE_BYTES } from './languages';
 import {
   GO_QUERY,
   IMPORT_BY_CAPTURE,
+  JAVA_QUERY,
   JS_QUERY,
   IMPORT_TRUNCATION_MARKER,
   KIND_BY_CAPTURE,
@@ -115,7 +116,8 @@ const QUERY_TEXT: Readonly<Record<GrammarId, string>> = {
   ruby: RUBY_QUERY,
   swift: SWIFT_QUERY,
   kotlin: KOTLIN_QUERY,
-  objc: OBJC_QUERY
+  objc: OBJC_QUERY,
+  java: JAVA_QUERY
 };
 
 export interface ExtractorOptions {

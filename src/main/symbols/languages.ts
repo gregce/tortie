@@ -1,12 +1,19 @@
 /**
- * The ten grammars gmux ships, and the extension → grammar map.
+ * The eleven grammars gmux ships, and the extension → grammar map.
  *
- * SEVEN come from `@vscode/tree-sitter-wasm` (research 19 §2.8, measured on
+ * EIGHT come from `@vscode/tree-sitter-wasm` (research 19 §2.8, measured on
  * disk): typescript 1,381 KB, tsx 1,412 KB, rust 1,088 KB, python 447 KB,
- * javascript 402 KB, go 212 KB and, since Phase 157, ruby 2,057 KB = 6.8 MB.
- * That package also carries cpp (5.1 MB), c-sharp (4.9 MB), bash, java, php,
- * powershell, css, ini and regex, which is about 12 MB for languages nobody in
- * these repos writes.
+ * javascript 402 KB, go 212 KB, ruby 2,057 KB since Phase 157 and java 405 KB
+ * since Phase 184 = 7.2 MB. That package also carries cpp (5.1 MB), c-sharp
+ * (4.9 MB), bash, php, powershell, css, ini and regex.
+ *
+ * THE PACKAGE IS NOT THE BUNDLE, and Phase 184 is where that stopped being a
+ * detail. `electron-builder.yml` copies these out of the package BY EXACT
+ * FILENAME, never by directory, so a grammar the package carries and this list
+ * does not name costs nothing and a grammar this list names costs its whole
+ * size in signed app. Java's 414,641 bytes are a deliberate act with a size
+ * cost like every one before it, and what they buy is a Java repository's
+ * imports RESOLVING rather than its files being counted as unread.
  *
  * THREE MORE ARE VENDORED IN `resources/tree-sitter/`, admitted by Phase 180
  * as its own deliberate act because no package the bundle carries ships them:
@@ -42,7 +49,8 @@ export type GrammarId =
   | 'ruby'
   | 'swift'
   | 'kotlin'
-  | 'objc';
+  | 'objc'
+  | 'java';
 
 export const GRAMMARS: readonly GrammarId[] = [
   'typescript',
@@ -54,7 +62,8 @@ export const GRAMMARS: readonly GrammarId[] = [
   'ruby',
   'swift',
   'kotlin',
-  'objc'
+  'objc',
+  'java'
 ];
 
 /**
@@ -88,7 +97,8 @@ const BY_EXTENSION: Readonly<Record<string, GrammarId>> = {
   kt: 'kotlin',
   kts: 'kotlin',
   m: 'objc',
-  h: 'objc'
+  h: 'objc',
+  java: 'java'
 };
 
 /** The grammar for a path, or null when gmux does not index that language. */

@@ -73,6 +73,7 @@ import { expandDirGlob, normalizeRel } from './paths';
 import { readCargoManifest, readRootCrateName, type CargoManifest } from './cargo';
 import { readRubyManifest, type RubyManifest } from './gemfile';
 import { readKotlinManifest, type KotlinManifest } from './gradle';
+import { readJavaManifest, type JavaManifest } from './maven';
 import { readObjcManifest, type ObjcManifest } from './podfile';
 import { emptySwiftManifest, type SwiftManifest } from './swiftpm';
 import { readPythonProject, type PythonProject } from './pyproject';
@@ -193,6 +194,14 @@ export interface ArchManifests {
    */
   kotlin: KotlinManifest;
   /**
+   * The JVM coordinates the JAVA arm compares against (Phase 184), being
+   * Gradle's joined with Maven's. It is a second field rather than a wider
+   * `kotlin` one on purpose: teaching ./gradle.ts to read `pom.xml` would move
+   * what the shipped Kotlin arm answers for a project that carries both, and
+   * this phase changes no existing arm.
+   */
+  java: JavaManifest;
+  /**
    * What the Podfile and Cartfile literally declare (Phase 180): pod names,
    * the Objective-C arm's only non platform justification for `external`.
    */
@@ -230,6 +239,10 @@ export function readArchManifests(repoPath: string): ArchManifests {
   for (const workspace of workspaces.values()) {
     for (const name of workspace.dependencies) dependencies.add(name);
   }
+  // Read ONCE and handed to the Java reader, which joins Maven's coordinates
+  // onto it. Reading the same Gradle files twice per scan is the duplication
+  // the growth guardrail asks to be scanned for after parallel work.
+  const gradle = readKotlinManifest(repoPath);
   const manifests: ArchManifests = {
     packageName: typeof pkg?.name === 'string' ? pkg.name : null,
     crateName: readRootCrateName(repoPath),
@@ -246,7 +259,8 @@ export function readArchManifests(repoPath: string): ArchManifests {
     cargo: readCargoManifest(repoPath),
     python: readPythonProject(repoPath),
     ruby: readRubyManifest(repoPath),
-    kotlin: readKotlinManifest(repoPath),
+    kotlin: gradle,
+    java: readJavaManifest(repoPath, gradle),
     objc: readObjcManifest(repoPath),
     swift: emptySwiftManifest()
   };

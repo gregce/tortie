@@ -44,6 +44,7 @@ import {
   unresolved,
   type ArchResolution
 } from './answers';
+import { resolveJava } from './java';
 import { resolveKotlin } from './kotlin';
 import { normalizeRel, type AliasRule, type ArchManifests } from './manifest';
 import { resolveObjc } from './objc';
@@ -89,7 +90,8 @@ export type ArchResolverLanguage =
   | 'ruby'
   | 'swift'
   | 'kotlin'
-  | 'objc';
+  | 'objc'
+  | 'java';
 
 /**
  * The one row per language the matrix prints, with the reason a deferred
@@ -124,7 +126,10 @@ export const RESOLVER_MATRIX: readonly {
   // convention; Objective-C file to file. Each limit is stated on its arm.
   { language: 'swift', resolves: true, reason: null },
   { language: 'kotlin', resolves: true, reason: null },
-  { language: 'objc', resolves: true, reason: null }
+  { language: 'objc', resolves: true, reason: null },
+  // Phase 184: Java at FILE grain, the package to directory convention with
+  // the Kotlin arm's directory fallback deliberately removed. See ./java.ts.
+  { language: 'java', resolves: true, reason: null }
 ];
 
 const BUILTINS = new Set(builtinModules);
@@ -242,6 +247,7 @@ export function resolveImport(
   }
   if (language === 'swift') return resolveSwift(specifier, fromPath, ctx);
   if (language === 'kotlin') return resolveKotlin(specifier, ctx);
+  if (language === 'java') return resolveJava(specifier, ctx);
   if (language === 'objc') return resolveObjc(specifier, fromPath, ctx);
   return resolveScript(specifier, fromPath, ctx);
 }

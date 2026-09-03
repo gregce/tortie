@@ -390,6 +390,36 @@
         "language": "objc",
         "fromPath": "mac/Renderer.m",
         "specifier": "AFNetworking"
+      },
+      {
+        "language": "java",
+        "fromPath": "jvm/src/main/java/com/probe/app/App.java",
+        "specifier": "com.probe.app.net.Client"
+      },
+      {
+        "language": "java",
+        "fromPath": "jvm/src/main/java/com/probe/app/App.java",
+        "specifier": "com.probe.app.net.Client.Builder"
+      },
+      {
+        "language": "java",
+        "fromPath": "jvm/src/main/java/com/probe/app/App.java",
+        "specifier": "java.util.List"
+      },
+      {
+        "language": "java",
+        "fromPath": "jvm/src/main/java/com/probe/app/App.java",
+        "specifier": "okhttp3.OkHttpClient"
+      },
+      {
+        "language": "java",
+        "fromPath": "jvm/src/main/java/com/probe/app/App.java",
+        "specifier": "com.probe.app.net"
+      },
+      {
+        "language": "java",
+        "fromPath": "jvm/src/main/java/com/probe/app/App.java",
+        "specifier": "dev.nowhere.Thing"
       }
     ],
     "files": {
@@ -423,6 +453,12 @@
       "objc": [
         "mac/Renderer.m",
         "mac/Renderer.h"
+      ],
+      "java": [
+        "jvm/pom.xml",
+        "jvm/src/main/java/com/probe/app/App.java",
+        "jvm/src/main/java/com/probe/app/net/Client.java",
+        "jvm/src/test/java/com/probe/app/net/Client.java"
       ]
     },
     "cargo": {
@@ -499,6 +535,16 @@
         "MarkdownView"
       ],
       "stopped": [],
+      "present": true
+    },
+    "java": {
+      "groups": [
+        "com.squareup.okhttp3"
+      ],
+      "artifacts": [
+        "kotlinx-coroutines-android"
+      ],
+      "android": false,
       "present": true
     }
   },
