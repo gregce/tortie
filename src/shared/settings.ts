@@ -107,6 +107,19 @@ export interface GmuxSettings {
    */
   chromeHue: number;
   /**
+   * Where the frame's ramp sits, from near black upward (Phase 210), as a
+   * whole stop offset from the shipped ramp. 0 is the shipped graphite and
+   * derives ZERO overrides. Same posture as `chromeHue` above: a preference
+   * with no danger semantics, never sealed.
+   */
+  chromeShade: number;
+  /**
+   * How far the frame's ramp spreads between its darkest and lightest token
+   * (Phase 210), as a whole stop offset. 0 is the shipped distances and
+   * derives ZERO overrides. Same posture as `chromeShade` above.
+   */
+  chromeDepth: number;
+  /**
    * Who writes the project line (Phase 138). Absent on every install that has
    * never opened Settings and picked one, which is what "None" is.
    *
@@ -390,6 +403,71 @@ export function sanitizeChromeHue(value: unknown): number {
 }
 
 // ---------------------------------------------------------------------------
+// The frame's own lightness (Phase 210). Two stops, and both are whole steps.
+// ---------------------------------------------------------------------------
+
+/**
+ * WHERE THE RAMP SITS, as an offset in stops from the shipped ramp. Stop 0 is
+ * the shipped graphite and derives ZERO overrides. Each stop moves the CANVAS
+ * by CHROME_SHADE_STEP in OKLCH lightness and slides every other neutral with
+ * it, so the ramp keeps its shape and only its height changes.
+ *
+ * The two ends are measured rather than chosen, over every whole degree of the
+ * circle and all three contrast levels:
+ * - Stop 2 is the lightest the ramp goes before the git decorations and the
+ *   graph lanes fall under 3:1 on `--bg-active`, which this phase does not
+ *   move. The canvas there is #1e1f23.
+ * - Stop -4 is the darkest the ramp goes before two of its rungs render as the
+ *   same eight bit colour. Below that the ramp stops being a ramp: at stop -5
+ *   the canvas is #010102 and no depth makes the rungs separate again.
+ *
+ * So a person can go four stops darker and two lighter, and the light half is
+ * the half he asked for. Near black is reachable and BLACK IS NOT, because a
+ * black frame cannot carry a legible ramp in eight bits.
+ */
+export const CHROME_SHADE_STEP = 0.025;
+export const CHROME_SHADE_MIN = -4;
+export const CHROME_SHADE_MAX = 2;
+export const DEFAULT_CHROME_SHADE = 0;
+
+/**
+ * HOW FAR THE RAMP SPREADS, as a multiplier on the distance each neutral
+ * already sits from the canvas. Stop 0 is 1.0, the shipped distances, and
+ * derives ZERO overrides. A multiplier never reorders the ramp, which is the
+ * property that keeps `--bg-sidebar` below `--bg-canvas` at every setting.
+ *
+ * The ends are measured the same way. Below 0.50 the rungs collide in eight
+ * bits at every shade; above 1.75 the git decorations fall under their floor
+ * at the shipped shade even at the normal contrast level.
+ */
+export const CHROME_DEPTH_FACTORS: readonly number[] = [
+  0.5, 0.65, 0.8, 1, 1.25, 1.5, 1.75
+];
+export const CHROME_DEPTH_MIN = -3;
+export const CHROME_DEPTH_MAX = 3;
+export const DEFAULT_CHROME_DEPTH = 0;
+
+function wholeStopIn(value: unknown, lo: number, hi: number, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(hi, Math.max(lo, Math.round(value)));
+}
+
+/**
+ * A persisted or typed shade stop, made a whole stop inside the range. Unlike
+ * the hue this CLAMPS rather than wraps, because the ends of this axis are
+ * where the ramp stops working rather than where the circle joins up. Anything
+ * that is not a finite number is the shipped ramp.
+ */
+export function sanitizeChromeShade(value: unknown): number {
+  return wholeStopIn(value, CHROME_SHADE_MIN, CHROME_SHADE_MAX, DEFAULT_CHROME_SHADE);
+}
+
+/** A persisted or typed depth stop. Same rule as the shade above. */
+export function sanitizeChromeDepth(value: unknown): number {
+  return wholeStopIn(value, CHROME_DEPTH_MIN, CHROME_DEPTH_MAX, DEFAULT_CHROME_DEPTH);
+}
+
+// ---------------------------------------------------------------------------
 // The work area font (Phase 78). A family picker, and no size control.
 // ---------------------------------------------------------------------------
 
@@ -576,6 +654,8 @@ export function defaultGmuxSettings(): GmuxSettings {
     workAreaFont: DEFAULT_WORK_AREA_FONT,
     workAreaFontCustom: DEFAULT_WORK_AREA_FONT_CUSTOM,
     chromeHue: DEFAULT_CHROME_HUE,
+    chromeShade: DEFAULT_CHROME_SHADE,
+    chromeDepth: DEFAULT_CHROME_DEPTH,
     fold: noFoldChosen(),
     arch: noArchChosen(),
     usage: noUsageChosen()

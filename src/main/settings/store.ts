@@ -54,7 +54,9 @@ import {
   foldKey,
   noArchChosen,
   noFoldChosen,
+  sanitizeChromeDepth,
   sanitizeChromeHue,
+  sanitizeChromeShade,
   sanitizeContrastLevel,
   sanitizeHighlightScheme,
   sanitizeUsageSettings,
@@ -494,6 +496,12 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
   // The frame's hue (Phase 207). Same posture: a whole degree on the circle
   // or the shipped 222, never sealed, and 222 derives zero overrides.
   out.chromeHue = sanitizeChromeHue(obj['chromeHue']);
+  // Where the ramp sits and how far it spreads (Phase 210). Whole stops
+  // CLAMPED into range rather than wrapped, because the ends of these two
+  // axes are where the ramp stops working. Both default to the shipped ramp,
+  // which derives zero overrides.
+  out.chromeShade = sanitizeChromeShade(obj['chromeShade']);
+  out.chromeDepth = sanitizeChromeDepth(obj['chromeDepth']);
 
   // The fold choice (Phase 138). Membership FIRST, and the seal after, in
   // getSettings. This is the shape check and it cannot tell who wrote the
