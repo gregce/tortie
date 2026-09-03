@@ -96,9 +96,38 @@ export function gradeRemoval(reading) {
   };
 }
 
-/** Item 3. Every planted character comes back out of the field. */
+/**
+ * Item 3. Every planted character is refused by what Tortie PERSISTED.
+ *
+ * ## IT GRADES THE PERSISTED FAMILY AND NOT THE FIELD, which is the fix round
+ *
+ * As first written this read `input.value` and demanded all sixteen say
+ * `Menlo`, and it could not pass whatever the sanitizer did. The field is a
+ * local draft that resyncs from the persisted family in an effect keyed on it,
+ * so once that family is `Menlo` it never changes again and every later row
+ * keeps its typed text in the DOM. What Tortie kept is the answer to the
+ * question this item asks, and the DOM is carried alongside as a reading
+ * rather than as the verdict.
+ *
+ * ## AND EVERY ROW PROVES ITS OWN COMMIT RAN
+ *
+ * A grader that only demands `Menlo` passes just as well when nothing was
+ * committed at all after the first row, because `Menlo` is what the first row
+ * left. So each row commits a family of its own first and reads it back, and a
+ * row whose sentinel did not land is a row this probe could not drive rather
+ * than a character the sanitizer refused.
+ */
 export function gradeFont(rows) {
   if (rows.length === 0) return { ok: false, why: 'the field was never driven' };
+  const dead = rows.filter((r) => r.sentinelOk !== true);
+  if (dead.length > 0) {
+    return {
+      ok: false,
+      why: `${String(dead.length)} of ${String(rows.length)} rows never committed, being ${dead
+        .map((r) => r.name)
+        .join(', ')}, so nothing under them is a reading about the sanitizer`
+    };
+  }
   const through = rows.filter((r) => r.after !== 'Menlo');
   if (through.length > 0) {
     return {
@@ -110,7 +139,7 @@ export function gradeFont(rows) {
   }
   return {
     ok: true,
-    why: `all ${String(rows.length)} planted characters were refused and the field reads Menlo`
+    why: `all ${String(rows.length)} planted characters were refused, every row committed a family of its own first, and what Tortie kept reads Menlo`
   };
 }
 
@@ -171,13 +200,26 @@ if (process.argv.includes('--self-test')) {
         }).ok,
       false
     ],
-    ['every character refused', () => gradeFont([{ name: 'ALM', after: 'Menlo' }]).ok, true],
+    [
+      'every character refused',
+      () => gradeFont([{ name: 'ALM', after: 'Menlo', sentinelOk: true }]).ok,
+      true
+    ],
+    [
+      'a row whose own commit never landed',
+      () =>
+        gradeFont([
+          { name: 'ALM', after: 'Menlo', sentinelOk: true },
+          { name: 'SHY', after: 'Menlo', sentinelOk: false }
+        ]).ok,
+      false
+    ],
     [
       'one character through',
       () =>
         gradeFont([
-          { name: 'ALM', after: 'Menlo' },
-          { name: 'VS16', after: 'Men️lo' }
+          { name: 'ALM', after: 'Menlo', sentinelOk: true },
+          { name: 'VS16', after: 'Men️lo', sentinelOk: true }
         ]).ok,
       false
     ],
@@ -557,24 +599,61 @@ await withElectron(
         desc.set.call(el, v);
         el.dispatchEvent(new Event('input', { bubbles: true }));
       };
+      if (!window.gmux || typeof window.gmux.settingsGet !== 'function') {
+        return { error: 'the Settings window has no settings bridge to read' };
+      }
+      const persisted = async () => {
+        const s = await window.gmux.settingsGet();
+        return s.workAreaFontCustom;
+      };
+      // COMMITTED THE WAY A PERSON COMMITS IT, being Enter, and the reason it
+      // is Enter rather than blur is the fix round's whole finding. React maps
+      // the blur handler to the native focusout event, and a Settings window
+      // that never took real OS focus was never focused, so input.blur() fired
+      // nothing and the commit never ran. The key handler is routed from a
+      // dispatched keydown whatever has focus. A focusout is dispatched too,
+      // because that is the other way a person leaves the field and a commit
+      // that ran twice with the same draft settles on the same value.
+      const commit = async () => {
+        input.dispatchEvent(
+          new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+        input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+        await wait(350);
+      };
       const planted = ${JSON.stringify(PLANTED)};
       const rows = [];
-      for (const [name, cp] of planted) {
-        const typed = 'Men' + String.fromCodePoint(cp) + 'lo';
+      for (const [i, entry] of planted.entries()) {
+        const name = entry[0];
+        const cp = entry[1];
+        // A DISTINCT FAMILY FIRST, and this is the other half of the finding.
+        // The field resyncs from the PERSISTED family in an effect keyed on
+        // it, so once the persisted value is Menlo it never changes again
+        // and rows two onward keep the typed text in the DOM whatever the
+        // sanitizer did. Committing a family of its own between rows makes
+        // every row's reading its own, and its own reading back proves the
+        // commit path really ran on THIS row rather than on an earlier one.
         input.focus();
+        setValue(input, 'Probe' + String(i));
+        await commit();
+        const sentinel = await persisted();
+        input.focus();
+        const typed = 'Men' + String.fromCodePoint(cp) + 'lo';
         setValue(input, typed);
-        await wait(120);
-        // COMMITTED THE WAY A PERSON COMMITS IT, being blur, which is what
-        // sends the family to main and brings the cleaned one back.
-        input.dispatchEvent(new Event('blur', { bubbles: true }));
-        input.blur();
-        await wait(450);
+        await commit();
+        // GRADED ON WHAT WAS PERSISTED, never on what the input still shows.
+        // The field is a local draft until a commit lands, so its value is
+        // what was typed rather than what Tortie kept.
+        const after = await persisted();
         rows.push({
           name,
           cp,
           typedLength: typed.length,
-          after: input.value,
-          afterLength: input.value.length
+          sentinel,
+          sentinelOk: sentinel === 'Probe' + String(i),
+          after,
+          afterLength: after.length,
+          dom: input.value
         });
       }
       return { rows };
@@ -590,7 +669,7 @@ await withElectron(
       else fail(`item 3: ${fontVerdict.why}`);
       for (const row of font.rows) {
         say(
-          `field: ${row.name} typed ${String(row.typedLength)} chars, read back ${JSON.stringify(row.after)}`
+          `field: ${row.name} typed ${String(row.typedLength)} chars, its own family came back ${String(row.sentinelOk === true)}, Tortie kept ${JSON.stringify(row.after)}, the field still shows ${JSON.stringify(row.dom)}`
         );
       }
     }
