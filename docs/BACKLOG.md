@@ -20990,6 +20990,208 @@ terminal foreground and the ANSI palette already follow a ground wherever it lan
 - **No change to the accent, the categorical hues, the highlight schemes or the contrast levels.**
 - No new package.
 
+## Phase 211: the login you choose reaches the session, and a login you make is seen at once (operator reported 2026-09-03)
+
+**Subject.** `feat(logins): the login you choose reaches the running session, and a sign in is seen at once`
+
+**First body line.** `Phase 211: the login reaches the session`
+
+**Semver.** MINOR.
+
+**Tier 3**, for the same three reasons Phase 204 was: it writes the person's own credential store,
+it spawns the vendor's `security` command, and a wrong write signs him out of the account he works
+in every day. The floor is two independent methods, one of them an attack, a per row matrix over
+real stores, and a fix round that re-derives. **Every write proof runs on a scratch keychain made
+with `security create-keychain` under the harness directory and on scratch stores, exactly as
+Phase 208's probe does.** No agent in this phase reads his credential with `-g` or `-w`, copies a
+token byte anywhere, or writes his keychain. The one thing that can only be measured on his own
+account is named as his acceptance step below rather than claimed.
+
+**Charter.** His words of 2026-09-03: *"even after the last phase we implemented to track and swap
+subscription logins, it doesn't really work 1) when i change the account after one is set, it does
+not actually change in the terminal session and 2) it does not immediately update and refresh when
+i do change and login via the CLI. I would like you to look at the source code in
+/users/gdc/claude-swap and then port that as a new phase and implement it into tortie"*.
+
+### What was read, and what each half of the complaint is
+
+Both halves are already explained by Phase 204's own refusals, read in `src/main/credentials/keep.ts`
+and `src/main/logins/ipc.ts`. Neither is a bug in the code that shipped. Each is a rule that phase
+chose, and this phase changes the rule at his word.
+
+1. **"It does not actually change in the terminal session."** `activate` in
+   `src/main/credentials/keep.ts` writes the chosen account into the store a login runs under, and
+   it REFUSES while a session is running under that login, by the `liveSessions` seam installed from
+   the boot through `setLiveSessionsProbe` in `src/main/credentials/index.ts`. So with a session
+   open on a login, choosing another account for that login is refused, and the session goes on as
+   it was. A session on the DEFAULT login can never change at all, because
+   `src/main/credentials/stores.ts` refuses the person's own default location by name for every
+   write. Phase 202 wrote "no switching of a running session" into its refusals and Phase 204 kept
+   it. He has now said the opposite is what he expects.
+2. **"It does not immediately update and refresh when I log in via the CLI."** An observe, which is
+   the read that notices a store's account changed and keeps the account it replaced, runs in
+   exactly two places: once at boot, a second after the core is up (Phase 208), and in front of
+   `logins:list`, held for five seconds. Nothing watches a store. So a `/login` typed inside a
+   session is noticed the next time something asks for the list, which is a hover over the meter or
+   a visit to Settings, and never before. The Phase 204 refusal "there is no timer in this file" is
+   what made that so.
+
+### What claude-swap does, read from `/Users/gdc/claude-swap` copied to the scratchpad
+
+It is a Python tool by realiti4 with one active store and many kept accounts, and a switch is a
+WRITE to the active store. The parts that matter to this port, with the file each was read from:
+
+- **The switch writes the vendor's ACTIVE credential.** On macOS that is the keychain item
+  `Claude Code-credentials`, written through `security -i` on stdin so no token byte is on an argv
+  (`src/claude_swap/macos_keychain.py`). Tortie already writes the same way, `add-generic-password
+  -U` over `-i` with the payload as `-X` hex, in `src/main/credentials/security.ts` line 256, so
+  the write primitive needs no port.
+- **A running session picks the switch up on its own.** The README, under Tips, states it as a
+  measurement: on Linux and Windows Claude Code re-reads the credential file when it changes, so
+  the new account takes effect on the next message; on macOS Claude Code caches the keychain read
+  for about thirty seconds and a running session picks the switch up when that cache expires;
+  restart only if you want it instantly. **That sentence is the whole answer to his first
+  complaint, and it is a measurement this phase re-takes rather than repeats**, see below.
+- **The write holds Claude Code's own locks** (`src/claude_swap/claude_locks.py`, verified by its
+  author against the 2.1.218 bundle; his installed vendor is 2.1.259 and the measure step re-reads
+  the bundle). Claude Code guards its token refresh with `proper-lockfile` directories, being
+  `<config-home>/.oauth_refresh.lock` then the legacy `<config-home>.lock`, both stale after 60 s
+  and touched every 5 s, and `~/.claude.json.lock` stale after 10 s. A refresh reads the credential,
+  goes to the network, and saves, all under those locks, so a swap landing inside that window is
+  overwritten by the refreshed OLD account's token and the copy just kept holds a refresh token
+  that is no longer valid. Held, Claude Code's own double checked re-read sees the swapped
+  credential and abandons the refresh. Tortie's `activate` today holds nothing, and it did not need
+  to, because it refused while anything ran. The moment it writes under a running session it needs
+  these locks, and they are the port.
+- **Capture is the other verb, and it runs on `add` and at session exit**, not on a watch. Tortie's
+  observe is already that verb. claude-swap has no file watcher either, so the second complaint is
+  answered by Tortie's own structure rather than by a port: the observe exists, it is simply never
+  told to run.
+- **Session mode**, `cswap run N`, sets `CLAUDE_CONFIG_DIR` to a per account directory, which is
+  the Phase 202 model Tortie already has. Its symlinking of `settings.json`, `CLAUDE.md`, skills,
+  commands and agents into each profile is NOT ported, see the refusals.
+- **Process detection** reads `~/.claude/sessions/<pid>.json`. Tortie knows its sessions from the
+  manifest and tmux and does not need it.
+
+### What it builds
+
+- **Choosing a login for a session that is running writes it in, under the locks, and the session
+  follows.** `activate` stops refusing when a session is running under the store. It takes the two
+  credential locks, then `~/.claude.json.lock` for the identity file, does the three step write
+  `src/main/credentials/swap.ts` already guarantees, and releases in a `finally`. The locks are
+  ONE new module, `src/main/credentials/locks.ts`, mkdir as the mutex, a toucher every 3 s, stale
+  at the vendor's own numbers read from the bundle, and a bounded wait that refuses with a sentence
+  naming the lock rather than stealing a live one. Codex has no such lock and its store is a file
+  the CLI re-reads, so the codex path holds nothing and says so in code.
+- **The default login is written too, at his word, and this is the second refusal this phase lifts
+  from Phase 204.** A session on the default login is the common case, being every session before
+  Phase 202 and every session made without choosing, so "the login you choose reaches the session"
+  is false without it. The write is the same three steps into the vendor's own location, preceded
+  by the same observe, so whatever account was there is already kept and promoted before a byte
+  moves. The `stores.ts` refusal becomes a refusal of every path EXCEPT the one activate takes,
+  and the gate proves no other caller can reach it. The default row keeps meaning the vendor's own
+  location holding whichever account is in it now.
+- **The face says what will happen, and when.** The card and the menu draw one line before the
+  switch: on macOS *Takes effect within about a minute, or restart the session now*, on other
+  platforms *Takes effect on the next message*. The number is the measured one, not the README's.
+- **Restart now.** Beside that line, one control ends the session and restores it under the chosen
+  login with its own `resume_argv`, so a person who wants it instantly has it, and the manifest
+  row carries the new login NAME as it does after any choice. This is the Phase 202 model kept:
+  the session starts under `CLAUDE_CONFIG_DIR` for the login, so the default store is untouched on
+  this path.
+- **A store is watched, and a sign in is seen at once.** `src/main/credentials/watch.ts` holds
+  `fs.watch` on the exact files a sign in changes, being `<store>/.claude.json` for every claude
+  store including his own, and `auth.json` for every codex store, plus the keychain half read
+  by attributes only, never `-w`, on a slow poll as the backstop for a credential that changed with
+  no file moving. Any change runs ONE observe through the same serialised path `logins/ipc.ts`
+  already uses, then pushes a `logins:changed` event so the menu, the card, the Settings list and
+  the meter redraw without being asked. This is NOT a subscription through `src/main/watcher/`,
+  so the FSEvents exclusion budget is not touched; `conformance:watcher` runs anyway to prove it.
+  An observe writes only Tortie's own store, so the watcher can never sign a session out, and a
+  burst of writes from the vendor's hourly rotation collapses into one observe by the existing
+  five second hold.
+- **`/login` inside a session is remembered the moment it finishes**, which is the Phase 204
+  promise with the watcher behind it, and the row for the account he left appears on the menu
+  while the session is still open.
+
+### The measurement the phase must take before the face says a number
+
+**The README's "about thirty seconds" is a sentence that sounds like a measurement, so it is
+measured.** Two ways, both on scratch:
+
+1. **Read the bundle.** The installed vendor bundle at his `claude` 2.1.259 is read for the
+   keychain cache constant and for the lock options, the way research 29 read it for the context
+   rules, and the numbers are written into research 79 with the identifiers they were found under.
+2. **Drive a real vendor process on a scratch login.** A `claude` under `CLAUDE_CONFIG_DIR` set to
+   a scratch directory reads the scoped item `Claude Code-credentials-<digest>` from a scratch
+   keychain placed first in its search list for that process only. Two FIXTURE credentials with
+   different `subscriptionType` values are swapped in that item while the process runs, and the
+   time from the write to the process reporting the new one is read. If a running interactive
+   session cannot be made to report its credential without a network turn, the phase says so, ships
+   the bundle's number, and the live pickup on his own account becomes his acceptance step below
+   rather than a claim.
+
+### What it must get right, and these are the properties
+
+- **No switch loses an account**, the Phase 204 matrix, now over every ordered pair with a session
+  RUNNING under the store at every hop, on a scratch keychain.
+- **No write lands inside a refresh.** With a fixture holder touching the lock every 5 s, activate
+  waits; with a holder gone stale past 60 s, it proceeds; it never steals a live lock; and a
+  refusal names the lock and not the payload.
+- **A crash leaves the old credential or the new one and never neither**, unchanged from Phase 204
+  and re-run over the new path.
+- **The default store is reachable by activate and by nothing else.** The gate scans every call
+  site.
+- **The watcher never writes a vendor store**, never spawns on a keystroke, and a storm of a thousand
+  file events costs one observe per five seconds.
+- **No token byte** in any log, event, IPC payload, argv, error or report, over an arm that really
+  runs the keychain path so the command lines exist to be checked.
+- **His three credential files and his keychain are byte identical across every agent's run**,
+  proved by hash before and after, because the agents only ever touch scratch.
+
+### Proof, run rather than read
+
+- `npm run conformance:credentials` gains the lock rules, the default store reachability scan, the
+  watcher's one observe per burst, and the codex no lock rule, red one clause at a time under
+  ablation; `conformance:logins` and `conformance:watcher` re-run.
+- **Real data, on scratch:** the ordered pair matrix with a session running, the stale and live
+  lock arms, three kills, and the vendor process pickup measurement above, in a per row table.
+- **Attack:** a lock directory owned by another user, a lock touched from the future, a
+  `.claude.json` replaced by a symlink to his own during the watch, two chooses at once on one
+  store, a choose during the vendor's own rotation simulated by a holder that writes, a watcher
+  event for a file that was deleted, and a login removed while its session is running.
+- **One app run**, `npm run probe:p211`, two Electrons never at once on one scratch profile and a
+  scratch keychain: open a session on a fixture login, choose another account for it from the
+  card, read the line and the lock acquisition off the log, read the store's new account back by
+  attributes, press Restart now and read the restored session's pane environment from inside the
+  pane, then write a fixture sign in into a store from outside and read the menu redraw off the
+  DOM with no hover and no visit.
+- The battery, with `gate:contract` green on the regenerated baseline for the new event channel.
+
+### His acceptance step, because it is the one thing only his account can show
+
+Open a session on the default login, type `/status` and read the address. Choose the other account
+from the session's card. Wait the time the line says, type `/status` again, and read the other
+address. Then press Restart now and read it a third time. If the second reading does not change
+within the stated time, the bundle number is wrong for his build and the phase reports that rather
+than the README's sentence.
+
+### What is NOT in this phase
+
+- **No agent ever signs anybody in.** The vendor's own command is still the only thing that
+  authenticates. Unchanged since Phase 202.
+- **No refresh and no rotation**, and no reading of the vendor's refresh endpoint. Tortie moves a
+  credential and never renews one.
+- **No usage based auto switching**, no menubar, no launch agent, no `--share-history` and no
+  symlinking of settings, skills, commands or `CLAUDE.md` between logins. claude-swap does all of
+  these and none of them is this complaint.
+- **No provider beyond claude and codex**, no per project login, no rename.
+- **No credential in the renderer, ever.** The new event carries names and booleans and nothing
+  else, and the gate proves the channel cannot compose a payload.
+- **The vendor's cache is the vendor's.** Tortie does not restart, signal or write into a running
+  vendor process to make it re-read sooner. The only instant path is Restart now, which is a
+  restore.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -21375,3 +21577,4 @@ cycle rather than only the evening it was written.
 - 2026-09-03, Phase 209 STARTED in a detached worktree at `a87a826`, the selection is the history and not the screen: the anchor and the head become tmux history positions rather than clamped screen cells, the highlight is the intersection with the screen, Copy composes from `capture-pane` between the two positions, and an in-screen selection keeps its path byte for byte. Its verifier runs the Terminal.app comparison Phase 205 could not, or says the screen was locked again.
 - 2026-09-03, Phase 209 BUILT, the selection is the history and not the screen: the anchor and the head are `history - position + row` and a column, never clamped, the highlight is that range projected back through the current view and clamped for drawing alone, and Copy, Copy as HTML and Capture Selection compose from `capture-pane -e -J -S -E` between the two lines through the path main already had, in an unopened xterm of the pane's own width so a wrapped row joins and a wide character takes its two cells exactly as xterm's own path does. The eight second hold travelled 324 lines and copied 43 at the parent and travelled 322 and copied 362 at HEAD. A FIX ROUND changed the copy rule after a measurement the first shape did not have: a held range whose rows all fit the screen was let take xterm's text, and under a pane printing ten lines a second the pane's own terminal held `865` on the rows tmux's grid held `STREAM-5` on, about fifty lines behind, so the copy took stale rows while the highlight was drawn on the right ones; with the stream stopped and the same view parked the two agreed row for row, so the lag is the client's paint and not the arithmetic, and a held selection is now answered from the history whatever the view shows. A drag that never scrolled holds nothing and keeps xterm's path byte for byte, proved by `npm run probe:p209` arm E at 418 bytes identical over the same cells copied both ways with the second copy taken 63 lines off the screen where xterm has no selection to give. The one remaining difference is the pad cell the server paints after an emoji xterm's Unicode 6 table measures at one cell, one space, and the LIMIT paragraph names it beside the Scrollback depth.
 - 2026-09-03, Phase 209 LANDED on `5e36ccb` at version 0.99.0 with NO bump, the declared semver being PATCH, the selection is the history and not the screen, ten commits from `e126a3d` rebased onto Phase 207's tip. WHAT HE CAN NOW DO, and it closes the report he made this morning: select some text, hold the pointer above the top edge until the pane has scrolled back as far as he wants, and command C copies EVERY line he dragged over rather than the one screen at the far end, and scrolling back to where he started still shows the anchor highlighted, because the two ends of a selection are now line numbers in the session's own history rather than cells on a screen that repaints under them. THE COUNTS, his own eight second hold driven at both commits over the same text by the verifier's own instrument: 692 lines travelled and 43 COPIED at the parent `a87a826`, one screen at the far end, against 695 travelled and 717 COPIED at HEAD, being the anchor row plus the whole travel, and those 717 lines are byte identical to what tmux's own `capture-pane -e -J -S -E` answers over the same range once the two column trims the drag really named are applied, 717 of 717. THE TERMINAL.APP COMPARISON PHASE 205 COULD NOT RUN, RAN: the screen was unlocked and accessibility trusted, both stated from a reading rather than assumed, and Apple's Terminal driven by real CGEvents over the same text and the same gesture put 541 lines on the pasteboard, of which the 534 whole lines both copies hold are BYTE IDENTICAL to Tortie's at HEAD, 2,669 bytes each and both equal to the text itself, where at the parent Tortie's 41 whole lines had ZERO overlap with Terminal's 539; the one shape difference left is xterm's own rule for a press past the end of a short line, and it predates this phase. The gesture had to be posted from ONE process sharing one CGEventSource and one click state, because a press and drags posted from separate processes are not read as a drag once the pointer leaves the window, and three attempts selected nothing before that was found. THE PROMISE NOT TO TOUCH THE ORDINARY CASE IS KEPT AND PROVED TWICE BY PATHS THAT SHARE NO CODE: a drag that never scrolled copied the same 31 BYTES at the parent and at HEAD under the verifier's drive, and the builder's own arm E read 418 bytes identical over the same cells copied both ways. THE CLAUSE THE ENTRY ASKED BE PROVED RATHER THAN ASSUMED, a streaming pane under a live drag: at the parent the copy ended at `3500` while the press had landed on the line reading `3997`, so the anchor had slid about 495 lines and was lost, and at HEAD 48 lines arrived under the drag and the copy still ends on the pressed line. THE ATTACKS ALL HELD: a reverse past the anchor took 432 contiguous lines, a drag to the top of the history stopped at the oldest line the server still holds and did not run on, a wheel to the bottom and back with the button down took 47 lines byte identical to tmux's own capture, and a pane on its own alternate screen is IDENTICAL at both commits, `alternate_on` 1 and `scroll_position` 0 before and after an eight second hold with nothing scrolled. The first and last line wider than the pane arm found the composer RIGHT and the verifier's own naive trim wrong, a selection ending on the third wrapped row of a 305 character line giving 144 plus 144 plus 10 where a trim of the joined logical line gave 10, which is exactly the round trip `-J` puts at risk and it is exact. CAPTURE SELECTION FOLLOWS COPY, with the cap the entry asked be recorded if it did not follow exactly: it composes from the same two history lines, and it rasterizes the LAST 1,000 of the selected lines, being `MAX_CAPTURE_ROWS`, which is the same cap the on screen path has always applied, and it says so in its toast. THE VERIFIER'S METHODS, every one independent of the builder: its own drive and its own reader run at both commits; the Terminal.app comparison above; a re-derivation of `historyLineOf`, `screenRowOf`, `toHistory`, `historyRange` and `visibleSpan` over 100,000 random screens, scroll positions and cells with ZERO mismatches, 20,000 more over `selectionSpan`, and eleven hand written edge shapes; the in screen byte comparison; and three tmux measurements of its own, that `capture-pane -S` is relative to the top of the LIVE screen in copy mode too, that a range above the oldest line answers ONE row rather than nothing which is what main's clamp is for, and that an absolute history line keeps its content while 55 lines arrive at the bottom. THE COMMITTER'S ROUND closed three of the six findings, all of them comments, with every changed line a comment line and nothing executable moved: the header sentence in `drag-math.ts` saying the absolute line holds still because `history` and `position` grow by the same amount together is FALSE, re-derived on a scratch server of the committer's own with a pane printing in bursts so a reading falls in a quiet window, `scroll_position` fixed at 11 while `history_size` went 21 to 51, the same screen row going LINE-22 to LINE-52 and absolute line 10 reading LINE-11 at both ends, so the stable thing is the ABSOLUTE line and what re-anchors a parked view is this app's own poll, which `ScrollSurface` already suspends for the length of a drag; a stale `history-limit 50000` left in `src/main/capture/service.ts` after the same number was corrected in four other files, the shipped default being 25,000 in `resources/gmux-tmux.conf` and the ceiling 100,000, with 50,000 being his own server; and the LIMIT paragraph now admits that one copy is TWO calls rather than one instant, main reading `#{history_size}` and then running `capture-pane` with offsets computed from it, which moved the answer by one line or none under a pane printing ten lines a second and by as much as 137 when the same pair was issued by hand under a pane printing flat out, and which tmux offers no absolute line addressing to close. THE SIXTH FINDING WAS ANSWERED BY THE REBASE: the phase carried a `build(renderer): comments and whitespace do not ship` commit of its own and Phase 207 had already landed the identical change as `c6250c9`, so with equal patch ids the rebase dropped ours and exactly one of them is on main. NOT BLOCKING AND RECORDED: if Clear drops the history while a range is held, main's clamp puts `end` below `start`, the composer gets zero rows and command C does nothing at all, which is parity with the existing empty selection path that also returns false in silence. Committed from a clean cache with typecheck, build with every assert including gate:electron, gate:background, gate:knownhosts and gate:contract, smoke:t1 6 of 6 and 12,013 tests green in 761 files, `git status` at zero lines, the eager renderer budget standing at 472,040 raw and 114,289 gzip of headroom, and the scratch servers p209 and v209 ended with their sockets removed.
+- 2026-09-03, Phase 211 QUEUED, the login reaches the session: he reported that after the login phases a chosen account does not change in the running terminal session and that a `/login` typed in the CLI is not seen until something asks, and asked for `/Users/gdc/claude-swap` to be read and ported. Both halves are Phase 204's own refusals rather than bugs: `activate` refuses while a session runs and never writes the default store, and an observe runs at boot and in front of the list and nowhere else. The port is claude-swap's write to the ACTIVE store under Claude Code's own `proper-lockfile` locks so a swap never lands inside a token refresh, the running session picking the switch up on its own, with a Restart now beside it that restores under the chosen login for the instant case, and a watcher on the exact files a sign in changes so a `/login` is remembered the moment it finishes and every surface redraws unasked. TWO PHASE 204 REFUSALS ARE LIFTED AT HIS WORD, the refusal while a session runs and the default store never written, and the entry says so. The README's thirty second keychain cache is measured on scratch and read from the bundle before the face says a number, and the live pickup on his own account is HIS acceptance step rather than a claim. Tier 3, every write proof on a scratch keychain, no agent touches his credential. Launches when Phase 210 frees a slot.
