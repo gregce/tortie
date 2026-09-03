@@ -100,6 +100,36 @@ function check(ok, sentence) {
   if (!ok) failures.push(sentence);
 }
 
+/**
+ * The domain has to be there before anything below can read it.
+ *
+ * WHY THIS IS A SENTENCE RATHER THAN A STACK. Run against the tree before this
+ * phase, the gate exited non zero with a raw `ENOENT: scandir` and nothing a
+ * reader could act on. It is right to be red there, because the rules it holds
+ * did not exist yet, but every other gate in this repository says what is
+ * missing in words and this one now does too. It is the first thing checked,
+ * so a checkout without the domain reads as one rather than as a crash.
+ */
+let domainPresent = [];
+try {
+  domainPresent = readdirSync(DOMAIN).filter((n) => n.endsWith('.ts'));
+} catch {
+  process.stdout.write(
+    `${TAG} FAILED: there is no credentials domain at src/main/credentials, so ` +
+      'there is nothing to check. This gate is the one on the store Tortie ' +
+      'keeps accounts in, which arrived in Phase 204, and a tree from before ' +
+      'that phase is expected to fail here.\n'
+  );
+  process.exit(1);
+}
+if (domainPresent.length === 0) {
+  process.stdout.write(
+    `${TAG} FAILED: src/main/credentials holds no TypeScript file, so there is ` +
+      'nothing to check.\n'
+  );
+  process.exit(1);
+}
+
 // ---------------------------------------------------------------------------
 // The scanners. Each is proved on fixtures this file writes, so a scan that
 // cannot fail is never mistaken for a scan that passed.
