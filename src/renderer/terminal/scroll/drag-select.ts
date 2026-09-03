@@ -40,13 +40,17 @@
  * is read where the gesture begins and again on every tick, because a picker
  * can open while the button is already down.
  *
- * THE LIMIT, and it is stated because a person will reach it. The selection
- * is what the SCREEN holds, so a drag that pushes the anchor past the far
- * edge keeps extending from that edge rather than off it, and what you copy
- * is what you can see highlighted. Highlight and copy therefore never
- * disagree. Selecting across more history than one screen would mean
- * composing the text from tmux rather than from the pane, which is a bigger
- * change than this one.
+ * THE LIMIT, and it is stated because a person will reach it, with the number
+ * he will reach it at. The selection is what the SCREEN holds, so a drag that
+ * pushes the anchor past the far edge keeps extending from that edge rather
+ * than off it, and what you copy is what you can see highlighted. Highlight
+ * and copy therefore never disagree. MEASURED with an eight second hold above
+ * the top edge: the history travelled 668 lines and the copy was 43, being
+ * one screen at the far end of the travel rather than everything from the
+ * anchor. Apple's own Terminal accumulates across the whole travel, so the
+ * panes match it for the first screen and diverge after it. Closing that
+ * means composing the text from tmux rather than from the pane, which is a
+ * bigger change than this one.
  */
 
 import type { Terminal } from '@xterm/xterm';
