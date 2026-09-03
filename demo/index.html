@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tortie Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Mirror of src/renderer/index.html's pre-paint ground (WINDOW_BACKGROUND
+         in src/shared/window-chrome.ts) so the demo never flashes white. The
+         app CSP is dropped: this document is served from the marketing site,
+         which owns its own headers. -->
+    <style>
+      html {
+        background: #131417;
+        color-scheme: dark;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
