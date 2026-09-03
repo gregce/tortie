@@ -20,7 +20,7 @@
  * those files and reading PSR-0's over a PSR-4 map invents directories that do
  * not exist, so the standard travels with the rule.
  *
- * THE THREE LIMITS, EACH MEASURED, EACH ON THIS FACE.
+ * THE FIVE LIMITS, EACH MEASURED, EACH ON THIS FACE.
  *
  *  1. **A repository with no `composer.json` resolves nothing first party.**
  *     WordPress is the case: 1,900 `.php` files, no Composer manifest
@@ -65,6 +65,17 @@
  *     own. The cost of limit 4 after it is 57 of guzzle's and 115 of laravel's
  *     answers turning grey, which is the price of the 7,414 phpunit ones that
  *     were false.
+ *
+ *  5. **A class in a directory NO autoload rule names is not found, and if a
+ *     declared vendor head claims it the answer is `external`.** A file at
+ *     `legacy/Psr/Extra/Widget.php` declaring `Psr\Extra\Widget` in a
+ *     repository whose only rule maps `Acme\App\` is the shape, and reading
+ *     it would mean scanning every `.php` file for the class it declares,
+ *     which is the classmap cost ./composer.ts refuses. It fires on NONE of
+ *     the `use` statements across guzzle, laravel, monolog, phpunit,
+ *     symfony/console and nikic/PHP-Parser, measured by a class index built
+ *     from those repositories' own bytes, so the limit is real and it is not
+ *     costing anybody an answer today.
  *
  * WHAT ADMITS `external`, and there are two, both asked only after limit 4 has
  * let the name past. A name whose first segment, lower cased, is EITHER HALF of

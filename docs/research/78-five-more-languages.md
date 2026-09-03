@@ -608,3 +608,100 @@ rows across the nine arms that existed before this phase. File for file, specifi
 answer for answer and target for target, the fix round differs from the parent in ZERO of them:
 typescript 10,348, kotlin 2,182, objc 1,113, javascript 1,096, python 884, go 518, swift 273, ruby
 240, rust 195.
+
+## 13. What the committer's round measured, 2026-09-03
+
+The verification of the fix round came back needs_work with two blocking false greens, both of the
+class Phase 180 found and this phase was told not to repeat: an arm calling the repository's OWN
+code somebody else's. An `external` is dropped from BOTH sides of the ledger in
+`src/main/arch/checkers/imports.ts`, so every one of those answers is a `must-not` promise printed
+green about something nobody checked. Both were re-derived here before anything was changed, over
+repositories the fix round never touched, and both are closed.
+
+### 13.1 How they were found, which is the method rather than the report
+
+An independent checker per language, written against BYTES rather than against the resolver: for
+Java a fully qualified type index built from every `.java` file's own `package` declaration, for
+C sharp a namespace index built from every tracked `.cs` file with the byte order mark stripped, for
+PHP a class index built from every `namespace` and `class` declaration, and for C a tail index over
+every tracked path. Then one question of every `external` answer the shipped resolver gave: does
+this name something this repository itself declares? Run over 29 repositories at `378624a`:
+
+| language | repositories | externals that name the repository's own code |
+| --- | --- | --- |
+| java | gson, retrofit, commons-lang, commons-collections, jsoup, junit4, okio, moshi | 0 by the `.java` index, and 137 by hand on moshi, whose types are Kotlin |
+| php | guzzle, laravel/framework, monolog, phpunit, symfony/console, nikic/PHP-Parser | 4, all of them a vendored copy of `Composer\Autoload\ClassLoader` that IS a dependency |
+| c, cpp, objc | curl, libuv, fmt, googletest | 0 |
+| csharp | Nancy, SignalR, serilog, AutoMapper, Newtonsoft.Json, RestSharp, Polly, efcore | **397**, being efcore 358 and Polly 39 |
+
+### 13.2 The C sharp one, being 397 answers over two repositories
+
+`readCsharpManifest` read a `.cs` file's namespace only when some project OWNED that file, and a
+real repository keeps source no `.csproj` claims in a literal this reader can take: efcore's
+`src/Shared` and Polly's `src/LegacySupport`, both pulled into several assemblies by an MSBuild glob.
+Their namespaces reached no map at all, so the platform list and the package list claimed the names:
+181 `using System.Text;` and 177 `using System.Reflection;` on efcore, 30
+`using System.Diagnostics.CodeAnalysis;` and 8 `using System.Runtime.CompilerServices;` on Polly.
+
+Every tracked `.cs` file is read now, whatever owns it, into `declaredNames`, and the arm answers
+`unresolved` for a name that set holds. It names no directory on purpose: a file no project owns is
+in no assembly, so there is no edge to draw. The bill is 397 answers turning grey and NOT ONE first
+party answer moving, measured file for file: efcore 1,780 first party before and after, Polly 171
+before and after.
+
+### 13.3 The Java one, being 137 answers over moshi
+
+moshi writes `group = "com.squareup.moshi"` at the root of its `build.gradle.kts` and names
+`com.squareup.moshi:moshi` as its own japicmp baseline, so the coordinate read as somebody else's and
+137 real `com.squareup.moshi.*` imports answered `external`. The fix round read Maven's declaration
+of identity and not Gradle's, which is what section 12.3 left open; `readKotlinManifest` reads it now
+from a literal `group` assignment and from a `gradle.properties` `GROUP` row, and `readJavaManifest`
+joins it. Skipping the matching coordinate was not enough on its own: moshi's build files also carry
+the bare `com.squareup`, so rule 1 claimed the name through the shorter coordinate. A specifier UNDER
+a group the repository declares for itself is refused whatever else claims it.
+
+moshi moves 137 answers from `external` to `unresolved` and 32 from `unresolved` to `first-party`,
+and all 33 of its first party answers agree with the independent package index. Over the other seven
+Java repositories the change moves NOTHING: retrofit and okio gain an identity
+(`com.squareup.retrofit2`, `com.squareup.okio`) and not one answer moves, because nothing in either
+build names their own coordinate.
+
+Only a LITERAL is read. retrofit's `build.gradle` writes `group = JavaBasePlugin.DOCUMENTATION_GROUP`,
+which is a value Gradle would compute, and it is not seen. The Kotlin arm never reads the field, so
+its answers do not move.
+
+### 13.4 The false green, end to end through the shipping checker, on real repositories
+
+The arm's answer is not the finding. The verdict is.
+
+| repository | promise | at `378624a` | with the fix |
+| --- | --- | --- | --- |
+| Polly | `bench/Polly.Core.Benchmarks/GenericOverheadBenchmark.cs` must-not `src/LegacySupport/**` | convergent, checked, 0 offending | unverifiable, 1 unresolved |
+| moshi | `examples/.../FromJsonWithoutStrings.java` must-not `moshi/src/main/**` | convergent, checked, 0 offending | unverifiable, 4 unresolved |
+
+Both source parts were chosen because every other import out of them resolves definitely, so the
+verdict turns on the answer under test and on nothing else. The controls, run through the same
+shipping `checkImports` over the same real rows, prove the judge can still go red at both grains:
+jsoup's `parser` must-not `nodes` reads divergent, checked, over 49 crossing imports at FILE grain,
+and efcore's `benchmark/.../ColdStartSandbox.cs` must-not `src/Microsoft.Data.Sqlite.Core/**` reads
+divergent, checked, over 1 crossing import at PROJECT DIRECTORY grain, which is the Phase 180 hazard
+class itself.
+
+### 13.5 The blast radius, measured rather than argued
+
+29 repositories, 92,000 import rows, compared row for row between `378624a` and this round: the only
+answers that move are efcore's 358, Polly's 39 and moshi's 169. Nothing moves in Nancy, SignalR,
+serilog, AutoMapper, Newtonsoft.Json, RestSharp, guzzle, laravel/framework, monolog, phpunit,
+symfony/console, PHP-Parser, gson, retrofit, junit4, okio, commons-lang, commons-collections, jsoup,
+curl, libuv, fmt, googletest, cobra, sinatra or Alamofire. Over the eleven repositories that carry
+them, the nine arms that existed before this phase produce 3,618 rows and differ from the PHASE
+parent `3d4c081` in zero of them.
+
+### 13.6 What is still not answered, and is on the arms' faces
+
+A Java type whose file's path does not spell its package, being generated source outside any source
+root, is not found by the convention index, and if a coordinate claims the name it still answers
+`external`. It fires on none of the eight Java repositories measured here. The same shape in PHP is a
+class outside every declared `psr-4` and `psr-0` prefix, and it fires on none of the six PHP
+repositories measured here. Both are the arms' stated limits rather than new ones, and both are the
+reason the ARM never invents a path: an answer no declaration explains is refused.
