@@ -94,6 +94,21 @@
  *      The cost of keeping on doubt is bounded in the same arm: ten refreshes
  *      of such a store leave ONE login rather than nine, and ten refreshes of
  *      a store that does name itself leave none.
+ *  17. THE VAULT IS SCOPED TO ITS PROFILE (Phase 208). A scratch root and the
+ *      person's root compose DIFFERENT keychain names for the same slot, no
+ *      name composed from any root can equal the unscoped one a tree before
+ *      that phase wrote, the digest is re-derived here by a sha256 of this
+ *      gate's own, an empty scope throws rather than composing the unscoped
+ *      name, the keychain backend lands on the scoped name and nothing else,
+ *      and a slot one profile wrote is invisible to another. THE MIGRATION is
+ *      driven both ways over the measured security: present is moved and
+ *      deleted byte for byte, absent touches nothing, both present with the
+ *      record naming the old bytes rewrites the scoped copy, a staged leftover
+ *      under the old name is deleted without being moved, and a profile that
+ *      is not the person's own composes NO unscoped name at all. The scan half:
+ *      the unscoped composer is defined in exactly one file, migrate.ts, and
+ *      the one call of the migration outside that file, in index.ts, carries
+ *      the profile proof composed by isOwnProfile.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -209,6 +224,48 @@ function commitsAWrite(text) {
   return /\.commit\s*\(/.test(stripComments(text));
 }
 
+/**
+ * Which files define or use the unscoped composer (Phase 208).
+ *
+ * The composer is `unscopedVaultServiceFor`, and it must be DEFINED in exactly
+ * one file and USED in that same file only. A second definition or a use
+ * anywhere else is a second way of naming the item every profile could reach.
+ */
+function unscopedComposerUses(text) {
+  const body = stripComments(text);
+  const defines = /export function unscopedVaultServiceFor\s*\(/.test(body);
+  const mentions = (body.match(/\bunscopedVaultServiceFor\s*\(/g) ?? []).length;
+  // The definition is a mention too, and it is not a use.
+  return { defines, uses: defines ? mentions - 1 : mentions };
+}
+
+/**
+ * Does this file call the migration with the profile proof (Phase 208)?
+ *
+ * Read from the call to its closing brace by matching braces, so a proof
+ * elsewhere in the file does not count for a call that lacks it.
+ */
+function migrationCarriesTheProof(text) {
+  const body = stripComments(text);
+  const at = body.indexOf('migrateUnscopedVault({');
+  if (at < 0) return { calls: 0, proved: false };
+  let depth = 0;
+  let end = -1;
+  for (let i = body.indexOf('{', at); i < body.length; i += 1) {
+    if (body[i] === '{') depth += 1;
+    if (body[i] === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  const call = end < 0 ? '' : body.slice(at, end + 1);
+  const calls = (body.match(/migrateUnscopedVault\s*\(/g) ?? []).length;
+  return { calls, proved: /ownProfile:\s*isOwnProfile\s*\(/.test(call) };
+}
+
 /** Is the person's own location refused by name, as the first thing? */
 function refusesTheDefaultStore(text) {
   const body = stripComments(text);
@@ -248,8 +305,35 @@ check(
   refusesTheDefaultStore(readFileSync(join(DOMAIN, 'stores.ts'), 'utf8')),
   `${TAG} storeTarget no longer refuses the person's own location as its first act`
 );
+// PHASE 208. One composer of the unscoped name, one proved call of the move.
+const composerDefiners = [];
+for (const file of domainFiles) {
+  const name = file.slice(repoRoot.length + 1);
+  const found = unscopedComposerUses(readFileSync(file, 'utf8'));
+  if (found.defines) composerDefiners.push(name);
+  if (!found.defines && found.uses > 0) {
+    failures.push(`${TAG} ${name} composes the UNSCOPED keychain name, which every profile on the machine can reach; only migrate.ts may`);
+  }
+}
+check(
+  composerDefiners.length === 1 && composerDefiners[0].endsWith('migrate.ts'),
+  `${TAG} the unscoped composer is defined in ${composerDefiners.join(', ') || 'no file'} rather than in migrate.ts alone`
+);
+const proof = migrationCarriesTheProof(readFileSync(join(DOMAIN, 'index.ts'), 'utf8'));
+check(
+  proof.calls === 1 && proof.proved,
+  `${TAG} index.ts calls the migration ${String(proof.calls)} time(s) and ${proof.proved ? 'with' : 'WITHOUT'} the profile proof composed by isOwnProfile`
+);
+for (const file of domainFiles) {
+  const name = file.slice(repoRoot.length + 1);
+  if (name.endsWith('index.ts') || name.endsWith('migrate.ts')) continue;
+  check(
+    !/migrateUnscopedVault\s*\(/.test(stripComments(readFileSync(file, 'utf8'))),
+    `${TAG} ${name} calls the migration, which only index.ts may`
+  );
+}
 notes.push(
-  `${String(domainFiles.length)} files scanned, 1 write, no -A, no log line, no payload on a command line`
+  `${String(domainFiles.length)} files scanned, 1 write, no -A, no log line, no payload on a command line, 1 unscoped composer, 1 proved migration call`
 );
 
 // ---------------------------------------------------------------------------
@@ -356,8 +440,65 @@ for (const f of REFUSAL_FIXTURES) {
     );
   }
 }
+// PHASE 208. The two scanners above, proved on shapes that must pass and fail.
+const SCOPE_FIXTURES = [
+  {
+    name: 'the shipping composer',
+    text: 'export function unscopedVaultServiceFor(slot: string): string {\n  return `${VAULT_SERVICE_PREFIX}${slot}`;\n}\nconst a = unscopedVaultServiceFor(x);\n',
+    defines: true,
+    uses: 1
+  },
+  {
+    name: 'a second composer under another name that still calls it',
+    text: 'const legacy = unscopedVaultServiceFor(slot);\n',
+    defines: false,
+    uses: 1
+  },
+  {
+    name: 'a comment naming it',
+    text: '// unscopedVaultServiceFor(slot) is never called here.\nconst b = 1;\n',
+    defines: false,
+    uses: 0
+  }
+];
+for (const f of SCOPE_FIXTURES) {
+  const got = unscopedComposerUses(f.text);
+  if (got.defines === f.defines && got.uses === f.uses) behaved += 1;
+  else failures.push(`${TAG} the composer scanner misread the fixture "${f.name}"`);
+}
+const PROOF_FIXTURES = [
+  {
+    name: 'the shipping call',
+    text: 'migration = migrateUnscopedVault({\n  runner: r,\n  vault: v,\n  slots: [],\n  ownProfile: isOwnProfile({ userData: a, env: process.env })\n});\n',
+    calls: 1,
+    proved: true
+  },
+  {
+    name: 'the proof replaced by a constant',
+    text: 'migration = migrateUnscopedVault({\n  runner: r,\n  ownProfile: true\n});\n',
+    calls: 1,
+    proved: false
+  },
+  {
+    name: 'the proof elsewhere in the file but not in the call',
+    text: 'const own = isOwnProfile({ env });\nmigration = migrateUnscopedVault({\n  runner: r,\n  ownProfile: own\n});\n',
+    calls: 1,
+    proved: false
+  },
+  {
+    name: 'no call at all',
+    text: 'const x = 1;\n',
+    calls: 0,
+    proved: false
+  }
+];
+for (const f of PROOF_FIXTURES) {
+  const got = migrationCarriesTheProof(f.text);
+  if (got.calls === f.calls && got.proved === f.proved) behaved += 1;
+  else failures.push(`${TAG} the proof scanner misread the fixture "${f.name}"`);
+}
 notes.push(
-  `${String(behaved)} of ${String(FIXTURES.length + REFUSAL_FIXTURES.length)} scanner fixtures behaved`
+  `${String(behaved)} of ${String(FIXTURES.length + REFUSAL_FIXTURES.length + SCOPE_FIXTURES.length + PROOF_FIXTURES.length)} scanner fixtures behaved`
 );
 
 // ---------------------------------------------------------------------------
@@ -416,6 +557,7 @@ const VERDICT_PARTS = [
   'removal',
   'nofollow',
   'keychain',
+  'scope',
   'shapes'
 ];
 
@@ -444,6 +586,7 @@ function verdict(d) {
     JSON.stringify(d.removal),
     JSON.stringify(d.nofollow),
     JSON.stringify(keychain),
+    JSON.stringify(d.scope),
     JSON.stringify(d.shapes)
   ];
 }
@@ -789,6 +932,26 @@ if ('error' in live) {
   check(!live.keychain.everPassedA, `${TAG} -A WAS PASSED, which trusts every program on the machine`);
   check(!live.keychain.stagedLeft, `${TAG} a staged keychain item was left behind`);
 
+  // Rule 17. THE VAULT IS SCOPED TO ITS PROFILE (Phase 208).
+  check(live.scope.differ, `${TAG} A SCRATCH ROOT AND THE PERSON'S ROOT COMPOSE THE SAME KEYCHAIN NAME, so every profile on the machine addresses one item`);
+  check(live.scope.neverUnscoped, `${TAG} A NAME COMPOSED FROM A ROOT EQUALS THE UNSCOPED ONE a tree before Phase 208 wrote`);
+  check(live.scope.digestRederived, `${TAG} the scope digest is not the first eight hex of a sha256 of the root`);
+  check(live.scope.emptyScopeThrows, `${TAG} an empty scope composed a name rather than throwing`);
+  check(live.scope.composerAgrees, `${TAG} the unscoped composer in migrate.ts does not spell the old name`);
+  check(live.scope.backendNamesScoped, `${TAG} the keychain backend wrote somewhere other than the scoped name`);
+  check(live.scope.crossProfileHidden, `${TAG} a slot one profile wrote is visible to another`);
+  check(
+    live.scope.ownProfile.own && !live.scope.ownProfile.scratch && !live.scope.ownProfile.probes && !live.scope.ownProfile.smoke,
+    `${TAG} isOwnProfile misread a shape: ${JSON.stringify(live.scope.ownProfile)}`
+  );
+  check(live.scope.migration.presentMoved, `${TAG} AN UNSCOPED ITEM WAS NOT MOVED UNDER THE SCOPED NAME AND DELETED, so a credential nobody can reach survives`);
+  check(live.scope.migration.absentUntouched, `${TAG} the migration wrote or deleted with no unscoped item present`);
+  check(live.scope.migration.refusedNamesNothing, `${TAG} A PROFILE THAT IS NOT THE PERSON'S OWN COMPOSED THE UNSCOPED NAME`);
+  check(live.scope.migration.recordedOldRewritten, `${TAG} the scoped copy was not rewritten from the old item the record names`);
+  check(live.scope.migration.stagedResidueDeleted, `${TAG} a staged leftover under the old name survived the migration`);
+  check(live.scope.migration.presentNamedUnscoped, `${TAG} the present arm never named the unscoped item, so the refusal arm proves nothing`);
+  check(live.scope.migration.badReadbackKept, `${TAG} THE OLD ITEM WAS DELETED THOUGH THE SCOPED COPY NEVER LANDED, so the credential is gone from both names`);
+
   // Rule 11's runtime half: the shapes.
   check(live.shapes.claudeOk && live.shapes.codexOk, `${TAG} a vendor credential was refused`);
   check(!live.shapes.truncated, `${TAG} a truncated credential passed the shape test`);
@@ -1107,6 +1270,65 @@ const ABLATIONS = [
         file: 'stores.ts',
         from: '  const existing = await keychainAccount(d.runner, service);\n  const own = existing ?? (await ownAccountName(d));',
         to: '  const own = d.userName;'
+      }
+    ]
+  },
+  {
+    // PHASE 208. The digest dropped from the name, which is the tree before
+    // that phase: every profile on the machine composes one item.
+    name: 'the profile digest dropped from the keychain name',
+    edits: [
+      {
+        file: 'vault.ts',
+        from: '  return `${VAULT_SERVICE_PREFIX}${slot}-${vaultScopeDigest(scope)}`;',
+        to: '  return `${VAULT_SERVICE_PREFIX}${slot}`;'
+      }
+    ]
+  },
+  {
+    // PHASE 208. The migration refusal removed, so a scratch profile reads and
+    // deletes the item every profile can reach.
+    name: 'the migration made to run in any profile',
+    edits: [
+      {
+        file: 'migrate.ts',
+        from: '  if (d.ownProfile !== true) {',
+        to: '  if (false) {'
+      }
+    ]
+  },
+  {
+    // PHASE 208. The harness half of the profile proof removed, so a probe
+    // launch in the person own profile directory would pass as his.
+    name: 'a harness launch read as the person own profile',
+    edits: [
+      {
+        file: 'migrate.ts',
+        from: '  if (isHarnessLaunch(shape.env)) return false;',
+        to: ''
+      }
+    ]
+  },
+  {
+    // PHASE 208. The record consulted no more, so a stale scoped copy wins
+    // over the old item the profile actually recorded.
+    name: 'the record no longer consulted when both names hold something',
+    edits: [
+      {
+        file: 'migrate.ts',
+        from: '        rewrite = true;',
+        to: '        rewrite = false;'
+      }
+    ]
+  },
+  {
+    // PHASE 208. The old item deleted before the scoped one is proved.
+    name: 'the old item deleted without the scoped one read back',
+    edits: [
+      {
+        file: 'migrate.ts',
+        from: '    if (proof === null || (rewrite && proof !== held)) {',
+        to: '    if (false) {'
       }
     ]
   },

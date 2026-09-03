@@ -25,6 +25,7 @@ import {
   writeFileSync
 } from 'node:fs';
 import { readFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -55,6 +56,9 @@ const kept = (await import(
 const nofollow = (await import(
   pathToFileURL(resolve(MODULES, 'nofollow.ts')).href
 )) as typeof import('../src/main/credentials/nofollow');
+const migrate = (await import(
+  pathToFileURL(resolve(MODULES, 'migrate.ts')).href
+)) as typeof import('../src/main/credentials/migrate');
 
 /** A value only this probe ever writes. If it appears anywhere, say where. */
 const TOKEN = 'P204-SENTINEL-TOKEN-4c19be';
@@ -1368,6 +1372,232 @@ try {
       ),
       deletesAsked: w.argvs.filter((argv) => argv[0] === 'delete-generic-password')
         .length
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 17. THE VAULT IS SCOPED TO ITS PROFILE (Phase 208). A scratch root and the
+  //     person's root compose DIFFERENT names, no name composed from any root
+  //     equals the unscoped one, the digest is re-derived here by a sha256 of
+  //     this file's own, the keychain backend lands only on the scoped name,
+  //     and the migration reads or deletes the unscoped name only in the
+  //     person's own profile.
+  // -------------------------------------------------------------------------
+  {
+    const ownRoot = '/Users/someone/Library/Application Support/Tortie/gmux/logins';
+    const scratchRoot = '/private/tmp/gmux-p208-1234/profile/gmux/logins';
+    const roots = [ownRoot, scratchRoot, '/', 'x', `${ownRoot}/`];
+    const slots = [
+      vault.slotFor('claude', null),
+      vault.slotFor('codex', null),
+      vault.slotFor('claude', 'a'.repeat(16)),
+      vault.stagedSlotFor(vault.slotFor('claude', null))
+    ];
+    const unscopedOf = (slot: string): string => `Tortie-credentials-${slot}`;
+    let differ = true;
+    let neverUnscoped = true;
+    let digestRederived = true;
+    for (const slot of slots) {
+      if (vault.vaultServiceFor(slot, ownRoot) === vault.vaultServiceFor(slot, scratchRoot)) {
+        differ = false;
+      }
+      for (const root of roots) {
+        const name = vault.vaultServiceFor(slot, root);
+        for (const other of slots) if (name === unscopedOf(other)) neverUnscoped = false;
+        const digest = createHash('sha256').update(root).digest('hex').slice(0, 8);
+        if (name !== `Tortie-credentials-${slot}-${digest}`) digestRederived = false;
+      }
+    }
+    let emptyScopeThrows = false;
+    try {
+      vault.vaultServiceFor('claude.default', '');
+    } catch {
+      emptyScopeThrows = true;
+    }
+    // THE ONLY COMPOSER OF THE UNSCOPED NAME agrees with this file's spelling.
+    const composerAgrees = migrate.unscopedVaultServiceFor('claude.default') === unscopedOf('claude.default');
+
+    // The backend, over the measured security, lands on the scoped name only.
+    const w = makeWorld();
+    const security = fakeSecurity(w);
+    const scoped = vault.keychainVault(security.runner, scratchRoot);
+    try {
+      await scoped.put('claude.default', claudeCredential('scoped', '1'));
+    } catch {
+      // A backend that refuses is read below as a name that never landed.
+    }
+    const backendNames = [...security.items.keys()];
+    const backendNamesScoped =
+      backendNames.length === 1 &&
+      backendNames[0] === vault.vaultServiceFor('claude.default', scratchRoot);
+    const crossProfileHidden =
+      (await vault.keychainVault(security.runner, ownRoot).get('claude.default')) === null;
+
+    // The migration, both ways, over the measured security.
+    const arm = async (
+      plant: (items: Map<string, { account: string; payload: string }>, root: string) => void,
+      ownProfile: boolean,
+      record: string | null = null,
+      vanishAfterConfirm = false
+    ) => {
+      const root = freshRoot();
+      const world = makeWorld();
+      const sec = fakeSecurity(world);
+      plant(sec.items, root);
+      // A KEYCHAIN WHOSE SCOPED ITEM VANISHES right after the write confirmed
+      // it, for the arm that proves the old item is deleted only once the new
+      // one is read back by the migration itself. The shipping write already
+      // confirms its own commit, so the one read that can still disagree is
+      // the migration's, and this is the keychain that makes it disagree.
+      const scopedService = vault.vaultServiceFor('claude.default', root);
+      let scopedReadsLeft = -1;
+      const runner: import('../src/main/credentials/security').SecurityRunner = {
+        run: async (argv, stdin) => {
+          if (vanishAfterConfirm) {
+            if (argv[0] === '-i' && (stdin ?? '').includes(`-s "${scopedService}"`)) {
+              scopedReadsLeft = 1;
+            }
+            if (
+              argv[0] === 'find-generic-password' &&
+              argv.includes(scopedService) &&
+              scopedReadsLeft === 0
+            ) {
+              return { code: 1, stdout: '' };
+            }
+            if (argv[0] === 'find-generic-password' && argv.includes(scopedService) && scopedReadsLeft > 0) {
+              scopedReadsLeft -= 1;
+            }
+          }
+          return sec.runner.run(argv, stdin);
+        }
+      };
+      if (record !== null) {
+        kept.writeKeptFile(root, {
+          v: 1,
+          slots: {
+            'claude.default': {
+              email: null,
+              subject: null,
+              digest: payload.credentialDigest(record),
+              account: null,
+              from: null,
+              at: 1
+            }
+          }
+        });
+      }
+      const result = await migrate.migrateUnscopedVault({
+        runner,
+        vault: vault.keychainVault(runner, root),
+        root,
+        slots: ['claude.default', vault.slotFor('claude', 'b'.repeat(16))],
+        ownProfile
+      });
+      const named = world.argvs
+        .map((argv) => argv[argv.indexOf('-s') + 1] ?? '')
+        .concat(world.stdins.map((line) => /-s "([^"]*)"/.exec(line)?.[1] ?? ''));
+      return {
+        result,
+        items: [...sec.items.entries()].map(([k, v]) => [k, v.payload]),
+        namedUnscoped: named.some((n) => n === unscopedOf('claude.default') || n === unscopedOf(vault.slotFor('claude', 'b'.repeat(16)))),
+        root
+      };
+    };
+    const old = claudeCredential('old', '1');
+    const present = await arm((items) => {
+      items.set(unscopedOf('claude.default'), { account: 'tortie', payload: old });
+    }, true);
+    const absent = await arm(() => undefined, true);
+    const refused = await arm((items) => {
+      items.set(unscopedOf('claude.default'), { account: 'tortie', payload: old });
+    }, false);
+    const recordedOld = await arm(
+      (items, root) => {
+        items.set(unscopedOf('claude.default'), { account: 'tortie', payload: old });
+        items.set(vault.vaultServiceFor('claude.default', root), {
+          account: 'tortie',
+          payload: claudeCredential('stale', '2')
+        });
+      },
+      true,
+      old
+    );
+    const staged = await arm((items) => {
+      items.set(unscopedOf(vault.stagedSlotFor('claude.default')), {
+        account: 'tortie',
+        payload: claudeCredential('residue', '3')
+      });
+    }, true);
+    const badReadback = await arm(
+      (items) => {
+        items.set(unscopedOf('claude.default'), { account: 'tortie', payload: old });
+      },
+      true,
+      null,
+      true
+    );
+    const holds = (a: { items: string[][]; root: string }, name: string): string | null =>
+      a.items.find(([k]) => k === name)?.[1] ?? null;
+    out['scope'] = {
+      differ,
+      neverUnscoped,
+      digestRederived,
+      emptyScopeThrows,
+      composerAgrees,
+      backendNamesScoped,
+      crossProfileHidden,
+      ownProfile: {
+        own: migrate.isOwnProfile({
+          userData: '/Users/someone/Library/Application Support/Tortie',
+          appData: '/Users/someone/Library/Application Support',
+          appName: 'Tortie',
+          env: {}
+        }),
+        scratch: migrate.isOwnProfile({
+          userData: scratchRoot,
+          appData: '/Users/someone/Library/Application Support',
+          appName: 'Tortie',
+          env: {}
+        }),
+        probes: migrate.isOwnProfile({
+          userData: '/Users/someone/Library/Application Support/Tortie',
+          appData: '/Users/someone/Library/Application Support',
+          appName: 'Tortie',
+          env: { GMUX_PROBES: '1' }
+        }),
+        smoke: migrate.isOwnProfile({
+          userData: '/Users/someone/Library/Application Support/Tortie',
+          appData: '/Users/someone/Library/Application Support',
+          appName: 'Tortie',
+          env: { GMUX_SMOKE: 'basic' }
+        })
+      },
+      migration: {
+        presentMoved:
+          present.result.moved === 1 &&
+          present.result.deleted === 1 &&
+          holds(present, vault.vaultServiceFor('claude.default', present.root)) === old &&
+          holds(present, unscopedOf('claude.default')) === null &&
+          present.items.length === 1,
+        absentUntouched:
+          absent.result.moved === 0 && absent.result.deleted === 0 && absent.items.length === 0,
+        refusedNamesNothing:
+          refused.result.refused === true &&
+          !refused.namedUnscoped &&
+          holds(refused, unscopedOf('claude.default')) === old &&
+          refused.items.length === 1,
+        recordedOldRewritten:
+          recordedOld.result.moved === 1 &&
+          holds(recordedOld, vault.vaultServiceFor('claude.default', recordedOld.root)) === old &&
+          holds(recordedOld, unscopedOf('claude.default')) === null,
+        stagedResidueDeleted:
+          staged.result.deleted === 1 && staged.result.moved === 0 && staged.items.length === 0,
+        presentNamedUnscoped: present.namedUnscoped,
+        badReadbackKept:
+          badReadback.result.kept === 1 &&
+          badReadback.result.deleted === 0 &&
+          holds(badReadback, unscopedOf('claude.default')) === old
+      }
     };
   }
 
