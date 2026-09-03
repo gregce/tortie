@@ -920,6 +920,25 @@ try {
     const second = await stores.storeTarget(d.stores, 'codex', dir);
     await swap.safeSwap(second as NonNullable<typeof second>, codexCredential('carol', '3'), 'stage');
     const afterSecond = w.files.get(stagedAt) ?? null;
+    // PHASE 206. THE SAME CRASH INSIDE TORTIE'S OWN VAULT, which the sweep
+    // did not reach until this phase.
+    //
+    // THE SLOT IS ONE THE OBSERVE WILL NOT WRITE, deliberately: a successful
+    // write to a slot discards its staged place in its own `finally`, so a
+    // slot the observe captures would come out clean whether the sweep ran or
+    // not, and the arm would pass with the sweep taken away. `Idle` is a login
+    // whose store holds nothing, so the observe reads it and writes nothing.
+    addLogin(root, 'codex', 'Idle');
+    const idle = readLoginsFile(root).file.logins.find((l) => l.name === 'Idle');
+    const idleSlot = vault.slotFor('codex', idle?.id ?? 'x');
+    const idleStaged = vault.stagedSlotFor(idleSlot);
+    await vault.vaultPut(d.vault, idleSlot, codexCredential('erin', '5'), 'stage');
+    const vaultLeftBehind = d.vault.slots.get(idleStaged) ?? null;
+    // AND THE DEFAULT SLOT, which is Tortie's own rolling copy of the person's
+    // own location and has a staged place like every other slot.
+    const defaultStaged = vault.stagedSlotFor(vault.slotFor('codex', null));
+    d.vault.slots.set(defaultStaged, codexCredential('frank', '6'));
+
     // AND THE NEXT RUN SWEEPS A STORE NOBODY WRITES AGAIN. A fresh module is
     // a fresh process as far as the once per run set is concerned.
     w.files.set(stagedAt, codexCredential('dave', '4'));
@@ -928,6 +947,15 @@ try {
     )) as typeof import('../src/main/credentials/keep');
     await nextRun.observeProvider(d, 'codex');
     out['residue'] = {
+      // PHASE 206, TORTIE'S OWN VAULT.
+      vaultCrashLeftACredential: vaultLeftBehind === codexCredential('erin', '5'),
+      vaultSweptIt: !d.vault.slots.has(idleStaged),
+      vaultDefaultSweptIt: !d.vault.slots.has(defaultStaged),
+      // AND THE SWEEP TOOK THE STAGED PLACE AND NEVER THE SLOT. The idle slot
+      // never held anything, so the one to watch is a slot that did.
+      vaultSlotsKept: [...d.vault.slots.keys()].every(
+        (k) => !k.endsWith('.pending')
+      ),
       // The crash really did leave a whole credential, so the rest is a check
       // over something that exists rather than over an empty world.
       crashLeftACredential: leftBehind === codexCredential('bob', '2'),

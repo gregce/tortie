@@ -65,7 +65,14 @@ import {
   type StoreDeps
 } from './stores';
 import { safeSwap, type SwapStep } from './swap';
-import { slotFor, vaultDel, vaultGet, vaultPut, type VaultBackend } from './vault';
+import {
+  slotFor,
+  vaultDel,
+  vaultDiscardStaged,
+  vaultGet,
+  vaultPut,
+  type VaultBackend
+} from './vault';
 
 /** One running session, as this domain needs to see it. */
 export interface LiveSession {
@@ -258,6 +265,16 @@ const swept = new Set<string>();
 
 async function sweepStaged(d: KeepDeps, provider: LoginProviderId): Promise<void> {
   for (const store of storesOf(d.root, provider)) {
+    // PHASE 206. TORTIE'S OWN VAULT IS SWEPT TOO, and it is swept FIRST.
+    // Until this line the sweep reached the vendor's stores and never the
+    // store Tortie owns, so a crash between a slot's stage and its discard
+    // left the whole credential at `<slot>.pending` and only a later
+    // SUCCESSFUL write to that same slot ever removed it. A slot nobody writes
+    // again kept it, which on macOS is a second keychain item holding a
+    // credential. The DEFAULT slot is swept as well, because it is Tortie's
+    // own rolling copy and it has a staged place like every other slot; the
+    // vendor half below still refuses the person's own location by name.
+    await vaultDiscardStaged(d.vault, slotOf(provider, store.id));
     if (store.dir === null) continue;
     try {
       const target = await storeTarget(d.stores, provider, store.dir);

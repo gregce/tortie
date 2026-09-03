@@ -57,6 +57,8 @@ export {
   fileVault,
   keychainVault,
   slotFor,
+  stagedSlotFor,
+  vaultDiscardStaged,
   vaultGet,
   vaultPut,
   type VaultBackend

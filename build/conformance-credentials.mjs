@@ -68,7 +68,11 @@
  *      `finally`, and real kills left a whole credential staged in two arms of
  *      three. A later write to the same store replaces it, because staging
  *      overwrites on both backends; the store that is never written again is
- *      swept by the first observe of the next run.
+ *      swept by the first observe of the next run. PHASE 206 added the half
+ *      the sweep never reached, being TORTIE'S OWN VAULT, where the same crash
+ *      leaves the whole credential at `<slot>.pending`. The arm stages into a
+ *      slot the observe will NOT write, because a successful write discards
+ *      its own staged place and would let the arm pass with the sweep gone.
  *  15. A PLANTED LINK AT A STAGED NAME SENDS THE WRITE NOWHERE. Every write
  *      here stages at a name nobody has opened yet, and `writeFile` follows a
  *      link, so an entry planted at one took the whole write and read back
@@ -658,6 +662,23 @@ if ('error' in live) {
     live.residue.storeStillThere,
     `${TAG} the sweep removed something that was not the staged copy`
   );
+  // Rule 14b. AND THE SAME INSIDE TORTIE'S OWN VAULT (Phase 206).
+  check(
+    live.residue.vaultCrashLeftACredential,
+    `${TAG} the vault crash arm staged nothing, so the rest of it is a check over an empty world`
+  );
+  check(
+    live.residue.vaultSweptIt,
+    `${TAG} A WHOLE CREDENTIAL LEFT IN TORTIE'S OWN VAULT BY A CRASH IS STILL THERE after a run that observed it`
+  );
+  check(
+    live.residue.vaultDefaultSweptIt,
+    `${TAG} the default slot's staged place was left holding a credential`
+  );
+  check(
+    live.residue.vaultSlotsKept,
+    `${TAG} the vault sweep left a staged place behind, or removed a slot that was not one`
+  );
 
   // Rule 16. A LOGIN THE PERSON REMOVES LEAVES NOTHING BEHIND (Phase 206).
   check(
@@ -901,6 +922,19 @@ const ABLATIONS = [
         file: 'keep.ts',
         from: '    if (removeStrayLoginDir(d.root, provider, id)) done.push(id);',
         to: '    if (false) done.push(id);'
+      }
+    ]
+  },
+  {
+    // PHASE 206. The vault half of the sweep taken out, which is the tree
+    // before this phase: `sweepStaged` reached the vendor stores and never the
+    // store Tortie owns.
+    name: 'the vault left out of the sweep, so a crash keeps a credential at <slot>.pending',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    await vaultDiscardStaged(d.vault, slotOf(provider, store.id));',
+        to: '    await Promise.resolve();'
       }
     ]
   },

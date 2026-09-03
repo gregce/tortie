@@ -192,6 +192,30 @@ export async function vaultGet(
   }
 }
 
+/**
+ * Drop the staged place beside a slot, and never the slot itself (Phase 206).
+ *
+ * A crash runs no `finally`, so a kill between a stage and its discard leaves
+ * a WHOLE credential at `<slot>.pending`. `./swap.ts` discards in a `finally`
+ * and a later successful write to the same slot discards it too, but a slot
+ * that is never written again keeps it, and on macOS that is a second keychain
+ * item holding a credential. The Phase 204 reverify recorded this as not
+ * blocking, because it sits inside a 0600 directory beside credentials Tortie
+ * already holds; it should still not survive a crash, which is what
+ * `../credentials/keep.ts`'s once per run sweep now uses this for.
+ */
+export async function vaultDiscardStaged(
+  backend: VaultBackend,
+  slot: string
+): Promise<void> {
+  if (!isSlotName(slot)) return;
+  try {
+    await backend.del(stagedSlotFor(slot));
+  } catch {
+    // A leftover that will not go changes nothing about what the slot holds.
+  }
+}
+
 /** Forget a slot. Called when a login is removed. */
 export async function vaultDel(backend: VaultBackend, slot: string): Promise<void> {
   if (!isSlotName(slot)) return;
