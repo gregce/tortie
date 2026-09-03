@@ -14,7 +14,10 @@
  *     drawn before and after;
  *   - after the button comes up the range stays held, a scroll back to the
  *     anchor draws it at its own column again, and a change to the selection
- *     that is not ours drops it.
+ *     that is not ours drops it;
+ *   - a held range is answered from the history whether or not its rows fit
+ *     the screen, which is the fix round's rule and the reason is in
+ *     ../capture/history-selection.ts.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -258,6 +261,32 @@ describe('a drag that scrolls keeps its anchor in the history', () => {
     r.release();
     expect(r.select).not.toHaveBeenCalled();
     expect(historySelection('s1')).toBeNull();
+    r.detach();
+  });
+
+  it('is answered from the history even when every row of it fits the screen', () => {
+    vi.useFakeTimers();
+    const r = rig();
+    // Press on row 30, line 930, drag to the top edge and let the view move
+    // six lines, which is the takeover. The head is row 0, line 894.
+    r.press(4, 30);
+    r.moveTo(xOf(10), RECT.top - 20);
+    vi.advanceTimersByTime(60);
+    r.setView(6, 900);
+    r.release();
+    // Scroll back with no button down, so the head is not recomputed, to a
+    // view that holds the WHOLE range: at position 8 rows 0..39 show lines
+    // 892..931, which puts the start on row 2 and the end on row 38.
+    r.setView(8, 900);
+    expect(r.select).toHaveBeenLastCalledWith(...span(10, 2, 36 * 80 + 5 - 10));
+    // The copy verbs still get the two positions, because a busy pane's
+    // paint runs behind tmux's grid and only the server can say what those
+    // lines hold. See ../capture/history-selection.ts.
+    expect(historyRangeToCopy('s1')).toEqual({
+      start: { line: 894, col: 10 },
+      end: { line: 930, col: 4 },
+      cols: 80
+    });
     r.detach();
   });
 

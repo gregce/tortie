@@ -135,8 +135,8 @@ export function hasSelection(sessionId: string): boolean {
 /** What was selected at the instant the user right-clicked. */
 export interface TerminalSelectionSnapshot {
   /**
-   * The selected text, exactly as Copy would write it. For a selection in
-   * the history it is the part on screen, and `history` is the answer.
+   * The selected text, exactly as Copy would write it. For a selection held
+   * in the history it is the part on screen, and `history` is the answer.
    */
   text: string;
   /**
@@ -145,8 +145,9 @@ export interface TerminalSelectionSnapshot {
    */
   position?: IBufferRange;
   /**
-   * The two history positions, Phase 209, when the selection reaches off the
-   * screen. Every verb takes this over `text` and `position` when present.
+   * The two history positions, Phase 209, for a selection a drag that
+   * scrolled is holding. Every verb takes this over `text` and `position`
+   * when present.
    */
   history?: HistorySelectionRange;
 }
@@ -170,8 +171,9 @@ export function snapshotSelection(
 ): TerminalSelectionSnapshot | null {
   const term = getTerminal(sessionId);
   if (term === null) return null;
-  // A selection that reaches off the screen is its history positions, which
-  // do not move, so the snapshot is exact whatever the screen does later.
+  // A selection a drag that scrolled is holding is its two history
+  // positions, which do not move, so the snapshot is exact whatever the
+  // screen does later.
   const history = historyRangeToCopy(sessionId);
   if (history !== null) {
     const position = term.getSelectionPosition();
@@ -193,8 +195,8 @@ export function snapshotSelection(
 
 /**
  * The history range a verb should compose from: the snapshot's when one was
- * taken, the live one otherwise, and null for a selection the screen holds
- * whole, which stays on xterm's own path byte for byte.
+ * taken, the live one otherwise, and null for a drag that never scrolled,
+ * which stays on xterm's own path byte for byte.
  */
 function historyToCopy(
   sessionId: string,

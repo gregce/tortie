@@ -55,8 +55,12 @@
  * clamped only for drawing, by ./drag-math.ts's `visibleSpan`, and it is
  * re-projected on every view change for as long as xterm keeps it, so
  * scrolling back to the anchor shows it drawn again. Copy composes the text
- * from tmux between the two positions, in ../capture/history-copy.ts, and a
- * selection that never left the screen keeps xterm's own path byte for byte.
+ * from tmux between the two positions, in ../capture/history-copy.ts, for as
+ * long as this module holds the range and whether or not its rows fit the
+ * screen, because a busy pane's paint runs behind tmux's grid and the measured
+ * gap was fifty lines; the reason is in ../capture/history-selection.ts. A
+ * drag that never scrolled holds nothing and keeps xterm's own path byte for
+ * byte.
  *
  * A STREAMING PANE cannot move the anchor, and that is arithmetic rather than
  * care: the poll re-anchors a parked view by exactly the lines that arrived,
@@ -74,6 +78,14 @@
  * left open across a full history for long enough has its far end walk
  * forward with the lines that fall off. The copy says nothing about either
  * and simply stops where the history does.
+ *
+ * AND ONE CHARACTER IN A THOUSAND COPIES A SPACE WIDER FROM THE HISTORY THAN
+ * FROM THE SCREEN. xterm ships the Unicode 6 width table, where an emoji is
+ * one cell wide, and the session server measures the same character at two,
+ * so the server paints a pad cell after it and `capture-pane` answers the
+ * character with no pad. Measured on 2026-09-03, a row reading `pad <emoji>
+ * end` copied with two spaces before `end` from the screen and one from the
+ * history. Everything either path can disagree about is that pad.
  */
 
 import type { Terminal } from '@xterm/xterm';
@@ -90,7 +102,6 @@ import {
   cellAtPoint,
   edgeScrollLines,
   historyRange,
-  spansHistory,
   toHistory,
   visibleSpan
 } from './drag-math';
@@ -337,10 +348,6 @@ export class DragSelect {
       start: range.start,
       end: range.end,
       cols,
-      spansScreen: () => {
-        const box = this.box;
-        return box === null ? true : spansHistory(range, this.frame(box));
-      },
       redraw: () => {
         if (this.held === null) this.hold(range);
       }

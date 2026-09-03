@@ -157,19 +157,6 @@ export function historyRange(a: HistoryPos, b: HistoryPos): HistoryRange {
 }
 
 /**
- * True when some of the range is off the screen under this frame, so the
- * screen alone cannot say what the selection holds and the text has to come
- * from the history. False when every row of it is on screen, which is the
- * case that keeps xterm's own path byte for byte.
- */
-export function spansHistory(range: HistoryRange, frame: HistoryFrame): boolean {
-  return (
-    screenRowOf(range.start.line, frame) < 0 ||
-    screenRowOf(range.end.line, frame) > frame.rows - 1
-  );
-}
-
-/**
  * The part of a history range that is on screen, as the span to draw, or
  * null when no row of it is.
  *

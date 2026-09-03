@@ -20,7 +20,6 @@ import {
   historyRange,
   screenRowOf,
   selectionSpan,
-  spansHistory,
   toHistory,
   visibleSpan
 } from '../scroll/drag-math';
@@ -140,13 +139,12 @@ describe('history positions', () => {
   });
 });
 
-describe('visibleSpan and spansHistory', () => {
+describe('visibleSpan', () => {
   const frame: HistoryFrame = { history: 96, position: 30, rows: 10, cols: 40 };
   // Rows 0..9 show lines 66..75 under this frame.
 
   it('draws a range that is wholly on screen exactly, and says it fits', () => {
     const range = historyRange({ line: 68, col: 4 }, { line: 70, col: 9 });
-    expect(spansHistory(range, frame)).toBe(false);
     expect(visibleSpan(range, frame)).toEqual(
       selectionSpan({ col: 4, row: 2 }, { col: 9, row: 4 }, 40)
     );
@@ -154,7 +152,6 @@ describe('visibleSpan and spansHistory', () => {
 
   it('clamps a start above the top to the first cell, for drawing only', () => {
     const range = historyRange({ line: 20, col: 33 }, { line: 70, col: 9 });
-    expect(spansHistory(range, frame)).toBe(true);
     expect(visibleSpan(range, frame)).toEqual(
       selectionSpan({ col: 0, row: 0 }, { col: 9, row: 4 }, 40)
     );
@@ -164,7 +161,6 @@ describe('visibleSpan and spansHistory', () => {
 
   it('clamps an end below the bottom to the last cell of the last row', () => {
     const range = historyRange({ line: 68, col: 4 }, { line: 200, col: 1 });
-    expect(spansHistory(range, frame)).toBe(true);
     expect(visibleSpan(range, frame)).toEqual({
       column: 4,
       row: 2,
@@ -206,7 +202,6 @@ describe('visibleSpan and spansHistory', () => {
       row: 0,
       length: 9 * 40 + (40 - 7)
     });
-    expect(spansHistory(range, atAnchor)).toBe(true);
   });
 });
 
