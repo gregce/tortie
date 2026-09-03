@@ -26,6 +26,8 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { windowBackgroundFor } from '../chrome-hue';
+import { DEFAULT_CHROME_HUE } from '../settings';
 import { WINDOW_BACKGROUND } from '../window-chrome';
 
 const SRC = resolve(__dirname, '..', '..');
@@ -60,15 +62,22 @@ describe('--bg-canvas has one value, wherever it has to be spelled', () => {
   });
 
   it('is the only background colour the main process spells', () => {
+    // Phase 207: both windows compose their fill from the persisted hue
+    // through windowBackgroundNow (src/main/settings/chrome.ts), which is
+    // WINDOW_BACKGROUND itself at the shipped hue and the same shared
+    // rotation the renderer writes into --bg-canvas otherwise. Neither file
+    // spells a literal.
     for (const file of [
       ['main', 'index.ts'],
       ['main', 'settings', 'window.ts']
     ]) {
       const source = read(...file);
       expect(
-        /backgroundColor:\s*WINDOW_BACKGROUND/.test(source),
-        `${file.join('/')} must use WINDOW_BACKGROUND, not a literal`
+        /backgroundColor:\s*windowBackgroundNow\(\)/.test(source),
+        `${file.join('/')} must use windowBackgroundNow(), not a literal`
       ).toBe(true);
+      expect(/backgroundColor:\s*['"#]/.test(source)).toBe(false);
     }
+    expect(windowBackgroundFor(DEFAULT_CHROME_HUE)).toBe(WINDOW_BACKGROUND);
   });
 });

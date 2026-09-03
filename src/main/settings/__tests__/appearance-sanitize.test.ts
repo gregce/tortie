@@ -15,6 +15,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { windowBackgroundFor } from '@shared/chrome-hue';
 
 let userDataDir = '';
 
@@ -332,5 +333,61 @@ describe('the custom family (Phase 174)', () => {
     expect(onDisk.settings['workAreaFontCustom']).toBe('Berkeley Mono');
     const second = await freshStore();
     expect(second.getSettings().workAreaFontCustom).toBe('Berkeley Mono');
+  });
+});
+
+describe('the frame hue (Phase 207)', () => {
+  it('sanitizes to a whole degree on the circle, else the shipped 222', async () => {
+    const store = await freshStore();
+    const at = (chromeHue: unknown): number =>
+      store.sanitizeSettings({ chromeHue }).chromeHue;
+    expect(at(undefined)).toBe(222);
+    expect(at('40')).toBe(222);
+    expect(at(Number.NaN)).toBe(222);
+    expect(at(40)).toBe(40);
+    expect(at(360)).toBe(0);
+    expect(at(-1)).toBe(359);
+    expect(at(40.4)).toBe(40);
+  });
+
+  it('survives a patch, a disk write and a fresh load', async () => {
+    const store = await freshStore();
+    store.updateSettings({ chromeHue: 40 });
+    const onDisk = JSON.parse(
+      readFileSync(join(userDataDir, 'settings.json'), 'utf8')
+    ) as { settings: { chromeHue: number } };
+    expect(onDisk.settings.chromeHue).toBe(40);
+    const again = await freshStore();
+    expect(again.getSettings().chromeHue).toBe(40);
+  });
+
+  it('composes the window fill from the persisted hue and follows a change', async () => {
+    const store = await freshStore();
+    const chrome = await import('../chrome');
+    expect(chrome.windowBackgroundNow()).toBe('#131417');
+    const writes: string[] = [];
+    let destroyed = false;
+    let onClosed: (() => void) | null = null;
+    const win = {
+      isDestroyed: () => destroyed,
+      setBackgroundColor: (hex: string) => writes.push(hex),
+      once: (_event: string, cb: () => void) => {
+        onClosed = cb;
+      }
+    };
+    chrome.followChromeHue(win as never);
+    store.updateSettings({ chromeHue: 40 });
+    const turned = windowBackgroundFor(40);
+    expect(turned).not.toBe('#131417');
+    expect(writes).toEqual([turned]);
+    // An unrelated change writes nothing.
+    store.updateSettings({ scrollbackLines: 20000 });
+    expect(writes).toHaveLength(1);
+    store.updateSettings({ chromeHue: 222 });
+    expect(writes).toEqual([turned, '#131417']);
+    destroyed = true;
+    store.updateSettings({ chromeHue: 100 });
+    expect(writes).toHaveLength(2);
+    expect(onClosed).not.toBeNull();
   });
 });

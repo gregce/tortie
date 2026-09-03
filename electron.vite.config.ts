@@ -49,8 +49,11 @@ function buildCommit(): string {
 export default defineConfig({
   main: {
     // Keep native/node deps (node-pty, better-sqlite3, @parcel/watcher…)
-    // as runtime requires — never bundle .node addons.
-    plugins: [externalizeDepsPlugin()],
+    // as runtime requires — never bundle .node addons. culori is the one
+    // exception (Phase 207): it is ESM only, main is emitted as CommonJS,
+    // and src/shared/chrome-hue.ts needs it in main to paint the window's
+    // fill before any renderer exists, so it is bundled rather than required.
+    plugins: [externalizeDepsPlugin({ exclude: ['culori'] })],
     define: {
       __TORTIE_BUILD_COMMIT__: JSON.stringify(buildCommit())
     },

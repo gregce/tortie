@@ -14,8 +14,8 @@
 
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
-import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import { applyTrustedWindowPolicy } from '../security/trusted-window';
+import { followChromeHue, windowBackgroundNow } from './chrome';
 import {
   getSettingsWindowBounds,
   saveSettingsWindowBounds
@@ -46,7 +46,8 @@ export function openSettingsWindow(): void {
     title: 'Settings',
     show: false,
     // Same pre-paint material as the app (--bg-canvas) — no launch flash.
-    backgroundColor: WINDOW_BACKGROUND,
+    // Composed from the persisted hue since Phase 207, as the app window is.
+    backgroundColor: windowBackgroundNow(),
     // Native titled window (standard traffic lights) — deliberately NOT the
     // main window's hiddenInset chrome.
     webPreferences: {
@@ -65,6 +66,7 @@ export function openSettingsWindow(): void {
   applyTrustedWindowPolicy(win);
 
   win.on('ready-to-show', () => win.show());
+  followChromeHue(win);
 
   // Position remembered (S13) — capture on close, not on every move.
   win.on('close', () => {

@@ -68,7 +68,6 @@ import {
 } from './assets';
 import { PREVIEW_PRIVILEGED_SCHEME } from './preview';
 import { getGmuxCore } from './sessions';
-import { WINDOW_BACKGROUND } from '@shared/window-chrome';
 import { migrateUserDataIfNeeded, showRenameNoticeOnce } from './migrate';
 // Phase 144 stage 1: the one main owned lifecycle state. The before-quit
 // handler below flips it synchronously in its first pass, and the one typed
@@ -90,6 +89,7 @@ import { broadcastEvent } from './typed-events';
 import { EVT_POWER_RESUME } from '@shared/ipc';
 import { applyProcessIdentity } from './proc/identity';
 import { reapOrphanedTmuxClients } from './proc/orphans';
+import { followChromeHue, windowBackgroundNow } from './settings/chrome';
 // Phase 51: `tortie .` — a launch may carry ONE folder to open as a project
 // tab. The shim, the argv acceptance and the pending slot live in ./shell;
 // this file only wires the three entry points (boot argv, second-instance
@@ -356,8 +356,10 @@ function createWindow(): BrowserWindow {
 
     show: false,
     // --bg-canvas: pre-paint fill must match the app so launch/resize never
-    // flashes a foreign color (DESIGN.md §0: one material).
-    backgroundColor: WINDOW_BACKGROUND,
+    // flashes a foreign color (DESIGN.md §0: one material). Since Phase 207
+    // the canvas takes the frame's hue, so the fill is composed from the
+    // persisted hue by the same shared rotation the renderer uses.
+    backgroundColor: windowBackgroundNow(),
     titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -373,6 +375,8 @@ function createWindow(): BrowserWindow {
     markMilestone(MILESTONES.windowShown);
     win.show();
   });
+  // Phase 207: the fill follows the hue for the life of the window.
+  followChromeHue(win);
 
   // Navigation + new-window restrictions + trusted IPC sender registration —
   // one policy, stated once for every Tortie window (Phase 42 stage 1).
