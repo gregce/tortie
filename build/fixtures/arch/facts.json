@@ -431,6 +431,11 @@
         "specifier": "dev.nowhere.Thing"
       },
       {
+        "language": "java",
+        "fromPath": "jvm/src/main/java/com/probe/app/App.java",
+        "specifier": "com.probe.app.elsewhere.Thing"
+      },
+      {
         "language": "php",
         "fromPath": "web/src/Client.php",
         "specifier": "App\\Psr7\\Request"
@@ -690,13 +695,17 @@
     },
     "java": {
       "groups": [
-        "com.squareup.okhttp3"
+        "com.squareup.okhttp3",
+        "com.probe.app"
       ],
       "artifacts": [
         "kotlinx-coroutines-android"
       ],
       "android": false,
-      "present": true
+      "present": true,
+      "ownGroups": [
+        "com.probe.app"
+      ]
     },
     "php": {
       "rules": [

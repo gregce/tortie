@@ -166,3 +166,86 @@ describe('what may be called a dependency, and what may not', () => {
     ).toBe('unresolved');
   });
 });
+
+/**
+ * THE REPOSITORY WHOSE OWN GROUP IS ALSO A DEPENDENCY'S, WHICH IS A SECOND
+ * TREE BECAUSE THE FIXTURE ABOVE MUST KEEP PROVING THE `<dependency>` FENCE.
+ *
+ * apache/commons-lang is `org.apache.commons` and it declares
+ * `org.apache.commons:commons-text`, so the fence kept the project's identity
+ * out of `groups` and the dependency put the same value straight back in. The
+ * two worlds rule then greyed out all 756 of the repository's own
+ * `org.apache.commons.lang3.*` imports and it resolved 0 of its 4,275 imports
+ * first party. The fix reads the identity into `ownGroups` and refuses to let
+ * a group in that set claim anything; measured over the real repository it
+ * recovers all 756 and costs exactly one external, being
+ * `org.apache.commons.text.TextStringBuilder`, which goes grey.
+ */
+describe('a group the repository declares for itself', () => {
+  let ownRoot: string;
+  const OWN_FILES = [
+    'pom.xml',
+    'src/main/java/org/apache/commons/lang3/StringUtils.java'
+  ];
+
+  beforeAll(() => {
+    ownRoot = mkdtempSync(join(tmpdir(), 'gmux-arch-java-own-'));
+    writeFileSync(
+      join(ownRoot, 'pom.xml'),
+      [
+        '<project>',
+        '  <parent>',
+        '    <groupId>org.apache</groupId>',
+        '    <artifactId>apache</artifactId>',
+        '  </parent>',
+        '  <groupId>org.apache.commons</groupId>',
+        '  <artifactId>commons-lang3</artifactId>',
+        '  <dependencies>',
+        '    <dependency>',
+        '      <groupId>org.apache.commons</groupId>',
+        '      <artifactId>commons-text</artifactId>',
+        '    </dependency>',
+        '  </dependencies>',
+        '  <build>',
+        '    <plugins>',
+        '      <plugin>',
+        '        <groupId>org.apache.maven.plugins</groupId>',
+        '        <artifactId>maven-surefire-plugin</artifactId>',
+        '      </plugin>',
+        '    </plugins>',
+        '  </build>',
+        '</project>'
+      ].join('\n')
+    );
+  });
+
+  afterAll(() => {
+    rmSync(ownRoot, { recursive: true, force: true });
+  });
+
+  const own = (specifier: string): { toPath: string | null; resolution: string } =>
+    resolveImport(
+      specifier,
+      'src/main/java/org/apache/commons/lang3/StringUtils.java',
+      'java',
+      archResolveContext(readArchManifests(ownRoot), OWN_FILES)
+    );
+
+  it('resolves the repository\'s own package even when a dependency shares it', () => {
+    expect(own('org.apache.commons.lang3.StringUtils').toPath).toBe(
+      'src/main/java/org/apache/commons/lang3/StringUtils.java'
+    );
+  });
+
+  it('makes that dependency grey rather than external, which is the price', () => {
+    expect(own('org.apache.commons.text.TextStringBuilder').resolution).toBe(
+      'unresolved'
+    );
+  });
+
+  it('reads the parent coordinate as identity and the plugin as neither', () => {
+    const java = readArchManifests(ownRoot).java;
+    expect([...java.ownGroups].sort()).toEqual(['org.apache', 'org.apache.commons']);
+    expect([...java.groups]).toEqual(['org.apache.commons']);
+  });
+});

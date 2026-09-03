@@ -396,6 +396,7 @@ async function main(): Promise<void> {
     },
     java: {
       groups: new Set(facts.resolverProbe.java.groups),
+      ownGroups: new Set(facts.resolverProbe.java.ownGroups),
       artifacts: new Set(facts.resolverProbe.java.artifacts),
       android: facts.resolverProbe.java.android,
       present: facts.resolverProbe.java.present

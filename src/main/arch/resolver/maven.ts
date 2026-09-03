@@ -22,6 +22,20 @@
  * coordinate somebody depended on. `<parent>`, `<plugin>` and `<module>` are
  * outside the fence for the same reason.
  *
+ * AND THE VALUE THE FENCE KEEPS OUT IS WORTH KEEPING, WHICH IS THE PHASE 184
+ * FIX ROUND. The fence stops the project's own identity being read as a
+ * DEPENDENCY. It does not stop some real dependency sharing that identity, and
+ * a Maven project's own group is usually the group of the sibling libraries it
+ * depends on: apache/commons-lang is `org.apache.commons` and it declares
+ * `org.apache.commons:commons-text`, so the two worlds rule greyed out all 756
+ * of its own `org.apache.commons.lang3.*` imports and the repository resolved
+ * 0 of its 4,275 imports first party. Grey is safe and no promise was
+ * falsified, which is why this was a coverage defect and not a correctness
+ * one, but a repository reading as though it contained no code of its own is
+ * not an answer. So the identity is READ, into `ownGroups`, and the Java arm
+ * refuses to let a group in that set claim a name. It is one set of values
+ * this reader keeps rather than discards, and nothing about the fence moves.
+ *
  * A pom is XML rather than a program, so nothing here is guessing at a value
  * some code would have computed; what it does refuse is a coordinate written
  * as a property reference such as `${project.groupId}`, because that names a
@@ -46,6 +60,14 @@ import { walkForFiles } from './tree-walk';
 export interface JavaManifest {
   /** Declared Maven group ids, exactly as written. */
   groups: Set<string>;
+  /**
+   * The group ids the repository's own poms declare for THEMSELVES, being a
+   * top level `<groupId>` and a `<parent>`'s, exactly as written.
+   *
+   * A group here can never admit `external` on its own, whichever dependency
+   * also carries it. See the identity paragraph on this face.
+   */
+  ownGroups: Set<string>;
   /** Declared artifact names, hyphens as written. */
   artifacts: Set<string>;
   /** True when a Gradle Android plugin is declared, which admits `android.*`. */
@@ -55,7 +77,13 @@ export interface JavaManifest {
 }
 
 export function emptyJavaManifest(): JavaManifest {
-  return { groups: new Set(), artifacts: new Set(), android: false, present: false };
+  return {
+    groups: new Set(),
+    ownGroups: new Set(),
+    artifacts: new Set(),
+    android: false,
+    present: false
+  };
 }
 
 /**
@@ -78,6 +106,21 @@ const PLAUSIBLE_GROUP = /^[A-Za-z0-9_\-]+(\.[A-Za-z0-9_\-]+)*$/;
 const PLAUSIBLE_ARTIFACT = /^[A-Za-z0-9_.\-]+$/;
 
 /**
+ * The blocks whose `<groupId>` names SOMEBODY ELSE, removed before the pom's
+ * own identity is read out of what is left.
+ *
+ * `<dependency>` first and `<plugin>` second, so a plugin carrying its own
+ * dependency list has that list taken out from under it before the plugin
+ * itself goes. Each pattern is non greedy, which is the shape a pom always
+ * writes: a dependency holds no dependency.
+ */
+const FOREIGN_BLOCKS = [
+  /<dependency\b[^>]*>[\s\S]*?<\/dependency>/g,
+  /<plugin\b[^>]*>[\s\S]*?<\/plugin>/g,
+  /<extension\b[^>]*>[\s\S]*?<\/extension>/g
+];
+
+/**
  * Read the JVM declarations one repository makes, from BOTH build tools.
  *
  * The Gradle half is handed in rather than read again, because ./manifest.ts
@@ -90,6 +133,7 @@ export function readJavaManifest(
 ): JavaManifest {
   const out: JavaManifest = {
     groups: new Set(gradle.groups),
+    ownGroups: new Set(),
     artifacts: new Set(gradle.artifacts),
     android: gradle.android,
     present: gradle.present
@@ -109,6 +153,15 @@ export function readJavaManifest(
         const value = match[1] ?? '';
         if (PLAUSIBLE_ARTIFACT.test(value)) out.artifacts.add(value);
       }
+    }
+    // WHAT IS LEFT WHEN EVERY BLOCK THAT NAMES SOMEBODY ELSE IS GONE is the
+    // project's own identity, being its `<groupId>` and its `<parent>`'s. See
+    // the identity paragraph on this face.
+    let own = text;
+    for (const block of FOREIGN_BLOCKS) own = own.replace(block, ' ');
+    for (const match of own.matchAll(GROUP_ELEMENT)) {
+      const value = match[1] ?? '';
+      if (PLAUSIBLE_GROUP.test(value)) out.ownGroups.add(value);
     }
   }
   return out;

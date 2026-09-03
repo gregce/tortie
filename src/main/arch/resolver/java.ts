@@ -48,6 +48,26 @@
  * retrofit's 326. A coordinate whose package shares no text with it stays grey
  * rather than guessed.
  *
+ * THE COORDINATE A REPOSITORY DECLARES FOR ITSELF CLAIMS NOTHING, WHICH IS THE
+ * PHASE 184 FIX ROUND AND THE SECOND LIMIT WORTH READING HERE. A Maven
+ * project's own group is usually the group of the sibling libraries it depends
+ * on, and the two worlds rule above then greys out the repository's ENTIRE own
+ * package: apache/commons-lang declares `org.apache.commons:commons-text`, its
+ * own group is `org.apache.commons`, and it resolved 0 of its 4,275 imports
+ * first party with all 756 of its own `org.apache.commons.lang3.*` imports
+ * answering unresolved. So a group that appears in ./maven.ts's `ownGroups`,
+ * being a pom's own `<groupId>` or its `<parent>`'s, is skipped by rules 1 and
+ * 3. `org.apache.commons.text.*` then answers `unresolved` rather than
+ * `external`, which is the grey side and the safe one.
+ *
+ * WHAT THAT FIX DOES NOT REACH, AND IT IS ON THIS FACE BECAUSE IT IS REAL. It
+ * reads Maven's declaration of identity and NOT Gradle's, which lives in a
+ * `group` assignment or a `GROUP` property this resolver does not read. And it
+ * cannot help a JVM repository whose own types are written in another
+ * language: square/okio's 87 grey `okio.*` imports are grey because this index
+ * holds `.java` files and `okio.Buffer` is declared in `Buffer.kt`, which is
+ * the cross language limit and not this one.
+ *
  * NOTHING HERE SPAWNS ANYTHING. Set membership against the caller's file list
  * plus the names ./gradle.ts and ./maven.ts read. No specifier reaches an argv.
  */
@@ -154,6 +174,10 @@ function claimedExternally(
   const java = ctx.manifests.java;
   if (head === 'android' && java.android) return true;
   for (const group of java.groups) {
+    // A GROUP THE REPOSITORY DECLARES FOR ITSELF CLAIMS NOTHING, however many
+    // dependencies also carry it. See the Phase 184 fix round on this face and
+    // the identity paragraph in ./maven.ts.
+    if (java.ownGroups.has(group)) continue;
     // Rule 1: the group as a dotted prefix.
     if (spec === group || spec.startsWith(`${group}.`)) return true;
     // Rule 3: the group's last segment at the import's head.
