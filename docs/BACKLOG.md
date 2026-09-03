@@ -20692,6 +20692,105 @@ token overrides at runtime. The slider is a third input to that same layer.
 - **The accent and the categorical hues are not rotated**, and no per surface colour is offered.
 - **No new package** unless the phase argues for a colour conversion it cannot write in twenty
   lines, and it should not need to.
+## Phase 208: Tortie's own vault reaches out of the profile it is running in (Phase 206's fix round measured it, 2026-09-03)
+
+**Subject.** `fix(credentials): a profile keeps its own accounts and nobody else's`
+
+**First body line.** `Phase 208: the vault is scoped to its profile`
+
+**Semver.** PATCH.
+
+**Tier 3, and the reason is the first question in the tier list.** It can lose the person's work,
+being a credential of his overwritten in his own login keychain by a process that is not his app.
+It also holds his credentials and it spawns `/usr/bin/security`, which are two more Tier 3 answers.
+The evidence is a per row matrix over the real backend on a scratch keychain, and one of the two
+independent methods must be an attack.
+
+**Charter.** Recorded by the Phase 206 verifier as its fifth non blocking note and MEASURED TWICE by
+the fix round, once as a delete and once as a write. Phase 206 fixed the delete half in
+`66215b5` and refused the rest, because renaming a keychain service is a migration and Phase 206 was
+a nits round whose own charter says anything larger is recorded rather than taken. This is that
+record.
+
+### What is true today, with the measurement
+
+`src/main/credentials/vault.ts`'s `vaultServiceFor(slot)` answers `Tortie-credentials-<slot>` and
+nothing in it names the profile. `src/main/credentials/index.ts`'s `defaultVault(root)` HAS the root
+and throws it away on macOS. So every Tortie process on this machine, being his running app, every
+scratch profile probe under `build/` and every harness run, addresses the SAME keychain items.
+
+The default slot is the one that matters, because it is the only slot every profile has. On a
+scratch profile with `CLAUDE_CONFIG_DIR` pointed at a directory the probe made,
+`src/main/usage/credentials.ts` reads `[claudeScopedService(that directory), CLAUDE_KEYCHAIN_SERVICE]`
+in that order, the scoped item does not exist, and the fallback is the person's own unscoped
+`Claude Code-credentials`. `observeProvider` then calls
+`vaultPut(d.vault, 'claude.default', reading.payload)`, which writes what it just read into
+`Tortie-credentials-claude.default`.
+
+Measured on 2026-09-03 across the Phase 206 fix round's two probe runs, by attributes only and never
+`-g`: `Tortie-credentials-claude.default` kept its service, its account and its creation date and
+moved its modification date twice, `03:46:06Z` then `04:04:16Z`, each time inside a probe run on a
+scratch profile. No item was added or removed and the full service inventory is byte identical, so
+nothing was lost. The item was CREATED at `03:18:13Z`, which is hours after Phase 204 landed and
+during the tooling's own runs rather than during his use.
+
+**The harm is not the modification date.** It is that a probe which plants a credential in a scratch
+DEFAULT store writes that planted credential into the item his real app reads, and his next observe
+would offer it back to him as a kept account. Phase 206's probe plants only in a login directory,
+whose vendor service carries that directory's digest, so it never happened. Nothing stops the next
+probe.
+
+### The mechanism, with the real file paths
+
+  - `src/main/credentials/vault.ts`, `vaultServiceFor`, takes the scope and appends it the way
+    `src/main/usage/credentials.ts`'s `claudeScopedService` already does, being the first eight hex
+    of a sha256 of the vault root. The vendor half has been scoped this way since Phase 203 and it
+    is why the vendor half was never the problem.
+  - `src/main/credentials/index.ts`, `defaultVault(root)`, hands the root through instead of
+    dropping it. `keychainVault(runner, scope)` is the only signature change.
+  - `src/main/credentials/kept.ts` needs no change: the record file already lives inside the
+    profile, so it is scoped by where it is.
+
+**THE MIGRATION IS THE HARD HALF AND IT IS WHY THIS IS ITS OWN PHASE.** An unscoped item that exists
+becomes unreferenced the moment the name moves, which is the exact defect Phase 206 item 1 exists to
+stop. The phase decides ONE of two answers and says which in the commit body, being to read the
+unscoped name once from the person's own profile and rewrite it under the scoped name and delete the
+old, or to leave it and tell him. **Rewriting and deleting is the answer unless the phase argues
+otherwise**, for Phase 206 item 1's reason: a credential nobody can reach is worse than one they
+can. Whichever it picks, only the person's OWN profile may ever read or delete the unscoped name,
+and a scratch profile must be unable to compose it at all.
+
+### The second item, and it is small
+
+**The sweep is not a boot sweep.** `observeProvider` has exactly one production caller, being
+`src/main/logins/ipc.ts:172` behind `observeAll()`, so Phase 206's stray sweep and staged sweep run
+the first time a surface asks for the logins list rather than at process start. That matches Phase
+206's own wording, being "the next run's first observe", but it means a person who never opens a
+logins surface never gets either sweep, and both exist to clear a credential nobody can reach. Call
+`observeAll()` once from the boot, after the manifest is open and off the critical path, and say in
+the commit body what it costs on a cold start.
+
+### Proof, run rather than read
+
+- **The matrix**, being the two backends by the person's profile and a scratch profile by the
+  default slot and a login slot, over the REAL `security` on a scratch keychain that is never in the
+  search list, which is the measurement shape Phase 204 established.
+- **The attack:** a probe on a scratch profile that plants a credential in its own default store and
+  then asks whether the person's `Tortie-credentials-claude.default` moved. Red at the parent.
+- **The migration, both ways:** an unscoped item present, and absent, and present while the scoped
+  one already exists.
+- **A gate arm** in `conformance:credentials` proving a scratch root and the person's root compose
+  DIFFERENT service names, and that no name composed from a scratch root can ever equal the
+  unscoped one.
+- His credentials hashed before and after, by attributes only, never `-g`.
+
+### What is NOT in this phase
+
+- **No change to what a person sees or does.** No new surface, no new copy, no new provider.
+- **No change to the vendor half.** `claudeScopedService` is correct and is not touched.
+- **No credential is read, written or deleted on his machine by the phase's own tooling**, outside a
+  scratch keychain the phase makes and removes.
+- **No new package, no new capture.**
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -21055,3 +21154,6 @@ cycle rather than only the evening it was written.
 - 2026-09-02, Phase 207 AMENDED before it was started, on his second sentence: if a hue makes the ground much lighter than the near black the frame ships with, the TEXT must do the right thing. Two causes are named rather than one, being that at a fixed HSL lightness a yellow ground reads far lighter than a blue one so the phase works in a perceptually uniform space and says which, and that if any hue produces a ground the shipped text cannot clear then the four text tokens FLIP rather than the ground being clamped, because clamping would silently refuse the hue he asked for; the terminal foreground and its ANSI palette follow the same rule since the terminal is the same material, the flip has ONE stated threshold rather than four, and the gate walks all 360 degrees asserting no hue leaves any text below its pinned ratio, with an ablation that rotates in plain HSL so the perceptual failure is seen rather than argued.
 - 2026-09-02, Phase 205 ITEM 2 RESTS ON A FALSE PREMISE AND THE BUILDER REFUSED IT, correctly, before committing anything. The entry claimed three of four capture rows put TEXT on the clipboard and so should lose the camera. They do not. `src/renderer/terminal/capture/index.ts` ends `captureSelection` at line 422 and `captureHistory` at line 532 with `bridge.image({ png, suggestedName })`, the file header says everything lands on the clipboard as bytes, and ALL FOUR rows produce a PNG; the rows that put text on the clipboard are Copy and Copy as HTML and they already wear `copy` and `code`. The comment at `terminal-menu.ts:194` was also read backwards by the entry: it says Phase 153 gave every capture row ONE mark ON PURPOSE because each row is a different EXTENT of the same photograph, and `It is the only camera in the set` means the capture family is the one camera family in the menu rather than that one row should keep it. So the fix the entry asked for would have made three rows promise text and deliver a picture, which is a worse lie than the one reported. THE RULING, and the builder's own stated default which it proceeded on: keep `device-camera` on all four, correct the comment from three rows to four, and record the measurement in the commit body so no later round re-derives it. Items 1 and 3 are unaffected and were built. The distinction that IS available, being extent rather than payload, is what the comment already states and is not a defect; if the operator wants the four rows drawn differently that is a new entry and a design decision rather than a correction. THE LESSON IS THE ONE ALREADY IN THIS FILE, that if a sentence sounds like a measurement it must be measured: the entry was written from a menu photograph and a comment read at speed, and neither was checked against what the code puts on the clipboard.
 - 2026-09-03, THE EAGER RENDERER BUDGET IS ALL BUT SPENT, found by the Phase 205 builder and re-measured before it was written here. `node build/assert-probe-containment.mjs` at Phase 205's HEAD prints an eager set of two chunks at 1,999,525 raw against a budget of 2,000,000, which is **475 bytes of headroom**, while gzip has 50,108 spare, so RAW is the binding constraint and gzip is not close. The parent had 2,232, so this phase spent 1,757 bytes on a terminal fix; it got under by putting the drag module behind a lazy door, which is the gate's own prescribed remedy, and by moving one comment to the table it belongs in. THE CAUSE IS THAT COMMENTS ARE NOT STRIPPED FROM THAT CHUNK, so a kilobyte of prose crosses a build gate, and this codebase writes long comments by convention and by instruction. THE NEXT RENDERER CHANGE OF ANY SIZE FAILS THE BUILD, and Phase 207, the hue slider, is a renderer change with a control, a colour conversion and a settings row. The three answers are to strip comments from the eager chunk in the build, which is the cause and costs nothing a person sees; to move more of the eager set behind lazy doors, which is the remedy the gate already names; or to raise the budget, which the audit set deliberately and should be the last answer. IT IS THE OPERATOR'S DECISION AND IT IS NOT TAKEN HERE. Also recorded from the same phase: item 1's cause was NOT what the entry guessed, since the focus effect and the attach epoch are untouched and the real cause is xterm answering DECSET 1004 on `term.onData` where `sendInput` cancels copy mode, which is the second time tonight a guess in an entry was refuted by measurement.
+- 2026-09-03, Phase 206 BUILT in a detached worktree at `b47f00c`, the fourth nits round, one commit an item: `82dd2ad` a login you remove leaves nothing behind, which clears the vendor's scoped keychain item, Tortie's own slot and its staged place, the record row and the directory from ONE place called by both the person pressing Remove and the finisher that completes a removal an earlier run left half done, the phase choosing to FINISH THE REMOVAL rather than adopt a stray back onto the menu; `68bc4ea` a crash leaves no credential staged in Tortie's own store, the once per run sweep reaching the vault as well as the vendor stores; `7fba52a` the font field refuses the whole invisible category, the hand written list replaced by the union of Default_Ignorable_Code_Point and Cf plus U+2028 and U+2029, so a character Unicode adds later is refused without another round; `c9b167b` an impossible manifest instant no longer takes a project's page down, guarding the one exposed sibling call site at `src/main/overview/git-mark.ts:98` and NOT moving the check into `rowToRecord` for the reason Phase 188.1 gave; and `b47f00c` anything a script starts is ended in a finally, extending the machine discipline rule in the same words beyond Electron with `npm run gate:background` to keep it there, which found one real leak in the tree, being the `/bin/sh` sampler at `build/probe-remote-env.mjs:350` ended on the happy path alone.
+- 2026-09-03, Phase 206 FIX ROUND on the verification's two blocking findings, the fourth nits round. THE FIRST WAS THE PHASE'S OWN APP RUN, red at `b47f00c` on every run with `FAIL item 3: 16 of 16 planted characters survived` while commit `7fba52a` says "All 16 came back Menlo" and the same commit registered `electron('probe:p206')` in `build/verification-checks.mjs`, so the tree shipped a registered check that was red; THAT SENTENCE IS WITHDRAWN in `3883ac0` and the shipped sanitizer was never the defect, the verifier having re-derived the class from perl 5.34.1's Unicode 13 tables against node 22's ICU 78 and read 4,169 of 4,198 surviving at the parent and 0 at HEAD with the ten members ICU knows that perl does not all refused by the same unchanged line; the probe had two mechanisms either fatal alone, being a driver dispatching `new Event('blur')` at a Settings window that never took real OS focus so React's `focusout` never fired and the commit never ran, and a grader demanding all sixteen read `Menlo` off `input.value` when `AppearanceSection.tsx` resyncs the field from the PERSISTED family in an effect keyed on it, so from row one onward that family is `Menlo` and never changes again and rows two to sixteen keep their typed text in the DOM whatever the sanitizer did, which is structurally unpassable; it commits with a dispatched Enter now, grades what `window.gmux.settingsGet()` says Tortie KEPT, carries the DOM alongside as a reading, and commits a family of its own per row first so a row whose sentinel did not land is reported as a row the probe could not drive rather than as a character refused, since a grader that only demands `Menlo` passes just as well when nothing was committed after row one; PASS item 1, PASS item 3, all 16 rows, exit 0. THE SECOND WAS ITEM 5'S GATE going green on a shape the brief required it to refuse, `killsInFinally` being FILE level so any `finally` anywhere that reached any `kill(` cleared every start in the file, and the argument text read as it stood, which twelve hostile scripts walked past five times: a `finally` belonging to an unrelated inner block ending its own short lived `git status` child cleared a top level sampler ended nowhere, a file ending ONE loop correctly while starting a second below it ended nowhere read as green which is the likeliest real regression there is, the six loop burner with `while :; do :; done` held in a `const` and `detached: true` held in a `const OPTS` were both invisible which is the VALUE half of the known-hosts lesson this gate had not taken, and a bare `spawn('/bin/sleep', ['100000'])` was invisible because `sleep <n>` wanted a space while the fixture claiming to cover a sleeper spelled it inside a `-c` line; `0f9b51d` asks the question PER START, that child under the name it is held under killed inside a `finally` that NAMES it or in a helper that `finally` calls, the reachable names being the binding plus every name assigned a value mentioning it plus every list it is pushed onto three rounds deep so a probe holding six children in an array still passes, a start held under no name at all being a finding whatever else the file does, and `assignedValues` moved out of `build/assert-known-hosts-scoped.mjs` into `build/scan-source.mjs` so both gates share it rather than each keeping a copy, the known-hosts gate unchanged by the move at 209 files and 36 fixtures of which 32 must fail; the proof is a WHOLE PLANTED FILE and not only a fixture, a probe in the leaked shape with its command line in a `BURN` const, its options in an `OPTS` const, a bare sleeper and an honest inner `finally` for an unrelated child, read by the gate AS SHIPPED as zero starts and green and at HEAD as two findings naming the line and the binding each is held under; 19 fixtures now, twelve of which must fail, the gate as shipped misreading 5 of the 19 and reading the twelve originals exactly as it always did. THE THREE NON BLOCKING PRODUCT FINDINGS ARE FIXED TOO in `66215b5`, being a stray whose slot, scoped vendor item and record row are all still there while its FOLDER has gone, which `strayLoginIds` could not see because it is a `readdir`, and a `<slot>.pending` beside a slot whose folder has gone, which `sweepStaged` could not see because `storesOf` drops a login with no folder, both measured at the parent as `orphanSlotKept=true orphanItemKept=true` and `stagedForMissingDir=true`; the sweep reads THREE indexes now, the default slot, every row in the logins file whether or not its folder is on disk, and every slot the record file names, with the refusal asked once in `namedLoginIds` split out of `strayLoginIds` so the two sweepers cannot disagree about what the person owns and null authorises NOTHING; and `vaultDiscardStaged` reads before it deletes, because on macOS that backend's store is the person's LOGIN KEYCHAIN rather than anything inside the profile and the sweep this phase added made every scratch profile probe in the tree issue a delete naming `Tortie-credentials-claude.default.pending` against his own namespace, so a whole observe on a clean profile now asks for zero deletes. `conformance:credentials` 25 of 25 ablations red with two new arms, `conformance:logins` 12 of 12, 11,796 tests, smoke:t1 6 of 6, typecheck and build from a clean cache, and his three credentials read by attributes only before the first action and after the last with the service inventory byte identical.
+- 2026-09-03, Phase 208 QUEUED from the Phase 206 fix round's own measurement, Tortie's own vault reaches out of the profile it is running in: `vaultServiceFor` answers `Tortie-credentials-<slot>` with no profile scoping while the VENDOR half has carried a directory digest since Phase 203, so every Tortie process on the machine addresses the same keychain items and a scratch profile probe reading the person's own `Claude Code-credentials` through the unscoped fallback writes it straight into `Tortie-credentials-claude.default`; measured by attributes only across two probe runs, that item kept its service, account and creation date and moved its modification date twice, `03:46:06Z` and `04:04:16Z`, each inside a run on a scratch profile, with nothing added or removed and the full inventory byte identical, so nothing was lost, and the harm is the next probe rather than this one, being a planted credential written into the item his real app reads. Tier 3 because it can lose his work, hold his credentials and spawn `security`. THE MIGRATION IS THE HARD HALF and is why Phase 206 refused it: renaming the service strands the item that exists, which is Phase 206 item 1's own defect, so the phase decides and says which, and rewriting under the scoped name then deleting the old is the answer unless it argues otherwise. It carries a second small item, that the stray sweep and the staged sweep run on the first `logins:list` rather than at boot, so a person who never opens a logins surface never gets either.
