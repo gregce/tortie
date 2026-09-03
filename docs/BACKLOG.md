@@ -20585,6 +20585,94 @@ must be proved on fixtures it writes itself, including the exact shape that leak
 - **No new capture, no new provider, no new package.**
 - **No nit over about fifty lines.** Anything larger is recorded as its own entry rather than taken.
 
+## Phase 207: the chrome takes the hue you choose (operator asked 2026-09-02, with a photograph)
+
+**Subject.** `feat(appearance): the frame around your work takes the hue you choose`
+
+**First body line.** `Phase 207: the chrome takes the hue you choose`
+
+**Semver.** MINOR. A new control in Appearance and a new persisted setting.
+
+**Tier 2.** It is a rendered surface with a new setting. Nothing durable moves, nothing spawns, no
+credential is touched. The budget is the gates, ONE app run, and one independent method. The
+independent method is a re-derivation of every produced colour by a different colour library than
+the one that ships, because the whole phase is arithmetic on colour and reading it proves nothing.
+
+**Charter.** His words of 2026-09-02, the night Phase 196 landed the quiet frame: *"in the
+appearance section it would be nice to have a few options, like a color pallete slider that would
+allow you to change the hue all the chrome around the sessions window"*.
+
+### Why this is a small phase and not a theme system
+
+`src/renderer/styles/tokens.css` §1.1 already says what the neutrals are: *"Neutrals (cool graphite
+ramp, hue ≈ 222°, low sat)"*. Six values carry that ramp, being `--bg-canvas`, `--bg-sidebar`,
+`--bg-surface`, `--bg-raised`, `--bg-active` and the two hairlines `--border` and `--border-active`.
+The slider ROTATES a hue the ramp already declares. It does not introduce a palette, a theme file, a
+scheme registry or a second source of colour, and **Phase 23's refusals stand untouched**: nothing
+third party is loaded and nothing configurable can name a colour outside this one number.
+
+The machinery is also already there. Phase 62 shipped `src/renderer/theme/` with `presets.ts`,
+`derive.ts` and `apply.ts`, which is how the highlight scheme and the contrast level already write
+token overrides at runtime. The slider is a third input to that same layer.
+
+### What it builds
+
+- **One control in Appearance**, beside the highlight scheme and the contrast level, being a hue
+  slider over the full circle with the shipped 222 as its default and a swatch strip showing what
+  the frame will look like. **Just enough words:** a label, the control, and nothing else on the
+  resting face.
+- **A pure function that rotates the ramp**, beside `derive.ts`, taking the shipped six neutrals and
+  a hue and returning six neutrals. It rotates hue ONLY. Saturation and lightness are the shipped
+  values and are never touched, which is what keeps every contrast ratio the design spec pins.
+- **It writes through the existing override path** in `apply.ts`, so the highlight scheme and the
+  contrast level keep working and the three settings compose in any order.
+- **The setting persists** like the other two, and the chosen hue rides into the same places the
+  neutrals already reach.
+
+### What it must get right, and these are the traps
+
+- **`--bg-canvas` is not an ordinary token.** `src/renderer/theme/presets.ts` says three things
+  depend on its exact byte value, `apply.ts` reads it as the contrast anchor and NEVER writes it,
+  and `src/shared/window-chrome.ts` mirrors it as `WINDOW_BACKGROUND` because the compositor paints
+  the window before any renderer exists. A hue the main process does not know is a coloured window
+  with a graphite flash at launch and at resize. The phase must carry the chosen hue to the window
+  background too, or state plainly that it does not and leave `--bg-canvas` out of the rotation.
+  **Either answer is acceptable and the phase must pick one and prove it**, because a flash on every
+  launch is worse than a frame that rotates one value less.
+- **The terminal is the same material.** `--bg-canvas` is the xterm background by design, one
+  material, and `src/renderer/terminal/theme.ts` mirrors it. Whatever the canvas does, the terminal
+  does, or the session window and its frame stop agreeing.
+- **Monaco and the editor mirror the tokens too**, at `monaco-impl.ts`. A rotated ramp that leaves
+  the editor graphite is a half rotated app.
+- **Every contrast ratio the design spec pins must still hold at EVERY hue**, not at the default and
+  not at three sampled ones. That is the phase's central claim and it is checked over the whole
+  circle.
+- **The accent is not rotated.** It is the one accent, and the categorical hues are not touched.
+
+### Proof, run rather than read
+
+- **`npm run conformance:hue`**, a gate that runs the SHIPPING rotation under node over the full
+  circle at one degree steps and asserts every pinned ratio from `docs/DESIGN-SPEC.md` holds at all
+  360, that saturation and lightness are unchanged to the byte, and that the six neutrals stay in
+  their ramp order. Red one clause at a time under ablation.
+- **Re-derive:** the verifier converts every produced colour with a DIFFERENT colour library or its
+  own hand written conversion, and agrees on all 360 hues, and re-derives the contrast ratios with
+  its own WCAG arithmetic rather than the phase's.
+- **One app run** at three hues including the default, reading the computed background of the
+  sidebar, the canvas, a terminal pane and an editor off the DOM, and proving all four agree.
+- **Attack:** a hue at 0 and at 360 and at the wrap, a fractional hue, a hue set while a contrast
+  level and a highlight scheme are both active in every order, and a hue restored from settings at
+  boot before the first paint.
+- The battery.
+
+### What is NOT in this phase
+
+- **No palette, no theme file, no scheme registry, no import or export of a theme.** One number.
+- **No light mode.** The ramp is dark and stays dark.
+- **The accent and the categorical hues are not rotated**, and no per surface colour is offered.
+- **No new package** unless the phase argues for a colour conversion it cannot write in twenty
+  lines, and it should not need to.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -20943,3 +21031,4 @@ cycle rather than only the evening it was written.
 - 2026-09-02, Phase 206 QUEUED, the fourth nits round: five findings phases recorded rather than fixed and one of them is on his disk right now, being the login directory `3215d54b2ba60318` and its keychain item `Claude Code-credentials-695bee03` left behind when he removed that login while `logins.json` kept one row, found by the Phase 203 verifier and still true at `f2c76cd`; the staged credential that survives a crash inside Tortie's own vault because `sweepStaged` never reaches it, recorded by the Phase 204 reverify; the 19 invisible code points outside the bidi set that still pass the font sanitizer, recorded by the Phase 197 verifier; the one exposed sibling call site for the timestamp guard at `src/main/overview/git-mark.ts:98`, recorded by Phase 188.1 and guarded here WITHOUT moving the check into `rowToRecord`; and the machine discipline rule, because the Phase 200 verifier started six shell loops for an attack and failed to kill them, so they reparented to launchd and ran two hours and three minutes at about 550 percent of his CPU until he noticed his fans, which the conventions did not forbid because they name Electron alone. TIER IS PER ITEM and the round does not promote itself. HIS DISK IS NEVER TOUCHED.
 - 2026-09-02, Phase 205 STARTED in a detached worktree at `57d9358`, the terminal behaves like a terminal: the scroll position kept across a window blur and focus, the capture rows losing the camera except the one that makes a picture, and a selection that keeps growing while you scroll the way Apple's own Terminal does, with the verifier driving the same gesture in Terminal.app to settle a claim about another product.
 - 2026-09-02, Phase 206 STARTED in a detached worktree at `57d9358`, the fourth nits round: the five findings phases recorded rather than fixed, tiered PER ITEM, over fixtures only because HIS OWN STRAY WAS ALREADY CLEARED at his word tonight, being the login directory `3215d54b2ba60318` and its keychain item `Claude Code-credentials-695bee03` removed by hand while his own credentials were proved unmoved.
+- 2026-09-02, Phase 207 QUEUED, the chrome takes the hue you choose: he asked for a colour slider in Appearance that moves the hue of all the chrome around the session window, the night Phase 196 landed the quiet frame. It is small because the ramp already declares its hue, `tokens.css` section 1.1 saying cool graphite at about 222 degrees, and Phase 62 already ships the runtime override path in `src/renderer/theme/` that the highlight scheme and the contrast level write through, so the slider is a third input to a layer that exists and NOT a theme system; Phase 23's refusals stand untouched. The traps are named: `--bg-canvas` is mirrored in `src/shared/window-chrome.ts` because the compositor paints the window before any renderer exists, so a hue main does not know is a graphite flash at every launch and the phase must either carry the hue there or leave the canvas out and say so; the terminal is the same material by design and Monaco mirrors the tokens, so a half rotated app is the failure mode; and EVERY pinned contrast ratio must hold at all 360 hues rather than at three sampled ones, checked by a gate at one degree steps and re-derived by the verifier with its own colour conversion and its own WCAG arithmetic. MINOR, Tier 2.
