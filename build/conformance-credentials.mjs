@@ -391,6 +391,14 @@ if ('error' in live) {
     live.capture.defaultNowHoldsIncoming,
     `${TAG} the rolling copy of the person's own location was not moved on`
   );
+  check(
+    live.capture.promotedFactsKept && live.capture.promotedFactsRestores,
+    `${TAG} A LOGIN PROMOTED A MOMENT AGO HAS NO ROW OF ITS OWN, so it draws as never signed into until the next observation`
+  );
+  check(
+    live.capture.promotedFactsEmail === 'alice@example.com',
+    `${TAG} the promoted login's row does not carry the address Tortie recorded for it`
+  );
   check(live.capture.ownStoreUntouched, `${TAG} THE PERSON'S OWN STORE WAS WRITTEN`);
   check(live.capture.recordHasNoToken, `${TAG} A TOKEN BYTE REACHED THE RECORD FILE`);
   check(live.capture.loginsFileHasNoToken, `${TAG} A TOKEN BYTE REACHED THE LOGINS FILE`);
@@ -580,6 +588,16 @@ const ABLATIONS = [
         file: 'keep.ts',
         from: '    if (accountChanged && before !== undefined) {',
         to: '    if (false && before !== undefined) {'
+      }
+    ]
+  },
+  {
+    name: 'a login left with no row of its own until the next observation',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    if (facts.has(row.id)) continue;\n    facts.set(row.id, await factsFromSlot(d, provider, row.id, null));',
+        to: '    if (facts.has(row.id)) continue;'
       }
     ]
   },

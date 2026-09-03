@@ -235,7 +235,26 @@ export async function observeProvider(
       email: reading.email
     });
   }
+  // THE RECORD IS WRITTEN BEFORE THE ROWS ARE FILLED IN, and the order is not
+  // a style. `factsFromSlot` reads the record FILE, so a login promoted a
+  // moment ago would answer "no record" while its record sat only in the map
+  // above, and would draw as never signed into. That is the Phase 203 defect
+  // in a new shape and the gate has an ablation for it.
   if (moved) writeKeptFile(d.root, kept);
+  // EVERY LOGIN OF THIS PROVIDER HAS A ROW, whatever happened above. The store
+  // list at the top was read before any promotion, and a login can also be
+  // added by a person or dropped from the list by its folder being gone, so a
+  // key that is still missing is filled from Tortie's own store alone. The app
+  // run of this phase is why: a promoted codex login drew `Not signed in yet`
+  // while the claude one beside it drew correctly, because the two promotions
+  // landed in different observations and only one of them was patched in. A
+  // fast path for the promotion is not the same thing as an answer for every
+  // row, and this is the answer for every row.
+  for (const row of readLoginsFile(d.root).file.logins) {
+    if (row.provider !== provider) continue;
+    if (facts.has(row.id)) continue;
+    facts.set(row.id, await factsFromSlot(d, provider, row.id, null));
+  }
   return { events, facts };
 }
 
@@ -374,10 +393,17 @@ export type ActivateResult =
 export async function activateLogin(
   d: KeepDeps,
   provider: LoginProviderId,
-  name: string,
+  /**
+   * The login to put in place, or NULL for the person's own default location,
+   * which is the value `logins:choose` carries for it. Treating null as a
+   * login named the empty string is the defect the Phase 204 app run found:
+   * choosing the default answered "Tortie has no codex login named ." and the
+   * switch back could not be made at all.
+   */
+  name: string | null,
   stopAfter?: SwapStep
 ): Promise<ActivateResult> {
-  if (sameLoginName(name, DEFAULT_LOGIN_NAME)) {
+  if (name === null || name === '' || sameLoginName(name, DEFAULT_LOGIN_NAME)) {
     // THE PERSON'S OWN LOCATION IS NEVER WRITTEN. Choosing it moves no bytes.
     await observeProvider(d, provider);
     return { ok: true, wrote: false, says: 'Your own sign in is used as it is.' };

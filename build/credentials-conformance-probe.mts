@@ -317,8 +317,17 @@ try {
       promotedRow === null ? null : vault.slotFor('codex', promotedRow.id);
     for (const event of [...first.events, ...second.events]) said.push(event.says);
 
+    const promotedFacts =
+      promotedRow === null ? null : (second.facts.get(promotedRow.id) ?? null);
     out['capture'] = {
       keptFirst: kept1 === codexCredential('alice', '1'),
+      // THE PROMOTED LOGIN'S OWN ROW, IN THE SAME OBSERVATION. The app run of
+      // this phase found it missing: the list of stores is read before the
+      // promotion, so the new login had no facts for five seconds and drew
+      // `Not signed in yet`, which is the Phase 203 defect in a new shape.
+      promotedFactsKept: promotedFacts?.kept ?? false,
+      promotedFactsRestores: promotedFacts?.restores ?? false,
+      promotedFactsEmail: promotedFacts?.email ?? null,
       events: first.events.map((e) => e.kind),
       promotedName: promotedRow?.name ?? null,
       promotedKind: second.events.map((e) => e.kind),

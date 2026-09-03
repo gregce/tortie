@@ -482,6 +482,12 @@ export const CHECKS = [
   // `node build/probe-p203-account.mjs --self-test` proves the graders on
   // thirteen fixtures and launches nothing.
   electron('probe:p203'),
+  // Phase 204. One app run over FIXTURE stores on a scratch profile: it reads
+  // the login rows off the real Settings window's DOM, rewrites both default
+  // stores while the app is running the way the vendor's own /login does, and
+  // reads them again. It opens no keychain, spawns no agent and spends no
+  // token, and it hashes his own three credentials at both ends.
+  electron('probe:p204'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a

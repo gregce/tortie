@@ -214,7 +214,7 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     // signed out, so nothing is chosen at all and the person reads why.
     let activation: string | null = null;
     try {
-      const put = await activateLogin(keepDeps(), id, name ?? '');
+      const put = await activateLogin(keepDeps(), id, name);
       if (!put.ok) {
         forgetObservation();
         log.info('logins.activate', { provider: id, ok: false });
