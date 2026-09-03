@@ -4,6 +4,34 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## 0.99.0 (2026-09-02)
+
+This release is about following things back. A file can be traced through every commit that touched it, even across renames, and the commit list narrows as you type. You can also keep more than one Claude or Codex account now and move between them from the meter, without signing in again.
+
+### Added
+
+- Right click a file and choose History, or use View then File History, to see every commit that touched the file you have open, followed back through its renames. Choosing a row shows that commit's change to the file. Merge commits are not listed ([`d2b5067`](https://github.com/gregce/tortie/commit/d2b5067))
+- A field at the head of the History section narrows the commit list as you type. A bare word searches messages, and `author:`, `message:`, `commit:` and `file:` narrow further. `change:` searches inside the changes themselves and waits for you to press Search, because it is slow on a large repository ([`11a6366`](https://github.com/gregce/tortie/commit/11a6366))
+- Every part of the Architecture map now says what it is in a sentence, and the sidebar reads from the repository down to the contract. Architecture is still off until you turn it on in Settings ([`5fe4f0a`](https://github.com/gregce/tortie/commit/5fe4f0a))
+- You can add a second Claude or Codex account and choose which one your next session runs under, from the usage meter. Adding one opens a session running the vendor's own sign in, and Tortie never asks you for a password or a token ([`8773a3a`](https://github.com/gregce/tortie/commit/8773a3a))
+- Each login is drawn as the account it is, by email address, with your own sign in marked as the one Tortie does not own ([`93eb4f3`](https://github.com/gregce/tortie/commit/93eb4f3))
+- An account you have signed into is one you can go back to. Switch away, or sign in as someone else inside a session, and the account you left is still on the list and one click away. Sessions already running keep the account they started with ([`b53f2c6`](https://github.com/gregce/tortie/commit/b53f2c6))
+- The diff's inline control now tells you which of its modes can actually differ on the change in front of you, instead of offering four that draw the same thing ([`8cab959`](https://github.com/gregce/tortie/commit/8cab959))
+
+### Changed
+
+- The window chrome steps below your work rather than competing with it, and the sizes, spacings and radii across the app now come from one scale ([`f58001e`](https://github.com/gregce/tortie/commit/f58001e)), ([`f29861f`](https://github.com/gregce/tortie/commit/f29861f))
+
+### Fixed
+
+- Select all in a redline now copies the document rather than the window around it ([`fc562a6`](https://github.com/gregce/tortie/commit/fc562a6))
+- A font family name can no longer carry an invisible character that changes how it reads ([`57fe757`](https://github.com/gregce/tortie/commit/57fe757))
+- A session name containing a line break stays on one row when you paste a diagnostics report ([`b5f0254`](https://github.com/gregce/tortie/commit/b5f0254))
+- A selected or pressed row now has an edge you can see ([`1371500`](https://github.com/gregce/tortie/commit/1371500))
+- Quitting now shuts the usage meter, the hook server and live diagnostics down as one operation, so nothing can be read or started again after the quit has finished ([`8ea7248`](https://github.com/gregce/tortie/commit/8ea7248))
+- Turning on reduced motion no longer leaves a diff holding on to its rows after you close it ([`0929c6e`](https://github.com/gregce/tortie/commit/0929c6e))
+- Creating a session on a machine whose tmux reports no server running is now read as the plain answer it is ([`cd338cb`](https://github.com/gregce/tortie/commit/cd338cb))
+
 ## 0.98.0 (2026-09-01)
 
 This release is about reading a change the way you would read a document, and about the small things that make the window easier to live in. A changed text file can be read as a redline on its own, the usage meter follows your own turns, and a row of project tabs stays readable however many you open. A remote tab you close now stays closed.
