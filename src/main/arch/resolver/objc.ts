@@ -29,6 +29,12 @@
  * implementation files must anchor the headers too. Pairing by basename would
  * be a guess the build system does not write down, so it is refused.
  *
+ * PHASE 184 MOVED ONE PRIVATE HELPER OUT AND CHANGED NO ANSWER. The suffix
+ * index this arm built for itself is now ./suffix-index.ts, shared with the C
+ * family arm, which needs exactly the same map. The map's contents are
+ * identical and the tests over this arm are unchanged; what moved is eighteen
+ * duplicated lines, per CLAUDE.md's growth guardrail.
+ *
  * NOTHING HERE SPAWNS ANYTHING. Set membership against the caller's file
  * list plus the names ./podfile.ts read. No specifier reaches an argv.
  */
@@ -37,15 +43,13 @@ import { APPLE_SDK_MODULES } from './apple-sdk';
 import { external, firstParty, unresolved, type ArchResolution } from './answers';
 import type { ArchResolveContext } from './index';
 import { joinWithin, parentOf } from './paths';
+import { trackedSuffixIndex } from './suffix-index';
 
 /** The characters a header path may be written with. */
 const PLAIN_HEADER = /^[A-Za-z0-9_.+\-/]+$/;
 
 /** The characters a module name may be written with. */
 const PLAIN_MODULE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/;
-
-/** Per context index of every tracked path by every suffix, built once. */
-const OBJC_INDEX = new WeakMap<ArchResolveContext, Map<string, string[]>>();
 
 /** Resolve one Objective-C import. */
 export function resolveObjc(
@@ -79,7 +83,7 @@ function quotedInclude(
   const fromRoot = joinWithin('', spec);
   if (fromRoot !== null && ctx.files.has(fromRoot)) return firstParty(fromRoot);
   if (fromRoot === null) return unresolved();
-  const matches = suffixIndex(ctx).get(fromRoot) ?? [];
+  const matches = trackedSuffixIndex(ctx).get(fromRoot) ?? [];
   if (matches.length === 1) return firstParty(matches[0] ?? '');
   return unresolved();
 }
@@ -91,7 +95,7 @@ function systemInclude(path: string, ctx: ArchResolveContext): ArchResolution {
   if (normal === null) return unresolved();
   // The shadow rule: a tracked file this bracket could reach through a header
   // search path makes the answer grey, never a dependency.
-  if (ctx.files.has(normal) || (suffixIndex(ctx).get(normal) ?? []).length > 0) {
+  if (ctx.files.has(normal) || (trackedSuffixIndex(ctx).get(normal) ?? []).length > 0) {
     return unresolved();
   }
   // THE RULING, made explicit by the Phase 180 fix round because this return
@@ -124,22 +128,4 @@ function moduleImport(spec: string, ctx: ArchResolveContext): ArchResolution {
   return unresolved();
 }
 
-/** Every tracked path keyed by every one of its slash suffixes. */
-function suffixIndex(ctx: ArchResolveContext): Map<string, string[]> {
-  const cached = OBJC_INDEX.get(ctx);
-  if (cached !== undefined) return cached;
-  const index = new Map<string, string[]>();
-  for (const path of ctx.files) {
-    let cut = path.indexOf('/');
-    while (cut !== -1) {
-      const suffix = path.slice(cut + 1);
-      const held = index.get(suffix);
-      if (held === undefined) index.set(suffix, [path]);
-      else held.push(path);
-      cut = path.indexOf('/', cut + 1);
-    }
-  }
-  OBJC_INDEX.set(ctx, index);
-  return index;
-}
 

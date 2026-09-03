@@ -77,12 +77,10 @@
 import { external, firstParty, unresolved, type ArchResolution } from './answers';
 import type { ArchResolveContext } from './index';
 import { joinWithin, parentOf } from './paths';
+import { trackedSuffixIndex } from './suffix-index';
 
 /** The characters an include path may be written with. */
 const PLAIN_INCLUDE = /^[A-Za-z0-9_.+\-/]+$/;
-
-/** Per context index of every tracked path by every suffix, built once. */
-const CFAMILY_INDEX = new WeakMap<ArchResolveContext, Map<string, string[]>>();
 
 /** Resolve one C or C++ include. */
 export function resolveCFamily(
@@ -112,7 +110,7 @@ function quotedInclude(
   if (ctx.files.has(fromRoot)) return firstParty(fromRoot);
   const declared = throughDeclaredDir(spec, ctx);
   if (declared !== null) return firstParty(declared);
-  const matches = suffixIndex(ctx).get(fromRoot) ?? [];
+  const matches = trackedSuffixIndex(ctx).get(fromRoot) ?? [];
   if (matches.length === 1) return firstParty(matches[0] ?? '');
   // Nothing, or several. Both are grey: a wrong edge is worse than no edge.
   return unresolved();
@@ -125,7 +123,7 @@ function systemInclude(path: string, ctx: ArchResolveContext): ArchResolution {
   if (declared !== null) return firstParty(declared);
   const normal = joinWithin('', path);
   if (normal === null) return unresolved();
-  if (ctx.files.has(normal) || (suffixIndex(ctx).get(normal) ?? []).length > 0) {
+  if (ctx.files.has(normal) || (trackedSuffixIndex(ctx).get(normal) ?? []).length > 0) {
     return unresolved();
   }
   return external();
@@ -143,21 +141,3 @@ function throughDeclaredDir(
   return null;
 }
 
-/** Every tracked path keyed by every one of its slash suffixes. */
-function suffixIndex(ctx: ArchResolveContext): Map<string, string[]> {
-  const cached = CFAMILY_INDEX.get(ctx);
-  if (cached !== undefined) return cached;
-  const index = new Map<string, string[]>();
-  for (const path of ctx.files) {
-    let cut = path.indexOf('/');
-    while (cut !== -1) {
-      const suffix = path.slice(cut + 1);
-      const held = index.get(suffix);
-      if (held === undefined) index.set(suffix, [path]);
-      else held.push(path);
-      cut = path.indexOf('/', cut + 1);
-    }
-  }
-  CFAMILY_INDEX.set(ctx, index);
-  return index;
-}
