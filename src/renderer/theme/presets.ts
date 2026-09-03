@@ -310,9 +310,27 @@ export const HAIRLINE_ORDER: readonly string[] = [
  * eight bit value are not two colours, and research 75 C4 already ruled that
  * 1.013 is no hairline at all. So every adjacent pair below must differ by at
  * least `RENDERED_STEP_MIN` in at least one channel of the rendered answer.
- * The number is not taste either: TWO is what the shipped ramp itself holds
- * at its tightest, measured over every whole degree and all three contrast
- * levels, so the floor says no worse than shipped rather than picking a bar.
+ *
+ * WHY TWO, and it is a floor rather than the shipped spacing. The six pairs
+ * below hold FIVE at their tightest over every whole degree and all three
+ * contrast levels, the tightest being `--bg-sidebar` on `--bg-canvas` at hue
+ * 6, and at the shipped frame the six read 5, 9, 9, 8, 10 and 11. Five as a
+ * floor would say the ramp may never spread tighter than it ships, which is a
+ * different rule and refuses frames a person can read perfectly well. TWO IS
+ * THE SMALLEST STEP ABOVE THE ROUNDING FLOOR: one level is the least
+ * difference eight bits can express, so a pair one level apart is
+ * indistinguishable from two colours that meant to be the same, and that is
+ * exactly where the shipped rotation already puts `--border` on `--bg-active`
+ * at hue 44, the pair DESIGN.md section 1.10 records as not existing at
+ * 1.013:1. So this floor asserts only that a rung is still a rung, and it
+ * re-derives from eight bits rather than from taste.
+ *
+ * AN EARLIER DRAFT OF THIS PARAGRAPH SAID TWO WAS WHAT THE SHIPPED RAMP
+ * HOLDS AT ITS TIGHTEST. It is five, by this rule's own pairs, and three
+ * between any two of the eight neutrals at the shipped frame. The Phase 210
+ * verifier caught it, and it was the same class of unre-derivable number the
+ * phase had just refused when it rejected a 1.10 ratio floor. The value did
+ * not move and the offered region did not move; the reason did.
  */
 export const RENDERED_STEP_MIN = 2;
 

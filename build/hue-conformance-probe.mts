@@ -189,6 +189,16 @@ interface RampCell {
   disagree: number;
   /** Hues where a chromatic token moved off the value the shipped frame has. */
   chromaticMoved: number;
+  /**
+   * The lightest canvas this cell reaches over the hues it walked, and the
+   * hue that reached it (Phase 210 fix round). Rule 20 quotes the maximum
+   * over every FEASIBLE cell, because the lightest frame a person can choose
+   * is a reading of the whole walk rather than of one named point at the
+   * shipped hue, which is the number that rule used to quote.
+   */
+  maxCanvasY: number;
+  maxCanvas: string;
+  maxCanvasHue: number;
 }
 
 /** A full reading at one named point, so the gate can re-derive from bytes. */
@@ -459,6 +469,9 @@ async function readRoot(
         let darkHues = 0;
         let disagree = 0;
         let chromaticMoved = 0;
+        let maxCanvasY = -1;
+        let maxCanvas = '';
+        let maxCanvasHue = -1;
         // The stepped set ALWAYS carries the witnesses and the shipped 222,
         // whatever the step, because the failures this walk is looking for sit
         // in clusters a few degrees wide and a coarse step walks over them.
@@ -524,6 +537,12 @@ async function readRoot(
           const canvas = v('--bg-canvas');
           const dark = textIsDarkOn(canvas);
           if (dark) darkHues += 1;
+          const canvasY = lum(canvas);
+          if (canvasY > maxCanvasY) {
+            maxCanvasY = canvasY;
+            maxCanvas = canvas;
+            maxCanvasHue = h;
+          }
           for (const [key, hex] of Object.entries(terminalTextFor(canvas, dark))) {
             if (key === 'black' || key === 'brightBlack') continue;
             const need = key === 'foreground' ? 4.5 : 3;
@@ -567,7 +586,10 @@ async function readRoot(
           worstChroma,
           darkHues,
           disagree,
-          chromaticMoved
+          chromaticMoved,
+          maxCanvasY,
+          maxCanvas,
+          maxCanvasHue
         });
       }
     }

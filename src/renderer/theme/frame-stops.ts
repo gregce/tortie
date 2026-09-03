@@ -121,7 +121,19 @@ export interface StopRange {
   /** The lowest and highest stop that keeps every floor. */
   min: number;
   max: number;
-  /** Does the stop past that end hold at some stop of the OTHER axis? */
+  /**
+   * Does the stop past that end hold at some stop of the OTHER axis?
+   *
+   * THESE TWO READ A SANITIZED STOP (Phase 210 fix round, the verifier's F4).
+   * `frameIsOffered` sanitizes both of its arguments, so `min - 1` and
+   * `max + 1` one past an AXIS end are read as the axis end itself and answer
+   * true. `depthRange(-2)` therefore reports both true while its own range is
+   * already the whole axis. Nothing can show it today, because a range whose
+   * end IS the axis end cannot be pushed past, so no refusal is composed
+   * there and every reachable refusal reads the true answer. A later round
+   * that adds a stop to either axis must revisit this, or `refusalSentence`
+   * will compose "Less depth needs a lighter shade" where nothing rescues it.
+   */
   belowElsewhere: boolean;
   aboveElsewhere: boolean;
 }

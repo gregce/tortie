@@ -113,8 +113,11 @@
  *  16. EVERY FLOOR HOLDS AT EVERY OFFERED FRAME: the text pins, the terminal
  *      palette, the chromatic family, the ramp strictly in order, and the
  *      RENDERED STEP, being at least two eight bit levels between adjacent
- *      rungs. Two is what the shipped ramp itself holds at its tightest, so
- *      the floor reads no worse than shipped rather than picking a bar.
+ *      rungs. Two is the smallest step ABOVE the rounding floor, one level
+ *      being the least difference eight bits can express; the shipped ramp
+ *      itself holds FIVE at its tightest over this rule's own pairs, so this
+ *      is a floor on a rung still being a rung and not on the shipped
+ *      spacing. presets.ts says why, and says what it used to say wrongly.
  *  17. THE ORDER NEVER INVERTS, at every cell and not only the offered ones.
  *      The transform is affine in OKLCH lightness with a positive slope, so
  *      this is arithmetic; what a refused stop loses is the eight bit
@@ -128,9 +131,14 @@
  *  20. THE FLIP IS OUT OF REACH, and this is the phase's correction to its
  *      own charter. Phase 210's entry said the text flip would become
  *      reachable and that this was the point; it does not, because the git
- *      decorations on --bg-active stop the ramp at canvas Y 0.0138 against a
- *      flip at Y 0.1791. So the rule is the honest one: no frame a person can
- *      choose reads dark, and rules 9 to 11 are where the flip stays proved.
+ *      decorations on --bg-active stop the ramp at canvas Y 0.0147, measured
+ *      over every whole degree at hue 186, shade 2, depth -3, against a flip
+ *      at Y 0.1791. At the shipped hue that lightest canvas reads 0.0138,
+ *      which is the number this rule quoted before the Phase 210 verifier
+ *      pointed out it was one hue's reading rather than the walk's maximum.
+ *      So the rule is the honest one: no frame a person can choose reads
+ *      dark, the flip being twelve times away, and rules 9 to 11 are where
+ *      the flip stays proved.
  *  21. THE SHIPPED FRAME IS STILL THE DEFAULT and every other stop moves. The
  *      shipped pair writes nothing at all; every named point that is not it
  *      writes the ramp, at the shipped hue as much as at any other.
@@ -918,7 +926,14 @@ try {
       say(`${TAG} rule 18: the shipping floor predicate agreed with the walk at every one of ${String(shipping.ramp.reduce((n, c) => n + c.hues, 0))} points, so the control refuses what this gate refuses`);
       say(`${TAG} rule 19: no chromatic token moved with the frame at any point`);
       const lightest = shipping.rampPoints.find((p) => p.name === 'lightest');
-      say(`${TAG} rule 20: the text family read light at every point. The lightest frame a person can choose is canvas ${lightest.values['--bg-canvas']}, Y ${yOf(lightest.values['--bg-canvas']).toFixed(4)}, against the flip at Y ${THRESHOLD.toFixed(4)}, so THE FLIP IS OUT OF REACH and rules 9 to 11 are where it stays proved`);
+      // The maximum over the WALK rather than over one named point at the
+      // shipped hue. Both are printed, because the named point is what the
+      // app run drives and the walk is what this rule claims.
+      let lit = { maxCanvasY: -1, maxCanvas: '', maxCanvasHue: -1, shade: 0, depth: 0 };
+      for (const c of shipping.ramp) {
+        if (c.feasible && c.maxCanvasY > lit.maxCanvasY) lit = c;
+      }
+      say(`${TAG} rule 20: the text family read light at every point. The lightest frame a person can choose over the whole walk is canvas ${lit.maxCanvas}, Y ${lit.maxCanvasY.toFixed(4)}, at hue ${String(lit.maxCanvasHue)} shade ${String(lit.shade)} depth ${String(lit.depth)}; at the shipped hue the lightest named point is ${lightest.values['--bg-canvas']}, Y ${yOf(lightest.values['--bg-canvas']).toFixed(4)}. Against the flip at Y ${THRESHOLD.toFixed(4)} THE FLIP IS OUT OF REACH, and rules 9 to 11 are where it stays proved`);
       for (const point of shipping.rampPoints) {
         say(`${TAG} rule 21: the ${point.name.padEnd(16)} frame (shade ${String(point.shade).padStart(2)}, depth ${String(point.depth).padStart(2)}) writes ${String(point.keys.length).padStart(2)} token(s): canvas ${point.values['--bg-canvas']} sidebar ${point.values['--bg-sidebar']} active ${point.values['--bg-active']} border ${point.values['--border']}`);
       }
