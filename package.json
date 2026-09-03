@@ -45,6 +45,7 @@
     "probe:p203": "npm run build && node build/probe-p203-account.mjs",
     "probe:p204": "npm run build && node build/probe-p204-accounts.mjs",
     "probe:p205": "npm run build && node build/probe-p205-terminal.mjs",
+    "probe:p209": "npm run build && node build/probe-p209-selection.mjs",
     "probe:p202": "npm run build && node build/harness-socket.mjs --fresh gmux-p202-logins 'node build/probe-p202-logins.mjs'",
     "probe:p206": "npm run build && node build/harness-socket.mjs --fresh gmux-p206 'node build/probe-p206-nits.mjs'",
     "probe:p207": "npm run build && node build/probe-p207-hue.mjs",

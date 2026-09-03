@@ -495,6 +495,22 @@ export const CHECKS = [
   // build/probe-p206-nits.mjs --self-test` proves the graders on eight
   // fixtures and launches nothing.
   electron('probe:p206'),
+  // PHASE 209. The selection is the history, not the screen, driven in ONE app
+  // run over one real shell session on a scratch profile and the scratch
+  // socket gmux-p209. Six arms: the eight second hold above the top edge with
+  // the lines copied counted against the lines travelled, a hold below the
+  // bottom from a parked view, a drag that reverses past its anchor, a hold
+  // that reaches the top of the history, a streaming pane under a live drag,
+  // and byte identity between the history path and xterm's own over the same
+  // range. It presses command C for real, so the system pasteboard is saved
+  // with every flavour of every item before the run and put back in the same
+  // finally, by build/pasteboard-keep.swift compiled into the run directory;
+  // the flavours are printed before and after and must agree. It spawns no
+  // agent, spends no token, opens no native menu and touches `-L gmux` in one
+  // place only, a read only session count taken before and after. `node
+  // build/probe-p209-selection.mjs --self-test` proves the six graders on
+  // sixteen fixtures and launches nothing.
+  electron('probe:p209'),
   // PHASE 208. One app run on a scratch profile over a SCRATCH KEYCHAIN the
   // probe makes with `security create-keychain` under the harness directory,
   // never adds to the search list and deletes in a finally. It plants a
