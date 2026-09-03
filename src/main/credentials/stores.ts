@@ -110,6 +110,34 @@ export function claudeWriteService(dir: string): string {
   return claudeScopedService(dir);
 }
 
+/**
+ * A read that answers null rather than throwing.
+ *
+ * THE ATTACK THIS ANSWERS, and the phase names it: a store that becomes
+ * unreadable between the capture and the write. The shipped seam already
+ * catches, but a seam is a thing a later round replaces, and a store nobody can
+ * read must be a store that is not captured this time rather than an exception
+ * that stops a person seeing their logins at all.
+ */
+async function safeText(d: StoreDeps, path: string): Promise<string | null> {
+  try {
+    return await d.readText(path);
+  } catch {
+    return null;
+  }
+}
+
+async function safeKeychain(
+  d: StoreDeps,
+  service: string
+): Promise<string | null> {
+  try {
+    return await keychainRead(d.runner, service);
+  } catch {
+    return null;
+  }
+}
+
 /** Read a store once. */
 export async function readStore(
   d: StoreDeps,
@@ -117,7 +145,7 @@ export async function readStore(
   dir: string | null
 ): Promise<StoreReading> {
   if (provider === 'codex') {
-    const text = await d.readText(codexAuthFileFor(d, dir));
+    const text = await safeText(d, codexAuthFileFor(d, dir));
     if (text === null) return NOTHING;
     const payload = isCredentialPayload('codex', text) ? text : null;
     return {
@@ -127,11 +155,11 @@ export async function readStore(
       account: null
     };
   }
-  const accountText = await d.readText(claudeAccountFileFor(d, dir));
+  const accountText = await safeText(d, claudeAccountFileFor(d, dir));
   const email = accountText === null ? null : emailFromClaudeJson(accountText);
   if (d.keychainForClaude) {
     for (const service of claudeServicesFor(d, dir)) {
-      const found = await keychainRead(d.runner, service);
+      const found = await safeKeychain(d, service);
       if (found === null) continue;
       if (!isCredentialPayload('claude', found)) continue;
       return {
@@ -142,7 +170,7 @@ export async function readStore(
       };
     }
   }
-  const text = await d.readText(claudeCredentialFileFor(d, dir));
+  const text = await safeText(d, claudeCredentialFileFor(d, dir));
   if (text !== null && isCredentialPayload('claude', text)) {
     return { payload: text, email, where: 'file', account: null };
   }

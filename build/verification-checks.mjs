@@ -134,6 +134,13 @@ export const CHECKS = [
   // scans the shipping source for the refusals and runs the shipping store
   // over a scratch root and over four ablated copies of itself.
   pure('conformance:logins'),
+  // Phase 204. The credential store Tortie owns: it runs
+  // build/conformance-credentials.mjs, which scans the shipping source for the
+  // refusals, being the payload never on a command line, -A never passed and
+  // the person's own location refused by name, and runs the shipping domain
+  // over an injected keychain and over twelve ablated copies of itself. It
+  // opens no keychain and reads nothing under the person's home.
+  pure('conformance:credentials'),
   pure('conformance:arch'),
   pure('conformance:arch:modules'),
   pure('conformance:reading'),

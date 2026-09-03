@@ -131,6 +131,7 @@
     "conformance:filehistory": "node build/conformance-filehistory.mjs",
     "conformance:historysearch": "node build/conformance-historysearch.mjs",
     "conformance:logins": "node build/conformance-logins.mjs",
+    "conformance:credentials": "node build/conformance-credentials.mjs",
     "conformance:watcher": "node build/conformance-watcher.mjs",
     "conformance:arch": "node build/conformance-arch.mjs",
     "conformance:reading": "node build/conformance-reading.mjs",
