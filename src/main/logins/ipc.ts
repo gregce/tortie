@@ -72,15 +72,20 @@ import { getLog } from '../log';
 import { forgetLoginAccounts, loginFacts } from '../usage/login-accounts';
 import {
   activateLogin,
+  defaultKeychainFingerprint,
   finishStrayLogins,
   forgetLogin,
   observeProvider,
   readyKeepDeps,
   securityCallCount,
+  startCredentialWatch,
   vaultMigrationResult,
   NO_KEPT_FACTS,
+  type CredentialWatch,
   type KeptFacts
 } from '../credentials';
+import { broadcastEvent } from '../typed-events';
+import { EVT_LOGINS_CHANGED } from '@shared/ipc';
 import { loginsRoot } from './paths';
 import {
   addLogin,
@@ -228,6 +233,44 @@ export async function observeLoginsAtBoot(): Promise<void> {
     rows: observed,
     migration
   });
+}
+
+/**
+ * The watcher, held once for the life of the process (Phase 211).
+ *
+ * It sees a `/login` change a store and runs one observe, then pushes
+ * `logins:changed` so every surface redraws unasked. Its `emitChanged` is the
+ * same drop-the-held-reading a person's own change does, so a list issued right
+ * after it reads the world as it now is.
+ */
+let watch: CredentialWatch | null = null;
+
+/**
+ * Start watching the stores. Called once from the boot, after the first observe.
+ *
+ * A HARNESS LAUNCH GETS THE HARNESS SEAMS through `readyKeepDeps`, so a probe's
+ * watcher watches the probe's own scratch stores and opens no keychain of the
+ * person's. It never awaits anything a window draws.
+ */
+export async function startLoginsWatch(): Promise<void> {
+  if (watch !== null) return;
+  const keep = await readyKeepDeps();
+  watch = startCredentialWatch({
+    keep,
+    emitChanged: () => {
+      forgetLoginAccounts();
+      forgetObservation();
+      broadcastEvent(EVT_LOGINS_CHANGED);
+    },
+    keychainFingerprint: () => defaultKeychainFingerprint(keep)
+  });
+}
+
+/** Stop the watcher. Called from the one ordered quit disposer. */
+export function stopLoginsWatch(): void {
+  if (watch === null) return;
+  watch.stop();
+  watch = null;
 }
 
 function wholeList(): Promise<LoginsSnapshot> {

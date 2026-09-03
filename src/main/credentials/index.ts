@@ -43,6 +43,14 @@ export {
   type LiveSession
 } from './keep';
 export { readKeptFile, writeKeptFile, type KeptFile, type KeptRecord } from './kept';
+export {
+  defaultKeychainFingerprint,
+  startCredentialWatch,
+  watchTargetsFor,
+  type CredentialWatch,
+  type WatchDeps,
+  type WatchTarget
+} from './watch';
 export { isOwnProfile, type MigrateResult, type ProfileShape } from './migrate';
 export {
   CREDENTIAL_FILE_MODE,

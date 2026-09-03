@@ -175,7 +175,11 @@ import type {
   UsageEventPayloadMap,
   UsageInvokeChannelMap
 } from './usage';
-import type { GmuxLoginsExtras, LoginsInvokeChannelMap } from './logins';
+import type {
+  GmuxLoginsExtras,
+  LoginsEventPayloadMap,
+  LoginsInvokeChannelMap
+} from './logins';
 import type {
   DropInvokeChannelMap,
   GmuxCaptureExtras,
@@ -332,7 +336,10 @@ export type AllEventPayloadMap = EventPayloadMap &
   // Phase 170. Live diagnostics samples, only while the tab is visible.
   DiagnosticsEventPayloadMap &
   // Phase 182. The usage snapshot, pushed when a live tap moves it.
-  UsageEventPayloadMap;
+  UsageEventPayloadMap &
+  // Phase 211. A login set changed without the renderer asking, so every login
+  // surface redraws. It carries no payload.
+  LoginsEventPayloadMap;
 
 export type AllEventChannel = keyof AllEventPayloadMap;
 

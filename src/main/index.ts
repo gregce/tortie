@@ -42,7 +42,7 @@ import { installUsageFixture } from './harness/usage-fixture';
 // Phase 208: the scratch keychain seam, for a harness launch and nothing else.
 import { installHarnessKeychain } from './harness/keychain-harness';
 // Phase 208: the one observe at boot, after the manifest is open.
-import { observeLoginsAtBoot } from './logins/ipc';
+import { observeLoginsAtBoot, startLoginsWatch } from './logins/ipc';
 // Phase 166: the one cache policy, applied before whenReady below.
 import { applyCachePolicy } from './cache/policy';
 // Phase 127. What counts as a harness launch, in one place. The three
@@ -573,6 +573,12 @@ app.whenReady().then(async () => {
   void getGmuxCore()
     .then(() => new Promise<void>((r) => setTimeout(r, BOOT_OBSERVE_DELAY_MS)))
     .then(() => observeLoginsAtBoot())
+    // PHASE 211. Then watch the stores, so a `/login` typed inside a session is
+    // seen at once rather than at the next list a surface happens to ask for.
+    // It is fs.watch on named files inside the credentials domain, NOT a
+    // subscription through src/main/watcher, so the FSEvents exclusion budget is
+    // untouched. It is stopped in the one ordered quit disposer.
+    .then(() => startLoginsWatch())
     .catch(() => undefined);
 
   // Phase 31: the refusal surface. If the last run promised an install and

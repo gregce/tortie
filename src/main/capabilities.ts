@@ -34,7 +34,7 @@ import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
 // Phase 181: the subscription usage meter. Two read channels and the held
 // snapshot they answer from, dropped in the ordered disposer below.
 import { disposeUsageService, registerUsageIpc } from './usage/ipc';
-import { registerLoginsIpc } from './logins/ipc';
+import { registerLoginsIpc, stopLoginsWatch } from './logins/ipc';
 import { setLiveSessionsProbe, type LiveSession } from './credentials';
 import { stopLiveSampling } from './diagnostics/live';
 import { loginProviderForAgent } from '@shared/logins';
@@ -410,6 +410,10 @@ function afterMs(ms: number): { wait: Promise<void>; cancel: () => void } {
  * the same ordered teardown, exactly as the pre-move handler did.
  */
 export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
+  // PHASE 211. Stop the credential watcher first: it holds fs.watch handles and
+  // a slow interval, and both must be released whatever the rest of teardown
+  // does. It is synchronous and cannot throw.
+  stopLoginsWatch();
   // Phase 18.6: a clone in flight is cancelled the same way pressing
   // Cancel cancels it, with SIGTERM and never SIGKILL, because a hard kill
   // leaves a repository mid write. Awaited first and bounded inside, so

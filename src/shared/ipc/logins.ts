@@ -35,6 +35,24 @@
 
 import type { LoginProviderId, LoginsSnapshot } from '../logins';
 
+/**
+ * Main → renderers: a login set changed WITHOUT the renderer asking (Phase 211).
+ *
+ * A `/login` typed inside a session, or the vendor's own rotation, changes a
+ * store, and `src/main/credentials/watch.ts` sees it and pushes this so the
+ * menu, the card, the Settings list and the meter redraw unasked. It CARRIES
+ * NO PAYLOAD: a credential, a digest and an address never cross this boundary,
+ * and the gate proves the channel cannot compose one. A renderer that hears it
+ * re-reads the list through `logins:list`, which is the same read every surface
+ * already uses.
+ */
+export const EVT_LOGINS_CHANGED = 'logins:changed' as const;
+
+/** Payload of EVT_LOGINS_CHANGED: nothing at all. */
+export interface LoginsEventPayloadMap {
+  'logins:changed': [];
+}
+
 /** What an add, a choose or a remove answered. */
 export interface LoginActionResult {
   /** False when nothing changed. `reason` says why, in one sentence. */
@@ -83,5 +101,10 @@ export interface GmuxLoginsExtras {
       name: string | null
     ): Promise<LoginActionResult>;
     remove(provider: LoginProviderId, name: string): Promise<LoginActionResult>;
+    /**
+     * Subscribe to the unasked-for change push (Phase 211). Returns its own
+     * unsubscribe. Absent on a build whose preload predates this phase.
+     */
+    onChanged?(cb: () => void): () => void;
   };
 }

@@ -139,6 +139,24 @@ function act(
     .finally(() => useLogins.setState({ busy: false }));
 }
 
+/**
+ * The unasked-for change (Phase 211). A `/login` in a session, or the vendor's
+ * own rotation, changes a store, and main pushes `logins:changed` so every
+ * surface re-reads through this one store without a person doing anything.
+ *
+ * SUBSCRIBED ONCE, at module load, and only when the preload carries the member,
+ * which is the same feature detection every other bridge member gets. The read
+ * in flight is dropped first so a list issued before the change is not the one
+ * that lands on the screen.
+ */
+const changePush = gmuxBridge()?.logins;
+if (changePush?.onChanged !== undefined) {
+  changePush.onChanged(() => {
+    loading = null;
+    void useLogins.getState().load();
+  });
+}
+
 /** The chosen login's name for one provider, out of what is held. */
 export function chosenOf(
   snapshot: LoginsSnapshot,

@@ -13,11 +13,15 @@
  */
 
 import type { GmuxLoginsExtras } from '../shared/ipc';
-import { invoke } from './bridge';
+import { EVT_LOGINS_CHANGED } from '../shared/ipc';
+import { invoke, on } from './bridge';
 
 export const logins: GmuxLoginsExtras['logins'] = {
   list: () => invoke('logins:list'),
   add: (provider, name) => invoke('logins:add', provider, name),
   choose: (provider, name) => invoke('logins:choose', provider, name),
-  remove: (provider, name) => invoke('logins:remove', provider, name)
+  remove: (provider, name) => invoke('logins:remove', provider, name),
+  // PHASE 211. The unasked-for change push. It carries no payload: a listener
+  // that hears it re-reads the list. Same shape as usage.onChanged beside it.
+  onChanged: (cb) => on(EVT_LOGINS_CHANGED, cb)
 };
