@@ -2,11 +2,16 @@
  * Terminal theme — DESIGN.md §1.6 palette as the shipped constant, with the
  * canvas colour re-resolved from CSS custom properties at mount so the
  * terminal and the app chrome stay one material (§0: identical background).
- * The foreground and the cursor are constants and read no token (Phase 195). Tokens land in src/renderer/styles/tokens.css (design
- * stream); until then the constants below ARE the sane dark defaults.
+ * The foreground and the cursor are constants and read no token (Phase 195);
+ * since Phase 207 they and the ANSI palette follow the GROUND by the text
+ * rule, which leaves them the constants on every dark canvas. Tokens land in
+ * src/renderer/styles/tokens.css (design stream); until then the constants
+ * below ARE the sane dark defaults.
  */
 
 import type { ITheme } from '@xterm/xterm';
+import { useChromeTheme } from '../theme/chrome-theme';
+import { followPalette } from '../theme/hue';
 
 /**
  * The two colours the capture path needs as a NON-optional `string`.
@@ -149,6 +154,64 @@ function cssVar(styles: CSSStyleDeclaration, name: string): string | undefined {
 }
 
 /**
+ * The eighteen colours that are TEXT on the terminal's ground: the
+ * foreground, the cursor and the sixteen ANSI entries. They follow the
+ * ground by the rule in src/renderer/theme/hue.ts (Phase 207), because the
+ * terminal is the same material as the frame and a canvas the hue makes
+ * light needs dark text in it exactly as the sidebar does. `black` and
+ * `brightBlack` are exempt from the light side floor, because they sit near
+ * the ground by design. On the shipped canvas every one of them is the
+ * constant above, byte for byte.
+ */
+const TERMINAL_TEXT_KEYS = [
+  'foreground',
+  'cursor',
+  'black',
+  'red',
+  'green',
+  'yellow',
+  'blue',
+  'magenta',
+  'cyan',
+  'white',
+  'brightBlack',
+  'brightRed',
+  'brightGreen',
+  'brightYellow',
+  'brightBlue',
+  'brightMagenta',
+  'brightCyan',
+  'brightWhite'
+] as const;
+
+type TerminalTextKey = (typeof TERMINAL_TEXT_KEYS)[number];
+
+const TERMINAL_TEXT: Readonly<Record<TerminalTextKey, string>> = Object.fromEntries(
+  TERMINAL_TEXT_KEYS.map((key) => [key, terminalTheme[key] ?? TERMINAL_FOREGROUND])
+) as Record<TerminalTextKey, string>;
+
+const TERMINAL_TEXT_EXEMPT: readonly TerminalTextKey[] = ['black', 'brightBlack'];
+
+/**
+ * The terminal's text colours on this canvas. Pure, so the gate can run it
+ * under node: on the shipped canvas it is the identity, on a light one every
+ * colour keeps the ratio it ships with against `TERMINAL_BACKGROUND`, in its
+ * own hue.
+ */
+export function terminalTextFor(
+  canvas: string,
+  textDark: boolean
+): Record<TerminalTextKey, string> {
+  return followPalette(
+    TERMINAL_TEXT,
+    TERMINAL_BACKGROUND,
+    canvas,
+    textDark,
+    TERMINAL_TEXT_EXEMPT
+  );
+}
+
+/**
  * The design constant, with canvas-coupled colors overridden from the design
  * tokens when they exist (`--bg-canvas` is “window base AND xterm background
  * — one material”). ANSI colors stay the §1.6 constants by design.
@@ -162,14 +225,24 @@ function cssVar(styles: CSSStyleDeclaration, name: string): string | undefined {
  * Phase 195 (research 75, C10): the cursor is the constant above and reads
  * no token. It belongs to the work and never follows the chrome ramp, so a
  * chrome that steps down leaves the cursor where the transcript is.
+ *
+ * Phase 207: the canvas may now be the hue's, and the foreground, the cursor
+ * and the ANSI palette follow the GROUND, never the ramp: they are the
+ * constants above at every hue, and move only when a ground lifts one under
+ * its floor or flips the text dark, which no hue does. That is the one rule
+ * the text tokens follow, applied to the same material. The cursor is in the
+ * set because a light cursor on a light ground is no cursor at all; on any
+ * dark canvas it is still the Phase 195 constant.
  */
 export function resolveTerminalTheme(): ITheme {
   const styles = getComputedStyle(document.documentElement);
+  const canvas = cssVar(styles, '--bg-canvas') ?? TERMINAL_BACKGROUND;
+  const text = terminalTextFor(canvas, useChromeTheme.getState().textDark);
   return {
     ...terminalTheme,
-    background: cssVar(styles, '--bg-canvas') ?? terminalTheme.background,
-    cursorAccent: cssVar(styles, '--bg-canvas') ?? terminalTheme.cursorAccent,
-    cursor: terminalTheme.cursor,
+    ...text,
+    background: canvas,
+    cursorAccent: canvas,
     selectionBackground:
       cssVar(styles, '--terminal-selection') ?? terminalTheme.selectionBackground
   };

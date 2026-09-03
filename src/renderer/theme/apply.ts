@@ -17,9 +17,18 @@
  * apply and before any write. Every later derivation starts from that
  * captured base, so applying teal after purple can never compound.
  *
- * `--bg-canvas` is read as the contrast anchor and is NEVER written. The
- * pre-paint window background, the terminal background mirror and the
- * capture path all depend on its exact byte value.
+ * `--bg-canvas` is read as the contrast anchor and is written by the hue
+ * alone (Phase 207), at a hue other than the shipped 222. The three mirrors
+ * that depend on its byte value follow it: main paints the window from the
+ * same shared rotation, the terminal re-resolves its theme here, and the
+ * capture path reads the resolved theme.
+ *
+ * Phase 207 also made this module the ONE writer of the chrome theme store
+ * (./chrome-theme.ts), in the same posture as the font store below: the
+ * terminal's resolver and Monaco's theme read the overrides and the text
+ * polarity from it, because neither can read a custom property change on
+ * its own. It publishes BEFORE it refreshes the live terminals, so a pane
+ * re-resolving sees the state that belongs to the same apply.
  *
  * Phase 78 added the work-area FONT to the same mechanism, and it added
  * nothing else. The font half does not go through `deriveOverrides`, which is
@@ -44,8 +53,10 @@ import {
 import type { GmuxSettings, WorkAreaFont } from '@shared/settings';
 import { forEachTerminal } from '../terminal/drop/registry';
 import { resolveTerminalTheme } from '../terminal/theme';
+import { publishChromeTheme, type ChromeThemeState } from './chrome-theme';
 import { deriveOverrides, type Appearance } from './derive';
-import { ALL_THEME_TOKENS } from './presets';
+import { textIsDarkOn } from './hue';
+import { ALL_THEME_TOKENS, CANVAS_TOKEN } from './presets';
 import { fontOverrides, setCustomWorkFontFamily, setWorkAreaFont } from './work-fonts';
 import { gmuxBridge } from '../bridge';
 
@@ -86,6 +97,15 @@ export interface AppearanceEnv {
   setFont(preset: WorkAreaFont): void;
   /** Publish the 'custom' family to the store workFont resolves from. */
   setCustomFont(family: string): void;
+  /** Publish what was written, for the terminal and Monaco (Phase 207). */
+  publish(state: ChromeThemeState): void;
+  /**
+   * The synthetic ground (Phase 207): an OKLCH lightness added to the whole
+   * ramp, 0 in every real launch. The real env reads the harness knob below;
+   * the tests answer 0. It is part of the applier's skip key, so changing it
+   * re-derives even when the appearance did not move.
+   */
+  groundLift(): number;
   /** The pure derivation; the real env passes `deriveOverrides`. */
   derive: typeof deriveOverrides;
 }
@@ -109,7 +129,8 @@ export function createAppearanceApplier(
   let applied: Record<string, string> = {};
 
   return (appearance) => {
-    const key = JSON.stringify(appearance);
+    const lift = env.groundLift();
+    const key = JSON.stringify({ appearance, lift });
     if (key === lastKey) return;
 
     if (base === null) {
@@ -131,8 +152,9 @@ export function createAppearanceApplier(
     // Colour first, then the font map on top. They share no key, so the
     // spread is a union rather than a precedence question, and both halves
     // return {} at their defaults.
+    const colour = env.derive(appearance, base, lift);
     const next = {
-      ...env.derive(appearance, base),
+      ...colour,
       ...fontOverrides(appearance.workAreaFont)
     };
     for (const [token, value] of Object.entries(next)) {
@@ -144,9 +166,41 @@ export function createAppearanceApplier(
     applied = next;
     lastKey = key;
 
+    // What the terminal and Monaco read, published before the refresh so a
+    // pane re-resolving its theme sees the state of this same apply.
+    const canvas = colour[CANVAS_TOKEN] ?? base[CANVAS_TOKEN] ?? '';
+    env.publish({
+      overrides: colour,
+      canvas,
+      textDark: canvas !== '' && textIsDarkOn(canvas)
+    });
     env.refreshTerminals();
     env.setFont(appearance.workAreaFont);
   };
+}
+
+// ---------------------------------------------------------------------------
+// The synthetic ground, a harness knob (Phase 207)
+// ---------------------------------------------------------------------------
+
+/**
+ * The OKLCH lightness the whole ramp is lifted by, 0 in every real launch.
+ * `build/probe-p207-hue.mjs` sets it through the harness drive so the text
+ * flip, which no hue can reach, is driven and read in the real app: the
+ * sidebar, the canvas, a terminal and an editor all take the lifted ground
+ * and the text follows. No setting, no menu and no bridge call reaches it.
+ */
+let probeGroundLift = 0;
+let liveApply: ((appearance: AppliedAppearance) => void) | null = null;
+let lastAppearance: AppliedAppearance | null = null;
+
+export function setProbeGroundLift(lift: number): void {
+  probeGroundLift = Number.isFinite(lift) ? lift : 0;
+  if (liveApply !== null && lastAppearance !== null) liveApply(lastAppearance);
+}
+
+export function probeGroundLiftNow(): number {
+  return probeGroundLift;
 }
 
 /**
@@ -186,6 +240,8 @@ function browserEnv(): AppearanceEnv {
     setProperty: (token, value) => root.style.setProperty(token, value),
     removeProperty: (token) => root.style.removeProperty(token),
     setCustomFont: setCustomWorkFontFamily,
+    publish: publishChromeTheme,
+    groundLift: probeGroundLiftNow,
     refreshTerminals: refreshLiveTerminalThemes,
     setFont: setWorkAreaFont,
     derive: deriveOverrides
@@ -207,7 +263,12 @@ export function initAppearance(): void {
   const bridge = gmuxBridge();
   if (typeof bridge?.settingsGet !== 'function') return;
 
-  const apply = createAppearanceApplier(browserEnv());
+  const inner = createAppearanceApplier(browserEnv());
+  const apply = (appearance: AppliedAppearance): void => {
+    lastAppearance = appearance;
+    inner(appearance);
+  };
+  liveApply = apply;
   void bridge
     .settingsGet()
     .then((settings) => apply(toAppearance(settings)))

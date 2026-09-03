@@ -227,9 +227,43 @@ export const diffTheme: ThemesType = {
  * git-lane vars that the mapper does not emit — supplied here from the same
  * tokens so all six GitStatus kinds are branded.
  */
-export const treeStyles: TreeThemeStyles = {
+const treeStylesStatic: TreeThemeStyles = {
   ...themeToTreeStyles(gmuxDarkTheme),
   '--trees-theme-git-renamed-fg': P.gitRenamed,
   '--trees-theme-git-untracked-fg': P.gitAdded,
   '--trees-theme-git-ignored-fg': P.gitIgnored
 };
+
+/**
+ * Phase 207. The tree host is IN the frame, and the frame takes the hue, so
+ * the neutrals and the text the mapper wrote as hex are rewritten as
+ * `var(--token)` references to the tokens they mirror. A custom property set
+ * inline on the host resolves against the document root the host inherits
+ * from, and the trees stylesheet reads the host's computed value across its
+ * shadow boundary, so the tree follows every override apply.ts writes,
+ * being the hue, the contrast lift and the text rule, with no second
+ * mechanism. The static mirror above is still what the mapper is fed and is
+ * still what the diff theme registers with Shiki, which is why it stays.
+ */
+const TREE_TOKEN_OF: ReadonlyArray<readonly [string, string]> = [
+  [P.bgSidebar, '--bg-sidebar'],
+  [P.bgSurface, '--bg-surface'],
+  [P.bgRaised, '--bg-raised'],
+  [P.bgActive, '--bg-active'],
+  [P.border, '--border'],
+  [P.borderStrong, '--border-strong'],
+  [P.textPrimary, '--text-primary'],
+  [P.textSecondary, '--text-secondary'],
+  [P.textMuted, '--text-muted']
+];
+
+export function treeStylesFollowingTokens(styles: TreeThemeStyles): TreeThemeStyles {
+  const out: TreeThemeStyles = {};
+  for (const [key, value] of Object.entries(styles)) {
+    const hit = TREE_TOKEN_OF.find(([hex]) => hex.toLowerCase() === value.toLowerCase());
+    out[key] = hit === undefined ? value : `var(${hit[1]})`;
+  }
+  return out;
+}
+
+export const treeStyles: TreeThemeStyles = treeStylesFollowingTokens(treeStylesStatic);

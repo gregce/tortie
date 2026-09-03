@@ -1,0 +1,192 @@
+/**
+ * gmux-dark, the Monaco theme, as a FUNCTION of the frame (Phase 207).
+ *
+ * THEME CONSTANT FILE (CLAUDE.md UI rules). The literals below are the
+ * shipped tokens of DESIGN.md sections 1.1, 1.2 and 1.6, each naming the
+ * token it mirrors, moved here from monaco-impl.ts where Phase 11 defined
+ * the theme once with 25 literals. Monaco needs literal hex, so the values
+ * are mirrored, not read; what changed is that every neutral is looked up
+ * through the chrome theme store first, so the editor takes the hue the
+ * frame takes and the contrast lift the frame takes, and the syntax ramp
+ * follows the ground by the same rule the terminal's palette does.
+ *
+ * `installMonacoTheme` defines the theme from the store's current state and
+ * redefines it on every publish. Monaco applies a redefinition of the
+ * current theme to every live editor at once, and `setTheme` is called
+ * beside it so an editor created before the first publish is covered too.
+ * This module sits in the Monaco chunk with monaco-impl.ts, behind the same
+ * dynamic import, so the eager set carries none of it.
+ *
+ * Syntax colors reuse the section 1.6 terminal palette so terminal and
+ * editor read as one color vocabulary, and src/renderer/pierre/theme-bridge.ts
+ * mirrors the same ramp rule for rule for the diff view.
+ */
+
+import type * as monacoNs from 'monaco-editor';
+import { useChromeTheme, type ChromeThemeState } from '../theme/chrome-theme';
+import { followPalette } from '../theme/hue';
+import { GMUX_MONACO_THEME } from './monaco-theme-name';
+
+/** The shipped neutrals and text, token to value, DESIGN.md section 1.1. */
+const SHIPPED = {
+  '--bg-canvas': '#131417',
+  '--bg-surface': '#191B20',
+  '--bg-raised': '#202329',
+  '--bg-active': '#252931',
+  '--border': '#25282E',
+  '--border-strong': '#353943',
+  '--text-secondary': '#9CA1AB',
+  '--text-disabled': '#565B66'
+} as const;
+
+/**
+ * The syntax ramp, section 1.6, plus the foreground and the cursor. These
+ * are TEXT on the canvas and follow the ground the way the terminal's
+ * palette does: the constants on every dark canvas, solved to keep their
+ * shipped ratio once the text is dark.
+ */
+const SYNTAX = {
+  fg: '#D8DBE2',
+  cursor: '#E8EAED',
+  comment: '#6E7583',
+  string: '#6BC46D',
+  escape: '#85D488',
+  keyword: '#6CB6FF',
+  number: '#E2B340',
+  regexp: '#F07E78',
+  type: '#56C2C0',
+  fn: '#8FC7FF',
+  constant: '#F0C674',
+  punctuation: '#A8ADB8'
+} as const;
+
+/** The accent and the feedback colours the theme uses; never rotated. */
+const ACCENT = '#4D9DE8';
+const WARNING = '#F5B84A';
+const ERROR = '#E5655E';
+
+const SIX_HEX = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * The theme data for one state of the frame. Pure, so a test can pin it
+ * without Monaco: the shipped state reproduces the Phase 11 theme byte for
+ * byte, and a rotated or lifted state moves exactly the neutrals.
+ */
+export function gmuxMonacoTheme(
+  state: ChromeThemeState
+): monacoNs.editor.IStandaloneThemeData {
+  // A neutral: the override when the frame has one AND it is a six digit
+  // hex (every neutral override is), else the shipped literal. The alpha
+  // suffixes below need six digits in front of them.
+  const n = (token: keyof typeof SHIPPED): string => {
+    const value = state.overrides[token];
+    return value !== undefined && SIX_HEX.test(value) ? value : SHIPPED[token];
+  };
+  const canvas = n('--bg-canvas');
+  const s = followPalette(SYNTAX, SHIPPED['--bg-canvas'], canvas, state.textDark);
+  const bare = (hex: string): string => hex.replace(/^#/, '');
+  return {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: bare(s.comment), fontStyle: 'italic' },
+      { token: 'string', foreground: bare(s.string) },
+      { token: 'string.escape', foreground: bare(s.escape) },
+      { token: 'keyword', foreground: bare(s.keyword) },
+      { token: 'number', foreground: bare(s.number) },
+      { token: 'regexp', foreground: bare(s.regexp) },
+      { token: 'type', foreground: bare(s.type) },
+      { token: 'type.identifier', foreground: bare(s.type) },
+      { token: 'identifier', foreground: bare(s.fg) },
+      { token: 'function', foreground: bare(s.fn) },
+      { token: 'constant', foreground: bare(s.constant) },
+      { token: 'variable', foreground: bare(s.fg) },
+      { token: 'operator', foreground: bare(s.punctuation) },
+      { token: 'delimiter', foreground: bare(s.punctuation) },
+      { token: 'tag', foreground: bare(s.keyword) },
+      { token: 'attribute.name', foreground: bare(s.type) },
+      { token: 'attribute.value', foreground: bare(s.string) },
+      { token: 'key', foreground: bare(s.type) },
+      { token: 'string.key.json', foreground: bare(s.type) },
+      { token: 'string.value.json', foreground: bare(s.string) }
+    ],
+    colors: {
+      'editor.background': canvas, // --bg-canvas: one material with the app
+      'editor.foreground': s.fg,
+      'editorCursor.foreground': s.cursor,
+      'editor.lineHighlightBackground': n('--bg-surface'),
+      'editor.lineHighlightBorder': '#00000000',
+      'editor.selectionBackground': `${ACCENT}4D`, // --accent @ .30, as terminal
+      'editor.inactiveSelectionBackground': `${ACCENT}24`,
+      'editorLineNumber.foreground': n('--text-disabled'),
+      'editorLineNumber.activeForeground': n('--text-secondary'),
+      'editorIndentGuide.background1': n('--bg-raised'),
+      'editorIndentGuide.activeBackground1': n('--border-strong'),
+      'editorWhitespace.foreground': n('--border'),
+      'editorGutter.background': canvas,
+      'editorWidget.background': n('--bg-surface'), // find widget etc.
+      'editorWidget.border': n('--border'),
+      'editorSuggestWidget.background': n('--bg-surface'),
+      'editorSuggestWidget.border': n('--border'),
+      'editorSuggestWidget.selectedBackground': n('--bg-active'),
+      'editorHoverWidget.background': n('--bg-surface'),
+      'editorHoverWidget.border': n('--border'),
+      'input.background': n('--bg-surface'),
+      'input.border': n('--border-strong'),
+      'inputOption.activeBorder': ACCENT,
+      focusBorder: ACCENT,
+      'scrollbarSlider.background': `${n('--bg-raised')}99`,
+      'scrollbarSlider.hoverBackground': `${n('--bg-active')}CC`,
+      'scrollbarSlider.activeBackground': `${n('--border-strong')}CC`,
+      'scrollbar.shadow': '#00000000',
+      'editorOverviewRuler.border': '#00000000',
+      // Bracket pairs. Colorization is turned off at the model (monaco-loader)
+      // AND neutralised here, because vs-dark's rainbow exists in no gmux
+      // token, and Split renders the same fenced block twice on one screen:
+      // Monaco on the left, Shiki on the right. All six depths take the
+      // `delimiter` colour Shiki uses; only an UNMATCHED bracket is allowed
+      // to speak, in --error.
+      'editorBracketHighlight.foreground1': s.punctuation,
+      'editorBracketHighlight.foreground2': s.punctuation,
+      'editorBracketHighlight.foreground3': s.punctuation,
+      'editorBracketHighlight.foreground4': s.punctuation,
+      'editorBracketHighlight.foreground5': s.punctuation,
+      'editorBracketHighlight.foreground6': s.punctuation,
+      'editorBracketHighlight.unexpectedBracket.foreground': ERROR,
+      // The MATCHING-bracket box, which vs-dark would otherwise draw in grey.
+      'editorBracketMatch.background': '#00000000',
+      'editorBracketMatch.border': n('--border-strong'),
+      // Minimap (Phase 12 item 6). Monaco derives the slider at roughly α.30,
+      // which is invisible on this ground; these pin it to the token ramp.
+      'minimap.background': canvas, // --bg-canvas, one material
+      'minimap.selectionHighlight': `${ACCENT}4D`,
+      'minimap.findMatchHighlight': `${WARNING}66`, // --warning, as the find ruler
+      'minimap.errorHighlight': `${ERROR}99`,
+      'minimap.warningHighlight': `${WARNING}99`,
+      // One step up the neutral ramp from the real scrollbar's slider: over a
+      // dense picture of text, the scrollbar's own value derives to invisible.
+      'minimapSlider.background': `${n('--bg-active')}CC`,
+      'minimapSlider.hoverBackground': `${n('--border-strong')}CC`,
+      'minimapSlider.activeBackground': `${n('--border-strong')}EE`,
+      // Alpha only: how solid the miniature text renders.
+      'minimap.foregroundOpacity': '#000000CC'
+      // (Diff colors left with the Monaco diff editor in Phase 11; diff
+      // theming lives in src/renderer/pierre/theme-bridge.ts now.)
+    }
+  };
+}
+
+/**
+ * Define gmux-dark from the frame's current state and keep it defined as
+ * the frame moves. Called once from monaco-impl.ts at module scope, which
+ * runs on the first file open; the subscription lives as long as the
+ * renderer does, because nothing ever unloads Monaco.
+ */
+export function installMonacoTheme(m: typeof monacoNs): void {
+  const define = (state: ChromeThemeState): void => {
+    m.editor.defineTheme(GMUX_MONACO_THEME, gmuxMonacoTheme(state));
+    m.editor.setTheme(GMUX_MONACO_THEME);
+  };
+  define(useChromeTheme.getState());
+  useChromeTheme.subscribe(define);
+}

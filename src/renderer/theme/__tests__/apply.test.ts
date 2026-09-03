@@ -101,6 +101,8 @@ function fakeEnv(derived: Record<string, string>): {
       inline.set(token, value);
     },
     setCustomFont: vi.fn(),
+    publish: vi.fn(),
+    groundLift: () => 0,
     removeProperty: (token) => {
       writes += 1;
       inline.delete(token);
@@ -157,11 +159,59 @@ describe('the appearance applier', () => {
     expect(base?.['--bg-canvas']).toBe('#131417');
   });
 
-  it('never writes the --bg-canvas anchor', () => {
+  it('writes the --bg-canvas anchor only when the derivation hands it one', () => {
+    // The scheme and the lift never derive a canvas (derive.test.ts pins
+    // that); the hue does, at a hue other than 222, and the applier writes
+    // whatever the derivation answered. What the applier itself never does
+    // is invent one: a map without the key leaves the root without it.
     const f = fakeEnv({ '--accent': '#00aaaa' });
     const apply = createAppearanceApplier(f.env);
     apply(TEAL_HIGH);
     expect(f.inline.has('--bg-canvas')).toBe(false);
+  });
+
+  it('publishes the canvas in effect and the text polarity, before the refresh (Phase 207)', () => {
+    const order: string[] = [];
+    const f = fakeEnv({ '--accent': '#00aaaa', '--bg-canvas': '#171314' });
+    f.env.publish = vi.fn(() => order.push('publish'));
+    f.env.refreshTerminals = vi.fn(() => order.push('refresh'));
+    const apply = createAppearanceApplier(f.env);
+    apply(TEAL_HIGH);
+    expect(order).toEqual(['publish', 'refresh']);
+    const published = (f.env.publish as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | { overrides: Record<string, string>; canvas: string; textDark: boolean }
+      | undefined;
+    expect(published?.canvas).toBe('#171314');
+    expect(published?.textDark).toBe(false);
+    expect(published?.overrides['--accent']).toBe('#00aaaa');
+    // The font tokens are not colour and never reach the store.
+    expect(Object.keys(published?.overrides ?? {})).not.toContain('--font-terminal');
+  });
+
+  it('publishes the captured base canvas and light text at the defaults', () => {
+    const f = fakeEnv({});
+    const apply = createAppearanceApplier(f.env);
+    apply(BLUE_NORMAL);
+    const published = (f.env.publish as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as
+      | { overrides: Record<string, string>; canvas: string; textDark: boolean }
+      | undefined;
+    expect(published?.overrides).toEqual({});
+    expect(published?.canvas).toBe('#131417');
+    expect(published?.textDark).toBe(false);
+  });
+
+  it('re-derives when the synthetic ground moves, appearance unchanged', () => {
+    let lift = 0;
+    const f = fakeEnv({ '--accent': '#00aaaa' });
+    f.env.groundLift = () => lift;
+    const apply = createAppearanceApplier(f.env);
+    apply(TEAL_HIGH);
+    apply(TEAL_HIGH);
+    expect(f.derive).toHaveBeenCalledTimes(1);
+    lift = 0.3;
+    apply(TEAL_HIGH);
+    expect(f.derive).toHaveBeenCalledTimes(2);
+    expect(f.derive.mock.calls[1]?.[2]).toBe(0.3);
   });
 });
 

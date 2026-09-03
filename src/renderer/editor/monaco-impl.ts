@@ -17,6 +17,7 @@ import JsonWorker from 'monaco-editor/language/json/json.worker?worker&inline';
 import CssWorker from 'monaco-editor/language/css/css.worker?worker&inline';
 import HtmlWorker from 'monaco-editor/language/html/html.worker?worker&inline';
 import TsWorker from 'monaco-editor/language/typescript/ts.worker?worker&inline';
+import { installMonacoTheme } from './monaco-theme';
 import { GMUX_MONACO_THEME } from './monaco-theme-name';
 
 self.MonacoEnvironment = {
@@ -55,103 +56,15 @@ monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
 });
 
 // ---------------------------------------------------------------------------
-// gmux-dark — Monaco theme derived from DESIGN.md tokens (§1.1/§1.2/§1.6).
-// Monaco needs literal hex (no CSS vars); these are the token values.
-// Syntax colors reuse the §1.6 terminal palette so terminal and editor read
-// as one color vocabulary.
+// gmux-dark. The theme is a function of the frame since Phase 207, defined in
+// ./monaco-theme.ts from the chrome theme store and redefined as the frame
+// moves. Its literals are the DESIGN.md tokens; the syntax colors reuse the
+// section 1.6 terminal palette so terminal and editor read as one vocabulary.
 // ---------------------------------------------------------------------------
 
 export { GMUX_MONACO_THEME };
 
-monaco.editor.defineTheme(GMUX_MONACO_THEME, {
-  base: 'vs-dark',
-  inherit: true,
-  rules: [
-    { token: 'comment', foreground: '6E7583', fontStyle: 'italic' },
-    { token: 'string', foreground: '6BC46D' },
-    { token: 'string.escape', foreground: '85D488' },
-    { token: 'keyword', foreground: '6CB6FF' },
-    { token: 'number', foreground: 'E2B340' },
-    { token: 'regexp', foreground: 'F07E78' },
-    { token: 'type', foreground: '56C2C0' },
-    { token: 'type.identifier', foreground: '56C2C0' },
-    { token: 'identifier', foreground: 'D8DBE2' },
-    { token: 'function', foreground: '8FC7FF' },
-    { token: 'constant', foreground: 'F0C674' },
-    { token: 'variable', foreground: 'D8DBE2' },
-    { token: 'operator', foreground: 'A8ADB8' },
-    { token: 'delimiter', foreground: 'A8ADB8' },
-    { token: 'tag', foreground: '6CB6FF' },
-    { token: 'attribute.name', foreground: '56C2C0' },
-    { token: 'attribute.value', foreground: '6BC46D' },
-    { token: 'key', foreground: '56C2C0' },
-    { token: 'string.key.json', foreground: '56C2C0' },
-    { token: 'string.value.json', foreground: '6BC46D' }
-  ],
-  colors: {
-    'editor.background': '#131417', // --bg-canvas: one material with the app
-    'editor.foreground': '#D8DBE2',
-    'editorCursor.foreground': '#E8EAED',
-    'editor.lineHighlightBackground': '#191B20', // --bg-surface
-    'editor.lineHighlightBorder': '#00000000',
-    'editor.selectionBackground': '#4D9DE84D', // --accent @ .30, as terminal
-    'editor.inactiveSelectionBackground': '#4D9DE824',
-    'editorLineNumber.foreground': '#565B66', // --text-disabled
-    'editorLineNumber.activeForeground': '#9CA1AB', // --text-secondary
-    'editorIndentGuide.background1': '#202329', // --bg-raised
-    'editorIndentGuide.activeBackground1': '#353943', // --border-strong
-    'editorWhitespace.foreground': '#25282E', // --border
-    'editorGutter.background': '#131417',
-    'editorWidget.background': '#191B20', // --bg-surface (find widget etc.)
-    'editorWidget.border': '#25282E', // --border
-    'editorSuggestWidget.background': '#191B20',
-    'editorSuggestWidget.border': '#25282E',
-    'editorSuggestWidget.selectedBackground': '#252931',
-    'editorHoverWidget.background': '#191B20',
-    'editorHoverWidget.border': '#25282E',
-    'input.background': '#191B20',
-    'input.border': '#353943',
-    'inputOption.activeBorder': '#4D9DE8',
-    'focusBorder': '#4D9DE8',
-    'scrollbarSlider.background': '#20232999',
-    'scrollbarSlider.hoverBackground': '#252931CC',
-    'scrollbarSlider.activeBackground': '#353943CC',
-    'scrollbar.shadow': '#00000000',
-    'editorOverviewRuler.border': '#00000000',
-    // Bracket pairs. Colorization is turned off at the model (monaco-loader)
-    // AND neutralised here, because vs-dark's rainbow — gold #FFD700, orchid
-    // #DA70D6, #179FFF… — exists in no gmux token, and Split renders the same
-    // fenced block twice on one screen: Monaco on the left, Shiki on the
-    // right. All six depths take the `delimiter` colour Shiki uses; only an
-    // UNMATCHED bracket is allowed to speak, in --error.
-    'editorBracketHighlight.foreground1': '#A8ADB8',
-    'editorBracketHighlight.foreground2': '#A8ADB8',
-    'editorBracketHighlight.foreground3': '#A8ADB8',
-    'editorBracketHighlight.foreground4': '#A8ADB8',
-    'editorBracketHighlight.foreground5': '#A8ADB8',
-    'editorBracketHighlight.foreground6': '#A8ADB8',
-    'editorBracketHighlight.unexpectedBracket.foreground': '#E5655E', // --error
-    // The MATCHING-bracket box, which vs-dark would otherwise draw in grey.
-    'editorBracketMatch.background': '#00000000',
-    'editorBracketMatch.border': '#353943', // --border-strong
-    // Minimap (Phase 12 item 6). Monaco derives the slider at roughly α.30,
-    // which is invisible on this ground — these pin it to the token ramp.
-    'minimap.background': '#131417', // --bg-canvas, one material
-    'minimap.selectionHighlight': '#4D9DE84D',
-    'minimap.findMatchHighlight': '#F5B84A66', // --warning, as the find ruler
-    'minimap.errorHighlight': '#E5655E99', // --error
-    'minimap.warningHighlight': '#F5B84A99', // --warning
-    // One step up the neutral ramp from the real scrollbar's slider: over a
-    // dense picture of text, the scrollbar's own value derives to invisible.
-    'minimapSlider.background': '#252931CC',
-    'minimapSlider.hoverBackground': '#353943CC',
-    'minimapSlider.activeBackground': '#353943EE',
-    // Alpha only: how solid the miniature text renders.
-    'minimap.foregroundOpacity': '#000000CC'
-    // (Diff colors left with the Monaco diff editor in Phase 11 — diff
-    // theming lives in src/renderer/pierre/theme-bridge.ts now.)
-  }
-});
+installMonacoTheme(monaco);
 
 export { monaco };
 export type Monaco = typeof monaco;
