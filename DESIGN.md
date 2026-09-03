@@ -32,6 +32,8 @@ All tokens are CSS custom properties declared on `:root` in `src/renderer/styles
 
 Contrast rule: `--text-muted` passes 4.5:1 only up to `--bg-surface`. On `--bg-raised` or `--bg-active`, secondary information steps up to `--text-secondary`. Never place muted text on raised/active fills.
 
+The person may turn this ramp (Phase 207, Settings then Appearance then Frame). The eight neutrals above, the five fills and the three hairlines, rotate by one hue offset in OKLCH, so perceived lightness holds within 0.005 at every hue and every ratio above holds at all 360 degrees; the accent, the state hues and the categorical hues never turn. The four text tokens follow the ground they sit on: kept as shipped on any dark ground, and solved dark to the same ratios once the canvas passes the luminance where black and white text tie, which no hue reaches on its own. The terminal foreground and its palette, and the editor's, follow the same rule since they are the same material. `npm run conformance:hue` is what keeps this paragraph true.
+
 ### 1.2 Accent (one accent — Restrained strategy)
 
 ```css
