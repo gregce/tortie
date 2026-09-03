@@ -481,3 +481,130 @@ Everything else the entry cites was confirmed at `3d4c081`.
   was cloned; the Java arm's file grain answer does not depend on it.
 - The 645 KB C grammar downloaded for section 5.4 lives only in the scratch directory. Nothing was
   added to `resources/tree-sitter/` and nothing was pinned.
+
+## 12. What the fix round measured, 2026-09-03
+
+The verifier found two blocking false greens, one wrong edge and one coverage limit. Everything in
+this section was measured against real repositories at the parent commit and again at the fix, with
+the harness driving the SHIPPING extractor and the SHIPPING resolver and then the SHIPPING
+`checkImports`, so the numbers are the product's own answers rather than a model of them.
+
+### 12.1 PHP, and it is the finding this document was most wrong about
+
+Section 4 said the Composer autoload map is the most explicit declaration any of these languages
+makes, and it is. What it did not say is what happens when the map MISSES. A PHP library's own
+namespace head is almost always also the vendor half of a package it declares, so falling through
+from a missed autoload lookup to the vendor head compare calls the repository's own classes
+somebody else's dependency.
+
+| repository | `use` statements | own classes answered `external`, parent | at the fix |
+| --- | --- | --- | --- |
+| sebastianbergmann/phpunit | 11,638 | 7,418, being 63.7 percent | 0 |
+| laravel/framework | 13,439 | 86 | 0 |
+| guzzle/guzzle | 820 | 5 | 0 |
+
+phpunit is the extreme case because its whole autoload is `classmap: ["src/"]`, which section 4.6
+recorded as unreadable and which this round proves is not merely unreadable but ACTIVELY DANGEROUS:
+with no psr rule to match, every one of its names fell to the head compare, and the head `phpunit`
+came from the real `phpunit/php-code-coverage`. Through the real checker, a `must-not` from
+`tests/_files/Metadata` to `src` that 132 real `use` statements cross reported convergent, checked,
+zero offending, with zero unresolved imports out of the source part to withhold it.
+
+Two rules fix it and the second one is the one section 4 could not have predicted. A declared
+prefix that matched and found no file is grey. And a manifest declaring `classmap` or `files` has
+its OWN `name` halves removed from the vendor heads, because a repository is never its own
+dependency and a head it publishes under can no longer tell one world from the other.
+
+The price, measured, and where it is paid:
+
+| repository | first party | external, parent -> fix | unresolved, parent -> fix |
+| --- | --- | --- | --- |
+| phpunit | 194, unmoved | 8,747 -> 825 | 2,895 -> 10,817 |
+| laravel/framework | 8,707, unmoved | 4,639 -> 4,524 | 93 -> 208 |
+| guzzle | 369, unmoved | 446 -> 389 | 5 -> 62 |
+| monolog | 433, unmoved | 164, unmoved | 30, unmoved |
+| WordPress | 158, unmoved | 45, unmoved | 2,031, unmoved |
+
+The reason the guzzle and laravel columns move by so little is a third rule measured here. A name
+whose FIRST TWO SEGMENTS spell a declared package in full, both halves, is still external:
+`GuzzleHttp\Psr7\Request` is `guzzlehttp/psr7`. Over guzzle and laravel that keeps 302 answers
+definite, and an independent scan of every class those two repositories declare in a tracked file
+found NOT ONE of the 302 among them. Over phpunit it takes back zero, so the headline fix is
+untouched by it. A head alone can never do this, because `phpunit` is the vendor of five declared
+packages and also the head of the repository itself.
+
+### 12.2 C sharp, and the boundary section 8 named but did not reach
+
+Section 8 said any arm answering with a DIRECTORY inherits the Phase 180 hazard. It does, and the
+hazard has a boundary nobody drove: a `.csproj` at the repository ROOT has the EMPTY STRING for its
+directory. `owners.get('')` misses because no tracked path is empty, and the directory fall back
+built the prefix `/`, which no repository relative path begins with, so the answer vanished from
+both sides of the ledger exactly as a Swift target directory used to. On a three file fixture with a
+root project, a must-not a real `using` crosses reported convergent, checked, zero offending. A one
+project repository with its csproj at the root is an ordinary C sharp shape.
+
+The answer is grey at both ends. The arm refuses the empty directory, because an edge to the whole
+tree is not an edge, and the checker refuses an empty first party path a second time, because a fix
+in one arm is a fix that one arm has. Counting it as a crossing into every component would be the
+other lie.
+
+Two more things section 6 got wrong about ownership, both about which project owns a file:
+
+- A `<Compile Include>` path whose `..` walked above the repository root was CLAMPED back inside it
+  rather than refused, so a project at `a/b/c/deep/` claiming
+  `..\..\..\..\..\..\..\src\Real.cs` came back as `src/Real.cs`.
+- A file was owned by the FIRST project whose explicit list held it, so the ordinary MSBuild linked
+  file pattern `<Compile Include="..\Shared\Foo.cs" Link="Foo.cs" />` handed the namespace to one
+  assembly and hid the other.
+
+The second is not hypothetical and it is the only real data proof in this section. SignalR's
+`src/Common/AssemblyMetadataAttribute.cs` declares `namespace System.Reflection` and TWO projects
+link it with exactly that pattern. At the parent, 29 real `using System.Reflection;` statements
+resolved FIRST PARTY to `src/Microsoft.AspNet.SignalR.Client`. Every claimant is returned now, the
+namespace spans two directories, and the ambiguity rule answers grey. Nothing else moved:
+
+| repository | first party, parent -> fix | unresolved, parent -> fix |
+| --- | --- | --- |
+| SignalR | 806 -> 777 | 227 -> 256 |
+| Nancy | 893, unmoved | 156, unmoved |
+| serilog | 60, unmoved | 3, unmoved |
+| AutoMapper | 74, unmoved | 19, unmoved |
+| Newtonsoft.Json | 1,060, unmoved | 334, unmoved |
+
+Newtonsoft.Json matters because it is where the project grain pin was shown to bite on real data: a
+must-not from `Src/Newtonsoft.Json.Tests` to `Src/Newtonsoft.Json` reports divergent with 605
+offending, and that is unchanged.
+
+### 12.3 Java, and the identity the `<dependency>` fence threw away
+
+Section 3.4 recorded the fence that keeps a pom's own `<groupId>` out of the coordinate list. The
+fence is right and it is not enough: a real dependency then puts the same value straight back in,
+because a Maven project's own group is usually the group of the sibling libraries it depends on.
+
+| repository | imports | first party, parent -> fix | what claimed them |
+| --- | --- | --- | --- |
+| apache/commons-lang | 4,275 | 0 -> 756 | `org.apache.commons:commons-text` |
+| gson | 2,671 | 1,085, unmoved | |
+| retrofit | 2,954 | 629, unmoved | |
+| junit4 | 3,215 | 2,111, unmoved | |
+
+The identity is read into `ownGroups` now, being a pom's own `<groupId>` and its `<parent>`'s, taken
+from what is left when every `<dependency>`, `<plugin>` and `<extension>` block has been removed. It
+costs exactly one external over commons-lang, being `org.apache.commons.text.TextStringBuilder`,
+which goes grey.
+
+**One attribution in the verifier's report is refuted by measurement.** square/okio's 335 Java
+imports were said to land 0 first party for this same reason. They do not. okio declares
+`com.squareup.okio` nowhere the resolver reads, its coordinate list holds no group that claims
+`okio.*`, and the 87 grey `okio.*` imports are grey because this arm indexes `.java` files while
+`okio.Buffer` is declared in `Buffer.kt`. That is the cross language limit, it is now on the Java
+arm's face, and no groupId fix could have reached it.
+
+### 12.4 The nine existing arms, re-proved after the fix
+
+The same ten corpora the verifier used, being curl, googletest, libuv, nlohmann/json, gin, fd,
+sinatra, okio, swift-argument-parser and a copy of the parent tree itself, produce 16,849 import
+rows across the nine arms that existed before this phase. File for file, specifier for specifier,
+answer for answer and target for target, the fix round differs from the parent in ZERO of them:
+typescript 10,348, kotlin 2,182, objc 1,113, javascript 1,096, python 884, go 518, swift 273, ruby
+240, rust 195.
