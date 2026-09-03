@@ -14,10 +14,11 @@
  * installs it beside the other registrars.
  */
 
-import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { homedir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { loginsRoot } from '../logins/paths';
+import { renameNoFollowSync, writeNoFollowSync } from './nofollow';
 import { defaultSecurityRunner } from './security';
 import type { StoreDeps } from './stores';
 import type { KeepDeps, LiveSession } from './keep';
@@ -37,6 +38,11 @@ export {
   type LiveSession
 } from './keep';
 export { readKeptFile, writeKeptFile, type KeptFile, type KeptRecord } from './kept';
+export {
+  CREDENTIAL_FILE_MODE,
+  renameNoFollowSync,
+  writeNoFollowSync
+} from './nofollow';
 export { credentialDigest, isCredentialPayload } from './payload';
 export { readSettledStore, readStore, storeTarget, type StoreDeps } from './stores';
 export { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
@@ -65,11 +71,15 @@ function defaultStoreDeps(): StoreDeps {
         return null;
       }
     },
+    // THE STAGED PLACE IS NEVER FOLLOWED. `./nofollow.ts` carries the whole
+    // reason, being a link planted at a staged name that sends the write into
+    // the person's own store and reads back through itself so the check
+    // passes.
     writeText: async (path, text) => {
-      await writeFile(path, text, { encoding: 'utf8', mode: 0o600 });
+      writeNoFollowSync(path, text);
     },
     renamePath: async (from, to) => {
-      await rename(from, to);
+      renameNoFollowSync(from, to);
     },
     removePath: async (path) => {
       try {

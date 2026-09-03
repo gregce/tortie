@@ -69,6 +69,12 @@
  *      three. A later write to the same store replaces it, because staging
  *      overwrites on both backends; the store that is never written again is
  *      swept by the first observe of the next run.
+ *  15. A PLANTED LINK AT A STAGED NAME SENDS THE WRITE NOWHERE. Every write
+ *      here stages at a name nobody has opened yet, and `writeFile` follows a
+ *      link, so an entry planted at one took the whole write and read back
+ *      through itself so the check passed. It is the one arm over real files
+ *      and real links, because a bag of strings has none and that is how the
+ *      defect survived thirteen ablations.
  *  13. A STORE THAT NAMES NO ACCOUNT ON EITHER SIDE still keeps what it
  *      replaced, because a login signed into a moment ago has no address until
  *      it takes a turn and that is exactly when a person types `/login` again.
@@ -394,6 +400,7 @@ const VERDICT_PARTS = [
   'overlap',
   'unnamed',
   'residue',
+  'nofollow',
   'keychain',
   'shapes'
 ];
@@ -420,6 +427,7 @@ function verdict(d) {
     JSON.stringify(d.overlap),
     JSON.stringify(d.unnamed),
     JSON.stringify(d.residue),
+    JSON.stringify(d.nofollow),
     JSON.stringify(keychain),
     JSON.stringify(d.shapes)
   ];
@@ -640,6 +648,36 @@ if ('error' in live) {
     `${TAG} the sweep removed something that was not the staged copy`
   );
 
+  // Rule 15. A PLANTED LINK AT A STAGED NAME SENDS THE WRITE NOWHERE.
+  check(
+    live.nofollow.linkPlanted,
+    `${TAG} the link arm planted nothing, so the rest of it is a check over an empty world`
+  );
+  check(
+    live.nofollow.storeWritten && live.nofollow.storeHoldsTheNewAccount,
+    `${TAG} a link beside a store stopped the write reaching the store at all`
+  );
+  check(
+    live.nofollow.storeVictimUntouched,
+    `${TAG} A LINK PLANTED BESIDE A STORE SENT THE WRITE THROUGH IT, into a path outside the login directories`
+  );
+  check(
+    live.nofollow.storeIsAFile,
+    `${TAG} the commit renamed a link onto a store, so the store is now a link`
+  );
+  check(
+    live.nofollow.vaultWritten && live.nofollow.vaultVictimUntouched,
+    `${TAG} A LINK PLANTED IN TORTIE'S OWN STORE TOOK THE WRITE`
+  );
+  check(
+    live.nofollow.recordWritten && live.nofollow.recordVictimUntouched,
+    `${TAG} A LINK PLANTED BESIDE THE RECORD FILE TOOK THE WRITE`
+  );
+  check(
+    live.nofollow.renameRefusedALink && live.nofollow.lateVictimUntouched,
+    `${TAG} a link planted between the write and the commit was renamed onto the store`
+  );
+
   // Rule 9 and rule 10.
   check(!live.leak.tokenInAnswers, `${TAG} A TOKEN BYTE REACHED AN ANSWER THIS DOMAIN GIVES`);
   check(live.leak.recordHasDigest, `${TAG} the record file holds no digest, so the leak scan is over an empty file`);
@@ -787,6 +825,36 @@ const ABLATIONS = [
         file: 'keep.ts',
         from: '    await sweepStaged(d, provider);',
         to: '    await Promise.resolve();'
+      }
+    ]
+  },
+  {
+    // The staged write made to follow a link again, which is the shape the
+    // whole of `nofollow.ts` exists for. Both halves go, because either one
+    // alone still refuses: the unlink acts on the link rather than on what it
+    // points at, and O_EXCL refuses a path that exists.
+    name: 'the staged write made to follow a link again',
+    edits: [
+      {
+        file: 'nofollow.ts',
+        from: '  try {\n    unlinkSync(path);\n  } catch {',
+        to: '  try {\n    if (false) unlinkSync(path);\n  } catch {'
+      },
+      {
+        file: 'nofollow.ts',
+        from: '    constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,',
+        to: '    constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC,'
+      }
+    ]
+  },
+  {
+    // The commit asked the same question, for a link planted AFTER the write.
+    name: 'the commit no longer refuses to rename a link onto a store',
+    edits: [
+      {
+        file: 'nofollow.ts',
+        from: '  if (lstatSync(from).isSymbolicLink()) {',
+        to: '  if (false) {'
       }
     ]
   },

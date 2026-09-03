@@ -27,8 +27,9 @@
  * field and the reason, and those sentences reach the person.
  */
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { renameNoFollowSync, writeNoFollowSync } from './nofollow';
 import { isSlotName } from './vault';
 
 /** One slot's record. No credential, no token, no length, no prefix. */
@@ -211,9 +212,7 @@ export function writeKeptFile(root: string, file: KeptFile): void {
   mkdirSync(root, { recursive: true });
   const path = keptFileIn(root);
   const tmp = join(root, `.kept.${process.pid.toString(36)}.tmp`);
-  writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, {
-    encoding: 'utf8',
-    mode: 0o600
-  });
-  renameSync(tmp, path);
+  // Not `writeFileSync`, for the reason `./nofollow.ts` carries.
+  writeNoFollowSync(tmp, `${JSON.stringify(file, null, 2)}\n`);
+  renameNoFollowSync(tmp, path);
 }

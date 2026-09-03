@@ -14,7 +14,16 @@
  * this same probe over an ABLATED copy and watches it go red.
  */
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs';
+import { readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -42,6 +51,9 @@ const payload = (await import(
 const kept = (await import(
   pathToFileURL(resolve(MODULES, 'kept.ts')).href
 )) as typeof import('../src/main/credentials/kept');
+const nofollow = (await import(
+  pathToFileURL(resolve(MODULES, 'nofollow.ts')).href
+)) as typeof import('../src/main/credentials/nofollow');
 
 /** A value only this probe ever writes. If it appears anywhere, say where. */
 const TOKEN = 'P204-SENTINEL-TOKEN-4c19be';
@@ -922,6 +934,145 @@ try {
       secondWriteLeftOnlyItsOwn: afterSecond === codexCredential('carol', '3'),
       nextRunSweptIt: !w.files.has(stagedAt),
       storeStillThere: w.files.get(store) === codexCredential('alice', '1')
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 11f. A PLANTED LINK AT A STAGED NAME SENDS THE WRITE NOWHERE.
+  //
+  //      THE ONLY ARM IN THIS PROBE THAT USES REAL FILES, and it has to,
+  //      because a bag of strings has no links in it and that is exactly how
+  //      this defect survived thirteen ablations. Every write in this domain
+  //      stages at a name nobody has opened yet, and `writeFile` follows a
+  //      link. An entry planted at one of those names took the whole write:
+  //      the read back check read through the SAME link and saw what it had
+  //      just written, so it passed, the rename moved the link onto the store,
+  //      and a file standing in for the person's own `~/.codex/auth.json`
+  //      came back holding the kept credential byte for byte. That is the
+  //      refusal this phase states in four places defeated by one entry, and
+  //      `../src/main/logins/dirs.ts` already guards the DIRECTORY against
+  //      the same shape because the Phase 202 verifier found one in the app.
+  //
+  //      Nothing under the person's home is opened. The victim is a file in
+  //      this arm's own scratch directory that stands in for one.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const loginDir = join(root, 'codex', '0123456789abcdef');
+    mkdirSync(loginDir, { recursive: true });
+    const victimDir = join(root, 'not-tortie-own');
+    mkdirSync(victimDir, { recursive: true });
+    const OWN = 'THE-PERSON-OWN-BYTES';
+    const victimFor = (name: string): string => {
+      const at = join(victimDir, name);
+      writeFileSync(at, OWN, 'utf8');
+      return at;
+    };
+    const REAL: import('../src/main/credentials/stores').StoreDeps = {
+      runner: { run: async () => ({ code: 1, stdout: '' }) },
+      readText: async (path) => {
+        try {
+          return await readFile(path, 'utf8');
+        } catch {
+          return null;
+        }
+      },
+      // THE SHIPPING HELPERS, taken from the ablatable copy, so an ablation
+      // that puts the ordinary write back is what this arm measures.
+      writeText: async (path, text) => {
+        nofollow.writeNoFollowSync(path, text);
+      },
+      renamePath: async (from, to) => {
+        nofollow.renameNoFollowSync(from, to);
+      },
+      removePath: async (path) => {
+        try {
+          await rm(path, { force: true });
+        } catch {
+          // A staged copy that will not go changes nothing about the store.
+        }
+      },
+      env: {},
+      home: victimDir,
+      keychainForClaude: false,
+      userName: 'nobody',
+      wait: async () => {}
+    };
+
+    // 1. A VENDOR STORE, through the whole shipping write.
+    const store = join(loginDir, 'auth.json');
+    writeFileSync(store, codexCredential('alice', '1'), 'utf8');
+    const storeVictim = victimFor('auth.json');
+    symlinkSync(storeVictim, `${store}.tortie-pending`);
+    const linkPlanted = lstatSync(`${store}.tortie-pending`).isSymbolicLink();
+    const target = await stores.storeTarget(REAL, 'codex', loginDir);
+    const put =
+      target === null
+        ? { ok: false as const, reason: 'no target' }
+        : await swap.safeSwap(target, codexCredential('bob', '2'));
+
+    // 2. TORTIE'S OWN FILE VAULT, whose staged place is `<slot>.pending.cred`
+    //    and whose write stages once more at `.writing` beside it.
+    const vaultDir = join(root, 'kept');
+    mkdirSync(vaultDir, { recursive: true, mode: 0o700 });
+    const slot = vault.slotFor('codex', '0123456789abcdef');
+    const vaultVictim = victimFor('vault');
+    symlinkSync(
+      vaultVictim,
+      join(vaultDir, `${vault.stagedSlotFor(slot)}.cred.writing`)
+    );
+    const backend = vault.fileVault(vaultDir);
+    const kastPut = await vault.vaultPut(backend, slot, codexCredential('carol', '3'));
+
+    // 3. THE RECORD FILE, whose temporary name is composed from this pid.
+    const recordRoot = join(root, 'record');
+    mkdirSync(recordRoot, { recursive: true });
+    const recordVictim = victimFor('record');
+    symlinkSync(
+      recordVictim,
+      join(recordRoot, `.kept.${process.pid.toString(36)}.tmp`)
+    );
+    let recordThrew = false;
+    try {
+      kept.writeKeptFile(recordRoot, { v: 1, slots: {} });
+    } catch {
+      recordThrew = true;
+    }
+
+    // 4. AND THE COMMIT IS ASKED THE SAME QUESTION, for a link planted after
+    //    the write rather than before it.
+    const lateVictim = victimFor('late');
+    const lateLink = join(loginDir, 'late.pending');
+    symlinkSync(lateVictim, lateLink);
+    let renameRefusedALink = false;
+    try {
+      nofollow.renameNoFollowSync(lateLink, join(loginDir, 'late'));
+    } catch {
+      renameRefusedALink = true;
+    }
+
+    const untouched = (at: string): boolean => {
+      try {
+        return readFileSync(at, 'utf8') === OWN;
+      } catch {
+        return false;
+      }
+    };
+    out['nofollow'] = {
+      // THE ARM REALLY PLANTED A LINK, so everything under it is a check over
+      // something that exists rather than over an empty world.
+      linkPlanted,
+      storeWritten: put.ok,
+      storeIsAFile: !lstatSync(store).isSymbolicLink(),
+      storeHoldsTheNewAccount:
+        readFileSync(store, 'utf8') === codexCredential('bob', '2'),
+      storeVictimUntouched: untouched(storeVictim),
+      vaultWritten: kastPut.ok,
+      vaultVictimUntouched: untouched(vaultVictim),
+      recordWritten: !recordThrew && readFileSync(join(recordRoot, 'kept.json'), 'utf8').includes('"v": 1'),
+      recordVictimUntouched: untouched(recordVictim),
+      renameRefusedALink,
+      lateVictimUntouched: untouched(lateVictim)
     };
   }
 

@@ -32,11 +32,12 @@
  * there is one guarantee in this domain rather than two.
  */
 
-import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { LoginProviderId } from '@shared/logins';
 import { LOGIN_PROVIDERS } from '@shared/logins';
 import { LOGIN_ID_RE } from '../logins/dirs';
+import { renameNoFollowSync, writeNoFollowSync } from './nofollow';
 import {
   defaultSecurityRunner,
   keychainDelete,
@@ -139,9 +140,9 @@ export function fileVault(dir: string): VaultBackend {
       mkdirSync(dir, { recursive: true, mode: 0o700 });
       const path = pathOf(slot);
       const writing = `${path}.writing`;
-      writeFileSync(writing, payload, { encoding: 'utf8', mode: 0o600 });
-      chmodSync(writing, 0o600);
-      renameSync(writing, path);
+      // Not `writeFileSync`, for the reason `./nofollow.ts` carries.
+      writeNoFollowSync(writing, payload);
+      renameNoFollowSync(writing, path);
     },
     del: async (slot) => {
       try {

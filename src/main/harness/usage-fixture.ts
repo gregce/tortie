@@ -42,9 +42,9 @@
 
 import { app } from 'electron';
 import { readFileSync } from 'node:fs';
-import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileVault, setKeepDeps } from '../credentials';
+import { fileVault, renameNoFollowSync, setKeepDeps, writeNoFollowSync } from '../credentials';
 import { loginsRoot } from '../logins';
 import { setUsageHarnessOverride } from '../usage/ipc';
 import {
@@ -128,11 +128,14 @@ export function installUsageFixture(): void {
           return null;
         }
       },
+      // THE SAME TWO SHIPPING HELPERS the real seam uses, so the app run
+      // exercises the refusal to follow a link rather than a copy of the seam
+      // that predates it.
       writeText: async (path, text) => {
-        await writeFile(path, text, { encoding: 'utf8', mode: 0o600 });
+        writeNoFollowSync(path, text);
       },
       renamePath: async (from, to) => {
-        await rename(from, to);
+        renameNoFollowSync(from, to);
       },
       removePath: async (path) => {
         try {
