@@ -15,8 +15,9 @@
  *   item 2  the glyph on every row of the COMPOSED session menu, matched by
  *           rasterising each name in the closed set and comparing pixels
  *   item 3  the selection after a drag held at the top edge, after a wheel
- *           during a live drag, after a plain scroll with no drag, and after
- *           a click
+ *           during a live drag, after a plain scroll with no drag, after a
+ *           click, and in a pane whose program asked for the mouse, where the
+ *           gesture must move nothing at all
  *
  * THE READING TECHNIQUE, and it is the one thing to copy from here. The
  * preload bridge is frozen and its window property is not configurable, so
@@ -52,6 +53,12 @@ import { fileURLToPath } from 'node:url';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOCKET = 'gmux-p205';
+/**
+ * What arm D runs inside the pane so tmux reports `mouse_any_flag`, being SGR
+ * mouse reporting turned on in front of a program that stays up. Composed
+ * here, through `JSON.stringify`, so the escapes are written once.
+ */
+const MOUSE_ON = JSON.stringify("printf '\\033[?1000h\\033[?1006h'; cat\r");
 const TAG = '[p205]';
 const t0 = Date.now();
 const say = (line) =>
@@ -175,19 +182,30 @@ export function gradeItem3(r) {
         `${String(edge.selection?.lines)} lines`
     );
   }
+  // The wheel arm is judged by ARITHMETIC against the same drag with no wheel
+  // in it, and that is a fix round's doing. It used to ask for a position
+  // above zero, a selection above one line and a span of twenty rows, and all
+  // three of those hold at 57d9358 too, being 51, 37 and 34 measured there, so
+  // the arm could not tell the two commits apart. The buffer moved `scrolled`
+  // lines while the button was down, so a selection that tracks the buffer is
+  // exactly that many lines longer than the same gesture without the wheel.
+  // At the parent it is the same length it was, whatever the wheel did,
+  // because xterm pins its range to the screen rows.
   const wheel = r.wheelDuringDrag ?? {};
-  if (!(wheel.positionAfterTheWheel > 0)) {
-    bad.push('the wheel during the drag scrolled nothing');
+  const scrolled =
+    (wheel.positionAfterTheWheel ?? 0) - (wheel.positionBeforeTheWheel ?? 0);
+  if (!(scrolled > 0)) {
+    bad.push(`the wheel during the drag moved the buffer ${String(scrolled)}`);
   }
-  if (!(wheel.selection?.lines > 1)) {
+  const grew = (wheel.selection?.lines ?? 0) - (wheel.before?.lines ?? 0);
+  // One line of slack, because the wheel lands in whole lines and the drag is
+  // aimed in pixels. The arm's press is high enough up the screen that the
+  // anchor does not reach the clamp, so this is the tracking and not the edge.
+  if (!(scrolled > 0 && grew >= scrolled - 1)) {
     bad.push(
-      `the wheel during the drag left ${String(wheel.selection?.lines)} lines`
+      `the wheel during the drag grew the selection by ${String(grew)} ` +
+        `lines while the buffer moved ${String(scrolled)}`
     );
-  }
-  // The rows that came into view are IN the selection: its last line is text
-  // from further back than the line the drag started on.
-  if (wheel.selection?.reachedNewRows !== true) {
-    bad.push('the selection did not cover the rows that came into view');
   }
   const plain = r.plainScroll ?? {};
   if (plain.before?.lines !== plain.after?.lines || !(plain.after?.lines > 0)) {
@@ -200,6 +218,31 @@ export function gradeItem3(r) {
   if (!(click.before?.lines > 0) || click.after?.lines !== 0) {
     bad.push(
       `a click left ${String(click.after?.lines)} lines selected rather than 0`
+    );
+  }
+  // Must not change: a pane whose program asked for the mouse keeps it.
+  // Phase 12.3 kept the WHEEL out of those panes, being the three routes in
+  // ../src/renderer/terminal/scroll/surface.ts's header, and the drag is under
+  // the same rule. Nothing scrolls, the pane never enters copy mode, and no
+  // range is painted, because the gesture belongs to the program inside.
+  const inner = r.mouseReporting ?? {};
+  if (inner.innerMouse !== true) {
+    bad.push('the mouse-reporting arm never armed: innerMouse was not true');
+  }
+  if (inner.after?.position !== inner.before?.position) {
+    bad.push(
+      `a drag held at the edge of a mouse-reporting pane moved the history ` +
+        `from ${String(inner.before?.position)} to ` +
+        `${String(inner.after?.position)}`
+    );
+  }
+  if (inner.after?.inMode === true) {
+    bad.push('a drag put a mouse-reporting pane into copy mode');
+  }
+  if ((inner.selection?.lines ?? 0) !== 0) {
+    bad.push(
+      `a drag painted ${String(inner.selection?.lines)} lines in a ` +
+        `mouse-reporting pane`
     );
   }
   return bad;
@@ -240,11 +283,19 @@ function selfTest() {
       selection: { lines: 39 }
     },
     wheelDuringDrag: {
-      positionAfterTheWheel: 51,
-      selection: { lines: 37, reachedNewRows: true }
+      positionBeforeTheWheel: 0,
+      positionAfterTheWheel: 12,
+      before: { lines: 5 },
+      selection: { lines: 17 }
     },
     plainScroll: { before: { lines: 5 }, after: { lines: 5 } },
-    clickClears: { before: { lines: 5 }, after: { lines: 0 } }
+    clickClears: { before: { lines: 5 }, after: { lines: 0 } },
+    mouseReporting: {
+      innerMouse: true,
+      before: { position: 0, inMode: false },
+      after: { position: 0, inMode: false },
+      selection: { lines: 0 }
+    }
   };
   const cases = [
     ['item1 green', gradeItem1, good1, 0],
@@ -316,13 +367,58 @@ function selfTest() {
       2
     ],
     [
-      'item3 the parent, the wheel leaves the selection behind',
+      // The numbers here are the ones MEASURED at 57d9358 by this arm, being
+      // a buffer that moved twelve lines under a drag whose selection came
+      // back the length it was.
+      'item3 the parent, the wheel leaves the selection the length it was',
       gradeItem3,
       {
         ...good3,
         wheelDuringDrag: {
-          positionAfterTheWheel: 51,
-          selection: { lines: 37, reachedNewRows: false }
+          positionBeforeTheWheel: 0,
+          positionAfterTheWheel: 12,
+          before: { lines: 5 },
+          selection: { lines: 5 }
+        }
+      },
+      1
+    ],
+    [
+      'item3 a wheel arm whose wheel moved no buffer at all',
+      gradeItem3,
+      {
+        ...good3,
+        wheelDuringDrag: {
+          positionBeforeTheWheel: 0,
+          positionAfterTheWheel: 0,
+          before: { lines: 5 },
+          selection: { lines: 5 }
+        }
+      },
+      2
+    ],
+    [
+      'item3 the drag taking a pane whose program asked for the mouse',
+      gradeItem3,
+      {
+        ...good3,
+        mouseReporting: {
+          innerMouse: true,
+          before: { position: 0, inMode: false },
+          after: { position: 106, inMode: true },
+          selection: { lines: 43 }
+        }
+      },
+      3
+    ],
+    [
+      'item3 a mouse-reporting arm that never armed',
+      gradeItem3,
+      {
+        ...good3,
+        mouseReporting: {
+          ...good3.mouseReporting,
+          innerMouse: false
         }
       },
       1
@@ -888,26 +984,42 @@ await withElectron(
       selection: await readSelection('A, after holding three seconds')
     };
 
-    // Arm B, a wheel during a live drag.
+    // Arm B, a wheel during a live drag, run TWICE: once plain and once with
+    // the wheel in the middle of it, so the reading is a length against a
+    // length rather than a length against a threshold. The press sits twenty
+    // rows up the screen, so a twelve line scroll leaves the anchor around
+    // `rows - 8` and the clamp of ../src/renderer/terminal/scroll/drag-math.ts
+    // is not what is being measured.
+    const wheelPress = Math.max(6, rows - 20);
+    const dragUpFour = async () => {
+      await mouse('mousePressed', xAt(0.02), yOf(wheelPress), {
+        buttons: 1,
+        clickCount: 1
+      });
+      for (let i = 1; i <= 4; i += 1) {
+        await mouse('mouseMoved', xAt(0.2), yOf(wheelPress - i), {
+          buttons: 1
+        });
+        await sleep(60);
+      }
+    };
     await live();
     await focusPane();
-    await mouse('mousePressed', xAt(0.02), yOf(rows - 6), {
-      buttons: 1,
+    await dragUpFour();
+    await mouse('mouseReleased', xAt(0.2), yOf(wheelPress - 4), {
+      buttons: 0,
       clickCount: 1
     });
-    for (let i = 1; i <= 4; i += 1) {
-      await mouse('mouseMoved', xAt(0.2), yOf(rows - 6 - i), { buttons: 1 });
-      await sleep(60);
-    }
+    await sleep(400);
+    const noWheel = await readSelection('B, the same drag with no wheel');
+    await live();
+    await focusPane();
+    await dragUpFour();
     const beforeWheel = await stateOf();
-    await cdpEval(cdp, `window.__p205.wheelAt(${xAt(0.3)}, ${yOf(5)}, -120, 8)`);
+    await cdpEval(cdp, `window.__p205.wheelAt(${xAt(0.3)}, ${yOf(5)}, -120, 2)`);
     await sleep(2000);
     const midDrag = await stateOf();
-    for (let i = 1; i <= 5; i += 1) {
-      await mouse('mouseMoved', xAt(0.4), yOf(6 - i), { buttons: 1 });
-      await sleep(80);
-    }
-    await mouse('mouseReleased', xAt(0.4), yOf(1), {
+    await mouse('mouseReleased', xAt(0.2), yOf(wheelPress - 4), {
       buttons: 0,
       clickCount: 1
     });
@@ -916,16 +1028,8 @@ await withElectron(
     report.item3.wheelDuringDrag = {
       positionBeforeTheWheel: beforeWheel?.position,
       positionAfterTheWheel: midDrag?.position,
-      selection: {
-        ...afterWheel,
-        // The rows that came into view are further back than anything that
-        // was on screen when the drag began, so the lowest number selected
-        // must be below what the bottom of the live screen was showing.
-        reachedNewRows:
-          afterWheel.lowest !== null &&
-          afterWheel.highest !== null &&
-          afterWheel.highest - afterWheel.lowest >= 20
-      }
+      before: noWheel,
+      selection: afterWheel
     };
 
     // Must not change: a plain scroll with no drag changes no selection.
@@ -986,6 +1090,47 @@ await withElectron(
       before: beforeClick,
       after: await readSelection('after a click')
     };
+
+    // Must not change: a pane whose program asked for the mouse keeps it.
+    // `cat` with SGR mouse reporting turned on is what a picker inside an
+    // agent looks like to tmux, and `innerMouse` is read from the same state
+    // the wheel router reads. The gesture is arm A's, being a drag held above
+    // the top edge, and here it must move nothing at all.
+    await live();
+    await focusPane();
+    await cdpEval(cdp, `window.gmux.term.sendInput(${S}, ${MOUSE_ON}), true`);
+    await sleep(2500);
+    const innerBefore = await stateOf();
+    say(`item3 D, the pane's own state: ${JSON.stringify(innerBefore)}`);
+    await mouse('mousePressed', xAt(0.02), yOf(rows - 4), {
+      buttons: 1,
+      clickCount: 1
+    });
+    for (let i = 1; i <= 8; i += 1) {
+      await mouse('mouseMoved', xAt(0.3), yOf(rows - 4 - i * 2), {
+        buttons: 1
+      });
+      await sleep(60);
+    }
+    for (let i = 0; i < 25; i += 1) {
+      await mouse('mouseMoved', xAt(0.3), rect.top - 20, { buttons: 1 });
+      await sleep(100);
+    }
+    const innerAfter = await stateOf();
+    await mouse('mouseReleased', xAt(0.3), rect.top - 20, {
+      buttons: 0,
+      clickCount: 1
+    });
+    await sleep(500);
+    report.item3.mouseReporting = {
+      innerMouse:
+        innerBefore?.innerMouse === true && innerAfter?.innerMouse === true,
+      before: innerBefore,
+      after: innerAfter,
+      selection: await readSelection('D, a mouse-reporting pane')
+    };
+    await cdpEval(cdp, `window.gmux.term.sendInput(${S}, '\u0003'), true`);
+    await sleep(500);
 
     report.notes.push(
       `popup-pick lines main printed: ` +
