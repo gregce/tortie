@@ -292,3 +292,89 @@ describe('a csproj at the repository root', () => {
     expect(readCsharpManifest(rootProject, ROOT_FILES).namespaceDirs.get('Lib.Ns')).toEqual(['']);
   });
 });
+
+/**
+ * THE FILE NO PROJECT OWNS, WHICH IS PHASE 184'S SECOND FIX ROUND.
+ *
+ * efcore keeps `src/Shared` and Polly keeps `src/LegacySupport`, real source
+ * pulled into their assemblies by an MSBuild glob this reader takes no literal
+ * from. Their namespaces reached no map at all, the platform list and the
+ * package list then claimed the names, and 397 real `using` statements over
+ * those two repositories answered `external` about the repository's own code.
+ * An `external` is dropped from both sides of the checker's ledger, so each
+ * one was a false green waiting on a must-not.
+ */
+describe('a tracked file no project owns still declares its namespace', () => {
+  let orphanRoot: string;
+  const ORPHAN_FILES = [
+    'src/App/App.csproj',
+    'src/App/A.cs',
+    'shared/Polyfill.cs',
+    'shared/Helpers.cs'
+  ];
+
+  beforeAll(() => {
+    orphanRoot = mkdtempSync(join(tmpdir(), 'gmux-arch-csharp-orphan-'));
+    const put = (relPath: string, text: string): void => {
+      const at = join(orphanRoot, relPath);
+      mkdirSync(at.slice(0, at.lastIndexOf('/')), { recursive: true });
+      writeFileSync(at, text);
+    };
+    // The glob claims `src/App` and nothing else, and the wildcard entry is
+    // not a literal, so both `shared` files belong to no project this reader
+    // can name.
+    put(
+      'src/App/App.csproj',
+      [
+        '<Project Sdk="Microsoft.NET.Sdk">',
+        '  <ItemGroup>',
+        '    <PackageReference Include="Acme.Serialization" Version="1.0.0" />',
+        '  </ItemGroup>',
+        '  <ItemGroup>',
+        '    <Compile Include="..\\..\\shared\\*.cs" />',
+        '  </ItemGroup>',
+        '</Project>'
+      ].join('\n')
+    );
+    put('src/App/A.cs', 'namespace Acme.App;\nclass A {}\n');
+    put('shared/Polyfill.cs', 'namespace System.Runtime.CompilerServices;\nclass IsExternalInit {}\n');
+    put('shared/Helpers.cs', 'namespace Acme.Serialization.Helpers;\nclass H {}\n');
+  });
+
+  afterAll(() => {
+    rmSync(orphanRoot, { recursive: true, force: true });
+  });
+
+  const answer = (specifier: string): { toPath: string | null; resolution: string } => {
+    const manifests = readArchManifests(orphanRoot);
+    manifests.csharp = readCsharpManifest(orphanRoot, ORPHAN_FILES);
+    return resolveImport(
+      specifier,
+      'src/App/A.cs',
+      'csharp',
+      archResolveContext(manifests, ORPHAN_FILES)
+    );
+  };
+
+  it('records the name even though no project claims the file', () => {
+    const manifest = readCsharpManifest(orphanRoot, ORPHAN_FILES);
+    expect(manifest.declaredNames.has('Acme.Serialization.Helpers')).toBe(true);
+    expect(manifest.declaredNames.has('System.Runtime.CompilerServices')).toBe(true);
+    expect(manifest.namespaceDirs.has('Acme.Serialization.Helpers')).toBe(false);
+  });
+
+  it('refuses to call a declared package the owner of that name', () => {
+    const seen = answer('Acme.Serialization.Helpers');
+    expect(seen.resolution).toBe('unresolved');
+    expect(seen.toPath).toBeNull();
+  });
+
+  it('refuses the platform the same way, which is the efcore and Polly shape', () => {
+    expect(answer('System.Runtime.CompilerServices').resolution).toBe('unresolved');
+  });
+
+  it('still calls a name NOBODY here declares external, or the rule is a mute', () => {
+    expect(answer('Acme.Serialization').resolution).toBe('external');
+    expect(answer('System.Text').resolution).toBe('external');
+  });
+});

@@ -39,6 +39,15 @@
  *     and picking one of them would be a real edge to the wrong assembly.
  *  4. A .NET platform head is `external`, checked AFTER the repository's own
  *     projects have had their chance at the name.
+ *  4.5 A namespace SOME TRACKED `.cs` FILE DECLARES, even one no project owns,
+ *     is `unresolved` rather than `external`. A repository keeps source no
+ *     `.csproj` claims in a literal this reader can take, being efcore's
+ *     `src/Shared` and Polly's `src/LegacySupport`, and those files really do
+ *     declare `System.Text`, `System.Reflection` and
+ *     `System.Diagnostics.CodeAnalysis`. 397 real `using` statements over
+ *     those two repositories called the repository's own code somebody else's
+ *     before this rule, and each was a false green waiting on a must-not. It
+ *     names no directory because a file in no project is in no assembly.
  *  5. A declared `<PackageReference>` or `<Reference>` is `external`. THE
  *     COMPARE IS LOWER CASED and that is not a nicety: NuGet ids are case
  *     insensitive while namespaces are Pascal case, so `using Xunit;` against
@@ -58,7 +67,10 @@
  *     name the whole tree, an edge to everywhere is not an edge, and before
  *     this was refused it vanished from the checker and printed a false green.
  *
- * THE LIMIT ON ITS FACE, AND IT IS THREE THINGS. An edge lands on a project
+ * THE LIMIT ON ITS FACE, AND IT IS FOUR THINGS. A namespace only an unowned
+ * file declares can never be first party, by rule 4.5: the arm knows the name
+ * is the repository's and cannot say which assembly holds it, so every promise
+ * across it reads unverifiable rather than kept. An edge lands on a project
  * DIRECTORY, so a promise written about one file inside a project cannot be
  * told from a promise about its neighbour. A repository with no `.csproj` at
  * all resolves nothing first party. And a repository whose ONLY `.csproj` sits
@@ -123,6 +135,21 @@ export function resolveCsharp(
   // A namespace some file really declares beats everything.
   const declared = found(csharp.namespaceDirs);
   if (declared !== null) return declared;
+  // RULE 4.5, AND IT IS THE SECOND FIX ROUND. A name some tracked `.cs` file
+  // declares is never somebody else's, even when no project claims that file.
+  // efcore's `src/Shared` and Polly's `src/LegacySupport` hold real source
+  // pulled into their assemblies by an MSBuild glob ./csproj.ts takes no
+  // literal from, so `System.Text`, `System.Reflection` and
+  // `System.Diagnostics.CodeAnalysis` were declared by the repository and
+  // claimed by the platform at the same time, and 397 real `using` statements
+  // over those two repositories answered `external` about the repository's own
+  // code. An `external` is dropped from both sides of the checker's ledger, so
+  // each one of them was a false green waiting on a must-not. There is no
+  // directory to name, because a file no project owns is in no assembly, so
+  // the answer is grey.
+  for (const candidate of asked) {
+    if (csharp.declaredNames.has(candidate)) return unresolved();
+  }
   if (claimedExternally(spec, ctx)) return external();
   // THE IMPLICIT PARENT IS ASKED LAST, AND THE ORDER IS MEASURED. Asking it
   // before the platform put `using System;` on the prefix map, because a

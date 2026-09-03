@@ -28,6 +28,11 @@
  *    pbxproj. Nancy keeps 20 such projects with 121 entries;
  *  - `<PackageReference Include>` and `<Reference Include>`, the declared
  *    dependencies, which are the arm's only justification for `external`.
+ * A `<Compile Include>` carrying a WILDCARD is not a literal and is skipped,
+ * which is one of the two ways a tracked `.cs` file ends up owned by no
+ * project at all; the other is a file no project lists or globs. Either way
+ * the file's namespace still reaches `declaredNames` below, because the name
+ * is declared whoever compiles it.
  * `<ProjectReference>` is deliberately not read: a project reference points at
  * another project in this repository, and the namespace map below already
  * answers those as first party.
@@ -61,6 +66,21 @@ export interface CsharpManifest {
   namespacePrefixDirs: Map<string, string[]>;
   /** The first namespace each tracked `.cs` file declares, for the enclosing walk. */
   namespaceOf: Map<string, string>;
+  /**
+   * EVERY namespace some tracked `.cs` file declares, whatever project owns
+   * that file and whether any project owns it at all.
+   *
+   * `namespaceDirs` above can only hold a name whose file belongs to a project,
+   * and a real repository keeps source no `.csproj` claims: efcore's
+   * `src/Shared` and Polly's `src/LegacySupport` are compiled in through an
+   * MSBuild glob this reader takes no literal from. Their namespaces vanished,
+   * the platform and the package lists then claimed the names, and 397 real
+   * `using` statements over those two repositories answered `external` about
+   * the repository's own code. This set is what the arm asks so it can go grey
+   * instead. It names no directory on purpose: an unowned file belongs to no
+   * assembly, so there is no edge to draw and `unresolved` is the whole answer.
+   */
+  declaredNames: Set<string>;
   /** Declared package and assembly reference names, LOWER CASED. */
   packages: Set<string>;
   /** True when any `.csproj` was found at all. The arm says so on its face. */
@@ -72,6 +92,7 @@ export function emptyCsharpManifest(): CsharpManifest {
     namespaceDirs: new Map(),
     namespacePrefixDirs: new Map(),
     namespaceOf: new Map(),
+    declaredNames: new Set(),
     packages: new Set(),
     present: false
   };
@@ -152,15 +173,21 @@ export function readCsharpManifest(
   const byDepth = [...projects].sort((a, b) => b.dir.length - a.dir.length);
 
   for (const path of sources) {
-    const owners = ownersOf(path, projects, byDepth);
-    if (owners.length === 0) continue;
+    // EVERY TRACKED SOURCE IS READ, INCLUDING ONE NO PROJECT CLAIMS, and the
+    // first build read only the owned ones. See `declaredNames` above: an
+    // unowned file's namespace is still a name this repository declares, and
+    // dropping it let the package list call the repository's own code
+    // somebody else's.
     const raw = readTextOrNull(`${repoPath}/${path}`);
     if (raw === null) continue;
     const text = raw.startsWith(BOM) ? raw.slice(BOM.length) : raw;
+    const owners = ownersOf(path, projects, byDepth);
     let first = true;
     for (const match of text.matchAll(NAMESPACE_LINE)) {
       const name = match[1] ?? '';
       if (name.length === 0) continue;
+      out.declaredNames.add(name);
+      if (owners.length === 0) continue;
       if (first) {
         out.namespaceOf.set(path, name);
         first = false;
