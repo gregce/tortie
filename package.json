@@ -51,6 +51,7 @@
     "probe:p207": "npm run build && node build/probe-p207-hue.mjs",
     "probe:p210": "npm run build && node build/probe-p210-ramp.mjs",
     "probe:p208": "npm run build && node build/harness-socket.mjs --fresh gmux-p208 'node build/probe-p208-vault.mjs'",
+    "probe:p211": "npm run build && node build/harness-socket.mjs --fresh gmux-p211 'node build/probe-p211-switch.mjs'",
     "probe:p185": "npm run build && node build/harness-socket.mjs gmux-p185-drawing 'node build/probe-p185-drawing.mjs'",
     "probe:p194": "npm run build && node build/harness-socket.mjs --fresh gmux-p194-redline 'node build/probe-p194-redline-view.mjs'",
     "probe:p198": "npm run build && node build/harness-socket.mjs --fresh gmux-p198-filehist 'node build/probe-p198-file-history.mjs'",

@@ -524,6 +524,19 @@ export const CHECKS = [
   // build/probe-p208-vault.mjs --self-test` proves the graders on fifteen
   // fixtures and launches nothing.
   electron('probe:p208'),
+  // PHASE 211. One launch on a scratch profile and a scratch keychain: a codex
+  // session opens on the default login, a second account signs into the default
+  // store and promotes the first, the promoted login is chosen while the
+  // default session runs and the default store is read back holding it (the
+  // default lift), and a fresh sign in written from OUTSIDE redraws the menu
+  // with no hover and no visit (the watcher). It writes only scratch codex
+  // files, opens no keychain of his, spawns no agent and spends no token, and
+  // inventories his keychain by attributes before and after with NO -g and NO
+  // -w. The lock is proved by the conformance gate's claudeLock arm, not by an
+  // app-run log, because the credentials domain may write no log line.
+  // `node build/probe-p211-switch.mjs --self-test` proves the graders on
+  // fourteen fixtures and launches nothing.
+  electron('probe:p211'),
   // PHASE 203. Two launches on ONE scratch profile over SIX fixture logins,
   // one per shape a login row can take, being the default and an added login
   // each signed in with an address, signed in without one, and not signed in
