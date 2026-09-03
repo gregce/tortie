@@ -121,6 +121,67 @@ export function sameLoginName(a: string | null, b: string | null): boolean {
 }
 
 /**
+ * A name for a login Tortie mints for an account it just kept (Phase 204).
+ *
+ * WHY A NAME IS MINTED AT ALL. When the account in a store changes, the
+ * account that was there is captured into a login of Tortie's own, and that
+ * login needs the one thing every login has, being a name, because the name is
+ * the reserved manifest key a session's row carries. There is no rename in
+ * this phase or the two before it, so the name is chosen once and never
+ * changes even when the address it came from moves.
+ *
+ * THE ADDRESS ITSELF CANNOT BE THE NAME. {@link sanitizeLoginName} has no at
+ * sign in its alphabet, deliberately, so a name can never read as an address
+ * on a surface that is really drawing a label. So the name is composed from
+ * the parts of the address that are already in that alphabet, being the local
+ * part and the first label of the domain, joined by a dot.
+ *
+ * `taken` are the names already in use for this provider, compared the way a
+ * person reads them. A collision gets a number, and a name that cannot be made
+ * at all answers null so the caller can fall back to a plain one.
+ */
+export function loginNameFromEmail(
+  email: unknown,
+  taken: readonly string[] = []
+): string | null {
+  if (typeof email !== 'string') return null;
+  const at = email.indexOf('@');
+  if (at <= 0) return null;
+  const clean = (part: string): string =>
+    part.replace(/[^A-Za-z0-9._-]/g, '').replace(/^[._-]+/, '');
+  const local = clean(email.slice(0, at));
+  const domain = clean(email.slice(at + 1).split('.')[0] ?? '');
+  if (local === '') return null;
+  const stem = domain === '' ? local : `${local}.${domain}`;
+  for (let n = 1; n <= 99; n++) {
+    const suffix = n === 1 ? '' : ` ${String(n)}`;
+    const name = sanitizeLoginName(
+      `${stem.slice(0, LOGIN_NAME_MAX - suffix.length)}${suffix}`
+    );
+    if (name === null) return null;
+    if (!taken.some((t) => sameLoginName(t, name))) return name;
+  }
+  return null;
+}
+
+/**
+ * The plain name for a kept account whose address makes no name (Phase 204).
+ *
+ * It is the fallback and nothing else: an address that is all punctuation, or
+ * a store that named no address at all, still gets a login rather than being
+ * dropped, because dropping it is exactly the account loss this phase exists
+ * to stop.
+ */
+export function nextKeptLoginName(taken: readonly string[] = []): string | null {
+  for (let n = 1; n <= 99; n++) {
+    const name = sanitizeLoginName(`Kept ${String(n)}`);
+    if (name === null) return null;
+    if (!taken.some((t) => sameLoginName(t, name))) return name;
+  }
+  return null;
+}
+
+/**
  * One login as every surface sees it.
  *
  * THERE IS NO PATH ON THIS SHAPE, deliberately. A renderer never needs to
@@ -165,6 +226,32 @@ export interface LoginRow {
    * rather than a path for the same reason nothing else here is a path.
    */
   email: string | null;
+  /**
+   * TRUE when Tortie holds this account's own credential in its own store
+   * (Phase 204).
+   *
+   * IT IS NOT `present`, AND THE DIFFERENCE IS THE WHOLE FEATURE. `present`
+   * says the vendor's store for this login has a credential in it right now.
+   * `kept` says Tortie has a copy of the account, so choosing this login can
+   * put it back. A login promoted from an account somebody signed out of has
+   * `present` false and `kept` true, and it must never read as never signed
+   * in, which is the Phase 203 defect in a new shape.
+   *
+   * IT IS A BOOLEAN AND IT WILL NEVER BE ANYTHING ELSE. No credential, no
+   * digest and no length reaches a renderer.
+   */
+  kept: boolean;
+  /**
+   * TRUE when choosing this login will put its kept account back into the
+   * store it runs under (Phase 204).
+   *
+   * It is what the one short line on the card and the menu is composed from,
+   * so a person reads what a switch will do BEFORE it happens rather than
+   * after. False for the login already chosen, for the person's own default
+   * location, which Tortie never writes, and for a login whose store already
+   * holds its account.
+   */
+  restores: boolean;
 }
 
 /** Every login Tortie knows, in the order the surfaces draw them. */
@@ -203,7 +290,14 @@ export function defaultLoginRow(
     isDefault: true,
     chosen,
     present,
-    email
+    email,
+    // THE PERSON'S OWN LOCATION IS NEVER A WRITE TARGET, so choosing it puts
+    // nothing back and its row says nothing about a switch. Tortie does keep a
+    // rolling copy of what it holds, which is what lets an account he leaves
+    // be offered back, but that copy belongs to the login promoted from it and
+    // never to this row.
+    kept: false,
+    restores: false
   };
 }
 

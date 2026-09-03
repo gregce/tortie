@@ -37,8 +37,14 @@ function asking(
 ): {
   ask: (
     provider: LoginProviderId,
-    dir: string | null
-  ) => Promise<{ present: boolean; email: string | null }>;
+    dir: string | null,
+    id: string | null
+  ) => Promise<{
+    present: boolean;
+    email: string | null;
+    kept: boolean;
+    restores: boolean;
+  }>;
   asked: [string, string | null][];
 } {
   const asked: [string, string | null][] = [];
@@ -46,7 +52,13 @@ function asking(
     asked,
     ask: async (provider, dir) => {
       asked.push([provider, dir]);
-      return table[`${provider} ${dir ?? ''}`] ?? { present: false, email: null };
+      const row = table[`${provider} ${dir ?? ''}`] ?? {
+        present: false,
+        email: null
+      };
+      // Phase 204 added two booleans to the answer. Neither is what these
+      // tests are about, so the helper answers the honest empty value.
+      return { ...row, kept: false, restores: false };
     }
   };
 }
@@ -112,7 +124,12 @@ describe('listLoginsAsking', () => {
     addLogin(root, 'claude', 'Work');
     const snapshot = await listLoginsAsking(root, async (_provider, dir) => {
       if (dir !== null) throw new Error('the keychain is busy');
-      return { present: true, email: 'greg@example.com' };
+      return {
+        present: true,
+        email: 'greg@example.com',
+        kept: false,
+        restores: false
+      };
     });
     expect(snapshot.logins.map((l) => l.name)).toEqual([
       DEFAULT_LOGIN_NAME,

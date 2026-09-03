@@ -290,7 +290,11 @@ export function listLogins(root: string): LoginsSnapshot {
         isDefault: false,
         chosen: sameLoginName(chosen, row.name),
         present: credentialFilePresent(root, provider, dir),
-        email: null
+        email: null,
+        // THE CHEAP LIST OPENS NOTHING, so it cannot answer either of these.
+        // No surface draws this list; ./ipc.ts answers with the whole one.
+        kept: false,
+        restores: false
       });
     }
   }
@@ -308,8 +312,21 @@ export function listLogins(root: string): LoginsSnapshot {
  */
 export type LoginFactsAsk = (
   provider: LoginProviderId,
-  dir: string | null
-) => Promise<{ present: boolean; email: string | null }>;
+  dir: string | null,
+  /**
+   * The login's own id, or null for the person's own default location
+   * (Phase 204). The caller needs it to name the entry in the store Tortie
+   * owns, and this module still composes no path to a credential of any kind.
+   */
+  id: string | null
+) => Promise<{
+  present: boolean;
+  email: string | null;
+  /** Tortie holds this account's credential in its own store (Phase 204). */
+  kept: boolean;
+  /** Choosing this login would put that credential back (Phase 204). */
+  restores: boolean;
+}>;
 
 /**
  * The same list, with the WHOLE question asked (Phase 203).
@@ -336,33 +353,43 @@ export async function listLoginsAsking(
   const { file, problems } = readLoginsFile(root);
   const asked = async (
     provider: LoginProviderId,
-    dir: string | null
-  ): Promise<{ present: boolean; email: string | null }> => {
+    dir: string | null,
+    id: string | null
+  ): Promise<{
+    present: boolean;
+    email: string | null;
+    kept: boolean;
+    restores: boolean;
+  }> => {
     try {
-      return await ask(provider, dir);
+      return await ask(provider, dir, id);
     } catch {
-      return { present: false, email: null };
+      return { present: false, email: null, kept: false, restores: false };
     }
   };
   const logins: LoginRow[] = [];
   for (const provider of LOGIN_PROVIDERS) {
     const chosen = file.chosen[provider] ?? null;
-    const own = await asked(provider, null);
+    const own = await asked(provider, null, null);
     logins.push(defaultLoginRow(provider, chosen === null, own.present, own.email));
     for (const row of file.logins) {
       if (row.provider !== provider) continue;
       const dir = loginDirIn(root, provider, row.id);
       const facts =
         loginDirOnDisk(root, provider, dir) === 'ok'
-          ? await asked(provider, dir)
-          : { present: false, email: null };
+          ? await asked(provider, dir, row.id)
+          : { present: false, email: null, kept: false, restores: false };
       logins.push({
         provider,
         name: row.name,
         isDefault: false,
         chosen: sameLoginName(chosen, row.name),
         present: facts.present,
-        email: facts.email
+        email: facts.email,
+        kept: facts.kept,
+        // A LOGIN ALREADY CHOSEN PUTS NOTHING BACK, because the store it runs
+        // under is the store it is already running under.
+        restores: facts.restores && !sameLoginName(chosen, row.name)
       });
     }
   }

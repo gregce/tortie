@@ -42,6 +42,10 @@
 
 import { app } from 'electron';
 import { readFileSync } from 'node:fs';
+import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileVault, setKeepDeps } from '../credentials';
+import { loginsRoot } from '../logins';
 import { setUsageHarnessOverride } from '../usage/ipc';
 import {
   defaultLoginAccountDeps,
@@ -102,6 +106,53 @@ export function installUsageFixture(): void {
   // other seam stays the shipped one, so what the list reads is real files
   // through the real reader.
   setLoginAccountDeps({ ...defaultLoginAccountDeps(), keychainHas: async () => false });
+  // PHASE 204. THE PROBE'S APP OWNS NO KEYCHAIN ENTRY OF HIS EITHER. The store
+  // Tortie keeps accounts in becomes a FILE under the probe's own profile, and
+  // the vendor stores become files in the directories the probe made, because
+  // `keychainForClaude` is false here. So a run that captures, promotes and
+  // puts an account back exercises every line of the shipping domain while
+  // opening no keychain at all, and the `security` seam below refuses every
+  // call so a line that tried would answer nothing rather than reach his items.
+  const root = loginsRoot();
+  setKeepDeps({
+    root,
+    vault: fileVault(join(root, 'kept')),
+    stores: {
+      runner: {
+        run: async () => ({ code: 1, stdout: '' })
+      },
+      readText: async (path) => {
+        try {
+          return await readFile(path, 'utf8');
+        } catch {
+          return null;
+        }
+      },
+      writeText: async (path, text) => {
+        await writeFile(path, text, { encoding: 'utf8', mode: 0o600 });
+      },
+      renamePath: async (from, to) => {
+        await rename(from, to);
+      },
+      removePath: async (path) => {
+        try {
+          await rm(path, { force: true });
+        } catch {
+          // A staged copy that will not go changes nothing about the store.
+        }
+      },
+      env: process.env,
+      home: app.getPath('home'),
+      keychainForClaude: false,
+      userName: 'harness',
+      wait: (ms) => new Promise<void>((r) => setTimeout(r, Math.min(ms, 30)))
+    },
+    // NO SESSION IS EVER RUNNING in a probe that creates none, and a probe that
+    // does create one gets the honest empty answer rather than a refusal it
+    // cannot explain.
+    liveSessions: async () => [],
+    now: () => Date.now()
+  });
   setUsageHarnessOverride({
     // NO KEYCHAIN, EVER, under this knob. A miss is what the reader is
     // designed for: it falls through to the credentials file, which is the

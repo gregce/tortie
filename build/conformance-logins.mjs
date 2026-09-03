@@ -712,9 +712,9 @@ const ABLATIONS = [
         from:
           '      const facts =\n' +
           "        loginDirOnDisk(root, provider, dir) === 'ok'\n" +
-          '          ? await asked(provider, dir)\n' +
-          '          : { present: false, email: null };',
-        to: '      const facts = await asked(provider, dir);'
+          '          ? await asked(provider, dir, row.id)\n' +
+          '          : { present: false, email: null, kept: false, restores: false };',
+        to: '      const facts = await asked(provider, dir, row.id);'
       }
     ]
   },

@@ -39,6 +39,28 @@
  * on a keystroke, and the answer is held for five seconds so a pointer moving
  * over the meter asks once rather than once a frame. The identity half spawns
  * nothing at all: it is two file reads.
+ *
+ * PHASE 204. THE LIST ALSO OBSERVES, AND THE CHOICE ALSO WRITES. This is the
+ * phase that lifted Phase 202's rule that Tortie never writes a credential
+ * byte, and these two channels are where the lift is wired:
+ *
+ *  - `list` runs one OBSERVE per provider first. An observe reads every store,
+ *    keeps a copy of anything that changed in Tortie's OWN store, and when the
+ *    ACCOUNT in a store changed rather than just the token, gives the account
+ *    that was there a login of its own named from its address. That is the
+ *    whole of `/login` being remembered. An observe writes NOTHING a vendor
+ *    owns, so it cannot affect a session that is running, and it is held for
+ *    five seconds so a pointer over the meter observes once rather than once a
+ *    frame. There is no timer anywhere in this path.
+ *  - `choose` runs an observe and then an ACTIVATION, which is the only write
+ *    into a vendor's store in the whole product. It is refused while a session
+ *    is running under that login, it can never name the person's own default
+ *    location, and it is preceded by the capture above, so a switch is
+ *    reversible in both directions.
+ *
+ * NO CREDENTIAL EVER CROSSES THIS BOUNDARY. The snapshot carries a name, an
+ * address, and four booleans. There is no channel that answers a payload, and
+ * none of these handlers can compose one.
  */
 
 import type { IpcMain } from 'electron';
@@ -48,11 +70,20 @@ import type { LoginActionResult } from '@shared/ipc';
 import { handle } from '../typed-ipc';
 import { getLog } from '../log';
 import { forgetLoginAccounts, loginFacts } from '../usage/login-accounts';
+import {
+  activateLogin,
+  forgetLogin,
+  keepDeps,
+  observeProvider,
+  NO_KEPT_FACTS,
+  type KeptFacts
+} from '../credentials';
 import { loginsRoot } from './paths';
 import {
   addLogin,
   chooseLogin,
   listLoginsAsking,
+  readLoginsFile,
   removeLogin,
   type LoginChange
 } from './store';
@@ -79,14 +110,72 @@ function providerOf(raw: unknown): LoginProviderId | null {
  * only half. That half still exists in `./store.ts` for the paths that must
  * start no process, and nothing on a face reads it.
  */
+/**
+ * How long one observe stands before the stores are read again.
+ *
+ * The same five seconds `loginFacts` holds its answer for, and for the same
+ * reason: a pointer moving over the meter must not read every store on every
+ * frame. It is far shorter than any sign in flow, so a finished sign in is
+ * never hidden behind it, and every change a person makes drops it.
+ */
+const OBSERVE_TTL_MS = 5_000;
+
+let observedAt = 0;
+let observedFacts = new Map<string, KeptFacts>();
+
+/** Drop the held observation. Called after any change a person made. */
+function forgetObservation(): void {
+  observedAt = 0;
+  observedFacts = new Map();
+}
+
+/**
+ * One observe per provider, held for five seconds.
+ *
+ * A THROW HERE IS NOT A FAILED LIST. Keeping a copy of an account is worth
+ * nothing if it can stop a person seeing which logins they have, so a refusal
+ * anywhere below leaves the last facts in place and the list is composed
+ * exactly as Phase 203 composed it.
+ */
+async function observeAll(): Promise<Map<string, KeptFacts>> {
+  const now = Date.now();
+  if (now - observedAt < OBSERVE_TTL_MS) return observedFacts;
+  const facts = new Map<string, KeptFacts>();
+  for (const provider of LOGIN_PROVIDERS) {
+    try {
+      const seen = await observeProvider(keepDeps(), provider);
+      for (const [id, row] of seen.facts) facts.set(`${provider} ${id}`, row);
+      for (const event of seen.events) {
+        log.info('logins.observe', { provider, kind: event.kind });
+      }
+    } catch {
+      // Nothing a person can do, and the list is still worth drawing.
+    }
+  }
+  observedAt = now;
+  observedFacts = facts;
+  return facts;
+}
+
 function wholeList(): Promise<LoginsSnapshot> {
-  return listLoginsAsking(loginsRoot(), async (provider, dir) => {
-    const facts = await loginFacts(provider, dir);
-    return {
-      present: facts.present,
-      email: facts.account.kind === 'known' ? facts.account.email : null
-    };
-  });
+  const root = loginsRoot();
+  return observeAll().then((keptFacts) =>
+    listLoginsAsking(root, async (provider, dir, id) => {
+      const facts = await loginFacts(provider, dir);
+      const kept = keptFacts.get(`${provider} ${id ?? ''}`) ?? NO_KEPT_FACTS;
+      return {
+        present: facts.present,
+        // THE VENDOR'S OWN ANSWER LEADS, and Tortie's record is the fallback.
+        // A login whose account Tortie put back has no `.claude.json` of its
+        // own until the account takes a turn there, and drawing nothing for it
+        // would be the Phase 203 defect in a new shape.
+        email:
+          facts.account.kind === 'known' ? facts.account.email : kept.email,
+        kept: kept.kept,
+        restores: kept.restores
+      };
+    })
+  );
 }
 
 async function answer(change: LoginChange): Promise<LoginActionResult> {
@@ -94,6 +183,7 @@ async function answer(change: LoginChange): Promise<LoginActionResult> {
   // is the one moment the answers can all move at once, and a held reading
   // outliving a change is how a removed login goes on saying it is signed in.
   forgetLoginAccounts();
+  forgetObservation();
   const snapshot = await wholeList();
   return change.ok
     ? { ok: true, snapshot }
@@ -118,9 +208,31 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     if (id === null) {
       return { ok: false, reason: 'Unknown provider.', snapshot: await wholeList() };
     }
+    // PHASE 204. THE ACCOUNT GOES BACK FIRST, then the name is recorded.
+    // The order is what makes a refused write leave the choice alone: a login
+    // whose account could not be put back would launch every new session
+    // signed out, so nothing is chosen at all and the person reads why.
+    let activation: string | null = null;
+    try {
+      const put = await activateLogin(keepDeps(), id, name ?? '');
+      if (!put.ok) {
+        forgetObservation();
+        log.info('logins.activate', { provider: id, ok: false });
+        return { ok: false, reason: put.reason, snapshot: await wholeList() };
+      }
+      activation = put.wrote ? put.says : null;
+      log.info('logins.activate', { provider: id, ok: true, wrote: put.wrote });
+    } catch {
+      // A store Tortie could not reach leaves the choice to the person: the
+      // name is still recorded and the login runs on whatever is in it.
+      log.info('logins.activate', { provider: id, ok: false });
+    }
     const change = chooseLogin(loginsRoot(), id, name);
     log.info('logins.choose', { provider: id, ok: change.ok });
-    return answer(change);
+    const result = await answer(change);
+    return activation === null || !result.ok
+      ? result
+      : { ...result, reason: activation };
   });
 
   handle(ipc, 'logins:remove', async (_e, provider, name): Promise<LoginActionResult> => {
@@ -128,7 +240,20 @@ export function registerLoginsIpc(ipc: IpcMain): void {
     if (id === null) {
       return { ok: false, reason: 'Unknown provider.', snapshot: await wholeList() };
     }
+    // PHASE 204. THE KEPT COPY GOES WITH THE LOGIN. The id is read before the
+    // remove, because the remove is what forgets the row it lives on.
+    const row = readLoginsFile(loginsRoot()).file.logins.find(
+      (l) => l.provider === id && l.name.toLowerCase() === String(name).toLowerCase()
+    );
     const change = removeLogin(loginsRoot(), id, name);
+    if (change.ok && row !== undefined) {
+      try {
+        await forgetLogin(keepDeps(), id, row.id);
+      } catch {
+        // A copy that will not go leaves a credential in Tortie's own store
+        // and nothing else, which is not worth failing a remove for.
+      }
+    }
     log.info('logins.remove', { provider: id, ok: change.ok });
     return answer(change);
   });

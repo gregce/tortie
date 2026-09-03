@@ -35,7 +35,9 @@ import { disposeOverviewIpc, registerOverviewIpc } from './overview/ipc';
 // snapshot they answer from, dropped in the ordered disposer below.
 import { disposeUsageService, registerUsageIpc } from './usage/ipc';
 import { registerLoginsIpc } from './logins/ipc';
+import { setLiveSessionsProbe, type LiveSession } from './credentials';
 import { stopLiveSampling } from './diagnostics/live';
+import { loginProviderForAgent } from '@shared/logins';
 import { foldChosenNow, foldSuspension } from './sessions/fold-wiring';
 import { installLaunchContextResolver } from './context/launch-resolver';
 import { registerDropIpc, startDropStorePruning } from './drop';
@@ -107,6 +109,20 @@ import {
   drainWatcherCloses,
   pendingWatcherCloseCount
 } from './watcher/teardown';
+
+/**
+ * The statuses that mean a session is no longer holding its login (Phase 204).
+ *
+ * A session in any of these has stopped running the agent, so the store it
+ * launched under is free to be written. Everything else counts as live, which
+ * is the conservative half: a refusal a person can undo by closing a session is
+ * better than a write underneath a running agent.
+ */
+const FINISHED_SESSION_STATES: ReadonlySet<string> = new Set([
+  'exited',
+  'restorable',
+  'discarded'
+]);
 
 export interface MainCapabilityDeps {
   /** The IPC main the registrars bind their handlers to. */
@@ -220,6 +236,24 @@ export function installMainCapabilities(
   // one ordinary session the person starts through the create path every other
   // session uses.
   registerLoginsIpc(ipcMain);
+  // Phase 204: tell the credentials domain which logins have a session running
+  // under them. It is the ONE thing that domain cannot read for itself without
+  // importing the sessions domain, which already reaches it through the launch
+  // plan, and it is asked at exactly one moment: an activation refuses to write
+  // a store a session is using, because that is the one write that could sign a
+  // running agent out mid turn. Nothing here starts the core: the probe is a
+  // function, and it is called only when a person chooses a login.
+  setLiveSessionsProbe(async () => {
+    const core = await getGmuxCore();
+    const out: LiveSession[] = [];
+    for (const session of core.listSessions()) {
+      if (FINISHED_SESSION_STATES.has(session.status)) continue;
+      const provider = loginProviderForAgent(session.agent);
+      if (provider === null) continue;
+      out.push({ provider, login: session.login ?? null });
+    }
+    return out;
+  });
   // Phase 22: turn the launch snapshot on. Without this call every session gets
   // a NULL snapshot and the readout shows its unrecorded sentence, which is
   // correct behaviour and not a stub, so the feature simply does nothing. The
