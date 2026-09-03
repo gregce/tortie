@@ -10,7 +10,8 @@
  * No pane in gmux has ever had a working wheel; the shell only LOOKED better
  * because its cursor keys are harmless.
  *
- * The real scrollback is tmux's 50k-line server-side history, so this
+ * The real scrollback is tmux's server-side history, 25,000 lines by default
+ * and up to 100,000 by the Scrollback depth setting, so this
  * controller drives tmux copy-mode over IPC and reports the geometry the
  * scrollbar draws. Three wheel routes, decided from the state of the app
  * INSIDE the pane (never from the attach client's own alt-buffer flag, which

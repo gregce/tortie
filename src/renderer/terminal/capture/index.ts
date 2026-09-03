@@ -574,7 +574,9 @@ export async function captureHistory(
   // this — item 2's headline capability — permanently unreachable: the two
   // menu items were always disabled and this function always bailed with
   // "showing a full-screen app". The pane's own history lives in the tmux
-  // server either way (history-limit 50000); when there is genuinely nothing
+  // server either way, as deep as the Scrollback depth setting, 25,000 lines
+  // by default and up to 100,000 (Phase 209 corrected the 50,000 that stood
+  // here, which was one server's setting); when there is genuinely nothing
   // to show, `paneLines` comes back empty and says so below.
   const metrics = measureCells(term, screen);
 
