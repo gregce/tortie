@@ -491,6 +491,19 @@ export const CHECKS = [
   // build/probe-p206-nits.mjs --self-test` proves the graders on eight
   // fixtures and launches nothing.
   electron('probe:p206'),
+  // PHASE 208. One app run on a scratch profile over a SCRATCH KEYCHAIN the
+  // probe makes with `security create-keychain` under the harness directory,
+  // never adds to the search list and deletes in a finally. It plants a
+  // credential in the scratch default store, lets the boot observe run, and
+  // reads the planted bytes back out of the scoped slot in the scratch
+  // keychain under this profile's digest, while an unscoped item planted
+  // beside it is left untouched and the boot line says the migration was
+  // refused. It then drives the shipping migration over the real security on
+  // the same file, six arms, and inventories his own keychain by attributes
+  // before and after with NO -g and NO -w against it. `node
+  // build/probe-p208-vault.mjs --self-test` proves the graders on fifteen
+  // fixtures and launches nothing.
+  electron('probe:p208'),
   // PHASE 203. Two launches on ONE scratch profile over SIX fixture logins,
   // one per shape a login row can take, being the default and an added login
   // each signed in with an address, signed in without one, and not signed in
