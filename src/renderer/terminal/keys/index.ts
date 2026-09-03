@@ -39,7 +39,12 @@
  */
 
 import type { Terminal } from '@xterm/xterm';
-import { clearSession, copySelection, selectAll } from '../capture';
+import {
+  clearSession,
+  copySelection,
+  hasSelection,
+  selectAll
+} from '../capture';
 import type { ScrollSurface } from '../scroll/surface';
 
 /** ASCII end-of-text — what ⌃C sends, and what SIGINT is made of. */
@@ -115,7 +120,9 @@ export function terminalKeyHandler(
     switch (event.key) {
       case 'c':
         event.preventDefault();
-        if (term.hasSelection()) {
+        // A selection held in the history counts (Phase 209), even when the
+        // person has scrolled every row of it off the screen.
+        if (hasSelection(sessionId)) {
           void copySelection(sessionId);
         } else {
           // No selection → this is an interrupt, not a copy.

@@ -35,6 +35,12 @@ import {
   faceCssFor,
   hasBoldRuns
 } from './capture-fonts';
+import { historyRangeToCopy, historySelection } from './history-selection';
+import type {
+  HistorySelection,
+  HistorySelectionRange
+} from './history-selection';
+import type { CellMetrics } from './metrics';
 import {
   measureCells,
   rowBandRect,
@@ -111,17 +117,43 @@ export function hasLiveTerminal(sessionId: string): boolean {
   return getTerminal(sessionId) !== null;
 }
 
-/** True when this session has text selected right now. */
+/**
+ * True when this session has text selected right now.
+ *
+ * A selection held in the history (Phase 209) counts even when none of it is
+ * on screen, because the person scrolled away from it rather than dropping
+ * it: command C then copies it, exactly as Apple's Terminal does, rather than
+ * sending an interrupt to the session.
+ */
 export function hasSelection(sessionId: string): boolean {
-  return getTerminal(sessionId)?.hasSelection() ?? false;
+  return (
+    (getTerminal(sessionId)?.hasSelection() ?? false) ||
+    historySelection(sessionId) !== null
+  );
 }
 
 /** What was selected at the instant the user right-clicked. */
 export interface TerminalSelectionSnapshot {
-  /** The selected text, exactly as Copy would write it. */
+  /**
+   * The selected text, exactly as Copy would write it. For a selection in
+   * the history it is the part on screen, and `history` is the answer.
+   */
   text: string;
-  /** The selected range, so a later serialize reads the same cells. */
-  position: IBufferRange;
+  /**
+   * The selected range on screen, so a later serialize reads the same cells.
+   * Absent only for a selection held in the history with no row on screen.
+   */
+  position?: IBufferRange;
+  /**
+   * The two history positions, Phase 209, when the selection reaches off the
+   * screen. Every verb takes this over `text` and `position` when present.
+   */
+  history?: HistorySelectionRange;
+}
+
+/** The session row, for the tmux name a history read needs. */
+function sessionRow(sessionId: string): Session | undefined {
+  return useApp.getState().sessions.find((s) => s.id === sessionId);
 }
 
 /**
@@ -137,7 +169,19 @@ export function snapshotSelection(
   sessionId: string
 ): TerminalSelectionSnapshot | null {
   const term = getTerminal(sessionId);
-  if (term === null || !term.hasSelection()) return null;
+  if (term === null) return null;
+  // A selection that reaches off the screen is its history positions, which
+  // do not move, so the snapshot is exact whatever the screen does later.
+  const history = historyRangeToCopy(sessionId);
+  if (history !== null) {
+    const position = term.getSelectionPosition();
+    return {
+      text: term.getSelection(),
+      ...(position !== undefined ? { position } : {}),
+      history
+    };
+  }
+  if (!term.hasSelection()) return null;
   const position = term.getSelectionPosition();
   if (position === undefined) return null;
   const text = term.getSelection();
@@ -145,6 +189,46 @@ export function snapshotSelection(
   // snapshot of one would enable a menu item that then did nothing.
   if (text.length === 0) return null;
   return { text, position };
+}
+
+/**
+ * The history range a verb should compose from: the snapshot's when one was
+ * taken, the live one otherwise, and null for a selection the screen holds
+ * whole, which stays on xterm's own path byte for byte.
+ */
+function historyToCopy(
+  sessionId: string,
+  snapshot: TerminalSelectionSnapshot | null | undefined
+): HistorySelectionRange | null {
+  if (snapshot === undefined) return historyRangeToCopy(sessionId);
+  return snapshot?.history ?? null;
+}
+
+/**
+ * Text and clipboard HTML for a selection in the history, composed from the
+ * pane's own server (./history-copy.ts, behind a lazy door).
+ */
+async function composeFromHistory(
+  sessionId: string,
+  bridge: CaptureBridge,
+  history: HistorySelectionRange,
+  withHtml: boolean
+): Promise<{ text: string; html: string } | null> {
+  const session = sessionRow(sessionId);
+  if (session === undefined) return null;
+  const { composeHistorySelection } = await import('./history-copy');
+  return composeHistorySelection(
+    bridge,
+    session.tmuxName,
+    history,
+    withHtml
+      ? {
+          theme: resolveTerminalTheme(),
+          fontFamily: resolveTerminalFontFamily(),
+          fontSizePx: TERMINAL_FONT_SIZE
+        }
+      : null
+  );
 }
 
 /**
@@ -160,6 +244,18 @@ export async function copySelection(
 ): Promise<boolean> {
   const bridge = captureBridge();
   if (bridge === null) return false;
+  const history = historyToCopy(sessionId, snapshot);
+  if (history !== null) {
+    try {
+      const composed = await composeFromHistory(sessionId, bridge, history, false);
+      if (composed === null || composed.text.length === 0) return false;
+      await bridge.writeRich({ text: composed.text, html: '' });
+      return true;
+    } catch (err) {
+      failed(err);
+      return false;
+    }
+  }
   let text: string;
   if (snapshot != null) {
     text = snapshot.text;
@@ -188,6 +284,18 @@ export async function copySelectionAsHtml(
   const term = getTerminal(sessionId);
   const bridge = captureBridge();
   if (term === null || bridge === null) return;
+  const history = historyToCopy(sessionId, snapshot);
+  if (history !== null) {
+    try {
+      const composed = await composeFromHistory(sessionId, bridge, history, true);
+      if (composed === null || composed.text.length === 0) return;
+      await bridge.writeRich(composed);
+      toast('success', 'Copied with colors.');
+    } catch (err) {
+      failed(err);
+    }
+    return;
+  }
   if (snapshot == null && !term.hasSelection()) return;
   try {
     const body = serializeAsHtml(term, {
@@ -281,7 +389,8 @@ function nextFrames(count = 2): Promise<void> {
 async function withoutSelection<T>(
   term: TerminalLike,
   run: () => Promise<T>,
-  restore?: IBufferRange
+  restore?: IBufferRange,
+  held?: HistorySelection | null
 ): Promise<T> {
   const live = term.getSelectionPosition();
   // Nothing is highlighted, so there is nothing to wash out and nothing to
@@ -294,7 +403,12 @@ async function withoutSelection<T>(
   try {
     return await run();
   } finally {
-    if (selection.start.y === selection.end.y) {
+    // A selection held in the history is put back through its own entry,
+    // read before the clear dropped it, so a photograph does not shorten it
+    // to the screen (Phase 209).
+    if (held != null) {
+      held.redraw();
+    } else if (selection.start.y === selection.end.y) {
       term.select(
         selection.start.x,
         selection.start.y,
@@ -318,8 +432,11 @@ export async function captureVisible(session: Session): Promise<void> {
     return;
   }
   try {
-    await withoutSelection(term, () =>
-      bridge.viewport({ rect, suggestedName: suggestedName(session) })
+    await withoutSelection(
+      term,
+      () => bridge.viewport({ rect, suggestedName: suggestedName(session) }),
+      undefined,
+      historySelection(session.id)
     );
     captured('Captured this screen to the clipboard.');
   } catch (err) {
@@ -342,10 +459,18 @@ export async function captureSelection(
   const bridge = captureBridge();
   const screen = screenElement(session.id);
   if (term === null || bridge === null || screen === null) return;
+  const metrics = measureCells(term, screen);
+  // A selection that reaches off the screen follows Copy (Phase 209): its
+  // rows come from the pane's own server, as drawn rather than joined,
+  // because a picture keeps the screen's wrapping.
+  const history = historyToCopy(session.id, snapshot);
+  if (history !== null) {
+    await captureHistorySelection(session, bridge, metrics, history);
+    return;
+  }
   const selection = snapshot?.position ?? term.getSelectionPosition();
   if (selection === undefined) return;
 
-  const metrics = measureCells(term, screen);
   const band = selectionBand(
     selection,
     term.buffer.active.viewportY,
@@ -365,7 +490,8 @@ export async function captureSelection(
         await withoutSelection(
           term,
           () => bridge.viewport({ rect, suggestedName: suggestedName(session) }),
-          selection
+          selection,
+          historySelection(session.id)
         );
         captured('Captured your selection to the clipboard.');
         return;
@@ -451,10 +577,6 @@ export async function captureHistory(
   // server either way (history-limit 50000); when there is genuinely nothing
   // to show, `paneLines` comes back empty and says so below.
   const metrics = measureCells(term, screen);
-  const fontFamily = resolveTerminalFontFamily();
-  const theme = resolveTerminalTheme();
-  let offscreen: Terminal | null = null;
-  let host: HTMLDivElement | null = null;
 
   try {
     const { ansi } = await bridge.pane({
@@ -466,7 +588,69 @@ export async function captureHistory(
       toast('info', 'This session has no history yet.');
       return;
     }
+    await rasterizeRows(session, bridge, metrics, rows);
+    captured(`Captured the last ${rows.length} lines to the clipboard.`);
+  } catch (err) {
+    failed(err);
+  }
+}
 
+/**
+ * The selected rows when the selection reaches off the screen (Phase 209):
+ * `capture-pane` between its two lines, as drawn, through the same
+ * off-screen terminal the line count rows use. The cap is the same one the
+ * on-screen path applies when it renders from the buffer, and it says so.
+ */
+async function captureHistorySelection(
+  session: Session,
+  bridge: CaptureBridge,
+  metrics: CellMetrics,
+  history: HistorySelectionRange
+): Promise<void> {
+  try {
+    const { readHistoryRows } = await import('./history-copy');
+    const wanted = history.end.line - history.start.line + 1;
+    const start = Math.max(
+      history.start.line,
+      history.end.line - MAX_CAPTURE_ROWS + 1
+    );
+    const { rows } = await readHistoryRows(
+      bridge,
+      session.tmuxName,
+      start,
+      history.end.line,
+      false
+    );
+    if (rows.length === 0) {
+      toast('info', 'This session has no history yet.');
+      return;
+    }
+    if (rows.length < wanted) {
+      toast('info', `Capturing the last ${rows.length} of the selected lines.`);
+    }
+    await rasterizeRows(session, bridge, metrics, rows);
+    captured('Captured your selection to the clipboard.');
+  } catch (err) {
+    failed(err);
+  }
+}
+
+/**
+ * Rows of pane text with their SGR escapes, drawn by an off-screen terminal
+ * of the pane's width and rasterized to a PNG on the clipboard. Shared by
+ * the line count rows and by a selection in the history.
+ */
+async function rasterizeRows(
+  session: Session,
+  bridge: CaptureBridge,
+  metrics: CellMetrics,
+  rows: string[]
+): Promise<void> {
+  const fontFamily = resolveTerminalFontFamily();
+  const theme = resolveTerminalTheme();
+  let offscreen: Terminal | null = null;
+  let host: HTMLDivElement | null = null;
+  try {
     try {
       await document.fonts?.ready;
     } catch {
@@ -530,9 +714,6 @@ export async function captureHistory(
       })
     });
     await bridge.image({ png, suggestedName: suggestedName(session) });
-    captured(`Captured the last ${rows.length} lines to the clipboard.`);
-  } catch (err) {
-    failed(err);
   } finally {
     offscreen?.dispose();
     host?.remove();
