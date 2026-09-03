@@ -42,12 +42,14 @@ import {
 const BLUE_NORMAL: AppliedAppearance = {
   highlightScheme: 'blue',
   contrastLevel: 'normal',
+  chromeHue: 222,
   workAreaFont: 'system',
   workAreaFontCustom: ''
 };
 const TEAL_HIGH: AppliedAppearance = {
   highlightScheme: 'teal',
   contrastLevel: 'high',
+  chromeHue: 222,
   workAreaFont: 'system',
   workAreaFontCustom: ''
 };

@@ -19,6 +19,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { converter, parse, wcagContrast } from 'culori';
+import { rotateChromeNeutral } from '@shared/chrome-hue';
 import { deriveOverrides } from '../derive';
 import type { Appearance } from '../derive';
 import {
@@ -28,8 +29,10 @@ import {
   CONTRAST_BORDER,
   CONTRAST_CHROMA,
   CONTRAST_TEXT,
+  HUE_TOKENS,
   SCHEME_PRESETS,
-  SCHEME_TOKENS
+  SCHEME_TOKENS,
+  TEXT_PINS
 } from '../presets';
 import type { ContrastLevel, HighlightScheme } from '@shared/settings';
 
@@ -101,7 +104,7 @@ const NON_DEFAULT: Appearance[] = [];
 for (const highlightScheme of ALL_SCHEMES) {
   for (const contrastLevel of ALL_LEVELS) {
     if (highlightScheme === 'blue' && contrastLevel === 'normal') continue;
-    NON_DEFAULT.push({ highlightScheme, contrastLevel });
+    NON_DEFAULT.push({ highlightScheme, contrastLevel, chromeHue: 222 });
   }
 }
 
@@ -155,10 +158,122 @@ describe('drift against tokens.css', () => {
 });
 
 describe('the zero-override guarantee', () => {
-  it('blue plus normal returns an empty object', () => {
+  it('blue plus normal plus hue 222 returns an empty object', () => {
     expect(
-      deriveOverrides({ highlightScheme: 'blue', contrastLevel: 'normal' }, base)
+      deriveOverrides({ highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222 }, base)
     ).toEqual({});
+  });
+
+  it('a hue that sanitizes to 222 is the default too', () => {
+    for (const chromeHue of [222.4, 582, -138, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(
+        deriveOverrides({ highlightScheme: 'blue', contrastLevel: 'normal', chromeHue }, base)
+      ).toEqual({});
+    }
+  });
+});
+
+describe('the frame hue (Phase 207)', () => {
+  const at = (chromeHue: number, contrastLevel: ContrastLevel = 'normal'): Record<string, string> =>
+    deriveOverrides({ highlightScheme: 'blue', contrastLevel, chromeHue }, base);
+
+  it('writes exactly the eight neutrals, the canvas among them, and no text', () => {
+    const overrides = at(0);
+    expect(new Set(Object.keys(overrides))).toEqual(new Set(HUE_TOKENS));
+    expect(overrides[CANVAS_TOKEN]).toBeDefined();
+    for (const pin of TEXT_PINS) expect(overrides[pin.token]).toBeUndefined();
+  });
+
+  it('turns every neutral through the shared rotation, lightness held', () => {
+    for (const chromeHue of [0, 90, 180, 300]) {
+      const overrides = at(chromeHue);
+      for (const token of HUE_TOKENS) {
+        // The derivation IS the shared rotation, byte for byte. The offset
+        // property itself is pinned in hue.test.ts on a colour with enough
+        // chroma for a hue to be read back; at 0.006 eight bit rounding
+        // moves a read hue by up to fifteen degrees.
+        expect(overrides[token], `${token} at ${String(chromeHue)}`).toBe(
+          rotateChromeNeutral(must(base[token], token), chromeHue)
+        );
+        const shipped = toOklch(parse(must(base[token], token)));
+        const turned = toOklch(parse(must(overrides[token], token)));
+        if (shipped === undefined || turned === undefined) throw new Error(token);
+        expect(Math.abs(turned.l - shipped.l), `${token} lightness`).toBeLessThan(0.005);
+      }
+    }
+  });
+
+  it('360 is 0 and a fractional hue is its nearest degree', () => {
+    expect(at(360)).toEqual(at(0));
+    expect(at(0.4)).toEqual(at(0));
+    expect(at(-1)).toEqual(at(359));
+  });
+
+  it('composes with the contrast lift in one order whatever the input order', () => {
+    const overrides = at(40, 'high');
+    // The spread anchors on the TURNED canvas, so the canvas written is the
+    // rotation alone and every spread token is lighter than it.
+    expect(overrides[CANVAS_TOKEN]).toBe(at(40)[CANVAS_TOKEN]);
+    const canvas = toOklch(parse(must(overrides[CANVAS_TOKEN], 'canvas')));
+    for (const token of [...CONTRAST_BG, ...CONTRAST_BORDER]) {
+      if (token === '--bg-sidebar') continue;
+      const value = toOklch(parse(must(overrides[token], token)));
+      expect((value?.l ?? 0) > (canvas?.l ?? 1), token).toBe(true);
+    }
+    // And the text lift is still the Phase 62 one: the three lifted tokens
+    // are written and the disabled one is not.
+    for (const token of CONTRAST_TEXT) expect(overrides[token]).toBeDefined();
+    expect(overrides['--text-disabled']).toBeUndefined();
+  });
+
+  it('keeps every text token at its floor on every ground at every hue', () => {
+    for (let chromeHue = 0; chromeHue < 360; chromeHue += 1) {
+      const overrides = at(chromeHue);
+      const value = (token: string): string => must(overrides[token] ?? base[token], token);
+      for (const pin of TEXT_PINS) {
+        if (pin.floor === null) continue;
+        const ratio = wcagContrast(value(pin.token), value(pin.ground));
+        expect(ratio, `${pin.token} on ${pin.ground} at ${String(chromeHue)}`).toBeGreaterThanOrEqual(pin.floor);
+      }
+    }
+  });
+
+  it('flips the text dark on a light canvas, keeping the shipped ratios', () => {
+    // The synthetic ground: the whole ramp lifted 0.6 in OKLCH lightness,
+    // which puts the canvas near Y 0.5. No setting reaches this parameter.
+    const overrides = deriveOverrides(
+      { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222 },
+      base,
+      0.6
+    );
+    for (const token of HUE_TOKENS) expect(overrides[token]).toBeDefined();
+    for (const pin of TEXT_PINS) {
+      const value = must(overrides[pin.token], pin.token);
+      const ground = must(overrides[pin.ground], pin.ground);
+      const shippedRatio = wcagContrast(must(base[pin.token], pin.token), must(base[pin.ground], pin.ground));
+      const got = wcagContrast(value, ground);
+      const text = toOklch(parse(value));
+      const groundL = toOklch(parse(ground))?.l ?? 0;
+      expect((text?.l ?? 1) < groundL, `${pin.token} is darker than its ground`).toBe(true);
+      // The ratio it ships with, or black when that is out of reach.
+      expect(Math.abs(got - shippedRatio) < 0.15 || value === '#000000', `${pin.token} ${String(got)} vs ${String(shippedRatio)}`).toBe(true);
+    }
+  });
+
+  it('lifts a text token toward white before the flip when its floor gives', () => {
+    // A quarter of the way up the flip has not happened, and text-muted has
+    // fallen under 4.5:1 on its surface, so it alone moves, toward white.
+    const overrides = deriveOverrides(
+      { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222 },
+      base,
+      0.2
+    );
+    const muted = must(overrides['--text-muted'], 'muted');
+    const surface = must(overrides['--bg-surface'], 'surface');
+    expect(wcagContrast(muted, surface)).toBeGreaterThanOrEqual(4.5);
+    expect(toOklch(parse(muted))?.l ?? 0).toBeGreaterThan(toOklch(parse(must(base['--text-muted'], 'm')))?.l ?? 1);
+    expect(overrides['--text-primary']).toBeUndefined();
+    expect(overrides['--text-disabled']).toBeUndefined();
   });
 });
 
@@ -190,7 +305,7 @@ describe('key containment', () => {
 describe('the scheme transform', () => {
   it('teal rotates the accent to hue 185 keeping lightness', () => {
     const overrides = deriveOverrides(
-      { highlightScheme: 'teal', contrastLevel: 'normal' },
+      { highlightScheme: 'teal', contrastLevel: 'normal', chromeHue: 222 },
       base
     );
     const derived = toOklch(parse(must(overrides['--accent'], 'teal accent')));
@@ -203,7 +318,7 @@ describe('the scheme transform', () => {
 
   it('purple rotates the accent to hue 300', () => {
     const overrides = deriveOverrides(
-      { highlightScheme: 'purple', contrastLevel: 'normal' },
+      { highlightScheme: 'purple', contrastLevel: 'normal', chromeHue: 222 },
       base
     );
     const derived = toOklch(parse(must(overrides['--accent'], 'purple accent')));
@@ -212,7 +327,7 @@ describe('the scheme transform', () => {
 
   it('slate scales chroma to 0.30 of shipped, hue unchanged', () => {
     const overrides = deriveOverrides(
-      { highlightScheme: 'slate', contrastLevel: 'normal' },
+      { highlightScheme: 'slate', contrastLevel: 'normal', chromeHue: 222 },
       base
     );
     const derived = toOklch(parse(must(overrides['--accent'], 'slate accent')));
@@ -234,7 +349,7 @@ describe('the lift direction, measured', () => {
     fg: string,
     bg: string
   ): number {
-    const o = deriveOverrides({ highlightScheme: 'blue', contrastLevel }, base);
+    const o = deriveOverrides({ highlightScheme: 'blue', contrastLevel, chromeHue: 222 }, base);
     return wcagContrast(value(fg, o), value(bg, o));
   }
 
@@ -278,7 +393,7 @@ describe('gamut and alpha', () => {
     for (const highlightScheme of ALL_SCHEMES) {
       if (highlightScheme === 'blue') continue;
       for (const contrastLevel of ALL_LEVELS) {
-        const overrides = deriveOverrides({ highlightScheme, contrastLevel }, base);
+        const overrides = deriveOverrides({ highlightScheme, contrastLevel, chromeHue: 222 }, base);
         expect(
           alphaOf(overrides['--accent-wash'], 'accent-wash'),
           `${highlightScheme} + ${contrastLevel}`
@@ -298,7 +413,7 @@ describe('gamut and alpha', () => {
 
   it('scheme rotation preserves the wash alphas of drop-wash and accent-soft', () => {
     const overrides = deriveOverrides(
-      { highlightScheme: 'teal', contrastLevel: 'normal' },
+      { highlightScheme: 'teal', contrastLevel: 'normal', chromeHue: 222 },
       base
     );
     expect(alphaOf(overrides['--drop-wash'], 'drop-wash')).toBeCloseTo(0.25, 5);

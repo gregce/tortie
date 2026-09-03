@@ -36,7 +36,11 @@
  * their behalf.
  */
 
-import { sanitizeWorkAreaFont, sanitizeWorkAreaFontCustom } from '@shared/settings';
+import {
+  sanitizeChromeHue,
+  sanitizeWorkAreaFont,
+  sanitizeWorkAreaFontCustom
+} from '@shared/settings';
 import type { GmuxSettings, WorkAreaFont } from '@shared/settings';
 import { forEachTerminal } from '../terminal/drop/registry';
 import { resolveTerminalTheme } from '../terminal/theme';
@@ -168,6 +172,7 @@ function toAppearance(settings: GmuxSettings): AppliedAppearance {
   return {
     highlightScheme: settings.highlightScheme,
     contrastLevel: settings.contrastLevel,
+    chromeHue: sanitizeChromeHue(settings.chromeHue),
     workAreaFontCustom: sanitizeWorkAreaFontCustom(settings.workAreaFontCustom),
     workAreaFont: sanitizeWorkAreaFont(settings.workAreaFont)
   };

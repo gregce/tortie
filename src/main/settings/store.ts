@@ -54,6 +54,7 @@ import {
   foldKey,
   noArchChosen,
   noFoldChosen,
+  sanitizeChromeHue,
   sanitizeContrastLevel,
   sanitizeHighlightScheme,
   sanitizeUsageSettings,
@@ -490,6 +491,9 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
   out.contrastLevel = sanitizeContrastLevel(obj['contrastLevel']);
   out.workAreaFont = sanitizeWorkAreaFont(obj['workAreaFont']);
   out.workAreaFontCustom = sanitizeWorkAreaFontCustom(obj['workAreaFontCustom']);
+  // The frame's hue (Phase 207). Same posture: a whole degree on the circle
+  // or the shipped 222, never sealed, and 222 derives zero overrides.
+  out.chromeHue = sanitizeChromeHue(obj['chromeHue']);
 
   // The fold choice (Phase 138). Membership FIRST, and the seal after, in
   // getSettings. This is the shape check and it cannot tell who wrote the

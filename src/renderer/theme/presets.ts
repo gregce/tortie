@@ -9,11 +9,16 @@
  * reason the schemes are defined this way.
  *
  * WHAT IS NEVER OVERRIDDEN, and why:
- * - `--bg-canvas`. Three things depend on its exact byte value. They are the
- *   WINDOW_BACKGROUND pre-paint mirror in src/shared/window-chrome.ts, the
- *   terminal background mirror in src/renderer/terminal/theme.ts, and the
- *   capture path. The contrast lift spreads every other background upward
- *   from this fixed anchor.
+ * - `--bg-canvas` BY THE SCHEME OR THE CONTRAST LIFT. The contrast lift
+ *   spreads every other background from this anchor and moves the anchor
+ *   itself never. Phase 207 made the hue the ONE thing that writes it, and
+ *   only at a hue other than the shipped 222, because the canvas is a rung of
+ *   the ramp the hue turns and a frame whose canvas stayed graphite would be
+ *   half rotated. The three mirrors that depend on its byte value follow: the
+ *   pre-paint fill in src/shared/window-chrome.ts is composed by main from the
+ *   same shared rotation (src/shared/chrome-hue.ts), the terminal reads the
+ *   token at every theme resolve (src/renderer/terminal/theme.ts), and the
+ *   capture path reads the resolved theme.
  * - `--bg-scrim`, the shadows, the washes outside the accent family, and the
  *   scroll thumb ramp. The thumb ramp's four steps carry measured ratios
  *   recorded in tokens.css.
@@ -109,6 +114,42 @@ export const CONTRAST_TEXT: readonly string[] = [
   '--text-muted'
 ];
 
+// ---------------------------------------------------------------------------
+// The frame's hue (Phase 207)
+// ---------------------------------------------------------------------------
+
+/**
+ * The ramp the hue turns: the canvas and every ground and hairline that
+ * spreads from it. Eight neutrals. Nothing chromatic is here, because the
+ * accent and the categorical hues are meaning and never follow the frame.
+ */
+export const HUE_TOKENS: readonly string[] = [
+  CANVAS_TOKEN,
+  ...CONTRAST_BG,
+  ...CONTRAST_BORDER
+];
+
+/**
+ * The text tokens and the ground each one is pinned against, which is where
+ * src/renderer/theme/hue.ts reads its ratio from. `--text-muted` is pinned on
+ * `--bg-surface` because DESIGN.md says it passes 4.5:1 only up to there.
+ * `--text-disabled` has no floor: it is exempt from contrast by design and
+ * only follows the family when the text flips dark, keeping the ratio it
+ * ships with so it stays de-emphasized.
+ */
+export interface TextPin {
+  token: string;
+  ground: string;
+  floor: number | null;
+}
+
+export const TEXT_PINS: readonly TextPin[] = [
+  { token: '--text-primary', ground: CANVAS_TOKEN, floor: 4.5 },
+  { token: '--text-secondary', ground: CANVAS_TOKEN, floor: 4.5 },
+  { token: '--text-muted', ground: '--bg-surface', floor: 4.5 },
+  { token: '--text-disabled', ground: CANVAS_TOKEN, floor: null }
+];
+
 /**
  * Chromatic tokens whose chroma lifts so muted hues separate on a dim
  * display. `--status-idle` and `--status-exited` are near-neutral grays and
@@ -141,8 +182,8 @@ export const CONTRAST_CHROMA: readonly string[] = [
 // ---------------------------------------------------------------------------
 
 /**
- * Every token deriveOverrides may read or write, plus the canvas anchor it
- * only ever reads. apply.ts captures the computed value of each of these
+ * Every token deriveOverrides may read or write, the canvas anchor included
+ * (read by the lift, written by the hue). apply.ts captures the computed value of each of these
  * ONCE, before any write, so later derivations always start from the shipped
  * values and can never compound.
  */
@@ -153,7 +194,9 @@ export const ALL_THEME_TOKENS: readonly string[] = [
     ...CONTRAST_BG,
     ...CONTRAST_BORDER,
     ...CONTRAST_TEXT,
-    ...CONTRAST_CHROMA
+    ...CONTRAST_CHROMA,
+    ...HUE_TOKENS,
+    ...TEXT_PINS.map((p) => p.token)
   ])
 ];
 

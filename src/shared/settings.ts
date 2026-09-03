@@ -100,6 +100,13 @@ export interface GmuxSettings {
    */
   workAreaFontCustom: string;
   /**
+   * The hue of the frame around the work (Phase 207), a whole degree on the
+   * circle. 222 is the shipped graphite and derives ZERO overrides. It has
+   * the same posture as the three above: a preference with no danger
+   * semantics, never sealed. A hand-edited file can at worst pick a hue.
+   */
+  chromeHue: number;
+  /**
    * Who writes the project line (Phase 138). Absent on every install that has
    * never opened Settings and picked one, which is what "None" is.
    *
@@ -356,6 +363,33 @@ export function sanitizeContrastLevel(value: unknown): ContrastLevel {
 }
 
 // ---------------------------------------------------------------------------
+// The frame's hue (Phase 207). One number on the circle.
+// ---------------------------------------------------------------------------
+
+/**
+ * The hue the shipped ramp is declared at (tokens.css section 1.1). The
+ * slider's default, and the position at which the rotation in
+ * src/shared/chrome-hue.ts is the identity.
+ */
+export const DEFAULT_CHROME_HUE = 222;
+
+/** The last whole degree a slider offers. 360 wraps to 0. */
+export const CHROME_HUE_MAX = 359;
+
+/**
+ * A persisted or typed hue, made into a whole degree on the circle. Anything
+ * that is not a finite number is the default. 360 is 0, 361 is 1, -1 is 359
+ * and 222.4 is 222, so a hand-edited file can at worst pick another hue.
+ */
+export function sanitizeChromeHue(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_CHROME_HUE;
+  }
+  const whole = Math.round(value);
+  return ((whole % 360) + 360) % 360;
+}
+
+// ---------------------------------------------------------------------------
 // The work area font (Phase 78). A family picker, and no size control.
 // ---------------------------------------------------------------------------
 
@@ -541,6 +575,7 @@ export function defaultGmuxSettings(): GmuxSettings {
     contrastLevel: DEFAULT_CONTRAST_LEVEL,
     workAreaFont: DEFAULT_WORK_AREA_FONT,
     workAreaFontCustom: DEFAULT_WORK_AREA_FONT_CUSTOM,
+    chromeHue: DEFAULT_CHROME_HUE,
     fold: noFoldChosen(),
     arch: noArchChosen(),
     usage: noUsageChosen()

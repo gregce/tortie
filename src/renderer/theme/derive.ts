@@ -3,13 +3,19 @@
  * choice into CSS custom property overrides for the document root.
  *
  * The contract, and the tests assert every line of it:
- * - The default appearance (blue scheme, normal contrast) returns an EMPTY
- *   object. Zero overrides is the byte-identity guarantee for an untouched
- *   install.
+ * - The default appearance (blue scheme, normal contrast, hue 222) returns
+ *   an EMPTY object over the shipped base. Zero overrides is the
+ *   byte-identity guarantee for an untouched install. It is a property of
+ *   the stages rather than an early return, so the text stage still answers
+ *   over a base whose ground is light.
  * - Every other combination returns only keys from the token lists declared
- *   in presets.ts. `--bg-canvas` is never a key.
- * - The scheme applies first and the contrast lift second, so the chroma
- *   lift acts on the scheme-rotated accent.
+ *   in presets.ts. `--bg-canvas` is a key only when the hue is not 222.
+ * - The stages run in one order whatever the settings were set in, so the
+ *   three settings compose the same way in any order: the hue turns the
+ *   ramp first, the contrast lift spreads the turned ramp about its canvas,
+ *   the text then follows the ground it lands on, and the scheme and the
+ *   chroma lift act last on the accent family. The chroma lift therefore
+ *   still acts on the scheme-rotated accent, as in Phase 62.
  * - Values that carry alpha keep their alpha exactly.
  * - Every derived value fits sRGB. An out-of-gamut result is clamped by
  *   reducing chroma while keeping lightness and hue (culori's clampChroma
@@ -43,7 +49,10 @@ import {
   useMode
 } from 'culori/fn';
 import type { Oklch } from 'culori/fn';
+import { rotateChromeNeutral } from '@shared/chrome-hue';
+import { DEFAULT_CHROME_HUE, sanitizeChromeHue } from '@shared/settings';
 import type { ContrastLevel, HighlightScheme } from '@shared/settings';
+import { followGround, solveForRatio, contrastOf, textIsDarkOn } from './hue';
 import {
   CANVAS_TOKEN,
   CONTRAST_BG,
@@ -51,8 +60,10 @@ import {
   CONTRAST_CHROMA,
   CONTRAST_FACTORS,
   CONTRAST_TEXT,
+  HUE_TOKENS,
   SCHEME_PRESETS,
   SCHEME_TOKENS,
+  TEXT_PINS,
   ALL_THEME_TOKENS
 } from './presets';
 import type { SchemeTransform } from './presets';
@@ -60,6 +71,8 @@ import type { SchemeTransform } from './presets';
 export interface Appearance {
   highlightScheme: HighlightScheme;
   contrastLevel: ContrastLevel;
+  /** The frame's hue, a whole degree (Phase 207). 222 is the shipped ramp. */
+  chromeHue: number;
 }
 
 // Registration order matters only in that a space must be registered before
@@ -86,6 +99,7 @@ const SPREAD_SET: ReadonlySet<string> = new Set([
   ...CONTRAST_BG,
   ...CONTRAST_BORDER
 ]);
+const HUE_SET: ReadonlySet<string> = new Set(HUE_TOKENS);
 const TEXT_SET: ReadonlySet<string> = new Set(CONTRAST_TEXT);
 const CHROMA_SET: ReadonlySet<string> = new Set(CONTRAST_CHROMA);
 
@@ -130,34 +144,125 @@ function applyScheme(color: Oklch, transform: SchemeTransform): Oklch {
  * `base`, or whose value does not parse as a color, is skipped rather than
  * guessed. `--focus-ring` is the one compound value and is reassembled
  * around its transformed color.
+ *
+ * `groundLift` is the SYNTHETIC GROUND (Phase 207): an OKLCH lightness added
+ * to every neutral of the ramp after the hue has turned it, canvas included.
+ * It is 0 in every real launch and no setting reaches it. It exists because
+ * the text rule below cannot be reached by any hue, and a rule nothing can
+ * reach is a rule nothing can prove: `npm run conformance:hue` walks it from
+ * the shipped ramp to white, and `npm run probe:p207` drives it in the app
+ * through a harness knob in apply.ts. The pinned ratios are read from `base`
+ * either way, which is what keeps them the shipped ones.
  */
 export function deriveOverrides(
   appearance: Appearance,
-  base: Readonly<Record<string, string>>
+  base: Readonly<Record<string, string>>,
+  groundLift = 0
 ): Record<string, string> {
   const { highlightScheme, contrastLevel } = appearance;
-  if (highlightScheme === 'blue' && contrastLevel === 'normal') return {};
+  const hue = sanitizeChromeHue(appearance.chromeHue);
+  const hueOn = hue !== DEFAULT_CHROME_HUE;
+  // There is no early return for the default appearance any more. Each stage
+  // below writes nothing at its own default, so the shipped base still
+  // derives an empty map (the zero-override test proves it), while a base
+  // whose canvas is light still flips its text at the default settings,
+  // which the probe drives through a synthetic ground.
 
   const preset = SCHEME_PRESETS.find((p) => p.id === highlightScheme);
   const schemeTransform = preset?.transform ?? null;
   const factors = CONTRAST_FACTORS[contrastLevel];
   const liftOn = contrastLevel !== 'normal';
 
-  // The anchor: the lightness of the shipped canvas. The canvas itself is
-  // never written. Without it no background or border can spread, so those
-  // tokens are skipped rather than moved about a guessed anchor.
-  const canvas = base[CANVAS_TOKEN] !== undefined ? parseOklch(base[CANVAS_TOKEN]) : null;
-
   const out: Record<string, string> = {};
+  /** The value in effect for a token: the override so far, else the base. */
+  const current = (token: string): string | undefined => out[token] ?? base[token];
 
+  // STAGE ONE, THE HUE. Every neutral in the ramp turns by the same offset
+  // from its own hue, the canvas included, in OKLCH (src/shared/chrome-hue.ts
+  // says why that space). Lightness and chroma stay. At 222 this stage
+  // writes nothing.
+  if (hueOn) {
+    for (const token of HUE_TOKENS) {
+      const raw = base[token];
+      if (raw === undefined || parseOklch(raw) === null) continue;
+      out[token] = rotateChromeNeutral(raw, hue);
+    }
+  }
+  if (groundLift !== 0) {
+    for (const token of HUE_TOKENS) {
+      const raw = current(token);
+      const color = raw === undefined ? null : parseOklch(raw);
+      if (color === null) continue;
+      out[token] = formatColor({ ...color, l: clamp01(color.l + groundLift) });
+    }
+  }
+
+  // STAGE TWO, THE SPREAD. The anchor is the lightness of the canvas in
+  // effect, turned or shipped. The canvas itself is never spread. Without an
+  // anchor no background or border can spread, so those tokens are skipped
+  // rather than moved about a guessed anchor.
+  const canvasCss = current(CANVAS_TOKEN);
+  const canvas = canvasCss !== undefined ? parseOklch(canvasCss) : null;
+  if (liftOn && canvas !== null) {
+    for (const token of ALL_THEME_TOKENS) {
+      if (!SPREAD_SET.has(token)) continue;
+      const raw = current(token);
+      if (raw === undefined) continue;
+      const color = parseOklch(raw);
+      if (color === null) continue;
+      out[token] = formatColor({
+        ...color,
+        l: clamp01(canvas.l + (color.l - canvas.l) * factors.k)
+      });
+    }
+  }
+
+  // STAGE THREE, THE TEXT FOLLOWS THE GROUND (Phase 207, ./hue.ts). One
+  // threshold on the canvas decides whether the family is light or dark. On
+  // the light side a token is left alone unless its ground has lifted it
+  // under its floor; on the dark side it keeps the ratio it ships with.
+  // The contrast lift then moves text lightness toward the far end of its
+  // own side, white for light text and black for dark, so Raised and High
+  // still mean more contrast after a flip.
+  const dark = canvasCss !== undefined && textIsDarkOn(canvasCss);
+  for (const pin of TEXT_PINS) {
+    const shipped = base[pin.token];
+    const shippedGround = base[pin.ground];
+    const ground = current(pin.ground);
+    if (shipped === undefined || shippedGround === undefined || ground === undefined) {
+      continue;
+    }
+    if (parseOklch(shipped) === null) continue;
+    let value: string;
+    if (pin.floor === null) {
+      value = dark
+        ? solveForRatio(shipped, ground, contrastOf(shipped, shippedGround), true)
+        : shipped;
+    } else {
+      value = followGround(shipped, shippedGround, ground, pin.floor, dark);
+    }
+    if (liftOn && TEXT_SET.has(pin.token)) {
+      const color = parseOklch(value);
+      if (color !== null) {
+        value = formatColor({
+          ...color,
+          l: dark
+            ? clamp01(color.l - color.l * factors.t)
+            : clamp01(color.l + (1 - color.l) * factors.t)
+        });
+      }
+    }
+    if (value !== shipped) out[pin.token] = value;
+  }
+
+  // STAGE FOUR, THE SCHEME AND THE CHROMA LIFT, on the accent family and the
+  // chromatic list. Exactly Phase 62, acting after the hue and the spread so
+  // nothing here ever sees a neutral.
   for (const token of ALL_THEME_TOKENS) {
-    if (token === CANVAS_TOKEN) continue;
-
+    if (HUE_SET.has(token) || TEXT_SET.has(token)) continue;
     const schemed = schemeTransform !== null && SCHEME_SET.has(token);
-    const spread = liftOn && SPREAD_SET.has(token) && canvas !== null;
-    const textLift = liftOn && TEXT_SET.has(token);
     const chromaLift = liftOn && CHROMA_SET.has(token);
-    if (!schemed && !spread && !textLift && !chromaLift) continue;
+    if (!schemed && !chromaLift) continue;
 
     const raw = base[token];
     if (raw === undefined) continue;
@@ -170,12 +275,6 @@ export function deriveOverrides(
 
     if (schemed && schemeTransform !== null) {
       color = applyScheme(color, schemeTransform);
-    }
-    if (spread && canvas !== null) {
-      color = { ...color, l: clamp01(canvas.l + (color.l - canvas.l) * factors.k) };
-    }
-    if (textLift) {
-      color = { ...color, l: clamp01(color.l + (1 - color.l) * factors.t) };
     }
     if (chromaLift) {
       color = { ...color, c: color.c * factors.c };
