@@ -1,5 +1,5 @@
 /**
- * Phase 209 — the copy composed from the history is what xterm's own path
+ * Phase 209, the copy composed from the history is what xterm's own path
  * would have produced for the same cells.
  *
  * The terminal here is the SHIPPING xterm, unopened, which is exactly what

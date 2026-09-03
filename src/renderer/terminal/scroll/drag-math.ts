@@ -1,5 +1,5 @@
 /**
- * Pure geometry for a selection drag that scrolls — Phase 205 item 3, and
+ * Pure geometry for a selection drag that scrolls, Phase 205 item 3, and
  * the history positions of Phase 209.
  *
  * No DOM and no xterm, so every rule below is unit-testable on its own. The

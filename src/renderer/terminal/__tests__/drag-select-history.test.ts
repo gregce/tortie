@@ -1,5 +1,5 @@
 /**
- * Phase 209 — the selection is the history, not the screen.
+ * Phase 209, the selection is the history, not the screen.
  *
  * The controller under this lane is the shipping one, ../scroll/drag-select,
  * over the same three stubs ./drag-select-owned.test.ts uses, plus a view the

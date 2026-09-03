@@ -13,7 +13,7 @@
  *  2. claude (2.1.226) and codex both draw in the NORMAL buffer
  *     (`#{alternate_on}` = 0) with mouse tracking OFF, so their transcripts
  *     ARE in tmux's history, 25,000 lines by default and up to 100,000 by
- *     the Scrollback depth setting — `capture-pane -p -S -` returns them
+ *     the Scrollback depth setting, and `capture-pane -p -S -` returns them
  *     and `copy-mode -e` scrolls them. BACKLOG's "agents are alt-screen apps"
  *     premise was measured false; case (b) of the spec is the real world.
  *  3. `copy-mode -e` is the exact primitive we want: `#{scroll_position}` is

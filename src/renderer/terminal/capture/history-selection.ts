@@ -1,5 +1,5 @@
 /**
- * The selection a session holds in its HISTORY — Phase 209.
+ * The selection a session holds in its HISTORY, Phase 209.
  *
  * A pane's xterm shows one screen of a tmux client, so xterm's own selection
  * can only ever describe the rows on screen. When a drag has scrolled the

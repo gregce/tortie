@@ -1,5 +1,5 @@
 /**
- * A copy composed from the HISTORY — Phase 209.
+ * A copy composed from the HISTORY, Phase 209.
  *
  * A pane's xterm holds one screen of a tmux client, so `Terminal.getSelection`
  * can only ever answer for the rows on screen. When the selection's two ends

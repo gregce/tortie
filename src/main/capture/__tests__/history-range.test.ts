@@ -1,5 +1,5 @@
 /**
- * Phase 209 — the clamp on an exact history range is main's, not tmux's.
+ * Phase 209, the clamp on an exact history range is main's, not tmux's.
  *
  * tmux moves a range above the top of the history to the oldest line and
  * answers ONE row for it, measured 2026-09-03 on a scratch server with 93

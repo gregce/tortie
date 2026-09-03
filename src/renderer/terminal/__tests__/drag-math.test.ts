@@ -1,5 +1,5 @@
 /**
- * Phase 205 item 3 and Phase 209 — the geometry of a selection drag that
+ * Phase 205 item 3 and Phase 209, the geometry of a selection drag that
  * scrolls, and the history positions a selection is kept in.
  *
  * The controller needs an app to prove; these rules do not. Every number
