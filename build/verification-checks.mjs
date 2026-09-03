@@ -144,6 +144,10 @@ export const CHECKS = [
   pure('conformance:arch'),
   pure('conformance:arch:modules'),
   pure('conformance:reading'),
+  // Phase 207. The frame hue: build/conformance-hue.mjs runs the shipping
+  // rotation and text rule under node over all 360 degrees and a synthetic
+  // ground, then over twelve ablated copies of the code, one clause each.
+  pure('conformance:hue'),
   pure('conformance:watcher'),
   pure('conformance:handback'),
   adapter(

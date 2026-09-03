@@ -140,6 +140,7 @@
     "conformance:arch": "node build/conformance-arch.mjs",
     "conformance:reading": "node build/conformance-reading.mjs",
     "conformance:arch:modules": "node build/conformance-arch-modules.mjs",
+    "conformance:hue": "node build/conformance-hue.mjs",
     "conformance:watcher:cap": "node build/fsevents-cap.mjs",
     "conformance:handback": "node build/conformance-handback.mjs",
     "conformance:specstory:entitlement": "node build/probe-specstory-entitlement.mjs",
