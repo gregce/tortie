@@ -26,3 +26,8 @@ build/vendor/
 # moment the tree moves, and checking it in would commit a snapshot the app
 # rewrites. A repository that WANTS a standing contract commits its own.
 docs/arch/
+
+# Scratch from the Playwright browser tool: a page dump per navigation, named
+# by timestamp and referenced by nothing. Three were committed by accident on
+# 2026-08-19 and are removed here.
+.playwright-mcp/
