@@ -32,7 +32,7 @@ import type { GmuxSettings, UsageBarWindow } from '@shared/settings';
 import { sanitizeUsageBarWindow } from '@shared/settings';
 import type { UsageProviderId } from '@shared/usage';
 import type { LoginProviderId } from '@shared/logins';
-import { loginAccountDetail, loginAccountLabel } from '@shared/login-copy';
+import { loginAccountLabel, loginRowDetail } from '@shared/login-copy';
 import { loginsOf, useLogins } from '../state/logins';
 import { useSettingsStore } from './settings-store';
 import { Switch } from './Switch';
@@ -203,13 +203,18 @@ function LoginsBlock({
       <div className="set-row-text">
         <span className="set-row-label">{label}</span>
         {rows.map((row) => {
-          const detail = loginAccountDetail(row);
+          // PHASE 204. The second half of the line says what choosing this
+          // login would do, and it appears only on a row where a switch would
+          // put an account back. Every other row reads as it did before.
+          const detail = loginRowDetail(row);
           return (
             <span
               className="set-row-caption"
               key={row.name}
               data-login={row.name}
               data-login-account={row.email ?? ''}
+              data-login-kept={row.kept ? '1' : '0'}
+              data-login-restores={row.restores ? '1' : '0'}
             >
               {loginAccountLabel(row)}
               {detail === '' ? '' : ` · ${detail}`}

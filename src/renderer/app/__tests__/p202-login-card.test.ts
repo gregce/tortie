@@ -48,7 +48,9 @@ describe('the native menu', () => {
       isDefault: false,
       chosen: false,
       present: true,
-      email: 'work@example.com'
+      email: 'work@example.com',
+      kept: false,
+      restores: false
     },
     {
       provider: 'claude',
@@ -56,7 +58,9 @@ describe('the native menu', () => {
       isDefault: false,
       chosen: false,
       present: false,
-      email: null
+      email: null,
+      kept: false,
+      restores: false
     },
     {
       provider: 'claude',
@@ -64,7 +68,9 @@ describe('the native menu', () => {
       isDefault: false,
       chosen: false,
       present: true,
-      email: null
+      email: null,
+      kept: false,
+      restores: false
     }
   ];
 

@@ -35,6 +35,8 @@ function added(over: Partial<LoginRow> = {}): LoginRow {
     chosen: false,
     present: true,
     email: null,
+    kept: false,
+    restores: false,
     ...over
   };
 }

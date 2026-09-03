@@ -56,7 +56,9 @@ describe('settleSignIns', () => {
         isDefault: false,
         chosen: false,
         present: true,
-        email: 'work@example.com'
+        email: 'work@example.com',
+        kept: false,
+        restores: false
       }
     ]);
     const { say, lines } = said();
@@ -83,7 +85,9 @@ describe('settleSignIns', () => {
         isDefault: false,
         chosen: false,
         present: false,
-        email: null
+        email: null,
+        kept: false,
+        restores: false
       }
     ]);
     const { say, lines } = said();

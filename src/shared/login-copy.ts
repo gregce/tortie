@@ -45,6 +45,27 @@ export const LOGIN_ACCOUNT_UNKNOWN = 'Account not known yet';
 /** A login nobody has completed the vendor's own sign in for. */
 export const LOGIN_NOT_SIGNED_IN = 'Not signed in yet';
 
+/**
+ * A login whose store is empty and whose account Tortie is holding (Phase 204).
+ *
+ * IT IS NOT `Not signed in yet`, and the difference is the whole of what the
+ * operator asked for. A login promoted from an account he signed out of has
+ * nothing in its own store and IS reachable: choosing it puts the account
+ * back. Saying it was never signed into would be the Phase 203 defect in a new
+ * shape, being a surface answering a narrower question than the one a person
+ * is asking.
+ */
+export const LOGIN_KEPT = 'Kept by Tortie';
+
+/**
+ * What choosing a login will do, in one short line each (Phase 204).
+ *
+ * They are said BEFORE the switch rather than after it, which is the whole
+ * reason they exist: a switch moves a credential, and a person is entitled to
+ * know that before they pick.
+ */
+export const LOGIN_SWITCH_RESTORE = 'Puts this account back for new sessions.';
+
 /** The separator between the secondary parts, which is never a dash. */
 const JOIN = ' · ';
 
@@ -73,8 +94,42 @@ export function loginAccountDetail(row: LoginRow): string {
   } else if (named) {
     parts.push(row.name);
   }
-  if (!row.present) parts.push(LOGIN_NOT_SIGNED_IN);
+  // PHASE 204. AN EMPTY STORE TORTIE IS HOLDING AN ACCOUNT FOR IS NOT A LOGIN
+  // NOBODY SIGNED INTO. It is one the person can go back to, and the words say
+  // which of the two it is.
+  if (!row.present) parts.push(row.kept ? LOGIN_KEPT : LOGIN_NOT_SIGNED_IN);
   else if (!named) parts.push(LOGIN_ACCOUNT_UNKNOWN);
+  return parts.join(JOIN);
+}
+
+/**
+ * What choosing this login will do, or the empty string when it does nothing
+ * a person needs warning about (Phase 204).
+ *
+ * IT SPEAKS ONLY WHEN A CREDENTIAL WILL MOVE. Choosing a login that is already
+ * chosen, choosing the person's own default location, which Tortie never
+ * writes, and choosing a login whose store already holds its account all move
+ * nothing, and a line about nothing is the kind of paragraph the operator
+ * refused on 2026-08-28. So the one line appears exactly on the rows where a
+ * switch will put an account back.
+ */
+export function loginSwitchLine(row: LoginRow): string {
+  if (row.chosen || row.isDefault) return '';
+  return row.restores ? LOGIN_SWITCH_RESTORE : '';
+}
+
+/**
+ * The second line a menu item or a list row carries, being what the login is
+ * and then what choosing it would do (Phase 204).
+ *
+ * The two are joined by the same separator every other pair of parts uses, and
+ * the switch half is usually empty, so a row that has nothing new to say reads
+ * exactly as it read in Phase 203.
+ */
+export function loginRowDetail(row: LoginRow): string {
+  const parts = [loginAccountDetail(row), loginSwitchLine(row)].filter(
+    (part) => part !== ''
+  );
   return parts.join(JOIN);
 }
 

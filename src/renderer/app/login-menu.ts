@@ -23,7 +23,7 @@
 
 import type { PopupMenuItem } from '@shared/ipc';
 import type { LoginRow } from '@shared/logins';
-import { loginAccountDetail, loginAccountLabel } from '@shared/login-copy';
+import { loginAccountLabel, loginRowDetail } from '@shared/login-copy';
 
 /** The id the Add login item comes back as. */
 export const LOGIN_MENU_ADD = 'login:add';
@@ -37,7 +37,7 @@ export const LOGIN_MENU_PICK = 'login:pick:';
  * Re-exported from the one place the three login surfaces share their words,
  * so the meter's menu and the Settings list cannot drift apart.
  */
-export { LOGIN_NOT_SIGNED_IN } from '@shared/login-copy';
+export { LOGIN_KEPT, LOGIN_NOT_SIGNED_IN } from '@shared/login-copy';
 
 /** The item that starts the vendor's own sign in, in one ordinary session. */
 export const LOGIN_ADD_LABEL = 'Add login…';
@@ -56,7 +56,10 @@ export const LOGIN_ADD_LABEL = 'Add login…';
  */
 export function loginMenuItems(rows: readonly LoginRow[]): PopupMenuItem[] {
   const items: PopupMenuItem[] = rows.map((row) => {
-    const detail = loginAccountDetail(row);
+    // PHASE 204. The second line says what the login IS and, when a switch
+    // would put an account back, what the switch will do. Every row that moves
+    // no credential reads exactly as it read in Phase 203.
+    const detail = loginRowDetail(row);
     return {
       id: `${LOGIN_MENU_PICK}${row.name}`,
       label: `${row.chosen ? '✓ ' : '  '}${loginAccountLabel(row)}`,
