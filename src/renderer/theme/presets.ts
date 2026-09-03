@@ -130,6 +130,47 @@ export const HUE_TOKENS: readonly string[] = [
 ];
 
 /**
+ * THE NAMED STARTING COLOURS (Phase 210), and why there are eight of them
+ * rather than a slider over 360 degrees.
+ *
+ * The operator's second sentence about the Phase 207 slider was that he did
+ * not understand the degree setting. He is right: 222 names a position on a
+ * wheel nobody is looking at and says nothing about what a person will see.
+ * The degree is still what is persisted and it is still on the hover title;
+ * it is off the resting face.
+ *
+ * EIGHT IS MEASURED. Of the 359 adjacent whole degree pairs, 99 render the
+ * eight neutrals BYTE IDENTICALLY at the shipped frame, so the circle carries
+ * far fewer distinguishable frames than it carries numbers. At 45 degrees
+ * apart the neighbours differ by 3.9 to 6.8 dE2000 on `--bg-active`, the most
+ * chromatic rung, which is a step a person can see and name. The shipped
+ * graphite leads the row and is the default, so an install that touches
+ * nothing is unmoved.
+ *
+ * A hue that is none of these, which a Phase 207 slider or a hand edited file
+ * can still produce, is drawn as its own swatch at the head of the row rather
+ * than snapped onto one of the eight, because snapping would show a person a
+ * colour they did not choose.
+ */
+export interface FrameColor {
+  /** The persisted degree. */
+  hue: number;
+  /** What a person calls it. */
+  label: string;
+}
+
+export const FRAME_COLORS: readonly FrameColor[] = [
+  { hue: 222, label: 'Graphite' },
+  { hue: 267, label: 'Violet' },
+  { hue: 312, label: 'Plum' },
+  { hue: 357, label: 'Clay' },
+  { hue: 42, label: 'Sand' },
+  { hue: 87, label: 'Moss' },
+  { hue: 132, label: 'Pine' },
+  { hue: 177, label: 'Ocean' }
+];
+
+/**
  * The text tokens, the ground each one is pinned against, which is where
  * src/renderer/theme/hue.ts reads its ratio from, and every ground each one
  * is allowed on, which is where its floor must hold. `--text-muted` is pinned
@@ -195,6 +236,86 @@ export const CONTRAST_CHROMA: readonly string[] = [
   '--info',
   '--graph-lane-3',
   '--graph-lane-5'
+];
+
+// ---------------------------------------------------------------------------
+// The floors the frame may not break (Phase 210)
+// ---------------------------------------------------------------------------
+
+/**
+ * The ramp in order, darkest first, and the hairlines in order. These are the
+ * two runs whose ORDER the design pins. Phase 196 put `--bg-sidebar` below
+ * the canvas and this list is where that fact lives.
+ */
+export const RAMP_ORDER: readonly string[] = [
+  '--bg-sidebar',
+  CANVAS_TOKEN,
+  '--bg-surface',
+  '--bg-raised',
+  '--bg-active'
+];
+export const HAIRLINE_ORDER: readonly string[] = [
+  '--border',
+  '--border-active',
+  '--border-strong'
+];
+
+/**
+ * THE RENDERED STEP, and it is the floor that replaced a pinned ratio band.
+ *
+ * Phase 207 pinned three hairline ratios inside a band: `--border` on
+ * `--bg-sidebar` at 1.297, `--border-active` on `--bg-active` at 1.105 and
+ * the hover step `--bg-raised` on `--bg-surface` at 1.094. Those three are
+ * EXACTLY what the depth control moves, so they cannot also be floors: at
+ * depth 0.50 the first reads 1.130 and at 1.75 it reads 1.673. The band is
+ * still pinned, at the shipped shade and depth, where it is a real check on
+ * the rotation. Across the two new axes this takes its place.
+ *
+ * The rule is physical rather than chosen. Two colours that round to the same
+ * eight bit value are not two colours, and research 75 C4 already ruled that
+ * 1.013 is no hairline at all. So every adjacent pair below must differ by at
+ * least `RENDERED_STEP_MIN` in at least one channel of the rendered answer.
+ * The number is not taste either: TWO is what the shipped ramp itself holds
+ * at its tightest, measured over every whole degree and all three contrast
+ * levels, so the floor says no worse than shipped rather than picking a bar.
+ */
+export const RENDERED_STEP_MIN = 2;
+
+export const RENDERED_STEP_PAIRS: readonly (readonly [string, string])[] = [
+  ['--bg-sidebar', CANVAS_TOKEN],
+  [CANVAS_TOKEN, '--bg-surface'],
+  ['--bg-surface', '--bg-raised'],
+  ['--bg-raised', '--bg-active'],
+  ['--border', '--border-active'],
+  ['--border-active', '--border-strong'],
+  // The three grounds a hairline is actually drawn against. A border that
+  // matches the panel it edges is not a hairline whatever its neighbours do.
+  ['--border', '--bg-sidebar'],
+  ['--border', CANVAS_TOKEN],
+  ['--border-active', '--bg-active']
+];
+
+/**
+ * The chromatic floors the frame must not break. Nothing here MOVES with the
+ * frame, which is the phase's refusal: the accent, the git decorations and
+ * the graph lanes are meaning and stay exactly where they ship. They are
+ * floors because the ground under them moves, and the git family on
+ * `--bg-active` is what stops the ramp going lighter than shade stop 2.
+ */
+export const CHROMATIC_PINS: readonly {
+  token: string;
+  ground: string;
+  floor: number;
+}[] = [
+  { token: '--accent-text', ground: CANVAS_TOKEN, floor: 4.5 },
+  { token: '--accent', ground: CANVAS_TOKEN, floor: 3 },
+  { token: '--git-modified', ground: '--bg-active', floor: 3 },
+  { token: '--git-added', ground: '--bg-active', floor: 3 },
+  { token: '--git-deleted', ground: '--bg-active', floor: 3 },
+  { token: '--git-renamed', ground: '--bg-active', floor: 3 },
+  { token: '--git-conflict', ground: '--bg-active', floor: 3 },
+  { token: '--graph-lane-3', ground: '--bg-active', floor: 3 },
+  { token: '--graph-lane-5', ground: '--bg-active', floor: 3 }
 ];
 
 // ---------------------------------------------------------------------------

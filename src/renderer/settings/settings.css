@@ -300,6 +300,90 @@
   visibility: hidden;
 }
 
+/* --------------------------------------------------------- frame shape */
+
+/* Phase 210. The named starting colours, the two stop sliders and the strip
+   that shows the frame all three produce. No degree anywhere: the readout is
+   the colour, which is the operator's second sentence answered. */
+
+.set-frame-colors {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.set-frame-color {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px;
+  border: 0;
+  background: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.set-frame-chip {
+  display: flex;
+  width: 28px;
+  height: 20px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-active);
+}
+
+.set-frame-chip-band {
+  flex: 1 1 0;
+}
+
+.set-frame-color-name {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.set-frame-color.on .set-frame-chip {
+  border-color: var(--accent);
+}
+
+.set-frame-color.on .set-frame-color-name {
+  color: var(--text-primary);
+}
+
+.set-frame-color:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Holding its line whether or not it speaks, so the card never jumps under
+   the pointer while a slider is being dragged (the Phase 174.1 rule). */
+.set-frame-note {
+  max-width: 200px;
+  text-align: right;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.set-frame-note.blank {
+  visibility: hidden;
+}
+
+.set-frame-strip {
+  display: flex;
+  width: 260px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-active);
+}
+
+.set-frame-band {
+  flex: 1 1 0;
+}
+
 /* ------------------------------------------------------------- switch */
 
 .set-switch {

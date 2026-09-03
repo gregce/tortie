@@ -6,12 +6,29 @@
  * live window is the preview and there is no Save.
  *
  * Phase 207 added the frame's hue between the two, a slider over the whole
- * circle with the shipped 222 as its default and a swatch strip under it
- * that draws the frame at the draft hue. It writes the same kind of
- * one-field patch, throttled while a drag is in flight, and the same
- * applier reads it. The strip derives from the captured base with the
- * scheme and the contrast level as they stand, so it previews the
- * composition and never the hue alone.
+ * circle with a degree on its face. Phase 210 replaced that face and added
+ * the control he was actually looking for when he found it.
+ *
+ * THE DEGREE IS GONE FROM THE RESTING FACE, at his word: 222 named a position
+ * on a wheel nobody is looking at and told him nothing about what he would
+ * see. The colour is chosen from EIGHT NAMED FRAMES, each drawn as the frame
+ * it would produce, so what a person picks from is the thing itself. The
+ * degree survives in the persisted setting and on the hover title, which is
+ * where somebody who wants it can still find it.
+ *
+ * TWO STOP SLIDERS MOVE THE RAMP ITSELF, which is the ask: Shade sets where
+ * it sits, from near black upward, and Depth sets how far its panels and
+ * hairlines stand apart. A slider STOPS at the last stop that keeps every
+ * contrast floor and says why in a few words, rather than accepting the move
+ * and quietly clamping it, which is Phase 207's rule that we never silently
+ * refuse what he asked for. The edge is measured through the shipping
+ * derivation and the shipping floor predicate, the same pair
+ * `npm run conformance:hue` walks.
+ *
+ * All three write one-field patches, throttled while a drag is in flight, and
+ * the same applier reads them. Everything drawn here derives from the
+ * captured base with the scheme and the contrast level as they stand, so it
+ * previews the composition and never one axis alone.
  *
  * Phase 78 added a third control in the same shape. It picks the face the
  * terminal and the editor draw with, from three presets. It writes the same
@@ -46,13 +63,29 @@ import type {
   WorkAreaFont
 } from '@shared/settings';
 import {
-  CHROME_HUE_MAX,
+  DEFAULT_CHROME_DEPTH,
   DEFAULT_CHROME_HUE,
-  sanitizeChromeHue
+  DEFAULT_CHROME_SHADE,
+  sanitizeChromeDepth,
+  sanitizeChromeHue,
+  sanitizeChromeShade
 } from '@shared/settings';
 import { shippedBaseNow } from '../theme/apply';
 import { deriveOverrides } from '../theme/derive';
-import { CONTRAST_BG, CANVAS_TOKEN, SCHEME_PRESETS } from '../theme/presets';
+import {
+  DEPTH_STOPS,
+  SHADE_STOPS,
+  depthRange,
+  refusalSentence,
+  shadeRange,
+  type FrameChoice
+} from '../theme/frame-stops';
+import {
+  CONTRAST_BG,
+  CANVAS_TOKEN,
+  FRAME_COLORS,
+  SCHEME_PRESETS
+} from '../theme/presets';
 import {
   NO_FONT_SUGGESTIONS,
   loadFontSuggestions,
@@ -117,8 +150,31 @@ export function selectChromeHue(value: number): Promise<GmuxSettings | null> {
     .update({ chromeHue: sanitizeChromeHue(value) });
 }
 
+/** Persist a shade stop as a one-field patch (Phase 210). For the test. */
+export function selectChromeShade(value: number): Promise<GmuxSettings | null> {
+  return useSettingsStore
+    .getState()
+    .update({ chromeShade: sanitizeChromeShade(value) });
+}
+
+/** Persist a depth stop as a one-field patch (Phase 210). For the test. */
+export function selectChromeDepth(value: number): Promise<GmuxSettings | null> {
+  return useSettingsStore
+    .getState()
+    .update({ chromeDepth: sanitizeChromeDepth(value) });
+}
+
+/** Put the whole frame back where it ships (Phase 210). For the test. */
+export function resetChromeFrame(): Promise<GmuxSettings | null> {
+  return useSettingsStore.getState().update({
+    chromeHue: DEFAULT_CHROME_HUE,
+    chromeShade: DEFAULT_CHROME_SHADE,
+    chromeDepth: DEFAULT_CHROME_DEPTH
+  });
+}
+
 /**
- * The five grounds the swatch strip draws, in ramp order: the sidebar first
+ * The five grounds the frame preview draws, in ramp order: the sidebar first
  * because it is below the canvas since Phase 196, then the canvas and the
  * three fills above it.
  */
@@ -129,11 +185,14 @@ export const HUE_SWATCH_TOKENS: readonly string[] = [
 ];
 
 /**
- * The swatch colours for one hue: the frame exactly as the applier would
- * write it, derived from the captured base with the OTHER two settings as
- * they stand, so the strip previews the composition and not the hue alone.
- * Null before the first apply has captured a base, when the strip draws the
- * live tokens instead.
+ * The frame exactly as the applier would write it, derived from the captured
+ * base with the OTHER two settings as they stand, so what is drawn previews
+ * the composition and not one axis alone. Null before the first apply has
+ * captured a base, when the strip draws the live tokens instead.
+ *
+ * `--border` rides along because the hairline is how the DEPTH shows: two
+ * panels a step apart with no line between them is what the depth control
+ * takes away, and a preview that hid it would preview the wrong thing.
  */
 export function hueSwatches(
   settings: Pick<GmuxSettings, 'highlightScheme' | 'contrastLevel'>,
@@ -154,7 +213,7 @@ export function hueSwatches(
     base
   );
   const out: Record<string, string> = {};
-  for (const token of HUE_SWATCH_TOKENS) {
+  for (const token of [...HUE_SWATCH_TOKENS, '--border']) {
     const value = overrides[token] ?? base[token];
     if (value !== undefined) out[token] = value;
   }
@@ -164,88 +223,286 @@ export function hueSwatches(
 /** How long a drag waits between persisted patches. */
 const HUE_COMMIT_MS = 80;
 
-function HueRow(): React.JSX.Element {
-  const settings = useSettingsStore((s) => s.settings);
-  const persisted = sanitizeChromeHue(settings.chromeHue);
-  // The slider draws the draft while a drag is in flight and the persisted
-  // value otherwise, the same resync the custom font field does.
+/**
+ * A slider that draws its draft at once and persists at most once per
+ * HUE_COMMIT_MS. A drag fires a change per pixel; the draft moves on every
+ * one of them and the disk write and the broadcast to every window do not.
+ * Phase 207 wrote this for the hue and Phase 210 has two more sliders, so it
+ * is one hook rather than three copies.
+ */
+function useThrottledStop(
+  persisted: number,
+  commitTo: (value: number) => Promise<unknown>
+): [number, (value: number) => void] {
   const [draft, setDraft] = React.useState(persisted);
   React.useEffect(() => {
     setDraft(persisted);
   }, [persisted]);
-  // A drag fires a change per pixel. Each one moves the draft at once, and
-  // the persisted patch, which is a disk write and a broadcast to every
-  // window, is sent at most once per HUE_COMMIT_MS with the last value.
   const pending = React.useRef<number | null>(null);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const commit = React.useCallback((value: number): void => {
-    pending.current = value;
-    if (timer.current !== null) return;
-    timer.current = setTimeout(() => {
-      timer.current = null;
-      if (pending.current !== null) void selectChromeHue(pending.current);
-      pending.current = null;
-    }, HUE_COMMIT_MS);
-  }, []);
   React.useEffect(
     () => () => {
       if (timer.current !== null) clearTimeout(timer.current);
     },
     []
   );
-  const pick = (value: number): void => {
-    const hue = sanitizeChromeHue(value);
-    setDraft(hue);
-    commit(hue);
-  };
-  const swatches = hueSwatches(settings, draft);
-  const atDefault = draft === DEFAULT_CHROME_HUE;
+  const pick = React.useCallback(
+    (value: number): void => {
+      setDraft(value);
+      pending.current = value;
+      if (timer.current !== null) return;
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        if (pending.current !== null) void commitTo(pending.current);
+        pending.current = null;
+      }, HUE_COMMIT_MS);
+    },
+    [commitTo]
+  );
+  return [draft, pick];
+}
+
+/** The frame the three controls together produce, as five bands and a line. */
+function FrameStrip({
+  swatches
+}: {
+  swatches: Record<string, string> | null;
+}): React.JSX.Element {
+  const line = swatches?.['--border'] ?? 'var(--border)';
+  return (
+    <div className="set-frame-strip" aria-hidden="true">
+      {HUE_SWATCH_TOKENS.map((token, i) => (
+        <span
+          key={token}
+          className="set-frame-band"
+          data-token={token}
+          style={{
+            background: swatches?.[token] ?? `var(${token})`,
+            borderLeft: i === 0 ? 'none' : `1px solid ${line}`
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The colour row: the named starting colours, each drawn as the frame it
+ * produces at the shade and depth in effect. The degree is on the title and
+ * nowhere on the face, which is the operator's second sentence answered.
+ */
+function FrameColorRow(): React.JSX.Element {
+  const settings = useSettingsStore((s) => s.settings);
+  const hue = sanitizeChromeHue(settings.chromeHue);
+  const shade = sanitizeChromeShade(settings.chromeShade);
+  const depth = sanitizeChromeDepth(settings.chromeDepth);
+  const named = FRAME_COLORS.some((c) => c.hue === hue);
+  // A hue none of the eight carries keeps its own swatch at the head of the
+  // row rather than being snapped onto a neighbour, which would show a person
+  // a colour they did not choose. It leaves as soon as they pick one.
+  const choices = named
+    ? FRAME_COLORS
+    : [{ hue, label: 'Yours' }, ...FRAME_COLORS];
   return (
     <div className="set-row tall">
       <div className="set-row-text">
-        <span className="set-row-label">Hue</span>
+        <span className="set-row-label">Color</span>
         <span className="set-row-caption">
           The color of the sidebar, the tabs and the panels around your work.
           Changes apply at once.
         </span>
       </div>
+      <div className="set-frame-colors" role="radiogroup" aria-label="Frame color">
+        {choices.map((choice) => {
+          const swatches = hueSwatches(settings, choice.hue, shade, depth);
+          const on = choice.hue === hue;
+          return (
+            <button
+              key={choice.hue}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              aria-label={choice.label}
+              title={`${choice.label}, hue ${String(choice.hue)}`}
+              className={on ? 'set-frame-color on' : 'set-frame-color'}
+              onClick={() => void selectChromeHue(choice.hue)}
+            >
+              <span className="set-frame-chip">
+                {HUE_SWATCH_TOKENS.map((token) => (
+                  <span
+                    key={token}
+                    className="set-frame-chip-band"
+                    style={{
+                      background: swatches?.[token] ?? `var(${token})`
+                    }}
+                  />
+                ))}
+              </span>
+              <span className="set-frame-color-name">{choice.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One stop slider with its refusal line.
+ *
+ * THE SLIDER STOPS AT THE EDGE OF WHAT KEEPS THE FLOORS. It does not shrink
+ * its track, because a control whose length changed under the pointer would
+ * be its own puzzle; it refuses the move and says why, and the line holds its
+ * place whether or not it speaks so the card never jumps (Phase 174.1).
+ */
+function StopSliderRow({
+  label,
+  caption,
+  min,
+  max,
+  edgeMin,
+  edgeMax,
+  draft,
+  onPick,
+  note
+}: {
+  label: string;
+  caption: string;
+  min: number;
+  max: number;
+  edgeMin: number;
+  edgeMax: number;
+  draft: number;
+  onPick: (value: number) => void;
+  note: string;
+}): React.JSX.Element {
+  const [refused, setRefused] = React.useState(false);
+  const pick = (raw: number): void => {
+    const wanted = Math.round(raw);
+    const stopped = Math.min(edgeMax, Math.max(edgeMin, wanted));
+    setRefused(stopped !== wanted);
+    onPick(stopped);
+  };
+  const speaking = refused && note !== '';
+  return (
+    <div className="set-row tall">
+      <div className="set-row-text">
+        <span className="set-row-label">{label}</span>
+        <span className="set-row-caption">{caption}</span>
+      </div>
       <div className="set-hue">
         <input
           className="set-hue-slider"
           type="range"
-          aria-label="Hue"
-          min={0}
-          max={CHROME_HUE_MAX}
+          aria-label={label}
+          min={min}
+          max={max}
           step={1}
           value={draft}
           onChange={(e) => pick(Number(e.target.value))}
         />
-        <div className="set-hue-foot">
-          <div className="set-hue-swatches" aria-hidden="true">
-            {HUE_SWATCH_TOKENS.map((token) => (
-              <span
-                key={token}
-                className="set-hue-swatch"
-                data-token={token}
-                style={{
-                  background: swatches?.[token] ?? `var(${token})`
-                }}
-              />
-            ))}
-          </div>
-          <span className="set-hue-value">{`${String(draft)}°`}</span>
-          <button
-            type="button"
-            className={atDefault ? 'set-hue-reset blank' : 'set-hue-reset'}
-            aria-hidden={atDefault ? true : undefined}
-            tabIndex={atDefault ? -1 : undefined}
-            onClick={() => pick(DEFAULT_CHROME_HUE)}
-          >
-            Reset
-          </button>
-        </div>
+        <span
+          className={speaking ? 'set-frame-note' : 'set-frame-note blank'}
+          aria-hidden={speaking ? undefined : true}
+        >
+          {note}
+        </span>
       </div>
     </div>
+  );
+}
+
+/** The two rows that move the ramp, and the strip that shows where it went. */
+function FrameShapeRows(): React.JSX.Element {
+  const settings = useSettingsStore((s) => s.settings);
+  const hue = sanitizeChromeHue(settings.chromeHue);
+  const [shade, pickShade] = useThrottledStop(
+    sanitizeChromeShade(settings.chromeShade),
+    selectChromeShade
+  );
+  const [depth, pickDepth] = useThrottledStop(
+    sanitizeChromeDepth(settings.chromeDepth),
+    selectChromeDepth
+  );
+  const base = shippedBaseNow();
+  const context = {
+    highlightScheme: settings.highlightScheme,
+    contrastLevel: settings.contrastLevel
+  };
+  const choice: FrameChoice = {
+    chromeHue: hue,
+    chromeShade: shade,
+    chromeDepth: depth
+  };
+  // Fourteen derivations, about a millisecond each, and only when one of the
+  // five settings actually moved. The control and `npm run conformance:hue`
+  // ask the SAME predicate, so the edge a person meets is the edge the gate
+  // walks (src/renderer/theme/frame-stops.ts says why that matters).
+  const key = JSON.stringify([context, choice]);
+  const ranges = React.useMemo(() => {
+    if (base === null) return null;
+    return {
+      shade: shadeRange(context, base, choice),
+      depth: depthRange(context, base, choice)
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, base]);
+  const swatches = hueSwatches(settings, hue, shade, depth);
+  const atDefault =
+    hue === DEFAULT_CHROME_HUE &&
+    shade === DEFAULT_CHROME_SHADE &&
+    depth === DEFAULT_CHROME_DEPTH;
+  const shadeNote =
+    ranges === null
+      ? ''
+      : shade <= ranges.shade.min
+        ? refusalSentence('darker', ranges.shade.below, ranges.shade.belowElsewhere)
+        : refusalSentence('lighter', ranges.shade.above, ranges.shade.aboveElsewhere);
+  const depthNote =
+    ranges === null
+      ? ''
+      : depth <= ranges.depth.min
+        ? refusalSentence('less depth', ranges.depth.below, ranges.depth.belowElsewhere)
+        : refusalSentence('more depth', ranges.depth.above, ranges.depth.aboveElsewhere);
+  return (
+    <>
+      <StopSliderRow
+        label="Shade"
+        caption="How dark the frame is. The shipped frame is a point on this line, and it is where it starts."
+        min={SHADE_STOPS[0] ?? 0}
+        max={SHADE_STOPS[SHADE_STOPS.length - 1] ?? 0}
+        edgeMin={ranges?.shade.min ?? (SHADE_STOPS[0] ?? 0)}
+        edgeMax={ranges?.shade.max ?? (SHADE_STOPS[SHADE_STOPS.length - 1] ?? 0)}
+        draft={shade}
+        onPick={pickShade}
+        note={shadeNote}
+      />
+      <StopSliderRow
+        label="Depth"
+        caption="How far the panels and the hairlines stand apart from the background."
+        min={DEPTH_STOPS[0] ?? 0}
+        max={DEPTH_STOPS[DEPTH_STOPS.length - 1] ?? 0}
+        edgeMin={ranges?.depth.min ?? (DEPTH_STOPS[0] ?? 0)}
+        edgeMax={ranges?.depth.max ?? (DEPTH_STOPS[DEPTH_STOPS.length - 1] ?? 0)}
+        draft={depth}
+        onPick={pickDepth}
+        note={depthNote}
+      />
+      <div className="set-row">
+        <div className="set-row-text">
+          <FrameStrip swatches={swatches} />
+        </div>
+        <button
+          type="button"
+          className={atDefault ? 'set-hue-reset blank' : 'set-hue-reset'}
+          aria-hidden={atDefault ? true : undefined}
+          tabIndex={atDefault ? -1 : undefined}
+          onClick={() => void resetChromeFrame()}
+        >
+          Reset
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -514,11 +771,17 @@ export function AppearanceSection(): React.JSX.Element {
         <HighlightSchemeRow />
       </div>
 
-      {/* Phase 207. One slider, the frame's hue. The swatches under it are
-          the frame at the draft hue, derived the way the applier derives. */}
+      {/* Phase 207 put the frame's hue here as a slider with a degree on its
+          face. Phase 210 answered his second sentence, that the degree told
+          him nothing about what he would see: the colour is chosen by name
+          from the frames themselves, and two stop sliders move the ramp's own
+          lightness, which is the control he was looking for when he found the
+          first one. The strip under them is the frame those three produce,
+          derived the way the applier derives it. */}
       <div className="set-group-label">Frame</div>
       <div className="set-card">
-        <HueRow />
+        <FrameColorRow />
+        <FrameShapeRows />
       </div>
 
       <div className="set-group-label">Contrast</div>

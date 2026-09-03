@@ -28,12 +28,16 @@ import {
   SCHEME_OPTIONS,
   WORK_FONT_OPTIONS,
   hueSwatches,
+  resetChromeFrame,
+  selectChromeDepth,
   selectChromeHue,
+  selectChromeShade,
   selectContrastLevel,
   selectHighlightScheme,
   selectWorkAreaFont,
   commitWorkAreaFontCustom
 } from '../AppearanceSection';
+import { FRAME_COLORS } from '../../theme/presets';
 import { useSettingsStore } from '../settings-store';
 
 /** A fake settings bridge that answers set with the merged settings. */
@@ -77,12 +81,23 @@ describe('the markup', () => {
     expect(html.split('class="set-group-label"')).toHaveLength(5);
   });
 
-  it('renders the hue slider over the whole circle at the shipped 222 (Phase 207)', () => {
-    expect(html).toContain('aria-label="Hue"');
-    expect(html).toMatch(/type="range"[^>]*min="0"[^>]*max="359"[^>]*step="1"[^>]*value="222"/);
-    expect(html).toContain('222°');
-    // Five swatches in ramp order, the sidebar first, drawn from the live
-    // tokens before any base is captured.
+  it('names the eight starting colors and draws NO degree (Phase 210)', () => {
+    // The operator's second sentence: 222 named a position on a wheel nobody
+    // is looking at. The row shows the frames themselves, by name.
+    expect(html).toContain('aria-label="Frame color"');
+    for (const colour of FRAME_COLORS) {
+      expect(html).toContain(`aria-label="${colour.label}"`);
+    }
+    expect(FRAME_COLORS[0]).toEqual({ hue: 222, label: 'Graphite' });
+    // The shipped frame leads the row and is the one selected at the default.
+    expect(html).toContain('aria-checked="true" aria-label="Graphite"');
+    // THE DEGREE IS OFF THE RESTING FACE. It survives on the hover title and
+    // in the persisted setting, and nowhere a person reads without asking.
+    expect(html).not.toContain('222°');
+    expect(html).not.toMatch(/>\s*\d+°/);
+    expect(html).toContain('title="Graphite, hue 222"');
+    // Five bands in ramp order, the sidebar first, drawn from the live tokens
+    // before any base is captured.
     const swatches = [...html.matchAll(/data-token="(--[a-z-]+)"/g)].map((m) => m[1]);
     expect(swatches).toEqual(['--bg-sidebar', '--bg-canvas', '--bg-surface', '--bg-raised', '--bg-active']);
     expect(html).toContain('background:var(--bg-sidebar)');
@@ -92,6 +107,16 @@ describe('the markup', () => {
     // colour spaces or thresholds on the resting face.
     expect(html).not.toContain('OKLCH');
     expect(html).not.toContain('threshold');
+  });
+
+  it('renders the two stop sliders at the shipped ramp (Phase 210)', () => {
+    expect(html).toContain('aria-label="Shade"');
+    expect(html).toContain('aria-label="Depth"');
+    expect(html).toMatch(/aria-label="Shade"[^>]*min="-4"[^>]*max="2"[^>]*step="1"[^>]*value="0"/);
+    expect(html).toMatch(/aria-label="Depth"[^>]*min="-3"[^>]*max="3"[^>]*step="1"[^>]*value="0"/);
+    // The refusal line holds its place and says nothing while nothing is
+    // refused, so the card cannot jump under the pointer (Phase 174.1).
+    expect(html.split('class="set-frame-note blank"')).toHaveLength(3);
   });
 
   it('renders the highlight select with the four schemes in order', () => {
@@ -235,6 +260,36 @@ describe('the picks', () => {
 
   it('the swatch strip draws nothing until a base is captured, then the composed frame', () => {
     expect(hueSwatches({ highlightScheme: 'blue', contrastLevel: 'normal' }, 40)).toBeNull();
+    expect(
+      hueSwatches({ highlightScheme: 'blue', contrastLevel: 'normal' }, 40, 2, 1)
+    ).toBeNull();
+  });
+
+  it('a shade and a depth pick each persist ONE clamped whole stop (Phase 210)', async () => {
+    const settingsSet = installBridge();
+    await selectChromeShade(-2);
+    expect(settingsSet.mock.calls[0]?.[0]).toEqual({ chromeShade: -2 });
+    expect(useSettingsStore.getState().settings.chromeShade).toBe(-2);
+    await selectChromeDepth(3);
+    expect(settingsSet.mock.calls[1]?.[0]).toEqual({ chromeDepth: 3 });
+    // The ends CLAMP rather than wrap, unlike the hue, because the ends of
+    // these axes are where the ramp stops working.
+    await selectChromeShade(99);
+    expect(settingsSet.mock.calls[2]?.[0]).toEqual({ chromeShade: 2 });
+    await selectChromeDepth(-99);
+    expect(settingsSet.mock.calls[3]?.[0]).toEqual({ chromeDepth: -3 });
+    await selectChromeShade(Number.NaN);
+    expect(settingsSet.mock.calls[4]?.[0]).toEqual({ chromeShade: 0 });
+  });
+
+  it('Reset puts all three frame fields back in one patch (Phase 210)', async () => {
+    const settingsSet = installBridge();
+    await resetChromeFrame();
+    expect(settingsSet.mock.calls[0]?.[0]).toEqual({
+      chromeHue: 222,
+      chromeShade: 0,
+      chromeDepth: 0
+    });
   });
 
   it('a font pick persists a one-field patch and the stored value follows', async () => {
