@@ -1084,6 +1084,78 @@ if (data.rootProject.directoryVerdict !== 'divergent') {
 }
 
 // ---------------------------------------------------------------------------
+// 10.4 The name the repository declares for itself (Phase 184, fix round two)
+// ---------------------------------------------------------------------------
+// TWO ARMS CALLED A REPOSITORY'S OWN CODE SOMEBODY ELSE'S, measured on real
+// repositories. The C sharp arm answered `external` for 397 real `using`
+// statements over dotnet/efcore and App-vNext/Polly, whose `src/Shared` and
+// `src/LegacySupport` files declare `System.Text`, `System.Reflection` and
+// `System.Diagnostics.CodeAnalysis` and belong to no `.csproj` this resolver
+// can read a literal from. The Java arm answered `external` for 137 real
+// `com.squareup.moshi.*` imports over square/moshi, which publishes that group
+// and also names the shorter `com.squareup` in its own build files. An
+// `external` is dropped from both sides of the checker's ledger, so each one
+// was a false green waiting on a must-not.
+//
+// Each refusal is asserted WITH ITS CONTROL, because an arm that answered
+// `unresolved` to everything would satisfy the first half of each pair and be
+// worthless, and each is then carried END TO END through the shipping checker
+// rather than judged at the arm's edge.
+
+if (data.ownName.csharpOrphanAnswer !== 'unresolved') {
+  fail(
+    `own name: the C sharp arm answered ${data.ownName.csharpOrphanAnswer} for ` +
+      `a namespace a tracked file declares and a declared package also names. ` +
+      `A name this repository declares is never somebody else's, and there is ` +
+      `no directory to name because a file no project owns is in no assembly, ` +
+      `so it has to be unresolved.`
+  );
+}
+if (data.ownName.csharpOrphanControl !== 'external') {
+  fail(
+    `own name: the C sharp CONTROL did not fire. The same package list over a ` +
+      `name NO file declares came back ${data.ownName.csharpOrphanControl} ` +
+      `rather than external, so the assertion above passes because the arm has ` +
+      `stopped answering rather than because it refuses.`
+  );
+}
+if (data.ownName.javaOwnGroupAnswer !== 'unresolved') {
+  fail(
+    `own name: the Java arm answered ${data.ownName.javaOwnGroupAnswer} for a ` +
+      `specifier under a group the repository declares FOR ITSELF while a ` +
+      `shorter coordinate also claims it. The moshi shape exactly, and the ` +
+      `answer has to be unresolved.`
+  );
+}
+if (data.ownName.javaOwnGroupControl !== 'external') {
+  fail(
+    `own name: the Java CONTROL did not fire. The same specifier with no ` +
+      `identity read came back ${data.ownName.javaOwnGroupControl} rather ` +
+      `than external, so the assertion above proves nothing about the ` +
+      `identity being read.`
+  );
+}
+if (
+  data.ownName.csharpOrphanVerdict !== 'unverifiable' ||
+  data.ownName.javaOwnGroupVerdict !== 'unverifiable'
+) {
+  fail(
+    `own name: through the SHIPPING checker the must-not came back ` +
+      `${data.ownName.csharpOrphanVerdict} for C sharp and ` +
+      `${data.ownName.javaOwnGroupVerdict} for Java. Both have to be ` +
+      `unverifiable, because an answer that cannot name a target is a promise ` +
+      `nobody has checked.`
+  );
+}
+if (data.ownName.beforeVerdict !== 'convergent') {
+  fail(
+    `own name: the same must-not under the answer BOTH arms gave before the ` +
+      `fix came back ${data.ownName.beforeVerdict} rather than convergent, so ` +
+      `the pair above no longer measures the false green it exists for.`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 11. What the source itself must be true about
 // ---------------------------------------------------------------------------
 
@@ -1499,6 +1571,27 @@ process.stdout.write(
 process.stdout.write(
   pad('the same, given a real directory', 40) +
     `${data.rootProject.directoryVerdict}, so the judge can go red\n`
+);
+
+process.stdout.write(
+  '\nthe name the repository declares for itself, and the control beside it\n'
+);
+process.stdout.write(pad('what', 46) + 'answer\n');
+process.stdout.write(line(120) + '\n');
+process.stdout.write(
+  pad('C sharp, a name only an unowned file has', 46) +
+    `${data.ownName.csharpOrphanAnswer}, and a name nobody has is ` +
+    `${data.ownName.csharpOrphanControl}\n`
+);
+process.stdout.write(
+  pad('Java, a name under its own coordinate', 46) +
+    `${data.ownName.javaOwnGroupAnswer}, and with no identity read it is ` +
+    `${data.ownName.javaOwnGroupControl}\n`
+);
+process.stdout.write(
+  pad('the checker, over both of those answers', 46) +
+    `${data.ownName.csharpOrphanVerdict} and ${data.ownName.javaOwnGroupVerdict}, ` +
+    `where before the fix it was ${data.ownName.beforeVerdict}\n`
 );
 
 process.stdout.write('\nevery git call this run composed\n');

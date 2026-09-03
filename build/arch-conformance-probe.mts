@@ -381,6 +381,10 @@ async function main(): Promise<void> {
       namespaceDirs: new Map(facts.resolverProbe.csharp.namespaceDirs),
       namespacePrefixDirs: new Map(facts.resolverProbe.csharp.namespacePrefixDirs),
       namespaceOf: new Map(facts.resolverProbe.csharp.namespaceOf),
+      // Phase 184's second fix round: the names every tracked `.cs` file
+      // declares, including the ones no project owns, which is what stops a
+      // package claiming the repository's own code.
+      declaredNames: new Set(facts.resolverProbe.csharp.declaredNames),
       packages: new Set(facts.resolverProbe.csharp.packages),
       present: facts.resolverProbe.csharp.present
     },
@@ -646,6 +650,103 @@ async function main(): Promise<void> {
     armPath: rootArm.toPath,
     emptyVerdict: judgeDirectory(''),
     directoryVerdict: judgeDirectory('probe/target')
+  };
+
+  // -------------------------------------------------------------------------
+  // 5.7 THE NAME THE REPOSITORY DECLARES FOR ITSELF (Phase 184, fix round two)
+  // -------------------------------------------------------------------------
+  // TWO ARMS CALLED A REPOSITORY'S OWN CODE SOMEBODY ELSE'S, and both were
+  // measured on real repositories rather than imagined. The C sharp arm
+  // answered `external` for `System.Text`, `System.Reflection` and
+  // `System.Diagnostics.CodeAnalysis` over dotnet/efcore and App-vNext/Polly,
+  // 397 real `using` statements, because the files that declare those names
+  // live in `src/Shared` and `src/LegacySupport` and no `.csproj` claims them
+  // in a literal ./csproj.ts can read. The Java arm answered `external` for
+  // 137 real `com.squareup.moshi.*` imports over square/moshi, because moshi
+  // publishes that group and its own build files also name the shorter
+  // `com.squareup`, so a coordinate claimed the repository's own namespace.
+  //
+  // An `external` is dropped from BOTH sides of the ledger in
+  // ../checkers/imports.ts, so every one of those answers was a false green
+  // waiting on a must-not, which is the Phase 157 rule this gate exists to
+  // keep. Both are driven here with their CONTROLS beside them, because an arm
+  // that answered `unresolved` to everything would pass the first assertion of
+  // each pair and be useless.
+  const ownNameCtx = (
+    declaredNames: string[],
+    packages: string[]
+  ): ArchResolveContext =>
+    archResolveContext(
+      {
+        ...manifestsForProbe,
+        csharp: {
+          namespaceDirs: new Map<string, string[]>(),
+          namespacePrefixDirs: new Map<string, string[]>(),
+          namespaceOf: new Map<string, string>(),
+          declaredNames: new Set(declaredNames),
+          packages: new Set(packages),
+          present: true
+        }
+      },
+      facts.trackedFiles
+    );
+  const orphanArm = resolveImport(
+    'Acme.Shared',
+    'dotnet/src/App/Main.cs',
+    'csharp',
+    ownNameCtx(['Acme.Shared'], ['acme.shared'])
+  );
+  // The control: the SAME package list, over a name no file in the repository
+  // declares. This one has to stay `external`, or the assertion above passes
+  // because the arm has stopped answering rather than because it refuses.
+  const orphanControl = resolveImport(
+    'Acme.Shared',
+    'dotnet/src/App/Main.cs',
+    'csharp',
+    ownNameCtx([], ['acme.shared'])
+  );
+  const ownGroupCtx = (ownGroups: string[]): ArchResolveContext =>
+    archResolveContext(
+      {
+        ...manifestsForProbe,
+        java: {
+          // The moshi shape exactly: the repository publishes the longer
+          // coordinate and its own build files also name the shorter one.
+          groups: new Set(['com.squareup', 'com.squareup.moshi']),
+          ownGroups: new Set(ownGroups),
+          artifacts: new Set<string>(),
+          android: false,
+          present: true
+        }
+      },
+      facts.trackedFiles
+    );
+  const ownGroupArm = resolveImport(
+    'com.squareup.moshi.JsonAdapter',
+    'jvm/src/main/java/com/probe/app/App.java',
+    'java',
+    ownGroupCtx(['com.squareup.moshi'])
+  );
+  // The control: the same import with NO identity read, which is the answer
+  // the arm gave before ./gradle.ts read a `group` assignment.
+  const ownGroupControl = resolveImport(
+    'com.squareup.moshi.JsonAdapter',
+    'jvm/src/main/java/com/probe/app/App.java',
+    'java',
+    ownGroupCtx([])
+  );
+  const ownName = {
+    csharpOrphanAnswer: orphanArm.resolution,
+    csharpOrphanControl: orphanControl.resolution,
+    javaOwnGroupAnswer: ownGroupArm.resolution,
+    javaOwnGroupControl: ownGroupControl.resolution,
+    // END TO END, through the shipping checker rather than at the arm's edge.
+    // The must-not is the same one section 5.5 uses. Under the answer the
+    // arms give now it must WITHHOLD the verdict, and under the answer they
+    // gave before the fix it comes back green about a promise nobody checked.
+    csharpOrphanVerdict: judge(orphanArm.resolution),
+    javaOwnGroupVerdict: judge(ownGroupArm.resolution),
+    beforeVerdict: judge('external')
   };
 
   // -------------------------------------------------------------------------
@@ -1321,6 +1422,7 @@ async function main(): Promise<void> {
         answers,
         falseGreen,
         rootProject,
+        ownName,
         payload: {
           text: payloadOne.text,
           bytes: payloadOne.bytes,

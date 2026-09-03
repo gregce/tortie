@@ -551,6 +551,11 @@
         "language": "csharp",
         "fromPath": "dotnet/src/App/Main.cs",
         "specifier": "Nobody.Declared.This"
+      },
+      {
+        "language": "csharp",
+        "fromPath": "dotnet/src/App/Main.cs",
+        "specifier": "Probe.Shared"
       }
     ],
     "files": {
@@ -695,8 +700,9 @@
     },
     "java": {
       "groups": [
-        "com.squareup.okhttp3",
-        "com.probe.app"
+        "com.probe",
+        "com.probe.app",
+        "com.squareup.okhttp3"
       ],
       "artifacts": [
         "kotlinx-coroutines-android"
@@ -772,7 +778,14 @@
           "Probe.App"
         ]
       ],
+      "declaredNames": [
+        "Probe.App",
+        "Probe.Lib",
+        "Probe.Spanning",
+        "Probe.Shared"
+      ],
       "packages": [
+        "probe.shared",
         "xunit"
       ],
       "present": true
