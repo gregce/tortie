@@ -142,7 +142,15 @@ export const MENU_CODICONS = [
  *    Capture Last N Lines. Capture is one feature in this product and each row
  *    is a different extent of the same photograph, so all of them wear one
  *    mark. It is the only camera in the set, and what lands on the clipboard
- *    is an image.
+ *    is an image. Phase 205 checked that last sentence against the code
+ *    rather than against the comment, because the operator reported the mark
+ *    as a wrong promise on every row but the first: all four rows end at
+ *    `bridge.image({ png })`, being `renderer/terminal/capture/index.ts:422`
+ *    for a selection and `:532` for a line count, and main writes that
+ *    channel with `clipboard.writeImage`. The two rows that put TEXT on the
+ *    clipboard are Copy and Copy as HTML, and they wear `copy` and `code`.
+ *    So the mark stands, and a later round that means to change it should
+ *    change what the rows DO first.
  *  - `edit`, worn by the three Rename rows: a file in the tree, a session, and
  *    the focused leaf of a split group. Rename is the one verb in these menus
  *    that changes a name in place, and `edit` is the pencil the codicon set

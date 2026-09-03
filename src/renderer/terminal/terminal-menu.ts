@@ -189,10 +189,24 @@ export function terminalMenuItems(
 
   if (canCapture) {
     items.push('sep', {
-      // A CHOSEN mark, and all three capture rows wear it, because Capture is
-      // one feature in this product and each row is a different extent of the
-      // same photograph. It is the only camera in the set, and what lands on
-      // the clipboard is an image.
+      // A CHOSEN mark, and every capture row wears it, because Capture is one
+      // feature in this product and each row is a different extent of the same
+      // photograph. It is the only camera in the set, and what lands on the
+      // clipboard is an image. Phase 153 chose it and recorded the reasoning
+      // in src/shared/menu-codicons.ts, which is the reviewable table.
+      //
+      // PHASE 205 MEASURED THAT AND LEFT IT. The operator reported the camera
+      // as wrong on three of the rows, on the understanding that only Capture
+      // Screen makes a picture while the others put TEXT on the clipboard.
+      // Read at the source, all FOUR end at `bridge.image({ png })`, being
+      // ../terminal/capture/index.ts:422 for a selection and :532 for a line
+      // count, and main's sink for that channel is `clipboard.writeImage`. So
+      // a mark saying text would be the wrong promise rather than the right
+      // one, and no glyph moved. The rows that put text on the clipboard are
+      // Copy and Copy as HTML above, and they wear their own marks already.
+      // The count in this comment was the one real error: FOUR rows are drawn
+      // for a session on this Mac and two for a session on another machine,
+      // and it said three.
       label: 'Capture Screen',
       ...menuGlyph('device-camera'),
       run: () => void captureVisible(session)
