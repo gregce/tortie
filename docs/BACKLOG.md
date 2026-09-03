@@ -20648,18 +20648,38 @@ token overrides at runtime. The slider is a third input to that same layer.
   not at three sampled ones. That is the phase's central claim and it is checked over the whole
   circle.
 - **The accent is not rotated.** It is the one accent, and the categorical hues are not touched.
+- **The text follows the ground, and this is his own added requirement.** He said on the same night:
+  *"if it becomes a hue that is much lighter than the dark black which we changed it too, it should
+  do the right thing for the text color"*. Two separate things make a ground read lighter and the
+  phase must handle both. The first is PERCEPTUAL: at a fixed HSL lightness a yellow ground reads far
+  lighter than a blue one, so a rotation that keeps the number identical does not keep the appearance
+  identical. Working in a perceptually uniform space, being OKLCH or LAB, is the fix for that and the
+  phase should say which it chose and why. The second is the honest general case: if a hue ever
+  produces a ground light enough that the shipped text no longer clears its ratio, **the text tokens
+  flip rather than the ground being clamped**, because clamping would silently refuse the hue he
+  asked for. `--text-primary`, `--text-secondary`, `--text-muted` and `--text-disabled` are derived
+  against the ground they sit on, every one of them keeps the ratio the design spec pins for it, and
+  the flip happens at one threshold stated in the code rather than four independent ones. The
+  terminal's own foreground and its ANSI palette follow the same rule, since the terminal is the same
+  material. **The phase proves there is no hue at which any text fails its ratio**, which is the same
+  360 step check as the backgrounds and is the reason the gate walks the whole circle.
 
 ### Proof, run rather than read
 
 - **`npm run conformance:hue`**, a gate that runs the SHIPPING rotation under node over the full
-  circle at one degree steps and asserts every pinned ratio from `docs/DESIGN-SPEC.md` holds at all
-  360, that saturation and lightness are unchanged to the byte, and that the six neutrals stay in
-  their ramp order. Red one clause at a time under ablation.
+  circle at one degree steps and asserts, at all 360, that every pinned ratio from
+  `docs/DESIGN-SPEC.md` holds for BOTH the backgrounds and the four text tokens against the ground
+  each one sits on, that the six neutrals stay in their ramp order, and that perceived lightness
+  stays within a stated band rather than only the raw number. It also asserts the text flip happens
+  at exactly one threshold and that no hue lands text below its ratio. Red one clause at a time under
+  ablation, including an ablation that rotates in plain HSL so the perceptual failure is seen.
 - **Re-derive:** the verifier converts every produced colour with a DIFFERENT colour library or its
   own hand written conversion, and agrees on all 360 hues, and re-derives the contrast ratios with
   its own WCAG arithmetic rather than the phase's.
-- **One app run** at three hues including the default, reading the computed background of the
-  sidebar, the canvas, a terminal pane and an editor off the DOM, and proving all four agree.
+- **One app run** at four hues, being the default, one that reads dark, one that reads light enough
+  to flip the text, and one at the flip threshold itself, reading the computed background AND the
+  computed text colour of the sidebar, the canvas, a terminal pane and an editor off the DOM, and
+  proving all four agree on both.
 - **Attack:** a hue at 0 and at 360 and at the wrap, a fractional hue, a hue set while a contrast
   level and a highlight scheme are both active in every order, and a hue restored from settings at
   boot before the first paint.
@@ -21032,3 +21052,4 @@ cycle rather than only the evening it was written.
 - 2026-09-02, Phase 205 STARTED in a detached worktree at `57d9358`, the terminal behaves like a terminal: the scroll position kept across a window blur and focus, the capture rows losing the camera except the one that makes a picture, and a selection that keeps growing while you scroll the way Apple's own Terminal does, with the verifier driving the same gesture in Terminal.app to settle a claim about another product.
 - 2026-09-02, Phase 206 STARTED in a detached worktree at `57d9358`, the fourth nits round: the five findings phases recorded rather than fixed, tiered PER ITEM, over fixtures only because HIS OWN STRAY WAS ALREADY CLEARED at his word tonight, being the login directory `3215d54b2ba60318` and its keychain item `Claude Code-credentials-695bee03` removed by hand while his own credentials were proved unmoved.
 - 2026-09-02, Phase 207 QUEUED, the chrome takes the hue you choose: he asked for a colour slider in Appearance that moves the hue of all the chrome around the session window, the night Phase 196 landed the quiet frame. It is small because the ramp already declares its hue, `tokens.css` section 1.1 saying cool graphite at about 222 degrees, and Phase 62 already ships the runtime override path in `src/renderer/theme/` that the highlight scheme and the contrast level write through, so the slider is a third input to a layer that exists and NOT a theme system; Phase 23's refusals stand untouched. The traps are named: `--bg-canvas` is mirrored in `src/shared/window-chrome.ts` because the compositor paints the window before any renderer exists, so a hue main does not know is a graphite flash at every launch and the phase must either carry the hue there or leave the canvas out and say so; the terminal is the same material by design and Monaco mirrors the tokens, so a half rotated app is the failure mode; and EVERY pinned contrast ratio must hold at all 360 hues rather than at three sampled ones, checked by a gate at one degree steps and re-derived by the verifier with its own colour conversion and its own WCAG arithmetic. MINOR, Tier 2.
+- 2026-09-02, Phase 207 AMENDED before it was started, on his second sentence: if a hue makes the ground much lighter than the near black the frame ships with, the TEXT must do the right thing. Two causes are named rather than one, being that at a fixed HSL lightness a yellow ground reads far lighter than a blue one so the phase works in a perceptually uniform space and says which, and that if any hue produces a ground the shipped text cannot clear then the four text tokens FLIP rather than the ground being clamped, because clamping would silently refuse the hue he asked for; the terminal foreground and its ANSI palette follow the same rule since the terminal is the same material, the flip has ONE stated threshold rather than four, and the gate walks all 360 degrees asserting no hue leaves any text below its pinned ratio, with an ablation that rotates in plain HSL so the perceptual failure is seen rather than argued.
