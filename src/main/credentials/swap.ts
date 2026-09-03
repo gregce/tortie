@@ -24,6 +24,17 @@
  * whatever happened, so a failed write leaves no half entry behind for a later
  * round to find and trust.
  *
+ * A CRASH CANNOT BE MADE TO RUN A `finally`, and the verification measured
+ * what that leaves: after three real kills the store held the old credential
+ * or the new one every time, which is the property, but two of the three left
+ * a whole credential in the staged place and nothing in the product ever
+ * removed one. Step 1 is not the answer, because staging OVERWRITES on both
+ * backends, a file write and `add-generic-password -U` alike, so a later write
+ * to the same place already replaces the residue; a discard added in front of
+ * it was measured to change nothing except one more `security` call per write,
+ * and it was taken out again. The store that is never written again is the
+ * real gap, and `../credentials/keep.ts` sweeps it once per run.
+ *
  * NO REFUSAL NAMES THE PAYLOAD, its length or any part of it. They name the
  * step and nothing else.
  */

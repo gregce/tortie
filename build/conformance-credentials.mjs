@@ -64,6 +64,11 @@
  *      the account can be put back. An ordinary visit to the Agents page
  *      issues more than one list at once, so this is the common case rather
  *      than a hostile one, and thirteen ablations passed while it was broken.
+ *  14. NOTHING IS LEFT HOLDING A CREDENTIAL BESIDE A STORE. A crash runs no
+ *      `finally`, and real kills left a whole credential staged in two arms of
+ *      three. A later write to the same store replaces it, because staging
+ *      overwrites on both backends; the store that is never written again is
+ *      swept by the first observe of the next run.
  *  13. A STORE THAT NAMES NO ACCOUNT ON EITHER SIDE still keeps what it
  *      replaced, because a login signed into a moment ago has no address until
  *      it takes a turn and that is exactly when a person types `/login` again.
@@ -358,6 +363,7 @@ const VERDICT_PARTS = [
   'noDuplicates',
   'overlap',
   'unnamed',
+  'residue',
   'keychain',
   'shapes'
 ];
@@ -383,6 +389,7 @@ function verdict(d) {
     JSON.stringify(d.noDuplicates),
     JSON.stringify(d.overlap),
     JSON.stringify(d.unnamed),
+    JSON.stringify(d.residue),
     JSON.stringify(keychain),
     JSON.stringify(d.shapes)
   ];
@@ -581,6 +588,28 @@ if ('error' in live) {
     `${TAG} ten refreshes of ONE named account made ${String(live.unnamed.namedLogins)} logins rather than none`
   );
 
+  // Rule 14. NOTHING IS LEFT HOLDING A CREDENTIAL BESIDE A STORE.
+  check(
+    live.residue.crashLeftACredential,
+    `${TAG} the residue arm staged nothing, so the rest of it is a check over an empty world`
+  );
+  check(
+    live.residue.storeUntouched,
+    `${TAG} an interrupted write changed the store it was writing`
+  );
+  check(
+    live.residue.secondWriteLeftOnlyItsOwn,
+    `${TAG} a later write to the same store did not replace the credential a crash left staged there`
+  );
+  check(
+    live.residue.nextRunSweptIt,
+    `${TAG} A WHOLE CREDENTIAL LEFT BESIDE A STORE BY A CRASH IS STILL THERE after a run that observed it`
+  );
+  check(
+    live.residue.storeStillThere,
+    `${TAG} the sweep removed something that was not the staged copy`
+  );
+
   // Rule 9 and rule 10.
   check(!live.leak.tokenInAnswers, `${TAG} A TOKEN BYTE REACHED AN ANSWER THIS DOMAIN GIVES`);
   check(live.leak.recordHasDigest, `${TAG} the record file holds no digest, so the leak scan is over an empty file`);
@@ -717,6 +746,17 @@ const ABLATIONS = [
         file: 'keep.ts',
         from: '    if (sameAccountProven(row, before)) return null;',
         to: '    if (false) return null;'
+      }
+    ]
+  },
+  {
+    // The once per run sweep, for the store that is never written again.
+    name: 'the sweep removed, so a store nobody writes again keeps its residue',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    await sweepStaged(d, provider);',
+        to: '    await Promise.resolve();'
       }
     ]
   },

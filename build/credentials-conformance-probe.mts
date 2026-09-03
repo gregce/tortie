@@ -878,6 +878,54 @@ try {
   }
 
   // -------------------------------------------------------------------------
+  // 11e. THE STAGED PLACE IS NOT LEFT HOLDING A CREDENTIAL.
+  //
+  //      A crash runs no `finally`, so a kill between staging and committing
+  //      leaves a WHOLE credential beside the store. That was measured with
+  //      three real kills: the store held the old credential or the new one
+  //      every time, which is the property, but two of the three left that
+  //      copy behind and the only thing that ever removed one was a later
+  //      write to the same place finishing its own `finally`. A store never
+  //      written again kept it for ever, and on the keychain path it is a
+  //      second item holding a credential.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const d = makeDeps(root, w);
+    addLogin(root, 'codex', 'Work');
+    const row = readLoginsFile(root).file.logins[0];
+    const dir = loginDirIn(root, 'codex', row?.id ?? 'x');
+    const store = `${dir}/auth.json`;
+    const stagedAt = `${store}.tortie-pending`;
+    w.files.set(store, codexCredential('alice', '1'));
+    const target = await stores.storeTarget(d.stores, 'codex', dir);
+    // THE CRASH, at the step the interrupted arm already drives.
+    await swap.safeSwap(target as NonNullable<typeof target>, codexCredential('bob', '2'), 'stage');
+    const leftBehind = w.files.get(stagedAt) ?? null;
+    // A SECOND WRITE CLEARS THE GROUND IT IS ABOUT TO USE.
+    const second = await stores.storeTarget(d.stores, 'codex', dir);
+    await swap.safeSwap(second as NonNullable<typeof second>, codexCredential('carol', '3'), 'stage');
+    const afterSecond = w.files.get(stagedAt) ?? null;
+    // AND THE NEXT RUN SWEEPS A STORE NOBODY WRITES AGAIN. A fresh module is
+    // a fresh process as far as the once per run set is concerned.
+    w.files.set(stagedAt, codexCredential('dave', '4'));
+    const nextRun = (await import(
+      `${pathToFileURL(resolve(MODULES, 'keep.ts')).href}?run=${String(Date.now())}`
+    )) as typeof import('../src/main/credentials/keep');
+    await nextRun.observeProvider(d, 'codex');
+    out['residue'] = {
+      // The crash really did leave a whole credential, so the rest is a check
+      // over something that exists rather than over an empty world.
+      crashLeftACredential: leftBehind === codexCredential('bob', '2'),
+      storeUntouched: w.files.get(store) === codexCredential('alice', '1'),
+      secondWriteLeftOnlyItsOwn: afterSecond === codexCredential('carol', '3'),
+      nextRunSweptIt: !w.files.has(stagedAt),
+      storeStillThere: w.files.get(store) === codexCredential('alice', '1')
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // 12. THE KEYCHAIN PATH, END TO END, over a `security` that behaves the way
   //     the real one was measured to. This is the arm that makes the argv
   //     assertion mean something: a payload on a command line would show up.

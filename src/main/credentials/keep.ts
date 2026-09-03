@@ -224,10 +224,54 @@ export function observeProvider(
   return underRootLock(d.root, () => observeOnce(d, provider));
 }
 
+/**
+ * The roots whose leftover staging has been swept in this run.
+ *
+ * ## WHY A SWEEP EXISTS AT ALL
+ *
+ * `./swap.ts` discards the staged place in a `finally` and again before it
+ * stages, but a crash runs no `finally`, and the pre-discard only helps a
+ * store that is written AGAIN. The verification killed the process at each of
+ * the three steps and measured what was left: the store held the old
+ * credential or the new one every time, and two of the three left a whole
+ * credential beside it that nothing in the product would ever remove. On the
+ * keychain path that residue is a second keychain item holding a credential.
+ *
+ * ## ONCE PER RUN, AND NOT ON EVERY OBSERVE
+ *
+ * Residue can only appear while this process was not running, so the first
+ * observe after a start is the moment to clear it, and a sweep on every
+ * observe would spawn `security` per claude login every five seconds for
+ * nothing. It runs inside the same lock as the observe it rides on.
+ *
+ * IT REMOVES ONLY TORTIE'S OWN LEFTOVERS. `storeTarget` answers null for the
+ * person's own location, so the sweep cannot reach it, and `discard` deletes
+ * the staged place and never the store.
+ */
+const swept = new Set<string>();
+
+async function sweepStaged(d: KeepDeps, provider: LoginProviderId): Promise<void> {
+  for (const store of storesOf(d.root, provider)) {
+    if (store.dir === null) continue;
+    try {
+      const target = await storeTarget(d.stores, provider, store.dir);
+      if (target === null) continue;
+      await target.discard();
+    } catch {
+      // A leftover that will not go changes nothing about what any store
+      // holds, and failing an observe for it would be worse.
+    }
+  }
+}
+
 async function observeOnce(
   d: KeepDeps,
   provider: LoginProviderId
 ): Promise<Observation> {
+  if (!swept.has(`${d.root}\u0000${provider}`)) {
+    swept.add(`${d.root}\u0000${provider}`);
+    await sweepStaged(d, provider);
+  }
   const events: KeepEvent[] = [];
   const facts = new Map<string, KeptFacts>();
   const { file: kept } = readKeptFile(d.root);
