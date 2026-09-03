@@ -15,10 +15,28 @@
  *     off the real DOM;
  *  3. chooses that kept login while the default session is running, and reads
  *     the default store back ON DISK: it now holds the chosen account, which is
- *     the write that reaches the running session (the DEFAULT LIFT);
- *  4. writes a fresh sign in into the default store FROM OUTSIDE, the way the
+ *     the write that reaches the running session (the DEFAULT LIFT), then
+ *     reads the sentence and the `Restart now` off the toast in the DOM;
+ *  4. presses `Restart now` and reads the replacement off the session list,
+ *     which must carry the chosen login's NAME, and the environment the new
+ *     pane really got, recorded by the stub the pane ran, whose `CODEX_HOME`
+ *     must be the chosen login's own directory under this profile;
+ *  5. writes a fresh sign in into the default store FROM OUTSIDE, the way the
  *     vendor's own `/login` does, and reads the menu redraw off the DOM with NO
- *     hover and NO visit: the watcher saw the file move and pushed the change.
+ *     hover and NO visit, timing it: the watcher saw the file move and pushed
+ *     the change.
+ *
+ * ## THE FIX ROUND'S OWN ADMISSION, and why steps 3 and 4 were never green
+ *
+ * As first shipped, every harness launch got a `liveSessions` seam that
+ * answered nothing, so the default lift could never fire in any app run, and
+ * this probe failed as shipped on its lift reading while the gate's codex arm
+ * passed. The harness seams now share the person's own seam, which reads the
+ * manifest of THIS profile. The kept row grader read a drive reading that
+ * carried neither `kept` nor `restores`, and the `~/.claude.json` hash was
+ * graded as a credential when it is the vendor's session state file that
+ * every running Claude Code rewrites, this verifier's own included. Both are
+ * put right below.
  *
  * ## Nothing of the person is read, written or spent
  *
@@ -30,11 +48,14 @@
  *    `finally`, exactly as build/probe-p208-vault.mjs does. It exists so his
  *    keychain can be inventoried by attributes before and after, with NO `-g`
  *    and NO `-w` against it, and proved unchanged.
- *  - NO AGENT RUNS beyond a shell, no vendor binary is spawned, no token is
- *    spent. `CLAUDE_CONFIG_DIR` and `CODEX_HOME` point at directories this file
- *    made.
+ *  - NO VENDOR BINARY RUNS. `claude` and `codex` on the pane's PATH are two
+ *    stub scripts this probe writes, which record the environment their pane
+ *    really got and then sleep; the login shell the app asks for its PATH is a
+ *    stub too, answering with the stub directory first. `CLAUDE_CONFIG_DIR`
+ *    and `CODEX_HOME` point at directories this file made. No token is spent.
  *  - ONE ELECTRON AT A TIME, through build/electron-run.mjs, ended in its
- *    `finally`. The tmux socket is the harness one, ended by the helper.
+ *    `finally`, and the stubs' sleepers die with the harness tmux server the
+ *    helper ends.
  *
  * ## The lock is proved by the gate, not by a log line
  *
@@ -55,7 +76,7 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -73,16 +94,51 @@ const fail = (line) => {
 // The graders, the only thing --self-test runs.
 // ---------------------------------------------------------------------------
 
-/** The kept login the account he left earns: present false, kept true, a switch line. */
+/**
+ * The kept login the account he left earns: present false, kept true,
+ * restores true. These are the row's own booleans as the drive read them off
+ * the store every surface draws from; the copy composed from them is pinned by
+ * the login-copy tests, not re-derived here.
+ */
 export function gradeKeptRow(row) {
   if (row === undefined || row === null) return { ok: false, why: 'no row at all' };
   const why = [];
-  if (row.kept !== '1') why.push(`kept ${String(row.kept)} rather than 1`);
-  if (row.restores !== '1') why.push(`restores ${String(row.restores)} rather than 1`);
-  if (!row.text.includes('Puts this account back')) why.push('no switch line');
-  if (!/about half a minute|next message/.test(row.text)) why.push('the switch line names no timing');
-  if (row.text.includes('Not signed in yet')) why.push('it says it was never signed into');
-  return why.length === 0 ? { ok: true, why: row.text.slice(0, 120) } : { ok: false, why: why.join(', ') };
+  if (row.present !== false) why.push('its store reads as present, so nothing was promoted');
+  if (row.kept !== true) why.push(`kept ${String(row.kept)} rather than true`);
+  if (row.restores !== true) why.push(`restores ${String(row.restores)} rather than true`);
+  return why.length === 0
+    ? { ok: true, why: `${row.name}: kept, restores, store empty` }
+    : { ok: false, why: why.join(', ') };
+}
+
+/** The sentence after a switch, and the control beside it, read off the toast. */
+export function gradeSwitchToast(toasts, buttons, chosen) {
+  const why = [];
+  const line = toasts.find((t) => t.startsWith(`${chosen} is switched.`));
+  if (line === undefined) why.push('no sentence saying the login is switched');
+  else if (!/about half a minute|next message/.test(line)) why.push('the sentence names no timing');
+  if (!buttons.includes('Restart now')) why.push('no Restart now beside it');
+  return why.length === 0 ? { ok: true, why: line } : { ok: false, why: why.join(', ') };
+}
+
+/**
+ * The replacement after `Restart now`: one session, carrying the chosen login's
+ * NAME on its row, and a new pane whose CODEX_HOME is that login's own
+ * directory under this profile, read from inside the pane by the stub.
+ */
+export function gradeRestarted(before, after, envFiles, chosen, loginsRoot) {
+  const why = [];
+  if (after.length !== 1) why.push(`${String(after.length)} sessions after the restart rather than one`);
+  const row = after[0];
+  if (row !== undefined && before[0] !== undefined && row.id === before[0].id) why.push('the session id did not change, so nothing was restarted');
+  if (row !== undefined && row.login !== chosen) why.push(`the row carries login ${String(row.login)} rather than ${chosen}`);
+  const fresh = envFiles.filter((f) => row !== undefined && f.file.startsWith(row.id));
+  if (fresh.length === 0) why.push('no pane environment was recorded for the replacement');
+  for (const f of fresh) {
+    const home = /^CODEX_HOME=(.*)$/m.exec(f.text)?.[1] ?? '';
+    if (!home.startsWith(`${loginsRoot}/codex/`)) why.push(`the new pane's CODEX_HOME is ${home || 'unset'} rather than a login directory under this profile`);
+  }
+  return why.length === 0 ? { ok: true, why: `row ${chosen}, pane CODEX_HOME under ${loginsRoot}/codex` } : { ok: false, why: why.join('; ') };
 }
 
 /** The store reached the running session: its file now holds the chosen account. */
@@ -120,18 +176,24 @@ export function gradeInventory(before, after) {
 }
 
 if (process.argv.includes('--self-test')) {
-  const keptRow = {
-    kept: '1',
-    restores: '1',
-    text: 'two@x.com · one.example · Kept by Tortie · Puts this account back. Takes effect within about half a minute, or restart the session now.'
-  };
+  const keptRow = { name: 'one.example', present: false, kept: true, restores: true };
   const inv = (mdat, cdat = 'c', acct = 'x') => ({ acct, cdat, mdat });
+  const sess = (id, login) => ({ id, login });
+  const env = (id, home) => ({ file: `${id}.codex.1.env`, text: `agent=codex\nCODEX_HOME=${home}\n` });
   const cases = [
-    ['a kept row with a switch line and a timing', () => gradeKeptRow(keptRow).ok, true],
-    ['a kept row missing the timing', () => gradeKeptRow({ ...keptRow, text: 'Kept by Tortie · Puts this account back.' }).ok, false],
-    ['a kept row that says never signed in', () => gradeKeptRow({ ...keptRow, text: 'one.example · Not signed in yet' }).ok, false],
-    ['a row not kept', () => gradeKeptRow({ ...keptRow, kept: '0' }).ok, false],
+    ['a kept row: store empty, kept, restores', () => gradeKeptRow(keptRow).ok, true],
+    ['a kept row whose store still reads present', () => gradeKeptRow({ ...keptRow, present: true }).ok, false],
+    ['a row not kept', () => gradeKeptRow({ ...keptRow, kept: false }).ok, false],
+    ['a row that restores nothing', () => gradeKeptRow({ ...keptRow, restores: false }).ok, false],
     ['no row', () => gradeKeptRow(undefined).ok, false],
+    ['the toast with the timing and the control', () => gradeSwitchToast(['one.example is switched. Takes effect within about half a minute, or restart the session now.'], ['Restart now'], 'one.example').ok, true],
+    ['the toast with no control', () => gradeSwitchToast(['one.example is switched. Takes effect on the next message.'], [], 'one.example').ok, false],
+    ['no toast', () => gradeSwitchToast([], ['Restart now'], 'one.example').ok, false],
+    ['a restart under the chosen login with a new pane under the profile', () => gradeRestarted([sess('a', null)], [sess('b', 'one.example')], [env('b', '/p/logins/codex/x1')], 'one.example', '/p/logins').ok, true],
+    ['a restart that kept the original login', () => gradeRestarted([sess('a', null)], [sess('b', null)], [env('b', '/p/logins/codex/x1')], 'one.example', '/p/logins').ok, false],
+    ['a restart whose pane got the default store', () => gradeRestarted([sess('a', null)], [sess('b', 'one.example')], [env('b', '/scratch/default-codex')], 'one.example', '/p/logins').ok, false],
+    ['a restart that restarted nothing', () => gradeRestarted([sess('a', null)], [sess('a', 'one.example')], [env('a', '/p/logins/codex/x1')], 'one.example', '/p/logins').ok, false],
+    ['a restart that left two sessions', () => gradeRestarted([sess('a', null)], [sess('a', null), sess('b', 'one.example')], [env('b', '/p/logins/codex/x1')], 'one.example', '/p/logins').ok, false],
     ['the store reached', () => gradeReached('AAA', 'AAA').ok, true],
     ['the store not reached', () => gradeReached('AAA', 'BBB').ok, false],
     ['the store gone', () => gradeReached(null, 'AAA').ok, false],
@@ -213,15 +275,22 @@ function hashFile(path) {
 }
 
 const home = process.env['HOME'] ?? '';
+/**
+ * His credential files, hashed before and after. `~/.claude.json` is NOT a
+ * credential: it is the vendor's session state, rewritten by every running
+ * Claude Code under his account, so it is read for the record and not graded.
+ */
 const fileHashes = () => ({
   '~/.codex/auth.json': hashFile(join(home, '.codex', 'auth.json')),
-  '~/.claude.json': hashFile(join(home, '.claude.json'))
+  '~/.claude/.credentials.json': hashFile(join(home, '.claude', '.credentials.json'))
 });
+const claudeJsonHash = () => hashFile(join(home, '.claude.json'));
 
 const searchList = () => security(['list-keychains']).stdout;
 
 const inventoryBefore = inventory();
 const filesBefore = fileHashes();
+const claudeJsonBefore = claudeJsonHash();
 const searchBefore = searchList();
 say(`his keychain before: ${String(Object.keys(inventoryBefore).length)} items in the two families`);
 for (const [name, hash] of Object.entries(filesBefore)) say(`credential before: ${name} ${hash}`);
@@ -238,7 +307,53 @@ const profile = join(root, 'profile');
 const defaultCodex = join(root, 'default-codex');
 const defaultClaude = join(root, 'default-claude');
 const project = join(root, 'project');
-for (const dir of [profile, defaultCodex, defaultClaude, project]) mkdirSync(dir, { recursive: true, mode: 0o700 });
+const stubBin = join(root, 'bin');
+const envDir = join(root, 'pane-env');
+for (const dir of [profile, defaultCodex, defaultClaude, project, stubBin, envDir]) mkdirSync(dir, { recursive: true, mode: 0o700 });
+
+// THE STUBS. `claude` and `codex` record the environment their pane really
+// got and then sleep, so a "session" is a pane with no vendor in it. The login
+// shell the app asks for its PATH answers with the stub directory first.
+for (const name of ['claude', 'codex']) {
+  writeFileSync(
+    join(stubBin, name),
+    [
+      '#!/bin/sh',
+      'case " $* " in',
+      '  *" --version "*|*" -v "*|*" --help "*) echo "0.0.0-p211-stub"; exit 0;;',
+      'esac',
+      'id="${GMUX_SESSION_ID:-unknown}"',
+      `out="$P211_ENV_DIR/$id.${name}.$$.env"`,
+      '{',
+      `  echo "agent=${name}"`,
+      '  echo "CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR-}"',
+      '  echo "CODEX_HOME=${CODEX_HOME-}"',
+      '  echo "GMUX_SESSION_ID=${GMUX_SESSION_ID-}"',
+      '  echo "pid=$$"',
+      '} > "$out"',
+      'exec sleep 100000',
+      ''
+    ].join('\n')
+  );
+  chmodSync(join(stubBin, name), 0o755);
+}
+// The stub directory first, then the system, then the two places tmux is
+// installed from, because the app resolves tmux against this same answer.
+const stubPath = [stubBin, '/usr/bin', '/bin', '/usr/sbin', '/sbin', '/opt/homebrew/bin', '/usr/local/bin'].join(':');
+const fakeShell = join(root, 'p211-shell');
+writeFileSync(
+  fakeShell,
+  [
+    '#!/bin/sh',
+    'case "$1" in',
+    `  -lic|-lc|-ic) printf "__GMUX_PATH__%s__GMUX_PATH__" ${JSON.stringify(stubPath)}; exit 0;;`,
+    'esac',
+    'exec /bin/sh "$@"',
+    ''
+  ].join('\n')
+);
+chmodSync(fakeShell, 0o755);
+const paneEnvFiles = () => readdirSync(envDir).map((f) => ({ file: f, text: readFileSync(join(envDir, f), 'utf8') }));
 
 keychainFile = join(root, 'scratch.keychain-db');
 const keychainPassword = randomBytes(12).toString('hex');
@@ -293,7 +408,10 @@ try {
     GMUX_HARNESS_KEYCHAIN: keychainFile,
     CLAUDE_CONFIG_DIR: defaultClaude,
     CODEX_HOME: defaultCodex,
-    GMUX_TMUX_SOCKET: socket
+    GMUX_TMUX_SOCKET: socket,
+    SHELL: fakeShell,
+    PATH: stubPath,
+    P211_ENV_DIR: envDir
   };
 
   await withElectron(
@@ -303,6 +421,8 @@ try {
       cwd: repoRoot,
       args: ['--remote-debugging-port=0', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling'],
       env: launchEnv,
+      // `P211_ECHO=1` prints the app's own lines, for reading a refusal.
+      ...(process.env['P211_ECHO'] === '1' ? { echo: true } : {}),
       graceMs: 15_000,
       ceilingMs: 300_000,
       tmuxSocket: socket
@@ -316,81 +436,133 @@ try {
         await sleep(500);
       }
 
+      const readState = async () =>
+        JSON.parse(
+          await cdpEval(
+            cdp,
+            `(async () => { const s = await window.__gmuxP202.read(); return JSON.stringify({ logins: s.logins.filter((l) => l.provider === 'codex'), sessions: s.sessions, toasts: s.toasts }); })()`
+          )
+        );
+      const waitUntil = async (pred, maxMs) => {
+        const t0 = Date.now();
+        for (;;) {
+          const st = await readState();
+          if (pred(st)) return { ms: Date.now() - t0, state: st };
+          if (Date.now() - t0 > maxMs) return { ms: -1, state: st };
+          await sleep(150);
+        }
+      };
+
       // Open a codex session on the DEFAULT login, so a default session is live.
-      await cdpEval(cdp, `window.__gmuxP211 = window.__gmuxP211 || {};`);
-      const created = await cdpEval(
-        cdp,
-        `window.__gmuxP202.createSession('p211', 'codex')`
-      );
+      await cdpEval(cdp, `window.__gmuxP189Open(${JSON.stringify(project)})`);
+      await sleep(1000);
+      const created = await cdpEval(cdp, `window.__gmuxP202.createSession('p211', 'codex')`);
       say(`created a codex session on the default login: ${String(created)}`);
-      await sleep(1500);
+      for (let waited = 0; waited < 30_000 && paneEnvFiles().length === 0; waited += 500) await sleep(500);
+      await sleep(1000);
+      const start = await readState();
+      report.sessionsAtStart = start.sessions;
+      report.paneEnvAtStart = paneEnvFiles();
+      say(`session at start: ${JSON.stringify(start.sessions)}; pane env files ${String(report.paneEnvAtStart.length)}`);
 
       // /login: a second account in the default store, which promotes the first.
+      // The WATCHER sees it; no list is asked for. Timed.
       signInCodex('two');
-      await cdpEval(cdp, `window.__gmuxP202.loadLogins()`);
-      await sleep(6500);
-      await cdpEval(cdp, `window.__gmuxP202.loadLogins()`);
-      await sleep(1500);
-      // Read the login rows off the state the surfaces draw from.
-      const rowsAfterChange = await cdpEval(
-        cdp,
-        `(async () => { const s = await window.__gmuxP202.read(); return JSON.stringify(s.logins.filter((l) => l.provider === 'codex')); })()`
-      );
-      report.rows.afterChange = rowsAfterChange;
-      say(`rows after the store changed: ${String(rowsAfterChange)}`);
+      const promoted = await waitUntil((st) => st.logins.some((l) => l.name === 'one.example'), 20_000);
+      report.promotedAfterMs = promoted.ms;
+      report.rows.afterChange = JSON.stringify(promoted.state.logins);
+      say(`the account he left was promoted after ${String(promoted.ms)} ms: ${report.rows.afterChange}`);
 
       // Choose the promoted login while the default session runs: the default
-      // lift writes the default store, so the running session follows.
+      // lift writes the default store, so the running session follows, and the
+      // store's sentence with `Restart now` is on the toast.
       const mintedName = 'one.example';
       const chose = await cdpEval(cdp, `window.__gmuxP202.chooseLogin('codex', ${JSON.stringify(mintedName)})`);
       say(`chose the kept login while a default session runs: ${String(chose)}`);
-      await sleep(1500);
+      const toasted = await waitUntil((st) => st.toasts.some((t) => t.startsWith(`${mintedName} is switched.`)), 10_000);
       report.reached = readFileSync(codexStore, 'utf8');
+      report.toasts = toasted.state.toasts;
+      report.toastButtons = await cdpEval(
+        cdp,
+        `Array.from(document.querySelectorAll('.toast .btn-text')).map((b) => b.textContent)`
+      );
+      say(`toasts: ${JSON.stringify(report.toasts)}; controls: ${JSON.stringify(report.toastButtons)}`);
+
+      // Restart now: the replacement comes back under the CHOSEN login, and the
+      // new pane's environment says so from inside.
+      const clicked = await cdpEval(
+        cdp,
+        `(() => { const b = Array.from(document.querySelectorAll('.toast .btn-text')).find((x) => x.textContent === 'Restart now'); if (!b) return false; b.click(); return true; })()`
+      );
+      say(`pressed Restart now: ${String(clicked)}`);
+      const restarted = await waitUntil(
+        (st) => st.sessions.length === 1 && st.sessions[0].id !== start.sessions[0]?.id && paneEnvFiles().some((f) => f.file.startsWith(st.sessions[0].id)),
+        30_000
+      );
+      await sleep(500);
+      report.sessionsAfterRestart = restarted.state.sessions;
+      report.paneEnvAfterRestart = paneEnvFiles();
+      say(`after restart (${String(restarted.ms)} ms): ${JSON.stringify(report.sessionsAfterRestart)}; pane env files ${String(report.paneEnvAfterRestart.length)}`);
 
       // From OUTSIDE, a fresh sign in, the way /login does. The watcher must see
-      // it and push a redraw with no hover and no visit.
-      const before = await cdpEval(cdp, `(async () => { const s = await window.__gmuxP202.read(); return JSON.stringify(s.logins.map((l) => l.name + ':' + String(l.email))); })()`);
+      // it and push a redraw with no hover and no visit. Timed.
+      // The rows are keyed on the ADDRESS as well: after the lift the default
+      // store holds the chosen account, so a third sign in changes the default
+      // row's address and mints nothing, and presence alone would read the same.
+      const rowKey = (l) => `${l.name}:${String(l.email)}:${String(l.present)}`;
+      const before = JSON.stringify((await readState()).logins.map(rowKey));
       report.rows.beforeOutside = before;
       signInCodex('three');
       // NO loadLogins call here: only the watcher's own push may redraw.
-      await sleep(8000);
-      const after = await cdpEval(cdp, `(async () => { const s = await window.__gmuxP202.read(); return JSON.stringify(s.logins.map((l) => l.name + ':' + String(l.email))); })()`);
-      report.rows.afterOutside = after;
-      say(`rows before the outside sign in: ${String(before)}`);
-      say(`rows after the outside sign in (no visit): ${String(after)}`);
+      const redrew = await waitUntil((st) => JSON.stringify(st.logins.map(rowKey)) !== before, 20_000);
+      report.redrewAfterMs = redrew.ms;
+      report.rows.afterOutside = JSON.stringify(redrew.state.logins.map(rowKey));
+      say(`rows before the outside sign in: ${before}`);
+      say(`rows after the outside sign in (no visit, ${String(redrew.ms)} ms): ${report.rows.afterOutside}`);
     }
   );
 
-  // Reading 2. The kept row and its switch line.
+  // Reading 1. The session was there, on the default login, and its pane got
+  // the default store.
+  const first = report.sessionsAtStart?.[0];
+  if (first !== undefined && (first.login === null || first.login === undefined) && report.paneEnvAtStart.length > 0) {
+    pass(`a codex session ran on the default login and its pane recorded its environment from inside`);
+  } else fail(`the session at start: ${JSON.stringify(report.sessionsAtStart)}, ${String(report.paneEnvAtStart?.length ?? 0)} pane env files`);
+
+  // Reading 2. The kept row, promoted by the watcher with no list asked for.
   let keptRowParsed = null;
   try {
-    const rows = JSON.parse(report.rows.afterChange ?? '[]');
-    keptRowParsed = rows.find((r) => r.name === 'one.example') ?? null;
-    // The DOM data-attrs the drive did not read directly are re-derived from the
-    // row's own booleans, matching the copy the card composes.
-    if (keptRowParsed !== null) {
-      keptRowParsed = {
-        kept: keptRowParsed.kept ? '1' : '0',
-        restores: keptRowParsed.restores ? '1' : '0',
-        text: `${String(keptRowParsed.email)} · Kept by Tortie · Puts this account back. Takes effect within about half a minute, or restart the session now.`
-      };
-    }
+    keptRowParsed = JSON.parse(report.rows.afterChange ?? '[]').find((r) => r.name === 'one.example') ?? null;
   } catch {
     keptRowParsed = null;
   }
   const v2 = gradeKeptRow(keptRowParsed);
-  if (v2.ok) pass(`the account he left is a kept login with a switch line: ${v2.why}`);
-  else fail(`the kept login row: ${v2.why}`);
+  if (v2.ok && report.promotedAfterMs >= 0) pass(`the account he left is a kept login, promoted by the watcher after ${String(report.promotedAfterMs)} ms with no list asked for: ${v2.why}`);
+  else fail(`the kept login row: ${v2.why}${report.promotedAfterMs < 0 ? ', and it was not seen within 20 s' : ''}`);
 
-  // Reading 3. The switch reached the running session's store.
+  // Reading 3. The switch reached the running session's store, and said so.
   const v3 = gradeReached(report.reached, codexAuth('one'));
   if (v3.ok) pass(`the default lift reached the running session's store: ${v3.why}`);
   else fail(`the default lift: ${v3.why}`);
+  const v3b = gradeSwitchToast(report.toasts ?? [], report.toastButtons ?? [], 'one.example');
+  if (v3b.ok) pass(`the sentence and Restart now: ${v3b.why}`);
+  else fail(`the switch toast: ${v3b.why}`);
 
-  // Reading 4. The menu redrew unasked.
-  const v4 = gradeRedrewUnasked(report.rows.beforeOutside ?? 'a', report.rows.afterOutside ?? 'a');
-  if (v4.ok) pass(`the menu redrew after an outside sign in with no visit: ${v4.why}`);
-  else fail(`the watcher redraw: ${v4.why}`);
+  // Reading 4. Restart now restored the session under the chosen login.
+  const v4 = gradeRestarted(
+    report.sessionsAtStart ?? [],
+    report.sessionsAfterRestart ?? [],
+    report.paneEnvAfterRestart ?? [],
+    'one.example',
+    join(profile, 'gmux', 'logins')
+  );
+  if (v4.ok) pass(`Restart now brought the session back under the chosen login: ${v4.why}`);
+  else fail(`Restart now: ${v4.why}`);
+
+  // Reading 5. The menu redrew unasked.
+  const v5 = gradeRedrewUnasked(report.rows.beforeOutside ?? 'a', report.rows.afterOutside ?? 'a');
+  if (v5.ok) pass(`the menu redrew after an outside sign in with no visit, after ${String(report.redrewAfterMs)} ms: ${v5.why}`);
+  else fail(`the watcher redraw: ${v5.why}`);
 } finally {
   const deleted = security(['delete-keychain', keychainFile]);
   say(`scratch keychain deleted: rc ${String(deleted.code)}, file ${existsSync(keychainFile) ? 'still there' : 'gone'}`);
@@ -402,13 +574,18 @@ const inventoryAfter = inventory();
 const filesAfter = fileHashes();
 report.inventoryAfter = inventoryAfter;
 report.filesAfter = filesAfter;
-const v5 = gradeInventory(inventoryBefore, inventoryAfter);
-if (v5.ok) pass(`his keychain by attributes: ${v5.why}`);
-else fail(`his keychain by attributes: ${v5.why}`);
+const v6 = gradeInventory(inventoryBefore, inventoryAfter);
+if (v6.ok) pass(`his keychain by attributes: ${v6.why}`);
+else fail(`his keychain by attributes: ${v6.why}`);
 for (const [name, hash] of Object.entries(filesAfter)) {
   if (filesBefore[name] === hash) pass(`credential unmoved: ${name} ${hash}`);
   else fail(`credential MOVED: ${name} was ${filesBefore[name]}, is now ${hash}`);
 }
+const claudeJsonAfter = claudeJsonHash();
+report.claudeJson = { before: claudeJsonBefore, after: claudeJsonAfter };
+say(
+  `~/.claude.json ${claudeJsonBefore === claudeJsonAfter ? 'unchanged' : 'moved'} (${claudeJsonBefore} to ${claudeJsonAfter}); it is the vendor's session state, rewritten by any running Claude Code, and not a credential, so it is recorded and not graded`
+);
 if (searchList() === searchBefore && !searchBefore.includes(keychainFile)) pass('the keychain search list is what it was, and never held the scratch file');
 else fail('the keychain search list changed');
 

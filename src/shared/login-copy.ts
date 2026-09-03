@@ -67,14 +67,19 @@ export const LOGIN_KEPT = 'Kept by Tortie';
 export const LOGIN_SWITCH_RESTORE = 'Puts this account back.';
 
 /**
- * When a switch takes effect, said with the MEASURED number (Phase 211).
+ * When a switch takes effect, said with the number READ FROM THE BUNDLE
+ * (Phase 211, corrected by the fix round).
  *
- * On macOS a running Claude Code caches its keychain read for about thirty
- * seconds, measured against the installed 2.1.259 build and matching the
- * vendor's own 30,000 ms cache exactly, so a session picks a switch up on its
- * own within about half a minute. `Restart now` on the card is the instant
- * path. On every other platform the vendor re-reads its credential FILE the
- * moment it changes, so the switch lands on the next message.
+ * On macOS a running Claude Code caches its keychain read for thirty seconds:
+ * `S8t=30000` at offset 158840519 of the installed 2.1.259 bundle, honoured by
+ * its keychain `read()` at 158845461, both in docs/research/79. So a session
+ * picks a switch up on its own within about half a minute. No vendor process
+ * was driven to time it, and the research says what that would take, so this
+ * is the bundle's constant and not a stopwatch; the operator's acceptance
+ * step in the Phase 211 entry is the reading that can confirm it. `Restart
+ * now` beside the sentence is the instant path. On every other platform the
+ * vendor re-reads its credential FILE the moment it changes, so the switch
+ * lands on the next message.
  */
 export const LOGIN_SWITCH_TAKES_MAC =
   'Takes effect within about half a minute, or restart the session now.';
