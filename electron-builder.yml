@@ -195,10 +195,13 @@ extraResources:
   # place a mistake here shows up (research 19 §2.8, §7.2). This is the
   # go/no-go check the symbols work is gated on.
   #
-  # NINE from the npm package, not sixteen: typescript 1,381 KB, tsx 1,412 KB,
+  # TEN from the npm package, not sixteen: typescript 1,381 KB, tsx 1,412 KB,
   # rust 1,088 KB, python 447 KB, javascript 402 KB, go 212 KB, ruby 2,057 KB,
-  # java 405 KB and php 1,033 KB = 8.2 MB. The package also carries cpp
-  # (5.1 MB), c-sharp (4.9 MB), bash, powershell, css, ini and regex.
+  # java 405 KB, php 1,033 KB and c-sharp 4,984 KB = 13.1 MB. The package also
+  # carries cpp (5.1 MB), bash, powershell, css, ini and regex, and Phase 184
+  # measured cpp and REFUSED it: the objc grammar this build already vendors
+  # extracts every #include a C or C++ file writes, so cpp would buy symbols
+  # only and no grammar here has ever been bought for that.
   #
   # Ruby is the seventh and Phase 157 is the deliberate act this comment always
   # asked for: 2.0 MB of bundle bought a Ruby repository's imports resolving
@@ -209,8 +212,9 @@ extraResources:
   # THIS FILTER IS WHY A GRAMMAR THE PACKAGE CARRIES IS STILL NOT FREE, and the
   # Phase 184 entry assumed otherwise. Every name here is copied BY EXACT
   # FILENAME, so an unnamed grammar costs zero and a named one costs its whole
-  # size in signed app. Java is the eighth at 414,641 bytes and PHP the ninth
-  # at 1,058,041, and each buys that language's imports resolving.
+  # size in signed app. Java is the eighth at 414,641 bytes, PHP the ninth at
+  # 1,058,041 and C sharp the tenth at 5,103,332, being 6,576,014 bytes for
+  # Phase 184, and each buys that language's imports resolving.
   - from: node_modules/@vscode/tree-sitter-wasm/wasm
     to: tree-sitter
     filter:
@@ -223,6 +227,7 @@ extraResources:
       - "tree-sitter-ruby.wasm"
       - "tree-sitter-java.wasm"
       - "tree-sitter-php.wasm"
+      - "tree-sitter-c-sharp.wasm"
   # THREE MORE from the repo itself (Phase 180): Swift 3,736 KB, Kotlin
   # 3,958 KB and Objective-C 5,193 KB = 12.6 MB, vendored whole in
   # resources/tree-sitter because no package the bundle carries ships them.

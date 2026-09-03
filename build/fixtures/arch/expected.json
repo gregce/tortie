@@ -81,7 +81,7 @@
       "status": "divergent",
       "coverage": "checked",
       "accepted": false,
-      "why": "The Phase 180 fix-round pin. The only import across this line resolves to the DIRECTORY vendor/lib, the shape every Swift target-grain answer takes, and before the fix it vanished from the ledger and this row read convergent: the false green."
+      "why": "The directory-grain pin, Phase 180 fix round and Phase 184. BOTH imports across this line resolve to the DIRECTORY vendor/lib rather than to a tracked file, one at Swift target grain and one at C sharp PROJECT grain, and before the fix they vanished from the ledger and this row read convergent: the false green. Ablating ownersOfDirectory with the Swift row removed still flips this verdict, so the C sharp row bites on its own."
     },
     {
       "subjectId": "edge:core-must-not-app",
@@ -195,7 +195,7 @@
     "cannotCheck": 3,
     "accepted": 1,
     "unresolvedImports": 1,
-    "totalImports": 10
+    "totalImports": 11
   },
   "resolverMatrix": [
     {
@@ -301,6 +301,14 @@
       "external": 1,
       "unresolved": 1,
       "unverifiable": 0
+    },
+    {
+      "language": "csharp",
+      "arm": "shipped (PROJECT grain)",
+      "firstParty": 2,
+      "external": 2,
+      "unresolved": 2,
+      "unverifiable": 0
     }
   ],
   "freshness": [
@@ -383,7 +391,8 @@
       "PARTS",
       "",
       "app, a component in the surface layer, first party, open boundary.",
-      "  3 files at HEAD.",
+      "  4 files at HEAD.",
+      "    src/app/Api.cs",
       "    src/app/Feature.swift",
       "    src/app/main.ts",
       "    src/app/view.ts",
@@ -436,7 +445,7 @@
       "    Note, from docs/arch, unverified. A dependency this project refuses, and the manifest agrees. It has been refused since 2019.",
       "  app must not import vendored lib, checked by imports. CROSSING out of this scope, the other end is vendored lib.",
       "    This broke, checked.",
-      "    Note, from docs/arch, unverified. The Phase 180 fix-round pin. The ONLY import across this line is a Swift target-grain answer whose toPath is the DIRECTORY vendor/lib, never a tracked file. Before the fix, fileOwners saw no such key, the crossing vanished from both sides of the ledger, and this must-not printed the false green.",
+      "    Note, from docs/arch, unverified. The directory-grain pin, Phase 180 fix round and Phase 184. EVERY import across this line answers with a DIRECTORY and never a tracked file: a Swift target grain answer, and a C sharp PROJECT grain answer. Before the fix, fileOwners saw no such key, both crossings vanished from the ledger, and this must-not printed the false green. It is one row per arm that answers with a directory, because a fix nothing exercises for a new arm is a fix that arm does not have.",
       "  core must import vendored lib, checked by imports. CROSSING out of this scope, the other end is vendored lib.",
       "    This is missing, checked.",
       "    Note, from docs/arch, unverified. The planted absence. Nothing imports it.",
@@ -458,7 +467,8 @@
       "    src/app/main.ts line 3 names \"../store/db\", which resolves to src/store/db.ts.",
       "    src/app/view.ts line 4 names \"../store/db\", which resolves to src/store/db.ts. Accepted on purpose, from docs/arch, unverified. The view reads one row directly while the read path is being moved, and it is on the list.",
       "  app must not import vendored lib: broke, checked.",
-      "    1 import crosses a line this contract says nothing may cross.",
+      "    2 imports cross a line this contract says nothing may cross.",
+      "    src/app/Api.cs line 2 names \"VendoredLib.Rows\", which resolves to vendor/lib.",
       "    src/app/Feature.swift line 1 names \"VendoredLib\", which resolves to vendor/lib.",
       "  core must not import app: broke, checked.",
       "    1 import crosses a line this contract says nothing may cross.",
@@ -485,7 +495,7 @@
       "FRESHNESS",
       "",
       "  2 of 3 parts have had code land under them since the contract last changed, core by 2, and 2 changed files are not committed yet, so those are checked against what is on disk rather than against HEAD.",
-      "  1 of 10 imports could not be resolved, so nothing here claims they are absent.",
+      "  1 of 11 imports could not be resolved, so nothing here claims they are absent.",
       "",
       "WHAT THIS IS NOT",
       "",
@@ -800,7 +810,7 @@
       "      \"rule\": \"must-not\",",
       "      \"checker\": \"imports\",",
       "      \"evidence\": [],",
-      "      \"note\": \"The Phase 180 fix-round pin. The ONLY import across this line is a Swift target-grain answer whose toPath is the DIRECTORY vendor/lib, never a tracked file. Before the fix, fileOwners saw no such key, the crossing vanished from both sides of the ledger, and this must-not printed the false green.\"",
+      "      \"note\": \"The directory-grain pin, Phase 180 fix round and Phase 184. EVERY import across this line answers with a DIRECTORY and never a tracked file: a Swift target grain answer, and a C sharp PROJECT grain answer. Before the fix, fileOwners saw no such key, both crossings vanished from the ledger, and this must-not printed the false green. It is one row per arm that answers with a directory, because a fix nothing exercises for a new arm is a fix that arm does not have.\"",
       "    },",
       "    {",
       "      \"id\": \"core-must-not-app\",",
@@ -821,7 +831,8 @@
       "  src/app/main.ts:3 ../store/db",
       "promise edge:app-must-not-store: broke, 1 import crosses a line this contract says nothing may cross.",
       "  src/app/main.ts:3 ../store/db",
-      "promise edge:app-must-not-vendored: broke, 1 import crosses a line this contract says nothing may cross.",
+      "promise edge:app-must-not-vendored: broke, 2 imports cross a line this contract says nothing may cross.",
+      "  src/app/Api.cs:2 VendoredLib.Rows",
       "  src/app/Feature.swift:1 VendoredLib",
       "promise edge:core-must-not-app: broke, 1 import crosses a line this contract says nothing may cross.",
       "  src/core/main.go:5 example.com/imaginary/src/app",
@@ -830,8 +841,9 @@
       "part core: 34 commits behind",
       "END DRIFT",
       "FACTS",
-      "tracked files at HEAD: 13",
-      "part app: anchors src/app, 3 files",
+      "tracked files at HEAD: 14",
+      "part app: anchors src/app, 4 files",
+      "  src/app/Api.cs",
       "  src/app/Feature.swift",
       "  src/app/main.ts",
       "  src/app/view.ts",

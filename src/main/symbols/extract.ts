@@ -26,6 +26,7 @@ import type { SymbolKind } from '@shared/symbols';
 import type { GrammarId } from './languages';
 import { grammarFor, MAX_INDEXED_FILE_BYTES } from './languages';
 import {
+  CSHARP_QUERY,
   GO_QUERY,
   IMPORT_BY_CAPTURE,
   JAVA_QUERY,
@@ -119,7 +120,8 @@ const QUERY_TEXT: Readonly<Record<GrammarId, string>> = {
   kotlin: KOTLIN_QUERY,
   objc: OBJC_QUERY,
   java: JAVA_QUERY,
-  php: PHP_QUERY
+  php: PHP_QUERY,
+  'c-sharp': CSHARP_QUERY
 };
 
 export interface ExtractorOptions {

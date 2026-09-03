@@ -45,6 +45,7 @@ import {
   type ArchResolution
 } from './answers';
 import { resolveCFamily } from './cfamily';
+import { resolveCsharp } from './csharp';
 import { resolveJava } from './java';
 import { resolveKotlin } from './kotlin';
 import { normalizeRel, type AliasRule, type ArchManifests } from './manifest';
@@ -96,7 +97,8 @@ export type ArchResolverLanguage =
   | 'java'
   | 'php'
   | 'c'
-  | 'cpp';
+  | 'cpp'
+  | 'csharp';
 
 /**
  * The one row per language the matrix prints, with the reason a deferred
@@ -142,7 +144,11 @@ export const RESOLVER_MATRIX: readonly {
   // `#include` is one mechanism and each language is its own claim over its
   // own corpus. Neither admitted a grammar. See ./cfamily.ts.
   { language: 'c', resolves: true, reason: null },
-  { language: 'cpp', resolves: true, reason: null }
+  { language: 'cpp', resolves: true, reason: null },
+  // Phase 184: C sharp at PROJECT grain, which is the only grain the language
+  // has, because a namespace matches a directory 0.3 percent of the time in
+  // SignalR and a csproj 86 to 100 percent of the time. See ./csharp.ts.
+  { language: 'csharp', resolves: true, reason: null }
 ];
 
 const BUILTINS = new Set(builtinModules);
@@ -264,6 +270,7 @@ export function resolveImport(
   if (language === 'c' || language === 'cpp') {
     return resolveCFamily(specifier, fromPath, ctx);
   }
+  if (language === 'csharp') return resolveCsharp(specifier, fromPath, ctx);
   if (language === 'php') {
     // THE FORM TRAVELS WITH THE SPECIFIER, the second arm to need it after
     // Ruby's. A `use` names a class through the autoload map and a `require`

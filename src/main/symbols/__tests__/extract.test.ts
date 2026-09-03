@@ -188,7 +188,8 @@ describe('the nine gmux tags queries', () => {
       kotlin: ['a.kt', 'fun probeName(): Int = 1', 'probeName'],
       objc: ['a.m', 'int probeName(void) { return 1; }', 'probeName'],
       java: ['a.java', 'class Holder { void probeName() {} }', 'probeName'],
-      php: ['a.php', '<?php\nfunction probeName() {}', 'probeName']
+      php: ['a.php', '<?php\nfunction probeName() {}', 'probeName'],
+      'c-sharp': ['a.cs', 'class Holder { void probeName() {} }', 'probeName']
     };
     for (const id of GRAMMARS) {
       const [relPath, source, expected] = probes[id];

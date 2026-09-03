@@ -64,6 +64,7 @@ import {
   type ArchResolverLanguage
 } from './resolver';
 import { normalizeRel, readArchManifests } from './resolver/manifest';
+import { readCsharpManifest } from './resolver/csproj';
 import { readSwiftManifest } from './resolver/swiftpm';
 
 /** What one scan produced. */
@@ -131,6 +132,7 @@ export function languageOf(relPath: string): ArchResolverLanguage | null {
   if (grammar === 'objc') return 'objc';
   if (grammar === 'java') return 'java';
   if (grammar === 'php') return 'php';
+  if (grammar === 'c-sharp') return 'csharp';
   return 'typescript';
 }
 
@@ -196,6 +198,13 @@ export async function scanArchImports(
   // the synchronous manifest read. Without this line every Swift import
   // answers unresolved, which is grey and safe, and never wrong.
   manifests.swift = await readSwiftManifest(repoPath, trackedFiles);
+  // The C sharp projects are hydrated here for the same reason, minus the
+  // asynchrony: the reader needs the tracked file list, because the namespace
+  // a `.cs` file declares is the only place the namespace to project mapping
+  // is written down and a walk would find the build output git does not track.
+  // Without this line every `using` answers unresolved, which is grey and
+  // safe, and never wrong.
+  manifests.csharp = readCsharpManifest(repoPath, trackedFiles);
   const ctx = archResolveContext(manifests, trackedFiles as string[]);
 
   const stamps = store.importStamps(repoKey);

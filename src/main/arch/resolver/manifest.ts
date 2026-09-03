@@ -65,6 +65,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { readPhpManifest, type PhpManifest } from './composer';
+import { emptyCsharpManifest, type CsharpManifest } from './csproj';
 import { readIncludeDirs, type IncludeDirs } from './include-dirs';
 import { readJsonFile } from './jsonc';
 import { expandDirGlob, normalizeRel } from './paths';
@@ -220,6 +221,18 @@ export interface ArchManifests {
    */
   includeDirs: IncludeDirs;
   /**
+   * The C sharp projects and the namespace each one owns (Phase 184). EMPTY
+   * OUT OF THIS READER, the way `swift` is: it needs the caller's tracked file
+   * list, both to find the `.csproj` files and to open the `.cs` files whose
+   * namespace declarations are the only place the mapping is written down, and
+   * a walk would find the build output under `bin` and `obj` that git does not
+   * track. The caller that scans imports hydrates it with `readCsharpManifest`
+   * after this returns. A caller that does not hydrate resolves no C sharp
+   * namespace, and every using then answers `unresolved`, which is grey and
+   * safe rather than wrong.
+   */
+  csharp: CsharpManifest;
+  /**
    * What the Podfile and Cartfile literally declare (Phase 180): pod names,
    * the Objective-C arm's only non platform justification for `external`.
    */
@@ -281,6 +294,7 @@ export function readArchManifests(repoPath: string): ArchManifests {
     java: readJavaManifest(repoPath, gradle),
     php: readPhpManifest(repoPath),
     includeDirs: readIncludeDirs(repoPath),
+    csharp: emptyCsharpManifest(),
     objc: readObjcManifest(repoPath),
     swift: emptySwiftManifest()
   };

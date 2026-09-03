@@ -550,17 +550,25 @@ if (part.model.componentId !== 'app' || part.model.groupLabel !== 'app') {
 const crossingsSeen = part.model.crossings.map(
   (c) => `${c.moduleId}>${c.outsideId}:${c.direction}:${c.count}:${c.outsideLabel}`
 );
-// Phase 201, P6: the fixture carries two imports resolved at TARGET grain,
-// `src/app/Feature.swift` to the directory `vendor/lib` and
-// `src/core/main.go` to the directory `src/app`. The file keyed owner map
-// dropped both, so the frame used to read two crossings; the owner fallback
-// puts a target that is not a tracked file in the box whose directory is its
-// longest prefix, and the frame reads four.
+// Phase 201, P6, widened by Phase 184: the fixture carries THREE imports whose
+// first party answer is a DIRECTORY rather than a tracked file, being
+// `src/app/Feature.swift` to `vendor/lib` at Swift target grain,
+// `src/app/Api.cs` to `vendor/lib` at C sharp PROJECT grain, and
+// `src/core/main.go` to `src/app` at Go package grain. The file keyed owner map
+// dropped all three, so the frame used to read two crossings; the owner
+// fallback puts a target that is not a tracked file in the box whose directory
+// is its longest prefix, and the frame reads four with the vendored one at two.
+// ONE ROW PER ARM THAT ANSWERS WITH A DIRECTORY, because the Phase 180 false
+// green was not a Swift defect: it was the checker's, and a new arm at that
+// grain inherits it whole unless something drives it.
+// Phase 184 added the C sharp row beside the Swift one, so the vendored lib
+// crossing reads TWO rather than one, and the frame's order follows the fact
+// order rather than being sorted.
 const crossingsOwed = [
   'src-app>src-store:out:2:store',
+  'src-app>vendor-lib:out:2:vendored lib',
   'src-app>src-core:in:1:core',
-  'src-app>src-core:out:1:core',
-  'src-app>vendor-lib:out:1:vendored lib'
+  'src-app>src-core:out:1:core'
 ];
 if (JSON.stringify(crossingsSeen) !== JSON.stringify(crossingsOwed)) {
   fail(

@@ -372,6 +372,18 @@ async function main(): Promise<void> {
     // Phase 184: the include directories arrive as data. ./include-dirs.ts is
     // proved against real CMake, make and Bazel text in
     // src/main/arch/__tests__/resolver-cfamily.test.ts.
+    // Phase 184: the C sharp namespace map arrives as data. ./csproj.ts is
+    // proved against real csproj and real sources, byte order mark included,
+    // in src/main/arch/__tests__/resolver-csharp.test.ts; what this gate
+    // proves is the ARM over whatever a reader hands it, INCLUDING that its
+    // answer is a project DIRECTORY rather than a file.
+    csharp: {
+      namespaceDirs: new Map(facts.resolverProbe.csharp.namespaceDirs),
+      namespacePrefixDirs: new Map(facts.resolverProbe.csharp.namespacePrefixDirs),
+      namespaceOf: new Map(facts.resolverProbe.csharp.namespaceOf),
+      packages: new Set(facts.resolverProbe.csharp.packages),
+      present: facts.resolverProbe.csharp.present
+    },
     includeDirs: {
       dirs: facts.resolverProbe.includeDirs.dirs,
       present: facts.resolverProbe.includeDirs.present

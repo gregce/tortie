@@ -1,5 +1,5 @@
 /**
- * The eleven gmux tags queries, inlined as TypeScript string constants.
+ * The twelve gmux tags queries, inlined as TypeScript string constants.
  *
  * WHY GMUX AUTHORS THESE INSTEAD OF USING UPSTREAM `tags.scm`
  * (research 19 §3.3 / 19-d3 §2.7, measured — do not re-derive): probed against
@@ -618,6 +618,53 @@ export const PHP_QUERY = `
 (require_once_expression (_) @import.path) @import.require
 (include_expression (_) @import.path) @import.require
 (include_once_expression (_) @import.path) @import.require
+`;
+
+export const CSHARP_QUERY = `
+; Phase 184. A record reads as a class and a delegate as a type, which are the
+; closest honest kinds the palette has for each.
+(namespace_declaration name: (_) @name) @definition.module
+(file_scoped_namespace_declaration name: (_) @name) @definition.module
+(class_declaration name: (identifier) @name) @definition.class
+(record_declaration name: (identifier) @name) @definition.class
+(interface_declaration name: (identifier) @name) @definition.interface
+(struct_declaration name: (identifier) @name) @definition.struct
+(enum_declaration name: (identifier) @name) @definition.enum
+(delegate_declaration name: (identifier) @name) @definition.type
+
+(class_declaration
+  name: (identifier) @container
+  body: (declaration_list (method_declaration name: (identifier) @name) @definition.method))
+(class_declaration
+  name: (identifier) @container
+  body: (declaration_list (constructor_declaration name: (identifier) @name) @definition.method))
+(interface_declaration
+  name: (identifier) @container
+  body: (declaration_list (method_declaration name: (identifier) @name) @definition.method))
+(struct_declaration
+  name: (identifier) @container
+  body: (declaration_list (method_declaration name: (identifier) @name) @definition.method))
+(class_declaration
+  name: (identifier) @container
+  body: (declaration_list (property_declaration name: (identifier) @name) @definition.property))
+(class_declaration
+  name: (identifier) @container
+  body: (declaration_list
+    (field_declaration
+      (variable_declaration (variable_declarator name: (identifier) @name))) @definition.field))
+(enum_declaration
+  name: (identifier) @container
+  body: (enum_member_declaration_list
+    (enum_member_declaration name: (identifier) @name) @definition.enum-member))
+
+; Imports (Phase 184). THE NEGATED FIELD IS LOAD BEARING: a using_directive
+; holds its ALIAS in the \`name\` field, so \`using Alias = A.B;\` would otherwise
+; report \`Alias\` as an import of its own. The third pattern is that alias form,
+; captured by its target rather than its alias. \`static\` and \`global\` are
+; anonymous tokens outside the identifier and match the same patterns.
+(using_directive !name (identifier) @import.path) @import.static
+(using_directive !name (qualified_name) @import.path) @import.static
+(using_directive name: (identifier) (qualified_name) @import.path) @import.static
 `;
 
 /**

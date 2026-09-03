@@ -105,7 +105,7 @@
       "kind": "imports",
       "rule": "must-not",
       "checker": "imports",
-      "note": "The Phase 180 fix-round pin. The ONLY import across this line is a Swift target-grain answer whose toPath is the DIRECTORY vendor/lib, never a tracked file. Before the fix, fileOwners saw no such key, the crossing vanished from both sides of the ledger, and this must-not printed the false green.",
+      "note": "The directory-grain pin, Phase 180 fix round and Phase 184. EVERY import across this line answers with a DIRECTORY and never a tracked file: a Swift target grain answer, and a C sharp PROJECT grain answer. Before the fix, fileOwners saw no such key, both crossings vanished from the ledger, and this must-not printed the false green. It is one row per arm that answers with a directory, because a fix nothing exercises for a new arm is a fix that arm does not have.",
       "evidence": []
     },
     {

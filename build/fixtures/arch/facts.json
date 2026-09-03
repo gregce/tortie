@@ -4,6 +4,7 @@
   "trackedFiles": [
     "package.json",
     "src/app/Feature.swift",
+    "src/app/Api.cs",
     "src/app/main.ts",
     "src/app/view.ts",
     "src/core/engine.ts",
@@ -148,6 +149,14 @@
       "specifier": "example.com/imaginary/src/app",
       "line": 5,
       "toPath": "src/app",
+      "resolution": "first-party",
+      "reason": null
+    },
+    {
+      "fromPath": "src/app/Api.cs",
+      "specifier": "VendoredLib.Rows",
+      "line": 2,
+      "toPath": "vendor/lib",
       "resolution": "first-party",
       "reason": null
     }
@@ -497,6 +506,36 @@
         "language": "cpp",
         "fromPath": "native/src/app.cc",
         "specifier": "missing.hpp"
+      },
+      {
+        "language": "csharp",
+        "fromPath": "dotnet/src/App/Main.cs",
+        "specifier": "Probe.Lib"
+      },
+      {
+        "language": "csharp",
+        "fromPath": "dotnet/src/App/Main.cs",
+        "specifier": "Lib"
+      },
+      {
+        "language": "csharp",
+        "fromPath": "dotnet/src/App/Main.cs",
+        "specifier": "System.Text"
+      },
+      {
+        "language": "csharp",
+        "fromPath": "dotnet/src/App/Main.cs",
+        "specifier": "Xunit"
+      },
+      {
+        "language": "csharp",
+        "fromPath": "dotnet/src/App/Main.cs",
+        "specifier": "Probe.Spanning"
+      },
+      {
+        "language": "csharp",
+        "fromPath": "dotnet/src/App/Main.cs",
+        "specifier": "Nobody.Declared.This"
       }
     ],
     "files": {
@@ -555,6 +594,12 @@
         "native/src/app.cc",
         "native/src/engine.hpp",
         "native/include/pub/api.h"
+      ],
+      "csharp": [
+        "dotnet/src/App/App.csproj",
+        "dotnet/src/App/Main.cs",
+        "dotnet/src/Lib/Lib.csproj",
+        "dotnet/src/Lib/Thing.cs"
       ]
     },
     "cargo": {
@@ -665,6 +710,48 @@
     "includeDirs": {
       "dirs": [
         "native/include"
+      ],
+      "present": true
+    },
+    "csharp": {
+      "namespaceDirs": [
+        [
+          "Probe.App",
+          [
+            "dotnet/src/App"
+          ]
+        ],
+        [
+          "Probe.Lib",
+          [
+            "dotnet/src/Lib"
+          ]
+        ],
+        [
+          "Probe.Spanning",
+          [
+            "dotnet/src/App",
+            "dotnet/src/Lib"
+          ]
+        ]
+      ],
+      "namespacePrefixDirs": [
+        [
+          "Probe",
+          [
+            "dotnet/src/App",
+            "dotnet/src/Lib"
+          ]
+        ]
+      ],
+      "namespaceOf": [
+        [
+          "dotnet/src/App/Main.cs",
+          "Probe.App"
+        ]
+      ],
+      "packages": [
+        "xunit"
       ],
       "present": true
     }
