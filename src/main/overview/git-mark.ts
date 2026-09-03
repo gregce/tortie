@@ -15,6 +15,7 @@
  * you last looked" zone, and that is NOT built here.
  */
 
+import { isRenderableInstant } from '@shared/instant';
 import type { OverviewGitMark } from '@shared/overview';
 import { runGit } from '../git/exec';
 import { extractPathsFromText, type PathMention } from './reader';
@@ -95,13 +96,33 @@ export async function readGitEvidence(
     timeoutMs: GIT_TIMEOUT_MS
   });
   if (probe.code !== 0) return noRepo();
-  const since = new Date(sinceMs).toISOString();
+  // PHASE 206. THE ONE OTHER EXPOSED CALLER, named by Phase 188.1 and left
+  // unguarded there. `sinceMs` is `Math.min` over manifest `createdAt` values,
+  // and `Math.min` propagates NaN, so ONE corrupt row took this whole
+  // project's page down with `RangeError: Invalid time value` rather than
+  // spoiling one session's mark. All six impossible values threw here at the
+  // parent while the two boundary instants rendered.
+  //
+  // AN IMPOSSIBLE FLOOR IS READ AS A LOG THAT COULD NOT BE ASKED, which is a
+  // shape this function already has: a git read that fails answers with what
+  // the other read found, because a mark built on partial evidence can only
+  // move from `agrees` to `no-record`, and `no-record` is an honest answer.
+  // The alternatives are both worse. A clamp would invent a floor and could
+  // widen the window until a commit nobody's turn touched read as agreement,
+  // and dropping `--since` would walk the whole history of the repository on
+  // the strength of a corrupt row. Nothing is guessed and nothing is written
+  // back, which is Phase 188.1's own rule, and the check does NOT move into
+  // `rowToRecord` for the reason Phase 188.1 gave and this phase did not
+  // reverse.
+  const since = isRenderableInstant(sinceMs) ? new Date(sinceMs).toISOString() : null;
   const [log, status] = await Promise.all([
-    runGit(
-      projectPath,
-      ['log', `--since=${since}`, '--name-only', '--format=%ct'],
-      { timeoutMs: GIT_TIMEOUT_MS }
-    ),
+    since === null
+      ? Promise.resolve(null)
+      : runGit(
+          projectPath,
+          ['log', `--since=${since}`, '--name-only', '--format=%ct'],
+          { timeoutMs: GIT_TIMEOUT_MS }
+        ),
     runGit(
       projectPath,
       ['status', '--porcelain', '-z', '--untracked-files=all'],
@@ -110,7 +131,9 @@ export async function readGitEvidence(
   ]);
   return {
     isGitRepo: true,
-    committedAtMs: parseLog(log.code === 0 ? log.stdout.toString('utf8') : ''),
+    committedAtMs: parseLog(
+      log !== null && log.code === 0 ? log.stdout.toString('utf8') : ''
+    ),
     workingTree: parseStatus(status.code === 0 ? status.stdout.toString('utf8') : '')
   };
 }

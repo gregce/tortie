@@ -20,6 +20,7 @@ import type {
   DiagnosticsSessionWorkload,
   DiagnosticsShellProcess
 } from '@shared/ipc';
+import { isRenderableInstant } from '@shared/instant';
 import { CHROMIUM_DEFAULT_HTTP_CACHE_CEILING_BYTES } from '../cache/policy';
 import { redactString } from '../log/redact';
 
@@ -61,12 +62,6 @@ function oneLine(text: string): string {
   return text.replace(/[\r\n]+/g, ' ');
 }
 
-/**
- * PHASE 188.1. The largest instant a `Date` can hold, and its negative is the
- * smallest. Past either end `toISOString` throws a `RangeError` instead of
- * answering. The number is ECMA-262's own, not a guess.
- */
-const MAX_TIME_MS = 8.64e15;
 
 /**
  * PHASE 188. The face draws these two as an age, because an age is what a
@@ -105,10 +100,7 @@ const MAX_TIME_MS = 8.64e15;
  * `&&` never reaches the call that would throw.
  */
 function stampText(label: string, epochMs: number | null): string {
-  const renderable =
-    epochMs !== null &&
-    Number.isFinite(epochMs) &&
-    Math.abs(epochMs) <= MAX_TIME_MS;
+  const renderable = epochMs !== null && isRenderableInstant(epochMs);
   return `${label} ${renderable ? new Date(epochMs).toISOString() : 'unknown'}`;
 }
 
