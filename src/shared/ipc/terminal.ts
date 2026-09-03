@@ -204,14 +204,35 @@ export interface CapturePaneInput {
    * Lines of HISTORY to take from above the visible screen. The capture always
    * runs to the bottom of the screen (no `-E`), so "last N lines" is
    * `Math.max(0, N - term.rows)` (research 17 §2.1: `-E -1` would *exclude*
-   * the visible screen).
+   * the visible screen). Ignored when `range` is given.
    */
   historyLines: number;
+  /**
+   * An exact range of HISTORY LINES instead of the last N, Phase 209: line 0
+   * is the oldest line the server still holds, `history_size` is the top row
+   * of the live screen, and both ends are inclusive. Main clamps it to what
+   * the server holds and answers `firstLine` for the line the first row
+   * really is, so a start above the top comes back short rather than wrong.
+   */
+  range?: { start: number; end: number };
+  /**
+   * `-J`, joining wrapped lines, Phase 209. Off by default because a picture
+   * must keep the screen's wrapping. On for a copy, whose composer re-wraps
+   * the joined lines at the pane's own width and reads xterm's wrapped flag
+   * back, which is how a copy from the history joins a wrapped row the way a
+   * copy from the screen does.
+   */
+  join?: boolean;
 }
 
 export interface CapturePaneResult {
   /** Raw pane text with SGR escapes intact (`capture-pane -e`, never `-J`). */
   ansi: string;
+  /**
+   * With `range`: the history line the first row of `ansi` is, after the
+   * clamp. Absent for the last N shape.
+   */
+  firstLine?: number;
 }
 
 export interface ClipboardRichInput {

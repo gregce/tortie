@@ -78,3 +78,37 @@ describe('clearPaneHistory', () => {
     expect(argsOf()).toEqual(['clear-history', '-t', '$7']);
   });
 });
+
+describe('capturePane over an exact range (Phase 209)', () => {
+  beforeEach(() => {
+    execTmux.mockClear();
+  });
+
+  it('passes both ends in tmux coordinates and never the last N', async () => {
+    await capturePane('$3', 500, { join: true, range: { start: -40, end: -1 } });
+    const args = argsOf();
+    expect(args.slice(args.indexOf('-S'))).toEqual(['-S', '-40', '-E', '-1']);
+    expect(args).toContain('-e');
+    expect(args).toContain('-J');
+    expect(args).not.toContain('-500');
+  });
+
+  it('keeps the screen wrapping when asked, for a picture', async () => {
+    await capturePane('$3', 0, { join: false, range: { start: 0, end: 2 } });
+    const args = argsOf();
+    expect(args).not.toContain('-J');
+    expect(args.slice(args.indexOf('-S'))).toEqual(['-S', '0', '-E', '2']);
+  });
+
+  it('reads the extent in one round trip, as two numbers', async () => {
+    execTmux.mockResolvedValueOnce('861\t43\n');
+    const { readPaneExtent } = await import('../sessions');
+    await expect(readPaneExtent('$3')).resolves.toEqual({
+      history: 861,
+      rows: 43
+    });
+    const args = argsOf();
+    expect(args[0]).toBe('display-message');
+    expect(args).toContain('#{history_size}\t#{pane_height}');
+  });
+});

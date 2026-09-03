@@ -144,12 +144,45 @@ export async function capturePaneText(
   input: CapturePaneInput
 ): Promise<CapturePaneResult> {
   const target = await tmux.resolvePaneTarget(input.tmuxName);
+  if (input.range !== undefined) {
+    return captureHistoryRange(target, input.range, input.join === true);
+  }
   const ansi = await tmux.capturePane(
     target,
     Math.max(0, Math.floor(input.historyLines)),
     { join: false }
   );
   return { ansi };
+}
+
+/**
+ * An exact range of history lines, Phase 209.
+ *
+ * The renderer numbers lines from the oldest the server holds, and
+ * `capture-pane` numbers them from the top of the live screen, so the
+ * conversion needs `#{history_size}` read at this instant rather than the
+ * renderer's, which can be a poll old under a streaming pane. THE CLAMP IS
+ * OURS, not tmux's: tmux moves a range above the top to the oldest line and
+ * answers one row for it, measured 2026-09-03, so a range that is entirely
+ * gone answers nothing here, and one that starts above the top answers from
+ * the oldest line and says so in `firstLine`. A range that reaches below the
+ * screen is cut at the last row, which is where the history ends.
+ */
+async function captureHistoryRange(
+  target: string,
+  range: { start: number; end: number },
+  join: boolean
+): Promise<CapturePaneResult> {
+  const extent = await tmux.readPaneExtent(target);
+  const last = extent.history + extent.rows - 1;
+  const start = Math.max(0, Math.floor(range.start));
+  const end = Math.min(last, Math.floor(range.end));
+  if (end < start) return { ansi: '', firstLine: start };
+  const ansi = await tmux.capturePane(target, 0, {
+    join,
+    range: { start: start - extent.history, end: end - extent.history }
+  });
+  return { ansi, firstLine: start };
 }
 
 /**

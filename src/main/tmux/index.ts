@@ -189,11 +189,13 @@ export {
   hasSession,
   capturePane,
   clearPaneHistory,
+  readPaneExtent,
   resolvePaneTarget,
   setSessionOption,
   getSessionOption,
   getSessionEnv,
   type CapturePaneOptions,
+  type PaneExtent,
   type TmuxSessionInfo,
   type CreateTmuxSessionInput,
   type ListSessionsOptions
