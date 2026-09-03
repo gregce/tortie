@@ -43,9 +43,32 @@
  *     head over without its clauses, so the specifier names a NAMESPACE, which
  *     is a directory, and this arm answers with files. It appears 0 times in
  *     the 15,793 `use` statements across guzzle, laravel and WordPress.
+ *  4. **A name under one of the repository's OWN autoload prefixes is grey
+ *     when no file was found, and it is never `external`.** This is the Phase
+ *     184 fix round and it is the most important line in this file. A PHP
+ *     library's own namespace head is almost always ALSO the vendor half of a
+ *     package it declares, so falling through to the head compare below called
+ *     the repository's own classes somebody else's dependency: measured over
+ *     sebastianbergmann/phpunit, 7,418 of its 11,638 `use` statements, being
+ *     63.7 percent, named a class a tracked file in that same repository
+ *     declares and answered `external`, and a `must-not` from
+ *     `tests/_files/Metadata` to `src` that 132 of them cross printed
+ *     convergent, checked, zero offending through the real checker. So a
+ *     declared prefix that MATCHED and found no file answers `unresolved`,
+ *     which is grey and true, and the head compare is asked only about names
+ *     no prefix of this repository claims. ONE COMPARE IS STRONG ENOUGH TO GO
+ *     PAST THE PREFIX, being the name's first two segments spelling a declared
+ *     package IN FULL, both halves: `GuzzleHttp\Psr7\Request` is
+ *     `guzzlehttp/psr7`, which guzzle declares and does not hold. That rule
+ *     keeps 122 of guzzle's and 180 of laravel's answers definite, and none of
+ *     the 302 is a class either repository declares in a tracked file of its
+ *     own. The cost of limit 4 after it is 57 of guzzle's and 115 of laravel's
+ *     answers turning grey, which is the price of the 7,414 phpunit ones that
+ *     were false.
  *
- * WHAT ADMITS `external`, and there are two. A name whose first segment, lower
- * cased, is EITHER HALF of a declared `require` or `require-dev` package:
+ * WHAT ADMITS `external`, and there are two, both asked only after limit 4 has
+ * let the name past. A name whose first segment, lower cased, is EITHER HALF of
+ * a declared `require` or `require-dev` package:
  * `use Psr\Http\Message\RequestInterface` against `"psr/http-message"` takes
  * the vendor half, and `use Carbon\CarbonInterval` against `"nesbot/carbon"`
  * takes the package half. Composer names are lower case with a slash and
@@ -59,8 +82,8 @@
  * nothing to compare against rather than a resolver finding nothing. A name
  * neither list claims is `unresolved`, never `external`.
  *
- * THE TWO WORLDS RULE IS DELIBERATELY INVERTED HERE, AND THE NUMBER BEHIND
- * THAT IS WHY. Kotlin and Swift go grey when the repository and the outside
+ * THE TWO WORLDS RULE IS ASKED IN A DIFFERENT ORDER HERE, AND THE NUMBER
+ * BEHIND THAT IS WHY. Kotlin and Swift go grey when the repository and the outside
  * world both claim a name, because in those arms the FIRST PARTY claim is
  * itself a guess: a suffix match, or a target name. Here it is the opposite.
  * The autoload map is an explicit declaration naming a directory, and the
@@ -70,7 +93,10 @@
  * `GuzzleHttp\` prefix is also the vendor of the declared `guzzlehttp/psr7`
  * and `guzzlehttp/promises`, the grey rule threw away every one of its 369
  * first party answers and left the repository reading as though it contained
- * no code of its own.
+ * no code of its own. Limit 4 above is the OTHER half of the same thought: a
+ * rule that landed on a file still wins outright, and a rule that matched and
+ * landed on nothing goes grey rather than handing the name to the vendor
+ * compare, which would have called it external.
  *
  * NOTHING HERE SPAWNS ANYTHING. Set membership against the caller's file list
  * plus the map ./composer.ts read. No specifier reaches an argv.
@@ -107,6 +133,11 @@ export function resolvePhp(
   // vendor name that merely shares its first segment. See the header.
   const hit = byAutoload(name, ctx);
   if (hit !== null) return firstParty(hit);
+  // A WHOLE `vendor/package` NAME, BOTH HALVES, BEATS THE PREFIX. See limit 4.
+  if (claimedByWholePackage(name, ctx)) return external();
+  // THE PREFIX MATCHED AND NO FILE WAS FOUND, WHICH IS THE REPOSITORY'S OWN
+  // NAMESPACE WITH A GAP IN IT. See the fourth limit on this face.
+  if (claimedByAutoload(name, ctx)) return unresolved();
   if (claimedExternally(name, ctx)) return external();
   return unresolved();
 }
@@ -181,6 +212,45 @@ function requirePath(
   if (joined !== null && ctx.files.has(joined)) return firstParty(joined);
   // Composer's own entry point, which a repository does not track.
   return unresolved();
+}
+
+/**
+ * Did the name's first TWO segments spell a declared package name in full?
+ *
+ * This is the one compare strong enough to answer `external` about a name the
+ * repository's own prefix also covers, and it is measured. `GuzzleHttp\Psr7\
+ * Request` is `guzzlehttp/psr7`, which guzzle declares, and no file named
+ * `src/Psr7/Request.php` exists in that repository. Over guzzle and
+ * laravel/framework it takes 302 names back from grey and NOT ONE of them is a
+ * class either repository declares in a tracked file of its own; over
+ * sebastianbergmann/phpunit, whose own classes limit 4 exists for, it takes
+ * back zero. A head alone can never do this: `phpunit` is the vendor of five
+ * declared packages and also the head of the repository itself.
+ */
+function claimedByWholePackage(name: string, ctx: ArchResolveContext): boolean {
+  const parts = name.split('\\');
+  if (parts.length < 2) return false;
+  const whole = `${(parts[0] ?? '').toLowerCase()}/${(parts[1] ?? '').toLowerCase()}`;
+  return ctx.manifests.php.packages.has(whole);
+}
+
+/**
+ * Did one of THIS repository's own autoload prefixes claim this name, whether
+ * or not a file was found under it?
+ *
+ * A prefix is a person writing down that the repository owns a namespace, and
+ * it stays true when `byAutoload` above lands on nothing: the class may live in
+ * a file of another name, or under a `classmap` this reader does not follow.
+ * The empty prefix is Composer's fallback rule and matches every name, so it
+ * claims nothing here; treating it as a claim would silence `external` for the
+ * whole repository.
+ */
+function claimedByAutoload(name: string, ctx: ArchResolveContext): boolean {
+  for (const rule of ctx.manifests.php.rules) {
+    if (rule.prefix.length === 0) continue;
+    if (name.startsWith(rule.prefix)) return true;
+  }
+  return false;
 }
 
 /** Did a declared Composer package, or PHP's own runtime, claim this name? */

@@ -463,6 +463,16 @@
         "form": "require"
       },
       {
+        "language": "php",
+        "fromPath": "web/src/Client.php",
+        "specifier": "App\\Missing\\Thing"
+      },
+      {
+        "language": "php",
+        "fromPath": "web/src/Client.php",
+        "specifier": "App\\Kit\\Thing"
+      },
+      {
         "language": "c",
         "fromPath": "native/src/main.c",
         "specifier": "util.h"
@@ -700,10 +710,13 @@
       ],
       "heads": [
         "psr",
-        "http-message"
+        "http-message",
+        "app",
+        "kit"
       ],
       "packages": [
-        "psr/http-message"
+        "psr/http-message",
+        "app/kit"
       ],
       "present": true
     },

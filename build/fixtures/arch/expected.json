@@ -282,8 +282,8 @@
       "language": "php",
       "arm": "shipped (file grain, Composer autoload)",
       "firstParty": 2,
-      "external": 2,
-      "unresolved": 2,
+      "external": 3,
+      "unresolved": 3,
       "unverifiable": 0
     },
     {

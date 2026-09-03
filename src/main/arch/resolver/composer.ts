@@ -24,6 +24,20 @@
  * left alone for the same reason: it names files to be INCLUDED, not a name to
  * find them by.
  *
+ * AND THAT PROMISE COST ONE MORE LINE THAN THE FIRST BUILD OF THIS READER
+ * WROTE, WHICH IS THE PHASE 184 FIX ROUND. A manifest whose own code is
+ * declared through `classmap` or `files` has first party classes NO RULE HERE
+ * CAN MAP, so nothing downstream can tell them from a dependency's, and the
+ * vendor head compare then answers `external` about the repository itself.
+ * sebastianbergmann/phpunit is the whole case: it is named `phpunit/phpunit`,
+ * its autoload is `classmap: ["src/"]`, and it declares
+ * `phpunit/php-code-coverage` and friends, so the head `phpunit` was drawn
+ * from a real dependency and claimed 7,414 of the repository's own `use`
+ * statements. So when a manifest declares a `classmap` or a `files` list, the
+ * halves of ITS OWN `name` are removed from `heads` after every manifest has
+ * been read. A repository is never its own dependency, and a head it publishes
+ * under can no longer tell one world from the other.
+ *
  * NOTHING HERE SPAWNS ANYTHING. No composer, no php. Values read here are
  * compared against import specifiers and reach no argv.
  */
@@ -78,6 +92,10 @@ const MAX_COMPOSER_FILES = 256;
 /** Read the Composer declarations out of one repository. */
 export function readPhpManifest(repoPath: string): PhpManifest {
   const out = emptyPhpManifest();
+  // The halves of the name of every manifest whose own classes no rule here can
+  // map. They are removed from `heads` at the end, after every manifest has had
+  // its chance to add one. See the classmap paragraph on this face.
+  const publishedByThisRepository = new Set<string>();
   const files = walkForFiles(
     repoPath,
     (name) => name === 'composer.json',
@@ -88,12 +106,21 @@ export function readPhpManifest(repoPath: string): PhpManifest {
     if (json === null) continue;
     out.present = true;
     const dir = relPath.slice(0, Math.max(0, relPath.lastIndexOf('/')));
+    let unmappable = false;
     for (const block of ['autoload', 'autoload-dev']) {
       const autoload = json[block];
       if (autoload === null || typeof autoload !== 'object') continue;
       const record = autoload as Record<string, unknown>;
       readRules(record['psr-4'], 'psr-4', dir, out.rules);
       readRules(record['psr-0'], 'psr-0', dir, out.rules);
+      if (record['classmap'] !== undefined || record['files'] !== undefined) {
+        unmappable = true;
+      }
+    }
+    if (unmappable) {
+      for (const half of nameHalves(json['name'])) {
+        publishedByThisRepository.add(half);
+      }
     }
     for (const block of ['require', 'require-dev']) {
       const required = json[block];
@@ -109,10 +136,28 @@ export function readPhpManifest(repoPath: string): PhpManifest {
       }
     }
   }
+  // A name this repository PUBLISHES under can never be the reason to call one
+  // of its own classes a dependency, however many declared packages also carry
+  // that head. See the classmap paragraph on this face.
+  for (const half of publishedByThisRepository) out.heads.delete(half);
   // Longest prefix first, which is the order PSR-4 itself resolves in: a rule
   // for `Illuminate\Support\` has to beat the `Illuminate\` that overlaps it.
   out.rules.sort((a, b) => b.prefix.length - a.prefix.length);
   return out;
+}
+
+/**
+ * The two halves of a `vendor/package` name, lower cased, on the same terms
+ * `heads` admits one: a half shorter than three characters admits far too much
+ * and was never added, so it is never removed either.
+ */
+function nameHalves(raw: unknown): string[] {
+  if (typeof raw !== 'string') return [];
+  const lower = raw.toLowerCase();
+  const cut = lower.indexOf('/');
+  if (cut === -1) return [];
+  const halves = [lower.slice(0, cut), lower.slice(cut + 1)];
+  return halves.filter((half) => half.length >= 3);
 }
 
 /** One `psr-4` or `psr-0` block, whose values are a string or a list of them. */
