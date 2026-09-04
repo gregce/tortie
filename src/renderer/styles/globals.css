@@ -29,6 +29,21 @@ html[data-scheme='light'] {
   color-scheme: light;
 }
 
+/* PHASE 213, and the p213 app run is what found it. Both Pierre packages
+   declare `color-scheme: light dark` on their own `:host`, which BREAKS the
+   inheritance above: every `light-dark()` inside those shadow roots then
+   resolves from `prefers-color-scheme`, being the Mac, rather than from the
+   base the person chose, and the run measured the diff painting paper on the
+   DARK base with the Mac set light. A rule in the outer document that matches
+   the host element outranks a `:host` rule inside its own shadow tree, so
+   these two put both hosts back on the chain. The tree host carries no
+   `colorScheme` of its own for the same reason, which theme-bridge.ts deletes
+   and `npm run conformance:hue` rule 24 pins. */
+diffs-container,
+file-tree-container {
+  color-scheme: inherit;
+}
+
 html,
 body,
 #root {

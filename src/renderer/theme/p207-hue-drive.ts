@@ -105,7 +105,12 @@ const SELECTORS = [
   '.ed-panel',
   '.ed-tabs',
   '.ed-pierre',
-  '.redline',
+  // The Redline's scroller carries the canvas and its document the text
+  // (src/renderer/editor/redline.css). `.redline` is the STYLESHEET's name
+  // and no element's, which is what made this surface read as unmounted on
+  // the first p213 run.
+  '.ed-redline-scroll',
+  '.ed-redline-doc',
   '[data-view="arch"]',
   '[data-slot="arch-map-tab"]',
   '.arch-map-box rect',
@@ -236,7 +241,15 @@ export interface P207Drive {
    * (Phase 213); `redline` then switches the open diff to the Redline mode.
    */
   openDiff(spec: { repoPath: string; relPath: string; path: string }): Promise<P207Reading>;
-  redline(): Promise<P207Reading>;
+  redline(spec: { repoPath: string; relPath: string; path: string }): Promise<P207Reading>;
+  /** Bring one already open tab to the front by its path, and read. */
+  activate(path: string): Promise<P207Reading>;
+  /** Put the sidebar back on the Explorer, and read. */
+  explorer(): Promise<P207Reading>;
+  /** Bring the Architecture map tab to the front, and read. */
+  archMap(): Promise<P207Reading>;
+  /** Put the sidebar on the Architecture pane, and read. */
+  archPane(): Promise<P207Reading>;
   /** Set the synthetic ground and wait for the applier to land it. */
   ground(lift: number): Promise<P207Reading>;
   /** Open one real file in the editor and wait for Monaco to mount. */
@@ -314,13 +327,65 @@ const drive: P207Drive = {
     await wait(600);
     return readNow();
   },
-  async redline() {
-    const button = Array.from(document.querySelectorAll('button')).find(
-      (b) => b.getAttribute('aria-label') === 'Redline' || b.textContent?.trim() === 'Redline'
-    );
-    button?.click();
+  async redline(spec) {
+    // The redline is a MODE of the same tab rather than a control on the diff
+    // toolbar, which DiffControls.tsx says in as many words, so it is opened
+    // the way the Editor mode control opens it: the tab first, then setMode.
+    const editor = useEditor.getState();
+    editor.openFromRequest({
+      repoPath: spec.repoPath,
+      relPath: spec.relPath,
+      path: spec.path,
+      mode: 'diff',
+      source: 'tree',
+      preview: false
+    });
     for (let i = 0; i < 40; i += 1) {
-      if (document.querySelector('.redline') !== null) break;
+      if (useEditor.getState().tabs.some((entry) => entry.path === spec.path)) break;
+      await wait(150);
+    }
+    const opened = useEditor.getState().tabs.find((entry) => entry.path === spec.path);
+    if (opened !== undefined) useEditor.getState().setMode(opened.id, 'redline');
+    for (let i = 0; i < 60; i += 1) {
+      if (document.querySelector('.ed-redline-doc') !== null) break;
+      await wait(250);
+    }
+    await wait(400);
+    return readNow();
+  },
+  async activate(path) {
+    const state = useEditor.getState();
+    const tab = state.tabs.find((entry) => entry.path === path);
+    if (tab !== undefined) state.activate(tab.id);
+    await wait(600);
+    return readNow();
+  },
+  async explorer() {
+    useApp.getState().showSidebarView('explorer');
+    for (let i = 0; i < 40; i += 1) {
+      if (document.querySelector('file-tree-container') !== null) break;
+      await wait(250);
+    }
+    await wait(400);
+    return readNow();
+  },
+  async archPane() {
+    useApp.getState().showSidebarView('arch');
+    for (let i = 0; i < 40; i += 1) {
+      if (document.querySelector('[data-view="arch"]') !== null) break;
+      await wait(250);
+    }
+    await wait(400);
+    return readNow();
+  },
+  async archMap() {
+    // The map is a tab like any other and it carries no path, so it is found
+    // by the one field EditorPanel.tsx switches on.
+    const state = useEditor.getState();
+    const tab = state.tabs.find((entry) => entry.archMap !== undefined);
+    if (tab !== undefined) state.activate(tab.id);
+    for (let i = 0; i < 40; i += 1) {
+      if (document.querySelector('[data-slot="arch-map-tab"] svg') !== null) break;
       await wait(250);
     }
     await wait(400);

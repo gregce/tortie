@@ -583,6 +583,17 @@ export const CHECKS = [
   // SETTINGS window read for the resting face. Spawns no agent, spends no
   // token, opens no keychain.
   electron('probe:p210'),
+  // PHASE 213. build/probe-p213-scheme.mjs: THREE Electrons one after the
+  // other and never at once, on one scratch profile and the gmux-p213 socket,
+  // one shell session, a file in Monaco, a Pierre diff, the Redline and the
+  // Architecture map. It reads the first frame at boot on each scheme, every
+  // surface on both bases, the crossfade frame by frame, the mock by
+  // rectangle and by colour, the window fill through main, Match the Mac
+  // flipped once and then ten times in a second, and a hand edited settings
+  // file that must read as dark. Spawns no agent, spends no token, opens no
+  // keychain. `--self-test` proves the graders on 24 fixtures and launches
+  // nothing.
+  electron('probe:p213'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a

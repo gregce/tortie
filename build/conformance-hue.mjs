@@ -447,6 +447,11 @@ const ABLATIONS = [
     edits: [["  const base = scheme === 'light' ? WINDOW_BACKGROUND_LIGHT : WINDOW_BACKGROUND;", '  const base = WINDOW_BACKGROUND;']]
   },
   {
+    name: 'the shadow hosts left to their own color-scheme',
+    file: 'renderer/styles/globals.css',
+    edits: [['  color-scheme: inherit;\n}', '}']]
+  },
+  {
     name: 'the light sheet dropped onto the paper in tokens.css',
     file: 'renderer/styles/tokens.css',
     edits: [['  --bg-surface: #fcfcfe;', '  --bg-surface: #f5f7fa;']]
@@ -482,7 +487,8 @@ function ablatedCopy(root, ablation) {
     ['renderer', 'editor', 'monaco-theme.ts'],
     ['renderer', 'editor', 'monaco-theme-name.ts'],
     ['renderer', 'pierre', 'theme-bridge.ts'],
-    ['renderer', 'styles', 'tokens.css']
+    ['renderer', 'styles', 'tokens.css'],
+    ['renderer', 'styles', 'globals.css']
   ]) {
     cpSync(join(repoRoot, 'src', ...rel), join(root, ...rel));
   }
@@ -768,6 +774,23 @@ function pinFacts(a) {
     }
     if (facts.pierre.treeKeys.includes('colorScheme')) {
       problems.push('rule 24: the tree host still pins a colorScheme of its own, so it cannot inherit the root');
+    }
+  }
+  // THE TWO SHADOW HOSTS, and the p213 app run is what found this. Deleting
+  // the key the bridge writes is only half: both Pierre packages declare
+  // `color-scheme: light dark` on their own `:host`, and every `light-dark()`
+  // inside those shadow roots then resolves from the MAC rather than from the
+  // base the person chose. An outer document rule matching the host element
+  // outranks a `:host` rule in its own shadow tree, so globals.css is where
+  // the chain is restored, and this is what keeps it there.
+  for (const [tag, value] of [
+    ['diffs-container', facts.hosts.diffs],
+    ['file-tree-container', facts.hosts.tree]
+  ]) {
+    if (value === null) {
+      problems.push(`rule 24: no rule in globals.css gives ${tag} a color-scheme, so its shadow root reads the Mac and not the base`);
+    } else if (value !== 'inherit') {
+      problems.push(`rule 24: globals.css gives ${tag} color-scheme ${value} rather than inherit`);
     }
   }
   if (!/^#f5f7fa$/i.test(facts.windowFill.light)) problems.push(`rule 24: the window fill on light is ${String(facts.windowFill.light)}`);

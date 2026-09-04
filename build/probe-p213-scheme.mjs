@@ -56,7 +56,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodePng, dominant } from './png-read.mjs';
+import { decodePng, dominant, shareNear } from './png-read.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOCKET = 'gmux-p213';
@@ -134,11 +134,27 @@ function luminance(value) {
   });
   return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
 }
-/** Where a colour sits between two ends, 0 at the first and 1 at the second, by luminance. */
-function progress(value, from, to) {
+/**
+ * CIE L*, the PERCEPTUAL lightness of a colour, 0 at black and 100 at white.
+ *
+ * This is here because the first run of this probe read a real crossfade and
+ * called it a flash. Relative luminance is linear light, so the frames the
+ * fade actually paints, being #17181b, #2a2c2f and #4e4f52 between #131417
+ * and #f5f7fa, sit at 0.008, 0.026 and 0.079 of the way across by luminance
+ * and every one of them reads as "still dark". By L* the same three frames
+ * are at 0.06, 0.20 and 0.30, which is what a person sees. A fade is judged
+ * by eye, so it is judged in the space that models the eye.
+ */
+function lstar(value) {
   const y = luminance(value);
-  const a = luminance(from);
-  const b = luminance(to);
+  if (y < 0) return -1;
+  return y > 216 / 24389 ? 116 * Math.cbrt(y) - 16 : y * (24389 / 27);
+}
+/** Where a colour sits between two ends, 0 at the first and 1 at the second, by L*. */
+function progress(value, from, to) {
+  const y = lstar(value);
+  const a = lstar(from);
+  const b = lstar(to);
   if (y < 0 || a < 0 || b < 0 || a === b) return null;
   return (y - a) / (b - a);
 }
@@ -281,13 +297,61 @@ export function gradeMock(rects, photo) {
   return findings;
 }
 
-/** A boot's first frame: one colour over nearly the whole window. */
+/**
+ * A boot's first frame. The property is that the chosen ground is what
+ * paints, and that the OTHER base's ground never appears: a window that has
+ * already drawn its whole chrome by the first frame the screencast delivers
+ * is right, and holding it to one flat colour would be holding it to how
+ * fast this machine attached rather than to what it painted. So the frame's
+ * dominant colour is the chosen ground within one level, and under one
+ * pixel in fifty is the other base's ground.
+ */
 export function gradeFirstFrame(frame, scheme) {
   const findings = [];
   if (frame === null) return ['no first frame was read'];
   const want = scheme === 'light' ? LIGHT.canvas : DARK.canvas;
+  const other = scheme === 'light' ? DARK.canvas : LIGHT.canvas;
   if (!within(frame.colour, want, 1)) findings.push(`the first frame is ${frame.colour}, not ${want}`);
-  if (frame.share < 0.9) findings.push(`the first frame's ${frame.colour} covers ${(frame.share * 100).toFixed(0)} percent, not the window`);
+  if (frame.share < 0.5) findings.push(`the first frame's ${frame.colour} covers ${(frame.share * 100).toFixed(0)} percent, under half the window`);
+  if (typeof frame.otherShare === 'number' && frame.otherShare > 0.02) {
+    findings.push(`${(frame.otherShare * 100).toFixed(0)} percent of the first frame is ${other}, the other base's ground`);
+  }
+  return findings;
+}
+
+/**
+ * The surfaces a scheme reaches that are not in the pairs above, being the
+ * Redline, the Architecture pane and its map. Each is graded only when it is
+ * mounted, and the finding names it when it is not, so a surface that could
+ * not be driven is UNMEASURED in the log rather than silently green.
+ */
+export function gradeExtraSurfaces(paint, scheme) {
+  const findings = [];
+  const other = scheme === 'light' ? DARK : LIGHT;
+  for (const sel of ['.ed-redline-scroll', '.ed-redline-doc', '[data-view="arch"]', '[data-slot="arch-map-tab"]', '.arch-map-box rect']) {
+    const p = paint[sel] ?? null;
+    if (p === null) {
+      findings.push(`${sel} is not mounted`);
+      continue;
+    }
+    for (const [what, value] of [['background', p.background], ['text', p.color]]) {
+      if (same(value, other.canvas) || same(value, other.sidebar) || same(value, other.text)) {
+        findings.push(`${sel} draws its ${what} ${value}, which is the ${scheme === 'light' ? 'dark' : 'light'} base's own colour`);
+      }
+    }
+    // The side rule is asked of the two surfaces that draw TEXT on a ground.
+    // A map box is a fill and a stroke, where the stroke is a hairline rather
+    // than a letter, so it is held to the colour rule above and no more.
+    if (sel !== '.arch-map-box rect' && sel !== '[data-slot="arch-map-tab"]' && sel !== '[data-view="arch"]') {
+      const bg = rgbOf(p.background);
+      const fg = rgbOf(p.color);
+      const opaque = bg !== null && !/^rgba\(.*,\s*0\)$/.test(p.background);
+      if (opaque && fg !== null && luminance(p.color) !== luminance(p.background)) {
+        const darker = luminance(p.color) < luminance(p.background);
+        if (darker !== (scheme === 'light')) findings.push(`${sel} draws ${p.color} on ${p.background}, the wrong side for the ${scheme} base`);
+      }
+    }
+  }
   return findings;
 }
 
@@ -351,6 +415,23 @@ function selfTest() {
     { ms: 260, sidebar: '#eeeff3', terminal: '#f6f7fa', editor: '#f6f7fa' }
   ];
   ok('a clean crossfade', gradeCrossfade(fade), 'clean');
+  // THE FRAMES THE FIRST RUN ACTUALLY PAINTED. Judged in linear luminance
+  // the three middle ones sit at 0.008, 0.026 and 0.079 of the way across and
+  // the grader said nothing faded; judged in L* they are at 0.06, 0.20 and
+  // 0.30, which is the fade a person sees.
+  ok(
+    'the crossfade the first run painted',
+    gradeCrossfade([
+      { ms: 0, sidebar: '#0e0f12', terminal: '#131417', editor: '#131417' },
+      { ms: 33, sidebar: '#0e0f12', terminal: '#131417', editor: '#131417' },
+      { ms: 66, sidebar: '#141518', terminal: '#17181b', editor: '#17181b' },
+      { ms: 100, sidebar: '#272829', terminal: '#2a2c2f', editor: '#2a2c2f' },
+      { ms: 133, sidebar: '#4b4c4f', terminal: '#4e4f52', editor: '#4e4f52' },
+      { ms: 233, sidebar: '#eeeff3', terminal: '#f6f7fa', editor: '#f6f7fa' },
+      { ms: 266, sidebar: '#eeeff3', terminal: '#f6f7fa', editor: '#f6f7fa' }
+    ]),
+    'clean'
+  );
   ok('a half palette frame', gradeCrossfade([fade[0], { ms: 60, sidebar: '#eeeff3', terminal: '#131417', editor: '#131417' }, fade[3]]), 'red');
   ok('a switch that never faded', gradeCrossfade([fade[0], fade[3]]), 'red');
   ok('a switch that ended dark', gradeCrossfade([fade[0], fade[1], fade[0]]), 'red');
@@ -363,9 +444,25 @@ function selfTest() {
   ok('a sidebar twenty pixels wider than the mock', gradeMock({ ...rects, sidebar: { ...rects.sidebar, w: 300 } }, MOCK.photo), 'red');
   ok('a diff that kept the dark ground', gradeMock({ ...rects, pierre: { ...rects.pierre, bg: 'rgb(19, 20, 23)' } }, MOCK.photo), 'red');
   ok('a photograph two levels off', gradeMock(rects, { ...MOCK.photo, terminal: '#f4f5f8' }), 'red');
-  ok('a dark first frame', gradeFirstFrame({ colour: '#131417', share: 1 }, 'dark'), 'clean');
-  ok('a light first frame', gradeFirstFrame({ colour: '#f6f7fa', share: 0.99 }, 'light'), 'clean');
-  ok('a light boot that painted graphite first', gradeFirstFrame({ colour: '#131417', share: 1 }, 'light'), 'red');
+  ok('a dark first frame', gradeFirstFrame({ colour: '#131417', share: 1, otherShare: 0 }, 'dark'), 'clean');
+  ok('a light first frame', gradeFirstFrame({ colour: '#f6f7fa', share: 0.99, otherShare: 0 }, 'light'), 'clean');
+  ok('a light boot that painted graphite first', gradeFirstFrame({ colour: '#131417', share: 1, otherShare: 1 }, 'light'), 'red');
+  // The first run of this probe attached late enough on a cold profile that
+  // the window had already drawn its sidebar, and the old grader called the
+  // right ground a failure for covering 74 percent rather than the window.
+  ok('a dark first frame that had already drawn the chrome', gradeFirstFrame({ colour: '#131417', share: 0.74, otherShare: 0 }, 'dark'), 'clean');
+  ok('a light first frame with a graphite panel left in it', gradeFirstFrame({ colour: '#f6f7fa', share: 0.8, otherShare: 0.19 }, 'light'), 'red');
+  const lightExtras = {
+    '.ed-redline-scroll': { background: 'rgb(245, 247, 250)', color: 'rgb(79, 83, 92)' },
+    '.ed-redline-doc': { background: 'rgba(0, 0, 0, 0)', color: 'rgb(53, 54, 57)' },
+    '[data-view="arch"]': { background: 'rgba(0, 0, 0, 0)', color: 'rgb(53, 54, 57)' },
+    '[data-slot="arch-map-tab"]': { background: 'rgb(245, 247, 250)', color: 'rgb(53, 54, 57)' },
+    '.arch-map-box rect': { background: 'rgb(252, 252, 254)', color: 'rgb(209, 211, 218)' }
+  };
+  ok('the extra surfaces on paper', gradeExtraSurfaces(lightExtras, 'light'), 'clean');
+  ok('a Redline that kept the dark canvas', gradeExtraSurfaces({ ...lightExtras, '.ed-redline-scroll': { background: 'rgb(19, 20, 23)', color: 'rgb(201, 202, 205)' } }, 'light'), 'red');
+  ok('a map box that kept the dark sheet', gradeExtraSurfaces({ ...lightExtras, '.arch-map-box rect': { background: 'rgb(19, 20, 23)', color: 'rgb(53, 54, 57)' } }, 'light'), 'red');
+  ok('a Redline that was never mounted', gradeExtraSurfaces({ ...lightExtras, '.ed-redline-scroll': null }, 'light'), 'red');
   const face = {
     checked: 'Light',
     labels: ['Light', 'Dark', 'Match the Mac'],
@@ -378,7 +475,7 @@ function selfTest() {
   ok('a face with Dark pressed on a light launch', gradeFace({ ...face, checked: 'Dark' }, { checked: 'Light' }), 'red');
   ok('a slider that took a darker shade on paper', gradeFace({ ...face, refusedAt: { asked: -1, value: -1, note: '' } }, { checked: 'Light' }), 'red');
   ok('a clean dark face', gradeFace({ ...face, checked: 'Dark', sectionRootScheme: null }, { checked: 'Dark' }), 'clean');
-  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 24 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
+  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 31 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
   return pass;
 }
 
@@ -541,7 +638,7 @@ async function appPage(cdp, watch, timeoutMs = 120_000) {
 }
 
 const RECTS = `(() => {
-  const sel = { titlebar: '.titlebar', sidebar: '.sidebar', tree: 'file-tree-container', terminalHost: '.gmux-terminal-host', xtermScreen: '.xterm-screen', editorPanel: '.ed-panel', editorTabs: '.ed-tabs', monaco: '.monaco-editor', pierre: '.ed-pierre', redline: '.redline', arch: '[data-view="arch"]', map: '[data-slot="arch-map-tab"]', body: 'body' };
+  const sel = { titlebar: '.titlebar', sidebar: '.sidebar', tree: 'file-tree-container', terminalHost: '.gmux-terminal-host', xtermScreen: '.xterm-screen', editorPanel: '.ed-panel', editorTabs: '.ed-tabs', monaco: '.monaco-editor', pierre: '.ed-pierre', redline: '.ed-redline-scroll', arch: '[data-view="arch"]', map: '[data-slot="arch-map-tab"]', body: 'body' };
   const out = {};
   for (const [k, q] of Object.entries(sel)) { const el = document.querySelector(q); if (!el) { out[k] = null; continue; } const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); out[k] = { x: r.x, y: r.y, w: r.width, h: r.height, bg: cs.backgroundColor, color: cs.color }; }
   out.dpr = devicePixelRatio; out.inner = { w: innerWidth, h: innerHeight };
@@ -559,12 +656,21 @@ function classify(png, rects) {
   return { sidebar: at('sidebar'), terminal: at('xtermScreen'), editor: at('monaco') ?? at('editorPanel'), pierre: at('pierre'), titlebar: at('titlebar'), tabs: at('editorTabs') };
 }
 
-function firstFrameOf(frames) {
+function firstFrameOf(frames, scheme) {
   const f = frames[0];
   if (!f) return null;
   const img = decodePng(Buffer.from(f.data, 'base64'));
   const d = dominant(img, 0, 0, img.width, img.height, 8);
-  return { colour: d.colour, share: d.share, distinct: d.distinct, w: img.width, h: img.height };
+  const other = scheme === 'light' ? DARK.canvas : LIGHT.canvas;
+  return {
+    colour: d.colour,
+    share: d.share,
+    otherShare: shareNear(img, 0, 0, img.width, img.height, other, 1, 8),
+    distinct: d.distinct,
+    w: img.width,
+    h: img.height,
+    frames: frames.length
+  };
 }
 
 async function screenshot(s, file) {
@@ -633,20 +739,26 @@ await withElectron(launch('p213 A'), async (handle) => {
   const s = await appPage(cdp, watch);
   await sleep(1500);
   await s.call('Page.stopScreencast').catch(() => {});
-  const boot = firstFrameOf(watch.frames.get(s.sessionId) ?? []);
+  const boot = firstFrameOf(watch.frames.get(s.sessionId) ?? [], 'dark');
   A.boot = boot;
   check(A, gradeFirstFrame(boot, 'dark'), `the first frame at a dark boot: ${boot === null ? 'none' : `${boot.colour} over ${(boot.share * 100).toFixed(0)} percent`}`);
 
+  const FILE = { repoPath: project, relPath: 'notes.txt', path: join(project, 'notes.txt') };
+  const DIFF = { repoPath: project, relPath: 'src/app.ts', path: join(project, 'src', 'app.ts') };
+  const PROSE = { repoPath: project, relPath: 'docs/notes.md', path: join(project, 'docs', 'notes.md') };
+
   await s.eval(`window.__gmuxP95.openLocal(${JSON.stringify(project)}).then(() => true)`, 90_000);
   await s.eval(`window.__gmuxP95.create({ name: 'p213', agent: 'shell' }).then(() => true)`, 120_000);
-  await s.eval(`window.__gmuxP207.openFile(${JSON.stringify({ repoPath: project, relPath: 'notes.txt', path: join(project, 'notes.txt') })})`, 120_000);
-  await s.eval(`window.__gmuxP207.openDiff(${JSON.stringify({ repoPath: project, relPath: 'src/app.ts', path: join(project, 'src', 'app.ts') })})`, 120_000);
-  let dark = await s.eval(`window.__gmuxP207.read()`, 30_000);
-  say(`a session, an editor and a diff are up: ${String(dark.editors)} editor(s), terminal ${dark.terminal === null ? 'absent' : 'present'}, diff host ${dark.pierre === null ? 'absent' : dark.pierre.hostColorScheme}`);
-  check(A, gradeSurfaces(dark, 'dark'), 'every surface on the dark base, before the switch');
-  A.dark = dark;
+  await s.eval(`window.__gmuxP207.openFile(${JSON.stringify(FILE)})`, 120_000);
+  await s.eval(`window.__gmuxP207.openDiff(${JSON.stringify(DIFF)})`, 120_000);
+  await s.eval(`window.__gmuxP207.redline(${JSON.stringify(PROSE)})`, 120_000);
+  const redlineUp = (await s.eval(`document.querySelector('.ed-redline-doc') !== null`, 15_000)) === true;
+  say(`${redlineUp ? 'ok  ' : 'note'} the Redline ${redlineUp ? 'is up' : 'is UNMEASURED: the mode did not open on docs/notes.md'}`);
+  A.redlineUp = redlineUp;
 
-  // The Architecture map, when the scan of the scratch repository lands.
+  // The Architecture map, when the scan of the scratch repository lands. It
+  // takes the sidebar for its own pane, which is why every reading below
+  // asks for the Explorer back first.
   let mapUp = false;
   try {
     await s.eval(`(async () => { const before = await window.gmux.settingsGet(); await window.gmux.settingsSet({ arch: { enabled: true, agentId: before.arch.agentId, model: before.arch.model } }); return true; })()`, 30_000);
@@ -672,14 +784,40 @@ await withElectron(launch('p213 A'), async (handle) => {
   }
   say(`${mapUp ? 'ok  ' : 'note'} the Architecture map ${mapUp ? 'is up' : 'is UNMEASURED: the scan did not land in time'}`);
   A.mapUp = mapUp;
-  // Back to the diff tab and its Redline mode, so both are on screen for the switch.
-  await s.eval(`window.__gmuxP207.openDiff(${JSON.stringify({ repoPath: project, relPath: 'docs/notes.md', path: join(project, 'docs', 'notes.md') })})`, 120_000);
-  const red = await s.eval(`window.__gmuxP207.redline()`, 60_000);
-  const redlineUp = red.paint['.redline'] !== null;
-  say(`${redlineUp ? 'ok  ' : 'note'} the Redline ${redlineUp ? 'is up' : 'is UNMEASURED: the mode did not open on docs/notes.md'}`);
-  A.redlineUp = redlineUp;
-  await s.eval(`window.__gmuxP207.openDiff(${JSON.stringify({ repoPath: project, relPath: 'src/app.ts', path: join(project, 'src', 'app.ts') })})`, 120_000);
-  dark = await s.eval(`window.__gmuxP207.read()`, 30_000);
+
+  /**
+   * ONE reading of every surface on one base. The editor panel draws the
+   * ACTIVE tab and nothing else, so a single read can never hold Monaco, the
+   * diff, the Redline and the map at once: the four are activated in turn,
+   * each read as the compositor paints it, and the four readings are merged
+   * into one that the grader judges. The last activation is the diff, so the
+   * app is left in the state the mock pins. The Explorer is asked for first
+   * because the Architecture pane takes the sidebar.
+   */
+  const fullRead = async () => {
+    const readings = [];
+    if (mapUp) readings.push(['archPane', await s.eval(`window.__gmuxP207.archPane()`, 60_000)]);
+    readings.push(['explorer', await s.eval(`window.__gmuxP207.explorer()`, 60_000)]);
+    readings.push(['monaco', await s.eval(`window.__gmuxP207.activate(${JSON.stringify(FILE.path)})`, 60_000)]);
+    if (mapUp) readings.push(['map', await s.eval(`window.__gmuxP207.archMap()`, 60_000)]);
+    if (redlineUp) readings.push(['redline', await s.eval(`window.__gmuxP207.activate(${JSON.stringify(PROSE.path)})`, 60_000)]);
+    const base = await s.eval(`window.__gmuxP207.activate(${JSON.stringify(DIFF.path)})`, 60_000);
+    const merged = { ...base, paint: { ...base.paint } };
+    for (const [, r] of readings) {
+      for (const [sel, value] of Object.entries(r.paint)) {
+        if (merged.paint[sel] === null && value !== null) merged.paint[sel] = value;
+      }
+      if (merged.monacoTheme === null && r.monacoTheme !== null) merged.monacoTheme = r.monacoTheme;
+      if (merged.editors === 0 && r.editors > 0) merged.editors = r.editors;
+      if (merged.treeRow === null && r.treeRow !== null) merged.treeRow = r.treeRow;
+    }
+    return merged;
+  };
+
+  const dark = await fullRead();
+  say(`a session, an editor and a diff are up: ${String(dark.editors)} editor(s), terminal ${dark.terminal === null ? 'absent' : 'present'}, diff host ${dark.pierre === null ? 'absent' : dark.pierre.hostColorScheme}`);
+  check(A, gradeSurfaces(dark, 'dark'), 'every surface on the dark base, before the switch');
+  check(A, gradeExtraSurfaces(dark.paint, 'dark'), 'the Redline, the Architecture pane and its map on the dark base');
   A.dark = dark;
   const darkRects = await s.eval(RECTS, 30_000);
   const darkPng = await screenshot(s, join(shots, 'a-dark.png'));
@@ -705,11 +843,12 @@ await withElectron(launch('p213 A'), async (handle) => {
   A.fade = fadeFrames;
   check(A, gradeCrossfade(fadeFrames), `the crossfade: ${String(fadeFrames.length)} frames, terminal ${fadeFrames.map((f) => f.terminal).join(' ')}`);
 
-  const light = await s.eval(`window.__gmuxP207.read()`, 30_000);
+  const light = await fullRead();
   A.light = light;
   check(A, gradeSurfaces(light, 'light'), 'every surface on the light base, after the switch');
+  check(A, gradeExtraSurfaces(light.paint, 'light'), 'the Redline, the Architecture pane and its map on the light base');
   say(`     light: canvas ${light.tokens['--bg-canvas']} text ${light.tokens['--text-primary']} terminal ${light.terminal?.background ?? 'none'}/${light.terminal?.foreground ?? 'none'} floor ${String(light.terminalContrastFloor)} monaco ${String(light.monacoTheme)} diff ${light.pierre?.innerBackground ?? 'none'}/${light.pierre?.innerColor ?? 'none'} token ${light.pierre?.firstTokenLight ?? 'none'} tree row ${light.treeRow?.background ?? 'none'}/${light.treeRow?.color ?? 'none'}`);
-  for (const sel of ['.redline', '[data-view="arch"]', '[data-slot="arch-map-tab"]', '.arch-map-box rect']) {
+  for (const sel of ['.ed-redline-scroll', '.ed-redline-doc', '[data-view="arch"]', '[data-slot="arch-map-tab"]', '.arch-map-box rect']) {
     const p = light.paint[sel];
     say(`     ${sel}: ${p === null ? 'not mounted' : `${p.background} / ${p.color}`}`);
   }
@@ -784,6 +923,11 @@ await withElectron(launch('p213 A'), async (handle) => {
         const t0 = Date.now(); nativeTheme.themeSource = nativeTheme.shouldUseDarkColors ? 'light' : 'dark';
         for (let i = 0; i < 200; i += 1) { const scheme = await w.webContents.executeJavaScript('document.documentElement.getAttribute("data-scheme")'); const wantLight = !nativeTheme.shouldUseDarkColors; if ((scheme === 'light') === wantLight) { out.followedMs = Date.now() - t0; break; } await new Promise((r) => setTimeout(r, 5)); }
         out.fillAfterOne = w.getBackgroundColor(); out.darkAfterOne = nativeTheme.shouldUseDarkColors;
+        // Primed to the value the loop does NOT open with, so all ten
+        // assignments below are real changes. Without this the first one
+        // repeats what the single flip above already set and fires nothing,
+        // and the count reads nine.
+        nativeTheme.themeSource = 'light'; await new Promise((r) => setTimeout(r, 250));
         const t1 = Date.now(); let events = 0; const h = () => { events += 1; }; nativeTheme.on('updated', h);
         for (let i = 0; i < 10; i += 1) { nativeTheme.themeSource = i % 2 === 0 ? 'dark' : 'light'; await new Promise((r) => setTimeout(r, 100)); }
         await new Promise((r) => setTimeout(r, 300)); nativeTheme.off('updated', h);
@@ -875,7 +1019,8 @@ async function settingsPage(cdp, watch, timeoutMs = 60_000) {
 async function bootAndFace(label, scheme, wantChecked) {
   const L = { name: label, findings: 0 };
   report.launches.push(L);
-  await withElectron(launch(label), async () => {
+  await withElectron(launch(label), async (handle) => {
+    const mainWsPromise = mainInspector(handle);
     const { cdp } = await browserEndpoint();
     const watch = watchTargets(cdp);
     await cdp.call('Target.setDiscoverTargets', { discover: true });
@@ -883,7 +1028,7 @@ async function bootAndFace(label, scheme, wantChecked) {
     const s = await appPage(cdp, watch);
     await sleep(1500);
     await s.call('Page.stopScreencast').catch(() => {});
-    const boot = firstFrameOf(watch.frames.get(s.sessionId) ?? []);
+    const boot = firstFrameOf(watch.frames.get(s.sessionId) ?? [], scheme);
     L.boot = boot;
     check(L, gradeFirstFrame(boot, scheme), `the first frame at a ${scheme} boot: ${boot === null ? 'none' : `${boot.colour} over ${(boot.share * 100).toFixed(0)} percent`}`);
     const reading = await s.eval(`window.__gmuxP207.read()`, 30_000);
@@ -897,9 +1042,32 @@ async function bootAndFace(label, scheme, wantChecked) {
     const sp = await settingsPage(cdp, watch);
     await sleep(1500);
     await sp.call('Page.stopScreencast').catch(() => {});
-    const settingsBoot = firstFrameOf(watch.frames.get(sp.sessionId) ?? []);
+    const settingsBoot = firstFrameOf(watch.frames.get(sp.sessionId) ?? [], scheme);
     L.settingsBoot = settingsBoot;
-    check(L, gradeFirstFrame(settingsBoot, scheme), `the Settings window's first frame: ${settingsBoot === null ? 'none' : `${settingsBoot.colour} over ${(settingsBoot.share * 100).toFixed(0)} percent`}`);
+    if (settingsBoot !== null) {
+      check(L, gradeFirstFrame(settingsBoot, scheme), `the Settings window's first frame: ${settingsBoot.colour} over ${(settingsBoot.share * 100).toFixed(0)} percent`);
+    } else {
+      // A window opened LATER cannot be screencast before it paints: this
+      // probe learns the target exists only after main has made it, so on the
+      // runs where no frame arrives the reading is taken where research 80
+      // section 5 measured the first frame to come from, being the compositor
+      // fill main composed for that window. It is the same number, taken one
+      // layer down, and the log says which was read.
+      const mainWs = await mainWsPromise;
+      const fill =
+        mainWs === null
+          ? null
+          : await mainEval(
+              mainWs,
+              `(() => { const { BrowserWindow } = ${REQ}('electron'); const w = BrowserWindow.getAllWindows().find((x) => /settings/.test(x.webContents.getURL())); return w ? w.getBackgroundColor() : null; })()`
+            );
+      L.settingsFill = fill;
+      check(
+        L,
+        fill === null ? ['neither a first frame nor a window fill was read for the Settings window'] : gradeFirstFrame({ colour: fill, share: 1, otherShare: 0 }, scheme),
+        `the Settings window's ground, read as the compositor fill main composed because no frame arrived before it painted: ${String(fill)}`
+      );
+    }
     const faceText = await sp.eval(FACE_JS, 60_000);
     const face = faceText === null ? null : JSON.parse(faceText);
     L.face = face;

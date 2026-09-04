@@ -775,6 +775,34 @@ interface Facts {
   } | null;
   /** sha256 of each base's own block of tokens.css, dark first. */
   tokensSha: { dark: string; light: string };
+  /**
+   * The two shadow hosts put back on the document's inheritance chain
+   * (Phase 213). Both Pierre packages declare `color-scheme: light dark` on
+   * their own `:host`, and a `light-dark()` inside a shadow root reads THAT
+   * rather than the root's, so the diff painted paper on the dark base
+   * whenever the Mac was set light. The value each host is given here, or
+   * null when no rule in globals.css names it.
+   */
+  hosts: { diffs: string | null; tree: string | null };
+}
+
+/**
+ * What `color-scheme` globals.css gives one element name. Comments are
+ * stripped first, so a rule that is only described in prose does not count as
+ * a rule that exists.
+ */
+function hostColorScheme(root: string, tag: string): string | null {
+  const own = resolve(root, 'renderer', 'styles', 'globals.css');
+  const path = existsSync(own) ? own : resolve(repoRoot, 'src', 'renderer', 'styles', 'globals.css');
+  const css = readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  let answer: string | null = null;
+  for (const match of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    const selectors = match[1].split(',').map((one) => one.trim());
+    if (!selectors.includes(tag)) continue;
+    const declared = /(?:^|;)\s*color-scheme\s*:\s*([^;]+)/.exec(match[2]);
+    if (declared !== null) answer = declared[1].trim();
+  }
+  return answer;
 }
 
 async function readFacts(
@@ -837,6 +865,10 @@ async function readFacts(
     tokensSha: {
       dark: sha256(schemeBlock(tokensCssFor(root), 'dark')),
       light: sha256(schemeBlock(tokensCssFor(root), 'light'))
+    },
+    hosts: {
+      diffs: hostColorScheme(root, 'diffs-container'),
+      tree: hostColorScheme(root, 'file-tree-container')
     }
   };
 }

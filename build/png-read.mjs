@@ -106,3 +106,36 @@ export function dominant(img, x, y, w, h, stepPx = 2) {
   }
   return { colour: best, share: n === 0 ? 0 : bestN / n, distinct: counts.size };
 }
+
+/**
+ * The share of pixels inside a rectangle that sit within `levels` of one
+ * colour per channel (Phase 213). `dominant` answers what a frame mostly is;
+ * this answers whether a frame holds ANY of a colour it must not hold, which
+ * is what a boot's first frame is really judged on: a light boot may draw its
+ * whole chrome in the first frame it delivers and still be right, but no part
+ * of it may be the other base's ground.
+ */
+export function shareNear(img, x, y, w, h, colour, levels = 1, stepPx = 4) {
+  const want = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(colour).trim());
+  if (want === null) return 0;
+  const target = [1, 2, 3].map((i) => parseInt(want[i], 16));
+  const x1 = Math.min(img.width, x + w);
+  const y1 = Math.min(img.height, y + h);
+  let n = 0;
+  let hit = 0;
+  for (let yy = Math.max(0, y); yy < y1; yy += stepPx) {
+    for (let xx = Math.max(0, x); xx < x1; xx += stepPx) {
+      const o = (yy * img.width + xx) * 4;
+      const d = img.data;
+      if (
+        Math.abs(d[o] - target[0]) <= levels &&
+        Math.abs(d[o + 1] - target[1]) <= levels &&
+        Math.abs(d[o + 2] - target[2]) <= levels
+      ) {
+        hit += 1;
+      }
+      n += 1;
+    }
+  }
+  return n === 0 ? 0 : hit / n;
+}

@@ -204,6 +204,20 @@ export function depthRange(shade: number, scheme: BaseScheme = 'dark'): StopRang
  * space, no token name: the sentence is for the person, and the gate is where
  * the token name lives.
  */
+export interface RefusalFallback {
+  /** The family the REGION says binds at this end. */
+  family: FloorFailure['family'];
+  /**
+   * The token the region says binds, where the family alone is not enough to
+   * choose a sentence (Phase 213). On paper the shade end is refused because
+   * `--accent-text` ships at 5.03:1 against a floor of 4.5 and one stop darker
+   * takes it under at hue 30 under Teal; the live composition in front of the
+   * person is usually Blue at 222, where nothing fails at all, so without this
+   * the sentence would name the file colours, which are not what stopped it.
+   */
+  token?: string;
+}
+
 export function refusalSentence(
   direction: 'darker' | 'lighter' | 'less depth' | 'more depth',
   failure: FloorFailure | null,
@@ -212,8 +226,9 @@ export function refusalSentence(
   // falls back to when the live composition happens to be kinder than the
   // worst hue and contrast the region was measured over, because the region
   // is the promise and the live reading is only the explanation.
-  fallback: FloorFailure['family']
+  fallback: FloorFailure['family'] | RefusalFallback
 ): string {
+  const back: RefusalFallback = typeof fallback === 'string' ? { family: fallback } : fallback;
   const lead = direction === 'darker' || direction === 'lighter'
     ? direction.charAt(0).toUpperCase() + direction.slice(1)
     : direction === 'less depth'
@@ -230,7 +245,7 @@ export function refusalSentence(
             : 'a darker shade';
     return `${lead} needs ${other}.`;
   }
-  switch (failure?.family ?? fallback) {
+  switch (failure?.family ?? back.family) {
     case 'order':
     case 'step':
       return `${lead} renders two panels the same color.`;
@@ -242,10 +257,11 @@ export function refusalSentence(
     default:
       // On the light base the dots and the accent bind before the file
       // colours do (Phase 213), and the sentence names what stopped it.
-      if (failure?.token.startsWith('--status') === true) {
+      const token = failure?.token ?? back.token ?? '';
+      if (token.startsWith('--status')) {
         return `${lead} puts the status dots under their contrast floor.`;
       }
-      if (failure?.token.startsWith('--accent') === true) {
+      if (token.startsWith('--accent')) {
         return `${lead} puts the accent under its contrast floor.`;
       }
       return `${lead} puts the file colors under their contrast floor.`;

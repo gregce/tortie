@@ -510,14 +510,38 @@ function FrameShapeRows(): React.JSX.Element {
     hue === DEFAULT_CHROME_HUE &&
     shade === DEFAULT_CHROME_SHADE &&
     depth === DEFAULT_CHROME_DEPTH;
+  // WHAT THE REGION SAYS BINDS AT EACH END, by base, and it is a measurement
+  // rather than a guess (Phase 213). On the dark base the dark end is the
+  // RENDERED STEP, because near black eight bits run out before the ramp
+  // does, and the light end is the git decorations on the active row. On
+  // paper both ends move: the dark end is the accent, which ships at 5.03:1
+  // against a floor of 4.5 so one stop darker takes it under, and the light
+  // end is the ORDER, because the sheet ships at OKLCH L 0.992 and one stop
+  // lighter puts it and the canvas both at white. It is a fallback and not
+  // the sentence: where the live composition really fails, that failure
+  // names itself.
+  const ends =
+    scheme === 'light'
+      ? {
+          darker: { family: 'chromatic' as const, token: '--accent-text' },
+          lighter: { family: 'order' as const },
+          lessDepth: { family: 'step' as const },
+          moreDepth: { family: 'chromatic' as const }
+        }
+      : {
+          darker: { family: 'step' as const },
+          lighter: { family: 'chromatic' as const },
+          lessDepth: { family: 'step' as const },
+          moreDepth: { family: 'chromatic' as const }
+        };
   const shadeNote =
     shade <= ranges.shade.min
-      ? refusalSentence('darker', why(ranges.shade.min - 1, depth), ranges.shade.belowElsewhere, 'step')
-      : refusalSentence('lighter', why(ranges.shade.max + 1, depth), ranges.shade.aboveElsewhere, 'chromatic');
+      ? refusalSentence('darker', why(ranges.shade.min - 1, depth), ranges.shade.belowElsewhere, ends.darker)
+      : refusalSentence('lighter', why(ranges.shade.max + 1, depth), ranges.shade.aboveElsewhere, ends.lighter);
   const depthNote =
     depth <= ranges.depth.min
-      ? refusalSentence('less depth', why(shade, ranges.depth.min - 1), ranges.depth.belowElsewhere, 'step')
-      : refusalSentence('more depth', why(shade, ranges.depth.max + 1), ranges.depth.aboveElsewhere, 'chromatic');
+      ? refusalSentence('less depth', why(shade, ranges.depth.min - 1), ranges.depth.belowElsewhere, ends.lessDepth)
+      : refusalSentence('more depth', why(shade, ranges.depth.max + 1), ranges.depth.aboveElsewhere, ends.moreDepth);
   return (
     <>
       <StopSliderRow
