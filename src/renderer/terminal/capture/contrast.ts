@@ -27,7 +27,9 @@
 function channels(value: string): [number, number, number] | null {
   const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(value.trim());
   if (hex === null) return null;
-  return [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)];
+  const [, r, g, b] = hex;
+  if (r === undefined || g === undefined || b === undefined) return null;
+  return [parseInt(r, 16), parseInt(g, 16), parseInt(b, 16)];
 }
 
 function toHex(r: number, g: number, b: number): string {
