@@ -199,3 +199,58 @@ const api: InstalledGmuxApi = {
 };
 
 contextBridge.exposeInMainWorld('gmux', api);
+
+// ---------------------------------------------------------------------------
+// The scheme, before first paint (Phase 213).
+//
+// Main resolves the scheme in effect before it makes a window and hands it
+// here as one argv switch (src/main/settings/chrome.ts, `schemeArgsNow`). The
+// stamp below is what index.html's pre-paint rule and tokens.css's light
+// block key on, so a light launch's first frame is the paper and not the
+// graphite the inline literal used to paint. The dark scheme stamps NOTHING,
+// which is what keeps a dark launch byte identical: no attribute, no rule.
+//
+// Measured in research 80 section 5: the preload runs with the document
+// still loading and `document.documentElement` absent, so the stamp waits
+// for readystatechange and still lands before the compositor's first paint,
+// because the document is tiny. No inline script is needed, so the CSP is
+// untouched.
+// ---------------------------------------------------------------------------
+
+function schemeFromArgv(argv: readonly string[]): 'light' | null {
+  for (const arg of argv) {
+    if (arg === '--gmux-scheme=light') return 'light';
+  }
+  return null;
+}
+
+/**
+ * The two document members the stamp touches, named here because the
+ * preload is compiled without the DOM library: it is a Node style script
+ * that happens to run beside a document, and nothing else in it reads one.
+ */
+interface StampableDocument {
+  documentElement: { setAttribute(name: string, value: string): void } | null;
+  addEventListener(type: string, listener: () => void): void;
+  removeEventListener(type: string, listener: () => void): void;
+}
+
+function stampScheme(): void {
+  const scheme = schemeFromArgv(process.argv);
+  if (scheme === null) return;
+  const doc = (globalThis as { document?: StampableDocument }).document;
+  if (doc === undefined) return;
+  const stamp = (): boolean => {
+    const root = doc.documentElement;
+    if (root === null) return false;
+    root.setAttribute('data-scheme', scheme);
+    return true;
+  };
+  if (stamp()) return;
+  const onReady = (): void => {
+    if (stamp()) doc.removeEventListener('readystatechange', onReady);
+  };
+  doc.addEventListener('readystatechange', onReady);
+}
+
+stampScheme();

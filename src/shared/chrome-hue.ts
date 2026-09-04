@@ -49,7 +49,8 @@ import {
 } from 'culori/fn';
 import { anchorLightnessFor, depthFactorFor, rampNeutral } from './chrome-ramp';
 import { DEFAULT_CHROME_HUE, sanitizeChromeHue } from './settings';
-import { WINDOW_BACKGROUND } from './window-chrome';
+import type { BaseScheme } from './settings';
+import { WINDOW_BACKGROUND, WINDOW_BACKGROUND_LIGHT } from './window-chrome';
 
 // The four spaces this module walks. `useMode` is idempotent, so a renderer
 // that also registers them in derive.ts pays nothing for the repeat.
@@ -108,9 +109,14 @@ export function rotateChromeNeutral(css: string, hue: number): string {
 export function windowBackgroundFor(
   hue: number,
   shade = 0,
-  depth = 0
+  depth = 0,
+  scheme: BaseScheme = 'dark'
 ): string {
-  const turned = rotateChromeNeutral(WINDOW_BACKGROUND, hue);
+  // The base decides the anchor (Phase 213): the paper when the scheme in
+  // effect is light, the graphite otherwise. The rotation and the ramp then
+  // move it exactly as they move the token in the renderer.
+  const base = scheme === 'light' ? WINDOW_BACKGROUND_LIGHT : WINDOW_BACKGROUND;
+  const turned = rotateChromeNeutral(base, hue);
   const parsed = parse(turned.trim());
   const ok = parsed === undefined ? undefined : toOklch(parsed);
   if (ok === undefined) return turned;

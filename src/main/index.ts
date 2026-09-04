@@ -89,7 +89,7 @@ import { broadcastEvent } from './typed-events';
 import { EVT_POWER_RESUME } from '@shared/ipc';
 import { applyProcessIdentity } from './proc/identity';
 import { reapOrphanedTmuxClients } from './proc/orphans';
-import { followChromeHue, windowBackgroundNow } from './settings/chrome';
+import { followChromeHue, schemeArgsNow, windowBackgroundNow } from './settings/chrome';
 // Phase 51: `tortie .` — a launch may carry ONE folder to open as a project
 // tab. The shim, the argv acceptance and the pending slot live in ./shell;
 // this file only wires the three entry points (boot argv, second-instance
@@ -365,7 +365,10 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      // Phase 213: the scheme in effect, for the preload to stamp on the
+      // root before first paint. See src/main/settings/chrome.ts.
+      additionalArguments: schemeArgsNow()
     }
   });
 

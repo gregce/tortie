@@ -57,6 +57,7 @@ import {
   sanitizeChromeDepth,
   sanitizeChromeHue,
   sanitizeChromeShade,
+  sanitizeColorScheme,
   sanitizeContrastLevel,
   sanitizeHighlightScheme,
   sanitizeUsageSettings,
@@ -502,6 +503,9 @@ export function sanitizeSettings(raw: unknown): GmuxSettings {
   // which derives zero overrides.
   out.chromeShade = sanitizeChromeShade(obj['chromeShade']);
   out.chromeDepth = sanitizeChromeDepth(obj['chromeDepth']);
+  // The scheme (Phase 213). Membership only, and garbage reads as the shipped
+  // dark, which derives zero overrides and is byte identical to before.
+  out.colorScheme = sanitizeColorScheme(obj['colorScheme']);
 
   // The fold choice (Phase 138). Membership FIRST, and the seal after, in
   // getSettings. This is the shape check and it cannot tell who wrote the

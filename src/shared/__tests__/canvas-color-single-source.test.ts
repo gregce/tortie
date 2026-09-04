@@ -108,5 +108,9 @@ describe('--bg-canvas has one value, wherever it has to be spelled', () => {
       expect(/backgroundColor:\s*['"#]/.test(source)).toBe(false);
     }
     expect(windowBackgroundFor(DEFAULT_CHROME_HUE)).toBe(WINDOW_BACKGROUND);
+    // Phase 213: the light scheme composes the paper, at the shipped frame
+    // byte for byte, and the dark answer is unchanged by the new argument.
+    expect(windowBackgroundFor(DEFAULT_CHROME_HUE, 0, 0, 'light')).toBe(WINDOW_BACKGROUND_LIGHT);
+    expect(windowBackgroundFor(DEFAULT_CHROME_HUE, 0, 0, 'dark')).toBe(WINDOW_BACKGROUND);
   });
 });

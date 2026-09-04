@@ -120,6 +120,16 @@ export interface GmuxSettings {
    */
   chromeDepth: number;
   /**
+   * Which base palette the whole app draws from (Phase 213): 'dark', the
+   * shipped graphite; 'light', the paper; or 'system', which follows the
+   * Mac's own appearance and turns with it. 'dark' is the default and
+   * derives ZERO overrides, and the dark base is byte identical to what
+   * shipped before the field existed. Same posture as the frame fields
+   * above: a preference with no danger semantics, never sealed. A hand
+   * edited file holding any other value is read as 'dark'.
+   */
+  colorScheme: ColorScheme;
+  /**
    * Who writes the project line (Phase 138). Absent on every install that has
    * never opened Settings and picked one, which is what "None" is.
    *
@@ -468,6 +478,45 @@ export function sanitizeChromeDepth(value: unknown): number {
 }
 
 // ---------------------------------------------------------------------------
+// The scheme (Phase 213). Which base palette, and whether the Mac decides.
+// ---------------------------------------------------------------------------
+
+/**
+ * The persisted choice, in UI order: Light, Dark, Match the Mac. The base
+ * palettes themselves are the two `:root` blocks of
+ * src/renderer/styles/tokens.css; here is only the id.
+ */
+export type ColorScheme = 'light' | 'dark' | 'system';
+export const COLOR_SCHEMES: readonly ColorScheme[] = ['light', 'dark', 'system'];
+export const DEFAULT_COLOR_SCHEME: ColorScheme = 'dark';
+
+/** The base a window actually draws from once 'system' has been asked. */
+export type BaseScheme = 'light' | 'dark';
+
+/**
+ * Membership check for a persisted scheme. Anything outside the union, of
+ * any type, is the shipped dark, so a hand edited file can at worst pick
+ * one of the three.
+ */
+export function sanitizeColorScheme(value: unknown): ColorScheme {
+  return typeof value === 'string' &&
+    (COLOR_SCHEMES as readonly string[]).includes(value)
+    ? (value as ColorScheme)
+    : DEFAULT_COLOR_SCHEME;
+}
+
+/**
+ * The base a persisted choice resolves to, given what the Mac says. Main
+ * asks nativeTheme; the renderer asks prefers-color-scheme; both are the
+ * same Chromium answer, which is what keeps the compositor fill and the
+ * document on one base.
+ */
+export function resolveScheme(scheme: ColorScheme, systemDark: boolean): BaseScheme {
+  if (scheme === 'system') return systemDark ? 'dark' : 'light';
+  return scheme;
+}
+
+// ---------------------------------------------------------------------------
 // The work area font (Phase 78). A family picker, and no size control.
 // ---------------------------------------------------------------------------
 
@@ -656,6 +705,7 @@ export function defaultGmuxSettings(): GmuxSettings {
     chromeHue: DEFAULT_CHROME_HUE,
     chromeShade: DEFAULT_CHROME_SHADE,
     chromeDepth: DEFAULT_CHROME_DEPTH,
+    colorScheme: DEFAULT_COLOR_SCHEME,
     fold: noFoldChosen(),
     arch: noArchChosen(),
     usage: noUsageChosen()

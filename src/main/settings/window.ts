@@ -15,7 +15,7 @@
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
 import { applyTrustedWindowPolicy } from '../security/trusted-window';
-import { followChromeHue, windowBackgroundNow } from './chrome';
+import { followChromeHue, schemeArgsNow, windowBackgroundNow } from './chrome';
 import {
   getSettingsWindowBounds,
   saveSettingsWindowBounds
@@ -54,7 +54,9 @@ export function openSettingsWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      // Phase 213: the scheme in effect, stamped on the root by the preload.
+      additionalArguments: schemeArgsNow()
     }
   });
   settingsWindow = win;

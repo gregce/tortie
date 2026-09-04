@@ -22,7 +22,28 @@ let userDataDir = '';
 // The two electron surfaces store.ts touches, following the fake in
 // danger-seal.test.ts. No test here stores a danger value, so the keystore
 // half exists only so the module loads.
+/**
+ * A fake nativeTheme (Phase 213): what the Mac says, settable, with the
+ * `updated` listeners the chrome module subscribes to, so Match the Mac can
+ * be driven without an OS.
+ */
+const fakeTheme = {
+  shouldUseDarkColors: true,
+  listeners: new Set<() => void>(),
+  on(_event: string, cb: () => void): void {
+    fakeTheme.listeners.add(cb);
+  },
+  off(_event: string, cb: () => void): void {
+    fakeTheme.listeners.delete(cb);
+  },
+  flip(dark: boolean): void {
+    fakeTheme.shouldUseDarkColors = dark;
+    for (const cb of fakeTheme.listeners) cb();
+  }
+};
+
 vi.mock('electron', () => ({
+  nativeTheme: fakeTheme,
   app: {
     isReady: () => true,
     getPath: (name: string) => {
@@ -56,6 +77,36 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(userDataDir, { recursive: true, force: true });
+});
+
+describe('the scheme (Phase 213)', () => {
+  it('garbage of every shape reads as dark, and the three values survive', async () => {
+    const store = await freshStore();
+    for (const bad of ['paper', 'Light', 'LIGHT', 'auto', 3, null, undefined, {}, [], true]) {
+      expect(store.sanitizeSettings({ colorScheme: bad }).colorScheme, JSON.stringify(bad)).toBe('dark');
+    }
+    for (const good of ['light', 'dark', 'system'] as const) {
+      expect(store.sanitizeSettings({ colorScheme: good }).colorScheme).toBe(good);
+    }
+    expect(store.sanitizeSettings({}).colorScheme).toBe('dark');
+  });
+
+  it('round trips through a patch, the disk and a fresh load', async () => {
+    const store = await freshStore();
+    expect(store.getSettings().colorScheme).toBe('dark');
+    store.updateSettings({ colorScheme: 'light' });
+    const file = JSON.parse(readFileSync(join(userDataDir, 'settings.json'), 'utf8')) as {
+      settings: { colorScheme: string };
+    };
+    expect(file.settings.colorScheme).toBe('light');
+    const again = await freshStore();
+    expect(again.getSettings().colorScheme).toBe('light');
+    // A hand edit to a value that is not a scheme comes back as dark.
+    file.settings.colorScheme = 'paper';
+    writeFileSync(join(userDataDir, 'settings.json'), JSON.stringify(file), 'utf8');
+    const third = await freshStore();
+    expect(third.getSettings().colorScheme).toBe('dark');
+  });
 });
 
 describe('sanitize', () => {
@@ -389,5 +440,51 @@ describe('the frame hue (Phase 207)', () => {
     store.updateSettings({ chromeHue: 100 });
     expect(writes).toHaveLength(2);
     expect(onClosed).not.toBeNull();
+  });
+
+  it('composes the fill from the scheme, and Match the Mac follows nativeTheme (Phase 213)', async () => {
+    fakeTheme.shouldUseDarkColors = true;
+    fakeTheme.listeners.clear();
+    const store = await freshStore();
+    const chrome = await import('../chrome');
+    expect(chrome.effectiveSchemeNow()).toBe('dark');
+    expect(chrome.schemeArgsNow()).toEqual(['--gmux-scheme=dark']);
+    const writes: string[] = [];
+    let onClosed: (() => void) | null = null;
+    const win = {
+      isDestroyed: () => false,
+      setBackgroundColor: (hex: string) => writes.push(hex),
+      once: (_event: string, cb: () => void) => {
+        onClosed = cb;
+      }
+    };
+    chrome.followChromeHue(win as never);
+    expect(fakeTheme.listeners.size).toBe(1);
+    store.updateSettings({ colorScheme: 'light' });
+    expect(chrome.effectiveSchemeNow()).toBe('light');
+    expect(chrome.schemeArgsNow()).toEqual(['--gmux-scheme=light']);
+    expect(writes).toEqual(['#f5f7fa']);
+    // A hue on the light base turns the paper, not the graphite.
+    store.updateSettings({ chromeHue: 40 });
+    expect(writes[1]).toBe(windowBackgroundFor(40, 0, 0, 'light'));
+    expect(writes[1]).not.toBe(windowBackgroundFor(40));
+    store.updateSettings({ chromeHue: 222, colorScheme: 'system' });
+    // The Mac is dark, so system is dark; a flip of the Mac moves the fill
+    // with no settings write at all, and a flip while the scheme is not
+    // system writes nothing.
+    expect(writes[2]).toBe('#131417');
+    fakeTheme.flip(false);
+    expect(writes[3]).toBe('#f5f7fa');
+    fakeTheme.flip(true);
+    expect(writes[4]).toBe('#131417');
+    store.updateSettings({ colorScheme: 'dark' });
+    expect(writes).toHaveLength(5);
+    fakeTheme.flip(false);
+    expect(writes).toHaveLength(5);
+    // Closing the window drops both listeners.
+    expect(onClosed).not.toBeNull();
+    (onClosed as unknown as () => void)();
+    expect(fakeTheme.listeners.size).toBe(0);
+    fakeTheme.shouldUseDarkColors = true;
   });
 });
