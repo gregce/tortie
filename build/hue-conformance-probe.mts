@@ -43,7 +43,7 @@
  * name to answer, an answer being either the readings or { error }.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { converter, parse, wcagLuminance } from 'culori';
@@ -105,10 +105,16 @@ function readDeclarations(css: string): Map<string, string> {
   return decls;
 }
 
-const tokensCss = readFileSync(
-  resolve(repoRoot, 'src', 'renderer', 'styles', 'tokens.css'),
-  'utf8'
-).replace(/\/\*[\s\S]*?\*\//g, '');
+/**
+ * tokens.css, from the ROOT when the root carries a copy (an ablation of the
+ * light block lives there), else the tree's. Phase 213.
+ */
+function tokensCssFor(root: string): string {
+  const own = resolve(root, 'renderer', 'styles', 'tokens.css');
+  const path = existsSync(own) ? own : resolve(repoRoot, 'src', 'renderer', 'styles', 'tokens.css');
+  return readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+}
+const tokensCss = tokensCssFor(resolve(repoRoot, 'src'));
 /**
  * The DARK base is the first `:root {` block and the LIGHT base (Phase 213)
  * the `:root[data-scheme='light'] {` block after it. A last match wins sweep
@@ -124,9 +130,11 @@ function schemeBlock(css: string, scheme: 'dark' | 'light'): string {
   return close === -1 ? '' : css.slice(start + head.length, close);
 }
 const declarations = readDeclarations(schemeBlock(tokensCss, 'dark'));
-const lightDeclarations = readDeclarations(
-  `${schemeBlock(tokensCss, 'dark')}\n${schemeBlock(tokensCss, 'light')}`
-);
+function declarationsFor(root: string, scheme: 'dark' | 'light'): Map<string, string> {
+  const css = tokensCssFor(root);
+  if (scheme === 'dark') return readDeclarations(schemeBlock(css, 'dark'));
+  return readDeclarations(`${schemeBlock(css, 'dark')}\n${schemeBlock(css, 'light')}`);
+}
 
 // ---------------------------------------------------------------------------
 // The readings
@@ -153,6 +161,15 @@ const CHROMATIC = [
   '--git-conflict',
   '--graph-lane-3',
   '--graph-lane-5'
+];
+/** The status family the light base pins on the active row (Phase 213). */
+const STATUS = [
+  '--status-working',
+  '--status-attention',
+  '--status-idle',
+  '--status-failed',
+  '--status-attention-badge-bg',
+  '--status-attention-badge-fg'
 ];
 
 interface Sample {
@@ -243,13 +260,20 @@ interface Answer {
   rampStops: { shades: number[]; depths: number[]; stepMin: number };
   /** The region table the SHIPPING control offers from, read from presets. */
   regionTable: { shade: number; minDepth: number; maxDepth: number }[];
+  facts: Facts;
 }
 
 async function readRoot(
   root: string,
   hueStep: number,
-  extraHues: readonly number[]
+  extraHues: readonly number[],
+  scheme: 'dark' | 'light' = 'dark'
 ): Promise<Answer> {
+  // The light base (Phase 213) walks the same rules over the light block,
+  // with the light order runs, the light chromatic pins, the light region
+  // and the light terminal constants, all from the module under test.
+  const light = scheme === 'light';
+  const rootDeclarations = declarationsFor(root, scheme);
   const load = async (rel: string): Promise<Record<string, unknown>> =>
     (await import(pathToFileURL(resolve(root, rel)).href)) as Record<string, unknown>;
   const derive = await load('renderer/theme/derive.ts');
@@ -272,18 +296,21 @@ async function readRoot(
   const allTokens = presets['ALL_THEME_TOKENS'] as string[];
   const textIsDarkOn = hue['textIsDarkOn'] as (css: string) => boolean;
   const threshold = hue['TEXT_FLIP_CANVAS_LUMINANCE'] as number;
-  const terminalTextFor = terminal['terminalTextFor'] as (
+  const terminalTextForRaw = terminal['terminalTextFor'] as (
     canvas: string,
-    dark: boolean
+    dark: boolean,
+    scheme?: 'dark' | 'light'
   ) => Record<string, string>;
+  const terminalTextFor = (canvas: string, dark: boolean): Record<string, string> =>
+    terminalTextForRaw(canvas, dark, scheme);
 
   const base: Record<string, string> = {};
   for (const token of allTokens) {
-    const value = declarations.get(token);
+    const value = rootDeclarations.get(token);
     if (value !== undefined) base[token] = value;
   }
-  for (const token of [...NEUTRALS, ...TEXTS, ...CHROMATIC]) {
-    const value = declarations.get(token);
+  for (const token of [...NEUTRALS, ...TEXTS, ...CHROMATIC, ...STATUS]) {
+    const value = rootDeclarations.get(token);
     if (value !== undefined) base[token] = value;
   }
 
@@ -300,7 +327,7 @@ async function readRoot(
     const values: Record<string, string> = {};
     const lightness: Record<string, number> = {};
     const hues: Record<string, number> = {};
-    for (const token of [...NEUTRALS, ...TEXTS, ...CHROMATIC]) {
+    for (const token of [...NEUTRALS, ...TEXTS, ...CHROMATIC, ...STATUS]) {
       values[token] = effective(o, token);
     }
     for (const token of NEUTRALS) {
@@ -327,7 +354,7 @@ async function readRoot(
   }
 
   const lifts: LiftSample[] = [];
-  for (let i = 0; i <= 170; i += 1) {
+  for (let i = 0; i <= (light ? -1 : 170); i += 1) {
     const lift = i / 200;
     const o = deriveOverrides(
       { highlightScheme: 'blue', contrastLevel: 'normal', chromeHue: 222 },
@@ -362,19 +389,32 @@ async function readRoot(
   // -------------------------------------------------------------------------
 
   const shadeStops = presets['SHADE_STOP_LIST'] as number[] | undefined;
-  const CHROMATIC_PINS = presets['CHROMATIC_PINS'] as
+  const pinsFor = presets['chromaticPinsFor'] as
+    | ((s: string) => { token: string; ground: string; floor: number }[])
+    | undefined;
+  const CHROMATIC_PINS = (pinsFor !== undefined ? pinsFor(scheme) : presets['CHROMATIC_PINS']) as
     | { token: string; ground: string; floor: number }[]
     | undefined;
-  const RAMP_ORDER = presets['RAMP_ORDER'] as string[] | undefined;
-  const HAIRLINE_ORDER = presets['HAIRLINE_ORDER'] as string[] | undefined;
+  const orderFor = presets['rampOrderFor'] as ((s: string) => string[]) | undefined;
+  const hairFor = presets['hairlineOrderFor'] as ((s: string) => string[]) | undefined;
+  const RAMP_ORDER = (orderFor !== undefined ? orderFor(scheme) : presets['RAMP_ORDER']) as string[] | undefined;
+  const HAIRLINE_ORDER = (hairFor !== undefined ? hairFor(scheme) : presets['HAIRLINE_ORDER']) as string[] | undefined;
+  const regionFor = presets['frameRegionFor'] as
+    | ((s: string) => { shade: number; minDepth: number; maxDepth: number }[])
+    | undefined;
   const STEP_PAIRS = presets['RENDERED_STEP_PAIRS'] as [string, string][] | undefined;
   const STEP_MIN = presets['RENDERED_STEP_MIN'] as number | undefined;
   const TEXT_PINS = presets['TEXT_PINS'] as
     | { token: string; ground: string; grounds: string[]; floor: number | null }[]
     | undefined;
-  const firstFloorFailure = floors['firstFloorFailure'] as
-    | ((valueOf: (t: string) => string | undefined) => { family: string } | null)
+  const firstFloorFailureRaw = floors['firstFloorFailure'] as
+    | ((valueOf: (t: string) => string | undefined, scheme?: string) => { family: string } | null)
     | undefined;
+  const firstFloorFailure =
+    firstFloorFailureRaw === undefined
+      ? undefined
+      : (valueOf: (t: string) => string | undefined): { family: string } | null =>
+          firstFloorFailureRaw(valueOf, scheme);
 
   // Luminance and the eight bit reading are memoised by the colour's own text.
   // The text tokens do not move at all on a dark ground, so the same handful
@@ -636,7 +676,7 @@ async function readRoot(
       base
     );
     const values: Record<string, string> = {};
-    for (const token of [...NEUTRALS, ...TEXTS, ...CHROMATIC]) {
+    for (const token of [...NEUTRALS, ...TEXTS, ...CHROMATIC, ...STATUS]) {
       values[token] = effective(o, token);
     }
     const canvas = values['--bg-canvas'] ?? '';
@@ -658,7 +698,7 @@ async function readRoot(
     shippedL[token] = L(shipped[token]);
     shippedHue[token] = H(shipped[token]);
   }
-  for (const token of [...TEXTS, ...CHROMATIC]) shipped[token] = base[token] ?? '';
+  for (const token of [...TEXTS, ...CHROMATIC, ...STATUS]) shipped[token] = base[token] ?? '';
   const flat = (chromeHue: number): string =>
     JSON.stringify(
       deriveOverrides({ highlightScheme: 'blue', contrastLevel: 'normal', chromeHue }, base)
@@ -688,20 +728,103 @@ async function readRoot(
     ramp,
     rampPoints,
     rampStops: { shades: SHADES, depths: DEPTHS, stepMin: STEP_MIN ?? 0 },
-    regionTable: (presets['FRAME_REGION'] as
-      | { shade: number; minDepth: number; maxDepth: number }[]
-      | undefined) ?? []
+    regionTable:
+      (regionFor !== undefined ? regionFor(scheme) : (presets['FRAME_REGION'] as
+        | { shade: number; minDepth: number; maxDepth: number }[]
+        | undefined)) ?? [],
+    facts: await readFacts(root, load)
+  };
+}
+
+/**
+ * THE MODULE FACTS (Phase 213): what the other readers of the base say,
+ * read from the modules under test so an ablation of one of them reaches
+ * the gate. The terminal's two constant themes and its two contrast
+ * floors, Monaco's two themes at the shipped state, the window fill main
+ * composes for both bases, and the Pierre theme pair, which is read as
+ * TEXT because the bridge registers with a library the node loader will
+ * not evaluate.
+ */
+interface Facts {
+  terminal: { dark: Record<string, string>; light: Record<string, string>; floorDark: number; floorLight: number };
+  monaco: {
+    dark: { base: string; colors: Record<string, string>; rules: { token: string; foreground?: string }[] };
+    light: { base: string; colors: Record<string, string>; rules: { token: string; foreground?: string }[] };
+  } | null;
+  windowFill: { dark: string; light: string; darkAt40: string; lightAt40: string };
+  pierre: { darkType: string | null; lightType: string | null; lightBg: string | null; lightFg: string | null; pair: string[] } | null;
+}
+
+async function readFacts(
+  root: string,
+  load: (rel: string) => Promise<Record<string, unknown>>
+): Promise<Facts> {
+  const terminal = await load('renderer/terminal/theme.ts');
+  const hueMod = await load('shared/chrome-hue.ts');
+  const floorFor = terminal['terminalContrastFloorFor'] as ((s: string) => number) | undefined;
+  const fill = hueMod['windowBackgroundFor'] as (h: number, s?: number, d?: number, scheme?: string) => string;
+  let monaco: Facts['monaco'] = null;
+  try {
+    const mod = await load('renderer/editor/monaco-theme.ts');
+    const theme = mod['gmuxMonacoTheme'] as (state: {
+      scheme: string;
+      overrides: Record<string, string>;
+      canvas: string;
+      textDark: boolean;
+    }) => { base: string; colors: Record<string, string>; rules: { token: string; foreground?: string }[] };
+    monaco = {
+      dark: theme({ scheme: 'dark', overrides: {}, canvas: '#131417', textDark: false }),
+      light: theme({ scheme: 'light', overrides: {}, canvas: '#f5f7fa', textDark: true })
+    };
+  } catch {
+    monaco = null;
+  }
+  let pierre: Facts['pierre'] = null;
+  const bridgePath = resolve(root, 'renderer', 'pierre', 'theme-bridge.ts');
+  const bridgeFile = existsSync(bridgePath)
+    ? bridgePath
+    : resolve(repoRoot, 'src', 'renderer', 'pierre', 'theme-bridge.ts');
+  if (existsSync(bridgeFile)) {
+    const text = readFileSync(bridgeFile, 'utf8');
+    const lightBlock = /gmuxLightTheme[^;]*?gmuxTheme\(([\s\S]*?)\);/.exec(text)?.[1] ?? '';
+    const darkBlock = /gmuxDarkTheme[^;]*?gmuxTheme\(([\s\S]*?)\);/.exec(text)?.[1] ?? '';
+    const typeIn = (block: string): string | null => /'(dark|light)'/.exec(block.replace(/'Tortie (dark|light)'/, ''))?.[1] ?? null;
+    const pair = /export const diffTheme[^{]*\{([\s\S]*?)\}/.exec(text)?.[1] ?? '';
+    pierre = {
+      darkType: typeIn(darkBlock),
+      lightType: typeIn(lightBlock),
+      lightBg: /bgCanvas:\s*'(#[0-9a-f]{6})'/i.exec(text.slice(text.indexOf('const PL')))?.[1] ?? null,
+      lightFg: /fg:\s*'(#[0-9a-f]{6})'/i.exec(text.slice(text.indexOf('const SL')))?.[1] ?? null,
+      pair: [...pair.matchAll(/(dark|light):\s*([A-Z_]+)/g)].map((m) => `${m[1]}=${m[2]}`)
+    };
+  }
+  return {
+    terminal: {
+      dark: (terminal['terminalTheme'] as Record<string, string>) ?? {},
+      light: (terminal['terminalThemeLight'] as Record<string, string>) ?? {},
+      floorDark: floorFor === undefined ? Number.NaN : floorFor('dark'),
+      floorLight: floorFor === undefined ? Number.NaN : floorFor('light')
+    },
+    monaco,
+    windowFill: {
+      dark: fill(222, 0, 0, 'dark'),
+      light: fill(222, 0, 0, 'light'),
+      darkAt40: fill(40, 0, 0, 'dark'),
+      lightAt40: fill(40, 0, 0, 'light')
+    },
+    pierre
   };
 }
 
 const answers: Record<string, unknown> = {};
 for (const { name, root, hueStep, extraHues } of roots) {
   try {
-    answers[name] = await readRoot(
-      root,
-      Math.max(1, Math.round(hueStep ?? 1)),
-      extraHues ?? []
-    );
+    const step = Math.max(1, Math.round(hueStep ?? 1));
+    const dark = await readRoot(root, step, extraHues ?? [], 'dark');
+    // The light base (Phase 213), walked by the same probe over the light
+    // block, and handed back beside the dark answer.
+    const lightAnswer = await readRoot(root, step, extraHues ?? [], 'light');
+    answers[name] = { ...dark, light: lightAnswer };
   } catch (error) {
     answers[name] = { error: error instanceof Error ? error.message : String(error) };
   }
