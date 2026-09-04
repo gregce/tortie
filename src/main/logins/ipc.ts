@@ -53,10 +53,14 @@
  *    five seconds so a pointer over the meter observes once rather than once a
  *    frame. There is no timer anywhere in this path.
  *  - `choose` runs an observe and then an ACTIVATION, which is the only write
- *    into a vendor's store in the whole product. It is refused while a session
- *    is running under that login, it can never name the person's own default
- *    location, and it is preceded by the capture above, so a switch is
- *    reversible in both directions.
+ *    into a vendor's store in the whole product. PHASE 211 lifted two of its
+ *    refusals at the operator's word: it now writes while a session runs
+ *    under the login, held under the vendor's own locks, and it writes the
+ *    person's own default location when a session runs under the default
+ *    login, so the running session follows. The account written over is kept
+ *    and promoted inside the locks first, so a switch is reversible in both
+ *    directions. Every change then pushes `logins:changed` so every window
+ *    redraws, not just the one that asked.
  *
  * NO CREDENTIAL EVER CROSSES THIS BOUNDARY. The snapshot carries a name, an
  * address, and four booleans. There is no channel that answers a payload, and
@@ -317,6 +321,13 @@ async function answer(change: LoginChange): Promise<LoginActionResult> {
   // AND THE WATCHER LEARNS THE NEW SET, before the list that follows.
   refreshLoginsWatch();
   const snapshot = await wholeList();
+  // AND EVERY OTHER WINDOW LEARNS OF IT (committer's round of Phase 211). The
+  // window that made the change gets the snapshot back in its answer; the
+  // Settings window, the card in another window and the meter learned of a
+  // choose only from the watcher, and a keychain only write moves no file, so
+  // on the keychain path that was the thirty second backstop. The push is the
+  // same one the watcher sends, and it carries nothing.
+  broadcastEvent(EVT_LOGINS_CHANGED);
   return change.ok
     ? { ok: true, snapshot }
     : { ok: false, reason: change.reason, snapshot };

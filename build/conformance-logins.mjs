@@ -857,6 +857,100 @@ try {
 }
 
 // ---------------------------------------------------------------------------
+// Rule 11 (committer's round of Phase 211, the verifier's F4). EVERY CHANGE
+// PUSHES `logins:changed`. The window that adds, chooses or removes a login
+// gets the snapshot back in its answer; every OTHER window learned of it only
+// from the watcher, and a choose on the keychain path moves no file, so the
+// Settings window in a second renderer drew the old chosen mark until the
+// thirty second backstop, measured at 10,021 ms in the verifier's app run. The
+// push is read from the body of the ONE function every change answers
+// through, by matching braces, so a push in a comment or in some other
+// function does not count, and every change handler must reach that function.
+// ---------------------------------------------------------------------------
+
+/** The body of the function called `name` in `text`, braces matched, or null. */
+function functionBodyOf(text, name) {
+  const body = stripComments(text);
+  const m = new RegExp(`\\bfunction\\s+${name}\\s*\\(`).exec(body);
+  if (m === null) return null;
+  const open = body.indexOf('{', m.index);
+  if (open < 0) return null;
+  let depth = 0;
+  for (let i = open; i < body.length; i++) {
+    const ch = body[i];
+    if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) return body.slice(open, i + 1);
+    }
+  }
+  return null;
+}
+
+/** Does the registrar push after every change? */
+function pushesAfterEveryChange(text) {
+  const answer = functionBodyOf(text, 'answer');
+  if (answer === null) return false;
+  if (!/\bbroadcastEvent\s*\(\s*EVT_LOGINS_CHANGED\s*\)/.test(answer)) return false;
+  const body = stripComments(text);
+  for (const channel of ['logins:add', 'logins:choose', 'logins:remove']) {
+    const at = body.indexOf(`'${channel}'`);
+    if (at < 0) return false;
+    // The handler runs from its channel name to the next `handle(`; it must
+    // reach `answer(` inside that span.
+    const next = body.indexOf('handle(', at + 1);
+    const span = body.slice(at, next < 0 ? body.length : next);
+    if (!/\banswer\s*\(/.test(span)) return false;
+  }
+  return true;
+}
+
+const ipcText = readFileSync(join(DOMAIN, 'ipc.ts'), 'utf8');
+check(
+  pushesAfterEveryChange(ipcText),
+  `${TAG} src/main/logins/ipc.ts does not push logins:changed from the one function every change answers through, so a choose in one window reaches another only from the watcher's backstop`
+);
+{
+  const PUSH_FIXTURES = [
+    {
+      name: 'a push inside answer, reached by every change',
+      text:
+        "async function answer(c) {\n  const s = await wholeList();\n  broadcastEvent(EVT_LOGINS_CHANGED);\n  return s;\n}\n" +
+        "handle(ipc, 'logins:add', () => answer(a));\nhandle(ipc, 'logins:choose', () => answer(b));\nhandle(ipc, 'logins:remove', () => answer(c));\n",
+      pushes: true
+    },
+    {
+      name: 'no push at all',
+      text:
+        "async function answer(c) {\n  const s = await wholeList();\n  return s;\n}\n" +
+        "handle(ipc, 'logins:add', () => answer(a));\nhandle(ipc, 'logins:choose', () => answer(b));\nhandle(ipc, 'logins:remove', () => answer(c));\n",
+      pushes: false
+    },
+    {
+      name: 'the push only in a comment',
+      text:
+        "async function answer(c) {\n  // broadcastEvent(EVT_LOGINS_CHANGED) would go here\n  return wholeList();\n}\n" +
+        "handle(ipc, 'logins:add', () => answer(a));\nhandle(ipc, 'logins:choose', () => answer(b));\nhandle(ipc, 'logins:remove', () => answer(c));\n",
+      pushes: false
+    },
+    {
+      name: 'the push in another function, and a change that skips answer',
+      text:
+        "function elsewhere() {\n  broadcastEvent(EVT_LOGINS_CHANGED);\n}\nasync function answer(c) {\n  return wholeList();\n}\n" +
+        "handle(ipc, 'logins:add', () => answer(a));\nhandle(ipc, 'logins:choose', () => wholeList());\nhandle(ipc, 'logins:remove', () => answer(c));\n",
+      pushes: false
+    }
+  ];
+  let behaved = 0;
+  for (const f of PUSH_FIXTURES) {
+    const got = pushesAfterEveryChange(f.text);
+    if (got === f.pushes) behaved += 1;
+    else failures.push(`${TAG} the push scanner misread the fixture "${f.name}": ${String(got)} (want ${String(f.pushes)})`);
+  }
+  notes.push(`${String(behaved)} of ${String(PUSH_FIXTURES.length)} push fixtures behaved`);
+}
+
+// ---------------------------------------------------------------------------
 // Rule 7. A gate nothing names is how a gate decays.
 // ---------------------------------------------------------------------------
 
