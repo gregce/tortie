@@ -16,3 +16,11 @@
 
 /** Mirror of `--bg-canvas` in src/renderer/styles/tokens.css §1.1. */
 export const WINDOW_BACKGROUND = '#131417';
+
+/**
+ * Mirror of `--bg-canvas` in the LIGHT base of tokens.css (Phase 213), the
+ * paper. Main composes the compositor fill from this one when the scheme in
+ * effect is light, and the two index.html pre-paint rules key on the same
+ * root attribute the preload stamps, so the first frame is the paper too.
+ */
+export const WINDOW_BACKGROUND_LIGHT = '#f5f7fa';

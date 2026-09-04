@@ -109,7 +109,24 @@ const tokensCss = readFileSync(
   resolve(repoRoot, 'src', 'renderer', 'styles', 'tokens.css'),
   'utf8'
 ).replace(/\/\*[\s\S]*?\*\//g, '');
-const declarations = readDeclarations(tokensCss);
+/**
+ * The DARK base is the first `:root {` block and the LIGHT base (Phase 213)
+ * the `:root[data-scheme='light'] {` block after it. A last match wins sweep
+ * over the whole file would read paper for every colour token, so each base
+ * is read from its own block, the light one merged over the dark one because
+ * it redeclares the colour tokens only.
+ */
+function schemeBlock(css: string, scheme: 'dark' | 'light'): string {
+  const head = scheme === 'light' ? ":root[data-scheme='light'] {" : ':root {';
+  const start = css.indexOf(head);
+  if (start === -1) return '';
+  const close = css.indexOf('}', start + head.length);
+  return close === -1 ? '' : css.slice(start + head.length, close);
+}
+const declarations = readDeclarations(schemeBlock(tokensCss, 'dark'));
+const lightDeclarations = readDeclarations(
+  `${schemeBlock(tokensCss, 'dark')}\n${schemeBlock(tokensCss, 'light')}`
+);
 
 // ---------------------------------------------------------------------------
 // The readings

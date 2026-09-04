@@ -28,7 +28,7 @@ import { describe, expect, it } from 'vitest';
 
 import { windowBackgroundFor } from '../chrome-hue';
 import { DEFAULT_CHROME_HUE } from '../settings';
-import { WINDOW_BACKGROUND } from '../window-chrome';
+import { WINDOW_BACKGROUND, WINDOW_BACKGROUND_LIGHT } from '../window-chrome';
 
 const SRC = resolve(__dirname, '..', '..');
 
@@ -42,6 +42,35 @@ describe('--bg-canvas has one value, wherever it has to be spelled', () => {
     const declared = /--bg-canvas:\s*(#[0-9a-fA-F]{3,8})\s*;/.exec(tokens);
     expect(declared, '--bg-canvas must be declared in tokens.css').not.toBeNull();
     expect(declared?.[1]?.toLowerCase()).toBe(WINDOW_BACKGROUND.toLowerCase());
+  });
+
+  it('matches the LIGHT token in tokens.css (Phase 213)', () => {
+    // The light base is the `:root[data-scheme='light']` block, and its
+    // canvas has the same three mirrors the dark one has.
+    const tokens = read('renderer', 'styles', 'tokens.css');
+    const block = tokens.slice(tokens.indexOf(":root[data-scheme='light']"));
+    const declared = /--bg-canvas:\s*(#[0-9a-fA-F]{3,8})\s*;/.exec(block);
+    expect(declared, 'the light block must declare --bg-canvas').not.toBeNull();
+    expect(declared?.[1]?.toLowerCase()).toBe(WINDOW_BACKGROUND_LIGHT.toLowerCase());
+    expect(WINDOW_BACKGROUND_LIGHT.toLowerCase()).not.toBe(WINDOW_BACKGROUND.toLowerCase());
+  });
+
+  it('matches the light pre-paint ground in both HTML entries (Phase 213)', () => {
+    for (const html of [
+      ['renderer', 'index.html'],
+      ['renderer', 'settings', 'index.html']
+    ]) {
+      const source = read(...html);
+      const ground = /html\[data-scheme='light'\]\s*\{[^}]*background:\s*(#[0-9a-fA-F]{3,8})\s*;/.exec(
+        source
+      );
+      expect(ground, `${html.join('/')} must set a light html background`).not.toBeNull();
+      expect(
+        ground?.[1]?.toLowerCase(),
+        `${html.join('/')} light pre-paint ground drifted from the light --bg-canvas`
+      ).toBe(WINDOW_BACKGROUND_LIGHT.toLowerCase());
+      expect(/html\[data-scheme='light'\]\s*\{[^}]*color-scheme:\s*light/.test(source)).toBe(true);
+    }
   });
 
   it('matches the pre-paint ground in both HTML entries', () => {

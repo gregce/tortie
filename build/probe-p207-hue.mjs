@@ -54,6 +54,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { schemeDeclarations } from './tokens-css.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOCKET = 'gmux-p207';
@@ -74,10 +75,8 @@ const DEFAULT_HUE = 222;
 const THRESHOLD = Math.sqrt(0.05 * 1.05) - 0.05;
 
 function shippedTokens() {
-  const css = readFileSync(join(REPO, 'src', 'renderer', 'styles', 'tokens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-  const out = {};
-  for (const m of css.matchAll(/(--[a-zA-Z0-9-]+)\s*:\s*([^;]+);/g)) out[m[1]] = m[2].replace(/\s+/g, ' ').trim();
-  return out;
+  // The DARK base only (Phase 213 added a light block after it).
+  return schemeDeclarations(readFileSync(join(REPO, 'src', 'renderer', 'styles', 'tokens.css'), 'utf8'), 'dark');
 }
 
 function hexOf(color) {

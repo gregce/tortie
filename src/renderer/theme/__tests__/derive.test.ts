@@ -50,6 +50,18 @@ const tokensCss = readFileSync(TOKENS_CSS_PATH, 'utf8').replace(
   ''
 );
 
+/**
+ * The DARK base is the first `:root {` block. Phase 213 added a light block
+ * after it that redeclares every colour token, so a sweep over the whole
+ * file that keeps the last match would read paper here.
+ */
+function darkBlock(css: string): string {
+  const head = ':root {';
+  const start = css.indexOf(head);
+  const close = css.indexOf('}', start + head.length);
+  return start === -1 || close === -1 ? css : css.slice(start + head.length, close);
+}
+
 /** Every `--name: value;` declaration in tokens.css, one level flattened. */
 function readDeclarations(css: string): Map<string, string> {
   const decls = new Map<string, string>();
@@ -79,7 +91,7 @@ function readDeclarations(css: string): Map<string, string> {
   return decls;
 }
 
-const declarations = readDeclarations(tokensCss);
+const declarations = readDeclarations(darkBlock(tokensCss));
 
 /**
  * The base map deriveOverrides sees. Built from the shipped file. Builder B

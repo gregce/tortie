@@ -15,10 +15,18 @@
 }
 
 html {
-  /* Dark-only v1: native scrollbars, form controls, and the pre-paint
+  /* The dark base: native scrollbars, form controls, and the pre-paint
      ground all render dark (DESIGN.md §0 — one material). */
   color-scheme: dark;
   background: var(--bg-canvas);
+}
+
+/* Phase 213. The light base follows the one root attribute tokens.css keys
+   its second palette on. `color-scheme` is inherited, so every shadow root
+   in the document, the Pierre diff and the tree among them, picks the light
+   branch of its own light-dark() rules from here and nowhere else. */
+html[data-scheme='light'] {
+  color-scheme: light;
 }
 
 html,

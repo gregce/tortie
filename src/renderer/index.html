@@ -30,6 +30,13 @@
         background: #131417;
         color-scheme: dark;
       }
+      /* Phase 213. The preload stamps data-scheme from main's argv before
+         first paint, so a light launch never paints graphite first. Mirrors
+         WINDOW_BACKGROUND_LIGHT. */
+      html[data-scheme='light'] {
+        background: #f5f7fa;
+        color-scheme: light;
+      }
     </style>
   </head>
   <body>

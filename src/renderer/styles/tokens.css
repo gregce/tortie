@@ -1,7 +1,10 @@
 /**
- * gmux design tokens — DESIGN.md §1, verbatim. Dark-only in v1.
+ * gmux design tokens — DESIGN.md §1, verbatim. The dark base is the first
+ * `:root` block and the default; the LIGHT base (Phase 213) is the second
+ * block, keyed on `data-scheme='light'` on the root, near the end.
  * Components never hardcode a color, size, duration, or font — tokens only.
- * Token names are theme-neutral so a light theme can be added later.
+ * Token names are theme-neutral, which is what let the light base be added
+ * without renaming one.
  */
 
 :root {
@@ -410,6 +413,149 @@
   --press-glow-hover: 0 0 18px
     color-mix(in srgb, var(--accent-soft) 36%, transparent);
   --press-inset: inset var(--shadow-1);
+}
+
+/* ---------------------------------------------------------------------
+   THE LIGHT BASE (Phase 213, research 80). A second base palette for every
+   colour token above, keyed on ONE attribute the applier and the preload
+   stamp on the root. It is DESIGNED ON A PAPER GROUND, not inverted: on a
+   dark ground elevation is lightness and the sidebar sits under the canvas;
+   on paper elevation is shadow, a sheet sits ABOVE the paper, and hover,
+   chips and the selected row press INTO it. Hue, shade, depth, the highlight
+   scheme and the contrast level then compose on top of this base exactly as
+   they compose on the dark one, through the same applier.
+
+   The neutrals keep the dark ramp's OKLCH hue (268, between the shipped 264
+   and 274) and about its chroma, so the eight named starting colours turn
+   this ramp the way they turn the dark one. The text is solved DARK to the
+   dark palette's own pinned ratios in the same hue, which is what
+   src/renderer/theme/hue.ts does above the flip. Every ratio below is
+   measured by docs/research/assets/80-light-mode/palette.mjs and held by
+   `npm run conformance:hue`.
+
+   THE DARK BLOCK ABOVE IS NOT TOUCHED BY THIS ONE. With no attribute on the
+   root nothing here applies, and the gate pins the dark bytes.
+
+   A reader that parses this file for the SHIPPED values must read the first
+   `:root {` block alone; a last match wins sweep over the whole file would
+   read these. build/hue-conformance-probe.mts and the theme tests do that.
+   ------------------------------------------------------------------- */
+
+:root[data-scheme='light'] {
+  /* §1.1 Neutrals on paper. Ramp order in luminance is surface > canvas >
+     sidebar > raised > active > border > border-active > border-strong,
+     rendered steps 7, 8, 8, 12, 9, 16, 20 (floor 2). Mirrored by
+     WINDOW_BACKGROUND_LIGHT in src/shared/window-chrome.ts and by the two
+     index.html pre-paint rules; canvas-color-single-source.test.ts holds the
+     copies to one value. */
+  --bg-canvas: #f5f7fa; /* paper, OKLCH L 0.975, not white: white beside a
+     dark agent box or a photograph is the contrast well DESIGN.md §0 names */
+  --bg-sidebar: #edeff3; /* the frame steps under the work, one rung below */
+  --bg-surface: #fcfcfe; /* a sheet: modals, toasts and inputs sit one rung
+     ABOVE the paper and the shadow carries the lift                      */
+  --bg-raised: #e5e7ed; /* hover, chips, badges press INTO the paper       */
+  --bg-active: #d9dce3; /* the selected row, the deepest fill, where every
+     decoration is measured                                               */
+  --bg-scrim: rgba(20, 23, 30, 0.4); /* darkens; #9b9da2 over paper       */
+
+  --border: #d1d3da; /* 1.299:1 on the sidebar against 1.297 pinned       */
+  --border-active: #c1c4cc; /* 1.271:1 on the active fill                 */
+  --border-strong: #adb1ba;
+
+  --text-primary: #353639; /* 11.26:1 on canvas, pinned 11.24; 8.8 active */
+  --text-secondary: #4f535c; /* 7.18:1 on canvas, pinned 7.10             */
+  --text-muted: #626774; /* solved to 4.5 on the SIDEBAR, its worst ground
+     here: 5.27 canvas, 4.91 sidebar, 5.52 surface, 4.12 active, the same
+     shape as dark and still forbidden on the raised and active fills     */
+  --text-disabled: #9297a4; /* 2.72:1, exempt                             */
+
+  /* The file type art was drawn for a dark ground and is quieter on paper. */
+  --file-icon-dim: 0.72;
+
+  /* §1.2 Accent: the same hue and chroma, solved to 4.5:1 on paper so it
+     can be text, 3.52 on the active fill; hover DARKENS on paper. */
+  --accent: #2175bd;
+  --accent-hover: #106ab2;
+  --accent-text: #326da8; /* 5.03 canvas, 4.69 sidebar                    */
+  --accent-wash: rgba(33, 117, 189, 0.14);
+  --drop-wash: rgba(33, 117, 189, 0.25);
+  --accent-soft: rgba(33, 117, 189, 0.6);
+  --on-accent: #f5f7fa; /* the paper itself on the accent, 4.5:1          */
+  --terminal-selection: rgba(33, 117, 189, 0.3); /* ink on it 8.98:1     */
+
+  /* §1.3 Session status. Every dot clears 3:1 on the active row, which is
+     the floor Phase 210 left open on dark and this base does not. */
+  --status-working: #2175bd;
+  --status-attention: #976900; /* solved so PAPER text clears 4.5 on it,
+     which keeps the badge and the dot one amber; 3.53 on active         */
+  --status-idle: #6e7482; /* 3.41 on active                               */
+  --status-exited: #6e7482;
+  --status-failed: #c74a46; /* 3.40 on active                             */
+  --status-attention-badge-bg: #976900;
+  --status-attention-badge-fg: #f5f7fa; /* paper on amber, 4.51:1         */
+
+  /* §1.4 Git decorations keep their hue and the ratio they hold on the
+     dark active fill. */
+  --git-modified: #64522d; /* hue 84, 5.49 on active                      */
+  --git-added: #00530e; /* hue 144, 6.82                                  */
+  --git-deleted: #b23534; /* hue 25, 4.43                                 */
+  --git-renamed: #00487f; /* hue 250, 6.85                                */
+  --git-conflict: #833e00; /* hue 53, 5.76                                */
+  --git-ignored: #9297a4;
+
+  /* §1.4b The two literal graph lanes; lanes 1, 2, 4 and 6 and the bundle
+     stay the var() aliases above. Min consecutive dE2000 39.2. */
+  --graph-lane-3: #004f4e; /* hue 193, 6.86 on active                     */
+  --graph-lane-5: #613374; /* hue 315, 6.85 on active                     */
+
+  /* §1.5 Feedback, the same families as the git and status colours. */
+  --error: #b23534;
+  --warning: #976900;
+  --success: #00530e;
+  --info: #00487f;
+  --error-wash: rgba(178, 53, 52, 0.12);
+  --warning-wash: rgba(151, 105, 0, 0.12);
+  --success-wash: rgba(0, 83, 14, 0.12);
+
+  /* §1.9 Shadow is the elevation on paper, so it is lighter: a shadow on
+     white at .45 is a hole. */
+  --shadow-1: 0 1px 3px rgba(20, 23, 30, 0.12);
+  --shadow-2: 0 4px 16px rgba(20, 23, 30, 0.14);
+  --shadow-3:
+    0 12px 40px rgba(20, 23, 30, 0.18), 0 2px 8px rgba(20, 23, 30, 0.1);
+
+  /* The session scrollbar: the ink at the alpha that clears the four pinned
+     ratios on paper, 3.14, 3.55, 6.64 and 11.26. */
+  --scroll-thumb: rgba(79, 83, 92, 0.65);
+  --scroll-thumb-away: rgba(79, 83, 92, 0.71);
+  --scroll-thumb-hover: rgba(79, 83, 92, 0.97);
+  --scroll-thumb-active: rgba(53, 54, 57, 1);
+
+  /* §1.10 */
+  --focus-ring: 0 0 0 2px rgba(33, 117, 189, 0.6);
+  --focus-wash-attention: rgba(151, 105, 0, 0.14);
+  --focus-wash-working: rgba(33, 117, 189, 0.14);
+  --focus-wash-idle: rgba(229, 231, 237, 0.5);
+}
+
+/* THE SWITCH IS A CROSSFADE (Phase 213). The applier changes scheme inside
+   one view transition, so the old frame fades over the new one for one
+   panel duration and no frame ever paints half a palette. Under reduced
+   motion the applier starts no transition at all, and this rule is the
+   second lock on the same door: the pseudo elements of a transition that
+   somehow started animate for no time. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-panel);
+  animation-timing-function: var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
 
 /* The one authored moment (DESIGN.md §5): the needs-input pulse.

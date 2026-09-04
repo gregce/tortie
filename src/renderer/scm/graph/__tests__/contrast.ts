@@ -83,7 +83,14 @@ export function worstSeparation(a: Rgb, b: Rgb): number {
 export function readCssTokens(css: string): Map<string, string> {
   const tokens = new Map<string, string>();
   const pattern = /(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g;
-  for (const match of css.matchAll(pattern)) {
+  // The DARK base only: Phase 213 added a `:root[data-scheme='light']` block
+  // after the first `:root {` block, and a last match wins sweep would read
+  // paper for every colour token. The dark block is the first one.
+  const head = ':root {';
+  const start = css.indexOf(head);
+  const close = start === -1 ? -1 : css.indexOf('}', start + head.length);
+  const dark = start === -1 || close === -1 ? css : css.slice(start + head.length, close);
+  for (const match of dark.matchAll(pattern)) {
     const [, name, value] = match;
     if (name !== undefined && value !== undefined) tokens.set(name, value);
   }

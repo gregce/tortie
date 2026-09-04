@@ -4,7 +4,7 @@ Authority order: PRODUCT.md (product truth) → this file (visual world, durable
 
 ## 0. The world in one paragraph
 
-Scene: a developer at a dark desk at 11pm, six agents running, terminals filling the screen. gmux is **dark-only in v1** — a light chrome around dark terminals creates blinding contrast wells, and the terminal IS the page. The world is a quiet, slightly cool graphite in which the terminal canvas and the app chrome are the *same* material (identical background), so the app disappears into the work. Color is spent on exactly one thing: **state**. An amber dot that says "needs you" is the loudest object in the interface; everything else is neutral, dense, and native. Brand lives in precision — the restore moment, the status language, the exact weight of a session row — not in decoration. Token names are theme-neutral (`--bg-canvas`, not `--gray-900`) so a light theme can be added later without renaming.
+Scene: a developer at a dark desk at 11pm, six agents running, terminals filling the screen. gmux is **dark by default** and was dark-only until Phase 213 — a light chrome around dark terminals creates blinding contrast wells, and the terminal IS the page. That sentence still decides the shape of the light mode: when the scheme is light the TERMINAL GOES LIGHT TOO, and a light frame around a dark terminal is refused. The world is a quiet, slightly cool graphite in which the terminal canvas and the app chrome are the *same* material (identical background), so the app disappears into the work. Color is spent on exactly one thing: **state**. An amber dot that says "needs you" is the loudest object in the interface; everything else is neutral, dense, and native. Brand lives in precision — the restore moment, the status language, the exact weight of a session row — not in decoration. Token names are theme-neutral (`--bg-canvas`, not `--gray-900`) so a light theme can be added later without renaming.
 
 ## 1. Tokens
 
@@ -39,6 +39,43 @@ The person may also MOVE this ramp (Phase 210, the same group). Two stops: the S
 Not every pair of stops is offered. The dark end runs out of eight bits before the ramp runs out of room, and the light end would put the git decorations under 3:1 on `--bg-active`, which nothing here moves. So the region is a table measured over every whole degree, all three contrast levels and all four highlight schemes, and a stop outside it is REFUSED AT THE CONTROL with a few words rather than accepted and quietly clamped. The canvas reaches #020204 at the darkest offered frame and #1e1f23 at the lightest at the shipped hue, #1d2123 at the lightest over the whole circle, so near black is reachable and BLACK IS NOT: a black frame cannot carry a legible ramp in eight bits. That also puts the text flip out of reach at every offered frame, canvas Y 0.0147 at its lightest over every whole degree and 0.0138 at the shipped hue, against a flip at Y 0.1791, so the flip rule stays proved on a synthetic ground and a light mode is what would deliver it.
 
 `npm run conformance:hue` is what keeps these three paragraphs true.
+
+### 1.1b The light base (Phase 213, research 80)
+
+A SECOND BASE PALETTE for every colour token, keyed on `data-scheme='light'` on the root (Settings then Appearance then Scheme: Light, Dark or Match the Mac; Dark is the default and derives nothing). It is designed on a paper ground and not inverted: on paper elevation is shadow, `--bg-surface` is a sheet ABOVE the paper, and hover, chips and the selected row press INTO it. The neutrals keep the dark ramp's OKLCH hue (268) and about its chroma, so the eight starting colours, the shade, the depth, the highlight scheme and the contrast level compose on top of this base through the same applier, and the text is solved DARK to the dark palette's own pinned ratios in the same hue, which is the flip rule of section 1.1 firing for real.
+
+```css
+--bg-canvas:   #f5f7fa;  /* paper, OKLCH L 0.975, not white                                */
+--bg-sidebar:  #edeff3;  /* the frame, one rung under the paper                            */
+--bg-surface:  #fcfcfe;  /* a sheet above the paper; the shadow carries the lift           */
+--bg-raised:   #e5e7ed;  /* hover, chips, badges press into the paper                      */
+--bg-active:   #d9dce3;  /* the selected row, the deepest fill, where decoration is measured */
+--bg-scrim:    rgba(20, 23, 30, 0.40);   /* darkens; #9b9da2 over paper                    */
+
+--border:        #d1d3da;  /* 1.299:1 on the sidebar (1.297 pinned)                         */
+--border-active: #c1c4cc;  /* 1.271:1 on the active fill                                    */
+--border-strong: #adb1ba;
+
+--text-primary:   #353639;  /* 11.26:1 on canvas (11.24 pinned), 8.8 on active             */
+--text-secondary: #4f535c;  /* 7.18:1 (7.10 pinned)                                        */
+--text-muted:     #626774;  /* 4.5:1 solved on the sidebar: 5.27 canvas, 4.91 sidebar, 5.52 surface, 4.12 active */
+--text-disabled:  #9297a4;  /* 2.72:1, exempt                                              */
+```
+
+Ramp order in luminance: surface > canvas > sidebar > raised > active > border > border-active > border-strong, rendered steps 7, 8, 8, 12, 9, 16, 20. Accent `#2175bd` (4.5:1 on paper as text, hover `#106ab2` darkens, text `#326da8`, `--on-accent` is the paper). Status: working `#2175bd`, attention `#976900` (one amber for dot and badge, paper text on it 4.51:1, 3.53 on active), idle and exited `#6e7482` (3.41 on active), failed `#c74a46` (3.40); EVERY DOT CLEARS 3:1 ON THE ACTIVE ROW, which the dark base left open. Git: modified `#64522d`, added `#00530e`, deleted `#b23534`, renamed `#00487f`, conflict `#833e00`, ignored `#9297a4`, each keeping its hue and its dark ratio on `--bg-active`. Lanes 3 and 5 `#004f4e` and `#613374`, min consecutive dE2000 39.2. Feedback the same families; washes at the same alphas; shadows `rgba(20, 23, 30)` at .12, .14, .18 and .10; scroll thumb the ink at .65, .71, .97 and 1 (3.14, 3.55, 6.64, 11.26). `--file-icon-dim` 0.72.
+
+The terminal on paper (section 1.6b): background `#f5f7fa`, foreground `#282a30` (13.36:1 against 13.29 pinned), cursor `#1e1f22`, selection `rgba(33, 117, 189, 0.30)`. The normal eight clear 6.5:1 in the dark palette's own hues, the bright eight are the same hues lighter and 50 percent more saturated at exactly 4.5:1, because xterm draws bold in the bright slot and bold text is text; every bright pair is at least dE2000 9.2 from its normal, where the vendor palettes read 0 to 6.4:
+
+```
+black   #353639   red   #a72a2b   green   #006814   yellow   #715500
+blue    #025b9e   magenta #7e3f8f cyan    #006464   white    #51545c
+brBlack #6a707d   brRed #ca4141   brGreen #008422   brYellow #936b00
+brBlue  #4075a9   brMagenta #9c52bc brCyan #007f7e  brWhite  #282a30
+```
+
+Plus xterm's `minimumContrastRatio` at 4.5 on the light theme ONLY (1 on dark, which keeps dark byte identical): nine of the twelve registry agents hard code their colours for a dark ground, and the floor lifts them at draw time (Claude Code's `#ffd700` to `#837122`) without touching a cell. Which colours each agent hard codes, and so which read differently on paper, is the per agent matrix in research 80 section 1.
+
+The dark base is byte identical with the scheme at Dark, proved by `npm run conformance:hue`, which also walks every rule above over the light base, pins the light offered region for the shade and depth sliders, scans every stylesheet and theme object for a colour literal that is not a token, and proves the status dot floor. `npm run probe:p213` is the app run.
 
 ### 1.2 Accent (one accent — Restrained strategy)
 
