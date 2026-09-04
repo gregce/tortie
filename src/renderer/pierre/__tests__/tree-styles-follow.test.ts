@@ -30,7 +30,9 @@ describe('treeStyles', () => {
     expect(treeStyles['--trees-theme-git-added-fg']).toBe('#6bc46d');
     expect(treeStyles['--trees-theme-git-renamed-fg']).toBe('#6cb6ff');
     expect(treeStyles['--trees-theme-git-ignored-fg']).toBe('#565b66');
-    expect(treeStyles['colorScheme']).toBe('dark');
+    // Phase 213: no colorScheme of its own, so the host inherits the root's
+    // and the tree's light-dark() fallbacks follow the scheme in effect.
+    expect(treeStyles['colorScheme']).toBeUndefined();
     for (const value of Object.values(treeStyles)) {
       expect(value).not.toMatch(/^#(131417|0e0f13|191b20|202329|252931|25282e|353943|c9cacd|9ca1ab|838996)$/i);
     }

@@ -52,6 +52,7 @@ import {
 } from '../theme/work-fonts';
 import {
   resolveTerminalFontFamily,
+  resolveTerminalContrastFloor,
   resolveTerminalTheme,
   terminalBaseFontSize,
   TERMINAL_LETTER_SPACING,
@@ -253,6 +254,10 @@ export function TerminalPane({
       lineHeight: TERMINAL_LINE_HEIGHT,
       letterSpacing: TERMINAL_LETTER_SPACING,
       theme: resolveTerminalTheme(),
+      // Phase 213: 4.5 on the light base and xterm's default of 1 on the
+      // dark one. See terminalContrastFloorFor in ./theme.ts for why the
+      // floor belongs to the light theme alone.
+      minimumContrastRatio: resolveTerminalContrastFloor(),
       cursorBlink: true,
       // Belt to the private server's `mouse off` brace: even if an app inside
       // the pane turns mouse tracking on, Option-click still selects locally.

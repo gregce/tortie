@@ -30,6 +30,14 @@
  * its own. It publishes BEFORE it refreshes the live terminals, so a pane
  * re-resolving sees the state that belongs to the same apply.
  *
+ * Phase 213 added the SCHEME. The persisted choice resolves to one of two
+ * bases, and each base is captured from the stylesheet the first time it is
+ * in effect, with the root attribute on and no inline override present, so
+ * the light base is read from tokens.css exactly as the dark one is and
+ * neither can ever hold an override this module wrote. A change of base is
+ * one reconcile inside one view transition, the crossfade; everything else
+ * lands at once as before. The dark base is the absence of the attribute.
+ *
  * Phase 78 added the work-area FONT to the same mechanism, and it added
  * nothing else. The font half does not go through `deriveOverrides`, which is
  * colour math with an sRGB contract and its own tests. It is a second, tiny
@@ -46,15 +54,17 @@
  */
 
 import {
+  resolveScheme,
   sanitizeChromeDepth,
   sanitizeChromeHue,
   sanitizeChromeShade,
+  sanitizeColorScheme,
   sanitizeWorkAreaFont,
   sanitizeWorkAreaFontCustom
 } from '@shared/settings';
-import type { GmuxSettings, WorkAreaFont } from '@shared/settings';
+import type { BaseScheme, ColorScheme, GmuxSettings, WorkAreaFont } from '@shared/settings';
 import { forEachTerminal } from '../terminal/drop/registry';
-import { resolveTerminalTheme } from '../terminal/theme';
+import { resolveTerminalContrastFloor, resolveTerminalTheme } from '../terminal/theme';
 import { publishChromeTheme, type ChromeThemeState } from './chrome-theme';
 import { deriveOverrides, type Appearance } from './derive';
 import { textIsDarkOn } from './hue';
@@ -73,6 +83,12 @@ export interface AppliedAppearance extends Appearance {
   workAreaFont: WorkAreaFont;
   /** The family a 'custom' preset draws with ('' reads as Menlo). */
   workAreaFontCustom: string;
+  /**
+   * The persisted scheme (Phase 213): light, dark, or system. The applier
+   * resolves system through the environment's own reading of the Mac and
+   * derives over the BASE that resolves to, never over the choice.
+   */
+  colorScheme: ColorScheme;
 }
 
 /**
@@ -110,6 +126,27 @@ export interface AppearanceEnv {
   groundLift(): number;
   /** The pure derivation; the real env passes `deriveOverrides`. */
   derive: typeof deriveOverrides;
+  /**
+   * Does the Mac prefer dark right now (Phase 213)? The real env reads
+   * prefers-color-scheme, which is the same Chromium answer main reads from
+   * nativeTheme for the compositor fill, so the two agree on the base.
+   */
+  systemPrefersDark(): boolean;
+  /**
+   * Put the base on the document root: the attribute tokens.css keys its
+   * light block on, and the color-scheme every shadow root inherits. The
+   * dark base is the ABSENCE of the attribute, which is what keeps a dark
+   * launch byte identical to one that never had this field.
+   */
+  setScheme(scheme: BaseScheme): void;
+  /**
+   * Run one reconcile, crossfading when asked. The real env starts a view
+   * transition, which snapshots the old frame, runs `commit` as one task,
+   * and fades the snapshot over the new frame for one panel duration, so no
+   * frame ever paints half a palette. Under reduced motion it runs `commit`
+   * at once and nothing transitions. The tests run `commit` at once.
+   */
+  transition(commit: () => void, crossfade: boolean): void;
 }
 
 /**
@@ -126,59 +163,82 @@ export interface AppearanceEnv {
 export function createAppearanceApplier(
   env: AppearanceEnv
 ): (appearance: AppliedAppearance) => void {
-  let base: Record<string, string> | null = null;
+  // ONE BASE PER SCHEME (Phase 213). Each is captured from the stylesheet
+  // the first time that scheme is in effect, with the attribute on the root
+  // and no inline override present, so neither can ever contain a value
+  // this module wrote, and the light base is read from tokens.css's light
+  // block the way the dark one is read from its first block.
+  const bases: Partial<Record<BaseScheme, Record<string, string>>> = {};
   let lastKey: string | null = null;
+  let lastScheme: BaseScheme | null = null;
   let applied: Record<string, string> = {};
 
   return (appearance) => {
     const lift = env.groundLift();
-    const key = JSON.stringify({ appearance, lift });
+    const scheme = resolveScheme(appearance.colorScheme, env.systemPrefersDark());
+    const key = JSON.stringify({ appearance, lift, scheme });
     if (key === lastKey) return;
-
-    if (base === null) {
-      // First apply: capture the shipped value of every covered token
-      // BEFORE anything is written, so the base can never contain an
-      // override this module made. ALL_THEME_TOKENS is the scheme family,
-      // the contrast lists and the read-only `--bg-canvas` anchor.
-      const captured: Record<string, string> = {};
-      for (const token of ALL_THEME_TOKENS) {
-        captured[token] = env.readBaseValue(token);
-      }
-      base = captured;
-      capturedBase = captured;
-    }
-    // Feed the custom family store BEFORE fontOverrides resolves the stack,
-    // or the tokens are written from the previous family on the broadcast that
-    // selected Custom. This ordering is the whole point of the field existing.
-    env.setCustomFont(appearance.workAreaFontCustom);
-
-    // Colour first, then the font map on top. They share no key, so the
-    // spread is a union rather than a precedence question, and both halves
-    // return {} at their defaults.
-    const colour = env.derive(appearance, base, lift);
-    const next = {
-      ...colour,
-      ...fontOverrides(appearance.workAreaFont)
-    };
-    for (const [token, value] of Object.entries(next)) {
-      if (applied[token] !== value) env.setProperty(token, value);
-    }
-    for (const token of Object.keys(applied)) {
-      if (!(token in next)) env.removeProperty(token);
-    }
-    applied = next;
     lastKey = key;
+    const schemeChanged = lastScheme !== null && lastScheme !== scheme;
+    // A scheme change crossfades; the first apply and every other change,
+    // being a hue, a shade, a depth, the highlight, the contrast or the
+    // font, land at once as they always have.
+    const crossfade = schemeChanged;
+    lastScheme = scheme;
 
-    // What the terminal and Monaco read, published before the refresh so a
-    // pane re-resolving its theme sees the state of this same apply.
-    const canvas = colour[CANVAS_TOKEN] ?? base[CANVAS_TOKEN] ?? '';
-    env.publish({
-      overrides: colour,
-      canvas,
-      textDark: canvas !== '' && textIsDarkOn(canvas)
-    });
-    env.refreshTerminals();
-    env.setFont(appearance.workAreaFont);
+    env.transition(() => {
+      if (schemeChanged) {
+        // Every inline override off first, so the capture below and the
+        // derivation after it start from the stylesheet's own bytes.
+        for (const token of Object.keys(applied)) env.removeProperty(token);
+        applied = {};
+      }
+      env.setScheme(scheme);
+      let base = bases[scheme];
+      if (base === undefined) {
+        const captured: Record<string, string> = {};
+        for (const token of ALL_THEME_TOKENS) {
+          captured[token] = env.readBaseValue(token);
+        }
+        base = captured;
+        bases[scheme] = captured;
+      }
+      capturedBases[scheme] = base;
+      capturedScheme = scheme;
+      // Feed the custom family store BEFORE fontOverrides resolves the stack,
+      // or the tokens are written from the previous family on the broadcast
+      // that selected Custom. This ordering is the whole point of the field
+      // existing.
+      env.setCustomFont(appearance.workAreaFontCustom);
+
+      // Colour first, then the font map on top. They share no key, so the
+      // spread is a union rather than a precedence question, and both halves
+      // return {} at their defaults.
+      const colour = env.derive(appearance, base, lift);
+      const next = {
+        ...colour,
+        ...fontOverrides(appearance.workAreaFont)
+      };
+      for (const [token, value] of Object.entries(next)) {
+        if (applied[token] !== value) env.setProperty(token, value);
+      }
+      for (const token of Object.keys(applied)) {
+        if (!(token in next)) env.removeProperty(token);
+      }
+      applied = next;
+
+      // What the terminal and Monaco read, published before the refresh so
+      // a pane re-resolving its theme sees the state of this same apply.
+      const canvas = colour[CANVAS_TOKEN] ?? base[CANVAS_TOKEN] ?? '';
+      env.publish({
+        scheme,
+        overrides: colour,
+        canvas,
+        textDark: canvas !== '' && textIsDarkOn(canvas)
+      });
+      env.refreshTerminals();
+      env.setFont(appearance.workAreaFont);
+    }, crossfade);
   };
 }
 
@@ -186,16 +246,23 @@ export function createAppearanceApplier(
 // The captured base, for a surface that previews (Phase 207)
 // ---------------------------------------------------------------------------
 
-let capturedBase: Readonly<Record<string, string>> | null = null;
+const capturedBases: Partial<Record<BaseScheme, Readonly<Record<string, string>>>> = {};
+let capturedScheme: BaseScheme = 'dark';
 
 /**
- * The shipped value of every covered token, as the first apply captured it
- * from the stylesheet before any write. Null until that first apply. The
- * Appearance section's swatch strip derives from it, so a preview starts
- * from the same base the applier does and never from an override.
+ * The shipped value of every covered token of the base IN EFFECT, as the
+ * applier captured it from the stylesheet before any write. Null until the
+ * first apply on that base. The Appearance section's swatch strip derives
+ * from it, so a preview starts from the same base the applier does and
+ * never from an override.
  */
 export function shippedBaseNow(): Readonly<Record<string, string>> | null {
-  return capturedBase;
+  return capturedBases[capturedScheme] ?? null;
+}
+
+/** The base the applier last put on the root (Phase 213). */
+export function schemeNow(): BaseScheme {
+  return capturedScheme;
 }
 
 // ---------------------------------------------------------------------------
@@ -228,8 +295,14 @@ export function probeGroundLiftNow(): number {
  * repaints on the options write. Exported for the unit test.
  */
 export function refreshLiveTerminalThemes(): void {
+  const floor = resolveTerminalContrastFloor();
   forEachTerminal((term) => {
     term.options.theme = resolveTerminalTheme();
+    // Phase 213: the contrast floor belongs to the light theme alone, and
+    // it is live the same way the theme is (research 80 section 1.3).
+    if (term.options.minimumContrastRatio !== floor) {
+      term.options.minimumContrastRatio = floor;
+    }
   });
 }
 
@@ -249,8 +322,25 @@ function toAppearance(settings: GmuxSettings): AppliedAppearance {
     chromeShade: sanitizeChromeShade(settings.chromeShade),
     chromeDepth: sanitizeChromeDepth(settings.chromeDepth),
     workAreaFontCustom: sanitizeWorkAreaFontCustom(settings.workAreaFontCustom),
-    workAreaFont: sanitizeWorkAreaFont(settings.workAreaFont)
+    workAreaFont: sanitizeWorkAreaFont(settings.workAreaFont),
+    colorScheme: sanitizeColorScheme(settings.colorScheme)
   };
+}
+
+/** The one attribute the light base is keyed on, in tokens.css and index.html. */
+export const SCHEME_ATTRIBUTE = 'data-scheme';
+
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
+/** `document.startViewTransition`, typed for a lib that may not carry it. */
+type ViewTransitionStarter = (update: () => void) => { finished: Promise<void> };
+
+function viewTransitionStarter(): ViewTransitionStarter | null {
+  const doc = document as Document & { startViewTransition?: ViewTransitionStarter };
+  return typeof doc.startViewTransition === 'function'
+    ? doc.startViewTransition.bind(doc)
+    : null;
 }
 
 function browserEnv(): AppearanceEnv {
@@ -265,7 +355,32 @@ function browserEnv(): AppearanceEnv {
     groundLift: probeGroundLiftNow,
     refreshTerminals: refreshLiveTerminalThemes,
     setFont: setWorkAreaFont,
-    derive: deriveOverrides
+    derive: deriveOverrides,
+    systemPrefersDark: () => window.matchMedia(DARK_QUERY).matches,
+    setScheme: (scheme) => {
+      if (scheme === 'light') root.setAttribute(SCHEME_ATTRIBUTE, 'light');
+      else root.removeAttribute(SCHEME_ATTRIBUTE);
+    },
+    transition: (commit, crossfade) => {
+      // THE CROSSFADE IS THE PLATFORM'S OWN STILL (Phase 213). A view
+      // transition snapshots the document as painted, canvases and shadow
+      // roots included, runs the update as one task, and fades the old
+      // snapshot over the new frame for the duration tokens.css sets on the
+      // root's transition pseudo elements. It costs one snapshot and nothing
+      // crosses a bridge. Reduced motion asks for no motion, so it gets the
+      // one frame switch research 80 section 6 measured, and the same media
+      // query in tokens.css stops the pseudo elements animating besides.
+      const start = viewTransitionStarter();
+      if (!crossfade || start === null || window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+        commit();
+        return;
+      }
+      try {
+        start(commit);
+      } catch {
+        commit();
+      }
+    }
   };
 }
 
@@ -298,4 +413,13 @@ export function initAppearance(): void {
       // reconciles.
     });
   bridge.onSettingsChanged?.((settings) => apply(toAppearance(settings)));
+  // MATCH THE MAC (Phase 213). Under 'system' the base is the Mac's, and the
+  // Mac changes at sunset. The media query fires on the next read after
+  // nativeTheme moves (8 ms, research 80 section 4); the applier's key
+  // carries the resolved base, so a change under any other scheme is a
+  // no-op here and the compositor fill main keeps moves in the same breath.
+  const dark = window.matchMedia(DARK_QUERY);
+  dark.addEventListener('change', () => {
+    if (lastAppearance !== null) apply(lastAppearance);
+  });
 }

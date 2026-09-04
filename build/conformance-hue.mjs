@@ -240,7 +240,7 @@ const ABLATIONS = [
   {
     name: 'the terminal palette left constant',
     file: 'renderer/terminal/theme.ts',
-    edits: [["  return followPalette(\n    TERMINAL_TEXT,\n    TERMINAL_BACKGROUND,\n    canvas,\n    textDark,\n    TERMINAL_TEXT_EXEMPT,", "  return { ...TERMINAL_TEXT };\n  return followPalette(\n    TERMINAL_TEXT,\n    TERMINAL_BACKGROUND,\n    canvas,\n    textDark,\n    TERMINAL_TEXT_EXEMPT,"]]
+    edits: [["  return followPalette(\n    light ? TERMINAL_TEXT_LIGHT : TERMINAL_TEXT,", "  return { ...(light ? TERMINAL_TEXT_LIGHT : TERMINAL_TEXT) };\n  return followPalette(\n    light ? TERMINAL_TEXT_LIGHT : TERMINAL_TEXT,"]]
   },
   {
     name: 'the light side floor removed',

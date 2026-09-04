@@ -217,9 +217,16 @@ export function followPalette<K extends string>(
   floorOf: (key: K) => number = () => TERMINAL_FLOOR
 ): Record<K, string> {
   const out = {} as Record<K, string>;
+  // On the base's own canvas every entry is the shipped constant, byte for
+  // byte, whichever side of the flip the base sits on. The dark base was
+  // always answered this way by the light side rule; the light base sits
+  // above the flip, and a solve to the shipped ratio there would round its
+  // own constant through eight bits (Phase 213).
+  const unmoved = canvas.trim().toLowerCase() === shippedCanvas.trim().toLowerCase();
   for (const key of Object.keys(palette) as K[]) {
     const shipped = palette[key];
-    if (!dark && exempt.includes(key)) {
+    const keeps = unmoved && (exempt.includes(key) || contrastOf(shipped, canvas) >= floorOf(key));
+    if (keeps || (!dark && exempt.includes(key))) {
       out[key] = shipped;
       continue;
     }

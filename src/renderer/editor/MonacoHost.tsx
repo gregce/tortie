@@ -15,7 +15,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type * as monacoNs from 'monaco-editor';
 import type { Monaco } from './monaco-impl';
-import { GMUX_MONACO_THEME } from './monaco-theme-name';
+import { monacoThemeNameFor } from './monaco-theme-name';
+import { useChromeTheme } from '../theme/chrome-theme';
 import {
   getLoadedMonaco,
   loadMonaco,
@@ -51,7 +52,7 @@ function cssVar(name: string, fallback: string): string {
  * Minimap options (BACKLOG item 6). Toggling is `updateOptions()` — no
  * re-create, no model churn, no lost scroll position. `showSlider: 'always'`
  * because gmux is a supervision tool and a hidden affordance is worse than a
- * visible one; colours come from GMUX_MONACO_THEME's `minimap*` entries.
+ * visible one; colours come from the gmux Monaco theme's `minimap*` entries.
  *
  * The git added/modified/deleted stripes people remember from VS Code are a
  * workbench contribution, not a standalone-Monaco feature — there is no
@@ -296,7 +297,9 @@ export function MonacoHost({
         // Created at the CURRENT zoom so a file opened into an already-zoomed
         // editor never paints one frame at 12px and then jumps.
         ...baseOptions(zoomRef.current),
-        theme: GMUX_MONACO_THEME
+        // The theme of the base in effect (Phase 213); the applier's
+        // publish redefines and sets it for every live editor after this.
+        theme: monacoThemeNameFor(useChromeTheme.getState().scheme)
       });
     }
     const ce = codeEditor.current;

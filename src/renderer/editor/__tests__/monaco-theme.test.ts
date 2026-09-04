@@ -23,7 +23,7 @@ import { terminalTextFor } from '../../terminal/theme';
 const toOklch = converter('oklch');
 const L = (hex: string): number => toOklch(parse(hex))?.l ?? -1;
 
-const SHIPPED = { overrides: {}, canvas: '#131417', textDark: false };
+const SHIPPED = { scheme: 'dark' as const, overrides: {}, canvas: '#131417', textDark: false };
 
 describe('gmuxMonacoTheme', () => {
   it('reproduces the Phase 11 table at the shipped state', () => {
@@ -53,6 +53,7 @@ describe('gmuxMonacoTheme', () => {
 
   it('moves exactly the neutrals for a rotated frame', () => {
     const rotated = gmuxMonacoTheme({
+      scheme: 'dark',
       overrides: {
         '--bg-canvas': '#171314',
         '--bg-surface': '#1f191b',
@@ -81,6 +82,7 @@ describe('gmuxMonacoTheme', () => {
 
   it('flips the syntax ramp and the foreground darker than a light canvas', () => {
     const light = gmuxMonacoTheme({
+      scheme: 'dark',
       overrides: { '--bg-canvas': '#d9dbdf' },
       canvas: '#d9dbdf',
       textDark: true
@@ -94,6 +96,7 @@ describe('gmuxMonacoTheme', () => {
 
   it('ignores an override that is not a six digit hex', () => {
     const t = gmuxMonacoTheme({
+      scheme: 'dark',
       overrides: { '--bg-raised': 'rgba(40, 33, 35, 0.5)' },
       canvas: '#131417',
       textDark: false
@@ -115,12 +118,45 @@ describe('gmuxMonacoTheme', () => {
       ['#d9dbdf', true]
     ];
     for (const [canvas, textDark] of grounds) {
-      const t = gmuxMonacoTheme({ overrides: { '--bg-canvas': canvas }, canvas, textDark });
+      const t = gmuxMonacoTheme({ scheme: 'dark', overrides: { '--bg-canvas': canvas }, canvas, textDark });
       const term = terminalTextFor(canvas, textDark);
       expect(t.colors['editor.foreground']?.toLowerCase(), canvas).toBe(term.foreground.toLowerCase());
       expect(t.colors['editorCursor.foreground']?.toLowerCase(), canvas).toBe(term.cursor.toLowerCase());
     }
-    const lifted = gmuxMonacoTheme({ overrides: { '--bg-canvas': '#787571' }, canvas: '#787571', textDark: false });
+    const lifted = gmuxMonacoTheme({ scheme: 'dark', overrides: { '--bg-canvas': '#787571' }, canvas: '#787571', textDark: false });
     expect(lifted.colors['editor.foreground']).not.toBe('#D8DBE2');
+  });
+
+  it('fills the same table from the light palette over vs (Phase 213)', () => {
+    const light = gmuxMonacoTheme({ scheme: 'light', overrides: {}, canvas: '#f5f7fa', textDark: true });
+    const dark = gmuxMonacoTheme(SHIPPED);
+    expect(light.base).toBe('vs');
+    expect(light.colors['editor.background']).toBe('#f5f7fa');
+    expect(light.colors['editor.foreground']).toBe('#282a30');
+    expect(light.colors['editorCursor.foreground']).toBe('#1e1f22');
+    expect(light.colors['editor.lineHighlightBackground']).toBe('#fcfcfe');
+    expect(light.colors['editorLineNumber.foreground']).toBe('#9297a4');
+    expect(light.colors['editorLineNumber.activeForeground']).toBe('#4f535c');
+    expect(light.colors['editor.selectionBackground']).toBe('#2175bd4D');
+    expect(light.colors['focusBorder']).toBe('#2175bd');
+    expect(light.colors['minimap.findMatchHighlight']).toBe('#97690066');
+    expect(light.colors['editorBracketHighlight.unexpectedBracket.foreground']).toBe('#b23534');
+    const rule = (token: string): string | undefined =>
+      light.rules.find((r) => r.token === token)?.foreground;
+    expect(rule('comment')).toBe('6a707d');
+    expect(rule('string')).toBe('006814');
+    expect(rule('keyword')).toBe('025b9e');
+    expect(rule('number')).toBe('715500');
+    expect(rule('identifier')).toBe('282a30');
+    // The same keys, the same rule tokens, in the same order: one table.
+    expect(Object.keys(light.colors)).toEqual(Object.keys(dark.colors));
+    expect(light.rules.map((r) => r.token)).toEqual(dark.rules.map((r) => r.token));
+    // Every text colour is darker than the paper.
+    for (const r of light.rules) {
+      if (r.foreground !== undefined) expect(L(`#${r.foreground}`), r.token).toBeLessThan(L('#f5f7fa'));
+    }
+    // And the dark answer is what it was: the scheme field did not move it.
+    expect(dark.colors['editor.background']).toBe('#131417');
+    expect(dark.base).toBe('vs-dark');
   });
 });

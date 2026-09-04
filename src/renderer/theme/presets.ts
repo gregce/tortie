@@ -33,7 +33,7 @@
  *   decoration tokens listed in CONTRAST_CHROMA below.
  */
 
-import type { ContrastLevel, HighlightScheme } from '@shared/settings';
+import type { BaseScheme, ContrastLevel, HighlightScheme } from '@shared/settings';
 
 // ---------------------------------------------------------------------------
 // Highlight schemes
@@ -247,6 +247,47 @@ export const FRAME_REGION: readonly FrameRegionRow[] = [
 ];
 
 /**
+ * THE OFFERED REGION ON THE LIGHT BASE (Phase 213), measured the same way
+ * over the light block of tokens.css at every whole degree, all three
+ * contrast levels and all four highlight schemes, and pinned by rule 22 of
+ * the gate. It is FOUR CELLS, and both edges are the light palette's own
+ * design rather than a choice made here.
+ *
+ * The LIGHT end is the ramp's room: the sheet, `--bg-surface`, sits at OKLCH
+ * L 0.992, and one stop lighter puts it on white beside a canvas one stop
+ * under it, so no shade above the shipped one keeps the order.
+ *
+ * The DARK end is the chromatic family, which the frame never moves. The
+ * light palette was solved AT its floors on purpose, so the accent could be
+ * text on paper and the status dots could clear the active row: `--accent-text`
+ * reads 5.03:1 on the paper, `--status-idle` 3.41:1 and `--status-working`
+ * 3.52:1 on the active fill. One shade darker takes the first under 4.5 at
+ * every hue and the dots under 3 at hundreds of them, and every depth wider
+ * than shipped darkens the active fill the same way. So on paper the Shade
+ * slider stays where it ships and the Depth slider narrows only, and the
+ * refusal line says which family stopped it. A wider region would need a
+ * darker accent and darker dots than research 80 designed, which is a
+ * palette decision and not a slider one.
+ *
+ * An empty row (minDepth above maxDepth) means no depth is offered at that
+ * shade.
+ */
+export const FRAME_REGION_LIGHT: readonly FrameRegionRow[] = [
+  { shade: -4, minDepth: 0, maxDepth: -1 },
+  { shade: -3, minDepth: 0, maxDepth: -1 },
+  { shade: -2, minDepth: 0, maxDepth: -1 },
+  { shade: -1, minDepth: 0, maxDepth: -1 },
+  { shade: 0, minDepth: -3, maxDepth: 0 },
+  { shade: 1, minDepth: 0, maxDepth: -1 },
+  { shade: 2, minDepth: 0, maxDepth: -1 }
+];
+
+/** The region the sliders offer from, by base. */
+export function frameRegionFor(scheme: BaseScheme): readonly FrameRegionRow[] {
+  return scheme === 'light' ? FRAME_REGION_LIGHT : FRAME_REGION;
+}
+
+/**
  * Chromatic tokens whose chroma lifts so muted hues separate on a dim
  * display. `--status-idle` and `--status-exited` are near-neutral grays and
  * stay out. The scheme applies before this lift, so the lift acts on the
@@ -294,6 +335,34 @@ export const HAIRLINE_ORDER: readonly string[] = [
   '--border-active',
   '--border-strong'
 ];
+
+/**
+ * THE SAME TWO RUNS ON THE LIGHT BASE (Phase 213), darkest first, which is
+ * the dark order turned over: on paper elevation is shadow, so the active
+ * fill is the deepest, the sidebar sits under the canvas and the sheet sits
+ * above it, and the hairlines run strong to plain. The order is what the
+ * design pins, so a light base whose sheet fell under its paper would be
+ * refused by the same predicate that refuses a dark sidebar over its canvas.
+ */
+export const RAMP_ORDER_LIGHT: readonly string[] = [
+  '--bg-active',
+  '--bg-raised',
+  '--bg-sidebar',
+  CANVAS_TOKEN,
+  '--bg-surface'
+];
+export const HAIRLINE_ORDER_LIGHT: readonly string[] = [
+  '--border-strong',
+  '--border-active',
+  '--border'
+];
+
+export function rampOrderFor(scheme: BaseScheme): readonly string[] {
+  return scheme === 'light' ? RAMP_ORDER_LIGHT : RAMP_ORDER;
+}
+export function hairlineOrderFor(scheme: BaseScheme): readonly string[] {
+  return scheme === 'light' ? HAIRLINE_ORDER_LIGHT : HAIRLINE_ORDER;
+}
 
 /**
  * THE RENDERED STEP, and it is the floor that replaced a pinned ratio band.
@@ -363,11 +432,13 @@ export const RENDERED_STEP_PAIRS: readonly (readonly [string, string])[] = [
  * floors because the ground under them moves, and the git family on
  * `--bg-active` is what stops the ramp going lighter than shade stop 2.
  */
-export const CHROMATIC_PINS: readonly {
+export interface ChromaticPin {
   token: string;
   ground: string;
   floor: number;
-}[] = [
+}
+
+export const CHROMATIC_PINS: readonly ChromaticPin[] = [
   { token: '--accent-text', ground: CANVAS_TOKEN, floor: 4.5 },
   { token: '--accent', ground: CANVAS_TOKEN, floor: 3 },
   { token: '--git-modified', ground: '--bg-active', floor: 3 },
@@ -378,6 +449,30 @@ export const CHROMATIC_PINS: readonly {
   { token: '--graph-lane-3', ground: '--bg-active', floor: 3 },
   { token: '--graph-lane-5', ground: '--bg-active', floor: 3 }
 ];
+
+/**
+ * THE STATUS DOT FLOOR (Phase 213). A dot is a non text mark on the row it
+ * sits in, so it owes 3:1 on `--bg-active`, the deepest fill a row takes.
+ * Phase 210 recorded this floor as open on the dark base, where the idle
+ * grey reads 3.15 on the shipped active fill and a lighter shade takes it
+ * under; adding it there would refuse frames people already chose, so the
+ * dark base keeps its region and this pin binds the LIGHT base alone, where
+ * the palette was designed to it: 3.52, 3.53, 3.41 and 3.40 at the shipped
+ * frame. The attention badge's text is pinned on the same list, because the
+ * badge and the dot are one amber.
+ */
+export const STATUS_PINS_LIGHT: readonly ChromaticPin[] = [
+  { token: '--status-working', ground: '--bg-active', floor: 3 },
+  { token: '--status-attention', ground: '--bg-active', floor: 3 },
+  { token: '--status-idle', ground: '--bg-active', floor: 3 },
+  { token: '--status-failed', ground: '--bg-active', floor: 3 },
+  { token: '--status-attention-badge-fg', ground: '--status-attention-badge-bg', floor: 4.5 }
+];
+
+/** The chromatic floors a base must keep. */
+export function chromaticPinsFor(scheme: BaseScheme): readonly ChromaticPin[] {
+  return scheme === 'light' ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT] : CHROMATIC_PINS;
+}
 
 // ---------------------------------------------------------------------------
 // The full covered set (for base capture in apply.ts)
@@ -398,7 +493,10 @@ export const ALL_THEME_TOKENS: readonly string[] = [
     ...CONTRAST_TEXT,
     ...CONTRAST_CHROMA,
     ...HUE_TOKENS,
-    ...TEXT_PINS.map((p) => p.token)
+    ...TEXT_PINS.map((p) => p.token),
+    // Phase 213: the status pins read the idle dot and the badge pair, which
+    // the chroma lift never moves, so the base must carry them too.
+    ...STATUS_PINS_LIGHT.flatMap((p) => [p.token, p.ground])
   ])
 ];
 

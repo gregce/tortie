@@ -15,3 +15,16 @@
  * string: that one names a Shiki/Pierre theme in a different registry.
  */
 export const GMUX_MONACO_THEME = 'gmux-dark';
+
+/**
+ * The light theme's name (Phase 213), registered beside the dark one from
+ * the same table over the light palette. `setTheme` is global to every
+ * standalone editor, so the applier's publish switches every live editor
+ * at once and a host created after it asks for the name of the base in
+ * effect through `monacoThemeNameFor`.
+ */
+export const GMUX_MONACO_THEME_LIGHT = 'gmux-light';
+
+export function monacoThemeNameFor(scheme: 'light' | 'dark'): string {
+  return scheme === 'light' ? GMUX_MONACO_THEME_LIGHT : GMUX_MONACO_THEME;
+}

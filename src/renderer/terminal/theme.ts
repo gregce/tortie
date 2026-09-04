@@ -10,6 +10,7 @@
  */
 
 import type { ITheme } from '@xterm/xterm';
+import type { BaseScheme } from '@shared/settings';
 import { useChromeTheme } from '../theme/chrome-theme';
 import { TERMINAL_FLOOR, TEXT_FLOOR, followPalette } from '../theme/hue';
 
@@ -50,6 +51,78 @@ export const terminalTheme: ITheme = {
   brightCyan: '#6FD6D4',
   brightWhite: '#E8EAED'
 };
+
+/**
+ * THE TERMINAL ON PAPER (Phase 213, research 80 section 7.2). The light
+ * base's own sixteen, designed rather than derived: the normal eight are
+ * text and clear 6.5:1 on the paper in the dark palette's own hues, the
+ * bright eight are the same hues lighter and 50 percent more saturated at
+ * exactly 4.5:1, because xterm draws bold in the bright slot and bold text
+ * is text, and every bright pair is at least dE2000 9.2 from its normal,
+ * where the six vendor light palettes read 0 to 6.4. Slot 0 is the ink,
+ * slot 7 body text a rung under it, slot 8 the dim grey, slot 15 the
+ * transcript ink, so a TUI that asks for white on black gets ink on paper.
+ * The two mirrors below are the light `--bg-canvas` and the transcript ink.
+ */
+export const TERMINAL_BACKGROUND_LIGHT = '#f5f7fa'; // mirrors the light --bg-canvas
+export const TERMINAL_FOREGROUND_LIGHT = '#282a30'; // 13.36:1, pinned 13.29
+
+export const terminalThemeLight: ITheme = {
+  background: TERMINAL_BACKGROUND_LIGHT,
+  foreground: TERMINAL_FOREGROUND_LIGHT,
+  cursor: '#1e1f22',
+  cursorAccent: TERMINAL_BACKGROUND_LIGHT,
+  selectionBackground: 'rgba(33, 117, 189, 0.30)',
+  black: '#353639',
+  red: '#a72a2b',
+  green: '#006814',
+  yellow: '#715500',
+  blue: '#025b9e',
+  magenta: '#7e3f8f',
+  cyan: '#006464',
+  white: '#51545c',
+  brightBlack: '#6a707d',
+  brightRed: '#ca4141',
+  brightGreen: '#008422',
+  brightYellow: '#936b00',
+  brightBlue: '#4075a9',
+  brightMagenta: '#9c52bc',
+  brightCyan: '#007f7e',
+  brightWhite: '#282a30'
+};
+
+/**
+ * xterm's `minimumContrastRatio`, per scheme (Phase 213, research 80
+ * section 1.3). Nine of the twelve registry agents hard code their colours
+ * for a dark ground and ignore the sixteen slots, so on paper Claude Code
+ * draws its bullets in #ffffff at 1.07:1 and its warnings in #ffd700 at
+ * 1.31:1. This option is the ONLY mechanism that makes them readable without
+ * the agent changing: at 4.5 xterm lifts #ffd700 to #837122 (4.50), #949494
+ * to #6b6b6b (4.97) and #afd7ff to #5f7084 (4.73) at draw time, changing no
+ * cell. It belongs to the LIGHT theme alone. On the dark ground every colour
+ * that already clears 4.5 is drawn byte for byte at either value, but Claude
+ * Code's #4e4e4e on #3a3a3a would move, so the dark theme keeps xterm's
+ * default of 1, which is what keeps dark byte identical. The cost, stated: a
+ * separator an agent dims on purpose is lifted too, and a colour the agent
+ * chose for meaning inside its own box is moved toward the ground's
+ * opposite rather than kept.
+ */
+export const TERMINAL_MIN_CONTRAST_LIGHT = 4.5;
+export const TERMINAL_MIN_CONTRAST_DARK = 1;
+
+export function terminalContrastFloorFor(scheme: BaseScheme): number {
+  return scheme === 'light' ? TERMINAL_MIN_CONTRAST_LIGHT : TERMINAL_MIN_CONTRAST_DARK;
+}
+
+/** The base theme of one scheme: the dark constant or the light one. */
+export function terminalThemeFor(scheme: BaseScheme): ITheme {
+  return scheme === 'light' ? terminalThemeLight : terminalTheme;
+}
+
+/** The floor this option is at for the live pane right now. */
+export function resolveTerminalContrastFloor(): number {
+  return terminalContrastFloorFor(useChromeTheme.getState().scheme);
+}
 
 /**
  * xterm's macOS default for this option is true, and it makes a right click
@@ -190,21 +263,29 @@ const TERMINAL_TEXT: Readonly<Record<TerminalTextKey, string>> = Object.fromEntr
   TERMINAL_TEXT_KEYS.map((key) => [key, terminalTheme[key] ?? TERMINAL_FOREGROUND])
 ) as Record<TerminalTextKey, string>;
 
+const TERMINAL_TEXT_LIGHT: Readonly<Record<TerminalTextKey, string>> = Object.fromEntries(
+  TERMINAL_TEXT_KEYS.map((key) => [key, terminalThemeLight[key] ?? TERMINAL_FOREGROUND_LIGHT])
+) as Record<TerminalTextKey, string>;
+
 const TERMINAL_TEXT_EXEMPT: readonly TerminalTextKey[] = ['black', 'brightBlack'];
 
 /**
  * The terminal's text colours on this canvas. Pure, so the gate can run it
- * under node: on the shipped canvas it is the identity, on a light one every
- * colour keeps the ratio it ships with against `TERMINAL_BACKGROUND`, in its
- * own hue.
+ * under node: on the shipped canvas of either base it is the identity, and
+ * on a moved one every colour keeps the ratio it ships with against that
+ * base's own canvas, in its own hue. The scheme picks the base (Phase 213):
+ * the light palette is designed, not the dark one solved, so a light canvas
+ * under the light scheme starts from the sixteen above.
  */
 export function terminalTextFor(
   canvas: string,
-  textDark: boolean
+  textDark: boolean,
+  scheme: BaseScheme = 'dark'
 ): Record<TerminalTextKey, string> {
+  const light = scheme === 'light';
   return followPalette(
-    TERMINAL_TEXT,
-    TERMINAL_BACKGROUND,
+    light ? TERMINAL_TEXT_LIGHT : TERMINAL_TEXT,
+    light ? TERMINAL_BACKGROUND_LIGHT : TERMINAL_BACKGROUND,
     canvas,
     textDark,
     TERMINAL_TEXT_EXEMPT,
@@ -237,15 +318,17 @@ export function terminalTextFor(
  */
 export function resolveTerminalTheme(): ITheme {
   const styles = getComputedStyle(document.documentElement);
-  const canvas = cssVar(styles, '--bg-canvas') ?? TERMINAL_BACKGROUND;
-  const text = terminalTextFor(canvas, useChromeTheme.getState().textDark);
+  const { scheme, textDark } = useChromeTheme.getState();
+  const base = terminalThemeFor(scheme);
+  const canvas = cssVar(styles, '--bg-canvas') ?? base.background ?? TERMINAL_BACKGROUND;
+  const text = terminalTextFor(canvas, textDark, scheme);
   return {
-    ...terminalTheme,
+    ...base,
     ...text,
     background: canvas,
     cursorAccent: canvas,
     selectionBackground:
-      cssVar(styles, '--terminal-selection') ?? terminalTheme.selectionBackground
+      cssVar(styles, '--terminal-selection') ?? base.selectionBackground
   };
 }
 

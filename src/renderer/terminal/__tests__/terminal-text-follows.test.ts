@@ -9,7 +9,15 @@
 
 import { describe, expect, it } from 'vitest';
 import { converter, parse, wcagContrast } from 'culori';
-import { TERMINAL_BACKGROUND, terminalTextFor, terminalTheme } from '../theme';
+import {
+  TERMINAL_BACKGROUND,
+  TERMINAL_BACKGROUND_LIGHT,
+  terminalContrastFloorFor,
+  terminalTextFor,
+  terminalTheme,
+  terminalThemeLight
+} from '../theme';
+import { wcagContrast as ratio } from 'culori';
 
 const toOklch = converter('oklch');
 const L = (hex: string): number => toOklch(parse(hex))?.l ?? -1;
@@ -63,5 +71,29 @@ describe('terminalTextFor', () => {
     expect(text.green).not.toBe(terminalTheme.green);
     expect(wcagContrast(text.green, canvas)).toBeGreaterThanOrEqual(3);
     expect(wcagContrast(text.green, canvas)).toBeLessThan(3.2);
+  });
+
+  it('is the section 1.6b constant on the paper under the light scheme, and darker text on a moved paper (Phase 213)', () => {
+    const text = terminalTextFor(TERMINAL_BACKGROUND_LIGHT, true, 'light');
+    expect(Object.keys(text)).toHaveLength(18);
+    for (const [key, value] of Object.entries(text)) {
+      expect(value, key).toBe(terminalThemeLight[key as keyof typeof terminalThemeLight]);
+    }
+    // Every slot but the two exempt ones clears its floor on the paper, the
+    // normal eight at 6.5 and the bright eight at 4.5, bold being text.
+    for (const [key, value] of Object.entries(text)) {
+      if (key === 'black' || key === 'brightBlack' || key === 'cursor') continue;
+      const floor = key === 'foreground' ? 13 : key === 'white' ? 7 : /^bright/.test(key) ? 4.5 : 6.5;
+      expect(ratio(value, TERMINAL_BACKGROUND_LIGHT), key).toBeGreaterThanOrEqual(floor - 0.01);
+    }
+    // A paper turned or moved keeps the shipped ratio in its own hue.
+    const moved = terminalTextFor('#e8ecf2', true, 'light');
+    for (const [key, value] of Object.entries(moved)) {
+      expect(L(value), key).toBeLessThan(L('#e8ecf2'));
+    }
+    // The dark scheme answers what it always did, whatever the third argument.
+    expect(terminalTextFor(TERMINAL_BACKGROUND, false, 'dark')).toEqual(terminalTextFor(TERMINAL_BACKGROUND, false));
+    expect(terminalContrastFloorFor('light')).toBe(4.5);
+    expect(terminalContrastFloorFor('dark')).toBe(1);
   });
 });

@@ -10,6 +10,13 @@
  * change: only the settings that move them did. The shade and the depth go
  * through the same bridge and the same broadcast.
  *
+ * PHASE 213 added the scheme the same way, plus the surfaces a scheme
+ * reaches that a hue did not have to: the root's attribute and computed
+ * color-scheme, the Pierre diff host read across its shadow root, the
+ * first tree row, Monaco's theme name, xterm's contrast floor, and two
+ * openers, one for a diff and one for its Redline mode. Read by
+ * build/probe-p213-scheme.mjs.
+ *
  * THE PROBE STAYS ON THE SHIPPED PATH. A hue is set through the same
  * settings bridge the Appearance slider uses, the applier reacts to the same
  * broadcast, and every colour is read back off the DOM as the compositor
@@ -28,6 +35,7 @@ import { getTerminal } from '../terminal/drop/registry';
 import { gmuxBridge } from '../bridge';
 import { probeGroundLiftNow, setProbeGroundLift } from './apply';
 import { useChromeTheme } from './chrome-theme';
+import type { ColorScheme } from '@shared/settings';
 
 /** One element as the compositor paints it. Null when it is not mounted. */
 export interface P207Paint {
@@ -36,6 +44,29 @@ export interface P207Paint {
 }
 
 export interface P207Reading {
+  /** The persisted scheme (Phase 213) and the base it resolved to. */
+  colorScheme: string;
+  scheme: 'light' | 'dark';
+  /** The root's data-scheme attribute and computed color-scheme. */
+  rootScheme: string | null;
+  rootColorScheme: string;
+  /** xterm's minimumContrastRatio on the first terminal, or null. */
+  terminalContrastFloor: number | null;
+  /** The Pierre diff host, read across its shadow root, or null. */
+  pierre: {
+    hostBackground: string;
+    hostColorScheme: string;
+    lightBg: string;
+    darkBg: string;
+    innerBackground: string | null;
+    innerColor: string | null;
+    firstTokenLight: string | null;
+    firstTokenDark: string | null;
+  } | null;
+  /** The first tree row inside the Explorer's shadow root, or null. */
+  treeRow: P207Paint | null;
+  /** Monaco's theme name as the editor holds it, or null. */
+  monacoTheme: string | null;
   /** The persisted hue, as the settings bridge answers it. */
   chromeHue: number;
   /** The persisted ramp stops (Phase 210), from the same answer. */
@@ -68,7 +99,18 @@ const SELECTORS = [
   '.gmux-terminal-host',
   '.monaco-editor',
   '.monaco-editor-background',
-  '.monaco-editor .view-lines'
+  '.monaco-editor .view-lines',
+  // Phase 213: the editor panel and its tabs, the diff and redline hosts,
+  // the Architecture pane and its map, the Settings window's section.
+  '.ed-panel',
+  '.ed-tabs',
+  '.ed-pierre',
+  '.redline',
+  '[data-view="arch"]',
+  '[data-slot="arch-map-tab"]',
+  '.arch-map-box rect',
+  'section[aria-label="Appearance"]',
+  '.set-card'
 ];
 
 const TOKENS = [
@@ -92,7 +134,42 @@ function paintOf(selector: string): P207Paint | null {
   const el = document.querySelector(selector);
   if (el === null) return null;
   const styles = getComputedStyle(el);
+  // An SVG shape paints its fill, not a background.
+  if (el instanceof SVGElement) return { background: styles.fill, color: styles.stroke };
   return { background: styles.backgroundColor, color: styles.color };
+}
+
+/** The Pierre diff host and what its shadow root resolved (Phase 213). */
+function pierreOf(): P207Reading['pierre'] {
+  const container = document.querySelector('.ed-pierre');
+  if (container === null) return null;
+  const host =
+    container.querySelector('diffs-container') ??
+    Array.from(container.querySelectorAll('*')).find((e) => e.shadowRoot !== null) ??
+    null;
+  const shadow = host?.shadowRoot ?? null;
+  if (host === null || shadow === null) return null;
+  const cs = getComputedStyle(host);
+  const pre = shadow.querySelector('pre') ?? shadow.querySelector('[data-line]');
+  const token = shadow.querySelector('[style*="--diffs-token-light"]') as HTMLElement | null;
+  return {
+    hostBackground: cs.backgroundColor,
+    hostColorScheme: cs.colorScheme,
+    lightBg: cs.getPropertyValue('--diffs-light-bg').trim(),
+    darkBg: cs.getPropertyValue('--diffs-dark-bg').trim(),
+    innerBackground: pre === null ? null : getComputedStyle(pre).backgroundColor,
+    innerColor: pre === null ? null : getComputedStyle(pre).color,
+    firstTokenLight: token === null ? null : token.style.getPropertyValue('--diffs-token-light').trim(),
+    firstTokenDark: token === null ? null : token.style.getPropertyValue('--diffs-token-dark').trim()
+  };
+}
+
+function treeRowOf(): P207Paint | null {
+  const host = document.querySelector('file-tree-container');
+  const row = host?.shadowRoot?.querySelector('[data-item-type]') ?? null;
+  if (row === null) return null;
+  const cs = getComputedStyle(row);
+  return { background: cs.backgroundColor, color: cs.color };
 }
 
 async function readNow(): Promise<P207Reading> {
@@ -108,7 +185,19 @@ async function readNow(): Promise<P207Reading> {
   const term = session === undefined ? null : getTerminal(session.id);
   const theme = term?.options.theme;
   const state = useChromeTheme.getState();
+  const rootEl = document.documentElement;
+  const monaco = getLoadedMonaco();
+  const firstEditor = monaco?.editor.getEditors()[0] ?? null;
+  const themeService = (firstEditor as unknown as { _themeService?: { getColorTheme?: () => { themeName: string } } } | null)?._themeService;
   return {
+    colorScheme: String(settings?.colorScheme ?? ''),
+    scheme: state.scheme,
+    rootScheme: rootEl.getAttribute('data-scheme'),
+    rootColorScheme: getComputedStyle(rootEl).colorScheme,
+    terminalContrastFloor: term?.options.minimumContrastRatio ?? null,
+    pierre: pierreOf(),
+    treeRow: treeRowOf(),
+    monacoTheme: themeService?.getColorTheme?.().themeName ?? null,
     chromeHue: settings?.chromeHue ?? Number.NaN,
     chromeShade: settings?.chromeShade ?? Number.NaN,
     chromeDepth: settings?.chromeDepth ?? Number.NaN,
@@ -140,7 +229,14 @@ export interface P207Drive {
     chromeHue?: number;
     chromeShade?: number;
     chromeDepth?: number;
+    colorScheme?: ColorScheme;
   }): Promise<P207Reading>;
+  /**
+   * Open one file as a DIFF against HEAD and wait for the Pierre surface
+   * (Phase 213); `redline` then switches the open diff to the Redline mode.
+   */
+  openDiff(spec: { repoPath: string; relPath: string; path: string }): Promise<P207Reading>;
+  redline(): Promise<P207Reading>;
   /** Set the synthetic ground and wait for the applier to land it. */
   ground(lift: number): Promise<P207Reading>;
   /** Open one real file in the editor and wait for Monaco to mount. */
@@ -200,6 +296,34 @@ const drive: P207Drive = {
       await wait(250);
     }
     await wait(600);
+    return readNow();
+  },
+  async openDiff(spec) {
+    useEditor.getState().openFromRequest({
+      repoPath: spec.repoPath,
+      relPath: spec.relPath,
+      path: spec.path,
+      mode: 'diff',
+      source: 'tree',
+      preview: false
+    });
+    for (let i = 0; i < 80; i += 1) {
+      if (pierreOf()?.innerBackground !== undefined && pierreOf() !== null && document.querySelector('.ed-skeleton') === null) break;
+      await wait(250);
+    }
+    await wait(600);
+    return readNow();
+  },
+  async redline() {
+    const button = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.getAttribute('aria-label') === 'Redline' || b.textContent?.trim() === 'Redline'
+    );
+    button?.click();
+    for (let i = 0; i < 40; i += 1) {
+      if (document.querySelector('.redline') !== null) break;
+      await wait(250);
+    }
+    await wait(400);
     return readNow();
   },
   read: readNow

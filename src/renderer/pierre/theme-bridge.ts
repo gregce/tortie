@@ -54,6 +54,7 @@ const P = {
   warning: '#f5b84a', //      --warning
   info: '#6cb6ff' //          --info
 } as const;
+const gmuxPaletteDark = P;
 
 /**
  * Syntax ramp — DESIGN.md §1.6, mirrored from monaco-impl.ts:68-89 rule for
@@ -73,8 +74,54 @@ const S = {
   constant: '#f0c674', // brYellow     — language/other constants
   punctuation: '#a8adb8' // white-ish  — operators and delimiters
 } as const;
+const gmuxSyntaxDark = S;
 
 export const GMUX_THEME_NAME = 'gmux-dark';
+
+/**
+ * The light base, mirrored from the light block of tokens.css section 1.1b
+ * and the light terminal palette of section 1.6b (Phase 213), the same
+ * keys as P and S above so the light theme is the dark table refilled.
+ */
+const PL = {
+  bgCanvas: '#f5f7fa',
+  bgSidebar: '#edeff3',
+  bgSurface: '#fcfcfe',
+  bgRaised: '#e5e7ed',
+  bgActive: '#d9dce3',
+  border: '#d1d3da',
+  borderStrong: '#adb1ba',
+  textPrimary: '#353639',
+  textSecondary: '#4f535c',
+  textMuted: '#626774',
+  accentText: '#326da8',
+  accentWash: '#2175bd24', // rgba(33,117,189,.14)
+  focusRing: '#2175bd99', // rgba(33,117,189,.6)
+  gitModified: '#64522d',
+  gitAdded: '#00530e',
+  gitDeleted: '#b23534',
+  gitRenamed: '#00487f',
+  gitConflict: '#833e00',
+  gitIgnored: '#9297a4',
+  warning: '#976900',
+  info: '#00487f'
+} as const;
+
+const SL = {
+  fg: '#282a30', //       foreground
+  comment: '#6a707d', //  brBlack
+  string: '#006814', //   green
+  escape: '#008422', //   brGreen
+  keyword: '#025b9e', //  blue
+  number: '#715500', //   yellow
+  regexp: '#ca4141', //   brRed
+  type: '#006464', //     cyan
+  fn: '#4075a9', //       brBlue
+  constant: '#936b00', // brYellow
+  punctuation: '#51545c' // white
+} as const;
+
+export const GMUX_THEME_NAME_LIGHT = 'gmux-light';
 
 /**
  * The gmux palette as a Shiki/VS Code-format theme. `colors` carries the
@@ -84,10 +131,17 @@ export const GMUX_THEME_NAME = 'gmux-dark';
  * gitDecoration.*. `settings` is the §1.6 syntax ramp expressed as TextMate
  * scopes — the same ramp Monaco's Monarch tokens carry in File mode.
  */
-export const gmuxDarkTheme: ThemeRegistration = {
-  name: GMUX_THEME_NAME,
-  displayName: 'Tortie dark',
-  type: 'dark',
+function gmuxTheme(
+  name: string,
+  displayName: string,
+  type: 'dark' | 'light',
+  P: Record<keyof typeof gmuxPaletteDark, string>,
+  S: Record<keyof typeof gmuxSyntaxDark, string>
+): ThemeRegistration {
+  return {
+  name,
+  displayName,
+  type,
   bg: P.bgCanvas,
   fg: S.fg,
   colors: {
@@ -204,20 +258,49 @@ export const gmuxDarkTheme: ThemeRegistration = {
     { scope: ['markup.bold'], settings: { fontStyle: 'bold' } },
     { scope: ['markup.italic'], settings: { fontStyle: 'italic' } }
   ]
-};
+  };
+}
+
+export const gmuxDarkTheme: ThemeRegistration = gmuxTheme(
+  GMUX_THEME_NAME,
+  'Tortie dark',
+  'dark',
+  P,
+  S
+);
+
+/** The light base as a Shiki theme (Phase 213): the same table over PL and SL. */
+export const gmuxLightTheme: ThemeRegistration = gmuxTheme(
+  GMUX_THEME_NAME_LIGHT,
+  'Tortie light',
+  'light',
+  PL,
+  SL
+);
 
 // Register by name for @pierre/diffs' shared highlighter (side effect on
 // import; duplicate registrations are ignored upstream, so HMR is safe).
 registerCustomTheme(GMUX_THEME_NAME, () => Promise.resolve(gmuxDarkTheme));
+registerCustomTheme(GMUX_THEME_NAME_LIGHT, () => Promise.resolve(gmuxLightTheme));
 
 /**
  * Theme prop for every @pierre/diffs component (`theme={diffTheme}`).
- * gmux is dark-only in v1 — both slots point at the same registered theme,
- * so OS light mode cannot flip the diff surface to an unthemed default.
+ *
+ * THIS IS PIERRE'S DUAL FORM, and it is the whole switch (Phase 213,
+ * research 80 section 3). Shiki runs with `defaultColor: false`, so every
+ * token span carries BOTH `--diffs-token-dark` and `--diffs-token-light`
+ * inline, the host block carries the `--diffs-dark*` and `--diffs-light*`
+ * sets from the two themes' bg, fg and gitDecoration keys, and the
+ * stylesheet picks with `light-dark()` by the host's `color-scheme`, which
+ * inherits from the document root, where the applier writes it. No
+ * re-registration and no remount when the scheme changes: the diff goes
+ * light in the same frame the root does. Until this phase both slots named
+ * the dark theme, which is why the diff was the one surface that kept its
+ * shipped ground under Phases 207 and 210, the limit both recorded.
  */
 export const diffTheme: ThemesType = {
   dark: GMUX_THEME_NAME,
-  light: GMUX_THEME_NAME
+  light: GMUX_THEME_NAME_LIGHT
 };
 
 /**
@@ -233,6 +316,19 @@ const treeStylesStatic: TreeThemeStyles = {
   '--trees-theme-git-untracked-fg': P.gitAdded,
   '--trees-theme-git-ignored-fg': P.gitIgnored
 };
+
+/**
+ * Phase 213. The mapper writes `colorScheme: 'dark'` from the theme's type,
+ * and that value decides only the light-dark() fallbacks in Pierre's tree
+ * stylesheet and the native scrollbar. `color-scheme` is an inherited
+ * property, so the host follows the document root, where the applier
+ * writes the base in effect, by carrying no value of its own.
+ */
+function treeStylesFollowingScheme(styles: TreeThemeStyles): TreeThemeStyles {
+  const out: TreeThemeStyles = { ...styles };
+  delete out['colorScheme'];
+  return out;
+}
 
 /**
  * Phase 207. The tree host is IN the frame, and the frame takes the hue, so
@@ -266,4 +362,6 @@ export function treeStylesFollowingTokens(styles: TreeThemeStyles): TreeThemeSty
   return out;
 }
 
-export const treeStyles: TreeThemeStyles = treeStylesFollowingTokens(treeStylesStatic);
+export const treeStyles: TreeThemeStyles = treeStylesFollowingScheme(
+  treeStylesFollowingTokens(treeStylesStatic)
+);

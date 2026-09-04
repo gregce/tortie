@@ -263,8 +263,21 @@ export function deriveOverrides(
       continue;
     }
     if (parseOklch(shipped) === null) continue;
+    // A token whose every ground is where the base put it, and which clears
+    // its floor on every one of them, keeps its shipped bytes (Phase 213).
+    // On the dark base this is what the light side rule already answered;
+    // on the light base, which sits above the flip, the dark side rule would
+    // otherwise solve the shipped colour to its own ratio and round it
+    // through eight bits at the default appearance. A base that ships a
+    // text token UNDER its floor still gets it lifted, as before.
+    const floor = pin.floor;
+    const unmoved =
+      pin.grounds.every((g) => current(g) === base[g]) &&
+      (floor === null || grounds.every((g) => contrastOf(shipped, g) >= floor));
     let value: string;
-    if (pin.floor === null) {
+    if (unmoved) {
+      value = shipped;
+    } else if (pin.floor === null) {
       value = dark
         ? solveForRatio(shipped, grounds[0] ?? shippedGround, contrastOf(shipped, shippedGround), true)
         : shipped;

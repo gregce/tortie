@@ -32,7 +32,7 @@
  * taking it on trust, because a hole would make a slider that skips.
  */
 
-import type { ContrastLevel, HighlightScheme } from '@shared/settings';
+import type { BaseScheme, ContrastLevel, HighlightScheme } from '@shared/settings';
 import {
   CHROME_DEPTH_MAX,
   CHROME_DEPTH_MIN,
@@ -47,7 +47,7 @@ import {
 } from '@shared/settings';
 import { deriveOverrides } from './derive';
 import { firstFloorFailure, type FloorFailure } from './floors';
-import { FRAME_REGION, type FrameRegionRow } from './presets';
+import { frameRegionFor, type FrameRegionRow } from './presets';
 
 /** The frame settings one reading is about. */
 export interface FrameChoice {
@@ -60,6 +60,8 @@ export interface FrameChoice {
 export interface FrameContext {
   highlightScheme: HighlightScheme;
   contrastLevel: ContrastLevel;
+  /** The base the frame sits on (Phase 213); dark when absent. */
+  scheme?: BaseScheme;
 }
 
 /** Every stop of one axis, in order. */
@@ -93,7 +95,7 @@ export function frameFailure(
     },
     base
   );
-  return firstFloorFailure((token) => overrides[token] ?? base[token]);
+  return firstFloorFailure((token) => overrides[token] ?? base[token], context.scheme ?? 'dark');
 }
 
 /**
@@ -102,12 +104,13 @@ export function frameFailure(
  */
 export function frameFailureAnywhere(
   base: Readonly<Record<string, string>>,
-  choice: FrameChoice
+  choice: FrameChoice,
+  scheme: BaseScheme = 'dark'
 ): FloorFailure | null {
   for (const contrastLevel of CONTRAST_LEVELS) {
     for (const highlightScheme of HIGHLIGHT_SCHEMES) {
       const failure = frameFailure(
-        { contrastLevel, highlightScheme },
+        { contrastLevel, highlightScheme, scheme },
         base,
         choice
       );
@@ -138,43 +141,57 @@ export interface StopRange {
   aboveElsewhere: boolean;
 }
 
-function rowFor(shade: number): FrameRegionRow {
+function rowFor(shade: number, scheme: BaseScheme): FrameRegionRow {
+  const region = frameRegionFor(scheme);
   return (
-    FRAME_REGION.find((row) => row.shade === shade) ??
-    FRAME_REGION[FRAME_REGION.length - 1] ?? { shade: 0, minDepth: 0, maxDepth: 0 }
+    region.find((row) => row.shade === shade) ??
+    region[region.length - 1] ?? { shade: 0, minDepth: 0, maxDepth: 0 }
   );
 }
 
-/** Does this pair sit inside the region? */
-export function frameIsOffered(shade: number, depth: number): boolean {
-  const row = rowFor(sanitizeChromeShade(shade));
+/**
+ * Does this pair sit inside the region of this base? The region is the
+ * dark base's unless the light one is named (Phase 213), and the two are
+ * different tables measured over their own palettes.
+ *
+ * ONE STOP PAST AN AXIS END IS READ AS THE END (Phase 210 fix round, the
+ * verifier's F4), so `min - 1` below an axis answers about the axis end
+ * itself. On the dark base no reachable refusal composes there. On the
+ * light base the shipped shade is the LAST offered one, so `max + 1` at
+ * shade 2 is asked about shade 2 itself: that is answered here rather than
+ * by the sanitizer, because a row past the axis is offered nowhere.
+ */
+export function frameIsOffered(shade: number, depth: number, scheme: BaseScheme = 'dark'): boolean {
+  if (shade < CHROME_SHADE_MIN || shade > CHROME_SHADE_MAX) return false;
+  if (depth < CHROME_DEPTH_MIN || depth > CHROME_DEPTH_MAX) return false;
+  const row = rowFor(sanitizeChromeShade(shade), scheme);
   const stop = sanitizeChromeDepth(depth);
   return stop >= row.minDepth && stop <= row.maxDepth;
 }
 
 /** The shade stops on offer at this depth. */
-export function shadeRange(depth: number): StopRange {
-  const ok = SHADE_STOPS.filter((shade) => frameIsOffered(shade, depth));
+export function shadeRange(depth: number, scheme: BaseScheme = 'dark'): StopRange {
+  const ok = SHADE_STOPS.filter((shade) => frameIsOffered(shade, depth, scheme));
   const min = ok[0] ?? DEFAULT_CHROME_SHADE;
   const max = ok[ok.length - 1] ?? DEFAULT_CHROME_SHADE;
   return {
     min,
     max,
-    belowElsewhere: DEPTH_STOPS.some((alt) => frameIsOffered(min - 1, alt)),
-    aboveElsewhere: DEPTH_STOPS.some((alt) => frameIsOffered(max + 1, alt))
+    belowElsewhere: DEPTH_STOPS.some((alt) => frameIsOffered(min - 1, alt, scheme)),
+    aboveElsewhere: DEPTH_STOPS.some((alt) => frameIsOffered(max + 1, alt, scheme))
   };
 }
 
 /** The depth stops on offer at this shade. */
-export function depthRange(shade: number): StopRange {
-  const ok = DEPTH_STOPS.filter((depth) => frameIsOffered(shade, depth));
+export function depthRange(shade: number, scheme: BaseScheme = 'dark'): StopRange {
+  const ok = DEPTH_STOPS.filter((depth) => frameIsOffered(shade, depth, scheme));
   const min = ok[0] ?? DEFAULT_CHROME_DEPTH;
   const max = ok[ok.length - 1] ?? DEFAULT_CHROME_DEPTH;
   return {
     min,
     max,
-    belowElsewhere: SHADE_STOPS.some((alt) => frameIsOffered(alt, min - 1)),
-    aboveElsewhere: SHADE_STOPS.some((alt) => frameIsOffered(alt, max + 1))
+    belowElsewhere: SHADE_STOPS.some((alt) => frameIsOffered(alt, min - 1, scheme)),
+    aboveElsewhere: SHADE_STOPS.some((alt) => frameIsOffered(alt, max + 1, scheme))
   };
 }
 
@@ -223,6 +240,14 @@ export function refusalSentence(
       return `${lead} puts the terminal colors under their floor.`;
     case 'chromatic':
     default:
+      // On the light base the dots and the accent bind before the file
+      // colours do (Phase 213), and the sentence names what stopped it.
+      if (failure?.token.startsWith('--status') === true) {
+        return `${lead} puts the status dots under their contrast floor.`;
+      }
+      if (failure?.token.startsWith('--accent') === true) {
+        return `${lead} puts the accent under its contrast floor.`;
+      }
       return `${lead} puts the file colors under their contrast floor.`;
   }
 }

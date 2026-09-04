@@ -46,7 +46,8 @@ const BLUE_NORMAL: AppliedAppearance = {
   chromeShade: 0,
   chromeDepth: 0,
   workAreaFont: 'system',
-  workAreaFontCustom: ''
+  workAreaFontCustom: '',
+  colorScheme: 'dark'
 };
 const TEAL_HIGH: AppliedAppearance = {
   highlightScheme: 'teal',
@@ -55,7 +56,8 @@ const TEAL_HIGH: AppliedAppearance = {
   chromeShade: 0,
   chromeDepth: 0,
   workAreaFont: 'system',
-  workAreaFontCustom: ''
+  workAreaFontCustom: '',
+  colorScheme: 'dark'
 };
 const BLUE_NORMAL_JETBRAINS: AppliedAppearance = {
   ...BLUE_NORMAL,
@@ -76,6 +78,9 @@ function fakeEnv(derived: Record<string, string>): {
   setFont: ReturnType<typeof vi.fn>;
   reads: string[];
   writesBeforeFirstRead: number;
+  systemDark: boolean;
+  schemes: string[];
+  transitions: boolean[];
 } {
   const inline = new Map<string, string>();
   const reads: string[] = [];
@@ -84,6 +89,9 @@ function fakeEnv(derived: Record<string, string>): {
     inline,
     reads,
     writesBeforeFirstRead: 0,
+    systemDark: true,
+    schemes: [] as string[],
+    transitions: [] as boolean[],
     derive: vi.fn((appearance: Appearance, _base: Record<string, string>) =>
       appearance.highlightScheme === 'blue' &&
       appearance.contrastLevel === 'normal'
@@ -113,7 +121,15 @@ function fakeEnv(derived: Record<string, string>): {
     },
     refreshTerminals: out.refresh,
     setFont: out.setFont,
-    derive: out.derive as unknown as AppearanceEnv['derive']
+    derive: out.derive as unknown as AppearanceEnv['derive'],
+    systemPrefersDark: () => out.systemDark,
+    setScheme: (scheme) => {
+      out.schemes.push(scheme);
+    },
+    transition: (commit, crossfade) => {
+      out.transitions.push(crossfade);
+      commit();
+    }
   };
   return out;
 }
@@ -283,6 +299,65 @@ describe('initAppearance', () => {
   it('does nothing on an older preload without the settings bridge', () => {
     (globalThis as { window?: unknown }).window = { gmux: {} };
     expect(() => initAppearance()).not.toThrow();
+  });
+});
+
+describe('the scheme (Phase 213)', () => {
+  it('captures one base per scheme, crossfades only a change of base, and strips the dark base of its attribute', () => {
+    const f = fakeEnv({ '--accent': '#00aaaa' });
+    const apply = createAppearanceApplier(f.env);
+    apply(BLUE_NORMAL);
+    expect(f.schemes).toEqual(['dark']);
+    expect(f.transitions).toEqual([false]);
+    const readsAfterDark = f.reads.length;
+    apply({ ...BLUE_NORMAL, colorScheme: 'light' });
+    expect(f.schemes).toEqual(['dark', 'light']);
+    expect(f.transitions).toEqual([false, true]);
+    // The light base was captured fresh, one read per covered token.
+    expect(f.reads.length).toBe(readsAfterDark * 2);
+    const published = (f.env.publish as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as
+      | { scheme: string }
+      | undefined;
+    expect(published?.scheme).toBe('light');
+    // Back to dark: no new capture, a crossfade, the dark base again.
+    apply(BLUE_NORMAL);
+    expect(f.reads.length).toBe(readsAfterDark * 2);
+    expect(f.transitions).toEqual([false, true, true]);
+    expect(f.schemes).toEqual(['dark', 'light', 'dark']);
+    // A hue change on the same base does not crossfade.
+    apply({ ...BLUE_NORMAL, chromeHue: 40 });
+    expect(f.transitions).toEqual([false, true, true, false]);
+  });
+
+  it('resolves system through the environment and re-derives when the Mac flips', () => {
+    const f = fakeEnv({});
+    const apply = createAppearanceApplier(f.env);
+    f.systemDark = true;
+    apply({ ...BLUE_NORMAL, colorScheme: 'system' });
+    expect(f.schemes).toEqual(['dark']);
+    f.systemDark = false;
+    apply({ ...BLUE_NORMAL, colorScheme: 'system' });
+    expect(f.schemes).toEqual(['dark', 'light']);
+    expect(f.transitions.at(-1)).toBe(true);
+    // The same appearance and the same Mac answer is the JSON skip.
+    apply({ ...BLUE_NORMAL, colorScheme: 'system' });
+    expect(f.schemes).toEqual(['dark', 'light']);
+  });
+
+  it('removes every inline override before it captures the other base', () => {
+    const f = fakeEnv({ '--accent': '#00aaaa', '--bg-surface': '#22262c' });
+    const apply = createAppearanceApplier(f.env);
+    apply(TEAL_HIGH);
+    expect(f.inline.size).toBe(2);
+    let inlineAtCapture = -1;
+    const read = f.env.readBaseValue;
+    f.env.readBaseValue = (token) => {
+      if (inlineAtCapture === -1) inlineAtCapture = f.inline.size;
+      return read(token);
+    };
+    apply({ ...TEAL_HIGH, colorScheme: 'light' });
+    expect(inlineAtCapture).toBe(0);
+    expect(f.inline.size).toBe(2);
   });
 });
 

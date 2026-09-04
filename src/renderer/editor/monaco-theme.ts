@@ -23,9 +23,10 @@
  */
 
 import type * as monacoNs from 'monaco-editor';
+import type { BaseScheme } from '@shared/settings';
 import { useChromeTheme, type ChromeThemeState } from '../theme/chrome-theme';
 import { TERMINAL_FLOOR, TEXT_FLOOR, followPalette } from '../theme/hue';
-import { GMUX_MONACO_THEME } from './monaco-theme-name';
+import { monacoThemeNameFor } from './monaco-theme-name';
 
 /** The shipped neutrals and text, token to value, DESIGN.md section 1.1. */
 const SHIPPED = {
@@ -38,6 +39,18 @@ const SHIPPED = {
   '--text-secondary': '#9CA1AB',
   '--text-disabled': '#565B66'
 } as const;
+
+/** The same eight on the light base, DESIGN.md section 1.1b (Phase 213). */
+const SHIPPED_LIGHT: Record<keyof typeof SHIPPED, string> = {
+  '--bg-canvas': '#f5f7fa',
+  '--bg-surface': '#fcfcfe',
+  '--bg-raised': '#e5e7ed',
+  '--bg-active': '#d9dce3',
+  '--border': '#d1d3da',
+  '--border-strong': '#adb1ba',
+  '--text-secondary': '#4f535c',
+  '--text-disabled': '#9297a4'
+};
 
 /**
  * The syntax ramp, section 1.6, plus the foreground and the cursor. These
@@ -60,27 +73,61 @@ const SYNTAX = {
   punctuation: '#A8ADB8'
 } as const;
 
+/**
+ * The same ramp over the light terminal palette, section 1.6b, slot for
+ * slot: comment brightBlack, string green, escape brightGreen, keyword
+ * blue, number yellow, regexp brightRed, type cyan, function brightBlue,
+ * constant brightYellow, punctuation white. Diff and File render the same
+ * file, and src/renderer/pierre/theme-bridge.ts takes these eleven too.
+ */
+const SYNTAX_LIGHT: Record<keyof typeof SYNTAX, string> = {
+  fg: '#282a30',
+  cursor: '#1e1f22',
+  comment: '#6a707d',
+  string: '#006814',
+  escape: '#008422',
+  keyword: '#025b9e',
+  number: '#715500',
+  regexp: '#ca4141',
+  type: '#006464',
+  fn: '#4075a9',
+  constant: '#936b00',
+  punctuation: '#51545c'
+};
+
 /** The accent and the feedback colours the theme uses; never rotated. */
 const ACCENT = '#4D9DE8';
 const WARNING = '#F5B84A';
 const ERROR = '#E5655E';
+const ACCENT_LIGHT = '#2175bd';
+const WARNING_LIGHT = '#976900';
+const ERROR_LIGHT = '#b23534';
 
 const SIX_HEX = /^#[0-9a-fA-F]{6}$/;
 
 /**
  * The theme data for one state of the frame. Pure, so a test can pin it
  * without Monaco: the shipped state reproduces the Phase 11 theme byte for
- * byte, and a rotated or lifted state moves exactly the neutrals.
+ * byte, and a rotated or lifted state moves exactly the neutrals. On the
+ * light base (Phase 213) the same table is filled from the light palette
+ * over Monaco's own `vs` base, which is what makes its widgets light where
+ * the theme names no key.
  */
 export function gmuxMonacoTheme(
   state: ChromeThemeState
 ): monacoNs.editor.IStandaloneThemeData {
+  const light = state.scheme === 'light';
+  const shipped = light ? SHIPPED_LIGHT : SHIPPED;
+  const syntax = light ? SYNTAX_LIGHT : SYNTAX;
+  const ACC = light ? ACCENT_LIGHT : ACCENT;
+  const WARN = light ? WARNING_LIGHT : WARNING;
+  const ERR = light ? ERROR_LIGHT : ERROR;
   // A neutral: the override when the frame has one AND it is a six digit
   // hex (every neutral override is), else the shipped literal. The alpha
   // suffixes below need six digits in front of them.
   const n = (token: keyof typeof SHIPPED): string => {
     const value = state.overrides[token];
-    return value !== undefined && SIX_HEX.test(value) ? value : SHIPPED[token];
+    return value !== undefined && SIX_HEX.test(value) ? value : shipped[token];
   };
   const canvas = n('--bg-canvas');
   // The foreground is TEXT and takes the text floor, exactly as the
@@ -88,12 +135,12 @@ export function gmuxMonacoTheme(
   // foregrounds, the same constant on the same canvas, agree on every ground
   // rather than parting between 3:1 and 4.5:1. The ramp takes the palette
   // floor, as the ANSI colours do.
-  const s = followPalette(SYNTAX, SHIPPED['--bg-canvas'], canvas, state.textDark, [], (key) =>
+  const s = followPalette(syntax, shipped['--bg-canvas'], canvas, state.textDark, [], (key) =>
     key === 'fg' ? TEXT_FLOOR : TERMINAL_FLOOR
   );
   const bare = (hex: string): string => hex.replace(/^#/, '');
   return {
-    base: 'vs-dark',
+    base: light ? 'vs' : 'vs-dark',
     inherit: true,
     rules: [
       { token: 'comment', foreground: bare(s.comment), fontStyle: 'italic' },
@@ -123,8 +170,8 @@ export function gmuxMonacoTheme(
       'editorCursor.foreground': s.cursor,
       'editor.lineHighlightBackground': n('--bg-surface'),
       'editor.lineHighlightBorder': '#00000000',
-      'editor.selectionBackground': `${ACCENT}4D`, // --accent @ .30, as terminal
-      'editor.inactiveSelectionBackground': `${ACCENT}24`,
+      'editor.selectionBackground': `${ACC}4D`, // --accent @ .30, as terminal
+      'editor.inactiveSelectionBackground': `${ACC}24`,
       'editorLineNumber.foreground': n('--text-disabled'),
       'editorLineNumber.activeForeground': n('--text-secondary'),
       'editorIndentGuide.background1': n('--bg-raised'),
@@ -140,8 +187,8 @@ export function gmuxMonacoTheme(
       'editorHoverWidget.border': n('--border'),
       'input.background': n('--bg-surface'),
       'input.border': n('--border-strong'),
-      'inputOption.activeBorder': ACCENT,
-      focusBorder: ACCENT,
+      'inputOption.activeBorder': ACC,
+      focusBorder: ACC,
       'scrollbarSlider.background': `${n('--bg-raised')}99`,
       'scrollbarSlider.hoverBackground': `${n('--bg-active')}CC`,
       'scrollbarSlider.activeBackground': `${n('--border-strong')}CC`,
@@ -159,17 +206,17 @@ export function gmuxMonacoTheme(
       'editorBracketHighlight.foreground4': s.punctuation,
       'editorBracketHighlight.foreground5': s.punctuation,
       'editorBracketHighlight.foreground6': s.punctuation,
-      'editorBracketHighlight.unexpectedBracket.foreground': ERROR,
+      'editorBracketHighlight.unexpectedBracket.foreground': ERR,
       // The MATCHING-bracket box, which vs-dark would otherwise draw in grey.
       'editorBracketMatch.background': '#00000000',
       'editorBracketMatch.border': n('--border-strong'),
       // Minimap (Phase 12 item 6). Monaco derives the slider at roughly α.30,
       // which is invisible on this ground; these pin it to the token ramp.
       'minimap.background': canvas, // --bg-canvas, one material
-      'minimap.selectionHighlight': `${ACCENT}4D`,
-      'minimap.findMatchHighlight': `${WARNING}66`, // --warning, as the find ruler
-      'minimap.errorHighlight': `${ERROR}99`,
-      'minimap.warningHighlight': `${WARNING}99`,
+      'minimap.selectionHighlight': `${ACC}4D`,
+      'minimap.findMatchHighlight': `${WARN}66`, // --warning, as the find ruler
+      'minimap.errorHighlight': `${ERR}99`,
+      'minimap.warningHighlight': `${WARN}99`,
       // One step up the neutral ramp from the real scrollbar's slider: over a
       // dense picture of text, the scrollbar's own value derives to invisible.
       'minimapSlider.background': `${n('--bg-active')}CC`,
@@ -191,8 +238,14 @@ export function gmuxMonacoTheme(
  */
 export function installMonacoTheme(m: typeof monacoNs): void {
   const define = (state: ChromeThemeState): void => {
-    m.editor.defineTheme(GMUX_MONACO_THEME, gmuxMonacoTheme(state));
-    m.editor.setTheme(GMUX_MONACO_THEME);
+    // Both names are defined every time so an editor can ask for either;
+    // the one set is the base in effect (Phase 213). Redefining the current
+    // theme reaches every live editor, and `setTheme` covers one created
+    // before the first publish.
+    const other: BaseScheme = state.scheme === 'light' ? 'dark' : 'light';
+    m.editor.defineTheme(monacoThemeNameFor(other), gmuxMonacoTheme({ ...state, scheme: other, overrides: {} }));
+    m.editor.defineTheme(monacoThemeNameFor(state.scheme), gmuxMonacoTheme(state));
+    m.editor.setTheme(monacoThemeNameFor(state.scheme));
   };
   define(useChromeTheme.getState());
   useChromeTheme.subscribe(define);

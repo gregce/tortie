@@ -26,19 +26,22 @@
  *    design.
  *  - CHROMATIC. The accent, the git decorations and the graph lanes, none of
  *    which move with the frame. This is the floor that binds the light end.
+ *    On the LIGHT base (Phase 213) the status dots join this family, at 3:1
+ *    on the active fill, and they are what binds its dark end.
  *
  * Nothing here reads a setting. It is handed the values a derivation produced
  * and answers about those, which is what lets the gate run it under node.
  */
 
 import { parse, converter, wcagContrast, wcagLuminance } from 'culori/fn';
+import type { BaseScheme } from '@shared/settings';
 import { terminalTextFor } from '../terminal/theme';
 import { textIsDarkOn, TERMINAL_FLOOR, TEXT_FLOOR } from './hue';
 import {
   CANVAS_TOKEN,
-  CHROMATIC_PINS,
-  HAIRLINE_ORDER,
-  RAMP_ORDER,
+  chromaticPinsFor,
+  hairlineOrderFor,
+  rampOrderFor,
   RENDERED_STEP_MIN,
   RENDERED_STEP_PAIRS,
   TEXT_PINS
@@ -94,9 +97,10 @@ function ratio(fg: string, bg: string): number {
  * derivation follows.
  */
 export function firstFloorFailure(
-  valueOf: (token: string) => string | undefined
+  valueOf: (token: string) => string | undefined,
+  scheme: BaseScheme = 'dark'
 ): FloorFailure | null {
-  const runs = [RAMP_ORDER, HAIRLINE_ORDER];
+  const runs = [rampOrderFor(scheme), hairlineOrderFor(scheme)];
   for (const run of runs) {
     for (let i = 1; i < run.length; i += 1) {
       const lower = valueOf(run[i - 1] ?? '');
@@ -147,7 +151,7 @@ export function firstFloorFailure(
 
   const canvas = valueOf(CANVAS_TOKEN);
   if (canvas !== undefined) {
-    const palette = terminalTextFor(canvas, textIsDarkOn(canvas));
+    const palette = terminalTextFor(canvas, textIsDarkOn(canvas), scheme);
     for (const [key, hex] of Object.entries(palette) as [string, string][]) {
       if (key === 'black' || key === 'brightBlack') continue;
       const need = key === 'foreground' ? TEXT_FLOOR : TERMINAL_FLOOR;
@@ -158,7 +162,7 @@ export function firstFloorFailure(
     }
   }
 
-  for (const pin of CHROMATIC_PINS) {
+  for (const pin of chromaticPinsFor(scheme)) {
     const fg = valueOf(pin.token);
     const bg = valueOf(pin.ground);
     if (fg === undefined || bg === undefined) continue;
