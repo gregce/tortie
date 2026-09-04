@@ -1,0 +1,8 @@
+import { deflateSync } from 'node:zlib';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { decodePng } from './png.mjs';
+const crc32 = (() => { const t = []; for (let n = 0; n < 256; n += 1) { let c = n; for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return (b) => { let c = 0xffffffff; for (const x of b) c = t[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }; })();
+function chunk(type, data) { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td)); return Buffer.concat([len, td, crc]); }
+export function encodePng(w, h, rgba) { const raw = Buffer.alloc((w * 4 + 1) * h); for (let y = 0; y < h; y += 1) { raw[y * (w * 4 + 1)] = 0; rgba.copy(raw, y * (w * 4 + 1) + 1, y * w * 4, (y + 1) * w * 4); } const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6; return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]); }
+export function crop(inFile, outFile, x, y, w, h) { const img = decodePng(readFileSync(inFile)); const out = Buffer.alloc(w * h * 4); for (let yy = 0; yy < h; yy += 1) img.data.copy(out, yy * w * 4, ((y + yy) * img.width + x) * 4, ((y + yy) * img.width + x + w) * 4); writeFileSync(outFile, encodePng(w, h, out)); }
+if (process.argv[1] && process.argv[1].endsWith('crop.mjs')) { const [i, o, x, y, w, h] = process.argv.slice(2); crop(i, o, Number(x), Number(y), Number(w), Number(h)); }

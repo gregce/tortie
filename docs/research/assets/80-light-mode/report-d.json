@@ -1,0 +1,703 @@
+{
+  "agents": {
+    "codex": {
+      "bin": "codex",
+      "states": {
+        "rest": {
+          "file": "codex-rest-osc.png",
+          "counts": {
+            "default": 400,
+            "ansi16": 79,
+            "ansi256": 0,
+            "rgb": 101
+          },
+          "bgs": {
+            "default": 559,
+            "other": 21
+          },
+          "worst": {
+            "ratio": 1.04,
+            "fg": "#2b2d31",
+            "bg": "#2f3032",
+            "code": "d",
+            "on": "r3092530",
+            "sample": "› Ask Codex to do anyt"
+          },
+          "hard": [
+            [
+              "r11263911 #abdfa7",
+              79
+            ],
+            [
+              "r16179895 #f6e2b7",
+              15
+            ],
+            [
+              "r15906192 #f2b590",
+              7
+            ]
+          ],
+          "textHead": [
+            "╭──────────────────────────────────────────────────────────╮",
+            "│ >_ OpenAI Codex (v0.153.0)                               │",
+            "│                                                          │"
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed",
+      "trustAnswered": true
+    },
+    "pi": {
+      "bin": "pi",
+      "states": {
+        "rest": {
+          "file": "pi-rest-osc.png",
+          "counts": {
+            "default": 73,
+            "ansi16": 21,
+            "ansi256": 0,
+            "rgb": 1622
+          },
+          "bgs": {
+            "default": 1716,
+            "other": 0
+          },
+          "worst": {
+            "ratio": 1,
+            "fg": "#ffff00",
+            "bg": "#f5f7fa",
+            "code": "r16776960",
+            "on": "d",
+            "sample": "Warning: tmux extend"
+          },
+          "hard": [
+            [
+              "r6710886 #666666",
+              784
+            ],
+            [
+              "r16776960 #ffff00",
+              428
+            ],
+            [
+              "r11703483 #b294bb",
+              288
+            ],
+            [
+              "r8421504 #808080",
+              80
+            ],
+            [
+              "r9092791 #8abeb7",
+              34
+            ],
+            [
+              "r15779444 #f0c674",
+              8
+            ]
+          ],
+          "textHead": [
+            "/Users/gdc/.zshrc:.:113: no such file or directory: /Users/gdc/.local/bin/env",
+            "➜  p213-osc git:(master) pi",
+            " pi v0.84.2                                                                               "
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed"
+    },
+    "omp": {
+      "bin": "omp",
+      "states": {
+        "rest": {
+          "file": "omp-rest-osc.png",
+          "counts": {
+            "default": 12,
+            "ansi16": 0,
+            "ansi256": 5,
+            "rgb": 1613
+          },
+          "bgs": {
+            "default": 1578,
+            "other": 52
+          },
+          "worst": {
+            "ratio": 1.23,
+            "fg": "#e0e0e0",
+            "bg": "#f5f7fa",
+            "code": "r14737632",
+            "on": "d",
+            "sample": "er > (sub) ▶───────9%─────────"
+          },
+          "hard": [
+            [
+              "r7763574 #767676",
+              967
+            ],
+            [
+              "r10122022 #9a7326",
+              303
+            ],
+            [
+              "r7105644 #6c6c6c",
+              139
+            ],
+            [
+              "r5537191 #547da7",
+              62
+            ],
+            [
+              "r5931136 #5a8080",
+              46
+            ],
+            [
+              "r24455 #005f87",
+              23
+            ],
+            [
+              "r11579568 #b0b0b0",
+              12
+            ],
+            [
+              "r8871815 #875f87",
+              12
+            ]
+          ],
+          "textHead": [
+            "╭─── omp v18.0.11 ────────────────────────────────────────────────────────────────────────",
+            "│                          │ Tips                                                         ",
+            "│      Welcome back!       │ # for prompt actions                                         "
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed"
+    },
+    "claude": {
+      "bin": "claude",
+      "states": {
+        "rest": {
+          "file": "claude-rest-osc.png",
+          "counts": {
+            "default": 89,
+            "ansi16": 21,
+            "ansi256": 519,
+            "rgb": 0
+          },
+          "bgs": {
+            "default": 618,
+            "other": 11
+          },
+          "worst": {
+            "ratio": 1.31,
+            "fg": "#ffd700",
+            "bg": "#f5f7fa",
+            "code": "p220",
+            "on": "d",
+            "sample": "hentication · run /mcp"
+          },
+          "hard": [
+            [
+              "p244 #808080",
+              288
+            ],
+            [
+              "p246 #949494",
+              166
+            ],
+            [
+              "p220 #ffd700",
+              30
+            ],
+            [
+              "p174 #d78787",
+              20
+            ],
+            [
+              "p211 #ff87af",
+              12
+            ],
+            [
+              "p114 #87d787",
+              3
+            ]
+          ],
+          "textHead": [
+            "/Users/gdc/.zshrc:.:113: no such file or directory: /Users/gdc/.local/bin/env",
+            "➜  p213-osc git:(master) claude",
+            " ▐▛███▛█   Claude Code v2.1.260"
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed",
+      "trustAnswered": true
+    },
+    "cursor": {
+      "bin": "cursor-agent",
+      "states": {
+        "rest": {
+          "file": "cursor-rest-osc.png",
+          "counts": {
+            "default": 443,
+            "ansi16": 432,
+            "ansi256": 0,
+            "rgb": 0
+          },
+          "bgs": {
+            "default": 849,
+            "other": 26
+          },
+          "worst": {
+            "ratio": 2.91,
+            "fg": "#898b8f",
+            "bg": "#ebedef",
+            "code": "d",
+            "on": "r15461871",
+            "sample": "ld anything"
+          },
+          "hard": [],
+          "textHead": [
+            "/Users/gdc/.zshrc:.:113: no such file or directory: /Users/gdc/.local/bin/env",
+            "➜  p213-osc git:(master) cursor-agent",
+            "  ╭───────────────────────────────────────────────────────────────────────────────────────"
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed",
+      "trustAnswered": true
+    },
+    "gemini": {
+      "bin": "gemini",
+      "states": {
+        "rest": {
+          "file": "gemini-rest-osc.png",
+          "counts": {
+            "default": 0,
+            "ansi16": 0,
+            "ansi256": 0,
+            "rgb": 2280
+          },
+          "bgs": {
+            "default": 2255,
+            "other": 25
+          },
+          "worst": {
+            "ratio": 1.04,
+            "fg": "#fff783",
+            "bg": "#f5f7fa",
+            "code": "r16775043",
+            "on": "d",
+            "sample": "r next run."
+          },
+          "hard": [
+            [
+              "r16775043 #fff783",
+              1619
+            ],
+            [
+              "r3554128 #363b50",
+              288
+            ],
+            [
+              "r4542061 #454e6d",
+              144
+            ],
+            [
+              "r6451876 #6272a4",
+              122
+            ],
+            [
+              "r10727351 #a3afb7",
+              89
+            ],
+            [
+              "r16742854 #ff79c6",
+              9
+            ],
+            [
+              "r16733525 #ff5555",
+              9
+            ]
+          ],
+          "textHead": [
+            "⚠  Skill conflict detected: \"specstory-organize\" from \"/Users/gdc/.agents/skills/specstory",
+            "   \"/Users/gdc/.gemini/skills/specstory-organize/SKILL.md\".",
+            "⚠  Skill conflict detected: \"specstory-link-trail\" from \"/Users/gdc/.agents/skills/specsto"
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed",
+      "trustAnswered": true
+    },
+    "muse": {
+      "bin": "muse",
+      "states": {
+        "rest": {
+          "file": "muse-rest-osc.png",
+          "counts": {
+            "default": 75,
+            "ansi16": 21,
+            "ansi256": 0,
+            "rgb": 393
+          },
+          "bgs": {
+            "default": 489,
+            "other": 0
+          },
+          "worst": {
+            "ratio": 1.41,
+            "fg": "#ccd3db",
+            "bg": "#f5f7fa",
+            "code": "r13423579",
+            "on": "d",
+            "sample": "Code 1.0.2"
+          },
+          "hard": [
+            [
+              "r6777972 #676c74",
+              258
+            ],
+            [
+              "r9080984 #8a9098",
+              103
+            ],
+            [
+              "r5939455 #5aa0ff",
+              19
+            ],
+            [
+              "r13423579 #ccd3db",
+              13
+            ]
+          ],
+          "textHead": [
+            "/Users/gdc/.zshrc:.:113: no such file or directory: /Users/gdc/.local/bin/env",
+            "➜  p213-osc git:(master) muse",
+            "  Muse Code 1.0.2                                                                         "
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed",
+      "trustAnswered": true
+    },
+    "grok": {
+      "bin": "grok",
+      "states": {
+        "rest": {
+          "file": "grok-rest-osc.png",
+          "counts": {
+            "default": 0,
+            "ansi16": 0,
+            "ansi256": 0,
+            "rgb": 1035
+          },
+          "bgs": {
+            "default": 0,
+            "other": 1035
+          },
+          "worst": {
+            "ratio": 2.59,
+            "fg": "#585858",
+            "bg": "#141414",
+            "code": "r5789784",
+            "on": "r1315860",
+            "sample": "1d/p213-osc"
+          },
+          "hard": [
+            [
+              "r5263448 #505058",
+              264
+            ],
+            [
+              "r3355443 #333333",
+              262
+            ],
+            [
+              "r7895160 #787878",
+              161
+            ],
+            [
+              "r7303023 #6f6f6f",
+              98
+            ],
+            [
+              "r5789784 #585858",
+              79
+            ],
+            [
+              "r14803425 #e1e1e1",
+              75
+            ],
+            [
+              "r7105644 #6c6c6c",
+              67
+            ],
+            [
+              "r14724968 #e0af68",
+              14
+            ]
+          ],
+          "textHead": [
+            "  ⎇ master /private/var/folders/7f/43d9mxrd1q3_82py34w8lwf40000gn/T/p213-d-mDCl1d/p213-osc",
+            "            ╭─────────────────────────────────────────────────────────────────────────────",
+            "            │                                                                             "
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed"
+    },
+    "qwen": {
+      "bin": "qwen",
+      "states": {
+        "rest": {
+          "file": "qwen-rest-osc.png",
+          "counts": {
+            "default": 86,
+            "ansi16": 0,
+            "ansi256": 0,
+            "rgb": 856
+          },
+          "bgs": {
+            "default": 942,
+            "other": 0
+          },
+          "worst": {
+            "ratio": 2.45,
+            "fg": "#97a0b0",
+            "bg": "#f5f7fa",
+            "code": "r9937072",
+            "on": "d",
+            "sample": "Qwen Code (v0.22.0)"
+          },
+          "hard": [
+            [
+              "r9937072 #97a0b0",
+              328
+            ],
+            [
+              "r3900150 #3b82f6",
+              297
+            ],
+            [
+              "r9133302 #8b5cf6",
+              48
+            ],
+            [
+              "r9140421 #8b78c5",
+              6
+            ],
+            [
+              "r9402305 #8f77c1",
+              6
+            ],
+            [
+              "r9598652 #9276bc",
+              6
+            ],
+            [
+              "r9860536 #9675b8",
+              6
+            ],
+            [
+              "r10056884 #9974b4",
+              6
+            ]
+          ],
+          "textHead": [
+            "   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌────────────────────────────────────────────────",
+            "  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.22.0)                         ",
+            "  ██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║  │                                                "
+          ],
+          "queries": []
+        },
+        "midTurn": {
+          "file": "qwen-midturn-osc.png",
+          "counts": {
+            "default": 132,
+            "ansi16": 0,
+            "ansi256": 0,
+            "rgb": 994
+          },
+          "bgs": {
+            "default": 1126,
+            "other": 0
+          },
+          "worst": {
+            "ratio": 2.45,
+            "fg": "#97a0b0",
+            "bg": "#f5f7fa",
+            "code": "r9937072",
+            "on": "d",
+            "sample": "Qwen Code (v0.22.0)"
+          },
+          "hard": [
+            [
+              "r9937072 #97a0b0",
+              371
+            ],
+            [
+              "r3900150 #3b82f6",
+              297
+            ],
+            [
+              "r9133302 #8b5cf6",
+              143
+            ],
+            [
+              "r9140421 #8b78c5",
+              6
+            ],
+            [
+              "r9402305 #8f77c1",
+              6
+            ],
+            [
+              "r9598652 #9276bc",
+              6
+            ],
+            [
+              "r9860536 #9675b8",
+              6
+            ],
+            [
+              "r10056884 #9974b4",
+              6
+            ]
+          ],
+          "textHead": [
+            "   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌────────────────────────────────────────────────",
+            "  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.22.0)                         ",
+            "  ██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║  │                                                "
+          ],
+          "queries": []
+        },
+        "afterTurn": {
+          "file": "qwen-afterturn-osc.png",
+          "counts": {
+            "default": 191,
+            "ansi16": 0,
+            "ansi256": 0,
+            "rgb": 994
+          },
+          "bgs": {
+            "default": 1178,
+            "other": 7
+          },
+          "worst": {
+            "ratio": 1.26,
+            "fg": "#282a30",
+            "bg": "#3a3a3a",
+            "code": "d",
+            "on": "r3815994",
+            "sample": "> commit this"
+          },
+          "hard": [
+            [
+              "r9937072 #97a0b0",
+              320
+            ],
+            [
+              "r3900150 #3b82f6",
+              297
+            ],
+            [
+              "r9133302 #8b5cf6",
+              128
+            ],
+            [
+              "r6054246 #5c6166",
+              54
+            ],
+            [
+              "r8827648 #86b300",
+              9
+            ],
+            [
+              "r9140421 #8b78c5",
+              6
+            ],
+            [
+              "r9402305 #8f77c1",
+              6
+            ],
+            [
+              "r9598652 #9276bc",
+              6
+            ]
+          ],
+          "textHead": [
+            "   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌────────────────────────────────────────────────",
+            "  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.22.0)                         ",
+            "  ██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║  │                                                "
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed"
+    },
+    "deepseek": {
+      "bin": "deepseek",
+      "states": {
+        "rest": {
+          "file": "deepseek-rest-osc.png",
+          "counts": {
+            "default": 0,
+            "ansi16": 0,
+            "ansi256": 0,
+            "rgb": 499
+          },
+          "bgs": {
+            "default": 0,
+            "other": 499
+          },
+          "worst": {
+            "ratio": 4.04,
+            "fg": "#3578e5",
+            "bg": "#121c2e",
+            "code": "r3504357",
+            "on": "r1186862",
+            "sample": "eepSeek TUI ──────────────────"
+          },
+          "hard": [
+            [
+              "r11648719 #b1becf",
+              257
+            ],
+            [
+              "r2771583 #2a4a7f",
+              174
+            ],
+            [
+              "r14870768 #e2e8f0",
+              43
+            ],
+            [
+              "r6991602 #6aaef2",
+              14
+            ],
+            [
+              "r3504357 #3578e5",
+              11
+            ]
+          ],
+          "textHead": [
+            "                                  ┌ DeepSeek TUI ─────────────────────────────────────────",
+            "                                  │                                                       ",
+            "                                  │  Trust Workspace                                      "
+          ],
+          "queries": []
+        }
+      },
+      "armed": "armed",
+      "trustAnswered": true
+    }
+  },
+  "errors": [],
+  "totalMs": 177852
+}

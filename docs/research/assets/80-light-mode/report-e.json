@@ -1,0 +1,51 @@
+{
+  "errors": [],
+  "cases": {
+    "A shipped inline fill": {
+      "fill": "#F5F7FA",
+      "loadMs": 108,
+      "htmlBg": "rgb(19, 20, 23)",
+      "preload": "{\"had\":{\"documentElement\":false,\"readyState\":\"loading\",\"argvHasScheme\":\"\",\"at\":1788497245204},\"stampedAt\":null}",
+      "attr": null,
+      "frames": [
+        {
+          "ms": 200,
+          "colour": "#131417",
+          "share": 1,
+          "distinct": 4
+        }
+      ]
+    },
+    "B no inline fill": {
+      "fill": "#F5F7FA",
+      "loadMs": 73,
+      "htmlBg": "rgba(0, 0, 0, 0)",
+      "preload": "{\"had\":{\"documentElement\":false,\"readyState\":\"loading\",\"argvHasScheme\":\"\",\"at\":1788497249024},\"stampedAt\":null}",
+      "attr": null,
+      "frames": [
+        {
+          "ms": 85,
+          "colour": "#f6f7fa",
+          "share": 1,
+          "distinct": 6
+        }
+      ]
+    },
+    "C preload stamps the root": {
+      "fill": "#F5F7FA",
+      "loadMs": 72,
+      "htmlBg": "rgb(245, 247, 250)",
+      "preload": "{\"had\":{\"documentElement\":false,\"readyState\":\"loading\",\"argvHasScheme\":\"light\",\"at\":1788497252838},\"stampedAt\":\"readystatechange interactive\"}",
+      "attr": "light",
+      "frames": [
+        {
+          "ms": 83,
+          "colour": "#f6f7fa",
+          "share": 1,
+          "distinct": 3
+        }
+      ]
+    }
+  },
+  "totalMs": 13006
+}

@@ -1,0 +1,371 @@
+{
+  "errors": [],
+  "readings": [
+    {
+      "label": "trust-light-1",
+      "mcr": 1,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 38,
+          "sample": "Security guide",
+          "asked": "#949494",
+          "askedRatio": 2.83,
+          "drawn": "#949494",
+          "drawnRatio": 2.83
+        },
+        {
+          "code": "p220 bold",
+          "on": "d",
+          "n": 18,
+          "sample": "Accessing workspace:",
+          "asked": "#ffd700",
+          "askedRatio": 1.31,
+          "drawn": "#f9d949",
+          "drawnRatio": 1.3
+        },
+        {
+          "code": "p153",
+          "on": "d",
+          "n": 6,
+          "sample": "❯ No, exit",
+          "asked": "#afd7ff",
+          "askedRatio": 1.4,
+          "drawn": "#b7d6fc",
+          "drawnRatio": 1.39
+        }
+      ]
+    },
+    {
+      "label": "trust-light-4.5",
+      "mcr": 4.5,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 38,
+          "sample": "Security guide",
+          "asked": "#949494",
+          "askedRatio": 2.83,
+          "drawn": "#6b6b6b",
+          "drawnRatio": 4.97
+        },
+        {
+          "code": "p220 bold",
+          "on": "d",
+          "n": 18,
+          "sample": "Accessing workspace:",
+          "asked": "#ffd700",
+          "askedRatio": 1.31,
+          "drawn": "#837122",
+          "drawnRatio": 4.5
+        },
+        {
+          "code": "p153",
+          "on": "d",
+          "n": 6,
+          "sample": "❯ No, exit",
+          "asked": "#afd7ff",
+          "askedRatio": 1.4,
+          "drawn": "#5f7084",
+          "drawnRatio": 4.73
+        }
+      ]
+    },
+    {
+      "label": "trust-light-3",
+      "mcr": 3,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 38,
+          "sample": "Security guide",
+          "asked": "#949494",
+          "askedRatio": 2.83,
+          "drawn": "#858585",
+          "drawnRatio": 3.44
+        },
+        {
+          "code": "p220 bold",
+          "on": "d",
+          "n": 18,
+          "sample": "Accessing workspace:",
+          "asked": "#ffd700",
+          "askedRatio": 1.31,
+          "drawn": "#a28c2c",
+          "drawnRatio": 3.09
+        },
+        {
+          "code": "p153",
+          "on": "d",
+          "n": 6,
+          "sample": "❯ No, exit",
+          "asked": "#afd7ff",
+          "askedRatio": 1.4,
+          "drawn": "#768aa4",
+          "drawnRatio": 3.29
+        }
+      ]
+    },
+    {
+      "label": "trust-dark-1",
+      "mcr": 1,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 38,
+          "sample": "Security guide",
+          "asked": "#949494",
+          "askedRatio": 6.07,
+          "drawn": "#949494",
+          "drawnRatio": 6.07
+        },
+        {
+          "code": "p220 bold",
+          "on": "d",
+          "n": 18,
+          "sample": "Accessing workspace:",
+          "asked": "#ffd700",
+          "askedRatio": 13.13,
+          "drawn": "#f9d949",
+          "drawnRatio": 13.2
+        },
+        {
+          "code": "p153",
+          "on": "d",
+          "n": 6,
+          "sample": "❯ No, exit",
+          "asked": "#afd7ff",
+          "askedRatio": 12.27,
+          "drawn": "#b7d6fc",
+          "drawnRatio": 12.31
+        }
+      ]
+    },
+    {
+      "label": "trust-dark-4.5",
+      "mcr": 4.5,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 38,
+          "sample": "Security guide",
+          "asked": "#949494",
+          "askedRatio": 6.07,
+          "drawn": "#949494",
+          "drawnRatio": 6.07
+        },
+        {
+          "code": "p220 bold",
+          "on": "d",
+          "n": 18,
+          "sample": "Accessing workspace:",
+          "asked": "#ffd700",
+          "askedRatio": 13.13,
+          "drawn": "#f9d949",
+          "drawnRatio": 13.2
+        },
+        {
+          "code": "p153",
+          "on": "d",
+          "n": 6,
+          "sample": "❯ No, exit",
+          "asked": "#afd7ff",
+          "askedRatio": 12.27,
+          "drawn": "#b7d6fc",
+          "drawnRatio": 12.31
+        }
+      ]
+    },
+    {
+      "label": "rest-light-1",
+      "mcr": 1,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 140,
+          "sample": "de Code v2.1.260",
+          "asked": "#949494",
+          "askedRatio": 2.83,
+          "drawn": "#949494",
+          "drawnRatio": 2.83
+        },
+        {
+          "code": "p220",
+          "on": "d",
+          "n": 29,
+          "sample": "⚠ 1 MCP server needs a",
+          "asked": "#ffd700",
+          "askedRatio": 1.31,
+          "drawn": "#f9d949",
+          "drawnRatio": 1.3
+        },
+        {
+          "code": "p211",
+          "on": "d",
+          "n": 9,
+          "sample": "⏵⏵ don't ask on (shift+",
+          "asked": "#ff87af",
+          "askedRatio": 2.1,
+          "drawn": "#f08daf",
+          "drawnRatio": 2.14
+        },
+        {
+          "code": "p114",
+          "on": "d",
+          "n": 2,
+          "sample": "/rc",
+          "asked": "#87d787",
+          "askedRatio": 1.62,
+          "drawn": "#9ad58f",
+          "drawnRatio": 1.59
+        }
+      ]
+    },
+    {
+      "label": "rest-light-4.5",
+      "mcr": 4.5,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 140,
+          "sample": "de Code v2.1.260",
+          "asked": "#949494",
+          "askedRatio": 2.83,
+          "drawn": "#6b6b6b",
+          "drawnRatio": 4.97
+        },
+        {
+          "code": "p220",
+          "on": "d",
+          "n": 29,
+          "sample": "⚠ 1 MCP server needs a",
+          "asked": "#ffd700",
+          "askedRatio": 1.31,
+          "drawn": "#837122",
+          "drawnRatio": 4.5
+        },
+        {
+          "code": "p211",
+          "on": "d",
+          "n": 9,
+          "sample": "⏵⏵ don't ask on (shift+",
+          "asked": "#ff87af",
+          "askedRatio": 2.1,
+          "drawn": "#9c5b71",
+          "drawnRatio": 4.72
+        },
+        {
+          "code": "p114",
+          "on": "d",
+          "n": 2,
+          "sample": "/rc",
+          "asked": "#87d787",
+          "askedRatio": 1.62,
+          "drawn": "#506f4a",
+          "drawnRatio": 5.27
+        }
+      ]
+    },
+    {
+      "label": "rest-dark-1",
+      "mcr": 1,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 140,
+          "sample": "de Code v2.1.260",
+          "asked": "#949494",
+          "askedRatio": 6.07,
+          "drawn": "#949494",
+          "drawnRatio": 6.07
+        },
+        {
+          "code": "p220",
+          "on": "d",
+          "n": 29,
+          "sample": "⚠ 1 MCP server needs a",
+          "asked": "#ffd700",
+          "askedRatio": 13.13,
+          "drawn": "#f9d949",
+          "drawnRatio": 13.2
+        },
+        {
+          "code": "p211",
+          "on": "d",
+          "n": 9,
+          "sample": "⏵⏵ don't ask on (shift+",
+          "asked": "#ff87af",
+          "askedRatio": 8.19,
+          "drawn": "#f08daf",
+          "drawnRatio": 8.01
+        },
+        {
+          "code": "p114",
+          "on": "d",
+          "n": 2,
+          "sample": "/rc",
+          "asked": "#87d787",
+          "askedRatio": 10.61,
+          "drawn": "#9ad58f",
+          "drawnRatio": 10.78
+        }
+      ]
+    },
+    {
+      "label": "rest-dark-4.5",
+      "mcr": 4.5,
+      "rows": [
+        {
+          "code": "p246",
+          "on": "d",
+          "n": 140,
+          "sample": "de Code v2.1.260",
+          "asked": "#949494",
+          "askedRatio": 6.07,
+          "drawn": "#949494",
+          "drawnRatio": 6.07
+        },
+        {
+          "code": "p220",
+          "on": "d",
+          "n": 29,
+          "sample": "⚠ 1 MCP server needs a",
+          "asked": "#ffd700",
+          "askedRatio": 13.13,
+          "drawn": "#f9d949",
+          "drawnRatio": 13.2
+        },
+        {
+          "code": "p211",
+          "on": "d",
+          "n": 9,
+          "sample": "⏵⏵ don't ask on (shift+",
+          "asked": "#ff87af",
+          "askedRatio": 8.19,
+          "drawn": "#f08daf",
+          "drawnRatio": 8.01
+        },
+        {
+          "code": "p114",
+          "on": "d",
+          "n": 2,
+          "sample": "/rc",
+          "asked": "#87d787",
+          "askedRatio": 10.61,
+          "drawn": "#9ad58f",
+          "drawnRatio": 10.78
+        }
+      ]
+    }
+  ],
+  "swapMs": 3.8000000715255737,
+  "totalMs": 20445
+}
