@@ -4,6 +4,33 @@ Each commit appears once under Added, Changed or Fixed. Every bullet stays on on
 
 The operator set the style on 2026-08-23 by rewriting every entry, and it binds every entry after. An item is one or two sentences. It says what a person can now do or what no longer goes wrong, in plain words, and then stops. A limit that a person will hit goes in the same item in one clause, e.g. "Saves have no undo", and a limit nobody will hit stays in the commit body. No measured numbers unless the number is the point. No build story, no file names, no gate names. The lead paragraph says what the release is about in two or three sentences and lists nothing.
 
+## 0.100.0 (2026-09-03)
+
+This release is about the account a session runs on and the frame around it. Choosing another account now reaches a session that is already running, and signing in inside a session is noticed the moment it finishes. The frame can take a colour of your own, darker or lighter, and a selection you scrolled through now copies all of it.
+
+### Added
+
+- Choosing another account for a session that is already running now reaches that session. Claude Code picks the change up on its own within about half a minute, and a Restart now control beside the card restarts the session with its conversation kept if you want it at once. This includes your own default sign in, which Tortie now writes when you ask it to, keeping a copy of the account it replaces first ([`5643dd3`](https://github.com/gregce/tortie/commit/5643dd3)), ([`42ebeca`](https://github.com/gregce/tortie/commit/42ebeca)), ([`1c378d1`](https://github.com/gregce/tortie/commit/1c378d1))
+- Signing in as another account inside a session, with the vendor's own `/login`, is seen the moment it finishes. The card, the menu, the Settings list and the meter refresh on their own, and the account you left stays on the list ([`e399a0b`](https://github.com/gregce/tortie/commit/e399a0b)), ([`b084880`](https://github.com/gregce/tortie/commit/b084880))
+- The frame around your work takes a colour of your own. Settings then Appearance offers eight named colours, each drawn as the frame it will produce, and the terminal, the editor and the window itself follow it ([`cfc5711`](https://github.com/gregce/tortie/commit/cfc5711)), ([`7be6221`](https://github.com/gregce/tortie/commit/7be6221))
+- Beside the colour, Shade moves the whole frame darker or lighter and Depth sets how far the panels and hairlines stand apart from the background. When a step would make text or the file colours unreadable the slider stops and says which other control would allow it. The lightest frame is a charcoal, not grey or white ([`787894e`](https://github.com/gregce/tortie/commit/787894e)), ([`5b7f57f`](https://github.com/gregce/tortie/commit/5b7f57f))
+- Architecture now reads imports in Java, PHP, C, C++ and C sharp as well as the languages it already knew, and a name a repository declares for itself is never mistaken for somebody else's ([`2f6b931`](https://github.com/gregce/tortie/commit/2f6b931)), ([`f4aaa12`](https://github.com/gregce/tortie/commit/f4aaa12)), ([`6197a8b`](https://github.com/gregce/tortie/commit/6197a8b)), ([`3db2b61`](https://github.com/gregce/tortie/commit/3db2b61)), ([`a2df598`](https://github.com/gregce/tortie/commit/a2df598))
+- The repository now carries a plain language account of what independent verification found across the last fifty rounds of work, and how each finding was fixed ([`4a8b510`](https://github.com/gregce/tortie/commit/4a8b510))
+
+### Changed
+
+- A second copy of Tortie on the same Mac, such as one run for a test, now keeps its own copies of your accounts and cannot reach the ones your own copy keeps ([`5fb1665`](https://github.com/gregce/tortie/commit/5fb1665)), ([`538ba25`](https://github.com/gregce/tortie/commit/538ba25))
+
+### Fixed
+
+- Copying a selection you extended by scrolling now copies all of it, not just the part that was on screen. Capture Selection keeps the last thousand lines of it ([`65272fa`](https://github.com/gregce/tortie/commit/65272fa)), ([`6b5c364`](https://github.com/gregce/tortie/commit/6b5c364)), ([`d63fa4c`](https://github.com/gregce/tortie/commit/d63fa4c))
+- Scrolling up in a session and switching to another app no longer loses your place when you come back ([`b2778ee`](https://github.com/gregce/tortie/commit/b2778ee))
+- A selection keeps growing as you drag past the top of the screen, and a program that asked for the mouse, such as a picker, keeps it instead of the pane scrolling ([`3ba0a60`](https://github.com/gregce/tortie/commit/3ba0a60)), ([`d6efcc4`](https://github.com/gregce/tortie/commit/d6efcc4))
+- Removing a login now removes everything it kept, including its entry in the keychain ([`c7a51c3`](https://github.com/gregce/tortie/commit/c7a51c3))
+- A crash in the middle of a switch can no longer leave a copy of a credential where nothing would clean it up ([`1292c3c`](https://github.com/gregce/tortie/commit/1292c3c))
+- A session with an impossible timestamp in its record no longer takes a project's Catch Me Up page down ([`9b47c2f`](https://github.com/gregce/tortie/commit/9b47c2f))
+- The font family field now refuses every invisible character, not only the ones it knew about ([`b5c2523`](https://github.com/gregce/tortie/commit/b5c2523))
+
 ## 0.99.0 (2026-09-02)
 
 This release is about following things back. A file can be traced through every commit that touched it, even across renames, and the commit list narrows as you type. You can also keep more than one Claude or Codex account now and move between them from the meter, without signing in again.
