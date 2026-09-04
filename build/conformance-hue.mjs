@@ -143,18 +143,79 @@
  *      shipped pair writes nothing at all; every named point that is not it
  *      writes the ramp, at the shipped hue as much as at any other.
  *
+ * ## The Phase 213 rules, and the axis they add
+ *
+ *  22. THE LIGHT BASE. Everything rules 1 to 8 and 15 to 21 claim for the dark
+ *      base holds for the light one, walked by the same probe over the light
+ *      block of tokens.css with the light order runs, the light hairline pins,
+ *      the light chromatic family and the light region. THREE THINGS DIFFER,
+ *      and each is a fact about paper rather than a weakening:
+ *        - the ramp order is the dark order TURNED OVER, because on paper
+ *          elevation is shadow: the sheet sits above the canvas, the frame one
+ *          rung under it, and the selected row is the deepest fill;
+ *        - the derived key set may also carry TEXT tokens. On the dark base a
+ *          rotated ground leaves the light text exactly where it ships; on the
+ *          light base the text is DARK, and the dark side of the text rule
+ *          keeps the SHIPPED RATIO rather than a floor, so a ground that
+ *          rotates by a fraction of a level re-solves the text by a level to
+ *          hold 11.26:1. The eight neutrals are still all present and no
+ *          chromatic token is ever written, which is what rule 3 was for;
+ *        - rule 20 INVERTS. On the dark base no frame a person can choose
+ *          reaches the flip. On paper every one of them is past it, so the
+ *          text family reads dark at every point, and this is where the flip
+ *          Phase 207 built and Phase 210 could only reach synthetically fires
+ *          for real.
+ *  23. THE STATUS DOTS ON PAPER, which is the note Phase 210 left open on the
+ *      dark base and this phase does not leave open on the light one. The four
+ *      dots clear 3:1 on `--bg-active`, the deepest fill a row takes, at every
+ *      offered frame and every hue, and the attention badge's text clears
+ *      4.5:1 on the amber the dot is drawn in. They are in the light base's
+ *      chromatic family, so they also BIND its region, and rule 22 proves the
+ *      table matches the walk.
+ *  24. EVERY SURFACE THAT DOES NOT READ A TOKEN TAKES THE BASE. The six
+ *      surfaces the phase's entry lists, read from the SHIPPING modules under
+ *      node: the terminal theme object has a light constant beside its dark
+ *      one and xterm's `minimumContrastRatio` is 4.5 on the light theme and 1
+ *      on the dark; Monaco has a `vs` theme beside its `vs-dark` one; Pierre
+ *      has a second custom theme whose `type` is light and the theme PAIR the
+ *      bridge hands the components names both, which is the limit Phases 207
+ *      and 210 both recorded and this phase lifts; the tree host carries no
+ *      `colorScheme` of its own any more, so it inherits the root's; and the
+ *      window fill main composes answers the paper on light and the graphite
+ *      on dark, at the shipped hue and at a turned one.
+ *  25. DARK IS BYTE IDENTICAL, and it is pinned by digest rather than by
+ *      reading. The dark block of tokens.css, the dark terminal theme, the
+ *      dark Monaco theme and the dark Pierre theme are sha256'd and compared
+ *      against the digests MEASURED AT THE PARENT COMMIT 02fd5ed, before any
+ *      of this phase's commits; the dark window fill and the dark contrast
+ *      floor are compared against their parent values too. A phase whose whole
+ *      claim is that a person who touches nothing sees what they saw yesterday
+ *      needs that claim to be arithmetic, and the four modules were all
+ *      rewritten to carry a second base, so "we did not mean to" is not proof.
+ *  26. NO DARK LITERAL SURVIVES. A colour may be written in exactly six THEME
+ *      CONSTANT files and nowhere else under src/. Everywhere else a hex or an
+ *      rgb() is a surface that would keep its dark colour on paper. The scan
+ *      strips comments, allows an alpha MASK gradient, whose `#000` is an
+ *      alpha channel and not a colour, and carries four named exemptions with
+ *      their reasons. It is proved on eight fixtures this file writes itself,
+ *      five of which must make it fail, because a scan that cannot fail is the
+ *      thing this gate exists to refuse.
+ *
  * Contrast is re-derived HERE with culori's full entry rather than read from
  * the modules, so a module that lied about a ratio would still be caught;
  * the verifier is asked to re-derive it once more with arithmetic of its own.
  */
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   cpSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync
 } from 'node:fs';
@@ -167,7 +228,8 @@ import { tsxCli } from './ts-runner.mjs';
 const TAG = '[conformance:hue]';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
-const { wcagContrast, wcagLuminance } = require('culori');
+const { differenceCiede2000, wcagContrast, wcagLuminance } = require('culori');
+const deltaE = differenceCiede2000();
 
 let failed = 0;
 function say(line) {
@@ -316,6 +378,78 @@ const ABLATIONS = [
         "return CHROME_DEPTH_FACTORS[stop - CHROME_DEPTH_MIN + 1] ?? 1;"
       ]
     ]
+  },
+  // ---- Phase 213, the scheme axis. One clause each, and every one of them
+  // is a line a later round could write meaning well.
+  {
+    name: 'the light ramp order left as the dark one',
+    file: 'renderer/theme/presets.ts',
+    edits: [["  return scheme === 'light' ? RAMP_ORDER_LIGHT : RAMP_ORDER;", '  return RAMP_ORDER;']]
+  },
+  {
+    name: 'the light hairline order left as the dark one',
+    file: 'renderer/theme/presets.ts',
+    edits: [["  return scheme === 'light' ? HAIRLINE_ORDER_LIGHT : HAIRLINE_ORDER;", '  return HAIRLINE_ORDER;']]
+  },
+  {
+    name: 'the status dots dropped from the light chromatic family',
+    file: 'renderer/theme/presets.ts',
+    edits: [
+      [
+        "  return scheme === 'light' ? [...CHROMATIC_PINS, ...STATUS_PINS_LIGHT] : CHROMATIC_PINS;",
+        '  return CHROMATIC_PINS;'
+      ]
+    ]
+  },
+  {
+    name: 'the light region offering one depth stop the walk refuses',
+    file: 'renderer/theme/presets.ts',
+    edits: [['  { shade: 0, minDepth: -3, maxDepth: 0 },', '  { shade: 0, minDepth: -3, maxDepth: 1 },']]
+  },
+  {
+    name: 'the light base given the dark terminal palette',
+    file: 'renderer/terminal/theme.ts',
+    edits: [
+      [
+        '    light ? TERMINAL_TEXT_LIGHT : TERMINAL_TEXT,\n    light ? TERMINAL_BACKGROUND_LIGHT : TERMINAL_BACKGROUND,',
+        '    TERMINAL_TEXT,\n    TERMINAL_BACKGROUND,'
+      ]
+    ]
+  },
+  {
+    name: "xterm's contrast floor left at the dark 1 on paper",
+    file: 'renderer/terminal/theme.ts',
+    edits: [
+      [
+        "  return scheme === 'light' ? TERMINAL_MIN_CONTRAST_LIGHT : TERMINAL_MIN_CONTRAST_DARK;",
+        '  return TERMINAL_MIN_CONTRAST_DARK;'
+      ]
+    ]
+  },
+  {
+    name: "Monaco's light theme registered on the dark base",
+    file: 'renderer/editor/monaco-theme.ts',
+    edits: [["    base: light ? 'vs' : 'vs-dark',", "    base: 'vs-dark',"]]
+  },
+  {
+    name: "Pierre's second theme registered with type dark",
+    file: 'renderer/pierre/theme-bridge.ts',
+    edits: [["  'light',\n  PL,\n  SL\n);", "  'dark',\n  PL,\n  SL\n);"]]
+  },
+  {
+    name: 'the tree host pinning its own colorScheme again',
+    file: 'renderer/pierre/theme-bridge.ts',
+    edits: [["  delete out['colorScheme'];", '']]
+  },
+  {
+    name: 'the window fill ignoring the base',
+    file: 'shared/chrome-hue.ts',
+    edits: [["  const base = scheme === 'light' ? WINDOW_BACKGROUND_LIGHT : WINDOW_BACKGROUND;", '  const base = WINDOW_BACKGROUND;']]
+  },
+  {
+    name: 'the light sheet dropped onto the paper in tokens.css',
+    file: 'renderer/styles/tokens.css',
+    edits: [['  --bg-surface: #fcfcfe;', '  --bg-surface: #f5f7fa;']]
   }
 ];
 
@@ -337,6 +471,21 @@ function ablatedCopy(root, ablation) {
     join(repoRoot, 'src', 'renderer', 'terminal', 'theme.ts'),
     join(root, 'renderer', 'terminal', 'theme.ts')
   );
+  // PHASE 213. The four other places a base is written, so an ablation of one
+  // of them reaches the COPY rather than the tree: the token file both bases
+  // live in, Monaco's two themes, and Pierre's bridge, which the probe
+  // evaluates with the two vendor imports stubbed.
+  mkdirSync(join(root, 'renderer', 'editor'), { recursive: true });
+  mkdirSync(join(root, 'renderer', 'pierre'), { recursive: true });
+  mkdirSync(join(root, 'renderer', 'styles'), { recursive: true });
+  for (const rel of [
+    ['renderer', 'editor', 'monaco-theme.ts'],
+    ['renderer', 'editor', 'monaco-theme-name.ts'],
+    ['renderer', 'pierre', 'theme-bridge.ts'],
+    ['renderer', 'styles', 'tokens.css']
+  ]) {
+    cpSync(join(repoRoot, 'src', ...rel), join(root, ...rel));
+  }
   const sharedSrc = join(repoRoot, 'src', 'shared');
   writeFileSync(
     join(root, 'shared', 'chrome-hue.ts'),
@@ -373,6 +522,277 @@ function ablatedCopy(root, ablation) {
   writeFileSync(target, text);
   return root;
 }
+
+/**
+ * RULE 26'S SCANNER (Phase 213). Where a colour may be written, and nowhere
+ * else, so no surface can quietly keep its dark value on paper.
+ *
+ * THE SIX THEME CONSTANT PLACES. tokens.css, which holds both bases; the
+ * terminal theme object; the Monaco theme table; the Pierre bridge; the
+ * shared window chrome main composes its fill from; and the pre-paint rule in
+ * the two HTML entries, which is what paints before any script runs and which
+ * this phase gave a second rule keyed on the same root attribute.
+ */
+const THEME_CONSTANT_FILES = new Set([
+  'renderer/styles/tokens.css',
+  'renderer/terminal/theme.ts',
+  'renderer/editor/monaco-theme.ts',
+  'renderer/pierre/theme-bridge.ts',
+  'shared/window-chrome.ts',
+  'renderer/index.html',
+  'renderer/settings/index.html'
+]);
+
+/**
+ * THE FOUR NAMED EXEMPTIONS, each with the reason it is not a colour.
+ *
+ *  - The two menu icon rasterizers paint a TEMPLATE image, where only the
+ *    alpha channel is read: macOS draws the mark in the menu's own colour, so
+ *    black is "opaque" rather than black.
+ *  - The capture serializer's fallback pair is the flavour that pastes into
+ *    somebody ELSE'S document, where the ground is theirs and not ours. The
+ *    flavour that carries our ground reads the resolved theme beside it, on
+ *    the same two lines, and follows the scheme.
+ *  - The generated file icon map is VENDOR ARTWORK from material-icon-theme.
+ *    A TypeScript icon's blue is that icon's identity, not this frame's, and
+ *    the light base handles it the way research 80 measured, by lifting
+ *    `--file-icon-dim` from 0.55 to 0.72 so the art keeps its own colour and
+ *    sits under the text rather than beside it. The package's light map is
+ *    31 extensions against 179 names and Tortie's generator reads neither,
+ *    so there is nothing to switch.
+ */
+const LITERAL_EXEMPTIONS = new Set([
+  'renderer/icons/agent-menu-icon.ts',
+  'renderer/icons/codicon-menu-icon.ts',
+  'renderer/terminal/capture/serialize.ts',
+  'renderer/icons/file-icons.generated.ts'
+]);
+
+/** An alpha MASK gradient's stops are an alpha channel, never a colour. */
+const MASK_PROPERTIES = new Set(['mask-image', 'mask', '-webkit-mask-image', '-webkit-mask']);
+
+const COLOUR_IN_VALUE = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla)\(\s*[\d.]/;
+const COLOUR_IN_STRING = /(['"`])(?:#[0-9a-fA-F]{3,8}|(?:rgb|rgba|hsl|hsla)\(\s*[\d.])/;
+
+/** Block comments everywhere, line comments where the `//` is not inside a string. */
+function stripComments(text, kind) {
+  let out = text.replace(/\/\*[\s\S]*?\*\//g, ' ');
+  if (kind === 'html') out = out.replace(/<!--[\s\S]*?-->/g, ' ');
+  if (kind !== 'ts') return out;
+  return out
+    .split('\n')
+    .map((line) => {
+      let quotes = 0;
+      for (let i = 0; i < line.length - 1; i += 1) {
+        const c = line[i];
+        if (c === '\\') {
+          i += 1;
+          continue;
+        }
+        if (c === "'" || c === '"' || c === '`') quotes += 1;
+        if (c === '/' && line[i + 1] === '/' && quotes % 2 === 0) return line.slice(0, i);
+      }
+      return line;
+    })
+    .join('\n');
+}
+
+function scanFile(rel, text) {
+  const hits = [];
+  const css = rel.endsWith('.css') || rel.endsWith('.html');
+  const body = stripComments(text, rel.endsWith('.html') ? 'html' : css ? 'css' : 'ts');
+  if (css) {
+    // Only DECLARATION VALUES, so an id selector and a media query cannot
+    // read as a colour and a colour cannot hide in either.
+    for (const m of body.matchAll(/(^|[;{])\s*(-{0,2}[A-Za-z-][\w-]*)\s*:\s*([^;{}]*)/g)) {
+      const property = m[2];
+      const value = m[3];
+      if (MASK_PROPERTIES.has(property)) continue;
+      if (COLOUR_IN_VALUE.test(value)) hits.push(`${rel}: ${property}: ${value.trim().slice(0, 60)}`);
+    }
+    return hits;
+  }
+  for (const line of body.split('\n')) {
+    if (COLOUR_IN_STRING.test(line)) hits.push(`${rel}: ${line.trim().slice(0, 80)}`);
+  }
+  return hits;
+}
+
+function walkSources(root) {
+  const out = [];
+  const walk = (dir, prefix) => {
+    for (const entry of readdirSync(dir).sort()) {
+      if (entry === '__tests__' || entry === 'node_modules') continue;
+      const full = join(dir, entry);
+      const rel = prefix === '' ? entry : `${prefix}/${entry}`;
+      if (statSync(full).isDirectory()) walk(full, rel);
+      else if (/\.(css|html|ts|tsx)$/.test(entry) && !entry.endsWith('.d.ts')) out.push({ rel, full });
+    }
+  };
+  walk(root, '');
+  return out;
+}
+
+function countScanned(root) {
+  return walkSources(root).filter(
+    ({ rel }) => !THEME_CONSTANT_FILES.has(rel) && !LITERAL_EXEMPTIONS.has(rel)
+  ).length;
+}
+
+function scanLiterals(root) {
+  const hits = [];
+  for (const { rel, full } of walkSources(root)) {
+    if (THEME_CONSTANT_FILES.has(rel) || LITERAL_EXEMPTIONS.has(rel)) continue;
+    hits.push(...scanFile(rel, readFileSync(full, 'utf8')));
+  }
+  return hits;
+}
+
+/**
+ * Eight fixtures, five of which must make the scan fail. A scan that cannot
+ * fail is the thing this gate exists to refuse, and each of these five is a
+ * shape a round meaning well would actually write.
+ */
+function literalFixtures(base) {
+  const files = [
+    ['a plain hex in a stylesheet', true, 'renderer/a/a.css', '.x { background: #131417; }\n'],
+    ['an rgba in a stylesheet', true, 'renderer/a/b.css', '.x { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }\n'],
+    ['a hex in a stylesheet comment', false, 'renderer/a/c.css', '/* --warning is the same #F5B84A as the dot */\n.x { color: var(--warning); }\n'],
+    ['a hex in an alpha mask gradient', false, 'renderer/a/d.css', '.x { mask-image: linear-gradient(to right, transparent 0, #000 20px); }\n'],
+    ['a quoted colour in a module', true, 'renderer/a/e.ts', "export const fill = '#131417';\n"],
+    ['a colour in a line comment', false, 'renderer/a/f.ts', "// the shipped ground is '#131417'\nexport const fill = 'var(--bg-canvas)';\n"],
+    ['a URL that carries two slashes before a colour', true, 'renderer/a/g.ts', "export const u = 'https://x/y'; export const fill = '#131417';\n"],
+    ['an rgb() built in a template string', true, 'renderer/a/h.ts', 'export const fill = `rgb(19, 20, 23)`;\n']
+  ];
+  const out = [];
+  for (const [name, shouldFail, rel, text] of files) {
+    const root = join(base, name.replace(/\s+/g, '-'));
+    const full = join(root, rel);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, text);
+    out.push({ name, shouldFail, root });
+  }
+  return out;
+}
+
+/**
+ * RULES 24 AND 25 over one answer (Phase 213): what the surfaces that do not
+ * read a token at draw time say, and whether the dark half of each is still
+ * the bytes the parent commit had. A list of problems, so rule 13 can run it
+ * over an ablated copy and see the clause it removed go red rather than see
+ * a coarse walk twitch somewhere else.
+ */
+function pinFacts(a) {
+  const problems = [];
+  const facts = a.facts;
+  if (facts === undefined) return ['rule 24: the module facts were not read'];
+  const t = facts.terminal;
+  if (Object.keys(t.light).length !== Object.keys(t.dark).length) {
+    problems.push(`rule 24: the light terminal theme has ${String(Object.keys(t.light).length)} keys against the dark theme's ${String(Object.keys(t.dark).length)}`);
+  }
+  for (const [key, hex] of Object.entries(t.light)) {
+    if (t.dark[key] !== undefined && String(hex).toLowerCase() === String(t.dark[key]).toLowerCase()) {
+      problems.push(`rule 24: the light terminal ${key} is the dark one, ${String(hex)}`);
+    }
+  }
+  // THE PALETTE IN EFFECT IS THE BASE'S OWN, and it stands apart from itself.
+  // A round that handed the light base the DARK sixteen would still clear the
+  // floors, because the follow re-solves every one of them dark on paper; what
+  // it would lose is the design, being the eight normal slots at about 6.5:1
+  // in the dark palette's own hues and the eight bright ones lighter and half
+  // again as saturated at exactly 4.5, so bold text, which xterm draws in the
+  // bright slot, is still text. Research 80 measured the vendors at dE2000 0
+  // to 6.4 between a bright and its normal, and this palette at 9.24 or more.
+  for (const [base, want, ground] of [
+    ['followedDark', 'dark', '#131417'],
+    ['followedLight', 'light', '#f5f7fa']
+  ]) {
+    const followed = t[base];
+    const constant = t[want];
+    if (Object.keys(followed).length === 0) {
+      problems.push(`rule 24: the ${want} terminal palette in effect could not be read`);
+      continue;
+    }
+    for (const [key, hex] of Object.entries(followed)) {
+      if (constant[key] !== undefined && String(hex).toLowerCase() !== String(constant[key]).toLowerCase()) {
+        problems.push(`rule 24: at the shipped ${want} ground the terminal ${key} is ${String(hex)} where the ${want} constant says ${String(constant[key])}`);
+      }
+    }
+    let worstDelta = Infinity;
+    let worstPair = '';
+    for (const name of ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white']) {
+      const bright = `bright${name[0].toUpperCase()}${name.slice(1)}`;
+      if (followed[name] === undefined || followed[bright] === undefined) continue;
+      const d = deltaE(followed[name], followed[bright]);
+      if (d < worstDelta) {
+        worstDelta = d;
+        worstPair = `${name} and ${bright}`;
+      }
+    }
+    // THE SEPARATION IS THE LIGHT PALETTE'S CLAIM AND NOT THE DARK ONE'S. The
+    // dark sixteen ship as they shipped and read 5.11 at their tightest, being
+    // green against brightGreen; this phase does not move them and may not
+    // hold them to a number they were never solved to. The light sixteen were
+    // solved to 9.24 or more on purpose, because on paper the lift that makes
+    // a bright slot bright is a lift toward the GROUND rather than away from
+    // it, and a smaller step would put bold text and plain text at one colour.
+    if (want === 'light' && worstDelta < 9) {
+      problems.push(`rule 24: on the ${want} base ${worstPair} are dE2000 ${worstDelta.toFixed(2)} apart, under 9, so bold text and plain text are one colour`);
+    }
+    if (want === 'light') {
+      for (const name of ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan']) {
+        const bright = `bright${name[0].toUpperCase()}${name.slice(1)}`;
+        const normal = wcagContrast(followed[name], ground);
+        const lifted = wcagContrast(followed[bright], ground);
+        if (normal < 6) problems.push(`rule 24: on paper the terminal ${name} reads ${normal.toFixed(2)}:1, under the 6.5 the palette was solved to`);
+        if (lifted < 4.4) problems.push(`rule 24: on paper the terminal ${bright} reads ${lifted.toFixed(2)}:1, under 4.5`);
+        if (!(lifted < normal)) problems.push(`rule 24: on paper the terminal ${bright} is not lighter than ${name}`);
+      }
+    }
+  }
+  if (t.floorLight !== 4.5) problems.push(`rule 24: xterm's contrast floor on the light theme is ${String(t.floorLight)}, not 4.5`);
+  if (t.floorDark !== DARK_AT_THE_PARENT.contrastFloor) problems.push(`rule 24: xterm's contrast floor on the dark theme is ${String(t.floorDark)}, not ${String(DARK_AT_THE_PARENT.contrastFloor)}`);
+  if (facts.monaco === null) problems.push('rule 24: Monaco has no theme table this gate could read');
+  else {
+    if (facts.monaco.dark.base !== 'vs-dark') problems.push(`rule 24: Monaco's dark theme sits on ${String(facts.monaco.dark.base)}`);
+    if (facts.monaco.light.base !== 'vs') problems.push(`rule 24: Monaco's light theme sits on ${String(facts.monaco.light.base)}, not vs`);
+    const bg = facts.monaco.light.colors['editor.background'];
+    if (!(wcagLuminance(bg) > 0.5)) problems.push(`rule 24: Monaco's light ground is ${String(bg)}, which is not light`);
+  }
+  if (facts.pierre === null) problems.push('rule 24: the Pierre bridge could not be evaluated');
+  else {
+    if (facts.pierre.darkType !== 'dark') problems.push(`rule 24: Pierre's dark theme has type ${String(facts.pierre.darkType)}`);
+    if (facts.pierre.lightType !== 'light') problems.push(`rule 24: Pierre's second theme has type ${String(facts.pierre.lightType)}, not light`);
+    if (facts.pierre.pair.dark === facts.pierre.pair.light) {
+      problems.push(`rule 24: the theme pair names ${String(facts.pierre.pair.dark)} in both slots, which is the limit Phases 207 and 210 recorded`);
+    }
+    if (facts.pierre.treeKeys.includes('colorScheme')) {
+      problems.push('rule 24: the tree host still pins a colorScheme of its own, so it cannot inherit the root');
+    }
+  }
+  if (!/^#f5f7fa$/i.test(facts.windowFill.light)) problems.push(`rule 24: the window fill on light is ${String(facts.windowFill.light)}`);
+  if (facts.windowFill.lightAt40 === facts.windowFill.light) problems.push('rule 24: the light window fill does not turn with the hue');
+  if (facts.windowFill.light === facts.windowFill.dark) problems.push('rule 24: the window fill is the same colour on both bases');
+
+  // Rule 25. Dark is byte identical, against the parent commit's own numbers.
+  const sha = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  const got = {
+    tokens: facts.tokensSha.dark,
+    terminal: sha(facts.terminal.dark),
+    monaco: facts.monaco === null ? 'unread' : sha(facts.monaco.dark),
+    pierre: facts.pierre === null ? 'unread' : facts.pierre.darkSha,
+    fill: facts.windowFill.dark,
+    fillAt40: facts.windowFill.darkAt40,
+    contrastFloor: facts.terminal.floorDark
+  };
+  for (const [what, want] of Object.entries(DARK_AT_THE_PARENT)) {
+    if (got[what] !== want) {
+      problems.push(`rule 25: the dark ${what} is ${String(got[what])} where the parent commit 02fd5ed had ${String(want)}`);
+    }
+  }
+  return problems;
+}
+
 
 function runProbe(roots) {
   const probe = spawnSync(
@@ -428,6 +848,7 @@ const CHROMATIC_FLOORS = [
   ['--graph-lane-3', '--bg-active', 3],
   ['--graph-lane-5', '--bg-active', 3]
 ];
+const TEXT_TOKENS = ['--text-primary', '--text-secondary', '--text-muted', '--text-disabled'];
 const TERMINAL_EXEMPT = new Set(['black', 'brightBlack']);
 const HAIRLINES = [
   ['--border', '--bg-sidebar', 1.297, 0.03],
@@ -453,8 +874,17 @@ const HAIRLINES = [
  * around 121 and 211. Without them a coarse walk over an ablated copy would
  * step past every one and turn the region rule red for a reason that has
  * nothing to do with the ablation, which is a gate proving nothing.
+ *
+ * PHASE 213 ADDED ONE, being 30, and it is the light base's. The light region
+ * is four cells, so 45 of the 49 pairs are refused there and a coarse walk has
+ * far more chances to step past a refusal than it had on the dark base. Run
+ * over every whole degree, the six cells `-4,-3`, `-4,-2`, `-3,-3`, `-2,-3`,
+ * `-1,-3` and `-1,-2` fail at 30 and at 248 and nowhere in the eight coarse
+ * degrees or the five dark witnesses; 30 covers all six, so it is the only one
+ * added. Every other refused light cell already fails at a hue the coarse walk
+ * visits.
  */
-const WITNESS_HUES = [0, 3, 121, 198, 211];
+const WITNESS_HUES = [0, 3, 30, 121, 198, 211];
 
 const REGION = {
   '-4': [1, 3],
@@ -464,6 +894,118 @@ const REGION = {
   '0': [-3, 1],
   '1': [-3, 0],
   '2': [-3, 0]
+};
+
+/**
+ * THE LIGHT BASE'S OWN TABLES (Phase 213). Everything the dark base pins, on
+ * its own palette, with the three differences rule 22 names.
+ */
+const ORDER_RUNS = {
+  // Darkest first, in WCAG luminance, one pair per rung.
+  dark: [
+    ['--bg-sidebar', '--bg-canvas'],
+    ['--bg-canvas', '--bg-surface'],
+    ['--bg-surface', '--bg-raised'],
+    ['--bg-raised', '--bg-active'],
+    ['--border', '--border-active'],
+    ['--border-active', '--border-strong']
+  ],
+  // On paper elevation is shadow, so the run turns over: the selected row is
+  // the deepest fill, the frame sits under the paper and the sheet above it.
+  light: [
+    ['--bg-active', '--bg-raised'],
+    ['--bg-raised', '--bg-sidebar'],
+    ['--bg-sidebar', '--bg-canvas'],
+    ['--bg-canvas', '--bg-surface'],
+    ['--border-strong', '--border-active'],
+    ['--border-active', '--border']
+  ]
+};
+
+/**
+ * The status dots (Phase 213). Phase 210 recorded this floor as OPEN on the
+ * dark base, where the idle grey reads 3.15 on the shipped active fill and a
+ * lighter shade takes it under, so adding it there would refuse frames people
+ * already chose. The light palette was designed TO it: 3.52, 3.53, 3.41 and
+ * 3.40 at the shipped frame, and the badge's paper text 4.51 on its amber.
+ */
+const STATUS_FLOORS_LIGHT = [
+  ['--status-working', '--bg-active', 3],
+  ['--status-attention', '--bg-active', 3],
+  ['--status-idle', '--bg-active', 3],
+  ['--status-failed', '--bg-active', 3],
+  ['--status-attention-badge-fg', '--status-attention-badge-bg', 4.5]
+];
+
+const CHROMATIC_BY_SCHEME = {
+  dark: CHROMATIC_FLOORS,
+  light: [...CHROMATIC_FLOORS, ...STATUS_FLOORS_LIGHT]
+};
+
+/** The shipped hairline ratios of each base, and the band the rotation keeps. */
+const HAIRLINES_BY_SCHEME = {
+  dark: HAIRLINES,
+  light: [
+    ['--border', '--bg-sidebar', 1.299, 0.03],
+    ['--border-active', '--bg-active', 1.271, 0.02],
+    ['--bg-raised', '--bg-surface', 1.207, 0.02]
+  ]
+};
+
+/**
+ * THE OFFERED REGION ON PAPER, four cells, and both edges are the palette's
+ * own design. The light end is the ramp's room: the sheet sits at OKLCH L
+ * 0.992 and one stop lighter puts it on white beside a canvas under it. The
+ * dark end is the chromatic family, which the frame never moves and which
+ * research 80 solved AT its floors so the accent could be text on paper and
+ * the dots could clear the active row. An empty row means no depth is
+ * offered at that shade.
+ */
+const REGION_LIGHT = {
+  '-4': [0, -1],
+  '-3': [0, -1],
+  '-2': [0, -1],
+  '-1': [0, -1],
+  '0': [-3, 0],
+  '1': [0, -1],
+  '2': [0, -1]
+};
+const REGION_BY_SCHEME = { dark: REGION, light: REGION_LIGHT };
+
+/**
+ * THE TWO CELLS ONLY A HIGHLIGHT SCHEME REFUSES, measured over every whole
+ * degree, and they are the light base's own arithmetic rather than a hole in
+ * the walk. `--accent-text` ships AT its floor on paper, 5.03:1 on the canvas
+ * against 4.5, because research 80 solved it there so the accent could be text
+ * on paper at all. The highlight scheme is the one control that moves the
+ * accent rather than the ground under it, and Teal at hue 30 with the shade
+ * one stop darker takes it to 4.49. So shade -1 at depths -3 and -2 read
+ * feasible on all three BLUE arms and are refused by the two Teal ones, which
+ * is why the region has no shade -1 row at all.
+ *
+ * The exhaustive root walks the scheme arms and therefore pins these two like
+ * every other cell. The ablated copies do NOT walk them, by the probe's own
+ * rampArms rule, so asking them about these two would turn rule 22 red for
+ * every ablation for a reason that has nothing to do with the clause removed.
+ * They are named here rather than left to a coarse walk's luck.
+ */
+const SCHEME_BOUND_LIGHT = new Set(['-1,-3', '-1,-2']);
+
+/**
+ * WHAT THE DARK BASE WAS, MEASURED AT THE PARENT COMMIT 02fd5ed, before the
+ * first commit of this phase. Every one of these was read by running the
+ * PARENT'S OWN modules under node, not by reading this tree and hoping. The
+ * digests are over JSON.stringify of the object each shipping module builds,
+ * and over the dark `:root` block of tokens.css with comments stripped.
+ */
+const DARK_AT_THE_PARENT = {
+  tokens: 'dc5f1cd86e72b1027576de211756d338dae7e657f1fe1c2bc1d66bd208dba547',
+  terminal: '673310f70b7817313d0eff2fa975bad322dbb307b24eac5fd4a49be0e9371040',
+  monaco: '6f76352eb330dc48c9f620aa4b278d421dd22284cb518bc348ad751c24f1c82a',
+  pierre: '60f7d3ddf2df37dc7621419de1e0f7fb0c028ffe180ab7552dffac8a3d5bf04f',
+  fill: '#131417',
+  fillAt40: '#151411',
+  contrastFloor: 1
 };
 
 const THRESHOLD = Math.sqrt(0.05 * 1.05) - 0.05;
@@ -481,7 +1023,12 @@ const L = (() => {
   return (css) => toOklch(parse(css))?.l ?? -1;
 })();
 
-function pin(a) {
+function pin(a, scheme = 'dark') {
+  const light = scheme === 'light';
+  const CHROMA = CHROMATIC_BY_SCHEME[scheme];
+  const HAIRS = HAIRLINES_BY_SCHEME[scheme];
+  const RUNS = ORDER_RUNS[scheme];
+  const REG = REGION_BY_SCHEME[scheme];
   const problems = [];
   const once = new Map();
   const problem = (key, text) => {
@@ -506,8 +1053,20 @@ function pin(a) {
   for (const s of a.circle) {
     const tag = `hue ${String(s.hue)} ${s.contrast}`;
     // Rule 3.
-    if (s.contrast === 'normal' && s.hue !== 222 && s.keys.join(',') !== wantKeys) {
-      problem('r3', `rule 3: at ${tag} the map holds [${s.keys.join(', ')}] rather than the eight neutrals`);
+    if (s.contrast === 'normal' && s.hue !== 222) {
+      if (!light && s.keys.join(',') !== wantKeys) {
+        problem('r3', `rule 3: at ${tag} the map holds [${s.keys.join(', ')}] rather than the eight neutrals`);
+      }
+      // On paper the text is dark and the dark side of the text rule keeps
+      // the SHIPPED RATIO, so a ground that rotates re-solves the text by a
+      // level. The eight neutrals must still all be there, and a chromatic
+      // token must never be, which is what this rule was always for.
+      if (light) {
+        const missing = NEUTRALS.filter((token) => !s.keys.includes(token));
+        if (missing.length !== 0) problem('r3', `rule 3: at ${tag} the map is missing ${missing.join(', ')}`);
+        const stray = s.keys.filter((k) => !NEUTRALS.includes(k) && !TEXT_TOKENS.includes(k));
+        if (stray.length !== 0) problem('r3b', `rule 3: at ${tag} the map holds ${stray.join(', ')}, which is neither a neutral nor a text token`);
+      }
     }
     // Rule 4.
     if (s.contrast === 'normal') {
@@ -530,19 +1089,11 @@ function pin(a) {
     }
     // Rule 6.
     const v = s.values;
-    const order = [
-      ['--bg-sidebar', '--bg-canvas'],
-      ['--bg-canvas', '--bg-surface'],
-      ['--bg-surface', '--bg-raised'],
-      ['--bg-raised', '--bg-active'],
-      ['--border', '--border-active'],
-      ['--border-active', '--border-strong']
-    ];
-    for (const [lo, hi] of order) {
+    for (const [lo, hi] of RUNS) {
       if (!(yOf(v[lo]) < yOf(v[hi]))) problem(`r6 ${lo}`, `rule 6: at ${tag} ${lo} (${v[lo]}) is not below ${hi} (${v[hi]})`);
     }
     // Rule 7.
-    for (const [fg, bg, floor] of [...TEXT_FLOORS, ...CHROMATIC_FLOORS]) {
+    for (const [fg, bg, floor] of [...TEXT_FLOORS, ...CHROMA]) {
       const ratio = wcagContrast(v[fg], v[bg]);
       if (ratio < floor) problem(`r7 ${fg} ${bg}`, `rule 7: at ${tag} ${fg} on ${bg} reads ${ratio.toFixed(3)}:1 under ${String(floor)}`);
     }
@@ -554,11 +1105,19 @@ function pin(a) {
     }
     // Rule 8.
     if (s.contrast === 'normal') {
-      for (const [x, y, pinned, band] of HAIRLINES) {
+      for (const [x, y, pinned, band] of HAIRS) {
         const ratio = wcagContrast(v[x], v[y]);
         if (Math.abs(ratio - pinned) > band) problem(`r8 ${x}`, `rule 8: at ${tag} ${x} on ${y} reads ${ratio.toFixed(3)}:1, outside ${String(pinned)} plus or minus ${String(band)}`);
       }
     }
+  }
+
+  // Rules 9 to 12 are the SYNTHETIC GROUND, and only the dark base walks it:
+  // the flip is what a ground lifted from graphite toward white does, and the
+  // light base is already past it, which rule 22 pins as rule 20 inverted.
+  if (light) {
+    pinRegion(a, scheme, REG, CHROMA, problem);
+    return problems;
   }
 
   // Rule 9.
@@ -636,6 +1195,20 @@ function pin(a) {
   }
 
 
+  pinRegion(a, scheme, REG, CHROMA, problem);
+  return problems;
+}
+
+/**
+ * Rules 15 to 21 over one base. Extracted from `pin` in Phase 213 so the
+ * light base walks exactly the same code with its own region, its own
+ * chromatic family and rule 20 the other way up. `problem` is the caller's
+ * own de-duplicating collector, so a family that fails at four hundred hues
+ * is one line rather than four hundred.
+ */
+function pinRegion(a, scheme, REG, CHROMA, problem) {
+  const light = scheme === 'light';
+  const walksSchemes = a.ramp.some((c) => c.scheme !== 'blue');
   // Rule 15, THE OFFERED REGION. Every (shade, depth) pair, judged over all
   // three contrast levels and all four highlight schemes, is feasible exactly
   // where the table below says. The table is what the two sliders offer, so a
@@ -658,7 +1231,7 @@ function pin(a) {
   // walk proves the region; this proves the sliders offer it. Without this the
   // two could drift and rule 15 would still be green.
   for (const shade of a.rampStops.shades) {
-    const want = REGION[String(shade)];
+    const want = REG[String(shade)];
     const row = a.regionTable.find((r) => r.shade === shade);
     if (row === undefined) problem(`r15t-${String(shade)}`, `rule 15: the shipping region table has no row for shade ${String(shade)}`);
     else if (row.minDepth !== want[0] || row.maxDepth !== want[1]) {
@@ -669,7 +1242,7 @@ function pin(a) {
     problem('r15tn', `rule 15: the shipping region table has ${String(a.regionTable.length)} row(s) for ${String(a.rampStops.shades.length)} shade stop(s)`);
   }
   for (const shade of a.rampStops.shades) {
-    const want = REGION[String(shade)];
+    const want = REG[String(shade)];
     for (const depth of a.rampStops.depths) {
       const seen = region.get(`${String(shade)},${String(depth)}`);
       if (seen === undefined) {
@@ -677,6 +1250,9 @@ function pin(a) {
         continue;
       }
       const expected = depth >= want[0] && depth <= want[1];
+      // A root that walks only the blue arms cannot see the two cells the
+      // Teal arm alone refuses, so it is not asked about them.
+      if (light && !walksSchemes && SCHEME_BOUND_LIGHT.has(`${String(shade)},${String(depth)}`)) continue;
       if (seen.ok !== expected) {
         problem(
           `r15-${String(shade)}-${String(depth)}`,
@@ -716,7 +1292,20 @@ function pin(a) {
   // two rungs, never their order.
   for (const cell of a.ramp) {
     const where = `shade ${String(cell.shade)} depth ${String(cell.depth)} ${cell.contrast} ${cell.scheme}`;
-    if (!(cell.worstOklch > 0)) problem('r17a', `rule 17: the ramp inverts in OKLCH lightness at ${where} (gap ${cell.worstOklch.toFixed(6)})`);
+    // ON PAPER THE TOP OF THE RAMP HAS A CEILING (Phase 213). The dark base's
+    // claim is arithmetic: an affine transform with a positive slope cannot
+    // reorder anything, and no rung is near black at any offered cell. The
+    // light base's sheet ships at OKLCH L 0.992, so a shade stop above the
+    // shipped one puts it and the canvas both AT WHITE, where they stop being
+    // two colours. That is exactly why the light region is one shade row, and
+    // it is a clamp rather than an inversion: the rule holds strictly at every
+    // OFFERED cell and holds as "never reordered" past them.
+    const offered = REG[String(cell.shade)] !== undefined && cell.depth >= REG[String(cell.shade)][0] && cell.depth <= REG[String(cell.shade)][1];
+    if (offered || !light) {
+      if (!(cell.worstOklch > 0)) problem('r17a', `rule 17: the ramp inverts in OKLCH lightness at ${where} (gap ${cell.worstOklch.toFixed(6)})`);
+    } else if (cell.worstOklch < 0) {
+      problem('r17a', `rule 17: the ramp REORDERS in OKLCH lightness at the refused ${where} (gap ${cell.worstOklch.toFixed(6)})`);
+    }
     if (cell.worstOrder < 0) problem('r17b', `rule 17: the ramp inverts in WCAG luminance at ${where}`);
   }
 
@@ -743,8 +1332,19 @@ function pin(a) {
   // frame a person can choose reads dark, and the flip stays proved on the
   // synthetic ground by rules 9 to 11.
   let dark = 0;
-  for (const cell of a.ramp) dark += cell.darkHues;
-  if (dark !== 0) problem('r20', `rule 20: the text family read dark at ${String(dark)} points, which no offered frame should reach`);
+  let points = 0;
+  for (const cell of a.ramp) {
+    dark += cell.darkHues;
+    points += cell.hues;
+  }
+  if (scheme === 'light') {
+    // INVERTED on paper, and this is where the flip fires for real: every
+    // ground a person can choose on the light base is past the threshold, so
+    // the text family reads DARK at every one of them.
+    if (dark !== points) problem('r20', `rule 20: on paper the text family read light at ${String(points - dark)} of ${String(points)} points, where every one is past the flip`);
+  } else if (dark !== 0) {
+    problem('r20', `rule 20: the text family read dark at ${String(dark)} points, which no offered frame should reach`);
+  }
 
   // Rule 21, THE SHIPPED FRAME IS STILL THE DEFAULT. Shade 0 and depth 0
   // write nothing at all, which is the zero override guarantee this phase
@@ -770,13 +1370,19 @@ function pin(a) {
     }
   }
   for (const point of a.rampPoints) {
-    for (const [fg, bg, floor] of [...TEXT_FLOORS, ...CHROMATIC_FLOORS]) {
+    // Only at a frame the region OFFERS. On the dark base every named point
+    // is inside it; on paper the region is four cells and the named points
+    // walk past it on purpose, so a refused point's ratios are the refusal
+    // rather than a failure.
+    const row = REG[String(point.shade)];
+    if (row === undefined || point.depth < row[0] || point.depth > row[1]) continue;
+    for (const [fg, bg, floor] of [...TEXT_FLOORS, ...CHROMA]) {
       const r = wcagContrast(point.values[fg], point.values[bg]);
       if (r < floor) problem('r21r', `rule 21: at the ${point.name} frame ${fg} on ${bg} is ${r.toFixed(3)}:1, under ${String(floor)}`);
     }
   }
 
-  return problems;
+  return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -940,6 +1546,139 @@ try {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Rules 22 to 26, the scheme axis (Phase 213).
+  // -------------------------------------------------------------------------
+
+  const lightAnswer = shipping === undefined || 'error' in shipping ? undefined : shipping.light;
+  if (lightAnswer === undefined) {
+    fail('rule 22: the light base was not walked');
+  } else {
+    const lightProblems = pin(lightAnswer, 'light');
+    for (const problem of lightProblems) fail(problem);
+    if (lightProblems.length === 0) {
+      const normal = lightAnswer.circle.filter((s) => s.contrast === 'normal');
+      say(`${TAG} rule 22: the light base, walked by the same probe over the light block of tokens.css`);
+      say(`${TAG} rule 22: ${String(normal.length - 1)} hues each write the eight neutrals; the text follows the ground rather than staying put, because on paper it is dark and the dark side keeps the shipped ratio`);
+      const drifts = [];
+      for (const token of TEXT_TOKENS) {
+        let worst = 0;
+        for (const s of normal) worst = Math.max(worst, Math.abs(L(s.values[token]) - L(lightAnswer.shipped[token])));
+        drifts.push(`${token} ${worst.toFixed(4)}`);
+      }
+      say(`${TAG} rule 22: the largest OKLCH lightness the text moves over the whole circle is ${drifts.join(', ')}, which is under an eight bit level`);
+      const worst = new Map();
+      for (const s of lightAnswer.circle) {
+        for (const [fg, bg, floor] of [...TEXT_FLOORS, ...CHROMATIC_BY_SCHEME.light]) {
+          const ratio = wcagContrast(s.values[fg], s.values[bg]);
+          const key = `${fg} on ${bg}`;
+          const cur = worst.get(key);
+          if (cur === undefined || ratio < cur.ratio) worst.set(key, { ratio, hue: s.hue, contrast: s.contrast, floor });
+        }
+      }
+      for (const [key, w] of worst) {
+        const rule = key.startsWith('--status') ? 'rule 23' : 'rule 22';
+        say(`${TAG} ${rule}: ${key.padEnd(46)} worst ${w.ratio.toFixed(3)}:1 at ${String(w.hue)} ${w.contrast}, floor ${String(w.floor)}`);
+      }
+      let termWorst = null;
+      for (const s of lightAnswer.circle) {
+        for (const [key, hex] of Object.entries(s.terminal)) {
+          if (TERMINAL_EXEMPT.has(key)) continue;
+          const ratio = wcagContrast(hex, s.values['--bg-canvas']);
+          if (termWorst === null || ratio < termWorst.ratio) termWorst = { ratio, key, hue: s.hue };
+        }
+      }
+      say(`${TAG} rule 22: the light terminal palette, worst ${termWorst.ratio.toFixed(3)}:1 for ${termWorst.key} at ${String(termWorst.hue)}, floor 3`);
+      for (const [x, y, pinned] of HAIRLINES_BY_SCHEME.light) {
+        let lo = Infinity;
+        let hi = 0;
+        for (const s of normal) {
+          const r = wcagContrast(s.values[x], s.values[y]);
+          lo = Math.min(lo, r);
+          hi = Math.max(hi, r);
+        }
+        say(`${TAG} rule 22: ${x} on ${y} ${lo.toFixed(3)} to ${hi.toFixed(3)} over the circle, pinned ${String(pinned)}`);
+      }
+      const cellOk = new Map();
+      for (const c of lightAnswer.ramp) {
+        const key = `${String(c.shade)},${String(c.depth)}`;
+        if (!c.feasible || cellOk.get(key) === false) cellOk.set(key, false);
+        else if (!cellOk.has(key)) cellOk.set(key, true);
+      }
+      say(`${TAG} rule 22: the offered region on paper, shade down the side and depth across`);
+      say(`${TAG} rule 22:          ${lightAnswer.rampStops.depths.map((d) => String(d).padStart(5)).join('')}`);
+      for (const shadeStop of lightAnswer.rampStops.shades) {
+        const row = lightAnswer.rampStops.depths
+          .map((d) => (cellOk.get(`${String(shadeStop)},${String(d)}`) === true ? '   on' : '    .'))
+          .join('');
+        say(`${TAG} rule 22: shade ${String(shadeStop).padStart(2)}${row}`);
+      }
+      const edges = new Map();
+      for (const c of lightAnswer.ramp) {
+        if (c.feasible) continue;
+        const key = c.binding.split(' ').slice(0, 3).join(' ');
+        edges.set(key, (edges.get(key) ?? 0) + 1);
+      }
+      for (const [what, n] of [...edges.entries()].sort((x, y) => y[1] - x[1]).slice(0, 4)) {
+        say(`${TAG} rule 22: ${String(n).padStart(4)} refused cell(s) bind on ${what}`);
+      }
+      say(`${TAG} rule 22: shade -1 at depths -3 and -2 is refused by the TEAL arm alone, at hue 30, on --accent-text, which ships at 5.03:1 against a floor of 4.5 on paper; the three blue arms offer them, so the region has no shade -1 row and the two cells are named in this gate rather than left to a coarse walk`);
+      let points = 0;
+      let darkPoints = 0;
+      for (const c of lightAnswer.ramp) {
+        points += c.hues;
+        darkPoints += c.darkHues;
+      }
+      say(`${TAG} rule 22: rule 20 INVERTED. The text family reads dark at all ${String(darkPoints)} of ${String(points)} points on paper, so the flip Phase 210 could only reach on a synthetic ground is where this base lives`);
+    }
+  }
+
+  // Rules 24 and 25, over the shipping tree.
+  const facts = shipping === undefined || 'error' in shipping ? undefined : shipping.facts;
+  {
+    const problems = shipping === undefined || 'error' in shipping ? ['rule 24: the shipping tree did not run'] : pinFacts(shipping);
+    for (const problem of problems) fail(problem);
+    if (problems.length === 0) {
+      const t = facts.terminal;
+      const sha = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+      let worstDelta = Infinity;
+      let darkDelta = Infinity;
+      let worstNormal = Infinity;
+      let worstBright = Infinity;
+      for (const name of ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan']) {
+        const bright = `bright${name[0].toUpperCase()}${name.slice(1)}`;
+        worstDelta = Math.min(worstDelta, deltaE(t.followedLight[name], t.followedLight[bright]));
+        darkDelta = Math.min(darkDelta, deltaE(t.followedDark[name], t.followedDark[bright]));
+        worstNormal = Math.min(worstNormal, wcagContrast(t.followedLight[name], '#f5f7fa'));
+        worstBright = Math.min(worstBright, wcagContrast(t.followedLight[bright], '#f5f7fa'));
+      }
+      say(`${TAG} rule 24: the terminal ground ${String(t.dark.background)} to ${String(t.light.background)}, all ${String(Object.keys(t.light).length)} slots moved, xterm's floor ${String(t.floorDark)} to ${String(t.floorLight)}`);
+      say(`${TAG} rule 24: on paper the six chromatic slots read ${worstNormal.toFixed(2)}:1 at worst and their bright twins ${worstBright.toFixed(2)}:1, dE2000 ${worstDelta.toFixed(2)} apart at the tightest, where research 80 read the vendors at 0 to 6.4 and the shipped dark sixteen read ${darkDelta.toFixed(2)}`);
+      say(`${TAG} rule 24: Monaco ${String(facts.monaco.dark.base)} to ${String(facts.monaco.light.base)}, ground ${String(facts.monaco.dark.colors['editor.background'])} to ${String(facts.monaco.light.colors['editor.background'])}`);
+      say(`${TAG} rule 24: Pierre ${String(facts.pierre.pair.dark)} (${String(facts.pierre.darkType)}) and ${String(facts.pierre.pair.light)} (${String(facts.pierre.lightType)}) are both named in the theme pair, so the diff follows the root; the tree host carries ${String(facts.pierre.treeKeys.length)} keys and no colorScheme`);
+      say(`${TAG} rule 24: the window fill ${String(facts.windowFill.dark)} to ${String(facts.windowFill.light)} at hue 222, ${String(facts.windowFill.darkAt40)} to ${String(facts.windowFill.lightAt40)} at hue 40`);
+      say(`${TAG} rule 25: DARK IS BYTE IDENTICAL to the parent 02fd5ed. tokens ${facts.tokensSha.dark.slice(0, 12)}, terminal ${sha(facts.terminal.dark).slice(0, 12)}, Monaco ${sha(facts.monaco.dark).slice(0, 12)}, Pierre ${facts.pierre.darkSha.slice(0, 12)}, fill ${String(facts.windowFill.dark)} and ${String(facts.windowFill.darkAt40)}, xterm floor ${String(facts.terminal.floorDark)}`);
+      say(`${TAG} rule 25: and the light base is a different set of bytes throughout: tokens ${facts.tokensSha.light.slice(0, 12)}, terminal ${sha(facts.terminal.light).slice(0, 12)}, Monaco ${sha(facts.monaco.light).slice(0, 12)}, Pierre ${facts.pierre.lightSha.slice(0, 12)}`);
+    }
+  }
+
+  // Rule 26. No dark literal survives.
+  {
+    const found = scanLiterals(join(repoRoot, 'src'));
+    for (const hit of found) fail(`rule 26: ${hit}`);
+    const fixtures = literalFixtures(join(scratch, 'literal-fixtures'));
+    let behaved = 0;
+    for (const f of fixtures) {
+      const hits = scanLiterals(f.root);
+      const ok = f.shouldFail ? hits.length > 0 : hits.length === 0;
+      if (ok) behaved += 1;
+      else fail(`rule 26: the fixture "${f.name}" ${f.shouldFail ? 'walked past the scan' : `turned it red: ${hits[0]}`}`);
+    }
+    if (found.length === 0 && behaved === fixtures.length) {
+      say(`${TAG} rule 26: no colour literal outside the six theme constant places and the four named exemptions, over ${String(countScanned(join(repoRoot, 'src')))} files; ${String(behaved)} fixtures behaved, ${String(fixtures.filter((f) => f.shouldFail).length)} of which must make the scan fail`);
+    }
+  }
+
   // Rule 13. A copy that did not run is not a red pin, it is a gate that
   // proved nothing, so it fails by name.
   for (const [i, ablation] of ABLATIONS.entries()) {
@@ -948,11 +1687,17 @@ try {
       fail(`rule 13: with ${ablation.name} ablated, the copy did not run: ${answer?.error ?? 'no answer'}`);
       continue;
     }
+    // BOTH BASES (Phase 213). An ablation of a light clause turns nothing red
+    // on the dark base and would read as a gate that cannot fail; an ablation
+    // of a shared clause turns both red, which is the honest reading.
     const red = pin(answer);
-    if (red.length === 0) {
-      fail(`rule 13: with ${ablation.name} ablated, every pin still passed, so the pins cannot fail`);
+    const redLight = answer.light === undefined ? ['the light base was not walked'] : pin(answer.light, 'light');
+    const redFacts = pinFacts(answer);
+    const all = [...redFacts, ...red.map((r) => `dark: ${r}`), ...redLight.map((r) => `light: ${r}`)];
+    if (all.length === 0) {
+      fail(`rule 13: with ${ablation.name} ablated, every pin still passed on BOTH bases and in the surfaces, so the pins cannot fail`);
     } else {
-      say(`${TAG} rule 13: with ${ablation.name} ablated, ${String(red.length)} pin(s) went red, the first being: ${red[0].slice(0, 150)}`);
+      say(`${TAG} rule 13: with ${ablation.name} ablated, ${String(red.length)} dark, ${String(redLight.length)} light and ${String(redFacts.length)} surface pin(s) went red, the first being: ${all[0].slice(0, 150)}`);
     }
   }
 
@@ -969,4 +1714,4 @@ if (failed > 0) {
   console.error(`${TAG} ${String(failed)} failure(s)`);
   process.exit(1);
 }
-say(`${TAG} OK: every pinned ratio at all 360 hues and three contrast levels, lightness held, the offset kept, the ramp in order, one threshold with one crossing over the synthetic ground, the offered region exact over 49 shade and depth pairs at every whole degree, the ramp never inverting at any of them, the control refusing what this gate refuses, ${String(ABLATIONS.length)} ablations each red, the gate named`);
+say(`${TAG} OK: every pinned ratio at all 360 hues and three contrast levels ON BOTH BASES, lightness held, the offset kept, each base's ramp in its own order, one threshold with one crossing over the synthetic ground, each base's offered region exact over 49 shade and depth pairs at every whole degree, the status dots clearing the active row on paper, every non token surface carrying a second theme, DARK BYTE IDENTICAL to the parent by four digests, no colour literal outside the six theme constant places, the control refusing what this gate refuses, ${String(ABLATIONS.length)} ablations each red, the gate named`);

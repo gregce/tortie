@@ -43,8 +43,10 @@
  * name to answer, an answer being either the readings or { error }.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { converter, parse, wcagLuminance } from 'culori';
 
@@ -130,6 +132,7 @@ function schemeBlock(css: string, scheme: 'dark' | 'light'): string {
   return close === -1 ? '' : css.slice(start + head.length, close);
 }
 const declarations = readDeclarations(schemeBlock(tokensCss, 'dark'));
+const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
 function declarationsFor(root: string, scheme: 'dark' | 'light'): Map<string, string> {
   const css = tokensCssFor(root);
   if (scheme === 'dark') return readDeclarations(schemeBlock(css, 'dark'));
@@ -746,13 +749,32 @@ async function readRoot(
  * not evaluate.
  */
 interface Facts {
-  terminal: { dark: Record<string, string>; light: Record<string, string>; floorDark: number; floorLight: number };
+  terminal: {
+    dark: Record<string, string>;
+    light: Record<string, string>;
+    /** The palette IN EFFECT at each base's own shipped ground. */
+    followedDark: Record<string, string>;
+    followedLight: Record<string, string>;
+    floorDark: number;
+    floorLight: number;
+  };
   monaco: {
     dark: { base: string; colors: Record<string, string>; rules: { token: string; foreground?: string }[] };
     light: { base: string; colors: Record<string, string>; rules: { token: string; foreground?: string }[] };
   } | null;
   windowFill: { dark: string; light: string; darkAt40: string; lightAt40: string };
-  pierre: { darkType: string | null; lightType: string | null; lightBg: string | null; lightFg: string | null; pair: string[] } | null;
+  pierre: {
+    darkType: string | null;
+    lightType: string | null;
+    darkSha: string;
+    lightSha: string;
+    lightBg: string | null;
+    lightFg: string | null;
+    pair: { dark: string; light: string };
+    treeKeys: string[];
+  } | null;
+  /** sha256 of each base's own block of tokens.css, dark first. */
+  tokensSha: { dark: string; light: string };
 }
 
 async function readFacts(
@@ -762,6 +784,18 @@ async function readFacts(
   const terminal = await load('renderer/terminal/theme.ts');
   const hueMod = await load('shared/chrome-hue.ts');
   const floorFor = terminal['terminalContrastFloorFor'] as ((s: string) => number) | undefined;
+  const textFor = terminal['terminalTextFor'] as (
+    canvas: string,
+    dark: boolean,
+    scheme?: string
+  ) => Record<string, string>;
+  const followed = (canvas: string, dark: boolean, scheme: string): Record<string, string> => {
+    try {
+      return textFor(canvas, dark, scheme);
+    } catch {
+      return {};
+    }
+  };
   const fill = hueMod['windowBackgroundFor'] as (h: number, s?: number, d?: number, scheme?: string) => string;
   let monaco: Facts['monaco'] = null;
   try {
@@ -779,29 +813,16 @@ async function readFacts(
   } catch {
     monaco = null;
   }
-  let pierre: Facts['pierre'] = null;
-  const bridgePath = resolve(root, 'renderer', 'pierre', 'theme-bridge.ts');
-  const bridgeFile = existsSync(bridgePath)
-    ? bridgePath
-    : resolve(repoRoot, 'src', 'renderer', 'pierre', 'theme-bridge.ts');
-  if (existsSync(bridgeFile)) {
-    const text = readFileSync(bridgeFile, 'utf8');
-    const lightBlock = /gmuxLightTheme[^;]*?gmuxTheme\(([\s\S]*?)\);/.exec(text)?.[1] ?? '';
-    const darkBlock = /gmuxDarkTheme[^;]*?gmuxTheme\(([\s\S]*?)\);/.exec(text)?.[1] ?? '';
-    const typeIn = (block: string): string | null => /'(dark|light)'/.exec(block.replace(/'Tortie (dark|light)'/, ''))?.[1] ?? null;
-    const pair = /export const diffTheme[^{]*\{([\s\S]*?)\}/.exec(text)?.[1] ?? '';
-    pierre = {
-      darkType: typeIn(darkBlock),
-      lightType: typeIn(lightBlock),
-      lightBg: /bgCanvas:\s*'(#[0-9a-f]{6})'/i.exec(text.slice(text.indexOf('const PL')))?.[1] ?? null,
-      lightFg: /fg:\s*'(#[0-9a-f]{6})'/i.exec(text.slice(text.indexOf('const SL')))?.[1] ?? null,
-      pair: [...pair.matchAll(/(dark|light):\s*([A-Z_]+)/g)].map((m) => `${m[1]}=${m[2]}`)
-    };
-  }
+  const pierre = await readPierre(root);
   return {
     terminal: {
       dark: (terminal['terminalTheme'] as Record<string, string>) ?? {},
       light: (terminal['terminalThemeLight'] as Record<string, string>) ?? {},
+      // What the pane really gets at each base's own shipped canvas. The
+      // constants above are the table; this is the table AFTER the follow,
+      // which is the thing a change to either could quietly replace.
+      followedDark: followed('#131417', false, 'dark'),
+      followedLight: followed('#f5f7fa', true, 'light'),
       floorDark: floorFor === undefined ? Number.NaN : floorFor('dark'),
       floorLight: floorFor === undefined ? Number.NaN : floorFor('light')
     },
@@ -812,8 +833,72 @@ async function readFacts(
       darkAt40: fill(40, 0, 0, 'dark'),
       lightAt40: fill(40, 0, 0, 'light')
     },
-    pierre
+    pierre,
+    tokensSha: {
+      dark: sha256(schemeBlock(tokensCssFor(root), 'dark')),
+      light: sha256(schemeBlock(tokensCssFor(root), 'light'))
+    }
   };
+}
+
+/**
+ * THE PIERRE BRIDGE, EVALUATED (Phase 213) rather than read with a regular
+ * expression, because what this gate pins is that the DARK diff theme is the
+ * same object it was before the light one existed, and a pattern over source
+ * text cannot say that about an object a factory now composes.
+ *
+ * The module imports two vendor packages whose `exports` maps node refuses,
+ * so a copy is made with those two specifiers rewritten to stubs of this
+ * file's own: `registerCustomTheme` does nothing, which is exactly what it
+ * does here anyway since the registry is Shiki's, and `themeToTreeStyles`
+ * answers the ONE key this gate reads back, the `colorScheme` the mapper
+ * writes from the theme's type. Everything else in the module is its own
+ * constants, so the two themes and the theme pair are the real objects. The
+ * copy is removed in a finally block.
+ */
+async function readPierre(root: string): Promise<Facts['pierre']> {
+  const own = resolve(root, 'renderer', 'pierre', 'theme-bridge.ts');
+  const file = existsSync(own)
+    ? own
+    : resolve(repoRoot, 'src', 'renderer', 'pierre', 'theme-bridge.ts');
+  if (!existsSync(file)) return null;
+  const dir = mkdtempSync(join(tmpdir(), 'gmux-p213-pierre-'));
+  try {
+    writeFileSync(join(dir, 'diffs-stub.mjs'), 'export const registerCustomTheme = () => {};\n');
+    writeFileSync(
+      join(dir, 'trees-stub.mjs'),
+      'export const themeToTreeStyles = (theme) => ({ colorScheme: theme.type });\n'
+    );
+    writeFileSync(
+      join(dir, 'bridge.ts'),
+      readFileSync(file, 'utf8')
+        .replace(/from '@pierre\/diffs'/g, "from './diffs-stub.mjs'")
+        .replace(/from '@pierre\/trees'/g, "from './trees-stub.mjs'")
+    );
+    const mod = (await import(pathToFileURL(join(dir, 'bridge.ts')).href)) as Record<string, unknown>;
+    const dark = mod['gmuxDarkTheme'] as { type?: string } | undefined;
+    const light = mod['gmuxLightTheme'] as { type?: string } | undefined;
+    const pair = (mod['diffTheme'] ?? {}) as { dark?: string; light?: string };
+    const tree = (mod['treeStyles'] ?? {}) as Record<string, string>;
+    const colours = (name: string): string | null => {
+      const theme = mod[name] as { colors?: Record<string, string> } | undefined;
+      return theme?.colors?.['editor.background'] ?? null;
+    };
+    return {
+      darkType: dark?.type ?? null,
+      lightType: light?.type ?? null,
+      darkSha: sha256(JSON.stringify(dark ?? null)),
+      lightSha: sha256(JSON.stringify(light ?? null)),
+      lightBg: colours('gmuxLightTheme'),
+      lightFg: (light as { fg?: string } | undefined)?.fg ?? null,
+      pair: { dark: pair.dark ?? '', light: pair.light ?? '' },
+      treeKeys: Object.keys(tree).sort()
+    };
+  } catch {
+    return null;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 const answers: Record<string, unknown> = {};
