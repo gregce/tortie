@@ -266,9 +266,12 @@ const ABLATIONS = [
     name: 'the frame carried whole across a scheme change',
     file: 'renderer/theme/frame-stops.ts',
     edits: [
+      // The copy still LOADS and still answers; it just answers the frame it
+      // was handed. A copy that fails to load would turn the rule red for
+      // the wrong reason and prove nothing about the arithmetic.
       [
-        "  if (frameIsOffered(shade, depth, scheme)) {\n    return { chromeHue: choice.chromeHue, chromeShade: shade, chromeDepth: depth };\n  }",
-        "  return { chromeHue: choice.chromeHue, chromeShade: shade, chromeDepth: depth };\n  if (false) {"
+        '  if (frameIsOffered(shade, depth, scheme)) {',
+        '  if (frameIsOffered(shade, depth, scheme) || true) {'
       ]
     ]
   },
