@@ -58,6 +58,21 @@ export interface KeptRecord {
   from: string | null;
   /** Epoch ms this record was taken. */
   at: number;
+  /**
+   * The ONE digest this slot was brought forward past, or null (committer's
+   * round of Phase 211).
+   *
+   * A slot mirrors its store. When the same account is found elsewhere with
+   * NEWER bytes, the slot is brought up to those bytes while its own store
+   * still holds the old ones, and without this field the next observe of that
+   * store would mirror the old bytes straight back and the newer ones would be
+   * gone. So the observe refuses to mirror exactly this digest, and choosing
+   * the login writes the newer bytes into its store instead. It is one digest
+   * and never a list, because only the bytes the slot moved past are known to
+   * be stale; anything else the store comes to hold is the vendor's newer word.
+   * Optional in the type so a record written before it existed reads as null.
+   */
+  superseded?: string | null;
 }
 
 /** The record file's whole shape. */
@@ -133,6 +148,7 @@ export function readKeptFile(root: string): KeptFileRead {
     const account = row['account'];
     const from = row['from'];
     const at = row['at'];
+    const superseded = row['superseded'];
     out.slots[slot] = {
       email: typeof email === 'string' && email.length > 0 ? email : null,
       // A ROW WRITTEN BEFORE THIS FIELD EXISTED reads as "no subject", which
@@ -148,7 +164,10 @@ export function readKeptFile(root: string): KeptFileRead {
       // A SLOT NAME OR NOTHING. It is half of a keychain service name in every
       // other field that holds one, so it is asked the same question here.
       from: isSlotName(from) ? from : null,
-      at: typeof at === 'number' && Number.isFinite(at) ? at : 0
+      at: typeof at === 'number' && Number.isFinite(at) ? at : 0,
+      // A DIGEST OR NOTHING, by the same rule as the digest above.
+      superseded:
+        typeof superseded === 'string' && DIGEST_RE.test(superseded) ? superseded : null
     };
   }
   return { file: out, problems };

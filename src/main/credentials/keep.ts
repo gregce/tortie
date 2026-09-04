@@ -32,17 +32,20 @@
  * session runs, held under Claude Code's own credential locks (`./locks.ts`) so
  * it never lands inside a token refresh, and it writes the vendor's own default
  * location when a session of the provider is running under the default login,
- * because that session reads it. The observe still runs first, so the account a
- * switch writes over is kept and promoted before a byte moves. Observe itself
- * still writes only Tortie's own store.
+ * because that session reads it. Observe itself still writes only Tortie's
+ * own store.
  *
  * ## THE ORDER INSIDE A SWITCH, and it is what makes a switch reversible
  *
- * Activate observes FIRST. So whatever is in the store about to be written has
- * already been captured, and if it was a different account it already has a
- * login of its own. Only then is the kept credential written in. That is why
- * every ordered pair of accounts can be switched and switched back with
- * neither of them lost.
+ * Activate observes first, so every row is current. Then, for each store it
+ * writes, it takes the vendor's locks and ONLY THEN reads the store, keeps
+ * what it read, promotes the account about to be written over into a login of
+ * its own, writes, and releases. Nothing a write acts on was read before the
+ * lock was held, which the committer's round of Phase 211 made the rule after
+ * the verifier lost a refresh on the far side of the lock. That is why every
+ * ordered pair of accounts can be switched and switched back with neither of
+ * them lost, and why a refresh that lands while a switch waits is the copy
+ * that survives. `liftStore` carries the order.
  */
 
 import type { LoginProviderId } from '@shared/logins';
@@ -69,15 +72,11 @@ import {
   forgetStore,
   readSettledStore,
   storeTarget,
-  type StoreDeps
+  type StoreDeps,
+  type StoreReading
 } from './stores';
-import { safeSwap, type SwapResult, type SwapStep, type SwapTarget } from './swap';
-import {
-  LockHeld,
-  withClaudeCredentialLocks,
-  withCodexNoLock,
-  type LockDeps
-} from './locks';
+import { safeSwap, type SwapStep } from './swap';
+import { LockHeld, takeVendorLocks, type LockDeps, type LockHandle } from './locks';
 import {
   DEFAULT_SLOT_ID,
   isSlotName,
@@ -398,57 +397,17 @@ async function observeOnce(
       facts.set(key, await factsFromSlot(d, provider, store.id, null));
       continue;
     }
-    const digest = credentialDigest(reading.payload);
-    if (before !== undefined && before.digest === digest) {
-      facts.set(key, await factsFromSlot(d, provider, store.id, digest));
-      continue;
-    }
-    // THE STORE HOLDS DIFFERENT BYTES THAN TORTIE LAST SAW. Either the vendor
-    // refreshed the token of the account that was already there, or a person
-    // typed `/login` and a DIFFERENT account is in it now. Only the second
-    // loses an account, and the account that was there is kept unless Tortie
-    // can PROVE it is looking at the first. See {@link sameAccountProven}.
-    if (before !== undefined && !sameAccountProven(before, reading)) {
-      const promoted = await promoteOutgoing(d, provider, slot, before, kept, changed);
-      if (promoted.event !== null) events.push(promoted.event);
-    }
-    const write = await vaultPut(d.vault, slot, reading.payload);
-    if (!write.ok) {
-      events.push({
-        kind: 'refused',
-        provider,
-        login: store.name,
-        says: write.reason
-      });
-      facts.set(key, await factsFromSlot(d, provider, store.id, digest));
-      continue;
-    }
-    kept.slots[slot] = {
-      email: reading.email,
-      subject: reading.subject,
-      digest,
-      account: reading.account,
-      // CAPTURED IN PLACE, so it came out of no other slot.
-      from: null,
-      at: d.now()
-    };
-    changed[slot] = kept.slots[slot];
-    events.push({
-      kind: 'kept',
+    const captured = await captureReading(
+      d,
       provider,
-      login: store.name,
-      says:
-        reading.email === null
-          ? 'Tortie kept this sign in so it can be put back.'
-          : `Tortie kept ${reading.email} so it can be put back.`
-    });
-    facts.set(key, {
-      kept: store.id !== null,
-      // IT IS ALREADY IN PLACE, because Tortie just captured it FROM this
-      // store. So choosing this login puts nothing back and the row says so.
-      restores: false,
-      email: reading.email
-    });
+      store,
+      before,
+      { ...reading, payload: reading.payload },
+      kept,
+      changed,
+      events
+    );
+    facts.set(key, captured.facts);
   }
   // THE RECORD IS WRITTEN BEFORE THE ROWS ARE FILLED IN, and the order is not
   // a style. `factsFromSlot` reads the record FILE, so a login promoted a
@@ -471,6 +430,99 @@ async function observeOnce(
     facts.set(row.id, await factsFromSlot(d, provider, row.id, null));
   }
   return { events, facts };
+}
+
+/**
+ * Bring one slot up to date with what its store was just read to hold, and
+ * answer the row's facts. This is the body of an observe for one store.
+ *
+ * IT IS ONE FUNCTION BECAUSE IT IS CALLED FROM TWO PLACES (committer's round
+ * of Phase 211). The observe walks every store through it. The lift in
+ * {@link liftStore} calls it again for the ONE store it is about to write,
+ * from INSIDE the vendor's locks, so bytes that landed between the observe
+ * and the lock, being a refreshed token or a whole new sign in, are kept
+ * before anything is written over them. Two copies of this body would be two
+ * captures that could disagree about what a change is.
+ */
+/** What one capture did, beside the row it answers. */
+interface Capture {
+  facts: KeptFacts;
+  took: 'unchanged' | 'superseded' | 'mirrored' | 'refused';
+}
+
+async function captureReading(
+  d: KeepDeps,
+  provider: LoginProviderId,
+  store: { id: string | null; name: string },
+  before: KeptRecord | undefined,
+  reading: StoreReading & { payload: string },
+  kept: { slots: Record<string, KeptRecord> },
+  changed: Record<string, KeptRecord>,
+  events: KeepEvent[]
+): Promise<Capture> {
+  const slot = slotOf(provider, store.id);
+  const digest = credentialDigest(reading.payload);
+  if (before !== undefined && before.digest === digest) {
+    return { facts: await factsFromSlot(d, provider, store.id, digest), took: 'unchanged' };
+  }
+  if (before !== undefined && (before.superseded ?? null) === digest) {
+    // THE STORE STILL HOLDS THE BYTES THIS SLOT MOVED PAST. The slot was
+    // brought up to newer bytes of the same account found elsewhere, and its
+    // store has not been written since. Mirroring the store now would put the
+    // stale bytes back over the fresh ones, which is the verifier's round
+    // trip. The row draws as restorable instead, and choosing it writes the
+    // fresh bytes into the store. See `KeptRecord.superseded`.
+    return { facts: await factsFromSlot(d, provider, store.id, digest), took: 'superseded' };
+  }
+  // THE STORE HOLDS DIFFERENT BYTES THAN TORTIE LAST SAW. Either the vendor
+  // refreshed the token of the account that was already there, or a person
+  // typed `/login` and a DIFFERENT account is in it now. Only the second
+  // loses an account, and the account that was there is kept unless Tortie
+  // can PROVE it is looking at the first. See {@link sameAccountProven}.
+  if (before !== undefined && !sameAccountProven(before, reading)) {
+    const promoted = await promoteOutgoing(d, provider, slot, before, kept, changed);
+    if (promoted.event !== null) events.push(promoted.event);
+  }
+  const write = await vaultPut(d.vault, slot, reading.payload);
+  if (!write.ok) {
+    events.push({
+      kind: 'refused',
+      provider,
+      login: store.name,
+      says: write.reason
+    });
+    return { facts: await factsFromSlot(d, provider, store.id, digest), took: 'refused' };
+  }
+  kept.slots[slot] = {
+    email: reading.email,
+    subject: reading.subject,
+    digest,
+    account: reading.account,
+    // CAPTURED IN PLACE, so it came out of no other slot.
+    from: null,
+    at: d.now(),
+    superseded: null
+  };
+  changed[slot] = kept.slots[slot];
+  events.push({
+    kind: 'kept',
+    provider,
+    login: store.name,
+    says:
+      reading.email === null
+        ? 'Tortie kept this sign in so it can be put back.'
+        : `Tortie kept ${reading.email} so it can be put back.`
+  });
+  return {
+    facts: {
+      kept: store.id !== null,
+      // IT IS ALREADY IN PLACE, because Tortie just captured it FROM this
+      // store. So choosing this login puts nothing back and the row says so.
+      restores: false,
+      email: reading.email
+    },
+    took: 'mirrored'
+  };
 }
 
 /**
@@ -686,7 +738,9 @@ async function promoteOutgoing(
   for (const [other, row] of Object.entries(kept.slots)) {
     if (other === slot) continue;
     if (row.digest === before.digest) return { held: true, event: null };
-    if (sameAccountProven(row, before)) return { held: true, event: null };
+    if (sameAccountProven(row, before)) {
+      return freshenHeld(d, other, row, before, payload, kept, changed);
+    }
   }
   // AN UNNAMED CHAIN REUSES ITS OWN EARLIER LOGIN rather than minting one per
   // token refresh. See {@link reusableChainLogin} for what it refuses to reuse.
@@ -710,7 +764,8 @@ async function promoteOutgoing(
     digest: before.digest,
     account: before.account,
     from: slot,
-    at: d.now()
+    at: d.now(),
+    superseded: null
   };
   kept.slots[reuse.slot] = record;
   changed[reuse.slot] = record;
@@ -754,10 +809,63 @@ async function mintPromotion(
     // WHERE IT CAME FROM, which is what lets a later unnamed change at the
     // same store find this login instead of minting another beside it.
     from: slot,
-    at: d.now()
+    at: d.now(),
+    superseded: null
   };
   changed[newSlot] = kept.slots[newSlot];
   return { held: true, event: promotedEvent(provider, added.name, before.email) };
+}
+
+/**
+ * The SAME account is already held in another slot, with different bytes.
+ * Bring that copy up to date when the bytes being promoted are newer
+ * (committer's round of Phase 211, the verifier's F2).
+ *
+ * ## THE LOSS THIS ANSWERS
+ *
+ * A token refresh consumes the refresh token it was made with, so of two
+ * copies of one account only the newer one can refresh again. The lift
+ * promotes the default slot's account before writing over it, and that
+ * account is usually held already, in the login it was chosen from. Answering
+ * "held" and moving on left the login's copy as it was first captured, and
+ * the refreshed bytes the running session had just saved into the default
+ * store existed nowhere once the default slot moved on. Driven by the verifier
+ * as a round trip, work to alice to work: the session got the pre refresh
+ * token back, and the refreshed one was gone.
+ *
+ * ## WHICH COPY WINS
+ *
+ * The one captured LATER, by the record's own `at`, and on a tie the bytes
+ * being promoted, because they were just read out of the store a session is
+ * using. A held copy captured strictly later is left alone: that is a session
+ * running under the held login refreshing its own store, and its bytes are
+ * the ones that can still refresh.
+ *
+ * A copy that cannot be written is still held, with the older bytes, which is
+ * an account that is not lost, so the answer is still held.
+ */
+async function freshenHeld(
+  d: KeepDeps,
+  other: string,
+  row: KeptRecord,
+  before: KeptRecord,
+  payload: string,
+  kept: { slots: Record<string, KeptRecord> },
+  changed: Record<string, KeptRecord>
+): Promise<Promotion> {
+  if (row.at > before.at) return { held: true, event: null };
+  const write = await vaultPut(d.vault, other, payload);
+  if (!write.ok) return { held: true, event: null };
+  // THE DIGEST MOVED PAST IS REMEMBERED, so the next observe of that slot's
+  // own store, which still holds it, does not mirror it straight back.
+  kept.slots[other] = {
+    ...row,
+    digest: before.digest,
+    at: before.at,
+    superseded: row.digest
+  };
+  changed[other] = kept.slots[other];
+  return { held: true, event: null };
 }
 
 function promotedEvent(
@@ -809,39 +917,26 @@ function isDefaultLogin(login: string | null): boolean {
 }
 
 /**
- * The one write in activate, held under Claude Code's own locks (Phase 211).
+ * Take the vendor's locks for one store, or say why not (Phase 211).
  *
- * A CLAUDE WRITE HOLDS THE LOCKS AND A CODEX WRITE HOLDS NONE, and the split is
- * a decision in the code rather than an omission: `./locks.ts` carries the
- * whole reason. `configHome` is the directory Claude Code's lock directories
- * live under, being the login's own directory for a login Tortie made and the
- * vendor's default config home for the default store. The lock is released in
- * the helper's own `finally` whatever the write did.
+ * A LOCK THAT STAYED HELD IS A REFUSAL, NOT A THROW (Phase 211 fix round).
+ * The verifier held the lock past the wait and watched `LockHeld` leave
+ * activate uncaught: the registrar caught it, recorded the choice anyway, and
+ * the face said the login was switched while nothing had been written. The
+ * sentence names the lock and never a payload, and it is the one a person
+ * reads. `configHome` is the directory Claude Code's lock directories live
+ * under, being the login's own directory for a login Tortie made and the
+ * vendor's default config home for the default store. A codex store takes no
+ * lock, and `./locks.ts` carries the reason.
  */
-async function writeUnderLock(
+async function takeLocksOrRefuse(
   provider: LoginProviderId,
   configHome: string,
-  target: SwapTarget,
-  payload: string,
-  stopAfter: SwapStep | undefined,
   lockDeps: LockDeps | undefined
-): Promise<SwapResult> {
+): Promise<{ ok: true; held: LockHandle } | { ok: false; reason: string }> {
   try {
-    if (provider === 'claude') {
-      return await withClaudeCredentialLocks(
-        configHome,
-        () => safeSwap(target, payload, stopAfter),
-        lockDeps
-      );
-    }
-    return await withCodexNoLock(() => safeSwap(target, payload, stopAfter));
+    return { ok: true, held: await takeVendorLocks(provider, configHome, lockDeps) };
   } catch (err) {
-    // A LOCK THAT STAYED HELD IS A REFUSAL, NOT A THROW (Phase 211 fix round).
-    // The verifier held the lock past the wait and watched `LockHeld` leave
-    // this function uncaught: the registrar caught it, recorded the choice
-    // anyway, and the face said the login was switched while nothing had been
-    // written. The sentence names the lock and never a payload, and it is the
-    // one a person reads.
     if (err instanceof LockHeld) return { ok: false, reason: err.message };
     return {
       ok: false,
@@ -864,13 +959,13 @@ async function writeUnderLock(
  *  - THE RUNNING SESSION REFUSAL IS GONE. The write now happens, held under
  *    Claude Code's own credential locks so it never lands inside a token
  *    refresh, and the running session picks the swapped credential up on its
- *    own once the vendor's keychain cache expires, measured at about half a
- *    minute. `Restart now` on the card is the instant path.
+ *    own once the vendor's keychain cache expires, which the bundle puts at
+ *    half a minute. `Restart now` on the card is the instant path.
  *  - THE DEFAULT STORE IS WRITTEN when a session of the provider is running
  *    under the default login, because that session reads the vendor's own
- *    location. The observe below runs FIRST, so whatever account was in that
- *    store is already kept and promoted before a byte moves, which is what
- *    keeps the switch reversible.
+ *    location. Whatever account is in that store is kept and promoted INSIDE
+ *    the locks, before a byte moves, which is what keeps the switch
+ *    reversible; {@link liftStore} carries the order and the reason for it.
  *
  * `stopAfter` exists for the gate alone and the product never passes it.
  */
@@ -888,8 +983,9 @@ export async function activateLogin(
   stopAfter?: SwapStep
 ): Promise<ActivateResult> {
   // THE OBSERVE IS FIRST, WHATEVER IS CHOSEN. It keeps and promotes the account
-  // currently in every store this provider has, so the account a switch is
-  // about to write over already has a login of its own.
+  // currently in every store this provider has, so the rows a surface draws
+  // after this are current. It is NOT what keeps the account a switch writes
+  // over: that is done again, inside the locks, by the lift below.
   await observeProvider(d, provider);
 
   if (isDefaultLogin(name)) {
@@ -926,42 +1022,41 @@ export async function activateLogin(
   const digest = credentialDigest(payload);
 
   let wrote = false;
+  let says: string | null = null;
   let firstProblem: string | null = null;
 
   // 1. THE LOGIN'S OWN STORE, so a session already running under this login and
-  //    every new session launched under it get the account. Skipped when the
-  //    store already holds it, which is the ordinary re-choose.
-  const ownLive = await readSettledStore(d.stores, provider, dir);
-  const ownHolds =
-    ownLive !== null &&
-    ownLive.payload !== null &&
-    credentialDigest(ownLive.payload) === digest;
-  if (!ownHolds) {
-    const target = await storeTarget(d.stores, provider, dir);
-    if (target === null) {
-      return { ok: false, reason: 'Tortie refused to write that sign in location.' };
-    }
-    const done = await writeUnderLock(
-      provider,
-      claudeConfigDirFor(d.stores, dir),
-      target,
-      payload,
-      stopAfter,
-      d.lockDeps
-    );
-    if (!done.ok) return { ok: false, reason: done.reason };
-    wrote = true;
-  }
+  //    every new session launched under it get the account. Nothing moves when
+  //    the store already holds it, which is the ordinary re-choose.
+  const own = await liftStore(
+    d,
+    provider,
+    { id: row.id, dir, name: row.name },
+    slot,
+    payload,
+    digest,
+    stopAfter
+  );
+  if (!own.ok) return { ok: false, reason: own.reason };
+  if (own.wrote) wrote = true;
+  else says = own.says ?? null;
 
   // 2. THE DEFAULT LIFT (Phase 211). A session of this provider running under
   //    the default login reads the vendor's own location, so the chosen account
   //    is put THERE too and that running session follows. The account that is
   //    in the default store is given a login of its own BEFORE a byte moves,
-  //    inside {@link liftDefaultStore}, and the reason it cannot be left to the
-  //    observe above is the fix round's own finding.
+  //    inside the same {@link liftStore}, under the vendor's locks.
   const running = await d.liveSessions().catch((): LiveSession[] => []);
   if (running.some((s) => s.provider === provider && isDefaultLogin(s.login))) {
-    const lifted = await liftDefaultStore(d, provider, slot, payload, digest, stopAfter);
+    const lifted = await liftStore(
+      d,
+      provider,
+      { id: null, dir: null, name: DEFAULT_LOGIN_NAME },
+      slot,
+      payload,
+      digest,
+      stopAfter
+    );
     if (lifted.ok) {
       if (lifted.wrote) wrote = true;
     } else if (firstProblem === null) {
@@ -971,7 +1066,7 @@ export async function activateLogin(
 
   if (!wrote) {
     return firstProblem === null
-      ? { ok: true, wrote: false, says: 'That account is already in place.' }
+      ? { ok: true, wrote: false, says: says ?? 'That account is already in place.' }
       : { ok: false, reason: firstProblem };
   }
   if (firstProblem !== null) {
@@ -987,112 +1082,183 @@ export async function activateLogin(
   return { ok: true, wrote: true, says: `${row.name} is signed in again.` };
 }
 
+/** One store a switch can write, as the lift sees it. */
+interface LiftedStore {
+  /** The login id, or null for the person's own default location. */
+  id: string | null;
+  dir: string | null;
+  name: string;
+}
+
+type LiftResult =
+  | { ok: true; wrote: boolean; says?: string }
+  | { ok: false; reason: string };
+
 /**
- * Write the chosen account into the vendor's own default location, keeping
- * the account that is there first (Phase 211, rewritten by the fix round).
+ * Put the chosen account into ONE store, under the vendor's locks, keeping
+ * whatever is in it first (Phase 211, rewritten by the fix round and again by
+ * the committer's round).
  *
- * ## THE FINDING, re-derived rather than described
+ * ## THE FINDING, and why the read is inside the lock
  *
- * As first built the lift trusted the observe that runs at the top of
- * `activateLogin` to have "already kept and promoted" the outgoing account.
- * An observe promotes only on a CHANGE, and at that moment nothing has
- * changed: the default store holds alice, the default slot holds alice, and
- * the record says alice. The lift then wrote bob into the keychain item and
- * NOT into `~/.claude.json`, which is the vendor's file and stays alice until
- * bob takes a turn. The very next observe read bob's bytes under alice's
- * identity, {@link sameAccountProven} answered true on both fields, no
- * promotion happened, and the default slot, the ONLY copy of alice anywhere,
- * was overwritten with bob. Driven by the verifier over the shipping module
- * with an in-memory keychain: alice gone from every store and every slot.
- * The codex arm of the gate never saw it because `auth.json` carries identity
- * and credential in one file, so the identity moved with the bytes.
+ * The fix round put the promotion in front of the write, which was right, but
+ * it read the store, promoted and moved the record BEFORE it took the vendor's
+ * locks, and the write never re-read. The verifier held the locks the way a
+ * refreshing Claude Code does, saved a refreshed credential while the lift was
+ * waiting for them, and released: the lift then wrote over the refreshed
+ * bytes with no copy of them anywhere, and the kept copy held the bytes whose
+ * refresh token that refresh had just consumed. That is the exact race the
+ * locks were ported to close, lost on the far side of the lock. So the ORDER
+ * in this function is the whole of the fix: take the locks, THEN read, THEN
+ * keep what was read, THEN promote, THEN write, and release. Nothing this
+ * function acts on was read before the lock was held, and the gate's ablation
+ * for it is those two lines swapped.
  *
- * ## THE TWO HALVES, and the first is the load bearing one
+ * Two more paths lost an account and are closed in the same body. A default
+ * store that read as empty or as not a credential, being a logout, a keychain
+ * read that failed, or a store mid write elsewhere, skipped the promotion and
+ * then moved the rolling copy on, over the only copy of the outgoing account:
+ * the promotion now asks the SLOT, where the copy lives, whatever the store
+ * read as. And a promotion that found the account already held elsewhere
+ * answered held without freshening that copy, which {@link freshenHeld} does.
  *
- *  1. BEFORE THE WRITE, the account in the default slot is promoted into a
- *     login of its own through the same {@link promoteOutgoing} the observe
- *     uses, which answers whether it is now HELD somewhere other than the
- *     slot about to be written over. Not held is a refusal: nothing is
- *     written over an account that exists nowhere else.
- *  2. AFTER THE WRITE, the default slot's rolling copy and its record are
- *     moved on to the CHOSEN account, its digest and its identity, so the
- *     next observe reads unchanged bytes and does nothing, whatever the
- *     vendor's identity file says for the turn it lags behind.
+ * ## THE TWO STORES, and where they differ
  *
- * Both run under the root lock, because both mutate the record file.
+ * The login's own store is the place its kept account is put back into when
+ * that store is empty, which is every promoted login. Its slot IS the kept
+ * account, so nothing needs promoting out of it, and a store found holding a
+ * DIFFERENT account under the lock is captured and left as it is, because a
+ * `/login` that landed in the same instant as the click is the person's newer
+ * word. A store found holding the same account with fresher bytes is captured
+ * and is already in place.
+ *
+ * The person's own default location is written only when a session of the
+ * provider runs under the default login. Its slot is a ROLLING COPY that moves
+ * on to the chosen account after the write, so the account in that slot must
+ * be held somewhere else before a byte moves, and not held is a refusal. A
+ * default store caught mid change is refused too: its bytes have not been
+ * kept, and under the vendor's own locks the only writer that can be mid
+ * change is one that does not take them.
  */
-async function liftDefaultStore(
+async function liftStore(
   d: KeepDeps,
   provider: LoginProviderId,
+  store: LiftedStore,
   chosenSlot: string,
   payload: string,
   digest: string,
   stopAfter: SwapStep | undefined
-): Promise<{ ok: true; wrote: boolean } | { ok: false; reason: string }> {
+): Promise<LiftResult> {
   return underRootLock(d.root, async () => {
-    const defLive = await readSettledStore(d.stores, provider, null);
-    if (defLive === null) {
-      // MID CHANGE. The vendor is writing it right now, and the bytes that are
-      // there have not been kept. Writing over them would lose an account.
-      return {
-        ok: false,
-        reason: 'Your own sign in location is changing right now, so the running session was left as it is. Try again in a moment.'
-      };
-    }
-    if (defLive.payload !== null && credentialDigest(defLive.payload) === digest) {
-      return { ok: true, wrote: false };
-    }
-    const defSlot = slotOf(provider, null);
-    const { file: kept } = readKeptFile(d.root);
-    const before: KeptRecord | undefined = kept.slots[defSlot];
-    const changed: Record<string, KeptRecord> = {};
-    if (defLive.payload !== null) {
-      // THE STORE HOLDS AN ACCOUNT. It must be the one the observe just kept,
-      // and that one must be held somewhere else before it is written over.
-      if (before === undefined || before.digest !== credentialDigest(defLive.payload)) {
+    const slot = slotOf(provider, store.id);
+    const home = claudeConfigDirFor(d.stores, store.dir);
+    const held = await takeLocksOrRefuse(provider, home, d.lockDeps);
+    if (!held.ok) return held;
+    try {
+      const live = await readSettledStore(d.stores, provider, store.dir);
+      if (live === null && store.id === null) {
         return {
           ok: false,
-          reason: 'Tortie has not yet kept the sign in that is there, so the running session was left as it is. Try again in a moment.'
+          reason: 'Your own sign in location is changing right now, so the running session was left as it is. Try again in a moment.'
         };
       }
-      const promoted = await promoteOutgoing(d, provider, defSlot, before, kept, changed);
-      updateKeptFile(d.root, changed);
-      if (!promoted.held) {
-        return {
-          ok: false,
-          reason: 'Tortie could not keep the sign in that is there, so nothing was written over it.'
-        };
-      }
-    }
-    const defTarget = await defaultStoreTarget(d.stores, provider);
-    if (defTarget === null) return { ok: true, wrote: false };
-    const done = await writeUnderLock(
-      provider,
-      claudeConfigDirFor(d.stores, null),
-      defTarget,
-      payload,
-      stopAfter,
-      d.lockDeps
-    );
-    if (!done.ok) return { ok: false, reason: done.reason };
-    // THE ROLLING COPY MOVES ON TO THE CHOSEN ACCOUNT, bytes and record
-    // together, so the next observe finds the store unchanged.
-    const chosen: KeptRecord | undefined = kept.slots[chosenSlot];
-    const copy = await vaultPut(d.vault, defSlot, payload);
-    if (copy.ok) {
-      const moved: Record<string, KeptRecord> = {
-        [defSlot]: {
-          email: chosen?.email ?? null,
-          subject: chosen?.subject ?? null,
-          digest,
-          account: defLive.account ?? before?.account ?? null,
-          from: null,
-          at: d.now()
+      const holds =
+        live !== null && live.payload !== null ? credentialDigest(live.payload) : null;
+      if (holds === digest) return { ok: true, wrote: false };
+      const { file: kept } = readKeptFile(d.root);
+      const changed: Record<string, KeptRecord> = {};
+      // THE CHOSEN ACCOUNT'S IDENTITY, read before anything below can move it.
+      // For the login's own store the chosen slot is the very slot the capture
+      // brings up to date.
+      const chosen: KeptRecord | undefined = kept.slots[chosenSlot];
+      if (live !== null && live.payload !== null) {
+        // THE STORE HOLDS AN ACCOUNT, read under the lock. Keep it now, the
+        // ordinary way, so a token refreshed or a sign in made since the
+        // observe is in its slot and the account it replaced has a login.
+        const captured = await captureReading(
+          d,
+          provider,
+          store,
+          kept.slots[slot],
+          { ...live, payload: live.payload },
+          kept,
+          changed,
+          []
+        );
+        if (store.id !== null && captured.took !== 'superseded') {
+          // THE LOGIN'S OWN STORE HOLDS SOMETHING ELSE, and it is now kept
+          // (or could not be, which is the same refusal to write over it).
+          // Only a store still holding the bytes this slot moved past is
+          // written, below, with the fresher ones.
+          updateKeptFile(d.root, changed);
+          if (captured.took === 'refused') {
+            return {
+              ok: false,
+              reason: 'Tortie could not keep the sign in that is there, so nothing was written over it.'
+            };
+          }
+          const same = chosen !== undefined && sameAccountProven(chosen, live);
+          return same
+            ? { ok: true, wrote: false }
+            : {
+                ok: true,
+                wrote: false,
+                says: `${store.name} was signed into again just now, so nothing was put back.`
+              };
         }
-      };
-      updateKeptFile(d.root, moved);
+      }
+      if (store.id === null) {
+        // THE ROLLING COPY IS ABOUT TO MOVE ON, so the account in it must be
+        // held somewhere else first. This asks the SLOT and not the store, so
+        // a store that read as empty or as not a credential still keeps what
+        // Tortie holds for it. Not held is a refusal.
+        const before: KeptRecord | undefined = kept.slots[slot];
+        if (before !== undefined) {
+          const promoted = await promoteOutgoing(d, provider, slot, before, kept, changed);
+          if (!promoted.held) {
+            updateKeptFile(d.root, changed);
+            return {
+              ok: false,
+              reason: 'Tortie could not keep the sign in that is there, so nothing was written over it.'
+            };
+          }
+        }
+      }
+      updateKeptFile(d.root, changed);
+      const target =
+        store.id === null
+          ? await defaultStoreTarget(d.stores, provider)
+          : await storeTarget(d.stores, provider, store.dir);
+      if (target === null) {
+        return store.id === null
+          ? { ok: true, wrote: false }
+          : { ok: false, reason: 'Tortie refused to write that sign in location.' };
+      }
+      const done = await safeSwap(target, payload, stopAfter);
+      if (!done.ok) return { ok: false, reason: done.reason };
+      // THE SLOT MIRRORS THE STORE, bytes and record together, so the next
+      // observe finds it unchanged. For the default store this is the rolling
+      // copy moving on to the chosen account.
+      if (kept.slots[slot]?.digest !== digest) {
+        const copy = await vaultPut(d.vault, slot, payload);
+        if (copy.ok) {
+          updateKeptFile(d.root, {
+            [slot]: {
+              email: chosen?.email ?? null,
+              subject: chosen?.subject ?? null,
+              digest,
+              account: live?.account ?? kept.slots[slot]?.account ?? null,
+              from: null,
+              at: d.now(),
+              superseded: null
+            }
+          });
+        }
+      }
+      return { ok: true, wrote: true };
+    } finally {
+      held.held.release();
     }
-    return { ok: true, wrote: true };
   });
 }
 

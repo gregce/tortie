@@ -1011,6 +1011,214 @@ try {
   }
 
   // -------------------------------------------------------------------------
+  // 7i. THE LIFT READS UNDER THE LOCK (committer's round of Phase 211, the
+  //     verifier's F1). The same world as 7f, and the vendor HOLDS the primary
+  //     lock of the default config home the first time the lift asks for it,
+  //     saving a refreshed credential for the same account while it holds it,
+  //     which is what a token refresh is. Then it lets go. The refreshed bytes
+  //     must be the ones kept, and the bytes whose refresh token that refresh
+  //     consumed must be held nowhere. The fix round read the store, promoted
+  //     and moved the record before it took the locks, so the refresh was
+  //     written over after the release; the ablation is those lines swapped.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const security = fakeSecurity(w);
+    const lockMem = inMemoryLockDeps();
+    const base = makeDeps(root, w, [{ provider: 'claude' as LoginProviderId, login: null }]);
+    let contested = 0;
+    const d = {
+      ...base,
+      stores: { ...base.stores, runner: security.runner, keychainForClaude: true },
+      lockDeps: {
+        ...lockMem.deps,
+        mkdir: (path: string) => {
+          if (path === '/home/.claude/.oauth_refresh.lock' && contested === 0) {
+            contested += 1;
+            // THE VENDOR, holding its lock, saves alice's refreshed token.
+            security.items.set('Claude Code-credentials', {
+              account: 'gdc',
+              payload: claudeCredential('alice', '2')
+            });
+            return false;
+          }
+          return lockMem.deps.mkdir(path);
+        }
+      }
+    };
+    security.items.set('Claude Code-credentials', {
+      account: 'gdc',
+      payload: claudeCredential('alice', '1')
+    });
+    w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('alice'));
+    await keep.observeProvider(d, 'claude');
+    addLogin(root, 'claude', 'work');
+    const work = readLoginsFile(root).file.logins.find((l) => l.name === 'work');
+    const workDir = work === undefined ? '' : loginDirIn(root, 'claude', work.id);
+    security.items.set(claudeScopedService(workDir), {
+      account: 'gdc',
+      payload: claudeCredential('bob', '1')
+    });
+    w.files.set(join(workDir, '.claude.json'), claudeAccountFile('bob'));
+    await keep.observeProvider(d, 'claude');
+    const stale = payload.credentialDigest(claudeCredential('alice', '1'));
+    const refreshed = payload.credentialDigest(claudeCredential('alice', '2'));
+    const bobDigest = payload.credentialDigest(claudeCredential('bob', '1'));
+    const put = await keep.activateLogin(d, 'claude', 'work');
+    const item = security.items.get('Claude Code-credentials')?.payload ?? '';
+    const obs = await keep.observeProvider(d, 'claude');
+    const slots = [...d.vault.slots.entries()];
+    out['liftRace'] = {
+      wrote: put.ok === true && put.ok && put.wrote === true,
+      contested: contested === 1,
+      itemHoldsChosen: payload.credentialDigest(item) === bobDigest,
+      // THE READING THE FINDING IS JUDGED ON: the bytes the vendor saved while
+      // the lift waited are the ones that exist somewhere afterwards.
+      refreshedHeldOutsideDefault: slots.some(
+        ([slot, bytes]) => slot !== 'claude.default' && payload.credentialDigest(bytes) === refreshed
+      ),
+      staleHeldNowhere: !slots.some(([, bytes]) => payload.credentialDigest(bytes) === stale),
+      observeChangedNothing: obs.events.length === 0
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 7j. A HELD COPY IS BROUGHT UP TO THE NEWER BYTES (committer's round of
+  //     Phase 211, the verifier's F2). The round trip: alice is the person's
+  //     own, bob is kept under `work`, a session runs on the default. Choose
+  //     work; the running session, now bob, refreshes its token; choose alice,
+  //     which promotes bob out of the default slot and finds him held under
+  //     work with the OLD bytes; choose work again. The session must get the
+  //     refreshed token back, and the pre refresh bytes, whose refresh token
+  //     is consumed, must be held nowhere. The control at the end: a held copy
+  //     captured strictly LATER, being a session under `work` refreshing its
+  //     own store, is not written over with older bytes.
+  // -------------------------------------------------------------------------
+  {
+    const root = freshRoot();
+    const w = makeWorld();
+    const security = fakeSecurity(w);
+    const base = makeDeps(root, w, [{ provider: 'claude' as LoginProviderId, login: null }]);
+    let tick = 1_700_000_000_000;
+    const d = {
+      ...base,
+      // A CLOCK THAT MOVES, so which copy is newer is a real question here.
+      now: () => (tick += 1_000),
+      stores: { ...base.stores, runner: security.runner, keychainForClaude: true }
+    };
+    const setDefault = (who: string, n: string): void => {
+      security.items.set('Claude Code-credentials', { account: 'gdc', payload: claudeCredential(who, n) });
+      w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile(who));
+    };
+    setDefault('alice', '1');
+    await keep.observeProvider(d, 'claude');
+    addLogin(root, 'claude', 'work');
+    const work = readLoginsFile(root).file.logins.find((l) => l.name === 'work');
+    const workDir = work === undefined ? '' : loginDirIn(root, 'claude', work.id);
+    const workService = claudeScopedService(workDir);
+    const workSlot = work === undefined ? '' : vault.slotFor('claude', work.id);
+    security.items.set(workService, { account: 'gdc', payload: claudeCredential('bob', '1') });
+    w.files.set(join(workDir, '.claude.json'), claudeAccountFile('bob'));
+    await keep.observeProvider(d, 'claude');
+    const bob1 = payload.credentialDigest(claudeCredential('bob', '1'));
+    const bob2 = payload.credentialDigest(claudeCredential('bob', '2'));
+    const bob3 = payload.credentialDigest(claudeCredential('bob', '3'));
+    const digestOf = (bytes: string | undefined): string | null =>
+      bytes === undefined ? null : payload.credentialDigest(bytes);
+    const p1 = await keep.activateLogin(d, 'claude', 'work');
+    // The running default session, now bob, refreshes: new bytes, same account.
+    setDefault('bob', '2');
+    await keep.observeProvider(d, 'claude');
+    const p2 = await keep.activateLogin(d, 'claude', 'alice.example');
+    const workSlotAfterAlice = digestOf(d.vault.slots.get(workSlot));
+    const p3 = await keep.activateLogin(d, 'claude', 'work');
+    const itemAfterWorkAgain = digestOf(security.items.get('Claude Code-credentials')?.payload);
+    const workStoreAfterWorkAgain = digestOf(security.items.get(workService)?.payload);
+    const staleAnywhere = [...d.vault.slots.values()].some((b) => payload.credentialDigest(b) === bob1);
+    // THE CONTROL. A session under `work` refreshes its OWN store to bob 3,
+    // captured later than the default slot's bob 2; choosing alice again must
+    // leave that newer copy alone.
+    security.items.set(workService, { account: 'gdc', payload: claudeCredential('bob', '3') });
+    await keep.observeProvider(d, 'claude');
+    const p4 = await keep.activateLogin(d, 'claude', 'alice.example');
+    const workSlotAfterControl = digestOf(d.vault.slots.get(workSlot));
+    const ok = (r: Awaited<ReturnType<typeof keep.activateLogin>>): boolean =>
+      r.ok === true && r.ok && r.wrote === true;
+    out['heldRefresh'] = {
+      switched: ok(p1) && ok(p2) && ok(p3) && ok(p4),
+      refreshedSurvivedRoundTrip: workSlotAfterAlice === bob2,
+      sessionGetsRefreshed: itemAfterWorkAgain === bob2,
+      staleGoneAfterRoundTrip: !staleAnywhere,
+      ownStoreFreshened: workStoreAfterWorkAgain === bob2,
+      newerHeldCopyKept: workSlotAfterControl === bob3
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 7k. THE DEFAULT PROMOTION ASKS THE SLOT (committer's round of Phase 211,
+  //     the verifier's F3). The world of 7f, and at the lift the default store
+  //     reads as EMPTY (the vendor's own logout, or a keychain read that
+  //     failed), as GARBAGE, or as HALF a credential. The rolling copy still
+  //     holds alice, and it must not move on over her.
+  // -------------------------------------------------------------------------
+  {
+    const shapes: Record<string, unknown> = {};
+    for (const shape of ['empty', 'garbage', 'half'] as const) {
+      const root = freshRoot();
+      const w = makeWorld();
+      const security = fakeSecurity(w);
+      const base = makeDeps(root, w, [{ provider: 'claude' as LoginProviderId, login: null }]);
+      const d = {
+        ...base,
+        stores: { ...base.stores, runner: security.runner, keychainForClaude: true }
+      };
+      security.items.set('Claude Code-credentials', {
+        account: 'gdc',
+        payload: claudeCredential('alice', '1')
+      });
+      w.files.set(CLAUDE_DEFAULT_ACCOUNT, claudeAccountFile('alice'));
+      await keep.observeProvider(d, 'claude');
+      addLogin(root, 'claude', 'work');
+      const work = readLoginsFile(root).file.logins.find((l) => l.name === 'work');
+      const workDir = work === undefined ? '' : loginDirIn(root, 'claude', work.id);
+      security.items.set(claudeScopedService(workDir), {
+        account: 'gdc',
+        payload: claudeCredential('bob', '1')
+      });
+      w.files.set(join(workDir, '.claude.json'), claudeAccountFile('bob'));
+      await keep.observeProvider(d, 'claude');
+      if (shape === 'empty') security.items.delete('Claude Code-credentials');
+      else if (shape === 'garbage') {
+        security.items.set('Claude Code-credentials', { account: 'gdc', payload: 'not a credential at all' });
+      } else {
+        security.items.set('Claude Code-credentials', {
+          account: 'gdc',
+          payload: '{"claudeAiOauth":{"accessToken":"P204-half'
+        });
+      }
+      // The watcher sees the change and observes; nothing is captured from it.
+      await keep.observeProvider(d, 'claude');
+      const aliceDigest = payload.credentialDigest(claudeCredential('alice', '1'));
+      const bobDigest = payload.credentialDigest(claudeCredential('bob', '1'));
+      const put = await keep.activateLogin(d, 'claude', 'work');
+      const item = security.items.get('Claude Code-credentials')?.payload ?? '';
+      const slots = [...d.vault.slots.entries()];
+      shapes[shape] = {
+        wrote: put.ok === true && put.ok && put.wrote === true,
+        itemHoldsChosen: payload.credentialDigest(item) === bobDigest,
+        outgoingHeld: slots.some(
+          ([slot, bytes]) => slot !== 'claude.default' && payload.credentialDigest(bytes) === aliceDigest
+        ),
+        loginMade: readLoginsFile(root).file.logins.some(
+          (l) => l.provider === 'claude' && l.name === 'alice.example'
+        )
+      };
+    }
+    out['liftEmpty'] = shapes;
+  }
+
+  // -------------------------------------------------------------------------
   // 7e. THE WATCHER (Phase 211): one observe per burst, only the file it
   //     watches, driven over the SHIPPING watch module and injected seams.
   // -------------------------------------------------------------------------

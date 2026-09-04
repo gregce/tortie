@@ -20,6 +20,8 @@ import {
   legacyClaudeLockDir,
   oauthRefreshLockDir,
   storageWriteLockDir,
+  takeClaudeCredentialLocks,
+  takeVendorLocks,
   withClaudeCredentialLocks,
   withCodexNoLock,
   type LockDeps
@@ -256,5 +258,45 @@ describe('withCodexNoLock', () => {
     expect(answer).toBe('done');
     // Nothing was created anywhere; codex holds nothing.
     expect(existsSync(join(root, '.oauth_refresh.lock'))).toBe(false);
+  });
+});
+
+describe('takeClaudeCredentialLocks (committer round)', () => {
+  it('hands back one handle that holds all three and releases all three', async () => {
+    const home = join(root, 'home');
+    mkdirSync(home);
+    const held = await takeClaudeCredentialLocks(home, drivenDeps());
+    const three = [oauthRefreshLockDir(home), legacyClaudeLockDir(home), storageWriteLockDir(home)];
+    expect(three.every((p) => existsSync(p))).toBe(true);
+    held.release();
+    expect(three.some((p) => existsSync(p))).toBe(false);
+    // A second release is harmless.
+    held.release();
+  });
+
+  it('releases every earlier lock when a later one cannot be taken', async () => {
+    const home = join(root, 'home');
+    mkdirSync(home);
+    // A LIVE HOLDER on the storage lock alone, touched now.
+    const storage = storageWriteLockDir(home);
+    mkdirSync(storage);
+    const deps = drivenDeps({ mtimeMs: (path) => (path === storage ? 1_000_000 + 5_000_000 : null) });
+    await expect(takeClaudeCredentialLocks(home, deps)).rejects.toBeInstanceOf(LockHeld);
+    expect(existsSync(oauthRefreshLockDir(home))).toBe(false);
+    expect(existsSync(legacyClaudeLockDir(home))).toBe(false);
+    // The holder's own lock was not stolen.
+    expect(existsSync(storage)).toBe(true);
+  });
+
+  it('takes nothing for codex and something for claude, through the one seam', async () => {
+    const home = join(root, 'home');
+    mkdirSync(home);
+    const codex = await takeVendorLocks('codex', home, drivenDeps());
+    expect(existsSync(oauthRefreshLockDir(home))).toBe(false);
+    codex.release();
+    const claude = await takeVendorLocks('claude', home, drivenDeps());
+    expect(existsSync(oauthRefreshLockDir(home))).toBe(true);
+    claude.release();
+    expect(existsSync(oauthRefreshLockDir(home))).toBe(false);
   });
 });

@@ -638,6 +638,9 @@ const VERDICT_PARTS = [
   'claudeLock',
   'lockRefusal',
   'defaultLift',
+  'liftRace',
+  'heldRefresh',
+  'liftEmpty',
   'watcher',
   'watchRefresh',
   'fingerprint',
@@ -674,6 +677,9 @@ function verdict(d) {
     JSON.stringify(d.claudeLock),
     JSON.stringify(d.lockRefusal),
     JSON.stringify(d.defaultLift),
+    JSON.stringify(d.liftRace),
+    JSON.stringify(d.heldRefresh),
+    JSON.stringify(d.liftEmpty),
     JSON.stringify(d.watcher),
     JSON.stringify(d.watchRefresh),
     JSON.stringify(d.fingerprint),
@@ -852,6 +858,48 @@ if ('error' in live) {
     `${TAG} the default record was not moved on to the chosen account after the lift, so the next observe judges a change instead of reading unchanged bytes`
   );
   check(live.defaultLift.observeChangedNothing, `${TAG} the observe after a lift kept or promoted something, so the lift left the record behind the store`);
+
+  // Rule 6i (committer's round of Phase 211, the verifier's F1). THE LIFT
+  // READS UNDER THE LOCK. A refresh the vendor saves while the lift waits for
+  // the lock is the bytes that get kept, and the bytes whose refresh token
+  // that refresh consumed are held nowhere.
+  check(live.liftRace.wrote, `${TAG} the lift race arm did not write, so it proves nothing`);
+  check(live.liftRace.contested, `${TAG} the lift race arm never contested the lock, so the vendor refresh it stages never happened`);
+  check(live.liftRace.itemHoldsChosen, `${TAG} the lift race left the vendor item without the chosen account`);
+  check(
+    live.liftRace.refreshedHeldOutsideDefault,
+    `${TAG} THE LIFT WROTE OVER A REFRESH THAT LANDED WHILE IT WAITED FOR THE LOCK: the refreshed credential exists in no slot afterwards`
+  );
+  check(live.liftRace.staleHeldNowhere, `${TAG} the lift kept the bytes whose refresh token the refresh consumed, rather than the refreshed ones`);
+  check(live.liftRace.observeChangedNothing, `${TAG} the observe after the lift race kept or promoted something, so the record was left behind the store`);
+
+  // Rule 6j (committer's round of Phase 211, the verifier's F2). A HELD COPY
+  // IS BROUGHT UP TO THE NEWER BYTES, and the observe does not put the stale
+  // ones back, so the round trip work, alice, work hands the session the
+  // refreshed token and not the one whose refresh token was consumed.
+  check(live.heldRefresh.switched, `${TAG} the held refresh arm did not make all four switches, so it proves nothing`);
+  check(
+    live.heldRefresh.refreshedSurvivedRoundTrip,
+    `${TAG} THE REFRESHED TOKEN DID NOT SURVIVE THE ROUND TRIP: the held copy kept the pre refresh bytes when the default slot moved on`
+  );
+  check(live.heldRefresh.sessionGetsRefreshed, `${TAG} choosing the login again put the PRE REFRESH token back into the running session's store`);
+  check(live.heldRefresh.staleGoneAfterRoundTrip, `${TAG} the pre refresh bytes, whose refresh token is consumed, are still held somewhere after the round trip`);
+  check(live.heldRefresh.ownStoreFreshened, `${TAG} choosing the login again left its own store on the pre refresh bytes`);
+  check(live.heldRefresh.newerHeldCopyKept, `${TAG} a held copy captured strictly LATER was written over with older bytes`);
+
+  // Rule 6k (committer's round of Phase 211, the verifier's F3). THE DEFAULT
+  // PROMOTION ASKS THE SLOT, so a default store that reads as empty, as
+  // garbage or as half a credential at the lift still keeps the account.
+  for (const shape of ['empty', 'garbage', 'half']) {
+    const arm = live.liftEmpty[shape];
+    check(arm !== undefined && arm.wrote, `${TAG} the ${shape} default store arm did not write, so it proves nothing`);
+    check(arm !== undefined && arm.itemHoldsChosen, `${TAG} the ${shape} default store arm left the vendor item without the chosen account`);
+    check(
+      arm !== undefined && arm.outgoingHeld,
+      `${TAG} A DEFAULT STORE THAT READ AS ${shape.toUpperCase()} LOST THE ACCOUNT: the lift moved the rolling copy on over the only copy of it`
+    );
+    check(arm !== undefined && arm.loginMade, `${TAG} the ${shape} default store arm promoted the outgoing account into no login`);
+  }
 
   // Rule 6d (Phase 211). THE WATCHER: one observe per burst, only its file.
   check(live.watcher.watchesADirectory, `${TAG} the watcher opened no directory watcher, so the burst check proves nothing`);
@@ -1176,8 +1224,8 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '    if (before !== undefined && !sameAccountProven(before, reading)) {',
-        to: '    if (false && before !== undefined) {'
+        from: '  if (before !== undefined && !sameAccountProven(before, reading)) {',
+        to: '  if (false && before !== undefined) {'
       }
     ]
   },
@@ -1192,8 +1240,8 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '    if (before !== undefined && !sameAccountProven(before, reading)) {',
-        to: '    if (before !== undefined && before.email !== null && reading.email !== null && before.email !== reading.email) {'
+        from: '  if (before !== undefined && !sameAccountProven(before, reading)) {',
+        to: '  if (before !== undefined && before.email !== null && reading.email !== null && before.email !== reading.email) {'
       }
     ]
   },
@@ -1250,8 +1298,8 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '    if (sameAccountProven(row, before)) return { held: true, event: null };',
-        to: '    if (false) return { held: true, event: null };'
+        from: '    if (sameAccountProven(row, before)) {',
+        to: '    if (false) {'
       }
     ]
   },
@@ -1422,8 +1470,8 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '      const promoted = await promoteOutgoing(d, provider, defSlot, before, kept, changed);\n      updateKeptFile(d.root, changed);\n      if (!promoted.held) {',
-        to: '      const promoted = { held: true };\n      updateKeptFile(d.root, changed);\n      if (!promoted.held) {'
+        from: '          const promoted = await promoteOutgoing(d, provider, slot, before, kept, changed);\n          if (!promoted.held) {',
+        to: '          const promoted = { held: true };\n          if (!promoted.held) {'
       }
     ]
   },
@@ -1434,8 +1482,61 @@ const ABLATIONS = [
     edits: [
       {
         file: 'keep.ts',
-        from: '    const copy = await vaultPut(d.vault, defSlot, payload);\n    if (copy.ok) {',
-        to: '    const copy = { ok: false };\n    if (copy.ok) {'
+        from: '        const copy = await vaultPut(d.vault, slot, payload);\n        if (copy.ok) {',
+        to: '        const copy = { ok: false };\n        if (copy.ok) {'
+      }
+    ]
+  },
+  {
+    // COMMITTER'S ROUND OF PHASE 211, the verifier's F1. The store read
+    // BEFORE the locks are taken, which is the shape the fix round shipped: a
+    // refresh the vendor saves while the lift waits for the lock is written
+    // over after the release, and the refreshed bytes exist nowhere.
+    name: 'the store read before the locks are taken, so a refresh under the wait is lost',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    const held = await takeLocksOrRefuse(provider, home, d.lockDeps);\n    if (!held.ok) return held;\n    try {\n      const live = await readSettledStore(d.stores, provider, store.dir);',
+        to: '    const live = await readSettledStore(d.stores, provider, store.dir);\n    const held = await takeLocksOrRefuse(provider, home, d.lockDeps);\n    if (!held.ok) return held;\n    try {'
+      }
+    ]
+  },
+  {
+    // COMMITTER'S ROUND OF PHASE 211, the verifier's F2. A held copy of the
+    // same account answered held without being brought up to the newer
+    // bytes, so the round trip work, alice, work put the pre refresh token back.
+    name: 'a held copy of the same account not brought up to the newer bytes',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '    if (sameAccountProven(row, before)) {\n      return freshenHeld(d, other, row, before, payload, kept, changed);\n    }',
+        to: '    if (sameAccountProven(row, before)) {\n      return { held: true, event: null };\n    }'
+      }
+    ]
+  },
+  {
+    // COMMITTER'S ROUND OF PHASE 211, the same finding from the other side:
+    // the observe mirrors the stale store straight back over the fresher
+    // slot, which is what made a slot only freshen worthless.
+    name: 'the observe mirrors the digest a slot moved past',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '  if (before !== undefined && (before.superseded ?? null) === digest) {',
+        to: '  if (false) {'
+      }
+    ]
+  },
+  {
+    // COMMITTER'S ROUND OF PHASE 211, the verifier's F3. The promotion in
+    // front of the default lift skipped when the store reads as empty or as
+    // not a credential, so the rolling copy moves on over the only copy.
+    name: 'the default promotion skipped when the store reads as no credential',
+    edits: [
+      {
+        file: 'keep.ts',
+        from: '        const before: KeptRecord | undefined = kept.slots[slot];\n        if (before !== undefined) {',
+        to: '        const before: KeptRecord | undefined = kept.slots[slot];\n        if (holds !== null && before !== undefined) {'
       }
     ]
   },
@@ -1541,9 +1642,9 @@ const ABLATIONS = [
     name: 'the claude write no longer held under the locks',
     edits: [
       {
-        file: 'keep.ts',
-        from: '    if (provider === \'claude\') {\n      return await withClaudeCredentialLocks(',
-        to: '    if (false && provider === \'claude\') {\n      return await withClaudeCredentialLocks('
+        file: 'locks.ts',
+        from: "  if (provider === 'claude') return takeClaudeCredentialLocks(configHome, deps);",
+        to: "  if (false && provider === 'claude') return takeClaudeCredentialLocks(configHome, deps);"
       }
     ]
   },

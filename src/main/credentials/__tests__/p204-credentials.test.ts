@@ -287,6 +287,20 @@ describe('the record file', () => {
     expect(read.problems.join(' ')).toContain('digest');
   });
 
+  it('reads the one digest a slot moved past, and nothing that is not a digest (Phase 211 committer round)', () => {
+    writeKeptFile(root, {
+      v: 1,
+      slots: {
+        'claude.default': { email: 'a@b.com', subject: null, digest: 'f'.repeat(64), account: 'gdc', from: null, at: 1, superseded: 'e'.repeat(64) },
+        'codex.default': { email: null, subject: null, digest: 'd'.repeat(64), account: null, from: null, at: 1, superseded: 'not a digest' as unknown as string }
+      }
+    });
+    const read = readKeptFile(root);
+    expect(read.file.slots['claude.default']?.superseded).toBe('e'.repeat(64));
+    expect(read.file.slots['codex.default']?.superseded).toBe(null);
+    expect(read.problems.length).toBe(0);
+  });
+
   it('holds no credential of any kind', () => {
     writeKeptFile(root, {
       v: 1,

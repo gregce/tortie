@@ -315,47 +315,95 @@ export async function acquireLock(
 }
 
 /**
- * Hold Claude Code's three locks around a write, in the vendor's own order,
- * and release every one whatever happened.
+ * Take Claude Code's three locks, in the vendor's own order, and hand back ONE
+ * handle that releases every one (committer's round of Phase 211).
  *
  * THE ORDER IS THE VENDOR'S: the primary `.oauth_refresh.lock` first, then the
  * legacy `<config-home>.lock`, then `.storage-write` for the write itself.
  * Mirroring both the set and the order is what stops a waiting Tortie and a
  * waiting Claude Code deadlocking against each other. A failure to take a
- * later lock releases every earlier one, which the `finally` chain below does.
+ * later lock releases every earlier one before the throw leaves.
+ *
+ * IT IS A HANDLE AND NOT A CALLBACK because the lift in `./keep.ts` must READ
+ * the store after the locks are held and act on nothing read before them. A
+ * callback shape made that order a matter of where the caller put its read,
+ * and the verifier found the read on the wrong side.
+ */
+export async function takeClaudeCredentialLocks(
+  configHome: string,
+  deps?: LockDeps
+): Promise<LockHandle> {
+  const seam = deps === undefined ? {} : { deps };
+  const taken: LockHandle[] = [];
+  const releaseAll = (): void => {
+    // Innermost first, the reverse of the order they were taken in.
+    for (const handle of taken.reverse()) handle.release();
+  };
+  try {
+    taken.push(
+      await acquireLock(oauthRefreshLockDir(configHome), {
+        lockName: '.oauth_refresh.lock',
+        ...seam
+      })
+    );
+    taken.push(
+      await acquireLock(legacyClaudeLockDir(configHome), {
+        lockName: 'the legacy claude lock',
+        ...seam
+      })
+    );
+    taken.push(
+      await acquireLock(storageWriteLockDir(configHome), {
+        lockName: '.storage-write',
+        stalenessMs: STORAGE_WRITE_STALENESS_MS,
+        ...seam
+      })
+    );
+  } catch (err) {
+    releaseAll();
+    throw err;
+  }
+  let released = false;
+  return {
+    release: () => {
+      if (released) return;
+      released = true;
+      releaseAll();
+    }
+  };
+}
+
+/**
+ * Hold Claude Code's three locks around a write, and release every one
+ * whatever happened. The callback shape of {@link takeClaudeCredentialLocks}.
  */
 export async function withClaudeCredentialLocks<T>(
   configHome: string,
   run: () => Promise<T>,
   deps?: LockDeps
 ): Promise<T> {
-  const seam = deps === undefined ? {} : { deps };
-  const primary = await acquireLock(oauthRefreshLockDir(configHome), {
-    lockName: '.oauth_refresh.lock',
-    ...seam
-  });
+  const held = await takeClaudeCredentialLocks(configHome, deps);
   try {
-    const legacy = await acquireLock(legacyClaudeLockDir(configHome), {
-      lockName: 'the legacy claude lock',
-      ...seam
-    });
-    try {
-      const storage = await acquireLock(storageWriteLockDir(configHome), {
-        lockName: '.storage-write',
-        stalenessMs: STORAGE_WRITE_STALENESS_MS,
-        ...seam
-      });
-      try {
-        return await run();
-      } finally {
-        storage.release();
-      }
-    } finally {
-      legacy.release();
-    }
+    return await run();
   } finally {
-    primary.release();
+    held.release();
   }
+}
+
+/**
+ * The locks one provider's store is written under, as a handle (Phase 211).
+ *
+ * A claude write holds the vendor's three; a codex write holds NONE, for the
+ * reason {@link withCodexNoLock} gives, and its handle releases nothing. The
+ * split is a decision in the code rather than an omission.
+ */
+export async function takeVendorLocks(
+  provider: 'claude' | 'codex',
+  configHome: string,
+  deps?: LockDeps
+): Promise<LockHandle> {
+  if (provider === 'claude') return takeClaudeCredentialLocks(configHome, deps);
+  return { release: () => undefined };
 }
 
 /**
