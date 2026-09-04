@@ -67,6 +67,7 @@ import { forEachTerminal } from '../terminal/drop/registry';
 import { resolveTerminalContrastFloor, resolveTerminalTheme } from '../terminal/theme';
 import { publishChromeTheme, type ChromeThemeState } from './chrome-theme';
 import { deriveOverrides, type Appearance } from './derive';
+import { frameForBase } from './frame-stops';
 import { textIsDarkOn } from './hue';
 import { ALL_THEME_TOKENS, CANVAS_TOKEN } from './presets';
 import { fontOverrides, setCustomWorkFontFamily, setWorkAreaFont } from './work-fonts';
@@ -214,7 +215,16 @@ export function createAppearanceApplier(
       // Colour first, then the font map on top. They share no key, so the
       // spread is a union rather than a precedence question, and both halves
       // return {} at their defaults.
-      const colour = env.derive(appearance, base, lift);
+      // THE FRAME THIS BASE CAN DRAW (Phase 213). The Scheme control writes
+      // one field and the two bases offer different regions, so the frame a
+      // person is holding on dark is usually one the light base cannot draw:
+      // 31 of the 35 pairs dark offers are outside the light region. This
+      // brings it to the nearest stop this base does offer and persists
+      // nothing, so the base that could draw it brings it back. On dark it
+      // is the identity. The sliders read the same answer, so the face never
+      // says one frame while the window draws another.
+      const frame = frameForBase(appearance, scheme);
+      const colour = env.derive({ ...appearance, ...frame }, base, lift);
       const next = {
         ...colour,
         ...fontOverrides(appearance.workAreaFont)

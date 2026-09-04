@@ -749,6 +749,22 @@ async function readRoot(
  * not evaluate.
  */
 interface Facts {
+  /**
+   * THE FRAME CARRIED ACROSS A SCHEME CHANGE (Phase 213). The Scheme control
+   * writes one field, and the two bases offer different regions, so a frame a
+   * person is holding on one base may be one the other cannot draw. This is
+   * what `frameForBase` answers over every offered pair of each base, so rule
+   * 27 can assert that nothing carried is ever left outside the new base's
+   * region and that the dark base is never moved at all.
+   */
+  carryover: {
+    darkOffered: number;
+    lightOffered: number;
+    movedToLight: number;
+    outsideAfterMove: number;
+    darkUnmoved: number;
+    lightToDarkUnmoved: number;
+  } | null;
   terminal: {
     dark: Record<string, string>;
     light: Record<string, string>;
@@ -842,7 +858,9 @@ async function readFacts(
     monaco = null;
   }
   const pierre = await readPierre(root);
+  const carryover = await readCarryover(load);
   return {
+    carryover,
     terminal: {
       dark: (terminal['terminalTheme'] as Record<string, string>) ?? {},
       light: (terminal['terminalThemeLight'] as Record<string, string>) ?? {},
@@ -871,6 +889,71 @@ async function readFacts(
       tree: hostColorScheme(root, 'file-tree-container')
     }
   };
+}
+
+/**
+ * THE CARRYOVER, WALKED (Phase 213). Every pair each base offers, put
+ * through the SHIPPING `frameForBase` for the other base, so rule 27 reads
+ * counts this file measured rather than a claim the comment makes.
+ *
+ * An ablated copy whose `frameForBase` returns its argument untouched leaves
+ * `movedToLight` at zero and `outsideAfterMove` at 31, which is what makes
+ * the rule able to fail.
+ */
+async function readCarryover(
+  load: (rel: string) => Promise<Record<string, unknown>>
+): Promise<Facts['carryover']> {
+  try {
+    const stops = await load('renderer/theme/frame-stops.ts');
+    const presets = await load('renderer/theme/presets.ts');
+    const forBase = stops['frameForBase'] as
+      | ((c: { chromeHue: number; chromeShade: number; chromeDepth: number }, s: string) => {
+          chromeShade: number;
+          chromeDepth: number;
+        })
+      | undefined;
+    const offeredFn = stops['frameIsOffered'] as
+      | ((shade: number, depth: number, scheme: string) => boolean)
+      | undefined;
+    const regionFor = presets['frameRegionFor'] as
+      | ((s: string) => { shade: number; minDepth: number; maxDepth: number }[])
+      | undefined;
+    if (forBase === undefined || offeredFn === undefined || regionFor === undefined) return null;
+    const pairs = (scheme: string): [number, number][] => {
+      const out: [number, number][] = [];
+      for (const row of regionFor(scheme)) {
+        for (let d = row.minDepth; d <= row.maxDepth; d += 1) out.push([row.shade, d]);
+      }
+      return out;
+    };
+    const dark = pairs('dark');
+    const light = pairs('light');
+    let movedToLight = 0;
+    let outsideAfterMove = 0;
+    let darkUnmoved = 0;
+    for (const [shade, depth] of dark) {
+      const held = forBase({ chromeHue: 222, chromeShade: shade, chromeDepth: depth }, 'light');
+      if (held.chromeShade !== shade || held.chromeDepth !== depth) movedToLight += 1;
+      if (!offeredFn(held.chromeShade, held.chromeDepth, 'light')) outsideAfterMove += 1;
+      const same = forBase({ chromeHue: 222, chromeShade: shade, chromeDepth: depth }, 'dark');
+      if (same.chromeShade === shade && same.chromeDepth === depth) darkUnmoved += 1;
+    }
+    let lightToDarkUnmoved = 0;
+    for (const [shade, depth] of light) {
+      const held = forBase({ chromeHue: 222, chromeShade: shade, chromeDepth: depth }, 'dark');
+      if (held.chromeShade === shade && held.chromeDepth === depth) lightToDarkUnmoved += 1;
+    }
+    return {
+      darkOffered: dark.length,
+      lightOffered: light.length,
+      movedToLight,
+      outsideAfterMove,
+      darkUnmoved,
+      lightToDarkUnmoved
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

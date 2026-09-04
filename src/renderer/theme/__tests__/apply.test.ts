@@ -329,6 +329,27 @@ describe('the scheme (Phase 213)', () => {
     expect(f.transitions).toEqual([false, true, true, false]);
   });
 
+  it('hands the base only a frame that base can draw, and gives it back on the way home', () => {
+    // A shade of -2 at depth 2 is one of the 35 pairs the dark base offers
+    // and one of the 31 it offers that paper cannot draw: applied whole on
+    // paper it puts --accent-text under 4.5:1. The applier composes from the
+    // nearest stop paper does offer, and persists nothing, so choosing Dark
+    // again derives from the frame that was chosen.
+    const f = fakeEnv({});
+    const apply = createAppearanceApplier(f.env);
+    const chosen = { ...TEAL_HIGH, chromeShade: -2, chromeDepth: 2 };
+    const frameOf = (call: number): [number, number] => {
+      const a = (f.derive as ReturnType<typeof vi.fn>).mock.calls[call]?.[0] as Appearance;
+      return [a.chromeShade, a.chromeDepth];
+    };
+    apply(chosen);
+    expect(frameOf(0)).toEqual([-2, 2]);
+    apply({ ...chosen, colorScheme: 'light' });
+    expect(frameOf(1)).toEqual([0, 0]);
+    apply(chosen);
+    expect(frameOf(2)).toEqual([-2, 2]);
+  });
+
   it('resolves system through the environment and re-derives when the Mac flips', () => {
     const f = fakeEnv({});
     const apply = createAppearanceApplier(f.env);

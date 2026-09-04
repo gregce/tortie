@@ -260,6 +260,19 @@ const ABLATIONS = [
     ]
   },
   {
+    // Phase 213 rule 27. The Scheme control writes one field, so without this
+    // the frame a person held on dark is applied whole on paper, where 31 of
+    // the 35 pairs dark offers break a floor.
+    name: 'the frame carried whole across a scheme change',
+    file: 'renderer/theme/frame-stops.ts',
+    edits: [
+      [
+        "  if (frameIsOffered(shade, depth, scheme)) {\n    return { chromeHue: choice.chromeHue, chromeShade: shade, chromeDepth: depth };\n  }",
+        "  return { chromeHue: choice.chromeHue, chromeShade: shade, chromeDepth: depth };\n  if (false) {"
+      ]
+    ]
+  },
+  {
     name: 'the offset: an absolute hue instead of an offset from each token',
     file: 'shared/chrome-hue.ts',
     edits: [["h: (((ok.h ?? 0) + offset) % 360 + 360) % 360", "h: sanitizeChromeHue(hue)"]]
@@ -692,6 +705,15 @@ function pinFacts(a) {
   const problems = [];
   const facts = a.facts;
   if (facts === undefined) return ['rule 24: the module facts were not read'];
+  // Rule 27's clauses live here so an ablated copy reaches them (Phase 213).
+  const carry = facts.carryover;
+  if (carry === null || carry === undefined) problems.push('rule 27: the probe read no carryover, so the scheme change is unproved');
+  else {
+    if (carry.outsideAfterMove !== 0) problems.push(`rule 27: ${String(carry.outsideAfterMove)} carried frame(s) are still outside the light region after the move`);
+    if (carry.darkUnmoved !== carry.darkOffered) problems.push(`rule 27: choosing Dark moved ${String(carry.darkOffered - carry.darkUnmoved)} of the ${String(carry.darkOffered)} frames the dark base offers; it must move none`);
+    if (carry.lightToDarkUnmoved !== carry.lightOffered) problems.push(`rule 27: going back to Dark moved ${String(carry.lightOffered - carry.lightToDarkUnmoved)} of the ${String(carry.lightOffered)} frames the light base offers; every one of them is inside the dark region`);
+    if (carry.movedToLight === 0) problems.push('rule 27: not one frame moved on the way to paper, so frameForBase is doing nothing and the rule cannot fail');
+  }
   const t = facts.terminal;
   if (Object.keys(t.light).length !== Object.keys(t.dark).length) {
     problems.push(`rule 24: the light terminal theme has ${String(Object.keys(t.light).length)} keys against the dark theme's ${String(Object.keys(t.dark).length)}`);
@@ -1699,6 +1721,26 @@ try {
     }
     if (found.length === 0 && behaved === fixtures.length) {
       say(`${TAG} rule 26: no colour literal outside the six theme constant places and the four named exemptions, over ${String(countScanned(join(repoRoot, 'src')))} files; ${String(behaved)} fixtures behaved, ${String(fixtures.filter((f) => f.shouldFail).length)} of which must make the scan fail`);
+    }
+  }
+
+  // Rule 27. THE FRAME CARRIED ACROSS A SCHEME CHANGE (Phase 213).
+  //
+  // The Scheme control writes one field. The dark base offers 35 of the 49
+  // shade and depth pairs and the light base offers 4, so 31 of the frames a
+  // person may legitimately be holding on dark are ones paper cannot draw:
+  // 20 of them put --accent-text under 4.5:1 and 8 invert the ramp ORDER so
+  // the sheet stops sitting above the paper. `frameForBase` brings a carried
+  // frame to the nearest stop the new base offers and persists nothing. This
+  // rule asserts both halves over the walk the probe ran: nothing carried is
+  // left outside the new base's region, and the dark base is never moved,
+  // so choosing Dark from Light gives back exactly the frame that was there.
+  {
+    const carry = facts === undefined ? null : facts.carryover;
+    // The clauses are in pinFacts, which rule 24 above already ran and rule
+    // 13 runs over every ablated copy. This says what it measured.
+    if (carry !== null && carry !== undefined && carry.outsideAfterMove === 0 && carry.movedToLight > 0) {
+      say(`${TAG} rule 27: dark offers ${String(carry.darkOffered)} frames and paper offers ${String(carry.lightOffered)}; choosing Light moves ${String(carry.movedToLight)} of them and leaves 0 outside the region, choosing Dark moves none of either base's, so a frame comes back exactly`);
     }
   }
 

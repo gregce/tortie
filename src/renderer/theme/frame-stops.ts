@@ -169,6 +169,62 @@ export function frameIsOffered(shade: number, depth: number, scheme: BaseScheme 
   return stop >= row.minDepth && stop <= row.maxDepth;
 }
 
+/**
+ * THE FRAME THIS BASE CAN ACTUALLY DRAW, out of the one a person chose
+ * (Phase 213).
+ *
+ * The two bases do not offer the same region. The dark one offers 35 of the
+ * 49 shade and depth pairs; the light one offers 4, because the paper
+ * palette was solved AT its floors so the accent could be text and the
+ * status dots could clear the active row. So 31 of the 35 frames a person
+ * may legitimately be holding on dark are outside the light region, and the
+ * Scheme control writes one field: without this, choosing Light while
+ * holding a shade of -2 draws a frame whose `--accent-text` is under 4.5:1,
+ * and 8 of those 31 invert the ramp ORDER so the sheet stops sitting above
+ * the paper.
+ *
+ * THIS IS NOT THE CLAMP THE HEADER REFUSES. That refusal is about the
+ * SLIDERS: a person who asks for a darker shade is told why it stopped and
+ * is never quietly given a different one. Here the person asked for a
+ * SCHEME, and the frame they were holding is not a thing the new base can
+ * draw at all. So the frame is brought to the nearest stop this base does
+ * offer, and NOTHING IS PERSISTED: the chosen shade and depth stay in the
+ * settings file, the sliders on the new base read this answer so the face
+ * never says one frame while the window draws another, and going back to
+ * the base that could draw it brings it back exactly.
+ *
+ * On the dark base this is the identity, because every pair the light base
+ * offers sits inside the dark region too, so nothing a person can hold on
+ * light is ever moved by choosing Dark. `npm run conformance:hue` rule 27
+ * asserts both halves.
+ *
+ * The shade moves first and the depth is then brought into that shade's own
+ * row, because the region is a set of rows rather than a rectangle: on paper
+ * only one shade has a row at all, so a depth clamped against some other
+ * shade's row would answer about a frame that does not exist. Ties go to the
+ * shipped stop, which is the frame the palette was designed at.
+ */
+export function frameForBase(choice: FrameChoice, scheme: BaseScheme = 'dark'): FrameChoice {
+  const shade = sanitizeChromeShade(choice.chromeShade);
+  const depth = sanitizeChromeDepth(choice.chromeDepth);
+  if (frameIsOffered(shade, depth, scheme)) {
+    return { chromeHue: choice.chromeHue, chromeShade: shade, chromeDepth: depth };
+  }
+  const offered = SHADE_STOPS.filter((s) => rowFor(s, scheme).minDepth <= rowFor(s, scheme).maxDepth);
+  let bestShade = DEFAULT_CHROME_SHADE;
+  let bestCost = Number.POSITIVE_INFINITY;
+  for (const s of offered) {
+    const cost = Math.abs(s - shade) * 2 + Math.abs(s - DEFAULT_CHROME_SHADE);
+    if (cost < bestCost) {
+      bestCost = cost;
+      bestShade = s;
+    }
+  }
+  const row = rowFor(bestShade, scheme);
+  const stop = Math.min(Math.max(depth, row.minDepth), row.maxDepth);
+  return { chromeHue: choice.chromeHue, chromeShade: bestShade, chromeDepth: stop };
+}
+
 /** The shade stops on offer at this depth. */
 export function shadeRange(depth: number, scheme: BaseScheme = 'dark'): StopRange {
   const ok = SHADE_STOPS.filter((shade) => frameIsOffered(shade, depth, scheme));
