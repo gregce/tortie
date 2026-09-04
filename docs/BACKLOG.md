@@ -21291,6 +21291,207 @@ One file, `docs/audits/2026-09-03-verifier-findings-fifty-phases.md`, in this sh
 - **No re-scoring** of the earlier audit's method counts.
 - **No phase before 168.**
 
+## Phase 213: light mode, and the whole app follows it (operator asked 2026-09-03)
+
+**Subject.** `feat(appearance): a light mode, and every surface follows it`
+
+**First body line.** `Phase 213: light mode`
+
+**Semver.** MINOR.
+
+**Tier 3.** It claims to work across every agent, because every agent's own terminal interface draws
+in ANSI colours on a ground this phase turns from near black to near white, and a light terminal
+that makes Claude Code's or Codex's interface unreadable is a light mode nobody can use. The
+evidence is a per agent photograph matrix over real interfaces on the light ground, two independent
+methods one of which is an attack, plus the app run, plus a fix round if any verdict is needs_work.
+Nothing here spawns a credential, touches tmux state or writes a manifest, so the Tier 3 reason is
+universality alone.
+
+**Charter.** His words of 2026-09-03: *"Lets queue light mode please. Be thorough and make it
+absolutely stunning and beautiful."* Behind it, his ask of the same day that Phase 210 could not
+deliver: *"pick shades and then change their gradients... from black through gray to white"*. Phase
+210 proved the text flip works on a synthetic ground and proved that no setting can reach it, because
+the lightest frame that keeps every pinned floor sits at canvas L 0.244 and the flip is at L 0.565,
+and it recorded that **a light MODE is the only thing that would deliver the flip**. This is that
+mode.
+
+### What the tree says today, read before anything is designed
+
+- `DESIGN.md` section 0 says the product is *dark-only in v1*, because *a light chrome around dark
+  terminals creates blinding contrast wells*. That sentence is correct and it decides the design:
+  in light mode the terminal goes light TOO. `--bg-canvas` is declared as the window base AND the
+  xterm background, one material, and `src/renderer/terminal/theme.ts` line 26 mirrors it. A light
+  frame around a dark terminal is refused by the design authority and this phase does not build it.
+- The machinery for text and palette following a ground exists and is proved: `followGround`,
+  `followPalette`, `solveForRatio` and `TEXT_FLIP_CANVAS_LUMINANCE` in `src/renderer/theme/hue.ts`,
+  the floors in `src/renderer/theme/floors.ts`, the override applier in `src/renderer/theme/apply.ts`
+  with `refreshLiveTerminalThemes` for a running terminal, and rules 9 to 11 of
+  `npm run conformance:hue` proving the flip on the synthetic ground.
+- The neutral ramp is EIGHT tokens and the hue, shade and depth controls move those eight. A light
+  mode is not a ninth control on the same ramp. It is a SECOND BASE PALETTE for every colour token
+  in `src/renderer/styles/tokens.css`, being the five fills, the scrim, the three hairlines, the four
+  text tokens, the accent family of seven, the terminal selection, the five status colours and the
+  attention badge pair, the six git decorations, the seven graph lanes with their ring, dim, shared
+  mix and bundle, and the four semantic colours with their three washes. Hue, shade, depth, the
+  highlight scheme and the contrast level then compose ON TOP of whichever base is chosen, exactly
+  as they compose on the dark one today.
+- The surfaces that do NOT read tokens at draw time, each of which is a place a light mode can be
+  half done: the terminal theme object in `terminal/theme.ts`, the Monaco theme in
+  `src/renderer/editor/monaco-theme.ts` which registers with `type` dark, the Pierre diff theme in
+  `src/renderer/pierre/theme-bridge.ts` which registers ONE custom theme with `type: 'dark'` at line
+  90 and is the stated limit of Phases 207 and 210, the Pierre tree styles whose test pins
+  `colorScheme` to dark, the Architecture map under `src/renderer/arch/map/`, the window fill main
+  composes in `src/main/settings/chrome.ts`, and the fixed `#131417` fill at line 30 of
+  `src/renderer/index.html` that paints before any script runs and is why Phase 210 saw a bigger
+  flash at its lightest shade.
+- Nothing in the tree names `nativeTheme` or `prefers-color-scheme`. Tortie does not know what the
+  Mac is set to.
+
+### Research first, and it is written to `docs/research/80-light-mode.md`
+
+Nothing above is a measured mechanism for a light ground, so the phase begins with research, and
+the research is banked so the next round inherits it. It measures, with numbers:
+
+1. **Every agent's own interface on a light ground.** Claude Code, Codex, Gemini, Cursor, Oh My Pi
+   and every other registry agent, launched on a scratch server in a scratch profile with the light
+   terminal palette, photographed at rest, mid turn, with a diff on screen and with a permission
+   prompt up. Which of their colours are hard coded 256 colour or true colour escapes that ignore
+   the palette, and which are the sixteen ANSI slots that follow it. Which read under 3 to 1 on the
+   light ground. That matrix decides the sixteen slots and it is the phase's real data.
+2. **What the vendor palettes do**, read rather than guessed: the light palettes of Apple Terminal,
+   Warp, Ghostty, VS Code's Light Modern, GitHub Light and Solarized Light, their sixteen ANSI values
+   and their contrast on their own grounds, in one table, so the choice below is made against
+   precedent and not taste alone.
+3. **How each non token surface takes a second theme.** Whether `@pierre/diffs` can register a
+   second custom theme and switch by name at render, or must re-register; whether Monaco's
+   `setTheme` swaps live; whether xterm's `options.theme` swaps a running terminal without a
+   reattach, which `refreshLiveTerminalThemes` already assumes; how the Architecture map reads its
+   colours; and what `material-icon-theme` ships for a light ground, since its file icons were drawn
+   for dark.
+4. **How the Mac's own setting is read and followed** through Electron's `nativeTheme`, what it
+   costs to follow it live, and what the window's title bar and traffic light region do on a light
+   fill.
+5. **The first frame.** What paints before the renderer's settings read, at boot and at every window
+   open, measured as the colour of the first frame, and what it takes for that frame to carry the
+   chosen scheme, being the fill main already composes for the window plus the HTML file's fixed
+   fill replaced by something main injects.
+6. **The flash on switch.** What a scheme change looks like frame by frame today when every token
+   moves at once, and what a crossfade costs, under reduced motion and without it.
+
+### What it builds
+
+- **A second base palette, designed, not inverted.** A light palette is not the dark one turned
+  over. On a dark ground elevation is lightness, the sidebar sits below the canvas and raised
+  surfaces sit above it. On a light ground elevation is shadow and the ramp runs the other way. The
+  research step writes the palette with a stated reason for every token: a paper ground that is
+  near white and not pure white, because pure white beside a dark image is what DESIGN.md calls a
+  contrast well; a sidebar one step off the canvas; hairlines that read; text solved to the same
+  pinned ratios the dark palette holds; an accent that keeps its identity on paper and passes 4.5 to
+  1 as text; git decorations, status colours and the seven graph lanes re-solved so each keeps its
+  hue and its ratio on `--bg-active`, which is the floor Phase 210 could not move; and a scrim that
+  darkens rather than lightens. It is written into `tokens.css` as a second block under one
+  attribute on the root, the way research 6 shipped hue presets, and `DESIGN.md` section 1 gains the
+  light ramp beside the dark one with the same measured ratios.
+- **The sixteen ANSI slots for a light ground**, chosen from the research matrix so every agent
+  interface stays readable, with the eight bright slots kept distinct from the eight normal ones on
+  paper, where vendor palettes most often fail. The terminal foreground, cursor and selection follow
+  through `followPalette`. A colour an agent hard codes cannot be fixed here and the research says
+  which those are, per agent, so the limit is stated rather than discovered.
+- **Every non token surface follows.** Monaco registers a light theme beside the dark one and
+  switches live. Pierre registers a second custom theme and the bridge chooses by scheme, so the
+  diff view stops being the one thing that keeps its shipped ground, which lifts the limit Phases
+  207 and 210 both stated. The tree styles follow. The Architecture map redraws from the live tokens.
+  Markdown preview, the redline, Catch Me Up, Settings, the login card, the meter, the usage card,
+  the diagnostics report, every native menu accessory and every toast are read in the app run and
+  none may carry a dark literal.
+- **The window follows before the renderer exists.** Main composes the window fill from the chosen
+  scheme the way Phase 207 made it compose from the hue, and the HTML fixed fill is replaced so the
+  first frame is the chosen ground. The title bar and traffic light region are read on the light
+  fill and set so they do not sit in a dark strip.
+- **One setting with three values.** Settings then Appearance gains Scheme at the top of the group,
+  being Light, Dark and Match the Mac, with Match the Mac following `nativeTheme` live so the app
+  turns with the system at sunset. Dark is the default, so a person who touches nothing sees what
+  they see today, byte identical, and the shipped dark palette is proved untouched by the gate.
+- **The existing controls compose.** Colour, Shade and Depth from Phases 207 and 210, the highlight
+  scheme and the contrast level all apply on top of the light base, and the offered region for shade
+  and depth is computed for the light base the way Phase 210 computed it for the dark one, with its
+  own refusal sentences where a step would break a floor. The text flip Phase 207 built stops being
+  synthetic: on the light base the text is dark, and a shade step that crossed the flip would be the
+  one place the flip fires for real, which the gate proves rather than assumes.
+- **The switch is a crossfade**, one short transition on the root that reduced motion turns off, so
+  changing scheme is a change and not a flash, and the app run reads the frames to prove no frame
+  paints a half palette.
+- **Captures and pictures follow the scheme.** A session captured to an image in light mode is a
+  light image, and the redline copy path is unchanged.
+- **Just enough words.** The control is three words on a segmented control, and the only sentence on
+  the face is the refusal sentence Phase 210 already uses when a step would break a floor. What a
+  scheme does lives in the hover.
+
+### The design bar, because he asked for stunning
+
+- The research step produces a MOCK before the build, being a full window in light mode composed
+  from the designed palette, photographed from the real app under a harness knob rather than drawn,
+  and the mock is judged against three named references the research picks, in one paragraph each,
+  for ground, hierarchy and accent. The build then matches the mock, and the verifier compares the
+  shipped app to the mock by rectangle and by colour the way Phase 201 compared the reading to its
+  approved mock.
+- Every text token clears its pinned ratio on every ground it sits on, every hairline is visible,
+  no two adjacent fills render the same, and the status dots clear 3 to 1 on the active row on the
+  light base, which is the note Phase 210 left open on the dark one and is NOT left open here.
+- The light palette looks like Tortie. Same accent hue, same categorical hues for the graph, same
+  radii, spacing and type, the same eight named starting colours turning the light ramp the way they
+  turn the dark one, so a person who switches recognises the app and does not meet a different
+  product.
+
+### What it must get right, and these are the properties
+
+- **Dark is byte identical.** With the scheme at Dark, every token, the terminal theme, the Monaco
+  theme, the Pierre theme and the window fill are the bytes that ship today, proved by hash over the
+  computed styles in the app run and over the token file in the gate.
+- **Every pinned ratio holds on the light base at every combination** of the eight colours, every
+  offered shade and depth cell, all three contrast levels and all four highlight schemes, in a walk
+  the gate says the coarseness of, the way Phase 210's gate does for the dark base.
+- **No dark literal survives.** A scan over every stylesheet, every theme object and every canvas
+  draw call for a hex or rgb literal that is not a token, proved on planted fixtures, so a surface
+  cannot quietly keep its dark colour.
+- **Every agent interface is readable on the light ground**, per the research matrix, with the
+  hard coded colours each vendor uses named as a limit per agent rather than as a surprise.
+- **The first frame is the chosen ground** at boot and at every window open, measured.
+- **Match the Mac follows a live change** of the system appearance within one second, and a hand
+  edited settings file holding any other value is read as Dark.
+- **Reduced motion turns the crossfade off** and nothing transitions.
+
+### Proof, run rather than read
+
+- `npm run conformance:hue` grows a scheme axis: every rule it holds for the dark base held for the
+  light base, plus the dark byte identity, plus the literal scan, plus the status dot floor on the
+  light active row, red one clause at a time under ablation, with the ablations counted in the log
+  line.
+- **Real data, the per agent matrix**: every registry agent's interface photographed on the light
+  ground in the four states above, each photograph read for its lowest contrast pair, in a table in
+  research 80 with a row per agent and a column per state.
+- **Attack**: a settings file holding `light` with a hue, shade and depth that were valid on dark
+  and are outside the light region; a switch mid drag of the shade slider; a switch while a diff, a
+  redline, a Monaco file and the Architecture map are all open; a switch under reduced motion; the
+  system appearance flipped ten times in a second under Match the Mac; a capture taken during the
+  crossfade; and a second window opened during the crossfade.
+- **One app run**, `npm run probe:p213`, two Electrons never at once, reading the computed
+  background and text of the titlebar, sidebar, tree, body, terminal, editor, diff, redline, map and
+  Settings window on both schemes and at the flip, the first frame colour at boot on each scheme,
+  the crossfade frames, the window fill through main, and the mock comparison by rectangle and
+  colour.
+- The battery, with the baseline regenerated for the new setting and its event.
+
+### What is NOT in this phase
+
+- **No light frame around a dark terminal.** DESIGN.md refuses it and this phase agrees.
+- **No per token colour picking**, no custom palettes, no import of a theme file.
+- **No change to the dark palette.** Not one byte.
+- **No fix for colours an agent hard codes** in its own interface. They are named per agent as a
+  limit.
+- **No new package.** The colour arithmetic is the OKLCH code Phase 207 wrote and culori in the
+  gate.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -21689,3 +21890,4 @@ cycle rather than only the evening it was written.
 - 2026-09-03, Phase 211 FIX ROUND on the verifier's needs_work, eleven findings reproduced before a line moved: F1 CRITICAL, the claude default lift lost the person's own account in the ordinary sequence, re-run with the verifier's harness (alice survives A=false B=true), the premise that the preceding observe promotes the outgoing account being false because an observe promotes only on a change; `liftDefaultStore` now promotes the default slot's account BEFORE the write through the same `promoteOutgoing`, which answers whether it is HELD elsewhere, and moves the default record on to the chosen account AFTER, so re-run alice survives A=true B=true and the observe that follows does nothing. F3, a held lock thrown out of activate while the choice was recorded and the face said switched, now a refusal naming the lock. F5, an unwritable config home spinning the nine second wait at 99 percent of a core, now refused in 0 ms with 0 ms of CPU by a mkdir seam that throws for anything but EEXIST and a null branch that sleeps. F6, the vendor's THIRD lock `.storage-write` (stale 15 s, offset 158843688), under which the credential save at the end of a refresh runs, taken inside the other two and proved load bearing by a holder of it alone: shipped the store ended holding the chosen account after 3,946 ms, ablated the holder's refreshed old credential overwrote it at 141 ms. F11, the legacy lock named from the real path as the vendor does. F2, every harness launch answered no live sessions since Phase 208 so the lift could never fire in any app run and `probe:p211` had never been green; the harness seams now share the person's own seam. F4, `Restart now` restarted only sessions mid turn under their ORIGINAL login; it now restarts every live session the switch reached, under the default or the chosen login on this Mac, with `underChosenLogin` on the restart so the row carries the new name, and the sentence moved into `renderer/state/login-switch.ts` so the Settings list and the card say the same thing. F7, a login made after boot never watched, now `refresh()` after every change and every observe. F8, the backstop fingerprinting `acct`, which the vendor never changes, now `mdat`. F9, the read seam following a link, now `readTextNoFollowSync`. F10, the copy claiming a measurement no process gave, now the bundle's constant with docs/research/79 holding every identifier and offset and the live pickup stated as UNMEASURED with what it would take. The gate carries eleven more arms and eleven more ablations, 46 in all red one at a time; `probe:p211` drives the lift, the toast, `Restart now` (row `one.example`, pane `CODEX_HOME` under the profile's logins root, 181 ms) and the watcher (promotion 807 ms, redraw 3,971 ms after the lift's own observe) in one Electron, every reading agreed. His keychain by attributes and `~/.codex/auth.json` unchanged across the round; `~/.claude.json` moves because running Claude Code sessions rewrite it and it holds no credential. Eager headroom 469,734 raw, 1,144 spent by the round.
 - 2026-09-03, Phase 211 LANDED on `82e86b3` at version 0.99.0 with NO bump, the declared semver being MINOR, the login reaches the session, seventeen commits, the last three being the committer's own round on the reverify's needs_work. WHAT HE CAN NOW DO, in his words of 2026-09-03: when he changes the account after one is set it DOES change in the terminal session, because choosing a login writes that account into the store the running session reads, under Claude Code's own locks, and the session picks it up on its own or `Restart now` beside the sentence brings it back under that login at once; and when he logs in via the CLI it DOES immediately update, because a `/login` is seen within about a second and the menu, the card, the Settings list and the meter redraw unasked in every window. THE TWO PHASE 204 REFUSALS LIFTED AT HIS WORD: `activateLogin` no longer refuses a store a session is running under, and the person's own default location is written through `defaultStoreTarget`, the one function that may, reached from one call site, while `storeTarget` still refuses it as its first act. THE LOCK PROTOCOL, from the installed 2.1.260 bundle and research 79: `<config-home>/.oauth_refresh.lock` then the legacy `<realpath of config-home>.lock` (offsets 159814708 and 159082821), both stale at 60 s and touched every 5 s by the vendor and every 3 s by Tortie, then `<config-dir>/.storage-write` stale at 15 s with ten retries of 100 to 1000 ms (offset 158843688); the lock is a directory and mkdir is the mutex, a live lock is never stolen and a stale one is, a lock held past the nine second wait is a refusal naming the lock, Claude Code retries a held credentials lock five times with one to two second jittered sleeps, `~/.claude.json.lock` (stale 10 s, offset 158835862) is not taken because nothing writes that file, and codex holds none because it has none; measured in the app run, the three are held about 235 ms of a 661 ms choose. THE COMMITTER'S ROUND: F1, the lift read the store, promoted and moved the record BEFORE it took the locks, so a refresh the vendor saved while the lift waited was written over after the release, driven by the verifier on a real scratch keychain with a holder speaking proper-lockfile; one `liftStore` now takes the locks, THEN reads, keeps what it read, promotes, writes and releases, re-run alice.example holds the REFRESHED bytes after a 4,191 ms wait on both paths. F2, a held copy of the same account was not brought forward, so the round trip work, alice, work put the pre refresh token back; `freshenHeld` brings the newer bytes into the held slot and the record remembers the one digest it moved past so the observe does not mirror the stale store back, re-run the session gets the refreshed token. F3, a default store reading as empty, garbage or half a credential skipped the promotion and moved the rolling copy on over the only copy; the promotion asks the slot, re-run alice kept under all three shapes. F4, a choose in one window reached the Settings window only from the backstop at 10,021 ms; every change pushes `logins:changed`, re-run 0 ms. THE PICKUP: the running session's own pickup is the bundle's thirty second keychain cache constant, UNMEASURED on a live vendor process for the reason research 79 gives, being that a scratch keychain first in the search list is `list-keychains -s` against his own; `Restart now` MEASURED at 130 ms for claude and 182 ms for codex with the pane environment read from inside. THE WATCHER: a sign in written from outside redrew the menu rows in 874 ms, the Settings window in 899 ms and codex in 1,099 ms with no hover and no visit, and promoted the account he left in 808 ms; it is `fs.watch` inside the credentials domain and not a subscription through `src/main/watcher`, so `conformance:watcher` stays green with the eight path budget untouched. SAFETY ACROSS EVERY RUN: his keychain by attributes carries the same 6 items with the latest `mdat` 20260903202909Z before and after, the search list is login and System only, `~/.codex/auth.json` is 7e3bdab8 before and after, `~/.claude/.credentials.json` is absent both times, and `~/.claude.json` moved because his own running sessions rewrite it and the domain has no write to it; no -g and no -w against his keychain, every scratch keychain deleted in a finally, every server of mine ended and its socket removed. HEADROOM: the eager set is 1,534,694 raw under 2,000,000 by 465,306; this round spent 0, the 4,428 that moved is Phase 210 landing on origin. THE GATE: `conformance:credentials` carries three new arms, liftRace, heldRefresh with a moving clock control, and liftEmpty over three shapes, and four new ablations that each move only their own reading, 50 of 50 red; `conformance:logins` rule 11 reads the push from `answer`'s own braces over four fixtures, 12 of 12 red; the battery from a clean cache is typecheck, build, smoke:t1 6 of 6, test 12,060, credentials, logins, watcher, contract and background all green. VERIFIER METHODS: attack with a vendor shaped holder on a real scratch keychain, re-derivation of every lock and cache constant against the 2.1.260 bundle, hostile fixtures of garbage and half credentials and planted links, the app run over real `security`, and the parent measured; the committer re-ran the verifier's own harnesses hA, hB and the app run unmodified over the fix, ran `probe:p211`, and named the two things still not true, being the live pickup on a real vendor process and a storage lock Tortie does not take when `CLAUDE_SECURESTORAGE_CONFIG_DIR` is set.
 - 2026-09-03, v0.100.0 RELEASED at his word, tag on `ea35fec` (changelog `6a9285f`), the signed build promoted from draft to Latest with the CHANGELOG entry verbatim, carrying 205, 206, 184, 208, 207, 209, 210, 211 and 212; the website changelog synced and pushed at tortiedotsh `fea0a07`. The queue is EMPTY. Waiting on him: `.playwright-mcp/r67-crisp-2x.png`, cited by research 68 line 538 from an ignored directory.
+- 2026-09-03, Phase 213 QUEUED, light mode: his words, queue light mode, be thorough and make it absolutely stunning and beautiful. It is the mode Phase 210 recorded as the only thing that would deliver the text flip, and DESIGN.md's dark-only rule decides its shape: the terminal goes light too, never a light frame around a dark terminal. A SECOND BASE PALETTE for every colour token, designed on a paper ground rather than inverted, with hue, shade, depth, the highlight scheme and the contrast level composing on top; the sixteen ANSI slots chosen from a per agent photograph matrix over real agent interfaces on the light ground, which is the Tier 3 real data; Monaco, the Pierre diff theme, the tree styles, the Architecture map, the window fill and the HTML first frame all following; a Scheme control with Light, Dark and Match the Mac through nativeTheme; a crossfade reduced motion turns off; dark byte identical; research 80 first with a mock the build must match. Tier 3, MINOR. Launches now, the queue being otherwise empty.
