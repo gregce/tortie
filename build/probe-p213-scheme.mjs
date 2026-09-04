@@ -3,7 +3,7 @@
  * probe-p213-scheme.mjs. Light mode, driven in the real app and read off the
  * DOM and off the compositor (Phase 213).
  *
- * About four minutes after the build. THREE Electrons ONE AFTER THE OTHER and
+ * About five minutes after the build. FOUR Electrons ONE AFTER THE OTHER and
  * never at once, on one scratch profile and the gmux-p213 tmux socket, through
  * build/electron-run.mjs so each whole tree ends in a finally block whatever
  * happens. It spawns no agent, spends no token, opens no keychain, reads
@@ -48,6 +48,16 @@
  * THE THIRD LAUNCH boots with a hand edited settings file holding a scheme
  * that is not one, and must boot dark with the face reading Dark.
  *
+ * THE FOURTH LAUNCH is the fix round's, and it is the ORDINARY PATH: a person
+ * holding a shade of -2 on dark, which paper cannot draw, opens Settings,
+ * clicks Light on the Scheme control and looks at the Frame group. The window
+ * follows and so must the face, at half a second, at two and a half and at
+ * five: the Shade slider at the stop the base draws, the refusal line paper's
+ * own, the five band strip and all eight colour chips drawn from the light
+ * base. Every one of those was left on the dark base by the shipped build,
+ * because the applier publishes inside the view transition's commit and that
+ * commit lands after React has rendered the same broadcast.
+ *
  * `--self-test` proves the graders on fixtures and launches nothing.
  */
 
@@ -67,6 +77,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ---------------------------------------------------------------------------
 // What the two bases are, from the tree, and what the mock pins.
 // ---------------------------------------------------------------------------
+
+/** The eight named starting colours, as the row labels them. */
+const FRAME_LABELS = ['Graphite', 'Violet', 'Plum', 'Clay', 'Sand', 'Moss', 'Pine', 'Ocean'];
 
 const DARK = { canvas: '#131417', sidebar: '#0e0f13', text: '#c9cacd', termFg: '#d8dbe2' };
 const LIGHT = { canvas: '#f5f7fa', sidebar: '#edeff3', text: '#353639', termFg: '#282a30' };
@@ -376,6 +389,55 @@ export function gradeFace(face, want) {
   return findings;
 }
 
+/**
+ * THE FACE AFTER AN IN-SESSION SWITCH (Phase 213 fix round, finding 1).
+ *
+ * The window is not the only thing that has to follow the scheme. A person
+ * who chooses Light is usually about to choose a frame colour, and the face
+ * they choose it from is the Frame group: the two sliders, the line that says
+ * why one stopped, the five band strip and the eight colour chips. All of it
+ * is derived from the base in effect, and none of it re-rendered when the
+ * applier's publish was deferred into a view transition, so paper was chosen
+ * and eight near black ramps were offered on a light card.
+ *
+ * The reading is taken three times after the click, because the defect was
+ * NOT a transient: it held at half a second, at two and a half and at five,
+ * and only something else forcing a render repaired it.
+ */
+export function gradeSwitchedFace(before, after) {
+  const findings = [];
+  if (before === null || after === null) return ['the face was not read on both sides of the switch'];
+  const dark = (value) => luminance(value) < 0.1;
+  const light = (value) => luminance(value) > 0.6;
+  if (before.shade?.value !== -2) findings.push(`before the switch the Shade slider reads ${String(before.shade?.value)}, not the -2 that was persisted`);
+  if (!(before.bands ?? []).every(dark)) findings.push(`before the switch the band strip is ${(before.bands ?? []).join(' ')}, which is not the dark ramp`);
+  if (after.rootScheme !== 'light') findings.push(`after the switch the Settings root carries data-scheme=${String(after.rootScheme)}`);
+  if (!light(after.canvas ?? '')) findings.push(`after the switch the Settings window's --bg-canvas is ${String(after.canvas)}, not the paper`);
+  if (after.checked !== 'Light') findings.push(`after the switch the Scheme control has ${String(after.checked)} pressed`);
+  // The face itself, which is the finding.
+  for (const reading of after.readings ?? []) {
+    const at = `${String(reading.ms)} ms after the click`;
+    if (reading.shade?.value !== 0) findings.push(`${at} the Shade slider reads ${String(reading.shade?.value)} where the window draws the shipped stop`);
+    if (!/accent|status dots/.test(reading.note ?? '')) findings.push(`${at} the refusal line reads "${String(reading.note)}", which is not paper's`);
+    const bands = reading.bands ?? [];
+    if (bands.length !== 5) findings.push(`${at} the band strip has ${String(bands.length)} bands`);
+    else if (!bands.every(light)) findings.push(`${at} the band strip is ${bands.join(' ')}, which is the dark ramp on a light card`);
+    const chips = reading.chips ?? [];
+    if (chips.length < 8) findings.push(`${at} only ${String(chips.length)} colour chips were read`);
+    else if (!chips.every((chip) => (chip.bands ?? []).every(light))) {
+      const bad = chips.filter((chip) => !(chip.bands ?? []).every(light)).map((chip) => chip.label);
+      findings.push(`${at} the chips ${bad.join(', ')} are drawn as dark ramps, so a person choosing a frame colour on paper is offered a colour they cannot get`);
+    }
+  }
+  const [first, ...rest] = after.readings ?? [];
+  for (const reading of rest) {
+    if (JSON.stringify(reading.bands) !== JSON.stringify(first?.bands) || reading.shade?.value !== first?.shade?.value) {
+      findings.push(`the face is still moving at ${String(reading.ms)} ms, so what it says depends on when it is read`);
+    }
+  }
+  return findings;
+}
+
 function selfTest() {
   let pass = true;
   const ok = (name, findings, want) => {
@@ -475,7 +537,60 @@ function selfTest() {
   ok('a face with Dark pressed on a light launch', gradeFace({ ...face, checked: 'Dark' }, { checked: 'Light' }), 'red');
   ok('a slider that took a darker shade on paper', gradeFace({ ...face, refusedAt: { asked: -1, value: -1, note: '' } }, { checked: 'Light' }), 'red');
   ok('a clean dark face', gradeFace({ ...face, checked: 'Dark', sectionRootScheme: null }, { checked: 'Dark' }), 'clean');
-  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 31 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
+  const strip = (hexes) => hexes;
+  const chipsAt = (hexes) => FRAME_LABELS.map((label) => ({ label, bands: hexes }));
+  const LIGHT_BANDS = ['#edeff3', '#f5f7fa', '#fcfcfe', '#e5e7ed', '#d9dce3'];
+  const DARK_BANDS = ['#0e0f13', '#131417', '#191b20', '#202329', '#252931'];
+  const before = { shade: { value: -2 }, bands: strip(DARK_BANDS) };
+  const afterOk = {
+    rootScheme: 'light',
+    canvas: '#f5f7fa',
+    checked: 'Light',
+    readings: [500, 2500, 5000].map((ms) => ({
+      ms,
+      shade: { value: 0 },
+      note: 'Darker puts the accent under its contrast floor.',
+      bands: strip(LIGHT_BANDS),
+      chips: chipsAt(LIGHT_BANDS)
+    }))
+  };
+  ok('a face that followed the switch', gradeSwitchedFace(before, afterOk), 'clean');
+  ok(
+    'the face the defect drew: the sliders and the strip left on dark',
+    gradeSwitchedFace(before, {
+      ...afterOk,
+      readings: afterOk.readings.map((r) => ({
+        ...r,
+        shade: { value: -2 },
+        note: 'Lighter puts the file colors under their contrast floor.',
+        bands: strip(DARK_BANDS),
+        chips: chipsAt(DARK_BANDS)
+      }))
+    }),
+    'red'
+  );
+  ok(
+    'eight chips still drawn as dark ramps on a light card',
+    gradeSwitchedFace(before, {
+      ...afterOk,
+      readings: afterOk.readings.map((r) => ({ ...r, chips: chipsAt(DARK_BANDS) }))
+    }),
+    'red'
+  );
+  ok(
+    'a face that repaired itself between two readings',
+    gradeSwitchedFace(before, {
+      ...afterOk,
+      readings: [
+        { ...afterOk.readings[0], shade: { value: -2 }, bands: strip(DARK_BANDS) },
+        afterOk.readings[1],
+        afterOk.readings[2]
+      ]
+    }),
+    'red'
+  );
+  ok('a switch the window itself did not follow', gradeSwitchedFace(before, { ...afterOk, rootScheme: null, canvas: '#131417' }), 'red');
+  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 36 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
   return pass;
 }
 
@@ -524,6 +639,15 @@ writeFileSync(
 
 const report = { launches: [], findings: 0 };
 let threw = null;
+
+/**
+ * Which launches to drive, for the fix round's before and after. Empty, the
+ * default, drives all four; `P213_ONLY=D` drives the in-session switch alone,
+ * which is what a measurement at the parent build needs and takes about a
+ * minute and a half. It changes nothing about what any launch asserts.
+ */
+const ONLY = (process.env.P213_ONLY ?? '').toUpperCase();
+const driving = (name) => ONLY === '' || ONLY.includes(name);
 
 const launch = (label, extraEnv = {}) => ({
   label,
@@ -730,7 +854,7 @@ const press = (s, { key, code, vk, modifiers }) =>
 
 const A = { name: 'A dark boot and the switch', findings: 0 };
 report.launches.push(A);
-await withElectron(launch('p213 A'), async (handle) => {
+if (driving('A')) await withElectron(launch('p213 A'), async (handle) => {
   const mainWsPromise = mainInspector(handle);
   const { cdp } = await browserEndpoint();
   const watch = watchTargets(cdp);
@@ -1080,13 +1204,13 @@ async function bootAndFace(label, scheme, wantChecked) {
   });
 }
 
-if (threw === null) await bootAndFace('B light boot', 'light', 'Light');
+if (threw === null && driving('B')) await bootAndFace('B light boot', 'light', 'Light');
 
 // ---------------------------------------------------------------------------
 // Launch C: a hand edited settings file holding a scheme that is not one.
 // ---------------------------------------------------------------------------
 
-if (threw === null) {
+if (threw === null && driving('C')) {
   const settingsFile = join(profile, 'settings.json');
   try {
     const file = JSON.parse(readFileSync(settingsFile, 'utf8'));
@@ -1099,6 +1223,98 @@ if (threw === null) {
   await bootAndFace('C garbage boot', 'dark', 'Dark');
 }
 
+// ---------------------------------------------------------------------------
+// Launch D: the ordinary in-session switch, read on the FACE (fix round).
+//
+// A person holding a shade of -2 on dark opens Settings, clicks Light, and
+// looks at the Frame group. The window follows; the question this launch asks
+// is whether the face does, because the applier publishes inside the view
+// transition's own commit and that commit lands after React has already
+// rendered the settings broadcast.
+// ---------------------------------------------------------------------------
+
+const SWITCH_JS = `(async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const nav = [...document.querySelectorAll('button, [role="tab"], a')].find((el) => (el.textContent || '').trim() === 'Appearance');
+  if (nav) nav.click();
+  await wait(1200);
+  const section = document.querySelector('section[aria-label="Appearance"]');
+  if (!section) return JSON.stringify(null);
+  const bandsOf = (root) => [...root.querySelectorAll('.set-frame-band')].map((el) => getComputedStyle(el).backgroundColor);
+  const chipsOf = () => [...section.querySelectorAll('.set-frame-color')].map((el) => ({
+    label: el.getAttribute('aria-label'),
+    bands: [...el.querySelectorAll('.set-frame-chip-band')].map((b) => getComputedStyle(b).backgroundColor)
+  }));
+  const readSlider = (label) => { const el = section.querySelector('input[aria-label="' + label + '"]'); return el === null ? null : { value: Number(el.value), min: Number(el.min), max: Number(el.max) }; };
+  const noteOf = (label) => { const el = section.querySelector('input[aria-label="' + label + '"]'); if (el === null) return ''; const note = el.parentElement.querySelector('.set-frame-note'); return note === null ? '' : note.textContent.trim(); };
+  const faceNow = (ms) => ({ ms, shade: readSlider('Shade'), depth: readSlider('Depth'), note: noteOf('Shade'), bands: bandsOf(section), chips: chipsOf() });
+  const before = faceNow(0);
+  const group = section.querySelector('[role="radiogroup"][aria-label="Scheme"]');
+  const lightRadio = group === null ? null : [...group.querySelectorAll('[role="radio"]')].find((r) => r.getAttribute('aria-label') === 'Light');
+  if (lightRadio === null || lightRadio === undefined) return JSON.stringify({ before, after: null });
+  lightRadio.click();
+  const readings = [];
+  let waited = 0;
+  for (const ms of [500, 2500, 5000]) {
+    await wait(ms - waited);
+    waited = ms;
+    readings.push(faceNow(ms));
+  }
+  const groupNow = section.querySelector('[role="radiogroup"][aria-label="Scheme"]');
+  const after = {
+    rootScheme: document.documentElement.getAttribute('data-scheme'),
+    canvas: getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas').trim(),
+    checked: [...(groupNow ? groupNow.querySelectorAll('[role="radio"]') : [])].find((r) => r.getAttribute('aria-checked') === 'true')?.getAttribute('aria-label') ?? null,
+    readings
+  };
+  return JSON.stringify({ before, after });
+})()`;
+
+if (threw === null && driving('D')) {
+  const L = { name: 'D in-session switch', findings: 0 };
+  report.launches.push(L);
+  await withElectron(launch('D in-session switch'), async (handle) => {
+    const { cdp } = await browserEndpoint();
+    const watch = watchTargets(cdp);
+    await cdp.call('Target.setDiscoverTargets', { discover: true });
+    await cdp.call('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true });
+    const s = await appPage(cdp, watch);
+    await sleep(1500);
+    await s.call('Page.stopScreencast').catch(() => {});
+    // The frame a person is holding on dark: shade -2 at depth 0 is one of
+    // the 35 pairs the dark base offers and one of the 31 paper cannot draw.
+    await s.eval(
+      `window.gmux.settingsSet({ colorScheme: 'dark', chromeShade: -2, chromeDepth: 0 }).then(() => true)`,
+      30_000
+    );
+    await sleep(800);
+    await s.eval(`window.gmux.openSettings().then(() => true)`, 30_000);
+    const sp = await settingsPage(cdp, watch);
+    await sleep(1500);
+    await sp.call('Page.stopScreencast').catch(() => {});
+    const text = await sp.eval(SWITCH_JS, 60_000);
+    const read = text === null ? null : JSON.parse(text);
+    L.switch = read;
+    check(
+      L,
+      gradeSwitchedFace(read?.before ?? null, read?.after ?? null),
+      `the face after an in-session switch: Shade ${String(read?.before?.shade?.value)} then ${String(read?.after?.readings?.[0]?.shade?.value)}, "${String(read?.after?.readings?.[0]?.note)}", the strip ${(read?.after?.readings?.[0]?.bands ?? []).join(' ')}`
+    );
+    // The window the face belongs to really did move, which is the control:
+    // a face that agrees with a window that did not switch proves nothing.
+    const app = await s.eval(`window.__gmuxP207.read()`, 30_000);
+    check(
+      L,
+      app.scheme === 'light' ? [] : [`the app window is on the ${String(app.scheme)} base after the switch`],
+      `the app window followed the same click: scheme ${String(app.scheme)}, canvas ${String(app.tokens['--bg-canvas'])}`
+    );
+    await screenshot(sp, join(shots, 'D-in-session-switch-settings.png'));
+    cdp.close();
+  }).catch((error) => {
+    threw = error;
+  });
+}
+
 writeFileSync(join(root, 'p213-report.json'), JSON.stringify(report, null, 2), 'utf8');
 say(`the report is at ${join(root, 'p213-report.json')}, photographs under ${shots}`);
 if (threw !== null) {
@@ -1107,7 +1323,7 @@ if (threw !== null) {
 }
 say(
   report.findings === 0
-    ? 'OK: dark boots dark and light boots light from the first frame, every surface follows the base, the switch crossfades with no half palette and reduced motion switches in one frame, the mock is met by rectangle and by colour, the fill follows through main, Match the Mac follows the system within a second, and garbage in the settings file reads as dark'
+    ? 'OK: dark boots dark and light boots light from the first frame, every surface follows the base, the switch crossfades with no half palette and reduced motion switches in one frame, the mock is met by rectangle and by colour, the fill follows through main, Match the Mac follows the system within a second, garbage in the settings file reads as dark, and the Appearance face follows an in-session switch at every reading'
     : `${String(report.findings)} finding(s)`
 );
 process.exit(report.findings === 0 ? 0 : 1);

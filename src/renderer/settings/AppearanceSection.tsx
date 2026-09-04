@@ -60,6 +60,7 @@
 import React from 'react';
 import { keyDisplay } from '@shared/keymap';
 import type {
+  BaseScheme,
   ColorScheme,
   ContrastLevel,
   GmuxSettings,
@@ -75,7 +76,8 @@ import {
   sanitizeChromeShade,
   sanitizeColorScheme
 } from '@shared/settings';
-import { schemeNow, shippedBaseNow } from '../theme/apply';
+import { shippedBaseFor, shippedBaseNow } from '../theme/apply';
+import { useChromeTheme } from '../theme/chrome-theme';
 import type { FloorFailure } from '../theme/floors';
 import { deriveOverrides } from '../theme/derive';
 import {
@@ -85,7 +87,9 @@ import {
   frameFailure,
   frameForBase,
   refusalSentence,
-  shadeRange
+  shadeRange,
+  type FrameChoice,
+  type StopRange
 } from '../theme/frame-stops';
 import {
   CONTRAST_BG,
@@ -262,9 +266,14 @@ export function hueSwatches(
   settings: Pick<GmuxSettings, 'highlightScheme' | 'contrastLevel'>,
   chromeHue: number,
   chromeShade = 0,
-  chromeDepth = 0
+  chromeDepth = 0,
+  // THE BASE IT DRAWS FROM (Phase 213 fix round, finding 1). The caller
+  // passes the base of the scheme the WINDOW is drawing; it defaults to the
+  // one the applier captured last, which is the same thing everywhere except
+  // during a crossfade, when it is the base being left behind.
+  from: Readonly<Record<string, string>> | null = shippedBaseNow()
 ): Record<string, string> | null {
-  const base = shippedBaseNow();
+  const base = from;
   if (base === null) return null;
   const overrides = deriveOverrides(
     {
@@ -282,6 +291,129 @@ export function hueSwatches(
     if (value !== undefined) out[token] = value;
   }
   return out;
+}
+
+/**
+ * THE BASE THE WINDOW IS DRAWING, read reactively (Phase 213 fix round,
+ * finding 1).
+ *
+ * The applier publishes the scheme to the chrome theme store INSIDE the
+ * commit it hands to `document.startViewTransition`, and that commit is
+ * deferred past the React render the same settings broadcast causes. So the
+ * face cannot read the scheme as a module level value: on the render that
+ * follows a person clicking Light it would still say dark, and nothing would
+ * re-render it afterwards. Subscribing to the store is what makes the publish
+ * the thing that moves the face, so the face and the window move together.
+ *
+ * It is read through `useSyncExternalStore` rather than through zustand's own
+ * hook because zustand answers the store's INITIAL state during a server
+ * render, and the section's node tests render exactly that way; this reads
+ * the live state on both paths.
+ */
+function useDrawnScheme(): BaseScheme {
+  return React.useSyncExternalStore(
+    useChromeTheme.subscribe,
+    () => useChromeTheme.getState().scheme,
+    () => useChromeTheme.getState().scheme
+  );
+}
+
+/** Everything the two Frame sliders and the strip draw, for one base. */
+export interface FrameFace {
+  /** The frame this base can draw, which is what every part of the face says. */
+  held: FrameChoice;
+  shade: StopRange;
+  depth: StopRange;
+  shadeNote: string;
+  depthNote: string;
+  swatches: Record<string, string> | null;
+  atDefault: boolean;
+}
+
+/**
+ * The whole face of the Frame group, as a pure function of the base, the
+ * composition and the frame in hand.
+ *
+ * It is one function rather than nine expressions inside the component so
+ * that the two things the phase promised can be pinned by a test: that the
+ * face never says one frame while the window draws another, and that a
+ * carried frame the new base cannot draw is shown at the stop it is actually
+ * drawn at, with that base's own refusal sentence and that base's own bands.
+ */
+export function frameFace(
+  scheme: BaseScheme,
+  settings: Pick<GmuxSettings, 'highlightScheme' | 'contrastLevel'>,
+  base: Readonly<Record<string, string>> | null,
+  choice: FrameChoice
+): FrameFace {
+  // AND THE SLIDERS READ THE FRAME THIS BASE DRAWS, not the one persisted.
+  // The applier brings a frame the base cannot draw to the nearest stop the
+  // base offers and persists nothing, so on paper a shade of -2 chosen on
+  // dark draws as the shipped stop; a slider still sitting at -2 would say
+  // one frame while the window drew another. Dragging writes the drafts
+  // straight through, so this only ever moves a value nobody is touching.
+  const held = frameForBase(choice, scheme);
+  // The stops on offer come from the pinned region, so they cost nothing and
+  // do not move when a person changes their colour or their contrast. The
+  // REASON a slider stopped is measured live, at the composition in front of
+  // them, through the shipping derivation and the shipping floor predicate.
+  const ranges = {
+    shade: shadeRange(held.chromeDepth, scheme),
+    depth: depthRange(held.chromeShade, scheme)
+  };
+  const context = {
+    highlightScheme: settings.highlightScheme,
+    contrastLevel: settings.contrastLevel,
+    scheme
+  };
+  const why = (chromeShade: number, chromeDepth: number): FloorFailure | null =>
+    base === null
+      ? null
+      : frameFailure(context, base, { chromeHue: held.chromeHue, chromeShade, chromeDepth });
+  // WHAT THE REGION SAYS BINDS AT EACH END, by base, and it is a measurement
+  // rather than a guess (Phase 213). On the dark base the dark end is the
+  // RENDERED STEP, because near black eight bits run out before the ramp
+  // does, and the light end is the git decorations on the active row. On
+  // paper both ends move: the dark end is the accent, which ships at 5.03:1
+  // against a floor of 4.5 so one stop darker takes it under, and the light
+  // end is the ORDER, because the sheet ships at OKLCH L 0.992 and one stop
+  // lighter puts it and the canvas both at white. It is a fallback and not
+  // the sentence: where the live composition really fails, that failure
+  // names itself.
+  const ends =
+    scheme === 'light'
+      ? {
+          darker: { family: 'chromatic' as const, token: '--accent-text' },
+          lighter: { family: 'order' as const },
+          lessDepth: { family: 'step' as const },
+          moreDepth: { family: 'chromatic' as const }
+        }
+      : {
+          darker: { family: 'step' as const },
+          lighter: { family: 'chromatic' as const },
+          lessDepth: { family: 'step' as const },
+          moreDepth: { family: 'chromatic' as const }
+        };
+  const shadeNote =
+    held.chromeShade <= ranges.shade.min
+      ? refusalSentence('darker', why(ranges.shade.min - 1, held.chromeDepth), ranges.shade.belowElsewhere, ends.darker)
+      : refusalSentence('lighter', why(ranges.shade.max + 1, held.chromeDepth), ranges.shade.aboveElsewhere, ends.lighter);
+  const depthNote =
+    held.chromeDepth <= ranges.depth.min
+      ? refusalSentence('less depth', why(held.chromeShade, ranges.depth.min - 1), ranges.depth.belowElsewhere, ends.lessDepth)
+      : refusalSentence('more depth', why(held.chromeShade, ranges.depth.max + 1), ranges.depth.aboveElsewhere, ends.moreDepth);
+  return {
+    held,
+    shade: ranges.shade,
+    depth: ranges.depth,
+    shadeNote,
+    depthNote,
+    swatches: hueSwatches(settings, held.chromeHue, held.chromeShade, held.chromeDepth, base),
+    atDefault:
+      held.chromeHue === DEFAULT_CHROME_HUE &&
+      held.chromeShade === DEFAULT_CHROME_SHADE &&
+      held.chromeDepth === DEFAULT_CHROME_DEPTH
+  };
 }
 
 /** How long a drag waits between persisted patches. */
@@ -358,8 +490,23 @@ function FrameStrip({
 function FrameColorRow(): React.JSX.Element {
   const settings = useSettingsStore((s) => s.settings);
   const hue = sanitizeChromeHue(settings.chromeHue);
-  const shade = sanitizeChromeShade(settings.chromeShade);
-  const depth = sanitizeChromeDepth(settings.chromeDepth);
+  // THE CHIPS ARE DRAWN AT THE FRAME IN EFFECT (Phase 213 fix round), which
+  // on a base that cannot draw the carried one is the stop it was brought
+  // to, from that base's own bytes. docs/DESIGN-SPEC.md says each chip is
+  // "the frame it produces at the shade and depth in effect", and on paper
+  // the shade in effect is the shipped stop rather than the persisted one.
+  const scheme = useDrawnScheme();
+  const base = shippedBaseFor(scheme);
+  const held = frameForBase(
+    {
+      chromeHue: hue,
+      chromeShade: sanitizeChromeShade(settings.chromeShade),
+      chromeDepth: sanitizeChromeDepth(settings.chromeDepth)
+    },
+    scheme
+  );
+  const shade = held.chromeShade;
+  const depth = held.chromeDepth;
   const named = FRAME_COLORS.some((c) => c.hue === hue);
   // A hue none of the eight carries keeps its own swatch at the head of the
   // row rather than being snapped onto a neighbour, which would show a person
@@ -378,7 +525,7 @@ function FrameColorRow(): React.JSX.Element {
       </div>
       <div className="set-frame-colors" role="radiogroup" aria-label="Frame color">
         {choices.map((choice) => {
-          const swatches = hueSwatches(settings, choice.hue, shade, depth);
+          const swatches = hueSwatches(settings, choice.hue, shade, depth, base);
           const on = choice.hue === hue;
           return (
             <button
@@ -488,68 +635,16 @@ function FrameShapeRows(): React.JSX.Element {
     sanitizeChromeDepth(settings.chromeDepth),
     selectChromeDepth
   );
-  const base = shippedBaseNow();
   // The base in effect (Phase 213): the light region is its own table and
-  // the light floors are their own predicate, so both are asked by scheme.
-  const scheme = schemeNow();
-  // AND THE SLIDERS READ THE FRAME THIS BASE DRAWS, not the one persisted.
-  // The applier brings a frame the base cannot draw to the nearest stop the
-  // base offers and persists nothing, so on paper a shade of -2 chosen on
-  // dark draws as the shipped stop; a slider still sitting at -2 would say
-  // one frame while the window drew another. Dragging writes the drafts
-  // straight through, so this only ever moves a value nobody is touching.
-  const held = frameForBase({ chromeHue: hue, chromeShade: shade, chromeDepth: depth }, scheme);
-  // The stops on offer come from the pinned region, so they cost nothing and
-  // do not move when a person changes their colour or their contrast. The
-  // REASON a slider stopped is measured live, at the composition in front of
-  // them, through the shipping derivation and the shipping floor predicate.
-  const ranges = { shade: shadeRange(held.chromeDepth, scheme), depth: depthRange(held.chromeShade, scheme) };
-  const context = {
-    highlightScheme: settings.highlightScheme,
-    contrastLevel: settings.contrastLevel,
-    scheme
-  };
-  const why = (chromeShade: number, chromeDepth: number): FloorFailure | null =>
-    base === null
-      ? null
-      : frameFailure(context, base, { chromeHue: hue, chromeShade, chromeDepth });
-  const swatches = hueSwatches(settings, hue, held.chromeShade, held.chromeDepth);
-  const atDefault =
-    hue === DEFAULT_CHROME_HUE &&
-    held.chromeShade === DEFAULT_CHROME_SHADE &&
-    held.chromeDepth === DEFAULT_CHROME_DEPTH;
-  // WHAT THE REGION SAYS BINDS AT EACH END, by base, and it is a measurement
-  // rather than a guess (Phase 213). On the dark base the dark end is the
-  // RENDERED STEP, because near black eight bits run out before the ramp
-  // does, and the light end is the git decorations on the active row. On
-  // paper both ends move: the dark end is the accent, which ships at 5.03:1
-  // against a floor of 4.5 so one stop darker takes it under, and the light
-  // end is the ORDER, because the sheet ships at OKLCH L 0.992 and one stop
-  // lighter puts it and the canvas both at white. It is a fallback and not
-  // the sentence: where the live composition really fails, that failure
-  // names itself.
-  const ends =
-    scheme === 'light'
-      ? {
-          darker: { family: 'chromatic' as const, token: '--accent-text' },
-          lighter: { family: 'order' as const },
-          lessDepth: { family: 'step' as const },
-          moreDepth: { family: 'chromatic' as const }
-        }
-      : {
-          darker: { family: 'step' as const },
-          lighter: { family: 'chromatic' as const },
-          lessDepth: { family: 'step' as const },
-          moreDepth: { family: 'chromatic' as const }
-        };
-  const shadeNote =
-    held.chromeShade <= ranges.shade.min
-      ? refusalSentence('darker', why(ranges.shade.min - 1, held.chromeDepth), ranges.shade.belowElsewhere, ends.darker)
-      : refusalSentence('lighter', why(ranges.shade.max + 1, held.chromeDepth), ranges.shade.aboveElsewhere, ends.lighter);
-  const depthNote =
-    held.chromeDepth <= ranges.depth.min
-      ? refusalSentence('less depth', why(held.chromeShade, ranges.depth.min - 1), ranges.depth.belowElsewhere, ends.lessDepth)
-      : refusalSentence('more depth', why(held.chromeShade, ranges.depth.max + 1), ranges.depth.aboveElsewhere, ends.moreDepth);
+  // the light floors are their own predicate, so both are asked by scheme,
+  // and the scheme is the one the WINDOW is drawing rather than the one the
+  // applier happened to capture last.
+  const scheme = useDrawnScheme();
+  const face = frameFace(scheme, settings, shippedBaseFor(scheme), {
+    chromeHue: hue,
+    chromeShade: shade,
+    chromeDepth: depth
+  });
   return (
     <>
       <StopSliderRow
@@ -557,32 +652,32 @@ function FrameShapeRows(): React.JSX.Element {
         caption="How dark the frame is. The shipped frame is a point on this line, and it is where it starts."
         min={SHADE_STOPS[0] ?? 0}
         max={SHADE_STOPS[SHADE_STOPS.length - 1] ?? 0}
-        edgeMin={ranges.shade.min}
-        edgeMax={ranges.shade.max}
-        draft={held.chromeShade}
+        edgeMin={face.shade.min}
+        edgeMax={face.shade.max}
+        draft={face.held.chromeShade}
         onPick={pickShade}
-        note={shadeNote}
+        note={face.shadeNote}
       />
       <StopSliderRow
         label="Depth"
         caption="How far the panels and the hairlines stand apart from the background."
         min={DEPTH_STOPS[0] ?? 0}
         max={DEPTH_STOPS[DEPTH_STOPS.length - 1] ?? 0}
-        edgeMin={ranges.depth.min}
-        edgeMax={ranges.depth.max}
-        draft={held.chromeDepth}
+        edgeMin={face.depth.min}
+        edgeMax={face.depth.max}
+        draft={face.held.chromeDepth}
         onPick={pickDepth}
-        note={depthNote}
+        note={face.depthNote}
       />
       <div className="set-row">
         <div className="set-row-text">
-          <FrameStrip swatches={swatches} />
+          <FrameStrip swatches={face.swatches} />
         </div>
         <button
           type="button"
-          className={atDefault ? 'set-hue-reset blank' : 'set-hue-reset'}
-          aria-hidden={atDefault ? true : undefined}
-          tabIndex={atDefault ? -1 : undefined}
+          className={face.atDefault ? 'set-hue-reset blank' : 'set-hue-reset'}
+          aria-hidden={face.atDefault ? true : undefined}
+          tabIndex={face.atDefault ? -1 : undefined}
           onClick={() => void resetChromeFrame()}
         >
           Reset

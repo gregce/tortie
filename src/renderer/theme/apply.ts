@@ -270,6 +270,24 @@ export function shippedBaseNow(): Readonly<Record<string, string>> | null {
   return capturedBases[capturedScheme] ?? null;
 }
 
+/**
+ * The captured base of ONE named scheme (Phase 213 fix round, finding 1).
+ *
+ * A surface that previews asks for the base of the scheme IT is drawing
+ * rather than for whichever the applier captured last, because the two are
+ * not the same thing for as long as a crossfade lasts: the applier publishes
+ * inside `document.startViewTransition`'s own commit, which is deferred past
+ * the React render the same settings broadcast causes, so a face reading
+ * `shippedBaseNow()` on that render draws the base it is leaving. The
+ * Appearance section reads the scheme off the chrome theme store, which the
+ * same commit publishes, and reads its base through here.
+ */
+export function shippedBaseFor(
+  scheme: BaseScheme
+): Readonly<Record<string, string>> | null {
+  return capturedBases[scheme] ?? null;
+}
+
 /** The base the applier last put on the root (Phase 213). */
 export function schemeNow(): BaseScheme {
   return capturedScheme;
