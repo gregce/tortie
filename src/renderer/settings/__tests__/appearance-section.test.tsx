@@ -24,6 +24,7 @@ import type { GmuxSettings, GmuxSettingsPatch } from '@shared/settings';
 import { defaultGmuxSettings } from '@shared/settings';
 import {
   AppearanceSection,
+  COLOR_SCHEME_OPTIONS,
   CONTRAST_OPTIONS,
   SCHEME_OPTIONS,
   WORK_FONT_OPTIONS,
@@ -32,6 +33,7 @@ import {
   selectChromeDepth,
   selectChromeHue,
   selectChromeShade,
+  selectColorScheme,
   selectContrastLevel,
   selectHighlightScheme,
   selectWorkAreaFont,
@@ -70,15 +72,36 @@ describe('the markup', () => {
     expect(html).toContain('Font');
   });
 
-  it('puts the Frame group between Highlight and Contrast, and Font last', () => {
+  it('puts Scheme first, the Frame group between Highlight and Contrast, and Font last', () => {
     const at = (label: string): number =>
       html.indexOf(`<div class="set-group-label">${label}</div>`);
-    expect(at('Highlight')).toBeGreaterThan(-1);
+    expect(at('Scheme')).toBeGreaterThan(-1);
+    expect(at('Highlight')).toBeGreaterThan(at('Scheme'));
     expect(at('Frame')).toBeGreaterThan(at('Highlight'));
     expect(at('Contrast')).toBeGreaterThan(at('Frame'));
     expect(at('Font')).toBeGreaterThan(at('Contrast'));
     // Nothing else is a group, so "after Contrast" is also "last".
-    expect(html.split('class="set-group-label"')).toHaveLength(5);
+    expect(html.split('class="set-group-label"')).toHaveLength(6);
+  });
+
+  it('renders the Scheme control as three names with Dark pressed (Phase 213)', () => {
+    expect(html).toContain('role="radiogroup" aria-label="Scheme"');
+    expect(COLOR_SCHEME_OPTIONS.map((o) => o.label)).toEqual(['Light', 'Dark', 'Match the Mac']);
+    expect(COLOR_SCHEME_OPTIONS.map((o) => o.value)).toEqual(['light', 'dark', 'system']);
+    let at = -1;
+    for (const o of COLOR_SCHEME_OPTIONS) {
+      const next = html.indexOf(`aria-label="${o.label}"`);
+      expect(next).toBeGreaterThan(at);
+      at = next;
+      // The words live on the hover title, not the face.
+      expect(html).toContain(`title="${o.title}"`);
+    }
+    expect(html).toContain('aria-checked="true" aria-label="Dark"');
+    expect(html).toContain('aria-checked="false" aria-label="Light"');
+    expect(html).toContain('aria-checked="false" aria-label="Match the Mac"');
+    // Just enough words: one label, one caption, no paragraph.
+    expect(html).toContain('Light, dark, or whatever the Mac is set to. Changes apply at once.');
+    expect(html).not.toContain('paper ground');
   });
 
   it('names the eight starting colors and draws NO degree (Phase 210)', () => {
@@ -188,7 +211,7 @@ describe('the markup', () => {
         'which helps on a dim display. Normal keeps the shipped colors.'
     );
     expect(html).toContain(
-      'Text inside the terminal keeps its shipped colors. So do diff views. ' +
+      'Text inside the terminal keeps its shipped colors for the scheme. ' +
         'The terminal selection highlight follows the highlight scheme.'
     );
     expect(html).toContain(
@@ -223,6 +246,16 @@ describe('the markup', () => {
 });
 
 describe('the picks', () => {
+  it('a colour scheme pick persists a one-field patch and garbage reads as dark (Phase 213)', async () => {
+    const settingsSet = installBridge();
+    await selectColorScheme('light');
+    expect(settingsSet).toHaveBeenCalledTimes(1);
+    expect(settingsSet.mock.calls[0]?.[0]).toEqual({ colorScheme: 'light' });
+    expect(useSettingsStore.getState().settings.colorScheme).toBe('light');
+    await selectColorScheme('paper');
+    expect(settingsSet.mock.calls[1]?.[0]).toEqual({ colorScheme: 'dark' });
+  });
+
   it('a scheme pick persists a one-field patch and the stored value follows', async () => {
     const settingsSet = installBridge();
     await selectHighlightScheme('teal');

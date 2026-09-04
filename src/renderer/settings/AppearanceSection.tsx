@@ -1,6 +1,9 @@
 /**
  * Phase 62 — Settings → Appearance: two controls and nothing else. One picks
  * the highlight scheme from four presets, one picks the contrast step.
+ * Phase 213 put the SCHEME above both, being Light, Dark and Match the Mac
+ * on one segmented control, because it decides the base every other control
+ * here composes on.
  * Both write one-field patches through the settings store; the broadcast
  * applies them in every window at once (src/renderer/theme/apply.ts), so the
  * live window is the preview and there is no Save.
@@ -57,6 +60,7 @@
 import React from 'react';
 import { keyDisplay } from '@shared/keymap';
 import type {
+  ColorScheme,
   ContrastLevel,
   GmuxSettings,
   HighlightScheme,
@@ -68,9 +72,10 @@ import {
   DEFAULT_CHROME_SHADE,
   sanitizeChromeDepth,
   sanitizeChromeHue,
-  sanitizeChromeShade
+  sanitizeChromeShade,
+  sanitizeColorScheme
 } from '@shared/settings';
-import { shippedBaseNow } from '../theme/apply';
+import { schemeNow, shippedBaseNow } from '../theme/apply';
 import type { FloorFailure } from '../theme/floors';
 import { deriveOverrides } from '../theme/derive';
 import {
@@ -118,6 +123,63 @@ export const CONTRAST_OPTIONS: { value: ContrastLevel; label: string }[] = [
  */
 export const WORK_FONT_OPTIONS: { value: WorkAreaFont; label: string }[] =
   WORK_FONTS.map((f) => ({ value: f.id, label: f.label }));
+
+/**
+ * The three schemes, in UI order (Phase 213). Light, Dark, Match the Mac.
+ * Dark is the shipped default. The hover titles are where the words live:
+ * the face carries the three names and nothing else.
+ */
+export const COLOR_SCHEME_OPTIONS: { value: ColorScheme; label: string; title: string }[] = [
+  { value: 'light', label: 'Light', title: 'Paper with dark text' },
+  { value: 'dark', label: 'Dark', title: 'Graphite with light text, the shipped look' },
+  { value: 'system', label: 'Match the Mac', title: 'Follows the Mac and changes with it' }
+];
+
+/** Persist a scheme pick as a one-field patch (Phase 213). For the test. */
+export function selectColorScheme(value: string): Promise<GmuxSettings | null> {
+  return useSettingsStore
+    .getState()
+    .update({ colorScheme: sanitizeColorScheme(value) });
+}
+
+/**
+ * The segmented control (Phase 213): three names, one pressed. A
+ * radiogroup, so the keyboard and the screen reader read it as one choice
+ * rather than three buttons.
+ */
+function ColorSchemeRow(): React.JSX.Element {
+  const settings = useSettingsStore((s) => s.settings);
+  const scheme = sanitizeColorScheme(settings.colorScheme);
+  return (
+    <div className="set-row tall">
+      <div className="set-row-text">
+        <span className="set-row-label">Scheme</span>
+        <span className="set-row-caption">
+          Light, dark, or whatever the Mac is set to. Changes apply at once.
+        </span>
+      </div>
+      <div className="set-segments" role="radiogroup" aria-label="Scheme">
+        {COLOR_SCHEME_OPTIONS.map((o) => {
+          const on = o.value === scheme;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              aria-label={o.label}
+              title={o.title}
+              className={on ? 'set-segment on' : 'set-segment'}
+              onClick={() => void selectColorScheme(o.value)}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Persist a scheme pick as a one-field patch. Exported for the unit test,
@@ -426,14 +488,18 @@ function FrameShapeRows(): React.JSX.Element {
     selectChromeDepth
   );
   const base = shippedBaseNow();
+  // The base in effect (Phase 213): the light region is its own table and
+  // the light floors are their own predicate, so both are asked by scheme.
+  const scheme = schemeNow();
   // The stops on offer come from the pinned region, so they cost nothing and
   // do not move when a person changes their colour or their contrast. The
   // REASON a slider stopped is measured live, at the composition in front of
   // them, through the shipping derivation and the shipping floor predicate.
-  const ranges = { shade: shadeRange(depth), depth: depthRange(shade) };
+  const ranges = { shade: shadeRange(depth, scheme), depth: depthRange(shade, scheme) };
   const context = {
     highlightScheme: settings.highlightScheme,
-    contrastLevel: settings.contrastLevel
+    contrastLevel: settings.contrastLevel,
+    scheme
   };
   const why = (chromeShade: number, chromeDepth: number): FloorFailure | null =>
     base === null
@@ -754,6 +820,14 @@ export function AppearanceSection(): React.JSX.Element {
     <section aria-label="Appearance">
       <h1 className="set-title">Appearance</h1>
 
+      {/* Phase 213. The scheme leads, because it decides the base every
+          control under it composes on: paper or graphite, or the Mac's own
+          choice, followed live. Three words on a segmented control. */}
+      <div className="set-group-label">Scheme</div>
+      <div className="set-card">
+        <ColorSchemeRow />
+      </div>
+
       <div className="set-group-label">Highlight</div>
       <div className="set-card">
         <HighlightSchemeRow />
@@ -781,8 +855,8 @@ export function AppearanceSection(): React.JSX.Element {
         <div className="set-row">
           <div className="set-row-text">
             <span className="set-row-caption">
-              Text inside the terminal keeps its shipped colors. So do diff
-              views. The terminal selection highlight follows the highlight
+              Text inside the terminal keeps its shipped colors for the
+              scheme. The terminal selection highlight follows the highlight
               scheme.
             </span>
           </div>

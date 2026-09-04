@@ -384,6 +384,52 @@
   flex: 1 1 0;
 }
 
+/* ---------------------------------------------------------- segments */
+
+/* Phase 213. The Scheme control: three names in one box, the chosen one
+   filled with the accent and lettered in --on-accent, the others plain, so
+   the choice reads on either base without a second colour. The box is the
+   select's own vocabulary, being its height, its hairline and its radius. */
+.set-row > .set-segments {
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  height: 24px;
+  padding: 1px;
+  gap: 1px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+}
+
+.set-segment {
+  height: 20px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--r-xs);
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 20px;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+.set-segment:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.set-segment.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.set-segment:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* ------------------------------------------------------------- switch */
 
 .set-switch {
