@@ -463,7 +463,11 @@
      committed under `build/p214/` for a later round that wants them.
 
      So a control that cannot move is not shown, and nothing below this line
-     changes to buy a stop.
+     changes to buy a stop. THE GROUP AND NOT THE ROWS ALONE, which is the
+     committer's round: Reset is drawn on every base, and it wrote all three
+     frame fields whatever base it was pressed on, so one press on paper put
+     the shade chosen on dark back to the shipped stop. It now writes only
+     the axes the base draws.
 
      §1.1 Neutrals on paper. Ramp order in luminance is surface > canvas >
      sidebar > raised > active > border > border-active > border-strong,
