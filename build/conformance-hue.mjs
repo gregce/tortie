@@ -198,8 +198,8 @@
  *      strips comments, allows an alpha MASK gradient, whose `#000` is an
  *      alpha channel and not a colour, reads the two named colours a dark
  *      surface would reach for as colours too, and carries four named
- *      exemptions with their reasons. It is proved on twelve fixtures this
- *      file writes itself, seven of which must make it fail, because a scan that cannot fail is the
+ *      exemptions with their reasons. It is proved on fourteen fixtures this
+ *      file writes itself, eight of which must make it fail, because a scan that cannot fail is the
  *      thing this gate exists to refuse.
  *
  * ## The fix round's rule
@@ -673,7 +673,14 @@ const COLOUR_IN_STRING = /(['"`])(?:#[0-9a-fA-F]{3,8}|(?:rgb|rgba|hsl|hsla)\(\s*
  * and `--text-on-black`, which is a token name, are not colours.
  */
 const COLOUR_NAME_IN_VALUE = /(?:^|[\s,(])(?:white|black)(?=$|[\s,;)])/i;
-const COLOUR_NAME_IN_STRING = /(['"`])(?:white|black)\1/i;
+/**
+ * In a module the same two names are ASSIGNED, being a fill or a theme
+ * field, and never COMPARED: `key === 'black'` is an ANSI slot's name and
+ * the floors module really does say it. So the string half wants a single
+ * `:` or `=` in front, with a lookbehind that refuses the `==` of a
+ * comparison.
+ */
+const COLOUR_NAME_IN_STRING = /(?<![=!<>])[:=]\s*(['"`])(?:white|black)\1/i;
 
 /** Block comments everywhere, line comments where the `//` is not inside a string. */
 function stripComments(text, kind) {
@@ -771,7 +778,9 @@ function literalFixtures(base) {
     ['a named colour as a value', true, 'renderer/a/i.css', '.x { background: white; }\n'],
     ['a named colour in a theme object', true, 'renderer/a/j.ts', "export const theme = { background: 'black' };\n"],
     ['white-space, which is a property and not a colour', false, 'renderer/a/k.css', '.x { white-space: pre; }\n'],
-    ['a token whose NAME ends in black', false, 'renderer/a/l.css', '.x { color: var(--text-on-black); }\n']
+    ['a token whose NAME ends in black', false, 'renderer/a/l.css', '.x { color: var(--text-on-black); }\n'],
+    ['a canvas fill given a named colour', true, 'renderer/a/m.ts', "ctx.fillStyle = 'white';\n"],
+    ['a slot COMPARED by its name', false, 'renderer/a/n.ts', "if (key === 'black') continue;\n"]
   ];
   const out = [];
   for (const [name, shouldFail, rel, text] of files) {
