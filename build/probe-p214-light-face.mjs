@@ -18,6 +18,14 @@
  *      DOM as computed strokes and photographed
  *   5  choosing Dark again: the Shade row back, at the stop that was carried
  *      the whole time, and the file still holding it
+ *   6  THE RESET BUTTON ON PAPER, which is the committer's round: it is the
+ *      one Frame control this phase deliberately kept on the light base, and
+ *      it wrote all three frame fields whatever base it was pressed on. So
+ *      the run nudges Depth on paper until the button goes live, presses it
+ *      with a real click, and reads the settings FILE: the shade chosen on
+ *      dark must still be there. This step runs LAST because the nudge it
+ *      needs really does write the depth, which is the limit DESIGN.md
+ *      records, and the round trip above is read before it.
  *
  * Step 4 is the case Phase 213 stated its limit at and could not fix in the
  * rotation: below six lanes the soft-avoidance map always has a free hue to
@@ -213,6 +221,43 @@ export function gradeLanes(read) {
   return findings;
 }
 
+/**
+ * STEP 6: the Reset button on paper (committer's round).
+ *
+ * The promise the phase makes is that NOTHING on paper writes the shade. The
+ * rows keep it because the Shade row is absent; Reset did not, because it
+ * composed a patch of all three fields whatever base it was pressed on.
+ *
+ * The reading is the whole press: the button hidden while paper draws the
+ * shipped frame, live once Depth has moved off it, and the settings file
+ * after the click. The shade must be untouched and the depth must be back at
+ * the stop paper ships, because Depth is the axis paper CAN move and Reset is
+ * still a reset.
+ */
+export function gradeReset(read) {
+  const findings = [];
+  if (read === null || read === undefined) return ['the Reset button was never driven'];
+  if (read.hiddenAtRest !== true) {
+    findings.push('on paper at the shipped frame the Reset button is live, where there is nothing to put back');
+  }
+  if (read.liveAfterNudge !== true) {
+    findings.push('on paper with the Depth moved the Reset button is still hidden, so the press this step is about could not happen');
+  }
+  if (read.clicked !== true) findings.push('the Reset button was never clicked');
+  const after = read.after;
+  if (after === null || after === undefined) return [...findings, 'the settings file was not read after the press'];
+  if (after.chromeShade !== -2) {
+    findings.push(`one press of Reset on paper left the persisted shade at ${String(after.chromeShade)} rather than the -2 that was chosen on dark, so the light face wrote a control it does not draw`);
+  }
+  if (after.chromeDepth !== 0) {
+    findings.push(`one press of Reset on paper left the persisted depth at ${String(after.chromeDepth)} rather than the shipped 0, so the axis paper DOES draw was not put back`);
+  }
+  if (read.shadeBackOnDark !== -2) {
+    findings.push(`after the press the Shade slider on graphite reads ${String(read.shadeBackOnDark)} rather than the -2 that was chosen`);
+  }
+  return findings;
+}
+
 function selfTest() {
   let pass = true;
   const ok = (name, findings, want) => {
@@ -269,7 +314,26 @@ function selfTest() {
   if (Math.abs(separation(rgbOf('#833e00'), rgbOf('#00530e')) - 12.4) > 0.05) sim.push("Phase 213's 12.4 does not come back");
   if (Math.abs(separation(rgbOf('#4d9de8'), rgbOf('#d19fe8')) - 21.2) > 0.05) sim.push('research 24 section 7.4 21.2 does not come back');
   ok('the simulation reproduces the numbers this codebase publishes', sim, 'clean');
-  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 24 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
+  // The Reset button on paper (committer's round). The red fixture is the
+  // defect exactly as the verifier drove it in the running app.
+  const reset = {
+    hiddenAtRest: true,
+    liveAfterNudge: true,
+    clicked: true,
+    after: { chromeShade: -2, chromeDepth: 0, colorScheme: 'light' },
+    shadeBackOnDark: -2
+  };
+  ok('a Reset on paper that leaves the dark shade alone', gradeReset(reset), 'clean');
+  ok(
+    "a Reset on paper that writes the shade, being the verifier's finding",
+    gradeReset({ ...reset, after: { chromeShade: 0, chromeDepth: 0, colorScheme: 'light' }, shadeBackOnDark: 0 }),
+    'red'
+  );
+  ok('a Reset that leaves the depth it CAN put back', gradeReset({ ...reset, after: { chromeShade: -2, chromeDepth: -1, colorScheme: 'light' } }), 'red');
+  ok('a Reset button live at the shipped frame', gradeReset({ ...reset, hiddenAtRest: false }), 'red');
+  ok('a Reset button that never went live, so nothing was pressed', gradeReset({ ...reset, liveAfterNudge: false }), 'red');
+  ok('a Reset that was never driven at all', gradeReset(null), 'red');
+  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 30 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
   return pass;
 }
 
@@ -437,6 +501,39 @@ const FACE_JS = (pushDepthTo) => `(async () => {
   });
 })()`;
 
+/**
+ * STEP 6: the Reset button on paper, driven (committer's round).
+ *
+ * Reset is hidden while the frame paper draws is the shipped one, which is
+ * the `blank` class on it, so the drive has to make it appear the only way a
+ * person can: by moving the one axis paper offers. The nudge is a real
+ * `input` event on the real slider and it really does write the depth, which
+ * is why this step runs after the round trip is read.
+ *
+ * Then the button is CLICKED, not called. What the settings file says after
+ * that is the whole finding.
+ */
+const RESET_JS = `(async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const section = document.querySelector('section[aria-label="Appearance"]');
+  if (!section) return JSON.stringify(null);
+  const button = () => [...section.querySelectorAll('button.set-hue-reset')][0] ?? null;
+  const live = () => { const b = button(); return b === null ? null : !b.classList.contains('blank'); };
+  const hiddenAtRest = live() === false;
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+  const depth = section.querySelector('input[aria-label="Depth"]');
+  if (depth === null) return JSON.stringify({ hiddenAtRest, liveAfterNudge: null, clicked: false });
+  setter.call(depth, '-2');
+  depth.dispatchEvent(new Event('input', { bubbles: true }));
+  await wait(900);
+  const liveAfterNudge = live() === true;
+  const b = button();
+  let clicked = false;
+  if (b !== null && liveAfterNudge) { b.click(); clicked = true; }
+  await wait(1200);
+  return JSON.stringify({ hiddenAtRest, liveAfterNudge, clicked });
+})()`;
+
 /** Choose one segment of the Scheme control, with a real click. */
 const CHOOSE_JS = (label) => `(async () => {
   const group = document.querySelector('[role="radiogroup"][aria-label="Scheme"]');
@@ -566,6 +663,21 @@ await withElectron(launch('p214 the light face and its lanes'), async () => {
   faces.backOnDark = await readFace();
   trip.backOnDark = await persisted();
 
+  // STEP 6, LAST, because the nudge it needs really writes the depth.
+  await sp.eval(CHOOSE_JS('Light'), 60_000);
+  await sleep(1500);
+  const resetText = await sp.eval(RESET_JS, 60_000);
+  const reset = resetText === null || resetText === undefined || resetText === 'null'
+    ? null
+    : JSON.parse(resetText);
+  if (reset !== null) {
+    reset.after = await persisted();
+    await sp.eval(CHOOSE_JS('Dark'), 60_000);
+    await sleep(1500);
+    const backText = await readFace();
+    reset.shadeBackOnDark = backText?.shade?.value ?? null;
+  }
+
   const check = (name, findings, said) => {
     report.findings += findings.length;
     report.steps.push({ name, findings });
@@ -587,6 +699,11 @@ await withElectron(launch('p214 the light face and its lanes'), async () => {
     'the graph on paper at six live lanes',
     laneFindings,
     `${String(graph.rows.length)} row(s) drawn, the widest carrying ${String(Math.max(0, ...graph.rows.map((r) => new Set(r.colors).size)))} lane colour(s); worst pair ${graph.worstPair === undefined ? 'unmeasured' : `${graph.worstPair.pair} at ${graph.worstPair.sep.toFixed(1)}`}, floor ${String(LANE_FLOOR)}; photograph ${graph.shot === true ? join(shots, 'p214-graph-on-paper.png') : 'NOT TAKEN'}`
+  );
+  check(
+    'the Reset button on paper',
+    gradeReset(reset),
+    `hidden at the shipped frame ${String(reset?.hiddenAtRest)}, live after the Depth moved ${String(reset?.liveAfterNudge)}, pressed ${String(reset?.clicked)}; the file then holds shade ${String(reset?.after?.chromeShade)} depth ${String(reset?.after?.chromeDepth)}, and graphite draws the shade at ${String(reset?.shadeBackOnDark)}`
   );
   cdp.close();
 }).catch((error) => {
