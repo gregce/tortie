@@ -816,6 +816,31 @@ interface Facts {
     confusable: [number, number[]][] | null;
   };
   /**
+   * THE FRAME CONTROLS EACH BASE OFFERS (Phase 214). Rule 31's arithmetic,
+   * read by RUNNING the shipping `shadeRange`, `depthRange` and
+   * `axisReading` at every frame each base can draw, so a control with a
+   * single stop and a control that carries a sentence are the same two
+   * questions the face asks.
+   */
+  controls: {
+    scheme: string;
+    shade: number;
+    depth: number;
+    shadeStops: number;
+    depthStops: number;
+    shadeMoves: boolean;
+    depthMoves: boolean;
+    shadeNote: string;
+    depthNote: string;
+  }[] | null;
+  /**
+   * HOW THE FACE DRAWS THEM (Phase 214). The arithmetic above is only half:
+   * a component that drew every row regardless would pass it. This is the
+   * scan of `AppearanceSection.tsx`, being how many stop slider rows it
+   * renders and how many of them sit behind a `face.<axis>Moves` guard.
+   */
+  faceRows: { rows: number; guarded: number; guards: string[] } | null;
+  /**
    * THE CAPTURE FLOOR (Phase 213 fix round, finding 3). xterm applies
    * `minimumContrastRatio` at draw time and changes no cell, so the buffer
    * path has to apply the same rule itself or a light capture is a page of
@@ -920,8 +945,126 @@ async function readFacts(
       tree: hostColorScheme(root, 'file-tree-container')
     },
     lanes: await readLanes(root, load),
+    controls: await readControls(load),
+    faceRows: readFaceRows(root),
     capture: await readCapture(root, load)
   };
+}
+
+/**
+ * THE CONTROLS, RUN (Phase 214). Every frame each base can draw, put through
+ * the SHIPPING range functions and the SHIPPING axis reader, so rule 31 reads
+ * what the face would draw rather than what this file believes.
+ *
+ * An ablated copy whose `controlMoves` always answers true leaves
+ * `shadeMoves` true on paper at every frame, which is what makes the rule
+ * able to fail.
+ */
+async function readControls(
+  load: (rel: string) => Promise<Record<string, unknown>>
+): Promise<Facts['controls']> {
+  try {
+    const stops = await load('renderer/theme/frame-stops.ts');
+    const presets = await load('renderer/theme/presets.ts');
+    const shadeRange = stops['shadeRange'] as (d: number, s: string) => StopRangeLike;
+    const depthRange = stops['depthRange'] as (s: number, b: string) => StopRangeLike;
+    const axisReading = stops['axisReading'] as (
+      axis: string,
+      range: StopRangeLike,
+      held: number,
+      why: (stop: number) => null,
+      ends: { below: unknown; above: unknown }
+    ) => { moves: boolean; note: string };
+    const stopCount = stops['stopCount'] as (r: StopRangeLike) => number;
+    const regionFor = presets['frameRegionFor'] as
+      | ((s: string) => { shade: number; minDepth: number; maxDepth: number }[])
+      | undefined;
+    if (
+      shadeRange === undefined ||
+      depthRange === undefined ||
+      axisReading === undefined ||
+      stopCount === undefined ||
+      regionFor === undefined
+    ) {
+      return null;
+    }
+    const out: NonNullable<Facts['controls']> = [];
+    for (const scheme of ['dark', 'light']) {
+      for (const row of regionFor(scheme)) {
+        for (let depth = row.minDepth; depth <= row.maxDepth; depth += 1) {
+          const shade = row.shade;
+          const sRange = shadeRange(depth, scheme);
+          const dRange = depthRange(shade, scheme);
+          // The `why` is null on purpose: the sentence then falls back to
+          // the end the region names, and the only claim rule 31 makes about
+          // it is whether it is empty.
+          const sRead = axisReading('shade', sRange, shade, () => null, {
+            below: { family: 'chromatic', token: '--accent-text' },
+            above: { family: 'order' }
+          });
+          const dRead = axisReading('depth', dRange, depth, () => null, {
+            below: { family: 'step' },
+            above: { family: 'chromatic' }
+          });
+          out.push({
+            scheme,
+            shade,
+            depth,
+            shadeStops: stopCount(sRange),
+            depthStops: stopCount(dRange),
+            shadeMoves: sRead.moves,
+            depthMoves: dRead.moves,
+            shadeNote: sRead.note,
+            depthNote: dRead.note
+          });
+        }
+      }
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+interface StopRangeLike {
+  min: number;
+  max: number;
+  belowElsewhere: boolean;
+  aboveElsewhere: boolean;
+}
+
+/**
+ * THE FACE'S OWN WIRING (Phase 214), read as text because the component
+ * cannot be loaded here. Every `<StopSliderRow` in the file must sit behind
+ * a `face.<axis>Moves ?` guard, so a control the arithmetic says cannot move
+ * is one the face cannot draw. Comments are stripped first, so a row that is
+ * only described in prose is not counted as a row.
+ */
+function readFaceRows(root: string): Facts['faceRows'] {
+  const own = resolve(root, 'renderer', 'settings', 'AppearanceSection.tsx');
+  const path = existsSync(own)
+    ? own
+    : resolve(repoRoot, 'src', 'renderer', 'settings', 'AppearanceSection.tsx');
+  if (!existsSync(path)) return null;
+  const text = readFileSync(path, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const guards: string[] = [];
+  let rows = 0;
+  let guarded = 0;
+  for (const match of text.matchAll(/<StopSliderRow\b/g)) {
+    rows += 1;
+    const before = text.slice(0, match.index);
+    const opened = before.lastIndexOf('{face.');
+    if (opened === -1) continue;
+    const head = /^\{face\.([A-Za-z]+)Moves \? \(/.exec(before.slice(opened));
+    if (head === null) continue;
+    // Nothing but whitespace between the guard and the row it guards.
+    if (before.slice(opened + head[0].length).trim() !== '') continue;
+    guarded += 1;
+    guards.push(head[1] ?? '');
+  }
+  return { rows, guarded, guards };
 }
 
 /** The five cells research 80 section 1.3 measured, in its own order. */

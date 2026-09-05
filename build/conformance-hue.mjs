@@ -308,18 +308,22 @@ const ABLATIONS = [
     ]
   },
   {
-    // Phase 213 fix round, rule 28. The rotation's soft-avoidance map carried
-    // the dark base's one confusable pair and neither of paper's two, so on
-    // paper it avoided two lanes that are far apart and did nothing about the
-    // brown and the green a protanope reads as one colour.
-    name: 'the lane rotation avoiding the dark base pair alone',
+    // Phase 214, rules 28 and 30. Research 80 solved the light green to its
+    // own pinned ratio and never against the other lanes, and it landed 12.4
+    // from the conflict brown under protanopia. Putting it back gives paper
+    // a weak pair the rotation does not avoid, and one the rotation could
+    // not rescue anyway at six live lanes.
+    name: 'the light lane green left where research 80 put it',
+    file: 'renderer/styles/tokens.css',
+    edits: [['  --git-added: #2c6a3b;', '  --git-added: #00530e;']]
+  },
+  {
+    // Phase 213 fix round, rule 28. The map must carry every weak pair of
+    // either base; without the dark base's own entry the graph will put the
+    // accent blue and the brMagenta side by side and call two branches one.
+    name: 'the lane rotation avoiding nothing at all',
     file: 'renderer/scm/graph/colors.ts',
-    edits: [
-      [
-        '  [0, [4]],\n  [1, [2]],\n  [2, [1]],\n  [3, [5]],\n  [4, [0]],\n  [5, [3]]\n]);',
-        '  [0, [4]],\n  [4, [0]]\n]);'
-      ]
-    ]
+    edits: [['  [0, [4]],\n  [4, [0]]\n]);', ']);']]
   },
   {
     // Phase 213 fix round, rule 29. The module shipped with no caller at all,
@@ -333,6 +337,41 @@ const ABLATIONS = [
         "      const lifted = null as string | null;\n      void ground;\n      void ink;"
       ]
     ]
+  },
+  {
+    // Phase 214, rule 30. A ban on a pair no base measures as weak narrows
+    // the rotation's first choice and buys nothing. Paper's two old bans
+    // became exactly that the moment its lanes were re-solved.
+    name: 'the two light bans left behind after the lanes moved',
+    file: 'renderer/scm/graph/colors.ts',
+    edits: [['  [0, [4]],\n  [4, [0]]\n]);', '  [0, [4]],\n  [1, [2]],\n  [2, [1]],\n  [4, [0]]\n]);']]
+  },
+  {
+    // Phase 214, rule 31. A range of one stop is still a control, so paper
+    // draws a Shade slider that cannot move and whose every move writes the
+    // shipped stop over the shade the person chose on dark.
+    name: 'a range of one stop counted as a control that moves',
+    file: 'renderer/theme/frame-stops.ts',
+    edits: [['  return stopCount(range) > 1;', '  return stopCount(range) > 0;']]
+  },
+  {
+    // Phase 214, rule 31. The control is hidden and its refusal sentence is
+    // composed anyway, which is a refusal nobody can read.
+    name: 'a hidden control still composing its refusal sentence',
+    file: 'renderer/theme/frame-stops.ts',
+    edits: [
+      [
+        "  if (!moves) return { range, moves, note: '' };",
+        "  if (moves && !moves) return { range, moves, note: '' };"
+      ]
+    ]
+  },
+  {
+    // Phase 214, rule 31. The arithmetic is right and the face ignores it,
+    // which is the half a rule that only ran the functions would miss.
+    name: 'the face drawing a stop slider row with no guard',
+    file: 'renderer/settings/AppearanceSection.tsx',
+    edits: [['      {face.shadeMoves ? (', '      {true ? (']]
   },
   {
     name: 'the offset: an absolute hue instead of an offset from each token',
@@ -562,7 +601,13 @@ function ablatedCopy(root, ablation) {
   // Its only import is a sibling type module, so the pair is the whole copy.
   mkdirSync(join(root, 'renderer', 'scm', 'graph'), { recursive: true });
   mkdirSync(join(root, 'renderer', 'terminal', 'capture'), { recursive: true });
+  // And the Appearance section, for rule 31's scan (Phase 214). It is read as
+  // TEXT and never loaded, so the copy is the file alone; without it the scan
+  // would fall back to the real tree and an ablation of the face would prove
+  // nothing.
+  mkdirSync(join(root, 'renderer', 'settings'), { recursive: true });
   for (const rel of [
+    ['renderer', 'settings', 'AppearanceSection.tsx'],
     ['renderer', 'editor', 'monaco-theme.ts'],
     ['renderer', 'editor', 'monaco-theme-name.ts'],
     ['renderer', 'pierre', 'theme-bridge.ts'],
@@ -917,6 +962,218 @@ function pinLanes(a) {
 let lastLaneNumbers = [];
 
 /**
+ * RULE 30'S SELF PROOF: the dichromat simulation, checked against facts that
+ * are not this file's own.
+ *
+ * A check that cannot fail is never to be mistaken for a check that passed,
+ * and a colour vision simulation is exactly the kind of arithmetic that can
+ * quietly become the identity function and go on printing large numbers. So
+ * before rule 30 uses it, it is asked four things published elsewhere:
+ *
+ *  1. THE ACHROMATIC AXIS IS FIXED. A dichromat sees greys as greys, so a
+ *     neutral must come back byte for byte under both simulations. An
+ *     identity function passes this one, which is why it is not alone.
+ *  2. BLUE AGAINST YELLOW IS UNTOUCHED by protanopia and deuteranopia, which
+ *     are red-green confusions: the separation must equal the normal vision
+ *     one to the decimal, 441.7.
+ *  3. RED AGAINST GREEN COLLAPSES. 360.6 apart to normal vision and 109.8
+ *     under deuteranopia, so the simulation must lose at least two thirds of
+ *     it. An identity function fails here.
+ *  4. THE TWO NUMBERS THIS CODEBASE ALREADY PUBLISHES come back exactly:
+ *     research 24 section 7.4's 21.2 for the accent blue against brMagenta,
+ *     and Phase 213's 12.4 for the light conflict brown against the light
+ *     added green, which is the pair Phase 214 removed.
+ */
+function proveLaneSimulation() {
+  const problems = [];
+  const rgb = (hex) => laneChannels(hex);
+  const plain = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  for (const kind of ['protan', 'deutan']) {
+    const grey = laneSimulate(rgb('#808080'), kind);
+    if (grey.join(',') !== '128,128,128') {
+      problems.push(`rule 30: the simulation moves a neutral under ${kind}, to ${grey.join(',')}, where a dichromat sees greys as greys`);
+    }
+  }
+  const blueYellow = laneSeparation(rgb('#0000ff'), rgb('#ffff00'));
+  const blueYellowPlain = plain(rgb('#0000ff'), rgb('#ffff00'));
+  if (Math.abs(blueYellow - blueYellowPlain) > 0.05) {
+    problems.push(`rule 30: blue against yellow reads ${blueYellow.toFixed(1)} under a red-green simulation where normal vision reads ${blueYellowPlain.toFixed(1)}; the two must agree`);
+  }
+  const redGreen = laneSeparation(rgb('#ff0000'), rgb('#00ff00'));
+  const redGreenPlain = plain(rgb('#ff0000'), rgb('#00ff00'));
+  if (redGreen > redGreenPlain * 0.4) {
+    problems.push(`rule 30: red against green reads ${redGreen.toFixed(1)} against ${redGreenPlain.toFixed(1)} to normal vision; the simulation is not confusing them`);
+  }
+  const published = [
+    ['#4d9de8', '#d19fe8', 21.2, "research 24 section 7.4's accent against brMagenta"],
+    ['#833e00', '#00530e', 12.4, "Phase 213's light conflict against the light added green"]
+  ];
+  for (const [a, b, want, said] of published) {
+    const got = laneSeparation(rgb(a), rgb(b));
+    if (Math.abs(got - want) > 0.05) {
+      problems.push(`rule 30: ${said} reads ${got.toFixed(1)} here against the ${String(want)} this codebase publishes, so the simulation is not the one those numbers came from`);
+    }
+  }
+  return problems;
+}
+
+/**
+ * RULE 30: NO PAIR ON PAPER COLLAPSES, AND THE MAP BANS EXACTLY THE PAIRS
+ * THAT DO (Phase 214).
+ *
+ * Rule 28 asks that every weak pair be one the rotation avoids. That is the
+ * right question below six live lanes and the wrong one at six, because a
+ * soft ban only helps while some hue is still free: at six lanes in one row
+ * every hue is live, the rotation falls through to the plain free-longest
+ * rule, and the pair it was avoiding is drawn. Phase 213 stated that limit
+ * for paper and could not lift it, since the light lanes 2, 4 and 6 are
+ * aliases of git decorations research 80 had solved to their own pinned
+ * ratios rather than against each other; the worst pair was 12.4 against the
+ * dark base's 21.2.
+ *
+ * Phase 214 lifted it in the palette, which is the only place it could be
+ * lifted. So this rule asks the stronger thing of paper: ZERO pairs under the
+ * floor, at any number of live lanes. The dark base is untouched by that
+ * phase and keeps its one pair, which rule 28 covers.
+ *
+ * And it asks the map to be EXACTLY the union of the two bases' weak pairs.
+ * A missing entry is rule 28's question; a SUPERFLUOUS one is this rule's,
+ * because every ban narrows the rotation's first choice and a ban on a pair
+ * nothing measures as weak forces an earlier repeat for nothing. Paper's two
+ * old bans became exactly that the moment its lanes were re-solved.
+ */
+function pinLaneSeparation(a) {
+  const problems = [...proveLaneSimulation()];
+  const lanes = a.facts?.lanes;
+  if (lanes === undefined || lanes === null) return [...problems, 'rule 30: the probe read no lane palette'];
+  if (lanes.confusable === null) return [...problems, 'rule 30: the rotation exports no confusable map to read'];
+  const want = new Set();
+  const worst = {};
+  for (const scheme of ['dark', 'light']) {
+    const hexes = lanes[scheme] ?? [];
+    const rgb = hexes.map(laneChannels);
+    if (rgb.length === 0 || rgb.some((v) => v === null)) {
+      problems.push(`rule 30: the ${scheme} lanes could not be read as hexes`);
+      continue;
+    }
+    let low = { sep: Number.POSITIVE_INFINITY, pair: '' };
+    for (let i = 0; i < rgb.length; i += 1) {
+      for (let j = i + 1; j < rgb.length; j += 1) {
+        const sep = laneSeparation(rgb[i], rgb[j]);
+        if (sep < low.sep) low = { sep, pair: `${String(i + 1)}-${String(j + 1)}` };
+        if (sep >= LANE_SEPARATION) continue;
+        want.add(`${String(i)}-${String(j)}`);
+        want.add(`${String(j)}-${String(i)}`);
+        if (scheme === 'light') {
+          problems.push(`rule 30: on paper lanes ${String(i + 1)} and ${String(j + 1)} are ${sep.toFixed(1)} apart under dichromacy, under the floor of ${String(LANE_SEPARATION)}; at six live lanes the rotation has no free hue and will draw them side by side`);
+        }
+      }
+    }
+    worst[scheme] = low;
+  }
+  const got = new Set();
+  for (const [key, list] of lanes.confusable) {
+    for (const slot of list) got.add(`${String(key)}-${String(slot)}`);
+  }
+  for (const entry of got) {
+    if (!want.has(entry)) {
+      const [i, j] = entry.split('-');
+      problems.push(`rule 30: the rotation bans lanes ${String(Number(i) + 1)} and ${String(Number(j) + 1)}, which no base measures as weak; a ban costs a hue and buys nothing`);
+    }
+  }
+  for (const entry of want) {
+    if (!got.has(entry)) {
+      const [i, j] = entry.split('-');
+      problems.push(`rule 30: the rotation does not ban lanes ${String(Number(i) + 1)} and ${String(Number(j) + 1)}, which a base measures as weak`);
+    }
+  }
+  // A map with nothing in it would satisfy the clause above for a palette
+  // with no weak pair at all, so the dark base's known pair is named: it is
+  // untouched by this phase and it must still be there.
+  if (got.size === 0) problems.push('rule 30: the rotation bans nothing at all, and the dark base still has a pair at 21.2');
+  lastSeparationNumbers = ['dark', 'light']
+    .filter((scheme) => worst[scheme] !== undefined)
+    .map((scheme) => `${scheme}: worst pair ${worst[scheme].pair} at ${worst[scheme].sep.toFixed(1)} against a floor of ${String(LANE_SEPARATION)}`);
+  return problems;
+}
+
+/** What rule 30 last measured, for the line the gate prints. */
+let lastSeparationNumbers = [];
+
+/**
+ * RULE 31: NO BASE OFFERS A CONTROL WITH A SINGLE STOP (Phase 214).
+ *
+ * The operator's rule, in his own words on 2026-09-05, is that light mode may
+ * be simplified rather than over engineered. What that came to is one line:
+ * a control that cannot move is not shown. Paper carries ONE shade, because
+ * the light palette was solved AT its floors, and Phase 214 priced the stops
+ * that would buy it a second row and he refused the price.
+ *
+ * The rule has two halves and both are asked, because either alone passes on
+ * a build that is wrong. The ARITHMETIC is run rather than read: every frame
+ * each base can draw, through the shipping ranges and the shipping axis
+ * reader, and a control with one stop must answer that it does not move and
+ * must carry NO sentence, since a refusal nobody can read is not a refusal.
+ * The WIRING is scanned, because a component that drew every row whatever the
+ * arithmetic said would pass the first half untouched: every stop slider row
+ * in the Appearance section sits behind its own `face.<axis>Moves` guard.
+ *
+ * And it asserts that some base really does hide one, or the rule would be
+ * green over a product where every control always moves and would prove
+ * nothing about the day one stops moving.
+ */
+function pinControls(a) {
+  const problems = [];
+  const controls = a.facts?.controls;
+  const face = a.facts?.faceRows;
+  if (controls === undefined || controls === null) return ['rule 31: the probe read no controls'];
+  if (controls.length === 0) return ['rule 31: no base offered a single frame'];
+  let hidden = 0;
+  for (const c of controls) {
+    for (const axis of ['shade', 'depth']) {
+      const stops = c[`${axis}Stops`];
+      const moves = c[`${axis}Moves`];
+      const note = c[`${axis}Note`];
+      const at = `${c.scheme} shade ${String(c.shade)} depth ${String(c.depth)}`;
+      if (moves !== stops > 1) {
+        problems.push(`rule 31: at ${at} the ${axis} control offers ${String(stops)} stop(s) and answers moves=${String(moves)}`);
+      }
+      if (!moves) {
+        hidden += 1;
+        if (note !== '') problems.push(`rule 31: at ${at} the ${axis} control cannot move and still says "${String(note)}", which is a refusal nobody can read`);
+      } else if (note === '') {
+        problems.push(`rule 31: at ${at} the ${axis} control moves and says nothing at either end`);
+      }
+    }
+  }
+  if (hidden === 0) {
+    problems.push('rule 31: no base hides a control at any frame, so this rule cannot fail and proves nothing');
+  }
+  // The light base is the one this phase is about, and it is named rather
+  // than left to the general clause, so a light region that grew a second
+  // shade row shows up here as a line that moved.
+  const light = controls.filter((c) => c.scheme === 'light');
+  if (light.length === 0) problems.push('rule 31: paper offered no frame at all');
+  else {
+    if (light.some((c) => c.shadeMoves)) problems.push('rule 31: paper draws a Shade control at some frame, where the region is one shade row');
+    if (!light.every((c) => c.depthMoves)) problems.push('rule 31: paper hides the Depth control, which has four stops and still moves');
+  }
+  const dark = controls.filter((c) => c.scheme === 'dark');
+  if (!dark.every((c) => c.shadeMoves && c.depthMoves)) {
+    problems.push('rule 31: the dark base hides a control, where both axes still move');
+  }
+  if (face === undefined || face === null) return [...problems, 'rule 31: the Appearance section could not be read'];
+  if (face.rows === 0) problems.push('rule 31: the Appearance section draws no stop slider row at all');
+  if (face.guarded !== face.rows) {
+    problems.push(`rule 31: ${String(face.rows - face.guarded)} of the ${String(face.rows)} stop slider row(s) are drawn with no face.<axis>Moves guard, so a control the arithmetic says cannot move would still be drawn`);
+  }
+  for (const axis of ['shade', 'depth']) {
+    if (!face.guards.includes(axis)) problems.push(`rule 31: no stop slider row is guarded on face.${axis}Moves`);
+  }
+  return problems;
+}
+
+/**
  * RULE 29: THE CAPTURE APPLIES THE FLOOR THE SCREEN APPLIED.
  *
  * xterm applies `minimumContrastRatio` at DRAW time, in its renderer, and
@@ -984,6 +1241,11 @@ function pinFacts(a) {
   }
   // Rules 28 and 29 live here too, so an ablated copy reaches them.
   problems.push(...pinLanes(a));
+  // Phase 214's two rules live here for the same reason rule 27's do: rule 13
+  // runs pinFacts over every ablated copy, so this is where an ablation of
+  // the palette or of the face is reached.
+  problems.push(...pinLaneSeparation(a));
+  problems.push(...pinControls(a));
   problems.push(...pinCapture(a));
   const t = facts.terminal;
   if (Object.keys(t.light).length !== Object.keys(t.dark).length) {
@@ -1975,6 +2237,15 @@ try {
       say(`${TAG} rule 24: the window fill ${String(facts.windowFill.dark)} to ${String(facts.windowFill.light)} at hue 222, ${String(facts.windowFill.darkAt40)} to ${String(facts.windowFill.lightAt40)} at hue 40`);
       say(`${TAG} rule 25: DARK IS BYTE IDENTICAL to the parent 02fd5ed. tokens ${facts.tokensSha.dark.slice(0, 12)}, terminal ${sha(facts.terminal.dark).slice(0, 12)}, Monaco ${sha(facts.monaco.dark).slice(0, 12)}, Pierre ${facts.pierre.darkSha.slice(0, 12)}, fill ${String(facts.windowFill.dark)} and ${String(facts.windowFill.darkAt40)}, xterm floor ${String(facts.terminal.floorDark)}`);
       for (const line of lastLaneNumbers) say(`${TAG} rule 28: the graph lanes on ${line}, and every one of them is avoided by the rotation`);
+      for (const line of lastSeparationNumbers) say(`${TAG} rule 30: ${line}; paper has none under it at all, so six live lanes in one row never draw two branches as one`);
+      say(`${TAG} rule 30: the simulation itself holds a neutral fixed, leaves blue against yellow untouched, loses two thirds of red against green, and reproduces the 21.2 and the 12.4 this codebase already publishes`);
+      {
+        const controls = facts.controls ?? [];
+        const light = controls.filter((c) => c.scheme === 'light');
+        const dark = controls.filter((c) => c.scheme === 'dark');
+        const shadeStops = light[0] === undefined ? 0 : light[0].shadeStops;
+        say(`${TAG} rule 31: over ${String(dark.length)} frames on graphite both controls move; over ${String(light.length)} on paper Shade offers ${String(shadeStops)} stop and is NOT drawn, Depth offers ${String(light[0] === undefined ? 0 : light[0].depthStops)} and is; a control that cannot move carries no sentence, and ${String(facts.faceRows?.guarded ?? 0)} of ${String(facts.faceRows?.rows ?? 0)} rows in the Appearance section sit behind their own guard`);
+      }
       say(`${TAG} rule 29: the capture floor draws ${CAPTURE_CELLS_SAID.map((hex, i) => `${hex} as ${String(facts.capture.onPaper[i])}`).join(', ')} on paper and moves none of them on graphite, and the serializer calls it`);
       say(`${TAG} rule 25: and the light base is a different set of bytes throughout: tokens ${facts.tokensSha.light.slice(0, 12)}, terminal ${sha(facts.terminal.light).slice(0, 12)}, Monaco ${sha(facts.monaco.light).slice(0, 12)}, Pierre ${facts.pierre.lightSha.slice(0, 12)}`);
     }
