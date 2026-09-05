@@ -323,3 +323,84 @@ export function refusalSentence(
       return `${lead} puts the file colors under their contrast floor.`;
   }
 }
+
+/**
+ * HOW MANY STOPS THIS AXIS OFFERS (Phase 214).
+ *
+ * A range is a first and a last offered stop, so its length is the count of
+ * stops between them inclusive. One is the smallest a range can be, because
+ * the stop in effect is always offered.
+ */
+export function stopCount(range: StopRange): number {
+  return range.max - range.min + 1;
+}
+
+/**
+ * CAN THIS CONTROL MOVE AT ALL (Phase 214), which is what decides whether the
+ * face draws it.
+ *
+ * THE RULE THE OPERATOR SET on 2026-09-05, in his words, being that light
+ * mode may be simplified rather than over engineered: a control that cannot
+ * move is not shown. Paper carries ONE shade. The light palette was solved AT
+ * its floors, so the accent could be text on paper and the status dots could
+ * clear the selected row, and every stop darker than the shipped one takes
+ * `--accent-text` under 4.5:1 and the dots under 3:1. Phase 214 measured what
+ * buying those stops would cost, being `--accent-text` down to 5.57 on the
+ * sidebar and the dots down to 4.1 on the active row for every person on
+ * light forever, and he chose the shade the palette ships at over two stops
+ * nobody asked for.
+ *
+ * So on paper the Shade row is ABSENT rather than present and inert, and its
+ * refusal sentence goes with it because there is nothing left to refuse. This
+ * is not a light-mode special case in the component: it is the length of the
+ * range, asked of every axis on every base, so a base or a palette that later
+ * opens a second shade row gets its control back with no edit here.
+ *
+ * The Depth control still moves on paper, four stops of it, so it stays and
+ * keeps its own refusal sentence.
+ */
+export function controlMoves(range: StopRange): boolean {
+  return stopCount(range) > 1;
+}
+
+/** One axis of the Frame group, as the face draws it. */
+export interface AxisReading {
+  range: StopRange;
+  /** Does the face draw this control? False when it has a single stop. */
+  moves: boolean;
+  /** The refusal line. EMPTY when the control is not drawn. */
+  note: string;
+}
+
+/**
+ * ONE AXIS, READ (Phase 214). The range, whether the control is drawn, and
+ * the sentence it carries when a person pushes past its end.
+ *
+ * It lives here rather than in the component so that the two halves of the
+ * promise are one function `npm run conformance:hue` rule 31 can RUN: a
+ * control with a single stop is not drawn, and a control that is not drawn
+ * composes no sentence. A note on a hidden control would be a refusal nobody
+ * can read, and a drawn control with nothing to say would be the inert
+ * slider this phase removed.
+ */
+export function axisReading(
+  axis: 'shade' | 'depth',
+  range: StopRange,
+  held: number,
+  why: (stop: number) => FloorFailure | null,
+  ends: {
+    below: FloorFailure['family'] | RefusalFallback;
+    above: FloorFailure['family'] | RefusalFallback;
+  }
+): AxisReading {
+  const moves = controlMoves(range);
+  if (!moves) return { range, moves, note: '' };
+  const atLowEnd = held <= range.min;
+  const direction = axis === 'shade'
+    ? (atLowEnd ? 'darker' : 'lighter')
+    : (atLowEnd ? 'less depth' : 'more depth');
+  const note = atLowEnd
+    ? refusalSentence(direction, why(range.min - 1), range.belowElsewhere, ends.below)
+    : refusalSentence(direction, why(range.max + 1), range.aboveElsewhere, ends.above);
+  return { range, moves, note };
+}

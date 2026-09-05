@@ -83,10 +83,10 @@ import { deriveOverrides } from '../theme/derive';
 import {
   DEPTH_STOPS,
   SHADE_STOPS,
+  axisReading,
   depthRange,
   frameFailure,
   frameForBase,
-  refusalSentence,
   shadeRange,
   type FrameChoice,
   type StopRange
@@ -324,6 +324,14 @@ export interface FrameFace {
   held: FrameChoice;
   shade: StopRange;
   depth: StopRange;
+  /**
+   * Does the face DRAW each control (Phase 214)? A control with a single
+   * stop cannot move, so it is absent rather than present and inert, and on
+   * paper that is the Shade row: the light palette carries one shade.
+   */
+  shadeMoves: boolean;
+  depthMoves: boolean;
+  /** The refusal line for each, empty when the control is not drawn. */
   shadeNote: string;
   depthNote: string;
   swatches: Record<string, string> | null;
@@ -394,20 +402,31 @@ export function frameFace(
           lessDepth: { family: 'step' as const },
           moreDepth: { family: 'chromatic' as const }
         };
-  const shadeNote =
-    held.chromeShade <= ranges.shade.min
-      ? refusalSentence('darker', why(ranges.shade.min - 1, held.chromeDepth), ranges.shade.belowElsewhere, ends.darker)
-      : refusalSentence('lighter', why(ranges.shade.max + 1, held.chromeDepth), ranges.shade.aboveElsewhere, ends.lighter);
-  const depthNote =
-    held.chromeDepth <= ranges.depth.min
-      ? refusalSentence('less depth', why(held.chromeShade, ranges.depth.min - 1), ranges.depth.belowElsewhere, ends.lessDepth)
-      : refusalSentence('more depth', why(held.chromeShade, ranges.depth.max + 1), ranges.depth.aboveElsewhere, ends.moreDepth);
+  // AND EACH AXIS IS READ BY ONE FUNCTION (Phase 214), which answers both
+  // whether the control is drawn and what it says. On paper the Shade range
+  // is a single stop, so it is not drawn and it says nothing.
+  const shadeAxis = axisReading(
+    'shade',
+    ranges.shade,
+    held.chromeShade,
+    (stop) => why(stop, held.chromeDepth),
+    { below: ends.darker, above: ends.lighter }
+  );
+  const depthAxis = axisReading(
+    'depth',
+    ranges.depth,
+    held.chromeDepth,
+    (stop) => why(held.chromeShade, stop),
+    { below: ends.lessDepth, above: ends.moreDepth }
+  );
   return {
     held,
     shade: ranges.shade,
     depth: ranges.depth,
-    shadeNote,
-    depthNote,
+    shadeMoves: shadeAxis.moves,
+    depthMoves: depthAxis.moves,
+    shadeNote: shadeAxis.note,
+    depthNote: depthAxis.note,
     swatches: hueSwatches(settings, held.chromeHue, held.chromeShade, held.chromeDepth, base),
     atDefault:
       held.chromeHue === DEFAULT_CHROME_HUE &&
@@ -691,30 +710,40 @@ function FrameShapeRows(): React.JSX.Element {
     chromeShade: shade,
     chromeDepth: depth
   });
+  // A CONTROL THAT CANNOT MOVE IS NOT DRAWN (Phase 214). Paper carries one
+  // shade, so the Shade row is absent there rather than present and inert.
+  // The guard is the range's own length, asked per axis, so nothing here
+  // names a base and a palette that later opens a second row gets its
+  // control back with no edit. `npm run conformance:hue` rule 31 asserts
+  // both halves, being the arithmetic and this wiring.
   return (
     <>
-      <StopSliderRow
-        label="Shade"
-        caption="How dark the frame is. The shipped frame is a point on this line, and it is where it starts."
-        min={SHADE_STOPS[0] ?? 0}
-        max={SHADE_STOPS[SHADE_STOPS.length - 1] ?? 0}
-        edgeMin={face.shade.min}
-        edgeMax={face.shade.max}
-        draft={face.held.chromeShade}
-        onPick={pickShade}
-        note={face.shadeNote}
-      />
-      <StopSliderRow
-        label="Depth"
-        caption="How far the panels and the hairlines stand apart from the background."
-        min={DEPTH_STOPS[0] ?? 0}
-        max={DEPTH_STOPS[DEPTH_STOPS.length - 1] ?? 0}
-        edgeMin={face.depth.min}
-        edgeMax={face.depth.max}
-        draft={face.held.chromeDepth}
-        onPick={pickDepth}
-        note={face.depthNote}
-      />
+      {face.shadeMoves ? (
+        <StopSliderRow
+          label="Shade"
+          caption="How dark the frame is. The shipped frame is a point on this line, and it is where it starts."
+          min={SHADE_STOPS[0] ?? 0}
+          max={SHADE_STOPS[SHADE_STOPS.length - 1] ?? 0}
+          edgeMin={face.shade.min}
+          edgeMax={face.shade.max}
+          draft={face.held.chromeShade}
+          onPick={pickShade}
+          note={face.shadeNote}
+        />
+      ) : null}
+      {face.depthMoves ? (
+        <StopSliderRow
+          label="Depth"
+          caption="How far the panels and the hairlines stand apart from the background."
+          min={DEPTH_STOPS[0] ?? 0}
+          max={DEPTH_STOPS[DEPTH_STOPS.length - 1] ?? 0}
+          edgeMin={face.depth.min}
+          edgeMax={face.depth.max}
+          draft={face.held.chromeDepth}
+          onPick={pickDepth}
+          note={face.depthNote}
+        />
+      ) : null}
       <div className="set-row">
         <div className="set-row-text">
           <FrameStrip swatches={face.swatches} />

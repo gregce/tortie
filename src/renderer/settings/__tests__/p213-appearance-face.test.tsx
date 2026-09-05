@@ -148,11 +148,15 @@ describe('the Appearance face on an in-session switch (Phase 213 finding 1)', ()
     expect(dark).toContain(DARK_BASE);
     expect(dark).not.toContain(LIGHT_BASE);
 
-    // On paper the shade row is one cell wide, so the line is the DARK end's
-    // and it names the accent, and every band comes from the light base.
+    // On paper the shade row is one cell wide, so PHASE 214 does not draw it
+    // at all and its sentence goes with it: paper carries one shade and there
+    // is nothing to refuse. Depth still moves there, so its row stays and
+    // says its own reason, and every band comes from the light base.
     // Nothing but the store moved between these two renders.
     const light = face('light');
-    expect(light).toContain('Darker puts the accent under its contrast floor.');
+    expect(light).not.toContain('aria-label="Shade"');
+    expect(light).not.toContain('Darker puts the accent under its contrast floor.');
+    expect(light).toContain('aria-label="Depth"');
     expect(light).not.toContain('Lighter puts the file colors under their contrast floor.');
     expect(light).toContain(LIGHT_BASE);
     expect(light).not.toContain(DARK_BASE);
@@ -176,7 +180,14 @@ describe('the Appearance face on an in-session switch (Phase 213 finding 1)', ()
     const onPaper = frameFace('light', settings, shippedBaseFor('light'), carried);
     expect([onPaper.held.chromeShade, onPaper.held.chromeDepth]).toEqual([0, 0]);
     expect(onPaper.shade).toEqual({ min: 0, max: 0, belowElsewhere: false, aboveElsewhere: false });
-    expect(onPaper.shadeNote).toBe('Darker puts the accent under its contrast floor.');
+    // PHASE 214. One stop is not a control, so the row is not drawn and it
+    // carries no sentence. Depth still has four stops and still speaks.
+    expect(onPaper.shadeMoves).toBe(false);
+    expect(onPaper.shadeNote).toBe('');
+    expect(onPaper.depthMoves).toBe(true);
+    expect(onPaper.depthNote).not.toBe('');
+    expect(onDark.shadeMoves).toBe(true);
+    expect(onDark.depthMoves).toBe(true);
     // The strip is the light base at its shipped stop, which derives nothing.
     expect(onPaper.swatches?.['--bg-canvas']).toBe(LIGHT_BASE);
     expect(onPaper.atDefault).toBe(true);
