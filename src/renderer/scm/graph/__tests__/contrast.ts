@@ -79,20 +79,34 @@ export function worstSeparation(a: Rgb, b: Rgb): number {
  * Pull `--name: #hex;` declarations out of a stylesheet. Deliberately dumb —
  * a regex over the file, not a CSS parser — because the only job is to notice
  * that a token's VALUE changed.
+ *
+ * `scheme` picks the base (Phase 213). The dark base is the first `:root {`
+ * block; the light base is that block with the `:root[data-scheme='light']`
+ * block laid over it, which is exactly how the cascade resolves it in a
+ * window carrying the attribute. Reading the whole file with a last match
+ * wins sweep would answer paper for every token, and reading the first block
+ * alone leaves the light palette measured by nothing, which is how the light
+ * lanes shipped with two confusable pairs against the dark base's one.
  */
-export function readCssTokens(css: string): Map<string, string> {
-  const tokens = new Map<string, string>();
+export function readCssTokens(
+  css: string,
+  scheme: 'dark' | 'light' = 'dark'
+): Map<string, string> {
   const pattern = /(--[a-z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g;
-  // The DARK base only: Phase 213 added a `:root[data-scheme='light']` block
-  // after the first `:root {` block, and a last match wins sweep would read
-  // paper for every colour token. The dark block is the first one.
-  const head = ':root {';
-  const start = css.indexOf(head);
-  const close = start === -1 ? -1 : css.indexOf('}', start + head.length);
-  const dark = start === -1 || close === -1 ? css : css.slice(start + head.length, close);
-  for (const match of dark.matchAll(pattern)) {
-    const [, name, value] = match;
-    if (name !== undefined && value !== undefined) tokens.set(name, value);
-  }
+  const blockAt = (head: string): string => {
+    const start = css.indexOf(head);
+    if (start === -1) return '';
+    const close = css.indexOf('\n}', start);
+    return close === -1 ? css.slice(start + head.length) : css.slice(start + head.length, close);
+  };
+  const read = (text: string, into: Map<string, string>): Map<string, string> => {
+    for (const match of text.matchAll(pattern)) {
+      const [, name, value] = match;
+      if (name !== undefined && value !== undefined) into.set(name, value);
+    }
+    return into;
+  };
+  const tokens = read(blockAt(':root {'), new Map<string, string>());
+  if (scheme === 'light') read(blockAt(":root[data-scheme='light'] {"), tokens);
   return tokens;
 }

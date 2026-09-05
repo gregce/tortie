@@ -201,6 +201,24 @@
  *      five of which must make it fail, because a scan that cannot fail is the
  *      thing this gate exists to refuse.
  *
+ * ## The fix round's rule
+ *
+ *  28. THE GRAPH LANES, ON BOTH BASES. Lane colour is identity: two lanes a
+ *      dichromat reads as one hue say two branches are one. The dark palette
+ *      has carried that measurement since research 24; this phase designed a
+ *      second palette and left the measurement on the dark base alone, and
+ *      paper turns out to have TWO confusable pairs against dark's one, the
+ *      worse at 12.4 where dark's is 21.2. So the weak pairs of each base are
+ *      re-derived here from the shipped tokens.css, with the four var()
+ *      aliases resolved per base and with this file's own Vienot simulation,
+ *      and every one of them must be named in the SHIPPING soft-avoidance map
+ *      in both directions. Every lane must also clear WCAG 1.4.11's 3:1 on
+ *      its own base's three row grounds, the selected row among them. The
+ *      numbers are printed, so a palette that moves shows up as a number that
+ *      moved. 12.4 is a stated limit rather than a defect fixed: closing it
+ *      needs a different light --git-conflict and --git-added, which is a
+ *      palette change and not a rotation change.
+ *
  * Contrast is re-derived HERE with culori's full entry rather than read from
  * the modules, so a module that lied about a ratio would still be caught;
  * the verifier is asked to re-derive it once more with arithmetic of its own.
@@ -272,6 +290,20 @@ const ABLATIONS = [
       [
         '  if (frameIsOffered(shade, depth, scheme)) {',
         '  if (frameIsOffered(shade, depth, scheme) || true) {'
+      ]
+    ]
+  },
+  {
+    // Phase 213 fix round, rule 28. The rotation's soft-avoidance map carried
+    // the dark base's one confusable pair and neither of paper's two, so on
+    // paper it avoided two lanes that are far apart and did nothing about the
+    // brown and the green a protanope reads as one colour.
+    name: 'the lane rotation avoiding the dark base pair alone',
+    file: 'renderer/scm/graph/colors.ts',
+    edits: [
+      [
+        '  [0, [4]],\n  [1, [2]],\n  [2, [1]],\n  [3, [5]],\n  [4, [0]],\n  [5, [3]]\n]);',
+        '  [0, [4]],\n  [4, [0]]\n]);'
       ]
     ]
   },
@@ -499,12 +531,17 @@ function ablatedCopy(root, ablation) {
   mkdirSync(join(root, 'renderer', 'editor'), { recursive: true });
   mkdirSync(join(root, 'renderer', 'pierre'), { recursive: true });
   mkdirSync(join(root, 'renderer', 'styles'), { recursive: true });
+  // And the graph's rotation, for rule 28's ablation (Phase 213 fix round).
+  // Its only import is a sibling type module, so the pair is the whole copy.
+  mkdirSync(join(root, 'renderer', 'scm', 'graph'), { recursive: true });
   for (const rel of [
     ['renderer', 'editor', 'monaco-theme.ts'],
     ['renderer', 'editor', 'monaco-theme-name.ts'],
     ['renderer', 'pierre', 'theme-bridge.ts'],
     ['renderer', 'styles', 'tokens.css'],
-    ['renderer', 'styles', 'globals.css']
+    ['renderer', 'styles', 'globals.css'],
+    ['renderer', 'scm', 'graph', 'colors.ts'],
+    ['renderer', 'scm', 'graph', 'types.ts']
   ]) {
     cpSync(join(repoRoot, 'src', ...rel), join(root, ...rel));
   }
@@ -697,6 +734,126 @@ function literalFixtures(base) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Rule 28's arithmetic: the Viénot, Brettel & Mollon (1999) dichromat
+// simulation, written here rather than imported, so what the lanes claim is
+// judged by this file the way every ratio in it already is.
+// ---------------------------------------------------------------------------
+
+const LANE_ROW_GROUNDS = {
+  dark: ['#0e0f13', '#202329', '#252931'],
+  light: ['#edeff3', '#e5e7ed', '#d9dce3']
+};
+/** The separation two lanes must clear, in the metric research 24 §7 used. */
+const LANE_SEPARATION = 32;
+
+function laneChannels(hex) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex).trim());
+  return m === null ? null : [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+}
+const laneLinear = (v) => (v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+const laneEncode = (l) => {
+  const v = Math.min(1, Math.max(0, l));
+  return Math.round((v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055) * 255);
+};
+function laneSimulate(rgb, kind) {
+  const [r, g, b] = rgb.map(laneLinear);
+  const l = 17.8824 * r + 43.5161 * g + 4.11935 * b;
+  const m = 3.45565 * r + 27.1554 * g + 3.86714 * b;
+  const sBlue = 0.0299566 * r + 0.184309 * g + 1.46709 * b;
+  const l2 = kind === 'protan' ? 2.02344 * m - 2.52581 * sBlue : l;
+  const m2 = kind === 'deutan' ? 0.494207 * l + 1.24827 * sBlue : m;
+  return [
+    laneEncode(0.0809444479 * l2 - 0.130504409 * m2 + 0.116721066 * sBlue),
+    laneEncode(-0.0102485335 * l2 + 0.0540193266 * m2 - 0.113614708 * sBlue),
+    laneEncode(-0.000365296938 * l2 - 0.00412161469 * m2 + 0.693511405 * sBlue)
+  ];
+}
+function laneSeparation(a, b) {
+  const one = (kind) => {
+    const x = laneSimulate(a, kind);
+    const y = laneSimulate(b, kind);
+    return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+  };
+  return Math.min(one('protan'), one('deutan'));
+}
+
+/**
+ * RULE 28: THE GRAPH LANES, ON BOTH BASES.
+ *
+ * Lane colour is identity. Two concurrent lanes that read as one hue say two
+ * branches are one, so the palette carries a measured claim about how far
+ * apart its six hues are under colour-vision deficiency and the rotation
+ * carries a soft-avoidance map for the pairs that fall short. Phase 213
+ * designed a second palette and left the claim measured on the dark base
+ * alone; on paper there are TWO short pairs rather than one and the worse of
+ * them, 12.4, is little more than half the dark base's 21.2.
+ *
+ * So this rule re-derives the weak pairs of BOTH bases from the shipped
+ * tokens.css, with the four var() aliases resolved per base, and fails unless
+ * every one of them is named in the shipping map in both directions. It also
+ * asks the WCAG 1.4.11 floor of every lane on its own base's three row
+ * grounds, the selected row included, which is the ground nobody screenshots.
+ * The numbers are printed, so a palette that moves shows up as a number that
+ * moved rather than as silence.
+ */
+function pinLanes(a) {
+  const problems = [];
+  const lanes = a.facts?.lanes;
+  if (lanes === undefined || lanes === null) return ['rule 28: the probe read no lane palette'];
+  if (lanes.confusable === null) return ['rule 28: the rotation exports no confusable map to read'];
+  const map = new Map(lanes.confusable.map(([key, slots]) => [key, slots]));
+  const printed = [];
+  for (const scheme of ['dark', 'light']) {
+    const hexes = lanes[scheme] ?? [];
+    if (hexes.length === 0) {
+      problems.push(`rule 28: the ${scheme} base declares no lanes`);
+      continue;
+    }
+    const rgb = hexes.map(laneChannels);
+    if (rgb.some((v) => v === null)) {
+      problems.push(`rule 28: the ${scheme} lanes are not all plain hexes: ${hexes.join(' ')}`);
+      continue;
+    }
+    let floor = Number.POSITIVE_INFINITY;
+    for (const [i, hex] of hexes.entries()) {
+      for (const ground of LANE_ROW_GROUNDS[scheme]) {
+        const ratio = wcagContrast(hex, ground);
+        if (ratio < floor) floor = ratio;
+        if (ratio < 3) problems.push(`rule 28: on the ${scheme} base lane ${String(i + 1)} ${hex} reads ${ratio.toFixed(2)}:1 on ${ground}, under WCAG 1.4.11`);
+      }
+    }
+    const weak = [];
+    for (let i = 0; i < rgb.length; i += 1) {
+      for (let j = i + 1; j < rgb.length; j += 1) {
+        const sep = laneSeparation(rgb[i], rgb[j]);
+        if (sep >= LANE_SEPARATION) continue;
+        weak.push(`${String(i + 1)}-${String(j + 1)}=${sep.toFixed(1)}`);
+        // THE CLAUSE THE FIX ROUND ADDED. A pair this close must be one the
+        // rotation avoids, on either base, or the graph will put the two
+        // side by side and call two branches one.
+        if (!(map.get(i) ?? []).includes(j) || !(map.get(j) ?? []).includes(i)) {
+          problems.push(`rule 28: on the ${scheme} base lanes ${String(i + 1)} and ${String(j + 1)} are ${sep.toFixed(1)} apart under dichromacy and the rotation does not avoid them`);
+        }
+      }
+    }
+    printed.push(`${scheme}: worst ${floor.toFixed(2)}:1 on its three row grounds, weak pairs ${weak.length === 0 ? 'none' : weak.join(', ')}`);
+  }
+  // A map that names a slot no lane has is a map written to a palette that
+  // is gone, which would make every clause above pass for nothing.
+  const slots = (a.facts?.lanes?.dark ?? []).length;
+  for (const [key, list] of map) {
+    for (const slot of [key, ...list]) {
+      if (slot < 0 || slot >= slots) problems.push(`rule 28: the rotation avoids slot ${String(slot)}, which no lane has`);
+    }
+  }
+  lastLaneNumbers = printed;
+  return problems;
+}
+
+/** What rule 28 last measured, for the line the gate prints. */
+let lastLaneNumbers = [];
+
 /**
  * RULES 24 AND 25 over one answer (Phase 213): what the surfaces that do not
  * read a token at draw time say, and whether the dark half of each is still
@@ -717,6 +874,8 @@ function pinFacts(a) {
     if (carry.lightToDarkUnmoved !== carry.lightOffered) problems.push(`rule 27: going back to Dark moved ${String(carry.lightOffered - carry.lightToDarkUnmoved)} of the ${String(carry.lightOffered)} frames the light base offers; every one of them is inside the dark region`);
     if (carry.movedToLight === 0) problems.push('rule 27: not one frame moved on the way to paper, so frameForBase is doing nothing and the rule cannot fail');
   }
+  // Rule 28's clauses live here too, so an ablated copy reaches them.
+  problems.push(...pinLanes(a));
   const t = facts.terminal;
   if (Object.keys(t.light).length !== Object.keys(t.dark).length) {
     problems.push(`rule 24: the light terminal theme has ${String(Object.keys(t.light).length)} keys against the dark theme's ${String(Object.keys(t.dark).length)}`);
@@ -1706,6 +1865,7 @@ try {
       say(`${TAG} rule 24: Pierre ${String(facts.pierre.pair.dark)} (${String(facts.pierre.darkType)}) and ${String(facts.pierre.pair.light)} (${String(facts.pierre.lightType)}) are both named in the theme pair, so the diff follows the root; the tree host carries ${String(facts.pierre.treeKeys.length)} keys and no colorScheme`);
       say(`${TAG} rule 24: the window fill ${String(facts.windowFill.dark)} to ${String(facts.windowFill.light)} at hue 222, ${String(facts.windowFill.darkAt40)} to ${String(facts.windowFill.lightAt40)} at hue 40`);
       say(`${TAG} rule 25: DARK IS BYTE IDENTICAL to the parent 02fd5ed. tokens ${facts.tokensSha.dark.slice(0, 12)}, terminal ${sha(facts.terminal.dark).slice(0, 12)}, Monaco ${sha(facts.monaco.dark).slice(0, 12)}, Pierre ${facts.pierre.darkSha.slice(0, 12)}, fill ${String(facts.windowFill.dark)} and ${String(facts.windowFill.darkAt40)}, xterm floor ${String(facts.terminal.floorDark)}`);
+      for (const line of lastLaneNumbers) say(`${TAG} rule 28: the graph lanes on ${line}, and every one of them is avoided by the rotation`);
       say(`${TAG} rule 25: and the light base is a different set of bytes throughout: tokens ${facts.tokensSha.light.slice(0, 12)}, terminal ${sha(facts.terminal.light).slice(0, 12)}, Monaco ${sha(facts.monaco.light).slice(0, 12)}, Pierre ${facts.pierre.lightSha.slice(0, 12)}`);
     }
   }

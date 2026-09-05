@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  CONFUSABLE_PAIRS,
   LANE_COLOR_VARS,
   createLaneCycler,
   hueKeyOf,
@@ -185,18 +186,52 @@ describe('the rotation', () => {
   });
 });
 
-describe('the palette in tokens.css §1.4b, re-measured', () => {
+/**
+ * THE PALETTE, RE-MEASURED ON BOTH BASES (Phase 213 fix round, finding 2).
+ *
+ * Lane colour is identity: if two concurrent lanes read as one hue, the graph
+ * says two branches are one. That property was pinned for the dark palette
+ * and, when Phase 213 designed a second one, the reader was narrowed to the
+ * first `:root` block and the light lanes were left measured by nothing. They
+ * are worse: two confusable pairs against the dark base's one, the worst of
+ * them 12.4 where dark's is 21.2. So the property is restated PER BASE, and
+ * the rotation's soft-avoidance map is asserted to cover every weak pair
+ * either base has rather than the one pair the dark base had.
+ */
+describe.each([
+  {
+    scheme: 'dark' as const,
+    // gmux was dark-only; the SELECTED row is the worst ground and the one
+    // that gets forgotten in screenshots.
+    backgrounds: ['#0e0f13', '#202329', '#252931'],
+    // Measured floor: the red on a selected row, 4.41 (4.12 before Phase 196).
+    floor: 4,
+    weak: ['1-5=21.2']
+  },
+  {
+    scheme: 'light' as const,
+    // The same three rungs on paper: the sidebar, the hover fill and the
+    // selected row, which is the deepest fill the light ramp has.
+    backgrounds: ['#edeff3', '#e5e7ed', '#d9dce3'],
+    // Measured floor: the teal on a selected row, 3.52. Every lane clears
+    // WCAG 1.4.11's 3:1, and paper has less room above it than graphite does.
+    floor: 3.4,
+    weak: ['2-3=26.9', '4-6=12.4']
+  }
+])('the $scheme palette in tokens.css §1.4b, re-measured', ({ scheme, backgrounds, floor, weak: expectedWeak }) => {
   const css = readFileSync(
     new URL('../../../styles/tokens.css', import.meta.url),
     'utf8'
   );
-  const tokens = readCssTokens(css);
+  const tokens = readCssTokens(css, scheme);
 
   /**
    * Resolve `--graph-lane-N` through one level of `var(--other)` indirection,
    * because tokens.css deliberately aliases four of the six onto colours gmux
    * already owns (`--accent`, `--git-deleted`, `--git-conflict`,
-   * `--git-added`).
+   * `--git-added`). The alias itself is declared once, on the dark base, and
+   * the light base moves what it points AT, which is why this resolves
+   * against the base's own token map rather than against the dark one.
    */
   function resolve(name: string): string {
     const direct = tokens.get(name);
@@ -213,9 +248,6 @@ describe('the palette in tokens.css §1.4b, re-measured', () => {
   }
 
   const LANES = LANE_COLOR_VARS.map(resolve);
-  // gmux is dark-only; the SELECTED row is the worst ground and the one that
-  // gets forgotten in screenshots.
-  const BACKGROUNDS = ['#0e0f13', '#202329', '#252931'] as const;
 
   it('declares exactly the six hues the rotation expects', () => {
     expect(LANES).toHaveLength(CYCLE_LENGTH);
@@ -225,21 +257,21 @@ describe('the palette in tokens.css §1.4b, re-measured', () => {
 
   it('every hue clears WCAG 1.4.11 (3:1) on all three row backgrounds', () => {
     for (const hex of LANES) {
-      for (const bg of BACKGROUNDS) {
+      for (const bg of backgrounds) {
         expect(
           contrastRatio(hexToRgb(hex), hexToRgb(bg)),
           `${hex} on ${bg}`
         ).toBeGreaterThanOrEqual(3);
       }
     }
-    // Measured floor: the red on a selected row, 4.41 (4.12 before Phase 196).
-    const floor = Math.min(
-      ...LANES.map((hex) => contrastRatio(hexToRgb(hex), hexToRgb('#252931')))
+    const worstGround = backgrounds[backgrounds.length - 1] as string;
+    const measured = Math.min(
+      ...LANES.map((hex) => contrastRatio(hexToRgb(hex), hexToRgb(worstGround)))
     );
-    expect(floor).toBeGreaterThan(4);
+    expect(measured).toBeGreaterThan(floor);
   });
 
-  it('has exactly one pair that colour-vision deficiency confuses', () => {
+  it('names every pair that colour-vision deficiency confuses', () => {
     // tokens.css optimised ΔE2000 for normal vision and for adjacency; it did
     // not measure dichromats. This is that measurement, and it is why the
     // rotation carries a soft-avoidance rule instead of a comment.
@@ -253,7 +285,25 @@ describe('the palette in tokens.css §1.4b, re-measured', () => {
         if (sep < 32) weak.push(`${i + 1}-${j + 1}=${sep.toFixed(1)}`);
       }
     }
-    expect(weak).toEqual(['1-5=21.2']);
+    expect(weak).toEqual(expectedWeak);
+  });
+
+  it('has every one of those pairs in the rotation, both ways round', () => {
+    // THE ASSERTION THE LIGHT BASE WAS MISSING. The cycler runs before any
+    // scheme is known, so its map is the union of the two bases' weak pairs;
+    // a pair measured here and absent there is a pair the graph will happily
+    // put side by side.
+    for (let i = 0; i < LANES.length; i++) {
+      for (let j = i + 1; j < LANES.length; j++) {
+        const sep = worstSeparation(
+          hexToRgb(LANES[i] as string),
+          hexToRgb(LANES[j] as string)
+        );
+        if (sep >= 32) continue;
+        expect(CONFUSABLE_PAIRS.get(i) ?? [], `slot ${i} avoids ${j}`).toContain(j);
+        expect(CONFUSABLE_PAIRS.get(j) ?? [], `slot ${j} avoids ${i}`).toContain(i);
+      }
+    }
   });
 
   it('keeps the three role hues far apart — the pair ask #1 depends on', () => {
@@ -263,14 +313,27 @@ describe('the palette in tokens.css §1.4b, re-measured', () => {
     expect(worstSeparation(local, remote)).toBeGreaterThan(50);
     expect(worstSeparation(local, base)).toBeGreaterThan(50);
     expect(worstSeparation(remote, base)).toBeGreaterThan(50);
+  });
+});
 
-    // The rejected alternative, for the record: brMagenta is the other hue in
-    // the palette with no competing meaning elsewhere in the app, and it
-    // measures 21.2 against the accent under protanopia — the two lanes whose
-    // distinction IS the feature would be the two a red-green colourblind user
-    // could not separate (research 24 §7.4).
+describe('the rejected alternative, for the record', () => {
+  it('measures brMagenta against the accent under protanopia', () => {
+    // brMagenta is the other hue in the palette with no competing meaning
+    // elsewhere in the app, and it measures 21.2 against the accent under
+    // protanopia — the two lanes whose distinction IS the feature would be
+    // the two a red-green colourblind user could not separate (research 24
+    // §7.4).
+    const css = readFileSync(
+      new URL('../../../styles/tokens.css', import.meta.url),
+      'utf8'
+    );
+    const tokens = readCssTokens(css);
     expect(
-      separation(local, hexToRgb(LANES[4] as string), 'protan')
+      separation(
+        hexToRgb(tokens.get('--accent') as string),
+        hexToRgb(tokens.get('--graph-lane-5') as string),
+        'protan'
+      )
     ).toBeLessThan(25);
   });
 });

@@ -800,6 +800,21 @@ interface Facts {
    * null when no rule in globals.css names it.
    */
   hosts: { diffs: string | null; tree: string | null };
+  /**
+   * THE GRAPH LANES ON BOTH BASES (Phase 213 fix round, finding 2). Lane
+   * colour is identity, so two lanes a dichromat reads as one hue say two
+   * branches are one. The six lanes are read PER BASE with their four var()
+   * aliases resolved, beside the rotation's own soft-avoidance map, so rule
+   * 28 can re-derive the confusable pairs of each base and fail when one of
+   * them is not in the map. The light palette shipped with two such pairs
+   * against the dark base's one and the map carried the dark pair alone.
+   */
+  lanes: {
+    dark: string[];
+    light: string[];
+    /** The SHIPPING `CONFUSABLE_PAIRS`, as entries, or null if unreadable. */
+    confusable: [number, number[]][] | null;
+  };
 }
 
 /**
@@ -887,8 +902,39 @@ async function readFacts(
     hosts: {
       diffs: hostColorScheme(root, 'diffs-container'),
       tree: hostColorScheme(root, 'file-tree-container')
-    }
+    },
+    lanes: await readLanes(root, load)
   };
+}
+
+/**
+ * THE LANES, PER BASE (Phase 213 fix round). The token names come from the
+ * shipping `LANE_COLOR_VARS` so a palette that grows a seventh lane is read
+ * rather than missed, and the values from each base's own declarations with
+ * the aliases already resolved. The map is the shipping one; an ablated copy
+ * that carries only the dark pair is what makes rule 28 able to fail.
+ */
+async function readLanes(
+  root: string,
+  load: (rel: string) => Promise<Record<string, unknown>>
+): Promise<Facts['lanes']> {
+  const valuesFor = (scheme: 'dark' | 'light', names: readonly string[]): string[] => {
+    const decls = declarationsFor(root, scheme);
+    return names.map((name) => (decls.get(name) ?? '').toLowerCase());
+  };
+  try {
+    const mod = await load('renderer/scm/graph/colors.ts');
+    const names = (mod['LANE_COLOR_VARS'] as string[] | undefined) ?? [];
+    const map = mod['CONFUSABLE_PAIRS'] as Map<number, readonly number[]> | undefined;
+    return {
+      dark: valuesFor('dark', names),
+      light: valuesFor('light', names),
+      confusable:
+        map === undefined ? null : [...map.entries()].map(([key, slots]) => [key, [...slots]])
+    };
+  } catch {
+    return { dark: [], light: [], confusable: null };
+  }
 }
 
 /**

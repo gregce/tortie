@@ -102,20 +102,51 @@ export type HueKey = number;
  *
  * Measured with the Viénot dichromat simulation in `__tests__/contrast.ts`
  * (which reproduces research 24 §7's published numbers to the decimal, so the
- * metric is the same one). Across all fifteen pairs of the six-hue palette,
- * exactly one falls below the ~32 the rest clear:
+ * metric is the same one), over BOTH bases, because lane colour is identity
+ * and a person on paper needs the answer a person on graphite gets. Of the
+ * fifteen pairs, one falls below the ~32 the rest clear on the dark base and
+ * two do on the light one:
  *
- *   `--graph-lane-1` #4d9de8 vs `--graph-lane-5` #d19fe8 → **21.2**
+ *   dark   `--graph-lane-1` #4d9de8 vs `--graph-lane-5` #d19fe8 → **21.2**
+ *   light  `--graph-lane-2` #b23534 vs `--graph-lane-3` #004f4e → **26.9**
+ *   light  `--graph-lane-4` #833e00 vs `--graph-lane-6` #00530e → **12.4**
  *
- * tokens.css mitigates it by ordering — those two are four columns apart, so
- * they are rarely adjacent — but "rarely" is not "never" once lanes compact.
- * Avoidance costs nothing: below six live lanes there is always another
- * choice, and beyond that this degrades to the plain free-longest rule.
+ * The map is the UNION of the two, because the rotation runs before any
+ * scheme is known and a soft ban costs nothing: below six live lanes there is
+ * always another choice, and beyond that this degrades to the plain
+ * free-longest rule. tokens.css mitigates the dark pair by ordering too —
+ * those two are four columns apart, so they are rarely adjacent — but
+ * "rarely" is not "never" once lanes compact.
+ *
+ * Phase 213 added the two light pairs. Their numbers are what they are
+ * because four of the six lanes are aliases of colours the app owns for other
+ * reasons, being the accent and three git decorations, each solved on paper
+ * to its own pinned ratio rather than to the others.
+ *
+ * THE LIMIT, stated rather than discovered: 12.4 is little more than half the
+ * dark base's worst pair, so once all six hues are live at one row the repeat
+ * this map avoids becomes the repeat it cannot, and two branches drawn in
+ * brown and green will read as one to a protanope. Widening that separation
+ * needs a different light `--git-conflict` and `--git-added`, which is a
+ * palette change and not a rotation change.
+ *
+ * `npm run conformance:hue` rule 28 and `__tests__/colors.test.ts` both
+ * re-derive the weak pairs of both bases from tokens.css and fail if one is
+ * missing from this map, so a palette that moves is what changes it next
+ * rather than a comment that did not.
  */
 const CONFUSABLE_WITH: ReadonlyMap<HueKey, readonly number[]> = new Map([
   [0, [4]],
-  [4, [0]]
+  [1, [2]],
+  [2, [1]],
+  [3, [5]],
+  [4, [0]],
+  [5, [3]]
 ]);
+
+/** The map above, for the gate and the test that re-derive it (Phase 213). */
+export const CONFUSABLE_PAIRS: ReadonlyMap<HueKey, readonly number[]> =
+  CONFUSABLE_WITH;
 
 /**
  * The hue a colour actually paints — role aliasing collapsed.
