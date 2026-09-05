@@ -1,0 +1,92 @@
+
+
+=========== CANDIDATE: darkest offered shade -1, depths -3..0, margin 0.06 ===========
+8 token(s) moved:
+token                          from     to       at the SHIPPED ground: before -> after   what moved
+--accent-text                  #326da8  #2c67a1   4.69 -> 5.12 on --bg-sidebar  L 0.524->0.504 C 0.112->0.111 H 251->251 dE2000 2.2
+--status-working               #2175bd  #1b70b8   3.52 -> 3.77 on --bg-active   L 0.550->0.534 C 0.136->0.137 H 249->250 dE2000 1.9
+--status-attention             #976900  #916400   3.53 -> 3.80 on --bg-active   L 0.554->0.537 C 0.115->0.112 H 78->78 dE2000 2.1
+--warning                      #976900  #916400   3.53 -> 3.80 on --bg-active   L 0.554->0.537 C 0.115->0.112 H 78->78 dE2000 2.1
+--status-attention-badge-bg    #976900  #916400   3.53 -> 3.80 on --bg-active   L 0.554->0.537 C 0.115->0.112 H 78->78 dE2000 2.1
+--status-idle                  #6e7482  #676d7b   3.41 -> 3.78 on --bg-active   L 0.559->0.535 C 0.023->0.023 H 267->267 dE2000 2.8
+--status-exited                #6e7482  #676d7b   3.41 -> 3.78 on --bg-active   L 0.559->0.535 C 0.023->0.023 H 267->267 dE2000 2.8
+--status-failed                #c74a46  #be423f   3.40 -> 3.79 on --bg-active   L 0.578->0.553 C 0.161->0.160 H 25->25 dE2000 2.9
+
+re-walk of the region with that palette:
+  shade  2  depth -3..3  . . . . . . .   best cell depth -3 slack -2.000 bound by step --bg-canvas/--bg-surface
+  shade  1  depth -3..3  . . . . . . .   best cell depth -3 slack -2.000 bound by step --bg-canvas/--bg-surface
+  shade  0  depth -3..3  Y Y Y Y . . .   best cell depth -3 slack 0.359 bound by --status-attention-badge-fg on --status-attention-badge-bg
+  shade -1  depth -3..3  Y Y Y Y . . .   best cell depth -3 slack 0.359 bound by --status-attention-badge-fg on --status-attention-badge-bg
+  shade -2  depth -3..3  Y Y Y . . . .   best cell depth -3 slack 0.014 bound by --accent-text on --bg-canvas
+  shade -3  depth -3..3  . . . . . . .   best cell depth -3 slack -0.313 bound by --accent-text on --bg-canvas
+  shade -4  depth -3..3  . . . . . . .   best cell depth -3 slack -0.625 bound by --accent-text on --bg-canvas
+
+
+=========== CANDIDATE: darkest offered shade -2, depths -3..0, margin 0.06 ===========
+8 token(s) moved:
+token                          from     to       at the SHIPPED ground: before -> after   what moved
+--accent-text                  #326da8  #26619c   4.69 -> 5.57 on --bg-sidebar  L 0.524->0.484 C 0.112->0.113 H 251->251 dE2000 4.3
+--status-working               #2175bd  #116ab2   3.52 -> 4.10 on --bg-active   L 0.550->0.515 C 0.136->0.137 H 249->250 dE2000 4.1
+--status-attention             #976900  #8a5f00   3.53 -> 4.11 on --bg-active   L 0.554->0.518 C 0.115->0.108 H 78->78 dE2000 4.2
+--warning                      #976900  #8a5f00   3.53 -> 4.11 on --bg-active   L 0.554->0.518 C 0.115->0.108 H 78->78 dE2000 4.2
+--status-attention-badge-bg    #976900  #8a5f00   3.53 -> 4.11 on --bg-active   L 0.554->0.518 C 0.115->0.108 H 78->78 dE2000 4.2
+--status-idle                  #6e7482  #626775   3.41 -> 4.12 on --bg-active   L 0.559->0.514 C 0.023->0.023 H 267->270 dE2000 5.0
+--status-exited                #6e7482  #626775   3.41 -> 4.12 on --bg-active   L 0.559->0.514 C 0.023->0.023 H 267->270 dE2000 5.0
+--status-failed                #c74a46  #b83b39   3.40 -> 4.11 on --bg-active   L 0.578->0.534 C 0.161->0.162 H 25->25 dE2000 5.0
+
+re-walk of the region with that palette:
+  shade  2  depth -3..3  . . . . . . .   best cell depth -3 slack -2.000 bound by step --bg-canvas/--bg-surface
+  shade  1  depth -3..3  . . . . . . .   best cell depth -3 slack -2.000 bound by step --bg-canvas/--bg-surface
+  shade  0  depth -3..3  Y Y Y Y Y . .   best cell depth -3 slack 0.706 bound by --text-muted on --bg-sidebar
+  shade -1  depth -3..3  Y Y Y Y . . .   best cell depth -3 slack 0.699 bound by --text-muted on --bg-sidebar
+  shade -2  depth -3..3  Y Y Y Y . . .   best cell depth -3 slack 0.400 bound by --accent-text on --bg-canvas
+  shade -3  depth -3..3  Y Y Y . . . .   best cell depth -3 slack 0.045 bound by --accent-text on --bg-canvas
+  shade -4  depth -3..3  . . . . . . .   best cell depth -3 slack -0.294 bound by --accent-text on --bg-canvas
+
+
+=========== CANDIDATE: darkest offered shade -3, depths -3..0, margin 0.06 ===========
+10 token(s) moved:
+token                          from     to       at the SHIPPED ground: before -> after   what moved
+--accent-text                  #326da8  #1f5b95   4.69 -> 6.10 on --bg-sidebar  L 0.524->0.463 C 0.112->0.112 H 251->251 dE2000 6.5
+--status-working               #2175bd  #0464ab   3.52 -> 4.48 on --bg-active   L 0.550->0.494 C 0.136->0.137 H 249->250 dE2000 6.3
+--status-attention             #976900  #825a00   3.53 -> 4.48 on --bg-active   L 0.554->0.498 C 0.115->0.104 H 78->79 dE2000 6.4
+--warning                      #976900  #825a00   3.53 -> 4.48 on --bg-active   L 0.554->0.498 C 0.115->0.104 H 78->79 dE2000 6.4
+--status-attention-badge-bg    #976900  #825a00   3.53 -> 4.48 on --bg-active   L 0.554->0.498 C 0.115->0.104 H 78->79 dE2000 6.4
+--status-idle                  #6e7482  #5c616f   3.41 -> 4.51 on --bg-active   L 0.559->0.493 C 0.023->0.023 H 267->270 dE2000 7.2
+--status-exited                #6e7482  #5c616f   3.41 -> 4.51 on --bg-active   L 0.559->0.493 C 0.023->0.023 H 267->270 dE2000 7.2
+--status-failed                #c74a46  #b03534   3.40 -> 4.49 on --bg-active   L 0.578->0.513 C 0.161->0.160 H 25->25 dE2000 7.2
+--git-deleted                  #b23534  #b13434   4.43 -> 4.49 on --bg-active   L 0.516->0.513 C 0.162->0.162 H 25->25 dE2000 0.4
+--error                        #b23534  #b13434   4.43 -> 4.49 on --bg-active   L 0.516->0.513 C 0.162->0.162 H 25->25 dE2000 0.4
+
+re-walk of the region with that palette:
+  shade  2  depth -3..3  . . . . . . .   best cell depth -3 slack -2.000 bound by step --bg-canvas/--bg-surface
+  shade  1  depth -3..3  . . . . . . .   best cell depth -3 slack -2.000 bound by step --bg-canvas/--bg-surface
+  shade  0  depth -3..3  Y Y Y Y Y Y .   best cell depth -3 slack 0.706 bound by --text-muted on --bg-sidebar
+  shade -1  depth -3..3  Y Y Y Y Y . .   best cell depth -3 slack 0.699 bound by --text-muted on --bg-sidebar
+  shade -2  depth -3..3  Y Y Y Y Y . .   best cell depth -3 slack 0.646 bound by --text-muted on --bg-sidebar
+  shade -3  depth -3..3  Y Y Y Y . . .   best cell depth -3 slack 0.394 bound by --accent on --bg-canvas
+  shade -4  depth -3..3  Y Y Y . . . .   best cell depth -3 slack 0.130 bound by --accent-text on --bg-canvas
+
+
+=========== CANDIDATE: darkest offered shade -4, depths -3..0, margin 0.06 ===========
+10 token(s) moved:
+token                          from     to       at the SHIPPED ground: before -> after   what moved
+--accent-text                  #326da8  #195690   4.69 -> 6.57 on --bg-sidebar  L 0.524->0.446 C 0.112->0.113 H 251->251 dE2000 8.2
+--status-working               #2175bd  #005ea2   3.52 -> 4.90 on --bg-active   L 0.550->0.473 C 0.136->0.132 H 249->249 dE2000 8.5
+--status-attention             #976900  #7b5400   3.53 -> 4.92 on --bg-active   L 0.554->0.476 C 0.115->0.099 H 78->78 dE2000 8.7
+--warning                      #976900  #7b5400   3.53 -> 4.92 on --bg-active   L 0.554->0.476 C 0.115->0.099 H 78->78 dE2000 8.7
+--status-attention-badge-bg    #976900  #7b5400   3.53 -> 4.92 on --bg-active   L 0.554->0.476 C 0.115->0.099 H 78->78 dE2000 8.7
+--status-idle                  #6e7482  #565b69   3.41 -> 4.94 on --bg-active   L 0.559->0.472 C 0.023->0.023 H 267->270 dE2000 9.4
+--status-exited                #6e7482  #565b69   3.41 -> 4.94 on --bg-active   L 0.559->0.472 C 0.023->0.023 H 267->270 dE2000 9.4
+--status-failed                #c74a46  #a92e2e   3.40 -> 4.91 on --bg-active   L 0.578->0.492 C 0.161->0.160 H 25->25 dE2000 9.3
+--git-deleted                  #b23534  #aa2d2e   4.43 -> 4.90 on --bg-active   L 0.516->0.493 C 0.162->0.162 H 25->25 dE2000 2.4
+--error                        #b23534  #aa2d2e   4.43 -> 4.90 on --bg-active   L 0.516->0.493 C 0.162->0.162 H 25->25 dE2000 2.4
+
+re-walk of the region with that palette:
+  shade  2  depth -3..3  . . . . . . .   best cell depth -3 slack -2.000 bound by step --bg-canvas/--bg-surface
+  shade  1  depth -3..3  . . . . . . .   best cell depth -3 slack -2.000 bound by step --bg-canvas/--bg-surface
+  shade  0  depth -3..3  Y Y Y Y Y Y Y   best cell depth -3 slack 0.706 bound by --text-muted on --bg-sidebar
+  shade -1  depth -3..3  Y Y Y Y Y Y .   best cell depth -3 slack 0.699 bound by --text-muted on --bg-sidebar
+  shade -2  depth -3..3  Y Y Y Y Y . .   best cell depth -3 slack 0.646 bound by --text-muted on --bg-sidebar
+  shade -3  depth -3..3  Y Y Y Y Y . .   best cell depth -3 slack 0.394 bound by --accent on --bg-canvas
+  shade -4  depth -3..3  Y Y Y Y . . .   best cell depth -3 slack 0.142 bound by --accent on --bg-canvas

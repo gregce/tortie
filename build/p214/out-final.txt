@@ -1,0 +1,7 @@
+
+
+########## COMBINED CANDIDATE, solved at shade -1 ##########
+headroom moves: --accent-text #326da8->#2c67a1, --status-working #2175bd->#1b70b8, --status-attention #976900->#916400, --warning #976900->#916400, --status-attention-badge-bg #976900->#916400, --status-idle #6e7482->#676d7b, --status-exited #6e7482->#676d7b, --status-failed #c74a46->#be423f
+lane moves: --git-deleted->#b62926, --git-conflict->#823c00, --graph-lane-5->#5b3274, --git-added->#2c6a3b
+
+region, shade down the side, depth -3..3 across; the number is the worst slack in the cell

@@ -1,0 +1,32 @@
+# the darkest ground each shade row reaches, over the whole walk
+shade  token          hex      Y       OKLCH L   at hue/contrast/depth   cap for 3:1   cap for 4.5:1
+    0  --bg-active   #b8b0b4  0.4454  0.7650   301/high  / 3   Y<=0.1151   Y<=0.0601
+    0  --bg-canvas   #f6f6fa  0.9241  0.9743   248/normal/-3   Y<=0.2747   Y<=0.1665
+    0  --bg-sidebar  #e6e1e3  0.7622  0.9142   307/high  / 3   Y<=0.2207   Y<=0.1305
+    0  --bg-raised   #d3cccb  0.6135  0.8505   352/high  / 3   Y<=0.1712   Y<=0.0974
+    0  --bg-surface  #f9f9f7  0.9461  0.9816    39/normal/-3   Y<=0.2820   Y<=0.1713
+
+   -1  --bg-active   #b0a8ac  0.4021  0.7395   301/high  / 3   Y<=0.1007   Y<=0.0505
+   -1  --bg-canvas   #eeeef2  0.8574  0.9503   248/normal/-3   Y<=0.2525   Y<=0.1516
+   -1  --bg-sidebar  #dcd7d9  0.6883  0.8837   307/high  / 3   Y<=0.1961   Y<=0.1141
+   -1  --bg-raised   #c5c5cc  0.5616  0.8255   237/high  / 3   Y<=0.1539   Y<=0.0859
+   -1  --bg-surface  #f1f1ef  0.8784  0.9576    39/normal/-3   Y<=0.2595   Y<=0.1563
+
+   -2  --bg-active   #a9a1a5  0.3664  0.7169   301/high  / 3   Y<=0.0888   Y<=0.0425
+   -2  --bg-canvas   #e5e5e9  0.7858  0.9231   248/normal/-3   Y<=0.2286   Y<=0.1357
+   -2  --bg-sidebar  #d5d0d2  0.6391  0.8622   307/high  / 3   Y<=0.1797   Y<=0.1031
+   -2  --bg-raised   #c4bdbb  0.5172  0.8035   352/high  / 3   Y<=0.1391   Y<=0.0760
+   -2  --bg-surface  #e9e8e9  0.8092  0.9321   266/normal/-3   Y<=0.2364   Y<=0.1409
+
+   -3  --bg-active   #a1999d  0.3279  0.6910   301/high  / 3   Y<=0.0760   Y<=0.0340
+   -3  --bg-canvas   #dddde1  0.7252  0.8987   248/normal/-3   Y<=0.2084   Y<=0.1223
+   -3  --bg-sidebar  #cdc8ca  0.5855  0.8374   307/high  / 3   Y<=0.1618   Y<=0.0912
+   -3  --bg-raised   #bbb5b3  0.4687  0.7774   352/high  / 3   Y<=0.1229   Y<=0.0653
+   -3  --bg-surface  #dfe0e2  0.7449  0.9065   194/normal/-3   Y<=0.2150   Y<=0.1266
+
+   -4  --bg-active   #999195  0.2919  0.6648   301/high  / 3   Y<=0.0640   Y<=0.0260
+   -4  --bg-canvas   #d5d5d9  0.6674  0.8742   248/normal/-3   Y<=0.1891   Y<=0.1094
+   -4  --bg-sidebar  #c5c0c2  0.5346  0.8124   307/high  / 3   Y<=0.1449   Y<=0.0799
+   -4  --bg-raised   #b3adab  0.4241  0.7520   352/high  / 3   Y<=0.1080   Y<=0.0554
+   -4  --bg-surface  #d8d8d6  0.6857  0.8817    39/normal/-3   Y<=0.1952   Y<=0.1135
+

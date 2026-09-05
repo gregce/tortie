@@ -1,0 +1,94 @@
+## the shipped light lanes (the parent, c49a57d)
+  lanes #2175bd #b23534 #004f4e #833e00 #613374 #00530e
+  WCAG worst per lane on its grounds: 3.52 4.43 6.86 5.76 6.85 6.82
+  worst pair protanopia only        4-6 at 12.4
+  worst pair protan+deutan (tree)   4-6 at 12.4
+  worst pair over six models        4-6 at 4.7  (Vienot p 12.4 d 32.9 t 154.1; Machado 4.7 36.5 150.0)
+  three tightest pairs: 4-6=4.7, 3-6=9.2, 2-3=26.9
+  moved: 1:dE0.0 2:dE0.0 3:dE0.0 4:dE0.0 5:dE0.0 6:dE0.0
+
+## darkest offered shade 0 (accent #2175bd, darkest selected row #d5cdd1), option counts 1/623/1527/574/1771/508
+  lanes #2175bd #b35058 #00453b #712702 #6a538c #2a6b26
+  WCAG worst per lane on its grounds: 3.10 3.21 7.04 6.76 4.18 4.17
+  worst pair protanopia only        2-6 at 52.3
+  worst pair protan+deutan (tree)   2-6 at 52.3
+  worst pair over six models        2-6 at 52.3  (Vienot p 52.3 d 56.6 t 186.3; Machado 58.5 56.3 166.6)
+  three tightest pairs: 2-6=52.3, 4-6=52.3, 1-5=52.4
+  moved: 1:dE0.0 2:dE8.7 3:dE5.5 4:dE8.5 5:dE9.8 6:dE8.1
+   with the identity caps relaxed to dE 18/34/18/34/18 and hue span 22
+  lanes #2175bd #720500 #1b493f #a64400 #481c7b #567b3e
+  WCAG worst per lane on its grounds: 3.10 7.76 6.51 3.91 7.80 3.14
+  worst pair protanopia only        3-4 at 63.7
+  worst pair protan+deutan (tree)   3-4 at 63.7
+  worst pair over six models        3-4 at 63.7  (Vienot p 63.7 d 91.3 t 163.6; Machado 70.4 96.9 186.0)
+  three tightest pairs: 3-4=63.7, 3-5=63.7, 2-3=64.0
+  moved: 1:dE0.0 2:dE15.8 3:dE5.3 4:dE7.8 5:dE8.5 6:dE16.1
+
+## darkest offered shade -1 (accent #1b70b8, darkest selected row #cdc5c9), option counts 1/543/1352/574/1597/508
+  lanes #1b70b8 #9f5750 #2a4546 #7c2705 #523876 #146d24
+  WCAG worst per lane on its grounds: 3.06 3.14 6.10 5.78 5.68 3.83
+  worst pair protanopia only        2-6 at 45.4
+  worst pair protan+deutan (tree)   2-6 at 45.4
+  worst pair over six models        2-6 at 45.4  (Vienot p 45.4 d 47.4 t 192.9; Machado 52.6 47.5 174.7)
+  three tightest pairs: 2-6=45.4, 3-5=45.8, 4-6=46.0
+  moved: 1:dE1.9 2:dE8.8 3:dE8.0 4:dE8.7 5:dE4.4 6:dE8.3
+   with the identity caps relaxed to dE 18/34/18/34/18 and hue span 22
+  lanes #1b70b8 #a0415e #004033 #760800 #3f266b #54661f
+  WCAG worst per lane on its grounds: 3.06 3.64 6.98 6.88 7.31 3.77
+  worst pair protanopia only        2-3 at 53.9
+  worst pair protan+deutan (tree)   2-3 at 53.9
+  worst pair over six models        2-3 at 53.9  (Vienot p 53.9 d 82.0 t 164.0; Machado 56.9 84.4 174.0)
+  three tightest pairs: 2-3=53.9, 3-5=53.9, 4-6=54.3
+  moved: 1:dE1.9 2:dE14.0 3:dE7.7 4:dE15.1 5:dE7.8 6:dE13.2
+
+## darkest offered shade -2 (accent #116ab2, darkest selected row #c5bdc1), option counts 1/443/1169/565/1419/508
+  lanes #116ab2 #c5244b #506c6a #835520 #562b7f #294400
+  WCAG worst per lane on its grounds: 3.06 3.06 3.09 3.48 5.58 5.95
+  worst pair protanopia only        2-4 at 46.8
+  worst pair protan+deutan (tree)   2-3 at 44.4
+  worst pair over six models        2-4 at 43.5  (Vienot p 46.8 d 45.3 t 48.1; Machado 53.0 43.5 106.0)
+  three tightest pairs: 2-4=43.5, 2-3=43.9, 5-6=44.0
+  moved: 1:dE4.1 2:dE8.5 3:dE13.6 4:dE8.3 5:dE5.0 6:dE8.2
+   with the identity caps relaxed to dE 18/34/18/34/18 and hue span 22
+  lanes #116ab2 #af4000 #12433d #760800 #481c7b #466e54
+  WCAG worst per lane on its grounds: 3.06 3.21 6.02 6.33 6.61 3.16
+  worst pair protanopia only        3-6 at 63.7
+  worst pair protan+deutan (tree)   3-5 at 63.0
+  worst pair over six models        3-5 at 63.0  (Vienot p 73.6 d 63.0 t 68.4; Machado 91.1 81.5 63.0)
+  three tightest pairs: 3-5=63.0, 3-4=63.3, 3-6=63.7
+  moved: 1:dE4.1 2:dE13.7 3:dE4.9 4:dE15.1 5:dE8.5 6:dE15.5
+
+## darkest offered shade -3 (accent #0464ab, darkest selected row #bdb5b9), option counts 1/329/989/512/1237/508
+  lanes #0464ab #af3149 #4a6667 #764e23 #4e3075 #244501
+  WCAG worst per lane on its grounds: 3.07 3.12 3.09 3.63 5.23 5.44
+  worst pair protanopia only        2-4 at 38.9
+  worst pair protan+deutan (tree)   2-4 at 38.9
+  worst pair over six models        2-4 at 38.9  (Vienot p 38.9 d 41.8 t 43.8; Machado 43.9 40.1 82.7)
+  three tightest pairs: 2-4=38.9, 2-3=38.9, 5-6=39.6
+  moved: 1:dE6.3 2:dE7.8 3:dE12.2 4:dE8.1 5:dE4.8 6:dE7.0
+   with the identity caps relaxed to dE 18/34/18/34/18 and hue span 22
+  lanes #0464ab #894f5e #003c39 #5e2300 #481c7b #336e13
+  WCAG worst per lane on its grounds: 3.07 3.13 6.14 6.10 6.06 3.10
+  worst pair protanopia only        3-4 at 57.8
+  worst pair protan+deutan (tree)   4-6 at 57.6
+  worst pair over six models        4-6 at 57.6  (Vienot p 85.2 d 57.6 t 166.5; Machado 82.9 61.1 121.4)
+  three tightest pairs: 4-6=57.6, 3-4=57.8, 2-4=58.0
+  moved: 1:dE6.3 2:dE15.7 3:dE6.1 4:dE10.9 5:dE8.5 6:dE10.1
+
+## darkest offered shade -4 (accent #005ea2, darkest selected row #b5adb1), option counts 1/209/803/421/1053/486
+  lanes #005ea2 #a92f1a #0d4a44 #6b2800 #4a306d #2a6737
+  WCAG worst per lane on its grounds: 3.07 3.08 4.60 4.97 4.95 3.10
+  worst pair protanopia only        2-4 at 40.5
+  worst pair protan+deutan (tree)   3-6 at 40.0
+  worst pair over six models        2-4 at 39.9  (Vienot p 40.5 d 50.0 t 63.6; Machado 39.9 54.4 72.3)
+  three tightest pairs: 2-4=39.9, 3-6=40.0, 2-6=40.5
+  moved: 1:dE8.5 2:dE6.5 3:dE3.0 4:dE8.2 5:dE5.2 6:dE8.4
+   with the identity caps relaxed to dE 18/34/18/34/18 and hue span 22
+  lanes #005ea2 #834959 #004031 #5e2300 #3f266b #4f6018
+  WCAG worst per lane on its grounds: 3.07 3.13 5.39 5.58 5.63 3.17
+  worst pair protanopia only        2-3 at 50.7
+  worst pair protan+deutan (tree)   4-6 at 50.5
+  worst pair over six models        4-6 at 50.5  (Vienot p 71.7 d 50.5 t 101.9; Machado 68.3 54.3 91.1)
+  three tightest pairs: 4-6=50.5, 2-3=50.7, 3-4=50.7
+  moved: 1:dE8.5 2:dE16.1 3:dE8.4 4:dE10.9 5:dE7.8 6:dE12.3
+

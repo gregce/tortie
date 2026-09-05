@@ -1,0 +1,32 @@
+# the darkest ground each shade row reaches, DEPTHS -3..0 ONLY (the light region shape)
+shade  token          hex      Y       at hue/contrast/depth   cap Y for 3:1   cap Y for 4.5:1
+    0  --bg-active   #d5cdd1  0.6241   301/high  / 0   0.1747          0.0998
+    0  --bg-canvas   #f6f6fa  0.9241   248/normal/-3   0.2747          0.1665
+    0  --bg-sidebar  #eee9eb  0.8245   307/high  / 0   0.2415          0.1443
+    0  --bg-raised   #e5dedc  0.7407   352/high  / 0   0.2136          0.1257
+    0  --bg-surface  #f9f9f7  0.9461    39/normal/-3   0.2820          0.1713
+
+   -1  --bg-active   #cdc5c9  0.5713   301/high  / 0   0.1571          0.0881
+   -1  --bg-canvas   #eeeef2  0.8574   248/normal/-3   0.2525          0.1516
+   -1  --bg-sidebar  #e6e1e3  0.7622   307/high  / 0   0.2207          0.1305
+   -1  --bg-raised   #ddd6d4  0.6822   352/high  / 0   0.1941          0.1127
+   -1  --bg-surface  #f1f1ef  0.8784    39/normal/-3   0.2595          0.1563
+
+   -2  --bg-active   #c5bdc1  0.5212   301/high  / 0   0.1404          0.0769
+   -2  --bg-canvas   #e5e5e9  0.7858   248/normal/-3   0.2286          0.1357
+   -2  --bg-sidebar  #d7dbda  0.7017   126/high  / 0   0.2006          0.1170
+   -2  --bg-raised   #d5cecc  0.6265   352/high  / 0   0.1755          0.1003
+   -2  --bg-surface  #e9e8e9  0.8092   266/normal/-3   0.2364          0.1409
+
+   -3  --bg-active   #bdb5b9  0.4737   301/high  / 0   0.1246          0.0664
+   -3  --bg-canvas   #dddde1  0.7252   248/normal/-3   0.2084          0.1223
+   -3  --bg-sidebar  #d5d0d2  0.6391   307/high  / 0   0.1797          0.1031
+   -3  --bg-raised   #c5c7cd  0.5712   208/high  / 0   0.1571          0.0881
+   -3  --bg-surface  #dfe0e2  0.7449   194/normal/-3   0.2150          0.1266
+
+   -4  --bg-active   #b5adb1  0.4289   301/high  / 0   0.1096          0.0564
+   -4  --bg-canvas   #d5d5d9  0.6674   248/normal/-3   0.1891          0.1094
+   -4  --bg-sidebar  #cdc8ca  0.5855   307/high  / 0   0.1618          0.0912
+   -4  --bg-raised   #bebec5  0.5181   237/high  / 0   0.1394          0.0762
+   -4  --bg-surface  #d8d8d6  0.6857    39/normal/-3   0.1952          0.1135
+

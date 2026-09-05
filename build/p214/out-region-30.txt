@@ -1,0 +1,207 @@
+# light base binding table, hue step 30, 3 contrast levels + 4 schemes every 15deg
+shade depth  offered  binding key                              slack   got   need  hue/contrast/scheme
+   -4    -3  no       --accent-text on --bg-canvas           -0.969  3.531   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.366  2.634   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.324  2.676   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.276  2.724   3.00  315/high/teal
+   -4    -2  no       --accent-text on --bg-canvas           -0.969  3.531   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.529  2.471   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.490  2.510   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.445  2.555   3.00  315/high/teal
+   -4    -1  no       --accent-text on --bg-canvas           -0.969  3.531   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.660  2.340   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.623  2.377   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.581  2.419   3.00  315/high/teal
+   -4     0  no       --accent-text on --bg-canvas           -0.969  3.531   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.860  2.140   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.827  2.173   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.788  2.212   3.00  315/high/teal
+   -4     1  no       --status-idle on --bg-active           -1.094  1.906   3.00  315/high/teal
+                        --status-failed on --bg-active         -1.064  1.936   3.00  315/high/teal
+                        --status-attention on --bg-active      -1.030  1.970   3.00  315/high/teal
+                        --status-working on --bg-active        -1.019  1.981   3.00  315/high/teal
+   -4     2  no       --status-idle on --bg-active           -1.269  1.731   3.00  315/high/teal
+                        --status-failed on --bg-active         -1.242  1.758   3.00  315/high/teal
+                        --status-attention on --bg-active      -1.210  1.790   3.00  315/high/teal
+                        --status-working on --bg-active        -1.201  1.799   3.00  315/high/teal
+   -4     3  no       --status-idle on --bg-active           -1.472  1.528   3.00  315/high/teal
+                        --status-failed on --bg-active         -1.448  1.552   3.00  315/high/teal
+                        --status-attention on --bg-active      -1.420  1.580   3.00  315/high/teal
+                        --status-working on --bg-active        -1.412  1.588   3.00  315/high/teal
+   -3    -3  no       --accent-text on --bg-canvas           -0.685  3.815   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.137  2.863   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.092  2.908   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.040  2.960   3.00  315/high/teal
+   -3    -2  no       --accent-text on --bg-canvas           -0.685  3.815   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.310  2.690   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.267  2.733   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.218  2.782   3.00  315/high/teal
+   -3    -1  no       --accent-text on --bg-canvas           -0.685  3.815   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.448  2.552   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.408  2.592   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.362  2.638   3.00  315/high/teal
+   -3     0  no       --accent-text on --bg-canvas           -0.685  3.815   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.660  2.340   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.623  2.377   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.581  2.419   3.00  315/high/teal
+   -3     1  no       --status-idle on --bg-active           -0.909  2.091   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.876  2.124   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.838  2.162   3.00  315/high/teal
+                        --status-working on --bg-active        -0.826  2.174   3.00  315/high/teal
+   -3     2  no       --status-idle on --bg-active           -1.109  1.891   3.00  120/high/blue
+                        --status-failed on --bg-active         -1.079  1.921   3.00  120/high/blue
+                        --status-attention on --bg-active      -1.045  1.955   3.00  120/high/blue
+                        --status-working on --bg-active        -1.035  1.965   3.00  120/high/blue
+   -3     3  no       --status-idle on --bg-active           -1.311  1.689   3.00  315/high/teal
+                        --status-failed on --bg-active         -1.284  1.716   3.00  315/high/teal
+                        --status-attention on --bg-active      -1.254  1.746   3.00  315/high/teal
+                        --status-working on --bg-active        -1.244  1.756   3.00  315/high/teal
+   -2    -3  no       --accent-text on --bg-canvas           -0.387  4.113   4.50  30/normal/teal
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-idle on --bg-active            0.103  3.103   3.00  315/high/teal
+                        --status-failed on --bg-active          0.152  3.152   3.00  315/high/teal
+   -2    -2  no       --accent-text on --bg-canvas           -0.387  4.113   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.078  2.922   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.032  2.968   3.00  315/high/teal
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+   -2    -1  no       --accent-text on --bg-canvas           -0.387  4.113   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.224  2.776   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.181  2.819   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.130  2.870   3.00  315/high/teal
+   -2     0  no       --status-idle on --bg-active           -0.448  2.552   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.408  2.592   3.00  315/high/teal
+                        --accent-text on --bg-canvas           -0.387  4.113   4.50  30/normal/teal
+                        --status-attention on --bg-active      -0.362  2.638   3.00  315/high/teal
+   -2     1  no       --status-idle on --bg-active           -0.711  2.289   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.675  2.325   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.634  2.366   3.00  315/high/teal
+                        --status-working on --bg-active        -0.621  2.379   3.00  315/high/teal
+   -2     2  no       --status-idle on --bg-active           -0.924  2.076   3.00  120/high/blue
+                        --status-failed on --bg-active         -0.891  2.109   3.00  120/high/blue
+                        --status-attention on --bg-active      -0.854  2.146   3.00  120/high/blue
+                        --status-working on --bg-active        -0.842  2.158   3.00  120/high/blue
+   -2     3  no       --status-idle on --bg-active           -1.139  1.861   3.00  315/high/teal
+                        --status-failed on --bg-active         -1.110  1.890   3.00  315/high/teal
+                        --status-attention on --bg-active      -1.076  1.924   3.00  315/high/teal
+                        --status-working on --bg-active        -1.066  1.934   3.00  315/high/teal
+   -1    -3  no       --accent-text on --bg-canvas           -0.035  4.465   4.50  30/normal/teal
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-idle on --bg-active            0.356  3.356   3.00  315/high/teal
+                        --status-failed on --bg-active          0.409  3.409   3.00  315/high/teal
+   -1    -2  no       --accent-text on --bg-canvas           -0.035  4.465   4.50  30/normal/teal
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-idle on --bg-active            0.165  3.165   3.00  315/high/teal
+                        --status-failed on --bg-active          0.215  3.215   3.00  315/high/teal
+   -1    -1  no       --accent-text on --bg-canvas           -0.035  4.465   4.50  30/normal/teal
+                        --status-idle on --bg-active           -0.019  2.981   3.00  315/high/teal
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-failed on --bg-active          0.028  3.028   3.00  315/high/teal
+   -1     0  no       --status-idle on --bg-active           -0.224  2.776   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.181  2.819   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.130  2.870   3.00  315/high/teal
+                        --status-working on --bg-active        -0.115  2.885   3.00  315/high/teal
+   -1     1  no       --status-idle on --bg-active           -0.502  2.498   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.463  2.537   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.418  2.582   3.00  315/high/teal
+                        --status-working on --bg-active        -0.404  2.596   3.00  315/high/teal
+   -1     2  no       --status-idle on --bg-active           -0.742  2.258   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.707  2.293   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.666  2.334   3.00  315/high/teal
+                        --status-working on --bg-active        -0.653  2.347   3.00  315/high/teal
+   -1     3  no       --status-idle on --bg-active           -0.980  2.020   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.948  2.052   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.911  2.089   3.00  315/high/teal
+                        --status-working on --bg-active        -0.900  2.100   3.00  315/high/teal
+    0    -3  yes      --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --accent-text on --bg-canvas            0.293  4.793   4.50  30/normal/teal
+                        --status-idle on --bg-active            0.636  3.636   3.00  270/high/blue
+                        --status-failed on --bg-active          0.693  3.693   3.00  270/high/blue
+    0    -2  yes      --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --accent-text on --bg-canvas            0.293  4.793   4.50  30/normal/teal
+                        --status-idle on --bg-active            0.428  3.428   3.00  315/high/teal
+                        --status-failed on --bg-active          0.482  3.482   3.00  315/high/teal
+    0    -1  yes      --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-idle on --bg-active            0.228  3.228   3.00  315/high/teal
+                        --status-failed on --bg-active          0.279  3.279   3.00  315/high/teal
+                        --accent-text on --bg-canvas            0.293  4.793   4.50  30/normal/teal
+    0     0  yes      --status-idle on --bg-active            0.012  3.012   3.00  315/high/teal
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-failed on --bg-active          0.059  3.059   3.00  315/high/teal
+                        --status-attention on --bg-active       0.114  3.114   3.00  315/high/teal
+    0     1  no       --status-idle on --bg-active           -0.281  2.719   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.239  2.761   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.189  2.811   3.00  315/high/teal
+                        --status-working on --bg-active        -0.174  2.826   3.00  315/high/teal
+    0     2  no       --status-idle on --bg-active           -0.529  2.471   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.490  2.510   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.445  2.555   3.00  315/high/teal
+                        --status-working on --bg-active        -0.432  2.568   3.00  315/high/teal
+    0     3  no       --status-idle on --bg-active           -0.787  2.213   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.752  2.248   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.712  2.288   3.00  315/high/teal
+                        --status-working on --bg-active        -0.699  2.301   3.00  315/high/teal
+    1    -3  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --accent-text on --bg-canvas            0.654  5.154   4.50  90/normal/teal
+    1    -2  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --accent-text on --bg-canvas            0.654  5.154   4.50  90/normal/teal
+    1    -1  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-idle on --bg-active            0.487  3.487   3.00  315/high/teal
+    1     0  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-idle on --bg-active            0.260  3.260   3.00  315/high/teal
+    1     1  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        --status-idle on --bg-active           -0.049  2.951   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.002  2.998   3.00  315/high/teal
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+    1     2  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        --status-idle on --bg-active           -0.338  2.662   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.296  2.704   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.247  2.753   3.00  315/high/teal
+    1     3  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        --status-idle on --bg-active           -0.582  2.418   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.544  2.456   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.500  2.500   3.00  315/high/teal
+    2    -3  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --accent-text on --bg-canvas            0.658  5.158   4.50  0/normal/teal
+    2    -2  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --accent-text on --bg-canvas            0.658  5.158   4.50  0/normal/teal
+    2    -1  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-idle on --bg-active            0.487  3.487   3.00  315/high/teal
+    2     0  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+                        --status-attention-badge-fg on --status-attention-badge-bg  0.012  4.512   4.50  0/normal/blue
+                        --status-idle on --bg-active            0.260  3.260   3.00  315/high/teal
+    2     1  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        --status-idle on --bg-active           -0.049  2.951   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.002  2.998   3.00  315/high/teal
+                        order --bg-surface>--bg-canvas          0.000  0.000   0.00  0/normal/blue
+    2     2  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        --status-idle on --bg-active           -0.338  2.662   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.296  2.704   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.247  2.753   3.00  315/high/teal
+    2     3  no       step --bg-canvas/--bg-surface          -2.000  0.000   2.00  0/normal/blue
+                        --status-idle on --bg-active           -0.582  2.418   3.00  315/high/teal
+                        --status-failed on --bg-active         -0.544  2.456   3.00  315/high/teal
+                        --status-attention on --bg-active      -0.500  2.500   3.00  315/high/teal
+
+# best depth per shade row
+shade -4: best depth -3, slack -0.969, bound by --accent-text on --bg-canvas
+shade -3: best depth -3, slack -0.685, bound by --accent-text on --bg-canvas
+shade -2: best depth -3, slack -0.387, bound by --accent-text on --bg-canvas
+shade -1: best depth -3, slack -0.035, bound by --accent-text on --bg-canvas
+shade  0: best depth -3, slack 0.012, bound by --status-attention-badge-fg on --status-attention-badge-bg
+shade  1: best depth -3, slack -2.000, bound by step --bg-canvas/--bg-surface
+shade  2: best depth -3, slack -2.000, bound by step --bg-canvas/--bg-surface

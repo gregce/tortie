@@ -1,0 +1,165 @@
+
+## the shipped light lanes (the parent)
+lanes #2175bd #b23534 #004f4e #833e00 #613374 #00530e
+worst WCAG on the three row grounds per lane: 3.52 4.43 6.86 5.76 6.85 6.82
+worst pair protanopia only:      4-6 at 12.4
+worst pair protan+deutan (tree): 4-6 at 12.4
+worst pair over all three:       3-6 at 10.9 (p 65.2 d 60.3 t 10.9)
+worst pair, Machado cross check: 4-6 at 4.7
+pairs under 32 in the tree metric: 2-3=26.9, 4-6=12.4
+
+### solved for the region whose darkest selected row is #d5cdd1 (shade 0), identity cap dE2000 12
+candidates per lane: 2056 3719 3886 3314 6643 3312
+
+## solved lanes, shade 0, identity 12
+lanes #2175bd #cc0030 #012a26 #943600 #613374 #2e6e47
+worst WCAG on the three row grounds per lane: 3.10 3.73 9.91 4.84 6.04 3.92
+worst pair protanopia only:      2-4 at 47.0
+worst pair protan+deutan (tree): 2-4 at 47.0
+worst pair over all three:       2-4 at 47.0 (p 47.0 d 47.1 t 49.5)
+worst pair, Machado cross check: 2-6 at 43.5
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#cc0030 dE5.3  3:#004f4e->#012a26 dE11.8  4:#833e00->#943600 dE5.7  5:#613374->#613374 dE0.0  6:#00530e->#2e6e47 dE12.0
+
+### solved for the region whose darkest selected row is #d5cdd1 (shade 0), identity cap dE2000 18
+candidates per lane: 3021 5014 5209 4741 8706 4882
+
+## solved lanes, shade 0, identity 18
+lanes #2175bd #b23534 #416862 #3c1b00 #48375c #2a5302
+worst WCAG on the three row grounds per lane: 3.10 3.91 3.99 10.00 6.82 5.77
+worst pair protanopia only:      2-5 at 51.7
+worst pair protan+deutan (tree): 3-5 at 48.6
+worst pair over all three:       3-5 at 48.6 (p 62.5 d 48.6 t 124.3)
+worst pair, Machado cross check: 5-6 at 33.3
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b23534 dE0.0  3:#004f4e->#416862 dE10.4  4:#833e00->#3c1b00 dE17.8  5:#613374->#48375c dE8.3  6:#00530e->#2a5302 dE5.5
+
+### solved for the region whose darkest selected row is #d5cdd1 (shade 0), identity cap dE2000 26
+candidates per lane: 3895 5825 5209 4903 8717 4911
+
+## solved lanes, shade 0, identity 26
+lanes #2175bd #b00e3b #58746f #311800 #573877 #255600
+worst WCAG on the three row grounds per lane: 3.10 4.54 3.25 10.69 6.03 5.59
+worst pair protanopia only:      2-5 at 59.4
+worst pair protan+deutan (tree): 2-5 at 59.4
+worst pair over all three:       2-5 at 59.4 (p 59.4 d 82.5 t 85.3)
+worst pair, Machado cross check: 5-6 at 51.3
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b00e3b dE8.1  3:#004f4e->#58746f dE16.2  4:#833e00->#311800 dE20.7  5:#613374->#573877 dE3.3  6:#00530e->#255600 dE4.8
+
+### solved for the region whose darkest selected row is #cdc5c9 (shade -1), identity cap dE2000 12
+candidates per lane: 1634 3220 3886 3189 6643 3312
+
+## solved lanes, shade -1, identity 12
+lanes #2175bd #cc0030 #012a26 #943600 #613374 #2e6e47
+worst WCAG on the three row grounds per lane: 2.86 3.44 9.13 4.46 5.56 3.61
+worst pair protanopia only:      2-4 at 47.0
+worst pair protan+deutan (tree): 2-4 at 47.0
+worst pair over all three:       2-4 at 47.0 (p 47.0 d 47.1 t 49.5)
+worst pair, Machado cross check: 2-6 at 43.5
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#cc0030 dE5.3  3:#004f4e->#012a26 dE11.8  4:#833e00->#943600 dE5.7  5:#613374->#613374 dE0.0  6:#00530e->#2e6e47 dE12.0
+
+### solved for the region whose darkest selected row is #cdc5c9 (shade -1), identity cap dE2000 18
+candidates per lane: 2599 4481 4694 4251 8186 4411
+
+## solved lanes, shade -1, identity 18
+lanes #2175bd #b23534 #416862 #3c1b00 #48375c #2a5302
+worst WCAG on the three row grounds per lane: 2.86 3.60 3.67 9.21 6.29 5.32
+worst pair protanopia only:      2-5 at 51.7
+worst pair protan+deutan (tree): 3-5 at 48.6
+worst pair over all three:       3-5 at 48.6 (p 62.5 d 48.6 t 124.3)
+worst pair, Machado cross check: 5-6 at 33.3
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b23534 dE0.0  3:#004f4e->#416862 dE10.4  4:#833e00->#3c1b00 dE17.8  5:#613374->#48375c dE8.3  6:#00530e->#2a5302 dE5.5
+
+### solved for the region whose darkest selected row is #cdc5c9 (shade -1), identity cap dE2000 26
+candidates per lane: 3473 5292 4694 4413 8186 4411
+
+## solved lanes, shade -1, identity 26
+lanes #2175bd #b00e3b #53736d #311800 #603688 #2b5500
+worst WCAG on the three row grounds per lane: 2.86 4.18 3.07 9.85 5.22 5.17
+worst pair protanopia only:      2-6 at 64.6
+worst pair protan+deutan (tree): 2-3 at 58.6
+worst pair over all three:       2-3 at 58.6 (p 82.6 d 58.6 t 175.2)
+worst pair, Machado cross check: 5-6 at 51.5
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b00e3b dE8.1  3:#004f4e->#53736d dE15.1  4:#833e00->#311800 dE20.7  5:#613374->#603688 dE4.5  6:#00530e->#2b5500 dE5.7
+
+### solved for the region whose darkest selected row is #c5bdc1 (shade -2), identity cap dE2000 12
+candidates per lane: 1217 2692 3882 2865 6640 3304
+
+## solved lanes, shade -2, identity 12
+lanes #2175bd #cc0030 #012a26 #943600 #613374 #2e6e47
+worst WCAG on the three row grounds per lane: 2.63 3.16 8.40 4.10 5.11 3.32
+worst pair protanopia only:      2-4 at 47.0
+worst pair protan+deutan (tree): 2-4 at 47.0
+worst pair over all three:       2-4 at 47.0 (p 47.0 d 47.1 t 49.5)
+worst pair, Machado cross check: 2-6 at 43.5
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#cc0030 dE5.3  3:#004f4e->#012a26 dE11.8  4:#833e00->#943600 dE5.7  5:#613374->#613374 dE0.0  6:#00530e->#2e6e47 dE12.0
+
+### solved for the region whose darkest selected row is #c5bdc1 (shade -2), identity cap dE2000 18
+candidates per lane: 2182 3946 4177 3767 7643 3922
+
+## solved lanes, shade -2, identity 18
+lanes #2175bd #b23534 #416862 #3c1b00 #48375c #2a5302
+worst WCAG on the three row grounds per lane: 2.63 3.31 3.38 8.47 5.78 4.89
+worst pair protanopia only:      2-5 at 51.7
+worst pair protan+deutan (tree): 3-5 at 48.6
+worst pair over all three:       3-5 at 48.6 (p 62.5 d 48.6 t 124.3)
+worst pair, Machado cross check: 5-6 at 33.3
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b23534 dE0.0  3:#004f4e->#416862 dE10.4  4:#833e00->#3c1b00 dE17.8  5:#613374->#48375c dE8.3  6:#00530e->#2a5302 dE5.5
+
+### solved for the region whose darkest selected row is #c5bdc1 (shade -2), identity cap dE2000 26
+candidates per lane: 3056 4757 4177 3929 7643 3922
+
+## solved lanes, shade -2, identity 26
+lanes #2175bd #b73d36 #516d68 #311800 #48375c #2a5300
+worst WCAG on the three row grounds per lane: 2.63 3.06 3.06 9.06 5.78 4.89
+worst pair protanopia only:      2-3 at 55.9
+worst pair protan+deutan (tree): 2-3 at 55.9
+worst pair over all three:       2-3 at 55.9 (p 55.9 d 61.8 t 171.2)
+worst pair, Machado cross check: 5-6 at 33.3
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b73d36 dE2.3  3:#004f4e->#516d68 dE13.8  4:#833e00->#311800 dE20.7  5:#613374->#48375c dE8.3  6:#00530e->#2a5300 dE5.6
+
+### solved for the region whose darkest selected row is #b5adb1 (shade -4), identity cap dE2000 12
+candidates per lane: 432 1638 3011 2080 5754 2659
+
+## solved lanes, shade -4, identity 12
+lanes #2175bd #b23534 #012a26 #8c4000 #613374 #2c411f
+worst WCAG on the three row grounds per lane: 2.20 2.77 7.04 3.36 4.29 5.09
+worst pair protanopia only:      2-6 at 33.6
+worst pair protan+deutan (tree): 2-6 at 33.6
+worst pair over all three:       2-6 at 33.6 (p 33.6 d 71.7 t 141.1)
+worst pair, Machado cross check: 3-6 at 36.4
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b23534 dE0.0  3:#004f4e->#012a26 dE11.8  4:#833e00->#8c4000 dE2.0  5:#613374->#613374 dE0.0  6:#00530e->#2c411f dE10.6
+
+### solved for the region whose darkest selected row is #b5adb1 (shade -4), identity cap dE2000 18
+candidates per lane: 1396 2885 3164 2851 6520 2996
+
+## solved lanes, shade -4, identity 18
+lanes #2175bd #b23534 #012d30 #3c1b00 #4a395d #2c5504
+worst WCAG on the three row grounds per lane: 2.20 2.77 6.75 7.10 4.71 3.98
+worst pair protanopia only:      2-6 at 50.0
+worst pair protan+deutan (tree): 3-4 at 49.2
+worst pair over all three:       3-4 at 49.2 (p 50.0 d 49.2 t 94.4)
+worst pair, Machado cross check: 5-6 at 33.9
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b23534 dE0.0  3:#004f4e->#012d30 dE11.3  4:#833e00->#3c1b00 dE17.8  5:#613374->#4a395d dE8.4  6:#00530e->#2c5504 dE5.6
+
+### solved for the region whose darkest selected row is #b5adb1 (shade -4), identity cap dE2000 26
+candidates per lane: 2270 3696 3164 3013 6520 2996
+
+## solved lanes, shade -4, identity 26
+lanes #2175bd #b23534 #002e32 #331602 #613374 #295100
+worst WCAG on the three row grounds per lane: 2.20 2.77 6.67 7.62 4.29 4.22
+worst pair protanopia only:      3-4 at 53.1
+worst pair protan+deutan (tree): 3-4 at 51.5
+worst pair over all three:       3-4 at 51.5 (p 53.1 d 51.5 t 95.7)
+worst pair, Machado cross check: 3-4 at 48.6
+pairs under 32 in the tree metric: none
+moved: 1:#2175bd->#2175bd dE0.0  2:#b23534->#b23534 dE0.0  3:#004f4e->#002e32 dE11.2  4:#833e00->#331602 dE20.8  5:#613374->#613374 dE0.0  6:#00530e->#295100 dE5.6
