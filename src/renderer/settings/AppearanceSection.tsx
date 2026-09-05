@@ -558,6 +558,31 @@ function FrameColorRow(): React.JSX.Element {
   );
 }
 
+/** What one move of a stop slider does. */
+export interface StopPick {
+  /** Where the thumb lands, which is the move stopped at the edge. */
+  stopped: number;
+  /** Did the edge stop it, so the refusal line speaks? */
+  refused: boolean;
+  /** Does it write? False when it lands on the stop already drawn. */
+  persist: boolean;
+}
+
+/**
+ * One move of a stop slider, as a pure function so the guard below can be
+ * pinned without a DOM (Phase 213, the committer's round). See the header of
+ * `StopSliderRow` for why `persist` is a comparison against the DRAWN stop
+ * rather than the inverse of `refused`.
+ */
+export function stopSliderPick(
+  raw: number,
+  { edgeMin, edgeMax, drawn }: { edgeMin: number; edgeMax: number; drawn: number }
+): StopPick {
+  const wanted = Math.round(raw);
+  const stopped = Math.min(edgeMax, Math.max(edgeMin, wanted));
+  return { stopped, refused: stopped !== wanted, persist: stopped !== drawn };
+}
+
 /**
  * One stop slider with its refusal line.
  *
@@ -565,6 +590,28 @@ function FrameColorRow(): React.JSX.Element {
  * its track, because a control whose length changed under the pointer would
  * be its own puzzle; it refuses the move and says why, and the line holds its
  * place whether or not it speaks so the card never jumps (Phase 174.1).
+ *
+ * AND A MOVE THAT LANDS BACK ON THE STOP THE BASE IS ALREADY DRAWING WRITES
+ * NOTHING (Phase 213, the committer's round). `frameForBase` brings a frame
+ * the base cannot draw to the nearest stop it does offer and its header
+ * promises that nothing is persisted, so going back to the base that could
+ * draw it brings it back exactly. The two sliders were the hole in that
+ * promise: `draft` here is the BROUGHT stop, and persisting whatever a move
+ * clamped to wrote that stop into the settings file. On paper the whole
+ * region is one shade row, so the Shade slider is inert, and one arrow key or
+ * one stray click on it wrote the shipped shade over the shade the person
+ * chose on dark and it was gone. Measured in the real app before the guard:
+ * shade -2 and depth 3 set on dark, one ArrowLeft on paper, and Dark came
+ * back at 0.
+ *
+ * The guard is the comparison and not a flag, because the DESIGNED refusal
+ * still has to move: a drag from 1 to 3 where the edge is 2 lands on 2, which
+ * is not the stop being drawn, so it persists 2 and says why. Only a move
+ * whose landing place is the one already in front of the person writes
+ * nothing, and on the dark base, where the drawn stop is always the persisted
+ * one, the only writes this removes are writes of the value already there.
+ * `npm run probe:p213` launch E drives all four arms, including the control
+ * that a move INSIDE the range still persists.
  */
 function StopSliderRow({
   label,
@@ -589,10 +636,9 @@ function StopSliderRow({
 }): React.JSX.Element {
   const [refused, setRefused] = React.useState(false);
   const pick = (raw: number): void => {
-    const wanted = Math.round(raw);
-    const stopped = Math.min(edgeMax, Math.max(edgeMin, wanted));
-    setRefused(stopped !== wanted);
-    onPick(stopped);
+    const answer = stopSliderPick(raw, { edgeMin, edgeMax, drawn: draft });
+    setRefused(answer.refused);
+    if (answer.persist) onPick(answer.stopped);
   };
   const speaking = refused && note !== '';
   return (
