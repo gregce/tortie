@@ -21492,120 +21492,93 @@ the research is banked so the next round inherits it. It measures, with numbers:
 - **No new package.** The colour arithmetic is the OKLCH code Phase 207 wrote and culori in the
   gate.
 
-## Phase 214: the shade slider moves on paper, and no two lanes collapse (operator asked 2026-09-05)
+## Phase 214: the light face stops offering what paper cannot do (operator asked 2026-09-05)
 
-**Subject.** `feat(appearance): the light base gains shade rows, and its lanes stay apart`
+**Subject.** `fix(appearance): a control paper cannot move is not shown, and its lanes stay apart`
 
-**First body line.** `Phase 214: the shade slider moves on paper`
+**First body line.** `Phase 214: the light face and its lanes`
 
-**Semver.** MINOR.
+**Semver.** PATCH.
 
-**Tier 2**, and the tier is earned rather than defaulted. Nothing here spawns a process, holds a
-credential, touches tmux or writes a manifest, and it claims nothing about agents, so the
-universality reason that made Phase 213 Tier 3 is absent. It IS operator reported, so the parent
-commit measurement is mandatory whatever else runs. The budget is the gates, ONE app run that
-drives every claim in one session, and TWO independent methods, because re-deriving colour by a
-second arithmetic is the highest yield thing this codebase has and Phase 210 and 213 both proved it.
+**Tier 2.** It changes a rendered surface and a palette family, spawns nothing, holds no credential
+and touches no durable state. He reported it, so the parent commit measurement against `c49a57d` is
+mandatory. The budget is the gates, ONE app run and ONE independent method, being a colour vision
+simulation written from published models rather than the one the phase ships.
 
 **Charter.** He read Phase 213's three stated limits on 2026-09-04 and asked whether a later phase
-could resolve them, then on 2026-09-05: *"OK lets do it"*, having been told the first two are the
-same kind of work and the third is a design decision rather than a defect.
+could resolve them, then said to do it. **AMENDED 2026-09-05, BEFORE THE BUILD, ON HIS WORD:** *"We
+can simplify light mode if needed just to not overengineer."* Shown the measured cost of making the
+shade slider work, he chose to hide the control instead.
 
-**Two of the three are in this phase. The third is refused and the refusal is recorded below.**
+### What the measure step found, and why the phase changed shape because of it
 
-### What binds today, read from the shipped light block before anything is designed
+The measure step ran first and is committed at `262ad2c` and `008f768`. It answered the question
+honestly and the answer is what re-scoped this:
 
-`src/renderer/styles/tokens.css` at the `:root[data-scheme='light']` block, with each token's own
-measured comment:
-
-| Token | Value | Measured | Floor | Headroom |
-| --- | --- | --- | --- | --- |
-| `--accent-text` | `#326da8` | 4.69 on the sidebar | 4.5 | 0.19 |
-| `--status-idle` and `--status-exited` | `#6e7482` | 3.41 on the active row | 3.0 | 0.41 |
-| `--status-failed` | `#c74a46` | 3.40 on the active row | 3.0 | 0.40 |
-| `--git-deleted` | `#b23534` | 4.43 on the active row | its own | the tightest of the six |
-
-**That table is why the slider is dead.** The shade control moves the whole ramp. Paper cannot go
-UP because `--bg-canvas` is already `#f5f7fa` at OKLCH L 0.975, near the ceiling. It cannot go DOWN
-because every colour above was solved against THIS ground, and one step darker puts `--accent-text`
-under 4.5 on the sidebar and both status dots under 3.0 on the active row. So `rowFor` in
-`src/renderer/theme/frame-stops.ts` computes exactly one offered row on the light base, the header
-there already says so in those words, and `frameForBase` brings any other frame to it. Phase 213's
-committer made that honest, so the slider no longer destroys the shade a person held on dark, but
-honest is not the same as useful.
-
-**The lanes are the second half and Phase 213 already did the near fix.** Rule 28 of
-`npm run conformance:hue` records that the rotation's soft avoidance map carried the DARK base's one
-confusable pair and neither of paper's two, and the fix round corrected the map. What is left is not
-the map: at six live lanes in one row the light lane HUES themselves still put a brown and a green
-where a protanope reads one colour. Avoidance can reorder a rotation; it cannot separate two hues
-that are not separable.
+- Making the Shade slider move on paper is REACHABLE. Three rows, 13 of 49 cells against 4 today,
+  every cell inside the dark region so Phase 213's round trip stays green.
+- It is NOT FREE. It costs `--accent-text` 4.69 to 5.57 on the sidebar and the status dots 3.40 to
+  4.1 on the active row, at the DEFAULT light frame, for every person on light, forever. Four rows
+  would cost 6.10 and 4.5, which the measure step called a redesign rather than a step, and five is
+  unreachable while the dark base is untouched.
+- **So the palette is not touched.** Two shade stops are not worth a heavier accent and heavier
+  status dots on every light window. The colours research 80 designed and the Phase 213 verifier
+  re-derived stay exactly as they are.
 
 ### What it builds
 
-- **The light accent family and the binding status, git and lane colours re-solved for headroom,
-  not for the shipped ground.** Each is solved to hold its floor at the DARKEST shade row the phase
-  intends to offer, then checked at the shipped ground so it has not gone muddy there. The order is
-  `--accent-text` first because it binds tightest, then `--status-idle`, `--status-exited` and
-  `--status-failed` against the active row, then the six git decorations, then the seven lanes.
-- **The shade rows that fall out are the feature.** The phase does not decide the count in advance.
-  It re-solves, re-walks the region, and offers whatever rows genuinely hold every floor. The
-  running log line states the number it got. **If the honest answer is two rows rather than four,
-  it ships two and says so**, because a row that only holds by rounding is the kind of false green
-  this repository keeps catching.
+- **The Shade control is not shown on the light base.** Paper carries one shade, so the row is
+  absent rather than present and inert. Colour and Depth stay, because both still move. The
+  refusal sentence for shade goes with it, since there is nothing to refuse.
+- **The setting is untouched underneath.** A shade a person holds on dark stays in the settings
+  file, is not written by anything on light, and comes back exactly when they choose Dark. That is
+  Phase 213's committer fix and hiding the control must not weaken it: `frameForBase` still brings
+  a frame paper cannot draw to one it can, and the fifth app launch that Phase 213 added stays
+  green.
 - **The seven light lane hues re-solved so no PAIR collapses under colour vision deficiency**, at
-  six live lanes in one row, which is the case the limit was stated at. The separation is measured
-  in a deficiency simulation rather than asserted, protanopia at minimum and deuteranopia and
-  tritanopia reported beside it, and the lanes keep their identity so a person who knows the graph
-  still recognises it.
-- **The sliders say what is true.** Wherever a shade step is refused the existing refusal sentence
-  names the reason and the control that would allow it, exactly as Phase 210 shipped it. If a row
-  count is still small, the face says so in a few words rather than presenting a slider that looks
-  richer than it is.
-- **`DESIGN.md` and the light block's own comments carry the new measured numbers**, because every
-  ratio in that block is a comment a later round will trust.
+  six live lanes in one row, which is the case the limit was stated at. Measured in a simulation
+  rather than asserted, protanopia at minimum with deuteranopia and tritanopia reported beside it.
+  The lanes keep their identity so the graph still reads as the same graph. Rule 28 of the hue gate
+  already records that the brown and the green collide and that Phase 213's fix round could only
+  correct the rotation avoidance MAP, not the hues.
+- **DESIGN.md and the light block say paper carries one shade**, so a later round reads the reason
+  rather than rediscovering it.
 
-### What it must get right, and these are the properties
+### What it must get right
 
-- **Dark is byte identical.** Not one token of the dark base moves. Proved by digest, the way rule
-  27 already proves it.
-- **The shipped light frame still passes everything it passes today**, so a person who never touches
-  the slider sees a palette that is at least as good. Any colour that got darker for headroom is
-  named in the log line with its before and after, and the parent commit measurement is what makes
-  that honest rather than asserted.
-- **Every offered row holds every floor** over the full walk: every whole degree of the circle,
-  every depth in that row, three contrast levels and four highlight schemes. A row that fails one
-  cell is not offered.
+- **No colour changes on either base except the seven light lanes.** Dark is byte identical and so
+  is every light token but the lanes, proved by digest.
+- **The Depth slider still works on light** and its own refusal sentence still names its reason.
+- **The round trip is intact**: set a shade on dark, choose Light, use the app, choose Dark, and the
+  shade comes back exactly.
 - **No two lanes collapse** at six live lanes under the simulation, with the worst pair's separation
-  reported as a number.
-- **A frame a person holds is never destroyed**, which is Phase 213's committer fix, and the new
-  rows must not weaken it: the fifth app launch it added stays green.
+  reported as a number, before and after.
+- **The face never shows a control that cannot move**, and the gate asserts that for every base.
 
 ### Proof, run rather than read
 
-- `npm run conformance:hue` gains the new region and the lane separation as rules, red one clause at
-  a time under ablation, with the ablation count in the log line.
-- **Re-derive independently**: the verifier walks both bases with its OWN colour arithmetic, agrees
-  on every produced colour and every ratio, and re-derives the offered region edges itself. A row
-  the phase offers that its arithmetic refuses, or refuses that its arithmetic allows, is a finding.
-- **Measure the parent**: build `c49a57d`, read its light region row count and its lane separation,
-  and put both beside the new ones.
-- **One app run**: drive the Shade slider across every new row on light, read the painted pixels of
-  the titlebar, sidebar, tree, body, terminal, editor and diff at each, drive the round trip that
-  Phase 213's committer fix protects, and photograph the graph with six live lanes.
+- `npm run conformance:hue` gains the lane separation under the simulation as a rule, and an arm
+  asserting no base offers a control with a single stop, red one clause at a time under ablation,
+  with the simulation proved on known pairs so a check that cannot fail is never mistaken for one
+  that passed.
+- **Independent method**: the verifier writes its OWN colour vision simulation from published
+  models, proves it on known pairs, and measures the shipped lanes itself. A pair closer than the
+  phase claims is a finding.
+- **Measure the parent** `c49a57d` for its lane separation and its light Appearance face, and put
+  both beside HEAD.
+- **One app run**: read the Appearance face on both bases and assert the Shade row is absent on
+  light and present on dark, drive the round trip, and photograph the graph at six live lanes.
 - The battery.
 
 ### What is NOT in this phase
 
-- **Grok and CodeWhale stay dark inside a light window, and this is a refusal rather than a gap.**
-  They paint their own background over every cell, measured at 6,192 of 6,192 for Grok in research
-  80. Tortie could strip those escapes on light, and it will not: a background an agent paints is
-  often meaningful, marking a selection or a diff, and stripping it would break the agents that use
-  it properly to rescue two that do not. The limit is stated on the face and in the research.
-- **No change to the dark base**, not one byte.
-- **No new control**, no per token picking, no light mode beyond what Phase 213 shipped.
-- **No widening of the depth slider beyond what the re-solve earns.**
-- **No new package.**
+- **The light palette is not re-solved.** The shade rows are reachable and are not taken, for the
+  cost recorded above. If a later round wants them, the measure step's binding table and candidate
+  solves are committed and it can start there.
+- **Grok and CodeWhale stay dark inside a light window**, a refusal rather than a gap: they paint
+  their own ground over every cell, 6,192 of 6,192 for Grok, and stripping those escapes would
+  break the agents that use a background meaningfully to rescue two that do not.
+- **No change to the dark base**, no new control, no per token picking, no new package.
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
@@ -22012,3 +21985,4 @@ cycle rather than only the evening it was written.
 - 2026-09-04, Phase 213 LANDED on `6a6b98f` at version 0.100.0 with NO bump, the declared semver being MINOR, light mode, twenty one commits, the last three being the committer's own round on the reverification's needs_work. WHAT HE CAN NOW DO: turn the whole app light. Settings then Appearance then Scheme, being Light, Dark or Match the Mac, and the terminal goes light with it, because a light frame around a dark terminal is the one thing DESIGN.md section 0 always refused and this is that sentence kept rather than dropped. The paper is `#f5f7fa` and it is not white, the sidebar sits one rung under it, the sheet floats above it and the selected row presses into it, and the eight starting colours, the shade, the depth, the highlight scheme and the contrast level all compose on top of the light base exactly as they do on dark. The Mac option follows the system and changes with it, ten flips in a second all landed. Dark is the default and is BYTE IDENTICAL, proved by four digests in the gate and again in a running app by ten surface hashes and 58 token hashes on a full round trip. THE REFERENCES: docs/research/80-light-mode.md, which is the whole design with five app runs, five mocks and the per agent photograph matrix; DESIGN.md section 0, rewritten so it no longer says dark only, and its new section 1.1b, which is the light palette with the reason for every value; and docs/DESIGN-SPEC.md for the Scheme control. THE FIRST FRAME IS RIGHT ON BOTH: `#131417` over 100 percent at a dark boot and `#f6f7fa` over 100 percent at a light one, read off the compositor before the window paints, and the switch between them is a 22 frame crossfade in which no frame holds one region light and another dark, one frame under reduced motion. THE PER AGENT LIMITS, and they are the honest half. Nine of the twelve registry agents hard code their interface colours and ignore the sixteen slots, so what makes them readable on paper is xterm's own `minimumContrastRatio`, set to 4.5 on the light theme and left at the shipped 1 on dark, which lifts Claude Code's `#ffd700` to `#837122` at 4.50 and its `#ffffff` bullets off 1.07 at draw time while changing no cell. The same floor was vendored for the BUFFER path in the fix round, so Copy as HTML, a history capture and a selection scrolled out of view now carry the text he was looking at rather than the colour the agent asked for. Grok and CodeWhale paint their own dark ground over every cell and read as a dark box inside the light window, which no setting here reaches; Oh My Pi is the only hard coded set that was designed for a light ground; Antigravity, CodeWhale and Droid are UNMEASURED past their first screen, the first two because their consent screens were not accepted for him and Droid because it is not installed on this machine, so eleven of twelve were photographed at rest on paper. The light graph lanes carry one pair a protanope confuses at 12.4 that cannot be avoided once all six hues are live, which needs a different light `--git-conflict` and `--git-added` and is a palette change; and on paper the offered frame region is a single shade row, so the Shade slider cannot move, which is honest but dead. THE COMMITTER'S ROUND is that dead slider's other half, re-derived in the app before a line moved: the slider drew the stop `frameForBase` brought the carried frame to and persisted whatever a move clamped to, so one arrow key or one stray click on it wrote the shipped shade over the shade he chose on dark and it was gone, with the depth destroyed the same way; the guard is one comparison against the DRAWN stop rather than the inverse of the refusal, since the designed refusal still has to move, and launch E of the probe drives it with real Input domain key and mouse events reading the settings FILE rather than the face, 7 findings at the parent and 0 after, with a control arm proving an arrow inside the Depth range still writes. THE GATE is `npm run conformance:hue`, now walking both bases with 35 ABLATIONS EACH RED in about ten minutes, plus rule 26 scanning 1,236 files for a colour literal, rule 27 on the carried frame, rule 28 on the graph lanes of both bases and rule 29 on the capture floor; the battery from a clean cache is typecheck, build, test 12,099, smoke:t1 6 of 6, conformance:hue, contract byte identical and background, and `probe:p213` reads FIVE launches with 0 findings. HEADROOM: the eager set is 1,548,092 raw under 2,000,000 by 451,908, the whole phase spending 13,398 raw and the committer's round 0. THE VIEW MENU GAINED NOTHING: the Scheme control lives in Settings then Appearance, reached by the row that was already there. VERIFIER METHODS: an independent re-derivation of both offered regions over 187,587 derivations agreeing cell for cell, a hand written `ensureContrastRatio` reproducing all eight capture pins and diffed against `@xterm/xterm` 6.0.0's own source, an independent Vienot simulation of every lane pair on both bases that first disagreed and found its own bug, the parent commit measured for dark identity and for every fix, six attacks including a hand edited settings file outside the light region and planted colour literals, and real data being research 80's own agent colours drawn into a live light pane and decoded from the photograph.
 - 2026-09-05, Phase 214 QUEUED, the shade slider moves on paper: he read Phase 213's three stated limits and asked whether a later phase could resolve them, then said to do it. TWO of the three are in it. The shade slider is dead on light because paper is already at OKLCH L 0.975 so the ramp cannot rise, and one step down puts `--accent-text` under 4.5 on the sidebar at 4.69 today and both status dots under 3.0 on the active row at 3.41 and 3.40, so `rowFor` computes exactly one offered row; the fix is to re-solve the accent family and the binding status, git and lane colours for HEADROOM at the darkest row the phase intends rather than for the shipped ground, then re-walk the region and offer whatever genuinely holds, saying the number it got even if that number is two. The second is the light lane hues re-solved so no pair collapses under a colour vision simulation at six live lanes, which rule 28 of the hue gate already names as brown against green and which Phase 213's fix round could only address in the rotation map rather than in the hues. THE THIRD IS REFUSED AND THE ENTRY SAYS WHY: Grok and CodeWhale paint their own ground over every cell, 6,192 of 6,192 for Grok, and stripping those escapes would break the agents that use a background meaningfully to rescue two that do not. Dark stays byte identical. Tier 2 with the parent measurement mandatory because he reported it, two independent methods one of which re-derives the colours, and one app run.
 - 2026-09-05, Phase 214 STARTED in a detached worktree at `fcb985a`, the shade slider moves on paper; sockets p214 and v214; it spawns no agent and reads no credential, being colour arithmetic, a region walk and a graph.
+- 2026-09-05, Phase 214 AMENDED AND RE-SCOPED after its measure step and before its build, on his word: We can simplify light mode if needed just to not overengineer. The measure step, committed at `262ad2c` and `008f768`, found three shade rows REACHABLE on paper, 13 of 49 cells against 4, every cell inside the dark region, but costing `--accent-text` 4.69 to 5.57 on the sidebar and the status dots 3.40 to 4.1 on the active row AT THE DEFAULT LIGHT FRAME for every person on light forever, with four rows at 6.10 and 4.5 being a redesign and five unreachable. Shown that, he chose to HIDE THE CONTROL rather than buy the rows. So the palette is not touched at all: the Shade row is absent on light because paper carries one shade, Colour and Depth stay because both still move, the setting underneath is untouched so a shade held on dark comes back exactly, and the only colours that move in the whole phase are the seven light lane hues re-solved so no pair collapses under a colour vision simulation at six live lanes. The build was stopped mid flight to re-scope; the run is wf_cda25dcf-224 and its measure commits are kept. Semver drops from MINOR to PATCH.
