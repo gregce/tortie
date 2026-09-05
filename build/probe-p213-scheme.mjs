@@ -3,7 +3,7 @@
  * probe-p213-scheme.mjs. Light mode, driven in the real app and read off the
  * DOM and off the compositor (Phase 213).
  *
- * About five minutes after the build. FOUR Electrons ONE AFTER THE OTHER and
+ * About five minutes after the build. FIVE Electrons ONE AFTER THE OTHER and
  * never at once, on one scratch profile and the gmux-p213 tmux socket, through
  * build/electron-run.mjs so each whole tree ends in a finally block whatever
  * happens. It spawns no agent, spends no token, opens no keychain, reads
@@ -57,6 +57,15 @@
  * base. Every one of those was left on the dark base by the shipped build,
  * because the applier publishes inside the view transition's commit and that
  * commit lands after React has rendered the same broadcast.
+ *
+ * THE FIFTH LAUNCH is the committer's, and it reads the settings FILE rather
+ * than the face: a person holding shade -2 and depth 3 on dark, which paper
+ * can draw on neither axis, switches to Light and then touches the two Frame
+ * sliders with real key and mouse events. Neither may write the stop the base
+ * brought their frame to, an arrow inside the Depth range must still write,
+ * and Dark must come back to the shade that was carried the whole time. At
+ * the parent build one ArrowLeft on the inert Shade slider wrote 0 over the
+ * -2 and it never came back.
  *
  * `--self-test` proves the graders on fixtures and launches nothing.
  */
@@ -438,6 +447,63 @@ export function gradeSwitchedFace(before, after) {
   return findings;
 }
 
+/**
+ * LAUNCH E'S GRADER (Phase 213 committer's round): THE FRAME A PERSON IS
+ * HOLDING SURVIVES A VISIT TO A BASE THAT CANNOT DRAW IT.
+ *
+ * `frameForBase` brings a carried frame to the nearest stop the new base
+ * offers and its header says NOTHING IS PERSISTED, so going back to the base
+ * that could draw it brings it back exactly. The two Frame sliders were the
+ * hole in that promise: a slider drew the BROUGHT stop and persisted whatever
+ * a move clamped to, so on paper, where the whole region is one shade row,
+ * one arrow key or one stray click on the inert Shade slider wrote the
+ * shipped stop over the shade the person chose on dark, and it was gone.
+ *
+ * The reading is the persisted settings, taken from the app window's own
+ * bridge rather than from the face, because the face is a clamp and the file
+ * is the promise. Four arms:
+ *
+ *   1. arrows and a click on the INERT Shade slider on paper persist nothing;
+ *   2. an arrow past the Depth edge on paper persists nothing;
+ *   3. an arrow INSIDE the Depth range persists, so the fix did not make a
+ *      live control dead;
+ *   4. Dark comes back to the shade that was carried the whole time, with
+ *      the depth the person really moved.
+ */
+export function gradeCarriedFrame(read) {
+  const findings = [];
+  if (read === null || read === undefined) return ['launch E read nothing'];
+  const shadeOf = (step) => read[step]?.chromeShade;
+  const depthOf = (step) => read[step]?.chromeDepth;
+  if (read.start?.chromeShade !== -2 || read.start?.chromeDepth !== 3) {
+    findings.push(`the frame did not start at shade -2 depth 3: it reads ${String(read.start?.chromeShade)} and ${String(read.start?.chromeDepth)}`);
+  }
+  if (read.face?.shade !== 0 || read.face?.depth !== 0) {
+    findings.push(`on paper the sliders draw shade ${String(read.face?.shade)} depth ${String(read.face?.depth)}, not the shipped stop the base is drawing`);
+  }
+  for (const step of ['shadeLeft', 'shadeRight', 'shadeClick']) {
+    if (shadeOf(step) !== -2) {
+      findings.push(`after ${step} on the inert Shade slider the persisted shade is ${String(shadeOf(step))}, so the shade chosen on dark was overwritten`);
+    }
+    if (depthOf(step) !== 3) {
+      findings.push(`after ${step} the persisted depth is ${String(depthOf(step))}, not the 3 that was carried`);
+    }
+  }
+  if (depthOf('depthPast') !== 3) {
+    findings.push(`an arrow past the Depth edge persisted ${String(depthOf('depthPast'))}, so a refused move at the drawn stop still wrote`);
+  }
+  if (shadeOf('depthPast') !== -2) findings.push(`the Depth slider moved the persisted shade to ${String(shadeOf('depthPast'))}`);
+  if (depthOf('depthIn') !== -1) {
+    findings.push(`an arrow inside the Depth range persisted ${String(depthOf('depthIn'))} rather than -1, so the guard made a live control dead`);
+  }
+  if (shadeOf('depthIn') !== -2) findings.push(`a real Depth move moved the persisted shade to ${String(shadeOf('depthIn'))}`);
+  if (read.backOnDark?.shade !== -2 || read.backOnDark?.depth !== -1) {
+    findings.push(`back on dark the sliders read shade ${String(read.backOnDark?.shade)} depth ${String(read.backOnDark?.depth)}, not the carried -2 with the depth that really moved`);
+  }
+  if (read.backOnDark?.scheme !== 'dark') findings.push(`the window did not go back to dark: it reads ${String(read.backOnDark?.scheme)}`);
+  return findings;
+}
+
 function selfTest() {
   let pass = true;
   const ok = (name, findings, want) => {
@@ -590,7 +656,31 @@ function selfTest() {
     'red'
   );
   ok('a switch the window itself did not follow', gradeSwitchedFace(before, { ...afterOk, rootScheme: null, canvas: '#131417' }), 'red');
-  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 36 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
+  // Launch E: the carried frame. One clean fixture and one per clause, so a
+  // grader that stopped asking is seen to stop.
+  const carried = {
+    start: { chromeShade: -2, chromeDepth: 3 },
+    face: { shade: 0, depth: 0 },
+    shadeLeft: { chromeShade: -2, chromeDepth: 3 },
+    shadeRight: { chromeShade: -2, chromeDepth: 3 },
+    shadeClick: { chromeShade: -2, chromeDepth: 3 },
+    depthPast: { chromeShade: -2, chromeDepth: 3 },
+    depthIn: { chromeShade: -2, chromeDepth: -1 },
+    backOnDark: { scheme: 'dark', shade: -2, depth: -1 }
+  };
+  ok('a carried frame that survived the visit', gradeCarriedFrame(carried), 'clean');
+  ok('launch E read nothing', gradeCarriedFrame(null), 'red');
+  ok('the frame did not start where it was set', gradeCarriedFrame({ ...carried, start: { chromeShade: 0, chromeDepth: 0 } }), 'red');
+  ok('the sliders draw the persisted stop on paper', gradeCarriedFrame({ ...carried, face: { shade: -2, depth: 3 } }), 'red');
+  ok('an arrow on the inert Shade slider wrote', gradeCarriedFrame({ ...carried, shadeLeft: { chromeShade: 0, chromeDepth: 3 } }), 'red');
+  ok('a click on the inert Shade slider wrote', gradeCarriedFrame({ ...carried, shadeClick: { chromeShade: 0, chromeDepth: 3 } }), 'red');
+  ok('the Shade slider took the depth with it', gradeCarriedFrame({ ...carried, shadeRight: { chromeShade: -2, chromeDepth: 0 } }), 'red');
+  ok('a refused Depth move wrote', gradeCarriedFrame({ ...carried, depthPast: { chromeShade: -2, chromeDepth: 0 } }), 'red');
+  ok('the guard made the Depth slider dead', gradeCarriedFrame({ ...carried, depthIn: { chromeShade: -2, chromeDepth: 0 } }), 'red');
+  ok('a live Depth move moved the shade', gradeCarriedFrame({ ...carried, depthIn: { chromeShade: 0, chromeDepth: -1 } }), 'red');
+  ok('dark came back to the wrong frame', gradeCarriedFrame({ ...carried, backOnDark: { scheme: 'dark', shade: 0, depth: -1 } }), 'red');
+  ok('the window never went back to dark', gradeCarriedFrame({ ...carried, backOnDark: { scheme: 'light', shade: -2, depth: -1 } }), 'red');
+  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 48 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
   return pass;
 }
 
@@ -642,7 +732,7 @@ let threw = null;
 
 /**
  * Which launches to drive, for the fix round's before and after. Empty, the
- * default, drives all four; `P213_ONLY=D` drives the in-session switch alone,
+ * default, drives all five; `P213_ONLY=D` drives the in-session switch alone,
  * which is what a measurement at the parent build needs and takes about a
  * minute and a half. It changes nothing about what any launch asserts.
  */
@@ -1315,6 +1405,135 @@ if (threw === null && driving('D')) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Launch E: THE CARRIED FRAME, and what the two sliders do to it (Phase 213,
+// the committer's round).
+//
+// The verification's one open finding. `frameForBase` brings a frame the new
+// base cannot draw to the nearest stop it does offer and persists nothing, so
+// going back brings it back exactly. On paper the whole region is one shade
+// row, so the Shade slider is inert; the slider drew the BROUGHT stop and
+// persisted whatever a move clamped to, so one arrow key or one stray click
+// on that inert control wrote the shipped stop over the shade the person
+// chose on dark. The depth had the same shape one stop wider.
+//
+// This launch drives it with REAL key and mouse events through the Input
+// domain rather than a synthesised change, and reads the PERSISTED settings
+// from the app window's own bridge rather than the face, because the face is
+// a clamp and the file is the promise. Arm 3 is the control: an arrow INSIDE
+// the Depth range must still persist, or the guard has made a live control
+// dead.
+// ---------------------------------------------------------------------------
+
+/** Focus one slider on the Appearance card, and answer its track rectangle. */
+const SLIDER_JS = (label) => `(() => {
+  const section = document.querySelector('section[aria-label="Appearance"]');
+  const el = section === null ? null : section.querySelector('input[aria-label="${label}"]');
+  if (el === null) return null;
+  el.focus();
+  const r = el.getBoundingClientRect();
+  return JSON.stringify({ value: Number(el.value), min: Number(el.min), max: Number(el.max), x: r.left, y: r.top, w: r.width, h: r.height });
+})()`;
+
+if (threw === null && driving('E')) {
+  const L = { name: 'E the carried frame', findings: 0 };
+  report.launches.push(L);
+  await withElectron(launch('E the carried frame'), async (handle) => {
+    const { cdp } = await browserEndpoint();
+    const watch = watchTargets(cdp);
+    await cdp.call('Target.setDiscoverTargets', { discover: true });
+    await cdp.call('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true });
+    const s = await appPage(cdp, watch);
+    await sleep(1500);
+    await s.call('Page.stopScreencast').catch(() => {});
+    const persisted = async () => {
+      const all = await s.eval(`window.gmux.settingsGet().then((v) => JSON.stringify({ chromeShade: v.chromeShade, chromeDepth: v.chromeDepth, colorScheme: v.colorScheme }))`, 30_000);
+      return all === null || all === undefined ? null : JSON.parse(all);
+    };
+    // The frame a person is holding on dark: shade -2 at depth 3, one of the
+    // 35 pairs the dark base offers and one of the 31 paper cannot draw, and
+    // it is outside the light region on BOTH axes.
+    await s.eval(
+      `window.gmux.settingsSet({ colorScheme: 'dark', chromeShade: -2, chromeDepth: 3 }).then(() => true)`,
+      30_000
+    );
+    await sleep(800);
+    const read = { start: await persisted() };
+    await s.eval(`window.gmux.openSettings().then(() => true)`, 30_000);
+    const sp = await settingsPage(cdp, watch);
+    await sleep(1200);
+    await sp.call('Page.stopScreencast').catch(() => {});
+    await sp.eval(`(async () => {
+      const nav = [...document.querySelectorAll('button, [role="tab"], a')].find((el) => (el.textContent || '').trim() === 'Appearance');
+      if (nav) nav.click();
+      await new Promise((r) => setTimeout(r, 1200));
+      const group = document.querySelector('[role="radiogroup"][aria-label="Scheme"]');
+      const light = group === null ? null : [...group.querySelectorAll('[role="radio"]')].find((r) => r.getAttribute('aria-label') === 'Light');
+      if (light) light.click();
+      return true;
+    })()`, 30_000);
+    await sleep(3000);
+    const shadeText = await sp.eval(SLIDER_JS('Shade'), 30_000);
+    const depthText = await sp.eval(SLIDER_JS('Depth'), 30_000);
+    const shadeBox = shadeText === null ? null : JSON.parse(shadeText);
+    const depthBox = depthText === null ? null : JSON.parse(depthText);
+    read.face = { shade: shadeBox?.value, depth: depthBox?.value };
+    read.tracks = { shade: shadeBox, depth: depthBox };
+    // The settle time is HUE_COMMIT_MS plus the broadcast and the disk write,
+    // which is one order of magnitude under this.
+    const settle = 900;
+    const arrow = async (label, key) => {
+      await sp.eval(SLIDER_JS(label), 30_000);
+      await press(sp, key === 'left'
+        ? { key: 'ArrowLeft', code: 'ArrowLeft', vk: 37, modifiers: 0 }
+        : { key: 'ArrowRight', code: 'ArrowRight', vk: 39, modifiers: 0 });
+      await sleep(settle);
+      return persisted();
+    };
+    read.shadeLeft = await arrow('Shade', 'left');
+    read.shadeRight = await arrow('Shade', 'right');
+    // A stray click on the track, which is the shape the fix round named. The
+    // point is nine tenths along, which on a seven stop track is the far end.
+    if (shadeBox !== null) {
+      const x = shadeBox.x + shadeBox.w * 0.9;
+      const y = shadeBox.y + shadeBox.h / 2;
+      const at = { x, y, button: 'left', clickCount: 1, buttons: 1 };
+      await sp.call('Input.dispatchMouseEvent', { type: 'mousePressed', ...at });
+      await sp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', ...at, buttons: 0 });
+    }
+    await sleep(settle);
+    read.shadeClick = await persisted();
+    read.depthPast = await arrow('Depth', 'right');
+    read.depthIn = await arrow('Depth', 'left');
+    // Back to the base that can draw it.
+    await sp.eval(`(() => {
+      const group = document.querySelector('[role="radiogroup"][aria-label="Scheme"]');
+      const dark = group === null ? null : [...group.querySelectorAll('[role="radio"]')].find((r) => r.getAttribute('aria-label') === 'Dark');
+      if (dark) dark.click();
+      return true;
+    })()`, 30_000);
+    await sleep(3000);
+    const backShade = await sp.eval(SLIDER_JS('Shade'), 30_000);
+    const backDepth = await sp.eval(SLIDER_JS('Depth'), 30_000);
+    const app = await s.eval(`window.__gmuxP207.read()`, 30_000);
+    read.backOnDark = {
+      scheme: app?.scheme,
+      shade: backShade === null ? null : JSON.parse(backShade).value,
+      depth: backDepth === null ? null : JSON.parse(backDepth).value
+    };
+    L.carried = read;
+    check(
+      L,
+      gradeCarriedFrame(read),
+      `the carried frame across a visit to paper: set ${String(read.start?.chromeShade)}/${String(read.start?.chromeDepth)}, drawn ${String(read.face?.shade)}/${String(read.face?.depth)}, after the arrows and the click ${String(read.shadeClick?.chromeShade)}/${String(read.shadeClick?.chromeDepth)}, a refused depth ${String(read.depthPast?.chromeDepth)}, a real one ${String(read.depthIn?.chromeDepth)}, back on dark ${String(read.backOnDark?.shade)}/${String(read.backOnDark?.depth)}`
+    );
+    await screenshot(sp, join(shots, 'E-carried-frame-settings.png'));
+    cdp.close();
+  }).catch((error) => {
+    threw = error;
+  });
+}
+
 writeFileSync(join(root, 'p213-report.json'), JSON.stringify(report, null, 2), 'utf8');
 say(`the report is at ${join(root, 'p213-report.json')}, photographs under ${shots}`);
 if (threw !== null) {
@@ -1323,7 +1542,7 @@ if (threw !== null) {
 }
 say(
   report.findings === 0
-    ? 'OK: dark boots dark and light boots light from the first frame, every surface follows the base, the switch crossfades with no half palette and reduced motion switches in one frame, the mock is met by rectangle and by colour, the fill follows through main, Match the Mac follows the system within a second, garbage in the settings file reads as dark, and the Appearance face follows an in-session switch at every reading'
+    ? 'OK: dark boots dark and light boots light from the first frame, every surface follows the base, the switch crossfades with no half palette and reduced motion switches in one frame, the mock is met by rectangle and by colour, the fill follows through main, Match the Mac follows the system within a second, garbage in the settings file reads as dark, the Appearance face follows an in-session switch at every reading, and a frame paper cannot draw survives the visit untouched while a move inside the range still writes'
     : `${String(report.findings)} finding(s)`
 );
 process.exit(report.findings === 0 ? 0 : 1);
