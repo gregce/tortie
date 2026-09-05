@@ -594,6 +594,16 @@ export const CHECKS = [
   // keychain. `--self-test` proves the graders on 24 fixtures and launches
   // nothing.
   electron('probe:p213'),
+  // PHASE 214. build/probe-p214-light-face.mjs: ONE Electron on a scratch
+  // profile and the gmux-p214 socket. It reads the Appearance face on both
+  // bases and asserts the Shade row is ABSENT on paper and drawn on graphite,
+  // drives the round trip through the settings file, and reads the commit
+  // graph at SIX LIVE LANES off a repository it builds itself with an octopus
+  // merge, measuring every pair on the widest row under a dichromat
+  // simulation of its own and photographing it. Spawns no agent, spends no
+  // token, opens no keychain, reads nothing under the person's home.
+  // `--self-test` proves the graders on 19 fixtures and launches nothing.
+  electron('probe:p214'),
   electron('probe:p185'),
   electron('probe:p194'),
   // PHASE 198. The File history section over a REAL repository, a copy of a

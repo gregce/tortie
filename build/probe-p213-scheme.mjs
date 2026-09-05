@@ -384,13 +384,17 @@ export function gradeFace(face, want) {
   if (face.checked !== want.checked) findings.push(`the Scheme control has ${String(face.checked)} pressed, not ${want.checked}`);
   if (face.labels.join('|') !== 'Light|Dark|Match the Mac') findings.push(`the Scheme control reads ${face.labels.join(', ')}`);
   if (want.checked === 'Light') {
-    if (face.shade === null) findings.push('no Shade slider');
-    else if (face.shade.value !== 0) findings.push(`the Shade slider reads ${String(face.shade.value)} on paper`);
-    if (face.refusedAt === null) findings.push('the Shade slider was not pushed');
-    else {
-      if (face.refusedAt.value !== 0) findings.push(`the Shade slider took ${String(face.refusedAt.value)} on paper, where only the shipped stop is offered`);
-      if (!/status dots|accent|file colors/.test(face.refusedAt.note)) findings.push(`the refusal line says "${face.refusedAt.note}"`);
-    }
+    // PHASE 214. Paper carries one shade, so the row is ABSENT rather than
+    // present and inert, and its refusal sentence goes with it. Phase 213
+    // asked here that the slider read the shipped stop and refuse a push;
+    // the honest question now is that there is nothing to push.
+    if (face.shade !== null) findings.push(`paper draws a Shade slider reading ${String(face.shade.value)}, where the region is one shade row`);
+    if (face.refusedAt !== null && face.refusedAt.value !== null) findings.push(`a Shade slider on paper took ${String(face.refusedAt.value)}`);
+    if (face.refusedAt !== null && face.refusedAt.note !== '') findings.push(`a hidden Shade control still says "${face.refusedAt.note}"`);
+    // Depth still moves on paper, so it is still drawn and still refuses.
+    if (face.depth === null) findings.push('no Depth slider on paper, where four stops are offered');
+    if (face.depthRefusedAt === null) findings.push('the Depth slider was not pushed');
+    else if (!/status dots|accent|file colors|panels/.test(face.depthRefusedAt.note)) findings.push(`the Depth refusal line says "${face.depthRefusedAt.note}"`);
     if (!same(face.card.background, '#fcfcfe')) findings.push(`the card paints ${face.card.background}, not the sheet #fcfcfe`);
     if (luminance(face.card.color) >= luminance(face.card.background)) findings.push(`the card text ${face.card.color} is not darker than the card`);
     if (face.sectionRootScheme !== 'light') findings.push(`the Settings window root is ${String(face.sectionRootScheme)}, not light`);
@@ -426,8 +430,11 @@ export function gradeSwitchedFace(before, after) {
   // The face itself, which is the finding.
   for (const reading of after.readings ?? []) {
     const at = `${String(reading.ms)} ms after the click`;
-    if (reading.shade?.value !== 0) findings.push(`${at} the Shade slider reads ${String(reading.shade?.value)} where the window draws the shipped stop`);
-    if (!/accent|status dots/.test(reading.note ?? '')) findings.push(`${at} the refusal line reads "${String(reading.note)}", which is not paper's`);
+    // PHASE 214: on paper the Shade row is not drawn at all, so the reading
+    // is its absence and the empty sentence that goes with it.
+    if (reading.shade !== null) findings.push(`${at} paper draws a Shade slider reading ${String(reading.shade?.value)}`);
+    if ((reading.note ?? '') !== '') findings.push(`${at} a hidden Shade control still says "${String(reading.note)}"`);
+    if (reading.depth?.value !== 0) findings.push(`${at} the Depth slider reads ${String(reading.depth?.value)} where the window draws the shipped stop`);
     const bands = reading.bands ?? [];
     if (bands.length !== 5) findings.push(`${at} the band strip has ${String(bands.length)} bands`);
     else if (!bands.every(light)) findings.push(`${at} the band strip is ${bands.join(' ')}, which is the dark ramp on a light card`);
@@ -440,7 +447,7 @@ export function gradeSwitchedFace(before, after) {
   }
   const [first, ...rest] = after.readings ?? [];
   for (const reading of rest) {
-    if (JSON.stringify(reading.bands) !== JSON.stringify(first?.bands) || reading.shade?.value !== first?.shade?.value) {
+    if (JSON.stringify(reading.bands) !== JSON.stringify(first?.bands) || reading.depth?.value !== first?.depth?.value) {
       findings.push(`the face is still moving at ${String(reading.ms)} ms, so what it says depends on when it is read`);
     }
   }
@@ -478,12 +485,20 @@ export function gradeCarriedFrame(read) {
   if (read.start?.chromeShade !== -2 || read.start?.chromeDepth !== 3) {
     findings.push(`the frame did not start at shade -2 depth 3: it reads ${String(read.start?.chromeShade)} and ${String(read.start?.chromeDepth)}`);
   }
-  if (read.face?.shade !== 0 || read.face?.depth !== 0) {
-    findings.push(`on paper the sliders draw shade ${String(read.face?.shade)} depth ${String(read.face?.depth)}, not the shipped stop the base is drawing`);
+  // PHASE 214 CHANGED ARM 1 FROM A GUARD TO AN ABSENCE. The inert Shade
+  // slider is not drawn on paper at all, so there is no control for an arrow
+  // or a stray click to reach. Its track must be missing, and the arms below
+  // still fire their real key and mouse events at the place it used to be,
+  // because what they prove is that the persisted shade does not move.
+  if (read.tracks !== undefined && read.tracks.shade !== null) {
+    findings.push('paper draws a Shade slider, where the region is one shade row and the control is not shown');
+  }
+  if (read.face?.depth !== 0) {
+    findings.push(`on paper the Depth slider draws ${String(read.face?.depth)}, not the shipped stop the base is drawing`);
   }
   for (const step of ['shadeLeft', 'shadeRight', 'shadeClick']) {
     if (shadeOf(step) !== -2) {
-      findings.push(`after ${step} on the inert Shade slider the persisted shade is ${String(shadeOf(step))}, so the shade chosen on dark was overwritten`);
+      findings.push(`after ${step} where the Shade slider used to be, the persisted shade is ${String(shadeOf(step))}, so the shade chosen on dark was overwritten`);
     }
     if (depthOf(step) !== 3) {
       findings.push(`after ${step} the persisted depth is ${String(depthOf(step))}, not the 3 that was carried`);
@@ -591,17 +606,24 @@ function selfTest() {
   ok('a Redline that kept the dark canvas', gradeExtraSurfaces({ ...lightExtras, '.ed-redline-scroll': { background: 'rgb(19, 20, 23)', color: 'rgb(201, 202, 205)' } }, 'light'), 'red');
   ok('a map box that kept the dark sheet', gradeExtraSurfaces({ ...lightExtras, '.arch-map-box rect': { background: 'rgb(19, 20, 23)', color: 'rgb(53, 54, 57)' } }, 'light'), 'red');
   ok('a Redline that was never mounted', gradeExtraSurfaces({ ...lightExtras, '.ed-redline-scroll': null }, 'light'), 'red');
+  // PHASE 214: paper has no Shade row, so a clean light face reads null for
+  // it and a null value back from the drag that found nothing to push.
   const face = {
     checked: 'Light',
     labels: ['Light', 'Dark', 'Match the Mac'],
-    shade: { value: 0, min: -4, max: 2 },
-    refusedAt: { asked: -1, value: 0, note: 'Darker puts the accent under its contrast floor.' },
+    shade: null,
+    depth: { value: 0, min: -3, max: 3 },
+    refusedAt: { asked: -1, value: null, note: '' },
+    depthRefusedAt: { asked: 2, value: 0, note: 'More depth puts the file colors under their contrast floor.' },
     card: { background: 'rgb(252, 252, 254)', color: 'rgb(53, 54, 57)' },
     sectionRootScheme: 'light'
   };
   ok('a clean light face', gradeFace(face, { checked: 'Light' }), 'clean');
   ok('a face with Dark pressed on a light launch', gradeFace({ ...face, checked: 'Dark' }, { checked: 'Light' }), 'red');
-  ok('a slider that took a darker shade on paper', gradeFace({ ...face, refusedAt: { asked: -1, value: -1, note: '' } }, { checked: 'Light' }), 'red');
+  ok('a Shade slider drawn on paper at all', gradeFace({ ...face, shade: { value: 0, min: -4, max: 2 } }, { checked: 'Light' }), 'red');
+  ok('a Shade slider on paper that took a darker shade', gradeFace({ ...face, refusedAt: { asked: -1, value: -1, note: '' } }, { checked: 'Light' }), 'red');
+  ok('a hidden Shade control still speaking', gradeFace({ ...face, refusedAt: { asked: -1, value: null, note: 'Darker puts the accent under its contrast floor.' } }, { checked: 'Light' }), 'red');
+  ok('the Depth row gone from paper too', gradeFace({ ...face, depth: null }, { checked: 'Light' }), 'red');
   ok('a clean dark face', gradeFace({ ...face, checked: 'Dark', sectionRootScheme: null }, { checked: 'Dark' }), 'clean');
   const strip = (hexes) => hexes;
   const chipsAt = (hexes) => FRAME_LABELS.map((label) => ({ label, bands: hexes }));
@@ -614,8 +636,9 @@ function selfTest() {
     checked: 'Light',
     readings: [500, 2500, 5000].map((ms) => ({
       ms,
-      shade: { value: 0 },
-      note: 'Darker puts the accent under its contrast floor.',
+      shade: null,
+      depth: { value: 0 },
+      note: '',
       bands: strip(LIGHT_BANDS),
       chips: chipsAt(LIGHT_BANDS)
     }))
@@ -648,7 +671,7 @@ function selfTest() {
     gradeSwitchedFace(before, {
       ...afterOk,
       readings: [
-        { ...afterOk.readings[0], shade: { value: -2 }, bands: strip(DARK_BANDS) },
+        { ...afterOk.readings[0], depth: { value: 3 }, bands: strip(DARK_BANDS) },
         afterOk.readings[1],
         afterOk.readings[2]
       ]
@@ -660,7 +683,10 @@ function selfTest() {
   // grader that stopped asking is seen to stop.
   const carried = {
     start: { chromeShade: -2, chromeDepth: 3 },
-    face: { shade: 0, depth: 0 },
+    // PHASE 214: no Shade track on paper, and the Depth slider at the stop
+    // the base draws.
+    tracks: { shade: null, depth: { value: 0 } },
+    face: { shade: undefined, depth: 0 },
     shadeLeft: { chromeShade: -2, chromeDepth: 3 },
     shadeRight: { chromeShade: -2, chromeDepth: 3 },
     shadeClick: { chromeShade: -2, chromeDepth: 3 },
@@ -671,7 +697,8 @@ function selfTest() {
   ok('a carried frame that survived the visit', gradeCarriedFrame(carried), 'clean');
   ok('launch E read nothing', gradeCarriedFrame(null), 'red');
   ok('the frame did not start where it was set', gradeCarriedFrame({ ...carried, start: { chromeShade: 0, chromeDepth: 0 } }), 'red');
-  ok('the sliders draw the persisted stop on paper', gradeCarriedFrame({ ...carried, face: { shade: -2, depth: 3 } }), 'red');
+  ok('the Depth slider draws the persisted stop on paper', gradeCarriedFrame({ ...carried, face: { shade: undefined, depth: 3 } }), 'red');
+  ok('paper drew a Shade slider at all', gradeCarriedFrame({ ...carried, tracks: { shade: { value: 0 }, depth: { value: 0 } } }), 'red');
   ok('an arrow on the inert Shade slider wrote', gradeCarriedFrame({ ...carried, shadeLeft: { chromeShade: 0, chromeDepth: 3 } }), 'red');
   ok('a click on the inert Shade slider wrote', gradeCarriedFrame({ ...carried, shadeClick: { chromeShade: 0, chromeDepth: 3 } }), 'red');
   ok('the Shade slider took the depth with it', gradeCarriedFrame({ ...carried, shadeRight: { chromeShade: -2, chromeDepth: 0 } }), 'red');
@@ -680,7 +707,7 @@ function selfTest() {
   ok('a live Depth move moved the shade', gradeCarriedFrame({ ...carried, depthIn: { chromeShade: 0, chromeDepth: -1 } }), 'red');
   ok('dark came back to the wrong frame', gradeCarriedFrame({ ...carried, backOnDark: { scheme: 'dark', shade: 0, depth: -1 } }), 'red');
   ok('the window never went back to dark', gradeCarriedFrame({ ...carried, backOnDark: { scheme: 'light', shade: -2, depth: -1 } }), 'red');
-  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 48 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
+  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 52 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
   return pass;
 }
 
