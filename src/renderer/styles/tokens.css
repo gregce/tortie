@@ -442,7 +442,30 @@
    ------------------------------------------------------------------- */
 
 :root[data-scheme='light'] {
-  /* §1.1 Neutrals on paper. Ramp order in luminance is surface > canvas >
+  /* PAPER CARRIES ONE SHADE, and that is why the Appearance face has no
+     Shade row on this base (Phase 214). The ramp below was solved AT its
+     floors so the accent could be TEXT on paper and the status dots could
+     clear the selected row, which leaves the ramp no room to move: one stop
+     darker takes `--accent-text` under 4.5:1 and both dots under 3:1, and
+     `--bg-surface` already sits at OKLCH L 0.992 so one stop lighter puts
+     the sheet and the paper both at white. The offered region is therefore
+     the single row `FRAME_REGION_LIGHT` records.
+
+     PHASE 214 PRICED THE ALTERNATIVE AND HE REFUSED IT. Three shade rows are
+     reachable, 13 of 49 cells against 4, every cell inside the dark region,
+     but they cost `--accent-text` 4.69 to 5.57 on the sidebar and the status
+     dots 3.40 to 4.1 on the active row AT THE DEFAULT LIGHT FRAME, for every
+     person on light, forever. Four rows cost 6.10 and 4.5 and are a redesign
+     rather than a step, and five are unreachable while the dark base is
+     untouched. He chose the colours over the stops, in his own words on
+     2026-09-05, being that light mode may be simplified rather than over
+     engineered. The measure step's binding table and candidate solves are
+     committed under `build/p214/` for a later round that wants them.
+
+     So a control that cannot move is not shown, and nothing below this line
+     changes to buy a stop.
+
+     §1.1 Neutrals on paper. Ramp order in luminance is surface > canvas >
      sidebar > raised > active > border > border-active > border-strong,
      rendered steps 7, 8, 8, 12, 9, 16, 20 (floor 2). Mirrored by
      WINDOW_BACKGROUND_LIGHT in src/shared/window-chrome.ts and by the two
@@ -495,12 +518,27 @@
   --status-attention-badge-fg: #f5f7fa; /* paper on amber, 4.51:1         */
 
   /* §1.4 Git decorations keep their hue and the ratio they hold on the
-     dark active fill. */
+     dark active fill.
+
+     THREE OF THEM ARE ALSO GRAPH LANES, and Phase 214 re-solved them for
+     that job. §1.4b of the dark block aliases lanes 2, 4 and 6 onto the
+     deleted, the conflict and the added colour, so on paper these three
+     declarations ARE those lanes, and lane colour is identity: two lanes a
+     dichromat reads as one hue say two branches are one. Research 80 solved
+     each of these to its own pinned ratio and never to the others, and the
+     palette that came out had the brown and the green 12.4 apart under
+     protanopia against the dark base's worst pair at 21.2, so at six live
+     lanes in one row the graph drew two branches as one colour. The three
+     values below clear 36.1 at their worst over six published dichromat
+     models and every pair on paper now clears the 32 the rest of the
+     palette holds. `npm run conformance:hue` rules 28 and 30 re-derive it. */
   --git-modified: #64522d; /* hue 84, 5.49 on active                      */
-  --git-added: #00530e; /* hue 144, 6.82                                  */
-  --git-deleted: #b23534; /* hue 25, 4.43                                 */
+  --git-added: #2c6a3b; /* lane 6, hue 149, 4.73; was #00530e at 6.82 and
+     12.4 from the conflict brown under protanopia                        */
+  --git-deleted: #b62926; /* lane 2, hue 27, 4.59; was #b23534 at 4.43 and
+     26.9 from the lane 3 teal                                            */
   --git-renamed: #00487f; /* hue 250, 6.85                                */
-  --git-conflict: #833e00; /* hue 53, 5.76                                */
+  --git-conflict: #823c00; /* lane 4, hue 51, 5.89; was #833e00 at 5.76   */
   --git-ignored: #9297a4;
 
   /* §1.4b The two literal graph lanes; lanes 1, 2, 4 and 6 and the bundle
@@ -508,14 +546,15 @@
   --graph-lane-3: #004f4e; /* hue 193, 6.86 on active                     */
   --graph-lane-5: #613374; /* hue 315, 6.85 on active                     */
 
-  /* §1.5 Feedback, the same families as the git and status colours. */
-  --error: #b23534;
+  /* §1.5 Feedback, the same families as the git and status colours. The red
+     and the green follow §1.4 above, because one colour is one colour. */
+  --error: #b62926;
   --warning: #976900;
-  --success: #00530e;
+  --success: #2c6a3b;
   --info: #00487f;
-  --error-wash: rgba(178, 53, 52, 0.12);
+  --error-wash: rgba(182, 41, 38, 0.12);
   --warning-wash: rgba(151, 105, 0, 0.12);
-  --success-wash: rgba(0, 83, 14, 0.12);
+  --success-wash: rgba(44, 106, 59, 0.12);
 
   /* §1.9 Shadow is the elevation on paper, so it is lighter: a shadow on
      white at .45 is a hole. */

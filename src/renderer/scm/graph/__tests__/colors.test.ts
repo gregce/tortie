@@ -213,10 +213,15 @@ describe.each([
     // The same three rungs on paper: the sidebar, the hover fill and the
     // selected row, which is the deepest fill the light ramp has.
     backgrounds: ['#edeff3', '#e5e7ed', '#d9dce3'],
-    // Measured floor: the teal on a selected row, 3.52. Every lane clears
+    // Measured floor: the accent on a selected row, 3.52. Every lane clears
     // WCAG 1.4.11's 3:1, and paper has less room above it than graphite does.
     floor: 3.4,
-    weak: ['2-3=26.9', '4-6=12.4']
+    // PHASE 214. Paper shipped with two weak pairs, being 2-3 at 26.9 and
+    // 4-6 at 12.4, and a soft ban cannot help at six live lanes because no
+    // hue is free to take instead. So the three lanes that are aliases of a
+    // git decoration were re-solved and paper now has NONE: its worst pair
+    // is 36.1, above the 32 the rest of the palette holds.
+    weak: []
   }
 ])('the $scheme palette in tokens.css §1.4b, re-measured', ({ scheme, backgrounds, floor, weak: expectedWeak }) => {
   const css = readFileSync(
@@ -313,6 +318,61 @@ describe.each([
     expect(worstSeparation(local, remote)).toBeGreaterThan(50);
     expect(worstSeparation(local, base)).toBeGreaterThan(50);
     expect(worstSeparation(remote, base)).toBeGreaterThan(50);
+  });
+});
+
+/**
+ * PHASE 214: THE MAP IS EXACTLY THE WEAK PAIRS, no more and no fewer.
+ *
+ * A missing entry is what the Phase 213 fix round caught. A SUPERFLUOUS one
+ * is a defect of the other kind and this is where it is caught: every banned
+ * pair narrows the rotation's first choice, so a ban on a pair that is no
+ * longer confusable forces an earlier repeat for nothing. Paper carried two
+ * such bans the moment its lanes were re-solved, and this is what would have
+ * gone red had they been left behind.
+ */
+describe('the rotation map against both palettes at once (Phase 214)', () => {
+  it('bans the union of the two bases weak pairs and nothing else', () => {
+    const css = readFileSync(
+      new URL('../../../styles/tokens.css', import.meta.url),
+      'utf8'
+    );
+    const want = new Set<string>();
+    for (const scheme of ['dark', 'light'] as const) {
+      const tokens = readCssTokens(css, scheme);
+      const lanes = LANE_COLOR_VARS.map((name) => {
+        const direct = tokens.get(name);
+        if (direct !== undefined) return direct.toLowerCase();
+        const alias = /--graph-lane-\d\s*:\s*var\((--[a-z0-9-]+)\)/g;
+        for (const match of css.matchAll(alias)) {
+          if (css.slice(match.index).startsWith(name)) {
+            const target = match[1];
+            const value = target === undefined ? undefined : tokens.get(target);
+            if (value !== undefined) return value.toLowerCase();
+          }
+        }
+        throw new Error(`${name} is not defined in tokens.css`);
+      });
+      for (let i = 0; i < lanes.length; i++) {
+        for (let j = i + 1; j < lanes.length; j++) {
+          const sep = worstSeparation(
+            hexToRgb(lanes[i] as string),
+            hexToRgb(lanes[j] as string)
+          );
+          if (sep >= 32) continue;
+          want.add(`${i}-${j}`);
+          want.add(`${j}-${i}`);
+        }
+      }
+    }
+    const got = new Set<string>();
+    for (const [slot, banned] of CONFUSABLE_PAIRS) {
+      for (const other of banned) got.add(`${slot}-${other}`);
+    }
+    expect([...got].sort()).toEqual([...want].sort());
+    // And it is not empty, or the assertion above would pass on a map that
+    // had been deleted along with the palette it was written for.
+    expect(got.size).toBeGreaterThan(0);
   });
 });
 

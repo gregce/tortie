@@ -108,40 +108,39 @@ export type HueKey = number;
  * two do on the light one:
  *
  *   dark   `--graph-lane-1` #4d9de8 vs `--graph-lane-5` #d19fe8 → **21.2**
- *   light  `--graph-lane-2` #b23534 vs `--graph-lane-3` #004f4e → **26.9**
- *   light  `--graph-lane-4` #833e00 vs `--graph-lane-6` #00530e → **12.4**
  *
- * The map is the UNION of the two, because the rotation runs before any
+ * The map is the UNION of the two bases, because the rotation runs before any
  * scheme is known and a soft ban costs nothing: below six live lanes there is
  * always another choice, and beyond that this degrades to the plain
  * free-longest rule. tokens.css mitigates the dark pair by ordering too —
  * those two are four columns apart, so they are rarely adjacent — but
  * "rarely" is not "never" once lanes compact.
  *
- * Phase 213 added the two light pairs. Their numbers are what they are
- * because four of the six lanes are aliases of colours the app owns for other
- * reasons, being the accent and three git decorations, each solved on paper
- * to its own pinned ratio rather than to the others.
+ * PAPER HAS NO WEAK PAIR AT ALL SINCE PHASE 214, which is why this map is
+ * back to the dark base's one entry. Phase 213 shipped the light palette with
+ * TWO, being `--graph-lane-2` #b23534 against `--graph-lane-3` #004f4e at
+ * 26.9 and `--graph-lane-4` #833e00 against `--graph-lane-6` #00530e at 12.4,
+ * and recorded a limit its fix round could not lift: a soft ban only helps
+ * while some hue is free, so at SIX live lanes in one row the repeat this map
+ * avoids becomes the repeat it cannot, and two branches drawn in brown and
+ * green read as one to a protanope. That is a palette change and not a
+ * rotation change, so Phase 214 made it: paper's lanes 2, 4 and 6 are
+ * #b62926, #823c00 and #2c6a3b, its worst pair is 36.1 against the 32 the
+ * rest of the palette holds, and every one of its fifteen pairs clears the
+ * floor. The dark base is untouched and keeps its 21.2.
  *
- * THE LIMIT, stated rather than discovered: 12.4 is little more than half the
- * dark base's worst pair, so once all six hues are live at one row the repeat
- * this map avoids becomes the repeat it cannot, and two branches drawn in
- * brown and green will read as one to a protanope. Widening that separation
- * needs a different light `--git-conflict` and `--git-added`, which is a
- * palette change and not a rotation change.
+ * A SUPERFLUOUS ENTRY IS A DEFECT TOO, not a harmless leftover: every banned
+ * pair narrows the rotation's first choice, so a ban on a pair that is no
+ * longer weak forces an earlier repeat for nothing. The gate asserts the map
+ * is EXACTLY the weak pairs of the two bases, in both directions.
  *
- * `npm run conformance:hue` rule 28 and `__tests__/colors.test.ts` both
- * re-derive the weak pairs of both bases from tokens.css and fail if one is
- * missing from this map, so a palette that moves is what changes it next
- * rather than a comment that did not.
+ * `npm run conformance:hue` rules 28 and 30 and `__tests__/colors.test.ts`
+ * re-derive the weak pairs of both bases from tokens.css, so a palette that
+ * moves is what changes this next rather than a comment that did not.
  */
 const CONFUSABLE_WITH: ReadonlyMap<HueKey, readonly number[]> = new Map([
   [0, [4]],
-  [1, [2]],
-  [2, [1]],
-  [3, [5]],
-  [4, [0]],
-  [5, [3]]
+  [4, [0]]
 ]);
 
 /** The map above, for the gate and the test that re-derive it (Phase 213). */
