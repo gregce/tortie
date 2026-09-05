@@ -5,3 +5,38 @@ headroom moves: --accent-text #326da8->#2c67a1, --status-working #2175bd->#1b70b
 lane moves: --git-deleted->#b62926, --git-conflict->#823c00, --graph-lane-5->#5b3274, --git-added->#2c6a3b
 
 region, shade down the side, depth -3..3 across; the number is the worst slack in the cell
+  shade  2      .     .     .     .     .     .     .   best -2.000 bound by step --bg-canvas/--bg-surface at 0/normal/blue
+  shade  1      .     .     .     .     .     .     .   best -2.000 bound by step --bg-canvas/--bg-surface at 0/normal/blue
+  shade  0   0.36  0.36  0.36  0.31     .     .     .   best 0.359 bound by --status-attention-badge-fg on --status-attention-badge-bg at 0/normal/blue
+  shade -1   0.36  0.36  0.28  0.05     .     .     .   best 0.359 bound by --status-attention-badge-fg on --status-attention-badge-bg at 0/normal/blue
+  shade -2   0.01  0.01  0.01     .     .     .     .   best 0.005 bound by --accent-text on --bg-canvas at 250/normal/teal
+  shade -3      .     .     .     .     .     .     .   best -0.321 bound by --accent-text on --bg-canvas at 250/normal/teal
+  shade -4      .     .     .     .     .     .     .   best -0.633 bound by --accent-text on --bg-canvas at 250/normal/teal
+
+
+########## COMBINED CANDIDATE, solved at shade -2 ##########
+headroom moves: --accent-text #326da8->#26619c, --status-working #2175bd->#116ab2, --status-attention #976900->#8a5f00, --warning #976900->#8a5f00, --status-attention-badge-bg #976900->#8a5f00, --status-idle #6e7482->#626775, --status-exited #6e7482->#626775, --status-failed #c74a46->#b83b39
+lane moves: --git-deleted->#c01f20, --git-conflict->#743100, --graph-lane-5->#59377b, --git-added->#286b32
+
+region, shade down the side, depth -3..3 across; the number is the worst slack in the cell
+  shade  2      .     .     .     .     .     .     .   best -2.000 bound by step --bg-canvas/--bg-surface at 0/normal/blue
+  shade  1      .     .     .     .     .     .     .   best -2.000 bound by step --bg-canvas/--bg-surface at 0/normal/blue
+  shade  0   0.70  0.59  0.53  0.38  0.22     .     .   best 0.702 bound by --text-muted on --bg-sidebar at 307/normal/blue
+  shade -1   0.69  0.57  0.45  0.32     .     .     .   best 0.689 bound by --text-muted on --bg-sidebar at 61/normal/blue
+  shade -2   0.39  0.39  0.29  0.06     .     .     .   best 0.390 bound by --accent-text on --bg-canvas at 250/normal/teal
+  shade -3   0.04  0.04  0.02     .     .     .     .   best 0.036 bound by --accent-text on --bg-canvas at 250/normal/teal
+  shade -4      .     .     .     .     .     .     .   best -0.302 bound by --accent-text on --bg-canvas at 250/normal/teal
+
+
+########## COMBINED CANDIDATE, solved at shade -3 ##########
+headroom moves: --accent-text #326da8->#1f5b95, --status-working #2175bd->#0464ab, --status-attention #976900->#825a00, --warning #976900->#825a00, --status-attention-badge-bg #976900->#825a00, --status-idle #6e7482->#5c616f, --status-exited #6e7482->#5c616f, --status-failed #c74a46->#b03534, --git-deleted #b23534->#b13434, --error #b23534->#b13434
+lane moves: --git-deleted->#bc1827, --graph-lane-3->#02504e, --git-conflict->#823c00, --graph-lane-5->#5b3274, --git-added->#316938
+
+region, shade down the side, depth -3..3 across; the number is the worst slack in the cell
+  shade  2      .     .     .     .     .     .     .   best -2.000 bound by step --bg-canvas/--bg-surface at 0/normal/blue
+  shade  1      .     .     .     .     .     .     .   best -2.000 bound by step --bg-canvas/--bg-surface at 0/normal/blue
+  shade  0   0.70  0.59  0.53  0.38  0.22  0.14     .   best 0.702 bound by --text-muted on --bg-sidebar at 307/normal/blue
+  shade -1   0.69  0.57  0.45  0.38  0.24     .     .   best 0.689 bound by --text-muted on --bg-sidebar at 61/normal/blue
+  shade -2   0.64  0.58  0.51  0.34     .     .     .   best 0.643 bound by --text-muted on --bg-sidebar at 54/normal/blue
+  shade -3   0.39  0.39  0.31  0.06     .     .     .   best 0.388 bound by --accent on --bg-canvas at 250/normal/teal
+  shade -4   0.12  0.12  0.03     .     .     .     .   best 0.121 bound by --accent-text on --bg-canvas at 250/normal/teal
