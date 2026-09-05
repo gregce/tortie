@@ -1,0 +1,83 @@
+# Step 1. Proving the simulation on research 24 section 7.4, published protan / deutan
+what                     pair              published   mine (Vienot)   Machado 2009
+the pink that won        #4d9de8 #e8629c    85/ 83     84.8/ 82.8      82.8/ 94.6
+the VS Code like violet  #4d9de8 #b98cff    24/ 31     24.1/ 30.9      27.0/ 29.9
+terminal magenta         #4d9de8 #c583d8    21/ 27     22.3/ 27.8      19.0/ 39.5
+terminal cyan            #4d9de8 #56c2c0    64/ 60     63.6/ 59.7      77.2/ 78.0
+amber                    #4d9de8 #e2b340   174/190    173.8/190.6     202.7/200.9
+worst disagreement with the published numbers: 1.32; they are printed to the unit
+
+# Step 2. The two structural properties a projection cannot fake
+white in LMS is L 65.52 M 34.48 S 1.681
+  protan plane returns L 65.52 against 65.52, error -0.000
+  deutan plane returns M 34.48 against 34.48, error -0.000
+  tritan plane returns S 1.681 against 1.681, error 0.0001
+  protan: idempotent over 4096 colours, worst re-simulation move 0.00 of 255
+  protan: mid grey #808080 -> #808080
+  deutan: idempotent over 4096 colours, worst re-simulation move 0.00 of 255
+  deutan: mid grey #808080 -> #808080
+  tritan: idempotent over 4096 colours, worst re-simulation move 0.00 of 255
+  tritan: mid grey #808080 -> #808080
+
+# Step 3. It agrees with the tree helper it is meant to be independent of
+(the tree helper is Vienot protan/deutan only; the pairs above already show 84.8/82.8 and 24.1/30.9, which is what src/renderer/scm/graph/__tests__/contrast.ts records)
+
+# Step 4. Brettel 1997, the two half plane model (Phase 214 fix round)
+The verifier of this phase wrote its own Brettel and read the shipped lanes 2 and 6
+at 27.0 under protanopia. This one reads 41.4. Only one of them can be right, so
+this model is asked three things before either number is published.
+
+  4a. Each half plane is a projection onto a plane, so its matrix is singular,
+      and white is a fixed point of both.
+      protan  det 4.3e-6 / 6.0e-6, white -> #ffffff
+      deutan  det -2.4e-6 / -2.2e-6, white -> #ffffff
+      tritan  det 4.6e-6 / 4.3e-6, white -> #ffffff
+
+  4b. THE CHECK A MIS-SCALED ANCHOR CANNOT PASS. The two halves of one
+      deficiency are hinged on a shared boundary, so on that boundary they must
+      give the same answer. An anchor taken from one LMS normalisation and used
+      in another yields two plausible planes that do not meet, which is the most
+      likely way to get a wrong separation out of this model.
+      protan  the two halves disagree on their own boundary by 0.006 of 255
+      deutan  the two halves disagree on their own boundary by 0.002 of 255
+      tritan  the two halves disagree on their own boundary by 0.008 of 255
+      worst seam 0.008 of 255
+
+  4c. The published matrices are re-derived from the construction: CIE 1931 two
+      degree at 475, 575, 485 and 660 nm, Smith and Pokorny LMS, and the plane
+      through white and one anchor.
+      protan  worst coefficient disagreement with the published matrix 0.0062
+      deutan  worst coefficient disagreement with the published matrix 0.0037
+      tritan  worst coefficient disagreement with the published matrix 0.0106
+
+  4d. What it reads on the lanes that shipped, against the two models above.
+
+      ## the lanes that shipped: #2175bd #b62926 #004f4e #823c00 #613374 #2c6a3b
+      Vienot protan   worst pair 2-3 at 38.1
+      Vienot deutan   worst pair 3-5 at 36.1
+      Vienot tritan   worst pair 4-5 at 33.9
+      Machado protan  worst pair 2-6 at 36.4
+      Machado deutan  worst pair 3-5 at 38.3
+      Machado tritan  worst pair 3-6 at 40.1
+      Brettel protan  worst pair 2-4 at 38.3
+      Brettel deutan  worst pair 3-5 at 38.7
+      Brettel tritan  worst pair 4-5 at 44.4
+      WORST OVER ALL NINE: pair 4-5 at 33.9 under Vienot tritan
+      lanes 2 and 6 under Brettel protanopia: 41.4
+
+      ## the parent c49a57d: #2175bd #b23534 #004f4e #833e00 #613374 #00530e
+      Vienot protan   worst pair 4-6 at 12.4
+      Vienot deutan   worst pair 4-6 at 32.9
+      Vienot tritan   worst pair 3-6 at 10.9
+      Machado protan  worst pair 4-6 at 4.7
+      Machado deutan  worst pair 4-6 at 36.5
+      Machado tritan  worst pair 3-6 at 9.2
+      Brettel protan  worst pair 4-6 at 13.1
+      Brettel deutan  worst pair 4-6 at 34.9
+      Brettel tritan  worst pair 3-6 at 18.5
+      WORST OVER ALL NINE: pair 4-6 at 4.7 under Machado protan
+      lanes 2 and 6 under Brettel protanopia: 40.2
+
+      So the verifier reading of 27.0 for lanes 2 and 6 is refuted: three models
+      agree that pair is 36.4 or better, and the worst pair anywhere on paper is
+      33.9, being lanes 4 and 5 under the single plane model extended to tritan.
