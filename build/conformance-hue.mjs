@@ -347,6 +347,15 @@ const ABLATIONS = [
     edits: [['  [0, [4]],\n  [4, [0]]\n]);', '  [0, [4]],\n  [1, [2]],\n  [2, [1]],\n  [4, [0]]\n]);']]
   },
   {
+    // Phase 214 fix round, rule 30. The metric the palette was solved in is
+    // blind to tritanopia. This blue reads 38.1 in it, comfortably over the
+    // floor, and 28.1 against the teal of lane 3 under tritanopia, so before
+    // the other seven arms went in the gate had nothing to say about it.
+    name: 'a lane that clears the solved metric and collapses under tritanopia',
+    file: 'renderer/styles/tokens.css',
+    edits: [['  --graph-lane-5: #613374;', '  --graph-lane-5: #000088;']]
+  },
+  {
     // Phase 214, rule 31. A range of one stop is still a control, so paper
     // draws a Shade slider that cannot move and whose every move writes the
     // shipped stop over the shade the person chose on dark.
@@ -885,6 +894,101 @@ function laneSeparation(a, b) {
   return Math.min(one('protan'), one('deutan'));
 }
 
+// ---------------------------------------------------------------------------
+// THE PHASE 214 FIX ROUND ADDED THE OTHER TWO MODELS AND TRITANOPIA.
+//
+// `laneSeparation` above is the metric research 24 used and the palette was
+// solved in, being the minimum over Vienot protanopia and deuteranopia. It is
+// the right thing to solve against and it is BLIND in one direction: it asks
+// nothing at all about tritanopia, so a palette can clear it comfortably while
+// two lanes collapse for a tritanope. Rule 30's ablation plants exactly that,
+// a lane 5 of #000088 that reads 38.1 in the metric above and 28.1 against the
+// teal of lane 3 under tritanopia.
+//
+// So the floor is asked of EIGHT model and deficiency combinations over three
+// published models, and the sentence DESIGN.md, tokens.css and colors.ts carry
+// is now run rather than written.
+//
+//  - Vienot 1999, the single plane, protanopia and deuteranopia. This is the
+//    model research 24 measured with and the pair above is it.
+//  - Machado 2009 at severity 1.0, all three, fitted by a shift in the cone
+//    spectral sensitivities and so a different route entirely.
+//  - Brettel 1997, the two half planes, all three, which is the model that
+//    covers tritanopia properly.
+//
+// EIGHT AND NOT NINE, and the missing one is the reason this rule proves its
+// models before it uses them. The measure step ran a ninth, being the Vienot
+// single plane extended to tritanopia by the same LMS framework, and the
+// phase published a worst pair over "six published dichromat models" that
+// included it. That arm is degenerate in this LMS basis. Its two matrices
+// round trip to the identity, so it is not a transcription error, but on the
+// tritan plane the reconstruction gives red and green the SAME coefficients,
+// 0.034733 on L and -0.036998 on M, so every colour comes back with R equal
+// to G. That is a red green confusion wearing the name of a blue yellow one.
+// It leaves a blue only difference completely untouched, 128.0 of 128.0 where
+// Machado reads 49.3 and Brettel 34.7. It passes a fixed white point and it
+// passes idempotence, which is exactly why `proveLaneSimulation` now asks each
+// tritanopia arm to confuse blue with yellow and to SPARE red against green.
+//
+// build/p214/cvd.mjs holds the same models with their own proofs, including
+// the derivation of the Brettel matrices from the published construction and
+// the check a mis-scaled anchor cannot pass, being the two halves of one
+// deficiency agreeing on their own shared boundary.
+// ---------------------------------------------------------------------------
+const LANE_MACHADO = {
+  protan: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+  deutan: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+  tritan: [[1.255528, -0.076749, -0.178779], [-0.078411, 0.930809, 0.147602], [0.004733, 0.691367, 0.3039]]
+};
+const LANE_BRETTEL = {
+  protan: {
+    n: [0.00048, 0.00393, -0.00441],
+    a: [[0.1498, 1.19548, -0.34528], [0.10764, 0.84864, 0.04372], [0.00384, -0.0054, 1.00156]],
+    b: [[0.1457, 1.16172, -0.30742], [0.10816, 0.85291, 0.03892], [0.00386, -0.00524, 1.00139]]
+  },
+  deutan: {
+    n: [-0.00281, -0.00611, 0.00892],
+    a: [[0.36477, 0.86381, -0.22858], [0.26294, 0.64245, 0.09462], [-0.02006, 0.02728, 0.99278]],
+    b: [[0.37298, 0.88166, -0.25464], [0.25954, 0.63506, 0.1054], [-0.0198, 0.02784, 0.99196]]
+  },
+  tritan: {
+    n: [0.03901, -0.02788, -0.01113],
+    a: [[1.01277, 0.13548, -0.14826], [-0.01243, 0.86812, 0.14431], [0.07589, 0.805, 0.11911]],
+    b: [[0.93678, 0.18979, -0.12657], [0.06154, 0.81526, 0.1232], [-0.37562, 1.12767, 0.24796]]
+  }
+};
+function laneSimulateMachado(rgb, kind) {
+  const lin = rgb.map(laneLinear);
+  return LANE_MACHADO[kind].map((row) => laneEncode(row[0] * lin[0] + row[1] * lin[1] + row[2] * lin[2]));
+}
+function laneSimulateBrettel(rgb, kind) {
+  const lin = rgb.map(laneLinear);
+  const p = LANE_BRETTEL[kind];
+  const side = p.n[0] * lin[0] + p.n[1] * lin[1] + p.n[2] * lin[2];
+  return (side >= 0 ? p.a : p.b).map((row) => laneEncode(row[0] * lin[0] + row[1] * lin[1] + row[2] * lin[2]));
+}
+const LANE_MODELS = [
+  ['Vienot protanopia', laneSimulate, 'protan'],
+  ['Vienot deuteranopia', laneSimulate, 'deutan'],
+  ['Machado protanopia', laneSimulateMachado, 'protan'],
+  ['Machado deuteranopia', laneSimulateMachado, 'deutan'],
+  ['Machado tritanopia', laneSimulateMachado, 'tritan'],
+  ['Brettel protanopia', laneSimulateBrettel, 'protan'],
+  ['Brettel deuteranopia', laneSimulateBrettel, 'deutan'],
+  ['Brettel tritanopia', laneSimulateBrettel, 'tritan']
+];
+/** The worst of the nine, and which one it was. */
+function laneSeparationEverywhere(a, b) {
+  let low = { sep: Number.POSITIVE_INFINITY, model: '' };
+  for (const [name, fn, kind] of LANE_MODELS) {
+    const x = fn(a, kind);
+    const y = fn(b, kind);
+    const sep = Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+    if (sep < low.sep) low = { sep, model: name };
+  }
+  return low;
+}
+
 /**
  * RULE 28: THE GRAPH LANES, ON BOTH BASES.
  *
@@ -1014,6 +1118,87 @@ function proveLaneSimulation() {
       problems.push(`rule 30: ${said} reads ${got.toFixed(1)} here against the ${String(want)} this codebase publishes, so the simulation is not the one those numbers came from`);
     }
   }
+  return [...problems, ...proveTheOtherModels()];
+}
+
+/**
+ * AND THE OTHER SEVEN ARMS, PROVED THE SAME WAY (Phase 214 fix round).
+ *
+ * The four checks above are written for the tree's own protan and deutan
+ * simulation and every one of them passes an arm that is confusing the WRONG
+ * two colours. The ninth arm the measure step ran did exactly that: it held a
+ * fixed white point, it was idempotent, and it left a blue only difference
+ * completely alone while calling itself tritanopia. So:
+ *
+ *  5. EVERY ARM LEAVES A NEUTRAL ALONE, since a dichromat sees greys as greys.
+ *  6. EVERY ARM ACTUALLY MOVES SOMETHING. An identity function passes 5.
+ *  7. EVERY ARM NAMED TRITANOPIA CONFUSES BLUE WITH YELLOW, being a blue only
+ *     difference of 128.0 that must lose at least half, AND SPARES RED AGAINST
+ *     GREEN, being a mid red against a mid green at 90.5 that must keep at
+ *     least half. The first half is what the degenerate arm failed, at 128.0
+ *     of 128.0; Machado reads 49.3 and Brettel 34.7.
+ *  8. BRETTEL'S TWO HALF PLANES ARE SINGULAR, because each projects onto a
+ *     plane, AND THEY AGREE ON THEIR OWN SHARED BOUNDARY. That last one is
+ *     the check a mis-scaled anchor cannot pass, and a mis-scaled anchor is
+ *     the likeliest way to get a wrong answer out of this model: the anchors
+ *     are published in one LMS normalisation, and used in another they still
+ *     give two plausible looking planes that do not meet at the hinge.
+ */
+function proveTheOtherModels() {
+  const problems = [];
+  const rgb = (hex) => laneChannels(hex);
+  const gap = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const BLUE_ONLY = ['#8080c0', '#808040'];
+  const RED_GREEN = ['#c08080', '#80c080'];
+  const blueOnlyPlain = gap(rgb(BLUE_ONLY[0]), rgb(BLUE_ONLY[1]));
+  const redGreenPlain = gap(rgb(RED_GREEN[0]), rgb(RED_GREEN[1]));
+  for (const [name, fn, kind] of LANE_MODELS) {
+    const grey = fn(rgb('#808080'), kind);
+    if (grey.join(',') !== '128,128,128') {
+      problems.push(`rule 30: ${name} moves a neutral, to ${grey.join(',')}, where a dichromat sees greys as greys`);
+    }
+    let moved = 0;
+    for (const hex of ['#ff0000', '#00ff00', '#0000ff', '#b62926', '#2c6a3b']) {
+      moved = Math.max(moved, gap(fn(rgb(hex), kind), rgb(hex)));
+    }
+    if (moved < 20) {
+      problems.push(`rule 30: ${name} moves no colour by more than ${moved.toFixed(1)}, so it is the identity function wearing a name`);
+    }
+    if (!name.endsWith('tritanopia')) continue;
+    const blueOnly = gap(fn(rgb(BLUE_ONLY[0]), kind), fn(rgb(BLUE_ONLY[1]), kind));
+    if (blueOnly > blueOnlyPlain / 2) {
+      problems.push(`rule 30: ${name} reads a blue only difference at ${blueOnly.toFixed(1)} of ${blueOnlyPlain.toFixed(1)}, so it is not confusing blue with yellow and it is not tritanopia`);
+    }
+    const redGreen = gap(fn(rgb(RED_GREEN[0]), kind), fn(rgb(RED_GREEN[1]), kind));
+    if (redGreen < redGreenPlain / 2) {
+      problems.push(`rule 30: ${name} reads a red against a green at ${redGreen.toFixed(1)} of ${redGreenPlain.toFixed(1)}, and tritanopia spares red and green`);
+    }
+  }
+  const det = (m) =>
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  for (const kind of ['protan', 'deutan', 'tritan']) {
+    const p = LANE_BRETTEL[kind];
+    for (const [half, m] of [['a', p.a], ['b', p.b]]) {
+      if (Math.abs(det(m)) > 1e-4) {
+        problems.push(`rule 30: the Brettel ${kind} half plane ${half} has determinant ${det(m).toExponential(1)}, where a projection onto a plane is singular`);
+      }
+    }
+    const nn = p.n[0] ** 2 + p.n[1] ** 2 + p.n[2] ** 2;
+    let seam = 0;
+    for (let i = 0; i < 4000; i += 1) {
+      const v = [((i * 37) % 251) / 251, ((i * 91) % 241) / 241, ((i * 173) % 239) / 239];
+      const d = p.n[0] * v[0] + p.n[1] * v[1] + p.n[2] * v[2];
+      const q = [v[0] - (p.n[0] * d) / nn, v[1] - (p.n[1] * d) / nn, v[2] - (p.n[2] * d) / nn];
+      const A = p.a.map((r) => r[0] * q[0] + r[1] * q[1] + r[2] * q[2]);
+      const B = p.b.map((r) => r[0] * q[0] + r[1] * q[1] + r[2] * q[2]);
+      seam = Math.max(seam, Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]) * 255);
+    }
+    if (seam > 0.5) {
+      problems.push(`rule 30: the two Brettel ${kind} half planes disagree by ${seam.toFixed(2)} of 255 on their own shared boundary, so an anchor is in the wrong LMS normalisation`);
+    }
+  }
   return problems;
 }
 
@@ -1035,6 +1220,13 @@ function proveLaneSimulation() {
  * lifted. So this rule asks the stronger thing of paper: ZERO pairs under the
  * floor, at any number of live lanes. The dark base is untouched by that
  * phase and keeps its one pair, which rule 28 covers.
+ *
+ * THE PHASE 214 FIX ROUND ADDED THE OTHER SEVEN ARMS. The metric this rule
+ * inherited is the one the palette was solved in, and it asks nothing about
+ * tritanopia at all, so it clears a paper palette in which two lanes collapse
+ * for a tritanope. The floor is now asked of eight model and deficiency
+ * combinations over three published models, which is what makes the sentence
+ * in DESIGN.md and tokens.css executable rather than written down.
  *
  * And it asks the map to be EXACTLY the union of the two bases' weak pairs.
  * A missing entry is rule 28's question; a SUPERFLUOUS one is this rule's,
@@ -1091,9 +1283,35 @@ function pinLaneSeparation(a) {
   // with no weak pair at all, so the dark base's known pair is named: it is
   // untouched by this phase and it must still be there.
   if (got.size === 0) problems.push('rule 30: the rotation bans nothing at all, and the dark base still has a pair at 21.2');
+  // AND THE SAME FLOOR OVER THE OTHER SEVEN ARMS, ON PAPER (Phase 214 fix
+  // round). The metric above is blind to tritanopia, so it clears a palette
+  // in which two lanes collapse for a tritanope; the ablation plants exactly
+  // that. Paper only, because this phase re-solved paper's lanes against each
+  // other and the dark base keeps the one pair rule 28 covers, at 21.2.
+  const everywhere = { pair: '', sep: Number.POSITIVE_INFINITY, model: '' };
+  const paper = (lanes.light ?? []).map(laneChannels);
+  if (paper.length > 0 && !paper.some((v) => v === null)) {
+    for (let i = 0; i < paper.length; i += 1) {
+      for (let j = i + 1; j < paper.length; j += 1) {
+        const low = laneSeparationEverywhere(paper[i], paper[j]);
+        if (low.sep < everywhere.sep) {
+          everywhere.sep = low.sep;
+          everywhere.pair = `${String(i + 1)}-${String(j + 1)}`;
+          everywhere.model = low.model;
+        }
+        if (low.sep >= LANE_SEPARATION) continue;
+        problems.push(`rule 30: on paper lanes ${String(i + 1)} and ${String(j + 1)} are ${low.sep.toFixed(1)} apart under ${low.model}, under the floor of ${String(LANE_SEPARATION)}; the metric the palette was solved in does not see it`);
+      }
+    }
+  }
   lastSeparationNumbers = ['dark', 'light']
     .filter((scheme) => worst[scheme] !== undefined)
     .map((scheme) => `${scheme}: worst pair ${worst[scheme].pair} at ${worst[scheme].sep.toFixed(1)} against a floor of ${String(LANE_SEPARATION)}`);
+  if (everywhere.pair !== '') {
+    lastSeparationNumbers.push(
+      `light over the ${String(LANE_MODELS.length)} model and deficiency combinations: worst pair ${everywhere.pair} at ${everywhere.sep.toFixed(1)} under ${everywhere.model}`
+    );
+  }
   return problems;
 }
 
@@ -2239,6 +2457,7 @@ try {
       for (const line of lastLaneNumbers) say(`${TAG} rule 28: the graph lanes on ${line}, and every one of them is avoided by the rotation`);
       for (const line of lastSeparationNumbers) say(`${TAG} rule 30: ${line}; paper has none under it at all, so six live lanes in one row never draw two branches as one`);
       say(`${TAG} rule 30: the simulation itself holds a neutral fixed, leaves blue against yellow untouched, loses two thirds of red against green, and reproduces the 21.2 and the 12.4 this codebase already publishes`);
+      say(`${TAG} rule 30: and each of the ${String(LANE_MODELS.length)} arms holds a neutral fixed and moves something, each tritanopia arm confuses blue with yellow and spares red against green, and Brettel's six half planes are singular and meet on their own boundary`);
       {
         const controls = facts.controls ?? [];
         const light = controls.filter((c) => c.scheme === 'light');
