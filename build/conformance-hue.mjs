@@ -383,6 +383,34 @@ const ABLATIONS = [
     edits: [['      {face.shadeMoves ? (', '      {true ? (']]
   },
   {
+    // Phase 214 committer's round, rule 31. The exact defect the verifier
+    // drove: the rows are hidden and Reset writes all three fields anyway,
+    // so one press on paper takes the shade chosen on dark. Before this
+    // round the gate was blind to it, because it asked about rows alone.
+    name: 'a Reset that writes an axis the base does not draw',
+    file: 'renderer/theme/frame-stops.ts',
+    edits: [
+      [
+        '  if (moves.shade) patch.chromeShade = DEFAULT_CHROME_SHADE;',
+        '  patch.chromeShade = DEFAULT_CHROME_SHADE;'
+      ]
+    ]
+  },
+  {
+    // Phase 214 committer's round, rule 31. The arithmetic is right and the
+    // button ignores it, taking the default of both axes. It is the same
+    // half as the unguarded row above, asked of the one control this phase
+    // kept on every base.
+    name: 'the Reset button calling the reset with no axes at all',
+    file: 'renderer/settings/AppearanceSection.tsx',
+    edits: [
+      [
+        '            void resetChromeFrame({ shade: face.shadeMoves, depth: face.depthMoves })',
+        '            void resetChromeFrame()'
+      ]
+    ]
+  },
+  {
     name: 'the offset: an absolute hue instead of an offset from each token',
     file: 'shared/chrome-hue.ts',
     edits: [["h: (((ok.h ?? 0) + offset) % 360 + 360) % 360", "h: sanitizeChromeHue(hue)"]]
@@ -1339,6 +1367,18 @@ let lastSeparationNumbers = [];
  * And it asserts that some base really does hide one, or the rule would be
  * green over a product where every control always moves and would prove
  * nothing about the day one stops moving.
+ *
+ * THE COMMITTER'S ROUND WIDENED IT FROM THE ROWS TO THE GROUP, because the
+ * promise that was checked was narrower than the promise that was made. The
+ * rows were the only thing asked about, and the Frame group has one more
+ * control this phase deliberately kept on paper: Reset wrote all three
+ * fields whatever base it was pressed on, so a person on paper who nudged
+ * Depth and pressed Reset lost the shade they had chosen on dark, and this
+ * rule had nothing to say. The reset patch is now composed by the SHIPPING
+ * `resetFrame` from the same two booleans the rows are drawn from, run here
+ * at every frame, and the button's own wiring is scanned the same way the
+ * rows' guards are. The sentence for the whole group is one sentence: what a
+ * base cannot move, it does not touch.
  */
 function pinControls(a) {
   const problems = [];
@@ -1362,6 +1402,21 @@ function pinControls(a) {
       } else if (note === '') {
         problems.push(`rule 31: at ${at} the ${axis} control moves and says nothing at either end`);
       }
+      // AND THE RESET PATCH NAMES THIS AXIS EXACTLY WHEN THE FACE DRAWS IT.
+      // A control that is not on the face cannot be reset by the face.
+      const keys = c.resetKeys;
+      if (!Array.isArray(keys)) {
+        problems.push(`rule 31: at ${at} the reset patch could not be read`);
+      } else {
+        const field = axis === 'shade' ? 'chromeShade' : 'chromeDepth';
+        if (keys.includes(field) !== moves) {
+          problems.push(`rule 31: at ${at} the ${axis} control ${moves ? 'moves' : 'cannot move'} and a Reset ${keys.includes(field) ? 'writes' : 'does not write'} ${field}`);
+        }
+      }
+    }
+    if (Array.isArray(c.resetKeys) && !c.resetKeys.includes('chromeHue')) {
+      const at = `${c.scheme} shade ${String(c.shade)} depth ${String(c.depth)}`;
+      problems.push(`rule 31: at ${at} a Reset does not put the colour back, and the Colour control is drawn on every base`);
     }
   }
   if (hidden === 0) {
@@ -1375,10 +1430,16 @@ function pinControls(a) {
   else {
     if (light.some((c) => c.shadeMoves)) problems.push('rule 31: paper draws a Shade control at some frame, where the region is one shade row');
     if (!light.every((c) => c.depthMoves)) problems.push('rule 31: paper hides the Depth control, which has four stops and still moves');
+    if (light.some((c) => (c.resetKeys ?? []).includes('chromeShade'))) {
+      problems.push('rule 31: on paper a Reset writes chromeShade, which is the shade the person chose on dark and the one thing paper must never write');
+    }
   }
   const dark = controls.filter((c) => c.scheme === 'dark');
   if (!dark.every((c) => c.shadeMoves && c.depthMoves)) {
     problems.push('rule 31: the dark base hides a control, where both axes still move');
+  }
+  if (!dark.every((c) => (c.resetKeys ?? []).length === 3)) {
+    problems.push('rule 31: on graphite a Reset leaves an axis behind, where all three still move');
   }
   if (face === undefined || face === null) return [...problems, 'rule 31: the Appearance section could not be read'];
   if (face.rows === 0) problems.push('rule 31: the Appearance section draws no stop slider row at all');
@@ -1387,6 +1448,9 @@ function pinControls(a) {
   }
   for (const axis of ['shade', 'depth']) {
     if (!face.guards.includes(axis)) problems.push(`rule 31: no stop slider row is guarded on face.${axis}Moves`);
+  }
+  if (face.resetWired !== true) {
+    problems.push('rule 31: the Reset button does not hand resetChromeFrame the face\'s own shadeMoves and depthMoves, so it takes the default of both axes and writes a control the base does not draw');
   }
   return problems;
 }
@@ -2464,6 +2528,7 @@ try {
         const dark = controls.filter((c) => c.scheme === 'dark');
         const shadeStops = light[0] === undefined ? 0 : light[0].shadeStops;
         say(`${TAG} rule 31: over ${String(dark.length)} frames on graphite both controls move; over ${String(light.length)} on paper Shade offers ${String(shadeStops)} stop and is NOT drawn, Depth offers ${String(light[0] === undefined ? 0 : light[0].depthStops)} and is; a control that cannot move carries no sentence, and ${String(facts.faceRows?.guarded ?? 0)} of ${String(facts.faceRows?.rows ?? 0)} rows in the Appearance section sit behind their own guard`);
+        say(`${TAG} rule 31: and a Reset writes only what the base draws, being ${(dark[0]?.resetKeys ?? []).join(' ')} on graphite and ${(light[0]?.resetKeys ?? []).join(' ')} on paper, with the button handing the face its own two booleans`);
       }
       say(`${TAG} rule 29: the capture floor draws ${CAPTURE_CELLS_SAID.map((hex, i) => `${hex} as ${String(facts.capture.onPaper[i])}`).join(', ')} on paper and moves none of them on graphite, and the serializer calls it`);
       say(`${TAG} rule 25: and the light base is a different set of bytes throughout: tokens ${facts.tokensSha.light.slice(0, 12)}, terminal ${sha(facts.terminal.light).slice(0, 12)}, Monaco ${sha(facts.monaco.light).slice(0, 12)}, Pierre ${facts.pierre.lightSha.slice(0, 12)}`);

@@ -832,6 +832,13 @@ interface Facts {
     depthMoves: boolean;
     shadeNote: string;
     depthNote: string;
+    /**
+     * THE PATCH A RESET WRITES at this frame (Phase 214 committer's round),
+     * being the sorted keys the SHIPPING `resetFrame` composes from the two
+     * booleans above. Reset is the one Frame control that is drawn on every
+     * base, so it is the one place a hidden axis could still be written.
+     */
+    resetKeys: string[];
   }[] | null;
   /**
    * HOW THE FACE DRAWS THEM (Phase 214). The arithmetic above is only half:
@@ -839,7 +846,18 @@ interface Facts {
    * scan of `AppearanceSection.tsx`, being how many stop slider rows it
    * renders and how many of them sit behind a `face.<axis>Moves` guard.
    */
-  faceRows: { rows: number; guarded: number; guards: string[] } | null;
+  faceRows: {
+    rows: number;
+    guarded: number;
+    guards: string[];
+    /**
+     * Does the Reset button hand `resetChromeFrame` the face's OWN two
+     * booleans (Phase 214 committer's round)? The arithmetic above is again
+     * only half: a button that called it with no argument would take the
+     * default, which is both axes, and write a shade paper never draws.
+     */
+    resetWired: boolean;
+  } | null;
   /**
    * THE CAPTURE FLOOR (Phase 213 fix round, finding 3). xterm applies
    * `minimumContrastRatio` at draw time and changes no cell, so the buffer
@@ -976,6 +994,9 @@ async function readControls(
       ends: { below: unknown; above: unknown }
     ) => { moves: boolean; note: string };
     const stopCount = stops['stopCount'] as (r: StopRangeLike) => number;
+    const resetFrame = stops['resetFrame'] as
+      | ((m: { shade: boolean; depth: boolean }) => Record<string, number>)
+      | undefined;
     const regionFor = presets['frameRegionFor'] as
       | ((s: string) => { shade: number; minDepth: number; maxDepth: number }[])
       | undefined;
@@ -984,6 +1005,7 @@ async function readControls(
       depthRange === undefined ||
       axisReading === undefined ||
       stopCount === undefined ||
+      resetFrame === undefined ||
       regionFor === undefined
     ) {
       return null;
@@ -1015,7 +1037,10 @@ async function readControls(
             shadeMoves: sRead.moves,
             depthMoves: dRead.moves,
             shadeNote: sRead.note,
-            depthNote: dRead.note
+            depthNote: dRead.note,
+            resetKeys: Object.keys(
+              resetFrame({ shade: sRead.moves, depth: dRead.moves })
+            ).sort()
           });
         }
       }
@@ -1064,7 +1089,14 @@ function readFaceRows(root: string): Facts['faceRows'] {
     guarded += 1;
     guards.push(head[1] ?? '');
   }
-  return { rows, guarded, guards };
+  // AND THE RESET BUTTON'S OWN WIRING. It must hand `resetChromeFrame` the
+  // face's two booleans; called with nothing it takes the default, which is
+  // both axes, and writes a shade paper never draws.
+  const resetWired =
+    /resetChromeFrame\(\s*\{\s*shade:\s*face\.shadeMoves,\s*depth:\s*face\.depthMoves\s*\}\s*\)/.test(
+      text
+    );
+  return { rows, guarded, guards, resetWired };
 }
 
 /** The five cells research 80 section 1.3 measured, in its own order. */
