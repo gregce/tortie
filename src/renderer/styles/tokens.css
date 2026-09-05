@@ -529,9 +529,17 @@
      palette that came out had the brown and the green 12.4 apart under
      protanopia against the dark base's worst pair at 21.2, so at six live
      lanes in one row the graph drew two branches as one colour. The three
-     values below clear 36.1 at their worst over six published dichromat
-     models and every pair on paper now clears the 32 the rest of the
-     palette holds. `npm run conformance:hue` rules 28 and 30 re-derive it. */
+     values below clear 36.1 at their worst, being lanes 3 and 5 under
+     deuteranopia, and every pair on paper now clears the 32 the rest of the
+     palette holds. That worst is taken over EIGHT model and deficiency
+     combinations drawn from three published models, being Vienot 1999 for
+     protanopia and deuteranopia, and Machado 2009 and Brettel 1997 for all
+     three. The phase first published it as six, and one of those six was a
+     single plane extended to tritanopia in an LMS basis where it returns red
+     and green with the same coefficient, so it was reading a red green
+     confusion and calling it a blue yellow one. `npm run conformance:hue`
+     rules 28 and 30 re-derive all eight, and rule 30 proves each arm before
+     it uses it. */
   --git-modified: #64522d; /* hue 84, 5.49 on active                      */
   --git-added: #2c6a3b; /* lane 6, hue 149, 4.73; was #00530e at 6.82 and
      12.4 from the conflict brown under protanopia                        */

@@ -99,6 +99,26 @@ export function simulateVienot(rgb, kind) {
 //     1.71.
 //   - THE PROJECTION IS IDEMPOTENT. Simulating a simulated colour changes
 //     nothing, because the answer already lies in the plane.
+//
+// AND BOTH OF THOSE CHECKS PASS AN ARM THAT IS DEGENERATE, which the Phase
+// 214 fix round found and which is the reason `simulateVienot3`'s TRITAN case
+// is kept here as a record and is NOT one of the arms the published worst
+// pair is taken over.
+//
+// The two matrices round trip to the identity, so this is not a transcription
+// error. But substitute the tritan plane into the reconstruction and red and
+// green come out with the SAME coefficients, 0.034733 on L and -0.036998 on
+// M, so every simulated colour has R equal to G. That is the signature of a
+// red green confusion, and tritanopia is a blue yellow one. Measured: a blue
+// only difference of 128.0 comes back at 128.0, completely untouched, where
+// Machado reads 49.3 and Brettel 34.7; and a mid red against a mid green at
+// 90.5 comes back at 255.0, further apart than it started.
+//
+// It held a fixed white point and it was idempotent throughout. The phase
+// published a worst pair "over six published dichromat models" that included
+// this arm, and its 33.9 is that arm's reading. The honest number is 36.1
+// over the EIGHT arms that model what they name, being lanes 3 and 5 under
+// deuteranopia, which is what DESIGN.md and tokens.css now say.
 // ---------------------------------------------------------------------------
 export function simulateVienot3(rgb, kind) {
   const lin = rgb.map(toLinear);

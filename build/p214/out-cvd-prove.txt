@@ -79,5 +79,33 @@ this model is asked three things before either number is published.
       lanes 2 and 6 under Brettel protanopia: 40.2
 
       So the verifier reading of 27.0 for lanes 2 and 6 is refuted: three models
-      agree that pair is 36.4 or better, and the worst pair anywhere on paper is
-      33.9, being lanes 4 and 5 under the single plane model extended to tritan.
+      agree that pair is 36.4 or better.
+
+# Step 5. ONE OF THE NINE IS NOT MODELLING WHAT IT NAMES, and steps 1 and 2
+did not catch it, which is the point of this step.
+The single plane extended to tritanopia holds a fixed white point and it is
+idempotent. It is also degenerate. Its two matrices round trip to the identity,
+so this is not a transcription error, but on the tritan plane the reconstruction
+gives red and green the same coefficients:
+  the two matrices round trip: worst off diagonal 4.1e-9
+  red   on the tritan plane: L 0.034733  M -0.036998
+  green on the tritan plane: L 0.034733  M -0.036998
+  blue  on the tritan plane: L -0.274935  M 0.551457
+  so R equals G in 140460 of 140608 colours, which is a red green confusion
+  a blue only difference of 128.0 reads:
+      single plane  128.0
+      Machado       49.3
+      Brettel       34.7
+  a mid red against a mid green of 90.5 reads:
+      single plane  255.0
+      Machado       116.6
+      Brettel       98.1
+
+# Step 6. The worst pair over the EIGHT arms that model what they name.
+  the lanes that shipped: worst pair 3-5 at 36.1 under Vienot deutan
+    pairs under the floor of 32: NONE
+  the parent c49a57d: worst pair 4-6 at 4.7 under Machado protan
+    pairs under the floor of 32: 2-3 Vienot protan 26.9, 4-6 Vienot protan 12.4, 2-3 Machado protan 31.7, 4-6 Machado protan 4.7, 3-6 Machado tritan 9.2, 2-3 Brettel protan 29.6, 4-6 Brettel protan 13.1, 3-6 Brettel tritan 18.5
+
+  36.1 is the number the palette publishes, and it survives. What does not is
+  the attribution: it is eight arms and not six, and one of the six was this.

@@ -127,7 +127,9 @@ export type HueKey = number;
  * rotation change, so Phase 214 made it: paper's lanes 2, 4 and 6 are
  * #b62926, #823c00 and #2c6a3b, its worst pair is 36.1 against the 32 the
  * rest of the palette holds, and every one of its fifteen pairs clears the
- * floor. The dark base is untouched and keeps its 21.2.
+ * floor. That worst is over eight model and deficiency combinations from
+ * three published models, and it is lanes 3 and 5 under deuteranopia. The
+ * dark base is untouched and keeps its 21.2.
  *
  * A SUPERFLUOUS ENTRY IS A DEFECT TOO, not a harmless leftover: every banned
  * pair narrows the rotation's first choice, so a ban on a pair that is no

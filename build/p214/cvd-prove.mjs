@@ -108,5 +108,66 @@ for (const [label, lanes] of [['the lanes that shipped', SHIPPED], ['the parent 
   console.log(`      lanes 2 and 6 under Brettel protanopia: ${sep(hexToRgb(lanes[1]), hexToRgb(lanes[5]), simulateBrettel, 'protan').toFixed(1)}`);
 }
 console.log('\n      So the verifier reading of 27.0 for lanes 2 and 6 is refuted: three models');
-console.log('      agree that pair is 36.4 or better, and the worst pair anywhere on paper is');
-console.log('      33.9, being lanes 4 and 5 under the single plane model extended to tritan.');
+console.log('      agree that pair is 36.4 or better.');
+
+console.log('\n# Step 5. ONE OF THE NINE IS NOT MODELLING WHAT IT NAMES, and steps 1 and 2');
+console.log('did not catch it, which is the point of this step.');
+console.log('The single plane extended to tritanopia holds a fixed white point and it is');
+console.log('idempotent. It is also degenerate. Its two matrices round trip to the identity,');
+console.log('so this is not a transcription error, but on the tritan plane the reconstruction');
+console.log('gives red and green the same coefficients:');
+const F = [[17.8824, 43.5161, 4.11935], [3.45565, 27.1554, 3.86714], [0.0299566, 0.184309, 1.46709]];
+const RM = [
+  [0.0809444479, -0.130504409, 0.116721066],
+  [-0.0102485335, 0.0540193266, -0.113614708],
+  [-0.000365296938, -0.00412161469, 0.693511405]
+];
+const mm3 = (x, y) => x.map((r) => [0, 1, 2].map((j) => r[0] * y[0][j] + r[1] * y[1][j] + r[2] * y[2][j]));
+const ident = mm3(RM, F);
+console.log(`  the two matrices round trip: worst off diagonal ${Math.max(...ident.flatMap((r, i) => r.map((v, j) => (i === j ? Math.abs(v - 1) : Math.abs(v))))).toExponential(1)}`);
+for (const [name, row] of [['red  ', RM[0]], ['green', RM[1]], ['blue ', RM[2]]]) {
+  console.log(`  ${name} on the tritan plane: L ${(row[0] + row[2] * -0.395913).toFixed(6)}  M ${(row[1] + row[2] * 0.801109).toFixed(6)}`);
+}
+let sameRG = 0;
+let totalRG = 0;
+for (let r = 0; r < 256; r += 5) {
+  for (let g = 0; g < 256; g += 5) {
+    for (let b = 0; b < 256; b += 5) {
+      totalRG += 1;
+      const o = simulateVienot3([r, g, b], 'tritan');
+      if (o[0] === o[1]) sameRG += 1;
+    }
+  }
+}
+console.log(`  so R equals G in ${String(sameRG)} of ${String(totalRG)} colours, which is a red green confusion`);
+const plainGap = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const BLUE_ONLY = ['#8080c0', '#808040'];
+const RED_GREEN = ['#c08080', '#80c080'];
+console.log(`  a blue only difference of ${plainGap(hexToRgb(BLUE_ONLY[0]), hexToRgb(BLUE_ONLY[1])).toFixed(1)} reads:`);
+for (const [name, fn] of [['single plane', simulateVienot3], ['Machado', simulateMachado], ['Brettel', simulateBrettel]]) {
+  console.log(`      ${name.padEnd(13)} ${plainGap(fn(hexToRgb(BLUE_ONLY[0]), 'tritan'), fn(hexToRgb(BLUE_ONLY[1]), 'tritan')).toFixed(1)}`);
+}
+console.log(`  a mid red against a mid green of ${plainGap(hexToRgb(RED_GREEN[0]), hexToRgb(RED_GREEN[1])).toFixed(1)} reads:`);
+for (const [name, fn] of [['single plane', simulateVienot3], ['Machado', simulateMachado], ['Brettel', simulateBrettel]]) {
+  console.log(`      ${name.padEnd(13)} ${plainGap(fn(hexToRgb(RED_GREEN[0]), 'tritan'), fn(hexToRgb(RED_GREEN[1]), 'tritan')).toFixed(1)}`);
+}
+
+console.log('\n# Step 6. The worst pair over the EIGHT arms that model what they name.');
+const SOUND = MODELS.filter(([name]) => name !== 'Vienot tritan');
+for (const [label, lanes] of [['the lanes that shipped', SHIPPED], ['the parent c49a57d', PARENT]]) {
+  let all = { v: Infinity };
+  const under = [];
+  for (const [name, fn, kind] of SOUND) {
+    for (let i = 0; i < 6; i += 1) {
+      for (let j = i + 1; j < 6; j += 1) {
+        const v = sep(hexToRgb(lanes[i]), hexToRgb(lanes[j]), fn, kind);
+        if (v < all.v) all = { v, pair: `${String(i + 1)}-${String(j + 1)}`, name };
+        if (v < 32) under.push(`${String(i + 1)}-${String(j + 1)} ${name} ${v.toFixed(1)}`);
+      }
+    }
+  }
+  console.log(`  ${label}: worst pair ${all.pair} at ${all.v.toFixed(1)} under ${all.name}`);
+  console.log(`    pairs under the floor of 32: ${under.length === 0 ? 'NONE' : under.join(', ')}`);
+}
+console.log('\n  36.1 is the number the palette publishes, and it survives. What does not is');
+console.log('  the attribution: it is eight arms and not six, and one of the six was this.');
