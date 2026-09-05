@@ -40,6 +40,7 @@ import {
   CHROME_SHADE_MIN,
   CONTRAST_LEVELS,
   DEFAULT_CHROME_DEPTH,
+  DEFAULT_CHROME_HUE,
   DEFAULT_CHROME_SHADE,
   HIGHLIGHT_SCHEMES,
   sanitizeChromeDepth,
@@ -403,4 +404,38 @@ export function axisReading(
     ? refusalSentence(direction, why(range.min - 1), range.belowElsewhere, ends.below)
     : refusalSentence(direction, why(range.max + 1), range.aboveElsewhere, ends.above);
   return { range, moves, note };
+}
+
+
+/**
+ * WHAT A RESET PUTS BACK (Phase 214 committer's round), being every axis
+ * this base can MOVE and no other.
+ *
+ * The phase's promise is that nothing on paper writes the shade, because
+ * paper carries one shade and the row is absent rather than inert. Hiding
+ * the row alone did not keep it. The Frame group has one more control that
+ * this phase deliberately left in place, and Reset wrote all three fields
+ * whatever base it was pressed on: on paper, with the Depth nudged so the
+ * button was live, one press put the shade back to 0 and the shade a person
+ * had chosen on dark was gone from the settings file.
+ *
+ * So the patch is composed from the SAME two booleans the rows are drawn
+ * from. A control that is not on the face cannot be reset by the face, which
+ * is the same sentence as the rows: what a base cannot move, it does not
+ * touch. The hue is always in the patch because the Colour control is drawn
+ * on every base.
+ *
+ * It is a pure function here rather than three expressions in the component
+ * so that `npm run conformance:hue` rule 31 can RUN it beside the arithmetic
+ * that decides the rows, and so a base that later opens a second shade row
+ * gets its reset back with no edit.
+ */
+export function resetFrame(moves: {
+  shade: boolean;
+  depth: boolean;
+}): Partial<FrameChoice> {
+  const patch: Partial<FrameChoice> = { chromeHue: DEFAULT_CHROME_HUE };
+  if (moves.shade) patch.chromeShade = DEFAULT_CHROME_SHADE;
+  if (moves.depth) patch.chromeDepth = DEFAULT_CHROME_DEPTH;
+  return patch;
 }

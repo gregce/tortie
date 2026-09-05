@@ -87,6 +87,7 @@ import {
   depthRange,
   frameFailure,
   frameForBase,
+  resetFrame,
   shadeRange,
   type FrameChoice,
   type StopRange
@@ -232,13 +233,25 @@ export function selectChromeDepth(value: number): Promise<GmuxSettings | null> {
     .update({ chromeDepth: sanitizeChromeDepth(value) });
 }
 
-/** Put the whole frame back where it ships (Phase 210). For the test. */
-export function resetChromeFrame(): Promise<GmuxSettings | null> {
-  return useSettingsStore.getState().update({
-    chromeHue: DEFAULT_CHROME_HUE,
-    chromeShade: DEFAULT_CHROME_SHADE,
-    chromeDepth: DEFAULT_CHROME_DEPTH
-  });
+/**
+ * Put the frame back where it ships (Phase 210), being the axes THIS BASE
+ * CAN MOVE and no other (Phase 214 committer's round).
+ *
+ * Hiding the Shade row was not enough on its own. Reset is the one Frame
+ * control this phase deliberately kept on paper, and it wrote all three
+ * fields whatever base it was pressed on, so a person on paper who nudged
+ * Depth and then pressed Reset lost the shade they had chosen on dark. The
+ * patch is now composed by `resetFrame` from the same two booleans the rows
+ * are drawn from, which is one sentence for the whole group: what a base
+ * cannot move, it does not touch.
+ *
+ * The default is both axes, which is what the dark base answers and what the
+ * Phase 210 test calls it with.
+ */
+export function resetChromeFrame(
+  moves: { shade: boolean; depth: boolean } = { shade: true, depth: true }
+): Promise<GmuxSettings | null> {
+  return useSettingsStore.getState().update(resetFrame(moves));
 }
 
 /**
@@ -753,7 +766,9 @@ function FrameShapeRows(): React.JSX.Element {
           className={face.atDefault ? 'set-hue-reset blank' : 'set-hue-reset'}
           aria-hidden={face.atDefault ? true : undefined}
           tabIndex={face.atDefault ? -1 : undefined}
-          onClick={() => void resetChromeFrame()}
+          onClick={() =>
+            void resetChromeFrame({ shade: face.shadeMoves, depth: face.depthMoves })
+          }
         >
           Reset
         </button>

@@ -12,19 +12,32 @@
  * Both halves are asserted over EVERY frame a person can be holding, being
  * all 35 pairs the dark base offers, because the promise is about a frame
  * carried from dark rather than about one frame the report happened to name.
+ *
+ * THE COMMITTER'S ROUND ADDED THE LAST BLOCK, and it is the one that failed.
+ * The rows are not the only thing on the Frame group: Reset is a control this
+ * phase deliberately kept on paper, and it wrote all three fields whatever
+ * base it was pressed on. So the promise held for the rows and broke for the
+ * button, and a person on paper who nudged Depth and pressed Reset lost the
+ * shade they had chosen on dark. The block below is the whole press, being
+ * the face's two booleans and the patch composed from them.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { GmuxSettings, GmuxSettingsPatch } from '@shared/settings';
+import { defaultGmuxSettings } from '@shared/settings';
 import {
   axisReading,
   controlMoves,
   depthRange,
   frameForBase,
   frameIsOffered,
+  resetFrame,
   shadeRange,
   stopCount
 } from '../../theme/frame-stops';
 import { frameRegionFor } from '../../theme/presets';
+import { shippedBaseFor } from '../../theme/apply';
+import { frameFace, resetChromeFrame } from '../AppearanceSection';
 
 /** Every shade and depth pair a base offers, which is what a person can hold. */
 function offered(scheme: 'dark' | 'light'): { shade: number; depth: number }[] {
@@ -91,6 +104,108 @@ describe('the Shade control on paper (Phase 214)', () => {
       expect(frameIsOffered(onPaper.chromeShade, onPaper.chromeDepth, 'light')).toBe(true);
       // The setting itself never moved, so choosing Dark reads it back whole.
       expect(frameForBase(chosen, 'dark')).toEqual(chosen);
+    }
+  });
+});
+
+/** A fake settings bridge that answers set with the merged settings. */
+function installBridge(): ReturnType<typeof vi.fn> {
+  const settingsSet = vi.fn(
+    async (patch: GmuxSettingsPatch): Promise<GmuxSettings> => ({
+      ...defaultGmuxSettings(),
+      ...patch
+    })
+  );
+  (globalThis as { window?: unknown }).window = { gmux: { settingsSet } };
+  return settingsSet;
+}
+
+describe('the Reset button on paper (Phase 214 committer round)', () => {
+  const composition = { highlightScheme: 'blue' as const, contrastLevel: 'normal' as const };
+
+  it('is LIVE on paper once the one axis paper moves is off its shipped stop', () => {
+    // The repro the verifier drove: the button is hidden while the frame
+    // paper draws is the shipped one, and Depth is what makes it appear.
+    const carried = { chromeHue: 222, chromeShade: -2, chromeDepth: 0 };
+    const resting = frameFace('light', composition, shippedBaseFor('light'), carried);
+    expect(resting.shadeMoves).toBe(false);
+    expect(resting.atDefault).toBe(true);
+    const nudged = frameFace('light', composition, shippedBaseFor('light'), {
+      ...carried,
+      chromeDepth: -1
+    });
+    expect(nudged.atDefault).toBe(false);
+  });
+
+  it('writes no shade on paper, so one press cannot take the dark shade', async () => {
+    const settingsSet = installBridge();
+    try {
+      const face = frameFace('light', composition, shippedBaseFor('light'), {
+        chromeHue: 222,
+        chromeShade: -2,
+        chromeDepth: -1
+      });
+      await resetChromeFrame({ shade: face.shadeMoves, depth: face.depthMoves });
+      const patch = settingsSet.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(patch).toEqual({ chromeHue: 222, chromeDepth: 0 });
+      expect(patch).not.toHaveProperty('chromeShade');
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
+  });
+
+  it('writes all three on graphite, where both axes move', async () => {
+    const settingsSet = installBridge();
+    try {
+      const face = frameFace('dark', composition, shippedBaseFor('dark'), {
+        chromeHue: 40,
+        chromeShade: -2,
+        chromeDepth: 3
+      });
+      expect(face.shadeMoves && face.depthMoves).toBe(true);
+      await resetChromeFrame({ shade: face.shadeMoves, depth: face.depthMoves });
+      expect(settingsSet.mock.calls[0]?.[0]).toEqual({
+        chromeHue: 222,
+        chromeShade: 0,
+        chromeDepth: 0
+      });
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
+  });
+
+  it('composes the patch from the axes alone, over all four combinations', () => {
+    expect(resetFrame({ shade: true, depth: true })).toEqual({
+      chromeHue: 222,
+      chromeShade: 0,
+      chromeDepth: 0
+    });
+    expect(resetFrame({ shade: false, depth: true })).toEqual({
+      chromeHue: 222,
+      chromeDepth: 0
+    });
+    expect(resetFrame({ shade: true, depth: false })).toEqual({
+      chromeHue: 222,
+      chromeShade: 0
+    });
+    // A base that could move neither would still put the colour back, which
+    // is the one control drawn on every base.
+    expect(resetFrame({ shade: false, depth: false })).toEqual({ chromeHue: 222 });
+  });
+
+  it('leaves no frame on paper where a reset would reach the shade', () => {
+    // Over every frame a person can carry from dark onto paper, the reset
+    // patch never names the shade, whatever depth they are holding.
+    for (const { shade, depth } of offered('dark')) {
+      const face = frameFace('light', composition, shippedBaseFor('light'), {
+        chromeHue: 222,
+        chromeShade: shade,
+        chromeDepth: depth
+      });
+      const patch = resetFrame({ shade: face.shadeMoves, depth: face.depthMoves });
+      expect(patch, `carried ${String(shade)}/${String(depth)}`).not.toHaveProperty(
+        'chromeShade'
+      );
     }
   });
 });
