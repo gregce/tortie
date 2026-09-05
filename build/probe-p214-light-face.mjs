@@ -117,12 +117,19 @@ export function gradeFaces(read) {
     else if (face.shade.value !== -2) findings.push(`${name} the Shade slider reads ${String(face.shade.value)} rather than the -2 that was chosen`);
     if (face.depth === null) findings.push(`${name} the Depth row is not drawn`);
     else if (face.depth.value !== 3) findings.push(`${name} the Depth slider reads ${String(face.depth.value)} rather than the 3 that was chosen`);
-    if (face.scheme !== 'dark' && name === 'back on dark') findings.push('the window did not go back to the dark base');
+    // `applyAppearance` REMOVES the attribute on graphite rather than
+    // setting it to 'dark', because the dark palette is what tokens.css
+    // declares on the bare `:root`. So the reading for graphite is its
+    // ABSENCE, and asking for the word 'dark' here would be asking for a
+    // thing the product has never written.
+    if (face.scheme !== null) findings.push(`${name} the window root carries data-scheme="${String(face.scheme)}", where graphite removes the attribute`);
   }
   if (light.shade !== null) findings.push(`on paper the Shade row is drawn, reading ${String(light.shade.value)}, where the region is one shade row`);
   if ((light.shadeNote ?? '') !== '') findings.push(`on paper a hidden Shade control still says "${String(light.shadeNote)}"`);
   if (light.depth === null) findings.push('on paper the Depth row is not drawn, where four stops are offered');
   else if (light.depth.value !== 0) findings.push(`on paper the Depth slider reads ${String(light.depth.value)} rather than the stop the base draws`);
+  if (light.depthAsked === null || light.depthAsked === undefined) findings.push('the Depth slider on paper was never pushed, so its refusal line was never asked for');
+  else if (light.depthTook !== light.depth?.value) findings.push(`on paper the Depth slider was asked for ${String(light.depthAsked)} and TOOK ${String(light.depthTook)}, where the range ends at ${String(light.depth?.value)}`);
   if (!/depth/i.test(light.depthNote ?? '')) findings.push(`on paper the Depth refusal line reads "${String(light.depthNote)}"`);
   if (light.scheme !== 'light') findings.push(`the Settings window root is ${String(light.scheme)} rather than light`);
   // The rows the face draws, counted, so a third row appearing is a finding
@@ -197,6 +204,11 @@ export function gradeLanes(read) {
     }
   }
   if (read.shot !== true) findings.push('the graph was not photographed');
+  // A photograph of a collapsed sidebar would be a photograph of nothing.
+  const box = read.onScreen;
+  if (box === null || box === undefined) findings.push('the graph has no box, so it was not on screen when it was photographed');
+  else if (box.w <= 0 || box.h <= 0 || box.x < 0) findings.push(`the graph's box is ${String(box.w)}x${String(box.h)} at ${String(box.x)},${String(box.y)}, so the sidebar was shut when it was photographed`);
+  if (read.railPressed !== 'true') findings.push(`the Source control item reads aria-pressed=${String(read.railPressed)}, so the panel that was read was not the one on screen`);
   read.worstPair = worst;
   return findings;
 }
@@ -210,9 +222,9 @@ function selfTest() {
     say(`${good ? 'ok  ' : 'FAIL'} self-test ${name}: ${String(got)} finding(s)${got === 0 ? '' : ` (${findings[0]})`}`);
   };
   const faces = {
-    onDark: { scheme: null, shade: { value: -2 }, depth: { value: 3 }, shadeNote: 'x', depthNote: 'y', rows: 2 },
-    onLight: { scheme: 'light', shade: null, depth: { value: 0 }, shadeNote: '', depthNote: 'More depth puts the file colors under their contrast floor.', rows: 1 },
-    backOnDark: { scheme: 'dark', shade: { value: -2 }, depth: { value: 3 }, shadeNote: 'x', depthNote: 'y', rows: 2 }
+    onDark: { scheme: null, shade: { value: -2 }, depth: { value: 3 }, shadeNote: 'x', depthNote: 'y', rows: 2, depthAsked: null, depthTook: null },
+    onLight: { scheme: 'light', shade: null, depth: { value: 0 }, shadeNote: '', depthNote: 'More depth puts the file colors under their contrast floor.', rows: 1, depthAsked: 1, depthTook: 0 },
+    backOnDark: { scheme: null, shade: { value: -2 }, depth: { value: 3 }, shadeNote: 'x', depthNote: 'y', rows: 2, depthAsked: null, depthTook: null }
   };
   ok('a clean pair of faces', gradeFaces(faces), 'clean');
   ok('nothing read at all', gradeFaces(null), 'red');
@@ -221,6 +233,9 @@ function selfTest() {
   ok('the Depth row gone from paper too', gradeFaces({ ...faces, onLight: { ...faces.onLight, depth: null, rows: 0 } }), 'red');
   ok('the Shade row gone from graphite', gradeFaces({ ...faces, onDark: { ...faces.onDark, shade: null, rows: 1 } }), 'red');
   ok('the face drawing a shade nobody chose', gradeFaces({ ...faces, backOnDark: { ...faces.backOnDark, shade: { value: 0 } } }), 'red');
+  ok('graphite stamping a data-scheme of its own', gradeFaces({ ...faces, backOnDark: { ...faces.backOnDark, scheme: 'dark' } }), 'red');
+  ok('the Depth slider on paper never pushed', gradeFaces({ ...faces, onLight: { ...faces.onLight, depthAsked: null, depthTook: null } }), 'red');
+  ok('a Depth push on paper that was taken', gradeFaces({ ...faces, onLight: { ...faces.onLight, depthTook: 1 } }), 'red');
   const trip = {
     start: { chromeShade: -2, chromeDepth: 3, colorScheme: 'dark' },
     onLight: { chromeShade: -2, chromeDepth: 3, colorScheme: 'light' },
@@ -232,17 +247,20 @@ function selfTest() {
   ok('a depth overwritten while the graph was read', gradeRoundTrip({ ...trip, afterGraph: { chromeShade: -2, chromeDepth: 0, colorScheme: 'light' } }), 'red');
   ok('a scheme that never changed', gradeRoundTrip({ ...trip, onLight: { chromeShade: -2, chromeDepth: 3, colorScheme: 'dark' } }), 'red');
   ok('a round trip that was not read', gradeRoundTrip(null), 'red');
-  const wide = { rows: [{ colors: LIGHT_LANES.map((h) => `rgb(${rgbOf(h).join(', ')})`) }], shot: true };
+  const onScreen = { w: 14, h: 22, x: 96, y: 210 };
+  const wide = { rows: [{ colors: LIGHT_LANES.map((h) => `rgb(${rgbOf(h).join(', ')})`) }], shot: true, onScreen, railPressed: 'true' };
   ok('six lanes that stay apart', gradeLanes(wide), 'clean');
-  ok('a graph that never drew', gradeLanes({ rows: [], shot: true }), 'red');
+  ok('a graph that never drew', gradeLanes({ rows: [], shot: true, onScreen, railPressed: 'true' }), 'red');
+  ok('a graph photographed with the sidebar shut', gradeLanes({ ...wide, onScreen: { w: 0, h: 0, x: 0, y: 0 } }), 'red');
+  ok('a graph read off a panel the rail had closed', gradeLanes({ ...wide, railPressed: 'false' }), 'red');
   ok('a graph that was not photographed', gradeLanes({ ...wide, shot: false }), 'red');
-  ok('only five lanes ever live', gradeLanes({ rows: [{ colors: LIGHT_LANES.slice(0, 5) }], shot: true }), 'red');
-  ok('a lane painted a colour the palette does not have', gradeLanes({ rows: [{ colors: [...LIGHT_LANES.slice(0, 5), '#123456'] }], shot: true }), 'red');
+  ok('only five lanes ever live', gradeLanes({ rows: [{ colors: LIGHT_LANES.slice(0, 5) }], shot: true, onScreen, railPressed: 'true' }), 'red');
+  ok('a lane painted a colour the palette does not have', gradeLanes({ rows: [{ colors: [...LIGHT_LANES.slice(0, 5), '#123456'] }], shot: true, onScreen, railPressed: 'true' }), 'red');
   // The palette Phase 213 shipped, on the same row: the brown and the green
   // at 12.4. This is the fixture that proves the grader can see the defect.
   ok(
     'the palette Phase 213 shipped, at six live lanes',
-    gradeLanes({ rows: [{ colors: ['#2175bd', '#b23534', '#004f4e', '#833e00', '#613374', '#00530e'] }], shot: true }),
+    gradeLanes({ rows: [{ colors: ['#2175bd', '#b23534', '#004f4e', '#833e00', '#613374', '#00530e'] }], shot: true, onScreen, railPressed: 'true' }),
     'red'
   );
   // And the simulation itself, on facts that are not this file's own.
@@ -251,7 +269,7 @@ function selfTest() {
   if (Math.abs(separation(rgbOf('#833e00'), rgbOf('#00530e')) - 12.4) > 0.05) sim.push("Phase 213's 12.4 does not come back");
   if (Math.abs(separation(rgbOf('#4d9de8'), rgbOf('#d19fe8')) - 21.2) > 0.05) sim.push('research 24 section 7.4 21.2 does not come back');
   ok('the simulation reproduces the numbers this codebase publishes', sim, 'clean');
-  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 19 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
+  say(`${pass ? 'ok  ' : 'FAIL'} self-test: 24 fixtures, ${pass ? 'all behaved' : 'one or more did not'}`);
   return pass;
 }
 
@@ -382,8 +400,19 @@ async function pageFor(cdp, match, timeoutMs = 90_000) {
   }
 }
 
-/** The Appearance face, read off the Settings window's own DOM. */
-const FACE_JS = `(async () => {
+/**
+ * The Appearance face, read off the Settings window's own DOM.
+ *
+ * `pushDepthTo` is a stop to ASK THE DEPTH SLIDER FOR before the reading is
+ * taken, or null for no push. The refusal line is not on the resting face:
+ * `StopSliderRow` draws it only once a move has been refused, which is the
+ * Phase 174.1 rule and the reason a probe that only looked found an empty
+ * string. So paper is asked for a stop it cannot give, and what comes back
+ * is the stop it stayed at and the sentence it then says. A refused move
+ * writes nothing, which is what the settings file read straight after this
+ * one proves.
+ */
+const FACE_JS = (pushDepthTo) => `(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const nav = [...document.querySelectorAll('button, [role="tab"], a')].find((el) => (el.textContent || '').trim() === 'Appearance');
   if (nav) nav.click();
@@ -392,7 +421,13 @@ const FACE_JS = `(async () => {
   if (!section) return JSON.stringify(null);
   const read = (label) => { const el = section.querySelector('input[aria-label="' + label + '"]'); return el === null ? null : { value: Number(el.value), min: Number(el.min), max: Number(el.max) }; };
   const note = (label) => { const el = section.querySelector('input[aria-label="' + label + '"]'); if (el === null) return ''; const n = el.parentElement.querySelector('.set-frame-note'); if (n === null) return ''; return n.classList.contains('blank') ? '' : n.textContent.trim(); };
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+  const ask = async (label, value) => { const el = section.querySelector('input[aria-label="' + label + '"]'); if (el === null) return null; setter.call(el, String(value)); el.dispatchEvent(new Event('input', { bubbles: true })); await wait(900); const back = section.querySelector('input[aria-label="' + label + '"]'); return back === null ? null : Number(back.value); };
+  const askedDepth = ${String(pushDepthTo === null || pushDepthTo === undefined ? 'null' : String(pushDepthTo))};
+  const depthTook = askedDepth === null ? null : await ask('Depth', askedDepth);
   return JSON.stringify({
+    depthAsked: askedDepth,
+    depthTook,
     shade: read('Shade'),
     depth: read('Depth'),
     shadeNote: note('Shade'),
@@ -415,21 +450,41 @@ const CHOOSE_JS = (label) => `(async () => {
 /** The commit graph, read as computed strokes, one entry per drawn row. */
 const GRAPH_JS = `(async () => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const rail = [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') || '').startsWith('Source control'));
-  if (rail) rail.click();
-  for (let i = 0; i < 60; i += 1) {
-    if (document.querySelector('.scm-graph-lane')) break;
+  // THE RAIL ITEM IS A TOGGLE ON THE VIEW THAT IS ALREADY SHOWING, and
+  // 'scm' is SIDEBAR_VIEW_DEFAULT, so a blind click here COLLAPSES the
+  // sidebar rather than opening it. The lanes stay mounted when it does, so
+  // the reading still succeeds and the photograph shows an empty window,
+  // which is how the first run of this probe read six lanes off a sidebar
+  // nobody could see. It is pressed only when it says it is not pressed.
+  const rail = [...document.querySelectorAll('[data-slot="activity-bar"] .ab-item')].find((b) => (b.getAttribute('aria-label') || '').startsWith('Source control'));
+  if (rail !== undefined && rail.getAttribute('aria-pressed') !== 'true') rail.click();
+  // The History section carries the graph and it can be collapsed, so its own
+  // toggle is pressed when it says it is closed. The wait is for a LANE and
+  // not for the section, because the section exists before git has answered.
+  for (let i = 0; i < 90; i += 1) {
+    const toggle = document.querySelector('[data-section-root="history"] .section-toggle');
+    if (toggle !== null && toggle.getAttribute('aria-expanded') === 'false') toggle.click();
+    if (document.querySelector('[data-section-root="history"] .scm-graph-lane')) break;
     await wait(500);
   }
   const rows = [];
-  for (const svg of document.querySelectorAll('svg.scm-graph')) {
+  for (const svg of document.querySelectorAll('[data-section-root="history"] svg.scm-graph')) {
     const colors = [];
     for (const path of svg.querySelectorAll('.scm-graph-lane')) {
       colors.push(getComputedStyle(path).stroke);
     }
     if (colors.length > 0) rows.push({ colors, hues: [...svg.querySelectorAll('[data-hue]')].map((el) => Number(el.getAttribute('data-hue'))) });
   }
-  return JSON.stringify({ rows, scheme: document.documentElement.getAttribute('data-scheme') });
+  // AND WHERE IT IS ON SCREEN, so the photograph is provably of the thing
+  // that was read rather than of a window with the sidebar shut.
+  const first = document.querySelector('[data-section-root="history"] svg.scm-graph');
+  const box = first === null ? null : first.getBoundingClientRect();
+  return JSON.stringify({
+    rows,
+    scheme: document.documentElement.getAttribute('data-scheme'),
+    onScreen: box === null ? null : { w: Math.round(box.width), h: Math.round(box.height), x: Math.round(box.left), y: Math.round(box.top) },
+    railPressed: rail === undefined ? null : rail.getAttribute('aria-pressed')
+  });
 })()`;
 
 await withElectron(launch('p214 the light face and its lanes'), async () => {
@@ -455,7 +510,19 @@ await withElectron(launch('p214 the light face and its lanes'), async () => {
     `window.gmux.settingsSet({ colorScheme: 'dark', chromeShade: -2, chromeDepth: 3 }).then(() => true)`,
     30_000
   );
-  await app.eval(`window.gmux.projects.add(${JSON.stringify(project)}).then(() => true)`, 60_000).catch(() => null);
+  // THE PROJECT IS OPENED THROUGH THE SHIPPED STORE ACTION. `__gmuxP189Open`
+  // is one line over `addProjectPath`, which is exactly what the folder
+  // picker calls once it has answered, so this joins the shipped path one
+  // step after a dialog no probe can press. It is loaded only under
+  // `harness=1`, which `GMUX_PROBES=1` puts on the renderer's URL.
+  const opened = await app.eval(
+    `(window.__gmuxP189Open === undefined ? Promise.resolve(null) : window.__gmuxP189Open(${JSON.stringify(project)})).then((r) => JSON.stringify(r))`,
+    120_000
+  );
+  if (opened === null || opened === undefined || opened === 'null') {
+    throw new Error('the project was not opened: window.__gmuxP189Open answered nothing');
+  }
+  say(`the fixture repository is open: ${String(opened)}`);
   await sleep(1500);
 
   const trip = { start: await persisted() };
@@ -465,15 +532,20 @@ await withElectron(launch('p214 the light face and its lanes'), async () => {
   const sp = await pageFor(cdp, /settings/);
   await sleep(1500);
   await sp.call('Page.stopScreencast').catch(() => {});
-  const readFace = async () => {
-    const text = await sp.eval(FACE_JS, 60_000);
+  const readFace = async (pushDepthTo = null) => {
+    const text = await sp.eval(FACE_JS(pushDepthTo), 60_000);
     return text === null || text === undefined ? null : JSON.parse(text);
   };
+  // Graphite is read at rest: both its axes have room, so a push there would
+  // be accepted and would move the frame this run is carrying.
   faces.onDark = await readFace();
 
   await sp.eval(CHOOSE_JS('Light'), 60_000);
   await sleep(1500);
-  faces.onLight = await readFace();
+  // Paper's Depth range is -3..0 and the base draws 0, so 1 is one stop past
+  // the end. It must be refused, must leave the slider where it was, and
+  // must make the row speak.
+  faces.onLight = await readFace(1);
   trip.onLight = await persisted();
 
   // The graph, on paper, at six live lanes.
