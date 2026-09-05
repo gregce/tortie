@@ -23,7 +23,16 @@
  */
 
 import type { IBufferCell, IBufferRange, ITheme, Terminal } from '@xterm/xterm';
-import { TERMINAL_BACKGROUND, TERMINAL_FOREGROUND } from '../theme';
+import {
+  TERMINAL_BACKGROUND,
+  TERMINAL_FOREGROUND,
+  resolveTerminalContrastFloor
+} from '../theme';
+import {
+  ensureContrastRatio,
+  floorForCell,
+  treatGlyphAsBackgroundColor
+} from './contrast';
 
 export interface HtmlRange {
   /** Absolute buffer line index, inclusive. */
@@ -57,6 +66,32 @@ export interface HtmlSerializeOptions {
   lineHeightPx?: number;
   /** Per-character correction so the HTML advance matches xterm's cell grid. */
   letterSpacingPx?: number;
+  /**
+   * THE CONTRAST FLOOR THE SCREEN DREW AT (Phase 213). xterm applies
+   * `minimumContrastRatio` at DRAW time and changes no cell, so a capture
+   * built from the buffer carries the colour the agent asked for while the
+   * screen carries the colour the person can read. On the light base that
+   * floor is 4.5 and the difference is the whole picture: Claude Code's
+   * bullets are `#ffffff`, which is a page of invisible text on paper. So
+   * the same rule is applied to the same cells here, against the ground this
+   * markup really sits on. Omitted, it is the live pane's own floor, which is
+   * 1 on the dark base and therefore changes not one byte there.
+   */
+  contrastFloor?: number;
+}
+
+/**
+ * The ground the clipboard flavour puts the cells on. It is not the
+ * terminal's: a paste into a document is black on white with the ANSI
+ * colours kept, so a cell without a background of its own is read against
+ * white when the floor is applied.
+ */
+const CLIPBOARD_BACKGROUND = '#ffffff';
+
+/** What the floor needs to know: how high, and what the glyph sits on. */
+interface ContrastLift {
+  floor: number;
+  ground: string;
 }
 
 /** ITheme keys for palette entries 0–15, in ANSI order. */
@@ -152,7 +187,11 @@ function sameStyle(a: CellStyle, b: CellStyle): boolean {
   );
 }
 
-function readStyle(cell: IBufferCell, theme: ITheme): CellStyle {
+function readStyle(
+  cell: IBufferCell,
+  theme: ITheme,
+  lift: ContrastLift | null
+): CellStyle {
   const bold = cell.isBold() !== 0;
 
   let fg: string | null = null;
@@ -181,16 +220,38 @@ function readStyle(cell: IBufferCell, theme: ITheme): CellStyle {
     bg = fgWas;
   }
 
+  const dim = cell.isDim() !== 0;
+  const invisible = cell.isInvisible() !== 0;
+
+  // THE FLOOR, ON THE SAME CELLS THE SCREEN APPLIED IT TO. xterm exempts the
+  // powerline separators and the box drawing range, because those are drawn
+  // as a background rather than read as a letter, and it halves the floor for
+  // dim text so dim stays distinguishable from the text beside it. A cell
+  // with no foreground of its own inherits the wrapper's, which is already
+  // clear of the wrapper's ground, so it is only resolved when the cell
+  // carries a background that the inherited colour has to survive.
+  if (lift !== null && lift.floor > 1 && !invisible) {
+    const codepoint = cell.getChars().codePointAt(0);
+    const glyphIsBackground =
+      codepoint !== undefined && treatGlyphAsBackgroundColor(codepoint);
+    if (!glyphIsBackground && (fg !== null || bg !== null)) {
+      const ground = bg ?? lift.ground;
+      const ink = fg ?? theme.foreground ?? TERMINAL_FOREGROUND;
+      const lifted = ensureContrastRatio(ground, ink, floorForCell(lift.floor, dim));
+      if (lifted !== null) fg = lifted;
+    }
+  }
+
   return {
     fg,
     bg,
     bold,
     italic: cell.isItalic() !== 0,
-    dim: cell.isDim() !== 0,
+    dim,
     underline: cell.isUnderline() !== 0,
     strike: cell.isStrikethrough() !== 0,
     overline: cell.isOverline() !== 0,
-    invisible: cell.isInvisible() !== 0
+    invisible
   };
 }
 
@@ -245,6 +306,7 @@ function serializeRow(
   term: Terminal,
   y: number,
   theme: ITheme,
+  lift: ContrastLift | null,
   colStart = 0,
   colEnd = Number.POSITIVE_INFINITY
 ): string {
@@ -286,7 +348,9 @@ function serializeRow(
     // Width 0 = the trailing half of a wide (CJK/emoji) cell; the glyph was
     // already emitted with the leading half.
     if (c.getWidth() === 0) continue;
-    const style = c.isAttributeDefault() ? PLAIN : readStyle(c, theme);
+    // A default cell is the wrapper's own pair, which is clear of its own
+    // ground on both flavours, so the floor has nothing to do there.
+    const style = c.isAttributeDefault() ? PLAIN : readStyle(c, theme, lift);
     if (open === null || !sameStyle(open, style)) {
       flush();
       open = style;
@@ -313,8 +377,21 @@ export function serializeAsHtml(
     fontFamily,
     fontSizePx,
     lineHeightPx,
-    letterSpacingPx
+    letterSpacingPx,
+    contrastFloor = resolveTerminalContrastFloor()
   } = options;
+  // The ground the emitted markup really puts a cell on, which is what the
+  // floor is measured against: the terminal's own on a picture, and the
+  // document's white on the clipboard flavour.
+  const lift: ContrastLift | null =
+    contrastFloor > 1
+      ? {
+          floor: contrastFloor,
+          ground: includeGlobalBackground
+            ? (theme.background ?? TERMINAL_BACKGROUND)
+            : CLIPBOARD_BACKGROUND
+        }
+      : null;
 
   let range = options.range;
   // Column window, so a selection copies the characters the user dragged
@@ -341,6 +418,7 @@ export function serializeAsHtml(
         term,
         y,
         theme,
+        lift,
         y === first ? firstCol : 0,
         y === last ? lastColExclusive : Number.POSITIVE_INFINITY
       )

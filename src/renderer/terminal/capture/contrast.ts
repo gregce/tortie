@@ -19,8 +19,18 @@
  * Copyright (c) 2017 The xterm.js authors. The naive ten percent walk and the
  * try-one-direction-then-the-other order are xterm's and are kept exactly,
  * because the point is to reproduce what the screen drew and not to draw
- * something nicer: `__tests__/capture-contrast.test.ts` pins the three
- * mappings research 80 measured in the running app against this code.
+ * something nicer: `__tests__/capture-contrast.test.ts` pins the five cells
+ * research 80 section 1.3 measured in the running app against this code, and
+ * rule 29 of `npm run conformance:hue` pins the same five and asserts that
+ * ./serialize.ts really calls this.
+ *
+ * WHO CALLS IT, because a floor nothing applies is a floor nobody has.
+ * `./serialize.ts` is the one caller, and through it the whole BUFFER path,
+ * being Copy as HTML, a history capture and a selection scrolled out of
+ * view. The pixel path needs none of it: a screenshot already carries what
+ * xterm drew. The floor it is given is the live pane's own, which is 1 on
+ * the dark base, so dark markup is byte identical to what it was before this
+ * module existed.
  */
 
 /** The channels of a `#rrggbb`, or null for anything else. */

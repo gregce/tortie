@@ -815,6 +815,22 @@ interface Facts {
     /** The SHIPPING `CONFUSABLE_PAIRS`, as entries, or null if unreadable. */
     confusable: [number, number[]][] | null;
   };
+  /**
+   * THE CAPTURE FLOOR (Phase 213 fix round, finding 3). xterm applies
+   * `minimumContrastRatio` at draw time and changes no cell, so the buffer
+   * path has to apply the same rule itself or a light capture is a page of
+   * invisible text. What the SHIPPING extract answers for the five cells
+   * research 80 measured, on each ground, and whether the serializer really
+   * calls it, read from the module text so an ablation reaches it.
+   */
+  capture: {
+    onPaper: (string | null)[];
+    onGraphite: (string | null)[];
+    dim: string | null;
+    glyphExempt: boolean;
+    letterLifted: boolean;
+    wired: boolean;
+  } | null;
 }
 
 /**
@@ -903,8 +919,48 @@ async function readFacts(
       diffs: hostColorScheme(root, 'diffs-container'),
       tree: hostColorScheme(root, 'file-tree-container')
     },
-    lanes: await readLanes(root, load)
+    lanes: await readLanes(root, load),
+    capture: await readCapture(root, load)
   };
+}
+
+/** The five cells research 80 section 1.3 measured, in its own order. */
+const CAPTURE_CELLS = ['#ffd700', '#949494', '#afd7ff', '#ff87af', '#87d787'];
+
+/**
+ * THE CAPTURE FLOOR, read from the shipping extract and from the one file
+ * that is supposed to call it (Phase 213 fix round). The module shipped with
+ * no caller at all, so the wiring is half of what rule 29 asks.
+ */
+async function readCapture(
+  root: string,
+  load: (rel: string) => Promise<Record<string, unknown>>
+): Promise<Facts['capture']> {
+  try {
+    const mod = await load('renderer/terminal/capture/contrast.ts');
+    const ensure = mod['ensureContrastRatio'] as (
+      background: string,
+      foreground: string,
+      ratio: number
+    ) => string | null;
+    const exempt = mod['treatGlyphAsBackgroundColor'] as (codepoint: number) => boolean;
+    const floorFor = mod['floorForCell'] as (floor: number, dim: boolean) => number;
+    const serializer = readFileSync(
+      resolve(root, 'renderer/terminal/capture/serialize.ts'),
+      'utf8'
+    );
+    return {
+      onPaper: CAPTURE_CELLS.map((hex) => ensure('#f5f7fa', hex, 4.5)),
+      onGraphite: CAPTURE_CELLS.map((hex) => ensure('#131417', hex, 4.5)),
+      dim: ensure('#f5f7fa', '#ffffff', floorFor(4.5, true)),
+      glyphExempt: exempt(0x2500) && exempt(0xe0b0) && !exempt(0x0041),
+      letterLifted: ensure('#f5f7fa', '#ffffff', floorFor(4.5, false)) !== null,
+      wired:
+        /from '\.\/contrast'/.test(serializer) && /ensureContrastRatio\(/.test(serializer)
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -219,6 +219,19 @@
  *      needs a different light --git-conflict and --git-added, which is a
  *      palette change and not a rotation change.
  *
+ *  29. THE CAPTURE APPLIES THE FLOOR THE SCREEN APPLIED. xterm applies
+ *      `minimumContrastRatio` at DRAW time and changes no cell, so a capture
+ *      built from the BUFFER, being Copy as HTML, a history capture and a
+ *      selection scrolled out of view, would carry the colour the agent asked
+ *      for while the screen carried the colour the person can read. On paper
+ *      that is a page of invisible text. The five cells research 80 section
+ *      1.3 measured go through the SHIPPING extract on both grounds and are
+ *      pinned; the dim floor is half; the glyphs xterm exempts are exempt;
+ *      and the serializer, the one caller, must really name it, which the
+ *      phase shipped without. The pins are the arithmetic's own answers
+ *      rather than the research table's pixels, because a glyph pixel is the
+ *      drawn colour blended with its ground.
+ *
  * Contrast is re-derived HERE with culori's full entry rather than read from
  * the modules, so a module that lied about a ratio would still be caught;
  * the verifier is asked to re-derive it once more with arithmetic of its own.
@@ -304,6 +317,19 @@ const ABLATIONS = [
       [
         '  [0, [4]],\n  [1, [2]],\n  [2, [1]],\n  [3, [5]],\n  [4, [0]],\n  [5, [3]]\n]);',
         '  [0, [4]],\n  [4, [0]]\n]);'
+      ]
+    ]
+  },
+  {
+    // Phase 213 fix round, rule 29. The module shipped with no caller at all,
+    // so a light capture carried the colour the agent asked for while the
+    // screen carried the colour the person could read.
+    name: 'the capture floor left unwired in the serializer',
+    file: 'renderer/terminal/capture/serialize.ts',
+    edits: [
+      [
+        "      const lifted = ensureContrastRatio(ground, ink, floorForCell(lift.floor, dim));",
+        "      const lifted = null as string | null;\n      void ground;\n      void ink;"
       ]
     ]
   },
@@ -534,6 +560,7 @@ function ablatedCopy(root, ablation) {
   // And the graph's rotation, for rule 28's ablation (Phase 213 fix round).
   // Its only import is a sibling type module, so the pair is the whole copy.
   mkdirSync(join(root, 'renderer', 'scm', 'graph'), { recursive: true });
+  mkdirSync(join(root, 'renderer', 'terminal', 'capture'), { recursive: true });
   for (const rel of [
     ['renderer', 'editor', 'monaco-theme.ts'],
     ['renderer', 'editor', 'monaco-theme-name.ts'],
@@ -541,7 +568,9 @@ function ablatedCopy(root, ablation) {
     ['renderer', 'styles', 'tokens.css'],
     ['renderer', 'styles', 'globals.css'],
     ['renderer', 'scm', 'graph', 'colors.ts'],
-    ['renderer', 'scm', 'graph', 'types.ts']
+    ['renderer', 'scm', 'graph', 'types.ts'],
+    ['renderer', 'terminal', 'capture', 'contrast.ts'],
+    ['renderer', 'terminal', 'capture', 'serialize.ts']
   ]) {
     cpSync(join(repoRoot, 'src', ...rel), join(root, ...rel));
   }
@@ -740,6 +769,9 @@ function literalFixtures(base) {
 // judged by this file the way every ratio in it already is.
 // ---------------------------------------------------------------------------
 
+/** The five cells rule 29 names, in the order the probe reads them. */
+const CAPTURE_CELLS_SAID = ['#ffd700', '#949494', '#afd7ff', '#ff87af', '#87d787'];
+
 const LANE_ROW_GROUNDS = {
   dark: ['#0e0f13', '#202329', '#252931'],
   light: ['#edeff3', '#e5e7ed', '#d9dce3']
@@ -855,6 +887,52 @@ function pinLanes(a) {
 let lastLaneNumbers = [];
 
 /**
+ * RULE 29: THE CAPTURE APPLIES THE FLOOR THE SCREEN APPLIED.
+ *
+ * xterm applies `minimumContrastRatio` at DRAW time, in its renderer, and
+ * changes no cell. So a capture built from the BUFFER carries the colour the
+ * agent asked for while the screen carries the colour the person can read,
+ * and on the light base, where the floor is 4.5, that is the difference
+ * between a picture and a page of invisible text: research 80 measured
+ * Claude Code drawing its bullets in #ffffff at 1.07:1 on paper.
+ *
+ * The phase shipped the arithmetic and no caller, so this rule asks both
+ * halves. The five cells research 80 section 1.3 measured are put through
+ * the SHIPPING extract on each ground and pinned; the dim floor is half; the
+ * glyphs xterm exempts are exempt here; and the serializer, which is the one
+ * caller and carries the whole buffer path, must really name it.
+ *
+ * The pins are the ARITHMETIC's answers, not the research table's pixels: a
+ * glyph pixel is the drawn colour blended with its ground by antialiasing,
+ * which is why the two agree exactly on the neutral grey and sit a few
+ * levels apart on the four chromatic cells. #ffd700's blue channel is 0 and
+ * xterm's walk only ever subtracts, so the drawn colour cannot carry the
+ * blue the photograph read.
+ */
+const CAPTURE_PINS = {
+  onPaper: ['#867000', '#6b6b6b', '#5a7086', '#a65771', '#467046'],
+  dim: '#a6a6a6'
+};
+
+function pinCapture(a) {
+  const problems = [];
+  const capture = a.facts?.capture;
+  if (capture === undefined || capture === null) return ['rule 29: the capture floor could not be read'];
+  for (const [i, want] of CAPTURE_PINS.onPaper.entries()) {
+    const got = capture.onPaper[i];
+    if (got !== want) problems.push(`rule 29: on paper the capture draws cell ${String(i + 1)} as ${String(got)} where xterm's own walk reaches ${want}`);
+  }
+  for (const [i, got] of capture.onGraphite.entries()) {
+    if (got !== null) problems.push(`rule 29: on graphite the capture would move cell ${String(i + 1)} to ${String(got)}; every one of them already clears the floor there, which is why dark is byte identical`);
+  }
+  if (capture.dim !== CAPTURE_PINS.dim) problems.push(`rule 29: a dim cell is lifted to ${String(capture.dim)} rather than ${CAPTURE_PINS.dim}, so the halved floor is not being read`);
+  if (!capture.letterLifted) problems.push('rule 29: a letter that cannot be read on paper is not lifted at all');
+  if (!capture.glyphExempt) problems.push('rule 29: the box drawing and powerline glyphs xterm exempts are not exempt here, so a frame would get a seam of another colour through it');
+  if (!capture.wired) problems.push('rule 29: the serializer does not call the floor, so the buffer path draws what the agent asked for and the screen draws something else');
+  return problems;
+}
+
+/**
  * RULES 24 AND 25 over one answer (Phase 213): what the surfaces that do not
  * read a token at draw time say, and whether the dark half of each is still
  * the bytes the parent commit had. A list of problems, so rule 13 can run it
@@ -874,8 +952,9 @@ function pinFacts(a) {
     if (carry.lightToDarkUnmoved !== carry.lightOffered) problems.push(`rule 27: going back to Dark moved ${String(carry.lightOffered - carry.lightToDarkUnmoved)} of the ${String(carry.lightOffered)} frames the light base offers; every one of them is inside the dark region`);
     if (carry.movedToLight === 0) problems.push('rule 27: not one frame moved on the way to paper, so frameForBase is doing nothing and the rule cannot fail');
   }
-  // Rule 28's clauses live here too, so an ablated copy reaches them.
+  // Rules 28 and 29 live here too, so an ablated copy reaches them.
   problems.push(...pinLanes(a));
+  problems.push(...pinCapture(a));
   const t = facts.terminal;
   if (Object.keys(t.light).length !== Object.keys(t.dark).length) {
     problems.push(`rule 24: the light terminal theme has ${String(Object.keys(t.light).length)} keys against the dark theme's ${String(Object.keys(t.dark).length)}`);
@@ -1866,6 +1945,7 @@ try {
       say(`${TAG} rule 24: the window fill ${String(facts.windowFill.dark)} to ${String(facts.windowFill.light)} at hue 222, ${String(facts.windowFill.darkAt40)} to ${String(facts.windowFill.lightAt40)} at hue 40`);
       say(`${TAG} rule 25: DARK IS BYTE IDENTICAL to the parent 02fd5ed. tokens ${facts.tokensSha.dark.slice(0, 12)}, terminal ${sha(facts.terminal.dark).slice(0, 12)}, Monaco ${sha(facts.monaco.dark).slice(0, 12)}, Pierre ${facts.pierre.darkSha.slice(0, 12)}, fill ${String(facts.windowFill.dark)} and ${String(facts.windowFill.darkAt40)}, xterm floor ${String(facts.terminal.floorDark)}`);
       for (const line of lastLaneNumbers) say(`${TAG} rule 28: the graph lanes on ${line}, and every one of them is avoided by the rotation`);
+      say(`${TAG} rule 29: the capture floor draws ${CAPTURE_CELLS_SAID.map((hex, i) => `${hex} as ${String(facts.capture.onPaper[i])}`).join(', ')} on paper and moves none of them on graphite, and the serializer calls it`);
       say(`${TAG} rule 25: and the light base is a different set of bytes throughout: tokens ${facts.tokensSha.light.slice(0, 12)}, terminal ${sha(facts.terminal.light).slice(0, 12)}, Monaco ${sha(facts.monaco.light).slice(0, 12)}, Pierre ${facts.pierre.lightSha.slice(0, 12)}`);
     }
   }
