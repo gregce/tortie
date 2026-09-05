@@ -196,9 +196,10 @@
  *      CONSTANT files and nowhere else under src/. Everywhere else a hex or an
  *      rgb() is a surface that would keep its dark colour on paper. The scan
  *      strips comments, allows an alpha MASK gradient, whose `#000` is an
- *      alpha channel and not a colour, and carries four named exemptions with
- *      their reasons. It is proved on eight fixtures this file writes itself,
- *      five of which must make it fail, because a scan that cannot fail is the
+ *      alpha channel and not a colour, reads the two named colours a dark
+ *      surface would reach for as colours too, and carries four named
+ *      exemptions with their reasons. It is proved on twelve fixtures this
+ *      file writes itself, seven of which must make it fail, because a scan that cannot fail is the
  *      thing this gate exists to refuse.
  *
  * ## The fix round's rule
@@ -661,6 +662,18 @@ const MASK_PROPERTIES = new Set(['mask-image', 'mask', '-webkit-mask-image', '-w
 
 const COLOUR_IN_VALUE = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla)\(\s*[\d.]/;
 const COLOUR_IN_STRING = /(['"`])(?:#[0-9a-fA-F]{3,8}|(?:rgb|rgba|hsl|hsla)\(\s*[\d.])/;
+/**
+ * The two named colours a dark surface would reach for (Phase 213 fix
+ * round). The scan matched hex and the functional notations only, so a
+ * stylesheet saying `background: white` or `color: black` would have walked
+ * past it. Nothing in the tree says either today, so this is hardening, and
+ * the two are enough: they are the ends of the neutral ramp and the only
+ * names a surface keeping its old colour would plausibly use. Matched as a
+ * whole word in a declaration VALUE, so `white-space`, which is a property,
+ * and `--text-on-black`, which is a token name, are not colours.
+ */
+const COLOUR_NAME_IN_VALUE = /(?:^|[\s,(])(?:white|black)(?=$|[\s,;)])/i;
+const COLOUR_NAME_IN_STRING = /(['"`])(?:white|black)\1/i;
 
 /** Block comments everywhere, line comments where the `//` is not inside a string. */
 function stripComments(text, kind) {
@@ -696,12 +709,16 @@ function scanFile(rel, text) {
       const property = m[2];
       const value = m[3];
       if (MASK_PROPERTIES.has(property)) continue;
-      if (COLOUR_IN_VALUE.test(value)) hits.push(`${rel}: ${property}: ${value.trim().slice(0, 60)}`);
+      if (COLOUR_IN_VALUE.test(value) || COLOUR_NAME_IN_VALUE.test(value)) {
+        hits.push(`${rel}: ${property}: ${value.trim().slice(0, 60)}`);
+      }
     }
     return hits;
   }
   for (const line of body.split('\n')) {
-    if (COLOUR_IN_STRING.test(line)) hits.push(`${rel}: ${line.trim().slice(0, 80)}`);
+    if (COLOUR_IN_STRING.test(line) || COLOUR_NAME_IN_STRING.test(line)) {
+      hits.push(`${rel}: ${line.trim().slice(0, 80)}`);
+    }
   }
   return hits;
 }
@@ -750,7 +767,11 @@ function literalFixtures(base) {
     ['a quoted colour in a module', true, 'renderer/a/e.ts', "export const fill = '#131417';\n"],
     ['a colour in a line comment', false, 'renderer/a/f.ts', "// the shipped ground is '#131417'\nexport const fill = 'var(--bg-canvas)';\n"],
     ['a URL that carries two slashes before a colour', true, 'renderer/a/g.ts', "export const u = 'https://x/y'; export const fill = '#131417';\n"],
-    ['an rgb() built in a template string', true, 'renderer/a/h.ts', 'export const fill = `rgb(19, 20, 23)`;\n']
+    ['an rgb() built in a template string', true, 'renderer/a/h.ts', 'export const fill = `rgb(19, 20, 23)`;\n'],
+    ['a named colour as a value', true, 'renderer/a/i.css', '.x { background: white; }\n'],
+    ['a named colour in a theme object', true, 'renderer/a/j.ts', "export const theme = { background: 'black' };\n"],
+    ['white-space, which is a property and not a colour', false, 'renderer/a/k.css', '.x { white-space: pre; }\n'],
+    ['a token whose NAME ends in black', false, 'renderer/a/l.css', '.x { color: var(--text-on-black); }\n']
   ];
   const out = [];
   for (const [name, shouldFail, rel, text] of files) {

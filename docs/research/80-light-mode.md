@@ -108,6 +108,28 @@ palette. The per photograph worst pair is the lowest contrast text on screen.
 | CodeWhale (deepseek-tui) | paints `#121c2e` over every cell; trust box `#3578e5` 4.04, body `#b1becf`; self consistent on its own ground | UNMEASURED: its trust dialog wants `1/Y`, the drive answered Enter and the pane was gone by the turn | UNMEASURED | UNMEASURED | 502 of 502 RGB on an RGB ground; hard 100 percent |
 | Factory Droid | UNMEASURED: not installed on this machine (`AGENT_NOT_FOUND` from the app) | | | | |
 
+**THREE CORRECTIONS FROM THE VERIFICATION ROUND, made where they change what a reader concludes.**
+
+1. **Every colour quoted above is what the agent ASKED FOR, read from the cell before the floor.** The
+   shipped answer applies the floor at draw time, so on paper every one of those texts is lifted and
+   readable; the verifier read `#837122` and `#6b6b6b` in the pixels of the shipped build's Claude Code
+   photograph, which are exactly the lifts section 1.3 predicts. What the floor does NOT reach is a mark
+   that is not text: one pixel rules and hollow box borders drawn in a pale yellow stay where they are,
+   being Claude Code's separator `#f9d949` at 1.30 as a 2160 by 1 pixel box, pi's update box rules
+   `#fafb8f` at 1.02, and Gemini's trust box border `#faf7c4` at 1.02. The table would be read wrongly
+   without that sentence: it lists the worst pair per screen, and after the floor those pairs are rules
+   rather than words.
+2. **CodeWhale's ground was read as `#0d1525` on a later run** where this table recorded `#121c2e`. It is
+   the same fact either way, being an agent painting its own dark window inside the light one, and the
+   bytes move with what the vendor ships.
+3. **The lifts in section 1.3 are PHOTOGRAPH readings and not the arithmetic's answers**, and they differ
+   by a few levels on every chromatic cell because a glyph pixel is the drawn colour blended with its
+   ground by antialiasing. `#ffd700` is the clear case: the walk only ever subtracts and its blue channel
+   is already 0, so the drawn colour is `#867000` and cannot carry the `22` of blue the pixel read. The
+   neutral grey agrees exactly, `#949494` to `#6b6b6b`, which is what says the difference is the
+   photograph. `src/renderer/terminal/capture/__tests__/capture-contrast.test.ts` and rule 29 of the hue
+   gate pin the arithmetic's own column beside these.
+
 Two things the table says that the entry did not expect. First, "with a permission prompt up" is a state
 most agents on his machine never enter, because his defaults are permissive (Claude Code "don't ask on",
 Cursor and Codex auto approving, pi and omp applying); Muse alone asked. Second, the lowest contrast on
