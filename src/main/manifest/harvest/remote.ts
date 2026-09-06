@@ -67,9 +67,29 @@ import {
 } from './claim-strength';
 // PHASE 215. The SAME predicate ./stores.ts asks of a local file, asked here
 // of head bytes that came over a connection. It is a shared function rather
-// than a second implementation because this rung was measured re-implementing
-// codex's confirm by hand, so a fix confined to ./stores.ts would have left a
-// connected machine taking sub agents exactly as this Mac used to.
+// than a second implementation because this rung re-implements codex's confirm
+// by hand, so a fix confined to ./stores.ts would have left this arm reading
+// the one field a sub agent inherits from its parent verbatim.
+//
+// WHAT THAT IS WORTH TODAY, and the fix round corrected this sentence because
+// the first one claimed more than the measurement supports. The refusal below
+// is CORRECT and, at the shipped head budget, UNREACHABLE over real records.
+// `REMOTE_HARVEST_HEAD_BYTES` in ../../machines/remote-harvest.ts is 8,192,
+// and over the operator's own 25,976 rollouts (read only, 2026-09-06) the
+// SHORTEST line 1 of his 523 sub agent rollouts is 13,798 bytes and the
+// longest is 22,298, with only 171 of his 25,453 session records fitting
+// inside 8,192 at all. So `firstJsonLine` is handed a truncated line, refuses
+// it, and this arm answers `unknown` 523 times out of 523. Handed the whole
+// line it answers `mismatch` 200 of 200.
+//
+// AND THAT COSTS NO ROW, which is why the answer is a sentence rather than a
+// bigger read. `decideRemoteHarvest` below accepts a verdict of exactly
+// `match`, so an `unknown` has never produced a claim, at the parent commit or
+// here: no connected machine was taking sub agents over his store before this
+// phase, and none is now. The refusal becomes reachable the day the budget
+// passes the size of a codex `session_meta` line, and `conformance:derived`
+// rule 8 says which side of that line the shipped budget is on rather than
+// assuming it.
 import { codexDerivedRecord } from './derived';
 import { DESCRIPTORS, type HarvestDescriptor } from './stores';
 
@@ -473,6 +493,8 @@ export function confirmRemoteCandidate(
   switch (agent) {
     case 'codex': {
       const first = firstJsonLine(head);
+      // A line 1 the head budget cut in half lands here, and it is most of
+      // them: see the note on the `codexDerivedRecord` import for the sizes.
       if (first === null) return 'unknown';
       // PHASE 215. A sub agent inherits its parent's cwd verbatim, so the
       // comparison below would call it a match on any machine.

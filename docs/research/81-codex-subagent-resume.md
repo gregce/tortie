@@ -315,11 +315,25 @@ derivedStream:
   of `DESCRIPTORS` (Phase 73, connected machines). It reuses `roots` and `identify` but deliberately
   does NOT reuse `confirm`: `confirmRemoteCandidate` at line 462 is a hand written switch that
   re-implements every agent's confirm from head bytes, **and codex is one of its five arms**,
-  reading the same single `payload.cwd` at lines 470-478. A fix confined to `stores.ts` leaves a
-  connected machine taking sub agents exactly as this Mac does today. The `record` form of the
-  declaration must therefore take PARSED RECORDS rather than a path, so one predicate serves the
-  local read of a file and the remote read of head bytes, and `confirmRemoteCandidate` calls it
-  before its switch.
+  reading the same single `payload.cwd` at lines 470-478. A fix confined to `stores.ts` leaves that
+  arm reading the one field a sub agent inherits verbatim. The `record` form of the declaration must
+  therefore take PARSED RECORDS rather than a path, so one predicate serves the local read of a file
+  and the remote read of head bytes, and `confirmRemoteCandidate` calls it before its switch.
+- **What that arm is worth today, and the fix round corrected this section.** This document first
+  said the remote arm "leaves a connected machine taking sub agents exactly as this Mac does today",
+  and over his own store that is not true in either direction. `REMOTE_HARVEST_HEAD_BYTES` is 8,192
+  and a codex `session_meta` line is much bigger than that: over his 25,976 rollouts the shortest
+  line 1 of the 523 derived ones is **13,798 bytes** and the longest is 22,298, the largest line 1
+  anywhere in the store is 34,526, and only **171 of his 25,453** session records fit inside 8,192
+  at all. Driven at exactly 8,192 the shipping arm answers `unknown` for **523 of 523** derived
+  rollouts and never `mismatch`; handed a 1 MiB head it answers `mismatch` **200 of 200**. So the
+  predicate is right and the head budget is what makes it unreachable. **It was taking nothing
+  before the fix either**, because `decideRemoteHarvest` accepts a verdict of exactly `match`, so an
+  `unknown` produces no claim at the parent commit or at HEAD. The honest statement is that the
+  remote arm is correct, costs nothing, and becomes reachable only if the head budget grows past the
+  size of a `session_meta` line, which today it does not. `conformance:derived` rule 8 reads the
+  budget out of the live half and says which side of that line it is on, rather than either
+  assuming reach or pinning a number a later round may have good reason to change.
 
 ## 7. Related
 

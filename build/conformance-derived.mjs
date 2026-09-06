@@ -42,6 +42,13 @@
  *  7. THE ABLATIONS. One clause removed at a time from the pure module, and
  *     every copy must turn a pinned answer red, naming the clause. A check that
  *     cannot fail is never mistaken for one that passed.
+ *  8. THE REMOTE ARM'S REACH, which the phase asserted and this fix round
+ *     measured. The refusal is correct AND, at the shipped head budget, it is
+ *     unreachable over real records: a codex `session_meta` line is bigger
+ *     than the 8,192 bytes that rung is handed. The rule reads the budget out
+ *     of the live half, drives the shipping arm at sizes on both sides of it,
+ *     and proves the property that makes the gap cost nothing, being that only
+ *     a `match` may ever win a remote harvest.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -402,6 +409,7 @@ const ABLATIONS = [
 
 function main() {
   const fixturePath = join(scratch, 'fixtures.json');
+  const headBytes = shippedRemoteHeadBytes();
   writeFileSync(
     fixturePath,
     JSON.stringify({
@@ -413,7 +421,8 @@ function main() {
       ),
       paths: Object.fromEntries(
         Object.entries(PATHS).map(([name, f]) => [name, f.spec])
-      )
+      ),
+      remote: remoteFixture(headBytes)
     })
   );
 
@@ -429,6 +438,7 @@ function main() {
   checkDeclaration(data);
   const pinned = checkAnswers(data, 'the shipping module');
   checkScanners();
+  checkRemoteReach(data, headBytes);
   checkRepair();
   checkAblations(fixturePath, pinned);
   finish();
@@ -736,6 +746,210 @@ function remoteCodexArmAsks(source) {
   const next = source.indexOf('case ', arm + 10);
   const body = source.slice(arm, next === -1 ? source.length : next);
   return /codexDerivedRecord\(/.test(body);
+}
+
+// ---------------------------------------------------------------------------
+// Rule 8. What the remote refusal is worth, said rather than assumed.
+// ---------------------------------------------------------------------------
+
+/**
+ * What was measured over the operator's own store on 2026-09-06, read only.
+ *
+ * A codex `session_meta` line is BIG, and that is the whole of rule 8. The
+ * remote rung is handed a bounded head rather than a file, so a refusal that
+ * lives on line 1 is only reachable when line 1 fits in the head.
+ */
+const HIS_STORE = {
+  rollouts: 25_976,
+  sessions: 25_453,
+  derived: 523,
+  /** Bytes of line 1, smallest and largest, over the 523 derived rollouts. */
+  derivedLine1: [13_798, 22_298],
+  /** The largest line 1 anywhere in the store. */
+  largestLine1: 34_526,
+  /** Session records whose line 1 fits inside 8,192 bytes. */
+  sessionsInside8k: 171
+};
+
+/**
+ * The head budget the LIVE half really sends, read out of its own source.
+ *
+ * It is scanned rather than imported because `../machines/remote-harvest.ts`
+ * is the live half: importing it would pull in the control plane, the ssh
+ * runner and Electron, and this gate launches none of those. A budget that
+ * cannot be read is a failure naming the constant, not a default.
+ */
+function shippedRemoteHeadBytes() {
+  const file = 'src/main/machines/remote-harvest.ts';
+  const source = readFileSync(resolve(file), 'utf8');
+  const found = readHeadBytes(source);
+  if (found === null) {
+    fail(
+      `rule 8: REMOTE_HARVEST_HEAD_BYTES could not be read out of ${file}, ` +
+        'so what the remote refusal is worth is unknown rather than measured.'
+    );
+    return 0;
+  }
+  return found;
+}
+
+/** The head budget a source declares, or null. Underscores are separators. */
+function readHeadBytes(source) {
+  const m = /export const REMOTE_HARVEST_HEAD_BYTES\s*=\s*([0-9_]+)/.exec(source);
+  if (m === null) return null;
+  const value = Number(m[1].replace(/_/g, ''));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+const CWD = '/Users/gdc/runstory';
+const OTHER_CWD = '/Users/gdc/rookery';
+
+/** A `session_meta` of each kind, to be padded to an exact byte length. */
+const remoteRecord = (derivedRecord, cwd) =>
+  derivedRecord
+    ? meta({
+        id: OWN,
+        session_id: PARENT,
+        parent_thread_id: PARENT,
+        cwd,
+        thread_source: 'subagent',
+        source: { subagent: { thread_spawn: { parent_thread_id: PARENT, depth: 1 } } }
+      })
+    : meta({ id: PARENT, session_id: PARENT, cwd, thread_source: 'user', source: 'cli' });
+
+/**
+ * The cases, and the two sizes on either side of the budget are computed from
+ * the budget rather than written down, so this rule keeps saying the truth
+ * whatever a later round sets the budget to.
+ */
+function remoteCases(headBytes) {
+  return {
+    'a sub agent one byte inside the budget': {
+      derived: true, cwd: CWD, bytes: Math.max(headBytes - 1, 400)
+    },
+    'a sub agent one byte past the budget': {
+      derived: true, cwd: CWD, bytes: headBytes + 1
+    },
+    'a sub agent the size of the SMALLEST in his store': {
+      derived: true, cwd: CWD, bytes: HIS_STORE.derivedLine1[0]
+    },
+    'a sub agent the size of the LARGEST in his store': {
+      derived: true, cwd: CWD, bytes: HIS_STORE.derivedLine1[1]
+    },
+    'a session in this folder, inside the budget': {
+      derived: false, cwd: CWD, bytes: Math.max(headBytes - 1, 400)
+    },
+    'a session in another folder, inside the budget': {
+      derived: false, cwd: OTHER_CWD, bytes: Math.max(headBytes - 1, 400)
+    },
+    'a session the size of the LARGEST line 1 in his store': {
+      derived: false, cwd: CWD, bytes: HIS_STORE.largestLine1
+    }
+  };
+}
+
+function remoteFixture(headBytes) {
+  const cases = {};
+  for (const [name, spec] of Object.entries(remoteCases(headBytes))) {
+    cases[name] = { record: remoteRecord(spec.derived, spec.cwd), bytes: spec.bytes };
+  }
+  return { headBytes, sessionCwd: CWD, cases };
+}
+
+/**
+ * Rule 8, and it is a fix round's rule rather than the phase's.
+ *
+ * The phase said the remote arm was "the finding a fix confined to stores.ts
+ * would have missed" and that it stops a connected machine taking sub agents
+ * exactly as this Mac did. The predicate IS correct, and over his own store
+ * that sentence was still not true: at the shipped 8,192 byte budget every one
+ * of his 523 derived rollouts answers `unknown` rather than `mismatch`,
+ * because the SHORTEST derived line 1 is 13,798 bytes and `firstJsonLine`
+ * refuses a truncated line. Handed the whole line the same arm answers
+ * `mismatch`.
+ *
+ * That costs no row, and the third arm below is why: `decideRemoteHarvest`
+ * accepts a verdict of exactly `match`, so an `unknown` has never produced a
+ * claim, at the parent commit or here. So this rule does not force a budget.
+ * It states which side of the line the shipped budget is on, fails if a
+ * derived record ever answers `match` at any size, and fails if an `unknown`
+ * or a `mismatch` ever wins.
+ */
+function checkRemoteReach(data, headBytes) {
+  const remote = data.remote;
+  if (remote === undefined || headBytes === 0) {
+    fail('rule 8: the probe did not answer for the remote arm.');
+    return;
+  }
+  if (remote.headBytes !== headBytes) {
+    fail(
+      `rule 8: the probe was driven at ${remote.headBytes} bytes and the live ` +
+        `half sends ${headBytes}.`
+    );
+  }
+  const specs = remoteCases(headBytes);
+  let reachable = 0;
+  // Counted, so the note below cannot say "no sub agent answered match" in the
+  // same breath as failing because one did. That is the shape of the hardcoded
+  // count this same fix round took out of rule 5.
+  let calledMatch = 0;
+  for (const [name, spec] of Object.entries(specs)) {
+    const got = remote.cases[name];
+    if (got === undefined) {
+      fail(`rule 8: the probe said nothing about "${name}".`);
+      continue;
+    }
+    // At full length the answer is the predicate's: a derived record is
+    // refused whatever folder it names, and a session is judged on its folder.
+    const wantFull = spec.derived ? 'mismatch' : spec.cwd === CWD ? 'match' : 'mismatch';
+    // At the head budget a line that does not FIT cannot be parsed, and an
+    // unparseable head is `unknown`. That is a refusal to answer rather than
+    // an answer, which is why it costs nothing.
+    const fits = got.line1Bytes <= headBytes;
+    const wantHead = fits ? wantFull : 'unknown';
+    if (got.atFull !== wantFull) {
+      fail(
+        `rule 8: "${name}" at full length answered "${got.atFull}" and the ` +
+          `measurement says "${wantFull}".`
+      );
+    }
+    if (got.atHead !== wantHead) {
+      fail(
+        `rule 8: "${name}" at the ${headBytes} byte budget answered ` +
+          `"${got.atHead}" and a line of ${got.line1Bytes} bytes ` +
+          `${fits ? 'fits, so it says' : 'does not fit, so it can only say'} ` +
+          `"${wantHead}".`
+      );
+    }
+    // THE SAFETY PROPERTY, asked of every size: a sub agent may never be
+    // called this session's, whatever the budget is and however it truncates.
+    if (spec.derived && (got.atHead === 'match' || got.atFull === 'match')) {
+      calledMatch += 1;
+      fail(`rule 8: "${name}" is a sub agent and the remote arm called it a match.`);
+    }
+    if (spec.derived && fits) reachable += 1;
+  }
+  // Only `match` may win. This is what makes an `unknown` cost no row, so it
+  // is asked rather than assumed.
+  if (remote.decide.match !== 'the-only-candidate') {
+    fail('rule 8: a confirmed candidate did not win, so this rule proves nothing.');
+  }
+  for (const verdict of ['unknown', 'mismatch']) {
+    if (remote.decide[verdict] !== null) {
+      fail(
+        `rule 8: a candidate whose verdict is "${verdict}" won a remote ` +
+          'harvest. Only a match may ever produce a claim.'
+      );
+    }
+  }
+  const smallest = HIS_STORE.derivedLine1[0];
+  notes.push(
+    `rule 8: the remote budget is ${headBytes} bytes; the smallest sub agent ` +
+      `line 1 in his store is ${smallest}, so the refusal is ` +
+      `${headBytes >= smallest ? 'REACHABLE over his real records' : 'unreachable over his real records and answers unknown there'}` +
+      `; ${reachable} of 4 sub agent fixtures fit the budget, and ` +
+      `${calledMatch === 0 ? 'no sub agent answered match at any size' : `${calledMatch} sub agent fixtures answered MATCH`}.`
+  );
 }
 
 /** Rule 6. */
