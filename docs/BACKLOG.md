@@ -21580,6 +21580,121 @@ honestly and the answer is what re-scoped this:
   break the agents that use a background meaningfully to rescue two that do not.
 - **No change to the dark base**, no new control, no per token picking, no new package.
 
+## Phase 215: a resume id names a session, never one of its sub agents (operator reported 2026-09-05)
+
+**Subject.** `fix(manifest): a codex resume id is the thread a person can resume`
+
+**First body line.** `Phase 215: the resume id is the session`
+
+**Semver.** PATCH.
+
+**Tier 3**, by the first question in the tiering rules: it can lose the person's work. A manifest row
+holding an unresumable id is a conversation he cannot get back after a reboot, which is the one
+promise this product is built on. The evidence is real data over his own store, two independent
+methods one of which is an attack, and a fix round if any verdict is needs_work.
+
+**Charter.** He restarted his machine on 2026-09-05, went to restore his sessions, and codex refused
+one of them. His words and the exact refusal:
+
+> `codex resume 01a0696a-75d1-7af1-8f22-de5903c5ebeb --dangerously-bypass-approvals-and-sandbox`
+> `Error: Failed to resume session from ~/.codex/sessions/2026/09/03/rollout-2026-09-03T18-36-19-01a0696a-75d1-7af1-8f22-de5903c5ebeb.jsonl: thread/resume failed during TUI bootstrap: thread/resume failed: cannot resume an unloaded multi-agent v2 sub-agent through its parent; resume the parent first, or use thread/read to inspect it (code -32600)`
+
+Tortie session `63354c91-83b8-41d9-8bad-ed3d32cc045d`.
+
+### What was measured before anything was designed, and it is the whole diagnosis
+
+Read from his own store, read only, on 2026-09-05.
+
+1. **The id in his manifest row is a SUB AGENT thread, not a session.** Line 1 of that rollout is a
+   `session_meta` whose `id` is `01a0696a-75d1-7af1-8f22-de5903c5ebeb`, whose `thread_source` is
+   `"subagent"`, and whose `session_id`, `parent_thread_id` and `forked_from_id` are all
+   `01a06966-7253-7a72-afc1-ae84664a7cd5`. Its `source` is
+   `{subagent: {thread_spawn: {parent_thread_id: 01a06966..., depth: 1, agent_path: "/root/gmux_forensics", agent_nickname: "Hegel"}}}`.
+   **The parent it names is the resumable thread and its rollout is still on disk**, at
+   `rollout-2026-09-03T18-31-56-01a06966-7253-7a72-afc1-ae84664a7cd5.jsonl`, 19,020,912 bytes, last
+   written at 19:06, half an hour AFTER the sub agent's own file stopped growing.
+2. **Why Tortie chose the wrong one, exactly.** The codex descriptor in
+   `src/main/manifest/harvest/stores.ts` uses `key: 'cwd-newest'` and its `confirm` reads ONE field
+   of line 1, being `payload.cwd`. A sub agent inherits its parent's cwd verbatim, `/Users/gdc/runstory`
+   in this case, so it confirms as a match. It is also NEWER: the parent opened at 18:31:56 and three
+   sub agents opened at 18:36:19, 18:36:25 and 18:36:30. Newest wins, so a sub agent wins.
+   `HARVEST_WINDOW_MS` is six hours, so the window is wide open when they appear.
+3. **The scale, and this is why it is not a one off.** Of the 184 rollouts in his `sessions/2026/09`
+   shards, **165 are `thread_source: "subagent"`**. Nine in ten. Any codex session that spawns sub
+   agents and is harvested after they appear takes one of their ids.
+4. **Tortie already refuses this for another agent, and the reason it missed here is a path
+   assumption.** The muse descriptor at `stores.ts` line 511 says `and never subagent/, whose
+   task-streams are not resumable sessions`, and drops that directory in `recurse`. muse puts sub
+   agents in their own directory, so a PATH rule is enough. Codex writes them into the same date
+   shard with the same `rollout-<ts>-<uuid>.jsonl` filename shape, so only the file's CONTENTS tell
+   them apart, and the only content Tortie reads is the cwd.
+5. **The confidence is overstated.** The descriptor declares `confidence: 'exact'` while its own
+   comment records the same-folder residual Phase 34 left open. A row that names an unresumable
+   thread was recorded as exact.
+
+### What it builds
+
+- **The codex `confirm` refuses a sub agent rollout.** A rollout whose line 1 `session_meta` carries
+  `thread_source: "subagent"`, or a `source.subagent`, or a `parent_thread_id` that differs from its
+  own `id`, is a `'mismatch'` and can never be harvested. The three tests are asked together and any
+  one of them is enough, because the phase does not get to assume which fields a later codex keeps.
+  With sub agents refused, `cwd-newest` picks the newest thread a person can actually resume, which
+  in his case is the parent that is still on disk.
+- **A repair for rows already written, and it is the half he can feel.** His manifest holds broken
+  ids right now and a fix to the harvester does not touch them. On boot, once, a repair reads each
+  codex row's stored id, finds its rollout, and if line 1 says sub agent, follows `parent_thread_id`
+  to the parent, confirms the parent's rollout exists and is not itself a sub agent, and rewrites the
+  row to the parent. **It walks the chain rather than one hop**, because `depth` is a field and
+  nothing promises it is 1. A row whose parent cannot be found or read is LEFT EXACTLY AS IT IS and
+  reported, never guessed at and never cleared, because a wrong id a person can see beats a row that
+  quietly emptied.
+- **The row says what it is.** A repaired row records that it was repaired and from what, so the
+  next reader is not left wondering why the id moved.
+- **The confidence stops overstating.** Where the descriptor's own comment already says the claim is
+  weak for this agent, the recorded strength says so too.
+
+### What it must get right
+
+- **No row is ever emptied.** Every failure path leaves the stored id untouched. The repair only
+  ever replaces an id it has proved is a sub agent with a parent it has proved exists.
+- **The repair is idempotent and runs once per boot.** Running it twice changes nothing the second
+  time, and it is proved so.
+- **A resumable id is never rewritten.** A row already naming a real session is byte identical after
+  the repair, over his whole store.
+- **The chain terminates.** A cycle in `parent_thread_id`, a self reference, or a depth beyond a
+  stated bound leaves the row alone rather than looping.
+- **No other agent's harvest changes.** claude, cursor, muse, omp and the rest are byte identical.
+- **Nothing is written to his own store.** The repair writes the manifest and never a rollout.
+
+### Proof, run rather than read
+
+- **Real data over his own store, read only**: every codex rollout in his `sessions/` shards
+  classified as session or sub agent by the shipping predicate, the 165 of 184 re-derived, and every
+  codex row in a COPY of his manifest run through the repair with a before and after table saying
+  which rows moved, which were left alone and why. His live manifest is never written by an agent.
+- **The end to end proof, on a scratch store**: a real codex session that spawns a real sub agent,
+  created by the probe on a scratch `CODEX_HOME`, harvested by the shipping harvester, and the
+  harvested id then handed to `codex resume` to prove it opens rather than refusing. That is the
+  measurement that says the bug is actually fixed, and it must use a scratch home and his own login
+  and never a fixture credential.
+- **Attack**: a rollout whose line 1 is not JSON; one with `thread_source` absent but `source.subagent`
+  present; one with a `parent_thread_id` naming a rollout that does not exist; a two deep chain; a
+  cycle; a `.zst` sub agent rollout; a rollout moved into `archived_sessions` between the read and
+  the repair; and two Tortie processes repairing one manifest at once.
+- **Measure the parent commit**: his exact row at HEAD's parent resolves to the sub agent and fails,
+  and at HEAD resolves to `01a06966-7253-7a72-afc1-ae84664a7cd5` and opens.
+- `npm run conformance:resume:capture` and the full `conformance:resume` roundtrip, plus a new gate
+  arm for the sub agent predicate and the repair, red one clause at a time under ablation.
+- The battery, and `smoke:t3` because this is restore.
+
+### What is NOT in this phase
+
+- **No change to how any other agent is harvested.**
+- **No attempt to resume a sub agent.** codex says it cannot be resumed through its parent and Tortie
+  believes it; the sub agent is not offered, hidden or repaired into something it is not.
+- **No repair of a row whose parent is gone.** Left alone and reported.
+- **No new package, no schema change beyond what the repair note needs.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -21990,3 +22105,4 @@ cycle rather than only the evening it was written.
 - 2026-09-05, Phase 214 BUILT, the light face and its lanes: the Shade row is not drawn on the light base because paper carries one shade, and the guard is the length of the axis range asked per axis rather than a base name, so a base that later opens a second row gets its control back with no edit; Colour and Depth stay because both still move, Depth keeping its own refusal sentence. The setting underneath is untouched, so the shade a person holds on dark is not written by anything on paper and comes back exactly, which `frameForBase` and the fifth app launch Phase 213 added both still prove. Seven light declarations moved and nothing else on either base did: `--git-deleted` #b23534 to #b62926, `--git-conflict` #833e00 to #823c00 and `--git-added` #00530e to #2c6a3b, with `--error`, `--error-wash`, `--success` and `--success-wash` following them, because three of the six light lanes are aliases of git decorations and research 80 had solved each to its own pinned ratio and never against the others. Paper's worst pair goes 12.4 to 36.1 against a floor of 32 and no pair falls under it at all, so the limit Phase 213 stated at six live lanes is gone; the rotation's avoidance map is back to the dark base's one entry, and a superfluous ban is now a defect the gate names. `npm run conformance:hue` gains rule 30, the lane separation with the simulation proved on a neutral, on blue against yellow, on red against green and on the 21.2 and the 12.4 this codebase already publishes, and rule 31, that no base offers a control with a single stop, asked as arithmetic that is RUN and as a scan of the face that draws it. Four new ablations, one clause each. `npm run probe:p214` is the app run. THE PARENT MEASUREMENT IS THE SAME PROBE RUN AGAINST `c49a57d`, and it is red where the phase claims and green where it does not: paper drew TWO stop slider rows there with an inert Shade at 0, and the graph's widest row carried #833e00 against #00530e at 12.4 and #b23534 against #004f4e at 26.9, both under the floor, 46 findings in all against 0 at HEAD. The round trip was already green at the parent, which is honest rather than flattering: Phase 213's committer's round had guarded the setting inside the slider and this phase removed the slider instead. THE PROBE HAD A FIX ROUND OF ITS OWN and it is the lesson: its first pass reported three findings that were all its own, being a grader asking for a `data-scheme` of 'dark' where graphite REMOVES the attribute, a refusal line read at rest when `StopSliderRow` only draws one after a move is refused, and a project opened through a bridge method that does not exist behind a catch that swallowed it. Fixing the third exposed the worst of them: 'scm' is SIDEBAR_VIEW_DEFAULT, so the blind rail click COLLAPSED the sidebar, the lanes stayed mounted, and the run read six live lanes off a panel the photograph showed as an empty window. The grader now reads the graph's own bounding box and the rail item's pressed state, and 24 fixtures cover it. The eager renderer set moved 545 raw bytes and 174 gzip, from 1,548,092 to 1,548,637, which is a palette that changed no token count.
 - 2026-09-05, Phase 214 FIX ROUND on the verifier's needs_work, the light face and its lanes. THREE FINDINGS, NONE OF THEM IN THE COLOUR OUTCOME, and no colour moved: over the whole round `git diff` shows not one token line changed in tokens.css, only its comment. F1 reproduced exactly. "Paper's worst pair is now 36.1 over six published dichromat models" was in DESIGN.md, tokens.css, colors.ts and a commit body, and 36.1 is the worst in the GATE's metric, being the minimum over Vienot protanopia and deuteranopia; over the six the measure step actually ran the worst on the shipped lanes is 33.9, the six reading 38.1, 36.1, 33.9, 36.4, 38.3 and 40.1. F2 reproduced. `build/p214/cvd.mjs`'s header said the measure step used three models and named Brettel 1997, the two half plane model, and that function was not in the file, which is why the verifier wrote its own and read the shipped lanes 2 and 6 at 27.0 under protanopia, nine below what the palette publishes. **THE 27.0 IS REFUTED BY MEASUREMENT.** The model is in the file now, being the published linear sRGB half planes, and it reads that pair at 41.4 where Machado reads 36.4 and Vienot 40.1. It is asked three things first: each half plane matrix is singular at about 4e-6 because a projection onto a plane must be, white is a fixed point of both, and THE TWO HALVES AGREE ON THEIR OWN SHARED BOUNDARY TO 0.008 OF 255, which is the check a mis-scaled anchor cannot pass and a mis-scaled anchor is the likeliest way to get a wrong answer here, since the anchors are published in one LMS normalisation and used in another they still give two plausible planes that do not meet at the hinge. The published matrices are also re-derived from the construction the header claims, being linear sRGB to CIE XYZ, XYZ to Smith and Pokorny LMS, the CIE 1931 two degree functions at 475, 575, 485 and 660 nm and the plane through white and one anchor, recovering every coefficient to 0.011, the residual being the Judd and Vos correction the published fit uses and this derivation does not. **CHASING F1 FOUND SOMETHING LARGER THAN EITHER FINDING.** The arm the 33.9 comes from is DEGENERATE. Its two matrices round trip to the identity at 4.1e-9 so it is not a transcription error, but substitute the tritan plane into the reconstruction and red and green come out with the SAME coefficients, 0.034733 on L and -0.036998 on M, so R equals G in 140,460 of 140,608 colours: a red green confusion wearing the name of a blue yellow one. It leaves a blue only difference of 128.0 at 128.0, completely untouched, where Machado reads 49.3 and Brettel 34.7, and it pushes a mid red and a mid green from 90.5 to 255.0. IT HELD A FIXED WHITE POINT AND IT WAS IDEMPOTENT THROUGHOUT, which is exactly what the measure step checked. **So 36.1 survives for a better reason than the one it was published with**: it is the worst over the EIGHT arms that model what they name, being Vienot for protanopia and deuteranopia and Machado 2009 and Brettel 1997 for all three, at lanes 3 and 5 under deuteranopia, with no pair under 32 anywhere, against the parent's worst of 4.7 and eight pairs under the floor; the verifier's proposed replacement of 33.9 would have been the degenerate arm's reading. The four sites now say eight arms and name the pair. F3 is recorded rather than fixed, in DESIGN.md so a later round is not surprised: Shade sits above Depth, so hiding Shade on paper lifts the Depth row into the rectangle the Shade slider occupies on graphite, both at x 513 y 420, and the shade a person holds on dark is safe because paper has nothing that writes it while the depth is not; the rows are not reordered because putting Depth first would change the dark face and the dark face is byte identical on purpose. THE GATE ARM: rule 30's floor was asked in ONE metric, the one the palette was solved in, which says nothing about tritanopia at all, so it cleared a paper palette in which two lanes collapse for a tritanope; it is now asked of the eight, and `proveLaneSimulation` asks every arm to move something as well as hold a neutral, asks each tritanopia arm to confuse blue with yellow AND spare red against green, and asks Brettel's six half planes to be singular and to meet on their own boundary. The new ablation is a `--graph-lane-5` of `#000088`, which reads 38.1 in the solved metric and goes red naming Machado tritanopia at 28.1 and saying the metric the palette was solved in does not see it; 41 ablations each red, the gate green, the walk at 644 s against the 570 s CLAUDE.md carried, which is corrected there with the reason. The battery from a clean `out/` is typecheck, build with electron, background, known-hosts and contract, test 12,105 passed and 2 skipped over 770 files, and smoke:t1 6 of 6. Eager headroom 451,363 raw, unchanged, this round spending 0. Version still 0.100.0, no tag.
 - 2026-09-05, Phase 214 LANDED on `daa3053` at version 0.100.0 with NO bump, the declared semver being PATCH after the amendment dropped it from MINOR, the light face and its lanes, eighteen commits, the last four being the committer's own round on the verifier's needs_work. WHAT HE CAN NOW DO: use light mode without a slider that does nothing. Settings then Appearance on Light shows TWO sliders, Colour and Depth, where the parent showed THREE with a Shade slider sitting at 0 that could not move a single stop in either direction; the Shade row is simply not there on paper, and its refusal sentence goes with it because there is nothing to refuse. Depth still moves on light, four stops of it, and still says why when he pushes it past the end. Choosing Dark brings Shade straight back at the stop he chose, because nothing on paper writes it. THE PALETTE WAS DELIBERATELY NOT RE-SOLVED and the reason is his: the measure step priced three shade rows on paper as REACHABLE, 13 of 49 cells against 4, every cell inside the dark region, but they cost `--accent-text` 4.69 to 5.57 on the sidebar and the status dots 3.40 to 4.1 on the active row AT THE DEFAULT LIGHT FRAME for every person on light forever, four rows cost 6.10 and 4.5 and are a redesign, five are unreachable, and shown that he said light mode may be simplified rather than over engineered. The measure commits are kept at `69b052d` and `c0c34d2` for a later round that wants them. EVERY COLOUR THAT CHANGED IS A BRANCH LANE AND THERE ARE SEVEN OF THEM: `--git-deleted` #b23534 to #b62926, `--git-conflict` #833e00 to #823c00 and `--git-added` #00530e to #2c6a3b, with `--error`, `--error-wash`, `--success` and `--success-wash` following the first and third because three of the six light lanes are aliases of git decorations. Nothing else on light moved and DARK IS BYTE IDENTICAL, proved by four declaration digests in the gate at every run. THE SEPARATION: paper's worst lane pair goes 4.7 with eight pairs under the floor at the parent to 36.1 with none under it at HEAD, measured over the eight model and deficiency arms that model what they name, being Vienot for protanopia and deuteranopia and Machado 2009 and Brettel 1997 for all three, the worst being lanes 3 and 5 under deuteranopia; the app run reads six live lanes off a real octopus merge row and gets 36.1 there too. One number a person may see moved the wrong way and it is disclosed: the light green's contrast on the selected row falls 6.82 to 4.73, still over its floor. THE FIX ROUND'S OWN FINDING was that the phase had published 36.1 as the worst over six models when 36.1 is the worst in the ONE metric the palette was solved in, and chasing that found the arm that gave the six their 33.9 was degenerate, giving red and green identical coefficients on the tritan plane so R equals G in 140,460 of 140,608 colours while holding a fixed white point and staying idempotent, which is all the measure step had checked; Brettel was named in a header and was not in the file until this round put it there, re-derived from CIE anchors to 0.011 a coefficient, and it refutes the verifier's 27.0 by reading that pair at 41.4. THE COMMITTER'S ROUND is the verifier's needs_work and it is the last hole in the promise: Reset is drawn on every base, it wrote all three frame fields whatever base it was pressed on, so a person on paper who nudged Depth and pressed it lost the shade he had chosen on dark; re-derived in a vitest first and then measured in a running app, 2 findings at the pre-fix code with the file holding shade 0 and graphite drawing 0, and 0 after with the file holding -2. The patch is now composed from the same two booleans the rows are drawn from, which is one sentence for the whole group, being that what a base cannot move it does not touch. THE TWO AGENTS STAY REFUSED and the reason has not changed: Grok and CodeWhale paint their own dark ground over every cell, 6,192 of 6,192 for Grok, and stripping those escapes to rescue two agents would break every agent that uses a background meaningfully, so they read as a dark box inside a light window. THE GATE is `npm run conformance:hue` with 43 ABLATIONS EACH RED in 654 s, rule 30 asking the lane floor of eight dichromat arms with each model proved to move something, to confuse what it names and to spare what it does not, and rule 31 asking that no base offers a control with one stop and that a reset writes only what the base draws, as arithmetic that is RUN and as a scan of the face that draws it. The battery from a clean `out/` is typecheck, build with electron, background, known-hosts and contract, test 12,110 passed and 2 skipped over 770 files, smoke:t1 6 of 6, conformance:hue, gate:contract byte identical and gate:background; `npm run probe:p214` reads 4 steps with 0 findings and 30 self-test fixtures behave. HEADROOM: the eager set is 1,548,845 raw under 2,000,000 by 451,155, the committer's round spending 208 raw bytes, which is a palette that changed no token count. THE MENUS GAINED AND LOST NOTHING: the Shade row lives in Settings then Appearance and no menu ever named it. VERIFIER METHODS: an independent Brettel written from the published construction rather than copied and agreeing with the phase's on its own boundary to 0.008 of 255, an independent re-derivation of the worst pair over eight arms it built itself from the published constructions, an attack on the phase's own stop question that refuted the model attribution, a hostile palette planted in the gate to prove rule 30 could fail, the parent commit measured in a running app for both the face and the reset, and the whole Appearance face driven with real events reading the settings FILE rather than the DOM.
+- 2026-09-05, Phase 215 QUEUED, the resume id is the session: he rebooted, went to restore, and codex refused one of his sessions with cannot resume an unloaded multi-agent v2 sub-agent through its parent. MEASURED BEFORE QUEUING, read only over his own store: the id in his row is a SUB AGENT thread whose line 1 says `thread_source: subagent` and names parent `01a06966-7253-7a72-afc1-ae84664a7cd5`, whose rollout is still on disk at 19 MB and was written half an hour after the sub agent's; the codex descriptor picks `cwd-newest` and its `confirm` reads only `payload.cwd`, which a sub agent INHERITS VERBATIM, and three sub agents opened five minutes after the parent so the newest is always one of them; the harvest window is six hours; and 165 of the 184 rollouts in his September shards are sub agents, so this is nine in ten rather than a one off. Tortie ALREADY refuses this for muse at stores.ts line 511 because muse puts sub agents in their own directory, and it missed codex because codex writes them into the same shard with the same filename shape, so only the contents tell them apart. The phase refuses a sub agent rollout at confirm by three fields asked together, AND repairs rows already written by walking parent_thread_id to a parent it proves exists, leaving any row it cannot prove exactly as it is rather than emptying it. Tier 3 because it can lose his work, with the end to end proof being a real codex session and a real sub agent on a scratch CODEX_HOME whose harvested id is then handed to codex resume.
