@@ -60,7 +60,12 @@ import { agyOwnedConversations } from './agy-owner';
 // ./remote.ts asks the SAME question of head bytes that came over a
 // connection.
 import {
+  codexHomeOfRollout,
+  codexStateFor
+} from './codex-state';
+import {
   codexDerivedRecord,
+  codexRecordId,
   derivedByPath,
   derivedByRecords,
   derivedRecordLines,
@@ -278,6 +283,11 @@ export interface HarvestDescriptor {
  */
 const ROLLOUT_RE =
   /^rollout-(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\.jsonl(\.zst)?$/;
+
+/** The uuid a rollout filename carries, or null. */
+function identifyRolloutUuid(path: string): string | null {
+  return ROLLOUT_RE.exec(basename(path))?.[7] ?? null;
+}
 
 /**
  * qwen's project-dir encoding: every character outside [a-zA-Z0-9] becomes
@@ -506,6 +516,21 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
       // function is what a test, a rescue and any future caller reaches for,
       // and the belt is cheaper than the argument about which of them ran.
       if (codexDerivedRecord([first])) return 'mismatch';
+      // AND THE VENDOR'S OWN ANSWER, from `state_5.sqlite`. A refusal by
+      // EITHER is a refusal, so the ORDER does not change the verdict, and the
+      // rollout is asked first only because its bytes are already in hand
+      // while this may open a file. Over his store the rollout is a superset,
+      // catching two 0.125.0-alpha.3 records the store says nothing about; the
+      // store is asked anyway because it is codex STATING the answer, and a
+      // later codex that stops writing a marker into the rollout would still
+      // write the column. Absent, older than the column, locked or missing the
+      // row all answer 'unknown', which changes nothing.
+      const codexHome = codexHomeOfRollout(path);
+      if (codexHome !== null) {
+        const id = codexRecordId(first) ?? identifyRolloutUuid(path);
+        const state = id === null ? null : codexStateFor(codexHome);
+        if (id !== null && state?.derived(id) === 'derived') return 'mismatch';
+      }
       const payload = first['payload'];
       const cwdRaw =
         payload !== null && typeof payload === 'object'

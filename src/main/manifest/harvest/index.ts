@@ -33,6 +33,18 @@ export { isDescendantOf, resetProcessParentCache } from './process-table';
  * local file read, the remote head read and the boot repair.
  */
 export {
+  closeCodexState,
+  codexHomeOfRollout,
+  codexStateFor,
+  codexStatePath,
+  openCodexState,
+  safeToOpenReadOnly,
+  type CodexStateReader,
+  type CodexStoreVerdict,
+  type CodexThreadRow
+} from './codex-state';
+
+export {
   codexDerivedRecord,
   codexParentThreadId,
   codexRecordId,
