@@ -21898,6 +21898,118 @@ to change for that to flip.
 - **No rename of any protected identifier.** The tmux socket, the config file, the `@gmux-*` options,
   the pane env and the inner data directory keep their names on every platform.
 
+## Phase 217 — the dev build and the installed app run the same tmux (operator reported 2026-09-06)
+
+**Subject.** `fix(tmux): a development build runs the tmux the app carries`
+
+**First body line.** `Phase 217: one tmux, and a refusal that says what to do`
+
+**Semver.** PATCH.
+
+**Tier 2.** It changes which binary a development build resolves, which is a behaviour a person meets
+on every `npm run dev`, and it changes a refusal screen's words. It cannot lose his work: the guard
+this phase is about is the thing that PROTECTS his sessions, and the phase does not weaken it by one
+clause. One app run, and one independent method, plus the parent commit measurement, which is
+mandatory because he reported it.
+
+**Charter.** This entry and his report of 2026-09-06, plus `src/main/tmux/resolve.ts`,
+`src/main/tmux/version.ts` and `build/tmux-release.json`. **The guard is not the defect and is not
+touched.** `TESTED_TMUX_PAIRS` stays a single ordered pair, the refusal stays a refusal, and nothing
+here attaches across a pair nobody measured.
+
+### What he saw, and what was actually happening
+
+He ran the development build after a restart and it refused to list projects or sessions:
+
+> `The session server on this machine is running tmux 3.7b. Tortie runs tmux 3.6a. Tortie has not
+> tested that pair, so it will not attach to it.` — server 3.7b, client 3.6a, socket gmux, client at
+> `/opt/homebrew/bin/tmux`
+
+The installed 0.100.0 build connects fine, which is the clue.
+
+**Measured on his machine, 2026-09-06, read only:**
+
+1. **Nothing on his machine updated.** His Homebrew tmux is 3.6a and its Cellar directory is dated
+   February 2026. Tortie's own copy has been 3.7b since `2c225e4` on 2026-08-15, the phase that made
+   a fresh Mac need nothing installed.
+2. **There are two copies and the two builds resolve differently, by design.**
+   `planTmuxResolution` in `src/main/tmux/resolve.ts` gives a packaged Tortie the binary inside its
+   own bundle and refuses `GMUX_TMUX_BIN` outright, while a development build probes
+   `/opt/homebrew/bin/tmux`, then `/usr/local/bin/tmux`, then `/usr/bin/tmux`, then PATH. So the
+   installed app runs 3.7b and `npm run dev` runs his 3.6a, and has done for three weeks.
+3. **The reboot changed only which build started the server.** The server holding his sessions is
+   pid 953, started at 11:07:38 on 2026-09-06 by
+   `/Applications/Tortie.app/Contents/Resources/bin/tmux`, and it answers `3.7b`. Before the restart
+   the running server had been created by a development build, so both halves were 3.6a and matched.
+   A tmux server keeps the version of the binary that made it for its whole life, which
+   `version.ts` already says at length.
+4. **The direction he hit is the dangerous one, and the guard was right.** `TESTED_TMUX_PAIRS` holds
+   exactly `{ server: '3.6a', client: '3.7b' }` and the comment above it says the pair is ORDERED
+   and that an older client against a newer server is the direction that fails outright. He had
+   server 3.7b with client 3.6a. **The guard did its job.** This phase does not relax it; it stops
+   the development build from being the older client in the first place.
+
+### What it builds, and he chose both halves on 2026-09-06
+
+**One. A development build prefers the tmux Tortie carries.** The dev branch of
+`planTmuxResolution` looks for the repository's own `build/vendor/tmux/bin/tmux` BEFORE the three
+known install locations and PATH. When it is there, the development build and the installed app run
+the same binary and the whole class of surprise is gone. When it is absent, being a fresh clone that
+has not built tmux yet, the existing probe order is what happens and the reason is logged once, so
+nobody is left wondering which copy they got.
+
+- **`GMUX_TMUX_BIN` still wins over everything in a development build.** The interop probes exist to
+  run a chosen client against a chosen server and they must keep working. The packaged branch still
+  refuses the override, unchanged.
+- **Which copy was chosen is stated once at boot**, being the path and why it was chosen, because the
+  whole defect is that a person could not tell which tmux they were running.
+
+**Two. The refusal says what to do about it.** Today it names two versions and stops. It should also
+say who created the server and what to run next: the server was started by an installed Tortie
+carrying its own tmux, so either quit that app and let this build create the server, or run this
+build against the same binary. The exact remedy is composed from what was actually measured on the
+machine rather than from a fixed sentence, because a remedy that names the wrong file is worse than
+none.
+
+- **The UI rule binds it**: just enough words. Short lines and a copyable command, not a paragraph.
+- **It is still a refusal.** No button attaches anyway, no override appears on the screen, nothing
+  restarts, signals or upgrades a running server. Every session he cares about is inside it.
+
+### What it must get right
+
+- **The guard is not weakened.** `TESTED_TMUX_PAIRS` gains no row. `assertServerVersionUsable`
+  refuses exactly the pairs it refuses today.
+- **A packaged Tortie's resolution does not move by one byte.** It runs the copy in its bundle and
+  refuses the override, and the phase proves it is unchanged.
+- **The harness override still works**, and the probes that deliberately pair mismatched versions
+  still run.
+- **A fresh clone with no built tmux still starts.** The vendored path is a preference, not a
+  requirement, and its absence is not an error.
+
+### Proof, run rather than read
+
+- **Measure the parent commit, which is mandatory because he reported it.** At the parent, a
+  development build against a 3.7b server on a SCRATCH socket produces his exact refusal with
+  `/opt/homebrew/bin/tmux` in the detail. At HEAD, the same drive resolves the vendored 3.7b and
+  attaches. The real `gmux` socket is never used for this.
+- **One app run** that reads the resolution line at boot, the chosen path, and the refusal screen's
+  full text on a scratch socket deliberately holding a mismatched server.
+- **THE INDEPENDENT METHOD:** the verifier re-derives which binary each of the three shapes resolves
+  to — packaged, development with a vendored copy, development without one — by driving the shipping
+  function itself over a fixture tree rather than by reading it, and it asserts the packaged answer
+  is byte identical to the parent commit's.
+- The battery. `npm run conformance:resume:capture` is not owed here; nothing under restore moves.
+
+### What is NOT in this phase
+
+- **No change to `TESTED_TMUX_PAIRS`, to the guard, or to what Tortie will attach to.**
+- **No upgrade, restart, signal or reconfiguration of a running server, ever.** That refusal is
+  older than this phase and it stands.
+- **No change to the packaged resolution.**
+- **No change to the bundled tmux version or its pin.**
+- **No new user-facing setting.** A person does not get a tmux picker; the point is that they should
+  not have to think about it at all.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -22314,3 +22426,4 @@ cycle rather than only the evening it was written.
 - 2026-09-05, Phase 215 AMENDED A SECOND TIME and restarted, on his three questions: does Tortie have the conversation id when the provider starts, does it record the orchestrator and the sub agents, and was he resuming a sub agent of his own thread. The answers are no, no and yes, and chasing them found a BETTER MECHANISM than the entry first proposed: `~/.codex/state_5.sqlite` carries a `threads` table with `thread_source`, reading user 482 times and subagent 453 times over his 25,973 rows, AND a `thread_spawn_edges` table of parent to child, 519 rows, whose three rows for his own case name parent `01a06966` and its three children exactly. The registry has named that file since Phase 12 as a FAST PATH AVAILABLE NOT YET USED, recorded as a speed optimisation, and nobody noticed it also answers is this a session and who is its parent. So codex now ASKS THE STORE FIRST and keeps the rollout parse as the fallback for the older rows that predate the column, with the two proved to agree over his whole store and any disagreement a finding. The measure step was stopped fourteen minutes in with no commits to take this, which is the second stop and the mechanism changing rather than the scope.
 - 2026-09-05, Phase 215 RESTARTED a second time as wf_a93433c3-93b at `92d223b`, carrying the database mechanism; the measure step now reads state_5.sqlite on a copy BEFORE anything else in the codex half, confirms the row counts and his own parent and children, says what the database cannot answer and when it is absent or stale, and proves the database and the rollout agree wherever both can answer, with a disagreement being a finding rather than a preference.
 - 2026-09-06 Phase 216 queued at his ask: research only, what it would take end to end to package and distribute Tortie on Linux and Windows, with refusing a platform priced as a real answer.
+- 2026-09-06 Phase 217 queued: he ran the dev build after a restart and it refused his live sessions, server 3.7b against client 3.6a. Nothing on his machine updated; the installed app and the dev build have resolved DIFFERENT tmux binaries since 2026-08-15, and the reboot only changed which one created the server. The guard was right and is untouched. He chose both halves: the dev build prefers the tmux Tortie carries, and the refusal says who started the server and what to run.
