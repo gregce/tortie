@@ -45,6 +45,19 @@ headline verdict, though one moved a recommendation inside it.
 6. §A.1.2's version floor is one release stronger than it stated: `noattr` was fixed twice after 3.6,
    the second fix naming the default `mode-style` the conf actually sets.
 
+**What the committer's round changed, and it is the classic fix-round failure rather than a nit.**
+Defect 6 above is a correct new finding that was wired to an OLD justification nobody re-checked:
+*"no verdict moves, because no distro in the table below sits at 3.6 and the gate below refuses all
+of them anyway"*. Both clauses fail on one row. **Running the shipping `decideVersionGate` over
+§A.1.2's own eleven distro rows refuses nine and admits two**, not eleven: Ubuntu 26.04's 3.6a is
+exactly `TESTED_TMUX_PAIRS`' own server, and openSUSE Tumbleweed's 3.7b equals
+`BUNDLED_TMUX_VERSION` and never reaches the pair list. And Ubuntu 26.04 is the **current supported
+LTS**, released 2026-04-23, so the section's heading contradicted its own table. The conclusion
+survives and gets stronger: stating the floor as the **3.7** defect 6 derived makes *"no shipped LTS
+meets it"* true as written, and bundling is established by the floor and by the packaged resolution
+— a packaged Tortie runs only `Resources/bin/tmux` — rather than by a gate claim that was wrong on
+two rows. §A.1.2, §0.1 and §A.1.9 carry the corrected pair.
+
 **What ran and what did not.** No Electron was started. No tmux server was started. No agent was
 spawned and no token was spent. The pinned tmux 3.7b tarball at
 `build/vendor/tmux/cache/tmux-3.7b.tar.gz` was extracted read-only to scratch and read; the shipped
@@ -83,8 +96,9 @@ The cost is not the code. It is five things:
    file in the tree.** About eleven executable statements across five functions, a fourth pinned
    tarball so ncurses is static rather than borrowed from the host, and a second architecture. The
    script refuses outright at `build/build-tmux.mjs:455`. Bundling is not an optimisation here: the
-   conf needs tmux **3.6** and **no shipped LTS meets it** (§A.1.2), so a distro tmux is refused at
-   boot by the version gate.
+   conf needs tmux **3.7** and **no shipped LTS meets it** (§A.1.2). The version gate is not what
+   stops a distro tmux — run over the eleven distro rows it refuses nine and admits two — the
+   packaged resolution is, because a packaged Tortie runs only the tmux inside its own bundle.
 2. **`node-pty` 1.1.0 ships no Linux prebuild** — `node_modules/node-pty/prebuilds/` holds
    `darwin-arm64`, `darwin-x64`, `win32-arm64`, `win32-x64` and nothing else, listed 2026-09-06 —
    so Linux compiles from source at install. And the Phase 167 `/dev/ptmx` leak patch sits inside an
@@ -356,14 +370,17 @@ delete attributes set in the style itself"* at `:366`, inside `CHANGES FROM 3.6 
 `CHANGES FROM 3.6b TO 3.7` (14–343). The conf's line is
 `set -g mode-style "noattr,bg=default,fg=default"` — the default mode-style, which is exactly what the
 second fix names. So a tmux at exactly 3.6 accepts the directive and gets it wrong, silently, and the
-first release that behaves is 3.7. **No verdict moves**, because no distro in the table below sits at
-3.6 and the gate below refuses all of them anyway; the bundling argument is simply one release
-stronger than the table alone states.
+first release that behaves is 3.7. **No verdict moves, but the reason is the packaging and not the
+gate**, and the committer's round corrected this paragraph after checking both clauses it first
+rested on. A packaged Tortie resolves only `join(resourcesPath, 'bin', 'tmux')` and refuses
+`GMUX_TMUX_BIN` outright (`src/main/tmux/resolve.ts:793`–`812`, and §B row 34), so a distro tmux is
+never the binary Tortie runs; the gate below bears only on a server that was already running. What
+does move is the floor itself, from 3.6 to 3.7, and the table below asks that instead.
 
-**The floor is 3.6, and no shipped LTS meets it.** Distro versions read from repology.org on
+**The effective floor is 3.7, and no shipped LTS meets it.** Distro versions read from repology.org on
 2026-09-06:
 
-| Repo | tmux | meets 3.6 |
+| Repo | tmux | meets 3.7 |
 | --- | --- | --- |
 | Ubuntu 22.04 LTS | 3.2a | no |
 | Ubuntu 24.04 LTS | 3.4 | no |
@@ -373,7 +390,7 @@ stronger than the table alone states.
 | RHEL / CentOS Stream 10 | 3.3a | no |
 | Fedora 41 / 42 | 3.5a | no |
 | Alpine 3.21 | 3.5a | no |
-| Ubuntu 26.04 | 3.6a | yes |
+| Ubuntu 26.04 LTS | 3.6a | no — **and it is the current supported LTS**, released 2026-04-23, so a later round does not read this row as unreleased: Launchpad's series API on 2026-09-06 gives `resolute` as `Current Stable Release`, `supported: true`, and Ubuntu's own `changelogs.ubuntu.com/meta-release-lts` carries it as `26.04.1 LTS` |
 | Fedora 43, Arch, nixpkgs unstable | 3.7c | yes |
 | openSUSE Tumbleweed | 3.7b | yes |
 
@@ -386,11 +403,24 @@ them; for a control-mode client — which `src/main/tmux/control-client.ts` is �
 box painting over the transcript on every scroll — the exact thing the conf's own comment exists to
 prevent — with nothing in any log.
 
-It would not get that far anyway. `TESTED_TMUX_PAIRS` at `src/main/tmux/version.ts:103` holds exactly
-one pair, `{server:'3.6a', client:'3.7b'}`, and `decideVersionGate` at `:462` returns `untested-pair`
-for anything else and stops the boot with a screen. **Every distro tmux in that table is refused at
-boot.** So bundling on Linux is not an optimisation, it is the only route — the same conclusion
-research 43 reached for macOS, for different reasons.
+For nine of the eleven it would not get that far anyway. `TESTED_TMUX_PAIRS` at
+`src/main/tmux/version.ts:103` holds exactly one pair, `{server:'3.6a', client:'3.7b'}`, and
+`decideVersionGate` at `:462` returns `untested-pair` for anything else and stops the boot with a
+screen. **Nine of the eleven rows above are refused and two are admitted**, which is a measurement
+rather than a reading: the committer's round called the shipping `decideVersionGate` itself over
+those eleven server versions with `packaged: true`, under the repository's pinned tsx, on 2026-09-06.
+The two that boot are **Ubuntu 26.04**, whose 3.6a is exactly the tested pair's own server and so
+returns `tested-pair`, and **openSUSE Tumbleweed**, whose 3.7b equals `BUNDLED_TMUX_VERSION` and so
+takes the `input.server === client` branch at `:469` and returns `same` before the pair list is
+consulted at all.
+
+**So the gate is not what makes bundling the only route. The 3.7 floor is**, together with the
+packaged resolution named two paragraphs above, and Ubuntu 26.04 is the row that shows why the two
+must not be confused: it is the current LTS, it is admitted at boot, its 3.6a is below the effective
+floor, and it therefore takes the conf's `noattr` line, gets the default `mode-style` wrong, and has
+the `%config-error` swallowed by the mechanism just described — with nothing in any log. Bundling on
+Linux is not an optimisation, it is the only route, which is the same conclusion research 43 reached
+for macOS, for different reasons.
 
 #### A.1.3 `build/build-tmux.mjs` is the largest single piece of Linux work
 
@@ -624,7 +654,7 @@ why that honest degradation is still a product loss.
 | tmux exists and behaves identically | **portable** — proven from the pinned sources: zero `__APPLE__` in tmux's core |
 | Socket `-L gmux` and its `/tmp/tmux-<uid>/` path | **portable**, with the tmpfiles ageing hazard |
 | `@gmux-*` options, `GMUX_SESSION_ID`/`GMUX_MANAGED`, `<userData>/gmux/` | **portable**, no rename anywhere |
-| The conf against a distro tmux | **blocked** — floor 3.6, no LTS ships it, the version gate refuses at boot |
+| The conf against a distro tmux | **blocked** — effective floor 3.7, no LTS ships it; a packaged Tortie never runs one, and the gate refuses 9 of the 11 distro rows measured |
 | The conf against a bundled tmux | **portable**, unchanged text |
 | `build/build-tmux.mjs` | **needs-work** — ~11 statements, a fourth pinned tarball, two architectures |
 | `before-pack.cjs` / `after-pack.cjs` | **needs-work** — 2 silent returns that must become deliberate branches |
