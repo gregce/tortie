@@ -670,15 +670,24 @@ function checkScanners() {
       test: (source) => /if \(codexDerivedRecord\(\[first\]\)\) return 'mismatch';/.test(source)
     }
   ];
+  // COUNTED, not recited. This note used to print "4 call sites found" as a
+  // hardcoded string computed from nothing, and it printed it in the same
+  // breath as naming two call sites it had just failed to find. A gate that
+  // prints a count it did not count is the shape the known-hosts paragraph in
+  // CLAUDE.md exists to forbid, so the number below is the number of scans
+  // that actually answered.
+  let found = 0;
   for (const scan of scans) {
     const source = readFileSync(resolve(scan.file), 'utf8');
-    if (!scan.test(source)) {
-      fail(
-        `rule 5: ${scan.what} — not found in ${scan.file}. Without it a ` +
-          'derived record reaches a key, or a connected machine takes a sub ' +
-          'agent this Mac would refuse.'
-      );
+    if (scan.test(source)) {
+      found += 1;
+      continue;
     }
+    fail(
+      `rule 5: ${scan.what} — not found in ${scan.file}. Without it a ` +
+        'derived record reaches a key, or a connected machine takes a sub ' +
+        'agent this Mac would refuse.'
+    );
   }
   // The scanners are proved on files this gate writes, so a scan that cannot
   // fail is never mistaken for a scan that passed.
@@ -702,8 +711,16 @@ function checkScanners() {
       );
     }
   }
-  notes.push(`rule 5: 4 call sites found, ${plants.length} planted fixtures behaved.`);
+  callSites.found = found;
+  callSites.of = scans.length;
+  notes.push(
+    `rule 5: ${found} of ${scans.length} call sites found, ` +
+      `${plants.length} planted fixtures behaved.`
+  );
 }
+
+/** What rule 5 counted, so the closing sentence states it rather than guesses. */
+const callSites = { found: 0, of: 0 };
 
 /** TRUE when the question is asked, and asked before `confirm` is called. */
 function asksBeforeConfirm(source) {
@@ -894,8 +911,8 @@ function finish() {
     '\nPASS. Every harvest descriptor says how a derived stream is told from a ' +
       'resumable session, the codex predicate answers what the measurement ' +
       'says over every shape in his store, the walk refuses rather than ' +
-      'truncates, all four call sites ask the question, and the repair moves ' +
-      'the rows it can prove and empties none.\n'
+      `truncates, all ${callSites.of} call sites ask the question, and the ` +
+      'repair moves the rows it can prove and empties none.\n'
   );
 }
 
