@@ -14,6 +14,7 @@ export {
   agentRescuesId,
   agentRescuesIdAfterExit,
   candidateIsDerivedStream,
+  DESCRIPTORS,
   directoryIsDerivedStream,
   sanitizeOmpCwd,
   sanitizePiCwd,

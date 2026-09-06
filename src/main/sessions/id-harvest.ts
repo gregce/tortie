@@ -53,6 +53,7 @@ import { loginEnvForSession } from '../logins';
 import { composeResumeArgv } from './resume-argv';
 import * as tmux from '../tmux';
 import type { LaunchableAgentKind, ResumeCapture } from '@shared/types';
+import { repairCodexResumeIds } from './codex-repair';
 import { agentExtrasOf } from './launch-plan';
 import { claimStrengthOf } from './reconcile-plan';
 
@@ -316,6 +317,26 @@ export function startIdCapture(
  * still answer (see agentRescuesId / agentRescuesIdAfterExit).
  */
 export function resumeIdHarvests(deps: IdHarvestDeps): void {
+  // PHASE 215, AND IT IS THE FIRST THING THIS FUNCTION DOES. A codex row whose
+  // stored id names a SUB AGENT thread cannot be resumed: codex answers
+  // `cannot resume an unloaded multi-agent v2 sub-agent through its parent`.
+  // The repair rewrites it to the thread that spawned it, and it runs HERE,
+  // before the claim seeding below and before any rescue watch is armed, so
+  // the claim map records the id the row will actually keep and a repaired row
+  // is never then rescued against the id it just left. Every row it cannot
+  // prove is left exactly as it is; no row is ever emptied.
+  try {
+    repairCodexResumeIds(deps.manifest);
+  } catch (err) {
+    // A repair that throws must never stop the rescue that follows it. The
+    // rows it did not reach keep the ids they have, which is the same outcome
+    // as this build not existing.
+    sessionsLog.warn(
+      `the codex resume id repair did not finish: ${(err as Error).message}. ` +
+        'Every row keeps the id it had.'
+    );
+  }
+
   // PHASE 21 fix round, and it has to happen before the first watch starts.
   // The in-process record of who owns which conversation is empty at boot,
   // so a rescue watch would be free to hand session A's conversation to

@@ -158,6 +158,17 @@ export {
   agentHarvestsId,
   agentRescuesId,
   agentRescuesIdAfterExit,
+  // PHASE 215. The shared question, the codex predicate that answers it, and
+  // the reader of codex's own state store. The boot repair in
+  // ../sessions/codex-repair.ts is the caller outside this directory.
+  closeCodexState,
+  codexDerivedRecord,
+  codexParentThreadId,
+  codexStateFor,
+  DESCRIPTORS,
+  type CodexStateReader,
+  type CodexStoreVerdict,
+  type DerivedStreamRule,
   isDescendantOf,
   resetProcessParentCache,
   claimConversationId,

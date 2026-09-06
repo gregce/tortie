@@ -430,6 +430,28 @@ export interface ResumeProvenance {
   reclaimedBy?: string;
   /** Phase 32. Epoch ms of that correction. */
   reclaimedAt?: number;
+  /**
+   * PHASE 215. The id this row USED TO CARRY, when a boot repair moved it.
+   *
+   * The row says what it is, so the next reader is not left wondering why the
+   * id moved. It is the sub agent thread codex refused to resume, kept beside
+   * the thread that spawned it rather than thrown away, because the id a
+   * person saw in a log or a command line has to still be findable.
+   *
+   * Every field here is OPTIONAL on an all-optional JSON column, so the repair
+   * note needs no migration.
+   */
+  repairedFrom?: string;
+  /** Phase 215. Epoch ms the repair rewrote the id. */
+  repairedAt?: number;
+  /**
+   * Phase 215. How many parent hops the walk took to reach a thread that is
+   * not itself derived. 1 for every row on his disk, and the walk is what is
+   * trusted rather than the vendor's own `depth` field.
+   */
+  repairedHops?: number;
+  /** Phase 215. Which repair moved it. One value today. */
+  repairedBy?: 'codex-subagent';
 }
 
 /**
