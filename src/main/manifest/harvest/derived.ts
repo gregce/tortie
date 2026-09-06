@@ -121,8 +121,14 @@ function str(value: unknown): string | null {
  * FALSE POSITIVES MEASURED: zero, over 25,452 session records.
  *
  * `source` IS NOT ALWAYS AN OBJECT. On a modern session record it is a plain
- * STRING, and only a derived record makes it an object carrying `subagent`, so
- * the typeof guard below is required rather than defensive.
+ * STRING, and only a derived record makes it an object carrying `subagent`.
+ * The measurement called the typeof guard mandatory because T2 would otherwise
+ * throw or misread; the gate's ablation showed that is not true AT RUNTIME,
+ * because indexing a string or an array with 'subagent' is `undefined` rather
+ * than a throw. The guard stays because TypeScript needs it to index the value
+ * at all and because it says what shape is being read, and the string and
+ * array shapes are pinned as fixtures rather than as ablations, so nobody is
+ * told a check exists that cannot fail.
  */
 export function codexDerivedRecord(
   records: readonly Record<string, unknown>[]

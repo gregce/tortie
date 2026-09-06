@@ -149,6 +149,13 @@ export const CHECKS = [
   // ground, then over twelve ablated copies of the code, one clause each.
   pure('conformance:hue'),
   pure('conformance:watcher'),
+  // PHASE 215. The shared question every harvest descriptor must answer, the
+  // codex sub agent predicate, the chain walk and the boot repair.
+  // build/conformance-derived.mjs writes every fixture itself into a scratch
+  // directory it removes in a finally block, drives the SHIPPING repair over a
+  // fixture manifest and a fixture codex store, and then runs the same probe
+  // over fourteen ablated copies of the pure module, one clause each.
+  pure('conformance:derived'),
   pure('conformance:handback'),
   adapter(
     'conformance:specstory:entitlement',
