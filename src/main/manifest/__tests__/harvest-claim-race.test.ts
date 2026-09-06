@@ -668,8 +668,20 @@ describe('the same folder residual is recorded, not hidden (T10)', () => {
     expect(rb.sessionId).toBe(Y);
     // A has settled, so no other watch was in the folder when B accepted.
     expect(rb.sameCwdWatches).toBeUndefined();
+    // PHASE 215. Uncontested, and still 'weak', because codex's descriptor now
+    // rates its own key 'weak': a rollout proves a folder rather than a pane
+    // however few panes were watching it. The rivals arithmetic this test was
+    // written for is unchanged and is pinned directly below.
     expect(
       harvestProvenance(rb, { cwd, agentVersion: null, atCreate: true }).confidence
+    ).toBe('weak');
+    expect(
+      deriveResumeConfidence({
+        key: 'cwd-newest',
+        keyConfidence: 'exact',
+        viaGraceTimer: false,
+        rivals: rb.rivals
+      })
     ).toBe('exact');
   });
 });

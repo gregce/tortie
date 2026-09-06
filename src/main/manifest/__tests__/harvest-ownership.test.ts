@@ -162,10 +162,14 @@ describe('an event batch cannot decide how many rivals there were', () => {
 
     const harvested = await watch.promise;
     expect(harvested.rivals).toBe(1);
+    // PHASE 215. The number this test is about is `rivals`, and it is still 1.
+    // The recorded confidence is now 'weak' for every codex answer, because
+    // the descriptor rates its own key 'weak' after a sub agent thread reached
+    // a manifest row as `keyConfidence: 'exact'`.
     expect(
       harvestProvenance(harvested, { cwd, agentVersion: null, atCreate: true })
         .confidence
-    ).toBe('exact');
+    ).toBe('weak');
   });
 });
 

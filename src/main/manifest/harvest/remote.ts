@@ -65,6 +65,12 @@ import {
   IDENTITY_HARVEST_KEYS,
   type ClaimStrength
 } from './claim-strength';
+// PHASE 215. The SAME predicate ./stores.ts asks of a local file, asked here
+// of head bytes that came over a connection. It is a shared function rather
+// than a second implementation because this rung was measured re-implementing
+// codex's confirm by hand, so a fix confined to ./stores.ts would have left a
+// connected machine taking sub agents exactly as this Mac used to.
+import { codexDerivedRecord } from './derived';
 import { DESCRIPTORS, type HarvestDescriptor } from './stores';
 
 // ---------------------------------------------------------------------------
@@ -468,6 +474,9 @@ export function confirmRemoteCandidate(
     case 'codex': {
       const first = firstJsonLine(head);
       if (first === null) return 'unknown';
+      // PHASE 215. A sub agent inherits its parent's cwd verbatim, so the
+      // comparison below would call it a match on any machine.
+      if (codexDerivedRecord([first])) return 'mismatch';
       const payload = first['payload'];
       const cwdRaw =
         payload !== null && typeof payload === 'object'

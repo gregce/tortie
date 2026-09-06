@@ -49,7 +49,9 @@ import {
   type ClaimStrength
 } from './claim-strength';
 import {
+  candidateIsDerivedStream,
   DESCRIPTORS,
+  directoryIsDerivedStream,
   type DescriptorEnv,
   type HarvestContext,
   type HarvestDescriptor,
@@ -416,6 +418,11 @@ async function scan(
       if (d.entry === 'dir' && depth === 0 && d.identify(full) !== null) {
         out.push(full);
       }
+      // PHASE 215. The shared question, asked of the directory NAME before
+      // the descriptor's own recursion filter. This is where muse's
+      // `subagent/` guard now lives, and it is asked for every agent rather
+      // than being one agent's line.
+      if (directoryIsDerivedStream(d, e.name, depth, full)) continue;
       if (d.recurse?.(e.name, depth, full) === true) {
         await scan(full, depth + 1, d, out);
       }
@@ -674,6 +681,16 @@ export function watchForSessionId(
     const path = normalize(raw);
     const parsed = d.identify(path);
     if (parsed === null) return;
+
+    // PHASE 215. THE SHARED QUESTION, ASKED BEFORE ANY KEY IS APPLIED. A
+    // derived stream is not a session a person can resume, so it never becomes
+    // a candidate: not a match, not a rival, not a grace acceptance and not a
+    // claim. It is asked HERE, ahead of the freshness arithmetic and ahead of
+    // `confirm`, because a sub agent inherits its parent's cwd verbatim and is
+    // NEWER than the thread that spawned it, so every rule below this line
+    // prefers it. Six of the seven descriptors answer `none` and this costs
+    // them nothing at all.
+    if (await candidateIsDerivedStream(d, roots, path)) return;
 
     // Freshness: a filename timestamp OR the file's own times must be at or
     // after the spawn. Either passing is enough — stat can fail after an

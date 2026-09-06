@@ -13,6 +13,8 @@ export {
   agentHarvestsId,
   agentRescuesId,
   agentRescuesIdAfterExit,
+  candidateIsDerivedStream,
+  directoryIsDerivedStream,
   sanitizeOmpCwd,
   sanitizePiCwd,
   sanitizeQwenCwd,
@@ -24,6 +26,21 @@ export {
 } from './stores';
 
 export { isDescendantOf, resetProcessParentCache } from './process-table';
+
+/**
+ * PHASE 215. The shared question every harvest descriptor must answer, and the
+ * codex predicate that answers it. Pure, and the same function serves the
+ * local file read, the remote head read and the boot repair.
+ */
+export {
+  codexDerivedRecord,
+  codexParentThreadId,
+  codexRecordId,
+  derivedByPath,
+  derivedByRecords,
+  derivedRecordLines,
+  type DerivedStreamRule
+} from './derived';
 
 export {
   claimConversationId,

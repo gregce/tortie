@@ -138,7 +138,12 @@ describe('codex — filename uuid + line-1 session_meta cwd', () => {
     await expect(watch.promise).resolves.toMatchObject({
       sessionId: mine,
       key: 'cwd-newest',
-      confidence: 'exact',
+      // PHASE 215. This field is the DESCRIPTOR's rating of its own key, and
+      // codex's moved from 'exact' to 'weak' in the same commit that refused
+      // sub agents: a rollout proves a FOLDER, not a pane, which is what the
+      // descriptor's own comment has said since Phase 34 and what deepseek
+      // already declared for the identical key.
+      confidence: 'weak',
       viaGraceTimer: false
     });
   });

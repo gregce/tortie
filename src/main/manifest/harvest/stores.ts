@@ -55,6 +55,17 @@ import type { AgentHarvestKey } from '../../agents/registry';
 // The probe stays in its own module so the race test can mock process truth
 // whole; the antigravity descriptor below calls it inside confirm().
 import { agyOwnedConversations } from './agy-owner';
+// PHASE 215. The shared question every descriptor must answer, and the codex
+// predicate that answers it. Pure, and deliberately in its own module so
+// ./remote.ts asks the SAME question of head bytes that came over a
+// connection.
+import {
+  codexDerivedRecord,
+  derivedByPath,
+  derivedByRecords,
+  derivedRecordLines,
+  type DerivedStreamRule
+} from './derived';
 // The shared leaves both this file and ./agy-owner.ts read. They lived here
 // until Phase 42 stage 8; moving them out removed the stores <-> agy-owner
 // import cycle.
@@ -208,6 +219,21 @@ export interface DescriptorEnv {
 export interface HarvestDescriptor {
   key: AgentHarvestKey;
   confidence: 'exact' | 'weak';
+  /**
+   * REQUIRED (Phase 215). How a derived stream is told from a resumable
+   * session in THIS store.
+   *
+   * It has no default and it is not optional, so an agent added without an
+   * answer does not compile, and `none` is written down by a person with the
+   * evidence beside it rather than reached by silence. Today's default was
+   * refuse-nothing, and that is exactly how codex came to record a sub agent
+   * thread with `confidence: 'exact'` on a row that could not be resumed.
+   *
+   * The pipeline asks it ONCE, for every agent, BEFORE any key is applied
+   * (./watch.ts `scan` and `consider`), so a future `cwd-newest` agent
+   * inherits the protection instead of re-earning it.
+   */
+  derivedStream: DerivedStreamRule;
   /**
    * TRUE when this store is a REPAIR route, not a capture strategy: the agent
    * pre-assigns its id, so a healthy session never needs a watcher, and one
@@ -416,7 +442,30 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
    */
   codex: {
     key: 'cwd-newest',
-    confidence: 'exact',
+    // PHASE 215. Was 'exact', and the descriptor's own comment above already
+    // said the claim was weak for this agent: a rollout is proven to belong to
+    // a FOLDER, and the winner among rivals in that folder is chosen by time.
+    // deepseek declares 'weak' for the identical key. A row that named an
+    // unresumable sub agent thread reached the manifest as `keyConfidence:
+    // 'exact'`, so the recorded strength now says what the comment says.
+    confidence: 'weak',
+    /**
+     * PHASE 215, and this store is why the question exists. codex writes a
+     * sub agent's rollout into the SAME date shard under the SAME
+     * `rollout-<ts>-<uuid>.jsonl` filename shape as a session, so no path can
+     * tell them apart and only the contents can. Line 1 is the `session_meta`
+     * and it is the only record the test needs.
+     */
+    derivedStream: {
+      kind: 'record',
+      lines: 1,
+      measured:
+        'codex writes sub agent rollouts into the same date shard with the ' +
+        'same filename shape, so only line 1 tells them apart. Over the ' +
+        "operator's 25,973 rollouts (research 81 §1) the four tests flag 521 " +
+        'derived records and 0 of the 25,452 sessions.',
+      test: codexDerivedRecord
+    },
     roots: (_ctx, de) => {
       const codexHome = de.env['CODEX_HOME'] ?? join(de.home, '.codex');
       return [join(codexHome, 'sessions'), join(codexHome, 'archived_sessions')];
@@ -450,6 +499,13 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
       if (path.endsWith('.zst')) return 'unknown';
       const first = await readFirstJsonLine(path);
       if (first === null) return 'unknown';
+      // PHASE 215. A sub agent inherits its parent's cwd VERBATIM, so the cwd
+      // below confirms it as a match and the newest-in-folder rule then
+      // prefers it, because a sub agent always opens after the thread that
+      // spawned it. It is refused here as well as in the pipeline: this
+      // function is what a test, a rescue and any future caller reaches for,
+      // and the belt is cheaper than the argument about which of them ran.
+      if (codexDerivedRecord([first])) return 'mismatch';
       const payload = first['payload'];
       const cwdRaw =
         payload !== null && typeof payload === 'object'
@@ -472,6 +528,14 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
   qwen: {
     key: 'pid',
     confidence: 'exact',
+    derivedStream: {
+      kind: 'none',
+      measured:
+        'The store is `<id>.runtime.json` carrying {pid, session_id, ' +
+        'work_dir} and nothing else, and the key is a PROCESS: a record is ' +
+        'ours only when its recorded pid is a descendant of the pane. A ' +
+        'derived stream cannot take a pid that the pane fathered.'
+    },
     // ONE deterministic directory, a pure function of the cwd — no scan.
     roots: (ctx, de) => [
       join(de.home, '.qwen', 'projects', sanitizeQwenCwd(ctx.cwd), 'chats')
@@ -505,12 +569,28 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
   muse: {
     key: 'tmux-pane',
     confidence: 'exact',
+    /**
+     * PHASE 215 FOLDED THIS IN rather than leaving it beside the pipeline.
+     * muse files its task-streams under their own `subagent/` directory, and
+     * the guard used to live in `recurse` below as a line of its own. It was
+     * the only refusal in the product and codex slipped past it because codex
+     * has no such directory. It is now this agent's ANSWER to the shared
+     * question, asked by the pipeline for every agent at every path segment,
+     * so nothing about muse changed and the rule stopped being a one off.
+     */
+    derivedStream: {
+      kind: 'path',
+      measured:
+        'muse files task-streams under their own `subagent/` directory, so ' +
+        'the path tells them apart and no record has to be read. They are ' +
+        'not resumable sessions.',
+      test: (name) => name === 'subagent'
+    },
     roots: (_ctx, de) => [join(xdgDataHome(de), 'muse', 'sessions')],
     entry: 'file',
-    // sessions/<YYYY>/<MM>/<DD>/<sessionId>/session.jsonl — and never
-    // subagent/, whose task-streams are not resumable sessions.
+    // sessions/<YYYY>/<MM>/<DD>/<sessionId>/session.jsonl. `subagent/` is
+    // dropped by `derivedStream` above, which the pipeline asks before this.
     recurse: (name, depth, path) => {
-      if (name === 'subagent') return false;
       if (depth === 3) return UUID_RE.test(name);
       return withinDateShardWindow(name, depth, path);
     },
@@ -581,6 +661,26 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
   deepseek: {
     key: 'cwd-newest',
     confidence: 'weak',
+    /**
+     * PHASE 215, and it is a claim with the evidence attached rather than a
+     * silence. Measured read only over the operator's own store, 2026-09-06.
+     */
+    derivedStream: {
+      kind: 'none',
+      measured:
+        '~/.deepseek/sessions is FLAT: 34 files named <uuid>.json and no ' +
+        'subdirectory at all, so there is nowhere to file a derived stream ' +
+        'separately either. All 34 carry one top level keyset ' +
+        '(schema_version, metadata, messages, system_prompt) and one metadata ' +
+        'keyset (id, title, created_at, updated_at, message_count, ' +
+        'total_tokens, model, workspace, mode) with no parent, no source and ' +
+        'no spawn record. Grepping every file for subagent|sub_agent|' +
+        'parent_session|parent_thread|task_stream|delegat|spawn gives 0 hits ' +
+        'in metadata and hits only inside system_prompt prose. ' +
+        '~/.deepseek/tasks/runtime/threads and .../turns, where a derived ' +
+        'stream would go, are EMPTY and state.json reads next_seq 1. ' +
+        '~/.codewhale does not exist, so the successor root is unexercised.'
+    },
     // Phase 25.5: the package renamed itself to codewhale, and the successor
     // binary writes ~/.codewhale/sessions, keeping ~/.deepseek/sessions only
     // as a legacy fallback for upgraded installs. Watch both roots; the file
@@ -648,6 +748,22 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
     rescueOnly: true,
     key: 'cwd-newest',
     confidence: 'exact',
+    /**
+     * PHASE 215. `none`, and the trap is written down because the next person
+     * to read this store will find a field called `parentId` and reach for it.
+     */
+    derivedStream: {
+      kind: 'none',
+      measured:
+        'Line 1 of all 56 session files under ~/.pi/agent/sessions is ' +
+        '{type: session, version: 3, id, timestamp, cwd} and that is the ' +
+        'WHOLE keyset: no parent, no source, no kind. THE TRAP: later lines ' +
+        'do carry parentId, on model_change, thinking_level_change and ' +
+        'message records. That is the record chain INSIDE one transcript and ' +
+        'NOT a session parent, so reading it as one would refuse every pi ' +
+        'session. Nothing under ~/.pi outside agent/{bin,sessions,skills} ' +
+        'and pi-acp.'
+    },
     roots: (ctx, de) => {
       // Precedence per `pi --help` (registry notes): an explicit session dir
       // is FLAT — every project's sessions in one directory — so there is no
@@ -720,6 +836,21 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
   omp: {
     key: 'cwd-newest',
     confidence: 'exact',
+    /** PHASE 215. `none`, measured read only over the operator's own store. */
+    derivedStream: {
+      kind: 'none',
+      measured:
+        'Line 1 of all 23 session files under ~/.omp/agent/sessions is a ' +
+        'title record; the session record on line 2 has keyset (cwd, id, ' +
+        'timestamp, type, version), plus (title, titleSource) on 2 of them, ' +
+        'version 3 in all 23, with no parent, no source and no kind. ' +
+        'Grepping the whole session tree for subagent|sub_agent|' +
+        'parentSessionId|parent_session|task_stream|spawnedBy|childSession ' +
+        'gives 0 hits. omp keeps three SQLite databases at ' +
+        '~/.omp/agent/{agent,history,models}.db and, unlike codex, states ' +
+        'nothing in them either: no thread table, no parent table and no ' +
+        'spawn edge anywhere.'
+    },
     roots: (ctx, de) => {
       // Same precedence as pi for the store ROOT: an explicit session dir is
       // FLAT (no per-cwd key), otherwise the per-cwd directory under the
@@ -787,6 +918,15 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
     // descriptor's own rating is 'exact'.
     key: 'fd-owner',
     confidence: 'exact',
+    derivedStream: {
+      kind: 'none',
+      measured:
+        'The DISK links nothing at all: history.jsonl carries a workspace and ' +
+        'no id, and conversation_summaries.db carries an id and an empty ' +
+        'workspace_uris (research 40). The claim is an OPEN DESCRIPTOR held ' +
+        "by an agy that is a descendant of the pane, so there is no record " +
+        'shape to derive a stream from and nothing but the pane can hold it.'
+    },
     roots: (_ctx, de) => [join(de.home, '.gemini', 'antigravity-cli', 'brain')],
     entry: 'dir',
     maxDepth: 0,
@@ -818,6 +958,46 @@ export const DESCRIPTORS: Partial<Record<LaunchableAgentId, HarvestDescriptor>> 
     pollIntervalMs: 1_000
   }
 };
+
+/**
+ * THE ONE PLACE THE PIPELINE ASKS THE SHARED QUESTION (Phase 215).
+ *
+ * TRUE when this candidate is a DERIVED STREAM rather than a session a person
+ * can resume, whatever the descriptor's key is. ./watch.ts calls it before the
+ * freshness arithmetic and before `confirm`, so no key is ever applied to a
+ * derived record and no derived record can ever become a rival, a grace
+ * acceptance or a claim.
+ *
+ * It costs NOTHING for the six agents that answer `none`: no path is walked
+ * and no byte is read. It costs one bounded head read for codex, of a file
+ * `confirm` was about to read anyway.
+ */
+export async function candidateIsDerivedStream(
+  d: HarvestDescriptor,
+  roots: readonly string[],
+  path: string
+): Promise<boolean> {
+  if (derivedByPath(d.derivedStream, roots, path)) return true;
+  const lines = derivedRecordLines(d.derivedStream);
+  if (lines === 0) return false;
+  const records = await readLeadingJsonLines(path, lines);
+  return derivedByRecords(d.derivedStream, records);
+}
+
+/**
+ * The same question asked of ONE directory name during a scan, so the walk
+ * never descends into a tree of derived streams (Phase 215). This is where
+ * muse's `subagent/` guard now lives, for every agent rather than for muse.
+ */
+export function directoryIsDerivedStream(
+  d: HarvestDescriptor,
+  name: string,
+  depth: number,
+  path: string
+): boolean {
+  const rule = d.derivedStream;
+  return rule.kind === 'path' && rule.test(name, depth, path);
+}
 
 /**
  * TRUE when this agent's id has to be read back out of its store — i.e. the

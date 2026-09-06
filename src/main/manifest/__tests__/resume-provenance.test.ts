@@ -203,9 +203,10 @@ describe('the harvest carries its own evidence', () => {
     expect(harvested.sessionId).toBe(earlier);
     expect(harvested.rivals).toBe(2);
     expect(harvested.storeRoot).toBe(join(home, '.codex', 'sessions'));
-    // The descriptor still rates its own key 'exact'. What changed is the
-    // claim made about THIS answer.
-    expect(harvested.confidence).toBe('exact');
+    // PHASE 215. The descriptor now rates its own key 'weak' for codex, so
+    // this reads 'weak' before the rivals are even counted. Until then it read
+    // 'exact' and only the derived claim below fell back.
+    expect(harvested.confidence).toBe('weak');
     expect(
       harvestProvenance(harvested, {
         cwd,
@@ -215,7 +216,7 @@ describe('the harvest carries its own evidence', () => {
     ).toBe('weak');
   });
 
-  it('one codex session in that directory is exact, so this is not a blanket downgrade', async () => {
+  it('one codex session in that directory still counts ONE rival, and the arithmetic is not a blanket downgrade', async () => {
     const mine = 'cccccccc-3333-4333-8333-333333333333';
     const dir = join(home, '.codex', 'sessions', '2099', '01', '01');
     write(join(dir, rollout(mine, '2099-01-01T00-00-01')), jsonl({ payload: { cwd } }));
@@ -227,9 +228,21 @@ describe('the harvest carries its own evidence', () => {
     );
     const harvested = await watch.promise;
     expect(harvested.rivals).toBe(1);
+    // PHASE 215. codex can no longer reach 'exact' by any route, because the
+    // descriptor rates its own key 'weak'. THE ARITHMETIC IS STILL NOT A
+    // BLANKET DOWNGRADE, which is what this test is for, so it is asked of the
+    // pure function with the rating an exact-keyed agent carries.
     expect(
       harvestProvenance(harvested, { cwd, agentVersion: null, atCreate: true })
         .confidence
+    ).toBe('weak');
+    expect(
+      deriveResumeConfidence({
+        key: 'cwd-newest',
+        keyConfidence: 'exact',
+        viaGraceTimer: false,
+        rivals: harvested.rivals
+      })
     ).toBe('exact');
   });
 
